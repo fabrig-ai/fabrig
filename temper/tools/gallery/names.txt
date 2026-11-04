@@ -1,6 +1,9 @@
 home-three-left
 home-two-left
 home-one-left
+home-at-work
+home-needs-several
+home-nothing-needs
 home-ready
 home-adopting
 home-refused

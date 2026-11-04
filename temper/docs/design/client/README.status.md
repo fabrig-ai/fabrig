@@ -15,12 +15,10 @@
   email for a ChatGPT sign-in, whose account's display is empty, since
   the engine keeps no email: it waits on
   `jig/docs/design/draft/account-facts.md`, 6, its second step.
-  3.5, Home: the view draws To begin as numbered steps above Connected on
-  every Home, its headline counting them, and nothing of Home on any
-  project: no card, "Optional" tag or "Skip" (`Dismiss` has no sender,
-  and `dismissed` no reader), no rule for when it shows, no link to
-  `Accounts` after the lede, no Needs you or Chats, and Connected and
-  its rename still drawn; `configured` and `chat_asked` in
+  3.5, Home: To begin is numbered steps, with no card, "Optional" tag or
+  "Skip" (`Dismiss` has no sender, and `dismissed` no reader), no delivery
+  or skip rule for when it shows, and no link to `Accounts` after the
+  lede; Connected and its rename are still drawn. `configured` and `chat_asked` in
   `temper-client-domain`'s `pages/home.rs` do not tell a configuring
   chat from another.
   3.5, The first chat, The configuring chat's page: no `Configure {

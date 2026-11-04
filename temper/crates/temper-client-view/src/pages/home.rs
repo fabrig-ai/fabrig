@@ -15,7 +15,7 @@ use temper_client_domain::{
     },
     pages::{
         Act,
-        home::{Facts, Repository},
+        home::{Facts, Needs, Repository},
     },
 };
 
@@ -42,7 +42,11 @@ pub(crate) fn main(
     b.style(look::MAIN);
     b.style(look::HOME);
     intro(b, root, w, project, name, &facts, times);
-    to_begin(b, root, w, bindings, project, name, &facts);
+    if facts.left() > 0 {
+        to_begin(b, root, w, bindings, project, name, &facts);
+    }
+    needs(b, root, w, bindings, project, &facts, times);
+    chats(b, root, w, bindings, facts.left() > 0, times);
     connected(b, root, w, bindings, project, name, sign_in);
     b.close();
 }
@@ -66,12 +70,22 @@ fn intro(b: &mut Builder, root: &Domain, w: &Words, project: u32, name: &[u8], f
     times.next = [times.next, next].into_iter().flatten().min();
     text(b, Role::Paragraph, &kicker, Some(look::HOME_KICKER));
     let headline = match facts.left() {
-        0 => w.say(Word::HomeReady, &[Hole::Name(name.into())]),
+        0 => match facts.needs {
+            Needs::Unknown => name.into(),
+            Needs::Count { count, cut: true } => w.say(Word::HomeNeedsCut, &[Hole::Number(u64::from(count))]),
+            Needs::Count { count: 0, cut: false } => w.say(Word::HomeNeedsNone, &[]),
+            Needs::Count { count: 1, cut: false } => w.say(Word::HomeNeedsOne, &[]),
+            Needs::Count { count, cut: false } => w.say(Word::HomeNeedsMany, &[Hole::Number(u64::from(count))]),
+        },
         1 => w.say(Word::HomeOne, &[]),
         2 => w.say(Word::HomeTwo, &[]),
         3..=u8::MAX => w.say(Word::HomeThree, &[]),
     };
     text(b, Role::Heading { level: 1 }, &headline, None);
+    if facts.left() == 0 {
+        b.close();
+        return;
+    }
     let mut lede = Box::default();
     if let Some(account) = super::accounts::first_usable_kind(root, w) {
         lede = w.say(Word::HomeAgents, &[Hole::Name(account)]);
@@ -106,6 +120,237 @@ fn intro(b: &mut Builder, root: &Domain, w: &Words, project: u32, name: &[u8], f
     }
     b.close();
 }
+// The first need has a card, followed by at most five other needs and five chats (3.5).
+const ROWS: usize = 5;
+fn inbox_address(project: u32) -> Address {
+    Address::Inbox { filter: temper_client_domain::address::Filter { project: Some(project), kind: None, goal: None } }
+}
+fn need_title(card: &temper_client_domain::pages::inbox::Card, w: &Words) -> Box<[u8]> {
+    if let Some(page) = &card.page
+        && let Some(title) = super::inbox::task_title(page)
+        && !title.is_empty()
+    {
+        return title.into();
+    }
+    match super::inbox::source_task(card.object) {
+        Some(task) => w.say(Word::TaskWho, &[Hole::Number(task)]),
+        None => w.say(need_kind(card.group), &[]),
+    }
+}
+fn need_kind(group: jig_client::contract::InboxGroup) -> Word {
+    use jig_client::contract::InboxGroup;
+    match group {
+        InboxGroup::Proposals => Word::HomeProposal,
+        InboxGroup::Questions => Word::HomeQuestion,
+        InboxGroup::Escalations => Word::HomeHeld,
+        InboxGroup::PersonTasks => Word::HomePersonTask,
+        InboxGroup::Results => Word::InboxUpdates,
+        InboxGroup::Replies => Word::Reply,
+    }
+}
+fn need_when(card: &temper_client_domain::pages::inbox::Card, w: &Words, times: &mut Times) -> Box<[u8]> {
+    let kind = w.say(need_kind(card.group), &[]);
+    let since = match &card.page {
+        Some(page) => super::inbox::waiting_since(page),
+        None => None,
+    };
+    match since {
+        Some(since) => crate::accounts::words::join(&[
+            &kind,
+            &w.say(Word::ToolSeparator, &[]),
+            &times.say(w, TimeForm::Span, since),
+        ]),
+        None => kind,
+    }
+}
+fn needs(
+    b: &mut Builder,
+    root: &Domain,
+    w: &Words,
+    bindings: &mut Bindings,
+    project: u32,
+    facts: &Facts,
+    times: &mut Times,
+) {
+    let inbox = root.pages().inbox();
+    let count = match inbox {
+        Some(inbox) => inbox.needs().count(),
+        None => 0,
+    };
+    if count == 0 && facts.left() > 0 {
+        return;
+    }
+    b.open(Role::Region);
+    b.style(look::HOME_NEEDS);
+    b.name(&w.say(Word::NeedsYou, &[]));
+    b.open(Role::Slot);
+    b.style(look::HOME_HEAD);
+    let heading = if count > 0 {
+        w.say(Word::HomeNeedsCount, &[Hole::Number(u64::try_from(count).expect("needs count fits"))])
+    } else {
+        w.say(Word::NeedsYou, &[])
+    };
+    text(b, Role::Heading { level: 2 }, &heading, if count > 0 { Some(look::HOME_SIGNAL) } else { None });
+    if count > 1 && w.shell == Shell::Browser {
+        go(b, bindings, &w.say(Word::HomeInARow, &[]), inbox_address(project), Some(look::HOME_IN_A_ROW));
+    }
+    b.close();
+    let first = match inbox {
+        Some(inbox) => inbox.needs().next(),
+        None => None,
+    };
+    if let Some(first) = first {
+        ask(b, first, w, bindings, project, times);
+        if let Some(inbox) = inbox {
+            let mut others = inbox.needs().skip(1).take(ROWS).peekable();
+            if others.peek().is_some() {
+                b.open(Role::List);
+                b.style(look::HOME_ROWS);
+                for card in others {
+                    b.open(Role::Item);
+                    let title = need_title(card, w);
+                    let when = need_when(card, w, times);
+                    let label = crate::accounts::words::join(&[&title, &w.say(Word::ToolSeparator, &[]), &when]);
+                    crate::link(b, &label, bindings.insert(Act::Go { address: inbox_address(project) }));
+                    row_words(b, w, &title, &when);
+                    b.close();
+                    b.close();
+                }
+                b.close();
+            }
+        }
+    } else {
+        text(b, Role::Paragraph, &w.say(Word::HomeNeedsEmpty, &[]), Some(look::HOME_EMPTY));
+    }
+    b.close();
+}
+fn ask(
+    b: &mut Builder,
+    card: &temper_client_domain::pages::inbox::Card,
+    w: &Words,
+    bindings: &mut Bindings,
+    project: u32,
+    times: &mut Times,
+) {
+    let title = need_title(card, w);
+    let when = need_when(card, w, times);
+    let suffix = crate::accounts::words::join(&[&w.say(Word::ToolSeparator, &[]), &when]);
+    b.open(Role::Slot);
+    b.style(look::ASK);
+    b.open(Role::Paragraph);
+    b.style(look::ASK_META);
+    b.name(&crate::accounts::words::join(&[&title, &suffix]));
+    if let Some(task) = super::inbox::source_task(card.object) {
+        go(b, bindings, &title, Address::Task { task, filter: temper_client_domain::PlanFilter::All }, None);
+    } else {
+        b.text(Run::Plain, &title);
+    }
+    b.text(Run::Plain, &suffix);
+    b.close();
+    let Some(page) = &card.page else {
+        b.close();
+        return;
+    };
+    let words = super::inbox::card_words(page);
+    text(b, Role::Paragraph, &words, Some(look::ASK_QUESTION));
+    b.open(Role::Slot);
+    b.style(look::ASK_CHOICES);
+    let reply = if card.group == jig_client::contract::InboxGroup::Questions { Word::Reply } else { Word::HomeOpen };
+    button(b, bindings, &w.say(reply, &[]), Act::Go { address: inbox_address(project) }, look::ASK_QUIET, false);
+    b.close();
+    b.close();
+    if w.shell == Shell::Browser {
+        let line = w.say(Word::HomeAskLine, &[Hole::Name(title), Hole::Name(words)]);
+        let name = w.say(Word::HomeAnswerName, &[Hole::Name(line.clone())]);
+        crate::link(b, &name, bindings.insert(Act::Go { address: inbox_address(project) }));
+        b.style(look::HOME_CTA);
+        b.text(Run::Plain, &line);
+        b.open(Role::Text);
+        b.style(look::HOME_CTA_GO);
+        b.run(Run::Plain, &w.say(Word::HomeAnswer, &[]));
+        b.close();
+        b.close();
+    }
+}
+fn row_words(b: &mut Builder, w: &Words, title: &[u8], when: &[u8]) {
+    b.text(Run::Plain, title);
+    b.open(Role::Text);
+    b.style(look::HOME_WHEN);
+    if w.shell == Shell::Terminal {
+        b.run(Run::Plain, &w.say(Word::ToolSeparator, &[]));
+    }
+    b.run(Run::Plain, when);
+    b.close();
+}
+fn chats(b: &mut Builder, root: &Domain, w: &Words, bindings: &mut Bindings, beginning: bool, times: &mut Times) {
+    use jig_client::contract::EndedGroup;
+    let chats = root.pages().chats();
+    let (live, page) = match chats {
+        Some(chats) => (chats.live(root.client()), chats.page.as_ref()),
+        None => (None, None),
+    };
+    let (live_rows, live_cut) = match live {
+        Some(live) => (live.rows.as_slice(), live.more),
+        None => (&[][..], false),
+    };
+    let (ended, cut) = match page {
+        Some(page) => match &page.ended {
+            EndedGroup::Rows { rows, after, .. } => (rows.as_slice(), after.is_some()),
+            EndedGroup::None => (&[][..], false),
+        },
+        None => (&[][..], false),
+    };
+    let count = live_rows.len().checked_add(ended.len()).expect("two bounded windows fit");
+    if count == 0 && beginning {
+        return;
+    }
+    b.open(Role::Region);
+    b.style(look::HOME_CHATS);
+    b.name(&w.say(Word::Chats, &[]));
+    b.open(Role::Slot);
+    b.style(look::HOME_HEAD);
+    text(b, Role::Heading { level: 2 }, &w.say(Word::Chats, &[]), None);
+    if count > 0 {
+        let word = if cut || live_cut { Word::HomeAllChatsCut } else { Word::HomeAllChats };
+        let label = w.say(word, &[Hole::Number(u64::try_from(count).expect("chat count fits"))]);
+        let name = w.say(Word::HomeAllChatsName, &[Hole::Name(label.clone())]);
+        crate::link(
+            b,
+            &name,
+            bindings.insert(Act::Go { address: Address::Chats { filter: ChatsFilter::All, start: false } }),
+        );
+        b.text(Run::Plain, &label);
+        b.close();
+    }
+    b.close();
+    if count == 0 {
+        text(b, Role::Paragraph, &w.say(Word::NoChats, &[]), Some(look::HOME_EMPTY));
+    } else {
+        b.open(Role::List);
+        b.style(look::HOME_ROWS);
+        for line in live_rows.iter().chain(ended.iter()).take(ROWS) {
+            b.open(Role::Item);
+            let status = match root.pages().me(root.client()) {
+                Some(me) => super::chats::status_name(line, me, w),
+                None => Box::default(),
+            };
+            let age = times.say(w, TimeForm::Span, line.ended_at.unwrap_or(line.last_activity));
+            let title = line.chip.title.bytes();
+            let name = w.say(
+                Word::HomeChatName,
+                &[Hole::Name(title.into()), Hole::Name(status.clone()), Hole::Name(age.clone())],
+            );
+            crate::link(b, &name, bindings.insert(Act::Go { address: Address::Chat { task: line.chip.task } }));
+            let when = crate::accounts::words::join(&[&status, &w.say(Word::ToolSeparator, &[]), &age]);
+            row_words(b, w, title, &when);
+            b.close();
+            b.close();
+        }
+        b.close();
+    }
+    b.close();
+}
+
 fn sentence_after(before: &[u8], sentence: &[u8]) -> Box<[u8]> {
     crate::accounts::words::join(&[before, if before.is_empty() { b"" } else { b" " }, sentence])
 }
