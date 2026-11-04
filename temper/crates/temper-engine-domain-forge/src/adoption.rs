@@ -10,9 +10,9 @@ use skein_lib::{Duration, Env, List, Map, Queue, Token, Wall};
 
 #[derive(Debug)]
 pub(crate) struct Pending {
-    token: Token,
-    retention: Duration,
-    observed: Option<ApplicationOutcome>,
+    pub(crate) token: Token,
+    pub(crate) retention: Duration,
+    pub(crate) observed: Option<ApplicationOutcome>,
 }
 
 #[derive(Debug)]
@@ -73,21 +73,8 @@ pub(crate) fn start(
     adoption: Adoption,
     out: &mut Queue<Request>,
 ) {
-    let mut expired = None;
-    for (token, (until, _)) in &d.application.kept {
-        if *until <= env.wall {
-            expired = Some(*token);
-            break;
-        }
-    }
-    if let Some(token) = expired {
-        d.application.kept.remove(&token);
-        out.push(Request::Erase { key: Key::Application(token.raw()) });
-    }
-    if d.application.kept.len().saturating_add(d.application.pending.len()) >= env.limits.applications
-        || d.application.pending.len() >= env.limits.adoptions
-    {
-        return again(request, people::Again::Busy, out);
+    if !room(d, env, request, out) {
+        return;
     }
     let pending = Pending { token, retention, observed: None };
     if !d.identities.contains_key(&adoption.forge) && !d.writers.contains_key(&adoption.forge) {
@@ -152,6 +139,8 @@ pub(crate) fn adopted(d: &mut Domain, out: &mut Queue<Request>, reply_to: Token,
             Err(error) => ApplicationOutcome::ForgeRefused(reason(*error)),
         });
     }
+    // An act has no pending party application. Its caller hears this result
+    // under jig's request token and later tells MakingActed (domain/forge.md, 4.5).
     out.push(Request::Adopted { reply_to, result });
 }
 
@@ -187,7 +176,7 @@ pub(crate) fn answered(
     finish(d, env, request, pending, outcome, out);
 }
 
-fn finish(
+pub(crate) fn finish(
     d: &mut Domain,
     env: &Env<Limits>,
     request: Token,
@@ -575,4 +564,60 @@ pub(crate) fn release(d: &mut Domain, project: u32, request: Token, out: &mut Qu
     crate::removal::unnamed(d, out);
     d.erase_project_settings(project, out);
     emit(out, Request::ProjectReleased { request });
+}
+
+/// An act already names the made repository (domain/forge.md, 4.5).
+pub(crate) fn making_asked(
+    d: &mut Domain,
+    env: &Env<Limits>,
+    request: Token,
+    adoption: Adoption,
+    repository: api::Repository,
+    out: &mut Queue<Request>,
+) {
+    if d.adoptions.len() >= env.limits.adoptions {
+        again(request, people::Again::Busy, out);
+        return;
+    }
+    if invalid_fields(&adoption, &env.limits) {
+        adopted(d, out, request, Err(api::Error::TooLarge));
+        return;
+    }
+    if d.forge_ended(repository.forge) || !d.writers.contains_key(&repository.forge) {
+        adopted(d, out, request, Err(api::Error::NotConnected));
+        return;
+    }
+    let pending = PendingAdoption {
+        request: adoption,
+        repository,
+        stage: AdoptionStage::Part,
+        permission: None,
+        settings: None,
+        protection: Protection::Unknown,
+        collaborators: List::with_capacity(env.limits.collaborators),
+    };
+    d.adoptions.insert(request, pending).expect("adoption capacity checked");
+    adopt(d, env, request, out);
+}
+
+pub(crate) fn room(d: &mut Domain, env: &Env<Limits>, request: Token, out: &mut Queue<Request>) -> bool {
+    let mut expired = None;
+    for (token, (until, _)) in &d.application.kept {
+        if *until <= env.wall {
+            expired = Some(*token);
+            break;
+        }
+    }
+    if let Some(token) = expired {
+        d.application.kept.remove(&token);
+        out.push(Request::Erase { key: Key::Application(token.raw()) });
+    }
+    if d.application.kept.len().saturating_add(d.application.pending.len()) >= env.limits.applications
+        || d.application.pending.len() >= env.limits.adoptions
+        || d.adoptions.len() >= env.limits.adoptions
+    {
+        again(request, people::Again::Busy, out);
+        return false;
+    }
+    true
 }

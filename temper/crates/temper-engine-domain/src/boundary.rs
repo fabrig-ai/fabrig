@@ -524,6 +524,7 @@ pub enum Application {
 /// The family's terminal answer; root returns are volatile, like forge setup answers.
 #[derive(Clone, Debug, PartialEq, Eq)]
 pub enum ApplicationAnswer {
+    Make(forge::MakeAnswer),
     Adopt(forge::ApplicationOutcome),
     SetUp(forge::SetUpAnswer),
     RemoveForge(forge::RemoveAnswer),

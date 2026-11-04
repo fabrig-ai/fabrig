@@ -3988,6 +3988,7 @@ pub(crate) fn outputs(
     for _ in 0..out.len() {
         let request = out.pop().expect("connector output count");
         match request {
+            forge::Request::MakingCopied { .. } | forge::Request::MakingAct { .. } => {}
             forge::Request::CarriedUnused { number } => emit(decision, &env.limits, Delivery::CarriedUnused { number }),
             forge::Request::EraseCarried { number } => {
                 assert!(super::now(domain, Request::EraseCarried { number }), "erase door");

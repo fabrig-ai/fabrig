@@ -53,7 +53,15 @@ pub fn completes(event: &Event) -> bool {
         Event::Worker(worker) => worker_completes(worker),
         Event::Forge(event) => match event.as_ref() {
             forge::Event::Bind { .. } | forge::Event::Installation { .. } | forge::Event::Hint { .. } => false,
-            forge::Event::OrderLanding { .. }
+            forge::Event::MakingStarted { .. }
+            | forge::Event::MakingCopying { .. }
+            | forge::Event::MakingMade { .. }
+            | forge::Event::MakingStopped { .. }
+            | forge::Event::MakingAdopt { .. }
+            | forge::Event::MakingAsked { .. }
+            | forge::Event::MakingActed { .. }
+            | forge::Event::MakingAgain { .. }
+            | forge::Event::OrderLanding { .. }
             | forge::Event::JoinLanding { .. }
             | forge::Event::Landing { .. }
             | forge::Event::VetoLanding { .. }
