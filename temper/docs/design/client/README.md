@@ -3447,8 +3447,11 @@ section 5. The pages' look and place are the user's to make (section
   it was made against is its own, and one made against an older is
   withdrawn, never accepted (jig's `domain/engine.md`, 17.6).
 - **What the review page says plainly:** a landing rule naming a role
-  nobody holds, "Nobody holds this role yet: changes wait for an
-  approval nobody can give."; a change of jig's rules that removes the
+  nobody holds cannot be accepted: the refusal names the affected
+  project, role, required and eligible forge-person counts, and asks
+  for known forge people with the role or removal of the approval
+  (`../domain/forge.md`, 8.9). An owner login or display name supplies
+  no forge identity. A change of jig's rules that removes the
   landing's requirements (`../protocol/configuration.md`, 13.3),
   "temper no longer holds landing to its rules: the change procedure
   still waits for them."; a role removed while tasks run it, "2 tasks
