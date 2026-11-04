@@ -110,12 +110,7 @@ impl Component {
                             self.not_a_record(owner);
                             return;
                         }
-                        if let Ok(Some(answer)) = crate::translate::llm::refused(
-                            &w::Ask::Propose(value.clone()),
-                            &self.settings.models,
-                            &env.limits.wire,
-                        ) {
-                            self.respond(exchange, routes::encoded(&answer));
+                        if self.refuse_llm(env, exchange, &w::Ask::Propose(value.clone())) {
                             return;
                         }
                         let Ok(change) =
@@ -141,6 +136,9 @@ impl Component {
                     w::Ask::ChangeSettings(value) => {
                         if keyed.value.is_some() {
                             self.not_a_record(owner);
+                            return;
+                        }
+                        if self.refuse_llm(env, exchange, &w::Ask::ChangeSettings(value.clone())) {
                             return;
                         }
                         let Ok(change) =
@@ -226,12 +224,10 @@ impl Component {
                     self.respond(exchange, routes::encoded(&answer));
                     return;
                 }
-                let models = &self.settings.models;
-                if let Ok(Some(answer)) = crate::translate::llm::refused(&value, models, &env.limits.wire) {
-                    self.respond(exchange, routes::encoded(&answer));
+                if self.refuse_llm(env, exchange, &value) {
                     return;
                 }
-                crate::translate::asks::named(value, models, &env.limits.wire)
+                crate::translate::asks::named(value, &self.settings.models, &env.limits.wire)
             }
             Err(problem) => Err(crate::translate::Untranslatable { path: problem.path }),
         };
@@ -257,6 +253,15 @@ impl Component {
             .insert(exchange, Waiting::Ask { sign_in, family: None, version: keyed.version })
             .expect("get released slot");
         out.push(request);
+    }
+    /// Answer unsupported model choices before translating names to core indices
+    /// (client/domain/contract.md, 4). Malformed records remain the caller's to reject.
+    fn refuse_llm(&mut self, env: &Env<Limits>, exchange: Token, ask: &w::Ask) -> bool {
+        if let Ok(Some(answer)) = crate::translate::llm::refused(ask, &self.settings.models, &env.limits.wire) {
+            self.respond(exchange, routes::encoded(&answer));
+            return true;
+        }
+        false
     }
     fn not_a_record(&mut self, owner: Token) {
         self.connections.get_mut(&owner).expect("exchange owner").respond(crate::Reply::NotARecord);

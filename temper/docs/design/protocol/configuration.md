@@ -1477,7 +1477,8 @@ provider, number 2, whose one source is that adapter and whose one model,
 in both effective documents. It keeps the configured `documents.lines`
 capacity, raising it to at least 3 so that the Model step offers OpenAI,
 demo and Anthropic without shrinking creating's executor lists. If the override
-is absent, it adds 3 alongside the credential capacity in the same object. No
+is absent, it retains the named profile's capacity, raised to at least 3,
+alongside the credential capacity in the same object. No
 startup path discovers or falls back to a real `claude` from PATH.
 
 Reuse requires agent.json/programs/claude_code/path to equal that sibling.

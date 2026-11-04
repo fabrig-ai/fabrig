@@ -267,7 +267,7 @@ record Entry    { account: u64  account_login: text  token: secret }
   new generation into the identities' table, as one secret held by
   number and generation, the two newest kept (credentials.md, section
   4); `jig-protocol-engine-workers` fills it in as a grant's `value`,
-  through the routing, with an empty `account_id`.
+  through the routing.
 - **On the worker:** `jig-protocol-worker-link` takes the value out with
   its table, the application's, its number and generation; the routing
   decodes it and keeps it in the worker's identities' table, at most the
@@ -363,8 +363,8 @@ the routing in the step that routes the record:
   key ceiling) when a configured provider offers keys. The worker has no
   provider declarations and reserves that key ceiling unconditionally.
   Tables and frames use those same bounds. Startup checks the engine's bound against the worker's
-  table, and the worker's against smith's credential and withdrawn bodies;
-  a source name must fit smith's program body too. No wire length is
+  table, and the worker's against smith's credential body; a source
+  name must fit smith's program body too. No wire length is
   counted by hand. Channel sizes use each side's own limits.
 - **The engine's within the worker's.** Each side computes its sizes from
   its own limits, and jig's terms compare them at the opening (jig's

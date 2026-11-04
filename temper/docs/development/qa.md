@@ -113,18 +113,25 @@ section 8.
   finding, said with the case that broke it.
 - **A budget never stops a pass.** A pass raises its box's budget as a
   person would (`temper help budget`), and says the figures. Init's
-  first start already makes project 1 and its owner. After sign-in, the
-  pass raises the deployment limits in one `settings apply` edited from
+  first start makes no project; after sign-in, `me` lists none. Before
+  `forge setup`, the pass raises the deployment limits in one `settings apply` edited from
   `settings show rules --json` and `settings show policy 1 --json`: the
   rules' spend and period spend, policy 1's ceiling's spend and period
   spend, and role 0's authority spend and its period spend. The period
   stays larger than role 0's pool, so that the deployment's own work (a
   landing task, a tier run, a queue's repair) is still funded. Nothing
   per run; the chat's template stays as allowed. Policy 1 sizes future
-  projects; `settings apply` does not resize the existing project's
-  period or owner's pool. The pass must then fund the project listed by
-  `me`, with distinct operation keys, the project first because the
-  owner's pool reserves from its period:
+  projects. The pass then runs `forge setup` without `--project`, as
+  the box walk says: it creates `hello` and adopts `work/hello` as its
+  home, printing `project: PROJECT · hello`. Use that printed number
+  for later commands, 1 on a new box. `forge setup --playground` without
+  `--project` instead creates `widget`, printing `project: 1 · widget`
+  on a new box. `--project PROJECT` chooses an existing project.
+
+  `settings apply` does not resize an existing project's period or
+  owner's pool. If budgets need resizing after project creation, fund
+  the project with distinct operation keys, the project first because
+  the owner's pool reserves from its period:
 
   ```
   temper ctl DIR me
@@ -133,11 +140,10 @@ section 8.
   temper ctl DIR project show PROJECT
   ```
 
-  `PROJECT` is the project `me` lists, 1 on a fresh box; `PERIOD` and
-  `POOL` are the pass's figures. `project show` prints the open period's
+  `PROJECT` is setup's returned project, also listed by `me`; `PERIOD`
+  and `POOL` are the pass's figures. `project show` prints the open period's
   budget and the owner's pool's, with their reserved, spent and left
-  balances. These funding calls resize the open budgets at once. `forge
-  setup` then adopts the repository into this existing project.
+  balances. These funding calls resize the open budgets at once.
 - **Real accounts are the person's,** used by path and never read; a
   login moved into a box goes back before the box stops, an imported
   login exported to its file.

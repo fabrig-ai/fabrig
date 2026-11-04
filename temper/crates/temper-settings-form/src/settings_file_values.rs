@@ -209,7 +209,7 @@ fn document(d: &Decoder, at: u32) -> Result<c::CharterDocument, Error> {
         }
         Some(_) | None => None,
     };
-    Ok(c::CharterDocument { connector: 0, name, path, heading })
+    Ok(c::CharterDocument { connector: 1, name, path, heading })
 }
 impl Decoder {
     fn document_string(&self, at: u32, member: &[u8]) -> Result<&[u8], Error> {

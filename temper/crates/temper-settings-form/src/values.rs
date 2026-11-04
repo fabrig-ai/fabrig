@@ -93,7 +93,7 @@ fn encode_document(value: &c::CharterDocument, out: &mut Encoder) {
     out.object_end();
 }
 fn forge_branch(value: &c::CharterDocument) -> bool {
-    if value.connector != 0
+    if value.connector != 1
         || value.name.len() < 6
         || value.name.get(0).expect("name prefix").as_ref() != b"forge"
         || value.name.get(4).expect("branch prefix").as_ref() != b"branch"
