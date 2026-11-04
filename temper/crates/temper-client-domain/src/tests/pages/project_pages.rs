@@ -8,6 +8,8 @@ use skein_lib::{List, Queue, Token};
 
 const OTHER: u32 = 2;
 const UNKNOWN: u32 = 3;
+// The owner's project and OTHER are the fixture's two membership rows.
+const PROJECT_ROWS: u32 = 2;
 
 struct Fixture {
     root: crate::Domain,
@@ -49,7 +51,7 @@ fn two_projects() -> c::Me {
     let owner = me.projects.get(0).expect("first project").clone();
     let mut other = owner.clone();
     other.project = OTHER;
-    me.projects = List::with_capacity(2);
+    me.projects = List::with_capacity(PROJECT_ROWS);
     me.projects.push(owner).expect("first");
     me.projects.push(other).expect("second");
     me
