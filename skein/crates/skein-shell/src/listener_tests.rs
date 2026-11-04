@@ -15,7 +15,7 @@ use skein_io::kernel::{Error, Family, Fd};
 fn listening_answers() {
     #[cfg(target_os = "linux")]
     const {
-        assert!(!NO_ACCEPTCONN, "Linux keeps its listening check")
+        assert!(!NO_ACCEPTCONN, "Linux keeps its listening check");
     };
     for (answer, no_option, expected) in [
         (Ok(0), false, Ok(false)),
