@@ -865,9 +865,10 @@ it does `Binding` (`../protocol/store.md`, section 2).
   family's is.
 - **`Dismiss { what }`** (`../client/README.md`, 4.6) is admitted by the
   core, the root naming `what`'s project as its scope: a party with a
-  role there, in a project not being deleted. The core's ask names the
-  party, and the root hands the connector the request with it. In the
-  decision:
+  role there, in a project not being deleted: a service with a role
+  may dismiss too, having no Home, its rows doing no harm. The core's
+  ask names the party, and the root hands the connector the request
+  with it. In the decision:
   - a row held already: answered dismissed, nothing written;
   - the bound reached: answered too large, nothing written;
   - otherwise the row saved, the subject `dismissed` marked, answered
@@ -880,7 +881,9 @@ it does `Binding` (`../protocol/store.md`, section 2).
   are, of the party's own scope. The core's ask for a document names the
   watcher's party, and the connector answers that party's rows in key
   order: each watcher's own. A mark makes every watcher's document
-  again, so a dismissal costs each signed-in client one small document.
+  again, so a dismissal costs each signed-in client one small document;
+  a subject per party would make the root read the sign-in on every
+  watch.
 - **Erased with its project:** the release of a project being deleted
   (jig's `domain/connectors.md`, section 2) erases its rows in its
   decision, beside its settings, and marks the subject when any went.
