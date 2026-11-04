@@ -3,7 +3,7 @@ id = "repository-tools"
 part = "making-client"
 kind = "feature"
 needs = ["making-facts"]
-files = ["temper/crates/temper-client-tools/src/making.rs", "temper/crates/temper-client-tools/src/table.rs", "temper/crates/temper-client-tools/src/root.rs", "temper/crates/temper-client-tools/src/forge.rs", "temper/crates/temper-client-tools/src/forges.rs", "temper/crates/temper-client-tools/src/jig/table.rs", "temper/crates/temper-client-tools/src/jig/argv.rs", "temper/crates/temper-client-tools/src/jig/render/outcome.rs", "temper/crates/temper-client-tools/src/tests/making.rs", "temper/crates/temper-client-tools/src/tests/golden/**", "temper/docs/help/reference/ctl-repository.md", "temper/docs/help/reference/ctl-forge.md", "temper/docs/help/repository.md", "temper/docs/help/ctl.md", "temper/docs/help/index.md", "temper/docs/help/forgejo.md"]
+files = ["temper/crates/temper-client-tools/src/making.rs", "temper/crates/temper-client-tools/src/table.rs", "temper/crates/temper-client-tools/src/root.rs", "temper/crates/temper-client-tools/src/forge.rs", "temper/crates/temper-client-tools/src/forges.rs", "temper/crates/temper-client-tools/src/jig/table.rs", "temper/crates/temper-client-tools/src/jig/argv.rs", "temper/crates/temper-client-tools/src/jig/render/outcome.rs", "temper/crates/temper-client-tools/src/tests/making.rs", "temper/crates/temper-client-tools/src/tests/jig/replays.rs", "temper/crates/temper-client-tools/src/tests/golden/**", "temper/docs/help/reference/ctl-repository.md", "temper/docs/help/reference/ctl-forge.md", "temper/docs/help/repository.md", "temper/docs/help/ctl.md", "temper/docs/help/index.md", "temper/docs/help/forgejo.md"]
 effort = "high"
 minutes = 70
 +++
@@ -73,3 +73,11 @@ checks; commit and push.
 
 As the implementer's text asks; how an act's `--until` is held in the table, in a line a later tool could
 copy.
+
+## Answers
+
+- 2026-11-04. May this task add the two `repository make` and `repository copy` cases to `DIRECT_CALLS` in
+  `temper/crates/temper-client-tools/src/tests/jig/replays.rs`? Yes: the list is one of the "tests that read
+  the list", which the spec missed, and the task's suite cannot pass without it. The file is now in the
+  header. Add those two entries alone, on the same terms: `direct` replays each in text and JSON, comparing
+  the request, the key and the answer.
