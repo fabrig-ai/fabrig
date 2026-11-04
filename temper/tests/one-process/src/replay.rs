@@ -40,12 +40,13 @@ pub fn replay(story: &stories::Story, log: &[u8]) -> Replayed {
     let parameters = story::parameters(&world);
     match programs::with(parameters, || skein_playground::replay::replay(world, story::reach(), &read, &mut turns)) {
         Err(differs) => Replayed::Differs(differs),
-        Ok(_world) => {
+        Ok(world) => {
+            eprintln!("refereed replay: world {} ns, {} world steps", world.now().as_nanos(), world.steps());
             if turns.forge.forge_complete() {
                 Replayed::Complete
             } else {
                 Replayed::Incomplete {
-                    why: "main must hold the scripted CSV edit at an observed pushed head with green CI".into(),
+                    why: "main must hold the scripted CSV edit at an observed pushed head or its merge commit, with green CI at main".into(),
                 }
             }
         }
