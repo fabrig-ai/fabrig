@@ -614,7 +614,6 @@ fn records_service() -> (crate::Service, skein_lib::Secret) {
         forge.number = number;
         if number != 1 {
             forge.kind = Kind::GitHub;
-            forge.api_token = None;
         }
         forge.api = jig_protocol_config::Address::Addr(skein_io::Addr::Ip(
             ([127, 0, 0, 1], 2999_u16.checked_add(number).unwrap()).into(),
@@ -632,9 +631,9 @@ fn records_service() -> (crate::Service, skein_lib::Secret) {
     }
     settings.forges = forges.into_boxed();
     fixtures::fill_files(&mut settings);
-    let file_token = settings.forges[0].api_token.clone().unwrap();
+    let token = skein_lib::Secret::new(fixtures::FORGE_TOKEN.into());
     let service = fixtures::configured_service(settings, &fixtures::seeds(), None, runtime).unwrap();
-    (service, file_token)
+    (service, token)
 }
 #[expect(clippy::disallowed_macros, reason = "ordinary fixtures build versioned row bytes")]
 fn startup_records() -> skein_lib::List<(u64, skein_lib::Secret)> {
@@ -705,7 +704,7 @@ fn records_start_erases_carried_rows_before_connecting_without_decoding_them() {
     use jig_protocol_store::{SecretOwner, Secrets};
     use skein_lib::List;
     use temper_protocol_records::{self as records, NotConnected};
-    let (mut service, file_token) = records_service();
+    let (mut service, token) = records_service();
     let kept = startup_records();
     for (number, value) in &kept {
         assert!(
@@ -802,7 +801,7 @@ fn records_start_erases_carried_rows_before_connecting_without_decoding_them() {
         face.sent().windows(b"GET /api/v1/user ".len()).any(|part| part == b"GET /api/v1/user "),
         "Forgejo starts with its kept access"
     );
-    assert!(face.sent().windows(file_token.expose().len()).any(|part| part == file_token.expose()));
+    assert!(face.sent().windows(token.expose().len()).any(|part| part == token.expose()));
     face.capture_answers();
     for number in 3..=9 {
         service.engine.as_mut().expect("engine").forge.down(skein_forge_connection::Request::Call {
