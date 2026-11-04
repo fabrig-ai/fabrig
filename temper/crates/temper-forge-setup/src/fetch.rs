@@ -4,7 +4,7 @@ use crate::{
     setup::{Origin, Owned},
 };
 use alloc::boxed::Box;
-use skein_forge::forgejo::pin::{self, Binary};
+use skein_forge::forgejo::pin::{self, Binary, Form, Platform};
 use skein_lib::{Decimal, List, Queue, Writer, sha256::Sha256};
 
 /// One pinned release at its resolved cache path.
@@ -63,7 +63,7 @@ pub fn url(origin: &Origin, path: &[u8]) -> Box<[u8]> {
 }
 fn digest(binary: Binary, arch: &str) -> [u8; 32] {
     let mut result = [0; 32];
-    let text = pin::digest(binary, arch).expect("pinned architecture").as_bytes();
+    let text = pin::digest(binary, Platform::Linux, arch, Form::Binary).expect("pinned architecture").as_bytes();
     for (slot, digits) in result.iter_mut().zip(text.chunks_exact(2)) {
         let mut value = 0_u8;
         for digit in digits {
