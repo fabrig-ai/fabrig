@@ -23,9 +23,10 @@ names is tuned on the person's `look-requests` branch
   and the scripted account go, as the playground's reset already does
   (section 3).
 - **One wizard for every forge:** Forge, Model, Ready, on GitHub as on
-  Forgejo. It adopts no repository and asks no project name; its last
-  act makes the project, "Default", which the person can rename later
-  (section 4).
+  Forgejo. Its last act makes the project, named after the forge's
+  first repository ("Hello" for `work/hello`) or "My project" without
+  one, and adopts the first repository into it when the set up made
+  one: on Forgejo on this machine, `work/hello` (section 4).
 - **A project with no repository is highlighted,** and offers to adopt
   one; it is fully usable meanwhile, since a chat needs no repository
   (section 5).
@@ -72,19 +73,47 @@ names is tuned on the person's `look-requests` branch
   Ready. The Forge step connects a forge and nothing more: it adopts
   no repository and asks no project name.
 - **Ready makes the project:** once a real forge is connected and a
-  model usable, its last act makes the project "Default", one
-  `MakeProject` on the stock policy, and opens it. A failure leaves
-  nothing half made; the act is offered again.
+  model usable, its last act makes the person's first project, one
+  `MakeProject` on the stock policy under the name its form holds, and
+  opens it. A failure leaves nothing half made; the act is offered
+  again.
+- **Ready adopts the first repository:** when the connected forge's
+  set up made a first repository that no project holds, the same act,
+  once the project is made, adopts it into that project, as `temper
+  ctl forge setup`'s `--project` does (`../protocol/setup.md`, 6.7):
+  owned, the project's home, landing on `main`, with CI. The person's
+  first project can change code from its first page, on the route
+  supported first, Forgejo on this machine with its `work/hello` (the
+  user, 2026-11-04).
+- **Ready says so before it is pressed:** its lead names the
+  repository, "Everything is connected. Create your first project,
+  with ORG/NAME in it, and start working.", as the greenfield mockup's
+  does, and the forge's line says "ORG/NAME made", no longer "in no
+  project yet".
+- **The adoption is not waited for:** the project opens once it is
+  made; the adoption runs on, the project's page saying it while it is
+  out. Refused or unanswered, the project stays made with no
+  repository (section 5), its adoption offered again filled for the
+  first repository, with the refusal's words, from the project's page,
+  not from Ready.
 - **The welcome is whole** once a real forge is connected, a model is
   usable and the person has a project; no adoption is waited for.
 - **Forgejo on this machine** keeps making its sample repository,
-  `work/hello`, and leaves it unadopted, so that the first adoption is
-  one choice away. Its setup asks no project: the request's project
-  goes.
-- **On GitHub,** connecting temper's App is the Forge step; the
-  repositories its installations reach are offered at adoption.
-- **The name is the person's later:** "Default" is renamed from the
-  switcher (section 7), never asked in the wizard.
+  `work/hello`, adopted nowhere until Ready adopts it. Its setup asks
+  no project: the request's project goes.
+- **On GitHub,** connecting temper's App is the Forge step, with no
+  first repository: Ready adopts nothing, and the repositories its
+  installations reach are offered at adoption (section 5). So is a
+  Forgejo set up with "Nothing for now".
+- **The name is offered, and the person's:** Ready's form, "Your first
+  project", holds the first repository's name with its first letter in
+  capital, "Hello" for `work/hello`, or "My project" when the forge has
+  none (GitHub, "Nothing for now"). The person may write another
+  before "Create your project", and renames it later from the switcher
+  (section 7). A name says what the project holds, as `temper ctl
+  forge setup` with no `--project` names its new project after the
+  repository (`../client/tools.md`, 5.5); "Default" said nothing (the
+  user, 2026-11-04).
 
 ## 5. A project with no repository
 
@@ -118,15 +147,18 @@ names is tuned on the person's `look-requests` branch
 ## 8. Its order
 
 1. Sections 2 and 3: no seeded project; Demo, its stored name honoured.
-2. Sections 4 and 5: the wizard without adoption, Ready making
-   "Default", the highlighted project with no repository.
+2. Sections 4 and 5: the wizard's steps without adoption, Ready making
+   the first project, named for its first repository, and adopting
+   that repository into it, the highlighted project with no
+   repository.
 3. Section 7: rename and a new project from the switcher.
 4. Section 6: the configuring chat as the first chat, its interim
    first.
 
 ## 9. Open questions
 
-- **A taken "Default":** a person who made "Default" before finishing
-  the wizard; Ready then opens it, or makes "Default 2"?
+- **A taken name at Ready:** a person who made a project of the
+  offered name before finishing the wizard; Ready then opens it, or
+  makes "Hello 2"?
 - **Demo after a reset:** a second playground run makes "Demo" again,
   the first one being deleted; nothing is reused but the name.

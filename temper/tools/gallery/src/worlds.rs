@@ -2008,7 +2008,7 @@ fn accounts(w: World, then: Then) -> c::Accounts {
                 } else {
                     None
                 },
-                display: doc(if matches!(w, FirstRun { step: 5..=9 }) { "ChatGPT" } else { "Scripted model" }),
+                display: doc(if matches!(w, FirstRun { step: 5..=9 }) { "sam@example.com" } else { "Scripted model" }),
                 holder: c::AccountHolder::Party(73),
                 sources,
                 cut: false,

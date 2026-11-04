@@ -299,19 +299,21 @@ fn the_sheets_copies_take_addresses_and_are_not_made_yet() {
 fn model_view(rows: skein_lib::List<w::ForgeRow>) -> crate::View {
     f::page_view(&f::forge_root(Address::Welcome { step: Step::Model { way: None } }, rows))
 }
-fn before_model(tree: &skein_ui::Tree) -> &[skein_ui::Node] {
-    let main = tree.nodes().iter().position(|n| n.role == Role::Main).expect("welcome's main");
-    let heading = node(tree, Role::Heading { level: 1 }, "Connect a model");
-    let heading = tree.nodes().iter().position(|n| n.id == heading).unwrap();
-    &tree.nodes()[main..heading]
+fn forge_region(tree: &skein_ui::Tree) -> &[skein_ui::Node] {
+    let Some(start) =
+        tree.nodes().iter().position(|n| n.role == Role::Complementary && n.name.as_deref() == Some(b"Forge"))
+    else {
+        return &[];
+    };
+    &tree.nodes()[start..start.checked_add(usize::try_from(tree.nodes()[start].size).unwrap()).unwrap()]
 }
-fn model_forge_line(tree: &skein_ui::Tree) -> Option<&skein_ui::Node> {
-    before_model(tree).iter().find(|n| n.role == Role::Paragraph)
+fn region_forge_line(tree: &skein_ui::Tree) -> Option<&skein_ui::Node> {
+    forge_region(tree).iter().find(|n| n.role == Role::Paragraph)
 }
-fn line_before_model(tree: &skein_ui::Tree, expected: &str) -> skein_ui::NodeId {
-    let line = model_forge_line(tree).expect("forge line before Model's heading");
+fn line_in_forge(tree: &skein_ui::Tree, expected: &str) -> skein_ui::NodeId {
+    let line = region_forge_line(tree).expect("forge line in Model's Forge region");
     assert_eq!(line.name.as_deref(), Some(expected.as_bytes()));
-    assert_eq!(before_model(tree).iter().filter(|n| n.role == Role::Paragraph).count(), 1);
+    assert_eq!(forge_region(tree).iter().filter(|n| n.role == Role::Paragraph).count(), 1);
     line.id
 }
 fn each_step(tree: &skein_ui::Tree, shown: bool) {
@@ -321,7 +323,7 @@ fn each_step(tree: &skein_ui::Tree, shown: bool) {
 #[test]
 fn model_without_a_persons_forge_has_no_line() {
     let view = model_view(skein_lib::List::with_capacity(0));
-    assert!(model_forge_line(view.tree()).is_none());
+    assert!(region_forge_line(view.tree()).is_none());
     each_step(view.tree(), false);
 }
 
@@ -346,14 +348,17 @@ fn model_names_the_first_repository_while_forgejo_sets_up() {
         d::Event::Went { place: d::Place::Address(Address::Welcome { step: Step::Model { way: None } }) },
     );
     let view = f::page_view(&root);
-    line_before_model(view.tree(), "Forgejo on this machine · Setting up · work/hello");
+    line_in_forge(view.tree(), "Forgejo on this machine · work/hello · Setting up");
     each_step(view.tree(), true);
 }
 
 #[test]
 fn model_ticks_the_first_repository_made() {
-    let view = model_view(forge::first_rows(forge::connected(), forge::made()));
-    let line = line_before_model(
+    let view = f::browser_page_view(&f::forge_root(
+        Address::Welcome { step: Step::Model { way: None } },
+        forge::first_rows(forge::connected(), forge::made()),
+    ));
+    let line = line_in_forge(
         view.tree(),
         "Forgejo on this machine · connected as temper · work/hello made, in no project yet",
     );
@@ -362,16 +367,15 @@ fn model_ticks_the_first_repository_made() {
     let index = view.tree().nodes().iter().position(|n| n.id == line.id).unwrap();
     let runs: Vec<_> = view.tree().nodes()[index + 1..]
         .iter()
-        .take(4)
+        .take(3)
         .flat_map(|n| n.text.iter().map(|r| (r.run, r.text.as_ref())))
         .collect();
     assert_eq!(
         runs,
         [
-            (skein_ui::Run::Plain, "✓".as_bytes()),
             (skein_ui::Run::Strong, b"Forgejo on this machine".as_slice()),
-            (skein_ui::Run::Plain, "·".as_bytes()),
-            (skein_ui::Run::Plain, b"connected as temper \xc2\xb7 work/hello made, in no project yet".as_slice()),
+            (skein_ui::Run::Plain, b"connected as temper".as_slice()),
+            (skein_ui::Run::Plain, b"work/hello made, in no project yet".as_slice())
         ]
     );
     each_step(view.tree(), false);
@@ -380,7 +384,7 @@ fn model_ticks_the_first_repository_made() {
 #[test]
 fn model_ticks_a_connected_github_without_a_repository() {
     let view = model_view(forge::github_rows(true));
-    line_before_model(view.tree(), "GitHub · Connected as my-app[bot] (9)");
+    line_in_forge(view.tree(), "GitHub · Connected as my-app[bot] (9)");
     each_step(view.tree(), false);
 }
 
@@ -397,7 +401,7 @@ fn an_installed_github_without_a_repository_shows_connected_and_view() {
 #[test]
 fn model_keeps_github_connecting_until_an_installation_is_accepted() {
     let view = model_view(forge::github_rows(false));
-    line_before_model(view.tree(), "GitHub · Connecting: no installation accepted yet");
+    line_in_forge(view.tree(), "GitHub · Connecting: no installation accepted yet");
     each_step(view.tree(), true);
 }
 
@@ -410,7 +414,7 @@ fn model_says_which_setup_failed_and_keeps_its_steps() {
         ),
         w::Offer::Offered,
     ));
-    let line = line_before_model(view.tree(), "Forgejo on this machine · Set up failed: fetch failed");
+    let line = line_in_forge(view.tree(), "Forgejo on this machine · Set up failed: fetch failed");
     let line = view.tree().nodes().iter().find(|n| n.id == line).unwrap();
     assert!(!line.styles.as_slice().contains(&crate::look::FLOW_DONE));
     each_step(view.tree(), true);
@@ -421,22 +425,22 @@ fn model_names_the_failed_first_repository_step() {
     for (step, connection, failed) in [
         (
             w::CreateStep::Admin,
-            "Forgejo on this machine · Set up failed: checking the admin's token · work/hello",
+            "Forgejo on this machine · work/hello · Set up failed: checking the admin's token",
             "Making work/hello failed: checking the admin's token",
         ),
         (
             w::CreateStep::Org,
-            "Forgejo on this machine · Set up failed: making the organization · work/hello",
+            "Forgejo on this machine · work/hello · Set up failed: making the organization",
             "Making work/hello failed: making the organization",
         ),
         (
             w::CreateStep::Repository,
-            "Forgejo on this machine · Set up failed: making the repository · work/hello",
+            "Forgejo on this machine · work/hello · Set up failed: making the repository",
             "Making work/hello failed: making the repository",
         ),
         (
             w::CreateStep::File,
-            "Forgejo on this machine · Set up failed: adding the starter workflow · work/hello",
+            "Forgejo on this machine · work/hello · Set up failed: adding the starter workflow",
             "Making work/hello failed: adding the starter workflow",
         ),
     ] {
@@ -444,7 +448,7 @@ fn model_names_the_failed_first_repository_step() {
             w::Connection::Connecting,
             w::FirstState::Failed(w::CreateFailed::new(&w::CEILINGS, w::CreateFailedParts { step }).unwrap()),
         ));
-        line_before_model(view.tree(), connection);
+        line_in_forge(view.tree(), connection);
         each_step(view.tree(), true);
         forge::words_in_order(view.tree(), &["failed", failed]);
         node(view.tree(), Role::Status, "failed");
@@ -454,7 +458,7 @@ fn model_names_the_failed_first_repository_step() {
 #[test]
 fn model_keeps_steps_while_the_first_repository_is_making() {
     let view = model_view(forge::first_rows(w::Connection::Connecting, w::FirstState::Making));
-    line_before_model(view.tree(), "Forgejo on this machine · Connecting · work/hello");
+    line_in_forge(view.tree(), "Forgejo on this machine · work/hello · Connecting");
     each_step(view.tree(), true);
     node(view.tree(), Role::Status, "under way");
 }
@@ -672,7 +676,7 @@ fn the_model_step_offers_each_plan_and_no_key() {
         .collect();
     assert_eq!(cards, [b"ChatGPT".as_slice(), b"Claude"]);
     node(tree, Role::Paragraph, "Sign in, in this tab · about a minute");
-    node(tree, Role::Paragraph, "A command in a terminal, on each host");
+    node(tree, Role::Paragraph, "One command in a terminal, on this machine");
     let chatgpt = node(tree, Role::Button, "Continue with ChatGPT");
     let claude = node(tree, Role::Link, "Use your Claude subscription");
     assert!(styled(tree, chatgpt, crate::look::FLOW_PRIMARY));
@@ -1066,7 +1070,7 @@ fn github_adopted_rows() -> skein_lib::List<w::ForgeRow> {
 #[test]
 fn model_ticks_connected_github_even_with_an_adopted_repository() {
     let view = model_view(github_adopted_rows());
-    let id = line_before_model(view.tree(), "GitHub · Connected as my-app[bot] (9)");
+    let id = line_in_forge(view.tree(), "GitHub · Connected as my-app[bot] (9)");
     assert!(
         view.tree().nodes().iter().find(|n| n.id == id).unwrap().styles.as_slice().contains(&crate::look::FLOW_DONE)
     );

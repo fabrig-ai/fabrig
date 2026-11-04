@@ -11,6 +11,9 @@ connect-forge-choose
 welcome-forge-choose
 welcome-forge-details
 welcome-model-choose
+welcome-model-forge-under-way
+welcome-model-forge-done
+welcome-model-forge-failed
 welcome-model-key-details
 welcome-model-signing-in
 welcome-model-signin-ready

@@ -143,10 +143,10 @@ fn the_committed_universe_is_what_the_cases_read_of_the_index() {
     let fetched = hearth_test_mirror::Mirror::find(&pin).expect("fetched, per 08.2");
     let cut = fake_mmdebstrap::cut(&fetched, &pin);
     if hearth_recordings::recording_on() {
-        std::fs::write(hearth_conformance_world::fixtures::UNIVERSE, &cut).expect("written under the flag");
+        std::fs::write(hearth_conformance_world::fixtures::universe(), &cut).expect("written under the flag");
     }
     assert_eq!(
-        &*std::fs::read(hearth_conformance_world::fixtures::UNIVERSE).expect("committed"),
+        &*std::fs::read(hearth_conformance_world::fixtures::universe()).expect("committed"),
         &*cut,
         "unlike the cut: rerun with HEARTH_RECORD=1"
     );

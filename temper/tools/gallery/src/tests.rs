@@ -66,12 +66,40 @@ enum Part {
     Named { role: Role, name: &'static str },
     Described { role: Role, name: &'static str, description: &'static str },
     Absent { role: Role, name: &'static str },
+    NoRole { role: Role },
     Value { role: Role, name: &'static str, value: &'static str },
     Chats { live: u32, closed: u32 },
     Plan { live: u32, title: &'static str },
     PlanWithEnded { live: u32, ended: u32, before: &'static str, after: &'static str },
 }
 const HOLDS: [Holds; samples::N] = [
+    Holds {
+        name: "welcome-model-forge-under-way",
+        heading: "Connect a model",
+        parts: &[
+            Part::Named { role: Role::Progress, name: "Setting up: preparing" },
+            Part::Named { role: Role::Complementary, name: "Forge" },
+            Part::Named { role: Role::Disclosure, name: "Each step" },
+        ],
+    },
+    Holds {
+        name: "welcome-model-forge-done",
+        heading: "Connect a model",
+        parts: &[
+            Part::NoRole { role: Role::Progress },
+            Part::Named { role: Role::Complementary, name: "Forge" },
+            Part::Absent { role: Role::Disclosure, name: "Each step" },
+        ],
+    },
+    Holds {
+        name: "welcome-model-forge-failed",
+        heading: "Connect a model",
+        parts: &[
+            Part::NoRole { role: Role::Progress },
+            Part::Named { role: Role::Complementary, name: "Forge" },
+            Part::Named { role: Role::Disclosure, name: "Each step" },
+        ],
+    },
     Holds {
         name: "playground-resetting", heading: "Chats", parts: &[Part::Text { text: "Leaving the playground…" }]
     },
@@ -305,6 +333,7 @@ const HOLDS: [Holds; samples::N] = [
                 name: "Everything is connected. Create your first project and start working.",
             },
             Part::Named { role: Role::Paragraph, name: "Forge Forgejo on this machine · connected as temper" },
+            Part::Named { role: Role::Paragraph, name: "Model ChatGPT plan · sam@example.com" },
             Part::Named { role: Role::TextField, name: "Your first project" },
             Part::Named { role: Role::Button, name: "Create your project" },
             Part::Absent { role: Role::Disclosure, name: "Each step" },
@@ -736,6 +765,7 @@ fn plan_with_ended(tree: &skein_ui::Tree, live: u32, ended: u32, before: &str, a
     assert!(before < after, "{sample}: lower-numbered ended row before live row");
 }
 #[test]
+#[expect(clippy::too_many_lines, reason = "the gallery table walk checks each kind of named part")]
 fn each_state_holds_what_its_name_says() {
     for sample in samples::samples() {
         let mut row = None;
@@ -772,6 +802,9 @@ fn each_state_holds_what_its_name_says() {
                         "{}: absent {role:?} {name:?}",
                         sample.name
                     );
+                }
+                Part::NoRole { role } => {
+                    assert!(!tree.nodes().iter().any(|node| node.role == *role), "{}: absent {role:?}", sample.name);
                 }
                 Part::Value { role, name, value } => {
                     let node = find(tree, *role, name, sample.name);

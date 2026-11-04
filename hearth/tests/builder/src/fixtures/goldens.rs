@@ -141,7 +141,7 @@ pub const ERROR_KINDS: &[&str] = &[
 /// The pinned test repository supplies files; the golden holds expectations alone.
 #[must_use]
 pub fn resolution_golden() -> golden::Golden {
-    let files = std::path::Path::new(env!("CARGO_MANIFEST_DIR")).join("../../testing/repos/test");
+    let files = skein_scratch::paths::tree().join("testing/repos/test");
     golden::load_from("resolution", &files)
 }
 

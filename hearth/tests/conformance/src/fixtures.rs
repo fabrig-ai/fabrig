@@ -14,6 +14,7 @@ use hearth_protocol_git::{
     rev_parse::Resolved,
 };
 use hearth_recordings::Mask;
+use skein_scratch::paths;
 use std::{path::PathBuf, sync::OnceLock};
 const MISSING: &[u8] = b"0000000000000000000000000000000000000000";
 #[derive(Debug)]
@@ -279,4 +280,7 @@ pub fn take(
 }
 
 /// The committed index cut is anchored beside the mirror pin.
-pub const UNIVERSE: &str = concat!(env!("CARGO_MANIFEST_DIR"), "/../../testing/mirror/universe");
+#[must_use]
+pub fn universe() -> PathBuf {
+    paths::tree().join("testing/mirror/universe")
+}

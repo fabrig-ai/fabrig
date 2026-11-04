@@ -47,6 +47,7 @@ pub struct Service {
     completions: Queue<Complete>,
     submissions: Queue<Submit>,
     told: Queue<io::Event>,
+    queue_limit: u32,
     asked: Queue<Asked>,
     calls: Queue<Event>,
     answers: Queue<Request>,
@@ -96,7 +97,8 @@ impl Service {
             domain_env: Env { now: Time::ZERO, wall: Wall::EPOCH, limits: limits.domain },
             completions: Queue::with_capacity(limits.queue),
             submissions: Queue::with_capacity(limits.queue),
-            told: Queue::with_capacity(limits.queue),
+            told: Queue::uncapped(),
+            queue_limit: limits.queue,
             asked: Queue::with_capacity(limits.queue),
             calls: Queue::with_capacity(limits.queue),
             answers: Queue::with_capacity(limits.queue),
@@ -237,7 +239,7 @@ fn io_up(service: &mut Service) {
         if !service.io.is_ready() || !io_room(service, io::MAX_OUT_RESUME) {
             break;
         }
-        let marks = (service.told.len(), service.io_submissions.len());
+        let marks = service.io_submissions.len();
         io::resume(&mut service.io, &service.io_env, &mut service.told, &mut service.io_submissions);
         io_within(service, marks, io::MAX_OUT_RESUME);
     }
@@ -258,7 +260,7 @@ fn io_up(service: &mut Service) {
             file_layer::up(&mut service.files, complete, &mut service.file_told, &mut service.file_submissions);
             continue;
         }
-        let marks = (service.told.len(), service.io_submissions.len());
+        let marks = service.io_submissions.len();
         io::up(&mut service.io, &service.io_env, complete, &mut service.told, &mut service.io_submissions);
         io_within(service, marks, io::MAX_OUT_UP);
     }
@@ -272,7 +274,7 @@ fn io_up(service: &mut Service) {
         if !service.io.is_due(service.io_env.now) || !io_room(service, io::MAX_OUT_FIRE) {
             break;
         }
-        let marks = (service.told.len(), service.io_submissions.len());
+        let marks = service.io_submissions.len();
         io::fire(&mut service.io, &service.io_env, &mut service.told, &mut service.io_submissions);
         io_within(service, marks, io::MAX_OUT_FIRE);
     }
@@ -281,7 +283,7 @@ fn protocol_up(service: &mut Service) {
     if protocol_room(service, protocol::MAX_OUT_RESUME) {
         protocol::fire(&mut service.protocol, &service.protocol_env, &mut service.calls, &mut service.asked);
     }
-    for _ in 0..service.told.capacity() {
+    for _ in 0..service.queue_limit {
         if !service.protocol.work_pending() || !protocol_room(service, protocol::MAX_OUT_RESUME) {
             break;
         }
@@ -307,7 +309,7 @@ fn protocol_up(service: &mut Service) {
             &mut service.asked,
         );
     }
-    for _ in 0..service.told.capacity() {
+    for _ in 0..service.queue_limit {
         if service.protocol.work_pending() || !protocol_room(service, protocol::MAX_OUT_UP) {
             break;
         }
@@ -402,19 +404,18 @@ fn io_down(service: &mut Service) {
                 continue;
             }
         };
-        let marks = (service.told.len(), service.io_submissions.len());
+        let marks = service.io_submissions.len();
         io::down(&mut service.io, &service.io_env, request, &mut service.io_submissions);
         io_within(service, marks, io::MAX_OUT_DOWN);
     }
 }
 fn io_room(service: &Service, max: io::MaxOut) -> bool {
-    service.told.room() >= max.events && service.io_submissions.room() >= max.submissions
+    service.io_submissions.room() >= max.submissions
 }
 fn protocol_room(service: &Service, max: protocol::MaxOut) -> bool {
     service.calls.room() >= max.above && service.asked.room() >= max.below
 }
-fn io_within(service: &Service, (up, down): (u32, u32), max: io::MaxOut) {
-    within(up, service.told.len(), max.events);
+fn io_within(service: &Service, down: u32, max: io::MaxOut) {
     within(down, service.io_submissions.len(), max.submissions);
 }
 fn protocol_within(service: &Service, (up, down): (u32, u32), max: protocol::MaxOut) {
@@ -469,26 +470,21 @@ fn configured_proxy(configuration: &Configuration) -> Option<protocol::Proxy> {
     )
 }
 
-/// Sum the owned layers, queue storage, and payloads between the layers.
+/// Sum hearth's domain and protocol layers and its queue storage.
 /// Returns `None` if the bound overflows (programming-model.md, 6.3).
 #[must_use]
 pub fn worst_case(limits: &Limits) -> Option<u64> {
     let domain = domain::worst_case(&limits.domain)?;
     let protocol = protocol::limits::worst_case(&limits.protocol)?;
-    let files = &limits.files;
-    let queues = Queue::<file::Event>::worst_case(limits.queue)?
-        .checked_add(Queue::<Submit>::worst_case(limits.queue)?.checked_mul(3)?)?
-        .checked_add(Queue::<Complete>::worst_case(limits.queue)?)?
-        .checked_add(Queue::<io::Event>::worst_case(limits.queue)?)?
-        .checked_add(Queue::<Asked>::worst_case(limits.queue)?)?
-        .checked_add(Queue::<Event>::worst_case(limits.queue)?)?
-        .checked_add(Queue::<Request>::worst_case(limits.queue)?)?;
+    let queues = Queue::<file::Event>::price(limits.queue)?
+        .checked_add(Queue::<Submit>::price(limits.queue)?.checked_mul(3)?)?
+        .checked_add(Queue::<Complete>::price(limits.queue)?)?
+        .checked_add(Queue::<io::Event>::price(limits.queue)?)?
+        .checked_add(Queue::<Asked>::price(limits.queue)?)?
+        .checked_add(Queue::<Event>::price(limits.queue)?)?
+        .checked_add(Queue::<Request>::price(limits.queue)?)?;
     // The layers price their returned records and forwarding payloads. Moving
     // those allocations through a queue does not make another owned copy.
     // Queue capacity reserves cells, not another complete layer per cell.
-    domain
-        .checked_add(protocol)?
-        .checked_add(io::worst_case(&limits.io)?)?
-        .checked_add(FileIo::worst_case(files.files, files.read, files.entries, files.whole)?)?
-        .checked_add(queues)
+    domain.checked_add(protocol)?.checked_add(queues)
 }

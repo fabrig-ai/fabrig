@@ -134,7 +134,7 @@ fn setting_up_forgejo_here_from_the_welcome() {
         d::Event::Went { place: d::Place::Address(Address::Welcome { step: Step::Model { way: None } }) },
     );
     let model = view(&root);
-    node(&model, Role::Paragraph, "Forgejo on this machine · Setting up: preparing · work/hello".as_bytes());
+    node(&model, Role::Paragraph, "Forgejo on this machine · work/hello · Setting up: preparing".as_bytes());
     node(&model, Role::Disclosure, b"Each step");
     pump(
         &mut front,
@@ -190,7 +190,7 @@ fn model_follows_forgejo_from_setup_to_its_first_repository() {
     let model_address = Address::Welcome { step: Step::Model { way: None } };
     pump(&mut front, &mut root, &mut now, d::Event::Went { place: d::Place::Address(model_address.clone()) });
     let setting_up = view(&root);
-    node(&setting_up, Role::Paragraph, "Forgejo on this machine · Setting up: preparing · work/hello".as_bytes());
+    node(&setting_up, Role::Paragraph, "Forgejo on this machine · work/hello · Setting up: preparing".as_bytes());
     node(&setting_up, Role::Disclosure, b"Each step");
     connection(&mut front, Connection::Connected { id: 1, login: b"temper".as_slice().into() });
     front.engine.send(temper_engine_domain::Event::Forge(Box::new(forge::Event::FirstMade { forge: OWNED, id: 42 })));

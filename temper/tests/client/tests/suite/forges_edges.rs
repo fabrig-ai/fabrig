@@ -956,7 +956,7 @@ fn welcome_accepted_setup_moves_to_model_and_follows_its_forge() {
     );
     connection(&mut world, GITHUB, connected());
     follow(&mut world, client, vec![see(Role::Disclosure, b"Each step")]);
-    assert!(text(&world, client).contains("Forgejo on this machine · Setting up: preparing"));
+    assert!(text(&world, client).contains("Forgejo on this machine · work/hello · Setting up: preparing"));
     connection(&mut world, OWNED, connected());
     follow(
         &mut world,
