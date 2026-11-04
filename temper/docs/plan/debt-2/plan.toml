@@ -1,3 +1,24 @@
 draft = "debt-2"
 repo = "fabrig"
 sources = ["temper/docs/plan/debt-2/inputs/request.md", "jig/docs/development/debt/D018-native-shell-unlinked-panics.md", "skein/docs/development/debt/D046-ui-limits-and-accounting.md", "smith/docs/development/debt/D002-lifecycles-in-flags.md", "temper/docs/development/debt/D005-forgejo-file-credentials.md"]
+
+# Four debt items, one per tree, each paid on its own branch (inputs/request.md): four parts
+# that read none of each other's code, so each starts as soon as its tasks are written.
+# plan.md says what was decided and why.
+
+[buffer]
+low = 1.0
+high = 2.0
+
+[[part]]
+id = "skein-ui-limits"
+title = "skein D046: skein-ui gives Limits::EMPTY and a public Node::text_bytes"
+mode = "direct"
+needs = []
+design = "skein/docs/design/ui.md, 15"
+
+[[slice]]
+id = 1
+story = "a skein caller builds a tree's limits by setting only the fields it means over Limits::EMPTY, and reads a node's text bytes from skein-ui instead of counting them itself"
+parts = ["skein-ui-limits"]
+walk = false
