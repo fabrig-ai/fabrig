@@ -90,6 +90,13 @@ pub(crate) struct GroupState {
     chained: bool,
     status: Status,
 }
+/// What the box does with a fetch line of this step (protocol/setup.md, 7.2).
+#[derive(Clone, Copy, PartialEq, Eq, Debug)]
+pub enum Relay {
+    Send,
+    Unasked,
+    Exited,
+}
 /// The result once all children are closed.
 #[derive(Clone, Copy, PartialEq, Eq, Debug)]
 pub enum Outcome {
@@ -279,6 +286,19 @@ impl Machine {
     #[must_use]
     pub fn remover(&self, slot: usize) -> Option<usize> {
         self.groups.get(slot)?.remover
+    }
+    /// `Send` while its group starts and it runs; `Unasked` while it runs for no ask.
+    #[must_use]
+    pub fn relay(&self, step: usize) -> Relay {
+        let Some(state) = self.states.get(step) else { return Relay::Exited };
+        match state.phase {
+            Phase::Starting { .. } | Phase::Live { .. } | Phase::Grace { .. } => {
+                if self.starting_group(step).is_some() { Relay::Send } else { Relay::Unasked }
+            }
+            Phase::Dormant | Phase::Waiting { .. } | Phase::Closing { .. } | Phase::Backoff { .. } | Phase::Stopped => {
+                Relay::Exited
+            }
+        }
     }
     fn slot(&self, kind: BoxKind) -> Option<usize> {
         for (index, group) in self.groups.iter().enumerate() {
