@@ -96,6 +96,41 @@ pub(crate) fn terminal_phase(phase: contract::Phase) -> bool {
         | contract::Phase::Held => false,
     }
 }
+/// Extract the live or retained person contract without using generic task offers.
+pub(crate) fn person_task(value: &ReadValue) -> Option<&contract::PersonTask> {
+    match value {
+        ReadValue::PersonTask(person) => Some(person),
+        ReadValue::Ended(ended) => match &ended.value {
+            contract::EndedValue::PersonTask { document, .. } => Some(document),
+            contract::EndedValue::Task { .. }
+            | contract::EndedValue::Proposal(_)
+            | contract::EndedValue::PersonProposal { .. }
+            | contract::EndedValue::Escalation { .. }
+            | contract::EndedValue::Question { .. } => None,
+        },
+        ReadValue::Task(_)
+        | ReadValue::Me(_)
+        | ReadValue::Inbox(_)
+        | ReadValue::Tasks(_)
+        | ReadValue::TaskText(_)
+        | ReadValue::Settings(_)
+        | ReadValue::Setting(_)
+        | ReadValue::Revision(_)
+        | ReadValue::Revisions(_)
+        | ReadValue::Project(_)
+        | ReadValue::Turn(_)
+        | ReadValue::Proposal(_)
+        | ReadValue::Escalation(_)
+        | ReadValue::Question(_)
+        | ReadValue::Result(_)
+        | ReadValue::EndedPage(_)
+        | ReadValue::History(_)
+        | ReadValue::Activity(_)
+        | ReadValue::Spend(_)
+        | ReadValue::Notes(_)
+        | ReadValue::Deployment(_) => None,
+    }
+}
 pub(crate) fn read_task(value: &ReadValue) -> Option<(&contract::Task, Option<&contract::Result>)> {
     if let ReadValue::Task(task) = value {
         return Some((task, None));
@@ -499,6 +534,7 @@ pub fn settings_refusal(why: &contract::Refusal, text: u32) -> Box<[u8]> {
 
 fn plain_task(reading: &crate::jig::runner::reads::Reading) -> bool {
     reading.called.call.tool == 3
+        && reading.person.is_none()
         && reading.pages.len() == 1
         && reading.documents.is_empty()
         && reading.specification.is_none()

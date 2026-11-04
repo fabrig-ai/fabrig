@@ -75,23 +75,7 @@ impl Component {
     pub fn down(&mut self, now: Time, event: Event, out: &mut Queue<Request>) {
         match event {
             Event::Accepted { connection } => self.accepted(now, connection, out),
-            Event::Lower { connection, event } => {
-                if let Some(mut state) = self.connections.remove(&connection) {
-                    match &event {
-                        skein_channel::LowerEvent::Read(skein_lib::stream::Up::Bytes(_))
-                            if state.phase == Phase::Open =>
-                        {
-                            state.silence = Some(now.saturating_add(self.limits.silence));
-                        }
-                        skein_channel::LowerEvent::Read(_)
-                        | skein_channel::LowerEvent::Write(_)
-                        | skein_channel::LowerEvent::WriteFailed(_) => {}
-                    }
-                    state.up(event, connection, out);
-                    self.progress(now, connection, &mut state, out);
-                    self.keep(connection, state);
-                }
-            }
+            Event::Lower { connection, event } => self.lower(now, connection, event, out),
             Event::Gone { connection } => {
                 if let Some(mut state) = self.connections.remove(&connection) {
                     lost(&mut state, out);
@@ -114,14 +98,7 @@ impl Component {
                 }
                 self.fire(now, out);
             }
-            Event::Down { channel, down, parts, values } => {
-                if let Some(connection) = self.target(channel) {
-                    let record = crate::translate::down(down, &parts, values, &self.codec);
-                    self.send(now, connection, record, out);
-                } else {
-                    self.dropped_down = self.dropped_down.saturating_add(1);
-                }
-            }
+            event @ Event::Down { .. } => self.deliver(now, event, out),
             Event::TurnBusy { channel, run, attempt, turn } => {
                 if let Some(connection) = self.target(channel) {
                     let record = crate::translate::turn_busy(run, attempt, turn, &self.codec);
@@ -141,11 +118,79 @@ impl Component {
         }
         self.completed(out);
     }
+    fn lower(&mut self, now: Time, connection: Token, event: skein_channel::LowerEvent, out: &mut Queue<Request>) {
+        if let Some(mut state) = self.connections.remove(&connection) {
+            match &event {
+                skein_channel::LowerEvent::Read(skein_lib::stream::Up::Bytes(_)) if state.phase == Phase::Open => {
+                    state.silence = Some(now.saturating_add(self.limits.silence));
+                }
+                skein_channel::LowerEvent::Read(_)
+                | skein_channel::LowerEvent::Write(_)
+                | skein_channel::LowerEvent::WriteFailed(_) => {}
+            }
+            state.up(event, connection, out);
+            self.progress(now, connection, &mut state, out);
+            self.keep(connection, state);
+        }
+    }
+    fn deliver(&mut self, now: Time, event: Event, out: &mut Queue<Request>) {
+        if let Event::Down { channel, down, parts, values } = event {
+            if let Some(connection) = self.target(channel) {
+                let identity = match &down {
+                    jig_domain_host::LinkDown::Assign { assignment } => {
+                        Some((assignment.assignment.run, assignment.assignment.attempt))
+                    }
+                    jig_domain_host::LinkDown::AssignJob { .. }
+                    | jig_domain_host::LinkDown::Sources { .. }
+                    | jig_domain_host::LinkDown::Check { .. }
+                    | jig_domain_host::LinkDown::SignOut { .. }
+                    | jig_domain_host::LinkDown::Message { .. }
+                    | jig_domain_host::LinkDown::Relayed { .. }
+                    | jig_domain_host::LinkDown::TurnKept { .. }
+                    | jig_domain_host::LinkDown::Acknowledge { .. }
+                    | jig_domain_host::LinkDown::Cancel { .. }
+                    | jig_domain_host::LinkDown::Grant { .. } => None,
+                };
+                let record = crate::translate::down(down, &parts, values, &self.codec);
+                if record.is_none()
+                    && let Some((run, attempt)) = identity
+                {
+                    self.assignment_refused(channel, run, attempt, out);
+                }
+                self.send(now, connection, record, out);
+            } else {
+                self.dropped_down = self.dropped_down.saturating_add(1);
+            }
+        }
+    }
     fn completed(&mut self, out: &mut Queue<Request>) {
         if (self.life == Life::Closing || self.life == Life::Aborting) && self.connections.is_empty() {
             self.life = Life::Closed;
             out.push(Request::Closed);
         }
+    }
+    fn assignment_refused(&self, channel: Token, run: Token, attempt: Token, out: &mut Queue<Request>) {
+        use jig_domain_host as host;
+        let why =
+            bytes::utf8_prefix(b"assignment cannot encode", skein_lib::length::usize_of(self.limits.sizes.detail));
+        out.push(Request::Up {
+            channel,
+            up: host::LinkUp::Answer {
+                run,
+                attempt,
+                answer: host::RunAnswer {
+                    read: None,
+                    refused: Box::new([]),
+                    turns: 0,
+                    spent: 0,
+                    ending: host::Ending::Refused(host::Refusal::Invalid(host::Invalid::Start {
+                        cause: host::StartCause::Other,
+                        why: Box::from(why),
+                    })),
+                },
+            },
+            parts: Box::new([]),
+        });
     }
     fn target(&self, channel: Token) -> Option<Token> {
         for (connection, state) in &self.connections {
