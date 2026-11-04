@@ -99,7 +99,7 @@ const X1_RENDER_LINES: &str = concat!(
 );
 #[test]
 fn x1_prod_prints_render_md_9_2s_lines() {
-    let text = include_bytes!("../../render/fleet/expected/x1-prod");
+    let text = include_bytes!("../../../render/fleet/expected/x1-prod");
     assert_eq!(golden::mask12(&fixtures::lines_starting(text, X1_FIELDS)), X1_RENDER_LINES);
 }
 #[test]
@@ -173,7 +173,7 @@ fn protocol_error_cases_exit_with_their_cause_class() {
 
 #[test]
 fn errors_are_sorted_by_path_line_column_and_target() {
-    let text = include_bytes!("../../render/errors/sorted/expected/output");
+    let text = include_bytes!("../../../render/errors/sorted/expected/output");
     assert_eq!(
         fixtures::lines_starting(text, &["tasks/"]),
         concat!(
@@ -209,7 +209,7 @@ fn a_laid_record_prints_known_for_its_targets_alone() {
 }
 #[test]
 fn the_keys_line_is_the_one_hearth_24_pins() {
-    let text = include_str!("../../render/resolution/expected-known/test-min");
+    let text = include_str!("../../../render/resolution/expected-known/test-min");
     let line = text.lines().find(|line| line.starts_with("keys ")).expect("known keys");
     assert_eq!(line, fixtures::TEST_MIN_KEYS_LINE);
 }
