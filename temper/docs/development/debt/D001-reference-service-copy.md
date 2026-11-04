@@ -48,8 +48,9 @@ to differ.
 The remaining overlap was sorted by hand at debt-10's cut, from 356 lines:
 about 127 generic (braces, imports, signatures), about 176 owned by the
 application under `jig/docs/design/protocol/service.md`, 11 or by this item
-(passes, tokens, sizes), and about 53 movable. Every move that keeps section 11
-would leave about 310; below 200 needs a clients' part holding the pass, which
+(passes, tokens, sizes), and about 53 movable. Every move consistent with
+`jig/docs/design/protocol/service.md`, section 11 would leave about 310;
+below 200 needs a clients' part holding the pass, which
 11.6 rules out. The bundle helpers are shared, outside the measure. The
 question of the bound is the user's; application-owned code stays with its
 owner rather than moving to chase it. Bundle and translation files remain
