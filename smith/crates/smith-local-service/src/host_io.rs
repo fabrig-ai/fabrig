@@ -16,10 +16,12 @@ use crate::StartValues;
 
 mod close;
 mod delivery;
+mod signals;
 mod store;
 mod terminal;
 use close::Close;
 use delivery::DeliveryIo;
+use signals::Signals;
 use store::StoreIo;
 use terminal::{TerminalInput, WindowRead};
 
@@ -73,9 +75,8 @@ pub(crate) struct HostIo {
     failed: bool,
     terminal_input: TerminalInput,
     window_read: WindowRead,
-    signals: Option<Token>,
+    signals: Signals,
     close: Close,
-    signal_operation: Option<Token>,
 }
 
 /// IO table capacities and the selected process channel's framing edges.
@@ -143,9 +144,8 @@ impl HostIo {
             failed: false,
             terminal_input: TerminalInput::Absent,
             window_read: WindowRead::Idle,
-            signals: None,
+            signals: Signals::Absent,
             close: Close::Open,
-            signal_operation: None,
         })
     }
 
@@ -200,7 +200,7 @@ impl HostIo {
             self.adopted_input(stream, read_input);
         }
         let signal = self.io.adopt_signals(signals)?;
-        self.signals = Some(signal);
+        self.signals.adopted(signal);
         Ok(())
     }
 
@@ -269,13 +269,11 @@ impl HostIo {
     }
 
     pub(crate) fn signal_streams(&self) -> u32 {
-        u32::from(self.signals.is_some())
+        self.signals.streams()
     }
 
     pub(crate) fn close_signals(&mut self) {
-        if let Some(entity) = self.signals {
-            self.io_requests.push(io::Request::Close { entity });
-        }
+        self.signals.close(&mut self.io_requests);
     }
 
     pub(crate) fn take_shutdown(&mut self) -> bool {
@@ -309,7 +307,7 @@ impl HostIo {
             && self.store_io.store_actions.is_empty()
             && self.files.takes()
             && self.files.open_files() == 0
-            && self.operations.len() == u32::from(self.signal_operation.is_some())
+            && self.operations.len() == self.signals.reads()
             && self.file_requests.is_empty()
             && self.file_events.is_empty()
             && self.io_requests.is_empty()
@@ -389,9 +387,7 @@ impl HostIo {
     fn reap(&mut self, env: &Env<io::Limits>) {
         for _ in 0..self.completions.capacity() {
             let Some(complete) = self.completions.pop() else { break };
-            if self.signal_operation == Some(complete.op) {
-                self.signal_operation = None;
-            }
+            self.signals.completed(complete.op);
             let route = self.operations.remove(&complete.op).expect("one route per submitted kernel operation");
             match route {
                 Operation::ProgramRoot => self.programs.as_mut().expect("program root close").root_closed(),
@@ -509,7 +505,7 @@ impl HostIo {
                     stream::Up::Room => unreachable!("read-only terminal asks for no output room"),
                 },
                 io::Event::Closed { owner } if self.terminal_input.owns(owner) => self.terminal_input.closed(),
-                io::Event::Closed { owner } if Some(owner) == self.signals => self.signals = None,
+                io::Event::Closed { owner } if self.signals.owns(owner) => self.signals.closed(),
                 other @ (io::Event::Listening { .. }
                 | io::Event::Accepted { .. }
                 | io::Event::Connecting { .. }
@@ -691,8 +687,7 @@ impl HostIo {
             other => other,
         };
         if let kernel::Op::ReadSignal { .. } = &kind {
-            assert!(self.signal_operation.is_none(), "one retained signal read");
-            self.signal_operation = Some(global);
+            self.signals.reading(global);
         }
         let route = if file { Operation::File(submit.op) } else { Operation::Io(submit.op) };
         self.operations.insert(global, route).expect("reserved kernel route");
