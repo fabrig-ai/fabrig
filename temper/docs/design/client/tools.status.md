@@ -1,7 +1,7 @@
 # tools: status
 
 2026-11-04. Remaining gaps between temper's code and [tools.md](tools.md).
-Unlisted sections, including 6.1's settings proposal recipients, have no known gap.
+Unlisted sections have no known gap.
 
 - **Not yet:** 5.5: area 2 cannot distinguish a refused creating offer's
   capacity cause from its role cause: jig's `me` carries absence alone
