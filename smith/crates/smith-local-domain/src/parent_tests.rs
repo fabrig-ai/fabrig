@@ -18,6 +18,27 @@ fn running(config: Config) -> (Domain, Env<Limits>, Queue<Request>) {
     (domain, env, out)
 }
 
+fn plain_delivery_config() -> Config {
+    let mut config = crate::tests::config();
+    config.reserve.time = crate::tests::limits().smith.run.check_timeout;
+    config.budget.time = Duration::from_secs(120);
+    config.contract = Contract::Change(run::outcome::ChangeSpec {
+        checks_must_pass: false,
+        fields: Box::from([run::outcome::FieldRule { name: b"title".as_slice().into(), max: 64 }]),
+    });
+    config.workspace = Some(run::Workspace {
+        directories: Box::from([run::Directory {
+            host: Box::from(b"/host".as_slice()),
+            name: b"work".as_slice().into(),
+            root: Token::new(9),
+            writable: true,
+            git: false,
+            conflicts: Box::default(),
+        }]),
+    });
+    config
+}
+
 #[test]
 fn started_binds_the_handle_and_admission_keeps_an_empty_person_queue() {
     let (_, env, mut out) = running(crate::tests::config());
@@ -178,8 +199,37 @@ fn account_notices() -> [(parent::Request, AccountFailure); 4] {
 
 #[test]
 fn told_and_withdrawn_do_not_abandon_a_durable_delivery() {
-    let (_, env, mut out) = running(crate::tests::config());
-    let mut domain = Domain::running_delivery(crate::tests::config(), &env.limits, 71, Token::new(55));
+    let (mut domain, env, mut out) = running(plain_delivery_config());
+    parent_request(
+        &mut domain,
+        &env,
+        parent::Request::Called {
+            client: Token::new(1),
+            logical_run: Token::new(1),
+            call: Token::new(55),
+            name: host::CallName { activation: 1, completion: 2, position: 1 },
+            deadline: Time::from_nanos(99),
+            ask: host::Ask::Deliver {
+                fields: host::Fields::new(
+                    run::outcome::Change {
+                        fields: Box::from([run::outcome::Field {
+                            name: b"title".as_slice().into(),
+                            value: b"keep the change".as_slice().into(),
+                        }]),
+                    },
+                    1024,
+                )
+                .expect("bounded fields"),
+            },
+        },
+        &mut out,
+    );
+    let Some(Request::PlainStatus { owner, .. }) = out.pop() else { panic!("survey delivery") };
+    assert_eq!(owner, Token::new(55));
+    crate::step(&mut domain, &env, Event::PlainStatus { owner, changed: true }, &mut out);
+    let Some(Request::SaveDelivery { record }) = out.pop() else { panic!("save intent") };
+    assert!(matches!(record.state, crate::DeliveryState::Intent(_)));
+    assert!(out.is_empty());
     parent_request(
         &mut domain,
         &env,
@@ -192,7 +242,14 @@ fn told_and_withdrawn_do_not_abandon_a_durable_delivery() {
         parent::Request::Withdrawn { client: Token::new(1), call: Token::new(55) },
         &mut out,
     );
-    assert_eq!(domain.delivery_owner, Some(Token::new(55)));
+    assert!(out.is_empty());
+    crate::step(&mut domain, &env, Event::DeliverySaved { name: record.name }, &mut out);
+    let Some(Request::SaveDelivery { record: answer }) = out.pop() else { panic!("save delivery answer") };
+    assert_eq!(answer.name, record.name);
+    let crate::DeliveryState::Answer(run::Delivery::Delivered(delivered)) = answer.state else {
+        panic!("withdrawn delivery still lands")
+    };
+    assert_eq!(delivered.receipts()[0].text(), b"files kept");
     assert!(out.is_empty());
 }
 
@@ -398,23 +455,7 @@ fn gone_without_an_answer_fails_after_retained_turns_are_saved() {
 
 #[test]
 fn a_delivery_call_keeps_its_fields_owner_and_deadline_in_local_policy() {
-    let mut config = crate::tests::config();
-    config.reserve.time = crate::tests::limits().smith.run.check_timeout;
-    config.budget.time = Duration::from_secs(120);
-    config.contract = Contract::Change(run::outcome::ChangeSpec {
-        checks_must_pass: false,
-        fields: Box::from([run::outcome::FieldRule { name: b"title".as_slice().into(), max: 64 }]),
-    });
-    config.workspace = Some(run::Workspace {
-        directories: Box::from([run::Directory {
-            host: Box::from(b"/host".as_slice()),
-            name: b"work".as_slice().into(),
-            root: Token::new(9),
-            writable: true,
-            git: false,
-            conflicts: Box::default(),
-        }]),
-    });
+    let config = plain_delivery_config();
     let (mut domain, env, mut out) = running(config);
     let change = run::outcome::Change {
         fields: Box::from([run::outcome::Field {

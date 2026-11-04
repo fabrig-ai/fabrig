@@ -715,12 +715,7 @@ impl Domain {
         domain
     }
 
-    /// A parent-face harness retaining one durable delivery owner through withdrawal.
-    pub(crate) fn running_delivery(config: Config, limits: &Limits, seed: u64, owner: Token) -> Self {
-        let mut domain = Self::running_parent(config, limits, seed);
-        domain.delivery_owner = Some(owner);
-        domain
-    }
+
 }
 
 #[cfg(test)]
