@@ -360,6 +360,9 @@ around it:
   stores sharing a sync; reads at one commit across pages, for a
   consistent view of many; `Load` in reverse order, where reversed keys
   do not serve.
+- A rollover's `Close` answered `Failed` goes as a failed write does
+  (section 4), but the simulator fails no `Close`, so no test reaches
+  it. Later: that fault, beside `io_error`.
 - A deployment's budgets are a later design: a configured ceiling on its
   memory and its store, from which `Limits` are derived, beside
   section 7's rule that a store pays for what it holds.
