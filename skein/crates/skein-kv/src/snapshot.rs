@@ -51,18 +51,16 @@ pub(crate) fn chunk(rows: &[Row], limit: u32) -> Option<Box<[u8]>> {
     if total > limit {
         return None;
     }
-    let total = usize::try_from(total).ok()?;
-    let mut body = Vec::new();
-    for row in rows {
-        body.extend_from_slice(&u32::try_from(row.key.len()).ok()?.to_be_bytes());
-        body.extend_from_slice(&u32::try_from(row.value.len()).ok()?.to_be_bytes());
-        body.extend_from_slice(&row.key);
-        body.extend_from_slice(&row.value);
-    }
-    let mut bytes = Vec::with_capacity(total);
+    let body_len = total.checked_sub(CHUNK_BYTES)?;
+    let mut bytes = Vec::with_capacity(usize::try_from(total).ok()?);
     bytes.extend_from_slice(&u32::try_from(rows.len()).ok()?.to_be_bytes());
-    bytes.extend_from_slice(&u32::try_from(body.len()).ok()?.to_be_bytes());
-    bytes.extend_from_slice(&body);
+    bytes.extend_from_slice(&body_len.to_be_bytes());
+    for row in rows {
+        bytes.extend_from_slice(&u32::try_from(row.key.len()).ok()?.to_be_bytes());
+        bytes.extend_from_slice(&u32::try_from(row.value.len()).ok()?.to_be_bytes());
+        bytes.extend_from_slice(&row.key);
+        bytes.extend_from_slice(&row.value);
+    }
     bytes.extend_from_slice(&crc32c(&bytes).to_be_bytes());
     Some(bytes.into_boxed_slice())
 }
