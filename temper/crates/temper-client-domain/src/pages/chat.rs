@@ -637,6 +637,7 @@ impl Chat {
             | Act::Accounts(_)
             | Act::ConnectModel(_)
             | Act::MakeDefault
+            | Act::DefaultName { .. }
             | Act::OpenProject { .. }
             | Act::Project { .. }
             | Act::SignOut

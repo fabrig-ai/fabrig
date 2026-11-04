@@ -280,7 +280,12 @@ fn repair_designer(
     assert!(rendered.contains("read_task"));
     let mut amendment = fixtures::task_amendment(None, None, b"use replacement S");
     amendment.dependencies = Some(Box::new([replacement]));
-    fixtures::tool_call(driver, resumed, call + 1, engine::Tool::Amend { target: task, revision, amendment });
+    fixtures::tool_call(
+        driver,
+        resumed,
+        call + 1,
+        engine::Tool::Amend { keep_parameters: false, target: task, revision, amendment },
+    );
     assert!(matches!(driver.answered(call + 1), Some(engine::CallAnswer::Amended { .. })));
     assert_eq!(driver.task(task).expect("live designer").dependencies.as_ref(), &[replacement]);
     let fresh = task_read(driver, resumed, call, task);

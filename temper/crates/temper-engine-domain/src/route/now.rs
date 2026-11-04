@@ -1,11 +1,10 @@
 //! The core's immediate outputs: payload reads, preparation and the door
 //! (jig's `domain/root.md`, 4; `testing/jig-test-domain/src/routes.rs`).
 use super::{
-    CallAnswer, Decision, Delivery, Domain, Env, HostRequest, Limits, List, PreparedWorkspace, Read, Request, Token,
-    Work, emit, escalation, forge_route, proposals, relay_call,
+    CallAnswer, Decision, Delivery, Domain, Env, HostRequest, Limits, List, PreparedWorkspace, Read, Request, Work,
+    emit, escalation, forge_route, proposals, relay_call,
 };
 use crate::Range;
-use crate::archive::retire_read;
 use crate::assemble::{brief_outputs, finish_brief_plan, take_payload};
 use crate::boundary::{EndedRead, Payload};
 use alloc::boxed::Box;
@@ -83,21 +82,10 @@ pub(crate) fn now(domain: &mut Domain, env: &Env<Limits>, decision: &mut Decisio
         }
         core::Now::Activate { context } => {
             let ready = domain.ready() && crate::domain::within_budget(domain, &env.limits);
-            domain.work.push(Work::Core(core::Event::Activate { context, ready }));
+            domain.work.push(Work::Due { context, ready });
         }
-        core::Now::PrepareAgent { context, load_transcript } => {
-            let (transcript_waiter, busy) = if load_transcript {
-                match domain.archive_reads.insert(Some(Read::Transcript { task: context.task })) {
-                    Ok(waiter) => (Some(waiter.token()), false),
-                    Err(_) => (None, true),
-                }
-            } else {
-                (None, false)
-            };
-            domain.work.push(Work::Core(core::Event::PreparedAgent { context, transcript_waiter, busy }));
-        }
-        core::Now::StartPreparation { task, transcript_waiter, from } => {
-            start_preparation(domain, env, decision, task, transcript_waiter, from);
+        core::Now::StartPreparation { task, from } => {
+            start_preparation(domain, env, decision, task, from);
         }
         core::Now::EndedTask { request, task } => {
             ended(domain, env, decision, EndedRead::EndedTask { request, task });
@@ -206,23 +194,14 @@ pub(crate) fn now(domain: &mut Domain, env: &Env<Limits>, decision: &mut Decisio
 }
 
 /// Load the current transcript window before the brief.
-fn start_preparation(
-    domain: &mut Domain,
-    env: &Env<Limits>,
-    decision: &mut Decision,
-    task: u64,
-    transcript_waiter: Option<Token>,
-    from: Option<(u64, u32)>,
-) {
-    if let Some(waiter) = transcript_waiter {
-        if let Some(from) = from {
-            let range = Range::Core(crate::CoreRange::TaskTranscript { task, from });
-            emit(decision, &env.limits, Delivery::Load { waiter, range, after: None });
-            return;
-        }
-        retire_read(domain, waiter);
-    }
-    unreachable!("the core requests a transcript load only with a reserved window");
+fn start_preparation(domain: &mut Domain, env: &Env<Limits>, decision: &mut Decision, task: u64, from: (u64, u32)) {
+    let waiter = domain
+        .archive_reads
+        .insert(Some(Read::Transcript { task }))
+        .expect("the activation's step found read room")
+        .token();
+    let range = Range::Core(crate::CoreRange::TaskTranscript { task, from });
+    emit(decision, &env.limits, Delivery::Load { waiter, range, after: None });
 }
 
 /// Load one ended owner row the core asked for; a full read table answers busy.

@@ -4,7 +4,8 @@ use crate::{
     look,
     words::{Word, Words},
 };
-use skein_ui::{Builder, Role, Run, phrases::Hole};
+use alloc::boxed::Box;
+use skein_ui::{Builder, Role, Run, State, phrases::Hole};
 use temper_client_domain::{Address, Domain, Step, forge::forges::Connection, pages::Act};
 
 fn text(b: &mut Builder, w: &Words, role: Role, word: Word) {
@@ -162,7 +163,6 @@ pub(crate) fn main(
             super::connect_model::body(b, root, w, accounts, text_per_node);
         }
         Step::Ready => {
-            ready_heading(b, w);
             ready(b, root, w, bindings, accounts, forge, sign_in);
         }
     }
@@ -183,6 +183,20 @@ pub(crate) fn main(
     b.close();
 }
 
+/// A checklist line: its name, strong, then what it says of it, as the
+/// greenfield mockup draws "Forge Forgejo on this machine · connected as
+/// temper" (3.5).
+fn labelled(b: &mut Builder, w: &Words, label: Word, detail: &[u8]) {
+    let label = w.say(label, &[]);
+    b.open(Role::Paragraph);
+    b.name(&crate::accounts::words::join(&[&label, b" ", detail]));
+    b.open(Role::Text);
+    b.run(Run::Strong, &label);
+    b.run(Run::Plain, b" ");
+    b.run(Run::Plain, detail);
+    b.close();
+    b.close();
+}
 fn model_line(
     b: &mut Builder,
     root: &Domain,
@@ -194,16 +208,25 @@ fn model_line(
         b.open(Role::Item);
         if usable {
             b.style(look::FLOW_DONE);
-            let account = crate::choice::ready_model(root, w);
-            crate::cards::text(b, Role::Paragraph, &w.say(Word::WelcomeModelAccount, &[Hole::Name(account)]));
+            // The account, "ChatGPT plan · owner@example.com"; the model and
+            // its effort are chosen elsewhere.
+            let account = match super::accounts::first_usable_short(root, w) {
+                Some(account) => account,
+                None => crate::choice::new_chat_model(root, w),
+            };
+            labelled(b, w, Word::WelcomeModelStep, &account);
         } else if let Some(provider) = super::accounts::own_signing_name(root, w) {
-            crate::cards::text(b, Role::Paragraph, &w.say(Word::WelcomeModelSigningIn, &[Hole::Name(provider)]));
+            labelled(b, w, Word::WelcomeModelStep, &w.say(Word::WelcomeModelSigningIn, &[Hole::Name(provider)]));
         } else {
+            let label = w.say(Word::WelcomeModelStep, &[]);
+            let none = w.say(Word::WelcomeNoModel, &[]);
             b.open(Role::Slot);
             b.style(look::ACCOUNT_LINE);
-            b.name(&w.say(Word::WelcomeNoModel, &[]));
+            b.name(&crate::accounts::words::join(&[&label, b" ", &none]));
             b.open(Role::Text);
-            b.run(Run::Plain, &w.say(Word::WelcomeNoModel, &[]));
+            b.run(Run::Strong, &label);
+            b.run(Run::Plain, b" ");
+            b.run(Run::Plain, &none);
             b.run(Run::Plain, b" \xc2\xb7 ");
             b.close();
             go(b, w, bindings, Word::WelcomeModelTitle, Step::Model { way: None });
@@ -229,9 +252,6 @@ fn connected(root: &Domain) -> bool {
     }
     false
 }
-fn ready_heading(b: &mut Builder, w: &Words) {
-    text(b, w, Role::Heading { level: 1 }, Word::WelcomeReadyTitle);
-}
 fn ready(
     b: &mut Builder,
     root: &Domain,
@@ -241,11 +261,15 @@ fn ready(
     forge: &mut crate::forge::bindings::Bindings,
     sign_in: &crate::forge_sign_in::Forges,
 ) {
-    use crate::{
-        flow::{self, Control},
-        forge::connect,
-    };
+    use crate::forge::connect;
     let done = connected(root) && temper_client_domain::pages::welcome::model_usable(root) == Some(true);
+    if done {
+        text(b, w, Role::Heading { level: 1 }, Word::WelcomeReadyStep);
+        paragraph(b, w, Word::WelcomeReadyLead, look::WELCOME_LEAD);
+    } else {
+        text(b, w, Role::Heading { level: 1 }, Word::WelcomeReadyTitle);
+        paragraph(b, w, Word::WelcomeDefaultWait, look::WELCOME_LEAD);
+    }
     b.open(Role::List);
     b.style(look::FLOW_PROGRESS);
     b.style(look::WELCOME_CHECKLIST);
@@ -258,70 +282,72 @@ fn ready(
         if temper_client_domain::pages::welcome::forge_connected(row) {
             b.style(look::FLOW_DONE);
             if let Connection::Connected { login, .. } = &row.connection {
-                crate::cards::text(
-                    b,
-                    Role::Paragraph,
-                    &w.say(
-                        Word::WelcomeForgeConnected,
-                        &[Hole::Name(connect::name(w, row, root)), Hole::Name(skein_lib::bytes::copy_of(login))],
-                    ),
+                let detail = w.say(
+                    Word::WelcomeForgeConnected,
+                    &[Hole::Name(connect::name(w, row, root)), Hole::Name(skein_lib::bytes::copy_of(login))],
                 );
+                labelled(b, w, Word::WelcomeForgeStep, &detail);
             }
+            crate::forge::forges::open_link(b, w, row, sign_in, Some(look::FLOW_QUIET));
             text(b, w, Role::Status, Word::FlowDone);
         } else {
-            connect::status(b, root, w, row, true);
+            let detail = connect::status_words(root, w, row);
+            labelled(b, w, Word::WelcomeForgeStep, &detail);
             connect::each_step(b, root, w, row);
         }
     } else {
-        text(b, w, Role::Paragraph, Word::WelcomeNoForge);
+        let none = w.say(Word::WelcomeNoForge, &[]);
+        labelled(b, w, Word::WelcomeForgeStep, &none);
         go(b, w, bindings, Word::WelcomeForgeTitle, Step::Forge { forge: None });
     }
     b.close();
     if done {
         model_line(b, root, w, bindings, accounts);
     }
-    b.open(Role::Item);
-    crate::cards::text(
-        b,
-        Role::Paragraph,
-        &w.say(Word::WelcomeDefaultProject, &[Hole::Name(b"Default".as_slice().into())]),
-    );
-    b.close();
-    b.close();
-    let state = &root.pages().default_project();
-    let open = w.say(Word::SetupOpen, &[Hole::Name(b"Default".as_slice().into())]);
-    b.open(Role::Slot);
-    b.style(look::WELCOME_ACTIONS);
-    if done && state.making.is_none() {
-        flow::control(b, Control::PrimaryButton { name: &open, to: bindings.insert(Act::MakeDefault) });
-    } else {
-        flow::control(
-            b,
-            if state.making.is_some() {
-                Control::QuietDisabled { name: &open }
-            } else {
-                Control::PrimaryDisabled { name: &open }
-            },
-        );
-    }
-    if let Some(row) = row
-        && temper_client_domain::pages::welcome::forge_connected(row)
-    {
-        crate::forge::forges::open_link(b, w, row, sign_in, Some(look::FLOW_QUIET));
-    }
     b.close();
     if let Some(row) = row {
         connect::setup_ending(b, root, w, forge, row);
     }
+    first_project(b, root, w, bindings, done);
+}
+/// Ready's form: the first project's name, "Default" until the person
+/// writes another, then Create, which makes it and opens it (3.5).
+fn first_project(b: &mut Builder, root: &Domain, w: &Words, bindings: &mut Bindings, done: bool) {
+    use crate::flow::{self, Control};
+    let state = root.pages().default_project();
+    let label = w.say(Word::WelcomeDefaultProject, &[]);
+    b.open(Role::Form);
+    b.style(look::WELCOME_PROJECT);
+    b.name(&label);
+    b.open(Role::TextField);
+    b.name(&label);
+    b.value(&state.name, temper_client_domain::pages::shown(root.pages()));
     if state.making.is_some() {
-        text(b, w, Role::Status, Word::WelcomeMakingDefault);
-    } else if !done {
-        b.open(Role::Paragraph);
-        b.style(look::WELCOME_AFTER);
-        b.style(look::WELCOME_TINY);
-        b.name(&w.say(Word::WelcomeDefaultWait, &[]));
-        w.text(b, Word::WelcomeDefaultWait, &[]);
-        b.close();
+        b.state(State::Disabled);
+    } else if done {
+        b.state(State::SubmitsOnEnter);
+    }
+    if state.unnamed {
+        b.state(State::Invalid);
+    }
+    b.bind(bindings.insert(Act::DefaultName { words: Box::default() }));
+    b.close();
+    if state.making.is_some() {
+        let making = w.say(Word::WelcomeMakingDefault, &[Hole::Name(state.asked().into())]);
+        flow::control(b, Control::PrimaryDisabled { name: &making });
+    } else {
+        let create = w.say(Word::WelcomeCreateProject, &[]);
+        flow::control(
+            b,
+            if done {
+                Control::PrimaryButton { name: &create, to: bindings.insert(Act::MakeDefault) }
+            } else {
+                Control::PrimaryDisabled { name: &create }
+            },
+        );
+    }
+    if state.unnamed {
+        text(b, w, Role::Alert, Word::WelcomeDefaultUnnamed);
     }
     match &state.ended {
         Some(temper_client_domain::pages::welcome::Ended::Refused(refusal)) => {
@@ -335,4 +361,6 @@ fn ready(
         }
         None => {}
     }
+    paragraph(b, w, Word::WelcomeRenameLater, look::WELCOME_AFTER);
+    b.close();
 }

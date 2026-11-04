@@ -54,7 +54,12 @@ pub struct Pages {
 }
 #[derive(Clone, Debug, PartialEq, Eq)]
 pub enum Act {
+    /// Ready's Create, or its name field's Enter.
     MakeDefault,
+    /// Ready's name field.
+    DefaultName {
+        words: Box<[u8]>,
+    },
     OpenProject {
         project: u32,
     },
@@ -442,6 +447,15 @@ pub fn step(pages: &mut Pages, env: &Env<Limits>, client: &Client, event: Event,
                 | Act::Cancel),
         } => confirmation(pages, env, client, act, out),
         Event::Act { act: Act::MakeDefault } => make_default(pages, out),
+        Event::Act { act: Act::DefaultName { words } } => {
+            let state = &mut pages.default_project;
+            if state.making.is_none()
+                && let Ok(words) = jig_client::contract::Text::new(words, welcome::NAME_BYTES)
+            {
+                state.name = words.into_bytes();
+                state.unnamed = false;
+            }
+        }
         Event::Act { act: Act::OpenProject { project } } => {
             choose_project(pages, client, project);
             out.push(Request::Show { address: Address::Chats { filter: ChatsFilter::All, start: false } });
@@ -858,6 +872,7 @@ fn confirmation(pages: &mut Pages, env: &Env<Limits>, client: &Client, act: Act,
         | Act::Switcher(_)
         | Act::Choice(_)
         | Act::MakeDefault
+        | Act::DefaultName { .. }
         | Act::OpenProject { .. }
         | Act::Project { .. }
         | Act::Accounts(_)
@@ -1096,9 +1111,17 @@ fn make_default(pages: &mut Pages, out: &mut Queue<Request>) {
         Some(welcome::FirstRun::Whole | welcome::FirstRun::Unfinished { step: crate::Step::Ready }) => {}
         Some(welcome::FirstRun::Empty | welcome::FirstRun::Unfinished { .. }) | None => return,
     }
+    let Ok(asked) = jig_client::contract::Text::new(pages.default_project.asked().into(), welcome::NAME_BYTES) else {
+        return;
+    };
+    if asked.bytes().is_empty() {
+        pages.default_project.unnamed = true;
+        return;
+    }
     pages.serial = pages.serial.checked_add(1).expect("pages keys fit");
     let key = jig_client::Key { asker: Owner::Pages.asker(), number: pages.serial };
     let state = &mut pages.default_project;
+    state.unnamed = false;
     state.attempt = state.attempt.checked_add(1).expect("welcome attempts fit");
     state.making = Some(key);
     state.ended = None;
@@ -1111,10 +1134,7 @@ fn make_default(pages: &mut Pages, out: &mut Queue<Request>) {
     out.push(Request::Client(jig_client::Event::Send {
         key,
         name: Some(crate::key::named(crate::key::TOOLS, &crate::key::Name::new(&name).expect("welcome name fits"))),
-        request: jig_client::Ask::Jig(Box::new(jig_client::contract::Ask::MakeProject {
-            name: jig_client::contract::Text::new(b"Default".as_slice().into(), 64).expect("default name fits"),
-            policy: 1,
-        })),
+        request: jig_client::Ask::Jig(Box::new(jig_client::contract::Ask::MakeProject { name: asked, policy: 1 })),
     }));
 }
 fn default_told(pages: &mut Pages, client: &Client, told: &Told, out: &mut Queue<Request>) -> bool {
@@ -1151,7 +1171,7 @@ fn default_told(pages: &mut Pages, client: &Client, told: &Told, out: &mut Queue
                 && let Some(me) = pages.me(client)
             {
                 for row in &me.projects {
-                    if row.name.bytes() == b"Default" {
+                    if row.name.bytes() == pages.default_project.asked() {
                         pages.default_project.project = Some(row.project);
                         break;
                     }

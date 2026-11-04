@@ -118,10 +118,12 @@ fn fifth_setup_step_fails_on_welcome_and_forges() {
     failed_steps(Temper::tree(&draw(&root)));
     harness::event(&mut front, &mut root, Temper::went(Address::Welcome { step: Step::Ready }));
     let ready = draw(&root);
-    assert!(words(Temper::tree(&ready)).contains("It opens once your forge and model are ready."));
+    assert!(
+        words(Temper::tree(&ready)).contains("Your first project can be created once your forge and model are ready.")
+    );
     assert!(Temper::tree(&ready).nodes().iter().any(|node| {
         node.role == Role::Button
-            && node.name.as_deref().is_some_and(|name| name.starts_with(b"Open "))
+            && node.name.as_deref().is_some_and(|name| name == b"Create your project".as_slice())
             && node.states.as_slice().contains(&skein_ui::State::Disabled)
     }));
     harness::event(&mut front, &mut root, Temper::went(Address::Welcome { step: Step::Model { way: None } }));

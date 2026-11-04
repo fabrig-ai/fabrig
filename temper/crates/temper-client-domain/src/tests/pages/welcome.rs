@@ -739,6 +739,61 @@ fn default_name_taken_opens_only_the_persons_default() {
         );
     }
 }
+fn name_default(root: &mut Domain, words: &[u8]) -> Queue<Request> {
+    event(root, Event::Act { action: Action::Pages(Act::DefaultName { words: words.into() }) })
+}
+fn made_name(out: &mut Queue<Request>) -> Option<Box<[u8]>> {
+    let mut name = None;
+    while let Some(request) = out.pop() {
+        if let Request::Unlinked {
+            request: jig_client::UnlinkedRequest::Down { down: Down::Send { request: jig_client::Ask::Jig(ask), .. } },
+        } = request
+            && let c::Ask::MakeProject { name: made, policy: 1 } = *ask
+        {
+            name = Some(made.into_bytes());
+        }
+    }
+    name
+}
+#[test]
+fn ready_makes_the_first_project_as_named() {
+    let (mut root, me) = ready_default();
+    assert_eq!(root.pages().default_project().name.as_ref(), b"Default");
+    assert!(name_default(&mut root, b"  Shop ").is_empty());
+    let mut out = press_default(&mut root);
+    assert_eq!(made_name(&mut out).as_deref(), Some(b"Shop".as_slice()));
+    // While it is out, the name stays as asked.
+    name_default(&mut root, b"Other");
+    assert_eq!(root.pages().default_project().asked(), b"Shop");
+    // Taken, it opens the person's project of that name.
+    let mut frame = pages::accounts::current_me(root.client()).unwrap().clone();
+    frame.projects.get_mut(0).unwrap().name =
+        c::DocumentText::complete(c::Text::new(b"Shop".as_slice().into(), 64).unwrap());
+    deliver(&mut root, me, c::Delivery::Me(Box::new(frame)));
+    let out = default_answer(
+        &mut root,
+        jig_client::Outcome::Answered(jig_client::Answered::Jig(c::Answer::Refused {
+            refusal: c::Refusal::NameTaken,
+            at: None,
+        })),
+    );
+    assert!(moved(out, false));
+    assert_eq!(root.pages().default_project().ended, None);
+}
+#[test]
+fn ready_asks_for_a_name_before_making_anything() {
+    let (mut root, _) = ready_default();
+    name_default(&mut root, b"   ");
+    assert!(made_name(&mut press_default(&mut root)).is_none());
+    assert!(root.pages().default_project().unnamed);
+    assert_eq!(root.pages().default_project().making, None);
+    name_default(&mut root, b"S");
+    assert!(!root.pages().default_project().unnamed);
+    // jig's name bound holds the field: a longer name leaves it as it was.
+    name_default(&mut root, &[b'x'; 65]);
+    assert_eq!(root.pages().default_project().name.as_ref(), b"S");
+    assert_eq!(made_name(&mut press_default(&mut root)).as_deref(), Some(b"S".as_slice()));
+}
 #[test]
 fn default_refused_or_unknown_offers_a_new_attempt_without_sending_anything() {
     for outcome in [

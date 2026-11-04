@@ -118,6 +118,6 @@ fn github_welcome_connection_advances_to_model_without_adoption() {
     assert!(has(&root, Role::Heading { level: 1 }, b"Connect a model"));
     assert!(!front.engine_adopted(1, 8));
     go(&mut front, &mut root, welcome(Step::Ready));
-    assert!(has(&root, Role::Heading { level: 1 }, b"Almost ready"));
-    assert!(has(&root, Role::Button, b"Open Default"));
+    assert!(has(&root, Role::Heading { level: 1 }, b"Ready"));
+    assert!(has(&root, Role::Button, b"Create your project"));
 }

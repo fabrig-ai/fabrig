@@ -197,6 +197,7 @@ fn propose(value: json::Node<'_>, limits: &Limits) -> Result<core::NamedAction, 
 
 fn amend(value: json::Node<'_>) -> Result<core::NamedAction, Problem> {
     let amendment = nested::amendment(value.required(b"amendment")?)?;
+    let keep_parameters = nested::keeps_parameters(value.required(b"amendment")?)?;
     let priority = match amendment.tracked {
         Some(tasks::Tracking::Tracked { .. }) => true,
         Some(tasks::Tracking::Untracked) | None => false,
@@ -215,7 +216,7 @@ fn amend(value: json::Node<'_>) -> Result<core::NamedAction, Problem> {
         }
         None => return Err(Problem { field: b"revision", why: Why::Missing }),
     };
-    Ok(core::NamedAction::Amend { target: value.required(b"target")?.number()?, revision, amendment })
+    Ok(core::NamedAction::Amend { keep_parameters, target: value.required(b"target")?.number()?, revision, amendment })
 }
 
 fn settings(value: json::Node<'_>, limits: &Limits) -> Result<Decoded, Problem> {

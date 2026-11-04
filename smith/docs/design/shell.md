@@ -257,7 +257,7 @@ section 14.
   `smith-agent.rs` reads the configuration's path, starts
   `smith-agent-shell`, runs it with `drive`, and exits 0 after its
   answer or 1 when it could not answer (protocol/agent.md, section 6).
-- **MIT-licensed.** `smith/LICENSE` holds the MIT licence, and every
+- **MIT-licensed.** The root `LICENSE` holds the MIT licence, and every
   manifest, the package's and each crate's, takes the workspace's
   `license = "MIT"`. smith's registration with a provider is an
   open-source program's own (section 7).

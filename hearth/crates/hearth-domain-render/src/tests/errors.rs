@@ -1,0 +1,212 @@
+use super::fixtures;
+use crate::{
+    errors::{self, Decode, Kind, Limit, Place},
+    limits,
+    revision::{Oid, Position},
+    vocabulary::{Answer, Class, Decoded, Outcome},
+};
+use skein_lib::bytes::copy_of;
+#[test]
+fn a_refused_document_s_error_names_its_path_and_position() {
+    let mut call = fixtures::error_call(&limits::SHIPPED);
+    call.decoded(
+        &Oid(copy_of(b"environment")),
+        Decoded::Refused { at: Position { line: 2, column: 3 }, fault: Decode::Unexpected, also: None },
+    );
+    assert_eq!(
+        fixtures::kept(&call).as_ref(),
+        &[fixtures::decode_error(b"envs/prod.json", Some(Position { line: 2, column: 3 }), Decode::Unexpected, None)]
+    );
+}
+#[test]
+fn a_duplicate_key_s_error_gives_the_first_as_also() {
+    let mut call = fixtures::error_call(&limits::SHIPPED);
+    call.decoded(
+        &Oid(copy_of(b"environment")),
+        Decoded::Refused {
+            at: Position { line: 1, column: 14 },
+            fault: Decode::Duplicate { key: copy_of(b"motd") },
+            also: Some(Position { line: 1, column: 2 }),
+        },
+    );
+    assert_eq!(
+        fixtures::only(&fixtures::kept(&call)).also,
+        Some(Place { path: copy_of(b"envs/prod.json"), position: Some(Position { line: 1, column: 2 }) })
+    );
+}
+#[test]
+fn a_refused_task_json_s_error_names_its_task() {
+    let error =
+        errors::refused(b"tasks/motd/task.json", Some(Position { line: 1, column: 2 }), Decode::Unexpected, None);
+    assert_eq!(error.task.as_deref(), Some(b"motd".as_slice()));
+    assert_eq!(error.target, None);
+}
+#[test]
+fn errors_follow_the_last_spec_and_precede_rendered() {
+    let (mut call, target) = fixtures::removed_task();
+    call.targets = Box::new([target]);
+    call.commit = Some(Oid(copy_of(b"commit")));
+    errors::push(&mut call.errors, errors::refused(b"envs/lab.json", None, Decode::Unexpected, None));
+    let Answer::Spec(spec) = fixtures::answer(&mut call) else { panic!("spec first") };
+    assert_eq!(spec.meta.target.as_ref(), b"x1-prod");
+    assert_eq!(
+        fixtures::answer(&mut call),
+        Answer::Error(fixtures::decode_error(b"envs/lab.json", None, Decode::Unexpected, None))
+    );
+    assert_eq!(fixtures::answer(&mut call), Answer::Rendered { outcome: Outcome::Failed, diff: None, left_out: 0 });
+}
+#[test]
+fn a_document_past_its_limit_errs_at_its_path_and_fails_its_targets() {
+    let mut call = fixtures::error_call(&limits::Limits { document: fixtures::DOCUMENT_BYTES, ..limits::SHIPPED });
+    let mut out = skein_lib::Queue::with_capacity(fixtures::SINGLE_REQUEST);
+    call.files(limits::SHIPPED, &mut out);
+    assert_eq!(
+        fixtures::answer(&mut call),
+        Answer::Error(fixtures::decode_error(
+            b"envs/prod.json",
+            None,
+            Decode::TooLarge { limit: Limit::Document, max: u64::from(fixtures::DOCUMENT_BYTES) },
+            None
+        ))
+    );
+    assert_eq!(call.outcome, Outcome::Failed);
+}
+#[test]
+fn the_budget_s_error_names_the_path_that_passed_it() {
+    let mut call = fixtures::error_call(&limits::Limits { decoded: fixtures::REVISION_BYTES, ..limits::SHIPPED });
+    fixtures::decode_empty_documents(&mut call);
+    assert_eq!(
+        fixtures::kept(&call).as_ref(),
+        &[fixtures::decode_error(
+            b"hosts/x1/x1.json",
+            None,
+            Decode::TooLarge { limit: Limit::Decoded, max: fixtures::REVISION_BYTES },
+            None
+        )]
+    );
+    assert_eq!(call.targets.as_ref(), []);
+}
+#[test]
+fn a_static_file_past_its_limit_errs_and_no_read_asks_it() {
+    let (mut call, target) = fixtures::removed_task();
+    fixtures::retain_task(&mut call);
+    call.targets = Box::new([target]);
+    call.commit = Some(Oid(copy_of(b"commit")));
+    let mut entries = skein_lib::List::with_capacity(fixtures::TEMPLATE_ENTRIES);
+    for entry in call.entries.clone() {
+        entries.push(entry).expect("fixture");
+    }
+    entries
+        .push(crate::revision::Entry {
+            path: copy_of(b"tasks/motd/tree/etc/motd"),
+            mode: crate::revision::Mode::File,
+            oid: Oid(copy_of(b"file")),
+            size: u64::from(fixtures::STATIC_BYTES) + 1,
+        })
+        .expect("fixture");
+    call.entries = entries.into_boxed();
+    let mut out = skein_lib::Queue::with_capacity(fixtures::SINGLE_REQUEST);
+    assert!(!call.files(limits::Limits { static_file: fixtures::STATIC_BYTES, ..limits::SHIPPED }, &mut out));
+    assert_eq!(
+        fixtures::answer(&mut call),
+        Answer::Error(fixtures::decode_error(
+            b"tasks/motd/tree/etc/motd",
+            None,
+            Decode::TooLarge { limit: Limit::Static, max: u64::from(fixtures::STATIC_BYTES) },
+            Some(copy_of(b"motd"))
+        ))
+    );
+    assert_eq!(out.pop(), None);
+}
+
+use crate::errors::Collector;
+use fixtures::Spot;
+const SORT_INPUTS: &[Spot<'_>] =
+    &[(b"b.json", 1, 1, b"t"), (b"a.json", 2, 9, b"t"), (b"a.json", 2, 3, b"u"), (b"a.json", 2, 3, b"t")];
+const SORTED: &[Spot<'_>] =
+    &[(b"a.json", 2, 3, b"t"), (b"a.json", 2, 3, b"u"), (b"a.json", 2, 9, b"t"), (b"b.json", 1, 1, b"t")];
+#[test]
+fn errors_sort_by_path_then_line_then_column_then_target() {
+    let mut collector = Collector::new(&fixtures::limits_with_errors(fixtures::EIGHT_ERRORS));
+    for &(path, line, column, target) in SORT_INPUTS {
+        collector.push(fixtures::error_at(path, line, column, target));
+    }
+    let (kept, _) = collector.finish();
+    assert_eq!(fixtures::places(&kept).as_ref(), SORTED, "7.1");
+}
+const UNPLACED: &[Spot<'_>] = &[(b"z.json", 0, 0, b"z"), (b"", 0, 0, b"a"), (b"", 0, 0, b"b")];
+#[test]
+fn an_error_without_a_place_follows_the_placed_by_target() {
+    let mut collector = Collector::new(&fixtures::limits_with_errors(fixtures::THREE_ERRORS));
+    collector.push(fixtures::unplaced(b"b"));
+    collector.push(fixtures::unplaced(b"a"));
+    let mut placed = errors::refused(b"z.json", None, Decode::Unexpected, None);
+    placed.target = Some(copy_of(b"z"));
+    collector.push(placed);
+    let (kept, _) = collector.finish();
+    assert_eq!(fixtures::places(&kept).as_ref(), UNPLACED);
+}
+#[test]
+fn equal_errors_keep_their_arrival_order() {
+    let mut collector = Collector::new(&fixtures::limits_with_errors(fixtures::TWO_ERRORS));
+    let mut first = fixtures::error_at(b"a", 1, 1, b"t");
+    first.kind = Kind::Decode(Decode::Trailing);
+    collector.push(first);
+    collector.push(fixtures::error_at(b"a", 1, 1, b"t"));
+    let (kept, _) = collector.finish();
+    let mut kinds = skein_lib::List::with_capacity(fixtures::TWO_ERRORS);
+    for error in kept {
+        kinds.push(error.kind).expect("two errors");
+    }
+    assert_eq!(kinds.as_slice(), &[Kind::Decode(Decode::Trailing), Kind::Decode(Decode::Unexpected)]);
+}
+#[test]
+fn errors_past_the_bound_are_counted_not_kept() {
+    let (kept, left_out) = fixtures::collector(fixtures::THREE_ERRORS).finish();
+    assert_eq!(kept.len(), usize::try_from(fixtures::THREE_ERRORS).expect("small bound"));
+    assert_eq!(left_out, 1);
+}
+const FIRST_THREE: &[Spot<'_>] = &[(b"a", 1, 1, b"t"), (b"b", 1, 1, b"t"), (b"c", 1, 1, b"t")];
+#[test]
+fn a_smaller_error_displaces_the_last_kept_one() {
+    let (kept, _) = fixtures::collector(fixtures::THREE_ERRORS).finish();
+    assert_eq!(fixtures::places(&kept).as_ref(), FIRST_THREE);
+}
+#[test]
+fn a_left_out_operational_error_still_makes_the_call_try_again() {
+    let mut call =
+        crate::call::Side::new(copy_of(b"/repo"), Box::new([]), &fixtures::limits_with_errors(fixtures::NO_ERRORS));
+    let mut error = fixtures::unplaced(b"t");
+    error.class = Class::Operational;
+    call.errors.push(error);
+    assert_eq!(fixtures::answer(&mut call), Answer::Rendered { outcome: Outcome::TryAgain, diff: None, left_out: 1 });
+}
+const BOUNDS: &[u32] = &[fixtures::NO_ERRORS, fixtures::SINGLE_REQUEST, fixtures::THREE_ERRORS, fixtures::EIGHT_ERRORS];
+#[test]
+fn the_collector_never_holds_more_than_its_bound() {
+    for &bound in BOUNDS {
+        let mut collector = Collector::new(&fixtures::limits_with_errors(bound));
+        for &line in &[9, 3, 8, 1, 7, 2, 6, 4, 5] {
+            collector.push(fixtures::error_at(b"a", line, 1, b"t"));
+            assert!(collector.errors().len() <= usize::try_from(bound).expect("small bound"), "bound {bound}");
+        }
+    }
+}
+
+#[test]
+fn errors_past_16_mib_are_counted_not_kept() {
+    let (kept, left_out) = fixtures::byte_limited_errors().finish();
+    assert_eq!(fixtures::places(&kept).as_ref(), &[(b"a".as_slice(), 1, 1, b"".as_slice()), (b"b", 1, 1, b"")]);
+    assert_eq!(left_out, 2);
+}
+
+const ERROR_BOUNDS: &[(usize, usize, u32)] = &[(fixtures::ERROR_BYTES, 1, 0), (fixtures::ERROR_BYTES + 1, 0, 1)];
+#[test]
+fn the_error_byte_bound_keeps_its_exact_prefix() {
+    for &(bytes, count, omitted) in ERROR_BOUNDS {
+        let mut collector = fixtures::composition_collector();
+        collector.push(fixtures::large_error(b"a", bytes));
+        let (kept, left_out) = collector.finish();
+        assert_eq!((kept.len(), left_out), (count, omitted), "{bytes} bytes");
+    }
+}

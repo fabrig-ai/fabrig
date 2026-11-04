@@ -444,7 +444,6 @@ pub fn watcher(event: &core::Event) -> Option<Token> {
         | core::Event::AcceptedTurn { .. }
         | core::Event::RefusedPayload { .. }
         | core::Event::Activate { .. }
-        | core::Event::PreparedAgent { .. }
         | core::Event::EndedReadLoaded { .. }
         | core::Event::SeenConversationLoaded { .. }
         | core::Event::EndedProposal { .. }

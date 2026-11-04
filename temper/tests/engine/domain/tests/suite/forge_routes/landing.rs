@@ -505,7 +505,11 @@ fn add_dependency(world: &mut World, chat: &engine::Assignment, a: u64, b: u64) 
         chat.task,
         chat.attempt,
         97,
-        engine::Call { completion: 97, position: 1, tool: engine::Tool::Amend { target: b, revision, amendment } },
+        engine::Call {
+            completion: 97,
+            position: 1,
+            tool: engine::Tool::Amend { keep_parameters: false, target: b, revision, amendment },
+        },
     );
     world.send(event);
     for _ in 0..PAIR_TICKS {

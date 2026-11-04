@@ -236,7 +236,7 @@ fn a_welcome_sign_in_come_back_at_ready_reads_it_under_way_then_its_account() {
     let (_, returned) = front.engine.protocol.returns.last().expect("welcome return");
     let Place::Address(address) = d::address::parse(returned) else { panic!("returned welcome address") };
     accounts::reopen(&mut front, &mut root, address, true);
-    assert!(text(&root).contains("Model: ChatGPT · signing in"));
+    assert!(text(&root).contains("Model ChatGPT · signing in"));
     assert!(!text(&root).contains("Connect a model"));
     front.engine.send(temper_engine_domain::Event::Account(jig_domain_accounts::Event::SignedIn {
         source,
@@ -245,7 +245,7 @@ fn a_welcome_sign_in_come_back_at_ready_reads_it_under_way_then_its_account() {
         declined: false,
     }));
     accounts::settle(&mut front, &mut root);
-    assert!(text(&root).contains("Model: ChatGPT · alice@example.com · OpenAI · held by Person"), "{}", text(&root));
+    assert!(text(&root).contains("Model ChatGPT plan · alice@example.com"), "{}", text(&root));
     assert!(!text(&root).contains("Connect a model"));
 }
 #[test]

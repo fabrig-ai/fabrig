@@ -360,7 +360,7 @@ pub fn release(domain: &mut Domain, env: &Env<Limits>, out: &mut Queue<Output>) 
     }
     if domain.journal.idle() && domain.ready() {
         if let Some(context) = domain.core.take_due() {
-            decide(domain, env, Work::Core(core::Event::Activate { context, ready: true }));
+            decide(domain, env, Work::Core(core::Event::Activate { context, ready: true, busy: false }));
         } else if domain.host.is_ready()
             || domain.core.fleet.is_ready()
             || domain.core.finish_owed()

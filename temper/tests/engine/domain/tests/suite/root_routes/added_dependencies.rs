@@ -106,7 +106,8 @@ fn a_live_delegate_is_kept_until_both_added_dependencies_are_met() {
     amendment.dependencies = Some(Box::new([e1, r]));
     let revision = live(&driver, a3).revisions.spec;
     let at = driver.env.wall;
-    tool_call(&mut driver, &parent, 911, engine::Tool::Amend { target: a3, revision, amendment });
+    let amend = engine::Tool::Amend { keep_parameters: false, target: a3, revision, amendment };
+    tool_call(&mut driver, &parent, 911, amend);
     assert_eq!(
         driver.answered(911),
         Some(&engine::CallAnswer::Amended {
@@ -124,7 +125,6 @@ fn a_live_delegate_is_kept_until_both_added_dependencies_are_met() {
             tasks::Added { task: r, at, by: tasks::Party::Task(parent.task) },
         ]
     );
-
     finish_report(&mut driver, &a3_run, b"first turn done");
     let row = live(&driver, a3);
     assert_eq!(row.phase, tasks::Phase::Active(tasks::Active::Idle));
@@ -186,7 +186,12 @@ fn an_added_dependency_that_closes_a_circle_is_refused() {
     let mut amendment = task_amendment(None, None, b"wait for b");
     amendment.dependencies = Some(Box::new([b]));
     let revision = live(&driver, a).revisions.spec;
-    tool_call(&mut driver, &parent, 913, engine::Tool::Amend { target: a, revision, amendment });
+    tool_call(
+        &mut driver,
+        &parent,
+        913,
+        engine::Tool::Amend { keep_parameters: false, target: a, revision, amendment },
+    );
     let Some(engine::CallAnswer::ControlRefused(problem)) = driver.answered(913) else {
         panic!("circle refused: {:?}", driver.answered(913))
     };
