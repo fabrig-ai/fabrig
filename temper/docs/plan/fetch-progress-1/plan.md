@@ -18,7 +18,7 @@ From `inputs/request.md`: while an owned Forgejo's set up fetches its binaries, 
 | client | `fetched-story` | `link-fetched`, `view-fetched` | 35 | the client's world, through the real family and wire |
 | look | `look-account` | `fetch-count`, `box-relay`, `fetched-story` | 60 | two gallery states, the render check, the status, the account |
 
-Eleven tasks, 480 implementer-minutes. The request's scope, item by item: 1 is `fetch`, `box`, `row` and `client`; 2 is `progress-value`; 3 is `view-fetched`.
+Eleven tasks, 500 implementer-minutes. The request's scope, item by item: 1 is `fetch`, `box`, `row` and `client`; 2 is `progress-value`; 3 is `view-fetched`.
 
 Slices, in the order they run: skein's value; the fetch and the box; the row; the clients and the look.
 
