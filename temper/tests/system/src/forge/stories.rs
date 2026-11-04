@@ -35,7 +35,7 @@ fn repair_script() -> Script {
             Turn {
                 lines: Box::new([Line::Call {
                     name: b"edit".as_slice().into(),
-                    // smith's edit takes an ordered list (smith 495230d4).
+                    // smith's edit takes an ordered list.
                     arguments: br#"{"path":"src/lib.rs","edits":[{"old":"42","new":"43"}]}"#.as_slice().into(),
                 }]),
                 finish: Finish::ToolCalls,

@@ -29,7 +29,7 @@ fn a_chat_answers_through_a_smith_run_and_a_committed_root_result() {
 fn a_chat_parks_and_resumes_from_its_concrete_smith_transcript() {
     let mut world = world::chat(b"@chat", Job::Waiting);
     world.run();
-    // smith says its words and waits in one turn (smith 98d8479e).
+    // smith says its words and waits in one turn.
     assert!(matches!(world.agent.answer(), run::Answer::Parked { turns: 1, .. }), "{:?}", world.agent.answer());
     let prior = world.agent.turns().len();
     world.say_and_resume(b"continue", 42, Job::Waiting);

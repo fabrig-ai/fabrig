@@ -54,8 +54,8 @@ fn priced_failure_is_read_then_requester_release_starts_one_fresh_attempt() {
 #[test]
 fn requester_passes_to_final_role_second_owner_releases_and_final_pass_refuses() {
     let mut world = settled(Story::PassRelease);
-    // Passing keeps the hold's revision (jig 00de0b8c): the final decision's
-    // archive replaces the pass's at the same revision.
+    // Passing keeps the hold's revision: the final decision's archive
+    // replaces the pass's at the same revision.
     let decisions = archives(&world);
     assert_eq!(decisions.len(), 1, "NoFurther archives no semantic revision");
     assert_eq!(decisions[0].decision, people::EscalationDecision::Release);

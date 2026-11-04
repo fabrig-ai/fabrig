@@ -71,7 +71,7 @@ pub(crate) fn step_routed(domain: &mut Domain, env: &Env<Limits>, event: Event, 
         }
     };
     match event {
-        Event::Setup { .. } => return, // temper-07 handles the requesting client.
+        Event::Setup { .. } => return, // The root keeps nothing of a plan's terminal.
         Event::Resume => {
             crate::domain::resume_routed(domain, env, out);
             return;

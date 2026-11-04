@@ -185,7 +185,7 @@ pub fn root(
     policy.roles[0].authority.tools = rules.ceiling.tools;
     policy.roles[0].authority.grants.clone_from(&grants);
     policy.roles[0].authority.delegation = rules.ceiling.delegation.clone();
-    // A chat takes its role's spend from the person's pool (jig a2616181):
+    // A chat takes its role's spend from the person's pool:
     // keep its 100-unit allotment, leaving the pool room for goals and chats.
     policy.roles[0].authority.budget.spend = 100;
     if matches!(story, Some(super::stories::Story::ReviewedChange | super::stories::Story::RepairCi)) {
@@ -199,7 +199,7 @@ pub fn root(
     let mut facts = Queue::uncapped();
     authority::step(&mut domain, authority::Event::Policy { project: 1, policy }, &mut facts);
     assert_eq!(facts.pop(), Some(authority::PolicyFact::Added { project: 1 }));
-    // A chat's authority is its role's, one level shallower (jig a2616181).
+    // A chat's authority is its role's, one level shallower.
     config.core.seed_projects[0].policy.policy = domain.policy(1).expect("configured seed policy").clone();
     config.core.defaults.rules = domain.rules().clone();
     let landing: Box<[engine::LandingRule]> = Box::new([engine::LandingRule {
