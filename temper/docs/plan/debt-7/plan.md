@@ -68,6 +68,17 @@ task names. This file grows with each release; what is here so far is what has b
 - **D001's and D005's facts have moved.** The measure reads 1,388, not 1,369, and `Resources`' `Debug` is now hidden
   in both copies. `service-items` corrects what survives.
 
+- **D029's fixture is built once in skein, not across trees.** temper's four fixture builders stay: the item is
+  skein's and they speak no HTTP. A scenario's own tables, such as the conformance's, stay its own too.
+- **D029 ends near -600 lines, not the review's -1.2k.** The faces' gross fall is about that, but the surface and the
+  fixture's literals stay in the fake.
+- **Two things change below D029's tests, which none reads:** the joint world meets rate fields and `ETag`, so
+  `Answered.rate` becomes `Some` and a log poll may answer `304`; the protocol world sends real media types and
+  `Location`. Each face's spec checks its suite files unchanged, its counts equal to base, and a run compared with
+  base. A seeded sweep going red stops and asks.
+- **One test helper line moves:** `github_peer.rs`'s `request` gains a `Host` line, since the real server refuses a
+  request without one. No assertion moves. `notes/fake-github.md` states this departure from the common note.
+
 ## Critical path
 
 So far: `skein-concat`, then `smith-primitives`; `skein-startup-store`, then `smith-startup-writers`;
