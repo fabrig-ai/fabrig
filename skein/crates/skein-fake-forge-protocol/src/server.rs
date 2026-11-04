@@ -186,6 +186,7 @@ fn up_on(
     );
     resume_on(server, service, domain, env, above, below);
 }
+#[expect(clippy::too_many_lines, reason = "migration replies share the domain call's byte faults and lifecycle")]
 pub fn down(
     server: &mut Server,
     service: &mut Service,
@@ -244,6 +245,7 @@ pub fn down(
         return;
     }
     let request = server.request.as_ref().expect("waiting request");
+    let migration = service.setup.migration_reply(request, &result, &mut service.config, &env.limits, env.now);
     if !server.followed {
         if service.rng.chance(service.config.faults.drop) {
             close(server, service, env, above, below);
@@ -255,7 +257,9 @@ pub fn down(
             resume(server, service, env, above, below);
             return;
         }
-        if let Ok(answer) = &result {
+        if migration.is_none()
+            && let Ok(answer) = &result
+        {
             match response::follow(request, answer) {
                 Ok(Some((read, select))) => {
                     server.select = select;
@@ -278,9 +282,15 @@ pub fn down(
             }
         }
     }
-    let reply = match result {
-        Ok(answer) => response::answer(&service.config, &service.setup, &env.limits, request, &server.select, &answer),
-        Err(error) => Err(error),
+    let reply = if let Some(reply) = migration {
+        Ok(reply)
+    } else {
+        match result {
+            Ok(answer) => {
+                response::answer(&service.config, &service.setup, &env.limits, request, &server.select, &answer)
+            }
+            Err(error) => Err(error),
+        }
     };
     retire(server, service);
     match reply {
@@ -599,6 +609,31 @@ fn decoded(
     }
     if let Some(message) = missing_scope(&request, &server.scopes) {
         respond(server, response::failure(&env.limits, errors::Failure { status: 403, message, retry_after: None }));
+        return;
+    }
+    if route == crate::Route::Migrate || route == crate::Route::DeleteRepository {
+        let Ok(id) = service.calls.insert(Call { server: server.owner, active: true }) else {
+            fail(server, &env.limits, 503);
+            return;
+        };
+        match service.setup.migration(&request, server.user, &mut service.config, &env.limits, domain) {
+            Ok((repository, op)) => {
+                server.call = Some(id);
+                server.request = Some(request);
+                server.select = response::Select::Document;
+                server.state = State::Waiting;
+                above.push(Event::Domain(domain::Event::Call {
+                    reply_to: ReplyTo::new(id.token()),
+                    user: server.user,
+                    repository,
+                    op,
+                }));
+            }
+            Err(reply) => {
+                service.calls.retire(id);
+                respond(server, reply);
+            }
+        }
         return;
     }
     if let Some(reply) = service.setup.answer_with_domain(&request, server.user, &mut service.config, env, domain) {
