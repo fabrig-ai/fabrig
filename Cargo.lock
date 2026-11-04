@@ -2611,6 +2611,7 @@ dependencies = [
  "skein-io",
  "skein-json",
  "skein-lib",
+ "skein-link",
  "skein-tls",
 ]
 

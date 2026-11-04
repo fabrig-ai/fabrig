@@ -1294,7 +1294,7 @@ fn tls_handshake_failure_answers_down_and_closes_for_both_dialects() {
             }
         }
         assert_eq!(host, Some(b"skein.test:3000".as_slice()));
-        connection.socket = Some(Token::new(2));
+        connection.link.connecting(Token::new(2), &mut Queue::uncapped());
         connection.connect(&env);
         assert!(connection.call.is_some(), "HTTP waits for Ready");
         let mut io = Queue::with_capacity(16);
