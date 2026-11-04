@@ -18,6 +18,58 @@ fn io() -> FileIo {
     FileIo::new(3, 16, 4, Duration::from_secs(1))
 }
 
+fn socket_and_file_operations() -> (Token, FileIo, Submit) {
+    let mut rig = super::Rig::new(super::limits());
+    let first = rig.down(crate::Request::Usage { owner: OWNER }).take(super::Kind::Usage);
+    rig.complete(first, Ok(Done::Usage(crate::kernel::Usage::ZERO)));
+    rig.next();
+    let reused = rig.down(crate::Request::Usage { owner: OWNER }).take(super::Kind::Usage);
+
+    let mut io = io();
+    let mut events = Queue::uncapped();
+    let mut subs = Queue::uncapped();
+    file_layer::down(
+        &mut io,
+        Time::ZERO,
+        Request::OpenRead { owner: OWNER, root: ROOT, name: Box::from(&b"file"[..]) },
+        &mut events,
+        &mut subs,
+    );
+    (reused.op, io, subs.pop().expect("first file submission"))
+}
+
+#[test]
+fn an_io_and_a_file_operation_are_never_the_same_token() {
+    let (socket, _, file) = socket_and_file_operations();
+    assert_eq!(socket, Token::new(1), "slot zero, generation one after reclaim");
+    assert_ne!(socket, file.op);
+}
+
+#[test]
+fn owns_tells_a_file_operation_from_an_io_one() {
+    let (socket, mut io, file) = socket_and_file_operations();
+    let mut subs = Queue::uncapped();
+    file_layer::cancel(&mut io, OWNER, &mut subs);
+    let cancel = subs.pop().expect("file cancellation");
+    assert_eq!(cancel.kind, Op::Cancel { target: file.op });
+    for (op, expected) in [(socket, false), (file.op, true), (cancel.op, true)] {
+        assert_eq!(file_layer::owns(op), expected, "{op:?}");
+    }
+}
+
+#[test]
+fn flight_limits_keep_io_tokens_below_the_file_lane() {
+    // io.md, 5: 2^27 flight slots, sized as eight per socket plus four
+    // independent slots. The largest representable table is four below it.
+    const MOST_SOCKETS: u32 = (1 << 24) - 1;
+    const MOST_FLIGHTS: u32 = (1 << 27) - 4;
+    for (sockets, expected) in [(MOST_SOCKETS, Some(MOST_FLIGHTS)), (MOST_SOCKETS + 1, None)] {
+        let limits = crate::Limits { sockets, ..super::limits() };
+        assert_eq!(crate::limits::flights(&limits), expected, "{sockets} sockets");
+        assert_eq!(crate::valid(&limits), expected.is_some(), "{sockets} sockets");
+    }
+}
+
 pub(super) fn complete(
     io: &mut FileIo,
     submit: Submit,
