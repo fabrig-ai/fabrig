@@ -18,6 +18,7 @@ pub mod path;
 pub mod plan;
 pub mod text;
 pub mod time;
+pub mod users;
 
 #[cfg(test)]
 mod tests;
