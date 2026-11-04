@@ -3,8 +3,6 @@
 2026-11-04. Remaining gaps between temper's code and [tools.md](tools.md).
 Unlisted sections, including 6.1's settings proposal recipients, have no known gap.
 
-- **Not yet:** 5.3: `repository make`, `repository copy`, and `forge list`'s rows of repositories being made.
-
 - **Not yet:** 5.5: area 2 cannot distinguish a refused creating offer's
   capacity cause from its role cause: jig's `me` carries absence alone
   (`jig/docs/design/client/domain/contract.md`, 5.3). Its diagnostic names
