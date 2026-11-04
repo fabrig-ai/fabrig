@@ -7,3 +7,4 @@ temper-client-journeys
 temper-stage-one
 skein-oauth-world
 fabrig-boundary
+hearth-render-world

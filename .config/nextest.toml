@@ -54,6 +54,7 @@ default-filter = """
   & not binary(/^browser_/)
 ) | (
   package(/^hearth(-|$)/) & not (kind(test) & test(/^fuzzy::/))
+  & not binary(/^fuzzy_/) & not binary(/^(conformance|recorded)_/)
 ) | package(=fabrig-boundary)
 """
 global-timeout = "150s"
@@ -97,7 +98,7 @@ default-filter = """
   & ((kind(test) & test(/^fuzzy::/)) | (package(=temper-service) & test(/^tests::sign_in::fuzzy_/)))
   & not binary(/^(process|live|live_github)$/)
 ) | (
-  package(/^hearth(-|$)/) & (kind(test) & test(/^fuzzy::/))
+  package(/^hearth(-|$)/) & ((kind(test) & test(/^fuzzy::/)) | binary(/^fuzzy_/))
 )
 """
 global-timeout = "600s"

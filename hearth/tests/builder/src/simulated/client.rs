@@ -75,8 +75,8 @@ impl Host for Client {
     fn work_pending(&self, now: Time) -> bool {
         self.inner.work_pending(now) || (self.inner.is_empty() && !self.closing && !self.startup.is_empty())
     }
-    fn next_deadline(&self) -> Option<Time> {
-        self.inner.next_deadline()
+    fn next_mechanism_deadline(&self) -> Option<Time> {
+        self.inner.next_mechanism_deadline()
     }
     fn next_policy_deadline(&self) -> Option<Time> {
         self.inner.next_policy_deadline()
@@ -89,8 +89,5 @@ impl Host for Client {
     }
     fn operations(&self) -> u32 {
         self.inner.operations()
-    }
-    fn worst_case(&self) -> u64 {
-        self.inner.worst_case()
     }
 }
