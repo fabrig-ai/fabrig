@@ -52,7 +52,9 @@ as a person's approval or a second gate, add it to a rule.
 The deployment's rules contain two standing requirements on the forge's
 merge: requirement 5 checks the landing rules, guarded; requirement 6
 checks being up to date by the landing rules, observed. The forge reads
-its held landing rules when it judges them.
+its held landing rules when it judges them. Being up to date is checked
+from commit ancestry; a large goal's diff does not have to fit a comparison
+read. A failed or incomplete ancestry read cannot permit a merge.
 
 ## What temper guarantees
 

@@ -571,6 +571,7 @@ pub fn write_body(request: Request, body: &[u8], limits: &Limits) -> Option<Requ
         | Request::Branches { .. }
         | Request::PullFiles { .. }
         | Request::Compare { .. }
+        | Request::Commits { .. }
         | Request::Raw { .. }
         | Request::RulesForBranch { .. }
         | Request::Ruleset { .. }

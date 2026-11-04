@@ -89,6 +89,7 @@ impl Plan {
             | Read::Reviews { .. }
             | Read::File { .. }
             | Read::Compare { .. }
+            | Read::Commits { .. }
             | Read::PullFiles { .. }
             | Read::Checks { .. }
             | Read::Protection { .. }
@@ -142,6 +143,7 @@ impl Plan {
             | document::Row::SkippedBranch
             | document::Row::Log(_)
             | document::Row::Installation(_)
+            | document::Row::CommitMessage(_)
             | document::Row::Commit(_)
             | document::Row::Entry { .. }
             | document::Row::File(_)
@@ -177,6 +179,7 @@ impl Plan {
             | Read::Reviews { .. }
             | Read::File { .. }
             | Read::Compare { .. }
+            | Read::Commits { .. }
             | Read::PullFiles { .. }
             | Read::Checks { .. }
             | Read::Protection { .. }
@@ -316,6 +319,7 @@ fn is_statuses(read: &Read) -> bool {
         | Read::Reviews { .. }
         | Read::File { .. }
         | Read::Compare { .. }
+        | Read::Commits { .. }
         | Read::PullFiles { .. }
         | Read::Checks { .. }
         | Read::Protection { .. }

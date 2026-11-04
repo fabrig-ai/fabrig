@@ -632,6 +632,7 @@ impl Component {
                 | document::Row::Collaborator(_)
                 | document::Row::Remark(_)
                 | document::Row::Review(_)
+                | document::Row::CommitMessage(_)
                 | document::Row::Commit(_)
                 | document::Row::Entry { .. }
                 | document::Row::File(_),

@@ -65,13 +65,17 @@ pub fn events(h: &mut f::Harness, request: &Request, token: &Secret) -> List<Hea
     let response = h.ask(encoded.method, &encoded.target, Some(token.expose()), encoded.body.as_deref().unwrap_or(b""));
     response_events(h, request, response)
 }
-pub fn response_events(h: &f::Harness, request: &Request, response: Response) -> List<Heard> {
-    let mut events = List::with_capacity(32);
+fn response_head(h: &f::Harness, response: &Response) -> Head {
     let mut head = Head::new();
     head.date = Some(skein_lib::Wall::from_nanos(fake::time(&h.env.limits, h.env.now).as_nanos()));
     if let Some(link) = &response.link {
         github::header::field(&mut head, b"Link", link, &h.limits.github);
     }
+    head
+}
+pub fn response_events(h: &f::Harness, request: &Request, response: Response) -> List<Heard> {
+    let mut events = List::with_capacity(32);
+    let head = response_head(h, &response);
     if response.status == 204 {
         assert!(response.body.is_empty(), "204 has no document");
         events.push(Heard::Head { status: response.status, head }).expect("head room");
@@ -121,12 +125,14 @@ pub fn exchange_events(h: &mut f::Harness, exchange: &github::plans::plan::Excha
     if response.status != 200 {
         return response_events(h, &exchange.request, response);
     }
-    if exchange.comparison == github::plans::plan::Comparison::MergeBase {
+    if exchange.comparison != github::plans::plan::Comparison::Full {
         let (rows, document) =
-            f::decode_with(github::decode::merge_base_decoder(&h.limits.github), &response.body, &h.limits.github);
-        assert_eq!(rows.len(), 0);
-        let mut events = List::with_capacity(2);
-        events.push(Heard::Head { status: 200, head: Head::new() }).unwrap();
+            f::decode_with(exchange.decoder(&h.limits.github).unwrap(), &response.body, &h.limits.github);
+        let mut events = List::with_capacity(rows.len().checked_add(2).expect("event capacity"));
+        events.push(Heard::Head { status: 200, head: response_head(h, &response) }).unwrap();
+        for row in rows.into_boxed() {
+            events.push(Heard::Row(row)).unwrap();
+        }
         events.push(Heard::Done(Body::Document(document))).unwrap();
         return events;
     }

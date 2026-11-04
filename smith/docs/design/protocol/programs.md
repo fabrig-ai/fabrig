@@ -555,7 +555,13 @@ backend.
   | inspect | `--tools Read,Glob,Grep`, each call asking at the prompt (5.4) |
   | served tools: none | the agent's server for it lists the prompt tool alone: no host tool, no `finish`, `deliver`, `wait` or `remove`, and no `sub_agent`, since a child opens no children |
   | no result contract | no `--json-schema`: its answer is its last text |
-  | session | `--session-id` derived as 5.8 says from its own conversation, never resumed |
+  | session | `--session-id` derived as 5.8 says from its own conversation and activation, never resumed |
+
+  The child's initial user message includes the activation number, rendered
+  in bounded decimal text. A later activation may reuse a child ordinal
+  (domain/run.md, section 15), but its first message differs, so its
+  program session is fresh. Main keeps its first message and resumes as
+  5.8 says.
 
   Its stream is told as its conversation's, as main's is (5.5): its
   `system/init` checked, each assistant message a completion of the
@@ -705,7 +711,10 @@ conditions. smith keeps each as a rule of its own:
     each a program of its own, running side by side and each answering
     with its report; a call asking a child to write, answered invalid;
     a child's final turn; and children stopped with their run.
-    A child's script is cued by its brief.
+    A child's script is cued by its brief. A follow-up while main is alive
+    uses that process; after main parks, its transcript is restored on the
+    same fake filesystem and main resumes while its children start fresh,
+    at either a named LLM's effort or main's default effort.
 - **The live suite** runs the real program on a source signed in once
   (`docs/design/testing.md`, 2.3), and checks what the fake assumes: the
   prompt tool's shape, `system/init`'s tools and capabilities, a

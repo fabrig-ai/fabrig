@@ -425,7 +425,12 @@ impl World {
                     );
                     self.connecting.push(owner);
                 }
-                IoRequest::Stream { stream, down } => self.peers.get_mut(&stream).expect("peer").wire.take(down),
+                IoRequest::Stream { stream, down } => {
+                    let peer = self.peers.get_mut(&stream).expect("peer");
+                    if !peer.closing {
+                        peer.wire.take(down);
+                    }
+                }
                 IoRequest::Abort { entity } => {
                     self.aborts += 1;
                     let peer = self.peers.get_mut(&entity).expect("physical peer");

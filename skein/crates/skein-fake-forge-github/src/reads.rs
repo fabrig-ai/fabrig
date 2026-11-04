@@ -45,6 +45,7 @@ pub(crate) enum Read {
     Pull { owner: Box<[u8]>, name: Box<[u8]>, number: u64 },
     PullsFor { owner: Box<[u8]>, name: Box<[u8]>, head: Box<[u8]>, base: Box<[u8]>, open: bool },
     PullFiles { owner: Box<[u8]>, name: Box<[u8]>, number: u64, page: u32, per_page: u32 },
+    Commits { owner: Box<[u8]>, name: Box<[u8]>, before: api::Commit, after: api::Commit, page: u32, per_page: u32 },
     Compare { owner: Box<[u8]>, name: Box<[u8]>, before: api::Commit, after: api::Commit, per_page: u32 },
     Raw { owner: Box<[u8]>, name: Box<[u8]>, commit: api::Commit, path: Box<[u8]> },
     Issues { owner: Box<[u8]>, name: Box<[u8]>, since: Wall, page: u32, per_page: u32 },
@@ -71,6 +72,7 @@ pub(crate) enum Pending {
     PullsFor { open: bool },
     PullFiles { target: Box<[u8]>, page: u32, size: u32 },
     Compare { size: u32 },
+    Commits { target: Box<[u8]>, page: u32, size: u32 },
     Raw,
     Issues { target: Box<[u8]>, page: u32, size: u32 },
     Issue,
@@ -95,6 +97,7 @@ fn row<'a>(service: &'a Service, read: &Read) -> Option<&'a Row> {
         | Read::PullsFor { owner, name, .. }
         | Read::PullFiles { owner, name, .. }
         | Read::Compare { owner, name, .. }
+        | Read::Commits { owner, name, .. }
         | Read::Raw { owner, name, .. }
         | Read::Issues { owner, name, .. }
         | Read::Issue { owner, name, .. }
@@ -118,6 +121,7 @@ fn contents(read: &Read) -> bool {
         | Read::Branch { .. }
         | Read::Branches { .. }
         | Read::Compare { .. }
+        | Read::Commits { .. }
         | Read::Raw { .. } => true,
         Read::Enqueue { .. }
         | Read::Checks { .. }
@@ -235,6 +239,15 @@ pub(crate) fn call(
             Pending::PullFiles { target: bytes::copy_of(target), page, size: per_page.min(service.limits.page) },
             Op::Read(a::Read::PullFiles { number, page, limit: per_page.min(service.limits.page) }),
         ),
+        Read::Commits { before, after, page, per_page, .. } => {
+            let (Some(before), Some(after)) = (count(&before), count(&after)) else {
+                return Outcome::Reply(answers::missing(&service.limits));
+            };
+            (
+                Pending::Commits { target: bytes::copy_of(target), page, size: per_page.min(service.limits.page) },
+                Op::Read(a::Read::Commits { before, after }),
+            )
+        }
         Read::Compare { before, after, per_page, .. } => {
             let (Some(base), Some(head)) = (count(&before), count(&after)) else {
                 return Outcome::Reply(answers::missing(&service.limits));
@@ -340,6 +353,7 @@ pub(crate) fn finish(
         | Pending::Pull
         | Pending::PullFiles { .. }
         | Pending::Compare { .. }
+        | Pending::Commits { .. }
         | Pending::Raw => result,
     };
     let answer = match result {
@@ -373,6 +387,7 @@ pub(crate) fn finish(
         Pending::PullsFor { open } => pulls::pulls_for(answer, open, limits),
         Pending::PullFiles { target, page, size } => pulls::files(answer, &target, page, size, limits),
         Pending::Compare { size } => pulls::compare(answer, size, limits),
+        Pending::Commits { target, page, size } => pulls::commits(answer, &target, page, size, limits),
         Pending::Raw => contents_answer(answer, limits),
         Pending::Issues { target, page, size } => issues::items(answer, &target, page, size, limits),
         Pending::Issue => issues::item(answer, limits),
