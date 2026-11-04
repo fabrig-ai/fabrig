@@ -63,6 +63,8 @@ pub enum Act {
     MakeDefault,
     /// Home adopts the first repository again.
     AdoptFirst,
+    /// Skip this project's To begin (client/README.md, 3.5).
+    SkipToBegin,
     /// Ready's name field.
     DefaultName {
         words: Box<[u8]>,
@@ -484,6 +486,13 @@ pub fn step(pages: &mut Pages, env: &Env<Limits>, client: &Client, event: Event,
                 | Act::Cancel),
         } => confirmation(pages, env, client, act, out),
         Event::Act { act: Act::MakeDefault } => make_default(pages, out),
+        Event::Act { act: Act::SkipToBegin } => {
+            if let Address::Home { project } = pages.address
+                && let Some(home) = &mut pages.home
+            {
+                home.skip(project, env.limits.forge, &mut pages.serial, out);
+            }
+        }
         Event::Act { act: Act::AdoptFirst } => {
             if let Address::Home { project } = pages.address {
                 adopt(pages, env, project, out);
@@ -556,8 +565,8 @@ pub fn step(pages: &mut Pages, env: &Env<Limits>, client: &Client, event: Event,
     pages.shown = pages.shown.checked_add(1).expect("pages shown count fits");
 }
 fn told(pages: &mut Pages, env: &Env<Limits>, client: &Client, told: Told, out: &mut Queue<Request>) -> bool {
-    if let Some(home) = &pages.home
-        && home.told(&told)
+    if let Some(home) = &mut pages.home
+        && home.told(&told, env.limits.forge)
     {
         return true;
     }
@@ -976,6 +985,7 @@ fn confirmation(pages: &mut Pages, env: &Env<Limits>, client: &Client, act: Act,
         | Act::ChatWords { .. }
         | Act::StartChat
         | Act::FirstChat
+        | Act::SkipToBegin
         | Act::Playground
         | Act::RetryPlayground
         | Act::Suggest { .. }
