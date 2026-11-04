@@ -36,9 +36,13 @@ fn the_running_playground_project_button_is_named_by_its_record() {
         true,
     );
     for words in [fixtures::words(), fixtures::browser_words()] {
+        let label = match words.shell {
+            crate::words::Shell::Browser => b"Shopacme/shop".as_slice(),
+            crate::words::Shell::Terminal => b"Shop",
+        };
         let mut view = fixtures::view_of(words);
         fixtures::build(&mut view, &root);
-        let button = fixtures::find(view.tree(), Role::Button, b"Shop").expect("stored project name");
+        let button = fixtures::person_find(view.tree(), Role::Button, label).expect("stored project row words");
         assert_eq!(
             crate::act(&mut view, button, Act::Press),
             Some(Action::Pages(pages::Act::Project { project: fixtures::PROJECT }))
@@ -530,7 +534,7 @@ fn the_switcher_is_named_projects_before_a_project_is_open() {
     let root = fixtures::root_in_project(None);
     let mut builder = skein_ui::Builder::new(&fixtures::tree_limits());
     let mut bindings = crate::frame::Bindings::new(fixtures::tree_limits().bindings);
-    crate::frame::switcher(&mut builder, &root, &fixtures::words(), &mut bindings, None);
+    crate::frame::switcher(&mut builder, &root, &fixtures::words(), &mut bindings, None, crate::frame::Place::Banner);
     assert_switcher(&builder.finish(), b"Projects", &[(b"Shop", false), (b"Second", false)]);
 }
 
@@ -549,6 +553,10 @@ fn assert_switcher(tree: &skein_ui::Tree, name: &[u8], projects: &[(&[u8], bool)
     assert!(!switcher.states.as_slice().contains(&skein_ui::State::Expanded));
     let end = index.checked_add(usize::try_from(switcher.size).unwrap()).unwrap();
     let mut at = index.checked_add(1).unwrap();
+    let panel = nodes[at].styles.as_slice().contains(&crate::look::PROJECTS_MENU);
+    if panel {
+        at = at.checked_add(1).unwrap();
+    }
     for (name, pressed) in projects {
         let button = &nodes[at];
         assert_eq!(button.role, Role::Button);
@@ -561,10 +569,22 @@ fn assert_switcher(tree: &skein_ui::Tree, name: &[u8], projects: &[(&[u8], bool)
             at = at.checked_add(usize::try_from(nodes[at].size).unwrap()).unwrap();
         }
     }
+    if panel {
+        assert_eq!(nodes[at].styles.as_slice(), [crate::look::PROJECTS_ACTS]);
+        at = at.checked_add(1).unwrap();
+        if nodes[at].role == Role::Button {
+            at = at.checked_add(usize::try_from(nodes[at].size).unwrap()).unwrap();
+        }
+    }
     assert_eq!(nodes[at].role, Role::Form);
     assert_eq!(nodes[at].name.as_deref(), Some(b"New project".as_slice()));
     at = at.checked_add(usize::try_from(nodes[at].size).unwrap()).unwrap();
-    assert_eq!(at, end, "the disclosure ends with the new project form");
+    if panel {
+        assert_eq!(nodes[at].role, Role::Link);
+        assert_eq!(nodes[at].name.as_deref().unwrap().strip_prefix(b"Settings for "), Some(name));
+        at = at.checked_add(usize::try_from(nodes[at].size).unwrap()).unwrap();
+    }
+    assert_eq!(at, end, "the disclosure ends with its acts");
 }
 
 #[test]
@@ -1181,7 +1201,7 @@ fn an_owner_is_offered_rename_on_the_open_project() {
         let mut view = fixtures::view_of(words);
         fixtures::build(&mut view, &root);
         assert_rail(&view, b"Shop");
-        let rename = switcher_node(&view, Role::Button, b"Rename").id;
+        let rename = switcher_node(&view, Role::Button, b"Rename Shop").id;
         assert_eq!(
             crate::act(&mut view, rename, Act::Press),
             Some(Action::Pages(pages::Act::Switcher(pages::switcher::Act::Rename)))
@@ -1199,7 +1219,7 @@ fn a_member_is_offered_no_rename() {
         },
     );
     let view = fixtures::page_view(&root);
-    assert!(fixtures::person_find(view.tree(), Role::Button, b"Rename").is_none());
+    assert!(fixtures::person_find(view.tree(), Role::Button, b"Rename Second").is_none());
     assert!(fixtures::person_find(view.tree(), Role::Form, b"New project").is_some());
 }
 
@@ -1210,7 +1230,7 @@ fn the_rename_form_binds_its_field_save_and_cancel() {
         let mut root = switcher_owner(false);
         let mut view = fixtures::view_of(words);
         fixtures::build(&mut view, &root);
-        let rename = switcher_node(&view, Role::Button, b"Rename").id;
+        let rename = switcher_node(&view, Role::Button, b"Rename Shop").id;
         let action = crate::act(&mut view, rename, Act::Press).unwrap();
         fixtures::root_event(&mut root, temper_client_domain::Event::Act { action });
         fixtures::build(&mut view, &root);
@@ -1250,7 +1270,7 @@ fn the_rename_form_binds_its_field_save_and_cancel() {
         fixtures::root_event(&mut root, temper_client_domain::Event::Act { action });
         fixtures::build(&mut view, &root);
         assert!(fixtures::person_find(view.tree(), Role::Form, b"Rename Shop").is_none());
-        assert!(fixtures::person_find(view.tree(), Role::Button, b"Rename").is_some());
+        assert!(fixtures::person_find(view.tree(), Role::Button, b"Rename Shop").is_some());
     }
 }
 
@@ -1411,7 +1431,7 @@ fn opening_rename_on_the_start_address_focuses_its_field_and_cancel_restores_the
     let mut root = switcher_owner(true);
     let mut view = fixtures::page_view(&root);
     assert_eq!(switcher_node(&view, Role::TextArea, b"Start a chat").focus, Some(0));
-    let rename = switcher_node(&view, Role::Button, b"Rename").id;
+    let rename = switcher_node(&view, Role::Button, b"Rename Shop").id;
     let action = crate::act(&mut view, rename, Act::Press).unwrap();
     fixtures::root_event(&mut root, temper_client_domain::Event::Act { action });
     fixtures::build(&mut view, &root);
