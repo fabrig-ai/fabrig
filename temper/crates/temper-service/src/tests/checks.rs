@@ -40,6 +40,11 @@ fn standalone_shape_is_required_of_jigs_parts() {
     }
 }
 #[test]
+fn the_longest_remote_of_an_empty_machine_measures_github_com() {
+    let machine = temper_forge_setup::machine::Machine { owned: None, fake: None, github: None };
+    assert_eq!(checks::machine_remote(&machine, 10), Some(44));
+}
+#[test]
 fn a_remote_past_the_checkouts_names_refuses_the_start() {
     let document = fixtures::with(
         &fixtures::document(),
