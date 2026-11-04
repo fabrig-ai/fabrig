@@ -54,3 +54,50 @@ id = 2
 story = "both roots read one Class, one wall clock check, one decision header and one sender, each from the part that owns it"
 parts = ["root-admission", "root-timers", "root-sender"]
 walk = false
+
+[[part]]
+id = "forge-exchange"
+title = "a call's plan in its dialect's variant, and a connection with no dialect; D013 goes"
+mode = "direct"
+needs = ["forge-entry", "forge-tail"]
+design = "skein/docs/design/forge-connection.md, 8.1"
+
+[[slice]]
+id = 3
+story = "a plan and a connection of different dialects can't be written, so no unreachable names a dialect and D013 is paid"
+parts = ["forge-exchange"]
+walk = false
+
+[[part]]
+id = "root-leaves"
+title = "the hub link spells the job, the settled answer, the brief and the fixed workspace answer"
+mode = "direct"
+needs = ["root-sender"]
+design = "jig/docs/design/domain/root.md, 5"
+
+[[part]]
+id = "root-charter"
+title = "jig-protocol-charter puts a run's hand-over together"
+mode = "direct"
+needs = ["root-leaves"]
+design = "jig/docs/design/domain/hosts.md, 8"
+
+[[part]]
+id = "root-now"
+title = "the link's Nows are the link's, and ops's link reads shorter"
+mode = "direct"
+needs = ["root-charter"]
+design = "jig/docs/design/domain/root.md, 5"
+
+[[part]]
+id = "root-close"
+title = "D004 rewritten to what's left, and the status files true"
+mode = "direct"
+needs = ["root-admission", "root-timers", "root-now"]
+design = "jig/docs/design/domain/root.md, 12"
+
+[[slice]]
+id = 4
+story = "ops's root holds its own routing and translation for what both roots copied, and D004 says what's left"
+parts = ["root-leaves", "root-charter", "root-now", "root-close"]
+walk = false
