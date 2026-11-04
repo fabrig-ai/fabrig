@@ -145,6 +145,6 @@ fn green(forge: &skein_fake_peers::forge::Forge, repository: &[u8], head: u64) {
     };
     assert!(
         !checks.is_empty() && checks.iter().all(|check| check.status.state == api::Check::Passed),
-        "nothing lands on a default branch without green CI"
+        "nothing lands on a default branch without green CI: repository {repository:?}, head {head}, checks {checks:?}"
     );
 }
