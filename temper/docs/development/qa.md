@@ -113,31 +113,46 @@ section 8.
   finding, said with the case that broke it.
 - **A budget never stops a pass.** A pass raises its box's budget as a
   person would (`temper help budget`), and says the figures. Init's
-  first start already makes project 1 and its owner. After sign-in, the
-  pass raises the deployment limits in one `settings apply` edited from
-  `settings show rules --json` and `settings show policy 1 --json`: the
-  rules' spend and period spend, policy 1's ceiling's spend and period
-  spend, and role 0's authority spend and its period spend. The period
-  stays larger than role 0's pool, so that the deployment's own work (a
-  landing task, a tier run, a queue's repair) is still funded. Nothing
-  per run; the chat's template stays as allowed. Policy 1 sizes future
-  projects; `settings apply` does not resize the existing project's
-  period or owner's pool. The pass must then fund the project listed by
-  `me`, with distinct operation keys, the project first because the
-  owner's pool reserves from its period:
+  first start makes the deployment's owner, with no project. After
+  sign-in, the pass raises the deployment limits in one `settings apply`
+  edited from `settings show rules --json` and `settings show policy 1
+  --json`: the rules' spend and period spend, policy 1's ceiling's spend
+  and period spend, and role 0's authority spend and its period spend.
+  The period stays larger than role 0's pool, so that the deployment's
+  own work (a landing task, a tier run, a queue's repair) is still
+  funded. Nothing per run; the chat's template stays as allowed.
+  Policy 1 sizes future projects. Next, `forge setup` without `--project`
+  creates a project named after the repository and adopts into it:
 
   ```
+  temper ctl DIR forge setup --org work --repository hello --key setup
   temper ctl DIR me
+  temper ctl DIR project show PROJECT
+  ```
+
+  `PROJECT` is the project number setup returned, also listed by `me`;
+  never assume it is 1. It starts with policy 1's spends. For an existing
+  project, setting its `project-policy` immediately resizes the open
+  period and parties' pools to its spends; a policy item may share a
+  settings file with rules and other settings. For example, accepting
+  project-policy `period_spend` 8200000 beside rules `period_spend`
+  8300000 leaves the open period's budget 8200000 in `project show`.
+  Keep the values' other fields as read. Changing policy 1 alone leaves
+  an existing project's budgets as they are. To resize budgets separately,
+  fund the project first because the owner's pool reserves from its
+  period, with distinct operation keys:
+
+  ```
   temper ctl DIR project fund PROJECT PERIOD --key budget-period
   temper ctl DIR project fund PROJECT POOL --role 0 --key budget-owner
   temper ctl DIR project show PROJECT
   ```
 
-  `PROJECT` is the project `me` lists, 1 on a fresh box; `PERIOD` and
-  `POOL` are the pass's figures. `project show` prints the open period's
-  budget and the owner's pool's, with their reserved, spent and left
-  balances. These funding calls resize the open budgets at once. `forge
-  setup` then adopts the repository into this existing project.
+  `PERIOD` and `POOL` are the pass's figures. `project show` prints the
+  open period's budget and the owner's pool's, with their reserved,
+  spent and left balances. These funding calls resize the open budgets
+  at once. To adopt into an existing project, give `forge setup` its
+  optional `--project PROJECT`.
 - **Real accounts are the person's,** used by path and never read; a
   login moved into a box goes back before the box stops, an imported
   login exported to its file.

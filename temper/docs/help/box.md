@@ -147,25 +147,26 @@ temper ctl DIR me
 
 Expect: `party 1 · owner · Owner`; `me` lists no project yet.
 
-The playground makes `Demo`; setup makes yours (temper help playground).
-Policy 1 sizes each. After `settings apply`, fund the project's period,
-then role 0's pool with distinct keys (temper help weekly-budget).
-Settings never resize budgets; check with `project show PROJECT`.
+`Demo` is the playground's project (temper help playground).
+Policy 1 sizes future projects; `project-policy` immediately resizes the
+open period and parties' pools (temper help configure). After step 4,
+check `project show PROJECT`; fund separately as temper help weekly-budget
+says.
 
-If not: `temper ctl: the sign-in link was refused` (exit 1): spent or
-expired. Use the new link after `A fresh sign-in link:`.
+If not: sign-in refused (exit 1). Use the new link
+after `A fresh sign-in link:`.
 
 ## 4. Set up Forgejo on this machine
 
-Setup adopts into `me`'s project, 1 on a new box.
+Setup creates a project named after the repository:
 
 ```
-temper ctl DIR forge setup --org work --repository hello --project PROJECT --key KEY
+temper ctl DIR forge setup --org work --repository hello --key KEY
 ```
 
-Expect: `setting up`, then `project: PROJECT · NAME`,
-`Adopted work/hello on forge FORGE as owned.` and
-`It is the project's home.`
+Expect: `setting up`, then `project: PROJECT · NAME` and the adoption.
+Record the returned project number as `PROJECT`.
+Give `--project PROJECT` to select an existing project from `me` instead.
 
 Each Forgejo start prints:
 

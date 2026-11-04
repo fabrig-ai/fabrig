@@ -2,6 +2,86 @@ use crate::{Command, configure_with, help};
 use std::{fs, os::unix::ffi::OsStrExt};
 use temper_client_tools::jig::call::Parsed;
 
+#[test]
+fn configure_example_preserves_stock_landing_gate() {
+    use settings_form::view::{Setting, SettingEdit, SettingValue};
+    let page = temper_docs::find(b"configure").expect("configure walk");
+    let example = page.text.split("```json\n").nth(1).expect("landing settings example");
+    let example = example.split("```").next().expect("JSON fence");
+    let items = settings_form::file::decode(example.as_bytes(), &temper_client_tools::limits::form())
+        .expect("documented settings file");
+    assert_eq!(items.len(), 2, "one landing rule and one forge charter");
+    let item = items
+        .iter()
+        .find(|item| item.setting == Setting::Application { kind: 1, scope: 0, number: 1 })
+        .expect("deployment landing rule 1");
+    let SettingEdit::Set(set) = &item.edit else { panic!("example sets the rule") };
+    let SettingValue::Application(bytes) = &set.value else { panic!("landing rule value") };
+    let documented = temper_engine_smith::kinds::decode(
+        1,
+        bytes,
+        &temper_engine_smith::kinds::Bounds { segments: 9, segment_bytes: 4096, gates: 64, approvals: 64 },
+    )
+    .expect("documented landing rule");
+    let jig = jig_protocol_config::profile(jig_protocol_config::Profile::Small);
+    let temper = temper_service::limits::profile(temper_service::limits::Profile::Small);
+    let limits = temper_service::limits::engine(&jig, &temper).expect("stock limits");
+    let stock = temper_service::stock::forge(&limits);
+    let rule = stock.iter().find(|item| (item.kind, item.scope, item.number) == (1, 0, 1)).expect("stock rule");
+    assert_eq!(documented.value, rule.value.value, "example must preserve every stock landing requirement");
+}
+
+#[test]
+fn policy_help_allows_other_settings_beside_a_set() {
+    for name in [b"configure".as_slice(), b"settings-fields"] {
+        let page = temper_docs::find(name).expect("policy help");
+        let text = page.text.split_whitespace().collect::<Vec<_>>().join(" ");
+        assert!(text.contains("only `set`"), "{name:?}: policy edit operation");
+        assert!(text.contains("at most once per file"), "{name:?}: policy item count");
+        assert!(text.contains("may share a file with other settings"), "{name:?}: combined settings decision");
+        assert!(!text.contains("set alone"), "{name:?}: ambiguous operation wording");
+    }
+}
+
+#[test]
+fn box_walk_distinguishes_stock_policy_from_open_budgets() {
+    let page = temper_docs::find(b"box").expect("box walk");
+    let text = page.text.split_whitespace().collect::<Vec<_>>().join(" ");
+    for words in [
+        "Policy 1 sizes future projects",
+        "project-policy",
+        "immediately resizes the open period and parties' pools",
+        "temper help configure",
+    ] {
+        assert!(text.contains(words), "missing budget guidance: {words}");
+    }
+    assert!(!text.contains("Settings never resize budgets"));
+    let configure = temper_docs::find(b"configure").expect("configure walk");
+    let text = configure.text.split_whitespace().collect::<Vec<_>>().join(" ");
+    assert!(text.contains("project-policy `period_spend` 8200000 beside rules `period_spend` 8300000"));
+    assert!(text.contains("open period's budget is 8200000"));
+}
+
+#[test]
+fn box_walk_creates_a_project_before_it_is_funded() {
+    let page = temper_docs::find(b"box").expect("box walk");
+    let (_, steps) = page.text.split_once("\n## 4. ").expect("step 4");
+    let (step, _) = steps.split_once("\n## 5. ").expect("step 5");
+    assert!(
+        fenced_lines(step)
+            .iter()
+            .any(|(_, line)| { *line == "temper ctl DIR forge setup --org work --repository hello --key KEY" })
+    );
+    let text = step.split_whitespace().collect::<Vec<_>>().join(" ");
+    assert!(text.contains("Record the returned project number as `PROJECT`"));
+    assert!(text.contains("`--project PROJECT` to select an existing project"));
+    let qa = include_str!("../../../../docs/development/qa.md");
+    let setup = qa.find("temper ctl DIR forge setup --org work --repository hello --key setup").expect("QA setup");
+    let funding = qa.find("temper ctl DIR project fund PROJECT PERIOD").expect("QA period funding");
+    assert!(setup < funding, "QA must create a project before funding it");
+    assert!(!qa.contains("first start already makes project 1"));
+}
+
 fn fenced_lines(text: &str) -> Vec<(usize, &str)> {
     let mut fenced = false;
     let mut lines = Vec::new();
