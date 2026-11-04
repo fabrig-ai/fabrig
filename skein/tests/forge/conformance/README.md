@@ -123,7 +123,7 @@ to these disposable instances without reading their credential-bearing config.
 It changes no deployed instance or shared fixture settings.
 
 ```sh
-heavy cargo run -p forgejo-conformance -- --migrate \
+cargo run -p forgejo-conformance -- --migrate \
   --forgejo <absolute path to the pinned Forgejo> \
   --scratch target/migrate --out target/migrate-recording
 ```
