@@ -960,7 +960,7 @@ pub(crate) fn welcome_target<'a>(root: &'a Domain, row: &'a Row) -> Option<(&'a 
 pub(crate) fn welcome_line(b: &mut Builder, root: &Domain, w: &Words, row: &Row) {
     let forge = name(w, row, root);
     let connection = forge::words::forge_connection(row);
-    if temper_client_domain::pages::welcome::forge_connected(row) {
+    if temper_client_domain::pages::welcome::forge_connected(row) && !connect::underway(row) && !connect::failed(row) {
         if let Connection::Connected { login, .. } = &row.connection
             && let Some((org, repository)) = welcome_target(root, row)
         {
@@ -979,14 +979,23 @@ pub(crate) fn welcome_line(b: &mut Builder, root: &Domain, w: &Words, row: &Row)
         let target = forge::words::full_name(org, repository);
         let line = w.say(
             Word::WelcomeForgeLine,
-            &[Hole::Name(forge.clone()), Hole::Name(connection.clone()), Hole::Name(target.clone())],
+            &[Hole::Name(forge.clone()), Hole::Name(target.clone()), Hole::Name(connection.clone())],
         );
-        stacked(b, w, &line, &forge, &[&connection, &target], false);
+        stacked(b, w, &line, &forge, &[&target, &connection], false);
     } else {
         let line = w.say(Word::ForgeStatus, &[Hole::Name(forge.clone()), Hole::Name(connection.clone())]);
         stacked(b, w, &line, &forge, &[&connection], false);
     }
+    if busy(row) && w.shell == Shell::Browser {
+        b.open(Role::Progress);
+        b.style(look::FLOW_BUSY);
+        b.name(&forge::words::forge_connection(row));
+        b.close();
+    }
     each_step(b, root, w, row);
+}
+fn busy(row: &Row) -> bool {
+    connect::underway(row) && row.kind != Kind::GitHub
 }
 /// The forge's line (client/README.md, 3.5): one paragraph named by its words. The browser
 /// stacks its name and details by style; the terminal has neither, so says them on a line.

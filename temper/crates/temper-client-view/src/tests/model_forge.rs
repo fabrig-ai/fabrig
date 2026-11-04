@@ -125,8 +125,8 @@ fn under_way_the_browser_stacks_the_line() {
     let view = browser(underway());
     assert_stack(
         view.tree(),
-        "Forgejo on this machine · Setting up: fetching · work/hello",
-        &["Setting up: fetching", "work/hello"],
+        "Forgejo on this machine · work/hello · Setting up: fetching",
+        &["work/hello", "Setting up: fetching"],
         false,
     );
     assert!(region(view.tree()).iter().any(|n| n.role == Role::Disclosure && n.name.as_deref() == Some(b"Each step")));
@@ -153,8 +153,8 @@ fn failed_keeps_its_shape_and_its_steps() {
     let view = browser(failed());
     assert_stack(
         view.tree(),
-        "Forgejo on this machine · Set up failed: fetch failed · work/hello",
-        &["Set up failed: fetch failed", "work/hello"],
+        "Forgejo on this machine · work/hello · Set up failed: fetch failed",
+        &["work/hello", "Set up failed: fetch failed"],
         false,
     );
     assert!(region(view.tree()).iter().any(|n| n.role == Role::Disclosure && n.name.as_deref() == Some(b"Each step")));
@@ -165,23 +165,25 @@ fn failed_keeps_its_shape_and_its_steps() {
     clippy::print_stdout,
     reason = "the three terminal prints are read in the landing account"
 )]
-fn the_terminal_says_the_line_after_the_choices() {
+fn the_terminal_says_the_status_with_no_bar() {
     for (state, rows, line, steps) in [
-        ("under-way", underway(), "Forgejo on this machine · Setting up: fetching · work/hello", true),
+        ("under-way", underway(), "Forgejo on this machine · work/hello · Setting up: fetching", true),
         (
             "done",
             forge::first_rows(forge::connected(), forge::made()),
             "✓ Forgejo on this machine · connected as temper · work/hello made, in no project yet",
             false,
         ),
-        ("failed", failed(), "Forgejo on this machine · Set up failed: fetch failed · work/hello", true),
+        ("failed", failed(), "Forgejo on this machine · work/hello · Set up failed: fetch failed", true),
     ] {
         let root = root(rows, None);
         let view = f::page_view(&root);
+        assert!(!view.tree().nodes().iter().any(|node| node.role == Role::Progress));
         let mut print = skein_ui_text::Print::new(&f::tree_limits()).unwrap();
         skein_ui_text::render(view.tree(), b"temper", None, &mut print);
         let text = String::from_utf8_lossy(print.text.as_slice());
         println!("{state}:\n{text}");
+        assert!(!text.contains("Setting up: fetching: "));
         let heading = text.find("Connect a model").unwrap();
         let choices = text.rfind("Claude").unwrap();
         let forge = text.find("Forge:\n").unwrap();
@@ -190,5 +192,52 @@ fn the_terminal_says_the_line_after_the_choices() {
         assert!(heading < choices && choices < forge && forge < words && words < back);
         assert!(text.lines().any(|row| row.trim_start() == line && row.starts_with(' ')));
         assert_eq!(text.contains("Each step"), steps);
+    }
+}
+
+#[test]
+fn the_bar_sits_between_the_line_and_each_step() {
+    for (connection, status) in [
+        (setting_up(w::SetUpStep::Fetch), "Setting up: fetching"),
+        (setting_up(w::SetUpStep::Prepare), "Setting up: preparing"),
+        (setting_up(w::SetUpStep::Run), "Setting up: starting"),
+        (w::Connection::Connecting, "Connecting"),
+        (forge::connected(), "Connected as temper (42)"),
+    ] {
+        let view = browser(forge::first_rows(connection, w::FirstState::Making));
+        let tree = view.tree();
+        assert_eq!(tree.nodes().iter().filter(|node| node.role == Role::Progress).count(), 1);
+        let nodes = region(tree);
+        let line = nodes.iter().position(|node| node.role == Role::Paragraph).unwrap();
+        let bar = nodes.iter().position(|node| node.role == Role::Progress).unwrap();
+        let steps = nodes.iter().position(|node| node.role == Role::Disclosure).unwrap();
+        assert_eq!(bar, line.checked_add(usize::try_from(nodes[line].size).unwrap()).unwrap());
+        assert_eq!(bar.checked_add(1).unwrap(), steps);
+        assert_eq!(nodes[bar].styles.as_slice(), &[look::FLOW_BUSY]);
+        assert_eq!(nodes[bar].name.as_deref(), Some(status.as_bytes()));
+        assert!(nodes[bar].text.is_empty());
+        assert!(nodes[bar].value.is_none());
+        assert_eq!(nodes[bar].size, 1);
+        assert_eq!(nodes[steps].name.as_deref(), Some(b"Each step".as_slice()));
+    }
+}
+fn setting_up(step: w::SetUpStep) -> w::Connection {
+    w::Connection::SettingUp(w::SettingUp::new(&w::CEILINGS, w::SettingUpParts { step: Some(step) }).unwrap())
+}
+#[test]
+fn done_failed_and_a_waiting_github_have_no_bar() {
+    for rows in [forge::first_rows(forge::connected(), forge::made()), failed(), forge::github_rows(false)] {
+        let view = browser(rows);
+        assert!(!view.tree().nodes().iter().any(|node| node.role == Role::Progress));
+    }
+}
+#[test]
+fn the_line_says_the_repository_before_the_status() {
+    for (rows, line, status) in [
+        (underway(), "Forgejo on this machine · work/hello · Setting up: fetching", "Setting up: fetching"),
+        (failed(), "Forgejo on this machine · work/hello · Set up failed: fetch failed", "Set up failed: fetch failed"),
+    ] {
+        let view = browser(rows);
+        assert_stack(view.tree(), line, &["work/hello", status], false);
     }
 }

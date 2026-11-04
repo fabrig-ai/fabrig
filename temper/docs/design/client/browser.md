@@ -475,7 +475,10 @@ skein's (skein's `ui-web.md`), and how a client of jig's does is jig's
   narrower, in the column with a hairline above. Its line stacks a quiet
   ring, the forge's strong name in ink and each detail muted on its own
   line; once connected the ring is a green tick, drawn by style alone,
-  and "Each step" is gone. Forgejo's sheet is a native modal dialog, 620 px
+  and "Each step" is gone. Under way, the repository precedes the status,
+  with a 3 px hairline track under it, a 35% ink segment sliding across
+  every 1.4 s; reduced motion makes it a faint full track with no animation.
+  Done, failed and GitHub's installation waits have no bar. Forgejo's sheet is a native modal dialog, 620 px
   wide, white, 14 px corners, over a dimmed page: its heading 19 px,
   its line 14 px muted; "Start it with" its fieldset's legend; each
   choice a bordered card, 10 px corners, that picks its choice

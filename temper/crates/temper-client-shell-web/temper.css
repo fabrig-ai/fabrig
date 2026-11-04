@@ -1330,6 +1330,15 @@ body > noscript, #app:not(:empty):not(:has(*)) { margin-top: 213px; }
 @media (min-width: 1280px) {
   #app > .temper-welcome .temper-welcome-status { position: absolute; top: 44px; left: calc(100% + 8px); width: 272px; margin: 0; padding: 0 0 0 20px; border-top: 0; border-left: 1px solid var(--gf-line); }
 }
+/* Under way, a bar under the forge's line that keeps moving while the
+   set up runs: indeterminate, since no step says how far it is. */
+#app > .temper-welcome .temper-welcome-status > .temper-flow-busy { position: relative; height: 3px; margin: 8px 0 2px 24px; overflow: hidden; border-radius: 2px; background: var(--gf-line); }
+#app > .temper-welcome .temper-welcome-status > .temper-flow-busy::before { content: ''; position: absolute; top: 0; bottom: 0; left: 0; width: 35%; border-radius: 2px; background: var(--gf-ink-2); animation: temper-welcome-busy 1.4s ease-in-out infinite; }
+@keyframes temper-welcome-busy { from { transform: translateX(-100%); } to { transform: translateX(290%); } }
+@media (prefers-reduced-motion: reduce) {
+  #app > .temper-welcome .temper-welcome-status > .temper-flow-busy::before { width: 100%; opacity: .3; animation: none; }
+}
+
 /* Ready, as the greenfield mockup draws it: the checklist's lines, each
    with its mark in a circle and a hairline under it, then the first
    project's form. */
