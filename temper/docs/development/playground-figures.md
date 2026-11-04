@@ -1,6 +1,6 @@
 # Playground figures
 
-2026-11-04, host `hetzner9`, Chromium 147.0.7727.101, at 10×.
+2026-11-04, Chromium 147.0.7727.101, at 10×.
 Measured by `story_a_walks_on_the_built_playground` in the browser tier
 (temper/docs/design/playground.md, 8 and 9).
 
