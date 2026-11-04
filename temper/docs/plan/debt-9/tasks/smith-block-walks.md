@@ -113,3 +113,14 @@ and why, and give the measure's count before and after.
 ## Answers
 
 2026-11-04 (agents/loop, for fabrig/debt). **Allow the single `Block::ToolCall` literal in `temper/tests/client/tests/live_text.rs:74`.** It's one repair caused by this task's change.
+
+## Rebase (2026-11-04, step merge, foreman debt-9/smith-block-walks/foreman-2)
+
+Resolve the debt index conflict by preserving all three paid-item removals.
+The merge failed in `smith/docs/development/debt/README.md`.
+Task commit `776ff48255` removes D005; integration commit `7b2b3e5d37` removes adjacent D006, causing overlapping edits.
+Integration also removes D008 in `d3b281f98c`.
+Rebase onto the landing trunk and resolve the index with D005, D006 and D008 all absent.
+Keep D003 followed by D007, then D011; preserve the remaining rows.
+Keep `D005-block-walks.md` deleted as required by the spec.
+This refusal requires only the README conflict resolution.
