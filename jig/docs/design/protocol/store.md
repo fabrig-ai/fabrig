@@ -520,6 +520,16 @@ follow from the limits that bound each kind (5.4).
   by the call's key, and puts it in the assignment as it makes it
   (`channel.md`, 6.2), so jig keeps none of another owner's bytes.
 
+A settings revision's items, each with its edit and replaced state, cross as
+one aggregate byte field of length-prefixed `RevisionItem` pieces, not a
+list priced as its count times its largest item. The field's schema ceiling
+is 3,221,225,472 bytes; its receiving byte bound derives from the core's
+revision bound, including replaced values, and its item-count bound is twice
+the settings capacity. A non-exact piece end is malformed; a byte sum or
+item count past its derived bound is refused as Bound. The revision's
+largest case accounts for a whole set of edits and a whole set of replaced
+settings (decided 2026-11-03).
+
 ### 5.2 The application's records
 
 - **Its own codecs,** generated the same way, in its protocol layer: it

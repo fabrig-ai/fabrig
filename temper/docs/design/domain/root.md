@@ -533,6 +533,13 @@ section 13's.
 - **The forge's charter is the forge's own value,** read from its kind
   3 when a change is made, and kept on the change (section 6).
 
+Both settings entrances decode a value of temper's kinds at the client
+wire's schema ceilings for pattern segments, segment bytes, gates and
+approvals. A value that does not decode whole is refused as out of shape at
+its item. A value within those ceilings but beyond the deployment's bounds
+reaches the forge, which refuses it as judged with its own pattern, gates or
+approvals reason (decided 2026-11-03).
+
 ### 5.7 Periods, from the calendar
 
 A project's spend is per period (jig's `domain/authority.md`, section 7),
@@ -767,6 +774,15 @@ preparing, held until its claim commits:
   ready, the task goes back to Due after preparation's backoff, and no
   attempt is spent. A section whose bytes the forge no longer has sends
   the brief back, as a missing one does.
+
+Required forge sections take room from optional core sections alone, never
+from a charter's document sections. The small root's eight section slots
+hold three required core sections, two documents and three forge sections
+(2026-11-04).
+
+A charter document that names another connector or no forge branch is
+answered missing at its gather without asking the forge. Its section is
+titled `Document PATH` and says its read failed (2026-11-04).
 
 ### 7.3 A call's answer
 

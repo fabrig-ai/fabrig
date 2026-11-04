@@ -346,6 +346,23 @@ patch and drift tests check the generated `encoded_bound` and
     its detail: its fixed words, the agent's exit and whether it was
     forced. It never holds standard output, a prompt, a completion, a
     tool's input or result, a file's bytes or credential bytes.
+  - **A failure report selects fields** (2026-11-04), never a record or
+    process result printed with Debug. It may show the process's exit,
+    forced state, fixed harness error and live-process count; the typed
+    end without detail or setup; a run's resume state, message count,
+    backend, status and turns; its failure's class, attempts, state,
+    exit or end, used and bound, turn, completion class, evidence, phase
+    and status, and smith's own which and reason. It may show a
+    conversation's end, a notice's kind, a tool's verdict and delivery,
+    a check's exit and result, and a session's exit and answered state.
+    Tool names are `finish`, `deliver` or a built-in; other names are
+    unknown. Unknown enum payloads are never printed, except for the
+    short notice kind above. Provider detail, code and `request_id`
+    are left out. Standard error contributes counts and only fixed
+    forms: startup and process-group lines, the chat line, trust and
+    unused-preset notices, numeric turns/spend/time budget lines and
+    smith's credential-state lines, together with the agent-failure
+    form above after its detail is removed.
   - **What they show:** each provider's wire as it is today, refresh and
     rotation at the issuer, Claude Code's stream, prompt tool and login
     as its release has them, and a push to a real forge. A failure is

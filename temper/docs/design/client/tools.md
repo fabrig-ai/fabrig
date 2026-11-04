@@ -433,6 +433,11 @@ agent must name.
   them, refused by the client, nothing sent. Where `me` gives no bound
   for a draft, it is sent and the engine's answer printed.
 
+A charter's `tools` in a settings file is an integer mask in the same bits
+as an authority's tools. Left out, it is 1,023, every jig family but
+settings, so a settings file written without that member does not offer the
+settings family to its runs (2026-11-04).
+
 ### 5.4 Waiting
 
 ```
