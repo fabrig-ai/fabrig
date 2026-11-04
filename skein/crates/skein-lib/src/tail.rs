@@ -77,6 +77,14 @@ impl Tail {
         output.finish()
     }
 
+    /// The retained bytes in arrival order, in the ring's own buffer: no copy.
+    #[must_use]
+    pub fn into_boxed(self) -> Box<[u8]> {
+        let mut bytes = self.bytes.into_boxed();
+        bytes.rotate_left(usize::try_from(self.next).expect("bounded position"));
+        bytes
+    }
+
     /// Discards retained bytes, keeping the ring's capacity.
     pub fn clear(&mut self) {
         self.bytes.clear();
@@ -87,6 +95,21 @@ impl Tail {
 #[cfg(test)]
 mod tests {
     use super::Tail;
+
+    #[test]
+    fn consuming_the_ring_keeps_arrival_order_at_zero_and_wrap_boundaries() {
+        let input = b"abcdefghijk";
+        for capacity in 0..=12 {
+            for split in 0..=input.len() {
+                let mut tail = Tail::with_capacity(capacity);
+                tail.put(&input[..split]);
+                tail.put(&[]);
+                tail.put(&input[split..]);
+                let expected = tail.to_boxed();
+                assert_eq!(tail.into_boxed(), expected, "capacity {capacity}, split {split}");
+            }
+        }
+    }
 
     #[test]
     fn every_chunking_keeps_the_same_suffix_at_zero_and_wrap_boundaries() {

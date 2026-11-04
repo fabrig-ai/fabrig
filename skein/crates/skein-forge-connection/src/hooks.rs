@@ -134,7 +134,8 @@ impl Hooks {
     pub fn drive(
         &mut self,
         env: &Env<Limits>,
-        settings: &crate::settings::Settings,
+        forges: &skein_lib::List<crate::component::entry::ForgeEntry>,
+        word: &[u8],
         up: &mut Queue<Event>,
         io: &mut Queue<skein_io::Request>,
     ) {
@@ -169,7 +170,7 @@ impl Hooks {
                 io.push(skein_io::Request::Abort { entity: c.socket });
             }
             if !c.closing.sent() {
-                c.pump(*owner, env, settings, up, io);
+                c.pump(*owner, env, forges, word, up, io);
                 if c.pending() {
                     self.wake = Some(env.now);
                 }

@@ -58,11 +58,10 @@ impl Grow {
         self.bytes.capacity()
     }
 }
-/// A body's last `max` bytes, optionally ending at its first failed process.
+/// A body's last bytes, optionally ending at its first failed process (forge-connection.md, 4.5).
 #[derive(Debug)]
-pub struct Tail {
-    grow: Grow,
-    start: u32,
+pub struct LogTail {
+    tail: skein_lib::Tail,
     dropped: bool,
     failure: Option<FailureEnd>,
 }
@@ -84,19 +83,16 @@ impl FailureEnd {
         }
     }
 }
-impl Tail {
-    /// Starts at `first` bytes, growing up to `max`.
+impl LogTail {
     #[must_use]
-    pub fn new(first: u32, max: u32) -> Self {
-        Self { grow: Grow::new(first, max), start: 0, dropped: false, failure: None }
+    pub fn new(max: u32) -> Self {
+        Self { tail: skein_lib::Tail::with_capacity(max), dropped: false, failure: None }
     }
     /// Retain through the first runner process-failure line, draining cleanup.
-    /// Without that line, retain the job tail. Memory stays within `max` bytes.
     #[must_use]
-    pub fn failed_step(first: u32, max: u32) -> Self {
-        Self { failure: Some(FailureEnd { matched: 0, ended: false }), ..Self::new(first, max) }
+    pub fn failed_step(max: u32) -> Self {
+        Self { failure: Some(FailureEnd { matched: 0, ended: false }), ..Self::new(max) }
     }
-    /// Appends each byte, replacing the oldest when full.
     pub fn write(&mut self, piece: &[u8]) {
         for byte in piece {
             if let Some(failure) = &mut self.failure {
@@ -106,15 +102,8 @@ impl Tail {
                 }
                 failure.byte(*byte);
             }
-            if self.grow.room() > 0 {
-                self.grow.write(core::slice::from_ref(byte)).expect("Room for one byte");
-            } else {
-                self.dropped = true;
-                if self.grow.cap > 0 {
-                    *self.grow.bytes.get_mut(self.start).expect("Full tail") = *byte;
-                    self.start = self.start.saturating_add(1).checked_rem(self.grow.cap).expect("Nonzero tail");
-                }
-            }
+            self.dropped |= self.tail.len() == self.tail.capacity();
+            self.tail.push(*byte);
         }
     }
     /// Whether any prefix or cleanup byte was omitted.
@@ -122,15 +111,8 @@ impl Tail {
     pub fn dropped(&self) -> bool {
         self.dropped
     }
-    /// The retained bytes, oldest first, in a box of their length.
     #[must_use]
     pub fn finish(self) -> Box<[u8]> {
-        let mut bytes = self.grow.finish();
-        bytes.rotate_left(usize::try_from(self.start).expect("Bounded position"));
-        bytes
-    }
-    #[cfg(test)]
-    pub(crate) fn capacity(&self) -> u32 {
-        self.grow.capacity()
+        self.tail.into_boxed()
     }
 }

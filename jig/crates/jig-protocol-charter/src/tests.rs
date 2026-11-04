@@ -618,3 +618,219 @@ fn assignment_keeps_brief_order_tools_mode_and_resume_policy() {
         }
     }
 }
+
+fn hosted_fixture() -> jig_domain_hub_link::Assignment {
+    use jig_domain_core as core;
+    use jig_domain_tasks as tasks;
+    use skein_lib::Wall;
+    jig_domain_hub_link::Assignment {
+        live: core::LiveAsk { text: true, reasoning: false, input: true },
+        brief: Box::new([]),
+        conversation: 3,
+        task: 7,
+        attempt: 5,
+        charter: 1,
+        run: Box::new(assignment_fixture(b"Do the task", 128, 40, 8)),
+        messages: Box::new([
+            tasks::Word {
+                number: 11,
+                from: tasks::Party::Person(2),
+                kind: tasks::MessageKind::FinishRequested { revision: 3 },
+                words: b"Finish now".as_slice().into(),
+                at: Wall::from_nanos(0),
+                hits: 1,
+                eligible: true,
+            },
+            tasks::Word {
+                number: 12,
+                from: tasks::Party::Task(4),
+                kind: tasks::MessageKind::EffectNotMade { entry: 9 },
+                words: b"No effect".as_slice().into(),
+                at: Wall::from_nanos(0),
+                hits: 1,
+                eligible: true,
+            },
+        ]),
+        transcript: Box::new([b"committed turn".as_slice().into()]),
+        answered: Box::new([core::Settled {
+            key: core::CallKey { task: 7, attempt: 3, completion: 2, position: 1 },
+            call: core::SettledCall {
+                serial: 1,
+                tool: b"read".as_slice().into(),
+                answer: core::SettledAnswer::Host { error: true, body: b"refused".as_slice().into() },
+            },
+        }]),
+        grants: Box::new([jig_domain_host::Grant {
+            form: jig_domain_host::Form::Application,
+            account: 1,
+            generation: 2,
+            valid: Duration::from_secs(30),
+        }]),
+    }
+}
+
+fn hosted_with_bounds(
+    value: &jig_domain_hub_link::Assignment,
+    answered: u32,
+    messages: u32,
+) -> Option<jig_domain_host::Assignment> {
+    crate::hosted(
+        value,
+        crate::Given {
+            tools: Box::new([]),
+            endpoints: &[EndpointName { number: 1, dialect: 3, name: b"primary".as_slice().into() }],
+            deployment: &[3; 16],
+            limits: &wire::CEILINGS,
+            answered,
+            messages,
+        },
+    )
+}
+
+#[test]
+#[expect(clippy::too_many_lines, reason = "one hand-over pins its ordered sections, messages and settled calls")]
+fn hosted_keeps_sections_messages_and_settled_calls_in_order() {
+    use jig_domain_brief::{Core, GatherMissing, GatherPlaced};
+    use jig_domain_core as core;
+    use jig_domain_host as host;
+    use skein_lib::Token;
+    let mut value = hosted_fixture();
+    let mut sections = skein_lib::List::with_capacity(19);
+    let titles = [
+        (Core::Task, b"Task".as_slice()),
+        (Core::Lineage, b"Requesters".as_slice()),
+        (Core::Results, b"Results".as_slice()),
+        (Core::Plan, b"Plan".as_slice()),
+        (Core::Attempts, b"Attempts".as_slice()),
+        (Core::Calls, b"Calls".as_slice()),
+        (Core::Waiting, b"Waiting".as_slice()),
+        (Core::NotesIndex, b"Notes".as_slice()),
+        (Core::TranscriptTail, b"Conversation".as_slice()),
+    ];
+    for (kind, _) in titles {
+        sections.push(GatherPlaced::Core { kind, text: b"section text".as_slice().into() }).unwrap();
+        sections.push(GatherPlaced::CoreMissing { kind, why: GatherMissing::Budget }).unwrap();
+    }
+    sections.push(GatherPlaced::Missing { connector: 1, kind: 2, why: GatherMissing::Late }).unwrap();
+    value.brief = sections.into_boxed();
+    let outcomes = [
+        (core::DeliveryOutcome::Delivered, host::DeliveryOutcome::Delivered),
+        (core::DeliveryOutcome::Nothing, host::DeliveryOutcome::Nothing),
+        (core::DeliveryOutcome::Stale, host::DeliveryOutcome::Stale),
+        (core::DeliveryOutcome::Refused, host::DeliveryOutcome::Refused),
+        (core::DeliveryOutcome::Invalid, host::DeliveryOutcome::Refused),
+        (core::DeliveryOutcome::Failed, host::DeliveryOutcome::Failed),
+    ];
+    let mut calls = skein_lib::List::with_capacity(7);
+    for call in value.answered {
+        calls.push(call).unwrap();
+    }
+    for (position, (outcome, _)) in outcomes.iter().enumerate() {
+        calls
+            .push(core::Settled {
+                key: core::CallKey { task: 7, attempt: 4, completion: 8, position: u32::try_from(position).unwrap() },
+                call: core::SettledCall {
+                    serial: 2,
+                    tool: b"deliver".as_slice().into(),
+                    answer: core::SettledAnswer::Delivery {
+                        outcome: *outcome,
+                        evidence: b"evidence".as_slice().into(),
+                    },
+                },
+            })
+            .unwrap();
+    }
+    value.answered = calls.into_boxed();
+    let result = hosted_with_bounds(&value, 7, 2).expect("hosted assignment");
+    let decoded = wire::Charter::decode(&wire::CEILINGS, &mut Reader::new(&result.assignment.charter)).unwrap();
+    assert_eq!(decoded.brief().len(), 19);
+    for ((_, title), pair) in titles.iter().zip(decoded.brief().as_slice().chunks_exact(2)) {
+        assert_eq!(pair[0].title(), *title);
+        assert_eq!(pair[0].body(), b"section text");
+        assert_eq!(pair[1].title(), *title);
+        assert_eq!(pair[1].body(), b"[missing]");
+    }
+    assert_eq!(decoded.brief().last().unwrap().title(), b"Context");
+    assert_eq!(decoded.brief().last().unwrap().body(), b"[missing]");
+    assert_eq!(
+        result.messages.as_ref(),
+        &[
+            host::StartMessage {
+                name: Token::new(11),
+                sender: b"2".as_slice().into(),
+                words: b"Finish now".as_slice().into(),
+                finish_requested: true
+            },
+            host::StartMessage {
+                name: Token::new(12),
+                sender: b"4".as_slice().into(),
+                words: b"Effect not made 9:\nNo effect".as_slice().into(),
+                finish_requested: false
+            },
+        ]
+    );
+    for (word, start) in value.messages.iter().zip(result.messages.iter()) {
+        assert_eq!(
+            crate::message(Token::new(7), Token::new(5), word),
+            host::LinkDown::Message {
+                run: Token::new(7),
+                attempt: Token::new(5),
+                name: start.name,
+                sender: start.sender.clone(),
+                words: start.words.clone(),
+                finish_requested: start.finish_requested,
+            }
+        );
+    }
+    assert_eq!(result.answered.len(), 7);
+    for (call, replay) in value.answered.iter().zip(result.answered.iter()) {
+        assert_eq!(
+            crate::call_key(&replay.name, call.key.attempt),
+            Some(crate::CallKey {
+                activation: call.key.attempt,
+                completion: call.key.completion,
+                position: call.key.position,
+            })
+        );
+        assert_eq!(replay.tool, call.call.tool);
+    }
+    assert_eq!(
+        result.answered[0].answer,
+        host::SettledAnswer::Host { error: true, body: b"refused".as_slice().into() }
+    );
+    for ((_, expected), replay) in outcomes.iter().zip(result.answered.iter().skip(1)) {
+        assert_eq!(
+            replay.answer,
+            host::SettledAnswer::Delivery { outcome: *expected, evidence: b"evidence".as_slice().into() }
+        );
+    }
+    assert_eq!(result.assignment.identity, crate::run_identity(&[3; 16], 7, 3));
+    assert_eq!(result.assignment.run, Token::new(7));
+    assert_eq!(result.assignment.attempt, Token::new(5));
+    assert_eq!(result.assignment.workspace, None);
+    assert!(!result.assignment.save);
+    assert_eq!(result.assignment.live, host::LiveAsk { text: true, reasoning: false, input: true });
+    assert_eq!(result.assignment.grants, value.grants);
+    assert_eq!(result.turns, value.transcript);
+    assert!(decoded.resume());
+}
+
+#[test]
+fn hosted_refuses_a_connector_section_without_its_bytes() {
+    let mut value = hosted_fixture();
+    value.brief = Box::new([jig_domain_brief::GatherPlaced::Connector {
+        connector: 1,
+        kind: 2,
+        token: skein_lib::Token::new(3),
+        size: 4,
+    }]);
+    assert!(hosted_with_bounds(&value, 1, 2).is_none());
+}
+
+#[test]
+fn hosted_refuses_calls_or_messages_past_the_roots_bounds() {
+    let value = hosted_fixture();
+    assert!(hosted_with_bounds(&value, 1, 2).is_some());
+    assert!(hosted_with_bounds(&value, 0, 2).is_none());
+    assert!(hosted_with_bounds(&value, 1, 1).is_none());
+}
