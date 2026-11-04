@@ -98,6 +98,7 @@ fn limits_take_each_bound_from_its_source_field() {
             git_hub_manifest_back_some: 512,
             link_address: crate::ADDRESS_BYTES,
             forges_forges: crate::FORGES,
+            dismissals_dismissed: crate::DISMISSED,
             return_path: 512,
             set_up_failed_why: crate::SET_UP_WHY_BYTES,
             group_failed_why: crate::SET_UP_WHY_BYTES,
@@ -1343,3 +1344,40 @@ fn make_repository_names_and_address_take_their_wire_bounds() {
 // fixtures::BOUNDS.field_bytes, and T3's schema bound on MakeCopy.address.
 const MAKING_FIELD_BYTES: usize = 16;
 const COPY_ADDRESS_BYTES: usize = 512;
+
+#[test]
+fn dismiss_and_dismissals_round_trip() {
+    let limits = fixtures::limits();
+    let what = v1::Dismissal::ToBegin(v1::ToBegin::new(&limits, v1::ToBeginParts { project: u32::MAX }).unwrap());
+    let dismiss = v1::Dismiss::new(&limits, v1::DismissParts { what: what.clone() }).unwrap();
+    let request = v1::Requesting::new(&limits, v1::RequestingParts { request: v1::Request::Dismiss(dismiss) }).unwrap();
+    assert_eq!(crate::decode_requesting(&crate::requesting(&request), &limits), Some(request));
+    let watch = v1::Watching::new(&limits, v1::WatchingParts { watch: v1::Watch::Dismissed }).unwrap();
+    assert_eq!(crate::decode_watching(&crate::watching(&watch), &limits), Some(watch));
+    let answer = v1::Answer::new(&limits, v1::AnswerParts { outcome: v1::Outcome::Dismissed }).unwrap();
+    assert_eq!(v1::Answer::decode(&limits, &mut Reader::new(&crate::answer(&answer))), Ok(answer));
+    for count in [0, crate::DISMISSED, crate::DISMISSED + 1] {
+        let mut dismissed = List::with_capacity(count);
+        let mut writer = skein_lib::Writer::new(6 + usize::try_from(count).unwrap() * 5);
+        writer.put(&u16::try_from(crate::CLIENT_VERSION).unwrap().to_be_bytes()).unwrap();
+        writer.put(&count.to_be_bytes()).unwrap();
+        for _ in 0..count {
+            dismissed.push(what.clone()).unwrap();
+            what.encode(&mut writer).unwrap();
+        }
+        let bytes = writer.finish();
+        let made = v1::Dismissals::new(&limits, v1::DismissalsParts { dismissed });
+        if count > crate::DISMISSED {
+            assert_eq!(
+                made.unwrap_err(),
+                v1::Problem { path: v1::Path::DismissalsDismissed, reason: skein_codec::Reason::Bound }
+            );
+            assert_eq!(crate::decode_dismissals(&bytes, &limits), None);
+        } else {
+            let record = made.unwrap();
+            assert_eq!(crate::dismissals(&record), bytes);
+            assert_eq!(crate::decode_dismissals(&bytes, &limits), Some(record));
+            assert_eq!(crate::decode_dismissals(&fixtures::trailing(&bytes), &limits), None);
+        }
+    }
+}

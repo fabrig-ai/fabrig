@@ -56,6 +56,61 @@ mod records {
         world.root().iter().map(record).collect()
     }
     #[test]
+    fn an_unencodable_assignment_returns_a_terminal_refusal() {
+        use jig_domain_host as host;
+        use jig_protocol_engine_workers::Event;
+        for detail in [0, fixtures::SIZES.detail] {
+            let mut limits = fixtures::limits();
+            limits.sizes.detail = detail;
+            let mut world = World::new(&limits, &fixtures::workers(), 1);
+            let (connection, channel) = world.reporting(WORKER_A, SECRET_A);
+            let mut valid = fixtures::assignment_down(channel);
+            let jig_protocol_engine_workers::Event::Down { down: host::LinkDown::Assign { assignment }, .. } =
+                &mut valid
+            else {
+                panic!("assignment");
+            };
+            assignment.assignment.charter =
+                vec![0; usize::try_from(limits.sizes.charter).expect("fixture charter bound")].into();
+            world.down(valid);
+            world.run();
+            assert_eq!(world.observed(connection).len(), 1, "assignment at the bound crosses the wire");
+            let Event::Down { mut down, parts, values, .. } = fixtures::assignment_down(channel) else {
+                panic!("assignment event");
+            };
+            let host::LinkDown::Assign { assignment } = &mut down else { panic!("assignment") };
+            assignment.assignment.run = Token::new(83);
+            assignment.assignment.attempt = Token::new(97);
+            assignment.assignment.charter =
+                vec![0; usize::try_from(limits.sizes.charter).expect("fixture charter bound") + 1].into();
+            world.down(Event::Down { channel, down, parts, values });
+            world.run();
+            assert_eq!(world.root().len(), 2, "one terminal answer follows hello");
+            let Request::Up { channel: answered, up: host::LinkUp::Answer { run, attempt, answer }, parts } =
+                &world.root()[1]
+            else {
+                panic!("terminal answer");
+            };
+            assert_eq!((*answered, *run, *attempt), (channel, Token::new(83), Token::new(97)));
+            assert_eq!((answer.turns, answer.spent, answer.read), (0, 0, None));
+            assert!(answer.refused.is_empty() && parts.is_empty());
+            let host::Ending::Refused(host::Refusal::Invalid(host::Invalid::Start { cause, why })) = &answer.ending
+            else {
+                panic!("invalid start refusal");
+            };
+            assert_eq!(*cause, host::StartCause::Other);
+            assert_eq!(
+                why.as_ref(),
+                &b"assignment cannot encode"[..usize::try_from(detail).expect("fixture detail bound")]
+            );
+            assert_eq!(world.observed(connection).len(), 1, "invalid assignment never reaches worker");
+            world.down(fixtures::assignment_down(channel));
+            world.run();
+            assert_eq!(world.observed(connection).len(), 2, "channel remains available");
+            assert_eq!(world.root().len(), 2, "no duplicate refusal");
+        }
+    }
+    #[test]
     fn each_up_record_reaches_the_root_in_order() {
         let mut peer = reporting();
         for frame in fixtures::up_frames() {

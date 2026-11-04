@@ -44,8 +44,8 @@ A forge is where repositories live, GitHub or Forgejo, numbered when it is set u
   playground's.
 - **Set up:** a box's owned Forgejo is fetched, prepared and started
   with its runner, then makes its first repository with a starter CI
-  workflow; `forge setup` adopts it, and the client's welcome leaves it
-  for you to adopt.
+  workflow; `forge setup` adopts it, and the client's welcome adopts it
+  into your first project.
 - **Connected:** GitHub by its App; a Forgejo by its admin's token, or
   by a user's two tokens: `forge connect forgejo FILE`, FILE a tokens
   file, one `NAME VALUE` line each for `api`, `git` and, for hooks to
@@ -62,8 +62,9 @@ A forge is where repositories live, GitHub or Forgejo, numbered when it is set u
   installation. An owned Forgejo set up again takes its binaries from
   the cache.
 - **Removed:** `forge remove FORGE`, or Remove on its row in the
-  client's Forges. It ends at once and leaves every list; its changes
-  are cancelled, its repositories leave their projects, and its
+  client's Forges, reached through Settings on the rail. It ends at
+  once and leaves every list; its changes are cancelled, its
+  repositories leave their projects, and its
   secrets are erased. An owned Forgejo goes with its directory, its
   binaries kept in the cache. On the forge itself temper undoes only
   what it ran: a managed Forgejo keeps temper's bot and hooks, and a

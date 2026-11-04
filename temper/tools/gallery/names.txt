@@ -1,6 +1,15 @@
+home-three-left
+home-two-left
+home-one-left
+home-ready
+home-adopting
+home-refused
+home-no-repository
+home-github
 chats-solo
 chat-solo-T10
 inbox-solo
+settings
 task-solo-T3
 accounts-solo
 welcome-first-run-0

@@ -274,7 +274,16 @@ fn ready(
     let done = connected(root) && temper_client_domain::pages::welcome::model_usable(root) == Some(true);
     if done {
         text(b, w, Role::Heading { level: 1 }, Word::WelcomeReadyStep);
-        paragraph(b, w, Word::WelcomeReadyLead, look::WELCOME_LEAD);
+        if let Some(first) = root.pages().welcome_first() {
+            let name = temper_client_domain::forge::words::full_name(&first.org, &first.name);
+            b.open(Role::Paragraph);
+            b.style(look::WELCOME_LEAD);
+            b.name(&w.say(Word::WelcomeReadyRepositoryLead, &[Hole::Name(name.clone())]));
+            w.text(b, Word::WelcomeReadyRepositoryLead, &[Hole::Name(name)]);
+            b.close();
+        } else {
+            paragraph(b, w, Word::WelcomeReadyLead, look::WELCOME_LEAD);
+        }
     } else {
         text(b, w, Role::Heading { level: 1 }, Word::WelcomeReadyTitle);
         paragraph(b, w, Word::WelcomeDefaultWait, look::WELCOME_LEAD);
@@ -319,18 +328,19 @@ fn ready(
     }
     first_project(b, root, w, bindings, done);
 }
-/// Ready's form: the first project's name, "Default" until the person
-/// writes another, then Create, which makes it and opens it (3.5).
+/// Ready's form: the offered or written name, then Create, which makes
+/// the project and opens it (3.5).
 fn first_project(b: &mut Builder, root: &Domain, w: &Words, bindings: &mut Bindings, done: bool) {
     use crate::flow::{self, Control};
     let state = root.pages().default_project();
+    let offered = temper_client_domain::pages::welcome::offered(root.pages().welcome_first());
     let label = w.say(Word::WelcomeDefaultProject, &[]);
     b.open(Role::Form);
     b.style(look::WELCOME_PROJECT);
     b.name(&label);
     b.open(Role::TextField);
     b.name(&label);
-    b.value(&state.name, temper_client_domain::pages::shown(root.pages()));
+    b.value(state.shown(&offered), temper_client_domain::pages::shown(root.pages()));
     if state.making.is_some() {
         b.state(State::Disabled);
     } else if done {
@@ -342,7 +352,7 @@ fn first_project(b: &mut Builder, root: &Domain, w: &Words, bindings: &mut Bindi
     b.bind(bindings.insert(Act::DefaultName { words: Box::default() }));
     b.close();
     if state.making.is_some() {
-        let making = w.say(Word::WelcomeMakingDefault, &[Hole::Name(state.asked().into())]);
+        let making = w.say(Word::WelcomeMakingDefault, &[Hole::Name(state.asked(&offered).into())]);
         flow::control(b, Control::PrimaryDisabled { name: &making });
     } else {
         let create = w.say(Word::WelcomeCreateProject, &[]);
@@ -356,7 +366,11 @@ fn first_project(b: &mut Builder, root: &Domain, w: &Words, bindings: &mut Bindi
         );
     }
     if state.unnamed {
-        text(b, w, Role::Alert, Word::WelcomeDefaultUnnamed);
+        let holes = &[Hole::Name(offered)];
+        b.open(Role::Alert);
+        b.name(&w.say(Word::WelcomeDefaultUnnamed, holes));
+        w.text(b, Word::WelcomeDefaultUnnamed, holes);
+        b.close();
     }
     match &state.ended {
         Some(temper_client_domain::pages::welcome::Ended::Refused(refusal)) => {

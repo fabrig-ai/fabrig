@@ -262,3 +262,29 @@ fn setting_keys_use_family_twenty_and_refuse_unknown_tags_widths_and_trailing_by
         assert_eq!(keys::decode(&writer.finish().unwrap(), &fixtures::LIMITS), None);
     }
 }
+
+#[test]
+fn dismissed_keys_use_family_thirty_four_and_round_trip() {
+    use temper_engine_domain_forge::Dismissal;
+    for (party, project) in [(0, 0), (7, 3), (u64::MAX, u32::MAX)] {
+        let key = Key::Dismissed { party, what: Dismissal::ToBegin { project } };
+        let bytes = keys::encode(&key, u32::MAX).expect("dismissed key fits");
+        let mut expected = skein_kv::KeyWriter::new(u32::MAX);
+        expected.tag(34).u64(party).tag(0).u64(u64::from(project));
+        assert_eq!(bytes, expected.finish().expect("fixed key fits"));
+        assert_eq!(keys::decode(&bytes, &fixtures::LIMITS), Some(key));
+    }
+}
+
+#[test]
+fn dismissed_key_decoder_refuses_unknown_kind_width_and_trailing_bytes() {
+    let mut unknown = skein_kv::KeyWriter::new(u32::MAX);
+    unknown.tag(34).u64(7).tag(1).u64(3);
+    let mut wide = skein_kv::KeyWriter::new(u32::MAX);
+    wide.tag(34).u64(7).tag(0).u64(4_294_967_296);
+    let mut trailing = skein_kv::KeyWriter::new(u32::MAX);
+    trailing.tag(34).u64(7).tag(0).u64(3).tag(0);
+    for (name, bytes) in [("unknown kind", unknown), ("project width", wide), ("trailing bytes", trailing)] {
+        assert_eq!(keys::decode(&bytes.finish().expect("fixed key fits"), &fixtures::LIMITS), None, "{name}");
+    }
+}

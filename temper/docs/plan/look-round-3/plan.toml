@@ -1,0 +1,124 @@
+draft = "look-round-3"
+repo = "fabrig"
+sources = ["temper/docs/plan/look-round-3/inputs/request.md", "temper/docs/design/draft/look-requests.md", "temper/docs/design/draft/first-run-projects.md", "temper/docs/design/draft/first-run-projects.status.md", "AGENTS.md", "DESIGN.md"]
+
+# The design batch and the first tasks go first (inputs/request.md, How the cut shapes it): Ready's
+# name and adoption, then the frame, then Home, then the reprint, the recording and the account.
+# temper-client-view takes one writer at a time, so its tasks chain; see plan.md.
+
+[buffer]
+low = 1.0
+high = 2.0
+
+[[part]]
+id = "ready-name"
+title = "Ready offers the first repository's name in capital, or My project"
+mode = "direct"
+needs = []
+design = "temper/docs/design/client/README.md, 3.5"
+
+[[part]]
+id = "project-addresses"
+title = "Home's and Settings' addresses, opening the project they name, with plain pages"
+mode = "direct"
+needs = []
+design = "temper/docs/design/client/browser.md, 2.3"
+
+[[slice]]
+id = 1
+story = "Ready offers Hello, and /projects/1 and its settings open project 1"
+parts = ["ready-name", "project-addresses"]
+walk = false
+
+[[part]]
+id = "ready-adopts"
+title = "Ready adopts the first repository, not waiting, and opens Home; the lead names it"
+mode = "direct"
+needs = ["ready-name", "project-addresses"]
+design = "temper/docs/design/client/README.md, 3.5"
+
+[[part]]
+id = "settings-page"
+title = "Settings holds Forges, Accounts, adoption and Sign out"
+mode = "direct"
+needs = ["project-addresses"]
+design = "temper/docs/design/client/README.md, 3.5"
+
+[[part]]
+id = "rail"
+title = "the rail and the tab bar replace the banner on every project page"
+mode = "direct"
+needs = ["settings-page", "ready-adopts"]
+design = "temper/docs/design/client/README.md, 5.3"
+
+[[part]]
+id = "rail-readers"
+title = "the test worlds walk the rail"
+mode = "direct"
+needs = ["rail"]
+design = "temper/docs/design/client/README.md, 5.3"
+
+[[part]]
+id = "switcher-rows"
+title = "the switcher's panel and its repositories' words"
+mode = "direct"
+needs = ["rail"]
+design = "temper/docs/design/client/README.md, 5.3"
+
+[[part]]
+id = "home-facts"
+title = "what Home knows: the settings' change, the repository's state, a chat asked"
+mode = "direct"
+needs = ["ready-adopts"]
+design = "temper/docs/design/client/README.md, 3.5"
+
+[[part]]
+id = "home-page"
+title = "Home's column in every state, in the browser and the terminal"
+mode = "direct"
+needs = ["switcher-rows", "home-facts"]
+design = "temper/docs/design/client/README.md, 3.5"
+
+[[part]]
+id = "record-landing"
+title = "project-landing recorded again on Home"
+mode = "direct"
+needs = ["home-page", "rail-readers"]
+design = "temper/docs/design/client/journeys.md, 8"
+
+[[part]]
+id = "account"
+title = "the render check, the account and the screenshots"
+mode = "direct"
+needs = ["record-landing"]
+design = "temper/docs/design/draft/look-requests.md, 5"
+
+[[slice]]
+id = 2
+story = "Create your project adopts work/hello and opens Home, which waits for nothing"
+parts = ["ready-adopts"]
+walk = false
+
+[[slice]]
+id = 3
+story = "every project page has the rail, Settings holds what the banner held, and the worlds walk it"
+parts = ["settings-page", "rail", "rail-readers", "switcher-rows"]
+walk = false
+
+[[slice]]
+id = 4
+story = "Home draws To begin and Connected in every state, in the browser and the terminal"
+parts = ["home-facts", "home-page"]
+walk = false
+
+[[slice]]
+id = 5
+story = "the reprint is set against the request, the account's table is written and the screenshots are back"
+parts = ["record-landing", "account"]
+walk = false
+
+[[question]]
+id = "home-age-and-ci"
+parts = ["home-page"]
+text = """Home's drawn kicker says "Hello · made just now" and its repository's step "its CI ran on main and passed.". No client is given either fact: `me` and the project's document hold no time it was made, and a repository's CI is read only through a change's task. Giving them is a change to a protocol, so it is yours (temper/docs/design/draft/look-requests.md, 6). Options: (a) leave them out: the kicker is "Hello" alone, the step "Chats can change its code now."; (b) add a project's made time to jig's `me`, and a first CI run to the forges' rows in temper's client wire, a follow-up plan. Recommendation: (a) now, the landing does so and its account names both, then (b) as its own draft when the look is walked. No task waits."""
+answer = """(a), no protocol change. The kicker is the day and the time, as on any Home (`to-begin.md`, 2). The repository step says "temper can change its code now; checked changes land on main through temper's merge queue.", the line `project-home-onboarding` draws; drop "its CI ran on main and passed". (the user, through fabrig/temper, 11-04)"""

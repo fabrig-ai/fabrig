@@ -9,6 +9,8 @@ const SETTLE: Duration = Duration::from_millis(100);
 pub(super) fn steps() -> Box<[Step<Address>]> {
     let mut steps = Vec::new();
     for address in [
+        Address::Home { project: 1 },
+        Address::Settings { project: 1 },
         Address::Forges,
         Address::Accounts,
         Address::Inbox { filter: Filter::ALL },

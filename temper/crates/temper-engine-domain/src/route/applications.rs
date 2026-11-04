@@ -39,6 +39,9 @@ pub(super) fn start(domain: &mut Domain, admission: Admission, request: Applicat
         },
         Application::Forge(forge::Ask::Adopt(_)) => scope,
         Application::Return { .. } => people::ApplicationScope::Own,
+        Application::Dismiss { what: forge::Dismissal::ToBegin { project } } => {
+            people::ApplicationScope::Project(*project)
+        }
     };
     if request == Application::Forge(forge::Ask::StartPlayground) {
         domain.application_playground = Some(super::playground::Context { sign_in, key, carried });
@@ -57,6 +60,7 @@ pub(super) fn start(domain: &mut Domain, admission: Admission, request: Applicat
     }));
 }
 
+#[expect(clippy::too_many_arguments, reason = "the core admission carries the party beside its request metadata")]
 pub(super) fn admitted(
     domain: &mut Domain,
     request: Token,
@@ -64,12 +68,16 @@ pub(super) fn admitted(
     owner: Token,
     retention: Duration,
     role: Option<people::Role>,
+    person: u64,
     env: &skein_lib::Env<crate::Limits>,
 ) {
     let (held, ask) = domain.application.take().expect("one admitted application value");
     assert_eq!(held, owner, "the core admits the application's owner");
     let carried = domain.application_carried.take();
     match ask {
+        Application::Dismiss { what } => {
+            domain.work.push(Work::Forge(forge::Event::Dismiss { request, token, party: person, what }));
+        }
         Application::Forge(ask) => {
             if let Some(context) = domain.application_playground.take() {
                 if domain.playground_contexts.len() == domain.playground_contexts.capacity() {
@@ -152,6 +160,7 @@ pub(super) fn answer(domain: &Domain, token: Token) -> Option<ApplicationAnswer>
         Some(forge::Answered::Reachable(answer)) => Some(ApplicationAnswer::Reachable(answer)),
         Some(forge::Answered::Accept(answer)) => Some(ApplicationAnswer::Accept(answer)),
         Some(forge::Answered::Install(answer)) => Some(ApplicationAnswer::Install(answer)),
+        Some(forge::Answered::Dismiss(answer)) => Some(ApplicationAnswer::Dismiss(answer)),
         None => None,
     }
 }

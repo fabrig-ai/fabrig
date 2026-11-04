@@ -30,10 +30,11 @@ A project is where work happens: the repositories adopted into it, one of them i
   or connecting a Forgejo with a first repository, makes a new
   project, named after the repository, unless you name one that
   exists; the playground's start makes `Demo`. In the client, the
-  welcome's Ready makes `Default`, and the banner's project switcher
+  welcome's Ready makes a project named for the first repository, or
+  `My project` with none, and the rail's project switcher
   makes one by the name you give it. A new project's policy is a copy
   of policy 1 as it is then.
-- **Renamed:** its owners rename it in place from the banner's project
+- **Renamed:** its owners rename it in place from the rail's project
   switcher; the new name shows wherever the project's does.
 - **Given repositories:** `repository adopt` adopts one into a project
   that exists; the first one adopted becomes its home unless the

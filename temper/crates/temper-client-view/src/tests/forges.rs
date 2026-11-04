@@ -142,12 +142,13 @@ fn the_navigation_has_forges_with_its_dot_and_words() {
                 .tree()
                 .nodes()
                 .iter()
-                .find(|n| n.role == Role::Link && n.name.as_deref() == Some(b"Forges"))
+                .find(|n| n.role == Role::Link && n.name.as_deref() == Some(b"Settings"))
                 .unwrap();
-            assert!(nav.states.as_slice().contains(&State::Current));
+            assert!(!nav.states.as_slice().contains(&State::Current));
             let dot = view.tree().nodes().iter().find(|n| n.styles.as_slice().contains(&style)).unwrap();
             assert_eq!(dot.role, Role::Text);
-            assert_eq!(f::nodes_text(core::slice::from_ref(dot)).as_ref(), text);
+            assert_eq!(dot.text.get(0).unwrap().text.as_ref(), b" \xc2\xb7 ");
+            assert_eq!(dot.text.get(1).unwrap().text.as_ref(), text);
         }
     }
 }

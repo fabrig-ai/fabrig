@@ -61,7 +61,7 @@ pub struct Sample {
     pub address: Address,
     pub then: Then,
 }
-pub const N: usize = 83;
+pub const N: usize = 92;
 const CHATS: Address = Address::Chats { filter: ChatsFilter::All, start: false };
 use World::{Bare, FirstRun, Reference, Solo};
 #[must_use]
@@ -73,9 +73,48 @@ fn task(task: u64) -> Address {
 #[expect(clippy::too_many_lines, reason = "one table keeps every named gallery state in its promised order")]
 pub fn samples() -> [Sample; N] {
     [
+        Sample {
+            name: "home-three-left",
+            world: FirstRun { step: 7 },
+            address: Address::Home { project: 1 },
+            then: Shown,
+        },
+        Sample {
+            name: "home-two-left",
+            world: FirstRun { step: 7 },
+            address: Address::Home { project: 1 },
+            then: Shown,
+        },
+        Sample {
+            name: "home-one-left",
+            world: FirstRun { step: 7 },
+            address: Address::Home { project: 1 },
+            then: Shown,
+        },
+        Sample { name: "home-ready", world: FirstRun { step: 7 }, address: Address::Home { project: 1 }, then: Shown },
+        Sample {
+            name: "home-adopting",
+            world: FirstRun { step: 7 },
+            address: Address::Home { project: 1 },
+            then: Shown,
+        },
+        Sample {
+            name: "home-refused",
+            world: FirstRun { step: 7 },
+            address: Address::Home { project: 1 },
+            then: Shown,
+        },
+        Sample {
+            name: "home-no-repository",
+            world: FirstRun { step: 7 },
+            address: Address::Home { project: 1 },
+            then: Shown,
+        },
+        Sample { name: "home-github", world: FirstRun { step: 7 }, address: Address::Home { project: 1 }, then: Shown },
         Sample { name: "chats-solo", world: Solo, address: CHATS, then: Shown },
         Sample { name: "chat-solo-T10", world: Solo, address: Address::Chat { task: 10 }, then: Shown },
         Sample { name: "inbox-solo", world: Solo, address: Address::Inbox { filter: Filter::ALL }, then: Shown },
+        Sample { name: "settings", world: Solo, address: Address::Settings { project: 1 }, then: Shown },
         Sample { name: "task-solo-T3", world: Solo, address: task(3), then: Shown },
         Sample { name: "accounts-solo", world: Solo, address: Address::Accounts, then: Shown },
         welcome_sample("welcome-first-run-0", temper_client_domain::Step::Welcome),
@@ -328,7 +367,7 @@ pub fn mockup(sample: &Sample) -> Option<String> {
         Address::Task { task, .. } => ("task", Some(task)),
         Address::ConnectForge { .. } => ("connect-forge", None),
         Address::Forges => ("forges", None),
-        Address::Adopt { .. } => return None,
+        Address::Home { .. } | Address::Settings { .. } | Address::Adopt { .. } => return None,
     };
     let task = match task {
         Some(task) => format!("&task=T{task}"),
@@ -356,6 +395,8 @@ pub fn mockup(sample: &Sample) -> Option<String> {
         | Address::Welcome { .. }
         | Address::Chat { .. }
         | Address::Task { .. }
+        | Address::Home { .. }
+        | Address::Settings { .. }
         | Address::Adopt { .. } => String::new(),
     };
     let way = if let Address::ConnectModel { way: Some(way) } = sample.address {
@@ -371,6 +412,9 @@ pub fn mockup(sample: &Sample) -> Option<String> {
 }
 #[must_use]
 pub fn domain(sample: &Sample) -> Domain {
+    if sample.name.starts_with("home-") {
+        return home_domain(sample.name);
+    }
     let (mut root, accounts_watch) = crate::worlds::world(sample.world, sample.address.clone(), sample.then);
     let mut out = Queue::uncapped();
     match sample.then {
@@ -658,4 +702,266 @@ fn paste(root: &mut Domain, frame: PasteFrame, out: &mut Queue<Request>) {
         },
         out,
     );
+}
+
+// Hand-made Home deliveries: the first-run world has no accepted settings or
+// first chat, and keeps Ready's repository under its setup scenario (browser.md, 7.2).
+#[expect(
+    clippy::too_many_lines,
+    reason = "one hand-made Home fixture answers each open and read through the public event path"
+)]
+fn home_domain(name: &str) -> Domain {
+    use crate::driver::{deliver, down};
+    use jig_client::{Down, Latest, Up, Watchable};
+    use skein_lib::List;
+    use temper_client_protocol_wire::{self as wire, v1 as w};
+    let (source, _) = crate::worlds::world(FirstRun { step: 7 }, Address::Settings { project: 1 }, Shown);
+    let mut me = source.pages().me(source.client()).expect("sample me").clone();
+    let mut projects = List::with_capacity(1);
+    projects.push(me.projects.get(0).expect("Hello project").clone()).expect("one project");
+    me.projects = projects;
+    let accounts = temper_client_domain::pages::accounts::document(source.client()).expect("sample accounts").clone();
+    let (chats, _) = crate::worlds::world(Solo, CHATS, Shown);
+    let Some(Latest::Jig(c::Delivery::Tasks(chat_rows))) =
+        chats.client().document(chats.pages().chats().expect("chats").live).expect("chats watch").latest
+    else {
+        panic!("sample chats")
+    };
+    let mut root = temper_client_domain::unlinked(&crate::driver::limits(), 11);
+    let mut out = Queue::uncapped();
+    step(
+        &mut root,
+        Event::Start { address: Address::Home { project: 1 }, kept: List::with_capacity(0), with: None },
+        &mut out,
+    );
+    for event in [
+        jig_client::Event::StartUnlinked { kept: List::with_capacity(0) },
+        jig_client::Event::SignIn { with: jig_client::With::Transport },
+        jig_client::Event::Up { up: Up::Served { served: true, versions: None } },
+    ] {
+        step(&mut root, Event::Client { event }, &mut out);
+    }
+    let in_project = matches!(name, "home-two-left" | "home-one-left" | "home-ready");
+    for _ in 0..256 {
+        let Some(request) = out.pop() else { break };
+        let Some(request) = down(request) else { continue };
+        match request {
+            Down::Open { watch, subject: Watchable::Jig(subject) } => {
+                let value = match subject {
+                    c::Subject::Me => c::Delivery::Me(Box::new(me.clone())),
+                    c::Subject::Accounts => c::Delivery::Accounts(Box::new(accounts.clone())),
+                    c::Subject::Settings => {
+                        let mut lines = List::with_capacity(1);
+                        lines
+                            .push(c::SettingLine {
+                                setting: c::Setting::Rules,
+                                name: None,
+                                follows: if matches!(name, "home-one-left" | "home-ready") {
+                                    c::SettingFollows::Change
+                                } else {
+                                    c::SettingFollows::Default
+                                },
+                                last: None,
+                                application: None,
+                            })
+                            .expect("settings line");
+                        c::Delivery::Settings(Box::new(c::SettingsDocument {
+                            newest: 0,
+                            settings: lines,
+                            held: List::with_capacity(0),
+                            pending: List::with_capacity(0),
+                        }))
+                    }
+                    c::Subject::Tasks { .. } => {
+                        let mut rows = List::with_capacity(1);
+                        if name == "home-ready" {
+                            let mut row = chat_rows.rows.get(0).expect("sample chat").clone();
+                            row.project = 1;
+                            rows.push(row).expect("one chat");
+                        }
+                        c::Delivery::Tasks(Box::new(c::Tasks { rows, more: false }))
+                    }
+                    _ => continue,
+                };
+                deliver(&mut root, watch, value, &mut out);
+            }
+            Down::Open { watch, subject: Watchable::Family { .. } } => {
+                let rows = home_forges(name, in_project);
+                step(
+                    &mut root,
+                    Event::Client {
+                        event: jig_client::Event::Up {
+                            up: Up::FamilyDelivered {
+                                watch,
+                                record: jig_client::Family {
+                                    family: wire::FORGE,
+                                    version: wire::CLIENT_VERSION,
+                                    bytes: wire::forges(
+                                        &w::Forges::new(&w::CEILINGS, w::ForgesParts { forges: rows })
+                                            .expect("Home forges"),
+                                    ),
+                                },
+                            },
+                        },
+                    },
+                    &mut out,
+                );
+            }
+            Down::Read { read, what: jig_client::Readable::Jig(c::Read::Tasks { .. }) } => crate::driver::answer(
+                &mut root,
+                read,
+                c::ReadValue::Tasks(Box::new(c::TaskPage {
+                    live: List::with_capacity(0),
+                    live_after: None,
+                    ended: c::EndedGroup::Rows { rows: List::with_capacity(0), after: None, cut: false },
+                })),
+                &mut out,
+            ),
+            Down::Read { read, what: jig_client::Readable::Family { record, .. } } => {
+                let value = match wire::decode_reading(&record.bytes, &w::CEILINGS).expect("Home read").read() {
+                    w::Read::Deployment => Some(wire::deployment_answer(
+                        &w::DeploymentAnswer::new(
+                            &w::CEILINGS,
+                            w::DeploymentAnswerParts { welcome: true, owned: true },
+                        )
+                        .expect("deployment"),
+                    )),
+                    _ => None,
+                };
+                step(
+                    &mut root,
+                    Event::Client {
+                        event: jig_client::Event::Up {
+                            up: Up::ReadDone {
+                                read,
+                                result: jig_client::Readout::Family { family: wire::FORGE, record: value },
+                            },
+                        },
+                    },
+                    &mut out,
+                );
+            }
+            _ => {}
+        }
+    }
+    assert!(out.is_empty(), "Home fixture settles");
+    if matches!(name, "home-adopting" | "home-refused") {
+        step(&mut root, Event::Act { action: Action::Pages(Act::AdoptFirst) }, &mut out);
+        step(&mut root, Event::Client { event: jig_client::Event::Stored }, &mut out);
+        let attempt = sent_attempt(&mut out);
+        if name == "home-refused" {
+            let outcome = w::Outcome::ForgeRefused(
+                w::ForgeRefused::new(&w::CEILINGS, w::ForgeRefusedParts { reason: w::ForgeReason::HomeHeld })
+                    .expect("refusal"),
+            );
+            let answer = w::Answer::new(&w::CEILINGS, w::AnswerParts { outcome }).expect("Home answer");
+            step(
+                &mut root,
+                Event::Client {
+                    event: jig_client::Event::Up {
+                        up: Up::Answer {
+                            attempt,
+                            envelope: skein_lib::RequestEnvelope::Final,
+                            answer: Some(jig_client::Answered::Family(jig_client::Family {
+                                family: wire::FORGE,
+                                version: wire::CLIENT_VERSION,
+                                bytes: wire::answer(&answer),
+                            })),
+                            why: None,
+                        },
+                    },
+                },
+                &mut out,
+            );
+        }
+    }
+    root
+}
+fn home_forges(name: &str, in_project: bool) -> skein_lib::List<temper_client_protocol_wire::v1::ForgeRow> {
+    use skein_lib::List;
+    use temper_client_protocol_wire::v1 as w;
+    let mut rows = List::with_capacity(1);
+    if name == "home-no-repository" {
+        return rows;
+    }
+    let github = name == "home-github";
+    let mut repositories = List::with_capacity(1);
+    if in_project {
+        repositories
+            .push(
+                w::Adoption::new(
+                    &w::CEILINGS,
+                    w::AdoptionParts { owner: b"work".as_slice().into(), name: b"hello".as_slice().into(), project: 1 },
+                )
+                .expect("adoption"),
+            )
+            .expect("repository");
+    }
+    let mut installations = List::with_capacity(1);
+    if github {
+        installations
+            .push(
+                w::Installation::new(
+                    &w::CEILINGS,
+                    w::InstallationParts {
+                        id: 1,
+                        account: Some(
+                            w::Account::new(&w::CEILINGS, w::AccountParts { id: 73, login: b"sam".as_slice().into() })
+                                .expect("account"),
+                        ),
+                        suspended: false,
+                        stray: false,
+                    },
+                )
+                .expect("installation"),
+            )
+            .expect("one installation");
+    }
+    let first = if github {
+        None
+    } else {
+        Some(
+            w::FirstRepository::new(
+                &w::CEILINGS,
+                w::FirstRepositoryParts {
+                    playground: false,
+                    org: b"work".as_slice().into(),
+                    repository: b"hello".as_slice().into(),
+                    state: w::FirstState::Made(w::Made::new(&w::CEILINGS, w::MadeParts { id: 1 }).expect("made")),
+                    label: b"main".as_slice().into(),
+                },
+            )
+            .expect("first"),
+        )
+    };
+    rows.push(
+        w::ForgeRow::new(
+            &w::CEILINGS,
+            w::ForgeRowParts {
+                host: b"forge.example:3000".as_slice().into(),
+                number: if github { 2 } else { 3 },
+                kind: if github { w::Kind::Github } else { w::Kind::Forgejo },
+                mode: if github { w::Mode::Managed } else { w::Mode::Owned },
+                connection: w::Connection::Connected(
+                    w::Connected::new(&w::CEILINGS, w::ConnectedParts { id: 1, login: b"temper".as_slice().into() })
+                        .expect("connected"),
+                ),
+                offer: w::Offer::Offered,
+                first,
+                installations,
+                ended: None,
+                app: None,
+                web: None,
+                repositories,
+                owned: None,
+                admin: false,
+                read_only: false,
+                ended_stop: None,
+                makings: List::with_capacity(0),
+            },
+        )
+        .expect("Home row"),
+    )
+    .expect("one forge");
+    rows
 }

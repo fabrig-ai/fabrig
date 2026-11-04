@@ -155,6 +155,7 @@ pub fn evidence(forge: u16, rows: &[(Box<[u8]>, Box<[u8]>)], limits: &d::Limits)
             | d::Stored::Application { .. }
             | d::Stored::Setting(_)
             | d::Stored::Making(_)
+            | d::Stored::Dismissed { .. }
             | d::Stored::Binding { .. }
             | d::Stored::Landing(_)
             | d::Stored::Receipt { .. }

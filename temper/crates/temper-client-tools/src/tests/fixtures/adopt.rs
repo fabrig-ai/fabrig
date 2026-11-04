@@ -85,6 +85,7 @@ impl Harness {
             | w::Request::RemoveForge(_)
             | w::Request::MakeRepository(_)
             | w::Request::StartPlayground
+            | w::Request::Dismiss(_)
             | w::Request::EndPlayground
             | w::Request::Accept(_)
             | w::Request::Reachable(_)

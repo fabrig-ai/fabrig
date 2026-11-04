@@ -32,6 +32,7 @@ pub enum RecordKind {
     Tier,
     Verification,
     Making,
+    Dismissed,
 }
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 pub enum Need {
@@ -241,7 +242,8 @@ impl Reconciliation {
             | Stored::Landed { .. }
             | Stored::Setting(_)
             | Stored::Binding { .. }
-            | Stored::Making(_) => Ok(()),
+            | Stored::Making(_)
+            | Stored::Dismissed { .. } => Ok(()),
             Stored::Flight { task, entry } => self.need(RecordKind::Flight, Need::Entry { task: *task, entry: *entry }),
         }
     }
@@ -345,6 +347,7 @@ impl Domain {
             | RecordKind::Writer
             | RecordKind::Making
             | RecordKind::Binding
+            | RecordKind::Dismissed
             | RecordKind::Setting
             | RecordKind::Flight => false,
         }
