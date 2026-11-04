@@ -23,7 +23,7 @@ pub enum Phase {
 }
 
 use crate::{
-    grow::{Grow, Tail},
+    grow::{Grow, LogTail},
     limits::{self, Limits, Shared},
     settings::{Forge, Kind, Transport},
 };
@@ -95,7 +95,7 @@ enum JsonStep {
 enum Receiving {
     Json(Decoder),
     Raw { grow: Grow, max: u32, remaining: Option<u64> },
-    Tail { tail: Tail, read: u64, remaining: Option<u64> },
+    Tail { tail: LogTail, read: u64, remaining: Option<u64> },
     Empty,
 }
 // Host, User-Agent, Accept, pin, Authorization and Content-Type;
@@ -710,7 +710,7 @@ impl Connection {
         if let Retention::FailedStep { .. } = retention
             && let Receiving::Tail { tail, .. } = &mut self.receive
         {
-            *tail = Tail::failed_step(env.limits.chunk, self.raw_cap);
+            *tail = LogTail::failed_step(self.raw_cap);
         }
     }
     fn begin_raw(&mut self, env: &Env<Limits>, framing: http::Framing) {
@@ -725,9 +725,7 @@ impl Connection {
                 max,
                 remaining,
             },
-            Range::Tail(max) => {
-                Receiving::Tail { tail: Tail::new(env.limits.chunk, max.min(self.raw_cap)), read: 0, remaining }
-            }
+            Range::Tail(max) => Receiving::Tail { tail: LogTail::new(max.min(self.raw_cap)), read: 0, remaining },
         };
         self.raw_demand(env);
     }

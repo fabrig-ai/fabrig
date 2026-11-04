@@ -2,7 +2,7 @@
 use super::fixtures;
 use crate::{
     connection::Phase,
-    grow::{Full, Grow, Tail},
+    grow::{Full, Grow, LogTail},
 };
 use alloc::boxed::Box;
 use skein_forge::forgejo::plans::{Failure, Heard, plan::Range};
@@ -338,14 +338,13 @@ fn a_chunked_raw_read_keeps_the_last_short_piece() {
 
 #[test]
 fn the_tail_keeps_the_last_max_bytes_across_writes() {
-    for (name, pieces, expected, dropped, capacities) in [
-        ("short", [b"ab".as_slice(), b"", b""], b"ab".as_slice(), false, [2, 2, 2]),
-        ("wrapped", [b"ab".as_slice(), b"cde", b"f"], b"cdef".as_slice(), true, [2, 4, 4]),
+    for (name, pieces, expected, dropped) in [
+        ("short", [b"ab".as_slice(), b"", b""], b"ab".as_slice(), false),
+        ("wrapped", [b"ab".as_slice(), b"cde", b"f"], b"cdef".as_slice(), true),
     ] {
-        let mut tail = Tail::new(2, 4);
-        for (piece, capacity) in pieces.into_iter().zip(capacities) {
+        let mut tail = LogTail::new(4);
+        for piece in pieces {
             tail.write(piece);
-            assert_eq!(tail.capacity(), capacity, "{name}: Capacity");
         }
         assert_eq!(tail.dropped(), dropped, "{name}: Earlier bytes");
         assert_eq!(tail.finish().as_ref(), expected, "{name}: Last bytes");
@@ -598,7 +597,7 @@ fn a_failed_step_tail_stops_before_cleanup_across_every_chunk_boundary() {
     let input = b"earlier\nMissing changes/40.md opened timestamp\n2026-11-02T14:01:45Z ##[error]Process completed with exit code 1.\nPost job cleanup.\n";
     let expected = input.strip_prefix(b"earlier\n").unwrap().strip_suffix(b"Post job cleanup.\n").unwrap();
     for chunk in 1..=input.len() {
-        let mut tail = Tail::failed_step(1, u32::try_from(expected.len()).unwrap());
+        let mut tail = LogTail::failed_step(u32::try_from(expected.len()).unwrap());
         for piece in input.chunks(chunk) {
             tail.write(piece);
         }
@@ -616,7 +615,7 @@ fn a_failed_step_tail_falls_back_and_reports_omission_at_tiny_bounds() {
         (b"##[error]Process completed with exit code 1.", 4, b"e 1.", true),
         (b"##[error]Process completed with exit code 1.\ncleanup", 2, b".\n", true),
     ] {
-        let mut tail = Tail::failed_step(1, cap);
+        let mut tail = LogTail::failed_step(cap);
         for byte in input {
             tail.write(core::slice::from_ref(byte));
         }
