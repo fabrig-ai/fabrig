@@ -49,11 +49,32 @@ build:
 
 | Task | Part | Needs | Builds |
 |---|---|---|---|
-| `target-pack` | pack | | `CHUNK_TARGET`, `Limits::chunk_target`, the packing, one encoding, `target.rs` |
+| `target-pack` | pack | | `CHUNK_TARGET`, `Limits::chunk_target`, the packing, one encoding, `target.rs`: the chunks and a snapshot's peak |
+| `target-read` | read | `target-pack` | reads of the target, `reserve_frame`, `target.rs`: recovery's peaks, a chunk up to the ceiling |
+| `target-status` | status | both | `kv.status.md`: **Not yet** closed; the bounds; 11's figures |
+
+One writer per crate holds the two code tasks in sequence: they share `skein-kv`, and
+`target-read`'s peaks rest on `target-pack`'s chunks and on `chunk_target`.
+
+## The request, mapped
+
+- 1, two figures: `target-pack`; design 5.
+- 2, reading: `target-read` (reads of the target; a chunk up to the ceiling opens, which is the
+  store written before this change); design 3.
+- 3, the bounds: both code tasks' measures and `target-status`; design 7.
+- 4, replay: the kv-pay-per-use tests, unchanged, in each code task's acceptance.
+- The tests: many small rows, a row past the target and a row at the ceiling, in `target.rs`.
+
+## Left outside
+
+`jig/crates/jig-protocol-store/src/generations.rs` copies a generation's files in reads of
+`limits.store.chunk`: a patch's copy still pays the row ceiling, a figure the deployment
+budget will meet. jig is out of this request's scope; no task touches it.
 
 ## Critical path
 
-`target-pack` alone so far.
+`target-pack` (50 minutes), `target-read` (60), `target-status` (20): one chain, about two
+hours and ten minutes of implementers.
 
 ## Overlaps
 
