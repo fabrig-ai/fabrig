@@ -777,15 +777,12 @@ pub fn bounded_template(directory: &Path) -> Bounded {
     bounded_template_profile(directory, &[])
 }
 
-/// The reference overlays init's document and agent (temper/docs/design/protocol/configuration.md, 13.9).
+/// The reference overlays init's document (temper/docs/design/protocol/configuration.md, 13.9).
 #[must_use]
 pub fn bounded_reference(directory: &Path) -> Bounded {
     bounded_template_profile(
         directory,
-        &[
-            ("temper.json", include_bytes!("../../../../docs/examples/reference/limits.json")),
-            ("agent.json", include_bytes!("../../../../docs/examples/reference/agent.json")),
-        ],
+        &[("temper.json", include_bytes!("../../../../docs/examples/reference/limits.json"))],
     )
 }
 
