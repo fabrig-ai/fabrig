@@ -270,6 +270,21 @@ pub fn claims(settings: &Settings, call: &http::Call) -> bool {
         && !(call.method == skein_http::Method::Get
             && (path == b"/v1/sign-in/link" || path.starts_with(b"/v1/sign-in/link?")))
 }
+/// The sign-in URL for a bound address, with the path `link_path` gave.
+#[must_use]
+pub fn printed_link(address: ::core::net::SocketAddr, path: &[u8]) -> Box<[u8]> {
+    let host = kit::host::address_text(address).expect("bound listener address");
+    let parts: [&[u8]; 3] = [b"http://", &host, path];
+    let mut length = 0_usize;
+    for part in parts {
+        length = length.checked_add(part.len()).expect("short printed URL");
+    }
+    let mut out = skein_lib::Writer::new(length);
+    for part in parts {
+        out.put(part).expect("measured URL");
+    }
+    out.finish()
+}
 #[must_use]
 pub fn link_path(settings: &Settings, secret: &Secret) -> Box<[u8]> {
     let encoded = skein_lib::base64::encoded_len(
