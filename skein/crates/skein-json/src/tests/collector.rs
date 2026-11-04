@@ -208,6 +208,39 @@ fn skip_count_failure_stops_before_a_large_values_end() {
 }
 
 #[test]
+fn a_collector_leaves_the_callers_queue_alone() {
+    let mut machine = Machine::new(FILTER, Limits { skip: 3, ..LIMITS });
+    let bytes = br#"{"omit":"abcdefgh"#;
+    let mut intake = Intake::with_capacity(u32::try_from(bytes.len()).unwrap());
+    intake.append(bytes).unwrap();
+    machine.down(Request::Collect);
+    for _ in 0..bytes.len() {
+        let Down::Demand { read, room: 0 } = machine.below.pop().expect("unfinished collect demands bytes") else {
+            panic!("the collector only demands bytes")
+        };
+        let delivery = intake.meet(read).expect("the budget is crossed before the stream ends");
+        if delivery.as_ref() == b"abcd" {
+            machine.below.push(Down::Demand { read: Read::Fill(1), room: 0 });
+            collector::up(
+                &mut machine.collector,
+                &machine.env,
+                Up::Bytes(delivery),
+                &mut machine.above,
+                &mut machine.below,
+            );
+            assert_eq!(machine.above.pop(), Some(Event::Failed(Error::SkippedTooLong)));
+            assert!(machine.above.is_empty());
+            assert_eq!(machine.below.pop(), Some(Down::Demand { read: Read::Fill(1), room: 0 }));
+            assert!(machine.below.is_empty());
+            return;
+        }
+        machine.up(Up::Bytes(delivery));
+        assert!(machine.above.is_empty());
+    }
+    panic!("the skipped string crosses the budget");
+}
+
+#[test]
 #[should_panic(expected = "a Close after Closed")]
 fn a_second_close_is_an_owner_bug() {
     let mut machine = Machine::new(FILTER, LIMITS);

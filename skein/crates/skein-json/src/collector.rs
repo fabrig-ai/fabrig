@@ -173,6 +173,7 @@ pub struct Counts {
 pub struct Collector {
     tokenizer: Tokenizer,
     events: Queue<json::Event>,
+    demands: Queue<Down>,
     walk: Stack<Frame>,
     document: Builder,
     state: State,
@@ -225,6 +226,7 @@ impl Collector {
         Ok(Collector {
             tokenizer: Tokenizer::new(&limits.tokenizer),
             events: Queue::uncapped(),
+            demands: Queue::uncapped(),
             walk: Stack::with_capacity(limits.tokenizer.depth),
             document: Builder::new(capacity),
             state: State::Idle,
@@ -296,6 +298,7 @@ pub fn collector_bound(limits: &Limits, caps: &[u32], filter: &Filter) -> Option
     let tokenizer = json::tokenizer_bound(&limits.tokenizer)?.checked_sub(delivery)?;
     let walk = Stack::<Frame>::price(limits.tokenizer.depth)?;
     let queue = Queue::<json::Event>::price(1)?;
+    let demands = Queue::<Down>::price(1)?;
     let plan = tagged::describe(*filter).ok()?;
     let tags = &plan.tags;
     let retained = document::document_bound(&tagged::projection_limits(limits, tags)?)?;
@@ -310,6 +313,7 @@ pub fn collector_bound(limits: &Limits, caps: &[u32], filter: &Filter) -> Option
     let receiving = tokenizer
         .checked_add(walk)?
         .checked_add(queue)?
+        .checked_add(demands)?
         .checked_add(retained)?
         .checked_add(transient)?
         .checked_add(cap_bytes)?
@@ -322,7 +326,7 @@ pub fn collector_bound(limits: &Limits, caps: &[u32], filter: &Filter) -> Option
 /// Receives a stream event.
 pub fn up(collector: &mut Collector, env: &Env<Limits>, event: Up, above: &mut Queue<Event>, below: &mut Queue<Down>) {
     let tokenizer_env = tokenizer_env(env);
-    json::up(&mut collector.tokenizer, &tokenizer_env, event, &mut collector.events, below);
+    json::up(&mut collector.tokenizer, &tokenizer_env, event, &mut collector.events, &mut collector.demands);
     let skip_base = match active_tag(collector) {
         Some(index) if !has_parent(collector, index) => {
             match collector.tags.get(index).expect("tag").selected_skipped() {
@@ -342,24 +346,17 @@ pub fn up(collector: &mut Collector, env: &Env<Limits>, event: Up, above: &mut Q
         match skipped {
             Some(count) if count <= env.limits.skip => {}
             Some(_) | None => {
-                // The tokenizer's next demand has not left this entry point.
-                // Consume it and its close withdrawal before reporting the count.
-                let next = below.pop().expect("an unfinished skip demands more");
-                match next {
-                    Down::Demand { .. } => {}
-                    Down::Send(_) | Down::Finish => unreachable!("the tokenizer demands only bytes"),
-                }
+                collector.demands.clear();
                 collector.skipped = skipped.unwrap_or(u64::MAX);
                 collector.state = State::Over;
-                stop_tokenizer(collector, env, below);
-                assert!(
-                    below.pop() == Some(Down::Demand { read: skein_lib::stream::Read::Nothing, room: 0 }),
-                    "the unforwarded demand was withdrawn"
-                );
+                stop_tokenizer(collector, env, &mut Queue::uncapped());
                 above.push(Event::Failed(Error::SkippedTooLong));
                 return;
             }
         }
+    }
+    if let Some(demand) = collector.demands.pop() {
+        below.push(demand);
     }
     drive(collector, env, above, below);
 }
