@@ -3,7 +3,7 @@ id = "init-standard"
 part = "box"
 kind = "feature"
 needs = ["standard-scale", "forge-profile", "smith-calls", "client-capacities"]
-files = ["temper/crates/temper-init/template/temper.json", "temper/crates/temper-init/template/agent.json", "temper/docs/examples/owned.json", "temper/docs/examples/owned/agent.json", "temper/crates/temper-init/src/tests/**", "temper/crates/temper/tests/suite/startup.rs", "temper/crates/temper/tests/suite/configuration.rs", "temper/crates/temper/tests/support/owned.rs", "temper/crates/temper-service/src/tests/startup.rs", "temper/crates/temper-service/src/tests/stock_brief.rs", "temper/tests/real-loop/tests/suite/template_bounds.rs", "temper/tests/engine/domain/src/forge_routes.rs", "temper/docs/design/protocol/configuration.status.md", "temper/docs/design/protocol/setup.status.md", "temper/crates/temper-service/src/limits.rs", "temper/crates/temper-service/src/tests/checks.rs", "temper/docs/design/protocol/configuration.md", "temper/crates/temper-engine-domain/src/limits.rs", "temper/crates/temper/tests/support/forge_land/rung.rs", "temper/crates/temper-service/src/tests/welcome_policy.rs", "temper/tests/engine/domain/src/store.rs", "temper/tests/engine/domain/tests/suite/forge_routes/b2_tree.rs"]
+files = ["temper/crates/temper-init/template/temper.json", "temper/crates/temper-init/template/agent.json", "temper/docs/examples/owned.json", "temper/docs/examples/owned/agent.json", "temper/crates/temper-init/src/tests/**", "temper/crates/temper/tests/suite/startup.rs", "temper/crates/temper/tests/suite/configuration.rs", "temper/crates/temper/tests/support/owned.rs", "temper/crates/temper-service/src/tests/startup.rs", "temper/crates/temper-service/src/tests/stock_brief.rs", "temper/tests/real-loop/tests/suite/template_bounds.rs", "temper/tests/engine/domain/src/forge_routes.rs", "temper/docs/design/protocol/configuration.status.md", "temper/docs/design/protocol/setup.status.md", "temper/crates/temper-service/src/limits.rs", "temper/crates/temper-service/src/tests/checks.rs", "temper/docs/design/protocol/configuration.md", "temper/crates/temper-engine-domain/src/limits.rs", "temper/crates/temper/tests/support/forge_land/rung.rs", "temper/crates/temper-service/src/tests/welcome_policy.rs", "temper/tests/engine/domain/src/store.rs", "temper/tests/engine/domain/tests/suite/forge_routes/b2_tree.rs", "temper/**/tests/**", "temper/**/src/tests/**", "temper/**/fixtures/**", "temper/**/golden/**", "temper/**/testdata/**"]
 effort = "high"
 minutes = 240
 +++
@@ -327,3 +327,40 @@ the box allowance" is the proof and stays as it is, and no task owns the fixture
 
 Then the full `-p temper-engine-domain-world`, the acceptance's remaining checks with the three
 exclusions the answer above names, the status lines, clippy and the push.
+
+2026-11-04 (fabrig/qa via agents/loop, a standing answer). **May this task change a test, fixture,
+golden or test helper outside its files to follow init's move to the standard profile?** Yes,
+without asking: any test, fixture, golden file or test helper whose expected figures, bounds or
+profile follow from init's profile moving to standard may be updated in place (the files above now
+take temper's test, fixture and golden trees). Stop and ask only for product code outside the
+files, or for a design change. Run the whole of each touched test binary before pushing, so the
+next pinned figure is found in this run, not the next.
+
+### 2026-11-04: May the task repair `reviews.rs`'s eight-task saturation fixture? Options: give it an explicit eight-task cap and rename its shipped-limit claim (recommended), or fill Standard's 128-task capacity before testing refusal. (fabrig-scale/init-standard-8, foreman fabrig-scale/init-standard/foreman-8)
+
+Give the saturation fixture an explicit eight-task cap and rename its shipped-limit claim, as covered by the standing answer.
+The final standing answer authorizes “any test, fixture, golden file or test helper whose expected figures, bounds or profile follow from init's profile moving to standard”.
+It says: “Stop and ask only for product code outside the files, or for a design change.”
+In `temper/tests/engine/domain/tests/suite/forge_routes/reviews.rs`, pass 8 to `pending_large_with_alpha_and_beta`, remove the shipped-capacity assertion, and rename the test to describe its explicit task limit.
+Keep the `tasks::Refusal::Live` and subsequent room-release assertions: they preserve the saturation regression.
+Run the whole touched test binary before pushing, as the standing answer requires, then complete the remaining acceptance checks and status updates with the three authorized exclusions.
+
+2026-11-04. **Runs 5 to 8 without landing: rerun, split or stop?** Rerun, as it is. Run 8's only
+stop, `reviews.rs`'s eight-task saturation fixture, is settled by the answer just above: a test
+fixture following init's move to `standard`, which the standing answer already covered, so it was
+no reason to stop. Every other check of the acceptance passed in run 8 but for the three named
+exclusions. To land in one more run:
+
+- Start from the pushed `fabrig-scale/init-standard` (`0c9c954fa1` or later); redo nothing the
+  answers settle and ask nothing they answer.
+- `reviews.rs` as answered above: `pending_large_with_alpha_and_beta(8)`, no assertion on
+  `box_limits().tasks.tasks`, the test renamed for its explicit eight-task limit (for example
+  `beta_at_an_eight_task_limit_waits_for_room_then_starts_its_producer`), the `Refusal::Live` and
+  room-release assertions kept.
+- Then the whole `-p temper-engine-domain-world` without fail-fast stopping the count short
+  (`--no-fail-fast`), so every further test pinned to Small is found in this run; each that mends
+  by an expected figure, an explicit small limit in its own fixture, or `standard`, under the
+  standing answer, with no stop, listed with old and new.
+- Then `heavy cargo check -p temper --tests`, the status lines, clippy and the push. A test left
+  failing that is outside the standing answer goes under `## Left`; stop only for product code
+  outside the files or a design change.
