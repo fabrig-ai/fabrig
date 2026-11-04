@@ -778,8 +778,8 @@ impl Clients {
 
 impl Clients {
     pub fn secrets_step(&mut self, store: &mut crate::store::Store) {
-        for _ in 0..store.secrets.len() {
-            let answer = store.secrets.pop().expect("secrets terminals");
+        for _ in 0..store.host.secrets.len() {
+            let answer = store.host.secrets.pop().expect("secrets terminals");
             self.secret_answer(answer);
         }
         self.advance_secrets(store);

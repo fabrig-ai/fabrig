@@ -59,31 +59,38 @@ fn the_restart_asks_one_load_at_a_time() {
             break;
         }
     }
-    let event = service.engine.as_mut().expect("engine").store.above.pop();
+    let event = service.engine.as_mut().expect("engine").store.host.above.pop();
     let Some(jig_protocol_store::Event::Page { owner, items, next }) = event else {
         panic!("first restart load: {event:?}")
     };
     assert!(items.is_empty());
     assert_eq!(next, None);
-    assert!(service.engine.as_ref().expect("engine").store.above.is_empty());
+    assert!(service.engine.as_ref().expect("engine").store.host.above.is_empty());
     fixtures::turn(&mut service);
-    assert!(service.engine.as_ref().expect("engine").store.above.is_empty(), "no next load before the first answer");
-    service.engine.as_mut().expect("engine").store.above.push(jig_protocol_store::Event::Page { owner, items, next });
+    assert!(
+        service.engine.as_ref().expect("engine").store.host.above.is_empty(),
+        "no next load before the first answer"
+    );
+    service.engine.as_mut().expect("engine").store.host.above.push(jig_protocol_store::Event::Page {
+        owner,
+        items,
+        next,
+    });
     for _ in 0_u32..16 {
         fixtures::turn(&mut service);
-        if !service.engine.as_mut().expect("engine").store.above.is_empty() {
+        if !service.engine.as_mut().expect("engine").store.host.above.is_empty() {
             break;
         }
     }
     assert_eq!(service.end(), None);
-    assert_eq!(service.engine.as_ref().expect("engine").store.above.len(), 1, "one next store operation");
+    assert_eq!(service.engine.as_ref().expect("engine").store.host.above.len(), 1, "one next store operation");
     fixtures::restart(&mut service);
 }
 /// Whether the store has answered the engine. The accounts' answers, as
 /// their handed-in record kept (jig's protocol/store.md, 9), are taken on
 /// the next turn.
 fn store_answered(service: &crate::Service) -> bool {
-    for event in &service.engine.as_ref().expect("engine").store.above {
+    for event in &service.engine.as_ref().expect("engine").store.host.above {
         let jig_protocol_store::Event::Kept { owner } = event else { return true };
         if !crate::accounts::owns(*owner) {
             return true;
@@ -101,7 +108,7 @@ fn a_corrupt_pending_restart_load_keeps_its_restore_kind() {
             break;
         }
     }
-    let event = service.engine.as_mut().expect("engine").store.above.pop();
+    let event = service.engine.as_mut().expect("engine").store.host.above.pop();
     let Some(jig_protocol_store::Event::Page { owner, .. }) = event else { panic!("first restart load: {event:?}") };
     let failure = jig_protocol_store::restore::Failure {
         cause: jig_protocol_store::restore::Cause::Decode(jig_protocol_store::restore::DecodeFailure::Value),
@@ -152,7 +159,7 @@ fn a_store_answer_is_taken_at_the_backlog_watermark() {
     };
     assert!(engine.store.down(root::StoreRequest::Commit { number, writes }));
     crate::engine::iterate(engine, Time::from_nanos(1), skein_lib::Wall::from_nanos(1));
-    for event in &engine.store.above {
+    for event in &engine.store.host.above {
         if let jig_protocol_store::Event::Committed { number: found, .. } = event {
             assert_ne!(*found, number, "original terminal taken while admission was blocked");
         }
@@ -237,12 +244,16 @@ fn a_failed_commit_releases_nothing_after_it() {
     let first = engine.domain.deployment().commits.checked_add(1).unwrap();
     root::try_step(&mut engine.domain, &engine.env, fixtures::period(2)).unwrap();
     root::try_step(&mut engine.domain, &engine.env, fixtures::period(3)).unwrap();
-    engine.store.above.push(jig_protocol_store::Event::Failed { number: first });
-    engine.store.above.push(jig_protocol_store::Event::Committed { number: first.checked_add(1).unwrap(), fill: 0 });
+    engine.store.host.above.push(jig_protocol_store::Event::Failed { number: first });
+    engine
+        .store
+        .host
+        .above
+        .push(jig_protocol_store::Event::Committed { number: first.checked_add(1).unwrap(), fill: 0 });
     fixtures::turn(&mut service);
     assert_eq!(service.end(), Some(&crate::End::Stopped(crate::Stop::CommitFailed { number: first })));
     assert!(service.engine.as_ref().expect("engine").requests.is_empty(), "later outputs stayed behind the barrier");
-    assert!(service.engine.as_ref().expect("engine").store.above.is_empty());
+    assert!(service.engine.as_ref().expect("engine").store.host.above.is_empty());
 }
 
 #[test]
@@ -252,8 +263,12 @@ fn a_frame_refusal_stops_with_its_details_and_releases_no_later_output() {
     let number = engine.domain.deployment().commits.checked_add(1).unwrap();
     root::try_step(&mut engine.domain, &engine.env, fixtures::period(2)).unwrap();
     root::try_step(&mut engine.domain, &engine.env, fixtures::period(3)).unwrap();
-    engine.store.above.push(jig_protocol_store::Event::FrameTooLarge { number, task: 11, bytes: 79, limit: 78 });
-    engine.store.above.push(jig_protocol_store::Event::Committed { number: number.checked_add(1).unwrap(), fill: 0 });
+    engine.store.host.above.push(jig_protocol_store::Event::FrameTooLarge { number, task: 11, bytes: 79, limit: 78 });
+    engine
+        .store
+        .host
+        .above
+        .push(jig_protocol_store::Event::Committed { number: number.checked_add(1).unwrap(), fill: 0 });
     fixtures::turn(&mut service);
     assert_eq!(
         service.end(),
@@ -261,7 +276,7 @@ fn a_frame_refusal_stops_with_its_details_and_releases_no_later_output() {
     );
     let engine = service.engine.as_ref().expect("engine");
     assert!(engine.requests.is_empty(), "later outputs stayed behind the existing Uncommitted barrier");
-    assert!(engine.store.above.is_empty());
+    assert!(engine.store.host.above.is_empty());
 }
 
 #[test]
@@ -330,9 +345,9 @@ fn a_notes_page_waiting_for_its_owner() -> crate::Service {
     for _ in 0..OWNER_PASSES {
         crate::engine::iterate(service.engine.as_mut().expect("engine"), Time::from_nanos(1), Wall::from_nanos(1));
         if let Some(jig_protocol_store::Event::Loaded { .. }) =
-            service.engine.as_mut().expect("engine").store.above.iter().next()
+            service.engine.as_mut().expect("engine").store.host.above.iter().next()
         {
-            let event = service.engine.as_mut().expect("engine").store.above.pop().expect("notes page");
+            let event = service.engine.as_mut().expect("engine").store.host.above.pop().expect("notes page");
             let engine = service.engine.as_mut().expect("engine");
             crate::store::route::up(&mut engine.store.routes, event, &mut engine.store.routed);
             let Some(crate::store::route::Up::Root(event)) =
@@ -418,7 +433,7 @@ fn startup_admission_keeps_no_forge() {
         fixtures::turn(&mut service);
     }
     let engine = service.engine.as_mut().expect("engine");
-    assert!(!engine.store.component.mark_durable());
+    assert!(!engine.store.host.component.mark_durable());
     assert!(engine.clients.starting.is_some());
     let mark = engine.store.held_mark.take().expect("held startup mark");
     engine.store.hold_mark = false;
@@ -428,7 +443,7 @@ fn startup_admission_keeps_no_forge() {
         fixtures::turn(&mut service);
     }
     let engine = service.engine.as_mut().expect("engine");
-    assert!(engine.store.component.mark_durable());
+    assert!(engine.store.host.component.mark_durable());
     assert!(engine.domain.ready());
     assert!(engine.clients.starting.is_none());
     assert_eq!(engine.domain.forge_connection(1), forge::Connection::NotConnected);
@@ -565,7 +580,7 @@ fn nothing_leaves_before_the_mark() {
     assert!(service.links().is_empty(), "no sign-in link is published before startup opens");
     let engine = service.engine.as_mut().expect("engine");
     assert!(engine.store.held_mark.is_some(), "public restore reaches its mark without secret bootstrap");
-    assert!(!engine.store.component.mark_durable());
+    assert!(!engine.store.host.component.mark_durable());
     assert_eq!(engine.accounts.as_ref().expect("accounts").component().startup(0), (false, 0, 0));
     assert_eq!(engine.domain.start_phase(), Some(jig_domain_core::start::Phase::Wires));
     assert!(engine.values.identities.numbers().is_empty(), "restored identities wait for the durable wires");
@@ -588,7 +603,7 @@ fn nothing_leaves_before_the_mark() {
     assert!(engine.store.down(mark));
     fixtures::restart(&mut service);
     let engine = service.engine.as_ref().expect("engine");
-    assert!(engine.store.component.mark_durable());
+    assert!(engine.store.host.component.mark_durable());
     assert_eq!(engine.accounts.as_ref().expect("accounts").component().startup(0), (true, 0, 0));
     assert_eq!(engine.store.forge_loads.as_slice(), [None], "one application-secrets pass");
     assert!(engine.forge_records.done());
@@ -803,7 +818,7 @@ fn a_root_productive_past_one_quantum_lets_a_waiting_answer_in() {
     }
     engine.step(trace.inputs.pop().expect("first productive input"));
     engine.release_trace = Some(trace);
-    engine.store.above.push(jig_protocol_store::Event::Patched {
+    engine.store.host.above.push(jig_protocol_store::Event::Patched {
         owner: Token::new(999),
         of: jig_protocol_store::Owner::Application,
         patch: 999,
@@ -823,10 +838,10 @@ fn a_root_productive_past_one_quantum_lets_a_waiting_answer_in() {
     assert!(dispatched > 0 && dispatched < INPUTS, "root output spans the quantum boundary");
     assert!(!trace.inputs.is_empty(), "more root work remains");
     assert!(engine.ready, "quantum exhaustion leaves the root ready");
-    assert_eq!(engine.store.above.len(), 1, "the answer waits throughout the first quantum");
+    assert_eq!(engine.store.host.above.len(), 1, "the answer waits throughout the first quantum");
     assert!(engine.work_pending(Time::from_nanos(1)), "the yielded root keeps the loop awake");
     crate::engine::iterate(engine, Time::from_nanos(1), Wall::from_nanos(1));
-    assert!(engine.store.above.is_empty(), "the waiting answer is taken between quanta");
+    assert!(engine.store.host.above.is_empty(), "the waiting answer is taken between quanta");
     let mut answered = false;
     for note in &engine.notes {
         if let crate::Note::Patched { patch: 999, .. } = note {
@@ -859,7 +874,9 @@ fn an_oversized_startup_page_keeps_its_load_range_and_failed_step_before_switch(
         }
     }
     let engine = service.engine.as_mut().unwrap();
-    let Some(jig_protocol_store::Event::Page { owner, .. }) = engine.store.above.pop() else { panic!("startup page") };
+    let Some(jig_protocol_store::Event::Page { owner, .. }) = engine.store.host.above.pop() else {
+        panic!("startup page")
+    };
     let header = jig_domain_core::Record::Core(jig_domain_core::CoreRecord::Deployment(
         temper_engine_domain_world::store::HEADER,
     ));
@@ -869,7 +886,7 @@ fn an_oversized_startup_page_keeps_its_load_range_and_failed_step_before_switch(
             .expect("one row over demand");
     }
     let rows = rows.into_boxed();
-    engine.store.above.push(jig_protocol_store::Event::Page { owner, items: rows, next: None });
+    engine.store.host.above.push(jig_protocol_store::Event::Page { owner, items: rows, next: None });
     for _ in 0_u32..256 {
         fixtures::turn(&mut service);
         if service.end().is_some() {
@@ -909,7 +926,7 @@ fn a_forge_fit_failure_reaches_the_typed_start_ending_before_switch() {
             }));
         }
         fixtures::commit(&mut previous.store, 1, writes.into_boxed_slice());
-        previous.store.above.pop().expect("fixture commit answered");
+        previous.store.host.above.pop().expect("fixture commit answered");
         let mut service = fixtures::restarting_from(previous);
         // Model the generation flag supplied by the store's open terminal; refusal precedes switching it.
         service.engine.as_mut().unwrap().store.pending_generation = pending;
@@ -932,7 +949,7 @@ fn a_forge_fit_failure_reaches_the_typed_start_ending_before_switch() {
         });
         assert_eq!(service.end(), Some(&expected));
         let engine = service.engine.as_ref().unwrap();
-        assert!(!engine.store.component.mark_durable());
+        assert!(!engine.store.host.component.mark_durable());
         assert_eq!(engine.domain.start_phase(), Some(jig_domain_core::start::Phase::RestoreConnector { connector: 1 }));
         assert!(!engine.domain.ready());
         assert_eq!(engine.domain.forge_fit_failure(), Some(&failure));
@@ -947,13 +964,15 @@ fn an_undecodable_startup_row_keeps_the_store_family_and_key() {
     let mut previous = fixtures::started().engine.unwrap();
     let mut header = previous.domain.deployment();
     header.commits = 1;
-    previous.store.ask(store::Request::Commit {
+    previous.store.host.ask(store::Request::Commit {
         number: 1,
         writes: Box::new([store::Write::Save(jig_domain_core::Record::Core(jig_domain_core::CoreRecord::Deployment(
             header,
         )))]),
     });
-    let Some(store::Event::Committed { .. }) = previous.store.above.pop() else { panic!("format and header commit") };
+    let Some(store::Event::Committed { .. }) = previous.store.host.above.pop() else {
+        panic!("format and header commit")
+    };
     let application = previous.env.limits;
     let models = previous.domain.models();
     let names = store::codec::names(models);
@@ -961,7 +980,7 @@ fn an_undecodable_startup_row_keeps_the_store_family_and_key() {
     let limits = crate::store::limits(&application, &application.forge, &profile).unwrap();
     let codec = store::codec::limits(&root::core_limits(&application)).unwrap();
     let families = temper_protocol_store::application(&application.forge, application.tasks.spec_bytes).unwrap();
-    let mut maps = previous.store.component.into_stores();
+    let mut maps = previous.store.host.component.into_stores();
     header.commits = maps.store.last().checked_add(1).unwrap();
     let key =
         store::keys::encode(&jig_domain_core::Key::Tasks(jig_domain_tasks::Key::Live(9)), limits.store.key).unwrap();

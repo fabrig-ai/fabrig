@@ -21,7 +21,7 @@ fn carried(service: &mut crate::Service, value: Secret) -> jig_domain_core::Carr
     let digest = skein_lib::sha256::digest(value.expose());
     let engine = service.engine.as_mut().unwrap();
     engine.store.secrets(Token::new(901), fixtures::application_request(records::CARRIED, value));
-    let Some(StoreEvent::Carried { number, .. }) = engine.store.above.pop() else { panic!("carried value") };
+    let Some(StoreEvent::Carried { number, .. }) = engine.store.host.above.pop() else { panic!("carried value") };
     jig_domain_core::Carried { number, digest }
 }
 fn replace(service: &mut crate::Service, value: Secret) -> u64 {
@@ -94,11 +94,11 @@ fn replace_settle(
             observe_replace(&mut trace, engine, new);
             crate::engine::answer(engine);
             observe_replace(&mut trace, engine, new);
-            let mut held = core::mem::replace(&mut engine.store.above, Queue::uncapped());
+            let mut held = core::mem::replace(&mut engine.store.host.above, Queue::uncapped());
             crate::engine::iterate(engine, engine.env.now, Wall::EPOCH);
             observe_replace(&mut trace, engine, new);
             while let Some(event) = held.pop() {
-                engine.store.above.push(event);
+                engine.store.host.above.push(event);
             }
         }
         check.service.reclaim();

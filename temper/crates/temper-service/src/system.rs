@@ -71,7 +71,7 @@ impl Service {
             engine: match &self.engine {
                 Some(engine) => Some(WaitEngine {
                     restart: engine.domain.start_phase(),
-                    mark_durable: engine.store.component.mark_durable(),
+                    mark_durable: engine.store.host.component.mark_durable(),
                     store_closed: engine.store.closed(),
                     clients: WaitOwner { closed: engine.clients.closed, io: engine.clients.io.len() },
                     workers: WaitOwner { closed: engine.workers.host.closed(), io: engine.workers.host.io.len() },
