@@ -19,14 +19,12 @@ A change is a task that writes one repository's branch and lands it: its pull re
   (`foreman`, `up`, or `none`, the default: how its producer's questions go).
 - **Its pull request title** is its coder's, punctuation kept, cut at a
   UTF-8 boundary with “…” where the forge needs it.
-- **Its panel,** as `change show` prints it: `change TASK ·
-  OWNER/NAME on forge FORGE · BRANCH into BASE`, its pull request and
-  its address, `step:` and the step, `way: turn · landing task N`
-  for landing by turn, its CI, gates, and
-  its repairs, resolutions and updates used against their limits.
-  Next is `questions: ROUTE · TAKEN of LIMIT taken`, then each open
-  question with its asker, number, first line and where it stands;
-  with route `none` and nothing taken, `questions: none`.
+- **Its panel:** `change TASK · OWNER/NAME on forge FORGE · BRANCH into
+  BASE`; the pull request and address, step, `way: turn · landing task N`
+  for landing by turn; CI, gates and approvals (temper help landing-rule);
+  repairs, resolutions and updates against their limits. Questions show
+  route, count taken and each open question's asker, number, line and
+  status; `questions: none` with route `none` and none taken.
 - **Its result** names the merge commit, tier verdict, pull request and
   address, and `Landed: pull request #N merged into BASE as SHORT.`.
   With repairs, `repairs: N:` lists reasons and successful reports by

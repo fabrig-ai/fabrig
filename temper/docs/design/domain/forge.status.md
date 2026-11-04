@@ -51,8 +51,9 @@
   - 8.5: a retargeted pull request retargeted back on release; the change
     is held as a failed effect.
   - 8.7: the explicit choice to adopt a GitHub repository without CI.
-  - 8.8: the rule and criterion a change waits on, and its charter, on its
-    panel.
+  - 8.8: criteria other than landing-rule approvals and the forge's charter
+    on the panel; ctl shows each enforcing approval requirement and its
+    counted reviews.
   - 8.10: a change drained.
   - 8.11: a dependent's landing holding its dependency's pushed head in
     g's ancestry is unobserved in stories, the fake forge squashing

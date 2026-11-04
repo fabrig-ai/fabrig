@@ -75,7 +75,11 @@ its held landing rules when it judges them.
   `--project PROJECT` reads a project's rule.
 - `temper ctl settings apply` changes them; `settings propose` offers
   a change for an owner to decide.
-- `temper ctl change show` reads a change's way to landing.
+- `temper ctl change show` reads a change's way to landing, including each
+  enforcing approval requirement, the reviews counted at their heads and
+  the remaining count. Unread or incomplete evidence is named; a forge
+  account with no mapped person stays uncounted. Its next instruction
+  points to the pull request while approval is outstanding.
 
 ## Limits
 

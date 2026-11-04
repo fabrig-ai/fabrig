@@ -4,8 +4,10 @@
 
 - **Not yet:** 2.1, 3: the `Changes` page, its queues and a queued
   change's place (no `Changes` address in `temper-client-domain`). 2.3:
-  amending a change's gates from its panel. 4: approvals, a person
-  task's card at a head and the forge's reviews counted in the panel.
+  amending a change's gates from its panel. 4: a person's approval task card at a head and the browser's
+  approval panel. Ctl's `change show` has each enforcing requirement,
+  counted people and review heads, deficits, unread or incomplete evidence,
+  and unmapped reviews; its next line points to the pull request.
   5.1: "Land without CI" for a repository with no CI. 5.2: health. 5.3:
   the forge's part of a project's settings. 5.4: a row's summary by its
   name and host and its repositories' line, where the view says "forge N
