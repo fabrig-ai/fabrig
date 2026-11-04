@@ -97,6 +97,142 @@ fn stock_chats_can_delegate_message_and_read_the_forge() {
     }
 }
 
+// temper/docs/design/protocol/configuration.md, 13.9: reference settings widen stock authority.
+#[test]
+fn configure_reference_authority_allows_coordinator_tools() {
+    use jig_domain_authority::{Answer, Call, NoteScope, Scopes};
+    let engine = engine(&generated());
+    let stock = crate::stock::defaults(&engine.llm, engine.limits.core.tasks.result_bytes);
+    let policy = stock.policies.get(&1).unwrap().policy.clone();
+    let before = reference_domain(stock.rules.clone(), policy.clone(), engine.limits.core.authority);
+    for family in [8, 32, 128, 256] {
+        assert_eq!(reference_call(&before, &policy.roles[0].authority, family, Call::Tool), Answer::Refuse);
+    }
+    let required = reference_requirements();
+    assert_eq!(required.tools, 440);
+    assert_eq!(required.notes, 3);
+    let mut rules = stock.rules.clone();
+    let mut configured = policy.clone();
+    widen_reference(&mut rules.ceiling, &required);
+    widen_reference(&mut configured.ceiling, &required);
+    widen_reference(&mut configured.roles[0].authority, &required);
+    for (old, new) in [
+        (&stock.rules.ceiling, &rules.ceiling),
+        (&policy.ceiling, &configured.ceiling),
+        (&policy.roles[0].authority, &configured.roles[0].authority),
+    ] {
+        assert_reference_authority(old, new);
+    }
+    let after = reference_domain(rules, configured.clone(), engine.limits.core.authority);
+    let caller = &configured.roles[0].authority;
+    for family in [8, 16, 32, 128, 256] {
+        assert_eq!(reference_call(&after, caller, family, Call::Tool), Answer::Allow);
+    }
+    for scope in [NoteScope::Goal, NoteScope::Project] {
+        assert_eq!(reference_call(&after, caller, 128, Call::Note(scope.clone())), Answer::Allow);
+        let mut without_scope = caller.clone();
+        without_scope.notes = Scopes(0);
+        assert_eq!(reference_call(&after, &without_scope, 128, Call::Note(scope)), Answer::Propose);
+    }
+    // A live task retains its old authority even after its project's policy widens.
+    assert_eq!(reference_call(&after, &policy.roles[0].authority, 128, Call::Tool), Answer::Propose);
+}
+
+fn assert_reference_authority(old: &jig_domain_authority::Authority, new: &jig_domain_authority::Authority) {
+    use jig_domain_authority::{Executor, Scopes, Tools};
+    assert_eq!(new.tools, Tools(1983));
+    assert_eq!(new.notes, Scopes(3));
+    let mut restored = new.clone();
+    restored.tools = old.tools;
+    restored.notes = old.notes;
+    restored.delegation.kinds = old.delegation.kinds.clone();
+    assert_eq!(&restored, old, "budgets, grants and other authority fields survive");
+    for executor in [Executor::Charter(5), Executor::Charter(7)] {
+        assert!(new.delegation.kinds.contains(&executor));
+    }
+}
+
+fn reference_requirements() -> settings_form::view::Authority {
+    use settings_form::view::{SettingEdit, SettingValue};
+    let help = include_str!("../../../../docs/help/configure.md");
+    let json = help
+        .split_once("cat > reference-authority.json <<'JSON'\n")
+        .expect("configure documents reference authority")
+        .1
+        .split_once("\nJSON")
+        .unwrap()
+        .0;
+    let mask = |member: &[u8]| {
+        let bytes = fixtures::value(json.as_bytes(), member);
+        let doc = config::document(&bytes, &config::DocumentLimits { bytes: 1024, tokens: 64, depth: 4 }).unwrap();
+        (1..doc.len().checked_sub(1).unwrap())
+            .fold(0, |mask, at| mask | config::read::integer(&doc, at, u64::MAX).unwrap())
+    };
+    let kinds = fixtures::value(json.as_bytes(), b"kinds");
+    let file = format!(
+        r#"{{"items":[{{"setting":{{"kind":"rules"}},"set":{{
+        "ceiling":{{"models":"all","tools":{},"grants":[],
+        "delegation":{{"kinds":{},"tasks":0,"depth":0}},"spend":0,"deadline":null,
+        "notes":{},"note_resources":[]}},"period_spend":0,"minimum_run_spend":0,
+        "maximum_run_spend":0,"implies":[],"requirements":[]}}}}]}}"#,
+        mask(b"tools"),
+        core::str::from_utf8(&kinds).unwrap(),
+        mask(b"notes")
+    );
+    let items = settings_form::file::decode(file.as_bytes(), &temper_client_tools::limits::form())
+        .expect("documented tools, note scopes and executors decode as settings values");
+    let SettingEdit::Set(set) = &items.get(0).unwrap().edit else { panic!("set rules") };
+    let SettingValue::Rules(rules) = &set.value else { panic!("rules value") };
+    rules.ceiling.clone()
+}
+
+fn widen_reference(authority: &mut jig_domain_authority::Authority, required: &settings_form::view::Authority) {
+    use jig_domain_authority::Executor;
+    authority.tools.0 |= required.tools;
+    authority.notes.0 |= required.notes;
+    let mut kinds = authority.delegation.kinds.to_vec();
+    for executor in &required.delegation.kinds {
+        let executor = match executor {
+            settings_form::view::AuthorityExecutor::Charter(n) => Executor::Charter(*n),
+            settings_form::view::AuthorityExecutor::Procedure(n) => Executor::Procedure(*n),
+            settings_form::view::AuthorityExecutor::Role(n) => Executor::Role(*n),
+            settings_form::view::AuthorityExecutor::Job(n) => Executor::Job(*n),
+        };
+        if !kinds.contains(&executor) {
+            kinds.push(executor);
+        }
+    }
+    authority.delegation.kinds = kinds.into_boxed_slice();
+}
+
+fn reference_domain(
+    rules: jig_domain_authority::Rules,
+    policy: jig_domain_authority::Policy,
+    limits: jig_domain_authority::Limits,
+) -> jig_domain_authority::Domain {
+    use jig_domain_authority::{Domain, Event, PolicyFact, step};
+    let mut domain = Domain::new(rules, limits).unwrap();
+    let mut facts = skein_lib::Queue::uncapped();
+    step(&mut domain, Event::Policy { project: 1, policy }, &mut facts);
+    assert_eq!(facts.pop(), Some(PolicyFact::Added { project: 1 }));
+    domain
+}
+
+fn reference_call(
+    domain: &jig_domain_authority::Domain,
+    authority: &jig_domain_authority::Authority,
+    family: u64,
+    call: jig_domain_authority::Call,
+) -> jig_domain_authority::Answer {
+    let ask = jig_domain_authority::CallAsk {
+        project: 1,
+        authority: authority.clone(),
+        family: jig_domain_authority::Tools(family),
+        call,
+    };
+    jig_domain_authority::check_call(domain, &ask, &mut skein_lib::Queue::uncapped())
+}
+
 #[test]
 fn stock_chats_inspect_and_delegate_while_coders_modify() {
     let engine = engine(&single_model());

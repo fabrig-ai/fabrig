@@ -136,6 +136,43 @@ fn capacity_help_names_members_and_dependencies() {
 }
 
 #[test]
+fn configure_help_grants_reference_tools_and_note_scopes() {
+    let text = find(b"configure").expect("configure page").text;
+    let text = text.split_whitespace().collect::<Vec<_>>().join(" ");
+    for instruction in [
+        "Installing charters alone grants no task authority",
+        "decide_escalation",
+        "propose 16",
+        "subscribe_forge",
+        "note 128",
+        "recall 256",
+        "tools 1983",
+        "goal and project note scopes",
+        "notes 3",
+        "rules ceiling, policy 1's ceiling and the creator-role authority",
+        "coordinator charter 5",
+        "designer charter 7",
+        "merge job 3",
+        "Policy 1 affects future projects. Existing projects need project-policy",
+        "saved whole current `project-policy` settings item",
+        "Existing tasks do not gain widened authority automatically",
+        "amend or allot their authority explicitly",
+    ] {
+        assert!(text.contains(instruction), "configure help must explain: {instruction}");
+    }
+    for command in [
+        "settings show rules --json",
+        "settings show policy 1 --json",
+        "--slurpfile required reference-authority.json",
+        "select(.number == $role)",
+        ".set.ceiling |= widen",
+        ".notes |= grant($required[0].notes)",
+    ] {
+        assert!(text.contains(command), "configure recipe must use: {command}");
+    }
+}
+
+#[test]
 fn the_index_names_every_concept_walk_and_recipe_once() {
     let text = find(b"index").expect("index").text;
     for entry in &PAGES {
