@@ -1,20 +1,18 @@
 == T1 · Add CSV export to widget == Live
-[1] temper
-Menu:
+demo:
+  [1] temper
   demo:
     [2] demo (pressed)
     New project:
       [3] New project: (empty) (enter sends)
       [4] Create
-  Main navigation:
-    [5] Inbox
-    [6] Chats (current)
-    [7] Adopt a repository
-    [8] Forges
-    [9] Accounts
-  [10] Set up temper
+  [5] Home
+  [6] Needs you
+  [7] Chats (current)
+  [8] + New chat
+  [9] Set up temper
+  [10] Settings
   * Pat
-  [11] Sign out
 Playground:
   This is the playground: a scripted model and in-memory forge. Use the wizard to set up temper
 T1 · Add CSV export to widget:
@@ -40,7 +38,7 @@ Conversation:
       - Pull request opened (completed)
       - CI passed (completed)
       - Landed (completed)
-    [12] Task 2 ↗
+    [11] Task 2 ↗
   1 tool call: wait
     wait
   Temper
@@ -49,6 +47,6 @@ Conversation:
   1 tool call: wait
     wait
 Using Scripted model · Default
-[13] Message: (empty) (enter sends)
+[12] Message: (empty) (enter sends)
 Enter to send · Shift+Enter for newline
-[14] Send
+[13] Send
