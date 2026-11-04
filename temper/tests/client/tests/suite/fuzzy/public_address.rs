@@ -110,7 +110,7 @@ fn sweep(seed: u64) {
         // Arbitrary suffix bytes keep the public prefix while mixing separators,
         // queries, percent escapes and bytes outside ASCII without a valid template.
         let mut arbitrary = b"/public/".to_vec();
-        for _ in 0..rng.between(0, u64::try_from(path.len()).expect("path length fits")) {
+        for _ in 0..rng.between(0, skein_lib::len_u64(path.len())) {
             arbitrary.push(u8::try_from(rng.below(256)).expect("one byte"));
         }
         check(&arbitrary, seed);

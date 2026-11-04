@@ -10299,7 +10299,7 @@ fn waiting_page(observed: &Observed, read: Read, task: u64) -> bool {
         && rows.iter().enumerate().all(|(at, row)| {
             number(row, "/task") == Some(task) && number(row, "/position") == u64::try_from(rows.len() - at).ok()
         })
-        && number(task_document(observed, read), "/activity") == u64::try_from(rows.len()).ok()
+        && number(task_document(observed, read), "/activity") == Some(skein_lib::len_u64(rows.len()))
 }
 
 // A completed tool is an assistant call plus the numbered person result in

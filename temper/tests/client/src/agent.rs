@@ -104,7 +104,7 @@ pub fn new(seed: u64) -> (Root, View) {
     )
 }
 fn environment(env: &Env<domain::Limits>) -> Env<root::Limits> {
-    Env { now: env.now, wall: env.wall, limits: root::Limits::new(env.limits, temper_client_tools::limits::tools()) }
+    env.with(root::Limits::new(env.limits, temper_client_tools::limits::tools()))
 }
 pub fn step(agent: &mut Agent, env: &Env<domain::Limits>, event: Event, out: &mut Queue<Request>) {
     let env = environment(env);

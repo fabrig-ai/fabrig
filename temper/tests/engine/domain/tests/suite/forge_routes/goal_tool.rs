@@ -477,7 +477,7 @@ fn a_goal_uses_the_subtrees_remaining_task_allotment() {
 #[test]
 fn oversized_goal_words_are_refused_as_a_delegate_spec() {
     let (mut world, chat) = chat_world(100, 11, 3);
-    let words = vec![b'x'; usize::try_from(world.env.limits.tasks.spec_bytes).expect("u32 fits usize") + 1];
+    let words = vec![b'x'; skein_lib::usize_of(world.env.limits.tasks.spec_bytes) + 1];
     assert!(
         matches!(call(&mut world, &chat, 93, engine::Tool::Goal { agree: false, words: words.into(), advisor: false }),
         engine::CallAnswer::DelegationRefused(p) if p.why == tasks::Refusal::Spec)
@@ -493,7 +493,7 @@ fn an_advisors_brief_puts_the_roots_line_after_the_callers_words() {
 
 fn advisor_at_spec_edge(extra: usize) -> (World, engine::CallAnswer) {
     let (mut world, _, run) = running_goal();
-    let bound = usize::try_from(world.env.limits.tasks.spec_bytes).expect("u32 fits usize");
+    let bound = skein_lib::usize_of(world.env.limits.tasks.spec_bytes);
     let words = vec![b'x'; bound - ADVISOR_SUFFIX.len() + extra];
     let answer = call(
         &mut world,
@@ -508,10 +508,7 @@ fn advisor_at_spec_edge(extra: usize) -> (World, engine::CallAnswer) {
 fn an_advisors_brief_fits_at_the_spec_bound() {
     let (world, answer) = advisor_at_spec_edge(AT_BOUND);
     let task = delegated(answer);
-    assert_eq!(
-        live(&world, task).spec.words.len(),
-        usize::try_from(world.env.limits.tasks.spec_bytes).expect("u32 fits usize")
-    );
+    assert_eq!(live(&world, task).spec.words.len(), skein_lib::usize_of(world.env.limits.tasks.spec_bytes));
 }
 
 #[test]
@@ -562,7 +559,7 @@ fn every_goals_brief_puts_the_roots_lines_after_the_callers_words() {
 
 fn agreed_at_spec_edge(extra: usize, person_words: &[u8]) -> (World, u64, Box<[u8]>) {
     let world = World::configured(true, true);
-    let bound = usize::try_from(world.env.limits.tasks.spec_bytes).expect("u32 fits usize");
+    let bound = skein_lib::usize_of(world.env.limits.tasks.spec_bytes);
     let fixed = AGREED_SUFFIX.len() + PERSON_HEADING.len() + PERSON_BYTES;
     let words = vec![b's'; bound - fixed + extra].into_boxed_slice();
     let (mut world, chat) = start_chat(world, 400, 11, 3, Some(person_words));
@@ -580,10 +577,7 @@ fn an_agreed_brief_fits_its_persons_words_at_the_spec_bound() {
     let person = [b'x'; PERSON_BYTES];
     let (world, task, words) = agreed_at_spec_edge(AT_BOUND, &person);
     assert_eq!(live(&world, task).spec.words.as_ref(), [&words, AGREED_SUFFIX, PERSON_HEADING, &person].concat());
-    assert_eq!(
-        live(&world, task).spec.words.len(),
-        usize::try_from(world.env.limits.tasks.spec_bytes).expect("u32 fits usize")
-    );
+    assert_eq!(live(&world, task).spec.words.len(), skein_lib::usize_of(world.env.limits.tasks.spec_bytes));
 }
 
 #[test]
@@ -596,10 +590,7 @@ fn an_agreed_brief_cuts_its_persons_words_at_the_spec_bound() {
         live(&world, task).spec.words.as_ref(),
         [&words, AGREED_SUFFIX, PERSON_HEADING, &kept, b"\n[17 bytes cut]\n"].concat()
     );
-    assert_eq!(
-        live(&world, task).spec.words.len(),
-        usize::try_from(world.env.limits.tasks.spec_bytes).expect("u32 fits usize")
-    );
+    assert_eq!(live(&world, task).spec.words.len(), skein_lib::usize_of(world.env.limits.tasks.spec_bytes));
 }
 
 #[test]

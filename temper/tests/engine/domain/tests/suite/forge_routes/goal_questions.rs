@@ -158,7 +158,7 @@ fn ask_foreman(world: &mut World, producer: &engine::Assignment, change: u64) ->
 }
 
 fn assert_panel(world: &mut World, change: u64, asker: u64, number: u64, words: &[u8], stands: forge_top::PanelStands) {
-    let watcher = Token::new(500 + u64::try_from(world.panels.len()).expect("panel delivery count fits u64"));
+    let watcher = Token::new(500 + skein_lib::len_u64(world.panels.len()));
     world.send(engine::Event::Party(engine::PartyInput::Watch {
         watcher,
         sign_in: world.signed_in.expect("goal's owner session"),
