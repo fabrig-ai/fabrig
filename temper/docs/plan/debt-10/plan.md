@@ -10,11 +10,16 @@ so far is what has been written.
    - `tasks/workers-debug.md`, high, ~40 minutes, needs nothing: B1, with the survey of the shipped parts in its spec.
    - `tasks/listener-text.md`, medium, ~25 minutes, needs nothing: B2.
 
-2. **bundle helpers**: to come.
+2. **bundle-helpers** (`jig/docs/design/protocol/service.md, 11.4`), slice 3. `notes/contracts.md` holds the surface.
+   - `tasks/bundle-part.md`, high, ~50 minutes, needs nothing: the shipped module, and the reference composes it.
+   - `tasks/undecoded.md`, medium, ~30 minutes, needs nothing: B4.
+   - Temper's side, and D001's measure, to come.
 
 3. **tidying** (`jig/docs/design/protocol/service.md, 11`), slice 2.
    - `tasks/bite-tests.md`, high, ~40 minutes, needs nothing: B5, first as the request asks.
-   - The rest to come.
+   - `tasks/core-preparation.md`, medium, ~40 minutes, needs nothing: A1, A2, A4.
+   - `tasks/engine-activate.md`, high, ~45 minutes, needs nothing: A3, with its proof first, and A5.
+   - B6 and B7 to come.
 
 ## What was decided
 
@@ -26,6 +31,11 @@ so far is what has been written.
   entry in `temper/docs/design/protocol/configuration.status.md`.
 - **B1 reaches further than `Workers`:** `Component`, `Request` and `Event` are public and print the same bytes, so all
   four count. `service.md`, 11.3 says so.
+
+- **B4's enum is `Undecoded`:** `jig_domain_host::Invalid` is already the hub's refusal.
+- **`kind` ships from jig's mapping, not skein's `skein_ui_bundle::types`:** that crate is a build tool that step code
+  can't link.
+- **A3's review wording:** `stopping::gate` doesn't exist. The check it means is `resume_routed`'s `stopping()`.
 
 ## Overlaps with other drafts
 
