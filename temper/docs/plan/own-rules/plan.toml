@@ -1,0 +1,31 @@
+draft = "own-rules"
+repo = "fabrig"
+sources = ["temper/docs/plan/own-rules/inputs/request.md"]
+
+# fabrig's AGENTS.md and DESIGN.md hold its own rules only (inputs/request.md): wording only,
+# two direct tasks at once, no needs and no shared file. plan.md says why and where they meet
+# other drafts.
+
+[buffer]
+low = 1.0
+high = 2.0
+
+[[part]]
+id = "agents"
+title = "The root AGENTS.md renumbered to fabrig's own rules, DESIGN.md and the trees' AGENTS.md reworded, every citation of AGENTS.md fixed, the outward inventory lowered"
+mode = "direct"
+needs = []
+design = "AGENTS.md, 1"
+
+[[part]]
+id = "old-forms"
+title = "The old-forms baselines, headers, tests and README, and the budget rule's wording, without the lab's roles"
+mode = "direct"
+needs = []
+design = "skein/docs/foundation/testing-strategy.md, 8.1"
+
+[[slice]]
+id = 1
+story = "fabrig's rules name nothing of whoever runs its development: `citations.py --all` reads 0 after the renumbering, the outward check passes with AGENTS.md, DESIGN.md and skein/AGENTS.md off its inventory, and the old-forms suites pass with the new header"
+parts = ["agents", "old-forms"]
+walk = false

@@ -3,7 +3,7 @@
 2026-11-03. Where smith's code lags or departs from [shell.md](shell.md).
 
 - **Not yet:**
-  - 2.5: fab's gate list (`.config/gate/wasm32.txt`) leaves out
+  - 2.5: the gate's wasm32 list (`.config/gate/wasm32.txt`) leaves out
     `smith-protocol-events`, `smith-protocol-llm`,
     `smith-protocol-program`, `smith-agent-service` and
     `smith-agent-shell`, and no listed package reaches them on wasm32,

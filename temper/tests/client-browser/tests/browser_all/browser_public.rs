@@ -201,17 +201,25 @@ impl Walk {
             "temper/",
             "main",
             "Review the change",
-            "Review this change at the named head",
             "Checked widget CSV export.",
+            // The demo's fake forge has no public external addresses.
+            "its change on the forge",
         ] {
             assert!(!text.contains(forbidden), "{path} exposed {forbidden:?}: {text}");
         }
+        self.check_page_fields(&text);
+    }
+    fn check_page_fields(&self, text: &str) {
         if matches!(self.page, Page::Board) {
             assert!(text.contains("Demo"), "public project name is the board heading");
             assert!(text.contains("Goal "), "board names the goal by public identifier");
             assert!(
                 text.matches(std::str::from_utf8(TITLE).expect("title")).count() >= 2,
                 "board shows the goal and its task's titles: {text}"
+            );
+            assert!(
+                text.contains("Review this change at the named head"),
+                "board shows the review task's first-line title: {text}"
             );
         }
         if matches!(self.page, Page::Task) {
@@ -258,12 +266,13 @@ impl Walk {
                     see(Find::text(b"landed")),
                     see(Find::text(b"Passed")),
                     see(Find::text("Gate 1 · review · blocking".as_bytes())),
-                    see(Find::text(b"its change on the forge")),
                 ],
             ),
             Page::Task => self.open(
                 Page::Landings,
                 vec![
+                    go(self.board.as_bytes()),
+                    see(heading(PROJECT)),
                     press(Find::exactly_named(Role::Link, b"Landings")),
                     see(heading(b"Landings")),
                     Step::Address(format!("{}/landings", self.board).into_bytes().into()),
@@ -281,22 +290,7 @@ impl Walk {
                     Step::Address(self.task.as_bytes().into()),
                 ],
             ),
-            Page::Private => {
-                let answer = fs::read_to_string(self.client.path().join("private.txt")).expect("ctl private answer");
-                assert_eq!(answer, "project 1: private\n");
-                self.open(
-                    Page::Empty,
-                    vec![
-                        press(Find::exactly_named(Role::Link, b"Read public projects")),
-                        see(heading(b"Public projects")),
-                        Step::Person(PersonStep::Gone {
-                            find: Find::exactly_named(Role::Link, PROJECT),
-                            within: WITHIN,
-                        }),
-                        Step::Address(b"/public".as_slice().into()),
-                    ],
-                );
-            }
+            Page::Private => self.unpublished(),
             Page::Empty => self.open(
                 Page::Malformed,
                 vec![
@@ -309,6 +303,19 @@ impl Walk {
             Page::Done => {}
         }
     }
+    fn unpublished(&mut self) {
+        let answer = fs::read_to_string(self.client.path().join("private.txt")).expect("ctl private answer");
+        assert_eq!(answer, "project 1: private\n");
+        self.open(
+            Page::Empty,
+            vec![
+                press(Find::exactly_named(Role::Link, b"Read public projects")),
+                see(heading(b"Public projects")),
+                Step::Person(PersonStep::Gone { find: Find::exactly_named(Role::Link, PROJECT), within: WITHIN }),
+                Step::Address(b"/public".as_slice().into()),
+            ],
+        );
+    }
 }
 fn identifier(id: &str) {
     assert_eq!(id.len(), ID_DIGITS, "public identifier width");
@@ -319,6 +326,10 @@ fn identifier(id: &str) {
 }
 
 impl Play for Walk {
+    /// Revoked public reads answer 404 (jig/docs/design/protocol/client.md, 17.5).
+    fn expected(&self) -> Vec<Box<[u8]>> {
+        vec![Box::from(b"Failed to load resource: the server responded with a status of 404 (Not Found)".as_slice())]
+    }
     fn next(&mut self, face: &mut BrowserFace<'_>, now: Time) -> Next<Box<[u8]>> {
         let started = *self.started.get_or_insert(now);
         if matches!(self.page, Page::Done) {

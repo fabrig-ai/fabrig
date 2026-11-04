@@ -1,8 +1,8 @@
 # Old forms
 
 Each tree's `scripts/old_forms.py` supplies its forms and exemptions to
-`old_forms.py` here, loaded by absolute path with `runpy`. The queue command
-is unchanged, including Python's isolated mode:
+`old_forms.py` here, loaded by absolute path with `runpy`. A landing check
+runs it from each tree's root, in Python's isolated mode:
 
 ```sh
 cd smith
@@ -61,8 +61,8 @@ Smith's structural forms have these scopes:
 Run the shared regression suite and the retained entry suites one at a time:
 
 ```sh
-heavy python3 -I -B tools/old_forms/test_old_forms.py
-heavy python3 -I -B smith/scripts/test_old_forms.py
-heavy python3 -I -B jig/scripts/test_old_forms.py
-heavy python3 -I -B temper/scripts/test_old_forms.py
+python3 -I -B tools/old_forms/test_old_forms.py
+python3 -I -B smith/scripts/test_old_forms.py
+python3 -I -B jig/scripts/test_old_forms.py
+python3 -I -B temper/scripts/test_old_forms.py
 ```
