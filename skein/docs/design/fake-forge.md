@@ -760,8 +760,10 @@ relies on (forge.md, section 9). It makes its own admin user and tokens.
 - **GitHub's media types.** The peer's `Server` names a bare media type and
   `Inline` adds `; charset=utf-8`, as github.com does (10.6), because stories
   read each: `skein/tests/fake-peers` reads `text/html`, the machine and
-  setup worlds the longer form. One spelling moves one side's assertion.
-  Default: both stay, until the user says which.
+  setup worlds the longer form. Both stay for now, by the user's
+  decision. Later, as a small change: github.com's spelling everywhere,
+  which takes `Server`'s switch away and moves the one assertion in
+  `skein/tests/fake-peers`.
 
 ## 10. GitHub's layer
 

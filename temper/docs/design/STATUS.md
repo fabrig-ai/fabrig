@@ -59,8 +59,8 @@ commands and the baseline (`protocol/README.md`), and the release
 playground's reset are designed and built; the code departs where
 the box's group file holds a forge's kind alone
 (`protocol/setup.md`, `protocol/forge.md`, `protocol/README.md`) and
-where temper's service is an unrecorded copy of jig's reference
-service (`protocol/README.md`), and lags in a removal without the
+where a worker's translation aborts on a stored source name smith
+refuses (`protocol/README.md`), and lags in a removal without the
 box (`domain/forge.md`) and a project's Delete (`client/README.md`);
 public reading still lacks a deployment's proxy configuration and
 figures, and its negative walk plays the proxy's own rules against

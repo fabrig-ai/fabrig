@@ -437,6 +437,14 @@ Each within jig's suites' budgets.
   root's does; whether it is copied and filled, or generated.
 - **Supervision:** what restarts an engine that stopped, and how often,
   is the deployment's; whether jig's guidance names one.
+- **A bundle's helpers.** Serving a bundle takes file kinds, the lookup
+  of a digest's path and a reply cut into chunks, which no application
+  decides; its bundle, routes, page fields and response policy are its
+  own (11.4). Whether those helpers become a part. Default: each service
+  keeps its own.
+- **The server's home.** The server (11.4) names no type of jig's, and a
+  generic mechanism belongs in skein. Default: it stays in
+  `jig-protocol-engine-clients-http` until skein has a server to offer.
 
 ## 10. One process
 

@@ -250,10 +250,10 @@ It inspects nothing it holds. What jig asks of it:
   under load in `jig-core-world` and `jig-ops-world`, each in
   `orders::turn_kept_precedes_terminal_acknowledgement_under_load`.
 - **An early account request follows the previous move's dispatch.**
-  `move_requests_dispatched` requires every stage of the previous move
-  to be dispatched before another early account request starts. The
-  reference service holds this under load in `jig-test-service`,
-  `tests::accounts::an_early_account_request_waits_for_the_previous_moves_dispatch`.
+  `dispatching_move` holds another early account request back until
+  every stage of the previous move is dispatched. The accounts'
+  component holds this in `jig-protocol-accounts`,
+  `component::tests::a_move_finishes_its_remove_read_and_notification_before_forget`.
 - **A sign-in's ending follows its own durable commit.**
   `ending_commit_durable` requires the ending's commit number to be no
   greater than the durable number before its secret is erased. Earlier

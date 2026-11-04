@@ -713,11 +713,13 @@ reach past the grace.
     smith's facts. Each live piece from smith's channel goes to the hub
     as jig's typed piece, and to the agent process's watchdog as its
     progress (5.1).
-- **Who links smith:** `jig-protocol-charter` (section 8), a client's
-  decoding of turns (`../client/domain/client.md`, section 10), and an
-  application's roots that compose smith's agent capability, with their
-  protocol layers' routing, which also runs smith's components where it
-  composes them. Never the hub, the core, or jig's channel's components,
+- **Who links smith:** `jig-protocol-charter` (section 8), a worker's
+  agents part, `jig-protocol-worker-agents`, which an application whose
+  workers run no agents leaves out (`../protocol/service.md`, 11.2), a
+  client's decoding of turns (`../client/domain/client.md`, section 10),
+  and an application's roots that compose smith's agent capability, with
+  their protocol layers' routing, which also runs smith's components
+  where it composes them. Never the hub, the core, or jig's channel's components,
   which pass smith's bytes through (`../protocol/channel.md`, 6.1).
 
 ### 6.9 Jobs
