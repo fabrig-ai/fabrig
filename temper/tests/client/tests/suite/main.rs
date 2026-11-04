@@ -56,3 +56,5 @@ mod welcome_m3_owned;
 mod welcome_m4;
 
 mod reloads;
+
+mod person_task_tools;
