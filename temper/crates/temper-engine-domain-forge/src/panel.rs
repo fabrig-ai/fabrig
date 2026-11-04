@@ -94,18 +94,16 @@ pub struct Panel {
 impl Panel {
     #[must_use]
     pub fn within(&self) -> bool {
-        let names = usize::try_from(PANEL_NAME_BYTES).expect("u32 fits usize");
+        let names = skein_lib::usize_of(PANEL_NAME_BYTES);
         self.owner.len() <= names
             && self.name.len() <= names
             && self.branch.len() <= names
             && self.landing.len() <= names
-            && self.gates.len() <= usize::try_from(PANEL_GATES).expect("u32 fits usize")
+            && self.gates.len() <= skein_lib::usize_of(PANEL_GATES)
             && self.questions.open.len() <= 8
             && question_lines_within(&self.questions.open)
             && match &self.step {
-                PanelStep::Queued { place, ahead } => {
-                    *place > 0 && ahead.len() <= usize::try_from(PANEL_AHEAD).expect("u32 fits usize")
-                }
+                PanelStep::Queued { place, ahead } => *place > 0 && ahead.len() <= skein_lib::usize_of(PANEL_AHEAD),
                 PanelStep::Verifying { tiers, .. }
                 | PanelStep::Red { tiers, .. }
                 | PanelStep::Cleared { tiers, .. } => tiers.len() <= 32 && tier_lines_within(tiers),
@@ -421,7 +419,7 @@ fn tier_blame(blame: &temper_engine_domain_forge_tiers::Blame) -> Box<[u8]> {
             }
         }
         Failures::Tests(tests) => {
-            let count = skein_lib::Decimal::of(u64::try_from(tests.len()).expect("admitted tests"));
+            let count = skein_lib::Decimal::of(skein_lib::len_u64(tests.len()));
             for part in [count.as_bytes(), if tests.len() == 1 { b" test: " } else { b" tests: " }] {
                 for byte in part {
                     line.push(*byte).expect("tier words");

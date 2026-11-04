@@ -160,11 +160,7 @@ impl<T: Transport> Git<T> {
                 Pending::ReadOpen(path),
             ),
             Job::Read(path, fd, bytes) => self.emit(
-                Op::Read {
-                    fd,
-                    buf: vec![0; 4096].into(),
-                    at: u64::try_from(bytes.len()).expect("fixture file length"),
-                },
+                Op::Read { fd, buf: vec![0; 4096].into(), at: skein_lib::len_u64(bytes.len()) },
                 Pending::Read(path, fd, bytes),
             ),
             Job::Input(fd) => self.emit(Op::PipeRead { fd, buf: vec![0; 4096].into() }, Pending::Input(fd)),

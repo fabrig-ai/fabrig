@@ -133,7 +133,7 @@ fn scalar(value: &Json, field: &Field, limits: &Limits, pending: &mut Vec<(Shape
         }
         Value::Text(bound) => {
             let text = value.as_str().expect("text");
-            assert!(u64::try_from(text.len()).expect("text length") <= fields::most(*bound, limits), "text bound");
+            assert!(skein_lib::len_u64(text.len()) <= fields::most(*bound, limits), "text bound");
         }
         Value::Hex(bound) => {
             let text = value.as_str().expect("hexadecimal text");
@@ -174,7 +174,7 @@ fn walk(shape: Shape, value: Json) {
             }
             if let Some(bound) = field.list {
                 let list = value.as_array().expect("list");
-                assert!(u64::try_from(list.len()).expect("list length") <= fields::most(bound, &limits), "list bound");
+                assert!(skein_lib::len_u64(list.len()) <= fields::most(bound, &limits), "list bound");
                 for value in list {
                     scalar(value, field, &limits, &mut pending);
                 }

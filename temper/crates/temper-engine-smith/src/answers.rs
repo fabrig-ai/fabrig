@@ -144,7 +144,7 @@ fn job_text(
         text.add(b", no step failed")?;
     }
     text.add(b":\n")?;
-    let cap = usize::try_from(max_bytes).expect("u32 fits usize").min(HostAnswer::CAPACITY);
+    let cap = skein_lib::usize_of(max_bytes).min(HostAnswer::CAPACITY);
     let room = cap.checked_sub(text.len).ok_or(Problem::TooLarge)?;
     let whole = escaped_len(log);
     if !truncated && whole <= room {
@@ -1295,5 +1295,5 @@ fn task_read_words(text: &mut Text, words: &jig_domain_core::reads::TaskText, ma
     }
     text.add(prefix)?;
     text.add(b"\nnext: ")?;
-    text.number(words.from.checked_add(u64::try_from(prefix.len()).expect("bounded prefix")).ok_or(Problem::TooLarge)?)
+    text.number(words.from.checked_add(skein_lib::len_u64(prefix.len())).ok_or(Problem::TooLarge)?)
 }

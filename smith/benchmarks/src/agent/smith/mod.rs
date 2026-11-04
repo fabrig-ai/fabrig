@@ -13,6 +13,14 @@ mod prepare;
 
 mod observe;
 
+mod run;
+
+mod startup;
+
+mod traces;
+
+pub(super) use run::{home, source_arm, takes_arguments};
+
 pub use faces::{FaceSince, Receiving, face, read as read_faces};
 
 pub use prepare::{Prepared, prepare, prepare_checked, teardown_from_check};

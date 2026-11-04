@@ -1004,7 +1004,7 @@ fn an_undecodable_startup_row_keeps_the_store_family_and_key() {
                 cause: store::restore::Cause::Decode(store::restore::DecodeFailure::Value),
                 row: Some(store::restore::RowSite {
                     family: Some(store::Family::Tasks),
-                    key_bytes: u64::try_from(key.len()).unwrap(),
+                    key_bytes: skein_lib::len_u64(key.len()),
                     key,
                     truncated: false,
                 }),

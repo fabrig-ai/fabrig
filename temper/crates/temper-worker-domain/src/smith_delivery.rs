@@ -41,7 +41,7 @@ pub(crate) fn fields(fields: smith::Fields, limit: u32) -> Option<Fields> {
 pub(crate) fn reply(domain: &Domain, reply_bytes: u32, reply: host::CallAnswer) -> smith::Reply {
     match reply {
         host::CallAnswer::Relayed { error, text } => {
-            if text.len() > usize::try_from(reply_bytes).expect("u32 fits usize") {
+            if text.len() > skein_lib::usize_of(reply_bytes) {
                 smith::Reply::TooLarge
             } else {
                 smith::Reply::Host { error, body: text }

@@ -418,7 +418,7 @@ fn busy(moving: bool) {
             .filter_map(|(at, read, _)| matches!(read, skein_forge::api::Read::Branch { .. }).then_some(*at))
             .collect();
         assert_eq!(offered, issued, "one base-tip read per offered chain at its actual instant");
-        assert_eq!(exact.2, u64::try_from(offered.len()).expect("steps"));
+        assert_eq!(exact.2, skein_lib::len_u64(offered.len()));
         assert_eq!(exact.1 * 6, [36, 72, 162][count - 1]);
         assert_eq!(second.1, exact.1, "no additional cohort within one second");
         for (_, stored) in world.stored() {

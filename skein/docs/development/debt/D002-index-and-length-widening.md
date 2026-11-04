@@ -34,8 +34,6 @@ call `len_u64` nowhere.
 A mechanical migration, crate by crate in crate-graph order, as the
 component kit did for its forms (`skein/docs/design/draft/component-kit.md`,
 4): each task moves one crate and lowers the count. A form in
-`skein/scripts/old_forms.py` would hold it at its floor. jig's and
-temper's sites are their trees' items,
-`jig/docs/development/debt/D043-length-widening.md` and
-`temper/docs/development/debt/D003-widening-try-from.md`; the helpers
-exist, so neither waits on this one.
+`skein/scripts/old_forms.py` would hold it at its floor. jig's sites are
+its tree's item, `jig/docs/development/debt/D043-length-widening.md`;
+the helper exists, so it does not wait on this one.

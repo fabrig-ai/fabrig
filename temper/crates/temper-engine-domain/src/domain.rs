@@ -286,7 +286,7 @@ impl Domain {
         );
         for project in &config.core.seed_projects {
             let mappings = &project.policy.permissions;
-            let count = u64::try_from(mappings.len()).expect("usize fits u64");
+            let count = skein_lib::len_u64(mappings.len());
             let unit = u64::try_from(size_of::<people::PermissionRole>()).expect("type size fits u64");
             assert!(
                 match count.checked_mul(unit) {
@@ -1223,8 +1223,7 @@ pub fn refused(mut config: Config, limits: &Limits) -> Box<[Refused]> {
     for seed in &config.core.seed_projects {
         let project = seed.number;
         let mappings = &seed.policy.permissions;
-        let bytes = u64::try_from(mappings.len())
-            .expect("usize fits u64")
+        let bytes = skein_lib::len_u64(mappings.len())
             .checked_mul(u64::try_from(size_of::<people::PermissionRole>()).expect("type size fits u64"));
         let fits = match bytes {
             Some(bytes) => bytes <= u64::from(limits.journal.transcript_bytes),

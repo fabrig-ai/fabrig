@@ -144,22 +144,21 @@ fn reply(task: c::Task) -> TaskLine {
 fn rows(world: &mut World<Test, Scripted>, reply: &TaskLine) {
     for group in [InboxReadGroup::Needs, InboxReadGroup::Updates] {
         let rows = [
-            (InboxGroup::Questions, ObjectKey::Question { task: 9, message: 1 }),
-            (InboxGroup::Proposals, ObjectKey::Proposal(super::proposal().key)),
-            (InboxGroup::Escalations, ObjectKey::Escalation(9)),
-            (InboxGroup::PersonTasks, ObjectKey::PersonTask(10)),
-            (InboxGroup::Results, ObjectKey::Result(11)),
-            (InboxGroup::Replies, ObjectKey::Task(9)),
+            (1, InboxGroup::Questions, ObjectKey::Question { task: 9, message: 1 }),
+            (3, InboxGroup::Escalations, ObjectKey::Escalation(9)),
+            (2, InboxGroup::Proposals, ObjectKey::Proposal(super::proposal().key)),
+            (4, InboxGroup::PersonTasks, ObjectKey::PersonTask(10)),
+            (5, InboxGroup::Results, ObjectKey::Result(11)),
+            (6, InboxGroup::Replies, ObjectKey::Task(9)),
         ]
         .into_iter()
-        .enumerate()
-        .filter(|(_, (kind, _))| InboxReadGroup::of(*kind) == group)
-        .map(|(n, (kind, object))| {
+        .filter(|(_, kind, _)| InboxReadGroup::of(*kind) == group)
+        .map(|(position, kind, object)| {
             crate::stories::inbox_entry(
                 object,
                 1,
                 kind,
-                u64::try_from(n).expect("six rows") + 1,
+                position,
                 Wall::EPOCH,
                 (kind == InboxGroup::Replies).then(|| Box::new(reply.clone())),
             )

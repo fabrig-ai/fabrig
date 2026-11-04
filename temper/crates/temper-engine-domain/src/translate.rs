@@ -161,7 +161,7 @@ pub(crate) fn project_landing(forge: &mut forge::Domain, project: u32, landing: 
 }
 
 pub(crate) fn environment_forge(env: &Env<Limits>) -> Env<forge::Limits> {
-    Env { now: env.now, wall: env.wall, limits: env.limits.forge }
+    env.with(env.limits.forge)
 }
 
 pub(crate) fn checked_call(mut body: Call, limits: &Limits) -> Call {
@@ -286,12 +286,12 @@ pub(crate) fn call_needs_input(tool: &Tool) -> bool {
 pub(crate) fn call_shape(tool: &Tool, limits: &tasks::Limits) -> Option<tasks::Refusal> {
     match tool {
         Tool::Propose { action, reason, .. } => {
-            if reason.len() > usize::try_from(limits.message_bytes).expect("u32 fits usize") {
+            if reason.len() > skein_lib::usize_of(limits.message_bytes) {
                 return Some(tasks::Refusal::Read);
             }
             match action {
                 ProposedAction::Batch(batch) => {
-                    if batch.is_empty() || batch.len() > usize::try_from(limits.batch).expect("u32 fits usize") {
+                    if batch.is_empty() || batch.len() > skein_lib::usize_of(limits.batch) {
                         return Some(tasks::Refusal::Batch);
                     }
                     for member in batch {
@@ -300,7 +300,7 @@ pub(crate) fn call_shape(tool: &Tool, limits: &tasks::Limits) -> Option<tasks::R
                         }
                         if !tasks::valid_contract(limits, &member.contract)
                             || !tasks::valid_authority(limits, &member.authority)
-                            || member.dependencies.len() > usize::try_from(limits.dependencies).expect("u32 fits usize")
+                            || member.dependencies.len() > skein_lib::usize_of(limits.dependencies)
                         {
                             return Some(tasks::Refusal::AuthorityShape);
                         }
@@ -308,7 +308,7 @@ pub(crate) fn call_shape(tool: &Tool, limits: &tasks::Limits) -> Option<tasks::R
                     None
                 }
                 ProposedAction::Amend { amendment, .. } => {
-                    if amendment.reason.len() > usize::try_from(limits.message_bytes).expect("u32 fits usize") {
+                    if amendment.reason.len() > skein_lib::usize_of(limits.message_bytes) {
                         Some(tasks::Refusal::Read)
                     } else if match &amendment.authority {
                         Some(authority) => !tasks::valid_authority(limits, authority),
@@ -330,17 +330,13 @@ pub(crate) fn call_shape(tool: &Tool, limits: &tasks::Limits) -> Option<tasks::R
             }
         }
         Tool::Decide { decision, .. } => match decision {
-            ProposalChoice::Reject { reason }
-                if reason.len() > usize::try_from(limits.message_bytes).expect("u32 fits usize") =>
-            {
+            ProposalChoice::Reject { reason } if reason.len() > skein_lib::usize_of(limits.message_bytes) => {
                 Some(tasks::Refusal::Read)
             }
             ProposalChoice::Accept | ProposalChoice::Reject { .. } | ProposalChoice::Pass => None,
         },
         Tool::DecideEscalation { decision, .. } => match decision {
-            EscalationChoice::Reject { reason }
-                if reason.len() > usize::try_from(limits.result_bytes).expect("u32 fits usize") =>
-            {
+            EscalationChoice::Reject { reason } if reason.len() > skein_lib::usize_of(limits.result_bytes) => {
                 Some(tasks::Refusal::Read)
             }
             EscalationChoice::Release | EscalationChoice::Reject { .. } | EscalationChoice::Pass => None,
@@ -368,14 +364,14 @@ pub(crate) fn call_shape(tool: &Tool, limits: &tasks::Limits) -> Option<tasks::R
         | Tool::Unsubscribe { .. }
         | Tool::Release { .. } => None,
         Tool::Cancel { reason, .. } => {
-            if reason.len() > usize::try_from(limits.result_bytes).expect("u32 fits usize") {
+            if reason.len() > skein_lib::usize_of(limits.result_bytes) {
                 Some(tasks::Refusal::Read)
             } else {
                 None
             }
         }
         Tool::Amend { amendment, .. } => {
-            if amendment.reason.len() > usize::try_from(limits.message_bytes).expect("u32 fits usize") {
+            if amendment.reason.len() > skein_lib::usize_of(limits.message_bytes) {
                 return Some(tasks::Refusal::Read);
             }
             if let Some(spec) = &amendment.spec
@@ -389,14 +385,14 @@ pub(crate) fn call_shape(tool: &Tool, limits: &tasks::Limits) -> Option<tasks::R
                 return Some(tasks::Refusal::AuthorityShape);
             }
             if let Some(dependencies) = &amendment.dependencies
-                && dependencies.len() > usize::try_from(limits.dependencies).expect("u32 fits usize")
+                && dependencies.len() > skein_lib::usize_of(limits.dependencies)
             {
                 return Some(tasks::Refusal::Dependencies);
             }
             None
         }
         Tool::Message { form, words, .. } => {
-            if words.is_empty() || words.len() > usize::try_from(limits.message_bytes).expect("u32 fits usize") {
+            if words.is_empty() || words.len() > skein_lib::usize_of(limits.message_bytes) {
                 return Some(tasks::Refusal::Read);
             }
             match form {
@@ -406,7 +402,7 @@ pub(crate) fn call_shape(tool: &Tool, limits: &tasks::Limits) -> Option<tasks::R
             None
         }
         Tool::Delegate { batch } => {
-            if batch.len() > usize::try_from(limits.batch).expect("u32 fits usize") {
+            if batch.len() > skein_lib::usize_of(limits.batch) {
                 return Some(tasks::Refusal::Batch);
             }
             for member in batch {
@@ -419,7 +415,7 @@ pub(crate) fn call_shape(tool: &Tool, limits: &tasks::Limits) -> Option<tasks::R
                 if !tasks::valid_authority(limits, &member.authority) {
                     return Some(tasks::Refusal::AuthorityShape);
                 }
-                if member.dependencies.len() > usize::try_from(limits.dependencies).expect("u32 fits usize") {
+                if member.dependencies.len() > skein_lib::usize_of(limits.dependencies) {
                     return Some(tasks::Refusal::Dependencies);
                 }
             }

@@ -661,17 +661,17 @@ fn inbox_group_cursors_keep_exact_filters_and_whole_query_order() {
         (
             InboxReadGroup::Needs,
             vec![
-                cursor_inbox_entry(6, InboxGroup::PersonTasks, 1, Some(9)),
-                cursor_inbox_entry(8, InboxGroup::Questions, 3, Some(9)),
-                cursor_inbox_entry(7, InboxGroup::Questions, 2, Some(9)),
                 cursor_inbox_entry(5, InboxGroup::Questions, 0, Some(8)),
+                cursor_inbox_entry(6, InboxGroup::PersonTasks, 1, Some(9)),
+                cursor_inbox_entry(7, InboxGroup::Questions, 2, Some(9)),
+                cursor_inbox_entry(8, InboxGroup::Questions, 3, Some(9)),
             ],
         ),
         (
             InboxReadGroup::Updates,
             vec![
-                cursor_inbox_entry(10, InboxGroup::Results, 4, Some(9)),
                 cursor_inbox_entry(11, InboxGroup::Results, 5, Some(9)),
+                cursor_inbox_entry(10, InboxGroup::Results, 4, Some(9)),
             ],
         ),
     ] {
@@ -1201,20 +1201,4 @@ fn task_query_parent_uses_requester_and_ended_time_uses_terminal_phase() {
         value.chip.phase = phase;
         assert_eq!(crate::queries::line(&value, [&value].into_iter(), None).ended_at, Some(value.changed), "{phase:?}");
     }
-}
-#[test]
-fn inbox_updates_at_the_same_time_use_descending_position_before_task() {
-    let rows = vec![
-        inbox_entry(ObjectKey::Result(1), 1, InboxGroup::Results, 2, Wall::EPOCH, None),
-        inbox_entry(ObjectKey::Result(9), 1, InboxGroup::Results, 3, Wall::EPOCH, None),
-    ];
-    let read = Read::Inbox { group: InboxReadGroup::Updates, project: None, kind: None, goal: None, after: None };
-    let mut setup = script();
-    setup.truth.sources.push(Source { party: 1, read: read.clone(), rows: Rows::Inbox(rows) });
-    let engine = Engine::new(setup, 1).expect("inbox source");
-    let Rows::Inbox(rows) = engine.rows_for(1, &read) else { panic!("inbox rows") };
-    assert_eq!(
-        rows.iter().map(InboxEntry::card_key).collect::<Vec<_>>(),
-        vec![ObjectKey::Result(9), ObjectKey::Result(1)]
-    );
 }

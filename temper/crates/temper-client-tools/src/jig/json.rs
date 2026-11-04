@@ -20,7 +20,7 @@ pub enum Refusal {
 }
 /// Decode and check one call; stdin may be used only once.
 pub fn call(table: &[&Tool], bytes: &[u8], from: Source, limits: &Limits) -> Result<Call, Usage> {
-    if u64::try_from(bytes.len()).unwrap_or(u64::MAX) > limits.ask_bytes {
+    if skein_lib::len_u64(bytes.len()) > limits.ask_bytes {
         return Err(Usage::Json);
     }
     let doc = document(bytes)?;

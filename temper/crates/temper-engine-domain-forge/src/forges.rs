@@ -116,7 +116,7 @@ pub(crate) fn document(
     let mut forge_number = 0;
     for forge in forges {
         forge_number = forge_number.max(forge.number);
-        if forge.git.len() > usize::try_from(crate::PULL_ADDRESS_BYTES).expect("u32 fits usize") {
+        if forge.git.len() > skein_lib::usize_of(crate::PULL_ADDRESS_BYTES) {
             return Err(skein_forge::api::Error::TooLarge);
         }
         if configured.insert(forge.number, forge.clone()).is_err() {

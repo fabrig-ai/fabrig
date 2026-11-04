@@ -115,7 +115,6 @@ fn tree_leftovers_fail_even_after_supervisor_cleanup_and_missing_observation_is_
         stdout: Vec::new(),
         stderr: Vec::new(),
         trace: Vec::new(),
-        observer: crate::agent::codex::Observer::default(),
         observing: None,
         error: None,
         counts: Counts {

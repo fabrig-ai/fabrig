@@ -1,0 +1,62 @@
+draft = "debt-4"
+repo = "fabrig"
+sources = ["temper/docs/plan/debt-4/inputs/request.md", "skein/docs/development/debt/D017-kv-store-states.md", "jig/docs/development/debt/D028-scripted-engine-reimplements-core.md", "smith/docs/development/debt/D010-bench-runner-knows-agents.md", "temper/docs/development/debt/D004-env-with.md", "temper/docs/development/debt/D003-widening-try-from.md"]
+
+# Four debt parts, one per tree (inputs/request.md), which read none of each other's code, so
+# each starts as soon as its tasks are written. plan.md says what was decided and why.
+
+[buffer]
+low = 1.0
+high = 2.0
+
+[[part]]
+id = "temper-forms"
+title = "temper D003 and D004: lengths, counts and child steps' Envs through skein-lib's helpers"
+mode = "direct"
+needs = []
+design = "skein/docs/design/lib.md, 6"
+
+[[slice]]
+id = 1
+story = "temper's hand-written code widens with len_u64 and usize_of and hands a child step its limits with env.with, both measures at 0"
+parts = ["temper-forms"]
+walk = false
+
+[[part]]
+id = "smith-bench-adapters"
+title = "smith D010: the benchmark runner names no agent; each step is a method of its adapter"
+mode = "direct"
+needs = []
+design = "smith/docs/design/benchmarks.md, 6"
+
+[[slice]]
+id = 2
+story = "a benchmark attempt runs through one supervisor and one runner whose observation, archives and source selection are methods of the agent adapters, replays included"
+parts = ["smith-bench-adapters"]
+walk = false
+
+[[part]]
+id = "skein-kv-states"
+title = "skein D017: skein-kv's store is a 5.4 machine, with no module-wide exception"
+mode = "direct"
+needs = []
+design = "skein/docs/foundation/programming-model.md, 5.4"
+
+[[slice]]
+id = 3
+story = "skein-kv's store runs as explicit state enums per lifecycle, with its crash and golden tests and on-disk format unchanged"
+parts = ["skein-kv-states"]
+walk = false
+
+[[part]]
+id = "jig-scripted-rules"
+title = "jig D028: each rule the scripted engine copies is jig's code or held by a shared story"
+mode = "direct"
+needs = []
+design = "jig/docs/design/client/domain/testing.md, 4"
+
+[[slice]]
+id = 4
+story = "the scripted and joint fronts agree on inbox order, phase class, task order and requester, by jig's code or a shared story"
+parts = ["jig-scripted-rules"]
+walk = false

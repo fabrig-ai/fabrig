@@ -125,7 +125,7 @@ pub(crate) fn brief_part(words: &BriefWords, parts: u32, bytes: u32) -> BriefRea
     if parts == 0 {
         return BriefRead::Failed;
     }
-    let kept = words.bytes.as_slice().len().min(usize::try_from(bytes).expect("u32 fits usize"));
+    let kept = words.bytes.as_slice().len().min(skein_lib::usize_of(bytes));
     let start = if words.tail { words.bytes.as_slice().len().saturating_sub(kept) } else { 0 };
     BriefRead::Got {
         bytes: Box::from(words.bytes.as_slice().get(start..start.saturating_add(kept)).expect("Kept is within source")),
@@ -489,7 +489,7 @@ pub(crate) fn gather(
 }
 
 fn next_remarks(fetch: &mut BriefFetch) -> Option<skein_forge::api::Read> {
-    let index = usize::try_from(fetch.next_review).expect("u32 fits usize");
+    let index = skein_lib::usize_of(fetch.next_review);
     let review = *fetch.review_ids.get(index)?;
     fetch.next_review = fetch.next_review.checked_add(1).expect("bounded review count");
     fetch.stage = BriefStage::Remarks;
@@ -500,7 +500,7 @@ fn next_remarks(fetch: &mut BriefFetch) -> Option<skein_forge::api::Read> {
 fn next_failed_job(fetch: &mut BriefFetch) -> Option<skein_forge::api::Read> {
     let total = u32::try_from(fetch.checks.len()).expect("bounded check list");
     for index in fetch.next_check..total {
-        let status = fetch.checks.get(usize::try_from(index).expect("u32 fits usize")).expect("index in check list");
+        let status = fetch.checks.get(skein_lib::usize_of(index)).expect("index in check list");
         fetch.next_check = index.checked_add(1).expect("bounded check count");
         if status.check != skein_forge::api::Check::Failed {
             continue;

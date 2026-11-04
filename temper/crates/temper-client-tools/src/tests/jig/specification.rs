@@ -56,7 +56,7 @@ fn task_show_stops_at_its_result_byte_bound_with_a_continuation() {
         limits.result_bytes = 1024 + retained * 6;
         let (printed, offsets) = f::source_show(&words, &limits, false);
         assert_eq!(printed.status, 0);
-        assert!(u64::try_from(printed.stdout.len()).unwrap() <= limits.result_bytes);
+        assert!(skein_lib::len_u64(printed.stdout.len()) <= limits.result_bytes);
         assert!(find(&printed.stdout, &continuation(retained)).is_some());
         for from in offsets.as_slice() {
             assert!(*from < retained);

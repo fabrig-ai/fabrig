@@ -16,9 +16,10 @@ Provisional, 2026-10-29. Run one tree's slow tier with its prerequisites.
   set fail before any command runs.
 - **Plain commands by default:** every build and nextest command runs as it
   stands, or behind the wrapper when `TIERS_WRAPPER` sets one (section 3).
-- **Builds are sequential:** commands run one at a time; the built bundle
-  tool runs directly, past the wrapper. Cargo metadata builds nothing and
-  runs directly to discover the target directory.
+- **Builds are sequential:** commands run one at a time; where the runner
+  runs the built bundle tool itself, it runs directly, past the wrapper.
+  Cargo metadata builds nothing and runs directly to discover the target
+  directory.
 - **Disk before each of those commands:** with `TIERS_DISK_BYTES` set
   (section 3), wait for that many bytes available on `/`, checking once per
   minute and printing each wait.
@@ -95,9 +96,10 @@ Two settings come from that environment. Unset, each does nothing, and no
 default names a tool:
 
 - **`TIERS_WRAPPER`, the wrapper:** a command prefix, split on spaces and put
-  before every Cargo build, every nextest run and listing, and the `cc` build
-  of the CPU wrapper (sections 7 and 7.5). Unset or empty, those commands run
-  plain. Cargo metadata and the built bundle tool never go through it. Sections
+  before every Cargo build, `temper/scripts/bundle.sh --playground` as one
+  command, every nextest run and listing, and the `cc` build of the CPU wrapper
+  (sections 7 and 7.5). Unset or empty, those commands run plain. Cargo metadata
+  and the built bundle tool the runner runs itself never go through it. Sections
   1 to 6 call this setting the wrapper; from section 7 on it is named
   `TIERS_WRAPPER`, and a bare "wrapper" is the CPU wrapper,
   `tools/tiers/cpu-wrapper.c`.

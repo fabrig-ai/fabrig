@@ -1441,7 +1441,7 @@ fn a_producer_report_is_bounded_by_the_forge_operation_bytes() {
     assert_eq!(bounds.limits().change_row_report, bound);
     for length in [bound, bound + 1] {
         let mut row = fixtures::change_row(temper_engine_domain_forge_change::State::Producing { requested: true });
-        row.report = skein_lib::bytes::zeroed(usize::try_from(length).expect("u32 fits usize"));
+        row.report = skein_lib::bytes::zeroed(skein_lib::usize_of(length));
         let row = forge::Stored::Change(row);
         let decoded = records::decode(&records::encode(&row), &bounds);
         if length == bound {

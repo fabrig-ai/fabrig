@@ -2217,9 +2217,7 @@ pub(crate) fn english_declarations() -> [(&'static str, u64, u64); 2] {
     let mut segments = 0_u64;
     for phrase in &language.phrases {
         for form in &phrase.forms {
-            segments = segments
-                .checked_add(u64::try_from(form.segments.len()).expect("bounded segments"))
-                .expect("bounded English");
+            segments = segments.checked_add(skein_lib::len_u64(form.segments.len())).expect("bounded English");
         }
     }
     [

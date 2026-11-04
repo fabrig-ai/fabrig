@@ -94,7 +94,7 @@ impl Clients {
                 body: if body.is_empty() {
                     http::Body::None
                 } else {
-                    http::Body::Length(u64::try_from(body.len()).expect("bounded page"))
+                    http::Body::Length(skein_lib::len_u64(body.len()))
                 },
                 close: false,
             }),

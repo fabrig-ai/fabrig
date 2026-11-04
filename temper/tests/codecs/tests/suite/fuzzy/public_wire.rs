@@ -74,7 +74,7 @@ fn sweep(seed: u64, fixtures: &[(Kind, Box<[u8]>, usize, u32); 3]) {
     for (kind, golden, length_at, ceiling) in fixtures {
         check(*kind, &arbitrary, seed, "arbitrary", false, false);
         check(*kind, golden, seed, "at every bound", true, false);
-        let length = u64::try_from(golden.len()).expect("seed: record length fits u64");
+        let length = skein_lib::len_u64(golden.len());
         let at = usize::try_from(rng.below(length)).expect("seed: byte position fits usize");
         let mut bytes = golden.to_vec();
         *bytes.get_mut(at).expect("seed: chosen byte") ^= 1 << rng.below(u64::from(u8::BITS));

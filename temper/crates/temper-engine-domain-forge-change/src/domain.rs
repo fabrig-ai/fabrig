@@ -27,9 +27,9 @@ pub fn step(change: &Change, facts: &Facts, standing: &Heard, now: Wall, limits:
 
 fn advance(change: &Change, facts: &Facts, standing: &Heard, now: Wall, limits: &Limits) -> Stepped {
     let mut next = change.clone();
-    if change.gates.len() > usize::try_from(limits.gates).expect("u32 fits usize")
-        || change.clean.len() > usize::try_from(limits.clean_heads).expect("u32 fits usize")
-        || change.gate_failures.len() > usize::try_from(limits.gates).expect("u32 fits usize")
+    if change.gates.len() > skein_lib::usize_of(limits.gates)
+        || change.clean.len() > skein_lib::usize_of(limits.clean_heads)
+        || change.gate_failures.len() > skein_lib::usize_of(limits.gates)
     {
         return hold(next, Hold::Failed);
     }
@@ -887,7 +887,7 @@ fn updating(
             if head == from {
                 return waiting(change, now, limits);
             }
-            if change.clean.len() >= usize::try_from(limits.clean_heads).expect("u32 fits usize") {
+            if change.clean.len() >= skein_lib::usize_of(limits.clean_heads) {
                 return hold(change, Hold::Updates);
             }
             let mut clean = List::with_capacity(limits.clean_heads);
@@ -1219,7 +1219,7 @@ fn preparing(
                 return waiting(change, now, limits);
             }
             if head != from {
-                if change.clean.len() >= usize::try_from(limits.clean_heads).expect("u32 fits usize") {
+                if change.clean.len() >= skein_lib::usize_of(limits.clean_heads) {
                     return hold(change, Hold::Updates);
                 }
                 let mut clean = List::with_capacity(limits.clean_heads);

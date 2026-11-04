@@ -55,12 +55,12 @@ fn signed_in_root((mut domain, env): (Domain, Env<Limits>), role: Option<people:
     ] {
         people::step(
             &mut domain.core.people,
-            &Env { now: env.now, wall: env.wall, limits: env.limits.people },
+            &env.with(env.limits.people),
             people::Event::Restore { record },
             &mut out,
         );
     }
-    let people_env = Env { now: env.now, wall: env.wall, limits: env.limits.people };
+    let people_env = env.with(env.limits.people);
     assert!(domain.core.people.start_link(&people_env));
     domain.core.people.start_sweep();
     assert!(domain.core.people.start_complete(&people_env));

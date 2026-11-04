@@ -100,7 +100,7 @@ impl Layer {
                     local.trigger = lifecycle::Trigger::Start;
                 }
                 if let temper_forge_setup::setup::Mode::Fake(fake) = &setup.entry.mode {
-                    local.repositories = u64::try_from(fake.repositories.len()).expect("fixture repositories");
+                    local.repositories = skein_lib::len_u64(fake.repositories.len());
                 }
             }
         }

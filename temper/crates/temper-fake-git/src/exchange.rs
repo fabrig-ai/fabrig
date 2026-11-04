@@ -46,7 +46,7 @@ impl Exchange {
         {
             headers.push(Header { name: b"Authorization".as_slice().into(), value: authorization.expose().into() });
         }
-        let length = u64::try_from(encoded.body.len()).expect("bounded JSON body");
+        let length = skein_lib::len_u64(encoded.body.len());
         Ok((
             http::Call {
                 method: Method::Post,

@@ -187,7 +187,7 @@ pub(crate) fn answer(
             Ok(skein_forge::api::Answer::PullFiles { head, files, more }) if head == pending.head => {
                 let empty = files.is_empty();
                 for file in files {
-                    if file.path.len() > usize::try_from(env.limits.name_bytes).expect("u32 fits usize")
+                    if file.path.len() > skein_lib::usize_of(env.limits.name_bytes)
                         || pending.paths.push(file.path).is_err()
                     {
                         finish(d, pending, None);

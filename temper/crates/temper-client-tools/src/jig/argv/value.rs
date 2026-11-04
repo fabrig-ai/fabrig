@@ -328,7 +328,7 @@ fn valid_text(spec: &Argument, value: &Value, argument: u8, limits: &Limits) -> 
         return Err(Usage::Kind { tool: 0, form: 0, argument });
     };
     if let Bound::Bytes { most } = bound(spec, limits)
-        && u64::try_from(text.len()).unwrap_or(u64::MAX) > most
+        && skein_lib::len_u64(text.len()) > most
     {
         return Err(Usage::Long { tool: 0, form: 0, argument });
     }
