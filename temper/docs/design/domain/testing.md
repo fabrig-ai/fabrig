@@ -1496,7 +1496,9 @@ reads it, and whatever is Linux's may be degraded there.
 
   | Test | Its reason |
   |---|---|
+  | `crates/temper/src/tests.rs`: `id_login_agrees_with_the_effective_users_passwd_entry` | Linux supplies the effective user's passwd entry to compare with macOS's command lookup |
   | `crates/temper/tests/process.rs`: `a_story_box_and_its_steps_die_when_the_test_process_is_killed` | a parent-death signal is Linux's |
+  | `crates/temper/tests/process.rs`: `a_forgejo_elsewhere_connected_as_its_admin_makes_the_first_repository_lands_a_chats_change_and_is_found_after_a_restart`, and `crates/temper/tests/support/forgejo_elsewhere.rs` | the capture witness uses Linux's abstract Unix sockets |
 
 ## 3. Neighbours and their faces
 
