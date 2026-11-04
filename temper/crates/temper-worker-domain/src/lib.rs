@@ -66,7 +66,7 @@ pub mod wire;
 mod workspace;
 
 pub use admission::{admits, is_new_work, passes};
-pub use boundary::{Encodable, Encoded, Event, Invalid, Request};
+pub use boundary::{Encodable, Encoded, Event, Request};
 pub use domain::{Domain, fire, resume, step};
 pub use facts::Fact;
 pub use limits::{Limits, SEPARATOR, Unfit, WATERMARK, unfit, valid};
