@@ -20,7 +20,6 @@ pub(crate) mod policy;
 pub(crate) mod printed;
 mod provider;
 pub mod translation;
-const PREFIX: u64 = crate::tokens::CLIENTS;
 pub(crate) const PLAYGROUND_STARTS: u32 = 8;
 
 #[expect(missing_debug_implementations, reason = "clients hold pending OAuth secrets")]
@@ -61,11 +60,8 @@ pub struct Clients {
     pending: bool,
     pub(crate) starting: Option<()>,
     pub(crate) early: Queue<root::Event>,
-    endings: Map<u64, Endings>,
-    durable: u64,
-    writes: u32,
-    secret_owners: Map<Token, Asked>,
-    next_secret: u64,
+    endings: kit::host::Endings,
+    bridge: kit::host::Bridge,
     #[cfg(test)]
     pub(crate) secret_terminals: Option<Queue<kit::SecretOwner>>,
     // The read view for this clients pass (temper/docs/design/protocol/setup.md, 8.4).
@@ -75,18 +71,6 @@ pub struct Clients {
     playground_ready: Queue<root::Event>,
     next_playground: u64,
     playground_carries: Queue<kit::SecretsRequest>,
-}
-/// What a secrets request in flight was for: a kept value's owner, or the
-/// exchange whose carried value the store numbers itself.
-#[derive(Clone, Copy, Debug)]
-enum Asked {
-    Owner(kit::SecretOwner),
-    Carry(Token),
-}
-#[derive(Debug)]
-struct Endings {
-    numbers: List<u64>,
-    next: u32,
 }
 fn invalid(what: What) -> Problems {
     let mut problems = Problems::empty();
@@ -162,18 +146,7 @@ impl Clients {
         let config::Address::Addr(listener) = &clients.listener else {
             return Err(invalid(What::Form));
         };
-        let mut providers = List::with_capacity(u32::try_from(config.providers.len()).expect("bounded providers"));
-        let mut link_provider = None;
-        let mut deployment_provider = 0;
-        for provider in &config.providers {
-            match provider.kind {
-                config::ProviderKind::Link => link_provider = Some(provider.number),
-                config::ProviderKind::Deployment => deployment_provider = provider.number,
-                config::ProviderKind::Application => {
-                    providers.push(provider.number).expect("provider count");
-                }
-            }
-        }
+        let link_provider = config::clients::link_provider(config);
         let link = if config.clients.link {
             let provider = match sign_in {
                 Some(sign_in) => sign_in.provider,
@@ -203,21 +176,15 @@ impl Clients {
         } else {
             None
         };
-        let mut served = List::with_capacity(2);
-        served
-            .push(kit::Served {
-                family: None,
-                first: jig_client_protocol_wire::VERSION,
-                last: jig_client_protocol_wire::VERSION,
-            })
-            .or(Err(invalid(What::Bound)))?;
-        served
-            .push(kit::Served {
+        let application = application(
+            config,
+            link,
+            kit::host::served(kit::Served {
                 family: Some(temper_client_protocol_wire::number(temper_client_protocol_wire::Owner::Forge)),
                 first: temper_client_protocol_wire::CLIENT_VERSION,
                 last: temper_client_protocol_wire::CLIENT_VERSION,
-            })
-            .or(Err(invalid(What::Bound)))?;
+            }),
+        );
         // The provider owns its signer; construct the initial settings twice without cloning it.
         let settings = || -> Result<kit::Settings, Problems> {
             let provider = match &config.clients.provider {
@@ -238,7 +205,7 @@ impl Clients {
                     Some(provider) => provider.addresses.clone(),
                     None => Box::new([]),
                 },
-                ..client_settings(config, seeds, link.clone(), served.clone(), providers.clone(), deployment_provider)
+                ..config::clients::settings(config, &application, seeds.crypto.clone(), seeds.seed)
             })
         };
         let env = Env { now: Time::ZERO, wall: Wall::EPOCH, limits: config.limits.clients };
@@ -301,9 +268,8 @@ impl Clients {
             pending: true,
             starting: Some(()),
             early: Queue::uncapped(),
-            endings: Map::with_capacity(journal.commits),
-            secret_owners: Map::with_capacity(u32::MAX),
-            next_secret: 1,
+            endings: kit::host::Endings::new(journal.commits),
+            bridge: kit::host::Bridge::new(Token::new(crate::tokens::CLIENTS).tag()),
             #[cfg(test)]
             secret_terminals: None,
             playground: None,
@@ -312,8 +278,6 @@ impl Clients {
             playground_ready: Queue::with_capacity(PLAYGROUND_STARTS),
             next_playground: 1,
             playground_carries: Queue::with_capacity(PLAYGROUND_STARTS),
-            durable: 0,
-            writes: journal.writes,
         })
     }
     /// Hold the bundle the binary read at start.
@@ -350,7 +314,7 @@ impl Clients {
                 None => false,
             }) || self.pending
                 || secrets_ready && !self.secrets.is_empty()
-                || self.endings_ready()
+                || self.endings.ready()
                 || secrets_ready && !self.playground_carries.is_empty()
                 || !self.playground_ready.is_empty()
                 || !self.out.is_empty()
@@ -679,14 +643,11 @@ pub fn untag(mut event: io::Event) -> io::Event {
 
 impl Clients {
     pub fn commit(&mut self, number: u64, writes: &[root::Write]) {
-        let mut endings = List::with_capacity(self.writes);
         for write in writes {
             match write {
                 root::Write::Erase(key) => {
-                    if let Some(number) = ended(key)
-                        && !endings.as_slice().contains(&number)
-                    {
-                        endings.push(number).expect("bounded commit writes");
+                    if let Some(sign_in) = ended(key) {
+                        self.endings.ended(number, sign_in);
                     }
                 }
                 root::Write::DropTranscript { .. }
@@ -695,24 +656,13 @@ impl Clients {
                 | root::Write::Save(_) => {}
             }
         }
-        if !endings.is_empty() {
-            self.endings.insert(number, Endings { numbers: endings, next: 0 }).expect("bounded commits in flight");
-        }
     }
     pub fn committed(&mut self, number: u64) {
-        self.durable = self.durable.max(number);
+        self.endings.committed(number);
     }
     #[must_use]
     pub fn commit_room(&self) -> bool {
-        self.endings.len() < self.endings.capacity()
-    }
-    fn endings_ready(&self) -> bool {
-        for (number, _) in &self.endings {
-            if *number <= self.durable {
-                return true;
-            }
-        }
-        false
+        self.endings.room()
     }
     fn endings_step(
         &mut self,
@@ -721,21 +671,9 @@ impl Clients {
         demo: Option<&crate::settings::Demo>,
         accounts: &mut Option<crate::accounts::Accounts>,
     ) {
-        for _ in 0..self.endings.len().checked_mul(self.writes).expect("bounded sign-in endings") {
-            let mut ready = None;
-            for (number, _) in &self.endings {
-                if *number <= self.durable {
-                    ready = Some(*number);
-                    break;
-                }
-            }
-            let Some(number) = ready else { return };
-            let endings = self.endings.get_mut(&number).expect("durable endings");
-            let sign_in = *endings.numbers.get(endings.next).expect("one sign-in per erased key");
-            endings.next = endings.next.checked_add(1).expect("bounded erase index");
-            if endings.next == endings.numbers.len() {
-                self.endings.remove(&number);
-            }
+        // Only the sign-ins retained when this stage starts can end here.
+        for _ in 0..self.endings.waiting() {
+            let Some(sign_in) = self.endings.next() else { return };
             self.down(kit::Event::SignInEnded { sign_in });
             self.advance(events, forges, demo, accounts);
         }
@@ -744,16 +682,8 @@ impl Clients {
 
 fn ended(key: &root::Key) -> Option<u64> {
     match key {
-        root::Key::Core(core::Key::People(people::Key::SignIn(number))) => Some(*number),
-        root::Key::Core(
-            core::Key::People(_)
-            | core::Key::Core(_)
-            | core::Key::Tasks(_)
-            | core::Key::Notes(_)
-            | core::Key::Accounts(_),
-        )
-        | root::Key::Wires
-        | root::Key::Forge(_) => None,
+        root::Key::Core(key) => kit::host::ending(key),
+        root::Key::Wires | root::Key::Forge(_) => None,
     }
 }
 
@@ -791,152 +721,30 @@ impl Clients {
         }
         for _ in 0..self.secrets.len() {
             let request = self.secrets.pop().expect("client secrets requests");
-            let (owner, request) = secret_request(request);
-            let token = Token::new(PREFIX.checked_add(self.next_secret).expect("secret routing name"));
-            self.next_secret = self.next_secret.checked_add(1).expect("secret routing sequence");
-            self.secret_owners.insert(token, owner).expect("secret owner count fits u32");
+            let (token, request) = self.bridge.ask(request);
             if let Some(answer) = store.secrets(token, request) {
                 self.secret_answer(answer);
             }
         }
     }
     fn secret_answer(&mut self, answer: jig_protocol_store::Event) {
-        use jig_protocol_store::Event;
-        let event = match answer {
-            Event::Page { .. } | Event::PageRefused { .. } => unreachable!("a start's pages need a start-mode store"),
-            Event::Kept { owner } => kit::SecretsAnswer::Kept { owner: self.owner(owner) },
-            Event::Erased { owner } => kit::SecretsAnswer::Erased { owner: self.owner(owner) },
-            Event::Carried { owner, number } => {
-                let exchange = self.carry(owner);
-                if self.owns_playground_read(exchange) {
-                    self.playground_carried(exchange, Some(number));
-                    return;
-                }
-                kit::SecretsAnswer::Carried { exchange, number: Some(number) }
-            }
-            Event::Stale { owner } => match self.secret_owners.remove(&owner).expect("secret stale owner") {
-                Asked::Carry(exchange) => {
-                    if self.owns_playground_read(exchange) {
-                        self.playground_carried(exchange, None);
-                        return;
-                    }
-                    kit::SecretsAnswer::Carried { exchange, number: None }
-                }
-                Asked::Owner(_) => kit::SecretsAnswer::Failed,
-            },
-            Event::Secret { owner, value } => {
-                let owner = self.owner(owner);
-                let value = match value {
-                    Some(value) => match kept(value) {
-                        Some(value) => Some(value),
-                        None => {
-                            self.down(kit::Event::Secrets(kit::SecretsAnswer::Failed));
-                            return;
-                        }
-                    },
-                    None => None,
-                };
-                kit::SecretsAnswer::Got { owner, value }
-            }
-            Event::SecretsLoaded { .. }
-            | Event::Switched { .. }
-            | Event::SecretsNotReady { .. }
-            | Event::Site { .. }
-            | Event::Patched { .. }
-            | Event::Opened { .. }
-            | Event::OpenRefused { .. }
-            | Event::Committed { .. }
-            | Event::Failed { .. }
-            | Event::FrameTooLarge { .. }
-            | Event::Loaded { .. }
-            | Event::Read { .. }
-            | Event::Got { .. }
-            | Event::Turns { .. }
-            | Event::Unread { .. }
-            | Event::Corrupt { .. } => kit::SecretsAnswer::Failed,
-        };
+        let answer = self.bridge.answer(answer);
+        if let kit::SecretsAnswer::Carried { exchange, number } = &answer
+            && self.owns_playground_read(*exchange)
+        {
+            self.playground_carried(*exchange, *number);
+            return;
+        }
         #[cfg(test)]
         if let Some(trace) = &mut self.secret_terminals {
-            match &event {
+            match &answer {
                 kit::SecretsAnswer::Kept { owner }
                 | kit::SecretsAnswer::Erased { owner }
                 | kit::SecretsAnswer::Got { owner, .. } => trace.push(*owner),
                 kit::SecretsAnswer::Carried { .. } | kit::SecretsAnswer::Failed => {}
             }
         }
-        self.down(kit::Event::Secrets(event));
-    }
-    fn owner(&mut self, token: Token) -> kit::SecretOwner {
-        match self.secret_owners.remove(&token).expect("secret request owner") {
-            Asked::Owner(owner) => owner,
-            Asked::Carry(_) => unreachable!("the store answers a carry Carried or Stale"),
-        }
-    }
-    fn carry(&mut self, token: Token) -> Token {
-        match self.secret_owners.remove(&token).expect("secret carry owner") {
-            Asked::Carry(exchange) => exchange,
-            Asked::Owner(_) => unreachable!("the store answers Carried only to a carry"),
-        }
-    }
-}
-fn secret_request(request: kit::SecretsRequest) -> (Asked, jig_protocol_store::Secrets) {
-    use jig_protocol_store::Secrets;
-    match request {
-        kit::SecretsRequest::Keep { owner, value } => {
-            let (kind, number) = place(owner);
-            let value = if owner == kit::SecretOwner::PublicNames {
-                jig_protocol_store::SecretValue::Key(value.digest)
-            } else {
-                jig_protocol_store::SecretValue::Digest {
-                    expiry: value.expires.as_nanos(),
-                    digest: value.digest.expose().try_into().expect("credential digest is 32 bytes"),
-                }
-            };
-            (Asked::Owner(owner), Secrets::Keep { owner: kind, number, value })
-        }
-        kit::SecretsRequest::Erase { owner } => {
-            let (kind, number) = place(owner);
-            (Asked::Owner(owner), Secrets::Erase { owner: kind, number })
-        }
-        kit::SecretsRequest::Get { owner } => {
-            let (kind, number) = place(owner);
-            (Asked::Owner(owner), Secrets::Get { owner: kind, number })
-        }
-        kit::SecretsRequest::Hold { exchange, value } => (Asked::Carry(exchange), Secrets::Hold { value }),
-        kit::SecretsRequest::Carry { exchange, value, kind } => {
-            let kind = match kind {
-                kit::CarriedKind::Key => jig_protocol_store::CarriedKind::Key,
-                kit::CarriedKind::Value => jig_protocol_store::CarriedKind::Value,
-                kit::CarriedKind::Moved => jig_protocol_store::CarriedKind::Moved,
-            };
-            (Asked::Carry(exchange), Secrets::Carry { value, kind })
-        }
-    }
-}
-/// Where the store keeps an owner's value; a carried value is the
-/// application's, under the number the store drew (jig's store.md 9).
-fn place(owner: kit::SecretOwner) -> (jig_protocol_store::SecretOwner, u64) {
-    use jig_protocol_store::SecretOwner;
-    match owner {
-        kit::SecretOwner::SignIn(number) => (SecretOwner::SignIn, number),
-        kit::SecretOwner::Service(number) => (SecretOwner::Service, number),
-        kit::SecretOwner::Carried(number) => (SecretOwner::Application, number),
-        kit::SecretOwner::PublicNames => (SecretOwner::PublicNames, 0),
-    }
-}
-fn kept(value: jig_protocol_store::SecretValue) -> Option<kit::Kept> {
-    match value {
-        jig_protocol_store::SecretValue::Digest { expiry, digest } => {
-            Some(kit::Kept { digest: skein_lib::Secret::new(Box::new(digest)), expires: Wall::from_nanos(expiry) })
-        }
-        jig_protocol_store::SecretValue::Key(key) if key.len() == 32 => {
-            Some(kit::Kept { digest: key, expires: Wall::from_nanos(u64::MAX) })
-        }
-        jig_protocol_store::SecretValue::Record(_)
-        | jig_protocol_store::SecretValue::Key(_)
-        | jig_protocol_store::SecretValue::Carried { .. }
-        | jig_protocol_store::SecretValue::Application(_)
-        | jig_protocol_store::SecretValue::Held(_) => None,
+        self.down(kit::Event::Secrets(answer));
     }
 }
 
@@ -967,53 +775,16 @@ fn event_owner(event: &io::Event) -> Option<Token> {
     }
 }
 
-fn client_settings(
+fn application(
     config: &config::Engine,
-    seeds: &Seeds,
     link: Option<people::Identity>,
     served: List<kit::Served>,
-    providers: List<u16>,
-    deployment_provider: u16,
-) -> kit::Settings {
-    kit::Settings {
-        public: {
-            let mut kinds = List::with_capacity(6);
-            for kind in kit::public::jig_kinds(&jig_client_protocol_wire::PublicIndexBounds {
-                goals: config.limits.core.public.goals,
-                ended: config.limits.core.public.ended,
-                lines: config.limits.core.public.lines,
-                depth: config.limits.core.public.depth,
-                projects: config.limits.core.people.projects,
-            }) {
-                kinds.push(kind).expect("three public kinds");
-            }
-            for kind in forge_public_kinds() {
-                kinds.push(kind).expect("six public kinds");
-            }
-            kinds
-        },
-        public_bounds: jig_client_protocol_wire::PublicIndexBounds {
-            goals: config.limits.core.public.goals,
-            ended: config.limits.core.public.ended,
-            lines: config.limits.core.public.lines,
-            depth: config.limits.core.public.depth,
-            projects: config.limits.core.people.projects,
-        },
-        provider: None,
-        addresses: Box::new([]),
-        link,
-        deployment_provider,
-        heartbeat: config.clients.heartbeat,
-        rows: config.limits.core.documents.rows,
-        served,
-        providers,
-        seed: seeds.crypto.clone(),
-        stream: seeds.seed,
-        models: config::clients::models(&config.llm),
-        key_bytes: config.limits.driver.client.document.token_bytes.min(config.limits.clients.wire.keyed_value_some),
-        redirect_bytes: config.limits.driver.client.uri_bytes,
-        moved_bytes: moved_bytes(&config.limits),
+) -> config::clients::Application {
+    let mut public = List::with_capacity(3);
+    for kind in forge_public_kinds() {
+        public.push(kind).expect("three public kinds");
     }
+    config::clients::Application { link, served, public, moved_bytes: moved_bytes(&config.limits) }
 }
 
 pub(crate) fn moved_bytes(limits: &config::Limits) -> u64 {
