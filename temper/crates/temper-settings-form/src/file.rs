@@ -318,7 +318,7 @@ pub fn decode(bytes: &[u8], limits: &Limits) -> Result<List<c::SettingItem>, Box
 }
 /// Decode a host read's setting through the settings file's kind decoder.
 pub fn read_setting(bytes: &[u8], limits: &Limits) -> Result<c::Setting, Box<[u8]>> {
-    if u64::try_from(bytes.len()).unwrap_or(u64::MAX) > limits.ask_bytes {
+    if skein_lib::len_u64(bytes.len()) > limits.ask_bytes {
         return Err(message(None, bound(b"file bytes", u32::try_from(limits.ask_bytes).unwrap_or(u32::MAX))));
     }
     let doc = crate::json::document_depth(bytes, 32)
@@ -343,7 +343,7 @@ pub fn proposal_items(bytes: &[u8], limits: &Limits) -> Result<List<c::SettingIt
     decode_root(bytes, limits, true)
 }
 fn decode_root(bytes: &[u8], limits: &Limits, proposal: bool) -> Result<List<c::SettingItem>, Box<[u8]>> {
-    if u64::try_from(bytes.len()).unwrap_or(u64::MAX) > limits.ask_bytes {
+    if skein_lib::len_u64(bytes.len()) > limits.ask_bytes {
         return Err(message(None, bound(b"file bytes", u32::try_from(limits.ask_bytes).unwrap_or(u32::MAX))));
     }
     let doc = crate::json::document_depth(bytes, 32)

@@ -23,6 +23,7 @@ use skein_lib::{List, Time};
 
 pub(in crate::tests) fn project(number: u32, chats: bool) -> MeProject {
     MeProject {
+        public: None,
         models: List::with_capacity(0),
         templates: if chats { crate::tests::fixtures::chat_templates() } else { List::with_capacity(0) },
         creating: Some(crate::tests::fixtures::creating()),

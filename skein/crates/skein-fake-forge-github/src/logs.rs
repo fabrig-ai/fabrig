@@ -37,6 +37,11 @@ pub(crate) struct Store {
     records: Queue<Record>,
 }
 impl Store {
+    #[cfg(test)]
+    pub(crate) fn first_draw(&self) -> u64 {
+        u64::from_be_bytes(self.key.expose().first_chunk().copied().expect("four key words"))
+    }
+
     pub(crate) fn new(
         origin: Box<[u8]>,
         third_origin: Option<Box<[u8]>>,

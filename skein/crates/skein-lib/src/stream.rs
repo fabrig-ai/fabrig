@@ -6,14 +6,14 @@
 //! below holds the bytes received but not yet demanded, in an
 //! [`Intake`](crate::Intake). Every side below meets the contract of a stream
 //! (lib.md, 7), which the comments here sum up.
-//! [`Held`] serves a complete buffer through that same contract.
+//! [`Held`] and [`Slice`] serve complete buffers through that same contract.
 
 use alloc::boxed::Box;
 
 mod held;
 mod output;
 
-pub use held::Held;
+pub use held::{Held, Slice};
 pub use output::{OutputDown, OutputOutcome, OutputUp};
 
 /// What a state needs from the stream below before it can go on.

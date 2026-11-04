@@ -659,6 +659,32 @@ pub enum Word {
     TaskMalformed,
 
     MessageOnceRuns,
+    PublicProjects,
+    PublicProject,
+    PublicGoal,
+    PublicTask,
+    PublicAgent,
+    PublicProcedure,
+    PublicPerson,
+    PublicJob,
+    PublicReading,
+    PublicUnknown,
+    PublicUnavailable,
+    ReadPublic,
+    PublicFor,
+    PublicChange,
+    PublicLandings,
+    PublicTurn,
+    PublicQueue,
+    PublicReadySince,
+    PublicEnded,
+    PublicDone,
+    PublicFailed,
+    PublicCancelled,
+    PublicFolded,
+    PublicStaleProofs,
+    PublicTitleCut,
+    PublicAsOf,
 }
 // Room for temper, jig, account, card and forge phrases.
 // Six chat projection phrases, alongside the agent's original work-line words.
@@ -703,9 +729,9 @@ pub(crate) const SCRIPTED_MODEL: &[u8] = b"demo";
 // Restore's forgotten refusal adds one phrase and two segments.
 // The welcome's "Continue" to Ready adds one literal phrase (client/README.md, 3.5).
 // The welcome's Model cards add three phrases of one hole and three segments each (3.5).
-const PHRASES: u32 = 1223;
-const SEGMENTS: u32 = 2110;
-const ALL: [Word; 628] = [
+const PHRASES: u32 = 1249;
+const SEGMENTS: u32 = 2152;
+const ALL: [Word; 654] = [
     Word::PlaygroundBanner,
     Word::PlaygroundSetUp,
     Word::BannerSetUp,
@@ -1334,6 +1360,32 @@ const ALL: [Word; 628] = [
     Word::TaskTooLinked,
     Word::TaskMalformed,
     Word::MessageOnceRuns,
+    Word::PublicProjects,
+    Word::PublicProject,
+    Word::PublicGoal,
+    Word::PublicTask,
+    Word::PublicAgent,
+    Word::PublicProcedure,
+    Word::PublicPerson,
+    Word::PublicJob,
+    Word::PublicReading,
+    Word::PublicUnknown,
+    Word::PublicUnavailable,
+    Word::ReadPublic,
+    Word::PublicFor,
+    Word::PublicChange,
+    Word::PublicLandings,
+    Word::PublicTurn,
+    Word::PublicQueue,
+    Word::PublicReadySince,
+    Word::PublicEnded,
+    Word::PublicDone,
+    Word::PublicFailed,
+    Word::PublicCancelled,
+    Word::PublicFolded,
+    Word::PublicStaleProofs,
+    Word::PublicTitleCut,
+    Word::PublicAsOf,
 ];
 impl Word {
     #[expect(clippy::too_many_lines, reason = "one exhaustive table keeps the frame phrase IDs stable")]
@@ -1966,6 +2018,33 @@ impl Word {
             Self::KindFrom => 1064,
             Self::NoLiveTasks => 1065,
             Self::MessageOnceRuns => 1066,
+            Self::PublicProjects => 3000,
+            Self::PublicProject => 3001,
+            Self::PublicGoal => 3002,
+            Self::PublicTask => 3003,
+            Self::PublicAgent => 3004,
+            Self::PublicProcedure => 3005,
+            Self::PublicPerson => 3006,
+            Self::PublicJob => 3007,
+            Self::PublicReading => 3008,
+            Self::PublicUnknown => 3009,
+            Self::PublicUnavailable => 3010,
+            Self::ReadPublic => 3011,
+            Self::PublicFor => 3012,
+            Self::PublicChange => 3013,
+            Self::PublicLandings => 3014,
+            Self::PublicTurn => 3015,
+            Self::PublicQueue => 3016,
+            Self::PublicReadySince => 3017,
+            Self::PublicEnded => 3018,
+            Self::PublicDone => 3019,
+            Self::PublicFailed => 3020,
+            Self::PublicCancelled => 3021,
+            Self::PublicFolded => 3022,
+            Self::PublicStaleProofs => 3023,
+            Self::PublicTitleCut => 3024,
+            Self::PublicAsOf => 3025,
+
             Self::ItsTasksNoneYet => 1251,
             Self::ItsTasksNone => 1252,
             Self::ItsTasksMoreEnded => 1253,
@@ -2138,9 +2217,7 @@ pub(crate) fn english_declarations() -> [(&'static str, u64, u64); 2] {
     let mut segments = 0_u64;
     for phrase in &language.phrases {
         for form in &phrase.forms {
-            segments = segments
-                .checked_add(u64::try_from(form.segments.len()).expect("bounded segments"))
-                .expect("bounded English");
+            segments = segments.checked_add(skein_lib::len_u64(form.segments.len())).expect("bounded English");
         }
     }
     [
@@ -2238,6 +2315,32 @@ fn english(word: Word, shell: Shell) -> (&'static [&'static [u8]], &'static [Hol
         Word::PlaygroundBanner => (&[b"This is the playground: a scripted model and in-memory forge. Use the wizard to"], &[]),
         Word::PlaygroundSetUp => (&[b"set up temper"], &[]),
         Word::BannerSetUp => (&[b"Set up temper"], &[]),
+        Word::PublicAsOf => (&[b"As of ", b""], &[Name]),
+        Word::PublicTitleCut => (&[b"\xe2\x80\xa6"], &[]),
+        Word::PublicProjects => (&[b"Public projects"], &[]),
+        Word::PublicProject => (&[b"Project ", b""], &[Name]),
+        Word::PublicGoal => (&[b"Goal ", b""], &[Name]),
+        Word::PublicTask => (&[b"task ", b""], &[Name]),
+        Word::PublicAgent => (&[b"an agent"], &[]),
+        Word::PublicProcedure => (&[b"a procedure"], &[]),
+        Word::PublicPerson => (&[b"a person"], &[]),
+        Word::PublicJob => (&[b"a job"], &[]),
+        Word::PublicReading => (&[b"Reading\xe2\x80\xa6"], &[]),
+        Word::PublicUnknown => (&[b"Not public, or not here."], &[]),
+        Word::PublicUnavailable => (&[b"Not available just now."], &[]),
+        Word::ReadPublic => (&[b"Read public projects"], &[]),
+        Word::PublicFor => (&[b"for ", b""], &[Name]),
+        Word::PublicChange => (&[b"its change on the forge"], &[]),
+        Word::PublicLandings => (&[b"Landings"], &[]),
+        Word::PublicTurn => (&[b"Holds the turn"], &[]),
+        Word::PublicQueue => (&[b"Queue"], &[]),
+        Word::PublicReadySince => (&[b"Ready ", b""], &[Name]),
+        Word::PublicEnded => (&[b"ended"], &[]),
+        Word::PublicDone => (&[b"done"], &[]),
+        Word::PublicFailed => (&[b"failed"], &[]),
+        Word::PublicCancelled => (&[b"cancelled"], &[]),
+        Word::PublicFolded => (&[b"", b" lines folded"], &[Number]),
+        Word::PublicStaleProofs => (&[b"", b" stale proofs"], &[Number]),
         Word::Projects => (&[b"Projects"], &[]),
         Word::PlaygroundLeaving => (&[b"Leaving the playground\xe2\x80\xa6"], &[]),
         Word::ForgeRemove => (&[b"Remove"], &[]),

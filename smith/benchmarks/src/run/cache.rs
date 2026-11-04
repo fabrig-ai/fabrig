@@ -1,7 +1,6 @@
 //! Cache metadata comes from the selected adapter's settled observations.
 //! No cache counts are inferred from terminal codes or cumulative token totals.
 
-use crate::agent::Observing;
 use crate::process::ProcessResult;
 use crate::{CacheObservation, EventCheck, Measure, Task};
 
@@ -52,17 +51,8 @@ pub(super) fn observation(process: &ProcessResult, task: &Task) -> Option<Measur
         | EventCheck::NoRun
         | EventCheck::NoRequest => None,
     })?;
-    Some(match process.observing.as_deref() {
-        Some(Observing::Smith(value)) => value.events().cache_reuse(threshold, miss_limit),
-        Some(Observing::Codex(value)) => value.collected.as_ref().map_or_else(
-            || Measure::unavailable("named Codex rollout collection is absent"),
-            |rollouts| {
-                value.observer.thread().map_or_else(
-                    || Measure::unavailable("Codex root thread is absent"),
-                    |root| rollouts.cache_reuse(root, threshold, miss_limit),
-                )
-            },
-        ),
-        None => Measure::unavailable("cache probe requires its selected adapter"),
-    })
+    Some(process.observing.as_deref().map_or_else(
+        || Measure::unavailable("cache probe requires its selected adapter"),
+        |observing| observing.cache_reuse(threshold, miss_limit),
+    ))
 }

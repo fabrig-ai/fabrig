@@ -255,3 +255,149 @@ fn snapshot_chunks_share_framing_across_rows() {
     assert_eq!(crate::snapshot::chunk(&rows, 36).expect("two rows share twelve framing bytes").len(), 36);
     assert_eq!(crate::snapshot::chunk(&rows, 35), None);
 }
+
+#[test]
+fn snapshot_bound_follows_the_live_map_between_floor_and_ceiling() {
+    let mut limits = limits();
+    limits.snapshot_after = 1_000_000;
+    assert_eq!(crate::SNAPSHOT_FLOOR, 65_536);
+    assert_eq!(crate::SNAPSHOT_MULTIPLE, 2);
+    assert_eq!(limits.snapshot_bound(0), crate::SNAPSHOT_FLOOR);
+    assert_eq!(limits.snapshot_bound(40_000), 80_000);
+    assert_eq!(limits.snapshot_bound(u64::MAX), limits.snapshot_after);
+    limits.snapshot_after = u64::MAX;
+    assert_eq!(limits.snapshot_bound(u64::MAX), u64::MAX);
+    limits.snapshot_after = 1024;
+    assert_eq!(limits.snapshot_bound(0), 1024);
+    assert_eq!(limits.snapshot_bound(40_000), 1024);
+}
+
+#[test]
+fn the_map_keeps_its_encoded_size_through_puts_overwrites_and_erases() {
+    let limits = limits();
+    let mut map = crate::map::KvMap::new(&limits);
+    let mut model = alloc::collections::BTreeMap::new();
+    assert_eq!(map.live(), 0);
+    for ops in [
+        vec![put(b"a", b"one"), put(b"bb", b"two")],
+        vec![put(b"a", b"a longer value")],
+        vec![put(b"bb", b"x")],
+        vec![Op::Erase { key: Box::from(&b"a"[..]) }],
+        vec![put(b"c", b"temporary"), Op::Erase { key: Box::from(&b"c"[..]) }],
+        vec![put(b"bb", b"temporary"), Op::Erase { key: Box::from(&b"bb"[..]) }],
+    ] {
+        let used = map.check(&ops, &limits).expect("the batch fits");
+        map.apply(&ops, used);
+        for op in ops {
+            match op {
+                Op::Put { key, value } => {
+                    model.insert(key, value);
+                }
+                Op::Erase { key } => {
+                    model.remove(&key);
+                }
+            }
+        }
+        let expected: u64 = model
+            .iter()
+            .map(|(key, value)| {
+                8_u64
+                    .checked_add(skein_lib::len_u64(key.len()))
+                    .and_then(|size| size.checked_add(skein_lib::len_u64(value.len())))
+                    .expect("small row")
+            })
+            .sum();
+        assert_eq!(map.live(), expected);
+        assert_eq!(usize::try_from(map.len()).expect("small map"), model.len());
+        for (key, value) in &model {
+            assert_eq!(map.get(key), Some(value.as_ref()));
+        }
+    }
+}
+
+#[test]
+fn queued_admission_matches_concatenated_ops_after_refusals() {
+    use crate::map::{ENTRY, KvMap, Queued};
+    use skein_lib::Rng;
+
+    const SEED: u64 = 0x8b7c_1432_6ead_095f;
+    const COMMITS: u32 = 512;
+    const KEYS: u64 = 8;
+    const VALUE: u64 = 8;
+    // Room for three maximum-size rows, out of the eight possible keys.
+    const BUDGET: u64 = 3 * (ENTRY + 1 + VALUE);
+    // Apply the projection while more commits can arrive, then periodically drain it.
+    const APPLY_EVERY: u32 = 7;
+    const DRAIN_EVERY: u32 = 32;
+
+    let mut limits = limits();
+    limits.key = 1;
+    limits.value = u32::try_from(VALUE).expect("small value limit");
+    limits.budget = BUDGET;
+    let mut rng = Rng::new(SEED);
+    let mut map = KvMap::new(&limits);
+    let initial = [put(&[0], b"seed"), put(&[1], b"map")];
+    let used = map.check(&initial, &limits).expect("initial rows fit");
+    map.apply(&initial, used);
+    let mut admitted = Queued::new();
+    let mut accepted = vec![];
+    let mut full = 0_u32;
+    let mut too_large = 0_u32;
+    let mut successes = 0_u32;
+
+    for step in 0..COMMITS {
+        let mut ops = vec![];
+        for _ in 0..rng.between(0, u64::from(limits.ops)) {
+            let byte = u8::try_from(rng.below(KEYS)).expect("small key set");
+            let key = if rng.chance(50) { vec![byte, byte] } else { vec![byte] };
+            let op = if rng.chance(350) {
+                Op::Erase { key: key.into_boxed_slice() }
+            } else {
+                let len = usize::try_from(rng.between(0, VALUE + 1)).expect("small value");
+                put(&key, &vec![byte; len])
+            };
+            ops.push(op);
+        }
+        let mut concatenated = accepted.clone();
+        concatenated.extend_from_slice(&ops);
+        let expected = map.check(&concatenated, &limits).map(|_| ());
+        assert_eq!(admitted.admit(&map, &ops, &limits), expected, "seed {SEED:#x}, commit {step}");
+        match expected {
+            Ok(()) => {
+                successes += 1;
+                accepted = concatenated;
+            }
+            Err(refusal) => {
+                match refusal {
+                    crate::Refusal::Full => full += 1,
+                    crate::Refusal::TooLarge => too_large += 1,
+                    crate::Refusal::Busy | crate::Refusal::Unavailable => panic!("map admission refusal"),
+                }
+                // Rebuild the state before the refusal and compare the next admission.
+                let mut unchanged = Queued::new();
+                unchanged.admit(&map, &accepted, &limits).expect("accepted projection fits");
+                let key = [u8::try_from(rng.below(KEYS)).expect("small key set")];
+                let probe = [put(&key, b"next")];
+                let mut concatenated = accepted.clone();
+                concatenated.extend_from_slice(&probe);
+                let expected = map.check(&concatenated, &limits).map(|_| ());
+                assert_eq!(unchanged.admit(&map, &probe, &limits), expected, "reference probe at {step}");
+                assert_eq!(admitted.admit(&map, &probe, &limits), expected, "refusal changed next answer at {step}");
+                if expected.is_ok() {
+                    accepted = concatenated;
+                }
+            }
+        }
+        if step % APPLY_EVERY == 0 || step % DRAIN_EVERY == 0 {
+            let used = map.check(&accepted, &limits).expect("admitted ops fit");
+            map.apply(&accepted, used);
+        }
+        if step % DRAIN_EVERY == 0 {
+            admitted.clear();
+            accepted.clear();
+        }
+    }
+    assert!(successes > 0, "seed exercises acceptance");
+    assert!(full > 0, "seed exercises the map budget");
+    assert!(too_large > 0, "seed exercises key and value limits");
+}

@@ -571,7 +571,7 @@ fn goal_holds_branch() -> (super::Domain, skein_lib::Env<super::Limits>) {
         &[super::GOAL_BRANCH_SYMBOL],
     )
     .expect("goal holding");
-    let task_env = skein_lib::Env { now: env.now, wall: env.wall, limits: env.limits.tasks };
+    let task_env = env.with(env.limits.tasks);
     let mut out = skein_lib::Queue::uncapped();
     tasks::step(
         &mut domain.core.tasks,
@@ -602,7 +602,7 @@ fn make_goal_task(
     let mut out = skein_lib::Queue::uncapped();
     tasks::step(
         &mut domain.core.tasks,
-        &skein_lib::Env { now: env.now, wall: env.wall, limits: env.limits.tasks },
+        &env.with(env.limits.tasks),
         tasks::Event::Make {
             reply_to: skein_lib::ReplyTo::new(skein_lib::Token::new(number)),
             creator,
@@ -807,7 +807,7 @@ fn two_forges() -> (super::Domain, skein_lib::Env<super::Limits>) {
     for number in [1, 3] {
         forge::step(
             &mut domain.forge,
-            &skein_lib::Env { now: env.now, wall: env.wall, limits: env.limits.forge },
+            &env.with(env.limits.forge),
             forge::Event::Restore {
                 record: forge::Stored::Forge(forge::ForgeRecord {
                     git_program: None,
@@ -834,7 +834,7 @@ fn two_forges() -> (super::Domain, skein_lib::Env<super::Limits>) {
         );
         forge::step(
             &mut domain.forge,
-            &skein_lib::Env { now: env.now, wall: env.wall, limits: env.limits.forge },
+            &env.with(env.limits.forge),
             forge::Event::Restore { record: forge::Stored::Repository(adopted(number)) },
             &mut out,
         );
@@ -846,7 +846,7 @@ fn two_forges() -> (super::Domain, skein_lib::Env<super::Limits>) {
 fn pushed_heads_route_only_to_their_own_forges_hold() {
     use super::{Work, forge};
     let (mut domain, env) = two_forges();
-    let forge_env = skein_lib::Env { now: env.now, wall: env.wall, limits: env.limits.forge };
+    let forge_env = env.with(env.limits.forge);
     let mut out = skein_lib::Queue::uncapped();
     for number in [1, 3] {
         let name = forge::Name {
@@ -911,7 +911,7 @@ fn a_goals_failed_reread_routes_a_resource_hold_with_its_cause() {
     domain.forge.restore_begin(env.wall);
     forge::step(
         &mut domain.forge,
-        &skein_lib::Env { now: env.now, wall: env.wall, limits: env.limits.forge },
+        &env.with(env.limits.forge),
         forge::Event::Restore { record: forge::Stored::Repository(adopted(1)) },
         &mut out,
     );
@@ -928,12 +928,7 @@ fn a_goals_failed_reread_routes_a_resource_hold_with_its_cause() {
     let Some(Work::Tasks(event @ tasks::Event::HoldFrom { .. })) = domain.work.pop() else {
         panic!("reread failure holds the goal");
     };
-    tasks::step(
-        &mut domain.core.tasks,
-        &skein_lib::Env { now: env.now, wall: env.wall, limits: env.limits.tasks },
-        event,
-        &mut skein_lib::Queue::uncapped(),
-    );
+    tasks::step(&mut domain.core.tasks, &env.with(env.limits.tasks), event, &mut skein_lib::Queue::uncapped());
     let tasks::Phase::Held { why, source: Some(source), .. } = &domain.core.tasks.task(task).unwrap().phase else {
         panic!("resource holds apply to agent tasks");
     };
@@ -966,7 +961,7 @@ fn writable_repositories_exclude_context_and_missing_push() {
     for repository in [context, read_only] {
         forge::step(
             &mut domain.forge,
-            &skein_lib::Env { now: env.now, wall: env.wall, limits: env.limits.forge },
+            &env.with(env.limits.forge),
             forge::Event::Restore { record: forge::Stored::Repository(repository) },
             &mut out,
         );
@@ -984,7 +979,7 @@ fn writable_repositories_exclude_an_ended_forge() {
     let mut out = skein_lib::Queue::uncapped();
     forge::step(
         &mut domain.forge,
-        &skein_lib::Env { now: env.now, wall: env.wall, limits: env.limits.forge },
+        &env.with(env.limits.forge),
         forge::Event::Restore { record: forge::Stored::Forge(record) },
         &mut out,
     );
@@ -1157,7 +1152,7 @@ fn a_ci_repair_keeps_its_failed_step_and_log_end_before_pull_contents_and_option
 fn a_github_repair_prepares_when_the_ci_ceiling_fills_the_brief() {
     use crate::boundary::{ForgeBriefKind, Work};
     use jig_domain_brief::{Core, GatherDomain, GatherEvent, GatherRequest, Planned, gather_step};
-    use skein_lib::{Env, Id, List, Queue};
+    use skein_lib::{Id, List, Queue};
     let (mut domain, mut env) = two_forges();
     domain.limits.brief.sections = 3;
     domain.limits.brief.read_bytes = 512;
@@ -1186,7 +1181,7 @@ fn a_github_repair_prepares_when_the_ci_ceiling_fills_the_brief() {
         .unwrap();
     crate::assemble::finish_brief_plan(&mut domain, &env, 8, Some(7), wanted, Box::new([]));
     let limits = crate::limits::brief_limits(&env.limits.brief);
-    let gather_env = Env { now: env.now, wall: env.wall, limits };
+    let gather_env = env.with(limits);
     let mut gather = GatherDomain::new(&limits);
     let mut out = Queue::uncapped();
     while let Some(work) = domain.work.pop() {
@@ -1224,7 +1219,7 @@ fn a_changes_saved_pull_replaces_its_base_watch_within_two_names() {
     use super::{Decision, Work, forge};
     let (mut domain, mut env) = two_forges();
     env.limits.forge.resources_per_task = 2;
-    let forge_env = skein_lib::Env { now: env.now, wall: env.wall, limits: env.limits.forge };
+    let forge_env = env.with(env.limits.forge);
     let mut out = skein_lib::Queue::uncapped();
     forge::step(
         &mut domain.forge,
@@ -1269,7 +1264,7 @@ fn a_restored_changes_wake_names_its_known_pull_again() {
     use super::{Decision, Work, forge};
     let (mut domain, mut env) = two_forges();
     env.limits.forge.resources_per_task = 2;
-    let forge_env = skein_lib::Env { now: env.now, wall: env.wall, limits: env.limits.forge };
+    let forge_env = env.with(env.limits.forge);
     let mut out = skein_lib::Queue::uncapped();
     // An old store, or a restart between saving the pull and saving its names.
     for record in
@@ -1319,7 +1314,7 @@ fn restored_change(
     use super::forge;
     let (mut domain, mut env) = two_forges();
     env.limits.forge.resources_per_task = 2;
-    let forge_env = skein_lib::Env { now: env.now, wall: env.wall, limits: env.limits.forge };
+    let forge_env = env.with(env.limits.forge);
     let mut out = skein_lib::Queue::uncapped();
     for record in records {
         forge::step(&mut domain.forge, &forge_env, forge::Event::Restore { record }, &mut out);
@@ -1358,7 +1353,7 @@ fn a_change_unnamed_after_its_pull_swap_was_queued_stays_unnamed() {
         forge::Stored::Change(change_row(Some(23))),
         forge::Stored::Names { task: 7, resources: change_names(None) },
     ]);
-    let forge_env = skein_lib::Env { now: env.now, wall: env.wall, limits: env.limits.forge };
+    let forge_env = env.with(env.limits.forge);
     out.push(forge::Request::WakeProcedure { task: 7 });
     let mut decision = Decision::decide(&mut domain.journal, &env.limits.journal);
     super::outputs(&mut domain, &env, &mut decision, &mut out);
@@ -2683,7 +2678,7 @@ fn change_choice_world() -> (super::Domain, skein_lib::Env<super::Limits>, super
     repository.project = 1;
     forge::step(
         &mut domain.forge,
-        &skein_lib::Env { now: env.now, wall: env.wall, limits: env.limits.forge },
+        &env.with(env.limits.forge),
         forge::Event::Restore { record: forge::Stored::Repository(repository) },
         &mut out,
     );
@@ -2892,7 +2887,7 @@ fn change_start_fixture() -> (super::Domain, skein_lib::Env<super::Limits>, Box<
     domain.forge.restore_begin(env.wall);
     forge::step(
         &mut domain.forge,
-        &skein_lib::Env { now: env.now, wall: env.wall, limits: env.limits.forge },
+        &env.with(env.limits.forge),
         forge::Event::Restore { record: forge::Stored::Repository(repository) },
         &mut skein_lib::Queue::uncapped(),
     );
@@ -2934,12 +2929,7 @@ fn a_changes_start_keeps_parameter_elevens_charter_and_role_choices() {
         let Some(Work::Forge(event @ forge::Event::Change { .. })) = domain.work.pop() else {
             panic!("new change row")
         };
-        forge::step(
-            &mut domain.forge,
-            &skein_lib::Env { now: env.now, wall: env.wall, limits: env.limits.forge },
-            event,
-            &mut skein_lib::Queue::uncapped(),
-        );
+        forge::step(&mut domain.forge, &env.with(env.limits.forge), event, &mut skein_lib::Queue::uncapped());
         let row = domain.forge.change(context.task).unwrap();
         assert_eq!(row.producing_charter, producer);
         assert_eq!(row.review_charter, 4);
@@ -3056,7 +3046,7 @@ fn a_changes_spending_floors_use_its_saved_charters() {
         let expected = jig_domain_core::reserve_floor(&domain.core.charter(1).unwrap().policy).unwrap();
         forge::step(
             &mut domain.forge,
-            &skein_lib::Env { now: env.now, wall: env.wall, limits: env.limits.forge },
+            &env.with(env.limits.forge),
             forge::Event::Change { row },
             &mut skein_lib::Queue::uncapped(),
         );
@@ -3194,7 +3184,7 @@ fn a_resolution_preserves_both_sides_within_a_small_spec() {
 )]
 fn pending_dependencies_distinguish_changes_elsewhere_and_other_tasks() {
     use super::{forge, forge_change as change, tasks};
-    use skein_lib::{Env, Queue};
+    use skein_lib::Queue;
     let (fixture, _, task) = crate::tests::live_task(None, tasks::Executor::Procedure { connector: 0, code: 2 });
     let template = fixture.core.tasks.task(task).unwrap().clone();
     for (registered, repository, base, executor, head, kept, expected) in [
@@ -3263,7 +3253,7 @@ fn pending_dependencies_distinguish_changes_elsewhere_and_other_tasks() {
         upstream.number = 8;
         upstream.executor = executor;
         upstream.waiting_on = if kept { Box::new([9]) } else { Box::new([]) };
-        let task_env = Env { now: env.now, wall: env.wall, limits: env.limits.tasks };
+        let task_env = env.with(env.limits.tasks);
         for row in [row, upstream] {
             tasks::step(
                 &mut domain.core.tasks,

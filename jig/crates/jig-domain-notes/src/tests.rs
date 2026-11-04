@@ -360,12 +360,16 @@ fn a_project_drop_retries_busy_loads_and_answers_only_after_an_empty_page() {
     assert_ne!(*owner, first_owner, "retry has a fresh load token");
     assert!(h.step(Event::LoadFailed { owner: first_owner }).is_empty(), "stale failure is ignored");
     let next = h.step(Event::Loaded { owner: *owner, rows: rows(&[Record::Line(line(7, 20, b"note"))]), more: false });
-    let [Request::Erase { key }, Request::Load { owner, range: Range::Project { project: 7, after: Some(after) } }] =
-        &*next
+    let [
+        Request::Erase { key },
+        Request::Erase { key: entry },
+        Request::Load { owner, range: Range::Project { project: 7, after: Some(after) } },
+    ] = &*next
     else {
         panic!("erase and next page: {next:?}");
     };
     assert_eq!(key, &crate::Key::Line { scope: Scope::Project { project: 7 }, name: 20 });
+    assert_eq!(entry, &crate::Key::Entry { name: 20 });
     assert_eq!(key, after);
     let retry = h.step(Event::LoadFailed { owner: *owner });
     let [Request::Load { owner, range: Range::Project { project: 7, after: Some(cursor) } }] = &*retry else {

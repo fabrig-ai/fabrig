@@ -100,6 +100,7 @@ pub enum Role {
     Shell,
     Provider,
     Forge,
+    Visitor,
     Other,
 }
 
@@ -110,9 +111,15 @@ pub struct Parameters {
     pub seed: u64,
     pub links: Links,
     pub forge: temper_fake_git::Typed,
+    pub route: Option<skein_fake_forge_protocol::Limits>,
     pub disk: Rc<RefCell<skein_fake_machine::Machine>>,
 }
 thread_local! { static PARAMETERS: RefCell<Option<Parameters>> = const { RefCell::new(None) }; }
+/// Install factory parameters for the worker's one world, with no end.
+pub fn install(parameters: Parameters) {
+    PARAMETERS.with(|at| *at.borrow_mut() = Some(parameters));
+}
+
 /// Scope factory parameters around construction or steps; restore them even on unwind.
 pub fn with<R>(parameters: Parameters, run: impl FnOnce() -> R) -> R {
     struct Reset(Option<Parameters>);
@@ -139,6 +146,7 @@ pub enum Process<H: Harness> {
     Shell(Box<Shell>),
     Peer(Box<SignalHost<skein_fake_peers::llm::Peer>>),
     Forge(Box<SignalHost<skein_fake_peers::forge::Peer>>),
+    Visitor(Box<skein_playground::visitor::Visitor>),
     Other(H::Process),
 }
 impl<H: Harness> Process<H> {
@@ -151,6 +159,7 @@ impl<H: Harness> Process<H> {
             Self::Shell(h) => h.as_ref(),
             Self::Peer(h) => h.as_ref(),
             Self::Forge(h) => h.as_ref(),
+            Self::Visitor(h) => h.as_ref(),
             Self::Other(h) => h,
         }
     }
@@ -163,6 +172,7 @@ impl<H: Harness> Process<H> {
             Self::Shell(h) => h.as_mut(),
             Self::Peer(h) => h.as_mut(),
             Self::Forge(h) => h.as_mut(),
+            Self::Visitor(h) => h.as_mut(),
             Self::Other(h) => h,
         }
     }
@@ -174,6 +184,7 @@ impl<H: Harness> Process<H> {
             Self::Shell(_) => Role::Shell,
             Self::Peer(_) => Role::Provider,
             Self::Forge(_) => Role::Forge,
+            Self::Visitor(_) => Role::Visitor,
             Self::Other(_) => Role::Other,
         }
     }
@@ -289,11 +300,12 @@ pub fn agent<H: Harness>(_spawn: &Spawn, inherited: &Inherited) -> Process<H> {
 #[must_use]
 pub fn git<H: Harness>(spawn: &Spawn, inherited: &Inherited) -> Process<H> {
     H::spawned(Role::Git, inherited, b"worker");
-    if H::github() {
+    let route = if H::github() { Some(H::git_limits()) } else { parameters().route };
+    if let Some(limits) = route {
         Process::GitRoute(Box::new(temper_fake_git::Git::new(
             spawn,
             temper_fake_git_hosted::start(inherited),
-            temper_fake_git::Route::new(H::git_limits()),
+            temper_fake_git::Route::new(limits),
         )))
     } else {
         Process::Git(Box::new(temper_fake_git_hosted::git(spawn, inherited, parameters().forge)))
@@ -361,3 +373,7 @@ pub fn programs<H: Harness>() -> Vec<(HostedProgram<Process<H>>, StartupRoots)> 
         ),
     ]
 }
+
+#[cfg(test)]
+#[path = "tests/programs.rs"]
+mod tests;

@@ -9,11 +9,11 @@ fixture and removes its instance and scratch directory when it ends.
 Both modes, ordinary and component, record into one output:
 
 ```sh
-heavy cargo run -p forgejo-conformance -- \
+cargo run -p forgejo-conformance -- \
   --forgejo <absolute path to the pinned Forgejo> \
   --runner <absolute path to the pinned runner> \
   --scratch target/forgejo-conformance/ordinary --out target/conformance-recording
-heavy cargo run -p forgejo-conformance -- \
+cargo run -p forgejo-conformance -- \
   --forgejo <absolute path to the pinned Forgejo> \
   --runner <absolute path to the pinned runner> \
   --scratch target/forgejo-conformance/component --out target/conformance-recording --component
@@ -74,7 +74,7 @@ recording refuses it when the flag is absent.
 403 refusals on a fresh loopback instance, without Actions or deliveries:
 
 ```sh
-heavy cargo run -p forgejo-conformance -- --admin-scopes \
+cargo run -p forgejo-conformance -- --admin-scopes \
   --forgejo <absolute path to Forgejo 17.0.0> \
   --scratch target/admin-scopes --out <output directory>
 ```
@@ -87,7 +87,7 @@ normal setup group records these cases too.
 README initialization, Actions' default, repeated creation and raw reads:
 
 ```sh
-heavy cargo run -p forgejo-conformance -- --create-repository \
+cargo run -p forgejo-conformance -- --create-repository \
   --forgejo <absolute path to Forgejo 17.0.0> \
   --scratch target/create-repository --out <output directory>
 ```

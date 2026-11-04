@@ -2235,8 +2235,8 @@ fn confirming_stop(root: &mut Domain) -> skein_lib::Token {
         &mut out,
     );
     while let Some(request) = out.pop() {
-        if let temper_client_domain::Request::Client {
-            request: jig_client::Request::Down { down: jig_client::Down::Send { attempt, .. } },
+        if let temper_client_domain::Request::Unlinked {
+            request: jig_client::UnlinkedRequest::Down { down: jig_client::Down::Send { attempt, .. } },
         } = request
         {
             return attempt;
@@ -2315,8 +2315,8 @@ fn send_amendment(root: &mut Domain) -> skein_lib::Token {
     );
     let mut attempt = None;
     while let Some(request) = out.pop() {
-        if let temper_client_domain::Request::Client {
-            request: jig_client::Request::Down { down: jig_client::Down::Send { attempt: token, .. } },
+        if let temper_client_domain::Request::Unlinked {
+            request: jig_client::UnlinkedRequest::Down { down: jig_client::Down::Send { attempt: token, .. } },
         } = request
         {
             attempt = Some(token);
@@ -2969,8 +2969,8 @@ fn end_task_read(root: &mut Domain, watch: skein_lib::Token, result: jig_client:
     );
     let mut token = None;
     while let Some(request) = out.pop() {
-        if let temper_client_domain::Request::Client {
-            request: jig_client::Request::Down { down: Down::Read { read, what } },
+        if let temper_client_domain::Request::Unlinked {
+            request: jig_client::UnlinkedRequest::Down { down: Down::Read { read, what } },
         } = request
             && what == Readable::Jig(c::Read::Task { task: TASK })
         {

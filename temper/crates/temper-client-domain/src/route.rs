@@ -4,7 +4,7 @@ use crate::{Action, Address, Domain, Event, Fact, Limits, Place, Request, forge,
 use skein_lib::{Env, Queue};
 pub(crate) fn forge(root: &mut Domain, env: &Env<Limits>, event: forge::Event, out: &mut Queue<Request>) {
     let mut child = Queue::uncapped();
-    forge::step(&mut root.forge, &Env { now: env.now, wall: env.wall, limits: env.limits.forge }, event, &mut child);
+    forge::step(&mut root.forge, &env.with(env.limits.forge), event, &mut child);
     route_forge(root, env, &mut child, out);
 }
 pub(crate) fn event(root: &mut Domain, env: &Env<Limits>, event: Event, out: &mut Queue<Request>) {
@@ -56,7 +56,7 @@ fn went(root: &mut Domain, env: &Env<Limits>, place: Place, out: &mut Queue<Requ
                 forge(root, env, forge::Event::Left, out);
             }
         }
-        Place::Authorize { .. } | Place::AuthorizeMalformed | Place::Missing => {
+        Place::Authorize { .. } | Place::AuthorizeMalformed | Place::Missing | Place::Public(_) => {
             pages(root, env, crate::pages::Event::Left, out);
             forge(root, env, forge::Event::Left, out);
         }
@@ -206,8 +206,14 @@ pub(crate) fn route_forge(
 }
 pub(crate) fn client(root: &mut Domain, env: &Env<Limits>, event: jig_client::Event, out: &mut Queue<Request>) {
     let mut child = Queue::uncapped();
-    root.client.step(env.now, env.wall, event, &mut child);
-    route_client(root, env, &mut child, out);
+    if root.unlinked {
+        root.client.step_unlinked(env.now, env.wall, event, &mut child);
+        route_unlinked(root, env, &mut child, out);
+    } else {
+        let mut child = Queue::uncapped();
+        root.client.step(env.now, env.wall, event, &mut child);
+        route_client(root, env, &mut child, out);
+    }
 }
 pub(crate) fn route_client(
     root: &mut Domain,
@@ -224,9 +230,24 @@ pub(crate) fn route_client(
             | jig_client::Request::Exchange { .. }
             | jig_client::Request::OpenStream { .. }
             | jig_client::Request::CloseStream
-            | jig_client::Request::Down { .. }
-            | jig_client::Request::ServiceCredential { .. }
-            | jig_client::Request::SignOut) => out.push(Request::Client { request }),
+            | jig_client::Request::ServiceCredential { .. }) => out.push(Request::Client { request }),
+        }
+    }
+    forge_served(root, env, out);
+}
+pub(crate) fn route_unlinked(
+    root: &mut Domain,
+    env: &Env<Limits>,
+    child: &mut Queue<jig_client::UnlinkedRequest>,
+    out: &mut Queue<Request>,
+) {
+    while let Some(request) = child.pop() {
+        match request {
+            jig_client::UnlinkedRequest::Told { told: value } => told(root, env, value, out),
+            jig_client::UnlinkedRequest::Authorized(answer) => crate::authorize::answered(root, answer, out),
+            request @ (jig_client::UnlinkedRequest::Down { .. } | jig_client::UnlinkedRequest::SignOut) => {
+                out.push(Request::Unlinked { request });
+            }
         }
     }
     forge_served(root, env, out);

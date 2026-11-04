@@ -255,9 +255,7 @@ pub(crate) fn adopt(d: &mut Domain, env: &Env<Limits>, reply_to: Token, out: &mu
         adopted(d, out, reply_to, Err(api::Error::Refused));
         return;
     }
-    if request.checks.len() > usize::try_from(env.limits.change_policy.gates).expect("u32 fits usize")
-        || request.checks.contains(&0)
-    {
+    if request.checks.len() > skein_lib::usize_of(env.limits.change_policy.gates) || request.checks.contains(&0) {
         adopted(d, out, reply_to, Err(api::Error::TooLarge));
         return;
     }
@@ -508,7 +506,7 @@ fn finish_adoption(d: &mut Domain, owner: Token, pending: PendingAdoption, out: 
 }
 
 fn invalid_fields(request: &Adoption, limits: &Limits) -> bool {
-    let bound = usize::try_from(limits.name_bytes).expect("u32 fits usize");
+    let bound = skein_lib::usize_of(limits.name_bytes);
     for field in [&request.host, &request.owner, &request.name, &request.landing, &request.prefix] {
         if field.is_empty() || field.len() > bound {
             return true;
@@ -526,7 +524,7 @@ fn invalid_fields(request: &Adoption, limits: &Limits) -> bool {
     if segments > u64::from(limits.authority_segments) {
         return true;
     }
-    request.checks.len() > usize::try_from(limits.change_policy.gates).expect("u32 fits usize")
+    request.checks.len() > skein_lib::usize_of(limits.change_policy.gates)
 }
 
 fn locate_refused(d: &mut Domain, env: &Env<Limits>, request: Token, why: AdoptionRefusal, out: &mut Queue<Request>) {

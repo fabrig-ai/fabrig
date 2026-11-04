@@ -60,7 +60,6 @@ debt it says what a reviewer checks.
 
 | ID | title | kind | value | size | status |
 |---|---|---|---|---|---|
-| [D001](D001-json-whole-buffer-reads.md) | Whole-buffer JSON reads are hand-driven, with no slice-fed driver | primitives | high | M | open |
 | [D002](D002-index-and-length-widening.md) | Index and length conversions are written by hand beside lib's helpers | primitives | medium | M | open |
 | [D003](D003-env-rewraps.md) | `Env` is rebuilt by hand where `Env::with` does it | primitives | medium | S | open |
 | [D004](D004-utf8-checks.md) | UTF-8 is checked by a hand loop in codec and by `from_utf8` under expects | duplication | low | S | open |
@@ -76,14 +75,12 @@ debt it says what a reviewer checks.
 | [D014](D014-forge-setup-vocabulary.md) | forge-setup's shared vocabulary lives in Forgejo's reconcile, and `Reply` mixes dialects | coupling | medium | M | open |
 | [D015](D015-flat-forge-enums.md) | Flat forge request, answer and node enums are re-matched in every module | complexity | medium | L | open |
 | [D016](D016-transport-four-copies.md) | The socket, TLS and HTTP transport is written four times | primitives | high | M | open |
-| [D017](D017-kv-store-states.md) | skein-kv's store keeps its lifecycle in flags, with the subset switched off | complexity | high | M | open |
 | [D018](D018-io-pipe-and-file-states.md) | io's pipe, signals and file machines keep state in flags and literals | complexity | medium | M | open |
 | [D019](D019-channel-machine-flags.md) | The channel machine keeps its lifecycle in eleven bools | complexity | medium | S | open |
 | [D020](D020-forge-connection-states.md) | forge-connection's connections keep their state in flags beside a thin tag | complexity | medium | M | open |
 | [D021](D021-forgejo-plan-states.md) | Forgejo's plans keep a `Stage` beside bags of fields, and measure answers twice | complexity | medium | M | open |
 | [D022](D022-oauth-states.md) | The oauth client and accounts keep lifecycles in flags and parallel lists | complexity | medium | M | open |
 | [D023](D023-llm-client-states.md) | skein-llm's client and llm-connection's call use data-less states | complexity | medium | M | open |
-| [D024](D024-echo-template-flags.md) | The echo example, the template applications copy, keeps its stop in flags | complexity | high | S | open |
 | [D025](D025-request-table-in-lib.md) | lib's `RequestTable` is a component with one consumer | coupling | low | S | open |
 | [D026](D026-crate-tests-directories.md) | Three crates keep a `tests/` directory under `crates/` | tests | medium | S | open |
 | [D027](D027-step-test-layouts.md) | Step tests follow several layouts, some through `#[path]` | tests | low | M | open |
@@ -105,6 +102,5 @@ debt it says what a reviewer checks.
 | [D043](D043-browser-kit-json-and-tables.md) | The browser kit keeps its own JSON decoder and `Vec` tables | primitives | low | M | open |
 | [D044](D044-io-token-tags.md) | Hand bit tags work around io's and FileIo's colliding operation tokens | other | medium | S | open |
 | [D045](D045-shell-keeper-syscalls.md) | skein-shell's public API carries the harness's syscalls | coupling | low | S | open |
-| [D046](D046-ui-limits-and-accounting.md) | skein-ui offers no `Limits` constructor and hides its node accounting | primitives | medium | S | open |
 | [D047](D047-role-sets-as-slices.md) | Role sets are written as slice `contains` checks | primitives | low | S | open |
 | [D048](D048-oauth-accounts-world-copies.md) | The oauth-accounts world doubles its owner harness and switches on stories | tests | low | M | open |

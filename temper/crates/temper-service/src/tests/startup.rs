@@ -721,14 +721,14 @@ fn a_setup_or_box_override_is_handed_on_with_its_value() {
     for (override_value, repositories) in [("", 2_u64), (",\"forge.client.repositories\":3", 3)] {
         let input = core::str::from_utf8(fixtures::APPLICATION).unwrap().replace(
             "\"overrides\":{}",
-            &["\"overrides\":{\"setup.orgs\":2,\"box.steps\":3", override_value, "}"].concat(),
+            &["\"overrides\":{\"setup.backoff_ms\":2,\"box.steps\":3", override_value, "}"].concat(),
         );
         let (members, problems) = application(input.as_bytes(), &fixtures::engine().jig);
         assert_eq!(&*lines(&problems), b"");
         assert_eq!(
             members.unwrap().overrides.as_ref(),
             &[
-                (b"setup.orgs".as_slice().into(), 2),
+                (b"setup.backoff_ms".as_slice().into(), 2),
                 (b"box.steps".as_slice().into(), 3),
                 (b"forge.client.repositories".as_slice().into(), repositories),
             ]

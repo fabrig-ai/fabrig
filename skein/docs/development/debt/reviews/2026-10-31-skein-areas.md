@@ -1632,7 +1632,7 @@ Fix: one `check() -> Result<(), EndpointError>`, with `valid = check().is_ok()`.
 
 F11. **Dead or undesigned public API.**
 Evidence:
-- `Component::admit_with_reasoning_drop` (component.rs:175) has no caller anywhere in `~/src/fabrig/main`.
+- `Component::admit_with_reasoning_drop` (component.rs:175) has no caller anywhere in the primary checkout.
 - `Component::admit` (:164) is called only from crate tests and is not in llm-connection.md 4's interface.
 - `provider::head_bound` (fake protocol provider.rs:984) has no caller.
 - `openai::encode_completion` (response.rs:1258) is called only from a crate test.

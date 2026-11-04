@@ -3,8 +3,12 @@
 # Run from the workspace root; replace forge identities with the twin's.
 # The address marker is bound to the kernel-assigned listener by repair::recipe.
 set -eu
-heavy env TEMPER_BUNDLE=none NEXTEST_DOUBLE_SPAWN=0 cargo run -p temper-twin -- \
-  --data "${1:-/home/free/src/rust/tmp/qa-focused/rung-b1-6/data3/deployment}" \
+if [ "$#" -ne 1 ]; then
+  printf '%s\n' 'usage: regenerate.sh DATA_DIRECTORY' >&2
+  exit 2
+fi
+${TEMPER_WRAPPER:+"$TEMPER_WRAPPER"} env TEMPER_BUNDLE=none NEXTEST_DOUBLE_SPAWN=0 cargo run -p temper-twin -- \
+  --data "$1" \
   --base temper/tests/real-loop/tests/fixtures/b1/llm-base.json \
   --out temper/tests/real-loop/tests/fixtures/b1/llm.json \
   --cue '1=## Replying' \

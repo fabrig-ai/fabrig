@@ -38,3 +38,5 @@ mod specification;
 
 mod goal_template;
 mod restore;
+
+mod visibility;

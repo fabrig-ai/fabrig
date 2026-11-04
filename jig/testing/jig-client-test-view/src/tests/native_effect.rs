@@ -49,9 +49,9 @@ fn load(root: &mut Domain, proposal: Proposal) -> Vec<Request> {
     let read = named
         .iter()
         .find_map(|row| match row {
-            Request::Client {
+            Request::Unlinked {
                 request:
-                    jig_client::Request::Down {
+                    jig_client::UnlinkedRequest::Down {
                         down:
                             jig_client::Down::Read {
                                 read,

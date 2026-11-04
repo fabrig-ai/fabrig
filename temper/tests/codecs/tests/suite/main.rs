@@ -14,6 +14,7 @@ mod worker_wire;
 
 mod fuzzy {
     mod client_wire;
+    mod public_wire;
     mod records;
     mod store;
     mod worker_wire;

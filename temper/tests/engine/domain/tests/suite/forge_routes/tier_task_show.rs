@@ -134,21 +134,24 @@ fn answer(world: &mut World, read: reads::Read) -> c::ReadValue {
 
 fn response(world: &mut World, request: root::Request) -> Option<client::Event> {
     Some(match request {
-        root::Request::Client {
+        root::Request::Unlinked {
             request:
-                client::Request::Down {
+                client::UnlinkedRequest::Down {
                     down: client::Down::Open { watch, subject: client::Watchable::Family { record, .. } },
                 },
         } => panel(world, watch, &record),
-        root::Request::Client { request: client::Request::Down { down: client::Down::Open { watch, .. } } } => {
+        root::Request::Unlinked {
+            request: client::UnlinkedRequest::Down { down: client::Down::Open { watch, .. } },
+        } => {
             let value = answer(world, reads::Read::Frame);
             let c::ReadValue::Me(me) = value else { panic!("me") };
             client::Event::Up {
                 up: client::Up::Watched { watch, event: c::WatchEvent::Delivered(c::Delivery::Me(me)) },
             }
         }
-        root::Request::Client {
-            request: client::Request::Down { down: client::Down::Read { read, what: client::Readable::Jig(what) } },
+        root::Request::Unlinked {
+            request:
+                client::UnlinkedRequest::Down { down: client::Down::Read { read, what: client::Readable::Jig(what) } },
         } => client::Event::Up {
             up: client::Up::ReadDone {
                 read,
@@ -157,6 +160,7 @@ fn response(world: &mut World, request: root::Request) -> Option<client::Event> 
         },
 
         root::Request::Client { .. }
+        | root::Request::Unlinked { .. }
         | root::Request::Ready
         | root::Request::Record { .. }
         | root::Request::Kept { .. }

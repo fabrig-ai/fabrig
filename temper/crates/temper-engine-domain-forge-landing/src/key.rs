@@ -106,7 +106,7 @@ fn walk(mut hash: Sha256, ignored: &[Box<[u8]>], candidate: Commit, trees: &[Tre
     // Each expanded directory consumes a distinct prefix of an ignored path.
     let mut budget = u64::from(limits.entries).saturating_add(1);
     for path in ignored {
-        budget = budget.saturating_add(u64::try_from(path.len()).expect("path length fits u64"));
+        budget = budget.saturating_add(skein_lib::len_u64(path.len()));
     }
     for _ in 0..budget {
         let Some((path, item)) = pending.pop_first() else { return finished(hash, &read, trees) };

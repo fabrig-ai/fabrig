@@ -21,10 +21,37 @@ pub struct Start {
 /// An input for the visitor: fetch's duties (ui-web.md, 10).
 #[derive(Clone, Debug, PartialEq, Eq)]
 pub enum Input {
-    Exchange(fetch::Exchange),
+    Exchange(Exchange),
     Abandon { exchange: u32 },
     Stream(StreamDuty),
     ReadOn,
+}
+
+/// An exchange crossing the worker boundary, with owned kept names (skein/docs/design/ui-web.md, 18).
+#[derive(Clone, Debug, PartialEq, Eq)]
+pub struct Exchange {
+    pub id: u32,
+    pub path: Box<[u8]>,
+    pub method: String,
+    pub headers: Vec<(String, String)>,
+    pub body: Box<[u8]>,
+    pub bound: u32,
+    pub cache: fetch::Cache,
+    pub keep: Vec<String>,
+}
+impl From<&fetch::Exchange> for Exchange {
+    fn from(exchange: &fetch::Exchange) -> Self {
+        Self {
+            id: exchange.id,
+            path: exchange.path.clone(),
+            method: exchange.method.clone(),
+            headers: exchange.headers.clone(),
+            body: exchange.body.clone(),
+            bound: exchange.bound,
+            cache: exchange.cache.clone(),
+            keep: exchange.keep.iter().map(|name| (*name).to_owned()).collect(),
+        }
+    }
 }
 
 /// The page's messages.
@@ -248,6 +275,12 @@ impl Writer {
                 self.headers(exchange.headers.iter().map(|(name, value)| (name.as_bytes(), value.as_bytes())));
                 self.bytes(&exchange.body);
                 self.u32(exchange.bound);
+                self.tag(match exchange.cache {
+                    fetch::Cache::Browser => 0,
+                    fetch::Cache::NoStore => 1,
+                });
+                // Names use padded header slots with empty values, bounding decoded storage.
+                self.headers(exchange.keep.iter().map(|name| (name.as_bytes(), b"".as_slice())));
             }
             Input::Abandon { exchange } => {
                 self.tag(1);
@@ -270,11 +303,12 @@ impl Writer {
     }
     fn report(&mut self, report: &fetch::Report) {
         match report {
-            fetch::Report::Answered { exchange, status, body } => {
+            fetch::Report::Answered { exchange, status, body, headers } => {
                 self.tag(0);
                 self.u32(*exchange);
                 self.u16(*status);
                 self.bytes(body);
+                self.headers(headers.iter().map(|(name, value)| (name.as_bytes(), value.as_bytes())));
             }
             fetch::Report::Failed { exchange } => {
                 self.tag(1);
@@ -356,18 +390,31 @@ impl<'a> Reader<'a> {
     fn text_pair(&mut self) -> Result<(String, String), Malformed> {
         Ok((self.text()?, self.text()?))
     }
+    fn kept_name(&mut self) -> Result<String, Malformed> {
+        let name = self.text()?;
+        if !self.bytes()?.is_empty() {
+            return Err(Malformed);
+        }
+        Ok(name)
+    }
     fn byte_pair(&mut self) -> Result<crate::transport::Header, Malformed> {
         Ok((self.bytes()?.into(), self.bytes()?.into()))
     }
     fn input(&mut self) -> Result<Input, Malformed> {
         Ok(match self.tag()? {
-            0 => Input::Exchange(fetch::Exchange {
+            0 => Input::Exchange(Exchange {
                 id: self.u32()?,
                 path: self.bytes()?.into(),
                 method: self.text()?,
                 headers: self.headers(Self::text_pair)?,
                 body: self.bytes()?.into(),
                 bound: self.u32()?,
+                cache: match self.tag()? {
+                    0 => fetch::Cache::Browser,
+                    1 => fetch::Cache::NoStore,
+                    _ => return Err(Malformed),
+                },
+                keep: self.headers(Self::kept_name)?,
             }),
             1 => Input::Abandon { exchange: self.u32()? },
             2 => Input::Stream(match self.tag()? {
@@ -385,7 +432,12 @@ impl<'a> Reader<'a> {
     }
     fn report(&mut self) -> Result<fetch::Report, Malformed> {
         Ok(match self.tag()? {
-            0 => fetch::Report::Answered { exchange: self.u32()?, status: self.u16()?, body: self.bytes()?.into() },
+            0 => fetch::Report::Answered {
+                exchange: self.u32()?,
+                status: self.u16()?,
+                body: self.bytes()?.into(),
+                headers: self.headers(Self::text_pair)?,
+            },
             1 => fetch::Report::Failed { exchange: self.u32()? },
             2 => fetch::Report::StreamOpened,
             3 => fetch::Report::StreamRefused { status: self.u16()? },

@@ -134,3 +134,71 @@ fn an_owners_move_to_newest_is_routed_and_its_answer_replayed() {
         Reply::Refused(Refusal::KeyConflict)
     );
 }
+
+#[test]
+fn set_visibility_is_routed_to_the_core_for_its_project() {
+    for public in [false, true] {
+        let mut test = Test::new(LIMITS);
+        test.signin(PARTY, SIGN_IN, identity(0, PARTY));
+        test.send(Event::Roles {
+            project: PROJECT,
+            holdings: Box::new([Holding { person: PARTY, role: Role::Owner }]),
+        });
+        let ask = Ask::SetVisibility { project: PROJECT, public };
+        let rows = test.request(SIGN_IN, KEY, ask.clone());
+        assert!(rows.iter().any(
+            |row| if let Request::Route { person, project, role, ask: routed, models, .. } = row {
+                (*person, *project, *role) == (PARTY, PROJECT, Some(Role::Owner))
+                    && routed.as_ref() == &ask
+                    && models.is_empty()
+            } else {
+                false
+            }
+        ));
+        let outcome = Outcome::VisibilitySet { project: PROJECT, public };
+        let decided = test.send(Event::Decided { request: route(&rows), outcome: outcome.clone() });
+        assert_eq!(reply(&decided), Reply::Outcome(outcome.clone()));
+        assert!(decided.iter().any(|row| {
+            if let Request::Save { record: Stored::Answer { outcome: saved, .. } } = row {
+                saved == &outcome
+            } else {
+                false
+            }
+        }));
+        let replay = test.request(SIGN_IN, KEY, ask);
+        assert_eq!(reply(&replay), Reply::Outcome(outcome));
+        assert_eq!(
+            replay.iter().filter_map(|row| if let Request::Route { .. } = row { Some(()) } else { None }).count(),
+            0
+        );
+        assert_eq!(
+            reply(&test.request(SIGN_IN, KEY, Ask::SetVisibility { project: PROJECT, public: !public })),
+            Reply::Refused(Refusal::KeyConflict)
+        );
+    }
+}
+
+#[test]
+fn set_visibility_keeps_a_role_refusal_under_its_key() {
+    for (project, held) in [(DEPLOYMENT, None), (PROJECT, Some(Role::Member))] {
+        let mut test = Test::new(LIMITS);
+        test.signin(PARTY, SIGN_IN, identity(0, PARTY));
+        if let Some(role) = held {
+            test.send(Event::Roles { project, holdings: Box::new([Holding { person: PARTY, role }]) });
+        }
+        let ask = Ask::SetVisibility { project, public: true };
+        let rows = test.request(SIGN_IN, KEY, ask.clone());
+        let outcome = Outcome::Refused(Refusal::Role { held });
+        assert_eq!(reply(&rows), Reply::Outcome(outcome.clone()));
+        assert!(rows.iter().any(|row| if let Request::Save { record: Stored::Answer { outcome: saved, .. } } = row {
+            saved == &outcome
+        } else {
+            false
+        }));
+        assert_eq!(
+            rows.iter().filter_map(|row| if let Request::Route { .. } = row { Some(()) } else { None }).count(),
+            0
+        );
+        assert_eq!(reply(&test.request(SIGN_IN, KEY, ask)), Reply::Outcome(outcome));
+    }
+}

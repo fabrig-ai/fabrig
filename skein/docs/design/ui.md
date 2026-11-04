@@ -797,7 +797,7 @@ builder asserts each before it allocates.
 |---|---|
 | `nodes` | a tree's nodes, fallbacks and spliced fragments included |
 | `depth` | its nesting, fragments included |
-| `text_per_node` | a node's name, description, placeholder, runs, value and external target together |
+| `text_per_node` | a node's name, description, placeholder, image address, runs, value and external target together |
 | `text_bytes` | the same, across the tree |
 | `drawing_bytes` | a drawing's data, and an act on a drawing |
 | `styles_per_node` | a node's style tokens, and a mark's |
@@ -815,6 +815,15 @@ builder asserts each before it allocates.
   does not make otherwise representable limits invalid.
 - **`markdown_bound(bytes, depth)`** bounds the reader's scratch for the
   admitted text and nesting.
+- **`Limits::EMPTY`** holds no capacity: an empty tree without scenes. A
+  caller sets over it the fields it means
+  (`Limits { nodes, depth, ..Limits::EMPTY }`), so a tree without scenes
+  writes no scene field, and a field skein-ui adds stays empty for a
+  caller that does not set it.
+- **`Node::text_bytes`** gives the bytes the builder charges a node
+  against `text_per_node`, which add up across the tree against
+  `text_bytes`. A caller's size test reads it rather than counting a
+  node's text itself.
 - **An owner derives the numbers;** skein-ui holds none (policy above,
   numbers below). An application derives its limits from its own: every
   window of its state full and every text at its most bytes, each phrase
@@ -1090,6 +1099,9 @@ to 7 and 11 settle.
 - **Parts for a phone or a desktop,** as `skein-ui-web`'s are a
   browser's: each waits for an application shipping on that platform;
   until then its shell is the application's (section 16).
+- **temper's side of section 15:** temper's literals that write out a
+  `Limits` whole move onto `Limits::EMPTY` in its own tree. They wait
+  with no debt item to hold them.
 
 ## 19. Open questions
 

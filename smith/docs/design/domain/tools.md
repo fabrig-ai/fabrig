@@ -451,6 +451,12 @@ prove on a real kernel.
   fixed mounts, which the tools then accept.
 - **A run's own environment:** a typed, bounded charter overlay, merged
   in one place, only once a host needs one.
+- **A variable's value in `Debug`:** `smith-protocol-machine`'s
+  `Variable`, `Environment` and `Spawn`, and the component that holds
+  the environment, print each variable's value, which section 5 keeps
+  free of credentials. Whether they print a variable's name alone, as
+  skein's `Spawn` does (skein's `kernel.md`, 6.2): one rule for a
+  spawned environment, whatever it holds.
 
 ## 10. On a program backend
 

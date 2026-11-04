@@ -9,6 +9,9 @@ publish.workspace = true
 
 [dependencies]
 temper-playground.workspace = true
+skein-playground.workspace = true
+skein-ui-web.workspace = true
+skein-sim-world.workspace = true
 skein-fake-forge-github.workspace = true
 temper-github-app.workspace = true
 temper-client-shell-cli.workspace = true
@@ -40,6 +43,7 @@ jig-test-service = { path = "../../../jig/testing/jig-test-service" }
 smith-channel.workspace = true
 smith-charter.workspace = true
 skein-lib.workspace = true
+skein-http.workspace = true
 skein-io.workspace = true
 skein-shell.workspace = true
 skein-world.workspace = true

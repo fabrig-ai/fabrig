@@ -227,10 +227,14 @@ impl Front<Test> for Joint {
         self.wall = wall;
         self.last_client = Some(client);
         match &request {
-            Request::Client { request: jig_client::Request::Down { down: jig_client::Down::Send { attempt, .. } } } => {
+            Request::Unlinked {
+                request: jig_client::UnlinkedRequest::Down { down: jig_client::Down::Send { attempt, .. } },
+            } => {
                 self.last_attempt = Some((client, *attempt));
             }
-            Request::Client { request: jig_client::Request::Down { down: jig_client::Down::Open { watch, .. } } }
+            Request::Unlinked {
+                request: jig_client::UnlinkedRequest::Down { down: jig_client::Down::Open { watch, .. } },
+            }
             | Request::First(first::Out::Open { watch, .. }) => {
                 self.last_watch = Some((client, *watch));
             }
@@ -241,7 +245,8 @@ impl Front<Test> for Joint {
             | Request::SignOut
             | Request::SignIn { .. }
             | Request::Fact { .. }
-            | Request::Client { .. } => {}
+            | Request::Client { .. }
+            | Request::Unlinked { .. } => {}
         }
         self.session.send(client, now, wall, request).expect("complete real outbound translation");
     }
@@ -529,8 +534,8 @@ mod tests {
         assert!(pressure.iter().any(|value| matches!(value, Observed::Made { key, .. } if *key == [61; 16])));
         let applied = front.session.driver.world.store.applied;
         let rows = front.session.driver.world.store.rows.clone();
-        let request = |attempt| Request::Client {
-            request: jig_client::Request::Down {
+        let request = |attempt| Request::Unlinked {
+            request: jig_client::UnlinkedRequest::Down {
                 down: jig_client::Down::Send {
                     attempt,
                     key: [62; 16],
@@ -636,8 +641,8 @@ mod tests {
         front.try_fault(Time::ZERO, &FrontFault::NotReady).expect("actual paused owner restore");
         assert!(front.session.driver.world.store.loading());
         assert_eq!(Front::<Test>::next_due(&front), Some(Time::ZERO.saturating_add(delay)));
-        let request = |attempt| Request::Client {
-            request: jig_client::Request::Down {
+        let request = |attempt| Request::Unlinked {
+            request: jig_client::UnlinkedRequest::Down {
                 down: jig_client::Down::Send {
                     attempt,
                     key: [63; 16],

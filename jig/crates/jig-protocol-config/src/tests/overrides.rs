@@ -107,6 +107,28 @@ fn limits_problems_keep_the_named_profile_and_applied_overrides_for_connectors()
         assert_eq!(problems.problems.get(0).unwrap().what, What::Override);
     }
 }
+#[test]
+fn limits_problems_without_a_profile_add_no_bound_of_small() {
+    use super::fixtures::{ENGINE_SMALL, engine, with};
+
+    let bytes = with(ENGINE_SMALL, br#""connectors": [1]"#, br#""connectors": [1, 2, 3]"#);
+    for (case, limits, expected) in [
+        ("unknown profile", Some(br#"{"profile":"standrd"}"#.as_slice()), path(&[b"limits", b"profile"])),
+        ("profile of the wrong kind", Some(br#"{"profile":7}"#.as_slice()), path(&[b"limits", b"profile"])),
+        ("missing profile", Some(b"{}".as_slice()), path(&[b"limits", b"profile"])),
+        ("limits of the wrong kind", Some(b"7".as_slice()), path(&[b"limits"])),
+        ("missing limits", None, path(&[b"limits"])),
+    ] {
+        let bytes = match limits {
+            Some(limits) => with(&bytes, br#"{"profile": "small"}"#, limits),
+            None => with(&bytes, br#""limits": {"profile": "small"},"#, b""),
+        };
+        let problems = engine(&bytes).unwrap_err();
+        assert_eq!(problems.problems.len(), 1, "{case}: {problems:?}");
+        assert_eq!(problems.past, 0, "{case}: {problems:?}");
+        assert_eq!(problems.problems.get(0).unwrap().path, expected, "{case}: {problems:?}");
+    }
+}
 fn a_missing_profile_is_refused_naming_it() {
     problem(b"{}", &[b"limits", b"profile"], What::Missing);
 }

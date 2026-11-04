@@ -840,9 +840,9 @@ end.
   construction checks each forge: a number the host holds, a forge past
   its `forges`, or one a check refuses is ignored, since the owner
   checks its settings first. `Remove` drops one forge and forgets its
-  runs and callbacks: each of its live runs ends at once with its
-  `Stop`, the one it held or, at the step `Admin`, `Down`, naming
-  `remove`; its connections are aborted, a connection still settling
+  runs and callbacks: each of its live runs ends at once, with the end
+  it held or else the `Stop`, `Down`, of its halt; its connections are
+  aborted, a connection still settling
   after its run's end among them, an exchange in flight unheard; and
   its states (5.7) are forgotten, so that no plan takes a callback to
   it. A run for a forge the host does not hold stops at once,
@@ -1115,6 +1115,10 @@ pin (forge.md, section 4.3), and named by the fact's name.
   forge-github.md, section 13), since a live run changes nothing of the
   App (section 7); an App made to be changed would find it. Default: the
   client's polling keeps up, and a stopped log is the person's to see.
+- **An `Add` a check refuses** is ignored, and the owner hears nothing
+  (6.3). Default: so, the owner having checked first; whether the
+  crate's check of one forge is the owner's to call, or the host answers
+  the `Add`.
 - **A fine-grained token as a connected GitHub.** Default: later; a
   connected GitHub is an App the person made (5.8).
 - **The deployment's public address** as the App's hook, for a

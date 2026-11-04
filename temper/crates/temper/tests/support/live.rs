@@ -530,7 +530,7 @@ pub fn redact(text: &str) -> String {
 fn append_notice(text: &str) {
     use std::{io::Write, os::unix::fs::OpenOptionsExt};
     let Some(path) = std::env::var_os("TEMPER_LIVE_NOTICE") else { return };
-    // The launcher creates this private file before starting heavy.
+    // The launcher creates this private file before its first build.
     match fs::OpenOptions::new().append(true).mode(0o600).open(path) {
         Ok(mut file) => {
             if let Err(error) = writeln!(file, "{text}") {

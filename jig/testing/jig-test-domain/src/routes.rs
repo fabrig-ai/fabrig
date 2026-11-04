@@ -36,6 +36,9 @@ pub(super) fn route_core(
             }
             core::Request::Write(core::Write::Erase(key)) => write(domain, decision, Write::Erase(Key::Core(key))),
             core::Request::Held(held) => match *held {
+                held @ (core::Held::PublicRead { .. } | core::Held::PublicWait { .. }) => {
+                    hold(decision, Delivery::Core(held));
+                }
                 core::Held::ApplicationDelivery { .. } => {
                     unreachable!("document assembly owns this synchronous output")
                 }
@@ -147,6 +150,9 @@ fn route_ask(
                 window: crate::client_documents::window(window),
             },
         }),
+        core::Ask::Public { reply, .. } => {
+            crate::client_documents::public(domain, number, reply, work);
+        }
         core::Ask::Read { reply, scope, read, party, window } => crate::client_documents::read(
             domain,
             env,
@@ -507,6 +513,7 @@ fn route_now(
         | core::Now::SettledCallRefused { .. }
         | core::Now::Call { .. }
         | core::Now::EffectAnswer { .. }
+        | core::Now::TaskRead { .. }
         | core::Now::SettingsAnswer { .. }
         | core::Now::SignInRefused { .. }
         | core::Now::WatchRefused { .. }
@@ -1082,6 +1089,7 @@ fn application_answer(outcome: people::Outcome) -> connector::ApplicationCoreAns
         | people::Outcome::Renamed { .. }
         | people::Outcome::ProjectMade { .. }
         | people::Outcome::ProjectRemoved { .. }
+        | people::Outcome::VisibilitySet { .. }
         | people::Outcome::SettingsChanged { .. }
         | people::Outcome::MovedToNewest { .. }
         | people::Outcome::PolicyChanged { .. }

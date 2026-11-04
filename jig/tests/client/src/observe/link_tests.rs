@@ -15,14 +15,9 @@ fn view(current: Option<&[u8]>, retained: &[u8]) -> View {
         depth: 5,
         text_per_node: 64,
         text_bytes: 1024,
-        drawing_bytes: 0,
-        styles_per_node: 0,
         patches: 128,
-        bindings: 0,
-        slots: 0,
         markdown_depth: 1,
-        scene_marks: 0,
-        scene_bytes: 0,
+        ..Limits::EMPTY
     };
     let mut view = View::new(&limits);
     let mut builder = view.builder();

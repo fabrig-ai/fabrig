@@ -145,7 +145,7 @@ pub fn unfit(limits: &Limits) -> List<Unfit> {
 const UNFIT: u32 = 20;
 
 fn len(bytes: &[u8]) -> u64 {
-    u64::try_from(bytes.len()).expect("a length fits in a u64")
+    skein_lib::len_u64(bytes.len())
 }
 
 /// Facts kept until the loop drains them: as many as the child domains keep.

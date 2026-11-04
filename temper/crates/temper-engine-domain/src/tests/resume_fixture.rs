@@ -162,6 +162,9 @@ pub fn limits() -> engine::Limits {
         authority: authority_limits(),
         memory_bytes: u64::MAX,
         watermark: engine::default_watermark(&journal),
+        public_watermark: engine::default_watermark(&journal).checked_div(2).expect("half the watermark"),
+        public_reads: 0,
+        public: jig_domain_core::PublicIndexLimits::OFF,
         journal,
         loads: loads::Limits {
             read_bytes: 65_536,

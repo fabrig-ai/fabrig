@@ -2,6 +2,7 @@
 use skein_lib::Duration;
 #[derive(Clone, Copy, PartialEq, Eq, Debug)]
 pub struct Limits {
+    pub public: PublicLimits,
     pub streams: u32,
     pub watches_per_stream: u32,
     pub queued_bytes: u32,
@@ -77,5 +78,26 @@ pub fn provider_limits(limits: &Limits) -> skein_oauth_issuer::Limits {
         state_bytes: 1024,
         token_bytes: 43,
         claim_bytes: limits.identity_bytes.saturating_add(6),
+    }
+}
+
+/// Public reading's admission (jig/docs/design/domain/people.md, 13.5).
+#[derive(Clone, Copy, PartialEq, Eq, Debug)]
+pub struct PublicLimits {
+    pub reads: u32,
+    pub rate: u32,
+    pub rate_burst: u32,
+    pub bytes: u64,
+    pub bytes_burst: u64,
+    pub answer_bytes: u32,
+    pub max_age: u32,
+}
+impl PublicLimits {
+    pub const OFF: Self =
+        Self { reads: 0, rate: 0, rate_burst: 0, bytes: 0, bytes_burst: 0, answer_bytes: 0, max_age: 0 };
+
+    #[must_use]
+    pub fn on(&self) -> bool {
+        self.rate > 0
     }
 }

@@ -19,7 +19,7 @@ impl Peer {
         let header =
             b" HTTP/1.1\r\nHost: 127.0.0.1:7100\r\nConnection: close\r\nContent-Type: application/octet-stream\r\n";
         let content = b"Content-Length: ";
-        let length = Decimal::of(u64::try_from(body.len()).unwrap());
+        let length = Decimal::of(skein_lib::len_u64(body.len()));
         let authorization = match bearer {
             Some(value) => b"Authorization: Bearer ".len().checked_add(value.len()).unwrap().checked_add(2).unwrap(),
             None => 0,
@@ -57,7 +57,7 @@ impl Peer {
             bytes.put(b"\r\n").unwrap();
         }
         bytes.put(b"Content-Length: ").unwrap();
-        bytes.put(Decimal::of(u64::try_from(body.len()).unwrap()).as_bytes()).unwrap();
+        bytes.put(Decimal::of(skein_lib::len_u64(body.len())).as_bytes()).unwrap();
         bytes.put(b"\r\n\r\n").unwrap();
         bytes.put(body).unwrap();
         Self::raw(engine, &bytes.finish())

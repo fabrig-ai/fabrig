@@ -228,6 +228,51 @@ fn the_policy_keeps_a_field_the_answer_already_holds() {
     assert_eq!(response.headers.len(), 5);
 }
 
+#[test]
+#[expect(clippy::disallowed_methods, reason = "the test inspects the fixed CSP directives as UTF-8")]
+fn the_playground_policy_adds_only_its_worker_source() {
+    use crate::clients::policy::{FIELDS, Page, fields};
+
+    let service = fields(Page::Service);
+    assert_eq!(FIELDS, service);
+    for ((name, value), (service_name, service_value)) in fields(Page::Playground).into_iter().zip(service) {
+        assert_eq!(name, service_name);
+        if name == b"Content-Security-Policy" {
+            assert_eq!(value.strip_suffix(b"; worker-src 'self'"), Some(service_value));
+            for policy in [service_value, value] {
+                let mut connections = 0_u32;
+                for directive in core::str::from_utf8(policy).unwrap().split("; ") {
+                    if directive.starts_with("connect-src") {
+                        assert_eq!(directive, "connect-src 'self'");
+                        connections = connections.checked_add(1).unwrap();
+                    }
+                }
+                assert_eq!(connections, 1);
+            }
+        } else {
+            assert_eq!(value, service_value);
+        }
+    }
+}
+
+#[test]
+#[expect(clippy::disallowed_macros, reason = "the checked-in headers template must equal the policy's bytes")]
+fn the_playgrounds_headers_file_is_the_policys() {
+    let template = include_bytes!("../../../temper-client-shell-web/playground/headers");
+    assert!(template.is_ascii());
+    assert_eq!(template.as_slice(), &*crate::clients::policy::headers(b"{bundle}"));
+    assert_eq!(
+        &*crate::clients::policy::headers(b"/bundle/0123"),
+        b"/*: Content-Security-Policy: default-src 'none'; script-src 'self' 'wasm-unsafe-eval'; style-src 'self'; img-src 'self'; font-src 'self'; connect-src 'self'; base-uri 'none'; form-action 'none'; frame-ancestors 'none'; worker-src 'self'\n\
+/*: X-Content-Type-Options: nosniff\n\
+/*: Cross-Origin-Opener-Policy: same-origin\n\
+/*: Cross-Origin-Resource-Policy: same-origin\n\
+/*: Referrer-Policy: no-referrer\n\
+/bundle/0123/*: Cache-Control: public, max-age=31536000, immutable\n\
+/*: Cache-Control: no-cache\n"
+    );
+}
+
 // A one-byte read body is deliberately withheld to retain each mounted call.
 const HELD_READ_HEAD: &[u8] = b"POST /jig/v1/read HTTP/1.1\r\nHost: 127.0.0.1:7100\r\nContent-Type: application/octet-stream\r\nContent-Length: 1\r\n\r\n";
 // Refuse an empty request too: it still needs Discard before its response.

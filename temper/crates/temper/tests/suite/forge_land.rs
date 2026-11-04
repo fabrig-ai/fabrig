@@ -475,9 +475,9 @@ fn stubbed_story_launcher(
     fs::create_dir(&login).expect("synthetic held directory");
     fs::set_permissions(&login, fs::Permissions::from_mode(0o700)).expect("private login fixture");
     fs::create_dir(login.join("opaque-entry")).expect("listing fixture only");
-    let heavy = scratch.path().join("heavy");
-    fs::write(&heavy, format!("#!/bin/sh\n{body}\n")).expect("offline queue stub");
-    fs::set_permissions(&heavy, fs::Permissions::from_mode(0o700)).expect("executable stub");
+    let cargo = scratch.path().join("cargo");
+    fs::write(&cargo, format!("#!/bin/sh\n{body}\n")).expect("offline build stub");
+    fs::set_permissions(&cargo, fs::Permissions::from_mode(0o700)).expect("executable build stub");
     let mut command = launcher(scratch.path(), story, if story == "forge-land-claude" { Some(&login) } else { None });
     command.env("PATH", format!("{}:/usr/bin:/bin", scratch.path().display()));
     if default_store {
@@ -552,7 +552,6 @@ fn the_launcher_gives_each_landing_story_its_own_store() {
             seen.lines().collect::<Vec<_>>(),
             [
                 stores,
-                "cargo",
                 "nextest",
                 "run",
                 "-p",
@@ -561,7 +560,6 @@ fn the_launcher_gives_each_landing_story_its_own_store() {
                 "live-temper",
                 "--no-run",
                 stores,
-                "cargo",
                 "nextest",
                 "run",
                 "-p",
@@ -579,6 +577,54 @@ fn the_launcher_gives_each_landing_story_its_own_store() {
         );
         scratch.remove();
     }
+}
+
+/// `TEMPER_WRAPPER` names one command that runs each of the launcher's builds, cargo's
+/// own arguments following it.
+#[test]
+fn the_launcher_runs_its_builds_through_the_wrapper_it_is_given() {
+    use std::{fs, os::unix::fs::PermissionsExt};
+    let scratch = support::Scratch::new("live-launcher-wrapper");
+    let root = scratch.path();
+    for (name, body) in [("cargo", "exit 99"), ("wrap", "printf '%s\\n' \"$@\" >> \"$HOME/seen\"\nexit 0")] {
+        let stub = root.join(name);
+        support::write_private(&stub, format!("#!/bin/sh\n{body}\n").as_bytes());
+        fs::set_permissions(&stub, fs::Permissions::from_mode(0o700)).expect("executable build stub");
+    }
+    let output = launcher(root, "forge-land", None)
+        .env("PATH", format!("{}:/usr/bin:/bin", root.display()))
+        .env("TEMPER_WRAPPER", "wrap")
+        .output()
+        .expect("wrapped launcher");
+    assert_eq!(output.status.code(), Some(0), "{}", String::from_utf8_lossy(&output.stderr));
+    let seen = fs::read_to_string(root.join("seen")).expect("wrapper arguments");
+    assert_eq!(
+        seen.lines().collect::<Vec<_>>(),
+        [
+            "cargo",
+            "nextest",
+            "run",
+            "-p",
+            "temper",
+            "--profile",
+            "live-temper",
+            "--no-run",
+            "cargo",
+            "nextest",
+            "run",
+            "-p",
+            "temper",
+            "--profile",
+            "live-temper",
+            "--ignore-default-filter",
+            "--run-ignored",
+            "only",
+            "--no-capture",
+            "-E",
+            "binary(=live) & test(=a_person_asks_chatgpt_to_land_a_change_on_the_owned_forge)",
+        ]
+    );
+    scratch.remove();
 }
 
 fn program_accounts() -> Value {
@@ -662,9 +708,9 @@ fn held_launcher(case: &str, story: &str, body: &str) -> (support::Scratch, std:
     let root = scratch.path();
     let account = root.join("synthetic-record");
     support::write_private(&account, b"synthetic fixture");
-    let heavy = root.join("heavy");
-    support::write_private(&heavy, format!("#!/bin/sh\nset -eu\n{body}\n").as_bytes());
-    fs::set_permissions(&heavy, fs::Permissions::from_mode(0o700)).expect("executable queue stub");
+    let cargo = root.join("cargo");
+    support::write_private(&cargo, format!("#!/bin/sh\nset -eu\n{body}\n").as_bytes());
+    fs::set_permissions(&cargo, fs::Permissions::from_mode(0o700)).expect("executable build stub");
     let output = launcher(root, story, None)
         .env("TEMPER_LIVE_ACCOUNT", &account)
         .env("PATH", format!("{}:/usr/bin:/bin", root.display()))
@@ -686,7 +732,7 @@ fn the_launcher_returns_the_ordinary_held_login_after_build_failure() {
 #[test]
 fn the_launcher_runs_the_ordinary_return_hook_before_stopping_after_a_signal() {
     for story in ["forge-land", "rung-b0"] {
-        // The first queue call represents the build; the second imports a
+        // The first cargo call represents the build; the second imports a
         // synthetic record and installs the same hook contract as the story.
         let body = r#"case " $* " in *" --no-run "*) exit 0 ;; esac
 mkdir -p "$TEMPER_LIVE_STORE"

@@ -235,6 +235,10 @@ Every limit engine.limits.overrides and a worker's limits.overrides take: its un
 - `core.brief_core_budgets.attempts`: bytes, 1,024. Bounds attempt section text bytes in one brief.
 - `core.brief_core_budgets.plan`: bytes, 2,048. Bounds plan section text bytes in one brief.
 - `core.brief_core_budgets.notes`: bytes, 2,048. Bounds note index text bytes in one brief.
+- `core.public.goals`: count, 0. Bounds live public goals per board.
+- `core.public.ended`: count, 0. Bounds ended public goals kept per project.
+- `core.public.lines`: count, 0. Bounds public lines per goal and delegates per card.
+- `core.public.depth`: count, 0. Bounds the lineage of a public card.
 
 ## link
 
@@ -260,8 +264,16 @@ Every limit engine.limits.overrides and a worker's limits.overrides take: its un
 - `clients.exchanges`: count, 8. Bounds client exchanges admitted at once.
 - `clients.provider_codes`: count, 16. Bounds volatile authorization codes.
 - `clients.provider_tokens`: count, 64. Bounds volatile provider access tokens.
+- `clients.public.reads`: count, 0. Bounds public reads admitted at once; zero turns public reading off.
+- `clients.public.rate`: count, 0. Bounds public reads per second; zero turns public reading off.
+- `clients.public.rate_burst`: count, 0. Bounds the public reads bucket at its fullest.
+- `clients.public.bytes`: bytes, 0. Bounds public answer bytes per second.
+- `clients.public.bytes_burst`: bytes, 0. Bounds the public answer bytes bucket at its fullest.
+- `clients.public.answer_bytes`: bytes, 0. Bounds one public answer and every declared public kind.
+- `clients.public.max_age`: count, 0. Bounds public answer freshness in seconds, at most sixty.
 
 ## clients_http
 
 - `clients_http.streams`: count, 2. Bounds HTTP client streams admitted at once.
 - `clients_http.calls`: count, 4. Bounds HTTP client calls admitted at once.
+- `clients_http.public_calls`: count, 0. Bounds public HTTP calls in flight apart from signed-in calls.

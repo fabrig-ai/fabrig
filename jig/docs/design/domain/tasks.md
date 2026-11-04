@@ -1384,6 +1384,10 @@ news its connectors class as waking at a pace, at most once in a span
 nothing, since they finish within one run. A procedure's policy is its
 owner's: it steps on whatever it reads.
 
+A pace's span is nonzero. An invalid wake policy in a batch or an amendment
+is refused as `Spec`; an invalid amendment changes nothing of the task
+(decided 2026-11-02).
+
 ### 8.4 Subscriptions
 
 A subscription is a task's standing interest in what changes:

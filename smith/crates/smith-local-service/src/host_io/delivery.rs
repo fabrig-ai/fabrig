@@ -2,32 +2,48 @@
 //! Snapshots are complete or unknown; policy receives typed terminals only.
 use super::{HostIo, git_limits, plain_limits};
 use alloc::boxed::Box;
+use core::mem;
 use skein_io::{file, file_layer, kernel};
 use skein_lib::{List, Map, Queue, Time, Token};
 use smith_local_domain as local;
 use smith_local_protocol as local_protocol;
 
+/// One capture of the plain directories: from `next`, until `deadline`.
 #[derive(Debug)]
-enum PlainPurpose {
-    Capture { directory: u32 },
-    Compare { owner: Token, directory: u32 },
+pub(super) struct Capture {
+    directories: List<u32>,
+    next: u32,
+    deadline: Time,
 }
 
+/// The one file inspection at a time; every file terminal that is neither the store's nor a
+/// closing root's belongs to it (protocol/hosts.md, section 5.5).
 #[derive(Debug)]
-pub(super) struct PlainScan {
-    purpose: PlainPurpose,
-    scan: local_protocol::Plain,
+pub(super) enum Inspection {
+    /// No inspection in flight.
+    Idle,
+    /// Scanning `directory` for a capture.
+    Capturing { capture: Capture, directory: u32, scan: local_protocol::Plain },
+    /// Comparing `directory` with its snapshot, for `owner`.
+    Comparing { owner: Token, directory: u32, scan: local_protocol::Plain },
+    /// Reading files for conflict markers, for `owner`.
+    Markers { owner: Token, markers: local_protocol::Markers },
+}
+
+impl Inspection {
+    pub(super) const fn idle(&self) -> bool {
+        match self {
+            Self::Idle => true,
+            Self::Capturing { .. } | Self::Comparing { .. } | Self::Markers { .. } => false,
+        }
+    }
 }
 
 #[derive(Debug)]
 pub(super) struct DeliveryIo {
     pub(super) git: Option<local_protocol::GitChild>,
-    pub(super) markers: Option<(Token, local_protocol::Markers)>,
-    pub(super) plain: Option<PlainScan>,
+    pub(super) inspection: Inspection,
     pub(super) snapshots: Map<u32, Option<local_protocol::Snapshot>>,
-    pub(super) capture_directories: List<u32>,
-    pub(super) capture_next: u32,
-    pub(super) capture_deadline: Time,
     pub(super) capture_done: Option<bool>,
     pub(super) delivery_roots: Box<[kernel::Fd]>,
     pub(super) git_environment: Box<[Box<[u8]>]>,
@@ -37,12 +53,8 @@ impl DeliveryIo {
     pub(super) fn new() -> Self {
         Self {
             git: None,
-            markers: None,
-            plain: None,
+            inspection: Inspection::Idle,
             snapshots: Map::with_capacity(64),
-            capture_directories: List::with_capacity(64),
-            capture_next: 0,
-            capture_deadline: Time::ZERO,
             capture_done: None,
             delivery_roots: Box::new([]),
             git_environment: Box::new([]),
@@ -64,21 +76,18 @@ impl HostIo {
     }
 
     pub(crate) fn capture_plain(&mut self, directories: List<u32>, deadline: Time) {
-        assert!(self.delivery.plain.is_none() && self.delivery.markers.is_none(), "file inspection is serial");
+        assert!(self.delivery.inspection.idle(), "file inspection is serial");
         self.delivery.snapshots = Map::with_capacity(64);
-        self.delivery.capture_directories = directories;
-        self.delivery.capture_next = 0;
-        self.delivery.capture_deadline = deadline;
         self.delivery.capture_done = None;
-        self.next_capture();
+        self.next_capture(Capture { directories, next: 0, deadline });
     }
 
     pub(crate) fn take_capture_done(&mut self) -> Option<bool> {
         self.delivery.capture_done.take()
     }
 
-    pub(super) fn next_capture(&mut self) {
-        match self.delivery.capture_directories.get(self.delivery.capture_next) {
+    pub(super) fn next_capture(&mut self, capture: Capture) {
+        match capture.directories.get(capture.next) {
             Some(directory) => {
                 let directory = *directory;
                 let root = match self.file_roots.get(usize::try_from(directory).expect("bounded directory")) {
@@ -88,11 +97,10 @@ impl HostIo {
                         return;
                     }
                 };
-                let scan =
-                    local_protocol::Plain::new(Token::new(0), root, plain_limits(), self.delivery.capture_deadline)
-                        .expect("checked plain limits");
+                let scan = local_protocol::Plain::new(Token::new(0), root, plain_limits(), capture.deadline)
+                    .expect("checked plain limits");
                 let action = scan.start();
-                self.delivery.plain = Some(PlainScan { purpose: PlainPurpose::Capture { directory }, scan });
+                self.delivery.inspection = Inspection::Capturing { capture, directory, scan };
                 match action {
                     local_protocol::PlainAction::File { request, deadline } => {
                         self.file_requests.push((request, deadline));
@@ -113,7 +121,7 @@ impl HostIo {
         deadline: Time,
         events: &mut Queue<local::Event>,
     ) {
-        assert!(self.delivery.plain.is_none() && self.delivery.markers.is_none(), "file inspection is serial");
+        assert!(self.delivery.inspection.idle(), "file inspection is serial");
         let root = match self.file_roots.get(usize::try_from(directory).expect("bounded directory")) {
             Some(root) => *root,
             None => {
@@ -134,7 +142,7 @@ impl HostIo {
         }
         let scan = local_protocol::Plain::new(owner, root, plain_limits(), deadline).expect("checked plain limits");
         let action = scan.start();
-        self.delivery.plain = Some(PlainScan { purpose: PlainPurpose::Compare { owner, directory }, scan });
+        self.delivery.inspection = Inspection::Comparing { owner, directory, scan };
         self.plain_action(action, events);
     }
 
@@ -142,16 +150,16 @@ impl HostIo {
         match action {
             local_protocol::PlainAction::File { request, deadline } => self.file_requests.push((request, deadline)),
             local_protocol::PlainAction::Done => {
-                let active = self.delivery.plain.take().expect("active plain scan");
-                let snapshot = active.scan.finish();
-                match active.purpose {
-                    PlainPurpose::Capture { directory } => {
+                let state = mem::replace(&mut self.delivery.inspection, Inspection::Idle);
+                match state {
+                    Inspection::Capturing { mut capture, directory, scan } => {
+                        let snapshot = scan.finish();
                         self.delivery.snapshots.insert(directory, Some(snapshot)).expect("bounded snapshots");
-                        self.delivery.capture_next =
-                            self.delivery.capture_next.checked_add(1).expect("bounded directory position");
-                        self.next_capture();
+                        capture.next = capture.next.checked_add(1).expect("bounded directory position");
+                        self.next_capture(capture);
                     }
-                    PlainPurpose::Compare { owner, directory } => {
+                    Inspection::Comparing { owner, directory, scan } => {
+                        let snapshot = scan.finish();
                         let before = self
                             .delivery
                             .snapshots
@@ -161,20 +169,21 @@ impl HostIo {
                             .expect("unknown capture answers without a scan");
                         events.push(local::Event::PlainStatus { owner, changed: *before != snapshot });
                     }
+                    Inspection::Idle | Inspection::Markers { .. } => unreachable!("active plain scan"),
                 }
             }
             local_protocol::PlainAction::Failed => {
-                let active = self.delivery.plain.take().expect("active plain scan");
-                match active.purpose {
-                    PlainPurpose::Capture { directory } => {
+                let state = mem::replace(&mut self.delivery.inspection, Inspection::Idle);
+                match state {
+                    Inspection::Capturing { mut capture, directory, scan: _ } => {
                         self.delivery.snapshots.insert(directory, None).expect("bounded snapshots");
-                        self.delivery.capture_next =
-                            self.delivery.capture_next.checked_add(1).expect("bounded directory position");
-                        self.next_capture();
+                        capture.next = capture.next.checked_add(1).expect("bounded directory position");
+                        self.next_capture(capture);
                     }
-                    PlainPurpose::Compare { owner, .. } => {
+                    Inspection::Comparing { owner, .. } => {
                         events.push(local::Event::PlainStatus { owner, changed: true });
                     }
+                    Inspection::Idle | Inspection::Markers { .. } => unreachable!("active plain scan"),
                 }
             }
         }
@@ -188,10 +197,7 @@ impl HostIo {
         deadline: Time,
         events: &mut Queue<local::Event>,
     ) {
-        assert!(
-            self.delivery.markers.is_none() && self.delivery.plain.is_none(),
-            "one local file inspection at a time"
-        );
+        assert!(self.delivery.inspection.idle(), "one local file inspection at a time");
         let root = self.file_roots.get(usize::try_from(directory).expect("admitted directory"));
         let markers = match root {
             Some(root) => local_protocol::Markers::new(owner, *root, paths, deadline, git_limits(&self.limits)),
@@ -200,7 +206,7 @@ impl HostIo {
         match markers {
             Some(markers) => {
                 let action = markers.start();
-                self.delivery.markers = Some((owner, markers));
+                self.delivery.inspection = Inspection::Markers { owner, markers };
                 self.marker_action(owner, action, events);
             }
             None => events.push(local::Event::Git {
@@ -222,7 +228,7 @@ impl HostIo {
         match action {
             local_protocol::MarkerAction::File { request, deadline } => self.file_requests.push((request, deadline)),
             local_protocol::MarkerAction::Done(result) => {
-                self.delivery.markers = None;
+                self.delivery.inspection = Inspection::Idle;
                 events.push(local::Event::Git { owner, result });
             }
         }
@@ -291,22 +297,20 @@ impl HostIo {
                 );
                 continue;
             }
-            if self.close_root_pending && event.owner() == Token::new(u64::MAX) {
-                self.close_root_pending = false;
+            if self.close.root_answered(event.owner()) {
                 continue;
             }
-            match &mut self.delivery.plain {
-                Some(active) => {
-                    let action = active.scan.from_file(event);
+            match &mut self.delivery.inspection {
+                Inspection::Capturing { scan, .. } | Inspection::Comparing { scan, .. } => {
+                    let action = scan.from_file(event);
                     self.plain_action(action, local_events);
                 }
-                None => {
-                    let (owner, markers) =
-                        self.delivery.markers.as_mut().expect("file terminal belongs to marker inspection");
+                Inspection::Markers { owner, markers } => {
                     let owner = *owner;
                     let action = markers.from_file(event);
                     self.marker_action(owner, action, local_events);
                 }
+                Inspection::Idle => unreachable!("file terminal belongs to marker inspection"),
             }
         }
     }

@@ -147,7 +147,7 @@ pub(super) fn start(root: &mut Domain, kept: List<crate::store::Record>) -> Toke
     ));
     rows.iter()
         .find_map(|row| match row {
-            Request::Client { request: jig_client::Request::Down { down: jig_client::Down::Open { watch, subject: jig_client::Watchable::Jig(contract::Subject::Me) } } } => Some(*watch),
+            Request::Unlinked { request: jig_client::UnlinkedRequest::Down { down: jig_client::Down::Open { watch, subject: jig_client::Watchable::Jig(contract::Subject::Me) } } } => Some(*watch),
             _ => None,
         })
         .unwrap()

@@ -139,6 +139,8 @@ pub struct KindValue {
 /// (domain/root.md, sections 3 and 5.2). Later routes extend this vocabulary.
 #[derive(Clone, PartialEq, Eq, Debug)]
 pub enum Tool {
+    /// Read source facts of a related live task or retained direct delegate.
+    ReadTask { task: u64, from: u64 },
     /// Read settings without retaining a named-call record.
     Settings { read: jig_domain_core::SettingsRead, from: u32 },
     /// Propose whole settings to the deployment's owners.
@@ -538,6 +540,11 @@ pub enum ForgeReadAnswer {
 }
 #[derive(Debug)]
 pub enum PartyInput {
+    /// A visitor read (jig/docs/design/domain/people.md, 13.5).
+    PublicRead {
+        reply: ReplyTo,
+        read: core::PublicRead,
+    },
     /// Resolve a sign-in through the people child for provider authorization.
     Whose {
         reply_to: ReplyTo,
@@ -953,6 +960,7 @@ pub(crate) fn delivery_output(delivery: Delivery) -> Request {
     match delivery {
         delivery @ (Delivery::ProjectMade { .. }
         | Delivery::ProjectReleased { .. }
+        | Delivery::PublicWait { .. }
         | Delivery::ForgeCommitted { .. }
         | Delivery::Fleet(_)
         | Delivery::Relay { .. }
@@ -972,6 +980,7 @@ pub(crate) fn delivery_output(delivery: Delivery) -> Request {
         | Delivery::ForgeDocument { .. }
         | Delivery::Panel { .. }
         | Delivery::Application { .. }
+        | Delivery::Public { .. }
         | Delivery::WebReply { .. }
         | Delivery::CarriedUnused { .. }
         | Delivery::ForgeRead { .. }

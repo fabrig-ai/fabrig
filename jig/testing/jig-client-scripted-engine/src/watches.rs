@@ -1,8 +1,8 @@
 //! One in-flight document and a dirty mark per watch; contract.md, 7.
 use crate::{Engine, Invalid, Rows, Up, reads::list};
 use jig_client_domain::contract::{
-    Call, Delivery, Inbox, InboxCursor, LiveCall, ObjectKey, Phase, PhaseCounts, ProvisionalTurnName, Read, ReadValue,
-    Requester, RunState, RunText, Subject, Tasks, Text, TurnName, WatchEnd, WatchEvent,
+    Call, Delivery, Inbox, InboxCursor, LiveCall, ObjectKey, Phase, PhaseClass, PhaseCounts, ProvisionalTurnName, Read,
+    ReadValue, Requester, RunState, RunText, Subject, Tasks, Text, TurnName, WatchEnd, WatchEvent,
 };
 use skein_lib::{Time, Token, Wall};
 
@@ -198,7 +198,7 @@ impl<A: crate::Application> Engine<A> {
             if !self.truth.visible(party, doc.project) {
                 return Some(hidden);
             }
-            if ended(doc.chip.phase) {
+            if doc.chip.phase.class() == PhaseClass::Ended {
                 return Some(WatchEnd::SubjectEnded);
             }
         }
@@ -507,10 +507,6 @@ impl<A: crate::Application> Engine<A> {
         Ok(())
     }
 }
-fn ended(phase: Phase) -> bool {
-    matches!(phase, Phase::Ended | Phase::Done | Phase::Failed | Phase::Cancelled)
-}
-
 fn shorten<T: Clone>(rows: &mut skein_lib::List<T>) -> bool {
     let copy: Vec<_> = rows.iter().cloned().collect();
     if copy.is_empty() {
@@ -523,38 +519,13 @@ fn fold_tree(folds: &mut skein_lib::List<jig_client_domain::contract::TreeFold>,
     for at in 0..folds.len() {
         let row = folds.get_mut(at).expect("bounded fold");
         if row.parent == parent {
-            fold(&mut row.phases, phase);
+            crate::queries::count(&mut row.phases, phase);
             return;
         }
     }
-    let mut phases = PhaseCounts {
-        waiting: 0,
-        idle: 0,
-        starting: 0,
-        running: 0,
-        backing_off: 0,
-        closing: 0,
-        held: 0,
-        done: 0,
-        failed: 0,
-        cancelled: 0,
-    };
-    fold(&mut phases, phase);
+    let mut phases = PhaseCounts::ZERO;
+    crate::queries::count(&mut phases, phase);
     let mut rows: Vec<_> = folds.iter().cloned().collect();
     rows.push(jig_client_domain::contract::TreeFold { parent, phases, held_below: 0 });
     *folds = list(&rows);
-}
-fn fold(counts: &mut PhaseCounts, phase: Phase) {
-    match phase {
-        Phase::Due | Phase::Preparing | Phase::Claimed => counts.starting += 1,
-        Phase::BackingOff => counts.backing_off += 1,
-        Phase::Idle => counts.idle += 1,
-        Phase::Waiting => counts.waiting += 1,
-        Phase::Running | Phase::Active => counts.running += 1,
-        Phase::Held => counts.held += 1,
-        Phase::Closing => counts.closing += 1,
-        Phase::Done => counts.done += 1,
-        Phase::Failed => counts.failed += 1,
-        Phase::Ended | Phase::Cancelled => counts.cancelled += 1,
-    }
 }

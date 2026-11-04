@@ -123,8 +123,8 @@ fn a_root_release_names_only_its_placed_subtree_and_preserves_other_causes() {
     let mut after = before.clone();
     after.placed_holds.remove(&100);
     for number in [1, 2] {
-        after.tasks.get_mut(&number).unwrap().phase = Phase::Active;
-        after.tasks.get_mut(&number).unwrap().placed = None;
+        after.tasks.get_mut(&number).expect("placed subtree task").phase = Phase::Active;
+        after.tasks.get_mut(&number).expect("placed subtree task").placed = None;
     }
     let mut revisions = super::super::revisions::Revisions::default();
     revisions.named(1, Revision::Hold(3));
@@ -134,10 +134,10 @@ fn a_root_release_names_only_its_placed_subtree_and_preserves_other_causes() {
         let mut after = after.clone();
         match fault {
             0 => {
-                after.tasks.get_mut(&7).unwrap().phase = Phase::Active;
+                after.tasks.get_mut(&7).expect("task outside the placed subtree").phase = Phase::Active;
             }
             1 => {
-                before.tasks.get_mut(&2).unwrap().placed_reason = false;
+                before.tasks.get_mut(&2).expect("placed child task").placed_reason = false;
             }
             2 => {
                 after.placed_holds.insert(100, PlacedHold { root: Some(1), lifted: false });

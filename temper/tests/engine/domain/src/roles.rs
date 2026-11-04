@@ -231,6 +231,7 @@ impl World {
                         | people::Stored::Roles { .. }
                         | people::Stored::Acted { .. }
                         | people::Stored::Deletion { .. }
+                        | people::Stored::Public { .. }
                         | people::Stored::Policy { .. }
                         | people::Stored::Answer { .. },
                     )

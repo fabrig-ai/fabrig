@@ -1,6 +1,6 @@
 # skein: code-quality review
 
-2026-10-31. Source: github `origin/main` at `3371027`, a fresh clone. The primary checkout `~/src/fabrig/main` is at `5608b28` and was not touched. Scope: `skein/`, about 481k lines of Rust.
+2026-10-31. Source: github `origin/main` at `3371027`, a fresh clone. The primary checkout is at `5608b28` and was not touched. Scope: `skein/`, about 481k lines of Rust.
 
 Method:
 - **A holistic pass by me.** It covered the foundation docs, the crate graph and API probes, and produced a shared rubric: `review-brief.md`.

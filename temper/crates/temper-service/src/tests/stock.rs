@@ -635,6 +635,30 @@ fn stock_budgets_follow_the_default_models_completion_and_run_turn_floor() {
 }
 
 #[test]
+fn the_stock_funds_eighty_chats_in_one_period() {
+    let mut engine = engine(&generated());
+    let init = engine.llm.models[0].clone();
+    let mut cheap = init.clone();
+    cheap.window = 1501;
+    cheap.output = 503;
+    cheap.input_price = 1;
+    cheap.cached_price = 2;
+    cheap.cache_write_price = Some(3);
+    cheap.output_price = 4;
+    cheap.price_unit = 1000;
+    for (row, model) in [("init", init), ("cheap with costliest prices and rounding", cheap)] {
+        engine.llm.models[0] = model;
+        let stock = crate::stock::defaults(&engine.llm, engine.limits.core.tasks.result_bytes);
+        let policy = &stock.policies.get(&1).expect("policy 1").policy;
+        let chat = policy.roles[0].authority.budget.spend;
+        for period in [policy.period_spend, policy.roles[0].period_spend, stock.rules.period_spend] {
+            assert!(80 * chat <= period, "{row}: eighty open chats fit the period");
+            assert!(81 * chat > period, "{row}: an eighty-first open chat exceeds the period");
+        }
+    }
+}
+
+#[test]
 fn startup_refuses_stock_budget_overflow_before_constructing_defaults() {
     let document = fixtures::with(&single_model(), b"engine.llm.models[0].prices.input", b"18446744073709551615");
     let document = fixtures::with(&document, b"engine.llm.models[0].prices.unit", b"1");

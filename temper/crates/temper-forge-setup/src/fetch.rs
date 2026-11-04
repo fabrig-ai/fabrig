@@ -249,7 +249,7 @@ pub fn step(machine: &mut Fetch, event: Event, out: &mut Queue<Request>) {
         }
         Phase::Read => match event {
             Event::Chunk(bytes) => {
-                let length = u64::try_from(bytes.len()).expect("chunk length fits");
+                let length = skein_lib::len_u64(bytes.len());
                 if length > machine.bound.saturating_sub(machine.total) {
                     machine.remove(Failure::Bytes { url: machine.url() })
                 } else {

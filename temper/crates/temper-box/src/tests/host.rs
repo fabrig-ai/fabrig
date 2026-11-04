@@ -1543,3 +1543,54 @@ fn an_absent_group_file_does_not_reset_a_numbered_groups_live_state() {
     h.sim.assert_no_open_fds(h.pid);
     assert_eq!(h.machine.open_handles(), 0);
 }
+
+#[test]
+fn debug_of_the_settings_shows_the_environments_count_never_its_entries() {
+    use crate::host::{Echo, Service, Settings};
+    use skein_io::kernel::Fd;
+
+    let canary = b"TOKEN=canary-7f3a9c";
+    let settings = Settings {
+        program: bytes::copy_of(b"process_fixture"),
+        environment: Box::new([bytes::copy_of(b"HOME=/box"), bytes::copy_of(canary)]),
+        serve: bytes::copy_of(b"serve"),
+        listeners: Box::new([]),
+        root: Fd::new(3),
+        echo: Echo::Steps,
+        data: bytes::copy_of(b"/data"),
+        signals: Fd::new(4),
+        stdout: Fd::new(1),
+        stderr: Fd::new(2),
+    };
+    let expected = alloc::fmt::format(format_args!(
+        "Settings {{ program: {:?}, environment_entries: 2, serve: {:?}, listeners: {:?}, root: {:?}, echo: {:?}, data: {:?}, signals: {:?}, stdout: {:?}, stderr: {:?} }}",
+        settings.program,
+        settings.serve,
+        settings.listeners,
+        settings.root,
+        settings.echo,
+        settings.data,
+        settings.signals,
+        settings.stdout,
+        settings.stderr,
+    ));
+    let settings_debug = alloc::fmt::format(format_args!("{settings:?}"));
+    let service = Service::new(
+        &crate::limits::small(),
+        temper_forge_setup::Steps { always: Box::new([long(b"serve", &[b"never"])]), asked: Box::new([]) },
+        settings,
+    )
+    .expect("valid limits");
+    let service_debug = alloc::fmt::format(format_args!("{service:?}"));
+    let canary_debug = alloc::fmt::format(format_args!("{canary:?}"));
+    let home_debug = alloc::fmt::format(format_args!("{:?}", b"HOME=/box"));
+    for debug in [&settings_debug, &service_debug] {
+        assert!(!debug.contains("canary-7f3a9c"));
+        assert!(!debug.contains(&canary_debug));
+        assert!(!debug.contains("HOME=/box"));
+        assert!(!debug.contains(&home_debug));
+        assert!(debug.contains("environment_entries: 2"));
+    }
+    assert_eq!(settings_debug, expected);
+    assert!(service_debug.contains(&expected));
+}

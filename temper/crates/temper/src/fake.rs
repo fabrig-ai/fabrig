@@ -288,7 +288,7 @@ impl Created {
         {
             return Err(format!("{}: output changed while opening", path.display()));
         }
-        let bound = u64::try_from(expected.len()).expect("bounded output").checked_add(1).expect("output bound");
+        let bound = skein_lib::len_u64(expected.len()).checked_add(1).expect("output bound");
         let mut content = Vec::new();
         file.take(bound).read_to_end(&mut content).map_err(|why| format!("{}: {why}", path.display()))?;
         if content != expected {

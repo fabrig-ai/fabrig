@@ -101,7 +101,7 @@ impl Web {
             target,
             headers: headers.into_boxed(),
             body: if method == Method::Post {
-                http::Body::Length(u64::try_from(request.body.len()).ok()?)
+                http::Body::Length(skein_lib::len_u64(request.body.len()))
             } else {
                 http::Body::None
             },
@@ -153,7 +153,7 @@ impl Web {
                             self.phase = Phase::Handshaking;
                             tls::down(
                                 client,
-                                &Env { now: env.now, wall: env.wall, limits: env.limits.tls },
+                                &env.with(env.limits.tls),
                                 tls::Request::Handshake,
                                 &mut self.tls_events,
                                 &mut self.cipher,
@@ -168,21 +168,11 @@ impl Web {
                     return;
                 }
                 match &mut self.tls {
-                    Some(client) => tls::up(
-                        client,
-                        &Env { now: env.now, wall: env.wall, limits: env.limits.tls },
-                        up,
-                        &mut self.tls_events,
-                        &mut self.cipher,
-                    ),
+                    Some(client) => {
+                        tls::up(client, &env.with(env.limits.tls), up, &mut self.tls_events, &mut self.cipher);
+                    }
                     None if self.phase == Phase::Closing => {}
-                    None => http::up(
-                        &mut self.http,
-                        &Env { now: env.now, wall: env.wall, limits: env.limits.http },
-                        up,
-                        &mut self.events,
-                        &mut self.plain,
-                    ),
+                    None => http::up(&mut self.http, &env.with(env.limits.http), up, &mut self.events, &mut self.plain),
                 }
             }
             IoEvent::Failed { .. } => {
@@ -228,8 +218,8 @@ impl Web {
     }
 
     pub(crate) fn progress(&mut self, env: &Env<Limits>, io: &mut Queue<IoRequest>) {
-        let http_env = Env { now: env.now, wall: env.wall, limits: env.limits.http };
-        let tls_env = Env { now: env.now, wall: env.wall, limits: env.limits.tls };
+        let http_env = env.with(env.limits.http);
+        let tls_env = env.with(env.limits.tls);
         if env.now >= self.deadline {
             self.transport_failed(env);
         }
@@ -299,10 +289,7 @@ impl Web {
                 }));
             }
             http::Event::Upload(Up::Room) => {
-                let end = self
-                    .offset
-                    .saturating_add(usize::try_from(env.limits.http.send).expect("u32 fits usize"))
-                    .min(self.upload.len());
+                let end = self.offset.saturating_add(skein_lib::usize_of(env.limits.http.send)).min(self.upload.len());
                 let bytes = bytes::copy_of(self.upload.get(self.offset..end).expect("bounded upload"));
                 self.requests.push(http::Request::Upload(Down::Send(bytes)));
                 self.offset = end;
@@ -374,7 +361,7 @@ impl Web {
             match &mut self.tls {
                 Some(client) => tls::down(
                     client,
-                    &Env { now: env.now, wall: env.wall, limits: env.limits.tls },
+                    &env.with(env.limits.tls),
                     tls::Request::Close,
                     &mut self.tls_events,
                     &mut self.cipher,

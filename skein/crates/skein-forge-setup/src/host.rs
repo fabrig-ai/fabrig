@@ -183,19 +183,27 @@ impl Host {
             }
             let Some(token) = next else { break };
             let mut run = self.runs.remove(&token).expect("owned run");
-            cut(&mut run, &mut self.connections, &mut self.plan_out);
-            let failure = match run.pending.take() {
-                Some(reconcile::Need::Stop(failure)) => failure,
+            match &run.pending {
+                Some(reconcile::Need::Done(_) | reconcile::Need::Stop(_)) => {}
                 Some(
-                    reconcile::Need::Done(_)
-                    | reconcile::Need::Read(_)
+                    reconcile::Need::Read(_)
                     | reconcile::Need::Write { .. }
                     | reconcile::Need::Send { .. }
                     | reconcile::Need::Draw(_),
                 )
-                | None => Failure { forge, step: Stage::Admin, subject: b"remove".as_slice().into(), why: Why::Down },
-            };
-            up.push(Event::Stop { run: token, failure });
+                | None => cut(&mut run, &mut self.connections, &mut self.plan_out),
+            }
+            match run.pending.take() {
+                Some(reconcile::Need::Done(outcome)) => up.push(Event::Done { run: token, outcome }),
+                Some(reconcile::Need::Stop(failure)) => up.push(Event::Stop { run: token, failure }),
+                Some(
+                    reconcile::Need::Read(_)
+                    | reconcile::Need::Write { .. }
+                    | reconcile::Need::Send { .. }
+                    | reconcile::Need::Draw(_),
+                )
+                | None => unreachable!("a halted run holds its stop"),
+            }
         }
         // Settling connections still belong to the forge after their run ends.
         self.closing_tokens.clear();

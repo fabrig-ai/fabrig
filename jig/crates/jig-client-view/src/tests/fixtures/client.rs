@@ -146,7 +146,7 @@ impl Fixture {
         self.drive(self.now, Ended { watch, end: contract::WatchEnd::Dropped });
         self.now = self.now.saturating_add(Duration::from_secs(1));
         let mut native = Queue::uncapped();
-        self.client.fire(self.now, Wall::EPOCH, &mut native);
+        self.client.fire_unlinked(self.now, Wall::EPOCH, &mut native);
         let mut ui = Queue::uncapped();
         self.native_out(native, None, None, &mut ui);
         self.output(ui);
@@ -258,57 +258,51 @@ impl Fixture {
             | jig_client::Event::Up { .. } => None,
         };
         let mut out = Queue::uncapped();
-        self.client.step(self.now, Wall::EPOCH, event, &mut out);
+        self.client.step_unlinked(self.now, Wall::EPOCH, event, &mut out);
         self.native_out(out, reading, sending, ui_out);
     }
     fn native_out(
         &mut self,
-        mut out: Queue<jig_client::Request>,
+        mut out: Queue<jig_client::UnlinkedRequest>,
         reading: Option<Handle>,
         sending: Option<Key>,
         ui_out: &mut Queue<Request>,
     ) {
         while let Some(request) = out.pop() {
-            if let jig_client::Request::Down { down } = &request {
+            if let jig_client::UnlinkedRequest::Down { down } = &request {
                 self.down.push(down.clone()).unwrap();
             }
             match request {
-                jig_client::Request::Told { told } => {
+                jig_client::UnlinkedRequest::Told { told } => {
                     self.ui.step(self.now, Wall::EPOCH, &self.client, Event::Client { told }, ui_out);
                 }
-                jig_client::Request::Down { down: Down::Open { watch, subject: Watchable::Jig(subject) } } => {
+                jig_client::UnlinkedRequest::Down { down: Down::Open { watch, subject: Watchable::Jig(subject) } } => {
                     self.watches.push((subject, watch)).unwrap();
                 }
-                jig_client::Request::Down {
+                jig_client::UnlinkedRequest::Down {
                     down: Down::Continue { watch, subject: contract::Subject::Run { task, .. } },
                 } => {
                     self.watches.push((contract::Subject::Run { task, turn: None, offset: 0 }, watch)).unwrap();
                 }
-                jig_client::Request::Down { down: Down::Send { attempt, .. } } => {
+                jig_client::UnlinkedRequest::Down { down: Down::Send { attempt, .. } } => {
                     if let Some(key) = sending {
                         self.attempts.push((key, attempt)).unwrap();
                     }
                 }
-                jig_client::Request::Down { down: Down::Read { read, .. } } => {
+                jig_client::UnlinkedRequest::Down { down: Down::Read { read, .. } } => {
                     if let Some(handle) = reading {
                         self.transport_reads.push((handle, read)).unwrap();
                     }
                 }
-                jig_client::Request::Down { down: Down::Close { watch } } => {
+                jig_client::UnlinkedRequest::Down { down: Down::Close { watch } } => {
                     self.native(
                         jig_client::Event::Up { up: Up::WatchEnded { watch, end: contract::WatchEnd::Closed } },
                         ui_out,
                     );
                 }
-                jig_client::Request::Exchange { .. }
-                | jig_client::Request::OpenStream { .. }
-                | jig_client::Request::Authorized(_)
-                | jig_client::Request::ServiceCredential { .. }
-                | jig_client::Request::CloseStream
-                | jig_client::Request::Save { .. }
-                | jig_client::Request::Erase { .. }
-                | jig_client::Request::SignOut
-                | jig_client::Request::Down {
+                jig_client::UnlinkedRequest::Authorized(_)
+                | jig_client::UnlinkedRequest::SignOut
+                | jig_client::UnlinkedRequest::Down {
                     down:
                         Down::Save { .. }
                         | Down::Erase { .. }
@@ -551,7 +545,7 @@ pub struct FireClient {
 impl Input for FireClient {
     fn enter(self, fixture: &mut Fixture, out: &mut Queue<Request>) {
         let mut native = Queue::uncapped();
-        fixture.client.fire(fixture.now, self.wall, &mut native);
+        fixture.client.fire_unlinked(fixture.now, self.wall, &mut native);
         fixture.native_out(native, None, None, out);
     }
 }

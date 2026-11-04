@@ -122,8 +122,6 @@ pub struct Forge {
     pub git_program: Option<Box<[u8]>>,
     pub web: Option<Box<[u8]>>,
     pub app_read_only: bool,
-    pub api_token: Box<[u8]>,
-    pub webhook_secret: Option<Box<[u8]>>,
     pub user: User,
     pub identity: u32,
 }

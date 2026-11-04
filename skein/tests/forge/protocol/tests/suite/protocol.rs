@@ -119,6 +119,21 @@ fn directories_and_the_root_read_through_both_http_fakes() {
         assert_eq!(world.owner_counts(), (0, 0));
     }
 }
+#[test]
+fn a_file_seven_components_deep_reads_through_forgejo_http() {
+    const CONTENT: &[u8] = b"deep file";
+    const FILE_BYTES: u32 = 9; // The complete content is nine bytes.
+    let mut world = World::new(5, 0);
+    let path = b"a/b/c/d/e/f/g.md";
+    let head = world.tree(Box::new([file(path, CONTENT)]));
+    assert_eq!(
+        world.read(Read::File { head, path: Box::from(path.as_slice()), max_bytes: FILE_BYTES }),
+        Ok(Answer::File { head, path: Box::from(path.as_slice()), bytes: Box::from(CONTENT), truncated: false })
+    );
+    world.finish();
+    assert_eq!(world.owner_counts(), (0, 0));
+}
+
 use skein_fake_forge_domain::api as raw;
 use skein_forge::api::{self, Conclusion, JobAttempt, MergeHow, RunState, TreeEntryKind, UpdateStyle, Write};
 use skein_forge_client::{Made, Outcome};

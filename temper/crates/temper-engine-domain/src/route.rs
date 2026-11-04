@@ -16,6 +16,7 @@ mod now;
 mod panels;
 pub(crate) mod policy_translate;
 pub(crate) mod proposals;
+pub(crate) mod public;
 mod tools;
 use crate::archive::take_read;
 use crate::assemble::{brief_outputs, take_payload};
@@ -48,8 +49,8 @@ use temper_engine_domain_forge_issues as forge_issues;
 pub(crate) use tools::relay_payload;
 
 /// Route one admitted input and its synchronous continuations in one decision.
-/// Admission is `try_step`'s; the root never answers busy itself (jig's
-/// `testing/jig-test-domain/src/admission.rs`).
+/// Admission is `try_step`'s, including public reading's immediate busy answer
+/// (jig/docs/design/domain/root.md, 3).
 #[expect(
     clippy::too_many_lines,
     reason = "one exhaustive input match keeps every input before a single decision close"
@@ -96,6 +97,13 @@ pub(crate) fn step_routed(domain: &mut Domain, env: &Env<Limits>, event: Event, 
             })));
         }
         Event::Account(event) => domain.work.push(Work::Core(core::Event::Account(event))),
+        Event::Party(crate::PartyInput::PublicRead { reply, read }) => {
+            let mut decision = Decision::decide(&mut domain.journal, &env.limits.journal);
+            public::start(domain, env, &mut decision, reply, read);
+            route_into(domain, env, &mut decision);
+            close(domain, env, decision, out);
+            return;
+        }
         Event::Party(crate::PartyInput::StartRecurring { project, authority, template }) => {
             domain.work.push(Work::Core(core::Event::StartRecurring { project, authority, template }));
         }
@@ -352,7 +360,13 @@ pub(crate) fn route_core_requests(
                 domain.release_bytes(replaced, "erased write's turn body was held");
             }
             core::Request::Ask { connector, ask } => asks::ask(domain, env, decision, connector, ask),
-            core::Request::Held(output) => held::held(domain, env, decision, *output),
+            core::Request::Held(output) => {
+                if let core::Held::PublicRead { reply, answer } = *output {
+                    emit(decision, &env.limits, Delivery::Public { reply, answer, admitted: true });
+                } else {
+                    held::held(domain, env, decision, *output);
+                }
+            }
             core::Request::Now(output) => now::now(domain, env, decision, *output),
             core::Request::ProjectMade { project } => emit(decision, &env.limits, Delivery::ProjectMade { project }),
         }
@@ -396,10 +410,7 @@ pub(crate) fn route_into(domain: &mut Domain, env: &Env<Limits>, decision: &mut 
             }
             Work::Core(event) => {
                 if let core::Event::AcceptedTurn { accepted: tasks::Accepted::Already, transcript, .. } = &event {
-                    domain.release_bytes(
-                        u64::try_from(transcript.len()).expect("turn body length fits u64"),
-                        "already accepted turn body was held",
-                    );
+                    domain.release_bytes(skein_lib::len_u64(transcript.len()), "already accepted turn body was held");
                 }
                 let routed = core::step(&mut domain.core, &environment_core(env), event);
                 route_core_requests(domain, env, decision, routed);
@@ -553,7 +564,7 @@ pub(crate) fn delegate_call(
         if let Some(&first) = ids.first() {
             let capacity = batch
                 .len()
-                .checked_mul(usize::try_from(env.limits.tasks.inputs).expect("u32 fits usize"))
+                .checked_mul(skein_lib::usize_of(env.limits.tasks.inputs))
                 .expect("bounded batch input count");
             let to = to.into_token();
             let read = InputCheck {

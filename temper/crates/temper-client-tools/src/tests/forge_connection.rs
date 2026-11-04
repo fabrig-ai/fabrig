@@ -400,11 +400,7 @@ fn an_admin_connect_is_not_recovered_as_a_durable_request() {
     let call = root.submit_value(ADMIN, Some(Secret::new(TOKEN.into())));
     assert!(root.saved.is_empty());
     let mut restored = crate::forges::Forges::new();
-    let env = skein_lib::Env {
-        now: root.now,
-        wall: root.wall,
-        limits: crate::root::Limits::new(root.limits.domain, root.limits.tools),
-    };
+    let env = root.env(crate::root::Limits::new(root.limits.domain, root.limits.tools));
     let mut out = skein_lib::Queue::with_capacity(f::OUTPUTS);
     crate::forges::told(
         &mut restored,

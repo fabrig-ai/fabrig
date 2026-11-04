@@ -15,6 +15,10 @@ use skein_lib::Token;
 #[expect(clippy::too_many_lines, reason = "one exhaustive dispatcher translates the core's ask vocabulary")]
 pub(crate) fn ask(domain: &mut Domain, env: &Env<Limits>, decision: &mut Decision, connector: u16, ask: core::Ask) {
     let request = match ask {
+        ask @ core::Ask::Public { .. } => {
+            super::public::ask(domain, env, connector, ask);
+            None
+        }
         core::Ask::ReleaseProject { project } => {
             if connector == domain.config.forge_connector {
                 domain.work.push(Work::Forge(forge::Event::ReleaseProject {

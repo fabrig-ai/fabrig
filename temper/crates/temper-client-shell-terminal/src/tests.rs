@@ -14,15 +14,15 @@ mod render;
 
 #[test]
 fn a_jig_read_reaches_the_link_with_its_own_token() {
-    let down = route::down(client::Request::Client {
-        request: jig_client::Request::Down {
+    let down = route::down(client::Request::Unlinked {
+        request: jig_client::UnlinkedRequest::Down {
             down: jig_client::Down::Read {
                 read: fixtures::READ,
                 what: jig_client::Readable::Jig(fixtures::inbox_read()),
             },
         },
     });
-    let Down::Shell(jig_client::Request::Down {
+    let Down::Unlinked(jig_client::UnlinkedRequest::Down {
         down: jig_client::Down::Read { read, what: jig_client::Readable::Jig(what) },
     }) = down
     else {

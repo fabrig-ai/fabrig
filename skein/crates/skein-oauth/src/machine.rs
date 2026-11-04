@@ -277,6 +277,7 @@ impl Client {
                 now,
             } => {
                 if self.phase != Phase::Idle {
+                    out.push(Request::Failed { failure: Failure::Limit });
                     return;
                 }
                 let result = self.sign_in(
@@ -298,6 +299,7 @@ impl Client {
             }
             Event::Refresh { registration, prior, now } => {
                 if self.phase != Phase::Idle {
+                    out.push(Request::Failed { failure: Failure::Limit });
                     return;
                 }
                 let result = self.refresh(registration, prior, now);
@@ -306,6 +308,8 @@ impl Client {
             Event::Revoke { registration, prior, now } => {
                 if self.phase == Phase::Idle {
                     self.revoke(registration, prior, now, out);
+                } else {
+                    out.push(Request::Revoked { confirmed: false });
                 }
             }
             Event::Redirected { uri, state, code, error, client_id, now } => {

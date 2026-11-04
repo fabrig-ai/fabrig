@@ -233,16 +233,18 @@ impl World {
             while let Some(request) = self.out.pop() {
                 moved = true;
                 match request {
-                    root::Request::Client {
-                        request: client::Request::Down { down: client::Down::Save { record } },
+                    root::Request::Unlinked {
+                        request: client::UnlinkedRequest::Down { down: client::Down::Save { record } },
                     } => {
                         self.saved.insert(record.key, record.request);
                     }
-                    root::Request::Client { request: client::Request::Down { down: client::Down::Erase { key } } } => {
+                    root::Request::Unlinked {
+                        request: client::UnlinkedRequest::Down { down: client::Down::Erase { key } },
+                    } => {
                         self.saved.remove(&key);
                     }
-                    root::Request::Client { request: request @ client::Request::Down { .. } } => {
-                        let client::Request::Down { down } = request else { unreachable!("down request") };
+                    root::Request::Unlinked { request: request @ client::UnlinkedRequest::Down { .. } } => {
+                        let client::UnlinkedRequest::Down { down } = request else { unreachable!("down request") };
                         self.component.send(CLIENT, down);
                     }
                     root::Request::Printed { number, printed } => {
@@ -252,6 +254,7 @@ impl World {
                     root::Request::Ready => {}
                     root::Request::Progress { line } => self.progress.push(line),
                     root::Request::Client { request } => panic!("unlinked transport: {request:?}"),
+                    root::Request::Unlinked { request } => panic!("unlinked transport: {request:?}"),
                     root::Request::Kept { .. } | root::Request::Fact { .. } => {
                         panic!("no restored calls or unknown owners")
                     }

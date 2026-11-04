@@ -462,6 +462,9 @@ pub(crate) fn engine_candidate(jig: &jig_protocol_config::Limits, limits: &Limit
         // The budget is the engine's own memory_bytes, set where it starts.
         memory_bytes: u64::MAX,
         watermark: engine::default_watermark(&limits.root.journal),
+        public_watermark: engine::default_watermark(&limits.root.journal).checked_div(2).expect("half the watermark"),
+        public_reads: jig.clients.public.reads,
+        public: jig.core.public,
         journal: limits.root.journal,
         loads: limits.root.loads,
         brief: limits.root.brief,
@@ -508,12 +511,11 @@ pub fn handed_on(name: &[u8]) -> bool {
     (name.starts_with(b"setup.") && name != b"setup.runs" && name != b"setup.states" && name != b"setup.state_life_ms")
         || name.starts_with(b"box.")
 }
-/// Setup bounds also consumed by the engine's host; the old shell keeps its four overrides.
+/// Setup bounds consumed by the engine's host.
 #[must_use]
 pub fn host_setup(name: &[u8]) -> bool {
     [
-        b"setup.orgs".as_slice(),
-        b"setup.deadline_ms",
+        b"setup.deadline_ms".as_slice(),
         b"setup.backoff_ms",
         b"setup.backoff_max_ms",
         b"setup.runs",

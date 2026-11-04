@@ -57,10 +57,10 @@ fn leaving_a_chat_unwatches_its_task_activity_and_run() {
 fn open_run(f: &mut f::Fixture) -> skein_lib::Token {
     let mut emitted = Queue::with_capacity(OUTPUTS);
     while let Some(Request::Client(event)) = f.out.pop() {
-        f.client.step(Time::ZERO, skein_lib::Wall::EPOCH, event, &mut emitted);
+        f.client.step_unlinked(Time::ZERO, skein_lib::Wall::EPOCH, event, &mut emitted);
     }
     while let Some(request) = emitted.pop() {
-        if let jig_client::Request::Down {
+        if let jig_client::UnlinkedRequest::Down {
             down: jig_client::Down::Open { watch, subject: Watchable::Jig(c::Subject::Run { .. }) },
         } = request
         {
@@ -84,7 +84,7 @@ fn run_text(from: u32, bytes: &[u8]) -> c::RunText {
     }
 }
 fn run_delivery(f: &mut f::Fixture, watch: skein_lib::Token, delivery: c::Delivery) {
-    f.client.step(
+    f.client.step_unlinked(
         Time::ZERO,
         skein_lib::Wall::EPOCH,
         Event::Up { up: jig_client::Up::Watched { watch, event: c::WatchEvent::Delivered(delivery) } },
@@ -423,9 +423,9 @@ fn chat_with_loaded_turn() -> (crate::Domain, Queue<crate::Request>) {
     );
     let mut watch = None;
     while let Some(request) = out.pop() {
-        if let crate::Request::Client {
+        if let crate::Request::Unlinked {
             request:
-                jig_client::Request::Down {
+                jig_client::UnlinkedRequest::Down {
                     down: jig_client::Down::Open { watch: token, subject: Watchable::Jig(c::Subject::Task { .. }) },
                 },
         } = request
@@ -486,9 +486,9 @@ fn an_automatic_seen_and_a_message_can_both_be_pending_and_answered() {
     let mut attempts = skein_lib::List::with_capacity(REQUESTS);
     let mut asks = skein_lib::List::with_capacity(REQUESTS);
     while let Some(request) = out.pop() {
-        if let crate::Request::Client {
+        if let crate::Request::Unlinked {
             request:
-                jig_client::Request::Down {
+                jig_client::UnlinkedRequest::Down {
                     down: jig_client::Down::Send { attempt, request: jig_client::Ask::Jig(ask), .. },
                 },
         } = request
@@ -740,7 +740,7 @@ fn a_chat_watches_each_delegated_task_as_its_call_arrives() {
     assert_eq!(watches(&mut f.out).as_ref(), [(handle, DELEGATED)], "fresh handle watches the delegated task");
     assert!(f.chat.delegation(&f.client, DELEGATED).is_none(), "wait for its document");
     let mut emitted = Queue::with_capacity(OUTPUTS);
-    f.client.step(
+    f.client.step_unlinked(
         Time::ZERO,
         skein_lib::Wall::EPOCH,
         Event::Watch { handle, subject: Watchable::Jig(c::Subject::Task { task: DELEGATED }) },
@@ -748,7 +748,7 @@ fn a_chat_watches_each_delegated_task_as_its_call_arrives() {
     );
     let mut watch = None;
     while let Some(request) = emitted.pop() {
-        if let jig_client::Request::Down {
+        if let jig_client::UnlinkedRequest::Down {
             down: jig_client::Down::Open { watch: token, subject: Watchable::Jig(c::Subject::Task { task: DELEGATED }) },
         } = request
         {

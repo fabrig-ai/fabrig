@@ -87,6 +87,17 @@ pub fn answer_for_tool(answer: &CallAnswer, tool: &[u8], max_bytes: u32) -> Host
 }
 
 fn bounded(answer: &CallAnswer, tool: &[u8], max_bytes: u32) -> HostAnswer {
+    if let CallAnswer::TaskRead(read) = answer {
+        let cap = usize::try_from(max_bytes).expect("u32 fits").min(HostAnswer::CAPACITY);
+        return match task_read(read, cap) {
+            Ok(answer) => answer,
+            Err(_) => {
+                let why = b"Task metadata exceeds the host answer limit.";
+                HostAnswer::new(bytes::copy_of(why.get(..cap.min(why.len())).expect("bounded refusal")), true)
+                    .expect("bounded task refusal")
+            }
+        };
+    }
     if let CallAnswer::ForgeRead(read) = answer
         && let Ok(api::Answer::Job { attempt, step, log, truncated }) = read.as_ref()
     {
@@ -133,7 +144,7 @@ fn job_text(
         text.add(b", no step failed")?;
     }
     text.add(b":\n")?;
-    let cap = usize::try_from(max_bytes).expect("u32 fits usize").min(HostAnswer::CAPACITY);
+    let cap = skein_lib::usize_of(max_bytes).min(HostAnswer::CAPACITY);
     let room = cap.checked_sub(text.len).ok_or(Problem::TooLarge)?;
     let whole = escaped_len(log);
     if !truncated && whole <= room {
@@ -188,6 +199,7 @@ fn answer_text(answer: &CallAnswer, tool: &[u8]) -> HostAnswer {
 fn rendered(answer: &CallAnswer, tool: &[u8]) -> Result<HostAnswer, Problem> {
     let mut text = Text::new();
     let error = match answer {
+        CallAnswer::TaskRead(read) => return task_read(read, HostAnswer::CAPACITY),
         CallAnswer::SettingsRefused(why) => {
             settings_refused(&mut text, why)?;
             true
@@ -1144,4 +1156,144 @@ fn directory_text(
         text.add(b"[directory cut]")?;
     }
     Ok(())
+}
+
+fn task_read(
+    read: &Result<jig_domain_core::reads::run_task::TaskRead, jig_domain_tasks::Refusal>,
+    maximum: usize,
+) -> Result<HostAnswer, Problem> {
+    let mut text = Text::new();
+    let read = match read {
+        Ok(read) => read,
+        Err(why) => {
+            text.add(b"Task read refused: ")?;
+            task_problem(&mut text, &jig_domain_tasks::Problem::new(None, *why))?;
+            if text.len > maximum {
+                return Err(Problem::TooLarge);
+            }
+            return text.finish(true);
+        }
+    };
+    task_read_metadata(&mut text, read)?;
+    text.add(b"\nWords from ")?;
+    text.number(read.words.from)?;
+    text.add(b":\n")?;
+    task_read_words(&mut text, &read.words, maximum)?;
+    text.finish(false)
+}
+
+fn task_read_metadata(text: &mut Text, read: &jig_domain_core::reads::run_task::TaskRead) -> Result<(), Problem> {
+    use jig_domain_core::reads::run_task::TaskState;
+    text.add(b"Task ")?;
+    text.number(read.task)?;
+    text.add(b", spec revision ")?;
+    text.number(read.spec_revision)?;
+    text.add(b"\nState: ")?;
+    text.add(match read.state {
+        TaskState::Waiting => b"waiting",
+        TaskState::Active(_) => b"active",
+        TaskState::Closing(_) => b"closing",
+        TaskState::Held => b"held",
+        TaskState::Ended(jig_domain_tasks::Status::Done) => b"done",
+        TaskState::Ended(jig_domain_tasks::Status::Failed) => b"failed",
+        TaskState::Ended(jig_domain_tasks::Status::Cancelled) => b"cancelled",
+    })?;
+    text.add(b"\nDependencies:")?;
+    for task in &read.dependencies {
+        text.add(b" ")?;
+        text.number(*task)?;
+    }
+    if let Some(hold) = &read.hold {
+        text.add(b"\nHold revision ")?;
+        text.number(hold.revision)?;
+        text.add(b": ")?;
+        task_hold_reason(text, hold.reason)?;
+        if let Some(words) = &hold.words {
+            text.add(b"\n")?;
+            text.add(words)?;
+        }
+    }
+    Ok(())
+}
+
+fn task_hold_reason(text: &mut Text, reason: jig_domain_tasks::Hold) -> Result<(), Problem> {
+    use jig_domain_tasks::{Class, Hold};
+    let (label, number): (&[u8], Option<u64>) = match reason {
+        Hold::Dependency(task) => (b"dependency ", Some(task)),
+        Hold::Placed { hold } => (b"placed hold ", Some(hold)),
+        Hold::Uncertain { entry } => (b"effect outcome uncertain, entry ", Some(entry)),
+        Hold::PoolLost { pool } => (b"pool lost ", Some(pool)),
+        Hold::Exceeded(exceeded) => return task_exceeded(text, exceeded),
+        Hold::Failures(class) => {
+            return text.add(match class {
+                Class::Transient => b"retry allowance exhausted: transient failures",
+                Class::Permanent => b"retry allowance exhausted: permanent failures",
+                Class::Run => b"retry allowance exhausted: run failures",
+                Class::Agent => b"retry allowance exhausted: agent failures",
+                Class::Lost => b"retry allowance exhausted: lost runs",
+                Class::Invalid => b"retry allowance exhausted: invalid results",
+            });
+        }
+        Hold::Stalled => (b"executor stalled", None),
+        Hold::Stopped => (b"stopped", None),
+        Hold::Drift => (b"resource drift", None),
+        Hold::ResourceUnavailable => (b"resource unavailable", None),
+        Hold::ResourceAccess => (b"resource access", None),
+        Hold::Effects => (b"effects", None),
+        Hold::EffectFailed => (b"effect failed", None),
+        Hold::Budget => (b"budget spent", None),
+        Hold::Deadline => (b"deadline", None),
+        Hold::HoldsWaited => (b"hold wait exceeded", None),
+        Hold::Procedure => (b"procedure held", None),
+        Hold::Circle => (b"circle of waits", None),
+    };
+    text.add(label)?;
+    match number {
+        Some(number) => text.number(number),
+        None => Ok(()),
+    }
+}
+
+fn task_exceeded(text: &mut Text, exceeded: jig_domain_tasks::Exceeded) -> Result<(), Problem> {
+    use jig_domain_tasks::Bound;
+    text.add(b"configured limit exceeded: ")?;
+    text.add(match exceeded.bound {
+        Bound::Reasoning => b"reasoning bytes ",
+        Bound::Metadata => b"metadata bytes ",
+        Bound::Items => b"answer items ",
+        Bound::Answer => b"answer bytes ",
+        Bound::Tools => b"tools ",
+        Bound::HistoryItems => b"history items ",
+        Bound::History => b"history ",
+        Bound::Window => b"window tokens ",
+        Bound::Output => b"output tokens ",
+    })?;
+    text.number(exceeded.value)
+}
+
+fn task_read_words(text: &mut Text, words: &jig_domain_core::reads::TaskText, maximum: usize) -> Result<(), Problem> {
+    // A continuation contains a newline, label and at most twenty decimal digits.
+    const CONTINUATION: usize = 27;
+    if words.next.is_none() && text.len.saturating_add(escaped_len(&words.bytes)) <= maximum {
+        return text.add(&words.bytes);
+    }
+    let room =
+        maximum.checked_sub(text.len).ok_or(Problem::TooLarge)?.checked_sub(CONTINUATION).ok_or(Problem::TooLarge)?;
+    let mut used = 0_usize;
+    let mut count = 0_usize;
+    for byte in &words.bytes {
+        let size = escaped_len(core::slice::from_ref(byte));
+        if used.saturating_add(size) > room {
+            break;
+        }
+        used = used.saturating_add(size);
+        count = count.saturating_add(1);
+    }
+    let prefix = bytes::utf8_prefix(&words.bytes, count);
+    if prefix.is_empty() && !words.bytes.is_empty() {
+        return Err(Problem::TooLarge);
+    }
+    text.add(prefix)?;
+    text.add(b"\nnext: ")?;
+    text.number(words.from.checked_add(skein_lib::len_u64(prefix.len())).ok_or(Problem::TooLarge)?)
 }

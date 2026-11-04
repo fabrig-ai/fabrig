@@ -1,1 +1,2 @@
+mod walk;
 mod world;

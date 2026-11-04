@@ -24,14 +24,10 @@ const LIMITS: skein_ui::Limits = skein_ui::Limits {
     depth: 4,
     text_per_node: 64,
     text_bytes: 1024,
-    drawing_bytes: 0,
-    styles_per_node: 0,
     patches: 128,
     bindings: 2,
-    slots: 0,
     markdown_depth: 1,
-    scene_marks: 0,
-    scene_bytes: 0,
+    ..skein_ui::Limits::EMPTY
 };
 impl<const BAD: u8> App for Broken<BAD> {
     type Root = Root;

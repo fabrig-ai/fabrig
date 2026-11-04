@@ -1,6 +1,6 @@
 # host: status
 
-2026-11-02. Where smith's code lags or departs from [host.md](host.md).
+2026-11-04. Where smith's code lags or departs from [host.md](host.md).
 
 - **Not yet:**
   - 2, 9.1: live content in one process. The inline agent's LLM deltas
@@ -17,3 +17,12 @@
     `no_credential`): with no request waiting it aborts ("one terminal
     per account request"), and with another account's waiting it is
     counted as that one's answer.
+- **Departs:**
+  - 8: each kind of failure has its own words, matched exhaustively;
+    `smith-local-domain/src/person.rs`, `turn_text` and `tool_end`,
+    compose person-facing text, exposed by
+    `smith-local-domain/src/domain.rs`, `Domain::tool_verdict` and
+    `Domain::result_text`, alongside the protocol's notice rendering.
+    No reason is recorded; whether this departs is the designer's
+    decision (the code's side is
+    `smith/docs/development/debt/D018-domain-formats-text.md`).

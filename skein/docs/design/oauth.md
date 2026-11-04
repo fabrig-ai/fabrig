@@ -26,8 +26,9 @@ records travel through `skein-http` as in `skein-llm`.
 The caller supplies a `Registration` with an authorization URL, token
 endpoint, client id, redirect URI, requested scope, token wire format, and
 optional client secret. The authorization URL and token endpoint are `https`,
-or `http` on loopback for an issuer on the same machine, such as a replaying
-tier's fake (testing-strategy.md, 4.4). It admits one `Client` machine for an
+with a host and no userinfo, or `http` on loopback for an issuer on the same
+machine, such as a replaying tier's fake (testing-strategy.md, 4.4). It admits
+one `Client` machine for an
 exchange. The endpoint binding is kept through the exchange; a redirect cannot
 choose a new token endpoint. A public client requires an already bound
 loopback listener and a redirect URI whose loopback address, port, and path
@@ -325,6 +326,14 @@ settlement. A successful token response consumes the code or refresh attempt;
 it is never replayed by the machine. A retry of a sign-in code exchange is
 permitted only if the prior request was proved unsent. The caller can start
 another sign-in after a failure with a new state and verifier.
+
+A start in any state but Idle is refused in that step and changes nothing:
+the exchange it found goes on, its terminal still to come, and Done still
+waits for its reset. A refused `SignIn` or `Refresh` emits `Failed` with
+`Limit`, a refused `Revoke` emits `Revoked`, unconfirmed. The caller
+dispatches each step's output before the next, so a terminal in a start's
+own output answers that start, and no caller is left waiting on a start the
+client did not take.
 
 An `Http` demand names its method: a POST, or a GET for the issuer's
 metadata and keys, which carries no secret and may be retried as any
@@ -897,7 +906,10 @@ and a `locked` that comes later is answered by `unlock` at once, until
 
 The client's own limits are section 5's. `skein_oauth_accounts::valid`
 checks account, exchange and listener capacities, client limits and the
-HTTP, TLS and io edges. The redirects it refuses take no additional
+HTTP, TLS and io edges. `Component::check` checks a list of accounts
+against the limits as making the component does, refusing with the same
+`Unusable`, and makes nothing: it takes no generator, so an owner checks
+an account it will add later without making one (lib.md, section 8). The redirects it refuses take no additional
 connection slot. Trusted roots are shared configuration. Neither the
 accounts component nor its listener requires a sum of heap prices.
 
@@ -968,6 +980,10 @@ accounts component nor its listener requires a sum of heap prices.
   redirect.
 - **Device authorization,** for a person whose browser is on another
   machine, beside the pasted redirect (6.5): whether it joins the client.
+- **A confidential redirect's authority.** Its `https` URI is read by its
+  scheme alone, so `https://` and `https://a@b` are admitted where an
+  endpoint's are refused (section 1), and the issuer matches it against its
+  registration. Default: so; whether it takes an endpoint's reading.
 - **A credential helper,** a program that prints a token, as another source
   of access-only records beside handing them in.
 - **The fake issuer's signing in a simulated world.** ring's RSA signing

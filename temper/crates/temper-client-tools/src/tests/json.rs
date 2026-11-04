@@ -154,7 +154,7 @@ fn a_text_from_stdin_is_refused_under_call_stdin() {
 fn a_document_past_ask_bytes_is_a_usage_error() {
     const INPUT: &[u8] = br#"{"tool":"me","arguments":{}}"#;
     // Exactly the valid document's byte length, then one less.
-    let length = u64::try_from(INPUT.len()).expect("fixture length fits");
+    let length = skein_lib::len_u64(INPUT.len());
     let mut limits = crate::limits::tools();
     for (bound, expected) in [(length, Ok(())), (length.checked_sub(1).expect("nonempty fixture"), Err(Usage::Json))] {
         limits.ask_bytes = bound;

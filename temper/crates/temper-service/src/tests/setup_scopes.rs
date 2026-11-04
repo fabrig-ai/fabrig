@@ -96,8 +96,11 @@ fn preparations_four_scopes_grant_adopt_and_without_repository_it_is_refused_at_
         }
         config.setup = Box::new([]);
         fixtures::fill_files(&mut config);
-        let mut endpoints = fixtures::configured_endpoints(&config, fixtures::forge_runtime()).unwrap();
-        let access = endpoints.forges.get_mut(0).unwrap().access.take().expect("file access");
+        let access = skein_forge_connection::Access {
+            credential: skein_forge::credential::Credential::Token(Secret::new(fixtures::FORGE_TOKEN.into())),
+            user: 42,
+            webhook_secret: None,
+        };
         let mut service =
             fixtures::configured_service(config, &fixtures::seeds(), None, fixtures::forge_runtime()).unwrap();
         fixtures::replace_store(&mut service, fixtures::records_store());

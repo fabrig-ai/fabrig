@@ -18,6 +18,58 @@ fn io() -> FileIo {
     FileIo::new(3, 16, 4, Duration::from_secs(1))
 }
 
+fn socket_and_file_operations() -> (Token, FileIo, Submit) {
+    let mut rig = super::Rig::new(super::limits());
+    let first = rig.down(crate::Request::Usage { owner: OWNER }).take(super::Kind::Usage);
+    rig.complete(first, Ok(Done::Usage(crate::kernel::Usage::ZERO)));
+    rig.next();
+    let reused = rig.down(crate::Request::Usage { owner: OWNER }).take(super::Kind::Usage);
+
+    let mut io = io();
+    let mut events = Queue::uncapped();
+    let mut subs = Queue::uncapped();
+    file_layer::down(
+        &mut io,
+        Time::ZERO,
+        Request::OpenRead { owner: OWNER, root: ROOT, name: Box::from(&b"file"[..]) },
+        &mut events,
+        &mut subs,
+    );
+    (reused.op, io, subs.pop().expect("first file submission"))
+}
+
+#[test]
+fn an_io_and_a_file_operation_are_never_the_same_token() {
+    let (socket, _, file) = socket_and_file_operations();
+    assert_eq!(socket, Token::new(1), "slot zero, generation one after reclaim");
+    assert_ne!(socket, file.op);
+}
+
+#[test]
+fn owns_tells_a_file_operation_from_an_io_one() {
+    let (socket, mut io, file) = socket_and_file_operations();
+    let mut subs = Queue::uncapped();
+    file_layer::cancel(&mut io, OWNER, &mut subs);
+    let cancel = subs.pop().expect("file cancellation");
+    assert_eq!(cancel.kind, Op::Cancel { target: file.op });
+    for (op, expected) in [(socket, false), (file.op, true), (cancel.op, true)] {
+        assert_eq!(file_layer::owns(op), expected, "{op:?}");
+    }
+}
+
+#[test]
+fn flight_limits_keep_io_tokens_below_the_file_lane() {
+    // io.md, 5: 2^27 flight slots, sized as eight per socket plus four
+    // independent slots. The largest representable table is four below it.
+    const MOST_SOCKETS: u32 = (1 << 24) - 1;
+    const MOST_FLIGHTS: u32 = (1 << 27) - 4;
+    for (sockets, expected) in [(MOST_SOCKETS, Some(MOST_FLIGHTS)), (MOST_SOCKETS + 1, None)] {
+        let limits = crate::Limits { sockets, ..super::limits() };
+        assert_eq!(crate::limits::flights(&limits), expected, "{sockets} sockets");
+        assert_eq!(crate::valid(&limits), expected.is_some(), "{sockets} sockets");
+    }
+}
+
 pub(super) fn complete(
     io: &mut FileIo,
     submit: Submit,
@@ -606,4 +658,123 @@ fn a_cut_past_its_deadline_waits_for_its_truncate_then_times_out() {
     );
     assert!(io.takes(), "the expired cut settles after its truncate");
     assert!(events.is_empty(), "exactly one terminal");
+}
+
+const CANARY: &[u8] = b"canary-7f3a9c";
+
+#[test]
+#[expect(clippy::disallowed_macros, reason = "verify Debug hides stored file contents")]
+fn debug_of_a_stored_record_shows_its_length_never_its_bytes() {
+    let root = Token::new(8);
+    for (request, expected) in [
+        (
+            Request::Store {
+                owner: OWNER,
+                root,
+                path: Box::from(&b"tokens/a"[..]),
+                bytes: Box::from(CANARY),
+                expected: crate::file::Expect::Any,
+                no_follow: true,
+            },
+            "Store { owner: Token(7), root: Token(8), path: [116, 111, 107, 101, 110, 115, 47, 97], len: 13, expected: Any, no_follow: true }",
+        ),
+        (
+            Request::WriteAt { owner: OWNER, file: root, offset: 5, bytes: Box::from(CANARY) },
+            "WriteAt { owner: Token(7), file: Token(8), offset: 5, len: 13 }",
+        ),
+    ] {
+        let debug = alloc::format!("{request:?}");
+        assert!(!debug.contains("canary-7f3a9c"));
+        assert!(!debug.contains(&alloc::format!("{CANARY:?}")));
+        assert_eq!(debug, expected);
+    }
+}
+
+#[test]
+#[expect(clippy::disallowed_macros, reason = "verify Debug hides loaded and read file contents")]
+fn debug_of_a_loaded_or_read_file_shows_its_length_never_its_bytes() {
+    for (event, expected) in [
+        (Event::Loaded { owner: OWNER, bytes: Box::from(CANARY) }, "Loaded { owner: Token(7), len: 13 }"),
+        (Event::Read { owner: OWNER, bytes: Box::from(CANARY) }, "Read { owner: Token(7), len: 13 }"),
+    ] {
+        let debug = alloc::format!("{event:?}");
+        assert!(!debug.contains("canary-7f3a9c"));
+        assert!(!debug.contains(&alloc::format!("{CANARY:?}")));
+        assert_eq!(debug, expected);
+    }
+}
+
+#[test]
+#[expect(clippy::disallowed_macros, reason = "verify Debug preserves the derived form without contents")]
+fn debug_of_records_without_contents_is_the_derived_form() {
+    let request = Request::Load {
+        owner: OWNER,
+        root: Token::new(8),
+        path: Box::from(&b"tokens/a"[..]),
+        max: 16,
+        no_follow: true,
+    };
+    assert_eq!(
+        alloc::format!("{request:?}"),
+        "Load { owner: Token(7), root: Token(8), path: [116, 111, 107, 101, 110, 115, 47, 97], max: 16, no_follow: true }"
+    );
+    let event = Event::Failed {
+        owner: OWNER,
+        error: crate::kernel::Error::Other(5),
+        committed: true,
+        residue: Some(crate::file::Residue { name: Box::from(&b"tmp"[..]), error: crate::kernel::Error::ReadOnly }),
+    };
+    assert_eq!(
+        alloc::format!("{event:?}"),
+        "Failed { owner: Token(7), error: Other(5), committed: true, residue: Some(Residue { name: [116, 109, 112], error: ReadOnly }) }"
+    );
+}
+
+#[test]
+#[expect(clippy::disallowed_macros, reason = "verify Debug hides file contents throughout reads and loads")]
+fn debug_of_file_io_hides_a_load_and_a_read_in_flight() {
+    let mut io = io();
+    let root = io.adopt_root(ROOT).expect("room for root");
+    let mut events = Queue::with_capacity(2);
+    let mut subs = Queue::with_capacity(2);
+    file_layer::down(
+        &mut io,
+        Time::ZERO,
+        Request::Load { owner: OWNER, root, path: Box::from(&b"f"[..]), max: 16, no_follow: true },
+        &mut events,
+        &mut subs,
+    );
+    complete(&mut io, subs.pop().expect("open"), Ok(Done::Fd(CHILD)), &mut events, &mut subs);
+    let stat = Stat { kind: Kind::File, size: 13, mode: 0o600, owner: 1000, links: 1 };
+    complete(&mut io, subs.pop().expect("stat"), Ok(Done::Stat(stat)), &mut events, &mut subs);
+    read(&mut io, subs.pop().expect("first load read"), CANARY, &mut events, &mut subs);
+    let loading = alloc::format!("{io:?}");
+    read(&mut io, subs.pop().expect("end read"), b"", &mut events, &mut subs);
+    let closing = alloc::format!("{io:?}");
+    complete(&mut io, subs.pop().expect("close"), Ok(Done::Nothing), &mut events, &mut subs);
+    assert_eq!(events.pop(), Some(Event::Loaded { owner: OWNER, bytes: Box::from(CANARY) }));
+
+    file_layer::down(
+        &mut io,
+        Time::ZERO,
+        Request::OpenRead { owner: OWNER, root: ROOT, name: Box::from(&b"f"[..]) },
+        &mut events,
+        &mut subs,
+    );
+    complete(&mut io, subs.pop().expect("open"), Ok(Done::Fd(CHILD)), &mut events, &mut subs);
+    complete(&mut io, subs.pop().expect("stat"), Ok(Done::Stat(stat)), &mut events, &mut subs);
+    let Event::Opened { file, .. } = events.pop().expect("opened file") else { panic!("opened file") };
+    file_layer::down(
+        &mut io,
+        Time::ZERO,
+        Request::ReadAt { owner: OWNER, file, offset: 5, max: 16 },
+        &mut events,
+        &mut subs,
+    );
+    read(&mut io, subs.pop().expect("first positioned read"), CANARY, &mut events, &mut subs);
+    for debug in [loading, closing, alloc::format!("{io:?}")] {
+        assert!(!debug.contains("canary-7f3a9c"));
+        assert!(!debug.contains(&alloc::format!("{CANARY:?}")));
+        assert!(debug.contains("len: 13"));
+    }
 }

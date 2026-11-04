@@ -117,6 +117,9 @@ impl World {
                     order.push("exchange");
                 }
                 Request::Client { .. } => order.push("transport"),
+                Request::Unlinked { .. } => {
+                    unreachable!("a linked root asks no unlinked request (jig's client.md, 4.4)")
+                }
                 Request::Show { .. } => order.push("show"),
                 Request::SignIn { .. }
                 | Request::SignOut
@@ -172,6 +175,7 @@ fn frame(watch: u64) -> w::StreamEvent {
             w::MeProject::new(
                 &w::CEILINGS,
                 w::MeProjectParts {
+                    public: None,
                     project: PROJECT,
                     name: text(b"First"),
                     role: w::HeldRole::Member,

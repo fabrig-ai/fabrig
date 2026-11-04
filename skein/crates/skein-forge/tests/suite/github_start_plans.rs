@@ -19,10 +19,7 @@ use skein_forge::{
     measure,
 };
 use skein_json::{tokenizer, writer};
-use skein_lib::{
-    Duration, Env, Intake, List, Queue, Secret, Time, Wall, Writer,
-    stream::{Down, Up},
-};
+use skein_lib::{Duration, List, Secret, Wall, Writer};
 
 // The same tiny document/token bounds as the dialect's fixtures.
 const DOCUMENT_BYTES: u32 = 4096;
@@ -85,38 +82,19 @@ fn bytes(mut out: Writer) -> Box<[u8]> {
 // Copied from github/tests/fixtures::decode: every plan document crosses tokens.
 fn decode(kind: Kind, body: &[u8]) -> (List<Row>, Body) {
     let limits = limits();
-    let env = Env { now: Time::ZERO, wall: Wall::EPOCH, limits: limits.json };
-    let mut tokenizer = tokenizer::Tokenizer::new(&limits.json);
+    let mut feed = tokenizer::Feed::new(body, &limits.json);
     let mut decoder = decode::decoder(kind, &limits);
-    let mut above = Queue::with_capacity(1);
-    let mut below = Queue::with_capacity(1);
-    let mut intake =
-        Intake::with_capacity(u32::try_from(body.len()).unwrap().max(tokenizer::largest_demand(&limits.json)));
-    intake.append(body).unwrap();
     let mut rows = List::with_capacity(pin::PAGE_CAP + 1);
-    tokenizer::down(&mut tokenizer, &env, tokenizer::Request::Next, &mut above, &mut below);
-    for _ in 0..body.len().saturating_mul(8).saturating_add(64) {
-        if let Some(event) = above.pop() {
-            let (demand, step) = decoder.step(event);
-            match step {
-                decode::Step::Demand => {}
-                decode::Step::Row(row) => rows.push(row).unwrap(),
-                decode::Step::Done(document) => return (rows, Body::Document(document)),
-                decode::Step::Malformed(error) => return (rows, Body::Malformed(error)),
-            }
-            tokenizer::down(&mut tokenizer, &env, demand, &mut above, &mut below);
-        } else {
-            match below.pop().expect("tokenizer demand") {
-                Down::Demand { read, room: 0 } => {
-                    let delivery = match intake.meet(read) {
-                        Some(bytes) => Up::Bytes(bytes),
-                        None => Up::End,
-                    };
-                    tokenizer::up(&mut tokenizer, &env, delivery, &mut above, &mut below);
-                }
-                Down::Demand { .. } | Down::Send(_) | Down::Finish => panic!("JSON only demands input"),
-            }
+    let mut request = tokenizer::Request::Next;
+    for _answer in 0..=body.len() {
+        let (demand, step) = decoder.step(feed.answer(request));
+        match step {
+            decode::Step::Demand => {}
+            decode::Step::Row(row) => rows.push(row).unwrap(),
+            decode::Step::Done(document) => return (rows, Body::Document(document)),
+            decode::Step::Malformed(error) => return (rows, Body::Malformed(error)),
         }
+        request = demand;
     }
     panic!("decoder did not settle within input's step bound")
 }

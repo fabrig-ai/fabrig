@@ -123,6 +123,7 @@ pub(super) const DOCUMENTS: core::documents::DocumentLimits = core::documents::D
     ..small::DOCUMENTS
 };
 pub(super) const CORE: core::Limits = core::Limits {
+    public: core::PublicIndexLimits::OFF,
     // The sum of child route bounds when this configured hand-off bound was set.
     routes: 151_655,
     settings: core::settings::Limits {
@@ -170,6 +171,7 @@ pub(super) const LIMITS: Limits = Limits {
     },
     clients: CLIENTS,
     clients_http: jig_protocol_engine_clients_http::Limits {
+        public_calls: 0,
         calls: 16,
         streams: 8,
         body: CLIENTS.message_bytes,
@@ -183,6 +185,7 @@ pub(super) const LIMITS: Limits = Limits {
 };
 
 pub(super) const CLIENTS: jig_protocol_engine_clients::Limits = jig_protocol_engine_clients::Limits {
+    public: jig_protocol_engine_clients::PublicLimits::OFF,
     streams: 8,
     exchanges: 32,
     mints: 16,

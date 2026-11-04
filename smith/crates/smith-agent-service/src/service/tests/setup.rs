@@ -74,7 +74,11 @@ pub(super) fn interrupted_before_admission(run: u64) -> Service {
         Some(&mut service.frame),
         io::Event::Shutdown { signal: kernel::ServiceSignal::Interrupt, from: None },
     );
-    assert!(service.stages.cancel_pending, "the opening run retains cancellation until admission");
+    assert_eq!(
+        service.stages.admission,
+        admission::Admission::Cancelled,
+        "the opening run retains cancellation until admission"
+    );
     with_admission(service, Some(Token::new(run)))
 }
 
@@ -234,9 +238,11 @@ pub(super) fn preparing_message_run() -> (Service, Token) {
     (service, run)
 }
 
-fn with_admission(service: Service, admitted: Option<Token>) -> Service {
-    let Service { stages, frame } = service;
-    Service { stages: Stages { admitted, ..stages }, frame }
+fn with_admission(mut service: Service, admitted: Option<Token>) -> Service {
+    if let Some(run) = admitted {
+        service.stages.admission.admit(run);
+    }
+    service
 }
 
 fn with_streams(service: Service, input: Option<Token>, output: Option<Token>, signals: Option<Token>) -> Service {

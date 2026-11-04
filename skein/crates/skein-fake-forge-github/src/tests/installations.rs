@@ -5,6 +5,29 @@ use crate::installations::{
 use skein_lib::{List, Wall};
 
 #[test]
+fn each_store_draws_its_own_sequence() {
+    let seed = 42;
+    let limits = super::fixtures::limits();
+    let mut service = crate::Service::new(super::fixtures::config(), &limits, seed).expect("fixture service");
+    let draws = [
+        ("service", service.rng.next_u64()),
+        ("logs", service.logs.first_draw()),
+        ("delivery", service.deliveries.next_draw()),
+        ("pages", service.pages.next_draw()),
+        ("installations", service.installations.next_draw()),
+    ];
+    for (index, (name, draw)) in draws.iter().enumerate() {
+        for (other_name, other_draw) in draws.iter().skip(index.saturating_add(1)) {
+            assert_ne!(draw, other_draw, "{name} and {other_name} share a sequence: {draws:?}");
+        }
+    }
+    let mut scenario = skein_lib::Rng::new(seed);
+    assert_eq!(draws.first().expect("service draw").1, scenario.next_u64(), "fault draws keep the scenario seed");
+    // Delivery's constructor consumes its first draw for the initial delivery id.
+    assert_ne!(draws.get(2).expect("delivery draw").1, scenario.next_u64(), "delivery has its own sequence");
+}
+
+#[test]
 fn github_fake_installations() {
     let mut rows = store(42);
     assert_eq!(rows.install(2, b"org", Kind::Organization, Reach::All, wall(1001)), Ok(2));

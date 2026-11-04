@@ -7,10 +7,7 @@ fn each_kit_place_names_its_temper_path() {
     for (place, other, line) in [
         (Place::BotLogin, None, "application.setup[1].bot.login: invalid form\n"),
         (Place::BotEmail, None, "application.setup[1].bot.email: invalid form\n"),
-        (Place::Orgs, None, "application.setup[1].orgs: past its bound\n"),
-        (Place::Org(2), None, "application.setup[1].orgs[2]: invalid form\n"),
         (Place::OrgOwner, None, "application.setup[1].mode.owned.person.login: invalid form\n"),
-        (Place::OrgsLimit, None, "application.limits.overrides.setup.orgs: outside its type\n"),
         (Place::Deadline, None, "application.limits.overrides.setup.deadline_ms: outside its type\n"),
         (Place::Backoff, None, "application.limits.overrides.setup.backoff_ms: outside its type\n"),
         (Place::BackoffMax, None, "application.limits.overrides.setup.backoff_max_ms: outside its type\n"),
@@ -51,7 +48,7 @@ fn expected_given() -> skein_forge_setup::given::Given {
         api_name: b"temper-api".as_slice().into(),
         git_name: b"temper-git".as_slice().into(),
         limits: skein_forge_setup::limits::Limits {
-            orgs: 8,
+            orgs: crate::limits::ORGS,
             files: 2,
             file_bytes: 4096,
             reachable: 8,

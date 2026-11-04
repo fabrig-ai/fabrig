@@ -413,7 +413,7 @@ impl Transport {
 /// # Errors
 /// Returns storage work and unsupported family carriers intact to their owner.
 pub fn contract_request(down: jig_client::Down) -> Result<jig_client_test_domain::Request, jig_client::Down> {
-    Ok(jig_client_test_domain::Request::Client { request: jig_client::Request::Down { down } })
+    Ok(jig_client_test_domain::Request::Unlinked { request: jig_client::UnlinkedRequest::Down { down } })
 }
 
 /// Translate only original transport callbacks; shell handoffs stay with their caller.

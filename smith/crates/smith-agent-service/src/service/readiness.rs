@@ -19,7 +19,7 @@ fn admits(service: &Stages) -> bool {
 // The drain and shell readiness agree on both admission and the retained
 // pending-message edge credit before offering the head channel event.
 pub(super) fn channel_event_ready(service: &Stages) -> bool {
-    if service.admitted.is_none() && service.pending_messages.room() == 0 {
+    if service.admission.run().is_none() && service.pending_messages.room() == 0 {
         return false;
     }
     match service.channel_events.iter().next() {
@@ -54,7 +54,7 @@ pub(super) fn channel_room(service: &Stages, frame: Option<&Frame>) -> bool {
 }
 
 pub(super) fn pending_message_ready(service: &Stages) -> bool {
-    service.admitted.is_some() && admits(service)
+    service.admission.run().is_some() && admits(service)
 }
 
 pub(super) fn domain_entrance_ready(service: &Stages, frame: Option<&Frame>) -> bool {

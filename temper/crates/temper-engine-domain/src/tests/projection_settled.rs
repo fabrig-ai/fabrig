@@ -12,7 +12,7 @@ pub(super) fn live_goal(tracked: Option<u32>) -> (crate::Domain, Env<crate::Limi
 pub(crate) fn live_task(tracked: Option<u32>, executor: tasks::Executor) -> (crate::Domain, Env<crate::Limits>, u64) {
     let (mut domain, env) = super::resume_fixture::root();
     let goal = crate::fresh(&mut domain.core.counters, crate::Family::Task).unwrap();
-    let task_env = Env { now: env.now, wall: env.wall, limits: env.limits.tasks };
+    let task_env = env.with(env.limits.tasks);
     let mut out = Queue::uncapped();
     for event in [
         tasks::Event::Restored,

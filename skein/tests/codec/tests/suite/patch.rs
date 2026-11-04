@@ -344,7 +344,7 @@ mod tests {
             let new_root = patcher.counterpart(plan, root).expect("root survives");
             let new_schema = patcher.schema(2).expect("v2 schema");
             let name = new_schema.spelled(new_schema.declaration(new_root).name).to_vec();
-            let bytes = fs::read(Path::new("golden/v1").join(&golden.name)).expect("committed v1 golden");
+            let bytes = fs::read(Path::new("golden/every-v1").join(&golden.name)).expect("committed v1 golden");
             assert_eq!(bytes, golden.bytes, "{}: v1 golden", golden.name);
             let result = (|| -> Result<Vec<u8>, Halt> {
                 patcher.start(plan, root, bytes.clone().into_boxed_slice())?;
@@ -375,7 +375,7 @@ mod tests {
             if write {
                 fs::write(&path, &result).expect("write patched golden");
             } else {
-                assert_eq!(fs::read(&path).expect("patched golden committed; run SKEIN_PATCH_WRITE=1 heavy cargo nextest run -p skein-codec-tests --test suite -E 'test(/^patch::/)'"), result, "{}", golden.name);
+                assert_eq!(fs::read(&path).expect("patched golden committed; run SKEIN_PATCH_WRITE=1 cargo nextest run -p skein-codec-tests --test suite -E 'test(/^patch::/)'"), result, "{}", golden.name);
             }
             assert!(names.insert(golden.name), "golden name unique");
         }

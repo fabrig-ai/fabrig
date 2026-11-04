@@ -4,7 +4,7 @@ use skein_io::{
     kernel::{Complete, Fd, ServiceSignal, Submit},
 };
 use skein_lib::{
-    Env, Queue, Token,
+    Queue, Token,
     stream::{Down, Read, Up},
 };
 use skein_shell::{Clock, Config, Kernel, Wait};
@@ -25,7 +25,7 @@ pub fn serve() -> ! {
     let now = clock.now();
     skein_io::down(
         &mut io,
-        &Env { now: now.now, wall: now.wall, limits },
+        &now.with(limits),
         Request::Listen { owner: Token::new(1), addr: skein_io::Addr::Ip(address) },
         &mut subs,
     );
@@ -35,7 +35,7 @@ pub fn serve() -> ! {
     loop {
         kernel.reap(&mut complete);
         let now = clock.now();
-        let env = Env { now: now.now, wall: now.wall, limits };
+        let env = now.with(limits);
         loop {
             if io.is_ready() {
                 skein_io::resume(&mut io, &env, &mut events, &mut subs);

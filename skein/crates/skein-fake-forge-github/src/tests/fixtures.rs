@@ -12,10 +12,7 @@ use skein_forge::github::{
     request::Method,
 };
 use skein_json::{tokenizer, writer};
-use skein_lib::{
-    Duration, Env, Intake, List, Queue, ReplyTo, Secret, Time, Token, Wall, bytes,
-    stream::{Down, Up},
-};
+use skein_lib::{Duration, Env, List, Queue, ReplyTo, Secret, Time, Token, Wall, bytes};
 
 pub const VIEWER: &[u8] = br#"{"query":"query { viewer { login databaseId } }"}"#;
 pub const INSTALLATIONS: &[u8] = b"/app/installations?per_page=100&page=1";
@@ -327,36 +324,19 @@ pub fn decode_with(
     body: &[u8],
     limits: &github::limits::Limits,
 ) -> (List<DocumentRow>, Document) {
-    let env = Env { now: Time::ZERO, wall: Wall::EPOCH, limits: limits.json };
-    let mut tokenizer = tokenizer::Tokenizer::new(&limits.json);
-    let mut above = Queue::with_capacity(1);
-    let mut below = Queue::with_capacity(1);
-    let mut intake = Intake::with_capacity(
-        u32::try_from(body.len()).expect("fixture body").max(tokenizer::largest_demand(&limits.json)),
-    );
-    intake.append(body).expect("fixture body fits");
+    let mut feed = tokenizer::Feed::new(body, &limits.json);
     let mut rows = List::with_capacity(limits.inner);
-    tokenizer::down(&mut tokenizer, &env, tokenizer::Request::Next, &mut above, &mut below);
-    for _tick in 0..body.len().saturating_mul(8).saturating_add(64) {
-        if let Some(event) = above.pop() {
-            let (demand, step) = decoder.step(event);
-            match step {
-                Step::Demand => {}
-                Step::Row(row) => rows.push(row).expect("fixture rows fit"),
-                Step::Done(document) => return (rows, document),
-                Step::Malformed(error) => panic!("fake response decodes: {error:?}"),
-            }
-            tokenizer::down(&mut tokenizer, &env, demand, &mut above, &mut below);
-        } else {
-            let Down::Demand { read, room: 0 } = below.pop().expect("tokenizer demand") else {
-                panic!("JSON demands input only");
-            };
-            let delivery = match intake.meet(read) {
-                Some(bytes) => Up::Bytes(bytes),
-                None => Up::End,
-            };
-            tokenizer::up(&mut tokenizer, &env, delivery, &mut above, &mut below);
+    let mut demand = tokenizer::Request::Next;
+    // An answer but the last reads at least a byte.
+    for _answer in 0..=body.len() {
+        let (next, step) = decoder.step(feed.answer(demand));
+        match step {
+            Step::Demand => {}
+            Step::Row(row) => rows.push(row).expect("fixture rows fit"),
+            Step::Done(document) => return (rows, document),
+            Step::Malformed(error) => panic!("fake response decodes: {error:?}"),
         }
+        demand = next;
     }
     panic!("document settles within input step bound")
 }

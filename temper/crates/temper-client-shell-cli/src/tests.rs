@@ -1198,7 +1198,7 @@ fn validity_refuses_unusable_io_and_overflowing_operation_counts() {
 #[test]
 fn validity_accepts_large_representable_io_edges() {
     let mut limits = limits::native();
-    limits.io.sockets = 1 << 28_u32;
+    limits.io.sockets = (1 << 24_u32) - 1;
     limits.io.sends = u32::MAX;
     assert!(limits::valid(&limits));
 }

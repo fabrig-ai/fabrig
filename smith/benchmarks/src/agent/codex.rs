@@ -12,6 +12,10 @@ mod prepare;
 
 mod rollouts;
 
+mod run;
+
+pub(super) use run::source_arm;
+
 pub use prepare::{Observing, PreparedCodex, prepare};
 
 pub use rollouts::{ChildThread, Link, ResponseUsage, RolloutFile, Rollouts, collect_rollouts, parse_rollout};
@@ -442,6 +446,16 @@ impl Observer {
             TokenRecord { scope: scope.clone(), role: ScopeKind::Root, convention: Convention::Codex, usage: root },
             TokenRecord { scope: "total".into(), role: ScopeKind::Total, convention: Convention::Codex, usage: total },
         ])
+    }
+
+    /// Apply the stream's counts and root usage before native collection.
+    pub(super) fn stream_measures(&self, result: &mut crate::AttemptResult) -> Result<(), String> {
+        result.counts = self.counts();
+        result.tokens = match self.thread() {
+            Some(_) => self.token_records()?,
+            None => Vec::new(),
+        };
+        Ok(())
     }
 
     /// Stream-visible tool counts; turn aggregates cannot count provider responses.

@@ -14,9 +14,12 @@ pub(super) fn accepts(owner: SecretOwner, number: u64, value: &SecretValue) -> b
         SecretValue::Digest { expiry, .. } => match owner {
             SecretOwner::SignIn => true,
             SecretOwner::Service => *expiry == u64::MAX,
-            SecretOwner::Source | SecretOwner::Application => false,
+            SecretOwner::Source | SecretOwner::Application | SecretOwner::PublicNames => false,
         },
-        SecretValue::Record(_) | SecretValue::Key(_) => owner == SecretOwner::Source,
+        SecretValue::Record(_) => owner == SecretOwner::Source,
+        SecretValue::Key(value) => {
+            owner == SecretOwner::Source || (owner == SecretOwner::PublicNames && number == 0 && value.len() == 32)
+        }
         SecretValue::Application(_) => owner == SecretOwner::Application && number < CARRIED,
         SecretValue::Carried { .. } | SecretValue::Held(_) => false,
     }
@@ -44,6 +47,21 @@ pub(super) fn digest(value: &SecretValue) -> [u8; 32] {
 /// kind, bound and malformed prefix by this module's tests.
 pub(super) fn durable_digest(owner: SecretOwner, number: u64, bytes: &[u8]) -> Option<[u8; 32]> {
     match owner {
+        SecretOwner::PublicNames => {
+            let mut reader = Reader::new(bytes);
+            if number != 0
+                || reader.u16()? != 1
+                || reader.u8()? != 1
+                || skein_codec::read_len(&mut reader, 32).ok()? != 32
+            {
+                return None;
+            }
+            let payload = reader.bytes(32)?;
+            if !reader.is_empty() {
+                return None;
+            }
+            Some(sha256::digest(payload))
+        }
         SecretOwner::SignIn | SecretOwner::Service => {
             let w::DigestParts { expiry, digest: hash } =
                 w::Digest::decode(&w::CEILINGS, &mut Reader::new(bytes)).ok()?.into_parts();
@@ -144,10 +162,16 @@ pub(super) fn decode(owner: SecretOwner, number: u64, bytes: Box<[u8]>) -> Optio
             }
             Some(value)
         }
-        SecretOwner::Source => match w::Source::decode(limits, &mut reader).ok()?.into_parts().value {
-            w::SourceValue::Record(row) => Some(SecretValue::Record(row.into_parts().record)),
-            w::SourceValue::Key(row) => Some(SecretValue::Key(row.into_parts().key)),
-        },
+        SecretOwner::Source | SecretOwner::PublicNames => {
+            let value = match w::Source::decode(limits, &mut reader).ok()?.into_parts().value {
+                w::SourceValue::Record(row) => SecretValue::Record(row.into_parts().record),
+                w::SourceValue::Key(row) => SecretValue::Key(row.into_parts().key),
+            };
+            if !accepts(owner, number, &value) {
+                return None;
+            }
+            Some(value)
+        }
         SecretOwner::Application => {
             if number < CARRIED {
                 return Some(SecretValue::Application(Secret::new(bytes)));

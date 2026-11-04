@@ -1,15 +1,56 @@
 //! Delivery survey, durable intent, git effects and answer (domain/host.md, section 8;
 //! protocol/hosts.md, section 5.5). The operation state owns marker evidence or
-//! uncertainty until its one terminal. Receipts have one in-flight owner.
+//! uncertainty until its one terminal. Delivering keeps the live call, loaded intent
+//! or store operation and its continuation, never an owner without its call.
+//! Entrances route one terminal and follow advances transient states; git effects
+//! remain unknown until inspected evidence settles them.
 use super::Domain;
+use super::reconcile::{self, Reconcile};
 use super::{observe, resume_loading};
 use crate::agent::command;
 use crate::delivery::commit_message;
-use crate::{DeliveryIntent, DeliveryRecord, DeliveryState, Fact, GitOp, GitResult, IntentDirectory, Limits, Request};
+use crate::{
+    DeliveryIntent, DeliveryRecord, DeliveryState, Fact, Failure, GitOp, GitResult, IntentDirectory, Limits, Notice,
+    Request,
+};
 use alloc::boxed::Box;
 use skein_lib::{Env, List, Queue, Time, Token};
 use smith_domain::run;
 use smith_host_domain::{self as host, parent};
+
+/// The one delivery this host holds, live or loaded, and its one store operation.
+#[derive(Debug)]
+pub(super) enum Delivering {
+    /// No delivery in the host's hands.
+    Idle,
+    /// A live call, awaiting one git or filesystem terminal.
+    InPlace(InPlace),
+    /// A loaded intent, awaiting one git terminal.
+    Reconciling(Reconcile),
+    /// One record awaiting its store terminal.
+    Saving { record: DeliveryRecord, after: AfterSave },
+}
+
+/// What a record's store terminal continues to.
+#[derive(Debug)]
+pub(super) enum AfterSave {
+    /// The intent is durable: the call's git effects run.
+    Execute(InPlace),
+    /// The answer is durable: it returns to this call.
+    Return { owner: Token },
+    /// The reconciled answer is durable: loading goes on.
+    ResumeLoading,
+}
+
+impl Delivering {
+    /// Whether a record awaits its store terminal.
+    pub(super) fn saving(&self) -> bool {
+        match self {
+            Self::Saving { .. } => true,
+            Self::Idle | Self::InPlace(_) | Self::Reconciling(_) => false,
+        }
+    }
+}
 
 /// One awaited git or filesystem terminal, or a transition followed immediately.
 #[derive(Debug)]
@@ -21,7 +62,6 @@ enum State {
     Inspect { reason: run::DeliveryReason, diagnostic: Box<run::Diagnostic> },
     InspectPush,
     Push,
-    Saving,
     Advance,
     Answer(Box<run::Delivery>),
     Unknown,
@@ -58,7 +98,7 @@ impl InPlace {
             next: 0,
             receipts: List::with_capacity(run::MAX_DIRECTORIES),
             message,
-            state: State::Status,
+            state: State::Advance,
             stage: Stage::Survey,
             directories: List::with_capacity(run::MAX_DIRECTORIES),
         }
@@ -94,14 +134,31 @@ pub(super) fn begin_delivery(
     deadline: Time,
     out: &mut Queue<Request>,
 ) {
-    assert!(domain.delivery.is_none() && domain.saving.is_none(), "one delivery in flight");
+    let state = core::mem::replace(&mut domain.delivering, Delivering::Idle);
+    domain.delivering = match state {
+        Delivering::Idle => begin(domain, env, name, owner, change, deadline, out),
+        Delivering::InPlace(_) | Delivering::Reconciling(_) | Delivering::Saving { .. } => {
+            unreachable!("one delivery in flight")
+        }
+    };
+    follow(domain, env, out);
+}
+
+fn begin(
+    domain: &mut Domain,
+    env: &Env<Limits>,
+    name: run::CallName,
+    owner: Token,
+    change: run::outcome::Change,
+    deadline: Time,
+    out: &mut Queue<Request>,
+) -> Delivering {
     if let Some(delivery) = crate::delivery::cached(&domain.records, name) {
         deliver_to_agent(domain, env, owner, delivery);
-        return;
+        return Delivering::Idle;
     }
     if domain.records.get(&name).is_some() {
-        deliver_unknown(domain, env, owner, 0);
-        return;
+        return deliver_unknown(domain, env, owner, 0);
     }
     let rules = match &domain.config.contract {
         crate::Contract::Change(spec) => &spec.fields,
@@ -111,32 +168,33 @@ pub(super) fn begin_delivery(
         },
     };
     let Some(message) = commit_message(&change, &domain.config.title_field, rules) else {
-        save_delivery(
-            domain,
+        return save_answer(
             name,
             owner,
             run::Delivery::Failed(run::DeliveryFailure::new(0, run::DeliveryReason::TooLarge)),
             Box::new([]),
             out,
         );
-        return;
     };
     let Some(message) = crate::delivery::named_message(message, name) else {
-        save_delivery(
-            domain,
+        return save_answer(
             name,
             owner,
             run::Delivery::Failed(run::DeliveryFailure::new(0, run::DeliveryReason::TooLarge)),
             Box::new([]),
             out,
         );
-        return;
     };
     let in_place = InPlace::new(name, owner, deadline, message);
-    advance_delivery(domain, env, in_place, out);
+    Delivering::InPlace(in_place)
 }
 
-fn advance_delivery(domain: &mut Domain, env: &Env<Limits>, mut in_place: InPlace, out: &mut Queue<Request>) {
+fn advance_delivery(
+    domain: &mut Domain,
+    env: &Env<Limits>,
+    mut in_place: InPlace,
+    out: &mut Queue<Request>,
+) -> Delivering {
     let workspace = domain.config.workspace.as_ref().expect("admitted delivery has a workspace");
     match in_place.stage {
         Stage::Survey => {
@@ -147,8 +205,7 @@ fn advance_delivery(domain: &mut Domain, env: &Env<Limits>, mut in_place: InPlac
                 }
                 let position = u32::try_from(index).expect("admitted directory count fits u32");
                 if env.now >= in_place.deadline {
-                    save_timeout(domain, in_place, position, out);
-                    return;
+                    return save_timeout(in_place, position, out);
                 }
                 in_place.next = position;
                 let request = if directory.git {
@@ -163,11 +220,10 @@ fn advance_delivery(domain: &mut Domain, env: &Env<Limits>, mut in_place: InPlac
                     in_place.state = State::Plain;
                     Request::PlainStatus { owner: in_place.owner, directory: position, deadline: in_place.deadline }
                 };
-                domain.delivery = Some(in_place);
                 out.push(request);
-                return;
+                return Delivering::InPlace(in_place);
             }
-            save_intent(domain, in_place, out);
+            save_intent(domain, in_place, out)
         }
         Stage::Execute => {
             for index in 0..in_place.directories.len() {
@@ -176,13 +232,11 @@ fn advance_delivery(domain: &mut Domain, env: &Env<Limits>, mut in_place: InPlac
                     continue;
                 }
                 if env.now >= in_place.deadline {
-                    save_timeout(domain, in_place, entry.directory, out);
-                    return;
+                    return save_timeout(in_place, entry.directory, out);
                 }
                 in_place.next = entry.directory;
                 if entry.head.is_some() {
-                    commit_request(domain, in_place, out);
-                    return;
+                    return commit_request(in_place, out);
                 }
                 in_place.receipt(entry.directory, Box::from(&b"files kept"[..]));
                 in_place.next = entry.directory.checked_add(1).expect("admitted directory position");
@@ -190,12 +244,12 @@ fn advance_delivery(domain: &mut Domain, env: &Env<Limits>, mut in_place: InPlac
             let name = in_place.name;
             let owner = in_place.owner;
             let answer = in_place.result();
-            save_delivery(domain, name, owner, answer, in_place.receipts.into_boxed(), out);
+            save_answer(name, owner, answer, in_place.receipts.into_boxed(), out)
         }
     }
 }
 
-fn save_intent(domain: &mut Domain, mut in_place: InPlace, out: &mut Queue<Request>) {
+fn save_intent(domain: &Domain, mut in_place: InPlace, out: &mut Queue<Request>) -> Delivering {
     let mut entries = List::with_capacity(run::MAX_DIRECTORIES);
     for index in 0..in_place.directories.len() {
         let entry = in_place.directories.get_mut(index).expect("surveyed directory");
@@ -217,11 +271,7 @@ fn save_intent(domain: &mut Domain, mut in_place: InPlace, out: &mut Queue<Reque
         state: DeliveryState::Intent(DeliveryIntent { directories: entries.into_boxed() }),
         landed: Box::new([]),
     };
-    in_place.state = State::Saving;
-    domain.saving = Some(record.clone());
-    domain.delivery_owner = Some(in_place.owner);
-    domain.delivery = Some(in_place);
-    out.push(Request::SaveDelivery { record: Box::new(record) });
+    save(record, AfterSave::Execute(in_place), out)
 }
 
 pub(super) fn plain_status(
@@ -231,7 +281,17 @@ pub(super) fn plain_status(
     changed: bool,
     out: &mut Queue<Request>,
 ) {
-    let mut call = domain.delivery.take().expect("plain status answers one delivery operation");
+    let state = core::mem::replace(&mut domain.delivering, Delivering::Idle);
+    domain.delivering = match state {
+        Delivering::InPlace(call) => Delivering::InPlace(plain_terminal(call, owner, changed)),
+        Delivering::Idle | Delivering::Reconciling(_) | Delivering::Saving { .. } => {
+            unreachable!("plain status answers one delivery operation")
+        }
+    };
+    follow(domain, env, out);
+}
+
+fn plain_terminal(mut call: InPlace, owner: Token, changed: bool) -> InPlace {
     assert_eq!(call.owner, owner, "plain status matches the active request");
     let state = core::mem::replace(&mut call.state, State::Done);
     call.state = match state {
@@ -246,13 +306,12 @@ pub(super) fn plain_status(
         | State::Inspect { .. }
         | State::InspectPush
         | State::Push
-        | State::Saving
         | State::Advance
         | State::Answer(_)
         | State::Unknown
         | State::Done => unreachable!("plain terminal answers one plain status request"),
     };
-    follow(domain, env, call, out);
+    call
 }
 
 pub(super) fn git_result(
@@ -262,7 +321,25 @@ pub(super) fn git_result(
     result: GitResult,
     out: &mut Queue<Request>,
 ) {
-    let mut call = domain.delivery.take().expect("git terminal answers one delivery operation");
+    let state = core::mem::replace(&mut domain.delivering, Delivering::Idle);
+    domain.delivering = match state {
+        Delivering::InPlace(call) => Delivering::InPlace(git_terminal(domain, env, call, owner, result, out)),
+        Delivering::Reconciling(reconcile) => {
+            Delivering::Reconciling(reconcile::reconcile_git(domain, env, reconcile, owner, result, out))
+        }
+        Delivering::Idle | Delivering::Saving { .. } => unreachable!("git terminal answers one delivery operation"),
+    };
+    follow(domain, env, out);
+}
+
+fn git_terminal(
+    domain: &mut Domain,
+    env: &Env<Limits>,
+    mut call: InPlace,
+    owner: Token,
+    result: GitResult,
+    out: &mut Queue<Request>,
+) -> InPlace {
     assert_eq!(call.owner, owner, "git terminal matches active delivery");
     let state = core::mem::replace(&mut call.state, State::Done);
     call.state = match state {
@@ -281,11 +358,11 @@ pub(super) fn git_result(
             | GitResult::Stale
             | GitResult::NoEffect { .. } => unreachable!("uncertain push awaits inspection"),
         },
-        State::Plain | State::Saving | State::Advance | State::Answer(_) | State::Unknown | State::Done => {
+        State::Plain | State::Advance | State::Answer(_) | State::Unknown | State::Done => {
             unreachable!("git terminal answers an issued git request")
         }
     };
-    follow(domain, env, call, out);
+    call
 }
 
 fn status(
@@ -508,11 +585,21 @@ fn failed(directory: u32, reason: run::DeliveryReason, diagnostic: &run::Diagnos
     State::Answer(Box::new(run::Delivery::Failed(run::DeliveryFailure { directory, reason, diagnostic: *diagnostic })))
 }
 
-fn follow(domain: &mut Domain, env: &Env<Limits>, mut call: InPlace, out: &mut Queue<Request>) {
+/// What the state implies, in one place: a transient inner state moves on.
+fn follow(domain: &mut Domain, env: &Env<Limits>, out: &mut Queue<Request>) {
+    let state = core::mem::replace(&mut domain.delivering, Delivering::Idle);
+    domain.delivering = match state {
+        Delivering::InPlace(call) => follow_in_place(domain, env, call, out),
+        Delivering::Reconciling(reconcile) => reconcile::follow(domain, env, reconcile, out),
+        state @ (Delivering::Idle | Delivering::Saving { .. }) => state,
+    };
+}
+
+fn follow_in_place(domain: &mut Domain, env: &Env<Limits>, mut call: InPlace, out: &mut Queue<Request>) -> Delivering {
     let state = core::mem::replace(&mut call.state, State::Done);
     match state {
         State::Advance => advance_delivery(domain, env, call, out),
-        State::Answer(answer) => save_delivery(domain, call.name, call.owner, *answer, call.receipts.into_boxed(), out),
+        State::Answer(answer) => save_answer(call.name, call.owner, *answer, call.receipts.into_boxed(), out),
         State::Unknown => deliver_unknown(domain, env, call.owner, call.next),
         state @ (State::Plain
         | State::Status
@@ -520,16 +607,15 @@ fn follow(domain: &mut Domain, env: &Env<Limits>, mut call: InPlace, out: &mut Q
         | State::Commit
         | State::Inspect { .. }
         | State::InspectPush
-        | State::Push
-        | State::Saving) => {
+        | State::Push) => {
             call.state = state;
-            domain.delivery = Some(call);
+            Delivering::InPlace(call)
         }
         State::Done => unreachable!("each delivery transition yields its next state"),
     }
 }
 
-fn commit_request(domain: &mut Domain, mut in_place: InPlace, out: &mut Queue<Request>) {
+fn commit_request(mut in_place: InPlace, out: &mut Queue<Request>) -> Delivering {
     in_place.state = State::Commit;
     out.push(Request::Git {
         owner: in_place.owner,
@@ -537,7 +623,7 @@ fn commit_request(domain: &mut Domain, mut in_place: InPlace, out: &mut Queue<Re
         op: GitOp::Commit { message: in_place.message.clone() },
         deadline: in_place.deadline,
     });
-    domain.delivery = Some(in_place);
+    Delivering::InPlace(in_place)
 }
 
 fn stale_head(domain: &Domain, directory: u32, head: &[u8]) -> bool {
@@ -551,62 +637,132 @@ fn stale_head(domain: &Domain, directory: u32, head: &[u8]) -> bool {
     }
 }
 
-fn deliver_unknown(domain: &mut Domain, env: &Env<Limits>, owner: Token, directory: u32) {
-    domain.delivery = None;
+fn deliver_unknown(domain: &mut Domain, env: &Env<Limits>, owner: Token, directory: u32) -> Delivering {
     deliver_to_agent(
         domain,
         env,
         owner,
         run::Delivery::Failed(run::DeliveryFailure::new(directory, run::DeliveryReason::Unknown)),
     );
+    Delivering::Idle
 }
 
-fn save_timeout(domain: &mut Domain, call: InPlace, directory: u32, out: &mut Queue<Request>) {
-    save_delivery(
-        domain,
+fn save_timeout(call: InPlace, directory: u32, out: &mut Queue<Request>) -> Delivering {
+    save_answer(
         call.name,
         call.owner,
         run::Delivery::Failed(run::DeliveryFailure::new(directory, run::DeliveryReason::TimedOut)),
         call.receipts.into_boxed(),
         out,
-    );
+    )
 }
 
-fn save_delivery(
-    domain: &mut Domain,
+fn save_answer(
     name: run::CallName,
     owner: Token,
     delivery: run::Delivery,
     landed: Box<[run::Receipt]>,
     out: &mut Queue<Request>,
-) {
+) -> Delivering {
     let record = DeliveryRecord { name, state: DeliveryState::Answer(delivery), landed };
-    assert!(domain.saving.is_none(), "one delivery store operation in flight");
-    domain.saving = Some(record.clone());
-    domain.delivery_owner = Some(owner);
-    domain.delivery = None;
-    out.push(Request::SaveDelivery { record: Box::new(record) });
+    save(record, AfterSave::Return { owner }, out)
+}
+
+/// The one place a record goes to the store.
+pub(super) fn save(record: DeliveryRecord, after: AfterSave, out: &mut Queue<Request>) -> Delivering {
+    out.push(Request::SaveDelivery { record: Box::new(record.clone()) });
+    Delivering::Saving { record, after }
 }
 
 pub(super) fn delivery_saved(domain: &mut Domain, env: &Env<Limits>, name: run::CallName, out: &mut Queue<Request>) {
-    let record = domain.saving.take().expect("DeliverySaved answers one SaveDelivery");
-    assert_eq!(record.name, name, "delivery store terminal names the decision");
-    domain.records.insert(record.name, record.clone()).expect("one turn's calls fit the bound");
-    match record.state {
-        DeliveryState::Intent(_) => {
-            let mut in_place = domain.delivery.take().expect("saved intent retains delivery");
-            in_place.stage = Stage::Execute;
-            in_place.next = 0;
-            advance_delivery(domain, env, in_place, out);
-        }
-        DeliveryState::Answer(delivery) => {
-            if let Some(owner) = domain.delivery_owner.take() {
-                observe(domain, Fact::DeliveryReturned { name });
-                deliver_to_agent(domain, env, owner, delivery);
-            } else {
-                resume_loading(domain, env, out);
+    let state = core::mem::replace(&mut domain.delivering, Delivering::Idle);
+    match state {
+        Delivering::Saving { record, after } => {
+            assert_eq!(record.name, name, "delivery store terminal names the decision");
+            domain.records.insert(record.name, record.clone()).expect("one turn's calls fit the bound");
+            match after {
+                AfterSave::Execute(mut call) => {
+                    call.state = State::Advance;
+                    call.stage = Stage::Execute;
+                    call.next = 0;
+                    domain.delivering = Delivering::InPlace(call);
+                }
+                AfterSave::Return { owner } => {
+                    let delivery = saved_answer(record);
+                    observe(domain, Fact::DeliveryReturned { name });
+                    deliver_to_agent(domain, env, owner, delivery);
+                }
+                AfterSave::ResumeLoading => resume_loading(domain, env, out),
             }
         }
+        Delivering::Idle => assert!(domain.ending.store_failed(), "DeliverySaved answers one SaveDelivery"),
+        Delivering::InPlace(_) | Delivering::Reconciling(_) => unreachable!("DeliverySaved answers one SaveDelivery"),
+    }
+    follow(domain, env, out);
+}
+
+pub(super) fn reconcile_intent(
+    domain: &mut Domain,
+    env: &Env<Limits>,
+    record: DeliveryRecord,
+    out: &mut Queue<Request>,
+) {
+    let state = core::mem::replace(&mut domain.delivering, Delivering::Idle);
+    domain.delivering = match state {
+        Delivering::Idle => Delivering::Reconciling(Reconcile::new(record)),
+        Delivering::InPlace(_) | Delivering::Reconciling(_) | Delivering::Saving { .. } => {
+            unreachable!("one delivery in flight")
+        }
+    };
+    follow(domain, env, out);
+}
+
+pub(super) fn save_failed(domain: &mut Domain, env: &Env<Limits>, out: &mut Queue<Request>) {
+    let state = core::mem::replace(&mut domain.delivering, Delivering::Idle);
+    domain.delivering = match state {
+        Delivering::Saving { record, after } => failed_save(domain, env, record, after, out),
+        state @ (Delivering::Idle | Delivering::InPlace(_) | Delivering::Reconciling(_)) => state,
+    };
+    follow(domain, env, out);
+}
+
+fn failed_save(
+    domain: &mut Domain,
+    env: &Env<Limits>,
+    record: DeliveryRecord,
+    after: AfterSave,
+    out: &mut Queue<Request>,
+) -> Delivering {
+    match &record.state {
+        DeliveryState::Answer(run::Delivery::Delivered(_)) => {
+            out.push(Request::Notice { notice: Notice::Failure(Failure::DeliveryUnsaved) });
+        }
+        DeliveryState::Intent(_)
+        | DeliveryState::Answer(
+            run::Delivery::Nothing | run::Delivery::Refused(_) | run::Delivery::Failed(_) | run::Delivery::Stale,
+        ) => {}
+    }
+    match after {
+        AfterSave::Execute(call) => {
+            deliver_to_agent(
+                domain,
+                env,
+                call.owner,
+                run::Delivery::Failed(run::DeliveryFailure::new(0, run::DeliveryReason::Broken)),
+            );
+        }
+        AfterSave::Return { owner } => {
+            deliver_to_agent(domain, env, owner, saved_answer(record));
+        }
+        AfterSave::ResumeLoading => {}
+    }
+    Delivering::Idle
+}
+
+fn saved_answer(record: DeliveryRecord) -> run::Delivery {
+    match record.state {
+        DeliveryState::Answer(delivery) => delivery,
+        DeliveryState::Intent(_) => unreachable!("saved answer continues a delivery return"),
     }
 }
 

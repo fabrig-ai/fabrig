@@ -18,7 +18,7 @@ pub enum ChatStatus {
     WaitingForYou { kind: WaitedFor, entries: u32 },
     WaitingFor(Whom),
     Parked,
-    Retrying { until: Wall, notice: RetryNotice },
+    Retrying { until: Wall, notice: Option<RetryNotice> },
     Held(HoldCategory),
     Closing,
     Ended { at: Wall },
@@ -37,7 +37,7 @@ pub fn chat_status(
     match phase {
         ChipPhase::Held { reason, .. } => ChatStatus::Held(*reason),
         ChipPhase::Closing(_) => ChatStatus::Closing,
-        ChipPhase::Ended => ChatStatus::Ended { at: details.ended_at.expect("ended chip has its end time") },
+        ChipPhase::Ended => ChatStatus::Ended { at: details.ended_at.unwrap_or(details.phase_since) },
         ChipPhase::Active(stage) => {
             if let Some(waiting) = waiting(waits_on, project, me) {
                 return waiting;
@@ -59,9 +59,7 @@ pub fn chat_status(
 
 fn active(stage: RunStage, details: &ChipDetails) -> ChatStatus {
     match stage {
-        RunStage::BackingOff { until } => {
-            ChatStatus::Retrying { until, notice: details.retry.expect("backing off records its retry decision") }
-        }
+        RunStage::BackingOff { until } => ChatStatus::Retrying { until, notice: details.retry },
         RunStage::Idle => ChatStatus::Parked,
         RunStage::Due | RunStage::Preparing => ChatStatus::Starting,
         RunStage::Claimed { .. } | RunStage::Running { .. } => match &details.observation {

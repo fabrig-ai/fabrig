@@ -184,6 +184,7 @@ pub(crate) fn now(domain: &mut Domain, env: &Env<Limits>, decision: &mut Decisio
                 );
             }
         }
+        core::Now::TaskRead { to, key: _, answer } => super::host_route::read(domain, to, CallAnswer::TaskRead(answer)),
         core::Now::SettingsAnswer { to, key: _, answer } => super::host_route::settings(domain, to, answer),
         core::Now::EffectAnswer { to, key: _, part } => {
             let answer = CallAnswer::from_core(&part).expect("effect wait answer");
@@ -333,7 +334,7 @@ fn run_prepared(domain: &mut Domain, env: &Env<Limits>, prepared: Prepared) {
     let Prepared { task, attempt, conversation, live, charter, run, messages, saved, transcript, answered, grants } =
         prepared;
     for body in &transcript {
-        domain.hold_bytes(u64::try_from(body.len()).expect("resumed transcript body length fits u64"));
+        domain.hold_bytes(skein_lib::len_u64(body.len()));
     }
     let brief = domain.hub_link.take_brief(task).expect("prepared brief sections");
     let PreparedWorkspace { workspace, claim_names } =

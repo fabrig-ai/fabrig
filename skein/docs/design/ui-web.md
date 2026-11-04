@@ -753,6 +753,14 @@ component instead (6.1).
   the exchange failed. Which headers an exchange sends, what its body
   holds and what its server answers are the application's (a header
   naming its client, a cookie its server set).
+- **An exchange's cache and an answer's headers:** an exchange names its
+  cache, the browser's own by default, or none (fetch's `no-store`, so
+  the browser's cache neither answers it nor keeps its answer), and the
+  answer's headers the application keeps, by name; the platform reports
+  those, each value within the exchange's bound, with the status and
+  the body, and no other header. An application that reads an answer's
+  freshness (its `Cache-Control`, its `Age`) or when to ask again
+  (`Retry-After`) asks for none of the browser's cache and keeps those.
 - **The stream** by fetch, a GET of a path with the headers the
   application gives, with same-origin credentials, its body read a piece
   at a time: each piece, at most the bound the application gives (a
@@ -1246,7 +1254,8 @@ unchanged.
   them alike.
 - **It starts the worker,** from the worker's module in the bundle's
   digest directory, and ends it at a reset, a new story or a failure
-  (playground.md, 7).
+  (playground.md, 7). The page's panic hook stops it, and takes its
+  log, through a handle that borrows nothing the loop holds.
 - **The small store is the page's memory,** not session storage: a
   reload starts a new world, so nothing the client kept may outlive the
   page. Writes succeed within the store's bound, refused past it.
@@ -1276,4 +1285,9 @@ unchanged.
   speeds and pauses, the timer's conversion, the messages' encoding
   (section 14); the page half runs in the application's browser tier
   (playground.md, 8).
+
+The worker's platform keeps the small store's records whole in the
+page's memory. `store::Store` enforces the small store's bound before
+handing a write to the platform; a write handed to this in-memory
+platform succeeds (decided 2026-11-03).
 

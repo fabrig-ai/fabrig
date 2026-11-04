@@ -36,8 +36,8 @@ mod tests {
     const REQUEST_KEY: [u8; 16] = [3; 16];
 
     fn send(ask: Ask) -> Request {
-        Request::Client {
-            request: jig_client::Request::Down {
+        Request::Unlinked {
+            request: jig_client::UnlinkedRequest::Down {
                 down: jig_client::Down::Send {
                     attempt: Token::new(7),
                     key: REQUEST_KEY,

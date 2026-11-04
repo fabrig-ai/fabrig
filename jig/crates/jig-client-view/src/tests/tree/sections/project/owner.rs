@@ -295,8 +295,8 @@ fn build(value: &Project, w: &Words) -> (Tree, JigBindings) {
         .nodes()
         .iter()
         .map(|n| {
-            assert!(crate::tests::text_bytes(n) <= f.text_per_node);
-            u64::from(crate::tests::text_bytes(n))
+            assert!(n.text_bytes() <= f.text_per_node);
+            u64::from(n.text_bytes())
         })
         .sum();
     assert!(bytes <= u64::from(f.text_bytes));
@@ -596,7 +596,7 @@ fn owner_project_public_whole_tree_accepts_exact_observed_nodes_and_text_and_ref
     let f = crate::tests::render_limits(&limits(), w).unwrap();
     let mut bound = f;
     bound.nodes = tree.len();
-    bound.text_bytes = tree.nodes().iter().map(crate::tests::text_bytes).sum();
+    bound.text_bytes = tree.nodes().iter().map(skein_ui::Node::text_bytes).sum();
     let render = |bound: skein_ui::Limits| {
         let mut b = Builder::new(&bound);
         let mut bindings = JigBindings::new(f.bindings, 32);
@@ -1022,7 +1022,7 @@ fn owner_project_ended_companion_prices_whole_languages_and_refuses_one_under_no
         assert!(tree.len() <= bound.nodes);
         let mut exact = bound;
         exact.nodes = tree.len();
-        exact.text_bytes = tree.nodes().iter().map(crate::tests::text_bytes).sum();
+        exact.text_bytes = tree.nodes().iter().map(skein_ui::Node::text_bytes).sum();
         let (rebuilt, _) = ended_project_tree(&domain, w, exact);
         assert_eq!(rebuilt.nodes(), tree.nodes());
         for short in [
