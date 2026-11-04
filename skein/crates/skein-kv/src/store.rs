@@ -354,7 +354,11 @@ impl Store {
 
     fn start_recovery(&mut self, dir: Dir, snapshot: bool, step: &mut Step<'_>) -> State {
         if snapshot {
-            step.below.push(file::Request::OpenRead { owner: IO_OWNER, root: dir.root, name: Box::from(&b"snapshot"[..]) });
+            step.below.push(file::Request::OpenRead {
+                owner: IO_OWNER,
+                root: dir.root,
+                name: Box::from(&b"snapshot"[..]),
+            });
             dir.at(Phase::OpeningSnapshot)
         } else {
             self.next_log(dir, 0, step)
@@ -732,123 +736,89 @@ pub fn up(
             Phase::Listing => match event {
                 Done::Listed { entries } => listed(store, dir, entries, &mut step),
                 Done::Failed { .. } => open_failed(dir, Failure::Io, &mut step),
-                Done::Opened { .. } | Done::Read { .. } | Done::Finished => {
-                    unreachable!("the file answer must match this phase's request")
-                }
+                Done::Opened { .. } | Done::Read { .. } | Done::Finished => wrong_answer(),
             },
             Phase::RemovingTempOnOpen { snapshot } => match event {
                 Done::Finished => store.start_recovery(dir, snapshot, &mut step),
                 Done::Failed { .. } => open_failed(dir, Failure::Io, &mut step),
-                Done::Listed { .. } | Done::Opened { .. } | Done::Read { .. } => {
-                    unreachable!("the file answer must match this phase's request")
-                }
+                Done::Listed { .. } | Done::Opened { .. } | Done::Read { .. } => wrong_answer(),
             },
             Phase::OpeningSnapshot => match event {
                 Done::Opened { file, len } => snapshot_opened(dir, file, len, &mut step),
                 Done::Failed { .. } => open_failed(dir, Failure::Io, &mut step),
-                Done::Listed { .. } | Done::Read { .. } | Done::Finished => {
-                    unreachable!("the file answer must match this phase's request")
-                }
+                Done::Listed { .. } | Done::Read { .. } | Done::Finished => wrong_answer(),
             },
             Phase::ReadingSnapshot { file, len, at, reader } => match event {
                 Done::Read { bytes } => snapshot_read(store, dir, ReadAt { file, len, at }, reader, bytes, &mut step),
                 Done::Failed { .. } => open_failed_file(dir, file, Failure::Io, step.below),
-                Done::Listed { .. } | Done::Opened { .. } | Done::Finished => {
-                    unreachable!("the file answer must match this phase's request")
-                }
+                Done::Listed { .. } | Done::Opened { .. } | Done::Finished => wrong_answer(),
             },
             Phase::ClosingSnapshot { next } | Phase::ClosingRecovered { next } => match event {
                 Done::Finished => store.next_log(dir, next, &mut step),
                 Done::Failed { .. } => open_failed(dir, Failure::Io, &mut step),
-                Done::Listed { .. } | Done::Opened { .. } | Done::Read { .. } => {
-                    unreachable!("the file answer must match this phase's request")
-                }
+                Done::Listed { .. } | Done::Opened { .. } | Done::Read { .. } => wrong_answer(),
             },
             Phase::OpeningLog { name, next } => match event {
                 Done::Opened { file, len } => {
                     log_opened(store, dir, name, next, ReadAt { file, len, at: 0 }, &mut step)
                 }
                 Done::Failed { .. } => open_failed(dir, Failure::Io, &mut step),
-                Done::Listed { .. } | Done::Read { .. } | Done::Finished => {
-                    unreachable!("the file answer must match this phase's request")
-                }
+                Done::Listed { .. } | Done::Read { .. } | Done::Finished => wrong_answer(),
             },
             Phase::ReadingLog { file, len, at, bytes, next } => match event {
                 Done::Read { bytes: read } => {
                     log_read(store, dir, ReadAt { file, len, at }, bytes, next, read, &mut step)
                 }
                 Done::Failed { .. } => open_failed_file(dir, file, Failure::Io, step.below),
-                Done::Listed { .. } | Done::Opened { .. } | Done::Finished => {
-                    unreachable!("the file answer must match this phase's request")
-                }
+                Done::Listed { .. } | Done::Opened { .. } | Done::Finished => wrong_answer(),
             },
             Phase::RemovingTail { name } => match event {
                 Done::Finished => create_segment(dir, name, step.below),
                 Done::Failed { .. } => open_failed(dir, Failure::Io, &mut step),
-                Done::Listed { .. } | Done::Opened { .. } | Done::Read { .. } => {
-                    unreachable!("the file answer must match this phase's request")
-                }
+                Done::Listed { .. } | Done::Opened { .. } | Done::Read { .. } => wrong_answer(),
             },
             Phase::Creating { name } => match event {
                 Done::Opened { file, .. } => segment_created(dir, name, file, step.below),
                 Done::Failed { .. } => open_failed(dir, Failure::Io, &mut step),
-                Done::Listed { .. } | Done::Read { .. } | Done::Finished => {
-                    unreachable!("the file answer must match this phase's request")
-                }
+                Done::Listed { .. } | Done::Read { .. } | Done::Finished => wrong_answer(),
             },
             Phase::Announcing { file } => match event {
                 Done::Finished => segment_announced(store, dir, file, &mut step),
                 Done::Failed { .. } => open_failed_file(dir, file, Failure::Io, step.below),
-                Done::Listed { .. } | Done::Opened { .. } | Done::Read { .. } => {
-                    unreachable!("the file answer must match this phase's request")
-                }
+                Done::Listed { .. } | Done::Opened { .. } | Done::Read { .. } => wrong_answer(),
             },
             Phase::Writing { log, batch } => match event {
                 Done::Finished => batch_written(dir, log, batch, step.below),
                 Done::Failed { .. } => commits_failed(store, dir, Some(log.file), batch, &mut step),
-                Done::Listed { .. } | Done::Opened { .. } | Done::Read { .. } => {
-                    unreachable!("the file answer must match this phase's request")
-                }
+                Done::Listed { .. } | Done::Opened { .. } | Done::Read { .. } => wrong_answer(),
             },
             Phase::Syncing { log, batch } => match event {
                 Done::Finished => batch_synced(store, dir, log, batch, &mut step),
                 Done::Failed { .. } => commits_failed(store, dir, Some(log.file), batch, &mut step),
-                Done::Listed { .. } | Done::Opened { .. } | Done::Read { .. } => {
-                    unreachable!("the file answer must match this phase's request")
-                }
+                Done::Listed { .. } | Done::Opened { .. } | Done::Read { .. } => wrong_answer(),
             },
             Phase::Closing => match event {
                 Done::Finished | Done::Failed { .. } => closed(dir, step.above),
-                Done::Listed { .. } | Done::Opened { .. } | Done::Read { .. } => {
-                    unreachable!("the file answer must match this phase's request")
-                }
+                Done::Listed { .. } | Done::Opened { .. } | Done::Read { .. } => wrong_answer(),
             },
             Phase::RecoveryClosing => match event {
                 Done::Finished | Done::Failed { .. } => recovery_closed(store, dir, &mut step),
-                Done::Listed { .. } | Done::Opened { .. } | Done::Read { .. } => {
-                    unreachable!("the file answer must match this phase's request")
-                }
+                Done::Listed { .. } | Done::Opened { .. } | Done::Read { .. } => wrong_answer(),
             },
             Phase::RolloverClosing => match event {
                 Done::Finished => rollover_closed(store, dir, &mut step),
                 Done::Failed { .. } => commits_failed(store, dir, None, Queue::with_capacity(0), &mut step),
-                Done::Listed { .. } | Done::Opened { .. } | Done::Read { .. } => {
-                    unreachable!("the file answer must match this phase's request")
-                }
+                Done::Listed { .. } | Done::Opened { .. } | Done::Read { .. } => wrong_answer(),
             },
             Phase::SnapshotFailureClosing { log } => match event {
                 Done::Finished | Done::Failed { .. } => {
                     commits_failed(store, dir, Some(log.file), Queue::with_capacity(0), &mut step)
                 }
-                Done::Listed { .. } | Done::Opened { .. } | Done::Read { .. } => {
-                    unreachable!("the file answer must match this phase's request")
-                }
+                Done::Listed { .. } | Done::Opened { .. } | Done::Read { .. } => wrong_answer(),
             },
             Phase::OpenFailureClosing { failure } => match event {
                 Done::Finished | Done::Failed { .. } => open_failed(dir, failure, &mut step),
-                Done::Listed { .. } | Done::Opened { .. } | Done::Read { .. } => {
-                    unreachable!("the file answer must match this phase's request")
-                }
+                Done::Listed { .. } | Done::Opened { .. } | Done::Read { .. } => wrong_answer(),
             },
             Phase::Ready { .. } => unreachable!("no file request is outstanding"),
             Phase::SnapIo { log } => match event {
@@ -861,6 +831,11 @@ pub fn up(
             },
         },
     };
+}
+
+/// A file answer `up` has no cell for: at most one request is outstanding, so the phase knows it.
+fn wrong_answer() -> ! {
+    unreachable!("the file answer must match this phase's request")
 }
 
 fn listed(store: &mut Store, mut dir: Dir, entries: Box<[file::Entry]>, step: &mut Step<'_>) -> State {
