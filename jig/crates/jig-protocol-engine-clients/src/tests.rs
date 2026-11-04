@@ -51,6 +51,8 @@ mod programs;
 
 #[path = "tests/settings.rs"]
 mod settings;
+#[path = "tests/settings_restore.rs"]
+mod settings_restore;
 
 #[path = "tests/settings_change.rs"]
 mod settings_change;
@@ -116,3 +118,6 @@ fn valid_refuses_each_unrepresentable_limit() {
 
 #[path = "tests/jobs.rs"]
 mod jobs;
+
+#[path = "tests/public.rs"]
+mod public;

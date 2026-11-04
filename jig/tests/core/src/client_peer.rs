@@ -93,6 +93,8 @@ impl ClientPeer {
                 | core::Held::ApplicationWatchEnded { .. }
                 | core::Held::Applied { .. }
                 | core::Held::ReadLoad { .. }
+                | core::Held::PublicRead { .. }
+                | core::Held::PublicWait { .. }
                 | core::Held::MakeEffect { .. }
                 | core::Held::SettledCall { .. }
                 | core::Held::Assign { .. }
@@ -143,6 +145,7 @@ impl ClientPeer {
             core::Now::SignInRefused { .. } | core::Now::WatchRefused { .. } | core::Now::RunText { .. } => true,
             core::Now::Relayed { .. }
             | core::Now::EffectAnswer { .. }
+            | core::Now::TaskRead { .. }
             | core::Now::SettingsAnswer { .. }
             | core::Now::SettledCallRefused { .. }
             | core::Now::Call { .. }

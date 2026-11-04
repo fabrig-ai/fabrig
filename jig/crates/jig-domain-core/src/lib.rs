@@ -17,6 +17,7 @@ mod funding;
 mod inbox;
 mod limits;
 mod numbers;
+pub mod public;
 pub mod reads;
 mod routing;
 pub mod runs;
@@ -67,6 +68,10 @@ pub use crate::{
         brief_holds_documents, charter_owned_bytes, policy_owned_bytes, valid,
     },
     numbers::{Counters, Deployment, Family, fresh},
+    public::{
+        PublicAnswer, PublicApplication, PublicBoard, PublicCard, PublicCounts, PublicDocument, PublicExecutor,
+        PublicGoal, PublicHold, PublicLine, PublicPhase, PublicProject, PublicProjects, PublicRead,
+    },
     reads::{SettingsAnswer, SettingsRead},
     routing::{
         fire, resume_fleet,
@@ -102,8 +107,8 @@ pub use crate::{
     translate::{authority_to_people, pattern_to_people, people_authority, requirement_to_authority, task_authority},
     vocabulary::{
         Ask, Carried, CoreBriefBudgets, EscalationChoice, Event, Held, HoldingsRefusal, Limits, NamedAction, Now,
-        PayloadRefusal, PlannedDocument, ProposalChoice, Request, StepRefusal, Timer, ToolKind, TranscriptLoad,
-        WatchRefusal, Write,
+        PayloadRefusal, PlannedDocument, ProposalChoice, PublicIndexLimits, Request, StepRefusal, Timer, ToolKind,
+        TranscriptLoad, WatchRefusal, Write,
     },
 };
 
@@ -270,6 +275,7 @@ pub struct Core {
     pub(crate) proposed_input: Option<Result<Box<settings::Proposal>, people::Malformed>>,
     pub(crate) settings_proposals: Map<(people::Proposer, u32), settings::Proposal>,
     pub(crate) kinds: Box<[settings::Kind]>,
+    pub(crate) restoring: settings::Restoring,
     pub(crate) settings_judging: settings::application::Judging,
     pub(crate) settings_input: Option<(Result<Box<settings::Change>, settings::Failure>, u32)>,
     pub(crate) key_input: Option<Carried>,
@@ -309,6 +315,9 @@ pub struct Core {
     pub(crate) restore_failure: Option<start::Failure>,
     /// Names seeded or restored with the project policies (core.md, 6.1).
     pub(crate) names: Map<u32, Box<str>>,
+    visibility: admission::visibility::Visibility,
+    public_index: public::Index,
+    public_reads: skein_lib::Slab<Option<public::reads::Pending>>,
     /// Mutable connector permission mappings approved by policy edits.
     pub permission_roles: Map<u32, Box<[people::PermissionRole]>>,
     /// Template overrides retained with each project policy.
@@ -483,6 +492,7 @@ impl Core {
             proposed_input: None,
             settings_proposals: Map::with_capacity(limits.settings.proposals),
             settings_input: None,
+            restoring: settings::Restoring::new(&config.kinds),
             settings_judging: settings::application::Judging::new(&config.kinds),
             kinds: config.kinds,
             key_input: None,
@@ -512,6 +522,9 @@ impl Core {
             projects: List::with_capacity(limits.authority.projects),
 
             names: Map::with_capacity(limits.authority.projects),
+            visibility: admission::visibility::Visibility::new(limits.authority.projects),
+            public_index: public::Index::new(limits.people.projects, limits.tasks.depth),
+            public_reads: skein_lib::Slab::with_capacity(limits.load_slots),
             permission_roles: Map::with_capacity(limits.authority.projects),
             template_overrides: Map::with_capacity(limits.authority.projects),
             connectors: config.connectors,

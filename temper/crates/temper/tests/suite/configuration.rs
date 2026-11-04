@@ -1,4 +1,6 @@
 use crate::support;
+#[path = "creating.rs"]
+mod creating;
 
 // The process configuration reader admits a MiB, 64K tokens and 32 levels.
 const DOCUMENT: jig_protocol_config::DocumentLimits =
@@ -22,6 +24,15 @@ fn process_engine() -> jig_protocol_config::Engine {
         .expect("engine configuration");
     scratch.remove();
     engine
+}
+
+#[test]
+fn the_browsers_client_bounds_are_the_terminals() {
+    assert_eq!(
+        temper_client_shell_web::limits::client(),
+        temper_client_shell_terminal::limits::native().client,
+        "the browser receives what the terminal does (client/README.md, 2)"
+    );
 }
 
 #[test]
@@ -75,7 +86,7 @@ fn the_owned_example_fits_the_native_client() {
 fn assert_owned_limits(limits: &serde_json::Value) {
     let mut expected = serde_json::json!({"engine":{"limits":{"profile":"small","overrides":{
         "authority.segments":8,"tasks.hold_segments":8,"tasks.authority_segments":8,
-        "documents.rows":2,"documents.lines":3,"documents.text_bytes":128,
+        "documents.rows":2,"documents.lines":8,"documents.text_bytes":128,
         "views.watchers":16,"views.watchers_per_party":16,
         "authority.grants":14,"tasks.authority_grants":14,"notes.scopes":17,
         "authority.executors":12,"tasks.executor_kinds":12,

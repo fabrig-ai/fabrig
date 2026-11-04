@@ -19,6 +19,8 @@ use temper_engine_domain_world::{direct::Driver, store::Store, walking};
 pub struct Joint {
     pub engine: Driver,
     pub sign_ins: u32,
+    /// The ctl caller in this world; existing stories use person 1.
+    pub caller: u64,
     pub leaves: Vec<Box<[u8]>>,
     pub refuse_return: bool,
     set_ups: Vec<(u16, Token)>,
@@ -69,6 +71,12 @@ pub struct Joint {
     last_commit: u64,
     sign_outs: BTreeMap<ClientId, VecDeque<Option<u64>>>,
     truth: jig_client_world::joint::truth::Truth,
+}
+/// Typed replies observed by a scripted run (temper/docs/design/domain/testing.md, 6.3).
+#[derive(Debug)]
+pub enum HostAnswer {
+    Settings(Box<jig_domain_core::SettingsAnswer>),
+    Tool(engine::CallAnswer),
 }
 struct HeldReply {
     task: u64,
@@ -361,6 +369,126 @@ impl Joint {
             1,
         )
     }
+    /// Temper's stock kinds through the joined client and engine roots.
+    #[must_use]
+    pub fn with_kinds(seed: u64, limits: client::Limits) -> Self {
+        let mut engine_limits = engine_limits();
+        let kinds_limits = temper_engine_domain_world::kinds::limits();
+        engine_limits.tasks.charters = kinds_limits.tasks.charters;
+        engine_limits.people.amendment_bytes = kinds_limits.people.amendment_bytes;
+        let [bootstrap, config, restart] = std::array::from_fn(|_| {
+            let mut config = walking::config(seed);
+            let kinds = temper_engine_domain_world::kinds::configuration(&engine_limits);
+            config.core.kinds = kinds.core.kinds;
+            config.core.defaults.charters = kinds.core.defaults.charters;
+            config.kinds_stock = kinds.kinds_stock;
+            config
+        });
+        // Stock kinds add their defaults during cold start. Transfer the real
+        // store without the generic fixture's fixed first-start commit count.
+        let mut driver = Driver::cold(Store::with_limits(&engine_limits), bootstrap, &engine_limits);
+        driver.settle();
+        let store = driver.take_store();
+        Self::with_engine(seed, &limits, store, [config, restart], &engine_limits, 1)
+    }
+    /// The configuring chat's stock charter and template in the joined world
+    /// (temper/docs/design/domain/agent.md, 8.1).
+    #[must_use]
+    pub fn with_configuring(seed: u64, limits: client::Limits, member: bool) -> Self {
+        let mut engine_limits = engine_limits();
+        engine_limits.tasks.charters = 2;
+        engine_limits.tasks.executor_kinds = 2;
+        engine_limits.authority.executors = 2;
+        engine_limits.authority.roles = 2;
+        engine_limits.documents.executors = 2;
+        engine_limits.templates = 3;
+        engine_limits.people.initial_owners = 2;
+        engine_limits.people.requests = 16;
+        engine_limits.people.words = 512;
+        engine_limits.tasks.message_bytes = 512;
+        engine_limits.tasks.inbox_bytes = 1024;
+        engine_limits.journal.result_bytes = 512;
+        // Stock charter 3 owns 5,034 bytes of instructions and run policy.
+        engine_limits.journal.run_bytes = 8192;
+        engine_limits.documents.text_bytes = 4096;
+        let config = fixtures::configuring_configuration(seed, member);
+        let mut driver = Driver::cold(Store::with_limits(&engine_limits), config, &engine_limits);
+        driver.settle();
+        // The account component plays a fake key; no secret bytes enter this world.
+        driver.send(engine::Event::Account(jig_domain_accounts::Event::Change {
+            request: Token::new(2000),
+            holder: jig_domain_accounts::Holder::Deployment,
+            change: jig_domain_accounts::Change::AddKey { provider: 1, join: None, carried: 0 },
+        }));
+        driver.settle();
+        let caller = if member { fixtures::configuring_member(&mut driver) } else { fixtures::PARTY };
+        let mut joint = Self::new(seed, limits);
+        joint.caller = caller;
+        driver.forge = joint.engine.forge.take();
+        joint.engine = driver;
+        // The stock configuring charter reserves two minutes; this worker plays it.
+        let mut hello = temper_engine_domain_world::protocol::hello(fixtures::QUESTION_WORKER, Box::new([]));
+        let engine::Event::Worker(engine::WorkerInput::Link {
+            link: engine::Link::Hello { hello: offered, .. }, ..
+        }) = &mut hello
+        else {
+            unreachable!("worker hello")
+        };
+        offered.bounds.time = Duration::from_secs(120);
+        offered.bounds.message_bytes = engine_limits.tasks.message_bytes;
+        joint.engine.send(hello);
+        joint.engine.settle();
+        joint.last_commit = joint.engine.store.header().commits;
+        joint.truth = jig_client_world::joint::truth::Truth::after(core_rows(&joint.engine));
+        joint.engine.delivered.clear();
+        joint.engine.immediate.clear();
+        joint
+    }
+
+    /// Play a decoded run host call through the worker link. Decode and render
+    /// are scripted here, as in the domain world's protocol stand.
+    pub fn host_tool(&mut self, task: u64, completion: u32, tool: engine::Tool) -> HostAnswer {
+        let attempt = self.hosted_attempt(task).expect("the task reached its worker");
+        self.engine.protocol.defer_render = true;
+        let event = self.engine.protocol.call(
+            fixtures::QUESTION_WORKER,
+            task,
+            attempt,
+            u64::from(completion),
+            engine::Call { completion, position: 0, tool },
+        );
+        self.engine.send(event);
+        self.engine.pump();
+        let (to, answer) = if let Some(index) = self.engine.delivered.iter().position(|delivery| {
+            matches!(delivery, engine::Delivery::Host(value)
+                if matches!(value.as_ref(), engine::HostDelivery::Settings { .. }))
+        }) {
+            let engine::Delivery::Host(value) = self.engine.delivered.remove(index) else { unreachable!() };
+            let engine::HostDelivery::Settings { to, answer, .. } = *value else { unreachable!() };
+            (to, HostAnswer::Settings(answer))
+        } else {
+            let (to, name) = self.engine.protocol.pending_renders.pop().expect("host answer to render");
+            let (answered, answer) = self.engine.protocol.answers.last().expect("typed host answer");
+            assert_eq!(*answered, name);
+            (to, HostAnswer::Tool(answer.clone()))
+        };
+        self.engine.send(engine::Event::Worker(engine::WorkerInput::RenderedHostCall {
+            to,
+            answer: jig_domain_core::SettledAnswer::Host { error: false, body: Box::new([]) },
+        }));
+        self.settle();
+        self.engine.protocol.defer_render = false;
+        answer
+    }
+
+    /// Commit the run's one-line reply after it hears its proposal's outcome.
+    pub fn configuring_reply(&mut self, task: u64, words: &[u8]) {
+        let run = self.engine.task(task).expect("configuring chat");
+        let read = run.inbox.last().map(|message| message.number);
+        self.finish_reply(task, run.attempt, read, Some(words));
+        self.settle();
+    }
+
     /// Chats end only when their requester closes them.
     #[must_use]
     pub fn open_chats(seed: u64, limits: client::Limits) -> Joint {
@@ -776,6 +904,7 @@ impl Joint {
         Joint {
             engine,
             sign_ins: 0,
+            caller: fixtures::PARTY,
             leaves: Vec::new(),
             refuse_return: false,
             set_ups: Vec::new(),
@@ -876,9 +1005,9 @@ impl Joint {
     }
     fn reachable(&mut self, who: ClientId, request: &Request) -> bool {
         use temper_client_protocol_wire::{self as wire, v1 as w};
-        let Request::Client {
+        let Request::Unlinked {
             request:
-                jig_client::Request::Down {
+                jig_client::UnlinkedRequest::Down {
                     down: jig_client::Down::Send { attempt, request: jig_client::Ask::Family { record, .. }, .. },
                 },
         } = request
@@ -940,9 +1069,9 @@ impl Joint {
     }
     fn start_playground(&mut self, who: ClientId, request: &Request) -> bool {
         // The front scripts the playground lifecycle beside the real engine.
-        if let Request::Client {
+        if let Request::Unlinked {
             request:
-                jig_client::Request::Down {
+                jig_client::UnlinkedRequest::Down {
                     down: jig_client::Down::Send { attempt, key, request: jig_client::Ask::Family { record, .. }, .. },
                 },
         } = request
@@ -1001,9 +1130,9 @@ impl Joint {
     }
     fn refused_return(&mut self, who: ClientId, request: &Request) -> bool {
         if self.refuse_return
-            && let Request::Client {
+            && let Request::Unlinked {
                 request:
-                    jig_client::Request::Down {
+                    jig_client::UnlinkedRequest::Down {
                         down: jig_client::Down::Send { attempt, request: jig_client::Ask::Family { record, .. }, .. },
                     },
             } = request
@@ -1035,9 +1164,9 @@ impl Joint {
         false
     }
     fn task_read_end(&mut self, who: ClientId, request: &Request) -> bool {
-        if let Request::Client {
+        if let Request::Unlinked {
             request:
-                jig_client::Request::Down {
+                jig_client::UnlinkedRequest::Down {
                     down:
                         jig_client::Down::Read {
                             read,
@@ -1064,9 +1193,9 @@ impl Joint {
         false
     }
     fn playground_read(&mut self, who: ClientId, request: &Request) -> bool {
-        if let Request::Client {
+        if let Request::Unlinked {
             request:
-                jig_client::Request::Down {
+                jig_client::UnlinkedRequest::Down {
                     down: jig_client::Down::Read { read, what: jig_client::Readable::Family { record, .. } },
                 },
         } = request
@@ -1106,8 +1235,9 @@ impl Joint {
             return;
         }
         if self.offline_until.is_some() || self.transport.sign_in(who).is_none() {
-            if let Request::Client {
-                request: jig_client::Request::Down { down: jig_client::Down::Send { attempt, value: Some(_), .. } },
+            if let Request::Unlinked {
+                request:
+                    jig_client::UnlinkedRequest::Down { down: jig_client::Down::Send { attempt, value: Some(_), .. } },
             } = &request
             {
                 self.callbacks.push((
@@ -1129,8 +1259,9 @@ impl Joint {
             self.parked.entry(who).or_default().push(request);
             return;
         }
-        if let Request::Client { request: jig_client::Request::Down { down: jig_client::Down::Send { attempt, .. } } } =
-            &request
+        if let Request::Unlinked {
+            request: jig_client::UnlinkedRequest::Down { down: jig_client::Down::Send { attempt, .. } },
+        } = &request
             && let Some(envelope) = self.keyed_fault.take()
         {
             if envelope == RequestEnvelope::SignedOut {
@@ -1152,9 +1283,11 @@ impl Joint {
             ));
             return;
         }
-        if let Request::Client {
+        if let Request::Unlinked {
             request:
-                jig_client::Request::Down { down: jig_client::Down::Send { key, request: jig_client::Ask::Jig(ask), .. } },
+                jig_client::UnlinkedRequest::Down {
+                    down: jig_client::Down::Send { key, request: jig_client::Ask::Jig(ask), .. },
+                },
         } = &request
             && matches!(
                 ask.as_ref(),
@@ -1172,7 +1305,7 @@ impl Joint {
         if self.playground_read(who, &request) || self.task_read_end(who, &request) {
             return;
         }
-        let Request::Client { request: jig_client::Request::Down { down } } = request else {
+        let Request::Unlinked { request: jig_client::UnlinkedRequest::Down { down } } = request else {
             panic!("unlinked down request")
         };
         self.component.send(who, down);
@@ -1542,7 +1675,7 @@ impl Front<Temper> for Joint {
     fn bind(&mut self, who: ClientId, party: u64) {
         self.client_limits.insert(who, self.next_limits.take().unwrap_or(self.limits));
         self.component.receiving(who, self.client_limits[&who].client.domain);
-        assert_eq!(party, fixtures::PARTY, "the configured deployment owner");
+        assert_eq!(party, self.caller, "the configured caller");
         self.transport.bind(
             who,
             party,

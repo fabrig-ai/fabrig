@@ -104,9 +104,9 @@ fn tokens_are_bundled_carried_once_and_cleared_at_send() {
             for value in &values {
                 assert!(skein_lib::bytes::find(format!("{request:?}").as_bytes(), value).is_none());
             }
-            if let Request::Client {
+            if let Request::Unlinked {
                 request:
-                    jig_client::Request::Down {
+                    jig_client::UnlinkedRequest::Down {
                         down: Down::Send { request: jig_client::Ask::Family { record, .. }, value: Some(value), .. },
                     },
             } = request
@@ -319,9 +319,11 @@ fn an_unrelated_stopped_forgejo_leaves_a_new_forges_draft() {
         );
         let mut sent = 0_u32;
         for request in &act(&mut root, forge::Act::Forges(forge::forges::Act::ConnectTokens)) {
-            if let Request::Client {
+            if let Request::Unlinked {
                 request:
-                    jig_client::Request::Down { down: Down::Send { request: jig_client::Ask::Family { record, .. }, .. } },
+                    jig_client::UnlinkedRequest::Down {
+                        down: Down::Send { request: jig_client::Ask::Family { record, .. }, .. },
+                    },
             } = request
             {
                 let w::Request::Connect(connect) =
@@ -344,8 +346,9 @@ fn a_stop_of_another_forge_leaves_the_sent_connects_draft() {
     paste(&mut root, Field::Git, &bytes(2, 16));
     let mut attempt = None;
     for request in &send(&mut root) {
-        if let Request::Client { request: jig_client::Request::Down { down: Down::Send { attempt: value, .. } } } =
-            request
+        if let Request::Unlinked {
+            request: jig_client::UnlinkedRequest::Down { down: Down::Send { attempt: value, .. } },
+        } = request
         {
             attempt = Some(*value);
         }
@@ -411,9 +414,11 @@ fn new_connected_forgejo_uses_the_shared_place_and_needs_an_address() {
     );
     let mut sent = 0_u32;
     for request in &act(&mut root, forge::Act::Forges(forge::forges::Act::ConnectTokens)) {
-        if let Request::Client {
+        if let Request::Unlinked {
             request:
-                jig_client::Request::Down { down: Down::Send { request: jig_client::Ask::Family { record, .. }, .. } },
+                jig_client::UnlinkedRequest::Down {
+                    down: Down::Send { request: jig_client::Ask::Family { record, .. }, .. },
+                },
         } = request
         {
             let w::Request::Connect(connect) =
@@ -451,8 +456,9 @@ fn the_new_forge_follows_its_number_in_either_watch_answer_order() {
         let out = act(&mut root, forge::Act::Forges(forge::forges::Act::ConnectTokens));
         let mut attempt = None;
         for request in &out {
-            if let Request::Client { request: jig_client::Request::Down { down: Down::Send { attempt: value, .. } } } =
-                request
+            if let Request::Unlinked {
+                request: jig_client::UnlinkedRequest::Down { down: Down::Send { attempt: value, .. } },
+            } = request
             {
                 attempt = Some(*value);
             }

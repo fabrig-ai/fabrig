@@ -14,7 +14,7 @@ A proposal asks someone with more authority to authorize one act:
 - an amendment that needs more authority than its task has;
 - the release of a task a party's hold holds, which only the hold's
   owner decides (`temper help hold`);
-- a change of settings, which only the deployment's owners decide
+- a change of settings, which only the owners of every scope it touches decide
   (`temper help settings`).
 
 A proposal is named by its proposer and its number: `t41/3` is task 41's
@@ -47,11 +47,13 @@ change, or a start, makes a new revision.
 - A proposal is judged again when it is accepted, against the authority
   and policy that stand then.
 - A holder decides only the kinds of proposal their role decides.
-- A proposal of settings is accepted only by an owner of the deployment,
+- A proposal of settings is accepted only by a person who owns every
+  scope its items touch (`temper help settings`),
   with a running choice: running work stays on its revision, as when no
   choice is given, or moves.
 - Its proposer reads the outcome with `proposal show`. A run that
-  proposed settings hears it in its task's messages:
+  proposed settings first receives the proposal's number and who
+  decides it, then hears its outcome in its task's messages:
   `accepted: revision N made`, `rejected: REASON`, or
   `withdrawn as stale: the newest is N`.
 - A decision asked again under its key gets its first answer again. A
@@ -67,10 +69,17 @@ change, or a start, makes a new revision.
 - A run proposes with the host tool `propose` (a batch, an effect, an
   amendment, a widening or a release), decides with `decide`, and
   withdraws its own with `withdraw`.
-- A run proposes a change of settings with the host tool
-  `propose_settings`.
+- A run whose charter names the settings family and whose authority
+  holds it proposes a change of settings with the host tool
+  `propose_settings`: charter 3 alone in the stock
+  (`temper help charter`). The configuring chat reports an acceptance
+  with its revision, revises after a rejection's reason, and reads the
+  settings again and proposes afresh after a withdrawal as stale
+  (`temper help chat`).
 
 ## Limits
+
+For the configuration members that need a restart, read `temper help configuration`.
 
 - The person's client shows a proposal of settings in its inbox without
   its values, and can reject it but not accept it: accept it with

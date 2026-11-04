@@ -62,7 +62,7 @@ class OldForms(unittest.TestCase):
     def test_a_fall_passes_and_write_lowers_it_keeping_raises(self):
         self.source("fn worst_case() { worst_case(); }\n")
         self.run_script("--write")
-        raised = "# Raised: worst_case by director for the fixture\n"
+        raised = "# Raised: worst_case +1, by the user, for the fixture\n"
         baseline = self.baseline.read_text(encoding="utf-8") + raised
         self.baseline.write_text(baseline, encoding="utf-8")
         self.source("fn worst_case() {}\n")

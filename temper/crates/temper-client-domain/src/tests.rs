@@ -9,6 +9,7 @@ mod address;
 mod admin;
 mod amend;
 mod playground;
+mod public;
 
 pub(crate) mod fixtures;
 mod forge_words;

@@ -12,6 +12,10 @@
   or in `temper-service`'s routing.
   4.4: the picker, which the adoption page does not draw
   (`temper-client-view`'s `forge/page.rs`).
+  3.5, The welcome: the Forgejo card's refusal and its disabled
+  button while a set up is pending; `forge/connect.rs`
+  `welcome_choices` draws neither, the domain sending no second
+  `SetUp` while one is pending.
   5.5: a plan's first use, its card in the conversation. 3.5, 3.6, 10:
   Delete on a project's settings, confirmed by its name, and jig's
   `RemoveProject` by `shapes::remove_project`, with the chat
@@ -31,6 +35,14 @@
   as ready, where it shows `ConnectModel`'s Choose. 3.5, With no project
   yet: its heading, words and acts; `pages/chats.rs` draws the pane
   alone, the new chat's bar with no status and the list under "Chats".
+  4.7: the "not installed" outcome, "temper's App is not installed on
+  OWNER.", with "Install on another account": `temper-service/src/family.rs`
+  maps `forge::AdoptionRefusal::NotInstalled` to `ForgeReason::NoAccess`;
+  the client wire has no not-installed reason, pinned as a known gap by
+  `temper-service/src/tests/setup_github.rs`,
+  `unaccepted_and_other_account_adoptions_keep_the_wire_reason_gap`;
+  no reason is recorded (the code's side is
+  `temper/docs/development/debt/D008-pipeline-names-in-code.md`).
 - **Departs:** 3.5, With no project yet, and 5.3: with no project, the
   banner's place for it reads "No project yet" followed by the new
   project's form, "New project" and "Create" (`temper-client-view`'s

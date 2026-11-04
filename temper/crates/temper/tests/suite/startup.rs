@@ -30,7 +30,7 @@ fn a_stock_policy_past_its_limit_refuses_before_listening() {
     assert_eq!(output.status.code(), Some(1));
     assert_eq!(
         String::from_utf8_lossy(&output.stderr),
-        "temper serve: engine.limits.overrides.core.policy_bytes: core.policy_bytes is 100; the stock's policy 1 needs 3266 bytes; raise it in engine.limits.overrides\n",
+        "temper serve: engine.limits.overrides.core.policy_bytes: core.policy_bytes is 100; the stock's policy 1 needs 3282 bytes; raise it in engine.limits.overrides\n",
         "stdout: {}",
         String::from_utf8_lossy(&output.stdout)
     );
@@ -767,7 +767,7 @@ fn every_command_checks_setup_before_reading_files() {
     ] {
         assert_eq!(refused, format!("temper {command}: {line}"), "{command}");
     }
-    for verb in ["prepare", "reconcile", "run"] {
+    for verb in ["prepare", "run"] {
         support::owned::refused(scratch.path(), verb, format!("temper forge {verb}: forge 1: {line}").as_bytes());
     }
     let runner = support::owned::command(scratch.path(), "runner").output().expect("runner refuses");
@@ -1432,7 +1432,7 @@ fn turn_bound_document(path: &std::path::Path, turn: u32, escaped: bool) {
         assert_eq!(
             before,
             after,
-            "{}: run SKEIN_CODEGEN_WRITE=1 heavy cargo nextest run -p temper --test startup -E 'test(turn_bounds)'",
+            "{}: run SKEIN_CODEGEN_WRITE=1 cargo nextest run -p temper --test startup -E 'test(turn_bounds)'",
             path.display()
         );
         return;

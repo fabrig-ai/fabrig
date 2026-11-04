@@ -106,6 +106,11 @@ pub enum EffectRefusal {
 /// jig/docs/design/domain/connectors.md, section 17.
 #[derive(Debug)]
 pub enum Event {
+    /// A restore's judged items (jig/docs/design/domain/engine.md, 17.10; jig/docs/design/domain/connectors.md, 17).
+    SettingsRestored {
+        owner: Token,
+        judged: Box<[Judged]>,
+    },
     SettingsJudged {
         owner: Token,
         judged: Box<[Judged]>,
@@ -260,6 +265,16 @@ pub struct DefaultState {
 /// jig/docs/design/domain/connectors.md, section 17.
 #[derive(Debug)]
 pub enum Ask {
+    /// Erase replaced values below the history cutoff (jig/docs/design/domain/engine.md, 17.10; jig/docs/design/domain/connectors.md, 17).
+    ForgetReplaced {
+        before: u64,
+    },
+    /// Keep restored values as proposal items (jig/docs/design/domain/engine.md, 17.10; jig/docs/design/domain/connectors.md, 17).
+    RestoreSettings {
+        owner: Token,
+        proposal: u64,
+        items: Box<[settings::application::Restored]>,
+    },
     /// Judge items in this decision, in their order, for the revision they would make.
     JudgeSettings {
         owner: Token,

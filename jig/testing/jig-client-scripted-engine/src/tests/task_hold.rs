@@ -26,7 +26,7 @@ fn scripted_hold_moves_return_exact_category_for_release_and_atomic_amend_releas
         }]);
         let spec_revision = row.spec_revision;
         setup.truth.objects.insert(ObjectKey::Task(8), ReadValue::Task(Box::new(row)));
-        let mut engine = Engine::new(setup, 1).unwrap();
+        let mut engine = Engine::new(setup, 1).expect("valid script");
         let ask = if amendment {
             crate::tests::releasing(
                 Ask::Amend {

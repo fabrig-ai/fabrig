@@ -123,7 +123,13 @@ fn first_start_sizes_the_default_in_revision_one_and_saves_it_once() {
     assert_eq!(revisions[0].head.by, s::Decider::FirstStart);
     assert_eq!(
         revisions[0].applications.as_ref(),
-        &[app::Recorded { kind: 1, scope: 0, number: 1, edit: app::SizedEdit::Set { size: 3 } }]
+        &[app::RevisionRecorded {
+            kind: 1,
+            scope: 0,
+            number: 1,
+            edit: app::SizedEdit::Set { size: 3 },
+            replaced: app::Replaced::Default
+        }]
     );
     assert_eq!(saved(&out).as_ref(), &[(2, Some(1))]);
 }
@@ -153,7 +159,13 @@ fn a_changed_default_makes_a_release_revision_with_its_size_and_save() {
     assert_eq!(revisions[0].head.by, s::Decider::Release);
     assert_eq!(
         revisions[0].applications.as_ref(),
-        &[app::Recorded { kind: 1, scope: 0, number: 1, edit: app::SizedEdit::Set { size: 6 } }]
+        &[app::RevisionRecorded {
+            kind: 1,
+            scope: 0,
+            number: 1,
+            edit: app::SizedEdit::Set { size: 6 },
+            replaced: app::Replaced::Default
+        }]
     );
     assert_eq!(saved(&out).as_ref(), &[(2, Some(2))]);
 }
@@ -190,7 +202,13 @@ fn a_default_no_longer_reported_is_erased_in_a_release_revision() {
     assert_eq!(revisions[0].head.number, 2);
     assert_eq!(
         revisions[0].applications.as_ref(),
-        &[app::Recorded { kind: 1, scope: 0, number: 1, edit: app::SizedEdit::Remove }]
+        &[app::RevisionRecorded {
+            kind: 1,
+            scope: 0,
+            number: 1,
+            edit: app::SizedEdit::Remove,
+            replaced: app::Replaced::Default
+        }]
     );
     assert_eq!(saved(&out).as_ref(), &[(2, Some(2))]);
     let mut erased = false;

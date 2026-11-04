@@ -204,11 +204,19 @@ fn removed_family_bytes_are_reserved() {
 fn setting_keys_use_family_twenty_and_refuse_unknown_tags_widths_and_trailing_bytes() {
     use temper_engine_domain_forge::settings::{SettingKey, SettingSlot};
     for kind in 1..=3 {
-        for slot in [SettingSlot::Default, SettingSlot::Change, SettingSlot::Proposal(u64::MAX)] {
+        for slot in [
+            SettingSlot::Default,
+            SettingSlot::Change,
+            SettingSlot::Proposal(u64::MAX),
+            SettingSlot::Replaced(u64::MAX),
+        ] {
             let key = Key::Setting(SettingKey { kind, scope: u32::MAX, number: u32::MAX, slot });
             let bytes = keys::encode(&key, u32::MAX).unwrap();
             assert_eq!(bytes[0], keys::SETTING);
-            let length = if slot == SettingSlot::Proposal(u64::MAX) { 34 } else { 26 };
+            let length = match slot {
+                SettingSlot::Default | SettingSlot::Change => 26,
+                SettingSlot::Proposal(_) | SettingSlot::Replaced(_) => 34,
+            };
             assert_eq!(bytes.len(), length);
             assert_eq!(keys::decode(&bytes, &fixtures::LIMITS), Some(key.clone()));
             assert_eq!(keys::encode(&key, u32::try_from(length - 1).unwrap()), None);
@@ -227,7 +235,7 @@ fn setting_keys_use_family_twenty_and_refuse_unknown_tags_widths_and_trailing_by
         (1_u64 << 32_u8, 0, 1, 0),
         (1, 1_u64 << 32_u8, 1, 0),
         (1, 0, 1_u64 << 32_u8, 0),
-        (1, 0, 1, 3),
+        (1, 0, 1, 4),
     ] {
         let mut writer = skein_kv::KeyWriter::new(u32::MAX);
         writer.tag(keys::SETTING).u64(kind).u64(scope).u64(number).tag(slot);

@@ -144,7 +144,10 @@ impl Core {
     }
 
     /// Validate an accepted batch's explicit preferences without filling default models.
-    #[expect(clippy::result_large_err, reason = "the refusal keeps tasks' exact problem for the creator")]
+    #[cfg_attr(
+        not(target_arch = "wasm32"),
+        expect(clippy::result_large_err, reason = "the refusal keeps tasks' exact problem for the creator")
+    )]
     pub(crate) fn batch_accounts(&self, batch: &[tasks::New]) -> Result<(), tasks::Problem> {
         let mut links = skein_lib::List::with_capacity(u32::try_from(batch.len()).expect("bounded batch"));
         for member in batch {

@@ -152,7 +152,13 @@ fn no_drawn_session_ends_because_its_history_grew() {
         for _ in 0..16 {
             let owner = *world.delegated.last().expect("every call runs");
             let count = usize::try_from(rng.between(15_000, 16_384)).expect("bounded text");
-            world.step(Event::Answered { owner, text: vec![b'r'; count].into_boxed_slice(), error: false, spent: 0 });
+            world.step(Event::Answered {
+                owner,
+                text: vec![b'r'; count].into_boxed_slice(),
+                error: false,
+                spent: 0,
+                after: smith_domain_session::After::Complete,
+            });
         }
         assert!(world.end.is_none());
         world.complete(said(b"summary"), llm::Stop::EndTurn, llm::Usage::ZERO);

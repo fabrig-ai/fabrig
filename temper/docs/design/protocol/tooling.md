@@ -122,6 +122,12 @@ baseline recounted, a generated file made again), with no model.
 - **Deterministic by contract,** as `prepare`: the same head and base
   give the same tree.
 
+temper writes the merge request exactly as
+`{"version":1,"head":"HEAD","base":"BASE"}`, without spaces, in that member
+order. Each commit is lowercase hexadecimal, 40 digits for SHA-1 and 64 for
+SHA-256. The catch-up commit carried by bytes parameter 16 uses that same
+text form; another form refuses the change's start (2026-11-04).
+
 ## 5. `key`
 
 - **Run** inside a prepare job, after `prepare`, when the project names

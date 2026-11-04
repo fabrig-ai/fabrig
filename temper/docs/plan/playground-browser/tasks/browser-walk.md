@@ -9,12 +9,15 @@ files = [
   "temper/tests/client-browser/src/lib.rs",
   "temper/tests/client-browser/tests/browser_all/main.rs",
   "temper/tests/client-browser/tests/browser_all/browser_playground.rs",
+  "temper/tests/client-browser/tests/browser_all/browser_pages.rs",
+  "temper/docs/design/client/browser.md",
   "tools/tiers/run",
   "tools/tiers/test_run.py",
   "tools/tiers/design.status.md",
   "temper/docs/design/client/browser.status.md",
   "temper/docs/development/playground-figures.md",
   "Cargo.lock",
+  "Cargo.toml",
 ]
 effort = "high"
 minutes = 150
@@ -114,3 +117,48 @@ Acceptance:
 
 As the implementer's text says, and also: the figures' line; the tier's wall and CPU with 12
 tests; the playground's build time in the setup; the speed used; Chromium's version.
+
+## Answers
+
+2026-11-03. **`temper-playground-world` is no workspace dependency: add it to the root
+`Cargo.toml`, or a path dependency in `client-browser/Cargo.toml`?** Add it to the root manifest;
+no path dependency. Test worlds already sit among the workspace dependencies
+(`temper-worker-protocol-git-world`), and every dependency of this crate is a workspace one.
+The root `Cargo.toml` joins this task's files for this alone: one line,
+`temper-playground-world = { path = "temper/tests/playground" }`, in `[workspace.dependencies]`
+beside `temper-playground`; no other change there. Then verify 3b1099ce84's draft and go on as the
+acceptance says.
+
+2026-11-04. **Native story A fails at the same startup and its kept log is absent: does
+native-walk-a repair them first, or may this task change the playground?** Neither: native-walk-a
+has landed, and its repairs are what this branch lacks. The branch last merged native-walk-a at
+`eaf89d4b6f`, before the startup repairs and the kept log; the trunk holds them (`24000c6ed8`,
+`9678bee8e1`, `3133264738`, and `tests/fixtures/story-a.log`). Its last run reports the walk and the
+replay passing: 6 passed, 1 skipped, in `temper-playground-world`, world time 44.8 s, 17 person
+steps. So first merge `origin/playground-browser/integration` into this branch, keeping its commits
+and its name, and run `heavy cargo nextest run -p temper-playground-world --test suite -E
+'test(/walk::/)'`: three pass, or it is a question, since native-walk-a is landed and closed. Then
+go on as the acceptance says, from the browser test. The merge changes the person's script:
+`stories::a()` now presses each suggestion straight into its chat and sees `Landed` there, with a
+wait of 60 s; `story_steps` takes it as it stands, its `/chats` arm still needed for the second and
+third requests. The merge's one conflict is `tests/browser_all/main.rs`: keep both sides' `mod`
+lines. The kept log is the native walk's, recorded by that task: this task never records it.
+If the browser still stops where the native walk passes, that is a fault of its own and the task's
+boundary holds: a change to the page, the bundle script or temper-playground is a question, with
+the cause found in the browser's log and snapshot; the file list does not widen.
+
+2026-11-04. **The merge brings `browser_public`: with the playground's the tier holds 13 tests
+against a cap of 12. What leaves?** No test's proof leaves and the cap stays: 4.3's rule applies,
+stories that share a setup become one test of several steps. The acceptance's 12 tests cannot hold
+otherwise, so `browser_pages.rs` and `browser.md` join this task's files for this alone:
+- `browser_pages.rs`: `a_non_page_address_opens_the_inbox_at_slash` goes; its proof,
+  `Go /nowhere`, then the `Inbox` heading, then `Step::Address("/")`, becomes the last steps of
+  `history_keeps_the_chat_focus_and_filter_across_reload_and_back`, whose name and setup stay. The
+  module's first lines stay true.
+- `temper/docs/design/client/browser.md`, 4.6: item 2 gains ", and an address that is no page opens
+  the inbox at `/` (4.1, 2)"; item 3's line goes, its number unused (`DESIGN.md`, 4); an item 13
+  after 12 lists the public reading, "**Reading a public project** (8.4), with no sign-in, and
+  losing it when it is made private."; line ~923's "Browser test 3" becomes "Browser test 2". The
+  title stays "The twelve": 1, 2 and 4 to 13 are twelve.
+- Check the count: `scripts/browser.sh` reports 12 tests, and `browser_public` is run as it stands:
+  if it fails, it is not this task's: run it once alone and report it under `## Left` with its log.

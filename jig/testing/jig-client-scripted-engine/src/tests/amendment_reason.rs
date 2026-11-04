@@ -26,7 +26,7 @@ fn durable_amendment_key_replay_keeps_reason_and_changed_reason_is_a_conflict() 
     row.acts = list(vec![Offered { effect: None, act: ActKind::Amend, admission: Admission::Allowed }]);
     setup.truth.objects.insert(ObjectKey::Task(8), ReadValue::Task(Box::new(row)));
     let ask = amendment(UTF8_TEXTS[2]);
-    let mut engine = Engine::new(setup, 1).unwrap();
+    let mut engine = Engine::new(setup, 1).expect("valid script");
     send(&mut engine, 0, 11, 1, 1, ask.clone());
     send(&mut engine, 1, 12, 1, 2, ask.clone());
     assert!(engine.poll(Time::from_nanos(9_999_999)).is_empty());

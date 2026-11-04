@@ -936,6 +936,7 @@ the core checks inherited authority and the prospective financial payer.
 | Tool | What it does | Answers |
 |---|---|---|
 | `delegate` | makes a batch of tasks as its delegates, each with what a party's `Create` names, its label, flags and LLM choice among them (tasks.md, section 4) | their numbers and their specs' revisions, and what a budget given `AsAllowed` was given; refused, and why; beyond authority, naming what it lacked and whether a proposal could be accepted |
+| `read_task` | reads its own task, its requester, live direct delegates, explicit references or escalation subjects in its project; retained ended direct delegates remain readable | bounded specification words, lifecycle, dependencies, spec revision, hold revision and reason, including connector hold words; `from` continues cut specification words at the printed `next` byte offset |
 | `message` | words, a question or an answer to a task it references | sent; no reference; the inbox full; too large for a run to read |
 | `amend`, `release` | a task below it: an amendment naming its spec's revision as the run last read it, but for a change of priority alone, and adding or removing dependencies within its reach (tasks.md, section 7); a release naming its hold's, and, for an effect held uncertain, whether to make it again (tasks.md, 5.5 and section 7) | done, with the task's spec revision after the commit, the one its next amendment names (a release moves none); refused, and why; moved, with what it is now |
 | `cancel` | a task below it and its tree, with a reason, and a grace if the run gives one, within the tasks child's bound: the task is asked to finish first (tasks.md, section 7) | done; refused, and why |
@@ -951,13 +952,19 @@ the core checks inherited authority and the prospective financial payer.
 | `note`, `recall` | writes a note in a scope; reads entries by name or by a search (section 10) | written; the entries |
 | a connector's reads | reads its system (connectors.md, section 9) | the answer, within the read's budget |
 
-**A run's reads are not recorded.** A connector's read and the
+**A run's reads are not recorded.** A connector's read, `read_task`, and the
 `settings` family's reads decide nothing: checked against the task's
 tools, served from the state as it stands, their answer leaves through
 the journal's door for outputs that decide nothing (root.md, section
 3), and no call record keeps it. A read asked again under its name is
 read again, and may see what changed since. A proposal of settings is a
 decided call, as every other is.
+
+Task reads authorize against the run's own task relationships, not a person's
+project visibility. A stored delegate's owner row proves its immediate requester;
+loading it grants no message, amendment or subscription authority. Authorization
+and the current attempt are checked again after a stored read. Every chunk names
+the current spec revision; restart at zero if it changes between chunks.
 
 **Calls are named, and decided once.** Every call names its task's
 attempt and the run's own name for it. The core commits a call that
@@ -1083,6 +1090,20 @@ hosted run with no agent:
 - **Nothing of it is a transcript:** its spec and result are its
   record; a restart finds a claimed job's attempt as a run's (section
   6) and settles it lost or answered.
+
+The application's declaration of job kinds is ascending by number, each
+once, as the worker's hello is. A batch naming an undeclared job kind is
+refused as `Executor`; a job's spec or deadline beyond its declared bound is
+refused as `Spec` (2026-11-04).
+
+A job's transient preparation or failed delivery uses the transient retry
+class; permanent preparation, stale or refused delivery, and an invalid
+assignment use the permanent class. Its own failure and deadline use the
+run's-own class; failure to start uses the agent's class; an oversized
+result uses invalid; lost contact and shutdown use lost. Engine cancellation
+ends it as cancelled. Busy before starting is a refusal, spending no try. A
+finished job becomes its task's Job result, without asking to cancel
+delegates (2026-11-04).
 
 ## 8. The fleet
 
@@ -1324,6 +1345,19 @@ computes for them is said below (11.1 to 11.5).
   (connectors.md, 5.5). Its watches and reads carry a window, as jig's
   do (`../client/domain/contract.md`, 7.5). Only the document, or why
   there is none, crosses back; the root only routes.
+- **Public reads** (people.md, section 13) are the public party's,
+  with no sign-in: the core admits one only on its public index
+  (people.md, 13.9), the project first, then the task, before any other
+  work, and answers every other unknown alike. It makes jig's public
+  documents (projects, a board, a card) by their projections from the
+  index alone, within the board's bounds, never scanning the live tasks
+  or loading from the store; an application's it asks of the connector
+  that declared the kind, handing it the project's public tasks, and
+  checks the tasks its answer names again in the step that completes
+  the read (people.md, 13.10). It keeps the index with every decision
+  that changes what is public (people.md, 13.7), building a project's
+  entry from its live tasks at start and when it is made public.
+  No watch is opened, nothing is marked, nothing is committed.
 - **Level-triggered,** as facts are (core.md, section 4). A delivery is
   the subject's whole current document, within the watch's window, made
   by the subject's owner when the delivery is made: the core, or a
@@ -1982,6 +2016,31 @@ section 17; the records are `../protocol/store.md`, 4.4.
   one per setting, each a setting and what becomes of it: *set* to a
   value, whole; *removed*; or *reset* to its default. It says, too,
   whether running work *stays* on its revision or *moves* (17.4).
+- **A project's own policy** is no setting (17.1), and is an item of a
+  change too, so that one decision sets a project up whole: its policy
+  beside the charters, templates, rules and application's settings its
+  work runs under. The item names a live project, at most one per
+  change, and is *set* alone, to a policy whole in a seed's format, as
+  a policy projects are made from is given (17.1); *removed* or *reset*
+  is out of shape, since a project's policy has no default to return
+  to, and a project not live is refused unknown, as every request
+  naming it is (people.md, 5.2). It is the project's item, decided by
+  the project's owners: beside the deployment's items it needs one
+  party who owns both (*not theirs*, below). It is checked against the
+  settings the change leaves, as 17.1 checks a policy projects are made
+  from (within the rules, its roles well formed, its overrides'
+  templates offered, its owner role able to be a root's requester), and
+  as its owners' own edits of it are (people.md, 5.2), so a change may
+  add the template the policy overrides; a refusal names the item and
+  what fails, and a policy equal to the project's leaves it as it is,
+  counted toward *empty*. Committed, it replaces the project's policy
+  whole in the change's decision, as its owners' edits apply (people.md,
+  5.2): the open period and the parties' pools resized to its spends
+  (authority.md, section 7), and every later decision under it. It makes
+  no setting and is never pinned (17.4): the revision's record keeps
+  the item as any other, its value whole and the project's policy it
+  replaced (17.10). A change, and a pending proposal (17.6), naming one
+  is priced at one policy beyond the whole set 17.8 prices.
 - **Refused whole,** nothing of it committed, when it is:
   - *stale:* another revision is the newest, which the refusal names;
   - *not theirs:* an item of the deployment's (jig's kinds, and an
@@ -2005,6 +2064,7 @@ section 17; the records are `../protocol/store.md`, 4.4.
   answer under the request's key, naming the new revision, and what each
   part hears of it, in the same decision: the tasks child and the fleet
   the charter versions added and dropped; authority the rules; the
+  people child a project's policy it sets (above); the
   views a mark on every `me`, when a template changed, and on every
   watch of the settings; each connector the word to keep its kinds' items' values (17.5); and, when
   it moves running work, the tasks moved (17.4). After a crash the old
@@ -2012,7 +2072,8 @@ section 17; the records are `../protocol/store.md`, 4.4.
 - **What follows it.** A narrowed rule reaches every later decision,
   tasks already made included, and a widened one widens no existing
   task (authority.md, section 6); a live project's policy is not checked
-  against new rules, only the policies projects are made from are. The
+  against new rules, only the policies projects are made from are, and
+  a project's policy the change itself sets. The
   next `MakeProject` copies the policy as changed; a project made before
   keeps its own copy (people.md, 5.2). Clients re-read `me`'s templates,
   and a template removed leaves its number unused (`../protocol/configuration.md`,
@@ -2192,10 +2253,21 @@ judges and keeps it within the change's decision.
   connector that owns its kind, by kind, scope and number: the newest,
   whatever revision a task was made in. Never pinned.
 - **History** keeps, for an application's kind, each revision's edits
-  and sizes; the values past revisions set are not kept, only the
-  current ones and the defaults.
+  and sizes, and the state and size of what each item replaced; the
+  connector keeps the current values, the defaults, and, beside each
+  change it saves, the value the setting held before, by the revision
+  that made the change, for as long as the history keeps that
+  revision's record (17.10), so that a restore proposes them again:
+  every past value a restore reaches is one a later change replaced,
+  and no other is kept.
 - **The root routes, never judges** (root.md, section 11): the judging
   and the keeping are the connector's, in its own terms.
+
+The values-per-scope bound counts every setting state the core keeps in that
+scope: changed, removed and following its default after a reset. Removing or
+resetting a number does not free its slot. A set naming a new number past
+that bound is refused as count before judging; editing a number already kept
+adds no slot (decided 2026-11-03).
 
 ### 17.6 A proposal of settings
 
@@ -2217,6 +2289,15 @@ judges and keeps it within the change's decision.
   state. The core keeps its set, by the proposal's number, in memory and
   in the store, restored with it, but for the values of its items of an
   application's kinds, which their connectors keep (17.5).
+- **A project's own policy among its items** (17.2) is proposed as a
+  change names it, its value kept by the core with the set. The
+  proposal waits for that project's owners, and, beside the
+  deployment's items, for the parties who own both: one decision by one
+  party, refused at its entrance where no party owns both. Its owners'
+  own edits of the policy while it waits make no revision and withdraw
+  nothing: the review shows the policy as it is then. A project deleted
+  while it waits withdraws it as no longer applying, in the deletion's
+  decision, and its proposer hears so.
 - **Accepting it is the change** of 17.2, with the accepter's choice of
   whether running work moves, checked again then. An acceptance refused
   (out of shape, judged, full) leaves the proposal pending, and the
@@ -2238,13 +2319,36 @@ judges and keeps it within the change's decision.
   whether it follows its default or the change of which revision, or
   that it is not offered) and what it would be (the value set, none, or
   its default's), an application's items with their sizes alone, the
-  application serving their values (17.5). A reviewer never compares against a later revision
+  application serving their values (17.5), and a project's policy as
+  it is now and as it would be, each whole. A reviewer never compares against a later revision
   than the proposal's; once decided or withdrawn, a proposal carries its
   items alone, and an accepted one names the revision it made
   (`../client/domain/contract.md`, 5.1).
 - **Bounded:** pending proposals of settings in the deployment are a
   limit of their own, each priced at a whole set (17.8), beside the
   tasks child's limits on pending proposals.
+
+Each settings proposal naming an application's items receives a
+deployment-unique `u64` key when it is made. Connector asks to keep, judge,
+accept or drop its values use this key, since proposal numbers are only
+unique within a proposer. The settings review document exposes the key with
+the set so the client can name the application's proposal-value read
+(2026-11-04).
+
+A review of an application's item carries its current state, size and
+charter references. A set gives the size it would set; a removal gives none;
+a reset says it returns to its default without giving that default's size.
+The core keeps no separate default size for this review, makes no connector
+ask during it, and supplies neither zero nor an unknown-size marker. The
+application's own reads serve its default and size (decided 2026-11-03).
+
+Deleting a project withdraws pending settings proposals naming its policy
+before the project state changes. Those proposals are a subset of the
+deployment's pending settings sets, at most `settings.proposals`, so their
+writes fit `settings::withdrawal_writes`, the allowance already included in
+the settings write bound checked against `journal.writes`. Message-number
+capacity is checked before any withdrawal or deletion mutation; this
+requires no additional limit or root-to-core allowance (decided 2026-11-03).
 
 ### 17.7 In the store, and at a start
 
@@ -2361,10 +2465,12 @@ judges and keeps it within the change's decision.
 
 ### 17.9 A charter's documents
 
-The rules a person wrote down reach the runs that should follow them
-(temper's draft `configuring.md`, section 2): a charter may name
-documents, which every run of the charter reads in its brief, as they
-are when the run is prepared.
+A rule that only changes how an agent behaves stays text, where the
+person wrote it, and reaches the runs that should follow it, those
+with no workspace among them, which read no repository's own files: a
+charter may name documents, which every run of the charter reads in
+its brief, as they are when the run is prepared. A rule written in no
+document goes in the charter's instructions.
 
 - **A document** is a resource by its name, a branch of a connector's
   (authority.md, section 4): the connector's number and the branch's
@@ -2395,39 +2501,72 @@ are when the run is prepared.
 - **No authority** is asked of the run: the charter's owners chose its
   documents, as they chose its instructions.
 
+A document's path is 1 to 256 bytes; its heading, when present, is 1 to 80
+bytes. An empty path or a present empty heading is out of shape
+(2026-11-04).
+
+The configuration and service start check that brief sections hold the
+core's own most and `tasks.charter_documents`, naming both limits on
+refusal. The core's in-code validity check does not require this relation:
+fixtures may supply fewer sections. The core then plans documents in charter
+order only while room remains after its own sections, omitting a document
+from both the section plan and the root's document list when no room remains
+(2026-11-04).
+
 ### 17.10 Restoring a version
 
-"Restore this version" makes a new proposal of the settings as a
-revision left them, never a silent rollback (temper's draft
-`configuring.md`, 3.3).
+Restoring a version makes a new proposal of the settings as a revision
+left them, never a silent rollback: what was decided since stays in
+the history, and going back is a change like any other, reviewed and
+decided by the owners of what it touches.
 
 - **Each item records what it replaced:** in a revision's record, beside
   what the item set, the setting as it was before: its value whole, that
   it followed its default, that it was removed, or that it was not
-  offered. A release's revision records the defaults it replaced so.
-  An application's items record their sizes alone (17.5).
+  offered. A release's revision records each of its items as having
+  followed its default, which is all a restore needs of it (below).
+  An application's items record, in the core's record, the state and
+  size of what they replaced, and their connector keeps the value
+  (below); a project's policy item records the project's policy it
+  replaced, whole (17.2).
+- **A connector keeps what its items replaced.** As a change commits
+  items of its kinds, the connector keeps, beside each change it saves,
+  the value the setting held before, by the revision that made the
+  change, in its own family, for as long as the history keeps that
+  revision's record (17.7), and erases them in the decision that erases
+  the record; a release's revision asks it to keep none, its items
+  having followed their defaults. Its worst case prices them: for each record the history may keep, a
+  whole set of its kinds' values.
 - **The settings as revision R left them** differ from the newest only
   in the settings a later revision changed, each as the earliest of
-  those revisions found it: its record says what each item replaced.
-  So a restore of R reads every record after R, which the history keeps
-  without a gap from its oldest kept to the newest (17.7): R may be any
-  revision from the history's oldest on, and an older one, even one
-  still held, is refused as forgotten.
+  those revisions found it: its record says what each item replaced,
+  and a project's policy likewise. So a restore of R reads every record
+  after R, which the history keeps without a gap from its oldest kept
+  to the newest (17.7): R may be any revision from the history's oldest
+  on, and an older one, even one still held, is refused as forgotten.
 - **A setting that followed its default at R follows it again,** today's
   default, which a release may have changed since; the review says so.
   What a person restores is what they had chosen, and a default was
-  temper's choice, which a release improves for every deployment that
-  kept it (17.1).
+  the application's choice, which a release improves for every
+  deployment that kept it (17.1).
 - **`Restore { revision, reason }`,** a party's request in the
   deployment's scope (people.md, 5.1), proposes, against the newest, one
   item per setting a later revision changed: *set* to the value it
   replaced, *reset* where it followed its default or was not offered,
-  *removed* where it was removed. It is a proposal of settings like any
-  (17.6), reviewed against the newest and decided by the owners of its
-  items; the owner who asked for it accepts it like any other. Its
-  reason says "restores revision R", and its items leave out each
-  setting of an application's kinds a later revision changed, whose
-  past values are not kept, which the answer names.
+  *removed* where it was removed; and, for each project whose policy a
+  later revision set, that project's policy *set* to the one it
+  replaced. It is a proposal of settings like any (17.6), reviewed
+  against the newest and decided by the owners of its items; the owner
+  who asked for it accepts it like any other. Its reason says "restores
+  revision R". An application's items take the values their connectors
+  kept: in the restore's decision, each connector is given the
+  proposal and its items of its kinds, each with the revision whose
+  record replaced it, keeps the values it kept as replaced as the
+  proposal's items, and answers their sizes and the charters they name,
+  checked against its kinds' bounds alone, as a proposal's items are
+  (17.5). Its items leave out the settings and the policy of a project
+  deleted since, which went with it (people.md, 5.2), and the answer
+  names each one left out.
 - **Its decision loads the records after R** before it decides, a page
   at a time as `revisions` reads them (`../client/domain/contract.md`,
   section 6), at most the history's limit of records; the decision is
@@ -2436,10 +2575,25 @@ revision left them, never a silent rollback (temper's draft
   older one is. A restore of a revision erased is refused as forgotten,
   naming the oldest kept, and one of the newest as empty.
 - **Bounded** as any proposal of settings: one item per setting, at most
-  a whole set (17.8); one whose items would pass it, settings added and
-  removed since R among them, is refused as too large, saying so, and a
-  later revision can be restored instead.
+  a whole set (17.8), and at most one project's policy (17.2); one whose
+  items would pass it, settings added and removed since R among them,
+  is refused as too large, saying so, and a later revision can be
+  restored instead.
 - **Reviewed as any proposal,** each value whole within the document's
   bound or with its size; a value past it is read whole by
   `setting{kind, scope, number, proposal}`, a pending proposal's item
-  (`../client/domain/contract.md`, section 6).
+  (`../client/domain/contract.md`, section 6), and an application's
+  items from the application's own read of a proposal's items (17.5).
+
+The restore's size is counted before any deleted project's items are left
+out. Every item found after R counts toward a whole set and at most one
+project's policy, including one that will be omitted, so the answer's
+omitted items are bounded by that same set plus one policy (2026-11-04).
+
+Restoring revision 0 or a revision above the newest is refused as stale,
+naming the newest revision. This differs from an erased revision, which is
+forgotten and names the oldest kept (2026-11-04).
+
+The proposal's reason is `restores revision R: ` followed by the party's
+reason. The combined text is cut to the reason's byte bound at a character
+boundary (2026-11-04).

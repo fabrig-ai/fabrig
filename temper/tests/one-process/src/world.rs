@@ -181,6 +181,7 @@ pub(crate) fn parameters(machine: &Machine, forge: temper_fake_git_hosted::Typed
         seed: fixtures::SEED,
         links: Links::Keep,
         forge,
+        route: None,
         disk: machine.0.clone(),
     }
 }
@@ -1012,6 +1013,8 @@ fn run_phase(
     let machine = Machine::new(disk);
     let mut parameters = parameters(&machine, transport.clone());
     let peers = start.map(|start| {
+        parameters.route =
+            temper_playground::story::route(&serde_json::from_slice(&start.deployment).expect("story A's deployment"));
         parameters.deployment = start.deployment;
         parameters.seed = start.seed;
         parameters.links = start.links;

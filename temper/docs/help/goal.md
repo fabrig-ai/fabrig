@@ -76,6 +76,10 @@ A goal is a tracked task: work given a numeric priority, which orders the goals'
   Within your creating bounds the goal is made; beyond them, when
   offered, a proposal asks the named recipient first. An executor not
   offered or a goal past the project's ceilings sends nothing.
+  A refused executor names the template, its required charter and the
+  offered charters; a budget or deadline past the ceiling says so
+  separately. With no creating offer, check your role and the deployment's
+  `documents.lines` receiving bound for charter and procedure lists.
   `task list` lists a project's goals, tracked alone and
   ordered by priority; `task show` reads one; `task amend` changes its
   priority or its tracking; `proposal decide` accepts a proposal that
@@ -87,6 +91,8 @@ A goal is a tracked task: work given a numeric priority, which orders the goals'
   other run may.
 
 ## Limits
+
+For the configuration members that need a restart, read `temper help configuration`.
 
 - ctl goal creation offers charter executors; procedures have no control here.
 - temper has no board to reorder goals: each changes by its own

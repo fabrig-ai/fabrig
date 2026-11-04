@@ -25,7 +25,13 @@ fn child_bill_is_charged_once_to_the_inclusive_spend() {
     world.open(opening(None, 100));
     world.complete(called(), llm::Stop::ToolUse, USAGE);
     let owner = world.delegated[0];
-    world.step(session::Event::Answered { owner, text: bytes(b"child"), error: false, spent: 9 });
+    world.step(session::Event::Answered {
+        owner,
+        text: bytes(b"child"),
+        error: false,
+        spent: 9,
+        after: session::After::Complete,
+    });
     assert_eq!(world.own_spend, [16, 16]);
     assert_eq!(world.spend, [16, 25]);
     assert_eq!(world.turns[0].spent, 25);
@@ -39,7 +45,13 @@ fn child_bill_that_does_not_fit_ends_without_a_turn() {
     world.open(opening(None, u64::MAX));
     world.complete(called(), llm::Stop::ToolUse, USAGE);
     let owner = world.delegated[0];
-    world.step(session::Event::Answered { owner, text: bytes(b"child"), error: false, spent: u64::MAX });
+    world.step(session::Event::Answered {
+        owner,
+        text: bytes(b"child"),
+        error: false,
+        spent: u64::MAX,
+        after: session::After::Complete,
+    });
     assert_eq!(world.end, Some(End::PriceOverflow));
     assert_eq!(world.spend, [16]);
     assert!(world.turns.is_empty());
@@ -130,7 +142,13 @@ fn a_completion_that_costs_less_than_its_maximum_returns_the_rest() {
     let first_maximum = maximum(&probe);
     probe.complete(called(), llm::Stop::ToolUse, usage);
     let owner = probe.delegated[0];
-    probe.step(session::Event::Answered { owner, text: bytes(b"child"), error: false, spent: 0 });
+    probe.step(session::Event::Answered {
+        owner,
+        text: bytes(b"child"),
+        error: false,
+        spent: 0,
+        after: session::After::Complete,
+    });
     let second_maximum = maximum(&probe);
     let seen = record::Prices { input: 7, cached: 3, cache_write: None, output: 11, unit: 10 }
         .price(usage)
@@ -146,7 +164,13 @@ fn a_completion_that_costs_less_than_its_maximum_returns_the_rest() {
     world.complete(called(), llm::Stop::ToolUse, usage);
     assert_eq!(world.own_spend, [seen]);
     let owner = world.delegated[0];
-    world.step(session::Event::Answered { owner, text: bytes(b"child"), error: false, spent: 0 });
+    world.step(session::Event::Answered {
+        owner,
+        text: bytes(b"child"),
+        error: false,
+        spent: 0,
+        after: session::After::Complete,
+    });
     assert_eq!(maximum(&world), second_maximum, "unused maximum is available for the next completion");
     assert_eq!(world.prompts.len(), 2);
     world.close();

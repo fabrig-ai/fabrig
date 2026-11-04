@@ -218,11 +218,12 @@ has left (`../../domain/authority.md`, 8.1 and 8.4).
 | `Answer` | a question, by its task and message, with the words; or a person task, by its revision, with the answer its contract asks (a choice, words, or the state an approval approves) or that it cannot be done | an answer to the question; the person task's result |
 | `Take`, `HandBack` | a person task addressed to a role the party holds | held by them, or back to the role |
 | `Seen` | how far the party has read: their results, or one conversation's turns | their durable read position advanced to `max(old, through)`; after completion a retry checks current subject and authority and may return `Unknown` after forget or `Role` after authority loss, never recreating history or replaying a completed answer (3.1; `../../domain/people.md`, section 6) |
-| `ChangeSettings` | the deployment, its scope (7.5); the revision the party saw; the items, at most one per setting, each a setting (a charter, a template or a policy by number, the rules, or an application's kind, scope and number) and what becomes of it: set to a value whole, a charter's instructions as text, removed, or reset to its default; whether running work stays or moves (`../../domain/engine.md`, 17.2) | the settings changed in one decision, the new revision's number answered; the deployment's `settings` and every `me` whose templates changed marked. Not among a compound request's operations (3.4) |
+| `ChangeSettings` | the deployment, its scope (7.5); the revision the party saw; the items, at most one per setting, each a setting (a charter, a template or a policy by number, the rules, an application's kind, scope and number, or a project's own policy by its project) and what becomes of it: set to a value whole, a charter's instructions as text, removed, or reset to its default, a project's policy set alone and at most one, decided by that project's owners and, beside the deployment's items, by a party who owns both; whether running work stays or moves (`../../domain/engine.md`, 17.2) | the settings changed in one decision, the new revision's number answered; the deployment's `settings` and every `me` whose templates changed marked. Not among a compound request's operations (3.4) |
 | `MoveToNewest` | the deployment, its scope (7.5); a revision held | every live task on it that may move set to the newest revision in one decision; answered with the count of those moved and of those that could not, which finish on it (`../../domain/engine.md`, 17.4); a revision not held refused as unknown; the newest answered with none moved, nothing written |
-| `Restore` | the deployment, its scope (7.5); a revision the history keeps; a reason | a proposal of the settings as that revision left them, against the newest, its number answered, with the settings of an application's kinds it leaves out (`../../domain/engine.md`, 17.10); forgotten, naming the oldest kept; empty, for the newest; stale; too large |
+| `Restore` | the deployment, its scope (7.5); a revision the history keeps; a reason | a proposal of the settings as that revision left them, against the newest, its items jig's kinds, an application's and each project's policy a later revision set, its number answered, with what it leaves out: the settings and the policy of each project deleted since, by kind, project and number (`../../domain/engine.md`, 17.10); forgotten, naming the oldest kept; empty, for the newest; stale; too large |
 | `MakeProject` | the deployment, its scope (7.5); the new project's name (`../../domain/core.md`, 6.1); the number of a policy among the settings, the newest's (`../../domain/engine.md`, 17.1) | a project, its policy a copy of that one, its maker its owner and only party (`../../domain/people.md`, 5.2), its number answered; the maker's `me` gains it. Not among a compound request's operations (3.4) |
 | `RemoveProject` | a project, by its owner; a grace, or none, within the tasks child's bound, as a `Cancel`'s: the chat template's, as `shapes::remove_project` gives it (client.md, section 19) | the project closed in the decision that admits it, answered removed with its number, and deleted whole in the steps that follow (`../../domain/people.md`, 5.2), each of its live conversations asked to finish within the grace as a close asks it: every `me` loses it, and every request and watch on it is refused unknown, as on a project that never was. Sent again under its key, it is answered removed until the deletion ends; a project already being deleted, under another key, is refused unknown; a grace past its bound is refused, a limit, and nothing deleted. Not among a compound request's operations (3.4) |
+| `SetVisibility` | a project, by its owner; public or private | the project public or private from that decision (`../../domain/people.md`, 13.2); every `me` of its parties marked. Project 0, and a project being deleted, refused |
 | the project's own | notes, by the revision recalled; its name (`../../domain/core.md`, 6.1); the policy, its templates' overrides among them (3.6), and its ceiling, edited whole within the deployment's rules (`../../domain/authority.md`, section 6), so that rules widened by a change of settings reach a project its owners widen; its spend per period, which resizes its open period (`../../domain/authority.md`, section 7); roles, a role's spend per period alone (`RoleSpend`) among their edits, resizing its parties' open pools; a party's pool; services, a service's credential answered once; as `../../domain/people.md`, 5.1 and 5.2 | the note or the project changed |
 | adopting a resource | the application's own request (3.3), its form the application's; the engine's root makes the people request on the party's behalf | the project changed |
 | the party's LLM accounts | as `../../domain/accounts.md`, section 5 has them: signing in with an LLM provider; finishing the party's sign-in under way with the address its browser was sent to, carrying it as its value (3.1), of at most the bytes `me` states (5.1); signing a source out; adding or replacing a key, carrying its value (3.1), of at most the bytes `me` states (5.1), and removing one; declaring a program's login under a name; checking a program source's login; an account's place among the holder's and its sources' order; its uses; resuming a limited source; removing an account, which signs each of its sources out and erases its keys; moving an account out, saying it *written* by the move's number, and moving one in, carrying the moved file as its value (3.1; `../../domain/accounts.md`, section 6). The party's own accounts, or, for an owner, the deployment's | an account made, renewed or changed. A sign-in is answered done with the address to open in a browser, and ends on the `accounts` watch (7.1), made, renewed or refused; a finish is answered *finishing* once the sign-in has taken the address, and the sign-in ends on the watch; a sign-out's answer says whether the provider confirmed revocation, and names each host that did not sign a program's login out; a program's login declared is answered with the source's name, by which the application's own command signs the program in on each host; a move out is answered *moving out*, naming the account and the move's number, with the moved record to write, once (3.1); *written* is answered done; a move in is answered *moved in*, naming the account and whether it renewed one |
@@ -592,7 +593,9 @@ served is held, kept and unsent, for its owner's version (client.md,
     credential belongs to: the party (number, kind, login and name);
     their projects, each with its number and its name, which every
     project has and no other project of the deployment shares
-    (`../../domain/core.md`, 6.1), their role there and their pool;
+    (`../../domain/core.md`, 6.1), its public identifier while it is
+    public, none while private (`../../domain/people.md`, 13.2 and
+    13.8), their role there and their pool;
     what waits for them, counted exactly (questions, proposals,
     escalations, person tasks), and their updates unread, counted up to
     a limit; their read position over results; each project's merged
@@ -681,7 +684,10 @@ served is held, kept and unsent, for its owner's version (client.md,
     revision, or not offered) and what it would be, each value within
     the document's bound or with its size, as a revision's items are
     (section 6), an item of an application's kinds with its size alone,
-    the application serving its values;
+    the application serving its values, and an item of a project's own
+    policy with that project's policy now and as it would be, each whole
+    within the document's bound or with its size (`../../domain/engine.md`,
+    17.2);
   - *an activity line:* one of a task's words, run boundaries, turns,
     results heard, news heard, decisions, in commit order; a turn as its
     bytes, within the page's byte bound, which the client's link
@@ -877,6 +883,10 @@ usable and settled fields beside the rows.
   the refusal in place, sending nothing. That is the engine's word read,
   not authority computed: the engine judges again when the request
   comes, by the rule that made the offer. No read assesses a draft.
+  Creating's charter and procedure lists are complete facts, each received
+  within `documents.lines`. If either list does not fit, the creating
+  offer is refused at the authority limit; a shortened list never stands
+  for the executors the party may name.
 - **Reordering,** in a project's document: whether the party may change
   its tracked tasks' priorities, in one compound request of
   priority-only amendments (3.4). It is judged by the party's role in
@@ -1028,6 +1038,10 @@ as its application's part describes them (5.3), its host and its
 attempts. No party creates one: `Create` naming a job is refused as an
 executor not offered.
 
+The job executor's visible name is `job KIND`, KIND its numeric application
+kind, in the shared client and the application's command-line task reads
+(2026-11-04).
+
 ## 6. Reads
 
 A read asks for one document, or one page of a list, and is answered
@@ -1114,8 +1128,10 @@ party reads is therefore never lost by a crash.
     replaced (`../../domain/engine.md`, 17.10); an item's value
     past the single read's bound comes with its size instead, as too
     large, read whole by `setting{…}` while its revision is held; an
-    item of an application's kinds with its size alone, its value not
-    kept past its revision (`../../domain/engine.md`, 17.5);
+    item of an application's kinds with its size and the state it
+    replaced alone, its connector keeping the values, those it replaced
+    for a restore (`../../domain/engine.md`, 17.5 and 17.10); an item of a
+    project's own policy with the policy it set and the one it replaced;
   - *forgotten,* a revision made but erased past the history
     (`../../domain/engine.md`, 17.7), naming the oldest kept;
   - *unknown,* past the newest;
@@ -1513,7 +1529,7 @@ designs (`../../protocol/client.md`):
   save a client the second round trip.
 - **Windows of a large tree:** how a tree watch's window follows what a
   person opened, so that a tree of hundreds of tasks costs what is shown.
-- **Who may see what** among a project's parties
+- **Finer cuts among a project's parties**
   (`../../domain/people.md`, section 12).
 - **Search** over tasks, results, notes and transcripts, which the engine
   has only over notes' descriptions.
@@ -1522,3 +1538,89 @@ designs (`../../protocol/client.md`):
   bounds derived so that it cannot happen, as a path's segments are, or
   an answer of its own. Until it is settled, a watch's is refused as
   unknown and a delivery's ends its watch (7.2).
+
+## 12. Public documents
+
+What the public party reads (`../../domain/people.md`, section 13),
+each a record of its own in jig's wire, never a cut of another
+document: a field is in it only once added there, and the wire's golden
+shows every addition in review. Read by `PublicRead`
+(`../../protocol/client.md`, section 19); no watch, no stream. Text is
+limited to a task title and a project name; no record holds an internal
+number: a project and a task are named by their public identifiers
+(`../../domain/people.md`, 13.8),
+`PublicId`, 64 bits.
+
+| Kind | Names | Answered with |
+|---|---|---|
+| *projects* | nothing | `PublicProjects`: each public project's `PublicProject { project: PublicId, name }`, within the deployment's projects, and the `max-age` public answers carry |
+| *board* | a project | `PublicBoard`: the project's `PublicId` and name; its live public goals by priority within the board's bound, and the count of live public goals past it; then its ended public goals the index holds, most recent first; each a `PublicGoal`: its `PublicLine`, its tree's public lines below it in tree order within the bound per goal, and the count of public lines past it |
+| *card* | a project, a public task of it | `PublicCard`: the task's `PublicLine`, its lineage up to its public goal as `PublicId`s, nearest first, within the tree's depth; its public delegates' lines within the bound, and the count past it |
+
+- **`PublicLine`:** `task`; `title: text 256`, the spec's first line cut
+  at 256 bytes on a character boundary, and `title_cut: bool`, true
+  when cut; `parent: Option<PublicId>`, none for a
+  public goal; `goal: bool` and `priority: Option<u32>`, a goal's;
+  `executor: PublicExecutor`, its kind alone: agent, procedure,
+  person or job (5.7); `phase: PublicPhase`, jig's phases (5.1) as unit variants, and
+  `hold: Option<PublicHold>`, a held task's hold's kind as a unit
+  variant; `made`, `changed`, `active: Option`, `ended: Option`, each a
+  time to the second; `spent` and `budget` in the deployment's unit;
+  `delegates: PublicCounts`, its public delegates counted by phase
+  class.
+- **Schema ceilings:** projects 4,096; live and ended goals 256 each;
+  tree lines and delegates 256 each; lineage 64; application tasks
+  1,024 and record bytes 16,777,216; project and board names 64 bytes.
+  `PublicIndexBounds` supplies the projects, goals, ended, lines and
+  depth limits. `public_limits` refuses a bound past its ceiling;
+  `public_bounds` returns the generated largest encodings for projects,
+  board and card, or `u32::MAX` for each when bounds are invalid.
+- **`PublicApplication { tasks, record }`:** an application's public
+  document in jig's envelope (`../../protocol/client.md`, section 19):
+  the `PublicId`s of the tasks it names, then its record in its own
+  wire, which names a task only by its place in `tasks`.
+- **Every field's source,** and nothing else:
+
+  | Field | Source | Made by |
+  |---|---|---|
+  | a project's `PublicId` | the project's number | the component's permutation (13.8) |
+  | `PublicProject.name`, `PublicBoard.name` | the project's record | as is, within 64 bytes |
+  | `title`, `title_cut` | the task's spec's first line | cut at 256 bytes on a character boundary, saying whether cut |
+  | a task's `PublicId`, `parent`, `lineage` | the task's and its ancestors' numbers, up to its public goal | the same; `parent` none at the public goal |
+  | `goal`, `priority` | whether the task is tracked, and its priority | as is |
+  | `executor` | the executor's kind | the kind alone, never who or which |
+  | `phase`, `hold` | the task's phase; a held task's hold's kind | the kind alone, never its reason |
+  | `made`, `changed`, `active`, `ended` | the task's times (`../../domain/tasks.md`, section 3) | to the second |
+  | `spent`, `budget` | the task's spend and budget | as is |
+  | `delegates`, a folded count | the public index's public tasks | counted after filtering (`../../domain/people.md`, 13.7) |
+  | `max-age` | `clients.public.max_age` | as is |
+  | `PublicApplication`'s `tasks` | the numbers the connector listed | the component's permutation |
+
+- **Nothing else crosses:** no spec beyond its first line, instructions,
+  inputs, result, words, question or answer, turn, note, reason, label's
+  meaning, proposal, escalation, name of a charter, procedure, role or
+  party, account or resource.
+- **A schema of their own:** jig's public records are a schema apart
+  in `jig-client-protocol-wire`, `public-v1.schema`, versioned apart
+  from its other records, naming only one another and scalars, never a
+  record of another schema, so a field added to a private document
+  never reaches a visitor. A test reads the schema and refuses a name
+  from elsewhere.
+- **Its golden is the whole reachable wire shape:** a text file beside
+  the schema lists every record and enum reachable from the kinds'
+  answers, each field with its type, tag and default, and each enum's
+  variants with their tags and payloads, which a test compares with
+  the schema. Any change of what a visitor can receive changes it, and
+  shows in review.
+- **Its tests check meaning, not shape alone:** each projection is
+  compared with an expected record built independently from the
+  source table above, from a state whose forbidden sources (the spec
+  beyond its first line, another name, a reason, words, an internal
+  number past the identifiers' range) hold distinct markers that no answer's bytes may
+  contain; and mutation tests show the golden failing on a nested field
+  added to a copy of the schema, the closure test failing on a name
+  from elsewhere, and the projection test failing on a field filled
+  from the wrong source.
+- **An application's public documents** are its own records in its own
+  wire, beside these, under the same rule, carried in
+  `PublicApplication`.

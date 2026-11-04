@@ -17,6 +17,7 @@ pub fn naming(key: &root::Key, record: &root::Record) -> Option<r::Naming> {
     match key {
         connector::RecordKey::SettingDefault { scope, .. }
         | connector::RecordKey::SettingChange { scope, .. }
+        | connector::RecordKey::SettingReplaced { scope, .. }
         | connector::RecordKey::SettingProposal { scope, .. } => name.project = (*scope != 0).then_some(*scope),
         connector::RecordKey::Adoption { project, .. } => name.project = Some(*project),
         connector::RecordKey::Procedure(task)
@@ -34,6 +35,7 @@ pub fn naming(key: &root::Key, record: &root::Record) -> Option<r::Naming> {
         match record {
             connector::Record::SettingDefault { scope, .. }
             | connector::Record::SettingChange { scope, .. }
+            | connector::Record::SettingReplaced { scope, .. }
             | connector::Record::SettingProposal { scope, .. } => name.project = (*scope != 0).then_some(*scope),
             connector::Record::Proposal { project, task, .. } | connector::Record::Task { project, task, .. } => {
                 name.project = Some(*project);

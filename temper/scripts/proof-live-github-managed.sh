@@ -5,16 +5,15 @@ umask 077
 # Preserve the person's answers before the build wrapper can read stdin.
 exec 3<&0
 cd "$(dirname "$0")/.."
-# The machine's build queue where it has one, plain cargo where it hasn't
-# (agents' docs/design/build-infrastructure.md 12).
-heavy=$(command -v heavy || true)
+# TEMPER_WRAPPER, when set and not empty, names one command that runs each build
+# command below; unset, cargo runs plainly.
 case ${1:-} in live|fake|fake-wide) mode=$1 ;; *) printf '%s\n' 'usage: proof-live-github-managed.sh {live|fake|fake-wide} [PORT [CONVERSION.json]]' >&2; exit 2 ;; esac
 [ "$#" -le 3 ] || exit 2
 port=${2:-8765}
 case $port in ''|*[!0-9]*) exit 2 ;; esac
 [ "$port" -ge 1 ] && [ "$port" -le 65535 ] || exit 2
 export CARGO_NET_OFFLINE=true TEMPER_BUNDLE=none
-export CARGO_TARGET_DIR=/home/free/src/rust/tmp/owners/github-managed/target NEXTEST_DOUBLE_SPAWN=0
+export CARGO_TARGET_DIR="$HOME/src/rust/tmp/owners/github-managed/target" NEXTEST_DOUBLE_SPAWN=0
 scratch=$(readlink -f "$(mktemp -d "${TMPDIR:-/tmp}/temper-live-github-managed.XXXXXX")")
 runner=
 cleanup() {
@@ -43,7 +42,7 @@ trap 'exit 130' INT
 trap 'exit 143' TERM
 trap 'exit 129' HUP
 if [ "$mode" = live ]; then
-    evidence=${3:-/home/free/src/rust/tmp/owners/github-managed/reports/m3-conversion.json}
+    evidence=${3:-$HOME/src/rust/tmp/owners/github-managed/reports/m3-conversion.json}
 else
     evidence=${3:-$scratch.conversion.json}
 fi
@@ -53,8 +52,7 @@ if [ -e "$evidence" ] || [ -L "$evidence" ]; then
     exit 2
 fi
 printf '%s\n' 'building the sitting offline'
-# shellcheck disable=SC2086
-if ! $heavy cargo test --locked -p temper --test live_github_managed --no-run --message-format=json < /dev/null > "$scratch/build.jsonl" 2> "$scratch/build.log"; then
+if ! ${TEMPER_WRAPPER:+"$TEMPER_WRAPPER"} cargo test --locked -p temper --test live_github_managed --no-run --message-format=json < /dev/null > "$scratch/build.jsonl" 2> "$scratch/build.log"; then
     # Compilation has no sitting credentials. Surface its diagnostics before cleanup.
     python3 - "$scratch/build.jsonl" <<'PYBUILD'
 import json
@@ -71,13 +69,11 @@ fi
 if [ "$mode" = live ]; then
     # Keep TEMPER_BUNDLE=none; build a separate, explicit browser bundle in this scratch.
     printf '%s\n' 'building the browser bundle offline'
-    # shellcheck disable=SC2086
-    if ! $heavy cargo build --locked --profile web --target wasm32-unknown-unknown -p temper-client-shell-web < /dev/null > "$scratch/web-build.log" 2>&1; then
+    if ! ${TEMPER_WRAPPER:+"$TEMPER_WRAPPER"} cargo build --locked --profile web --target wasm32-unknown-unknown -p temper-client-shell-web < /dev/null > "$scratch/web-build.log" 2>&1; then
         tail -n 15 "$scratch/web-build.log" >&2
         exit 1
     fi
-    # shellcheck disable=SC2086
-    if ! $heavy cargo build --locked -p skein-ui-bundle < /dev/null > "$scratch/bundler-build.log" 2>&1; then
+    if ! ${TEMPER_WRAPPER:+"$TEMPER_WRAPPER"} cargo build --locked -p skein-ui-bundle < /dev/null > "$scratch/bundler-build.log" 2>&1; then
         tail -n 15 "$scratch/bundler-build.log" >&2
         exit 1
     fi

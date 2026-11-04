@@ -103,6 +103,7 @@ const LIMITS: Limits = Limits {
     landing_rules: 4,
     roles: 4,
     setting_proposals: 4,
+    setting_history: 4,
     brief_sections: 32,
     brief_bytes: 4096,
     issue_policy: temper_engine_domain_forge_issues::Limits {

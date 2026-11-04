@@ -941,8 +941,8 @@ fn pending_choice_outcome_and_wait_are_siblings_after_the_chooser() {
     let attempt = out
         .iter()
         .find_map(|request| {
-            if let d::Request::Client {
-                request: jig_client::Request::Down { down: jig_client::Down::Send { attempt, .. } },
+            if let d::Request::Unlinked {
+                request: jig_client::UnlinkedRequest::Down { down: jig_client::Down::Send { attempt, .. } },
             } = request
             {
                 Some(*attempt)

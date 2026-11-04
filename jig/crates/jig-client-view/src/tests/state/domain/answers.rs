@@ -113,7 +113,8 @@ fn refusals_keep_every_engine_fact_and_moved_reads_the_current_object_without_lo
                 assert_eq!(domain.objects().get(id).unwrap().body, Some(Body::Task(Box::new(current))));
                 assert_eq!(domain.objects().get(id).unwrap().card, Card::Refused { refusal });
             }
-            Refusal::Judged { .. }
+            Refusal::Forgotten { .. }
+            | Refusal::Judged { .. }
             | Refusal::Full(_)
             | Refusal::Circle { .. }
             | Refusal::Dependency { .. }

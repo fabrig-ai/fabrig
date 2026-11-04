@@ -133,6 +133,18 @@ fn front(
         words.text(b, Word::SignedOutMain, &[]);
         b.close();
     }
+    if let Some(origin) = origin {
+        let mut address = Writer::new(origin.len().checked_add(b"/public".len()).expect("bounded public address"));
+        address.put(origin).expect("origin");
+        address.put(b"/public").expect("public path");
+        b.open(Role::Paragraph);
+        b.open(Role::Link);
+        b.name(&words.say(Word::ReadPublic, &[]));
+        b.external(&address.finish());
+        words.text(b, Word::ReadPublic, &[]);
+        b.close();
+        b.close();
+    }
     b.close();
     b.close();
 }

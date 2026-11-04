@@ -1,6 +1,6 @@
 # Status
 
-2026-11-03. Where temper's code lags or departs from its design, and its
+2026-11-04. Where temper's code lags or departs from its design, and its
 design from its drafts, from the status files below. The first
 milestone stands in the code (`README.md`). After landing is built for
 a repository's tiers, a goal branch's own tier, their verdicts, a red's
@@ -24,7 +24,15 @@ for the held landing's story, ignored for a restart fault
 (`domain/forge.md`). A change relays its agents' questions through a
 foreman of its own or straight up, within its bound, but no story asks
 from a repair or a resolution (`domain/forge.md`), and neither a
-project's question route nor the foremen's charter is a setting. The
+project's question route nor the foremen's charter is a setting. A
+project's policy in a change of settings and a revision restored are
+built through ctl, but the restore's stories in the domain world and
+the joined client world are ignored (`protocol/configuration.md`,
+`client/tools.md`). The configuring agent, charter 3 and template 3, is
+in the stock and the reference pages it reads are built, but its runs
+cannot read a project's own policy (`domain/agent.md`), and a charter's
+`tools` decides only whether its runs are offered the settings family
+(`protocol/configuration.md`). The
 reference is one profile a box is set up with, but on a small box a
 result's bytes, a batch and the live delegates stay below the sizes it
 is designed for, and the case's repository carries no CI or tiers'
@@ -33,15 +41,21 @@ Much of a change's own bounds and gates, the forge's merge queue and a
 goal's issue lag (`domain/forge.md`); so do the client's Board, Changes
 and How work runs pages and many of ctl's tools (`client/README.md`,
 `client/forge.md`, `client/tools.md`),
-the client's crates in the gate's wasm32 clippy (`client/browser.md`),
-`temper-playground` (`playground.md`, `domain/testing.md`), upgrades'
+the client's web shell in the gate's wasm32 clippy (`client/browser.md`),
+the playground in the browser, whose world is composed natively but
+whose story A stalls at the playground's setup (`playground.md`,
+`domain/testing.md`), upgrades'
 commands and the baseline (`protocol/README.md`), and the release
 (`release.md`). Forges kept in the store, a forge's removal and the
 playground's reset are designed and built; the code departs where the
 box's group file holds a forge's kind alone (`protocol/setup.md`,
-`protocol/forge.md`, `protocol/README.md`), and lags in a
-removal without the box (`domain/forge.md`) and a project's Delete
-(`client/README.md`); a connected Forgejo, its connect with its bot's
+`protocol/forge.md`, `protocol/README.md`) and where temper's service
+is an unrecorded copy of jig's reference service (`protocol/README.md`),
+and lags in a removal without the box (`domain/forge.md`) and a
+project's Delete (`client/README.md`); public reading still lacks a
+deployment's proxy configuration and figures, and its negative walk
+plays the proxy's own rules against scripted upstreams rather than
+temper's service (`protocol/sign-in.md`); a connected Forgejo, its connect with its bot's
 tokens and a forge's Replace are built, but for the real loop's story
 (`client/tools.md`) and a connected Forgejo made managed
 (`protocol/setup.md`); with `application.machine.github` null, GitHub's
@@ -50,7 +64,10 @@ purpose is retired (`domain/testing.md`), and the `welcome-set-up`
 journey waits on a new walk (`client/journeys.md`). Of the drafts, the reference
 drafts' statuses hold two departures their cuts decided, a foreman's
 LLM choice and a red of a goal branch's tier that wakes its goal only
-when new (`draft/reference-code-production.md`); the others record what the design carries of
+when new, and a lag, the coordinator's decide, propose, subscribe and
+recall families, which the reference's profile does not grant and
+configuring's stage 1 follows (`draft/reference-code-production.md`);
+the others record what the design carries of
 them and where it lags or departs. `README.md`, `domain/README.md` and
 `protocol/llm.md` have no gap.
 

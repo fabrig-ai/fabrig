@@ -266,6 +266,19 @@ fn decode_application_outcome(value: w::ApplicationOutcome) -> d::ApplicationOut
 #[expect(clippy::too_many_lines, reason = "one exhaustive translation of connector records into their schema")]
 fn encode_record(value: &d::Record) -> w::Value {
     match value {
+        d::Record::SettingReplaced { kind, scope, number, revision, value } => w::Value::SettingReplaced(
+            w::RecordSettingReplaced::new(
+                &w::CEILINGS,
+                w::RecordSettingReplacedParts {
+                    kind: *kind,
+                    scope: *scope,
+                    number: *number,
+                    revision: *revision,
+                    value: value.clone(),
+                },
+            )
+            .expect("admitted fields fit schema"),
+        ),
         d::Record::SettingDefault { kind, scope, number, value } => w::Value::SettingDefault(
             w::RecordSettingDefault::new(
                 &w::CEILINGS,
@@ -378,6 +391,10 @@ fn encode_record(value: &d::Record) -> w::Value {
 }
 fn decode_record(value: w::Value, limits: &d::Limits) -> Result<d::Record, Undecodable> {
     Ok(match value {
+        w::Value::SettingReplaced(value) => {
+            let w::RecordSettingReplacedParts { kind, scope, number, revision, value } = value.into_parts();
+            d::Record::SettingReplaced { kind, scope, number, revision, value }
+        }
         w::Value::SettingDefault(value) => {
             let w::RecordSettingDefaultParts { kind, scope, number, value } = value.into_parts();
             d::Record::SettingDefault { kind, scope, number, value }

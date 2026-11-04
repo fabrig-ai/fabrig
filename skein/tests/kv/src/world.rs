@@ -8,7 +8,7 @@ use skein_io::file_layer::{self, FileIo};
 use skein_io::kernel::{Complete, Fd, Submit};
 use skein_kv::{Event, Limits, Request, Store};
 use skein_lib::{Env, Queue, Time, Token, Wall};
-use skein_sim::{Config, Handle, Pid, Sim};
+use skein_sim::{Config, Handle, Pid, Sim, Trace};
 
 pub struct World {
     machine: Machine,
@@ -20,6 +20,9 @@ pub struct World {
     pub env: Env<Limits>,
     pub above: Queue<Event>,
     pub below: Queue<file::Request>,
+    /// `file::Request::ReadAt`s the store sent below, and the sum of their `max`.
+    pub asked_reads: u64,
+    pub asked_bytes: u64,
     file_events: Queue<file::Event>,
     subs: Queue<Submit>,
     completions: Queue<Complete>,
@@ -33,9 +36,19 @@ impl World {
 
     #[must_use]
     pub fn with_items(limits: Limits, items: &[Item]) -> World {
+        Self::configured(limits, items, Config::calm())
+    }
+
+    /// A world that keeps no simulator trace, for recovery heap measurements.
+    #[must_use]
+    pub fn untraced(limits: Limits, items: &[Item]) -> World {
+        Self::configured(limits, items, Config { trace: Trace::Off, ..Config::calm() })
+    }
+
+    fn configured(limits: Limits, items: &[Item], config: Config) -> World {
         let mut machine = Machine::new();
         let handle = machine.lay(items);
-        let mut sim = Sim::new(1, Config::calm());
+        let mut sim = Sim::new(1, config);
         let pid = sim.spawn_process();
         let root = sim.root(pid, Handle::new(handle.raw()));
         World {
@@ -48,6 +61,8 @@ impl World {
             env: Env { now: Time::ZERO, wall: Wall::EPOCH, limits },
             above: Queue::with_capacity(128),
             below: Queue::with_capacity(128),
+            asked_reads: 0,
+            asked_bytes: 0,
             file_events: Queue::with_capacity(128),
             subs: Queue::with_capacity(128),
             completions: Queue::with_capacity(128),
@@ -91,6 +106,10 @@ impl World {
         if self.io.takes()
             && let Some(request) = self.below.pop()
         {
+            if let file::Request::ReadAt { max, .. } = &request {
+                self.asked_reads += 1;
+                self.asked_bytes += u64::from(*max);
+            }
             file_layer::down(&mut self.io, self.env.now, request, &mut self.file_events, &mut self.subs);
             progress = true;
         }
@@ -118,7 +137,7 @@ impl World {
     pub fn crash(&mut self, seed: u64) {
         self.machine.crash(seed);
         let handle = self.machine.reopen_root(0);
-        self.sim = Sim::new(seed, Config::calm());
+        self.sim = Sim::new(seed, Config { trace: self.sim.config().trace, ..Config::calm() });
         self.pid = self.sim.spawn_process();
         self.root = self.sim.root(self.pid, Handle::new(handle.raw()));
         self.io = FileIo::new(8, self.env.limits.chunk, 1024, self.env.limits.deadline);

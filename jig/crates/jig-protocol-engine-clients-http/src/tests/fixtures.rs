@@ -8,20 +8,28 @@ pub fn env() -> Env<Limits> {
     Env {
         now: Time::ZERO,
         wall: Wall::EPOCH,
-        limits: Limits { calls: 4, streams: 2, body: 131_328, read: 16_384, send: 16_384, event: 87_416 },
+        limits: Limits {
+            public_calls: 0,
+            calls: 4,
+            streams: 2,
+            body: 131_328,
+            read: 16_384,
+            send: 16_384,
+            event: 87_416,
+        },
     }
 }
 pub fn mount() -> Mount {
     prefixed(b"/jig")
 }
 pub fn fresh_mount() -> Mount {
-    Mount::new(Settings { prefix: Box::from(b"/jig".as_slice()), public: None }, &env().limits)
+    Mount::new(Settings { max_age: 5, prefix: Box::from(b"/jig".as_slice()), public: None }, &env().limits)
 }
 pub fn public_mount() -> Mount {
-    listening(Settings { prefix: Box::from(b"/jig".as_slice()), public: Some(Box::from(PUBLIC)) })
+    listening(Settings { max_age: 5, prefix: Box::from(b"/jig".as_slice()), public: Some(Box::from(PUBLIC)) })
 }
 pub fn prefixed(prefix: &[u8]) -> Mount {
-    listening(Settings { prefix: Box::from(prefix), public: None })
+    listening(Settings { max_age: 5, prefix: Box::from(prefix), public: None })
 }
 fn listening(settings: Settings) -> Mount {
     let mut mount = Mount::new(settings, &env().limits);

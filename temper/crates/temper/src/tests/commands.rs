@@ -51,7 +51,6 @@ fn every_row_parses_from_an_example() {
         (&["forge", "prepare"], &["forge", "prepare", "1"]),
         (&["forge", "run"], &["forge", "run", "1", "forgejo"]),
         (&["forge", "sign-in"], &["forge", "sign-in", "1"]),
-        (&["forge", "reconcile"], &["forge", "reconcile", "1"]),
         (&["ctl"], &["ctl", "DIR", "task", "show", "1"]),
         (&["ctl"], &["ctl", "DIR", "me"]),
         (&["ctl"], &["ctl", "DIR", "--call", "FILE"]),
@@ -133,8 +132,7 @@ fn temper_help_lists_rows_by_who() {
             if who == Who::Spawned {
                 assert!(!text.contains(row.line), "spawned rows list forms alone");
             } else {
-                let transition = if row.transition { " (a transition)" } else { "" };
-                assert!(group.contains(&format!("    {}{transition}", row.line)));
+                assert!(group.contains(&format!("    {}", row.line)));
             }
         }
         previous_end = end;

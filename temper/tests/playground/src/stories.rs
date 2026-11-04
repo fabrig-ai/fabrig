@@ -1,13 +1,14 @@
 //! The native person's stories (temper/docs/design/playground.md, 5.2 and 9).
 
-use skein_fake_person::{Find, Step, Target};
+use skein_fake_person::{Find, Step};
 use skein_lib::Duration;
 use skein_ui::Role;
 use temper_client_domain::{Address, ChatsFilter};
 
-const WAIT: Duration = Duration::from_secs(30);
+// The scripted CSV reply follows the change's CI, review and landing.
+const WAIT: Duration = Duration::from_secs(60);
 
-/// The three suggested requests, each reply read, then the CSV change seen landed.
+/// The three suggested requests, each reply read, and the CSV change seen landed in its chat.
 #[must_use]
 pub fn a() -> Vec<Step<Address>> {
     let scripts: serde_json::Value =
@@ -25,8 +26,6 @@ pub fn a() -> Vec<Step<Address>> {
             steps.push(see(Find::named(Role::Button, script["cue"].as_str().expect("suggestion").as_bytes())));
         }
         steps.push(press(Role::Button, script["cue"].as_str().expect("suggestion").as_bytes()));
-        steps.push(see(Find::named(Role::TextArea, b"Start a chat")));
-        steps.push(press(Role::Button, b"Start chat"));
         for turn in script["turns"].as_array().expect("scripted turns") {
             for line in turn["lines"].as_array().expect("reply lines") {
                 if let Some(text) = line["text"].as_str() {
@@ -34,13 +33,10 @@ pub fn a() -> Vec<Step<Address>> {
                 }
             }
         }
+        if index == 0 {
+            steps.push(see(Find::exactly_named(Role::Status, b"Landed")));
+        }
     }
-    let csv_chat = Find::named(Role::Link, b"Chat")
-        .within(Box::new([Target::Role { role: Role::Item, name: b"Add CSV export to widget".as_slice().into() }]));
-    steps.push(chats());
-    steps.push(see(csv_chat.clone()));
-    steps.push(Step::Press { find: csv_chat });
-    steps.push(see(Find::exactly_named(Role::Status, b"Landed")));
     steps
 }
 

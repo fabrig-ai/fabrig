@@ -454,6 +454,16 @@ section 4); the engine's routing takes each forge's `git` base and git
 program; the clients' listener takes `clients.listener`, and its forge
 routes each GitHub forge's `web`.
 
+`merge_job`, when present, is a string of 1 to 4,096 bytes, with no leading
+`/`, NUL or `..` segment. An invalid form refuses the start at
+`application.landing.projects[i].merge_job` as a form error; a length past
+the ceiling is a bound error. Leaving it out configures no merge command
+(2026-11-04).
+
+A tier's name is unique among both the gates and tiers of its repository.
+Its artifact name is non-empty, at most 32 bytes, and contains no `/`. The
+repository's tier count remains bounded by `forge.tiers.tiers` (2026-11-04).
+
 ## 4. temper's members for a worker
 
 **`application.workers`:** a list with one entry per entry of the
@@ -532,8 +542,9 @@ have one, an engine alone none. Each:
 - **The worker must fit the configured charters.** After those name checks,
   startup builds jig's core configuration once, expands its instruction files,
   and projects its fleet needs with jig's `fleet_needs::configured`. The
-  worker's bounds pass through the same `hello_bounds` conversion as its
-  hello and jig's `shortfall` selects the first unmet requirement. Startup
+  worker's bounds are its agent configuration's `bounds`, which its
+  hello carries unchanged, and jig's `shortfall` selects the first unmet
+  requirement. Startup
   names that requirement's configuration path, required and offered amounts,
   with its dimension's units; the same core configuration then checks the
   root. Admission policy stays in jig, including checks fitting within a
@@ -1447,9 +1458,11 @@ the exact sibling and private directory even when the source has no adapter.
 Init ships no Claude provider, so the rewrite adds an ordinary Anthropic
 provider, number 2, whose one source is that adapter and whose one model,
 `fake-claude`, the fake model serves through an Anthropic-dialect endpoint
-in both effective documents. It raises `documents.lines` to 3, so that
-the Model step offers OpenAI, demo and Anthropic. No startup path
-discovers or falls back to a real `claude` from PATH.
+in both effective documents. It keeps the configured `documents.lines`
+capacity, raising it to at least 3 so that the Model step offers OpenAI,
+demo and Anthropic without shrinking creating's executor lists. If the override
+is absent, it adds 3 alongside the credential capacity in the same object. No
+startup path discovers or falls back to a real `claude` from PATH.
 
 Reuse requires agent.json/programs/claude_code/path to equal that sibling.
 A different retained path refuses with that member named and explicit reset
@@ -1467,10 +1480,11 @@ name with reset instructions, without generating a replacement on reuse.
 
 ## 13. Settings in the store
 
-How work is run leaves the document for the store,
-by the rule of `../draft/configuring.md`, 3.1: the document keeps
+How work is run leaves the document for the store: the document keeps
 what a start needs before it can read its store, and what belongs to
-the machine. The mechanism is jig's (jig's `domain/engine.md`, section
+the machine, and everything else that configures work is a setting,
+changed while temper runs and kept in the store, as projects already
+are. The mechanism is jig's (jig's `domain/engine.md`, section
 17; `domain/connectors.md`, section 17): a setting is a kind, a scope
 and a number; the current settings are the binary's defaults with the
 stored changes over them; a change is one decision, checked whole and
@@ -1494,17 +1508,26 @@ The pages a person meets it on are `../client/README.md`, 5.13.
   the directories, the listeners, the workers and their secrets' files,
   the limits, the first owners and the sign-in providers, `machine`,
   `clients`, `sign_in`, `webhooks` and `demo`, and, for now, the LLM
-  providers (`engine.llm`), each its own design
-  later (`../draft/configuring.md`, section 10). jig's `engine.projects`,
+  providers (`engine.llm`), which are configuration of the work too,
+  and leave the document by a design of their own, later. jig's
+  `engine.projects`,
   the projects a first start seeds, stays jig's member; `temper init`'s
   is `[]` (setup.md, 8.3), and a document's seeded project names its
   policy as `policy: 1` (jig's `protocol/configuration.md`, section 3),
   so the seed copies the stock's policy 1 and no document carries a
   copy of it (13.6, step 1).
 - **A project's own policy** is not a setting: it is in the store
-  already, and its owners change it (jig's `domain/people.md`, 5.2).
-  What a project adds to how its changes land is its landing rules, a
-  setting of kind 2, decided by its owners.
+  already, and its owners change it (jig's `domain/people.md`, 5.2),
+  part by part, or whole as an item of a change of settings (jig's
+  `domain/engine.md`, 17.2), so that one proposal sets a project up
+  beside the deployment's settings: the charters and templates its
+  work runs under, its landing rules, and its policy, with its roles,
+  delegations, tasks and depth. Such a set is decided by one person
+  who owns both the deployment and the project, in one decision; a
+  restored version sets the policy back as it set the rest (jig's
+  `domain/engine.md`, 17.10). What a project adds to how its changes
+  land is its landing rules, a setting of kind 2, decided by its
+  owners.
 
 ### 13.2 temper's kinds
 
@@ -1562,13 +1585,16 @@ forge's connector, which judges them (jig's `domain/engine.md`, 17.5):
 - **Kept by the forge,** in its family `Setting` (`store.md`, section
   2), written in jig's decisions (jig's `domain/engine.md`, 17.5): the
   stock defaults of its kinds the binary gave it at the last start, each
-  setting's current change, and the items of pending proposals of
-  settings that name its kinds. jig keeps only their states and sizes.
-  Once a change is committed, the forge saves its items and replaces
-  its rules, the deployment's or the project's, whole; each live change
-  into a repository it serves is stepped after the commit, so a gate a
-  rule added is asked for and one it dropped no longer waited on
-  (`../domain/forge.md`, 8.3). At a start the forge is given the stock
+  setting's current change, the items of pending proposals of settings
+  that name its kinds, and, beside each change it saves, the value the
+  setting held before, by the revision that made the change, for as long
+  as jig's history keeps that revision's record, so that a restore
+  proposes it again (jig's `domain/engine.md`, 17.10). jig keeps only
+  their states and sizes. Once a change is committed, the forge saves
+  its items and replaces its rules, the deployment's or the project's,
+  whole; each live change into a repository it serves is stepped after
+  the commit, so a gate a rule added is asked for and one it dropped no
+  longer waited on (`../domain/forge.md`, 8.3). At a start the forge is given the stock
   defaults, tells jig which changed, and holds the current values
   before its other records (`../domain/forge.md`, section 16).
 - **Erased with their project.** A project deleted (jig's
@@ -1582,9 +1608,14 @@ forge's connector, which judges them (jig's `domain/engine.md`, 17.5):
   forge's charter, and a pending proposal's items of temper's kinds
   through the forge's family (`../client/forge.md`, section 9); jig's
   documents give their states and sizes alone.
-- **Never pinned.** Every merge is judged by the rules as they are
-  then, whatever revision its change was made in: what work may do is
-  always current (`../draft/configuring.md`, section 4).
+- **Never pinned.** Every merge is judged by the landing rules the
+  forge holds then, the deployment's and its project's, whatever
+  revision its change was made in: what work may do is always current,
+  as a task's authority from jig's rules and its project's policy is
+  (jig's `domain/engine.md`, 17.4), and only what a run is given, its
+  charter, keeps the revision its task was made in. A change of the
+  rules reaches a change already in flight at its next merge; a merge
+  already made stays as it was decided.
 - **The forge's charters are read when a change is made.** The forge
   reads its own kind 3, as it holds it, and the root grants the
   change's procedure delegation to its producer's charter, its
@@ -1653,10 +1684,10 @@ init`'s document carries none of them (`setup.md`, 8.3).
 | charter 4, a reviewer's | its instructions in the `stock` module's `review.txt`; charter 2's models, hosts and run, so 16 turns; the inspect family and the forge's reads alone, no modify, no shell, no agents, no delegation; a review's verdict as its contract (`../domain/forge.md`, 8.3) |
 | charter 6, a foreman's | as charter 4, with the `stock` module's `foreman.txt`: settle the question its brief carries from the change's words, the design in its checkout and the change's pushed head, read through the forge's reads; `answer` only what they settle, `finish` where the work done holds and the rest is the asker's Left list, `escalate` with its reasons otherwise, never guessing past them; a foreman's verdict as its contract (`../domain/forge.md`, 8.11) |
 | template 1, a chat | jig's chat, run by charter 1 |
-| charter 3, the configuring agent's | as charter 1, with new instructions held in the binary (`../draft/configuring.md`, sections 2 and 5.2: split what temper enforces from what agents follow, offer a rule as structure where temper has it, ask until it can propose; `../domain/agent.md`, 8.1); jig's `settings` family (jig's `domain/engine.md`, 7.3), as `settings` and `propose_settings`, the forge's reads, `read_docs` and `withdraw`; no workspace's families (it has none), no delegation, no effects, no shell |
+| charter 3, the configuring agent's | as charter 1, with the `stock` module's `configuring.txt` (`../domain/agent.md`, 8.1: each sentence of a description sorted into structure, which becomes settings, and rules, which stay text runs read; a rule offered as structure where the settings can say it, the person choosing; one question at a time until it can propose, then one proposal) and no sub-agents (`agents` false); its `tools` the settings and read families, 1,536, so that its runs alone in the stock are offered jig's `settings` family (jig's `domain/engine.md`, 7.3), as `settings` and `propose_settings`, beside the forge's reads and `read_docs`; no workspace (it names no repository), and its instructions delegate nothing and effect nothing |
 | template 2, a goal | jig's goal, its executor chosen |
-| template 3, the configuring chat | a chat, flagged conversation and labelled as jig's chat is, run by charter 3 |
-| policy 1 | today's seeded project's policy, with no requirements: role 0 requests and decides everything, a period's spend of 48K for the project and for role 0, an authority's spend of 24K (below), with the rules' grants and delegation; its ceiling's and role 0's tool families 1,539, delegation, messages, reads and settings (jig's `ToolFamilies` Delegate, Message, Read and Settings), so that a chat reads the forge it works on and answers its delegates' questions, and a configuring chat (template 3) reads the settings and proposes, a proposal changing nothing until an owner decides it (jig's `domain/engine.md`, 17.6); its ceiling's and role 0's delegation 18 tasks 4 deep (the chat counted among them), so that a chat's advisor and two dependent delegates, each with its change's procedure and the procedure's six (a producer, a review, and two repairs each followed by its review), fit: 1 + 1 + 2 × 8 |
+| template 3, the configuring chat | a chat named `configuring`, flagged conversation and labelled as jig's chat is, its contract and budget template 1's, run by charter 3 |
+| policy 1 | today's seeded project's policy, with no requirements: role 0 requests and decides everything, a period's spend of 48K for the project and for role 0, an authority's spend of 16K (below), with the rules' grants and delegation; its ceiling's and role 0's tool families 1,539, delegation, messages, reads and settings (jig's `ToolFamilies` Delegate, Message, Read and Settings), so that a chat reads the forge it works on and answers its delegates' questions, and a configuring chat (template 3) reads the settings and proposes, a proposal changing nothing until an owner decides it (jig's `domain/engine.md`, 17.6); its ceiling's and role 0's delegation 18 tasks 4 deep (the chat counted among them), so that a chat's advisor and two dependent delegates, each with its change's procedure and the procedure's six (a producer, a review, and two repairs each followed by its review), fit: 1 + 1 + 2 × 8 |
 | the rules | today's: tools 1,539, delegation, messages, reads and settings, the forge's grants under `forge`, delegation to charters 1, 2, 3, 4 and 6 and the change procedure, 18 tasks 4 deep, a spend and a period's spend of 48K, a run's spend from 2C to K (below); and 13.3's two requirements |
 | kind 1, rule 1 | everywhere (`forge`, open), enforced: CI passed, up to date, and gate 1, an agent's review, blocking, fresh at a clean head, as `docs/examples/owned.json` has it; no approvals. Until 13.6's second step it is `temper init`'s `application.landing` |
 | kind 3 | number 1, the change's charter: charter 2; number 2, its reviews' charter: charter 4; number 3, its foremen's charter: charter 6 |
@@ -1672,8 +1703,10 @@ init`'s document carries none of them (`setup.md`, 8.3).
   and delivers through smith's own `deliver`, never delegating or
   effecting; charter 4, the reviewer's, and charter 6, the foreman's,
   name the read family alone, as
-  its row says; charter 3 names those its row lists (settings, reads
-  and propose, for `withdraw`), not charter 1's with settings added.
+  its row says; charter 3 names those its row lists (settings and
+  reads), not charter 1's with settings added. As numbers, jig's
+  `ToolFamilies` bits: charter 1 1,023, every family but settings;
+  charter 2 514; charter 3 1,536; charters 4 and 6 512.
   smith's host part counts a run's brief beside its tools, so a brief
   is rendered within the room its charter leaves. The small profile
   gives the host part 51,717 bytes: 34,524 for the largest stock
@@ -1692,8 +1725,10 @@ init`'s document carries none of them (`setup.md`, 8.3).
   deployment whose work wants another, a coordinator's that wakes on each
   result and paces its news, sets it on the charter as any of its members
   (13.9).
-- **The configuring agent is a setting** like any other (`../draft/configuring.md`, 5.1): "Tell temper how you work" starts template 3,
-  which an owner may change or remove as any template. Its runs read
+- **The configuring agent is a setting** like any other: template 3
+  starts it, from `chat start --template 3` (`../client/tools.md`,
+  5.3) and, once the web client's pages land, from "Tell temper how
+  you work", and an owner may change or remove it as any template. Its runs read
   and propose settings; they never change one, since jig's `settings`
   family proposes and an owner accepts (jig's `domain/engine.md`, 17.6).
 - **Built at each start** by `temper-service`'s `stock` module, as
@@ -1722,8 +1757,9 @@ init`'s document carries none of them (`setup.md`, 8.3).
   it leaves, so that a change whose runs each spent a whole K would be
   held for its budget at its sixth, naming it (`../domain/forge.md`,
   8.4), and funded by a release or `temper ctl project fund`; an advisor K; a coordinator 11K, its own run and a change; a
-  chat 24K, its run, an advisor and two coordinators; the ceilings and
-  the periods 48K, twice a chat. A deployment whose models change
+  chat 16K, its run, an advisor and a coordinator; the ceilings and
+  the periods 48K, three chats open in one period; a goal, half a chat, holds 7K and each change it makes 3K, so that a
+  change whose runs each spent a whole K is held for its budget at its fourth. A deployment whose models change
   between starts gets new defaults, a release's revision (13.6, step 1).
 - **A fine unit.** smith charges each completion at least one whole
   unit, so `temper init` states its models' prices in a unit a thousandth
@@ -1732,8 +1768,8 @@ init`'s document carries none of them (`setup.md`, 8.3).
 - **The box's limits for that work.** `temper init`'s document, and
   `docs/examples/owned.json`, raise `authority.executors` and
   `tasks.executor_kinds` to 12 (small's 4), holding the stock and the
-  reference's whole delegation (13.9) within ctl's twelve-kind list
-  capacity;
+  reference's whole delegation (13.9) within the fourteen entries
+  ctl's settings form takes in an authority's list;
   `tasks.charters` to 8 (small's 4), since the stock holds five
   charters and a deployment's settings add their own (13.9);
   `tasks.contract_choices` to 4, since a foreman's verdict has three
@@ -1772,8 +1808,14 @@ init`'s document carries none of them (`setup.md`, 8.3).
   defaults, which make a revision recorded as the release's (jig's
   `domain/engine.md`, 17.7).
 - **A release that changes a default** reaches every deployment that
-  kept it, at its next start, by a revision recorded as the release's,
-  and its release notes say so (`../draft/configuring.md`, 3.2).
+  kept it. A setting no change is over follows the binary's default, so
+  at the next start the new default makes a revision recorded as the
+  release's, with no proposal (jig's `domain/engine.md`, 17.7): new
+  work takes it, running work keeps the revision it runs under (jig's
+  `domain/engine.md`, 17.3), and the release's notes name each default
+  it changed. A setting a deployment changed keeps its change; a reset
+  removes the stored change, as a change of its own, and the setting
+  follows the default again.
 
 ### 13.5 The members gone
 
@@ -1885,8 +1927,12 @@ side never waits on the part of jig it does not use:
 
 ### 13.7 A charter's documents
 
-The rules a person wrote down reach the runs (`../draft/configuring.md`,
-section 2), by jig's charter documents (jig's `domain/engine.md`, 17.9).
+A rule a person wrote down in a repository, and that only changes how
+an agent behaves, reaches the runs that should follow it from where it
+was written, by jig's charter documents (jig's `domain/engine.md`,
+17.9): a chat has no workspace and reads no repository's `AGENTS.md`,
+so its charter names the documents, and a rule that lands reaches its
+next run.
 
 - **A document** is a branch of an adopted repository, by its resource
   name (`../domain/forge.md`, section 2: `forge`, the host, the owner,
@@ -1920,6 +1966,22 @@ section 2), by jig's charter documents (jig's `domain/engine.md`, 17.9).
   document in place of copying its rules into a charter's instructions,
   when the person points to one in an adopted repository, and says that
   a change landed there reaches the next run.
+
+A document section begins `At BRANCH's head COMMIT`, then the selected text
+on the next line. A cut appends `[N bytes cut]`, or `[more than N bytes
+cut]` when the file read itself was truncated; a later cut renders the
+retained text again without reading another head. Missing resources read
+`Repository OWNER/NAME on HOST is not adopted.`, `No branch BRANCH in
+OWNER/NAME.`, `No file PATH in OWNER/NAME at BRANCH's head COMMIT.` (a
+folder too), or `No heading "HEADING" in PATH at BRANCH's head COMMIT.`. A
+failed or refused read is a failed brief read, rather than one of these
+successful explanatory reads (2026-11-04).
+
+A stored document whose resource name is no forge branch renders with
+`"connector"` and `"name": [segments]`, its `path` and optional `heading`,
+preserving what was stored. A settings file naming a document in that raw
+form is refused as out of shape; the accepted input form is the forge,
+repository and branch form above (2026-11-04).
 
 ### 13.8 A model with a larger output
 
@@ -2255,3 +2317,6 @@ that changes the stock changes nothing of them.
   within `tasks.charters`, their documents within
   `tasks.charter_documents`, their turns within `max_turns`, template
   4's report within `tasks.result_bytes`.
+
+The reference's charter 6 also returns `finish` for a red the change did not
+cause, with that red on the asker's Left list (2026-11-04).

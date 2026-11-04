@@ -26,11 +26,19 @@ fn the_forge_step_shows_choices_after_reset() {
     assert!(root.forge().playground().is_none());
     assert_eq!(d::address::print(root.pages().address()).as_ref(), b"/welcome?at=forge");
     for view in [f::page_view(&root), f::browser_page_view(&root)] {
-        assert_eq!(choice_cards(view.tree()), [b"GitHub".as_slice(), b"Forgejo on this machine", b"Your Forgejo"]);
+        assert_eq!(choice_cards(view.tree()), [b"GitHub".as_slice(), b"Forgejo"]);
         node(view.tree(), Role::Button, "Connect GitHub");
-        node(view.tree(), Role::Link, "Forgejo on this machine");
-        node(view.tree(), Role::Link, "Your Forgejo");
+        node(view.tree(), Role::Button, "Run on this machine");
+        let help = node(view.tree(), Role::Link, "Or connect your deployment");
+        let help = view.tree().nodes().iter().find(|n| n.id == help).expect("the help link");
+        assert!(help.external.as_deref().is_some_and(|a| a.ends_with(b"/docs/help/server.md")));
     }
+    let mut view = f::browser_page_view(&root);
+    let run = node(view.tree(), Role::Button, "Run on this machine");
+    assert_eq!(
+        crate::act(&mut view, run, Act::Press),
+        Some(d::Action::Forge(d::forge::Act::Forges(d::forge::forges::Act::SetUpOwnedAtOnce)))
+    );
 }
 
 fn model_view(rows: skein_lib::List<w::ForgeRow>) -> crate::View {
@@ -341,8 +349,12 @@ fn the_model_step_offers_the_accounts_ways() {
     let view = f::page_view(&root);
     node(view.tree(), Role::Heading { level: 1 }, "Connect a model");
     node(view.tree(), Role::Paragraph, "temper’s agents run on it: on a plan you sign in to, or on a key.");
+    node(view.tree(), Role::Heading { level: 2 }, "ChatGPT");
+    node(view.tree(), Role::Paragraph, "Your ChatGPT plan: sign in, and temper’s agents use its included usage.");
+    node(view.tree(), Role::Paragraph, "Or paste a key from OpenAI’s platform, billed to its organization.");
     node(view.tree(), Role::Button, "Continue with ChatGPT");
-    let action = press(&root, Role::Link, "Use an API key");
+    assert!(f::find(view.tree(), Role::Button, "This browser isn't on temper's computer ›".as_bytes()).is_none());
+    let action = press(&root, Role::Link, "Use an OpenAI API key");
     let d::Action::Pages(pages::Act::Go { address: Address::Welcome { step: Step::Model { way: Some(_) } } }) = &action
     else {
         panic!("shared account binding")
@@ -663,7 +675,7 @@ fn model_choose_has_direct_ways_and_the_persons_default_holder() {
     }
     assert!(f::find(tree, Role::Region, b"Choose").is_none());
     assert_eq!(root.pages().connect_model().unwrap().holder, c::AskAccountHolder::Own);
-    assert_eq!(tree.nodes().iter().filter(|n| n.styles.as_slice().contains(&crate::look::FLOW_CHOICE)).count(), 2);
+    assert_eq!(tree.nodes().iter().filter(|n| n.styles.as_slice().contains(&crate::look::FLOW_CHOICE)).count(), 1);
     assert_eq!(
         press(&root, Role::Link, "‹ Back"),
         d::Action::Pages(pages::Act::Go { address: Address::Welcome { step: Step::Forge { forge: None } } })
@@ -1116,8 +1128,8 @@ fn ready_making_and_its_endings_keep_one_retry_act() {
         );
         let mut attempt = None;
         while let Some(request) = out.pop() {
-            if let d::Request::Client {
-                request: jig_client::Request::Down { down: jig_client::Down::Send { attempt: sent, key, .. } },
+            if let d::Request::Unlinked {
+                request: jig_client::UnlinkedRequest::Down { down: jig_client::Down::Send { attempt: sent, key, .. } },
             } = request
             {
                 attempt = Some((sent, key));

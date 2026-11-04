@@ -1,0 +1,20 @@
+# The files that name the lab running fabrig's development, and how many names each holds
+# (tests/boundary/tests/outward.rs). A file not listed holds none; each count may only fall.
+# Raising a count or adding a file needs a `# Raised: <who, why>` line directly above its entry.
+
+temper/docs/design/client/browser.status.md 1
+temper/docs/design/draft/configuring.execution.md 6
+# Raised: outward-citations/repair-1, the citation cleanup names the existing status page in two more descriptions of the test input.
+temper/docs/design/draft/dashboards.md 7
+temper/docs/design/draft/notes.md 18
+temper/docs/design/draft/reference-case.execution.md 19
+temper/docs/design/playground.status.md 1
+temper/docs/development/qa.md 3
+temper/docs/development/reference-walks.md 1
+temper/docs/development/v0.1.0-ladder.md 2
+tools/tiers/cpu-run 1
+tools/tiers/cpu.py 2
+tools/tiers/design.md 3
+tools/tiers/run 4
+tools/tiers/test_cpu.py 5
+tools/tiers/test_run.py 28

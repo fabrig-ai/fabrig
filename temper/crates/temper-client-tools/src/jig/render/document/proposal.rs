@@ -77,9 +77,19 @@ pub(super) fn text(value: &c::ReadValue, reading: &Reading, limits: &Limits, out
                 reading.parts,
                 out,
             );
-            out.put(b" (");
-            origin_text(&item.origin, out);
-            out.put(b") \xc2\xb7 would be ");
+            match item.setting {
+                c::Setting::ProjectPolicy { .. } => {}
+                c::Setting::Charter(_)
+                | c::Setting::Template(_)
+                | c::Setting::Policy(_)
+                | c::Setting::Rules
+                | c::Setting::Application { .. } => {
+                    out.put(b" (");
+                    origin_text(&item.origin, out);
+                    out.put(b")");
+                }
+            }
+            out.put(b" \xc2\xb7 would be ");
             review_value_text(
                 &item.would_be,
                 item.setting,
@@ -155,6 +165,15 @@ fn review_value_text(
     vocabulary: &dyn crate::jig::render::Parts,
     out: &mut Text,
 ) {
+    if let c::Setting::ProjectPolicy { .. } = setting
+        && let c::ReviewValue::TooLarge(size) = value
+        && page.is_none()
+    {
+        out.put(b"too large, ");
+        out.number(size.bytes);
+        out.put(b" bytes");
+        return;
+    }
     value_text(resolved(value, setting, page), setting, limits, vocabulary, out);
 }
 fn value_text(
@@ -393,6 +412,19 @@ fn encode_review_value(
     vocabulary: &dyn crate::jig::render::Parts,
     out: &mut Encoder,
 ) {
+    if let c::Setting::ProjectPolicy { .. } = setting
+        && let c::ReviewValue::TooLarge(size) = value
+        && page.is_none()
+    {
+        out.object_start();
+        out.key(b"too_large");
+        out.object_start();
+        out.key(b"bytes");
+        out.unsigned(size.bytes);
+        out.object_end();
+        out.object_end();
+        return;
+    }
     encode_value_result(resolved(value, setting, page), setting, vocabulary, out);
 }
 fn encode_value_result(

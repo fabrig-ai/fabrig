@@ -563,6 +563,16 @@ pub enum SystemEvent {
 pub enum Event {
     /// Compare this start's defaults with the saved defaults.
     SettingsDefaults,
+    /// Keep restored items as a proposal, checking their kinds' bounds.
+    RestoreSettings {
+        token: Token,
+        proposal: u64,
+        items: Box<[crate::RestoredItem]>,
+    },
+    /// Erase values replaced by revisions below the retained history.
+    ForgetReplaced {
+        before: u64,
+    },
     /// Judge in the decision that would make this revision.
     JudgeSettings {
         token: Token,
@@ -856,6 +866,8 @@ pub enum RecordKey {
     SettingChange { kind: u32, scope: u32, number: u32 },
     /// One pending proposal's edit.
     SettingProposal { proposal: u64, kind: u32, scope: u32, number: u32 },
+    /// The value a committed revision replaced.
+    SettingReplaced { kind: u32, scope: u32, number: u32, revision: u64 },
 }
 
 /// Data owned by this connector and committed by its root.
@@ -891,6 +903,8 @@ pub enum Record {
     SettingChange { kind: u32, scope: u32, number: u32, value: Option<Box<[u8]>> },
     /// Retain the edit, so a reset follows the default at acceptance.
     SettingProposal { proposal: u64, kind: u32, scope: u32, number: u32, edit: crate::SettingEdit },
+    /// A changed value retained by the revision that replaced it.
+    SettingReplaced { kind: u32, scope: u32, number: u32, revision: u64, value: Box<[u8]> },
 }
 
 impl Record {
@@ -910,6 +924,9 @@ impl Record {
             Record::Proposal { number, .. } => RecordKey::Proposal(*number),
             Record::Outbox(entry) => RecordKey::Outbox(entry.key),
             Record::Made { key, .. } => RecordKey::Made(*key),
+            Record::SettingReplaced { kind, scope, number, revision, .. } => {
+                RecordKey::SettingReplaced { kind: *kind, scope: *scope, number: *number, revision: *revision }
+            }
             Record::SettingDefault { kind, scope, number, .. } => {
                 RecordKey::SettingDefault { kind: *kind, scope: *scope, number: *number }
             }
@@ -928,6 +945,8 @@ impl Record {
 pub enum Request {
     /// One judgment per item, in the ask's order.
     SettingsJudged { token: Token, judged: Box<[crate::SettingJudged]> },
+    /// Restored items' sizes and charters, or their refusals, in item order.
+    SettingsRestored { token: Token, judged: Box<[crate::SettingJudged]> },
     /// Current defaults, and removed defaults with size zero and no charters.
     SettingsDefaults { defaults: Box<[crate::SettingDefault]> },
     /// The newest setting value, or its absence.

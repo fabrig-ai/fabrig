@@ -539,6 +539,7 @@ name = "jig-client-protocol-wire"
 version = "0.0.0"
 dependencies = [
  "skein-codec",
+ "skein-codegen",
  "skein-lib",
 ]
 
@@ -3977,10 +3978,12 @@ dependencies = [
  "jig-domain-core",
  "jig-domain-fleet",
  "jig-domain-host",
+ "jig-domain-people",
  "jig-domain-tasks",
  "jig-protocol-config",
  "jig-protocol-engine-clients",
  "jig-protocol-store",
+ "jig-test-profile",
  "rustls",
  "serde_json",
  "skein-fail-stop",
@@ -4024,6 +4027,7 @@ dependencies = [
  "temper-client-domain",
  "temper-client-shell-cli",
  "temper-client-shell-terminal",
+ "temper-client-shell-web",
  "temper-client-tools",
  "temper-client-world",
  "temper-docs",
@@ -4157,6 +4161,7 @@ name = "temper-client-protocol-wire"
 version = "0.0.0"
 dependencies = [
  "skein-codec",
+ "skein-codegen",
  "skein-lib",
 ]
 
@@ -4393,6 +4398,7 @@ dependencies = [
  "skein-forge-client",
  "skein-lib",
  "skein-world",
+ "temper-client-protocol-wire",
  "temper-engine-domain-calendar",
  "temper-engine-domain-forge",
  "temper-engine-domain-forge-change",
@@ -4421,6 +4427,7 @@ dependencies = [
  "skein-forge-setup",
  "skein-lib",
  "skein-world",
+ "temper-client-protocol-wire",
  "temper-engine-domain-forge-change",
  "temper-engine-domain-forge-issues",
  "temper-engine-domain-forge-landing",
@@ -4523,6 +4530,7 @@ dependencies = [
  "skein-forge-client",
  "skein-lib",
  "skein-world",
+ "temper-client-protocol-wire",
  "temper-engine-domain-forge",
  "temper-engine-domain-forge-change",
  "temper-engine-domain-forge-issues",
@@ -4688,12 +4696,8 @@ version = "0.0.0"
 dependencies = [
  "jig-protocol-config",
  "rustls",
- "skein-forge",
- "skein-forge-connection",
- "skein-forge-setup",
  "skein-http",
  "skein-io",
- "skein-json",
  "skein-lib",
  "skein-scratch",
  "skein-shell",
@@ -4701,7 +4705,6 @@ dependencies = [
  "skein-tls-world",
  "skein-world",
  "temper-forge-setup",
- "temper-service",
 ]
 
 [[package]]
@@ -4728,6 +4731,7 @@ dependencies = [
 name = "temper-init"
 version = "0.0.0"
 dependencies = [
+ "jig-protocol-config",
  "serde_json",
  "skein-fake-checkout",
  "skein-fake-llm-domain",
@@ -4766,6 +4770,7 @@ dependencies = [
  "skein-fake-person",
  "skein-forge",
  "skein-heap",
+ "skein-http",
  "skein-io",
  "skein-kv",
  "skein-lib",
@@ -5035,6 +5040,7 @@ dependencies = [
  "smith-protocol-channel",
  "smith-protocol-program",
  "smith-transcript",
+ "temper-box",
  "temper-client-domain",
  "temper-client-protocol-wire",
  "temper-client-tools",
@@ -5066,6 +5072,16 @@ dependencies = [
  "skein-json",
  "skein-lib",
  "temper-client-protocol-wire",
+]
+
+[[package]]
+name = "temper-stage-one"
+version = "0.0.0"
+dependencies = [
+ "serde",
+ "serde_json",
+ "skein-scratch",
+ "temper-settings-form",
 ]
 
 [[package]]

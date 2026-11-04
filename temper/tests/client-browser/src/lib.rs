@@ -18,6 +18,7 @@ mod configuration;
 mod forgery;
 mod github;
 mod issuer;
+mod public;
 
 /// How long a story waits for what a page shows.
 pub const WITHIN: skein_lib::Duration = skein_lib::Duration::from_secs(10);
@@ -33,7 +34,7 @@ pub const FIRST_CHAT_ADDRESS: &[u8] = b"/chats/1";
 pub fn temper() -> PathBuf {
     let exe = std::env::current_exe().expect("test executable");
     let binary = exe.parent().and_then(Path::parent).expect("target directory").join("temper");
-    assert!(binary.is_file(), "build the browser server with heavy cargo build -p temper: {}", binary.display());
+    assert!(binary.is_file(), "build the browser server with cargo build -p temper: {}", binary.display());
     binary
 }
 #[must_use]

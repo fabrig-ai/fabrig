@@ -8,6 +8,9 @@ use skein_ui::phrases::{HoleKind, HoleShape, PhraseId, PhraseShape};
 pub enum JigPhrase {
     TooLinked,
     SettingsChanged,
+    SettingProjectPolicy,
+    SettingsRestored,
+    SettingsForgotten,
     MovedToNewest,
     SettingsStale,
     SettingsFull,
@@ -1074,6 +1077,9 @@ impl JigPhrase {
             Self::SettingsChanged => 7900,
             Self::MovedToNewest => 7919,
             Self::SettingsStale => 7901,
+            Self::SettingProjectPolicy => 7927,
+            Self::SettingsRestored => 7928,
+            Self::SettingsForgotten => 7929,
             Self::SettingsFull => 7902,
             Self::SettingsFullTask => 7903,
             Self::SettingsFullMore => 7904,
@@ -2171,7 +2177,9 @@ impl JigPhrase {
             | Self::ApprovalState
             | Self::TakenBy
             | Self::StalledOn => Box::new([HoleShape { kind: HoleKind::Name, bytes: text }]),
-            Self::SettingsChanged
+            Self::SettingProjectPolicy
+            | Self::SettingsForgotten
+            | Self::SettingsChanged
             | Self::SettingsStale
             | Self::SettingsFull
             | Self::SettingsFullTask
@@ -2301,7 +2309,8 @@ impl JigPhrase {
             | Self::DependencyDone
             | Self::CircleWaitsFor
             | Self::ResultsThrough => Box::new([HoleShape { kind: HoleKind::Number, bytes: 0 }]),
-            Self::PolicyEffect
+            Self::SettingsRestored
+            | Self::PolicyEffect
             | Self::RunRetryFailed
             | Self::SpecificationNumber
             | Self::CreateProcedure
@@ -2406,9 +2415,12 @@ impl JigPhrase {
     }
 }
 /// Every jig phrase; loading checks this whole contract.
-pub const ALL: [JigPhrase; 644] = [
+pub const ALL: [JigPhrase; 647] = [
     JigPhrase::TooLinked,
     JigPhrase::SettingsChanged,
+    JigPhrase::SettingProjectPolicy,
+    JigPhrase::SettingsRestored,
+    JigPhrase::SettingsForgotten,
     JigPhrase::MovedToNewest,
     JigPhrase::SettingsStale,
     JigPhrase::SettingsFull,

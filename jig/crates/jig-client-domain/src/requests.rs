@@ -254,6 +254,7 @@ fn kept(request: &Ask) -> bool {
             contract::Ask::Seen { .. } => false,
             contract::Ask::ChangeSettings(_)
             | contract::Ask::MoveToNewest(_)
+            | contract::Ask::Restore { .. }
             | contract::Ask::Create { .. }
             | contract::Ask::Propose { .. }
             | contract::Ask::Withdraw { .. }
@@ -276,6 +277,7 @@ fn kept(request: &Ask) -> bool {
             | contract::Ask::MakeService { .. }
             | contract::Ask::SetPool { .. }
             | contract::Ask::RemoveProject { .. }
+            | contract::Ask::SetVisibility { .. }
             | contract::Ask::Rename { .. }
             | contract::Ask::MakeProject { .. }
             | contract::Ask::SignIn { .. }

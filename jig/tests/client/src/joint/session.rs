@@ -417,14 +417,14 @@ impl Session {
             self.disconnected(client, request);
             return Ok(());
         }
-        let Request::Client { request: jig_client::Request::Down { down } } = request else {
+        let Request::Unlinked { request: jig_client::UnlinkedRequest::Down { down } } = request else {
             return Err(Invalid::Shell);
         };
         if self.driver.transport.sign_in(client).is_none() && !self.unsigned.contains(&client) {
             self.parked
                 .entry(client)
                 .or_default()
-                .push(Request::Client { request: jig_client::Request::Down { down } });
+                .push(Request::Unlinked { request: jig_client::UnlinkedRequest::Down { down } });
             return Ok(());
         }
         if let jig_client::Down::Close { watch } = &down {
@@ -866,8 +866,8 @@ mod tests {
         }
     }
     fn frame(watch: Token) -> Request {
-        Request::Client {
-            request: jig_client::Request::Down {
+        Request::Unlinked {
+            request: jig_client::UnlinkedRequest::Down {
                 down: jig_client::Down::Open { watch, subject: jig_client::Watchable::Jig(client::Subject::Me) },
             },
         }
@@ -913,8 +913,8 @@ mod tests {
                 client,
                 now,
                 wall,
-                Request::Client {
-                    request: jig_client::Request::Down { down: jig_client::Down::Close { watch: native } },
+                Request::Unlinked {
+                    request: jig_client::UnlinkedRequest::Down { down: jig_client::Down::Close { watch: native } },
                 },
             )
             .expect("actual close");
@@ -1014,8 +1014,10 @@ mod tests {
                 client,
                 due,
                 wall,
-                Request::Client {
-                    request: jig_client::Request::Down { down: jig_client::Down::Close { watch: Token::new(0) } },
+                Request::Unlinked {
+                    request: jig_client::UnlinkedRequest::Down {
+                        down: jig_client::Down::Close { watch: Token::new(0) },
+                    },
                 },
             )
             .expect("close original watch");
@@ -1203,8 +1205,8 @@ mod tests {
                 ClientId(0),
                 now,
                 wall,
-                Request::Client {
-                    request: jig_client::Request::Down {
+                Request::Unlinked {
+                    request: jig_client::UnlinkedRequest::Down {
                         down: jig_client::Down::Open {
                             watch: native,
                             subject: jig_client::Watchable::Jig(client::Subject::Run {
@@ -1374,8 +1376,8 @@ mod tests {
             .store
             .fault(jig_core_world::Fault::Fail { commit: durable.checked_add(1).expect("next actual transaction") });
         let key = [17; 16];
-        let request = |attempt| Request::Client {
-            request: jig_client::Request::Down {
+        let request = |attempt| Request::Unlinked {
+            request: jig_client::UnlinkedRequest::Down {
                 down: jig_client::Down::Send {
                     attempt,
                     key,
@@ -1432,8 +1434,8 @@ mod tests {
         let first = Token::new(31);
         let retry = Token::new(32);
         let key = [255; 16];
-        let request = |attempt| Request::Client {
-            request: jig_client::Request::Down {
+        let request = |attempt| Request::Unlinked {
+            request: jig_client::UnlinkedRequest::Down {
                 down: jig_client::Down::Send {
                     attempt,
                     key,
@@ -1502,8 +1504,8 @@ mod tests {
         let sign_in = session.driver.transport.sign_in(ClientId(0));
         let _ = session.observed();
         let key = [211; 16];
-        let request = |attempt| Request::Client {
-            request: jig_client::Request::Down {
+        let request = |attempt| Request::Unlinked {
+            request: jig_client::UnlinkedRequest::Down {
                 down: jig_client::Down::Send {
                     attempt,
                     key,
@@ -1556,8 +1558,8 @@ mod tests {
         }
         session.business_poll(now, wall).expect("actual sibling authentication");
         let native = Token::new(u64::MAX);
-        let open = || Request::Client {
-            request: jig_client::Request::Down {
+        let open = || Request::Unlinked {
+            request: jig_client::UnlinkedRequest::Down {
                 down: jig_client::Down::Open {
                     watch: native,
                     subject: jig_client::Watchable::Jig(client::Subject::Me),

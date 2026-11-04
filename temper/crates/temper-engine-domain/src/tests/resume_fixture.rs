@@ -161,6 +161,9 @@ pub fn limits() -> engine::Limits {
         authority: authority_limits(),
         memory_bytes: u64::MAX,
         watermark: engine::default_watermark(&journal),
+        public_watermark: engine::default_watermark(&journal).checked_div(2).expect("half the watermark"),
+        public_reads: 0,
+        public: jig_domain_core::PublicIndexLimits::OFF,
         journal,
         loads: loads::Limits {
             read_bytes: 65_536,
@@ -287,6 +290,7 @@ pub fn config_with_project_room(seed: u64, projects: u32) -> engine::Config {
         requirements: Box::new([]),
     };
     engine::Config {
+        host_part: None,
         kinds_stock: crate::landing_stock(&[], &skein_lib::Map::with_capacity(0), 1, 4),
         period_span: Duration::from_secs(7 * 24 * 60 * 60),
         core: jig_domain_core::Config {
@@ -419,6 +423,7 @@ pub fn charter() -> engine::Charter {
             shell: true,
             agents: true,
             call_timeout: Duration::from_secs(10),
+            tools: engine::RunPolicy::EVERY_FAMILY,
         },
         hosts: fleet::Kinds::Workers,
         spend: 100,
@@ -485,6 +490,7 @@ const FORGE_LIMITS: forge::Limits = forge::Limits {
     landing_rules: 4,
     roles: 4,
     setting_proposals: 4,
+    setting_history: 4,
     brief_sections: 32,
     brief_bytes: 4096,
     client: CLIENT,

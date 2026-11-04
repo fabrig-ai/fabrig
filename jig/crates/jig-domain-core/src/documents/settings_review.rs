@@ -58,8 +58,19 @@ pub(super) fn review(
     let set = core.settings_proposals.get(&(proposer, number))?;
     let mut items = List::with_capacity(t::SETTINGS_ITEMS);
     for item in &set.items {
-        let (now, origin) = core.current.lookup(item.setting);
-        let origin = if now.is_some() { origin } else { None };
+        let (now, origin) = match item.setting {
+            s::Setting::ProjectPolicy { project } => {
+                (Some(s::Value::Policy(Box::new(core.configured_policy(project)?))), None)
+            }
+            s::Setting::Charter(_)
+            | s::Setting::Template(_)
+            | s::Setting::Policy(_)
+            | s::Setting::Rules
+            | s::Setting::Application { .. } => {
+                let (now, origin) = core.current.lookup(item.setting);
+                (now.cloned(), if now.is_some() { origin } else { None })
+            }
+        };
         let (edit, would_be) = match &item.edit {
             s::Edit::Set(value) => (crate::reads::RevisionEdit::Set, Some(value)),
             s::Edit::Removed => (crate::reads::RevisionEdit::Removed, None),
@@ -69,7 +80,7 @@ pub(super) fn review(
             .push(ReviewItem {
                 setting: item.setting,
                 edit,
-                now: now.cloned(),
+                now,
                 origin,
                 would_be: would_be.cloned(),
                 application: None,

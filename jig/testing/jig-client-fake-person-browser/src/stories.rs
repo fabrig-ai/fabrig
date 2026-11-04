@@ -50,6 +50,10 @@ struct Sequence<'a> {
     part: usize,
 }
 impl Play for Sequence<'_> {
+    #[expect(
+        clippy::wildcard_enum_match_arm,
+        reason = "only completion advances the sequence; every other result passes unchanged to the harness"
+    )]
     fn next(&mut self, face: &mut BrowserFace<'_>, now: Time) -> Next<Box<[u8]>> {
         while self.part < self.parts.len() {
             match self.parts[self.part].next(face, now) {

@@ -12,7 +12,7 @@ fn escalation_script_preserves_supplied_identity_scope_and_outer_offer_without_s
     }));
     setup.truth.objects.insert(ObjectKey::Escalation(8), value.clone());
     setup.truth.object_projects.insert(ObjectKey::Escalation(8), 1);
-    let engine = Engine::new(setup.clone(), 1).unwrap();
+    let engine = Engine::new(setup.clone(), 1).expect("valid script");
     assert_eq!(engine.truth.objects[&ObjectKey::Escalation(8)], value);
     // The embedded project is authoritative even if an obsolete fallback differs.
     setup.truth.object_projects.insert(ObjectKey::Escalation(8), 2);

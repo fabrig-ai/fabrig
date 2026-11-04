@@ -136,6 +136,7 @@ fn setting_value(core: &Core, setting: settings::Setting, revision: u32) -> Answ
         return Answer::None(Why::Unknown);
     }
     match setting {
+        settings::Setting::ProjectPolicy { .. } => return Answer::None(Why::Unknown),
         settings::Setting::Application { .. } => {
             if revision != core.current.newest() {
                 return Answer::None(Why::Unknown);
@@ -400,6 +401,7 @@ pub fn load_bytes(limits: &Limits, rows: u32) -> Option<u64> {
 pub fn valid_revision(revision: &settings::Revision, limits: &Limits) -> bool {
     let Some(capacity) = settings::capacity(limits) else { return false };
     let Some(capacity) = capacity.checked_mul(2) else { return false };
+    let Some(capacity) = capacity.checked_add(1) else { return false };
     let Ok(count) = u32::try_from(revision.items.len()) else { return false };
     if count > capacity {
         return false;
@@ -434,6 +436,9 @@ pub fn valid_revision(revision: &settings::Revision, limits: &Limits) -> bool {
                         }
                     }
                     settings::Value::Policy(_) => {
+                        if settings::is_project_policy(item.setting) {
+                            continue;
+                        }
                         policies = policies.saturating_add(1);
                         if policies > limits.authority.projects {
                             return false;
@@ -626,6 +631,35 @@ fn item_preview(revision: &settings::Revision, lines: u32) -> List<RevisionItemH
         items.push(RevisionItemHead { setting, edit }).expect("bounded application preview");
     }
     items
+}
+
+/// Restore pages use the same range and byte admission as history reads (engine.md, 17.10).
+pub(crate) fn restore_load(
+    core: &mut Core,
+    env: &Env<Limits>,
+    first: u32,
+    last: u32,
+    party: u64,
+) -> Option<Queue<Request>> {
+    let rows = last.checked_sub(first)?.checked_add(1)?;
+    if core.reads.is_full() || core.reads.len() >= env.limits.load_slots || load_bytes(&env.limits, rows).is_none() {
+        return None;
+    }
+    Some(load(core, env, Recipient { destination: super::Destination::Restore, sign_in: 0, party }, first, last, false))
+}
+pub(super) fn restore_loaded(
+    core: &mut Core,
+    env: &Env<Limits>,
+    work: &mut Queue<crate::routing::Work>,
+    name: skein_lib::Id<super::Pending>,
+    result: super::Loaded,
+) -> Queue<Request> {
+    let pending = core.reads.get_mut(name).expect("pending restore page");
+    pending.destination = super::Destination::Done;
+    let range = pending.range.clone();
+    core.reads.retire(name);
+    core.reads.reclaim();
+    crate::routing::settings::restore::loaded(core, env, work, range, result)
 }
 
 #[cfg(test)]

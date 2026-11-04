@@ -428,7 +428,7 @@ runs it or writes what it makes.
   | the name a failure gives the admin | `temper-admin` |
   | the listener's address | `application.webhooks.listener`'s, when configured; none otherwise. Each hook's URL, `http://<address>/hooks/<number>`, is derived from it (skein's `forge-setup.md`, 4.1) |
   | the word | `temper`, so the bot's mark is `temper:bot` |
-  | its limits | `orgs` from `setup.orgs`, `repositories` from `forge.client.repositories`, `reachable` from `picker.page`, and `deadline`, `backoff` and `backoff_max` from `setup.deadline_ms`, `setup.backoff_ms` and `setup.backoff_max_ms` (configuration.md, section 7) |
+  | its limits | `repositories` from `forge.client.repositories`, `reachable` from `picker.page`, and `deadline`, `backoff` and `backoff_max` from `setup.deadline_ms`, `setup.backoff_ms` and `setup.backoff_max_ms` (configuration.md, section 7); `orgs` 1, the least the kit takes, since temper gives no org |
 
   The API's address is the forge's record's place (forge.md, 2.1).
   temper-forge-setup maps the setup onto these values and runs the
@@ -1744,6 +1744,13 @@ document.
 
 ### 8.1 The owned example
 
+The box document written by `temper init` and the owned example give
+`documents.lines` eight entries for each creating executor list, alongside
+`tasks.charters` eight.
+This holds the reference's eligible charters 1, 2, 4, 5, 6 and 7 and its
+configured procedures without shortening either offer. The deployment's
+effective limits must still fit its codecs.
+
 `docs/examples/owned/` is a configuration directory (configuration.md,
 section 12). Its document, `temper.json`, is a whole one, `engine`,
 `workers` and `application`, for the box's owned Forgejo with a runner,
@@ -1832,7 +1839,7 @@ runs it (section 7).
   - `authority.segments`, `tasks.hold_segments` and
     `tasks.authority_segments`, 8: a name's segments, the forge's
     deepest path;
-  - `documents.rows` 2, `documents.lines` 2 and `documents.text_bytes`
+  - `documents.rows` 2, `documents.lines` 8 and `documents.text_bytes`
     128: temper's client's rows and text;
   - `views.watchers` and `views.watchers_per_party`, 16: the watch room,
     as the root holds it whatever `engine.limits` says

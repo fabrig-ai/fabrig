@@ -1,0 +1,8 @@
+project amend PROJECT --visibility public|private --key KEY
+  PROJECT (project): a project's name or number; required. The project
+  --visibility public|private: one of public or private; required. Public reading, or private again
+Make a project readable by anyone without signing in, or private again
+Prints: `project 1: public` and, made public, `page: /public/projects/3f2a9c01d4e5b6a7`; made private, `project 1: private`
+--json: the record project_amend.
+Key: --key KEY, required.
+Only an owner changes visibility. A member and project 0 are refused, exit 2. The public page is a path under the deployment's address, from me's public identifier. A key replay prints the first answer.

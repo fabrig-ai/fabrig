@@ -19,6 +19,10 @@ pub enum Accepter {
 /// A final reason a keyed request was refused.
 #[derive(Clone, PartialEq, Eq, Hash, Debug)]
 pub enum Refusal {
+    /// A revision below the history cutoff (jig/docs/design/domain/engine.md, 17.10).
+    Forgotten {
+        oldest: u32,
+    },
     Judged {
         at: u32,
         setting: crate::Setting,

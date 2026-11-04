@@ -175,16 +175,17 @@ slow-timeout settings stay unchanged. Repository wrapper rules have nextest's
 normal precedence; missing coverage is an error, rather than an unmeasured
 success. JUnit is the independent executed-attempt inventory, including retries.
 
-The queue can use the same collector for `default` and `fuzzy`, retaining its
-own package selection and heavy gate command. Ops builds the wrapper once
-through heavy, loads `cpu.py` with `runpy.run_path`, calls
+A caller can use the same collector for `default` and `fuzzy`, keeping its
+own package selection and build command, through section 10's interface: it
+builds the wrapper once, loads `cpu.py` with `runpy.run_path`, calls
 `prepare(DIR, PROFILE, WRAPPER)` for each fresh run directory, appends the
 returned arguments to nextest, checks disk admission, and calls
 `execute(COMMAND, ENV, DIR, PROFILE, LIMITS)`. `LIMITS` is `budgets(PATH)`'s
 result; it may be empty. `execute` owns output forwarding, completion metadata,
 wall supervision, evaluation and the resulting exit status. Do not wrap an
 already running heavy command in another heavy command. Keep each DIR until
-its report is retained. Gate integration and deployment belong to ops.
+its report is retained. Where and when a caller runs the collector is the
+caller's.
 
 The interfaces and precedence are documented in nextest's
 [wrapper scripts](https://nexte.st/docs/configuration/wrapper-scripts/),
@@ -312,6 +313,11 @@ alone, unobserved attempts included, returns 0; observed assertion, exit or
 protocol failures and exceeded CPU budgets keep their failure verdicts.
 Incomplete CPU on cancelled attempts is reported explicitly alongside the
 green warning.
+
+Every summary includes the top-level `unobserved` list and the suite's
+`unobserved` count, including a tools-suite summary. With no unobserved
+attempt they are an empty list and zero. These additional fields leave
+existing summary keys' names and meanings unchanged (2026-11-04).
 
 #### Budgets and completeness
 
@@ -465,7 +471,7 @@ green starved warning. The gate passes the intended execution deadline via
 `--wall-hard`; a budget table alone does not activate native cancellation.
 Complete records remain mandatory for starved suites.
 
-For example, ops can retain a fresh directory for a gate's tools suites and
+For example, a caller can keep a fresh directory for a gate's tools suites and
 run each suite sequentially, checking each command's exit status:
 
 ```sh
@@ -495,23 +501,25 @@ incomplete record.
 
 ## 8. Later
 
-The after-landing runner calls this entry point. The trees' old
-`scripts/browser.sh` scripts retire in their own trees' branches.
-
-fab's readers of the summary map its `unobserved` entries (7.3) to their
-own unobserved result. The agents repository's `fab/cpu.py` builds its
-cases from the raw JUnit, where such an attempt is a `test abort`
-failure, so without that mapping a gate step whose run held one reads
-red. That change is the agents repository's; the summary's `unobserved`
-keys are new and no existing key changed, so its readers need no other
-change.
+A caller running the after-landing tier calls this entry point
+(section 10). The trees' old `scripts/browser.sh` scripts retire in their
+own trees' branches.
 
 In a starved run, an attempt that has a record and whose JUnit outcome
 is a cancellation abort (7.3's signals) is a failure in this summary,
-since 7.3 counts only known timeout terminations as starvation; fab's
-reader reconciles such attempts with its own evidence of the
-cancellation. Counting them starved in the summary itself is left for
-later.
+since 7.3 counts only known timeout terminations as starvation; a caller
+reconciles such attempts with its own evidence of the cancellation.
+Counting them starved in the summary itself is left for later.
+
+The build command is `heavy` throughout: sections 1, 2 and 7 build and
+run through it, section 6's `HEAVY_TAIL` and 7.3's cancellation are its,
+and 10.3's `heavy-output.txt` is named for it. A runner that takes its
+caller's build command instead is left for later; it keeps section 10's
+names, arguments, results and files as they stand.
+
+`budgets.toml`'s first comment cites the user's decision on its figures
+by a record kept outside this repository; stating where the figures come
+from in this repository's own words is left for later.
 
 ## 9. Fixture readers
 
@@ -557,3 +565,105 @@ The entry digest is SHA-256 of its canonical TOML, covering paths, readers,
 disposition, reason and regenerate. Keys are sorted, including keys within
 readers; arrays and readers retain their order in the file. The map digest
 is SHA-256 of the map file's bytes.
+
+## 10. A caller's interface
+
+A caller is whatever runs a tier or a gate suite under the collector and
+reads its verdict: a person, a script or a gate. This section is its
+contract with `tools/tiers/`; sections 4 to 7.5 hold the behaviour behind
+it. Its names, arguments, results and files are kept as they stand: a
+change to the build command a caller wraps changes none of them.
+
+### 10.1 The commands
+
+- `tools/tiers/run [--cpu DIR] TREE TIER [-- NEXTEST_ARGS...]`,
+  `tools/tiers/run --verify TREE TIER` and `tools/tiers/run --verify-all`,
+  from the checkout root, with section 4's exit codes (sections 1, 6
+  and 7).
+- `tools/tiers/cpu-run --out DIR --suite ID [--wall-hard SECONDS] -- ARGV...`
+  (7.5).
+- `tools/tiers/cpu-summary DIR [--budgets PATH] [--pair PAIR] [--expect ID ...] [--json]`:
+  prints `summary`'s result (10.2) as text, or with `--json` as one JSON
+  object, and exits 0 for a valid run within its CPU budgets or with none
+  set, 1 over a CPU budget, and 2 for invalid input or unverified
+  coverage (7.3).
+
+### 10.2 `cpu.py`
+
+A caller loads `tools/tiers/cpu.py` with `runpy.run_path` and calls these
+functions from the namespace it returns; the file is no importable module.
+Relative paths are the caller's working directory's, the checkout root.
+
+- `budgets(path, pairs=None)`: the budgets file at `path`, in 7.3's form,
+  as a dictionary: each pair's table by its name, and under `tools` each
+  suite's table by its ID (7.5). With `pairs`, a set of pair names, a table
+  for any other pair is refused. A refused key, value or pair raises
+  `ValueError`. The result is the `limits` of `execute` and `summary`; an
+  empty dictionary sets no limit.
+- `prepare(directory, profile, wrapper, config=Path('.config/nextest.toml'))`:
+  makes `directory` (mode 0700, with its parents) the fresh collector of one
+  nextest run of `profile`, wrapped by the binary at `wrapper` (section 7),
+  writes its unfinished `run.json` and returns the arguments the caller
+  appends to that nextest command,
+  `['--config-file', 'DIR/repository.toml', '--tool-config-file', 'tiers-cpu:DIR/nextest.toml']`
+  with DIR absolute (7.1). A directory that holds anything raises
+  `ValueError`: one directory per run.
+- `execute(command, env, directory, profile, limits)`: runs `command`, an
+  argument list (the caller's build command around nextest, with
+  `prepare`'s arguments), with `env` and section 6's `HEAVY_TAIL`, its stdin
+  closed and its stdout and stderr forwarded to the caller's stdout. It
+  holds the profile's `wall_hard_s` from `limits` (7.3), writes `run.json`
+  and `heavy-output.txt` (10.3), prints the summary as text and returns the
+  run's exit status: 1 over a CPU budget; otherwise 100 when a failure
+  stands; otherwise 0 when the run was starved, or when nextest's failure
+  exit came from timeout terminations alone, counted starved; otherwise the
+  command's own exit status, nextest's 4 for an empty selection among
+  them. An invalid summary (7.3's exit 2) or a refused cancellation raises
+  `ValueError`; an interruption stops the command and is raised again.
+- `summary(directory, limits=None, pair=None, expected=None)`: the verdict
+  on a finished run directory, as the dictionary below. `pair` defaults to
+  the run's profile and must equal it. `pair='tools'` reads `cpu-run`'s
+  suite records instead, and `expected`, the list of suite IDs, is then
+  required (7.5); with any other pair it is refused. Invalid input or
+  unverified coverage raises `ValueError`; an unreadable or malformed file
+  raises `OSError`, `KeyError`, `TypeError` or `xml.etree.ElementTree`'s
+  `ParseError`, all of which `cpu-summary` reports as exit 2.
+- `print_summary(result, as_json=False)`: prints a result as `cpu-summary`
+  does.
+
+`summary`'s result:
+
+| Key | Value |
+| --- | --- |
+| `pair` | the pair, or `tools` |
+| `verdict` | `over budget`, `starved`, `within budget` (the pair has a table) or `no budget set` |
+| `failures` | `"BINARY_ID TEST_NAME"` for each test whose failure stands (7.3); for tools, `"ID suite"` |
+| `over_budget` | one line for each CPU budget passed, naming its test or suite |
+| `warnings` | one line for each `auto_reap` declaration and each unobserved attempt |
+| `unobserved` | `{binary_id, test_name, attempt}` for each attempt cancellation stopped before its record (7.3); always empty for tools |
+| `tests` | for each test: `binary_id`, `test_name`, `attempts`, `cpu_s`, `user_s`, `system_s`, `wall_s`, `starved`, `leaked`, `incomplete` |
+| `suite` | the totals: `tests`, `attempts`, `cpu_s`, `user_s`, `system_s`, `wall_s`, `test_wall_s`, `starved`, `starved_run`, `unobserved`, `leaked`, `incomplete` |
+
+An unobserved attempt is neither passed nor failed: a caller that reads the
+run's JUnit itself sees it as a `test abort` failure, and maps it to its own
+unobserved result by `unobserved`. These keys and their meanings are the
+contract; a key may be added, none removed or changed in meaning.
+
+### 10.3 What a caller may read after a run
+
+In a directory `prepare` made, once `execute` has returned:
+
+- `run.json`: `profile`, `finished`, `starved`, `wall_s`, `returncode`
+  (the command's) and `cancel_code` (the cancellation's, or null);
+- `heavy-output.txt`: the command's output, as forwarded;
+- `junit.xml`: nextest's JUnit report for the profile, absent when nextest
+  wrote none;
+- `records/`: one file for each attempt, holding 7.2's JSON line; a name
+  ending `.tmp` is no record;
+- `starved.json`, only when the wall hard limit passed: `wall_hard_s`, the
+  limit.
+
+`repository.toml` and `nextest.toml` there are the collector's
+configuration, nextest's inputs, not results. A directory `cpu-run` wrote
+holds one suite record for each ID, `<ID-sanitized>.json` (7.5); a name
+ending `.tmp` is no record.

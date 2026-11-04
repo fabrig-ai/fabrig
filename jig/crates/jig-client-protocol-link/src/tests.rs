@@ -65,6 +65,7 @@ mod projects;
 mod turn_text;
 
 mod settings;
+mod settings_restore;
 
 mod settings_proposals;
 

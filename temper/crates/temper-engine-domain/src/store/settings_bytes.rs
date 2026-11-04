@@ -14,7 +14,20 @@ pub(super) fn record(row: &Record) -> Option<u64> {
             Some(changed) => value(changed),
             None => Some(0),
         },
-        Record::Revision { revision, .. } => items(&revision.items),
+        Record::Revision { revision, .. } => {
+            let mut bytes = u64::try_from(revision.items.len())
+                .ok()?
+                .checked_mul(u64::try_from(size_of::<jig_domain_core::settings::RevisionItem>()).ok()?)?;
+            for item in &revision.items {
+                if let Edit::Set(set) = &item.edit {
+                    bytes = bytes.checked_add(value(set)?)?;
+                }
+                if let jig_domain_core::settings::Replaced::Value(replaced) = &item.replaced {
+                    bytes = bytes.checked_add(value(replaced)?)?;
+                }
+            }
+            Some(bytes)
+        }
         Record::Proposal { value, .. } => items(&value.items),
         Record::Charter { value: version, .. } => match &version.charter {
             Some(charter) => u64::try_from(size_of::<jig_domain_core::Charter>())

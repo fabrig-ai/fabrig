@@ -171,9 +171,13 @@ fn process_settings(value: &mut Value) -> Value {
     for member in ["charters", "templates", "policies", "rules"] {
         value["engine"].as_object_mut().expect("engine").remove(member);
     }
-    for (name, minimum) in
-        [("tasks.charters", 4), ("authority.grants", 16), ("notes.scopes", 32), ("core.policy_bytes", 4096)]
-    {
+    for (name, minimum) in [
+        ("tasks.charters", 5),
+        ("core.templates", 3),
+        ("authority.grants", 16),
+        ("notes.scopes", 32),
+        ("core.policy_bytes", 4096),
+    ] {
         let held = value["engine"]["limits"]["overrides"][name].as_u64().unwrap_or(0);
         value["engine"]["limits"]["overrides"][name] = held.max(minimum).into();
     }
@@ -417,8 +421,8 @@ impl Judge {
             value["engine"]["limits"]["overrides"][key] = 3.into();
         }
         // accounts' program hosts hold documents.lines rows (jig documents/programs.rs `hosts`);
-        // the fixture's 2 would cut s2 from the placement read.
-        value["engine"]["limits"]["overrides"]["documents.lines"] = 3.into();
+        // four lines also carry all stock charters in the creation offer.
+        value["engine"]["limits"]["overrides"]["documents.lines"] = 4.into();
         value["engine"]["hosts"]["workers"][0]["name"] = "ws".into();
         value["engine"]["hosts"]["workers"].as_array_mut().expect("hosts").truncate(self.cast.len());
         let secret = b"s2-case-fixture-secret";

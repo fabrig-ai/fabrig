@@ -194,6 +194,10 @@ pub enum Refusal {
         why: SignInRedirectWhy,
     },
     Stale(super::RefusalStale),
+    /// The revision left the history (domain/engine.md, 17.10).
+    Forgotten {
+        oldest: u32,
+    },
     Full(super::RefusalFull),
     /// An account move refused (client/domain/contract.md, 4).
     AccountMove {

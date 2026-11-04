@@ -106,6 +106,7 @@ fn configuration(limits: &core::Limits) -> core::Config {
                     shell: true,
                     agents: true,
                     call_timeout: Duration::from_secs(10),
+                    tools: core::RunPolicy::EVERY_FAMILY,
                 },
             }]),
             templates: Box::new([]),

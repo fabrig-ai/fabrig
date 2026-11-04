@@ -3,8 +3,7 @@
 Draft, 2026-10-20. What a person sees the first time they run temper,
 and the general pieces it is made of. It records a design session with
 the user on 2026-10-20, which started from the assessment of where the
-first run stands once the accounts and GitHub work land
-(`~/src/rust/tmp/temper-first-time-ux-2026-10-20.md`). It crosses skein
+first run stands once the accounts and GitHub work land. It crosses skein
 (the arguments' rule, the fakes as product crates) and temper (its
 directories, `temper init`, the box, the client) on purpose; an owner
 splits it. It builds on `../github.md` as it lands: forges connected

@@ -155,6 +155,8 @@ A tier is a slow check of a branch after changes land on it: each run covers eve
 
 ## Limits
 
+For the configuration members that need a restart, read `temper help configuration`.
+
 - A repository has at most two tiers in the small profile. A run names
   at most 16 failing tests, each id at most 256 bytes; past them its
   failures are many, blamed by landing alone.

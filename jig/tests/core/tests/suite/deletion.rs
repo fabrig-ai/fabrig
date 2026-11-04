@@ -309,6 +309,7 @@ fn scope_names(scope: &notes::Scope, project: u32) -> bool {
 fn ask_names(ask: &people::Ask, project: u32) -> bool {
     match ask {
         people::Ask::RemoveProject { project: owner, .. }
+        | people::Ask::SetVisibility { project: owner, .. }
         | people::Ask::Compound { project: owner, .. }
         | people::Ask::Create { project: owner, .. }
         | people::Ask::EditNote { project: owner, .. }
@@ -333,7 +334,8 @@ fn ask_names(ask: &people::Ask, project: u32) -> bool {
         | people::Ask::SetPool { project: owner, .. }
         | people::Ask::DecideEscalation { project: owner, .. }
         | people::Ask::Application { scope: people::ApplicationScope::Project(owner), .. } => *owner == project,
-        people::Ask::Application {
+        people::Ask::Restore { .. }
+        | people::Ask::Application {
             scope: people::ApplicationScope::Own | people::ApplicationScope::Deployment,
             ..
         }
@@ -352,7 +354,8 @@ fn people_names(row: &people::Stored, project: u32) -> bool {
     match row {
         people::Stored::Roles { project: owner, .. }
         | people::Stored::Policy { project: owner, .. }
-        | people::Stored::Deletion { project: owner, .. } => *owner == project,
+        | people::Stored::Deletion { project: owner, .. }
+        | people::Stored::Public { project: owner } => *owner == project,
         people::Stored::Acted { act, .. } => match act {
             people::Act::Close { project: owner, .. }
             | people::Act::Adopt { project: owner, .. }
@@ -396,6 +399,7 @@ fn rows_naming(world: &World, project: u32) -> Vec<String> {
                 root::Record::Connector { record, .. } => match record {
                     connector::Record::SettingDefault { .. }
                     | connector::Record::SettingChange { .. }
+                    | connector::Record::SettingReplaced { .. }
                     | connector::Record::SettingProposal { .. } => unreachable!("settings routing: apps-world"),
                     connector::Record::Task { project: owner, .. }
                     | connector::Record::Adoption { project: owner, .. }

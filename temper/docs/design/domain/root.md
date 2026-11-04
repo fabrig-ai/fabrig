@@ -419,6 +419,12 @@ to the forge; a timer to the child that armed it. What temper adds:
   subscriptions to tasks and timers go to the core as named actions, and
   the forge's reads, effects and topics to the forge (5.5); a proposal of
   a forge effect goes to the forge, which keeps it, then to the core.
+- **Task reads decide nothing.** `read_task` goes to jig before durable-call
+  replay. jig checks the read family and task relationships, including the
+  immediate requester retained on an ended delegate's owner row. The root
+  translates its bounded answer through the fresh-read door; it makes no
+  visibility decision. Escalations name the held task and hold revision and
+  tell the recipient to use `read_task` for its source facts and hold account.
 - **Rendered by hand-out.** A decided call's answer goes out to be
   rendered (`HostDelivery::Render`) and comes back as smith takes it; the
   core keeps the rendered answer with the call's record, so a call asked
@@ -526,6 +532,13 @@ section 13's.
   means and whether it is well formed is the forge's.
 - **The forge's charter is the forge's own value,** read from its kind
   3 when a change is made, and kept on the change (section 6).
+
+Both settings entrances decode a value of temper's kinds at the client
+wire's schema ceilings for pattern segments, segment bytes, gates and
+approvals. A value that does not decode whole is refused as out of shape at
+its item. A value within those ceilings but beyond the deployment's bounds
+reaches the forge, which refuses it as judged with its own pattern, gates or
+approvals reason (decided 2026-11-03).
 
 ### 5.7 Periods, from the calendar
 
@@ -761,6 +774,15 @@ preparing, held until its claim commits:
   ready, the task goes back to Due after preparation's backoff, and no
   attempt is spent. A section whose bytes the forge no longer has sends
   the brief back, as a missing one does.
+
+Required forge sections take room from optional core sections alone, never
+from a charter's document sections. The small root's eight section slots
+hold three required core sections, two documents and three forge sections
+(2026-11-04).
+
+A charter document that names another connector or no forge branch is
+answered missing at its gather without asking the forge. Its section is
+titled `Document PATH` and says its read failed (2026-11-04).
 
 ### 7.3 A call's answer
 

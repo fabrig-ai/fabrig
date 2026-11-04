@@ -28,7 +28,7 @@ A budget is what a task may spend, in units its models' prices make of their usa
   from C, one costliest completion of the first configured model at
   its prices: its rules' floor is 2C and their run cap K, 4C or four
   units for each of the chat's run turns (32 for its 8), whichever is
-  more; a person's chat may spend 24K, and the ceilings and a
+  more; a person's chat may spend 16K, and the ceilings and a
   project's period 48K. On `temper init`'s box C is 1,057 units, so a
   run draws 2,114 to 4,228. The stock chat runs 8 turns, the coding
   agent and its reviewers 16, each 120 seconds with a reserve of 1
@@ -143,14 +143,16 @@ role depth - 1: the root consumes one task and one depth level. Thus
 
 ## Limits
 
-- temper gives no task an amount on demand: more comes from an
-  accepted proposal or an amendment within its funder's authority.
-- temper does not refill a task when settings change: a new run cap
-  applies to later runs.
-- A period lasts a week, from the project's first; the week is not a
-  setting. An unspent period is not carried over, and what an old one
-  reserved stays its own. A deployment stopped past a next start opens
-  one period when it starts, from then: `temper help weekly-budget`.
+`temper help configuration`: what needs a restart.
+
+- More task funds need an accepted proposal or an amendment within
+  its funder's authority; none are given on demand.
+- Settings changes never refill a task; a new run cap applies to
+  later runs.
+- Periods last a week from the project's first; this is not a setting.
+  An unspent period is not carried over, and what an old one
+  reserved stays its own. Restarting past the next start opens one
+  period from then: `temper help weekly-budget`.
 - ctl changes a project's own policy in its spends alone (`project
   fund`); `settings show` reads policy 1, which only new projects
   copy.

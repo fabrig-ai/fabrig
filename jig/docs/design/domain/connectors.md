@@ -937,6 +937,19 @@ bytes.
   the kinds' bounds, in the decision that makes the proposal; it erases
   them when the proposal is withdrawn or rejected, and an acceptance
   makes them the changes.
+- **What its items replaced, for a restore** (engine.md, 17.10). As it
+  saves a committed change's items, it keeps beside each the value the
+  setting held before (none for one that followed its default or was
+  removed), by the revision the change made, and erases those of a
+  revision in the decision that erases the revision's record from the
+  history (engine.md, 17.7); a release's revision asks it to keep
+  none. Its worst case prices, for each record the history may keep, a
+  whole set of its kinds' values. A restore's decision hands it the
+  proposal the restore makes and its items of its kinds, each by kind,
+  scope and number with the revision whose record replaced it; it keeps
+  the value it kept as that revision's replaced one as the proposal's
+  item, as a proposal's items are kept, and answers each item's size and
+  the charters it names, checked against its kinds' bounds alone.
 - **Read through it.** The application's children and clients read a
   value from the connector, by kind, scope and number: the newest,
   whatever revision a task it serves was made in. Never pinned.

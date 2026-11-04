@@ -12,6 +12,10 @@ pub enum Setting {
         scope: u32,
         number: u32,
     },
+    /// A project's own policy, an item of its scope (jig/docs/design/domain/engine.md, 17.2).
+    ProjectPolicy {
+        project: u32,
+    },
 }
 /// A check fault, including a connector's judgment (jig/docs/design/domain/engine.md, 17.1, 17.5).
 #[derive(Clone, Copy, PartialEq, Eq, Hash, Debug)]

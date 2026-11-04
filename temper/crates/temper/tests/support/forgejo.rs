@@ -390,7 +390,6 @@ pub fn configuration(directory: &Path, forge: &Forge<'_>, value: &mut Value) {
     }
     let limits = value["application"]["limits"].take();
     value["application"] = owned::application(&owned);
-    owned::old_form(&mut value["application"]);
     value["application"]["limits"] = limits;
     value["application"]["limits"]["overrides"]["root.brief.gather_ms"] = BRIEF_GATHER_MS.into();
     let path = directory.join("agent.json");
@@ -402,10 +401,12 @@ pub fn configuration(directory: &Path, forge: &Forge<'_>, value: &mut Value) {
         seed["policy"] = 1.into();
     }
     super::configuration::use_stock(value);
-    value["engine"]["limits"]["overrides"]["tasks.charters"] = 4.into();
+    value["engine"]["limits"]["overrides"]["tasks.charters"] = 5.into();
+    value["engine"]["limits"]["overrides"]["core.templates"] = 3.into();
     // The process uses stock's fourteen grants, beyond the world's ten-grant policy.
     value["engine"]["limits"]["overrides"]["tasks.authority_grants"] = 16.into();
-    value["engine"]["limits"]["overrides"]["documents.lines"] = 3.into();
+    // The creation offer carries five stock charters and three procedures.
+    value["engine"]["limits"]["overrides"]["documents.lines"] = 5.into();
     super::configuration::turn_bounds::apply(value, super::configuration::turn_bounds::turn_body(&agent));
     write_private(&path, &serde_json::to_vec(&agent).expect("agent JSON"));
 }

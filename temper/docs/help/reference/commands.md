@@ -130,17 +130,6 @@ Make what people need to sign in to temper through a Forgejo, and print the Forg
 
 For a Forgejo of application.sign_in.forges, on temper's host, before temper serve. Writes the provider's key and the forge's client secret where they are missing, private, and leaves any already there; prints Forgejo's add-oauth command, never running it.
 
-## temper forge reconcile
-
-`temper forge reconcile [DIRECTORIES] FORGE`
-
-Reconcile a managed or connected Forgejo still in its old form. A transition: it goes once the forms it serves do.
-
-- `DIRECTORIES`: [--config CONFIG] [--data DATA] [--cache CACHE], anywhere among the arguments: the deployment's configuration, data and cache directories, each from its flag, else its variable, else its default.
-- `FORGE`: A forge's number in the configuration.
-
-A forge that starts from its records is refused: temper serve takes its handover.
-
 ## temper ctl
 
 `temper ctl DIR GROUP VERB [ARGUMENT...] [--json]`

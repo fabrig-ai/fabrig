@@ -47,6 +47,7 @@ fn charter() -> core::Charter {
             shell: true,
             agents: false,
             call_timeout: Duration::from_secs(1),
+            tools: core::RunPolicy::EVERY_FAMILY,
         },
     }
 }
@@ -148,6 +149,10 @@ fn template() -> core::Template {
     }
 }
 #[test]
+#[expect(
+    clippy::disallowed_methods,
+    reason = "ordinary codec fixtures translate revision literals while retaining proposal items"
+)]
 fn each_settings_record_round_trips_its_whole_domain_value() {
     let mut domain = fixtures::CORE_LIMITS;
     domain.run_bytes = 4096;
@@ -196,12 +201,34 @@ fn each_settings_record_round_trips_its_whole_domain_value() {
         ]);
         rows.push(s::Record::Revision {
             history: false,
-            revision: s::Revision { applications: Box::default(), head: head.clone(), items: items.clone() },
+            revision: s::Revision {
+                applications: Box::default(),
+                head: head.clone(),
+                items: items
+                    .iter()
+                    .map(|item| s::RevisionItem {
+                        setting: item.setting,
+                        edit: item.edit.clone(),
+                        replaced: s::Replaced::NotOffered,
+                    })
+                    .collect(),
+            },
         })
         .expect("settings fixture count");
         rows.push(s::Record::Revision {
             history: true,
-            revision: s::Revision { applications: Box::default(), head: head.clone(), items: items.clone() },
+            revision: s::Revision {
+                applications: Box::default(),
+                head: head.clone(),
+                items: items
+                    .iter()
+                    .map(|item| s::RevisionItem {
+                        setting: item.setting,
+                        edit: item.edit.clone(),
+                        replaced: s::Replaced::NotOffered,
+                    })
+                    .collect(),
+            },
         })
         .expect("settings fixture count");
         rows.push(s::Record::Proposal {
@@ -383,6 +410,22 @@ fn a_template_with_resources_round_trips_through_the_settings_store() {
 }
 
 #[test]
+fn a_charters_tools_survive_the_store() {
+    let limits = codec::limits(&fixtures::CORE_LIMITS).expect("store limits");
+    for tools in [tasks::Tools(1_536), core::RunPolicy::EVERY_FAMILY] {
+        let mut charter = charter();
+        charter.policy.tools = tools;
+        let row = s::Record::Charter {
+            charter: 1,
+            revision: 2,
+            value: s::CharterVersion { charter: Some(Box::new(charter)) },
+        };
+        let bytes = codec::settings::encode(&row, &limits.settings, &[]).expect("charter encoding");
+        assert_eq!(codec::settings::decode(&row.key(), &bytes, &limits.settings, &[]), Ok(row));
+    }
+}
+
+#[test]
 fn a_charters_paced_wake_policy_round_trips() {
     let limits = codec::limits(&fixtures::CORE_LIMITS).expect("store limits");
     let mut charter = charter();
@@ -439,6 +482,10 @@ fn charter_with_documents() -> core::Charter {
     core::Charter { documents: Box::new([document, without_heading]), ..charter() }
 }
 
+#[expect(
+    clippy::disallowed_methods,
+    reason = "ordinary codec fixtures translate revision literals while retaining proposal items"
+)]
 fn document_records(charter: core::Charter) -> [s::Record; 6] {
     let setting = s::Setting::Charter(charter.number);
     let value = s::Value::Charter(Box::new(charter.clone()));
@@ -453,7 +500,14 @@ fn document_records(charter: core::Charter) -> [s::Record; 6] {
             proposal: None,
             moved: false,
         },
-        items: items.clone(),
+        items: items
+            .iter()
+            .map(|item| s::RevisionItem {
+                setting: item.setting,
+                edit: item.edit.clone(),
+                replaced: s::Replaced::NotOffered,
+            })
+            .collect(),
     };
     [
         s::Record::Default { setting, default: s::Default { value: value.clone(), revision: 2 } },
@@ -596,6 +650,7 @@ fn charter_documents_obey_lowered_limits_in_every_settings_record() {
 }
 
 mod applications;
+mod replaced;
 
 #[test]
 fn proposal_keys_and_the_extent_counter_round_trip_without_narrowing() {

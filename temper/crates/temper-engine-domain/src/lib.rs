@@ -17,6 +17,7 @@ mod limits;
 mod link;
 pub mod loads;
 mod restart;
+pub mod room;
 mod route;
 mod settling;
 mod stopping;

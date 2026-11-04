@@ -26,7 +26,9 @@ application's referee runs as in any world, so a bug a visitor met is in the low
 start" (`skein/docs/design/playground.md`, 6). Replay the kept log
 (`temper/tests/playground/tests/fixtures/story-a.log`, `notes/contracts.md`, C7) over the
 playground's composition, with the one-process world's forge referee observing every turn and
-judging its end: the CSV change landed on `main`, every move of `main` green.
+judging its end: the CSV change landed on `main`, every merge green at its head
+(`temper/docs/design/domain/forge.md`, 8.7: "Judged at the merge's head"), every other
+move of `main` green at its target, and `main`'s head green at the end.
 
 Acceptance:
 
@@ -46,8 +48,8 @@ Acceptance:
 
 - `temper/tests/one-process/tests/suite/replay.rs`, `story_a_kept_log_replays_under_the_referee`:
   the kept log, read by `include_bytes!` from `temper/tests/playground/tests/fixtures/story-a.log`
-  (relative path from the test file), replays `Complete`: no difference at any input, every move
-  of `main` green, the scripted CSV edit on `main` (the referee's `complete` checks those that do
+  (relative path from the test file), replays `Complete`: no difference at any input, the green
+  checks as the Goal says them, the scripted CSV edit on `main` (the referee's `complete` checks those that do
   not need the terminal client's person).
 - The referee's `Forge::observe` takes the composition's processes for any harness (`&[Process<H>]`
   for `H: Harness`, or the slice it reads), so the one-process world's own uses are unchanged.
@@ -76,7 +78,8 @@ Acceptance:
 - The files in `files`. `Cargo.toml` gains `skein-playground`, `skein-ui-web` and
   `skein-sim-world` if not there, workspace dependencies.
 - `src/referee/forge.rs`: `observe` made generic over the harness, and what `complete` needs
-  split so a replay can judge the forge alone; the one-process world's verdicts unchanged.
+  split so a replay can judge the forge alone; a landed commit judged by its merge's head (the
+  Answers' 2026-11-04 entry); no test of the one-process world changes its result for it.
 - Not yours: `temper-playground`, `temper/tests/playground` (the fixture is read, never written:
   a log that does not replay here is a question), the one-process world's other stories, and its
   `#[ignore]`d story A (`tests/suite/story_a.rs`), whose stall is another plan's.
@@ -112,3 +115,43 @@ The native-walk-a spec owns `temper/tests/playground/tests/fixtures/story-a.log`
 Acceptance requires the kept log to replay `Complete`, the package tests to pass with trunk’s count plus one within budget, and clippy to pass.
 The task remains incomplete until those checks run successfully.
 The next run consumes the dependency’s fixture, runs the required checks, and reports replay measurements and budget assessment.
+
+### 2026-11-04: Assign investigation and repair of the pending-CI landing to the story/forge owner, or authorize changing the referee's green-at-move criterion? (playground-browser/one-process-replay-2, foreman playground-browser/one-process-replay/foreman-2)
+
+Neither owner nor a contract change: the repair is this task's, in `src/referee/forge.rs`, and the
+Goal and acceptance above now say it. The product, the story, the pace and the fixture stay.
+
+The cause, read from the code (the answer's machine builds nothing, so the next run proves it):
+head 3 is not the head that landed. temper merges a change with `MergeHow::Style`
+(`temper/crates/temper-engine-domain-forge/src/domain.rs`, `Effect::Merge`), so the forge writes a
+new commit onto `main` (`skein/crates/skein-fake-forge-domain/src/pulls.rs`, `merge`), and
+`git::moved` starts CI on it. That CI is run 2, after the pushed head's run 1, and it is Pending
+when `main` moves: the design gives CI 4000 ms in story A. `Forge::observe` checks `green` on
+`Moved.to`, so it asks for the verdict of a commit that has only just been made. The rule the
+design holds is "Judged at the merge's head" (`temper/docs/design/domain/forge.md`, 8.7),
+which the `Merged` arm already checks at `head`. This is the first run to
+reach this check under a pace, because story A's terminal walk is `#[ignore]`d.
+
+Make these changes:
+
+1. In `observe`, keep the check of `Merged.head` and remember each `Merged` with `commit != head`
+   as (head, commit). A `Moved` of the default branch whose `to` is such a commit is judged by that
+   merge: no `green` on `to`. Any other move of the default branch stays judged at `to`, so a
+   direct push to `main` is still caught. Key this on the merge, never on the story.
+2. `complete` and `forge_complete` have the same gap: `self.pushed.any(commit == outcome.main)`
+   can never hold for a commit the forge wrote, since `pushed` holds branch heads. Pass when
+   `outcome.main` is an observed pushed head, or the `commit` of a remembered merge whose `head` is
+   an observed pushed head. Keep `outcome.green`: `main`'s own CI must pass by the end, and the
+   native replay shows it does. Reword `replay`'s `Incomplete` to match.
+3. The kept log's replay is this change's test; no other is asked for. Keep `fe806c37ef`'s
+   diagnostic fields.
+
+Stop and ask if the cause is otherwise: if the panic's head is a `Merged.head`, or that merge's
+`commit == head`, a change landed on Pending CI, which is a product finding, not this repair. Put
+what you see (the `Merged` and `Moved` of head 3) in the report.
+
+The left failure, `public::a_store_written_before_public_reading_reads_every_project_private`
+(`delivery document: TooLarge`), is not this task's. Keep it under `## Left` with its run ID; the
+acceptance's package run reads as the trunk's count plus one apart from that test, and the trunk's
+end check takes it. Report the replay's world time, step count, CPU and wall as the spec asks; over
+a world's budget is 8.1's question, never a raised guide.

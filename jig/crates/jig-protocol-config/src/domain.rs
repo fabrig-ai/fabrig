@@ -29,7 +29,7 @@ pub(crate) fn deployment(
     directories: &Directories,
     problems: &mut Problems,
 ) -> Option<Deployment> {
-    let mut object = check::object(document, at, path, problems)?;
+    let mut object = check::object(document, at, path, problems, "deployment")?;
     let directory = check::path(&mut object, document, b"directory", path, Directory::Data, directories, problems);
     let mut seed = None;
     if let Some(at) = object.member(document, b"seed") {
@@ -47,7 +47,7 @@ pub(crate) fn providers(document: &Document, at: u32, path: &Path, problems: &mu
     let mut deployments = 0_u32;
     for (index, at) in items.iter().enumerate() {
         let path = check::index(path, index);
-        let Some(mut object) = check::object(document, *at, &path, problems) else { continue };
+        let Some(mut object) = check::object(document, *at, &path, problems, "identity-provider") else { continue };
         let number = check::short(&mut object, document, b"number", &path, problems);
         let kind = check::text(&mut object, document, b"kind", &path, problems);
         object.finish(document, &path, problems);
@@ -96,7 +96,7 @@ pub(crate) fn owners(
     };
     for (index, at) in items.iter().enumerate() {
         let path = check::index(path, index);
-        let Some(mut object) = check::object(document, *at, &path, problems) else { continue };
+        let Some(mut object) = check::object(document, *at, &path, problems, "owner") else { continue };
         let provider = check::short(&mut object, document, b"provider", &path, problems);
         let subject = check::text(&mut object, document, b"subject", &path, problems);
         object.finish(document, &path, problems);
@@ -194,6 +194,7 @@ pub(crate) fn capacity(limits: &jig_domain_core::Limits) -> Option<(&'static [u8
     Some((member, What::Capacity { member, configured, requires: dependency, required: minimum }))
 }
 pub(crate) fn whole(engine: &crate::Engine, problems: &mut Problems) {
+    crate::clients::check_public(&engine.limits, problems);
     if engine.limits.driver.client.url_bytes > jig_domain_accounts::ADDRESS {
         problems.push(Path::root().member(b"limits").member(b"driver.url_bytes"), What::Bound);
     }
@@ -661,6 +662,8 @@ fn people_bound(
         P::AskCreateBatch => b!(b"people.batch", b"AskCreate.batch", ask_create_batch),
         P::AskMakeServiceName => b!(b"people.words", b"AskMakeService.name", ask_make_service_name),
         P::ActionBatchMembers => b!(b"people.batch", b"ActionBatch.members", action_batch_members),
+        P::AskRestoreReason => b!(b"people.words", b"AskRestore.reason", ask_restore_reason),
+        P::OutcomeRestoredLeftOut => b!(b"tasks.SETTINGS_ITEMS + 1", b"OutcomeRestored.left_out", outcome_restored_left_out),
         P::AskProposeReason => b!(b"people.words", b"AskPropose.reason", ask_propose_reason),
         P::AskCancelReason => b!(b"people.words", b"AskCancel.reason", ask_cancel_reason),
         P::AskMoveReason => b!(b"people.words", b"AskMove.reason", ask_move_reason),

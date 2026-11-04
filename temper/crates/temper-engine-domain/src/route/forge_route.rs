@@ -3610,15 +3610,25 @@ fn authority_hold_message(
     Some(jig_domain_core::StepMessage { target, kind: tasks::MessageKind::Words, words: words.into_boxed() })
 }
 
+fn producer_failure_words(domain: &Domain, task: u64) -> Option<Box<[u8]>> {
+    let row = domain.forge.change(task)?;
+    let forge_change::State::Held { was, .. } = &row.change.state else { return None };
+    let forge_change::State::Producing { .. } = was.as_ref() else { return None };
+    match &row.producer_failure {
+        Some(words) => Some(words.clone()),
+        None if row.delegate_status == forge_change::Status::Failed => {
+            Some(Box::from(b"producer failed for good without an account".as_slice()))
+        }
+        None => None,
+    }
+}
+
 fn hold_change_decision(domain: &Domain, env: &Env<Limits>, task: u64, why: forge_change::Hold) -> ProcedureStep {
     // The hold keeps the producer's account whole; its inbox notice has its own bound.
     if why == forge_change::Hold::Failed
-        && let Some(row) = domain.forge.change(task)
-        && let forge_change::State::Held { was, .. } = &row.change.state
-        && let forge_change::State::Producing { .. } = was.as_ref()
-        && let Some(words) = &row.producer_failure
+        && let Some(words) = producer_failure_words(domain, task)
     {
-        return holds::decision_as(domain, env, task, tasks::Hold::EffectFailed, words.clone());
+        return holds::decision_as(domain, env, task, tasks::Hold::EffectFailed, words);
     }
     let account = if why == forge_change::Hold::Questions {
         let bound = skein_lib::Decimal::of(u64::from(env.limits.forge.change_policy.questions));
@@ -4995,6 +5005,8 @@ pub(crate) fn effect_ask(
         | jig_domain_core::effects::connector::Ask::ReadAfresh
         | jig_domain_core::effects::connector::Ask::SettleOutbox => unreachable!("core effect handoff"),
         ask @ (jig_domain_core::effects::connector::Ask::JudgeSettings { .. }
+        | jig_domain_core::effects::connector::Ask::RestoreSettings { .. }
+        | jig_domain_core::effects::connector::Ask::ForgetReplaced { .. }
         | jig_domain_core::effects::connector::Ask::KeepSettings { .. }
         | jig_domain_core::effects::connector::Ask::KeepProposalSettings { .. }
         | jig_domain_core::effects::connector::Ask::DropProposalSettings { .. }

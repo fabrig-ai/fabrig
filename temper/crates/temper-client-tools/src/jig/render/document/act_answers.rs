@@ -137,6 +137,23 @@ pub(super) fn encode_note_scope(value: &jig_client::contract::NoteScope, out: &m
 
 pub(super) fn encode_outcome(value: &jig_client::contract::Outcome, out: &mut Encoder, budget: &mut super::Cut) {
     match value {
+        jig_client::contract::Outcome::Restored { proposal, to, left_out } => {
+            out.object_start();
+            out.key(b"restored");
+            out.object_start();
+            out.key(b"proposal");
+            out.unsigned(*proposal);
+            out.key(b"to");
+            out.unsigned(u64::from(*to));
+            out.key(b"left_out");
+            out.array_start();
+            for setting in left_out {
+                super::settings::encode_setting(*setting, out);
+            }
+            out.array_end();
+            out.object_end();
+            out.object_end();
+        }
         jig_client::contract::Outcome::MovedToNewest(value) => {
             out.object_start();
             out.key(b"moved_to_newest");
@@ -215,6 +232,9 @@ pub(super) fn encode_owner_outcome(
         }
         jig_client::contract::DocumentOutcome::ProjectMade { project } => {
             encode_project(b"project_made", *project, out);
+        }
+        jig_client::contract::DocumentOutcome::VisibilitySet { project, .. } => {
+            encode_project(b"visibility_set", *project, out);
         }
         jig_client::contract::DocumentOutcome::Renamed { project } => encode_project(b"renamed", *project, out),
         jig_client::contract::DocumentOutcome::ProjectRemoved { project } => {

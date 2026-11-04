@@ -11,19 +11,19 @@ const PASSES: u32 = 16;
 
 fn exchange(session: &mut Session, client: &mut Client, now: Time, wall: Wall, event: jig_client::Event) -> Vec<Told> {
     let mut out = Queue::uncapped();
-    client.step(now, wall, event, &mut out);
+    client.step_unlinked(now, wall, event, &mut out);
     let mut told = Vec::new();
     let mut kept = std::collections::BTreeMap::new();
     for _ in 0..PASSES {
         while let Some(request) = out.pop() {
-            if let jig_client::Request::Told { told: value } = request {
+            if let jig_client::UnlinkedRequest::Told { told: value } = request {
                 told.push(value);
-            } else if let jig_client::Request::Down { down: jig_client::Down::Save { record } } = request {
+            } else if let jig_client::UnlinkedRequest::Down { down: jig_client::Down::Save { record } } = request {
                 let _previous = kept.insert(record.key, record);
-            } else if let jig_client::Request::Down { down: jig_client::Down::Erase { key } } = request {
+            } else if let jig_client::UnlinkedRequest::Down { down: jig_client::Down::Erase { key } } = request {
                 let _previous = kept.remove(&key);
             } else {
-                session.send(ClientId(0), now, wall, Request::Client { request }).expect("public request");
+                session.send(ClientId(0), now, wall, Request::Unlinked { request }).expect("public request");
             }
         }
         let callbacks = session.poll(now, wall).expect("real engine replies");
@@ -33,7 +33,7 @@ fn exchange(session: &mut Session, client: &mut Client, now: Time, wall: Wall, e
         for (owner, callback) in callbacks {
             session.received(owner, now, wall, &callback);
             let Event::Client { event } = callback else { panic!("client callback") };
-            client.step(now, wall, event, &mut out);
+            client.step_unlinked(now, wall, event, &mut out);
         }
     }
     panic!("public exchange did not settle");

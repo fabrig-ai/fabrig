@@ -72,7 +72,7 @@ fn a_release_changes_the_template_once_and_archives_its_predecessor() {
     assert_eq!(newest.head.by, settings::Decider::Release);
     assert_eq!(newest.head.against, 1);
     assert!(
-        matches!(&newest.items[..], [settings::Item { setting: settings::Setting::Template(1), edit: settings::Edit::Set(settings::Value::Template(value)) }] if value.grace == Some(Duration::from_millis(6000)))
+        matches!(&newest.items[..], [settings::RevisionItem { setting: settings::Setting::Template(1), edit: settings::Edit::Set(settings::Value::Template(value)), .. }] if value.grace == Some(Duration::from_millis(6000)))
     );
     assert_eq!(revision(&world, 1, true).head.by, settings::Decider::FirstStart);
     let signed = sign_in(&mut world);
