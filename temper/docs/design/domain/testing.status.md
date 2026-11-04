@@ -62,6 +62,10 @@
   `TEMPER_LIVE_KEEP`, `proof-live-github.sh`'s fixtures and
   `proof-live-github-managed.sh`'s target and evidence default under
   `$HOME/src/rust/tmp/`, a scratch layout of whoever runs fabrig's
-  development (`AGENTS.md`, 1), and 2.7 names the first. They stay
-  because the scripts' behaviour held but for their build wrapper, and
-  `tests/boundary/tests/outward.rs` matches the `~/` form alone.
+  development; 2.7 names the first, and
+  `crates/temper/tests/suite/forge_land.rs` holds it. The user's request
+  of 11-04 makes `AGENTS.md`, 1 absolute and says fabrig names nothing
+  outside plan directories, but `tests/boundary/tests/outward.rs`
+  matches the `~/` form alone, so these pass it. They stay because the
+  scripts' behaviour held but for their build wrapper, and no step of
+  that request moves them.
