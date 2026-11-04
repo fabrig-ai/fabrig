@@ -200,7 +200,7 @@ impl Accounts {
     }
     /// No component work, effect, held event or io remains.
     #[must_use]
-    pub fn is_empty(&self) -> bool {
+    pub fn idle(&self) -> bool {
         self.component.is_empty() && self.effects.is_empty() && self.held.is_none() && self.io.is_empty()
     }
     /// The next time the component needs a pass.

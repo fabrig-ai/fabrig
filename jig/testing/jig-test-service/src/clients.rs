@@ -524,7 +524,7 @@ impl Clients {
         self.advance_secrets(store);
     }
     fn advance_secrets(&mut self, store: &mut crate::store::Store) {
-        if self.public_names.is_some() && store.host.component.mark_durable() {
+        if self.public_names.is_some() && store.host.mark_durable() {
             self.public_names = None;
             self.secrets.push(kit::SecretsRequest::Get { owner: kit::SecretOwner::PublicNames });
         }
