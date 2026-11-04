@@ -285,16 +285,16 @@ fn move_exchange(
     event: jig_client::Event,
 ) -> Vec<jig_client::Told> {
     let mut out = skein_lib::Queue::uncapped();
-    client.step(now, wall, event, &mut out);
+    client.step_unlinked(now, wall, event, &mut out);
     let mut told = Vec::new();
     let mut kept = std::collections::BTreeMap::new();
     for _ in 0..16 {
         while let Some(request) = out.pop() {
-            if let jig_client::Request::Told { told: value } = request {
+            if let jig_client::UnlinkedRequest::Told { told: value } = request {
                 told.push(value);
-            } else if let jig_client::Request::Down { down: jig_client::Down::Save { record } } = request {
+            } else if let jig_client::UnlinkedRequest::Down { down: jig_client::Down::Save { record } } = request {
                 let _previous = kept.insert(record.key, record);
-            } else if let jig_client::Request::Down { down: jig_client::Down::Erase { key } } = request {
+            } else if let jig_client::UnlinkedRequest::Down { down: jig_client::Down::Erase { key } } = request {
                 let _previous = kept.remove(&key);
             } else {
                 session
@@ -302,7 +302,7 @@ fn move_exchange(
                         jig_client_world::harness::ClientId(0),
                         now,
                         wall,
-                        jig_client_test_domain::Request::Client { request },
+                        jig_client_test_domain::Request::Unlinked { request },
                     )
                     .expect("public request");
             }
@@ -314,7 +314,7 @@ fn move_exchange(
         for (owner, callback) in callbacks {
             session.received(owner, now, wall, &callback);
             let jig_client_test_domain::Event::Client { event } = callback else { panic!("client callback") };
-            client.step(now, wall, event, &mut out);
+            client.step_unlinked(now, wall, event, &mut out);
         }
     }
     panic!("public exchange did not settle");

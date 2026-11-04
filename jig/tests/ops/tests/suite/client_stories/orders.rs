@@ -116,7 +116,7 @@ impl World {
                     }
                     order.push("exchange");
                 }
-                Request::Client { .. } => order.push("transport"),
+                Request::Client { .. } | Request::Unlinked { .. } => order.push("transport"),
                 Request::Show { .. } => order.push("show"),
                 Request::SignIn { .. }
                 | Request::SignOut
