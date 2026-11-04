@@ -412,9 +412,10 @@ fn land_change_with_words(world: &mut World, work: &engine::Assignment, words: &
 
 #[test]
 fn b2s_tree_admits_every_run_under_the_stock() {
-    // protocol/configuration.md, 13.4: W has its run and two 5K changes.
-    const WORK_RUNS: u64 = 11;
-    const CHANGE_RUNS: u64 = 5;
+    // A goal has half of a 16K chat, and each change half of what the goal has left
+    // (domain/agent.md, 4.3.1): its three runs, a producer, a repair and a review.
+    const WORK_RUNS: u64 = 7;
+    const CHANGE_RUNS: u64 = 3;
     let (mut world, chat) = stock_world();
     let tree = tree(&mut world, &chat);
     let defaults = defaults();

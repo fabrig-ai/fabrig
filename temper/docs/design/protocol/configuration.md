@@ -1748,7 +1748,8 @@ init`'s document carries none of them (`setup.md`, 8.3).
   held for its budget at its sixth, naming it (`../domain/forge.md`,
   8.4), and funded by a release or `temper ctl project fund`; an advisor K; a coordinator 11K, its own run and a change; a
   chat 16K, its run, an advisor and a coordinator; the ceilings and
-  the periods 48K, three chats open in one period. A deployment whose models change
+  the periods 48K, three chats open in one period; a goal, half a chat, holds 7K and each change it makes 3K, so that a
+  change whose runs each spent a whole K is held for its budget at its fourth. A deployment whose models change
   between starts gets new defaults, a release's revision (13.6, step 1).
 - **A fine unit.** smith charges each completion at least one whole
   unit, so `temper init` states its models' prices in a unit a thousandth
