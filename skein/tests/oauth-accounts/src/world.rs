@@ -1051,8 +1051,28 @@ pub fn protocol(seed: u64, story: Story) -> (Vec<Fact>, Vec<String>) {
     (client.facts, trace)
 }
 
+pub(crate) fn protocol_client(seed: u64, client: Client) -> (Client, Vec<String>) {
+    let (client, trace, _) = protocol_connection(seed, client, true);
+    (client, trace)
+}
+
+/// The close observed at the socket and TLS peer (skein/docs/design/link.md, 4).
+#[derive(Debug, Default)]
+pub struct TlsClose {
+    pub peer_closed: bool,
+    pub started: Option<Time>,
+    pub deadline: Option<Time>,
+    pub aborted: Option<Time>,
+}
+
+/// Runs a rotating refresh over TLS, optionally withholding the close's room.
+#[must_use]
+pub fn tls_close(seed: u64, room: bool) -> TlsClose {
+    protocol_connection(seed, Client::new(Story::Rotate, Transport::Tls), room).2
+}
+
 #[expect(clippy::too_many_lines, reason = "one protocol loop exposes both stream boundaries and the issuer")]
-pub(crate) fn protocol_client(seed: u64, mut client: Client) -> (Client, Vec<String>) {
+fn protocol_connection(seed: u64, mut client: Client, room: bool) -> (Client, Vec<String>, TlsClose) {
     use skein_http::server as http;
     use skein_lib::Token;
     use skein_lib::stream::{Down, Read, Up};
@@ -1060,13 +1080,10 @@ pub(crate) fn protocol_client(seed: u64, mut client: Client) -> (Client, Vec<Str
 
     let story = client.story;
     let sign_out = client.sign_out.as_ref().map(|owner| owner.story);
-    let endpoint = if sign_out.is_some() {
-        b"http://127.0.0.1:31000/revoke".as_slice()
-    } else {
-        b"http://127.0.0.1:31000/token".as_slice()
-    };
     let profile = limits();
-    let registration = registration(Transport::Plaintext);
+    let registration = registration(client.transport);
+    let endpoint: &[u8] =
+        if sign_out.is_some() { b"http://127.0.0.1:31000/revoke" } else { &registration.token_endpoint };
     let issuer_limits = issuer_limits(&profile.client);
     let mut issuer = fake::Issuer::new(
         fake::Config {
@@ -1111,15 +1128,22 @@ pub(crate) fn protocol_client(seed: u64, mut client: Client) -> (Client, Vec<Str
     let mut issuer_out = Queue::with_capacity(ROOM);
     let mut client_wire = Wire::new(seed);
     let mut server_wire = Wire::new(seed.wrapping_add(1));
+    let mut tls = (client.transport == Transport::Tls).then(|| {
+        skein_tls_world::drive::Wire::new(skein_tls_world::server::Server::new(
+            skein_tls_world::pki::Server::plain().config(),
+        ))
+    });
+    let mut close = TlsClose::default();
+    let epoch = if tls.is_some() { skein_tls_world::pki::VALID } else { Wall::EPOCH };
     client.address = Some((Ipv4Addr::LOCALHOST, 31000).into());
     let mut now = Time::ZERO;
-    client.start(&Env { now, wall: Wall::EPOCH, limits: profile });
+    client.start(&Env { now, wall: epoch, limits: profile });
     let mut owner = None;
     let mut body = Vec::new();
     let mut response: Option<(Box<[u8]>, usize)> = None;
     let mut server_closed = false;
     for _ in 0..100_000 {
-        let wall = Wall::from_nanos(now.as_nanos());
+        let wall = Wall::from_nanos(epoch.as_nanos().saturating_add(now.as_nanos()));
         let env = Env { now, wall, limits: profile };
         let server_env = Env { now, wall, limits: server_limits };
         let component = client.component.as_mut().expect("component");
@@ -1127,6 +1151,10 @@ pub(crate) fn protocol_client(seed: u64, mut client: Client) -> (Client, Vec<Str
             component.fire(&env, &mut client.above, &mut client.requests, &mut client.files);
         }
         client.observe(&env);
+        if tls.is_some() && close.started.is_none() && client.facts.contains(&Fact::Keep(1)) {
+            close.started = Some(now);
+            close.deadline = client.component.as_ref().expect("component").next_deadline();
+        }
         crate::accounts::protocol_files(&mut client, &env);
         crate::sign_out::protocol_files(&mut client, &env);
         if story == Story::Released && now >= Time::ZERO.saturating_add(Duration::from_secs(40)) {
@@ -1176,6 +1204,11 @@ pub(crate) fn protocol_client(seed: u64, mut client: Client) -> (Client, Vec<Str
                         &mut client.files,
                     );
                 }
+                io::Request::Stream { down, .. } if tls.is_some() => {
+                    let tls = tls.as_mut().expect("TLS stream");
+                    tls.take(down);
+                    server_wire.write(&std::mem::take(&mut tls.server.received));
+                }
                 io::Request::Stream { down, .. } => {
                     match &down {
                         Down::Send(bytes) => server_wire.write(bytes),
@@ -1184,7 +1217,10 @@ pub(crate) fn protocol_client(seed: u64, mut client: Client) -> (Client, Vec<Str
                     }
                     client_wire.take(down);
                 }
-                io::Request::Close { .. } | io::Request::Abort { .. } => {
+                request @ (io::Request::Close { .. } | io::Request::Abort { .. }) => {
+                    if matches!(request, io::Request::Abort { .. }) {
+                        close.aborted = Some(now);
+                    }
                     client.component.as_mut().expect("component").up(
                         &env,
                         io::Event::Closed { owner: owner.take().expect("socket owner") },
@@ -1203,8 +1239,17 @@ pub(crate) fn protocol_client(seed: u64, mut client: Client) -> (Client, Vec<Str
                 | io::Request::Usage { .. }) => panic!("token exchange emits only socket requests: {other:?}"),
             }
         }
+        let answer = if owner.is_some() {
+            match &mut tls {
+                Some(tls) if !room && close.started.is_some() && tls.demand.is_some_and(|(_, room)| room > 0) => None,
+                Some(tls) => tls.answer(),
+                None => client_wire.answer(),
+            }
+        } else {
+            None
+        };
         if let Some(identity) = owner
-            && let Some(up) = client_wire.answer()
+            && let Some(up) = answer
         {
             client.component.as_mut().expect("component").up(
                 &env,
@@ -1222,7 +1267,13 @@ pub(crate) fn protocol_client(seed: u64, mut client: Client) -> (Client, Vec<Str
         }
         if let Some(down) = server_down.pop() {
             match &down {
-                Down::Send(bytes) => client_wire.write(bytes),
+                Down::Send(bytes) => match &mut tls {
+                    Some(tls) => {
+                        tls.server.write(bytes);
+                        tls.pull();
+                    }
+                    None => client_wire.write(bytes),
+                },
                 Down::Finish => client_wire.eof = true,
                 Down::Demand { .. } => {}
             }
@@ -1323,7 +1374,8 @@ pub(crate) fn protocol_client(seed: u64, mut client: Client) -> (Client, Vec<Str
         if client.closed && client.requests.is_empty() && client.above.is_empty() && (owner.is_none()) {
             assert!(issuer.posts() <= 1);
             client_wire.trace.extend(server_wire.trace);
-            return (client, client_wire.trace);
+            close.peer_closed = tls.is_some_and(|tls| tls.server.closed);
+            return (client, client_wire.trace, close);
         }
         now = now.saturating_add(Duration::from_millis(1));
     }

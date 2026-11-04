@@ -2832,6 +2832,7 @@ dependencies = [
  "skein-http",
  "skein-io",
  "skein-lib",
+ "skein-link",
  "skein-oauth",
  "skein-tls",
 ]
