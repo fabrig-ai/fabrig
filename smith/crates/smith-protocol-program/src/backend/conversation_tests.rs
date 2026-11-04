@@ -492,29 +492,29 @@ fn advisor_finish(up: &Queue<ToDomain>) {
 #[test]
 fn rejected_records_name_the_kind_and_condition_without_payloads() {
     let cases: &[(&[u8], &[u8])] = &[
-        (br#"{"private":"never repeat this"}"#, b"record: top-level record has no string type"),
-        (br#"{"type":"never repeat this"}"#, b"record: unknown top-level record type"),
-        (br#"{"type":"system","private":"never repeat this"}"#, b"system: system record has no string subtype"),
+        (br#"{"private":"never repeat this"}"#, b"record: decode fields: malformed record"),
+        (br#"{"type":"never repeat this"}"#, b"record: dispatch: unsupported record"),
+        (br#"{"type":"system","private":"never repeat this"}"#, b"system: decode fields: malformed record"),
         (
             br#"{"type":"stream_event","event":{"type":"never repeat this"}}"#,
-            b"stream_event: unknown stream event type",
+            b"stream_event: dispatch: unsupported record",
         ),
-        (br#"{"type":"stream_event"}"#, b"stream_event: stream_event has no event"),
+        (br#"{"type":"stream_event"}"#, b"stream_event: decode fields: malformed record"),
         (
             br#"{"type":"stream_event","event":{"type":"message_stop"}}"#,
-            b"stream_event: message_stop has no open message",
+            b"stream_event: close message: incomplete message boundary",
         ),
         (
             br#"{"type":"assistant","message":{"id":"m","content":[{"type":"never repeat this"}]}}"#,
-            b"assistant: unknown assistant block type",
+            b"assistant: dispatch: unsupported record",
         ),
         (
             br#"{"type":"assistant","message":{"id":"m","content":[{"type":"tool_use","name":"Read","input":{}}]}}"#,
-            b"assistant: tool_use has no string id",
+            b"assistant: decode fields: malformed record",
         ),
         (
             br#"{"type":"user","message":{"content":[{"type":"tool_result"}]}}"#,
-            b"user: tool_result has no string tool_use_id",
+            b"user: decode fields: malformed record",
         ),
     ];
     for (record, reason) in cases {
@@ -522,7 +522,7 @@ fn rejected_records_name_the_kind_and_condition_without_payloads() {
         backend.line(&env(0), record, &mut up, &mut below);
         let Some(ToDomain::Failed { failure, detail, .. }) = up.pop() else { panic!("record rejected") };
         assert_eq!(failure, llm::Failure::Program { exit: None });
-        assert_eq!(detail.as_ref(), skein_lib::bytes::concat(&[b"smith: ", reason]).as_ref());
+        assert_eq!(detail.as_ref(), skein_lib::bytes::concat(&[b"smith: program ", reason]).as_ref());
         assert!(detail.len() <= 256);
     }
 }

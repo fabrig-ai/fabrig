@@ -317,9 +317,6 @@ impl Backend {
         let Some(owner) = self.current.owner() else {
             return;
         };
-        if !self.turns.deliverable() {
-            return;
-        }
         if !self.turns.ready.is_empty() {
             self.flush_deltas(env.now);
             self.flush_prompt_measure(env.now);
@@ -328,10 +325,35 @@ impl Backend {
                 return;
             }
         }
+        if !self.turns.deliverable() {
+            return;
+        }
         let Some(mut completion) = self.turns.ready.pop() else {
             return;
         };
         self.retain_calls();
+        if let Err(reason) = self.translate_completion(&mut completion) {
+            self.fail(env, llm::Failure::Invalid, &reason.detail(b"assistant"), up, below);
+            return;
+        }
+        let text = completion_text(&completion);
+        self.match_calls(below);
+        self.stopping.release_alarm();
+        if text > 0 {
+            up.push(ToDomain::Text { owner, bytes: text });
+        }
+        self.completion_measure(env.now, owner, &completion);
+        self.terminal_measure(env.now, owner);
+        self.builtin_owners(owner, &completion);
+        self.current.settle(super::current::Terminal::Completed { completion }, up);
+        self.flush_builtins(up);
+        if self.compaction() {
+            self.startup.switch(&mut self.server_up, below);
+            self.stop(env, false, false, up, below);
+        }
+    }
+
+    fn translate_completion(&self, completion: &mut llm::Completion) -> Result<(), Rejection> {
         let Some(Complete { prompt, outcome, deliver, .. }) = self.current.request() else {
             unreachable!("active completion contract");
         };
@@ -366,47 +388,7 @@ impl Backend {
                 llm::Said::Opaque { .. } => {}
             }
         }
-        let mut held = 0_u64;
-        let mut text = 0_u32;
-        for block in &completion.content {
-            let payload = match block {
-                llm::Said::ToolCall { id, name, input, call, .. } => {
-                    let extra = match call.owned_bytes() {
-                        Some(bytes) => bytes
-                            .checked_sub(u64::try_from(size_of::<llm::Decoded>()).expect("decoded cell"))
-                            .unwrap_or(u64::MAX),
-                        None => u64::MAX,
-                    };
-                    skein_lib::len_u64(id.len().saturating_add(name.len()).saturating_add(input.len()))
-                        .saturating_add(extra)
-                }
-                llm::Said::Text { text: bytes, .. } | llm::Said::Refusal { text: bytes, .. } => {
-                    text = text.saturating_add(u32::try_from(bytes.len()).unwrap_or(u32::MAX));
-                    skein_lib::len_u64(bytes.len())
-                }
-                llm::Said::Opaque { bytes } => skein_lib::len_u64(bytes.len()),
-            };
-            held =
-                held.saturating_add(u64::try_from(size_of::<llm::Said>()).expect("block cell")).saturating_add(payload);
-        }
-        if held > self.settings.receiving.max_completion_bytes {
-            self.fail(env, llm::Failure::Invalid, b"smith: program completion exceeds its receiving bound", up, below);
-            return;
-        }
-        self.match_calls(below);
-        self.stopping.release_alarm();
-        if text > 0 {
-            up.push(ToDomain::Text { owner, bytes: text });
-        }
-        self.completion_measure(env.now, owner, &completion);
-        self.terminal_measure(env.now, owner);
-        self.builtin_owners(owner, &completion);
-        self.current.settle(super::current::Terminal::Completed { completion }, up);
-        self.flush_builtins(up);
-        if self.compaction() {
-            self.startup.switch(&mut self.server_up, below);
-            self.stop(env, false, false, up, below);
-        }
+        completion_room(completion, self.settings.receiving.max_completion_bytes)
     }
 
     fn retain_calls(&mut self) {
@@ -503,6 +485,43 @@ impl Backend {
             }
         }
     }
+}
+
+fn completion_room(completion: &llm::Completion, maximum: u64) -> Result<(), Rejection> {
+    let mut held = 0_u64;
+    for block in &completion.content {
+        let payload = match block {
+            llm::Said::ToolCall { id, name, input, call, .. } => {
+                let extra = match call.owned_bytes() {
+                    Some(bytes) => bytes
+                        .checked_sub(u64::try_from(size_of::<llm::Decoded>()).expect("decoded cell"))
+                        .unwrap_or(u64::MAX),
+                    None => u64::MAX,
+                };
+                skein_lib::len_u64(id.len().saturating_add(name.len()).saturating_add(input.len()))
+                    .saturating_add(extra)
+            }
+            llm::Said::Text { text: bytes, .. } | llm::Said::Refusal { text: bytes, .. } => {
+                skein_lib::len_u64(bytes.len())
+            }
+            llm::Said::Opaque { bytes } => skein_lib::len_u64(bytes.len()),
+        };
+        held = held.saturating_add(u64::try_from(size_of::<llm::Said>()).expect("block cell")).saturating_add(payload);
+    }
+    turns::check_bound(super::Bound::Completion, held, maximum)
+}
+
+fn completion_text(completion: &llm::Completion) -> u32 {
+    let mut text = 0_u32;
+    for block in &completion.content {
+        match block {
+            llm::Said::Text { text: bytes, .. } | llm::Said::Refusal { text: bytes, .. } => {
+                text = text.saturating_add(u32::try_from(bytes.len()).unwrap_or(u32::MAX));
+            }
+            llm::Said::ToolCall { .. } | llm::Said::Opaque { .. } => {}
+        }
+    }
+    text
 }
 
 fn register_blocks(ledger: &mut List<calls::Call>, blocks: &[llm::Said], message: u64) -> Option<()> {

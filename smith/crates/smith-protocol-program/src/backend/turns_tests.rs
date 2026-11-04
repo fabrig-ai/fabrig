@@ -280,3 +280,68 @@ fn an_mcp_name_does_not_become_structured_output() {
     assert_eq!(id.as_ref(), b"host");
     assert_eq!(name.as_ref(), b"StructuredOutput");
 }
+
+#[test]
+fn repeated_outcomes_across_messages_keep_order_and_usage() {
+    use smith_domain::llm::{Said, Stop};
+    let mut turns = turns();
+    feed(&mut turns, assistant(json!([{"type":"text","text":"before"}, structured_call()]))).expect("first outcome");
+    let mut next = assistant(json!([structured_call(), {"type":"text","text":"after"}]));
+    next["message"]["id"] = json!("second");
+    next["message"]["usage"]["input_tokens"] = json!(17_u32);
+    feed(&mut turns, next).expect("second outcome");
+    let mut tail = assistant(json!([{"type":"text","text":"tail"}]));
+    tail["message"]["id"] = json!("tail");
+    tail["message"]["usage"]["input_tokens"] = json!(19_u32);
+    feed(&mut turns, tail).expect("trailing message");
+    assert!(!turns.deliverable(), "outcomes wait for result");
+    turns.structured(FINISH_INPUT.into()).expect("one result for repeated calls");
+    assert!(turns.deliverable());
+    let first = turns.ready.pop().expect("first message");
+    assert_eq!(first.content.as_ref(), [Said::Text { text: b"before".as_slice().into(), replay: None }]);
+    assert_eq!(first.stop, Stop::EndTurn);
+    assert_eq!(first.usage.input_tokens, Some(13));
+    let second = turns.ready.pop().expect("second message");
+    let [Said::ToolCall { name, input, .. }, Said::Text { text, .. }] = second.content.as_ref() else {
+        panic!("finish at last call position")
+    };
+    assert_eq!(name.as_ref(), b"finish");
+    assert_eq!(input.as_ref(), FINISH_INPUT);
+    assert_eq!(text.as_ref(), b"after");
+    assert_eq!(second.stop, Stop::ToolUse);
+    assert_eq!(second.usage.input_tokens, Some(17));
+    let tail = turns.ready.pop().expect("tail message");
+    assert_eq!(tail.content.as_ref(), [Said::Text { text: b"tail".as_slice().into(), replay: None }]);
+    assert_eq!(tail.usage.input_tokens, Some(19));
+    assert!(turns.ready.is_empty());
+    assert_eq!(turns.closed, 3);
+}
+
+#[test]
+fn resolved_outcomes_check_raw_and_completion_receiving_bounds() {
+    use smith_domain::llm::Said;
+    // The translated call retains its adapter ID, finish name and canonical input.
+    let raw = skein_lib::len_u64(super::turns::STRUCTURED_FINISH.len() + b"finish".len() + FINISH_INPUT.len());
+    let bytes = raw + skein_lib::len_u64(size_of::<Said>());
+    for (raw_bound, byte_bound, reason) in [
+        (raw, bytes, None),
+        (raw - 1, bytes, Some(b"raw completion bytes".as_slice())),
+        (raw, bytes - 1, Some(b"completion bytes".as_slice())),
+    ] {
+        for held in [false, true] {
+            let mut turns = turns();
+            if held {
+                feed(&mut turns, assistant(json!([structured_call()]))).expect("held outcome");
+            }
+            turns.maximum_raw = u32::try_from(raw_bound).unwrap();
+            turns.maximum = byte_bound;
+            match reason {
+                None => turns.structured(FINISH_INPUT.into()).expect("outcome fits at bound"),
+                Some(reason) => {
+                    let rejection = turns.structured(FINISH_INPUT.into()).expect_err("one byte past bound");
+                    assert!(skein_lib::bytes::find(&rejection.detail(b"result"), reason).is_some());
+                }
+            }
+        }
+    }
+}

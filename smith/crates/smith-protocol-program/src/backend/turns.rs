@@ -421,21 +421,15 @@ impl Turns {
         for completion in &self.ready {
             for block in &completion.content {
                 if unresolved(block) {
-                    count = count.saturating_add(1);
+                    count = count.checked_add(1).ok_or(Rejection::Overflow)?;
                 }
             }
         }
-        if count > 1 {
-            return Err(Rejection::Malformed);
-        }
-        if count == 1 {
+        if count > 0 {
+            let mut finish = Some(finish_block(input));
             for _ in 0..self.ready.len() {
                 let mut completion = self.ready.pop().expect("queued completion");
-                for block in &mut completion.content {
-                    if unresolved(block) {
-                        *block = finish_block(input.clone());
-                    }
-                }
+                resolve_outcomes(&mut completion, &mut count, &mut finish, self.blocks);
                 let valid = completion_fits(&completion, self.maximum_raw, self.maximum);
                 self.ready.push(completion);
                 valid?;
@@ -463,7 +457,7 @@ impl Turns {
                     blocks.push(finish_block(input.clone())).expect("admitted structured block");
                     completion.content = blocks.into_boxed();
                     completion.stop = llm::Stop::ToolUse;
-                        completion_fits(&completion, self.maximum_raw, self.maximum)?;
+                    completion_fits(&completion, self.maximum_raw, self.maximum)?;
                 }
                 self.ready.push(completion);
             }
@@ -505,6 +499,36 @@ fn unresolved(block: &llm::Said) -> bool {
         }
         llm::Said::Text { .. } | llm::Said::Refusal { .. } | llm::Said::Opaque { .. } => false,
     }
+}
+
+// Keep one finish at the last structured call across the queued messages.
+// Earlier messages retain their usage and all their other blocks.
+fn resolve_outcomes(
+    completion: &mut llm::Completion,
+    remaining: &mut u32,
+    finish: &mut Option<llm::Said>,
+    maximum: u32,
+) {
+    let mut kept = List::with_capacity(maximum);
+    let mut calls = false;
+    let old = core::mem::replace(&mut completion.content, Box::new([]));
+    for block in old {
+        let block = if unresolved(&block) {
+            *remaining = remaining.checked_sub(1).expect("counted structured call");
+            if *remaining == 0 { finish.take() } else { None }
+        } else {
+            Some(block)
+        };
+        if let Some(block) = block {
+            match &block {
+                llm::Said::ToolCall { .. } => calls = true,
+                llm::Said::Text { .. } | llm::Said::Refusal { .. } | llm::Said::Opaque { .. } => {}
+            }
+            kept.push(block).expect("translated blocks fit the admitted message");
+        }
+    }
+    completion.content = kept.into_boxed();
+    completion.stop = if calls { llm::Stop::ToolUse } else { llm::Stop::EndTurn };
 }
 
 fn finish_block(input: Box<[u8]>) -> llm::Said {

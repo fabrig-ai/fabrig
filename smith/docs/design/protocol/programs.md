@@ -346,7 +346,14 @@ open is section 9.
   the finish input, which replaces the call in its block position in that
   same completion. No extra completion is synthesized for that call.
   Following messages retain their own blocks and single-counted usage,
-  and cannot pass the held outcome. Such a run is not offered `finish` over MCP, so
+  and cannot pass the held outcome. If the model calls `StructuredOutput`
+  more than once before the result, that result supplies one `finish`
+  at the last call's position across the held completions. Earlier
+  structured calls are omitted; each completion retains its other blocks
+  in order and its usage. Every received block still counts against its
+  message's receiving limits. The agent cannot refuse an extra call as a
+  tool error: these calls are the program's own and never reach its
+  permission prompt (5.3). Such a run is not offered `finish` over MCP, so
   the model has one way to end, never two. A run with no result
   contract, such as an Open run's, is offered `finish` over MCP as on
   the direct backend. A turn with neither is a model that named no
