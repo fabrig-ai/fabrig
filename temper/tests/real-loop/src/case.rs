@@ -637,9 +637,10 @@ pub const PLAN_NOTE: &str = "Export's nearer mission";
 pub const PLAN_WORDS: &str = "A nearer end: this mission ends at the end-to-end story; the rest of Export is a later mission. M1: the path through app and kit's fake. M2: the rest of the story. Each takes 2 to 3 hours. May I use B's files?";
 pub const PLAN_ANSWER: &str =
     "Green light: the nearer end, M1 and M2 approved; every ask granted, including B's files.";
-pub const SUBOWNER_REFUSAL: &str = "Authority needs proposal: authority ceiling; ";
+pub const SUBOWNER_REFUSAL: &str =
+    "Authority needs proposal: missing descendant depth (task authority.delegation.depth); ";
 /// What the refusal adds when the batch also asks more spend than A1 has left.
-pub const SPEND_DEFICIT: &str = "spend allowance; ";
+pub const SPEND_DEFICIT: &str = "spend allowance";
 pub const SUBOWNER_REPORT: &str = "M1's sub-owner could not delegate its own helper.";
 pub const PLANNER_REPORT: &str = "The recalled plan started M1's sub-owner under its deadline; it could not delegate.";
 pub const PLAN_REPORT: &str = "A's answered plan and M1's sub-owner have reported.";
