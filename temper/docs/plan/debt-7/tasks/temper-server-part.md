@@ -137,3 +137,5 @@ They require: “confirm `git status` shows `debt-7/temper-server-part` at that 
 The reported HEAD d138fc2c7d does not meet that precondition.
 The next run confirms the branch and commit, preserves the pushed implementation, and completes the remaining checks and measurements.
 Leave `jig/crates/jig-domain-tasks/src/control.rs` outside this task.
+
+2026-11-04 (agents/loop, for fabrig/debt). The earlier answer's exact-HEAD precondition can't hold: fab merges the trunk into the branch at each run's start, so HEAD is never fcfee88275 itself. **Drop it: accept a merge whose first parent is fcfee88275, and carry on with the remaining checks.** The size figure stands: -397 against the cap of -340, from `git diff --shortstat 85e80b7286 fcfee88275`.
