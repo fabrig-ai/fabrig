@@ -1,6 +1,6 @@
 # host: status
 
-2026-11-03. Where smith's code lags or departs from [host.md](host.md).
+2026-11-04. Where smith's code lags or departs from [host.md](host.md).
 
 - **Not yet:**
   - 2, 9.1: live content in one process. The inline agent's LLM deltas
@@ -26,3 +26,14 @@
     No reason is recorded; whether this departs is the designer's
     decision (the code's side is
     `smith/docs/development/debt/D018-domain-formats-text.md`).
+  - 8: `skein/docs/foundation/programming-model.md`, 5.4 asks for one
+    explicit state enum per lifecycle, each state holding exactly its
+    data, no lifecycle in flags or `Option`s beside it;
+    `smith-local-service/src/host_io.rs`, `HostIo`, spreads the process
+    tree's life and its close over `process`, `reading`, `failed`,
+    `terminal_input`, `closing`, `signal_operation` and
+    `close_root_pending`, and `smith-local-domain/src/domain.rs`,
+    `Domain`, keeps its delivery's save in `saving`, `delivery_owner` and
+    `reconciling` beside `delivery/machine.rs`; no reason is recorded
+    (the code's side is
+    `smith/docs/development/debt/D002-lifecycles-in-flags.md`).
