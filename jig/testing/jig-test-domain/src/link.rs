@@ -85,18 +85,16 @@ pub fn down(domain: &mut Domain, delivery: Delivery) -> Delivery {
                 answer: host::Relayed::Busy,
             },
         ),
-        Delivery::CallAnswer { channel, task, attempt, name, call, writes } if domain.hub_link.connected(channel) => {
-            match call.answer {
-                core::SettledAnswer::Host { error, body } => (
+        Delivery::CallAnswer { channel, task, attempt, name, mut call, writes }
+            if domain.hub_link.connected(channel) =>
+        {
+            match jig_domain_hub_link::settled_answer(call.answer) {
+                Ok(answer) => (
                     channel,
-                    host::LinkDown::Relayed {
-                        run: Token::new(task),
-                        attempt: Token::new(attempt),
-                        call: name,
-                        answer: host::Relayed::Answer { error, text: body },
-                    },
+                    host::LinkDown::Relayed { run: Token::new(task), attempt: Token::new(attempt), call: name, answer },
                 ),
-                core::SettledAnswer::Delivery { .. } => {
+                Err(answer) => {
+                    call.answer = answer;
                     return Delivery::CallAnswer { channel, task, attempt, name, call, writes };
                 }
             }
@@ -127,25 +125,8 @@ fn delivery(domain: &mut Domain, value: jig_domain_hub_link::Request, writes: bo
         Output::Core(core::Event::Fleet(event)) => Delivery::Fleet(event),
         Output::Assigned { channel, assignment } => Delivery::Assigned { channel, assignment },
         Output::AssignedJob { channel, job } => {
-            let items = job.workspace;
-            let workspace = if items.is_some() {
-                Some(host::Workspace { workstream: job.workstream, items: Token::new(job.task) })
-            } else {
-                None
-            };
-            Delivery::AssignedJob {
-                channel,
-                items,
-                job: host::JobAssignment {
-                    run: Token::new(job.task),
-                    attempt: Token::new(job.attempt),
-                    kind: job.kind,
-                    spec: job.spec,
-                    deadline: job.deadline,
-                    workspace,
-                    grants: job.grants,
-                },
-            }
+            let items = job.workspace.clone();
+            Delivery::AssignedJob { channel, items, job: jig_domain_hub_link::job_assignment(job) }
         }
         Output::Down { channel, value } => Delivery::Link { channel, down: value },
         Output::Message { channel, run, attempt, word } => {

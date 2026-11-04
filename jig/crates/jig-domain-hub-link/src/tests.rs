@@ -287,6 +287,90 @@ fn job() -> JobStart {
     }
 }
 
+#[test]
+fn a_job_assignment_carries_its_workspace_and_grants() {
+    for workspace in [None, Some(Box::from(&b"items"[..]))] {
+        let mut job = job();
+        job.workspace = workspace;
+        job.grants = assignment().grants;
+        let expected_workspace = match job.workspace {
+            Some(_) => Some(host::Workspace { workstream: job.workstream, items: RUN }),
+            None => None,
+        };
+        let expected = host::JobAssignment {
+            run: RUN,
+            attempt: ATTEMPT,
+            kind: job.kind,
+            spec: job.spec.clone(),
+            deadline: job.deadline,
+            workspace: expected_workspace,
+            grants: job.grants.clone(),
+        };
+        assert_eq!(job_assignment(job), expected);
+    }
+}
+
+#[test]
+fn settled_answers_relay_host_bytes_and_return_delivery_evidence() {
+    for error in [false, true] {
+        assert_eq!(
+            settled_answer(core::SettledAnswer::Host { error, body: Box::from(&b"answer"[..]) }),
+            Ok(host::Relayed::Answer { error, text: Box::from(&b"answer"[..]) })
+        );
+    }
+    let delivery =
+        core::SettledAnswer::Delivery { outcome: core::DeliveryOutcome::Stale, evidence: Box::from(&b"evidence"[..]) };
+    assert_eq!(settled_answer(delivery.clone()), Err(delivery));
+}
+
+#[test]
+fn a_brief_plan_keeps_its_task_sections_budget_and_deadline() {
+    let section = jig_domain_brief::Planned::Core {
+        kind: jig_domain_brief::Core::Task,
+        text: Box::from(&b"task"[..]),
+        limit: 32,
+        priority: 1,
+        required: true,
+    };
+    let mut sections = skein_lib::List::uncapped();
+    sections.push(section.clone()).expect("uncapped sections");
+    let deadline = Time::from_nanos(91);
+    let core::Event::Brief(plan) = brief_plan(RUN.raw(), sections, 64, deadline) else { panic!("brief plan") };
+    assert_eq!(
+        plan,
+        jig_domain_brief::GatherEvent::Plan { brief: RUN, budget: 64, deadline, sections: Box::new([section]) }
+    );
+}
+
+#[test]
+fn a_completed_brief_keeps_its_order_and_answers_ready() {
+    let mut link = link();
+    let order: Box<[_]> = Box::new([
+        jig_domain_brief::GatherPlaced::Core { kind: jig_domain_brief::Core::Task, text: Box::from(&b"task"[..]) },
+        jig_domain_brief::GatherPlaced::Connector { connector: 7, kind: 9, token: Token::new(11), size: 13 },
+    ]);
+    let core::Event::BriefAssembled { task, ready } = link.complete_brief(RUN, order.clone()) else {
+        panic!("brief assembled")
+    };
+    assert_eq!((task, ready), (RUN.raw(), true));
+    assert_eq!(link.take_brief(RUN.raw()), Some(order));
+    assert!(link.take_brief(RUN.raw()).is_none());
+}
+
+#[test]
+fn no_workspace_prepares_empty_holds_and_some_empty_writes() {
+    let core::Event::WorkspacePrepared { task, attempt, holds, workspace, credentials, writes } =
+        no_workspace(RUN.raw(), ATTEMPT.raw())
+    else {
+        panic!("workspace prepared")
+    };
+    assert_eq!((task, attempt), (RUN.raw(), ATTEMPT.raw()));
+    assert!(holds.is_empty());
+    assert!(workspace.is_none());
+    assert!(credentials.is_empty());
+    assert!(writes.expect("prepared workspace writes").is_empty());
+}
+
 /// jig/docs/design/domain/engine.md, 7.5: a job crosses the committed assignment door, including retries.
 #[test]
 fn a_job_start_is_retained_for_placement_and_busy_replacement() {
