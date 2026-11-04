@@ -649,6 +649,14 @@ impl Harness {
         self.sim.reap(child.pid, &mut completions);
         assert_eq!(completions.pop().unwrap().result, Ok(Done::Count(u32::try_from(data.len()).unwrap())));
     }
+    /// A script can write stdout even with the simulator's eight-byte pipe.
+    pub fn write_stdout(&mut self, index: u32, line: &[u8]) {
+        const CHUNK_BYTES: usize = 8;
+        for chunk in line.chunks(CHUNK_BYTES) {
+            self.write_child(index, 1, chunk);
+            self.run_until_idle();
+        }
+    }
     pub fn read_stdin(&mut self, index: u32, most: u32) -> Box<[u8]> {
         let child = self.hosted.get(index).unwrap();
         self.read_pipe(child.pid, child.stdio[0].unwrap(), most)
@@ -833,6 +841,18 @@ pub fn grouped_steps() -> temper_forge_setup::Steps {
             ]),
         }]),
     }
+}
+
+/// An asked fetch stays running until the test supplies its exit.
+pub fn fetching_steps() -> temper_forge_setup::Steps {
+    use temper_forge_setup::Stage;
+    let mut steps = grouped_steps();
+    steps.asked.get_mut(0).unwrap().steps = Box::new([
+        (Stage::Fetch, once(b"fetch 3", &[b"never"])),
+        (Stage::Prepare, once(b"prepare 3", &[b"exit", b"0"])),
+        (Stage::Run, long(b"forgejo 3", &[b"never"])),
+    ]);
+    steps
 }
 
 /// One kind slot with a one-shot remover and a separate serve process.
