@@ -1035,11 +1035,11 @@ carbon-prod                                         rebuild from config
                 [WireGuardPeer]
                 PublicKey=m3NY8…=
                 AllowedIPs=10.0.0.1/32
-               -Endpoint=194.164.162.157:51820
-               +Endpoint=194.164.162.158:51820
+               -Endpoint=203.0.113.157:51820
+               +Endpoint=203.0.113.158:51820
                 PersistentKeepalive=25
 ion-prod                                            nothing to build
-  exports  ~ vpn.endpoint   "194.164.162.157" → "194.164.162.158"
+  exports  ~ vpn.endpoint   "203.0.113.157" → "203.0.113.158"
 
 2 of 11 targets change; 9 are unchanged.
 ```

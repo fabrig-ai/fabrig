@@ -567,7 +567,7 @@ section 10, shows the entry's shape):
 "software": {
   "stoa": {
     "artifact": {
-      "repository": "https://git.ekanayaka.io/ai/stoa.git",
+      "repository": "https://git.example.org/ai/stoa.git",
       "commit": "4e1d0c3a…",
       "recipe": "stoa",
       "key": "9f2c71e0…"
@@ -649,7 +649,7 @@ section 10, shows the entry's shape):
 The bash fleet already pins software built outside Debian by digest:
 
 - `tasks/agent/software:1` pins `pi 0.74.0`, a tarball among the forge's
-  releases (`infra/ekanayaka.io-software`), by sha256 `5a403c6e…`;
+  releases (`infra/example.org-software`), by sha256 `5a403c6e…`;
   `tasks/hermes/software:1` pins `hermes 2026.4.30` the same way.
 - `lib/build-pi-tarball` (`npm install` with the network, then `tar
   czf`) and `lib/build-hermes-tarball` (a clone and pip) make them, run

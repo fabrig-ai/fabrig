@@ -97,7 +97,7 @@ The postfix task, its checks and the user its command check runs as:
       "kind": "probe",
       "probe": "smtp",
       "from": "prober",
-      "host": "mx1.ekanayaka.io",
+      "host": "mx1.example.org",
       "port": 25,
       "starttls": true,
       "tls": { "expires_within": "14d" },
