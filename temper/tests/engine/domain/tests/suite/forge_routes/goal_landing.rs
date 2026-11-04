@@ -526,22 +526,7 @@ fn a_goal_closing_after_cancelling_its_landing_keeps_its_branch() {
 fn a_goal_branch_read_sent_before_a_merge_into_it_does_not_hold_its_landing() {
     let (mut world, goal, branch, landing, old) = checking_landing();
     let (change, producer) = producing_into_goal(&mut world, &goal, &branch, LANDING_CALL + 2, b"implementation");
-    world.slow_branch = Some(branch.clone());
-    let mut read = None;
-    for _ in 0..STEPS {
-        world.tick();
-        read = world.pending.iter().find_map(|(call, op)| match op {
-            skein_forge::api::Op::Read(skein_forge::api::Read::Branch { branch: found }) if *found == branch => {
-                Some(*call)
-            }
-            _ => None,
-        });
-        if read.is_some() {
-            break;
-        }
-    }
-    let read = read.expect("a read of g is sent while L checks the old head");
-    world.slow_branch = None;
+    let read = super::goal_branch::start_slow_keep_read(&mut world, &branch);
     assert_eq!(row(&world, landing).change.last_head, Some(translate::commit(old)));
     finish_goal_change(&mut world, change, &producer);
     let head = branch_tip(&mut world, &branch);

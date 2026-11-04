@@ -1624,7 +1624,7 @@ fn drain(d: &mut Domain, env: &Env<Limits>, out: &mut Queue<Request>) {
                 }
                 let lost_comment = projection && outcome == skein_forge_client::Outcome::Held && posting(d, entry);
                 d.named_outcome(entry, outcome);
-                outcome_facts(d, env, entry, task, outcome, out);
+                settled_facts(d, env, entry, task, outcome, out);
                 crate::tiers::outcome(d, entry, outcome, out);
                 let retain = crate::landing::outcome(d, entry, outcome, out);
                 match outcome {
@@ -1713,6 +1713,33 @@ fn drain(d: &mut Domain, env: &Env<Limits>, out: &mut Queue<Request>) {
         }
     }
     read_afresh_complete(d, out);
+}
+
+fn settled_facts(
+    d: &mut Domain,
+    env: &Env<Limits>,
+    entry: u64,
+    task: u64,
+    outcome: skein_forge_client::Outcome,
+    out: &mut Queue<Request>,
+) {
+    outcome_facts(d, env, entry, task, outcome, out);
+    settle_merge_writer(d, env, entry, outcome);
+}
+
+fn settle_merge_writer(d: &mut Domain, env: &Env<Limits>, entry: u64, outcome: skein_forge_client::Outcome) {
+    match outcome {
+        skein_forge_client::Outcome::Uncertain | skein_forge_client::Outcome::Queued => return,
+        skein_forge_client::Outcome::Made { .. }
+        | skein_forge_client::Outcome::Failed(_)
+        | skein_forge_client::Outcome::Raced { .. }
+        | skein_forge_client::Outcome::Held
+        | skein_forge_client::Outcome::Withdrawn => {}
+    }
+    if let Some(row) = d.entries.get(&entry) {
+        let entry = row.entry.clone();
+        admission::merge_writer(d, env, &entry, false);
+    }
 }
 
 #[expect(clippy::manual_map, reason = "step code uses explicit options without closures")]
@@ -4743,6 +4770,7 @@ fn handoff_one(d: &mut Domain, env: &Env<Limits>, out: &mut Queue<Request>) {
     let row = d.entries.get_mut(&number).expect("selected entry remains");
     row.handoff = Handoff::Handed;
     let entry = row.entry.clone();
+    admission::merge_writer(d, env, &entry, true);
     child(d, env, skein_forge_client::Event::Make { entry }, out);
 }
 
@@ -4764,6 +4792,7 @@ fn resolve(d: &mut Domain, env: &Env<Limits>, number: u64, again: bool, out: &mu
         out,
         Request::Save { read_afresh: None, release: None, record: Stored::Entry { entry: entry.clone(), held: false } },
     );
+    admission::merge_writer(d, env, &entry, true);
     child(d, env, skein_forge_client::Event::Remake { entry }, out);
 }
 
@@ -5774,7 +5803,7 @@ fn retire_ended(d: &mut Domain, env: &Env<Limits>, out: &mut Queue<Request>) {
         for number in entries.into_boxed() {
             let task = d.entries.get(&number).expect("collected entry").entry.task;
             d.named_outcome(number, skein_forge_client::Outcome::Withdrawn);
-            outcome_facts(d, env, number, task, skein_forge_client::Outcome::Withdrawn, out);
+            settled_facts(d, env, number, task, skein_forge_client::Outcome::Withdrawn, out);
             not_made(d, number, out);
             if let Some(row) = d.releases.get(&task)
                 && !row.failed
