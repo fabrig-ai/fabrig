@@ -1462,6 +1462,12 @@ delegate's terminal wakes it to offer the landed result.
   Required preservation instructions precede optional merge-job results. A
   result is appended only with room for its context and any truncation marker;
   it never displaces the preservation instructions.
+  If the pull section's pinned comparison exceeds the forge client's answer
+  byte or row limit, the section keeps its pull identity and gathered content
+  and appends a comparison-omitted notice within its byte budget. This completes
+  the section; it does not retry the comparison or raise the client's limits.
+  Other comparison read failures still fail the section. The same rule applies
+  to the pull sections for reviews and repairs.
 - **A verdict whose post is refused** (8.3) is no repair and no stall:
   the gate counts as temper's verdict says, nothing is held for the
   post, and its `Forbidden` narrows what temper may do in that

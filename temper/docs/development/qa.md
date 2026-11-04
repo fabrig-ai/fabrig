@@ -128,13 +128,23 @@ section 8.
   `--project` instead creates `widget`, printing `project: 1 · widget`
   on a new box. `--project PROJECT` chooses an existing project.
 
-  `settings apply` does not resize an existing project's period or
-  owner's pool. If budgets need resizing after project creation, fund
-  the project with distinct operation keys, the project first because
-  the owner's pool reserves from its period:
+  ```
+  temper ctl DIR forge setup --org work --repository hello --key setup
+  temper ctl DIR me
+  temper ctl DIR project show PROJECT
+  ```
+
+  For an existing project, setting its `project-policy` immediately
+  resizes the open period and parties' pools to its spends; a policy
+  item may share a settings file with rules and other settings. For
+  example, accepting project-policy `period_spend` 8200000 beside rules
+  `period_spend` 8300000 leaves the open period's budget 8200000 in
+  `project show`. Keep the values' other fields as read. Changing policy
+  1 alone leaves an existing project's budgets as they are. To resize
+  budgets separately, fund the project with distinct operation keys,
+  the project first because the owner's pool reserves from its period:
 
   ```
-  temper ctl DIR me
   temper ctl DIR project fund PROJECT PERIOD --key budget-period
   temper ctl DIR project fund PROJECT POOL --role 0 --key budget-owner
   temper ctl DIR project show PROJECT

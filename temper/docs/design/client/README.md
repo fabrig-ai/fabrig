@@ -2145,7 +2145,7 @@ admits in a name (`../protocol/configuration.md`, section 7), so a page
 of the forge's work is never refused for a path. A path longer than a
 node's text shows its last segments after the mark `…` (as jig's
 `client/domain/view.md`, section 7 cuts one), which adds nothing to the
-view's limits. An authority's entries have a bound of their own, 12,
+view's limits. An authority's entries have a bound of their own, 16,
 apart from the windows' rows (jig's `client/domain/client.md`, section
 14), at least the most the engine admits in an authority's list
 (`../protocol/configuration.md`, section 7), so a task's page is never

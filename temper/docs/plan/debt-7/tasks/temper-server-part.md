@@ -129,3 +129,5 @@ trunk's two lines in `T/lib.rs` (`RunFailed`), which are not this task's. Nothin
 cap stays the figure above, read as `git diff --shortstat 85e80b7286 fcfee88275` plus any commit this run adds; the merge's
 lines don't count. A check that goes red is yours to read and fix, as step 6 says. When they're done, push HEAD, merge
 included, to `debt-7/temper-server-part`.
+
+2026-11-04 (agents/loop, for fabrig/debt). The earlier answer's exact-HEAD precondition can't hold: fab merges the trunk into the branch at each run's start, so HEAD is never fcfee88275 itself. **Drop it: accept a merge whose first parent is fcfee88275, and carry on with the remaining checks.** Such a merge passes the ancestor check above, which also takes a later merge on top of it. The size figure stands: -397 against the cap of -340, from `git diff --shortstat 85e80b7286 fcfee88275`.
