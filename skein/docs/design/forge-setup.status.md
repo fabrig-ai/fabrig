@@ -2,9 +2,7 @@
 
 2026-11-04. Where skein's code lags or departs from [forge-setup.md](forge-setup.md).
 
-- **Not yet:** 4.3, 4.10: `Migrate`, `DeleteRepository` and the plan
-  `Copy` with its `Copying` item, `copy_deadline`, `Event::Said` and the
-  whys `Taken`, `Empty` and `TimedOut`; 8: the `setup-migrate-*` facts.
+- **Not yet:** 8: the `setup-migrate-*` facts.
   6.1, 6.3: the crate gives the checks and an `Add` one
   refuses is ignored, the owner having checked first, but
   `skein-forge-setup/src/host/limits.rs`'s `check_forge` is `pub(super)`:
