@@ -11,6 +11,10 @@ files = [
   "jig/testing/jig-test-domain/src/**",
   "temper/crates/temper-engine-domain/src/route/now.rs",
   "temper/docs/design/domain/root.md",
+  "temper/tests/engine/domain/src/escalation.rs",
+  "temper/tests/engine/domain/src/forge_routes.rs",
+  "temper/tests/engine/domain/tests/suite/escalation.rs",
+  "temper/tests/engine/domain/tests/suite/forge_routes.rs",
 ]
 effort = "high"
 minutes = 100
@@ -43,6 +47,7 @@ Acceptance:
 - Removing the variant, and only its arm or its line in each list: `jig/examples/ops/domain/src/route.rs`, `jig/testing/jig-test-domain/src/routes.rs`, `temper/crates/temper-engine-domain/src/route/now.rs`, `jig/crates/jig-protocol-store/src/ended.rs`, `jig/testing/jig-test-service/src/route.rs`, `jig/testing/jig-test-service/src/clients/translation.rs`, `jig/testing/jig-test-store/src/route.rs`, `jig/tests/client/src/joint/engine.rs`, `jig/tests/core/src/client_peer.rs`, `jig/tests/ops/src/joint/engine.rs`, `jig-domain-core/src/tests/runs/completion_retry.rs`, `temper/crates/temper-service/src/clients/translation.rs` if it lists the variant.
 - This departs from a branch staying in its tree: the variant's removal is one atomic change, and those lines of temper are named here.
 - Tests of `jig-domain-core`, `jig-test-domain` and temper's root that saw `Now::Activate`: as the note's pre-approved list says. At base they are `tests/jobs.rs`, `tests/runs/notes_room.rs`, `tests/start/runs.rs`, `tests/windows.rs`, `tests/brief_documents.rs` and `jig-test-domain/src/tests/link.rs`.
+- The four world files in `files`, and any other fixture of a `What runs` package, as `## Answers` below says.
 - Design: `temper/docs/design/domain/root.md`, 4.1, the words named in step 4, nothing else. `jig/docs/design/domain/root.status.md` stays: `core-prepare-agent` closes it.
 - `Event::Activate` keeps `context` and `ready`.
 
@@ -85,3 +90,18 @@ Acceptance:
 ## Report
 
 The measure; each story's count that moved, old and new; any story whose order moved; the lines added and removed.
+
+## Answers
+
+2026-11-04. Retime the two failing temper world fixtures, or revise the later-decision activation? Retime; the contract stays. An activation runs in a later decision than the one that made its task due (`temper/docs/plan/debt-5/notes/core-steps.md`, "What this changes, on purpose"), and no step of this task goes back on it. These two stories set their race and their cut by the same-decision activation, which is what the item removes; `core-steps.md` now pre-approves that retiming, under the conditions below. Commit `3619c0ac46` and `1197f80a70` stand: continue from them, and do not redo that work.
+
+1. `escalation::held_and_decision_commit_cuts_restore_paged_real_children_and_exact_scripts`. The claim no longer commits with the release, so `Cut::Decision` cannot cut it. Add one `Cut` variant in `temper/tests/engine/domain/src/escalation.rs`, say `Cut::Claim`: lose completion after the first commit that saves a fresh `RunProof` (`turn` and `terminal` both `None`) once a store row holds an `EscalationDecision`, before its assignment escapes. The first assignment's claim precedes every decision and must not trigger it. Handle it at both places `Cut::Decision` is handled (`apply_store`'s `decided` and `observe`'s `decision_cut`). In the test, only the third world's `cut` changes to it. `unplaced_claims() == 1` stays, as do the observer and the three corruptions; drop `with release` from the assertion's message, and make the comment `A decision can commit its new claim` say a claim. The two-cut loop above it keeps `Cut::Decision`, as do `suite/memory.rs` and `suite/fuzzy/escalation.rs`; the fuzzy matrix gains no cut. If `unplaced_claims()` is still not 1 at that cut, that is a question.
+
+2. `forge_routes::a_merge_asked_while_kept_is_refused_naming_the_pending`. The cause is not known yet: read a trace first, with `c`'s phase, `procedure_due(c)` and the change's state, from the amendment until the 80 ticks end. `change_decision` (`temper-engine-domain/src/route/forge_route.rs`) returns with no step and no refusal when `procedure_due` is `None`, so look there and at `take_due`'s still-due check. Then:
+   - If the merge is only asked at a different time than the story's pause expects (`c`'s activation is now in a later decision, so the held reads or the amendment fall on the other side of it), retime the story so the merge is asked after the amendment commits. Change only the pause condition, the tick loops, or the hold in `forge_routes.rs`. Every assertion stays: `merges == 0`, the `StepRefused` naming `e`, its rendered text, the phase, and the rest of the story through `Met` to landing.
+   - If a step is lost, a wake is dropped, or `c` could stay parked with no later retry, that is a fault of this change and not of the fixture. It may be fixed in the files this task owns, with a step test in the lowest tier that shows it. A fix that needs other production code is a question: stop and name the code.
+   - If no timing can make a kept change ask for its merge, the refusal has become unreachable, and that is a question. Do not delete it.
+
+3. Your last run left 638 tests of the fourth command unobserved. Run the whole of `What runs` to the end with `--no-fail-fast`, and read every failure before changing anything. Another fixture in a `What runs` package that set a race or a cut by the same-decision activation is treated like the two above, without asking: assertions stay, and the report lists each one. A count moves only as the note says. A story whose visible order or outcome changes for any other reason is still a question. A memory ceiling or a test budget that goes red is the user's: report the measurements and raise nothing.
+
+Report the root cause of (2) and which case held.

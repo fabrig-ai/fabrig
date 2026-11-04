@@ -71,4 +71,7 @@ Pre-approved, each with its default:
   the old one.
 - If a story's **order of visible events or its outcome** changes, stop and ask: that is more than the
   item asked for.
+- A world fixture that set a race or a restart cut by the same-decision activation is retimed to the
+  later decision, every assertion kept and listed in the report; that is this change, not a story moving.
+  A refusal, step or wake that no timing can reach is still a stop and ask.
 - Over budget is red, as ever; a new cost here goes to the report with measurements.
