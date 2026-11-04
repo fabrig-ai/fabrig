@@ -146,8 +146,8 @@ impl SignInWorld {
 
     fn turn(&mut self) {
         let engine = self.service.engine.as_mut().unwrap();
-        while let Some(event) = engine.store.above.pop() {
-            engine.store.sources.push(event);
+        while let Some(event) = engine.store.host.above.pop() {
+            engine.store.host.sources.push(event);
         }
         iterate(
             &mut self.accounts,
@@ -295,8 +295,8 @@ impl SignInWorld {
         let _erased = engine
             .store
             .secrets(Token::new(123), store::Secrets::Erase { owner: store::SecretOwner::Application, number });
-        let Some(store::Event::Erased { .. }) = engine.store.above.pop() else { panic!("held address erased") };
-        assert!(engine.store.above.is_empty());
+        let Some(store::Event::Erased { .. }) = engine.store.host.above.pop() else { panic!("held address erased") };
+        assert!(engine.store.host.above.is_empty());
         let Some(store::Event::Secret { value: None, .. }) = engine
             .store
             .secrets(Token::new(124), store::Secrets::Get { owner: store::SecretOwner::Application, number })
@@ -554,7 +554,7 @@ fn record(source: u32, limits: &oauth::Limits) -> oauth::SavedToken {
 }
 fn carried(engine: &mut crate::engine::Engine, request: store::Secrets) -> u64 {
     let _later = engine.store.secrets(Token::new(123), request);
-    let Some(store::Event::Carried { number, .. }) = engine.store.above.pop() else { panic!("carried LLM key") };
+    let Some(store::Event::Carried { number, .. }) = engine.store.host.above.pop() else { panic!("carried LLM key") };
     number
 }
 fn carry_llm_key(engine: &mut crate::engine::Engine, value: &[u8]) -> u64 {
@@ -575,8 +575,8 @@ fn pump_accounts(accounts: &mut Accounts, engine: &mut crate::engine::Engine) ->
     let mut events = Queue::with_capacity(64);
     let mut heard = List::with_capacity(64);
     for _ in 0_u32..32 {
-        while let Some(event) = engine.store.above.pop() {
-            engine.store.sources.push(event);
+        while let Some(event) = engine.store.host.above.pop() {
+            engine.store.host.sources.push(event);
         }
         pass(accounts, engine, &mut events);
         while let Some(event) = events.pop() {
@@ -621,8 +621,8 @@ fn a_full_root_queue_retains_the_accounts_event_until_room_returns() {
     accounts.request(domain::Request::Signing(domain::Signing::Keep { source: 7, carried, replaces: false }));
     let mut events = Queue::with_capacity(0);
     for _ in 0_u32..8 {
-        while let Some(event) = engine.store.above.pop() {
-            engine.store.sources.push(event);
+        while let Some(event) = engine.store.host.above.pop() {
+            engine.store.host.sources.push(event);
         }
         pass(&mut accounts, engine, &mut events);
     }
@@ -656,7 +656,7 @@ fn service_restart_restores_an_llm_key_before_want_and_sweeps_only_unnamed_sourc
             value: jig_protocol_store::SecretValue::Record(Secret::new(b"orphaned-source-value".as_slice().into())),
         },
     );
-    while engine.store.above.pop().is_some() {}
+    while engine.store.host.above.pop().is_some() {}
     let mut fresh_service = fixtures::started();
     let mut restarted = fresh_service.engine.as_mut().expect("engine").accounts.take().expect("new component");
     restarted.request(domain::Request::Signing(domain::Signing::Restore {
@@ -794,7 +794,7 @@ fn dynamic_sources_use_provider_templates_and_restore_their_kept_records() {
             )),
         },
     );
-    while engine.store.above.pop().is_some() {}
+    while engine.store.host.above.pop().is_some() {}
     let mut restored = host(&config, runtime);
     restored.request(domain::Request::Signing(domain::Signing::Restore {
         source: 9001,
@@ -868,7 +868,7 @@ fn a_restored_sign_ins_metadata_leaves_its_grant_a_bearer() {
             replaces: None,
         },
     );
-    while engine.store.above.pop().is_some() {}
+    while engine.store.host.above.pop().is_some() {}
     let mut accounts = host(&config, runtime);
     accounts.request(domain::Request::Signing(domain::Signing::Restore {
         source: SOURCE,
@@ -895,8 +895,8 @@ fn a_restored_sign_ins_metadata_leaves_its_grant_a_bearer() {
 fn pump_move_events(accounts: &mut Accounts, engine: &mut crate::engine::Engine) -> Queue<root::Event> {
     let mut events = Queue::with_capacity(64);
     for _ in 0_u32..32 {
-        while let Some(event) = engine.store.above.pop() {
-            engine.store.sources.push(event);
+        while let Some(event) = engine.store.host.above.pop() {
+            engine.store.host.sources.push(event);
         }
         pass(accounts, engine, &mut events);
     }
@@ -983,7 +983,7 @@ fn a_move_out_answers_with_its_record_once_and_a_move_in_is_adopted() {
             replaces: None,
         },
     );
-    while engine.store.above.pop().is_some() {}
+    while engine.store.host.above.pop().is_some() {}
     accounts.request(domain::Request::Signing(domain::Signing::Restore {
         source: 71,
         provider: 3,
@@ -1149,7 +1149,7 @@ fn a_restored_sources_other_kind_fails_the_read() {
             pass(&mut accounts, engine, &mut events);
         }
         let mut failed = false;
-        while let Some(event) = engine.store.above.pop() {
+        while let Some(event) = engine.store.host.above.pop() {
             if let store::Event::Corrupt { .. } = event {
                 failed = true;
             }

@@ -31,7 +31,7 @@ fn service() -> Service {
             assert!(
                 engine.store.secrets(Token::new(123), fixtures::application_request(number, value.clone())).is_none()
             );
-            let Some(Event::Kept { .. }) = engine.store.above.pop() else { panic!("secret kept") };
+            let Some(Event::Kept { .. }) = engine.store.host.above.pop() else { panic!("secret kept") };
             engine.forge_records.rows.push(number, value, 1024);
         }
     }
@@ -45,11 +45,11 @@ fn request(service: &mut Service, forge: u16) {
 fn complete(service: &mut Service) {
     let engine = service.engine.as_mut().unwrap();
     for _ in 0_u32..10 {
-        let event = engine.store.above.pop().expect("durable erase");
+        let event = engine.store.host.above.pop().expect("durable erase");
         let Event::Erased { owner } = event else { panic!("durable erase") };
         gone::answer(engine, owner);
     }
-    assert!(engine.store.above.is_empty());
+    assert!(engine.store.host.above.is_empty());
 }
 
 fn answered(service: &mut Service, forge: u16) {
@@ -99,11 +99,11 @@ fn forge_gone_erases_every_secret_item_then_answers() {
     let engine = service.engine.as_mut().unwrap();
     assert!(engine.events.is_empty(), "durability is withheld");
     for _ in 0_u32..9 {
-        let Some(Event::Erased { owner }) = engine.store.above.pop() else { panic!("durable erase") };
+        let Some(Event::Erased { owner }) = engine.store.host.above.pop() else { panic!("durable erase") };
         gone::answer(engine, owner);
         assert!(engine.events.is_empty(), "all erases must commit");
     }
-    let Some(Event::Erased { owner }) = engine.store.above.pop() else { panic!("final erase") };
+    let Some(Event::Erased { owner }) = engine.store.host.above.pop() else { panic!("final erase") };
     gone::answer(engine, owner);
     assert_eq!(engine.store.erases, 10);
     absent(&mut engine.store, 1);
@@ -128,7 +128,7 @@ fn forge_gone_again_erases_nothing_and_answers() {
     answered(&mut service, 99);
     request(&mut service, 99);
     assert_eq!(service.engine.as_ref().unwrap().store.erases, 10);
-    assert!(service.engine.as_ref().unwrap().store.above.is_empty());
+    assert!(service.engine.as_ref().unwrap().store.host.above.is_empty());
     answered(&mut service, 99);
 }
 
@@ -148,8 +148,8 @@ fn a_failed_erase_stops_without_answering() {
     let mut service = service();
     request(&mut service, 1);
     let engine = service.engine.as_mut().unwrap();
-    let Some(Event::Erased { owner }) = engine.store.above.pop() else { panic!("erase") };
-    engine.store.above.push(Event::Corrupt { owner });
+    let Some(Event::Erased { owner }) = engine.store.host.above.pop() else { panic!("erase") };
+    engine.store.host.above.push(Event::Corrupt { owner });
     crate::engine::answer(engine);
     assert!(engine.end.is_some());
     assert!(engine.events.is_empty());
@@ -188,7 +188,7 @@ fn a_restored_removal_waits_for_the_durable_start_mark() {
     request(&mut service, 1);
     let engine = service.engine.as_mut().unwrap();
     assert_eq!(engine.store.erases, 0);
-    assert!(engine.store.above.is_empty());
+    assert!(engine.store.host.above.is_empty());
     fixtures::mark_store(&mut engine.store);
     gone::advance(engine);
     complete(&mut service);

@@ -19,8 +19,8 @@ pub(crate) fn iterate(
     events: &mut Queue<root::Event>,
     store: &mut crate::store::Store,
 ) {
-    let marked = store.component.mark_durable();
-    let count = accounts.begin(now, wall, marked, store.installation, &mut store.sources);
+    let marked = store.host.component.mark_durable();
+    let count = accounts.begin(now, wall, marked, store.installation, &mut store.host.sources);
     for _ in 0..count {
         match accounts.output(&mut values.accounts) {
             Some(Output::Account(event)) if events.room() == 0 => {
@@ -33,7 +33,7 @@ pub(crate) fn iterate(
                     accounts.answer(event);
                 }
             }
-            Some(Output::InvalidSecret) => store.above.push(store::Event::Corrupt { owner: Token::new(0) }),
+            Some(Output::InvalidSecret) => store.host.above.push(store::Event::Corrupt { owner: Token::new(0) }),
             None => (),
         }
     }
