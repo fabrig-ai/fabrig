@@ -5,7 +5,7 @@
     "architecture": "amd64",
     "snapshot": { "archive": "20261001T030405Z", "security": "20261001T031522Z" }
   },
-  "core": { "domain": "ekanayaka.io" },
+  "core": { "domain": "example.org" },
   "hearth": {
     "snapshots": {
       "core": { "every": "1d", "keep": { "daily": 7 } },
@@ -15,6 +15,6 @@
   "locale": { "timezone": { "area": "Europe", "zone": "Lisbon" }, "locale": "en_US.UTF-8" },
   "ssh": {
     "port": 10127,
-    "authorized": { "free": { "x1": "ssh-ed25519 AAAAC3NzaC1lZDI1NTE5AAAA… free@x1" } }
+    "authorized": { "alice": { "x1": "ssh-ed25519 AAAAC3NzaC1lZDI1NTE5AAAA… alice@x1" } }
   }
 }

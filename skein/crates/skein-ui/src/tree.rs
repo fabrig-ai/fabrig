@@ -191,6 +191,12 @@ pub struct Spans {
     pub rows: u16,
     pub columns: u16,
 }
+/// Done of total, in its owner's numbers (ui.md, 3.2).
+#[derive(Clone, Copy, PartialEq, Eq, Hash, Debug)]
+pub struct Fraction {
+    pub done: u64,
+    pub total: u64,
+}
 /// An image's owner picture or checked address (ui.md, 3.5).
 #[derive(Clone, PartialEq, Eq, Debug)]
 pub enum Source {
@@ -294,6 +300,7 @@ pub struct Node {
     pub position: Option<u32>,
     pub spans: Option<Spans>,
     pub sort: Option<Sort>,
+    pub fraction: Option<Fraction>,
     pub text: List<TextRun>,
     pub value: Option<Value>,
     pub link: Option<crate::Binding>,
@@ -325,6 +332,7 @@ impl Node {
             position: None,
             spans: None,
             sort: None,
+            fraction: None,
             text: List::with_capacity(0),
             value: None,
             link: None,
@@ -355,6 +363,7 @@ impl Node {
             position: None,
             spans: None,
             sort: None,
+            fraction: None,
             text: List::with_capacity(runs),
             value: None,
             link: None,

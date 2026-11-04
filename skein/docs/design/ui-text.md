@@ -203,7 +203,7 @@ this shell's text (ui.md, 17.1).
   | check | `[n] [x] NAME` when pressed or selected, `[n] [ ] NAME` otherwise |
   | status | `* TEXT`; a status with no text prints its name |
   | alert | `! TEXT` |
-  | progress | `NAME: TEXT` |
+  | progress | `NAME: TEXT`, with a fraction or without: its text is the figure its owner chose, and the shell draws no bar of characters, which a screen reader would read as noise |
   | code | each line of its text, indented four spaces more |
   | quote | each line of its text after `> ` |
   | separator | `--` |

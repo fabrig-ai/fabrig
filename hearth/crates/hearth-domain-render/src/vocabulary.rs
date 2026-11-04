@@ -1,4 +1,4 @@
-//! Render's boundary records (domain/render.md, 8.2).
+//! Render's boundary records (hearth/docs/design/domain/render.md, 8.2).
 use crate::{
     parts::Spec,
     revision::{Document, Entry, Oid, Position},

@@ -568,6 +568,7 @@ pub struct Row {
     pub mode: Mode,
     pub connection: Connection,
     pub failed: Option<FailedStep>,
+    pub fetched: Option<SetUpFetched>,
     pub offer: Offer,
     pub first: Option<First>,
     pub installations: Box<[(u64, Installation)]>,
@@ -1216,6 +1217,19 @@ pub enum SetUpStep {
     Prepare,
     Run,
 }
+/// The binary named by the box's fetch line (protocol/forge.md, 2.8).
+#[derive(Clone, Copy, PartialEq, Eq, Debug)]
+pub enum SetUpBinary {
+    Forgejo,
+    Runner,
+}
+/// The latest fetch line, kept in memory alone (protocol/forge.md, 2.8).
+#[derive(Clone, Copy, PartialEq, Eq, Debug)]
+pub struct SetUpFetched {
+    pub binary: SetUpBinary,
+    pub done: u64,
+    pub total: Option<u64>,
+}
 /// The held connection's step when setup failed (domain/forge.md, 4.1).
 #[derive(Clone, Copy, PartialEq, Eq, Debug)]
 pub enum FailedStep {
@@ -1412,6 +1426,10 @@ pub enum Event {
     Connection {
         forge: u16,
         state: Connection,
+    },
+    Fetched {
+        forge: u16,
+        fetched: SetUpFetched,
     },
     Installation {
         forge: u16,

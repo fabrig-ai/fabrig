@@ -17,7 +17,7 @@ fn hearth_diff_names_a_secret_moved_and_prepares_a_new_slot() {
     let rendered = part_changes::changed(Part::Secrets, Form::Text);
     assert_eq!(
         fixtures::lines_starting(&rendered.stdout, &["  secrets "]),
-        "  secrets  ~ secret mail/tls/mx1.key\n  secrets  ~ password free\n"
+        "  secrets  ~ secret mail/tls/mx1.key\n  secrets  ~ password alice\n"
     );
 }
 #[test]

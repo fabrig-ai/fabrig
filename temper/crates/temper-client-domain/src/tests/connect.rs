@@ -20,6 +20,7 @@ fn row(number: u16, kind: Kind, mode: Mode, connection: C, offer: Offer) -> Row 
         kind,
         mode,
         connection,
+        fetched: None,
         offer,
         first: None,
         installations: Box::new([]),

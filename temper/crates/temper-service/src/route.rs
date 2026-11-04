@@ -118,6 +118,7 @@ pub(crate) fn request(engine: &mut Engine, request: root::Request) {
                 Event::AppRecorded { .. }
                 | Event::Hint { .. }
                 | Event::Connection { .. }
+                | Event::Fetched { .. }
                 | Event::Installation { .. }
                 | Event::BoxClosed
                 | Event::ConnectAnswered { .. }

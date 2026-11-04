@@ -1,4 +1,4 @@
-//! Typed changes and their forms (domain/render.md, 6.1 and 6.3).
+//! Typed changes and their forms (hearth/docs/design/domain/render.md, 6.1 and 6.3).
 use crate::{
     form::{
         json::{digest, field},

@@ -378,8 +378,9 @@ Within the suites' budgets (`../domain/testing.md`, section 2):
 - **A party's dismissals outlive it.** jig erases no party: a member
   taken out of the configuration stays a party, and a role lost leaves
   the party's rows. So `Dismissed` is erased with its project alone, and
-  a row can outlive its member's use for it, within the family's bound.
-  Default: nothing, until jig erases a party, when its connector would
+  a row can outlive its member's use for it, within the family's bound:
+  a person given the role back finds it still dismissed. Default:
+  nothing, until jig erases a party, when its connector would
   need telling, a change of jig's (jig's `domain/connectors.md`, section
   2).
 - **Upgrades:** reading an older `STORE_VERSION` as it loads, or a pass

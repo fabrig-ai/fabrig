@@ -1,0 +1,66 @@
+draft = "hearth-docs"
+repo = "fabrig"
+sources = ["hearth/docs/plan/hearth-docs/inputs/request.md"]
+
+# plan.md says what was decided and why.
+
+[buffer]
+low = 1.0
+high = 2.0
+
+[[part]]
+id = "family"
+title = "hearth is a tree in every README, with no separate repository left"
+mode = "direct"
+needs = []
+design = "hearth/docs/plan/hearth-docs/inputs/request.md, 4"
+
+[[slice]]
+id = 1
+story = "every tree's README shows hearth as a tree of the repository, and no link leads to a repository about to go"
+parts = ["family"]
+walk = false
+
+[[part]]
+id = "citations"
+title = "hearth's code and documents cite by the path from the repository root"
+mode = "direct"
+needs = []
+design = "hearth/docs/design/README.md, 6"
+
+[[slice]]
+id = 2
+story = "a citation in hearth reads as anywhere else in the repository, and what hearth prints is unchanged"
+parts = ["citations"]
+walk = false
+
+[[part]]
+id = "names"
+title = "no private name in hearth's current files, by reserved names"
+mode = "direct"
+needs = []
+design = "hearth/docs/plan/hearth-docs/inputs/request.md, 1"
+
+[[slice]]
+id = 3
+story = "hearth's fixtures and documents read as one example under reserved names, and every test passes with only names and digests moved"
+parts = ["names"]
+walk = false
+
+[[part]]
+id = "status"
+title = "a status file beside every document and draft, build state out of the design, STATUS.md an index"
+mode = "direct"
+needs = []
+design = "DESIGN.md, 2"
+
+[[slice]]
+id = 4
+story = "each hearth document says where the code lags or departs from it, by section, and STATUS.md indexes them as every tree's does"
+parts = ["status"]
+walk = false
+
+[[question]]
+id = "names-left"
+text = """The request lists the domain, the addresses and the account, and asks that any other name that looks private be noted and left. notes/contracts.md, 1.3 lists them: which production machine runs where and what it serves (hearth/docs/design/domain/machine.md names ServeRhino and IONOS, and that rhi-prod and ion-prod carry mail, Forgejo, Matrix and the VPN hub), the hardware values ionos, serverhino, vultr and 7th-gen, the targets ion-prod, carbon-prod and chat-prod, the key fragment m3NY8…=, the digest 5a403c6e…, the project name stoa, the ai/ organization path and the name os. (a) recommended: they stay, as this plan leaves them, and a later plan takes any you name. (b) you name some now, and this plan's mapping isn't changed: a follow-up task takes them. Nothing waits on the answer."""
+parts = ["names"]

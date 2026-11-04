@@ -1,4 +1,4 @@
-use skein_ui::{Builder, DrawingKind, Key, NodeId, Patch, Role, Run, State, View};
+use skein_ui::{Builder, DrawingKind, Fraction, Key, NodeId, Patch, Role, Run, State, View};
 
 use super::fixtures::{self, LIMITS, OWNER};
 use crate::{
@@ -936,4 +936,47 @@ fn disclosure_attribute_patches_keep_the_summary_before_its_children() {
             | Op::Component { .. }) => panic!("expected disclosure attributes, got {op:?}"),
         }
     }
+}
+
+fn progress(builder: &mut Builder, done: u64, words: &[u8]) {
+    main(builder);
+    builder.open(Role::Progress);
+    builder.name(b"Fetch");
+    builder.run(Run::Plain, words);
+    builder.fraction(Fraction { done, total: 100 });
+    builder.close();
+    end(builder);
+}
+
+#[test]
+fn a_progress_built_with_runs_has_its_value_text() {
+    let (mut page, mut view) = (page(), View::new(&LIMITS));
+    page.apply(&fixtures::patches(&mut view, 0, |b| progress(b, 42, b"42%")), &mut Vec::new());
+    assert_eq!(page.html(), include_str!("golden/progress.html").trim_end());
+}
+
+#[test]
+fn a_progress_that_moves_keeps_its_element_and_says_its_new_words() {
+    const PROGRESS: NodeId = NodeId(3); // page, main, progress
+    let (mut page, mut view) = (page(), View::new(&LIMITS));
+    page.apply(&fixtures::patches(&mut view, 0, |b| progress(b, 42, b"42%")), &mut Vec::new());
+    let mut ops = Vec::new();
+    page.apply(&fixtures::patches(&mut view, 1, |b| progress(b, 43, b"43%")), &mut ops);
+    assert_eq!(ops.len(), 2);
+    for op in &ops {
+        match op {
+            Op::Attributes { node, .. } | Op::Text { node, .. } => assert_eq!(*node, PROGRESS),
+            Op::Insert { .. }
+            | Op::Remove { .. }
+            | Op::Move { .. }
+            | Op::Replace { .. }
+            | Op::Value { .. }
+            | Op::Choice { .. }
+            | Op::Href { .. }
+            | Op::Focus { .. }
+            | Op::ScrollEnd { .. }
+            | Op::Component { .. } => unreachable!("progress updates its existing element"),
+        }
+    }
+    assert_eq!(page.html(), include_str!("golden/progress-moved.html").trim_end());
 }

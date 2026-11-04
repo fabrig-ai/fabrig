@@ -907,6 +907,22 @@ its own for any other host.
   within `setup.fetch_bytes` (configuration.md, section 7). At the
   body's end, a digest equal to the pin makes the part file `0o755` and
   renames it over its name.
+- **Its size is the answer's `Content-Length`,** the `200`'s that carries
+  the body, so past a redirect on macOS. A body longer than it removes
+  the part file and is refused, naming the URL, as one past
+  `setup.fetch_bytes` is. An answer without one, or of none, has no
+  size, and its progress is its bytes alone. skein-http delivers no byte
+  past the length, so the refusal is the machine's own check.
+- **It says how far it has gone on stdout,** a plain line a machine
+  reads and a person running the command by hand reads too: `fetched
+  BINARY DONE of TOTAL bytes`, or with no size `fetched BINARY DONE
+  bytes`, `BINARY` being `forgejo` or `runner`, `DONE` the bytes written
+  and `TOTAL` the size. One at the binary's start, one at each whole
+  percent it passes, at most one for a chunk, and one at its end, once
+  each; with no size, one at each MiB in place of the percents. A binary
+  already there says nothing, and on macOS the bytes are the archive's,
+  its extraction saying nothing. A line stdout will not take is dropped:
+  no fetch fails for what it says.
 - **A wrong digest** removes the part file and refuses, naming the URL,
   the pinned digest and the digest it got. Nothing is left under the
   binary's name.
@@ -919,7 +935,7 @@ its own for any other host.
 - **Then the preparation checks its version** as every command that
   runs it does (6.1); a digest is no version.
 - **Its code:** the fetch's machine in `temper-forge-setup`, its
-  requests, chunks, writes and digests its inputs and outputs, and its
+  requests, chunks, writes, digests and lines its inputs and outputs, and its
   host in `temper-forge-setup-shell`, on skein-io, skein-http and
   skein-tls (section 11). It holds no credential and writes no record
   (section 9). The platform is the binary's to say, as its shell was
@@ -1293,6 +1309,7 @@ temper box
   |---|---|---|
   | `start FORGE` | serve, once it has written the group's file: at an owned forge's set up (6.5) and at the playground's start (8.4) | start the forge's group, by its file |
   | `step FORGE STEP` | the box | the group's step `fetch`, `prepare` or `run` is starting, for the client's row (`../client/forge.md`, 5.4) |
+  | `fetched FORGE BINARY DONE TOTAL` | the box | how far the group's `fetch` step has gone, one for each line it says (6.6): `BINARY` `forgejo` or `runner`, `DONE` its bytes written, `TOTAL` its size or `none`. Between `step FORGE fetch` and the next step alone (7.2), and at most 64 bytes, `box.line_bytes`'s least, whatever its numbers |
   | `started FORGE` | the box | the group's long steps are started, an owned Forgejo answers, and its record is written; the engine then takes the handover and reconciles (6.5) |
   | `failed FORGE WHY` | the box | the group stopped: `WHY` names the step by its name, as its log file and the box's terminal name it (7.2), such as `prepare-3 exited 1`: `<step> exited <code>`, `<step> killed by signal <n>`, `<step> did not start`, `record not written`, or a removal's `remove: exited <code>`, `remove: did not start` or `remove: files not removed`, cut to fit the line's bound, and holds no secret; a step's own lines are in its log, the last of them under the terminal's `failed` line (7.2) |
   | `stop FORGE` | serve | stop the forge's group, its file and record kept |
@@ -1521,6 +1538,24 @@ temper box
   write <path>: <error>; the step's lines follow here`, and that step's
   lines then go to the terminal as `--echo steps` writes them. Forgejo also
   logs to its own files.
+- **A fetch's lines,** those of 6.6 on the stdout of a step at the
+  stage `fetch`:
+  - **Each becomes a `fetched` line on the pipe** (7.1), while the box
+    is starting that step's group and the step is the one it runs. A
+    line the step's pipe still holds once the step has exited stays in
+    its log and goes no further, so none follows the next step's `step`
+    line.
+  - **The latest waits alone:** the box holds one `fetched` line,
+    replaced by the next, and writes it once its replies are written,
+    so a slow serve loses a figure, never a reply, and never slows the
+    fetch. A reply drops the one held.
+  - **The terminal shows none of them:** the step's log keeps them, as
+    it keeps the step's other lines, and neither `--echo steps` nor a
+    failure's tail shows them, so a failed fetch's tail is what it
+    said went wrong.
+  - **A line it cannot read,** or one from a step of no asked forge, is
+    named on its stderr, `box: fetch: unknown line`, and goes no
+    further.
 - **A failure's tail:** under each terminal line of a step's failure,
   a long step's exit, a group's `failed` or a give up, the box writes
   the last `box.tail_lines` lines it logged for that step since its last
@@ -3163,14 +3198,24 @@ relies on.
 - **The fetch's machine** (6.6), in temper-forge-setup, given its URLs
   and digests: each pin's URL and digest for each architecture, and
   another architecture refused; another status or a redirect refused;
-  a body past `setup.fetch_bytes` refused. With its host, in
+  a body past `setup.fetch_bytes` refused, and one past its size; the
+  lines in order for an answer with a size and for one without. With
+  its host, in
   temper-forge-setup-shell's tests against a local file server over
   TLS, its root skein's test root named by `SSL_CERT_FILE`: a wrong
   digest, its part file removed and its refusal naming the URL and both
   digests; the right one, made 0o755 and renamed; a file already there
   hashed, nothing asked when it matches, and a mismatch refused, naming
   its path, the file left; a part file left by a fetch cut short
-  written again.
+  written again; the lines reaching the host's writer in order, with a
+  size and without, none for a file already there.
+- **A fetch's lines** (7.2), in temper-box: each relayed as a `fetched`
+  line for the group the box is starting, in its log and on no terminal,
+  with `--echo steps` and in a failure's tail too; one from a group
+  started already named and dropped, one it cannot read named; one left
+  in the pipe after the step's exit going no further; the longest line
+  within 64 bytes; and a stalled pipe keeping the latest alone, every
+  reply still written.
 - **The box's asked groups and its pipe** (7.1), in temper-box: a
   dormant group running nothing at the box's start; `start FORGE`
   running the group's steps in order, a `step` line for each, then the

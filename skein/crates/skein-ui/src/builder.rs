@@ -8,8 +8,8 @@ use crate::Binding;
 use crate::Limits;
 use crate::tree::length;
 use crate::{
-    Drawing, DrawingKind, EntryKind, Key, Node, Picture, Region, Role, Run, Shortcut, SlotRef, Sort, Source, Spans,
-    State, Style, TextRun, Tree, Value,
+    Drawing, DrawingKind, EntryKind, Fraction, Key, Node, Picture, Region, Role, Run, Shortcut, SlotRef, Sort, Source,
+    Spans, State, Style, TextRun, Tree, Value,
 };
 
 use alloc::boxed::Box;
@@ -94,7 +94,7 @@ impl Builder {
 
     /// Begin a node; calls between this and `close` build its children.
     pub fn open(&mut self, role: Role) {
-        let runs = if role == Role::Text { self.limits.text_per_node } else { 0 };
+        let runs = if role == Role::Text || role == Role::Progress { self.limits.text_per_node } else { 0 };
         self.open_with_runs(role, runs);
     }
 
@@ -111,7 +111,9 @@ impl Builder {
     pub fn close(&mut self) {
         let index = self.open.pop().expect("a node is open");
         let size = self.tree.len().checked_sub(index).expect("node precedes its children");
-        self.tree.nodes.get_mut(index).expect("open node exists").size = size;
+        let node = self.tree.nodes.get_mut(index).expect("open node exists");
+        assert!(node.fraction.is_none() || !node.text.is_empty(), "a fraction has its words");
+        node.size = size;
     }
 
     fn index(&self) -> u32 {
@@ -147,15 +149,26 @@ impl Builder {
         self.close();
     }
 
-    /// Append a nonempty run to an open text node; empty spans take no storage.
+    /// Append a nonempty run to an open text node or progress; empty spans take no storage.
     pub fn run(&mut self, run: Run, bytes: &[u8]) {
-        assert!(self.node().role == Role::Text, "runs belong to text nodes");
+        assert!(
+            self.node().role == Role::Text || self.node().role == Role::Progress,
+            "runs belong to text nodes or progress"
+        );
         if bytes.is_empty() {
             return;
         }
         self.charge(0, length(bytes));
         let text = copy_of(bytes);
         self.node_mut().text.push(TextRun { run, text }).expect("nonempty runs fit the text capacity");
+    }
+
+    /// Say how far a progress has gone, its runs saying it in words.
+    pub fn fraction(&mut self, fraction: Fraction) {
+        assert!(self.node().role == Role::Progress, "fractions belong to progress");
+        assert!(fraction.total > 0, "a fraction's total is above zero");
+        assert!(fraction.done <= fraction.total, "a fraction's done is at most its total");
+        self.node_mut().fraction = Some(fraction);
     }
 
     /// Give the open node a name where its text does not name it.

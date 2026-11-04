@@ -34,7 +34,7 @@ const FORMS: &[(Format, &[u8], bool)] = &[
     (Format::Duration, b"05s", false),
     (Format::Duration, b"0s", false),
     (Format::Duration, b"5w", false),
-    (Format::Secret, b"users/free.passwd", true),
+    (Format::Secret, b"users/alice.passwd", true),
     (Format::Secret, b"users/../x", false),
     (Format::Secret, b"Users/x", false),
     (Format::Secret, b"a//b", false),

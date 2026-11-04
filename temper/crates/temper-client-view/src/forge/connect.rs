@@ -9,7 +9,7 @@ use crate::{
 };
 use alloc::boxed::Box;
 use skein_lib::bytes::copy_of;
-use skein_ui::{Builder, Role, Run, Shortcut, State, phrases::Hole};
+use skein_ui::{Builder, Fraction, Role, Run, Shortcut, State, phrases::Hole};
 use temper_client_domain::{
     Address, Choice, Domain, Step,
     forge::{
@@ -792,6 +792,11 @@ pub(crate) fn progress_in(b: &mut Builder, root: Option<&Domain>, w: &Words, row
     } else {
         w.say(if current > Some(0) { Word::ForgeFetched } else { Word::ForgeFetch }, &[])
     };
+    let fetch = if let Some(fetched) = row.fetched {
+        crate::accounts::words::join(&[&fetch, b" \xc2\xb7 ", &forge::words::fetched_figure(fetched)])
+    } else {
+        fetch
+    };
     let prepare = w.say(Word::ForgePrepare, &[]);
     let run = w.say(Word::ForgeRun, &[]);
     let connecting = w.say(Word::ForgeConnectingAsTemper, &[]);
@@ -972,6 +977,7 @@ pub(crate) fn welcome_target<'a>(root: &'a Domain, row: &'a Row) -> Option<(&'a 
 pub(crate) fn welcome_line(b: &mut Builder, root: &Domain, w: &Words, row: &Row) {
     let forge = name(w, row, root);
     let connection = forge::words::forge_connection(row);
+    let detail = forge::words::forge_connection_bare(row);
     if temper_client_domain::pages::welcome::forge_connected(row) && !connect::underway(row) && !connect::failed(row) {
         if let Connection::Connected { login, .. } = &row.connection
             && let Some((org, repository)) = welcome_target(root, row)
@@ -993,15 +999,24 @@ pub(crate) fn welcome_line(b: &mut Builder, root: &Domain, w: &Words, row: &Row)
             Word::WelcomeForgeLine,
             &[Hole::Name(forge.clone()), Hole::Name(target.clone()), Hole::Name(connection.clone())],
         );
-        stacked(b, w, &line, &forge, &[&target, &connection], false);
+        stacked(b, w, &line, &forge, &[&target, &detail], false);
     } else {
         let line = w.say(Word::ForgeStatus, &[Hole::Name(forge.clone()), Hole::Name(connection.clone())]);
-        stacked(b, w, &line, &forge, &[&connection], false);
+        stacked(b, w, &line, &forge, &[&detail], false);
     }
     if busy(row) && w.shell == Shell::Browser {
         b.open(Role::Progress);
-        b.style(look::FLOW_BUSY);
-        b.name(&forge::words::forge_connection(row));
+        if let Some(fetched) = row.fetched {
+            b.style(look::FLOW_METER);
+            b.name(forge::words::fetching_name(fetched));
+            b.run(Run::Plain, &forge::words::fetched_figure(fetched));
+            if let Some(total) = fetched.total {
+                b.fraction(Fraction { done: fetched.done, total });
+            }
+        } else {
+            b.style(look::FLOW_BUSY);
+            b.name(&forge::words::forge_connection(row));
+        }
         b.close();
     }
     each_step(b, root, w, row);
