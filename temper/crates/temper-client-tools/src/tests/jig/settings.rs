@@ -71,13 +71,13 @@ fn model() -> c::SettingModel {
 fn documents() -> List<c::CharterDocument> {
     list([
         c::CharterDocument {
-            connector: 0,
+            connector: 1,
             name: list(["forge", "code.example", "team", "rules", "branch", "main"].map(|s| s.as_bytes().into())),
             path: b"AGENTS.md".as_slice().into(),
             heading: Some(b"Rules".as_slice().into()),
         },
         c::CharterDocument {
-            connector: 0,
+            connector: 1,
             name: list(
                 ["forge", "code.example", "team", "rules", "branch", "topic", "rules"].map(|s| s.as_bytes().into()),
             ),
@@ -183,8 +183,9 @@ fn settings_show_charter_renders_its_documents() {
 fn a_document_that_is_no_forge_branch_renders_its_name() {
     for (connector, name) in [
         (7, vec!["forge", "code.example", "team", "rules", "branch", "main"]),
-        (0, vec!["other", "resource"]),
-        (0, vec!["forge", "code.example", "team", "rules", "branch"]),
+        (0, vec!["forge", "code.example", "team", "rules", "branch", "main"]),
+        (1, vec!["other", "resource"]),
+        (1, vec!["forge", "code.example", "team", "rules", "branch"]),
     ] {
         let (setting, c::SettingValue::Charter(mut value)) = values().remove(0) else { panic!("charter") };
         value.documents = list([c::CharterDocument {
