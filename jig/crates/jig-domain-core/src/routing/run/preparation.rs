@@ -508,17 +508,13 @@ fn transcript_from(core: &Core, context: &tasks::RunContext) -> Option<(u64, u32
     }
 }
 
-pub(crate) fn route_prepared_agent(
+fn prepare_agent(
     core: &mut Core,
     work: &mut Queue<Work>,
     context: Box<tasks::RunContext>,
     from: Option<(u64, u32)>,
 ) -> Queue<Request> {
     let mut out = Queue::uncapped();
-    let Some(row) = core.tasks.task(context.task) else { return out };
-    if row.phase != tasks::Phase::Active(tasks::Active::Due) {
-        return out;
-    }
     let number = context.task;
     if let Some((token, _)) = core.workspace_flight(number) {
         drop(core.land_kind(token, crate::routing::flight::Kind::Workspace));
@@ -586,7 +582,7 @@ pub(crate) fn route_activate(
                     if busy && from.is_some() {
                         remember_due(core, context);
                     } else {
-                        return route_prepared_agent(core, work, context, from);
+                        return prepare_agent(core, work, context, from);
                     }
                 }
                 crate::RunAdmission::Wait(_) => remember_due(core, context),
