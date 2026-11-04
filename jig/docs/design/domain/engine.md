@@ -1091,6 +1091,20 @@ hosted run with no agent:
   record; a restart finds a claimed job's attempt as a run's (section
   6) and settles it lost or answered.
 
+The application's declaration of job kinds is ascending by number, each
+once, as the worker's hello is. A batch naming an undeclared job kind is
+refused as `Executor`; a job's spec or deadline beyond its declared bound is
+refused as `Spec` (2026-11-04).
+
+A job's transient preparation or failed delivery uses the transient retry
+class; permanent preparation, stale or refused delivery, and an invalid
+assignment use the permanent class. Its own failure and deadline use the
+run's-own class; failure to start uses the agent's class; an oversized
+result uses invalid; lost contact and shutdown use lost. Engine cancellation
+ends it as cancelled. Busy before starting is a refusal, spending no try. A
+finished job becomes its task's Job result, without asking to cancel
+delegates (2026-11-04).
+
 ## 8. The fleet
 
 The fleet child domain knows the hosts and the runs they host:
@@ -2249,6 +2263,12 @@ judges and keeps it within the change's decision.
 - **The root routes, never judges** (root.md, section 11): the judging
   and the keeping are the connector's, in its own terms.
 
+The values-per-scope bound counts every setting state the core keeps in that
+scope: changed, removed and following its default after a reset. Removing or
+resetting a number does not free its slot. A set naming a new number past
+that bound is refused as count before judging; editing a number already kept
+adds no slot (decided 2026-11-03).
+
 ### 17.6 A proposal of settings
 
 - **Proposed by a member or a run.** A party with a role in the
@@ -2307,6 +2327,28 @@ judges and keeps it within the change's decision.
 - **Bounded:** pending proposals of settings in the deployment are a
   limit of their own, each priced at a whole set (17.8), beside the
   tasks child's limits on pending proposals.
+
+Each settings proposal naming an application's items receives a
+deployment-unique `u64` key when it is made. Connector asks to keep, judge,
+accept or drop its values use this key, since proposal numbers are only
+unique within a proposer. The settings review document exposes the key with
+the set so the client can name the application's proposal-value read
+(2026-11-04).
+
+A review of an application's item carries its current state, size and
+charter references. A set gives the size it would set; a removal gives none;
+a reset says it returns to its default without giving that default's size.
+The core keeps no separate default size for this review, makes no connector
+ask during it, and supplies neither zero nor an unknown-size marker. The
+application's own reads serve its default and size (decided 2026-11-03).
+
+Deleting a project withdraws pending settings proposals naming its policy
+before the project state changes. Those proposals are a subset of the
+deployment's pending settings sets, at most `settings.proposals`, so their
+writes fit `settings::withdrawal_writes`, the allowance already included in
+the settings write bound checked against `journal.writes`. Message-number
+capacity is checked before any withdrawal or deletion mutation; this
+requires no additional limit or root-to-core allowance (decided 2026-11-03).
 
 ### 17.7 In the store, and at a start
 
@@ -2459,6 +2501,18 @@ document goes in the charter's instructions.
 - **No authority** is asked of the run: the charter's owners chose its
   documents, as they chose its instructions.
 
+A document's path is 1 to 256 bytes; its heading, when present, is 1 to 80
+bytes. An empty path or a present empty heading is out of shape
+(2026-11-04).
+
+The configuration and service start check that brief sections hold the
+core's own most and `tasks.charter_documents`, naming both limits on
+refusal. The core's in-code validity check does not require this relation:
+fixtures may supply fewer sections. The core then plans documents in charter
+order only while room remains after its own sections, omitting a document
+from both the section plan and the root's document list when no room remains
+(2026-11-04).
+
 ### 17.10 Restoring a version
 
 Restoring a version makes a new proposal of the settings as a revision
@@ -2530,3 +2584,16 @@ decided by the owners of what it touches.
   `setting{kind, scope, number, proposal}`, a pending proposal's item
   (`../client/domain/contract.md`, section 6), and an application's
   items from the application's own read of a proposal's items (17.5).
+
+The restore's size is counted before any deleted project's items are left
+out. Every item found after R counts toward a whole set and at most one
+project's policy, including one that will be omitted, so the answer's
+omitted items are bounded by that same set plus one policy (2026-11-04).
+
+Restoring revision 0 or a revision above the newest is refused as stale,
+naming the newest revision. This differs from an erased revision, which is
+forgotten and names the oldest kept (2026-11-04).
+
+The proposal's reason is `restores revision R: ` followed by the party's
+reason. The combined text is cut to the reason's byte bound at a character
+boundary (2026-11-04).

@@ -260,6 +260,17 @@ section 7).
   Other commit failures retain their existing diagnostic. Earlier durable
   data is recoverable; the refusal changes no stored or wire format.
 
+A stored open question's whole words and a held answer's words each have a
+schema ceiling of 65,536 bytes. Their runtime bounds, `open_words` and
+`held_answer`, both come from `forge.client.op_bytes`; the start refuses a
+bound above the ceiling by the ordinary schema-bound check (2026-11-04).
+
+A tier's stored goal-branch list has a ceiling of 256, sorted by goal number
+with no duplicate. Its runtime bound is `forge.holds`; a value above 256
+refuses the start. The ceiling keeps the tier row's worst-case encoding,
+including each goal's failing-test IDs, within the codec's u32 length
+envelope (2026-11-04).
+
 ## 5. The restart
 
 - **One step, one interval.** The core's restart script asks for the

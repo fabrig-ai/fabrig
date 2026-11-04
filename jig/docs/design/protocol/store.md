@@ -520,6 +520,16 @@ follow from the limits that bound each kind (5.4).
   by the call's key, and puts it in the assignment as it makes it
   (`channel.md`, 6.2), so jig keeps none of another owner's bytes.
 
+A settings revision's items, each with its edit and replaced state, cross as
+one aggregate byte field of length-prefixed `RevisionItem` pieces, not a
+list priced as its count times its largest item. The field's schema ceiling
+is 3,221,225,472 bytes; its receiving byte bound derives from the core's
+revision bound, including replaced values, and its item-count bound is twice
+the settings capacity. A non-exact piece end is malformed; a byte sum or
+item count past its derived bound is refused as Bound. The revision's
+largest case accounts for a whole set of edits and a whole set of replaced
+settings (decided 2026-11-03).
+
 ### 5.2 The application's records
 
 - **Its own codecs,** generated the same way, in its protocol layer: it
@@ -1480,8 +1490,9 @@ The stores open (step 1), and the format row, the layouts and the
 deployment's header are read and checked (step 2, 5.3). Every refusal of
 the levels, versions, layouts and deployment comes here, and nothing has
 been written but skein-kv's recovery of the active generation's maps
-(its next segment, a leftover snapshot's removal; skein's `kv.md`,
-section 3).
+(its next segment, a leftover snapshot's removal, and the snapshot a torn
+tail or a replay past its bound starts; skein's `kv.md`, sections 3 and
+5).
 
 #### 10.1.5 The strays removed
 
@@ -2127,9 +2138,10 @@ was made (`../domain/tasks.md`, section 3):
 - **Three file drivers,** one for each store (skein's `kv.md`, section
   12) and one for transcripts, so a turn's sync never queues behind a
   store's write, nor a store's behind a turn's.
-- **The worst case** is both stores' (skein's `kv.md`, section 7: about
-  three times each map's budget), the component's buffers and tables, and
-  the three drivers' (skein's `io.md`, section 5). Patching's peak (10.2:
+- **The worst case** is both stores' (skein's `kv.md`, section 7: each
+  map's budget, its queued commits and its buffers of a chunk), the
+  component's buffers and tables, and the three drivers' (skein's
+  `io.md`, section 5). Patching's peak (10.2:
   one map open, one machine per kept family within its own map's record
   room, the walk's page and commit buffers at the larger of the two
   maps' bounds, since one walk serves both, the copy's chunk, and the

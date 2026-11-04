@@ -49,3 +49,10 @@
 - **Departs:** 5.3: the case library's purpose is retired: the reference
   case it was written from is replaced (`../draft/reference-case.md`), and
   its code awaits removal with its design.
+  2.7: `scripts/proof-live.sh`'s `TEMPER_LIVE_STORE` and
+  `TEMPER_LIVE_KEEP`, `proof-live-github.sh`'s fixtures and
+  `proof-live-github-managed.sh`'s target and evidence default under
+  `$HOME/src/rust/tmp/`, a scratch layout of whoever runs fabrig's
+  development (`AGENTS.md`, 1), and 2.7 names the first. They stay
+  because the scripts' behaviour held but for their build wrapper, and
+  `tests/boundary/tests/outward.rs` counts the `~/` form alone.

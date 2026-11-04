@@ -1144,6 +1144,12 @@ with a person in front of a tree, are view.md's, 18.10.
   level-triggered watches and the link are jig's while they have one
   user; whether they move to skein, by a rename and a crate move, once
   a second user wants them.
+- **A root's two modes:** an application root chooses its mode at run
+  time, so it holds both modes' requests under one type (4.4), and a
+  host that only ever runs a linked root still matches the unlinked
+  variant, as a cell it never reaches. Whether each root splits by mode,
+  so that such a host is never handed that variant, is a change to every
+  application root and its hosts.
 
 ## 19. Helpers
 
