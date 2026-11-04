@@ -1,6 +1,6 @@
 # Notes behind the drafts
 
-2026-11-02. The reasons behind temper's drafts (`AGENTS.md`, section 9):
+2026-11-02. The reasons behind temper's drafts (`AGENTS.md`, section 6):
 the evidence they rest on and the choices made on it, each with its
 reasons. Sections 1 to 6 are the reference's: `reference-code-production.md`,
 `reference-landing.md` and `reference-case.md` cite its choices, N1 to
@@ -450,9 +450,9 @@ rules; their statuses say where the design still lags.
   program backend is Later (`reference-code-production.md`, section 16).
 - **Why:** the run's implementers were Codex, signed in to ChatGPT, and
   smith's one program backend is Claude Code. A key is what smith and
-  jig already carry; a login is never copied to make Codex a program
-  (`AGENTS.md`, 3). Its umask, its logs' mode and its closed stdin are
-  the program backend's to keep when it comes.
+  jig already carry; a login is never copied to make Codex a program.
+  Its umask, its logs' mode and its closed stdin are the program
+  backend's to keep when it comes.
 
 ### N21. Limits for a goal of this size
 

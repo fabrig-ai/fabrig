@@ -310,7 +310,7 @@ pub struct Name {
 }
 
 /// Every name the service override parser takes, including delegated setup host names.
-pub static NAMES: [Name; 163] = [
+pub static NAMES: [Name; 162] = [
     Name {
         name: "sign_in.members",
         unit: Unit::Count,
@@ -1267,26 +1267,20 @@ pub static NAMES: [Name; 163] = [
     },
     Name {
         name: temper_forge_setup::limits::HOST_NAMES[4].name,
-        unit: Unit::Count,
+        unit: Unit::Milliseconds,
         line: temper_forge_setup::limits::HOST_NAMES[4].line,
-        value: |limits| u64::from(limits.setup.orgs),
+        value: |limits| limits.setup.deadline.as_millis(),
     },
     Name {
         name: temper_forge_setup::limits::HOST_NAMES[5].name,
         unit: Unit::Milliseconds,
         line: temper_forge_setup::limits::HOST_NAMES[5].line,
-        value: |limits| limits.setup.deadline.as_millis(),
+        value: |limits| limits.setup.backoff.as_millis(),
     },
     Name {
         name: temper_forge_setup::limits::HOST_NAMES[6].name,
         unit: Unit::Milliseconds,
         line: temper_forge_setup::limits::HOST_NAMES[6].line,
-        value: |limits| limits.setup.backoff.as_millis(),
-    },
-    Name {
-        name: temper_forge_setup::limits::HOST_NAMES[7].name,
-        unit: Unit::Milliseconds,
-        line: temper_forge_setup::limits::HOST_NAMES[7].line,
         value: |limits| limits.setup.backoff_max.as_millis(),
     },
 ];

@@ -36,7 +36,7 @@ fn bounded_release() -> (Script, Ask, Answer) {
             }),
             reason: text(b""),
         },
-        row.hold.as_ref().unwrap().revision(),
+        row.hold.as_ref().expect("fixture hold").revision(),
     );
     setup.truth.objects.insert(ObjectKey::Task(row.chip.task), ReadValue::Task(Box::new(row)));
     let answer = Answer::Done(Outcome::Document(DocumentOutcome::Compound {
@@ -50,7 +50,7 @@ fn bounded_release() -> (Script, Ask, Answer) {
 #[test]
 fn a_compound_amend_and_release_obeys_the_same_bounded_offer() {
     let (setup, ask, answer) = bounded_release();
-    let mut engine = Engine::new(setup, 1).unwrap();
+    let mut engine = Engine::new(setup, 1).expect("valid script");
     send(&mut engine, 0, 11, 1, 1, ask);
     assert_eq!(final_answer(&engine.poll(at(10_000_000))[0]), &answer);
 }

@@ -42,8 +42,8 @@ document's "The world" section.
   processes, against fakes in the focused suite, and against the real
   providers, their issuers, Claude Code and a git remote in a live suite
   outside the gate, on smith's own accounts, signed in once: the
-  pipeline runs it after every landing, and the owner runs the story on
-  a key (2.3).
+  after-landing tier runs it after every landing, and the owner runs the
+  story on a key (2.3).
 - **Benchmarks are not tests.** Real agents on real models are measured
   in a tier of their own, outside both suites and the gate (2.4).
 - **One scenario, every tier its fakes reach.** The local host's
@@ -239,9 +239,10 @@ patch and drift tests check the generated `encoded_bound` and
     cargo nextest run --profile live-smith
     ```
   - **After landing, and the owner's.** After every landing, the
-    pipeline runs `live-smith` on the logins it lends from its shelf:
-    smith's ChatGPT record and Claude Code's login. No shelf holds an
-    API key, so the story on a key is the owner's: it is ignored
+    after-landing tier runs `live-smith` on the two sign-ins it takes as
+    named inputs: smith's ChatGPT record and Claude Code's login, in a
+    `$SMITH_LIVE` laid out as above. No API key is among the tier's
+    inputs, so the story on a key is the owner's: it is ignored
     (`#[ignore]`, whose reason says so), the profile's run leaves it
     out, and the owner runs it alone, with `ANTHROPIC_API_KEY` set in
     the environment:
@@ -726,6 +727,6 @@ benchmarks/                      smith-bench, the benchmark harness (benchmarks.
   repair starts from the first after-landing log whose failure says why
   (2.3), in the lowest tier that shows it.
 - **The key's story after landing.** The story on an Anthropic API key
-  is the owner's for now (2.3): no shelf holds a key. It returns to the
-  after-landing run when the pipeline has a key to lend, which is the
-  user's to give.
+  is the owner's for now (2.3): no key is among the after-landing tier's
+  inputs. It returns to the after-landing tier when a key becomes one of
+  them, which is the user's to give.

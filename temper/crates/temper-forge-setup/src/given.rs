@@ -12,6 +12,9 @@ pub fn refusal(index: u32, why: Refused) -> Problems {
     let limits = root.member(b"application").member(b"limits").member(b"overrides");
     let mut what = What::Reason(b"invalid form");
     let path = match why.place {
+        Place::Orgs | Place::Org(_) | Place::OrgsLimit => {
+            unreachable!("temper gives no org and a fixed bound")
+        }
         Place::FilesLimit
         | Place::FileBytesLimit
         | Place::CreateOrg
@@ -22,16 +25,7 @@ pub fn refusal(index: u32, why: Refused) -> Problems {
         | Place::Plan => unreachable!("Create fields and file limits are temper constants or admitted SetUp names"),
         Place::BotLogin => entry.member(b"bot").member(b"login"),
         Place::BotEmail => entry.member(b"bot").member(b"email"),
-        Place::Orgs => {
-            what = What::Reason(b"past its bound");
-            entry.member(b"orgs")
-        }
-        Place::Org(j) => entry.member(b"orgs").child(Segment::Index(j)),
         Place::OrgOwner => entry.member(b"mode").member(b"owned").member(b"person").member(b"login"),
-        Place::OrgsLimit => {
-            what = What::Reason(b"outside its type");
-            limits.member(b"setup.orgs")
-        }
         Place::Deadline => {
             what = What::Reason(b"outside its type");
             limits.member(b"setup.deadline_ms")
@@ -80,16 +74,16 @@ pub fn refusal(index: u32, why: Refused) -> Problems {
             | Place::FilePath(_)
             | Place::FileContent(_)
             | Place::Plan => unreachable!("Create has no paired limits"),
+            Place::Orgs | Place::Org(_) | Place::OrgsLimit => {
+                unreachable!("temper gives no org and a fixed bound")
+            }
             Place::Word
             | Place::BotLogin
             | Place::BotEmail
             | Place::AdminName
             | Place::ApiName
             | Place::GitName
-            | Place::Orgs
-            | Place::Org(_)
             | Place::OrgOwner
-            | Place::OrgsLimit
             | Place::Backoff => unreachable!("kit limit pairs name maximum backoff or deadline"),
         });
     }

@@ -2,9 +2,6 @@
 # (tests/boundary/tests/outward.rs). A file not listed holds none; each count may only fall.
 # Raising a count or adding a file needs a `# Raised: <who, why>` line directly above its entry.
 
-.config/gate/wasm32.txt 1
-AGENTS.md 24
-DESIGN.md 1
 jig/docs/development/debt/reviews/2026-10-31-jig-quality-run.md 4
 jig/scripts/live-sign-in.sh 1
 jig/tests/client-browser/src/lib.rs 1
@@ -12,10 +9,8 @@ jig/tests/client-wire/tests/suite/placed_holds.rs 1
 jig/tests/codec-families.rs 1
 jig/tests/protocol-accounts/tests/suite/drift.rs 1
 jig/tests/worker-wire/tests/suite/drift.rs 1
-skein/AGENTS.md 1
 skein/crates/skein-llm/README.md 2
 skein/docs/design/fake-forge.md 1
-skein/docs/design/testing.status.md 1
 skein/docs/development/debt/reviews/2026-10-31-skein-areas.md 1
 skein/docs/development/debt/reviews/2026-10-31-skein-first-areas.md 1
 skein/docs/development/debt/reviews/2026-10-31-skein-first.md 1
@@ -33,18 +28,16 @@ smith/benchmarks/tests/recorded/codex/live-child-rollout.jsonl 2
 smith/benchmarks/tests/recorded/codex/live-root-rollout.jsonl 1
 smith/benchmarks/tests/recorded/codex/manifest.json 6
 smith/benchmarks/tests/recorded/codex/repeated-rollout.jsonl 1
-smith/docs/design/shell.status.md 1
 smith/docs/development/benchmarks/smith-codex-2026-10-14.md 1
 smith/docs/development/debt/reviews/2026-10-31-quality-areas.md 2
 smith/docs/development/debt/reviews/2026-10-31-quality.md 1
 temper/crates/temper/tests/suite/forge_land.rs 2
 temper/crates/temper/tests/suite/startup.rs 1
 temper/docs/design/client/browser.status.md 1
-temper/docs/design/domain/testing.md 2
-temper/docs/design/domain/testing.status.md 2
 temper/docs/design/draft/archive/first-run.md 1
 temper/docs/design/draft/configuring.execution.md 6
-temper/docs/design/draft/dashboards.md 5
+# Raised: outward-citations/repair-1, the citation cleanup names the existing status page in two more descriptions of the test input.
+temper/docs/design/draft/dashboards.md 7
 temper/docs/design/draft/github.md 1
 temper/docs/design/draft/macos.md 1
 temper/docs/design/draft/notes.md 18
@@ -69,7 +62,7 @@ tools/citations/README.md 2
 tools/citations/citations.py 1
 tools/tiers/cpu-run 1
 tools/tiers/cpu.py 2
-tools/tiers/design.md 8
+tools/tiers/design.md 3
 tools/tiers/run 4
 tools/tiers/test_cpu.py 5
 tools/tiers/test_run.py 28

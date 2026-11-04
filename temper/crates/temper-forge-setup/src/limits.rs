@@ -1,6 +1,9 @@
-//! Managed orgs and reconcile's deadline and wait (temper/docs/design/protocol/configuration.md, 7;
+//! Reconcile's deadline and wait (temper/docs/design/protocol/configuration.md, 7;
 //! temper/docs/design/protocol/documentation.md, 8).
 use skein_forge_setup::limits::Limits;
+
+/// temper gives no org (protocol/setup.md, 5.3): the least bound the kit takes.
+pub const ORGS: u32 = 1;
 
 /// A fetched binary's cap; largest pin: Forgejo 17.0.0 amd64, 122,053,192 bytes.
 pub const FETCH_BYTES: u64 = 268_435_456;
@@ -21,7 +24,6 @@ pub struct Host {
     pub runs: u32,
     pub states: u32,
     pub state_life: Duration,
-    pub orgs: u32,
     pub reachable: u32,
     pub repositories: u32,
     pub deadline: Duration,
@@ -36,7 +38,6 @@ pub fn host() -> Host {
         runs: small::RUNS,
         states: small::STATES,
         state_life: Duration::from_secs(3600),
-        orgs: plan.orgs,
         reachable: plan.reachable,
         repositories: plan.repositories,
         deadline: plan.deadline,
@@ -49,7 +50,7 @@ impl Host {
     #[must_use]
     pub fn plan(&self) -> Limits {
         Limits {
-            orgs: self.orgs,
+            orgs: ORGS,
             reachable: self.reachable,
             files: 2,
             file_bytes: 4096,
@@ -91,7 +92,6 @@ pub fn apply_host(limits: &mut Host, name: &[u8], value: u64) -> Result<(), Refu
             let mut plan = limits.plan();
             apply(&mut plan, name, value)?;
             limits.repositories = plan.repositories;
-            limits.orgs = plan.orgs;
             limits.deadline = plan.deadline;
             limits.backoff = plan.backoff;
             limits.backoff_max = plan.backoff_max;
@@ -113,7 +113,7 @@ pub fn small() -> Limits {
     // Legacy command default; checked startup supplies forge.client.repositories.
     let repositories = 2;
     Limits {
-        orgs: 8,
+        orgs: ORGS,
         reachable: 8, // temper-10 supplies picker.page.
         files: 2,
         file_bytes: 4096,
@@ -137,7 +137,6 @@ pub fn apply(limits: &mut Limits, name: &[u8], value: u64) -> Result<(), Refused
     }
     match name {
         b"forge.client.repositories" => limits.repositories = u32::try_from(value).or(Err(Refused::Range))?,
-        b"setup.orgs" => limits.orgs = u32::try_from(value).or(Err(Refused::Range))?,
         b"setup.deadline_ms" => limits.deadline = duration(value)?,
         b"setup.backoff_ms" => limits.backoff = duration(value)?,
         b"setup.backoff_max_ms" => limits.backoff_max = duration(value)?,
@@ -171,18 +170,12 @@ pub struct Name<L> {
 }
 
 /// Every name the pure-plan override parser takes, in parser order.
-pub static NAMES: [Name<Limits>; 5] = [
+pub static NAMES: [Name<Limits>; 4] = [
     Name {
         name: "forge.client.repositories",
         unit: Unit::Count,
         line: "Bounds repositories retained by the forge client and read by a setup plan.",
         value: |limits| u64::from(limits.repositories),
-    },
-    Name {
-        name: "setup.orgs",
-        unit: Unit::Count,
-        line: "Bounds managed organizations in a setup plan.",
-        value: |limits| u64::from(limits.orgs),
     },
     Name {
         name: "setup.deadline_ms",
@@ -205,7 +198,7 @@ pub static NAMES: [Name<Limits>; 5] = [
 ];
 
 /// Every name the setup host override parser takes, in parser order.
-pub static HOST_NAMES: [Name<Host>; 8] = [
+pub static HOST_NAMES: [Name<Host>; 7] = [
     Name {
         name: "setup.runs",
         unit: Unit::Count,
@@ -229,12 +222,6 @@ pub static HOST_NAMES: [Name<Host>; 8] = [
         unit: Unit::Count,
         line: "Bounds repositories retained by the forge client and read by a setup plan.",
         value: |limits| u64::from(limits.repositories),
-    },
-    Name {
-        name: "setup.orgs",
-        unit: Unit::Count,
-        line: "Bounds managed organizations in a setup plan.",
-        value: |limits| u64::from(limits.orgs),
     },
     Name {
         name: "setup.deadline_ms",

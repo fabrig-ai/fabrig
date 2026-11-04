@@ -59,7 +59,7 @@ fn scripted_history_pages_keep_change_and_milestone_rows_under_opaque_source_con
         read: Read::History { task: 8, subtree: false, after: None },
         rows: Rows::History(values.clone()),
     });
-    let mut engine = Engine::new(setup, 209).unwrap();
+    let mut engine = Engine::new(setup, 209).expect("valid script");
     let mut cursor = None;
     for (index, expected) in values.iter().enumerate() {
         let now = Time::from_nanos(10_000_000);
@@ -67,10 +67,10 @@ fn scripted_history_pages_keep_change_and_milestone_rows_under_opaque_source_con
             .read(
                 now,
                 11,
-                Token::new(u64::try_from(index).unwrap() + 20),
+                Token::new(u64::try_from(index).expect("fixture index fits u64") + 20),
                 Read::History { task: 8, subtree: false, after: cursor },
             )
-            .unwrap();
+            .expect("typed read fits");
         let out = engine.poll(now);
         let Up::Read { terminal: ReadResult::Value(ReadValue::History(page)), .. } = &out[0] else {
             panic!("whole supplied history page");

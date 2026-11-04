@@ -3,8 +3,7 @@
 set -eu
 umask 077
 cd "$(dirname "$0")/.."
-# The machine's build queue where it has one, plain cargo where it hasn't
-# (agents' docs/design/build-infrastructure.md 12).
+# The machine's build queue where it has one, plain cargo where it hasn't.
 heavy=$(command -v heavy || true)
 if [ "${1-}" = rung-b0-offline ]; then
     [ "$#" -eq 1 ] || { printf '%s\n' 'usage: scripts/proof-live.sh rung-b0-offline' >&2; exit 2; }
