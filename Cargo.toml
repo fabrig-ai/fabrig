@@ -473,6 +473,7 @@ temper-docs = { path = "temper/crates/temper-docs" }
 temper-github-app = { path = "temper/testing/temper-github-app" }
 temper-fake = { path = "temper/crates/temper-fake" }
 temper-playground = { path = "temper/crates/temper-playground" }
+temper-playground-world = { path = "temper/tests/playground" }
 temper-protocol-records = { path = "temper/crates/temper-protocol-records", default-features = false }
 temper-box = { path = "temper/crates/temper-box" }
 temper-forge-setup-shell = { path = "temper/crates/temper-forge-setup-shell" }

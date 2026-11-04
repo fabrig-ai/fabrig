@@ -895,8 +895,8 @@ The tier's tests, each one test of the steps it names, each on its own
    chat reconnects after a server restart and remains live after rapid reloads.
 2. **History** (4.1, 2): from the chats to a chat by its link, Back and
    Forward; a new chat's composer focused, and its filter's address and
-   pressed state kept across a reload and Back.
-3. **An address that is no page** opens the inbox at `/` (4.1, 2).
+   pressed state kept across a reload and Back, and an address that is no page opens
+   the inbox at `/` (4.1, 2).
 4. **The composer** (4.1, 3).
 5. **A panic** (4.1, 4).
 6. **jig's attacks that need a browser** (4.1, 5): a cross-site request
@@ -914,13 +914,15 @@ The tier's tests, each one test of the steps it names, each on its own
     the story's chat, before and after a reload (`README.md`, 2).
 12. **The playground's story A** on the built playground, its log
     downloaded and replayed natively (`../playground.md`, 9).
+13. **Reading a public project** (8.4), with no sign-in, and
+    losing it when it is made private.
 
 The cap includes all browser tests, whatever their names.
 
 Not in the tier, each in the lowest world that shows it:
 - **Address-codec edge rows:** `temper-client-domain`'s
   `tests::address::{a_path_that_is_no_page_is_missing,each_number_spans_its_types_range}`.
-  Browser test 3 keeps the shell's replacement of a missing address with `/`.
+  Browser test 2 keeps the shell's replacement of a missing address with `/`.
 - **Repeated loads at the watcher bound:** the client world's
   `suite::reloads::repeated_loads_release_the_previous_clients_watches`.
 - **Composer bounds:** the client domain's
