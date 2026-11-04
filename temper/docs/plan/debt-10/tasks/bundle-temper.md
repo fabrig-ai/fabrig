@@ -57,3 +57,14 @@ Acceptance:
 ## Report
 
 As the implementer's text says, with the net lines. This moves code and pins no new rule.
+
+## Rebase (2026-11-04, step merge, foreman debt-10/bundle-temper/foreman-1)
+
+resolve service.status.md by removing the revised 11.4 gap and retaining the integration trunk’s other gaps
+The merge conflicts in `jig/docs/design/protocol/service.status.md`.
+Branch commit `bd9700464862` deletes the 11.4 bundle-copy gap; integration commit `fcf65bd27174` rewrites that same line after incorporating main’s `73233ed8b177`.
+Rebase onto the current integration trunk. Resolve this file by deleting its entire revised **Not yet:** 11.4 paragraph, including the D005 citation.
+Preserve the separate **Not yet:** 11 paragraph recording the 356-versus-200 adapter bound and citing D001; that debt remains open for `measure-recheck`.
+Preserve the other status entries and the `2026-11-04` date.
+Keep the task’s bundle composition and debt changes intact; this conflict needs no Rust change.
+Run `python3 -I -B tools/citations/citations.py --all` and confirm 0 findings.
