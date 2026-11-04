@@ -1,3 +1,0 @@
-# The files that name the lab running fabrig's development, and how many names each holds
-# (tests/boundary/tests/outward.rs). A file not listed holds none; each count may only fall.
-# Raising a count or adding a file needs a `# Raised: <who, why>` line directly above its entry.
