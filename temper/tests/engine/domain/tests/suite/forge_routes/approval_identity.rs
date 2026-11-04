@@ -310,40 +310,96 @@ fn an_unknown_head_approval_waits_until_the_approval_requirement_is_removed() {
     world.close();
 }
 
-/// Reproduce a queued approval wait through the root and the requester's frame.
+/// Reproduce the queued wait, an unmapped review, a satisfied rule and its removal.
 pub(crate) fn approval_wait_story() {
     let (mut world, change) = waiting_approval();
+    let panel = approval_panel(&mut world, change, 990);
+    assert!(matches!(panel.step, forge_top::PanelStep::Queued { place: 1, .. }));
+    assert_eq!(panel.ci, temper_engine_domain_forge_change::Status::Passed);
+    assert_eq!(panel.gates[0].verdict, temper_engine_domain_forge_change::Status::Passed);
+    assert_approval_wait(&panel);
+    post_approval(&mut world, change, 2);
+    let panel = approval_panel(&mut world, change, 991);
+    assert_approval_wait(&panel);
+    assert_eq!(world.merges, 0, "unmapped forge reviews never authorize merging");
+    assert_eq!(panel.unmapped_reviews.len(), 1, "{panel:?}");
+    assert_eq!(panel.unmapped_reviews[0].account, 2);
+    assert_eq!(Some(panel.unmapped_reviews[0].head), panel.head);
+    post_approval(&mut world, change, 7);
+    assert_eq!(world.merges, 1, "a mapped reviewer with role 0 satisfies both rules");
+    let panel = approval_panel(&mut world, change, 992);
+    assert!(panel.approvals.iter().all(|line| line.remaining != Some(1)), "the satisfied deficit must cease");
+    drop_approvals(&mut world);
+    assert!(approval_panel(&mut world, change, 993).approvals.is_empty(), "live rules determine the panel");
+    world.close();
+}
+
+fn assert_approval_wait(panel: &forge_top::Panel) {
+    assert_eq!(panel.approvals.len(), 2, "each enforcing scope's requirement is visible");
+    for line in &panel.approvals {
+        assert_eq!((line.role, line.required, line.freshness), (0, 1, forge_top::JudgeFreshness::Clean));
+        assert_eq!(line.read, forge_top::ReviewRead::Complete, "reviews read with none qualifying differs from unread");
+        assert_eq!(line.remaining, Some(1));
+        assert!(line.counted.is_empty());
+    }
+}
+
+fn approval_panel(world: &mut World, change: u64, watcher: u64) -> forge_top::Panel {
+    world.signed_in = None;
+    world.sign_in();
     world.send(engine::Event::Party(engine::PartyInput::Watch {
-        watcher: Token::new(990),
+        watcher: Token::new(watcher),
         sign_in: world.signed_in.expect("session"),
         subject: jig_domain_core::documents::Watched::Application {
             scope: people::ApplicationScope::Project(1),
             connector: 0,
             subject: Token::new(change),
         },
-        window: jig_domain_core::documents::Window { rows: 0, after: None },
+        window: jig_domain_core::documents::Window { rows: world.env.limits.documents.rows, after: None },
     }));
     for _ in 0..20 {
         world.tick();
     }
-    let panel = &world.panels.last().expect("change panel").1;
-    assert!(matches!(panel.step, forge_top::PanelStep::Queued { place: 1, .. }));
-    assert_eq!(panel.ci, temper_engine_domain_forge_change::Status::Passed);
-    assert_eq!(panel.gates[0].verdict, temper_engine_domain_forge_change::Status::Passed);
-    world.send(engine::Event::Party(engine::PartyInput::Read {
-        reply_to: ReplyTo::new(Token::new(991)),
-        sign_in: world.signed_in.expect("session"),
-        read: jig_domain_core::reads::Read::Frame,
-    }));
+    let panel = world
+        .panels
+        .iter()
+        .rev()
+        .find(|(token, _)| *token == Token::new(watcher))
+        .unwrap_or_else(|| panic!("change panel for {watcher}; delivered {:?}", world.panels))
+        .1
+        .clone();
+    world.send(engine::Event::Party(engine::PartyInput::Unwatch { watcher: Token::new(watcher) }));
     for _ in 0..20 {
         world.tick();
     }
-    let jig_domain_core::reads::Answer::Document(document) = &world.reads.last().expect("frame").1 else {
-        panic!("frame read")
-    };
-    let jig_domain_core::documents::Document::Frame(frame) = document.as_ref() else { panic!("frame") };
-    assert_eq!(frame.needs, 1, "an enforcing approval wait must signal the requester");
-    world.close();
+    panel
+}
+
+fn post_approval(world: &mut World, change: u64, user: u64) {
+    fake::grant(&mut world.fake, b"org/repo", user, raw::Permission::Write);
+    let pull = light_rules::change_row(world, change).pull.expect("opened pull");
+    assert!(matches!(
+        world.external(
+            user,
+            raw::Op::Write(raw::Write::Review {
+                number: pull,
+                verdict: Some(raw::Verdict::Approve),
+                body: b"Looks good.".as_slice().into(),
+            })
+        ),
+        raw::Answer::Reviewed(_)
+    ));
+    world.send(engine::Event::Forge(Box::new(forge_top::Event::Hint {
+        hint: skein_forge::api::Hint {
+            repository: forge_world::REPO,
+            change: skein_forge::api::Change::Item(pull),
+            key: None,
+        },
+    })));
+    world.env.now = world.env.now.saturating_add(world.env.limits.forge.queue_window);
+    for _ in 0..200 {
+        world.tick();
+    }
 }
 
 fn waiting_approval() -> (World, u64) {

@@ -360,3 +360,46 @@ fn owner_attached_requirements_1_to_4_wait_without_a_criteria_table() {
         }
     }
 }
+
+#[test]
+fn approval_panel_distinguishes_unread_incomplete_and_counted_reviews() {
+    use crate::ReviewRead::{Complete, Incomplete, Unread};
+    let (mut d, _) = fixture();
+    let mut required = rule();
+    required.approvals = Box::new([RuleApproval { role: 1, people: 1, freshness: JudgeFreshness::Clean }]);
+    keep(&mut d, 0, 1, required);
+    let row = d.change(CHANGE).unwrap();
+    assert_eq!(d.panel_approvals(row)[0].read, Unread);
+    assert_eq!(d.panel_approvals(row)[0].remaining, None);
+    let approved = reviewers()[0];
+    let conflict = Reviewer { verdict: skein_forge::api::Verdict::RequestChanges, ..approved };
+    for (head, complete, reviews, read, remaining, count, refused) in [
+        (Some(fixtures::BASE), true, [approved].as_slice(), Unread, None, 0, false),
+        (Some(HEAD), false, [].as_slice(), Incomplete, Some(1), 0, false),
+        (Some(HEAD), true, [].as_slice(), Complete, Some(1), 0, false),
+        (Some(HEAD), true, [approved, approved].as_slice(), Complete, Some(0), 1, false),
+        (Some(HEAD), true, [approved, conflict].as_slice(), Complete, Some(1), 0, true),
+    ] {
+        let facts =
+            ReviewFacts { head, reviews_complete: complete, reviewers: Box::from(reviews), unmapped: Box::new([]) };
+        assert!(d.keep_review_facts(CHANGE, facts.clone()));
+        assert!(!d.keep_review_facts(CHANGE, facts), "unchanged reads need no duplicate panel mark");
+        let line = &d.panel_approvals(d.change(CHANGE).unwrap())[0];
+        assert_eq!((line.read, line.remaining, line.counted.len(), line.refused), (read, remaining, count, refused));
+    }
+    d.changes.get_mut(&CHANGE).unwrap().change.clean = Box::new([fixtures::BASE]);
+    d.keep_review_facts(
+        CHANGE,
+        ReviewFacts {
+            head: Some(HEAD),
+            reviews_complete: true,
+            reviewers: Box::new([Reviewer { head: fixtures::BASE, ..approved }]),
+            unmapped: Box::new([]),
+        },
+    );
+    let lines = d.panel_approvals(d.change(CHANGE).unwrap());
+    assert_eq!(lines[0].counted[0].head, fixtures::BASE, "clean freshness retains the review's head");
+    assert_eq!(lines[0].remaining, Some(0));
+    keep(&mut d, 0, 1, rule());
+    assert!(d.panel_approvals(d.change(CHANGE).unwrap()).is_empty(), "removing a rule removes its line");
+}
