@@ -1,3 +1,24 @@
 draft = "wasm32-lints"
 repo = "fabrig"
 sources = ["temper/docs/plan/wasm32-lints/inputs/request.md", "temper/docs/design/playground.status.md", "smith/docs/design/shell.status.md", "AGENTS.md", "DESIGN.md"]
+
+# temper-playground and smith-agent-shell pass the wasm32 clippy and join the gate's list
+# (inputs/request.md): one part, one task, no design, as the request asks. plan.md says what was
+# decided and what no build has measured yet.
+
+[buffer]
+low = 1.0
+high = 2.0
+
+[[part]]
+id = "clippy-both"
+title = "fabrig: temper-playground and smith-agent-shell pass the wasm32 clippy, by lint attributes and cfgs alone, and join .config/gate/wasm32.txt; their status entries close"
+mode = "direct"
+needs = []
+design = "temper/docs/design/playground.md, 9"
+
+[[slice]]
+id = 1
+story = "the gate's wasm32 clippy lints temper-playground and smith-agent-shell, with everything they reach, warnings denied, and no status file calls either left out"
+parts = ["clippy-both"]
+walk = false
