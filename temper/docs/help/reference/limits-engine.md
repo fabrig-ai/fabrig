@@ -85,7 +85,7 @@ Every limit engine.limits.overrides and a worker's limits.overrides take: its un
 - `people.projects`: count, 3. Bounds retained project role sets.
 - `people.holdings`: count, 8. Bounds unique-person holdings per project role set.
 - `people.initial_owners`: count, 2. Bounds retained configured first-owner entries.
-- `people.requests`: count, 32. Bounds retained completed keys plus ordinary flights' answer reservations across the engine.
+- `people.requests`: count, 2,000. Bounds retained completed keys plus ordinary flights' answer reservations across the engine.
 - `people.room_refusals`: count, 8. Bounds unsaved entrance-pressure records independently of diagnostics.
 - `people.pending`: count, 8. Bounds simultaneous keyed flights, including answered moves waiting for Written.
 - `people.waiters`: count, 4. Bounds reply destinations per flight, including its first caller.
