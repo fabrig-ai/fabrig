@@ -21,6 +21,7 @@ pub struct Members {
     pub webhooks: Option<Webhooks>,
     pub machine: temper_forge_setup::machine::Machine,
     pub demo: Option<settings::Demo>,
+    pub welcome: bool,
     pub landings: skein_lib::Map<u32, temper_engine_domain::ProjectLanding>,
     /// The landing's projects in the document's order, which names a refused one's path.
     pub landing_projects: Box<[u32]>,
@@ -332,6 +333,16 @@ pub fn parse(
     let sign_in_at = read::nullable(&mut object, document, b"sign_in", &path, problems);
     let sign_in = sign_in::parse(document, sign_in_at, jig, bounds.sign_in, directories, problems);
     let landing_at = object.member(document, b"landing");
+    let welcome = match object.member(document, b"welcome") {
+        Some(at) => match config::read::boolean(document, at) {
+            Ok(value) => value,
+            Err(what) => {
+                problems.push(path.member(b"welcome"), What::Jig(what));
+                false
+            }
+        },
+        None => false,
+    };
     let at = read::required(&mut object, document, b"webhooks", &path, problems);
     let webhooks = webhooks(document, at, &path, problems);
     read::finish(object, document, &path, problems);
@@ -366,6 +377,7 @@ pub fn parse(
         webhooks,
         machine: machine?,
         demo,
+        welcome,
         workers: workers.into_boxed(),
         limits: limits?,
         overrides: overrides.into_boxed(),
