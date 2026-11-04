@@ -10,6 +10,7 @@ mod directory;
 pub mod forgejo;
 pub mod github;
 pub mod host;
+pub mod limits;
 pub mod locate;
 pub mod measure;
 
