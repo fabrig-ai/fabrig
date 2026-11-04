@@ -329,6 +329,7 @@ const HOLDS: [Holds; samples::N] = [
                 name: "Everything is connected. Create your first project and start working.",
             },
             Part::Named { role: Role::Paragraph, name: "Forge Forgejo on this machine · connected as temper" },
+            Part::Named { role: Role::Paragraph, name: "Model ChatGPT plan · sam@example.com" },
             Part::Named { role: Role::TextField, name: "Your first project" },
             Part::Named { role: Role::Button, name: "Create your project" },
             Part::Absent { role: Role::Disclosure, name: "Each step" },
