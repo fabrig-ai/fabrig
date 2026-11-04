@@ -28,7 +28,7 @@ pub(crate) fn line<'a>(
 ) -> TaskLine {
     let mut phases = PhaseCounts::ZERO;
     for member in subtree {
-        if member.chip.phase.class() != Phase::Ended.class() {
+        if member.chip.phase.class() != PhaseClass::Ended {
             count(&mut phases, member.chip.phase);
         }
     }
@@ -41,7 +41,7 @@ pub(crate) fn line<'a>(
         flags: task.flags,
         changed: task.changed,
         last_activity: task.last_activity,
-        ended_at: (task.chip.phase.class() == Phase::Ended.class()).then_some(task.changed),
+        ended_at: (task.chip.phase.class() == PhaseClass::Ended).then_some(task.changed),
         budget: task.budget.clone(),
         waits_on: task.waits_on.clone(),
         held_below: phases.held - u32::from(task.chip.phase == Phase::Held),
