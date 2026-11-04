@@ -717,7 +717,7 @@ user (`skein/docs/foundation/testing-strategy.md`, section 9). From the earliest
 - **A plane's secret store, and machine identity** toward it and toward
   the engine (hearth/docs/design/protocol/wire.md, 5.3), for M4.
 
-## 9. What is open
+## 9. Open questions
 
 Each document lists its own. The ones that reach across:
 

@@ -321,8 +321,7 @@ A crate that exists for the client is named
   `hearth`, mode 0700 (hearth/docs/design/domain/machine.md, 3.1), and the client tries the
   socket first: if a daemon answers, the daemon serves.
 - **M1's client never tries a socket.** There is no daemon before M3,
-  and no Unix socket in skein before it (hearth/docs/design/README.md, 8.1): `render` and
-  `diff` always run in-process.
+  so `render` and `diff` always run in-process.
 - **Uses:** a developer's machine (M1, M2); CI posting the rendered diff
   of a change (hearth/docs/design/domain/render.md, section 6); the factory's builders when they
   run without an activator (hearth/docs/design/README.md, 4.1).
@@ -465,7 +464,7 @@ hearth bootstrap --disk <device> [--wipe]
   end, `hearth render` and `hearth diff` run as processes (hearth/docs/design/domain/testing.md,
   2.7).
 
-## 5. What is open
+## 5. Open questions
 
 - **Operators by group:** admitting a group of operators needs the
   peer's supplementary groups (`SO_PEERGROUPS`, to verify in skein's
