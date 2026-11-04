@@ -594,3 +594,18 @@ timeout moves.
 - **No single cause** (the cost spread evenly across the steps' ordinary work): stop and ask with
   the split and the three measurements. That is 8.1's question 3, which goes to the user through
   the director.
+
+2026-11-04. **The unchanged walk costs 2.208 s median CPU against the 2 s guide, with no single
+cause: deeper timing and a lower-tier optimization, or a different guide?** A different guide, as
+the user decided (11-04, option (a)): story A walked through the web client's host is a story of
+the kind 6.1 gives 3 s, running three chats, a delegate with its agents, git, CI and a landing. The
+guide's line is in `temper/docs/design/domain/testing.md`, 6.1 ("a playground story walked natively
+through the web client's host ... at most 3 s"), added by this answer; this task does not edit it.
+The walk lands as it is: its 2.208 s is within the guide, and the acceptance's world budget holds.
+
+- No deeper timing and no optimization: the measured lower-tier costs (the simulator iterating idle
+  processes at every one of the 12,972 steps, an idle fake LLM turn at ~17 µs; `temper-service`'s
+  readiness, 14,360 calls at ~14 µs) go to the backlog as a performance item, not this plan's.
+- The next run merges the trunk if its branch lacks the guide's line, runs the checks the answers
+  list once (the package's tests, clippy, `temper-playground`'s, the one-process world's), reports
+  the walk's CPU against 3 s, and pushes. No budget, pace, script, fixture or timeout moves.
