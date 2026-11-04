@@ -61,7 +61,7 @@ fn opened_reaches_the_component_only_when_marked() {
 fn a_held_event_leaves_first_and_is_work_until_it_does() {
     let mut host = machine();
     host.hold(domain::Event::Component(domain::FromComponent::Closed));
-    assert!(host.held() && !host.is_empty() && host.work_pending(Time::ZERO, false));
+    assert!(host.held() && !host.idle() && host.work_pending(Time::ZERO, false));
     host.effects.push(Effect::InvalidSecret);
     assert_eq!(begin(&mut host, false, &mut Queue::uncapped()), 2);
     let mut table = Table::new(1, 32);
@@ -128,6 +128,36 @@ fn a_restored_secret_of_the_wrong_kind_is_reported() {
     });
     assert_eq!(begin(&mut host, true, &mut Queue::uncapped()), 2);
     let Some(Output::InvalidSecret) = host.output(&mut table) else { panic!("invalid restored secret") };
+}
+#[test]
+#[expect(clippy::disallowed_macros, reason = "the test embeds a public TLS root fixture")]
+fn a_tls_provider_with_empty_trust_bounds_is_refused() {
+    let config = fixtures::sign_in_engine();
+    let roots = [bytes::copy_of(include_bytes!("../../../../skein/tests/tls/fixtures/root.der"))];
+    let (trust, _) = skein_tls::Config::from_der(&roots, &[]).expect("test root");
+    let server_name = skein_tls::Name::new("issuer.test").unwrap();
+    for (bounds, expected) in [
+        (Some(TrustBounds { roots: 0, bytes: 1 }), Err(What::Bound)),
+        (Some(TrustBounds { roots: 1, bytes: 1 }), Ok(1)),
+        (None, Ok(1)),
+    ] {
+        let endpoint = driver::Endpoint {
+            address: ([127, 0, 0, 1], 443).into(),
+            transport: driver::Transport::Tls { server_name: server_name.clone(), trust: trust.clone() },
+        };
+        let mut runtime = Runtime { providers: List::with_capacity(1), trust: bounds };
+        runtime.providers.push((1, endpoint, List::with_capacity(0))).unwrap();
+        let result = match provider_templates(&config, Some(runtime), &config.limits.driver, &[5; 16]) {
+            Ok(providers) => Ok(providers.len()),
+            Err(problems) => {
+                assert_eq!((problems.problems.len(), problems.past), (1, 0));
+                let problem = problems.problems.get(0).unwrap();
+                assert_eq!(problem.path, Path::root().member(b"engine").member(b"llm").member(b"providers"));
+                Err(problem.what)
+            }
+        };
+        assert_eq!(result, expected);
+    }
 }
 #[test]
 fn trust_bounds_refuse_tls_alone_and_none_checks_nothing() {

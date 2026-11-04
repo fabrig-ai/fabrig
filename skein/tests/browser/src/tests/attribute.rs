@@ -67,7 +67,15 @@ fn selector_reads_use_the_first_matching_node() {
         world.env.limits.command,
     )
     .expect("command");
-    assert_eq!(document.root().get(b"params").expect("params").get(b"nodeId").and_then(|id| id.u64()), Some(7));
+    assert_eq!(
+        document
+            .root()
+            .get(b"params")
+            .expect("params")
+            .get(b"nodeId")
+            .and_then(skein_browser::wire::decode::Value::u64),
+        Some(7)
+    );
 }
 #[test]
 fn a_selector_without_an_element_returns_no_element() {

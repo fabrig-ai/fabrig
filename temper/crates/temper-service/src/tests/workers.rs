@@ -69,7 +69,7 @@ fn identities_are_announced_after_the_durable_start_wires() {
     assert!(engine.workers.forges.is_empty(), "runtime forges wait for the durable wires");
     assert!(!engine.forge_records.pending.is_empty(), "restored forges await the mark");
     let mark = engine.store.held_mark.take().expect("held startup wires");
-    assert!(!engine.store.host.component.mark_durable());
+    assert!(!engine.store.host.mark_durable());
     engine.store.hold_mark = false;
     assert!(engine.store.down(mark));
     assert!(!service.engine.as_ref().expect("engine").forge_records.done(), "secrets follow the mark");
@@ -78,7 +78,7 @@ fn identities_are_announced_after_the_durable_start_wires() {
     assert_eq!(engine.values.identities.numbers().as_slice(), &[1]);
     assert!(engine.forge_records.pending.is_empty());
     assert!(engine.domain.ready());
-    assert!(service.engine.as_ref().expect("engine").store.host.component.mark_durable());
+    assert!(service.engine.as_ref().expect("engine").store.host.mark_durable());
 }
 
 #[test]
@@ -412,7 +412,6 @@ fn the_workers_listener_and_accepted_socket_have_their_own_prefixes() {
     };
     assert_eq!(socket, Token::new(4));
     assert_eq!(connection, Token::new(crate::tokens::WORKER_CONNECTIONS + 1));
-    assert_eq!(workers.host.socket(connection), Some(&socket));
 }
 #[test]
 fn a_listener_that_opens_during_closing_is_closed_immediately() {

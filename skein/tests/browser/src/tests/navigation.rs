@@ -230,8 +230,8 @@ fn root_commands(world: &World) -> Vec<RootCommand> {
             let params = root.get(b"params").expect("params");
             (
                 root.get(b"method").expect("method").text().expect("method text"),
-                params.get(b"backendNodeId").and_then(|value| value.u64()),
-                params.get(b"objectId").and_then(|value| value.text()),
+                params.get(b"backendNodeId").and_then(skein_browser::wire::decode::Value::u64),
+                params.get(b"objectId").and_then(skein_browser::wire::decode::Value::text),
             )
         })
         .collect()

@@ -1,0 +1,8 @@
+POST /api/v1/admin/users HTTP/1.1
+Host: 127.0.0.1:3000
+Authorization: token MASKED
+Content-Type: application/json
+Content-Length: 159
+Connection: close
+
+{"email":"alice@example.invalid","must_change_password":false,"password":"0000000000000000000000000000000000000000000000000000000000000014","username":"alice"}

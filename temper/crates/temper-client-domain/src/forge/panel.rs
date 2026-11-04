@@ -78,7 +78,6 @@ pub(super) fn refresh(side: &mut Side, limits: Limits, subject: Subject, out: &m
     self::subject(side, limits, Some(subject), out);
 }
 pub(super) fn subject(side: &mut Side, limits: Limits, subject: Option<Subject>, out: &mut Queue<Request>) {
-    #[expect(clippy::manual_map, reason = "the client's domain matches without a closure")]
     let current = match &side.panel {
         Some(panel) => Some(panel.subject),
         None => None,

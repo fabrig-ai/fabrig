@@ -15,7 +15,7 @@ pub enum Event {
     RelayCancelled { run: Token, attempt: Token, call: Box<[u8]> },
     Process(Box<smith::process::Event>),
     Live { agent: Token, piece: host::Piece },
-    Decoded { agent: Token, start: Result<Box<smith::Start>, Invalid> },
+    Decoded { agent: Token, start: Result<Box<smith::Start>, host::Undecoded> },
     Encoded { owner: Token, encoded: Encoded },
     Activity { owner: Token, activity: Option<host::AgentActivity> },
     Shutdown,
@@ -71,11 +71,4 @@ pub enum Encoded {
     CallName(Box<[u8]>),
     Result(Box<[u8]>),
     Undecodable,
-}
-
-#[derive(Clone, Copy, PartialEq, Eq, Debug)]
-pub enum Invalid {
-    Charter,
-    Transcript,
-    CallName,
 }

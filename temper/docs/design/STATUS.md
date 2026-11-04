@@ -61,8 +61,10 @@ the box's group file holds a forge's kind alone
 (`protocol/setup.md`, `protocol/forge.md`, `protocol/README.md`) and
 where a worker's translation aborts on a stored source name smith
 refuses (`protocol/README.md`), and lags in a removal without the
-box (`domain/forge.md`), a project's Delete (`client/README.md`) and
-a restored secret of the wrong kind (`protocol/credentials.md`);
+box (`domain/forge.md`), a project's Delete (`client/README.md`),
+a restored secret of the wrong kind (`protocol/credentials.md`) and
+a forge's Start over with no welcome, which ends at the inbox
+(`client/forge.md`);
 public reading still lacks a deployment's proxy configuration and
 figures, and its negative walk plays the proxy's own rules against
 scripted upstreams rather than temper's service
@@ -89,7 +91,9 @@ drafts, the reference drafts' statuses hold two departures decided
 that wakes its goal only when new, and a lag, the coordinator's
 decide, propose, subscribe and recall families, which the
 reference's profile does not grant and configuring's stage 1 follows
-(`draft/reference-code-production.md`); the others record what the
+(`draft/reference-code-production.md`); `draft/serve-without-box.md`'s
+status holds a departure the user has not answered, the deployment's
+read's `owned`; the others record what the
 design carries of them and where it lags or departs.
 `domain/README.md`, `protocol/llm.md` and `client/journeys.md` have
 no gap.

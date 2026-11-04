@@ -98,7 +98,7 @@ pub enum Event {
     /// up (jig's `domain/hosts.md`, 6.5).
     Live { agent: Token, piece: host::Piece },
     /// Terminal for `Decode`: smith's start, typed, or what did not decode.
-    Decoded { agent: Token, start: Result<Box<agent::Start>, Invalid> },
+    Decoded { agent: Token, start: Result<Box<agent::Start>, host::Undecoded> },
     /// Terminal for `Encode`.
     Encoded { owner: Token, encoded: Encoded },
     /// Terminal for `Fact`: the fact as jig's activity, if it decoded.
@@ -169,15 +169,4 @@ pub enum Encoded {
     CallName(Box<[u8]>),
     Result(Box<[u8]>),
     Undecodable,
-}
-
-/// What of the hub's start did not decode.
-#[derive(Clone, Copy, PartialEq, Eq, Debug)]
-pub enum Invalid {
-    Charter,
-    Transcript,
-    CallName,
-    /// A resumed delivery's evidence, which must decode and agree with its
-    /// outcome.
-    Evidence,
 }

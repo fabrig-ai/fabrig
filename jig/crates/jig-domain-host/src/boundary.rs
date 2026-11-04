@@ -9,6 +9,16 @@ pub(crate) use jig_domain_link::{Grant, GrantTable, Hosting, Phase};
 use crate::JobKind;
 use skein_lib::{Duration, Token};
 
+/// What of the hub's start did not decode (jig/docs/design/protocol/service.md, 11.2).
+#[derive(Clone, Copy, PartialEq, Eq, Debug)]
+pub enum Undecoded {
+    Charter,
+    Transcript,
+    CallName,
+    /// A resumed delivery's evidence, which must decode and agree with its outcome.
+    Evidence,
+}
+
 /// parent -> host
 #[derive(PartialEq, Eq, Debug)]
 pub enum Event {

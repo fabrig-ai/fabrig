@@ -11,6 +11,8 @@ under one charter, which its template or its creator names. Each run of
 the task reads its charter, whole:
 
 - its instructions, which the run's agent reads before its task's brief;
+- its `documents`: files from an adopted repository, read as brief sections
+  of their own;
 - its models: `model`, the default, then `alternatives`, in order;
 - its `tools`: the host tool families it names; temper uses this list
   to offer the settings family alone, and offers the other host tools
@@ -41,6 +43,45 @@ its producer's question, and edit, push and run nothing.
 
 Each member, with its type and bound, is in
 `temper help settings-fields`.
+
+### Documents from a repository
+
+Put rules in a charter's `documents` when its runs should read them from
+an adopted repository. Read `temper ctl DIR forge list` for the forge's
+`host`; `temper ctl DIR forge list --json` prints the same `host` in each
+forge row. Copy that host unchanged into `forge`, including its port.
+It is the host in repository resource names, not the forge number or
+the forge's web address.
+
+For example, add this `documents` member to the charter's value in a
+settings file, keeping its other members (`temper help settings-fields`):
+
+```json
+{
+  "documents": [
+    {
+      "forge": "git.example:3000",
+      "repository": "work/hello",
+      "branch": "main",
+      "path": "AGENTS.md",
+      "heading": "1. In one page"
+    }
+  ]
+}
+```
+
+Use your printed host and adopted repository's OWNER/NAME, branch and
+file path. `heading` is optional: omit it or use null to read the whole
+file. With a heading, the run reads from the first Markdown heading
+whose text matches exactly to the next heading of its level or above.
+A missing repository, branch, file or heading gives a brief section
+saying so.
+
+Each new run reads the documents at their branch heads when its brief
+is gathered, with the commit named in each section. A rule landed there
+reaches the next run; a run already going keeps the sections it started
+with. Changing the charter's document list follows the charter's
+revision rule below.
 
 ## How it changes
 

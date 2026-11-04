@@ -62,3 +62,34 @@ Acceptance, in a new `temper/tests/client/tests/suite/dismissed.rs`:
 ## Report
 
 As the implementer's text asks; the tests' CPU time against the tier's budget.
+
+## Answers
+
+2026-11-04. May this task finish with the inherited focused CPU overrun under `## Left`, or must it wait
+for existing tests to meet the 30-second budget?
+
+**Finish, with the overrun under `## Left`.** This narrows the spec's "stop and ask": it means the cost
+this task adds, and the first run asked with its measurements, so that stop is spent. The foreman takes
+this answer as the authority for `Left`. No budget is raised and the overrun is not called green:
+`skein/docs/foundation/testing-strategy.md`, 8.1 still holds it red, against the tests that spend it.
+
+- **The four stories pass 8.1's questions:** they belong in this tier (the plan's meeting point in
+  `temper-client-world`; `temper/docs/design/domain/testing.md`, 2.1), and at 0.133 CPU s together they
+  are not the cause. Of the 44.451881 CPU s, existing tests hold 44.297069.
+- **The rest is outside this task:** its largest named costs are in
+  `temper/crates/temper/tests/suite/forge_land.rs`, and this task may change nothing in
+  `temper/crates/**`. No story here can repair it, so waiting would hold the plan for nothing it owns.
+- **The measurements go to the user** through this answer's report; the repair, or a figure, is theirs.
+
+The next run starts from the pushed `3fb1d2d32d` and keeps what it holds; the mutations need no repeat.
+It does what the budget stop left unobserved, at the head it pushes, the last prerequisite merge in:
+
+1. `heavy cargo nextest run -p temper-client-world --test suite -E 'test(/dismissed::/)'`, 4 passed,
+   then `heavy cargo nextest run -p temper-client-world`.
+2. `heavy cargo clippy -p temper-client-world --all-targets -- -D warnings` and
+   `heavy cargo check -p temper --tests`.
+3. The report gives the four stories' CPU time and repeats the `Left` entry with the first run's figures.
+   Re-measuring the direct dependent's package is not asked for.
+
+Stop and ask again only if a story of this task is what is over: one past the focused world test's 1 s
+guide (`skein/docs/foundation/testing-strategy.md`, 8).

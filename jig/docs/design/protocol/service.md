@@ -520,7 +520,7 @@ its routing, `iterate` and `main`, its connectors and its own settings.
 
 - **A part is a host,** step code a service owns as a field and drives
   from `iterate`. It holds no root type, and no trait, generic item or
-  callback (programming-model.md, 10.3). `jig_protocol_store::host::Host`
+  callback (programming-model.md, 10.3). `jig_protocol_store::host::Drivers`
   is the form.
 - **Values in, typed outputs out.** A part takes values at `new`. What it
   can't decide it hands its owner as a typed output, which the owner pulls
@@ -540,7 +540,7 @@ its routing, `iterate` and `main`, its connectors and its own settings.
 | the program sources | `jig-protocol-worker-agents`, `sources` | the source's command, one at a time, and the program's environment, hidden from `Debug` | how settings name a program |
 | the worker route | `jig-protocol-worker-agents`, `route` | smith's host half's records to and from the channel's values | its application's decoding of parts, what a delivery's evidence must say (`channel.md`) |
 | the workers' side | `jig-protocol-engine-workers`, `host` | the channel component, its listeners and sockets, closing them | its assignment's encoding, its parts' decoding, what a lost listener means |
-| the server | `jig-protocol-engine-clients-http`, `server` | one listener's connections, their deadlines and page policy, each call handed out as routed | its routes, its bundle, its pages' extra fields |
+| the server | `jig-protocol-engine-clients-http`, `server`, `bundle` | one listener's connections, their deadlines and page policy, each call handed out as routed; what serving a bundle has in common | its routes, its bundle, its pages' extra fields, its answers' policy |
 | the clients' side | `jig-protocol-engine-clients`, `host` | the bridge between the component's secrets and the store's and sign-in endings; beside them, the printed link in `jig-protocol-engine-clients-http` and the settings every application fills alike in `jig_protocol_config::clients` | its pass, its calls, its families |
 
 `jig-protocol-worker-agents` links smith, so an application whose workers
@@ -627,8 +627,8 @@ root.
   which is a value. Each service keeps one small function from its
   settings to `Resources`.
 - **The route takes smith's values and the hub's,** and gives them back,
-  or `route`'s own: `Invalid`, what of a start did not decode, and
-  `Processed`, an agent process's event as a live piece or as smith's
+  or the hub's `Undecoded`, what of a start did not decode, or `route`'s
+  own `Processed`, an agent process's event as a live piece or as smith's
   process event. A worker's root hands its payloads out in its own
   enums, in a domain crate, and `jig-domain-host` links no smith, so
   each service keeps a few lines matching those enums onto the route.
@@ -677,6 +677,10 @@ crate that reads configuration.
 - **The bound address.** The host keeps each listener's configured
   address, for the owner's report of a lost one, and the address last
   bound, in `listening`, until the owner takes it.
+- **Its `Debug` counts.** A queued write holds an encoded grant, and a
+  read what a worker sent, a credential among them. So `Workers`,
+  `Component`, `Request` and `Event` show counts and variants, and no
+  bytes.
 
 ### 11.4 The server
 
@@ -712,14 +716,21 @@ and the page policy. It knows no route: what a call means is its owner's.
 - **Its `Debug` counts.** A head holds its cookies and a response its
   `Set-Cookie`, so `Server` shows its listener, its phase and how many
   connections it holds, and `Routed` its variant and its call's token.
+- **What serving a bundle has in common** is `bundle`, beside the server:
+  `File` and `kind`, a file's type by skein's closed list (`ui-web.md`,
+  4.4); `target`, a head's path; `file`, the file a path names under its
+  digest; `field`, one header; `demand` and `chunk`, a body's way out in
+  chunks of the server's `send`. They hold no state and answer nothing.
+  The owner keeps its `Bundle`, its route, its answers, what it caches
+  and how a call ends (`browser.md`, section 12).
 
 ### 11.5 The store's host
 
-`jig_protocol_store::host::Hosted` is the store's component and `Host`'s
-three file drivers (`store.md`, section 13) behind one owner's calls,
-with the queues its answers wait in. The owner makes it from the store's
-limits, the application's sizes, the models and a seed. `Host` stays, for
-a world that drives the drivers itself.
+`jig_protocol_store::host::Hosted` is the store's component and
+`Drivers`' three file drivers (`store.md`, section 13) behind one owner's
+calls, with the queues its answers wait in. The owner makes it from the
+store's limits, the application's sizes, the models and a seed. `Drivers`
+stands alone for a world that drives the drivers itself.
 
 - **Answers are pulled.** `above` holds the store's terminals in order,
   and the owner's dispatch takes them. `secrets` and `sources` hold the
@@ -727,7 +738,8 @@ a world that drives the drivers itself.
   host, until their passes take them (`store.md`, section 9). These three
   and `component` are public fields: the owner's dispatch reads them and
   a test's fake terminal goes in through them, and a method for each
-  would hide nothing.
+  would hide nothing. `mark_durable` says whether the start mark is
+  durable, as every owner's pass asks.
 - **Requests.** `ask` takes any request. `secrets` takes a secrets'
   request, and returns the answer to a `Get` or a `Load`, which stays in
   the pass; a write's terminal comes through `above`.
@@ -771,9 +783,9 @@ order, and no part cuts across it.
   and an owner with a bound asks `room` before it commits. `ending` reads
   the sign-in from a core key: which of an application's writes end one
   is its own to read.
-- **The printed link.** `address_text` is a bound address as text, and
-  the mapping's `printed_link` joins it to the path its `link_path` gave.
-  An owner with a public origin writes its own.
+- **The printed link.** The mapping's `address_text` is a bound address
+  as text, and its `printed_link` joins that to the path its `link_path`
+  gave. An owner with a public origin writes its own.
 - **The component's settings are a value,** `Settings`. This crate can't
   read configuration, which names it, so what every application fills
   alike is `jig_protocol_config::clients::settings`, beside `models`.

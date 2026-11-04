@@ -245,7 +245,16 @@ fn fetch(
     if !owned.fetch.forgejo && !owned.fetch.runner {
         return Err("neither of its binaries is \"fetched\"".into());
     }
-    let pins = temper_forge_setup::fetch::pins(owned, std::env::consts::ARCH).map_err(|why| text(&why.words()))?;
+    let pins = temper_forge_setup::fetch::pins(
+        owned,
+        if cfg!(target_os = "macos") {
+            skein_forge::forgejo::pin::Platform::Macos
+        } else {
+            skein_forge::forgejo::pin::Platform::Linux
+        },
+        std::env::consts::ARCH,
+    )
+    .map_err(|why| text(&why.words()))?;
     let machine = temper_forge_setup::fetch::Fetch::new(pins, fetch_bytes);
     temper_forge_setup_shell::fetch::run(
         &jig_protocol_config::profile(jig_protocol_config::Profile::Small).io,

@@ -472,7 +472,6 @@ pub(super) fn decode_review(value: w::Review) -> d::Review {
     }
 }
 
-#[expect(clippy::manual_map, reason = "step translations use explicit matches without closures")]
 pub(super) fn encode_status(value: &d::Status) -> w::Status {
     let d::Status { at, context, check, description, url, job } = value;
     w::Status::new(
@@ -491,7 +490,6 @@ pub(super) fn encode_status(value: &d::Status) -> w::Status {
     )
     .expect(FITS)
 }
-#[expect(clippy::manual_map, reason = "step translations use explicit matches without closures")]
 pub(super) fn decode_status(value: w::Status) -> d::Status {
     let w::StatusParts { at, context, verdict, description, url, job } = value.into_parts();
     d::Status {

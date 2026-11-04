@@ -70,4 +70,5 @@ Design documents:
 
 Drafts:
 - [`draft/component-kit.md`](draft/component-kit.status.md)
+- [`draft/progress-value.md`](draft/progress-value.status.md)
 - [`draft/redb.md`](draft/redb.status.md)

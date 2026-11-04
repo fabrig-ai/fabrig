@@ -170,7 +170,6 @@ impl Domain {
     }
     /// Purely read a retained change in the project that holds its repository.
     #[must_use]
-    #[expect(clippy::manual_map, reason = "the strict subset uses explicit matches")]
     #[expect(clippy::too_many_lines, reason = "the panel reads every retained step and its facts together")]
     pub fn panel(&self, task: u64, scope: ApplicationScope, now: Wall, limits: &Limits) -> Option<Panel> {
         let ApplicationScope::Project(project) = scope else { return None };
