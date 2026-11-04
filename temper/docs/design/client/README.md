@@ -345,7 +345,7 @@ keeps (`../protocol/configuration.md`, section 2).
 
 | Address | Mockup | Shows | Watches and reads | Acts |
 |---|---|---|---|---|
-| `Home { project }` | the greenfield mock's `home.html` | a project's first page: its kicker, headline and lede, "To begin" and "Connected" (*Home,* below) | `me`; the `forges` watch; the project's chats' `tasks{query}`, as `Chats` reads them, to say whether one was asked | start the configuring chat; adopt the first repository again, or open the adoption form; rename the project |
+| `Home { project }` | the greenfield mock's `home.html` | a project's first page: its kicker, headline and lede, "To begin" and "Connected" (*Home,* below) | `me`; the `forges` watch; the project's chats' `tasks{query}`, as `Chats` reads them, to say whether one was asked; `settings`, to say whether a way of working is configured | start the configuring chat; adopt the first repository again, or open the adoption form; rename the project |
 | `Settings { project }` | none | a project's settings: "Settings for PROJECT", the links to `Forges`, `Accounts` and `Adopt { project }`, and "Sign out" (*Settings,* below) | `me` | sign out |
 | `Inbox` (the root) | `inbox.html` | what needs the person, across projects, filtered by project, kind and goal (its root): proposals, questions, held tasks, person tasks; then updates (results, replies); "+ New chat", a link to the Chats page's start (`/chats?at=start`) | `inbox` with its filters; the `proposal` or `task` an entry's card needs | accept ("Accept"), reject with a reason, answer, release, leave held, take, hand back |
 | `Chats` | `chats.html`; the playground's start at the first run's first step, which `first-run.html` opens | a pane at the head of its main, a complementary region named "Project" (`browser.md`, 2.5): the new chat's bar (below), in the playground's project while the playground starts or runs the playground's start (4.8, 5.6), then the person's chats under the level-1 heading "Chats", as one list, "Your chats", live and ended together, newest first, under All, Live or Closed (below), each with its project and number, title, status, own spend and live delegates, and last the playground's banner while it runs or is leaving (5.1); beside the pane, the composer to start a chat alone: its text area "Start a chat", showing "Describe a change" while it is empty, and its button "Start chat", with the hint "enter to start · shift+enter for newline", then its line and its chooser (5.5) under it, and in the playground's start its suggested requests under them (5.6) | `tasks{query}`: requester the person, the chat label, its live group by last activity, its ended pages by when each ended; the playground, from the forge's side (4.8) | start a chat, from the composer or a suggested request; choose the list's filter; more closed chats |
@@ -1069,19 +1069,20 @@ keeps (`../protocol/configuration.md`, section 2).
       project of the person's in `me`, it is refused as below.
     - *Its adoption:* the first repository is the one the adoption
       form opens filled for (4.4): made, adopted nowhere, on the real
-      forge numbered lowest, as the rows read when the project opens.
+      forge numbered lowest, as the rows read when the project is made.
       With one, the act sends, once and in the project's scope, the
       forge's family's `Adopt`, the one `temper ctl forge setup
       --project` sends (`../protocol/setup.md`, 6.7), under the same
-      key's name (`forge.md`, 5.4): owned, the project's home, its
-      prefix `temper/`, landing on `main`, with CI and no checks. With
-      none, nothing is sent. It is out until the answer or the rows
-      say otherwise; Home says it (*Home,* below), and the form and the
-      welcome wait for none of it. Refused or unanswered, the project
-      stays made with no repository (*A project with no repository,*
-      below), and the adoption is offered again from Home, never from
-      Ready, under the same key's name while no answer came and the
-      refusal's words beside it once one did.
+      key's name: owned, the project's home, its prefix `temper/`,
+      landing on `main`, with CI and no checks. With none, nothing is
+      sent. It is out until its answer, and Home says it (*Home,*
+      below); the page and the welcome wait for none of it. Refused or
+      unanswered, the project stays made with no repository (*A project
+      with no repository,* below), and the adoption is offered again
+      from Home, never from Ready, with the refusal's words. Once a
+      refusal has answered, each attempt names a key of its own, since
+      the engine answers a named request's repeat with its first
+      answer.
     - *Any other refusal, or no answer* (unknown past the retention):
       nothing is made; under the act, "Your project was not made: WHY",
       WHY jig's words for its refusal, or "It is not known whether your
@@ -1109,7 +1110,8 @@ keeps (`../protocol/configuration.md`, section 2).
   watch refused, ended or not delivered yet, nothing is said. It is
   usable meanwhile: its chats start and run, a chat that names no
   repository running with no workspace (`../domain/agent.md`, 4.2).
-  Its chats page says so where its repository would show, before the
+  Home says so in its lede and its second step (*Home,* below). Its
+  chats page says so where its repository would show, before the
   composer: "No repository yet", and "Adopt a repository", a link to
   the adoption form into this project, `Adopt { project }` (4.4). The
   playground's project, while the playground is read, shows its
@@ -1126,10 +1128,12 @@ keeps (`../protocol/configuration.md`, section 2).
     heading, by what To begin leaves: "You’re set up. Nothing has run
     yet." with three steps left, "Two things left to begin with.", "One
     thing left to begin with.", then "PROJECT is ready for work."; the
-    lede, "Your agents run on your PLAN plan." or the account's words
-    as Ready's model line has them, then "FORGE runs on this machine."
-    on an owned Forgejo, and "PROJECT has no repository yet." while *A
-    project with no repository* says so.
+    lede, "Your agents run on your ACCOUNT.", ACCOUNT the kind of
+    the account Connected names ("ChatGPT plan"), then "Forgejo runs on
+    this machine." for an owned Forgejo or "FORGE holds your code." for
+    another connected forge, each left out with no such fact, and
+    "PROJECT has no repository yet." while *A project with no
+    repository* says so.
   - *To begin,* a level-2 heading and three numbered steps, each a
     level-3 heading, a line and its acts. Done, a step's number is a
     green tick, its heading muted and regular, and its acts go, by
@@ -1137,7 +1141,9 @@ keeps (`../protocol/configuration.md`, section 2).
     1. "Tell temper how you work", "In your own words: how you plan,
        review and land work. temper proposes how it will run that, and
        nothing changes until you accept.", with "Start", the act of *The
-       first chat* (below).
+       first chat* (below). Done once a line of the `settings` document
+       follows a change: a way of working was accepted. A person who
+       cannot read that document sees it not done.
     2. The repository, in the first state that holds: adopted (a row's
        `repositories` names the project), done, "ORG/NAME is in
        PROJECT", "Chats can change its code now.", ORG/NAME the project's
@@ -1157,21 +1163,23 @@ keeps (`../protocol/configuration.md`, section 2).
        one is in, chats talk and plan but change no code.", with "Adopt",
        the same. The adoption being out is the session's fact: after a
        reload it reads as a first repository to adopt until the rows say
-       it is in, and "Adopt ORG/NAME" sends under the same key's name, so
+       it is in, and a first "Adopt ORG/NAME" names Ready's key, so that
        the engine answers the one adoption.
     3. "Start a chat", "Ask a question or ask for a change.", with
-       "New chat", to the chats' start.
+       "New chat", to the chats' start. Done once the project holds a
+       chat, live or ended, as `Chats` reads them; the configuring chat,
+       labelled as a chat is, counts.
   - *Connected,* a level-2 heading and a line each, the act at its
     right a quiet underlined link: for each forge the Forges page lists
     (`forge.md`, 5.4) but the fake, its name then, muted, " · connected
     as LOGIN", and " · ORG/NAME, in PROJECT" for the project's first
-    adopted on it, with "Open Forgejo ↗", as Ready's forge line (5.5's
-    external link, sign-in through temper), or "Forges", to `Forges`,
-    where none is drawn; each usable account of the person's, by its
-    short words as Ready's model line has them (`first_usable_short`),
-    with "Accounts"; and "Project PROJECT", muted " · ORG/NAME", or " ·
-    no repository yet", with "Rename" to an owner, the rename's form
-    opening in this line (5.3).
+    adopted on it, with "Open Forgejo ↗", as Ready's forge line (sign-in
+    through temper), or "Forges", to `Forges`, where none is drawn; the
+    first usable account of the person's, as Ready's model line chooses
+    it, by its kind ("ChatGPT plan"), then, muted, " · MODEL", the first
+    model `me` serves for the project, with "Accounts"; and "Project
+    PROJECT", muted " · ORG/NAME", or " · no repository yet", with
+    "Rename" to an owner, the rename's form opening in this line (5.3).
 
   What it does not draw: the composer and the chats' list, which stay
   `Chats`'s, and the composer's line with "Change model". With the
@@ -2021,7 +2029,12 @@ client removes no account and closes no chat of its own.
   or that time has reached the instant its words next change (5.12),
   it builds the page in one outline (skein's `ui.md`, section 14), in
   the mockups' order:
-  - *a banner:* temper's name; the project the person is in alone,
+  - *the rail (5.3):* on a project page, every page but `Welcome`
+    while a project is open and the link is neither signed out nor out
+    of date, in place of the banner below. In the browser the tab bar
+    (5.3) follows the main;
+  - *a banner,* on any other page: temper's name; the project the
+    person is in alone,
     as the switcher, a disclosure named by the open project's name,
     "Projects" while none is open (section 11), which holds the
     projects to choose from, the open one first and pressed, then the
@@ -2058,7 +2071,8 @@ client removes no account and closes no chat of its own.
     the chats page, whose pane it ends (3.5); while the link is signed
     out or out of date, none;
   - *the main:* the page at the address (3.5), its title its level-1
-    heading.
+    heading, but `Home`'s, whose headline changes with its steps:
+    "Home".
 
   Then skein-ui diffs it and keeps the tree.
 - **The pages not about the work** (jig's `client/domain/pages.md`,
@@ -2205,6 +2219,40 @@ client removes no account and closes no chat of its own.
 
 ### 5.3 Navigation
 
+**The rail** (the user's greenfield mock's `home.html`), on a project
+page (5.1): a navigation named by the open project, in this order:
+
+- temper's name, a link to the open project's `Home`, named "temper
+  home";
+- the switcher (*Projects in the rail,* below);
+- "Home", to the open project's `Home`; "Needs you", to the inbox,
+  with the count of what needs the person from `me`, omitted when
+  zero, its page still the inbox; and "Chats", to `Chats`; current on
+  `Home`, on `Inbox`, and on `Chats` and `Chat`. The entries the
+  banner's navigation offers for a project, "Board" and "Changes",
+  follow "Chats" when they are built;
+- "+ New chat", named "New chat", to the chats' start
+  (`/chats?at=start`);
+- at its foot: while the playground runs and is not leaving (4.8),
+  "Set up temper", as the banner has it (5.1); the link's state, as
+  5.1 has it, the browser hiding it while live; "Behind" while a
+  page's watch reopens, beside the link's region in the browser, so
+  that it shows while the link is live, and in the region in the
+  terminal, whose first line reads it (6.4); "Settings", to `Settings
+  { project }`, current there, with the dots "Forges" and "Accounts"
+  carry below, each its state in words; the person's name; and "Sign
+  out did not reach the engine." while `me` or the page cannot say
+  otherwise (6.6), "Sign out" itself being Settings' (3.5).
+
+"Forges", "Accounts" and "Adopt a repository" are no entries of the
+rail: they are `Settings`' and Home's Connected's (3.5), each current
+on nothing there. On a phone, at 760 px and under, the rail is a top
+bar showing the switcher alone, and the tab bar closes the page: in the
+browser, a navigation named "Sections" after the main, with "Home",
+"Needs you", "Chats" and "Settings", as the rail's, drawn at phone
+width alone (`browser.md`, 2.5). The terminal has no tab bar.
+
+**The banner's navigation,** on a page that is no project's (5.1).
 In the mockups' top bar's order: "Inbox", with the count of what needs
 the person from `me`, omitted when zero; "Chats"; then, for the project
 the person is in, "Board" and "Changes"; and after them "Adopt a
@@ -2236,8 +2284,28 @@ banner names the project the person is in alone, by the name `me` gives
 it, and a chevron; pressed, a switcher lists the person's other
 projects from `me`, the open one marked, each choosing its project as a
 project's entry does. On a narrow screen the switcher is the menu
-panel's first row (`browser.md`, 2.5). Its acts, each one act and one
-request (3.6):
+panel's first row (`browser.md`, 2.5).
+
+**Projects in the rail:** the same switcher, a bordered box with its
+chevron, its menu a panel under it: each project, the open one first
+and pressed, then, after a hairline, "Rename PROJECT" where the
+rename is offered, the form "New project", and "Settings for PROJECT",
+to the open project's `Settings`. Each project's row says, in small
+type at its right, what it holds, from the `forges` watch's rows
+(4.6), the playground's project from the playground's read (4.8): its
+one repository, "work/hello"; with several, its home then how many
+more, "infra/deploy +2"; with none, "no repository"; and nothing
+while the watch is refused, ended or not delivered. A long name is cut
+with an ellipsis before its count, never the count. `me` does not say
+which repository is a project's home (4.4), so its first adopted, the
+first its rows list on the forge numbered lowest, stands in for it.
+With no home known, "3 repositories" is the row's words; the stand-in
+leaves that state unreached until the client is given the home. In the
+terminal a row reads "PROJECT · work/hello", one run of words. Choosing
+a project keeps the page where it can (3.5): on `Home` and `Settings`,
+that project's page.
+
+The acts of both, each one act and one request (3.6):
 
 - **Rename,** on the open project's row, offered while `me`'s role on
   that project is owner, the role jig gives, which the context line
@@ -2258,7 +2326,7 @@ request (3.6):
   policy: 1 }` in the deployment's scope, on the stock policy
   (`../protocol/configuration.md`, 13.4); an empty name sends nothing.
   Answered made, the field empties and the client opens the project
-  once `me` lists it, on its chats page, with no repository (3.5).
+  once `me` lists it, on its `Home`, with no repository (3.5).
   Offered whatever the person's role, as above: jig judges it (an owner
   of the deployment), and a refusal says why under the field.
 - **Its state:** the rename's form, at most one, with its project and
@@ -3710,7 +3778,8 @@ command.
 
 - **The link's state** is the first line's (6.4). Its change changes
   the tree, so the page is printed again.
-- **Signing out** is the banner's "Sign out": the domain asks it, and
+- **Signing out** is `Settings`' "Sign out" (3.5), or the banner's on
+  a page that is no project's: the domain asks it, and
   the host gives `jig-client` `SignOut`, which sends jig's sign-out.
   Signed out: the host has the native shell keep none, which leaves
   DIRECTORY's token a zero-byte file, read as none; the main says
@@ -3720,8 +3789,9 @@ command.
   again, run temper open DIRECTORY LINK with a link temper serve
   printed`. A sign-out that did not reach the engine leaves the person
   signed in (jig's
-  `client/domain/client.md`, section 12): the banner says "Sign out did
-  not reach the engine." and offers "Sign out" again.
+  `client/domain/client.md`, section 12): the rail or the banner says
+  "Sign out did not reach the engine.", and "Sign out" is offered
+  again.
 - **Another party's kept work:** while the small store holds requests
   of a party other than the one `me` confirms, temper prints `temper:
   work of another party is kept in DIRECTORY, and waits for them` once.

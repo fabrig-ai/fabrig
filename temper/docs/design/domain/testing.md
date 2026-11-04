@@ -101,7 +101,7 @@ The owned welcome walk combines its key and declared-program variants on
 one owned Forgejo. It keeps private fixtures and ordinary teardown. Once
 it reaches Ready, a native client with the browser's client bounds
 (`../client/README.md`, 2) presses "Create your project" at the welcome's Ready
-and reaches the Chats page; a second such client, the reload, still
+and reaches the project's Home; a second such client, the reload, still
 receives its watches: Live, never Behind, the walk's forge on the Forges
 page and its key on the Accounts page.
 

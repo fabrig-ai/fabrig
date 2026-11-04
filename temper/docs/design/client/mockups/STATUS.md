@@ -49,6 +49,12 @@ Where the client does otherwise:
   repository into it and opens its Home without waiting, where the
   mockup's Ready says "ORG/NAME is ready" and opens it once made. The
   mockup is not edited.
+- **The project's frame and Home** (the client README's 3.5, 5.1 and
+  5.3; `../browser.md`, 2.5): every project page has the rail of the
+  user's greenfield mock's `home.html`, which `chats.html`, `chat.html`,
+  `inbox.html`, `accounts.html`, `forges.html` and the first run's pages
+  do not draw, under their top bar; the project's first page is Home.
+  The mockups are not edited.
 - **The welcome's greenfield pass** (the client README's 3.5 and 5.6;
   `../browser.md`, 2.5, The welcome's look; the user, 2026-11-04): the
   frame holds temper box's line and the steps, and no person's name or
