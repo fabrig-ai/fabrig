@@ -1,0 +1,40 @@
+draft = "debt-10"
+repo = "fabrig"
+sources = ["temper/docs/plan/debt-10/inputs/request.md", "temper/docs/plan/debt-10/inputs/debt7-8-review.md", "jig/docs/development/debt/D005-accounts-host-copied.md", "temper/docs/development/debt/D001-reference-service-copy.md"]
+
+# Three independent parts (inputs/request.md). plan.md says what was decided and why.
+
+[buffer]
+low = 1.0
+high = 2.0
+
+[[part]]
+id = "findings"
+title = "B1 and B2: the workers' side shows no credential in Debug; [::]:7100 tested at the start, address_text moved"
+mode = "direct"
+needs = []
+design = "jig/docs/design/protocol/service.md, 11.3"
+
+[[slice]]
+id = 1
+story = "a queued grant never reaches a Debug print of the workers' side, and a v6 listener off loopback is pinned at the start of both services"
+parts = ["findings"]
+walk = false
+
+[[part]]
+id = "tidying"
+title = "A1 to A5, B5 to B7: tests that bite first, then the review's small cuts, ending with fewer lines"
+mode = "direct"
+needs = []
+design = "jig/docs/design/protocol/service.md, 11"
+
+[[slice]]
+id = 2
+story = "each test of the shipped parts can fail on its rule, and the review's leftovers are gone with no behaviour changed"
+parts = ["tidying"]
+walk = false
+
+[[question]]
+id = "listener-off-loopback"
+parts = ["findings"]
+text = """B2's panic looks unreachable from a document, which listener-text proves by test: both services refuse a clients' listener off loopback at the start, in every shape. But temper's configuration.md, section 3, asks for loopback only in standalone and where the printed link is on, so temper's `checks::standalone` is stricter than the design, and `[::]:7100` with the link off is in the design's bounds and refused by the code. Which stands? (a) recommended, what this plan builds: the code stands, nothing changes, and the gap is recorded as a Departs entry in configuration.status.md. (b) the design stands: a later small task relaxes the check and makes address_text print any IPv6 address, since the panic would then be real. Nothing waits on the answer."""
