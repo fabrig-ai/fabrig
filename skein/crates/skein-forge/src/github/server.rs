@@ -4,10 +4,10 @@ use super::{
     limits::{DEPTH, Limits},
     request::{self, Method, Request},
 };
-use crate::{forgejo::id::unsigned, time};
+use crate::time;
 use alloc::boxed::Box;
 use skein_json::writer::{self, Encoder};
-use skein_lib::{Decimal, List, Overflow, Writer};
+use skein_lib::{Decimal, List, Overflow, Writer, bytes};
 mod app;
 mod queries;
 pub use queries::{Graphql, graphql_body};
@@ -43,7 +43,7 @@ pub fn route(method: Method, target: &[u8], limits: &Limits) -> Option<Request> 
         Request::LogPage { ask, per_page: query.size()? }
     } else if method == Method::Get && path.starts_with(b"/app/hook/deliveries/") {
         // The listed event is decoder context, absent from this wire target.
-        Request::LogDelivery { id: unsigned(path.strip_prefix(b"/app/hook/deliveries/")?)?, event: Box::new([]) }
+        Request::LogDelivery { id: bytes::decimal(path.strip_prefix(b"/app/hook/deliveries/")?)?, event: Box::new([]) }
     } else if let Some(request) = app::route(method, path, query.page(), query.size()) {
         request
     } else if let Some(request) = writes::route(method, path) {
@@ -51,9 +51,9 @@ pub fn route(method: Method, target: &[u8], limits: &Limits) -> Option<Request> 
     } else if method != Method::Get {
         return None;
     } else if let Some(number) = path.strip_prefix(b"/repositories/") {
-        Request::Repository { id: unsigned(number)? }
+        Request::Repository { id: bytes::decimal(number)? }
     } else if let Some(number) = path.strip_prefix(b"/user/") {
-        Request::User { id: unsigned(number)? }
+        Request::User { id: bytes::decimal(number)? }
     } else {
         let path = path.strip_prefix(b"/repos/")?;
         let (owner, tail) = split(path, b'/');
@@ -69,7 +69,7 @@ pub fn route(method: Method, target: &[u8], limits: &Limits) -> Option<Request> 
         && since.as_nanos() == 0
         && query.get(b"since").is_some()
     {
-        let at = skein_lib::bytes::find(&encoded.target, b"&sort=")?;
+        let at = bytes::find(&encoded.target, b"&sort=")?;
         let mut out = Writer::new(encoded.target.len().checked_add(b"&since=1970-01-01T00%3A00%3A00Z".len())?);
         out.put(encoded.target.get(..at)?).ok()?;
         out.put(b"&since=1970-01-01T00%3A00%3A00Z").ok()?;
@@ -103,8 +103,8 @@ fn repo_route(owner: Box<[u8]>, name: Box<[u8]>, tail: &[u8], query: &Query) -> 
     }
     if let Some(tail) = tail.strip_prefix(b"actions/jobs/") {
         return match tail.strip_suffix(b"/logs") {
-            Some(id) => Some(Request::JobLog { owner, name, id: unsigned(id)? }),
-            None => Some(Request::Job { owner, name, id: unsigned(tail)? }),
+            Some(id) => Some(Request::JobLog { owner, name, id: bytes::decimal(id)? }),
+            None => Some(Request::Job { owner, name, id: bytes::decimal(tail)? }),
         };
     }
     if tail == b"branches" {
@@ -117,7 +117,7 @@ fn repo_route(owner: Box<[u8]>, name: Box<[u8]>, tail: &[u8], query: &Query) -> 
         };
     }
     if let Some(tail) = tail.strip_prefix(b"compare/") {
-        let at = skein_lib::bytes::find(tail, b"...")?;
+        let at = bytes::find(tail, b"...")?;
         return Some(Request::Compare {
             owner,
             name,
@@ -138,7 +138,7 @@ fn repo_route(owner: Box<[u8]>, name: Box<[u8]>, tail: &[u8], query: &Query) -> 
         return Some(Request::RulesForBranch { owner, name, branch: request::unescape(branch)?, page: query.page()? });
     }
     if let Some(number) = tail.strip_prefix(b"rulesets/") {
-        return Some(Request::Ruleset { owner, name, id: unsigned(number)? });
+        return Some(Request::Ruleset { owner, name, id: bytes::decimal(number)? });
     }
     if tail == b"collaborators" {
         return Some(Request::Collaborators { owner, name, page: query.page()?, per_page: query.size()? });
@@ -167,7 +167,7 @@ fn item_route(owner: Box<[u8]>, name: Box<[u8]>, tail: &[u8], query: &Query) -> 
     }
     if let Some(tail) = tail.strip_prefix(b"issues/") {
         let (number, suffix) = split(tail, b'/');
-        let number = unsigned(number)?;
+        let number = bytes::decimal(number)?;
         return match suffix {
             b"" => Some(Request::Issue { owner, name, number }),
             b"comments" => {
@@ -183,8 +183,8 @@ fn item_route(owner: Box<[u8]>, name: Box<[u8]>, tail: &[u8], query: &Query) -> 
             return None;
         }
         return Some(Request::PullsFor {
-            head: skein_lib::bytes::copy_of(head.get(owner.len().checked_add(1)?..)?),
-            base: skein_lib::bytes::copy_of(query.get(b"base")?),
+            head: bytes::copy_of(head.get(owner.len().checked_add(1)?..)?),
+            base: bytes::copy_of(query.get(b"base")?),
             open: query.get(b"state")? == b"open",
             owner,
             name,
@@ -192,14 +192,14 @@ fn item_route(owner: Box<[u8]>, name: Box<[u8]>, tail: &[u8], query: &Query) -> 
     }
     if let Some(tail) = tail.strip_prefix(b"pulls/") {
         let (number, suffix) = split(tail, b'/');
-        let number = unsigned(number)?;
+        let number = bytes::decimal(number)?;
         return match suffix {
             b"" => Some(Request::Pull { owner, name, number }),
             b"files" => Some(Request::PullFiles { owner, name, number, page: query.page()?, per_page: query.size()? }),
             b"reviews" => Some(Request::Reviews { owner, name, number, page: query.page()?, per_page: query.size()? }),
             _ => {
                 let tail = suffix.strip_prefix(b"reviews/")?;
-                let review = unsigned(tail.strip_suffix(b"/comments")?)?;
+                let review = bytes::decimal(tail.strip_suffix(b"/comments")?)?;
                 Some(Request::ReviewComments {
                     owner,
                     name,
@@ -253,10 +253,10 @@ impl Query {
         None
     }
     fn page(&self) -> Option<u32> {
-        u32::try_from(unsigned(self.get(b"page")?)?).ok()
+        u32::try_from(bytes::decimal(self.get(b"page")?)?).ok()
     }
     fn size(&self) -> Option<u32> {
-        u32::try_from(unsigned(self.get(b"per_page")?)?).ok()
+        u32::try_from(bytes::decimal(self.get(b"per_page")?)?).ok()
     }
 }
 /// Writes the repository fields the GitHub decoder reads.
