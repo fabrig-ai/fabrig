@@ -1,3 +1,24 @@
 draft = "look-round-2"
 repo = "fabrig"
 sources = ["temper/docs/plan/look-round-2/inputs/request.md", "temper/docs/design/draft/look-requests.md", "temper/docs/design/draft/fetch-progress.md", "AGENTS.md", "DESIGN.md"]
+
+# One task per request, oldest first, each needing the one before: they build on one another's
+# pages and share the stylesheets (inputs/request.md). The procedure is
+# temper/docs/design/draft/look-requests.md, sections 3 to 5; no design is cut ahead of a landing.
+
+[buffer]
+low = 1.0
+high = 2.0
+
+[[part]]
+id = "welcome-model-forge-pane"
+title = "look request welcome-model-forge-pane: the forge's state in a pane beside the Model step, whole"
+mode = "direct"
+needs = []
+design = "temper/docs/design/client/journeys.md, 7"
+
+[[slice]]
+id = 1
+story = "the Model step's forge state sits in its own region after the choices, a pane from 1280 px, in the browser and the terminal, under way, done and failed"
+parts = ["welcome-model-forge-pane"]
+walk = false
