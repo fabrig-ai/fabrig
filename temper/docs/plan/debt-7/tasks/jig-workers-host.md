@@ -22,7 +22,7 @@ Acceptance:
 - `J/workers.rs` holds the adapter below and nothing else. `J/stop.rs` holds no `Closing` and no `impl Workers`.
 - `jig-test-service`'s tests and the worlds in step 7 pass, changed only as step 6 says.
 - `jig/docs/design/protocol/service.status.md` no longer lists the workers' side.
-- **Size cap:** the branch's net lines are at most +120, tests and manifests included. It takes temper's address and
+- **Size cap:** the branch's net lines are at most +150, tests and manifests included. It takes temper's address and
   closing form, and `J/workers.rs` keeps about 120 lines; temper's task then falls by about 250. Measure it, and stop and
   ask if it's passed.
 
@@ -296,3 +296,28 @@ The rules the two copies disagree on, which this branch settles:
 The common note's items. Two breaks: make the adapter's `up` return `false` on `ListenerClosed`, and name what
 `a_lost_listener_changes_nothing_for_the_reference` reads; add a stray dependency to the crate's manifest, and name what
 the renamed boundary test reads. Net lines against the cap.
+
+## Answers
+
+2026-11-04. Q: the branch measures net +153 against a cap of +120: take +153, or revise the sketches to fit +120?
+
+Neither. The cap becomes **+150** (30 lines, 25%, the most the plan owner's answer of 2026-11-04 lets an answer call
+raise), and the branch compacts to meet it; +153 isn't accepted. Why +120 can't be counted on: step 1's surface, which
+the temper task builds to, the adapter, the added test and the manifests are this spec's, and the estimate ran short:
+the adapter measures 132 lines against about 120, and `rustfmt` spreads the boundary test's list from one line to 9.
+
+Keep commit `7c4dc8d9c0` and add a commit on the branch; nothing else in it changes. In `host.rs`, `work_pending`'s
+`match` becomes one guarded `matches!`, the same rule:
+
+```rust
+#[must_use]
+pub fn work_pending(&self, now: Time) -> bool {
+    !self.io.is_empty() || !self.out.is_empty() || matches!(self.next_deadline(), Some(deadline) if deadline <= now)
+}
+```
+
+A trial of this edit, formatted by `rustfmt` with the repository's `rustfmt.toml`, leaves it on those lines: 5 lines
+fewer, so **+148**. The surface, the sketches' bodies, the tests and their assertions stay as they are.
+
+Then finish what the size stop left: the two breaks of `## Report`, and step 7's clippy and nextest runs, each count
+checked. The report gives the net lines against +150.

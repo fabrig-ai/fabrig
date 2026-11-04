@@ -22,7 +22,7 @@ task names. This file grows with each release; what is here so far is what has b
    - `tasks/temper-accounts-host.md`, high, ~55 minutes, needs the last: temper's copy goes, net at most -290.
    - `tasks/jig-worker-agents.md`, high, ~60 minutes, needs `jig-accounts-host`: the new crate, net at most +300.
    - `tasks/temper-worker-agents.md`, high, ~40 minutes, needs it and `temper-accounts-host`: net at most -420.
-   - `tasks/jig-workers-host.md`, high, ~60 minutes, needs `jig-worker-agents`: net at most +120.
+   - `tasks/jig-workers-host.md`, high, ~60 minutes, needs `jig-worker-agents`: net at most +150.
    - `tasks/temper-workers-host.md`, high, ~50 minutes, needs it and `temper-worker-agents`: net at most -200.
    - `tasks/jig-server-part.md`, high, ~120 minutes, needs `jig-workers-host`: net at most +170.
    - `tasks/temper-server-part.md`, medium, ~45 minutes, needs it and `temper-workers-host`: net at most -340.
