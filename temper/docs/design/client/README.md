@@ -1645,6 +1645,12 @@ for its kind, its user's login and its installations. Its nodes:
   the configuration's order (section 8). On the wire it is
   `Reading`'s `playground`, `Reading` naming which of the family's
   reads a read is; none is the read's empty answer.
+- **The deployment's read, `deployment`:** of the deployment's scope,
+  with no fields and no subject: what it answers is the document's, so
+  it changes only with a start. Its answer is always a record,
+  `DeploymentAnswer`: `welcome` (bool), whether the document shows the
+  welcome (`../protocol/configuration.md`, section 3). On the wire it is
+  `Reading`'s `deployment`, beside `playground`.
 - **A change's panel, the subject `change`** (`forge.md`, 9.2): of a
   project's scope, its window unused, naming the change task's number
   (u64). On the wire it is `Watching`'s `change`, `Watching` naming
