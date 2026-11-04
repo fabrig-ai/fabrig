@@ -98,16 +98,15 @@ landing requirements:
 ]}
 ```
 
-A project-policy item takes only `set`, no `number`, once per file, beside
-other settings. Edit before sending. Spends resize its open period and parties'
-pools at once; policy 1 sets future projects' starting values.
+A project-policy item accepts only `set`, no `number`, at most once per
+file; it may share a file with other settings. Edit `set` before sending. Its spends
+resize the project's open period and parties' pools immediately; policy 1
+sets only future projects' starting values.
 
 Set project-policy `period_spend` 8200000 beside rules `period_spend` 8300000;
 `project show PROJECT` confirms the open period's budget is 8200000.
 
 For a project's landing rule, add `"project": PROJECT` to its `setting`.
-A proposal's temper items, with their whole values or their removed or
-reset edits, are included in `proposal show PROPOSAL`.
 
 ### Authority for the reference charters
 
