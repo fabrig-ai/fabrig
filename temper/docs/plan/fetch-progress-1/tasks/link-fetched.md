@@ -56,3 +56,14 @@ Pre-approved:
 ## Report
 
 As the implementer's text has it, with each rule broken for a new test and the failure seen.
+
+## Answers
+
+### 2026-11-04: Should engine-fetched repair the missing Fetched arm in temper-engine-domain/src/admission.rs (recommended), or may link-fetched extend its file scope to repair that arm? (fetch-progress-1/link-fetched-1, foreman fetch-progress-1/link-fetched/foreman-1)
+
+engine-fetched repairs the missing Fetched arm; link-fetched keeps its assigned file scope and resumes after merging the repair.
+`link-fetched`: “Owns the files in the header, and in `route.rs` the arm alone.” Engine admission is outside that scope.
+`engine-fetched` explicitly permits “in `temper-engine-domain/src/admission.rs`, `completes`'s one arm”.
+Its existing Answers section settles the repair: “Add `| forge::Event::Fetched { .. }` beside `forge::Event::Connection { .. }` in `completes`, in the arm returning `true`”.
+After that repair is pushed, link-fetched merges it, completes the scripted-system tests and remaining checks, then commits and pushes.
+Link-fetched is not yet accepted: its report says acceptance tests and required checks remain unobserved.

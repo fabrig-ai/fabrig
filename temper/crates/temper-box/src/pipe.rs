@@ -3,7 +3,7 @@ use crate::lines::joined;
 use alloc::boxed::Box;
 use skein_io::kernel::Exit;
 use skein_lib::{Decimal, List, bytes};
-use temper_forge_setup::{Stage, machine::BoxKind};
+use temper_forge_setup::{Stage, fetch::Fetched, machine::BoxKind};
 
 #[derive(PartialEq, Eq, Debug)]
 pub enum Line {
@@ -97,6 +97,27 @@ pub(crate) fn number(digits: &[u8]) -> Option<u16> {
 #[must_use]
 pub fn step(forge: u16, stage: Stage) -> Box<[u8]> {
     joined(&[b"step ", Decimal::of(u64::from(forge)).as_bytes(), b" ", stage.word(), b"\n"])
+}
+#[must_use]
+pub fn fetched(forge: u16, fetched: Fetched) -> Box<[u8]> {
+    let total = match fetched.total {
+        Some(total) => Some(Decimal::of(total)),
+        None => None,
+    };
+    joined(&[
+        b"fetched ",
+        Decimal::of(u64::from(forge)).as_bytes(),
+        b" ",
+        fetched.word(),
+        b" ",
+        Decimal::of(fetched.done).as_bytes(),
+        b" ",
+        match &total {
+            Some(total) => total.as_bytes(),
+            None => b"none",
+        },
+        b"\n",
+    ])
 }
 #[must_use]
 pub fn started(forge: u16) -> Box<[u8]> {
