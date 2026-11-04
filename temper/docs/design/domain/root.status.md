@@ -13,3 +13,11 @@
   `decision.rs`, `host_within`, relies on that bound for settings output
   held before its commit. The application settings' contribution is omitted;
   no reason is recorded.
+- **Departs:** 12: a duplicate person's identity panics at its link,
+  naming its row (`jig-domain-people/src/domain/start.rs`, `fits`;
+  `tests/engine/domain/tests/suite/root_routes.rs`,
+  `a_duplicate_person_identity_panics_at_its_link_naming_its_row`),
+  where the user's request of 11-04 counts that panic a bug, because
+  `jig/docs/design/domain/engine.md`, 6 has a start judge no record and
+  panic at a link it cannot make (the user, 10-28). Which holds is the
+  user's, unanswered (that document's section 16).
