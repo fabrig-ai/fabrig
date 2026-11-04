@@ -1,0 +1,3 @@
+draft = "hearth-workspace"
+repo = "fabrig"
+sources = ["hearth/docs/plan/hearth-workspace/inputs/request.md"]
