@@ -19,7 +19,7 @@ departs in three crates' `tests/` directories (`testing.md`) and in
 live suite's provider stories are manual, run by the owner (`llm.md`).
 `README.md`, `codec.md`, `world.md`, `fake-checkout.md`,
 `forge-client.md`, `oauth-issuer.md`, `ui-text.md`, `ui-web.md` and
-`browser.md` have no gap. The state machines of kv, io, channel,
+`browser.md` have no gap. The state machines of io, channel,
 forge-connection, Forgejo's plans, oauth and its accounts, llm,
 llm-connection and lib's `RequestTable` depart from
 `../foundation/programming-model.md`, 5.4, and the fakes share their
