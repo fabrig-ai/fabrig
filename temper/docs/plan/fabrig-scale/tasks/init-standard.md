@@ -210,3 +210,26 @@ cannot hold without it. `stock-scale` owns the file's funding step (near 560-576
 Then the two moved figures the run listed (`serve_refuses_an_explicit_call_bound_below_the_agents_call_input`
 at 10,662, `serve_checks_the_owned_agents_admission_at_each_bound` at 10,660) and the rest of the
 acceptance as written.
+
+2026-11-03. **`template_bounds`: select `standard` in the test, or keep `small` with a separate
+small agent?** Select `standard`, in `template_bounds.rs` alone. The test is the regression that
+init's shipped agent, with T derived from it, fits the store page of the profile init ships: Small's
+page was sized for exactly that agent (`7c0134012a`, "Size Small store pages for the shipped
+two-call transcript"). init now ships `standard` (59,570,691-byte page), so the test follows it;
+Small's own page ceiling stays pinned by `temper-service`'s
+`startup_admits_a_frame_exactly_at_the_profile_page_ceiling` and its neighbours, so no separate
+small agent is needed.
+
+- In `template_bounds.rs`, after `landing::configure` and before `turn_bounds::apply`, set the
+  engine's, each worker's and the application's `limits.profile` to `"standard"`. Leave
+  `fixtures.rs`, `landing.rs` and every other real-loop file as they are.
+- Rename the test and its module doc to what it checks now: init's shipped agent fits
+  `standard`'s page with derived carriers (for example
+  `the_shipped_agent_fits_standards_page_with_derived_carriers`; the agent is no longer
+  two-call). Its `expect` words follow.
+- If `standard` then refuses the fixture on another check (a relation, a carrier, a store bound),
+  the pre-approval above holds, in this test alone: the least override that passes, listed in the
+  report with the check's words. A refusal from `limits.rs`, jig's profile or a codec ceiling is a
+  question as before.
+
+Then the rest of the acceptance as written.
