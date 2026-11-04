@@ -759,7 +759,7 @@ ${events.length ? `\n${events.map(esc).join('\n')}\n` : ''}<span class="cursor">
       } else {
         body = `${head('Connect a forge', 'Where your code lives: you tell temper what you want, agents push and land code.')}
           <div class="choices-grid">
-            ${choice('Forgejo', 'A forge of your own: temper starts it on this machine and manages it.', 'Here · about a minute', '<button type="button" class="btn primary" data-forgejo-open>Run on this machine</button>', ' lead')}
+            ${choice('Forgejo', 'A forge of your own: temper starts it on this machine and manages it. You can import existing repositories into it, from GitHub or elsewhere.', 'Here · about a minute', '<button type="button" class="btn primary" data-forgejo-open>Run on this machine</button>', ' lead')}
             ${choice('GitHub', 'Your repositories on GitHub. temper makes its own App there; you choose the account and the repositories it may use.', 'In this tab, on GitHub · about two minutes', '<button type="button" class="btn" data-github>Connect GitHub</button>')}
           </div>${foot}${repoSheet('welcome')}`;
       }
