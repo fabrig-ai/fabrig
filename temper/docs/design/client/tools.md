@@ -298,6 +298,11 @@ watch's subject, its digest (5.4). It needs no key.
   (`../protocol/llm.md`, section 7), and `chat show` and `task run` then
   print none: a run shows by its activity, and its words as each turn
   commits.
+- **A conversation keeps its words readable.** `chat show` retains tool
+  identities and failures, but leaves call inputs, outcomes and result
+  summaries to `task turn TASK TURN`. Those payloads consume no conversation
+  text budget. Conversational text shares the bounded window in order;
+  an oversized reply keeps its archived part number and continuation.
 - **A turn too large for a page** comes in a page by its size in place
   of its bytes (jig's `client/domain/contract.md`, 5.1). `task
   activity`, `chat show` and `task show --activity` print it as one
@@ -1278,6 +1283,11 @@ written with `skein-json`'s writer, the result's fields by their names
 in the table, in snake case, numbers as jig's integers, no floats. The
 JSON is the contract for scripts; the text follows temper's words, and
 may change with them.
+
+- **`chat show` leaves tool payload fields null:** a call's `input` and
+  `outcome`, and a result's `summary`. Its conversation words retain the
+  turn part records and their continuations. `task turn` serves payloads
+  with the same part numbers.
 
 - **A task's document** prints its fields as jig's client gives them:
   its `dependencies` as links, and beside them its `dependency_facts`,
