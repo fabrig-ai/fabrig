@@ -1,5 +1,9 @@
 //! Shared scenario values (skein/docs/design/fake-forge.md, 10.6).
-use crate::{app::App, installations::{self, Kind, Reach}, service::{self, Account, Config, Limits, Row, Service}};
+use crate::{
+    app::App,
+    installations::{self, Kind, Reach},
+    service::{self, Account, Config, Limits, Row, Service},
+};
 use alloc::boxed::Box;
 use skein_fake_forge_domain::{self as fake, api as a};
 use skein_forge::github;
@@ -11,10 +15,19 @@ pub const BOT: u64 = 9;
 pub const OWNER: u64 = 22;
 pub const PERSON: u64 = 31;
 pub const PATH: &[u8] = b"acme/widgets";
-pub fn key() -> &'static [u8] { crate::keys::KEYS.first().expect("first test key") }
+pub fn key() -> &'static [u8] {
+    crate::keys::KEYS.first().expect("first test key")
+}
 pub fn app() -> App {
-    App { id: APP, slug: bytes::copy_of(b"test-app"), owner: 1, permissions: Box::new([]),
-        events: Box::new([]), key: key(), webhook: Secret::new(bytes::copy_of(b"test-webhook")) }
+    App {
+        id: APP,
+        slug: bytes::copy_of(b"test-app"),
+        owner: 1,
+        permissions: Box::new([]),
+        events: Box::new([]),
+        key: key(),
+        webhook: Secret::new(bytes::copy_of(b"test-webhook")),
+    }
 }
 pub fn accounts() -> List<Account> {
     let mut rows = List::with_capacity(2);
@@ -25,7 +38,9 @@ pub fn accounts() -> List<Account> {
 }
 pub fn repositories() -> List<Row> {
     let mut rows = List::with_capacity(3);
-    for (id, name, organization, private) in [(4, b"tools".as_slice(), false, false), (2, b"widgets", true, true), (6, b"absent", true, false)] {
+    for (id, name, organization, private) in
+        [(4, b"tools".as_slice(), false, false), (2, b"widgets", true, true), (6, b"absent", true, false)]
+    {
         rows.push(row(id, name, organization, private)).expect("fixture repositories");
     }
     rows
@@ -153,16 +168,37 @@ pub fn install_one(service: &mut Service, at: Wall) {
 }
 pub fn install_three(service: &mut Service) {
     let mut listed = List::with_capacity(2);
-    for id in [2, 4] { listed.push(id).expect("fixture reach"); }
+    for id in [2, 4] {
+        listed.push(id).expect("fixture reach");
+    }
     let store = service.installations_mut();
-    assert_eq!(store.install(OWNER, b"acme", Kind::Organization, Reach::Listed(listed), Wall::from_nanos(1_000_000_000_000)), Ok(1));
+    assert_eq!(
+        store.install(OWNER, b"acme", Kind::Organization, Reach::Listed(listed), Wall::from_nanos(1_000_000_000_000)),
+        Ok(1)
+    );
     assert_eq!(store.install(23, b"example", Kind::User, Reach::All, Wall::from_nanos(1_001_000_000_000)), Ok(2));
     assert_eq!(store.install(24, b"other", Kind::User, Reach::All, Wall::from_nanos(1_002_000_000_000)), Ok(3));
     assert!(store.suspend(3, true), "third installation exists");
 }
 pub fn setup(id: u32, name: &[u8]) -> a::Setup {
-    a::Setup { id, name: bytes::copy_of(name), default: bytes::copy_of(b"main"), workflows: Box::new([]),
-        tree: Box::new([]), labels: Box::new([]), protection: None, hooked: false,
-        checks: a::Checks { cues: Box::new([]), contexts: Box::new([]), latency_min: Duration::ZERO,
-            latency_max: Duration::ZERO, silent: 0, passes: 1000, reruns: 0, cue: None } }
+    a::Setup {
+        id,
+        name: bytes::copy_of(name),
+        default: bytes::copy_of(b"main"),
+        workflows: Box::new([]),
+        tree: Box::new([]),
+        labels: Box::new([]),
+        protection: None,
+        hooked: false,
+        checks: a::Checks {
+            cues: Box::new([]),
+            contexts: Box::new([]),
+            latency_min: Duration::ZERO,
+            latency_max: Duration::ZERO,
+            silent: 0,
+            passes: 1000,
+            reruns: 0,
+            cue: None,
+        },
+    }
 }

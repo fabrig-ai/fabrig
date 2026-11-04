@@ -165,6 +165,15 @@ pub enum ContentType {
 }
 impl ContentType {
     #[must_use]
+    pub const fn charset(self) -> &'static [u8] {
+        match self {
+            Self::Json => b"application/json; charset=utf-8",
+            Self::Html => b"text/html; charset=utf-8",
+            Self::Plaintext => b"text/plain; charset=utf-8",
+            Self::Octets => self.bytes(),
+        }
+    }
+    #[must_use]
     pub const fn bytes(self) -> &'static [u8] {
         match self {
             Self::Json => b"application/json",
