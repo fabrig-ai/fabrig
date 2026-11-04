@@ -747,10 +747,17 @@ pub(crate) fn subscribe_named_call(
 ) {
     let project = domain.core.tasks.delegation(key.task).expect("authorized current subscription task").project;
     let Ok(adopted) = named_repository(domain, project, repository.as_deref()) else {
-        super::host_route::read(
+        decide_call(
             domain,
+            &env.limits,
+            decision,
             to,
-            CallAnswer::ReadRepositoryRefused { named: repository, repositories: read_repositories(domain, project) },
+            key,
+            CallAnswer::SubscriptionRepositoryRefused {
+                task: key.task,
+                named: repository,
+                repositories: read_repositories(domain, project),
+            },
         );
         return;
     };

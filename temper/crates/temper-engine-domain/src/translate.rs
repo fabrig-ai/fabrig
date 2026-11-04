@@ -517,6 +517,7 @@ pub(crate) fn keep_connector_answer(
         | CallAnswer::Delegated(_)
         | CallAnswer::DelegationDenied { .. }
         | CallAnswer::ReadRepositoryRefused { .. }
+        | CallAnswer::SubscriptionRepositoryRefused { .. }
         | CallAnswer::ChangeRefused { .. }
         | CallAnswer::DelegationRefused(_)
         | CallAnswer::NoteWritten { .. }

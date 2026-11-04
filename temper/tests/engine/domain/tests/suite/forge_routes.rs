@@ -2429,6 +2429,20 @@ fn subscription_repository_feedback() {
     let (mut world, goal) = change_tool::chat_world_with_words(false, b"Watch main");
     let answer = subscription_json(&mut world, &goal, 94, br#"{"topic":{"kind":"landings","branch":"main"}}"#);
     subscription_feedback(&answer, "this project has no repository to read");
+    world.adopt();
+    let replay = subscription_json(&mut world, &goal, 94, br#"{"topic":{"kind":"landings","branch":"main"}}"#);
+    assert_eq!(replay, answer, "a refused named subscription stays refused after adoption");
+    world.until(Until::Ready);
+    assert!(
+        !world.store.rows.keys().any(|key| matches!(key,
+        Key::Forge(forge_top::Key::Subscription { task, .. }) if *task == goal.task)),
+        "replaying a refused subscription must not install an interest after adoption"
+    );
+    let corrected = subscription_json(&mut world, &goal, 95, br#"{"topic":{"kind":"landings","branch":"main"}}"#);
+    assert!(
+        matches!(corrected, engine::CallAnswer::Subscribed { .. }),
+        "a new call can use the adoption: {corrected:?}"
+    );
     world.close();
     let (mut world, goal) = change_tool::several_repositories();
     let answer = subscription_json(&mut world, &goal, 94, br#"{"topic":{"kind":"landings","branch":"main"}}"#);

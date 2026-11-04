@@ -124,6 +124,8 @@ pub enum CallAnswer {
     DelegationRefused(jig_domain_tasks::Problem),
     /// Render-only repository choice feedback; only the underlying refusal is stored.
     ReadRepositoryRefused { named: Option<Box<[u8]>>, repositories: Box<[Box<[u8]>]> },
+    /// A subscription could not choose a readable adoption; its settled choice feedback replays.
+    SubscriptionRepositoryRefused { task: u64, named: Option<Box<[u8]>>, repositories: Box<[Box<[u8]>]> },
     /// Box the problem to keep the existing answer slots within their allocation budget.
     ChangeRefused { problem: Box<jig_domain_tasks::Problem>, named: Option<Box<[u8]>>, repositories: Box<[Box<[u8]>]> },
     /// A note write's durable name and revision.
@@ -207,7 +209,8 @@ impl CallAnswer {
                 jig_domain_core::CallPart::Subscribed { subscription: *subscription }
             }
             CallAnswer::Unsubscribed => jig_domain_core::CallPart::Unsubscribed,
-            CallAnswer::ForgeSubscriptionRefused { task, .. } => jig_domain_core::CallPart::SubscriptionRefused(
+            CallAnswer::ForgeSubscriptionRefused { task, .. }
+            | CallAnswer::SubscriptionRepositoryRefused { task, .. } => jig_domain_core::CallPart::SubscriptionRefused(
                 jig_domain_tasks::Problem::new(Some(*task), jig_domain_tasks::Refusal::Subscription),
             ),
             CallAnswer::SubscriptionRefused(problem) => jig_domain_core::CallPart::SubscriptionRefused(problem.clone()),
@@ -958,6 +961,7 @@ pub(crate) fn call_answer_bytes(answer: &CallAnswer) -> Option<u64> {
         | CallAnswer::NoteWritten { .. }
         | CallAnswer::NoteRefused(_) => Some(0),
         CallAnswer::ReadRepositoryRefused { named, repositories }
+        | CallAnswer::SubscriptionRepositoryRefused { named, repositories, .. }
         | CallAnswer::ChangeRefused { named, repositories, .. } => {
             let mut bytes = skein_lib::len_u64(repositories.len())
                 .checked_mul(u64::try_from(size_of::<Box<[u8]>>()).ok()?)?

@@ -247,9 +247,12 @@ fn rendered(answer: &CallAnswer, tool: &[u8], task: Option<u64>) -> Result<HostA
             false
         }
         CallAnswer::ReadRepositoryRefused { named, repositories }
+        | CallAnswer::SubscriptionRepositoryRefused { named, repositories, .. }
         | CallAnswer::ChangeRefused { named, repositories, .. } => {
             if repositories.is_empty() {
-                if let CallAnswer::ReadRepositoryRefused { .. } = answer {
+                if let CallAnswer::ReadRepositoryRefused { .. } | CallAnswer::SubscriptionRepositoryRefused { .. } =
+                    answer
+                {
                     text.add(b"this project has no repository to read")?;
                 } else {
                     text.add(b"this project has no repository to change")?;
