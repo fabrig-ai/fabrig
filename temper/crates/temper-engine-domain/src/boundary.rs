@@ -139,8 +139,8 @@ pub struct KindValue {
 /// (domain/root.md, sections 3 and 5.2). Later routes extend this vocabulary.
 #[derive(Clone, PartialEq, Eq, Debug)]
 pub enum Tool {
-    /// Read source facts of a related live task or retained direct delegate.
-    ReadTask { task: u64, from: u64 },
+    /// Read related task specifications or proven descendant reports.
+    ReadTask { task: u64, field: jig_domain_core::reads::TaskTextField, from: u64 },
     /// Read settings without retaining a named-call record.
     Settings { read: jig_domain_core::SettingsRead, from: u32 },
     /// Propose whole settings to the deployment's owners.

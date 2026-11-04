@@ -21,11 +21,11 @@ pub(crate) fn relay_payload(
     body: crate::Call,
 ) {
     assert!(current_proof(domain, key.task, key.attempt), "fleet only relays a current claim");
-    if let Tool::ReadTask { task, from } = body.tool {
+    if let Tool::ReadTask { task, field, from } = body.tool {
         domain.work.push(Work::Core(core::Event::NamedAction {
             to: reply_to,
             key,
-            action: core::NamedAction::ReadTask { task, from },
+            action: core::NamedAction::ReadTask { task, field, from },
         }));
         return;
     }

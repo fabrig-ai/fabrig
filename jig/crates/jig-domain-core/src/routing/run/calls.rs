@@ -427,8 +427,8 @@ pub(crate) fn named_action(
     action: NamedAction,
 ) -> Queue<Request> {
     assert!(core.current_proof(key.task, key.attempt), "named action belongs to current claim");
-    if let NamedAction::ReadTask { task, from } = action {
-        return crate::reads::run_task::run(core, env, to, key, task, from);
+    if let NamedAction::ReadTask { task, field, from } = action {
+        return crate::reads::run_task::run(core, env, to, key, task, field, from);
     }
     if let NamedAction::Settings(read) = action {
         return crate::reads::settings::run(core, env, to, key, read);

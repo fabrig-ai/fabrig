@@ -197,11 +197,12 @@ A write.
 
 ## read_task
 
-Read related tasks and retained ended delegates: words, state, dependencies, revisions and hold reason. Continue cut words with from=next.
+Read related task specs or retained descendant reports (field=result); from=next continues.
 
 A read.
 
 - `task`: an integer of at least 1; required.
+- `field`: one of `specification` or `result`; optional.
 - `from`: an integer of at least 0, 0 when absent; optional.
 
 ## settings

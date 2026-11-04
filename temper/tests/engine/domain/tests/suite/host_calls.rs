@@ -488,3 +488,49 @@ fn producer_refusal(
     assert_eq!(error.call.as_ref(), number.to_be_bytes());
     String::from_utf8(error.text.to_vec()).expect("refusal words")
 }
+
+#[test]
+fn task_report_selectors_render_complete_retained_continuations() {
+    const REPORT: &[u8] = b"Left: document retained reports; disposition: accepted.";
+    let (mut driver, run) = coordinator();
+    let child = coordinator_delegates(&mut driver, &run, 10, &[b"specification is not a report"], None)[0];
+    let producer = super::added_deps::assignment(&driver, child);
+    driver.answer(
+        Token::new(7),
+        child,
+        producer.attempt,
+        0,
+        tasks::End::Finished { result: tasks::TaskResult::Report { words: REPORT.into() }, cancel_delegates: false },
+        engine::Parts::none(),
+    );
+    driver.settle();
+    let applied = driver.store.applied;
+    let mut report = String::new();
+    let mut from = 0;
+    for call in 20..40 {
+        let input = format!("{{\"task\":{child},\"field\":\"result\",\"from\":{from}}}");
+        let answer = decoded_task_call(&mut driver, &run, call, b"read_task", input.as_bytes());
+        let engine::CallAnswer::TaskRead(read) = &answer else { panic!("task read") };
+        assert_eq!(
+            read.as_ref().as_ref().expect("retained report").words.field,
+            jig_domain_core::reads::TaskTextField::Result
+        );
+        let rendered = temper_engine_smith::answer_bounded(&answer, 100);
+        assert!(!rendered.error(), "{}", String::from_utf8_lossy(rendered.text()));
+        assert!(rendered.text().len() <= 100);
+        let text = String::from_utf8(rendered.text().to_vec()).expect("report text");
+        let (_, body) = text.split_once(&format!("Result from {from}:\n")).expect("selected report label");
+        if let Some((words, next)) = body.rsplit_once("\nnext: ") {
+            report.push_str(words);
+            let next = next.parse().expect("byte offset");
+            assert!(next > from);
+            from = next;
+        } else {
+            report.push_str(body);
+            break;
+        }
+    }
+    assert_eq!(report.as_bytes(), REPORT, "complete report rather than specification words");
+    assert_eq!(driver.store.applied, applied, "reading records no calls");
+    assert!(from > 0, "host answer bound forced a continuation");
+}
