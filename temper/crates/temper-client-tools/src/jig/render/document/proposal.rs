@@ -383,10 +383,14 @@ fn encode_review(review: &c::SettingsReview, reading: &Reading, out: &mut Encode
         out.key(b"now");
         encode_review_value(&item.now, item.setting, reading.pages.get(&slot(index, false)), reading.parts, out);
         out.key(b"origin");
-        match &item.origin {
-            c::SettingOrigin::Default(r) => origin_revision(b"default", r.revision, out),
-            c::SettingOrigin::Change(r) => origin_revision(b"change", r.revision, out),
-            c::SettingOrigin::NotOffered => out.string(b"not_offered"),
+        if let c::Setting::Application { .. } = item.setting {
+            encode_application_origin(application_origin(reading, item.setting), out);
+        } else {
+            match &item.origin {
+                c::SettingOrigin::Default(r) => origin_revision(b"default", r.revision, out),
+                c::SettingOrigin::Change(r) => origin_revision(b"change", r.revision, out),
+                c::SettingOrigin::NotOffered => out.string(b"not_offered"),
+            }
         }
         out.key(b"would_be");
         encode_review_value(&item.would_be, item.setting, reading.pages.get(&slot(index, true)), reading.parts, out);
@@ -619,21 +623,21 @@ fn application_items_text(reading: &Reading, limits: &Limits, out: &mut Text) {
     for item in items {
         let setting = item.setting;
         settings::setting_text(setting, reading.parts, out);
+        out.put(b" \xc2\xb7 ");
+        out.put(match &item.edit {
+            SettingEdit::Set(_) => b"set",
+            SettingEdit::Removed => b"removed",
+            SettingEdit::Reset => b"reset",
+        });
         out.put(b" \xc2\xb7 now ");
         value_text(read_value(setting, current_item(reading, item)), setting, limits, reading.parts, out);
-        if let Some(origin) = application_origin(reading, setting) {
-            out.put(b" (");
-            origin_text(origin, out);
-            out.put(b")");
-        }
-        out.put(b" \xc2\xb7 ");
+        out.put(b" (");
+        application_origin_text(application_origin(reading, setting), out);
+        out.put(b") \xc2\xb7 would be ");
         match &item.edit {
-            SettingEdit::Set(value) => {
-                out.put(b"set ");
-                settings::named_value_inline(setting, &value.value, limits, reading.parts, out);
-            }
-            SettingEdit::Removed => out.put(b"removed"),
-            SettingEdit::Reset => out.put(b"reset to default"),
+            SettingEdit::Set(value) => settings::named_value_inline(setting, &value.value, limits, reading.parts, out),
+            SettingEdit::Removed => out.put(b"none"),
+            SettingEdit::Reset => out.put(b"default"),
         }
         out.put(b"\n");
     }
@@ -657,14 +661,8 @@ fn encode_application_items(reading: &Reading, out: &mut Encoder) {
                 out.key(b"value");
                 settings::encode_named_value(setting, &value.value, reading.parts, out);
             }
-            if let Some(origin) = application_origin(reading, setting) {
-                out.key(b"origin");
-                match origin {
-                    c::SettingOrigin::Default(r) => origin_revision(b"default", r.revision, out),
-                    c::SettingOrigin::Change(r) => origin_revision(b"change", r.revision, out),
-                    c::SettingOrigin::NotOffered => out.string(b"not_offered"),
-                }
-            }
+            out.key(b"origin");
+            encode_application_origin(application_origin(reading, setting), out);
             out.key(b"now");
             encode_value_result(read_value(setting, current_item(reading, item)), setting, reading.parts, out);
             out.object_end();
@@ -683,14 +681,38 @@ fn origin_text(origin: &c::SettingOrigin, out: &mut Text) {
         c::SettingOrigin::NotOffered => out.put(b"not offered"),
     }
 }
-fn application_origin(reading: &Reading, setting: c::Setting) -> Option<&c::SettingOrigin> {
+// jig/docs/design/domain/engine.md, 17.5 and 17.6: application state is separate from values.
+fn application_origin(reading: &Reading, setting: c::Setting) -> Option<&c::ApplicationFollows> {
     let (_, review) = crate::jig::runner::proposal::review(reading.pages.get(&1)?)?;
     for item in &review.items {
         if item.setting == setting {
-            return Some(&item.origin);
+            return Some(&item.application.as_ref()?.now.as_ref()?.follows);
         }
     }
     None
+}
+
+fn application_origin_text(origin: Option<&c::ApplicationFollows>, out: &mut Text) {
+    match origin {
+        Some(c::ApplicationFollows::Default) => out.put(b"default"),
+        Some(c::ApplicationFollows::Changed { revision }) => {
+            out.put(b"revision ");
+            out.number(u64::from(*revision));
+        }
+        Some(c::ApplicationFollows::Removed { revision }) => {
+            out.put(b"removed at revision ");
+            out.number(u64::from(*revision));
+        }
+        None => out.put(b"not offered"),
+    }
+}
+fn encode_application_origin(origin: Option<&c::ApplicationFollows>, out: &mut Encoder) {
+    match origin {
+        Some(c::ApplicationFollows::Default) => out.string(b"default"),
+        Some(c::ApplicationFollows::Changed { revision }) => origin_revision(b"change", *revision, out),
+        Some(c::ApplicationFollows::Removed { revision }) => origin_revision(b"removed", *revision, out),
+        None => out.string(b"not_offered"),
+    }
 }
 
 // The two groups are derived from delivered values, independently of the proposal's reason.

@@ -26,10 +26,12 @@ fn the_forging_page_posts_to_the_mapping_s_request_route() {
     assert_eq!(page.path.as_ref(), b"/forging");
     assert_eq!(page.kind.as_ref(), b"text/html");
     assert!(page.headers.is_empty());
-    assert_eq!(page.body.as_ref(), br#"<!doctype html><title>Elsewhere</title><script>
+    assert_eq!(page.body.as_ref(), br#"<!doctype html><title>Elsewhere</title><h1>Forging requests</h1><script>
 const body = Uint8Array.from(atob("Zm9yZ2Vk"), c => c.charCodeAt(0));
-fetch("http://{address}/mapping/v1/request", {method: "POST", mode: "no-cors", credentials: "include", headers: {"Content-Type": "text/plain"}, body}).catch(() => {});
-fetch("http://{address}/mapping/v1/request", {method: "POST", credentials: "include", headers: {"Content-Type": "application/octet-stream", "Jig-Client": "browser"}, body}).catch(() => {});
+Promise.allSettled([
+fetch("http://{address}/mapping/v1/request", {method: "POST", mode: "no-cors", credentials: "include", headers: {"Content-Type": "text/plain"}, body}),
+fetch("http://{address}/mapping/v1/request", {method: "POST", credentials: "include", headers: {"Content-Type": "application/octet-stream", "Jig-Client": "browser"}, body})
+]).then(() => { document.querySelector("h1").textContent = "Forged requests completed"; });
 </script>
 "#);
 }

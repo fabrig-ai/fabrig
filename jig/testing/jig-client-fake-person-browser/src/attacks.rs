@@ -1,6 +1,6 @@
 //! Browser-origin attacks leave no result on the application's loaded page.
 use crate::{States, Target, pages};
-use skein_fake_person::Step as PersonStep;
+use skein_fake_person::{Find, Step as PersonStep};
 use skein_fake_person_browser::{Harness, Outcome, Script, Setup, Step, origins::Origin};
 use skein_lib::Duration;
 
@@ -15,10 +15,11 @@ fn cross_site(setup: &Setup<'_>, states: &States, target: &Target<'_>, host: &[u
     origins.push(Origin { host: host.into(), pages: vec![page] });
     let mut expected = setup.expected.clone();
     expected.push(b"Failed to load resource".as_slice().into());
+    expected.push(b"blocked by CORS policy".as_slice().into());
     let mut script = Script::new(Box::new([
         Step::Person(PersonStep::See { find: states.live.clone(), within: PAGE_WAIT }),
         Step::Visit { origin, path },
-        Step::Trouble { words: b"blocked by CORS policy".as_slice().into(), within: PAGE_WAIT },
+        Step::Person(PersonStep::See { find: Find::text(b"Forged requests completed"), within: PAGE_WAIT }),
         Step::Person(PersonStep::Go { address: target.page.into() }),
         Step::Person(PersonStep::See { find: states.live.clone(), within: PAGE_WAIT }),
         Step::Person(PersonStep::Gone { find: target.done.clone(), within: ABSENT_WAIT }),
