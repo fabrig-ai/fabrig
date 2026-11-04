@@ -660,13 +660,13 @@ fn a_concrete_turn_reaches_the_host_and_its_acknowledgement_returns() {
                 role: llm::Role::Assistant,
                 content: Box::from([
                     llm::Block::Text { text: Box::from(*b"hello"), replay: None },
-                    llm::Block::ToolCall {
+                    llm::Block::ToolCall(llm::ToolCall {
                         id: Box::from(*b"id"),
                         name: Box::from(*b"check"),
                         input: Box::from(*b"{}"),
                         call: llm::Decoded::Historical,
                         replay: None,
-                    },
+                    }),
                     llm::Block::ToolResult {
                         id: Box::from(*b"id"),
                         result: llm::Returned::Invalid { problem: llm::Problem::UnknownTool },

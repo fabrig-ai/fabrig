@@ -398,7 +398,7 @@ fn history_with_refusal(first: &World, reason: run::TranscriptRefusal) -> smith_
             for message in &mut saved.turns[0].messages {
                 for block in &mut message.content {
                     match block {
-                        session::llm::Block::ToolCall { call, .. } => {
+                        session::llm::Block::ToolCall(session::llm::ToolCall { call, .. }) => {
                             *call = session::llm::Decoded::Delegated {
                                 descriptor: Token::new(80),
                                 source: smith_domain::session::ToolSource::Run,
@@ -424,7 +424,7 @@ fn history_with_refusal(first: &World, reason: run::TranscriptRefusal) -> smith_
                     session::llm::Block::Text { text, .. } => Some(text),
                     session::llm::Block::Refusal { .. }
                     | session::llm::Block::Opaque { .. }
-                    | session::llm::Block::ToolCall { .. }
+                    | session::llm::Block::ToolCall(_)
                     | session::llm::Block::ToolResult { .. } => None,
                 })
                 .expect("saved text");

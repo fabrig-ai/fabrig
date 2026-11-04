@@ -281,7 +281,7 @@ impl Scripted {
                         llm::Block::Opaque { .. }
                         | llm::Block::Refusal { .. }
                         | llm::Block::Text { .. }
-                        | llm::Block::ToolCall { .. }
+                        | llm::Block::ToolCall(_)
                         | llm::Block::ToolResult { .. } => {}
                     }
                 }
@@ -371,7 +371,7 @@ impl Scripted {
 pub fn called() -> Box<[llm::Block]> {
     Box::new([
         llm::Block::Opaque { bytes: OPAQUE.into() },
-        llm::Block::ToolCall {
+        llm::Block::ToolCall(llm::ToolCall {
             id: b"provider-call".as_slice().into(),
             name: b"sub_agent".as_slice().into(),
             input: br#"{"task":"review"}"#.as_slice().into(),
@@ -382,7 +382,7 @@ pub fn called() -> Box<[llm::Block]> {
                 effect: Effect::Write,
             },
             replay: None,
-        },
+        }),
     ])
 }
 
@@ -409,7 +409,7 @@ pub fn scenario(seed: u64) -> Scripted {
     assert_eq!(world.turns[0].messages.len(), 3);
     let blocks = &world.turns[0].messages[1].content;
     assert_eq!(blocks[0], llm::Block::Opaque { bytes: OPAQUE.into() });
-    assert!(matches!(blocks[1], llm::Block::ToolCall { call: llm::Decoded::Historical, .. }));
+    assert!(matches!(blocks[1], llm::Block::ToolCall(llm::ToolCall { call: llm::Decoded::Historical, .. })));
     assert_eq!(
         world.turns[0].messages[2].content[0],
         llm::Block::ToolResult {
@@ -443,17 +443,19 @@ pub fn transcript(world: &Scripted) -> record::Transcript {
 #[must_use]
 pub fn written_calls(count: u32) -> Box<[llm::Block]> {
     (0..count)
-        .map(|index| llm::Block::ToolCall {
-            id: format!("call-{index}").into_bytes().into_boxed_slice(),
-            name: b"finish".as_slice().into(),
-            input: b"{}".as_slice().into(),
-            call: llm::Decoded::Delegated {
-                source: session::ToolSource::Run,
-                ticket: Token::new(19),
-                effect: Effect::Write,
-                descriptor: Token::new(19),
-            },
-            replay: None,
+        .map(|index| {
+            llm::Block::ToolCall(llm::ToolCall {
+                id: format!("call-{index}").into_bytes().into_boxed_slice(),
+                name: b"finish".as_slice().into(),
+                input: b"{}".as_slice().into(),
+                call: llm::Decoded::Delegated {
+                    source: session::ToolSource::Run,
+                    ticket: Token::new(19),
+                    effect: Effect::Write,
+                    descriptor: Token::new(19),
+                },
+                replay: None,
+            })
         })
         .collect::<Vec<_>>()
         .into_boxed_slice()

@@ -143,7 +143,7 @@ impl Harness {
                     assert!(!turn.messages.is_empty());
                     for message in &turn.messages {
                         for block in &message.content {
-                            if let Block::ToolCall { call, .. } = block {
+                            if let Block::ToolCall(crate::llm::ToolCall { call, .. }) = block {
                                 assert_eq!(call, &Decoded::Historical, "saved turns resolve all live call tickets");
                             }
                         }
@@ -348,24 +348,24 @@ fn cat(name: &[u8]) -> Call {
 
 /// The LLM's call `id` of `call`, as the protocol layer decoded it.
 fn tool_call(id: &[u8], call: Call) -> Block {
-    Block::ToolCall {
+    Block::ToolCall(crate::llm::ToolCall {
         id: bytes(id),
         name: bytes(b"tool"),
         input: bytes(b"{}"),
         call: Decoded::Owned { call },
         replay: None,
-    }
+    })
 }
 
 /// The LLM's call `id`, which the protocol layer could not decode.
 fn invalid(id: &[u8], problem: Problem) -> Block {
-    Block::ToolCall {
+    Block::ToolCall(crate::llm::ToolCall {
         id: bytes(id),
         name: bytes(b"tool"),
         input: bytes(b"{"),
         call: Decoded::Invalid { descriptor: None, problem },
         replay: None,
-    }
+    })
 }
 
 /// Writes `name`.
@@ -384,7 +384,13 @@ fn delegated(id: &[u8], ticket: u64, effect: Effect) -> Block {
         ticket: Token::new(ticket),
         effect,
     };
-    Block::ToolCall { id: bytes(id), name: bytes(b"finish"), input: bytes(b"{}"), call, replay: None }
+    Block::ToolCall(crate::llm::ToolCall {
+        id: bytes(id),
+        name: bytes(b"finish"),
+        input: bytes(b"{}"),
+        call,
+        replay: None,
+    })
 }
 
 /// A concrete answer preserves the old ticket's distinct payload and length.
@@ -1294,7 +1300,7 @@ fn oversized_provider_completions_end_before_calls_or_turns() {
 
     let mut h = Harness::new(&LIMITS);
     let (owner, _) = h.open(1);
-    let call = Block::ToolCall {
+    let call = Block::ToolCall(crate::llm::ToolCall {
         id: bytes(b"oversized"),
         name: bytes(b"finish"),
         input: huge,
@@ -1305,7 +1311,7 @@ fn oversized_provider_completions_end_before_calls_or_turns() {
             effect: Effect::Write,
         },
         replay: None,
-    };
+    });
     let completion = completion(Box::new([call]), Stop::ToolUse);
     assert_eq!(
         h.step(Event::Completed { owner, completion }),
@@ -1540,7 +1546,7 @@ fn exact_read_batch_limits(content: &[Block], short: bool) -> Limits {
     let limits = receiving_limits(2048, content, 8192);
     let mut held = crate::session::content_cost(content).expect("fixture content");
     for block in content {
-        let Block::ToolCall { id, .. } = block else { panic!("fixture calls") };
+        let Block::ToolCall(crate::llm::ToolCall { id, .. }) = block else { panic!("fixture calls") };
         held = held
             .checked_add(skein_lib::len_u64(size_of::<Block>().checked_add(id.len()).expect("result skeleton")))
             .expect("both result skeletons");
@@ -1662,7 +1668,7 @@ fn a_call_outside_the_choice_is_not_run_and_needs_no_result_credit() {
                         notes += 1;
                     }
                 }
-                Block::Refusal { .. } | Block::Opaque { .. } | Block::ToolCall { .. } | Block::ToolResult { .. } => {}
+                Block::Refusal { .. } | Block::Opaque { .. } | Block::ToolCall(_) | Block::ToolResult { .. } => {}
             }
         }
     }
@@ -1680,7 +1686,9 @@ fn a_selected_descriptor_can_have_a_distinct_live_call_ticket() {
         names: Some(Box::new([bytes(b"finish")])),
     })));
     let mut call = delegated(b"allowed", 1234, Effect::Write);
-    let Block::ToolCall { call: Decoded::Delegated { descriptor, .. }, .. } = &mut call else { unreachable!() };
+    let Block::ToolCall(crate::llm::ToolCall { call: Decoded::Delegated { descriptor, .. }, .. }) = &mut call else {
+        unreachable!()
+    };
     *descriptor = FINISH.ticket;
     let Some(Request::Delegate { call, .. }) =
         h.step(Event::Completed { owner, completion: completion(Box::new([call]), Stop::ToolUse) })
@@ -1747,13 +1755,13 @@ fn an_allowed_descriptor_keeps_its_argument_problem_during_narrowing() {
         names: Some(Box::new([bytes(b"finish")])),
     })));
     let problem = Problem::Missing { field: bytes(b"report") };
-    let call = Block::ToolCall {
+    let call = Block::ToolCall(crate::llm::ToolCall {
         id: bytes(b"allowed-invalid"),
         name: bytes(b"finish"),
         input: bytes(b"{}"),
         replay: None,
         call: Decoded::Invalid { descriptor: Some(FINISH.ticket), problem: problem.clone() },
-    };
+    });
     assert_eq!(h.step(Event::Completed { owner, completion: completion(Box::new([call]), Stop::ToolUse) }), None);
     h.domain.reclaim();
     let Some(Request::Complete { prompt, .. }) = h.resume() else { panic!("the typed problem reasks") };

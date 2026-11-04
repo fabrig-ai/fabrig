@@ -174,7 +174,7 @@ fn same_window() -> record::Transcript {
                 match block {
                     llm::Block::Text { replay, .. }
                     | llm::Block::Refusal { replay, .. }
-                    | llm::Block::ToolCall { replay, .. }
+                    | llm::Block::ToolCall(llm::ToolCall { replay, .. })
                     | llm::Block::ToolResult { result: llm::Returned::Text { replay, .. }, .. } => {
                         *replay = Some(llm::Replay { bytes: bytes(b"saved metadata") });
                     }
@@ -245,7 +245,7 @@ fn metadata(prompt: &llm::Prompt) -> Vec<Box<[u8]>> {
             llm::Block::Opaque { bytes } => Some(bytes.clone()),
             llm::Block::Text { replay, .. }
             | llm::Block::Refusal { replay, .. }
-            | llm::Block::ToolCall { replay, .. }
+            | llm::Block::ToolCall(llm::ToolCall { replay, .. })
             | llm::Block::ToolResult { result: llm::Returned::Text { replay, .. }, .. } => {
                 replay.as_ref().map(|value| value.bytes.clone())
             }

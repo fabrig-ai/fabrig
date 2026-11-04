@@ -1562,22 +1562,15 @@ fn answered(
         clear_pending(conversation);
         return finish(history::sequence_limit());
     }
-    for block in &completion.content {
-        match block {
-            Block::ToolCall { call: Decoded::Historical, .. } => {
+    for part in &completion.content {
+        let Some(call) = part.tool_call() else { continue };
+        match &call.call {
+            Decoded::Historical => {
                 release_provider(conversation);
                 clear_pending(conversation);
                 return finish(End::Invalid);
             }
-            Block::ToolCall {
-                call:
-                    Decoded::Builtin { .. } | Decoded::Owned { .. } | Decoded::Delegated { .. } | Decoded::Invalid { .. },
-                ..
-            }
-            | Block::Opaque { .. }
-            | Block::Text { .. }
-            | Block::Refusal { .. }
-            | Block::ToolResult { .. } => {}
+            Decoded::Builtin { .. } | Decoded::Owned { .. } | Decoded::Delegated { .. } | Decoded::Invalid { .. } => {}
         }
     }
     if conversation.final_turn.answering() && tally(&completion.content).0 > 0 {
@@ -1699,8 +1692,10 @@ fn advance(
         if batching::answer_skipped(conversation, block, index, &mut tools) {
             continue;
         }
-        match block {
-            Block::ToolCall { id: provider_id, name, input, call: Decoded::Owned { call }, .. } => {
+        let Some(tool_call) = block.tool_call() else { continue };
+        let (provider_id, name, input) = (&tool_call.id, &tool_call.name, &tool_call.input);
+        match &tool_call.call {
+            Decoded::Owned { call } => {
                 let effect = tools::effect(call);
                 if !joins(batch, effect, started, env.limits.parallel_tools) {
                     next = index;
@@ -1742,13 +1737,7 @@ fn advance(
                 let result = Block::ToolResult { id: call_id(conversation, index), result };
                 batching::put_next(&mut tools, Slot::Done { result });
             }
-            Block::ToolCall {
-                id: provider_id,
-                name,
-                input,
-                call: Decoded::Delegated { source, ticket, effect, descriptor: _ },
-                ..
-            } => {
+            Decoded::Delegated { source, ticket, effect, descriptor: _ } => {
                 if !joins(batch, *effect, started, env.limits.parallel_tools) {
                     next = index;
                     break;
@@ -1768,15 +1757,11 @@ fn advance(
                 started = started.saturating_add(1);
                 batch = Some(*effect);
             }
-            Block::ToolCall { call: Decoded::Builtin { .. }, .. } => batching::next_slot(&mut tools),
-            Block::ToolCall { id: call, name: _, input: _, call: Decoded::Invalid { problem, .. }, .. } => {
-                batching::invalid_slot(&mut tools, block, call, problem);
+            Decoded::Builtin { .. } => batching::next_slot(&mut tools),
+            Decoded::Invalid { problem, .. } => {
+                batching::invalid_slot(&mut tools, block, provider_id, problem);
             }
-            Block::ToolCall { call: Decoded::Historical, .. }
-            | Block::Opaque { .. }
-            | Block::Text { .. }
-            | Block::Refusal { .. }
-            | Block::ToolResult { .. } => {}
+            Decoded::Historical => {}
         }
     }
     tools.next = next;
@@ -1915,24 +1900,19 @@ fn unrun(
     let mut content = List::with_capacity(calls.saturating_add(1));
     let mut waking = Some(text);
     for (position, block) in message.content.iter().enumerate() {
-        match block {
-            Block::ToolCall { id, .. } => {
-                let mut result = if withheld == Some(id.as_ref()) {
-                    Returned::Text { text: waking.take().expect("one withheld call"), error: false, replay: None }
-                } else {
-                    Returned::NotRun { why: crate::llm::NotRun::Stopped }
-                };
-                for answer in answered.iter_mut() {
-                    if usize::try_from(answer.origin.position).expect("validated position") == position {
-                        result =
-                            mem::replace(&mut answer.result, Returned::NotRun { why: crate::llm::NotRun::Stopped });
-                    }
-                }
-                let result = Block::ToolResult { id: id.clone(), result };
-                content.push(result).expect("room for a result per call");
+        let Some(call) = block.tool_call() else { continue };
+        let mut result = if withheld == Some(call.id.as_ref()) {
+            Returned::Text { text: waking.take().expect("one withheld call"), error: false, replay: None }
+        } else {
+            Returned::NotRun { why: crate::llm::NotRun::Stopped }
+        };
+        for answer in answered.iter_mut() {
+            if usize::try_from(answer.origin.position).expect("validated position") == position {
+                result = mem::replace(&mut answer.result, Returned::NotRun { why: crate::llm::NotRun::Stopped });
             }
-            Block::Opaque { .. } | Block::Text { .. } | Block::Refusal { .. } | Block::ToolResult { .. } => {}
         }
+        let result = Block::ToolResult { id: call.id.clone(), result };
+        content.push(result).expect("room for a result per call");
     }
     if let Some(text) = waking {
         content.push(Block::Text { text, replay: None }).expect("room for the message after the results");
@@ -2223,24 +2203,23 @@ fn current_block(conversation: &Conversation, index: u32) -> &Block {
 }
 
 fn chosen(choice: &ToolChoice, block: &Block) -> bool {
-    match block {
-        Block::ToolCall { call: Decoded::Builtin { .. }, .. }
-        | Block::Text { .. }
-        | Block::Refusal { .. }
-        | Block::Opaque { .. }
-        | Block::ToolResult { .. } => true,
-        Block::ToolCall { call, .. } => match choice {
-            ToolChoice::Auto => true,
-            ToolChoice::None => false,
-            ToolChoice::Only(tickets) => match call {
-                Decoded::Delegated { descriptor, .. } => tickets.contains(descriptor),
-                Decoded::Invalid { descriptor, .. } => match descriptor {
-                    Some(descriptor) => tickets.contains(descriptor),
-                    None => false,
+    let Some(call) = block.tool_call() else { return true };
+    match &call.call {
+        Decoded::Builtin { .. } => true,
+        call @ (Decoded::Owned { .. } | Decoded::Delegated { .. } | Decoded::Invalid { .. } | Decoded::Historical) => {
+            match choice {
+                ToolChoice::Auto => true,
+                ToolChoice::None => false,
+                ToolChoice::Only(tickets) => match call {
+                    Decoded::Delegated { descriptor, .. } => tickets.contains(descriptor),
+                    Decoded::Invalid { descriptor, .. } => match descriptor {
+                        Some(descriptor) => tickets.contains(descriptor),
+                        None => false,
+                    },
+                    Decoded::Builtin { .. } | Decoded::Owned { .. } | Decoded::Historical => false,
                 },
-                Decoded::Builtin { .. } | Decoded::Owned { .. } | Decoded::Historical => false,
-            },
-        },
+            }
+        }
     }
 }
 
@@ -2351,12 +2330,14 @@ fn complete(id: Id<Session>, conversation: &Conversation, retry: u32, limits: &L
 fn call_id(conversation: &Conversation, block: u32) -> Box<[u8]> {
     let message = conversation.transcript.last().expect("the assistant message is last while tooling");
     let index = usize::try_from(block).expect("a u32 fits in a usize");
-    match message.content.get(index).expect("the call in flight is a block of the message") {
-        Block::ToolCall { id, .. } => id.clone(),
-        Block::Opaque { .. } | Block::Text { .. } | Block::Refusal { .. } | Block::ToolResult { .. } => {
-            unreachable!("the call in flight is a tool call")
-        }
-    }
+    message
+        .content
+        .get(index)
+        .expect("the call in flight is a block of the message")
+        .tool_call()
+        .expect("the call in flight is a tool call")
+        .id
+        .clone()
 }
 
 /// The text blocks of `content`, one after another, in a box of their own: the
@@ -2369,7 +2350,7 @@ fn text_of(content: &[Block]) -> Box<[u8]> {
             Block::Text { text, .. } | Block::Refusal { text, .. } => {
                 len = len.checked_add(text.len()).expect("bytes held fit in a usize");
             }
-            Block::Opaque { .. } | Block::ToolCall { .. } | Block::ToolResult { .. } => {}
+            Block::Opaque { .. } | Block::ToolCall(_) | Block::ToolResult { .. } => {}
         }
     }
     let mut text = Writer::new(len);
@@ -2378,7 +2359,7 @@ fn text_of(content: &[Block]) -> Box<[u8]> {
             Block::Text { text: part, .. } | Block::Refusal { text: part, .. } => {
                 text.put(part).expect("the length was counted above");
             }
-            Block::Opaque { .. } | Block::ToolCall { .. } | Block::ToolResult { .. } => {}
+            Block::Opaque { .. } | Block::ToolCall(_) | Block::ToolResult { .. } => {}
         }
     }
     text.finish()
@@ -2391,19 +2372,12 @@ fn tally(content: &[Block]) -> (u32, u32) {
         return (0, 0);
     }
     let (mut calls, mut invalid): (u32, u32) = (0, 0);
-    for block in content {
-        match block {
-            Block::ToolCall {
-                call: Decoded::Builtin { .. } | Decoded::Owned { .. } | Decoded::Delegated { .. } | Decoded::Historical,
-                ..
-            } => {
-                calls = calls.saturating_add(1);
-            }
-            Block::ToolCall { call: Decoded::Invalid { .. }, .. } => {
-                calls = calls.saturating_add(1);
-                invalid = invalid.saturating_add(1);
-            }
-            Block::Opaque { .. } | Block::Text { .. } | Block::Refusal { .. } | Block::ToolResult { .. } => {}
+    for part in content {
+        let Some(call) = part.tool_call() else { continue };
+        calls = calls.saturating_add(1);
+        match &call.call {
+            Decoded::Invalid { .. } => invalid = invalid.saturating_add(1),
+            Decoded::Builtin { .. } | Decoded::Owned { .. } | Decoded::Delegated { .. } | Decoded::Historical => {}
         }
     }
     (calls, invalid)

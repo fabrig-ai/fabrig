@@ -994,16 +994,16 @@ impl World {
         assert_eq!(assistant.content.len(), original.len(), "every provider block retains its position");
         for (position, (block, original)) in assistant.content.iter().zip(original.iter()).enumerate() {
             match original {
-                Block::ToolCall { id, name, input, replay, call } => {
+                Block::ToolCall(smith_domain_session::llm::ToolCall { id, name, input, replay, call }) => {
                     assert_eq!(
                         *block,
-                        Block::ToolCall {
+                        Block::ToolCall(smith_domain_session::llm::ToolCall {
                             id: id.clone(),
                             name: name.clone(),
                             input: input.clone(),
                             replay: replay.clone(),
                             call: Decoded::Historical,
-                        },
+                        }),
                         "concrete calls preserve exact provider bytes and shed only live authority"
                     );
                     let result = recorded_result(&turn.messages[assistant_index + 1..], id);
@@ -1291,7 +1291,11 @@ impl World {
     fn check_results(&mut self, owner: Token, prompt: &Prompt) {
         for pair in prompt.messages.windows(2) {
             let calls = pair[0].content.iter().filter_map(|block| {
-                let Block::ToolCall { call: Decoded::Owned { call }, id, .. } = block else { return None };
+                let Block::ToolCall(smith_domain_session::llm::ToolCall { call: Decoded::Owned { call }, id, .. }) =
+                    block
+                else {
+                    return None;
+                };
                 Some((id, call))
             });
             for (id, call) in calls {
@@ -1836,7 +1840,9 @@ fn in_call_order(prompt: &Prompt) {
     let calls: Vec<&[u8]> = asked
         .content
         .iter()
-        .filter_map(|block| if let Block::ToolCall { id, .. } = block { Some(&**id) } else { None })
+        .filter_map(|block| {
+            if let Block::ToolCall(smith_domain_session::llm::ToolCall { id, .. }) = block { Some(&**id) } else { None }
+        })
         .collect();
     let results: Vec<&[u8]> = answered
         .content
@@ -1850,7 +1856,7 @@ fn in_call_order(prompt: &Prompt) {
 fn assert_resumed_tail(session: &Session, index: usize, preceding: &[agent::llm::Message]) {
     if index > 0 && session.accepted_stop[index - 1] != agent::llm::Stop::ToolUse && !session.accepted_late[index - 1] {
         for block in &session.accepted_content[index - 1] {
-            if let Block::ToolCall { id, .. } = block {
+            if let Block::ToolCall(smith_domain_session::llm::ToolCall { id, .. }) = block {
                 let result =
                     recorded_result(preceding, id).expect("continuing a yielded call supplies its next-Turn result");
                 assert_eq!(

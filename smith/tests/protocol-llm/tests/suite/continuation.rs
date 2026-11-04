@@ -450,7 +450,7 @@ fn corrected_host(world: &World) {
     assert!(
         world.turns().iter().flat_map(|turn| &turn.messages).flat_map(|message| &message.content).any(
             |block| matches!(block,
-        recorded::Block::ToolCall { id, name, input, replay: Some(replay), .. }
+        recorded::Block::ToolCall(recorded::ToolCall { id, name, input, replay: Some(replay), .. })
         if id.as_ref() == CALL_ID && name.as_ref() == b"host_action" && input.as_ref() == RAW
         && envelope(&replay.bytes, *b"\x00\x01\x03\x00\x00\x00\x16", ROOT_REPLAY))
         ),

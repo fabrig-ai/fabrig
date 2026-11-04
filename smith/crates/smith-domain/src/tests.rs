@@ -96,7 +96,7 @@ fn decoded_batch_reserves_refusal_cells_before_any_payload() {
     let mut calls = List::with_capacity(2);
     for block in completion.content {
         match block {
-            session::llm::Block::ToolCall { call, .. } => calls.push(call).expect("two calls"),
+            session::llm::Block::ToolCall(session::llm::ToolCall { call, .. }) => calls.push(call).expect("two calls"),
             session::llm::Block::Text { .. }
             | session::llm::Block::Refusal { .. }
             | session::llm::Block::Opaque { .. }

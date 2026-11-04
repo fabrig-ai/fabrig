@@ -22,7 +22,7 @@ fn a_wind_down_offering_only_some_tools_answers_a_call_outside_them_as_not_run()
         names: Some(Box::new([bytes(b"finish")])),
     });
     world.complete(
-        Box::new([llm::Block::ToolCall {
+        Box::new([llm::Block::ToolCall(llm::ToolCall {
             id: bytes(b"outside"),
             name: bytes(b"list"),
             input: bytes(b"{}"),
@@ -34,7 +34,7 @@ fn a_wind_down_offering_only_some_tools_answers_a_call_outside_them_as_not_run()
                     glob: None,
                 },
             },
-        }]),
+        })]),
         llm::Stop::ToolUse,
         llm::Usage::ZERO,
     );
@@ -64,7 +64,7 @@ fn a_wind_down_offering_only_some_tools_answers_a_call_outside_them_as_not_run()
         .count();
     assert_eq!(notes, 1, "the narrowing note remains exactly once");
     world.complete(
-        Box::new([llm::Block::ToolCall {
+        Box::new([llm::Block::ToolCall(llm::ToolCall {
             id: bytes(b"chosen"),
             name: bytes(b"finish"),
             input: bytes(b"{}"),
@@ -75,7 +75,7 @@ fn a_wind_down_offering_only_some_tools_answers_a_call_outside_them_as_not_run()
                 source: session::ToolSource::Run,
                 effect: smith_domain_tools::Effect::Write,
             },
-        }]),
+        })]),
         llm::Stop::ToolUse,
         llm::Usage::ZERO,
     );

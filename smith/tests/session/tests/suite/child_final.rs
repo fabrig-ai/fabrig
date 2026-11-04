@@ -23,7 +23,7 @@ fn a_childs_final_turn_is_answered_with_stop_budget() {
         world.complete(
             Box::new([
                 llm::Block::Text { text: bytes(b"Found it."), replay: None },
-                llm::Block::ToolCall {
+                llm::Block::ToolCall(llm::ToolCall {
                     id: bytes(b"outside"),
                     name: bytes(b"opaque_host"),
                     input: bytes(b"{}"),
@@ -34,7 +34,7 @@ fn a_childs_final_turn_is_answered_with_stop_budget() {
                         descriptor: Token::new(19),
                         ticket: Token::new(991),
                     },
-                },
+                }),
             ]),
             stop,
             llm::Usage::ZERO,

@@ -100,13 +100,13 @@ pub(super) fn prepare(
     let message = conversation.transcript.last().expect("assistant precedes its results");
     let mut builtins = 0_u32;
     let mut others = 0_u32;
-    for block in &message.content {
-        match block {
-            Block::ToolCall { call: Decoded::Builtin { .. }, .. } => {
-                builtins = builtins.checked_add(1).expect("bounded calls");
+    for part in &message.content {
+        let Some(call) = part.tool_call() else { continue };
+        match &call.call {
+            Decoded::Builtin { .. } => builtins = builtins.checked_add(1).expect("bounded calls"),
+            Decoded::Owned { .. } | Decoded::Delegated { .. } | Decoded::Invalid { .. } | Decoded::Historical => {
+                others = others.checked_add(1).expect("bounded calls");
             }
-            Block::ToolCall { .. } => others = others.checked_add(1).expect("bounded calls"),
-            Block::Text { .. } | Block::Refusal { .. } | Block::Opaque { .. } | Block::ToolResult { .. } => {}
         }
     }
     let credit = if builtins == 0 {
@@ -125,16 +125,17 @@ pub(super) fn prepare(
         super::delegated_credit(limits).min(available.checked_div(u64::from(builtins)).expect("positive calls"))
     };
     for (position, block) in message.content.iter().enumerate() {
-        match block {
-            Block::ToolCall { id, name, input, call: Decoded::Builtin { effect }, .. } => {
+        let Some(call) = block.tool_call() else { continue };
+        match &call.call {
+            Decoded::Builtin { effect } => {
                 let metadata = ToolCall {
                     owner: Token::new(0),
-                    id: id.clone(),
-                    name: name.clone(),
+                    id: call.id.clone(),
+                    name: call.name.clone(),
                     source: ToolSource::Workspace,
                     effect: *effect,
                     deadline: conversation.expires,
-                    input_bytes: skein_lib::len_u64(input.len()),
+                    input_bytes: skein_lib::len_u64(call.input.len()),
                 };
                 let position = u32::try_from(position).expect("bounded block");
                 let run =
@@ -152,11 +153,11 @@ pub(super) fn prepare(
                     state: State::New { credit, kept_bytes },
                 };
                 let previous =
-                    conversation.builtin.entries.insert(id.clone(), claim).expect("one entry per completion call");
+                    conversation.builtin.entries.insert(call.id.clone(), claim).expect("one entry per completion call");
                 assert!(previous.is_none(), "provider call ids are unique within a completion");
                 tools
                     .slots
-                    .push(Slot::Done { result: Block::ToolResult { id: id.clone(), result } })
+                    .push(Slot::Done { result: Block::ToolResult { id: call.id.clone(), result } })
                     .expect("one slot per call");
                 conversation.reserved = conversation
                     .reserved
@@ -164,8 +165,9 @@ pub(super) fn prepare(
                     .expect("reserved result room");
                 conversation.bytes = conversation.bytes.checked_add(kept_bytes).expect("stand-in fits history");
             }
-            Block::ToolCall { .. } => tools.slots.push(Slot::Unstarted).expect("one slot per call"),
-            Block::Text { .. } | Block::Refusal { .. } | Block::Opaque { .. } | Block::ToolResult { .. } => {}
+            Decoded::Owned { .. } | Decoded::Delegated { .. } | Decoded::Invalid { .. } | Decoded::Historical => {
+                tools.slots.push(Slot::Unstarted).expect("one slot per call");
+            }
         }
     }
 }
@@ -317,7 +319,7 @@ pub(crate) fn result(
     };
     match block {
         Block::ToolResult { result, .. } => *result = answer,
-        Block::ToolCall { .. } | Block::Text { .. } | Block::Refusal { .. } | Block::Opaque { .. } => {
+        Block::ToolCall(_) | Block::Text { .. } | Block::Refusal { .. } | Block::Opaque { .. } => {
             unreachable!("owed result place")
         }
     }
@@ -345,20 +347,18 @@ pub(super) fn finish_closing(conversation: &mut Conversation, tools: Option<Tool
     let message = conversation.transcript.last().expect("assistant recorded before tooling");
     let mut results = List::with_capacity(tools.slots.len());
     let mut slots = tools.slots.into_boxed().into_iter();
-    for block in &message.content {
-        match block {
-            Block::ToolCall { id, .. } => match slots.next().expect("one prepared slot per call") {
-                Slot::Done { result } => results.push(result).expect("result slot"),
-                Slot::Unstarted => results
-                    .push(Block::ToolResult {
-                        id: id.clone(),
-                        result: Returned::NotRun { why: crate::llm::NotRun::Stopped },
-                    })
-                    .expect("stopped result slot"),
-                Slot::Withheld => {}
-                Slot::Running { .. } => unreachable!("closing waits for active calls"),
-            },
-            Block::Text { .. } | Block::Refusal { .. } | Block::Opaque { .. } | Block::ToolResult { .. } => {}
+    for part in &message.content {
+        let Some(call) = part.tool_call() else { continue };
+        match slots.next().expect("one prepared slot per call") {
+            Slot::Done { result } => results.push(result).expect("result slot"),
+            Slot::Unstarted => results
+                .push(Block::ToolResult {
+                    id: call.id.clone(),
+                    result: Returned::NotRun { why: crate::llm::NotRun::Stopped },
+                })
+                .expect("stopped result slot"),
+            Slot::Withheld => {}
+            Slot::Running { .. } => unreachable!("closing waits for active calls"),
         }
     }
     if !results.is_empty() {
