@@ -545,6 +545,7 @@ fn listeners_refusal(why: skein_shell::ListenersRefusal) -> String {
         Why::NotStream { fd, .. } => format!("LISTEN_FDS: fd {} is not a stream socket", fd.raw()),
         Why::NotListening { fd } => format!("LISTEN_FDS: fd {} is not listening", fd.raw()),
         Why::NotIp { fd } => format!("LISTEN_FDS: fd {} is not an IP listener", fd.raw()),
+        Why::Check { fd, check, errno } => format!("LISTEN_FDS: fd {}: {}: errno {errno}", fd.raw(), check.name()),
         Why::Kernel { fd, errno } => format!("LISTEN_FDS: fd {}: errno {errno}", fd.raw()),
     }
 }

@@ -4,9 +4,52 @@ use std::net::SocketAddr;
 use std::os::unix::ffi::OsStrExt;
 use std::ptr;
 
+use super::{NO_ACCEPTCONN, listening, refused};
 use crate::system;
-use crate::{ListenersRefusal, MAX_INHERITED_LISTENERS, inherited_listeners, listener_at, open_listener};
+use crate::{
+    ListenerCheck, ListenersRefusal, MAX_INHERITED_LISTENERS, inherited_listeners, listener_at, open_listener,
+};
 use skein_io::kernel::{Error, Family, Fd};
+
+#[test]
+fn listening_answers() {
+    #[cfg(target_os = "linux")]
+    const {
+        assert!(!NO_ACCEPTCONN, "Linux keeps its listening check")
+    };
+    for (answer, no_option, expected) in [
+        (Ok(0), false, Ok(false)),
+        (Ok(0), true, Ok(false)),
+        (Ok(4), false, Ok(true)),
+        (Ok(4), true, Ok(true)),
+        (Err(libc::EINVAL), false, Err(libc::EINVAL)),
+        (Err(libc::EINVAL), true, Err(libc::EINVAL)),
+        (Err(libc::ENOPROTOOPT), true, Ok(true)),
+        (Err(libc::ENOPROTOOPT), false, Err(libc::ENOPROTOOPT)),
+    ] {
+        assert_eq!(listening(answer, no_option), expected, "answer {answer:?}, no option {no_option}");
+    }
+}
+
+#[test]
+fn refused_names_its_call() {
+    let fd = Fd::new(3);
+    for (check, name) in [
+        (ListenerCheck::Stat, "fstat"),
+        (ListenerCheck::Kind, "getsockopt SO_TYPE"),
+        (ListenerCheck::Listening, "getsockopt SO_ACCEPTCONN"),
+        (ListenerCheck::Address, "getsockname"),
+    ] {
+        assert_eq!(check.name(), name, "refused call's name");
+        assert_eq!(
+            refused(fd, check, libc::ENOTSOCK),
+            ListenersRefusal::Check { fd, check, errno: libc::ENOTSOCK },
+            "failed {name} names its check"
+        );
+        assert_eq!(refused(fd, check, libc::EBADF), ListenersRefusal::NotOpen { fd }, "{name}: descriptor closed");
+        assert_eq!(refused(fd, check, libc::EAFNOSUPPORT), ListenersRefusal::NotIp { fd }, "{name}: not IP");
+    }
+}
 
 fn addr() -> SocketAddr {
     "127.0.0.1:0".parse().expect("loopback address")
@@ -191,8 +234,13 @@ fn inherited_bound_not_listening() {
     inherited_case("inherited_bound_not_listening", Some("1"), || {
         let fd = system::socket(Family::Ipv4).expect("socket");
         system::bind(fd, &addr()).expect("bound socket");
+        let bound = system::bound_addr(fd).expect("bound address");
         install(move_high(fd), 3);
-        assert_eq!(inherited_listeners(), Err(ListenersRefusal::NotListening { fd: Fd::new(3) }));
+        if NO_ACCEPTCONN {
+            assert_eq!(&*inherited_listeners().expect("macOS cannot check listening"), &[(Fd::new(3), bound)]);
+        } else {
+            assert_eq!(inherited_listeners(), Err(ListenersRefusal::NotListening { fd: Fd::new(3) }));
+        }
     });
 }
 
@@ -270,7 +318,7 @@ fn open_listener_port_zero() {
     assert_eq!(listener_at(fd), Ok(bound), "returned address belongs to a listener");
     assert_ne!(flags(fd) & libc::FD_CLOEXEC, 0, "close-on-exec set");
     assert_ne!(system::status_flags(fd.raw()).expect("status flags") & libc::O_NONBLOCK, 0, "nonblocking like io");
-    assert_eq!(super::option(fd, libc::SO_REUSEADDR), Ok(1), "io's bind option");
+    assert_ne!(super::option(fd, libc::SO_REUSEADDR).expect("io's bind option"), 0, "reuse address set");
     close(fd);
 }
 
