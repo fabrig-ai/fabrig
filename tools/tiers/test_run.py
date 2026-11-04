@@ -389,6 +389,54 @@ class RunnerTests(unittest.TestCase):
             self.assertEqual(result.returncode, 2)
             self.assertEqual(calls, [])
 
+    def test_cpu_interruption_stops_the_command_session(self):
+        import signal
+        for sig in (signal.SIGTERM, signal.SIGHUP):
+            with self.subTest(signal=sig):
+                command_pid = self.root / f'command-{sig}'
+                child_pid = self.root / f'child-{sig}'
+                child = ('import os,time\nfrom pathlib import Path\n'
+                         f'Path({str(child_pid)!r}).write_text(str(os.getpid()))\n'
+                         'time.sleep(60)\n')
+                source = ('import os,subprocess,time\nfrom pathlib import Path\n'
+                          'if sys.argv[1:3]==["cargo","nextest"]:\n'
+                          f'    subprocess.Popen([sys.executable,"-I","-c",{child!r}])\n'
+                          f'    Path({str(command_pid)!r}).write_text(str(os.getpid()))\n'
+                          '    time.sleep(60)\n')
+                (self.bin / 'wrap').write_text(FAKE.replace('name = Path', source + 'name = Path', 1))
+                process = subprocess.Popen(
+                    [sys.executable, '-I', '-B', str(RUN), '--cpu', str(self.root / f'CPU-{sig}'), 'smith', 'qa'],
+                    cwd=self.root, env=self.env, stdin=subprocess.DEVNULL,
+                    stdout=subprocess.PIPE, stderr=subprocess.PIPE)
+                try:
+                    deadline = time.monotonic() + 3
+                    while not (command_pid.exists() and child_pid.exists()):
+                        self.assertIsNone(process.poll())
+                        self.assertLess(time.monotonic(), deadline, 'fake command did not start')
+                        time.sleep(0.005)
+                    self.assertNotEqual(os.getsid(int(command_pid.read_text())), os.getsid(process.pid))
+                    process.send_signal(sig)
+                    stdout, stderr = process.communicate(timeout=3)
+                    self.assertNotEqual(process.returncode, 0, stdout + stderr)
+                    self.assertIn(b'KeyboardInterrupt', stderr)
+                    for path in (command_pid, child_pid):
+                        pid = int(path.read_text())
+                        try:
+                            stat = Path(f'/proc/{pid}/stat').read_bytes().rsplit(b')', 1)[1].split()
+                        except FileNotFoundError:
+                            continue
+                        self.assertEqual(stat[0], b'Z', f'command process {pid} still alive')
+                finally:
+                    for path in (command_pid, child_pid):
+                        if path.exists():
+                            try:
+                                os.kill(int(path.read_text()), signal.SIGKILL)
+                            except ProcessLookupError:
+                                pass
+                    if process.poll() is None:
+                        process.kill()
+                    process.communicate(timeout=3)
+
     def test_cpu_preserves_native_prerequisites_and_reuses_metadata(self):
         self.packages.write_text(self.packages.read_text().replace(
             'qa-smith = []',

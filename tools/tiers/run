@@ -8,6 +8,7 @@ import runpy
 from pathlib import Path
 import re
 import shlex
+import signal
 import subprocess
 import sys
 import time
@@ -289,6 +290,10 @@ def main(argv=None):
             command = [*command_prefix(env), "cargo", "nextest", "run", *overlay, *selection]
             wait_for_disk(env)
             print(f"tiers: nextest: {shlex.join(command)}", flush=True)
+            def interrupt(signum, frame):
+                raise KeyboardInterrupt
+            signal.signal(signal.SIGTERM, interrupt)
+            signal.signal(signal.SIGHUP, interrupt)
             return cpu["execute"](command, env, args.cpu, profile, limits)
         return step("nextest", ["cargo", "nextest", "run", *selection], env)
     except (FailedStep, OSError, ValueError, KeyError, TypeError) as error:

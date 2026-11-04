@@ -17,6 +17,61 @@ import xml.etree.ElementTree as ET
 KEYS = {"cpu_suite_s", "cpu_test_s", "wall_hard_s"}
 # nextest's abort message for the signals of cancellation (tools/tiers/design.md, 7.3).
 CANCELLED = re.compile(r'\baborted with signal (?:9|15)\b')
+# nextest's line when its global-timeout cancels a run (tools/tiers/design.md, 7.3).
+GLOBAL_TIMEOUT = re.compile(rb'^\s*Cancelling due to global timeout\b', re.MULTILINE)
+COLOUR = re.compile(rb'\x1b\[[0-9;]*m')
+# Outlast nextest's ten-second grace and the wrapper's settlement (design.md, 7.3).
+GRACE_S = 15.0
+
+
+def timed_out(directory):
+    """Whether nextest's global-timeout cancelled the run in `directory`."""
+    try:
+        output = (directory / 'command-output.txt').read_bytes()
+    except FileNotFoundError:
+        return False
+    return GLOBAL_TIMEOUT.search(COLOUR.sub(b'', output)) is not None
+
+
+def session_processes(session):
+    """The live processes of `session`; a zombie is nothing left to stop."""
+    processes = []
+    for path in Path('/proc').iterdir():
+        if not path.name.isdecimal():
+            continue
+        try:
+            stat = (path / 'stat').read_bytes().rsplit(b')', 1)[1].split()
+        except (FileNotFoundError, ProcessLookupError):
+            continue
+        if stat[0] != b'Z' and int(stat[3]) == session:
+            processes.append(int(path.name))
+    return processes
+
+
+def signal_group(process, sig):
+    try:
+        os.killpg(process.pid, sig)
+    except ProcessLookupError:
+        pass
+
+
+def stop(process, deadline):
+    """Wait until `deadline` for the command's session to end, then SIGKILL what is left."""
+    while session_processes(process.pid):
+        if time.monotonic() >= deadline:
+            break
+        time.sleep(0.05)
+    kill_until = time.monotonic() + 1.0
+    while remaining := session_processes(process.pid):
+        for pid in remaining:
+            try:
+                os.kill(pid, signal.SIGKILL)
+            except ProcessLookupError:
+                pass
+        if time.monotonic() >= kill_until:
+            break
+        time.sleep(0.05)
+    process.wait()
 
 
 def budgets(path, pairs=None):
@@ -214,6 +269,8 @@ def summary(directory, limits=None, pair=None, expected=None):
     pair = pair or profile
     if pair != profile:
         raise ValueError(f"pair {pair} does not match run profile {profile}")
+    if timed_out(directory):
+        run = dict(run, starved=True)
     items = records(directory)
     actual = {(r['profile'], r['binary_id'], r['test_name'], r['attempt']) for r in items}
     if any(key[0] != profile for key in actual):
@@ -223,19 +280,24 @@ def summary(directory, limits=None, pair=None, expected=None):
     if (directory / "junit.xml").exists():
         expected, timeouts, failed, passed, aborts = junit(directory, profile)
         missing = expected - actual
+        cancelled = set()
         if run["starved"]:
             # Cancellation can stop a wrapper before its pre-exec record.
             unobserved = missing & aborts
             missing -= unobserved
+            by_key = {(r['profile'], r['binary_id'], r['test_name'], r['attempt']): r for r in items}
+            cancelled = {key for key in aborts & actual
+                         if by_key[key]['pending'] or by_key[key]['signal'] in (signal.SIGTERM, signal.SIGKILL)}
+            timeouts |= cancelled
         extra = actual - expected
         if missing or (extra and not run["starved"]):
             raise ValueError(f"record coverage: missing {sorted(missing)}; unexpected {sorted(extra)}")
-        failures = [name for name, keys in failed.items() if keys - unobserved]
+        failures = [name for name, keys in failed.items() if keys - unobserved - cancelled]
     elif run.get('returncode') == 4 and not items:
         timeouts, failures = set(), []
     elif run["starved"]:
-        # Heavy cancellation uses SIGKILL. The pre-exec records survive it;
-        # JUnit may not. Counts describe started attempts, never unstarted tests.
+        # SIGKILL may come before JUnit; the pre-exec records survive it.
+        # Counts describe started attempts, never unstarted tests.
         timeouts, failures = set(), []
     else:
         raise ValueError("missing nextest JUnit report (cannot verify record coverage)")
@@ -363,17 +425,15 @@ def print_summary(result, as_json=False):
 
 
 def execute(command, env, directory, profile, limits):
-    """Supervise one admitted heavy command; cancellation uses only its public CLI."""
+    """Supervise one command in its own session (tools/tiers/design.md, 7.3)."""
     directory = Path(directory).resolve()
-    token = None
     starved = False
-    cancel_code = None
     first = None
     current = []
     output = bytearray()
-    run_env = dict(env, HEAVY_TAIL=str(sys.maxsize))
-    process = subprocess.Popen(command, env=run_env, stdin=subprocess.DEVNULL,
-                               stdout=subprocess.PIPE, stderr=subprocess.STDOUT)
+    kill_at = None
+    process = subprocess.Popen(command, env=env, stdin=subprocess.DEVNULL,
+                               stdout=subprocess.PIPE, stderr=subprocess.STDOUT, start_new_session=True)
     try:
         with process.stdout, selectors.DefaultSelector() as selector:
             selector.register(process.stdout, selectors.EVENT_READ)
@@ -386,10 +446,6 @@ def execute(command, env, directory, profile, limits):
                     sys.stdout.buffer.write(data)
                     sys.stdout.buffer.flush()
                     output.extend(data)
-                    if token is None:
-                        match = re.search(rb'heavy: queued task \S+ in the \S+ lane token ([a-f0-9]+)', output)
-                        if match:
-                            token = match[1].decode('ascii')
                 hard = limits.get(profile, {}).get('wall_hard_s')
                 if first is None or hard:
                     current = records(directory)
@@ -399,33 +455,27 @@ def execute(command, env, directory, profile, limits):
                     starved = True
                     save(directory / 'starved.json', {'wall_hard_s': hard})
                     print(f"tiers: starved: {profile} exceeded wall hard limit {hard}s", flush=True)
-                    if token:
-                        # Heavy owns containment and reaping. The task token is an
-                        # identifier supplied by heavy's public output, not a credential.
-                        cancelled = subprocess.run(['heavy', '--cancel', token], env=env,
-                                                   stdin=subprocess.DEVNULL)
-                        cancel_code = cancelled.returncode
-                    else:
-                        # Plain heavy's public SIGTERM path executes/cancels its command.
-                        process.send_signal(signal.SIGTERM)
+                    signal_group(process, signal.SIGTERM)
+                    kill_at = time.monotonic() + GRACE_S
+                if kill_at is not None and time.monotonic() >= kill_at:
+                    break
+        if kill_at is not None:
+            stop(process, kill_at)
     except BaseException:
-        # Collector faults and caller interrupts must release the owned heavy task.
-        if process.poll() is None:
-            if token:
-                subprocess.run(['heavy', '--cancel', token], env=env, stdin=subprocess.DEVNULL)
-            else:
-                process.send_signal(signal.SIGTERM)
-            process.wait()
+        # Collector faults and caller interruptions release the command's session.
+        signal_group(process, signal.SIGTERM)
+        try:
+            stop(process, time.monotonic() + GRACE_S)
+        except BaseException:
+            stop(process, time.monotonic())
         raise
     code = process.wait()
-    (directory / 'heavy-output.txt').write_bytes(output)
+    (directory / 'command-output.txt').write_bytes(output)
     current = records(directory)
     end = time.monotonic() if starved else max((item['start_s'] + item['wall_s'] for item in current), default=first or 0.0)
     save(directory / 'run.json', dict(profile=profile, finished=True, starved=starved,
                                      wall_s=0.0 if first is None else end - first,
-                                     returncode=code, cancel_code=cancel_code))
-    if cancel_code not in (None, 0, 1):
-        raise ValueError(f"heavy cancellation refused: exit {cancel_code}")
+                                     returncode=code, cancel_code=None))
     result = summary(directory, limits, profile)
     print_summary(result)
     if result['over_budget']:
@@ -434,6 +484,6 @@ def execute(command, env, directory, profile, limits):
         return 100
     if starved:
         return 0
-    if code and not result['failures'] and result['suite']['starved'] and code == 100:
+    if code == 100 and (result['suite']['starved'] or result['suite']['starved_run']):
         return 0
     return code
