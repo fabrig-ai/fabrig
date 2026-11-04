@@ -820,15 +820,19 @@ fn a_connection_takes_no_further_answer_until_its_heard_one_is_taken() {
     assert!(world.close());
 }
 
-#[test]
-fn a_secure_graceful_close_reaches_the_server_before_socket_settlement() {
-    let mut world = transport_machine(
+fn secure_close_machine() -> Machine {
+    transport_machine(
         true,
         vec![
             Answer { request: "GET /api/v1/user", response: Response::Bytes(keepalive("user")) },
             Answer { request: "GET /api/v1/settings/api", response: Response::Bytes(keepalive("settings-api")) },
         ],
-    );
+    )
+}
+
+#[test]
+fn a_secure_graceful_close_reaches_the_server_before_socket_settlement() {
+    let mut world = secure_close_machine();
     world.run_for(SECOND);
     assert!(world.script_done());
     assert_eq!(world.tls_closed(), [false], "one live TLS peer");
@@ -843,13 +847,7 @@ fn a_secure_graceful_close_reaches_the_server_before_socket_settlement() {
 
 #[test]
 fn a_stalled_secure_close_is_aborted_at_the_close_timeout() {
-    let mut world = transport_machine(
-        true,
-        vec![
-            Answer { request: "GET /api/v1/user", response: Response::Bytes(keepalive("user")) },
-            Answer { request: "GET /api/v1/settings/api", response: Response::Bytes(keepalive("settings-api")) },
-        ],
-    );
+    let mut world = secure_close_machine();
     world.run_for(SECOND);
     assert!(world.script_done());
     world.hold_room();
