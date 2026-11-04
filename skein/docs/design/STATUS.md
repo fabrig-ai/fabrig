@@ -14,10 +14,11 @@ routes, `Artifact` and `Commits` among them (`forge.md`,
 wasm32 clippy, though they pass it (`testing.md`). json, tls and http's
 collector have no fuzz target (`json.md`, `tls.md`, `http.md`). A few
 items lag in `lib.md`, `examples.md`, `forge-setup.md`, `kv.md` and
-`ui.md`. The code departs in three crates' `tests/` directories
-(`testing.md`) and in `skein-playground`'s manifest (`playground.md`),
-and five of the LLM live suite's provider stories are manual, run by
-the owner (`llm.md`).
+`ui.md`, and the LLM live suite's logins have no design (`skein-live`),
+five of its provider stories being manual, run by the owner (`llm.md`).
+The code departs in three crates'
+`tests/` directories (`testing.md`) and in `skein-playground`'s
+manifest (`playground.md`).
 `README.md`, `codec.md`, `world.md`, `fake-checkout.md`,
 `forge-client.md`, `oauth-issuer.md`, `ui-text.md`, `ui-web.md` and
 `browser.md` have no gap. The state machines of io, channel,

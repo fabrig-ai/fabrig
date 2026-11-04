@@ -1,9 +1,12 @@
 # llm: status
 
-2026-11-03. Where skein's code lags or departs from [llm.md](llm.md).
+2026-11-04. Where skein's code lags or departs from [llm.md](llm.md).
 
-- **Departs:** 5: five of the live suite's provider stories are ignored, manual
-  stories run by the owner; how the owner runs them is for later (section 6).
+- **Not yet:** 5: `skein-live`, the live suite's logins on the routes that
+  stay, has no design: the suite calls the public route with a lent login's
+  access token and Anthropic with a lent key file, but five of its provider
+  stories are ignored, manual stories run by the owner; how the owner runs
+  them is for later (section 6).
   `anthropic_streamed_text_and_history`, `anthropic_tool_round_trip` and
   `anthropic_unauthorized` need an Anthropic API key: none is provided or wanted
   for the automatic suite, by the user's decision of 2026-11-03.
@@ -14,7 +17,7 @@
   reads, by the director's decision of 2026-11-03, which the user takes.
   `openai_unauthorized` stays in the automatic suite: it sends the lent token
   replaced by an invalid one.
-  3: `skein/docs/foundation/programming-model.md`, 5.4 asks for one
+- **Departs:** 3: `skein/docs/foundation/programming-model.md`, 5.4 asks for one
   explicit state enum per lifecycle, each state holding exactly its
   data, no lifecycle in flags or `Option`s beside it, exhaustive matches
   and one handler per cell; `skein-llm/src/client.rs` keeps a data-less
