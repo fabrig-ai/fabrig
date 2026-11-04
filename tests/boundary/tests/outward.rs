@@ -211,7 +211,7 @@ fn verdict(found: &BTreeMap<String, Vec<(usize, String)>>) -> Result<(), String>
 fn no_file_names_the_lab() {
     let root = skein_scratch::paths::workspace();
     let scan = scan(&root).unwrap_or_else(|why| panic!("the workspace's files: {why}"));
-    for prefix in ["skein/", "smith/", "jig/", "temper/", "tools/", "tests/"] {
+    for prefix in ["skein/", "smith/", "jig/", "temper/", "hearth/", "tools/", "tests/"] {
         assert!(scan.read.iter().any(|path| path.starts_with(prefix)), "the check reads {prefix}");
     }
     assert!(scan.read.iter().any(|path| path == "AGENTS.md"), "the check reads AGENTS.md");
