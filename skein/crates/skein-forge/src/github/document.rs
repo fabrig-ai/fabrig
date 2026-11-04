@@ -342,7 +342,7 @@ pub struct Issue {
     pub labels: Box<[Box<[u8]>]>,
     pub updated_at: Wall,
     pub title: Box<[u8]>,
-    pub body: crate::forgejo::document::Body,
+    pub body: crate::text::Body,
 }
 /// One issue comment; missing times leave its provenance unknown.
 #[derive(Clone, PartialEq, Eq, Hash, Debug)]
@@ -351,7 +351,7 @@ pub struct Comment {
     pub author: u64,
     pub created_at: Option<Wall>,
     pub updated_at: Option<Wall>,
-    pub body: crate::forgejo::document::Body,
+    pub body: crate::text::Body,
 }
 
 /// A pull's branches, commits, merge state and requested reviewers.
@@ -446,7 +446,7 @@ pub struct Remark {
     pub author: u64,
     pub path: Box<[u8]>,
     pub line: u32,
-    pub body: crate::forgejo::document::Body,
+    pub body: crate::text::Body,
 }
 
 /// A review before submission filtering and neutral provenance mapping.
@@ -457,7 +457,7 @@ pub struct Review {
     /// None is a pending review.
     pub verdict: Option<api::Verdict>,
     pub commit: api::Commit,
-    pub body: crate::forgejo::document::Body,
+    pub body: crate::text::Body,
     pub submitted: Option<Wall>,
     pub official: bool,
 }

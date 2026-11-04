@@ -1,9 +1,6 @@
 //! The answer head read beside GitHub's documents (forge-github.md, section 2).
 use super::limits::Limits;
-use crate::{
-    api,
-    forgejo::{id::unsigned, time},
-};
+use crate::{api, forgejo::id::unsigned, time};
 use alloc::boxed::Box;
 use skein_lib::{Duration, Wall};
 /// GitHub's rate window, present only when all three fields arrived.

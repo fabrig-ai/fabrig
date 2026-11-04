@@ -8,7 +8,7 @@ use super::{
     Malformed,
     walk::{Move, Payload, Walk},
 };
-use crate::forgejo::document::Body;
+use crate::text::Body;
 use alloc::boxed::Box;
 use skein_json::{Token, tokenizer};
 use skein_lib::bytes;

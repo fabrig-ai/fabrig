@@ -1,8 +1,9 @@
 //! One review comment scratch row; long bodies are read through.
 use super::{Malformed, walk::Node};
 use crate::{
-    forgejo::{document::Body, id::unsigned},
+    forgejo::id::unsigned,
     github::document::{self, Row},
+    text::Body,
 };
 use alloc::boxed::Box;
 use skein_json::Token;
@@ -119,8 +120,7 @@ impl State {
                 }
                 b"body" => self.review.body = Body::Kept(text),
                 b"submitted_at" => {
-                    self.review.submitted =
-                        Some(crate::forgejo::time::read(&text).ok_or(Malformed::Time { field: key })?);
+                    self.review.submitted = Some(crate::time::read(&text).ok_or(Malformed::Time { field: key })?);
                 }
                 b"author_association" => {
                     self.review.official =

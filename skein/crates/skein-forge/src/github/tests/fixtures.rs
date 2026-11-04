@@ -51,7 +51,7 @@ pub fn refusal() -> super::super::document::Refusal {
     }
 }
 pub fn wall() -> Wall {
-    crate::forgejo::time::read(b"2026-10-20T08:00:00Z").unwrap()
+    crate::time::read(b"2026-10-20T08:00:00Z").unwrap()
 }
 pub fn decode(kind: Kind, body: &[u8], chunk: u32, limits: &Limits) -> (List<Row>, Result<Document, Malformed>) {
     decode_with(decode::decoder(kind, limits), body, chunk, limits)
