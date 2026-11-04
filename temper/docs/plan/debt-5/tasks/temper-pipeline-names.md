@@ -102,3 +102,12 @@ The item's **Paid when** names "a commit as history". The cut reads that as all 
 ## Report
 
 The three searches' final output; any site where the replacement here was wrong and what you wrote instead.
+
+## Rebase (2026-11-04, step merge, foreman debt-5/temper-pipeline-names/foreman-1)
+
+resolve the debt-index conflict by retaining both D007 and D008 row deletions.
+The merge failed in `temper/docs/development/debt/README.md`.
+Integration commit `ef534b9c3f` removes the paid D007 row; branch commit `ec7532679a` removes the adjacent paid D008 row.
+Rebase onto the landing target and resolve the index with both rows absent: D001 is followed by D009.
+Preserve all other index rows and the task’s existing changes, including deletion of `D008-pipeline-names-in-code.md`.
+This refusal requires no Rust changes.
