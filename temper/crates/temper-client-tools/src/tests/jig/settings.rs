@@ -2188,7 +2188,10 @@ fn a_settings_file_with_a_project_policy_sends_its_item() {
     assert_eq!(proposal.items, change.items);
 }
 fn project_policy_json() -> String {
-    let value = jig::form_setting_value(&project_policy());
+    setting_value_json(&project_policy())
+}
+fn setting_value_json(value: &c::SettingValue) -> String {
+    let value = jig::form_setting_value(value);
     let bounds = skein_json::writer::Limits { depth: 32, length: 8192 };
     let mut measure = skein_json::writer::Encoder::measure(&bounds);
     settings_form::render::encode_value(&value, &mut measure);
@@ -2279,53 +2282,140 @@ fn proposal_show_prints_a_project_policy_now_and_as_it_would_be() {
         golden(name, &answer.stdout);
     }
 }
-#[test]
-fn a_large_project_policy_review_reads_the_proposed_value_and_keeps_the_current_size() {
-    // The fixture exceeds the review's envelope by carrying its size alone.
-    const POLICY_BYTES: u64 = 8192;
-    let review = project_policy_review(
-        c::ReviewValue::TooLarge(c::Size { bytes: POLICY_BYTES }),
-        c::ReviewValue::TooLarge(c::Size { bytes: POLICY_BYTES }),
+fn policy_review_values(spend: u64) -> Vec<(c::Setting, c::SettingValue, c::SettingValue)> {
+    let c::SettingValue::Policy(mut now) = project_policy() else { panic!("policy") };
+    now.period_spend = spend;
+    let mut proposed = now.clone();
+    proposed.period_spend = 8_200_000;
+    let (_, rules) = values().remove(3);
+    let c::SettingValue::Rules(mut proposed_rules) = rules.clone() else { panic!("rules") };
+    proposed_rules.period_spend = 8_300_000;
+    vec![
+        (c::Setting::ProjectPolicy { project: 1 }, c::SettingValue::Policy(now), c::SettingValue::Policy(proposed)),
+        (c::Setting::Rules, rules, c::SettingValue::Rules(proposed_rules)),
+    ]
+}
+fn measured_review_value(value: &c::SettingValue) -> c::ReviewValue {
+    let wire =
+        jig_client_protocol_link::translate::settings::wire_setting_value(value, &crate::limits::tools().settings)
+            .expect("wire setting");
+    c::ReviewValue::TooLarge(c::Size { bytes: u64::from(wire.measure()) })
+}
+fn policy_review_proposal(values: &[(c::Setting, c::SettingValue, c::SettingValue)]) -> c::ReadValue {
+    let mut proposal = review_proposal(Some(c::SettingsReview {
+        key: None,
+        newest: 5,
+        cut: false,
+        items: list(values.iter().map(|(setting, now, proposed)| c::ReviewItem {
+            setting: *setting,
+            edit: c::RevisionItemEdit::Set,
+            now: measured_review_value(now),
+            would_be: measured_review_value(proposed),
+            origin: c::SettingOrigin::NotOffered,
+            application: None,
+        })),
+    }));
+    let c::ReadValue::Proposal(p) = &mut proposal else { panic!("proposal") };
+    p.reason = c::DocumentText::complete(words("Please review"));
+    let c::ProposalAction::Settings(s) = &mut p.action else { panic!("settings") };
+    s.items = list(
+        values.iter().map(|(setting, _, _)| c::RevisionItemHead { setting: *setting, edit: c::RevisionItemEdit::Set }),
     );
-    let policy = project_policy_json();
-    for (argv, expected) in [
-        (
-            vec!["proposal", "show", "p73/7"],
-            format!("project-policy 1 · set · now too large, 8192 bytes · would be {policy}"),
-        ),
-        (
-            vec!["proposal", "show", "p73/7", "--json"],
-            format!(
-                "{}{}",
-                r#""now":{"too_large":{"bytes":8192}},"origin":"not_offered","would_be":{"value":{"value":{"policy":"#,
-                policy
-            ),
-        ),
-    ] {
-        let (mut root, call) = fixtures::read_call(&argv);
-        serve_review(&mut root, call, review.clone());
-        let setting = c::Setting::ProjectPolicy { project: 1 };
-        assert_eq!(
-            root.reads.get(&call).expect("proposed policy read").1,
-            c::Read::Setting(c::ReadSetting {
-                setting,
-                revision: 0,
-                proposal: Some(c::ProposalKey { proposer: c::Proposer::Party(73), number: 7 }),
-            })
-        );
-        root.serve(
-            call,
-            c::ReadResult::Value(c::ReadValue::Setting(Box::new(c::SettingDocument {
-                setting,
-                revision: 5,
-                value: Some(project_policy()),
-                application: None,
-                proposed: None,
-            }))),
-        );
-        let answer = root.answer(call).expect("review resolves the proposed policy");
-        assert_eq!(answer.status, 0);
-        assert!(core::str::from_utf8(&answer.stdout).expect("review text or JSON").contains(&expected));
+    proposal
+}
+fn propose_policy_file(root: &mut fixtures::Harness, values: &[(c::Setting, c::SettingValue, c::SettingValue)]) {
+    let (setting, now, proposed) = &values[0];
+    let call = root.submit_prepared(fixtures::call(&["settings", "show", "policy", "1"]), true, None);
+    newest_for_setting(root, call);
+    serve_policy_value(root, call, *setting, now);
+    let shown = root.answer(call).expect("current policy");
+    let current_file = String::from_utf8(file_from_setting(&shown.stdout)).unwrap();
+    let current = setting_value_json(now);
+    let policy = setting_value_json(proposed);
+    let file = current_file.replace(&current, &policy);
+    let rules = setting_value_json(&values[1].2);
+    let prefix = file.strip_suffix("]}").expect("settings file end");
+    let file = format!("{prefix},{{\"setting\":{{\"kind\":\"rules\"}},\"set\":{rules}}}]}}");
+    let mut request =
+        fixtures::call(&["settings", "propose", "FILE", "Please review", "--against", "5", "--key", "k1"]);
+    *request.values.get_mut(0).unwrap() = Some(Values::One(Value::Text(file.into_bytes().into())));
+    let call = root.submit_prepared(request, false, None);
+    let c::Ask::Propose { reason, action: c::ProposeAction::Settings(settings), .. } = fixtures::act_ask(root, call)
+    else {
+        panic!("settings proposal")
+    };
+    assert_eq!(reason.bytes(), b"Please review");
+    assert_eq!(settings.against, 5);
+    assert_eq!(
+        settings.items,
+        list(values.iter().map(|(setting, _, value)| c::SettingItem {
+            setting: *setting,
+            edit: c::SettingEdit::Set(c::SettingSet { value: value.clone() }),
+        }))
+    );
+    root.done(call, c::Outcome::Document(c::DocumentOutcome::Proposed { proposal: 7, to: 0 }));
+    assert_eq!(root.answer(call).unwrap().status, 0);
+}
+fn serve_policy_value(root: &mut fixtures::Harness, call: u32, setting: c::Setting, value: &c::SettingValue) {
+    root.serve(
+        call,
+        c::ReadResult::Value(c::ReadValue::Setting(Box::new(c::SettingDocument {
+            setting,
+            revision: 5,
+            value: Some(value.clone()),
+            application: None,
+            proposed: None,
+        }))),
+    );
+}
+#[test]
+fn proposal_show_resolves_current_project_policy_whole() {
+    for spend in [2000, 8_100_000] {
+        let values = policy_review_values(spend);
+        for json in [false, true] {
+            let mut root = fixtures::signed_in(fixtures::PARTY);
+            propose_policy_file(&mut root, &values);
+            let call = root.submit_prepared(fixtures::call(&["proposal", "show", "p73/7"]), json, None);
+            serve_review(&mut root, call, policy_review_proposal(&values));
+            for (setting, now, proposed) in &values {
+                for (is_proposed, value) in [(false, now), (true, proposed)] {
+                    assert_eq!(
+                        root.reads.get(&call).expect("whole setting fallback").1,
+                        c::Read::Setting(c::ReadSetting {
+                            setting: *setting,
+                            revision: if is_proposed { 0 } else { 5 },
+                            proposal: is_proposed
+                                .then_some(c::ProposalKey { proposer: c::Proposer::Party(73), number: 7 }),
+                        }),
+                        "current and proposed values both need fallback reads"
+                    );
+                    let c::ReviewValue::TooLarge(size) = measured_review_value(value) else { panic!("size") };
+                    assert!(size.bytes > 0);
+                    assert_ne!(
+                        size.bytes,
+                        u64::try_from(setting_value_json(value).len()).unwrap(),
+                        "wire size differs from printed JSON"
+                    );
+                    serve_policy_value(&mut root, call, *setting, value);
+                }
+            }
+            let answer = root.answer(call).expect("whole policy review");
+            assert_eq!(answer.status, 0);
+            let text = core::str::from_utf8(&answer.stdout).unwrap();
+            for (_, now, proposed) in &values {
+                assert!(text.contains(&setting_value_json(now)), "current value whole: {text}");
+                assert!(text.contains(&setting_value_json(proposed)), "proposed value whole: {text}");
+            }
+            assert!(text.contains("Please review"), "reason retained: {text}");
+            assert!(!text.contains("too_large") && !text.contains("too large"), "{text}");
+            if json {
+                assert!(text.contains("\"against\":5") && text.contains("\"newest\":5"), "{text}");
+                assert!(text.contains("\"origin\":\"not_offered\""), "{text}");
+            } else {
+                assert!(text.contains("against revision 5, newest 5"), "{text}");
+                assert!(text.contains("project-policy 1 · set · now {"), "{text}");
+            }
+        }
     }
 }
 #[test]
