@@ -88,7 +88,7 @@ impl Server {
             _ => panic!("test host architecture"),
         };
         let expected = format!(
-            "GET /forgejo/forgejo/releases/download/v17.0.0/forgejo-17.0.0-linux-{arch} HTTP/1.1\r\nHost: {}\r\nUser-Agent: temper\r\nConnection: close\r\n\r\n",
+            "GET /forgejo/forgejo/releases/download/v17.0.1/forgejo-17.0.1-linux-{arch} HTTP/1.1\r\nHost: {}\r\nUser-Agent: temper\r\nConnection: close\r\n\r\n",
             self.address
         );
         let head = self
