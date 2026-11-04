@@ -403,7 +403,7 @@ fn revision_text(answer: &c::RevisionAnswer, requested: u64, limits: &Limits, ou
                 match &item.edit {
                     c::RevisionEdit::Set(set) => {
                         out.put(b"set\n");
-                        value_text(&set.value, limits, out);
+                        named_value_text(item.setting, &set.value, limits, out);
                     }
                     c::RevisionEdit::TooLarge(size) => {
                         revision_size_text(item.setting, document.head.number, size, out);
@@ -426,6 +426,13 @@ fn revision_text(answer: &c::RevisionAnswer, requested: u64, limits: &Limits, ou
     }
 }
 
+fn historical_setting(setting: c::Setting) -> bool {
+    match setting {
+        c::Setting::Charter(_) | c::Setting::Application { .. } => true,
+        c::Setting::Template(_) | c::Setting::Policy(_) | c::Setting::Rules | c::Setting::ProjectPolicy { .. } => false,
+    }
+}
+
 fn revision_size_text(setting: c::Setting, revision: u32, size: &c::Size, out: &mut Text) {
     out.put(b"too large, ");
     out.number(size.bytes);
@@ -433,17 +440,32 @@ fn revision_size_text(setting: c::Setting, revision: u32, size: &c::Size, out: &
         out.put(b" bytes\n");
         return;
     }
-    if let c::Setting::Charter(_) = setting {
+    if historical_setting(setting) {
         out.put(b" bytes; read with settings show ");
     } else {
         out.put(b" bytes; read current value with settings show ");
     }
+    revision_read_text(setting, revision, out);
+    out.put(b"\n");
+}
+
+fn revision_read_text(setting: c::Setting, revision: u32, out: &mut Text) {
     setting_text(setting, out);
-    if let c::Setting::Charter(_) = setting {
+    if historical_setting(setting) {
         out.put(b" --revision ");
         out.number(u64::from(revision));
     }
-    out.put(b"\n");
+}
+
+fn encode_revision_read(setting: c::Setting, revision: u32, out: &mut Encoder) {
+    let mut measure = Text::measure();
+    measure.put(b"settings show ");
+    revision_read_text(setting, revision, &mut measure);
+    let mut text = Text::writing_exact(measure);
+    text.put(b"settings show ");
+    revision_read_text(setting, revision, &mut text);
+    out.key(b"read");
+    out.string(&text.finish());
 }
 
 fn replaced_text(replaced: &c::RevisionReplaced, limits: &Limits, out: &mut Text) {
@@ -532,11 +554,14 @@ fn encode_revision(answer: &c::RevisionAnswer, out: &mut Encoder) {
                 match &item.edit {
                     c::RevisionEdit::Set(set) => {
                         out.key(b"set");
-                        encode_value(&set.value, out);
+                        encode_named_value(item.setting, &set.value, out);
                     }
                     c::RevisionEdit::TooLarge(size) => {
                         out.key(b"too_large");
                         out.unsigned(size.bytes);
+                        if let c::Setting::Application { .. } = item.setting {
+                            encode_revision_read(item.setting, document.head.number, out);
+                        }
                     }
                     c::RevisionEdit::Application(edit) => {
                         out.key(b"application");

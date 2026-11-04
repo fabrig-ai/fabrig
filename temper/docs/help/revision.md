@@ -71,7 +71,11 @@ For the configuration members that need a restart, read `temper help configurati
 - A revision records what it changed and what each item replaced:
   `revision show` prints `was:` with the past value, its size, or its
   state: default, removed or not offered. `settings show` reads a past
-  value of a held revision's charter alone.
+  value of a held revision's charter. For a landing rule or forge charter,
+  `settings show KIND NUMBER --revision REVISION` reads the value that
+  retained revision set; a project's landing rule also takes `--project PROJECT`.
+  `revision show` prints these historical values in text and JSON, or a
+  qualified read call when a value exceeds its share of the output bound.
 - temper keeps a bounded number of held revisions and of charter
   versions. A change that would hold more is refused as full, naming the
   oldest held revision's tasks: move them to go on.

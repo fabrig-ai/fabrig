@@ -212,7 +212,7 @@ pub(super) fn world(w: World, address: Address, then: Then) -> (Domain, Option<T
                                 playground_read = true;
                             }
                         }
-                        v1::Read::Setting(_) | v1::Read::ProposalItems(_) => {}
+                        v1::Read::Setting(_) | v1::Read::RevisionSetting(_) | v1::Read::ProposalItems(_) => {}
                     }
                 }
                 jig_client::Down::Open { watch, subject: jig_client::Watchable::Family { record, .. } }
