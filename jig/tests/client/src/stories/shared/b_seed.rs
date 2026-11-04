@@ -1,7 +1,7 @@
 //! Starting facts for project and conversation stories (jig/docs/design/client/domain/testing.md, 4–5).
 use crate::{Scripted, joint::engine::Driver};
 use jig_client_domain::contract as c;
-use jig_client_scripted_engine::Change;
+use jig_client_scripted_engine::{Change, Rows, Source};
 use skein_lib::{Time, Wall};
 
 #[derive(Clone, Copy, Debug)]
@@ -18,6 +18,27 @@ pub enum Facts {
     Delegates,
     InboxOrder,
     OwnChats,
+}
+
+/// One object of project 1, as every person story's scripted seed writes it.
+pub(super) fn install(front: &mut Scripted, key: c::ObjectKey, value: c::ReadValue) {
+    front.engine.act(Time::ZERO, Wall::EPOCH, Change::Object { project: 1, key, value }).expect("object fits");
+}
+
+/// The rows of one inbox group, for one party.
+pub(super) fn inbox_source(front: &mut Scripted, party: u64, group: c::InboxReadGroup, rows: Vec<c::InboxEntry>) {
+    front
+        .engine
+        .act(
+            Time::ZERO,
+            Wall::EPOCH,
+            Change::Source(Source {
+                party,
+                read: c::Read::Inbox { group, project: None, kind: None, goal: None, after: None },
+                rows: Rows::Inbox(rows),
+            }),
+        )
+        .expect("inbox fits");
 }
 
 pub fn scripted(front: &mut Scripted, facts: Facts) {
@@ -38,18 +59,7 @@ pub fn scripted(front: &mut Scripted, facts: Facts) {
                 task.label = 2;
                 task.priority = Some(0);
                 task.changed = Wall::from_nanos(number);
-                front
-                    .engine
-                    .act(
-                        Time::ZERO,
-                        Wall::EPOCH,
-                        Change::Object {
-                            project: 1,
-                            key: c::ObjectKey::Task(number),
-                            value: c::ReadValue::Task(Box::new(task)),
-                        },
-                    )
-                    .expect("goal fact fits");
+                install(front, c::ObjectKey::Task(number), c::ReadValue::Task(Box::new(task)));
             }
             let mut project = crate::stories::project();
             project.acts = crate::test::list([c::Offered {
