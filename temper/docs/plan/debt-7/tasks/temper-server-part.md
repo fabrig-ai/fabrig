@@ -105,35 +105,27 @@ set for this task's own lines; the +211 between the two figures is `jig-server-p
 work, counted against their caps. `notes/common.md` now says so. The figure is `git diff --shortstat 85e80b7286
 fcfee88275`: 42 insertions, 439 deletions, and `fcfee88275` is the only commit of the branch that isn't a merge.
 
-Keep the pushed work at `fcfee88275` and finish what the stop left, on this branch: confirm `git status` shows
-`debt-7/temper-server-part` at that commit first, since the last run's slot was switched under it, and leave out
+Keep the pushed work at `fcfee88275` and finish what the stop left, on this branch: leave out
 anything in `jig/crates/jig-domain-tasks/src/control.rs`, which isn't this task's. Then `cargo fmt` and the old-forms
 check on this branch, which last ran on the switched checkout; step 5's clippy, which also checks the `expect` on
 `Page::Service`; the full `temper-service` nextest; `temper`'s and the direct dependents' checks; step 6's browser
 tier; and the citations check.
 
-### 2026-11-04: Run the remaining checks on the supplied merge HEAD 9fdba1c656 (recommended), or have fab restore the slot to fcfee88275 first? The task's answer requires confirming HEAD at fcfee88275 before continuing, but this slot starts at a later merge. (debt-7/temper-server-part-2, foreman debt-7/temper-server-part/foreman-2)
+2026-11-04. Must HEAD equal `fcfee88275` before the checks run, or does the supplied merge HEAD do? **The supplied HEAD
+does. Do not ask this again, and do not wait for a restore: fab won't do one.** fab starts each run by merging
+`debt-7/integration` into the branch, so a slot's HEAD is never `fcfee88275`; that's the slot working, not a switched
+checkout. Runs 2, 3 and 4 stopped on a condition no slot can meet, and the three answers that repeated it are withdrawn
+and removed from this section. The condition is amended to this, and only this:
 
-Have fab restore the slot to fcfee88275 before continuing the remaining checks.
-The task’s Answers section requires: “confirm `git status` shows `debt-7/temper-server-part` at that commit first”.
-The reported merge HEAD 9fdba1c656 does not meet that explicit precondition, even though the five task paths are unchanged.
-The next run confirms the branch and commit, preserves the pushed implementation, and completes the checks listed in Answers.
-Leave `jig/crates/jig-domain-tasks/src/control.rs` outside this task.
+- the branch is `debt-7/temper-server-part` and the worktree is clean;
+- `git merge-base --is-ancestor fcfee88275 HEAD` succeeds;
+- `temper/crates/temper-service/src/server.rs` doesn't exist.
 
-### 2026-11-04: Have fab restore this slot to fcfee88275 before resuming (recommended, as already answered), or explicitly amend the required HEAD precondition to permit 175cd8b355? (debt-7/temper-server-part-3, foreman debt-7/temper-server-part/foreman-3)
+If all three hold, run the checks of the answer above on HEAD, whatever its commit id. Never reset, rebase or force-push
+to get to `fcfee88275`. Only if one fails is it a `Question:`, naming which.
 
-Have fab restore the slot to fcfee88275 before continuing the remaining checks.
-The task’s Answers explicitly say: “Have fab restore the slot to fcfee88275 before continuing the remaining checks.”
-They require: “confirm `git status` shows `debt-7/temper-server-part` at that commit first”.
-The reported HEAD 175cd8b355 does not meet that precondition.
-The next run confirms the branch and commit, preserves the pushed implementation, and completes the remaining checks and measurements.
-Leave `jig/crates/jig-domain-tasks/src/control.rs` outside this task.
-
-### 2026-11-04: Have fab restore slot 4 to fcfee88275 before resuming (recommended, as already answered), or explicitly amend the required HEAD precondition to permit d138fc2c7d? (debt-7/temper-server-part-4, foreman debt-7/temper-server-part/foreman-4)
-
-Have fab restore the slot to fcfee88275 before continuing the remaining checks.
-The task’s Answers explicitly say: “Have fab restore the slot to fcfee88275 before continuing the remaining checks.”
-They require: “confirm `git status` shows `debt-7/temper-server-part` at that commit first”.
-The reported HEAD d138fc2c7d does not meet that precondition.
-The next run confirms the branch and commit, preserves the pushed implementation, and completes the remaining checks and measurements.
-Leave `jig/crates/jig-domain-tasks/src/control.rs` outside this task.
+Compared at `58a58e23b8`: merging the trunk into `fcfee88275` is clean, and the five task paths differ from it only by the
+trunk's two lines in `T/lib.rs` (`RunFailed`), which are not this task's. Nothing has been built on that merge yet. The size
+cap stays the figure above, read as `git diff --shortstat 85e80b7286 fcfee88275` plus any commit this run adds; the merge's
+lines don't count. A check that goes red is yours to read and fix, as step 6 says. When they're done, push HEAD, merge
+included, to `debt-7/temper-server-part`.
