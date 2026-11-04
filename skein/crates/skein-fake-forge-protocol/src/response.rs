@@ -27,7 +27,8 @@ pub struct Reply {
 fn number(answer: &Answer) -> Option<u64> {
     match answer {
         Answer::Created(id) | Answer::Commented(id) | Answer::Reviewed(id) => Some(*id),
-        Answer::Located { .. }
+        Answer::Copied { .. }
+        | Answer::Located { .. }
         | Answer::Items { .. }
         | Answer::Item { .. }
         | Answer::Pull(_)
@@ -403,7 +404,8 @@ fn document(
                 Err(a::Error::Refused)
             }
         },
-        Answer::Located { .. }
+        Answer::Copied { .. }
+        | Answer::Located { .. }
         | Answer::Items { .. }
         | Answer::Item { .. }
         | Answer::Pulls(_)
@@ -481,7 +483,8 @@ pub fn answer(
             };
             return raw(limits, body, range);
         }
-        Answer::Located { .. }
+        Answer::Copied { .. }
+        | Answer::Located { .. }
         | Answer::Items { .. }
         | Answer::Item { .. }
         | Answer::Pull(_)
@@ -546,7 +549,8 @@ pub fn answer(
                 value: bytes::copy_of(if *more { b"true" } else { b"false" }),
             })
             .expect("one header"),
-        Answer::Located { .. }
+        Answer::Copied { .. }
+        | Answer::Located { .. }
         | Answer::Items { .. }
         | Answer::Item { .. }
         | Answer::Pull(_)
@@ -926,6 +930,7 @@ mod bounded {
                 }
             }
             a::Answer::Protection(None)
+            | a::Answer::Copied { .. }
             | a::Answer::Located { .. }
             | a::Answer::Permission(_)
             | a::Answer::Statuses(_)

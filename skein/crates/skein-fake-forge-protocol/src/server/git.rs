@@ -176,7 +176,8 @@ pub(super) fn down(
         Ok(api::Answer::Pushed(pushed)) => Ok(git::Answer::Pushed(pushed)),
         Err(error) => Err(error),
         Ok(
-            api::Answer::Located { .. }
+            api::Answer::Copied { .. }
+            | api::Answer::Located { .. }
             | api::Answer::Items { .. }
             | api::Answer::Item { .. }
             | api::Answer::Pull(_)
