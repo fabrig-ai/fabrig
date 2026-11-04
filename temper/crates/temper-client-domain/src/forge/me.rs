@@ -7,6 +7,7 @@ use jig_client::{
 use skein_lib::Queue;
 
 pub(super) const FORGES: u64 = 1;
+pub(super) const DISMISSED: u64 = 2;
 pub(crate) fn handle() -> Handle {
     Handle { asker: crate::owner::Owner::Forge.asker(), number: 0 }
 }

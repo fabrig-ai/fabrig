@@ -285,13 +285,15 @@ pub fn read(
 }
 #[must_use]
 pub fn project() -> temper_client_domain::Address {
-    temper_client_domain::Address::Inbox { filter: temper_client_domain::address::Filter::ALL }
+    temper_client_domain::Address::Home { project: 1 }
 }
 #[must_use]
 pub fn adopt(owner: &[u8], name: &[u8]) -> Vec<skein_fake_person::Step<temper_client_domain::Address>> {
     use skein_fake_person::{Find, Step};
     use skein_ui::Role;
     vec![
+        Step::See { find: Find::exactly_named(Role::Link, b"Settings"), within: WITHIN },
+        Step::Press { find: Find::exactly_named(Role::Link, b"Settings") },
         Step::See { find: Find::named(Role::Link, b"Adopt a repository"), within: WITHIN },
         Step::Press { find: Find::named(Role::Link, b"Adopt a repository") },
         Step::See { find: Find::named(Role::TextField, b"Owner"), within: WITHIN },

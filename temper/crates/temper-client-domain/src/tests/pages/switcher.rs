@@ -202,7 +202,7 @@ fn with_made_project() -> c::Me {
     me
 }
 #[test]
-fn a_made_project_is_opened_on_its_chats_page() {
+fn a_made_project_is_opened_on_its_home_page() {
     for listed_first in [false, true] {
         let mut f = fixture();
         let key = create(&mut f);
@@ -220,15 +220,16 @@ fn a_made_project_is_opened_on_its_chats_page() {
             update_me(&mut f, with_made_project());
         }
         assert_eq!(f.pages.project(), Some(MADE));
-        assert_eq!(f.out.pop(), Some(Request::Show { address: chats() }));
+        let home = Address::Home { project: MADE };
+        assert_eq!(f.out.pop(), Some(Request::Show { address: home.clone() }));
         while let Some(request) = f.out.pop() {
             match request {
                 Request::Show { .. } => panic!("the made project opens once"),
                 Request::Client(_) | Request::Replace { .. } => {}
             }
         }
-        event(&mut f, Event::Went { address: chats() });
-        assert_eq!(f.pages.address(), &chats());
+        event(&mut f, Event::Went { address: home.clone() });
+        assert_eq!(f.pages.address(), &home);
         while f.out.pop().is_some() {}
         update_me(&mut f, with_made_project());
         assert!(f.out.is_empty(), "membership updates do not reopen the project");

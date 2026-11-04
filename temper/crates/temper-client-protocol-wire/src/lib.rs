@@ -68,6 +68,8 @@ pub const CLIENT_VERSION: u32 = 14;
 
 /// The deployment's maximum number of forges (client/README.md, 4.6).
 pub const FORGES: u32 = 16;
+/// A party's dismissals on the wire (client/README.md, 4.6).
+pub const DISMISSED: u32 = 1024;
 /// The maximum installations per GitHub forge (client/README.md, 4.6).
 pub const INSTALLATIONS: u32 = 64;
 /// The maximum repository makings per forge (temper/docs/design/client/README.md, 4.6).
@@ -128,6 +130,8 @@ pub fn limits(bounds: &Bounds) -> Option<v1::Limits> {
         reached_name: bounds.field_bytes,
         link_address: ADDRESS_BYTES,
         forges_forges: FORGES,
+        dismissals_dismissed: DISMISSED,
+        return_path: 512,
         set_up_failed_why: SET_UP_WHY_BYTES,
         group_failed_why: SET_UP_WHY_BYTES,
         connected_login: bounds.field_bytes,
@@ -319,6 +323,7 @@ pub fn decode_requesting(bytes: &[u8], limits: &v1::Limits) -> Option<v1::Reques
         | v1::Request::Return(_)
         | v1::Request::MakeRepository(_)
         | v1::Request::Adopt(_)
+        | v1::Request::Dismiss(_)
         | v1::Request::Replace(_)
         | v1::Request::RemoveForge(_)
         | v1::Request::StartPlayground
@@ -373,6 +378,22 @@ pub fn decode_forges(bytes: &[u8], limits: &v1::Limits) -> Option<v1::Forges> {
         previous = Some(row.number());
     }
     Some(record)
+}
+
+/// Encode a party's dismissals (client/README.md, 4.6).
+#[must_use]
+pub fn dismissals(record: &v1::Dismissals) -> Box<[u8]> {
+    let mut writer = Writer::new(usize::try_from(record.measure()).expect("measured length fits usize"));
+    record.encode(&mut writer).expect("measured room");
+    writer.finish()
+}
+
+/// Decode one complete dismissals document (client/README.md, 4.6).
+#[must_use]
+pub fn decode_dismissals(bytes: &[u8], limits: &v1::Limits) -> Option<v1::Dismissals> {
+    let mut reader = Reader::new(bytes);
+    let record = v1::Dismissals::decode(limits, &mut reader).ok()?;
+    if reader.is_empty() { Some(record) } else { None }
 }
 
 /// Whether a runner label can be used as one workflow scalar (client/README.md, 8).

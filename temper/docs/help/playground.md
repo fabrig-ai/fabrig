@@ -34,8 +34,8 @@ The playground is temper's demo: a repository on a fake forge and a scripted mod
 - **Running:** a chat in `Demo` asks for one of the three
   requests (temper help chat). A start of the deployment starts the
   fakes again and keeps the account and the adoption.
-- **Reset:** `playground end`, or "set up temper" on the client's
-  banner, deletes the project `Demo` with its chats and tasks,
+- **Reset:** `playground end`, or "Set up temper" on the client's
+  rail, deletes the project `Demo` with its chats and tasks,
   removes the fake forge, and removes the scripted account. The
   deployment is then as it was before the start, and the client opens
   its welcome at the Forge step. It prints `reset`.

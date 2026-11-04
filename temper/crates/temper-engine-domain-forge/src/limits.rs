@@ -72,6 +72,14 @@ pub struct Limits {
     pub client: skein_forge_client::Limits,
 }
 
+impl Limits {
+    /// Members times projects, saturating (temper/docs/design/domain/forge.md, 5.5).
+    #[must_use]
+    pub const fn dismissed(&self) -> u32 {
+        self.bindings.saturating_mul(self.judge_projects)
+    }
+}
+
 /// Per-repository tiers and reported failures (temper/docs/design/domain/after-landing.md, 10).
 #[derive(Clone, Copy, PartialEq, Eq, Debug)]
 pub struct TierLimits {

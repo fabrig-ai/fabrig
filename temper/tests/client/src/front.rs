@@ -1,6 +1,7 @@
 //! Real engine root on its direct store driver, with jig's protocol correlation.
 //! Forge records and playground scripts (temper/docs/design/client/forge.md, 5.4; temper/docs/design/client/README.md, 10).
 pub mod account_acts;
+mod dismissed;
 use crate::app::Event;
 use crate::{app::Temper, fixtures, translate};
 use jig_client_world::{

@@ -513,8 +513,8 @@ impl Person {
     }
 }
 // Select the story's project and provision its real account before its own acts.
-/// The banner's button for a project `me` leaves unnamed, "Project N"
-/// (client/README.md, 5.1).
+/// The switcher's button for a project `me` leaves unnamed, "Project N"
+/// (client/README.md, 5.3).
 fn an_unnamed_project(name: Option<&[u8]>) -> bool {
     let Some(number) = name.and_then(|name| name.strip_prefix(b"Project ".as_slice())) else { return false };
     !number.is_empty() && number.iter().all(u8::is_ascii_digit)
@@ -1062,14 +1062,10 @@ fn run_phase(
         for (program, roots) in programs::programs::<OneProcess>() {
             world.host_roots(program, roots);
         }
-        let limits = temper_client_shell_cli::limits::native();
         world.host_roots(
-            skein_world::HostedProgram {
-                program: crate::ctl::PROGRAM.into(),
-                make: |spawn, inherited| Proc::Other(HarnessProcess::Ctl(Box::new(crate::ctl::host(spawn, inherited)))),
-                instances: 1,
-                operations: skein_io::operations(&limits.io).expect("ctl operations") * 2 + 5,
-            },
+            crate::ctl::program(|spawn, inherited| {
+                Proc::Other(HarnessProcess::Ctl(Box::new(crate::ctl::host(spawn, inherited))))
+            }),
             crate::ctl::roots,
         );
         world.spawn_restartable(programs::service_roots(), programs::service::<OneProcess>);

@@ -8,11 +8,13 @@ pub(crate) mod fixtures;
 mod forge_page;
 mod forges;
 mod frame;
+mod home;
 mod inbox;
 mod look;
 mod playground;
 mod playground_start;
 mod public;
+mod rail;
 use jig_client::contract::{ApplicationPart, PartScope};
 use skein_ui::Role;
 

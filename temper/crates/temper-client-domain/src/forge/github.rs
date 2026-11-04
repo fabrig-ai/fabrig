@@ -297,6 +297,7 @@ pub(crate) fn decode(outcome: &Outcome, linking: bool, limits: Limits) -> Option
                 | w::Outcome::Returning
                 | w::Outcome::Link(_)
                 | w::Outcome::Removed
+                | w::Outcome::Dismissed
                 | w::Outcome::RemoveRefused(_)
                 | w::Outcome::Reset
                 | w::Outcome::EndRefused(_) => None,

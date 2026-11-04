@@ -11,6 +11,41 @@ use skein_ui::{
 };
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 pub enum Word {
+    HomeThree,
+    HomeTwo,
+    HomeOne,
+    HomeReady,
+    HomeAgents,
+    HomeForgeHere,
+    HomeForge,
+    HomeNoRepository,
+    HomeBegin,
+    HomeHow,
+    HomeHowDetail,
+    HomeStart,
+    HomeIn,
+    HomeInDetail,
+    HomeAdopting,
+    HomeAdoptingDetail,
+    HomeOffer,
+    HomeAdopt,
+    HomeAnother,
+    HomeGitHub,
+    HomeNone,
+    HomeChat,
+    HomeChatDetail,
+    HomeNewChat,
+    HomeConnected,
+    HomeLogin,
+    HomeRepository,
+    HomeModel,
+    HomeProject,
+    HomeProjectRepository,
+    HomeProjectNone,
+    HomeAdoptLink,
+    HomeDayTime,
+    HomeDone,
+    HomeNumber,
     PlaygroundBanner,
     PlaygroundSetUp,
     BannerSetUp,
@@ -38,6 +73,12 @@ pub enum Word {
     WelcomeModelPlan,
     WelcomeModelSubscription,
     BrandChats,
+    BrandHome,
+    RailHome,
+    NeedsYouCount,
+    RailSettings,
+    Sections,
+
     ForgeHereVersionDetails,
     ForgeFetchVersions,
     ForgeFetchedVersions,
@@ -47,11 +88,18 @@ pub enum Word {
 
     Rename,
     RenameProject,
+    SwitcherRepository,
+    SwitcherSeveral,
+    SwitcherMore,
+    SwitcherNone,
+    SwitcherRow,
     Save,
     NewProject,
     NewProjectPlaceholder,
     CreateProject,
     NoProjectYet,
+    SettingsFor,
+    ProjectNotYours,
     NoProjectLine,
     TokensTitle,
     TokensDescription,
@@ -699,6 +747,7 @@ pub enum Word {
     WelcomeForgejoNotYet,
     WelcomeForgejoName,
     WelcomeReadyLead,
+    WelcomeReadyRepositoryLead,
     WelcomeCreateProject,
     WelcomeRenameLater,
     WelcomeDefaultUnnamed,
@@ -730,7 +779,7 @@ pub enum Word {
 // Seven playground start status, failure and retry phrases (5.6).
 // The Model step adds four forge phrases and twenty-two segments.
 // The browser sign-in heading and Google link add two phrases.
-// Ready names Default and its request endings (client/README.md, 3.5).
+// Ready names the first project and its request endings (client/README.md, 3.5).
 // Account moves add four account literals and one task-wait phrase.
 // The Authorize place and page-owned forge sign-in add twelve phrases.
 // The owned row's Runs and first-password lines add two words and three phrases.
@@ -751,13 +800,57 @@ pub(crate) const SCRIPTED_MODEL: &[u8] = b"demo";
 // add six phrases and ten segments; its ticked forge line's old phrase, one phrase
 // and five segments, is gone (client/README.md, 3.5).
 // The welcome's Forgejo sheet adds twelve literal phrases and segments (3.5).
-// Ready's first project adds four literal phrases and one of a hole; its
+// Ready's first project adds three literal phrases and two of a hole; its
 // checklist's forge status and model account phrases are gone (3.5).
 // The chats page with no welcome and no project adds one literal phrase (3.5).
 // Model’s connected login and first repository are separate detail phrases (3.5).
-const PHRASES: u32 = 1267;
-const SEGMENTS: u32 = 2164;
-const ALL: [Word; 672] = [
+// Home and Settings add two phrases, each with one hole and three segments (3.5).
+// The rail adds four literals and one counted entry (client/README.md, 5.3).
+// Five switcher phrases describe repository rows in both shells.
+// Home adds 35 phrases for its steps, intro and connected lines (3.5).
+const PHRASES: u32 = 1315;
+// Ready's empty-name line has two literals and a Name hole, two more segments (3.5).
+// Ready's repository lead adds one phrase and three segments (3.5).
+// Four literals and the counted entry's two literals and Number hole add seven segments.
+// The switcher phrases add twenty-one literal and hole segments.
+// Home adds 87 literal and hole segments.
+const SEGMENTS: u32 = 2290;
+const ALL: [Word; 720] = [
+    Word::HomeThree,
+    Word::HomeTwo,
+    Word::HomeOne,
+    Word::HomeReady,
+    Word::HomeAgents,
+    Word::HomeForgeHere,
+    Word::HomeForge,
+    Word::HomeNoRepository,
+    Word::HomeBegin,
+    Word::HomeHow,
+    Word::HomeHowDetail,
+    Word::HomeStart,
+    Word::HomeIn,
+    Word::HomeInDetail,
+    Word::HomeAdopting,
+    Word::HomeAdoptingDetail,
+    Word::HomeOffer,
+    Word::HomeAdopt,
+    Word::HomeAnother,
+    Word::HomeGitHub,
+    Word::HomeNone,
+    Word::HomeChat,
+    Word::HomeChatDetail,
+    Word::HomeNewChat,
+    Word::HomeConnected,
+    Word::HomeLogin,
+    Word::HomeRepository,
+    Word::HomeModel,
+    Word::HomeProject,
+    Word::HomeProjectRepository,
+    Word::HomeProjectNone,
+    Word::HomeAdoptLink,
+    Word::HomeDayTime,
+    Word::HomeDone,
+    Word::HomeNumber,
     Word::PlaygroundBanner,
     Word::PlaygroundSetUp,
     Word::BannerSetUp,
@@ -785,6 +878,11 @@ const ALL: [Word; 672] = [
     Word::WelcomeModelPlan,
     Word::WelcomeModelSubscription,
     Word::BrandChats,
+    Word::BrandHome,
+    Word::RailHome,
+    Word::NeedsYouCount,
+    Word::RailSettings,
+    Word::Sections,
     Word::ForgeHereVersionDetails,
     Word::ForgeFetchVersions,
     Word::ForgeFetchedVersions,
@@ -793,11 +891,18 @@ const ALL: [Word; 672] = [
     Word::GitHubNotListedAfter,
     Word::Rename,
     Word::RenameProject,
+    Word::SwitcherRepository,
+    Word::SwitcherSeveral,
+    Word::SwitcherMore,
+    Word::SwitcherNone,
+    Word::SwitcherRow,
     Word::Save,
     Word::NewProject,
     Word::NewProjectPlaceholder,
     Word::CreateProject,
     Word::NoProjectYet,
+    Word::SettingsFor,
+    Word::ProjectNotYours,
     Word::NoProjectLine,
     Word::TokensTitle,
     Word::TokensDescription,
@@ -1426,6 +1531,7 @@ const ALL: [Word; 672] = [
     Word::WelcomeForgejoNotYet,
     Word::WelcomeForgejoName,
     Word::WelcomeReadyLead,
+    Word::WelcomeReadyRepositoryLead,
     Word::WelcomeCreateProject,
     Word::WelcomeRenameLater,
     Word::WelcomeDefaultUnnamed,
@@ -1435,6 +1541,41 @@ impl Word {
     #[expect(clippy::too_many_lines, reason = "one exhaustive table keeps the frame phrase IDs stable")]
     fn id(self, connector: u16) -> PhraseId {
         let number = match self {
+            Self::HomeThree => 3110,
+            Self::HomeTwo => 3111,
+            Self::HomeOne => 3112,
+            Self::HomeReady => 3113,
+            Self::HomeAgents => 3114,
+            Self::HomeForgeHere => 3115,
+            Self::HomeForge => 3116,
+            Self::HomeNoRepository => 3117,
+            Self::HomeBegin => 3118,
+            Self::HomeHow => 3119,
+            Self::HomeHowDetail => 3120,
+            Self::HomeStart => 3121,
+            Self::HomeIn => 3122,
+            Self::HomeInDetail => 3123,
+            Self::HomeAdopting => 3124,
+            Self::HomeAdoptingDetail => 3125,
+            Self::HomeOffer => 3126,
+            Self::HomeAdopt => 3127,
+            Self::HomeAnother => 3128,
+            Self::HomeGitHub => 3129,
+            Self::HomeNone => 3130,
+            Self::HomeChat => 3131,
+            Self::HomeChatDetail => 3132,
+            Self::HomeNewChat => 3133,
+            Self::HomeConnected => 3134,
+            Self::HomeLogin => 3135,
+            Self::HomeRepository => 3136,
+            Self::HomeModel => 3137,
+            Self::HomeProject => 3138,
+            Self::HomeProjectRepository => 3139,
+            Self::HomeProjectNone => 3140,
+            Self::HomeAdoptLink => 3141,
+            Self::HomeDayTime => 3142,
+            Self::HomeDone => 3143,
+            Self::HomeNumber => 3144,
             Self::PlaygroundBanner => 2136,
             Self::PlaygroundSetUp => 2137,
             Self::BannerSetUp => 2178,
@@ -1459,6 +1600,12 @@ impl Word {
             Self::WelcomeForgejoDescription => 2133,
             Self::WelcomeForgejoRun => 2134,
             Self::BrandChats => 2110,
+            Self::BrandHome => 3080,
+            Self::RailHome => 3081,
+            Self::NeedsYouCount => 3083,
+            Self::RailSettings => 3084,
+            Self::Sections => 3085,
+
             Self::ForgeHereVersionDetails => 2116,
             Self::ForgeFetchVersions => 2117,
             Self::ForgeFetchedVersions => 2118,
@@ -1468,11 +1615,18 @@ impl Word {
 
             Self::Rename => 2184,
             Self::RenameProject => 2185,
+            Self::SwitcherRepository => 3100,
+            Self::SwitcherSeveral => 3101,
+            Self::SwitcherMore => 3102,
+            Self::SwitcherNone => 3103,
+            Self::SwitcherRow => 3104,
             Self::Save => 2186,
             Self::NewProject => 2187,
             Self::NewProjectPlaceholder => 2188,
             Self::CreateProject => 2189,
             Self::NoProjectYet => 1949,
+            Self::SettingsFor => 2200,
+            Self::ProjectNotYours => 2201,
             Self::NoProjectLine => 2197,
             Self::ModelKeyDescription => 2100,
             Self::ModelKeyField => 2101,
@@ -2102,6 +2256,7 @@ impl Word {
             Self::WelcomeForgejoNotYet => 3042,
             Self::WelcomeForgejoName => 3043,
             Self::WelcomeReadyLead => 3044,
+            Self::WelcomeReadyRepositoryLead => 3060,
             Self::WelcomeCreateProject => 3045,
             Self::WelcomeRenameLater => 3046,
             Self::WelcomeDefaultUnnamed => 3047,
@@ -2148,7 +2303,14 @@ pub struct Words {
 // clock: 256 bytes holds its longest three-sentence explanation whole.
 const REFUSAL_BYTES: u32 = 256;
 const SET_UP_FAILURE_BYTES: u32 = temper_client_domain::forge::forges::FAILURE_BYTES;
+// Switcher paths join two Name holes, a slash, " +", and ten u32 digits (client/README.md, 5.3).
+fn switcher_repository_bytes(joined: u32) -> Result<u32, Invalid> {
+    joined.checked_mul(2).ok_or(Invalid::Overflow)?.checked_add(13).ok_or(Invalid::Overflow)
+}
 fn hole_bytes(word: Word, kind: HoleKind, last: bool, joined: u32) -> Result<u32, Invalid> {
+    if word == Word::SwitcherRow && last {
+        return switcher_repository_bytes(joined);
+    }
     if word == Word::AdminHost {
         return Ok(temper_client_domain::forge::change::ADDRESS_BYTES);
     }
@@ -2312,6 +2474,7 @@ impl Words {
             text_bytes: 32768,
             // Whole playground requests keep their supplied bound.
             hole_bytes: joined
+                .max(switcher_repository_bytes(joined)?)
                 .max(temper_client_domain::forge::PLAYGROUND_FIELD_BYTES)
                 .max(temper_client_domain::forge::PLAYGROUND_WHY_BYTES)
                 .max(temper_client_domain::forge::OWNED_PASSWORD_BYTES)
@@ -2384,7 +2547,7 @@ fn english(word: Word, shell: Shell) -> (&'static [&'static [u8]], &'static [Hol
         Word::WelcomeModelSignInTime => (&[b"Sign in, in this tab \xc2\xb7 about a minute"], &[]),
         Word::WelcomeModelProgramTime => (&[b"One command in a terminal, on this machine"], &[]),
         Word::WelcomeForgeDoneDetail => (&[b"connected as ", b""], &[Name]),
-        Word::WelcomeForgeDoneRepository => (&[b"", b" made, in no project yet"], &[Name]),
+        Word::WelcomeForgeDoneRepository => (&[b"", b" made"], &[Name]),
         Word::PublicTitleCut => (&[b"\xe2\x80\xa6"], &[]),
         Word::PublicProjects => (&[b"Public projects"], &[]),
         Word::PublicProject => (&[b"Project ", b""], &[Name]),
@@ -2395,6 +2558,41 @@ fn english(word: Word, shell: Shell) -> (&'static [&'static [u8]], &'static [Hol
         Word::PublicPerson => (&[b"a person"], &[]),
         Word::PublicJob => (&[b"a job"], &[]),
         Word::PublicReading => (&[b"Reading\xe2\x80\xa6"], &[]),
+        Word::HomeThree => (&[b"You\xe2\x80\x99re set up. Nothing has run yet."], &[]),
+        Word::HomeTwo => (&[b"Two things left to begin with."], &[]),
+        Word::HomeOne => (&[b"One thing left to begin with."], &[]),
+        Word::HomeReady => (&[b"", b" is ready for work."], &[Name]),
+        Word::HomeAgents => (&[b"Your agents run on your ", b"."], &[Name]),
+        Word::HomeForgeHere => (&[b"Forgejo runs on this machine."], &[]),
+        Word::HomeForge => (&[b"", b" holds your code."], &[Name]),
+        Word::HomeNoRepository => (&[b"", b" has no repository yet."], &[Name]),
+        Word::HomeBegin => (&[b"To begin"], &[]),
+        Word::HomeHow => (&[b"Tell temper how you work"], &[]),
+        Word::HomeHowDetail => (&[b"In your own words: how you plan, review and land work. temper proposes how it will run that, and nothing changes until you accept."], &[]),
+        Word::HomeStart => (&[b"Start"], &[]),
+        Word::HomeIn => (&[b"", b"/", b" is in ", b""], &[Name, Name, Name]),
+        Word::HomeInDetail => (&[b"temper can change its code now; checked changes land on main through temper's merge queue."], &[]),
+        Word::HomeAdopting => (&[b"Adopting ", b"/", b" into ", b""], &[Name, Name, Name]),
+        Word::HomeAdoptingDetail => (&[b"Chats can change its code once it is in."], &[]),
+        Word::HomeOffer => (&[b"", b"/", b", made on your Forgejo at set up, is in no project yet. Until one is in, chats talk and plan but change no code."], &[Name, Name]),
+        Word::HomeAdopt => (&[b"Adopt ", b"/", b""], &[Name, Name]),
+        Word::HomeAnother => (&[b"Adopt another\xe2\x80\xa6"], &[]),
+        Word::HomeGitHub => (&[b"temper\xe2\x80\x99s App reaches its repositories on ", b". Until one is in, chats talk and plan but change no code."], &[Name]),
+        Word::HomeNone => (&[b"Until one is in, chats talk and plan but change no code."], &[]),
+        Word::HomeChat => (&[b"Start a chat"], &[]),
+        Word::HomeChatDetail => (&[b"Ask a question or ask for a change."], &[]),
+        Word::HomeNewChat => (&[b"New chat"], &[]),
+        Word::HomeConnected => (&[b"Connected"], &[]),
+        Word::HomeLogin => (&[b" \xc2\xb7 connected as ", b""], &[Name]),
+        Word::HomeRepository => (&[b" \xc2\xb7 ", b"/", b", in ", b""], &[Name, Name, Name]),
+        Word::HomeModel => (&[b" \xc2\xb7 ", b""], &[Name]),
+        Word::HomeProject => (&[b"Project ", b""], &[Name]),
+        Word::HomeProjectRepository => (&[b" \xc2\xb7 ", b"/", b""], &[Name, Name]),
+        Word::HomeProjectNone => (&[b" \xc2\xb7 no repository yet"], &[]),
+        Word::HomeAdoptLink => (&[b"Adopt"], &[]),
+        Word::HomeDayTime => (&[b"", b" \xc2\xb7 ", b""], &[Name, Name]),
+        Word::HomeDone => (&[b"Done. "], &[]),
+        Word::HomeNumber => (&[b"", b". "], &[Number]),
         Word::PublicUnknown => (&[b"Not public, or not here."], &[]),
         Word::PublicUnavailable => (&[b"Not available just now."], &[]),
         Word::ReadPublic => (&[b"Read public projects"], &[]),
@@ -2429,11 +2627,18 @@ fn english(word: Word, shell: Shell) -> (&'static [&'static [u8]], &'static [Hol
         Word::ConnectManagedWeb => (&[b"Its web address"], &[]),
         Word::Rename => (&[b"Rename"], &[]),
         Word::RenameProject => (&[b"Rename ", b""], &[Name]),
+        Word::SwitcherRepository => (&[b"", b"/", b""], &[Name, Name]),
+        Word::SwitcherSeveral => (&[b"", b"/", b" +", b""], &[Name, Name, Number]),
+        Word::SwitcherMore => (&[b" +", b""], &[Number]),
+        Word::SwitcherNone => (&[b"no repository"], &[]),
+        Word::SwitcherRow => (&[b"", b" \xc2\xb7 ", b""], &[Name, Name]),
         Word::Save => (&[b"Save"], &[]),
         Word::NewProject => (&[b"New project"], &[]),
         Word::NewProjectPlaceholder => (&[b"+ New project"], &[]),
         Word::CreateProject => (&[b"Create"], &[]),
         Word::NoProjectYet => (&[b"No project yet"], &[]),
+        Word::SettingsFor => (&[b"Settings for ", b""], &[Name]),
+        Word::ProjectNotYours => (&[b"Project ", b" is not one of yours."], &[Number]),
         Word::NoProjectLine => (&[b"Make one from the project switcher."], &[]),
         Word::ModelKeyDescription => (&[b"From ", b"\xe2\x80\x99s platform, under API keys. What temper\xe2\x80\x99s agents use is billed to the key\xe2\x80\x99s organization."], &[Name]),
         Word::ModelKeyField => (&[b"Key (pasted once)"], &[]),
@@ -2473,10 +2678,11 @@ fn english(word: Word, shell: Shell) -> (&'static [&'static [u8]], &'static [Hol
         Word::WelcomeForgejoNothingDetail => (&[b"Your first project opens with no repository. Make or copy one later from temper\xe2\x80\x99s UI, or adopt one you push yourself."], &[]),
         Word::WelcomeForgejoNotYet => (&[b"Not available yet: for now, Forgejo starts with an empty repository."], &[]),
         Word::WelcomeForgejoName => (&[b"Name"], &[]),
+        Word::WelcomeReadyRepositoryLead => (&[b"Everything is connected. Create your first project, with ", b" in it, and start working."], &[Name]),
         Word::WelcomeReadyLead => (&[b"Everything is connected. Create your first project and start working."], &[]),
         Word::WelcomeCreateProject => (&[b"Create your project"], &[]),
         Word::WelcomeRenameLater => (&[b"Rename it whenever you like."], &[]),
-        Word::WelcomeDefaultUnnamed => (&[b"A name for it: Default, or one of yours."], &[]),
+        Word::WelcomeDefaultUnnamed => (&[b"A name for it: ", b", or one of yours."], &[Name]),
         Word::WelcomePlanAccount => (&[b"", b" plan"], &[Name]),
         Word::WelcomeContinue => (&[b"Continue"], &[]),
         Word::WelcomeModelPlan => {
@@ -2487,6 +2693,11 @@ fn english(word: Word, shell: Shell) -> (&'static [&'static [u8]], &'static [Hol
             &[Name],
         ),
         Word::BrandChats => (&[b"temper chats"], &[]),
+        Word::BrandHome => (&[b"temper home"], &[]),
+        Word::RailHome => (&[b"Home"], &[]),
+        Word::NeedsYouCount => (&[b"Needs you ", b""], &[Number]),
+        Word::RailSettings => (&[b"Settings"], &[]),
+        Word::Sections => (&[b"Sections"], &[]),
         Word::ForgeHereVersionDetails => (&[b"temper box downloads Forgejo ", b" and its runner, starts them, and makes your first repository, with a README and a CI workflow. No restart."], &[Name]),
         Word::ForgeFetchVersions => (&[b"Fetching Forgejo ", b" and its runner ", b""], &[Name, Name]),
         Word::ForgeFetchedVersions => (&[b"Fetched Forgejo ", b" and its runner ", b""], &[Name, Name]),

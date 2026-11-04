@@ -19,6 +19,7 @@ fn a_terminal_sign_in_returns_to_the_real_listener() {
             sign_in(D1),
             call(D1, argv!["me", "--json"]),
             terminal::open(),
+            terminal::type_on(b"Settings", b""),
             terminal::type_on(b"Accounts", b""),
             terminal::see(b"Connect a model"),
             terminal::type_on(b"Connect a model", b""),

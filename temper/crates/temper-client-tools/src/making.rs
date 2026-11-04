@@ -400,6 +400,7 @@ fn finish(called: Called, printed: jig::Printed, out: &mut Queue<Out>) {
     out.push(Out::Printed { number: called.number, printed });
 }
 
+#[expect(clippy::too_many_lines, reason = "the reply enumerates every forge outcome at this boundary")]
 fn answer(pending: &Pending, outcome: &Outcome, json: bool, limits: &Limits) -> jig::Printed {
     let kept = pending.called.is_none();
     let row = match pending.make.from() {
@@ -439,6 +440,7 @@ fn answer(pending: &Pending, outcome: &Outcome, json: bool, limits: &Limits) -> 
         }
         Some(
             w::Outcome::Unknown
+            | w::Outcome::Dismissed
             | w::Outcome::Adopted(_)
             | w::Outcome::CoreRefused(_)
             | w::Outcome::ForgeRefused(_)

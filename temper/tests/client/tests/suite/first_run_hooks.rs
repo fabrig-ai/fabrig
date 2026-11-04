@@ -130,6 +130,7 @@ fn fifth_setup_step_fails_on_welcome_and_forges() {
     // Model remains available, and the brand opens Chats; Forges exposes the failed setup's retry.
     assert!(!named(Temper::tree(&draw(&root)), Role::Link, b"Later"));
     press(&mut front, &mut root, Role::Link, b"temper chats");
+    press(&mut front, &mut root, Role::Link, b"Settings");
     press(&mut front, &mut root, Role::Link, b"Forges");
     let view = draw(&root);
     assert!(named(Temper::tree(&view), Role::Button, b"Set up again"), "{}", words(Temper::tree(&view)));
