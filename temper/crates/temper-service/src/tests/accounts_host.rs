@@ -1158,3 +1158,29 @@ fn a_restored_sources_other_kind_fails_the_read() {
         assert!(accounts.component().is_empty());
     }
 }
+
+#[test]
+fn a_restored_sources_other_kind_stops_the_engine() {
+    const SOURCE: u32 = 7;
+    for (kind, value) in [
+        (domain::Kind::Key, store::SecretValue::Record(Secret::new(b"record".as_slice().into()))),
+        (domain::Kind::SignIn, store::SecretValue::Key(Secret::new(b"key".as_slice().into()))),
+    ] {
+        let mut service = fixtures::ready();
+        let engine = service.engine.as_mut().expect("engine");
+        let mut accounts = engine.accounts.take().expect("accounts");
+        engine.store.secrets(
+            Token::new(123),
+            store::Secrets::Keep { owner: store::SecretOwner::Source, number: u64::from(SOURCE), value },
+        );
+        accounts.request(domain::Request::Signing(domain::Signing::Restore { source: SOURCE, provider: 1, kind }));
+        let mut events = Queue::uncapped();
+        for _ in 0_u32..4 {
+            pass(&mut accounts, engine, &mut events);
+        }
+        crate::engine::answer(engine);
+        let mut expected = config::Problems::empty();
+        expected.push(config::Path::root().member(b"accounts secrets"), config::What::Refers);
+        assert_eq!(engine.end, Some(crate::End::Stopped(crate::Stop::Start(expected))), "{kind:?}");
+    }
+}
