@@ -5,9 +5,3 @@
 temper/docs/development/qa.md 3
 temper/docs/development/reference-walks.md 1
 temper/docs/development/v0.1.0-ladder.md 2
-tools/tiers/cpu-run 1
-tools/tiers/cpu.py 2
-tools/tiers/design.md 3
-tools/tiers/run 1
-tools/tiers/test_cpu.py 5
-tools/tiers/test_run.py 2
