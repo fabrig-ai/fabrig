@@ -932,6 +932,7 @@ pub(crate) fn resume_routed(domain: &mut Domain, env: &Env<Limits>, out: &mut Qu
         }
         if !domain.settling.active()
             && within_budget(domain, &env.limits)
+            && !domain.archive_reads.is_full()
             && let Some(context) = domain.core.take_due()
         {
             domain.work.push(Work::Activate(context));

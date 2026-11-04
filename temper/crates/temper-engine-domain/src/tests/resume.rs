@@ -896,3 +896,57 @@ fn start_phases(domain: &Domain) -> List<jig_domain_core::start::Phase> {
     }
     phases
 }
+
+#[test]
+fn a_full_archive_read_table_keeps_an_activation_due_until_a_read_retires() {
+    use jig_domain_core as core;
+    use jig_domain_tasks as tasks;
+
+    let (mut domain, env, task) = super::live_task(None, tasks::Executor::Procedure { connector: 0, code: 1 });
+    crate::try_step(&mut domain, &env, Event::Resume).unwrap();
+    let mut out = Queue::uncapped();
+    crate::release(&mut domain, &env, &mut out);
+    let Some(Request::Store(crate::StoreRequest::Commit { number, .. })) = out.pop() else {
+        panic!("fixture task counter commit");
+    };
+    crate::try_step(&mut domain, &env, Event::Store(StoreInput::Committed { number, fill: 0 })).unwrap();
+    let commits = domain.deployment().commits;
+    let context = domain.core.tasks.run_context(task).unwrap();
+    let requests = core::step(
+        &mut domain.core,
+        &crate::limits::environment_core(&env),
+        core::Event::Activate { context, ready: false },
+    );
+    assert!(requests.is_empty());
+    assert!(domain.core.due_ready(), "the fixture has an eligible activation");
+    let mut waiter = None;
+    for _ in 0..domain.archive_reads.capacity() {
+        waiter = Some(domain.archive_reads.insert(Some(crate::boundary::Read::Transcript { task })).unwrap().token());
+    }
+    assert!(domain.archive_reads.is_full());
+    crate::try_step(&mut domain, &env, Event::Resume).unwrap();
+    assert!(domain.core.due_ready(), "Resume must leave the activation in the due set while reads are full");
+    assert_eq!(domain.tasks().task(task).unwrap().phase, tasks::Phase::Active(tasks::Active::Due));
+    assert_eq!(domain.deployment().commits, commits);
+    crate::release(&mut domain, &env, &mut out);
+    assert!(out.is_empty(), "a full read table starts no activation");
+
+    crate::archive::retire_read(&mut domain, waiter.expect("the read table has slots"));
+    domain.reclaim();
+    crate::try_step(&mut domain, &env, Event::Resume).unwrap();
+    assert!(!domain.core.due_ready(), "Resume takes the waiting activation after a read slot returns");
+    crate::release(&mut domain, &env, &mut out);
+    crate::release(&mut domain, &env, &mut out);
+    let activated_request = out.pop();
+    let Some(Request::Worker(crate::WorkerRequest::Deliver(crate::Delivery::Procedure {
+        task: activated,
+        step: 1,
+        connector: 0,
+        code: 1,
+    }))) = activated_request
+    else {
+        panic!("the waiting procedure activates: {activated_request:?}, {out:?}");
+    };
+    assert_eq!(activated, task);
+    assert!(out.is_empty());
+}

@@ -42,7 +42,7 @@ use crate::{
             payloads::{route_answer_payload, route_turn_payload},
             preparation::{
                 brief_assembled, plan_brief, route_activate, route_claim_prepared, route_claim_refused,
-                route_preparation_failed, route_prepared_agent, start_brief, workspace_prepared,
+                route_preparation_failed, start_brief, workspace_prepared,
             },
         },
         task::{route_connector_repair, route_tasks, tag_task_outputs},
@@ -586,9 +586,6 @@ fn step_one(core: &mut Core, env: &Env<Limits>, event: Event, work: &mut Queue<W
             route_refused_payload(core, work, request, problem, payload)
         }
         Event::Activate { context, ready } => route_activate(core, env, work, context, ready),
-        Event::PreparedAgent { context, transcript_waiter, busy } => {
-            route_prepared_agent(core, work, context, transcript_waiter, busy)
-        }
         Event::EndedReadLoaded { request, task, party, through, busy } => {
             ended_marks::loaded(core, env, work, ended_marks::Answer { request, task, party, through, busy })
         }

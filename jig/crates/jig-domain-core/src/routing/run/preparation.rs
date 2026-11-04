@@ -501,40 +501,34 @@ pub(crate) fn route_prepared_agent(
     core: &mut Core,
     work: &mut Queue<Work>,
     context: Box<tasks::RunContext>,
-    transcript_waiter: Option<Token>,
-    busy: bool,
 ) -> Queue<Request> {
     let mut out = Queue::uncapped();
     let Some(row) = core.tasks.task(context.task) else { return out };
     if row.phase != tasks::Phase::Active(tasks::Active::Due) {
         return out;
     }
-    if busy {
-        remember_due(core, context);
+    let number = context.task;
+    if let Some((token, _)) = core.workspace_flight(number) {
+        drop(core.land_kind(token, crate::routing::flight::Kind::Workspace));
+    }
+    let previous_attempt = context.previous_attempt;
+    let fresh = context.tries.transient != 0;
+    super::results::clear(core, number);
+    assert!(core.contexts.insert(number, context).is_ok(), "bounded activation context");
+    core.begin_transcript(number, previous_attempt);
+    let transcript = core.transcripts.get_mut(&number).expect("begun transcript");
+    if fresh && !transcript.closed {
+        transcript.window = None;
+    }
+    work.push(Work::Event(Event::Tasks(tasks::Event::Prepare {
+        reply_to: ReplyTo::new(core.internal(crate::routing::flight::Internal::Acknowledge)),
+        task: number,
+    })));
+    let from = core.transcripts.get(&number).expect("begun transcript").window;
+    if let Some(from) = from {
+        out.push(Request::Now(Box::new(Now::StartPreparation { task: number, from })));
     } else {
-        let number = context.task;
-        if let Some((token, _)) = core.workspace_flight(number) {
-            drop(core.land_kind(token, crate::routing::flight::Kind::Workspace));
-        }
-        let previous_attempt = context.previous_attempt;
-        let fresh = context.tries.transient != 0;
-        super::results::clear(core, number);
-        assert!(core.contexts.insert(number, context).is_ok(), "bounded activation context");
-        core.begin_transcript(number, previous_attempt);
-        let transcript = core.transcripts.get_mut(&number).expect("begun transcript");
-        if fresh && !transcript.closed {
-            transcript.window = None;
-        }
-        work.push(Work::Event(Event::Tasks(tasks::Event::Prepare {
-            reply_to: ReplyTo::new(core.internal(crate::routing::flight::Internal::Acknowledge)),
-            task: number,
-        })));
-        let from = core.transcripts.get(&number).expect("begun transcript").window;
-        if from.is_some() {
-            out.push(Request::Now(Box::new(Now::StartPreparation { task: number, transcript_waiter, from })));
-        } else {
-            work.push(Work::StartBrief { task: number });
-        }
+        work.push(Work::StartBrief { task: number });
     }
     out
 }
@@ -579,19 +573,7 @@ pub(crate) fn route_activate(
             }
             tasks::Executor::Agent { .. } => match core.run_admission(&context, env.wall, Box::new([])) {
                 crate::RunAdmission::Allow(_) => {
-                    let load_transcript = match core.proofs.get(&number) {
-                        Some(proof) => {
-                            proof.window.is_some()
-                                && (context.tries.transient == 0
-                                    || proof.crossed
-                                    || match proof.window {
-                                        Some(window) => window.closed,
-                                        None => false,
-                                    })
-                        }
-                        None => false,
-                    };
-                    out.push(Request::Now(Box::new(Now::PrepareAgent { context, load_transcript })));
+                    return route_prepared_agent(core, work, context);
                 }
                 crate::RunAdmission::Wait(_) => remember_due(core, context),
                 crate::RunAdmission::Hold(why) => {

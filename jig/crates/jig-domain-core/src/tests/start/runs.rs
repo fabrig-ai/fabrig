@@ -1,6 +1,6 @@
 //! Adoption fits and opening use the same state (domain/engine.md, 6, 8).
 use crate::{
-    CoreRecord, Event, Now, RunProof, fleet, people,
+    CoreRecord, Event, RunProof, fleet, people,
     start::{Continuation, LiveSet},
     tests::start::{
         Action, Core, Env, Failure, Key, Phase, Queue, Request, SweepInput, Time, Wall, config, step_phase, tasks,
@@ -192,8 +192,8 @@ fn due_agent_preparation_waits_until_open() {
     open(&mut core, &env, &mut out);
     let context = core.take_due().expect("next Resume takes due agent");
     assert_eq!(context.task, DUE);
-    let mut after = crate::step(&mut core, &env, Event::Activate { context, ready: true });
-    let Some(Request::Now(request)) = after.pop() else { panic!("agent preparation request") };
-    let Now::PrepareAgent { context, .. } = *request else { panic!("due agent begins preparation") };
-    assert_eq!(context.task, DUE);
+    let after = crate::step(&mut core, &env, Event::Activate { context, ready: true });
+    assert_eq!(core.tasks.task(DUE).unwrap().phase, tasks::Phase::Active(tasks::Active::Preparing));
+    assert!(core.contexts.contains_key(&DUE));
+    assert!(!after.is_empty(), "due agent begins its brief");
 }

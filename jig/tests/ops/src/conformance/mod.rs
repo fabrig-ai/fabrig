@@ -729,7 +729,7 @@ impl Application for Ops {
             }
             root::Output::CoreLoad(core::Now::StartPreparation { task, from, .. }) => {
                 let records = observations::core_store(store).rows;
-                let rows = match jig_conformance::core::peers::transcript(&records, task, from) {
+                let rows = match jig_conformance::core::peers::transcript(&records, task, Some(from)) {
                     Ok(rows) => rows,
                     Err(event) => return vec![Input::Event(root::Event::Core(*event))],
                 };

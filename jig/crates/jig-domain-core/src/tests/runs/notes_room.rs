@@ -32,7 +32,7 @@ fn ready() -> (Core, Limits) {
 
 fn prepare(core: &mut Core, limits: &Limits, task: u64) -> Box<[Request]> {
     let context = core.tasks.run_context(task).expect("live task");
-    watch_outputs(core, limits, Event::PreparedAgent { context, transcript_waiter: None, busy: false })
+    watch_outputs(core, limits, Event::Activate { context, ready: true })
 }
 
 fn load(out: &[Request]) -> Option<Token> {
@@ -46,15 +46,8 @@ fn load(out: &[Request]) -> Option<Token> {
     None
 }
 
-fn prepares(out: &[Request]) -> bool {
-    for request in out {
-        if let Request::Now(now) = request
-            && let Now::PrepareAgent { .. } = now.as_ref()
-        {
-            return true;
-        }
-    }
-    false
+fn prepares(core: &Core, task: u64) -> bool {
+    core.tasks.task(task).unwrap().phase == tasks::Phase::Active(tasks::Active::Preparing)
 }
 
 #[test]
@@ -70,8 +63,8 @@ fn a_due_agent_waits_for_take_due_and_person_templates_and_stopping_stay_out() {
     let context = core.take_due().expect("the root takes the waiting agent");
     assert_eq!(context.task, FIRST);
     assert!(core.due.is_empty());
-    let out = watch_outputs(&mut core, &limits, Event::Activate { context, ready: true });
-    assert!(prepares(&out));
+    let _out = watch_outputs(&mut core, &limits, Event::Activate { context, ready: true });
+    assert!(prepares(&core, FIRST));
 
     let mut person = core.tasks.run_context(SECOND).expect("context for person activation");
     person.executor = tasks::Executor::Person(tasks::PersonAddress::Person(1));
@@ -155,7 +148,7 @@ fn refused_notes_room_returns_due_without_a_replacement_load() {
     let runs = core.counters.deployment().runs;
     let out = failed(&mut core, &limits, owner);
     assert!(load(&out).is_none());
-    assert!(!prepares(&out));
+    assert!(!prepares(&core, FIRST));
     let row = core.tasks.task(FIRST).expect("deferred task");
     assert_eq!(before.phase, tasks::Phase::Active(tasks::Active::Preparing));
     assert_eq!(row.phase, tasks::Phase::Active(tasks::Active::Due));
@@ -177,8 +170,7 @@ fn a_later_due_activation_prepares_the_refused_brief_again() {
     failed(&mut core, &limits, owner);
     let context = core.take_due().expect("the ready host makes the deferred task eligible");
     let out = watch_outputs(&mut core, &limits, Event::Activate { context, ready: true });
-    assert!(prepares(&out));
-    let out = prepare(&mut core, &limits, FIRST);
+    assert!(prepares(&core, FIRST));
     let mut owner = load(&out).expect("later preparation issues a fresh load");
     let row = core.tasks.task(FIRST).expect("preparing again");
     assert_eq!(row.phase, tasks::Phase::Active(tasks::Active::Preparing));
@@ -214,12 +206,12 @@ fn a_busy_notes_operation_still_releases_its_waiting_brief() {
 #[test]
 fn ordinary_preparation_waiting_keeps_the_task_due() {
     let (mut core, limits, _) = preparing();
-    let out = watch_outputs(&mut core, &limits, Event::Tasks(tasks::Event::PreparationWaiting { task: FIRST }));
-    assert!(!prepares(&out));
+    let _out = watch_outputs(&mut core, &limits, Event::Tasks(tasks::Event::PreparationWaiting { task: FIRST }));
+    assert!(!prepares(&core, FIRST));
     let context = core.take_due().expect("ordinary preparation waiting keeps a due task");
     assert_eq!(context.task, FIRST);
-    let out = watch_outputs(&mut core, &limits, Event::Activate { context, ready: true });
-    assert!(prepares(&out));
+    let _out = watch_outputs(&mut core, &limits, Event::Activate { context, ready: true });
+    assert!(prepares(&core, FIRST));
 }
 
 #[test]
@@ -263,19 +255,21 @@ fn preparation_with_a_transcript_requests_one_load_then_reaches_the_brief() {
     let mut proof = RunProof::claimed(FIRST, 1, 1, None, fleet::HostKind::Worker);
     proof.window = Some(CurrentWindow { attempt: 1, turn: 1, closed: false });
     core.proofs.insert(FIRST, proof).unwrap();
-    let mut context = core.tasks.run_context(FIRST).unwrap();
-    context.previous_attempt = 1;
-    let out = watch_outputs(
-        &mut core,
-        &limits,
-        Event::PreparedAgent { context, transcript_waiter: Some(Token::new(FIRST)), busy: false },
-    );
+    let mut row = core.tasks.task(FIRST).unwrap().clone();
+    row.attempt = 1;
+    let ledger = *core.tasks.funding(row.funder).unwrap();
+    fixtures::restore(&mut core, &limits, Box::new([row]));
+    send_task(&mut core, &limits, tasks::Event::Restore { record: tasks::Stored::Ledger(ledger) });
+    send_task(&mut core, &limits, tasks::Event::Check);
+    send_task(&mut core, &limits, tasks::Event::Restored);
+    let context = core.tasks.run_context(FIRST).unwrap();
+    let out = watch_outputs(&mut core, &limits, Event::Activate { context, ready: true });
     let mut loads = 0_u32;
     for request in out {
         match request {
             Request::Write(_) => {}
             Request::Now(now) => {
-                let Now::StartPreparation { task: FIRST, from: Some((1, 1)), .. } = *now else {
+                let Now::StartPreparation { task: FIRST, from: (1, 1), .. } = *now else {
                     panic!("only the transcript load leaves preparation");
                 };
                 loads += 1;

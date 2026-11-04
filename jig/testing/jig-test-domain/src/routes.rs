@@ -8,7 +8,7 @@ use jig_domain_core as core;
 use jig_domain_people as people;
 use jig_domain_tasks as tasks;
 use jig_test_connector as connector;
-use skein_lib::{Decision, Env, List, Queue, Token};
+use skein_lib::{Decision, Env, List, Queue};
 
 mod brief;
 mod workspace;
@@ -423,10 +423,6 @@ fn route_now(
             drop(domain.hub_link.take_payload(message.words));
         }
 
-        core::Now::PrepareAgent { context, load_transcript } => {
-            let transcript_waiter = if load_transcript { Some(Token::new(context.task)) } else { None };
-            work.push(Work::Core(core::Event::PreparedAgent { context, transcript_waiter, busy: false }));
-        }
         value @ core::Now::StartPreparation { .. } => {
             domain.now.push(crate::Request::Now(value));
         }
@@ -1217,7 +1213,7 @@ mod tests {
             &mut requests,
         );
         assert!(requests.is_empty());
-        let owner = Token::new(900);
+        let owner = skein_lib::Token::new(900);
         let edits = [
             core::settings::application::RestoredEdit::Set { revision: 7 },
             core::settings::application::RestoredEdit::Remove,
