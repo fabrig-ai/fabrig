@@ -191,7 +191,8 @@ impl Host {
                 | Request::First(_)
                 | Request::Fact { .. }
                 | Request::Show { .. }
-                | Request::Client { .. } => {}
+                | Request::Client { .. }
+                | Request::Unlinked { .. } => {}
             }
         }
         root::take(&mut self.root, &self.env, &mut self.out);

@@ -31,8 +31,8 @@ fn opened() -> (Domain, Token) {
         event(&mut root, Up::Watched { watch, event: c::WatchEvent::Delivered(c::Delivery::Task(Box::new(task))) });
     let mut family = None;
     while let Some(request) = out.pop() {
-        if let Request::Client {
-            request: jig_client::Request::Down { down: Down::Open { watch, subject: Watchable::Family { .. } } },
+        if let Request::Unlinked {
+            request: jig_client::UnlinkedRequest::Down { down: Down::Open { watch, subject: Watchable::Family { .. } } },
         } = request
         {
             assert!(family.is_none());

@@ -1,6 +1,6 @@
 # The playground world's native heap
 
-Measured 2026-11-03 (`date -u +%F`), on `hetzner9` (`hostname`), at commit
+Measured 2026-11-03 (`date -u +%F`), on a builder, at commit
 `79d1b7c27b20bce64fcc5e6b3e75c3db3732948e`. These are native counting-allocator
 bytes, not browser memory or resident size. No memory ceiling is set here;
 [playground.md, sections 8 and 11](../design/playground.md) leave that bar to the user.
@@ -11,8 +11,8 @@ From the repository root, with seed 7, the epoch wall clock, calm simulator,
 and trace off:
 
 ```sh
-heavy cargo nextest run -p temper-playground-world --test memory --run-ignored only --no-capture </dev/null
-heavy cargo nextest run -p temper-one-process-world --test memory --run-ignored only --no-capture </dev/null
+cargo nextest run -p temper-playground-world --test memory --run-ignored only --no-capture </dev/null
+cargo nextest run -p temper-one-process-world --test memory --run-ignored only --no-capture </dev/null
 ```
 
 The playground measurement passes. The first step is one world step, including

@@ -27,9 +27,9 @@ pub(super) fn ready() -> Domain {
     let watch = rows
         .iter()
         .find_map(|row| match row {
-            Request::Client {
+            Request::Unlinked {
                 request:
-                    jig_client::Request::Down {
+                    jig_client::UnlinkedRequest::Down {
                         down: jig_client::Down::Open { watch, subject: jig_client::Watchable::Jig(Subject::Me) },
                     },
             } => Some(*watch),
@@ -145,9 +145,9 @@ fn load(root: &mut Domain, task: Task) -> Vec<Request> {
     let watch = opened
         .iter()
         .find_map(|row| match row {
-            Request::Client {
+            Request::Unlinked {
                 request:
-                    jig_client::Request::Down {
+                    jig_client::UnlinkedRequest::Down {
                         down:
                             jig_client::Down::Open { watch, subject: jig_client::Watchable::Jig(Subject::Task { .. }) },
                     },

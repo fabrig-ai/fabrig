@@ -6,9 +6,9 @@
 pub struct Limits {
     pub nodes: u32,
     pub depth: u32,
-    /// Name, description, placeholder, runs, field value and external target together on a node.
+    /// Name, description, placeholder, image address, runs, field value and external target together on a node.
     pub text_per_node: u32,
-    /// Name, description, placeholder, runs, field value and external target together across the tree.
+    /// Name, description, placeholder, image address, runs, field value and external target together across the tree.
     pub text_bytes: u32,
     pub drawing_bytes: u32,
     pub styles_per_node: u32,
@@ -18,6 +18,25 @@ pub struct Limits {
     pub markdown_depth: u32,
     pub scene_marks: u32,
     pub scene_bytes: u32,
+}
+
+impl Limits {
+    /// No capacity: an empty tree without scenes. A caller sets over it
+    /// the fields it means (ui.md, section 15).
+    pub const EMPTY: Self = Self {
+        nodes: 0,
+        depth: 0,
+        text_per_node: 0,
+        text_bytes: 0,
+        drawing_bytes: 0,
+        styles_per_node: 0,
+        patches: 0,
+        bindings: 0,
+        slots: 0,
+        markdown_depth: 0,
+        scene_marks: 0,
+        scene_bytes: 0,
+    };
 }
 
 /// Whether these limits are representable: every edge bound they size is finite

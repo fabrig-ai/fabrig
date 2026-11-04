@@ -40,12 +40,29 @@ pub enum Fact {
 }
 #[derive(Debug, PartialEq, Eq)]
 pub enum Request {
-    Save { record: Record },
-    Erase { key: Key },
-    Client { request: jig_client::Request },
+    Save {
+        record: Record,
+    },
+    Erase {
+        key: Key,
+    },
+    Client {
+        request: jig_client::Request,
+    },
+    /// What the unlinked client asks (jig/docs/design/client/domain/client.md, 4.4).
+    Unlinked {
+        request: jig_client::UnlinkedRequest,
+    },
     First(first::Out),
-    Show { address: Address, replace: bool },
-    SignIn { provider: u16 },
+    Show {
+        address: Address,
+        replace: bool,
+    },
+    SignIn {
+        provider: u16,
+    },
     SignOut,
-    Fact { fact: Fact },
+    Fact {
+        fact: Fact,
+    },
 }

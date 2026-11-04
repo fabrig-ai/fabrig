@@ -737,8 +737,8 @@ fn replacement_answer(outcome: w::Outcome) -> d::Domain {
     );
     let mut attempt = None;
     while let Some(request) = out.pop() {
-        if let d::Request::Client {
-            request: jig_client::Request::Down { down: jig_client::Down::Send { attempt: token, .. } },
+        if let d::Request::Unlinked {
+            request: jig_client::UnlinkedRequest::Down { down: jig_client::Down::Send { attempt: token, .. } },
         } = request
         {
             attempt = Some(token);

@@ -159,7 +159,6 @@ impl Connections {
             | client::Request::Told { .. }
             | client::Request::Authorized(_)
             | client::Request::ServiceCredential { .. } => {}
-            client::Request::Down { .. } | client::Request::SignOut => panic!("linked hosts emit wire work"),
         }
     }
     pub fn take(&mut self, now: Time, to_link: &mut Queue<client::Event>, below: &mut Queue<(Conn, Down)>) {

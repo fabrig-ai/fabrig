@@ -8,7 +8,7 @@ Companion to `2026-10-31-skein-first.md`. The shared rubric (`review-brief.md`) 
 
 Tree: `<clone>/skein`
 (a fresh clone of github origin/main at 337102750). Read only; do not build or run tests.
-Work from this clone only; never touch `~/src/fabrig/*`.
+Work from this clone only; never touch another checkout.
 
 ## What is being asked
 

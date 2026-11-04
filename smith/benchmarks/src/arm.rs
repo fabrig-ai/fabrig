@@ -339,7 +339,7 @@ fn build_lock(guard: &Guard, root: &Path) -> Result<fs::File, String> {
     Ok(file)
 }
 
-/// Build and archive a clean local commit, called only inside a `heavy` task.
+/// Build and archive a clean local commit, called only inside a build step.
 /// The source is read-only; every persistent destination passes the shared guard.
 pub fn build(repository: &Path, reference: &str) -> Result<Build, String> {
     let repository = repository.canonicalize().map_err(|error| error.to_string())?;

@@ -93,6 +93,10 @@ impl Member {
         self.client.step(now, wall, event, &mut self.out);
         self.drain();
     }
+    #[expect(
+        clippy::wildcard_enum_match_arm,
+        reason = "the linked member forwards every non-notification request to its native shell"
+    )]
     fn drain(&mut self) {
         while let Some(request) = self.out.pop() {
             match request {
@@ -116,14 +120,7 @@ impl Member {
                     self.phase = Phase::Ready;
                 }
                 client::Request::Told { .. } => {}
-                request @ (client::Request::Exchange { .. }
-                | client::Request::OpenStream { .. }
-                | client::Request::CloseStream
-                | client::Request::Save { .. }
-                | client::Request::Erase { .. }
-                | client::Request::Down { .. }
-                | client::Request::SignOut
-                | client::Request::Authorized(_)) => self.shell.down(request),
+                request => self.shell.down(request),
             }
         }
     }

@@ -20,6 +20,7 @@ pub enum Notice {
 #[derive(Debug)]
 pub enum Down {
     Shell(jig_client::Request),
+    Unlinked(jig_client::UnlinkedRequest),
     Duty(Duty),
     Notice(Notice),
 }
@@ -34,9 +35,10 @@ pub enum Duty {
 pub fn down(request: client::Request) -> Down {
     match request {
         client::Request::Client { request } => Down::Shell(request),
+        client::Request::Unlinked { request } => Down::Unlinked(request),
         client::Request::Show { address, replace } => Down::Duty(Duty::Show { address, replace }),
         client::Request::Leave { to, .. } => Down::Notice(Notice::Leave { to }),
-        client::Request::SignOut => Down::Duty(Duty::SignOut),
+        temper_client_domain::Request::SignOut => Down::Duty(Duty::SignOut),
         client::Request::Dropped { count } => Down::Notice(Notice::Dropped { count }),
         client::Request::Fact { fact } => Down::Duty(Duty::Fact(fact)),
     }

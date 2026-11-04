@@ -371,10 +371,11 @@ pub(super) fn sign_in_address(address: &[u8]) -> d::Domain {
     let attempt = out
         .iter()
         .find_map(|request| match request {
-            d::Request::Client {
-                request: jig_client::Request::Down { down: jig_client::Down::Send { attempt, .. } },
+            d::Request::Unlinked {
+                request: jig_client::UnlinkedRequest::Down { down: jig_client::Down::Send { attempt, .. } },
             } => Some(*attempt),
             d::Request::Client { .. }
+            | d::Request::Unlinked { .. }
             | d::Request::Show { .. }
             | d::Request::Leave { .. }
             | d::Request::SignOut
@@ -584,10 +585,11 @@ fn answer_account_operation(root: &mut d::Domain, operation: Operation, outcome:
     let attempt = out
         .iter()
         .find_map(|request| match request {
-            d::Request::Client {
-                request: jig_client::Request::Down { down: jig_client::Down::Send { attempt, .. } },
+            d::Request::Unlinked {
+                request: jig_client::UnlinkedRequest::Down { down: jig_client::Down::Send { attempt, .. } },
             } => Some(*attempt),
             d::Request::Client { .. }
+            | d::Request::Unlinked { .. }
             | d::Request::Show { .. }
             | d::Request::Leave { .. }
             | d::Request::SignOut
@@ -700,9 +702,9 @@ fn owner_root_with_accounts() -> (d::Domain, Token, Token) {
     let watch =
         out.iter()
             .find_map(|r| {
-                if let d::Request::Client {
+                if let d::Request::Unlinked {
                     request:
-                        jig_client::Request::Down {
+                        jig_client::UnlinkedRequest::Down {
                             down:
                                 jig_client::Down::Open {
                                     watch,
