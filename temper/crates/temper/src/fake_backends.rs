@@ -288,9 +288,8 @@ fn checked_peers(dirs: &Directories, bytes: &[u8]) -> Result<Peers, String> {
             .map_err(|why| refuse("oauth.json", why))?;
     let llm = temper_fake::llm::Document::decode(&peer_document(dirs, "llm.json", temper_fake::DOCUMENT_BYTES)?)
         .map_err(|why| refuse("llm.json", why))?;
-    let forgejo =
-        temper_fake::forge::Document::decode(&peer_document(dirs, "forgejo.json", temper_fake::DOCUMENT_BYTES)?)
-            .map_err(|why| refuse("forgejo.json", why))?;
+    let forgejo = source_forgejo(&peer_document(dirs, "forgejo.json", temper_fake::DOCUMENT_BYTES)?)
+        .map_err(|why| refuse("forgejo.json", why))?;
     let peers = Peers { github: github.listen(), oauth: oauth.listen(), llm: llm.listen(), forgejo: forgejo.listen() };
     for (name, listen) in [
         ("github.json", peers.github),
@@ -321,6 +320,16 @@ fn checked_peers(dirs: &Directories, bytes: &[u8]) -> Result<Peers, String> {
         }
     }
     Ok(peers)
+}
+fn source_forgejo(bytes: &[u8]) -> Result<temper_fake::forge::Document, temper_fake::Refusal> {
+    let document = temper_fake::forge::Document::decode(bytes)?;
+    if document.sources().is_empty() {
+        return Err(temper_fake::Refusal {
+            path: jig_protocol_config::Path::root().member(b"sources"),
+            words: b"missing copy sources; remove this sandbox directory explicitly to reset it",
+        });
+    }
+    Ok(document)
 }
 fn validate(dirs: &Directories, bytes: &[u8], expected: &Path) -> Result<(), String> {
     let deployment = crate::setup::check(bytes, &dirs.jig())?;
@@ -399,10 +408,12 @@ fn print(dirs: &Directories, peers: &Peers, binary: &Path) {
     eprintln!("box: effective configuration {}", crate::path(&dirs.config).display());
     eprintln!("box: effective data {}", crate::path(&dirs.data).display());
     eprintln!("box: effective cache {}", crate::path(&dirs.cache).display());
-    for (name, address) in
-        [("github", peers.github), ("issuer", peers.oauth), ("model", peers.llm), ("forgejo", peers.forgejo)]
-    {
-        eprintln!("box: fake {name} http://{address}");
+    let forgejo = temper_fake::forge::Document::decode(
+        &peer_document(dirs, "forgejo.json", temper_fake::DOCUMENT_BYTES).expect("validated forgejo document"),
+    )
+    .expect("validated forgejo document");
+    for line in peer_lines(peers, &forgejo) {
+        eprintln!("{line}");
     }
     // Retained peer documents may select another key file under effective data.
     let model = temper_fake::llm::Document::decode(
@@ -416,6 +427,18 @@ fn print(dirs: &Directories, peers: &Peers, binary: &Path) {
     );
     eprintln!("box: program login: {}", program_login_line(dirs, binary));
     eprintln!("box: GitHub own App id 1, key file {}", crate::path(&dirs.data).join("github-app.pem").display());
+}
+fn peer_lines(peers: &Peers, forgejo: &temper_fake::forge::Document) -> Vec<String> {
+    let mut lines = Vec::new();
+    for (name, address) in
+        [("github", peers.github), ("issuer", peers.oauth), ("model", peers.llm), ("forgejo", peers.forgejo)]
+    {
+        lines.push(format!("box: fake {name} http://{address}"));
+    }
+    for source in forgejo.sources() {
+        lines.push(format!("box: copy source {}", String::from_utf8_lossy(&source.address)));
+    }
+    lines
 }
 fn program_login_line(dirs: &Directories, binary: &Path) -> String {
     use std::fmt::Write;
@@ -593,3 +616,67 @@ fn prepare(source_dirs: &Directories, bundle: Option<&Path>, adapter: &Path) -> 
 }
 #[cfg(test)]
 mod tests;
+
+#[cfg(test)]
+mod source_lines_tests {
+    use super::{Peers, peer_lines, source_forgejo};
+    use serde_json::{Value, json};
+
+    fn fixture() -> Value {
+        let mut value = json!({
+            "listen":{"socket":"127.0.0.1:9104"},"admin_token":"/fixture/admin.token","owner":"person",
+            "repositories":[{"name":"existing","landing":"main","ci":null}],
+            "sources":[]
+        });
+        value["sources"] = ["widget", "gadget"]
+            .iter()
+            .map(|name| {
+                json!({
+                    "address":format!("https://code.example.invalid/acme/{name}"),
+                    "repository":{"owner":"acme","name":name,"landing":"main","tree":[]}
+                })
+            })
+            .collect();
+        value
+    }
+
+    #[test]
+    fn copy_sources_follow_forgejo_once_in_document_order() {
+        let peers = Peers {
+            github: "127.0.0.1:9101".parse().expect("peer"),
+            oauth: "127.0.0.1:9102".parse().expect("peer"),
+            llm: "127.0.0.1:9103".parse().expect("peer"),
+            forgejo: "127.0.0.1:9104".parse().expect("peer"),
+        };
+        let document = source_forgejo(&serde_json::to_vec(&fixture()).expect("fixture JSON")).expect("source document");
+        assert_eq!(
+            peer_lines(&peers, &document),
+            [
+                "box: fake github http://127.0.0.1:9101",
+                "box: fake issuer http://127.0.0.1:9102",
+                "box: fake model http://127.0.0.1:9103",
+                "box: fake forgejo http://127.0.0.1:9104",
+                "box: copy source https://code.example.invalid/acme/widget",
+                "box: copy source https://code.example.invalid/acme/gadget",
+            ]
+        );
+    }
+
+    #[test]
+    fn retained_forgejo_without_copy_sources_requires_reset() {
+        let mut value = fixture();
+        value.as_object_mut().expect("document object").remove("sources");
+        for sources in [None, Some(json!([]))] {
+            if let Some(sources) = sources {
+                value["sources"] = sources;
+            }
+            assert_eq!(
+                source_forgejo(&serde_json::to_vec(&value).expect("fixture JSON"))
+                    .expect_err("missing sources refused")
+                    .line()
+                    .as_ref(),
+                b"sources: missing copy sources; remove this sandbox directory explicitly to reset it\n"
+            );
+        }
+    }
+}
