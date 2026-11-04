@@ -1,3 +1,56 @@
 draft = "debt-13"
 repo = "fabrig"
 sources = ["temper/docs/plan/debt-13/inputs/request.md", "skein/docs/development/debt/D013-forge-connection-parallel-lists.md", "jig/docs/development/debt/D004-ops-root-jig-wiring.md"]
+
+# plan.md says what was decided and why.
+
+[buffer]
+low = 1.0
+high = 2.0
+
+[[part]]
+id = "forge-tail"
+title = "forge-connection's log tail stands on lib's Tail"
+mode = "direct"
+needs = []
+design = "skein/docs/design/forge-connection.md, 4.5"
+
+[[part]]
+id = "forge-entry"
+title = "one entry per forge, each step handed its entry, the dialect known from it"
+mode = "direct"
+needs = []
+design = "skein/docs/design/forge-connection.md, 7.1"
+
+[[slice]]
+id = 1
+story = "a forge is one entry the component adds and removes whole, and a log tail is lib's ring with the runner's marker on it"
+parts = ["forge-tail", "forge-entry"]
+walk = false
+
+[[part]]
+id = "root-admission"
+title = "one Class in jig, and LinkUp says what it is"
+mode = "direct"
+needs = []
+design = "jig/docs/design/domain/root.md, 3"
+
+[[part]]
+id = "root-timers"
+title = "the wall's expiry in lib and the decision's header in the core, once"
+mode = "direct"
+needs = []
+design = "jig/docs/design/domain/root.md, 3"
+
+[[part]]
+id = "root-sender"
+title = "a party says its own sender label"
+mode = "direct"
+needs = []
+design = "jig/docs/design/domain/hosts.md, 9"
+
+[[slice]]
+id = 2
+story = "both roots read one Class, one wall clock check, one decision header and one sender, each from the part that owns it"
+parts = ["root-admission", "root-timers", "root-sender"]
+walk = false
