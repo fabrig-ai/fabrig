@@ -63,7 +63,7 @@ pub struct Limits {
 /// Why the service cannot run under some limits: startup refuses them.
 #[derive(Clone, Copy, PartialEq, Eq, Hash, Debug)]
 pub enum Unusable {
-    /// io's limits are not usable (`skein_io::Limits::is_usable`).
+    /// io's limits are not valid (`skein_io::valid`).
     Io,
     /// The protocol layer's are not (`skein_echo_protocol::Limits::is_usable`).
     Protocol,
@@ -90,7 +90,7 @@ impl Limits {
     /// kernel queues that hold io's submissions, and io's caps no smaller than
     /// the protocol layer's largest demands (io.md, 2).
     pub fn check(&self) -> Result<(), Unusable> {
-        if !self.io.is_usable() {
+        if !skein_io::valid(&self.io) {
             return Err(Unusable::Io);
         }
         if !self.protocol.is_usable() {

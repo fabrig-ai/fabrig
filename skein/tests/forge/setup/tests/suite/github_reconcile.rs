@@ -198,20 +198,12 @@ fn github_setup_traces_and_failures_contain_no_secret() {
     let diagnostics = format!("{:?} {:?} {:?}", world.github_requests(), world.needs(), &world.heard()[1..]);
     let der = skein_forge_machine_world::github::app_key();
     let pem = skein_fake_forge_github::keys::pem(der).expect("fixture PEM");
-    let mut rng = skein_lib::Rng::new(7);
-    let hex: Vec<_> = (0..52).map(|_| b"0123456789abcdef"[usize::try_from(rng.below(16)).expect("nibble")]).collect();
-    assert!(hex[..20] == *code.expose(), "fixture conversion code draw");
-    let mut rng = skein_lib::Rng::new(7);
-    let mut token = b"ghs_".to_vec();
-    let alphabet = b"ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789";
-    for _ in 0..36 {
-        token.push(alphabet[usize::try_from(rng.below(62)).expect("alphanumeric")]);
-    }
+    let (webhook, token) = super::github_convert::drawn_secrets(&world, 7, &code);
     let issued = Wall::from_nanos(skein_forge_machine_world::github::WALL_BASE.as_nanos() - 60_000_000_000);
     let expires = Wall::from_nanos(issued.as_nanos() + skein_forge::github::jwt::LIFE.as_nanos());
     let bearer = skein_forge_machine_world::github::bearer(der, 8, issued, expires);
     let jwt = bearer.strip_prefix(b"Bearer ").expect("diagnostic bearer");
-    for secret in [der, pem.as_ref(), code.expose(), &hex[20..], token.as_slice(), jwt, b"ghs_", b"eyJ"] {
+    for secret in [der, pem.as_ref(), code.expose(), webhook.expose(), token.expose(), jwt, b"ghs_", b"eyJ"] {
         assert!(!diagnostics.as_bytes().windows(secret.len()).any(|part| part == secret));
         for spelling in [format!("{secret:?}"), format!("{secret:x?}"), format!("{secret:X?}")] {
             assert!(!diagnostics.contains(&spelling));
