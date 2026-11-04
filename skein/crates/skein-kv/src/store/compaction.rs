@@ -273,7 +273,7 @@ pub(super) fn opened(store: &mut Store, mut dir: Dir, log: Log, file: Token, ste
         | Compaction::RemoveOld { .. }
         | Compaction::CleanupSyncDirectory => unreachable!("only snapshot creation opens a file"),
     };
-    follow(store, dir, log, step)
+    store.start_batch(dir, log, &step.env.limits, step.below)
 }
 
 pub(super) fn finished(store: &mut Store, mut dir: Dir, log: Log, step: &mut Step<'_>) -> State {
@@ -292,7 +292,7 @@ pub(super) fn finished(store: &mut Store, mut dir: Dir, log: Log, step: &mut Ste
             unreachable!("snapshot creation opens a file; Idle and Due have no snapshot request")
         }
     };
-    follow(store, dir, log, step)
+    store.start_batch(dir, log, &step.env.limits, step.below)
 }
 
 fn created(start: u64, file: Token) -> Compaction {
@@ -345,14 +345,6 @@ fn old_removed(start: u64) -> Compaction {
 
 fn cleanup_synced() -> Compaction {
     Compaction::Idle
-}
-
-fn follow(store: &mut Store, dir: Dir, log: Log, step: &mut Step<'_>) -> State {
-    if store.queue.is_empty() {
-        dir.at(Phase::Ready { log })
-    } else {
-        store.start_batch(dir, log, &step.env.limits, step.below)
-    }
 }
 
 pub(super) fn failed(store: &mut Store, mut dir: Dir, log: Log, error: Error, step: &mut Step<'_>) -> State {
