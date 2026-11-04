@@ -58,7 +58,6 @@ IDs run from `D001` and are never reused:
 | [D002](D002-core-untyped-continuations.md) | The core's continuations are bare numbers | complexity | high | L | open |
 | [D003](D003-core-one-object.md) | The core is one object of 83 fields spread over 50 files | complexity | medium | L | open |
 | [D004](D004-ops-root-jig-wiring.md) | The reference root is half jig wiring, and the test root copies it | coupling | high | L | open |
-| [D005](D005-accounts-host-copied.md) | Service adapters and bundle helpers still repeat shared mechanics | duplication | low | M | open |
 | [D006](D006-link-values-two-paths.md) | The link's values have two import paths, and a grammar is copied | duplication | low | S | open |
 | [D007](D007-contract-written-by-hand.md) | The contract is written out by hand in four or five places | duplication | high | L | open |
 | [D008](D008-link-translate-split-by-number.md) | The link's translation is split by number and repeats one loop | duplication | medium | M | open |
