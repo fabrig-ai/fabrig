@@ -40,7 +40,7 @@ fn each_settled_answer_gives_its_last_line() {
 #[test]
 fn the_first_failure_stands_in_every_phase() {
     for phase in [
-        Teardown::Live,
+        Teardown::Live { failure: None },
         Teardown::Answered { at: Time::ZERO, answer: Answer::Sent, close: Close::Graceful },
         Teardown::Closing { at: Time::ZERO, answer: Answer::Sent, close: Close::Graceful, step: Step::Components },
     ] {
@@ -64,7 +64,7 @@ fn a_failure_before_the_answer_leaves_the_run_live() {
     let mut service = admitted(19);
     service.stages.mark_failed(Failure::Send);
     teardown::follow(&mut service.stages, Some(&service.frame));
-    assert_eq!(service.stages.teardown, Teardown::LiveUnsent { failure: Failure::Send });
+    assert_eq!(service.stages.teardown, Teardown::Live { failure: Some(Failure::Send) });
     assert!(service.stages.io_requests.is_empty());
     assert!(!service.stages.llm.closed());
     assert_eq!(done(&service), None);

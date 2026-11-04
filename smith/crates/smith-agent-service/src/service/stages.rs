@@ -144,7 +144,7 @@ pub(super) fn work_pending(service: &Stages, frame: Option<&Frame>, now: Time) -
 pub(super) fn done(service: &Stages) -> Option<bool> {
     match service.teardown {
         Teardown::Closed { answer, .. } => Some(answer.sent()),
-        Teardown::Live | Teardown::LiveUnsent { .. } | Teardown::Answered { .. } | Teardown::Closing { .. } => None,
+        Teardown::Live { .. } | Teardown::Answered { .. } | Teardown::Closing { .. } => None,
     }
 }
 
@@ -169,7 +169,7 @@ impl Stages {
             stages: Stages {
                 limits,
                 events,
-                teardown: Teardown::Live,
+                teardown: Teardown::Live { failure: None },
                 product_exit: None,
                 usage_unread: false,
                 live: crate::live::Live::new(None, limits.live_interval),

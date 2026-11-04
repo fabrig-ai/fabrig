@@ -387,7 +387,7 @@ pub(super) fn channel_event(service: &mut Stages, frame: &mut Frame, event: chan
         channel::Heard::Cancel => super::admission::cancel(service),
         channel::Heard::WriteFailed => service.mark_failed(Failure::WriteFailed),
         channel::Heard::Ended { why: _ } => match service.teardown {
-            Teardown::Live | Teardown::LiveUnsent { .. } => {
+            Teardown::Live { .. } => {
                 service.mark_failed(Failure::ChannelEnded);
                 if let Some(run) = service.admission.run() {
                     service.domain_events.push(domain::Event::Cancel { run });
