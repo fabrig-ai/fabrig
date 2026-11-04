@@ -309,6 +309,7 @@ fn forges(world: World) -> Box<[u8]> {
             w::ForgeRow::new(
                 &limits,
                 w::ForgeRowParts {
+                    host: b"git.example:3000".as_slice().into(),
                     number: FORGE,
                     kind: w::Kind::Forgejo,
                     mode: w::Mode::Fake,
@@ -348,6 +349,7 @@ fn forges(world: World) -> Box<[u8]> {
             w::ForgeRow::new(
                 &limits,
                 w::ForgeRowParts {
+                    host: b"git.example:3000".as_slice().into(),
                     number: 2,
                     kind: w::Kind::Github,
                     mode: w::Mode::Managed,
@@ -416,6 +418,7 @@ fn forges(world: World) -> Box<[u8]> {
             w::ForgeRow::new(
                 &limits,
                 w::ForgeRowParts {
+                    host: b"git.example:3000".as_slice().into(),
                     number: 3,
                     kind: w::Kind::Forgejo,
                     mode: if step == 23 { w::Mode::Managed } else { w::Mode::Owned },

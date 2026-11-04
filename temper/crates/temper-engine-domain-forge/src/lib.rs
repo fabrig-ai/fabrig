@@ -18,7 +18,7 @@ extern crate alloc;
 pub const MERGE_KIND: u32 = 3;
 use alloc::boxed::Box;
 mod address;
-pub use address::{PULL_ADDRESS_BYTES, pull_address};
+pub use address::{PULL_ADDRESS_BYTES, host, pull_address};
 mod adoption;
 pub mod boundary;
 mod brief;

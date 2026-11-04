@@ -1418,6 +1418,7 @@ impl Joint {
                 w::ForgeRow::new(
                     &w::CEILINGS,
                     w::ForgeRowParts {
+                        host: b"git.example:3000".as_slice().into(),
                         number: playground.forge(),
                         kind: w::Kind::Forgejo,
                         mode: w::Mode::Fake,
