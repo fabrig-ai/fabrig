@@ -164,6 +164,12 @@ iterate, after the step:
   admission, forbids omission. `quiescent` includes this same finishing
   derivation and its broader idle fences; false does not promise
   that finishing can advance (engine.md, 6.1 and 11; people.md, 3).
+- **A task that comes due waits in the core.** The core asks its root for
+  no step of a run's preparation it can take alone. It keeps a due task
+  in its due set, and the root takes the next one with `take_due` when
+  it has room to carry it. That is the root's whole part in an
+  activation, however the task came due: a wake, a commit or a restart
+  (`jig/docs/design/README.md`, 6.4).
 - **Released outputs addressed to a child** (the core's resumption after
   a claim commits, a connector's entry to make) are fed back to it as
   events by `iterate`, each as one more step of this shape.
