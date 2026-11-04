@@ -218,7 +218,7 @@ fn step_client(root: &mut Root, env: &Env<Limits>, event: jig_client::Event, out
     }
 }
 fn tools_env(env: &Env<Limits>) -> Env<jig::Limits> {
-    Env { now: env.now, wall: env.wall, limits: env.limits.tools }
+    env.with(env.limits.tools)
 }
 fn drain(
     root: &mut Root,

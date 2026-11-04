@@ -180,7 +180,7 @@ fn task_wait_continues_at_the_first_undisplayed_utf8_byte_under_each_ceiling() {
         } else {
             assert_eq!(shown, 511, "the source bound preserves the UTF-8 boundary");
         }
-        assert!(u64::try_from(answer.stdout.len()).unwrap() <= limits.result_bytes);
+        assert!(skein_lib::len_u64(answer.stdout.len()) <= limits.result_bytes);
         assert!(answer.stdout.len() <= usize::try_from(limits.text).unwrap());
         assert!(f::has(&answer, b"result: Completed"));
         if ceiling != 2 {

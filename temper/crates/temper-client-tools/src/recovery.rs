@@ -122,9 +122,7 @@ impl Recovery {
 /// Decode a native request with the same checks used by the client.
 #[must_use]
 pub fn restore(entry: &Record, limits: &Limits) -> Option<RequestRecord<Held>> {
-    if entry.key.len() != 16
-        || u64::try_from(entry.bytes.len()).expect("record length fits") > limits.client().document_bytes
-    {
+    if entry.key.len() != 16 || skein_lib::len_u64(entry.bytes.len()) > limits.client().document_bytes {
         return None;
     }
     let mut reader = Reader::new(&entry.bytes);

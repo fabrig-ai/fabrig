@@ -511,9 +511,13 @@ pub(crate) fn signed_in(party: u64) -> Harness {
     harness
 }
 impl Harness {
+    /// The harness's clocks with the limits of the step a test calls.
+    pub(crate) fn env<L>(&self, limits: L) -> Env<L> {
+        let (now, wall) = (self.now, self.wall);
+        Env { now, wall, limits }
+    }
     fn event(&mut self, event: root::Event) {
-        let env =
-            Env { now: self.now, wall: self.wall, limits: root::Limits::new(self.limits.domain, self.limits.tools) };
+        let env = self.env(root::Limits::new(self.limits.domain, self.limits.tools));
         let mut out = Queue::with_capacity(OUTPUTS);
         root::step(&mut self.root, &env, event, &mut out);
         self.outputs(out);
