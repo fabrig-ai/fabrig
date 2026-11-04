@@ -111,3 +111,11 @@ anything in `jig/crates/jig-domain-tasks/src/control.rs`, which isn't this task'
 check on this branch, which last ran on the switched checkout; step 5's clippy, which also checks the `expect` on
 `Page::Service`; the full `temper-service` nextest; `temper`'s and the direct dependents' checks; step 6's browser
 tier; and the citations check.
+
+### 2026-11-04: Run the remaining checks on the supplied merge HEAD 9fdba1c656 (recommended), or have fab restore the slot to fcfee88275 first? The task's answer requires confirming HEAD at fcfee88275 before continuing, but this slot starts at a later merge. (debt-7/temper-server-part-2, foreman debt-7/temper-server-part/foreman-2)
+
+Have fab restore the slot to fcfee88275 before continuing the remaining checks.
+The task’s Answers section requires: “confirm `git status` shows `debt-7/temper-server-part` at that commit first”.
+The reported merge HEAD 9fdba1c656 does not meet that explicit precondition, even though the five task paths are unchanged.
+The next run confirms the branch and commit, preserves the pushed implementation, and completes the checks listed in Answers.
+Leave `jig/crates/jig-domain-tasks/src/control.rs` outside this task.
