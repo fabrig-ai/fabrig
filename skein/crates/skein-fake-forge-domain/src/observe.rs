@@ -257,6 +257,7 @@ pub(crate) fn subject(op: &Op) -> Option<(Operation, Option<u64>, Option<u64>)> 
     let subject = match op {
         Op::Read(_) => return None,
         Op::Write(write) => match write {
+            Write::Copy { .. } | Write::DeleteRepository => return None,
             Write::SetProtection { .. } => (Operation::SetProtection, None, None),
             Write::CreateIssue { .. } => (Operation::CreateIssue, None, None),
             Write::EditItem { number, .. } => (Operation::EditItem, Some(*number), None),

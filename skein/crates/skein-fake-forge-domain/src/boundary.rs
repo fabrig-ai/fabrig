@@ -8,8 +8,9 @@
 //! - Every [`Event::Call`] is answered by exactly one [`Request::Reply`],
 //!   which consumes its `ReplyTo`: at once when the forge holds as many
 //!   calls as it may (as unavailable), and otherwise when the call's
-//!   latency is past. What a call does, it does when it arrives, so a reply
-//!   that fails as timed out follows a call that was made.
+//!   latency is past. A copy creates its empty destination at arrival and
+//!   fills it at its alarm (fake-forge.md, 2.6); a timeout leaves it empty.
+//!   Other calls act when they arrive, before a possible timeout.
 //! - A [`Request::Hook`] has no terminal event: the forge sends it and hears
 //!   nothing back, as a real forge's webhook deliveries go. Hooks are best
 //!   effort: late, lost, or in another order than the changes they tell of.
