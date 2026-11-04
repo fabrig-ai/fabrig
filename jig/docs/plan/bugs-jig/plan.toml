@@ -47,3 +47,29 @@ id = 3
 story = "a run that cannot deliver gets no modify, from jig's translation, for every root"
 parts = ["charter-rail"]
 walk = false
+
+[[part]]
+id = "close-grace"
+title = "bug 1: an environment's close takes its grace from ops's configuration"
+mode = "direct"
+needs = []
+design = "jig/docs/design/examples.md, 7.3"
+
+[[slice]]
+id = 4
+story = "a chat closed with its environment gets the grace ops configures, whichever template made it"
+parts = ["close-grace"]
+walk = false
+
+[[part]]
+id = "closed-project"
+title = "bug 9: a closed project takes no creation in flight and leaves no notes"
+mode = "direct"
+needs = []
+design = "jig/docs/design/domain/people.md, 5.2"
+
+[[slice]]
+id = 5
+story = "a project deleted mid-creation makes nothing, and its notes' entries go with it"
+parts = ["closed-project"]
+walk = false
