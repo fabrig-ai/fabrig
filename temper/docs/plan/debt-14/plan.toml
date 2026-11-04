@@ -1,3 +1,22 @@
 draft = "debt-14"
 repo = "fabrig"
 sources = ["temper/docs/plan/debt-14/inputs/request.md", "hearth/docs/development/debt/D011-ratchet-counts-two-forms.md", "hearth/docs/development/debt/D005-private-hex-decimal-octal.md", "hearth/docs/development/debt/D008-path-modules.md", "hearth/docs/development/debt/D012-render-test-shapes.md", "smith/docs/development/debt/D017-domain-worlds-on-protocols.md", "smith/docs/development/debt/D018-domain-formats-text.md"]
+
+# plan.md says what was decided and why.
+
+[buffer]
+low = 1.0
+high = 2.0
+
+[[part]]
+id = "ratchet"
+title = "hearth's ratchet counts what skein and smith count, and exempts the kernel's edge"
+mode = "direct"
+needs = []
+design = "skein/docs/design/draft/component-kit.md, 4"
+
+[[slice]]
+id = 1
+story = "new copies of what this plan pays off turn the ratchet red, and the count of MAX_OUT holds only the old form"
+parts = ["ratchet"]
+walk = false
