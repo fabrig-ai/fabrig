@@ -134,12 +134,18 @@ pub(crate) fn unavailable_main(builder: &mut Builder, root: &Domain, words: &cra
         words.text(builder, Word::OutOfDateMain, &[]);
     }
 }
+#[derive(Clone, Copy, PartialEq, Eq)]
+pub(crate) enum Place {
+    Rail,
+    Banner,
+}
 pub(crate) fn switcher(
     builder: &mut Builder,
     root: &Domain,
     words: &crate::words::Words,
     bindings: &mut Bindings,
     project: Option<u32>,
+    place: Place,
 ) {
     if let Some(me) = root.pages().me(root.client()) {
         if me.projects.is_empty() {
@@ -155,21 +161,30 @@ pub(crate) fn switcher(
         builder.open(Role::Disclosure);
         builder.style(crate::look::PROJECTS);
         builder.name(&words.say(crate::words::Word::Projects, &[]));
+        if let Some(project) = project {
+            let name = crate::pages::project_name(Some(me), project).expect("open project has a name");
+            builder.name(&name);
+        }
+        if place == Place::Rail {
+            builder.open(Role::Slot);
+            builder.style(crate::look::PROJECTS_MENU);
+        }
         for selected in [true, false] {
             for row in &me.projects {
                 if (Some(row.project) == project) == selected {
                     let name = crate::pages::project_name(Some(me), row.project).expect("project from me has a name");
-                    if selected {
+                    builder.open(Role::Button);
+                    if place == Place::Rail {
+                        project_row(builder, root, words, row.project, &name);
+                    } else {
                         builder.name(&name);
                     }
-                    builder.open(Role::Button);
-                    builder.name(&name);
                     if selected {
                         builder.state(skein_ui::State::Pressed);
                     }
                     builder.bind(bindings.insert(Act::Project { project: row.project }));
                     builder.close();
-                    if selected {
+                    if selected && place == Place::Banner {
                         if root.pages().switcher().renaming() == Some(row.project) {
                             rename_form(builder, root, words, &name, bindings);
                         } else if row.role == jig_client::contract::HeldRole::Owner {
@@ -183,11 +198,87 @@ pub(crate) fn switcher(
                 }
             }
         }
+        if place == Place::Rail {
+            builder.open(Role::Slot);
+            builder.style(crate::look::PROJECTS_ACTS);
+            for row in &me.projects {
+                if Some(row.project) != project {
+                    continue;
+                }
+                let name = crate::pages::project_name(Some(me), row.project).expect("open project has a name");
+                if root.pages().switcher().renaming() == Some(row.project) {
+                    rename_form(builder, root, words, &name, bindings);
+                } else if row.role == jig_client::contract::HeldRole::Owner {
+                    builder.open(Role::Button);
+                    builder.style(crate::look::PROJECT_RENAME);
+                    builder.name(&words.say(crate::words::Word::RenameProject, &[skein_ui::phrases::Hole::Name(name)]));
+                    builder.bind(bindings.insert(Act::Switcher(switcher::Act::Rename)));
+                    builder.close();
+                }
+            }
+        }
         new_project_form(builder, root, words, bindings);
+        if place == Place::Rail {
+            if let Some(project) = project {
+                let name = crate::pages::project_name(Some(me), project).expect("open project has a name");
+                let label = words.say(crate::words::Word::SettingsFor, &[skein_ui::phrases::Hole::Name(name)]);
+                crate::link(builder, &label, bindings.insert(Act::Go { address: Address::Settings { project } }));
+                builder.text(Run::Plain, &label);
+                builder.close();
+            }
+            builder.close();
+            builder.close();
+        }
         builder.close();
     }
 }
-// The banner's forms (temper/docs/design/client/README.md, 5.3).
+fn project_row(b: &mut Builder, root: &Domain, w: &crate::words::Words, project: u32, name: &[u8]) {
+    use crate::words::{Shell, Word};
+    use skein_ui::phrases::Hole;
+    use temper_client_domain::forge::listed::{self, Held};
+    let held = listed::held(root.forges(), root.forge().playground(), project);
+    let repository = match held {
+        Held::Unknown => None,
+        Held::None => Some(w.say(Word::SwitcherNone, &[])),
+        Held::One { owner, name } | Held::Several { owner, name, .. } => {
+            Some(w.say(Word::SwitcherRepository, &[Hole::Name(owner.into()), Hole::Name(name.into())]))
+        }
+    };
+    match w.shell {
+        Shell::Browser => {
+            b.text(Run::Plain, name);
+            if let Some(repository) = repository {
+                b.open(Role::Text);
+                b.style(crate::look::PROJECTS_REPO);
+                b.text(Run::Plain, &repository);
+                match held {
+                    Held::Several { more, .. } => {
+                        b.open(Role::Text);
+                        b.style(crate::look::PROJECTS_MORE);
+                        b.run(Run::Plain, &w.say(Word::SwitcherMore, &[Hole::Number(u64::from(more))]));
+                        b.close();
+                    }
+                    Held::Unknown | Held::None | Held::One { .. } => {}
+                }
+                b.close();
+            }
+        }
+        Shell::Terminal => {
+            b.name(name);
+            let repository = match held {
+                Held::Several { owner, name, more } => Some(w.say(
+                    Word::SwitcherSeveral,
+                    &[Hole::Name(owner.into()), Hole::Name(name.into()), Hole::Number(u64::from(more))],
+                )),
+                Held::Unknown | Held::None | Held::One { .. } => repository,
+            };
+            if let Some(repository) = repository {
+                w.text(b, Word::SwitcherRow, &[Hole::Name(name.into()), Hole::Name(repository)]);
+            }
+        }
+    }
+}
+// The switcher's forms (temper/docs/design/client/README.md, 5.3).
 fn rename_form(b: &mut Builder, root: &Domain, words: &crate::words::Words, project: &[u8], bindings: &mut Bindings) {
     use crate::words::Word;
     let switcher = root.pages().switcher();
@@ -327,7 +418,7 @@ pub(crate) fn banner(
         builder.close();
         return;
     }
-    switcher(builder, root, words, bindings, pages.project());
+    switcher(builder, root, words, bindings, pages.project(), Place::Banner);
     navigation(builder, root, words, bindings);
     builder.open(Role::Slot);
     builder.style(crate::look::CORNER);
@@ -412,7 +503,7 @@ pub(crate) fn rail(
     b.style(crate::look::BRAND);
     w.text(b, Word::Brand, &[]);
     b.close();
-    switcher(b, root, w, bindings, Some(project));
+    switcher(b, root, w, bindings, Some(project), Place::Rail);
     b.open(Role::Slot);
     b.style(crate::look::RAIL_NAV);
     entries(b, root, w, bindings, project);

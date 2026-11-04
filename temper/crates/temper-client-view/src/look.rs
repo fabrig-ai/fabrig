@@ -3,6 +3,14 @@ use crate::frame::owner;
 use skein_ui::{Style, look::Names};
 /// A folded account.
 pub const ACCOUNT_ROW: Style = Style { owner: owner(), token: 124 };
+/// The rail switcher's panel.
+pub const PROJECTS_MENU: Style = Style { owner: owner(), token: 190 };
+/// The rail switcher's actions.
+pub const PROJECTS_ACTS: Style = Style { owner: owner(), token: 191 };
+/// A switcher row's repository words.
+pub const PROJECTS_REPO: Style = Style { owner: owner(), token: 192 };
+/// The additional repository count.
+pub const PROJECTS_MORE: Style = Style { owner: owner(), token: 193 };
 /// The frame's banner.
 pub const BANNER: Style = Style { owner: owner(), token: 0 };
 /// The frame's navigation.
@@ -573,10 +581,10 @@ pub const NAMES: Names<'static> = Names {
         b"temper-reserved-187",
         b"temper-reserved-188",
         b"temper-reserved-189",
-        b"temper-reserved-190",
-        b"temper-reserved-191",
-        b"temper-reserved-192",
-        b"temper-reserved-193",
+        b"temper-projects-menu",
+        b"temper-projects-acts",
+        b"temper-projects-repo",
+        b"temper-projects-more",
         b"temper-reserved-194",
         b"temper-reserved-195",
         b"temper-reserved-196",

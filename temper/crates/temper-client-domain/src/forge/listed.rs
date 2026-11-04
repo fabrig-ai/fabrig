@@ -186,15 +186,23 @@ pub fn held<'a>(forges: &'a State, playground: Option<&'a Playground>, project: 
         for repository in &row.repositories {
             if repository.project == project {
                 count = count.checked_add(1).expect("listed repositories fit");
-                if first.is_none() {
-                    first = Some((repository.owner.as_ref(), repository.name.as_ref()));
+                let lower = match first {
+                    Some((number, _, _)) => row.number < number,
+                    None => true,
+                };
+                if lower {
+                    first = Some((row.number, repository.owner.as_ref(), repository.name.as_ref()));
                 }
             }
         }
     }
     match first {
-        Some((owner, name)) if count == 1 => Held::One { owner, name },
-        Some((owner, name)) => Held::Several { owner, name, more: count.checked_sub(1).expect("first counted") },
+        Some((_, owner, name)) if count == 1 => Held::One { owner, name },
+        Some((_, owner, name)) => Held::Several { owner, name, more: count.checked_sub(1).expect("first counted") },
         None => Held::None,
     }
 }
+
+#[cfg(test)]
+#[path = "../tests/listed.rs"]
+mod tests;
