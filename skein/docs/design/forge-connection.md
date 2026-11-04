@@ -862,6 +862,8 @@ and crosses Answering's deadline and the close with a held hint.
 - **The close is the owner's last act,** after its domain's drain
   (programming-model.md, section 5.2). By then the domain takes no
   answers.
+- **A call after the close is refused at the entrance,** until `closed`:
+  it ends at once `Unavailable`, at no cost.
 - **It ends what is open.** Each call still open ends with its
   connection and has no answer: no terminal is sent for it. It drops
   every answer and hint it holds, and every answer the owner returned,

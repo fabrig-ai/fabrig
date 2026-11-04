@@ -26,8 +26,9 @@ records travel through `skein-http` as in `skein-llm`.
 The caller supplies a `Registration` with an authorization URL, token
 endpoint, client id, redirect URI, requested scope, token wire format, and
 optional client secret. The authorization URL and token endpoint are `https`,
-or `http` on loopback for an issuer on the same machine, such as a replaying
-tier's fake (testing-strategy.md, 4.4). It admits one `Client` machine for an
+with a host and no userinfo, or `http` on loopback for an issuer on the same
+machine, such as a replaying tier's fake (testing-strategy.md, 4.4). It admits
+one `Client` machine for an
 exchange. The endpoint binding is kept through the exchange; a redirect cannot
 choose a new token endpoint. A public client requires an already bound
 loopback listener and a redirect URI whose loopback address, port, and path

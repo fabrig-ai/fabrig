@@ -1,6 +1,6 @@
 # forge-connection: status
 
-2026-11-03. Where skein's code lags or departs from [forge-connection.md](forge-connection.md).
+2026-11-04. Where skein's code lags or departs from [forge-connection.md](forge-connection.md).
 
 - **Departs:** 8: `skein/docs/foundation/programming-model.md`, 5.4 asks
   for one explicit state enum per lifecycle, each state holding exactly
@@ -28,3 +28,5 @@
   only GitHub's own connections, and `component/calls.rs`'s `assign`
   reserves only GitHub's own connection from call reuse, so Forgejo's
   own connection still shares the calls' pool; no reason is recorded.
+- **Not yet:** 8.5: `skein-forge-connection/src/component.rs`'s `down` drops a
+  `Call` while Closing or Aborting, with no terminal.

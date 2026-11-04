@@ -1,6 +1,6 @@
 # llm-connection: status
 
-2026-11-03. Where skein's code lags or departs from [llm-connection.md](llm-connection.md).
+2026-11-04. Where skein's code lags or departs from [llm-connection.md](llm-connection.md).
 
 - **Departs:** 5: `skein/docs/foundation/programming-model.md`, 5.4 asks
   for one explicit state enum per lifecycle, each state holding exactly
@@ -10,3 +10,6 @@
   `idle_at`, `tls_closed` and `socket_close_sent` rather than in its
   states; no reason is recorded (the code's side is
   `skein/docs/development/debt/D023-llm-client-states.md`).
+- **Not yet:** 7: `skein-llm-connection/src/limits.rs`'s `valid` accepts what
+  `Component::new` refuses: its stream capacity relationships and a plaintext
+  address.
