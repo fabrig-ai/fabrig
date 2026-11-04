@@ -525,9 +525,9 @@ fn the_workers_listener_opens_before_the_restart() {
     let mut service = fixtures::started(&fixtures::workers_document());
     fixtures::turn(&mut service);
     assert!(fixtures::engine(&mut service).store.above.is_empty());
-    assert!(!fixtures::engine(&mut service).workers.as_ref().expect("workers").opened());
+    assert!(!fixtures::engine(&mut service).workers.as_ref().expect("workers").host.opened());
     fixtures::turn(&mut service);
-    assert!(fixtures::engine(&mut service).workers.as_ref().expect("workers").opened());
+    assert!(fixtures::engine(&mut service).workers.as_ref().expect("workers").host.opened());
     // The handed-in record's `Kept` may come in the same pass.
     let mut restored = false;
     for event in &fixtures::engine(&mut service).store.above {

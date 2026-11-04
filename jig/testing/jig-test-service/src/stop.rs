@@ -5,12 +5,6 @@ use jig_protocol_config::{Path, Problems, What};
 use jig_test_domain as root;
 use skein_lib::Queue;
 
-#[derive(Clone, Copy, Debug, PartialEq, Eq)]
-pub(super) enum Closing {
-    Drain,
-    Abort,
-}
-
 #[derive(Debug)]
 pub(super) struct Drain {
     pub phase: Phase,
@@ -69,7 +63,7 @@ pub(super) fn advance(engine: &mut Engine) {
     }
     {
         let waiting = u32::from(match &engine.workers {
-            Some(workers) => !workers.closed(),
+            Some(workers) => !workers.host.closed(),
             None => false,
         })
         .checked_add(u32::from(match &engine.accounts {
@@ -94,46 +88,6 @@ pub(super) fn advance(engine: &mut Engine) {
             }
             engine.end = Some(End::Drained);
         }
-    }
-}
-
-impl crate::workers::Workers {
-    pub(super) fn listener_closed(&mut self, owner: skein_lib::Token) -> bool {
-        for index in 0..self.listeners.len() {
-            let (name, listener) = self.listeners.get_mut(index).expect("listener index");
-            if *name == owner {
-                *listener = None;
-                return true;
-            }
-        }
-        false
-    }
-    pub(super) fn late_listener(&mut self, listener: skein_lib::Token) {
-        match self.ending {
-            Some(Closing::Abort) => self.io.push(skein_io::Request::Abort { entity: listener }),
-            Some(Closing::Drain) => self.io.push(skein_io::Request::Close { entity: listener }),
-            None => {}
-        }
-    }
-    pub(super) fn close(&mut self, now: skein_lib::Time, events: &mut Queue<root::Event>) {
-        self.ending = Some(Closing::Drain);
-        for (_, listener) in &self.listeners {
-            if let Some(listener) = listener {
-                self.io.push(skein_io::Request::Close { entity: *listener });
-            }
-        }
-        self.down(now, jig_protocol_engine_workers::Event::Close, events);
-    }
-    pub(super) fn closed(&self) -> bool {
-        if !self.component_closed || !self.sockets.is_empty() || !self.io.is_empty() {
-            return false;
-        }
-        for (_, listener) in &self.listeners {
-            if listener.is_some() {
-                return false;
-            }
-        }
-        true
     }
 }
 
