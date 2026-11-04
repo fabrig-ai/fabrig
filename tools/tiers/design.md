@@ -333,7 +333,11 @@ active for hard-wall supervision.
 `tools/tiers/budgets.toml` contains optional per-pair tables with finite positive
 seconds: `cpu_suite_s`, `cpu_test_s`, `wall_hard_s`. The tables record the
 user's approved limits; absent tables have no limits set here. `[tools]`
-reserves the suite namespace in section 7.5.
+reserves the suite namespace in section 7.5. `[gate.<tree>.<profile>]`
+reserves a tree's share of a gate suite, such as `[gate.hearth.default]`,
+with the same three keys and no `auto_reap`. It is no pair: no tier reads
+it, and whatever measures that share reads its verdict there, recording
+a run that goes over rather than refusing it.
 `--verify-all` validates every budget key, value and configured
 pair before any command. CPU mode validates it too. A test's CPU budget
 covers all its attempts; a pair's covers every test attempt. The summary exits
@@ -640,9 +644,11 @@ functions from the namespace it returns; the file is no importable module.
 Relative paths are the caller's working directory's, the checkout root.
 
 - `budgets(path, pairs=None)`: the budgets file at `path`, in 7.3's form,
-  as a dictionary: each pair's table by its name, and under `tools` each
-  suite's table by its ID (7.5). With `pairs`, a set of pair names, a table
-  for any other pair is refused. A refused key, value or pair raises
+  as a dictionary: each pair's table by its name, under `tools` each
+  suite's table by its ID (7.5), and under `gate` each tree's table of its
+  profiles' tables (7.3). With `pairs`, a set of pair names, a table for
+  any other pair is refused; `tools` and `gate` are no pairs. A refused
+  key, value or pair raises
   `ValueError`. The result is the `limits` of `execute` and `summary`; an
   empty dictionary sets no limit.
 - `prepare(directory, profile, wrapper, config=Path('.config/nextest.toml'))`:

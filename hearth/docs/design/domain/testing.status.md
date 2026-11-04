@@ -50,21 +50,14 @@
 - **Departs:** 3.1: `hearth/testing/hearth-fake-machine/Cargo.toml` takes
   workspace lints and its `clippy.toml` takes the `ring` profile, rather
   than the step crates' strict subset; the reason is unknown.
-- **Departs:** 8.4: unsettled: `hearth/docs/design/domain/testing.md`, 8.4
-  requires a domain's worst case, while the rule it cites,
-  `skein/docs/foundation/programming-model.md`, 6.3, requires measured
-  scenario ceilings and forbids a process-wide worst case. Section 11
-  leaves the move to the newer model open.
 - **Departs:** 8.4: a world's memory tests are modules of its suite, not a
   binary of their own, because a suite has one counting allocator
-  (`skein/docs/design/testing.md`, 6). The builder world's four scenarios
-  and git's step peak are checked under ceilings, with no worst case of
-  the whole, because the root's rules are skein's
-  (`skein/docs/foundation/programming-model.md`, 6.3). The other worlds'
-  peaks are still held to formulas, and the render world keeps
-  `Memory::Checked` as a flag beside its own meter, where the user's request
-  of 2026-11-04 asks for `Memory::Within`, because that meter still enforces
-  its bound (`hearth/docs/development/debt/D003-memory-tests-on-formulas.md`).
+  (`skein/docs/design/testing.md`, 6).
+- **Not yet:** 8.4: only the builder world's four scenarios and git's step
+  peak are held under ceilings. The other worlds' peaks are still held to
+  formulas, the render world keeps `Memory::Checked` as a flag beside its
+  own meter, and the large render isn't built
+  (`hearth/docs/development/debt/D003-memory-tests-on-formulas.md`).
 - **Departs:** 9.1: no global timeout holds hearth's suites alone, because
   the root has one `default` and one `fuzzy` profile, whose 150 s and 600 s
   sum each tree's figures, hearth's 30 s and 120 s among them. Measured on
