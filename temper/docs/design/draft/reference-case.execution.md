@@ -41,8 +41,7 @@ are named as theirs.
 ## 2. How a milestone runs
 
 A milestone runs through fab's loop whole, its design included, under
-fab's rules for a run's lead and its designers (the agents
-repository's `fab/roles/cut-run.md`):
+fab's rules for a run's lead and its designers:
 
 1. **Its input:** its entry in section 3 and the draft sections it
    cites. The user starts it as a plan of its own,
