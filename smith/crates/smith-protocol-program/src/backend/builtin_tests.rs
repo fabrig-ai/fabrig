@@ -256,7 +256,7 @@ fn a_served_sub_agent_is_listed_inspect_only() {
     let [tool] = tools.as_ref() else { panic!("one served sub_agent") };
     assert_eq!(tool.name.as_ref(), b"sub_agent");
     let suffix = b" On this backend a sub-agent reads only: its tools are [\"inspect\"]. Several asked in one message run side by side.";
-    assert_eq!(tool.description.as_ref(), mcp::json::join(&[&direct.description, suffix]).as_ref());
+    assert_eq!(tool.description.as_ref(), skein_lib::bytes::concat(&[&direct.description, suffix]).as_ref());
     let schema: serde_json::Value = serde_json::from_slice(&tool.input_schema).expect("schema JSON");
     assert_eq!(schema["type"], "object");
     assert_eq!(schema["properties"]["tools"]["items"]["enum"], serde_json::json!(["inspect"]));
@@ -672,7 +672,10 @@ fn native_prompt(backend: &mut Backend, id: &str, name: &str, input: serde_json:
         env(0).now,
         io::Event::Stream {
             owner: Token::new(101),
-            up: skein_lib::stream::Up::Bytes(mcp::json::join(&[&serde_json::to_vec(&prompt).expect("prompt"), b"\n"])),
+            up: skein_lib::stream::Up::Bytes(skein_lib::bytes::concat(&[
+                &serde_json::to_vec(&prompt).expect("prompt"),
+                b"\n",
+            ])),
         },
         &mut backend.io,
     );
@@ -916,7 +919,10 @@ fn server_call(backend: &mut Backend, id: u32) {
         env(0).now,
         io::Event::Stream {
             owner: Token::new(101),
-            up: skein_lib::stream::Up::Bytes(mcp::json::join(&[&serde_json::to_vec(&call).expect("RPC"), b"\n"])),
+            up: skein_lib::stream::Up::Bytes(skein_lib::bytes::concat(&[
+                &serde_json::to_vec(&call).expect("RPC"),
+                b"\n",
+            ])),
         },
         &mut backend.io,
     );

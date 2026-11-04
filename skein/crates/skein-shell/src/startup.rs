@@ -11,6 +11,9 @@
 //! oversized bundle refuses startup. PEM follows RFC 7468's lax form and
 //! recovers at the next BEGIN line after a malformed certificate block.
 
+mod store;
+pub use store::{STORE_OPERATIONS, StartupStore, StoreDirectory, Stored, Unstored, store_file};
+
 use std::path::{Path, PathBuf};
 
 use skein_io::kernel;

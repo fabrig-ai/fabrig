@@ -1,7 +1,7 @@
-# D005: The civil calendar is written three times
+# D005: The civil calendar is written twice
 
 - **Kind:** duplication
-- **Where:** `skein-forge/src/time.rs`, `skein-http/src/server/response.rs`, `skein-ui/src/date.rs`, `skein/tests/forge/machine/src/github.rs`
+- **Where:** `skein-forge/src/time.rs`, `skein-http/src/server/response.rs`, `skein-ui/src/date.rs`
 - **Seen:** 2026-10-31 at `4a6683c72`, in `reviews/2026-10-31-skein.md` (theme T1, the calendar row) and `reviews/2026-10-31-skein-areas.md` (A7, H7)
 - **Checked:** 2026-11-03 at `41d63da8c3`
 - **Value:** medium
@@ -19,17 +19,14 @@
 - `skein-http/src/server/response.rs` converts days to a date again
   (Hinnant's algorithm) for the server's `Date:` header, with its own
   weekday and month tables.
-- The forge machine world writes an IMF date of its own
-  (`skein/tests/forge/machine/src/github.rs`, `imf`).
 
 ## Why it matters
 
-Three copies of date arithmetic, each tested on its own, and each a
+Two copies of date arithmetic, each tested on its own, and each a
 place for an off-by-one at a year or month edge.
 
 ## What pays it back
 
 A civil date on `Wall` in skein-lib (lib may hold it; skein-forge
 depends only on lib and json), IMF-fixdate read and write in skein-http,
-and RFC 3339 at skein-forge's root, all on the one conversion. Then the
-world's `imf` uses skein-http's writer.
+and RFC 3339 at skein-forge's root, all on the one conversion.

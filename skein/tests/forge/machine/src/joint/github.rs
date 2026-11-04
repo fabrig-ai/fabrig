@@ -1,35 +1,29 @@
-//! GitHub HTTP peers sharing the joint's domain and cutting pipes.
+//! GitHub HTTP peers sharing the joint's domain and cutting pipes (skein/docs/design/fake-forge.md, 10.6).
 use super::{Joint, StartCounts};
 use crate::pipe::{Cut, Pipe, RequestCounts};
-use skein_fake_forge_domain as fake;
-use skein_fake_forge_github::service::{Outcome, Request, Service};
+use skein_fake_forge_github::{
+    fixture,
+    inline::{self, Lent},
+    server::{self, Event, Server},
+    service::{Limits, Service},
+};
 use skein_fake_forge_protocol::{Route, Tally};
 use skein_forge::github::request::Method;
 use skein_http::server as http;
-use skein_lib::{
-    Env, Queue, ReplyTo, Token,
-    stream::{Down, Read, Up},
-};
+use skein_lib::{Env, Queue, Token, stream::Down};
 use std::collections::{BTreeMap, VecDeque};
+
+// More heads than a tick can receive through the fixture's bounded read.
+const HEADS: u32 = 64;
 
 struct Peer {
     pipe: Pipe,
-    server: http::Server,
-    above: Queue<http::Event>,
+    server: Server,
+    above: Queue<Event>,
     below: Queue<Down>,
-    head: Option<http::Call>,
-    body: Vec<u8>,
-    reply: Vec<u8>,
-    offset: usize,
     heads: VecDeque<bool>,
     line_indices: Vec<usize>,
 }
-impl Peer {
-    fn action(&mut self, env: &Env<http::Limits>, request: http::Request) {
-        http::down(&mut self.server, env, request, &mut self.above, &mut self.below);
-    }
-}
-
 pub(super) struct Github {
     service: Service,
     app: skein_fake_forge_github::app::App,
@@ -41,158 +35,59 @@ impl Github {
     pub fn new(seed: u64) -> Self {
         Self {
             service: crate::github::Fake::new(seed).into_service(),
-            app: crate::github::fixture_app(),
+            app: skein_fake_forge_github::fixture::app(),
             verified: skein_fake_forge_github::app::Verified::empty(),
             peers: BTreeMap::new(),
             tally: Tally::new(1),
         }
     }
     pub fn busy(&self) -> bool {
-        self.peers.values().any(|peer| peer.pipe.has_work() || !peer.above.is_empty() || !peer.below.is_empty())
+        self.peers.values().any(|peer| {
+            peer.pipe.has_work() || peer.server.has_work() || !peer.above.is_empty() || !peer.below.is_empty()
+        })
     }
     pub fn owners(&self) -> impl Iterator<Item = Token> + '_ {
         self.peers.keys().copied()
     }
-    fn env(world: &Joint) -> Env<http::Limits> {
-        Env { now: world.env.now, wall: world.env.wall, limits: world.protocol_env.limits.http }
+    fn env(world: &Joint) -> Env<Limits> {
+        Env { now: world.env.now, wall: world.env.wall, limits: fixture::limits() }
     }
     pub fn tick(&mut self, world: &mut Joint) {
         let env = Self::env(world);
         let owners: Vec<_> = self.owners().collect();
         for owner in owners {
-            let mut peer = self.peers.remove(&owner).expect("live peer");
+            let peer = self.peers.get_mut(&owner).expect("live peer");
             while let Some(down) = peer.below.pop() {
                 peer.pipe.server_down(down);
             }
             if let Some(up) = peer.pipe.server_up() {
-                http::up(&mut peer.server, &env, up, &mut peer.above, &mut peer.below);
+                server::up(&mut peer.server, &mut self.service, &env, up, &mut peer.above, &mut peer.below);
             }
-            self.events(world, &mut peer, &env);
+            for _ in 0..HEADS {
+                inline::pass(
+                    &mut peer.server,
+                    &mut self.service,
+                    &mut Lent { domain: &mut world.domain, env: &world.fake_env, hooks: false },
+                    &env,
+                    &mut peer.above,
+                    &mut peer.below,
+                );
+                let Some(call) = peer.server.take_head() else { break };
+                if peer.heads.pop_front().expect("head follows first byte") {
+                    world.starts.served += 1;
+                }
+                let user =
+                    peer.server.credential().and_then(|header| header.strip_prefix(b"Bearer ")).and_then(|bearer| {
+                        (self.service.installations().token(bearer, env.wall).is_ok()
+                            || self.verified.check(bearer, &self.app, env.wall).is_ok())
+                        .then_some(9)
+                    });
+                self.tally.count(if user.is_some() { route(&call) } else { None }, user);
+            }
             let up = peer.pipe.client_up();
-            self.peers.insert(owner, peer);
             if let Some(up) = up {
                 world.up(skein_io::Event::Stream { owner, up });
             }
-        }
-    }
-    fn events(&mut self, world: &mut Joint, peer: &mut Peer, env: &Env<http::Limits>) {
-        while let Some(event) = peer.above.pop() {
-            match event {
-                http::Event::Call(call) => {
-                    if peer.heads.pop_front().expect("head follows first byte") {
-                        world.starts.served += 1;
-                    }
-                    let user = call
-                        .header(b"Authorization")
-                        .and_then(|header| header.strip_prefix(b"Bearer "))
-                        .and_then(|bearer| {
-                            (self.service.installations().token(bearer, env.wall).is_ok()
-                                || self.verified.check(bearer, &self.app, env.wall).is_ok())
-                            .then_some(9)
-                        });
-                    self.tally.count(if user.is_some() { route(&call) } else { None }, user);
-                    peer.head = Some(call);
-                    peer.body.clear();
-                    peer.action(
-                        env,
-                        http::Request::Body(Down::Demand { read: Read::Arrived { max: env.limits.read }, room: 0 }),
-                    );
-                }
-                http::Event::Body(Up::Bytes(bytes)) => {
-                    peer.body.extend_from_slice(&bytes);
-                    peer.action(
-                        env,
-                        http::Request::Body(Down::Demand { read: Read::Arrived { max: env.limits.read }, room: 0 }),
-                    );
-                }
-                http::Event::Body(Up::End) => self.serve(world, peer, env),
-                http::Event::Reply(Up::Room) => {
-                    let end = (peer.offset + usize::try_from(env.limits.send).expect("send")).min(peer.reply.len());
-                    let bytes = Box::from(&peer.reply[peer.offset..end]);
-                    peer.offset = end;
-                    peer.action(env, http::Request::Reply(Down::Send(bytes)));
-                    if end == peer.reply.len() {
-                        peer.action(env, http::Request::Reply(Down::Finish));
-                    } else {
-                        peer.action(
-                            env,
-                            http::Request::Reply(Down::Demand { read: Read::Nothing, room: env.limits.send }),
-                        );
-                    }
-                }
-                http::Event::Done(http::Reuse::Keep) => peer.action(env, http::Request::Next),
-                http::Event::Done(http::Reuse::Close)
-                | http::Event::Ended
-                | http::Event::Failed(_)
-                | http::Event::Closed
-                | http::Event::Body(Up::Failed(_))
-                | http::Event::Reply(Up::Failed(_)) => {}
-                http::Event::Body(Up::Room) | http::Event::Reply(Up::Bytes(_) | Up::End) | http::Event::Refused(_) => {
-                    panic!("HTTP adapter contract")
-                }
-            }
-        }
-    }
-    fn serve(&mut self, world: &mut Joint, peer: &mut Peer, env: &Env<http::Limits>) {
-        let call = peer.head.take().expect("request head");
-        let method = method(call.method);
-        let request = Request {
-            method,
-            target: &call.target,
-            authorization: call.header(b"Authorization"),
-            version: call.header(b"X-GitHub-Api-Version"),
-            agent: call.header(b"User-Agent").is_some(),
-            body: &peer.body,
-            validator: call.header(b"If-None-Match"),
-        };
-        let mut outcome = self.service.request(&request, env.wall, ReplyTo::new(Token::new(77)));
-        let response = loop {
-            outcome = match outcome {
-                Outcome::Reply(response) => break response,
-                Outcome::Admit(admission) => {
-                    self.service.admit(admission, &mut world.domain, &world.fake_env, ReplyTo::new(Token::new(77)))
-                }
-                Outcome::Call(pending, event) => {
-                    let mut out = Queue::uncapped();
-                    fake::step(&mut world.domain, &world.fake_env, event, &mut out);
-                    // More fires than the fixture's queue and CI can have due at once.
-                    for _ in 0..64 {
-                        if !out.is_empty() {
-                            break;
-                        }
-                        fake::fire(&mut world.domain, &world.fake_env, &mut out);
-                    }
-                    let Some(fake::Request::Reply { result, .. }) = out.pop() else {
-                        panic!("zero-latency domain reply")
-                    };
-                    assert!(out.is_empty());
-                    self.service.finish(pending, result, ReplyTo::new(Token::new(77)), &world.domain)
-                }
-            };
-        };
-        let mut headers = vec![skein_http::Header {
-            name: Box::from(b"Content-Type".as_slice()),
-            value: Box::from(response.content_type.bytes()),
-        }];
-        if let Some(link) = response.link {
-            headers.push(skein_http::Header { name: Box::from(b"Link".as_slice()), value: link });
-        }
-        if let Some(location) = response.location {
-            headers.push(skein_http::Header { name: Box::from(b"Location".as_slice()), value: location });
-        }
-        peer.reply = response.body.into_vec();
-        peer.offset = 0;
-        peer.action(
-            env,
-            http::Request::Respond(http::Response {
-                status: response.status,
-                headers: headers.into_boxed_slice(),
-                body: http::Body::Length(skein_lib::len_u64(peer.reply.len())),
-                close: false,
-            }),
-        );
-        if !peer.reply.is_empty() {
-            peer.action(env, http::Request::Reply(Down::Demand { read: Read::Nothing, room: env.limits.send }));
         }
     }
     pub fn io(&mut self, world: &mut Joint, request: skein_io::Request) {
@@ -203,17 +98,13 @@ impl Github {
                 let env = Self::env(world);
                 let mut peer = Peer {
                     pipe: Pipe::new(world.rng.next_u64(), cut),
-                    server: http::Server::new(&env.limits),
+                    server: Server::new(owner, &fixture::limits()).expect("server"),
                     above: Queue::with_capacity(64),
                     below: Queue::with_capacity(64),
-                    head: None,
-                    body: Vec::new(),
-                    reply: Vec::new(),
-                    offset: 0,
                     heads: VecDeque::new(),
                     line_indices: Vec::new(),
                 };
-                peer.action(&env, http::Request::Next);
+                server::start(&mut peer.server, &mut self.service, &env, &mut peer.above, &mut peer.below);
                 assert!(self.peers.insert(owner, peer).is_none(), "fresh connection");
                 world.up(skein_io::Event::Connecting { owner, socket: owner });
                 world.up(skein_io::Event::Connected { owner });

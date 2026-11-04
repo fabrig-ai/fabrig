@@ -27,7 +27,6 @@ skein-world.workspace = true
 [dev-dependencies]
 smith-transcript.workspace = true
 smith-agent-service.workspace = true
-smith-protocol-channel.workspace = true
 smith-protocol-translate.workspace = true
 
 # Ordinary Rust (programming-model.md, section 10.2), so not the step crates' lints.

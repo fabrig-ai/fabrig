@@ -112,7 +112,13 @@ impl Index {
     }
 
     /// Build from live tasks at publication and after restoration.
-    #[expect(clippy::trivially_copy_pass_by_ref, reason = "the index interface borrows its configured public limits")]
+    #[cfg_attr(
+        not(target_arch = "wasm32"),
+        expect(
+            clippy::trivially_copy_pass_by_ref,
+            reason = "the index interface borrows its configured public limits"
+        )
+    )]
     pub(crate) fn publish(&mut self, core: &CoreTasks<'_>, limits: &PublicIndexLimits, project: u32) {
         self.pending(project);
         let Some(slot) = self.projects.get_mut(&project) else { return };
@@ -127,7 +133,13 @@ impl Index {
     }
 
     /// Follow the row saved by the decision, including title and phase changes.
-    #[expect(clippy::trivially_copy_pass_by_ref, reason = "the index interface borrows its configured public limits")]
+    #[cfg_attr(
+        not(target_arch = "wasm32"),
+        expect(
+            clippy::trivially_copy_pass_by_ref,
+            reason = "the index interface borrows its configured public limits"
+        )
+    )]
     pub(crate) fn follow(&mut self, core: &CoreTasks<'_>, limits: &PublicIndexLimits, change: Change) {
         let task = match change {
             Change::Made { task }

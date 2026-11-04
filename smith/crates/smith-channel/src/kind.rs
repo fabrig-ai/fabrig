@@ -1,5 +1,7 @@
 //! Version-six kind identities (smith/docs/design/protocol/channel.md, sections 3–4).
 
+use alloc::boxed::Box;
+
 /// The `Start` body kind.
 pub const START: u16 = 0x0100;
 
@@ -62,3 +64,34 @@ pub const ACCOUNT_REFUSED: u16 = 0x0113;
 
 /// The supported channel version.
 pub const VERSION: u16 = 6;
+
+/// A kind's name in a refusal's text: `kind 0x` and its four lower-case hex digits.
+#[must_use]
+pub fn text(kind: u16) -> Box<[u8]> {
+    let bytes = kind.to_be_bytes();
+    Box::from([
+        b'k',
+        b'i',
+        b'n',
+        b'd',
+        b' ',
+        b'0',
+        b'x',
+        skein_lib::bytes::hex_digit(bytes[0] >> 4),
+        skein_lib::bytes::hex_digit(bytes[0] & 15),
+        skein_lib::bytes::hex_digit(bytes[1] >> 4),
+        skein_lib::bytes::hex_digit(bytes[1] & 15),
+    ])
+}
+
+#[cfg(test)]
+mod tests {
+    use super::text;
+
+    #[test]
+    fn text_has_four_lower_case_hex_digits() {
+        for (kind, expected) in [(0x0100, b"kind 0x0100"), (0xabcd, b"kind 0xabcd")] {
+            assert_eq!(text(kind).as_ref(), expected);
+        }
+    }
+}

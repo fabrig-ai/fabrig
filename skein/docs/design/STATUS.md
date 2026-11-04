@@ -24,9 +24,9 @@ llm-connection and lib's `RequestTable` depart from
 `../foundation/programming-model.md`, 5.4, and the fakes share their
 product's types against `../foundation/testing-strategy.md`, 4
 (`fake-forge.md`, `fake-llm.md`); single departures stand in
-`forge-setup.md`, `forge-connection.md`, `io.md`, `json.md`, `kv.md`,
-`llm.md`, `shell.md` and `testing.md`. The foundation's rules
-(`../foundation/`) have no status file: of `testing-strategy.md`, 6, no
+`fake-forge.md`, `forge-setup.md`, `forge-connection.md`, `io.md`,
+`json.md`, `kv.md`, `llm.md`, `shell.md` and `testing.md`. The
+foundation's rules (`../foundation/`) have no status file: of `testing-strategy.md`, 6, no
 tree runs transition coverage (`cargo llvm-cov`) or fuzzes a machine or
 a decoder (`cargo fuzz`). Of the drafts, `component-kit.md` waits on
 `lib.md` and `io.md` to name its items, and the design departs from

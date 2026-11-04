@@ -43,7 +43,7 @@ fn start_reads_the_key(request: w::Request, expected: temper_engine_domain_forge
     let mut store = fixtures::marked_store();
     engine.clients.secrets_step(&mut store);
     store.iterate();
-    while let Some(answer) = store.above.pop() {
+    while let Some(answer) = store.host.above.pop() {
         engine.clients.secret_answer(answer);
     }
     engine.clients.advance(&mut engine.events, &engine.workers.forges, engine.demo.as_ref(), &mut engine.accounts);
@@ -141,7 +141,7 @@ fn the_playground_read_uses_the_restored_engine_row() {
         1,
         Box::new([root::Write::Save(root::Record::Forge { row: Box::new(forge::Stored::Playground(row)) })]),
     );
-    previous.store.above.pop().expect("playground saved");
+    previous.store.host.above.pop().expect("playground saved");
     let mut service = fixtures::restarting_from(previous);
     fixtures::restart(&mut service);
     let engine = service.engine.as_ref().unwrap();

@@ -81,7 +81,8 @@ its tests, is section 15.
 ## 2. Reading order
 
 1. **jig's `protocol/README.md` and `protocol/service.md`:** the layer
-   temper composes, and the services temper copies.
+   temper composes, the service parts jig ships for it, and the routing
+   temper copies.
 2. **README.md:** this overview.
 3. **configuration.md:** what `temper serve` and its other commands are
    told at start.
@@ -372,10 +373,11 @@ processes are 15.2's.
 | `jig-protocol-worker-wire` | engine, worker | the channel's records; temper's parts ride in them as bytes (channel.md) |
 | `jig-protocol-engine-workers` | engine | the worker's link, the engine's side: opening, the payload version, grants' values filled in |
 | `jig-protocol-worker-link` | worker | the worker's link, the worker's side: dialling, grants' values taken out |
+| `jig-protocol-worker-agents` | worker | the program sources and the worker route, between smith's host half and the link (jig's `protocol/service.md`, 11.2) |
 | `jig-protocol-accounts` | engine | LLM accounts on skein's accounts driver: signed-in records and keys from jig's secrets' store, a loopback listener for each sign-in's redirect, the access tokens and keys lent (credentials.md, section 3) |
 | `jig-client-protocol-wire` | engine, client | jig's records for clients; the forge's client family's records ride in them as bytes (`../client/README.md`) |
 | `jig-protocol-engine-clients` | engine | the clients' component: jig's messages with their credentials, the printed link's secret, sign-ins, credentials (`../client/README.md`, section 8) |
-| `jig-protocol-engine-clients-http` | engine | jig's default HTTP mapping, its engine end, with its example guards, mounted on temper's clients' listener under `/jig` |
+| `jig-protocol-engine-clients-http` | engine | jig's default HTTP mapping, its engine end, with its example guards, mounted on temper's clients' listener under `/jig`, and the server part that listener stands on (jig's `protocol/service.md`, 11.4) |
 | `jig-client` | client | the client temper's client root holds: the link, watches by handle, the request table, kept work, families; jig's helpers (`../client/README.md`, section 3) |
 | `jig-client-protocol-link` | client | `jig-client`'s half toward its transport: jig's messages and the small store's records as bytes (jig's `protocol/client.md`, 4.3) |
 | `jig-client-protocol-http` | client | jig's default HTTP mapping, its client end, under `jig-client-shell-native` and `jig-client-shell-web` |
@@ -423,7 +425,7 @@ box's host and the fake git program's core:
 
 | Crate | Kind | Holds | Depends on |
 |---|---|---|---|
-| `crates/temper-service` | services | the engine's and the worker's services and their one-process composition, in an engine, a worker and a system module, as jig's reference service is: each `iterate`, the routing, the clients' listener with jig's clients' component and its default HTTP mapping mounted, temper's forge routes, and the browser's page and bundle served (`../client/browser.md`, 2.2), startup from configuration's bytes, start and end; temper's profile `small` | the roots, `temper-engine-smith`, jig's components, smith's host half and codecs, temper's codec crates and components, `skein-forge-connection`, `skein-io`, `skein-json` |
+| `crates/temper-service` | services | the engine's and the worker's services and their one-process composition, in an engine, a worker and a system module, as jig's reference service is: each `iterate`, the routing, the clients' listener on jig's server part, with jig's clients' component and its default HTTP mapping mounted, temper's forge routes, and the browser's page and bundle served (`../client/browser.md`, 2.2), startup from configuration's bytes, start and end; temper's profile `small` | the roots, `temper-engine-smith`, jig's components, smith's host half and codecs, temper's codec crates and components, `skein-forge-connection`, `skein-io`, `skein-json` |
 | `crates/temper` | binary | the commands of section 4, copied from jig's reference binary; for each that reads the document, `temper-service`'s startup, with `machine` and the setup's and the box's limits checked by their own crates (configuration.md, section 2) | `temper-service`, `skein-shell`, `smith-agent-shell`, `smith-local-service`'s profile, `skein-oauth-accounts`, `jig-client-shell-native`, the client crates, `temper-forge-setup-shell`, `temper-box`, `temper-client-bundle` |
 | `crates/temper-forge-setup` | step code | the forge's setup, but for reconcile, which is skein's (`skein-forge-setup`): its types and checks, and the setup mapped onto reconcile's given values, with the kit's check of them; the preparation's machine; `app.ini` and the runner's files; the processes' specs; the configuration's steps, `steps` and `Step`. Names no host | setup.md, section 11 |
 | `crates/temper-forge-setup-shell` | hosts | ordinary Rust: the hosts of `temper forge prepare` and `run`: commands, files, the forge's locks and the exec (setup.md, 6.4); HTTP on skein-http over skein-io | setup.md, section 11 |
@@ -487,7 +489,7 @@ temper-service, engine module           iterate: io ↔ components ↔ root
     ├── jig-protocol-engine-workers     the worker's link; temper's parts as bytes (channel.md)
     ├── jig-protocol-accounts           LLM accounts (credentials.md, section 3)
     │   └── skein-oauth-accounts
-    ├── the clients' listener           temper's: TCP on loopback (../client/README.md, section 8)
+    ├── the clients' listener           temper's, on jig's server part: TCP on loopback (../client/README.md, section 8)
     │   └── jig-protocol-engine-clients-http   jig's default HTTP mapping, under /jig, with its example guards
     ├── jig-protocol-engine-clients     the clients' component: jig's messages; the forge's client family as bytes (../client/README.md, section 8)
     ├── skein-forge-connection          the forge component: every kept forge's API; the webhooks' listener, TCP on loopback (forge.md)
@@ -594,6 +596,7 @@ temper-service, worker module           iterate
 └── the protocol layer
     ├── jig-protocol-worker-link        the link to the engine; temper's parts as bytes (channel.md)
     ├── smith-host-protocol             one channel per agent process, over its pipes; LLM grants filled into its start
+    ├── jig-protocol-worker-agents      the program sources and the worker route, between smith's host half and the link
     ├── agent processes                 temper internal agent, each in a process group of its own
     ├── the identities' table           git identities' values, from grants (credentials.md, section 4)
     └── temper-worker-protocol-git      the git component: the checkout's io (git.md)
@@ -831,8 +834,10 @@ read from are configuration.md's (section 6). Across the layer:
 temper's protocol layer uses jig, smith and skein as they are, at the
 revisions temper's `Cargo.lock` pins.
 
-- **jig:** the components of section 5; the reference service and binary,
-  copied; `jig-client` and its native transport; jig's client test kit,
+- **jig:** the components of section 5, with the service parts jig ships
+  (its `protocol/service.md`, section 11), composed; the reference
+  service's routing and the reference binary, copied; `jig-client` and
+  its native transport; jig's client test kit,
   its check, faults and attack stories, for temper's client tiers; the
   conformance kit, as the domain's worlds use it.
 - **smith:** the agent shell, the host domain and host half, the codecs;
@@ -920,6 +925,12 @@ Each document keeps its own; these cross them:
 - **Agents in the worker's process** (`smith-inline-agent`), with no
   containment, for one person's machine (jig's `protocol/service.md`,
   section 10). Default: agent processes, as `temper internal agent`.
+- **A restored secret of the wrong kind.** What that means is the
+  application's (jig's `protocol/service.md`, 11.1). jig's reference
+  stops its engine. temper raises `Corrupt` on an owner no route holds:
+  the accounts' component aborts and the engine runs on. Whether temper
+  stops too is for a small task of its own. Default: it runs on, until
+  that task.
 - **After standalone,** each designed where it is named, and needed only
   beyond one person's machine: webhooks from another host, over TLS
   (forge.md, section 5); hosts apart: TLS on the engine's listeners,

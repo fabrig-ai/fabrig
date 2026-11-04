@@ -237,7 +237,7 @@ const USAGES: &[&[u8]] = &[
     b"landing list --project PROJECT [--ended]\n",
     b"forge remove FORGE [--key KEY]\n",
     b"playground end [--key KEY]\n",
-    b"task text TASK [--field specification|instructions] [--from OFFSET]\n",
+    b"task text TASK [--field specification|instructions|result] [--from OFFSET]\n",
     b"goal start --project PROJECT [--template TEMPLATE] TEXT [--charter CHARTER] [--priority PRIORITY] [--budget AMOUNT] [--as-allowed] [--deadline TIME] [--model MODEL] [--effort EFFORT] [--sub-agent MODEL[:EFFORT]]... --key KEY\n",
     b"revision restore REVISION [REASON] --key KEY\n",
     b"project amend PROJECT --visibility public|private --key KEY\n",

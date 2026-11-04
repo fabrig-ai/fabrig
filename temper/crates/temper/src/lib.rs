@@ -465,7 +465,7 @@ fn prepare_with_limits(
                 .service
                 .environment
                 .command_entries();
-        let resources = service::program_sources::Resources::configured(program, environment)
+        let resources = service::program_sources::configured(program, environment)
             .ok_or("workers[0].agent.configuration: program source resources exceed their bounds")?;
         service.configure_program_sources(resources).map_err(|_| "worker refused program source resources")?;
     }

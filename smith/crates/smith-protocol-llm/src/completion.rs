@@ -104,7 +104,7 @@ fn block_value(block: skein_llm::Block, context: &Context, decoded_bytes: &mut u
             Ok(invalid_call(id, name, llm::Problem::Oversize { bytes, bound: context.limits.client.input }))
         }
         skein_llm::Block::Cut { id, name, arguments } => {
-            let bytes = u64::try_from(arguments.len()).or(Err(Error::Limit))?;
+            let bytes = skein_lib::len_u64(arguments.len());
             Ok(invalid_call(id, name, llm::Problem::CutOff { bytes }))
         }
         skein_llm::Block::ToolResult { .. } => Err(Error::Invalid),
@@ -191,7 +191,7 @@ fn host(declaration: &run::HostTool, input: &[u8], context: &Context, remaining:
 fn host_wanted(declaration: &run::HostTool, input: &[u8]) -> Option<u64> {
     // This call's wrapper was reserved with every observed tool-call cell
     // before decoding. Only the new declaration/input payload needs room.
-    u64::try_from(declaration.name.len()).ok()?.checked_add(u64::try_from(input.len()).ok()?)
+    skein_lib::len_u64(declaration.name.len()).checked_add(skein_lib::len_u64(input.len()))
 }
 
 fn decoded_cells(content: &[skein_llm::Block]) -> Result<u64, Error> {

@@ -40,8 +40,7 @@ pub fn render_outcome(
     assert_eq!(error, again, "render classification is stable");
     let omitted = measure.length.checked_sub(prefix.kept).expect("prefix within full rendering");
     let marker_length = if omitted > 0 {
-        u64::try_from(Decimal::of(omitted).as_bytes().len())
-            .or(Err(Error::Limit))?
+        skein_lib::len_u64(Decimal::of(omitted).as_bytes().len())
             .checked_add(u64::from(MARKER_WORD_BYTES))
             .ok_or(Error::Limit)?
     } else {
@@ -69,7 +68,7 @@ struct Sink {
 
 impl Sink {
     fn put(&mut self, text: &[u8]) -> Result<(), Error> {
-        self.length = self.length.checked_add(u64::try_from(text.len()).or(Err(Error::Limit))?).ok_or(Error::Limit)?;
+        self.length = self.length.checked_add(skein_lib::len_u64(text.len())).ok_or(Error::Limit)?;
         if self.cut {
             return Ok(());
         }
@@ -87,7 +86,7 @@ impl Sink {
             }
         }
         let retained = text.get(..boundary).expect("boundary within text");
-        self.kept = self.kept.checked_add(u64::try_from(retained.len()).or(Err(Error::Limit))?).ok_or(Error::Limit)?;
+        self.kept = self.kept.checked_add(skein_lib::len_u64(retained.len())).ok_or(Error::Limit)?;
         self.cut = boundary < text.len();
         match &mut self.writer {
             Some(writer) => writer.put(retained).or(Err(Error::Limit)),

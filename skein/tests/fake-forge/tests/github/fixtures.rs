@@ -3,7 +3,8 @@ use skein_fake_forge_domain::{self as domain, api as a};
 use skein_fake_forge_github::{
     self as fake,
     app::App,
-    service::{Account, AppFacts, Row, Shown},
+    fixture,
+    service::{Account, Row, Shown},
 };
 use skein_forge::github::{
     document::{Access, Permission},
@@ -38,6 +39,7 @@ pub fn limits() -> fake::Limits {
         git_records: 16,
     }
 }
+/// Scenario tables over the shared defaults (skein/docs/design/fake-forge.md, 10.6).
 pub fn config() -> fake::Config {
     let mut repositories = List::with_capacity(4);
     let mut accounts = List::with_capacity(4);
@@ -62,14 +64,7 @@ pub fn config() -> fake::Config {
         accounts.push(Account { login: login.into(), id, organization }).expect("bounded fixture");
     }
     fake::Config {
-        rate_quota: 5000,
-        rate_window: Duration::from_secs(3600),
-        token_life: skein_fake_forge_github::installations::TOKEN_LIFE,
-        deliveries: fake::delivery::Config::standard(),
-        base: Box::from(b"http://127.0.0.1:3000".as_slice()),
         blob: Box::from(b"http://127.0.0.1:3001".as_slice()),
-        third_origin: None,
-        blob_redirect: None,
         app: App {
             id: 7,
             slug: Box::from(b"example-app".as_slice()),
@@ -89,18 +84,12 @@ pub fn config() -> fake::Config {
                 Box::from(b"check_run".as_slice()),
             ]),
         },
-        app_facts: AppFacts::Complete,
         shown: Shown::Both,
-        ruleset_id: 17,
-        pull_requests_only: false,
         required_signatures: true,
-        bot: BOT,
         hook: Box::from(b"http://127.0.0.1/hooks".as_slice()),
-        repositories,
         accounts,
-        person: Box::from(b"alice".as_slice()),
         tokens,
-        faults: fake::Faults { reset: 0, drop: 0, server_error: 0 },
+        ..fixture::config(repositories)
     }
 }
 pub fn name(id: u32) -> Box<[u8]> {

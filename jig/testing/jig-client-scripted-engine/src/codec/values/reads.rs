@@ -21,6 +21,7 @@ pub(in crate::codec) fn wire_read_value(value: &c::ReadValue, limits: &w::Limits
                 field: match value.field {
                     c::TaskTextField::Specification => w::TaskTextField::Specification,
                     c::TaskTextField::Instructions => w::TaskTextField::Instructions,
+                    c::TaskTextField::Result => w::TaskTextField::Result,
                 },
                 from: value.from,
                 total: value.total,

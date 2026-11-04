@@ -533,7 +533,10 @@ impl Decision {
 /// issues none. Every retained delivery follows the latest allocated commit.
 /// The cold load reads the durable header before numbering another commit, so
 /// its caller leaves `persist_header` false until that header has loaded.
-#[expect(clippy::result_large_err, reason = "refused root decisions return all owned writes and outputs")]
+#[cfg_attr(
+    not(target_arch = "wasm32"),
+    expect(clippy::result_large_err, reason = "refused root decisions return all owned writes and outputs")
+)]
 pub fn accept_routed(
     journal: &mut Journal,
     counters: &mut Counters,
