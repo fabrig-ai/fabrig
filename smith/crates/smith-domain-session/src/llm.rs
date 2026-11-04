@@ -66,27 +66,77 @@ pub enum Block {
     },
     /// Owned bounded text in its original provider position.
     Text { text: Box<[u8]>, replay: Option<Replay> },
-    /// The LLM asks for a tool to run. `id` is the provider's name for this
-    /// call, which its result echoes; `name` and `input` are what the LLM
-    /// wrote, the input a JSON object; `call` is what the protocol layer
-    /// decoded from them.
-    ToolCall {
-        id: Box<[u8]>,
-        name: Box<[u8]>,
-        /// Provider arguments, or canonical `{}` for an oversized or cut call;
-        /// counted with their enclosing message against session ownership limits.
-        input: Box<[u8]>,
-        /// Full decoded classification: owned tool call, opener-served ticket,
-        /// invalid-input problem, or non-executable concrete-history replay marker.
-        call: Decoded,
-        replay: Option<Replay>,
-    },
+    /// The LLM asks for a tool to run.
+    ToolCall(ToolCall),
     /// What came of the tool call `id`.
     ToolResult {
         id: Box<[u8]>,
         /// The one terminal value for the enclosing call; ownership passes to its receiver.
         result: Returned,
     },
+}
+
+impl Block {
+    /// The call this block holds, if it is one.
+    #[must_use]
+    pub const fn tool_call(&self) -> Option<&ToolCall> {
+        match self {
+            Self::ToolCall(call) => Some(call),
+            Self::Opaque { .. } | Self::Refusal { .. } | Self::Text { .. } | Self::ToolResult { .. } => None,
+        }
+    }
+
+    /// The text this block holds, if it is a text block.
+    #[must_use]
+    pub fn text(&self) -> Option<&[u8]> {
+        match self {
+            Self::Text { text, .. } => Some(text),
+            Self::Opaque { .. } | Self::Refusal { .. } | Self::ToolCall(_) | Self::ToolResult { .. } => None,
+        }
+    }
+}
+
+/// A tool call in a message. `id` is the provider's name for this call, which its result echoes;
+/// `name` and `input` are what the LLM wrote, the input a JSON object; `call` is what the protocol layer decoded from them.
+#[derive(Clone, PartialEq, Eq, Hash, Debug)]
+pub struct ToolCall {
+    pub id: Box<[u8]>,
+    pub name: Box<[u8]>,
+    /// Provider arguments, or canonical `{}` for an oversized or cut call;
+    /// counted with their enclosing message against session ownership limits.
+    pub input: Box<[u8]>,
+    /// Full decoded classification: owned tool call, opener-served ticket,
+    /// invalid-input problem, or non-executable concrete-history replay marker.
+    pub call: Decoded,
+    pub replay: Option<Replay>,
+}
+
+#[cfg(test)]
+mod tests {
+    use super::{Block, Decoded, NotRun, Returned, ToolCall};
+    use alloc::boxed::Box;
+
+    #[test]
+    fn block_accessors_select_only_their_variant() {
+        let call = ToolCall {
+            id: Box::from(&b"call"[..]),
+            name: Box::from(&b"read"[..]),
+            input: Box::from(&b"{}"[..]),
+            call: Decoded::Historical,
+            replay: None,
+        };
+        let cases = [
+            (Block::Opaque { bytes: Box::from(&b"opaque"[..]) }, None, None),
+            (Block::Refusal { text: Box::from(&b"refusal"[..]), replay: None }, None, None),
+            (Block::Text { text: Box::from(&b"text"[..]), replay: None }, None, Some(&b"text"[..])),
+            (Block::ToolCall(call.clone()), Some(&call), None),
+            (Block::ToolResult { id: call.id.clone(), result: Returned::NotRun { why: NotRun::Stopped } }, None, None),
+        ];
+        for (block, expected_call, expected_text) in cases {
+            assert_eq!(block.tool_call(), expected_call, "{block:?}");
+            assert_eq!(block.text(), expected_text, "{block:?}");
+        }
+    }
 }
 
 /// A tool call, as the protocol layer decoded it.

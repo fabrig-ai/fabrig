@@ -541,7 +541,7 @@ fn a_yielded_call_tail_becomes_not_run_only_after_the_continue() {
         .messages
         .iter()
         .flat_map(|message| message.content.iter())
-        .find_map(|block| if let Block::ToolCall { id, .. } = block { Some(id) } else { None })
+        .find_map(|block| if let Block::ToolCall(smith_domain_session::llm::ToolCall { id, .. }) = block { Some(id) } else { None })
         .expect("the truncated provider payload retained its unanswered call");
     assert!(
         !records[0]
@@ -584,7 +584,7 @@ fn a_failed_sessions_end_carries_its_last_detail() {
             llm::Block::Text { text, .. } => skein_lib::bytes::find(text, b"private provider diagnostic").is_none(),
             llm::Block::Opaque { .. }
             | llm::Block::Refusal { .. }
-            | llm::Block::ToolCall { .. }
+            | llm::Block::ToolCall(_)
             | llm::Block::ToolResult { .. } => true,
         })
     })));
@@ -634,7 +634,7 @@ fn no_prompt_holds_a_kept_detail() {
             llm::Block::Text { text, .. } => skein_lib::bytes::find(text, b"private provider diagnostic").is_none(),
             llm::Block::Opaque { .. }
             | llm::Block::Refusal { .. }
-            | llm::Block::ToolCall { .. }
+            | llm::Block::ToolCall(_)
             | llm::Block::ToolResult { .. } => true,
         })
     })));

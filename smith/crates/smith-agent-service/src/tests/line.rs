@@ -36,7 +36,7 @@ fn read_prompt(calls: u8, line: u64, usage: llm::Usage) -> (llm::Prompt, Vec<usi
     }
     session::reserve_completion(&mut domain, session_owner.unwrap(), 0, 0, 1024).unwrap();
     let content = (0..calls)
-        .map(|index| session::llm::Block::ToolCall {
+        .map(|index| session::llm::Block::ToolCall(session::llm::ToolCall {
             id: Box::new([b'a'.checked_add(index).unwrap()]),
             name: b"read".as_slice().into(),
             input: br#"{"path":"file"}"#.as_slice().into(),
@@ -51,7 +51,7 @@ fn read_prompt(calls: u8, line: u64, usage: llm::Usage) -> (llm::Prompt, Vec<usi
                 },
             },
             replay: None,
-        })
+        }))
         .collect();
     session::step(
         &mut domain,
@@ -119,7 +119,7 @@ fn resolved(prompt: session::llm::Prompt) -> (llm::Prompt, Vec<usize>) {
                 .into_iter()
                 .map(|block| match block {
                     session::llm::Block::Text { text, replay } => llm::Block::Text { text, replay },
-                    session::llm::Block::ToolCall { id, name, input, replay, .. } => {
+                    session::llm::Block::ToolCall(session::llm::ToolCall { id, name, input, replay, .. }) => {
                         llm::Block::ToolCall { id, name, input, replay }
                     }
                     session::llm::Block::ToolResult { id, result: session::llm::Returned::Owned { outcome } } => {

@@ -275,16 +275,16 @@ pub(super) fn held(content: &[Block], calls: u32, choice: &ToolChoice, names: Op
             cost = cost.checked_add(choice_bytes(names))?;
         }
         match block {
-            Block::ToolCall { id, name: _, input: _, call: Decoded::Invalid { problem, .. }, .. } => {
+            Block::ToolCall(crate::llm::ToolCall { id, name: _, input: _, call: Decoded::Invalid { problem, .. }, .. }) => {
                 cost = cost.checked_add(len(id)?)?.checked_add(problem_cost(problem)?)?;
             }
-            Block::ToolCall {
+            Block::ToolCall(crate::llm::ToolCall {
                 id,
                 name: _,
                 input: _,
                 call: Decoded::Builtin { .. } | Decoded::Owned { .. } | Decoded::Delegated { .. } | Decoded::Historical,
                 ..
-            } => {
+            }) => {
                 cost = cost.checked_add(len(id)?)?;
             }
             Block::Opaque { .. } | Block::Text { .. } | Block::Refusal { .. } | Block::ToolResult { .. } => {}
@@ -314,7 +314,7 @@ pub(super) fn payload_cost(block: &Block) -> Option<u64> {
             len(text)?.checked_add(replay_cost(replay.as_ref())?)
         }
         Block::Opaque { bytes } => len(bytes),
-        Block::ToolCall { id, name, input, call, replay } => {
+        Block::ToolCall(crate::llm::ToolCall { id, name, input, call, replay }) => {
             // A delegated call is the opener's to hold.
             let decoded = match call {
                 Decoded::Owned { call } => call_cost(call)?,

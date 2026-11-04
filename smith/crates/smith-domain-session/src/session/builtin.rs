@@ -102,10 +102,10 @@ pub(super) fn prepare(
     let mut others = 0_u32;
     for block in &message.content {
         match block {
-            Block::ToolCall { call: Decoded::Builtin { .. }, .. } => {
+            Block::ToolCall(crate::llm::ToolCall { call: Decoded::Builtin { .. }, .. }) => {
                 builtins = builtins.checked_add(1).expect("bounded calls");
             }
-            Block::ToolCall { .. } => others = others.checked_add(1).expect("bounded calls"),
+            Block::ToolCall(_) => others = others.checked_add(1).expect("bounded calls"),
             Block::Text { .. } | Block::Refusal { .. } | Block::Opaque { .. } | Block::ToolResult { .. } => {}
         }
     }
@@ -126,7 +126,7 @@ pub(super) fn prepare(
     };
     for (position, block) in message.content.iter().enumerate() {
         match block {
-            Block::ToolCall { id, name, input, call: Decoded::Builtin { effect }, .. } => {
+            Block::ToolCall(crate::llm::ToolCall { id, name, input, call: Decoded::Builtin { effect }, .. }) => {
                 let metadata = ToolCall {
                     owner: Token::new(0),
                     id: id.clone(),
@@ -164,7 +164,7 @@ pub(super) fn prepare(
                     .expect("reserved result room");
                 conversation.bytes = conversation.bytes.checked_add(kept_bytes).expect("stand-in fits history");
             }
-            Block::ToolCall { .. } => tools.slots.push(Slot::Unstarted).expect("one slot per call"),
+            Block::ToolCall(_) => tools.slots.push(Slot::Unstarted).expect("one slot per call"),
             Block::Text { .. } | Block::Refusal { .. } | Block::Opaque { .. } | Block::ToolResult { .. } => {}
         }
     }
@@ -317,7 +317,7 @@ pub(crate) fn result(
     };
     match block {
         Block::ToolResult { result, .. } => *result = answer,
-        Block::ToolCall { .. } | Block::Text { .. } | Block::Refusal { .. } | Block::Opaque { .. } => {
+        Block::ToolCall(_) | Block::Text { .. } | Block::Refusal { .. } | Block::Opaque { .. } => {
             unreachable!("owed result place")
         }
     }
@@ -347,7 +347,7 @@ pub(super) fn finish_closing(conversation: &mut Conversation, tools: Option<Tool
     let mut slots = tools.slots.into_boxed().into_iter();
     for block in &message.content {
         match block {
-            Block::ToolCall { id, .. } => match slots.next().expect("one prepared slot per call") {
+            Block::ToolCall(crate::llm::ToolCall { id, .. }) => match slots.next().expect("one prepared slot per call") {
                 Slot::Done { result } => results.push(result).expect("result slot"),
                 Slot::Unstarted => results
                     .push(Block::ToolResult {

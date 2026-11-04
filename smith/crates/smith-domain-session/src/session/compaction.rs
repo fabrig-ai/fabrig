@@ -133,7 +133,7 @@ pub(super) fn instruction_bytes(conversation: &Conversation) -> usize {
     }
     match conversation.transcript.last().expect("summary message").content.first().expect("summary block") {
         Block::Text { text, .. } => text.len(),
-        Block::Refusal { .. } | Block::ToolCall { .. } | Block::ToolResult { .. } | Block::Opaque { .. } => {
+        Block::Refusal { .. } | Block::ToolCall(_) | Block::ToolResult { .. } | Block::Opaque { .. } => {
             unreachable!("summary instruction is text")
         }
     }
@@ -182,7 +182,7 @@ pub(super) fn start(
                     held.push(text).expect("one offer fits its history");
                 }
                 block @ (Block::ToolResult { .. }
-                | Block::ToolCall { .. }
+                | Block::ToolCall(_)
                 | Block::Refusal { .. }
                 | Block::Opaque { .. }) => {
                     kept.push(block).expect("one kept slot per old block");
@@ -242,7 +242,7 @@ pub(super) fn open_window(
     let message = conversation.transcript.get_mut(last).expect("summary instruction is retained");
     conversation.summary = match message.content.first_mut().expect("one summary text") {
         Block::Text { text, .. } => mem::replace(text, Box::new([])),
-        Block::Refusal { .. } | Block::ToolCall { .. } | Block::ToolResult { .. } | Block::Opaque { .. } => {
+        Block::Refusal { .. } | Block::ToolCall(_) | Block::ToolResult { .. } | Block::Opaque { .. } => {
             unreachable!("a compaction asks with the summary text last")
         }
     };
@@ -332,7 +332,7 @@ pub(super) fn accept(
                     }
                 }
             }
-            Block::ToolCall { .. } | Block::ToolResult { .. } | Block::Opaque { .. } => {}
+            Block::ToolCall(_) | Block::ToolResult { .. } | Block::Opaque { .. } => {}
         }
     }
     let fault = if refused {
@@ -364,7 +364,7 @@ fn summary_text(content: &[Block]) -> Box<[u8]> {
                 length = length.checked_add(text.len()).expect("bounded summary text");
                 parts = parts.checked_add(1).expect("bounded summary blocks");
             }
-            Block::Refusal { .. } | Block::ToolCall { .. } | Block::ToolResult { .. } | Block::Opaque { .. } => {}
+            Block::Refusal { .. } | Block::ToolCall(_) | Block::ToolResult { .. } | Block::Opaque { .. } => {}
         }
     }
     let separators = parts.saturating_sub(1).checked_mul(2).expect("bounded summary separators");
@@ -379,7 +379,7 @@ fn summary_text(content: &[Block]) -> Box<[u8]> {
                 written.put(text).expect("measured text");
                 first = false;
             }
-            Block::Refusal { .. } | Block::ToolCall { .. } | Block::ToolResult { .. } | Block::Opaque { .. } => {}
+            Block::Refusal { .. } | Block::ToolCall(_) | Block::ToolResult { .. } | Block::Opaque { .. } => {}
         }
     }
     written.finish()
@@ -462,7 +462,7 @@ pub(super) fn restore(
                     conversation.task.clone_from(text);
                 }
                 Some(
-                    Block::Refusal { .. } | Block::Opaque { .. } | Block::ToolCall { .. } | Block::ToolResult { .. },
+                    Block::Refusal { .. } | Block::Opaque { .. } | Block::ToolCall(_) | Block::ToolResult { .. },
                 )
                 | None => {}
             }
@@ -477,7 +477,7 @@ pub(super) fn restore(
                     conversation.window.summary_bytes = skein_lib::len_u64(text.len());
                 }
                 Some(
-                    Block::Refusal { .. } | Block::Opaque { .. } | Block::ToolCall { .. } | Block::ToolResult { .. },
+                    Block::Refusal { .. } | Block::Opaque { .. } | Block::ToolCall(_) | Block::ToolResult { .. },
                 )
                 | None => {}
             }
@@ -546,7 +546,7 @@ fn portable(block: Block) -> Option<Block> {
         Block::Opaque { .. } => None,
         Block::Text { text, .. } => Some(Block::Text { text, replay: None }),
         Block::Refusal { text, .. } => Some(Block::Refusal { text, replay: None }),
-        Block::ToolCall { id, name, input, call, .. } => Some(Block::ToolCall { id, name, input, call, replay: None }),
+        Block::ToolCall(crate::llm::ToolCall { id, name, input, call, .. }) => Some(Block::ToolCall(crate::llm::ToolCall { id, name, input, call, replay: None })),
         Block::ToolResult { id, result } => {
             let result = match result {
                 crate::llm::Returned::Text { text, error, .. } => {

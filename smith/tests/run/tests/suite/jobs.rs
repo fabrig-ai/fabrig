@@ -135,7 +135,7 @@ fn ends(world: &World) -> Vec<tools::JobEnd> {
             session::llm::Block::Refusal { .. }
             | session::llm::Block::Text { .. }
             | session::llm::Block::Opaque { .. }
-            | session::llm::Block::ToolCall { .. }
+            | session::llm::Block::ToolCall(_)
             | session::llm::Block::ToolResult { .. } => None,
         })
         .chain(world.facts().iter().filter_map(|fact| match fact {
@@ -319,7 +319,7 @@ fn a_run_parked_with_a_job_running_tells_it_ended_and_a_later_job_call_is_invali
             session::llm::Block::Refusal { .. }
             | session::llm::Block::Text { .. }
             | session::llm::Block::Opaque { .. }
-            | session::llm::Block::ToolCall { .. }
+            | session::llm::Block::ToolCall(_)
             | session::llm::Block::ToolResult { .. } => None,
         })
         .collect::<Vec<_>>();

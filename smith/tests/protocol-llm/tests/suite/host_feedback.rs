@@ -103,7 +103,7 @@ fn retired_boundary(world: &World, tool_name: &[u8]) {
     assert_eq!(second_binding.terminal.expect("component terminal").1, Wall::from_nanos(3000));
     assert!(second_binding.terminal.iter().all(|(_, wall, _)| *wall == Wall::from_nanos(3000)));
     assert!(world.turns().iter().flat_map(|turn| &turn.messages).flat_map(|message| &message.content).any(|block| {
-        matches!(block, llm::Block::ToolCall { id, name, input, .. } if id.as_ref() == ID && name.as_ref() == tool_name && input.as_ref() == BODY)
+        matches!(block, llm::Block::ToolCall(llm::ToolCall { id, name, input, .. }) if id.as_ref() == ID && name.as_ref() == tool_name && input.as_ref() == BODY)
     }), "root-owned concrete Turn retains the incoming delta bytes");
 }
 

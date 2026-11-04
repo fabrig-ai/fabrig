@@ -73,10 +73,10 @@ fn chat_positive_and_omitted_reordered_or_corrupted_turns() {
                     let seen_call = assistant
                         .content
                         .iter_mut()
-                        .find(|block| matches!(block, smith_domain::session::llm::Block::ToolCall { .. }))
+                        .find(|block| matches!(block, smith_domain::session::llm::Block::ToolCall(_)))
                         .expect("wait call");
                     match seen_call {
-                        smith_domain::session::llm::Block::ToolCall { id, .. } => {
+                        smith_domain::session::llm::Block::ToolCall(smith_domain::session::llm::ToolCall { id, .. }) => {
                             *id = b"invented-id".as_slice().into();
                         }
                         smith_domain::session::llm::Block::Text { .. }
@@ -153,7 +153,7 @@ fn premature_waiting_wrong_wake_text_and_wrong_final_count_or_park_time_are_reje
                     smith_domain::session::llm::Block::Text { .. }
                     | smith_domain::session::llm::Block::Refusal { .. }
                     | smith_domain::session::llm::Block::Opaque { .. }
-                    | smith_domain::session::llm::Block::ToolCall { .. } => panic!("selected result"),
+                    | smith_domain::session::llm::Block::ToolCall(_) => panic!("selected result"),
                 }
             }
             5 => match &mut bad.last_mut().expect("final word").1 {

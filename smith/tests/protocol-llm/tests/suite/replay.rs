@@ -280,7 +280,7 @@ fn recorded_wait(turn: &smith_domain::Turn, fixture: &Fixture, opaque: bool) -> 
     if wake.role != llm::Role::User || assistant.role != llm::Role::Assistant || !wake_matches {
         return false;
     }
-    let [first, llm::Block::ToolCall { id, name, input, call: llm::Decoded::Historical, replay: metadata }] =
+    let [first, llm::Block::ToolCall(llm::ToolCall { id, name, input, call: llm::Decoded::Historical, replay: metadata })] =
         assistant.content.as_ref()
     else {
         return false;
@@ -309,7 +309,7 @@ fn recorded_corruptions(turn: &smith_domain::Turn, fixture: &Fixture) {
     missing.messages[1].content = Box::new([missing.messages[1].content[1].clone()]);
     assert!(!recorded_wait(&missing, fixture, true));
     let mut unresolved = turn.clone();
-    let llm::Block::ToolCall { call, .. } = &mut unresolved.messages[1].content[1] else {
+    let llm::Block::ToolCall(llm::ToolCall { call, .. }) = &mut unresolved.messages[1].content[1] else {
         panic!("observed historical")
     };
     *call = llm::Decoded::Delegated {
@@ -321,7 +321,7 @@ fn recorded_corruptions(turn: &smith_domain::Turn, fixture: &Fixture) {
     assert!(!recorded_wait(&unresolved, fixture, true));
     if fixture.call_replay.is_some() {
         let mut missing = turn.clone();
-        let llm::Block::ToolCall { replay, .. } = &mut missing.messages[1].content[1] else { panic!("observed call") };
+        let llm::Block::ToolCall(llm::ToolCall { replay, .. }) = &mut missing.messages[1].content[1] else { panic!("observed call") };
         *replay = None;
         assert!(!recorded_wait(&missing, fixture, true));
     }
