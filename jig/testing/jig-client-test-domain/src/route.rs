@@ -191,9 +191,6 @@ pub(crate) fn route_client(
                     out.push(Request::Erase { key: Key::Client(key) });
                 }
             }
-            jig_client::Request::Down { .. } | jig_client::Request::SignOut => {
-                unreachable!("a linked client asks no Down or SignOut (jig's client.md, 4.4)")
-            }
             request @ (jig_client::Request::Exchange { .. }
             | jig_client::Request::OpenStream { .. }
             | jig_client::Request::CloseStream

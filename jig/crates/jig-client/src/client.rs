@@ -49,10 +49,6 @@ pub enum Request {
     Told {
         told: Told,
     },
-    Down {
-        down: Down,
-    },
-    SignOut,
     Authorized(crate::Authorized),
     /// Shown once by the host; the client never retains it.
     ServiceCredential {
@@ -192,12 +188,7 @@ impl Client {
         }
     }
     pub fn step(&mut self, now: Time, wall: Wall, event: Event, out: &mut Queue<Request>) {
-        if self.link.is_none() {
-            let mut unlinked = Queue::uncapped();
-            self.step_unlinked(now, wall, event, &mut unlinked);
-            forward_unlinked(&mut unlinked, out);
-            return;
-        }
+        assert!(self.link.is_some(), "an unlinked client steps with step_unlinked");
         let env = Env { now, wall, limits: self.limits.domain };
         match event {
             Event::Start { kept } => {
@@ -261,12 +252,7 @@ impl Client {
         self.drain(&env, out);
     }
     pub fn fire(&mut self, now: Time, wall: Wall, out: &mut Queue<Request>) {
-        if self.link.is_none() {
-            let mut unlinked = Queue::uncapped();
-            self.fire_unlinked(now, wall, &mut unlinked);
-            forward_unlinked(&mut unlinked, out);
-            return;
-        }
+        assert!(self.link.is_some(), "an unlinked client steps with step_unlinked");
         let env = Env { now, wall, limits: self.limits.domain };
         if let Some(until) = self.signing_until
             && now >= until
@@ -655,17 +641,6 @@ impl Client {
             }
             link::Request::Fact { .. } => {}
         }
-    }
-}
-fn forward_unlinked(unlinked: &mut Queue<UnlinkedRequest>, out: &mut Queue<Request>) {
-    while let Some(request) = unlinked.pop() {
-        let request = match request {
-            UnlinkedRequest::Told { told } => Request::Told { told },
-            UnlinkedRequest::Authorized(authorized) => Request::Authorized(authorized),
-            UnlinkedRequest::Down { down } => Request::Down { down },
-            UnlinkedRequest::SignOut => Request::SignOut,
-        };
-        out.push(request);
     }
 }
 fn down_event(down: Down) -> link::Event {

@@ -18,8 +18,8 @@ fn raw_release(revision: jig_client::contract::Revision) {
     world.run(Until::Done);
     world.send_raw(
         client,
-        jig_client_test_domain::Request::Client {
-            request: jig_client::Request::Down {
+        jig_client_test_domain::Request::Unlinked {
+            request: jig_client::UnlinkedRequest::Down {
                 down: jig_client::Down::Send {
                     attempt: RELEASE_ATTEMPT,
                     key: RELEASE_KEY,

@@ -183,35 +183,15 @@ fn firing_a_linked_client_with_the_unlinked_pair_is_a_fault() {
 }
 
 #[test]
-fn the_legacy_pair_forwards_unlinked_requests_in_order() {
-    let mut c = fixtures::Client {
-        machine: crate::Client::unlinked(&fixtures::limits(), 7).unwrap(),
-        out: Queue::uncapped(),
-        requests: List::with_capacity(0),
-    };
-    c.step(Event::StartUnlinked { kept: List::with_capacity(0) });
-    c.step(Event::Up {
-        up: Up::Served { served: true, versions: Some(contract::VersionRange { first: 19, last: 19 }) },
-    });
-    c.step(Event::SignIn { with: With::Transport });
-    assert_eq!(
-        c.requests(),
-        &[
-            Request::Told { told: Told::Link { link: Link::Starting } },
-            Request::Down { down: Down::Open { watch: ME_WATCH, subject: Watchable::Jig(contract::Subject::Me) } },
-        ]
-    );
-    c.step(Event::Authorize { query: Box::new([]) });
-    assert_eq!(c.requests(), &[Request::Authorized(Authorized::Lost)]);
-    c.step(Event::SignOut);
-    assert_eq!(c.requests(), &[Request::SignOut]);
-    c.step(Event::SignOutLost);
-    assert_eq!(c.requests(), &[Request::Told { told: Told::Link { link: Link::Starting } }]);
-    c.step(Event::Up { up: Up::WatchEnded { watch: ME_WATCH, end: contract::WatchEnd::Dropped } });
-    let until = c.machine.next_deadline().expect("dropped watch schedules a retry");
-    c.fire(until);
-    assert_eq!(
-        c.requests(),
-        &[Request::Down { down: Down::Open { watch: Token::new(2), subject: Watchable::Jig(contract::Subject::Me) } }]
-    );
+#[should_panic(expected = "an unlinked client steps with step_unlinked")]
+fn stepping_an_unlinked_client_with_the_linked_pair_is_a_fault() {
+    let mut c = crate::Client::unlinked(&fixtures::limits(), 7).unwrap();
+    c.step(Time::ZERO, Wall::EPOCH, Event::SignOut, &mut Queue::uncapped());
+}
+
+#[test]
+#[should_panic(expected = "an unlinked client steps with step_unlinked")]
+fn firing_an_unlinked_client_with_the_linked_pair_is_a_fault() {
+    let mut c = crate::Client::unlinked(&fixtures::limits(), 7).unwrap();
+    c.fire(Time::ZERO, Wall::EPOCH, &mut Queue::uncapped());
 }

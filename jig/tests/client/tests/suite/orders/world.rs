@@ -290,7 +290,9 @@ impl World {
             Command::Fire(now) => {
                 self.now = now;
                 let mut out = Queue::uncapped();
+                let mut unlinked = Queue::uncapped();
                 match &mut self.machine {
+                    Machine::Client(machine) if self.unlinked => machine.fire_unlinked(now, Wall::EPOCH, &mut unlinked),
                     Machine::Client(machine) => machine.fire(now, Wall::EPOCH, &mut out),
                     Machine::Root(machine, limits) => {
                         let env = Env { now, wall: Wall::EPOCH, limits: **limits };
@@ -300,6 +302,7 @@ impl World {
                     }
                 }
                 self.outputs(&mut out);
+                self.unlinked_outputs(&mut unlinked);
             }
             Command::Visit => self.deliver(Event::Up { up: Up::Served { served: true, versions: None } }),
             Command::LoseRequest(key) => self.request_answer(key, false),
@@ -330,8 +333,14 @@ impl World {
         match &mut self.machine {
             Machine::Client(machine) => {
                 let mut out = Queue::uncapped();
-                machine.step(self.now, Wall::EPOCH, event, &mut out);
-                self.outputs(&mut out);
+                if self.unlinked {
+                    let mut unlinked = Queue::uncapped();
+                    machine.step_unlinked(self.now, Wall::EPOCH, event, &mut unlinked);
+                    self.unlinked_outputs(&mut unlinked);
+                } else {
+                    machine.step(self.now, Wall::EPOCH, event, &mut out);
+                    self.outputs(&mut out);
+                }
                 let Machine::Client(machine) = &mut self.machine else { unreachable!("client mode") };
                 machine.reclaim();
             }
@@ -357,6 +366,11 @@ impl World {
                 root::Request::Client { request } => {
                     client_out.push(request);
                     self.outputs(&mut client_out);
+                }
+                root::Request::Unlinked { request } => {
+                    let mut unlinked = Queue::uncapped();
+                    unlinked.push(request);
+                    self.unlinked_outputs(&mut unlinked);
                 }
                 root::Request::Save { record: root::store::Record::Client(record) } => {
                     self.saved(&record);
@@ -386,6 +400,22 @@ impl World {
         }
         if !erases.is_empty() {
             self.writes.push_back(Write { saves: Vec::new(), erases });
+        }
+    }
+
+    fn unlinked_outputs(&mut self, out: &mut Queue<client::UnlinkedRequest>) {
+        while let Some(request) = out.pop() {
+            match request {
+                client::UnlinkedRequest::Down { down } => self.down(down),
+                client::UnlinkedRequest::Told { told } => {
+                    let mut linked = Queue::uncapped();
+                    linked.push(client::Request::Told { told });
+                    self.outputs(&mut linked);
+                }
+                other @ (client::UnlinkedRequest::SignOut | client::UnlinkedRequest::Authorized(_)) => {
+                    panic!("unexpected client duty: {other:?}")
+                }
+            }
         }
     }
 
@@ -425,10 +455,9 @@ impl World {
                     self.writes.push_back(Write { saves: Vec::new(), erases });
                 }
                 client::Request::Exchange { exchange, message, .. } => self.wire(exchange, message),
-                client::Request::Down { down } => self.down(down),
-                other @ (client::Request::SignOut
-                | client::Request::Authorized(_)
-                | client::Request::ServiceCredential { .. }) => panic!("unexpected client duty: {other:?}"),
+                other @ (client::Request::Authorized(_) | client::Request::ServiceCredential { .. }) => {
+                    panic!("unexpected client duty: {other:?}")
+                }
             }
         }
     }

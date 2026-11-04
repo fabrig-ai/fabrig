@@ -11,9 +11,9 @@ impl Session {
 
     pub(super) fn disconnected(&mut self, client: ClientId, request: Request) {
         match request {
-            Request::Client {
+            Request::Unlinked {
                 request:
-                    jig_client::Request::Down {
+                    jig_client::UnlinkedRequest::Down {
                         down: jig_client::Down::Open { watch, .. } | jig_client::Down::Continue { watch, .. },
                     },
             } => self.callbacks.push((
@@ -27,6 +27,7 @@ impl Session {
             request @ (Request::Save { .. }
             | Request::Erase { .. }
             | Request::Client { .. }
+            | Request::Unlinked { .. }
             | Request::First(_)
             | Request::Show { .. }
             | Request::SignIn { .. }

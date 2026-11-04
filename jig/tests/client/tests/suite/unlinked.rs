@@ -1,4 +1,4 @@
-use jig_client::{Client, Event, Link, Request};
+use jig_client::{Client, Event, Link, UnlinkedRequest as Request};
 use jig_client_world::{Front, Test, harness::ClientId, joint::Joint};
 use skein_lib::{Duration, List, Queue, Time, Wall};
 const PARTY: u64 = 1;
@@ -31,13 +31,8 @@ fn drain(client: &mut Client, front: &mut Joint, out: &mut Queue<Request>) {
     while let Some(request) = out.pop() {
         match request {
             Request::Down { down } => front.down(CLIENT, NOW, WALL, down).expect("Jig transport operation"),
-            Request::Told { .. } | Request::Authorized(_) | Request::ServiceCredential { .. } => {}
-            Request::Exchange { .. }
-            | Request::OpenStream { .. }
-            | Request::CloseStream
-            | Request::Save { .. }
-            | Request::Erase { .. }
-            | Request::SignOut => panic!("unlinked client emits domain operations"),
+            Request::Told { .. } | Request::Authorized(_) => {}
+            Request::SignOut => panic!("unlinked client emits domain operations"),
         }
     }
     client.reclaim();
@@ -49,13 +44,13 @@ fn an_unlinked_client_sees_me_live_against_the_real_core() {
     let mut out = Queue::uncapped();
     let mut front = front();
     Front::<Test>::bind(&mut front, CLIENT, PARTY);
-    client.step(NOW, WALL, Event::StartUnlinked { kept: List::with_capacity(0) }, &mut out);
-    client.step(NOW, WALL, Event::SignIn { with: jig_client::With::Transport }, &mut out);
+    client.step_unlinked(NOW, WALL, Event::StartUnlinked { kept: List::with_capacity(0) }, &mut out);
+    client.step_unlinked(NOW, WALL, Event::SignIn { with: jig_client::With::Transport }, &mut out);
     drain(&mut client, &mut front, &mut out);
     for _ in 0..20 {
         for (owner, up) in front.up(NOW, WALL, limits.domain.owners) {
             assert_eq!(owner, CLIENT);
-            client.step(NOW, WALL, Event::Up { up }, &mut out);
+            client.step_unlinked(NOW, WALL, Event::Up { up }, &mut out);
             drain(&mut client, &mut front, &mut out);
         }
         if client.link().state == Link::Live {
@@ -74,12 +69,12 @@ fn a_key_constructor_sends_the_value_once_without_keeping_it() {
     let mut out = Queue::uncapped();
     let mut front = front();
     Front::<Test>::bind(&mut front, CLIENT, PARTY);
-    client.step(NOW, WALL, Event::StartUnlinked { kept: List::with_capacity(0) }, &mut out);
-    client.step(NOW, WALL, Event::SignIn { with: jig_client::With::Transport }, &mut out);
+    client.step_unlinked(NOW, WALL, Event::StartUnlinked { kept: List::with_capacity(0) }, &mut out);
+    client.step_unlinked(NOW, WALL, Event::SignIn { with: jig_client::With::Transport }, &mut out);
     drain(&mut client, &mut front, &mut out);
     for _ in 0..20 {
         for (_, up) in front.up(NOW, WALL, limits.domain.owners) {
-            client.step(NOW, WALL, Event::Up { up }, &mut out);
+            client.step_unlinked(NOW, WALL, Event::Up { up }, &mut out);
             drain(&mut client, &mut front, &mut out);
         }
         if client.link().state == Link::Live {
@@ -112,7 +107,7 @@ fn a_key_constructor_sends_the_value_once_without_keeping_it() {
             ),
         ),
     ] {
-        client.step(NOW, WALL, event, &mut out);
+        client.step_unlinked(NOW, WALL, event, &mut out);
         let mut sent = None;
         while let Some(request) = out.pop() {
             match request {
@@ -131,20 +126,13 @@ fn a_key_constructor_sends_the_value_once_without_keeping_it() {
                     assert!(sent.replace(attempt).is_none());
                 }
                 Request::Told { told: Told::Pending { .. } } => {}
-                other @ (Request::Exchange { .. }
-                | Request::OpenStream { .. }
-                | Request::CloseStream
-                | Request::Save { .. }
-                | Request::Erase { .. }
-                | Request::Told { .. }
-                | Request::Down { .. }
-                | Request::SignOut
-                | Request::Authorized(_)
-                | Request::ServiceCredential { .. }) => panic!("carried account key must not be saved: {other:?}"),
+                other @ (Request::Told { .. } | Request::Down { .. } | Request::SignOut | Request::Authorized(_)) => {
+                    panic!("carried account key must not be saved: {other:?}")
+                }
             }
         }
         let attempt = sent.expect("sent once");
-        client.step(
+        client.step_unlinked(
             NOW,
             WALL,
             Event::Up {
@@ -160,7 +148,7 @@ fn a_key_constructor_sends_the_value_once_without_keeping_it() {
         }
         assert!(lost);
         assert!(client.pending(key).is_none());
-        client.fire(NOW.saturating_add(Duration::from_secs(1)), WALL, &mut out);
+        client.fire_unlinked(NOW.saturating_add(Duration::from_secs(1)), WALL, &mut out);
         while let Some(request) = out.pop() {
             assert!(!matches!(request, Request::Down { down: Down::Send { .. } | Down::Save { .. } }));
         }
