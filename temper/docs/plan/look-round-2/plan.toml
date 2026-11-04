@@ -22,3 +22,55 @@ id = 1
 story = "the Model step's forge state sits in its own region after the choices, a pane from 1280 px, in the browser and the terminal, under way, done and failed"
 parts = ["welcome-model-forge-pane"]
 walk = false
+
+[[part]]
+id = "ready-account-email"
+title = "look request ready-account-email: the gallery's Ready says an email; the email itself is deferred to jig's draft"
+mode = "direct"
+needs = ["welcome-model-forge-pane"]
+design = "temper/docs/design/draft/look-requests.md, 6"
+
+[[slice]]
+id = 2
+story = "the gallery's Ready says the account's email, and the status names who carries the person's own box"
+parts = ["ready-account-email"]
+walk = false
+
+[[part]]
+id = "welcome-forge-busy-bar"
+title = "look request welcome-forge-busy-bar: a moving bar under the forge's set up, whole"
+mode = "direct"
+needs = ["ready-account-email"]
+design = "temper/docs/design/client/journeys.md, 7"
+
+[[slice]]
+id = 3
+story = "while the set up runs a bar moves under the forge's line, and stands still with reduced motion; done or failed there is none"
+parts = ["welcome-forge-busy-bar"]
+walk = false
+
+[[part]]
+id = "welcome-fetch-percentage"
+title = "look request welcome-fetch-percentage: the meter's token and rule, ready for a value; the rest deferred"
+mode = "direct"
+needs = ["welcome-forge-busy-bar"]
+design = "temper/docs/design/draft/look-requests.md, 6"
+
+[[slice]]
+id = 4
+story = "the meter's rule renders as the request's when it is given a value, and every row it cannot draw names its owner"
+parts = ["welcome-fetch-percentage"]
+walk = false
+
+[[part]]
+id = "welcome-claude-card-words"
+title = "look request welcome-claude-card-words: the Claude card says this machine and its own config, whole"
+mode = "direct"
+needs = ["welcome-fetch-percentage"]
+design = "temper/docs/design/client/journeys.md, 7"
+
+[[slice]]
+id = 5
+story = "the Claude card says this machine and a config of its own, in the browser and the terminal"
+parts = ["welcome-claude-card-words"]
+walk = false
