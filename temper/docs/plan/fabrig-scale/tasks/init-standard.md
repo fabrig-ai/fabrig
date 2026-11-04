@@ -3,7 +3,7 @@ id = "init-standard"
 part = "box"
 kind = "feature"
 needs = ["standard-scale", "forge-profile", "smith-calls", "client-capacities"]
-files = ["temper/crates/temper-init/template/temper.json", "temper/crates/temper-init/template/agent.json", "temper/docs/examples/owned.json", "temper/docs/examples/owned/agent.json", "temper/crates/temper-init/src/tests/**", "temper/crates/temper/tests/suite/startup.rs", "temper/crates/temper/tests/suite/configuration.rs", "temper/crates/temper/tests/support/owned.rs", "temper/crates/temper-service/src/tests/startup.rs", "temper/crates/temper-service/src/tests/stock_brief.rs", "temper/tests/real-loop/tests/suite/template_bounds.rs", "temper/tests/engine/domain/src/forge_routes.rs", "temper/docs/design/protocol/configuration.status.md", "temper/docs/design/protocol/setup.status.md", "temper/crates/temper-service/src/limits.rs", "temper/crates/temper-service/src/tests/checks.rs", "temper/docs/design/protocol/configuration.md", "temper/crates/temper-engine-domain/src/limits.rs", "temper/crates/temper/tests/support/forge_land/rung.rs", "temper/crates/temper-service/src/tests/welcome_policy.rs"]
+files = ["temper/crates/temper-init/template/temper.json", "temper/crates/temper-init/template/agent.json", "temper/docs/examples/owned.json", "temper/docs/examples/owned/agent.json", "temper/crates/temper-init/src/tests/**", "temper/crates/temper/tests/suite/startup.rs", "temper/crates/temper/tests/suite/configuration.rs", "temper/crates/temper/tests/support/owned.rs", "temper/crates/temper-service/src/tests/startup.rs", "temper/crates/temper-service/src/tests/stock_brief.rs", "temper/tests/real-loop/tests/suite/template_bounds.rs", "temper/tests/engine/domain/src/forge_routes.rs", "temper/docs/design/protocol/configuration.status.md", "temper/docs/design/protocol/setup.status.md", "temper/crates/temper-service/src/limits.rs", "temper/crates/temper-service/src/tests/checks.rs", "temper/docs/design/protocol/configuration.md", "temper/crates/temper-engine-domain/src/limits.rs", "temper/crates/temper/tests/support/forge_land/rung.rs", "temper/crates/temper-service/src/tests/welcome_policy.rs", "temper/tests/engine/domain/src/store.rs", "temper/tests/engine/domain/tests/suite/forge_routes/b2_tree.rs"]
 effort = "high"
 minutes = 240
 +++
@@ -304,3 +304,26 @@ without it.
   every other test of the acceptance's packages passes.
 
 Then the status lines, clippy, the push.
+
+2026-11-04. **B2's real store keeps Small's 4 joins (`store.rs`, `component_limits`): may this task
+widen the fixture to Standard's 16?** Yes; the task is widened to that one line of
+`temper/tests/engine/domain/src/store.rs`, and `b2_tree.rs`'s expected figures are taken into the
+header. B2 is in the engine-domain world this task must pass, its assertion "the real store uses
+the box allowance" is the proof and stays as it is, and no task owns the fixture (`stock-scale` and
+`fresh-box` come after this one and need it), so the acceptance cannot hold without it.
+
+- In `component_limits`, start from `jig_protocol_config::profile(Profile::Standard)` in place of
+  `Profile::Small`, the store profile init ships; keep every override after it as it is
+  (budget, key, value, ops, commit, queued bytes, page bytes, page rows 8). Under the fixture's
+  overrides and `temper_service::store::limits`' derivation, the only figures that move are
+  `joins` (4 to 16) and `held` (16 to 64, Standard's client exchanges × 2); both only admit more.
+  No new constructor, no profile parameter threaded through `World`, nothing else in the file.
+- In `b2_tree.rs`, the expected figures and the rename the run made stand; the equality with
+  `box_joins()` stays.
+- Every engine-domain world now runs over that store. A test of
+  `temper-engine-domain-world` that then fails only because a join or held figure was Small's
+  takes its expected figure, listed with old and new and its file; one that fails otherwise
+  (a refusal it relied on at 4 joins or 16 held) is a question, with its words.
+
+Then the full `-p temper-engine-domain-world`, the acceptance's remaining checks with the three
+exclusions the answer above names, the status lines, clippy and the push.
