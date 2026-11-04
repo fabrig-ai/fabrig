@@ -149,7 +149,8 @@ fn fetch_bound_through_checked() {
     }
 }
 
-use crate::fetch::{self, Event, Failure, Pin, Request};
+use crate::fetch::{self, Bottle, Event, Extraction, Failure, Pin, Request};
+use skein_forge::forgejo::pin::Platform;
 use skein_lib::{Queue, sha256::Sha256};
 fn sha(bytes: &[u8]) -> [u8; 32] {
     let mut hash = Sha256::new();
@@ -251,6 +252,7 @@ fn architecture_pins() {
                         .into(),
                     digest: unhex(fj),
                     file: owned.forgejo.clone(),
+                    bottle: None,
                 });
             }
             if runner {
@@ -261,11 +263,12 @@ fn architecture_pins() {
                         .into(),
                     digest: unhex(run),
                     file: owned.runner.as_ref().unwrap().binary.clone(),
+                    bottle: None,
                 });
             }
             pins.into_boxed_slice()
         });
-        assert_eq!(fetch::pins(&owned, machine), expected, "{machine} {forgejo} {runner} {mirror}");
+        assert_eq!(fetch::pins(&owned, Platform::Linux, machine), expected, "{machine} {forgejo} {runner} {mirror}");
     }
 }
 fn pin(file: &[u8]) -> Pin {
@@ -274,13 +277,14 @@ fn pin(file: &[u8]) -> Pin {
         path: b"/binary".as_slice().into(),
         digest: sha(b"abc"),
         file: file.into(),
+        bottle: None,
     }
 }
 fn hash(file: &[u8]) -> Request {
     Request::Hash { file: file.into() }
 }
 fn get() -> Request {
-    Request::Get { origin: origin(b"mirror.test", 8443), path: b"/binary".as_slice().into() }
+    Request::Get { origin: origin(b"mirror.test", 8443), path: b"/binary".as_slice().into(), authorization: None }
 }
 fn open(file: &str) -> Request {
     Request::Open { part: format!("{file}.part").as_bytes().into() }
@@ -303,7 +307,7 @@ fn fetch_machine() {
     let success = vec![
         (Event::Begin, hash(b"/cache/bin")),
         (Event::Hashed(None), get()),
-        (Event::Answered { status: 200, length: Some(3) }, open("/cache/bin")),
+        (Event::Answered { status: 200, length: Some(3), location: None }, open("/cache/bin")),
         (Event::Done, Request::Read),
         (Event::Chunk(b"a".as_slice().into()), write(0, b"a")),
         (Event::Done, Request::Read),
@@ -324,7 +328,7 @@ fn fetch_machine() {
                     Request::Read => Request::Read,
                     Request::Write { offset, bytes } => write(*offset, bytes),
                     Request::Finish { .. } => finish("/cache/bin"),
-                    Request::Remove { .. } | Request::End(_) => unreachable!(),
+                    Request::Extract { .. } | Request::Remove { .. } | Request::End(_) => unreachable!(),
                 },
             )
         })
@@ -332,7 +336,7 @@ fn fetch_machine() {
     two.extend([
         (Event::Done, hash(b"/cache/two")),
         (Event::Hashed(None), get()),
-        (Event::Answered { status: 200, length: None }, open("/cache/two")),
+        (Event::Answered { status: 200, length: None, location: None }, open("/cache/two")),
         (Event::Done, Request::Read),
         (Event::Chunk(b"abc".as_slice().into()), write(0, b"abc")),
         (Event::Done, Request::Read),
@@ -367,7 +371,7 @@ fn fetch_machine() {
                 (Event::Begin, hash(b"/cache/bin")),
                 (Event::Hashed(None), get()),
                 (
-                    Event::Answered { status: 302, length: None },
+                    Event::Answered { status: 302, length: None, location: None },
                     Request::End(Err(Failure::Status { url: url(), status: 302 })),
                 ),
             ],
@@ -380,7 +384,7 @@ fn fetch_machine() {
                 (Event::Begin, hash(b"/cache/bin")),
                 (Event::Hashed(None), get()),
                 (
-                    Event::Answered { status: 404, length: None },
+                    Event::Answered { status: 404, length: None, location: None },
                     Request::End(Err(Failure::Status { url: url(), status: 404 })),
                 ),
             ],
@@ -392,7 +396,10 @@ fn fetch_machine() {
             vec![
                 (Event::Begin, hash(b"/cache/bin")),
                 (Event::Hashed(None), get()),
-                (Event::Answered { status: 200, length: Some(3) }, Request::End(Err(Failure::Bytes { url: url() }))),
+                (
+                    Event::Answered { status: 200, length: Some(3), location: None },
+                    Request::End(Err(Failure::Bytes { url: url() })),
+                ),
             ],
         ),
         (
@@ -402,7 +409,7 @@ fn fetch_machine() {
             vec![
                 (Event::Begin, hash(b"/cache/bin")),
                 (Event::Hashed(None), get()),
-                (Event::Answered { status: 200, length: Some(3) }, open("/cache/bin")),
+                (Event::Answered { status: 200, length: Some(3), location: None }, open("/cache/bin")),
                 (Event::Done, Request::Read),
                 (Event::Chunk(b"abc".as_slice().into()), write(0, b"abc")),
                 (Event::Done, Request::Read),
@@ -417,7 +424,7 @@ fn fetch_machine() {
             vec![
                 (Event::Begin, hash(b"/cache/bin")),
                 (Event::Hashed(None), get()),
-                (Event::Answered { status: 200, length: None }, open("/cache/bin")),
+                (Event::Answered { status: 200, length: None, location: None }, open("/cache/bin")),
                 (Event::Done, Request::Read),
                 (Event::Chunk(b"ab".as_slice().into()), write(0, b"ab")),
                 (Event::Done, Request::Read),
@@ -432,7 +439,7 @@ fn fetch_machine() {
             vec![
                 (Event::Begin, hash(b"/cache/bin")),
                 (Event::Hashed(None), get()),
-                (Event::Answered { status: 200, length: None }, open("/cache/bin")),
+                (Event::Answered { status: 200, length: None, location: None }, open("/cache/bin")),
                 (Event::Done, Request::Read),
                 (Event::Chunk(b"x".as_slice().into()), write(0, b"x")),
                 (Event::Done, Request::Read),
@@ -464,6 +471,12 @@ fn failures_words_and_urls() {
         (Failure::Architecture(b"riscv64".as_slice().into()), "no pinned binaries for architecture riscv64"),
         (Failure::Present { file: b"/cache/bin".as_slice().into() }, "/cache/bin: does not match the pinned digest"),
         (Failure::Status { url: url(), status: 302 }, "https://mirror.test:8443/binary: HTTP status 302"),
+        (Failure::Redirect { url: url() }, "https://mirror.test:8443/binary: invalid or repeated redirect"),
+        (
+            Failure::Gone { url: url(), status: 404 },
+            "https://mirror.test:8443/binary: HTTP status 404: give the binary by path, or a mirror",
+        ),
+        (Failure::Extraction { url: url() }, "https://mirror.test:8443/binary: extraction failed"),
         (Failure::Bytes { url: url() }, "https://mirror.test:8443/binary: body past setup.fetch_bytes"),
         (
             Failure::Digest { url: url(), pinned: sha(b"abc"), got: sha(b"x") },
@@ -473,4 +486,263 @@ fn failures_words_and_urls() {
         assert_eq!(failure.words().as_ref(), expected.as_bytes());
     }
     assert_eq!(fetch::url(&origin(b"mirror.test", 443), b"/binary").as_ref(), b"https://mirror.test/binary");
+}
+
+#[test]
+fn macos_architecture_pins() {
+    for (machine, mirror, expected) in [
+        ("aarch64", false, Ok(())),
+        ("aarch64", true, Ok(())),
+        ("x86_64", false, Err(Failure::Architecture(b"x86_64".as_slice().into()))),
+        ("riscv64", false, Err(Failure::Architecture(b"riscv64".as_slice().into()))),
+    ] {
+        let mut owned = fixtures::owned();
+        owned.fetch = Fetch {
+            forgejo: true,
+            runner: true,
+            mirror: mirror.then(|| Mirror { forgejo: origin(b"mirror.test", 443), runner: origin(b"127.0.0.1", 8443) }),
+        };
+        let expected: Result<Box<[Pin]>, Failure> = expected.map(|()| -> Box<[Pin]> { Box::new([
+            Pin {
+                origin: if mirror { origin(b"mirror.test", 443) } else { origin(b"ghcr.io", 443) },
+                path: b"/v2/homebrew/core/forgejo/blobs/sha256:19db7c548064dfd4097264a7b4c4cf3b228bfd6190bc33a3c6e8a9b26c3d0e06".as_slice().into(),
+                digest: unhex("4b6ed0e7e6ef034d298872125f69332e2aad49367435f66c58ee5eb2c5680cf6"),
+                file: owned.forgejo.clone(),
+                bottle: Some(Bottle {
+                    digest: unhex("19db7c548064dfd4097264a7b4c4cf3b228bfd6190bc33a3c6e8a9b26c3d0e06"),
+                    member: b"forgejo/17.0.1/bin/forgejo".as_slice().into(), token: !mirror,
+                }),
+            },
+            Pin {
+                origin: if mirror { origin(b"127.0.0.1", 8443) } else { origin(b"ghcr.io", 443) },
+                path: b"/v2/homebrew/core/forgejo-runner/blobs/sha256:0a8cb32f024121e50ebca1840ed2f5650d65d3eb3e183679c0f8f0bc14d6fb48".as_slice().into(),
+                digest: unhex("2829f0125068f0ad92f908cb08c4d3c2f458cc22eec15fd675c332823cbece4b"),
+                file: owned.runner.as_ref().unwrap().binary.clone(),
+                bottle: Some(Bottle {
+                    digest: unhex("0a8cb32f024121e50ebca1840ed2f5650d65d3eb3e183679c0f8f0bc14d6fb48"),
+                    member: b"forgejo-runner/13.2.1/bin/forgejo-runner".as_slice().into(), token: !mirror,
+                }),
+            },
+        ]) });
+        assert_eq!(fetch::pins(&owned, Platform::Macos, machine), expected, "{machine} mirror={mirror}");
+    }
+}
+fn bottle(token: bool) -> Pin {
+    let mut pin = pin(b"/cache/bin");
+    pin.bottle = Some(Bottle { digest: sha(b"keg"), member: b"bin/member".as_slice().into(), token });
+    pin
+}
+fn bottle_get(token: bool) -> Request {
+    Request::Get {
+        origin: origin(b"mirror.test", 8443),
+        path: b"/binary".as_slice().into(),
+        authorization: token.then(|| b"Bearer QQ==".as_slice().into()),
+    }
+}
+fn answered(status: u16, length: Option<u64>, location: Option<&[u8]>) -> Event {
+    Event::Answered { status, length, location: location.map(Into::into) }
+}
+fn archive_remove() -> Request {
+    Request::Remove { part: b"/cache/bin.archive".as_slice().into() }
+}
+fn archive_open() -> Request {
+    Request::Open { part: b"/cache/bin.archive".as_slice().into() }
+}
+fn extraction(bound: u64) -> Request {
+    Request::Extract {
+        archive: b"/cache/bin.archive".as_slice().into(),
+        member: b"bin/member".as_slice().into(),
+        part: b"/cache/bin.part".as_slice().into(),
+        bound,
+    }
+}
+fn trace(pins: Vec<Pin>, bound: u64, steps: Vec<(Event, Request)>, name: &str) {
+    let mut machine = fetch::Fetch::new(pins.into_boxed_slice(), bound);
+    let mut out = Queue::uncapped();
+    for (event, expected) in steps {
+        fetch::step(&mut machine, event, &mut out);
+        assert_eq!(out.pop(), Some(expected), "{name}");
+        assert!(out.is_empty(), "{name}");
+    }
+}
+#[test]
+fn bottle_redirects() {
+    for (status, location, expected) in [
+        (
+            301,
+            Some(b"https://storage.test/object?q=x%2Fy".as_slice()),
+            Ok((origin(b"storage.test", 443), b"/object?q=x%2Fy".as_slice())),
+        ),
+        (
+            302,
+            Some(b"https://storage.test:8443/object".as_slice()),
+            Ok((origin(b"storage.test", 8443), b"/object".as_slice())),
+        ),
+        (303, Some(b"https://[::1]:8443/".as_slice()), Ok((origin(b"[::1]", 8443), b"/".as_slice()))),
+        (
+            307,
+            Some(b"https://storage.test/object".as_slice()),
+            Ok((origin(b"storage.test", 443), b"/object".as_slice())),
+        ),
+        (
+            308,
+            Some(b"https://storage.test/object".as_slice()),
+            Ok((origin(b"storage.test", 443), b"/object".as_slice())),
+        ),
+        (307, None, Err(Failure::Gone { url: url(), status: 307 })),
+        (307, Some(b"http://storage.test/object".as_slice()), Err(Failure::Redirect { url: url() })),
+        (307, Some(b"/object".as_slice()), Err(Failure::Redirect { url: url() })),
+        (307, Some(b"https://storage.test".as_slice()), Err(Failure::Redirect { url: url() })),
+        (307, Some(b"https://storage.test?q=/object".as_slice()), Err(Failure::Redirect { url: url() })),
+        (307, Some(b"https://storage.test:0/object".as_slice()), Err(Failure::Redirect { url: url() })),
+        (307, Some(b"https://storage.test:65536/object".as_slice()), Err(Failure::Redirect { url: url() })),
+        (307, Some(b"https://u@storage.test/object".as_slice()), Err(Failure::Redirect { url: url() })),
+        (307, Some(b"https:///object".as_slice()), Err(Failure::Redirect { url: url() })),
+        (307, Some(b"https://storage.test/bad path".as_slice()), Err(Failure::Redirect { url: url() })),
+        (404, None, Err(Failure::Gone { url: url(), status: 404 })),
+        (500, None, Err(Failure::Gone { url: url(), status: 500 })),
+        (201, Some(b"https://storage.test/object".as_slice()), Err(Failure::Gone { url: url(), status: 201 })),
+    ] {
+        let request = match expected {
+            Ok((origin, path)) => Request::Get { origin, path: path.into(), authorization: None },
+            Err(failure) => Request::End(Err(failure)),
+        };
+        trace(
+            vec![bottle(true)],
+            3,
+            vec![
+                (Event::Begin, hash(b"/cache/bin")),
+                (Event::Hashed(None), bottle_get(true)),
+                (answered(status, None, location), request),
+            ],
+            &format!("{status} {location:?}"),
+        );
+    }
+    trace(
+        vec![bottle(true)],
+        3,
+        vec![
+            (Event::Begin, hash(b"/cache/bin")),
+            (Event::Hashed(None), bottle_get(true)),
+            (answered(307, None, Some(b"https://mirror.test:8443/binary")), get()),
+            (
+                answered(307, None, Some(b"https://storage.test/object")),
+                Request::End(Err(Failure::Redirect { url: url() })),
+            ),
+        ],
+        "same origin redirect drops token and second redirect refuses",
+    );
+}
+#[test]
+#[expect(clippy::too_many_lines, reason = "one table of archive and extraction traces")]
+fn bottle_machine() {
+    for (name, bound, body, ending) in [
+        (
+            "success at bound",
+            3,
+            vec![(Event::Chunk(b"keg".as_slice().into()), write(0, b"keg")), (Event::Done, Request::Read)],
+            vec![
+                (Event::Ended, extraction(3)),
+                (Event::Extracted(Extraction::Digest(sha(b"abc"))), finish("/cache/bin")),
+                (Event::Done, archive_remove()),
+                (Event::Done, Request::End(Ok(()))),
+            ],
+        ),
+        (
+            "archive digest",
+            3,
+            vec![(Event::Chunk(b"bad".as_slice().into()), write(0, b"bad")), (Event::Done, Request::Read)],
+            vec![
+                (Event::Ended, archive_remove()),
+                (Event::Done, Request::End(Err(Failure::Digest { url: url(), pinned: sha(b"keg"), got: sha(b"bad") }))),
+            ],
+        ),
+        (
+            "body bound",
+            2,
+            vec![(Event::Chunk(b"keg".as_slice().into()), archive_remove())],
+            vec![(Event::Done, Request::End(Err(Failure::Bytes { url: url() })))],
+        ),
+        (
+            "binary digest",
+            3,
+            vec![(Event::Chunk(b"keg".as_slice().into()), write(0, b"keg")), (Event::Done, Request::Read)],
+            vec![
+                (Event::Ended, extraction(3)),
+                (Event::Extracted(Extraction::Digest(sha(b"bad"))), remove()),
+                (Event::Done, archive_remove()),
+                (Event::Done, Request::End(Err(Failure::Digest { url: url(), pinned: sha(b"abc"), got: sha(b"bad") }))),
+            ],
+        ),
+        (
+            "extraction bound",
+            3,
+            vec![(Event::Chunk(b"keg".as_slice().into()), write(0, b"keg")), (Event::Done, Request::Read)],
+            vec![
+                (Event::Ended, extraction(3)),
+                (Event::Extracted(Extraction::Bytes), remove()),
+                (Event::Done, archive_remove()),
+                (Event::Done, Request::End(Err(Failure::Bytes { url: url() }))),
+            ],
+        ),
+        (
+            "extraction failed",
+            3,
+            vec![(Event::Chunk(b"keg".as_slice().into()), write(0, b"keg")), (Event::Done, Request::Read)],
+            vec![
+                (Event::Ended, extraction(3)),
+                (Event::Extracted(Extraction::Failed), remove()),
+                (Event::Done, archive_remove()),
+                (Event::Done, Request::End(Err(Failure::Extraction { url: url() }))),
+            ],
+        ),
+    ] {
+        let mut steps = vec![
+            (Event::Begin, hash(b"/cache/bin")),
+            (Event::Hashed(None), bottle_get(false)),
+            (answered(200, None, None), archive_open()),
+            (Event::Done, Request::Read),
+        ];
+        steps.extend(body);
+        steps.extend(ending);
+        trace(vec![bottle(false)], bound, steps, name);
+    }
+    for (digest, expected) in
+        [(sha(b"abc"), Ok(())), (sha(b"bad"), Err(Failure::Present { file: b"/cache/bin".as_slice().into() }))]
+    {
+        trace(
+            vec![bottle(true)],
+            3,
+            vec![(Event::Begin, hash(b"/cache/bin")), (Event::Hashed(Some(digest)), Request::End(expected))],
+            "existing binary held to binary digest",
+        );
+    }
+    trace(
+        vec![bottle(false)],
+        2,
+        vec![
+            (Event::Begin, hash(b"/cache/bin")),
+            (Event::Hashed(None), bottle_get(false)),
+            (answered(200, Some(3), None), Request::End(Err(Failure::Bytes { url: url() }))),
+        ],
+        "archive length past bound",
+    );
+    let mut steps = vec![(Event::Begin, hash(b"/cache/bin"))];
+    for () in [(), ()] {
+        steps.extend([
+            (Event::Hashed(None), bottle_get(true)),
+            (answered(307, None, Some(b"https://mirror.test:8443/binary")), get()),
+            (answered(200, Some(3), None), archive_open()),
+            (Event::Done, Request::Read),
+            (Event::Chunk(b"keg".as_slice().into()), write(0, b"keg")),
+            (Event::Done, Request::Read),
+            (Event::Ended, extraction(3)),
+            (Event::Extracted(Extraction::Digest(sha(b"abc"))), finish("/cache/bin")),
+            (Event::Done, archive_remove()),
+            (Event::Done, hash(b"/cache/bin")),
+        ]);
+    }
+    steps.pop();
+    steps.push((Event::Done, Request::End(Ok(()))));
+    trace(vec![bottle(true), bottle(true)], 3, steps, "redirect allowance resets per pin");
 }
