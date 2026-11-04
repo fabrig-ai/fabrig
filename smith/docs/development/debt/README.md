@@ -71,6 +71,5 @@ it says what a reviewer checks.
 | [D012](D012-large-domain-files.md) | `session.rs` and `run.rs` are too large to read | complexity | low | M | open |
 | [D013](D013-names-left.md) | Names the 10-31 review flagged remain | naming | low | S | open |
 | [D015](D015-path-modules.md) | Code is shared between targets by `#[path]` | tests | low | M | open |
-| [D016](D016-retyped-primitives.md) | Small primitives are retyped beside skein's | primitives | low | S | open |
 | [D017](D017-domain-worlds-on-protocols.md) | Two domain worlds call protocol crates | coupling | low | S | open |
 | [D018](D018-domain-formats-text.md) | The local domain composes person-facing text | coupling | low | S | open |

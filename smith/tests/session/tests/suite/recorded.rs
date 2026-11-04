@@ -524,8 +524,7 @@ fn initial_owned(opening: &record::Opening) -> u64 {
     let spec = &opening.spec;
     skein_lib::len_u64(
         spec.model.len() + spec.system.len() + 2 * spec.prompt.len() + spec.summary.len() + spec.preamble.len(),
-    )
-        + u64::try_from(core::mem::size_of::<llm::Block>()).expect("block size")
+    ) + u64::try_from(core::mem::size_of::<llm::Block>()).expect("block size")
         + skein_lib::len_u64(spec.delegated.len() * core::mem::size_of::<llm::Descriptor>())
 }
 
@@ -746,9 +745,10 @@ fn fullest_history_keeps_maximum_owned_read_list_search_and_shell_after_cancel()
         let id = b"-owned".as_slice();
         let name = b"owned".as_slice();
         let input = b"{}".as_slice();
-        let skeleton = skein_lib::len_u64(2 * core::mem::size_of::<llm::Block>() + 2 * id.len() + name.len() + input.len())
-            + call.owned_bytes().expect("checked complete call")
-            - u64::try_from(core::mem::size_of::<Call>()).expect("inline call");
+        let skeleton =
+            skein_lib::len_u64(2 * core::mem::size_of::<llm::Block>() + 2 * id.len() + name.len() + input.len())
+                + call.owned_bytes().expect("checked complete call")
+                - u64::try_from(core::mem::size_of::<Call>()).expect("inline call");
         let mut spec = opening(None, u64::MAX);
         let mount = || Name::new(bytes(b"repo")).expect("mount");
         spec.spec.authority = Authority {
