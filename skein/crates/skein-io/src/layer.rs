@@ -133,10 +133,10 @@ pub(crate) struct Ready {
 }
 
 impl Io {
-    /// io with room for `limits`, which must be usable.
+    /// io with room for `limits`, which must be valid.
     #[must_use]
     pub fn new(limits: &Limits) -> Io {
-        assert!(limits.is_usable(), "io runs only under usable limits (Limits::is_usable)");
+        assert!(crate::valid(limits), "io runs only under usable limits (skein_io::valid)");
         let flights = limits::flights(limits).expect("the operation table's size fits a u32");
         Io {
             entities: Slab::with_capacity(limits.sockets),

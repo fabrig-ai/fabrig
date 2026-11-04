@@ -95,6 +95,12 @@ fn io_does_not_run_under_limits_it_cannot_use() {
 }
 
 #[test]
+#[should_panic(expected = "usable limits")]
+fn io_does_not_run_under_limits_whose_capacities_overflow() {
+    let _io = Io::new(&Limits { sockets: 1 << 29, ..limits() });
+}
+
+#[test]
 fn every_limit_of_zero_but_the_sockets_is_unusable() {
     let base = limits();
     for unusable in [
