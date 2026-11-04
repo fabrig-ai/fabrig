@@ -97,7 +97,9 @@ fn file_change(block: &Block) -> bool {
     match &call.call {
         Decoded::Owned { call } => match call {
             Call::Remove { .. } | Call::Write { .. } | Call::Edit { .. } => true,
-            Call::Read { .. } | Call::List { .. } | Call::Search { .. } | Call::Shell { .. } | Call::Job { .. } => false,
+            Call::Read { .. } | Call::List { .. } | Call::Search { .. } | Call::Shell { .. } | Call::Job { .. } => {
+                false
+            }
         },
         Decoded::Delegated { .. } | Decoded::Builtin { .. } | Decoded::Invalid { .. } | Decoded::Historical => false,
     }
@@ -150,21 +152,36 @@ pub(super) fn poll(block: &Block) -> bool {
     match &call.call {
         Decoded::Owned { call } => match call {
             Call::Job { stop, .. } => !stop,
-            Call::Remove { .. } | Call::Write { .. } | Call::Edit { .. } | Call::Read { .. } | Call::List { .. } | Call::Search { .. } | Call::Shell { .. } => false,
+            Call::Remove { .. }
+            | Call::Write { .. }
+            | Call::Edit { .. }
+            | Call::Read { .. }
+            | Call::List { .. }
+            | Call::Search { .. }
+            | Call::Shell { .. } => false,
         },
         Decoded::Delegated { .. } | Decoded::Builtin { .. } | Decoded::Invalid { .. } | Decoded::Historical => false,
     }
 }
 
 fn other_call(conversation: &Conversation) -> bool {
-    for call in conversation.transcript.last().expect("the completion precedes its results").content.iter().filter_map(Block::tool_call) {
+    for block in &conversation.transcript.last().expect("the completion precedes its results").content {
+        let Some(call) = block.tool_call() else { continue };
         match &call.call {
             Decoded::Owned { call } => match call {
-                Call::Job { .. } => {},
-                Call::Remove { .. } | Call::Write { .. } | Call::Edit { .. } | Call::Read { .. } | Call::List { .. } | Call::Search { .. } | Call::Shell { .. } => return true,
+                Call::Job { .. } => {}
+                Call::Remove { .. }
+                | Call::Write { .. }
+                | Call::Edit { .. }
+                | Call::Read { .. }
+                | Call::List { .. }
+                | Call::Search { .. }
+                | Call::Shell { .. } => return true,
             },
             Decoded::Builtin { .. } | Decoded::Invalid { .. } | Decoded::Historical => {
-                if call.name.as_ref() != b"job" { return true; }
+                if call.name.as_ref() != b"job" {
+                    return true;
+                }
             }
             Decoded::Delegated { .. } => return true,
         }
