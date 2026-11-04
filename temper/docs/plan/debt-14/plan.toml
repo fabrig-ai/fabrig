@@ -1,0 +1,3 @@
+draft = "debt-14"
+repo = "fabrig"
+sources = ["temper/docs/plan/debt-14/inputs/request.md", "hearth/docs/development/debt/D011-ratchet-counts-two-forms.md", "hearth/docs/development/debt/D005-private-hex-decimal-octal.md", "hearth/docs/development/debt/D008-path-modules.md", "hearth/docs/development/debt/D012-render-test-shapes.md", "smith/docs/development/debt/D017-domain-worlds-on-protocols.md", "smith/docs/development/debt/D018-domain-formats-text.md"]
