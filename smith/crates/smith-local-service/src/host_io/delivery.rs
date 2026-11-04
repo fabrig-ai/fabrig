@@ -291,8 +291,7 @@ impl HostIo {
                 );
                 continue;
             }
-            if self.close_root_pending && event.owner() == Token::new(u64::MAX) {
-                self.close_root_pending = false;
+            if self.close.root_answered(event.owner()) {
                 continue;
             }
             match &mut self.delivery.plain {
