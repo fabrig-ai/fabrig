@@ -5,7 +5,6 @@ use hearth_domain_render::{
 use hearth_render_world::fixtures;
 use skein_heap::Meter;
 
-
 #[test]
 fn evaluating_at_the_limits_holds_no_more_than_the_worst_case() {
     let bound = evaluate::worst_case(&limits::SHIPPED).expect("the shipped limits have a worst case");

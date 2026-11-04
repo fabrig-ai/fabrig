@@ -7,75 +7,63 @@ struct Row {
     session: &'static str,
 }
 const ROWS: &[Row] = &[
-    Row { decoder: "JSON documents", world: "config", file: "fuzzy_documents.rs", corpus: None, session: "03.2" },
-    Row { decoder: "declarations", world: "config", file: "fuzzy_declarations.rs", corpus: None, session: "35.2" },
-    Row {
-        decoder: "golden JSON",
-        world: "config",
-        file: "fuzzy_goldens.rs",
-        corpus: Some("golden::"),
-        session: "30.6",
-    },
-    Row { decoder: "expressions", world: "template", file: "fuzzy_expressions.rs", corpus: None, session: "05, 37" },
+    Row { decoder: "JSON documents", world: "config", file: "documents.rs", corpus: None, session: "03.2" },
+    Row { decoder: "declarations", world: "config", file: "declarations.rs", corpus: None, session: "35.2" },
+    Row { decoder: "golden JSON", world: "config", file: "goldens.rs", corpus: Some("golden::"), session: "30.6" },
+    Row { decoder: "expressions", world: "template", file: "expressions.rs", corpus: None, session: "05, 37" },
     Row {
         decoder: "templates and interpolated strings",
         world: "template",
-        file: "fuzzy_templates.rs",
+        file: "templates.rs",
         corpus: None,
         session: "06, 36",
     },
     Row {
         decoder: "golden templates",
         world: "template",
-        file: "fuzzy_goldens.rs",
+        file: "goldens.rs",
         corpus: Some("golden::"),
         session: "30.6",
     },
     Row {
         decoder: "ls-tree, cat-file and hunks",
         world: "git",
-        file: "fuzzy_git.rs",
+        file: "git.rs",
         corpus: Some("recordings::"),
         session: "02, 34",
     },
-    Row { decoder: "rev-parse and revision", world: "git", file: "fuzzy_revisions.rs", corpus: None, session: "30.6" },
+    Row { decoder: "rev-parse and revision", world: "git", file: "revisions.rs", corpus: None, session: "30.6" },
     Row {
         decoder: "Inst, Packages and tails",
         world: "mmdebstrap",
-        file: "fuzzy_mmdebstrap.rs",
+        file: "mmdebstrap.rs",
         corpus: Some("recordings::"),
         session: "07, 38",
     },
     Row {
         decoder: "store, layer, cache and resolution frames (kinds 1, 2, 4, 5)",
         world: "tree",
-        file: "fuzzy_tree.rs",
+        file: "tree.rs",
         corpus: None,
         session: "39, h01",
     },
     Row {
         decoder: "passwd, group, shadow and gshadow lines",
         world: "accounts",
-        file: "fuzzy_accounts.rs",
+        file: "accounts.rs",
         corpus: None,
         session: "h02",
     },
-    Row { decoder: "store names", world: "builder", file: "fuzzy_inputs.rs", corpus: None, session: "30.6" },
-    Row {
-        decoder: "argument form and invocation",
-        world: "builder",
-        file: "fuzzy_inputs.rs",
-        corpus: None,
-        session: "30.6",
-    },
+    Row { decoder: "store names", world: "builder", file: "inputs.rs", corpus: None, session: "30.6" },
+    Row { decoder: "argument form and invocation", world: "builder", file: "inputs.rs", corpus: None, session: "30.6" },
 ];
-const DOMAIN_REFERENCES: &[(&str, &str)] = &[("builder", "fuzzy_protocol.rs"), ("builder", "fuzzy_simulation.rs")];
+const DOMAIN_REFERENCES: &[(&str, &str)] = &[("builder", "protocol.rs"), ("builder", "simulation.rs")];
 #[test]
 fn every_decoder_has_a_seeded_sweep_that_exists() {
     for row in ROWS {
         let source = inputs::source(row.world, row.file);
         assert!(
-            row.file.starts_with("fuzzy_") && source.contains("#[test]") && !row.session.is_empty(),
+            source.contains("#[test]") && !row.session.is_empty(),
             "{}: {} has no seeded sweep",
             row.decoder,
             row.file

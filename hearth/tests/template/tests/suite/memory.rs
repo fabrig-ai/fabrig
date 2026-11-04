@@ -5,7 +5,6 @@ use hearth_protocol_template::{
 use hearth_template_world::fixtures;
 use skein_heap::{Meter, Span};
 
-
 #[test]
 fn compiling_at_the_limits_holds_no_more_than_the_worst_case() {
     let bound = limits::worst_case(Decoder::Expression, &fixtures::LIMITS).expect("a worst case");

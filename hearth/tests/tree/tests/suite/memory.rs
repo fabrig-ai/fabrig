@@ -13,7 +13,6 @@ use hearth_tree_world::{
 use skein_heap::Meter;
 use skein_lib::Rng;
 
-
 const OVERFLOW: &[(Kind, bool)] = &[
     (Kind::Store, false),
     (Kind::Layer, false),

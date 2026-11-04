@@ -2,6 +2,7 @@ use hearth_config_world::fixtures;
 use hearth_protocol_config::json;
 #[path = "../../src/fixtures/metered.rs"]
 mod measured;
+#[expect(clippy::module_inception, reason = "The memory suite module keeps the fixture module's name.")]
 #[path = "../../src/fixtures/memory.rs"]
 mod memory;
 #[test]
