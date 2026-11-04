@@ -132,7 +132,8 @@ pub fn scripted(front: &mut Scripted, facts: Facts) {
             install(front, cancelled);
             install(front, moved);
         }
-        Facts::Goals
+        Facts::InboxOrder
+        | Facts::Goals
         | Facts::HeldConversation
         | Facts::FamilyResource
         | Facts::NoChatTemplate
