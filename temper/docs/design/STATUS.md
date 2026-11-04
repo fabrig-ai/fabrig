@@ -72,7 +72,9 @@ scripted upstreams rather than temper's service
 bot's tokens and a forge's Replace are built, but for the real
 loop's story (`client/tools.md`) and a connected Forgejo made
 managed (`protocol/setup.md`); a kept GitHub forge whose base ends
-in `/` keeps remotes with two after the host
+in `/` keeps remotes with two after the host, and a clients'
+listener off loopback is refused in every engine shape, where the
+design admits one with the printed link off
 (`protocol/configuration.md`). A duplicate person's identity panics
 at a start, which the user's request counts a bug
 (`domain/root.md`). Ready names no email for a ChatGPT sign-in,

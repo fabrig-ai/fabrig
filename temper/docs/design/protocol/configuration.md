@@ -1271,6 +1271,13 @@ one owned Forgejo's place, with its own values (setup.md, 8.1).
   Default: so, until it is removed and connected again (forge.md,
   2.3); a patch of the record or a trimmed base would repair it in
   place.
+- **A clients' listener off loopback.** Section 3 admits one outside
+  standalone with the printed link off, and jig's `address_text`, which
+  each service reads at `Listening`, gives no text for an IPv6 address
+  off loopback. Default: the start refuses it in every engine shape.
+  The user's to choose, with no answer yet: that default, and section
+  3's table moves to it; or section 3 stands, the check relaxes and
+  `address_text` prints any IPv6 address.
 - **A repository renamed or moved after adoption.** Default: its
   resource path, which landing patterns match, and its remote keep the
   owner and name of its adoption; Forgejo redirects the old path, and
