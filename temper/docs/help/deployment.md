@@ -6,96 +6,73 @@ A deployment is one temper: its engine, the workers that run its agents, the for
 
 ## What it is
 
-- **The engine** holds the deployment's state and decides every act:
-  ctl's calls, the person's client's, and those of temper's own runs.
-- **A worker** checks repositories out, runs the agents' processes and
-  carries their calls to the engine. `temper init` writes one worker,
-  in the engine's process, with one slot.
-- **`temper serve`** runs what the configuration's shape names: the
-  engine and its workers in one process, the engine alone, or a worker
-  alone, on another host.
-- **A box** is a deployment on one machine: `temper box` runs
-  `temper serve`, and the setup steps of each forge it sets up, each a
-  child process (temper help box).
-- **A server** is a long-lived deployment: the engine behind a proxy,
-  its workers on another host (temper help server).
+- **The engine** keeps state and decides acts from ctl, clients and runs.
+- **A worker** checks repositories out, runs agents and carries their
+  calls to the engine. Init writes one worker with one slot.
+- **`temper serve`** runs the configured engine and workers together,
+  the engine alone, or a worker on another host.
+- **A box** runs `temper serve` and forge setup on one machine
+  (temper help box). A server runs behind a proxy, with workers on
+  other hosts (temper help server).
 
-**The three directories:**
+**The directories:** `CONFIG` holds `temper.json` and `agent.json`,
+written by init. `DATA` keeps the store in `DATA/deployment`, worker
+workspaces, owned Forgejo data, worker secrets and `DATA/box/logs`.
+`CACHE` keeps the pinned Forgejo and runner binaries.
 
-- `CONFIG` holds the configuration: `temper.json` and `agent.json`,
-  which `temper init` writes.
-- `DATA` holds what the deployment keeps: its store, under
-  `DATA/deployment`; the workers' workspaces; an owned Forgejo's data;
-  the worker's secret; a box's logs, under `DATA/box/logs`.
-- `CACHE` holds what can be fetched again: Forgejo and its runner, at
-  the versions the binary pins.
+Each directory comes from its flag, else `TEMPER_CONFIG`, `TEMPER_DATA`
+or `TEMPER_CACHE`, else its XDG directory under `temper`: `$XDG_CONFIG_HOME`,
+`$XDG_DATA_HOME` or `$XDG_CACHE_HOME`, defaulting to `$HOME/.config`,
+`$HOME/.local/share` or `$HOME/.cache` (temper help commands).
+Relative paths start at the working directory. `DATA` and `CACHE`
+belong to the user running temper, with no group or other access;
+temper creates missing ones with mode 0700.
 
-Each comes from its flag (temper help commands), else its variable,
-else its default: `TEMPER_CONFIG`, else `$XDG_CONFIG_HOME/temper` or
-`$HOME/.config/temper`; `TEMPER_DATA`, else `$XDG_DATA_HOME/temper` or
-`$HOME/.local/share/temper`; `TEMPER_CACHE`, else
-`$XDG_CACHE_HOME/temper` or `$HOME/.cache/temper`. A relative path is
-taken from the working directory. `DATA` and `CACHE`
-belong to the user who runs temper, with no permission for group or
-others; temper makes a missing one with mode 0700.
+**`CONFIG/temper.json`** has three members:
 
-**The configuration document,** `CONFIG/temper.json`, has three
-members:
+- `engine`: limits, LLM providers and models, workers and listener,
+  owners, sign-in and initial projects, each naming its policy
+  (`"policy": 1`); init seeds no projects;
+- `workers`: engine address, name, secret file, slots and agent program;
+- `application`: owned and fake forges, GitHub, landing rules,
+  repository gates, forge charter, listeners, Google sign-in,
+  scripted model and application limits.
 
-- `engine`: its limits; the LLM providers and their models; the
-  workers it admits and its listener; the owners; the ways to sign in;
-  the projects its first start seeds, none in `temper init`'s, each
-  naming its policy (`"policy": 1`);
-- `workers`: each worker's engine address, name, secret file, slots
-  and agent program;
-- `application`: the machine's places for a Forgejo temper runs, the
-  playground's fake forge and GitHub; the landing rules, how each
-  project lands and its repositories' gates, and the forge's charter;
-  the client and webhook listeners; sign-in with Google; the
-  playground's scripted model; temper's own limits.
-
-The forges are not in it: a forge is made when it is set up or
-connected, and kept in the store (temper help forge). Nor are the
-settings (charters, templates, policies, rules):
-they live in the store and change while the deployment runs (temper
-help settings). A configuration naming one is refused at the start,
-and so is a project whose policy is written out in it:
+Forges are created by setup or connection and kept in the store
+(temper help forge). Settings (charters, templates, policies and rules)
+also live in the store (temper help settings). Configuration that
+names settings or writes out a project's policy is refused:
 `engine.projects[0].policy: name a policy, policy: 1; change it with
 temper ctl settings apply`.
 
 ## How it changes
 
-- **Started:** `temper serve`, or `temper box`, reads the
-  configuration and opens the store in `DATA`. With a store already
-  there, the engine restores its tasks, accounts, parties, settings and
-  forge records, and reads each forge afresh.
-- **Stopped:** the first `SIGINT` or `SIGTERM` stops admitting calls,
-  lets the engine settle its work and its writes to the forge, closes
-  the store, and exits 0. A second signal aborts, and the exit is 1.
-- **Restarted:** stop it, change `CONFIG/temper.json` if you must,
-  start it again with the same three directories.
+- **Started:** `temper serve` or `temper box` reads configuration and
+  opens the store. Existing tasks, accounts, parties, settings and forge
+  records are restored; each forge is read afresh.
+- **Stopped:** the first SIGINT or SIGTERM stops admitting calls,
+  settles work and forge writes, closes the store and exits 0.
+  A second signal aborts with exit 1.
+- **Restarted:** stop, edit configuration, then start with the same
+  three directories.
 
 ## What temper guarantees
 
-- **A drained stop keeps everything:** a start with the same `DATA`
-  resumes from it.
-- **A run outlives a restart where its worker does:** the engine takes
-  its claim back. A claim no worker reports within its grace is lost,
-  and its task retries or holds as its charter says (temper help
-  task).
-- **ctl rides a restart:** a wait reconnects within the link's
-  deadline, and a kept request is sent again under its key (temper
-  help ctl).
-- **A refused start says why:** its line names the member or file at
-  fault, such as a secret file readable by others, or what reading the
-  stored state back refused: `temper serve: restore KIND: REASON` or
-  `temper serve: restart refused during PHASE: REASON`, the reason
-  naming the store's cause and the record's family and key when it has
-  one. A limit below the
-  stock's needs is refused naming the override to raise and the size
-  the stock's setting needs, before the store is read. A configuration
-  refused changes nothing; a stored state refused is a finding: keep `DATA` as
-  it is and report the line.
+- **A drained stop keeps everything:** the same `DATA` resumes it.
+- **A run outlives a restart where its worker does:** the engine
+  reclaims it. An unreported claim is lost after its grace; the task
+  retries or holds as its charter says (temper help task).
+- **ctl rides a restart:** waits reconnect within the link's deadline;
+  kept requests are resent under their keys (temper help ctl).
+- **A refused start says why:** it names a member or file at fault,
+  such as a secret readable by others, or a restore failure:
+  `temper serve: restore KIND: REASON` or
+  `temper serve: restart refused during PHASE: REASON`. The reason
+  names the store's cause, record family and key when available.
+  Limits below stock needs are refused before reading the store,
+  naming the override and required size. Refused configuration changes
+  nothing; refused stored state is a finding: keep `DATA` and report
+  the line.
 
 ## Acting on it
 
@@ -119,10 +96,9 @@ temper ctl settings apply`.
    }
    ```
 
-   Add `"gpt-6.1-sol"` to `engine.llm.providers[].models` for the
-   provider serving it (`openai` in this example). Its `models` array
-   holds names, not declarations. The declaration's `endpoint` names
-   an existing entry in `engine.llm.endpoints`.
+   Add `"gpt-6.1-sol"` to `engine.llm.providers[].models` for its
+   provider (`openai` here): names, not declarations. The `endpoint`
+   names an existing `engine.llm.endpoints` entry.
 2. In `CONFIG/agent.json`, append a matching declaration to
    `endpoints[].models` under the endpoint named `openai`:
 
@@ -136,24 +112,47 @@ temper ctl settings apply`.
    }
    ```
 
-   Use the same model and endpoint names in both files. Declare the
-   supported `efforts` in both model declarations; the engine's first
-   effort is the default when no effort is chosen.
-3. These are illustrative values, not provider specifications. Set
-   `window` (context tokens), `output` (maximum output tokens), and
-   `prices` (input, cached input and output costs per `unit` tokens)
-   to the model's supported values and your deployment's accounting
-   units in both files. Set the agent model's `reasoning_item`, the
-   byte allowance per reasoning item, and its `head` and `idle`
-   deadlines in milliseconds. Larger declarations may require larger
-   agent and channel bounds; a refused start names the shortfall.
-4. Preserve existing models, providers and endpoint settings, including
-   addresses, transports and sign-in settings. Finish both edits
-   before the first start. For a running deployment, stop it with
-   Ctrl-C or SIGTERM and wait for it to exit before editing, then
+   Use the same model and endpoint names in both files, with supported
+   `efforts`; the engine's first effort is the default.
+3. These values are illustrative, not provider specifications. Set
+   `window` (context tokens), `output` (output tokens) and `prices`
+   (costs per `unit` tokens) in both files. Set the agent's
+   `reasoning_item` (bytes per reasoning item), `head` and `idle`
+   (milliseconds). Larger declarations may require larger receiving
+   bounds; a refused start names the shortfall.
+4. Preserve existing models, providers, endpoints, transports and
+   sign-in settings. Finish both edits before the first start. For a
+   running deployment, stop with Ctrl-C or SIGTERM and wait for exit;
    restart with the same `CONFIG`, `DATA` and `CACHE`. `model list`
-   reads the models offered to a project; a charter or policy may
-   restrict which it can use (temper help charter; temper help settings).
+   reads a project's models; charters and policies may restrict them
+   (temper help charter; temper help settings).
+
+**A model answer's allowance:** in `CONFIG/agent.json`,
+`profile.declared.calls_per_response` derives `2*calls+2` completion
+items: 48 calls gives 98 items. This counts the whole answer,
+including reasoning and text, not just tool calls. Raising this value
+or a model's `reasoning_item` increases the largest turn and its
+receiving bounds.
+
+**Recovering from an answer-limit hold:**
+
+1. Read `task show TASK` for its reason and hold revision. Stop the box
+   with Ctrl-C or SIGTERM and wait for it to exit.
+2. Edit `CONFIG/agent.json` and the coupled receiving limits in
+   `CONFIG/temper.json` together. The engine and worker need
+   `hub.turn_bytes`, `hub.turn_queue_bytes` and `hub.transcript_bytes`;
+   the engine also needs `core.resume_bytes`; the application needs
+   `root.journal.transcript_bytes`, `root.loads.transcript_bytes`,
+   `root.loads.bytes`, `root.loads.reply_bytes` and `root.loads.read_bytes`.
+   A refused start names the shortfall. Byte overrides cannot bypass the
+   selected profile's store page ceiling: `standard`, which init selects,
+   has 59,570,691 bytes; `small` has 2,168,787 bytes. Reduce the calls or
+   model allowances, or select a compatible existing profile with room
+   for the turn and its frame. Store and wire admission still apply;
+   do not raise a schema ceiling.
+3. Start with the same `CONFIG`, `DATA` and `CACHE`. Resolve any startup
+   refusal before releasing the task. Read its current hold revision,
+   then `task release TASK --hold REV` (temper help task).
 
 ## Limits
 

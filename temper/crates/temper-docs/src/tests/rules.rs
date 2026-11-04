@@ -136,6 +136,47 @@ fn capacity_help_names_members_and_dependencies() {
 }
 
 #[test]
+fn deployment_help_bounds_agent_answers_and_explains_recovery() {
+    let text = find(b"deployment").expect("deployment page").text;
+    let text = text.split_whitespace().collect::<Vec<_>>().join(" ");
+    for instruction in [
+        "`CONFIG/agent.json`",
+        "`profile.declared.calls_per_response`",
+        "`2*calls+2` completion items",
+        "48 calls gives 98 items",
+        "including reasoning and text, not just tool calls",
+        "`reasoning_item`",
+        "Stop the box",
+        "wait for it to exit",
+        "Edit `CONFIG/agent.json`",
+        "`CONFIG/temper.json` together",
+        "engine and worker",
+        "`hub.turn_bytes`",
+        "`hub.turn_queue_bytes`",
+        "`hub.transcript_bytes`",
+        "`core.resume_bytes`",
+        "`root.journal.transcript_bytes`",
+        "`root.loads.transcript_bytes`",
+        "`root.loads.bytes`",
+        "`root.loads.reply_bytes`",
+        "`root.loads.read_bytes`",
+        "Byte overrides cannot bypass",
+        "selected profile's store page ceiling",
+        "`standard`, which init selects, has 59,570,691 bytes",
+        "`small` has 2,168,787 bytes",
+        "select a compatible existing profile",
+        "Store and wire admission still apply",
+        "do not raise a schema ceiling",
+        "Start with the same `CONFIG`, `DATA` and `CACHE`",
+        "Resolve any startup refusal before releasing the task",
+        "Read its current hold revision",
+        "`task release TASK --hold REV`",
+    ] {
+        assert!(text.contains(instruction), "deployment help must explain: {instruction}\n{text}");
+    }
+}
+
+#[test]
 fn the_index_names_every_concept_walk_and_recipe_once() {
     let text = find(b"index").expect("index").text;
     for entry in &PAGES {
