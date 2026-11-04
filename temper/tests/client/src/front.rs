@@ -1005,9 +1005,9 @@ impl Joint {
     }
     fn reachable(&mut self, who: ClientId, request: &Request) -> bool {
         use temper_client_protocol_wire::{self as wire, v1 as w};
-        let Request::Client {
+        let Request::Unlinked {
             request:
-                jig_client::Request::Down {
+                jig_client::UnlinkedRequest::Down {
                     down: jig_client::Down::Send { attempt, request: jig_client::Ask::Family { record, .. }, .. },
                 },
         } = request
@@ -1069,9 +1069,9 @@ impl Joint {
     }
     fn start_playground(&mut self, who: ClientId, request: &Request) -> bool {
         // The front scripts the playground lifecycle beside the real engine.
-        if let Request::Client {
+        if let Request::Unlinked {
             request:
-                jig_client::Request::Down {
+                jig_client::UnlinkedRequest::Down {
                     down: jig_client::Down::Send { attempt, key, request: jig_client::Ask::Family { record, .. }, .. },
                 },
         } = request
@@ -1130,9 +1130,9 @@ impl Joint {
     }
     fn refused_return(&mut self, who: ClientId, request: &Request) -> bool {
         if self.refuse_return
-            && let Request::Client {
+            && let Request::Unlinked {
                 request:
-                    jig_client::Request::Down {
+                    jig_client::UnlinkedRequest::Down {
                         down: jig_client::Down::Send { attempt, request: jig_client::Ask::Family { record, .. }, .. },
                     },
             } = request
@@ -1164,9 +1164,9 @@ impl Joint {
         false
     }
     fn task_read_end(&mut self, who: ClientId, request: &Request) -> bool {
-        if let Request::Client {
+        if let Request::Unlinked {
             request:
-                jig_client::Request::Down {
+                jig_client::UnlinkedRequest::Down {
                     down:
                         jig_client::Down::Read {
                             read,
@@ -1193,9 +1193,9 @@ impl Joint {
         false
     }
     fn playground_read(&mut self, who: ClientId, request: &Request) -> bool {
-        if let Request::Client {
+        if let Request::Unlinked {
             request:
-                jig_client::Request::Down {
+                jig_client::UnlinkedRequest::Down {
                     down: jig_client::Down::Read { read, what: jig_client::Readable::Family { record, .. } },
                 },
         } = request
@@ -1235,8 +1235,9 @@ impl Joint {
             return;
         }
         if self.offline_until.is_some() || self.transport.sign_in(who).is_none() {
-            if let Request::Client {
-                request: jig_client::Request::Down { down: jig_client::Down::Send { attempt, value: Some(_), .. } },
+            if let Request::Unlinked {
+                request:
+                    jig_client::UnlinkedRequest::Down { down: jig_client::Down::Send { attempt, value: Some(_), .. } },
             } = &request
             {
                 self.callbacks.push((
@@ -1258,8 +1259,9 @@ impl Joint {
             self.parked.entry(who).or_default().push(request);
             return;
         }
-        if let Request::Client { request: jig_client::Request::Down { down: jig_client::Down::Send { attempt, .. } } } =
-            &request
+        if let Request::Unlinked {
+            request: jig_client::UnlinkedRequest::Down { down: jig_client::Down::Send { attempt, .. } },
+        } = &request
             && let Some(envelope) = self.keyed_fault.take()
         {
             if envelope == RequestEnvelope::SignedOut {
@@ -1281,9 +1283,11 @@ impl Joint {
             ));
             return;
         }
-        if let Request::Client {
+        if let Request::Unlinked {
             request:
-                jig_client::Request::Down { down: jig_client::Down::Send { key, request: jig_client::Ask::Jig(ask), .. } },
+                jig_client::UnlinkedRequest::Down {
+                    down: jig_client::Down::Send { key, request: jig_client::Ask::Jig(ask), .. },
+                },
         } = &request
             && matches!(
                 ask.as_ref(),
@@ -1301,7 +1305,7 @@ impl Joint {
         if self.playground_read(who, &request) || self.task_read_end(who, &request) {
             return;
         }
-        let Request::Client { request: jig_client::Request::Down { down } } = request else {
+        let Request::Unlinked { request: jig_client::UnlinkedRequest::Down { down } } = request else {
             panic!("unlinked down request")
         };
         self.component.send(who, down);

@@ -128,9 +128,9 @@ pub fn supplied_root_watching(document: c::Task, held: bool) -> (temper_client_d
     }
     if held {
         while let Some(request) = out.pop() {
-            if let temper_client_domain::Request::Client {
+            if let temper_client_domain::Request::Unlinked {
                 request:
-                    jig_client::Request::Down {
+                    jig_client::UnlinkedRequest::Down {
                         down: jig_client::Down::Read { read, what: jig_client::Readable::Jig(c::Read::Task { .. }) },
                     },
             } = request
@@ -237,9 +237,9 @@ pub fn agent_root_with_page(
     }
     while let Some(request) = out.pop() {
         let up = match request {
-            Request::Client {
+            Request::Unlinked {
                 request:
-                    jig_client::Request::Down {
+                    jig_client::UnlinkedRequest::Down {
                         down: jig_client::Down::Open { watch, subject: jig_client::Watchable::Jig(subject) },
                     },
             } => {
@@ -259,18 +259,18 @@ pub fn agent_root_with_page(
                 let Some(value) = value else { continue };
                 Some(Up::Watched { watch, event: c::WatchEvent::Delivered(value) })
             }
-            Request::Client {
+            Request::Unlinked {
                 request:
-                    jig_client::Request::Down {
+                    jig_client::UnlinkedRequest::Down {
                         down: jig_client::Down::Read { read, what: jig_client::Readable::Jig(c::Read::Activity { .. }) },
                     },
             } => Some(Up::ReadDone {
                 read,
                 result: jig_client::Readout::Jig(c::ReadResult::Value(c::ReadValue::Activity(Box::new(page.clone())))),
             }),
-            Request::Client {
+            Request::Unlinked {
                 request:
-                    jig_client::Request::Down {
+                    jig_client::UnlinkedRequest::Down {
                         down:
                             jig_client::Down::Read { read, what: jig_client::Readable::Jig(c::Read::Task { task: TASK }) },
                     },
@@ -279,6 +279,7 @@ pub fn agent_root_with_page(
                 result: jig_client::Readout::Jig(c::ReadResult::Value(c::ReadValue::Task(Box::new(document.clone())))),
             }),
             Request::Client { .. }
+            | Request::Unlinked { .. }
             | Request::Show { .. }
             | Request::Leave { .. }
             | Request::SignOut
@@ -395,18 +396,18 @@ pub fn root_with_ended_and_held(
         let mut token = None;
         let mut held_token = None;
         while let Some(request) = out.pop() {
-            if let Request::Client {
+            if let Request::Unlinked {
                 request:
-                    jig_client::Request::Down {
+                    jig_client::UnlinkedRequest::Down {
                         down: jig_client::Down::Read { read, what: jig_client::Readable::Jig(c::Read::Tasks { .. }) },
                     },
             } = request
             {
                 assert!(token.is_none(), "one ended read");
                 token = Some(read);
-            } else if let Request::Client {
+            } else if let Request::Unlinked {
                 request:
-                    jig_client::Request::Down {
+                    jig_client::UnlinkedRequest::Down {
                         down: jig_client::Down::Read { read, what: jig_client::Readable::Jig(c::Read::Task { task }) },
                     },
             } = request

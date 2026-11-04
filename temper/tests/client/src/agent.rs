@@ -141,6 +141,7 @@ fn drain(agent: &mut Agent, requests: &mut Queue<root::Request>, out: &mut Queue
         match request {
             temper_client_tools::root::Request::Record { .. } => unreachable!("world agent does not move accounts"),
             root::Request::Client { request } => out.push(Request::Client { request }),
+            root::Request::Unlinked { request } => out.push(Request::Unlinked { request }),
             root::Request::Fact { fact } => out.push(Request::Fact { fact }),
             root::Request::Ready => agent.ready = true,
             root::Request::Kept { line } => agent.kept_lines.push(line),
