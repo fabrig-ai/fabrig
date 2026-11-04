@@ -18,7 +18,7 @@ task names. This file grows with each release; what is here so far is what has b
    contracts. The parts' order is fixed there: each jig task moves a part into a product crate and `jig-test-service`
    adapts; each temper task deletes temper's copy. One writer each for `jig-test-service` and `temper-service`.
    - `tasks/skein-kernel-routes.md`, medium, ~30 minutes, needs nothing: `skein_io::kernel::Routes`.
-   - `tasks/jig-accounts-host.md`, high, ~75 minutes, needs the routes: `jig_protocol_accounts::host`, net at most +130.
+   - `tasks/jig-accounts-host.md`, high, ~75 minutes, needs the routes: `jig_protocol_accounts::host`, net at most +162.
    - `tasks/temper-accounts-host.md`, high, ~55 minutes, needs the last: temper's copy goes, net at most -290.
    - `tasks/jig-worker-agents.md`, high, ~60 minutes, needs `jig-accounts-host`: the new crate, net at most +300.
    - `tasks/temper-worker-agents.md`, high, ~40 minutes, needs it and `temper-accounts-host`: net at most -420.
@@ -44,7 +44,7 @@ task names. This file grows with each release; what is here so far is what has b
    - `tasks/github-joint-face.md`, high, ~90 minutes, needs `github-machine-face`: the joint world's.
    - `tasks/github-close.md`, medium, ~15 minutes, needs the five: pays D029.
 
-   Each face's task has its net-lines cap. Their sum with the surface's +520 is at most -430.
+   Each face's task has its net-lines cap. Their sum with the surface's +650 is at most -270.
 
 ## What the cut decided
 
@@ -114,7 +114,7 @@ task names. This file grows with each release; what is here so far is what has b
   `notes/service-parts.md` lists it too; there is nothing to keep. It predates this plan.
 - **D029's fixture is built once in skein, not across trees.** temper's four fixture builders stay: the item is
   skein's and they speak no HTTP. A scenario's own tables, such as the conformance's, stay its own too.
-- **D029 ends near -600 lines, not the review's -1.2k.** The faces' gross fall is about that, but the surface and the
+- **D029 ends near -450 lines, not the review's -1.2k.** The faces' gross fall is about that, but the surface and the
   fixture's literals stay in the fake.
 - **Two things change below D029's tests, which none reads:** the joint world meets rate fields and `ETag`, so
   `Answered.rate` becomes `Some` and a log poll may answer `304`; the protocol world sends real media types and
