@@ -164,6 +164,8 @@ pub struct Domain {
     pulls: Map<Name, PullState>,
     /// Each pull's last mergeable, unsaved: a restart reads it afresh.
     pull_mergeable: Map<Name, bool>,
+    /// Last judged reviews per live change, unsaved: a restart reads them afresh.
+    pub(crate) review_facts: Map<u64, crate::ReviewFacts>,
     ci: Map<(skein_forge::api::Repository, skein_forge::api::Commit), CiState>,
     pub(crate) entries: Map<u64, Outboxed>,
     pub(crate) flights: Map<(u64, u64), ()>,
@@ -464,6 +466,17 @@ impl Domain {
         }
     }
 
+    /// Retain the last judged reviews for a live change without writing its record.
+    /// Returns whether a watched panel needs a new document.
+    pub fn keep_review_facts(&mut self, task: u64, facts: crate::ReviewFacts) -> bool {
+        let Some(row) = self.changes.get(&task) else { return false };
+        if row.terminal() || self.review_facts.get(&task) == Some(&facts) {
+            return false;
+        }
+        self.review_facts.insert(task, facts).expect("one review read per bounded live change");
+        true
+    }
+
     /// Keep the connector's retry deadline; the root carries no timer policy.
     pub fn wait_change(&mut self, env: &Env<Limits>, task: u64, until: Option<skein_lib::Wall>) {
         let until = match until {
@@ -573,6 +586,7 @@ impl Domain {
             heads: Map::with_capacity(l.client.resources),
             pulls: Map::with_capacity(l.client.resources),
             pull_mergeable: Map::with_capacity(l.client.resources),
+            review_facts: Map::with_capacity(l.changes),
             ci: Map::with_capacity(l.subscriptions),
             entries: Map::with_capacity(l.entries),
             flights: Map::with_capacity(l.entries),
@@ -604,10 +618,7 @@ impl Domain {
             tiers: Map::with_capacity(l.repositories.checked_mul(l.tiers.tiers).expect("checked tier capacity")),
             setting_rows: Map::with_capacity(crate::settings::rows(l).ok_or(skein_forge::api::Error::TooLarge)?),
             setting_stock: None,
-            held_rules: crate::settings::HeldRules {
-                deployment: Box::new([]),
-                projects: Map::with_capacity(l.judge_projects),
-            },
+            held_rules: empty_rules(l),
             held_charters: crate::ForgeCharters { change: 0, review: 0 },
             verifications: Map::with_capacity(l.changes),
             restore_phase: RestorePhase::Cold,
@@ -5927,6 +5938,7 @@ fn retain_terminal_ci(d: &mut Domain, row: &mut ChangeRow) {
     if !row.terminal() {
         return;
     }
+    d.review_facts.remove(&row.task);
     let read = match d.panel_ci.get(&row.task) {
         Some(read) if Some(read.head) == row.change.last_head => Some(*read),
         Some(_) | None => row.ci,
@@ -6353,4 +6365,8 @@ fn merge_available(d: &Domain, row: &ChangeRow, pending: &PendingStep, base_tip:
         length = sum;
     }
     length <= skein_lib::usize_of(bound)
+}
+
+fn empty_rules(limits: &Limits) -> crate::settings::HeldRules {
+    crate::settings::HeldRules { deployment: Box::new([]), projects: Map::with_capacity(limits.judge_projects) }
 }

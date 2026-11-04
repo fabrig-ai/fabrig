@@ -34,6 +34,8 @@ impl Frame {
                 hold: Some(f::Hold::Stalled),
                 runs: None,
                 ci: f::Ci::Pending,
+                approvals: skein_lib::List::with_capacity(0),
+                unmapped_reviews: skein_lib::List::with_capacity(0),
                 gates: skein_lib::List::with_capacity(0),
                 repairs: used.clone(),
                 resolutions: used.clone(),

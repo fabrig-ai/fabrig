@@ -59,9 +59,8 @@ fn limits_take_each_bound_from_its_source_field() {
     assert_eq!(
         fixtures::limits(),
         v1::Limits {
-            setting_answer_value_some: 1_048_576,
-            setting_value_value: 1_048_576,
-            proposal_items_answer_items: 1024,
+            change_panel_approvals: 8192,
+            change_panel_unmapped_reviews: 256,
             landing_exact_value: 8,
             landing_open_value: 8,
             landing_pattern_segments: 3,
@@ -147,6 +146,7 @@ fn limits_take_each_bound_from_its_source_field() {
             adopted_owner: 16,
             adopted_name: 16,
             core_refused_refusal: 64,
+            ..v1::CEILINGS
         }
     );
     let bounds = crate::Bounds { checks: 65, ..fixtures::BOUNDS };
@@ -224,6 +224,9 @@ fn change_panel_bounds_accept_at_and_refuse_one_past() {
         (fixtures::PanelBound::Address, v1::Path::PullAddress, crate::ADDRESS_BYTES),
         (fixtures::PanelBound::Ahead, v1::Path::QueuedAhead, crate::TASKS_AHEAD),
         (fixtures::PanelBound::Gates, v1::Path::ChangePanelGates, crate::GATES),
+        (fixtures::PanelBound::Approvals, v1::Path::ChangePanelApprovals, limits.change_panel_approvals),
+        (fixtures::PanelBound::Counted, v1::Path::ApprovalCounted, limits.approval_counted),
+        (fixtures::PanelBound::Unmapped, v1::Path::ChangePanelUnmappedReviews, limits.change_panel_unmapped_reviews),
         (fixtures::PanelBound::Owner, v1::Path::ChangePanelOwner, fixtures::BOUNDS.field_bytes),
         (fixtures::PanelBound::Name, v1::Path::ChangePanelName, fixtures::BOUNDS.field_bytes),
         (fixtures::PanelBound::Branch, v1::Path::ChangePanelBranch, fixtures::BOUNDS.field_bytes),
@@ -1034,8 +1037,8 @@ fn revision_setting_read_appends_after_the_deployment_tag() {
         .unwrap(),
     );
     for (read, bytes) in [
-        (v1::Read::Deployment, &[0, 13, 3][..]),
-        (revision, &[0, 13, 4, 0, 0, 0, 1, 0, 0, 0, 2, 0, 0, 0, 3, 0, 0, 0, 4][..]),
+        (v1::Read::Deployment, &[0, 14, 3][..]),
+        (revision, &[0, 14, 4, 0, 0, 0, 1, 0, 0, 0, 2, 0, 0, 0, 3, 0, 0, 0, 4][..]),
     ] {
         let record = v1::Reading::new(&limits, v1::ReadingParts { read }).unwrap();
         assert_eq!(crate::reading(&record).as_ref(), bytes);

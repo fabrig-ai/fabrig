@@ -302,6 +302,7 @@ impl Document {
                     .saturating_add(panel.name.len())
                     .saturating_add(panel.branch.len())
                     .saturating_add(panel.landing.len())
+                    .saturating_add(panel.approval_bytes())
                     .saturating_add(panel.gates.len().saturating_mul(size_of::<crate::PanelGate>()));
                 if let crate::PanelStep::Queued { ahead, .. } = &panel.step {
                     size = size.saturating_add(size_of_val(ahead.as_ref()));

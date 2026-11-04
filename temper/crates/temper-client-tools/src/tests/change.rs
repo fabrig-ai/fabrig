@@ -35,6 +35,8 @@ pub(super) fn panel(step: w::Step) -> w::ChangePanel {
             hold: None,
             runs: None,
             ci: w::Ci::Pending,
+            approvals: List::with_capacity(0),
+            unmapped_reviews: List::with_capacity(0),
             gates: List::with_capacity(0),
             repairs: used.clone(),
             resolutions: used,
@@ -166,7 +168,7 @@ fn checking_text_and_json_name_pull_head_gates_bounds_and_same_digest() {
     let call = root.submit(&["change", "show", "2", "--project", "1", "--json"]);
     deliver(&mut root, panel(w::Step::Checking));
     let json = root.answer(call).unwrap();
-    let expected = br#"{"task":2,"forge":3,"owner":"qa","name":"pilot-20261026","branch":"temper/2-readme","landing":"main","head":"1111111111111111111111111111111111111111","pull":{"number":1,"address":"http://127.0.0.1:3000/qa/pilot-20261026/pulls/1"},"step":"checking","merge":null,"queue":null,"repair":null,"hold":null,"runs":null,"ci":"pending","gates":[],"repairs":{"used":0,"limit":3},"resolutions":{"used":0,"limit":3},"updates":{"used":0,"limit":5},"questions":{"route":"none","taken":0,"limit":4,"open":[]}"#;
+    let expected = br#"{"task":2,"forge":3,"owner":"qa","name":"pilot-20261026","branch":"temper/2-readme","landing":"main","head":"1111111111111111111111111111111111111111","pull":{"number":1,"address":"http://127.0.0.1:3000/qa/pilot-20261026/pulls/1"},"step":"checking","merge":null,"queue":null,"repair":null,"hold":null,"runs":null,"ci":"pending","gates":[],"approvals":[],"unmapped_reviews":[],"repairs":{"used":0,"limit":3},"resolutions":{"used":0,"limit":3},"updates":{"used":0,"limit":5},"questions":{"route":"none","taken":0,"limit":4,"open":[]}"#;
     assert!(json.stdout.starts_with(expected));
     let mut document = skein_lib::Writer::new(expected.len() + 1);
     document.put(expected).unwrap();
@@ -950,4 +952,98 @@ fn resource_holds_keep_full_names_and_recovery_in_both_ctl_forms() {
                 || skein_lib::bytes::find(&printed.stderr, WORDS).is_some()
         );
     }
+}
+
+fn approval_parts() -> w::ChangePanelParts {
+    let mut parts = panel(w::Step::Queued(
+        w::Queued::new(&w::CEILINGS, w::QueuedParts { place: 1, ahead: List::with_capacity(0) }).unwrap(),
+    ))
+    .into_parts();
+    parts.approvals = List::with_capacity(1);
+    parts
+        .approvals
+        .push(
+            w::Approval::new(
+                &w::CEILINGS,
+                w::ApprovalParts {
+                    scope: 1,
+                    number: 2,
+                    role: 0,
+                    freshness: w::RuleFreshness::Clean,
+                    required: 1,
+                    read: w::ReviewRead::Complete,
+                    counted: List::with_capacity(0),
+                    remaining: Some(1),
+                    refused: false,
+                },
+            )
+            .unwrap(),
+        )
+        .unwrap();
+    parts.unmapped_reviews = List::with_capacity(1);
+    parts
+        .unmapped_reviews
+        .push(
+            w::UnmappedReview::new(
+                &w::CEILINGS,
+                w::UnmappedReviewParts { account: 99, head: [17; 32], verdict: w::Verdict::Approved },
+            )
+            .unwrap(),
+        )
+        .unwrap();
+    parts
+}
+
+#[test]
+fn approval_wait_text_and_json_send_the_person_to_the_pull_request() {
+    for (json, satisfied) in [(false, false), (true, false), (false, true), (true, true)] {
+        let mut root = f::signed_in(f::PARTY);
+        let call = if json {
+            root.submit(&["change", "show", "2", "--project", "1", "--json"])
+        } else {
+            root.submit(&["change", "show", "2", "--project", "1"])
+        };
+        let parts = if satisfied { satisfied_approval_parts() } else { approval_parts() };
+        deliver(&mut root, w::ChangePanel::new(&w::CEILINGS, parts).unwrap());
+        let answer = root.answer(call).expect("panel response");
+        assert_eq!(answer.status, 0);
+        if satisfied {
+            if json {
+                contains(&answer.stdout, br#""remaining":0"#);
+                contains(
+                    &answer.stdout,
+                    br#""counted":[{"person":7,"head":"2222222222222222222222222222222222222222"}]"#,
+                );
+            } else {
+                contains(&answer.stdout, b"counted person 7 at head 2222222222222222222222222222222222222222");
+                contains(&answer.stdout, b"remaining 0");
+                contains(&answer.stdout, b"next: temper ctl DIR change show 2 --until landed");
+            }
+        } else if json {
+            contains(&answer.stdout, br#""role":0,"required":1,"freshness":"clean","read":"complete","remaining":1"#);
+            contains(&answer.stdout, br#""counted":[]"#);
+            contains(&answer.stdout, br#""account":99,"head":"1111111111111111111111111111111111111111","verdict":"approved","reason":"forge account mapped to no person""#);
+        } else {
+            contains(
+                &answer.stdout,
+                b"approval: scope 1 rule 2 role 0 clean required 1; reviews complete; counted 0; remaining 1",
+            );
+            contains(&answer.stdout, b"uncounted review: forge account 99 at head 1111111111111111111111111111111111111111 approved; mapped to no person");
+            contains(&answer.stdout, b"next: review the pull request http://127.0.0.1:3000/qa/pilot-20261026/pulls/1");
+            assert!(skein_lib::bytes::find(&answer.stdout, b"--until landed").is_none());
+        }
+    }
+}
+
+fn satisfied_approval_parts() -> w::ChangePanelParts {
+    let mut parts = approval_parts();
+    let mut approval = parts.approvals.get(0).unwrap().clone().into_parts();
+    approval.remaining = Some(0);
+    approval.counted = List::with_capacity(1);
+    approval
+        .counted
+        .push(w::CountedReview::new(&w::CEILINGS, w::CountedReviewParts { person: 7, head: [34; 32] }).unwrap())
+        .unwrap();
+    *parts.approvals.get_mut(0).unwrap() = w::Approval::new(&w::CEILINGS, approval).unwrap();
+    parts
 }
