@@ -172,6 +172,6 @@ fn a_start_attaches_its_mounts_in_order_then_enters_the_domain() {
     assert!(refused.root_to_open().is_none());
     match refused.stages.teardown {
         Teardown::Answered { .. } | Teardown::Closing { .. } | Teardown::Closed { .. } => {}
-        other => panic!("refused Start passed Live: {other:?}"),
+        other @ Teardown::Live { .. } => panic!("refused Start passed Live: {other:?}"),
     }
 }

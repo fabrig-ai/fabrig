@@ -12,10 +12,7 @@ use smith_protocol_machine as machine;
 pub(super) fn record_usage(service: &mut Stages, frame: Option<&Frame>, usage: io::Measured) {
     let (at, answer, close) = match service.teardown {
         Teardown::Closing { at, answer, close, step: Step::Usage } => (at, answer, close),
-        Teardown::Live { .. }
-        | Teardown::Answered { .. }
-        | Teardown::Closing { .. }
-        | Teardown::Closed { .. } => {
+        Teardown::Live { .. } | Teardown::Answered { .. } | Teardown::Closing { .. } | Teardown::Closed { .. } => {
             unreachable!("one requested usage terminal")
         }
     };

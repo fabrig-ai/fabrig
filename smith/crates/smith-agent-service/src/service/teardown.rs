@@ -198,9 +198,7 @@ pub(super) fn shutdown(service: &mut Stages) {
 
 pub(super) fn work_pending(service: &Stages, frame: Option<&Frame>) -> bool {
     match service.teardown {
-        Teardown::Live { .. }
-        | Teardown::Closed { .. }
-        | Teardown::Closing { step: Step::Usage, .. } => false,
+        Teardown::Live { .. } | Teardown::Closed { .. } | Teardown::Closing { step: Step::Usage, .. } => false,
         Teardown::Answered { .. } => close_room(service),
         Teardown::Closing { step: Step::Components, .. } => {
             (components_closed(service, frame) && owner_ended(service, frame))
@@ -217,9 +215,7 @@ fn owner_ended(service: &Stages, frame: Option<&Frame>) -> bool {
 
 pub(super) fn follow(service: &mut Stages, frame: Option<&Frame>) {
     match service.teardown {
-        Teardown::Live { .. }
-        | Teardown::Closed { .. }
-        | Teardown::Closing { step: Step::Usage, .. } => {}
+        Teardown::Live { .. } | Teardown::Closed { .. } | Teardown::Closing { step: Step::Usage, .. } => {}
         Teardown::Answered { at, answer, close } => {
             if close_room(service) {
                 match close {

@@ -30,10 +30,9 @@ pub fn last(service: &crate::Service) -> Option<Last> {
 
 pub(crate) fn remember(service: &mut crate::service::Stages, answer: &run::Answer, detail: Box<[u8]>, now: Time) {
     service.line = match answer {
-        run::Answer::Failed { failure, .. } => Last::Failed {
-            failure: Box::new(smith_protocol_events::failure_record(failure.clone(), now)),
-            detail,
-        },
+        run::Answer::Failed { failure, .. } => {
+            Last::Failed { failure: Box::new(smith_protocol_events::failure_record(failure.clone(), now)), detail }
+        }
         run::Answer::Refused(refusal) => {
             Last::Failed { failure: Box::new(smith_protocol_events::refusal_record(*refusal)), detail }
         }
