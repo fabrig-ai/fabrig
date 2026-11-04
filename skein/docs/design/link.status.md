@@ -2,9 +2,8 @@
 
 2026-11-04. Where skein's code lags or departs from [link.md](link.md).
 
-- **Not yet:** 3.1: `Link::due`; `Link`'s `Debug` shows what its queues hold;
-  `Link::socket` is still public, for one guard of the forge connection's and
-  the link world. 3.4: `Upload::of`; `Upload`'s `Debug` shows its body. 4: no
+- **Not yet:** 3.1: `Link::socket` is still public, for one guard of the forge connection's and
+  the link world. 4: no
   test drives `Up::Failed` or `Up::End` during a close, or a close after TLS
   failed; the forge connection's stalled close has no test.
 - **Departs:** 1: `skein-oauth-accounts/src/exchange.rs` tells whether its link
