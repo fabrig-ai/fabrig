@@ -53,6 +53,11 @@ pub enum Word {
 
     Rename,
     RenameProject,
+    SwitcherRepository,
+    SwitcherSeveral,
+    SwitcherMore,
+    SwitcherNone,
+    SwitcherRow,
     Save,
     NewProject,
     NewProjectPlaceholder,
@@ -766,12 +771,14 @@ pub(crate) const SCRIPTED_MODEL: &[u8] = b"demo";
 // Model’s connected login and first repository are separate detail phrases (3.5).
 // Home and Settings add two phrases, each with one hole and three segments (3.5).
 // The rail adds four literals and one counted entry (client/README.md, 5.3).
-const PHRASES: u32 = 1275;
+// Five switcher phrases describe repository rows in both shells.
+const PHRASES: u32 = 1280;
 // Ready's empty-name line has two literals and a Name hole, two more segments (3.5).
 // Ready's repository lead adds one phrase and three segments (3.5).
 // Four literals and the counted entry's two literals and Number hole add seven segments.
-const SEGMENTS: u32 = 2182;
-const ALL: [Word; 680] = [
+// The switcher phrases add twenty-one literal and hole segments.
+const SEGMENTS: u32 = 2203;
+const ALL: [Word; 685] = [
     Word::PlaygroundBanner,
     Word::PlaygroundSetUp,
     Word::BannerSetUp,
@@ -812,6 +819,11 @@ const ALL: [Word; 680] = [
     Word::GitHubNotListedAfter,
     Word::Rename,
     Word::RenameProject,
+    Word::SwitcherRepository,
+    Word::SwitcherSeveral,
+    Word::SwitcherMore,
+    Word::SwitcherNone,
+    Word::SwitcherRow,
     Word::Save,
     Word::NewProject,
     Word::NewProjectPlaceholder,
@@ -1496,6 +1508,11 @@ impl Word {
 
             Self::Rename => 2184,
             Self::RenameProject => 2185,
+            Self::SwitcherRepository => 3100,
+            Self::SwitcherSeveral => 3101,
+            Self::SwitcherMore => 3102,
+            Self::SwitcherNone => 3103,
+            Self::SwitcherRow => 3104,
             Self::Save => 2186,
             Self::NewProject => 2187,
             Self::NewProjectPlaceholder => 2188,
@@ -2179,7 +2196,14 @@ pub struct Words {
 // clock: 256 bytes holds its longest three-sentence explanation whole.
 const REFUSAL_BYTES: u32 = 256;
 const SET_UP_FAILURE_BYTES: u32 = temper_client_domain::forge::forges::FAILURE_BYTES;
+// Switcher paths join two Name holes, a slash, " +", and ten u32 digits (client/README.md, 5.3).
+fn switcher_repository_bytes(joined: u32) -> Result<u32, Invalid> {
+    joined.checked_mul(2).ok_or(Invalid::Overflow)?.checked_add(13).ok_or(Invalid::Overflow)
+}
 fn hole_bytes(word: Word, kind: HoleKind, last: bool, joined: u32) -> Result<u32, Invalid> {
+    if word == Word::SwitcherRow && last {
+        return switcher_repository_bytes(joined);
+    }
     if word == Word::AdminHost {
         return Ok(temper_client_domain::forge::change::ADDRESS_BYTES);
     }
@@ -2343,6 +2367,7 @@ impl Words {
             text_bytes: 32768,
             // Whole playground requests keep their supplied bound.
             hole_bytes: joined
+                .max(switcher_repository_bytes(joined)?)
                 .max(temper_client_domain::forge::PLAYGROUND_FIELD_BYTES)
                 .max(temper_client_domain::forge::PLAYGROUND_WHY_BYTES)
                 .max(temper_client_domain::forge::OWNED_PASSWORD_BYTES)
@@ -2460,6 +2485,11 @@ fn english(word: Word, shell: Shell) -> (&'static [&'static [u8]], &'static [Hol
         Word::ConnectManagedWeb => (&[b"Its web address"], &[]),
         Word::Rename => (&[b"Rename"], &[]),
         Word::RenameProject => (&[b"Rename ", b""], &[Name]),
+        Word::SwitcherRepository => (&[b"", b"/", b""], &[Name, Name]),
+        Word::SwitcherSeveral => (&[b"", b"/", b" +", b""], &[Name, Name, Number]),
+        Word::SwitcherMore => (&[b" +", b""], &[Number]),
+        Word::SwitcherNone => (&[b"no repository"], &[]),
+        Word::SwitcherRow => (&[b"", b" \xc2\xb7 ", b""], &[Name, Name]),
         Word::Save => (&[b"Save"], &[]),
         Word::NewProject => (&[b"New project"], &[]),
         Word::NewProjectPlaceholder => (&[b"+ New project"], &[]),
