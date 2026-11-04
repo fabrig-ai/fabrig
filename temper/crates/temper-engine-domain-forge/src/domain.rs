@@ -2646,23 +2646,38 @@ fn delegate_result(
             }
         }
         change::Delegate::Produce => producer_result(row, no_change, failed, words),
-        change::Delegate::Merge { .. } => {
-            if status == change::Status::Passed {
-                let bound = match d.merge_kind {
-                    Some((_, result)) => skein_lib::usize_of(result),
-                    None => 0,
-                };
-                row.merge_result =
-                    Some(Box::from(words.get(..words.len().min(bound)).expect("merge result within its bytes")));
-            }
-        }
-        change::Delegate::Repair(_) | change::Delegate::Resolve { .. } => {}
+        change::Delegate::Merge { .. } => completed_merge(row, status, words, d.merge_kind),
+        change::Delegate::Repair(_) => completed_repair(
+            row,
+            child,
+            status,
+            no_change || failed || cancelled,
+            words,
+            env.limits.client.answer_bytes,
+        ),
+        change::Delegate::Resolve { .. } => {}
     }
     let saved = row.clone();
     if kind == change::Delegate::Produce && status == change::Status::Failed {
         d.procedure_wakes.insert(task, true).expect("one pending wake per change");
     }
     save_change(d, out, saved);
+}
+
+fn completed_merge(row: &mut ChangeRow, status: change::Status, words: &[u8], kind: Option<(u32, u32)>) {
+    if status == change::Status::Passed {
+        let bound = match kind {
+            Some((_, result)) => skein_lib::usize_of(result),
+            None => 0,
+        };
+        row.merge_result = Some(Box::from(words.get(..words.len().min(bound)).expect("merge result within its bytes")));
+    }
+}
+
+fn completed_repair(row: &mut ChangeRow, child: u64, status: change::Status, rejected: bool, words: &[u8], bound: u32) {
+    if status == change::Status::Passed && !rejected && !words.is_empty() {
+        row.result.completed(child, words, bound);
+    }
 }
 
 fn producer_result(row: &mut ChangeRow, no_change: bool, failed: bool, words: &[u8]) {
