@@ -207,7 +207,7 @@ impl Stages {
                 signals: None,
                 admission: super::admission::Admission::Waiting,
                 run_started: Time::ZERO,
-                line: crate::terminal::Line::Quiet,
+                line: crate::terminal::Last::Quiet,
                 opening: super::opening::Opening::Idle,
                 pipe_routes: Map::with_capacity(limits.machine.processes.checked_mul(2).ok_or(ConfigError::Limits)?),
                 roots: super::roots::Roots::Empty,
