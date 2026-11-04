@@ -1,4 +1,4 @@
-//! The ordered client record stream (client/README.md, 3.2 and 3.3).
+//! The ordered client record stream (hearth/docs/design/client/README.md, 3.2 and 3.3).
 use crate::{
     Asked,
     builder::vocabulary::Answer,
@@ -104,7 +104,7 @@ impl Client {
     pub fn takes(&self) -> bool {
         !self.active && self.terminal.is_none() && self.requests.is_empty() && self.events.is_empty()
     }
-    /// A notice of standard error's (client/README.md, 3.2).
+    /// A notice of standard error's (hearth/docs/design/client/README.md, 3.2).
     pub fn progress(
         &mut self,
         env: &Env<records::limits::Limits>,
@@ -151,7 +151,7 @@ impl Client {
         self.print(env, records::records::Record::Terminal(records::records::Terminal { outcome, diff, left_out }));
     }
     /// The terminal's outcome: a refused record fails the answer, and an
-    /// unavailable step makes a complete one unavailable (client/README.md, 3.3).
+    /// unavailable step makes a complete one unavailable (hearth/docs/design/client/README.md, 3.3).
     fn outcome(&self, outcome: crate::render::vocabulary::Outcome) -> records::outcome::Outcome {
         let outcome = answers::outcome(if self.refused {
             outcome.worst(crate::render::vocabulary::Outcome::Failed)

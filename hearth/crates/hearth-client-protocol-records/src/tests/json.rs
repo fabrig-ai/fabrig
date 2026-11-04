@@ -18,7 +18,11 @@ fn json_lines_start_with_the_version_and_give_digests_whole() {
         r#"{"record":"part","target":"x1-prod","name":"config","digest":"e7c2a0d95b130000000000000000000000000000000000000000000000000000","config":{"groups":{},"members":[],"presets":{},"scripts":[],"tmpfiles":{},"tree":{"/etc/hostname":{"content_digest":"3f1c2ab07e440000000000000000000000000000000000000000000000000000","group":"root","kind":"file","mode":"0644","owner":"root"}},"users":{}}}"#,
         "\n",
     );
-    assert_eq!(printed.as_deref(), Ok(expected.as_bytes()), "client/README.md, 3.2: version first, digests whole");
+    assert_eq!(
+        printed.as_deref(),
+        Ok(expected.as_bytes()),
+        "hearth/docs/design/client/README.md, 3.2: version first, digests whole"
+    );
 }
 #[test]
 fn the_terminal_record_gives_its_outcome_by_name() {

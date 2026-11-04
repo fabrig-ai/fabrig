@@ -1,4 +1,4 @@
-//! The plan's bound (programming-model.md, 6.3).
+//! The plan's bound (skein/docs/foundation/programming-model.md, 6.3).
 use crate::plan::{Planned, Step};
 #[derive(Clone, Copy, PartialEq, Eq, Hash, Debug)]
 pub struct Limits {

@@ -20,7 +20,7 @@ fn a_loop_binds_each_element_in_turn() {
     assert_eq!(
         fixtures::run(&Roots::x1_prod(), &template),
         Ok(Box::from(&b"sudo,wheel,"[..])),
-        "protocol/format.md, 7.3"
+        "hearth/docs/design/protocol/format.md, 7.3"
     );
 }
 #[test]

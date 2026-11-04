@@ -6,8 +6,12 @@ use skein_io::kernel::Exit;
 fn hearth_render_prints_the_thin_repositorys_spec_through_real_git() {
     let repository = Repository::make("thin", fixtures::THIN);
     let rendered = fixtures::render(&repository, &[], Form::Text);
-    assert_eq!(String::from_utf8_lossy(&rendered.stdout), fixtures::THIN_TEXT, "domain/render.md 9.2's lines");
-    assert_eq!(rendered.exit, Exit::Code(0), "client/README.md 3.3: done");
+    assert_eq!(
+        String::from_utf8_lossy(&rendered.stdout),
+        fixtures::THIN_TEXT,
+        "hearth/docs/design/domain/render.md 9.2's lines"
+    );
+    assert_eq!(rendered.exit, Exit::Code(0), "hearth/docs/design/client/README.md 3.3: done");
 }
 #[test]
 fn json_lines_give_the_version_first_and_the_outcome_last() {
@@ -568,7 +572,7 @@ fn a_hosts_template_lists_the_containers_placed_on_it() {
             "  /etc/containers          file 0644 root:root 9e40aaeae922\n",
             "  /etc/containers          file 0644 root:root 755c9769e418\n",
         ),
-        "protocol/format.md, 3.5: chat none, lab mail, prod chat and mail"
+        "hearth/docs/design/protocol/format.md, 3.5: chat none, lab mail, prod chat and mail"
     );
 }
 #[test]
