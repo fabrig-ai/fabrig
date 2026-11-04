@@ -178,7 +178,7 @@ fn landing_words(
     configured: Option<&forge::Configured>,
 ) -> Box<[u8]> {
     let digits = commit_text(merge);
-    let bound = usize::try_from(bound).expect("u32 fits usize");
+    let bound = skein_lib::usize_of(bound);
     let length = digits.len().min(bound);
     let id = digits.get(..length).expect("landing words fit merge id");
     let line = match repository {
@@ -370,7 +370,7 @@ fn red_goal_words(
 fn red_failure_count(failing: &temper_engine_domain_forge_tiers::Failures) -> Box<[u8]> {
     match failing {
         temper_engine_domain_forge_tiers::Failures::Tests(tests) => {
-            let count = u64::try_from(tests.len()).expect("a bounded test count fits u64");
+            let count = skein_lib::len_u64(tests.len());
             Box::from(skein_lib::Decimal::of(count).as_bytes())
         }
         temper_engine_domain_forge_tiers::Failures::Many => Box::from(b"many".as_slice()),
@@ -1094,7 +1094,7 @@ pub(crate) fn project_goal(domain: &mut Domain, env: &Env<Limits>, feed: &jig_do
         return;
     };
     let title = text.lines().next().unwrap_or(text);
-    let bound = usize::try_from(env.limits.forge.issue_policy.plan_items).expect("u32 fits usize");
+    let bound = skein_lib::usize_of(env.limits.forge.issue_policy.plan_items);
     let children = feed.plan.iter().filter(|child| child.number != goal.number).count();
     let mut plan = List::with_capacity(env.limits.forge.issue_policy.plan_items);
     let individual = if children > bound { bound.saturating_sub(1) } else { children };
@@ -1644,7 +1644,7 @@ pub(crate) fn run_workspace(
         // Charge the per-repository save destination beside the selected item.
         workspace_bytes = workspace_bytes
             .checked_add(item.bytes)?
-            .checked_add(u64::try_from(save.len()).ok()?)?
+            .checked_add(skein_lib::len_u64(save.len()))?
             .checked_add(u64::try_from(size_of::<Option<Box<[u8]>>>()).ok()?)?;
         if workspace_bytes > u64::from(env.limits.journal.run_bytes) {
             return None;
@@ -3457,8 +3457,7 @@ fn change_landing_words(
         bytes = bytes.checked_add(part.len()).expect("bounded landing line");
     }
     // The line names the landing so that the run that asked hears that the change landed (temper/docs/design/domain/root.md, 6).
-    if skein_lib::bytes::find(out.as_slice(), b"\npull request #").is_some()
-        && bytes <= usize::try_from(out.room()).expect("u32 fits usize")
+    if skein_lib::bytes::find(out.as_slice(), b"\npull request #").is_some() && bytes <= skein_lib::usize_of(out.room())
     {
         append(&mut out, b"\n");
         for part in parts {
@@ -3487,8 +3486,8 @@ fn change_landing_identity(
     let verification = change_verification_words(domain, task, merge, bound);
     let reserve = verification.len().saturating_add(1);
     let digits = commit_text(merge);
-    let keep_verification = !verification.is_empty()
-        && digits.len().saturating_add(reserve) <= usize::try_from(bound).expect("u32 fits usize");
+    let keep_verification =
+        !verification.is_empty() && digits.len().saturating_add(reserve) <= skein_lib::usize_of(bound);
     let identity_bound = if keep_verification {
         bound.saturating_sub(u32::try_from(reserve).expect("verification within bound"))
     } else {
@@ -4102,7 +4101,7 @@ pub(crate) fn outputs(
                         "forge marks fit the views subject budget"
                     );
                 }
-                assert!(tasks.len() <= usize::try_from(forge::MARKED).expect("u32 fits usize"), "bounded panel marks");
+                assert!(tasks.len() <= skein_lib::usize_of(forge::MARKED), "bounded panel marks");
                 let mut subjects = List::with_capacity(forge::MARKED);
                 for task in tasks {
                     subjects.push(Token::new(task)).expect("bounded panel marks");

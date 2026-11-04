@@ -410,10 +410,7 @@ pub(crate) fn route_into(domain: &mut Domain, env: &Env<Limits>, decision: &mut 
             }
             Work::Core(event) => {
                 if let core::Event::AcceptedTurn { accepted: tasks::Accepted::Already, transcript, .. } = &event {
-                    domain.release_bytes(
-                        u64::try_from(transcript.len()).expect("turn body length fits u64"),
-                        "already accepted turn body was held",
-                    );
+                    domain.release_bytes(skein_lib::len_u64(transcript.len()), "already accepted turn body was held");
                 }
                 let routed = core::step(&mut domain.core, &environment_core(env), event);
                 route_core_requests(domain, env, decision, routed);
@@ -567,7 +564,7 @@ pub(crate) fn delegate_call(
         if let Some(&first) = ids.first() {
             let capacity = batch
                 .len()
-                .checked_mul(usize::try_from(env.limits.tasks.inputs).expect("u32 fits usize"))
+                .checked_mul(skein_lib::usize_of(env.limits.tasks.inputs))
                 .expect("bounded batch input count");
             let to = to.into_token();
             let read = InputCheck {

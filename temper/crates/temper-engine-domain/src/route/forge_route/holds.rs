@@ -318,12 +318,7 @@ mod tests {
         let Some(Work::Tasks(event @ tasks::Event::HoldFrom { .. })) = domain.work.pop() else {
             panic!("the making failure holds its goal");
         };
-        tasks::step(
-            &mut domain.core.tasks,
-            &Env { now: env.now, wall: env.wall, limits: env.limits.tasks },
-            event,
-            &mut Queue::uncapped(),
-        );
+        tasks::step(&mut domain.core.tasks, &env.with(env.limits.tasks), event, &mut Queue::uncapped());
         let tasks::Phase::Held { why, source: Some(source), .. } = &domain.core.tasks.task(task).unwrap().phase else {
             panic!("the goal retains the making's failure");
         };

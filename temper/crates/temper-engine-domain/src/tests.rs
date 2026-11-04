@@ -691,7 +691,7 @@ fn an_issued_program_counts_its_retained_name() {
         name: name.as_slice().into(),
         signed_out: true,
     }));
-    assert_eq!(crate::record_bytes(&row), Some(u64::try_from(name.len()).expect("bounded name bytes")));
+    assert_eq!(crate::record_bytes(&row), Some(skein_lib::len_u64(name.len())));
 }
 
 #[test]

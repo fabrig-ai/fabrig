@@ -7,7 +7,7 @@ use temper_engine_domain_forge as forge;
 fn procedure() -> (crate::Domain, Env<crate::Limits>, u64) {
     let (mut domain, env) = super::resume_fixture::root();
     let goal = crate::fresh(&mut domain.core.counters, crate::Family::Task).unwrap();
-    let task_env = Env { now: env.now, wall: env.wall, limits: env.limits.tasks };
+    let task_env = env.with(env.limits.tasks);
     let mut out = Queue::uncapped();
     for event in [
         tasks::Event::Restored,
@@ -53,7 +53,7 @@ fn procedure() -> (crate::Domain, Env<crate::Limits>, u64) {
 fn a_removed_changes_cancel_ends_its_procedure_even_while_held() {
     for held in [false, true] {
         let (mut domain, env, task) = procedure();
-        let task_env = Env { now: env.now, wall: env.wall, limits: env.limits.tasks };
+        let task_env = env.with(env.limits.tasks);
         let mut out = Queue::uncapped();
         if held {
             tasks::step(
