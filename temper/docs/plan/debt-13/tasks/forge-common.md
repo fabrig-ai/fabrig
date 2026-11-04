@@ -68,8 +68,9 @@ Acceptance:
    fn find(forges: &mut List<ForgeEntry>, number: u16) -> Option<&mut ForgeEntry>;
    ```
 
-   It replaces each `for at in 0..` that compares numbers, in `drive_calls`, `connect`, `installations`, `remove` and
-   `follow_github_log`, the last taking its entry from its caller.
+   It replaces each `for at in 0..` that compares numbers, in `drive_calls`, `connect`, `installations` and
+   `follow_github_log`, the last taking its entry from its caller. `remove` alone needs a position, for
+   `List::swap_remove`: see `## Answers`.
 4. `connection.rs`:
 
    ```rust
@@ -99,3 +100,13 @@ Acceptance:
 
 What changed, the commit, what ran with counts, the measure, any test that changed how it reaches the code, and the
 net lines, production and tests apart.
+
+## Answers
+
+2026-11-04. **May `remove` keep a local position search for `List::swap_remove`, or should `find` return the position
+too?** `remove` keeps it, and `find` stays as step 3 gives it. Only `remove` wants a position, and the other callers
+should not carry one; contracts.md, 1 fixes `swap_remove` and says a step never takes a position, which a local in
+`Component::remove` isn't. Step 3 no longer lists `remove`. Write it so the acceptance searches stay clean, with no
+`.get(at)` and no `at: u32`: `forges.iter().position(..)` on the number at the head of `remove`, returning if there's
+none, as today, and `u32::try_from` for `swap_remove` at its end, where it is today. Its statements keep their order.
+The role commit `975b7f6e27` stands: the next run builds on it.
