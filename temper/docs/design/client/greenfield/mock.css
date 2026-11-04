@@ -239,6 +239,17 @@ dialog.sheet::backdrop { background: rgba(24, 24, 27, .32); }
 .field > label { min-width: 6.5em; font-size: 14px; font-weight: 600; }
 .text { min-height: 38px; padding: 6px 12px; border: 1px solid var(--line-2); border-radius: 8px; background: var(--surface); }
 .sheet .foot { display: flex; justify-content: flex-end; gap: 8px; padding-top: 16px; border-top: 1px solid var(--line); }
+/* What Forgejo on this machine starts with: an option's own fields show
+   under it while it is chosen (the form's data-pick). */
+.sheet-head { display: flex; flex-direction: column; gap: 6px; }
+.sheet-head p { font-size: 14px; }
+.sheet .option-more { display: none; margin: -2px 0 6px 28px; }
+.sheet [data-pick=empty] .more-empty, .sheet [data-pick=copy] .more-copy { display: grid; gap: 6px; }
+.sheet [data-pick=empty] .more-empty { grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 12px; }
+.option-more label { display: block; margin-bottom: 4px; font-size: 13px; font-weight: 600; }
+.option-more .text { width: 100%; }
+.option-more textarea.addresses { min-height: 76px; padding: 8px 12px; resize: vertical; font: 13px/1.5 var(--mono); }
+.sheet-error { margin: -8px 0 0; color: #b42318; font-size: 14px; }
 
 /* Settings. */
 .tabs { display: flex; flex-wrap: wrap; gap: 20px; border-bottom: 1px solid var(--line); font-size: 14px; }

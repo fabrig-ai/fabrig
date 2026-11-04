@@ -110,12 +110,31 @@
       const done = now - f.at >= FR.github.ms;
       return { kind: 'github', name: 'GitHub', done, nextAt: done ? null : f.at + FR.github.ms, doing: 'Installing temper’s App on GitHub', line: `temper’s App on ${FR.github.account}, ${FR.github.repos.length} repositories` };
     }
+    const steps = forgejoSteps(f);
     let t = now - f.at;
     let i = 0;
     let next = f.at;
-    for (const s of FR.forgejo.steps) { next += s.ms; if (t < s.ms) break; t -= s.ms; i += 1; }
-    const done = i >= FR.forgejo.steps.length;
-    return { kind: 'forgejo', name: FR.forgejo.name, done, i, nextAt: done ? null : next, doneAt: next, doing: done ? '' : FR.forgejo.steps[i].doing, line: `connected as ${FR.forgejo.login} · ${f.org}/${f.repo} made, ${S.adopted.default === `${f.org}/${f.repo}` ? `in ${S.names.default || FR.project.name}` : 'in no project yet'}` };
+    for (const s of steps) { next += s.ms; if (t < s.ms) break; t -= s.ms; i += 1; }
+    const done = i >= steps.length;
+    return { kind: 'forgejo', name: FR.forgejo.name, done, i, steps, nextAt: done ? null : next, doneAt: next, doing: done ? '' : steps[i].doing, line: `connected as ${FR.forgejo.login}${startedLine(f)}` };
+  }
+  // What Forgejo on this machine starts with (the sheet below): an empty
+  // repository, copies of public ones, or nothing; each goes into the
+  // first project when Ready makes it.
+  const startRepos = f => (!f || f.kind !== 'forgejo' ? [] : f.start === 'copy' ? f.copies.map(c => c.to) : f.start === 'none' ? [] : [`${f.org}/${f.repo}`]);
+  function forgejoSteps(f) {
+    const extra = f.start === 'copy'
+      ? f.copies.map(c => ({ ms: FR.forgejo.copyMs, doing: `Copying ${c.to} from ${c.host}`, done: `Copied ${c.to} from ${c.host}` }))
+      : f.start === 'none' ? []
+      : [{ ms: FR.forgejo.makeMs, doing: `Making ${f.org}/${f.repo}, empty, with a README and a CI check`, done: `Made ${f.org}/${f.repo}, empty, with a README and a CI check` }];
+    return [...FR.forgejo.steps, ...extra];
+  }
+  function startedLine(f) {
+    const r = startRepos(f);
+    if (!r.length) return '';
+    const what = r.length === 1 ? r[0] : `${r.length} repositories`;
+    const verb = f.start === 'copy' ? 'copied' : 'made';
+    return S.setup.made ? ` · ${what}, in ${S.names.default || FR.project.name}` : ` · ${what} ${verb}`;
   }
   function modelInfo() {
     const m = S.setup.model;
@@ -301,10 +320,12 @@
     const gh = f.kind === 'github';
     const adoptAct = gh
       ? `<label class="sr" for="adopt-pick">Repository</label><select class="text" id="adopt-pick">${FR.github.repos.map(r => `<option>${esc(r)}</option>`).join('')}</select><button type="button" class="btn small" data-adopt="">Adopt</button>`
-      : `<button type="button" class="btn small" data-adopt="${esc(`${S.setup.forge.org}/${S.setup.forge.repo}`)}">Adopt ${esc(`${S.setup.forge.org}/${S.setup.forge.repo}`)}</button><button type="button" class="btn quiet small" data-later-note="The adoption form: any repository on your Forgejo, into this project or a new one.">Another…</button>`;
+      : '<button type="button" class="btn small" data-repo-open="empty">Make an empty one</button><button type="button" class="btn small" data-repo-open="copy">Copy a public one</button><button type="button" class="btn quiet small" data-later-note="The adoption form: any repository on your Forgejo, one you pushed yourself among them.">Adopt another…</button>';
+    const several = !!p.repo && p.repo.includes(', ');
+    const copied = S.setup.forge.start === 'copy' || S.copiedLater;
     const steps = [
       { done: configured, title: 'Tell temper how you work', text: configured ? 'Accepted: the project now shows what your way of working needs.' : 'In your own words: how you plan, review and land work. temper proposes how it will run that, and nothing changes until you accept.', act: configured ? '<a class="link" href="settings.html">See the settings</a>' : `<a class="btn primary small" href="${cs.find(c => c.configure) ? `chat.html?id=${cs.find(c => c.configure).id}` : 'chat.html?id=new&configure=1'}">${cs.find(c => c.configure) ? 'Go on' : 'Start'}</a>` },
-      { done: !!p.repo, title: p.repo ? `${p.repo} is in ${p.name}` : 'Adopt a repository', text: p.repo ? 'Chats can change its code now; its CI ran on main and passed.' : gh ? `temper’s App reaches ${FR.github.repos.length} repositories on ${FR.github.account}. Until one is in, chats talk and plan but change no code.` : `${S.setup.forge.org}/${S.setup.forge.repo}, the sample repository, is on your Forgejo and in no project yet. Until one is in, chats talk and plan but change no code.`, act: p.repo ? '' : adoptAct },
+      { done: !!p.repo, title: p.repo ? `${p.repo} ${several ? 'are' : 'is'} in ${p.name}` : gh ? 'Adopt a repository' : 'Add a repository', text: p.repo ? (copied ? `Chats can change ${several ? 'their' : 'its'} code now, on your Forgejo; nothing goes back where ${several ? 'they were' : 'it was'} copied from.` : 'Chats can change its code now; its CI ran on main and passed.') : gh ? `temper’s App reaches ${FR.github.repos.length} repositories on ${FR.github.account}. Until one is in, chats talk and plan but change no code.` : 'Your Forgejo has none yet. Until one is in, chats talk and plan but change no code.', act: p.repo ? '' : adoptAct },
       { done: asked, title: 'Start a chat', text: asked ? 'Your chats are under Chats.' : 'Ask a question or ask for a change.', act: asked ? '<a class="link" href="chats.html">Chats</a>' : '<a class="btn small" href="chat.html?id=new">New chat</a>' },
     ];
     const left = steps.filter(s => !s.done).length;
@@ -314,7 +335,7 @@
       <header class="intro">
         <p class="kicker">${esc(p.name)} · made just now</p>
         <h1 class="headline">${esc(headline)}</h1>
-        <p class="lede">Your agents run on your ${esc(m.name)}. ${gh ? `temper’s App is on ${esc(FR.github.account)}’s GitHub.` : `Forgejo runs on this machine, with a sample repository, ${esc(`${S.setup.forge.org}/${S.setup.forge.repo}`)}.`}${p.repo ? '' : ` ${esc(p.name)} has no repository yet.`}</p>
+        <p class="lede">Your agents run on your ${esc(m.name)}. ${gh ? `temper’s App is on ${esc(FR.github.account)}’s GitHub.` : 'Forgejo runs on this machine.'}${p.repo ? '' : ` ${esc(p.name)} has no repository yet.`}</p>
       </header>
       ${o.length ? `<section class="section"><div class="section-head"><h2 class="section-title signal">Needs you · ${o.length}</h2></div>${askCard(o[0])}</section>` : ''}
       <section class="section" aria-labelledby="begin">
@@ -331,6 +352,7 @@
           <div><span>Project ${esc(p.name)} <span class="muted">· ${esc(p.repo || 'no repository yet')}</span></span><span class="when"><button type="button" class="link plain" data-rename>Rename</button></span></div>
         </div>
       </section>
+      ${!gh && !p.repo ? repoSheet('home') : ''}
     </div>`);
   }
 
@@ -737,9 +759,9 @@ ${events.length ? `\n${events.map(esc).join('\n')}\n` : ''}<span class="cursor">
       } else {
         body = `${head('Connect a forge', 'Where your code lives: you tell temper what you want, agents push and land code.')}
           <div class="choices-grid">
-            ${choice('Forgejo', 'A forge of your own: temper starts it on this machine and manages it.', 'Here · about a minute', '<button type="button" class="btn primary" data-forgejo>Run on this machine</button>', ' lead')}
+            ${choice('Forgejo', 'A forge of your own: temper starts it on this machine and manages it.', 'Here · about a minute', '<button type="button" class="btn primary" data-forgejo-open>Run on this machine</button>', ' lead')}
             ${choice('GitHub', 'Your repositories on GitHub. temper makes its own App there; you choose the account and the repositories it may use.', 'In this tab, on GitHub · about two minutes', '<button type="button" class="btn" data-github>Connect GitHub</button>')}
-          </div>${foot}`;
+          </div>${foot}${repoSheet('welcome')}`;
       }
     } else if (at === 'model') {
       const way = params.get('way');
@@ -790,8 +812,11 @@ ${events.length ? `\n${events.map(esc).join('\n')}\n` : ''}<span class="cursor">
       const modelRow = !m ? row('todo', 'Model', 'none yet · <a class="link" href="welcome.html?at=model">Connect a model</a>')
         : m.ready ? row('done', 'Model', `${esc(m.name)} · ${esc(m.who)} · ${esc(m.model)}`)
         : row('current', 'Model', `${esc(m.name)} · signing in…`);
-      const projRow = row(S.setup.made ? 'done' : making ? 'current' : 'todo', 'Project', `${esc(FR.project.name)} · ${making ? 'making it…' : 'made when you open it; rename it whenever you like'}`);
-      body = `${head(ready ? 'Ready' : 'Almost ready', ready ? 'Everything is connected. Open your first project; it starts with no repository, and you adopt one when you like.' : 'Your first project opens once your forge and model are ready.')}
+      const into = startRepos(S.setup.forge);
+      const intoWords = into.length === 1 ? into[0] : `${into.length} repositories`;
+      const projRow = row(S.setup.made ? 'done' : making ? 'current' : 'todo', 'Project', `${esc(FR.project.name)} · ${making ? 'making it…' : `made when you open it${into.length ? `, with ${esc(intoWords)} in it` : ''}; rename it whenever you like`}`);
+      const readyLine = into.length ? `Everything is connected. Open your first project; ${intoWords} ${into.length === 1 ? 'goes' : 'go'} in it.` : 'Everything is connected. Open your first project; it starts with no repository, and you add one when you like.';
+      body = `${head(ready ? 'Ready' : 'Almost ready', ready ? esc(readyLine) : 'Your first project opens once your forge and model are ready.')}
         <ul class="checklist">${forgeRow}${modelRow}${projRow}</ul>
         <div class="acts"><button type="button" class="btn primary" data-make${ready && !making ? '' : ' disabled'}>${making ? `Making ${esc(FR.project.name)}…` : `Open ${esc(FR.project.name)}`}</button></div>
         ${ready ? '' : `<p class="facts">${f && !f.done ? 'Forgejo is still setting up; this page moves on by itself.' : 'It opens once your forge and model are ready.'}</p>`}${foot}`;
@@ -799,8 +824,68 @@ ${events.length ? `\n${events.map(esc).join('\n')}\n` : ''}<span class="cursor">
     const server = '<a class="link" href="#" data-later-note="temper help server: a long-lived deployment, the engine behind a proxy and its workers on another host. Opens in a new tab.">Run temper on a server ↗</a>';
     return `<div class="setup"><header class="setup-top"><a class="brand" href="welcome.html">temper</a><p class="box-line"><b>temper box</b> · on this machine, to try it · more later, from Settings · ${server}</p>${steps}</header><main class="setup-main">${body}</main></div>`;
   }
+  // "Run on this machine" opens it: what Forgejo starts with, an empty
+  // repository by default. From the project's home, the same sheet adds
+  // a repository later, made or copied, into the project at once.
+  function repoSheet(ctx) {
+    const welcome = ctx === 'welcome';
+    const opt = (v, title, text, checked) => `<label class="option"><input type="radio" name="start" value="${v}"${checked ? ' checked' : ''}><b>${title}</b><small>${text}</small></label>`;
+    return `<dialog class="sheet" id="repo-sheet" aria-labelledby="repo-title"><form method="dialog" data-repo-form="${ctx}" data-pick="empty">
+      <div class="sheet-head"><h2 id="repo-title">${welcome ? 'Forgejo on this machine' : `Add a repository to ${esc(P().name)}`}</h2><p class="muted">${welcome ? 'temper starts it here and connects to it; you connect your model meanwhile.' : 'Made or copied on your Forgejo, then in this project at once.'}</p></div>
+      <fieldset><legend>${welcome ? 'Start it with' : 'A repository'}</legend>
+        ${opt('empty', 'An empty repository', `A README and a starter CI check${welcome ? `, in ${esc(FR.project.name)} once you open it` : ''}.`, true)}
+        <div class="option-more more-empty fields"><div><label for="fj-org">Organization</label><input class="text" id="fj-org" value="${esc(FR.forgejo.org)}" autocomplete="off"></div><div><label for="fj-repo">Name</label><input class="text" id="fj-repo" value="${esc(FR.forgejo.repo)}" autocomplete="off"></div></div>
+        ${opt('copy', 'Copies of public repositories', 'Copied into your Forgejo from GitHub or another git host, to play around with. Nothing is sent back.', false)}
+        <div class="option-more more-copy"><label for="fj-copies">Their addresses, one per line</label><textarea class="text addresses" id="fj-copies" rows="3" placeholder="${esc(FR.forgejo.copyHint)}" spellcheck="false"></textarea></div>
+        ${welcome ? opt('none', 'Nothing for now', `${esc(FR.project.name)} opens with no repository. Make or copy one later from its home, or adopt one you push yourself.`, false) : ''}
+      </fieldset>
+      <p class="sheet-error" id="repo-error" role="alert" hidden></p>
+      <div class="foot"><button type="button" class="btn quiet" data-close>Cancel</button><button type="submit" class="btn primary" autofocus>${welcome ? 'Run on this machine' : 'Add it'}</button></div>
+    </form></dialog>`;
+  }
+  // An address per line: host/owner/name, or owner/name on GitHub; a
+  // copy keeps the owner and the name on the local Forgejo.
+  function parseCopies(text) {
+    const out = [];
+    for (const raw of text.split('\n')) {
+      const line = raw.trim().replace(/^https?:\/\//, '').replace(/\.git$/, '').replace(/\/+$/, '');
+      if (!line) continue;
+      const parts = line.split('/');
+      if (parts.length < 2 || parts.length > 3 || parts.some(x => !x)) return { bad: raw.trim() };
+      const host = parts.length === 3 ? parts[0] : 'github.com';
+      const [o, n] = parts.slice(-2);
+      out.push({ host, from: `${host}/${o}/${n}`, to: `${o}/${n}` });
+    }
+    return { copies: out };
+  }
+  function repoChosen(f) {
+    const start = f.querySelector('input[name="start"]:checked').value;
+    const err = f.querySelector('#repo-error');
+    const say = t => { err.textContent = t; err.hidden = false; };
+    const v = id => f.querySelector(`#${id}`).value.trim();
+    let pick = { start };
+    if (start === 'empty') {
+      if (!v('fj-org') || !v('fj-repo')) return say('Both an organization and a name.');
+      pick = { start, org: v('fj-org'), repo: v('fj-repo') };
+    } else if (start === 'copy') {
+      const r = parseCopies(v('fj-copies'));
+      if (r.bad) return say(`Not an address: ${r.bad}. Write it as ${FR.forgejo.copyHint}.`);
+      if (!r.copies.length) return say(`At least one address, as ${FR.forgejo.copyHint}.`);
+      pick = { start, copies: r.copies };
+    }
+    f.closest('dialog').close();
+    if (f.dataset.repoForm === 'welcome') {
+      S.setup.forge = { kind: 'forgejo', at: Date.now(), ...pick };
+      save();
+      location.href = 'welcome.html?at=model';
+      return;
+    }
+    const r = pick.start === 'copy' ? pick.copies.map(c => c.to) : [`${pick.org}/${pick.repo}`];
+    toast(pick.start === 'copy' ? `Copying ${r.join(', ')}…` : `Making ${r[0]}…`);
+    setTimeout(() => { S = load(); S.adopted[pid()] = r.join(', '); S.copiedLater = pick.start === 'copy'; save(); render(); toast(`${r.join(', ')} ${r.length === 1 ? 'is' : 'are'} in ${P().name}.`); }, 1500);
+  }
   function forgeSteps(f) {
-    return `<details class="each" id="forge-steps"><summary>Each step</summary><ol>${FR.forgejo.steps.map((s, i) => `<li class="${i < f.i ? 'done' : i === f.i ? 'current' : ''}">${esc(i < f.i ? s.done : s.doing)}</li>`).join('')}</ol></details>`;
+    return `<details class="each" id="forge-steps"><summary>Each step</summary><ol>${f.steps.map((s, i) => `<li class="${i < f.i ? 'done' : i === f.i ? 'current' : ''}">${esc(i < f.i ? s.done : s.doing)}</li>`).join('')}</ol></details>`;
   }
   function forgeStatus(f) {
     return `<div class="forge-status${f.done ? ' done' : ''}"><p>${f.done ? '<span class="ok">✓</span>' : '<span class="spin" aria-hidden="true"></span>'}<b>${esc(f.name)}</b><span class="sep">·</span><span class="muted">${esc(f.done ? f.line : `${f.doing}…`)}</span></p>${!f.done && f.kind === 'forgejo' ? forgeSteps(f) : ''}</div>`;
@@ -949,13 +1034,13 @@ ${events.length ? `\n${events.map(esc).join('\n')}\n` : ''}<span class="cursor">
     const v = id => document.getElementById(id)?.value.trim();
     if ('firstRun' in d) setMode('first-run', 'box.html');
     else if ('playground' in d) toast('The playground isn’t drawn in this experiment; the current mockups have it.');
-    else if ('forgejo' in d) { S.setup.forge = { kind: 'forgejo', at: Date.now(), org: v('fj-org') || FR.forgejo.org, repo: v('fj-repo') || FR.forgejo.repo }; save(); location.href = 'welcome.html?at=model'; }
+    else if ('forgejoOpen' in d || d.repoOpen) { const s = document.getElementById('repo-sheet'); if (d.repoOpen) { s.querySelector(`input[name="start"][value="${d.repoOpen}"]`).checked = true; s.querySelector('form').dataset.pick = d.repoOpen; } s.showModal(); if (d.repoOpen === 'copy') s.querySelector('#fj-copies').focus(); }
     else if ('github' in d) { S.setup.forge = { kind: 'github', at: Date.now() }; save(); render(); setTimeout(() => { location.href = 'welcome.html?at=model'; }, FR.github.ms); }
     else if ('chatgpt' in d) modelStep({ way: 'chatgpt', state: 'away' }, 2200);
     else if ('pasteFinish' in d) modelStep({ way: 'chatgpt', state: 'finishing' }, 1000);
     else if ('claudeCheck' in d) modelStep({ way: 'claude', state: 'checking' }, 1300);
     else if ('addKey' in d) { S.setup.model = { way: 'key', state: 'ready', at: Date.now() }; save(); location.href = 'welcome.html?at=ready'; }
-    else if ('make' in d) { S.setup.making = Date.now(); save(); render(); setTimeout(() => { S = load(); Object.assign(S.setup, { made: true, making: 0 }); S.project = 'default'; save(); location.href = 'home.html'; }, 1300); }
+    else if ('make' in d) { S.setup.making = Date.now(); save(); render(); setTimeout(() => { S = load(); Object.assign(S.setup, { made: true, making: 0 }); S.project = 'default'; const r = startRepos(S.setup.forge); if (r.length) S.adopted.default = r.join(', '); save(); location.href = 'home.html'; }, 1300); }
     else if ('adopt' in d) { const repo = d.adopt || v('adopt-pick'); S.adopted[pid()] = repo; save(); render(); toast(`${repo} is in ${P().name}. Its CI ran on main and passed.`); }
     else if ('rename' in d) { renaming = true; render(); }
     else if ('newProject' in d) toast('+ New project: a name, then Create makes it on the stock policy and opens it, with no repository. Not drawn yet.');
@@ -1010,7 +1095,8 @@ ${events.length ? `\n${events.map(esc).join('\n')}\n` : ''}<span class="cursor">
     const t = e.target;
     const d = t.dataset;
     const mine = () => (S.settings[pid()] = S.settings[pid()] || {});
-    if (t.name === 'mode') setMode(t.value, t.value === 'first-run' ? 'box.html' : 'home.html');
+    if (t.name === 'start' && t.form) { t.form.dataset.pick = t.value; t.form.querySelector('#repo-error').hidden = true; }
+    else if (t.name === 'mode') setMode(t.value, t.value === 'first-run' ? 'box.html' : 'home.html');
     else if (t.name === 'scenario') { S.scenario = t.value; S.project = 'fabrig'; S.away.fabrig = t.value === 'away'; save(); render(); }
     else if (d.part) { (S.parts[pid()] = S.parts[pid()] || {})[d.part] = t.checked; save(); render(); }
     else if (d.way) { mine().defaultWay = d.way; save(); }
@@ -1039,6 +1125,7 @@ ${events.length ? `\n${events.map(esc).join('\n')}\n` : ''}<span class="cursor">
   document.addEventListener('submit', e => {
     const f = e.target;
     if (f.dataset.start) { e.preventDefault(); startGoal(f); return; }
+    if (f.dataset.repoForm) { e.preventDefault(); repoChosen(f); return; }
     if ('renameForm' in f.dataset) {
       e.preventDefault();
       const v = f.querySelector('input').value.trim();

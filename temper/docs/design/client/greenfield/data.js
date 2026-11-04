@@ -350,8 +350,13 @@ window.MOCK.firstRun = {
       { ms: 3000, doing: 'Preparing its database, temper’s admin and your account', done: 'Prepared its database, temper’s admin and your account' },
       { ms: 2500, doing: 'Starting Forgejo and its runner', done: 'Started Forgejo and its runner' },
       { ms: 2000, doing: 'Connecting as temper', done: 'Connected as temper' },
-      { ms: 2000, doing: 'Making work/hello, with a README and a CI workflow', done: 'Made work/hello, with a README and a CI workflow' },
     ],
+    // What it starts with, chosen in the sheet "Run on this machine" opens:
+    // an empty repository (the default), copies of public repositories, or
+    // nothing. Each adds its own steps after the connect.
+    makeMs: 2000,
+    copyMs: 2500,
+    copyHint: 'github.com/owner/name',
   },
   github: { ms: 2200, account: 'owner-dev', repos: ['owner-dev/website', 'owner-dev/notes', 'owner-dev/budget-cli', 'owner-dev/dotfiles'] },
   models: {
