@@ -42,6 +42,7 @@ impl Frame {
                 .expect("valid setup fixture"),
             ),
             f::Request::Adopt(_)
+            | f::Request::Dismiss(_)
             | f::Request::Return(_)
             | f::Request::RemoveForge(_)
             | f::Request::StartPlayground

@@ -1,20 +1,19 @@
 == Chats == Live
-[1] temper
-Menu:
+demo:
+  [1] temper
   demo:
-    [2] demo (pressed)
+    [2] demo · playground/widget (pressed)
     New project:
       [3] New project: (empty) (enter sends)
       [4] Create
-  Main navigation:
-    [5] Inbox
-    [6] Chats (current)
-    [7] Adopt a repository
-    [8] Forges
-    [9] Accounts
+    [5] Settings for demo
+  [6] Home
+  [7] Needs you
+  [8] Chats (current)
+  [9] + New chat
   [10] Set up temper
+  [11] Settings
   * Pat
-  [11] Sign out
 Project:
   New chat
   * Ready

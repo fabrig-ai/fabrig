@@ -21,6 +21,8 @@ pub const PLAYGROUND: u8 = 27;
 pub const TIER: u8 = 28;
 /// One landing's verification (temper/docs/design/protocol/store.md, 2).
 pub const VERIFICATION: u8 = 29;
+/// A person's dismissals (temper/docs/design/protocol/store.md, 2).
+pub const DISMISSED: u8 = 34;
 
 fn write_name(writer: &mut KeyWriter, name: &forge::Name) {
     writer.u64(u64::from(name.forge)).u64(u64::from(name.repository));
@@ -206,6 +208,14 @@ pub fn encode(key: &forge::Key, limit: u32) -> Option<Box<[u8]>> {
         forge::Key::Application(token) => {
             writer.tag(15).u64(*token);
         }
+        forge::Key::Dismissed { party, what } => {
+            writer.tag(DISMISSED).u64(*party);
+            match what {
+                forge::Dismissal::ToBegin { project } => {
+                    writer.tag(0).u64(u64::from(*project));
+                }
+            }
+        }
         forge::Key::Binding(address) => {
             if address.len() > 254 {
                 return None;
@@ -283,6 +293,14 @@ pub fn decode(bytes: &[u8], limits: &forge::Limits) -> Option<forge::Key> {
             forge::Key::Setting(forge::settings::SettingKey { kind, scope, number, slot })
         }
         FLIGHT => forge::Key::Flight { task: reader.u64()?, entry: reader.u64()? },
+        DISMISSED => {
+            let party = reader.u64()?;
+            let what = match reader.tag()? {
+                0 => forge::Dismissal::ToBegin { project: u32::try_from(reader.u64()?).ok()? },
+                _ => return None,
+            };
+            forge::Key::Dismissed { party, what }
+        }
         BINDING => {
             let address = reader.bytes()?;
             if address.len() > 254 {

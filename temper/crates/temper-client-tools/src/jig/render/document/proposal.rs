@@ -81,7 +81,7 @@ fn review_items_text(review: &c::SettingsReview, reading: &Reading, limits: &Lim
         }
         settings::setting_text(item.setting, reading.parts, out);
         out.put(b" \xc2\xb7 ");
-        out.put(review_change(item));
+        out.put(review_change(item, index, reading));
         out.put(b" \xc2\xb7 now ");
         review_value_text(&item.now, item.setting, reading.pages.get(&slot(index, false)), limits, reading.parts, out);
         match item.setting {
@@ -108,12 +108,17 @@ fn review_items_text(review: &c::SettingsReview, reading: &Reading, limits: &Lim
         out.put(b"\n");
     }
 }
-fn review_change(item: &c::ReviewItem) -> &'static [u8] {
+fn review_change(item: &c::ReviewItem, index: usize, reading: &Reading) -> &'static [u8] {
     match item.edit {
         c::RevisionItemEdit::Set => b"set",
         c::RevisionItemEdit::Removed => b"removed",
         c::RevisionItemEdit::Reset => {
-            if item.now == item.would_be {
+            let now = resolved(&item.now, item.setting, reading.pages.get(&slot(index, false)));
+            let proposed = resolved(&item.would_be, item.setting, reading.pages.get(&slot(index, true)));
+            if let Ok(now) = now
+                && let Ok(proposed) = proposed
+                && now == proposed
+            {
                 b"kept"
             } else {
                 b"changed"

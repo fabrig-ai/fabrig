@@ -1060,10 +1060,15 @@ its own for any other host.
   failed, its `why` naming the step, and "Set up again" asks with the
   same fields. A restart reads the row's first repository from the
   record, making `ORG/NAME`, until `Create` answers again.
-- **Adopted by ctl's call alone.** The welcome and `ConnectForge`
-  adopt nothing: the made repository waits, unadopted, for the person
-  to adopt it into a project of theirs from the adoption form
-  (`../client/README.md`, 3.5 and 4.4), one choice away.
+- **Adopted by a client's act, never by the set up.** The welcome's
+  Ready, its last act, adopts it into the project that act makes
+  (`../client/README.md`, 3.5), as ctl's call does, below, and the
+  project opens without waiting for it; `ConnectForge` adopts nothing:
+  there the made repository waits, unadopted, for the person to adopt
+  it into a project of theirs from the adoption form
+  (`../client/README.md`, 4.4), one choice away. A repository the
+  person's Ready left refused or unanswered waits the same way, Home
+  offering it again.
   `temper ctl forge setup` and `forge connect … --first` hold their
   `--project` in their own run (`../client/tools.md`, 5.5): once the
   row says made, the call sends, under the same party, jig's
@@ -2225,8 +2230,8 @@ override.
   (jig's `domain/people.md`, 3), and the engine, the playground and the
   client run a deployment with no project. Projects are made at
   runtime: the playground's start makes the playground's, "Demo"
-  (8.4), and the welcome's Ready the person's first, "Default"
-  (`../client/README.md`, 3.5). A deployment whose
+  (8.4), and the welcome's Ready the person's first, "Hello" for
+  `work/hello` (`../client/README.md`, 3.5). A deployment whose
   first start seeded a project, project 1 as the document seeded it
   before, keeps it: no start removes or renames it. One policy, `engine.policies` 1 (jig's
   `protocol/configuration.md`, section 3), which each project made
@@ -3477,12 +3482,12 @@ Each is intended; what it needs is named with it.
 - **After the first repository** (6.7): "New repository" on a connected owned or managed card is the general
   form of the same flow, with the same fields and `Create`, a managed
   forge's org needing an owner, and like it adopting nothing. The
-  first repository is adopted by the person from the adoption form, or
-  by ctl's call in its own run, while the playground's start makes its
-  acts itself (8.4). Projects are
+  first repository is adopted by the welcome's Ready, by the person
+  from the adoption form, or by ctl's call in its own run, while the
+  playground's start makes its acts itself (8.4). Projects are
   made at runtime by jig's `MakeProject` (jig's `domain/core.md`,
   6.1), none seeded (8.3): the welcome's Ready makes the first run's,
-  "Default" (`../client/README.md`, 3.5), and ctl's `forge setup`
+  "Hello" for `work/hello` (`../client/README.md`, 3.5), and ctl's `forge setup`
   makes its `--project`, named after the repository unless the call
   names one, so that on a box set up by ctl alone `work/hello` is
   project 1's, the first made (`../client/tools.md`, 5.5).

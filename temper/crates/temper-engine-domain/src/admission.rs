@@ -82,6 +82,7 @@ pub fn completes(event: &Event) -> bool {
             | forge::Event::FirstFailed { .. }
             | forge::Event::Connection { .. }
             | forge::Event::Fetched { .. }
+            | forge::Event::Dismiss { .. }
             | forge::Event::Application { .. }
             | forge::Event::ApplicationAnswered { .. }
             | forge::Event::ForgetProjection { .. }

@@ -229,6 +229,8 @@ skein's (skein's `ui-web.md`), and how a client of jig's does is jig's
   | Page | Path |
   |---|---|
   | `Inbox { filter }` | `/`, and its filter's query |
+  | `Home { project }` | `/projects/<project>` |
+  | `Settings { project }` | `/projects/<project>/settings` |
   | `Chats { filter, start }` | `/chats`, and its filter's and start's query |
   | `Accounts` | `/accounts` |
   | `Chat { task }` | `/chats/<task>` |
@@ -513,8 +515,19 @@ skein's (skein's `ui-web.md`), and how a client of jig's does is jig's
   mockup's side card, its terms and descriptions as its key and value
   rows. `scripts/bundle.sh` passes the three to `skein-ui-bundle` in
   that order.
-- **The navigation** sits in the banner after the projects, as in the
-  mockups. At phone width, 760 px and under as in the mockups, the
+- **The project's frame** is the greenfield mock's `home.html`, in
+  the welcome's paper, ink and IBM Plex from temper's files
+  (`temper.css`, The project's frame): the rail a 232 px column at the
+  left, sticky at the viewport's height, ruled from the page, whose
+  rules take every page but the welcome and those of the banner; the
+  page's parts, the main and any banner of a page's, in the other
+  column. On a phone, at 760 px and under, the column is one, the rail
+  a top bar of the switcher alone, the brand's star before the
+  project's name, its menu at least 220 px wide, and the tab bar fixed
+  at the foot, four links, the page leaving it room. The link's state
+  shows at the rail's foot, with its dot, while it is not live.
+- **The navigation** of a page that is no project's sits in the banner
+  after the projects, as in the mockups. At phone width, 760 px and under as in the mockups, the
   banner keeps temper's name and the view's "Menu" alone (`README.md`,
   5.1): its summary a ☰, an image drawn over its word, and its
   content the project's switcher, its first row, the navigation and
@@ -1102,6 +1115,14 @@ from the engine's own answers, is where the look is tuned.
 
 | Name | The state |
 |---|---|
+| `home-three-left` | hand-made Home deliveries: all three steps left; first repository offered |
+| `home-two-left` | hand-made Home deliveries: repository adopted; configuring and first chat left |
+| `home-one-left` | hand-made Home deliveries: repository adopted and a way of working accepted; first chat left |
+| `home-ready` | hand-made Home deliveries: all three steps done |
+| `home-adopting` | hand-made Home deliveries: first adoption in flight; no repository acts |
+| `home-refused` | hand-made Home deliveries: first adoption refused; its words and retry acts |
+| `home-no-repository` | hand-made Home deliveries: no repository or first offer |
+| `home-github` | hand-made Home deliveries: GitHub connected with an accepted installation |
 | `chats-solo` | the solo world's chats |
 | `chat-solo-T10` | the solo world's chat T10, its proposal in place |
 | `inbox-solo` | the solo world's inbox: a proposal, a question |

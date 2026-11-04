@@ -274,6 +274,7 @@ fn end_answer(outcome: &jig_client::Outcome, limits: Limits) -> Option<EndAnswer
         | w::Outcome::Page(_)
         | w::Outcome::Accepted(_)
         | w::Outcome::Removed
+        | w::Outcome::Dismissed
         | w::Outcome::RemoveRefused(_) => None,
     }
 }
@@ -336,6 +337,7 @@ pub fn answer(value: &jig_client::Answered, limits: &Limits) -> Option<StartAnsw
             w::StartFailure::NotConnected => StartFailure::NotConnected,
         }),
         w::Outcome::Removed
+        | w::Outcome::Dismissed
         | w::Outcome::RemoveRefused(_)
         | w::Outcome::Reset
         | w::Outcome::EndRefused(_)

@@ -40,6 +40,7 @@ fn the_accounts_page_returns_after_a_key_send() {
         Step::Back,
         see(accounts()),
         // The accounts watch retains the key added before leaving the flow.
+        press(b"Settings", Role::Link),
         press(b"Accounts", Role::Link),
         see(Find::exactly_named(Role::Heading { level: 2 }, b"Your accounts")),
         see(Find::named(Role::Disclosure, b"Test provider API key")),

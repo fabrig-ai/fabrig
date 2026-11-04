@@ -15,6 +15,7 @@ mod clearing;
 mod configuring_chat;
 mod connect_forge;
 mod connect_model;
+mod dismissed;
 mod forges;
 mod hold_commands;
 mod inbox;
