@@ -192,6 +192,25 @@ fn a_no_change_completion_names_its_result_and_report() {
     }
 }
 #[test]
+fn a_final_task_read_judges_the_panel_delivered_during_it() {
+    for (step, status) in [(landed(), 0), (w::Step::Checking, 3)] {
+        let mut root = f::signed_in(f::PARTY);
+        let call = root.submit(&["change", "show", "2", "--until", "landed"]);
+        serve(&mut root, call, true, true);
+        root.pending_reads.push(call);
+        root.deliver_subject(
+            &client::Watchable::Jig(c::Subject::Task { task: 2 }),
+            c::Delivery::Task(Box::new(task(true, true))),
+        );
+        deliver_panel(&mut root, panel(step));
+        assert!(root.answer(call).is_none(), "the final read remains pending");
+        serve(&mut root, call, true, true);
+        let answer = root.answer(call).expect("the final panel decides the condition");
+        assert_eq!(answer.status, status);
+        contains(&answer.stdout, if status == 0 { b"met\n" } else { b"not met: ended\n" });
+    }
+}
+#[test]
 fn change_calls_round_trip_and_reject_other_conditions() {
     for argv in [
         &["change", "show", "2"][..],
