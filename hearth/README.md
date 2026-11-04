@@ -39,20 +39,22 @@ if the new one fails.
   section 2 is the reading order, its section 3 the milestones.
 - [`docs/design/STATUS.md`](docs/design/STATUS.md): how far the code is
   from the design.
-- skein's foundation, which hearth follows: `programming-model.md`,
-  `testing-strategy.md` and `notes.md`.
+- skein's foundation, which hearth follows:
+  [`programming-model.md`](../skein/docs/foundation/programming-model.md),
+  [`testing-strategy.md`](../skein/docs/foundation/testing-strategy.md) and
+  [`notes.md`](../skein/docs/foundation/notes.md).
 
 Before changing code, read [`AGENTS.md`](AGENTS.md).
 
 ## The family
 
-These are the repositories of [Fabrig](https://github.com/fabrica-works), an
+hearth is a tree of [fabrig](https://github.com/fabrig-ai/fabrig), an
 agent-driven software factory: write, prove, run.
 
-| Repository | | Builds on |
+| Tree | | Builds on |
 |---|---|---|
-| [skein](https://github.com/fabrica-works/skein) | One thread, one loop, no async | |
-| [smith](https://github.com/fabrica-works/smith) | Protocol-driven agent loop for AI applications | skein |
-| [jig](https://github.com/fabrica-works/jig) | Engine for agentic applications | skein, smith |
-| [temper](https://github.com/fabrica-works/temper) | Agent-driven software development on a forge | skein, smith, jig |
-| [hearth](https://github.com/fabrica-works/hearth) | Immutable machines, built from a revision | skein |
+| [skein](../skein) | One thread, one loop, no async | |
+| [smith](../smith) | Protocol-driven agent loop for AI applications | skein |
+| [jig](../jig) | Engine for agentic applications | skein, smith |
+| [temper](../temper) | Agent-driven software development on a forge | skein, smith, jig |
+| [hearth](../hearth) | Immutable machines, built from a revision | skein |
