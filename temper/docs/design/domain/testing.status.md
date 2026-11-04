@@ -47,7 +47,10 @@
   through ctl alone (`tests/client`'s `configuring_chat.rs`). 6: a state
   digest for replay (`testing-strategy.md`, section 6); the walking
   world compares its formatted state
-  (`tests/engine/domain/src/walking.rs`, `run_replayed`).
+  (`tests/engine/domain/src/walking.rs`, `run_replayed`). 2.7: the held
+  record's guard: the landing story in `tests/live.rs` has none, so a
+  panic between its sittings leaves the record in the store with no box
+  up to return it.
 - **Departs:** 5.3: the case library's purpose is retired: the reference
   case it was written from is replaced (`../draft/reference-case.md`), and
   its code awaits removal with its design.
