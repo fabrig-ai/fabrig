@@ -283,6 +283,21 @@ fn a_kept_making_writes_a_waiting_row() {
         }
     }
     answer(&restart, MakeAnswer::Kept);
+    let mut saturated = kept();
+    for number in 0..LIMITS.adoptions {
+        outputs(
+            &mut saturated,
+            Event::MakingAsked {
+                request: Token::new(400 + u64::from(number)),
+                adoption: fixtures::adoption(),
+                repository: skein_forge::api::Repository { forge: FORGE, repository: number + 2 },
+            },
+        );
+    }
+    assert_eq!(saturated.adoptions.len(), LIMITS.adoptions);
+    let requests = owner(&mut saturated, &intent());
+    answer(&saturated, MakeAnswer::Kept);
+    assert_eq!(saved(&requests).state, MakingState::Waiting);
 }
 #[test]
 fn a_second_request_is_answered_as_the_first() {

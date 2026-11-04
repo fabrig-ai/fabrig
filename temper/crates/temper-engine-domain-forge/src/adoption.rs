@@ -76,6 +76,9 @@ pub(crate) fn start(
     if !room(d, env, request, out) {
         return;
     }
+    if d.application.pending.len() >= env.limits.adoptions || d.adoptions.len() >= env.limits.adoptions {
+        return again(request, people::Again::Busy, out);
+    }
     let pending = Pending { token, retention, observed: None };
     if !d.identities.contains_key(&adoption.forge) && !d.writers.contains_key(&adoption.forge) {
         return finish(d, env, request, pending, ApplicationOutcome::ForgeRefused(AdoptionRefusal::NoSuchForge), out);
@@ -612,10 +615,7 @@ pub(crate) fn room(d: &mut Domain, env: &Env<Limits>, request: Token, out: &mut 
         d.application.kept.remove(&token);
         out.push(Request::Erase { key: Key::Application(token.raw()) });
     }
-    if d.application.kept.len().saturating_add(d.application.pending.len()) >= env.limits.applications
-        || d.application.pending.len() >= env.limits.adoptions
-        || d.adoptions.len() >= env.limits.adoptions
-    {
+    if d.application.kept.len().saturating_add(d.application.pending.len()) >= env.limits.applications {
         again(request, people::Again::Busy, out);
         return false;
     }
