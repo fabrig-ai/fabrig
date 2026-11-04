@@ -4,7 +4,7 @@
 use std::fs;
 
 use skein_io::kernel::{Complete, Done, Entry, Op, OpenHow, Submit};
-use skein_lib::{Queue, Token};
+use skein_lib::{Queue, Time, Token, Wall};
 use skein_scratch::Scratch;
 
 use crate::Kernel;
@@ -13,6 +13,16 @@ fn close(fd: i32) {
     crate::system::close(skein_io::kernel::Fd::new(fd)).expect("close test descriptor");
 }
 use crate::{Config, Wait};
+
+#[test]
+fn an_iteration_environment_keeps_the_clocks_and_limits() {
+    let now = Time::from_nanos(17);
+    let wall = Wall::from_nanos(29);
+    let env = crate::Now { now, wall }.with(7_u32);
+    assert_eq!(env.now, now, "the iteration's monotonic time");
+    assert_eq!(env.wall, wall, "the iteration's wall time");
+    assert_eq!(env.limits, 7, "the step's limits");
+}
 
 #[test]
 fn startup_process_id_is_this_process() {
