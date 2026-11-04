@@ -814,12 +814,19 @@ ${events.length ? `\n${events.map(esc).join('\n')}\n` : ''}<span class="cursor">
         : row('current', 'Model', `${esc(m.name)} · signing in…`);
       const into = startRepos(S.setup.forge);
       const intoWords = into.length === 1 ? into[0] : `${into.length} repositories`;
-      const projRow = row(S.setup.made ? 'done' : making ? 'current' : 'todo', 'Project', `${esc(FR.project.name)} · ${making ? 'making it…' : `made when you open it${into.length ? `, with ${esc(intoWords)} in it` : ''}; rename it whenever you like`}`);
-      const readyLine = into.length ? `Everything is connected. Open your first project; ${intoWords} ${into.length === 1 ? 'goes' : 'go'} in it.` : 'Everything is connected. Open your first project; it starts with no repository, and you add one when you like.';
-      body = `${head(ready ? 'Ready' : 'Almost ready', ready ? esc(readyLine) : 'Your first project opens once your forge and model are ready.')}
-        <ul class="checklist">${forgeRow}${modelRow}${projRow}</ul>
-        <div class="acts"><button type="button" class="btn primary" data-make${ready && !making ? '' : ' disabled'}>${making ? `Making ${esc(FR.project.name)}…` : `Open ${esc(FR.project.name)}`}</button></div>
-        ${ready ? '' : `<p class="facts">${f && !f.done ? 'Forgejo is still setting up; this page moves on by itself.' : 'It opens once your forge and model are ready.'}</p>`}${foot}`;
+      const readyLine = into.length ? `Everything is connected. Create your first project, with ${intoWords} in it, and start working.` : 'Everything is connected. Create your first project and start working.';
+      // The first project: named here, "Default" unless changed, and
+      // made by its button; a rename later is the project's own.
+      const projectForm = `<form class="first-project" data-first-project>
+          <label for="first-project-name">Your first project</label>
+          <div class="first-project-row"><input class="text" id="first-project-name" value="${esc(FR.project.name)}" autocomplete="off" spellcheck="false"${making ? ' disabled' : ''}><button type="submit" class="btn primary"${ready && !making ? '' : ' disabled'}>${making ? `Creating ${esc(S.setup.name || FR.project.name)}…` : 'Create your project'}</button></div>
+          <p class="sheet-error" id="first-project-error" role="alert" hidden></p>
+          <p class="facts">Rename it whenever you like.</p>
+        </form>`;
+      body = `${head(ready ? 'Ready' : 'Almost ready', ready ? esc(readyLine) : 'Your first project can be created once your forge and model are ready.')}
+        <ul class="checklist">${forgeRow}${modelRow}</ul>
+        ${projectForm}
+        ${ready || !(f && !f.done) ? '' : '<p class="facts">Forgejo is still setting up; this page moves on by itself.</p>'}${foot}`;
     }
     const server = '<a class="link" href="#" data-later-note="temper help server: a long-lived deployment, the engine behind a proxy and its workers on another host. Opens in a new tab.">Run temper on a server ↗</a>';
     return `<div class="setup"><header class="setup-top"><a class="brand" href="welcome.html">temper</a><p class="box-line"><b>temper box</b> · on this machine, to try it · more later, from Settings · ${server}</p>${steps}</header><main class="setup-main">${body}</main></div>`;
@@ -837,11 +844,24 @@ ${events.length ? `\n${events.map(esc).join('\n')}\n` : ''}<span class="cursor">
         <div class="option-more more-empty fields"><div><label for="fj-org">Organization</label><input class="text" id="fj-org" value="${esc(FR.forgejo.org)}" autocomplete="off"></div><div><label for="fj-repo">Name</label><input class="text" id="fj-repo" value="${esc(FR.forgejo.repo)}" autocomplete="off"></div></div>
         ${opt('copy', 'Copies of public repositories', 'Copied into your Forgejo from GitHub or another git host, to play around with. Nothing is sent back.', false)}
         <div class="option-more more-copy"><label for="fj-copies">Their addresses, one per line</label><textarea class="text addresses" id="fj-copies" rows="3" placeholder="${esc(FR.forgejo.copyHint)}" spellcheck="false"></textarea></div>
-        ${welcome ? opt('none', 'Nothing for now', `${esc(FR.project.name)} opens with no repository. Make or copy one later from temper’s UI, or adopt one you push yourself.`, false) : ''}
+        ${welcome ? opt('none', 'Nothing for now', 'Your first project opens with no repository. Make or copy one later from temper’s UI, or adopt one you push yourself.', false) : ''}
       </fieldset>
       <p class="sheet-error" id="repo-error" role="alert" hidden></p>
       <div class="foot"><button type="button" class="btn quiet" data-close>Cancel</button><button type="submit" class="btn primary" autofocus>${welcome ? 'Run on this machine' : 'Add it'}</button></div>
     </form></dialog>`;
+  }
+  // Ready's Create: the project as named, then its home.
+  function firstProject(f) {
+    const name = f.querySelector('#first-project-name').value.trim();
+    const err = f.querySelector('#first-project-error');
+    if (!name) { err.textContent = 'A name for it: Default, or one of yours.'; err.hidden = false; return; }
+    S.setup.making = Date.now(); S.setup.name = name; save(); render();
+    setTimeout(() => {
+      S = load(); Object.assign(S.setup, { made: true, making: 0 }); S.project = 'default';
+      if (name !== FR.project.name) S.names.default = name;
+      const r = startRepos(S.setup.forge); if (r.length) S.adopted.default = r.join(', ');
+      save(); location.href = 'home.html';
+    }, 1300);
   }
   // An address per line: host/owner/name, or owner/name on GitHub; a
   // copy keeps the owner and the name on the local Forgejo.
@@ -1040,7 +1060,6 @@ ${events.length ? `\n${events.map(esc).join('\n')}\n` : ''}<span class="cursor">
     else if ('pasteFinish' in d) modelStep({ way: 'chatgpt', state: 'finishing' }, 1000);
     else if ('claudeCheck' in d) modelStep({ way: 'claude', state: 'checking' }, 1300);
     else if ('addKey' in d) { S.setup.model = { way: 'key', state: 'ready', at: Date.now() }; save(); location.href = 'welcome.html?at=ready'; }
-    else if ('make' in d) { S.setup.making = Date.now(); save(); render(); setTimeout(() => { S = load(); Object.assign(S.setup, { made: true, making: 0 }); S.project = 'default'; const r = startRepos(S.setup.forge); if (r.length) S.adopted.default = r.join(', '); save(); location.href = 'home.html'; }, 1300); }
     else if ('adopt' in d) { const repo = d.adopt || v('adopt-pick'); S.adopted[pid()] = repo; save(); render(); toast(`${repo} is in ${P().name}. Its CI ran on main and passed.`); }
     else if ('rename' in d) { renaming = true; render(); }
     else if ('newProject' in d) toast('+ New project: a name, then Create makes it on the stock policy and opens it, with no repository. Not drawn yet.');
@@ -1126,6 +1145,7 @@ ${events.length ? `\n${events.map(esc).join('\n')}\n` : ''}<span class="cursor">
     const f = e.target;
     if (f.dataset.start) { e.preventDefault(); startGoal(f); return; }
     if (f.dataset.repoForm) { e.preventDefault(); repoChosen(f); return; }
+    if ('firstProject' in f.dataset) { e.preventDefault(); firstProject(f); return; }
     if ('renameForm' in f.dataset) {
       e.preventDefault();
       const v = f.querySelector('input').value.trim();

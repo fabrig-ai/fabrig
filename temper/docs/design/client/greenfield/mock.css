@@ -250,6 +250,13 @@ dialog.sheet::backdrop { background: rgba(24, 24, 27, .32); }
 .option-more .text { width: 100%; }
 .option-more textarea.addresses { min-height: 76px; padding: 8px 12px; resize: vertical; font: 13px/1.5 var(--mono); }
 .sheet-error { margin: -8px 0 0; color: #b42318; font-size: 14px; }
+/* Ready's first project: its name, Default unless changed, and Create. */
+.first-project { display: flex; flex-direction: column; gap: 8px; }
+.first-project label { font-size: 14px; font-weight: 600; }
+.first-project-row { display: flex; flex-wrap: wrap; align-items: center; gap: 8px; }
+.first-project-row .text { flex: 0 1 300px; min-width: 0; min-height: 40px; }
+.first-project-row .text:disabled { color: var(--muted); background: #fafaf9; }
+.first-project .sheet-error { margin: 0; }
 
 /* Settings. */
 .tabs { display: flex; flex-wrap: wrap; gap: 20px; border-bottom: 1px solid var(--line); font-size: 14px; }
@@ -473,6 +480,9 @@ html.framed .mock-fab, html.framed .mock-panel { display: none !important; }
   .steps li + li::before { width: 8px; margin: 0 2px; }
   .setup-main { padding: 16px 20px 56px; gap: 24px; }
   .choices-grid, .fields { grid-template-columns: minmax(0, 1fr); }
+  .first-project-row { flex-direction: column; align-items: stretch; }
+  .first-project-row .text { flex: none; }
+  .first-project-row .btn { justify-content: center; min-height: 48px; font-size: 15.5px; }
   .choice, .panel, .away-note { padding: 18px; }
   .choices-list .choice { flex-direction: column; align-items: stretch; }
   .choices-list .choice .acts { flex-direction: column; align-items: stretch; max-width: none; text-align: left; }
