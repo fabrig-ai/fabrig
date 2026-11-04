@@ -5,7 +5,7 @@ use crate::{
     flow::{self, Control, Mark},
     frame::Bindings,
     look,
-    words::{Word, Words},
+    words::{Shell, Word, Words},
 };
 use alloc::boxed::Box;
 use skein_lib::bytes::copy_of;
@@ -501,7 +501,7 @@ fn github(b: &mut Builder, root: &Domain, w: &Words, bindings: &mut ForgeBinding
     flow::details(b, &w.say(Word::ForgeAppTitle, &[]));
     text(b, w, Role::Paragraph, Word::ForgeAppDescription);
     crate::cards::text(b, Role::Paragraph, &w.say(Word::ForgeSetupUrl, &[Hole::Number(u64::from(row.number))]));
-    if w.shell == crate::words::Shell::Terminal {
+    if w.shell == Shell::Terminal {
         crate::cards::text(b, Role::Paragraph, &forge::words::app_terminal(row.number));
     } else {
         let draft = root.forge().app_form();
@@ -959,45 +959,70 @@ pub(crate) fn welcome_target<'a>(root: &'a Domain, row: &'a Row) -> Option<(&'a 
 /// The welcome's Model step says what Forge did (client/README.md, 3.5).
 pub(crate) fn welcome_line(b: &mut Builder, root: &Domain, w: &Words, row: &Row) {
     let forge = name(w, row, root);
-    // Done, the line is the forge's name, then, quieter, who temper is on it
-    // and its first repository, or its connection (client/README.md, 3.5).
-    if temper_client_domain::pages::welcome::forge_connected(row) {
-        let detail = match (&row.connection, welcome_target(root, row)) {
-            (Connection::Connected { login, .. }, Some((org, repository))) => w.say(
-                Word::WelcomeForgeDoneDetail,
-                &[Hole::Name(copy_of(login)), Hole::Name(forge::words::full_name(org, repository))],
-            ),
-            _ => forge::words::forge_connection(row),
-        };
-        b.open(Role::Paragraph);
-        b.style(look::FLOW_DONE);
-        b.name(&crate::accounts::words::join(&[&forge, b" \xc2\xb7 ", &detail]));
-        b.text(Run::Plain, "✓".as_bytes());
-        b.open(Role::Text);
-        b.run(Run::Strong, &forge);
-        b.close();
-        b.text(Run::Plain, b"\xc2\xb7");
-        b.text(Run::Plain, &detail);
-        b.close();
+    let connection = forge::words::forge_connection(row);
+    if temper_client_domain::pages::welcome::forge_connected(row) && !connect::underway(row) && !connect::failed(row) {
+        if let Connection::Connected { login, .. } = &row.connection
+            && let Some((org, repository)) = welcome_target(root, row)
+        {
+            let login = w.say(Word::WelcomeForgeDoneDetail, &[Hole::Name(copy_of(login))]);
+            let repository =
+                w.say(Word::WelcomeForgeDoneRepository, &[Hole::Name(forge::words::full_name(org, repository))]);
+            let line = crate::accounts::words::join(&[&forge, b" \xc2\xb7 ", &login, b" \xc2\xb7 ", &repository]);
+            stacked(b, w, &line, &forge, &[&login, &repository], true);
+        } else {
+            let line = w.say(Word::ForgeStatus, &[Hole::Name(forge.clone()), Hole::Name(connection.clone())]);
+            stacked(b, w, &line, &forge, &[&connection], true);
+        }
         return;
     }
-    let line = if let Some((org, repository)) = welcome_target(root, row) {
-        w.say(
+    if let Some((org, repository)) = welcome_target(root, row) {
+        let target = forge::words::full_name(org, repository);
+        let line = w.say(
             Word::WelcomeForgeLine,
-            &[
-                Hole::Name(forge),
-                Hole::Name(forge::words::forge_connection(row)),
-                Hole::Name(forge::words::full_name(org, repository)),
-            ],
-        )
+            &[Hole::Name(forge.clone()), Hole::Name(target.clone()), Hole::Name(connection.clone())],
+        );
+        stacked(b, w, &line, &forge, &[&target, &connection], false);
     } else {
-        w.say(Word::ForgeStatus, &[Hole::Name(forge), Hole::Name(forge::words::forge_connection(row))])
-    };
-    b.open(Role::Paragraph);
-    b.name(&line);
-    b.text(Run::Plain, &line);
-    b.close();
+        let line = w.say(Word::ForgeStatus, &[Hole::Name(forge.clone()), Hole::Name(connection.clone())]);
+        stacked(b, w, &line, &forge, &[&connection], false);
+    }
+    if busy(row) && w.shell == Shell::Browser {
+        b.open(Role::Progress);
+        b.style(look::FLOW_BUSY);
+        b.name(&forge::words::forge_connection(row));
+        b.close();
+    }
     each_step(b, root, w, row);
+}
+fn busy(row: &Row) -> bool {
+    connect::underway(row) && row.kind != Kind::GitHub
+}
+/// The forge's line (client/README.md, 3.5): one paragraph named by its words. The browser
+/// stacks its name and details by style; the terminal has neither, so says them on a line.
+fn stacked(b: &mut Builder, w: &Words, line: &[u8], forge: &[u8], details: &[&[u8]], done: bool) {
+    b.open(Role::Paragraph);
+    b.name(line);
+    if done {
+        b.style(look::FLOW_DONE);
+    }
+    match w.shell {
+        Shell::Browser => {
+            b.open(Role::Text);
+            b.run(Run::Strong, forge);
+            b.close();
+            for detail in details {
+                b.open(Role::Text);
+                b.style(look::FLOW_MUTED);
+                b.run(Run::Plain, detail);
+                b.close();
+            }
+        }
+        Shell::Terminal => {
+            let words = if done { crate::accounts::words::join(&["✓ ".as_bytes(), line]) } else { copy_of(line) };
+            b.text(Run::Plain, &words);
+        }
+    }
+    b.close();
 }
 pub(crate) fn each_step(b: &mut Builder, root: &Domain, w: &Words, row: &Row) {
     b.open(Role::Disclosure);

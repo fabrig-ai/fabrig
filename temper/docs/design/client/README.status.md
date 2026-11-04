@@ -10,7 +10,9 @@
   with their tests; ctl supplies the review groups and running-work effect
   (`tools.md`, 5.2). 3.5, 4.6, 8: Forget, on the Forges page and as the FORGE
   request `Forget`: no `forget` in `temper-client-protocol-wire`'s schema
-  or in `temper-service`'s routing.
+  or in `temper-service`'s routing. 3.5: Ready's model line names no
+  email for a ChatGPT sign-in, whose account's display is empty, since
+  the engine keeps no email; jig's account-facts draft designs it.
   4.4: the picker, which the adoption page does not draw
   (`temper-client-view`'s `forge/page.rs`).
   5.5: a plan's first use, its card in the conversation. 3.5, 3.6, 10:

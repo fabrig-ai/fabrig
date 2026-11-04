@@ -938,9 +938,9 @@ keeps (`../protocol/configuration.md`, section 2).
     and temper’s agents use its included usage.", the muted "Sign in,
     in this tab · about a minute", and "Continue with ChatGPT", the
     default, the step's one primary act; and "Claude", for `anthropic`,
-    "Your Claude subscription, through Claude Code on each host
-    temper’s agents run on.", the muted "A command in a terminal, on
-    each host", and the secondary link "Use your Claude subscription".
+    "Your Claude subscription, through Claude Code on this machine, with
+    a config of its own, apart from your own Claude Code.", the muted
+    "One command in a terminal, on this machine", and the secondary link "Use your Claude subscription".
     A provider offering neither its sign-in nor its program has no
     card. No other provider's ways are on the welcome, the box's fake
     model among them, and no card offers "This browser isn't on
@@ -955,19 +955,32 @@ keeps (`../protocol/configuration.md`, section 2).
     the step's body draws the sign-in as `ConnectModel`'s does, its
     address and then its end, and an account made there `ConnectModel`'s
     Ready, its "Start a chat" replaced by "Continue", to the welcome's
-    Ready (`/welcome?at=ready`), whose act makes the project. Above
-    them, once a forge is acted on, the forge's line, so that Model
+    Ready (`/welcome?at=ready`), whose act makes the project. After
+    the choices and before the foot, once a forge is acted on, a region
+    named "Forge" holds the forge's line and its steps, so that Model
     says what Forge did: while it sets up or connects, "FORGE ·
-    CONNECTION · ORG/NAME", ORG/NAME its first repository, and a disclosure, "Each
+    ORG/NAME · CONNECTION", ORG/NAME its first repository, and a disclosure, "Each
     step", holding `ConnectForge`'s Setting up steps; once connected,
     as *The store's state* says, ticked, "✓ FORGE · connected as LOGIN
     · ORG/NAME made, in no project yet", its first repository made,
     LOGIN temper's on the forge (`forge.md`, 5.4). A forge with no first repository, GitHub's
     or a Forgejo connected with its bot's tokens, reads "FORGE ·
     CONNECTION" while it connects, and once connected, ticked, "✓ FORGE
-    · CONNECTION". Ticked, FORGE is strong and the rest quieter, the
-    tick, FORGE, the dot and the rest each a node of their own, for the
-    look; the line's name is its words without the tick. The line
+    · CONNECTION". In the browser, in every state, FORGE is strong and
+    each detail a muted text node on a line of its own, the repository
+    before the connection while under way or failed. While setup runs or
+    the first repository is being made, a textless, indeterminate progress
+    node named by CONNECTION follows the paragraph before "Each step",
+    styled `temper-flow-busy`; GitHub's installation waits have none.
+    The terminal has no bar and says the line in that order. Done or
+    failed, there is no bar. The browser's stacked line has no dot or
+    tick in the text: the stylesheet draws a quiet ring, or a green
+    tick once connected. From 1280 px the region is a 272 px pane to
+    the right of the 680 px column, its top at the heading's, with a
+    hairline at its left; narrower it stays after the choices, with a
+    hairline above it. The terminal prints "Forge:" and the line's
+    words indented under it, joined with dots and a leading "✓ " once
+    connected. The line's name is its words without the tick. The line
     names no project but to say its first repository is in none yet,
     as Ready adopts nothing; a set up or a first repository that failed keeps all
     five steps, with its failed step marked ✕, preceding steps done
@@ -2511,7 +2524,7 @@ repository, and the cues the playground's, copied in from its read:
   from its mockup, for now* (`../draft/first-run-projects.md`, 4; the
   mockup is not edited): the Forge step's Details have no "Into a new
   project, named" and the step no "Choose a repository to start in";
-  the forge's line names no project, "FORGE · CONNECTION · ORG/NAME"
+  the forge's line names no project, "FORGE · ORG/NAME · CONNECTION"
   and "✓ FORGE · ORG/NAME"; Ready's checklist has no "Project PROJECT,
   with ORG/NAME" line, and its act makes a project with no
   repository, in place of "ORG/NAME is ready", "It opens once ORG/NAME
@@ -4185,7 +4198,10 @@ own tests:
   the person's own; `ConnectModel` at each step for each way, Ready's
   words for each, and each ending's words and acts; the welcome's Model
   step with no forge's line, and with each (3.5, The welcome): under
-  way with its steps, ticked, none adopted and failed; the navigation's
+  way with its steps and named indeterminate bar, ticked, none adopted
+  and failed without a bar, GitHub's waits without a bar, the repository
+  before the connection under way and failed, and the terminal's line
+  in that order with no bar; the navigation's
   dot in each colour and none; the banners' ways.
 - **Golden text:** temper's pages as skein's text shell prints them,
   kept as files beside the tests and changed only by hand: the inbox
