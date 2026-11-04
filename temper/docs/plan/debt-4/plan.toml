@@ -47,3 +47,16 @@ id = 3
 story = "skein-kv's store runs as explicit state enums per lifecycle, with its crash and golden tests and on-disk format unchanged"
 parts = ["skein-kv-states"]
 walk = false
+
+[[part]]
+id = "jig-scripted-rules"
+title = "jig D028: each rule the scripted engine copies is jig's code or held by a shared story"
+mode = "direct"
+needs = []
+design = "jig/docs/design/client/domain/testing.md, 4"
+
+[[slice]]
+id = 4
+story = "the scripted and joint fronts agree on inbox order, phase class, task order and requester, by jig's code or a shared story"
+parts = ["jig-scripted-rules"]
+walk = false
