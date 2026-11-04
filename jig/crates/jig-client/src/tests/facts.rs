@@ -181,7 +181,7 @@ fn rows() -> Box<[Row]> {
             work: None,
             wait: NOTHING,
             run_wait: None,
-            expected: || ChatStatus::Retrying { until: RETRY_AT, notice: RETRY_NOTICE },
+            expected: || ChatStatus::Retrying { until: RETRY_AT, notice: Some(RETRY_NOTICE) },
         },
         Row {
             name: "held before wait",
@@ -259,6 +259,20 @@ fn chat_status_follows_the_pages_status_table() {
     assert_eq!(
         facts::chat_status(&chip, &NOTHING, None, PROJECT, &me),
         ChatStatus::Tool { tool: Box::from(b"search".as_slice()), since: OBSERVED_SINCE }
+    );
+}
+#[test]
+fn a_chip_without_its_phase_facts_still_reads() {
+    let me = me();
+    let mut chip = facts_chip(ChipPhase::Ended, None);
+    chip.details.details.ended_at = None;
+    assert_eq!(facts::chat_status(&chip, &NOTHING, None, PROJECT, &me), ChatStatus::Ended { at: PHASE_SINCE });
+
+    let mut chip = facts_chip(ChipPhase::Active(RunStage::BackingOff { until: RETRY_AT }), None);
+    chip.details.details.retry = None;
+    assert_eq!(
+        facts::chat_status(&chip, &NOTHING, None, PROJECT, &me),
+        ChatStatus::Retrying { until: RETRY_AT, notice: None }
     );
 }
 #[test]
