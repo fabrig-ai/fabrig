@@ -28,3 +28,8 @@
   only GitHub's own connections, and `component/calls.rs`'s `assign`
   reserves only GitHub's own connection from call reuse, so Forgejo's
   own connection still shares the calls' pool; no reason is recorded.
+  7.4: each refusal names its limits, but
+  `skein-forge-connection/src/limits.rs`'s `check` answers
+  `Unusable::Zero`, which names none, for what `skein_tls::client::valid`,
+  `skein_http::client::valid` and `skein_http::server::valid` refuse; no
+  reason is recorded.

@@ -328,7 +328,7 @@ pub fn longest_remote(machine: &temper_forge_setup::machine::Machine, name_bytes
     Some(machine_remote(machine, name_bytes)?.max(u64::from(temper_engine_domain_forge::PULL_ADDRESS_BYTES)))
 }
 pub fn machine_remote(machine: &temper_forge_setup::machine::Machine, name_bytes: u32) -> Option<u64> {
-    let mut base = skein_lib::len_u64(b"https://github.com/".len());
+    let mut base = skein_lib::len_u64(crate::system::GITHUB_REMOTE.len());
     if let Some(owned) = &machine.owned {
         base = base.max(skein_lib::len_u64(owned.remote.len()));
     }

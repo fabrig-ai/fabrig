@@ -258,7 +258,25 @@ fn peer_document(dirs: &Directories, name: &str, bound: u32) -> Result<Box<[u8]>
         .map(|bytes| bytes.expose().into())
         .map_err(|why| format!("{}: {}", path.display(), crate::unread(why)))
 }
+/// The ports no peer may take: the callback's and the ordinary box's listeners and readiness
+/// (temper/docs/design/protocol/setup.md, 7.5).
+fn ordinary_ports(dirs: &Directories, bytes: &[u8]) -> Result<Vec<u16>, String> {
+    let (ordinary, _) = crate::box_command::configuration_steps(dirs, bytes, Box::new([]))?;
+    let mut ports = vec![1455];
+    for step in
+        ordinary.always.iter().chain(ordinary.asked.iter().flat_map(|group| group.steps.iter().map(|(_, step)| step)))
+    {
+        for listen in step.listeners() {
+            ports.push(listen.port());
+        }
+        if let Some(ready) = step.ready() {
+            ports.push(ready.port());
+        }
+    }
+    Ok(ports)
+}
 fn checked_peers(dirs: &Directories, bytes: &[u8]) -> Result<Peers, String> {
+    let mut ports = ordinary_ports(dirs, bytes)?;
     let refuse = |name: &str, why: temper_fake::Refusal| {
         format!("{}: {}", crate::path(&dirs.config).join(name).display(), String::from_utf8_lossy(&why.line()))
     };
@@ -273,18 +291,6 @@ fn checked_peers(dirs: &Directories, bytes: &[u8]) -> Result<Peers, String> {
     let forgejo =
         temper_fake::forge::Document::decode(&peer_document(dirs, "forgejo.json", temper_fake::DOCUMENT_BYTES)?)
             .map_err(|why| refuse("forgejo.json", why))?;
-    let (ordinary, _) = crate::box_command::configuration_steps(dirs, bytes, Box::new([]))?;
-    let mut ports = vec![1455];
-    for step in
-        ordinary.always.iter().chain(ordinary.asked.iter().flat_map(|group| group.steps.iter().map(|(_, step)| step)))
-    {
-        for listen in step.listeners() {
-            ports.push(listen.port());
-        }
-        if let Some(ready) = step.ready() {
-            ports.push(ready.port());
-        }
-    }
     let peers = Peers { github: github.listen(), oauth: oauth.listen(), llm: llm.listen(), forgejo: forgejo.listen() };
     for (name, listen) in [
         ("github.json", peers.github),
@@ -531,21 +537,7 @@ fn prepare(source_dirs: &Directories, bundle: Option<&Path>, adapter: &Path) -> 
         crate::close(std::mem::take(&mut held.0).into_iter().map(|(fd, _)| fd).collect());
     }
     let initial = public(&effective.document())?;
-    let deployment = crate::setup::check(&initial, &effective.jig())?;
-    let mut excluded = vec![1455, crate::address(&deployment.named.clients)?.port()];
-    if let Some(webhooks) = &deployment.named.webhooks {
-        excluded.push(crate::address(&webhooks.listener)?.port());
-    }
-    for entry in &deployment.checked.setup.entries {
-        match &entry.mode {
-            temper_forge_setup::setup::Mode::Owned(owned) => excluded.push(owned.listen.port()),
-            temper_forge_setup::setup::Mode::Fake(fake) => excluded.push(fake.listen.port()),
-            temper_forge_setup::setup::Mode::Managed { .. } => {}
-        }
-    }
-    if let Some(demo) = &deployment.demo {
-        excluded.push(demo.llm().listen().port());
-    }
+    let mut excluded = ordinary_ports(&effective, &initial)?;
     let github = reserve(&excluded)?;
     excluded.push(addr(&github)?.port());
     let oauth = reserve(&excluded)?;

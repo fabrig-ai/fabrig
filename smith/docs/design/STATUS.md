@@ -15,13 +15,14 @@ three live stories red at their last run pass now and the live refresh
 story's expectation on a fresh record (`testing.md`), the `--account`
 flag (`shell.md`, `testing.md`) and `smith-agent-shell` in the gate's
 wasm32 clippy, which it fails (`shell.md`), and the benchmarks'
-calibrations and arms, with three departures (`benchmarks.md`).
+calibrations and arms, with four departures (`benchmarks.md`).
 Two domain worlds call protocol crates (`testing.md`), and the local domain composes
 person-facing text, which the designer is to decide on (`domain/host.md`).
 Two step crates drive skein's JSON tokenizer over a whole buffer by hand
-(`domain/tools.md`, `protocol/events.md`).
+(`domain/tools.md`, `protocol/events.md`), and two hand copies of
+skein's io check lack its operation table's ceiling (`protocol/limits.md`).
 `domain/session.md`, `protocol/channel.md`, `protocol/charter.md`,
-`protocol/limits.md`, `protocol/llm.md` and `protocol/transcript.md` have no gap. smith has no drafts.
+`protocol/llm.md` and `protocol/transcript.md` have no gap. smith has no drafts.
 
 Design documents:
 - [`domain/README.md`](domain/README.status.md)
