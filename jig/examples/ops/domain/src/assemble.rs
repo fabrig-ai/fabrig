@@ -110,13 +110,6 @@ const fn delivery(value: core::DeliveryOutcome) -> host::DeliveryOutcome {
         core::DeliveryOutcome::Failed => host::DeliveryOutcome::Failed,
     }
 }
-pub(crate) fn host_answer(value: core::SettledAnswer) -> host::Relayed {
-    match value {
-        core::SettledAnswer::Host { error, body } => host::Relayed::Answer { error, text: body },
-        core::SettledAnswer::Delivery { .. } => unreachable!("engine charter has no delivery tool"),
-    }
-}
-
 pub(crate) fn read_answer(
     domain: &mut Domain,
     call: jig_domain_hub_link::ReadCall,
