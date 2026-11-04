@@ -2085,7 +2085,8 @@ override.
   provider in `engine.llm` and in the agent's configuration, and the
   reset's grant in `engine.acts`. A document without them is the same
   document less those members: the machine part `github` null alone,
-  `engine.llm` the owned example's and no `engine.acts`.
+  `application.demo` null, `engine.llm` the owned example's and no
+  `engine.acts`.
 - **No forge** (section 8): a first run's store holds none, and the
   person makes each from the client, none needing a restart: the
   playground's fake one by trying it (8.4), an owned Forgejo by setting
