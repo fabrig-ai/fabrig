@@ -201,6 +201,45 @@ fn generated_peers_use_existing_formats_and_the_first_added_key() {
 }
 
 #[test]
+fn forgejo_alone_seeds_the_two_copy_sources() {
+    let (temper, agent, paths, peers) = fixture();
+    let docs = write(&temper, &agent, &paths, &peers).expect("rewrite init");
+    let document = crate::forge::Document::decode(&docs.forgejo).expect("source document");
+    let (forge, config) = document.seed(SEED);
+    let expected = [
+        (
+            b"https://code.example.invalid/acme/widget".as_slice(),
+            b"acme/widget".as_slice(),
+            b"main".as_slice(),
+            &[b"main".as_slice()][..],
+        ),
+        (
+            b"https://code.example.invalid/acme/gadget".as_slice(),
+            b"acme/gadget".as_slice(),
+            b"trunk".as_slice(),
+            &[b"topic".as_slice(), b"trunk".as_slice()][..],
+        ),
+    ];
+    assert_eq!(document.sources().len(), expected.len());
+    assert_eq!(config.sources.len(), expected.len());
+    for (source, (address, full, default, branches)) in config.sources.iter().zip(expected) {
+        assert_eq!(source.address.as_ref(), address);
+        assert_eq!(source.repository.as_ref(), full);
+        assert!(!source.private);
+        assert_eq!(forge.domain.metadata(full).expect("source metadata").default_branch.as_ref(), default);
+        assert_eq!(forge.domain.branches(full).iter().map(|(name, _)| name.as_ref()).collect::<Vec<_>>(), branches);
+        for branch in branches {
+            let head = forge.domain.branch(full, branch).expect("seeded branch");
+            let object = forge.domain.object(head).expect("source commit");
+            assert!(object.parent.is_none(), "one source commit");
+            assert!(object.tree.contains_key(b".github/workflows/ci.yml".as_slice()));
+            assert!(!object.tree.contains_key(temper_forge_setup::STARTER_PATH));
+        }
+    }
+    assert!(crate::forge::Document::decode(&docs.github).expect("GitHub document").sources().is_empty());
+}
+
+#[test]
 fn target_selection_uses_ids_and_names_and_removes_stale_tls() {
     // Fill every TLS removal slot alongside all welcome git/program edits.
     const TLS: [&str; 4] = ["server_name", "trust", "trust_der", "identity_file"];
