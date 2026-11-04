@@ -260,17 +260,14 @@ pub fn to_root(
                 && let Some(reading) = wire::decode_reading(&record, limits)
             {
                 let query = match reading.into_parts().read {
-                    w::Read::Setting(value) => Some(root::ForgeRead::Setting {
-                        kind: value.kind(),
-                        scope: value.scope(),
-                        number: value.number(),
-                    }),
-                    w::Read::ProposalItems(value) => Some(root::ForgeRead::ProposalItems { key: value.key() }),
                     w::Read::Playground => {
                         if let (Some(row), Some(demo)) = (playground, demo) {
                             answer = Some(playground_answer(row, demo, limits));
                         }
                         None
+                    }
+                    read @ (w::Read::Setting(_) | w::Read::RevisionSetting(_) | w::Read::ProposalItems(_)) => {
+                        forge_settings_query(read)
                     }
                 };
                 if let Some(query) = query {
@@ -1278,5 +1275,21 @@ pub fn forge_read(answer: root::ForgeReadAnswer, limits: &w::Limits) -> Option<B
             let record = w::ProposalItemsAnswer::new(limits, w::ProposalItemsAnswerParts { items }).ok()?;
             Some(wire::proposal_items_answer(&record))
         }
+    }
+}
+
+fn forge_settings_query(read: w::Read) -> Option<root::ForgeRead> {
+    match read {
+        w::Read::Setting(value) => {
+            Some(root::ForgeRead::Setting { kind: value.kind(), scope: value.scope(), number: value.number() })
+        }
+        w::Read::RevisionSetting(value) => Some(root::ForgeRead::RevisionSetting {
+            kind: value.kind(),
+            scope: value.scope(),
+            number: value.number(),
+            revision: value.revision(),
+        }),
+        w::Read::ProposalItems(value) => Some(root::ForgeRead::ProposalItems { key: value.key() }),
+        w::Read::Playground => None,
     }
 }

@@ -15,7 +15,10 @@ Prints: `revision R, against revision A`, when, by whom, from which proposal, wh
 Key: none.
 A forgotten revision prints `revision R is forgotten; the oldest
 kept is revision O`, with exit 0. An item too large to print names
-the settings show call that reads it.
+the settings show call that reads it. For a landing rule or forge
+charter this call includes --revision REVISION and reads the value
+that revision set, including after later accepted changes. Text and
+--json print the whole historical value when it fits.
 ```
 
 ## revision list

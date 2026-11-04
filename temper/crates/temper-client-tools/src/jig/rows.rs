@@ -647,7 +647,7 @@ pub const REVISION: Tool = Tool {
     )]],
     keyed: Keyed::Never,
     area: 1,
-    notes: b"A forgotten revision prints `revision R is forgotten; the oldest\nkept is revision O`, with exit 0. An item too large to print names\nthe settings show call that reads it.\n",
+    notes: b"A forgotten revision prints `revision R is forgotten; the oldest\nkept is revision O`, with exit 0. An item too large to print names\nthe settings show call that reads it. For a landing rule or forge\ncharter this call includes --revision REVISION and reads the value\nthat revision set, including after later accepted changes. Text and\n--json print the whole historical value when it fits.\n",
 };
 pub const REVISIONS: Tool = Tool {
     name: b"revision list",
