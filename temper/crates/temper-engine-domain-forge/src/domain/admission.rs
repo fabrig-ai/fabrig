@@ -35,12 +35,7 @@ fn plan(d: &Domain, env: &Env<Limits>, task: u64, resources: &[Name]) -> Result<
     let resource = resources.first().cloned();
     bound("forge.resources_per_task", env.limits.resources_per_task, resources.len(), resource.clone())?;
     if !d.names.contains_key(&task) && task != u64::MAX {
-        bound(
-            "forge.tasks",
-            env.limits.tasks,
-            usize::try_from(d.names.len()).expect("u32 fits usize").saturating_add(1),
-            resource.clone(),
-        )?;
+        bound("forge.tasks", env.limits.tasks, skein_lib::usize_of(d.names.len()).saturating_add(1), resource.clone())?;
     }
     let mut watches = Map::uncapped();
     for (owner, names) in &d.names {
@@ -50,12 +45,7 @@ fn plan(d: &Domain, env: &Env<Limits>, task: u64, resources: &[Name]) -> Result<
     }
     add(d, env, resources, &mut watches)?;
     add(d, env, crate::tiers::watched(d).as_slice(), &mut watches)?;
-    bound(
-        "forge.client.resources",
-        env.limits.client.resources,
-        usize::try_from(watches.len()).expect("u32 fits usize"),
-        resource.clone(),
-    )?;
+    bound("forge.client.resources", env.limits.client.resources, skein_lib::usize_of(watches.len()), resource.clone())?;
     let mut repositories = Map::uncapped();
     for (resource, _) in &watches {
         repositories.insert(resource.repository, ()).expect("internal repository set");
@@ -63,7 +53,7 @@ fn plan(d: &Domain, env: &Env<Limits>, task: u64, resources: &[Name]) -> Result<
     bound(
         "forge.client.repositories",
         env.limits.client.repositories,
-        usize::try_from(repositories.len()).expect("u32 fits usize"),
+        skein_lib::usize_of(repositories.len()),
         resource,
     )?;
     let mut list = List::with_capacity(watches.len());
