@@ -309,3 +309,78 @@ fn an_unknown_head_approval_waits_until_the_approval_requirement_is_removed() {
     assert_eq!(world.merges, 1, "removing the approval requirements releases the queue");
     world.close();
 }
+
+/// Reproduce a queued approval wait through the root and the requester's frame.
+pub(crate) fn approval_wait_story() {
+    let (mut world, change) = waiting_approval();
+    world.send(engine::Event::Party(engine::PartyInput::Watch {
+        watcher: Token::new(990),
+        sign_in: world.signed_in.expect("session"),
+        subject: jig_domain_core::documents::Watched::Application {
+            scope: people::ApplicationScope::Project(1),
+            connector: 0,
+            subject: Token::new(change),
+        },
+        window: jig_domain_core::documents::Window { rows: 0, after: None },
+    }));
+    for _ in 0..20 {
+        world.tick();
+    }
+    let panel = &world.panels.last().expect("change panel").1;
+    assert!(matches!(panel.step, forge_top::PanelStep::Queued { place: 1, .. }));
+    assert_eq!(panel.ci, temper_engine_domain_forge_change::Status::Passed);
+    assert_eq!(panel.gates[0].verdict, temper_engine_domain_forge_change::Status::Passed);
+    world.send(engine::Event::Party(engine::PartyInput::Read {
+        reply_to: ReplyTo::new(Token::new(991)),
+        sign_in: world.signed_in.expect("session"),
+        read: jig_domain_core::reads::Read::Frame,
+    }));
+    for _ in 0..20 {
+        world.tick();
+    }
+    let jig_domain_core::reads::Answer::Document(document) = &world.reads.last().expect("frame").1 else {
+        panic!("frame read")
+    };
+    let jig_domain_core::documents::Document::Frame(frame) = document.as_ref() else { panic!("frame") };
+    assert_eq!(frame.needs, 1, "an enforcing approval wait must signal the requester");
+    world.close();
+}
+
+fn waiting_approval() -> (World, u64) {
+    let mut world = World::configured_limits(
+        true,
+        true,
+        false,
+        1000,
+        Gate { agent: true, approval: Some(engine::Freshness::Clean), ..Gate::default() },
+        None,
+        StoryLimits { kinds: true, ..StoryLimits::default() },
+    );
+    forge_with_only_temper(&mut world);
+    let (mut world, _, producer, branch) = change_world_in(world, Change::default());
+    fake::grant(&mut world.fake, b"org/repo", 2, raw::Permission::Write);
+    let revision = kinds::revision(&world.store.rows);
+    world.send(kinds::change(
+        world.signed_in.expect("session"),
+        revision,
+        96,
+        Box::new([kinds::item(1, 0, 1, &approval_rule(0, 1)), kinds::item(2, 1, 1, &approval_rule(0, 1))]),
+    ));
+    for _ in 0..200 {
+        world.tick();
+    }
+    assert_eq!(kinds::revision(&world.store.rows), revision + 1, "{:?}", world.web_replies);
+    let tasks::Party::Task(change) = live_task(&world, producer.task).requester else { panic!("change") };
+    reviews::produce(&mut world, &producer, &branch);
+    let reviewer = reviews::next_assignment(&mut world, 2);
+    reviews::finish_review(
+        &mut world,
+        &reviewer,
+        tasks::TaskResult::Verdict { code: 1, fields: Box::new([]), words: b"approved".as_slice().into() },
+    );
+    for _ in 0..200 {
+        world.tick();
+    }
+    assert_eq!(world.merges, 0, "the approval rule keeps the change queued");
+    (world, change)
+}
