@@ -105,21 +105,21 @@ pub fn worst_case(limits: &Limits) -> Option<u64> {
     let maps = u64::from(levels.checked_add(2)?);
     let name = u64::from(limits.name);
     let names = u64::from(limits.held).checked_add(u64::from(limits.page.max(limits.listed)))?;
-    let stack = Stack::<Level>::worst_case(levels)?
+    let stack = Stack::<Level>::price(levels)?
         .checked_add(paths.checked_mul(u64::from(levels))?)?
-        .checked_add(Map::<Box<[u8]>, ()>::worst_case(limits.held)?)?
-        .checked_add(Map::<Box<[u8]>, ()>::worst_case(0)?.checked_mul(maps)?)?
+        .checked_add(Map::<Box<[u8]>, ()>::price(limits.held)?)?
+        .checked_add(Map::<Box<[u8]>, ()>::price(0)?.checked_mul(maps)?)?
         .checked_add(names.checked_mul(name)?)?
         .checked_add(
             u64::from(limits.page.max(limits.listed)).checked_mul(u64::try_from(size_of::<Box<[u8]>>()).ok()?)?,
         )?;
-    let attributes = Map::<Box<[u8]>, ()>::worst_case(limits.attributes)?
-        .checked_add(List::<Xattr>::worst_case(limits.attributes)?.checked_mul(2)?)?
+    let attributes = Map::<Box<[u8]>, ()>::price(limits.attributes)?
+        .checked_add(List::<Xattr>::price(limits.attributes)?.checked_mul(2)?)?
         .checked_add(u64::from(limits.attributes).checked_mul(
             name.checked_add(u64::from(limits.attribute_name))?.checked_add(u64::from(limits.attribute_value))?,
         )?)?;
-    let linked = Map::<u64, Link>::worst_case(limits.linked)?.checked_add(u64::from(limits.linked_paths))?;
-    let items = List::<Item>::worst_case(batch_items(limits))?;
+    let linked = Map::<u64, Link>::price(limits.linked)?.checked_add(u64::from(limits.linked_paths))?;
+    let items = List::<Item>::price(batch_items(limits))?;
     let batch = items.checked_add(u64::from(limits.batch).max(pair(limits)?))?.checked_mul(2)?;
     // The entry in hand, its request's path, its item's two and its failure's; and a hard link's
     // digest, whose encoder holds its nesting and a key.
