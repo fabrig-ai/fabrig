@@ -109,9 +109,9 @@ fn root_chat_with_reads(
     for _ in 0..EXCHANGES {
         let Some(request) = out.pop() else { break };
         match request {
-            Request::Client {
+            Request::Unlinked {
                 request:
-                    jig_client::Request::Down {
+                    jig_client::UnlinkedRequest::Down {
                         down:
                             jig_client::Down::Read {
                                 read,
@@ -130,9 +130,9 @@ fn root_chat_with_reads(
                     &mut out,
                 );
             }
-            Request::Client {
+            Request::Unlinked {
                 request:
-                    jig_client::Request::Down {
+                    jig_client::UnlinkedRequest::Down {
                         down:
                             jig_client::Down::Open {
                                 watch,
@@ -154,9 +154,9 @@ fn root_chat_with_reads(
                 chat.activity = activity.rows.get(0).expect("newest activity").source.position;
                 up(&mut root, task_delivery(watch, chat), receiving, &mut out);
             }
-            Request::Client {
+            Request::Unlinked {
                 request:
-                    jig_client::Request::Down {
+                    jig_client::UnlinkedRequest::Down {
                         down:
                             jig_client::Down::Open {
                                 watch,
@@ -171,13 +171,14 @@ fn root_chat_with_reads(
                     up(&mut root, task_delivery(watch, task.clone()), receiving, &mut out);
                 }
             }
-            request @ Request::Client {
+            request @ Request::Unlinked {
                 request:
-                    jig_client::Request::Down {
+                    jig_client::UnlinkedRequest::Down {
                         down: jig_client::Down::Read { what: jig_client::Readable::Jig(c::Read::Task { .. }), .. },
                     },
             } => reads.push(request),
             Request::Client { .. }
+            | Request::Unlinked { .. }
             | Request::Show { .. }
             | Request::Leave { .. }
             | Request::SignOut
@@ -791,9 +792,9 @@ fn csv_chat_hears_its_result(turn_text: u32) {
     let cut = fixtures::find(view.tree(), Role::Status, b"Earlier text omitted").is_some();
     assert_eq!(cut, turn_text < 2048, "the first turn is cut only below its 1.2 KB");
     assert_csv_card(&view, false);
-    let Some(Request::Client {
+    let Some(Request::Unlinked {
         request:
-            jig_client::Request::Down {
+            jig_client::UnlinkedRequest::Down {
                 down: jig_client::Down::Read { read, what: jig_client::Readable::Jig(c::Read::Task { task: CHANGE }) },
             },
     }) = reads.pop()

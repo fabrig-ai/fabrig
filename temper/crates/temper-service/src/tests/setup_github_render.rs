@@ -51,13 +51,15 @@ fn render(words: &[&[u8]], json: bool, record: &Record) -> tools::jig::Printed {
         let Some(request) = out.pop() else { break };
         let event = match request {
             cli::Request::Printed { printed, .. } => return printed,
-            cli::Request::Client {
+            cli::Request::Unlinked {
                 request:
-                    client::Request::Down {
+                    client::UnlinkedRequest::Down {
                         down: client::Down::Open { watch, subject: client::Watchable::Jig(c::Subject::Me) },
                     },
             } => Some(client::Event::Up { up: client::Up::Watched { watch, event: c::WatchEvent::Delivered(me()) } }),
-            cli::Request::Client { request: client::Request::Down { down: client::Down::Open { watch, .. } } } => {
+            cli::Request::Unlinked {
+                request: client::UnlinkedRequest::Down { down: client::Down::Open { watch, .. } },
+            } => {
                 let Record::Forges(bytes) = record else { panic!("forge document") };
                 Some(client::Event::Up {
                     up: client::Up::FamilyDelivered {
@@ -70,7 +72,9 @@ fn render(words: &[&[u8]], json: bool, record: &Record) -> tools::jig::Printed {
                     },
                 })
             }
-            cli::Request::Client { request: client::Request::Down { down: client::Down::Send { attempt, .. } } } => {
+            cli::Request::Unlinked {
+                request: client::UnlinkedRequest::Down { down: client::Down::Send { attempt, .. } },
+            } => {
                 let Record::Answer(outcome) = record else { panic!("family answer") };
                 let bytes =
                     wire::answer(&w::Answer::new(&w::CEILINGS, w::AnswerParts { outcome: outcome.clone() }).unwrap());
@@ -88,6 +92,7 @@ fn render(words: &[&[u8]], json: bool, record: &Record) -> tools::jig::Printed {
                 })
             }
             cli::Request::Client { .. }
+            | cli::Request::Unlinked { .. }
             | cli::Request::Ready
             | cli::Request::Record { .. }
             | cli::Request::Kept { .. }
