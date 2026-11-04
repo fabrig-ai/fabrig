@@ -614,6 +614,9 @@ pub fn answer(
             w::Outcome::Page(w::Page::new(limits, w::PageParts { rows, more: page.more }).ok()?)
         }
         Some(root::ApplicationAnswer::Returning) => w::Outcome::Returning,
+        Some(temper_engine_domain::ApplicationAnswer::Adopt(
+            forge::ApplicationOutcome::MakeKept | forge::ApplicationOutcome::MakeRefused(_),
+        )) => return None,
         Some(temper_engine_domain::ApplicationAnswer::Adopt(forge::ApplicationOutcome::Adopted(a))) => {
             w::Outcome::Adopted(
                 w::Adopted::new(

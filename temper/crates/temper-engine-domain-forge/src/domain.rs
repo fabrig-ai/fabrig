@@ -146,6 +146,7 @@ pub struct Domain {
     pub(crate) playground_due: Option<skein_lib::Time>,
     pub(crate) playground_request: Option<Token>,
     bindings: Map<Box<[u8]>, Box<[u8]>>,
+    pub(crate) repository_makings: Map<crate::MakingKey, crate::RepositoryMaking>,
     pub(crate) connections: Map<u16, ConnectionState>,
     pub(crate) first: Map<u16, crate::First>,
     pub(crate) ended: Map<u16, (Box<[u8]>, Option<crate::AdminStop>)>,
@@ -303,7 +304,12 @@ impl Domain {
                 Some((why, stop)) => (Some(why.clone()), *stop),
                 None => (None, None),
             };
+            let mut makings = List::with_capacity(self.repository_makings.len());
+            for row in self.makings(*forge) {
+                makings.push(row.clone()).expect("bounded makings");
+            }
             rows.push(crate::Row {
+                makings: makings.into_boxed(),
                 read_only: config.kind == crate::Kind::GitHub && config.read_only,
                 number: *forge,
                 kind: config.kind,
@@ -551,6 +557,7 @@ impl Domain {
             playground_due: None,
             playground_request: None,
             bindings: Map::with_capacity(l.bindings),
+            repository_makings: Map::with_capacity(l.makings),
             connections: Map::with_capacity(l.forges),
             first: Map::with_capacity(l.forges),
             ended: Map::with_capacity(l.forges),
@@ -5548,6 +5555,16 @@ fn restore(d: &mut Domain, env: &Env<Limits>, record: Stored) {
         return;
     }
     match record {
+        Stored::Making(mut row) => {
+            row.state = match row.state {
+                crate::MakingState::Making => crate::MakingState::Waiting,
+                state @ (crate::MakingState::Waiting
+                | crate::MakingState::Made { .. }
+                | crate::MakingState::Adopting { .. }
+                | crate::MakingState::Failed(_)) => state,
+            };
+            d.repository_makings.insert(row.key.clone(), row).expect("restored making within limits");
+        }
         Stored::Forge(record) => {
             make::restore_first(d, &record);
             d.identities.insert(record.number, u32::from(record.number)).expect("restored forge credential fits");
@@ -6205,7 +6222,10 @@ impl Domain {
                 for (key, (_, outcome)) in &self.application.kept {
                     if match outcome {
                         crate::ApplicationOutcome::Adopted(row) => need.repository(row.repository),
-                        crate::ApplicationOutcome::CoreRefused(_) | crate::ApplicationOutcome::ForgeRefused(_) => false,
+                        crate::ApplicationOutcome::CoreRefused(_)
+                        | crate::ApplicationOutcome::ForgeRefused(_)
+                        | crate::ApplicationOutcome::MakeKept
+                        | crate::ApplicationOutcome::MakeRefused(_) => false,
                     } {
                         return Key::Application(key.raw());
                     }
@@ -6279,7 +6299,7 @@ impl Domain {
                     unreachable!("client forge or repository link")
                 }
             },
-            RecordKind::Forge | RecordKind::Landed | RecordKind::Binding | RecordKind::Setting => {
+            RecordKind::Forge | RecordKind::Landed | RecordKind::Binding | RecordKind::Setting | RecordKind::Making => {
                 unreachable!("row has no links")
             }
         }

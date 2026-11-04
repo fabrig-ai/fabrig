@@ -34,6 +34,8 @@ pub struct Limits {
     pub output: u32,
     pub facts: u32,
     pub adoptions: u32,
+    /// Repositories being made or failed (temper/docs/design/domain/forge.md, 4.5).
+    pub makings: u32,
     pub applications: u32,
     /// Durable member address bindings (protocol/sign-in.md, 5).
     pub bindings: u32,
@@ -103,6 +105,8 @@ pub fn valid(l: &Limits) -> bool {
         || skein_lib::usize_of(l.change_policy.questions) >= temper_engine_domain_forge_change::QUESTIONS_OPEN
         || l.change_policy.tasks == 0
         || l.queue_window == skein_lib::Duration::ZERO
+        || l.makings == 0
+        || l.makings > 64
         || l.adoptions == 0
         || l.applications == 0
         || l.collaborators == 0

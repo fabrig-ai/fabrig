@@ -7,6 +7,11 @@ mod refusal;
 
 pub(super) fn encode(token: u64, until: Wall, outcome: &d::ApplicationOutcome) -> w::Application {
     let outcome = match outcome {
+        d::ApplicationOutcome::MakeKept => w::ApplicationOutcome::MakeKept,
+        d::ApplicationOutcome::MakeRefused(why) => w::ApplicationOutcome::MakeRefused(
+            w::MakeRefused::new(&w::CEILINGS, w::MakeRefusedParts { reason: super::making::encode_refusal(*why) })
+                .expect(FITS),
+        ),
         d::ApplicationOutcome::Adopted(v) => w::ApplicationOutcome::Adopted(
             w::ApplicationAdopted::new(
                 &w::CEILINGS,
@@ -40,6 +45,10 @@ pub(super) fn encode(token: u64, until: Wall, outcome: &d::ApplicationOutcome) -
 pub(super) fn decode(value: w::Application, bounds: &Bounds) -> Result<d::Stored, Undecodable> {
     let w::ApplicationParts { token, until, outcome } = value.into_parts();
     let outcome = match outcome {
+        w::ApplicationOutcome::MakeKept => d::ApplicationOutcome::MakeKept,
+        w::ApplicationOutcome::MakeRefused(why) => {
+            d::ApplicationOutcome::MakeRefused(super::making::decode_refusal(why.into_parts().reason))
+        }
         w::ApplicationOutcome::Adopted(v) => {
             let w::ApplicationAdoptedParts { repository, owner, name, role, home, kinds, protection } = v.into_parts();
             d::ApplicationOutcome::Adopted(d::AdoptedRepository {

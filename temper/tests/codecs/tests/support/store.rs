@@ -17,6 +17,7 @@ pub const LIMITS: forge::Limits = forge::Limits {
     output: 80,
     facts: 16,
     adoptions: 2,
+    makings: 2,
     applications: 4,
     bindings: 4,
     collaborators: 8,
