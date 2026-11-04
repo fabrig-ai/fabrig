@@ -444,6 +444,16 @@ impl Observer {
         ])
     }
 
+    /// Apply the stream's counts and root usage before native collection.
+    pub(super) fn stream_measures(&self, result: &mut crate::AttemptResult) -> Result<(), String> {
+        result.counts = self.counts();
+        result.tokens = match self.thread() {
+            Some(_) => self.token_records()?,
+            None => Vec::new(),
+        };
+        Ok(())
+    }
+
     /// Stream-visible tool counts; turn aggregates cannot count provider responses.
     #[must_use]
     pub fn counts(&self) -> Counts {

@@ -533,49 +533,6 @@ fn prepare(
     prepared_attempt.map_err(|reason| Setup { step, reason })
 }
 
-fn lexical(base: &Path, path: &Path) -> PathBuf {
-    use std::path::Component;
-    let absolute = base.join(path);
-    let mut normal = PathBuf::new();
-    for part in absolute.components() {
-        match part {
-            Component::ParentDir => {
-                normal.pop();
-            }
-            Component::CurDir => {}
-            Component::RootDir | Component::Normal(_) | Component::Prefix(_) => normal.push(part),
-        }
-    }
-    normal
-}
-
-fn scope(process: &ProcessResult, workspace: &Path) -> Measure<Vec<PathBuf>> {
-    let mut outside = Vec::new();
-    for item in process.observer.completed_items() {
-        match item {
-            crate::agent::codex::Item::FileChange { changes, .. } => {
-                for change in changes {
-                    let path = lexical(workspace, Path::new(&change.path));
-                    if !path.starts_with(workspace.parent().unwrap_or(workspace)) {
-                        outside.push(path);
-                    }
-                }
-            }
-            crate::agent::codex::Item::AgentMessage { .. }
-            | crate::agent::codex::Item::CommandExecution { .. }
-            | crate::agent::codex::Item::CollabToolCall { .. } => {}
-        }
-    }
-    outside.sort();
-    outside.dedup();
-    Measure::LowerBound {
-        value: outside,
-        missing: vec![
-            "JSON lines omit non-root calls and shell filesystem effects; complete adapter collection required".into(),
-        ],
-    }
-}
-
 fn collect_observation(
     guard: &Guard,
     directory: &Path,
@@ -584,7 +541,7 @@ fn collect_observation(
 ) -> Result<(), String> {
     if let Some(observing) = process.observing.as_mut() {
         match observing.as_mut() {
-            crate::agent::Observing::Codex(observing) => {
+            crate::agent::Observing::Codex(observing) if observing.prepared.is_some() => {
                 result.delegation =
                     crate::Delegation::unavailable("Codex does not report child shares or parent blocking");
                 if let Some(thread) = observing.observer.thread().map(str::to_owned) {
@@ -607,6 +564,7 @@ fn collect_observation(
                     rollouts.counts(&thread, &mut result.counts).map_err(|error| error.to_string())?;
                 }
             }
+            crate::agent::Observing::Codex(_) => {}
             crate::agent::Observing::Smith(observing) => {
                 observing.events().resolve_model(&mut result.identity.model);
                 observing.events().timing(&mut result.timing);
@@ -634,6 +592,7 @@ fn observe(
     task: &Task,
     maximum: usize,
 ) -> Result<crate::grade::Ended, String> {
+    process.observing.as_ref().ok_or("an attempt has its observer")?;
     result.identity.started_utc =
         time::OffsetDateTime::from_unix_timestamp_nanos(i128::from(process.start_wall.as_nanos()))
             .map_err(|error| error.to_string())?
@@ -641,10 +600,8 @@ fn observe(
             .map_err(|error| error.to_string())?;
     traces::collect(guard, directory, result, process, maximum)?;
     startup::finish(process)?;
-    let classification = process.observing.as_ref().map_or_else(
-        || process.observer.classify(process.exit, process.forced),
-        |observing| observing.classify(process.exit, process.forced),
-    );
+    let observing = process.observing.as_ref().expect("attempt observer checked above");
+    let classification = observing.classify(process.exit, process.forced);
     result.outcome.end = startup::classify(process, task).unwrap_or(classification.end);
     result.outcome.warnings = classification.warnings;
     result.outcome.exit = Measure::Observed { value: process.exit };
@@ -669,10 +626,10 @@ fn observe(
     let credential_refresh = Measure::unavailable("the credentials pair has not settled");
     if let Some(observing) = &mut process.observing {
         match observing.as_mut() {
-            crate::agent::Observing::Codex(observing) => {
+            crate::agent::Observing::Codex(observing) if observing.prepared.is_some() => {
                 result.delegation =
                     crate::Delegation::unavailable("Codex does not report child shares or parent blocking");
-                if let Some(borrowed) = observing.prepared.borrowed.take() {
+                if let Some(borrowed) = observing.prepared.as_mut().expect("prepared above").borrowed.take() {
                     let proof = borrowed.finish(guard)?;
                     archive(
                         guard,
@@ -683,6 +640,7 @@ fn observe(
                     )?;
                 }
             }
+            crate::agent::Observing::Codex(_) => {}
             crate::agent::Observing::Smith(observing) => {
                 if let Some(health) = observing.health(process.exit, process.forced) {
                     result.health = health;
@@ -692,11 +650,8 @@ fn observe(
         }
     }
     result.resources = resources(process)?;
-    result.counts = process.observer.counts();
-    result.tokens = match process.observer.thread() {
-        Some(_) => process.observer.token_records()?,
-        None => Vec::new(),
-    };
+    let observing = process.observing.as_ref().expect("attempt observer checked above");
+    observing.stream_measures(result)?;
     collect_observation(guard, directory, result, process)?;
     result.cache = cache::observation(process, task);
     if result.identity.agent == crate::Agent::Codex && result.cache.is_some() {
@@ -706,12 +661,8 @@ fn observe(
             evidence: vec![],
         });
     }
-    result.outcome.writes_outside_workspace = match &process.observing {
-        Some(observing) if matches!(observing.as_ref(), crate::agent::Observing::Smith(_)) => {
-            Measure::unavailable("event stream does not expose every shell filesystem effect")
-        }
-        Some(_) | None => scope(process, workspace),
-    };
+    result.outcome.writes_outside_workspace =
+        process.observing.as_ref().expect("attempt observer checked above").writes_outside(workspace);
     result.health.passive_checks.push(passive::scope(&result.outcome.writes_outside_workspace));
     result.health.passive_checks.push(passive::tree(process));
     Ok(settled_outcome(process, &result.outcome, credential_refresh))
@@ -723,10 +674,7 @@ fn settled_outcome(
     credential_refresh: Measure<bool>,
 ) -> crate::grade::Ended {
     let answer = if matches!(outcome.end, End::Completed) {
-        process
-            .observing
-            .as_ref()
-            .map_or_else(|| process.observer.answer().map(str::to_owned), |observing| observing.answer())
+        process.observing.as_ref().and_then(|observing| observing.answer())
     } else {
         None
     };
@@ -864,7 +812,7 @@ fn invocation(
                     environment,
                     directory: work.private.workspace.clone(),
                 },
-                Capture::Codex,
+                Capture::Agent(Box::new(crate::agent::Observing::replay())),
                 Duration::from_millis(work.prepared.teardown_ms),
                 None,
             ));
@@ -1149,13 +1097,8 @@ pub fn attempt(guard: &Guard, machine: &Machine, state: &Path, prepared: &Reques
 #[must_use]
 pub fn script(task: &Task, capture: &Capture) -> crate::agent::Script {
     let default = match capture {
-        Capture::Agent(observing)
-            if matches!(observing.as_ref(), crate::agent::Observing::Smith(observing)
-            if observing.prepared.face != crate::agent::smith::events::Shape::Exec) =>
-        {
-            crate::agent::Close::AfterAnswer
-        }
-        Capture::Agent(_) | Capture::Raw | Capture::Codex => crate::agent::Close::AfterPrompt,
+        Capture::Agent(observing) => observing.close(),
+        Capture::Raw => crate::agent::Close::AfterPrompt,
     };
     let mut cues = vec![crate::agent::Cue { when: crate::agent::Trigger::Start, text: task.prompt.clone() }];
     cues.extend(task.person.clone());
