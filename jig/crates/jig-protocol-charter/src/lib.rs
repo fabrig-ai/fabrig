@@ -1,6 +1,6 @@
 //! Translation of a core-owned charter into Smith's run vocabulary
-//! (domain/hosts.md, section 8). The application's root supplies rendered
-//! sections and connector tools. This crate owns jig's contract text ceiling,
+//! (domain/hosts.md, section 8). The application's root supplies its
+//! tools, endpoints, deployment and bounds. This crate owns jig's contract text ceiling,
 //! required checks and the application of core-decided workspace tool grants.
 
 #![cfg_attr(not(test), no_std)]
@@ -12,6 +12,7 @@ mod boundary;
 mod call;
 mod charter;
 mod encode;
+mod hosted;
 mod identity;
 mod result;
 #[cfg(test)]
@@ -25,6 +26,7 @@ pub use boundary::{
 pub use call::{CallKey, call_key, call_name};
 pub use charter::charter;
 pub use encode::{EndpointName, encode};
+pub use hosted::{Given, hosted, message};
 pub use identity::run_identity;
 pub use result::{Field, RunResult, Unreadable, result};
 pub use smith_domain_run::Mode;
