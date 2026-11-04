@@ -7,6 +7,59 @@ use crate::backend::fixtures::COMPLETION;
 use alloc::string::ToString;
 
 #[test]
+fn resumed_activation_receives_current_charter_and_documents() {
+    for old_document in ["", "\n## Document rules.md\nhead old: use COPPER."] {
+        let mut backend = launchable();
+        let mut request = history(&backend);
+        let FromDomain::Complete { prompt, .. } = &mut request else { panic!("complete") };
+        prompt.system =
+            b"End every reply with the word ZINC.\n\n## Document rules.md\nhead new: use SILVER.".as_slice().into();
+        prompt.messages[0].content = Box::new([llm::Block::Text {
+            text: skein_lib::bytes::concat(&[b"End every reply with the word COPPER.", old_document.as_bytes()]),
+            replay: None,
+        }]);
+        fixtures::retain_request(request, &mut backend);
+        backend.launch_spec().expect("resume spawn");
+        let value: serde_json::Value =
+            serde_json::from_slice(backend.outgoing.as_ref().expect("resume input")).expect("one user message");
+        let text = value["message"]["content"].as_str().expect("resume text");
+        assert!(text.contains("End every reply with the word ZINC."), "current instructions missing: {text}");
+        assert!(text.contains("head new: use SILVER."), "current document missing: {text}");
+        assert!(!text.contains("COPPER"), "saved history must stay in the native session");
+        assert!(text.contains("result of wait-id: wait result\nnew instruction\n"));
+    }
+}
+
+#[test]
+fn activation_refresh_is_measured_and_bounded_with_its_tail() {
+    let backend = launchable();
+    let render = |maximum, capture| {
+        let FromDomain::Complete { mut prompt, .. } = history(&backend) else { panic!("complete") };
+        prompt.system = b"ZINC \"quoted\"\n## Document\nnew head: caf\xc3\xa9".as_slice().into();
+        tail::render_activation(
+            &mut prompt,
+            &backend.ledger,
+            &backend.settings.translation,
+            maximum,
+            b"pause\n",
+            capture,
+        )
+    };
+    let rendered = render(backend.settings.input_bytes, true).expect("refresh fits");
+    let value: serde_json::Value = serde_json::from_slice(&rendered.line).expect("escaped JSON");
+    assert_eq!(
+        value["message"]["content"].as_str().expect("text").as_bytes(),
+        rendered.text.expect("observed").as_ref()
+    );
+    assert!(
+        value["message"]["content"].as_str().expect("text").contains("ZINC \"quoted\"\n## Document\nnew head: café")
+    );
+    let length = u32::try_from(rendered.line.len()).expect("bounded input");
+    assert!(render(length - 1, false).is_none(), "refresh shares the serialized input ceiling");
+    assert!(render(length, false).is_some(), "exact ceiling fits");
+}
+
+#[test]
 fn a_resume_names_the_window_s_session() {
     let mut backend = launchable();
     let id = backend.startup.session();
@@ -203,6 +256,32 @@ fn running_history(up: &mut Queue<ToDomain>, below: &mut Queue<Below>) -> (Backe
     (backend, id)
 }
 
+fn settle_stopped_process(backend: &mut Backend, up: &mut Queue<ToDomain>, below: &mut Queue<Below>) {
+    no_spawn(below);
+    backend.from_io(
+        &env(1),
+        BelowEvent::Io(io::Event::Stream {
+            owner: Token::new(32),
+            up: skein_lib::stream::Up::Bytes(b"{\"type\":\"result\",\"is_error\":true}\n".as_slice().into()),
+        }),
+        up,
+        below,
+    );
+    backend.from_io(
+        &env(1),
+        BelowEvent::Io(io::Event::Exited { owner: backend.token(Owner::Program), exit: kernel::Exit::Code(0) }),
+        up,
+        below,
+    );
+    for owner in [Token::new(31), Token::new(32), Token::new(33), backend.token(Owner::Program)] {
+        backend.from_io(&env(1), BelowEvent::Io(io::Event::Closed { owner }), up, below);
+        no_spawn(below);
+    }
+    assert!(backend.startup.switching(), "the MCP listener still belongs to the old process");
+    backend.from_io(&env(1), BelowEvent::Io(io::Event::Closed { owner: backend.first }), up, below);
+    no_spawn(below);
+}
+
 #[test]
 fn a_retry_after_a_stopped_process_resumes() {
     let mut up = Queue::with_capacity(32);
@@ -213,32 +292,11 @@ fn a_retry_after_a_stopped_process_resumes() {
     let Some(ToDomain::Failed { failure, .. }) = up.pop() else { panic!("head failure") };
     assert_eq!(failure, llm::Failure::TimedOut { phase: llm::CompletionPhase::Head });
     let mut retry = history(&backend);
-    let FromDomain::Complete { owner, .. } = &mut retry else { panic!("retry") };
+    let FromDomain::Complete { owner, prompt, .. } = &mut retry else { panic!("retry") };
     *owner = Token::new(81);
+    prompt.system = b"A consumed retry must not repeat the activation refresh.".as_slice().into();
     backend.from_domain(&env(1), retry, &mut up, &mut below);
-    no_spawn(&below);
-    backend.from_io(
-        &env(1),
-        BelowEvent::Io(io::Event::Stream {
-            owner: Token::new(32),
-            up: skein_lib::stream::Up::Bytes(b"{\"type\":\"result\",\"is_error\":true}\n".as_slice().into()),
-        }),
-        &mut up,
-        &mut below,
-    );
-    backend.from_io(
-        &env(1),
-        BelowEvent::Io(io::Event::Exited { owner: backend.token(Owner::Program), exit: kernel::Exit::Code(0) }),
-        &mut up,
-        &mut below,
-    );
-    for owner in [Token::new(31), Token::new(32), Token::new(33), backend.token(Owner::Program)] {
-        backend.from_io(&env(1), BelowEvent::Io(io::Event::Closed { owner }), &mut up, &mut below);
-        no_spawn(&below);
-    }
-    assert!(backend.startup.switching(), "the MCP listener still belongs to the old process");
-    backend.from_io(&env(1), BelowEvent::Io(io::Event::Closed { owner: backend.first }), &mut up, &mut below);
-    no_spawn(&below);
+    settle_stopped_process(&mut backend, &mut up, &mut below);
     assert!(up.is_empty(), "the old result has no terminal for the retry");
     assert!(backend.startup.resuming());
     assert!(!backend.closed());

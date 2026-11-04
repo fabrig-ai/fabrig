@@ -4,6 +4,8 @@
 //! (protocol/programs.md 5.9). No unescaped tail or quoted copy is kept.
 //! An opted-in capture is the queued Prompt's separately priced owned payload;
 //! it moves into the measure without another text copy.
+//! A restored activation also sends its current system text (5.8), through
+//! the same escaped-byte ceiling and optional observation as the user tail.
 
 use super::calls;
 use alloc::boxed::Box;
@@ -37,8 +39,60 @@ pub(super) fn render_observed(
     prefix: &[u8],
     capture: bool,
 ) -> Option<Rendered> {
+    render_input(prompt, ledger, limits, maximum, prefix, capture, false)
+}
+
+/// Refresh the restored activation's instructions and brief before its tail.
+pub(super) fn render_activation(
+    prompt: &mut llm::Prompt,
+    ledger: &List<calls::Call>,
+    limits: &protocol::Limits,
+    maximum: u32,
+    prefix: &[u8],
+    capture: bool,
+) -> Option<Rendered> {
+    render_input(prompt, ledger, limits, maximum, prefix, capture, true)
+}
+
+fn render_input(
+    prompt: &mut llm::Prompt,
+    ledger: &List<calls::Call>,
+    limits: &protocol::Limits,
+    maximum: u32,
+    prefix: &[u8],
+    capture: bool,
+    activation: bool,
+) -> Option<Rendered> {
     let from = after_assistant(&prompt.messages)?;
     let mut messages = core::mem::replace(&mut prompt.messages, Box::new([]));
+    render_results(&mut messages, prompt, from, limits, maximum)?;
+    let mut measured = Output { length: 0, maximum, bytes: None, text_length: 0, capture: None };
+    if message(&mut measured, &messages, prompt, ledger, limits, prefix, activation).is_none() {
+        prompt.messages = messages;
+        return None;
+    }
+    let mut output = Output {
+        length: 0,
+        maximum: measured.length,
+        bytes: Some(List::with_capacity(measured.length)),
+        text_length: 0,
+        capture: if capture { Some(List::with_capacity(measured.text_length)) } else { None },
+    };
+    message(&mut output, &messages, prompt, ledger, limits, prefix, activation)?;
+    let text = match output.capture {
+        Some(text) => Some(text.into_boxed()),
+        None => None,
+    };
+    Some(Rendered { line: output.bytes?.into_boxed(), text })
+}
+
+fn render_results(
+    messages: &mut [llm::Message],
+    prompt: &llm::Prompt,
+    from: usize,
+    limits: &protocol::Limits,
+    maximum: u32,
+) -> Option<()> {
     let mut rendered = 0_u32;
     for message in messages.iter_mut().skip(from) {
         for block in &mut message.content {
@@ -69,67 +123,31 @@ pub(super) fn render_observed(
             }
         }
     }
-    let mut measured = Output { length: 0, maximum, bytes: None, text_length: 0, capture: None };
-    if message(&mut measured, &messages, prompt, from, ledger, limits, prefix).is_none() {
-        prompt.messages = messages;
-        return None;
-    }
-    let mut output = Output {
-        length: 0,
-        maximum: measured.length,
-        bytes: Some(List::with_capacity(measured.length)),
-        text_length: 0,
-        capture: if capture { Some(List::with_capacity(measured.text_length)) } else { None },
-    };
-    message(&mut output, &messages, prompt, from, ledger, limits, prefix)?;
-    prompt.messages = Box::new([]);
-    let text = match output.capture {
-        Some(text) => Some(text.into_boxed()),
-        None => None,
-    };
-    Some(Rendered { line: output.bytes?.into_boxed(), text })
+    Some(())
 }
 
 fn message(
     output: &mut Output,
     messages: &[llm::Message],
     prompt: &llm::Prompt,
-    from: usize,
     ledger: &List<calls::Call>,
     limits: &protocol::Limits,
     prefix: &[u8],
+    activation: bool,
 ) -> Option<()> {
+    let from = after_assistant(messages)?;
     output.put(OPEN)?;
     output.text(prefix)?;
+    if activation && !prompt.system.is_empty() {
+        output.text(b"Current activation instructions and brief (supersede earlier versions; keep the conversation history):\n\n")?;
+        output.text(&prompt.system)?;
+        output.text(b"\n\nEnd of current activation instructions and brief.\n\n")?;
+    }
     for message in messages.iter().skip(from) {
         for block in &message.content {
             match block {
-                llm::Block::ToolResult { id, result } => {
-                    let mut name = id.as_ref();
-                    for call in ledger {
-                        if call.id == *id {
-                            name = &call.name;
-                        }
-                    }
-                    output.text(b"result of ")?;
-                    output.text(name)?;
-                    output.text(b": ")?;
-                    match result {
-                        llm::Returned::Text { text, .. } => {
-                            if text.len() > usize::try_from(limits.rendered_result).ok()? {
-                                return None;
-                            }
-                            output.text(text)?;
-                        }
-                        llm::Returned::Owned { .. }
-                        | llm::Returned::Served { .. }
-                        | llm::Returned::Withdrawn
-                        | llm::Returned::Invalid { .. }
-                        | llm::Returned::NotRun { .. } => match calls::render_unserved(result, prompt, limits)? {
-                            crate::mcp::Answer::Text(text) | crate::mcp::Answer::Error(text) => output.text(&text)?,
-                        },
-                    }
-                    output.text(b"\n")?;
+                llm::Block::ToolResult { id, result: answer } => {
+                    result(output, id, answer, prompt, ledger, limits)?;
                 }
                 llm::Block::Text { text, .. } => {
                     output.text(text)?;
@@ -140,6 +158,42 @@ fn message(
         }
     }
     output.put(CLOSE)
+}
+
+fn result(
+    output: &mut Output,
+    id: &[u8],
+    result: &llm::Returned,
+    prompt: &llm::Prompt,
+    ledger: &List<calls::Call>,
+    limits: &protocol::Limits,
+) -> Option<()> {
+    let mut name = id;
+    for call in ledger {
+        if call.id.as_ref() == id {
+            name = &call.name;
+        }
+    }
+    output.text(b"result of ")?;
+    output.text(name)?;
+    output.text(b": ")?;
+    match result {
+        llm::Returned::Text { text, .. } => {
+            if text.len() > usize::try_from(limits.rendered_result).ok()? {
+                return None;
+            }
+            output.text(text)?;
+        }
+        llm::Returned::Owned { .. }
+        | llm::Returned::Served { .. }
+        | llm::Returned::Withdrawn
+        | llm::Returned::Invalid { .. }
+        | llm::Returned::NotRun { .. } => match calls::render_unserved(result, prompt, limits)? {
+            crate::mcp::Answer::Text(text) | crate::mcp::Answer::Error(text) => output.text(&text)?,
+        },
+    }
+    output.text(b"\n")?;
+    Some(())
 }
 
 struct Output {

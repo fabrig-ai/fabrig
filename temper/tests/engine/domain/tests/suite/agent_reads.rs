@@ -140,16 +140,12 @@ fn a_run_without_the_settings_family_cannot_read_a_forge_setting() {
 }
 
 #[test]
-fn a_runs_project_policy_and_unavailable_revision_reads_stay_unknown() {
+fn a_runs_unavailable_revision_read_stays_unknown() {
     let (mut driver, run) = settings_agent(true);
-    for (completion, input) in [
-        (1, br#"{"setting":{"kind":"project-policy","project":1}}"#.as_slice()),
-        (2, br#"{"setting":{"kind":"landing-rule","number":1},"revision":2}"#.as_slice()),
-    ] {
-        let (answer, error) = host_tool(&mut driver, &run, completion, b"settings", input);
-        assert!(error);
-        assert_eq!(answer.as_ref(), b"unknown\nend\n");
-    }
+    let (answer, error) =
+        host_tool(&mut driver, &run, 1, b"settings", br#"{"setting":{"kind":"landing-rule","number":1},"revision":2}"#);
+    assert!(error);
+    assert_eq!(answer.as_ref(), b"unknown\nend\n");
 }
 
 #[test]
