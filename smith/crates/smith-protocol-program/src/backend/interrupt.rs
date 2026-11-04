@@ -3,6 +3,7 @@
 //! A result may precede the acknowledgement; neither consumes the other's data.
 //! `prepare`, `offer`, `send` and `acknowledge` own the wire transitions.
 
+use crate::backend::Below;
 use alloc::boxed::Box;
 use core::mem;
 use skein_io as io;
@@ -43,15 +44,15 @@ impl Interrupt {
         }
     }
 
-    pub fn restart(&mut self, below: &mut Queue<io::Request>) {
+    pub fn restart(&mut self, below: &mut Queue<Below>) {
         self.clear(0, below);
     }
 
-    pub fn forget(&mut self, below: &mut Queue<io::Request>) {
+    pub fn forget(&mut self, below: &mut Queue<Below>) {
         self.clear(self.sequence(), below);
     }
 
-    fn clear(&mut self, sequence: u64, below: &mut Queue<io::Request>) {
+    fn clear(&mut self, sequence: u64, below: &mut Queue<Below>) {
         let state = mem::replace(&mut self.state, State::Idle { sequence: 0 });
         self.state = match state {
             State::Idle { .. }
@@ -67,7 +68,7 @@ impl Interrupt {
         follow(self, below);
     }
 
-    pub fn prepare(&mut self, maximum: u32, below: &mut Queue<io::Request>) -> Option<()> {
+    pub fn prepare(&mut self, maximum: u32, below: &mut Queue<Below>) -> Option<()> {
         let sequence = self.sequence().checked_add(1)?;
         let line = records::interrupt_request(sequence, maximum)?;
         let state = mem::replace(&mut self.state, State::Idle { sequence: 0 });
@@ -86,7 +87,7 @@ impl Interrupt {
         Some(())
     }
 
-    pub fn offer(&mut self, pipe: Option<Token>, below: &mut Queue<io::Request>) {
+    pub fn offer(&mut self, pipe: Option<Token>, below: &mut Queue<Below>) {
         let state = mem::replace(&mut self.state, State::Idle { sequence: 0 });
         self.state = match state {
             State::Prepared { sequence, line } => {
@@ -106,7 +107,7 @@ impl Interrupt {
         follow(self, below);
     }
 
-    pub fn send(&mut self, pipe: Token, below: &mut Queue<io::Request>) {
+    pub fn send(&mut self, pipe: Token, below: &mut Queue<Below>) {
         let state = mem::replace(&mut self.state, State::Idle { sequence: 0 });
         self.state = match state {
             State::Prepared { sequence, line } | State::Offered { sequence, line } => sent(sequence, line, pipe, below),
@@ -122,7 +123,7 @@ impl Interrupt {
         follow(self, below);
     }
 
-    pub fn acknowledge(&mut self, id: Option<&[u8]>, below: &mut Queue<io::Request>) -> bool {
+    pub fn acknowledge(&mut self, id: Option<&[u8]>, below: &mut Queue<Below>) -> bool {
         let sequence = match self.state {
             State::Prepared { sequence, .. } | State::Offered { sequence, .. } | State::Sent { sequence } => sequence,
             State::Idle { .. } | State::PreparedAcknowledged { .. } | State::OfferedAcknowledged { .. } => {
@@ -155,27 +156,30 @@ fn prepared(sequence: u64, line: Box<[u8]>) -> State {
     State::Prepared { sequence, line }
 }
 
-fn sent(sequence: u64, line: Box<[u8]>, pipe: Token, below: &mut Queue<io::Request>) -> State {
+fn sent(sequence: u64, line: Box<[u8]>, pipe: Token, below: &mut Queue<Below>) -> State {
     send(line, pipe, below);
     State::Sent { sequence }
 }
 
-fn send(bytes: Box<[u8]>, pipe: Token, below: &mut Queue<io::Request>) {
-    below.push(io::Request::Output { stream: pipe, down: stream::OutputDown::Send { right: INTERRUPT_RIGHT, bytes } });
+fn send(bytes: Box<[u8]>, pipe: Token, below: &mut Queue<Below>) {
+    below.push(Below::Io(io::Request::Output {
+        stream: pipe,
+        down: stream::OutputDown::Send { right: INTERRUPT_RIGHT, bytes },
+    }));
 }
 
-fn offer(pipe: Token, line: &[u8], below: &mut Queue<io::Request>) {
-    below.push(io::Request::Output {
+fn offer(pipe: Token, line: &[u8], below: &mut Queue<Below>) {
+    below.push(Below::Io(io::Request::Output {
         stream: pipe,
         down: stream::OutputDown::Room {
             right: INTERRUPT_RIGHT,
             bytes: u32::try_from(line.len()).expect("bounded interrupt line"),
         },
-    });
+    }));
 }
 
 /// An offered line requests room once and stays owned until its grant arrives.
-fn follow(interrupt: &mut Interrupt, below: &mut Queue<io::Request>) {
+fn follow(interrupt: &mut Interrupt, below: &mut Queue<Below>) {
     let state = mem::replace(&mut interrupt.state, State::Idle { sequence: 0 });
     interrupt.state = match state {
         State::Offering { sequence, line, pipe } => {

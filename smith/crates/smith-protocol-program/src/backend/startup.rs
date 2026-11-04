@@ -6,6 +6,7 @@
 //! and `switch` advance the invocation. `close` cancels the check, and
 //! `close_server` closes MCP once the owner has settled its program child.
 
+use crate::backend::Below;
 use crate::{Command, mcp};
 use alloc::boxed::Box;
 use core::mem;
@@ -109,20 +110,30 @@ impl Startup {
         check || server
     }
 
-    pub fn io_event(&mut self, now: Time, event: io::Event, below: &mut Queue<io::Request>) -> Option<io::Event> {
+    pub fn io_event(
+        &mut self,
+        now: Time,
+        event: io::Event,
+        above: &mut Queue<mcp::Up>,
+        below: &mut Queue<Below>,
+    ) -> Option<io::Event> {
         let owner = event.owner().expect("startup has no signal events");
         if let Some(check) = self.check_mut()
             && check.owns(owner)
         {
-            check.from_io(event, below);
-            follow(self, below);
+            let mut requests = Queue::uncapped();
+            check.from_io(event, &mut requests);
+            for _ in 0..requests.len() {
+                below.push(Below::Io(requests.pop().expect("command request")));
+            }
+            follow(self, above, below);
             return None;
         }
         if let Some(server) = self.server_mut()
             && server.owns(owner)
         {
-            server.from_io(now, event, below);
-            follow(self, below);
+            server.from_io(now, event, above, below);
+            follow(self, above, below);
             return None;
         }
         Some(event)
@@ -139,7 +150,7 @@ impl Startup {
         }
     }
 
-    pub fn checking(&mut self, check: Command, below: &mut Queue<io::Request>) {
+    pub fn checking(&mut self, check: Command, above: &mut Queue<mcp::Up>, below: &mut Queue<Below>) {
         let state = mem::replace(&mut self.state, State::Ended);
         self.state = match state {
             State::Idle => State::Checking(check),
@@ -152,10 +163,10 @@ impl Startup {
             | State::Closing(_)
             | State::Ended => unreachable!("check starts once"),
         };
-        follow(self, below);
+        follow(self, above, below);
     }
 
-    pub fn prepare(&mut self, below: &mut Queue<io::Request>) {
+    pub fn prepare(&mut self, above: &mut Queue<mcp::Up>, below: &mut Queue<Below>) {
         let state = mem::replace(&mut self.state, State::Ended);
         self.state = match state {
             State::Idle => prepared(),
@@ -168,10 +179,10 @@ impl Startup {
             | State::Closing(_)
             | State::Ended) => state,
         };
-        follow(self, below);
+        follow(self, above, below);
     }
 
-    pub fn checked(&mut self, below: &mut Queue<io::Request>) {
+    pub fn checked(&mut self, above: &mut Queue<mcp::Up>, below: &mut Queue<Below>) {
         let state = mem::replace(&mut self.state, State::Ended);
         self.state = match state {
             State::Checking(_) => prepared(),
@@ -185,10 +196,10 @@ impl Startup {
             | State::Closing(Resources::Empty | Resources::Invocation(_))
             | State::Ended) => state,
         };
-        follow(self, below);
+        follow(self, above, below);
     }
 
-    pub fn launch(&mut self, until: Time, below: &mut Queue<io::Request>) {
+    pub fn launch(&mut self, until: Time, above: &mut Queue<mcp::Up>, below: &mut Queue<Below>) {
         let state = mem::replace(&mut self.state, State::Ended);
         self.state = match state {
             State::Preparing(invocation) | State::Starting { invocation, .. } => State::Starting { invocation, until },
@@ -200,10 +211,10 @@ impl Startup {
             | State::Closing(_)
             | State::Ended => unreachable!("launch follows invocation preparation"),
         };
-        follow(self, below);
+        follow(self, above, below);
     }
 
-    pub fn initialized(&mut self, below: &mut Queue<io::Request>) {
+    pub fn initialized(&mut self, above: &mut Queue<mcp::Up>, below: &mut Queue<Below>) {
         let state = mem::replace(&mut self.state, State::Ended);
         self.state = match state {
             State::Preparing(invocation) | State::Starting { invocation, .. } => State::Running(invocation),
@@ -215,10 +226,10 @@ impl Startup {
             | State::Closing(_)
             | State::Ended) => state,
         };
-        follow(self, below);
+        follow(self, above, below);
     }
 
-    pub fn switch(&mut self, below: &mut Queue<io::Request>) {
+    pub fn switch(&mut self, above: &mut Queue<mcp::Up>, below: &mut Queue<Below>) {
         let state = mem::replace(&mut self.state, State::Ended);
         self.state = match state {
             State::Preparing(invocation)
@@ -229,7 +240,7 @@ impl Startup {
             State::Checking(_) => unreachable!("window replacement follows the check terminal"),
             state @ (State::Switching(_) | State::Closing(_) | State::Ended) => state,
         };
-        follow(self, below);
+        follow(self, above, below);
     }
 
     pub fn switching(&self) -> bool {
@@ -246,7 +257,7 @@ impl Startup {
         }
     }
 
-    pub fn reset(&mut self, below: &mut Queue<io::Request>) {
+    pub fn reset(&mut self, above: &mut Queue<mcp::Up>, below: &mut Queue<Below>) {
         let state = mem::replace(&mut self.state, State::Ended);
         self.state = match state {
             State::Switching(invocation) => released(invocation, State::Idle),
@@ -259,10 +270,10 @@ impl Startup {
             | State::Closing(_)
             | State::Ended => unreachable!("reset follows a settled window switch"),
         };
-        follow(self, below);
+        follow(self, above, below);
     }
 
-    pub fn close(&mut self, below: &mut Queue<io::Request>) {
+    pub fn close(&mut self, above: &mut Queue<mcp::Up>, below: &mut Queue<Below>) {
         let state = mem::replace(&mut self.state, State::Ended);
         self.state = match state {
             State::Idle => State::Closing(Resources::Empty),
@@ -274,10 +285,10 @@ impl Startup {
             | State::Switching(invocation) => State::Closing(Resources::Invocation(invocation)),
             state @ (State::Closing(_) | State::Ended) => state,
         };
-        follow(self, below);
+        follow(self, above, below);
     }
 
-    pub fn ended(&mut self, below: &mut Queue<io::Request>) {
+    pub fn ended(&mut self, above: &mut Queue<mcp::Up>, below: &mut Queue<Below>) {
         let state = mem::replace(&mut self.state, State::Ended);
         self.state = match state {
             State::Closing(Resources::Empty) => State::Ended,
@@ -294,7 +305,7 @@ impl Startup {
             | State::Switching(_)
             | State::Ended => unreachable!("cleanup follows close"),
         };
-        follow(self, below);
+        follow(self, above, below);
     }
 
     pub fn check(&self) -> Option<&Command> {
@@ -359,11 +370,11 @@ impl Startup {
         }
     }
 
-    pub fn window(&mut self, window: Window, below: &mut Queue<io::Request>) {
-        self.change(Change::Window(window), below);
+    pub fn window(&mut self, window: Window, above: &mut Queue<mcp::Up>, below: &mut Queue<Below>) {
+        self.change(Change::Window(window), above, below);
     }
 
-    fn change(&mut self, change: Change, below: &mut Queue<io::Request>) {
+    fn change(&mut self, change: Change, above: &mut Queue<mcp::Up>, below: &mut Queue<Below>) {
         let state = mem::replace(&mut self.state, State::Ended);
         self.state = match state {
             State::Preparing(invocation) => State::Preparing(changed(invocation, change)),
@@ -384,7 +395,7 @@ impl Startup {
                 Change::Window(_) | Change::Server(_) => unreachable!("invocation is prepared before its resources"),
             },
         };
-        follow(self, below);
+        follow(self, above, below);
     }
 
     pub fn running_session(&self) -> Option<[u8; 16]> {
@@ -418,17 +429,17 @@ impl Startup {
         }
     }
 
-    pub fn remember(&mut self, below: &mut Queue<io::Request>) {
+    pub fn remember(&mut self, above: &mut Queue<mcp::Up>, below: &mut Queue<Below>) {
         self.recorded = self.running_session();
-        follow(self, below);
+        follow(self, above, below);
     }
 
     pub fn recorded(&self) -> Option<[u8; 16]> {
         self.recorded
     }
 
-    pub fn install_server(&mut self, server: mcp::Server, below: &mut Queue<io::Request>) {
-        self.change(Change::Server(Box::new(server)), below);
+    pub fn install_server(&mut self, server: mcp::Server, above: &mut Queue<mcp::Up>, below: &mut Queue<Below>) {
+        self.change(Change::Server(Box::new(server)), above, below);
     }
 
     pub fn server(&self) -> Option<&mcp::Server> {
@@ -465,7 +476,7 @@ impl Startup {
         }
     }
 
-    pub fn relay_ended(&mut self, until: Option<Time>, below: &mut Queue<io::Request>) {
+    pub fn relay_ended(&mut self, until: Option<Time>, above: &mut Queue<mcp::Up>, below: &mut Queue<Below>) {
         let state = mem::replace(&mut self.state, State::Ended);
         self.state = match state {
             State::Running(invocation) => match until {
@@ -486,11 +497,11 @@ impl Startup {
             | State::Closing(Resources::Empty | Resources::Check(_) | Resources::CancelCheck(_))
             | State::Ended) => state,
         };
-        follow(self, below);
+        follow(self, above, below);
     }
 
-    pub fn close_server(&mut self, below: &mut Queue<io::Request>) {
-        self.change(Change::Close, below);
+    pub fn close_server(&mut self, above: &mut Queue<mcp::Up>, below: &mut Queue<Below>) {
+        self.change(Change::Close, above, below);
     }
 
     pub fn startup_deadline(&self) -> Option<Time> {
@@ -522,7 +533,7 @@ impl Startup {
     }
 
     #[cfg(test)]
-    pub fn preparing_fixture(&mut self, below: &mut Queue<io::Request>) {
+    pub fn preparing_fixture(&mut self, above: &mut Queue<mcp::Up>, below: &mut Queue<Below>) {
         let state = mem::replace(&mut self.state, State::Ended);
         self.state = match state {
             State::Idle | State::Checking(_) => prepared(),
@@ -533,38 +544,46 @@ impl Startup {
             | State::Preparing(invocation) => State::Preparing(invocation),
             State::Closing(_) | State::Ended => unreachable!("fixture prepares an open invocation"),
         };
-        follow(self, below);
+        follow(self, above, below);
     }
 
-    pub fn fire(&mut self, now: Time, below: &mut Queue<io::Request>) {
+    pub fn fire(&mut self, now: Time, above: &mut Queue<mcp::Up>, below: &mut Queue<Below>) {
         if let Some(check) = self.check_mut() {
-            check.fire(now, below);
+            let mut requests = Queue::uncapped();
+            check.fire(now, &mut requests);
+            for _ in 0..requests.len() {
+                below.push(Below::Io(requests.pop().expect("command request")));
+            }
         }
         if let Some(server) = self.server_mut() {
-            server.fire(now, below);
+            server.fire(now, above, below);
         }
-        follow(self, below);
+        follow(self, above, below);
     }
 }
 
-fn follow(startup: &mut Startup, below: &mut Queue<io::Request>) {
+fn follow(startup: &mut Startup, above: &mut Queue<mcp::Up>, below: &mut Queue<Below>) {
     let state = mem::replace(&mut startup.state, State::Ended);
     startup.state = match state {
         State::Closing(Resources::CancelCheck(mut check)) => {
-            check.cancel(below);
+            let mut requests = Queue::uncapped();
+            check.cancel(&mut requests);
+            for _ in 0..requests.len() {
+                below.push(Below::Io(requests.pop().expect("command request")));
+            }
             State::Closing(Resources::Check(check))
         }
-        State::Preparing(invocation) => State::Preparing(follow_invocation(invocation, below)),
+        State::Preparing(invocation) => State::Preparing(follow_invocation(invocation, above, below)),
         State::Starting { invocation, until } => {
-            State::Starting { invocation: follow_invocation(invocation, below), until }
+            State::Starting { invocation: follow_invocation(invocation, above, below), until }
         }
-        State::Running(invocation) => State::Running(follow_invocation(invocation, below)),
+        State::Running(invocation) => State::Running(follow_invocation(invocation, above, below)),
         State::RelayEnded { invocation, until } => {
-            State::RelayEnded { invocation: follow_invocation(invocation, below), until }
+            State::RelayEnded { invocation: follow_invocation(invocation, above, below), until }
         }
-        State::Switching(invocation) => State::Switching(follow_invocation(invocation, below)),
+        State::Switching(invocation) => State::Switching(follow_invocation(invocation, above, below)),
         State::Closing(Resources::Invocation(invocation)) => {
-            State::Closing(Resources::Invocation(follow_invocation(invocation, below)))
+            State::Closing(Resources::Invocation(follow_invocation(invocation, above, below)))
         }
         state @ (State::Idle
         | State::Checking(_)
@@ -573,11 +592,11 @@ fn follow(startup: &mut Startup, below: &mut Queue<io::Request>) {
     };
 }
 
-fn follow_invocation(mut invocation: Invocation, below: &mut Queue<io::Request>) -> Invocation {
+fn follow_invocation(mut invocation: Invocation, above: &mut Queue<mcp::Up>, below: &mut Queue<Below>) -> Invocation {
     let server = mem::replace(&mut invocation.server, Server::Absent);
     invocation.server = match server {
         Server::Close(mut server) => {
-            server.close(below);
+            server.close(above, below);
             Server::Closing(server)
         }
         server @ (Server::Absent | Server::Live(_) | Server::Closing(_) | Server::Ended(_)) => server,

@@ -315,6 +315,7 @@ fn a_retry_discards_the_unfinished_message() {
 #[test]
 fn held_call_user_text_is_captured() {
     for with_text in [false, true] {
+        let mut below = Queue::with_capacity(64);
         let mut backend = active(true);
         let mut held = reply_tests::call(b"held");
         held.name = b"foo".as_slice().into();
@@ -332,11 +333,12 @@ fn held_call_user_text_is_captured() {
                     .into(),
                 ),
             },
-            &mut backend.io,
+            &mut backend.server_up,
+            &mut below,
         );
-        let call = server.up().expect("MCP call");
+        let call = backend.server_up.pop().expect("MCP call");
         backend.calls.push(call).expect("held call room");
-        backend.match_calls();
+        backend.match_calls(&mut below);
         let mut next = request(&backend);
         let FromDomain::Complete { prompt, observation, .. } = &mut next else { panic!("complete") };
         *observation = Some(Observation { first: false, messages: 2 });
@@ -346,13 +348,8 @@ fn held_call_user_text_is_captured() {
             content.push(llm::Block::Text { text: b"new user text".as_slice().into(), replay: None });
         }
         prompt.messages = Box::new([llm::Message { role: llm::Role::User, content: content.into_boxed_slice() }]);
-        backend.resume(
-            &env(0),
-            Complete::from_request(next),
-            &mut Queue::with_capacity(32),
-            &mut Queue::with_capacity(64),
-        );
-        let reply = fixtures::server_reply(&mut backend);
+        backend.resume(&env(0), Complete::from_request(next), &mut Queue::with_capacity(32), &mut below);
+        let reply = fixtures::server_reply(&mut backend, &mut below);
         let received = reply["result"]["content"][0]["text"].as_str().expect("received reply text");
         assert_eq!(received, if with_text { "done\nnew user text" } else { "done" });
         backend.flush_prompt_measure(Time::ZERO);

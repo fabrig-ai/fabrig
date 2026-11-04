@@ -51,15 +51,15 @@ impl Backend {
         self.current.retain(request, up);
         let mut sent = resumed.observed;
         self.completion_deadline(env, true, up);
-        self.answer_calls();
-        self.match_calls();
+        self.answer_calls(below);
+        self.match_calls(below);
         // A later API message may already be in flight. Only a completed
         // program turn needs the domain's new text (message or nudge) as a user line.
         if let Some(line) = resumed.line {
             if self.turns.result && self.turns.ready.is_empty() && self.turns.message.is_none() {
                 self.outgoing = Some(line);
                 self.turns.restart();
-                self.send_input();
+                self.send_input(below);
             } else {
                 sent = None;
             }
@@ -84,7 +84,7 @@ impl Backend {
         };
         let kind = json::text_in(&document, json::field(&document, 0, b"type"));
         if kind == Some(b"control_response") {
-            if !self.control_response(&document) {
+            if !self.control_response(&document, below) {
                 self.fail(env, llm::Failure::Invalid, b"smith: the program refused the interrupt", up, below);
             }
             return;
@@ -195,7 +195,7 @@ impl Backend {
             self.fail(env, llm::Failure::Invalid, b"smith: program call ledger is full", up, below);
             return;
         }
-        self.match_calls();
+        self.match_calls(below);
         self.completion_deadline(env, false, up);
         self.deliver(env, up, below);
         self.continue_ended(env, up, below);
@@ -227,7 +227,7 @@ impl Backend {
             self.prompt_measure(env.now, Some(b"Continue with the tool results."));
             self.turns.restart();
             self.completion_deadline(env, true, up);
-            self.send_input();
+            self.send_input(below);
         }
     }
 
@@ -335,7 +335,7 @@ impl Backend {
             self.fail(env, llm::Failure::Invalid, b"smith: program completion exceeds its receiving bound", up, below);
             return;
         }
-        self.match_calls();
+        self.match_calls(below);
         self.stopping.release_alarm();
         if text > 0 {
             up.push(ToDomain::Text { owner, bytes: text });
@@ -346,7 +346,7 @@ impl Backend {
         self.current.settle(super::current::Terminal::Completed { completion }, up);
         self.flush_builtins(up);
         if self.compaction() {
-            self.startup.switch(&mut self.io);
+            self.startup.switch(&mut self.server_up, below);
             self.stop(env, false, false, up, below);
         }
     }
@@ -368,7 +368,7 @@ impl Backend {
         }
     }
 
-    pub(super) fn match_calls(&mut self) {
+    pub(super) fn match_calls(&mut self, below: &mut Queue<Below>) {
         if self.native.is_some() {
             return;
         }
@@ -380,7 +380,7 @@ impl Backend {
                         self.startup.server_mut().expect("stopped MCP call").answer(
                             call,
                             mcp::Answer::Error(super::stop::INTERRUPTED.into()),
-                            &mut self.io,
+                            below,
                         );
                         continue;
                     }
@@ -398,17 +398,17 @@ impl Backend {
                         None => self.startup.server_mut().expect("MCP call").answer(
                             call,
                             mcp::Answer::Error(b"smith: this call was not in the model's message".as_slice().into()),
-                            &mut self.io,
+                            below,
                         ),
                     }
                 }
-                prompt @ mcp::Up::Prompt { .. } => self.permission(prompt),
+                prompt @ mcp::Up::Prompt { .. } => self.permission(prompt, below),
                 mcp::Up::Listening { .. } | mcp::Up::Connected | mcp::Up::Ended(_) => {
                     unreachable!("call queue")
                 }
             }
         }
-        self.answer_calls();
+        self.answer_calls(below);
     }
 
     pub(super) fn completion_active(&self) -> bool {
@@ -430,7 +430,7 @@ impl Backend {
         }
     }
 
-    pub(super) fn answer_calls(&mut self) {
+    pub(super) fn answer_calls(&mut self, below: &mut Queue<Below>) {
         if self.startup.phase() == State::Ending || self.stopping.waiting() {
             return;
         }
@@ -440,7 +440,7 @@ impl Backend {
                 && let Some(rpc) = call.rpc
                 && let Some(answer) = call.answer.take()
             {
-                self.startup.server_mut().expect("MCP reply").answer(rpc, answer, &mut self.io);
+                self.startup.server_mut().expect("MCP reply").answer(rpc, answer, below);
                 call.answered = true;
             }
         }

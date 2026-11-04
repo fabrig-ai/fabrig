@@ -120,13 +120,13 @@ pub(super) fn uuid(id: [u8; 16]) -> [u8; 36] {
 }
 
 impl Backend {
-    pub(super) fn remember_session(&mut self) {
+    pub(super) fn remember_session(&mut self, below: &mut Queue<Below>) {
         if self.startup.phase() == State::Running
             && !self.startup.switching()
             && !self.compaction()
             && self.outgoing.is_none()
         {
-            self.startup.remember(&mut self.io);
+            self.startup.remember(&mut self.server_up, below);
         }
     }
 
@@ -150,7 +150,7 @@ impl Backend {
         }
         let active = self.active_turn();
         let stopping = self.startup.switching();
-        self.startup.switch(&mut self.io);
+        self.startup.switch(&mut self.server_up, below);
         self.current.claim(owner, up);
         self.current.retain(request, up);
         self.outgoing = None;
@@ -173,10 +173,10 @@ impl Backend {
             return;
         }
         if !self.startup.server_ended() {
-            self.startup.close_server(&mut self.io);
+            self.startup.close_server(&mut self.server_up, below);
             return;
         }
-        self.startup.reset(&mut self.io);
+        self.startup.reset(&mut self.server_up, below);
         self.stopping.reset();
         self.process.reset();
         self.stdout_demanding = false;
@@ -187,12 +187,12 @@ impl Backend {
         self.stderr = super::Tail::with_capacity(self.settings.receiving.max_failure_bytes);
         self.stderr_wrapped = false;
         self.written = 0;
-        self.interrupt.forget(&mut self.io);
+        self.interrupt.forget(below);
         self.ledger = List::with_capacity(self.settings.ledger_slots().expect("ledger"));
         self.turns = turns::Turns::new(&self.settings.receiving, self.settings.adapter.client.answer);
         self.permitted_message = 1;
         if self.current.owner().is_some() {
-            self.startup.prepare(&mut self.io);
+            self.startup.prepare(&mut self.server_up, below);
             self.prepare_invocation(env, up, below);
         } else {
             self.current.clear(up);
@@ -208,7 +208,7 @@ impl Backend {
         let Some(Complete { prompt, .. }) = self.current.request() else { unreachable!("startup request") };
         if compact::is_compaction(prompt) {
             let session = self.compaction_id();
-            self.startup.window(super::startup::Window::Compaction(session), &mut self.io);
+            self.startup.window(super::startup::Window::Compaction(session), &mut self.server_up, below);
             self.store_instructions(env.now, 0, below);
         } else {
             let window = match opening(prompt, None, self.startup.recorded()) {
@@ -216,10 +216,10 @@ impl Backend {
                 Opening::Resume { id } => super::startup::Window::Resume(id),
                 Opening::Running => unreachable!("opening a process"),
             };
-            self.startup.window(window, &mut self.io);
+            self.startup.window(window, &mut self.server_up, below);
             let entropy: [u8; 32] = self.names.mcp.expose().try_into().expect("MCP entropy");
-            match crate::mcp::Server::new(self.first, 0, &entropy, self.tools(), self.settings.mcp, &mut self.io) {
-                Ok(server) => self.startup.install_server(server, &mut self.io),
+            match crate::mcp::Server::new(self.first, 0, &entropy, self.tools(), self.settings.mcp, below) {
+                Ok(server) => self.startup.install_server(server, &mut self.server_up, below),
                 Err(crate::mcp::Refused::TooLarge) => self.fail(
                     env,
                     llm::Failure::Program { exit: None },
