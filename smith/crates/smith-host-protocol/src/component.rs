@@ -348,7 +348,7 @@ impl Component {
                     match smith_channel::peer_terms_gap(&self.schema, Role::Initiator, version, &terms) {
                         Some(kind) => {
                             self.machine.down(
-                                Request::Refuse { reason: LIMITS, text: kind_text(kind) },
+                                Request::Refuse { reason: LIMITS, text: smith_channel::kind::text(kind) },
                                 &mut self.events,
                                 below,
                             );
@@ -410,23 +410,6 @@ impl Component {
     fn refuse_rules(&mut self, reason: &[u8], below: &mut Queue<Lower>) {
         self.machine.down(Request::Refuse { reason: RULES, text: Box::from(reason) }, &mut self.events, below);
     }
-}
-
-fn kind_text(kind: u16) -> Box<[u8]> {
-    let bytes = kind.to_be_bytes();
-    Box::from([
-        b'k',
-        b'i',
-        b'n',
-        b'd',
-        b' ',
-        b'0',
-        b'x',
-        skein_lib::bytes::hex_digit(bytes[0] >> 4),
-        skein_lib::bytes::hex_digit(bytes[0] & 15),
-        skein_lib::bytes::hex_digit(bytes[1] >> 4),
-        skein_lib::bytes::hex_digit(bytes[1] & 15),
-    ])
 }
 
 #[cfg(test)]

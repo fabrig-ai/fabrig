@@ -4,8 +4,19 @@
 use alloc::boxed::Box;
 
 use super::ROUNDS;
-use crate::bytes::{count, decimal, find, find_from, hex_digit, hex_value, is_utf8, utf8_prefix};
+use crate::bytes::{concat, count, decimal, find, find_from, hex_digit, hex_value, is_utf8, utf8_prefix};
 use crate::{Decimal, List, Overflow, Reader, Rng, Writer};
+
+#[test]
+fn concat_copies_parts_in_order_into_an_exact_length_box() {
+    let bytes: Box<[u8]> = concat(&[b"ab", b"", b"c"]);
+    assert_eq!(&*bytes, b"abc");
+    assert_eq!(bytes.len(), 3);
+
+    let empty: Box<[u8]> = concat(&[]);
+    assert_eq!(&*empty, b"");
+    assert_eq!(empty.len(), 0);
+}
 
 #[test]
 fn utf8_accepts_scalar_values_and_rejects_invalid_encodings() {

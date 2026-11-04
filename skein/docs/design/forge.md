@@ -674,8 +674,7 @@ root, and both dialects stand on it:
 - `decode`: `Malformed`;
 - `limits`: `Limits`, `Problem` and `check`, which takes the depth a
   dialect needs (8 for Forgejo, 10 for GitHub);
-- `plan`: an exchange's `Failure` and how a transport's end reads as
-  one;
+- `plan`: an exchange's `Failure` and the `Error` each reads as (5.4);
 - `users`: the logins' table (4.2).
 
 A dialect keeps its public name for each by re-export, and names no item
@@ -1577,6 +1576,12 @@ the suites (testing.md, section 6).
   call until the next start, which it stops (forge-connection.md,
   sections 3 and 5). Default: so; the owner could tell it apart, so a
   person is told once.
+- **What the dialects still write apart.** Their field walkers, over
+  different masks and `Want`s: 4.4 takes what depends on no forge's
+  documents, and joining the walkers is a redesign. And
+  `skein-forge-setup`'s `host/limits.rs` builds the one `Limits` in two
+  functions, `documents` and `github`. Default: the walkers stay apart;
+  the setup's two functions can become one, which nothing asks for yet.
 - **GitHub's further gaps.** Settled: its dialect is a module of
   `skein-forge`, and section 10 lists what it adds. Open:
   forge-github.md, section 15.
