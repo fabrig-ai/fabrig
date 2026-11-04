@@ -120,9 +120,12 @@ pub struct Store {
 }
 
 /// The store's life (skein/docs/foundation/programming-model.md, 5.4).
-#[expect(
-    clippy::large_enum_variant,
-    reason = "the open state owns its directory and phase inline without another allocation"
+#[cfg_attr(
+    target_pointer_width = "64",
+    expect(
+        clippy::large_enum_variant,
+        reason = "the open state owns its directory and phase inline without another allocation"
+    )
 )]
 #[derive(Debug)]
 enum State {
