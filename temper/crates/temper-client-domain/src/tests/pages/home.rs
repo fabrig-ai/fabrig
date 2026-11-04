@@ -5,7 +5,7 @@ use crate::{
     Action, Address, Domain, Event, Place, Request, forge,
     pages::{
         self, Act,
-        home::{self, Facts, Repository},
+        home::{self, Facts, Needs, Repository},
         welcome::First,
     },
 };
@@ -19,6 +19,11 @@ const CHAT: u64 = 9;
 const NAME_BYTES: u32 = 64;
 const EMPTY: u32 = 0;
 const ONE: u32 = 1;
+const NEED_GROUPS: u32 = 4;
+const INBOX_CARDS: u32 = 5;
+const INBOX_QUERIES: usize = 2;
+// Settings, two chats handles, entries and two inbox queries.
+const HOME_HANDLES: u32 = 6;
 // The ordered repository fixture holds three adoptions on its lower forge.
 const REPOSITORIES: u32 = 3;
 // Home has three independently completed steps (client/README.md, 3.5).
@@ -51,6 +56,7 @@ struct Fixture {
     live: Token,
     closed: Token,
     forges: Token,
+    inbox: Token,
 }
 fn fixture() -> Fixture {
     let mut root = crate::unlinked(&f::limits(), f::SEED);
@@ -59,6 +65,8 @@ fn fixture() -> Fixture {
     let forges = opened(&out, &forge::forges::watch(&f::limits().forge).unwrap()).unwrap();
     let out = go(&mut root, f::PROJECT);
     let settings = opened(&out, &Watchable::Jig(c::Subject::Settings)).unwrap();
+    let inbox =
+        opened(&out, &Watchable::Jig(c::Subject::Inbox { window: root.pages().inbox().unwrap().window })).unwrap();
     let mut live = None;
     let mut closed = None;
     for request in &out {
@@ -71,7 +79,7 @@ fn fixture() -> Fixture {
             }
         }
     }
-    Fixture { root, settings, live: live.unwrap(), closed: closed.unwrap(), forges }
+    Fixture { root, settings, live: live.unwrap(), closed: closed.unwrap(), forges, inbox }
 }
 fn settings(fixture: &mut Fixture, follows: c::SettingFollows) {
     let mut lines = List::with_capacity(ONE);
@@ -206,7 +214,7 @@ fn the_three_steps_count_only_what_is_left() {
         (true, Repository::Offer { first: first(), refused: None }, true, ONE_STEP),
         (true, Repository::GitHub { account: None }, true, ONE_STEP),
     ] {
-        assert_eq!(Facts { configured, repository, chat_asked }.left(), left);
+        assert_eq!(Facts { configured, repository, chat_asked, needs: Needs::Unknown }.left(), left);
     }
 }
 #[test]
@@ -360,7 +368,7 @@ fn github_uses_the_first_accepted_usable_installations_account() {
         let mut f = fixture();
         let mut github = row(FORGE);
         github.kind = w::Kind::Github;
-        github.installations = List::with_capacity(4);
+        github.installations = List::with_capacity(NEED_GROUPS);
         for (id, stray, suspended, login) in [
             (1, true, false, Some(b"stray".as_slice())),
             (2, false, true, Some(b"suspended".as_slice())),
@@ -488,5 +496,168 @@ fn playground_repository_comes_from_its_own_read() {
             forge::listed::held(&state, Some(&playground), f::PROJECT),
             forge::listed::Held::One { owner: b"playground", name: b"widget" }
         );
+    }
+}
+
+fn inbox_reads(out: &Queue<Request>) -> Box<[(Token, c::Read)]> {
+    let mut reads = List::with_capacity(out.len());
+    for request in out {
+        if let Request::Unlinked {
+            request:
+                jig_client::UnlinkedRequest::Down { down: Down::Read { read, what: jig_client::Readable::Jig(what) } },
+        } = request
+        {
+            reads.push((*read, what.clone())).unwrap();
+        }
+    }
+    reads.into_boxed()
+}
+fn inbox_page(root: &mut Domain, read: Token, rows: List<c::InboxEntry>, cut: bool) -> Queue<Request> {
+    up(
+        root,
+        Up::ReadDone {
+            read,
+            result: Readout::Jig(c::ReadResult::Value(c::ReadValue::Inbox(Box::new(c::InboxPage {
+                rows,
+                cut,
+                before: None,
+                after: None,
+                selection: None,
+            })))),
+        },
+    )
+}
+fn need_rows() -> List<c::InboxEntry> {
+    let mut rows = List::with_capacity(NEED_GROUPS);
+    for (object, group) in [
+        (f::acts::QUESTION, c::InboxGroup::Questions),
+        (c::ObjectKey::Proposal(f::acts::PROPOSAL), c::InboxGroup::Proposals),
+        (c::ObjectKey::Escalation(CHAT), c::InboxGroup::Escalations),
+        (c::ObjectKey::PersonTask(CHAT), c::InboxGroup::PersonTasks),
+    ] {
+        rows.push(f::inbox_entry(object, group, f::PROJECT, 0)).unwrap();
+    }
+    rows
+}
+#[test]
+fn home_reads_its_projects_needs_and_releases_them() {
+    for place in [Place::Address(Address::Settings { project: f::PROJECT }), Place::Missing] {
+        let mut f = fixture();
+        let inbox = f.root.pages().inbox().unwrap();
+        assert_eq!(inbox.filter, crate::address::Filter { project: Some(f::PROJECT), kind: None, goal: None });
+        let settings = f.root.pages().home().unwrap().settings;
+        let chats = f.root.pages().chats().unwrap();
+        assert_eq!(chats.live.number, settings.number + 1);
+        assert_eq!(chats.closed.number, settings.number + 2);
+        assert_eq!(inbox.entries.number, settings.number + 3);
+        up(&mut f.root, Up::Watched { watch: f.inbox, event: c::WatchEvent::Opened });
+        let out = f::inbox_entries(&mut f.root, f.inbox, List::with_capacity(EMPTY));
+        let reads = inbox_reads(&out);
+        assert_eq!(reads.len(), INBOX_QUERIES);
+        for ((_, read), group) in reads.iter().zip([c::InboxReadGroup::Needs, c::InboxReadGroup::Updates]) {
+            assert_eq!(*read, c::Read::Inbox { group, project: Some(f::PROJECT), kind: None, goal: None, after: None });
+        }
+        inbox_page(&mut f.root, reads[0].0, need_rows(), false);
+        let inbox = f.root.pages().inbox().unwrap();
+        let chats = f.root.pages().chats().unwrap();
+        let mut handles = List::with_capacity(inbox.cards.len().checked_add(HOME_HANDLES).unwrap());
+        for handle in [settings, chats.live, chats.closed, inbox.entries, inbox.queries[0], inbox.queries[1]] {
+            handles.push(handle).unwrap();
+        }
+        for card in &inbox.cards {
+            handles.push(card.handle).unwrap();
+        }
+        let mut last = settings.number;
+        for handle in &handles {
+            last = last.max(handle.number);
+        }
+        let out = event(&mut f.root, Event::Went { place });
+        assert!(f.root.pages().inbox().is_none());
+        assert!(f.root.pages().chats().is_none());
+        for handle in &handles {
+            assert!(f.root.client().document(*handle).is_none(), "released {handle:?}");
+        }
+        let mut closed = false;
+        for request in &out {
+            if let Request::Unlinked { request: jig_client::UnlinkedRequest::Down { down: Down::Close { watch } } } =
+                request
+            {
+                closed |= *watch == f.inbox;
+            }
+        }
+        assert!(closed, "the inbox watch closes");
+        go(&mut f.root, f::PROJECT);
+        assert!(f.root.pages().home().unwrap().settings.number > last, "no handle is reused");
+    }
+}
+#[test]
+fn needs_are_unknown_until_delivered_then_count_the_needs_alone() {
+    for cut in [false, true] {
+        let mut f = fixture();
+        assert_eq!(home::facts(&f.root, f::PROJECT).needs, Needs::Unknown);
+        let out = f::inbox_entries(&mut f.root, f.inbox, List::with_capacity(EMPTY));
+        assert_eq!(home::facts(&f.root, f::PROJECT).needs, Needs::Unknown, "queries still pending");
+        let reads = inbox_reads(&out);
+        let needs = inbox_page(&mut f.root, reads[0].0, need_rows(), cut);
+        assert_eq!(home::facts(&f.root, f::PROJECT).needs, Needs::Unknown, "updates and card reads pending");
+        let mut updates = List::with_capacity(ONE);
+        updates.push(f::inbox_entry(c::ObjectKey::Result(CHAT), c::InboxGroup::Results, f::PROJECT, 0)).unwrap();
+        let updates = inbox_page(&mut f.root, reads[1].0, updates, !cut);
+        let needs = inbox_reads(&needs);
+        let updates = inbox_reads(&updates);
+        let cards = needs.iter().chain(updates.iter());
+        for (read, _) in cards {
+            assert_eq!(home::facts(&f.root, f::PROJECT).needs, Needs::Unknown, "each card must answer");
+            up(&mut f.root, Up::ReadDone { read: *read, result: Readout::Limit });
+        }
+        assert_eq!(home::facts(&f.root, f::PROJECT).needs, Needs::Count { count: NEED_GROUPS, cut });
+        let inbox = f.root.pages().inbox().unwrap();
+        for (card, group) in inbox.needs().zip([
+            c::InboxGroup::Questions,
+            c::InboxGroup::Proposals,
+            c::InboxGroup::Escalations,
+            c::InboxGroup::PersonTasks,
+        ]) {
+            assert_eq!(card.group, group);
+        }
+        assert_eq!(inbox.cards.len(), INBOX_CARDS, "the update stays in Inbox");
+        assert_eq!(home::facts(&f.root, OTHER_PROJECT).needs, Needs::Unknown);
+        let out = f::inbox_entries(&mut f.root, f.inbox, List::with_capacity(EMPTY));
+        assert_eq!(home::facts(&f.root, f::PROJECT).needs, Needs::Unknown, "refresh waits again");
+        for (read, _) in inbox_reads(&out) {
+            inbox_page(&mut f.root, read, List::with_capacity(EMPTY), false);
+        }
+        assert_eq!(home::facts(&f.root, f::PROJECT).needs, Needs::Count { count: 0, cut: false });
+    }
+}
+#[test]
+fn home_hears_its_chats_and_its_inbox_alike() {
+    for chats_first in [false, true] {
+        let mut f = fixture();
+        let out = f::inbox_entries(&mut f.root, f.inbox, List::with_capacity(EMPTY));
+        let reads = inbox_reads(&out);
+        for chats in [chats_first, !chats_first] {
+            let before = pages::shown(f.root.pages());
+            if chats {
+                up(
+                    &mut f.root,
+                    Up::ReadDone {
+                        read: f.closed,
+                        result: Readout::Jig(c::ReadResult::Value(c::ReadValue::Tasks(Box::new(c::TaskPage {
+                            live: List::with_capacity(EMPTY),
+                            live_after: None,
+                            ended: c::EndedGroup::Rows { rows: chat_rows(), after: None, cut: false },
+                        })))),
+                    },
+                );
+            } else {
+                for (read, _) in &reads {
+                    inbox_page(&mut f.root, *read, List::with_capacity(EMPTY), true);
+                }
+            }
+            assert!(pages::shown(f.root.pages()) > before, "both pages redraw Home");
+        }
+        assert!(home::facts(&f.root, f::PROJECT).chat_asked);
+        assert_eq!(home::facts(&f.root, f::PROJECT).needs, Needs::Count { count: 0, cut: true });
     }
 }

@@ -9,7 +9,7 @@ use jig_client::{
     Client, Handle, Latest, Readable, Readout, Told, Watchable,
     contract::{self, Delivery, InboxGroup, InboxReadGroup, ObjectKey, Read, ReadResult, ReadValue},
 };
-use skein_lib::{List, Queue};
+use skein_lib::{List, Queue, Set};
 #[derive(Clone, Debug)]
 pub struct Card {
     pub object: ObjectKey,
@@ -32,6 +32,7 @@ pub struct Inbox {
     /// Incomplete source documents, for needs and updates respectively.
     pub cut: [bool; 2],
     previous: List<Card>,
+    pending: Set<Handle>,
     pub queries: [Handle; 2],
     pub next: u64,
     pub window: u32,
@@ -53,6 +54,7 @@ impl Inbox {
             window: limits.client.domain.rows.min((limits.client.domain.reads / 2).max(1)),
             cards: List::with_capacity(limits.client.domain.reads),
             previous: List::with_capacity(limits.client.domain.reads),
+            pending: Set::with_capacity(limits.client.domain.reads.checked_add(2).expect("inbox reads fit")),
         };
         client(
             out,
@@ -77,6 +79,7 @@ impl Inbox {
             client(out, jig_client::Event::Unwatch { handle: card.handle });
         }
         self.cut = [false; 2];
+        self.pending = Set::with_capacity(self.pending.capacity());
         self.previous.clear();
         core::mem::swap(&mut self.cards, &mut self.previous);
         for index in 0..self.previous.len() {
@@ -86,11 +89,12 @@ impl Inbox {
             }
             old.page = None;
         }
-        if self.filter.goal.is_some() {
+        if self.filter.project.is_some() || self.filter.goal.is_some() {
             for (handle, group) in self.queries.into_iter().zip([InboxReadGroup::Needs, InboxReadGroup::Updates]) {
                 if self.filter.kind.is_some() && group == InboxReadGroup::Updates {
                     continue;
                 }
+                self.pending.insert(handle).expect("inbox query reads fit");
                 client(
                     out,
                     jig_client::Event::Read {
@@ -193,6 +197,7 @@ impl Inbox {
                 break;
             }
         }
+        self.pending.insert(handle).expect("inbox card reads fit");
         client(out, jig_client::Event::Read { handle, read: Readable::Jig(read) });
     }
     pub(super) fn told(&mut self, source: &Client, told: Told, out: &mut Queue<Request>) -> bool {
@@ -202,10 +207,10 @@ impl Inbox {
             self.refresh(source, out);
             return true;
         }
-        let Told::Page { handle, page: Readout::Jig(ReadResult::Value(value)) } = told else {
-            return false;
-        };
-        if self.queries.contains(&handle) && self.filter.goal.is_some() {
+        let Told::Page { handle, page } = told else { return false };
+        let answered = self.pending.remove(&handle);
+        let Readout::Jig(ReadResult::Value(value)) = page else { return answered };
+        if self.queries.contains(&handle) && (self.filter.project.is_some() || self.filter.goal.is_some()) {
             let index = usize::from(handle == self.queries[1]);
             if let ReadValue::Inbox(page) = value {
                 *self.cut.get_mut(index).expect("query names one section") = page.cut;
@@ -231,6 +236,20 @@ impl Inbox {
             return false;
         }
         true
+    }
+    /// The needs' groups in the inbox's order (temper/docs/design/client/README.md, 3.5, Home).
+    #[expect(clippy::disallowed_methods, reason = "Home's contract exposes a filtered iterator over the inbox's cards")]
+    pub fn needs(&self) -> impl Iterator<Item = &Card> {
+        self.cards.iter().filter(|card| match card.group {
+            InboxGroup::Proposals | InboxGroup::Questions | InboxGroup::Escalations | InboxGroup::PersonTasks => true,
+            InboxGroup::Results | InboxGroup::Replies => false,
+        })
+    }
+    /// The entries have arrived and every read sent by this refresh has answered.
+    #[must_use]
+    pub fn delivered(&self, client: &Client) -> bool {
+        let Some(document) = client.document(self.entries) else { return false };
+        document.latest.is_some() && self.pending.is_empty()
     }
     #[must_use]
     pub fn results_through(&self) -> Option<u64> {
