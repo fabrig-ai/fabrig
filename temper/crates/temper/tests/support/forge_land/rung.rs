@@ -776,6 +776,10 @@ impl skein_world::Referee<super::super::Process> for TwinPeers {
 }
 
 /// Real Forgejo, runner, ctl and clock, with only the account/model replaced.
+#[expect(
+    clippy::disallowed_methods,
+    reason = "the fake peers' world serves the synchronous ctl driver on a scoped thread"
+)]
 pub fn offline_walk(root: &Path) {
     use super::super::{Process, sign_in};
     use skein_shell::{Clock, Host};
