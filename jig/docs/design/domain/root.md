@@ -496,3 +496,13 @@ application's.
   wrapping, which have one shape, are best copied and filled by agents
   (section 12), or generated from a short description, which the subset's
   rules on macros would confine to a build step.
+- **How much of a run's preparation leaves the roots.** Section 3 takes
+  `Now::Activate` and `Now::PrepareAgent` from them, which runs an
+  activation in a later decision than the one that made its task due.
+  `ops`'s and the test root's fixed answers to `BriefCorePlanned`, and
+  `ops`'s to `WorkspaceRequest`, stay, since temper's do real work there
+  (engine.md, 7.1, 9 and 17.9; section 7); removing them would need a
+  new hand-off for connectors' sections and a gather timeout in the
+  core. Default: section 3 as written, those answers staying. Whether an
+  activation may leave its decision is undecided; without that, only
+  `Now::PrepareAgent` goes.

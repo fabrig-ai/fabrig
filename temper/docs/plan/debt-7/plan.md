@@ -18,13 +18,22 @@ task names. This file grows with each release; what is here so far is what has b
    contracts. The parts' order is fixed there: each jig task moves a part into a product crate and `jig-test-service`
    adapts; each temper task deletes temper's copy. One writer each for `jig-test-service` and `temper-service`.
    - `tasks/skein-kernel-routes.md`, medium, ~30 minutes, needs nothing: `skein_io::kernel::Routes`.
-   - `tasks/jig-accounts-host.md`, high, ~75 minutes, needs the routes: `jig_protocol_accounts::host`, net at most +130.
+   - `tasks/jig-accounts-host.md`, high, ~75 minutes, needs the routes: `jig_protocol_accounts::host`, net at most +162.
    - `tasks/temper-accounts-host.md`, high, ~55 minutes, needs the last: temper's copy goes, net at most -290.
    - `tasks/jig-worker-agents.md`, high, ~60 minutes, needs `jig-accounts-host`: the new crate, net at most +300.
    - `tasks/temper-worker-agents.md`, high, ~40 minutes, needs it and `temper-accounts-host`: net at most -420.
    - `tasks/jig-workers-host.md`, high, ~60 minutes, needs `jig-worker-agents`: net at most +120.
    - `tasks/temper-workers-host.md`, high, ~50 minutes, needs it and `temper-worker-agents`: net at most -200.
-   - The clients' side is being written.
+   - `tasks/jig-server-part.md`, high, ~120 minutes, needs `jig-workers-host`: net at most +170.
+   - `tasks/temper-server-part.md`, medium, ~45 minutes, needs it and `temper-workers-host`: net at most -340.
+   - `tasks/jig-store-host.md`, high, ~100 minutes, needs `jig-server-part`: net at most +120.
+   - `tasks/temper-store-host.md`, medium, ~60 minutes, needs it and `temper-server-part`: net at most -90.
+   - `tasks/jig-clients-host.md`, high, ~90 minutes, needs `jig-store-host`: net at most +80.
+   - `tasks/temper-clients-host.md`, high, ~75 minutes, needs it and `temper-store-host`: net at most -200.
+   - `tasks/service-items.md`, medium, ~30 minutes, needs the last two: D005 and D001 deleted, or rewritten.
+
+   The service parts together are expected to end near -975 lines, and about -490 if every task only just meets its
+   cap, from the families' estimates; the survey's -1,875 assumed more moved. Each task's cap is in its spec.
 
 3. **fake-github** (`skein/docs/design/fake-forge.md, 10.6`), slice 3. `notes/fake-github.md` holds its contracts.
    - `tasks/github-fake-surface.md`, high, ~100 minutes, needs nothing: what the four faces build on, additions only.
@@ -35,7 +44,7 @@ task names. This file grows with each release; what is here so far is what has b
    - `tasks/github-joint-face.md`, high, ~90 minutes, needs `github-machine-face`: the joint world's.
    - `tasks/github-close.md`, medium, ~15 minutes, needs the five: pays D029.
 
-   Each face's task has its net-lines cap. Their sum with the surface's +520 is at most -430.
+   Each face's task has its net-lines cap. Their sum with the surface's +650 is at most -270.
 
 ## What the cut decided
 
@@ -82,12 +91,30 @@ task names. This file grows with each release; what is here so far is what has b
   `jig-protocol-engine-workers` links configuration for it, and `jig/tests/boundary` pins that: its exact list changes,
   and so does `smith_breaches` for the new crate. The survey was wrong that nothing checks which jig crates link smith.
 - **Tests stay.** Only `J/tests/program_sources.rs`' three and the evidence test move; `T/tests/workers.rs`' 26 stay.
+- **The server's `Debug` counts, an addition:** both copies print heads and cookies, and the shipped type is a
+  credential-holder in that sense. Each server task runs its browser tier once by hand, as the gate doesn't.
+- **A peer's end is `Limits::peer_end`:** `PeerEnd::Connection` in temper, `PeerEnd::Call` in jig, each as today.
+- **The store's core is `jig_protocol_store::host::Hosted`, by a field path change, not accessors.** About 266 lines
+  change by one `sed` in the two services. An accessor would touch the same lines and hide nothing, and tests push fake
+  terminals at some 60 sites, which `cfg(test)` can't reach across crates.
+- **The clients' pass stays in each service.** temper's google and provider code has its places in that order, and
+  moving it isn't worth the risk to reach a number. The bridge and the endings ship.
+- **The settings go to `jig_protocol_config::clients`, and the printed link to `jig-protocol-engine-clients-http`.** The
+  clients' crate can't read configuration, and it speaks no HTTP. The designer kept the link in `host`, as the lead's
+  table said; the lead moved it, as `README.md`, 5 says "no HTTP" of that crate.
+- **D001's bound will most likely not be reached.** The family's estimate is about 330 against the bound of 200,
+  though the survey's best is 192: the adapters each service keeps share lines by design, and the clients' pass is
+  about 150 of it. So `service-items` most likely rewrites both items, as the request allows. Nothing aims at the
+  number.
 - **D001's and D005's facts have moved.** The measure reads 1,388, not 1,369, and `Resources`' `Debug` is now hidden
   in both copies. `service-items` corrects what survives.
 
+- **A citation this plan found and left:** `jig/docs/design/domain/root.md`, 5 names
+  `tests::accounts::an_early_account_request_waits_for_the_previous_moves_dispatch`, a test `47494b7f7a` deleted.
+  `notes/service-parts.md` lists it too; there is nothing to keep. It predates this plan.
 - **D029's fixture is built once in skein, not across trees.** temper's four fixture builders stay: the item is
   skein's and they speak no HTTP. A scenario's own tables, such as the conformance's, stay its own too.
-- **D029 ends near -600 lines, not the review's -1.2k.** The faces' gross fall is about that, but the surface and the
+- **D029 ends near -450 lines, not the review's -1.2k.** The faces' gross fall is about that, but the surface and the
   fixture's literals stay in the fake.
 - **Two things change below D029's tests, which none reads:** the joint world meets rate fields and `ETag`, so
   `Answered.rate` becomes `Some` and a log poll may answer `304`; the protocol world sends real media types and
@@ -98,12 +125,19 @@ task names. This file grows with each release; what is here so far is what has b
 
 ## Critical path
 
-So far: `skein-concat`, then `smith-primitives`; `skein-startup-store`, then `smith-startup-writers`;
-`github-fake-surface`, `github-machine-face`, `github-joint-face`, `github-close`.
+`skein-kernel-routes`, `jig-accounts-host`, `jig-worker-agents`, `jig-workers-host`, `jig-server-part`, `jig-store-host`,
+`jig-clients-host`, `temper-clients-host`, `service-items`: about 640 implementer-minutes. `jig-test-service` takes one
+writer at a time, and that sets it. temper's chain runs beside it, each task after its jig task.
+
+Beside it: `github-fake-surface`, `github-machine-face`, `github-joint-face`, `github-close`, about 305 minutes;
+`skein-concat`, then `smith-primitives`; `skein-startup-store`, then `smith-startup-writers`.
 
 ## Overlaps
 
 `fabrig-scale` changes none of the seven parts' files. It does change, beside them: `T/limits.rs`, `T/startup*`,
 `T/tests/fixtures.rs`, `J/tests.rs` (the store's limits' figures) and `jig/crates/jig-protocol-store` (86 files, not
 `host.rs` or `boundary.rs`), with `store.md`. Those are unavoidable for `jig-store-host` and `temper-store-host`,
-which come late in their chains for that reason as well.
+which come late in their chains for that reason as well. Their `sed` crosses 38 files, tests among them: a
+`fabrig-scale` test that reads `store.above` after they land is one token's compile error, for whichever merges second.
+Inside this plan the overlaps are all serial on the chains: `jig/tests/boundary`, both status files, `T/engine.rs`,
+`T/system.rs`, `J/engine.rs`, `J/lib.rs`.

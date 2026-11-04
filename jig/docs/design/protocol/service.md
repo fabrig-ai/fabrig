@@ -533,7 +533,7 @@ its routing, `iterate` and `main`, its connectors and its own settings.
 | the worker route | `jig-protocol-worker-agents`, `route` | smith's host half's records to and from the channel's values | its application's decoding of parts, what a delivery's evidence must say (`channel.md`) |
 | the workers' side | `jig-protocol-engine-workers`, `host` | the channel component, its listeners and sockets, closing them | its assignment's encoding, its parts' decoding, what a lost listener means |
 | the server | `jig-protocol-engine-clients-http`, `server` | one listener's connections, their deadlines and page policy, each call handed out as routed | its routes, its bundle, its pages' extra fields |
-| the clients' side | `jig-protocol-engine-clients`, `host` | the bridge between the component's secrets and the store's, sign-in endings and printed links | its pass, its calls, its families |
+| the clients' side | `jig-protocol-engine-clients`, `host` | the bridge between the component's secrets and the store's and sign-in endings; beside them, the printed link in `jig-protocol-engine-clients-http` and the settings every application fills alike in `jig_protocol_config::clients` | its pass, its calls, its families |
 
 `jig-protocol-worker-agents` links smith, so an application whose workers
 run no agents leaves it out, as `README.md`, 5 says. The kernel's hand-off
@@ -669,3 +669,108 @@ crate that reads configuration.
 - **The bound address.** The host keeps each listener's configured
   address, for the owner's report of a lost one, and the address last
   bound, in `listening`, until the owner takes it.
+
+### 11.4 The server
+
+`jig_protocol_engine_clients_http::server::Server` is one listener and
+its connections, each with skein's HTTP server over it, their deadlines
+and the page policy. It knows no route: what a call means is its owner's.
+
+- **Every call goes to the owner.** A head comes out as `Routed::Call`,
+  and each later event of that call as `Routed::Http`. The owner hands
+  the call to the mapping, or answers it from its own routes through
+  `answer`, and ends it with `done`. Its pages and its bundle are its
+  own (`browser.md`, section 12).
+- **The page policy is on every response:** `policy::FIELDS`, the
+  reference's (`browser.md`, 12.1), but for a field the response already
+  holds.
+- **Amounts are `Limits`:** the connections, skein's HTTP limits and the
+  stall. `valid` says whether limits can run at all.
+- **A peer's end is a value.** `Limits`' `peer_end` says what a peer's
+  end does while a call is unfinished. `PeerEnd::Connection` ends the
+  connection and tells the owner the call's connection closed, as
+  `client.md`, 17.4 asks. `PeerEnd::Call` leaves the connection, and the
+  owner hears the call's `Ended`.
+- **A call the owner holds.** `hold` keeps a call's connection to a
+  deadline of the owner's, past the stall, and `release` gives the call
+  back to the stall.
+- **Closing.** `stop` closes the listener. `close` also ends each
+  connection as its call ends; once the owner says `finish`, that no
+  response is left to come, it ends those with a call still open, after
+  what they have queued. `abort` ends everything at once, and `abandon`
+  one call's connection.
+- **Its `Debug` counts.** A head holds its cookies and a response its
+  `Set-Cookie`, so `Server` shows its listener, its phase and how many
+  connections it holds, and `Routed` its variant and its call's token.
+
+### 11.5 The store's host
+
+`jig_protocol_store::host::Hosted` is the store's component and `Host`'s
+three file drivers (`store.md`, section 13) behind one owner's calls,
+with the queues its answers wait in. The owner makes it from the store's
+limits, the application's sizes, the models and a seed. `Host` stays, for
+a world that drives the drivers itself.
+
+- **Answers are pulled.** `above` holds the store's terminals in order,
+  and the owner's dispatch takes them. `secrets` and `sources` hold the
+  terminals that dispatch hands its clients' side and its accounts'
+  host, until their passes take them (`store.md`, section 9). These three
+  and `component` are public fields: the owner's dispatch reads them and
+  a test's fake terminal goes in through them, and a method for each
+  would hide nothing.
+- **Requests.** `ask` takes any request. `secrets` takes a secrets'
+  request, and returns the answer to a `Get` or a `Load`, which stays in
+  the pass; a write's terminal comes through `above`.
+- **A get the store can't answer yet is a value.** With
+  `NotReady::InPass`, `secrets` returns `SecretsNotReady` as it does any
+  other answer to a get. With `NotReady::Above`, it stays in `above` for
+  the owner's dispatch.
+- **Submissions by lane.** `pop_submission` hands out each kernel record
+  with its lane, and the owner tags it from its own table; it takes a
+  completion's tag off and gives `complete` the lane (`Lane`). The
+  namespaces are the owner's.
+- **Closing.** `close` closes the drivers and drops what the three queues
+  hold. `idle` and `closed` answer for the drivers and the queues; the
+  owner adds what it holds.
+- **Its `Debug` counts** its queues: a terminal can hold a kept digest.
+- **What the owner keeps:** its routes and what they hand up, its sizes,
+  the wires it gives the component after `new`, the staging queue its
+  tagged submissions wait in, and whether the store has opened and with
+  which installation, which its dispatch learns.
+
+### 11.6 The clients' side
+
+`jig_protocol_engine_clients::host` holds what stands between the
+clients' component and the rest of a service. The component, the mount
+and the server stay fields of each service's own `Clients`, whose pass is
+the application's: its calls and families have their places in that
+order, and no part cuts across it.
+
+- **`Bridge` carries secrets.** `ask` takes one of the component's
+  secrets' requests, names it with a token in the owner's namespace,
+  keeps what it was for, and returns the token and the store's request;
+  the owner calls its own store with them. `answer` takes the store's
+  terminal for such a token and returns the component's `SecretsAnswer`.
+  When a request goes is the owner's: it may hold requests back until its
+  store's start mark is durable.
+- **`Endings` holds a sign-in's ending until its own commit is durable**
+  (`../domain/root.md`, section 5). `ended` records a sign-in a commit
+  ends, `committed` the durable number, and `next` hands out the next
+  ending whose commit is durable, in commit order; the owner calls the
+  component with each. The most commits it holds is a value at `new`,
+  and an owner with a bound asks `room` before it commits. `ending` reads
+  the sign-in from a core key: which of an application's writes end one
+  is its own to read.
+- **The printed link.** `address_text` is a bound address as text, and
+  the mapping's `printed_link` joins it to the path its `link_path` gave.
+  An owner with a public origin writes its own.
+- **The component's settings are a value,** `Settings`. This crate can't
+  read configuration, which names it, so what every application fills
+  alike is `jig_protocol_config::clients::settings`, beside `models`.
+  `clients::Application` carries what differs: the printed link's
+  identity, the families served, the application's own public kinds and
+  the moved file's bound. The two seeds come in as they are. An owner
+  with its own issuer sets `provider` and `addresses` on the result.
+- **What the owner keeps:** its pass, its calls and their replies, how a
+  root's event becomes a component's, which starting requests it parks,
+  and when it builds the component.
