@@ -1,6 +1,6 @@
 //! The browser's bundle, read whole at start, and its closed list of types (client/browser.md, 2.2; skein's
 //! ui-web.md, 4.3 and 4.4). Copied from jig's testing/jig-test-service/src/server/bundle.rs.
-use super::Clients;
+use super::{Clients, policy};
 use alloc::boxed::Box;
 use skein_http::{Header, Method, server as http};
 use skein_lib::{
@@ -199,12 +199,12 @@ impl Clients {
             Answer::Busy => 503,
         };
         match answer {
-            Answer::File => field(&mut headers, b"Cache-Control", b"public, max-age=31536000, immutable"),
+            Answer::File => field(&mut headers, b"Cache-Control", policy::FILES_CACHE),
             Answer::Page | Answer::Root | Answer::NotModified => {
-                field(&mut headers, b"Cache-Control", b"no-cache");
+                field(&mut headers, b"Cache-Control", policy::PAGE_CACHE);
                 field(&mut headers, b"ETag", &self.bundle.as_ref().expect("revalidated bundle").etag);
             }
-            Answer::NoBundle => field(&mut headers, b"Cache-Control", b"no-cache"),
+            Answer::NoBundle => field(&mut headers, b"Cache-Control", policy::PAGE_CACHE),
             Answer::NotFound | Answer::NotAllowed | Answer::Busy => {}
         }
         let response = http::Response {

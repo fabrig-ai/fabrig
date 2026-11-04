@@ -1,15 +1,18 @@
-//! Outside branch moves and completed shell writes, independent of either root.
+//! Outside branch moves and completed shell writes, independent of either root
+//! (temper/docs/design/domain/forge.md, 8.7).
 use crate::{
     fixtures,
     world::{Proc, Pushed, Story},
 };
 use skein_fake_forge_domain::{Observation, api};
 use std::collections::BTreeMap;
+use temper_playground::programs::{Harness, Process};
 
 pub(crate) struct Forge {
     transport: temper_fake_git_hosted::Typed,
     tree: BTreeMap<Vec<u8>, Vec<u8>>,
     pub(crate) pushed: Vec<Pushed>,
+    merged: Vec<(u64, u64)>,
     story: Story,
     edited: bool,
     prepared: bool,
@@ -22,6 +25,7 @@ impl Forge {
             transport,
             tree: BTreeMap::from([(b"conflict.txt".to_vec(), content.to_vec())]),
             pushed: Vec::new(),
+            merged: Vec::new(),
             story,
             edited: false,
             prepared: false,
@@ -47,15 +51,15 @@ impl Forge {
             self.prepared = true;
         }
     }
-    pub(crate) fn observe(&mut self, procs: &[Proc]) {
+    pub(crate) fn observe<H: Harness>(&mut self, procs: &[Process<H>]) {
         for proc in procs {
-            if let Proc::Forge(peer) = proc {
+            if let Process::Forge(peer) = proc {
                 assert!(
                     peer.address().is_none() || peer.address() == Some(fixtures::FORGE),
                     "forge binds the configured address"
                 );
             }
-            if let Proc::Shell(shell) = proc
+            if let Process::Shell(shell) = proc
                 && !shell.written.is_empty()
             {
                 self.tree.insert(shell.target.clone(), shell.written.clone());
@@ -64,15 +68,18 @@ impl Forge {
         }
         let mut forge = self.transport.forge.borrow_mut();
         while let Some(observed) = forge.domain.pop_observation() {
-            if let Observation::Merged { repository, head, .. } = &observed {
+            if let Observation::Merged { repository, head, commit, .. } = &observed {
                 green(&forge, repository, *head);
+                if commit != head {
+                    self.merged.push((*head, *commit));
+                }
             }
             let Observation::Moved { repository, branch, from, to, by } = observed else { continue };
             if by != 1 && !matches!(self.story, Story::PlaygroundA) {
                 continue;
             }
             let metadata = forge.domain.metadata(&repository).expect("observed repository");
-            if branch == metadata.default_branch {
+            if branch == metadata.default_branch && !self.merged.iter().any(|&(_, commit)| commit == to) {
                 green(&forge, &repository, to);
             }
             if matches!(self.story, Story::PlaygroundA) {
@@ -118,15 +125,20 @@ impl Forge {
         );
     }
     pub(crate) fn complete(&self) -> bool {
+        if matches!(self.story, Story::PlaygroundA) && crate::world::playground_answers() != 3 {
+            return false;
+        }
+        self.forge_complete()
+    }
+    /// Completion judged from the forge alone; the terminal person's replies belong to `complete`.
+    pub(crate) fn forge_complete(&self) -> bool {
         if matches!(self.story, Story::PlaygroundA) {
-            if crate::world::playground_answers() != 3 {
-                return false;
-            }
             let outcome = crate::stories::playground::outcome(&self.transport);
-            return outcome.csv
-                && outcome.green
-                && outcome.answered == 3
-                && self.pushed.iter().any(|push| push.commit == outcome.main);
+            let landed = self.pushed.iter().any(|push| {
+                push.commit == outcome.main
+                    || self.merged.iter().any(|&(head, commit)| head == push.commit && commit == outcome.main)
+            });
+            return outcome.csv && outcome.green && landed;
         }
         self.pushed.iter().any(|push| {
             !matches!(self.story, Story::Merge) || push.parents == [fixtures::BRANCH_HEAD, fixtures::MOVED_BASE]
@@ -143,6 +155,6 @@ fn green(forge: &skein_fake_peers::forge::Forge, repository: &[u8], head: u64) {
     };
     assert!(
         !checks.is_empty() && checks.iter().all(|check| check.status.state == api::Check::Passed),
-        "nothing lands on a default branch without green CI"
+        "nothing lands on a default branch without green CI: repository {repository:?}, head {head}, checks {checks:?}"
     );
 }

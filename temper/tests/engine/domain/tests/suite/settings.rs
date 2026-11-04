@@ -360,7 +360,7 @@ fn an_owner_of_a_deployment_with_no_project_makes_one_from_policy_1() {
 mod b2;
 
 #[test]
-fn a_stock_chat_funds_two_dependent_changes_with_two_repairs_each() {
+fn a_stock_chat_funds_an_advisor_and_a_change_with_two_repairs() {
     b2::story();
 }
 
