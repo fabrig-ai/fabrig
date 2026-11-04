@@ -146,7 +146,7 @@ pub struct Domain {
     pub(crate) playground_due: Option<skein_lib::Time>,
     pub(crate) playground_request: Option<Token>,
     bindings: Map<Box<[u8]>, Box<[u8]>>,
-    dismissed: Map<(u64, crate::Dismissal), ()>,
+    pub(crate) dismissed: Map<(u64, crate::Dismissal), ()>,
     pub(crate) connections: Map<u16, ConnectionState>,
     pub(crate) first: Map<u16, crate::First>,
     pub(crate) ended: Map<u16, (Box<[u8]>, Option<crate::AdminStop>)>,
@@ -1245,6 +1245,9 @@ pub fn step(d: &mut Domain, env: &Env<Limits>, event: Event, out: &mut Queue<Req
             crate::Ask::Adopt(adoption) => adoption::start(d, env, request, token, retention, adoption, out),
             ask @ crate::Ask::SetUp { .. } => make::setup(d, env, request, token, retention, ask, carried, out),
         },
+        Event::Dismiss { request, token, party, what } => {
+            crate::dismissed::dismiss(d, request, token, party, what, out);
+        }
         Event::ApplicationAnswered { request, outcome } => adoption::answered(d, env, request, outcome, out),
         Event::ForgetProjection { goal } => {
             if let Some(row) = d.issues.get(&goal)

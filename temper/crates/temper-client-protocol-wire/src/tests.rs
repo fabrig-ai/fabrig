@@ -1016,6 +1016,26 @@ fn remove_and_playground_requests_round_trip() {
     assert_eq!(crate::decode_reading(&crate::reading(&read), &limits), Some(read));
 }
 #[test]
+fn revision_setting_read_appends_after_the_deployment_tag() {
+    let limits = fixtures::limits();
+    let revision = v1::Read::RevisionSetting(
+        v1::RevisionSettingRead::new(
+            &limits,
+            v1::RevisionSettingReadParts { kind: 1, scope: 2, number: 3, revision: 4 },
+        )
+        .unwrap(),
+    );
+    for (read, bytes) in [
+        (v1::Read::Deployment, &[0, 12, 3][..]),
+        (revision, &[0, 12, 4, 0, 0, 0, 1, 0, 0, 0, 2, 0, 0, 0, 3, 0, 0, 0, 4][..]),
+    ] {
+        let record = v1::Reading::new(&limits, v1::ReadingParts { read }).unwrap();
+        assert_eq!(crate::reading(&record).as_ref(), bytes);
+        assert_eq!(crate::decode_reading(bytes, &limits), Some(record));
+    }
+}
+
+#[test]
 fn deployment_read_and_answer_round_trip() {
     let limits = fixtures::limits();
     let read = v1::Reading::new(&limits, v1::ReadingParts { read: v1::Read::Deployment }).unwrap();

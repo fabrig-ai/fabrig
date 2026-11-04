@@ -62,23 +62,7 @@ impl Domain {
             settings::HeldRules { deployment: Box::new([]), projects: Map::with_capacity(env.limits.judge_projects) },
         );
         for item in items {
-            let key = SettingKey { kind: item.kind, scope: item.scope, number: item.number, slot: SettingSlot::Change };
-            match self.setting_rows.get(&key) {
-                Some(Edit::Set(value)) => {
-                    let edit = Edit::Set(value.clone());
-                    self.save_setting(SettingKey { slot: SettingSlot::Replaced(revision), ..key }, edit, out);
-                }
-                Some(Edit::Remove | Edit::Reset) | None => {}
-            }
-            let edit = match proposal {
-                Some(proposal) => self.setting_rows.get(&SettingKey { slot: SettingSlot::Proposal(proposal), ..key }),
-                None => None,
-            };
-            let edit = edit.unwrap_or(&item.edit).clone();
-            match edit {
-                Edit::Set(_) | Edit::Remove => self.save_setting(key, edit, out),
-                Edit::Reset => self.erase_setting(key, out),
-            }
+            self.keep_setting(revision, proposal, item, out);
         }
         if let Some(proposal) = proposal {
             self.drop_proposal_settings(proposal, out);
@@ -99,6 +83,28 @@ impl Domain {
         }
         for task in &wake {
             self.wait_change(env, *task, Some(env.wall));
+        }
+    }
+
+    fn keep_setting(&mut self, revision: u64, proposal: Option<u64>, item: &settings::Asked, out: &mut Queue<Request>) {
+        let key = SettingKey { kind: item.kind, scope: item.scope, number: item.number, slot: SettingSlot::Change };
+        let before = match self.setting_rows.get(&key) {
+            Some(Edit::Set(value)) => Some(value),
+            Some(Edit::Remove | Edit::Reset) => None,
+            None => self.setting_default(item.kind, item.scope, item.number),
+        };
+        if let Some(value) = before {
+            let edit = Edit::Set(value.clone());
+            self.save_setting(SettingKey { slot: SettingSlot::Replaced(revision), ..key }, edit, out);
+        }
+        let edit = match proposal {
+            Some(proposal) => self.setting_rows.get(&SettingKey { slot: SettingSlot::Proposal(proposal), ..key }),
+            None => None,
+        };
+        let edit = edit.unwrap_or(&item.edit).clone();
+        match edit {
+            Edit::Set(_) | Edit::Remove => self.save_setting(key, edit, out),
+            Edit::Reset => self.erase_setting(key, out),
         }
     }
 
@@ -221,6 +227,28 @@ impl Domain {
         states.into_boxed()
     }
 
+    /// Preserve changed defaults before a release replaces them (temper/docs/design/client/forge.md, 9).
+    pub fn remember_settings_defaults(&mut self, revision: u64, out: &mut Queue<Request>) {
+        let mut replaced = List::uncapped();
+        for (key, edit) in &self.setting_rows {
+            if key.slot != SettingSlot::Default {
+                continue;
+            }
+            let change = SettingKey { slot: SettingSlot::Change, ..*key };
+            if !self.setting_rows.contains_key(&change)
+                && let Edit::Set(value) = edit
+                && self.setting_default(key.kind, key.scope, key.number) != Some(value)
+            {
+                replaced
+                    .push((SettingKey { slot: SettingSlot::Replaced(revision), ..*key }, Edit::Set(value.clone())))
+                    .expect("one replaced value per default setting");
+            }
+        }
+        for (key, edit) in replaced.into_boxed() {
+            self.save_setting(key, edit, out);
+        }
+    }
+
     pub fn save_settings_defaults(&mut self, out: &mut Queue<Request>) {
         let mut saves = List::with_capacity(self.setting_rows.capacity());
         if let Some(stock) = &self.setting_stock {
@@ -283,6 +311,39 @@ impl Domain {
             Some(Edit::Set(value)) => Some(value),
             Some(Edit::Remove | Edit::Reset) => None,
             None => self.setting_default(kind, scope, number),
+        }
+    }
+
+    /// Read a set item's value before its next overwrite (temper/docs/design/client/forge.md, 9).
+    /// The caller verifies that the retained revision set this item.
+    #[must_use]
+    pub fn revision_setting(&self, kind: u32, scope: u32, number: u32, revision: u32) -> Option<&settings::SizedValue> {
+        let mut next = None;
+        for (key, edit) in &self.setting_rows {
+            if (key.kind, key.scope, key.number) != (kind, scope, number) {
+                continue;
+            }
+            if let SettingSlot::Replaced(at) = key.slot
+                && at > u64::from(revision)
+                && match next {
+                    Some((before, _)) => at < before,
+                    None => true,
+                }
+                && let Edit::Set(value) = edit
+            {
+                next = Some((at, value));
+            }
+        }
+        match next {
+            Some((_, value)) => Some(value),
+            None => {
+                let key = SettingKey { kind, scope, number, slot: SettingSlot::Change };
+                match self.setting_rows.get(&key) {
+                    Some(Edit::Set(value)) => Some(value),
+                    Some(Edit::Remove | Edit::Reset) => None,
+                    None => self.setting_default(kind, scope, number),
+                }
+            }
         }
     }
 

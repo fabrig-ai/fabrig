@@ -136,6 +136,20 @@ fn a_configuring_chat_started_through_ctl_proposes_and_an_owner_accepts() {
 }
 
 #[test]
+fn a_configuring_proposal_is_named_and_titled_in_the_inbox() {
+    let (mut world, agent, _, _) = propose(false);
+    let inbox = text(&mut world, agent, &[b"inbox", b"--kind", b"proposals"]);
+    let title = REASON.lines().next().expect("proposal title");
+    let row = inbox.lines().find(|row| row.contains(title)).expect("inbox carries the proposal title");
+    let key = row.split_once(" · ").expect("proposal row").0;
+    assert!(key.starts_with('t'), "{inbox}");
+    assert_eq!(row, format!("{key} · proposal · {title}"));
+    let review = text(&mut world, agent, &[b"proposal", b"show", key.as_bytes()]);
+    assert!(review.starts_with(&format!("proposal {key} · ")), "{review}");
+    assert!(review.contains(REASON), "{review}");
+}
+
+#[test]
 fn a_members_configuring_proposal_waits_for_an_owner() {
     let (mut world, agent, _, proposal) = propose(true);
     let caller = world.front().caller;

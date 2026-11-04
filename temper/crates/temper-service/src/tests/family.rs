@@ -1361,6 +1361,7 @@ fn return_install_and_manifest_paths_are_bounded_visible_paths_on_this_listener(
                             assert_eq!(source, 7, "{name}");
                             path
                         }
+                        root::Application::Dismiss { .. } => panic!("return or install"),
                         root::Application::Forge(ask) => {
                             let (forge::Ask::Install { forge, back: Some(back) }
                             | forge::Ask::Connect {
@@ -1475,13 +1476,12 @@ fn installations_and_the_last_connect_end_encode_unchanged() {
 }
 
 #[test]
-fn embedded_client_refusals_keep_their_bytes_at_client_eleven() {
-    // The pinned jig v15 generated Unknown golden was [9]. All 422 existing
-    // refusal dependency goldens are identical at v16; new tags are appended.
+fn embedded_client_refusals_keep_their_bytes_at_client_twelve() {
+    // Embedded jig refusal tags keep their bytes at this forge family version.
     let mut after = skein_lib::Writer::new(1);
     jig_client_protocol_wire::v19::Refusal::Unknown.encode(&mut after).unwrap();
     assert_eq!(after.finish().as_ref(), &[9]);
-    assert_eq!(wire::CLIENT_VERSION, 11);
+    assert_eq!(wire::CLIENT_VERSION, 12);
 }
 
 #[test]
@@ -1803,11 +1803,25 @@ fn the_landings_subject_names_no_task() {
 fn forge_removal_and_playground_requests_keep_their_envelopes() {
     for (request, expected) in [
         (
-            w::Request::RemoveForge(w::RemoveForge::new(&w::CEILINGS, w::RemoveForgeParts { forge: 9 }).unwrap()),
-            forge::Ask::RemoveForge { forge: 9 },
+            w::Request::Dismiss(
+                w::Dismiss::new(
+                    &w::CEILINGS,
+                    w::DismissParts {
+                        what: w::Dismissal::ToBegin(
+                            w::ToBegin::new(&w::CEILINGS, w::ToBeginParts { project: 2 }).unwrap(),
+                        ),
+                    },
+                )
+                .unwrap(),
+            ),
+            root::Application::Dismiss { what: forge::Dismissal::ToBegin { project: 2 } },
         ),
-        (w::Request::StartPlayground, forge::Ask::StartPlayground),
-        (w::Request::EndPlayground, forge::Ask::EndPlayground),
+        (
+            w::Request::RemoveForge(w::RemoveForge::new(&w::CEILINGS, w::RemoveForgeParts { forge: 9 }).unwrap()),
+            root::Application::Forge(forge::Ask::RemoveForge { forge: 9 }),
+        ),
+        (w::Request::StartPlayground, root::Application::Forge(forge::Ask::StartPlayground)),
+        (w::Request::EndPlayground, root::Application::Forge(forge::Ask::EndPlayground)),
     ] {
         let record = w::Requesting::new(&w::CEILINGS, w::RequestingParts { request }).unwrap();
         let event = family::to_root(
@@ -1830,7 +1844,7 @@ fn forge_removal_and_playground_requests_keep_their_envelopes() {
             (reply_to, sign_in, key, digest, scope),
             (REPLY, 3, REQUEST_KEY, [7; 32], people::ApplicationScope::Project(7))
         );
-        assert_eq!(request, root::Application::Forge(expected));
+        assert_eq!(request, expected);
     }
 }
 #[test]
@@ -1933,6 +1947,13 @@ fn new_forge_places_reach_both_setup_and_connect_whole() {
 fn removal_and_playground_answers_use_their_own_outcomes() {
     let jig = jig_protocol_config::profile(jig_protocol_config::Profile::Small).clients.wire;
     for (answer, expected) in [
+        (root::ApplicationAnswer::Dismiss(forge::DismissAnswer::Dismissed), w::Outcome::Dismissed),
+        (
+            root::ApplicationAnswer::Dismiss(forge::DismissAnswer::TooLarge),
+            w::Outcome::ForgeRefused(
+                w::ForgeRefused::new(&w::CEILINGS, w::ForgeRefusedParts { reason: w::ForgeReason::TooLarge }).unwrap(),
+            ),
+        ),
         (root::ApplicationAnswer::RemoveForge(forge::RemoveAnswer::Removed), w::Outcome::Removed),
         (
             root::ApplicationAnswer::RemoveForge(forge::RemoveAnswer::Refused(forge::ForgeRefusal::Role)),

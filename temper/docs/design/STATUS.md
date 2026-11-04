@@ -61,7 +61,8 @@ the box's group file holds a forge's kind alone
 (`protocol/setup.md`, `protocol/forge.md`, `protocol/README.md`) and
 where a worker's translation aborts on a stored source name smith
 refuses (`protocol/README.md`), and lags in a removal without the
-box (`domain/forge.md`) and a project's Delete (`client/README.md`);
+box (`domain/forge.md`), a project's Delete (`client/README.md`) and
+a restored secret of the wrong kind (`protocol/credentials.md`);
 public reading still lacks a deployment's proxy configuration and
 figures, and its negative walk plays the proxy's own rules against
 scripted upstreams rather than temper's service
@@ -72,13 +73,14 @@ managed (`protocol/setup.md`); a kept GitHub forge whose base ends
 in `/` keeps remotes with two after the host
 (`protocol/configuration.md`). A duplicate person's identity panics
 at a start, which the user's request counts a bug
-(`domain/root.md`). The case library's purpose is retired, the fake
+(`domain/root.md`). Ready names no email for a ChatGPT sign-in,
+which waits on jig's account-facts draft (`client/README.md`). The
+case library's purpose is retired, the fake
 git program drives skein's JSON tokenizer over a whole body by hand,
 the ladder has no twin past B1 and no live story but B0's, and the
 live scripts default to a scratch layout of whoever runs fabrig's
 development, in a form the outward check does not match
-(`domain/testing.md`), and the `welcome-set-up` journey waits on a
-new walk (`client/journeys.md`). The forge's connect refusals that
+(`domain/testing.md`). The forge's connect refusals that
 ctl renders name no remedy (`protocol/documentation.md`). Six
 hand-written widenings stand beside skein's `len_u64` and
 `usize_of`, two of them in the worker's steps (`README.md`). Of the
@@ -89,7 +91,8 @@ decide, propose, subscribe and recall families, which the
 reference's profile does not grant and configuring's stage 1 follows
 (`draft/reference-code-production.md`); the others record what the
 design carries of them and where it lags or departs.
-`domain/README.md` and `protocol/llm.md` have no gap.
+`domain/README.md`, `protocol/llm.md` and `client/journeys.md` have
+no gap.
 
 Design documents:
 - [`README.md`](README.status.md)
@@ -137,6 +140,7 @@ Drafts:
 - [`draft/github.md`](draft/github.status.md)
 - [`draft/look-requests.md`](draft/look-requests.status.md)
 - [`draft/macos.md`](draft/macos.status.md)
+- [`draft/repository-copies.md`](draft/repository-copies.status.md)
 - [`draft/serve-without-box.md`](draft/serve-without-box.status.md)
 - [`draft/to-begin.md`](draft/to-begin.status.md)
 - [`draft/upgrades.md`](draft/upgrades.status.md)

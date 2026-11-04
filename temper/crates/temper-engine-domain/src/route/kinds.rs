@@ -75,7 +75,7 @@ pub(super) fn ask(domain: &mut Domain, env: &Env<Limits>, number: u16, ask: conn
         }
         connector::Ask::ForgetReplaced { before } => domain.forge.forget_replaced(before, &mut out),
         connector::Ask::DropProposalSettings { proposal } => domain.forge.drop_proposal_settings(proposal, &mut out),
-        connector::Ask::SaveSettingsDefaults { revision: _ } => save_defaults(domain, &mut out),
+        connector::Ask::SaveSettingsDefaults { revision } => save_defaults(domain, revision, &mut out),
         _ => unreachable!("the forge routes only its settings asks here"),
     }
     if !out.is_empty() {
@@ -136,13 +136,16 @@ fn typed_items(domain: &Domain, proposal: Option<u64>, items: &[application::Ite
     asked.into_boxed()
 }
 
-fn save_defaults(domain: &mut Domain, out: &mut Queue<temper_engine_domain_forge::Request>) {
+fn save_defaults(domain: &mut Domain, revision: Option<u64>, out: &mut Queue<temper_engine_domain_forge::Request>) {
+    if let Some(revision) = revision {
+        domain.forge.remember_settings_defaults(revision, out);
+    }
     domain.forge.save_settings_defaults(out);
 }
 
 /// Deployment settings have the settings document's membership check (client/forge.md, 9).
 pub(super) fn read(
-    domain: &Domain,
+    domain: &mut Domain,
     env: &Env<Limits>,
     decision: &mut crate::Decision,
     reply: skein_lib::ReplyTo,
@@ -150,19 +153,14 @@ pub(super) fn read(
     scope: jig_domain_people::ApplicationScope,
     query: crate::ForgeRead,
 ) {
-    use jig_domain_core::reads::{Answer, Why};
-    use jig_domain_people::{ApplicationScope, DEPLOYMENT};
-    let party = domain.core.people.person(sign_in, env.now, env.wall);
-    let why = match party {
-        None => Some(if domain.core.people.ready() { Why::SignedOut } else { Why::Unknown }),
-        Some(party) => {
-            if scope != ApplicationScope::Deployment || domain.core.people.role(party, DEPLOYMENT).is_none() {
-                Some(Why::Unknown)
-            } else {
-                None
-            }
-        }
-    };
+    use jig_domain_core::reads::Answer;
+    let why = read_refusal(domain, env, sign_in, scope);
+    if why.is_none()
+        && let crate::ForgeRead::RevisionSetting { .. } = query
+    {
+        revision_begin(domain, env, decision, reply, sign_in, query);
+        return;
+    }
     let delivery = match why {
         Some(why) => crate::Delivery::Read { reply, answer: Answer::None(why) },
         None => {
@@ -170,6 +168,7 @@ pub(super) fn read(
                 crate::ForgeRead::Setting { kind, scope, number } => {
                     crate::ForgeReadAnswer::Setting(domain.forge.setting(kind, scope, number).cloned())
                 }
+                crate::ForgeRead::RevisionSetting { .. } => unreachable!("revision reads load their metadata"),
                 crate::ForgeRead::ProposalItems { key } => {
                     crate::ForgeReadAnswer::ProposalItems(domain.forge.proposal_settings(key))
                 }
@@ -178,4 +177,115 @@ pub(super) fn read(
         }
     };
     super::emit(decision, &env.limits, delivery);
+}
+
+fn read_refusal(
+    domain: &Domain,
+    env: &Env<Limits>,
+    sign_in: u64,
+    scope: jig_domain_people::ApplicationScope,
+) -> Option<jig_domain_core::reads::Why> {
+    use jig_domain_core::reads::Why;
+    use jig_domain_people::{ApplicationScope, DEPLOYMENT};
+    let party = domain.core.people.person(sign_in, env.now, env.wall);
+    match party {
+        None => Some(if domain.core.people.ready() { Why::SignedOut } else { Why::Unknown }),
+        Some(party) => {
+            if scope != ApplicationScope::Deployment || domain.core.people.role(party, DEPLOYMENT).is_none() {
+                Some(Why::Unknown)
+            } else {
+                None
+            }
+        }
+    }
+}
+
+fn revision_begin(
+    domain: &mut Domain,
+    env: &Env<Limits>,
+    decision: &mut crate::Decision,
+    reply: skein_lib::ReplyTo,
+    sign_in: u64,
+    query: crate::ForgeRead,
+) {
+    let crate::ForgeRead::RevisionSetting { revision, .. } = query else { unreachable!("revision query") };
+    let token = reply.into_token();
+    let reply = skein_lib::ReplyTo::new(token);
+    if domain.revision_reads.insert(token, query).is_err() {
+        super::emit(
+            decision,
+            &env.limits,
+            crate::Delivery::Read {
+                reply,
+                answer: jig_domain_core::reads::Answer::None(jig_domain_core::reads::Why::Busy),
+            },
+        );
+        return;
+    }
+    domain.work.push(Work::Core(Event::Read {
+        reply,
+        sign_in,
+        read: jig_domain_core::reads::Read::Revision { number: revision },
+    }));
+}
+
+#[expect(clippy::wildcard_enum_match_arm, reason = "non-revision answers are forwarded as the core returned them")]
+pub(super) fn revision_answer(
+    domain: &mut Domain,
+    env: &Env<Limits>,
+    decision: &mut crate::Decision,
+    reply: skein_lib::ReplyTo,
+    answer: jig_domain_core::reads::Answer,
+) {
+    let token = reply.into_token();
+    let reply = skein_lib::ReplyTo::new(token);
+    let Some(query) = domain.revision_reads.remove(&token) else {
+        super::emit(decision, &env.limits, crate::Delivery::Read { reply, answer });
+        return;
+    };
+    let crate::ForgeRead::RevisionSetting { kind, scope, number, revision } = query else {
+        unreachable!("only revision reads await metadata")
+    };
+    let value = match &answer {
+        jig_domain_core::reads::Answer::Revision(answer) => match answer.as_ref() {
+            jig_domain_core::reads::RevisionAnswer::Revision { revision: record, .. } => revision_value(
+                domain,
+                record,
+                (kind, scope, number),
+                revision,
+                jig_domain_core::reads::settings::oldest(&domain.core, &super::environment_core(env).limits),
+            ),
+            jig_domain_core::reads::RevisionAnswer::Unknown
+            | jig_domain_core::reads::RevisionAnswer::Forgotten { .. } => None,
+        },
+        _ => {
+            super::emit(decision, &env.limits, crate::Delivery::Read { reply, answer });
+            return;
+        }
+    };
+    super::emit(
+        decision,
+        &env.limits,
+        crate::Delivery::ForgeRead { reply, answer: crate::ForgeReadAnswer::Setting(value) },
+    );
+}
+
+fn revision_value(
+    domain: &Domain,
+    record: &jig_domain_core::settings::Revision,
+    selector: (u32, u32, u32),
+    revision: u32,
+    oldest: u32,
+) -> Option<settings::SizedValue> {
+    if record.head.number != revision || revision < oldest {
+        return None;
+    }
+    for item in &record.applications {
+        if (item.kind, item.scope, item.number) == selector
+            && let application::SizedEdit::Set { .. } = item.edit
+        {
+            return domain.forge.revision_setting(item.kind, item.scope, item.number, revision).cloned();
+        }
+    }
+    None
 }

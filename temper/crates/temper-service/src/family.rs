@@ -233,8 +233,19 @@ pub fn to_root(
                         }),
                     }));
                 }
-                w::Request::Dismiss(_) => {
-                    return Err(Box::new(kit::Event::Application(kit::FromApplication::Undecodable { to: reply_to })));
+                w::Request::Dismiss(value) => {
+                    let what = match value.into_parts().what {
+                        w::Dismissal::ToBegin(value) => forge::Dismissal::ToBegin { project: value.project() },
+                    };
+                    return Ok(root::Event::Party(root::PartyInput::Application {
+                        scope,
+                        reply_to,
+                        sign_in,
+                        key,
+                        digest,
+                        carried,
+                        request: root::Application::Dismiss { what },
+                    }));
                 }
                 w::Request::Adopt(value) => value,
             };
@@ -272,12 +283,6 @@ pub fn to_root(
                 && let Some(reading) = wire::decode_reading(&record, limits)
             {
                 let query = match reading.into_parts().read {
-                    w::Read::Setting(value) => Some(root::ForgeRead::Setting {
-                        kind: value.kind(),
-                        scope: value.scope(),
-                        number: value.number(),
-                    }),
-                    w::Read::ProposalItems(value) => Some(root::ForgeRead::ProposalItems { key: value.key() }),
                     w::Read::Deployment => {
                         answer = Some(deployment_answer(deployment, limits));
                         None
@@ -287,6 +292,9 @@ pub fn to_root(
                             answer = Some(playground_answer(row, demo, limits));
                         }
                         None
+                    }
+                    read @ (w::Read::Setting(_) | w::Read::RevisionSetting(_) | w::Read::ProposalItems(_)) => {
+                        forge_settings_query(read)
                     }
                 };
                 if let Some(query) = query {
@@ -614,6 +622,10 @@ pub fn answer(
             w::Outcome::Page(w::Page::new(limits, w::PageParts { rows, more: page.more }).ok()?)
         }
         Some(root::ApplicationAnswer::Returning) => w::Outcome::Returning,
+        Some(root::ApplicationAnswer::Dismiss(forge::DismissAnswer::Dismissed)) => w::Outcome::Dismissed,
+        Some(root::ApplicationAnswer::Dismiss(forge::DismissAnswer::TooLarge)) => w::Outcome::ForgeRefused(
+            w::ForgeRefused::new(limits, w::ForgeRefusedParts { reason: w::ForgeReason::TooLarge }).ok()?,
+        ),
         Some(temper_engine_domain::ApplicationAnswer::Adopt(forge::ApplicationOutcome::Adopted(a))) => {
             w::Outcome::Adopted(
                 w::Adopted::new(
@@ -1303,5 +1315,21 @@ pub fn forge_read(answer: root::ForgeReadAnswer, limits: &w::Limits) -> Option<B
             let record = w::ProposalItemsAnswer::new(limits, w::ProposalItemsAnswerParts { items }).ok()?;
             Some(wire::proposal_items_answer(&record))
         }
+    }
+}
+
+fn forge_settings_query(read: w::Read) -> Option<root::ForgeRead> {
+    match read {
+        w::Read::Setting(value) => {
+            Some(root::ForgeRead::Setting { kind: value.kind(), scope: value.scope(), number: value.number() })
+        }
+        w::Read::RevisionSetting(value) => Some(root::ForgeRead::RevisionSetting {
+            kind: value.kind(),
+            scope: value.scope(),
+            number: value.number(),
+            revision: value.revision(),
+        }),
+        w::Read::ProposalItems(value) => Some(root::ForgeRead::ProposalItems { key: value.key() }),
+        w::Read::Playground | w::Read::Deployment => None,
     }
 }
