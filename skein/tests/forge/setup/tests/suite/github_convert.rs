@@ -7,7 +7,7 @@ use skein_forge_setup::{
     reconcile::{Failure, Outcome, Stage, Why},
 };
 use skein_forge_setup_world::{Connect, Heard, HostWorld, fixtures};
-use skein_lib::{Duration, Rng, Secret, Time, Token};
+use skein_lib::{Duration, Secret, Time, Token};
 use std::{collections::BTreeMap, fmt::Write};
 
 const FORGE: u16 = 4; // fixtures::github_forge.
@@ -153,6 +153,52 @@ fn created(world: &mut HostWorld, target: Target) -> Callback {
 fn convert(world: &mut HostWorld, run: u64, callback: &Callback) {
     world.run_plan(run, Plan::Convert { forge: FORGE, code: callback.code.clone(), state: callback.state.clone() });
     world.settle();
+}
+
+pub(super) fn drawn_secrets(world: &HostWorld, seed: u64, code: &Secret) -> (Secret, Secret) {
+    use skein_fake_forge_github::installations::{Kind, Reach, Scope};
+    use skein_forge::github::{decode, document};
+    use skein_forge_machine_world::github::{Fake, WALL_BASE};
+
+    let Some(Heard::Done { outcome: Outcome::Manifest { target, manifest, .. }, .. }) = world.heard().first() else {
+        panic!("manifest form")
+    };
+    let mut fake = Fake::bare(seed);
+    let body = format!("manifest={}", encoded(manifest));
+    let target = core::str::from_utf8(target).expect("form target UTF-8");
+    let posted = fake.page(&request("POST", target, body.as_bytes()), WALL_BASE);
+    let (_, html) = response(&posted, 200);
+    let fields = query(&attributes(html, "a")["href"]);
+    assert_eq!(fields["code"], code.expose(), "replay reads the same conversion code");
+    let code = core::str::from_utf8(code.expose()).expect("conversion code UTF-8");
+    let conversion = format!(
+        "POST /app-manifests/{code}/conversions HTTP/1.1\r\nHost: github.test\r\nUser-Agent: kit/0.0.0\r\nX-GitHub-Api-Version: {}\r\nContent-Length: 0\r\n\r\n",
+        skein_forge::github::pin::API_VERSION
+    );
+    let converted = fake.serve(conversion.as_bytes(), WALL_BASE);
+    let (_, body) = response(&converted, 201);
+    let mut limits = fixtures::host_limits();
+    limits.string_bytes = fixtures::github_given().limits.key_bytes.checked_mul(2).expect("PEM bound");
+    let limits = skein_forge_setup::host::github(&limits);
+    let mut decoder = decode::decoder(document::Kind::Conversion, &limits);
+    let mut feed = skein_json::tokenizer::Feed::new(body.as_bytes(), &limits.json);
+    let mut demand = skein_json::tokenizer::Request::Next;
+    let webhook = 'decode: {
+        for _ in 0..=body.len() {
+            match decoder.step(feed.answer(demand)) {
+                (next, decode::Step::Demand) => demand = next,
+                (_, decode::Step::Done(document::Document::Conversion(conversion))) => {
+                    break 'decode conversion.webhook_secret;
+                }
+                (_, step) => panic!("conversion document: {step:?}"),
+            }
+        }
+        panic!("conversion decoder exhausted input")
+    };
+    let store = fake.installations_mut();
+    let id = store.install(31, b"alice", Kind::User, Reach::All, WALL_BASE).expect("replay installation");
+    let (token, _) = store.mint(id, Scope::Full, WALL_BASE).expect("replay token");
+    (webhook, token)
 }
 fn stop(run: u64, stage: Stage, why: Why, at: Duration) -> Heard {
     Heard::Stop {
@@ -374,13 +420,9 @@ fn conversion_trace_and_failures_hold_no_secret() {
     convert(&mut world, 3, &callback);
     // Manifest's form/state is public; the conversion's trace and failure are not secrets.
     write!(diagnostics, "{:?} {:?}", &world.heard()[1..], world.needs()).expect("String accepts text");
-    // The fake draws twenty hex code bytes, then thirty-two webhook bytes, from its seed.
-    let mut rng = Rng::new(SEED);
-    let hex: Vec<u8> = (0..52).map(|_| b"0123456789abcdef"[usize::try_from(rng.below(16)).expect("nibble")]).collect();
-    assert!(hex[..20] == *callback.code.expose(), "fixture code draw");
-    let webhook = &hex[20..];
+    let (webhook, _) = drawn_secrets(&world, SEED, &callback.code);
     let pem = keys::pem(app_key()).expect("fixture PEM");
-    for secret in [app_key(), pem.as_ref(), callback.code.expose(), webhook] {
+    for secret in [app_key(), pem.as_ref(), callback.code.expose(), webhook.expose()] {
         assert!(!diagnostics.as_bytes().windows(secret.len()).any(|bytes| bytes == secret));
         for spelling in [format!("{secret:?}"), format!("{secret:x?}"), format!("{secret:X?}")] {
             assert!(!diagnostics.contains(&spelling));
@@ -390,7 +432,7 @@ fn conversion_trace_and_failures_hold_no_secret() {
         [Item::AdminToken, Item::AppId, Item::AppSlug, Item::User, Item::Accepted, Item::WebhookSecret, Item::Pasted]
     {
         if let Some(value) = world.file(item) {
-            for secret in [app_key(), pem.as_ref(), callback.code.expose(), webhook] {
+            for secret in [app_key(), pem.as_ref(), callback.code.expose(), webhook.expose()] {
                 assert!(!value.expose().windows(secret.len()).any(|bytes| bytes == secret));
             }
         }
