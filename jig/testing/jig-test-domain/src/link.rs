@@ -8,7 +8,7 @@ use jig_domain_fleet as fleet;
 use jig_domain_host as host;
 use jig_domain_tasks as tasks;
 use jig_test_connector as connector;
-use skein_lib::{Decimal, Env, Queue, ReplyTo, Token, Wall};
+use skein_lib::{Env, Queue, ReplyTo, Token, Wall};
 
 pub(super) use jig_domain_hub_link::Ending;
 
@@ -71,7 +71,7 @@ pub fn down(domain: &mut Domain, delivery: Delivery) -> Delivery {
                 run: Token::new(task),
                 attempt: Token::new(attempt),
                 name: Token::new(word.number),
-                sender: sender(word.from),
+                sender: word.from.sender(),
                 finish_requested: word.finish_requested(),
                 words: jig_protocol_tools::words(&word),
             },
@@ -213,14 +213,6 @@ pub(super) fn read(domain: &mut Domain, env: &Env<Limits>, payload: Token, end: 
         crate::decide(domain, env, Work::Core(event));
     }
 }
-/// Preserve the task-owned message kind when translating its opaque words.
-fn sender(value: tasks::Party) -> Box<[u8]> {
-    match value {
-        tasks::Party::Task(number) | tasks::Party::Person(number) => Box::from(Decimal::of(number).as_bytes()),
-        tasks::Party::Deployment { .. } => Box::from(&b"deployment"[..]),
-    }
-}
-
 #[expect(clippy::large_enum_variant, reason = "the bounded route queue owns complete core events")]
 pub(super) enum Work {
     Link {

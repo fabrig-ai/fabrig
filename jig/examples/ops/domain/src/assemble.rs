@@ -79,7 +79,7 @@ pub(crate) fn assignment(
         start_messages
             .push(host::StartMessage {
                 name: Token::new(word.number),
-                sender: charter::sender(word.from),
+                sender: word.from.sender(),
                 finish_requested: word.finish_requested(),
                 words: jig_protocol_tools::words(&word),
             })
