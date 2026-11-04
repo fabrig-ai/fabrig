@@ -183,7 +183,7 @@ fn child_completions_and_raw_usage_cross_the_host_final_answer_once() {
     let mut agent =
         Agent::new(Settings { job: Job::Spending, budget: run::Budget { turns: 8, ..BUDGET }, ..Settings::calm(4) });
     agent.run(20_000);
-    let run::Answer::Failed { failure: run::Failure::Budget { exhausted: run::Exhausted::Turns, .. }, spent, turns } =
+    let run::Answer::Failed { failure: run::RunFailure::Budget { exhausted: run::Exhausted::Turns, .. }, spent, turns } =
         agent.answer()
     else {
         panic!("the original parallel-child budget story settles with its global prefix")

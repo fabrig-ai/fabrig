@@ -211,7 +211,7 @@ impl Backend {
         let Some(Complete { prompt, outcome, deliver, .. }) = self.current.request() else { return Box::default() };
         let Ok(schemas) = protocol::schemas_for_contract(
             prompt,
-            &self.settings.adapter.stated,
+            &self.settings.translation.stated,
             outcome,
             deliver.as_ref(),
             self.settings.contract_bytes,
@@ -405,7 +405,7 @@ impl Backend {
             return;
         }
         let Some(root) = self.settings.directory else {
-            self.startup.ended(&mut self.io);
+            self.startup.ended(&mut self.server_up, below);
             return;
         };
         if let Some(residue) = &self.files.residue {

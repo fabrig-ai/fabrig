@@ -248,7 +248,7 @@ impl Host {
         match event {
             skein_io::Event::Connecting { owner, socket } => {
                 if let Some(c) = self.connections.get_mut(&owner) {
-                    c.socket = Some(socket);
+                    c.link.connecting(socket, io);
                 }
             }
             skein_io::Event::Connected { owner } => {
@@ -269,6 +269,7 @@ impl Host {
             skein_io::Event::Closed { owner } => {
                 if let Some(c) = self.connections.get_mut(&owner) {
                     c.closed = true;
+                    c.link.closed();
                 }
             }
             skein_io::Event::Listening { .. }
@@ -294,6 +295,9 @@ impl Host {
             next = earliest(next, Some(run.deadline));
             next = earliest(next, run.retry_at);
         }
+        for (_, c) in &self.connections {
+            next = earliest(next, c.link.next_deadline());
+        }
         next
     }
     fn drive(&mut self, env: &Env<Limits>, up: &mut Queue<Event>, io: &mut Queue<skein_io::Request>) {
@@ -302,7 +306,14 @@ impl Host {
         for _ in 0_u32..256 {
             let mut connection = None;
             for (token, c) in &self.connections {
-                if c.ready() || c.result.is_some() || c.closed {
+                if c.ready()
+                    || c.result.is_some()
+                    || c.closed
+                    || match c.link.next_deadline() {
+                        Some(at) => at <= env.now,
+                        None => false,
+                    }
+                {
                     connection = Some(*token);
                     break;
                 }
@@ -360,7 +371,14 @@ impl Host {
     }
     fn ready(&self, now: Time) -> bool {
         for (_, c) in &self.connections {
-            if c.ready() || c.result.is_some() || c.closed {
+            if c.ready()
+                || c.result.is_some()
+                || c.closed
+                || match c.link.next_deadline() {
+                    Some(at) => at <= now,
+                    None => false,
+                }
+            {
                 return true;
             }
         }
@@ -374,6 +392,7 @@ impl Host {
 
     fn drive_connection(&mut self, token: Token, env: &Env<Limits>, io: &mut Queue<skein_io::Request>) {
         let c = self.connections.get_mut(&token).expect("owned connection");
+        c.link.fire(env.now, io);
         c.pump(env, io);
         if let Some(reply) = c.result.take()
             && let Some(run) = self.runs.get_mut(&c.run)

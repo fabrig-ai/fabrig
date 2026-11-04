@@ -62,7 +62,7 @@ fn repository_creation_connection_loss_and_early_end_are_down() {
         let mut connection = connection();
         let env = Env { now: Time::ZERO, wall: Wall::EPOCH, limits: host::limits() };
         let mut io = Queue::with_capacity(16);
-        connection.socket = Some(Token::new(2));
+        connection.link.connecting(Token::new(2), &mut Queue::uncapped());
         connection.connect(&env);
         connection.stream(&env, event);
         for _ in 0_u32..16 {

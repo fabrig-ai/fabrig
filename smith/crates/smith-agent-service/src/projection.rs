@@ -44,7 +44,7 @@ pub fn event_limits(
         .max(effort_bytes)
         .max(header_string)
         .max(METADATA_STRING_BYTES);
-    let client = limits.llm.adapter.client;
+    let client = limits.llm.translation.client;
     let string = metadata_string.max(client.strings).max(limits.channel.bodies.message_label);
     let answer_bytes = u32::try_from(limits.domain.run.outcome_bytes).ok()?;
     let metadata_items = charter

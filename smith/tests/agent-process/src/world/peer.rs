@@ -241,18 +241,18 @@ fn full_completion() -> skein_fake_peers::llm::Peer {
         Box::new([skein_fake_llm_domain::api::Script {
             cue: Box::new([]),
             turns: Box::new([smith_agent_world::fixture::says(
-                (0..crate::limits().llm.adapter.client.output_items)
+                (0..crate::limits().llm.translation.client.output_items)
                     .map(|index| skein_fake_llm_domain::api::Line::Text {
                         // First response metadata is item_1_<index> and final_answer.
                         text: vec![
                             b'x';
                             usize::try_from(
-                                crate::limits().llm.adapter.client.answer
-                                    / crate::limits().llm.adapter.client.output_items
+                                crate::limits().llm.translation.client.answer
+                                    / crate::limits().llm.translation.client.output_items
                                     + u32::from(
                                         index
-                                            < crate::limits().llm.adapter.client.answer
-                                                % crate::limits().llm.adapter.client.output_items
+                                            < crate::limits().llm.translation.client.answer
+                                                % crate::limits().llm.translation.client.output_items
                                     )
                             )
                             .expect("bounded text per part")

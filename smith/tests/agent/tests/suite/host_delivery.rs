@@ -179,7 +179,7 @@ fn cancel(agent: &mut Agent, host: &mut Host, submission: &DeliverySubmission, n
 }
 
 fn final_answer(agent: &Agent) -> host::Answer {
-    let run::Answer::Failed { failure: run::Failure::Cancelled, turns, spent } = agent.answer() else {
+    let run::Answer::Failed { failure: run::RunFailure::Cancelled, turns, spent } = agent.answer() else {
         panic!("the run keeps its decided cancellation after delivery settles")
     };
     assert!(agent.turns().iter().flat_map(|turn| &turn.messages).flat_map(|message| &message.content).any(|block| {

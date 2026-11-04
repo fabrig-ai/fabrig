@@ -32,7 +32,7 @@ fn a_program_completion_without_usage_overflows() {
     };
     assert_eq!(
         *failure,
-        run::Failure::Budget { exhausted: run::Exhausted::Overflow(run::Overflow::Spend), used: None, bound: None }
+        run::RunFailure::Budget { exhausted: run::Exhausted::Overflow(run::Overflow::Spend), used: None, bound: None }
     );
 }
 
@@ -92,7 +92,7 @@ fn the_run_s_time_cancels_a_program_completion() {
     let emitted = h.step(Event::Below(crate::Below::Cancelled { owner }));
     let [
         Request::Answer {
-            answer: run::Answer::Failed { failure: run::Failure::Budget { exhausted: run::Exhausted::Time, .. }, .. },
+            answer: run::Answer::Failed { failure: run::RunFailure::Budget { exhausted: run::Exhausted::Time, .. }, .. },
             ..
         },
     ] = emitted.as_ref()
@@ -266,7 +266,7 @@ fn a_cancelled_program_child_sends_close_after_its_cancel() {
         &[Request::Lower(crate::Lower::Close { owner: child })]
     );
     let emitted = h.next();
-    let [Request::Answer { answer: run::Answer::Failed { failure: run::Failure::Cancelled, .. }, .. }] =
+    let [Request::Answer { answer: run::Answer::Failed { failure: run::RunFailure::Cancelled, .. }, .. }] =
         emitted.as_ref()
     else {
         panic!("cancelled run: {emitted:?}");

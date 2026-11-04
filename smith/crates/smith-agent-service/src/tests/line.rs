@@ -36,21 +36,23 @@ fn read_prompt(calls: u8, line: u64, usage: llm::Usage) -> (llm::Prompt, Vec<usi
     }
     session::reserve_completion(&mut domain, session_owner.unwrap(), 0, 0, 1024).unwrap();
     let content = (0..calls)
-        .map(|index| session::llm::Block::ToolCall {
-            id: Box::new([b'a'.checked_add(index).unwrap()]),
-            name: b"read".as_slice().into(),
-            input: br#"{"path":"file"}"#.as_slice().into(),
-            call: session::llm::Decoded::Owned {
-                call: tools::Call::Read {
-                    path: tools::Path {
-                        absolute: false,
-                        parts: Box::new([tools::Part::Name { name: named(b"file") }]),
+        .map(|index| {
+            session::llm::Block::ToolCall(session::llm::ToolCall {
+                id: Box::new([b'a'.checked_add(index).unwrap()]),
+                name: b"read".as_slice().into(),
+                input: br#"{"path":"file"}"#.as_slice().into(),
+                call: session::llm::Decoded::Owned {
+                    call: tools::Call::Read {
+                        path: tools::Path {
+                            absolute: false,
+                            parts: Box::new([tools::Part::Name { name: named(b"file") }]),
+                        },
+                        offset: 1,
+                        window: tools::Budget::Default,
                     },
-                    offset: 1,
-                    window: tools::Budget::Default,
                 },
-            },
-            replay: None,
+                replay: None,
+            })
         })
         .collect();
     session::step(
@@ -119,7 +121,7 @@ fn resolved(prompt: session::llm::Prompt) -> (llm::Prompt, Vec<usize>) {
                 .into_iter()
                 .map(|block| match block {
                     session::llm::Block::Text { text, replay } => llm::Block::Text { text, replay },
-                    session::llm::Block::ToolCall { id, name, input, replay, .. } => {
+                    session::llm::Block::ToolCall(session::llm::ToolCall { id, name, input, replay, .. }) => {
                         llm::Block::ToolCall { id, name, input, replay }
                     }
                     session::llm::Block::ToolResult { id, result: session::llm::Returned::Owned { outcome } } => {
@@ -326,7 +328,7 @@ fn endpoints(limits: &adapter::ComponentLimits, provider: skein_llm::Provider) -
         Box::new([adapter::ConfiguredEndpoint {
             name: llm::Endpoint(0),
             destination: skein_llm_connection::Endpoint {
-                limits: limits.adapter.client,
+                limits: limits.translation.client,
                 credential: skein_llm::client::CredentialLimits { value: 128 },
                 address: "127.0.0.1:443".parse().unwrap(),
                 transport: skein_llm_connection::Transport::Plaintext,

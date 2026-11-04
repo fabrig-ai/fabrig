@@ -137,7 +137,7 @@ fn finish_cancelled_agent(stand: &mut fixtures::WorkerStand, link: &mut LinkPeer
         .send_answer(
             fixtures::NOW,
             smith_domain_run::Answer::Failed {
-                failure: smith_domain_run::Failure::Cancelled,
+                failure: smith_domain_run::RunFailure::Cancelled,
                 spent: smith_domain_run::Spend::ZERO,
                 turns: FINAL_TURNS,
             },

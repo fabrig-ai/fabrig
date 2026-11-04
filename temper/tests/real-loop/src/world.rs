@@ -451,7 +451,7 @@ fn host<R: Referee<Proc>>(
         crate::terminal::roots,
     );
     let configuration = smith_agent_shell::config::read(&path.join("agent.json")).expect("agent operation bound");
-    if let Some(program) = configuration.programs.get(&smith_agent_shell::config::ProgramName::ClaudeCode) {
+    if let Some(program) = configuration.program.as_ref() {
         use std::os::unix::ffi::OsStrExt;
         world.host_startup(
             crate::claude::program(program.path.as_os_str().as_bytes()),
@@ -474,7 +474,7 @@ fn host<R: Referee<Proc>>(
             operations: smith_agent_service::program_operations(&configuration.service).expect("agent program routes")
                 + 3,
         },
-        if configuration.programs.is_empty() { |_| Vec::new() } else { agent::roots },
+        if configuration.program.is_none() { |_| Vec::new() } else { agent::roots },
     );
 }
 struct Judge {

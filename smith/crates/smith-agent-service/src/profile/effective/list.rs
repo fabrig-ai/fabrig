@@ -54,7 +54,7 @@ fn project(
     session(inventory, &limits.domain.session)?;
     tools(inventory, &limits.domain.session.tools)?;
     inventory.layer = Layer::Render;
-    inventory.value("result", Value::Bytes(u64::from(limits.llm.adapter.rendered_result)))?;
+    inventory.value("result", Value::Bytes(u64::from(limits.llm.translation.rendered_result)))?;
     service(inventory, limits)?;
     for endpoint in &configuration.endpoints {
         inventory.per = Per::Endpoint(endpoint.number);
@@ -67,7 +67,7 @@ fn project(
     super::llm::connection(inventory, &limits.llm.connection)?;
     super::llm::tls(inventory, &limits.llm.connection.tls)?;
     super::llm::component(inventory, &limits.llm)?;
-    super::llm::adapter(inventory, &limits.llm.adapter)?;
+    super::llm::translation(inventory, &limits.llm.translation)?;
     super::llm::receiving(inventory, &limits.llm.receiving)?;
     super::boundaries::machine(inventory, &limits.machine)?;
     super::channel::transcript(inventory, &limits.channel.transcript)?;

@@ -136,7 +136,7 @@ fn the_host_start_enters_the_agent_domain_and_its_answer_returns_to_the_host_dom
         other => panic!("expected domain answer, got {other:?}"),
     };
     assert!(out.pop().is_none());
-    assert!(matches!(answer, agent::run::Answer::Failed { failure: agent::run::Failure::Cancelled, turns: 0, .. }));
+    assert!(matches!(answer, agent::run::Answer::Failed { failure: agent::run::RunFailure::Cancelled, turns: 0, .. }));
     wire.agent_answers(answer);
     wire.settle();
     let translated = wire.take_host_answer().expect("host protocol decoded final answer");

@@ -644,9 +644,15 @@ impl Component {
             Stage::Loading | Stage::Locking | Stage::Reading => return,
             Stage::Running | Stage::Keeping { .. } | Stage::Forgetting { .. } | Stage::Finished => {}
         }
+        if let Some(web) = &mut exchange.web
+            && due(web.next_deadline(), env.now)
+        {
+            web.fire(env.now, io);
+            return;
+        }
         if web_closing(exchange.web.as_ref()) && !exchange.above.is_empty() {
             if let Some(web) = &mut exchange.web {
-                web.close_progress(env, io);
+                web.progress(env, io);
             }
             return;
         }
@@ -708,8 +714,6 @@ impl Component {
                     if !exchange.client.is_done() {
                         web.close(env, false, io);
                     }
-                } else if web.closing() {
-                    web.close_progress(env, io);
                 } else {
                     web.progress(env, io);
                 }
@@ -1142,7 +1146,7 @@ impl Component {
         false
     }
 
-    /// The earliest client, private file or live account deadline; closing adds no policy timers.
+    /// The earliest client, link, private file or live account deadline.
     #[must_use]
     pub fn next_deadline(&self) -> Option<Time> {
         let mut soonest = None;
@@ -1164,6 +1168,9 @@ impl Component {
             }
             if let OwnerLock::Waiting { until } = exchange.lock {
                 soonest = earliest(soonest, Some(until));
+            }
+            if let Some(web) = &exchange.web {
+                soonest = earliest(soonest, web.next_deadline());
             }
             if !web_closing(exchange.web.as_ref())
                 && let Some(at) = exchange.next_deadline()
@@ -1243,7 +1250,11 @@ fn turn_of(exchange: &Exchange, lifecycle: Lifecycle, now: Time) -> Option<Turn>
     {
         return Some(Turn::Busy);
     }
-    if exchange.has_work() || (!web_closing(exchange.web.as_ref()) && due(exchange.next_deadline(), now)) {
+    let link_due = match &exchange.web {
+        Some(web) => due(web.next_deadline(), now),
+        None => false,
+    };
+    if exchange.has_work() || link_due || (!web_closing(exchange.web.as_ref()) && due(exchange.next_deadline(), now)) {
         return Some(Turn::Progress);
     }
     None

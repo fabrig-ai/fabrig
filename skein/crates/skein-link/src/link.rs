@@ -1,0 +1,237 @@
+//! The stream and its close rule (skein/docs/design/link.md, 3.1–3.3).
+use core::mem;
+use skein_io as io;
+use skein_lib::stream::{Down, Up};
+use skein_lib::{Duration, Env, Queue, Time, Token};
+use skein_tls::client as tls;
+
+#[derive(Clone, Copy, Debug)]
+pub struct Limits {
+    pub tls: tls::Limits,
+    pub close_timeout: Duration,
+}
+#[derive(Clone, Copy, PartialEq, Eq, Debug)]
+pub enum Start {
+    Handshaking,
+    Ready,
+    Closing,
+}
+#[derive(PartialEq, Eq, Debug)]
+pub enum Event {
+    Ready,
+    Stream(Up),
+    Failed,
+}
+#[derive(PartialEq, Eq, Debug)]
+pub enum Moved {
+    Nothing,
+    Within,
+    Sent,
+    Above(Event),
+}
+
+#[derive(Debug)]
+enum Ending {
+    Open,
+    Flushing { until: Time },
+    Graceful,
+    Aborted,
+    Closed,
+}
+#[derive(Clone, Copy, Debug)]
+enum Ask {
+    Close,
+    Abort,
+}
+
+#[derive(Debug)]
+pub struct Link {
+    socket: Option<Token>,
+    tls: Option<tls::Client>,
+    events: Queue<tls::Event>,
+    cipher: Queue<Down>,
+    ending: Ending,
+    held: Option<Ask>,
+}
+
+impl Link {
+    #[must_use]
+    pub fn new(tls: Option<tls::Client>) -> Link {
+        Link {
+            socket: None,
+            tls,
+            events: Queue::uncapped(),
+            cipher: Queue::uncapped(),
+            ending: Ending::Open,
+            held: None,
+        }
+    }
+    #[must_use]
+    pub fn encrypted(&self) -> bool {
+        self.tls.is_some()
+    }
+    #[must_use]
+    pub fn socket(&self) -> Option<Token> {
+        self.socket
+    }
+    pub fn connecting(&mut self, socket: Token, below: &mut Queue<io::Request>) {
+        match self.ending {
+            Ending::Closed => return,
+            Ending::Open | Ending::Flushing { .. } | Ending::Graceful | Ending::Aborted => {}
+        }
+        self.socket = Some(socket);
+        if let Some(ask) = self.held.take() {
+            self.ask(ask, below);
+        }
+    }
+    pub fn connected(&mut self, env: &Env<Limits>) -> Start {
+        match self.ending {
+            Ending::Open => match &mut self.tls {
+                Some(client) => {
+                    tls::down(
+                        client,
+                        &env.with(env.limits.tls),
+                        tls::Request::Handshake,
+                        &mut self.events,
+                        &mut self.cipher,
+                    );
+                    Start::Handshaking
+                }
+                None => Start::Ready,
+            },
+            Ending::Flushing { .. } | Ending::Graceful | Ending::Aborted | Ending::Closed => Start::Closing,
+        }
+    }
+    pub fn up(&mut self, env: &Env<Limits>, event: Up) {
+        match self.ending {
+            Ending::Open | Ending::Flushing { .. } => match &mut self.tls {
+                Some(client) => tls::up(client, &env.with(env.limits.tls), event, &mut self.events, &mut self.cipher),
+                None => self.events.push(tls::Event::Stream(event)),
+            },
+            Ending::Graceful | Ending::Aborted | Ending::Closed => {}
+        }
+    }
+    pub fn down(&mut self, env: &Env<Limits>, down: Down) {
+        match self.ending {
+            Ending::Open => match &mut self.tls {
+                Some(client) => tls::down(
+                    client,
+                    &env.with(env.limits.tls),
+                    tls::Request::Stream(down),
+                    &mut self.events,
+                    &mut self.cipher,
+                ),
+                None => self.cipher.push(down),
+            },
+            Ending::Flushing { .. } | Ending::Graceful | Ending::Aborted | Ending::Closed => {}
+        }
+    }
+    pub fn pump(&mut self, below: &mut Queue<io::Request>) -> Moved {
+        if let Some(down) = self.cipher.pop() {
+            let moved = match &down {
+                Down::Send(bytes) if !bytes.is_empty() => Moved::Sent,
+                Down::Send(_) | Down::Demand { .. } | Down::Finish => Moved::Within,
+            };
+            below.push(io::Request::Stream { stream: self.socket.expect("a stream after Connecting"), down });
+            return moved;
+        }
+        let Some(event) = self.events.pop() else { return Moved::Nothing };
+        let ending = mem::replace(&mut self.ending, Ending::Closed);
+        let (ending, moved) = match ending {
+            Ending::Open => (
+                Ending::Open,
+                match event {
+                    tls::Event::Ready(_) => Moved::Above(Event::Ready),
+                    tls::Event::Stream(up) => Moved::Above(Event::Stream(up)),
+                    tls::Event::Failed(_) => Moved::Above(Event::Failed),
+                    tls::Event::Closed => unreachable!("TLS Closed answers the link's Close"),
+                },
+            ),
+            Ending::Flushing { until } => match event {
+                tls::Event::Closed => {
+                    self.ask(Ask::Close, below);
+                    (Ending::Graceful, Moved::Within)
+                }
+                tls::Event::Ready(_) | tls::Event::Stream(_) | tls::Event::Failed(_) => {
+                    (Ending::Flushing { until }, Moved::Within)
+                }
+            },
+            Ending::Graceful => (Ending::Graceful, Moved::Within),
+            Ending::Aborted => (Ending::Aborted, Moved::Within),
+            Ending::Closed => (Ending::Closed, Moved::Within),
+        };
+        self.ending = ending;
+        moved
+    }
+    pub fn close(&mut self, env: &Env<Limits>, abort: bool, below: &mut Queue<io::Request>) {
+        let ending = mem::replace(&mut self.ending, Ending::Closed);
+        self.ending = match ending {
+            Ending::Open | Ending::Flushing { .. } | Ending::Graceful if abort => {
+                self.events.clear();
+                self.cipher.clear();
+                self.ask(Ask::Abort, below);
+                Ending::Aborted
+            }
+            Ending::Open => match &mut self.tls {
+                Some(client) => {
+                    tls::down(
+                        client,
+                        &env.with(env.limits.tls),
+                        tls::Request::Close,
+                        &mut self.events,
+                        &mut self.cipher,
+                    );
+                    Ending::Flushing { until: env.now.saturating_add(env.limits.close_timeout) }
+                }
+                None => {
+                    self.cipher.clear();
+                    self.events.clear();
+                    self.ask(Ask::Close, below);
+                    Ending::Graceful
+                }
+            },
+            Ending::Flushing { until } => Ending::Flushing { until },
+            Ending::Graceful => Ending::Graceful,
+            Ending::Aborted => Ending::Aborted,
+            Ending::Closed => Ending::Closed,
+        };
+    }
+    pub fn closed(&mut self) {
+        self.ending = Ending::Closed;
+        self.events.clear();
+        self.cipher.clear();
+        self.held = None;
+        self.socket = None;
+    }
+    #[must_use]
+    pub fn has_work(&self) -> bool {
+        !self.cipher.is_empty() || !self.events.is_empty()
+    }
+    #[must_use]
+    pub fn next_deadline(&self) -> Option<Time> {
+        match self.ending {
+            Ending::Flushing { until } => Some(until),
+            Ending::Open | Ending::Graceful | Ending::Aborted | Ending::Closed => None,
+        }
+    }
+    pub fn fire(&mut self, now: Time, below: &mut Queue<io::Request>) {
+        match self.ending {
+            Ending::Flushing { until } if now >= until => {
+                self.events.clear();
+                self.cipher.clear();
+                self.ask(Ask::Abort, below);
+                self.ending = Ending::Aborted;
+            }
+            Ending::Open | Ending::Flushing { .. } | Ending::Graceful | Ending::Aborted | Ending::Closed => {}
+        }
+    }
+    fn ask(&mut self, ask: Ask, below: &mut Queue<io::Request>) {
+        match self.socket {
+            Some(entity) => below.push(match ask {
+                Ask::Close => io::Request::Close { entity },
+                Ask::Abort => io::Request::Abort { entity },
+            }),
+            None => self.held = Some(ask),
+        }
+    }
+}

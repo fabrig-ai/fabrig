@@ -1,4 +1,4 @@
-//! What a run finds in its checkout before it opens its main conversation
+//! What a run finds in its workspace before it opens its main conversation
 //! (smith/docs/design/domain/run.md, sections 3.3 and 8.1). The engine never reads a directory, so the
 //! run looks for itself:
 //!
@@ -7,7 +7,7 @@
 //! - For each writable directory, whether its selected relative check path
 //!   names an executable. No executable, no checks.
 //!
-//! One operation at a time, in the checkout's order, each with its deadline.
+//! One operation at a time, in the workspace's order, each with its deadline.
 //! A file that is missing, that is not text, or that io fails to read, is
 //! simply not there.
 
@@ -23,7 +23,7 @@ use crate::limits::Limits;
 use crate::workspace::{self, Directory, Workspace};
 
 /// One thing a run looks for: in the directory at `directory` in its
-/// checkout, its guide or its checks.
+/// workspace, its guide or its checks.
 #[derive(Clone, Copy, PartialEq, Eq, Hash, Debug)]
 pub(crate) struct Step {
     pub(crate) directory: u32,
@@ -36,12 +36,12 @@ pub(crate) enum Look {
     Checks,
 }
 
-/// What a run found in its checkout.
+/// What a run found in its workspace.
 #[derive(Debug)]
 pub(crate) struct Found {
-    /// The guides found, in the checkout's order.
+    /// The guides found, in the workspace's order.
     pub(crate) guides: List<Guide>,
-    /// The repositories that have checks, by their place in the checkout, in
+    /// The repositories that have checks, by their place in the workspace, in
     /// its order.
     pub(crate) checks: List<u32>,
 }
@@ -49,7 +49,7 @@ pub(crate) struct Found {
 /// The start of a directory's selected guide.
 #[derive(Debug)]
 pub(crate) struct Guide {
-    /// The directory's place in the checkout.
+    /// The directory's place in the workspace.
     pub(crate) directory: u32,
     pub(crate) text: Box<[u8]>,
     /// Whether `text` is all of the file.
@@ -57,7 +57,7 @@ pub(crate) struct Guide {
 }
 
 impl Found {
-    /// Room for what a checkout of `repositories` may hold.
+    /// Room for what a workspace of `repositories` may hold.
     pub(crate) fn with_capacity(repositories: u32) -> Found {
         Found { guides: List::with_capacity(repositories), checks: List::with_capacity(repositories) }
     }
@@ -133,5 +133,5 @@ fn wants_checks(mounted: Option<&Workspace>, index: u32) -> bool {
 
 fn directory(mounted: Option<&Workspace>, index: u32) -> &Directory {
     let index = usize::try_from(index).expect("a u32 fits in a usize");
-    workspace::directories(mounted).get(index).expect("steps are within the checkout")
+    workspace::directories(mounted).get(index).expect("steps are within the workspace")
 }

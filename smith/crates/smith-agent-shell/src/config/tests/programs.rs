@@ -1,5 +1,5 @@
 use super::{parse_value, shaped_document};
-use crate::config::{Program, ProgramName, from_value};
+use crate::config::{Program, from_value};
 use smith_agent_service::program_operations;
 
 fn document() -> serde_json::Value {
@@ -47,15 +47,14 @@ fn an_unbound_program_root_is_closed_by_the_shell() {
 #[test]
 fn a_configuration_names_claude_code_s_paths() {
     let configuration = parse_value(&document()).expect("program configuration");
-    assert_eq!(configuration.programs.len(), 1);
     assert_eq!(
-        configuration.programs.get(&ProgramName::ClaudeCode),
+        configuration.program.as_ref(),
         Some(&Program {
             path: "/usr/local/bin/claude".into(),
             directory: "/home/u/.local/state/smith/programs".into(),
         })
     );
-    assert!(configuration.endpoint_programs.is_empty(), "only endpoints naming a program are stored");
+    assert!(configuration.program_endpoints.is_empty(), "only endpoints naming a program are stored");
 }
 
 #[test]
@@ -63,7 +62,7 @@ fn an_endpoint_naming_a_program_reads_it() {
     let mut document = document();
     document["endpoints"][0]["program"] = "claude_code".into();
     let configuration = parse_value(&document).expect("endpoint program");
-    assert_eq!(configuration.endpoint_programs.get(&0), Some(&ProgramName::ClaudeCode));
+    assert!(configuration.program_endpoints.contains(&0));
     assert!(
         configuration.service.domain.valid(&configuration.service.limits.domain),
         "program declarations fit the startup pool"
@@ -143,7 +142,7 @@ fn the_program_startup_pool_prices_declarations_independently() {
     assert!(declared.service.program.as_ref().unwrap().endpoints.is_empty());
     assert!(direct.service.domain.programs.is_empty());
     assert!(declared.service.domain.programs.is_empty());
-    assert_eq!(direct.endpoint_programs, declared.endpoint_programs);
+    assert_eq!(direct.program_endpoints, declared.program_endpoints);
     let mut selected = document();
     selected["endpoints"][0]["program"] = "claude_code".into();
     let program = parse_value(&selected).unwrap();

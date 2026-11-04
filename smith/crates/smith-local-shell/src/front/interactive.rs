@@ -253,7 +253,7 @@ impl Interactive {
     /// Prepare the bounded screen before any resource is adopted.
     #[must_use]
     pub fn new(plain: bool, limits: &smith_agent_service::Limits) -> Option<Self> {
-        let client = limits.llm.adapter.client;
+        let client = limits.llm.translation.client;
         View::owned_bound(client.answer.max(client.strings))?;
         let mut screen = Live::new(plain, limits.domain.run.conversations);
         screen.accounts = Map::with_capacity(limits.domain.accounts);

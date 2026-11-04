@@ -440,19 +440,19 @@ fn result(answer: &run::Answer) -> (u32, u64, agent::RunResult) {
             (turns, spent.units, agent::RunResult::Accepted { outcome })
         }
         run::Answer::Parked { spent, turns } => (turns, spent.units, agent::RunResult::Parked),
-        run::Answer::Failed { failure: run::Failure::Cancelled, spent, turns } => {
+        run::Answer::Failed { failure: run::RunFailure::Cancelled, spent, turns } => {
             (turns, spent.units, agent::RunResult::Failed { failure: agent::RunFailure::Cancelled })
         }
         run::Answer::Failed { failure, spent, turns } => {
             let failure = match failure {
-                run::Failure::Policy(run::Policy::Unfinished { nudges, rejected }) => {
+                run::RunFailure::Policy(run::Policy::Unfinished { nudges, rejected }) => {
                     agent::RunFailure::Policy(agent::Policy::Unfinished { nudges, rejected })
                 }
-                run::Failure::Model(_) => agent::RunFailure::Model(agent::ModelFault::Provider),
-                other @ (run::Failure::Transcript(_)
-                | run::Failure::Budget { .. }
-                | run::Failure::Cancelled
-                | run::Failure::Stale) => panic!("unscripted Smith failure: {other:?}"),
+                run::RunFailure::Model(_) => agent::RunFailure::Model(agent::ModelFault::Provider),
+                other @ (run::RunFailure::Transcript(_)
+                | run::RunFailure::Budget { .. }
+                | run::RunFailure::Cancelled
+                | run::RunFailure::Stale) => panic!("unscripted Smith failure: {other:?}"),
             };
             (turns, spent.units, agent::RunResult::Failed { failure })
         }

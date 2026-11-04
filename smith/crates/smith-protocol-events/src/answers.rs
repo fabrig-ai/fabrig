@@ -167,9 +167,9 @@ fn invalid_name(invalid: run::Invalid) -> &'static [u8] {
 
 /// Project a domain failure into the event vocabulary.
 #[must_use]
-pub fn failure_record(why: run::Failure, now: skein_lib::Time) -> AnswerFailure {
+pub fn failure_record(why: run::RunFailure, now: skein_lib::Time) -> AnswerFailure {
     match why {
-        run::Failure::Model(fault) => match fault {
+        run::RunFailure::Model(fault) => match fault {
             run::Fault::Completion { failure: why, evidence, model: _, attempts: _, report } => {
                 let mut result = failure(AnswerClass::Model, None);
                 let mut completed = completion(why, evidence);
@@ -218,7 +218,7 @@ pub fn failure_record(why: run::Failure, now: skein_lib::Time) -> AnswerFailure 
             }
             run::Fault::Malformed => failure(AnswerClass::Model, Some(b"malformed")),
         },
-        run::Failure::Budget { exhausted, used, bound } => {
+        run::RunFailure::Budget { exhausted, used, bound } => {
             let which: &[u8] = match exhausted {
                 run::Exhausted::Turns => b"turns",
                 run::Exhausted::Spend => b"spend",
@@ -239,10 +239,10 @@ pub fn failure_record(why: run::Failure, now: skein_lib::Time) -> AnswerFailure 
             result.bound = bound;
             result
         }
-        run::Failure::Policy(run::Policy::Unfinished { .. }) => failure(AnswerClass::Policy, None),
-        run::Failure::Cancelled => failure(AnswerClass::Cancelled, None),
-        run::Failure::Stale => failure(AnswerClass::Stale, None),
-        run::Failure::Transcript(refusal) => {
+        run::RunFailure::Policy(run::Policy::Unfinished { .. }) => failure(AnswerClass::Policy, None),
+        run::RunFailure::Cancelled => failure(AnswerClass::Cancelled, None),
+        run::RunFailure::Stale => failure(AnswerClass::Stale, None),
+        run::RunFailure::Transcript(refusal) => {
             let which: &[u8] = match refusal {
                 run::TranscriptRefusal::Version => b"version",
                 run::TranscriptRefusal::Malformed => b"malformed",

@@ -528,7 +528,7 @@ fn a_sub_agent_that_spends_past_the_budget_winds_the_run_down() {
         (
             1,
             failed(
-                Failure::Budget {
+                RunFailure::Budget {
                     exhausted: Exhausted::Spend,
                     used: Some(BUDGET.spend + 1),
                     bound: Some(BUDGET.spend)

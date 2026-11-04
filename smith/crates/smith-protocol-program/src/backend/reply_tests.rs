@@ -52,7 +52,7 @@ fn wait_s_messages_join_its_answer() {
 #[test]
 fn a_joined_reply_past_its_bound_is_refused() {
     let mut backend = backend();
-    backend.settings.adapter.rendered_result = 8;
+    backend.settings.translation.rendered_result = 8;
     assert!(backend.ledger.push(call(b"last")).is_ok());
     let mut prompt = fixtures::prompt_with(Box::default());
     let messages = Box::new([llm::Message {

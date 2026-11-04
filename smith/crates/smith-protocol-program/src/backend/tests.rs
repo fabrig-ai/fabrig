@@ -120,9 +120,9 @@ fn compaction_rendering_stays_under_its_scenario_ceiling() {
         let mut backend = backend();
         backend.settings.input_bytes = INPUT;
         backend.settings.prompt_bytes = PROMPT;
-        backend.settings.adapter.rendered_result = 128;
-        backend.settings.adapter.client.history_items = 2;
-        backend.settings.adapter.client.tools = 0;
+        backend.settings.translation.rendered_result = 128;
+        backend.settings.translation.client.history_items = 2;
+        backend.settings.translation.client.tools = 0;
         let mut next = request(&backend);
         let FromDomain::Complete { prompt, observation, .. } = &mut next else { panic!("complete") };
         prompt.purpose = llm::Purpose::Compaction { room: 1000 };
@@ -172,16 +172,16 @@ fn invalid_limits_are_refused() {
         assert!(!super::backend_valid(&settings));
     }
     settings.receiving.max_completion_blocks = blocks;
-    let tools = settings.adapter.client.tools;
-    settings.adapter.client.tools = u32::MAX - 6;
+    let tools = settings.translation.client.tools;
+    settings.translation.client.tools = u32::MAX - 6;
     assert!(!super::backend_valid(&settings));
-    settings.adapter.client.tools = tools;
-    let input = settings.adapter.stated.call_input_bytes;
+    settings.translation.client.tools = tools;
+    let input = settings.translation.stated.call_input_bytes;
     for bound in [0, u32::MAX] {
-        settings.adapter.stated.call_input_bytes = bound;
+        settings.translation.stated.call_input_bytes = bound;
         assert!(!super::backend_valid(&settings));
     }
-    settings.adapter.stated.call_input_bytes = input;
+    settings.translation.stated.call_input_bytes = input;
     let line = settings.line_bytes;
     for bound in [0, u32::MAX] {
         settings.line_bytes = bound;

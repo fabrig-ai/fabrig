@@ -87,7 +87,7 @@ pub(crate) fn configuration() -> smith_agent_service::Config {
     service.limits = limits();
     let (destinations, _) = service.llm_endpoints.into_parts();
     let mut destination = destinations.into_boxed().into_vec().pop().expect("one destination");
-    destination.limits = service.limits.llm.adapter.client;
+    destination.limits = service.limits.llm.translation.client;
     destination.credential.value = service.limits.llm.grant_value_bytes;
     service.llm_endpoints = smith_protocol_llm::Endpoints::new(
         Box::new([smith_protocol_llm::ConfiguredEndpoint {
@@ -117,7 +117,6 @@ pub(crate) fn configuration() -> smith_agent_service::Config {
     });
     service
 }
-#[expect(clippy::zero_sized_map_values, reason = "the public shell configuration has a unit selector map")]
 fn agent(_spawn: &kernel::Spawn, inherited: &Inherited) -> Proc {
     let service = configuration();
     let pipe = |number| inherited.pipes.iter().find(|(child, _)| *child == number).expect("agent pipe").1;
@@ -129,8 +128,8 @@ fn agent(_spawn: &kernel::Spawn, inherited: &Inherited) -> Proc {
             trace: None,
             profile: smith_agent_process_world::profile(),
             declarations: declarations(),
-            programs: std::collections::BTreeMap::new(),
-            endpoint_programs: std::collections::BTreeMap::new(),
+            program: None,
+            program_endpoints: std::collections::BTreeSet::new(),
         },
         smith_agent_shell::Resources {
             input: pipe(0),
