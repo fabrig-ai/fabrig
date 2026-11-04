@@ -12,7 +12,7 @@ impl Component {
             }
         }
         if self.forges.len() >= env.limits.forges
-            || crate::limits::check_added(&env.limits, &self.shared, &self.owner, &forge).is_err()
+            || crate::limits::check_added(&env.limits, &self.common.shared, &self.common.owner, &forge).is_err()
         {
             return;
         }
@@ -51,19 +51,19 @@ impl Component {
             }
         }
         // Each pass removes one of the bounded live calls belonging to this forge.
-        for _ in 0..self.calls.len() {
+        for _ in 0..self.common.calls.len() {
             let mut next = None;
-            for (call, id) in &self.calls {
-                if self.waiting.get(*id).expect("indexed call").repository.forge == number {
+            for (call, id) in &self.common.calls {
+                if self.common.waiting.get(*id).expect("indexed call").repository.forge == number {
                     next = Some((*call, *id));
                     break;
                 }
             }
             let Some((call, id)) = next else { break };
-            self.finish(call, id, Err(api::Error::Unavailable), up);
+            self.common.finish(call, id, Err(api::Error::Unavailable), up);
         }
-        for (_, id) in &self.connections {
-            let c = self.connection_slab.get_mut(*id).expect("indexed connection");
+        for (_, id) in &self.common.connections {
+            let c = self.common.connection_slab.get_mut(*id).expect("indexed connection");
             if c.forge == number {
                 c.membership = crate::connection::Membership::Removed;
                 c.abort(env, io);

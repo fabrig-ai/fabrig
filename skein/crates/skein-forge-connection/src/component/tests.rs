@@ -14,14 +14,14 @@ fn token_fixture() -> (Component, Env<Limits>, Queue<skein_io::Request>) {
 #[should_panic(expected = "connection token prefix")]
 fn api_tokens_stop_before_the_listener_range() {
     let (mut c, env, mut io) = token_fixture();
-    c.next_token = LISTENER_OWNER;
-    c.open_own(0, &env, &mut io);
+    c.common.next_token = LISTENER_OWNER;
+    c.test_open_own(&env, &mut io);
 }
 #[test]
 fn the_last_api_token_is_still_issued() {
     let (mut c, env, mut io) = token_fixture();
-    c.next_token = LAST_API_OWNER;
-    assert_eq!(c.open_own(0, &env, &mut io).raw(), LAST_API_OWNER);
+    c.common.next_token = LAST_API_OWNER;
+    assert_eq!(c.test_open_own(&env, &mut io).raw(), LAST_API_OWNER);
 }
 
 #[test]
@@ -47,15 +47,19 @@ fn forgejo_starts_leave_the_github_reserved_slot_free() {
     let mut up = Queue::uncapped();
     let mut io = Queue::uncapped();
     c.begin(&env, &mut up, &mut io);
-    assert_eq!(c.call_connections(), limits.connections);
+    assert_eq!(c.common.call_connections(), limits.connections);
     assert!(c.forges.get(GITHUB_AT).expect("forge").base.own.is_some());
-    assert_eq!(c.connections.len(), 3);
+    assert_eq!(c.common.connections.len(), 3);
 }
 
 use crate::tests::github_renewal::{ready as github_ready, renewed_contents, renewed_full, renewing};
 
 fn refuse(h: &mut fixtures::Harness, revision: u64) {
-    h.component.github_token_refused(0, 1, revision, &h.env);
+    let ForgeEntry { base, dialect } = h.component.forges.get_mut(0).expect("forge");
+    match dialect {
+        Dialect::Forgejo { .. } => unreachable!("fixture dialect"),
+        Dialect::GitHub(gh) => h.component.common.github_token_refused(base, gh, 1, revision, &h.env),
+    }
 }
 fn revision(h: &fixtures::Harness) -> u64 {
     h.component.test_github().rows.get(&1).expect("row").token_revision
@@ -182,8 +186,8 @@ fn an_unheld_failure_does_not_wake_a_closing_connection() {
     h.connected(fixtures::FORGE);
     fixtures::branch_answers(&mut h, fixtures::FORGE);
     assert!(h.answered(1).is_some());
-    let owner = *h.component.connections.iter().next_back().expect("idle call connection").0;
-    assert!(!h.component.holders.contains_key(&owner));
+    let owner = *h.component.common.connections.iter().next_back().expect("idle call connection").0;
+    assert!(!h.component.common.holders.contains_key(&owner));
     h.component.up(&h.env, skein_io::Event::Failed { owner, error: skein_io::Error::Reset }, &mut h.up, &mut h.io);
     assert_ne!(h.component.next_deadline(), Some(h.env.now));
 }
