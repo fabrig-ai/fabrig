@@ -1493,10 +1493,10 @@ fn copy_on_github_stops_unexpected_naming_its_plan() {
     assert!(github.up.is_empty());
 }
 #[test]
-fn copy_on_forgejo_stops_unexpected_until_implemented() {
+fn copy_on_forgejo_reads_its_admin_token() {
     let mut forgejo = World::new();
     forgejo.plan(1, copy());
-    assert_eq!(forgejo.up.pop(), Some(stop(1, 1, Why::Unexpected)));
+    assert_eq!(forgejo.up.pop(), Some(owner_read(1)));
     assert!(forgejo.up.is_empty());
     assert!(forgejo.io.is_empty());
 }
@@ -1574,9 +1574,9 @@ fn a_refused_migrate_with_no_message_says_nothing() {
 
 #[test]
 fn a_refused_migrates_words_are_cut_at_a_character() {
-    let mut w = World::new();
-    let cap = usize::try_from(w.env.limits.string_bytes).expect("string cap");
+    let cap = usize::try_from(limits().string_bytes).expect("string cap");
     for prefix_length in [cap - 3, cap - 1] {
+        let mut w = World::new();
         let mut prefix = skein_lib::bytes::zeroed(prefix_length);
         prefix.fill(b'a');
         let body = skein_lib::bytes::concat(&[br#"{"message":""#, &prefix, "界extra\"}".as_bytes()]);
