@@ -1510,3 +1510,43 @@ body > noscript, #app:not(:empty):not(:has(*)) { margin-top: 213px; }
   #app:has(> .temper-rail):has(> .temper-chat) { grid-template-rows: auto auto auto minmax(0, 1fr); padding-bottom: calc(63px + env(safe-area-inset-bottom)); }
   #app:has(> .temper-rail) > .temper-chat { grid-row: 4; padding-bottom: 0; }
 }
+
+/* Home's column. */
+#app > .temper-home { width: auto; min-width: 0; margin: 0; padding: 64px 48px 96px; display: flex; flex-direction: column; align-items: center; gap: 60px; font-size: 15px; letter-spacing: normal; }
+#app > .temper-home > * { width: 100%; max-width: 720px; margin: 0; }
+#app > .temper-home > .temper-home-intro { display: flex; flex-direction: column; gap: 16px; }
+#app > .temper-home .temper-home-kicker { margin: 0; font-size: 13px; color: var(--gf-muted); }
+#app > .temper-home h1 { margin: 0; font: 500 32px/1.25 var(--gf-sans); letter-spacing: -.02em; color: var(--gf-ink); }
+#app > .temper-home .temper-home-lede { margin: 0; font-size: 17px; line-height: 1.65; color: var(--gf-ink-2); }
+#app > .temper-home > section { display: flex; flex-direction: column; gap: 14px; }
+#app > .temper-home > section > h2 { margin: 0; font: 600 13px/1.6 var(--gf-sans); letter-spacing: .06em; text-transform: uppercase; color: var(--gf-muted); }
+/* To begin: numbered steps, each ticked once done. */
+#app > .temper-home .temper-home-steps { display: flex; flex-direction: column; margin: 0; padding: 0; border-top: 1px solid var(--gf-line); list-style: none; counter-reset: temper-home-step; }
+#app > .temper-home .temper-home-steps > li { display: grid; grid-template-columns: 30px minmax(0, 1fr); column-gap: 12px; padding: 18px 4px; border-bottom: 1px solid var(--gf-line); counter-increment: temper-home-step; }
+#app > .temper-home .temper-home-steps > li::before { content: counter(temper-home-step); grid-column: 1; grid-row: 1 / span 3; box-sizing: border-box; width: 24px; height: 24px; display: grid; place-items: center; border: 1px solid var(--gf-line-2); border-radius: 50%; font-size: 12.5px; color: var(--gf-muted); }
+#app > .temper-home .temper-home-steps > li.temper-home-done::before { content: '✓'; border-color: #bfe0c9; background: #eef6f0; color: var(--gf-good); }
+#app > .temper-home .temper-home-steps > li > * { grid-column: 2; }
+#app > .temper-home .temper-home-steps h3 { margin: 0; font: 500 16px/1.6 var(--gf-sans); color: var(--gf-ink); }
+#app > .temper-home .temper-home-steps > li.temper-home-done h3 { color: var(--gf-muted); font-weight: 400; }
+#app > .temper-home .temper-home-steps > li > p { margin: 2px 0 0; font-size: 14.5px; line-height: 1.6; color: var(--gf-muted); }
+#app > .temper-home .temper-home-acts { display: flex; flex-wrap: wrap; align-items: center; gap: 8px; margin-top: 12px; }
+#app > .temper-home .temper-home-acts > :is(a, button) { display: inline-flex; align-items: center; gap: 8px; min-height: 34px; padding: 5px 12px; border: 1px solid var(--gf-line-2); border-radius: 8px; background: var(--gf-surface); color: var(--gf-ink); font: 400 13.5px/1.6 var(--gf-sans); text-decoration: none; }
+#app > .temper-home .temper-home-acts > :is(a, button):hover { border-color: #b4b4ae; }
+#app > .temper-home .temper-home-acts > .temper-home-primary { border-color: var(--gf-ink); background: var(--gf-ink); color: #fff; font-weight: 500; }
+#app > .temper-home .temper-home-acts > .temper-home-primary:hover { background: #000; }
+#app > .temper-home .temper-home-acts > .temper-home-quiet { border-color: transparent; background: none; color: var(--gf-muted); }
+#app > .temper-home .temper-home-acts > .temper-home-quiet:hover { background: var(--gf-hover); color: var(--gf-ink); }
+/* Connected: a line each, its act at the right. */
+#app > .temper-home .temper-home-lines { display: flex; flex-direction: column; margin: 0; padding: 0; border-top: 1px solid var(--gf-line); list-style: none; }
+#app > .temper-home .temper-home-lines > li { display: flex; justify-content: space-between; align-items: baseline; gap: 16px; padding: 14px 4px; border-bottom: 1px solid var(--gf-line); }
+#app > .temper-home .temper-home-lines > li > p { margin: 0; color: var(--gf-ink); }
+#app > .temper-home .temper-home-lines .temper-home-muted { color: var(--gf-muted); }
+#app > .temper-home .temper-home-lines > li > :is(a, button) { flex: none; padding: 0; border: 0; background: none; color: var(--gf-faint); font: 13px/1.6 var(--gf-sans); text-decoration: underline; text-decoration-color: var(--gf-line-2); text-underline-offset: 3px; }
+#app > .temper-home .temper-home-lines > li > :is(a, button):hover { text-decoration-color: var(--gf-ink); }
+
+@media (max-width: 760px) {
+  #app > .temper-home { padding: 8px 20px 112px; gap: 32px; }
+  #app > .temper-home > .temper-home-intro { gap: 10px; }
+  #app > .temper-home h1 { font-size: 25px; line-height: 1.3; letter-spacing: -.015em; }
+  #app > .temper-home .temper-home-lede { font-size: 15.5px; }
+}

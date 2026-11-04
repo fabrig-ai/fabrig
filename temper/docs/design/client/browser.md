@@ -1117,6 +1117,14 @@ from the engine's own answers, is where the look is tuned.
 
 | Name | The state |
 |---|---|
+| `home-three-left` | hand-made Home deliveries: all three steps left; first repository offered |
+| `home-two-left` | hand-made Home deliveries: repository adopted; configuring and first chat left |
+| `home-one-left` | hand-made Home deliveries: repository adopted and a way of working accepted; first chat left |
+| `home-ready` | hand-made Home deliveries: all three steps done |
+| `home-adopting` | hand-made Home deliveries: first adoption in flight; no repository acts |
+| `home-refused` | hand-made Home deliveries: first adoption refused; its words and retry acts |
+| `home-no-repository` | hand-made Home deliveries: no repository or first offer |
+| `home-github` | hand-made Home deliveries: GitHub connected with an accepted installation |
 | `chats-solo` | the solo world's chats |
 | `chat-solo-T10` | the solo world's chat T10, its proposal in place |
 | `inbox-solo` | the solo world's inbox: a proposal, a question |
