@@ -344,3 +344,23 @@ It says: “Stop and ask only for product code outside the files, or for a desig
 In `temper/tests/engine/domain/tests/suite/forge_routes/reviews.rs`, pass 8 to `pending_large_with_alpha_and_beta`, remove the shipped-capacity assertion, and rename the test to describe its explicit task limit.
 Keep the `tasks::Refusal::Live` and subsequent room-release assertions: they preserve the saturation regression.
 Run the whole touched test binary before pushing, as the standing answer requires, then complete the remaining acceptance checks and status updates with the three authorized exclusions.
+
+2026-11-04. **Runs 5 to 8 without landing: rerun, split or stop?** Rerun, as it is. Run 8's only
+stop, `reviews.rs`'s eight-task saturation fixture, is settled by the answer just above: a test
+fixture following init's move to `standard`, which the standing answer already covered, so it was
+no reason to stop. Every other check of the acceptance passed in run 8 but for the three named
+exclusions. To land in one more run:
+
+- Start from the pushed `fabrig-scale/init-standard` (`0c9c954fa1` or later); redo nothing the
+  answers settle and ask nothing they answer.
+- `reviews.rs` as answered above: `pending_large_with_alpha_and_beta(8)`, no assertion on
+  `box_limits().tasks.tasks`, the test renamed for its explicit eight-task limit (for example
+  `beta_at_an_eight_task_limit_waits_for_room_then_starts_its_producer`), the `Refusal::Live` and
+  room-release assertions kept.
+- Then the whole `-p temper-engine-domain-world` without fail-fast stopping the count short
+  (`--no-fail-fast`), so every further test pinned to Small is found in this run; each that mends
+  by an expected figure, an explicit small limit in its own fixture, or `standard`, under the
+  standing answer, with no stop, listed with old and new.
+- Then `heavy cargo check -p temper --tests`, the status lines, clippy and the push. A test left
+  failing that is outside the standing answer goes under `## Left`; stop only for product code
+  outside the files or a design change.
