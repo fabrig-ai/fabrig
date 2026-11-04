@@ -64,6 +64,6 @@ impl Backend {
         if self.current.owner().is_some() && !self.turns.ready.is_empty() {
             self.intake_due = Some(env.now);
         }
-        self.read_stdout();
+        self.read_stdout(below);
     }
 }

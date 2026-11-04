@@ -73,7 +73,6 @@ debt it says what a reviewer checks.
 | [D013](D013-forge-connection-parallel-lists.md) | forge-connection keeps forges in parallel lists and dialects as runtime tags | complexity | high | M | open |
 | [D014](D014-forge-setup-vocabulary.md) | forge-setup's shared vocabulary lives in Forgejo's reconcile, and `Reply` mixes dialects | coupling | medium | M | open |
 | [D015](D015-flat-forge-enums.md) | Flat forge request, answer and node enums are re-matched in every module | complexity | medium | L | open |
-| [D016](D016-transport-four-copies.md) | The socket, TLS and HTTP transport is written four times | primitives | high | M | open |
 | [D018](D018-io-pipe-and-file-states.md) | io's pipe, signals and file machines keep state in flags and literals | complexity | medium | M | open |
 | [D019](D019-channel-machine-flags.md) | The channel machine keeps its lifecycle in eleven bools | complexity | medium | S | open |
 | [D020](D020-forge-connection-states.md) | forge-connection's connections keep their state in flags beside a thin tag | complexity | medium | M | open |

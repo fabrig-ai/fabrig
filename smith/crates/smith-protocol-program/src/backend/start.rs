@@ -67,7 +67,7 @@ impl Backend {
         }
         if self.files.prepared() {
             self.current.retain(request, up);
-            self.startup.prepare(&mut self.io);
+            self.startup.prepare(&mut self.server_up, below);
             self.prepare_invocation(env, up, below);
             return;
         }
@@ -93,6 +93,7 @@ impl Backend {
         for argument in STATUS {
             arguments.push(Box::from(argument)).expect("status arguments");
         }
+        let mut requests = Queue::uncapped();
         let check = Command::new(
             self.token(Owner::Status),
             Launch {
@@ -104,9 +105,12 @@ impl Backend {
             },
             env.now.saturating_add(self.settings.startup),
             self.settings.receiving.max_failure_bytes,
-            &mut self.io,
+            &mut requests,
         );
-        self.startup.checking(check, &mut self.io);
+        for _ in 0..requests.len() {
+            below.push(Below::Io(requests.pop().expect("command request")));
+        }
+        self.startup.checking(check, &mut self.server_up, below);
     }
 
     pub(super) fn progress(
@@ -123,7 +127,7 @@ impl Backend {
             self.yield_for_wind_down(env, up, below);
         }
         if self.startup.phase() == State::Ending && self.process.child().is_none() && !self.process.spawning() {
-            self.startup.close_server(&mut self.io);
+            self.startup.close_server(&mut self.server_up, below);
         }
         if self.startup.phase() == State::Ending
             && self.startup.check().is_none()
@@ -153,13 +157,13 @@ impl Backend {
             Some(Ended::Unspawned { detail } | Ended::Deadline { detail }) => (Status::Unreadable, None, detail.into()),
             None => return,
         };
-        self.startup.checked(&mut self.io);
+        self.startup.checked(&mut self.server_up, below);
         if self.startup.phase() == State::Ending {
             return;
         }
         match status {
             Status::Usable => {
-                self.startup.prepare(&mut self.io);
+                self.startup.prepare(&mut self.server_up, below);
                 self.open_runs(env.now, below);
             }
             Status::NotSignedIn | Status::Otherwise(_) => self.fail(
@@ -179,11 +183,8 @@ impl Backend {
         up: &mut Queue<ToDomain>,
         below: &mut Queue<Below>,
     ) {
-        for _ in 0_u32..2 {
-            let event = match self.startup.server_mut() {
-                Some(server) => server.up(),
-                None => None,
-            };
+        for _ in 0..self.server_up.capacity() {
+            let event = self.server_up.pop();
             match event {
                 Some(mcp::Up::Listening { port }) => {
                     if self.startup.phase() == State::Starting {
@@ -191,10 +192,10 @@ impl Backend {
                     }
                 }
                 Some(mcp::Up::Connected) => {}
-                Some(prompt @ mcp::Up::Prompt { .. }) => self.permission(prompt),
+                Some(prompt @ mcp::Up::Prompt { .. }) => self.permission(prompt, below),
                 Some(call @ mcp::Up::Call { .. }) => {
                     self.calls.push(call).expect("server bounds admitted calls");
-                    self.match_calls();
+                    self.match_calls(below);
                 }
                 Some(mcp::Up::Ended(_)) => {
                     self.mcp_ended(env, up, below);
@@ -223,9 +224,9 @@ impl Backend {
         if !self.compaction() && !self.startup.resuming() {
             self.first_prompt_measure(env.now);
         }
-        self.io.push(io::Request::Spawn { owner: self.token(Owner::Program), spawn: launch });
+        below.push(Below::Io(io::Request::Spawn { owner: self.token(Owner::Program), spawn: launch }));
         self.process.spawn();
-        self.startup.launch(env.now.saturating_add(self.settings.startup), &mut self.io);
+        self.startup.launch(env.now.saturating_add(self.settings.startup), &mut self.server_up, below);
     }
 
     pub(super) fn mcp_ended(
@@ -239,7 +240,7 @@ impl Backend {
         let waiting = self.startup.phase() == State::Running && self.process.child().is_some();
         let until =
             if waiting && !self.startup.switching() { Some(env.now.saturating_add(self.settings.grace)) } else { None };
-        self.startup.relay_ended(until, &mut self.io);
+        self.startup.relay_ended(until, &mut self.server_up, below);
         if !self.startup.switching()
             && !waiting
             && self.startup.phase() != State::Ending

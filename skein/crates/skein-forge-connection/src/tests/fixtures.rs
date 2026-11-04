@@ -560,7 +560,7 @@ impl ConnectionHarness {
     fn with_forge_limits(forge: Forge, shared: Shared, limits: Limits) -> Self {
         let mut connection =
             crate::connection::Connection::new(&forge, &limits, shared, Time::from_nanos(10_000_000_000));
-        connection.socket = Some(skein_lib::Token::new(100));
+        connection.link.connecting(skein_lib::Token::new(100), &mut Queue::uncapped());
         let env = Env { now: Time::ZERO, wall: Wall::EPOCH, limits };
         connection.connect(&env);
         Self {

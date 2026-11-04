@@ -168,7 +168,7 @@ fn host_withdrawal_and_timeout_retain_relay_until_terminal_answer_wins() {
         match stop {
             Stop::CancelRun => {
                 let (_, answer) = answered(harness.step(ended(conversation, End::Closed, Spend::ZERO)));
-                assert_eq!(answer, failed(Failure::Cancelled, Spend::ZERO));
+                assert_eq!(answer, failed(RunFailure::Cancelled, Spend::ZERO));
             }
             Stop::Withdraw | Stop::RelayTimeout => {}
         }

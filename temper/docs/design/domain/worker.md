@@ -568,8 +568,8 @@ process has exited and its tree is empty. temper's choices:
   states, from the agent's configuration (`../protocol/configuration.md`,
   section 5).
 - **Its program endpoints,** in the hello's bounds: the endpoint numbers
-  the agent's configuration serves by a program, its `endpoint_programs`
-  keys, as jig's reference launcher declares them (jig's
+  the agent's configuration serves by a program, its `program_endpoints`,
+  as jig's reference launcher declares them (jig's
   `domain/hosts.md`, 8.1). temper's stock agent serves none, an empty
   list that proves no endpoint is a program; a chat whose ordinary
   source is one is refused before it starts, `HostRefused` in its

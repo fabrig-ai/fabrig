@@ -186,7 +186,7 @@ impl Backend {
         }
         let text = json::text_in(document, json::field_in(document, delta, b"text"))?;
         let block = u32::try_from(turns::number(document, json::field(document, event, b"index"))?).ok()?;
-        if text.len() > usize::try_from(self.settings.adapter.client.answer).ok()?
+        if text.len() > usize::try_from(self.settings.translation.client.answer).ok()?
             || block >= self.settings.receiving.max_completion_blocks
         {
             return None;

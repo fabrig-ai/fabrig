@@ -122,7 +122,7 @@ fn transcript_decodes_history_with_one_invalid_call_problem() {
     assert_eq!(transcript.turns[0].spent, 7);
     assert_eq!(transcript.turns[0].usage.cache_read_tokens, Some(4));
     match &transcript.turns[0].messages[0].content[0] {
-        llm::Block::ToolCall { call: llm::Decoded::Historical, .. } => {}
+        llm::Block::ToolCall(llm::ToolCall { call: llm::Decoded::Historical, .. }) => {}
         other => panic!("expected historical call: {other:?}"),
     }
     match &transcript.turns[0].messages[0].content[1] {

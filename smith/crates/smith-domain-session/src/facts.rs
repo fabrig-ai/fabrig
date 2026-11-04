@@ -205,7 +205,7 @@ impl Facts {
 /// The owner of a tool declaration, supplied by the conversation opener.
 #[derive(Clone, Copy, PartialEq, Eq, Hash, Debug)]
 pub enum ToolSource {
-    /// The session's checkout tools.
+    /// The session's workspace tools.
     Workspace,
     /// A run-owned tool such as `sub_agent` or finish.
     Run,

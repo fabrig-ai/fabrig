@@ -339,14 +339,15 @@ fn completion_answer_fields() {
         });
         world.run(20_000);
         let fault = expected_fault(expected, &world);
-        let resolved =
-            if let run::Answer::Failed { failure: run::Failure::Model(run::Fault::Completion { model, .. }), .. } =
-                world.answer()
-            {
-                charter.model(*model).map(|value| (&value.endpoint, &value.model))
-            } else {
-                None
-            };
+        let resolved = if let run::Answer::Failed {
+            failure: run::RunFailure::Model(run::Fault::Completion { model, .. }),
+            ..
+        } = world.answer()
+        {
+            charter.model(*model).map(|value| (&value.endpoint, &value.model))
+        } else {
+            None
+        };
         let expected_model = if let run::Fault::Completion { .. } = &fault {
             Some((&charter.llm.endpoint, &charter.llm.model))
         } else {
@@ -355,7 +356,7 @@ fn completion_answer_fields() {
         assert_eq!(
             (world.answer(), resolved),
             (
-                &run::Answer::Failed { failure: run::Failure::Model(fault), spent: run::Spend::ZERO, turns: 0 },
+                &run::Answer::Failed { failure: run::RunFailure::Model(fault), spent: run::Spend::ZERO, turns: 0 },
                 expected_model
             )
         );
@@ -406,6 +407,6 @@ fn budget_answer_fields() {
     let run::Answer::Failed { failure, .. } = world.answer() else { panic!("shared turns spent") };
     assert_eq!(
         failure.clone(),
-        run::Failure::Budget { exhausted: run::Exhausted::Turns, used: Some(7), bound: Some(8) }
+        run::RunFailure::Budget { exhausted: run::Exhausted::Turns, used: Some(7), bound: Some(8) }
     );
 }

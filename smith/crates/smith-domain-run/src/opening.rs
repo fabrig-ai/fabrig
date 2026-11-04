@@ -15,7 +15,7 @@ use crate::prompt;
 use crate::workspace::{self, Workspace};
 
 /// The opening of a run's main conversation, given what the run found in its
-/// checkout, what it has spent and the time it has left. What it holds is
+/// workspace, what it has spent and the time it has left. What it holds is
 /// rendered from the charter or copied: the run keeps the charter (copy at
 /// emission).
 #[expect(

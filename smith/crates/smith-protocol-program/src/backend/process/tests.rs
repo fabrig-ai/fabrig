@@ -1,4 +1,5 @@
 use super::*;
+use crate::backend::fixtures::pop_io;
 
 const CHILD: Token = Token::new(30);
 const OWNER: Token = Token::new(14);
@@ -45,8 +46,8 @@ fn drain_expiry_aborts_the_remaining_pipes_once() {
     process.drain(Time::from_nanos(9), &mut below);
     assert!(below.is_empty());
     process.drain(Time::from_nanos(10), &mut below);
-    assert_eq!(below.pop(), Some(io::Request::Abort { entity: OUTPUT }));
-    assert_eq!(below.pop(), Some(io::Request::Abort { entity: ERRORS }));
+    assert_eq!(pop_io(&mut below), Some(io::Request::Abort { entity: OUTPUT }));
+    assert_eq!(pop_io(&mut below), Some(io::Request::Abort { entity: ERRORS }));
     assert!(below.is_empty());
     process.drain(Time::from_nanos(11), &mut below);
     assert!(below.is_empty());

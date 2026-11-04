@@ -240,12 +240,12 @@ fn acknowledge(domain: &mut Domain, env: &Env<Limits>, run: Token, turn: u32) {
     }
 }
 
-fn priced_overflow(failure: Option<run::Failure>) -> Option<session::End> {
+fn priced_overflow(failure: Option<run::RunFailure>) -> Option<session::End> {
     match failure {
-        Some(run::Failure::Budget { exhausted: run::Exhausted::Overflow(run::Overflow::Spend), .. }) => {
+        Some(run::RunFailure::Budget { exhausted: run::Exhausted::Overflow(run::Overflow::Spend), .. }) => {
             Some(session::End::PriceOverflow)
         }
-        Some(run::Failure::Budget { exhausted: run::Exhausted::Overflow(run::Overflow::Usage), .. }) => {
+        Some(run::RunFailure::Budget { exhausted: run::Exhausted::Overflow(run::Overflow::Usage), .. }) => {
             Some(session::End::UsageOverflow)
         }
         Some(_) | None => None,

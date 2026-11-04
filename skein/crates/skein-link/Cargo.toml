@@ -1,0 +1,16 @@
+[package]
+name = "skein-link"
+description = "One socket and its optional TLS, with a bounded graceful close"
+version.workspace = true
+edition.workspace = true
+license.workspace = true
+rust-version.workspace = true
+publish.workspace = true
+
+[dependencies]
+skein-lib.workspace = true
+skein-io.workspace = true
+skein-tls.workspace = true
+
+[lints]
+workspace = true
