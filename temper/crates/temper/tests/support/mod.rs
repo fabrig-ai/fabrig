@@ -23,6 +23,8 @@ pub mod forge_land;
 pub mod forge_parent;
 pub mod forge_sign_in;
 pub mod forgejo;
+// The elsewhere story captures credentials through Linux's abstract Unix sockets.
+#[cfg(target_os = "linux")]
 pub mod forgejo_elsewhere;
 pub mod forgejo_sign_in;
 pub mod live;
