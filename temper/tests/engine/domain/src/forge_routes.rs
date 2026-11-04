@@ -1,5 +1,4 @@
 //! Root forge stories with its durable store and the independent fake Forgejo.
-#![expect(clippy::wildcard_enum_match_arm, reason = "the fixture selects only the forge rows relevant to each story")]
 use crate as temper_engine_domain_world;
 use crate::forge_routes as paths;
 use crate::journal_limits as journal;
@@ -1214,7 +1213,6 @@ impl World {
         panic!("external fake call did not return")
     }
 
-    #[expect(clippy::wildcard_enum_match_arm, reason = "the world records only its scripted root deliveries")]
     #[expect(clippy::too_many_lines, reason = "one exhaustive root output table")]
     pub fn collect(&mut self) {
         for _ in 0..self.out.len() {

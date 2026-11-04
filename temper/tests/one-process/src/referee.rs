@@ -195,10 +195,6 @@ pub(crate) fn chat_waited(store: &Store) -> bool {
         )
     }) && snapshot(store).receipts.contains(&rules::Receipt::Turn(1, 1, 2))
 }
-#[expect(
-    clippy::wildcard_enum_match_arm,
-    reason = "the chat's conformance receipts come from relevant durable core rows"
-)]
 fn snapshot(store: &Store) -> rules::Snapshot {
     let mut snapshot = rules::Snapshot::default();
     for row in store.rows.values() {
@@ -545,7 +541,6 @@ fn settled(store: &Store) -> u32 {
     )
     .expect("settled claims")
 }
-#[expect(clippy::wildcard_enum_match_arm, reason = "the conformance receipts select committed client documents")]
 fn client_receipts(event: &client::Received, store: &Store, party: Option<u64>) -> Vec<rules::Receipt> {
     use jig_client::contract as c;
     match event {
