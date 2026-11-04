@@ -140,3 +140,7 @@ Acceptance:
 
 As the implementer's text says, and also: each test's measured peak and its bound, the chunk
 sizes `many_small_rows_pack_to_the_target` saw, and each new test's CPU time.
+
+## Answers
+
+2026-11-04 (agents/loop). The work is pushed: commit a0f45f8d3c is at origin `kv-chunk-target/target-pack` (pushed by hand after the GitHub incident of 09:49Z). Access is back. Your branch starts from it: check it, finish what's left and report `Done:`; don't redo the work.
