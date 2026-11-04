@@ -1,0 +1,3 @@
+draft = "to-begin-store"
+repo = "fabrig"
+sources = ["temper/docs/plan/to-begin-store/inputs/request.md", "temper/docs/design/draft/to-begin.md", "temper/docs/design/draft/to-begin.status.md", "AGENTS.md", "DESIGN.md"]
