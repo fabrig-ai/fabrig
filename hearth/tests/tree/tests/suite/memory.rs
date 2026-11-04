@@ -10,11 +10,9 @@ use hearth_tree_world::{
     check::{self, Record},
     fixtures, generate, mutate,
 };
-use skein_heap::{Counting, Meter};
+use skein_heap::Meter;
 use skein_lib::Rng;
 
-#[global_allocator]
-static HEAP: Counting = Counting;
 
 const OVERFLOW: &[(Kind, bool)] = &[
     (Kind::Store, false),
@@ -156,7 +154,7 @@ fn reading_a_tree_file_at_its_limits_holds_no_more_than_its_worst_case() {
 }
 
 mod walk {
-    use super::HEAP;
+    use crate::HEAP;
     use hearth_domain_tree::{
         MAX_OUT, Tree,
         limits::{Limits, SHIPPED, worst_case},
