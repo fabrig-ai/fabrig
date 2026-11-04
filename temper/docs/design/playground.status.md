@@ -23,8 +23,8 @@
   - 9: Story A's walk in the one-process world, by the terminal
     client, ignored: its `#[ignore]` has it stall at Starting after
     5 s, forge 1 Kept, the account and the project absent
-    (`tests/one-process/tests/suite/story_a.rs`); whether what lets
-    the web client's walk pass lifts that is unknown.
+    (`temper/tests/one-process/tests/suite/story_a.rs`); whether what
+    lets the web client's walk pass lifts that is unknown.
   - 10: the bar: story A by hand on Firefox and Safari, of which nothing
     records a walk; within its bars, the download being past its own (8)
     and the memory's and the slice's unset (section 11); and published.
@@ -40,7 +40,7 @@
     features: so the gate lints the page's code, but not the shell with
     its feature, which `scripts/bundle.sh --playground` alone builds.
   - 9: the kept log replays under the one-process world's forge referee
-    alone (`tests/one-process/src/replay.rs`, `Refereed`), because the
-    referee's parts that watch the terminal client's person or keep the
-    links have no place in a visit, and the log's digests prove the
-    visitor's answers.
+    alone (`temper/tests/one-process/src/replay.rs`, `Refereed`),
+    because the referee's parts that watch the terminal client's person
+    or keep the links have no place in a visit, and the log's digests
+    prove the visitor's answers.
