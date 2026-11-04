@@ -2,6 +2,7 @@
 
 2026-11-04. Where temper's code lags or departs from [README.md](README.md).
 
+- **Not yet:** 3.5: the fetch's progress node, and its detail naming the binary. 4.6: `SettingUp` has no `fetched`.
 - **Not yet:** 3.4, 5.5: the composer's supplied default, jig's
   `resolved_default`, which neither jig's `Me` nor temper carries. 3.5:
   `Board { project }` with its reordering, and `Changes { project }`: no
