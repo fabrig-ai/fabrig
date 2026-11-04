@@ -77,6 +77,15 @@ pub fn adopt_repository_ask(
     repository: skein_forge::api::Repository,
     connector: u16,
 ) -> Option<people::Ask> {
+    let (project, adoption) = adoption_parts(adoption, repository, connector)?;
+    Some(people::Ask::Adopt { project, adoption })
+}
+
+pub(super) fn adoption_parts(
+    adoption: forge::Adoption,
+    repository: skein_forge::api::Repository,
+    connector: u16,
+) -> Option<(u32, people::Adoption)> {
     let role = match adoption.role {
         forge::Role::Owned => people::ResourceRole::Owned,
         forge::Role::Fork => people::ResourceRole::Fork,
@@ -95,9 +104,9 @@ pub fn adopt_repository_ask(
     for check in adoption.checks {
         options.push(Box::from(check.to_be_bytes())).ok()?;
     }
-    Some(people::Ask::Adopt {
-        project: adoption.project,
-        adoption: people::Adoption {
+    Some((
+        adoption.project,
+        people::Adoption {
             resource: people::ResourceName {
                 connector,
                 path: Box::new([
@@ -108,7 +117,7 @@ pub fn adopt_repository_ask(
             role,
             options: options.into_boxed(),
         },
-    })
+    ))
 }
 
 /// Report stored adoption facts to jig (jig/docs/design/domain/connectors.md, 12 and 14).
@@ -3984,7 +3993,12 @@ pub(crate) fn outputs(
     for _ in 0..out.len() {
         let request = out.pop().expect("connector output count");
         match request {
-            forge::Request::MakingCopied { .. } | forge::Request::MakingAct { .. } => {}
+            forge::Request::MakingCopied { key } => {
+                assert!(super::now(domain, Request::MakingCopied { key }), "making copy door reserved");
+            }
+            forge::Request::MakingAct { key, act, adoption, repository } => {
+                super::making::act(domain, key, act, adoption, repository);
+            }
             forge::Request::CarriedUnused { number } => emit(decision, &env.limits, Delivery::CarriedUnused { number }),
             forge::Request::EraseCarried { number } => {
                 assert!(super::now(domain, Request::EraseCarried { number }), "erase door");

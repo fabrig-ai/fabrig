@@ -33,7 +33,11 @@ pub(super) fn start(domain: &mut Domain, admission: Admission, request: Applicat
             | forge::Ask::Accept { .. }
             | forge::Ask::Reachable { .. },
         ) => people::ApplicationScope::Deployment,
-        Application::Forge(forge::Ask::Adopt(_) | forge::Ask::MakeRepository { .. }) => scope,
+        Application::Forge(forge::Ask::MakeRepository { into, .. }) => match into {
+            Some(into) => people::ApplicationScope::Project(into.project),
+            None => people::ApplicationScope::Deployment,
+        },
+        Application::Forge(forge::Ask::Adopt(_)) => scope,
         Application::Return { .. } => people::ApplicationScope::Own,
     };
     if request == Application::Forge(forge::Ask::StartPlayground) {

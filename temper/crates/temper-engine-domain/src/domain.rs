@@ -99,6 +99,7 @@ pub struct Domain {
     pub(crate) next_application_owner: u64,
     pub(crate) returns: Map<Token, (Time, Wall)>,
     pub(crate) adoption_restore: Map<Token, (Token, Option<forge::Repository>)>,
+    pub(crate) making_replies: Map<Token, forge::MakingKey>,
     pub(crate) forge_subscribing: Map<Token, forge::Subscriber>,
     pub(crate) forge_unsubscribing: Map<Token, (u64, forge::Topic)>,
     pub(crate) forge_reading: Map<Token, (ReplyTo, CallKey)>,
@@ -456,6 +457,7 @@ impl Domain {
             next_application_owner: 1,
             returns: Map::with_capacity(limits.people.requests),
             adoption_restore: Map::with_capacity(limits.forge.adoptions),
+            making_replies: Map::with_capacity(limits.forge.makings),
             forge_subscribing: Map::with_capacity(limits.fleet.calls),
             forge_unsubscribing: Map::with_capacity(limits.fleet.calls),
             forge_reading: Map::with_capacity(limits.fleet.calls),
@@ -570,6 +572,7 @@ impl Domain {
             && self.revision_reads.is_empty()
             && self.store_answers.is_empty()
             && self.adoption_restore.is_empty()
+            && self.making_replies.is_empty()
             && self.forge_subscribing.is_empty()
             && self.forge_unsubscribing.is_empty()
             && self.forge_reading.is_empty()
@@ -799,6 +802,7 @@ pub(crate) fn stage_now(domain: &mut Domain, out: &mut Queue<Request>) {
             | Request::PlaygroundActs { .. }
             | Request::ResetAct { .. }
             | Request::BoxRemove { .. }
+            | Request::MakingCopied { .. }
             | Request::SetUp { .. }
             | Request::Bound { .. }
             | Request::Return { .. }

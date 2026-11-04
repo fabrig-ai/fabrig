@@ -705,6 +705,10 @@ pub enum PartyInput {
 /// and 4). Every output crosses the journal door in its peer's vocabulary.
 #[derive(PartialEq, Eq, Debug)]
 pub enum Request {
+    /// A making's copy mark has crossed the root (temper/docs/design/domain/forge.md, 4.5).
+    MakingCopied {
+        key: forge::MakingKey,
+    },
     /// Playground routing (temper/docs/design/protocol/setup.md, 8.4).
     PlaygroundActs {
         request: Token,
