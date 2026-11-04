@@ -20,10 +20,30 @@ mode = "direct"
 needs = []
 design = "skein/docs/design/forge.md, 4.3"
 
+[[part]]
+id = "fetch"
+title = "temper forge fetch on macOS: Homebrew's bottles at addresses fixed by the pins' digests"
+mode = "direct"
+needs = ["pins"]
+design = "temper/docs/design/protocol/setup.md, 6.6"
+
+[[part]]
+id = "story"
+title = "what the story needs at run time, every target compiled, and the workflow running the one story"
+mode = "direct"
+needs = ["workflow", "pins", "fetch"]
+design = "temper/docs/design/domain/testing.md, 2.8"
+
 [[slice]]
 id = 1
 story = "the workflow exists on the trunk, and the pins move to bottled versions the conformance and the story hold on Linux"
 parts = ["workflow", "pins"]
+walk = false
+
+[[slice]]
+id = 2
+story = "the workflow's first run on main fetches the bottles and runs temper's acceptance story on macos-26; failures come back as small follow-up tasks"
+parts = ["fetch", "story"]
 walk = false
 
 [[question]]

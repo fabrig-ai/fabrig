@@ -1472,14 +1472,16 @@ reads it, and whatever is Linux's may be degraded there.
   run shows that the pinned addresses still answer; `TEMPER_FORGEJO` and
   `TEMPER_FORGEJO_RUNNER` then name what it fetched, and the box's own
   fetch finds them in place and holds them to the pins' binary digests.
+  The workflow prints each one's version first, so that a binary that
+  does not run shows apart from the story.
 - **Its support on macOS,** each the simplest that works:
   - `parent::Guard` holds its child and gives it no parent-death signal,
     which is Linux's: the test's own ending stops what it started;
   - the steps of the story's CI use what both systems' tools have, within
     the cleared `PATH`s of the box and of the owned runner;
   - `left`, Linux's whole-tree proof, proves nothing under the tree
-    keeper's Group (`skein/docs/design/shell.md`, section 9), so the
-    story holds the box's clean exit alone there.
+    keeper's Group (`skein/docs/design/shell.md`, section 9): it reads
+    empty there, so the story holds the box's clean exit alone.
 - **No containers:** its jobs run on the runner's host under the
   `temper-host` label, as on Linux.
 - **The Darwin check.** On our Linux machines clippy reaches, for
