@@ -14,9 +14,9 @@ use temper_engine_domain::{self as engine, Delivery, Event, Key, PartyInput, Rec
 use temper_engine_domain_forge as forge;
 use temper_engine_domain_world::{direct::Driver, forge_stand::ForgeStand, store::Store};
 
-fn generated() -> (engine::Config, engine::Limits) {
+fn generated_files() -> temper_init::Answer {
     let port = |value| NonZeroU16::new(value).expect("nonzero synthetic port");
-    let answer = temper_init::files(
+    temper_init::files(
         &temper_init::Facts {
             binary: b"/bin/temper",
             git: Some(b"/bin/git"),
@@ -34,10 +34,13 @@ fn generated() -> (engine::Config, engine::Limits) {
         &[0; 32],
         &[1; 32],
     )
-    .expect("actual init producer");
+    .expect("actual init producer")
+}
+
+fn generated() -> (engine::Config, engine::Limits) {
     let mut files = settings::Files { entries: List::with_capacity(8) };
     let mut document = None;
-    for file in answer.files {
+    for file in generated_files().files {
         if let temper_init::Content::Bytes { bytes, .. } = file.content {
             if file.name == b"temper.json" {
                 document = Some(bytes.clone());
@@ -103,6 +106,38 @@ fn sign_in_owner(driver: &mut Driver) {
             name: b"Ada".as_slice().into(),
         },
     }));
+}
+
+#[test]
+fn a_fresh_init_names_the_standard_profiles() {
+    let init = generated_files()
+        .files
+        .into_iter()
+        .find_map(|file| match file.content {
+            temper_init::Content::Bytes { bytes, .. } if file.name == b"temper.json" => Some(bytes),
+            _ => None,
+        })
+        .expect("generated temper.json");
+    for path in [b"engine.limits.profile".as_slice(), b"workers[0].limits.profile", b"application.limits.profile"] {
+        assert_eq!(fixtures::value(&init, path).as_ref(), br#""standard""#, "{}", str::from_utf8(path).unwrap());
+    }
+    let overrides = fixtures::value(&init, b"engine.limits.overrides");
+    let document = config::document(&overrides, &config::DocumentLimits { bytes: 16_384, tokens: 4096, depth: 4 })
+        .expect("init engine overrides");
+    let mut task_overrides = Vec::new();
+    for at in (1..document.len().checked_sub(1).unwrap()).step_by(2) {
+        let member = document.text(document.token(at).unwrap()).expect("override name");
+        assert!(
+            !member.starts_with(b"people.") && !member.starts_with(b"authority."),
+            "init overrides {} instead of taking standard",
+            str::from_utf8(member).unwrap()
+        );
+        if member.starts_with(b"tasks.") {
+            task_overrides.push(str::from_utf8(member).expect("ASCII override name"));
+        }
+    }
+    task_overrides.sort_unstable();
+    assert_eq!(task_overrides.as_slice(), ["tasks.message_bytes", "tasks.result_bytes"]);
 }
 
 #[test]
