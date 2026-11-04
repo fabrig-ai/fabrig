@@ -1,6 +1,6 @@
 # Status
 
-2026-11-03. Where temper's code lags or departs from its design, and its
+2026-11-04. Where temper's code lags or departs from its design, and its
 design from its drafts, from the status files below. The first
 milestone stands in the code (`README.md`). After landing is built for
 a repository's tiers, a goal branch's own tier, their verdicts, a red's
@@ -49,14 +49,12 @@ commands and the baseline (`protocol/README.md`), and the release
 (`release.md`). Forges kept in the store, a forge's removal and the
 playground's reset are designed and built; the code departs where the
 box's group file holds a forge's kind alone (`protocol/setup.md`,
-`protocol/forge.md`, `protocol/README.md`), where the setup shell keeps
-a reconcile host no product calls (`protocol/README.md`,
-`protocol/setup.md`) and temper's service is an unrecorded copy of
-jig's reference service (`protocol/README.md`), and lags in a
-removal without the box (`domain/forge.md`) and a project's Delete
-(`client/README.md`); public reading still lacks a deployment's proxy
-configuration and figures, and the negative walk's real-service checks
-(`protocol/sign-in.md`). The browser walk's project-link checks expect
+`protocol/forge.md`, `protocol/README.md`) and where temper's service
+is an unrecorded copy of jig's reference service (`protocol/README.md`),
+and lags in a removal without the box (`domain/forge.md`) and a
+project's Delete (`client/README.md`); public reading still lacks a
+deployment's proxy configuration and figures, and the negative walk's
+real-service checks (`protocol/sign-in.md`). The browser walk's project-link checks expect
 an identifier label where the view shows the project's name; public
 pages show project names and task titles where the browser design says
 none (`client/browser.md`); a connected Forgejo, its connect with its bot's
