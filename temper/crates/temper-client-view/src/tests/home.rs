@@ -230,6 +230,36 @@ fn deliver(root: &mut d::Domain, watch: Token, value: c::Delivery) {
     );
 }
 fn home_root(rows: List<w::ForgeRow>, configured: bool, chat: bool) -> (d::Domain, Token) {
+    home_with_needs(rows, configured, chat, None)
+}
+struct NeedsFixture<'a> {
+    objects: &'a [c::ObjectKey],
+    cut: bool,
+    read: bool,
+}
+fn home_with_needs(
+    rows: List<w::ForgeRow>,
+    configured: bool,
+    chat: bool,
+    needs: Option<NeedsFixture<'_>>,
+) -> (d::Domain, Token) {
+    home_documents(rows, configured, chat, needs, None)
+}
+struct ChatFixture {
+    live: c::Tasks,
+    ended: c::TaskPage,
+}
+#[expect(
+    clippy::disallowed_methods,
+    reason = "test fixtures and assertions inspect semantic nodes and public event deliveries"
+)]
+fn home_documents(
+    rows: List<w::ForgeRow>,
+    configured: bool,
+    chat: bool,
+    needs: Option<NeedsFixture<'_>>,
+    chats: Option<ChatFixture>,
+) -> (d::Domain, Token) {
     let (mut root, me_watch, _, _, accounts, _) = f::root_at_with_forges(
         Address::Settings { project: f::PROJECT },
         &f::domain_limits(),
@@ -258,7 +288,7 @@ fn home_root(rows: List<w::ForgeRow>, configured: bool, chat: bool) -> (d::Domai
         })
         .unwrap();
     f::deliver_me(&mut root, me_watch, me);
-    let out = drive(&mut root, d::Event::Went { place: d::Place::Address(Address::Home { project: f::PROJECT }) });
+    let mut out = drive(&mut root, d::Event::Went { place: d::Place::Address(Address::Home { project: f::PROJECT }) });
     let mut settings = None;
     let mut live = None;
     for request in &out {
@@ -307,8 +337,176 @@ fn home_root(rows: List<w::ForgeRow>, configured: bool, chat: bool) -> (d::Domai
     if chat {
         rows.push(super::chats::line()).unwrap();
     }
-    deliver(&mut root, live.expect("Home chats"), c::Delivery::Tasks(Box::new(c::Tasks { rows, more: false })));
+    let mut refreshed = drive(
+        &mut root,
+        d::Event::Client {
+            event: jig_client::Event::Up {
+                up: jig_client::Up::Watched {
+                    watch: live.expect("Home chats"),
+                    event: c::WatchEvent::Delivered(c::Delivery::Tasks(Box::new(
+                        chats.as_ref().map_or(c::Tasks { rows, more: false }, |chats| chats.live.clone()),
+                    ))),
+                },
+            },
+        },
+    );
+    while let Some(request) = refreshed.pop() {
+        out.push(request);
+    }
+    settle_home(&mut root, &mut out, needs.as_ref(), chats.as_ref());
     (root, accounts.unwrap())
+}
+fn read_done(root: &mut d::Domain, read: Token, value: c::ReadValue) -> Queue<d::Request> {
+    drive(
+        root,
+        d::Event::Client {
+            event: jig_client::Event::Up {
+                up: jig_client::Up::ReadDone { read, result: jig_client::Readout::Jig(c::ReadResult::Value(value)) },
+            },
+        },
+    )
+}
+fn home_need_page(object: c::ObjectKey) -> c::ReadValue {
+    let mut task = f::task::document();
+    task.chip.title = f::task::document_words(b"Add a README");
+    match object {
+        c::ObjectKey::Question { task: number, message } => {
+            task.chip.task = number;
+            if message == 7 {
+                task.chip.title = f::task::document_words(b"");
+            }
+            c::ReadValue::Question(Box::new(c::Question {
+                task: task.chip,
+                from: None,
+                message,
+                words: f::task::document_words(b"Which license?"),
+                since: skein_lib::Wall::EPOCH,
+                acts: List::with_capacity(0),
+                ending: None,
+            }))
+        }
+        c::ObjectKey::PersonTask(_) => c::ReadValue::PersonTask(Box::new(c::PersonTask {
+            task: task.chip,
+            revision: task.spec_revision,
+            requester: task.requester,
+            spec: task.spec,
+            address: c::PersonAddress::Party(73),
+            taken_by: None,
+            since: Some(skein_lib::Wall::EPOCH),
+            stall: None,
+            deadline: None,
+            contract: task.result_contract,
+            results: List::with_capacity(0),
+            cut: false,
+            acts: List::with_capacity(0),
+        })),
+        c::ObjectKey::Escalation(_) => {
+            c::ReadValue::Escalation(Box::new(c::Escalation { task: Box::new(task), acts: List::with_capacity(0) }))
+        }
+        c::ObjectKey::Proposal(_) => super::cards::batch_proposal(),
+        c::ObjectKey::Task(_) | c::ObjectKey::Result(_) | c::ObjectKey::Note { .. } => {
+            c::ReadValue::Task(Box::new(task))
+        }
+    }
+}
+#[expect(
+    clippy::disallowed_methods,
+    reason = "test fixtures and assertions inspect semantic nodes and public event deliveries"
+)]
+fn settle_home(
+    root: &mut d::Domain,
+    out: &mut Queue<d::Request>,
+    needs: Option<&NeedsFixture<'_>>,
+    chats: Option<&ChatFixture>,
+) {
+    while let Some(request) = out.pop() {
+        let d::Request::Unlinked { request: jig_client::UnlinkedRequest::Down { down } } = request else { continue };
+        let mut more = match down {
+            jig_client::Down::Open { watch, subject: jig_client::Watchable::Jig(c::Subject::Inbox { .. }) }
+                if needs.is_some() =>
+            {
+                let value =
+                    super::documents::inbox(List::with_capacity(0), 0, c::Count { value: 0, limited: false }, 0, false);
+                drive(
+                    root,
+                    d::Event::Client {
+                        event: jig_client::Event::Up {
+                            up: jig_client::Up::Watched {
+                                watch,
+                                event: c::WatchEvent::Delivered(c::Delivery::Inbox(Box::new(value))),
+                            },
+                        },
+                    },
+                )
+            }
+            jig_client::Down::Read { read, what: jig_client::Readable::Jig(c::Read::Inbox { group, .. }) } => {
+                let Some(needs) = needs else { continue };
+                let mut rows = List::with_capacity(u32::try_from(needs.objects.len()).unwrap());
+                if group == c::InboxReadGroup::Needs {
+                    for object in needs.objects {
+                        rows.push(super::documents::entry(*object, f::PROJECT, 1, f::NOW, None)).unwrap();
+                    }
+                }
+                read_done(
+                    root,
+                    read,
+                    c::ReadValue::Inbox(Box::new(c::InboxPage {
+                        rows,
+                        cut: group == c::InboxReadGroup::Needs && needs.cut,
+                        before: None,
+                        after: None,
+                        selection: None,
+                    })),
+                )
+            }
+            jig_client::Down::Read { read, what: jig_client::Readable::Jig(c::Read::Question { task, message }) } => {
+                if !needs.is_some_and(|needs| needs.read) {
+                    continue;
+                }
+                read_done(root, read, home_need_page(c::ObjectKey::Question { task, message }))
+            }
+            jig_client::Down::Read { read, what: jig_client::Readable::Jig(c::Read::Proposal { proposal }) } => {
+                if !needs.is_some_and(|needs| needs.read) {
+                    continue;
+                }
+                read_done(root, read, home_need_page(c::ObjectKey::Proposal(proposal)))
+            }
+            jig_client::Down::Read { read, what: jig_client::Readable::Jig(c::Read::Escalation { task }) } => {
+                if !needs.is_some_and(|needs| needs.read) {
+                    continue;
+                }
+                read_done(root, read, home_need_page(c::ObjectKey::Escalation(task)))
+            }
+            jig_client::Down::Read { read, what: jig_client::Readable::Jig(c::Read::PersonTask { task }) } => {
+                if !needs.is_some_and(|needs| needs.read) {
+                    continue;
+                }
+                read_done(root, read, home_need_page(c::ObjectKey::PersonTask(task)))
+            }
+            jig_client::Down::Read { read, what: jig_client::Readable::Jig(c::Read::Tasks { .. }) } => read_done(
+                root,
+                read,
+                c::ReadValue::Tasks(Box::new(chats.map_or(
+                    c::TaskPage {
+                        live: List::with_capacity(0),
+                        live_after: None,
+                        ended: c::EndedGroup::Rows { rows: List::with_capacity(0), after: None, cut: false },
+                    },
+                    |chats| chats.ended.clone(),
+                ))),
+            ),
+            jig_client::Down::Save { .. }
+            | jig_client::Down::Erase { .. }
+            | jig_client::Down::Send { .. }
+            | jig_client::Down::Open { .. }
+            | jig_client::Down::Continue { .. }
+            | jig_client::Down::Close { .. }
+            | jig_client::Down::Read { .. } => continue,
+        };
+        while let Some(request) = more.pop() {
+            out.push(request);
+        }
+    }
 }
 fn forge_rows(in_project: bool) -> List<w::ForgeRow> {
     let mut rows = super::connect_forge::first_rows(super::connect_forge::connected(), super::connect_forge::made());
@@ -372,7 +570,7 @@ fn home_counts_steps_and_removes_done_acts_in_both_shells() {
                     3 => "You’re set up. Nothing has run yet.",
                     2 => "Two things left to begin with.",
                     1 => "One thing left to begin with.",
-                    0 => "Shop is ready for work.",
+                    0 => "Shop",
                     _ => unreachable!(),
                 };
                 for view in [f::page_view(&root), f::browser_page_view(&root)] {
@@ -382,7 +580,7 @@ fn home_counts_steps_and_removes_done_acts_in_both_shells() {
                             .iter()
                             .filter(|node| node.styles.as_slice().contains(&crate::look::HOME_DONE))
                             .count(),
-                        usize::from(3 - left)
+                        if left == 0 { 0 } else { usize::from(3 - left) }
                     );
                     for (role, name, done) in
                         [(Role::Button, b"Start".as_slice(), configured), (Role::Link, b"New chat", chat)]
@@ -395,23 +593,30 @@ fn home_counts_steps_and_removes_done_acts_in_both_shells() {
                         );
                     }
                     let main = f::main_text(view.tree());
-                    contains(
-                        &main,
-                        "In your own words: how you plan, review and land work. temper proposes how it will run that, and nothing changes until you accept.",
-                    );
-                    contains(&main, "Ask a question or ask for a change.");
-                    if repository {
-                        contains(&main, "work/hello is in Shop");
+                    if left > 0 {
                         contains(
                             &main,
-                            "temper can change its code now; checked changes land on main through temper's merge queue.",
+                            "In your own words: how you plan, review and land work. temper proposes how it will run that, and nothing changes until you accept.",
                         );
+                        contains(&main, "Ask a question or ask for a change.");
+                        if repository {
+                            contains(&main, "work/hello is in Shop");
+                            contains(
+                                &main,
+                                "temper can change its code now; checked changes land on main through temper's merge queue.",
+                            );
+                        }
                     }
                 }
                 let terminal = printed(&f::page_view(&root));
                 assert!(terminal.strip_prefix(b"== ").unwrap().starts_with(headline.as_bytes()));
-                for words in ["To begin", "1. ", "2. ", "3. ", "Connected"] {
-                    contains(&terminal, words);
+                contains(&terminal, "Connected");
+                for words in ["To begin", "1. ", "2. ", "3. "] {
+                    if left > 0 {
+                        contains(&terminal, words);
+                    } else {
+                        absent(&terminal, words);
+                    }
                 }
             }
         }
@@ -807,4 +1012,422 @@ fn home_unknown_and_ended_forges_draw_only_known_facts() {
         absent(&text, "has no repository yet");
         contains(&text, "Nothing has run yet.");
     }
+}
+
+// One featured need plus six others proves Home's five-row limit on both sides.
+const QUESTIONS: [c::ObjectKey; 7] = [
+    c::ObjectKey::Question { task: f::INBOX_TASK, message: 1 },
+    c::ObjectKey::Question { task: f::INBOX_TASK, message: 2 },
+    c::ObjectKey::Question { task: f::INBOX_TASK, message: 3 },
+    c::ObjectKey::Question { task: f::INBOX_TASK, message: 4 },
+    c::ObjectKey::Question { task: f::INBOX_TASK, message: 5 },
+    c::ObjectKey::Question { task: f::INBOX_TASK, message: 6 },
+    c::ObjectKey::Question { task: f::INBOX_TASK, message: 7 },
+];
+fn everyday(beginning: bool, objects: &[c::ObjectKey], cut: bool, read: bool) -> d::Domain {
+    home_with_needs(forge_rows(true), !beginning, true, Some(NeedsFixture { objects, cut, read })).0
+}
+fn inbox_act() -> d::pages::Act {
+    d::pages::Act::Go {
+        address: Address::Inbox { filter: d::address::Filter { project: Some(f::PROJECT), kind: None, goal: None } },
+    }
+}
+#[expect(
+    clippy::disallowed_methods,
+    reason = "test fixtures and assertions inspect semantic nodes and public event deliveries"
+)]
+fn section_styles(tree: &skein_ui::Tree) -> Box<[skein_ui::Style]> {
+    children(main_nodes(tree)).iter().map(|node| node.styles.as_slice()[0]).collect()
+}
+#[test]
+#[expect(
+    clippy::disallowed_methods,
+    reason = "test fixtures and assertions inspect semantic nodes and public event deliveries"
+)]
+fn everyday_headlines_count_known_needs_and_mark_cut_reads() {
+    for (objects, cut, headline) in [
+        (&QUESTIONS[..0], false, "Nothing needs you."),
+        (&QUESTIONS[..1], false, "One thing needs you."),
+        (&QUESTIONS[..3], false, "3 things need you."),
+        (&QUESTIONS[..1], true, "1+ things need you."),
+        (&QUESTIONS[..3], true, "3+ things need you."),
+    ] {
+        let root = everyday(false, objects, cut, true);
+        for view in [f::page_view(&root), f::browser_page_view(&root)] {
+            main_find(view.tree(), Role::Heading { level: 1 }, headline.as_bytes());
+            assert_eq!(
+                section_styles(view.tree()).as_ref(),
+                [
+                    crate::look::HOME_INTRO,
+                    crate::look::HOME_NEEDS,
+                    crate::look::HOME_CHATS,
+                    crate::look::HOME_CONNECTED
+                ]
+            );
+            assert!(
+                !main_nodes(view.tree()).iter().any(|node| node.styles.as_slice().contains(&crate::look::HOME_LEDE))
+            );
+            if objects.is_empty() {
+                main_find(
+                    view.tree(),
+                    Role::Paragraph,
+                    b"Nothing needs you. Work carries on, and this page tells you what changed when you come back.",
+                );
+                let heading = main_find(view.tree(), Role::Heading { level: 2 }, b"Needs you");
+                assert!(!subtree(view.tree(), heading)[0].styles.as_slice().contains(&crate::look::HOME_SIGNAL));
+            }
+        }
+    }
+}
+#[test]
+#[expect(
+    clippy::disallowed_methods,
+    reason = "test fixtures and assertions inspect semantic nodes and public event deliveries"
+)]
+fn first_need_keeps_card_order_navigation_and_terminal_words() {
+    for beginning in [false, true] {
+        let root = everyday(beginning, &QUESTIONS[..1], false, true);
+        for (mut view, browser) in [(f::page_view(&root), false), (f::browser_page_view(&root), true)] {
+            let tree = view.tree();
+            let top = section_styles(tree);
+            let expected: &[skein_ui::Style] = if beginning {
+                &[
+                    crate::look::HOME_INTRO,
+                    crate::look::HOME_BEGIN,
+                    crate::look::HOME_NEEDS,
+                    crate::look::HOME_CHATS,
+                    crate::look::HOME_CONNECTED,
+                ]
+            } else {
+                &[
+                    crate::look::HOME_INTRO,
+                    crate::look::HOME_NEEDS,
+                    crate::look::HOME_CHATS,
+                    crate::look::HOME_CONNECTED,
+                ]
+            };
+            assert_eq!(top.as_ref(), expected);
+            let region = styled(tree, crate::look::HOME_NEEDS);
+            assert_eq!(region.role, Role::Region);
+            assert_eq!(region.name.as_deref(), Some(b"Needs you".as_slice()));
+            let parts = children(subtree(tree, region.id));
+            assert_eq!(parts.len(), if browser { 3 } else { 2 });
+            assert_eq!(parts[0].styles.as_slice(), &[crate::look::HOME_HEAD]);
+            assert_eq!(parts[1].styles.as_slice(), &[crate::look::ASK]);
+            let heading = children(subtree(tree, parts[0].id));
+            assert_eq!(heading.len(), 1);
+            assert_eq!(heading[0].name.as_deref(), Some("Needs you · 1".as_bytes()));
+            assert_eq!(heading[0].styles.as_slice(), &[crate::look::HOME_SIGNAL]);
+            let card = children(subtree(tree, parts[1].id));
+            assert_eq!(
+                card.iter().map(|node| node.styles.as_slice()[0]).collect::<Box<[_]>>().as_ref(),
+                [crate::look::ASK_META, crate::look::ASK_QUESTION, crate::look::ASK_CHOICES]
+            );
+            assert_eq!(card[0].name.as_deref(), Some("Add a README · a question · under 1 min".as_bytes()));
+            assert_eq!(card[1].name.as_deref(), Some(b"Which license?".as_slice()));
+            let choices = children(subtree(tree, card[2].id));
+            assert_eq!(choices.len(), 1);
+            assert_eq!(choices[0].styles.as_slice(), &[crate::look::ASK_QUIET]);
+            if browser {
+                assert_eq!(parts[2].styles.as_slice(), &[crate::look::HOME_CTA]);
+                let spans = children(subtree(tree, parts[2].id));
+                assert_eq!(spans.len(), 2);
+                assert_eq!(f::nodes_text(subtree(tree, spans[0].id)).as_ref(), b"Add a README: Which license?");
+                assert_eq!(spans[1].styles.as_slice(), &[crate::look::HOME_CTA_GO]);
+                assert_action(&mut view, Role::Link, b"Add a README: Which license? Answer", inbox_act());
+            }
+            assert_action(
+                &mut view,
+                Role::Link,
+                b"Add a README",
+                d::pages::Act::Go { address: Address::Task { task: f::INBOX_TASK, filter: d::PlanFilter::All } },
+            );
+            assert_action(&mut view, Role::Button, b"Reply", inbox_act());
+            assert_action(
+                &mut view,
+                Role::Link,
+                b"All 1 chats",
+                d::pages::Act::Go { address: Address::Chats { filter: ChatsFilter::All, start: false } },
+            );
+        }
+        let print = printed(&f::page_view(&root));
+        for words in ["Needs you · 1", "Add a README · a question · under 1 min", "Which license?", "Reply", "Chats"]
+        {
+            contains(&print, words);
+        }
+        absent(&print, "Answer");
+    }
+}
+#[test]
+#[expect(
+    clippy::disallowed_methods,
+    reason = "test fixtures and assertions inspect semantic nodes and public event deliveries"
+)]
+fn unread_need_has_only_meta_and_unknown_headline() {
+    let root = everyday(false, &QUESTIONS[..1], false, false);
+    for mut view in [f::page_view(&root), f::browser_page_view(&root)] {
+        main_find(view.tree(), Role::Heading { level: 1 }, b"Shop");
+        let card = children(subtree(view.tree(), styled(view.tree(), crate::look::ASK).id));
+        assert_eq!(card.len(), 1);
+        assert_eq!(card[0].styles.as_slice(), &[crate::look::ASK_META]);
+        assert_eq!(card[0].name.as_deref(), Some("T9 · a question".as_bytes()));
+        assert!(!main_nodes(view.tree()).iter().any(|node| node.styles.as_slice().contains(&crate::look::HOME_CTA)));
+        assert_action(
+            &mut view,
+            Role::Link,
+            b"T9",
+            d::pages::Act::Go { address: Address::Task { task: f::INBOX_TASK, filter: d::PlanFilter::All } },
+        );
+    }
+}
+#[test]
+#[expect(
+    clippy::disallowed_methods,
+    reason = "test fixtures and assertions inspect semantic nodes and public event deliveries"
+)]
+fn additional_needs_have_five_rows_and_browser_answer_link() {
+    // Six total fits exactly; seven total must still draw only five secondary rows.
+    for objects in [&QUESTIONS[..3], &QUESTIONS[..6], &QUESTIONS[..7]] {
+        let root = everyday(false, objects, false, true);
+        for (mut view, browser) in [(f::page_view(&root), false), (f::browser_page_view(&root), true)] {
+            let region = styled(view.tree(), crate::look::HOME_NEEDS);
+            let rows = subtree(view.tree(), region.id).iter().find(|node| node.role == Role::List).unwrap();
+            let items = children(subtree(view.tree(), rows.id));
+            assert_eq!(items.len(), (objects.len() - 1).min(5));
+            let ids: Box<[_]> = items
+                .iter()
+                .map(|item| {
+                    assert_eq!(item.role, Role::Item);
+                    let link = children(subtree(view.tree(), item.id));
+                    assert_eq!(link.len(), 1);
+                    assert_eq!(link[0].role, Role::Link);
+                    let spans = children(subtree(view.tree(), link[0].id));
+                    assert_eq!(spans.len(), 2);
+                    assert_eq!(spans[1].styles.as_slice(), &[crate::look::HOME_WHEN]);
+                    link[0].id
+                })
+                .collect();
+            for id in ids {
+                assert_eq!(crate::act(&mut view, id, Act::Press), Some(d::Action::Pages(inbox_act())));
+            }
+            assert_eq!(
+                main_nodes(view.tree()).iter().any(|node| node.styles.as_slice().contains(&crate::look::HOME_IN_A_ROW)),
+                browser
+            );
+            if browser {
+                assert_action(&mut view, Role::Link, b"Answer in a row", inbox_act());
+            }
+        }
+    }
+}
+#[test]
+#[expect(
+    clippy::disallowed_methods,
+    reason = "test fixtures and assertions inspect semantic nodes and public event deliveries"
+)]
+fn nonquestion_need_opens_inbox_and_keeps_its_lowercase_kind() {
+    for (object, kind) in [
+        (c::ObjectKey::PersonTask(f::INBOX_TASK), "a person task"),
+        (c::ObjectKey::Escalation(f::INBOX_TASK), "held"),
+        (
+            c::ObjectKey::Proposal(c::ProposalKey {
+                proposer: c::Proposer::Task(f::INBOX_TASK),
+                number: f::INBOX_QUESTION,
+            }),
+            "a proposal",
+        ),
+    ] {
+        let root = everyday(false, &[object], false, true);
+        for mut view in [f::page_view(&root), f::browser_page_view(&root)] {
+            contains(&f::main_text(view.tree()), kind);
+            assert_action(&mut view, Role::Button, b"Open", inbox_act());
+            assert!(
+                !main_nodes(view.tree())
+                    .iter()
+                    .any(|node| node.role == Role::Button && node.name.as_deref() == Some(b"Reply"))
+            );
+        }
+    }
+}
+
+// Home's span cases build four minutes after its fixture's epoch.
+const FOUR_MINUTES: skein_lib::Wall = skein_lib::Wall::from_nanos(240_000_000_000);
+fn timed_view(root: &d::Domain, browser: bool) -> crate::View {
+    let mut view = f::view_of(if browser { f::browser_words() } else { f::words() });
+    crate::build(&mut view, root, FOUR_MINUTES, &mut Queue::uncapped());
+    view
+}
+// Six rows is one beyond Home's five-row cap; a seventh can be an ended chat.
+const CHAT_TITLES: [&[u8]; 7] = [b"README", b"Rust", b"Repository", b"Tests", b"Docs", b"Checks", b"Release"];
+fn chat_fixture(live: usize, ended: usize, more: bool, after: bool) -> ChatFixture {
+    let mut live_rows = List::with_capacity(u32::try_from(live).unwrap());
+    let mut closed_rows = List::with_capacity(u32::try_from(ended).unwrap());
+    for (index, title) in CHAT_TITLES.iter().take(live.checked_add(ended).unwrap()).enumerate() {
+        let mut row = super::chats::line();
+        row.chip.task = row.chip.task.checked_add(u64::try_from(index).unwrap()).unwrap();
+        row.chip.title = f::task::document_words(title);
+        if index == 0 {
+            row.waits_on = c::WaitsOn::Party {
+                whom: c::Whom::Person(73),
+                entries: 1,
+                task: row.chip.task,
+                kind: c::WaitedFor::Question,
+            };
+        }
+        if index < live {
+            live_rows.push(row).unwrap();
+        } else {
+            row.ended_at = Some(skein_lib::Wall::from_nanos(180_000_000_000));
+            closed_rows.push(row).unwrap();
+        }
+    }
+    ChatFixture {
+        live: c::Tasks { rows: live_rows, more },
+        ended: c::TaskPage {
+            live: List::with_capacity(0),
+            live_after: None,
+            ended: c::EndedGroup::Rows {
+                rows: closed_rows,
+                after: if after { Some(c::Cursor::new(b"next".as_slice().into(), 32).unwrap()) } else { None },
+                cut: false,
+            },
+        },
+    }
+}
+fn home_chats(chats: ChatFixture) -> d::Domain {
+    home_documents(
+        forge_rows(true),
+        true,
+        true,
+        Some(NeedsFixture { objects: &[], cut: false, read: true }),
+        Some(chats),
+    )
+    .0
+}
+#[test]
+fn chats_keep_live_then_ended_status_age_names_and_events() {
+    for (more, after, name, label) in [
+        (false, false, "All 3 chats", "All 3"),
+        (true, false, "All 3+ chats", "All 3+"),
+        (false, true, "All 3+ chats", "All 3+"),
+    ] {
+        let root = home_chats(chat_fixture(2, 1, more, after));
+        for browser in [false, true] {
+            let mut view = timed_view(&root, browser);
+            let region = styled(view.tree(), crate::look::HOME_CHATS);
+            assert_eq!(region.role, Role::Region);
+            assert_eq!(region.name.as_deref(), Some(b"Chats".as_slice()));
+            let parts = children(subtree(view.tree(), region.id));
+            assert_eq!(parts.len(), 2);
+            assert_eq!(parts[0].styles.as_slice(), &[crate::look::HOME_HEAD]);
+            assert_eq!(parts[1].styles.as_slice(), &[crate::look::HOME_ROWS]);
+            let heading = children(subtree(view.tree(), parts[0].id));
+            assert_eq!(heading[0].role, Role::Heading { level: 2 });
+            assert_eq!(heading[1].name.as_deref(), Some(name.as_bytes()));
+            assert_eq!(f::nodes_text(subtree(view.tree(), heading[1].id)).as_ref(), label.as_bytes());
+            let rows = children(subtree(view.tree(), parts[1].id));
+            assert_eq!(rows.len(), 3);
+            for (row, (name, title, when, task)) in rows.iter().zip([
+                ("README, waiting on you, 4 min", "README", "waiting on you · 4 min", 9),
+                ("Rust, Parked, 4 min", "Rust", "Parked · 4 min", 10),
+                ("Repository, closed, 1 min", "Repository", "closed · 1 min", 11),
+            ]) {
+                assert_eq!(row.role, Role::Item);
+                let links = children(subtree(view.tree(), row.id));
+                assert_eq!(links.len(), 1);
+                assert_eq!(links[0].role, Role::Link);
+                assert_eq!(links[0].name.as_deref(), Some(name.as_bytes()));
+                let spans = children(subtree(view.tree(), links[0].id));
+                assert_eq!(f::nodes_text(subtree(view.tree(), spans[0].id)).as_ref(), title.as_bytes());
+                assert_eq!(spans[1].styles.as_slice(), &[crate::look::HOME_WHEN]);
+                contains(&f::nodes_text(subtree(view.tree(), spans[1].id)), when);
+                let id = links[0].id;
+                let Some(d::Event::Act { action }) = crate::event(&view, id, Act::Press) else {
+                    panic!("chat navigation");
+                };
+                assert_eq!(action, d::Action::Pages(d::pages::Act::Go { address: Address::Chat { task } }));
+            }
+            assert_action(
+                &mut view,
+                Role::Link,
+                name.as_bytes(),
+                d::pages::Act::Go { address: Address::Chats { filter: ChatsFilter::All, start: false } },
+            );
+            if !browser {
+                let print = printed(&view);
+                contains(&print, "README · waiting on you · 4 min");
+                contains(&print, "Repository · closed · 1 min");
+            }
+        }
+    }
+}
+#[test]
+fn chat_rows_stop_at_five_without_changing_the_total() {
+    for (live, ended, label) in [(5, 0, "All 5 chats"), (6, 0, "All 6 chats"), (2, 4, "All 6 chats")] {
+        let root = home_chats(chat_fixture(live, ended, false, false));
+        for view in [f::page_view(&root), f::browser_page_view(&root)] {
+            let region = styled(view.tree(), crate::look::HOME_CHATS);
+            let parts = children(subtree(view.tree(), region.id));
+            assert_eq!(children(subtree(view.tree(), parts[1].id)).len(), 5);
+            main_find(view.tree(), Role::Link, label.as_bytes());
+            absent(&f::main_text(view.tree()), "Checks");
+        }
+    }
+}
+#[test]
+#[expect(
+    clippy::disallowed_methods,
+    reason = "test fixtures and assertions inspect semantic nodes and public event deliveries"
+)]
+fn empty_sections_are_hidden_only_while_to_begin_shows() {
+    for shown in [false, true] {
+        let root = if shown {
+            home_chats(chat_fixture(0, 0, true, false))
+        } else {
+            home_with_needs(forge_rows(true), false, false, Some(NeedsFixture { objects: &[], cut: false, read: true }))
+                .0
+        };
+        for view in [f::page_view(&root), f::browser_page_view(&root)] {
+            let styles = section_styles(view.tree());
+            assert_eq!(styles.contains(&crate::look::HOME_NEEDS), shown);
+            assert_eq!(styles.contains(&crate::look::HOME_CHATS), shown);
+            if shown {
+                main_find(view.tree(), Role::Paragraph, b"No chats yet.");
+                assert!(!main_nodes(view.tree()).iter().any(|node| node.role == Role::Link
+                    && node.name.as_deref().is_some_and(|name| name.starts_with(b"All "))));
+            }
+        }
+    }
+}
+
+#[test]
+fn read_need_without_a_title_links_by_task_number() {
+    let root = everyday(false, &QUESTIONS[6..], false, true);
+    for mut view in [f::page_view(&root), f::browser_page_view(&root)] {
+        assert_action(
+            &mut view,
+            Role::Link,
+            b"T9",
+            d::pages::Act::Go { address: Address::Task { task: f::INBOX_TASK, filter: d::PlanFilter::All } },
+        );
+        assert_action(&mut view, Role::Button, b"Reply", inbox_act());
+    }
+}
+#[test]
+fn phone_answer_name_holds_the_joined_title_and_words() {
+    // The fixture's ordinary Name bound is 2 * 64 + 1; two Names,
+    // the colon and space, and " Answer" are 267 bytes (README.md, 3.5).
+    const ANSWER_NAME: usize = 267;
+    let w = f::browser_words();
+    let mut title = skein_lib::bytes::zeroed(usize::try_from(w.name_bytes).unwrap());
+    title.fill(b'T');
+    let mut question = skein_lib::bytes::zeroed(usize::try_from(w.name_bytes).unwrap());
+    question.fill(b'Q');
+    let line = w.say(
+        crate::words::Word::HomeAskLine,
+        &[skein_ui::phrases::Hole::Name(title), skein_ui::phrases::Hole::Name(question)],
+    );
+    let name = w.say(crate::words::Word::HomeAnswerName, &[skein_ui::phrases::Hole::Name(line)]);
+    assert_eq!(name.len(), ANSWER_NAME);
+    assert!(name.ends_with(b" Answer"));
 }
