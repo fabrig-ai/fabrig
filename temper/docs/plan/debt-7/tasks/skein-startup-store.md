@@ -25,7 +25,7 @@ Acceptance:
   bit answers `Unstored::Unsafe(Unsafe::Mode(..))` and writes nothing; each of the three leaves the
   descriptor count where it found it.
 - `shell.status.md` no longer lists 6.7.
-- **Size cap:** at most 190 lines added on the branch, tests included. It adds a host and removes nothing,
+- **Size cap:** at most 245 lines added on the branch, tests included. It adds a host and removes nothing,
   and `smith-startup-writers` removes the copies. Measure it, and stop and ask if it's passed.
 
 ## Inputs
@@ -122,3 +122,10 @@ Acceptance:
 The common note's items. Breaks: answer `Kept` on `Conflict`; leave the root unclosed on a refusal; each with
 the failure read. Lines added against the cap. Whether `Writing`'s `closed` flag survived as it was, and any
 difference from `Writing`.
+
+## Answers
+
+2026-11-04. Keep the 190-line cap or take the 237 lines? **The cap is 245 lines added, for this task only**: the
+plan's owner set it (fabrig/debt, 2026-11-04). Keep the pushed work, without compacting it further, and finish what
+the size stop left: the `Conflict` test's candidate differs from the file's bytes, so "leaves the file as it was"
+can fail; the two breaks of `## Report`; step 5's clippy and nextest runs; the direct dependents' checks.

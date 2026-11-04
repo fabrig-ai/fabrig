@@ -27,7 +27,7 @@ Acceptance:
   lists. Their visible events and outcomes don't change.
 - The tests of step 6 exist and each has been seen to fail on its rule.
 - `service.status.md` no longer lists the accounts' host.
-- **Size cap:** the branch's net lines are at most +130, tests included; about +100 is expected, as the host gains its
+- **Size cap:** the branch's net lines are at most +162, tests included; about +100 is expected, as the host gains its
   tests and its docs. `temper-accounts-host` takes the part below where it started. Measure it, and stop and ask if it's
   passed.
 
@@ -381,3 +381,13 @@ Acceptance:
 
 The common note's items. The table of breaks: the 7 tests, what was broken, what failed. Net lines against the cap,
 split into `jig-protocol-accounts`, tests, and the rest. Any test whose assertion you wanted to change, which is a stop.
+
+## Answers
+
+2026-11-04. Compact to +130 or take +158? **Compact first; the limit is now +162.** The cap was set by the cut, and the
+push measures +158 (`host.rs` 330, `host_tests.rs` 147, against about 350 off `J/accounts.rs`). Compact what can go
+without changing the surface of step 3, which the temper and worker tasks build to, or losing a test or a rule: the
+two `match`es of `has_tls` as `matches!`, what the step-6 tests can share. Why +130 can't be counted on: the surface,
+the 7 tests and `untagged`'s every arm are fixed by this spec. So it rises by the most the plan's owner allows,
+130 to +162. Stop and ask only past that, and report the measure you end at. Then run step 8, which the size stop
+left unrun, whole. A test's visible events changing is still a stop.

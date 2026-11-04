@@ -109,3 +109,13 @@ Acceptance:
 
 The common note's items; the request lines' comparison; the sweep's `cuts` at base and on the branch; the package's
 nextest totals, base and branch; net lines. No new test, so no break.
+
+## Answers
+
+2026-11-04. Who adds `Installations::minted_token` and `Service::ambiguous_updates`? **`github-fake-surface`, on its
+next run: both are in its spec, and `notes/fake-github.md`, 1.** This task's files don't widen, and no substitute goes
+here. Keep your pushed commit and your files. At the start, and before you push, `git fetch origin` and merge
+`origin/debt-7/github-fake-surface`. If that branch still has `Writer` in `src/inline.rs` or has no
+`Installations::minted_token`, its repair hasn't arrived: report that and stop, changing nothing outside your files.
+Then run what the first run couldn't: clippy, the package, the fuzzy sweep's `cuts` (2 at
+base), and the branch's request lines against the 83 lines in the first run's report. The net stands at -160, the cap.
