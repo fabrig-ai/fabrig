@@ -1,11 +1,10 @@
 //! A snapshot's replacement lifecycle (skein/docs/design/kv.md, 5).
 
 use alloc::boxed::Box;
-use alloc::vec::Vec;
 use core::mem;
 use skein_io::file;
 use skein_io::kernel::{Error, Fd};
-use skein_lib::{Env, Queue, Token};
+use skein_lib::{Env, List, Queue, Token};
 
 use super::{Dir, IO_OWNER, Log, Phase, Repair, State, Step, Store, announce_recovered, commits_failed, log_number};
 use crate::Limits;
@@ -88,7 +87,7 @@ pub(super) fn fire_ready(
     below: &mut Queue<file::Request>,
 ) -> State {
     if !store.queue.is_empty() {
-        return store.start_batch(dir, log.file, log.offset, &env.limits, below);
+        return store.start_batch(dir, log, &env.limits, below);
     }
     dir.compaction = match mem::replace(&mut dir.compaction, Compaction::Idle) {
         Compaction::Idle => return idle(store, dir, log, env, below),
@@ -117,7 +116,7 @@ fn idle(store: &Store, mut dir: Dir, log: Log, env: &Env<Limits>, below: &mut Qu
         below.push(file::Request::Close { owner: IO_OWNER, file: log.file });
         dir.at(Phase::RolloverClosing)
     } else {
-        dir.at(Phase::Ready { file: log.file, offset: log.offset })
+        dir.at(Phase::Ready { log })
     }
 }
 
@@ -141,7 +140,6 @@ fn header(start: u64, file: Token, below: &mut Queue<file::Request>) -> Compacti
     Compaction::Header { start, file }
 }
 
-#[expect(clippy::disallowed_types, reason = "one snapshot chunk's rows are bounded by Limits::chunk")]
 fn chunk(
     mut written: Written,
     cursor: Option<Box<[u8]>>,
@@ -149,7 +147,7 @@ fn chunk(
     limits: &Limits,
     below: &mut Queue<file::Request>,
 ) -> Compaction {
-    let mut rows: Vec<Row> = Vec::new();
+    let mut rows = List::with_capacity(limits.chunk / 8);
     let mut size: usize = 12;
     let mut payload: u64 = 0;
     for (key, value) in store.map.after(cursor.as_deref()) {
@@ -161,17 +159,17 @@ fn chunk(
         }
         size = next;
         payload = payload.checked_add(skein_lib::len_u64(row_payload)).expect("payload total fits u64");
-        rows.push(Row { key: key.clone(), value: value.clone() });
+        rows.push(Row { key: key.clone(), value: value.clone() }).expect("each row takes at least eight chunk bytes");
     }
     if rows.is_empty() {
         return trailer(written, below);
     }
     let cursor = Some(rows.last().expect("a chunk has rows").key.clone());
-    let bytes = snapshot::chunk(&rows, limits.chunk).expect("limits hold one row per chunk");
+    let bytes = snapshot::chunk(rows.as_slice(), limits.chunk).expect("limits hold one row per chunk");
     let len = skein_lib::len_u64(bytes.len());
     below.push(file::Request::WriteAt { owner: IO_OWNER, file: written.file, offset: written.offset, bytes });
     written.offset = written.offset.checked_add(len).expect("snapshot offset fits");
-    written.rows = written.rows.checked_add(skein_lib::len_u64(rows.len())).expect("snapshot rows fit");
+    written.rows = written.rows.checked_add(u64::from(rows.len())).expect("snapshot rows fit");
     written.payload = written.payload.checked_add(payload).expect("snapshot payload fits");
     Compaction::Chunk { written, cursor }
 }
@@ -332,9 +330,9 @@ fn cleanup_synced() -> Compaction {
 
 fn follow(store: &mut Store, dir: Dir, log: Log, step: &mut Step<'_>) -> State {
     if store.queue.is_empty() {
-        dir.at(Phase::Ready { file: log.file, offset: log.offset })
+        dir.at(Phase::Ready { log })
     } else {
-        store.start_batch(dir, log.file, log.offset, &step.env.limits, step.below)
+        store.start_batch(dir, log, &step.env.limits, step.below)
     }
 }
 
@@ -350,7 +348,7 @@ pub(super) fn failed(store: &mut Store, mut dir: Dir, log: Log, error: Error, st
         | Compaction::Rename { .. }
         | Compaction::SyncDirectory { .. }
         | Compaction::RemoveOld { .. }
-        | Compaction::CleanupSyncDirectory => commits_failed(store, dir, Some(log.file), step),
+        | Compaction::CleanupSyncDirectory => commits_failed(store, dir, Some(log.file), Queue::with_capacity(0), step),
         Compaction::Idle | Compaction::Due { .. } => unreachable!("no snapshot request is outstanding"),
     }
 }
@@ -360,7 +358,7 @@ fn create_failed(store: &mut Store, mut dir: Dir, log: Log, start: u64, error: E
         dir.compaction = remove_temp(start, dir.root, step.below);
         dir.at(Phase::SnapIo { log })
     } else {
-        commits_failed(store, dir, Some(log.file), step)
+        commits_failed(store, dir, Some(log.file), Queue::with_capacity(0), step)
     }
 }
 
