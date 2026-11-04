@@ -419,6 +419,11 @@ host's half reports it (`llm.md`, 5.5).
   `memory_bytes` is the application's byte budget, handed to it
   unchecked (skein's programming-model.md, 6.1 and 6.3), and a worker's
   is optional, since no worker reads one.
+- **A document that resolves no profile.** Its `limits` are refused at
+  that member, and the rest of the document is checked against the
+  largest shipped profile, so that the refusal adds no bound the
+  operator did not choose. Named profiles keep their own bounds, whatever
+  else their `limits` get wrong.
 - **Made projects count too.** Authority's and people's
   `projects` bound every project the deployment holds, seeded and made
   after the first start (`../domain/core.md`, 6.1): a deployment that

@@ -2,9 +2,7 @@
 
 2026-11-04. Where temper's code lags or departs from [browser.md](browser.md).
 
-- **Not yet:** 4.6: item 12, the playground's story A on the built
-  playground and its log replayed natively (`../playground.status.md`).
-  8.4: the public browser walk's project-link checks expect
+- **Not yet:** 8.4: the public browser walk's project-link checks expect
   `Project <identifier prefix>` (`temper/tests/client-browser/tests/browser_all/browser_public.rs`,
   `Walk::project_label`), where the public projects view uses the
   project's name (`temper/crates/temper-client-view/src/public/pages.rs`,

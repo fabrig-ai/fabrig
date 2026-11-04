@@ -20,7 +20,7 @@ pub enum Write {
 /// What the caller asked before the child loaded any records.
 #[derive(Clone, Copy, PartialEq, Eq, Debug)]
 pub enum Intent {
-    /// Erase the lines in this project, retaining globally named entries.
+    /// Erase the lines and entries in this project.
     DropProject { owner: Token, project: u32 },
     /// An index or recall.
     Read { owner: Token },
@@ -76,8 +76,17 @@ impl Referee {
     pub fn before_commit(&self, store: &BTreeMap<Key, Record>, writes: &[Write], intent: &Intent) {
         if let Intent::DropProject { project, .. } = intent {
             for write in writes {
-                let Write::Erase(key @ Key::Line { scope, .. }) = write else {
-                    panic!("a project drop only erases index lines");
+                let Write::Erase(key) = write else {
+                    panic!("a project drop only erases index lines and their entries");
+                };
+                let scope = match key {
+                    Key::Line { scope, .. } => scope,
+                    Key::Entry { .. } => {
+                        let Some(Record::Entry(entry)) = store.get(key) else {
+                            panic!("drop erases an existing entry");
+                        };
+                        &entry.scope
+                    }
                 };
                 let in_project = match scope {
                     Scope::Deployment => false,
@@ -86,7 +95,7 @@ impl Referee {
                     | Scope::Resources { project: found, .. } => project == found,
                 };
                 assert!(in_project, "drop erases only its project's scopes");
-                assert!(store.contains_key(key), "drop erases an existing line");
+                assert!(store.contains_key(key), "drop erases an existing line or entry");
             }
             return;
         }

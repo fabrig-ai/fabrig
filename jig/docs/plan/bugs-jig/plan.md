@@ -1,0 +1,81 @@
+# bugs-jig: the plan
+
+The jig bugs the debt backfill routed (`inputs/bugs-jig.md`), cut for fab by one lead call
+(2026-11-04). Low priority: small tasks, no reshaping. The standing rules are `notes/common.md`.
+
+## Parts and tasks so far
+
+| Part | Bug | Tasks | State |
+|---|---|---|---|
+| `source-name` | 6 | `source-name-refused` | released |
+| `chat-status` | 4 | `chat-status-total` | released |
+| `charter-rail` | 3 | `rail-jig`, then `rail-temper` | released |
+| `close-grace` | 1 | `close-grace` | released |
+| `closed-project` | 9 | `creation-closed-project`, `notes-drop-entries` | released |
+| `config-fallback` | 5 | `config-no-profile` | released |
+
+All eight tasks are released; the dropped bugs are below.
+
+## Design written by this cut
+
+- `jig/docs/design/domain/hosts.md`, 8: `modify` only to a run that can deliver.
+- `temper/docs/design/domain/agent.md`, 4.3: jig's translation holds the rail, not temper's.
+- `jig/docs/design/client/domain/client.md`, 19: the helper reads any chip.
+- `jig/docs/design/protocol/client.md`, 3: the link's refusal of a chip that lacks what its phase
+  names, which the code already does.
+- `jig/docs/design/examples.md`, 7.3: an environment's close has the grace `ops` configures for it.
+- `jig/docs/design/protocol/configuration.md`, 6: a document that resolves no profile.
+
+### Decisions
+
+- **Bug 3 was a design disagreement:** temper's run is safe today, because
+  `temper-engine-smith/src/start.rs` narrows `modify`; jig's `hosts.md`, 8 says a root decides none
+  of the workspace tools, and no other root has the rail. The rail goes into
+  `jig_protocol_charter::charter`, where `deliver` is decided, and temper's line goes. Both designs
+  changed; `assignment` still says what the policy says.
+- **Bug 4 stays, smaller than it was stated:** the link refuses both records as malformed, so the
+  abort is past the link only. `chat_status` still becomes total, since it is a public helper over
+  public types.
+- **Bug 1 needs no template identity:** a close's grace is the request's (`people.md`), and jig's
+  own `close_chat` reads the chat template offered now, not the one that made the chat
+  (`client.md`, 19). So the deployment's close names its grace from `ops`'s configuration, beside
+  its reason, and the root stops reading templates. Carrying identity was 100-odd literal sites and
+  the client, people and tasks formats; matching the chat's `label` kept the root's decision, needed
+  a change to `engine.md`'s "No decision reads one", and left a shared label wrong. A chat's own
+  template's grace is honoured by no close; giving a task its grace as a value would do it, and is a
+  stored format, so it is the user's, and not cut here.
+- **Dropped, gone on main:**
+  - bug 2: deletion erases the project's roles in its decision, and `finish_watches`, by
+    `end_invalid` and `visibility_end`, ends each watch there (`close_views` is dead code);
+  - bug 7: `d8e8eb62a8` gave `Resources` a `Debug` of counts, with tests;
+  - bug 8: `ed10323e26` answers an unknown `Unwatch`, and a closing stream no longer waits on core;
+  - `Fact::Delivered` at request time: `687f59ae5d`;
+  - `WatchEnd::Stopping`: `097c1fcb48` left the retry to jig-client;
+  - the token nibbles: `17850c5ddc`;
+  - the `Recipient::Roles` bound: the frame and object paths each price what they allocate;
+  - the catalogue clone per row: `b1f80ab430`.
+- **Dropped, no failing scenario:** every fix here carries a test that fails on the old code, and
+  none can for these:
+  - project 0 as the sentinel: no write path makes a project 0, and each path into `task_line`
+    guards closure itself;
+  - people tokens and flight handles: every crossing audited translates, so it is a sharp edge;
+  - authority's model mapping: true and pinned by a test, and no production path composes the two
+    mappings on an omitted value.
+- **Bug 5 partly held:** a named profile already keeps its bounds, so only a document that resolves
+  no profile cascades. It is checked against Standard, the largest; refusing at the limits problem
+  alone would hide the document's unrelated problems.
+- **The two live hazards are code bugs, not design:** `people.md`, 5.2 already says both.
+
+## Overlaps
+
+- `chat-status-total` edits one arm of `jig-client-view/src/words/words/status.rs`, inside the
+  glob of debt-3's `jig-ui-callers`.
+- `temper/docs/design/domain/agent.md` is also edited on `fabrig-scale/integration`, in other
+  hunks than 4.3.
+- `jig/docs/design/protocol/configuration.md`, 6 and `jig-protocol-config/src/overrides.rs` and
+  `src/tests/overrides.rs` are also changed on `fabrig-scale/integration`, in other hunks.
+
+## Critical path
+
+Each part stands alone; `rail-jig` then `rail-temper` is the longest, at about 55 implementer-minutes.
+The plan is 265 implementer-minutes in all.

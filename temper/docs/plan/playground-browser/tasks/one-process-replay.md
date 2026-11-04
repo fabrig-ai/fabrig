@@ -155,3 +155,37 @@ The left failure, `public::a_store_written_before_public_reading_reads_every_pro
 acceptance's package run reads as the trunk's count plus one apart from that test, and the trunk's
 end check takes it. Report the replay's world time, step count, CPU and wall as the spec asks; over
 a world's budget is 8.1's question, never a raised guide.
+
+### 2026-11-04: Keep the 2-second story guide and authorize profiling and repair beyond this task's files, or set a different guide for this replay? The kept log completes, at 2.028213 CPU seconds. (playground-browser/one-process-replay-3, foreman playground-browser/one-process-replay/foreman-3)
+
+Neither yet: the guide stands, nothing beyond `files` is authorized, and no miss is established.
+The guide is compared by "the median of three runs", "run alone" with `-j 1`
+(`temper/docs/design/domain/testing.md`, 6.1). 2.028213 s is one sample, taken in a package run
+under the collector. The same replay with no referee took 1.876 s to 1.945 s
+(`story_a_kept_log_replays_natively`, playground-browser/native-walk-a-15), and that run's walk
+ranged 2.138 s to 2.221 s, so 28 ms over the guide is inside the noise. The commit
+`8c902a6e45` stands: this run measures, and changes code only as 2 says.
+
+1. On one machine, in one sitting, run each of these three times, alone, as native-walk-a-15 did:
+   nextest's default profile, `-j 1`, through heavy, `TEMPER_BUNDLE=none`, user plus system time of
+   the test binary with `time` as nextest's target runner:
+   `heavy cargo nextest run -p temper-one-process-world --test suite -j 1 -E
+   'test(=replay::story_a_kept_log_replays_under_the_referee)'` and `heavy cargo nextest run -p
+   temper-playground-world --test suite -j 1 -E 'test(=walk::story_a_kept_log_replays_natively)'`.
+   Report every sample and the machine.
+2. A median of the first at or under 2 s meets the guide: no code changes, and the package and
+   clippy results of `8c902a6e45` stand. If it is over, and the first's median exceeds the
+   second's by more than the overrun, the referee is the cause and it is this task's: read `Forge::observe` (it runs on every one of the
+   12,972 turns) and make it cheaper in `src/referee/forge.rs`, weakening no check, then measure
+   again, and rerun the package and clippy once.
+3. If the median is still over, stop with a `Question:` carrying both sets of samples and this
+   recommendation for the user: extend 6.1's 3 s line for a playground story walked through the
+   web client's host to its kept log replayed natively, since it runs the same 12,972 steps. A
+   guide is the user's, so this run changes neither the guide nor the fixture, the pace or the story.
+
+The other half of the question is closed: no profiling or repair in skein, jig, smith,
+`temper-service` or `temper-playground`. Skein stays untouched in this plan (`notes/common.md`),
+and those costs are already the backlog's by the user's answer to native-walk-a (the simulator
+iterating idle processes, the service's readiness). The replay belongs in this tier
+(`temper/docs/design/playground.md`, 9). The other tests past 2 s and the package's sum, which you
+listed under `## Left`, stay there, with the inherited `public` failure: a sum is "never a landing's" (6.1).

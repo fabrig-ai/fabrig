@@ -28,7 +28,8 @@ with open(os.environ["CALLS"], "a") as output:
     output.write(json.dumps({"name": name, "args": args, "env": {
         key: os.environ.get(key) for key in (
             "NEXTEST_DOUBLE_SPAWN", "TEMPER_BUNDLE", "SKEIN_UI_EXAMPLE_BUNDLE",
-            "JIG_TEST_BUNDLE", "TEMPER_TEST_BUNDLE", "TEMPER_TEST_CLAUDE")}}) + "\\n")
+            "JIG_TEST_BUNDLE", "TEMPER_TEST_BUNDLE", "TEMPER_TEST_PLAYGROUND",
+            "CARGO_TARGET_DIR", "TEMPER_TEST_CLAUDE")}}) + "\\n")
 if name == "cargo":
     if args != ["metadata", "--format-version", "1", "--no-deps"]:
         sys.exit(91)
@@ -120,7 +121,7 @@ class RunnerTests(unittest.TestCase):
                         ARTIFACTS=str(self.target), CALLS=str(self.calls),
                         TEMPER_BUNDLE="none", NEXTEST_DOUBLE_SPAWN="1")
         for key in ("FAIL_BUILD", "NEXTEST_EXIT", "BUNDLE_EXIT", "BAD_METADATA", "METADATA_EXIT",
-                    "SKEIN_UI_EXAMPLE_BUNDLE", "JIG_TEST_BUNDLE", "TEMPER_TEST_BUNDLE",
+                    "SKEIN_UI_EXAMPLE_BUNDLE", "JIG_TEST_BUNDLE", "TEMPER_TEST_BUNDLE", "TEMPER_TEST_PLAYGROUND",
                     "BAD_LISTING", "MISMATCH"):
             self.env.pop(key, None)
 
@@ -181,6 +182,14 @@ class RunnerTests(unittest.TestCase):
             with self.subTest(tree=tree, tier=tier):
                 result, calls = self.invoke(tree, tier, "--", "-E", "test(=one)", **{variable: "/stale"})
                 self.assertEqual(result.returncode, 0, result.stderr)
+                if tree == "temper" and tier == "browser":
+                    self.assertEqual(calls[7]['args'], ["temper/scripts/bundle.sh", "--playground",
+                                                       str(self.target / "temper-playground")])
+                    self.assertEqual(calls[7]['env']['CARGO_TARGET_DIR'], str(self.target))
+                    self.assertEqual(calls[-1]['env']['TEMPER_TEST_PLAYGROUND'],
+                                     str(self.target / "temper-playground"))
+                    self.assertIn("playground bundle built in", result.stdout)
+                    del calls[6:8]
                 if tier == "qa":
                     self.assertEqual(calls[9]['args'], ["cargo", "build", "-p", "temper-fake-claude",
                                                        "--bin", "fake-claude"])
@@ -203,6 +212,23 @@ class RunnerTests(unittest.TestCase):
                 for call in calls:
                     self.assertEqual(call['env']['NEXTEST_DOUBLE_SPAWN'], "0")
                     self.assertEqual(call['env']['TEMPER_BUNDLE'], "none")
+
+    def test_playground_bundle_replaces_stale_path_only_for_browser_temper(self):
+        for tier in ("browser", "qa"):
+            result, calls = self.invoke("temper", tier, TEMPER_TEST_PLAYGROUND="/stale")
+            self.assertEqual(result.returncode, 0, result.stderr)
+            expected = str(self.target / "temper-playground") if tier == "browser" else "/stale"
+            self.assertEqual(calls[-1]['env']['TEMPER_TEST_PLAYGROUND'], expected)
+            builds = [call for call in calls if call['name'] == "heavy"
+                      and call['args'][0] == "temper/scripts/bundle.sh"]
+            self.assertEqual(len(builds), int(tier == "browser"))
+
+    def test_playground_bundle_failure_stops_before_native_builds_and_tests(self):
+        result, calls = self.invoke("temper", "browser", FAIL_BUILD="temper/scripts/bundle.sh")
+        self.assertEqual(result.returncode, 2, result.stderr)
+        self.assertIn("failed step playground bundle: exit 19", result.stderr)
+        self.assertEqual(calls[-1]['args'][0], "temper/scripts/bundle.sh")
+        self.assertFalse(any('nextest' in call['args'] for call in calls))
 
     def test_failures_stop_at_the_named_step(self):
         cases = (({"FAIL_BUILD": "skein-ui-example-shell-web"}, "wasm module", 1),
