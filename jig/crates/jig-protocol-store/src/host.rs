@@ -267,6 +267,7 @@ fn seed(drivers: &mut [Driver; 3], value: u64) -> crate::Seeded {
     crate::seed([&mut store.io, &mut secrets.io, &mut transcripts.io], value)
 }
 
+#[expect(clippy::struct_field_names, reason = "the drivers part holds its three file drivers")]
 pub struct Drivers {
     below: Below,
     drivers: [Driver; 3],
