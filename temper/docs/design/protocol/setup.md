@@ -3182,7 +3182,7 @@ the preparation relies on stays here:
 
 - **Forgejo's API takes the person's tokens** once the person need not
   change their password (`api-token-of-a-user-whose-password-must-change-is-refused`,
-  403 "You must change your password", recorded at 17.0.0; hence
+  403 "You must change your password", recorded at 17.0.1; hence
   `--must-change-password=false`), and after a later change of it: a
   token is the person's until it is revoked
   (`api-token-survives-a-password-change`);
