@@ -166,13 +166,13 @@ Expect: `setting up`, then `project: PROJECT · hello`,
 `Adopted work/hello on forge FORGE as owned.` and
 `It is the project's home.`
 
-Use the printed `PROJECT` number in later commands (1 on a new box).
+Use the printed `PROJECT` number in later commands.
 Add `--project PROJECT` to choose an existing project.
 
-Instead, `--playground` without `--project` creates `widget`:
+`--playground` without `--project` creates `widget`:
 `project: 1 · widget` on a new box.
 
-Forgejo prints:
+`temper box`'s stdout (or redirected log):
 
 ```
 Forgejo: api http://127.0.0.1:PORT/api/v1
@@ -181,7 +181,7 @@ Forgejo: person LOGIN
 
 Headers: `DATA/forge-FORGE/person_read.header` and `person_write.header`;
 `curl -H @PATH` keeps tokens private.
-`person_password` holds your first password.
+First password: `person_password`.
 
 If not: `not met: timeout` (exit 3) after 300 seconds:
 run `temper ctl DIR forge list --until made:FORGE`.
