@@ -131,6 +131,10 @@ impl Host {
             crate::given::check_create(&given.limits, env.limits.string_bytes, &plan)
                 .expect("the owner checks a creation plan before sending it");
         }
+        if let (Kind::Forgejo(given), Plan::Copy { .. }) = (&configured.kind, &plan) {
+            crate::given::check_copy(&given.limits, env.limits.string_bytes, &plan)
+                .expect("the owner checks a copy plan before sending it");
+        }
         let refused = if configured.supports(&plan) {
             let mut busy = self.slots() == self.runs.capacity();
             for (_, live) in &self.runs {

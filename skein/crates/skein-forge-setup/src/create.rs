@@ -135,7 +135,7 @@ impl Create {
             self.state = State::Ended;
             self.admin = None;
             self.shared.secret = None;
-            Need::Done(Outcome::Created { id: self.id.expect("repository read or made") })
+            Need::Done(Outcome::Created { id: self.id.expect("repository read or made"), branch: self.branch.clone() })
         } else {
             self.state = State::Branch;
             self.send(Request::Branch { at: self.at.clone(), name: self.branch.clone() })

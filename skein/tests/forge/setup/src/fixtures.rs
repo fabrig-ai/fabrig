@@ -28,6 +28,7 @@ pub fn given(owned: bool) -> Given {
             files: 1,
             file_bytes: 4096,
             deadline: Duration::from_secs(120),
+            copy_deadline: Duration::from_secs(1800),
             backoff: Duration::from_millis(100),
             backoff_max: Duration::from_secs(5),
         },

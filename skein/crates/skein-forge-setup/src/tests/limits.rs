@@ -12,7 +12,11 @@ fn limits_at_both_relations_are_accepted() {
     equality.backoff = equality.backoff_max;
     let mut below = fixtures::limits();
     below.backoff_max = Duration::from_nanos(below.deadline.as_nanos() - ONE_NS.as_nanos());
-    for (label, value) in [("backoff equality", equality), ("maximum below deadline", below)] {
+    let mut copy_equal = fixtures::limits();
+    copy_equal.copy_deadline = copy_equal.deadline;
+    for (label, value) in
+        [("backoff equality", equality), ("maximum below deadline", below), ("copy equality", copy_equal)]
+    {
         assert_eq!(limits::check(&value), Ok(()), "{label}");
     }
 }
@@ -22,7 +26,10 @@ fn a_limit_one_past_its_relation_names_the_pair() {
     backoff.backoff = backoff.backoff_max.checked_add(ONE_NS).unwrap();
     let mut maximum = fixtures::limits();
     maximum.backoff_max = maximum.deadline;
+    let mut copy_below = fixtures::limits();
+    copy_below.copy_deadline = Duration::from_nanos(copy_below.deadline.as_nanos() - ONE_NS.as_nanos());
     for (label, value, place, other) in [
+        ("deadline above copy deadline", copy_below, Place::Deadline, Place::CopyDeadline),
         ("backoff above maximum", backoff, Place::Backoff, Place::BackoffMax),
         ("maximum at deadline", maximum, Place::BackoffMax, Place::Deadline),
     ] {
@@ -50,6 +57,7 @@ fn zero_limits_are_refused_in_design_order() {
     value.repositories = 0;
     value.reachable = 0;
     value.deadline = Duration::ZERO;
+    value.copy_deadline = Duration::ZERO;
     value.backoff = Duration::ZERO;
     value.backoff_max = Duration::ZERO;
     for place in [
@@ -57,6 +65,7 @@ fn zero_limits_are_refused_in_design_order() {
         Place::RepositoriesLimit,
         Place::ReachableLimit,
         Place::Deadline,
+        Place::CopyDeadline,
         Place::Backoff,
         Place::BackoffMax,
     ] {
@@ -66,6 +75,7 @@ fn zero_limits_are_refused_in_design_order() {
             Place::RepositoriesLimit => value.repositories = 1,
             Place::ReachableLimit => value.reachable = 1,
             Place::Deadline => value.deadline = fixtures::limits().deadline,
+            Place::CopyDeadline => value.copy_deadline = fixtures::limits().copy_deadline,
             Place::Backoff => value.backoff = fixtures::limits().backoff,
             Place::BackoffMax => value.backoff_max = fixtures::limits().backoff_max,
             Place::Word
@@ -82,6 +92,7 @@ fn zero_limits_are_refused_in_design_order() {
             | Place::FilesLimit
             | Place::FileBytesLimit
             | Place::CreateOrg
+            | Place::CopyFrom
             | Place::CreateRepository
             | Place::Files
             | Place::FilePath(_)

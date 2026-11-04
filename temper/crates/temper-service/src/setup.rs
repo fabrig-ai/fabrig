@@ -460,6 +460,7 @@ fn forge(plan: &host::Plan) -> u16 {
         | host::Plan::Reconcile { forge, .. }
         | host::Plan::Adopt { forge, .. }
         | host::Plan::Create { forge, .. }
+        | host::Plan::Copy { forge, .. }
         | host::Plan::Paste { forge, .. }
         | host::Plan::Check { forge }
         | host::Plan::TakeOver { forge, .. }
@@ -565,6 +566,7 @@ fn is_install(plan: &host::Plan) -> bool {
         | host::Plan::TakeOver { .. }
         | host::Plan::Adopt { .. }
         | host::Plan::Create { .. }
+        | host::Plan::Copy { .. }
         | host::Plan::Reachable { .. } => false,
     }
 }
@@ -579,6 +581,7 @@ fn matches_app_plan(plan: &host::Plan) -> bool {
         | host::Plan::TakeOver { .. }
         | host::Plan::Adopt { .. }
         | host::Plan::Create { .. }
+        | host::Plan::Copy { .. }
         | host::Plan::Reachable { .. } => false,
     }
 }
@@ -671,6 +674,7 @@ pub(crate) fn advance(engine: &mut crate::engine::Engine) {
             }
             host::Event::Done { run, outcome } => lifecycle::done(engine, run, outcome),
             host::Event::Stop { run, failure } => lifecycle::stopped(engine, run, failure),
+            host::Event::Said { .. } => {}
             host::Event::Closed => engine.setup.closed = true,
         }
         if engine.end.is_some() {
@@ -716,7 +720,7 @@ fn item_record(item: skein_forge_setup::item::Item) -> Option<Item> {
         I::AppSlug => Item::AppSlug,
         I::AppKey => Item::AppKey,
         I::Accepted => Item::Accepted,
-        I::Pasted => return None,
+        I::Pasted | I::Copying => return None,
     })
 }
 #[expect(
@@ -803,7 +807,7 @@ fn read_item(
             return None; // A caller's admin read never falls back to records or adoptions.
         }
     }
-    if item == skein_forge_setup::item::Item::Pasted {
+    if item == skein_forge_setup::item::Item::Pasted || item == skein_forge_setup::item::Item::Copying {
         return None;
     }
     let item = item_record(item).expect("record item");
