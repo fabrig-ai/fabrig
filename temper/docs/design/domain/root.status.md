@@ -6,9 +6,7 @@
   document a charter names (the forge's brief sources are CI, reviews, the
   pull request and the home: `temper-engine-domain-forge/src/boundary.rs`,
   `BriefSource`), and a merge-queue ejection's reason. 9.1: the
-  rehearsing root, `temper upgrade --check`. 12: a start story is ignored:
-  a duplicate person's identity panics at `Person(2)` rather than refusing
-  the page (`tests/engine/domain/tests/suite/root_routes.rs`).
+  rehearsing root, `temper upgrade --check`.
 - **Not yet:** 10: the settings-answer bound must include temper's declared
   application kinds, because `temper-engine-domain/src/limits.rs`, `valid`,
   passes an empty kinds slice to the core's `reads::answer_bound`, while

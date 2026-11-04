@@ -6,7 +6,8 @@
   run (`tests/real-loop/tests/suite/github_land.rs`, `github.rs`). 2.4:
   the twins' documents among `temper-playground`'s stories: B0's and
   B1's are still the real loop's own fixtures
-  (`tests/real-loop/tests/fixtures/b0`, `b1`). 2.6:
+  (`tests/real-loop/tests/fixtures/b0`, `b1`). 2.4: B2's twin
+  (`../../development/acceptance.md`, section 8). 2.6:
   `a_default_box_with_a_sign_in_registration_starts_without_dns` is ignored:
   a start without DNS fails while the sign-in's endpoints resolve at start.
   2.6, 5.3: the cluster's 4.6 process story is ignored: a retry placed on a
@@ -15,6 +16,9 @@
   playground's stories, in and out and a reset the box's death cut, and
   GitHub gone on after a restart, as `../protocol/setup.status.md` records
   them.
+  2.7: the ladder's live stories but B0's: `scripts/proof-live.sh` takes
+  `rung-b0` alone, on ChatGPT with an owned Forgejo, and
+  `crates/temper/tests/live.rs` holds no other rung.
   2.7: a live
   story ending at its task's first terminal failure. 2.7: the live GitHub
   story connects the probe App without `--read-only`, so its record's

@@ -1124,29 +1124,51 @@ fn static_authority_waits_are_durable_holds_and_do_not_spin_the_ready_pass() {
     }
 }
 
+fn person(number: u64, subject: u64, name: &[u8]) -> Record {
+    Record::Core(jig_domain_core::Record::People(people::Stored::Person {
+        number,
+        identity: people::Identity {
+            key: people::IdentityKey { provider: 0, subject: subject.to_be_bytes().into() },
+            login: b"same".as_slice().into(),
+            name: name.into(),
+        },
+    }))
+}
+
 #[test]
-#[ignore = "start: duplicate people identity panics at Person(2) instead of refusing the page"]
 fn invalid_nonfinal_people_restore_page_stops_before_issuing_its_continuation() {
+    let mut bounds = limits();
+    bounds.people.people = 12;
+    let oversized = vec![b'x'; skein_lib::usize_of(bounds.people.identity_bytes) + 1];
+    let mut store_bounds = temper_engine_domain_world::store::widest();
+    store_bounds.people.identity_bytes = 64;
+    let mut store = Store::with_limits(&store_bounds);
+    for number in 1..=12 {
+        let name: &[u8] = if number == 2 { &oversized } else { b"Same" };
+        store.seed(Box::new([person(number, number, name)]), Box::new([]));
+    }
+    let mut driver = Driver::configured(store, [config(91), config(91)], &bounds);
+    for _ in 0..30 {
+        driver.advance(true);
+    }
+    driver.broken("oversized identity deliberately refuses startup");
+    assert!(driver.stopped, "oversized identity in a middle page is a terminal startup failure");
+    assert!(!driver.root.ready());
+    assert!(!driver.root.quiescent());
+    assert!(driver.events.is_empty(), "failed page did not issue another continuation");
+}
+
+#[test]
+#[should_panic(expected = "identity index collision at Person(2)")]
+fn a_duplicate_person_identity_panics_at_its_link_naming_its_row() {
     let mut store = Store::new();
     for number in 1..=3 {
-        let record = Record::Core(jig_domain_core::Record::People(people::Stored::Person {
-            number,
-            identity: people::Identity {
-                key: people::IdentityKey { provider: 0, subject: 7_u64.to_be_bytes().into() },
-                login: b"same".as_slice().into(),
-                name: b"Same".as_slice().into(),
-            },
-        }));
-        store.seed(Box::new([record]), Box::new([]));
+        store.seed(Box::new([person(number, 7, b"Same")]), Box::new([]));
     }
     let mut driver = Driver::new(store);
     for _ in 0..30 {
         driver.advance(true);
     }
-    assert!(driver.stopped, "duplicate identity in middle page is a terminal startup failure");
-    assert!(!driver.root.ready());
-    assert!(!driver.root.quiescent());
-    assert!(driver.events.is_empty(), "failed page did not issue another continuation");
 }
 
 #[test]
