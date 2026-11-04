@@ -1023,6 +1023,13 @@ Not in the tier, each in the lowest world that shows it:
 - **The kit's stylesheet without a bundle:** the gallery takes
   `skein-ui.css` by running skein's bundler with no module (7.1).
   Default: so, until skein's bundler offers the stylesheet alone.
+- **A bar that fills** (2.5, The welcome's look;
+  `../draft/fetch-progress.md`, 5 and 6): `temper-flow-meter` is a 4 px
+  bar with the figure at its end, muted, in tabular figures, filled to
+  `--temper-flow-meter-fill`, 0% unless given. The figure waits on the
+  forge's row, and the fill on a value on skein's progress node, a
+  draft of skein's not yet written. Default: the moving bar, and no
+  node takes the token.
 
 ## 7. The gallery
 
