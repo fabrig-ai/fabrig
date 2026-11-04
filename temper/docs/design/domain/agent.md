@@ -284,6 +284,14 @@ a chat that names none, runs with no workspace (worker.md, 4.1).
   answers any other request, a job's included, as not a turn
   (`Problem::Type`).
 
+The refusal says `charter N leaves its brief R bytes of its host part's B;
+it needs at least 2,048`, with thousands' commas in the figures and room
+zero when the non-brief part consumes the bound. A party's direct change or
+proposal is refused as a judged charter item, naming its item index; a run's
+proposal receives a host error with these words and its run continues. On
+restart, a stored current charter that fails the check ends startup with
+`temper serve: restart refused: ` and the same diagnostic (2026-11-04).
+
 #### 4.3.1 A change, in the run's words
 
 The stock chat first reads the code a repository change touches with the

@@ -1038,6 +1038,10 @@ as its application's part describes them (5.3), its host and its
 attempts. No party creates one: `Create` naming a job is refused as an
 executor not offered.
 
+The job executor's visible name is `job KIND`, KIND its numeric application
+kind, in the shared client and the application's command-line task reads
+(2026-11-04).
+
 ## 6. Reads
 
 A read asks for one document, or one page of a list, and is answered
