@@ -112,7 +112,8 @@ Pre-approved:
    - `heavy cargo nextest run -p jig-client-test-domain --lib`
    - `heavy cargo nextest run -p jig-ops-client-domain --lib`
    - `heavy cargo nextest run -p jig-client-test-view --lib`
-   - `heavy cargo nextest run -p jig-client-test-shell-web`
+   - `heavy cargo check -p jig-client-test-shell-web --target wasm32-unknown-unknown` (the
+     crate has no test target and compiles only for wasm32: a check, no count)
    - `heavy cargo nextest run -p jig-client-view --lib`
    - `heavy cargo nextest run -p jig-client-world --test suite`, then `--lib` and each other
      binary holding a file you changed (`--test stories`, `--test golden`, `--test b_shared`)
@@ -132,3 +133,14 @@ Pre-approved:
 
 As the implementer's text says, and also: the acceptance search's output; the files changed
 by package; any test whose expected requests you had to re-read beyond its type path.
+
+## Answers
+
+2026-11-04. Q: may the web shell's nextest run (it selects 0 tests: `[lib] test = false`,
+no test target, `src/lib.rs` gated to wasm32) be replaced by a wasm32 check? A: yes. Step 2's
+`heavy cargo nextest run -p jig-client-test-shell-web` was the plan's error; it now reads
+`heavy cargo check -p jig-client-test-shell-web --target wasm32-unknown-unknown`, which must
+pass, and is exempt from "each count above zero". Add no test target to the crate. Also run
+`heavy cargo clippy -p jig-client-test-shell-web --target wasm32-unknown-unknown -- -D warnings`
+(the native clippy of step 3 compiles none of its code). Keep the work already pushed and finish
+the remaining steps.
