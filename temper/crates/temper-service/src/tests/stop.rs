@@ -57,6 +57,7 @@ fn refused(why: OpenRefusal) {
         .as_mut()
         .expect("engine")
         .store
+        .host
         .above
         .push(jig_protocol_store::Event::OpenRefused { owner: skein_lib::Token::new(1), why: why.clone() });
     crate::engine::iterate(

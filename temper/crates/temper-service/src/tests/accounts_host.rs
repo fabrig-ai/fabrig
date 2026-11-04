@@ -771,7 +771,7 @@ fn host(config: &config::Engine, runtime: AccountsRuntime) -> Accounts {
         &seeds.crypto,
         &seeds.installation,
         Some(runtime),
-        &config.limits.store.host.secrets,
+        &config.limits.store.secrets,
     )
     .expect("public registration fits")
 }
@@ -840,7 +840,7 @@ fn missing_registration_runtime_is_refused_before_start() {
             &seeds.crypto,
             &seeds.installation,
             None,
-            &config.limits.store.host.secrets
+            &config.limits.store.secrets
         )
         .is_err()
     );

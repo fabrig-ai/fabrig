@@ -119,6 +119,7 @@ fn a_corrupt_pending_restart_load_keeps_its_restore_kind() {
         .as_mut()
         .expect("engine")
         .store
+        .host
         .above
         .push(jig_protocol_store::Event::PageRefused { owner, failure: failure.clone() });
     for _ in 0_u32..256 {
@@ -1006,7 +1007,7 @@ fn an_undecodable_startup_row_keeps_the_store_family_and_key() {
     let Some(skein_kv::Event::Committed { .. }) = above.pop() else { panic!("fixture commit") };
     assert!(below.is_empty());
     let mut reopened = fixtures::memory_store();
-    reopened.component = store::Store::over(&limits, families, models, maps);
+    reopened.host.component = store::Store::over(&limits, families, models, maps);
     let reopened = fixtures::reopened_store(reopened, &application);
     let mut service = fixtures::start_with_store(&[(1, 100)], Some(reopened));
     for _ in 0_u32..256 {
