@@ -3,22 +3,29 @@
 2026-11-04. Where temper's code lags or departs from [playground.md](playground.md).
 
 - **Not yet:**
-  - 4: the playground's setup entry's handover: the composition lays a
-    handover for each setup entry the deployment's document names, story
-    A's names none, and so the disk holds no `playground-1/admin_token`
-    and `StartPlayground` stalls at its forge's setup. Story A's walk is
-    ignored for it (`tests/one-process/tests/suite/story_a.rs`). The
-    reset without the box: its fake forge's removal waits for the box
-    (`domain/forge.md`, 4.1, and its status).
+  - 4: the reset without the box: its fake forge's removal waits for the
+    box (`domain/forge.md`, 4.1, and its status).
   - 6: the playground forge's links shown as text.
-  - 8: story A's high water, unmeasured while its walk stalls (4), and so
-    the documents' capacities sized to it:
+  - 7: released with temper: no release's build calls
+    `scripts/bundle.sh --playground`, `scripts/release.sh` itself being
+    `release.status.md`'s 5; the site and the help link no playground,
+    and no private preview of `main` is served.
+  - 8: the documents' capacities sized to story A: its deployment keeps
+    the `small` profile with a few capacities raised, and `memory_bytes`
+    of 2^60 for the engine and its worker
+    (`temper/crates/temper-playground/stories/a/deployment.json`).
     `temper/docs/development/playground-memory.md` measures the world's
     native heap, by process, at its first step and its start alone, and
-    sets no bound. The browser tier's figures.
-  - 9: Story A's walk
-    in the one-process world, ignored (4). The wasm32 builds in the gate:
-    the gate's list (`.config/gate/wasm32.txt`) omits
+    sets no bound; through the story there is only the browser tier's
+    high water, which does not say what reserves it. The download's bar:
+    7,026,541 B gzipped, past its 6 MB
+    (`temper/docs/development/playground-figures.md`).
+  - 9: Story A's walk in the one-process world, by the terminal client,
+    ignored: its `#[ignore]` has it stall at Starting after 5 s, forge 1
+    Kept, the account and the project absent
+    (`tests/one-process/tests/suite/story_a.rs`); whether what lets the
+    web client's walk pass lifts that is unknown. The wasm32 builds in
+    the gate: the gate's list (`.config/gate/wasm32.txt`) omits
     `temper-playground`, so no gate proves both of 3's product crates
     on wasm32. `temper-playground`'s wasm32 clippy fails, with warnings
     denied, in smith's and temper's crates alone: unmet
@@ -27,4 +34,22 @@
     `Stored` (`temper/crates/temper-engine-domain-forge/src/boundary.rs:1024`),
     and `smith-agent-shell`'s items left unused on wasm32 (smith's
     `shell.md`, 2.5, and its status).
-  - 10: the bar.
+  - 10: the bar: story A by hand on Firefox and Safari, of which nothing
+    records a walk; within its bars, the download being past its own (8)
+    and the memory's and the slice's unset (section 11); and published.
+    The page offers a failure's log
+    (`temper/crates/temper-client-shell-web/src/playground/web.rs`), but
+    no test fails a world in a browser: the tier downloads a whole
+    walk's log from the frame, and that log replays natively.
+- **Departs:**
+  - 6, 9: the page's code builds on wasm32 with or without the feature
+    `playground`, which chooses the module's entry alone
+    (`temper-client-shell-web`'s `src/lib.rs` and
+    `src/playground/web.rs`), because the gate's list holds packages, not
+    features: so the gate lints the page's code, but not the shell with
+    its feature, which `scripts/bundle.sh --playground` alone builds.
+  - 9: the kept log replays under the one-process world's forge referee
+    alone (`tests/one-process/src/replay.rs`, `Refereed`), because the
+    referee's parts that watch the terminal client's person or keep the
+    links have no place in a visit, and the log's digests prove the
+    visitor's answers.
