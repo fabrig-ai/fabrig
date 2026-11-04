@@ -8,7 +8,7 @@ pub const READ: Tool = Tool {
     name: b"forge list",
     line: b"Read the deployment's forges",
     prints:
-        b"A line per forge, `forge N`, its kind, mode and connection, its App and installations, then `digest: forges`",
+        b"A line per forge, `forge N`, its resource host, kind, mode and connection, its App and installations, then `digest: forges`",
     result: b"forges",
     forms: &[&[
         flag(b"since", b"DIGEST", Kind::Digest, Optional, b"Wait until it differs from the read that printed DIGEST"),
@@ -826,14 +826,25 @@ pub(crate) fn holds(rows: &[Row], condition: &[u8]) -> bool {
 // result, but share its bound so every encoding of the rows stays in step.
 const ROWS_JSON_DEPTH: u32 = 7;
 
+fn encode_identity(row: &Row, out: &mut Encoder) {
+    out.key(b"number");
+    out.unsigned(u64::from(row.number));
+    out.key(b"host");
+    out.string(&row.host);
+}
+fn text_identity(row: &Row, out: &mut Text) {
+    out.put(b"forge ");
+    out.number(u64::from(row.number));
+    out.put(b" \xc2\xb7 host: ");
+    out.put(&row.host);
+}
 fn encode_rows(rows: &[Row], digest: Option<Digest>, out: &mut Encoder) {
     out.object_start();
     out.key(b"forges");
     out.array_start();
     for row in rows {
         out.object_start();
-        out.key(b"number");
-        out.unsigned(u64::from(row.number));
+        encode_identity(row, out);
         out.key(b"kind");
         out.string(match row.kind {
             domain::Kind::Forgejo => b"forgejo",
@@ -949,8 +960,7 @@ fn json_rows(rows: Option<&[Row]>, digest: Option<Digest>, met: Option<bool>, ou
 fn text_rows(rows: Option<&[Row]>, digest: Option<Digest>, met: Option<bool>, out: &mut Text) {
     if let Some(rows) = rows {
         for row in rows {
-            out.put(b"forge ");
-            out.number(u64::from(row.number));
+            text_identity(row, out);
             out.put(b" \xc2\xb7 ");
             out.put(words::forge_kind(row.kind));
             out.put(b" \xc2\xb7 ");
