@@ -31,6 +31,24 @@ fn a_workspace_reaches_items_with_each_remote_made_from_its_base() {
     }
 }
 #[test]
+fn a_machine_without_github_gives_each_remote_one_separator() {
+    let machine = temper_forge_setup::machine::Machine { owned: None, fake: None, github: None };
+    let assignment = fixtures::assignment_with(fixtures::repository(7, b"acme", b"shop"));
+    let mut forge = fixtures::forges().into_iter().next().unwrap();
+    forge.git = crate::system::machine_config(&machine).github.git;
+    let items = translate::items(
+        &assignment,
+        &fixtures::forge_table(&[forge]),
+        &crate::forge::tokens::Tokens::empty(),
+        &fixtures::wire_limits(),
+    )
+    .unwrap()
+    .unwrap()
+    .into_parts();
+    let first = items.repositories.into_boxed().into_iter().next().unwrap().into_parts();
+    assert_eq!(first.remote.as_ref(), b"https://github.com/acme/shop.git");
+}
+#[test]
 fn each_repository_takes_its_forges_git_program() {
     let mut forges = List::with_capacity(3);
     for (number, program) in
