@@ -348,7 +348,7 @@ fn github_service(page: u32) -> service::Service {
             response: 16384,
             send: 1024,
         },
-        github: crate::limits::github_documents(&f::limits()),
+        github: crate::limits::documents(&f::limits()),
         installations: installations::Limits { installations: 1, tokens: 2, listed: 1 },
         pages: pages::Limits { states: 1, manifest_bytes: 2048 },
         page,
