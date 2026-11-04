@@ -24,7 +24,9 @@ task names. This file grows with each release; what is here so far is what has b
    - `tasks/temper-worker-agents.md`, high, ~40 minutes, needs it and `temper-accounts-host`: net at most -420.
    - `tasks/jig-workers-host.md`, high, ~60 minutes, needs `jig-worker-agents`: net at most +120.
    - `tasks/temper-workers-host.md`, high, ~50 minutes, needs it and `temper-worker-agents`: net at most -200.
-   - The clients' side is being written.
+   - `tasks/jig-server-part.md`, high, ~120 minutes, needs `jig-workers-host`: net at most +170.
+   - `tasks/temper-server-part.md`, medium, ~45 minutes, needs it and `temper-workers-host`: net at most -340.
+   - The store's host, the clients' side and `service-items` are being written.
 
 3. **fake-github** (`skein/docs/design/fake-forge.md, 10.6`), slice 3. `notes/fake-github.md` holds its contracts.
    - `tasks/github-fake-surface.md`, high, ~100 minutes, needs nothing: what the four faces build on, additions only.
@@ -82,6 +84,9 @@ task names. This file grows with each release; what is here so far is what has b
   `jig-protocol-engine-workers` links configuration for it, and `jig/tests/boundary` pins that: its exact list changes,
   and so does `smith_breaches` for the new crate. The survey was wrong that nothing checks which jig crates link smith.
 - **Tests stay.** Only `J/tests/program_sources.rs`' three and the evidence test move; `T/tests/workers.rs`' 26 stay.
+- **The server's `Debug` counts, an addition:** both copies print heads and cookies, and the shipped type is a
+  credential-holder in that sense. Each server task runs its browser tier once by hand, as the gate doesn't.
+- **A peer's end is `Limits::peer_end`:** `PeerEnd::Connection` in temper, `PeerEnd::Call` in jig, each as today.
 - **D001's and D005's facts have moved.** The measure reads 1,388, not 1,369, and `Resources`' `Debug` is now hidden
   in both copies. `service-items` corrects what survives.
 

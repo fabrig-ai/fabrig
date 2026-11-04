@@ -669,3 +669,36 @@ crate that reads configuration.
 - **The bound address.** The host keeps each listener's configured
   address, for the owner's report of a lost one, and the address last
   bound, in `listening`, until the owner takes it.
+
+### 11.4 The server
+
+`jig_protocol_engine_clients_http::server::Server` is one listener and
+its connections, each with skein's HTTP server over it, their deadlines
+and the page policy. It knows no route: what a call means is its owner's.
+
+- **Every call goes to the owner.** A head comes out as `Routed::Call`,
+  and each later event of that call as `Routed::Http`. The owner hands
+  the call to the mapping, or answers it from its own routes through
+  `answer`, and ends it with `done`. Its pages and its bundle are its
+  own (`browser.md`, section 12).
+- **The page policy is on every response:** `policy::FIELDS`, the
+  reference's (`browser.md`, 12.1), but for a field the response already
+  holds.
+- **Amounts are `Limits`:** the connections, skein's HTTP limits and the
+  stall. `valid` says whether limits can run at all.
+- **A peer's end is a value.** `Limits`' `peer_end` says what a peer's
+  end does while a call is unfinished. `PeerEnd::Connection` ends the
+  connection and tells the owner the call's connection closed, as
+  `client.md`, 17.4 asks. `PeerEnd::Call` leaves the connection, and the
+  owner hears the call's `Ended`.
+- **A call the owner holds.** `hold` keeps a call's connection to a
+  deadline of the owner's, past the stall, and `release` gives the call
+  back to the stall.
+- **Closing.** `stop` closes the listener. `close` also ends each
+  connection as its call ends; once the owner says `finish`, that no
+  response is left to come, it ends those with a call still open, after
+  what they have queued. `abort` ends everything at once, and `abandon`
+  one call's connection.
+- **Its `Debug` counts.** A head holds its cookies and a response its
+  `Set-Cookie`, so `Server` shows its listener, its phase and how many
+  connections it holds, and `Routed` its variant and its call's token.
