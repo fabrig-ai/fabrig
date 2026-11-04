@@ -14,7 +14,7 @@ use std::{
     thread,
 };
 use temper_forge_setup::{
-    fetch::{Bottle, Failure, Fetch, Pin},
+    fetch::{Bottle, Failure, Fetch, Fetched, Pin},
     setup::Origin,
 };
 use temper_forge_setup_shell::fetch::{self, Failed};
@@ -118,11 +118,13 @@ fn local_tls_fetch() {
             None
         };
         let url = format!("https://127.0.0.1:{}/binary", address.port());
+        let mut progress = Vec::new();
         let result = fetch::run(
             &support::io(),
             &skein_shell::Trust::Machine { ssl_cert_file: Some(roots) },
             Fetch::new(
                 Box::new([Pin {
+                    binary: Fetched::read(b"fetched forgejo 0 bytes").expect("progress fixture").binary,
                     origin: Origin { host: b"127.0.0.1".as_slice().into(), port: address.port() },
                     path: b"/binary".as_slice().into(),
                     digest: sha(b"abc"),
@@ -131,10 +133,14 @@ fn local_tls_fetch() {
                 }]),
                 bound,
             ),
+            &mut progress,
         );
         // The fetch has settled before a peer starvation verdict can end the test.
         let head = server.map(|server| server.join().expect("fetch fixture").unwrap_or_else(|starved| starved.pass()));
         check_outcome(expected, result, name, &url, &file);
+        if initial.is_some() {
+            assert!(progress.is_empty(), "present files say nothing");
+        }
         if let Some(initial) = initial {
             assert_eq!(fs::read(&file).expect("fetch fixture"), initial);
         } else if expected == "ok" {
@@ -425,6 +431,7 @@ fn local_tls_bottle_fetch() {
             &skein_shell::Trust::Machine { ssl_cert_file: Some(roots.clone()) },
             Fetch::new(
                 Box::new([Pin {
+                    binary: Fetched::read(b"fetched forgejo 0 bytes").expect("progress fixture").binary,
                     origin: Origin { host: b"127.0.0.1".as_slice().into(), port: first_port },
                     path: b"/bottle".as_slice().into(),
                     digest: binary_digest,
@@ -433,6 +440,7 @@ fn local_tls_bottle_fetch() {
                 }]),
                 bound,
             ),
+            &mut Vec::new(),
         );
         let first = first.join().expect("bottle peer").unwrap_or_else(|starved| starved.pass());
         let second = second.join().expect("bottle peer").unwrap_or_else(|starved| starved.pass());
@@ -455,4 +463,55 @@ fn local_tls_bottle_fetch() {
         assert!(!archive_file.exists(), "{name}: archive removed");
     }
     scratch.remove();
+}
+
+fn fetch_to_writer(name: &str, chunked: bool, out: &mut dyn Write) {
+    let scratch = support::Scratch::new(name);
+    let roots = scratch.path().join("root.pem");
+    fs::write(&roots, pem(pki::ROOT)).expect("fetch root");
+    let file = scratch.path().join("cache/binary");
+    let listener = TcpListener::bind("127.0.0.1:0").expect("fetch peer");
+    let port = listener.local_addr().expect("fetch address").port();
+    let peer = server(listener, body_response(b"abc", chunked));
+    let result = fetch::run(
+        &support::io(),
+        &skein_shell::Trust::Machine { ssl_cert_file: Some(roots) },
+        Fetch::new(
+            Box::new([Pin {
+                binary: Fetched::read(b"fetched runner 0 bytes").expect("progress fixture").binary,
+                origin: Origin { host: b"127.0.0.1".as_slice().into(), port },
+                path: b"/binary".as_slice().into(),
+                digest: sha(b"abc"),
+                file: file.as_os_str().as_bytes().into(),
+                bottle: None,
+            }]),
+            3,
+        ),
+        out,
+    );
+    peer.join().expect("fetch peer").unwrap_or_else(|starved| starved.pass());
+    assert!(result.is_ok(), "{result:?}");
+    assert_eq!(fs::read(&file).expect("fetched binary"), b"abc");
+    assert!(!file.with_file_name("binary.part").exists());
+    scratch.remove();
+}
+
+#[test]
+fn the_lines_reach_the_writer_in_order() {
+    for (chunked, expected) in [
+        (false, "fetched runner 0 of 3 bytes\nfetched runner 3 of 3 bytes\n"),
+        (true, "fetched runner 0 bytes\nfetched runner 3 bytes\n"),
+    ] {
+        let mut out = Vec::new();
+        fetch_to_writer("fetch-progress-lines", chunked, &mut out);
+        assert_eq!(out, expected.as_bytes());
+    }
+}
+
+#[test]
+fn a_writer_that_refuses_fails_no_fetch() {
+    // A full slice accepts no byte and write_all returns WriteZero.
+    let mut out = &mut [][..];
+    fetch_to_writer("fetch-progress-refusing", false, &mut out);
+    assert!(out.is_empty());
 }
