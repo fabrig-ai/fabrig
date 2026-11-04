@@ -30,6 +30,33 @@ impl Held {
         Held { bytes, at: 0, ended: false }
     }
 
+    /// The answer to a demand, under [`Slice::answer`]'s contract.
+    pub fn answer(&mut self, read: Read) -> Option<Up> {
+        let mut input = Slice { bytes: &self.bytes, at: self.at, ended: self.ended };
+        let answer = input.answer(read);
+        self.at = input.at;
+        self.ended = input.ended;
+        answer
+    }
+}
+
+/// A borrowed buffer, read as a stream: [`Held`]'s contract over a slice.
+/// It copies only each delivery, never the whole buffer (lib.md, 7).
+#[derive(Debug)]
+pub struct Slice<'a> {
+    bytes: &'a [u8],
+    /// Where what is not yet read begins.
+    at: usize,
+    ended: bool,
+}
+
+impl<'a> Slice<'a> {
+    /// The buffer `bytes`, none of it read.
+    #[must_use]
+    pub fn new(bytes: &'a [u8]) -> Slice<'a> {
+        Slice { bytes, at: 0, ended: false }
+    }
+
     /// The answer to a demand that reads `read`: the bytes it asks for, as
     /// lib's intake would meet it, or `End` when what is left cannot. None
     /// for a withdrawal, `Read::Nothing`, and none once `End` was told.
