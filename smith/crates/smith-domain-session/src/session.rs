@@ -1562,7 +1562,8 @@ fn answered(
         clear_pending(conversation);
         return finish(history::sequence_limit());
     }
-    for call in completion.content.iter().filter_map(Block::tool_call) {
+    for part in &completion.content {
+        let Some(call) = part.tool_call() else { continue };
         match &call.call {
             Decoded::Historical => {
                 release_provider(conversation);
@@ -1900,19 +1901,18 @@ fn unrun(
     let mut waking = Some(text);
     for (position, block) in message.content.iter().enumerate() {
         let Some(call) = block.tool_call() else { continue };
-                let mut result = if withheld == Some(call.id.as_ref()) {
-                    Returned::Text { text: waking.take().expect("one withheld call"), error: false, replay: None }
-                } else {
-                    Returned::NotRun { why: crate::llm::NotRun::Stopped }
-                };
-                for answer in answered.iter_mut() {
-                    if usize::try_from(answer.origin.position).expect("validated position") == position {
-                        result =
-                            mem::replace(&mut answer.result, Returned::NotRun { why: crate::llm::NotRun::Stopped });
-                    }
-                }
-                let result = Block::ToolResult { id: call.id.clone(), result };
-                content.push(result).expect("room for a result per call");
+        let mut result = if withheld == Some(call.id.as_ref()) {
+            Returned::Text { text: waking.take().expect("one withheld call"), error: false, replay: None }
+        } else {
+            Returned::NotRun { why: crate::llm::NotRun::Stopped }
+        };
+        for answer in answered.iter_mut() {
+            if usize::try_from(answer.origin.position).expect("validated position") == position {
+                result = mem::replace(&mut answer.result, Returned::NotRun { why: crate::llm::NotRun::Stopped });
+            }
+        }
+        let result = Block::ToolResult { id: call.id.clone(), result };
+        content.push(result).expect("room for a result per call");
     }
     if let Some(text) = waking {
         content.push(Block::Text { text, replay: None }).expect("room for the message after the results");
@@ -2206,18 +2206,20 @@ fn chosen(choice: &ToolChoice, block: &Block) -> bool {
     let Some(call) = block.tool_call() else { return true };
     match &call.call {
         Decoded::Builtin { .. } => true,
-        call @ (Decoded::Owned { .. } | Decoded::Delegated { .. } | Decoded::Invalid { .. } | Decoded::Historical) => match choice {
-            ToolChoice::Auto => true,
-            ToolChoice::None => false,
-            ToolChoice::Only(tickets) => match call {
-                Decoded::Delegated { descriptor, .. } => tickets.contains(descriptor),
-                Decoded::Invalid { descriptor, .. } => match descriptor {
-                    Some(descriptor) => tickets.contains(descriptor),
-                    None => false,
+        call @ (Decoded::Owned { .. } | Decoded::Delegated { .. } | Decoded::Invalid { .. } | Decoded::Historical) => {
+            match choice {
+                ToolChoice::Auto => true,
+                ToolChoice::None => false,
+                ToolChoice::Only(tickets) => match call {
+                    Decoded::Delegated { descriptor, .. } => tickets.contains(descriptor),
+                    Decoded::Invalid { descriptor, .. } => match descriptor {
+                        Some(descriptor) => tickets.contains(descriptor),
+                        None => false,
+                    },
+                    Decoded::Builtin { .. } | Decoded::Owned { .. } | Decoded::Historical => false,
                 },
-                Decoded::Builtin { .. } | Decoded::Owned { .. } | Decoded::Historical => false,
-            },
-        },
+            }
+        }
     }
 }
 
@@ -2328,8 +2330,14 @@ fn complete(id: Id<Session>, conversation: &Conversation, retry: u32, limits: &L
 fn call_id(conversation: &Conversation, block: u32) -> Box<[u8]> {
     let message = conversation.transcript.last().expect("the assistant message is last while tooling");
     let index = usize::try_from(block).expect("a u32 fits in a usize");
-    message.content.get(index).expect("the call in flight is a block of the message")
-        .tool_call().expect("the call in flight is a tool call").id.clone()
+    message
+        .content
+        .get(index)
+        .expect("the call in flight is a block of the message")
+        .tool_call()
+        .expect("the call in flight is a tool call")
+        .id
+        .clone()
 }
 
 /// The text blocks of `content`, one after another, in a box of their own: the
@@ -2364,7 +2372,8 @@ fn tally(content: &[Block]) -> (u32, u32) {
         return (0, 0);
     }
     let (mut calls, mut invalid): (u32, u32) = (0, 0);
-    for call in content.iter().filter_map(Block::tool_call) {
+    for part in content {
+        let Some(call) = part.tool_call() else { continue };
         calls = calls.saturating_add(1);
         match &call.call {
             Decoded::Invalid { .. } => invalid = invalid.saturating_add(1),
