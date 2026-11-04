@@ -1,10 +1,12 @@
-//! The one exception for the lock and exec (protocol/setup.md, 6.4).
+//! The lock, exec and extraction exceptions (protocol/setup.md, 6.4 and 6.6).
+use skein_lib::sha256::Sha256;
 use std::{
     fs, io,
     os::unix::{ffi::OsStrExt, fs::OpenOptionsExt, process::CommandExt},
     path::Path,
     process::{Command, Stdio},
 };
+use temper_forge_setup::fetch::Extraction;
 use temper_forge_setup::spec::Spec;
 /// Held until dropped or handed across exec as standard input.
 #[derive(Debug)]
@@ -98,4 +100,52 @@ pub fn child(
 #[must_use]
 pub fn id() -> u32 {
     std::process::id()
+}
+
+/// Streams one archive member into a preopened part file, bounded and hashed.
+pub fn extract(archive: &[u8], member: &[u8], file: &mut fs::File, bound: u64) -> Extraction {
+    use std::io::{Read as _, Write as _};
+    const CHUNK: usize = 16_384;
+    let Ok(mut child) = Command::new("/usr/bin/tar")
+        .arg("-xzOf")
+        .arg(crate::path(archive))
+        .arg(crate::path(member))
+        .env_clear()
+        .stdin(Stdio::null())
+        .stdout(Stdio::piped())
+        .stderr(Stdio::null())
+        .spawn()
+    else {
+        return Extraction::Failed;
+    };
+    let mut output = child.stdout.take().expect("tar stdout piped");
+    let mut buffer = [0; CHUNK];
+    let mut total = 0_u64;
+    let mut hash = Sha256::new();
+    let refusal = loop {
+        let count = match output.read(&mut buffer) {
+            Ok(0) => break None,
+            Ok(count) => count,
+            Err(why) if why.kind() == io::ErrorKind::Interrupted => continue,
+            Err(_) => break Some(Extraction::Failed),
+        };
+        let length = skein_lib::len_u64(count);
+        if length > bound.saturating_sub(total) {
+            break Some(Extraction::Bytes);
+        }
+        total += length;
+        hash.update(&buffer[..count]);
+        if file.write_all(&buffer[..count]).is_err() {
+            break Some(Extraction::Failed);
+        }
+    };
+    if let Some(refusal) = refusal {
+        drop(child.kill());
+        drop(child.wait());
+        return refusal;
+    }
+    match child.wait() {
+        Ok(status) if status.success() && total != 0 => Extraction::Digest(hash.finish()),
+        Ok(_) | Err(_) => Extraction::Failed,
+    }
 }
