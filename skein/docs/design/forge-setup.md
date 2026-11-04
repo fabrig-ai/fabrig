@@ -570,17 +570,21 @@ whole, finishes what the last one left.
 - **Its deadline is its own,** `copy_deadline`, where every other plan
   has `deadline`: a copy's time is the source's size over the network's
   speed, and its `Migrate` is one exchange unanswered for all of it. No
-  time but the run's bounds that exchange. A run past it stops at
-  `Repository`, `TimedOut`, its connection aborted (6.5). The copy
-  Forgejo may still be making is found at the next run (step 3).
+  time but the run's bounds that exchange, and it is never sent again.
+  A run past it stops at `Repository`, `TimedOut`, its connection aborted
+  (6.5); every other plan's stops `Down`, as does a `Copy` a `Remove`,
+  an `Abort` or a `Close` ends. The copy Forgejo may still be making is
+  found at the next run (step 3).
 - **Forgejo's refusals** of `Migrate`, each a stop at `Repository`,
   `Refused(status)`, its message going up first (6.3): a source
   missing or private, a host refused by Forgejo's migration settings, a
   source that is not a git repository.
 - **Not for a connected Forgejo or GitHub,** where the owner holds no
   admin's token; `supports` refuses it, as it does `Create`.
-- **A writing run,** one per forge at once (6.3): copies on one forge
-  run one after another.
+- **A writing run,** one per forge at once (6.3): a second writing run
+  beside a `Copy` stops `Busy` for as long as the copy lasts, so an
+  owner that copies holds its other writing runs until the copy ends,
+  and copies on one forge run one after another.
 
 ## 5. GitHub's plans
 
@@ -921,11 +925,13 @@ end.
   ends every run unheard and the host says `Closed` when io has settled
   every socket.
 - **A forge's words:** a `Migrate` answered with no 2xx has its body's
-  JSON `message` read, cut to `string_bytes` at a UTF-8 boundary, and
-  said at most once, `Event::Said`, before the `Stop` it leads to. A
-  body that holds none says nothing, and the status goes to the plan
-  either way. The owner holds the words for the run's stop. No other
-  request's body is read on a refusal.
+  JSON `message` read by the dialect's error decoder (`error_decoder`),
+  cut to `string_bytes` at a UTF-8 boundary, and said at most once,
+  `Event::Said`, before the `Stop` it leads to. A body that holds none
+  says nothing, and the status goes to the plan either way. The owner
+  holds the words for the run's stop. No other request's body is read
+  on a refusal, and a `401`'s is not, since Forgejo's may echo the token
+  (forge.md, section 5).
 - **A forge added or removed while it runs,** so that a service sets
   up the forges it makes and removes without a restart. `Add` hands one
   forge's settings, as construction names them, checked as
@@ -1160,7 +1166,8 @@ pin (forge.md, section 4.3), and named by the fact's name.
   by Forgejo's default settings; `OFFLINE_MODE` leaves migrations on; a
   migration cut short by stopping Forgejo leaves a repository that reads
   with no default branch, and it deletes and copies again; a migration
-  whose client went away goes on; `DeleteRepository` answers 204 and
+  whose client went away goes on, and what a `DeleteRepository` does to
+  it while it runs is recorded; `DeleteRepository` answers 204 and
   a second 404; a name that is a user's reads 404 as an org and
   `CreateOrg` refuses it; with `.forgejo/workflows` and
   `.github/workflows` both there, Actions reads the first alone:
@@ -1175,6 +1182,7 @@ pin (forge.md, section 4.3), and named by the fact's name.
   `setup-migrate-cut-short-leaves-a-repository-with-no-branch`,
   `setup-migrate-cut-short-deletes-and-copies-again`,
   `setup-migrate-goes-on-when-its-client-goes`,
+  `setup-migrate-deleted-while-it-runs`,
   `setup-repository-delete-is-204-then-404`,
   `setup-org-of-a-users-name-reads-404-and-making-it-is-refused`,
   `setup-actions-reads-forgejo-workflows-alone-when-both-are-there`.
@@ -1248,8 +1256,13 @@ pin (forge.md, section 4.3), and named by the fact's name.
   `copy_deadline` leaves Forgejo's migration running
   (`setup-migrate-goes-on-when-its-client-goes`), and the next run
   deletes what it finds empty. Default: as 4.10 has it, what the
-  conformance records of a deletion under a migration deciding whether
-  the plan must wait instead.
+  conformance records (`setup-migrate-deleted-while-it-runs`) deciding
+  whether the plan must wait instead.
+- **Forgejo's own bound on a migration,** `[git.timeout] MIGRATE`. temper's
+  owned `app.ini` sets none of `[git.timeout]`, so Forgejo's default
+  holds, which may end a large copy before `copy_deadline` does.
+  Default: Forgejo's, and such a copy stops with Forgejo's words; a
+  deployment that needs more sets its Forgejo.
 - **The deployment's public address** as the App's hook, for a
   deployment GitHub can reach. Default: later; every App's hook is at no
   listener (5.5).
