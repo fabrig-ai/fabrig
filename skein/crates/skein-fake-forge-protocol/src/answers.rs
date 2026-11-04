@@ -526,7 +526,8 @@ pub fn read(config: &Config, setup: &Store, request: &Request, answer: &a::Answe
             }
             Ok(Answer::Tree { entries: tree.into_boxed(), truncated: *truncated })
         }
-        a::Answer::Located { .. }
+        a::Answer::Copied { .. }
+        | a::Answer::Located { .. }
         | a::Answer::Permission(_)
         | a::Answer::Commit(_)
         | a::Answer::Cloned { .. }

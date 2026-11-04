@@ -191,7 +191,8 @@ pub(crate) fn render(name: Name, result: Result<api::Answer, api::Error>, bounds
         Ok(api::Answer::Pushed(pushed)) => git::Answer::Pushed(pushed),
         Err(why) => return error(name, why, &limits),
         Ok(
-            api::Answer::Located { .. }
+            api::Answer::Copied { .. }
+            | api::Answer::Located { .. }
             | api::Answer::Items { .. }
             | api::Answer::Item { .. }
             | api::Answer::Pull(_)
