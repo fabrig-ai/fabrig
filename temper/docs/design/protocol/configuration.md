@@ -611,7 +611,7 @@ have one, an engine alone none. Each:
   `box.line_bytes`, its pipe's (setup.md, section 7).
 - **Two profiles, as jig's:** `small`, for one person's machine with
   the mechanics' smallest work, and `standard`, a project of fabrig's
-  scale, its own development as fab runs it, with five times the
+  scale, its own development, with five times the
   largest figure seen (13.4); another name is refused. `temper init`'s
   document names `standard` for the engine's, the worker's and the
   application's limits alike (`setup.md`, 8.3). Their numbers are
@@ -1779,8 +1779,8 @@ init`'s document carries none of them (`setup.md`, 8.3).
 - **The box's limits for that work.** `temper init`'s document, and
   `docs/examples/owned.json`, name the `standard` profiles, jig's and
   temper's (section 7; jig's `protocol/configuration.md`, section 6),
-  sized for a project of fabrig's scale: its own development as fab
-  runs it, measured over three days (1,834 Codex runs and 636 Claude
+  sized for a project of fabrig's scale: its own development,
+  measured over three days (1,834 Codex runs and 636 Claude
   calls), with five times the largest figure seen, rounded up, so that
   a fresh box runs such a project with no override (the user's
   decision, 2026-11-03):
