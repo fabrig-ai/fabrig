@@ -1,11 +1,181 @@
 //! The store's three single-flight file drivers, adoption and close
-//! (jig/docs/design/protocol/store.md, 13).
+//! (jig/docs/design/protocol/store.md, 13; jig/docs/design/protocol/service.md, 11.5).
 use skein_io::{
     file,
     file_layer::{self, FileIo},
     kernel::{Complete, Fd, Submit},
 };
-use skein_lib::{Duration, Env, Map, Queue, Time, Token};
+use skein_lib::{Duration, Env, Map, Queue, Time, Token, Wall};
+
+/// Whether a get the store can't answer yet is answered in the pass (protocol/service.md, 11.5).
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+pub enum NotReady {
+    /// `Hosted::secrets` returns it, as any answer to a get.
+    InPass,
+    /// It stays in `above`, for the owner's dispatch.
+    Above,
+}
+
+pub struct Hosted {
+    pub component: crate::Store,
+    /// The store's terminals, in order, for the owner's dispatch.
+    pub above: Queue<crate::Event>,
+    /// Terminals the owner's dispatch hands its clients' side.
+    pub secrets: Queue<crate::Event>,
+    /// The answers to the accounts' records' loads and writes (store.md, 9).
+    pub sources: Queue<crate::Event>,
+    env: Env<crate::Limits>,
+    drivers: Host,
+    not_ready: NotReady,
+    closing: bool,
+}
+// A terminal can hold a kept digest, so Debug counts the queues without formatting their values.
+impl core::fmt::Debug for Hosted {
+    fn fmt(&self, f: &mut core::fmt::Formatter<'_>) -> core::fmt::Result {
+        f.debug_struct("Hosted")
+            .field("above", &self.above.len())
+            .field("secrets", &self.secrets.len())
+            .field("sources", &self.sources.len())
+            .field("closing", &self.closing)
+            .finish()
+    }
+}
+impl Hosted {
+    #[must_use]
+    pub fn new(
+        limits: &crate::Limits,
+        application: crate::sizes::Application,
+        models: &[jig_domain_core::Model],
+        seed: u64,
+        not_ready: NotReady,
+    ) -> Self {
+        let drivers = Host::new(limits, seed);
+        let component = crate::Store::on_directory(limits, application, models, drivers.seeded());
+        Self {
+            component,
+            above: Queue::uncapped(),
+            secrets: Queue::uncapped(),
+            sources: Queue::uncapped(),
+            env: Env { now: Time::ZERO, wall: Wall::EPOCH, limits: *limits },
+            drivers,
+            not_ready,
+            closing: false,
+        }
+    }
+    #[must_use]
+    pub fn limits(&self) -> &crate::Limits {
+        &self.env.limits
+    }
+    pub fn clock(&mut self, now: Time, wall: Wall) {
+        self.env.now = now;
+        self.env.wall = wall;
+    }
+    pub fn adopt(&mut self, fd: Fd, user: u32, installation: [u8; 16]) -> Result<(), Fd> {
+        self.drivers.adopt(fd, user, Token::new(1), installation)
+    }
+    pub fn ask(&mut self, request: crate::Request) {
+        match request {
+            crate::Request::Secrets { owner, request } => {
+                if let Some(event) = self.secrets(owner, request) {
+                    self.above.push(event);
+                }
+            }
+            request @ (crate::Request::Switch { .. }
+            | crate::Request::Open { .. }
+            | crate::Request::Site { .. }
+            | crate::Request::Commit { .. }
+            | crate::Request::Restore { .. }
+            | crate::Request::Load { .. }
+            | crate::Request::Read { .. }
+            | crate::Request::Get { .. }
+            | crate::Request::Transcript { .. }) => {
+                self.drivers.down(&mut self.component, &self.env, request, &mut self.above);
+            }
+        }
+    }
+    /// Get answers stay in this pass; secret writes' terminals are handed to their owner.
+    pub fn secrets(&mut self, owner: Token, request: crate::Secrets) -> Option<crate::Event> {
+        let immediate = match &request {
+            crate::Secrets::Get { .. } | crate::Secrets::Load { .. } => true,
+            crate::Secrets::Keep { .. }
+            | crate::Secrets::Adopt { .. }
+            | crate::Secrets::AdoptValue { .. }
+            | crate::Secrets::Replace { .. }
+            | crate::Secrets::Erase { .. }
+            | crate::Secrets::Hold { .. }
+            | crate::Secrets::Carry { .. } => false,
+        };
+        self.drivers.down(&mut self.component, &self.env, crate::Request::Secrets { owner, request }, &mut self.above);
+        let mut answer = None;
+        if immediate {
+            for _ in 0..self.above.len() {
+                let event = self.above.pop().expect("store terminals");
+                if self.not_ready == NotReady::Above
+                    && let crate::Event::SecretsNotReady { .. } = &event
+                {
+                    self.above.push(event);
+                    continue;
+                }
+                if let crate::Event::Secret { owner: found, .. }
+                | crate::Event::SecretsLoaded { owner: found, .. }
+                | crate::Event::SecretsNotReady { owner: found } = &event
+                    && *found == owner
+                {
+                    answer = Some(event);
+                } else {
+                    self.above.push(event);
+                }
+            }
+        }
+        answer
+    }
+    pub fn iterate(&mut self) {
+        self.drivers.iterate(&mut self.component, &self.env, &mut self.above);
+    }
+    pub fn complete(&mut self, lane: Lane, complete: Complete) {
+        self.drivers.complete(lane, complete);
+    }
+    #[must_use]
+    pub fn submissions(&self) -> u32 {
+        self.drivers.submissions()
+    }
+    pub fn pop_submission(&mut self) -> Option<Submission> {
+        self.drivers.pop_submission()
+    }
+    #[must_use]
+    pub fn next_deadline(&self) -> Option<Time> {
+        self.drivers.next_deadline()
+    }
+    #[must_use]
+    pub fn work_pending(&self, now: Time) -> bool {
+        !self.secrets.is_empty() || !self.sources.is_empty() || !self.above.is_empty() || self.drivers.work_pending(now)
+    }
+    #[must_use]
+    pub fn closing(&self) -> bool {
+        self.closing
+    }
+    #[must_use]
+    pub fn idle(&self) -> bool {
+        self.secrets.is_empty() && self.sources.is_empty() && self.above.is_empty() && self.drivers.idle()
+    }
+    #[must_use]
+    pub fn closed(&self) -> bool {
+        self.drivers.closed()
+    }
+    pub fn close(&mut self) {
+        self.closing = true;
+        self.drivers.close();
+        for _ in 0..self.above.len() {
+            let _terminal = self.above.pop();
+        }
+        for _ in 0..self.secrets.len() {
+            let _terminal = self.secrets.pop();
+        }
+        for _ in 0..self.sources.len() {
+            let _terminal = self.sources.pop();
+        }
+    }
+}
 
 const ADOPT: Token = Token::new(u64::MAX - 1);
 const CLOSE: Token = Token::new(u64::MAX);

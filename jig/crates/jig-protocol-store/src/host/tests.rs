@@ -1,5 +1,5 @@
 //! Host lifecycle over the simulator and crashing filesystem (store.md, 13).
-use super::{Host, Lane, Submission};
+use super::{Host, Hosted, Lane, NotReady, Submission};
 use crate::{Event, Store, tests::fixtures};
 use skein_fake_machine::{How, Machine, serve};
 use skein_io::kernel::{Complete, Error, Fd, Op};
@@ -158,4 +158,31 @@ fn failed_adoption_answers_once_and_can_still_close() {
     host.close();
     assert!(host.closed());
     assert_eq!(host.adopt(Fd::new(999), 0, Token::new(42), [0; 16]), Err(Fd::new(999)));
+}
+
+#[test]
+fn a_get_not_ready_follows_its_value() {
+    const OWNER: Token = Token::new(9);
+    for (not_ready, in_pass) in [(NotReady::InPass, true), (NotReady::Above, false)] {
+        let mut hosted = Hosted::new(&fixtures::store_limits(), fixtures::APPLICATION, &[], 1, not_ready);
+        let answer = hosted.secrets(OWNER, crate::Secrets::Get { owner: crate::SecretOwner::SignIn, number: 1 });
+        assert_eq!(answer.is_some(), in_pass);
+        assert_eq!(hosted.above.is_empty(), in_pass);
+        let answer = answer.or_else(|| hosted.above.pop());
+        let Some(Event::SecretsNotReady { owner }) = answer else { panic!("get is not ready before the mark") };
+        assert_eq!(owner, OWNER);
+        assert!(hosted.above.is_empty());
+    }
+}
+
+#[test]
+fn debug_of_the_hosted_store_counts_its_terminals() {
+    let mut hosted = Hosted::new(&fixtures::store_limits(), fixtures::APPLICATION, &[], 1, NotReady::InPass);
+    hosted.above.push(Event::Secret {
+        owner: Token::new(9),
+        value: Some(crate::SecretValue::Digest { expiry: 0, digest: [171; 32] }),
+    });
+    let debug = format!("{hosted:?}");
+    assert!(!debug.contains("171"));
+    assert!(debug.contains("above: 1"));
 }
