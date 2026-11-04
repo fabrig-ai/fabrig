@@ -3,7 +3,7 @@ id = "conformance"
 part = "pins"
 kind = "feature"
 needs = ["pin-move"]
-files = ["skein/tests/forge/conformance/facts.txt", "skein/tests/forge/conformance/transcripts/**", "skein/tests/forge/conformance/deliveries/**", "temper/tools/git-transcripts/**"]
+files = ["skein/tests/forge/conformance/facts.txt", "skein/tests/forge/conformance/transcripts/**", "skein/tests/forge/conformance/deliveries/**", "skein/tests/forge/conformance/src/component/reads.rs", "temper/tools/git-transcripts/**"]
 effort = "high"
 minutes = 90
 +++
@@ -67,3 +67,15 @@ Pre-approved:
 ## Report
 
 As the implementer's text has it, with: the two binaries' `--version` lines; each fact whose verdict changed; what the transcripts' diff held beyond versions; the story's result and time.
+
+## Answers
+
+2026-11-04, on `macos-cheap/conformance-1`: widen the scope to repair the component's job selection and add an artifact recorder, or keep the old evidence and waive those parts?
+
+**Repair the one, keep the other, and finish the rest.** Start from the pushed `macos-cheap/conformance` (`6087d6cbc6`); the 326 refreshed transcripts, the deliveries and the eight test files stand, so do not repeat the ordinary recording.
+
+- **Component job selection: repair it.** `skein/tests/forge/conformance/src/component/reads.rs` is now in `files`. In `actions`, take the attempt from the failed check: `statuses.iter().find(|s| s.check == api::Check::Failed).and_then(|s| s.job)`. The code below it and its messages already mean that one, and `component-read-checks` already expects a failed check with a job, so this changes no fact. Name in the report whether the order of the two statuses moved at 17.0.1.
+- **Record `--component` alone:** fetch the binaries again (step 1), copy the committed `facts.txt` to `target/conformance-recording/facts.txt`, run the README's `--component` command with fresh scratch, copy `facts.txt` back. It replaces the `component-` block where it stands. Then move the comment `# The following facts retain...` from above that block to directly above the seven `actions-artifact` facts, naming them, and drop any statement that the component facts are old. Every `component-` fact that held and no longer does is resolved as `Pre-approved` has it.
+- **The seven artifact facts and the ten `actions-artifact*` transcripts: keep them, no recorder.** They were recorded on 2026-10-27 by hand, a host-shell job driving Forgejo's artifact protocol through `curl`; the repository has no command for it and none is added here: it is a new tool, on the rule that this plan stays cheap, for facts the story never reaches on a green CI, across a patch release. Your acceptance's "or the report names it with what was done" covers them: the report names the seven, and that they hold at 17.0.0 and are unobserved at 17.0.1. Do not count them as checked. The gap is in `skein/docs/design/forge.status.md`, under 9.
+- **Then finish what stopped:** steps 3, 5, 6 and 7. The git transcripts are recorded with the builder's git, 2.47.3, within the README's floor of 2.41: the version literal in `temper/tests/worker/protocol-git/tests/suite/transcripts.rs` is a literal that names the recorded value, already pre-approved. A difference beyond that is resolved as `Pre-approved` has it. The story is still your acceptance: run it.
+- **Any further recorder failure** that is not this selection stops with `Question:`, as before.
