@@ -46,22 +46,37 @@ max(`tasks.delegates` + 1, `tasks.project_goals`) and at most
 `people.inbox_tasks: 128`, while `tasks.delegates: 8` needs
 `people.operations: 9` and enough live task capacity to hold it.
 
-`people.requests` holds a day's deciding answers across the deployment:
-2,000 on small and 8,000 on standard. The calculation is 4 or 16 people,
-each with 20 daily conversations, each a creation, three messages and a
-decision, with fivefold headroom. Settings changes and other deciding
-acts share this room; pending decisions also need a place. Unexpired
-answers stay so a retry with the same key replays its answer. When full,
-ctl reports the number held and when the oldest answer expires. Size
-this limit for a higher daily workload or a longer answer retention.
+`people.requests` holds a day's deciding answers: 2,000 on small,
+8,000 on standard, for 4 or 16 people × 20 daily conversations ×
+(creation + three messages + decision) × fivefold headroom. Other
+settings and deciding acts share it; pending decisions need room too.
+Unexpired answers stay for retries under the same key. When full, ctl
+reports the count and oldest expiry. Size it for more work or retention.
 
-A refused start names the failed dependency and required minimum.
-A fixed schema ceiling or profile store ceiling cannot be raised with
-a scalar override. A batch's bytes, `tasks.batch_bytes`, and the inbox's messages grow
-the stored task record; reduce the named capacity or its spec, message, result and
-authority sizes when it exceeds that ceiling. Check each edit from a fresh configuration: a refusal of
-an earlier edit can still be present. For a goal's sizing example,
-read temper help budget; it does not promise a hundred-change profile.
+A refused start names the dependency and minimum. A scalar override
+cannot raise a schema ceiling or profile store ceiling. Batch bytes,
+`tasks.batch_bytes`, and inbox messages grow the stored task record;
+reduce its capacity or spec, message, result and authority sizes if it
+exceeds that ceiling. Check from a fresh configuration: an earlier
+refusal can persist. For goal sizing, read temper help budget;
+it promises no hundred-change profile.
+
+### Coordinator tool families
+
+A coordinator needs delegation (1), messages (2), control (4) and
+reads (512). Control offers `change`'s `landing`, `producer`, `after`,
+`llm` and `questions`; without it, words and repository use the default
+landing and producer. S needs `landing: goal` and `producer: 7`.
+The reference also uses decisions (8), subscriptions (32), notes (128)
+and recall (256). Stock tools 1,543 include settings (1024) for the
+configuring chat. Preserve the other family bits when adding control
+with bitwise OR 4.
+
+Check `ceiling.tools` in `rules`, and `ceiling.tools` plus
+`roles[0].authority.tools` in `policy 1` for role 0. Another role uses
+its own entry. Changing policy 1 affects only new projects;
+existing projects need `project-policy` with those same policy fields
+(step 2). Read and apply each value whole before starting the goal.
 
 ## 1. Read the settings
 
@@ -69,17 +84,16 @@ read temper help budget; it does not promise a hundred-change profile.
 temper ctl DIR settings show
 ```
 
-Expect: `newest revision NEWEST`, then each setting and where its value
-comes from, such as `charter 1: default, last changed in revision 1`,
-then the held revisions and the pending proposals.
+Expect: `newest revision NEWEST`, each setting's source, such as
+`charter 1: default, last changed in revision 1`, held revisions and
+pending proposals.
 
 If not: exit 1 is ctl's side, such as `DIR` signed out (temper help
 ctl).
 
 ## 2. Write a settings file from the value
 
-A value is whole: read it, change what you mean to change, and set it
-whole.
+Read a value whole, edit it, and set it whole.
 
 ```
 temper ctl DIR settings show charter 1 --json | jq '{items: [{setting: .setting, set: (.value | .instructions = "Answer in one short paragraph.\n")}]}' > FILE
@@ -89,12 +103,11 @@ Expect: no output; `FILE` holds `{"items": [{"setting": {"kind":
 "charter", "number": 1}, "set": {...}}]}`, the value whole with its
 instructions changed.
 
-If not: an empty `FILE` and a line on stderr: the read failed, and its
-line says why; read the settings again. A file holds at most 1024
-items, one per setting; an item sets a value, or names `"edit":
-"removed"` or `"edit": "reset"` in place of `set`.
+If not: an empty `FILE` and stderr say why the read failed; read again.
+A file holds at most 1024 items, one per setting: `set`, or `"edit":
+"removed"` or `"edit": "reset"`.
 
-For temper's settings, read the value in the same form:
+Read temper's settings the same way:
 
 ```
 temper ctl DIR settings show landing-rule 1 --json
@@ -102,10 +115,8 @@ temper ctl DIR settings show landing-rule 1 --project PROJECT --json
 temper ctl DIR settings show forge-charter 1 --json
 ```
 
-A landing rule item and a forge charter item may share a file. This
-example sets the deployment's first rule and selects charter 2 for new
-changes. Choose a charter the deployment offers, and keep the rule's
-other fields as the read gave them:
+This file sets deployment rule 1 and charter 2 for new changes.
+Choose an offered charter; keep the rule's other fields as read:
 
 ```json
 {"items": [
@@ -125,12 +136,10 @@ point, and set the whole policy for `PROJECT`:
 temper ctl DIR settings show policy 1 --json | jq --argjson project PROJECT '{items: [{setting: {kind: "project-policy", project: $project}, set: .value}]}' > FILE
 ```
 
-The item accepts only `set`, at most once per file, and may share a file
-with other settings. It takes no `number`, and neither `"edit": "removed"`
-nor `"edit": "reset"`. Change the policy's fields in `set` before sending
-it. Setting a project's policy immediately resizes its open period and
-parties' pools to the policy's spends; setting policy 1 itself changes
-only what projects made after it start with.
+`project-policy` accepts only `set`, at most once per file, and may share a file with other settings;
+no `number`, removed or reset edit. Edit its fields before sending it.
+It immediately resizes the open period and parties' pools to its spends;
+policy 1 changes only what new projects start with.
 
 For example, accept project-policy `period_spend` 8200000 beside rules
 `period_spend` 8300000 in one file, keeping every other field as read.
@@ -215,11 +224,9 @@ proposal for an owner; read `inbox`.
 
 ## 5. Move running work to it
 
-A live agent task, such as a chat started before the change (temper
-help chat), keeps the revision it was made in until it moves: `task
-show TASK` prints it as `settings: revision R · newest NEWEST`, and
-`settings show` lists each held revision with its live tasks. Move the
-tasks of a held revision, `REVISION`, at their next run:
+A live task keeps its revision until it moves: `task show TASK` prints
+`settings: revision R · newest NEWEST`; `settings show` lists held
+revisions and their tasks. Move `REVISION`'s tasks at their next run:
 
 ```
 temper ctl DIR revision advance REVISION --key KEY
@@ -249,9 +256,8 @@ Expect: `revision` and the new revision's number. After a reset,
 `settings show` lists `charter 1: default, last changed in revision
 NEWEST`.
 
-To the settings as an earlier revision left them, find it in the history,
-newest first, a page at a time. A page's last line is the call that reads
-on, `revision list --before REVISION`:
+To restore earlier settings, page through history, newest first.
+Each page ends with `revision list --before REVISION` to read on:
 
 ```
 temper ctl DIR revision list
@@ -261,7 +267,7 @@ temper ctl DIR proposal show PROPOSAL
 temper ctl DIR proposal decide PROPOSAL accept --running stays --key KEY
 ```
 
-Use a different KEY for each act.
+Use a new KEY for each act.
 
 Expect: `proposed restoring revision REVISION as proposal PROPOSAL to
 role K`, then `left out: SETTING` for

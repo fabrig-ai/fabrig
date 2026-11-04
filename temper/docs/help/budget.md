@@ -97,9 +97,9 @@ example, assume 100 change procedures, 100 producers, 200 reviews and
 100 repairs, plus 12 coordinator/foreman tasks including the goal:
 512 tasks in the tree, 511 delegated tasks. If each agent task needs
 one run at cap K and procedures spend no model units, allow 412K units
-(400 production/review/repair runs plus 12 coordinator runs), then add
-headroom for retries, extra reviews and revisions. This is an estimate,
-not guaranteed capacity; reservations and each change's half-budget
+(400 production/review/repair runs plus 12 coordinator runs), plus
+headroom for retries and revisions. This is an estimate, not guaranteed capacity;
+reservations and each change's half-budget
 allocation can require more headroom even before that total is spent.
 
 Reserving five delegation levels
@@ -109,8 +109,9 @@ for its change procedures, producers, reviewers, repairs and
 coordinators. The deployment's rules, the project's policy ceiling and
 your role authority must all permit the spend and delegation, with
 enough period funding and pool left. Use `settings show` and `me` to
-check them; policy 1 changes affect projects created afterward, so
-apply them before creating the project.
+check them; policy 1 changes affect projects created afterward.
+For the coordinator's tool families and existing projects,
+read temper help configure.
 
 Before forge setup, size live concurrency and lifetime tree capacity
 under `engine.limits.overrides` in `temper.json`:
@@ -131,8 +132,7 @@ under `engine.limits.overrides` in `temper.json`:
 `people.operations` >= max(`tasks.delegates` + 1, `tasks.project_goals`),
 and <= `tasks.tasks`. At a profile store ceiling, reduce `tasks.batch_bytes`, `tasks.inbox_messages` or the spec,
 message, result and authority sizes.
-Raising policy authority alone does not raise deployment limits
-(temper help configure).
+Raising policy authority alone does not raise deployment limits.
 The stock hundred-change profile remains a documented gap (N21);
 stock capacity is not a promise that this estimate will fit.
 

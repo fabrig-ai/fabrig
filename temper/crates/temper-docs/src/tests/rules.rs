@@ -301,3 +301,39 @@ fn a_head_refuses_wrong_fields_and_tests_each_byte_bound_on_both_sides() {
     head(&Page { summary: "Fix ture.", ..fixture(Kind::Index, "# Fixture\n\nKind: index\n\nFix\nture.\n") })
         .expect("joined summary");
 }
+
+#[test]
+fn coordinator_help_names_tool_families_and_settings_scopes() {
+    let configure = find(b"configure").expect("configure page").text;
+    let configure = configure.split_whitespace().collect::<Vec<_>>().join(" ");
+    for instruction in [
+        "delegation (1)",
+        "messages (2)",
+        "control (4)",
+        "reads (512)",
+        "decisions (8)",
+        "subscriptions (32)",
+        "notes (128)",
+        "recall (256)",
+        "settings (1024)",
+        "1,543",
+        "landing",
+        "producer",
+        "after",
+        "llm",
+        "questions",
+        "`ceiling.tools`",
+        "`roles[0].authority.tools`",
+        "`rules`",
+        "`policy 1`",
+        "`project-policy`",
+        "policy 1 affects only new projects",
+        "existing projects need `project-policy`",
+        "Preserve the other family bits",
+    ] {
+        assert!(configure.contains(instruction), "coordinator help must explain: {instruction}");
+    }
+    let budget = find(b"budget").expect("budget page").text;
+    assert!(budget.contains("coordinator's tool families"));
+    assert!(budget.contains("temper help configure"));
+}
