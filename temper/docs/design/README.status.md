@@ -16,5 +16,6 @@ there are.
   tests write `u64::try_from(..len())`:
   `temper/crates/temper-playground/src/tests/stories.rs`, twice,
   `temper/tests/client-browser/tests/browser_all/browser_playground.rs`, and
-  `temper/tests/one-process/src/public/load.rs`, over a sum. No reason is
-  recorded, and no debt item holds them.
+  `temper/tests/one-process/src/public/load.rs`, the last over a sum, no
+  length of a value, and so left as it is. No reason is recorded for the
+  other five, and no debt item holds any of the six.
