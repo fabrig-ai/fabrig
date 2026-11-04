@@ -320,6 +320,17 @@ fn check_form(table: &[&Tool], call: &Call, limits: &Limits) -> Result<(), Usage
             }
         }
     }
+    check_declaration(tool, call)?;
+    if tool.name == b"task answer" && call.form == 3 && approval_state(call).is_none() {
+        return Err(Usage::Kind { tool: 0, form: 0, argument: 2 });
+    }
+    if tool.name == b"inbox" {
+        check_inbox(call)?;
+    }
+    check_watch(tool, call)?;
+    Ok(())
+}
+fn check_declaration(tool: &Tool, call: &Call) -> Result<(), Usage> {
     if tool.name == b"account declare" {
         for (index, bound) in [(1, crate::jig::call::PROGRAM_ADAPTER), (2, crate::jig::call::PROGRAM_NAME)] {
             let argument = u8::try_from(index).expect("argument");
@@ -334,11 +345,16 @@ fn check_form(table: &[&Tool], call: &Call, limits: &Limits) -> Result<(), Usage
             }
         }
     }
-    if tool.name == b"inbox" {
-        check_inbox(call)?;
-    }
-    check_watch(tool, call)?;
     Ok(())
+}
+/// Decode the explicitly named approval state, including an empty state.
+pub(crate) fn approval_state(call: &Call) -> Option<Box<[u8]>> {
+    let Some(Value::Text(state)) = crate::jig::call::value(call, 2) else { return None };
+    if state.is_empty() {
+        return Some(Box::default());
+    }
+    let Some(Value::Cursor(bytes)) = decode(&[], Kind::Cursor, super::table::Bound::None, state) else { return None };
+    Some(bytes)
 }
 /// Defaults are added only to waiting reads; a bare read has no timer.
 pub(crate) fn defaults(args: &[Argument], values: &mut [Option<Values>], limits: &Limits) {

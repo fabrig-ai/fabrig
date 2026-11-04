@@ -117,17 +117,7 @@ pub(super) fn start(runner: &mut Runner, client: &Client, env: &Env<Limits>, cal
         prepared(runner, client, env, called, ask, out);
         return;
     }
-    let call = &called.call;
-    let task = number(call, 0).unwrap_or(0);
-    let read = match call.tool {
-        rows::DECIDE_AT => {
-            let Some(Value::Proposal(proposal)) = value(call, 0) else { unreachable!("proposal form") };
-            c::Read::Proposal { proposal: *proposal }
-        }
-        rows::TASK_DECIDE_AT => c::Read::Escalation { task },
-        rows::ANSWER_AT => c::Read::Question { task, message: number(call, 1).expect("question") },
-        _ => c::Read::Task { task },
-    };
+    let read = act_read(&called.call);
     out.push(Out::Client {
         event: Event::Read {
             handle: Handle { asker: runner.asker, number: (u64::from(called.call_number) << 32u32) | 1 },
@@ -135,6 +125,20 @@ pub(super) fn start(runner: &mut Runner, client: &Client, env: &Env<Limits>, cal
         },
     });
     runner.acts.insert(called.call_number, Reading { called, document: None });
+}
+fn act_read(call: &Call) -> c::Read {
+    let task = number(call, 0).unwrap_or(0);
+    match call.tool {
+        rows::DECIDE_AT => {
+            let Some(Value::Proposal(proposal)) = value(call, 0) else { unreachable!("proposal form") };
+            c::Read::Proposal { proposal: *proposal }
+        }
+        rows::TASK_DECIDE_AT => c::Read::Escalation { task },
+        rows::ANSWER_AT if call.form != 0 => c::Read::PersonTask { task },
+        rows::TAKE_AT | rows::HAND_BACK_AT => c::Read::PersonTask { task },
+        rows::ANSWER_AT => c::Read::Question { task, message: number(call, 1).expect("question") },
+        _ => c::Read::Task { task },
+    }
 }
 pub(crate) enum Failed {
     Refused(&'static [u8]),
@@ -455,14 +459,9 @@ fn build(
     let task = number(call, 0).unwrap_or(0);
     let ask = match call.tool {
         rows::MESSAGE_AT => c::Ask::Message { project, task, words: words(call, 1, limits)? },
-        rows::ANSWER_AT => c::Ask::Answer {
-            project,
-            on: c::AnswerOn::Question {
-                task,
-                message: number(call, 1).expect("question"),
-                words: words(call, 2, limits)?,
-            },
-        },
+        rows::ANSWER_AT => c::Ask::Answer { project, on: answer(call, limits)? },
+        rows::TAKE_AT => c::Ask::Take { project, task },
+        rows::HAND_BACK_AT => c::Ask::HandBack { project, task },
         rows::DECIDE_AT | rows::TASK_DECIDE_AT => c::Ask::Decide { project, on: decide(call, task, limits, settings)? },
         rows::RELEASE_AT => c::Ask::Release {
             project,
@@ -484,6 +483,30 @@ fn build(
     };
     let phase = subject::ended(document);
     Ok((Request::Act { ask, phase }, to))
+}
+fn answer(call: &Call, limits: &Limits) -> Result<c::AnswerOn, Failed> {
+    let task = number(call, 0).expect("task");
+    if call.form == 0 {
+        return Ok(c::AnswerOn::Question {
+            task,
+            message: number(call, 1).expect("question"),
+            words: words(call, 2, limits)?,
+        });
+    }
+    let answer = match call.form {
+        1 => c::PersonAnswer::Choice {
+            option: u32::try_from(number(call, 2).expect("choice")).or(Err(Failed::Fixed(b"choice code limit")))?,
+            reason: words(call, 3, limits)?,
+        },
+        2 => c::PersonAnswer::Words(words(call, 2, limits)?),
+        3 => c::PersonAnswer::Approved {
+            state: crate::jig::argv::approval_state(call).ok_or(Failed::Fixed(b"approval state not loaded"))?,
+            words: if value(call, 3).is_some() { Some(words(call, 3, limits)?) } else { None },
+        },
+        4 => c::PersonAnswer::Cannot { reason: words(call, 2, limits)? },
+        _ => unreachable!("answer form"),
+    };
+    Ok(c::AnswerOn::Person { task, revision: c::Revision { value: number(call, 1).expect("revision") }, answer })
 }
 fn decide(call: &Call, task: u64, limits: &Limits, settings: bool) -> Result<c::DecideOn, Failed> {
     Ok(if call.tool == rows::DECIDE_AT {
@@ -513,6 +536,8 @@ fn kind(call: &Call) -> c::ActKind {
         rows::MESSAGE_AT => c::ActKind::Message,
         rows::CLOSE_AT | rows::CANCEL_AT => c::ActKind::Cancel,
         rows::ANSWER_AT => c::ActKind::Answer,
+        rows::TAKE_AT => c::ActKind::Take,
+        rows::HAND_BACK_AT => c::ActKind::HandBack,
         rows::DECIDE_AT | rows::TASK_DECIDE_AT => match value(call, if call.tool == rows::DECIDE_AT { 1 } else { 2 }) {
             Some(Value::Word(0)) => {
                 if call.tool == rows::DECIDE_AT {
