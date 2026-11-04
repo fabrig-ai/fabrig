@@ -473,7 +473,7 @@ impl HostIo {
                     self.shell_events.push(event);
                 }
                 io::Event::Shutdown { .. } => {
-                    if !self.close.shutdown() {
+                    if !self.close.latch_shutdown() {
                         terminal.interrupt(terminal_events);
                     }
                 }

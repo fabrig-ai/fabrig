@@ -291,7 +291,7 @@ impl HostIo {
                 );
                 continue;
             }
-            if self.close.root_answered(event.owner()) {
+            if self.close.settle_root(event.owner()) {
                 continue;
             }
             match &mut self.delivery.inspection {
@@ -304,7 +304,7 @@ impl HostIo {
                     let action = markers.from_file(event);
                     self.marker_action(owner, action, local_events);
                 }
-                Inspection::Idle => unreachable!("file terminal belongs to marker inspection"),
+                Inspection::Idle => unreachable!("every other file terminal belongs to the one inspection"),
             }
         }
     }
