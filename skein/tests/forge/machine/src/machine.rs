@@ -390,6 +390,22 @@ impl Machine {
     pub fn tls_closed(&self) -> Vec<bool> {
         self.peers.values().filter_map(|peer| peer.tls.as_ref()).map(|server| server.closed).collect()
     }
+    /// Holds every peer's answers to demands for room.
+    pub fn hold_room(&mut self) {
+        for peer in self.peers.values_mut() {
+            peer.hold_room = true;
+        }
+    }
+    /// The current monotonic time.
+    #[must_use]
+    pub fn now(&self) -> Time {
+        self.env.now
+    }
+    /// The component's next deadline.
+    #[must_use]
+    pub fn next_deadline(&self) -> Option<Time> {
+        self.component.next_deadline()
+    }
     /// Defers io Closed acknowledgments, keeping each closing socket owned.
     pub fn hold_settlement(&mut self) {
         self.hold_settlement = true;
@@ -487,7 +503,7 @@ impl Machine {
             }
             let peer = self.peers.get_mut(&owner).expect("peer");
             if peer.connected
-                && let Some(up) = peer.wire.answer()
+                && let Some(up) = peer.answer()
             {
                 peer.answered();
                 if matches!(up, Up::Room) && peer.handshake_flight_delivered() {
