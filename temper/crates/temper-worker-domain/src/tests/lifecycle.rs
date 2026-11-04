@@ -292,3 +292,41 @@ fn earlier_host_answers_take_the_same_agents_reply_bound() {
         }
     }
 }
+
+#[test]
+fn model_failure_detail_survives_answer_and_empty_reap() {
+    for delayed in [false, true] {
+        let mut h = Harness::new();
+        h.env.limits.host.detail_bytes = 128;
+        h.started();
+        h.hold = delayed;
+        h.say(agent::Up::Answer {
+            answer: agent::Answer {
+                read: None,
+                turns: 0,
+                spent: 0,
+                result: agent::RunResult::Failed {
+                    failure: agent::RunFailure::Model(agent::ModelFault::Program {
+                        name: b"claude".as_slice().into(),
+                        exit: Some(23),
+                        detail: b"bad stream".as_slice().into(),
+                    }),
+                },
+            },
+        });
+        let reaped = h.gone();
+        let released = h.release();
+        let rows = if delayed { &released } else { &reaped };
+        assert!(
+            answered(
+                rows,
+                &host::Ending::Failed {
+                    failure: host::Failure::Run(host::RunFailure::Model),
+                    detail: b"program claude exit 23: bad stream".as_slice().into(),
+                    work: host::Work { left: None, saved: None },
+                }
+            ),
+            "delayed={delayed}: {rows:?}"
+        );
+    }
+}
