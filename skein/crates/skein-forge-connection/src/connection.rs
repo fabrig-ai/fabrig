@@ -1062,6 +1062,7 @@ fn github_raw_request(request: &github::request::Request) -> bool {
         | Request::Branches { .. }
         | Request::PullFiles { .. }
         | Request::Compare { .. }
+        | Request::Commits { .. }
         | Request::RulesForBranch { .. }
         | Request::Ruleset { .. }
         | Request::ClassicProtection { .. }

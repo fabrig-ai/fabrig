@@ -2963,6 +2963,19 @@ fn status(ci: skein_forge::api::Ci) -> change::Status {
     }
 }
 
+fn ancestry_status(result: Result<skein_forge::api::Answer, skein_forge::api::Error>) -> change::Status {
+    match result {
+        Ok(skein_forge::api::Answer::Commits { commits, more: false }) => {
+            if commits.is_empty() {
+                change::Status::Passed
+            } else {
+                change::Status::Failed
+            }
+        }
+        Ok(_) | Err(_) => change::Status::Unknown,
+    }
+}
+
 #[expect(clippy::too_many_lines, reason = "one bounded fresh-read chain preserves its stage and facts")]
 fn step_read(
     d: &mut Domain,
@@ -3176,18 +3189,10 @@ fn step_read(
             };
             let Some(base_tip) = pending.base_tip else { unreachable!("base read") };
             pending.stage = StepStage::Compare;
-            skein_forge::api::Read::Compare { before: base_tip, after: head }
+            skein_forge::api::Read::Commits { before: head, after: base_tip, page: 1 }
         }
         StepStage::Compare => {
-            match result {
-                Ok(skein_forge::api::Answer::Compare { before, after, contains_before, .. })
-                    if Some(before) == pending.base_tip && Some(after) == pending.branch =>
-                {
-                    pending.contains_base =
-                        if contains_before { change::Status::Passed } else { change::Status::Failed };
-                }
-                Ok(_) | Err(_) => pending.contains_base = change::Status::Unknown,
-            }
+            pending.contains_base = ancestry_status(result);
             if let Some(pull) = &pending.pull {
                 pending.stage = StepStage::Reviews(1);
                 skein_forge::api::Read::Reviews { number: pull.number, page: 1 }
