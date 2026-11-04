@@ -331,7 +331,8 @@ fn adapter_and_machine_kinds_are_ordinary_and_no_forges_are_added() {
 
 #[test]
 fn backend_rewrite_keeps_creating_list_capacity() {
-    for (receiving, expected) in [(Some(2), Some(3)), (Some(8), Some(8)), (None, Some(3))] {
+    let standard = jig_protocol_config::profile(jig_protocol_config::Profile::Standard).core.documents.lines;
+    for (receiving, expected) in [(Some(2), 3), (Some(8), 8), (None, standard)] {
         let (mut temper, agent, paths, peers) = fixture();
         let overrides = temper["engine"]["limits"]["overrides"].as_object_mut().unwrap();
         match receiving {
@@ -345,23 +346,7 @@ fn backend_rewrite_keeps_creating_list_capacity() {
     }
 }
 
-#[test]
-fn program_offer_has_a_runnable_model_route_in_both_documents() {
-    let (temper, agent, paths, peers) = fixture();
-    let docs = write(&temper, &agent, &paths, &peers).expect("program route rewrite");
-    let document = crate::read::document(&docs.temper).expect("effective document");
-    let engine = super::member(&document, 0, b"engine", &jig_protocol_config::Path::root()).expect("engine");
-    let admitted = jig_protocol_config::engine(
-        &document,
-        engine,
-        &jig_protocol_config::Directories::working(),
-        jig_protocol_config::Defaults::Passed,
-    )
-    .expect("the program provider passes ordinary engine admission");
-    assert_eq!(admitted.limits.core.documents.lines, 3, "the rewrite carries all three provider offers");
-    let effective = json(&docs.temper);
-    let effective_agent = json(&docs.agent);
-    let llm = &effective["engine"]["llm"];
+fn assert_program_provider(llm: &Value, temper: &Value) {
     let provider = llm["providers"]
         .as_array()
         .expect("providers")
@@ -381,6 +366,30 @@ fn program_offer_has_a_runnable_model_route_in_both_documents() {
     assert!(openai["sources"].get("programs").is_none());
     assert!(provider["models"].as_array().expect("provider models").contains(&json!("fake-claude")));
     assert!(provider["sources"]["programs"].as_array().expect("program adapters").contains(&json!("claude_code")));
+}
+
+#[test]
+fn program_offer_has_a_runnable_model_route_in_both_documents() {
+    let (temper, agent, paths, peers) = fixture();
+    let docs = write(&temper, &agent, &paths, &peers).expect("program route rewrite");
+    let document = crate::read::document(&docs.temper).expect("effective document");
+    let engine = super::member(&document, 0, b"engine", &jig_protocol_config::Path::root()).expect("engine");
+    let admitted = jig_protocol_config::engine(
+        &document,
+        engine,
+        &jig_protocol_config::Directories::working(),
+        jig_protocol_config::Defaults::Passed,
+    )
+    .expect("the program provider passes ordinary engine admission");
+    assert_eq!(
+        admitted.limits.core.documents.lines,
+        jig_protocol_config::profile(jig_protocol_config::Profile::Standard).core.documents.lines,
+        "the rewrite preserves the profile's creating lists"
+    );
+    let effective = json(&docs.temper);
+    let effective_agent = json(&docs.agent);
+    let llm = &effective["engine"]["llm"];
+    assert_program_provider(llm, &temper);
     let model = llm["models"]
         .as_array()
         .expect("models")
