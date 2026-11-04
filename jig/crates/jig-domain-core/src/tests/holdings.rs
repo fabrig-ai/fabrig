@@ -104,6 +104,49 @@ fn an_unnamed_holdings_failure_keeps_the_persons_holds_refusal() {
     refused_person(None, people::LimitKind::Holds);
 }
 
+#[test]
+fn a_project_deleted_while_its_connectors_answer_refuses_the_batch() {
+    let people::Ask::Create { project, batch } = goal() else { panic!("goal creation") };
+    for creation in
+        [goal(), people::Ask::Propose { project, action: people::Action::Batch(batch), reason: Box::new([]) }]
+    {
+        let (mut core, env) = party_core();
+        let request = holdings_request(ask(&mut core, &env, creation));
+        let mut work = Queue::uncapped();
+        let mut out = Queue::uncapped();
+        deletion::begin(&mut core, &env, &mut work, &mut out, Token::new(90), project, None).unwrap();
+        drop(step(
+            &mut core,
+            &env,
+            Event::Holdings { request, connector: FIRST_CONNECTOR, holdings: Some(Box::new([])), refused: None },
+        ));
+        let mut out = step(
+            &mut core,
+            &env,
+            Event::Holdings { request, connector: SYMBOL_CONNECTOR, holdings: Some(Box::new([])), refused: None },
+        );
+        let mut reply = None;
+        while let Some(next) = out.pop() {
+            match next {
+                Request::Held(held) => {
+                    if let Held::PeopleReply { reply: value, .. } = *held {
+                        assert!(reply.replace(value).is_none(), "one terminal answer");
+                    }
+                }
+                Request::Write(Write::Save(Record::Tasks(
+                    tasks::Stored::Live(_) | tasks::Stored::Ledger(_) | tasks::Stored::PersonProposal(_),
+                ))) => panic!("a refused creation makes no task, funding or proposal"),
+                Request::ProjectMade { .. } | Request::Write(_) | Request::Now(_) | Request::Ask { .. } => {}
+            }
+        }
+        assert_eq!(reply, Some(people::Reply::Outcome(people::Outcome::Refused(people::Refusal::Unknown))));
+        assert!(core.tasks.task(OWNER).is_none());
+        assert!(
+            core.tasks.funding(tasks::Funder::Pool { project, person: OWNER, period: core.period(project) }).is_none()
+        );
+    }
+}
+
 fn delegate(core: &Core) -> Delegate {
     let mut member = new_row(core, CHILD, tasks::Funder::Task(OWNER), None);
     member.authority.delegation = tasks::Delegation { kinds: Box::new([]), tasks: 0, depth: 0 };
