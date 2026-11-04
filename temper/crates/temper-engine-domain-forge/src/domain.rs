@@ -377,7 +377,6 @@ impl Domain {
     }
     /// Volatile setup answer or retained adoption outcome for this request.
     #[must_use]
-    #[expect(clippy::manual_map, reason = "step code uses explicit matches (programming-model.md, 10)")]
     pub fn application_answer(&self, token: Token) -> Option<crate::Answered> {
         if let Some(answer) = self.connect.answers.get(&token) {
             return Some(answer.clone());
@@ -913,7 +912,6 @@ impl Domain {
 
     /// The last durable head observed for a named branch.
     #[must_use]
-    #[expect(clippy::manual_map, reason = "the strict subset uses a match without a closure")]
     pub fn branch_head(&self, name: &Name) -> Option<skein_forge::api::Commit> {
         match self.heads.get(name) {
             Some(row) => Some(row.commit),
@@ -1742,7 +1740,6 @@ fn settle_merge_writer(d: &mut Domain, env: &Env<Limits>, entry: u64, outcome: s
     }
 }
 
-#[expect(clippy::manual_map, reason = "step code uses explicit options without closures")]
 #[expect(clippy::too_many_lines, reason = "merge outcomes save the landing and its verification together")]
 fn outcome_facts(
     d: &mut Domain,
@@ -3520,7 +3517,6 @@ pub(crate) fn change_branch_hold(d: &Domain, row: &ChangeRow) -> Option<(u64, bo
     None
 }
 
-#[expect(clippy::manual_map, reason = "step code uses concrete matches, without callbacks")]
 #[expect(clippy::too_many_lines, reason = "the coherent change snapshot includes question and early-start facts")]
 fn change_facts(
     d: &Domain,
@@ -5136,7 +5132,6 @@ fn wake_head_dependents(
     }
 }
 
-#[expect(clippy::manual_map, reason = "step code has no closures")]
 fn branch_changed(
     d: &mut Domain,
     env: &Env<Limits>,

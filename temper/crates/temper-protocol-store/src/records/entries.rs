@@ -40,7 +40,6 @@ fn decode_effect(value: w::Effect) -> skein_forge_client::Effect {
     let w::EffectParts { write, condition } = value.into_parts();
     skein_forge_client::Effect { write: api::decode_write(write), condition: decode_condition(condition) }
 }
-#[expect(clippy::manual_map, reason = "step translations use explicit matches without closures")]
 fn encode_entry(value: &skein_forge_client::Entry) -> w::Entry {
     let skein_forge_client::Entry { number, task, repository, effect, start, attempt, failures, queued } = value;
     w::Entry::new(
@@ -64,7 +63,6 @@ fn encode_entry(value: &skein_forge_client::Entry) -> w::Entry {
     )
     .expect(FITS)
 }
-#[expect(clippy::manual_map, reason = "step translations use explicit matches without closures")]
 fn decode_entry(value: w::Entry) -> skein_forge_client::Entry {
     let w::EntryParts { number, task, repository, effect, start, attempt, failures, queued } = value.into_parts();
     skein_forge_client::Entry {
@@ -134,7 +132,6 @@ pub(super) fn decode_proposed(value: w::ProposedEffect, bounds: &Bounds) -> Resu
     Ok(top::ProposedEffect { number, resource: names::decode_what(resource, bounds)?, entry: decode_entry(entry) })
 }
 
-#[expect(clippy::manual_map, reason = "step translations use explicit matches without closures")]
 fn encode_payload(value: &top::CallPayload) -> w::CallPayload {
     match value {
         top::CallPayload::Effect { entry, deadline, outcome } => w::CallPayload::Effect(
@@ -169,7 +166,6 @@ fn encode_payload(value: &top::CallPayload) -> w::CallPayload {
         }
     }
 }
-#[expect(clippy::manual_map, reason = "step translations use explicit matches without closures")]
 fn decode_payload(value: w::CallPayload, bounds: &Bounds) -> Result<top::CallPayload, Undecodable> {
     Ok(match value {
         w::CallPayload::Effect(value) => {

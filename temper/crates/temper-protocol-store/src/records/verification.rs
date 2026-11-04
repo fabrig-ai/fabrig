@@ -34,7 +34,6 @@ pub(super) fn encode_blame(value: &Blame) -> w::Blame {
     }
 }
 
-#[expect(clippy::manual_map, reason = "step translations use explicit matches without closures")]
 pub(super) fn encode(row: &d::Verification) -> w::Verification {
     let mut changes = List::with_capacity(u32::try_from(row.changes.len()).expect(FITS));
     for task in &row.changes {
@@ -114,7 +113,6 @@ pub(super) fn decode_blame(value: w::Blame) -> Result<Blame, Undecodable> {
     })
 }
 
-#[expect(clippy::manual_map, reason = "step translations use explicit matches without closures")]
 pub(super) fn decode(row: w::Verification) -> Result<d::Verification, Undecodable> {
     let w::VerificationParts { repository, commit, changes, tiers } = row.into_parts();
     let mut decoded = List::with_capacity(tiers.len());

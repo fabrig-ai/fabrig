@@ -403,7 +403,6 @@ pub fn answer_as(
         | forge::Answer::Pushed(_) => panic!("new client does not ask these fake routes"),
     }
 }
-#[expect(clippy::manual_map, reason = "the bounded world translates without callbacks")]
 fn checks_answer(asked: &client::Op, checks: Box<[forge::CheckSummary]>) -> client::Answer {
     let head = match asked {
         client::Op::Read(client::Read::Checks { commit }) => *commit,
@@ -414,10 +413,7 @@ fn checks_answer(asked: &client::Op, checks: Box<[forge::CheckSummary]>) -> clie
         let mut status = status(&check.status);
         status.description = check.description;
         status.url = check.link;
-        status.job = match check.job {
-            Some(job) => Some(client::JobAttempt { head, run: job.run, job: job.job, attempt: job.attempt }),
-            None => None,
-        };
+        status.job = check.job.map(|job| client::JobAttempt { head, run: job.run, job: job.job, attempt: job.attempt });
         rows.push(status).expect("checks capacity");
     }
     client::Answer::Checks(rows.into_boxed())
@@ -458,7 +454,6 @@ fn state(s: forge::State) -> client::State {
         forge::State::Closed => client::State::Closed,
     }
 }
-#[expect(clippy::manual_map, reason = "the bounded client world uses concrete matches, without callbacks")]
 fn pull_answer(asked: &client::Op, pull: forge::Pull, l: &Limits) -> client::Answer {
     match asked {
         client::Op::Read(read) => match read {
@@ -468,14 +463,8 @@ fn pull_answer(asked: &client::Op, pull: forge::Pull, l: &Limits) -> client::Ans
                 head: pull.head,
                 base: pull.base,
                 commit: commit(pull.commit),
-                base_commit: match pull.base_commit {
-                    Some(n) => Some(commit(n)),
-                    None => None,
-                },
-                merged: match pull.merged {
-                    Some(n) => Some(commit(n)),
-                    None => None,
-                },
+                base_commit: pull.base_commit.map(commit),
+                merged: pull.merged.map(commit),
                 reviewers: pull.reviewers,
                 mergeable: pull.mergeable,
                 ci: combined(&pull.statuses),

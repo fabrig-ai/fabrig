@@ -226,7 +226,6 @@ fn start(machine: bool) -> Started {
     world.empty_sweep();
     world
 }
-#[expect(clippy::manual_map, reason = "explicit option match follows the step subset")]
 fn request(program: Option<&[u8]>, remote: bool) -> Request {
     let mut at = fixtures::at();
     at.git = match program {

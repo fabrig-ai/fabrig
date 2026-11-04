@@ -661,7 +661,6 @@ fn following(d: &Domain, row: &TierRow) -> crate::runs::Follow {
     }
     follow
 }
-#[expect(clippy::manual_map, reason = "step code uses explicit options without closures")]
 fn remember(row: &mut TierRow, follow: &crate::runs::Follow) {
     let mut pending = List::with_capacity(u32::try_from(follow.writes.len()).expect("pending writes"));
     for write in &follow.writes {
@@ -1696,7 +1695,6 @@ pub(crate) fn row_bytes(row: &TierRow) -> Option<u64> {
     Some(held)
 }
 
-#[expect(clippy::manual_map, reason = "step code uses explicit options without closures")]
 fn remember_tip(d: &mut Domain, key: &(Repository, Box<[u8]>)) {
     let row = d.tiers.get(key).expect("tier tip");
     let tip = match row.pending.last().or(row.baseline.as_ref()) {
