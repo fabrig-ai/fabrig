@@ -938,9 +938,9 @@ keeps (`../protocol/configuration.md`, section 2).
     and temper’s agents use its included usage.", the muted "Sign in,
     in this tab · about a minute", and "Continue with ChatGPT", the
     default, the step's one primary act; and "Claude", for `anthropic`,
-    "Your Claude subscription, through Claude Code on each host
-    temper’s agents run on.", the muted "A command in a terminal, on
-    each host", and the secondary link "Use your Claude subscription".
+    "Your Claude subscription, through Claude Code on this machine, with
+    a config of its own, apart from your own Claude Code.", the muted
+    "One command in a terminal, on this machine", and the secondary link "Use your Claude subscription".
     A provider offering neither its sign-in nor its program has no
     card. No other provider's ways are on the welcome, the box's fake
     model among them, and no card offers "This browser isn't on
