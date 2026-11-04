@@ -3,8 +3,7 @@
 set -eu
 umask 077
 cd "$(dirname "$0")/.."
-# The machine's build queue where it has one, plain cargo where it hasn't
-# (agents' docs/design/build-infrastructure.md 12).
+# The machine's build queue where it has one, plain cargo where it hasn't.
 heavy=$(command -v heavy || true)
 case ${1:-} in freeekanayaka|fabrig-ai) owner=$1 ;; *) printf '%s\n' 'usage: proof-live-github.sh {freeekanayaka|fabrig-ai} [FIXTURES]' >&2; exit 2 ;; esac
 [ "$#" -le 2 ] || exit 2

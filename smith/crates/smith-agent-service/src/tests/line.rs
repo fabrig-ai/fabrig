@@ -317,6 +317,7 @@ fn opening(line: u64, budget: session::Budget) -> session::record::Opening {
         budget: 100,
         transcript: None,
         answered: Box::new([]),
+        withheld: None,
     }
 }
 

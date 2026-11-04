@@ -1,6 +1,6 @@
 # Status
 
-2026-11-03. Where temper's code lags or departs from its design, and its
+2026-11-04. Where temper's code lags or departs from its design, and its
 design from its drafts, from the status files below. The first
 milestone stands in the code (`README.md`). After landing is built for
 a repository's tiers, a goal branch's own tier, their verdicts, a red's
@@ -49,14 +49,12 @@ commands and the baseline (`protocol/README.md`), and the release
 (`release.md`). Forges kept in the store, a forge's removal and the
 playground's reset are designed and built; the code departs where the
 box's group file holds a forge's kind alone (`protocol/setup.md`,
-`protocol/forge.md`, `protocol/README.md`), where the setup shell keeps
-a reconcile host no product calls (`protocol/README.md`,
-`protocol/setup.md`) and temper's service is an unrecorded copy of
-jig's reference service (`protocol/README.md`), and lags in a
-removal without the box (`domain/forge.md`) and a project's Delete
-(`client/README.md`); public reading still lacks a deployment's proxy
-configuration and figures, and the negative walk's real-service checks
-(`protocol/sign-in.md`). The browser walk's project-link checks expect
+`protocol/forge.md`, `protocol/README.md`) and where temper's service
+is an unrecorded copy of jig's reference service (`protocol/README.md`),
+and lags in a removal without the box (`domain/forge.md`) and a
+project's Delete (`client/README.md`); public reading still lacks a
+deployment's proxy configuration and figures, and the negative walk's
+real-service checks (`protocol/sign-in.md`). The browser walk's project-link checks expect
 an identifier label where the view shows the project's name; public
 pages show project names and task titles where the browser design says
 none (`client/browser.md`); a connected Forgejo, its connect with its bot's
@@ -68,7 +66,10 @@ purpose is retired (`domain/testing.md`), and the `welcome-set-up`
 journey waits on a new walk (`client/journeys.md`). Of the drafts, the reference
 drafts' statuses hold two departures their cuts decided, a foreman's
 LLM choice and a red of a goal branch's tier that wakes its goal only
-when new (`draft/reference-code-production.md`); the others record what the design carries of
+when new, and a lag, the coordinator's decide, propose, subscribe and
+recall families, which the reference's profile does not grant and
+configuring's stage 1 follows (`draft/reference-code-production.md`);
+the others record what the design carries of
 them and where it lags or departs. `README.md`, `domain/README.md` and
 `protocol/llm.md` have no gap.
 

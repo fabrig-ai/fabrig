@@ -22,7 +22,10 @@ fn question_offer_admission_checks_encoded_entries() {
     setup.truth.objects.insert(key, ReadValue::Question(Box::new(supplied.clone())));
     assert!(Engine::new(setup.clone(), 1).is_ok(), "empty producer reservations are absent from the wire");
     for _ in 0..=MAX_OFFERED_ACTS {
-        supplied.acts.push(Offered { effect: None, act: ActKind::Answer, admission: Admission::Allowed }).unwrap();
+        supplied
+            .acts
+            .push(Offered { effect: None, act: ActKind::Answer, admission: Admission::Allowed })
+            .expect("fixture offered act fits");
     }
     setup.truth.objects.insert(key, ReadValue::Question(Box::new(supplied.clone())));
     assert_eq!(Engine::new(setup.clone(), 1).err(), Some(Invalid::Payload));

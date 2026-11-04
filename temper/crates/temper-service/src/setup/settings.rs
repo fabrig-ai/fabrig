@@ -143,8 +143,7 @@ fn resolved(layer: &mut super::Layer, forges: &skein_forge_connection::Settings)
 
 fn check(own: &temper_forge_setup::limits::Host) -> Result<(), Problems> {
     let pure = own.plan();
-    if pure.orgs == 0
-        || own.runs == 0
+    if own.runs == 0
         || own.states == 0
         || own.state_life == skein_lib::Duration::ZERO
         || own.state_life > github::limits::STATE_LIFE_MAX
@@ -159,6 +158,10 @@ fn check(own: &temper_forge_setup::limits::Host) -> Result<(), Problems> {
                 Place::Backoff => b"setup.backoff_ms".as_slice(),
                 Place::BackoffMax => b"setup.backoff_max_ms",
                 Place::Deadline => b"setup.deadline_ms",
+                Place::RepositoriesLimit => b"forge.client.repositories",
+                Place::Orgs | Place::Org(_) | Place::OrgsLimit => {
+                    unreachable!("temper gives no org and a fixed bound")
+                }
                 Place::FilesLimit
                 | Place::FileBytesLimit
                 | Place::CreateOrg
@@ -166,21 +169,18 @@ fn check(own: &temper_forge_setup::limits::Host) -> Result<(), Problems> {
                 | Place::Files
                 | Place::FilePath(_)
                 | Place::FileContent(_)
-                | Place::Plan => unreachable!("Create inputs are admitted by the domain and fixed starter profile"),
-                Place::Word
+                | Place::Plan
+                | Place::Word
                 | Place::BotLogin
                 | Place::BotEmail
                 | Place::AdminName
                 | Place::ApiName
                 | Place::GitName
-                | Place::Orgs
-                | Place::Org(_)
                 | Place::OrgOwner
                 | Place::Repositories
                 | Place::Repository(_)
-                | Place::OrgsLimit
-                | Place::RepositoriesLimit => b"setup.orgs",
-                Place::ReachableLimit | Place::Page => b"picker.page",
+                | Place::Page => unreachable!("the kit checks limits alone, with fixed file bounds"),
+                Place::ReachableLimit => b"picker.page",
             };
             found.push(limit_path(name), What::Bound);
         }

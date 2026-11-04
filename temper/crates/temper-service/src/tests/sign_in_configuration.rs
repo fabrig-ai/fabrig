@@ -256,7 +256,6 @@ fn forge_metas_escape_attributes_publish_modes_and_change_the_etag() {
         forge: 1,
         directory: b"forge-1".as_slice().into(),
         bot: Account { login: b"temper".as_slice().into(), email: b"temper@example.com".as_slice().into() },
-        orgs: Box::new([]),
         asked: false,
         mode: Mode::Owned(Owned {
             public: None,

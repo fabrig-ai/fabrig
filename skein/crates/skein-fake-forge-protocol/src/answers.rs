@@ -365,8 +365,8 @@ fn checks(config: &Config, setup: &Store, request: &Request, values: &[a::CheckS
     let skip = u64::from(page.saturating_sub(1)).saturating_mul(u64::from(limit));
     let start = usize::try_from(skip).unwrap_or(usize::MAX).min(values.len());
     let end = start.saturating_add(usize::try_from(limit).expect("u32 fits")).min(values.len());
-    // Forgejo 17 combines only the requested page: ladder-b01/g2/report-2.md,
-    // box2/evidence/decisive-samples.json records success hiding a pending job.
+    // Forgejo 17 combines only the requested page: a walk against it, recorded on
+    // 2026-10-27, saw a success hide a job still pending on a later page.
     let values = values.get(start..end).expect("bounded page");
     let mut rows = List::with_capacity(u32::try_from(values.len()).expect("domain bound"));
     let mut combined = None;

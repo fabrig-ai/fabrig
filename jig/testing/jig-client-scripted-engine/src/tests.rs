@@ -583,7 +583,7 @@ fn amendment_release_checks_the_named_hold_separately_from_the_spec() {
         row.hold = Some(Box::new(hold(HoldCategory::Stopped, 7)));
         row.acts = list(vec![Offered { effect: None, act: ActKind::Amend, admission: Admission::Allowed }]);
         setup.truth.objects.insert(ObjectKey::Task(8), ReadValue::Task(Box::new(row)));
-        let mut engine = Engine::new(setup, 1).unwrap();
+        let mut engine = Engine::new(setup, 1).expect("valid script");
         send(
             &mut engine,
             0,
@@ -600,7 +600,7 @@ fn amendment_release_checks_the_named_hold_separately_from_the_spec() {
                     change: Box::new(Amendment {
                         llm: None,
                         addressed: None,
-                        spec: Some(specification(text(b"new spec")).whole().unwrap()),
+                        spec: Some(specification(text(b"new spec")).whole().expect("complete fixture specification")),
                         wake: None,
                         dependencies: None,
                         authority: None,
@@ -697,24 +697,24 @@ fn inbox_group_cursors_keep_exact_filters_and_whole_query_order() {
         goal: Some(9),
         after: None,
     };
-    engine.read(Time::ZERO, 11, Token::new(1), needs.clone()).unwrap();
+    engine.read(Time::ZERO, 11, Token::new(1), needs.clone()).expect("typed read fits");
     let up = engine.poll(Time::ZERO);
     let Up::Read { terminal: ReadResult::Value(ReadValue::Inbox(page)), .. } = &up[0] else {
         panic!("needs page");
     };
     assert_eq!(
-        page.rows.get(0).unwrap().card_key(),
+        page.rows.get(0).expect("needs page row").card_key(),
         ObjectKey::Question { task: 7, message: 1 },
         "filter before bounded page slicing"
     );
-    let needs_cursor = page.after.clone().unwrap();
-    engine.read(Time::ZERO, 11, Token::new(2), updates.clone()).unwrap();
+    let needs_cursor = page.after.clone().expect("needs page continuation");
+    engine.read(Time::ZERO, 11, Token::new(2), updates.clone()).expect("typed read fits");
     let up = engine.poll(Time::ZERO);
     let Up::Read { terminal: ReadResult::Value(ReadValue::Inbox(page)), .. } = &up[0] else {
         panic!("updates page");
     };
-    assert_eq!(page.rows.get(0).unwrap().card_key(), ObjectKey::Result(11));
-    let updates_cursor = page.after.clone().unwrap();
+    assert_eq!(page.rows.get(0).expect("updates page row").card_key(), ObjectKey::Result(11));
+    let updates_cursor = page.after.clone().expect("updates page continuation");
     for (token, mut query, cursor, wanted) in [
         (3, needs.clone(), needs_cursor.clone(), ObjectKey::Question { task: 8, message: 1 }),
         (4, updates.clone(), updates_cursor, ObjectKey::Result(10)),
@@ -722,27 +722,27 @@ fn inbox_group_cursors_keep_exact_filters_and_whole_query_order() {
         if let Read::Inbox { after, .. } = &mut query {
             *after = Some(cursor);
         }
-        engine.read(Time::ZERO, 11, Token::new(token), query).unwrap();
+        engine.read(Time::ZERO, 11, Token::new(token), query).expect("typed read fits");
         let up = engine.poll(Time::ZERO);
         let Up::Read { terminal: ReadResult::Value(ReadValue::Inbox(page)), .. } = &up[0] else {
             panic!("independent continuation");
         };
-        assert_eq!(page.rows.get(0).unwrap().card_key(), wanted);
+        assert_eq!(page.rows.get(0).expect("continuation page row").card_key(), wanted);
         assert!(page.after.is_none());
     }
     let mut wrong = updates;
     if let Read::Inbox { after, .. } = &mut wrong {
         *after = Some(needs_cursor);
     }
-    engine.read(Time::ZERO, 11, Token::new(5), wrong).unwrap();
+    engine.read(Time::ZERO, 11, Token::new(5), wrong).expect("typed read fits");
     assert!(matches!(engine.poll(Time::ZERO)[0], Up::Read { terminal: ReadResult::None(ReadNone::Gone), .. }));
-    engine.open(Time::ZERO, 11, Token::new(6), Subject::Inbox { window: 1 }).unwrap();
+    engine.open(Time::ZERO, 11, Token::new(6), Subject::Inbox { window: 1 }).expect("typed watch fits");
     let up = engine.poll(Time::ZERO);
     let Up::Watch { event: WatchEvent::Delivered(Delivery::Inbox(value)), .. } = &up[1] else {
         panic!("shared live watch");
     };
     assert_eq!(
-        value.needs.get(0).unwrap().card_key(),
+        value.needs.get(0).expect("live needs row").card_key(),
         ObjectKey::Question { task: 5, message: 1 },
         "live watch remains unfiltered"
     );
@@ -771,10 +771,10 @@ fn activation_observations_and_prior_closing_are_admitted_whole_with_their_alloc
     row.context.as_mut().expect("supplied task context").runtime = Runtime::Active(active.clone());
     setup.truth.objects.insert(ObjectKey::Task(8), ReadValue::Task(Box::new(row.clone())));
     assert!(Engine::new(setup.clone(), 1).is_ok());
-    active.observation.as_mut().unwrap().work = RunWork::Tool {
+    active.observation.as_mut().expect("fixture run observation").work = RunWork::Tool {
         call: CallIdentity {
             id: Text::new(vec![b'x'; setup.bounds.text as usize + 1].into_boxed_slice(), setup.bounds.text + 1)
-                .unwrap(),
+                .expect("producer call identity fits"),
             ..current_identity(b"call")
         },
         tool: text(b"tool"),
@@ -785,7 +785,10 @@ fn activation_observations_and_prior_closing_are_admitted_whole_with_their_alloc
     row.context.as_mut().expect("supplied task context").runtime = Runtime::Held {
         was: Some(HeldRuntime::Closing(Closing {
             delegates: 0,
-            connectors: Some(list(vec![1; usize::try_from(setup.bounds.rows + 1).unwrap()])),
+            connectors: Some(list(vec![
+                1;
+                usize::try_from(setup.bounds.rows + 1).expect("fixture row count fits usize")
+            ])),
             stage: Some(ClosingStage::Run { attempt: u64::MAX }),
             ending: None,
         })),
@@ -813,9 +816,11 @@ fn full_width_task_and_party_makers_remain_distinct_in_scripted_reads_decisions_
         row.reason = DocumentText::complete(text(if index == 0 { b"task maker" } else { b"party maker" }));
         setup.truth.objects.insert(ObjectKey::Proposal(*key), ReadValue::Proposal(Box::new(row)));
     }
-    let mut engine = Engine::new(setup, 197).unwrap();
+    let mut engine = Engine::new(setup, 197).expect("valid script");
     for (index, key) in keys.iter().enumerate() {
-        engine.read(Time::ZERO, 11, Token::new(index as u64 + 1), Read::Proposal { proposal: *key }).unwrap();
+        engine
+            .read(Time::ZERO, 11, Token::new(index as u64 + 1), Read::Proposal { proposal: *key })
+            .expect("typed read fits");
         let rows = engine.poll(Time::ZERO);
         let Up::Read { terminal: ReadResult::Value(ReadValue::Proposal(row)), .. } = &rows[0] else {
             panic!("exact typed read")
@@ -863,12 +868,18 @@ fn provisional(name: TurnName) -> ProvisionalTurnName {
 fn scripted_provisional_retry_reopens_exact_positions_and_replaces_on_empty_start() {
     let mut setup = live_script();
     setup.bounds.text = 32;
-    let mut engine = Engine::new(setup, 28).unwrap();
+    let mut engine = Engine::new(setup, 28).expect("valid script");
     let old = ProvisionalTurnName { attempt: u64::MAX, number: u32::MAX, retry: u32::MAX - 1 };
-    engine.write_provisional(Time::ZERO, 8, old, None, &text(b"abcdefghijklmnopqrst"), None).unwrap();
-    engine.write_provisional(Time::ZERO, 8, old, None, &text(b"uvwxyz0123456789ABCD"), None).unwrap();
+    engine
+        .write_provisional(Time::ZERO, 8, old, None, &text(b"abcdefghijklmnopqrst"), None)
+        .expect("provisional text fits");
+    engine
+        .write_provisional(Time::ZERO, 8, old, None, &text(b"uvwxyz0123456789ABCD"), None)
+        .expect("provisional text fits");
     let token = Token::new(1);
-    engine.open(Time::ZERO, 11, token, Subject::Run { task: 8, turn: Some(old), offset: 20 }).unwrap();
+    engine
+        .open(Time::ZERO, 11, token, Subject::Run { task: 8, turn: Some(old), offset: 20 })
+        .expect("typed watch fits");
     let up = engine.poll(Time::ZERO);
     let suffix = RunText {
         writing: None,
@@ -882,7 +893,7 @@ fn scripted_provisional_retry_reopens_exact_positions_and_replaces_on_empty_star
         call: None,
     };
     assert!(up.contains(&Up::Watch { token, event: WatchEvent::Delivered(run_delivery(suffix)) }));
-    engine.continue_run(token, Some(old), 99).unwrap();
+    engine.continue_run(token, Some(old), 99).expect("run continuation fits");
     let up = engine.poll(Time::ZERO);
     let Up::Watch { event: WatchEvent::Delivered(Delivery::RunState(state)), .. } = &up[0] else {
         panic!("bounded retained restart");
@@ -892,8 +903,8 @@ fn scripted_provisional_retry_reopens_exact_positions_and_replaces_on_empty_star
     assert_eq!(value.text.bytes(), b"ijklmnopqrstuvwxyz0123456789ABCD");
     let captured = value.clone();
     let current = ProvisionalTurnName { retry: u32::MAX, ..old };
-    engine.write_provisional(Time::ZERO, 8, current, None, &text(b""), None).unwrap();
-    engine.continue_run(token, Some(old), 40).unwrap();
+    engine.write_provisional(Time::ZERO, 8, current, None, &text(b""), None).expect("provisional text fits");
+    engine.continue_run(token, Some(old), 40).expect("run continuation fits");
     let up = engine.poll(Time::ZERO);
     let empty = RunText {
         writing: None,
@@ -913,8 +924,10 @@ fn scripted_provisional_retry_reopens_exact_positions_and_replaces_on_empty_star
         b"ijklmnopqrstuvwxyz0123456789ABCD",
         "captured delivery is immutable across replacement"
     );
-    engine.write_provisional(Time::ZERO, 8, old, Some(Wall::EPOCH), &text(b"stale"), None).unwrap();
-    engine.continue_run(token, Some(current), 0).unwrap();
+    engine
+        .write_provisional(Time::ZERO, 8, old, Some(Wall::EPOCH), &text(b"stale"), None)
+        .expect("provisional text fits");
+    engine.continue_run(token, Some(current), 0).expect("run continuation fits");
     let up = engine.poll(Time::ZERO);
     let Up::Watch { event: WatchEvent::Delivered(Delivery::RunState(state)), .. } = &up[0] else {
         panic!("current retry");
@@ -923,11 +936,15 @@ fn scripted_provisional_retry_reopens_exact_positions_and_replaces_on_empty_star
     assert_eq!((value.turn, value.from, value.through, value.cut), (current, 0, 0, false));
     assert_eq!(value.began, None);
     assert_eq!(value.text.bytes(), b"");
-    engine.write_provisional(Time::ZERO, 8, current, Some(Wall::EPOCH), &text(b"retry"), None).unwrap();
+    engine
+        .write_provisional(Time::ZERO, 8, current, Some(Wall::EPOCH), &text(b"retry"), None)
+        .expect("provisional text fits");
     engine.close(Time::ZERO, token);
     drop(engine.poll(Time::ZERO));
     let reopened = Token::new(2);
-    engine.open(Time::ZERO, 11, reopened, Subject::Run { task: 8, turn: Some(old), offset: 99 }).unwrap();
+    engine
+        .open(Time::ZERO, 11, reopened, Subject::Run { task: 8, turn: Some(old), offset: 99 })
+        .expect("typed watch fits");
     let up = engine.poll(Time::ZERO);
     let Up::Watch { event: WatchEvent::Delivered(Delivery::RunState(state)), .. } = &up[1] else {
         panic!("reopened current retry");
@@ -1123,8 +1140,8 @@ fn accounts_watch_delivers_the_signed_in_partys_facts() {
         readiness_cut: false,
     };
     setup.truth.accounts.insert(1, expected.clone());
-    let mut engine = Engine::new(setup, 76).unwrap();
-    engine.open(Time::ZERO, 11, Token::new(1), Subject::Accounts).unwrap();
+    let mut engine = Engine::new(setup, 76).expect("valid script");
+    engine.open(Time::ZERO, 11, Token::new(1), Subject::Accounts).expect("typed watch fits");
     assert_eq!(
         engine.poll(Time::ZERO),
         vec![

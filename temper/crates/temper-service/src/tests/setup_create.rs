@@ -230,7 +230,6 @@ impl Forge {
 fn configured(forge: &Forge) -> crate::Service {
     let mut config = local_config(true, false);
     config.setup[0].entry.asked = true;
-    config.setup[0].entry.orgs = Box::new([]);
     config.webhooks =
         Some(skein_forge_connection::hooks::Webhooks { listener: skein_io::Addr::Ip(([127, 0, 0, 1], 7101).into()) });
     let mut store = fixtures::records_store();

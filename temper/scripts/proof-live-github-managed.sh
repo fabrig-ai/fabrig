@@ -5,8 +5,7 @@ umask 077
 # Preserve the person's answers before the build wrapper can read stdin.
 exec 3<&0
 cd "$(dirname "$0")/.."
-# The machine's build queue where it has one, plain cargo where it hasn't
-# (agents' docs/design/build-infrastructure.md 12).
+# The machine's build queue where it has one, plain cargo where it hasn't.
 heavy=$(command -v heavy || true)
 case ${1:-} in live|fake|fake-wide) mode=$1 ;; *) printf '%s\n' 'usage: proof-live-github-managed.sh {live|fake|fake-wide} [PORT [CONVERSION.json]]' >&2; exit 2 ;; esac
 [ "$#" -le 3 ] || exit 2

@@ -4691,12 +4691,8 @@ version = "0.0.0"
 dependencies = [
  "jig-protocol-config",
  "rustls",
- "skein-forge",
- "skein-forge-connection",
- "skein-forge-setup",
  "skein-http",
  "skein-io",
- "skein-json",
  "skein-lib",
  "skein-scratch",
  "skein-shell",
@@ -4704,7 +4700,6 @@ dependencies = [
  "skein-tls-world",
  "skein-world",
  "temper-forge-setup",
- "temper-service",
 ]
 
 [[package]]

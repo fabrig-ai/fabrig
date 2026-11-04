@@ -58,6 +58,7 @@ pub fn opening(transcript: Option<record::Transcript>, budget: u64) -> record::O
         prices: PRICES,
         budget,
         answered: Box::default(),
+        withheld: Some(b"wait".as_slice().into()),
         transcript,
     }
 }
@@ -169,7 +170,6 @@ impl Scripted {
                 assert_eq!(self.completing.take(), Some(*owner), "one terminal per completion");
             }
             session::Event::Answered { owner, .. }
-            | session::Event::AnsweredAndYield { owner, .. }
             | session::Event::AnswerWithheld { owner }
             | session::Event::AnswerCancelled { owner, .. } => {
                 let position =
@@ -394,7 +394,13 @@ pub fn scenario(seed: u64) -> Scripted {
     world.complete(called(), llm::Stop::ToolUse, USAGE);
     assert!(world.turns.is_empty(), "the turn waits for its tool results");
     let owner = world.delegated[0];
-    world.step(session::Event::Answered { owner, text: b"child finished".as_slice().into(), error: false, spent: 9 });
+    world.step(session::Event::Answered {
+        owner,
+        text: b"child finished".as_slice().into(),
+        error: false,
+        spent: 9,
+        after: session::After::Complete,
+    });
     // Independent referee arithmetic: ceil((14*7 + 5*3 + 4*11)/10)=16,
     // then the child contributes 9. One terminal response charges it once.
     assert_eq!(world.spend, [16, 25]);
