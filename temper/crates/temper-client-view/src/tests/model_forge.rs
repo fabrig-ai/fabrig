@@ -6,17 +6,149 @@
 )]
 use super::{connect_forge as forge, fixtures as f};
 use crate::look;
-use skein_ui::{Node, Role, Run, Tree};
+use skein_ui::{Fraction, Node, Role, Run, Tree};
 use temper_client_domain::{Address, Step};
 use temper_client_protocol_wire::v1 as w;
 
 fn underway() -> skein_lib::List<w::ForgeRow> {
     forge::first_rows(
         w::Connection::SettingUp(
-            w::SettingUp::new(&w::CEILINGS, w::SettingUpParts { step: Some(w::SetUpStep::Fetch) }).unwrap(),
+            w::SettingUp::new(&w::CEILINGS, w::SettingUpParts { step: Some(w::SetUpStep::Fetch), fetched: None })
+                .unwrap(),
         ),
         w::FirstState::Making,
     )
+}
+fn fetching(binary: w::SetUpBinary, total: Option<u64>) -> w::Connection {
+    w::Connection::SettingUp(
+        w::SettingUp::new(
+            &w::CEILINGS,
+            w::SettingUpParts {
+                step: Some(w::SetUpStep::Fetch),
+                fetched: Some(
+                    w::SetUpFetched::new(&w::CEILINGS, w::SetUpFetchedParts { binary, done: 41_999_999, total })
+                        .unwrap(),
+                ),
+            },
+        )
+        .unwrap(),
+    )
+}
+fn fetch_rows(binary: w::SetUpBinary, total: Option<u64>) -> skein_lib::List<w::ForgeRow> {
+    forge::first_rows(fetching(binary, total), w::FirstState::Making)
+}
+#[test]
+fn the_fetch_fills_its_bar_and_says_its_figure() {
+    for (binary, name) in
+        [(w::SetUpBinary::Forgejo, "Fetching Forgejo"), (w::SetUpBinary::Runner, "Fetching its runner")]
+    {
+        let view = browser(fetch_rows(binary, Some(99_000_000)));
+        let bars: Vec<_> = view.tree().nodes().iter().filter(|n| n.role == Role::Progress).collect();
+        assert_eq!(bars.len(), 1);
+        let bar = bars[0];
+        assert_eq!(bar.styles.as_slice(), &[look::FLOW_METER]);
+        assert_eq!(bar.name.as_deref(), Some(name.as_bytes()));
+        assert_eq!(bar.text.len(), 1);
+        assert_eq!(bar.text.as_slice()[0].run, Run::Plain);
+        assert_eq!(bar.text.as_slice()[0].text.as_ref(), b"42%");
+        assert_eq!(bar.fraction, Some(Fraction { done: 41_999_999, total: 99_000_000 }));
+        assert_eq!(bar.size, 1);
+    }
+}
+#[test]
+fn with_no_size_the_bar_keeps_moving_and_says_its_bytes() {
+    for (binary, name) in
+        [(w::SetUpBinary::Forgejo, "Fetching Forgejo"), (w::SetUpBinary::Runner, "Fetching its runner")]
+    {
+        let view = browser(fetch_rows(binary, None));
+        let bars: Vec<_> = view.tree().nodes().iter().filter(|n| n.role == Role::Progress).collect();
+        assert_eq!(bars.len(), 1);
+        let bar = bars[0];
+        assert_eq!(bar.styles.as_slice(), &[look::FLOW_METER]);
+        assert_eq!(bar.name.as_deref(), Some(name.as_bytes()));
+        assert_eq!(bar.text.len(), 1);
+        assert_eq!(bar.text.as_slice()[0].run, Run::Plain);
+        assert_eq!(bar.text.as_slice()[0].text.as_ref(), b"41 MB");
+        assert_eq!(bar.fraction, None);
+        assert_eq!(bar.size, 1);
+    }
+}
+#[test]
+fn a_fetch_no_line_has_reached_keeps_the_busy_bar() {
+    for step in [None, Some(w::SetUpStep::Fetch), Some(w::SetUpStep::Prepare), Some(w::SetUpStep::Run)] {
+        let connection = w::Connection::SettingUp(
+            w::SettingUp::new(&w::CEILINGS, w::SettingUpParts { step, fetched: None }).unwrap(),
+        );
+        let view = browser(forge::first_rows(connection, w::FirstState::Making));
+        let bars: Vec<_> = view.tree().nodes().iter().filter(|n| n.role == Role::Progress).collect();
+        assert_eq!(bars.len(), 1);
+        let bar = bars[0];
+        assert_eq!(bar.styles.as_slice(), &[look::FLOW_BUSY]);
+        assert!(bar.text.is_empty());
+        assert_eq!(bar.fraction, None);
+        assert_eq!(bar.size, 1);
+    }
+}
+#[test]
+fn the_detail_names_the_binary_and_the_name_says_both() {
+    for (binary, detail) in [
+        (w::SetUpBinary::Forgejo, "Setting up: fetching Forgejo"),
+        (w::SetUpBinary::Runner, "Setting up: fetching its runner"),
+    ] {
+        for (total, figure) in [(Some(99_000_000), "42%"), (None, "41 MB")] {
+            let view = browser(fetch_rows(binary.clone(), total));
+            let line = ["Forgejo on this machine · work/hello · ", detail, " · ", figure].concat();
+            assert_stack(view.tree(), &line, &["work/hello", detail], false);
+        }
+    }
+}
+#[test]
+fn the_first_step_says_the_figure_until_it_is_fetched() {
+    for (step, total, suffix) in [
+        (w::SetUpStep::Fetch, Some(99_000_000), " · 42%"),
+        (w::SetUpStep::Fetch, None, " · 41 MB"),
+        (w::SetUpStep::Prepare, Some(99_000_000), ""),
+    ] {
+        for pins in [false, true] {
+            let connection = if step == w::SetUpStep::Fetch {
+                fetching(w::SetUpBinary::Forgejo, total)
+            } else {
+                setting_up(step.clone())
+            };
+            let mut rows = forge::first_rows(connection, w::FirstState::Making);
+            if pins {
+                let mut parts = rows.as_slice()[0].clone().into_parts();
+                parts.owned = Some(
+                    w::OwnedForge::new(
+                        &w::CEILINGS,
+                        w::OwnedForgeParts {
+                            forgejo: b"17.0.1".as_slice().into(),
+                            runner: Some(b"13.2.1".as_slice().into()),
+                            password: b"/fake/first-password".as_slice().into(),
+                        },
+                    )
+                    .unwrap(),
+                );
+                rows = skein_lib::List::with_capacity(1);
+                rows.push(w::ForgeRow::new(&w::CEILINGS, parts).unwrap()).unwrap();
+            }
+            let welcome = root(rows.clone(), None);
+            let connect =
+                f::forge_root(Address::ConnectForge { forge: Some(temper_client_domain::Choice::Forge(3)) }, rows);
+            for root in [&welcome, &connect] {
+                for view in [f::browser_page_view(root), f::page_view(root)] {
+                    let list = subtree(view.tree(), Role::List, b"Each step");
+                    let first = list.iter().find(|n| n.role == Role::Text).unwrap();
+                    let verb = if step == w::SetUpStep::Fetch { "Fetching" } else { "Fetched" };
+                    let versions = if pins { "Forgejo 17.0.1 and its runner 13.2.1" } else { "Forgejo and its runner" };
+                    assert_eq!(
+                        first.text.as_slice()[0].text.as_ref(),
+                        [verb, " ", versions, suffix].concat().as_bytes()
+                    );
+                }
+            }
+        }
+    }
 }
 fn failed() -> skein_lib::List<w::ForgeRow> {
     forge::first_rows(
@@ -163,10 +295,22 @@ fn failed_keeps_its_shape_and_its_steps() {
 #[expect(
     clippy::disallowed_macros,
     clippy::print_stdout,
-    reason = "the three terminal prints are read in the landing account"
+    reason = "the terminal prints are read in the landing account"
 )]
 fn the_terminal_says_the_status_with_no_bar() {
     for (state, rows, line, steps) in [
+        (
+            "fetch-percent",
+            fetch_rows(w::SetUpBinary::Forgejo, Some(99_000_000)),
+            "Forgejo on this machine · work/hello · Setting up: fetching Forgejo · 42%",
+            true,
+        ),
+        (
+            "fetch-bytes",
+            fetch_rows(w::SetUpBinary::Runner, None),
+            "Forgejo on this machine · work/hello · Setting up: fetching its runner · 41 MB",
+            true,
+        ),
         ("under-way", underway(), "Forgejo on this machine · work/hello · Setting up: fetching", true),
         (
             "done",
@@ -222,7 +366,9 @@ fn the_bar_sits_between_the_line_and_each_step() {
     }
 }
 fn setting_up(step: w::SetUpStep) -> w::Connection {
-    w::Connection::SettingUp(w::SettingUp::new(&w::CEILINGS, w::SettingUpParts { step: Some(step) }).unwrap())
+    w::Connection::SettingUp(
+        w::SettingUp::new(&w::CEILINGS, w::SettingUpParts { step: Some(step), fetched: None }).unwrap(),
+    )
 }
 #[test]
 fn done_failed_and_a_waiting_github_have_no_bar() {

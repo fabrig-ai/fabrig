@@ -1,4 +1,5 @@
-//! Templates compiled left to right to flat instructions (protocol/format.md, 7.2; domain/render.md, 8.3).
+//! Templates compiled left to right to flat instructions (hearth/docs/design/protocol/format.md, 7.2;
+//! hearth/docs/design/domain/render.md, 8.3).
 mod raw;
 pub(crate) mod scan;
 pub(crate) mod statement;

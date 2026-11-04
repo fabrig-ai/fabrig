@@ -1,5 +1,5 @@
 //! A platform tree changed only by patches (skein's ui.md, 7).
-use skein_ui::{Attribute, Made, NodeId, Patch, Tree};
+use skein_ui::{Made, NodeId, Patch, Tree};
 #[derive(Debug)]
 struct Entry {
     node: Made,
@@ -7,17 +7,17 @@ struct Entry {
     edited: bool,
 }
 
-fn entries(nodes: &[Made], parent: NodeId) -> Vec<Entry> {
-    let mut rows = Vec::new();
+fn entries(nodes: Box<[Made]>, parent: NodeId) -> Vec<Entry> {
+    let mut rows = Vec::with_capacity(nodes.len());
     let mut stack: Vec<(NodeId, u32)> = Vec::new();
-    for (index, node) in nodes.iter().enumerate() {
+    for (index, node) in nodes.into_vec().into_iter().enumerate() {
         let index = u32::try_from(index).expect("small test tree");
         while stack.last().is_some_and(|(_, end)| index >= *end) {
             stack.pop();
         }
         let parent = stack.last().map_or(parent, |(id, _)| *id);
-        rows.push(Entry { node: node.clone(), parent, edited: false });
         stack.push((node.id, index.checked_add(node.size).expect("small subtree")));
+        rows.push(Entry { node, parent, edited: false });
     }
     rows
 }
@@ -61,7 +61,7 @@ fn apply(rows: &mut Vec<Entry>, patch: Patch) {
     match patch {
         Patch::Insert { parent, before, nodes } => {
             let at = insertion(rows, parent, before);
-            drop(rows.splice(at..at, entries(&nodes, parent)));
+            drop(rows.splice(at..at, entries(nodes, parent)));
             sizes(rows);
         }
         Patch::Remove { node } => {
@@ -86,7 +86,7 @@ fn apply(rows: &mut Vec<Entry>, patch: Patch) {
         }
         Patch::Attribute { node, attribute } => {
             let at = position(rows, node);
-            rows[at].node.attribute = Attribute::clone(&attribute);
+            rows[at].node.attribute = *attribute;
         }
         Patch::Value { node, value } => {
             let at = position(rows, node);

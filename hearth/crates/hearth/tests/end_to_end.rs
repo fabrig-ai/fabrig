@@ -75,7 +75,7 @@ fn end_to_end_build() {
     assert_eq!(
         ended.exit,
         Some(Exit::Code(69)),
-        "client/README.md, 3.3: unavailable, as the store's first request for a layer, the empty layer's subvolume, has no answer in the binary until h08"
+        "hearth/docs/design/client/README.md, 3.3: unavailable, as the store's first request for a layer, the empty layer's subvolume, has no answer in the binary until h08"
     );
     let rendered = fixtures::binary(
         env!("CARGO_BIN_EXE_hearth").as_ref(),
@@ -86,6 +86,6 @@ fn end_to_end_build() {
     assert_eq!(
         fixtures::lines_starting(&rendered.stdout, &["keys "]),
         "keys         packages d018a0eea488   software f60610453970   config 8c9bf06f6262\n",
-        "domain/store.md, 3.3: render's keys are the build's"
+        "hearth/docs/design/domain/store.md, 3.3: render's keys are the build's"
     );
 }

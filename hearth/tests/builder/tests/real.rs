@@ -6,8 +6,12 @@ use skein_io::kernel::Exit;
 fn hearth_render_prints_the_thin_repositorys_spec_through_real_git() {
     let repository = Repository::make("thin", fixtures::THIN);
     let rendered = fixtures::render(&repository, &[], Form::Text);
-    assert_eq!(String::from_utf8_lossy(&rendered.stdout), fixtures::THIN_TEXT, "domain/render.md 9.2's lines");
-    assert_eq!(rendered.exit, Exit::Code(0), "client/README.md 3.3: done");
+    assert_eq!(
+        String::from_utf8_lossy(&rendered.stdout),
+        fixtures::THIN_TEXT,
+        "hearth/docs/design/domain/render.md 9.2's lines"
+    );
+    assert_eq!(rendered.exit, Exit::Code(0), "hearth/docs/design/client/README.md 3.3: done");
 }
 #[test]
 fn json_lines_give_the_version_first_and_the_outcome_last() {
@@ -568,7 +572,7 @@ fn a_hosts_template_lists_the_containers_placed_on_it() {
             "  /etc/containers          file 0644 root:root 9e40aaeae922\n",
             "  /etc/containers          file 0644 root:root 755c9769e418\n",
         ),
-        "protocol/format.md, 3.5: chat none, lab mail, prod chat and mail"
+        "hearth/docs/design/protocol/format.md, 3.5: chat none, lab mail, prod chat and mail"
     );
 }
 #[test]
@@ -610,7 +614,7 @@ fn hearth_render_lists_secrets_passwords_and_identity_by_name_and_place() {
         concat!(
             "  secret     mail/dkim/example.org.key /etc/dkimkeys/example.org.key 0640 root:opendkim\n",
             "  secret     mail/tls/mx1.key /etc/ssl/private/mx1.key 0600 root:root\n",
-            "  password   free users/free.passwd\n",
+            "  password   alice users/alice.passwd\n",
             "  identity   ssh-ed25519 ssh-host-key ed25519 /etc/ssh/ssh_host_ed25519_key /etc/ssh/ssh_host_ed25519_key.pub 0600 root:root\n"
         )
     );

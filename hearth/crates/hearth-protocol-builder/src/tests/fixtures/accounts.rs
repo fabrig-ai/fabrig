@@ -12,7 +12,7 @@ pub fn account_configs() -> [Config; 2] {
                 Group { name: b"mail".as_slice().into(), kind: GroupKind::Package },
             ]),
             users: Box::new([
-                User { name: b"free".as_slice().into(), kind: sysuser() },
+                User { name: b"alice".as_slice().into(), kind: sysuser() },
                 User { name: b"postfix".as_slice().into(), kind: UserKind::Package },
             ]),
             members: Box::new([member()]),
@@ -32,14 +32,14 @@ pub fn account_configs() -> [Config; 2] {
 fn sysuser() -> UserKind {
     UserKind::Sysusers {
         uid: Some(1000),
-        group: b"free".as_slice().into(),
-        gecos: b"Free User".as_slice().into(),
-        home: b"/home/free".as_slice().into(),
+        group: b"alice".as_slice().into(),
+        gecos: b"Alice User".as_slice().into(),
+        home: b"/home/alice".as_slice().into(),
         shell: b"/bin/bash".as_slice().into(),
     }
 }
 fn member() -> Member {
-    Member { user: b"free".as_slice().into(), group: b"ops".as_slice().into() }
+    Member { user: b"alice".as_slice().into(), group: b"ops".as_slice().into() }
 }
 #[must_use]
 pub fn account_changes() -> [Change; 2] {
@@ -59,7 +59,7 @@ pub fn account_changes() -> [Change; 2] {
                 },
             ]),
             users: Box::new([
-                UserKeyed::Added { key: b"free".as_slice().into(), value: sysuser() },
+                UserKeyed::Added { key: b"alice".as_slice().into(), value: sysuser() },
                 UserKeyed::Removed { key: b"postfix".as_slice().into(), value: UserKind::Package },
                 UserKeyed::Changed { key: b"ci".as_slice().into(), before: UserKind::Package, after: sysuser() },
             ]),

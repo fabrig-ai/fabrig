@@ -536,16 +536,23 @@ pub fn operations_in_with(
     result.map_err(|why| prefixed("temper serve", &why))
 }
 fn listeners_refusal(why: skein_shell::ListenersRefusal) -> String {
+    format!("LISTEN_FDS: {}", listener_words(why))
+}
+fn held_refusal(why: skein_shell::ListenersRefusal) -> String {
+    format!("held listener: {}", listener_words(why))
+}
+fn listener_words(why: skein_shell::ListenersRefusal) -> String {
     use skein_shell::ListenersRefusal as Why;
     match why {
-        Why::BadCount => "LISTEN_FDS: expected a decimal listener count".into(),
-        Why::TooMany { bound } => format!("LISTEN_FDS: listener count exceeds {bound}"),
-        Why::NotOpen { fd } => format!("LISTEN_FDS: fd {} is not open", fd.raw()),
-        Why::NotSocket { fd, .. } => format!("LISTEN_FDS: fd {} is not a socket", fd.raw()),
-        Why::NotStream { fd, .. } => format!("LISTEN_FDS: fd {} is not a stream socket", fd.raw()),
-        Why::NotListening { fd } => format!("LISTEN_FDS: fd {} is not listening", fd.raw()),
-        Why::NotIp { fd } => format!("LISTEN_FDS: fd {} is not an IP listener", fd.raw()),
-        Why::Kernel { fd, errno } => format!("LISTEN_FDS: fd {}: errno {errno}", fd.raw()),
+        Why::BadCount => "expected a decimal listener count".into(),
+        Why::TooMany { bound } => format!("listener count exceeds {bound}"),
+        Why::NotOpen { fd } => format!("fd {} is not open", fd.raw()),
+        Why::NotSocket { fd, .. } => format!("fd {} is not a socket", fd.raw()),
+        Why::NotStream { fd, .. } => format!("fd {} is not a stream socket", fd.raw()),
+        Why::NotListening { fd } => format!("fd {} is not listening", fd.raw()),
+        Why::NotIp { fd } => format!("fd {} is not an IP listener", fd.raw()),
+        Why::Check { fd, check, errno } => format!("fd {}: {}: errno {errno}", fd.raw(), check.name()),
+        Why::Kernel { fd, errno } => format!("fd {}: close-on-exec: errno {errno}", fd.raw()),
     }
 }
 fn box_refusal(why: service::system::BoxRefusal) -> String {

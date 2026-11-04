@@ -992,6 +992,14 @@ keeps (`../protocol/configuration.md`, section 2).
     the first repository is being made, a textless, indeterminate progress
     node named by CONNECTION follows the paragraph before "Each step",
     styled `temper-flow-busy`; GitHub's installation waits have none.
+    While the row says how far its fetch has gone, that node is the
+    fetch's, styled `temper-flow-meter`: named "Fetching Forgejo" or
+    "Fetching its runner", its text the percentage or the bytes as the
+    connection says them (`forge.md`, 5.4), and with a size its fraction,
+    the bytes written of the size, so that its bar fills (`browser.md`, 2.5).
+    Its muted detail then names the binary alone, "Setting up: fetching
+    Forgejo", the figure being the bar's, and the paragraph's name says
+    both, as CONNECTION does everywhere else.
     The terminal has no bar and says the line in that order. Done or
     failed, there is no bar. The browser's stacked line has no dot or
     tick in the text: the stylesheet draws a quiet ring, or a green
@@ -1896,7 +1904,12 @@ for its kind, its user's login and its installations. Its nodes:
   identity adoption uses); its kind (Forgejo or GitHub); its mode
   (connected, managed, owned or fake); and its connection: not
   connected; not set up; setting up, with its step when the box has
-  named one (fetch, prepare or run); set up failed, with its optional step (fetch, prepare, run or connect)
+  named one (fetch, prepare or run), and while it fetches and the box
+  has said how far, `fetched`: the binary (Forgejo or its runner), the
+  bytes written (u64) and the size (u64), if known
+  (`../protocol/setup.md`, 6.6), which a client reads as none where the
+  size is zero or the bytes pass it, and which changes in place, no
+  version kept for an older side; set up failed, with its optional step (fetch, prepare, run or connect)
   and why (text of
   at most 256 bytes, the box's line bound); connecting; connected, with
   the user's id (u64) and login (a byte string bounded as `Adopt`'s);
@@ -1961,7 +1974,7 @@ for its kind, its user's login and its installations. Its nodes:
   it does `forges`, from when `me` is first delivered while the link
   is live, for every party: a watch refused or ended is kept as such,
   with no rows, and not opened again until the next sign-in. Its rows are
-  the forge side's facts, which no page reads yet.
+  the forge side's facts, which no page reads (section 11).
 - **The forge's documents' records:** its other reads, subjects and
   documents, and its other requests, beside `Adopt` and `SetUp`
   (`forge.md`, section 9).
@@ -4697,10 +4710,16 @@ own tests:
   machine's goes so at once. Later: a client relaying the redirect
   (jig's `protocol/llm.md`, section 10). Default: undetected, the
   person's choice.
+- **"Skip" on Home** (*Home,* 3.5; `../draft/to-begin.md`, sections 2
+  and 5): the store, the request and the read are designed (4.6), and
+  the card and its "Skip" are the look requests'
+  `project-home-everyday` and `project-home-onboarding` (`journeys.md`,
+  7). Default: Home offers no "Skip": no act sends `Dismiss`, and no
+  page reads the subject `dismissed`.
 - **The first use of a plan,** in the terminal: a card in the
-  conversation, or a card that waits to be dismissed, which needs a
-  dismissal kept by the engine, as jig's seen is. Default: a card in
-  the conversation (5.5), with nothing to dismiss.
+  conversation, or a card that waits to be dismissed, another kind of
+  `Dismissed`, keyed by its account (`../draft/to-begin.md`, section 5).
+  Default: a card in the conversation (5.5), with nothing to dismiss.
 - **A key typed in the terminal** is echoed by its line editing (6.5).
   Default: accepted on one person's machine; `temper ctl account
   add-key` reads one from a file.
@@ -4923,12 +4942,6 @@ own tests:
   plan's line names the provider's verified email, a fact beside the
   account's display (`jig/docs/design/draft/account-facts.md`, 1 and
   6). Default: the display, as its holder gave it.
-- **How far the forge's fetch has gone** (3.5, The welcome;
-  `forge.md`, 5.4): the line naming the binary, the percentage or the
-  bytes in the progress node, as its text and value, and "Each step"'s
-  first step (`../draft/fetch-progress.md`, 5). Default: the line says
-  the step alone, and the browser's node is textless, named by the
-  connection.
 - **A taken name at Ready** (3.5, The welcome;
   `../draft/first-run-projects.md`, 9): a person who made a project of
   the name Ready's field holds, the offered one unless they wrote
