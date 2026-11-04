@@ -26,7 +26,7 @@ pub struct Hosted {
     /// The answers to the accounts' records' loads and writes (store.md, 9).
     pub sources: Queue<crate::Event>,
     env: Env<crate::Limits>,
-    drivers: Host,
+    drivers: Drivers,
     not_ready: NotReady,
     closing: bool,
 }
@@ -50,7 +50,7 @@ impl Hosted {
         seed: u64,
         not_ready: NotReady,
     ) -> Self {
-        let drivers = Host::new(limits, seed);
+        let drivers = Drivers::new(limits, seed);
         Self {
             component: crate::Store::on_directory(limits, application, models, drivers.seeded()),
             above: Queue::uncapped(),
@@ -262,7 +262,7 @@ fn seed(drivers: &mut [Driver; 3], value: u64) -> crate::Seeded {
     crate::seed([&mut store.io, &mut secrets.io, &mut transcripts.io], value)
 }
 
-pub struct Host {
+pub struct Drivers {
     below: crate::Below,
     drivers: [Driver; 3],
     submitted: Queue<Submission>,
@@ -273,12 +273,12 @@ pub struct Host {
     closing: bool,
     seeded: crate::Seeded,
 }
-impl core::fmt::Debug for Host {
+impl core::fmt::Debug for Drivers {
     fn fmt(&self, f: &mut core::fmt::Formatter<'_>) -> core::fmt::Result {
-        f.debug_tuple("Host").field(&self.submitted.len()).finish()
+        f.debug_tuple("Drivers").field(&self.submitted.len()).finish()
     }
 }
-impl Host {
+impl Drivers {
     #[must_use]
     pub fn new(limits: &crate::Limits, value: u64) -> Self {
         let mut drivers = [driver(limits), driver(limits), driver(limits)];

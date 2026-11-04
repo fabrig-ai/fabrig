@@ -1,6 +1,6 @@
 //! Full directory opens for worlds that exercise patch sets. Ordinary worlds
 //! retain memory maps and direct positioned-file answers.
-use jig_protocol_store::host::{Host, Lane, Submission};
+use jig_protocol_store::host::{Drivers, Lane, Submission};
 use jig_protocol_store::{Event, Limits, Request, Root, Seeded, Store};
 use skein_fake_machine::{How, Machine, serve};
 use skein_io::kernel::Op;
@@ -16,7 +16,7 @@ pub(super) struct Disk {
     sim: Sim,
     pid: Pid,
     root: Root,
-    host: Host,
+    host: Drivers,
 }
 impl Disk {
     pub fn new(limits: &Limits) -> Self {
@@ -112,11 +112,11 @@ impl Disk {
         panic!("calm directory host settles");
     }
 }
-fn drivers(limits: &Limits, handle: skein_fake_machine::Opened, seed: u64) -> (Sim, Pid, Root, Host) {
+fn drivers(limits: &Limits, handle: skein_fake_machine::Opened, seed: u64) -> (Sim, Pid, Root, Drivers) {
     let mut sim = Sim::new(seed, Config::calm());
     let pid = sim.spawn_process();
     let fd = sim.root(pid, Handle::new(handle.raw()));
-    let host = Host::new(limits, seed);
+    let host = Drivers::new(limits, seed);
     (sim, pid, Root { token: Token::new(1), fd }, host)
 }
 
