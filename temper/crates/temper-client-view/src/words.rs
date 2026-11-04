@@ -731,7 +731,7 @@ pub enum Word {
 // Seven playground start status, failure and retry phrases (5.6).
 // The Model step adds four forge phrases and twenty-two segments.
 // The browser sign-in heading and Google link add two phrases.
-// Ready names Default and its request endings (client/README.md, 3.5).
+// Ready names the first project and its request endings (client/README.md, 3.5).
 // Account moves add four account literals and one task-wait phrase.
 // The Authorize place and page-owned forge sign-in add twelve phrases.
 // The owned row's Runs and first-password lines add two words and three phrases.
@@ -752,12 +752,13 @@ pub(crate) const SCRIPTED_MODEL: &[u8] = b"demo";
 // add six phrases and ten segments; its ticked forge line's old phrase, one phrase
 // and five segments, is gone (client/README.md, 3.5).
 // The welcome's Forgejo sheet adds twelve literal phrases and segments (3.5).
-// Ready's first project adds four literal phrases and one of a hole; its
+// Ready's first project adds three literal phrases and two of a hole; its
 // checklist's forge status and model account phrases are gone (3.5).
 // Model’s connected login and first repository are separate detail phrases (3.5).
 // Home and Settings add two phrases, each with one hole and three segments (3.5).
 const PHRASES: u32 = 1268;
-const SEGMENTS: u32 = 2169;
+// Ready's empty-name line has two literals and a Name hole, two more segments (3.5).
+const SEGMENTS: u32 = 2171;
 const ALL: [Word; 673] = [
     Word::PlaygroundBanner,
     Word::PlaygroundSetUp,
@@ -2480,7 +2481,7 @@ fn english(word: Word, shell: Shell) -> (&'static [&'static [u8]], &'static [Hol
         Word::WelcomeReadyLead => (&[b"Everything is connected. Create your first project and start working."], &[]),
         Word::WelcomeCreateProject => (&[b"Create your project"], &[]),
         Word::WelcomeRenameLater => (&[b"Rename it whenever you like."], &[]),
-        Word::WelcomeDefaultUnnamed => (&[b"A name for it: Default, or one of yours."], &[]),
+        Word::WelcomeDefaultUnnamed => (&[b"A name for it: ", b", or one of yours."], &[Name]),
         Word::WelcomePlanAccount => (&[b"", b" plan"], &[Name]),
         Word::WelcomeContinue => (&[b"Continue"], &[]),
         Word::WelcomeModelPlan => {
