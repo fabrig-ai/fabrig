@@ -1,5 +1,5 @@
 //! The stream and its close rule (skein/docs/design/link.md, 3.1–3.3).
-use core::{fmt, mem};
+use core::fmt;
 use skein_io as io;
 use skein_lib::stream::{Down, Up};
 use skein_lib::{Duration, Env, Queue, Time, Token};
@@ -30,18 +30,13 @@ pub enum Moved {
     Above(Event),
 }
 
-#[derive(Debug)]
+#[derive(Clone, Copy, Debug)]
 enum Ending {
     Open,
     Flushing { until: Time },
     Graceful,
     Aborted,
     Closed,
-}
-#[derive(Clone, Copy, Debug)]
-enum Ask {
-    Close,
-    Abort,
 }
 
 pub struct Link {
@@ -50,9 +45,8 @@ pub struct Link {
     events: Queue<tls::Event>,
     cipher: Queue<Down>,
     ending: Ending,
-    held: Option<Ask>,
 }
-#[expect(clippy::missing_fields_in_debug, reason = "show TLS only as encrypted and omit the held close request")]
+#[expect(clippy::missing_fields_in_debug, reason = "show TLS only as encrypted")]
 impl fmt::Debug for Link {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         let mut debug = f.debug_struct("Link");
@@ -71,7 +65,6 @@ impl Link {
             events: Queue::uncapped(),
             cipher: Queue::uncapped(),
             ending: Ending::Open,
-            held: None,
         }
     }
     #[must_use]
@@ -88,9 +81,7 @@ impl Link {
             Ending::Open | Ending::Flushing { .. } | Ending::Graceful | Ending::Aborted => {}
         }
         self.socket = Some(socket);
-        if let Some(ask) = self.held.take() {
-            self.ask(ask, below);
-        }
+        self.ask(below);
     }
     pub fn connected(&mut self, env: &Env<Limits>) -> Start {
         match self.ending {
@@ -144,41 +135,26 @@ impl Link {
             return moved;
         }
         let Some(event) = self.events.pop() else { return Moved::Nothing };
-        let ending = mem::replace(&mut self.ending, Ending::Closed);
-        let (ending, moved) = match ending {
-            Ending::Open => (
-                Ending::Open,
-                match event {
-                    tls::Event::Ready(_) => Moved::Above(Event::Ready),
-                    tls::Event::Stream(up) => Moved::Above(Event::Stream(up)),
-                    tls::Event::Failed(_) => Moved::Above(Event::Failed),
-                    tls::Event::Closed => unreachable!("TLS Closed answers the link's Close"),
-                },
-            ),
-            Ending::Flushing { until } => match event {
-                tls::Event::Closed => {
-                    self.ask(Ask::Close, below);
-                    (Ending::Graceful, Moved::Within)
-                }
-                tls::Event::Ready(_) | tls::Event::Stream(_) | tls::Event::Failed(_) => {
-                    (Ending::Flushing { until }, Moved::Within)
-                }
-            },
-            Ending::Graceful => (Ending::Graceful, Moved::Within),
-            Ending::Aborted => (Ending::Aborted, Moved::Within),
-            Ending::Closed => (Ending::Closed, Moved::Within),
-        };
-        self.ending = ending;
-        moved
+        match (self.ending, event) {
+            (Ending::Open, tls::Event::Ready(_)) => Moved::Above(Event::Ready),
+            (Ending::Open, tls::Event::Stream(up)) => Moved::Above(Event::Stream(up)),
+            (Ending::Open, tls::Event::Failed(_)) => Moved::Above(Event::Failed),
+            (Ending::Open, tls::Event::Closed) => unreachable!("TLS Closed answers the link's Close"),
+            (Ending::Flushing { .. }, tls::Event::Closed) => {
+                self.end(Ending::Graceful, below);
+                Moved::Within
+            }
+            (Ending::Flushing { .. }, tls::Event::Ready(_) | tls::Event::Stream(_) | tls::Event::Failed(_))
+            | (
+                Ending::Graceful | Ending::Aborted | Ending::Closed,
+                tls::Event::Ready(_) | tls::Event::Stream(_) | tls::Event::Failed(_) | tls::Event::Closed,
+            ) => Moved::Within,
+        }
     }
     pub fn close(&mut self, env: &Env<Limits>, abort: bool, below: &mut Queue<io::Request>) {
-        let ending = mem::replace(&mut self.ending, Ending::Closed);
-        self.ending = match ending {
+        match self.ending {
             Ending::Open | Ending::Flushing { .. } | Ending::Graceful if abort => {
-                self.events.clear();
-                self.cipher.clear();
-                self.ask(Ask::Abort, below);
-                Ending::Aborted
+                self.end(Ending::Aborted, below);
             }
             Ending::Open => match &mut self.tls {
                 Some(client) => {
@@ -189,26 +165,17 @@ impl Link {
                         &mut self.events,
                         &mut self.cipher,
                     );
-                    Ending::Flushing { until: env.now.saturating_add(env.limits.close_timeout) }
+                    self.ending = Ending::Flushing { until: env.now.saturating_add(env.limits.close_timeout) };
                 }
-                None => {
-                    self.cipher.clear();
-                    self.events.clear();
-                    self.ask(Ask::Close, below);
-                    Ending::Graceful
-                }
+                None => self.end(Ending::Graceful, below),
             },
-            Ending::Flushing { until } => Ending::Flushing { until },
-            Ending::Graceful => Ending::Graceful,
-            Ending::Aborted => Ending::Aborted,
-            Ending::Closed => Ending::Closed,
-        };
+            Ending::Flushing { .. } | Ending::Graceful | Ending::Aborted | Ending::Closed => {}
+        }
     }
     pub fn closed(&mut self) {
         self.ending = Ending::Closed;
         self.events.clear();
         self.cipher.clear();
-        self.held = None;
         self.socket = None;
     }
     #[must_use]
@@ -231,23 +198,23 @@ impl Link {
         }
     }
     pub fn fire(&mut self, now: Time, below: &mut Queue<io::Request>) {
-        match self.ending {
-            Ending::Flushing { until } if now >= until => {
-                self.events.clear();
-                self.cipher.clear();
-                self.ask(Ask::Abort, below);
-                self.ending = Ending::Aborted;
-            }
-            Ending::Open | Ending::Flushing { .. } | Ending::Graceful | Ending::Aborted | Ending::Closed => {}
+        if self.due(now) {
+            self.end(Ending::Aborted, below);
         }
     }
-    fn ask(&mut self, ask: Ask, below: &mut Queue<io::Request>) {
-        match self.socket {
-            Some(entity) => below.push(match ask {
-                Ask::Close => io::Request::Close { entity },
-                Ask::Abort => io::Request::Abort { entity },
-            }),
-            None => self.held = Some(ask),
+    /// Ends the stream: nothing queued leaves, and the socket hears what `next` says, or will once it is known.
+    fn end(&mut self, next: Ending, below: &mut Queue<io::Request>) {
+        self.events.clear();
+        self.cipher.clear();
+        self.ending = next;
+        self.ask(below);
+    }
+    fn ask(&self, below: &mut Queue<io::Request>) {
+        let Some(entity) = self.socket else { return };
+        match self.ending {
+            Ending::Graceful => below.push(io::Request::Close { entity }),
+            Ending::Aborted => below.push(io::Request::Abort { entity }),
+            Ending::Open | Ending::Flushing { .. } | Ending::Closed => {}
         }
     }
 }
