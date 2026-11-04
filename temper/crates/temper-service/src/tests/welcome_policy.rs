@@ -68,6 +68,7 @@ fn generated() -> (engine::Config, engine::Limits) {
         webhooks: resolved.webhooks,
         files,
         demo: parsed.application.demo,
+        welcome: false,
         host_part: None,
         kinds_stock: Box::default(),
         landings: parsed.application.landings,
