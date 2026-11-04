@@ -92,6 +92,44 @@ impl Message {
         self.blocks.push(block).expect("admitted block count");
         Ok(())
     }
+
+    fn structured(&mut self, block: llm::Said, maximum: u32) -> Result<(), Rejection> {
+        let mut position = None;
+        for (index, held) in self.blocks.iter().enumerate() {
+            if structured_call(held) {
+                position = Some(index);
+            }
+        }
+        let mut finish = Some(block);
+        if position.is_some() {
+            let old = core::mem::replace(&mut self.blocks, List::with_capacity(maximum));
+            for (index, held) in old.into_boxed().into_iter().enumerate() {
+                let kept = if Some(index) == position {
+                    finish.take()
+                } else if structured_call(&held) {
+                    None
+                } else {
+                    Some(held)
+                };
+                if let Some(kept) = kept {
+                    self.blocks.push(kept).expect("translated blocks fit the admitted message");
+                }
+            }
+        } else {
+            check_bound(Bound::Blocks, u64::from(self.blocks.len()).saturating_add(1), u64::from(maximum))?;
+            self.blocks.push(finish.take().expect("one structured finish")).expect("admitted structured block");
+        }
+        Ok(())
+    }
+}
+
+fn structured_call(block: &llm::Said) -> bool {
+    match block {
+        llm::Said::ToolCall { id, name, .. } => {
+            id.as_ref() == STRUCTURED_FINISH && name.as_ref() == b"StructuredOutput"
+        }
+        llm::Said::Text { .. } | llm::Said::Refusal { .. } | llm::Said::Opaque { .. } => false,
+    }
 }
 
 /// Refuse a measured admission value strictly above its configured bound.
@@ -306,9 +344,9 @@ impl Turns {
         let mut structured = false;
         for block in &message.blocks {
             match block {
-                llm::Said::ToolCall { id, name, .. } => {
+                llm::Said::ToolCall { .. } => {
                     calls = true;
-                    structured |= id.as_ref() == STRUCTURED_FINISH && name.as_ref() == b"StructuredOutput";
+                    structured |= structured_call(block);
                 }
                 llm::Said::Text { .. } | llm::Said::Refusal { .. } | llm::Said::Opaque { .. } => {}
             }
@@ -405,34 +443,7 @@ impl Turns {
             replay: None,
         };
         if let Some(message) = &mut self.message {
-            let mut position = None;
-            for (index, held) in message.blocks.iter().enumerate() {
-                match held {
-                    llm::Said::ToolCall { id, name, .. }
-                        if id.as_ref() == STRUCTURED_FINISH && name.as_ref() == b"StructuredOutput" =>
-                    {
-                        if position.is_some() {
-                            return Err(Rejection::Malformed);
-                        }
-                        position = Some(u32::try_from(index).ok().ok_or(Rejection::Malformed)?);
-                    }
-                    llm::Said::ToolCall { .. }
-                    | llm::Said::Text { .. }
-                    | llm::Said::Refusal { .. }
-                    | llm::Said::Opaque { .. } => {}
-                }
-            }
-            match position {
-                Some(position) => *message.blocks.get_mut(position).ok_or(Rejection::Malformed)? = block,
-                None => {
-                    check_bound(
-                        Bound::Blocks,
-                        u64::from(message.blocks.len()).saturating_add(1),
-                        u64::from(self.blocks),
-                    )?;
-                    message.blocks.push(block).expect("admitted structured block");
-                }
-            }
+            message.structured(block, self.blocks)?;
             self.close(true)?;
         } else {
             self.completion_room()?;

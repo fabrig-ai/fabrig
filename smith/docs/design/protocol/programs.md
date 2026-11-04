@@ -338,7 +338,14 @@ open is section 9.
   turn's `structured_output.outcome`, taken as a `finish` call's input and
   judged by the same contract, ends the run as an accepted `finish`
   does on the direct backend (domain/run.md, 7.2), the agent closing
-  the program's input. Such a run is not offered `finish` over MCP, so
+  the program's input. If the model calls `StructuredOutput` more than
+  once in a message, the result supplies one `finish` at the last call's
+  position; earlier structured calls are omitted, and surrounding text
+  and other calls keep their order and the message's usage. Every
+  received block still counts against the message's receiving limits.
+  The agent cannot refuse an extra call as a tool error: these calls
+  are the program's own and never reach its permission prompt (5.3).
+  Such a run is not offered `finish` over MCP, so
   the model has one way to end, never two. A run with no result
   contract, such as an Open run's, is offered `finish` over MCP as on
   the direct backend. A turn with neither is a model that named no
