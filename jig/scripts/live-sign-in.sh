@@ -4,12 +4,11 @@
 set -euo pipefail
 umask 077
 cd "$(dirname "$0")/.."
-# The machine's build queue where it has one, plain cargo where it hasn't.
-heavy=$(command -v heavy || true)
+# JIG_WRAPPER, when set and not empty, names one command that runs the build.
+# When unset or empty, cargo runs plainly.
 printf '%s\n' 'The browser must reach 127.0.0.1:1455 on this machine: ssh -L 1455:127.0.0.1:1455 HOST'
 export NEXTEST_DOUBLE_SPAWN=0
-# shellcheck disable=SC2086
-$heavy cargo nextest run -p jig-test --profile live --no-run
+${JIG_WRAPPER:+"$JIG_WRAPPER"} cargo nextest run -p jig-test --profile live --no-run
 # The test's scratch goes under this script's own directory, so that a run cut
 # short (an interrupt, nextest's timeout) leaves no secret behind: the
 # secrets' stores and the agent trace are erased however it ends.
