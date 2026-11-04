@@ -1609,3 +1609,79 @@ fn a_changes_early_start_round_trips_each_arm_and_head_order() {
         assert_eq!(records::decode(&bytes, &bounds), Ok(row));
     }
 }
+
+#[test]
+fn repository_makings_and_their_outcomes_round_trip() {
+    use forge::{
+        MakeFailure, MakeFrom, MakeInto, MakeRefusal, MakeStep, MakingFailed, MakingKey, MakingState, RepositoryMaking,
+    };
+    // Four live states and five steps with six failure reasons; six refusals and kept.
+    const STATES: u32 = 34;
+    const OUTCOMES: u32 = 7;
+    let bounds = crate::bounds(&fixtures::LIMITS, fixtures::LIMITS.client.op_bytes).expect("fixture bounds");
+    let branch: Box<[u8]> = Box::from(b"main".as_slice());
+    let mut states = skein_lib::List::with_capacity(STATES);
+    for state in [
+        MakingState::Waiting,
+        MakingState::Making,
+        MakingState::Made { id: 42, branch: branch.clone() },
+        MakingState::Adopting { id: 42, branch },
+    ] {
+        states.push(state).expect("state fixture bound");
+    }
+    for step in [MakeStep::Admin, MakeStep::Org, MakeStep::Repository, MakeStep::File, MakeStep::Adoption] {
+        for reason in [
+            MakeFailure::Taken,
+            MakeFailure::Empty,
+            MakeFailure::TimedOut,
+            MakeFailure::Refused { status: 409 },
+            MakeFailure::NotAllowed,
+            MakeFailure::Other,
+        ] {
+            states
+                .push(MakingState::Failed(MakingFailed { step, reason, words: Box::from(b"forge words".as_slice()) }))
+                .expect("state fixture bound");
+        }
+    }
+    for state in states.into_boxed() {
+        for from in
+            [MakeFrom::Empty, MakeFrom::Copy { address: Box::from(b"https://source.invalid/owner/repo".as_slice()) }]
+        {
+            for into in [None, Some(MakeInto { project: 7, home: true, host: Box::from(b"forge.invalid".as_slice()) })]
+            {
+                for copying in [false, true] {
+                    let row = forge::Stored::Making(RepositoryMaking {
+                        key: MakingKey {
+                            forge: 1,
+                            org: Box::from(b"owner".as_slice()),
+                            name: Box::from(b"repo".as_slice()),
+                        },
+                        from: from.clone(),
+                        into: into.clone(),
+                        asked: skein_lib::Wall::from_nanos(123),
+                        copying,
+                        state: state.clone(),
+                    });
+                    let encoded = records::encode(&row);
+                    assert_eq!(records::decode(&encoded, &bounds), Ok(row));
+                }
+            }
+        }
+    }
+    let mut outcomes = skein_lib::List::with_capacity(OUTCOMES);
+    outcomes.push(forge::ApplicationOutcome::MakeKept).expect("outcome fixture bound");
+    for refusal in [
+        MakeRefusal::NoSuchForge,
+        MakeRefusal::NotOffered,
+        MakeRefusal::NotOwner,
+        MakeRefusal::Invalid,
+        MakeRefusal::HomeHeld,
+        MakeRefusal::Full,
+    ] {
+        outcomes.push(forge::ApplicationOutcome::MakeRefused(refusal)).expect("outcome fixture bound");
+    }
+    for outcome in outcomes.into_boxed() {
+        let row = forge::Stored::Application { token: 1, until: skein_lib::Wall::from_nanos(456), outcome };
+        assert_eq!(records::decode(&records::encode(&row), &bounds), Ok(row));
+    }
+}

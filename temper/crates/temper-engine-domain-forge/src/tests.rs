@@ -19,6 +19,7 @@ mod kinds;
 mod landing_routes;
 mod limits;
 mod make;
+mod making;
 mod panel;
 mod playground;
 mod projection;
@@ -86,6 +87,7 @@ const LIMITS: Limits = Limits {
     output: 80,
     facts: 16,
     adoptions: 2,
+    makings: 2,
     applications: 4,
     bindings: 4,
     collaborators: 8,
@@ -1434,6 +1436,7 @@ fn setup_row(number: u16, kind: Kind, connection: Connection, offer: Offer) -> R
         app: None,
         web: None,
         repositories: Box::new([]),
+        makings: Box::new([]),
         owned: None,
         admin: false,
         read_only: false,

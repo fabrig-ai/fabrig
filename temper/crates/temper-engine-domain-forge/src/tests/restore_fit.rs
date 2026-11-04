@@ -14,6 +14,7 @@ fn name(number: u32) -> Name {
 fn row(kind: RecordKind, number: u32) -> Stored {
     let n = u64::from(number);
     match kind {
+        RecordKind::Making => Stored::Making(making::row(number)),
         RecordKind::Tier => Stored::Tier(tier_row(number)),
         RecordKind::Verification => Stored::Verification(Verification {
             repository: REPO,
@@ -137,6 +138,7 @@ fn restore(d: &mut Domain, row: Stored) {
 fn owned_tables_fit_at_limit_replace_and_refuse_one_more() {
     use RecordKind as K;
     for (kind, limit) in [
+        (K::Making, LIMITS.makings),
         (K::Landing, LIMITS.landings),
         (K::Receipt, LIMITS.repositories * (LIMITS.gates + LIMITS.tiers.tiers) * LIMITS.receipts_per_gate),
         (K::Tier, LIMITS.repositories * LIMITS.tiers.tiers),

@@ -946,6 +946,7 @@ fn forge_row(
     offer: forge::Offer,
 ) -> forge::Row {
     forge::Row {
+        makings: Box::new([]),
         number,
         kind,
         mode,
@@ -968,6 +969,7 @@ fn configured_forge_rows() -> forge::Forges {
     forge::Forges {
         rows: Box::new([
             forge::Row {
+                makings: Box::new([]),
                 number: 1,
                 kind: forge::Kind::Forgejo,
                 mode: forge::Mode::Owned,
@@ -1421,6 +1423,7 @@ fn installations_and_the_last_connect_end_encode_unchanged() {
     let bytes = family::forges(
         forge::Forges {
             rows: Box::new([forge::Row {
+                makings: Box::new([]),
                 number: 1,
                 kind: forge::Kind::GitHub,
                 mode: forge::Mode::Connected,
@@ -1496,6 +1499,7 @@ fn owned_details_fit_their_bounds_and_an_overlong_field_drops_only_the_details()
     ] {
         let value = forge::Forges {
             rows: Box::new([forge::Row {
+                makings: Box::new([]),
                 number: 1,
                 kind: forge::Kind::Forgejo,
                 mode: forge::Mode::Owned,
