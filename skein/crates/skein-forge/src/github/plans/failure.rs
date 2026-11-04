@@ -1,5 +1,6 @@
 //! Read refusals, transport failures and table invalidation (forge-github.md, 7).
-use super::{Failure, tables::Tables};
+use super::tables::Tables;
+pub use crate::plan::transport;
 use crate::{
     api,
     github::{
@@ -28,13 +29,6 @@ pub fn read(
             error
         }
         Verdict::Enqueue | Verdict::BranchExists => api::Error::InvalidAnswer,
-    }
-}
-#[must_use]
-pub fn transport(failure: Failure) -> api::Error {
-    match failure {
-        Failure::Unseen => api::Error::Unavailable,
-        Failure::Seen => api::Error::Timeout,
     }
 }
 #[must_use]

@@ -15,6 +15,7 @@ pub mod limits;
 pub mod locate;
 pub mod measure;
 pub mod path;
+pub mod plan;
 pub mod text;
 pub mod time;
 

@@ -1,5 +1,6 @@
 //! Pure GitHub call plans and their exchange events (forge-github.md, section 2).
 use crate::github::{decode, document, header};
+pub use crate::plan::Failure;
 use alloc::boxed::Box;
 
 pub mod failure;
@@ -20,15 +21,6 @@ pub enum Body {
     Raw { bytes: Box<[u8]>, more: bool },
     Empty,
     Malformed(decode::Malformed),
-}
-
-/// Whether a broken exchange could have reached the server (forge.md, 3.4).
-#[derive(Clone, Copy, PartialEq, Eq, Hash, Debug)]
-pub enum Failure {
-    /// No request byte was written: `Unavailable`.
-    Unseen,
-    /// The server may have seen the request: `Timeout`.
-    Seen,
 }
 
 /// One exchange, in order: a head, streamed rows, an end; or a transport failure.
