@@ -1400,7 +1400,12 @@ may change with them.
   the source chunk, its starting byte offset and total size; a cut ends with
   `N bytes left; read on with: task text TASK --field FIELD --from OFFSET`.
   JSON carries `task`, `field`, `from`, `total`, `text` and `next` (null at
-  the end). Offsets keep characters whole. Instructions are the task's
+  the end). `--field result` retrieves the complete kept terminal report,
+  including one retained with cancellation, without expanding task overviews.
+  A cut report in text `task show` prints `read result: task text TASK --field
+  result --from 0`; JSON names the same call under `text_reads.result`, beside
+  its bounded typed result. Follow continuations until `no more`; a task without
+  a kept report is unknown. Offsets keep characters whole. Instructions are the task's
   override or its charter at the task's recorded settings revision; unavailable
   instructions are unknown. Reads reflect current state; restart at zero after
   an amendment or settings move. An agent's

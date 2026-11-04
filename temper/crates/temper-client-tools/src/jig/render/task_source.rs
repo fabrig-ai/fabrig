@@ -7,6 +7,7 @@ fn field(value: c::TaskTextField) -> &'static [u8] {
     match value {
         c::TaskTextField::Specification => b"specification",
         c::TaskTextField::Instructions => b"instructions",
+        c::TaskTextField::Result => b"result",
     }
 }
 
@@ -78,6 +79,10 @@ pub(super) fn encode(page: &c::TaskText, limits: &Limits, out: &mut Encoder) {
 }
 
 pub(super) fn summary(task: &c::Task, out: &mut Text) {
+    if report_cut(task) {
+        out.put(b"\nread result: ");
+        call(task.chip.task, c::TaskTextField::Result, 0, out);
+    }
     if task.spec.specification.words.cut {
         out.put(b"\nread specification: ");
         call(task.chip.task, c::TaskTextField::Specification, 0, out);
@@ -93,7 +98,10 @@ pub(super) fn summary(task: &c::Task, out: &mut Text) {
 pub(super) fn reads(task: &c::Task, out: &mut Encoder) {
     out.key(b"text_reads");
     out.object_start();
-    for value in [c::TaskTextField::Specification, c::TaskTextField::Instructions] {
+    for value in [c::TaskTextField::Specification, c::TaskTextField::Instructions, c::TaskTextField::Result] {
+        if value == c::TaskTextField::Result && !report_cut(task) {
+            continue;
+        }
         let mut measure = Text::measure();
         call(task.chip.task, value, 0, &mut measure);
         let mut text = Text::writing_exact(measure);
@@ -120,5 +128,31 @@ pub(super) fn asked(task: &c::Task, source: Option<&crate::jig::runner::specific
         }
         out.put(b"read on with: ");
         call(task.chip.task, c::TaskTextField::Specification, u64::try_from(end).expect("source bound"), out);
+    }
+}
+
+fn report_cut(task: &c::Task) -> bool {
+    let ending = match &task.result {
+        Some(c::TaskResult::Ending(ending)) => ending.as_ref(),
+        Some(c::TaskResult::Document(result)) => {
+            if let Some(c::ResultValue::Report(words)) = &result.value {
+                return words.cut;
+            }
+            match &result.ending {
+                c::Ending::Task(ending) => ending.as_ref(),
+                c::Ending::Done
+                | c::Ending::Failed { .. }
+                | c::Ending::Cancelled { .. }
+                | c::Ending::Withdrawn { .. }
+                | c::Ending::Deleted
+                | c::Ending::Decided { .. } => return false,
+            }
+        }
+        None => return false,
+    };
+    match ending {
+        c::ChipEnding::Done(c::ResultValue::Report(words))
+        | c::ChipEnding::Cancelled { result: Some(c::ResultValue::Report(words)), .. } => words.cut,
+        c::ChipEnding::Done(_) | c::ChipEnding::Failed(_) | c::ChipEnding::Cancelled { .. } => false,
     }
 }

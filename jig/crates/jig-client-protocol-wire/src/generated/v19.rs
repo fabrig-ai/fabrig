@@ -45847,6 +45847,8 @@ pub enum TaskTextField {
     Specification,
     /// `instructions` without a payload.
     Instructions,
+    /// `result` without a payload.
+    Result,
 }
 
 impl TaskTextField {
@@ -86911,7 +86913,7 @@ impl TaskTextField {
     #[must_use]
     pub fn measure(&self) -> u32 {
         match self {
-            Self::Specification | Self::Instructions => 1,
+            Self::Specification | Self::Instructions | Self::Result => 1,
         }
     }
 
@@ -86920,6 +86922,7 @@ impl TaskTextField {
         match self {
             Self::Specification => writer.put(&[0_u8])?,
             Self::Instructions => writer.put(&[1_u8])?,
+            Self::Result => writer.put(&[2_u8])?,
         }
         Ok(())
     }
@@ -86936,6 +86939,7 @@ impl TaskTextField {
         let value = match tag {
             0 => Self::Specification,
             1 => Self::Instructions,
+            2 => Self::Result,
             _ => return Err(Problem { path: Path::TaskTextFieldTag, reason: skein_codec::Reason::Tag }),
         };
         Ok(value)
@@ -121457,7 +121461,7 @@ mod golden_tests {
         table(&GOLDEN_2);
     }
 
-    static GOLDEN_3: [Case; 764] = [
+    static GOLDEN_3: [Case; 766] = [
         ("enum_watch_refusal_busy_smallest", || { let value = WatchRefusal::Busy; let bytes: &[u8] = &[2]; let mut writer = skein_lib::Writer::new(usize::try_from(value.measure()).expect("size fits usize")); let encoded = match value.encode(&mut writer) { Ok(()) => Ok(writer.finish()), Err(problem) => Err(problem) }; golden(value, bytes, encoded, WatchRefusal::decode(&CEILINGS, &mut skein_lib::Reader::new(bytes))) }),
         ("enum_watch_refusal_busy_full", || { let value = WatchRefusal::Busy; let bytes: &[u8] = &[2]; let mut writer = skein_lib::Writer::new(usize::try_from(value.measure()).expect("size fits usize")); let encoded = match value.encode(&mut writer) { Ok(()) => Ok(writer.finish()), Err(problem) => Err(problem) }; golden(value, bytes, encoded, WatchRefusal::decode(&CEILINGS, &mut skein_lib::Reader::new(bytes))) }),
         ("enum_watch_refusal_signed_out_smallest", || { let value = WatchRefusal::SignedOut; let bytes: &[u8] = &[3]; let mut writer = skein_lib::Writer::new(usize::try_from(value.measure()).expect("size fits usize")); let encoded = match value.encode(&mut writer) { Ok(()) => Ok(writer.finish()), Err(problem) => Err(problem) }; golden(value, bytes, encoded, WatchRefusal::decode(&CEILINGS, &mut skein_lib::Reader::new(bytes))) }),
@@ -121990,6 +121994,8 @@ mod golden_tests {
         ("enum_task_text_field_specification_full", || { let value = TaskTextField::Specification; let bytes: &[u8] = &[0]; let mut writer = skein_lib::Writer::new(usize::try_from(value.measure()).expect("size fits usize")); let encoded = match value.encode(&mut writer) { Ok(()) => Ok(writer.finish()), Err(problem) => Err(problem) }; golden(value, bytes, encoded, TaskTextField::decode(&CEILINGS, &mut skein_lib::Reader::new(bytes))) }),
         ("enum_task_text_field_instructions_smallest", || { let value = TaskTextField::Instructions; let bytes: &[u8] = &[1]; let mut writer = skein_lib::Writer::new(usize::try_from(value.measure()).expect("size fits usize")); let encoded = match value.encode(&mut writer) { Ok(()) => Ok(writer.finish()), Err(problem) => Err(problem) }; golden(value, bytes, encoded, TaskTextField::decode(&CEILINGS, &mut skein_lib::Reader::new(bytes))) }),
         ("enum_task_text_field_instructions_full", || { let value = TaskTextField::Instructions; let bytes: &[u8] = &[1]; let mut writer = skein_lib::Writer::new(usize::try_from(value.measure()).expect("size fits usize")); let encoded = match value.encode(&mut writer) { Ok(()) => Ok(writer.finish()), Err(problem) => Err(problem) }; golden(value, bytes, encoded, TaskTextField::decode(&CEILINGS, &mut skein_lib::Reader::new(bytes))) }),
+        ("enum_task_text_field_result_smallest", || { let value = TaskTextField::Result; let bytes: &[u8] = &[2]; let mut writer = skein_lib::Writer::new(usize::try_from(value.measure()).expect("size fits usize")); let encoded = match value.encode(&mut writer) { Ok(()) => Ok(writer.finish()), Err(problem) => Err(problem) }; golden(value, bytes, encoded, TaskTextField::decode(&CEILINGS, &mut skein_lib::Reader::new(bytes))) }),
+        ("enum_task_text_field_result_full", || { let value = TaskTextField::Result; let bytes: &[u8] = &[2]; let mut writer = skein_lib::Writer::new(usize::try_from(value.measure()).expect("size fits usize")); let encoded = match value.encode(&mut writer) { Ok(()) => Ok(writer.finish()), Err(problem) => Err(problem) }; golden(value, bytes, encoded, TaskTextField::decode(&CEILINGS, &mut skein_lib::Reader::new(bytes))) }),
         ("record_read_task_text_smallest", || { let value = ReadTaskText::new(&CEILINGS, ReadTaskTextParts { task: 0_u64, field: TaskTextField::Specification, from: 0_u64 }).expect("golden within ceilings"); let bytes: &[u8] = &[0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0]; let mut writer = skein_lib::Writer::new(usize::try_from(value.measure()).expect("size fits usize")); let encoded = match value.encode(&mut writer) { Ok(()) => Ok(writer.finish()), Err(problem) => Err(problem) }; golden(value, bytes, encoded, ReadTaskText::decode(&CEILINGS, &mut skein_lib::Reader::new(bytes))) }),
         ("record_read_task_text_full", || { let value = ReadTaskText::new(&CEILINGS, ReadTaskTextParts { task: u64::MAX, field: TaskTextField::Specification, from: u64::MAX }).expect("golden within ceilings"); let bytes: &[u8] = &[255, 255, 255, 255, 255, 255, 255, 255, 0, 255, 255, 255, 255, 255, 255, 255, 255]; let mut writer = skein_lib::Writer::new(usize::try_from(value.measure()).expect("size fits usize")); let encoded = match value.encode(&mut writer) { Ok(()) => Ok(writer.finish()), Err(problem) => Err(problem) }; golden(value, bytes, encoded, ReadTaskText::decode(&CEILINGS, &mut skein_lib::Reader::new(bytes))) }),
         ("record_task_text_smallest", || { let value = TaskText::new(&CEILINGS, TaskTextParts { task: 0_u64, field: TaskTextField::Specification, from: 0_u64, total: 0_u64, next: None, words: Box::from([].as_slice()) }).expect("golden within ceilings"); let bytes: &[u8] = &[0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0]; let mut writer = skein_lib::Writer::new(usize::try_from(value.measure()).expect("size fits usize")); let encoded = match value.encode(&mut writer) { Ok(()) => Ok(writer.finish()), Err(problem) => Err(problem) }; golden(value, bytes, encoded, TaskText::decode(&CEILINGS, &mut skein_lib::Reader::new(bytes))) }),
