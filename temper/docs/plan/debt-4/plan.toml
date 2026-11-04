@@ -34,3 +34,16 @@ id = 2
 story = "a benchmark attempt runs through one supervisor and one runner whose observation, archives and source selection are methods of the agent adapters, replays included"
 parts = ["smith-bench-adapters"]
 walk = false
+
+[[part]]
+id = "skein-kv-states"
+title = "skein D017: skein-kv's store is a 5.4 machine, with no module-wide exception"
+mode = "direct"
+needs = []
+design = "skein/docs/foundation/programming-model.md, 5.4"
+
+[[slice]]
+id = 3
+story = "skein-kv's store runs as explicit state enums per lifecycle, with its crash and golden tests and on-disk format unchanged"
+parts = ["skein-kv-states"]
+walk = false

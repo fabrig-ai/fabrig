@@ -25,11 +25,24 @@ the standing rules every task names.
    - `tasks/smith-bench-collect.md`, high, ~90 minutes, needs the first: the runner's collection,
      archives, source selection and startup reading become adapter methods; the item goes.
 
-Parts 3 and 4 (skein D017, jig D028) are being cut; they follow in later pushes.
+3. **skein-kv-states** (skein D017; `skein/docs/foundation/programming-model.md, 5.4`), slice 3.
+   `notes/kv-store.md` holds the binding shape, what each flag was and what stays.
+   - `tasks/skein-kv-admission.md`, high, ~45 minutes, needs nothing: `map::Queued`; the O(n²) copy
+     goes.
+   - `tasks/skein-kv-table.md`, high, ~80 minutes, needs the last: `State`, `Dir`, `Done`, and `up`
+     by state, then event.
+   - `tasks/skein-kv-compaction.md`, high, ~70 minutes, needs the last: one `Compaction`.
+   - `tasks/skein-kv-recovery.md`, high, ~75 minutes, needs the last: `Serving`, `Repair`, and
+     reading stops at the first failure.
+   - `tasks/skein-kv-subset.md`, high, ~50 minutes, needs the last: no module-wide `#![expect]`, the
+     batch in `Writing` and `Syncing`; the item goes.
+
+Part 4 (jig D028) is being cut; it follows in a later push.
 
 ## Critical path
 
-`smith-bench-observing` → `smith-bench-collect` (~160 implementer-minutes), as it stands; beside it
+`skein-kv-admission` → `-table` → `-compaction` → `-recovery` → `-subset` (~320 implementer-minutes),
+one writer on one crate; beside it `smith-bench-observing` → `smith-bench-collect` (~160) and
 `temper-sweep-engine` → `temper-sweep-paid` (~90).
 
 ## Overlaps
@@ -56,3 +69,14 @@ sweeps what such a merge brings in.
 - **A replay is `Observing::replay()`,** a Codex observation with no preparation, named by no agent
   at the runner; it keeps today's `result.json`, so it collects nothing and answers today's cache
   text.
+- **D017 is five tasks, one writer, under one note.** The item says one state at a time; the outer
+  shape goes first, so the flags are removed from handlers that are already per state and event.
+  The store's lifecycles are `State`, `Phase`, `Compaction`, `Serving` and `Repair`.
+- **`repairing` and `repair_required` are one value,** by reading every write and read of both, and
+  `Repair` stays on `Store` because `open_failed` keeps it across a failed start.
+- **Recovery stops at the first failure or damaged frame,** which is what kv.md, 3 says and what
+  `skein/docs/design/kv.status.md` records as a departure. Today it reads on to the file's end. The
+  visible difference is only in a doubly bad file, or a read failing after the damage.
+- **A bug found, not fixed:** a failed create or directory sync on a rollover stops the store with
+  no event and leaves its queued commits unanswered. D017 keeps behaviour, so it stays; this cut
+  wrote it into `skein/docs/design/kv.status.md`, 4 as a **Departs** entry.
