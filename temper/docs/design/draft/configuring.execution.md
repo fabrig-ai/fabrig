@@ -1,6 +1,6 @@
 # configuring: execution
 
-2026-11-02. How [configuring.md](configuring.md) gets built: the phases
+2026-11-04. How [configuring.md](configuring.md) gets built: the phases
 that carry its order (section 9) into the design and the code, until
 its acceptance passes (section 8). It designs nothing: each phase
 executes a part of the draft and writes its own design as it goes. It
