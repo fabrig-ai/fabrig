@@ -6,6 +6,7 @@ use alloc::boxed::Box;
 use jig_protocol_engine_clients as kit;
 use skein_http::server as http;
 use skein_lib::{Env, List, Map, Queue, Secret, Time, Token};
+pub mod bundle;
 mod call;
 mod credential;
 pub use credential::{cleared, cookie};
