@@ -242,6 +242,11 @@ impl Store {
         }
     }
 
+    #[cfg(test)]
+    pub(crate) fn projected_keys(&self) -> u32 {
+        self.admitted.keys()
+    }
+
     /// An in-memory store for protocol tests; commits are applied at once.
     #[must_use]
     pub fn memory(limits: &Limits) -> Store {
@@ -627,7 +632,7 @@ fn commit_disk(store: &mut Store, dir: Dir, phase: Phase, owner: Token, ops: Box
         above.push(Event::Refused { owner, refusal });
         return dir.at(phase);
     }
-    if let Err(refusal) = store.admitted.admit(&store.map, &ops, &env.limits) {
+    if let Err(refusal) = store.admitted.admit(&store.map, &ops, &env.limits, number) {
         above.push(Event::Refused { owner, refusal });
         return dir.at(phase);
     }
@@ -1143,12 +1148,10 @@ fn batch_synced(
         let pending = batch.pop().expect("the batch has its initial length");
         let used = store.map.check(&pending.ops, &step.env.limits).expect("a queued commit passed admission");
         store.map.apply(&pending.ops, used);
+        store.admitted.applied(&pending.ops, pending.number);
         store.last = pending.number;
         bytes = bytes.checked_add(skein_lib::len_u64(pending.frame.len())).expect("batch size fits u64");
         step.above.push(Event::Committed { owner: pending.owner, number: pending.number });
-    }
-    if store.queue.is_empty() {
-        store.admitted.clear();
     }
     log.offset = log.offset.checked_add(bytes).expect("segment offset fits u64");
     dir.log_bytes = dir.log_bytes.checked_add(bytes).expect("log bytes fit u64");
