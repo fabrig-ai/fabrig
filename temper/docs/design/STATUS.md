@@ -61,7 +61,8 @@ tokens and a forge's Replace are built, but for the real loop's story
 (`client/tools.md`) and a connected Forgejo made managed
 (`protocol/setup.md`); with `application.machine.github` null, GitHub's
 remotes come out malformed (`protocol/configuration.md`). The case library's
-purpose is retired (`domain/testing.md`), and the `welcome-set-up`
+purpose is retired and the fake git program drives skein's JSON tokenizer
+over a whole body by hand (`domain/testing.md`), and the `welcome-set-up`
 journey waits on a new walk (`client/journeys.md`). Of the drafts, the reference
 drafts' statuses hold two departures their cuts decided, a foreman's
 LLM choice and a red of a goal branch's tier that wakes its goal only
