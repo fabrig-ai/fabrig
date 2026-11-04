@@ -55,6 +55,4 @@ agent-driven software factory: write, prove, run.
 | [smith](../smith) | Protocol-driven agent loop for AI applications | skein |
 | [jig](../jig) | Engine for agentic applications | skein, smith |
 | [temper](../temper) | Agent-driven software development on a forge | skein, smith, jig |
-
-[hearth](https://github.com/fabrig-ai/hearth), immutable machines built
-from a revision, builds on skein in a repository of its own.
+| [hearth](../hearth) | Immutable machines, built from a revision | skein |

@@ -12,7 +12,11 @@ use skein_lib::bytes::copy_of;
 #[test]
 fn a_changed_file_prints_its_hunks_as_render_md_shows() {
     let printed = form::print(Form::Text, &Record::Change(fixtures::wg0_changed()), None, &limits::SHIPPED);
-    assert_eq!(printed.as_deref(), Ok(fixtures::WG0_TEXT.as_bytes()), "domain/render.md, 6.3, three lines of context");
+    assert_eq!(
+        printed.as_deref(),
+        Ok(fixtures::WG0_TEXT.as_bytes()),
+        "hearth/docs/design/domain/render.md, 6.3, three lines of context"
+    );
 }
 const NOTHING: &str = "ion-prod                                            nothing to build\n";
 #[test]
@@ -52,7 +56,7 @@ fn a_binary_file_prints_no_hunk_line() {
     assert_eq!(text(&Record::Change(value)).as_deref(), Ok(NO_HUNKS.as_bytes()));
 }
 const JSON_CHANGE: &str = concat!(
-    r#"{"record":"change","target":"carbon-prod","kind":"changed","changed":{"parts":[{"kind":"config","groups":[],"users":[],"members":[],"presets":[],"tmpfiles":[],"tree":[{"after":{"content_digest":"2222222222222222222222222222222222222222222222222222222222222222","group":"root","kind":"file","mode":"0644","owner":"root"},"before":{"content_digest":"1111111111111111111111111111111111111111111111111111111111111111","group":"root","kind":"file","mode":"0644","owner":"root"},"hunks":{"binary":false,"left_out":0,"lines":[{"kind":"header","text":"@@ -9,5 +9,5 @@ ListenPort=51820"},{"kind":"context","text":"[WireGuardPeer]"},{"kind":"context","text":"PublicKey=m3NY8…="},{"kind":"context","text":"AllowedIPs=10.0.0.1/32"},{"kind":"removed","text":"Endpoint=194.164.162.157:51820"},{"kind":"added","text":"Endpoint=194.164.162.158:51820"},{"kind":"context","text":"PersistentKeepalive=25"}]},"kind":"changed","path":"/etc/systemd/network/wg0.netdev","sizes":{"after":268,"before":268}}]}],"rebuild":{"kind":"from_config"}}}"#,
+    r#"{"record":"change","target":"carbon-prod","kind":"changed","changed":{"parts":[{"kind":"config","groups":[],"users":[],"members":[],"presets":[],"tmpfiles":[],"tree":[{"after":{"content_digest":"2222222222222222222222222222222222222222222222222222222222222222","group":"root","kind":"file","mode":"0644","owner":"root"},"before":{"content_digest":"1111111111111111111111111111111111111111111111111111111111111111","group":"root","kind":"file","mode":"0644","owner":"root"},"hunks":{"binary":false,"left_out":0,"lines":[{"kind":"header","text":"@@ -9,5 +9,5 @@ ListenPort=51820"},{"kind":"context","text":"[WireGuardPeer]"},{"kind":"context","text":"PublicKey=m3NY8…="},{"kind":"context","text":"AllowedIPs=10.0.0.1/32"},{"kind":"removed","text":"Endpoint=203.0.113.157:51820"},{"kind":"added","text":"Endpoint=203.0.113.158:51820"},{"kind":"context","text":"PersistentKeepalive=25"}]},"kind":"changed","path":"/etc/systemd/network/wg0.netdev","sizes":{"after":268,"before":268}}]}],"rebuild":{"kind":"from_config"}}}"#,
     "\n",
 );
 #[test]

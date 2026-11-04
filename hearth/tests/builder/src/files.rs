@@ -1,4 +1,4 @@
-//! File records played as operations of the fake machine (io.md, 5).
+//! File records played as operations of the fake machine (skein/docs/design/io.md, 5).
 use crate::fixtures::{Fault, STORE, Shared};
 use skein_io::{
     digest,

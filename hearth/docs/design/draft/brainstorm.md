@@ -1,13 +1,13 @@
 # hearth: brainstorm
 
 Draft, 2026-10-09. It records the direction of a design discussion
-on 2026-10-09, the first about hearth. It starts from `draft/archive/factory.md` (a draft vision of the whole software factory) and from os
+on 2026-10-09, the first about hearth. It starts from `hearth/docs/design/draft/archive/factory.md` (a draft vision of the whole software factory) and from os
 (`~/src/rust/os`), whose tools hearth replaces. Nothing here is adopted.
 Section 12 is the order of building; section 13 lists what is open.
 
 ## 1. In one page
 
-- **hearth is the factory's build daemon** (`draft/archive/factory.md`,
+- **hearth is the factory's build daemon** (`hearth/docs/design/draft/archive/factory.md`,
   section 7). It makes outputs from inputs, keyed by digest, and runs
   them in slots. It runs on every machine: hosts, the lab's pool hosts
   and its builders.
@@ -18,7 +18,7 @@ Section 12 is the order of building; section 13 lists what is open.
   schema per task, every input in the repository, merging that can
   remove, data shared between targets through exports, and the rendered
   diff on every change (section 7).
-- **It is built on skein** and follows `programming-model.md`: one
+- **It is built on skein** and follows `skein/docs/foundation/programming-model.md`: one
   loop, step functions, and a domain complete enough to run whole on a
   fake machine. The heavy work stays in child processes.
 - **Two processes, split by privilege.** An unprivileged builder speaks
@@ -52,13 +52,13 @@ Section 12 is the order of building; section 13 lists what is open.
 
 ## 2. Where it comes from
 
-- **The factory's daemon.** `draft/archive/factory.md` (section 7) wants one
+- **The factory's daemon.** `hearth/docs/design/draft/archive/factory.md` (section 7) wants one
   daemon on every machine that builds outputs from inputs, keyed by
   digest, with two recipes: a root filesystem from a target at a
   revision, and an artifact from a build environment, sources and a
   command. It knows nothing of jig; to the lab and the run side, it is a
   system behind the infrastructure connector.
-- **What the factory asks of os** (`draft/archive/factory.md`, section 12): each
+- **What the factory asks of os** (`hearth/docs/design/draft/archive/factory.md`, section 12): each
   part's digest reported upward; slots made by snapshot; activation by
   soft reboot; boots counted, so a slot that does not come back healthy
   falls back; the artifact recipe; and a remote interface. hearth is
@@ -138,13 +138,13 @@ fast tests, all of them runnable as a regular user, designed with the
 code from the first step.
 
 - **The fake machine.** The domain runs whole in worlds of fakes
-  (`testing-strategy.md`). Its fake is a machine: subvolumes and
+  (`skein/docs/foundation/testing-strategy.md`). Its fake is a machine: subvolumes and
   snapshots, a package universe drawn from the seed, firmware boot
   variables, reboots and power cuts. A world can cut the power during a
   prepare, fail a boot on trial, fill the disk mid-build, or drop the
   engine during an activation, and check that the machine always comes
-  back bootable. This is the machine fake temper already plans (temper's
-  `domain/testing.md`, section 3.2), so the two should share it. os's real
+  back bootable. This is the machine fake temper already plans (
+  `temper/docs/design/domain/testing.md`, section 3.2), so the two should share it. os's real
   tests need sudo and feature gates; this is the largest gain in quality
   over it.
 - **A realistic fake at every boundary.** Each external tool is a
@@ -244,7 +244,7 @@ same wire. Inside, hearth is Debian on btrfs, and says so.
   engine, or the lab's, asks hearth to prepare a target at a revision,
   then to activate it; hearth fetches the revision, renders, builds and
   reports.
-- **Effects are keyed or conditional** (jig's `connectors.md`, 4.3):
+- **Effects are keyed or conditional** (`jig/docs/design/domain/connectors.md`, 4.3):
   - *prepare* is keyed by target and revision, and repeating it finds
     what the first made;
   - *activate* and *roll back* are conditional on the active slot being
@@ -260,10 +260,10 @@ same wire. Inside, hearth is Debian on btrfs, and says so.
   hearth prepares their roots and restarts them on a new one.
 - **A lab pool's host is a host whose containers are the lab's
   machines.** One build per spec, then a copy-on-write snapshot per
-  container (`draft/archive/factory.md`, 6.5).
+  container (`hearth/docs/design/draft/archive/factory.md`, 6.5).
 - **Faults come later,** as effects of a pool's host (a partition,
   latency, a killed process, a full disk), granted only by the lab's
-  policy (`draft/archive/factory.md`, 5.3).
+  policy (`hearth/docs/design/draft/archive/factory.md`, 5.3).
 
 ### 5.3 The wire
 
@@ -322,7 +322,7 @@ same wire. Inside, hearth is Debian on btrfs, and says so.
      from earlier configurations.
    - Above packages, a patch and a build from scratch agree by
      construction. apt's reconcile survives only for the packages layer,
-     where `draft/archive/factory.md`'s comparison of patch and scratch (6.4) still
+     where `hearth/docs/design/draft/archive/factory.md`'s comparison of patch and scratch (6.4) still
      applies.
    - This replaces etckeeper as the contract: the `pristine-debian` tag
      and the `Manifest config <hash>` commit go.
@@ -471,8 +471,8 @@ so any hearth can produce it.
 - **One base, several members.** stoa-1, stoa-2 and stoa-3 share a base
   and each have their own data (an index, an address); each sees the
   others through exports.
-- **The lab's experiments name clusters** (`draft/archive/factory.md`, 8.1), and a
-  revision with several hosts maps to several targets (`draft/archive/factory.md`,
+- **The lab's experiments name clusters** (`hearth/docs/design/draft/archive/factory.md`, 8.1), and a
+  revision with several hosts maps to several targets (`hearth/docs/design/draft/archive/factory.md`,
   5.3).
 
 ### 7.7 What a target is, apart from where it runs
@@ -487,7 +487,7 @@ so any hearth can produce it.
   container on a named host) is data of the environment.
 - **Placement changes the build:** a container has no kernel or
   bootloader and bootstraps differently. That difference is part of the
-  lab's gap, known and measured (`draft/archive/factory.md`, 5.3).
+  lab's gap, known and measured (`hearth/docs/design/draft/archive/factory.md`, 5.3).
 - **Which containers a host runs** is data in that host's
   configuration, as the original fleet's `machines` task already has
   it.
@@ -499,7 +499,7 @@ so any hearth can produce it.
   (`{name, version, url, sha256}`), software may name an artifact: by
   digest, pinned by a change as a snapshot bump is; or "built from this
   head", which the lab resolves to a digest before rendering
-  (`draft/archive/factory.md`, 8.5).
+  (`hearth/docs/design/draft/archive/factory.md`, 8.5).
 
 ### 7.9 Smaller tweaks
 
@@ -524,7 +524,7 @@ so any hearth can produce it.
 
 ## 8. Paying only for what changed
 
-`draft/archive/factory.md`'s rule (section 6) holds as it is: every piece of work is
+`hearth/docs/design/draft/archive/factory.md`'s rule (section 6) holds as it is: every piece of work is
 keyed by the digests of its inputs, part by part, and redone only for
 the parts whose digests changed. In hearth:
 
@@ -570,7 +570,7 @@ empty → preparing → prepared → trial → blessed
 ## 10. Operating
 
 What follows a rollout, for as long as a target runs. hearth is the
-machine's end of it; the rest is the run side's (`draft/archive/factory.md`,
+machine's end of it; the rest is the run side's (`hearth/docs/design/draft/archive/factory.md`,
 section 9).
 
 ### 10.1 One definition of healthy
@@ -580,7 +580,7 @@ section 9).
   active, a message sent and delivered, its DKIM signature verified,
   TLS offered, the relay closed.
 - **The same checks serve four uses.** Proving, deploying and operating
-  are one activity at different stakes (`draft/archive/factory.md`, section 3):
+  are one activity at different stakes (`hearth/docs/design/draft/archive/factory.md`, section 3):
   - the lab's experiments, on throwaway machines;
   - blessing a slot (section 9);
   - a rollout's bake;
@@ -672,7 +672,7 @@ These are not about trust:
 
 - **The lab tests a build of the same inputs,** not the bytes production
   runs.
-- **`draft/archive/factory.md`'s comparison of patch and scratch (6.4) is noisy:**
+- **`hearth/docs/design/draft/archive/factory.md`'s comparison of patch and scratch (6.4) is noisy:**
   two builds differ in mtimes and logs, so it compares modulo a list of
   known differences, or waits. Only the packages layer needs it (6.2,
   item 2).
@@ -761,7 +761,7 @@ from the first step (4.3).
 - **Backups:** periods and retention, where the backup peer lives, and
   whether streams are encrypted for it.
 - **Identity:** how a machine proves who it is to its engine and to its
-  plane's secret store (`draft/archive/factory.md`, section 14).
+  plane's secret store (`hearth/docs/design/draft/archive/factory.md`, section 14).
 - **The template engine:** exactly which part of Jinja the tasks use,
   and so what render's own engine takes.
 - **The schema's form:** a file per task beside its templates, and how
@@ -783,7 +783,7 @@ from the first step (4.3).
   command, run in a container of the environment's output, with its
   compile cache on a persistent volume), and how its outputs are stored.
 - **Peers:** change sets over HTTP (4.6), and a cache per pool or per
-  site later (`draft/archive/factory.md`, section 14).
+  site later (`hearth/docs/design/draft/archive/factory.md`, section 14).
 - **The activator's interface:** exactly its operations, and how it
   checks that a request names an output its builder's store holds.
 - **Budgets:** each tier's ceiling, and the local mirror: which

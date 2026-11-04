@@ -9,9 +9,9 @@ use crate::{
 fn a_value_carries_the_line_and_column_of_its_first_byte() {
     const KEYS: &[(&[u8], Position, Position)] = &[
         (b"core", Position { offset: 4, line: 2, column: 3 }, Position { offset: 12, line: 2, column: 11 }),
-        (b"n", Position { offset: 43, line: 3, column: 3 }, Position { offset: 48, line: 3, column: 8 }),
+        (b"n", Position { offset: 42, line: 3, column: 3 }, Position { offset: 47, line: 3, column: 8 }),
     ];
-    let value = decode(b"{\n  \"core\": {\"domain\": \"ekanayaka.io\"},\r\n  \"n\": [1, -2]\n}").expect("strict JSON");
+    let value = decode(b"{\n  \"core\": {\"domain\": \"example.org\"},\r\n  \"n\": [1, -2]\n}").expect("strict JSON");
     assert_eq!(value.at, Position { offset: 0, line: 1, column: 1 });
     let Kind::Map(entries) = &value.kind else {
         panic!("object");

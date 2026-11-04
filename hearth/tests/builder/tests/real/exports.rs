@@ -77,7 +77,7 @@ fn a_reader_sees_the_exports_of_its_own_environment_alone() {
         fixtures::lines_starting(&fixtures::vpn(false).stdout, &["  /etc/vpn/peers"]),
         concat!(
             "  /etc/vpn/peers           file 0644 root:root afd16377136a\n",
-            "  /etc/vpn/peers           file 0644 root:root 0ed834effddb\n",
+            "  /etc/vpn/peers           file 0644 root:root 77e74254f422\n",
         )
     );
 }
@@ -120,7 +120,7 @@ fn a_changed_export_rebuilds_its_readers_and_builds_nothing_where_it_is_made() {
         concat!(
             "carbon-prod                                         rebuild from config\n",
             "ion-prod                                            nothing to build\n",
-            "  exports  ~ vpn.endpoint   \"194.164.162.157\" → \"194.164.162.158\"\n",
+            "  exports  ~ vpn.endpoint   \"203.0.113.157\" → \"203.0.113.158\"\n",
         )
     );
 }
@@ -153,7 +153,7 @@ fn json_gives_an_exports_change_with_one_side_absent() {
     assert!(
         skein_lib::bytes::find(
             &fixtures::vpn_diff(fixtures::VPN_NO_ENDPOINT, Form::JsonLines).stdout,
-            br#"{"kind":"exports","exports":[{"before":"194.164.162.157","name":"endpoint","task":"vpn"}]}"#,
+            br#"{"kind":"exports","exports":[{"before":"203.0.113.157","name":"endpoint","task":"vpn"}]}"#,
         )
         .is_some()
     );
