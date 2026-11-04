@@ -22,7 +22,7 @@ task names. This file grows with each release; what is here so far is what has b
    - `tasks/temper-accounts-host.md`, high, ~55 minutes, needs the last: temper's copy goes, net at most -290.
    - `tasks/jig-worker-agents.md`, high, ~60 minutes, needs `jig-accounts-host`: the new crate, net at most +300.
    - `tasks/temper-worker-agents.md`, high, ~40 minutes, needs it and `temper-accounts-host`: net at most -420.
-   - `tasks/jig-workers-host.md`, high, ~60 minutes, needs `jig-worker-agents`: net at most +120.
+   - `tasks/jig-workers-host.md`, high, ~60 minutes, needs `jig-worker-agents`: net at most +150.
    - `tasks/temper-workers-host.md`, high, ~50 minutes, needs it and `temper-worker-agents`: net at most -200.
    - `tasks/jig-server-part.md`, high, ~120 minutes, needs `jig-workers-host`: net at most +170.
    - `tasks/temper-server-part.md`, medium, ~45 minutes, needs it and `temper-workers-host`: net at most -340.
@@ -64,7 +64,7 @@ task names. This file grows with each release; what is here so far is what has b
   `StoreDirectory::{Root, Private}` (`skein/docs/design/shell.md`, 6.7). The caller opens the root, so the
   errors both sites answer stay as they are.
 - **D009 adds lines.** A skein host and its first tests, against two copies smith loses, and the item asks for
-  a new cleanup host too: about +190 in skein, at most -50 in smith, both capped in their specs. Part
+  a new cleanup host too: about +190 in skein, at most -38 in smith, both capped in their specs. Part
   smith-items may not end below its start, against the request's aim. The tasks' reports give the sum.
 
 - **The whole of D005 is cut, in the order the code allows, with every part one chain.** jig and temper each move a

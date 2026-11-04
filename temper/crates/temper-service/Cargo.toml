@@ -30,7 +30,6 @@ temper-protocol-worker-wire.workspace = true
 jig-protocol-worker-wire.workspace = true
 smith-charter.workspace = true
 smith-transcript.workspace = true
-smith-channel.workspace = true
 smith-domain-run.workspace = true
 jig-domain-fleet.workspace = true
 temper-engine-smith.workspace = true
@@ -64,8 +63,10 @@ temper-worker-domain-checkout.workspace = true
 temper-worker-domain.workspace = true
 temper-worker-protocol-git.workspace = true
 jig-protocol-worker-link.workspace = true
+jig-protocol-worker-agents.workspace = true
 
 [dev-dependencies]
+smith-channel.workspace = true
 skein-oauth-accounts.workspace = true
 settings-form.workspace = true
 smith-agent-shell.workspace = true

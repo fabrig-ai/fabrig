@@ -26,7 +26,7 @@ Acceptance:
 - `compose/cleanup.rs` holds `EphemeralCleanup`, and `Files::close_startup` drives it.
 - Every smith test passes unchanged but for the two cleanup tests, which move and name the new type; their
   assertions don't change. The strings both sites answer don't change.
-- **Size cap:** the branch's net lines are at most -50. Measure it, and stop and ask if it's passed.
+- **Size cap:** the branch's net lines are at most -38. Measure it, and stop and ask if it's passed.
 - The item's file and its README row are gone.
 
 ## Inputs
@@ -109,3 +109,44 @@ Acceptance:
 ## Report
 
 The common note's items. No test is added; the two that move need no break. Net lines against the cap.
+
+## Answers
+
+2026-11-04. Q: the branch measures net -15 against a cap of -50: accept -15, or hold -50 and revise the cleanup?
+
+Neither. The cap becomes **-38** (12 lines, 24%, the limit of what the user's answer of 2026-11-04 lets an answer
+call raise), and the branch compacts to meet it; net -15 isn't accepted. The cut's estimate left out `cleanup.rs`'s
+own Host plumbing: 112 lines net leave `files.rs`, but the host takes 220, and its exhaustive event vocabulary, Host
+methods, queues and test scaffolding stay under the strict subset (no `_` arm), so -50 can't be met. A trial of the
+compaction below, formatted by `rustfmt`, brought `cleanup.rs` to 199 lines.
+
+Keep commit `9b6e34d831` and add a commit on the branch; nothing else in it changes. Behaviour, strings and test
+assertions stay as they are.
+
+1. `cleanup.rs`: one method holds what follows the store's close, and replaces `remove_directory` and the branch
+   written twice, in `new` and in `iterate`:
+
+   ```rust
+   fn store_closed(&mut self) {
+       self.state = State::Closed;
+       if let Some(directory) = self.directory {
+           let root = self.io.descriptor(directory).expect("private parent descriptor");
+           let name = self.name.clone();
+           self.state = State::Directory;
+           self.request = Some(file::Request::Remove { owner: Token::new(1), root, name, directory: true });
+       }
+   }
+   ```
+
+   `iterate`'s arm is `file::Event::Closed { .. } if self.state == State::StoreRoot => self.store_closed(),`.
+2. `new`: `let (directory, failure) = match parent { Ok(parent) => (Some(..), None), Err(error) => (None, Some(error)) };`
+   and no `let mut failure`. The literal sets `request: store.map(|file| file::Request::Close { owner: Token::new(1), file })`
+   and `state: State::StoreRoot`, and `if store.is_none() { cleanup.store_closed(); }` follows it; the `match store` goes.
+3. `spawned.rs`: `use skein_shell::{Clock, Kernel, Stored, Unstored};`, so the second arm fits one line:
+   `Unstored::Unsafe(_) | Unstored::TooLarge => format!("generated agent configuration: {why:?}"),`. The `why` there is
+   the closure's, the whole `Unstored`, as step 2 says.
+4. Those give -38 by the trial. If the measure falls a line short, `cleanup.rs`'s tests can name `std::path::PathBuf`
+   in place, without their `use`.
+
+Rerun step 6's checks and the citations check, and report the net lines against -38. The spec's other acceptance
+stands. Past -38, stop and ask: this answer has used the room an answer call has.

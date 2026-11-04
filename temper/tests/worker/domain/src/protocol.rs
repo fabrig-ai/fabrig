@@ -1,7 +1,7 @@
 //! The protocol layer's routing as the worlds play it (jig's
 //! `domain/hosts.md`, 6.8): smith's payloads decoded and encoded by hand-out
 //! with smith's codecs, keeping no state, as jig's worker worlds answer them
-//! (jig's `testing/jig-test-service`, `worker_route.rs`). And the typed values
+//! (`jig-protocol-worker-agents`, `route`). And the typed values
 //! a scripted agent says, with the charter and transcript an engine gives.
 
 use skein_lib::{Duration, List, Reader, Token, Writer};
