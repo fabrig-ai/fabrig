@@ -56,7 +56,7 @@ impl Github {
         let env = Self::env(world);
         let owners: Vec<_> = self.owners().collect();
         for owner in owners {
-            let mut peer = self.peers.remove(&owner).expect("live peer");
+            let peer = self.peers.get_mut(&owner).expect("live peer");
             while let Some(down) = peer.below.pop() {
                 peer.pipe.server_down(down);
             }
@@ -85,7 +85,6 @@ impl Github {
                 self.tally.count(if user.is_some() { route(&call) } else { None }, user);
             }
             let up = peer.pipe.client_up();
-            self.peers.insert(owner, peer);
             if let Some(up) = up {
                 world.up(skein_io::Event::Stream { owner, up });
             }
