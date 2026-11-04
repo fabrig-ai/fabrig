@@ -265,7 +265,7 @@ pub(super) fn kind(plan: &host::Plan) -> Kind {
         host::Plan::Accept { .. } => Kind::Accept,
         host::Plan::Reconcile { .. } => Kind::Reconcile,
         host::Plan::Adopt { .. } => Kind::Adopt,
-        host::Plan::Create { .. } => Kind::LocalCreate,
+        host::Plan::Create { .. } | host::Plan::Copy { .. } => Kind::LocalCreate,
         host::Plan::Paste { .. } => Kind::Paste,
         host::Plan::TakeOver { .. } => Kind::LocalTakeOver,
         host::Plan::Check { .. } => Kind::Check,
@@ -368,7 +368,7 @@ pub(super) fn done(engine: &mut crate::engine::Engine, token: Token, outcome: re
         return;
     }
     if kind == Kind::LocalCreate {
-        let reconcile::Outcome::Created { id } = outcome else { unreachable!("Create returns its repository") };
+        let reconcile::Outcome::Created { id, .. } = outcome else { unreachable!("Create returns its repository") };
         engine.setup.runs.remove(&token).expect("created run");
         engine.events.push(root::Event::Forge(Box::new(domain::Event::FirstMade { forge, id: id.get() })));
         adopt_local(engine, forge);
@@ -442,6 +442,7 @@ pub(super) fn done(engine: &mut crate::engine::Engine, token: Token, outcome: re
         reconcile::Outcome::Nothing => root::SetupOutcome::Done,
         reconcile::Outcome::Identity { .. }
         | reconcile::Outcome::Reachable { .. }
+        | reconcile::Outcome::Copied { .. }
         | reconcile::Outcome::Created { .. } => {
             unreachable!("later plans are not staged")
         }
@@ -518,7 +519,10 @@ pub(super) fn stopped(engine: &mut crate::engine::Engine, token: Token, failure:
             | reconcile::Why::Busy
             | reconcile::Why::Crowded
             | reconcile::Why::Down
-            | reconcile::Why::Unexpected => {}
+            | reconcile::Why::Unexpected
+            | reconcile::Why::Taken
+            | reconcile::Why::Empty
+            | reconcile::Why::TimedOut => {}
         }
     }
     finish(engine, token, root::SetupEnd::Stopped { forge: failure.forge, reason });
@@ -1479,7 +1483,10 @@ fn reachable_failure(why: reconcile::Why) -> domain::ReachableAnswer {
         | reconcile::Why::KeyForm
         | reconcile::Why::Unknown
         | reconcile::Why::Crowded
-        | reconcile::Why::Unexpected => domain::AdoptionRefusal::InvalidAnswer,
+        | reconcile::Why::Unexpected
+        | reconcile::Why::Taken
+        | reconcile::Why::Empty
+        | reconcile::Why::TimedOut => domain::AdoptionRefusal::InvalidAnswer,
     };
     domain::ReachableAnswer::ForgeRefused(reason)
 }
@@ -1593,7 +1600,7 @@ fn admin_done(engine: &mut crate::engine::Engine, token: Token, outcome: reconci
         return;
     }
     if kind == Kind::AdminCreate {
-        let reconcile::Outcome::Created { id } = outcome else { unreachable!("Create returns its repository") };
+        let reconcile::Outcome::Created { id, .. } = outcome else { unreachable!("Create returns its repository") };
         engine.events.push(root::Event::Forge(Box::new(domain::Event::FirstMade { forge, id: id.get() })));
         keep_admin(engine, token);
         return;

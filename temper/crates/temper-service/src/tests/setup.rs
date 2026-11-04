@@ -290,7 +290,10 @@ impl Face {
                 let event = engine.setup.above.pop().unwrap();
                 match event {
                     done @ host::Event::Done { .. } => self.done = Some(done),
-                    other @ (host::Event::Need { .. } | host::Event::Stop { .. } | host::Event::Closed) => {
+                    other @ (host::Event::Need { .. }
+                    | host::Event::Stop { .. }
+                    | host::Event::Said { .. }
+                    | host::Event::Closed) => {
                         engine.setup.above.push(other);
                     }
                 }

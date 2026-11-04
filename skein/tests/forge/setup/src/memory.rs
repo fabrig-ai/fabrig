@@ -139,6 +139,13 @@ fn request_bytes(request: &Request) -> usize {
                     + files.len() * size_of::<skein_forge_setup::host::File>()
                     + files.iter().map(|f| f.path.len() + f.content.len()).sum::<usize>()
             }
+            Plan::Copy { org, repository, from, files, .. } => {
+                org.len()
+                    + repository.len()
+                    + from.len()
+                    + files.len() * size_of::<skein_forge_setup::host::File>()
+                    + files.iter().map(|f| f.path.len() + f.content.len()).sum::<usize>()
+            }
             Plan::Convert { code, state, .. } => code.len() + state.len(),
             Plan::Accept { state, .. } => state.as_ref().map_or(0, |state| state.len()),
             Plan::Manifest { .. }

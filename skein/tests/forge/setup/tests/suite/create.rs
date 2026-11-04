@@ -30,7 +30,7 @@ fn run(world: &mut World) -> Ended {
     world.create(b"first", b"starter", files())
 }
 fn created() -> Outcome {
-    Outcome::Created { id: NonZeroU64::new(1).expect("repository") }
+    Outcome::Created { id: NonZeroU64::new(1).expect("repository"), branch: b"main".as_slice().into() }
 }
 fn stopped(step: Stage, subject: &[u8], why: Why) -> Ended {
     Ended::Stop(Failure { forge: 1, step, subject: subject.into(), why })

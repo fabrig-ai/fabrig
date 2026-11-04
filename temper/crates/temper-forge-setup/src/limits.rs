@@ -56,6 +56,7 @@ impl Host {
             file_bytes: 4096,
             repositories: self.repositories,
             deadline: self.deadline,
+            copy_deadline: Duration::from_secs(1800),
             backoff: self.backoff,
             backoff_max: self.backoff_max,
         }
@@ -119,6 +120,7 @@ pub fn small() -> Limits {
         file_bytes: 4096,
         repositories,
         deadline: Duration::from_secs(120),
+        copy_deadline: Duration::from_secs(1800),
         backoff: Duration::from_millis(100),
         backoff_max: Duration::from_secs(5),
     }
