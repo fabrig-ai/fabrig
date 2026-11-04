@@ -131,10 +131,6 @@ impl Host {
     }
     // A step's writes are one durability answer: a first successful write
     // cannot release held requests before a later refused write is heard.
-    #[expect(
-        clippy::wildcard_enum_match_arm,
-        reason = "storage results are combined into one durability answer; every other transport report passes unchanged to heard"
-    )]
     pub fn carried(&mut self, reports: Vec<skein_ui_web::transport::Carried>, stored: bool) {
         let mut refused = false;
         for report in reports {
