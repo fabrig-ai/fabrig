@@ -188,7 +188,7 @@ fn errors_are_sorted_by_path_line_column_and_target() {
 
 #[test]
 fn every_kind_of_7_2_but_checks_and_store_has_a_case() {
-    let root = std::path::Path::new(env!("CARGO_MANIFEST_DIR")).join("../render/errors");
+    let root = skein_scratch::paths::tree().join("tests/render/errors");
     let mut names: Vec<_> = std::fs::read_dir(root)
         .expect("error golden directory")
         .map(|entry| entry.expect("error golden").file_name().into_string().expect("kind name"))

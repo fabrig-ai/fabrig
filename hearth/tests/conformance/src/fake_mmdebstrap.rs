@@ -1,6 +1,6 @@
 //! One resolve scenario on the fake, held to mmdebstrap's captured observations.
 use crate::{
-    fixtures::{OWNER, UNIVERSE, take},
+    fixtures::{OWNER, take, universe},
     resolve::{self, Case, Reach},
 };
 use hearth_fake_machine::{
@@ -96,7 +96,7 @@ pub fn mirror(index: &[u8]) -> Served {
 }
 #[must_use]
 pub fn committed() -> Served {
-    let cut = fs::read(UNIVERSE).expect("committed universe; write under HEARTH_RECORD=1");
+    let cut = fs::read(universe()).expect("committed universe; write under HEARTH_RECORD=1");
     let end = cut.windows(2).position(|p| p == b"\n\n").expect("release stanza");
     served(&Pin::committed(), release(&cut[..end]), Universe::read(&cut[end + 2..]).expect("committed KEPT index"))
 }
