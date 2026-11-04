@@ -4,7 +4,7 @@
 //! Contracts: benchmarks.md, sections 6, 8.2, 10 and 14.
 
 use std::ffi::OsString;
-use std::path::PathBuf;
+use std::path::{Path, PathBuf};
 
 use crate::agent::{Context, HarnessFault, Invocation, Seen};
 use crate::isolate::{Setup, SetupStep};
@@ -27,10 +27,11 @@ pub struct PreparedCodex {
     pub teardown: skein_lib::Duration,
 }
 
-/// The observer and exact configuration selected for this attempt.
+/// The root stream observer and any pinned preparation for this attempt.
 #[derive(Debug)]
 pub struct Observing {
-    pub prepared: Box<PreparedCodex>,
+    /// None for an offline stream replay, which has nothing to collect.
+    pub prepared: Option<Box<PreparedCodex>>,
     pub observer: Observer,
     pub collected: Option<super::Rollouts>,
     pub collection_error: Option<String>,
@@ -206,8 +207,40 @@ impl Observing {
         Ok(seen)
     }
 
+    /// The stream-visible writes outside this attempt's workspace.
+    #[must_use]
+    pub(in crate::agent) fn writes_outside(&self, workspace: &Path) -> crate::Measure<Vec<PathBuf>> {
+        let mut outside = Vec::new();
+        for item in self.observer.completed_items() {
+            match item {
+                Item::FileChange { changes, .. } => {
+                    for change in changes {
+                        let path = lexical(workspace, Path::new(&change.path));
+                        if !path.starts_with(workspace.parent().unwrap_or(workspace)) {
+                            outside.push(path);
+                        }
+                    }
+                }
+                Item::AgentMessage { .. } | Item::CommandExecution { .. } | Item::CollabToolCall { .. } => {}
+            }
+        }
+        outside.sort();
+        outside.dedup();
+        crate::Measure::LowerBound {
+            value: outside,
+            missing: vec![
+                "JSON lines omit non-root calls and shell filesystem effects; complete adapter collection required"
+                    .into(),
+            ],
+        }
+    }
+
     /// Read only this completed attempt's native root and child records.
     pub fn collect(&mut self) -> Result<&super::Rollouts, HarnessFault> {
+        let prepared = self
+            .prepared
+            .as_ref()
+            .ok_or_else(|| HarnessFault { what: "offline Codex replay has no preparation to collect".into() })?;
         if let Some(what) = &self.collection_error {
             return Err(HarnessFault { what: what.clone() });
         }
@@ -226,7 +259,7 @@ impl Observing {
             children.dedup();
             self.collected = Some(super::Rollouts { responses: Vec::new(), children: Vec::new(), files: Vec::new() });
             if let Err(error) = super::rollouts::collect_named(
-                &self.prepared.home,
+                &prepared.home,
                 thread,
                 &children,
                 self.collected.as_mut().expect("raw collection retained"),
@@ -238,4 +271,20 @@ impl Observing {
         }
         Ok(self.collected.as_ref().expect("collected above"))
     }
+}
+
+fn lexical(base: &Path, path: &Path) -> PathBuf {
+    use std::path::Component;
+    let absolute = base.join(path);
+    let mut normal = PathBuf::new();
+    for part in absolute.components() {
+        match part {
+            Component::ParentDir => {
+                normal.pop();
+            }
+            Component::CurDir => {}
+            Component::RootDir | Component::Normal(_) | Component::Prefix(_) => normal.push(part),
+        }
+    }
+    normal
 }

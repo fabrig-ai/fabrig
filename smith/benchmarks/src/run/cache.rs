@@ -54,6 +54,9 @@ pub(super) fn observation(process: &ProcessResult, task: &Task) -> Option<Measur
     })?;
     Some(match process.observing.as_deref() {
         Some(Observing::Smith(value)) => value.events().cache_reuse(threshold, miss_limit),
+        Some(Observing::Codex(value)) if value.prepared.is_none() => {
+            Measure::unavailable("cache probe requires its selected adapter")
+        }
         Some(Observing::Codex(value)) => value.collected.as_ref().map_or_else(
             || Measure::unavailable("named Codex rollout collection is absent"),
             |rollouts| {

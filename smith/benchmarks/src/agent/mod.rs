@@ -74,7 +74,7 @@ pub enum Seen {
     Answer,
 }
 
-/// An observer stays paired with the preparation that selected its format.
+/// An observer retains its selected stream and any preparation behind it.
 #[derive(Debug)]
 pub enum Observing {
     /// Codex's root JSON stream and subsequent read-only collection.
@@ -117,7 +117,7 @@ impl PreparedAgent {
     pub fn observe(self) -> Result<Observing, HarnessFault> {
         match self {
             Self::Codex(prepared) => Ok(Observing::Codex(codex::Observing {
-                prepared: Box::new(prepared),
+                prepared: Some(Box::new(prepared)),
                 observer: codex::Observer::default(),
                 collected: None,
                 collection_error: None,
@@ -128,6 +128,60 @@ impl PreparedAgent {
 }
 
 impl Observing {
+    /// An offline stream replay: Codex's JSON lines, with no preparation behind them.
+    #[must_use]
+    pub fn replay() -> Observing {
+        Self::Codex(codex::Observing {
+            prepared: None,
+            observer: codex::Observer::default(),
+            collected: None,
+            collection_error: None,
+        })
+    }
+
+    /// When the person's input closes unless the task says.
+    #[must_use]
+    pub fn close(&self) -> Close {
+        match self {
+            Self::Codex(_) => Close::AfterPrompt,
+            Self::Smith(observing) => match observing.prepared.face {
+                smith::events::Shape::Exec => Close::AfterPrompt,
+                smith::events::Shape::Chat => Close::AfterAnswer,
+            },
+        }
+    }
+
+    /// The native trace followed as the process writes it, opened.
+    pub fn trace_file(&self) -> Result<Option<std::fs::File>, String> {
+        match self {
+            Self::Codex(_) => Ok(None),
+            Self::Smith(observing) => match observing.prepared.face {
+                smith::events::Shape::Exec => Ok(None),
+                smith::events::Shape::Chat => {
+                    let path = observing.prepared.trace.as_ref().ok_or("Smith Chat requires a trace path")?;
+                    std::fs::File::open(path).map(Some).map_err(|error| format!("trace open: {error}"))
+                }
+            },
+        }
+    }
+
+    /// The paths written outside the workspace, as far as this stream shows them.
+    #[must_use]
+    pub fn writes_outside(&self, workspace: &Path) -> crate::Measure<Vec<PathBuf>> {
+        match self {
+            Self::Codex(observing) => observing.writes_outside(workspace),
+            Self::Smith(_) => crate::Measure::unavailable("event stream does not expose every shell filesystem effect"),
+        }
+    }
+
+    /// The stream's own counts and tokens, before anything is collected.
+    pub fn stream_measures(&self, result: &mut crate::AttemptResult) -> Result<(), String> {
+        match self {
+            Self::Codex(observing) => observing.observer.stream_measures(result),
+            Self::Smith(_) => codex::Observer::default().stream_measures(result),
+        }
+    }
+
     /// Feed one complete line; known malformed records fault before classification.
     pub fn feed_line(&mut self, line: &str) -> Result<Vec<Seen>, HarnessFault> {
         match self {
