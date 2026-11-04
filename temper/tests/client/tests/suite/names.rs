@@ -9,7 +9,13 @@ fn client_crates_carry_the_client_prefix() {
     let breaches = jig_boundary::client_names::breaches(
         &root,
         "temper",
-        &["temper", "temper-one-process-world", "temper-real-loop-world", "temper-playground"],
+        &[
+            "temper",
+            "temper-one-process-world",
+            "temper-real-loop-world",
+            "temper-playground",
+            "temper-playground-world",
+        ],
     );
     assert!(breaches.is_empty(), "client crates outside temper-client: {}", breaches.join(", "));
 }
