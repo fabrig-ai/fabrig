@@ -1,3 +1,24 @@
 draft = "live-login-guard"
 repo = "fabrig"
 sources = ["temper/docs/plan/live-login-guard/inputs/live-login-guard.md", "AGENTS.md"]
+
+# One direct task, test support only (inputs/live-login-guard.md). plan.md says why the guard
+# stands before the import and starts a box of its own: the panic that lost the login came with
+# the box already stopped.
+
+[buffer]
+low = 1.0
+high = 2.0
+
+[[part]]
+id = "guard"
+title = "temper's landing story: a held record comes back from every ending, through a new box where none is up"
+mode = "direct"
+needs = []
+design = "temper/docs/design/domain/testing.md, 2.7"
+
+[[slice]]
+id = 1
+story = "a story panicking after import, its box stopped, still leaves the held record back at its lent path, 0600, on the fake issuer and no live login"
+parts = ["guard"]
+walk = false
