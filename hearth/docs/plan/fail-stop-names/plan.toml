@@ -1,0 +1,3 @@
+draft = "fail-stop-names"
+repo = "fabrig"
+sources = ["hearth/docs/plan/fail-stop-names/inputs/request.md"]
