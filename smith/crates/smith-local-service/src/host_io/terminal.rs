@@ -135,6 +135,7 @@ impl WindowRead {
         };
     }
 
+    #[expect(clippy::trivially_copy_pass_by_ref, reason = "state readers borrow the machine consistently")]
     pub(super) const fn requested(&self) -> bool {
         match self {
             Self::Requested => true,

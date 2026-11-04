@@ -516,7 +516,9 @@ impl HostIo {
                 | io::Event::Usage { .. }
                 | io::Event::Failed { .. }
                 | io::Event::Closed { .. }) => match &mut self.child {
-                    Child::Spawned { process, .. } => process.from_io(now, other, &mut self.process_events, &mut self.io_requests),
+                    Child::Spawned { process, .. } => {
+                        process.from_io(now, other, &mut self.process_events, &mut self.io_requests);
+                    }
                     Child::Absent => self.shell_events.push(other),
                 },
             }
@@ -1417,12 +1419,15 @@ mod tests {
     fn prefetched_adapter(owner: Token) -> HostIo {
         let config = crate::tests::config();
         let mut adapter = HostIo::new(&config.limits.process, config.launch, config.endpoints, 1).expect("adapter");
-        adapter.spawned(protocol::Process::new(
-            owner,
-            &adapter.limits.channel,
-            adapter.limits.detail_bytes,
-            adapter.endpoints.clone(),
-        ).unwrap());
+        adapter.spawned(
+            protocol::Process::new(
+                owner,
+                &adapter.limits.channel,
+                adapter.limits.detail_bytes,
+                adapter.endpoints.clone(),
+            )
+            .unwrap(),
+        );
         adapter
             .process_events
             .push(protocol::ProcessEvent::Channel { agent: owner, event: Box::new(protocol::Received::WriteFailed) });

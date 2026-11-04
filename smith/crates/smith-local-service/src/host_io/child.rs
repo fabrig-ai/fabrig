@@ -76,18 +76,20 @@ mod tests {
         let mut hub = super::super::HostIo::new(&config.limits.process, config.launch, config.endpoints, 1).unwrap();
         assert!(!hub.read_held());
         hub.child.answered();
-        hub.spawned(protocol::Process::new(
-            Token::new(7), &hub.limits.channel, hub.limits.detail_bytes, hub.endpoints.clone(),
-        ).unwrap());
+        hub.spawned(
+            protocol::Process::new(Token::new(7), &hub.limits.channel, hub.limits.detail_bytes, hub.endpoints.clone())
+                .unwrap(),
+        );
         assert!(!hub.read_held());
         hub.hold_read();
         assert!(hub.read_held());
         hub.child.answered();
         assert!(!hub.read_held());
         hub.child.answered();
-        hub.spawned(protocol::Process::new(
-            Token::new(8), &hub.limits.channel, hub.limits.detail_bytes, hub.endpoints.clone(),
-        ).unwrap());
+        hub.spawned(
+            protocol::Process::new(Token::new(8), &hub.limits.channel, hub.limits.detail_bytes, hub.endpoints.clone())
+                .unwrap(),
+        );
         assert!(!hub.read_held());
     }
 }
