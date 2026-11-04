@@ -3,6 +3,7 @@
 //! `StructuredOutput` waits for its outcome and becomes finish in the same slot;
 //! it is never a workspace built-in (protocol/programs.md, section 5.5).
 
+use super::{Bound, Rejection};
 use crate::mcp::json;
 use alloc::boxed::Box;
 use skein_json::{Document, Kind};
@@ -36,6 +37,135 @@ pub(super) struct Turns {
     pub maximum_raw: u32,
 }
 
+struct AssemblyBounds {
+    blocks: u32,
+    raw: u32,
+    bytes: u64,
+    input: u32,
+}
+
+impl Message {
+    fn content(
+        &mut self,
+        document: &Document,
+        content: u32,
+        bounds: AssemblyBounds,
+        finish: &mut bool,
+    ) -> Result<u32, Rejection> {
+        let mut index = content.checked_add(1).ok_or(Rejection::Overflow)?;
+        let mut text_bytes = 0_u32;
+        for _ in 0..document.len() {
+            if document.token(index).ok_or(Rejection::Malformed)?.kind == Kind::ArrayEnd {
+                break;
+            }
+            self.received = self.received.checked_add(1).ok_or(Rejection::Overflow)?;
+            check_bound(Bound::Blocks, u64::from(self.received), u64::from(bounds.blocks))?;
+            if let Some(block) = block(document, index, bounds.input, finish)? {
+                match &block {
+                    llm::Said::Text { text, .. } => {
+                        text_bytes = text_bytes
+                            .checked_add(u32::try_from(text.len()).ok().ok_or(Rejection::Overflow)?)
+                            .ok_or(Rejection::Overflow)?;
+                    }
+                    llm::Said::Refusal { .. } | llm::Said::ToolCall { .. } | llm::Said::Opaque { .. } => {}
+                }
+                self.retain(block, &bounds)?;
+            }
+            index = json::after(document, index).ok_or(Rejection::Malformed)?;
+        }
+        Ok(text_bytes)
+    }
+
+    fn retain(&mut self, block: llm::Said, bounds: &AssemblyBounds) -> Result<(), Rejection> {
+        let payload = payload(&block)?;
+        let raw = u64::from(self.raw).checked_add(payload).ok_or(Rejection::Overflow)?;
+        check_bound(Bound::Raw, raw, u64::from(bounds.raw))?;
+        let bytes = self
+            .bytes
+            .checked_add(skein_lib::len_u64(size_of::<llm::Said>()))
+            .ok_or(Rejection::Overflow)?
+            .checked_add(payload)
+            .ok_or(Rejection::Overflow)?;
+        check_bound(Bound::Completion, bytes, bounds.bytes)?;
+        self.raw = u32::try_from(raw).ok().ok_or(Rejection::Overflow)?;
+        self.bytes = bytes;
+        self.blocks.push(block).expect("admitted block count");
+        Ok(())
+    }
+}
+
+/// Refuse a measured admission value strictly above its configured bound.
+pub(super) fn check_bound(which: Bound, value: u64, bound: u64) -> Result<(), Rejection> {
+    if value > bound { Err(Rejection::Limit { which, value, bound }) } else { Ok(()) }
+}
+
+fn payload(block: &llm::Said) -> Result<u64, Rejection> {
+    let length = match block {
+        llm::Said::Text { text, .. } | llm::Said::Refusal { text, .. } => text.len(),
+        llm::Said::ToolCall { id, name, input, .. } => id
+            .len()
+            .checked_add(name.len())
+            .ok_or(Rejection::Overflow)?
+            .checked_add(input.len())
+            .ok_or(Rejection::Overflow)?,
+        llm::Said::Opaque { bytes } => bytes.len(),
+    };
+    Ok(skein_lib::len_u64(length))
+}
+
+fn block(document: &Document, index: u32, maximum: u32, finish: &mut bool) -> Result<Option<llm::Said>, Rejection> {
+    let kind = json::text_in(document, json::field(document, index, b"type")).ok_or(Rejection::Malformed)?;
+    match kind {
+        b"text" => {
+            let text = json::text_in(document, json::field(document, index, b"text")).ok_or(Rejection::Malformed)?;
+            Ok(Some(llm::Said::Text { text: text.into(), replay: None }))
+        }
+        b"tool_use" => tool_block(document, index, maximum, finish),
+        b"thinking" | b"redacted_thinking" => Ok(None),
+        _ => Err(Rejection::Unsupported),
+    }
+}
+
+fn tool_block(
+    document: &Document,
+    index: u32,
+    maximum: u32,
+    finish: &mut bool,
+) -> Result<Option<llm::Said>, Rejection> {
+    let name = json::text_in(document, json::field(document, index, b"name")).ok_or(Rejection::Malformed)?;
+    let builtin = !name.starts_with(b"mcp__");
+    let name = name.strip_prefix(b"mcp__smith__").unwrap_or(name);
+    let input_index = json::field(document, index, b"input").ok_or(Rejection::Malformed)?;
+    let input = bounded_input(document, input_index, maximum)?;
+    if !builtin && name == b"finish" {
+        *finish = true;
+    }
+    let provider_id = json::text_in(document, json::field(document, index, b"id")).ok_or(Rejection::Malformed)?;
+    Ok(Some(llm::Said::ToolCall {
+        id: if builtin && name == b"StructuredOutput" { STRUCTURED_FINISH.into() } else { provider_id.into() },
+        name: name.into(),
+        input,
+        call: if builtin && name != b"StructuredOutput" {
+            llm::Decoded::Builtin {
+                effect: match super::policy::Builtin::named(name) {
+                    Some(tool) => tool.effect(),
+                    None => smith_domain::tools::Effect::Write,
+                },
+            }
+        } else {
+            llm::Decoded::Invalid { problem: llm::Problem::UnknownTool }
+        },
+        replay: None,
+    }))
+}
+
+/// Measure canonical tool input before allocating it under its receiving bound.
+pub(super) fn bounded_input(document: &Document, index: u32, maximum: u32) -> Result<Box<[u8]>, Rejection> {
+    let length = json::raw_length(document, index).ok_or(Rejection::Malformed)?;
+    check_bound(Bound::Input, u64::from(length), u64::from(maximum))?;
+    json::raw(document, index, maximum).ok_or(Rejection::Malformed)
+}
+
 impl Turns {
     pub fn open_blocks(&self) -> Option<&[llm::Said]> {
         match &self.message {
@@ -58,9 +188,12 @@ impl Turns {
         }
     }
 
-    fn begin(&mut self, id: &[u8], framed: bool) -> Option<()> {
-        if id.len() > 1024 || self.message.is_some() {
-            return None;
+    fn begin(&mut self, id: &[u8], framed: bool) -> Result<(), Rejection> {
+        if id.len() > 1024 {
+            return Err(Rejection::Limit { which: Bound::MessageId, value: skein_lib::len_u64(id.len()), bound: 1024 });
+        }
+        if self.message.is_some() {
+            return Err(Rejection::Boundary);
         }
         if self.result {
             self.finish = false;
@@ -77,48 +210,57 @@ impl Turns {
             bytes: 0,
             raw: 0,
         });
-        Some(())
+        Ok(())
     }
 
-    pub fn event(&mut self, document: &Document, event: u32) -> Option<()> {
-        match json::text_in(document, json::field(document, event, b"type"))? {
+    pub fn event(&mut self, document: &Document, event: u32) -> Result<(), Rejection> {
+        match json::text_in(document, json::field(document, event, b"type")).ok_or(Rejection::Malformed)? {
             b"message_start" => {
                 self.close(true)?;
                 let id =
-                    json::text_in(document, json::field_in(document, json::field(document, event, b"message"), b"id"))?;
+                    json::text_in(document, json::field_in(document, json::field(document, event, b"message"), b"id"))
+                        .ok_or(Rejection::Malformed)?;
                 self.begin(id, true)
             }
             b"content_block_start" => {
-                let index = number(document, json::field(document, event, b"index"))?;
-                let expected = u32::try_from(index).ok()?.checked_add(1)?;
+                let index = number(document, json::field(document, event, b"index")).ok_or(Rejection::Malformed)?;
+                let expected = u32::try_from(index)
+                    .ok()
+                    .ok_or(Rejection::Malformed)?
+                    .checked_add(1)
+                    .ok_or(Rejection::Malformed)?;
                 if expected > self.blocks {
-                    return None;
+                    return Err(Rejection::Limit {
+                        which: Bound::Blocks,
+                        value: u64::from(expected),
+                        bound: u64::from(self.blocks),
+                    });
                 }
-                let message = self.message.as_mut()?;
+                let message = self.message.as_mut().ok_or(Rejection::Boundary)?;
                 message.expected = message.expected.max(expected);
-                Some(())
+                Ok(())
             }
             b"message_stop" => {
-                self.message.as_mut()?.stopped = true;
+                self.message.as_mut().ok_or(Rejection::Boundary)?.stopped = true;
                 self.close(false)
             }
             b"message_delta" => {
                 // The block records repeat the initial usage; the final delta
                 // supplies the message's total, including its thinking tokens.
                 if let Some(tokens) = json::field(document, event, b"usage") {
-                    self.message.as_mut()?.usage = usage(document, Some(tokens));
+                    self.message.as_mut().ok_or(Rejection::Boundary)?.usage = usage(document, Some(tokens));
                 }
-                Some(())
+                Ok(())
             }
-            b"content_block_delta" | b"content_block_stop" => Some(()),
-            _ => None,
+            b"content_block_delta" | b"content_block_stop" => Ok(()),
+            _ => Err(Rejection::Unsupported),
         }
     }
 
-    pub fn assistant(&mut self, document: &Document, maximum: u32) -> Option<u32> {
-        self.assistant_events = self.assistant_events.checked_add(1)?;
-        let value = json::field(document, 0, b"message")?;
-        let id = json::text_in(document, json::field(document, value, b"id"))?;
+    pub fn assistant(&mut self, document: &Document, maximum: u32) -> Result<u32, Rejection> {
+        self.assistant_events = self.assistant_events.checked_add(1).ok_or(Rejection::Overflow)?;
+        let value = json::field(document, 0, b"message").ok_or(Rejection::Malformed)?;
+        let id = json::text_in(document, json::field(document, value, b"id")).ok_or(Rejection::Malformed)?;
         // smith/docs/design/protocol/programs.md 5.5: an assistant ID without message_start is an
         // atomic program-authored message. Framed IDs still wait for stop
         // and every block, including when the full content precedes stop.
@@ -130,101 +272,35 @@ impl Turns {
         if self.message.is_none() {
             self.begin(id, false)?;
         }
-        let message = self.message.as_mut()?;
+        let message = self.message.as_mut().ok_or(Rejection::Boundary)?;
         if message.id.as_ref() != id {
-            return None;
+            return Err(Rejection::Malformed);
         }
-        let content = json::field(document, value, b"content")?;
-        if document.token(content)?.kind != Kind::ArrayStart {
-            return None;
+        let content = json::field(document, value, b"content").ok_or(Rejection::Malformed)?;
+        if document.token(content).ok_or(Rejection::Malformed)?.kind != Kind::ArrayStart {
+            return Err(Rejection::Malformed);
         }
-        let mut index = content.checked_add(1)?;
-        let mut text_bytes = 0_u32;
-        for _ in 0..document.len() {
-            if document.token(index)?.kind == Kind::ArrayEnd {
-                break;
-            }
-            message.received = message.received.checked_add(1)?;
-            if message.received > self.blocks {
-                return None;
-            }
-            let kind = json::text_in(document, json::field(document, index, b"type"))?;
-            let block = match kind {
-                b"text" => {
-                    let text = json::text_in(document, json::field(document, index, b"text"))?;
-                    text_bytes = text_bytes.checked_add(u32::try_from(text.len()).ok()?)?;
-                    llm::Said::Text { text: text.into(), replay: None }
-                }
-                b"tool_use" => {
-                    let name = json::text_in(document, json::field(document, index, b"name"))?;
-                    let builtin = !name.starts_with(b"mcp__");
-                    let name = name.strip_prefix(b"mcp__smith__").unwrap_or(name);
-                    let input = json::raw(document, json::field(document, index, b"input")?, maximum)?;
-                    if !builtin && name == b"finish" {
-                        self.finish = true;
-                    }
-                    let provider_id = json::text_in(document, json::field(document, index, b"id"))?;
-                    llm::Said::ToolCall {
-                        id: if builtin && name == b"StructuredOutput" {
-                            STRUCTURED_FINISH.into()
-                        } else {
-                            provider_id.into()
-                        },
-                        name: name.into(),
-                        input,
-                        call: if builtin && name != b"StructuredOutput" {
-                            llm::Decoded::Builtin {
-                                effect: match super::policy::Builtin::named(name) {
-                                    Some(tool) => tool.effect(),
-                                    None => smith_domain::tools::Effect::Write,
-                                },
-                            }
-                        } else {
-                            llm::Decoded::Invalid { problem: llm::Problem::UnknownTool }
-                        },
-                        replay: None,
-                    }
-                }
-                b"thinking" | b"redacted_thinking" => {
-                    index = json::after(document, index)?;
-                    continue;
-                }
-                _ => return None,
-            };
-            let payload = match &block {
-                llm::Said::Text { text, .. } | llm::Said::Refusal { text, .. } => text.len(),
-                llm::Said::ToolCall { id, name, input, .. } => {
-                    id.len().checked_add(name.len())?.checked_add(input.len())?
-                }
-                llm::Said::Opaque { bytes } => bytes.len(),
-            };
-            message.raw = message.raw.checked_add(u32::try_from(payload).ok()?)?;
-            if message.raw > self.maximum_raw {
-                return None;
-            }
-            message.bytes =
-                message.bytes.checked_add(u64::try_from(size_of::<llm::Said>().checked_add(payload)?).ok()?)?;
-            if message.bytes > self.maximum {
-                return None;
-            }
-            message.blocks.push(block).ok()?;
-            index = json::after(document, index)?;
-        }
+        let text_bytes = message.content(
+            document,
+            content,
+            AssemblyBounds { blocks: self.blocks, raw: self.maximum_raw, bytes: self.maximum, input: maximum },
+            &mut self.finish,
+        )?;
         message.usage = usage(document, json::field(document, value, b"usage"));
         if !message.framed {
             message.stopped = true;
             message.expected = message.received;
         }
         self.close(false)?;
-        Some(text_bytes)
+        Ok(text_bytes)
     }
 
-    pub fn close(&mut self, boundary: bool) -> Option<()> {
+    pub fn close(&mut self, boundary: bool) -> Result<(), Rejection> {
         let Some(message) = &self.message else {
-            return Some(());
+            return Ok(());
         };
         if !message.stopped || message.received < message.expected {
-            return if boundary { None } else { Some(()) };
+            return if boundary { Err(Rejection::Boundary) } else { Ok(()) };
         }
         let mut calls = false;
         let mut structured = false;
@@ -240,33 +316,37 @@ impl Turns {
         // StructuredOutput's result supplies the finish input for this same
         // model completion (smith/docs/design/protocol/programs.md 5.5), never an extra budgeted turn.
         if structured {
-            return if boundary { None } else { Some(()) };
+            return if boundary { Err(Rejection::StructuredBoundary) } else { Ok(()) };
         }
         if !calls && !boundary {
-            return Some(());
+            return Ok(());
         }
-        if self.ready.room() == 0 {
-            return None;
-        }
-        let message = self.message.take()?;
-        self.closed = self.closed.checked_add(1)?;
+        self.completion_room()?;
+        let message = self.message.take().ok_or(Rejection::Malformed)?;
+        self.closed = self.closed.checked_add(1).ok_or(Rejection::Overflow)?;
         self.ready.push(llm::Completion {
             reasoning_dropped: Box::default(),
             content: message.blocks.into_boxed(),
             stop: if calls { llm::Stop::ToolUse } else { llm::Stop::EndTurn },
             usage: message.usage,
         });
-        Some(())
+        Ok(())
+    }
+
+    fn completion_room(&self) -> Result<(), Rejection> {
+        if self.ready.room() == 0 {
+            let bound = u64::from(self.ready.len());
+            return Err(Rejection::Backlog { value: bound.saturating_add(1), bound });
+        }
+        Ok(())
     }
 
     // smith/docs/design/protocol/programs.md 5.5: a successful result without an assistant still hands
     // the no-tool turn to the domain, which owns its nudge allowance.
-    pub fn end_empty(&mut self) -> Option<()> {
+    pub fn end_empty(&mut self) -> Result<(), Rejection> {
         if self.assistant_events == 0 && self.ready.is_empty() {
-            if self.ready.room() == 0 {
-                return None;
-            }
-            self.closed = self.closed.checked_add(1)?;
+            self.completion_room()?;
+            self.closed = self.closed.checked_add(1).ok_or(Rejection::Overflow)?;
             self.ready.push(llm::Completion {
                 reasoning_dropped: Box::default(),
                 content: Box::default(),
@@ -274,11 +354,11 @@ impl Turns {
                 usage: llm::Usage::ZERO,
             });
         }
-        Some(())
+        Ok(())
     }
 
     pub fn interrupted(&mut self) {
-        if self.close(true).is_none() {
+        if self.close(true).is_err() {
             self.message = None;
         }
         if self.ready.is_empty() {
@@ -313,7 +393,7 @@ impl Turns {
         self.assistant_events = 0;
     }
 
-    pub fn structured(&mut self, input: Box<[u8]>) -> Option<()> {
+    pub fn structured(&mut self, input: Box<[u8]>) -> Result<(), Rejection> {
         if self.finish {
             return self.close(true);
         }
@@ -332,9 +412,9 @@ impl Turns {
                         if id.as_ref() == STRUCTURED_FINISH && name.as_ref() == b"StructuredOutput" =>
                     {
                         if position.is_some() {
-                            return None;
+                            return Err(Rejection::Malformed);
                         }
-                        position = Some(u32::try_from(index).ok()?);
+                        position = Some(u32::try_from(index).ok().ok_or(Rejection::Malformed)?);
                     }
                     llm::Said::ToolCall { .. }
                     | llm::Said::Text { .. }
@@ -343,15 +423,20 @@ impl Turns {
                 }
             }
             match position {
-                Some(position) => *message.blocks.get_mut(position)? = block,
-                None => message.blocks.push(block).ok()?,
+                Some(position) => *message.blocks.get_mut(position).ok_or(Rejection::Malformed)? = block,
+                None => {
+                    check_bound(
+                        Bound::Blocks,
+                        u64::from(message.blocks.len()).saturating_add(1),
+                        u64::from(self.blocks),
+                    )?;
+                    message.blocks.push(block).expect("admitted structured block");
+                }
             }
             self.close(true)?;
         } else {
-            if self.ready.room() == 0 {
-                return None;
-            }
-            self.closed = self.closed.checked_add(1)?;
+            self.completion_room()?;
+            self.closed = self.closed.checked_add(1).ok_or(Rejection::Overflow)?;
             self.ready.push(llm::Completion {
                 reasoning_dropped: Box::default(),
                 content: Box::new([block]),
@@ -360,7 +445,7 @@ impl Turns {
             });
         }
         self.finish = true;
-        Some(())
+        Ok(())
     }
 }
 

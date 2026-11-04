@@ -22,8 +22,10 @@ fn feed(turns: &mut Turns, value: Value) -> Option<()> {
     let bytes = serde_json::to_vec(&value).expect("bounded test fixture");
     let doc = stream::collect(&bytes, 32, 256).expect("bounded test fixture");
     match value["type"].as_str().expect("bounded test fixture") {
-        "assistant" => turns.assistant(&doc, 4096).map(|_| ()),
-        "stream_event" => turns.event(&doc, crate::mcp::json::field(&doc, 0, b"event").expect("bounded test fixture")),
+        "assistant" => turns.assistant(&doc, 4096).ok().map(|_| ()),
+        "stream_event" => {
+            turns.event(&doc, crate::mcp::json::field(&doc, 0, b"event").expect("bounded test fixture")).ok()
+        }
         _ => unreachable!(),
     }
 }
