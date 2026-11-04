@@ -1,3 +1,22 @@
 draft = "macos-box-start"
 repo = "fabrig"
 sources = ["temper/docs/plan/macos-box-start/inputs/request.md", "temper/docs/design/draft/macos.md", "AGENTS.md", "DESIGN.md"]
+
+# plan.md says what the cause is believed to be, how sure that is, and why two tasks.
+
+[buffer]
+low = 1.0
+high = 2.0
+
+[[part]]
+id = "listeners"
+title = "the box's listener check on macOS: a socket that can't say it listens passes, and a refusal names its call and whose descriptor it was"
+mode = "direct"
+needs = []
+design = "skein/docs/design/shell.md, 6.6"
+
+[[slice]]
+id = 1
+story = "temper box on macos-26 gets past its listeners' check towards Forgejo, and a refusal there names the failed call and never says LISTEN_FDS for a descriptor the box holds"
+parts = ["listeners"]
+walk = false
