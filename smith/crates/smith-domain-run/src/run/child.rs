@@ -165,7 +165,7 @@ fn child_opening(run: &Run, brief: &[u8], plan: agent::Plan, ordinal: u32, limit
             plan.granted,
             limits.answer_bytes,
         ),
-        prompt: copy_of(prompt::BEGIN),
+        prompt: prompt::child_begin(run.activation),
         summary: copy_of(prompt::SUMMARY),
         preamble: copy_of(prompt::PREAMBLE),
         tools: plan.families.tools,

@@ -201,7 +201,11 @@ impl World {
                     );
                     self.component.up(&env, IoEvent::Connected { owner }, &mut self.up, &mut self.io);
                 }
-                IoRequest::Stream { down, .. } => self.wire.take(down),
+                IoRequest::Stream { down, .. } => {
+                    if !self.closed {
+                        self.wire.take(down);
+                    }
+                }
                 IoRequest::Close { .. } | IoRequest::Abort { .. } => {
                     assert!(!self.closed, "one socket close");
                     self.closed = true;

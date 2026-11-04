@@ -529,7 +529,6 @@ fn turn_calls_are_refused_without_a_request() {
         api::Op::Read(api::Read::Run { run: 1 }),
         api::Op::Read(api::Read::Tree { object: head, page: 1 }),
         api::Op::Read(api::Read::Artifact { run: 1, name: Box::from(*b"report"), max_bytes: 1 }),
-        api::Op::Read(api::Read::Commits { before: head, after: head, page: 1 }),
         api::Op::Write(api::Write::Dispatch {
             workflow: Box::from(*b"ci.yaml"),
             branch: Box::from(*b"main"),

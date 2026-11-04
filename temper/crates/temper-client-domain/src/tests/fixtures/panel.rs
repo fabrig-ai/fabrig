@@ -53,6 +53,8 @@ pub fn panel(task: u64, step: w::Step) -> w::ChangePanel {
             hold: Some(w::Hold::Moved),
             runs: Some(29),
             ci: w::Ci::Passed,
+            approvals: List::with_capacity(0),
+            unmapped_reviews: List::with_capacity(0),
             gates,
             repairs: w::Used::new(&limits, w::UsedParts { used: 1, limit: 2 }).expect("repairs"),
             resolutions: w::Used::new(&limits, w::UsedParts { used: 3, limit: 4 }).expect("resolutions"),

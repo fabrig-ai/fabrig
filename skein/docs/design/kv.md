@@ -113,9 +113,9 @@ opens with reads of its own size and a large one with reads of the
 target, whatever `Limits::chunk`. No read assumes a chunk's size: a
 chunk's and a frame's own lengths say how long it is, and one longer
 than a read is carried across reads, its whole length reserved once
-those lengths have arrived, so that it is moved at most once. It applies
-the snapshot a chunk at a time and the log a frame at a time as the
-reads arrive, holding one read and the chunk or frame being applied
+those lengths have arrived, so that its reads do not each move it. It
+applies the snapshot a chunk at a time and the log a frame at a time as
+the reads arrive, holding one read and the chunk or frame being applied
 (section 7); a snapshot found corrupt part way fails the start, as a
 whole one would. Any chunk up to `Limits::chunk` is read alike, however
 its rows were packed, and one past it is corrupt. Segments named before
@@ -167,10 +167,10 @@ removes them with its own.
   it only to hold one row. Rows go in key order until the next would
   take the chunk past the target; a row that alone passes the target
   has a chunk of its own, up to `Limits::chunk`. So a chunk is the
-  target's size, or one row's when that row is larger, and it is shorter
-  only before such a row and at the map's end. `Limits::chunk` is the
-  ceiling: it is there to hold the largest row the limits admit, and
-  packs nothing. Below `CHUNK_TARGET` the ceiling is the target, since no
+  target's size, or one row's when that row is larger: it falls short of
+  the target by less than the row after it, and by more only at the
+  map's end. `Limits::chunk` is the ceiling: it is there to hold the
+  largest row the limits admit, and packs nothing. Below `CHUNK_TARGET` the ceiling is the target, since no
   chunk passes it.
 - **Why a constant, and why 1 MiB:** the target sizes a working buffer,
   not what a deployment admits, so the store owns it, as it owns
@@ -406,7 +406,10 @@ around it:
 - A deployment's budgets are a later design: a configured ceiling on its
   memory and its store, from which `Limits` are derived, beside
   section 7's rule that a store pays for what it holds. `CHUNK_TARGET`
-  stays the store's own unless that design needs to move it.
+  stays the store's own unless that design needs to move it, and that
+  design meets what still pays `Limits::chunk` beside the store: jig's
+  patch, whose copy and switch work in reads of the row ceiling (jig's
+  `protocol/store.md`, section 16).
 - When the dataset outgrows memory, retention comes first, then values
   on disk: keys in memory with where their values lie, values read by
   offset, compaction in place of snapshots, and the index rebuilt at

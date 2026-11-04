@@ -46,7 +46,8 @@ impl Reachable {
             Some(Event::Row(row)) => {
                 let row = match row {
                     document::Row::Reachable(row) => row,
-                    document::Row::Commit(_)
+                    document::Row::CommitMessage(_)
+                    | document::Row::Commit(_)
                     | document::Row::Entry { .. }
                     | document::Row::File(_)
                     | document::Row::Review(_)

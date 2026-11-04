@@ -15,7 +15,7 @@
 use skein_io::Request as IoRequest;
 use skein_lib::stream::{Down, Up};
 use skein_lib::{Env, Queue, Time, Token};
-use skein_link::{Event as LinkEvent, Link, Moved, Start};
+use skein_link::{Event as LinkEvent, Limits as LinkLimits, Link, Moved, Start};
 use skein_llm::client as llm;
 use skein_tls::client as tls;
 
@@ -283,7 +283,7 @@ impl Connection {
         self.deadlines.arm(DeadlinePhase::Closed, env.now, env.limits.idle_keep);
     }
 
-    pub(crate) fn close_socket(&mut self, env: &Env<Limits>, io: &mut Queue<IoRequest>) {
+    fn close_socket(&mut self, env: &Env<Limits>, io: &mut Queue<IoRequest>) {
         self.link.close(&link_env(env), true, io);
         self.phase = Phase::Closing;
     }
@@ -457,10 +457,6 @@ impl Connection {
     }
 }
 
-fn link_env(env: &Env<Limits>) -> Env<skein_link::Limits> {
-    Env {
-        now: env.now,
-        wall: env.wall,
-        limits: skein_link::Limits { tls: env.limits.tls, close_timeout: env.limits.io.close_timeout },
-    }
+pub(crate) fn link_env(env: &Env<Limits>) -> Env<LinkLimits> {
+    env.with(skein_link::Limits { tls: env.limits.tls, close_timeout: env.limits.io.close_timeout })
 }

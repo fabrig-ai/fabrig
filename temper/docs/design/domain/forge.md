@@ -789,7 +789,7 @@ Held by skein's `forge-client.md`, section 5: a fresh read goes first
 in the request budget (5.4). temper's part is what it asks for. Before a
 decision depends on a fact, the change child domain asks for it afresh:
 the branch's head, the base's tip, the pull request, CI on the exact
-head and on the base's tip, the comparison of the head with the base's
+head and on the base's tip, the ancestry range from the head to the base's
 tip, the pull request's reviews, and the files of the pull requests an
 overlap compares. These are also the facts the forge's requirements are
 judged on (8.7).
@@ -804,6 +804,15 @@ call slab limit and background reserve (skein's `forge-client.md`, 5–6).
 An admitted answer or any other terminal forge error follows the normal
 read-answer path once.
 
+- **Containment needs only ancestry.** The landing decision reads
+  `Read::Commits { before: head, after: base_tip, page: 1 }`, tied to
+  the head and base tip this step observed. A complete empty reverse
+  range proves the head contains that base tip; a complete nonempty
+  range disproves it. A failed or incomplete range leaves containment
+  unknown and never permits a merge. This read collects no changed
+  files or file contents, so a goal's diff and forward history do not
+  bound its landing. After an update the proof is made again at the
+  new head (section 10).
 - **CI on a commit** is read as its checks, skein's `Read::Checks`: the
   commit statuses and, on GitHub, the check runs, each a row with its
   context and verdict (skein's `forge.md`, 5.2; `forge-github.md`, 4.4),
@@ -1637,7 +1646,7 @@ merge, kind 4, on a pattern of landing branches (jig's
 | Requirement | Its parameters | Met | Wait | Refuse | Guarded or observed |
 |---|---|---|---|---|---|
 | 1, CI passed | none | CI passed at the head; for a repository without CI, every one of its checks passed at exactly the head; no CI verdict is needed for the explicit adoption choice to land without CI described below | CI pending or unknown; a check with no verdict at the head | CI failed; a check failed; a repository with neither CI nor checks unless explicitly adopted to land without CI as described below | guarded |
-| 2, up to date | none | the head contains the base's tip | the comparison unread or failed | the head lacks the base's tip | observed, freshness 0 |
+| 2, up to date | none | the head contains the base's tip | the ancestry range unread, failed or incomplete | the head lacks the base's tip | observed, freshness 0 |
 | 3, a gate | its number; `exact` or `clean` (8.3) | its verdict, at the head or, where `clean`, at a head the change's clean updates led through, approves | no such verdict yet, or one pending | such a verdict asks for changes | guarded |
 | 4, an approval | a role; how many people; `exact` or `clean` | that many distinct people holding the role in the project approved the pull request at the head, or where `clean` at a head its clean updates led through | fewer have; the reviews too many to read whole | one of them asked for changes at such a head | guarded |
 
@@ -1675,6 +1684,22 @@ merge, kind 4, on a pattern of landing branches (jig's
   It is the one thing temper reads of what people write on its pull
   requests (section 13). A project has approvals only if its rules ask
   for them: temper's own default has none (`../README.md`, section 2).
+- **The panel's approval evidence** is the last judged review set per
+  change, kept only in the forge domain's working set, bounded like
+  `change_due` and removed when the change ends. Both procedure and
+  landing merge waits supply its head, whether the read is complete,
+  the verified reviewers and the reviews from unmapped forge accounts.
+  No row, event or restore carries it. The panel selects requirements
+  from the live enforcing rules, as the merge judgement does, and shares
+  its reviewer count: role, freshness, distinct people and conflicting
+  verdicts have one meaning. Each requirement shows its scope and rule,
+  role, freshness, required count, counted people and review heads, and
+  remaining count. No evidence at the current head says reviews not
+  read yet, including after restart; an incomplete read says incomplete;
+  a complete read with none qualifying says zero counted. Evidence at
+  another head is unread for this head. An unmapped review names its
+  forge account and head, without inferring a person from a display
+  name. Removing a rule removes its panel line at once.
 - **Landing rules** are settings, the forge's own kinds (8.9): the
   deployment's and each project's, each covering a pattern of landing
   branches with CI, up to date, its gates and its approvals. A merge
@@ -1724,7 +1749,7 @@ merge, kind 4, on a pattern of landing branches (jig's
   | Requirement | Its parameters | Met | Wait | Refuse | Guarded or observed |
   |---|---|---|---|---|---|
   | 5, the landing rules | none | each such rule's CI, gates and approvals are met, as 1, 3 and 4 above; or no rule enforces there | one waits, and none refuses | one refuses | guarded |
-  | 6, up to date by the landing rules | none | each such rule asking for it is met, as 2 above; or none asks | the comparison unread or failed | the head lacks the base's tip | observed, freshness 0 |
+  | 6, up to date by the landing rules | none | each such rule asking for it is met, as 2 above; or none asks | the ancestry range unread, failed or incomplete | the head lacks the base's tip | observed, freshness 0 |
 
   The change keeps the rule and the criterion of its last wait or
   refusal, by the rule's scope and number and the criterion's kind

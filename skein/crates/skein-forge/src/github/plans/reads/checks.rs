@@ -42,6 +42,7 @@ impl Plan {
             | Read::Reviews { .. }
             | Read::File { .. }
             | Read::Compare { .. }
+            | Read::Commits { .. }
             | Read::PullFiles { .. }
             | Read::Protection { .. }
             | Read::Job { .. } => Err(api::Error::InvalidAnswer),
@@ -94,6 +95,7 @@ impl Plan {
             | document::Row::Collaborator(_)
             | document::Row::Remark(_)
             | document::Row::Review(_)
+            | document::Row::CommitMessage(_)
             | document::Row::Commit(_)
             | document::Row::Entry { .. }
             | document::Row::File(_) => return Err(api::Error::InvalidAnswer),

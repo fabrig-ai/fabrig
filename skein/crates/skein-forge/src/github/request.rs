@@ -179,6 +179,15 @@ pub enum Request {
         page: u32,
         per_page: u32,
     },
+    /// A page of the comparison's commits, without changed file reads.
+    Commits {
+        owner: Box<[u8]>,
+        name: Box<[u8]>,
+        before: api::Commit,
+        after: api::Commit,
+        page: u32,
+        per_page: u32,
+    },
     Compare {
         owner: Box<[u8]>,
         name: Box<[u8]>,
@@ -374,6 +383,7 @@ pub fn encode(request: &Request, limits: &Limits) -> Result<Encoded, Refusal> {
         | Request::Branches { .. }
         | Request::PullFiles { .. }
         | Request::Compare { .. }
+        | Request::Commits { .. }
         | Request::RulesForBranch { .. }
         | Request::Ruleset { .. }
         | Request::ClassicProtection { .. }
@@ -602,6 +612,17 @@ fn target(request: &Request, out: &mut Target) -> Result<(), Refusal> {
             out.put(b"/branches/");
             out.file(branch)?;
         }
+        Request::Commits { owner, name, before, after, page, per_page } => {
+            out.repo(owner, name)?;
+            out.put(b"/compare/");
+            out.commit(before)?;
+            out.put(b"...");
+            out.commit(after)?;
+            out.put(b"?page=");
+            out.number(u64::from(*page));
+            out.put(b"&per_page=");
+            out.number(u64::from(*per_page));
+        }
         Request::Compare { owner, name, before, after, per_page } => {
             out.repo(owner, name)?;
             out.put(b"/compare/");
@@ -751,6 +772,7 @@ fn items_target(request: &Request, out: &mut Target) -> Result<(), Refusal> {
         | Request::Followed { .. }
         | Request::Branch { .. }
         | Request::Compare { .. }
+        | Request::Commits { .. }
         | Request::Raw { .. }
         | Request::RulesForBranch { .. }
         | Request::Ruleset { .. }
@@ -839,6 +861,7 @@ fn selection(request: &Request) -> (Method, Auth) {
         | Request::Branches { .. }
         | Request::PullFiles { .. }
         | Request::Compare { .. }
+        | Request::Commits { .. }
         | Request::Raw { .. }
         | Request::RulesForBranch { .. }
         | Request::Ruleset { .. }
@@ -896,6 +919,7 @@ fn body(request: &Request, limits: &Limits) -> Result<Option<Box<[u8]>>, Refusal
         | Request::Branches { .. }
         | Request::PullFiles { .. }
         | Request::Compare { .. }
+        | Request::Commits { .. }
         | Request::Raw { .. }
         | Request::RulesForBranch { .. }
         | Request::Ruleset { .. }
@@ -1081,6 +1105,7 @@ fn body_json(request: &Request, json: &mut skein_json::writer::Encoder) -> Resul
         | Request::Branches { .. }
         | Request::PullFiles { .. }
         | Request::Compare { .. }
+        | Request::Commits { .. }
         | Request::Raw { .. }
         | Request::RulesForBranch { .. }
         | Request::Ruleset { .. }
@@ -1165,6 +1190,7 @@ fn app_target(request: &Request, out: &mut Target) -> Result<(), Refusal> {
         | Request::Branches { .. }
         | Request::PullFiles { .. }
         | Request::Compare { .. }
+        | Request::Commits { .. }
         | Request::Raw { .. }
         | Request::RulesForBranch { .. }
         | Request::Ruleset { .. }
@@ -1280,6 +1306,7 @@ fn bounded_fields(request: &Request, limits: &Limits) -> Result<(), Refusal> {
         | Request::Branches { .. }
         | Request::PullFiles { .. }
         | Request::Compare { .. }
+        | Request::Commits { .. }
         | Request::RulesForBranch { .. }
         | Request::Ruleset { .. }
         | Request::ClassicProtection { .. }

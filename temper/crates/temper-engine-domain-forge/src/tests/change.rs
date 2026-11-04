@@ -267,17 +267,7 @@ fn changes_finishing_in_reverse_order_reach_the_client_in_number_order() {
 }
 
 fn finish_lower(d: &mut Domain, lower: Token) -> Box<[Request]> {
-    fixtures::answer(
-        d,
-        lower,
-        Ok(skein_forge::api::Answer::Compare {
-            before: fixtures::BASE,
-            after: fixtures::HEAD,
-            contains_before: true,
-            files: Box::new([]),
-            commits: Box::new([]),
-        }),
-    )
+    fixtures::answer(d, lower, Ok(skein_forge::api::Answer::Commits { commits: Box::new([]), more: false }))
 }
 
 #[test]
@@ -473,16 +463,7 @@ fn merge_after_base_reads(d: &mut Domain) {
     let (call, op) = fixtures::next_call(d);
     assert_eq!(op, Op::Read(Read::Checks { commit: fixtures::BASE }));
     fixtures::answer(d, call, Ok(fixtures::checks(Check::Passed)));
-    fixtures::answer_next(
-        d,
-        Ok(Answer::Compare {
-            before: fixtures::BASE,
-            after: fixtures::HEAD,
-            contains_before: true,
-            files: Box::new([]),
-            commits: Box::new([]),
-        }),
-    );
+    fixtures::answer_next(d, Ok(Answer::Commits { commits: Box::new([]), more: false }));
     let finished = fixtures::answer_next(d, Ok(Answer::Reviews { reviews: Box::new([]), more: false }));
     let mut merging = false;
     for request in &finished {
@@ -641,13 +622,7 @@ fn a_settling_change_relies_on_its_own_pull_watch_but_keeps_its_deadline() {
         fixtures::answer_next(
             &mut d,
             if compared {
-                Ok(Answer::Compare {
-                    before: fixtures::BASE,
-                    after: fixtures::HEAD,
-                    contains_before: true,
-                    files: Box::new([]),
-                    commits: Box::new([]),
-                })
+                Ok(Answer::Commits { commits: Box::new([]), more: false })
             } else {
                 Err(skein_forge::api::Error::Missing)
             },

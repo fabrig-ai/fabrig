@@ -16,33 +16,14 @@ impl Plan {
             document::Document::ClassicProtection(value) => self.classic_done(value, bounds),
             document::Document::PullGraphql(pull) => self.pull_graphql_done(pull, bounds),
             document::Document::Repository(repository) => self.repository_done(repository, bounds, tables),
-            document::Document::Branch(branch) => {
-                if self.stage != Stage::Read {
-                    return Err(api::Error::InvalidAnswer);
-                }
-                match self.read {
-                    Read::Branch { .. } => self.terminal(api::Answer::Commit(branch.commit), bounds),
-                    Read::Items { .. }
-                    | Read::Item { .. }
-                    | Read::Locate { .. }
-                    | Read::Settings
-                    | Read::Branches { .. }
-                    | Read::Pull { .. }
-                    | Read::PullFor { .. }
-                    | Read::Checks { .. }
-                    | Read::Statuses { .. }
-                    | Read::Permission { .. }
-                    | Read::Collaborators { .. }
-                    | Read::Remarks { .. }
-                    | Read::Reviews { .. }
-                    | Read::File { .. }
-                    | Read::Compare { .. }
-                    | Read::PullFiles { .. }
-                    | Read::Protection { .. }
-                    | Read::Job { .. } => Err(api::Error::InvalidAnswer),
+            document::Document::Branch(branch) => self.branch_document(branch, bounds),
+            document::Document::Compare(comparison) => {
+                if let Read::Commits { .. } = self.read {
+                    self.commits_done(comparison, bounds)
+                } else {
+                    self.compare_done(comparison, bounds)
                 }
             }
-            document::Document::Compare(comparison) => self.compare_done(comparison, bounds),
             document::Document::User(user) => self.user_done(user, tables),
             document::Document::Permission(value) => self.permission_done(value, bounds),
             document::Document::Pull(pull) => {
@@ -70,29 +51,13 @@ impl Plan {
                 | Read::Reviews { .. }
                 | Read::File { .. }
                 | Read::Compare { .. }
+                | Read::Commits { .. }
                 | Read::PullFiles { .. }
                 | Read::Protection { .. }
                 | Read::Job { .. } => self.combined_done(combined, bounds),
             },
             document::Document::Issue(issue) => self.issue_done(issue, bounds, word),
-            document::Document::Rows => match self.read {
-                Read::File { .. } => self.directory_done(bounds),
-                Read::Protection { .. } => self.protection_rows_done(),
-                Read::Checks { .. } => self.checks_runs_done(bounds),
-                Read::PullFiles { .. } => self.file_listing_done(bounds),
-                Read::Reviews { .. } => self.reviews_done(bounds),
-                Read::Remarks { .. } => self.remarks_done(bounds),
-                Read::Collaborators { .. } => self.collaborators_done(bounds),
-                Read::Items { .. } | Read::Item { .. } => self.issue_rows_done(bounds),
-                Read::Pull { .. } | Read::PullFor { .. } | Read::Statuses { .. } => self.pull_rows_done(bounds),
-                Read::Locate { .. }
-                | Read::Settings
-                | Read::Branch { .. }
-                | Read::Branches { .. }
-                | Read::Permission { .. }
-                | Read::Compare { .. }
-                | Read::Job { .. } => self.branches_done(bounds),
-            },
+            document::Document::Rows => self.rows_document(bounds),
             document::Document::Error(_)
             | document::Document::Delivery(_)
             | document::Document::Installation(_)
@@ -108,6 +73,54 @@ impl Plan {
             | document::Document::Merge(_)
             | document::Document::Enqueued(_)
             | document::Document::BotUser(_) => Err(api::Error::InvalidAnswer),
+        }
+    }
+    fn branch_document(&mut self, branch: document::Branch, bounds: Bounds) -> Result<Option<Step>, api::Error> {
+        if self.stage != Stage::Read {
+            return Err(api::Error::InvalidAnswer);
+        }
+        match self.read {
+            Read::Branch { .. } => self.terminal(api::Answer::Commit(branch.commit), bounds),
+            Read::Items { .. }
+            | Read::Item { .. }
+            | Read::Locate { .. }
+            | Read::Settings
+            | Read::Branches { .. }
+            | Read::Pull { .. }
+            | Read::PullFor { .. }
+            | Read::Checks { .. }
+            | Read::Statuses { .. }
+            | Read::Permission { .. }
+            | Read::Collaborators { .. }
+            | Read::Remarks { .. }
+            | Read::Reviews { .. }
+            | Read::File { .. }
+            | Read::Compare { .. }
+            | Read::Commits { .. }
+            | Read::PullFiles { .. }
+            | Read::Protection { .. }
+            | Read::Job { .. } => Err(api::Error::InvalidAnswer),
+        }
+    }
+    fn rows_document(&mut self, bounds: Bounds) -> Result<Option<Step>, api::Error> {
+        match self.read {
+            Read::File { .. } => self.directory_done(bounds),
+            Read::Protection { .. } => self.protection_rows_done(),
+            Read::Checks { .. } => self.checks_runs_done(bounds),
+            Read::PullFiles { .. } => self.file_listing_done(bounds),
+            Read::Reviews { .. } => self.reviews_done(bounds),
+            Read::Remarks { .. } => self.remarks_done(bounds),
+            Read::Collaborators { .. } => self.collaborators_done(bounds),
+            Read::Items { .. } | Read::Item { .. } => self.issue_rows_done(bounds),
+            Read::Pull { .. } | Read::PullFor { .. } | Read::Statuses { .. } => self.pull_rows_done(bounds),
+            Read::Locate { .. }
+            | Read::Settings
+            | Read::Branch { .. }
+            | Read::Branches { .. }
+            | Read::Permission { .. }
+            | Read::Compare { .. }
+            | Read::Commits { .. }
+            | Read::Job { .. } => self.branches_done(bounds),
         }
     }
     fn repository_done(
@@ -144,6 +157,7 @@ impl Plan {
             | Read::Reviews { .. }
             | Read::File { .. }
             | Read::Compare { .. }
+            | Read::Commits { .. }
             | Read::PullFiles { .. }
             | Read::Protection { .. }
             | Read::Job { .. }
@@ -165,6 +179,7 @@ impl Plan {
             | Read::Reviews { .. }
             | Read::File { .. }
             | Read::Compare { .. }
+            | Read::Commits { .. }
             | Read::PullFiles { .. }
             | Read::Protection { .. }
             | Read::Job { .. } => {
