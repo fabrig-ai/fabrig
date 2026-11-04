@@ -259,7 +259,7 @@ impl Worker {
         if self.git.component.accepts(event) {
             return true;
         }
-        match crate::workers::owner(event) {
+        match event.owner() {
             Some(owner) => {
                 self.sources.owns(owner)
                     || owner == Token::new(self.prefix)
@@ -330,7 +330,7 @@ impl Worker {
             self.git_drain();
             return;
         }
-        let owner = crate::workers::owner(&event).expect("routed owner");
+        let owner = event.owner().expect("routed owner");
         if self.sources.owns(owner) {
             if let Some((owner, answer)) = self.sources.from_io(event, &mut self.io) {
                 self.events.push(root::Event::SourceAnswered { owner, answer });

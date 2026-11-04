@@ -395,29 +395,29 @@ fn the_workers_listener_and_accepted_socket_have_their_own_prefixes() {
     let owner = Token::new(crate::tokens::WORKER_LISTENERS);
     let mut events = skein_lib::Queue::uncapped();
     let Some(skein_io::Request::Listen { owner: requested, addr: addr @ skein_io::Addr::InProcess(_) }) =
-        workers.io.pop()
+        workers.host.io.pop()
     else {
         panic!("configured in-process listener")
     };
     assert_eq!(requested, owner);
     assert!(workers.up(Time::ZERO, skein_io::Event::Listening { owner, listener: Token::new(3), addr }, &mut events));
-    assert!(workers.opened());
+    assert!(workers.host.opened());
     assert!(workers.up(
         Time::ZERO,
         skein_io::Event::Accepted { owner, socket: Token::new(4), peer: addr },
         &mut events
     ));
-    let Some(skein_io::Request::Bind { socket, owner: connection }) = workers.io.pop() else {
+    let Some(skein_io::Request::Bind { socket, owner: connection }) = workers.host.io.pop() else {
         panic!("accepted socket bound")
     };
     assert_eq!(socket, Token::new(4));
     assert_eq!(connection, Token::new(crate::tokens::WORKER_CONNECTIONS + 1));
-    assert_eq!(workers.sockets.get(&connection), Some(&socket));
+    assert_eq!(workers.host.socket(connection), Some(&socket));
 }
 #[test]
 fn a_listener_that_opens_during_closing_is_closed_immediately() {
     let mut workers = fixtures::workers();
-    let _listen = workers.io.pop().unwrap();
+    let _listen = workers.host.io.pop().unwrap();
     let mut events = skein_lib::Queue::uncapped();
     workers.close(Time::ZERO, &mut events);
     assert!(workers.up(
@@ -429,15 +429,15 @@ fn a_listener_that_opens_during_closing_is_closed_immediately() {
         },
         &mut events
     ));
-    let Some(skein_io::Request::Close { entity }) = workers.io.pop() else { panic!("late listener close") };
+    let Some(skein_io::Request::Close { entity }) = workers.host.io.pop() else { panic!("late listener close") };
     assert_eq!(entity, Token::new(3));
-    assert!(!workers.closed());
+    assert!(!workers.host.closed());
     assert!(workers.up(
         Time::ZERO,
         skein_io::Event::Closed { owner: Token::new(crate::tokens::WORKER_LISTENERS) },
         &mut events
     ));
-    assert!(workers.closed());
+    assert!(workers.host.closed());
 }
 #[test]
 fn an_assignment_that_cannot_encode_is_answered_invalid_through_the_link() {

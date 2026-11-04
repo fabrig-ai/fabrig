@@ -105,8 +105,8 @@ impl ForgeFace {
                 | io::Request::Window { .. } => panic!("unexpected client listener request"),
             }
         }
-        for _ in 0_u32..engine.workers.io.len() {
-            match engine.workers.io.pop().unwrap() {
+        for _ in 0_u32..engine.workers.host.io.len() {
+            match engine.workers.host.io.pop().unwrap() {
                 io::Request::Listen { owner, addr } => {
                     self.worker_owner = Some(owner);
                     assert!(engine.workers.up(

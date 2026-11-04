@@ -74,7 +74,7 @@ impl Service {
                     mark_durable: engine.store.component.mark_durable(),
                     store_closed: engine.store.closed(),
                     clients: WaitOwner { closed: engine.clients.closed, io: engine.clients.io.len() },
-                    workers: WaitOwner { closed: engine.workers.closed(), io: engine.workers.io.len() },
+                    workers: WaitOwner { closed: engine.workers.host.closed(), io: engine.workers.host.io.len() },
                     setup: WaitOwner { closed: engine.setup.closed, io: engine.setup.io.len() },
                     setup_above: engine.setup.above.len(),
                     forge: WaitOwner { closed: engine.forge.closed, io: engine.forge.io.len() },
@@ -469,7 +469,7 @@ impl Service {
     fn worker_runs(&self) -> bool {
         match &self.engine {
             Some(engine) => {
-                engine.end.is_some() || engine.store.opened && engine.workers.opened() && engine.clients.opened()
+                engine.end.is_some() || engine.store.opened && engine.workers.host.opened() && engine.clients.opened()
             }
             None => true,
         }
@@ -581,7 +581,7 @@ impl Service {
                         && engine.forge.io.is_empty()
                         && engine.forge.above.is_empty()
                         && engine.store.closed()
-                        && engine.workers.closed()
+                        && engine.workers.host.closed()
                         && engine.clients.closed
                         && engine.clients.io.is_empty()
                         && match &engine.accounts {
@@ -628,11 +628,11 @@ impl Service {
                     let request = engine.clients.io.pop().expect("client io requests");
                     io::down(&mut self.io, &self.io_env, request, &mut self.raw_submissions);
                 }
-                for _ in 0..engine.workers.io.len() {
+                for _ in 0..engine.workers.host.io.len() {
                     if self.raw_submissions.room() < io::MAX_OUT_DOWN.submissions || !self.io.takes() {
                         break;
                     }
-                    let request = engine.workers.io.pop().expect("worker io requests");
+                    let request = engine.workers.host.io.pop().expect("worker io requests");
                     io::down(&mut self.io, &self.io_env, request, &mut self.raw_submissions);
                 }
             }
@@ -932,13 +932,13 @@ fn route_events(service: &mut Service) {
             } else if !engine.workers.up(service.io_env.now, event, &mut engine.events) && engine.end.is_none() {
                 engine.end = Some(End::Stopped(Stop::Listener {
                     listener: crate::Listening::Workers,
-                    address: engine.workers.listener_address(owner),
+                    address: engine.workers.host.listener_address(owner),
                     error,
                 }));
             }
             for (listener, addr) in [
                 (crate::Listening::Clients, engine.clients.listening.take()),
-                (crate::Listening::Workers, engine.workers.listening.take()),
+                (crate::Listening::Workers, engine.workers.host.listening.take()),
             ] {
                 if let Some(addr) = addr {
                     engine
