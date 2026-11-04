@@ -100,7 +100,7 @@ impl Headless {
                             }
                         }
                     }
-                    Block::ToolCall { name, .. } => {
+                    Block::ToolCall(smith_domain::session::llm::ToolCall { name, .. }) => {
                         drop(writeln!(errors, "smith: tool {}", String::from_utf8_lossy(smith_events::clip(name))));
                     }
                     Block::ToolResult { result, .. } => {
@@ -178,13 +178,13 @@ mod tests {
             &mut errors,
         );
         front.told(
-            &turn(Box::new([Block::ToolCall {
+            &turn(Box::new([Block::ToolCall(smith_domain::session::llm::ToolCall {
                 id: b"call".as_slice().into(),
                 name: b"wait".as_slice().into(),
                 input: b"{}".as_slice().into(),
                 call: Decoded::Historical,
                 replay: None,
-            }])),
+            })])),
             &mut errors,
         );
         let answer =

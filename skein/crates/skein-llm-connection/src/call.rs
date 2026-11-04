@@ -1,7 +1,7 @@
 //! One physical connection and its current call (llm-connection.md, sections
-//! 4 and 5). A connection keeps its socket name, optional TLS and LLM machines, and
-//! their bounded routing queues. It never knows the owner's domain or retry
-//! policy. `route` advances the selected transport and the LLM client.
+//! 4 and 5), over a link (skein/docs/design/link.md, 3). A connection keeps
+//! its LLM client and bounded routing queues. It never knows the owner's
+//! domain or retry policy. `route` advances the selected transport and the LLM client.
 //!
 //! | State | Input | Next | Emits |
 //! | --- | --- | --- | --- |
@@ -12,11 +12,10 @@
 //! | any live | failure or close | Closing | one call terminal, socket close |
 //! | Closing | socket closed | Closed | settlement |
 
-#![expect(clippy::single_match, reason = "explicit socket presence cases at the stream boundary")]
-
 use skein_io::Request as IoRequest;
 use skein_lib::stream::{Down, Up};
 use skein_lib::{Env, Queue, Time, Token};
+use skein_link::{Event as LinkEvent, Link, Moved, Start};
 use skein_llm::client as llm;
 use skein_tls::client as tls;
 
@@ -51,30 +50,24 @@ pub(crate) struct Connection {
     pub(crate) endpoint: u32,
     pub(crate) call: Option<Token>,
     pub(crate) reservation: u64,
-    pub(crate) socket: Option<Token>,
     pub(crate) phase: Phase,
-    pub(crate) tls: Option<tls::Client>,
+    pub(crate) link: Link,
     pub(crate) llm: llm::Client,
     llm_limits: llm::Limits,
     pub(crate) idle_at: Option<Time>,
-    pub(crate) tls_closed: bool,
-    pub(crate) socket_close_sent: bool,
     pub(crate) deadlines: Table,
     pub(crate) waiting: bool,
     pub(crate) activity: u64,
     control: Control,
     llm_events: Queue<llm::Event>,
     plain_down: Queue<Down>,
-    tls_events: Queue<tls::Event>,
-    cipher_down: Queue<Down>,
 }
 
 impl Connection {
     pub(crate) fn has_work(&self) -> bool {
         !self.llm_events.is_empty()
             || !self.plain_down.is_empty()
-            || !self.tls_events.is_empty()
-            || !self.cipher_down.is_empty()
+            || self.link.has_work()
             || (self.calling() && self.llm.has_work())
             || (self.abort_pending())
             || (self.closing() && !self.waiting && self.call.is_none() && self.phase != Phase::Closing)
@@ -93,22 +86,17 @@ impl Connection {
             endpoint,
             call: Some(call),
             reservation: 0,
-            socket: None,
             phase: Phase::Connecting,
-            tls,
+            link: Link::new(tls),
             llm,
             llm_limits,
             idle_at: None,
-            tls_closed: false,
-            socket_close_sent: false,
             deadlines: Table::new(deadlines, now),
             waiting: false,
             activity: 0,
             control: Control::Live,
             llm_events: Queue::uncapped(),
             plain_down: Queue::uncapped(),
-            tls_events: Queue::uncapped(),
-            cipher_down: Queue::uncapped(),
         }
     }
 
@@ -185,18 +173,17 @@ impl Connection {
             self.route(env, owner, up, io);
             return;
         }
-        match &mut self.tls {
-            Some(client) => {
+        match self.link.connected(&link_env(env)) {
+            Start::Handshaking => {
                 self.phase = Phase::Handshaking;
-                let tls_env = Env { now: env.now, wall: env.wall, limits: env.limits.tls };
-                tls::down(client, &tls_env, tls::Request::Handshake, &mut self.tls_events, &mut self.cipher_down);
                 self.route(env, owner, up, io);
             }
-            None => {
+            Start::Ready => {
                 self.phase = Phase::Head;
                 self.sync_deadlines(env);
                 self.start_call(env, owner, up, io);
             }
+            Start::Closing => self.phase = Phase::Closing,
         }
     }
 
@@ -227,7 +214,7 @@ impl Connection {
         llm::down(&mut self.llm, &llm_env, llm::Request::Cancel, &mut self.llm_events, &mut self.plain_down);
         self.route(env, owner, up, io);
         if self.phase == Phase::Connecting {
-            self.close_socket(io);
+            self.close_socket(env, io);
         }
     }
 
@@ -259,13 +246,7 @@ impl Connection {
             self.route(env, owner, up, io);
             return;
         }
-        let tls_env = Env { now: env.now, wall: env.wall, limits: env.limits.tls };
-        match &mut self.tls {
-            Some(client) => tls::up(client, &tls_env, event, &mut self.tls_events, &mut self.cipher_down),
-            None => {
-                self.plain_up(env, event);
-            }
-        }
+        self.link.up(&link_env(env), event);
         self.route(env, owner, up, io);
     }
 
@@ -291,7 +272,7 @@ impl Connection {
 
     pub(crate) fn closed(&mut self, env: &Env<Limits>, owner: Token, up: &mut Queue<Event>, io: &mut Queue<IoRequest>) {
         let llm_env = Env { now: env.now, wall: env.wall, limits: self.llm_limits };
-        self.socket_close_sent = true;
+        self.link.closed();
         if self.abort_pending() {
             self.control = Control::Aborting;
             self.phase = Phase::Closing;
@@ -302,35 +283,14 @@ impl Connection {
         self.deadlines.arm(DeadlinePhase::Closed, env.now, env.limits.idle_keep);
     }
 
-    pub(crate) fn close_socket(&mut self, io: &mut Queue<IoRequest>) {
-        if !self.socket_close_sent {
-            match self.socket {
-                Some(socket) => {
-                    if self.tls_closed && !self.aborting() {
-                        io.push(IoRequest::Close { entity: socket });
-                    } else {
-                        io.push(IoRequest::Abort { entity: socket });
-                    }
-                    self.socket_close_sent = true;
-                }
-                None => {}
-            }
-        }
+    pub(crate) fn close_socket(&mut self, env: &Env<Limits>, io: &mut Queue<IoRequest>) {
+        self.link.close(&link_env(env), true, io);
         self.phase = Phase::Closing;
     }
 
     fn close_transport(&mut self, env: &Env<Limits>, io: &mut Queue<IoRequest>) {
-        match &mut self.tls {
-            Some(client) => {
-                let tls_env = Env { now: env.now, wall: env.wall, limits: env.limits.tls };
-                tls::down(client, &tls_env, tls::Request::Close, &mut self.tls_events, &mut self.cipher_down);
-                self.phase = Phase::Closing;
-            }
-            None => {
-                self.tls_closed = true;
-                self.close_socket(io);
-            }
-        }
+        self.link.close(&link_env(env), false, io);
+        self.phase = Phase::Closing;
     }
 
     pub(crate) fn timeout(&mut self, env: &Env<Limits>, due: Due, io: &mut Queue<IoRequest>) {
@@ -357,16 +317,14 @@ impl Connection {
         );
     }
 
-    #[expect(clippy::too_many_lines, reason = "the bounded routing pass covers both child machines")]
+    #[expect(clippy::too_many_lines, reason = "the bounded routing pass covers the LLM client and link")]
     pub(crate) fn route(&mut self, env: &Env<Limits>, _owner: Token, up: &mut Queue<Event>, io: &mut Queue<IoRequest>) {
         let llm_env = Env { now: env.now, wall: env.wall, limits: self.llm_limits };
-        let tls_env = Env { now: env.now, wall: env.wall, limits: env.limits.tls };
         if self.abort_pending() {
             self.control = Control::Aborting;
             llm::down(&mut self.llm, &llm_env, llm::Request::Cancel, &mut self.llm_events, &mut self.plain_down);
             self.phase = Phase::Closing;
-            self.socket_close_sent = false;
-            self.close_socket(io);
+            self.close_socket(env, io);
         } else if self.closing() && !self.waiting && self.call.is_none() && self.phase != Phase::Closing {
             llm::down(&mut self.llm, &llm_env, llm::Request::Close, &mut self.llm_events, &mut self.plain_down);
         }
@@ -438,7 +396,7 @@ impl Connection {
                         | Phase::Ready => {
                             self.close_transport(env, io);
                         }
-                        Phase::Connecting => self.close_socket(io),
+                        Phase::Connecting => self.close_socket(env, io),
                         Phase::Closing => {}
                     },
                     llm::Event::Closed => {}
@@ -451,62 +409,44 @@ impl Connection {
                         }
                         Down::Send(_) | Down::Demand { .. } | Down::Finish => {}
                     }
-                    match &mut self.tls {
-                        Some(client) => tls::down(
-                            client,
-                            &tls_env,
-                            tls::Request::Stream(down),
-                            &mut self.tls_events,
-                            &mut self.cipher_down,
-                        ),
-                        None => self.cipher_down.push(down),
-                    }
+                    self.link.down(&link_env(env), down);
                 }
-            } else if let Some(event) = self.tls_events.pop() {
-                match event {
-                    tls::Event::Ready(_) => {
-                        if self.aborting() {
-                            continue;
-                        }
-                        self.phase = Phase::Head;
-                        self.sync_deadlines(env);
-                        llm::down(
-                            &mut self.llm,
-                            &llm_env,
-                            llm::Request::Start,
-                            &mut self.llm_events,
-                            &mut self.plain_down,
-                        );
-                    }
-                    tls::Event::Stream(plain) => {
-                        if self.aborting() {
-                            continue;
-                        }
-                        self.plain_up(env, plain);
-                    }
-                    tls::Event::Failed(_) => {
-                        llm::abort(
-                            &mut self.llm,
-                            &llm_env,
-                            skein_llm::Failure::Unavailable,
-                            &mut self.llm_events,
-                            &mut self.plain_down,
-                        );
-                    }
-                    tls::Event::Closed => {
-                        self.tls_closed = true;
-                        self.close_socket(io);
-                    }
-                }
-            } else if let Some(down) = self.cipher_down.pop() {
-                match self.socket {
-                    Some(socket) => io.push(IoRequest::Stream { stream: socket, down }),
-                    None => {}
-                }
-            } else if self.llm.has_work() && self.calling() {
-                llm::resume(&mut self.llm, &llm_env, &mut self.llm_events, &mut self.plain_down);
             } else {
-                break;
+                match self.link.pump(io) {
+                    Moved::Above(LinkEvent::Ready) => {
+                        if !self.aborting() {
+                            self.phase = Phase::Head;
+                            self.sync_deadlines(env);
+                            llm::down(
+                                &mut self.llm,
+                                &llm_env,
+                                llm::Request::Start,
+                                &mut self.llm_events,
+                                &mut self.plain_down,
+                            );
+                        }
+                    }
+                    Moved::Above(LinkEvent::Stream(plain)) => {
+                        if !self.aborting() {
+                            self.plain_up(env, plain);
+                        }
+                    }
+                    Moved::Above(LinkEvent::Failed) => llm::abort(
+                        &mut self.llm,
+                        &llm_env,
+                        skein_llm::Failure::Unavailable,
+                        &mut self.llm_events,
+                        &mut self.plain_down,
+                    ),
+                    Moved::Sent | Moved::Within => {}
+                    Moved::Nothing => {
+                        if self.llm.has_work() && self.calling() {
+                            llm::resume(&mut self.llm, &llm_env, &mut self.llm_events, &mut self.plain_down);
+                        } else {
+                            break;
+                        }
+                    }
+                }
             }
         }
         if self.phase == Phase::Head && self.llm.response_received() {
@@ -514,5 +454,13 @@ impl Connection {
         }
         self.sync_activity(env.now);
         self.sync_deadlines(env);
+    }
+}
+
+fn link_env(env: &Env<Limits>) -> Env<skein_link::Limits> {
+    Env {
+        now: env.now,
+        wall: env.wall,
+        limits: skein_link::Limits { tls: env.limits.tls, close_timeout: env.limits.io.close_timeout },
     }
 }

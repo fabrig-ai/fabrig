@@ -11,8 +11,9 @@ fn failed(committed: bool, residue: bool) -> file::Event {
     }
 }
 fn prepared() -> Backend {
+    let mut below = Queue::with_capacity(64);
     let mut backend = super::super::fixtures::backend();
-    backend.startup.close(&mut backend.io);
+    backend.startup.close(&mut backend.server_up, &mut below);
     backend.settings.directory = Some(super::super::Root { file: Token::new(40), descriptor: kernel::Fd::new(41) });
     backend.files.run = Some(Token::new(42));
     backend.files.run_descriptor = Some(kernel::Fd::new(43));

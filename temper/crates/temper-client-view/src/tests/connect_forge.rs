@@ -96,6 +96,90 @@ fn connect_offers_the_three_kinds() {
     );
 }
 
+fn deployment_root(address: Address, owned: bool) -> d::Domain {
+    let (mut root, me, _, _, _, _) =
+        f::root_at_with_forges(address, &f::domain_limits(), b"Shop", None, None, Some(List::with_capacity(0)));
+    let frame = root.pages().me(root.client()).unwrap().clone();
+    f::root_event(
+        &mut root,
+        d::Event::Client {
+            event: jig_client::Event::Up {
+                up: jig_client::Up::WatchEnded { watch: me, end: jig_client::contract::WatchEnd::Busy },
+            },
+        },
+    );
+    let mut out = skein_lib::Queue::uncapped();
+    let env = skein_lib::Env { now: d::next_deadline(&root).unwrap(), wall: f::NOW, limits: f::domain_limits() };
+    d::fire(&mut root, &env, &mut out);
+    let mut me = None;
+    while let Some(request) = out.pop() {
+        if let d::Request::Unlinked {
+            request:
+                jig_client::UnlinkedRequest::Down {
+                    down:
+                        jig_client::Down::Open {
+                            watch,
+                            subject: jig_client::Watchable::Jig(jig_client::contract::Subject::Me),
+                        },
+                },
+        } = request
+        {
+            me = Some(watch);
+        }
+    }
+    d::step(
+        &mut root,
+        &env,
+        d::Event::Client {
+            event: jig_client::Event::Up {
+                up: jig_client::Up::Watched {
+                    watch: me.expect("me reopens after a gap"),
+                    event: jig_client::contract::WatchEvent::Delivered(jig_client::contract::Delivery::Me(Box::new(
+                        frame,
+                    ))),
+                },
+            },
+        },
+        &mut out,
+    );
+    while let Some(request) = out.pop() {
+        if let d::Request::Unlinked {
+            request:
+                jig_client::UnlinkedRequest::Down {
+                    down: jig_client::Down::Read { read, what: jig_client::Readable::Family { record, .. } },
+                },
+        } = request
+            && temper_client_protocol_wire::decode_reading(&record.bytes, &w::CEILINGS).unwrap().read()
+                == &w::Read::Deployment
+        {
+            f::deliver_deployment(&mut root, read, true, owned);
+            return root;
+        }
+    }
+    panic!("deployment read reaches the world");
+}
+#[test]
+fn connect_offers_forgejo_on_this_machine_from_the_deployment() {
+    for owned in [false, true] {
+        let root = deployment_root(Address::ConnectForge { forge: None }, owned);
+        for view in [f::page_view(&root), f::browser_page_view(&root)] {
+            assert_eq!(f::find(view.tree(), Role::Heading { level: 2 }, b"Forgejo on this machine").is_some(), owned);
+            node(view.tree(), Role::Button, b"Connect GitHub");
+            node(view.tree(), Role::Link, b"Your Forgejo");
+        }
+    }
+}
+#[test]
+fn welcome_offers_run_on_this_machine_from_the_deployment() {
+    for owned in [false, true] {
+        let root = deployment_root(Address::Welcome { step: Step::Forge { forge: None } }, owned);
+        for view in [f::page_view(&root), f::browser_page_view(&root)] {
+            assert_eq!(f::find(view.tree(), Role::Link, b"Run on this machine").is_some(), owned);
+            node(view.tree(), Role::Button, b"Connect GitHub");
+        }
+    }
+}
+
 #[test]
 fn github_cards_offer_connect_github_alone_in_both_flows() {
     for address in [Address::ConnectForge { forge: None }, Address::Welcome { step: Step::Forge { forge: None } }] {

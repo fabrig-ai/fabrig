@@ -3,7 +3,7 @@
 
 use skein_lib::Duration;
 use skein_world::domain::Verdict;
-use smith_domain_run::{Answer, Exhausted, Failure, charter::Reserve};
+use smith_domain_run::{Answer, Exhausted, RunFailure, charter::Reserve};
 use smith_run_world::{
     Settings, Span, World,
     wind_down_referee::{Seen, judge},
@@ -72,7 +72,7 @@ fn the_ordinary_time_running_out_during_a_sub_agent_winds_the_run_down() {
     assert!(world.facts_seen().iter().any(|fact| matches!(fact.kind, smith_domain_run::facts::FactKind::Budget { standing, .. } if standing.stage == smith_domain_run::Stage::WindDown)));
     assert!(world.answers().any(|answer| matches!(
         answer,
-        Some(Answer::Failed { failure: Failure::Budget { exhausted: Exhausted::Time, .. }, .. })
+        Some(Answer::Failed { failure: RunFailure::Budget { exhausted: Exhausted::Time, .. }, .. })
     )));
 }
 
@@ -105,7 +105,7 @@ fn final_turns_ignored_fail_once_for_the_budget() {
     assert_eq!(world.answers().count(), 1);
     assert!(world.answers().any(|answer| matches!(
         answer,
-        Some(Answer::Failed { failure: Failure::Budget { exhausted: Exhausted::Turns, .. }, .. })
+        Some(Answer::Failed { failure: RunFailure::Budget { exhausted: Exhausted::Turns, .. }, .. })
     )));
     assert_eq!(world.wind_down_seen().iter().filter(|(_, _, seen)| matches!(seen, Seen::Final { .. })).count(), 3);
     assert!(judge(world.wind_down_seen()).iter().all(|verdict| *verdict == Verdict::Passed));

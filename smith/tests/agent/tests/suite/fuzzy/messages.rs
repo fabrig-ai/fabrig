@@ -253,10 +253,10 @@ fn observations(world: &World, seed: u64, idle: Duration) -> [u64; 16] {
             counts[1] += u64::from(world.answered_at() >= admitted.saturating_add(time));
         }
         run::Answer::Failed {
-            failure: run::Failure::Budget { exhausted: run::Exhausted::Time, used: None, bound: None },
+            failure: run::RunFailure::Budget { exhausted: run::Exhausted::Time, used: None, bound: None },
             ..
         } => {}
-        run::Answer::Failed { failure: run::Failure::Cancelled, .. } => counts[2] += 1,
+        run::Answer::Failed { failure: run::RunFailure::Cancelled, .. } => counts[2] += 1,
         answer @ (run::Answer::Refused(_) | run::Answer::Accepted { .. } | run::Answer::Failed { .. }) => {
             panic!("seed {seed}: unexpected message ending {answer:?}")
         }

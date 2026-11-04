@@ -349,7 +349,8 @@ skein's (skein's `ui-web.md`), and how a client of jig's does is jig's
   cookie, so the browser's stays as it was (jig's `domain/people.md`,
   section 3); a cookie the engine does not know, or one ended or
   expired, signs in afresh, with a new cookie. The welcome follows,
-  which moves on to the chats page once the first run is over
+  which moves on to the chats page once the first run is over, and to
+  the inbox, drawing nothing of itself, on a deployment with no welcome
   (`README.md`, 3.5, The welcome).
 - **A reload, or another tab,** signs in with `Transport`, by the cookie
   (jig's `client/domain/client.md`, section 12).
@@ -1035,6 +1036,13 @@ Not in the tier, each in the lowest world that shows it:
 - **The kit's stylesheet without a bundle:** the gallery takes
   `skein-ui.css` by running skein's bundler with no module (7.1).
   Default: so, until skein's bundler offers the stylesheet alone.
+- **A bar that fills** (2.5, The welcome's look;
+  `../draft/fetch-progress.md`, 5 and 6): `temper-flow-meter` is a 4 px
+  bar with the figure at its end, muted, in tabular figures, filled to
+  `--temper-flow-meter-fill`, 0% unless given. The figure waits on the
+  forge's row, and the fill on a value on skein's progress node, a
+  draft of skein's not yet written. Default: the moving bar, and no
+  node takes the token.
 
 ## 7. The gallery
 

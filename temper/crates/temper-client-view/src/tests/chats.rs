@@ -1140,3 +1140,137 @@ fn a_pending_chat_start_disables_the_first_chat_offer_and_the_composer() {
         }
     }
 }
+
+fn deployment_chats_root(welcome: Option<bool>, me: Option<Me>) -> Domain {
+    use temper_client_domain::{Address, Event};
+    use temper_client_protocol_wire::{self as wire, v1 as w};
+    let limits = fixtures::domain_limits();
+    let env = Env { now: Time::ZERO, wall: fixtures::NOW, limits };
+    let mut root = temper_client_domain::unlinked(&limits, fixtures::SEED);
+    let mut out = Queue::uncapped();
+    for event in [
+        Event::Client { event: jig_client::Event::StartUnlinked { kept: List::with_capacity(0) } },
+        Event::Start {
+            address: Address::Chats { filter: ChatsFilter::All, start: false },
+            kept: List::with_capacity(0),
+            with: Some(jig_client::With::Transport),
+        },
+        Event::Client { event: jig_client::Event::Up { up: jig_client::Up::Served { served: true, versions: None } } },
+    ] {
+        temper_client_domain::step(&mut root, &env, event, &mut out);
+    }
+    while let Some(request) = out.pop() {
+        match request {
+            Request::Unlinked {
+                request:
+                    jig_client::UnlinkedRequest::Down {
+                        down: jig_client::Down::Open { watch, subject: jig_client::Watchable::Jig(Subject::Me) },
+                    },
+            } => {
+                if let Some(me) = &me {
+                    temper_client_domain::step(
+                        &mut root,
+                        &env,
+                        Event::Client {
+                            event: jig_client::Event::Up {
+                                up: jig_client::Up::Watched {
+                                    watch,
+                                    event: WatchEvent::Delivered(Delivery::Me(Box::new(me.clone()))),
+                                },
+                            },
+                        },
+                        &mut out,
+                    );
+                }
+            }
+            Request::Unlinked {
+                request:
+                    jig_client::UnlinkedRequest::Down {
+                        down: jig_client::Down::Read { read, what: jig_client::Readable::Family { record, .. } },
+                    },
+            } if wire::decode_reading(&record.bytes, &w::CEILINGS).unwrap().read() == &w::Read::Deployment => {
+                if let Some(welcome) = welcome {
+                    fixtures::deliver_deployment(&mut root, read, welcome, false);
+                }
+            }
+            Request::Client { .. }
+            | Request::Unlinked { .. }
+            | Request::Show { .. }
+            | Request::Leave { .. }
+            | Request::SignOut
+            | Request::Dropped { .. }
+            | Request::Fact { .. } => {}
+        }
+    }
+    root
+}
+
+fn no_project_root(welcome: Option<bool>) -> Domain {
+    let template = fixtures::root_in_project(None);
+    let mut me = template.pages().me(template.client()).unwrap().clone();
+    me.projects.clear();
+    deployment_chats_root(welcome, Some(me))
+}
+
+#[test]
+fn no_welcome_and_no_project_says_so() {
+    let root = no_project_root(Some(false));
+    for words in [fixtures::words(), fixtures::browser_words()] {
+        let mut view = fixtures::view_of(words);
+        let tree = fixtures::build(&mut view, &root);
+        let mut main = None;
+        for (index, node) in tree.nodes().iter().enumerate() {
+            if node.role == Role::Main {
+                main = Some(index);
+            }
+        }
+        let main_text = fixtures::node_text(tree, main.expect("chats main"));
+        assert_eq!(main_text.as_ref(), b"No project yetMake one from the project switcher.");
+        assert!(fixtures::find(tree, Role::Heading { level: 1 }, b"No project yet").is_some());
+        assert!(fixtures::find(tree, Role::Paragraph, b"Make one from the project switcher.").is_some());
+        assert!(fixtures::find(tree, Role::Complementary, b"Project").is_none());
+        assert!(fixtures::find(tree, Role::Form, b"New project").is_some());
+    }
+}
+
+#[test]
+fn the_chats_page_offers_nothing_of_the_welcome() {
+    let root = no_project_root(Some(false));
+    for words in [fixtures::words(), fixtures::browser_words()] {
+        let mut view = fixtures::view_of(words);
+        let tree = fixtures::build(&mut view, &root);
+        for node in tree.nodes() {
+            for forbidden in [b"Set up temper".as_slice(), b"Try the playground"] {
+                for value in [node.name.as_deref(), node.description.as_deref()].into_iter().flatten() {
+                    assert!(skein_lib::bytes::find(value, forbidden).is_none(), "{forbidden:?}");
+                }
+                for run in &node.text {
+                    assert!(skein_lib::bytes::find(&run.text, forbidden).is_none(), "{forbidden:?}");
+                }
+            }
+        }
+    }
+}
+
+#[test]
+fn welcome_or_unknown_deployments_keep_the_chats_pane() {
+    for welcome in [Some(true), None] {
+        let root = no_project_root(welcome);
+        let view = fixtures::page_view(&root);
+        assert!(fixtures::find(view.tree(), Role::Complementary, b"Project").is_some(), "{welcome:?}");
+        assert!(fixtures::find(view.tree(), Role::Heading { level: 1 }, b"Chats").is_some(), "{welcome:?}");
+        assert!(fixtures::find(view.tree(), Role::Heading { level: 1 }, b"No project yet").is_none(), "{welcome:?}");
+    }
+}
+
+#[test]
+fn a_known_empty_project_list_is_required_for_no_project() {
+    let template = fixtures::root_in_project(None);
+    let me = template.pages().me(template.client()).unwrap().clone();
+    for me in [None, Some(me)] {
+        let root = deployment_chats_root(Some(false), me);
+        let view = fixtures::page_view(&root);
+        assert!(fixtures::find(view.tree(), Role::Complementary, b"Project").is_some());
+        assert!(fixtures::find(view.tree(), Role::Heading { level: 1 }, b"No project yet").is_none());
+    }
+}

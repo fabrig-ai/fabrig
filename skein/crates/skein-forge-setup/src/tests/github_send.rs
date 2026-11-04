@@ -70,7 +70,7 @@ pub(crate) fn answering(mut conn: Connection, head: &[u8], body: &[u8]) -> Conne
     bytes.put(body).unwrap();
     let mut transcript = Held::new(bytes.finish());
     let mut io = Queue::with_capacity(4);
-    conn.socket = Some(Token::new(2));
+    conn.link.connecting(Token::new(2), &mut Queue::uncapped());
     conn.connect(&env);
     for _ in 0_u32..10000 {
         let progress = conn.pump(&env, &mut io);
@@ -157,10 +157,13 @@ fn every_github_request_carries_host_agent_accept_and_the_api_version() {
 }
 #[test]
 fn a_request_with_a_body_carries_content_type_and_its_length() {
-    let conn = connection(&Request::SetHook { url: b"https://kit.test/".as_slice().into() }, &app());
+    let mut conn = connection(&Request::SetHook { url: b"https://kit.test/".as_slice().into() }, &app());
     let body = br#"{"url":"https://kit.test/"}"#;
     assert_eq!(header(&conn, b"Content-Type").as_deref(), Some(b"application/json".as_slice()));
-    assert_eq!(conn.upload.as_deref(), Some(body.as_slice()));
+    assert_eq!(
+        conn.upload.as_mut().expect("body upload").room(u32::MAX),
+        (Down::Send(body.as_slice().into()), Down::Finish)
+    );
     assert_eq!(conn.call.as_ref().unwrap().body, skein_http::client::Body::Length(27));
 }
 fn setup_requests() -> [(Request, Option<Kind>, skein_http::Method, &'static [u8]); 11] {
@@ -340,7 +343,7 @@ fn a_forgejo_connection_is_unchanged() {
     assert_eq!(header(&conn, b"User-Agent").as_deref(), Some(AGENT));
     assert_eq!(call.headers.len(), 3);
     assert_eq!(call.body, skein_http::client::Body::None);
-    assert_eq!(conn.upload, None);
+    assert!(conn.upload.is_none());
     assert_eq!(
         answering(conn, b"HTTP/1.1 200 OK\r\nConnection: close\r\n\r\n", br#"{"ok":true,"data":[]}"#).result,
         Some(Reply::Rows(Box::<[FRow]>::from([])))

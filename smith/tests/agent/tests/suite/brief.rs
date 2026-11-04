@@ -303,7 +303,7 @@ fn ordered_sections_and_instructions_reach_main_but_child_receives_only_its_own_
         .iter()
         .flat_map(|message| &message.content)
         .find_map(|block| match block {
-            llm::Block::ToolCall { id, name, input, call: llm::Decoded::Historical, .. }
+            llm::Block::ToolCall(llm::ToolCall { id, name, input, call: llm::Decoded::Historical, .. })
                 if name.as_ref() == b"sub_agent" && input.as_ref() == CHILD_INPUT =>
             {
                 Some(id)
@@ -535,7 +535,7 @@ fn saved_wait(first: &World) -> (smith_domain::Transcript, Box<[u8]>) {
         .iter()
         .flat_map(|message| &message.content)
         .find_map(|block| match block {
-            llm::Block::ToolCall { id, name, .. } if name.as_ref() == b"wait" => Some(id.clone()),
+            llm::Block::ToolCall(llm::ToolCall { id, name, .. }) if name.as_ref() == b"wait" => Some(id.clone()),
             llm::Block::ToolCall { .. }
             | llm::Block::Text { .. }
             | llm::Block::Opaque { .. }
@@ -664,7 +664,7 @@ fn a_parked_open_run_resumes_on_the_delegate_result_without_a_new_begin() {
                 .iter()
                 .map(|block| match block {
                     llm::Block::Text { text, .. } => Part::Text { text: text.clone() },
-                    llm::Block::ToolCall { id, name, input, .. } => {
+                    llm::Block::ToolCall(llm::ToolCall { id, name, input, .. }) => {
                         Part::ToolCall { id: id.clone(), name: name.clone(), arguments: input.clone() }
                     }
                     llm::Block::Opaque { .. } | llm::Block::Refusal { .. } | llm::Block::ToolResult { .. } => {

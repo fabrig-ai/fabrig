@@ -25,7 +25,7 @@ fn convention_path_payloads_fill_the_exact_charter_cap_and_cancel_discovery_sett
     assert!(harness.step(Event::Cancel { run }).is_empty(), "cancel cannot manufacture the outstanding Read terminal");
     assert_eq!(
         answered(harness.step(Event::Read { owner: run, read: Read::Missing })),
-        (77, failed(Failure::Cancelled, Spend::ZERO))
+        (77, failed(RunFailure::Cancelled, Spend::ZERO))
     );
     harness.domain.reclaim();
     assert_eq!((harness.domain.runs(), harness.domain.conversations(), harness.domain.calls()), (0, 0, 0));

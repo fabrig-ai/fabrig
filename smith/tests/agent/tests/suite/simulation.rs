@@ -7,7 +7,7 @@ use skein_world::domain::assert_replays;
 use smith_agent_world::{BUDGET, HostReply, Job, Settings, World};
 use smith_domain::{
     Fact,
-    run::{self, Answer, Delivery, Exhausted, Failure, outcome::Declared},
+    run::{self, Answer, Delivery, Exhausted, RunFailure, outcome::Declared},
 };
 
 const ITERATIONS: u32 = 20_000;
@@ -161,7 +161,7 @@ fn a_child_asking_for_sub_agents_is_refused() {
 fn the_shared_budget_ends_the_run_after_every_conversation_settles() {
     let world =
         settled(&Settings { job: Job::Spending, budget: run::Budget { turns: 8, ..BUDGET }, ..Settings::calm(4) });
-    let Answer::Failed { failure: Failure::Budget { exhausted: Exhausted::Turns, .. }, spent, .. } = world.answer()
+    let Answer::Failed { failure: RunFailure::Budget { exhausted: Exhausted::Turns, .. }, spent, .. } = world.answer()
     else {
         panic!("the run spends its shared turns")
     };
@@ -173,7 +173,7 @@ fn the_shared_budget_ends_the_run_after_every_conversation_settles() {
 #[test]
 fn a_push_on_a_moved_branch_answers_stale_and_lands_nothing() {
     let world = settled(&Settings { push: HostReply::Stale, ..Settings::calm(5) });
-    assert!(matches!(world.answer(), Answer::Failed { failure: Failure::Stale, .. }));
+    assert!(matches!(world.answer(), Answer::Failed { failure: RunFailure::Stale, .. }));
     assert_eq!(world.checked(), [false, true]);
     assert_eq!(world.pushes(), [Delivery::Stale]);
     assert!(world.landed().is_empty());
@@ -187,7 +187,7 @@ fn refused_push_feedback_reaches_the_llm_and_is_retried() {
         diagnostic: run::Diagnostic::new(b"remote: push refused", 0),
     };
     let world = settled(&Settings { push: HostReply::Failed(failure), ..Settings::calm(9) });
-    assert!(matches!(world.answer(), Answer::Failed { failure: Failure::Policy(_), .. }));
+    assert!(matches!(world.answer(), Answer::Failed { failure: RunFailure::Policy(_), .. }));
     assert_eq!(world.checked(), [false, true, true]);
     assert_eq!(world.pushes(), [Delivery::Failed(failure), Delivery::Failed(failure)]);
     let feedback =
@@ -213,7 +213,7 @@ fn host_cancellation_at_many_moments_closes_the_whole_tree() {
         };
         let world = settled(&settings);
         match world.answer() {
-            Answer::Failed { failure: Failure::Cancelled, .. } => {
+            Answer::Failed { failure: RunFailure::Cancelled, .. } => {
                 cancelled += 1;
                 nested += usize::from(
                     count(&world, |fact| {
@@ -248,7 +248,7 @@ fn a_deadline_mid_tree_answers_only_after_the_tree_settles() {
         });
         assert!(matches!(
             world.answer(),
-            Answer::Failed { failure: Failure::Budget { exhausted: Exhausted::Time, .. }, .. }
+            Answer::Failed { failure: RunFailure::Budget { exhausted: Exhausted::Time, .. }, .. }
         ));
         nested += usize::from(
             count(&world, |fact| {
@@ -263,7 +263,7 @@ fn a_deadline_mid_tree_answers_only_after_the_tree_settles() {
 #[test]
 fn checks_past_their_deadline_fail_and_are_not_pushed() {
     let world = settled(&Settings { check: skein_world::domain::Span::millis(90_000, 120_000), ..Settings::calm(8) });
-    assert!(matches!(world.answer(), Answer::Failed { failure: Failure::Policy(_), .. }));
+    assert!(matches!(world.answer(), Answer::Failed { failure: RunFailure::Policy(_), .. }));
     assert_eq!(world.checked(), [false, false, false]);
     assert!(world.pushes().is_empty());
 }
@@ -281,7 +281,7 @@ fn a_host_start_beyond_run_capacity_is_answered_busy_without_work() {
 fn a_scripted_host_retries_a_failed_request_with_a_fresh_agent() {
     // This models a new host start, not a forge merge or an engine plan.
     let failed = settled(&Settings { push: HostReply::Stale, ..Settings::calm(12) });
-    assert!(matches!(failed.answer(), Answer::Failed { failure: Failure::Stale, .. }));
+    assert!(matches!(failed.answer(), Answer::Failed { failure: RunFailure::Stale, .. }));
     let retried = settled(&Settings::calm(13));
     assert_eq!(retried.landed(), FIXED);
     assert!(matches!(retried.answer(), Answer::Accepted { .. }));
@@ -371,7 +371,7 @@ fn five_host_terminals_preserve_report_only_contract_and_stale_ends_it() {
     ] {
         let world = settled(&Settings { job: Job::MidReport, push: reply, ..Settings::calm(42) });
         if reply == HostReply::Stale {
-            assert!(matches!(world.answer(), Answer::Failed { failure: Failure::Stale, .. }));
+            assert!(matches!(world.answer(), Answer::Failed { failure: RunFailure::Stale, .. }));
         } else {
             assert!(matches!(world.answer(), Answer::Accepted { outcome: Declared::Report(_), .. }));
         }
@@ -393,7 +393,7 @@ fn mid_landing_during_explicit_shutdown_preserves_receipts_and_spend() {
         cancel_at: Some(submitted.saturating_since(skein_lib::Time::ZERO).saturating_add(Duration::from_nanos(1))),
         ..base
     });
-    assert!(matches!(world.answer(), Answer::Failed { failure: Failure::Cancelled, .. }));
+    assert!(matches!(world.answer(), Answer::Failed { failure: RunFailure::Cancelled, .. }));
     assert_eq!(world.delivery_names()[0].0.completion, 2);
     assert_eq!(world.pushes(), [smith_agent_world::delivered()]);
     assert_eq!(world.landed(), FIXED);
@@ -428,7 +428,7 @@ fn submitted_delivery_gets_a_timed_out_host_terminal_during_shutdown() {
     let world = settled(&settings);
     assert_eq!(world.pushes(), [Delivery::Failed(run::DeliveryFailure::new(0, run::DeliveryReason::TimedOut))]);
     assert!(world.landed().is_empty());
-    assert!(matches!(world.answer(), Answer::Failed { failure: Failure::Cancelled, .. }));
+    assert!(matches!(world.answer(), Answer::Failed { failure: RunFailure::Cancelled, .. }));
 }
 
 #[test]

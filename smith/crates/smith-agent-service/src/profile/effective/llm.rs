@@ -95,7 +95,7 @@ pub(super) fn tls(inventory: &mut Inventory, limits: &skein_tls::client::Limits)
 
 pub(super) fn component(inventory: &mut Inventory, limits: &smith_protocol_llm::ComponentLimits) -> Option<()> {
     let smith_protocol_llm::ComponentLimits {
-        adapter: _,
+        translation: _,
         connection: _,
         receiving: _,
         contract_bytes,
@@ -111,7 +111,7 @@ pub(super) fn component(inventory: &mut Inventory, limits: &smith_protocol_llm::
     Some(())
 }
 
-pub(super) fn adapter(inventory: &mut Inventory, limits: &smith_protocol_llm::Limits) -> Option<()> {
+pub(super) fn translation(inventory: &mut Inventory, limits: &smith_protocol_llm::Limits) -> Option<()> {
     let smith_protocol_llm::Limits { client: _, tool_bytes, history_bytes, rendered_result: _, stated: _ } = *limits;
     inventory.layer = Layer::Llm;
     inventory.value("adapter.tool_bytes", Value::Bytes(tool_bytes))?;

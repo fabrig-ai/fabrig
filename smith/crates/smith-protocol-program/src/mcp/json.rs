@@ -5,7 +5,7 @@
 use super::{Call, CallId, PROMPT_TOOL, PROTOCOL_VERSIONS, Refused, Tool, Up};
 use alloc::boxed::Box;
 use skein_json::{Document, Kind, collector, tokenizer, writer::Encoder};
-use skein_lib::List;
+use skein_lib::{List, Queue};
 
 fn limits(bound: u32) -> collector::Limits {
     collector::Limits {
@@ -274,7 +274,7 @@ pub(crate) fn tool_list(tools: &[Tool], bound: u32, schema_bytes: u32) -> Result
 }
 
 impl super::Server {
-    pub(crate) fn message(&mut self, line: &[u8]) {
+    pub(crate) fn message(&mut self, line: &[u8], above: &mut Queue<Up>) {
         let Some(document) = collect(line) else {
             self.output.push(error(b"null", b"-32700", b"parse error"));
             return;
@@ -316,13 +316,13 @@ impl super::Server {
             }
             Some(b"ping") => self.output.push(reply(&id, b"{}")),
             Some(b"tools/list") => self.output.push(reply(&id, &self.tool_list)),
-            Some(b"tools/call") => self.call(&document, params, id),
+            Some(b"tools/call") => self.call(&document, params, id, above),
             Some(_) => self.output.push(error(&id, b"-32601", b"unknown method")),
             None => self.output.push(error(&id, b"-32600", b"invalid request")),
         }
     }
 
-    fn call(&mut self, document: &Document, params: Option<u32>, id: Box<[u8]>) {
+    fn call(&mut self, document: &Document, params: Option<u32>, id: Box<[u8]>, above: &mut Queue<Up>) {
         let name = text_in(document, field_in(document, params, b"name"));
         let arguments = field_in(document, params, b"arguments");
         let input = match arguments {
@@ -382,7 +382,7 @@ impl super::Server {
                 for index in 0..self.calls.len() {
                     if self.calls.get(index).expect("call slot").is_none() {
                         *self.calls.get_mut(index).expect("free call slot") = Some(Call { call, id });
-                        self.above.push(event);
+                        above.push(event);
                         return;
                     }
                 }

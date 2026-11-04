@@ -1,9 +1,10 @@
 //! The run's MCP listener (protocol/programs.md, sections 5.3, 5.4 and 9).
 //! Keeps one secret, two authentication slots, bounded calls and output lines;
-//! knows no tool policy. `from_io`/`fire` tell calls through `up`, and
-//! `answer`/`verdict` return the owner's decisions. Drain `up` after each
+//! knows no tool policy. `from_io`/`fire` tell calls through `above`, and
+//! `answer`/`verdict` return the owner's decisions. Drain `above` after each
 //! entry point and reserve eight downward records before calling one.
 
+use crate::backend::Below;
 use alloc::boxed::Box;
 use core::net::{Ipv4Addr, SocketAddr};
 use skein_io::{self as io, Addr};
@@ -166,7 +167,6 @@ pub struct Server {
     write_sequence: u64,
     ending: Option<Ended>,
     told_end: bool,
-    above: Queue<Up>,
 }
 
 impl core::fmt::Debug for Server {
@@ -200,7 +200,7 @@ impl Server {
         entropy: &[u8; 32],
         tools: Box<[Tool]>,
         limits: Limits,
-        below: &mut Queue<io::Request>,
+        below: &mut Queue<Below>,
     ) -> Result<Self, Refused> {
         assert!(limits.calls > 0 && limits.message_bytes > 0, "positive MCP admission bounds");
         let tool_list = json::tool_list(&tools, limits.answer_bytes, limits.schema_bytes)?;
@@ -211,7 +211,10 @@ impl Server {
         for _ in 0..calls {
             slots.push(None).expect("call slot capacity");
         }
-        below.push(io::Request::Listen { owner: first, addr: Addr::Ip(SocketAddr::from((Ipv4Addr::LOCALHOST, port))) });
+        below.push(Below::Io(io::Request::Listen {
+            owner: first,
+            addr: Addr::Ip(SocketAddr::from((Ipv4Addr::LOCALHOST, port))),
+        }));
         Ok(Self {
             first,
             listener: None,
@@ -237,7 +240,6 @@ impl Server {
             write_sequence: 0,
             ending: None,
             told_end: false,
-            above: Queue::with_capacity(2),
         })
     }
 
@@ -255,27 +257,22 @@ impl Server {
         self.secret.expose()
     }
 
-    /// Drain the upward records after each entry point (smith/docs/design/protocol/programs.md, 5.3).
-    pub fn up(&mut self) -> Option<Up> {
-        self.above.pop()
-    }
-
     /// Consume a listener or stream event, with the caller's monotonic time (9).
-    pub fn from_io(&mut self, now: Time, event: io::Event, below: &mut Queue<io::Request>) {
+    pub fn from_io(&mut self, now: Time, event: io::Event, above: &mut Queue<Up>, below: &mut Queue<Below>) {
         match event {
             io::Event::Listening { listener, addr, .. } => {
                 self.listener = Some(listener);
                 if self.ending.is_some() {
-                    below.push(io::Request::Close { entity: listener });
+                    below.push(Below::Io(io::Request::Close { entity: listener }));
                 } else {
-                    self.above.push(Up::Listening { port: addr.socket().expect("IP loopback listener").port() });
+                    above.push(Up::Listening { port: addr.socket().expect("IP loopback listener").port() });
                 }
             }
             io::Event::Accepted { socket, .. } => self.accept(now, socket, below),
             io::Event::Stream { owner, up } => {
                 if self.ending.is_none() {
                     if self.connected == Some(owner) {
-                        self.message_event(up, below);
+                        self.message_event(up, above, below);
                     } else {
                         self.authenticate(owner, up, below);
                     }
@@ -309,13 +306,13 @@ impl Server {
                     match outcome {
                         stream::OutputOutcome::Granted => {
                             let bytes = self.sending.take().expect("requested output line");
-                            below.push(io::Request::Output {
+                            below.push(Below::Io(io::Request::Output {
                                 stream: self.socket(),
                                 down: stream::OutputDown::Send { right, bytes },
-                            });
+                            }));
                             if self.acknowledging {
                                 self.acknowledging = false;
-                                self.above.push(Up::Connected);
+                                above.push(Up::Connected);
                             }
                         }
                         stream::OutputOutcome::Cancelled | stream::OutputOutcome::Failed(_) => {
@@ -334,18 +331,18 @@ impl Server {
             | io::Event::Usage { .. } => unreachable!("only server-owned events route here"),
         }
         self.progress(below);
-        self.settle();
+        self.settle(above);
     }
 
-    fn accept(&mut self, now: Time, socket: Token, below: &mut Queue<io::Request>) {
+    fn accept(&mut self, now: Time, socket: Token, below: &mut Queue<Below>) {
         if self.ending.is_none() && self.connected.is_none() {
             for pending in &mut self.pending {
                 if pending.socket.is_none() {
                     pending.socket = Some(socket);
                     pending.deadline =
                         Some(now.saturating_add(Duration::from_nanos(self.limits.unauthenticated.as_nanos())));
-                    below.push(io::Request::Bind { socket, owner: pending.owner });
-                    below.push(io::Request::Stream {
+                    below.push(Below::Io(io::Request::Bind { socket, owner: pending.owner }));
+                    below.push(Below::Io(io::Request::Stream {
                         stream: socket,
                         down: stream::Down::Demand {
                             read: stream::Read::Line {
@@ -356,26 +353,26 @@ impl Server {
                             },
                             room: 0,
                         },
-                    });
+                    }));
                     return;
                 }
             }
         }
-        below.push(io::Request::Reject { socket });
+        below.push(Below::Io(io::Request::Reject { socket }));
     }
 
-    fn abort_pending(&mut self, owner: Token, below: &mut Queue<io::Request>) {
+    fn abort_pending(&mut self, owner: Token, below: &mut Queue<Below>) {
         for pending in &mut self.pending {
             if pending.owner == owner {
                 pending.deadline = None;
                 if let Some(socket) = pending.socket {
-                    below.push(io::Request::Abort { entity: socket });
+                    below.push(Below::Io(io::Request::Abort { entity: socket }));
                 }
             }
         }
     }
 
-    fn authenticate(&mut self, owner: Token, up: stream::Up, below: &mut Queue<io::Request>) {
+    fn authenticate(&mut self, owner: Token, up: stream::Up, below: &mut Queue<Below>) {
         let valid = match up {
             stream::Up::Bytes(bytes) => {
                 bytes.len() == SECRET_BYTES.checked_add(1).expect("secret newline")
@@ -401,17 +398,17 @@ impl Server {
             if pending.owner != owner
                 && let Some(socket) = pending.socket
             {
-                below.push(io::Request::Abort { entity: socket });
+                below.push(Below::Io(io::Request::Abort { entity: socket }));
             }
         }
         if let Some(listener) = self.listener {
-            below.push(io::Request::Close { entity: listener });
+            below.push(Below::Io(io::Request::Close { entity: listener }));
         }
         self.acknowledging = true;
         self.output.push(Box::from(ACK));
     }
 
-    fn message_event(&mut self, up: stream::Up, below: &mut Queue<io::Request>) {
+    fn message_event(&mut self, up: stream::Up, above: &mut Queue<Up>, below: &mut Queue<Below>) {
         match up {
             stream::Up::Bytes(bytes) => {
                 self.demanding = false;
@@ -419,7 +416,7 @@ impl Server {
                     Some(b'\n' | b'\r') => {
                         let line = bytes.get(..bytes.len().checked_sub(1).expect("line end")).expect("line prefix");
                         if !line.is_empty() {
-                            self.message(line);
+                            self.message(line, above);
                         }
                     }
                     Some(_) | None => self.stop(Ended::Failed, true, below),
@@ -441,7 +438,7 @@ impl Server {
         unreachable!("authenticated pending slot")
     }
 
-    fn progress(&mut self, below: &mut Queue<io::Request>) {
+    fn progress(&mut self, below: &mut Queue<Below>) {
         if self.ending.is_some() || self.connected.is_none() {
             return;
         }
@@ -452,13 +449,13 @@ impl Server {
             if let Some(bytes) = &self.sending {
                 self.write_sequence = self.write_sequence.checked_add(1).expect("output rights fit process lifetime");
                 self.writing = true;
-                below.push(io::Request::Output {
+                below.push(Below::Io(io::Request::Output {
                     stream: self.socket(),
                     down: stream::OutputDown::Room {
                         right: Token::new(self.write_sequence),
                         bytes: u32::try_from(bytes.len()).expect("bounded answer"),
                     },
-                });
+                }));
             }
         }
         let mut count = 0_u32;
@@ -474,15 +471,15 @@ impl Server {
             && output_count <= u32::from(self.limits.calls)
         {
             self.demanding = true;
-            below.push(io::Request::Stream {
+            below.push(Below::Io(io::Request::Stream {
                 stream: self.socket(),
                 down: stream::Down::Demand { read: stream::Read::Line { max: self.limits.message_bytes }, room: 0 },
-            });
+            }));
         }
     }
 
     /// Return text for a live call; duplicate and late answers are ignored (5.3).
-    pub fn answer(&mut self, call: CallId, answer: Answer, below: &mut Queue<io::Request>) {
+    pub fn answer(&mut self, call: CallId, answer: Answer, below: &mut Queue<Below>) {
         let Some(id) = self.take_call(call) else {
             return;
         };
@@ -495,7 +492,7 @@ impl Server {
     }
 
     /// Return the backend's permission decision to a live prompt call (5.4).
-    pub fn verdict(&mut self, call: CallId, verdict: Verdict, below: &mut Queue<io::Request>) {
+    pub fn verdict(&mut self, call: CallId, verdict: Verdict, below: &mut Queue<Below>) {
         let Some(id) = self.take_call(call) else {
             return;
         };
@@ -557,16 +554,16 @@ impl Server {
     }
 
     /// Abort unauthenticated connections whose accept-relative deadline expired (9).
-    pub fn fire(&mut self, now: Time, below: &mut Queue<io::Request>) {
+    pub fn fire(&mut self, now: Time, above: &mut Queue<Up>, below: &mut Queue<Below>) {
         for pending in &mut self.pending {
             if let Some(deadline) = pending.deadline
                 && now >= deadline
             {
                 pending.deadline = None;
-                below.push(io::Request::Abort { entity: pending.socket.expect("authentication socket") });
+                below.push(Below::Io(io::Request::Abort { entity: pending.socket.expect("authentication socket") }));
             }
         }
-        self.settle();
+        self.settle(above);
     }
 
     /// The earliest authentication deadline, if any (protocol/programs.md, 9).
@@ -582,26 +579,26 @@ impl Server {
     }
 
     /// Close every owned entity; `Ended(Closed)` follows their settlement (9).
-    pub fn close(&mut self, below: &mut Queue<io::Request>) {
+    pub fn close(&mut self, above: &mut Queue<Up>, below: &mut Queue<Below>) {
         self.stop(Ended::Closed, false, below);
-        self.settle();
+        self.settle(above);
     }
 
-    fn stop(&mut self, ending: Ended, abort: bool, below: &mut Queue<io::Request>) {
+    fn stop(&mut self, ending: Ended, abort: bool, below: &mut Queue<Below>) {
         if self.ending.is_some() {
             return;
         }
         self.ending = Some(ending);
         if let Some(listener) = self.listener {
-            below.push(io::Request::Close { entity: listener });
+            below.push(Below::Io(io::Request::Close { entity: listener }));
         }
         for pending in &mut self.pending {
             pending.deadline = None;
             if let Some(socket) = pending.socket {
                 if abort {
-                    below.push(io::Request::Abort { entity: socket });
+                    below.push(Below::Io(io::Request::Abort { entity: socket }));
                 } else {
-                    below.push(io::Request::Close { entity: socket });
+                    below.push(Below::Io(io::Request::Close { entity: socket }));
                 }
             }
         }
@@ -614,7 +611,7 @@ impl Server {
         }
     }
 
-    fn settle(&mut self) {
+    fn settle(&mut self, above: &mut Queue<Up>) {
         if self.listening || self.told_end {
             return;
         }
@@ -624,7 +621,7 @@ impl Server {
             }
         }
         if let Some(ending) = self.ending {
-            self.above.push(Up::Ended(ending));
+            above.push(Up::Ended(ending));
             self.told_end = true;
         }
     }

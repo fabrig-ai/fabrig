@@ -93,7 +93,7 @@ fn an_unchanged_edit_stops_the_writes_after_it() {
 #[test]
 fn an_invalid_read_stops_the_writes_after_it() {
     let mut first = invalid(b"first", Problem::BadValue { field: bytes(b"offset") });
-    let Block::ToolCall { name, .. } = &mut first else { unreachable!() };
+    let Block::ToolCall(crate::llm::ToolCall { name, .. }) = &mut first else { unreachable!() };
     *name = bytes(b"read");
     let prompt = after_invalid(first);
     assert_eq!(prompt.messages[2].content[1], not_run(b"next", 1));

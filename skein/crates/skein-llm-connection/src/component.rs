@@ -369,9 +369,9 @@ impl Component {
         match event {
             IoEvent::Connecting { socket, .. } => match self.connections.get_mut(id) {
                 Some(connection) => {
-                    connection.socket = Some(socket);
+                    connection.link.connecting(socket, io);
                     if connection.phase == Phase::Closing {
-                        connection.close_socket(io);
+                        connection.close_socket(env, io);
                     }
                     connection.route(env, owner, up, io);
                 }
@@ -382,7 +382,7 @@ impl Component {
                     if connection.phase == Phase::Connecting {
                         connection.connected(env, owner, up, io);
                     } else {
-                        connection.close_socket(io);
+                        connection.close_socket(env, io);
                     }
                 }
                 None => {}
@@ -471,9 +471,14 @@ impl Component {
             match self.slots.get(index) {
                 Some(Some(id)) => match self.connections.get_mut(*id) {
                     Some(connection) => {
-                        if !connection.has_work() && connection.deadlines.due(env.now).is_none() {
+                        let close_due = match connection.link.next_deadline() {
+                            Some(deadline) => deadline <= env.now,
+                            None => false,
+                        };
+                        if !connection.has_work() && connection.deadlines.due(env.now).is_none() && !close_due {
                             continue;
                         }
+                        connection.link.fire(env.now, io);
                         if !connection.aborting() {
                             match connection.deadlines.due(env.now) {
                                 Some(due) => connection.timeout(env, due, io),
@@ -509,7 +514,7 @@ impl Component {
         false
     }
 
-    /// The first call or idle-connection deadline for the owning loop.
+    /// The first call, idle or transport close deadline for the owning loop.
     #[must_use]
     pub fn next_deadline(&self) -> Option<skein_lib::Time> {
         let mut next: Option<skein_lib::Time> = None;
@@ -522,7 +527,10 @@ impl Component {
         for slot in &self.slots {
             match slot {
                 Some(id) => match self.connections.get(*id) {
-                    Some(connection) => next = earliest(next, connection.deadlines.next()),
+                    Some(connection) => {
+                        next = earliest(next, connection.deadlines.next());
+                        next = earliest(next, connection.link.next_deadline());
+                    }
                     None => {}
                 },
                 None => {}
@@ -831,6 +839,57 @@ impl Component {
         }
         self.refresh_waiting();
         true
+    }
+}
+
+#[cfg(test)]
+mod link_tests {
+    use super::*;
+    use crate::tests::{component, credential, limits, prompt};
+    use skein_lib::{Time, Wall};
+
+    #[test]
+    fn a_queued_tls_close_stays_runnable_until_the_socket_close() {
+        let mut component = component();
+        let env = Env { now: Time::ZERO, wall: Wall::EPOCH, limits: limits() };
+        let mut up = Queue::uncapped();
+        let mut io = Queue::uncapped();
+        component.down(
+            &env,
+            Request::Start {
+                call: Token::new(7),
+                endpoint: 0,
+                prompt: prompt(),
+                credential: Some(credential()),
+                deadlines: crate::Deadlines::none(),
+                drop_reasoning: false,
+            },
+            &mut up,
+            &mut io,
+        );
+        let owner = match io.pop() {
+            Some(IoRequest::Connect { owner, .. }) => owner,
+            other => panic!("expected connect, got {other:?}"),
+        };
+        let connection = component.connections.get_mut(Id::from_token(owner)).expect("physical binding");
+        connection.link.connecting(Token::new(100), &mut io);
+        connection.link.close(
+            &Env {
+                now: env.now,
+                wall: env.wall,
+                limits: skein_link::Limits { tls: env.limits.tls, close_timeout: env.limits.io.close_timeout },
+            },
+            false,
+            &mut io,
+        );
+        // The routing budget can leave TLS's Closed queued between entrances.
+        connection.phase = Phase::Closing;
+        connection.call = None;
+        connection.sync_deadlines(&env);
+        assert!(component.has_work(), "queued link work keeps a closing connection runnable");
+        component.fire(&env, &mut up, &mut io);
+        assert_eq!(io.pop(), Some(IoRequest::Close { entity: Token::new(100) }));
+        assert!(!component.has_work(), "only io settlement remains");
     }
 }
 

@@ -297,7 +297,7 @@ fn the_worker_demands_each_cancellation_record_and_end() {
     peer.component
         .send_answer(
             fixtures::NOW,
-            run::Answer::Failed { failure: run::Failure::Cancelled, spent: run::Spend::ZERO, turns: 1 },
+            run::Answer::Failed { failure: run::RunFailure::Cancelled, spent: run::Spend::ZERO, turns: 1 },
             None,
             AGENT_OWNER,
             &mut peer.events,

@@ -2899,6 +2899,7 @@ dependencies = [
  "skein-io",
  "skein-json",
  "skein-lib",
+ "skein-link",
  "skein-tls",
  "skein-world",
 ]
@@ -2950,6 +2951,7 @@ dependencies = [
  "skein-io",
  "skein-json",
  "skein-lib",
+ "skein-link",
  "skein-tls",
 ]
 
@@ -3076,6 +3078,26 @@ dependencies = [
 ]
 
 [[package]]
+name = "skein-link"
+version = "0.0.0"
+dependencies = [
+ "skein-io",
+ "skein-lib",
+ "skein-tls",
+]
+
+[[package]]
+name = "skein-link-world"
+version = "0.0.0"
+dependencies = [
+ "skein-io",
+ "skein-lib",
+ "skein-link",
+ "skein-tls",
+ "skein-tls-world",
+]
+
+[[package]]
 name = "skein-llm"
 version = "0.0.0"
 dependencies = [
@@ -3093,6 +3115,7 @@ dependencies = [
  "skein-http",
  "skein-io",
  "skein-lib",
+ "skein-link",
  "skein-llm",
  "skein-tls",
 ]
@@ -3149,6 +3172,7 @@ dependencies = [
  "skein-http",
  "skein-io",
  "skein-lib",
+ "skein-link",
  "skein-oauth",
  "skein-tls",
 ]

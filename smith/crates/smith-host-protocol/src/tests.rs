@@ -529,7 +529,7 @@ fn the_answer_carries_the_exhausted_account_and_its_remaining_wait() {
         (None, None),
     ] {
         let answer = run::Answer::Failed {
-            failure: run::Failure::Model(run::Fault::Limited { account: 23, reset_at }),
+            failure: run::RunFailure::Model(run::Fault::Limited { account: 23, reset_at }),
             spent: run::Spend::ZERO,
             turns: 0,
         };
@@ -562,7 +562,7 @@ fn the_answer_carries_budget_usage_and_bound_in_the_runs_unit() {
         (run::Exhausted::Time, host::Exhausted::Time),
     ] {
         let answer = run::Answer::Failed {
-            failure: run::Failure::Budget { exhausted, used: Some(1073), bound: Some(1000) },
+            failure: run::RunFailure::Budget { exhausted, used: Some(1073), bound: Some(1000) },
             spent: run::Spend::ZERO,
             turns: 0,
         };

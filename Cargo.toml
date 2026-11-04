@@ -31,6 +31,7 @@ members = [
     "skein/crates/skein-json",
     "skein/crates/skein-kv",
     "skein/crates/skein-lib",
+    "skein/crates/skein-link",
     "skein/crates/skein-llm",
     "skein/crates/skein-llm-connection",
     "skein/crates/skein-oauth",
@@ -89,6 +90,7 @@ members = [
     "skein/tests/json",
     "skein/tests/kv",
     "skein/tests/lib",
+    "skein/tests/link",
     "skein/tests/llm",
     "skein/tests/llm-connection",
     "skein/tests/oauth",
@@ -352,6 +354,7 @@ skein-forge-setup = { path = "skein/crates/skein-forge-setup" }
 skein-forge-client = { path = "skein/crates/skein-forge-client" }
 skein-forge = { path = "skein/crates/skein-forge" }
 skein-lib = { path = "skein/crates/skein-lib" }
+skein-link = { path = "skein/crates/skein-link" }
 skein-codec = { path = "skein/crates/skein-codec" }
 skein-codegen = { path = "skein/testing/skein-codegen" }
 skein-channel = { path = "skein/crates/skein-channel" }

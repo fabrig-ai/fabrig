@@ -93,7 +93,7 @@ For the configuration members that need a restart, read `temper help configurati
 
 - temper does not let ctl make a party, invite a person, give a role
   or make a service.
-- A box made by `temper init` has one person, its owner, and signs in
+- A box made by `temper init --box` has one person, its owner, and signs in
   no other.
 - A `DIR` holds one party's sign-in; several parties take several
   directories.

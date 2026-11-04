@@ -306,14 +306,14 @@ fn quantities_override_one_value_and_derive_through_the_service() {
     assert_eq!(configured.profile.policy.job_wait, Duration::from_secs(7));
     assert_eq!(limits.domain.session.tools.job_poll, Duration::from_secs(2));
     assert_eq!(limits.domain.session.tools.job_wait, Duration::from_secs(7));
-    assert_eq!(limits.llm.adapter.stated.job_poll, Duration::from_secs(2));
-    assert_eq!(limits.llm.adapter.stated.job_wait, Duration::from_secs(7));
+    assert_eq!(limits.llm.translation.stated.job_poll, Duration::from_secs(2));
+    assert_eq!(limits.llm.translation.stated.job_wait, Duration::from_secs(7));
     assert_eq!(limits.domain.session.tools.shell_tail, 64);
     assert_eq!(limits.domain.run.check_tail, 64);
     assert_eq!(limits.domain.session.tools.tool_deadline, configured.profile.policy.tool_deadline);
     assert_eq!(limits.domain.session.tools.shell_output, configured.profile.declared.shell_output);
     assert_eq!(limits.domain.run.host_timeout_max, configured.profile.policy.tool_deadline);
-    assert_eq!(limits.llm.adapter.stated.tool_deadline, configured.profile.policy.tool_deadline);
+    assert_eq!(limits.llm.translation.stated.tool_deadline, configured.profile.policy.tool_deadline);
     assert_eq!(configured.profile.declared.shell_head, service::profile::standard().declared.shell_head);
     assert_eq!(configured.declarations.endpoints[0].models[0].window, 65536);
 }
@@ -430,7 +430,7 @@ fn all_product_models(mut document: serde_json::Value) -> serde_json::Value {
 #[test]
 fn native_validated_dense_prompts_fit_the_seen_joint_receiving_ceiling() {
     let configured = parse_value(&product_document()).expect("product startup");
-    let client = configured.service.limits.llm.adapter.client;
+    let client = configured.service.limits.llm.translation.client;
     let events = configured.service.limits.events.expect("product destination");
     let ceiling = events.sinks.line_ceiling(Capture::Everything).expect("joint ceiling");
     let credential = shared::Credential::bearer(b"secret-prompt-bound-token".as_slice().into());

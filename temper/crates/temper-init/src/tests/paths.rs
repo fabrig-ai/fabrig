@@ -40,6 +40,11 @@ fn a_fact_is_refused_naming_it() {
             let mut directories = DIRECTORIES;
             assign(&mut facts, &mut directories, fact, path);
             assert_eq!(
+                crate::bare(&fixtures::bare_facts(&facts), &directories, &[0; 32]),
+                Err(Refusal { fact, reason }),
+                "{row}: {fact:?}"
+            );
+            assert_eq!(
                 files(&facts, &directories, &[0; 32], &[0xab; 32]),
                 Err(Refusal { fact, reason }),
                 "{row}: {fact:?}"
@@ -55,6 +60,11 @@ fn a_fact_is_refused_naming_it() {
         let mut facts = fixtures::facts();
         let mut directories = DIRECTORIES;
         assign(&mut facts, &mut directories, fact, path);
+        assert_eq!(
+            crate::bare(&fixtures::bare_facts(&facts), &directories, &[0; 32]),
+            Err(Refusal { fact, reason: Reason::Bound }),
+            "{row}"
+        );
         assert_eq!(
             files(&facts, &directories, &[0; 32], &[0xab; 32]),
             Err(Refusal { fact, reason: Reason::Bound }),

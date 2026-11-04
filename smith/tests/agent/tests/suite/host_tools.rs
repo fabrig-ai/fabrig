@@ -217,7 +217,7 @@ fn composed_cancellation_while_host_relay_is_live_retains_recorded_answer_and_st
         ..Settings::calm(seed)
     });
     cancelled.run(20_000);
-    assert!(matches!(cancelled.answer(), run::Answer::Failed { failure: run::Failure::Cancelled, .. }));
+    assert!(matches!(cancelled.answer(), run::Answer::Failed { failure: run::RunFailure::Cancelled, .. }));
     assert_eq!(cancelled.host_submissions().len(), 1, "no fresh recovery after cancellation");
     assert_eq!(cancelled.host_decisions(), 1);
     let [(relay, at, run::HostReply::Answered(answer))] = cancelled.host_terminals() else {

@@ -113,12 +113,11 @@ pub fn configured(
     .expect("configured shipped agent")
 }
 
-#[expect(clippy::zero_sized_map_values, reason = "the shell configuration uses a unit selector map")]
 fn shell_configuration(configuration: agent::Config) -> smith_agent_shell::config::Configuration {
     let environment_bytes = configuration.limits.machine.env_bytes;
     smith_agent_shell::config::Configuration {
-        programs: std::collections::BTreeMap::new(),
-        endpoint_programs: std::collections::BTreeMap::new(),
+        program: None,
+        program_endpoints: std::collections::BTreeSet::new(),
         service: configuration,
         memory: profile().declared.memory,
         trace: None,
@@ -210,7 +209,7 @@ fn configuration_with_limits(provider: skein_llm::Provider, limits: &agent::Limi
             handshake: skein_lib::Duration::from_secs(1),
             name: smith_domain::llm::Endpoint(0),
             destination: skein_llm_connection::Endpoint {
-                limits: limits.llm.adapter.client,
+                limits: limits.llm.translation.client,
                 credential: skein_llm::client::CredentialLimits { value: limits.llm.grant_value_bytes },
                 address: kernel::Addr::from((std::net::Ipv4Addr::LOCALHOST, 443)),
                 transport: skein_llm_connection::Transport::Plaintext,

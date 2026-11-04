@@ -402,10 +402,7 @@ fn a_claude_configuration_replaces_openai_and_keeps_the_demo() {
     assert_eq!(value["engine"]["limits"], before["engine"]["limits"]);
     assert_eq!(value["workers"], before["workers"]);
     let parsed = smith_agent_shell::config::read(&config.join("agent.json")).expect("ordinary agent schema");
-    assert_eq!(
-        parsed.endpoint_programs.into_iter().collect::<Vec<_>>(),
-        [(2, smith_agent_shell::config::ProgramName::ClaudeCode)]
-    );
+    assert_eq!(parsed.program_endpoints.into_iter().collect::<Vec<_>>(), [2]);
     eprintln!("Claude agent largest turn: {} bytes", parsed.service.limits.channel.bodies.turn_body);
     scratch.remove();
 }
