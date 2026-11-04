@@ -3,7 +3,7 @@ id = "kv-recover-stream"
 part = "recover-stream"
 kind = "feature"
 needs = ["kv-open-reads"]
-files = ["skein/crates/skein-kv/src/store.rs", "skein/crates/skein-kv/src/snapshot.rs", "skein/crates/skein-kv/src/frame.rs", "skein/tests/kv/tests/suite/recovery.rs", "skein/tests/kv/tests/suite/main.rs"]
+files = ["skein/crates/skein-kv/src/store.rs", "skein/crates/skein-kv/src/snapshot.rs", "skein/crates/skein-kv/src/frame.rs", "skein/tests/kv/src/world.rs", "skein/tests/kv/tests/suite/recovery.rs", "skein/tests/kv/tests/suite/main.rs"]
 effort = "high"
 minutes = 120
 +++
@@ -52,6 +52,8 @@ Acceptance:
   `frame::` and `snapshot::` paths.
 - `skein/crates/skein-kv/src/snapshot.rs` and `frame.rs`: yours, `pub(crate)` only; the bytes
   each writes are the stored format and do not change (the golden test holds them).
+- `skein/tests/kv/src/world.rs`: one constructor whose simulator keeps no trace (see Answers);
+  nothing else.
 - `skein/tests/kv/tests/suite/recovery.rs` (new) and its line `mod recovery;` after
   `mod real;` in `skein/tests/kv/tests/suite/main.rs`.
 - Options:
@@ -123,3 +125,23 @@ Acceptance:
 
 As the implementer's text says, and also: each test's measured `peak − net` and its bound,
 the allowance's measurement, the decoder's shape, and each test's CPU time.
+
+## Answers
+
+2026-11-04. Question (run 1): the long-log heap bound fails (21,164 against 20,400) because the
+simulator's `Trace::Whole` trace grows with the steps a long log takes; may the task change
+`world.rs` to turn the trace off for these measurements, or should the bound count the trace?
+
+Answer: turn the trace off; the bound stays as written. The trace grows with the number of
+reads, so a bound that counted it would grow with the log, which is what the test says recovery
+does not do; `Trace::Off` is the simulator's setting for a run that keeps no trace
+(`skein/crates/skein-sim/src/config.rs`). `skein/tests/kv/src/world.rs` is now in this task's
+files for this alone: add `World::untraced(limits: Limits, items: &[Item]) -> World`, built as
+`with_items` is but with `Sim::new(1, Config { trace: Trace::Off, ..Config::calm() })` (share
+the body with `with_items` rather than copying it), and have `crash` keep the world's trace
+setting (`self.sim.config().trace`) instead of resetting it to `calm`'s. `new` and `with_items`
+are unchanged. Every test in `recovery.rs` that measures a span, the allowance's measurement
+among them, builds its world with `World::untraced`; recalibrate `RECOVERY_ALLOWANCE` by step
+3's rule from the untraced empty open, and report the new measurements. If a bound is still
+red with the trace off, that is a question with the measurements, not a raised bound.
+
