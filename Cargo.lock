@@ -1458,6 +1458,21 @@ dependencies = [
 ]
 
 [[package]]
+name = "jig-protocol-worker-agents"
+version = "0.0.0"
+dependencies = [
+ "jig-domain-host",
+ "skein-io",
+ "skein-lib",
+ "smith-channel",
+ "smith-domain-run",
+ "smith-host-domain",
+ "smith-host-protocol",
+ "smith-protocol-channel",
+ "smith-protocol-program",
+]
+
+[[package]]
 name = "jig-protocol-worker-link"
 version = "0.0.0"
 dependencies = [
@@ -1687,6 +1702,7 @@ dependencies = [
  "jig-protocol-engine-workers",
  "jig-protocol-store",
  "jig-protocol-tools",
+ "jig-protocol-worker-agents",
  "jig-protocol-worker-link",
  "jig-protocol-worker-wire",
  "jig-test-connector",
@@ -1705,7 +1721,6 @@ dependencies = [
  "skein-world",
  "smith-channel",
  "smith-charter",
- "smith-domain-run",
  "smith-domain-session",
  "smith-host-domain",
  "smith-host-protocol",
