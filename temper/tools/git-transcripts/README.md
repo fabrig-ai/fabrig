@@ -1,6 +1,6 @@
 # Real git transcripts
 
-Run with git 2.41 or later, tested with 2.53:
+Run with git 2.41 or later, tested with 2.47:
 
 ```
 TEMPER_FORGEJO=<absolute path to the pinned Forgejo> git-transcripts --git /usr/bin/git --scratch target/git-transcripts --out tools/git-transcripts
