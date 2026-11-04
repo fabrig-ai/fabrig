@@ -21,19 +21,13 @@ pub(super) enum Roots {
 
 impl Roots {
     pub(super) fn adopt(&mut self, root: Token, capacity: u32) {
-        let state = mem::replace(self, Self::Empty);
-        *self = match state {
-            Self::Empty => {
-                let mut roots = List::with_capacity(capacity);
-                roots.push(root).expect("admitted root count");
-                Self::Held { roots }
-            }
-            Self::Held { mut roots } => {
-                roots.push(root).expect("admitted root count");
-                Self::Held { roots }
-            }
+        let mut roots = match mem::replace(self, Self::Empty) {
+            Self::Empty => List::with_capacity(capacity),
+            Self::Held { roots } => roots,
             Self::Closing { .. } => unreachable!("roots attach before their close"),
         };
+        roots.push(root).expect("admitted root count");
+        *self = Self::Held { roots };
     }
 
     pub(super) fn first(&self) -> Option<Token> {
@@ -58,42 +52,27 @@ impl Roots {
     }
 
     pub(super) fn reported(&mut self) -> bool {
-        let state = mem::replace(self, Self::Empty);
-        let reported;
-        *self = match state {
-            Self::Closing { roots } => {
-                reported = true;
-                Self::Held { roots }
-            }
-            state @ (Self::Empty | Self::Held { .. }) => {
-                reported = false;
-                state
-            }
+        let (state, reported) = match mem::replace(self, Self::Empty) {
+            Self::Closing { roots } => (Self::Held { roots }, true),
+            state @ (Self::Empty | Self::Held { .. }) => (state, false),
         };
+        *self = state;
         reported
     }
 
     fn close_next(&mut self) -> Option<Token> {
-        let state = mem::replace(self, Self::Empty);
-        let next;
-        *self = match state {
+        let (state, next) = match mem::replace(self, Self::Empty) {
             Self::Held { mut roots } => match roots.last().copied() {
                 Some(root) => {
                     let remaining = roots.len().checked_sub(1).expect("positive root count");
                     roots.truncate(remaining);
-                    next = Some(root);
-                    Self::Closing { roots }
+                    (Self::Closing { roots }, Some(root))
                 }
-                None => {
-                    next = None;
-                    Self::Empty
-                }
+                None => (Self::Empty, None),
             },
-            state @ (Self::Empty | Self::Closing { .. }) => {
-                next = None;
-                state
-            }
+            state @ (Self::Empty | Self::Closing { .. }) => (state, None),
         };
+        *self = state;
         next
     }
 }
