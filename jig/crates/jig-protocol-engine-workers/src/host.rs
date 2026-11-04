@@ -44,6 +44,7 @@ pub enum Seen {
 }
 
 #[derive(Debug)]
+#[expect(clippy::partial_pub_fields, reason = "the owner reads io, the bound address and the component")]
 pub struct Workers {
     /// Bound address awaiting the owner's report.
     pub listening: Option<core::net::SocketAddr>,
@@ -121,12 +122,7 @@ impl Workers {
     }
     #[must_use]
     pub fn work_pending(&self, now: Time) -> bool {
-        !self.io.is_empty()
-            || !self.out.is_empty()
-            || match self.next_deadline() {
-                Some(deadline) => deadline <= now,
-                None => false,
-            }
+        !self.io.is_empty() || !self.out.is_empty() || matches!(self.next_deadline(), Some(deadline) if deadline <= now)
     }
     #[must_use]
     pub fn ending(&self) -> Option<Closing> {
