@@ -4,6 +4,7 @@ use jig_domain_people as people;
 use jig_domain_tasks as tasks;
 use skein_fake_llm_domain::api::{Finish, Line, Script, Turn};
 use skein_lib::{Duration, ReplyTo, Token};
+use smith_domain::Transcript;
 use temper_engine_domain::{Assignment, Delivery, Event, PartyInput};
 use temper_engine_domain_world::{direct::Driver, store::Store, walking};
 use temper_system_world::world;
@@ -24,6 +25,33 @@ fn running_work_keeps_its_revision_a_chat_moves_and_an_advance_moves_the_rest() 
     root.settle();
     root.sign_in();
     root.settle();
+    let parked = park_tasks(&mut root);
+    revise_charter(&mut root);
+    for (assignment, _) in &parked {
+        assert_eq!(root.task(assignment.task).expect("held old revision").settings.task, 1);
+    }
+    let first = wake_and_run(&mut root, &parked[0], 90, 2, 1, &parked[0].0.run.policy.instructions);
+    let _chat = wake_and_run(&mut root, &parked[1], 91, 3, 2, NEW_INSTRUCTIONS);
+    root.send(Event::Party(PartyInput::Ask {
+        models: Box::new([]),
+        reply_to: ReplyTo::new(Token::new(81)),
+        sign_in: root.session(),
+        key: [81; 16],
+        ask: people::Ask::MoveToNewest { revision: 1 },
+    }));
+    root.settle();
+    assert_eq!(root.task(first.0.task).expect("owner moved task").settings.task, 2);
+    assert!(root.delivered.iter().any(|delivery| matches!(
+        delivery,
+        Delivery::WebReply {
+            reply: people::Reply::Outcome(people::Outcome::MovedToNewest { newest: 2, moved: 1, stayed: 0 }),
+            ..
+        }
+    )));
+    let _advanced = wake_and_run(&mut root, &first, 92, 4, 2, NEW_INSTRUCTIONS);
+}
+
+fn park_tasks(root: &mut Driver) -> Vec<(Assignment, Transcript)> {
     let mut parked = Vec::new();
     for (key, words, conversation) in
         [(41, b"@revision-one".as_slice(), false), (42, b"@revision-two".as_slice(), true)]
@@ -47,14 +75,18 @@ fn running_work_keeps_its_revision_a_chat_moves_and_an_advance_moves_the_rest() 
         assert_eq!(row.settings.task, 1);
         assert_eq!(row.flags.conversation, conversation);
         let mut agent =
-            world::scripted_waiting_agent_for(&assignment, None, waiting(&assignment.run.policy.instructions, true));
-        world::run_assignment(&mut root, &assignment, &mut agent);
+            world::scripted_waiting_agent_for(&assignment, None, waiting(&assignment.run.policy.instructions, 0));
+        world::run_assignment(root, &assignment, &mut agent);
         assert!(matches!(
             root.task(assignment.task).expect("parked task").phase,
             tasks::Phase::Active(tasks::Active::Idle)
         ));
-        parked.push(assignment);
+        parked.push((assignment, world::transcript(&agent)));
     }
+    parked
+}
+
+fn revise_charter(root: &mut Driver) {
     let mut charter = world::charter();
     charter.policy.instructions = NEW_INSTRUCTIONS.into();
     root.send(Event::Party(PartyInput::ChangeSettings {
@@ -77,38 +109,17 @@ fn running_work_keeps_its_revision_a_chat_moves_and_an_advance_moves_the_rest() 
         delivery,
         Delivery::WebReply { reply: people::Reply::Outcome(people::Outcome::SettingsChanged { revision: 2 }), .. }
     )));
-    for assignment in &parked {
-        assert_eq!(root.task(assignment.task).expect("held old revision").settings.task, 1);
-    }
-    let first = wake_and_run(&mut root, &parked[0], 90, 2, 1, &parked[0].run.policy.instructions);
-    let _chat = wake_and_run(&mut root, &parked[1], 91, 3, 2, NEW_INSTRUCTIONS);
-    root.send(Event::Party(PartyInput::Ask {
-        models: Box::new([]),
-        reply_to: ReplyTo::new(Token::new(81)),
-        sign_in: root.session(),
-        key: [81; 16],
-        ask: people::Ask::MoveToNewest { revision: 1 },
-    }));
-    root.settle();
-    assert_eq!(root.task(first.task).expect("owner moved task").settings.task, 2);
-    assert!(root.delivered.iter().any(|delivery| matches!(
-        delivery,
-        Delivery::WebReply {
-            reply: people::Reply::Outcome(people::Outcome::MovedToNewest { newest: 2, moved: 1, stayed: 0 }),
-            ..
-        }
-    )));
-    let _advanced = wake_and_run(&mut root, &first, 92, 4, 2, NEW_INSTRUCTIONS);
 }
 
 fn wake_and_run(
     root: &mut Driver,
-    previous: &Assignment,
+    previous: &(Assignment, Transcript),
     key: u8,
     at: u64,
     revision: u32,
     instructions: &[u8],
-) -> Assignment {
+) -> (Assignment, Transcript) {
+    let (previous, transcript) = previous;
     root.say(previous.task, key);
     root.fire_at(Duration::from_secs(at));
     root.settle();
@@ -119,8 +130,14 @@ fn wake_and_run(
     assert_eq!(next.run.revision, revision, "task row: {row:?}");
     assert_eq!(next.run.policy.instructions.as_ref(), instructions);
     assert_eq!(row.settings.task, revision);
-    let mut agent = world::scripted_waiting_agent_for(&next, None, waiting(instructions, true));
+    let mut agent = world::scripted_waiting_agent_for(
+        &next,
+        Some(transcript.clone()),
+        waiting(instructions, transcript.turns.len()),
+    );
     world::run_assignment(root, &next, &mut agent);
+    assert!(agent.turns().first().expect("restored turn").sequence > 1, "history is resumed");
+    assert!(matches!(agent.answer(), smith_domain_run::Answer::Parked { .. }), "{:?}", agent.answer());
     assert!(
         agent.prompts().iter().any(|query| skein_lib::bytes::find(&query.system, instructions).is_some()),
         "smith sees revision {revision}'s instructions"
@@ -129,26 +146,31 @@ fn wake_and_run(
         assert!(agent.prompts().iter().all(|query| skein_lib::bytes::find(&query.system, NEW_INSTRUCTIONS).is_none()));
     }
     assert_eq!(root.task(next.task).expect("parked task").settings.task, revision);
-    next
+    let mut saved = world::transcript(&agent);
+    let mut turns = transcript.turns.to_vec();
+    turns.extend_from_slice(&saved.turns);
+    saved.turns = turns.into();
+    (next, saved)
 }
 
-fn waiting(cue: &[u8], subscribe: bool) -> Script {
+fn waiting(cue: &[u8], preceding: usize) -> Script {
     let mut turns = Vec::new();
-    if subscribe {
-        // Keep the result-ended task awaiting input across the revision change.
+    // Keep the result-ended task awaiting input across the revision change.
+    turns.push(Turn {
+        lines: Box::new([Line::Call {
+            name: b"subscribe".as_slice().into(),
+            arguments: br#"{"kind":"timer","at":18446744073709551615}"#.as_slice().into(),
+        }]),
+        finish: Finish::ToolCalls,
+        tokens: 20,
+    });
+    // The provider counts saved assistant turns before selecting the next scripted reply.
+    for _ in 0..=preceding {
         turns.push(Turn {
-            lines: Box::new([Line::Call {
-                name: b"subscribe".as_slice().into(),
-                arguments: br#"{"kind":"timer","at":18446744073709551615}"#.as_slice().into(),
-            }]),
+            lines: Box::new([Line::Call { name: b"wait".as_slice().into(), arguments: b"{}".as_slice().into() }]),
             finish: Finish::ToolCalls,
             tokens: 20,
         });
     }
-    turns.push(Turn {
-        lines: Box::new([Line::Call { name: b"wait".as_slice().into(), arguments: b"{}".as_slice().into() }]),
-        finish: Finish::ToolCalls,
-        tokens: 20,
-    });
     Script { cue: cue.into(), turns: turns.into_boxed_slice() }
 }

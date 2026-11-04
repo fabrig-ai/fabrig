@@ -167,15 +167,6 @@ fn review_value_text(
     vocabulary: &dyn crate::jig::render::Parts,
     out: &mut Text,
 ) {
-    if let c::Setting::ProjectPolicy { .. } = setting
-        && let c::ReviewValue::TooLarge(size) = value
-        && page.is_none()
-    {
-        out.put(b"too large, ");
-        out.number(size.bytes);
-        out.put(b" bytes");
-        return;
-    }
     value_text(resolved(value, setting, page), setting, limits, vocabulary, out);
 }
 fn value_text(
@@ -422,19 +413,6 @@ fn encode_review_value(
     vocabulary: &dyn crate::jig::render::Parts,
     out: &mut Encoder,
 ) {
-    if let c::Setting::ProjectPolicy { .. } = setting
-        && let c::ReviewValue::TooLarge(size) = value
-        && page.is_none()
-    {
-        out.object_start();
-        out.key(b"too_large");
-        out.object_start();
-        out.key(b"bytes");
-        out.unsigned(size.bytes);
-        out.object_end();
-        out.object_end();
-        return;
-    }
     encode_value_result(resolved(value, setting, page), setting, vocabulary, out);
 }
 fn encode_value_result(
