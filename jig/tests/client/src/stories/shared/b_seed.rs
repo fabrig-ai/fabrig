@@ -6,11 +6,14 @@ use skein_lib::{Time, Wall};
 
 #[derive(Clone, Copy, Debug)]
 pub enum Facts {
+    /// Equal priorities make moving the second goal up amend only the first.
     Goals,
     HeldConversation,
     FamilyResource,
     NoChatTemplate,
-    GoalOffer { procedure: bool },
+    GoalOffer {
+        procedure: bool,
+    },
     ProposedGoal,
     Delegates,
     InboxOrder,
@@ -23,14 +26,13 @@ pub fn scripted(front: &mut Scripted, facts: Facts) {
         Facts::FamilyResource => super::b_family::scripted(front),
         Facts::HeldConversation => super::b_held::scripted(front),
         Facts::Goals => {
-            for (priority, words) in [(0, b"First goal".as_slice()), (1, b"Second goal".as_slice())] {
-                let number = u64::from(priority) + 1;
+            for (number, words) in [(1, b"First goal".as_slice()), (2, b"Second goal".as_slice())] {
                 let mut task = crate::stories::conversations::chat(number, words, Wall::EPOCH);
                 task.flags.conversation = false;
                 task.flags.listed = true;
                 task.requester = c::Requester::Person(1);
                 task.label = 2;
-                task.priority = Some(priority);
+                task.priority = Some(0);
                 front
                     .engine
                     .act(
@@ -108,7 +110,7 @@ pub fn core(driver: &mut Driver, now: Time, wall: Wall, facts: Facts) {
                             ask: Ask::Goal {
                                 words: b"Second goal".as_slice().into(),
                                 budget: 10,
-                                priority: 1,
+                                priority: 0,
                                 deadline: None,
                             },
                         },
