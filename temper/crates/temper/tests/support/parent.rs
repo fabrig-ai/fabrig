@@ -1,11 +1,33 @@
 //! Owned process cleanup and observations at the startup/process world's patience.
 #[cfg(target_os = "linux")]
 use skein_io::kernel::{Fd, Signal, Target};
+#[cfg(target_os = "linux")]
 use skein_world::{Deadline, Expired, Starved};
-use std::{
-    process::{Child, Command},
-    time::Duration,
-};
+use std::process::{Child, Command};
+#[cfg(target_os = "linux")]
+use std::time::Duration;
+
+/// Without Linux's retained identities, the test's ending stops its child.
+#[cfg(not(target_os = "linux"))]
+#[derive(Debug)]
+pub struct Guard {
+    pub child: Option<Child>,
+}
+#[cfg(not(target_os = "linux"))]
+impl Guard {
+    #[must_use]
+    pub fn new(child: Child) -> Self {
+        Self { child: Some(child) }
+    }
+}
+#[cfg(not(target_os = "linux"))]
+impl Drop for Guard {
+    fn drop(&mut self) {
+        if let Some(child) = &mut self.child {
+            end_child(child);
+        }
+    }
+}
 
 #[cfg(target_os = "linux")]
 #[derive(Debug)]
