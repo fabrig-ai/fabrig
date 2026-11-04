@@ -146,13 +146,13 @@ fn held_and_decision_commit_cuts_restore_paged_real_children_and_exact_scripts()
         world.close();
     }
     let mut world = run_replayed(Settings {
-        cut: Cut::Decision,
+        cut: Cut::Claim,
         commit_delay: 1,
         page_delay: 0,
         ..Settings::calm(9210, Story::Release)
     });
     assert_eq!(world.restarts, 1);
-    assert_eq!(world.referee.unplaced_claims(), 1, "claim committed with release before assignment reached worker");
+    assert_eq!(world.referee.unplaced_claims(), 1, "claim committed before assignment reached worker");
     world.referee.final_state(&world.store.rows).expect("unassigned claim spent no try and no extra expense");
     let writes = world
         .transactions

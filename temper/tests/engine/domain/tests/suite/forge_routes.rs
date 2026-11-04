@@ -168,8 +168,18 @@ fn a_merge_asked_while_kept_is_refused_naming_the_pending() {
     world.send(event);
     for _ in 0..200 {
         world.tick();
-        if world.held_reads.as_ref().is_some_and(|reads| !reads.is_empty()) && world.assigned.len() > 2 {
+        let merge_read = world.held_reads.as_ref().is_some_and(|reads| reads.iter().any(|read| matches!(read,
+            engine::Request::Forge { op: skein_forge::api::Op::Read(skein_forge::api::Read::Branch { branch: read_branch }), .. }
+                if read_branch == &branch)));
+        if merge_read && world.assigned.len() > 2 {
             break;
+        }
+        if !merge_read {
+            for read in world.held_reads.take().expect("paused change reads") {
+                world.out.push(read);
+            }
+            world.collect();
+            world.held_reads = Some(Vec::new());
         }
     }
     assert!(

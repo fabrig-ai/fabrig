@@ -30,6 +30,10 @@ pub enum Cut {
     /// Lose completion after the first accepted decision's atomic archive applies,
     /// before its keyed reply escapes.
     Decision,
+
+    /// Lose completion after a fresh claim following an accepted decision,
+    /// before its assignment escapes.
+    Claim,
 }
 
 /// Finite deterministic scenario configuration, with tiny pages and optional
@@ -577,11 +581,26 @@ impl World {
                 )
             })
         {
-            // A decision can commit its new claim before assignment escapes.
-            // No worker may invent hosting that claim; let actual fleet grace
+            // A claim can commit before assignment escapes.
+            // No worker may invent hosting that claim; let fleet grace
             // retire it and any retained old answer.
             self.clock_offset = 6_000_000_000;
         }
+    }
+
+    fn claim_cut(&self, writes: &[Write]) -> bool {
+        self.settings.cut == Cut::Claim
+            && self.store.rows.values().any(|row| {
+                matches!(
+                    row,
+                    Record::Core(jig_domain_core::Record::Core(jig_domain_core::CoreRecord::EscalationDecision(_)))
+                )
+            })
+            && writes.iter().any(|write| {
+                matches!(write,
+                Write::Save(Record::Core(jig_domain_core::Record::Core(jig_domain_core::CoreRecord::RunProof(proof))))
+                    if proof.turn.is_none() && proof.terminal.is_none())
+            })
     }
 
     fn apply_store(&mut self) {
@@ -599,12 +618,15 @@ impl World {
                         )))
                     )
                 });
+                let claimed = self.claim_cut(writes);
                 let number = self.store.apply();
                 crate::escalation_referee::store_rules(&self.store.rows).expect("escalation writer store oracle");
                 self.trace.push(format!("applied {number}"));
                 self.commit_wait = self.settings.commit_delay;
                 if self.restarts == 0
-                    && ((self.settings.cut == Cut::Held && held) || (self.settings.cut == Cut::Decision && decided))
+                    && ((self.settings.cut == Cut::Held && held)
+                        || (self.settings.cut == Cut::Decision && decided)
+                        || claimed)
                 {
                     self.restart();
                 } else {
@@ -652,8 +674,9 @@ impl World {
                                 )))
                             )
                         });
+                    let claim_cut = self.claim_cut(&writes);
                     self.store.pending.push_back((number, writes));
-                    if self.restarts == 0 && (held_cut || decision_cut) {
+                    if self.restarts == 0 && (held_cut || decision_cut || claim_cut) {
                         self.frozen_cut = Some(self.settings.cut);
                         return;
                     }
