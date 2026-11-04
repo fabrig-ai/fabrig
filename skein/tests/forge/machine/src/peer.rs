@@ -1,5 +1,5 @@
 //! One byte peer; it reads a complete request before answering its script.
-use skein_lib::stream::Down;
+use skein_lib::stream::{Down, Up};
 use skein_tls_world::{pki, server::Server};
 use skein_world::stream::Wire;
 #[derive(Debug)]
@@ -12,6 +12,7 @@ pub(crate) struct Peer {
     consumed: usize,
     demand: Demand,
     pub reset: bool,
+    pub hold_room: bool,
     pub tls: Option<Server>,
     cut: Option<crate::tls::HandshakeCut>,
     pub flight_length: Option<usize>,
@@ -40,6 +41,7 @@ impl Peer {
             consumed: 0,
             demand: Demand { room_pending: false, answered_tick: false },
             reset: false,
+            hold_room: false,
             tls: tls.then(|| Server::new(pki::Server::plain().config())),
             cut,
             flight_length: None,
@@ -73,6 +75,9 @@ impl Peer {
             || self.demand.room_pending
             || self.remaining > 0
             || (self.wire.eof && !self.wire.ended && self.demand.answered_tick)
+    }
+    pub fn answer(&mut self) -> Option<Up> {
+        if self.hold_room && self.demand.room_pending { None } else { self.wire.answer() }
     }
     pub fn answered(&mut self) {
         self.demand.answered_tick = true;

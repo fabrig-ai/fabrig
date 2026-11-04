@@ -840,3 +840,28 @@ fn a_secure_graceful_close_reaches_the_server_before_socket_settlement() {
     assert_eq!(world.closed_events(), 1);
     assert_eq!(world.event_order().last(), Some(&"closed"));
 }
+
+#[test]
+fn a_stalled_secure_close_is_aborted_at_the_close_timeout() {
+    let mut world = transport_machine(
+        true,
+        vec![
+            Answer { request: "GET /api/v1/user", response: Response::Bytes(keepalive("user")) },
+            Answer { request: "GET /api/v1/settings/api", response: Response::Bytes(keepalive("settings-api")) },
+        ],
+    );
+    world.run_for(SECOND);
+    assert!(world.script_done());
+    world.hold_room();
+    assert!(!world.close(), "a stalled peer holds the close");
+    let until = world.now().saturating_add(fixtures::shared().io.close_timeout);
+    assert_eq!(world.next_deadline(), Some(until));
+    assert_eq!(world.tls_closed(), [false], "the peer never got close_notify");
+    assert_eq!(world.aborts(), 0);
+    world.advance_to(skein_lib::Time::from_nanos(until.as_nanos() - 1));
+    assert_eq!((world.aborts(), world.closed_events()), (0, 0));
+    world.advance_to(until);
+    assert_eq!(world.aborts(), 1);
+    assert_eq!(world.closed_events(), 1);
+    assert_eq!(world.event_order().last(), Some(&"closed"));
+}
