@@ -280,7 +280,7 @@ impl Service {
             }
             && match &self.engine {
                 Some(engine) => match &engine.accounts {
-                    Some(accounts) => accounts.is_empty(),
+                    Some(accounts) => accounts.idle(),
                     None => true,
                 },
                 None => true,

@@ -60,7 +60,7 @@ fn the_store_closes_last() {
     assert_eq!(service.end(), None, "components have not reported closed");
     settle(&mut service);
     assert_eq!(service.end(), Some(&End::Drained));
-    assert!(fixtures::engine(&mut service).accounts.as_ref().expect("accounts").is_empty());
+    assert!(fixtures::engine(&mut service).accounts.as_ref().expect("accounts").idle());
     assert!(fixtures::engine(&mut service).workers.as_ref().expect("workers").host.closed());
 }
 
@@ -72,7 +72,7 @@ fn a_second_shutdown_aborts_each_component() {
     fixtures::turn(&mut service);
     assert_eq!(service.end(), Some(&End::Aborted));
     settle(&mut service);
-    assert!(fixtures::engine(&mut service).accounts.as_ref().expect("accounts").is_empty());
+    assert!(fixtures::engine(&mut service).accounts.as_ref().expect("accounts").idle());
     assert!(fixtures::engine(&mut service).workers.as_ref().expect("workers").host.closed());
 }
 
