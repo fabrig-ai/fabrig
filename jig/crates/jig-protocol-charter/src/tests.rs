@@ -470,10 +470,38 @@ fn workspace_tools_follow_every_combination_of_run_policy() {
                 assert_eq!(assembled.workspace, crate::WorkspaceTools { inspect, modify, shell });
                 let translated = charter(assembled).expect("bounded charter");
                 assert_eq!(translated.grants.tools.inspect, inspect);
-                assert_eq!(translated.grants.tools.modify, modify);
+                assert!(!translated.grants.tools.modify);
                 assert_eq!(translated.grants.tools.shell, shell);
             }
         }
+    }
+}
+
+#[test]
+fn modify_needs_a_delivery() {
+    use jig_domain_tasks as tasks;
+    // The task fixture's contract text bound.
+    const WORDS: u32 = 64;
+    let fixture = assignment_fixture(b"Modify", WORDS, 20, 4);
+    let change = tasks::Contract::Change { connector: 1, kind: 1, words: WORDS };
+    let verdict = tasks::Contract::Verdict {
+        choices: Box::new([tasks::Verdict { code: 1, followups: 0, words: WORDS, fields: Box::new([]) }]),
+    };
+    for (row, contract, ended_by, modify, expected) in [
+        ("Report / Result / modify", fixture.contract.clone(), tasks::EndedBy::Result, true, false),
+        ("Verdict / Result / modify", verdict, tasks::EndedBy::Result, true, false),
+        ("Change / Result / modify", change.clone(), tasks::EndedBy::Result, true, true),
+        ("Change / Requester / modify", change.clone(), tasks::EndedBy::Requester, true, false),
+        ("Change / Result / no modify", change, tasks::EndedBy::Result, false, false),
+    ] {
+        let mut value = fixture.clone();
+        value.contract = contract;
+        value.ended_by = ended_by;
+        value.policy.modify = modify;
+        let assembled = crate::assignment(value, Box::new([]), Box::new([]), false).expect("agent charter");
+        assert_eq!(assembled.workspace.modify, modify, "{row}: policy rights");
+        let translated = charter(assembled).expect("bounded charter");
+        assert_eq!(translated.grants.tools.modify, expected, "{row}");
     }
 }
 

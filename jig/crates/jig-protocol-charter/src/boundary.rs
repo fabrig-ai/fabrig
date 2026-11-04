@@ -138,6 +138,7 @@ pub struct Conventions {
 }
 
 /// Workspace tool rights granted by the core's run policy (domain/hosts.md, 8).
+/// Translation grants `modify` only with `deliver`.
 #[derive(Clone, Copy, PartialEq, Eq, Debug)]
 pub struct WorkspaceTools {
     pub inspect: bool,
