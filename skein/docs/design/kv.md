@@ -20,9 +20,11 @@ Read it with [the programming model](../foundation/programming-model.md),
   versions its own record shapes.
 - **What it pays for.** What the store holds on disk and in memory
   follows its live data: a read asks what its file holds, a snapshot's
-  trigger follows the live map's size, and recovery holds a read and the
-  frame it applies, never a whole file. Its limits are ceilings and
-  admission, never the sizes it starts at (sections 3, 5 and 7).
+  trigger follows the live map's size, a snapshot's chunk packs to a
+  small target whatever the largest row the limits admit, and recovery
+  holds a read and the frame it applies, never a whole file. Its limits
+  are ceilings and admission, never the sizes it starts at (sections 3,
+  5 and 7).
 - **Why not redb here.** Keeping redb on the loop means an in-memory
   virtual file and a persistence machine that replays redb's storage
   calls (`draft/redb.md`, sections 1 to 4): all the data in memory and a
@@ -104,16 +106,22 @@ next number. Nothing after that point was ever answered as committed. A
 new segment starts after recovery; a segment with a torn tail is never
 appended to, and is deleted with the others the next snapshot covers.
 
-Recovery reads each file from its start a chunk at a time, never past
-its end: each read asks the smaller of `Limits::chunk` and what the file
-holds past the read's offset (the length its open reports), so a small
-store opens with reads of its own size. It applies the snapshot a chunk
-at a time and the log a frame at a time as the reads arrive, holding
-one read and the chunk or frame being applied (section 7); a snapshot
-found corrupt part way fails the start, as a whole one would. Segments
-named before the snapshot's start, which a crash between a snapshot's
-rename and their removal leaves (section 5), are not replayed; the next
-snapshot removes them with its own.
+Recovery reads each file from its start, never past its end: each read
+asks the smaller of the chunk target (section 5) and what the file holds
+past the read's offset (the length its open reports), so a small store
+opens with reads of its own size and a large one with reads of the
+target, whatever `Limits::chunk`. No read assumes a chunk's size: a
+chunk's and a frame's own lengths say how long it is, and one longer
+than a read is carried across reads, its whole length reserved once
+those lengths have arrived, so that it is moved at most once. It applies
+the snapshot a chunk at a time and the log a frame at a time as the
+reads arrive, holding one read and the chunk or frame being applied
+(section 7); a snapshot found corrupt part way fails the start, as a
+whole one would. Any chunk up to `Limits::chunk` is read alike, however
+its rows were packed, and one past it is corrupt. Segments named before
+the snapshot's start, which a crash between a snapshot's rename and
+their removal leaves (section 5), are not replayed; the next snapshot
+removes them with its own.
 
 ## 4. Commits
 
@@ -155,6 +163,24 @@ snapshot removes them with its own.
   commits go on. A key that changes behind the cursor is put right by
   replaying the log from S; one ahead of it is written as it then is.
   There is no frozen copy, and memory does not double.
+- **A chunk packs to a target:** `CHUNK_TARGET` (1 MiB), and grows past
+  it only to hold one row. Rows go in key order until the next would
+  take the chunk past the target; a row that alone passes the target
+  has a chunk of its own, up to `Limits::chunk`. So a chunk is the
+  target's size, or one row's when that row is larger, and it is shorter
+  only before such a row and at the map's end. `Limits::chunk` is the
+  ceiling: it is there to hold the largest row the limits admit, and
+  packs nothing. Below `CHUNK_TARGET` the ceiling is the target, since no
+  chunk passes it.
+- **Why a constant, and why 1 MiB:** the target sizes a working buffer,
+  not what a deployment admits, so the store owns it, as it owns
+  `SNAPSHOT_FLOOR`: no profile has a reason to set it, and a `Limits`
+  field would be one more figure each must derive. A chunk is one write
+  and one step's copying and checksum (section 7), so the target trades
+  a step's length and its transient heap for the file requests a
+  snapshot makes: at 1 MiB, a thousand rows of a kilobyte, a step of a
+  millisecond or two, and a snapshot of a gigabyte in about a thousand
+  writes.
 - **Finishing** follows io.md's replacement sequence, with the writes a
   chunk at a time: create the temporary, write, sync, close, rename over
   `snapshot`, sync the directory. Only then are the segments wholly
@@ -194,13 +220,22 @@ transcripts), and so are not held in memory:
 
 - **The budget** covers the map's keys, values and per-entry overhead,
   queued commits, the frames being written, a snapshot's chunk, and
-  recovery's buffers: one read of at most a chunk, and the snapshot
-  chunk or frame being applied (section 3), whatever the retained log's
-  length. Recovery that would pass it fails the start, saying so.
+  recovery's buffers: one read of at most the chunk target, and the
+  snapshot chunk or frame being applied (section 3), whatever the
+  retained log's length. Recovery that would pass it fails the start,
+  saying so.
 - **Limits are ceilings:** the store pays for what it holds, not for its
-  limits. A read asks what its file holds (section 3), the snapshot's
-  trigger follows the live map up to `snapshot_after` (section 5), and
-  recovery holds a read and a frame, not the log it replays.
+  limits. A read asks what its file holds, up to the chunk target
+  (section 3), a snapshot's chunk packs to that target and the
+  snapshot's trigger follows the live map up to `snapshot_after`
+  (section 5), and recovery holds a read and a frame, not the log it
+  replays.
+- **`Limits::chunk` is a ceiling too:** the largest chunk the store
+  writes or reads, which holds the largest row the limits admit. It sets
+  no working buffer: a snapshot's step holds its chunk's rows and their
+  encoding, and recovery a read and a chunk or frame, so both transients
+  follow the target and the largest row the store holds. A store pays
+  for a chunk past the target only while it holds a row that large.
 - **`Limits::is_usable` checks the limits:** key and value sizes, operations and
   bytes per commit, queued bytes, segment and chunk sizes and derived
   capacities remain checked at the entrance. The map's byte budget is
@@ -208,7 +243,7 @@ transcripts), and so are not held in memory:
 - **Loop latency** stays bounded: a commit applies its ops to the map, a
   load returns a page, a snapshot writes a chunk per step.
 
-- **Sizes for the layer above:** `FRAME_BYTES`, `put_bytes`, `erase_bytes` and `chunk_bytes` are the frame's and a snapshot chunk's encoded sizes, the numbers a user's limits are derived from, written once here. `SNAPSHOT_FLOOR` and `SNAPSHOT_MULTIPLE` are the snapshot's trigger (section 5), from which the disk a store keeps is estimated.
+- **Sizes for the layer above:** `FRAME_BYTES`, `put_bytes`, `erase_bytes` and `chunk_bytes` are the frame's and a snapshot chunk's encoded sizes, the numbers a user's limits are derived from, written once here; `chunk_bytes` of the largest row is `Limits::chunk`, the ceiling. `SNAPSHOT_FLOOR` and `SNAPSHOT_MULTIPLE` are the snapshot's trigger (section 5), from which the disk a store keeps is estimated. `CHUNK_TARGET` is what a chunk packs to and the most a recovery read asks (sections 3 and 5), from which a store's working buffers are estimated.
 
 ## 8. What it needs of io
 
@@ -260,7 +295,12 @@ failed syncs.
   keeps its log within its bound and a segment (section 5), across
   restarts too; a crash at each step of a snapshot leaves no segment
   past the next snapshot; recovery's transient heap stays within a read
-  and a frame or snapshot chunk, whatever the retained log's length.
+  and a frame or snapshot chunk, whatever the retained log's length;
+  under a large `Limits::chunk`, many small rows are written in chunks
+  of about the target, and a snapshot's and a recovery's heap peaks stay
+  near the target, not the ceiling; a row past the target goes through a
+  snapshot and a recovery alone in its chunk, and a row at the ceiling
+  round-trips.
 - **Over the real ring:** a scratch-directory integration test commits,
   closes, reopens on the same root descriptor and verifies the value. A
   killed process leaves the page cache, so the ring shows integration,
@@ -365,7 +405,8 @@ around it:
   it. Later: that fault, beside `io_error`.
 - A deployment's budgets are a later design: a configured ceiling on its
   memory and its store, from which `Limits` are derived, beside
-  section 7's rule that a store pays for what it holds.
+  section 7's rule that a store pays for what it holds. `CHUNK_TARGET`
+  stays the store's own unless that design needs to move it.
 - When the dataset outgrows memory, retention comes first, then values
   on disk: keys in memory with where their values lie, values read by
   offset, compaction in place of snapshots, and the index rebuilt at
