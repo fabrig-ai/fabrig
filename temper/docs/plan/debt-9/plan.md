@@ -12,21 +12,39 @@ stands in the report until every part is here.
 - **smith-block-walks** (D005): `tasks/smith-block-walks.md`, high, ~180 minutes, needs nothing.
 - **smith-names** (D013): `tasks/smith-names.md`, medium, ~90 minutes, needs D005 and D006.
 
-## Still to come
-
-- **transport** (D016): the design note, one `Link`, the four components on it.
+- **transport** (D016), `skein/docs/design/link.md`, written with this batch: `tasks/link-crate.md`, high, ~110 minutes,
+  needs nothing; then, side by side, one writer per crate, `link-oauth` (~70), `link-llm` (~80), `link-forge-setup` (~75)
+  and `link-forge-connection` (~120), all high; then `link-close`, docs, ~20.
 
 ## Questions for the user
 
-Two, in `plan.toml`. Each task stops with a `Question:` until its question has an answer, for the request forbids
-it to go on: this isn't a task waiting on fab, it's a task that may end early.
+Three, in `plan.toml`. On the first two the task stops with a `Question:` until there's an answer, for the request
+forbids it to go on: that isn't a task waiting on fab, it's a task that may end early. The third stops nothing.
 
 - **`github-media-type-assertions`:** the request approves one assertion moving and says no other does. Removing
   the switch reaches three.
 - **`wrong-kind-meaning`:** the request says stop and ask if the design is silent. It is: jig's `service.md`, 11.1
   leaves the meaning to the owner, and temper's design names none.
 
+- **`link-role`:** `skein-link` takes the protocol layer's row, so `draft/component-kit.md`, 6.2 stays open. That
+  draft calls a new role the user's, so the user should see this reading. Nothing waits on it.
+
 ## What the cut decided
+
+- **D016's own words are wrong in one place.** It says oauth-accounts and llm-connection send `close_notify`. By
+  reading, only oauth-accounts delivers it: llm-connection's `route` acts on TLS's `Closed` before it moves the `Send`
+  beside it, and io drops a stream request once closing. `link-llm` reproduces that first, and this is why `pump`
+  moves ciphertext first, always.
+- **The close needed a bound that the item doesn't mention.** The forge pair's close is bounded today because it goes
+  straight to io. A TLS close waits for `Room` first, and nothing bounds that, so a stalled peer would hold a slot for
+  good, against `forge-connection.md`, 8.1 and `forge-setup.md`, 6.5. So `Link` holds a deadline of io's
+  `close_timeout`. oauth-accounts and llm-connection have the same gap today, and gain the same bound.
+- **`forge-setup.md`, 6.5's bound on a run's slot doubles,** to twice `close_timeout`, as the link's wait comes before
+  io's. It only shows against a stalled peer.
+- **`Link` is a new crate:** io may not name TLS, a machine may not name io, and a composition names no io.
+- **`pump` makes one move and `close` at most one io request,** because forge-setup reserves room for one.
+- **`Upload` is beside the link, not in it,** as a body may go through HTTP's framing. llm-connection has none: its
+  upload is `skein-llm`'s.
 
 - **The fake GitHub's design moved with the first push:** `fake-forge.md`, 9's open question closes and 10.6 says
   one spelling. `fake-forge.status.md` holds a **Not yet** that `github-media-type` closes.
@@ -46,7 +64,13 @@ it to go on: this isn't a task waiting on fab, it's a task that may end early.
   `fixture.rs` already use.
 - **D013 runs last in smith** because it renames across crates D005 and D006 own.
 
+## Critical path
+
+`link-crate` → `link-forge-connection` → `link-close` (~250 implementer-minutes), beside `smith-block-walks` →
+`smith-names` (~270).
+
 ## Overlaps
 
-`smith-block-walks` edits the lines that name `Block::ToolCall` in `smith-protocol-program/src/backend/`, which
+`link-crate` adds lines to the root `Cargo.toml` and `Cargo.lock`, and `hearth-workspace`'s `join-worlds` does too;
+fab's merges meet there, in different lines. `smith-block-walks` edits the lines that name `Block::ToolCall` in `smith-protocol-program/src/backend/`, which
 `smith-backend-effects` owns: a reader's edit on other lines, run side by side so neither slot waits.

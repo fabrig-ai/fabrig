@@ -9,7 +9,9 @@ simulation, faults and fake machine (`kernel.md`, `io.md`,
 no dialect has yet (the labels, `UpdateRef`) and GitHub's Actions
 routes, `Artifact` and `Commits` among them (`forge.md`,
 `forge-github.md`); the fake GitHub refuses no push as `GH013`
-(`fake-forge.md`). json, tls and http's collector have no fuzz target
+(`fake-forge.md`). `skein-link` isn't built, and the four components
+that stand on it each hold their own transport (`link.md`). json, tls
+and http's collector have no fuzz target
 (`json.md`, `tls.md`, `http.md`). A few items lag in `lib.md`,
 `examples.md`, `forge-setup.md`, `kv.md` and `ui.md`, and the LLM live
 suite's logins have no design (`skein-live`), five of its provider
@@ -47,6 +49,7 @@ Design documents:
 - [`kv.md`](kv.status.md)
 - [`http.md`](http.status.md)
 - [`tls.md`](tls.status.md)
+- [`link.md`](link.status.md)
 - [`channel.md`](channel.status.md)
 - [`llm.md`](llm.status.md)
 - [`llm-connection.md`](llm-connection.status.md)

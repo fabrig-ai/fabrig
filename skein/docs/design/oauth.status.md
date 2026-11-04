@@ -2,6 +2,7 @@
 
 2026-11-04. Where skein's code lags or departs from [oauth.md](oauth.md).
 
+- **Not yet:** 6.6: `skein-oauth-accounts/src/exchange.rs` holds its own transport, and a TLS close that waits for room has no bound, which link.md, 3.3 asks for.
 - **Departs:** 3: `skein/docs/foundation/programming-model.md`, 5.4 asks
   for one explicit state enum per lifecycle, each state holding exactly
   its data, no lifecycle in flags or `Option`s beside it, exhaustive
