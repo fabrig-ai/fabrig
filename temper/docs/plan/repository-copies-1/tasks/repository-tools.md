@@ -3,7 +3,7 @@ id = "repository-tools"
 part = "making-client"
 kind = "feature"
 needs = ["making-facts"]
-files = ["temper/crates/temper-client-tools/src/making.rs", "temper/crates/temper-client-tools/src/table.rs", "temper/crates/temper-client-tools/src/root.rs", "temper/crates/temper-client-tools/src/forge.rs", "temper/crates/temper-client-tools/src/forges.rs", "temper/crates/temper-client-tools/src/jig/table.rs", "temper/crates/temper-client-tools/src/jig/argv.rs", "temper/crates/temper-client-tools/src/jig/render/outcome.rs", "temper/crates/temper-client-tools/src/tests/making.rs", "temper/crates/temper-client-tools/src/tests/jig/replays.rs", "temper/crates/temper-client-tools/src/tests/golden/**", "temper/docs/help/reference/ctl-repository.md", "temper/docs/help/reference/ctl-forge.md", "temper/docs/help/repository.md", "temper/docs/help/ctl.md", "temper/docs/help/index.md", "temper/docs/help/forgejo.md"]
+files = ["temper/crates/temper-client-tools/src/making.rs", "temper/crates/temper-client-tools/src/table.rs", "temper/crates/temper-client-tools/src/root.rs", "temper/crates/temper-client-tools/src/forge.rs", "temper/crates/temper-client-tools/src/forges.rs", "temper/crates/temper-client-tools/src/jig/table.rs", "temper/crates/temper-client-tools/src/jig/argv.rs", "temper/crates/temper-client-tools/src/jig/render/outcome.rs", "temper/crates/temper-client-tools/src/tests/making.rs", "temper/crates/temper-client-tools/src/tests/jig/replays.rs", "temper/crates/temper-client-tools/src/tests/golden/**", "temper/docs/help/reference/ctl-repository.md", "temper/docs/help/reference/ctl-forge.md", "temper/docs/help/repository.md", "temper/docs/help/ctl.md", "temper/docs/help/index.md", "temper/docs/help/forgejo.md", "temper/crates/temper-docs/src/lib.rs"]
 effort = "high"
 minutes = 70
 +++
@@ -81,3 +81,10 @@ copy.
   the list", which the spec missed, and the task's suite cannot pass without it. The file is now in the
   header. Add those two entries alone, on the same terms: `direct` replays each in text and JSON, comparing
   the request, the key and the answer.
+- 2026-11-04. May this task change the `ctl-repository` summary in `temper/crates/temper-docs/src/lib.rs`, or
+  must the old group line stay? Change it: the file is now in the header, for that one literal alone. The
+  group's line is the new one, `Repositories: make, copy or adopt one into a project`, in `table.rs`, its
+  goldens and the generated page; the tools now make and copy, so the old line would be false. `summary` at
+  `lib.rs`, 400, becomes `Repositories: make, copy or adopt one into a project.`, and nothing else there
+  moves. Then run what the last run left unobserved: the failing docs test, the clippy, and the acceptance's
+  whole `heavy cargo nextest run`.
