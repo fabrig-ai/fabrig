@@ -250,6 +250,8 @@ pub enum TaskTextField {
     Specification,
     /// Override or charter instructions at the task's recorded settings revision.
     Instructions,
+    /// The kept terminal report words, without overview truncation.
+    Result,
 }
 
 /// A UTF-8 chunk, byte offsets and the complete source length.

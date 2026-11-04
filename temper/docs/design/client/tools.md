@@ -226,7 +226,7 @@ watch's subject, its digest (5.4). It needs no key.
 | `chat show TASK [--before CURSOR]` | a conversation: turns, words and, where the run's host gives it, provisional text, in order, a page from its end | `activity{n}`, `run{n}`, through `thread` |
 | `task activity TASK [--before CURSOR] [--limit COUNT]` | a task's activity, a page from its end | `activity{n}` |
 | `task turn TASK TURN [--part PART] [--from OFFSET]` | one turn of the task, TURN as `A.T`, attempt A, turn T, whole: its text, each call and its result | `turn{n, attempt, turn}` (jig's `client/domain/contract.md`, section 6) |
-| `task text TASK [--field specification\|instructions] [--from OFFSET]` | one bounded UTF-8 chunk from the stored specification words (default) or effective instructions, with total bytes and continuation | `task_text{n, field, from}` |
+| `task text TASK [--field specification\|instructions\|result] [--from OFFSET]` | one bounded UTF-8 chunk from the stored specification words (default), effective instructions or kept report, with total bytes and continuation | `task_text{n, field, from}` |
 | `task tree TASK` | a task's live tree: its root and each row its window holds, a chip a line, and what it folds (6.1) | `tree{root}` |
 | `task run TASK` | a task's live run: its attempt, its provisional text where its host gives it, its current call | `run{n}` |
 | `settings show` | the settings: the newest revision's number; each setting, by kind and number with its name, following its default or a change and the revision that last changed it; each revision held, with who decided it, when, the proposal it came from and how many live tasks hold it; the pending proposals of settings | `settings` |
@@ -1400,7 +1400,12 @@ may change with them.
   the source chunk, its starting byte offset and total size; a cut ends with
   `N bytes left; read on with: task text TASK --field FIELD --from OFFSET`.
   JSON carries `task`, `field`, `from`, `total`, `text` and `next` (null at
-  the end). Offsets keep characters whole. Instructions are the task's
+  the end). `--field result` retrieves the complete kept terminal report,
+  including one retained with cancellation, without expanding task overviews.
+  A cut report in text `task show` prints `read result: task text TASK --field
+  result --from 0`; JSON names the same call under `text_reads.result`, beside
+  its bounded typed result. Follow continuations until `no more`; a task without
+  a kept report is unknown. Offsets keep characters whole. Instructions are the task's
   override or its charter at the task's recorded settings revision; unavailable
   instructions are unknown. Reads reflect current state; restart at zero after
   an amendment or settings move. An agent's

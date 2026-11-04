@@ -31,7 +31,8 @@ The code departs in a few single items (`README.md`, `client/domain/client.md`, 
 `client/domain/contract.md`, `client/domain/testing.md`, `domain/hosts.md`, `domain/people.md`, `domain/root.md`, `domain/testing.md`, `examples.md`,
 `protocol/README.md`, `protocol/browser.md`, `protocol/client.md`, `protocol/configuration.md`). `domain/core.md`,
 `domain/providers.md` and `client/domain/README.md` have no gap of their
-own. jig has no drafts.
+own. Its one draft, `draft/account-facts.md`, says what a provider
+reports about an account.
 
 Design documents:
 - [`README.md`](README.status.md)
@@ -64,3 +65,6 @@ Design documents:
 - [`protocol/client.md`](protocol/client.status.md)
 - [`protocol/store.md`](protocol/store.status.md)
 - [`protocol/browser.md`](protocol/browser.status.md)
+
+Drafts:
+- [`draft/account-facts.md`](draft/account-facts.status.md)
