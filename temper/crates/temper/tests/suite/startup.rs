@@ -1432,7 +1432,7 @@ fn turn_bound_document(path: &std::path::Path, turn: u32, escaped: bool) {
         assert_eq!(
             before,
             after,
-            "{}: run SKEIN_CODEGEN_WRITE=1 heavy cargo nextest run -p temper --test startup -E 'test(turn_bounds)'",
+            "{}: run SKEIN_CODEGEN_WRITE=1 cargo nextest run -p temper --test startup -E 'test(turn_bounds)'",
             path.display()
         );
         return;

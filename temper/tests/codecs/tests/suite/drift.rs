@@ -15,8 +15,7 @@ fn schema_matches(crate_name: &str, family: &str, version: &str) {
         _ => root.join("golden"),
     };
     let write = std::env::var_os("SKEIN_CODEGEN_WRITE").is_some_and(|value| value == "1");
-    let again =
-        "run SKEIN_CODEGEN_WRITE=1 heavy cargo nextest run -p temper-codecs-world --test suite -E 'test(drift::)'";
+    let again = "run SKEIN_CODEGEN_WRITE=1 cargo nextest run -p temper-codecs-world --test suite -E 'test(drift::)'";
     if write {
         fs::write(&code, &output.rust).expect("write generated code");
         fs::create_dir_all(&goldens).expect("create golden directory");

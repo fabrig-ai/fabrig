@@ -3,8 +3,12 @@
 # Replace the walk's reviewed forge head with the twin's deterministic produced head.
 # Replace the walk's merge identity with the twin's deterministic merge identity.
 set -eu
-heavy env TEMPER_BUNDLE=none NEXTEST_DOUBLE_SPAWN=0 cargo run -p temper-twin -- \
-  --data "${1:-/home/free/src/rust/tmp/qa-focused/rung-b0-4/data/deployment}" \
+if [ "$#" -ne 1 ]; then
+  printf '%s\n' 'usage: regenerate.sh DATA_DIRECTORY' >&2
+  exit 2
+fi
+${TEMPER_WRAPPER:+"$TEMPER_WRAPPER"} env TEMPER_BUNDLE=none NEXTEST_DOUBLE_SPAWN=0 cargo run -p temper-twin -- \
+  --data "$1" \
   --base temper/tests/real-loop/tests/fixtures/b0/llm-base.json \
   --out temper/tests/real-loop/tests/fixtures/b0/llm.json \
   --cue '1=## Replying' \
