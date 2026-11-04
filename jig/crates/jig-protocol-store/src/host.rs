@@ -1,5 +1,6 @@
 //! The store's three single-flight file drivers, adoption and close
 //! (jig/docs/design/protocol/store.md, 13; jig/docs/design/protocol/service.md, 11.5).
+use crate::Below;
 use skein_io::{
     file,
     file_layer::{self, FileIo},
@@ -26,7 +27,7 @@ pub struct Hosted {
     /// The answers to the accounts' records' loads and writes (store.md, 9).
     pub sources: Queue<crate::Event>,
     env: Env<crate::Limits>,
-    drivers: Host,
+    drivers: Drivers,
     not_ready: NotReady,
     closing: bool,
 }
@@ -50,7 +51,7 @@ impl Hosted {
         seed: u64,
         not_ready: NotReady,
     ) -> Self {
-        let drivers = Host::new(limits, seed);
+        let drivers = Drivers::new(limits, seed);
         Self {
             component: crate::Store::on_directory(limits, application, models, drivers.seeded()),
             above: Queue::uncapped(),
@@ -65,6 +66,10 @@ impl Hosted {
     #[must_use]
     pub fn limits(&self) -> &crate::Limits {
         &self.env.limits
+    }
+    #[must_use]
+    pub fn mark_durable(&self) -> bool {
+        self.component.mark_durable()
     }
     pub fn clock(&mut self, now: Time, wall: Wall) {
         self.env.now = now;
@@ -165,15 +170,9 @@ impl Hosted {
     pub fn close(&mut self) {
         self.closing = true;
         self.drivers.close();
-        for _ in 0..self.above.len() {
-            let _terminal = self.above.pop();
-        }
-        for _ in 0..self.secrets.len() {
-            let _terminal = self.secrets.pop();
-        }
-        for _ in 0..self.sources.len() {
-            let _terminal = self.sources.pop();
-        }
+        self.above = Queue::uncapped();
+        self.secrets = Queue::uncapped();
+        self.sources = Queue::uncapped();
     }
 }
 
@@ -204,12 +203,16 @@ impl Lane {
     }
 }
 /// An untagged kernel record and the driver that owns it.
-#[derive(Debug)]
 pub struct Submission {
     pub lane: Lane,
     pub submit: Submit,
 }
 
+impl core::fmt::Debug for Submission {
+    fn fmt(&self, f: &mut core::fmt::Formatter<'_>) -> core::fmt::Result {
+        f.debug_struct("Submission").field("lane", &self.lane).field("op", &self.submit.op).finish_non_exhaustive()
+    }
+}
 /// One single-flight file driver and its owned handles.
 #[derive(Debug)]
 struct Driver {
@@ -264,9 +267,9 @@ fn seed(drivers: &mut [Driver; 3], value: u64) -> crate::Seeded {
     crate::seed([&mut store.io, &mut secrets.io, &mut transcripts.io], value)
 }
 
-#[derive(Debug)]
-pub struct Host {
-    below: crate::Below,
+#[expect(clippy::struct_field_names, reason = "the drivers part holds its three file drivers")]
+pub struct Drivers {
+    below: Below,
     drivers: [Driver; 3],
     submitted: Queue<Submission>,
     adopted: bool,
@@ -276,17 +279,18 @@ pub struct Host {
     closing: bool,
     seeded: crate::Seeded,
 }
-impl Host {
+impl core::fmt::Debug for Drivers {
+    fn fmt(&self, f: &mut core::fmt::Formatter<'_>) -> core::fmt::Result {
+        f.debug_tuple("Drivers").field(&self.submitted.len()).finish()
+    }
+}
+impl Drivers {
     #[must_use]
     pub fn new(limits: &crate::Limits, value: u64) -> Self {
         let mut drivers = [driver(limits), driver(limits), driver(limits)];
         let seeded = seed(&mut drivers, value);
         Self {
-            below: crate::Below {
-                store: Queue::uncapped(),
-                secrets: Queue::uncapped(),
-                transcripts: Queue::uncapped(),
-            },
+            below: Below { store: Queue::uncapped(), secrets: Queue::uncapped(), transcripts: Queue::uncapped() },
             drivers,
             submitted: Queue::with_capacity(KERNEL_HANDOFF_ENTRIES),
             adopted: false,

@@ -59,7 +59,7 @@ fn the_restart_asks_one_load_at_a_time() {
         ]
     );
     assert!(fixtures::engine(&mut service).domain.ready());
-    assert!(fixtures::engine(&mut service).store.host.component.mark_durable());
+    assert!(fixtures::engine(&mut service).store.host.mark_durable());
 }
 
 #[test]
@@ -669,7 +669,7 @@ fn a_refused_start_page_keeps_its_phase_and_cause() {
     );
     let engine = fixtures::engine(&mut service);
     assert!(!engine.domain.ready());
-    assert!(!engine.store.host.component.mark_durable());
+    assert!(!engine.store.host.mark_durable());
 }
 #[test]
 fn a_core_fit_refusal_keeps_its_phase_and_cause() {
@@ -1086,4 +1086,20 @@ fn pass_files(driven: &mut fixtures::Driven, next_file: &mut i32) {
             engine.store.host.above.push(event);
         }
     }
+}
+#[test]
+#[expect(clippy::disallowed_macros, reason = "the canary checks formatted values and bytes")]
+fn the_workers_host_counts_what_it_holds() {
+    let canary = "canary-workers-host";
+    let mut service = fixtures::started(&fixtures::workers_document());
+    let workers = &mut fixtures::engine(&mut service).workers.as_mut().expect("workers").host;
+    workers.io.push(skein_io::Request::Output {
+        stream: skein_lib::Token::new(1),
+        down: skein_lib::stream::OutputDown::Send {
+            right: skein_lib::Token::new(1),
+            bytes: Box::from(canary.as_bytes()),
+        },
+    });
+    let debug = format!("{workers:?}");
+    assert!(!debug.contains(canary) && !debug.contains(&format!("{:?}", canary.as_bytes())), "{debug}");
 }

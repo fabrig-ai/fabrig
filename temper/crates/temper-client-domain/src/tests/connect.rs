@@ -14,6 +14,7 @@ use temper_client_protocol_wire::{self as wire, v1 as w};
 const HERE: u16 = 3;
 fn row(number: u16, kind: Kind, mode: Mode, connection: C, offer: Offer) -> Row {
     Row {
+        host: b"git.example:3000".as_slice().into(),
         number,
         kind,
         mode,
@@ -480,6 +481,7 @@ fn deliver_first_record(
             &w::CEILINGS,
             w::ForgeRowParts {
                 makings: List::with_capacity(0),
+                host: b"git.example:3000".as_slice().into(),
                 number: HERE,
                 kind: w::Kind::Forgejo,
                 mode: w::Mode::Owned,
@@ -735,6 +737,7 @@ fn deliver_picker(root: &mut crate::Domain, watch: Token, changed: bool) -> Queu
             &w::CEILINGS,
             w::ForgeRowParts {
                 makings: List::with_capacity(0),
+                host: b"git.example:3000".as_slice().into(),
                 number: 2,
                 kind: w::Kind::Github,
                 mode: w::Mode::Connected,
@@ -1069,6 +1072,7 @@ fn go_on_uses_a_kept_github_and_its_recorded_app_way() {
                 &w::CEILINGS,
                 w::ForgeRowParts {
                     makings: List::with_capacity(0),
+                    host: b"git.example:3000".as_slice().into(),
                     number: 9,
                     kind: w::Kind::Github,
                     mode: w::Mode::Connected,

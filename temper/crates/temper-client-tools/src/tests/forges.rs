@@ -12,6 +12,7 @@ use temper_client_domain::forge::{
 use temper_client_protocol_wire::{self as wire, v1 as w};
 pub(super) fn row(connection: C) -> Row {
     Row {
+        host: b"git.example:3000".as_slice().into(),
         number: 3,
         kind: Kind::Forgejo,
         mode: Mode::Owned,
@@ -41,6 +42,7 @@ fn record_first(connection: w::Connection, first: Option<w::FirstRepository>) ->
                 &limits,
                 w::ForgeRowParts {
                     makings: List::with_capacity(0),
+                    host: b"git.example:3000".as_slice().into(),
                     number: 3,
                     kind: w::Kind::Forgejo,
                     mode: w::Mode::Owned,
@@ -50,7 +52,7 @@ fn record_first(connection: w::Connection, first: Option<w::FirstRepository>) ->
                     installations: List::with_capacity(0),
                     ended: None,
                     app: None,
-                    web: None,
+                    web: Some(b"https://web.example/shop".as_slice().into()),
                     repositories: List::with_capacity(0),
                     owned: None,
                     admin: false,
@@ -72,6 +74,20 @@ fn deliver(root: &mut f::Harness, record: client::Family) {
     let token = root.watch_token(&subject);
     root.client(client::Event::Up { up: client::Up::FamilyDelivered { watch: token, record } });
 }
+#[test]
+fn forge_list_prints_the_document_host_in_text_and_json() {
+    for json in [false, true] {
+        let mut root = f::signed_in(f::PARTY);
+        let call = root.submit_prepared(f::call(&["forge", "list"]), json, None);
+        deliver(&mut root, record(w::Connection::NotConnected));
+        let printed = root.answer(call).expect("forge list answer");
+        assert_eq!(printed.status, 0);
+        let expected =
+            if json { br#""host":"git.example:3000""#.as_slice() } else { b"host: git.example:3000".as_slice() };
+        assert!(skein_lib::bytes::find(&printed.stdout, expected).is_some(), "document forge host missing");
+    }
+}
+
 #[test]
 fn forge_calls_round_trip_through_argv_json_and_help() {
     for argv in [
@@ -147,13 +163,13 @@ fn every_state_renders_as_text_and_structured_json() {
         assert_eq!(plain.status, 0);
         assert_eq!(json.status, 0);
         let document = concat(&[
-            br#"{"forges":[{"number":3,"kind":"forgejo","read_only":false,"mode":"owned","offer":"offered","#,
+            br#"{"forges":[{"number":3,"host":"git.example:3000","kind":"forgejo","read_only":false,"mode":"owned","offer":"offered","#,
             fields,
             br#","installations":[],"ended":null,"first":null}]}"#,
         ]);
         let digest = jig::digest::Digest::of(&document).hex();
         let expected = concat(&[
-            b"forge 3 \xc2\xb7 Forgejo \xc2\xb7 owned \xc2\xb7 ",
+            b"forge 3 \xc2\xb7 host: git.example:3000 \xc2\xb7 Forgejo \xc2\xb7 owned \xc2\xb7 ",
             words,
             b"\ndigest: forges ",
             &digest,
@@ -819,6 +835,7 @@ fn settled_wait_with_installations(count: u32) {
                 &limits,
                 w::ForgeRowParts {
                     makings: List::with_capacity(0),
+                    host: b"git.example:3000".as_slice().into(),
                     number: 3,
                     kind: w::Kind::Github,
                     mode: w::Mode::Connected,
@@ -972,6 +989,7 @@ fn human_forges_bounds_the_wire_maximum_installations_with_longest_logins() {
                 &bounds,
                 w::ForgeRowParts {
                     makings: List::with_capacity(0),
+                    host: b"git.example:3000".as_slice().into(),
                     number: 3,
                     kind: w::Kind::Github,
                     mode: w::Mode::Connected,

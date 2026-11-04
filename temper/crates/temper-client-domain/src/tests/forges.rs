@@ -180,8 +180,49 @@ fn fixture_owned(m: Mode) -> Option<forge::forges::Owned> {
         None
     }
 }
+fn wire_connection_row(
+    number: u16,
+    kind: w::Kind,
+    mode: w::Mode,
+    connection: w::Connection,
+    offer: w::Offer,
+    owned: Option<w::OwnedForge>,
+) -> w::ForgeRow {
+    let mut repositories = List::with_capacity(1);
+    repositories
+        .push(
+            w::Adoption::new(
+                &limits(),
+                w::AdoptionParts { owner: b"acme".as_slice().into(), name: b"app".as_slice().into(), project: 7 },
+            )
+            .unwrap(),
+        )
+        .unwrap();
+    w::ForgeRow::new(
+        &limits(),
+        w::ForgeRowParts {
+            host: b"git.example:3000".as_slice().into(),
+            makings: List::with_capacity(0),
+            number,
+            kind,
+            mode,
+            connection,
+            offer,
+            first: None,
+            installations: List::with_capacity(0),
+            ended: None,
+            app: None,
+            web: Some(b"https://forge.example".as_slice().into()),
+            repositories,
+            owned,
+            admin: false,
+            read_only: false,
+            ended_stop: None,
+        },
+    )
+    .unwrap()
+}
 #[test]
-#[expect(clippy::too_many_lines, reason = "the connection table includes each required forge row field")]
 fn every_connection_decodes_into_the_forges_words() {
     let mut records = List::with_capacity(10);
     let mut expected = List::with_capacity(10);
@@ -207,49 +248,9 @@ fn every_connection_decodes_into_the_forges_words() {
             _ => (w::Kind::Github, w::Mode::Fake, w::Offer::NotOffered, Kind::GitHub, Mode::Fake, Offer::NotOffered),
         };
         let number = u16::try_from(index + 1).unwrap();
-        records
-            .push(
-                w::ForgeRow::new(
-                    &limits(),
-                    w::ForgeRowParts {
-                        makings: List::with_capacity(0),
-                        number,
-                        kind,
-                        mode,
-                        connection,
-                        offer,
-                        first: None,
-                        installations: List::with_capacity(0),
-                        ended: None,
-                        app: None,
-                        web: Some(b"https://forge.example".as_slice().into()),
-                        repositories: {
-                            let mut adopted = List::with_capacity(1);
-                            adopted
-                                .push(
-                                    w::Adoption::new(
-                                        &limits(),
-                                        w::AdoptionParts {
-                                            owner: b"acme".as_slice().into(),
-                                            name: b"app".as_slice().into(),
-                                            project: 7,
-                                        },
-                                    )
-                                    .unwrap(),
-                                )
-                                .unwrap();
-                            adopted
-                        },
-                        owned: fixture_wire_owned(m),
-                        admin: false,
-                        read_only: false,
-                        ended_stop: None,
-                    },
-                )
-                .unwrap(),
-            )
-            .unwrap();
+        records.push(wire_connection_row(number, kind, mode, connection, offer, fixture_wire_owned(m))).unwrap();
         let row = Row {
+            host: b"git.example:3000".as_slice().into(),
             number,
             kind: k,
             mode: m,
@@ -288,6 +289,7 @@ fn every_connection_decodes_into_the_forges_words() {
 #[test]
 fn the_offer_drives_the_manual_words_and_setup_actions() {
     let mut row = Row {
+        host: b"git.example:3000".as_slice().into(),
         number: 3,
         kind: Kind::Forgejo,
         mode: Mode::Owned,
@@ -345,6 +347,7 @@ fn an_out_of_order_document_is_refused() {
                     &limits(),
                     w::ForgeRowParts {
                         makings: List::with_capacity(0),
+                        host: b"git.example:3000".as_slice().into(),
                         number,
                         kind: w::Kind::Forgejo,
                         mode: w::Mode::Owned,
@@ -434,6 +437,7 @@ fn first_repository_decodes_each_state_and_creation_step() {
                     &limits(),
                     w::ForgeRowParts {
                         makings: List::with_capacity(0),
+                        host: b"git.example:3000".as_slice().into(),
                         number: 3,
                         kind: w::Kind::Forgejo,
                         mode: w::Mode::Owned,
@@ -517,6 +521,7 @@ fn installation_accounts_flags_and_connect_ends_survive_client_decode() {
                 &limits,
                 w::ForgeRowParts {
                     makings: List::with_capacity(0),
+                    host: b"git.example:3000".as_slice().into(),
                     number: 1,
                     kind: w::Kind::Github,
                     mode: w::Mode::Connected,
@@ -585,6 +590,7 @@ fn admin_form_and_typed_stops_survive_client_decode() {
                         &limits,
                         w::ForgeRowParts {
                             makings: List::with_capacity(0),
+                            host: b"git.example:3000".as_slice().into(),
                             number: 1,
                             kind: w::Kind::Forgejo,
                             mode: w::Mode::Managed,

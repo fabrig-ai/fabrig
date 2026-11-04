@@ -21,7 +21,7 @@ pub fn answers() -> Vec<(&'static str, Answer)> {
     let mut rows = vec![];
     for (case, title, state, at) in [
         ("create-issue", b"fixture issue".as_slice(), IssueState::Open, Wall::from_nanos(1_577_817_004_000_000_000)),
-        ("edit-issue-title", b"edited title", IssueState::Open, Wall::from_nanos(1_577_817_005_000_000_000)),
+        ("edit-issue-title", b"edited title", IssueState::Open, Wall::from_nanos(1_577_817_004_000_000_000)),
         ("close-issue", b"edited title", IssueState::Closed, Wall::from_nanos(1_577_817_005_000_000_000)),
         ("reopen-issue", b"edited title", IssueState::Open, Wall::from_nanos(1_577_817_005_000_000_000)),
     ] {
@@ -61,7 +61,7 @@ pub fn answers() -> Vec<(&'static str, Answer)> {
     rows
 }
 pub fn posted_answers() -> Vec<(&'static str, Answer)> {
-    let at = Wall::from_nanos(1_577_817_005_000_000_000);
+    let at = Wall::from_nanos(1_577_817_004_000_000_000);
     let mut rows = vec![];
     for (case, id, body) in
         [("post-comment", 4, "<!-- kit:key 01000002 -->\ncomment text"), ("post-comment-plain", 5, "plain comment")]

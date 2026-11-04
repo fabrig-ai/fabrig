@@ -86,7 +86,10 @@ fn assert_query_without_name(world: &World) {
         .expect("query command");
     let document = Document::parse(&command[..command.len() - 1], world.env.limits.command).expect("command");
     let params = document.root().get(b"params").expect("params");
-    assert_eq!(params.get(b"role").and_then(|value| value.text()).as_deref(), Some(b"button".as_slice()));
+    assert_eq!(
+        params.get(b"role").and_then(skein_browser::wire::decode::Value::text).as_deref(),
+        Some(b"button".as_slice())
+    );
     assert!(params.get(b"accessibleName").is_none());
 }
 
@@ -294,7 +297,7 @@ fn unanswered_command_reaches_answer_deadline() {
             Down::Commands(stream::Down::Send(bytes)) => {
                 let document =
                     Document::parse(&bytes[..bytes.len() - 1], world.env.limits.command).expect("valid command");
-                document.root().get(b"id").and_then(|id| id.u64())
+                document.root().get(b"id").and_then(skein_browser::wire::decode::Value::u64)
             }
             _ => None,
         })
@@ -377,7 +380,7 @@ fn dialog_answer(world: &World) -> bool {
         .get(b"params")
         .expect("parameters")
         .get(b"accept")
-        .and_then(|value| value.bool())
+        .and_then(skein_browser::wire::decode::Value::bool)
         .expect("accept boolean")
 }
 #[test]

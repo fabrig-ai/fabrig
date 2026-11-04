@@ -37,6 +37,7 @@ struct Inputs {
     scratch: PathBuf,
 }
 impl Inputs {
+    #[expect(clippy::disallowed_methods, reason = "the live proof supplies its owner through the test environment")]
     fn read(scratch: &Path) -> Self {
         let owner = std::env::var("TEMPER_LIVE_GITHUB_OWNER").expect("owner from proof-live-github.sh");
         assert!(matches!(owner.as_str(), "freeekanayaka" | "fabrig-ai"), "probe owner only");

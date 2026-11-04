@@ -17,8 +17,8 @@ hearth-protocol-git.workspace = true
 [dev-dependencies]
 hearth-builder-world = { path = "../../tests/builder" }
 skein-scratch.workspace = true
-[lints.rust]
-unsafe_code = "deny"                  # allowed in the ring adapter module only
+[lints.rust] # ring: tools/lints/design.md, 2.4
+unsafe_code = "deny"
 unsafe_op_in_unsafe_fn = "deny"
 elided_lifetimes_in_paths = "deny"
 unused_must_use = "deny"
@@ -33,6 +33,7 @@ missing_panics_doc = "allow"
 undocumented_unsafe_blocks = "deny"
 multiple_unsafe_ops_per_block = "deny"
 wildcard_enum_match_arm = "deny"
+match_wildcard_for_single_variants = "deny"
 indexing_slicing = "deny"
 arithmetic_side_effects = "deny"
 as_conversions = "deny"
@@ -44,6 +45,7 @@ unimplemented = "deny"
 allow_attributes = "deny"
 allow_attributes_without_reason = "deny"
 disallowed_types = "deny"
+disallowed_macros = "deny"
 disallowed_methods = "deny"
 dbg_macro = "deny"
 missing_assert_message = "deny"

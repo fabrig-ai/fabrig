@@ -29,6 +29,7 @@ fn row(
         &w::CEILINGS,
         w::ForgeRowParts {
             makings: List::with_capacity(0),
+            host: b"git.example:3000".as_slice().into(),
             number: FORGE,
             kind: w::Kind::Forgejo,
             mode: w::Mode::Managed,

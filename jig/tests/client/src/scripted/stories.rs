@@ -49,10 +49,6 @@ pub(super) fn ended(task: Task, report: &[u8]) -> ReadValue {
     }))
 }
 
-#[expect(
-    clippy::wildcard_enum_match_arm,
-    reason = "the seed adapter handles only operation variants selected at its entrance"
-)]
 pub(super) fn request(front: &mut Scripted, party: u64, ask: &Ask, wall: Wall) {
     role_request(front, party, ask);
     if proposal_request(front, party, ask) {
@@ -410,7 +406,6 @@ fn choice(front: &mut Scripted) {
     }
 }
 
-#[expect(clippy::wildcard_enum_match_arm, reason = "the person seed adapter handles only take and answer operations")]
 fn role_request(front: &mut Scripted, party: u64, ask: &Ask) {
     if goal_proposal_request(front, party, ask) {
         return;

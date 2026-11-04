@@ -197,7 +197,7 @@ in `../draft/agent-docs.md` 6's voice.
 | `settings-fields` | `FIELDS`, beside the settings form's decoder (`temper-settings-form`; `../client/tools.md`, 5.3) | a member of a shape |
 | `host-tools` | the host tools' declarations (`temper-engine-smith`; `../domain/agent.md`, 4.3) | a host tool: its name, its description, then each top-level member of its input's schema with its type, bound, whether it is required and its description (a nested member stays in the schema the run reads); in the one order the run's tool list has |
 | `limits` and `limits-engine` | the limits' names: `limits` temper's, those `application.limits.overrides` takes (`temper-service`'s, the setup's `setup.*` and the box's `box.*`), and `limits-engine` jig's, those `engine.limits.overrides` and a worker's `limits.overrides` take (`jig-protocol-config`) | a named limit: its dotted name, its unit (a count, bytes, milliseconds), the small profile's value, a line |
-| `configuration` and `configuration-engine` | the configuration document's members by shape, beside each decoder: `configuration` temper's, the document's top level and `application`'s shapes, beside temper's decoders; `configuration-engine` jig's, `engine`'s and a worker's shapes, beside `jig-protocol-config`'s (`configuration.md`) | a member of a shape, the shape's section naming every path it is read at: its type and bound, whether it is required, what `temper init` writes, a line; the members that left the document for the store (`engine.charters`, `templates`, `policies` and `rules`; `application.charter` and `application.landing`'s rules: `configuration.md`, 13.5) are one row each, saying that a start refuses it and where it went, as the refusal says, and sending the reader to `settings` |
+| `configuration` and `configuration-engine` | the configuration document's members by shape, beside each decoder: `configuration` temper's, the document's top level and `application`'s shapes, beside temper's decoders; `configuration-engine` jig's, `engine`'s and a worker's shapes, beside `jig-protocol-config`'s (`configuration.md`) | a member of a shape, the shape's section naming every path it is read at: its type and bound, whether it is required, what `temper init --box` writes, a line; the members that left the document for the store (`engine.charters`, `templates`, `policies` and `rules`; `application.charter` and `application.landing`'s rules: `configuration.md`, 13.5) are one row each, saying that a start refuses it and where it went, as the refusal says, and sending the reader to `settings` |
 
 - **`host-tools`' text is the run's:** the page renders the same
   description a run reads beside each tool, at most 160 bytes, and a
@@ -223,7 +223,7 @@ in `../draft/agent-docs.md` 6's voice.
   decoder reads its members through its table, a member it asks for
   that the table lacks failing every test that decodes it, so that
   every member the decoder takes is a row; a step test holds that every member
-  `temper init` writes is a row, and that every row is a member the
+  `temper init --box` writes is a row, and that every row is a member the
   decoder takes or one of the members gone, which its decoder refuses
   naming where it went. Where the decoder is jig's, its members' rows
   are jig's, as `limits-engine`'s are.

@@ -623,7 +623,7 @@ fn loaded_tail(transcript: Box<[u8]>) -> Box<[u8]> {
     let settings = fixtures::engine();
     let config = jig_protocol_config::core(&settings.jig, [7; 16], 7);
     let mut core = core::Core::new(config, &settings.jig.limits.core).unwrap();
-    core.begin_transcript(7, 1);
+    core.begin_transcript(7, 1, None);
     core.transcripts.get_mut(&7).unwrap().window = Some((1, 1));
     for (row, text) in rows.into_iter().zip(texts) {
         let engine::Record::Core(core::Record::Core(core::CoreRecord::Turn(turn))) = row else { panic!("turn row") };

@@ -38,7 +38,7 @@ pub fn run() -> Run {
         trigger_actor: 1,
         status: StepStatus::Failure,
         html_url: Box::from(*b"http://127.0.0.1:3000/fixture/specimen/actions/runs/1"),
-        created_at: Wall::from_nanos(1_577_817_011_000_000_000),
+        created_at: Wall::from_nanos(1_577_817_014_000_000_000),
     }
 }
 pub fn jobs() -> Box<[Job]> {
@@ -109,14 +109,14 @@ pub fn cases() -> Vec<(&'static str, Request, Option<Answer>, u16)> {
                         StatusState::Success,
                         b"Successful in 0s",
                         b"/fixture/specimen/actions/runs/1/jobs/0",
-                        1_577_817_011_000_000_000,
+                        1_577_817_014_000_000_000,
                     ),
                     status(
                         b"conformance / fail (push)",
                         StatusState::Failure,
                         b"Failing after 0s",
                         b"/fixture/specimen/actions/runs/1/jobs/1",
-                        1_577_817_012_000_000_000,
+                        1_577_817_014_000_000_000,
                     ),
                 ]),
             }),

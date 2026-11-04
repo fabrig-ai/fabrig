@@ -1,5 +1,4 @@
 //! Root forge stories with its durable store and the independent fake Forgejo.
-#![expect(clippy::wildcard_enum_match_arm, reason = "the fixture selects only the forge rows relevant to each story")]
 use jig_domain_authority as authority;
 use jig_domain_host as host;
 use jig_domain_people as people;
@@ -349,7 +348,6 @@ impl World {
         panic!("external fake call did not return")
     }
 
-    #[expect(clippy::wildcard_enum_match_arm, reason = "the world records only its scripted root deliveries")]
     #[expect(clippy::too_many_lines, reason = "one dispatch handles the root's requests and scripted deliveries")]
     fn collect(&mut self) {
         for _ in 0..self.out.len() {

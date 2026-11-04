@@ -36,7 +36,6 @@ pub(crate) fn workstream(key: &[u8]) -> u64 {
     u64::from_be_bytes(key.try_into().expect("the root keys every checkout by eight bytes"))
 }
 
-#[expect(clippy::manual_map, reason = "explicit option match follows the step subset, without function pointers")]
 fn repository(repository: wire::Repository) -> checkout::Repository {
     let wire::Repository { tag: _, name, remote, git, start, access, identity, account, save } = repository;
     let (push, expected, landing) = match access {

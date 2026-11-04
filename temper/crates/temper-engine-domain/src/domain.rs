@@ -91,6 +91,7 @@ pub struct Domain {
     pub(crate) application_playground: Option<crate::route::playground::Context>,
     pub(crate) playground_contexts: Map<Token, crate::route::playground::Context>,
     pub(crate) playground_start: Option<crate::route::playground::Start>,
+    pub(crate) revision_reads: Map<Token, crate::ForgeRead>,
     pub(crate) playground_replies: Map<Token, (Option<Token>, crate::route::playground::Reply)>,
     pub(crate) next_playground_reply: u64,
     pub(crate) playground_provider: Option<u32>,
@@ -330,12 +331,10 @@ impl Domain {
         if let Some(machine) = config.machine.take() {
             forge.set_machine(machine);
         }
-        #[expect(clippy::manual_map, reason = "the strict subset uses explicit matches")]
         let playground_provider = match &config.playground {
             Some(config) => Some(config.provider),
             None => None,
         };
-        #[expect(clippy::manual_map, reason = "the strict subset uses explicit matches")]
         let playground_policy = match config.core.defaults.policies.first() {
             Some((number, _)) => Some(*number),
             None => None,
@@ -436,15 +435,7 @@ impl Domain {
             core_header_loaded: false,
             restored_commits: None,
             core,
-            brief_connectors: Slab::with_capacity(
-                limits
-                    .brief
-                    .briefs
-                    .checked_mul(limits.brief.sections)
-                    .expect("validated brief count")
-                    .checked_mul(2)
-                    .expect("validated brief connector room"),
-            ),
+            brief_connectors: Slab::with_capacity(brief_connector_capacity(limits)),
             brief_document_titles: Map::with_capacity(limits.brief.briefs),
             forge_briefs: Map::uncapped(),
             run_workspaces: Map::with_capacity(limits.tasks.tasks),
@@ -457,6 +448,7 @@ impl Domain {
             application_playground: None,
             playground_contexts: Map::with_capacity(limits.forge.applications),
             playground_start: None,
+            revision_reads: Map::with_capacity(limits.loads.loads),
             playground_replies: Map::with_capacity(limits.forge.applications),
             next_playground_reply: u64::MAX,
             playground_provider,
@@ -575,6 +567,7 @@ impl Domain {
             && self.refused_calls.is_empty()
             && self.forge_briefs.is_empty()
             && self.archive_reads.is_empty()
+            && self.revision_reads.is_empty()
             && self.store_answers.is_empty()
             && self.adoption_restore.is_empty()
             && self.forge_subscribing.is_empty()
@@ -943,7 +936,7 @@ pub(crate) fn resume_routed(domain: &mut Domain, env: &Env<Limits>, out: &mut Qu
             && within_budget(domain, &env.limits)
             && let Some(context) = domain.core.take_due()
         {
-            domain.work.push(Work::Activate(context));
+            domain.work.push(Work::Activate { context, ready: true });
             let decision = route(domain, env);
             close(domain, env, decision, out);
             return;
@@ -1336,4 +1329,14 @@ fn add_configured_requirements(
     };
     rules.requirements = combined;
     authority::valid_rules(rules, limits)
+}
+
+fn brief_connector_capacity(limits: &Limits) -> u32 {
+    limits
+        .brief
+        .briefs
+        .checked_mul(limits.brief.sections)
+        .expect("validated brief count")
+        .checked_mul(2)
+        .expect("validated brief connector room")
 }

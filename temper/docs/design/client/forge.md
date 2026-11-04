@@ -722,8 +722,8 @@ and `connect-forge.html`.
   fifth, done once the first repository is made, unadopted. Before the
   target is known, the fifth reads "Making the first repository".
   GitHub rows never list Forgejo's steps. The first and the Details
-  name the versions the row's `owned` pins, "Fetching Forgejo 17.0.0
-  and its runner 13.2.0"; the person's login stays off until the row
+  name the versions the row's `owned` pins, "Fetching Forgejo 17.0.1
+  and its runner 13.2.1"; the person's login stays off until the row
   carries it. Then "You may
   leave this page: the steps go on." A failed setup keeps all five steps: those before the failed
   step are done, that step is marked failed (✕), and those after it
@@ -1095,7 +1095,19 @@ and its hold (2.5) follow.
 | a public project's changes and landings, for a visitor (section 11) | jig's public reads, `PublicRead`, of the forge's public kinds | `../domain/forge.md`, sections 8 and 9; `../domain/landing.md`, section 14 |
 | the playground: its forge, project, model, repository, state and suggested requests | the deployment's read, `playground` (`README.md`, 4.6), for its banner, its pages and the chats page; its start and its reset, `StartPlayground` and `EndPlayground` | `../protocol/setup.md`, 8.4 |
 | a forge removed | the deployment's request `RemoveForge` (`README.md`, 4.6), from the Forges page | `../domain/forge.md`, 4.1 |
-| temper's settings: a landing rule's value, the forge's charter, and a pending proposal's items of temper's kinds | the deployment's reads `Setting { kind, scope, number }` and `ProposalItems { key }`, the key jig's settings review gives a pending proposal of settings naming temper's kinds (jig's `domain/engine.md`, 17.6), beside jig's `settings` document, which gives their states and sizes | `../protocol/configuration.md`, 13.2; jig's `domain/engine.md`, 17.5 |
+| temper's settings: a landing rule's value, the forge's charter, and a pending proposal's items of temper's kinds | the deployment's reads `Setting { kind, scope, number }`, `RevisionSetting { kind, scope, number, revision }` and `ProposalItems { key }`, the key jig's settings review gives a pending proposal of settings naming temper's kinds (jig's `domain/engine.md`, 17.6), beside jig's `settings` document, which gives their states and sizes | `../protocol/configuration.md`, 13.2; jig's `domain/engine.md`, 17.5 |
+
+The revision-qualified setting read serves an explicit set item from a
+retained revision. It uses jig's authenticated revision read to confirm
+that revision's item, then reads the forge's value saved before the next
+overwrite, or its current value when no later overwrite exists. The
+forge retains overwritten defaults and explicit values in its replaced
+slots for the same history as jig's revisions. A release retains the old
+default before changing it. Unknown or forgotten revisions, non-set
+items and missing retained values return no value; today's value never
+stands in for a missing historical one. The read is one bounded value,
+with the setting answer's byte ceiling. The tools decode its landing
+rule or charter before joining it with revision metadata (`tools.md`, 5.2).
 
 ### 9.1 The browser's steps, on the clients' listener
 

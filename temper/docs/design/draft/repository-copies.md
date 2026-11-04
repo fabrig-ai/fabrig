@@ -35,8 +35,9 @@ setup host; the views over it come last, once their look is settled
 - **The welcome** keeps the addresses with the set up's intent, and
   Ready copies them into the project it makes, the first the project's
   home and its name (section 7).
-- **One sheet to add a repository,** with three sources: one the forge
-  has already, a new empty one, a copy of a public one (section 9).
+- **One sheet, "Add repositories",** with three sources: one the
+  forge has already, a new empty one, a copy of a public one
+  (section 9).
 - **Changed in place:** until v0.1.0 there is no supported deployment,
   so the store's families, the FORGE records, `CLIENT_VERSION` and the
   set up's intent change in place, with no version kept for an older
@@ -102,7 +103,7 @@ what is missing:
 ## 4. Forgejo fetches it
 
 The copy is Forgejo's migration, not a clone by temper's git program
-and a push:
+and a push (the user, 2026-11-04):
 
 - **No bytes through the engine.** A copy may be large; Forgejo fetches
   it into its own repositories' directory, as it would fetch from its
@@ -178,7 +179,9 @@ MakeRepository {
 
 - **The source's owner and name:** `github.com/acme/widget` becomes
   `acme/widget` on the forge, as the mockup has it, so the copy says
-  where it came from.
+  where it came from. A project's repositories may span orgs, so
+  copies from several owners sit well in one project (the user,
+  2026-11-04).
 - **Another place is the person's:** the sheet and `temper ctl` take
   an org and a name of their own (section 8), for a name taken or a
   user's.
@@ -239,9 +242,15 @@ MakeRepository {
   it", and "and N more" for more.
 - **Not waited for:** the project opens once made; the copies run on,
   one after another, and Home's "To begin" says each while it lasts
-  (`to-begin.md`, section 3): "Copying acme/widget from github.com…",
-  then "acme/widget is in Widget". A copy that fails says the forge's
-  words, with "Copy again".
+  (`to-begin.md`, section 3): its repository step a line per copy,
+  "Copying acme/widget from github.com…" for the one running and
+  "Waiting to copy" for the next, then "acme/widget is in Widget",
+  checked. A copy that fails says the forge's words, with "Copy
+  again". How a copy under way looks is a look pass of its own
+  (the user, 2026-11-04).
+- **At Ready,** never while the set up connects: one way to ask and
+  adopt a copy, the welcome's and Settings' alike (the user,
+  2026-11-04).
 - **A refresh or a restart in between:** the intent still names the
   addresses, and the forge's row shows them not yet asked, so the
   project's page offers them again, filled, as an adoption not
@@ -249,7 +258,8 @@ MakeRepository {
 
 ## 8. A copy's checks
 
-- **The starter workflow is added** (section 3, step 5): a copy from
+- **The starter workflow is added** (section 3, step 5; the user,
+  2026-11-04): a copy from
   GitHub carries `.github/workflows` written for GitHub's runners,
   which the owned runner's label does not take, so its checks would
   wait for ever. With `.forgejo/workflows/ci.yml` present, Forgejo's
@@ -258,6 +268,13 @@ MakeRepository {
   checked by the starter (`../domain/forge.md`, 8.2).
 - **Its own checks are the person's to bring:** a chat can turn
   `.github/workflows` into the owned runner's, as any change.
+- **Why a copy needs one:** the queue lands a change once the
+  repository's CI passed at its head, and again after it is brought up
+  to date with main (`../domain/forge.md`, 8.2 and 8.7); CI pending
+  is a wait. An implementer's own tests run before its change is
+  pushed, and the queue trusts none of them. A repository adopted
+  without CI names checks that stand for it (`../domain/forge.md`,
+  8.3).
 
 ## 9. Adding a repository: one sheet
 
@@ -265,7 +282,8 @@ MakeRepository {
   one question, "Where does it come from?": one the forge has already
   (the picker, then the adoption form, `../client/README.md`, 4.4), a
   new empty one, or a copy of a public one.
-- **One sheet, "Add a repository",** with the three as its sources,
+- **One sheet, "Add repositories",** a dialog over the page (a sheet
+  from the bottom on a phone), with the three as its sources,
   the forge chosen above them where there are several; the adoption's
   own fields (role, home, landing branch, CI, checks) under "More",
   their defaults those of section 5.1. From Settings' project
@@ -276,6 +294,9 @@ MakeRepository {
 - **They meet:** a copy whose name is taken offers "Adopt it" for the
   one already there, filled; the picker's rows and the copies being
   made are listed together, by name, so a person sees one list.
+- **Plural,** since a person may add several at once: copies, one
+  address a line, as the welcome takes them; rows of the picker
+  (the user, 2026-11-04).
 - **Light for now:** the sheet's look is tuned on the person's
   `look-requests` branch (`../client/journeys.md`, 7) once the
   foundation is in.
@@ -315,20 +336,9 @@ the row.
 
 ## 12. Open questions
 
-- **Forgejo's migration or a clone and a push?** Default: Forgejo's
-  (section 4).
-- **The request, its family and the intent** (sections 5 and 7):
-  `MakeRepository` with `Empty` and `Copy`, the `Making` family keyed
-  by forge, org and name, and `SetUp`'s first repository as `Empty`,
-  `Copies` or `Nothing`. Default: as written.
-- **Where a copy lands:** the source's owner and name, or one org for
-  every copy (`work`)? Default: the source's (5.3).
-- **The starter workflow in every copy** (section 8), or none, the copy
-  adopted with no checks until the person brings theirs? Default: the
-  starter.
-- **One sheet with three sources, or separate acts** (section 9)?
-  Default: one sheet.
-- **The welcome's copies at Ready, or as the set up connects?** Copying
-  at the set up hides their time behind the Model step but needs a
-  second way to adopt them later. Default: at Ready, one way for all
-  (section 7).
+None: the user settled the six this draft asked on 2026-11-04:
+Forgejo's migration (section 4); `MakeRepository`, the `Making` family
+and the set up's intent as written (sections 5 and 7); a copy at its
+source's owner and name (5.3); the starter workflow in every copy
+(section 8); one sheet, "Add repositories" (section 9); the welcome's
+copies at Ready (section 7).

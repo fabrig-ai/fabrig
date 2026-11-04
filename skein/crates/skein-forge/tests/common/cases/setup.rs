@@ -134,7 +134,7 @@ pub fn hook_answers() -> Vec<OrgAnswer> {
 pub fn created_repository(private: bool) -> skein_forge::forgejo::document::CreatedRepository {
     if private {
         skein_forge::forgejo::document::CreatedRepository {
-            id: 1,
+            id: 12,
             full_name: Box::from(*b"creation/starter"),
             default_branch: Box::from(*b"main"),
             clone_url: Box::from(*b"http://127.0.0.1:3000/creation/starter.git"),
@@ -142,7 +142,7 @@ pub fn created_repository(private: bool) -> skein_forge::forgejo::document::Crea
         }
     } else {
         skein_forge::forgejo::document::CreatedRepository {
-            id: 2,
+            id: 13,
             full_name: Box::from(*b"creation/public"),
             default_branch: Box::from(*b"main"),
             clone_url: Box::from(*b"http://127.0.0.1:3000/creation/public.git"),

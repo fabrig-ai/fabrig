@@ -231,8 +231,8 @@ watch's subject, its digest (5.4). It needs no key.
 | `task run TASK` | a task's live run: its attempt, its provisional text where its host gives it, its current call | `run{n}` |
 | `settings show` | the settings: the newest revision's number; each setting, by kind and number with its name, following its default or a change and the revision that last changed it; each revision held, with who decided it, when, the proposal it came from and how many live tasks hold it; the pending proposals of settings | `settings` |
 | `settings show charter NUMBER [--revision REVISION]`, `settings show template\|policy NUMBER`, `settings show rules` | one setting's value whole, as the newest reads it, or a charter as held REVISION reads it; with `--json`, the value in the form `settings apply` takes. A REVISION no longer held exits 2, `temper ctl: revision R is no longer held; its record is in temper ctl revision show R, and the held ones in temper ctl settings show` | `setting{kind, number, revision}` |
-| `settings show landing-rule NUMBER [--project PROJECT]`, `settings show forge-charter NUMBER` | one of temper's settings (`../protocol/configuration.md`, 13.2): a landing rule of the deployment's, or of PROJECT's, or one of the forge's charters, 1 the change's and 2 its reviews'; its state from jig's `settings`, its value from the forge's read; with `--json`, the value in the form `settings apply` takes | the forge's `Setting { kind, scope, number }` (`forge.md`, section 9) |
-| `revision show REVISION` | a revision: the revision it was made against, when, who decided it (a party, the release or the first start), the proposal it came from, whether it moved running work, and its items, each set with its value whole (or its size, too large, to read with `settings show`), removed or reset, and what it replaced (`was:` its value whole or its size, its default, removed, or not offered), a project's policy item with the policy it set and the one it replaced, temper's kinds' items with their sizes and the state they replaced alone, the forge keeping those values for a restore (jig's `domain/engine.md`, 17.10); a revision forgotten past the history names the oldest kept | `revision{n}` |
+| `settings show landing-rule NUMBER [--project PROJECT] [--revision REVISION]`, `settings show forge-charter NUMBER [--revision REVISION]` | one of temper's settings (`../protocol/configuration.md`, 13.2): a landing rule of the deployment's, or of PROJECT's, or one of the forge's charters, 1 the change's and 2 its reviews'; its state from jig's `settings`, its value from the forge's read; with `--revision`, the value that revision set, while it remains in the history; with `--json`, the value in the form `settings apply` takes | the forge's `Setting { kind, scope, number }` (`forge.md`, section 9) |
+| `revision show REVISION` | a revision: the revision it was made against, when, who decided it (a party, the release or the first start), the proposal it came from, whether it moved running work, and its items, each set with its value whole (or its size, too large, to read with `settings show`), removed or reset, and what it replaced (`was:` its value whole or its size, its default, removed, or not offered), a project's policy item with the policy it set and the one it replaced, temper's kinds' set items read at that revision from the forge and printed whole in text and JSON, with the state they replaced, the forge keeping those values for a restore (jig's `domain/engine.md`, 17.10); a revision forgotten past the history names the oldest kept | `revision{n}`, the forge’s `RevisionSetting { kind, scope, number, revision }` |
 | `proposal show PROPOSAL` | a proposal of any kind, including its settings review: current values, origins, proposed values and the newest revision, each value whole: one past the review document's bound is read whole with `setting{…, proposal}` (jig's `domain/engine.md`, 17.10) and the current one with `setting{…}`, so a review never shows a value as too large; a decided or withdrawn proposal retains its state | `proposal{proposer, number}`, `settings`, `setting{…}` |
 | `revision list [--before REVISION]` | the history a page, newest first: each revision's record and its items without values, cut at the page's bound with how many more; the last page says whether older ones were forgotten | `revisions` |
 
@@ -253,10 +253,18 @@ watch's subject, its digest (5.4). It needs no key.
   their default, compatibility conditions and the same explanation. A
   failed inventory read reports unavailable counts, never a count of zero.
 
+- **Temper's revision values** come from a revision-qualified forge read,
+  never from the current setting. A value past its share of the output
+  bound prints its size and `settings show landing-rule NUMBER
+  [--project PROJECT] --revision REVISION` or `settings show forge-charter
+  NUMBER --revision REVISION`; JSON includes the same call as `read`.
+  That read returns the value set by this revision, even after later
+  accepted changes overwrite it. Removed and reset edits retain their
+  words, and `was:` retains the replaced-state metadata.
 - **A revision's value too large to print** says `too large, N bytes;
   read with settings show charter NUMBER --revision REVISION` for a
   charter, and `too large, N bytes; read current value with settings
-  show KIND [NUMBER]` for a template, policy or rules. Only a charter
+  show KIND [NUMBER]` for a template, policy or rules. Among these jig kinds, only a charter
   takes `--revision`; the other reads serve the current value, including
   when the hint appears in a historical revision.
 - **`task list` reads one group a call.** jig answers a task query in
@@ -1102,9 +1110,13 @@ The table grows area by area, each with its stories (section 11).
 
 ### 6.1 Text
 
-A new owner proposal outcome prints the original returned role in the request's
-project. A restored kept line prints its identity alone; read the proposal for
-its present recipient. Replaying the same key retains the original outcome;
+A new settings proposal outcome names the owners of the submitted items:
+`to the deployment's owners` for deployment items, `to project P's owners`
+for a project's. Multiple scopes are listed once each, the deployment first
+then projects by number, followed by `; one person must own every affected
+scope`. Other new owner proposal outcomes print the original returned role
+in the request's project. A restored kept line prints its identity alone;
+read the proposal for its present recipient. Replaying the same key retains the original outcome;
 `settings propose` forwards an optional reason, and `proposal decide`
 on a settings proposal's acceptance sends `--running`'s choice, or stays
 when it is absent, live or repeated, since jig refuses an acceptance of
