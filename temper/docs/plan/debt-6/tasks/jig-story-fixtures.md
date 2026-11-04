@@ -67,7 +67,8 @@ Acceptance:
    Each helper writes its object and returns its entry. A row's position and time are one value today:
    one parameter.
 3. Move `b_held`'s `use`s and constants to the top.
-4. Hand-break, since a story's fixture changed: swap the two rows of `updates`, and
+4. Hand-break, since a story's fixture changed: keep the two rows of `updates` in their places and swap
+   their position and time, `update(front, NEWER_RESULT, 3), update(front, OLDER_RESULT, 4)`, and
    `a_person_s_inbox_lists_needs_oldest_first_and_updates_newest_first` goes red on the scripted front.
 5. `cargo fmt`; `heavy cargo clippy -p jig-client-world --all-targets -- -D warnings`;
    `heavy cargo nextest run -p jig-client-world`; the citations check. One commit for each finding. Push.
@@ -75,3 +76,15 @@ Acceptance:
 ## Report
 
 The common note's table. Net lines; the review expects about -60 from these two findings.
+
+## Answers
+
+2026-11-04. Question: step 4's row swap stays green because the view sorts by time; may the break swap
+the updates' position and time instead, or should the story assert the raw source order?
+
+Swap the position and time; step 4 now says so. The story's rule is an order by time, which
+`jig/crates/jig-client-view/src/state/page/inbox.rs`, `merge` and `earlier`, holds whatever order the
+source supplies, so the old step 4 broke nothing the story names. The raw source order is no rule of
+this story: add no assertion, and no story's words or asserts change. The break is a run's to observe:
+if this one stays green too, stop and ask again. Run 1's commit `f87ec2782c` stands; finish the rest of
+the acceptance on it.
