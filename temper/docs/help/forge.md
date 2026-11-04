@@ -44,8 +44,8 @@ A forge is where repositories live, GitHub or Forgejo, numbered when it is set u
   playground's.
 - **Set up:** a box's owned Forgejo is fetched, prepared and started
   with its runner, then makes its first repository with a starter CI
-  workflow; `forge setup` adopts it, and the client's welcome leaves it
-  for you to adopt.
+  workflow; `forge setup` adopts it, and the client's welcome adopts it
+  into your first project.
 - **Connected:** GitHub by its App; a Forgejo by its admin's token, or
   by a user's two tokens: `forge connect forgejo FILE`, FILE a tokens
   file, one `NAME VALUE` line each for `api`, `git` and, for hooks to

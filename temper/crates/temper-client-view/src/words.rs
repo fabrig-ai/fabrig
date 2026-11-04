@@ -700,6 +700,7 @@ pub enum Word {
     WelcomeForgejoNotYet,
     WelcomeForgejoName,
     WelcomeReadyLead,
+    WelcomeReadyRepositoryLead,
     WelcomeCreateProject,
     WelcomeRenameLater,
     WelcomeDefaultUnnamed,
@@ -756,10 +757,11 @@ pub(crate) const SCRIPTED_MODEL: &[u8] = b"demo";
 // checklist's forge status and model account phrases are gone (3.5).
 // Model’s connected login and first repository are separate detail phrases (3.5).
 // Home and Settings add two phrases, each with one hole and three segments (3.5).
-const PHRASES: u32 = 1268;
+const PHRASES: u32 = 1269;
 // Ready's empty-name line has two literals and a Name hole, two more segments (3.5).
-const SEGMENTS: u32 = 2171;
-const ALL: [Word; 673] = [
+// Ready's repository lead adds one phrase and three segments (3.5).
+const SEGMENTS: u32 = 2174;
+const ALL: [Word; 674] = [
     Word::PlaygroundBanner,
     Word::PlaygroundSetUp,
     Word::BannerSetUp,
@@ -1429,6 +1431,7 @@ const ALL: [Word; 673] = [
     Word::WelcomeForgejoNotYet,
     Word::WelcomeForgejoName,
     Word::WelcomeReadyLead,
+    Word::WelcomeReadyRepositoryLead,
     Word::WelcomeCreateProject,
     Word::WelcomeRenameLater,
     Word::WelcomeDefaultUnnamed,
@@ -2106,6 +2109,7 @@ impl Word {
             Self::WelcomeForgejoNotYet => 3042,
             Self::WelcomeForgejoName => 3043,
             Self::WelcomeReadyLead => 3044,
+            Self::WelcomeReadyRepositoryLead => 3060,
             Self::WelcomeCreateProject => 3045,
             Self::WelcomeRenameLater => 3046,
             Self::WelcomeDefaultUnnamed => 3047,
@@ -2388,7 +2392,7 @@ fn english(word: Word, shell: Shell) -> (&'static [&'static [u8]], &'static [Hol
         Word::WelcomeModelSignInTime => (&[b"Sign in, in this tab \xc2\xb7 about a minute"], &[]),
         Word::WelcomeModelProgramTime => (&[b"One command in a terminal, on this machine"], &[]),
         Word::WelcomeForgeDoneDetail => (&[b"connected as ", b""], &[Name]),
-        Word::WelcomeForgeDoneRepository => (&[b"", b" made, in no project yet"], &[Name]),
+        Word::WelcomeForgeDoneRepository => (&[b"", b" made"], &[Name]),
         Word::PublicTitleCut => (&[b"\xe2\x80\xa6"], &[]),
         Word::PublicProjects => (&[b"Public projects"], &[]),
         Word::PublicProject => (&[b"Project ", b""], &[Name]),
@@ -2478,6 +2482,7 @@ fn english(word: Word, shell: Shell) -> (&'static [&'static [u8]], &'static [Hol
         Word::WelcomeForgejoNothingDetail => (&[b"Your first project opens with no repository. Make or copy one later from temper\xe2\x80\x99s UI, or adopt one you push yourself."], &[]),
         Word::WelcomeForgejoNotYet => (&[b"Not available yet: for now, Forgejo starts with an empty repository."], &[]),
         Word::WelcomeForgejoName => (&[b"Name"], &[]),
+        Word::WelcomeReadyRepositoryLead => (&[b"Everything is connected. Create your first project, with ", b" in it, and start working."], &[Name]),
         Word::WelcomeReadyLead => (&[b"Everything is connected. Create your first project and start working."], &[]),
         Word::WelcomeCreateProject => (&[b"Create your project"], &[]),
         Word::WelcomeRenameLater => (&[b"Rename it whenever you like."], &[]),

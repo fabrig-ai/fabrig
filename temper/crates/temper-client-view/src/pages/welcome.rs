@@ -266,7 +266,16 @@ fn ready(
     let done = connected(root) && temper_client_domain::pages::welcome::model_usable(root) == Some(true);
     if done {
         text(b, w, Role::Heading { level: 1 }, Word::WelcomeReadyStep);
-        paragraph(b, w, Word::WelcomeReadyLead, look::WELCOME_LEAD);
+        if let Some(first) = root.pages().welcome_first() {
+            let name = temper_client_domain::forge::words::full_name(&first.org, &first.name);
+            b.open(Role::Paragraph);
+            b.style(look::WELCOME_LEAD);
+            b.name(&w.say(Word::WelcomeReadyRepositoryLead, &[Hole::Name(name.clone())]));
+            w.text(b, Word::WelcomeReadyRepositoryLead, &[Hole::Name(name)]);
+            b.close();
+        } else {
+            paragraph(b, w, Word::WelcomeReadyLead, look::WELCOME_LEAD);
+        }
     } else {
         text(b, w, Role::Heading { level: 1 }, Word::WelcomeReadyTitle);
         paragraph(b, w, Word::WelcomeDefaultWait, look::WELCOME_LEAD);

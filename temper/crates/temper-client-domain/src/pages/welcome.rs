@@ -125,6 +125,22 @@ impl DefaultProject {
         self.shown(offered).trim_ascii()
     }
 }
+/// Ready's adoption, or Home's again (temper/docs/design/client/README.md, 3.5).
+#[derive(Debug, PartialEq, Eq)]
+pub struct Adopting {
+    pub project: u32,
+    pub first: First,
+    /// The request out, if one is.
+    pub out: Option<jig_client::Key>,
+    /// Each attempt after a refusal names a key of its own.
+    pub attempt: u64,
+    pub ended: Option<AdoptionEnded>,
+}
+#[derive(Debug, PartialEq, Eq)]
+pub enum AdoptionEnded {
+    Refused(forge::Answer),
+    Unknown,
+}
 /// The first project's name until the person writes another (3.5).
 pub const OFFERED_NAME: &[u8] = b"My project";
 /// jig's project name bound (jig-domain-people's `NAME_BYTES`).

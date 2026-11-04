@@ -258,10 +258,7 @@ fn model_ticks_the_first_repository_made() {
         Address::Welcome { step: Step::Model { way: None } },
         forge::first_rows(forge::connected(), forge::made()),
     ));
-    let line = line_in_forge(
-        view.tree(),
-        "Forgejo on this machine · connected as temper · work/hello made, in no project yet",
-    );
+    let line = line_in_forge(view.tree(), "Forgejo on this machine · connected as temper · work/hello made");
     let line = view.tree().nodes().iter().find(|n| n.id == line).unwrap();
     assert!(line.styles.as_slice().contains(&crate::look::FLOW_DONE));
     let index = view.tree().nodes().iter().position(|n| n.id == line.id).unwrap();
@@ -275,7 +272,7 @@ fn model_ticks_the_first_repository_made() {
         [
             (skein_ui::Run::Strong, b"Forgejo on this machine".as_slice()),
             (skein_ui::Run::Plain, b"connected as temper".as_slice()),
-            (skein_ui::Run::Plain, b"work/hello made, in no project yet".as_slice())
+            (skein_ui::Run::Plain, b"work/hello made".as_slice())
         ]
     );
     each_step(view.tree(), false);
@@ -1397,7 +1394,15 @@ fn ready_names_its_first_project_in_a_form() {
         let mut root = ready_root(rows);
         let mut view = f::page_view(&root);
         let tree = view.tree();
-        node(tree, Role::Paragraph, "Everything is connected. Create your first project and start working.");
+        node(
+            tree,
+            Role::Paragraph,
+            if offered == "Hello" {
+                "Everything is connected. Create your first project, with work/hello in it, and start working."
+            } else {
+                "Everything is connected. Create your first project and start working."
+            },
+        );
         let form = node(tree, Role::Form, "Your first project");
         let form = tree.nodes().iter().position(|n| n.id == form).unwrap();
         assert!(tree.nodes()[form].styles.as_slice().contains(&crate::look::WELCOME_PROJECT));

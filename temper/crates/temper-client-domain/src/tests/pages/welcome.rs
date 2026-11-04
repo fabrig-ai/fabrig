@@ -8,7 +8,7 @@ use jig_client::{Down, Link, Readout, Told, Up, contract as c};
 use skein_lib::{List, Queue, Secret, Token};
 use temper_client_protocol_wire::{self as wire, v1 as w};
 
-fn event(root: &mut Domain, event: Event) -> Queue<Request> {
+pub(super) fn event(root: &mut Domain, event: Event) -> Queue<Request> {
     let mut out = Queue::uncapped();
     crate::step(root, &f::env(&f::limits()), event, &mut out);
     out
@@ -19,7 +19,7 @@ fn up(root: &mut Domain, up: Up) -> Queue<Request> {
 fn go(root: &mut Domain, step: Step) -> Queue<Request> {
     event(root, Event::Went { place: Place::Address(Address::Welcome { step }) })
 }
-fn deliver(root: &mut Domain, watch: Token, delivery: c::Delivery) -> Queue<Request> {
+pub(super) fn deliver(root: &mut Domain, watch: Token, delivery: c::Delivery) -> Queue<Request> {
     up(root, Up::Watched { watch, event: c::WatchEvent::Delivered(delivery) })
 }
 fn answer(root: &mut Domain, present: bool) {
@@ -640,17 +640,17 @@ fn ready_and_the_strip_count_an_owners_deployment_model() {
     assert_eq!(pages::welcome::model_usable(&member), Some(false));
 }
 
-fn ready_default() -> (Domain, Token) {
+pub(super) fn ready_default() -> (Domain, Token) {
     let (mut root, me, accounts, forges) = opened(true, Step::Ready);
     answer(&mut root, false);
     account(&mut root, accounts, 18, true);
     forge_rows(&mut root, forges.unwrap(), Some(3), false);
     (root, me)
 }
-fn press_default(root: &mut Domain) -> Queue<Request> {
+pub(super) fn press_default(root: &mut Domain) -> Queue<Request> {
     event(root, Event::Act { action: Action::Pages(Act::MakeDefault) })
 }
-fn default_answer(root: &mut Domain, outcome: jig_client::Outcome) -> Queue<Request> {
+pub(super) fn default_answer(root: &mut Domain, outcome: jig_client::Outcome) -> Queue<Request> {
     let key = root.pages().default_project().making.expect("pending first project");
     let mut out = Queue::uncapped();
     crate::route::told(root, &f::env(&f::limits()), Told::Answered { key, outcome }, &mut out);
@@ -690,10 +690,10 @@ fn ready_makes_default_once_per_press_with_its_own_key() {
     assert_eq!(root.pages().default_project().making, Some(key));
 }
 #[test]
-fn default_made_opens_chats_and_waits_for_its_membership() {
+fn default_made_opens_home_and_waits_for_its_membership() {
     let (mut root, me) = ready_default();
     press_default(&mut root);
-    assert!(moved(
+    assert!(home_moved(
         default_answer(
             &mut root,
             jig_client::Outcome::Answered(jig_client::Answered::Jig(c::Answer::Done(c::Outcome::Document(
@@ -728,7 +728,7 @@ fn default_name_taken_opens_only_the_persons_default() {
                 at: None,
             })),
         );
-        assert_eq!(moved(out, false), own_default);
+        assert_eq!(home_moved(out, false), own_default);
         assert_eq!(
             root.pages().default_project().ended,
             if own_default { None } else { Some(pages::welcome::Ended::Refused(c::Refusal::NameTaken)) }
@@ -773,7 +773,7 @@ fn ready_makes_the_first_project_as_named() {
             at: None,
         })),
     );
-    assert!(moved(out, false));
+    assert!(home_moved(out, false));
     assert_eq!(root.pages().default_project().ended, None);
 }
 #[test]
@@ -868,4 +868,22 @@ fn ready_keeps_written_and_emptied_names_across_new_rows() {
         go(&mut root, Step::Ready);
         assert_eq!(shown_name(&root).as_ref(), written);
     }
+}
+
+fn home_moved(mut out: Queue<Request>, replace: bool) -> bool {
+    while let Some(request) = out.pop() {
+        if let Request::Show { address: Address::Home { .. }, replace: replaced } = request {
+            assert_eq!(replaced, replace);
+            return true;
+        }
+    }
+    false
+}
+
+pub(super) fn ready_without_first() -> Domain {
+    let (mut root, _, accounts, forges) = opened(true, Step::Ready);
+    answer(&mut root, false);
+    account(&mut root, accounts, 18, true);
+    forge_rows(&mut root, forges.unwrap(), Some(3), true);
+    root
 }
