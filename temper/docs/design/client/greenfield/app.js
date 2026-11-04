@@ -774,7 +774,7 @@ ${events.length ? `\n${events.map(esc).join('\n')}\n` : ''}<span class="cursor">
       } else if (m?.ready) {
         body = `${status}${head('Connect a model')}<div class="forge-status done"><p><span class="ok">✓</span><b>${esc(m.name)}</b><span class="sep">·</span><span class="muted">${esc(m.who)}</span></p></div><div class="acts"><a class="btn primary" href="welcome.html?at=ready">Continue</a></div>${foot}`;
       } else {
-        body = `${status}${head('Connect a model', 'temper’s agents run on a plan you sign in to. Keys and other accounts can be added later, in Settings.')}
+        body = `${status}${head('Connect a model', 'temper’s agents run on a plan you sign in to.')}
           <div class="choices-grid">
             ${choice('ChatGPT', 'Your ChatGPT plan: sign in, and temper’s agents use its included usage.', 'Sign in, in this tab · about a minute', '<button type="button" class="btn primary" data-chatgpt>Continue with ChatGPT</button>', ' lead')}
             ${choice('Claude', 'Your Claude subscription, through Claude Code on each host temper’s agents run on.', 'A command in a terminal, on each host', '<a class="btn" href="welcome.html?at=model&amp;way=claude">Use your Claude subscription</a>')}
@@ -796,7 +796,7 @@ ${events.length ? `\n${events.map(esc).join('\n')}\n` : ''}<span class="cursor">
         <div class="acts"><button type="button" class="btn primary" data-make${ready && !making ? '' : ' disabled'}>${making ? `Making ${esc(FR.project.name)}…` : `Open ${esc(FR.project.name)}`}</button></div>
         ${ready ? '' : `<p class="facts">${f && !f.done ? 'Forgejo is still setting up; this page moves on by itself.' : 'It opens once your forge and model are ready.'}</p>`}${foot}`;
     }
-    const notice = `<p class="setup-notice">temper box runs temper on this machine, to try it. Deploying it for real? See <a class="link" href="#" data-later-note="The deployment guide: temper’s documentation, outside this wizard. Not drawn.">the deployment guide ↗</a></p>`;
+    const notice = `<p class="setup-notice">temper box runs temper on this machine, to try it. More forges and accounts later, from temper’s Settings · <a class="link" href="#" data-later-note="temper help server: a long-lived deployment, the engine behind a proxy and its workers on another host. Opens in a new tab.">Run temper on a server ↗</a></p>`;
     return `<div class="setup"><header class="setup-top"><a class="brand" href="welcome.html">temper</a>${steps}</header>${notice}<main class="setup-main">${body}</main></div>`;
   }
   function forgeSteps(f) {
