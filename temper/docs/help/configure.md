@@ -6,25 +6,20 @@ Change a deployment's settings while it runs: read them, write a settings file, 
 
 ## Before you start
 
-You can also describe how you work to the configuring chat: temper help chat.
+Or describe how you work to the configuring chat: temper help chat.
 
-- **A running deployment** and `DIR` signed in to it (temper help box,
-  steps 1 to 3). An owner of the deployment applies a change; a party
-  with another role proposes it, and an owner decides (step 3).
-- **jq** on `PATH`, to read and write the settings' JSON.
-- **What to change:** this walk changes charter 1's instructions, the
-  chat's (temper help charter). Every setting changes the same way:
-  its kind's page names its fields (temper help settings).
-- `NEWEST`: the newest revision, as the last `settings show` printed
-  it. Every change names it, and each accepted change makes the next.
-- `FILE`: the settings file you write, in a directory of yours.
+- A running deployment and `DIR` signed in (temper help box, steps 1 to 3).
+  Owners apply settings; other parties propose them (step 3).
+- jq on `PATH` for JSON.
+- This walk changes charter 1's chat instructions (temper help charter).
+  Other kinds follow the same steps; fields: temper help settings.
+- `NEWEST`: the last `settings show` revision; every accepted edit advances it.
+- `FILE`: your settings file.
 
 ### Deployment capacity
 
-Deployment limits are startup configuration in `temper.json`, under
-`engine.limits.overrides`. Stop and restart the deployment after editing
-them (temper help deployment). Stored settings and task authority do
-not raise these limits.
+Edit startup limits in `temper.json` under `engine.limits.overrides`, then
+restart (temper help deployment). Settings and authority cannot raise them.
 
 | Member under `engine.limits.overrides` | Bounds |
 |---|---|
@@ -46,22 +41,18 @@ max(`tasks.delegates` + 1, `tasks.project_goals`) and at most
 `people.inbox_tasks: 128`, while `tasks.delegates: 8` needs
 `people.operations: 9` and enough live task capacity to hold it.
 
-`people.requests` holds a day's deciding answers across the deployment:
-2,000 on small and 8,000 on standard. The calculation is 4 or 16 people,
-each with 20 daily conversations, each a creation, three messages and a
-decision, with fivefold headroom. Settings changes and other deciding
-acts share this room; pending decisions also need a place. Unexpired
-answers stay so a retry with the same key replays its answer. When full,
-ctl reports the number held and when the oldest answer expires. Size
-this limit for a higher daily workload or a longer answer retention.
+`people.requests`: 2,000 on small, 8,000 on standard, for 4 or 16 people,
+20 daily conversations (creation, three messages, decision), fivefold
+headroom. Settings and pending decisions share capacity. Answers replay
+until expiry; full ctl reports count and oldest expiry. Size for workload
+and retention.
 
-A refused start names the failed dependency and required minimum.
-A fixed schema ceiling or profile store ceiling cannot be raised with
-a scalar override. A batch's bytes, `tasks.batch_bytes`, and the inbox's messages grow
-the stored task record; reduce the named capacity or its spec, message, result and
-authority sizes when it exceeds that ceiling. Check each edit from a fresh configuration: a refusal of
-an earlier edit can still be present. For a goal's sizing example,
-read temper help budget; it does not promise a hundred-change profile.
+A refused start names its dependency and minimum. A schema ceiling or
+profile store ceiling cannot be raised with scalar overrides.
+`tasks.batch_bytes` and inbox messages grow the stored record: reduce
+capacity or spec, message, result and authority sizes if it exceeds the
+ceiling. Check edits from a fresh configuration; earlier refusals can
+remain. Goal sizing: temper help budget.
 
 ## 1. Read the settings
 
@@ -69,32 +60,24 @@ read temper help budget; it does not promise a hundred-change profile.
 temper ctl DIR settings show
 ```
 
-Expect: `newest revision NEWEST`, then each setting and where its value
-comes from, such as `charter 1: default, last changed in revision 1`,
-then the held revisions and the pending proposals.
-
-If not: exit 1 is ctl's side, such as `DIR` signed out (temper help
-ctl).
+Expect: `newest revision NEWEST`, each setting's source and last revision,
+held revisions and pending proposals. Exit 1 means a ctl error, such as
+`DIR` signed out (temper help ctl).
 
 ## 2. Write a settings file from the value
 
-A value is whole: read it, change what you mean to change, and set it
-whole.
+Read the whole value, edit it, then set it whole.
 
 ```
 temper ctl DIR settings show charter 1 --json | jq '{items: [{setting: .setting, set: (.value | .instructions = "Answer in one short paragraph.\n")}]}' > FILE
 ```
 
-Expect: no output; `FILE` holds `{"items": [{"setting": {"kind":
-"charter", "number": 1}, "set": {...}}]}`, the value whole with its
-instructions changed.
+Expect: no output; `FILE` holds an `items` array setting charter 1's
+whole value with new instructions. If empty, read stderr and retry the
+read. A file holds at most 1024 items, one per setting. Replace `set`
+with `"edit": "removed"` or `"edit": "reset"` to remove or reset one.
 
-If not: an empty `FILE` and a line on stderr: the read failed, and its
-line says why; read the settings again. A file holds at most 1024
-items, one per setting; an item sets a value, or names `"edit":
-"removed"` or `"edit": "reset"` in place of `set`.
-
-For temper's settings, read the value in the same form:
+Other settings read the same way:
 
 ```
 temper ctl DIR settings show landing-rule 1 --json
@@ -102,64 +85,120 @@ temper ctl DIR settings show landing-rule 1 --project PROJECT --json
 temper ctl DIR settings show forge-charter 1 --json
 ```
 
-A landing rule item and a forge charter item may share a file. This
-example sets the deployment's first rule and selects charter 2 for new
-changes. Choose a charter the deployment offers, and keep the rule's
-other fields as the read gave them:
+Keep other fields as read. This selects charter 2 while preserving stock
+landing requirements:
 
 ```json
-{"items": [
-  {"setting": {"kind": "landing-rule", "number": 1},
-   "set": {"pattern": {"segments": ["666f726765"], "last": {"open": ""}},
-           "enforce": true, "ci": true, "up_to_date": true,
-           "gates": [{"number": 1, "blocking": true, "freshness": "clean"}],
-           "approvals": []}},
-  {"setting": {"kind": "forge-charter", "number": 1}, "set": 2}
+{"items":[
+ {"setting":{"kind":"landing-rule","number":1},
+  "set":{"pattern":{"segments":["666f726765"],"last":{"open":""}},
+         "enforce":true,"ci":true,"up_to_date":true,
+         "gates":[{"number":1,"blocking":true,"freshness":"clean"}],"approvals":[]}},
+ {"setting":{"kind":"forge-charter","number":1},"set":2}
 ]}
 ```
 
-For a project's own policy, start from policy 1, the stock's starting
-point, and set the whole policy for `PROJECT`:
+A project-policy item accepts only `set`, no `number`, at most once per
+file; it may share a file with other settings. Edit `set` before sending. Its spends
+resize the project's open period and parties' pools immediately; policy 1
+sets only future projects' starting values.
 
-```
-temper ctl DIR settings show policy 1 --json | jq --argjson project PROJECT '{items: [{setting: {kind: "project-policy", project: $project}, set: .value}]}' > FILE
-```
-
-The item accepts only `set`, at most once per file, and may share a file
-with other settings. It takes no `number`, and neither `"edit": "removed"`
-nor `"edit": "reset"`. Change the policy's fields in `set` before sending
-it. Setting a project's policy immediately resizes its open period and
-parties' pools to the policy's spends; setting policy 1 itself changes
-only what projects made after it start with.
-
-For example, accept project-policy `period_spend` 8200000 beside rules
-`period_spend` 8300000 in one file, keeping every other field as read.
-Then read `project show PROJECT`: the open period's budget is 8200000.
+For example, set project-policy `period_spend` 8200000 beside rules
+`period_spend` 8300000; `project show PROJECT` confirms the open period's
+budget is 8200000.
 
 For a project's landing rule, add `"project": PROJECT` to its `setting`.
 A proposal's temper items, with their whole values or their removed or
 reset edits, are included in `proposal show PROPOSAL`.
 
+### Authority for the reference charters
+
+Installing charters alone grants no task authority. Widen the rules ceiling,
+policy 1's ceiling and the creator-role authority before starting a reference
+goal. Fresh coordinator runs use notes for earlier results and Left lists.
+
+The families needed are delegate 1, message 2, control 4 (`amend`, `cancel`,
+`release`), decide 8 (`decide`, `decide_escalation`), propose 16, subscribe 32
+(`subscribe`, `subscribe_forge`), note 128, recall 256 and forge reads 512.
+Stock tools 1543 include settings 1024; adding the missing bits gives tools 1983.
+Note writes also need goal and project note scopes, bits 1 and 2: notes 3.
+
+`ROLE`: numeric creator role (stock owner 0). `PROJECT`: existing project's
+number. These edits preserve budgets, grants, other fields and granted bits:
+
+```sh
+temper ctl DIR settings show rules --json > reference-rules.json
+temper ctl DIR settings show policy 1 --json > reference-policy.json
+cat > reference-authority.json <<'JSON'
+{"tools": [8, 16, 32, 128, 256], "notes": [1, 2],
+ "kinds": [{"charter": 5}, {"charter": 7}, {"charter": 6},
+           {"procedure": 2}, {"job": 3}, {"role": 0}]}
+JSON
+cat > reference-authority.jq <<'JQ'
+def grant($bits):
+  reduce $bits[] as $bit (.;
+    if ((. / $bit | floor) % 2) == 0 then . + $bit else . end);
+def widen:
+  .tools |= grant($required[0].tools)
+  | .notes |= grant($required[0].notes)
+  | .delegation.kinds |= (. + $required[0].kinds | unique);
+.items |= map(
+  .set.ceiling |= widen
+  | if .setting.kind == "rules" then .
+    else (.set.roles[] | select(.number == $role) | .authority) |= widen
+    end)
+JQ
+jq -s '{items: map({setting, set: .value})}' reference-rules.json reference-policy.json > reference-input.json
+jq --slurpfile required reference-authority.json --argjson role ROLE -f reference-authority.jq reference-input.json > FILE
+```
+
+Expect: widened rules and policy 1 in `FILE`. Delegation explicitly adds
+coordinator charter 5, designer charter 7, foreman charter 6, change procedure 2,
+merge job 3 and person role 0, retaining the existing executors. Install the
+charters first; their own tools must offer these families too. Size tasks,
+depth and spend separately (temper help budget).
+
+Policy 1 affects future projects. Existing projects need project-policy.
+If the project's current policy still equals the policy 1 just read:
+
+```sh
+jq --argjson project PROJECT '{items: [{setting: {kind: "project-policy", project: $project}, set: .value}]}' reference-policy.json > reference-project.json
+```
+
+For a customized project, instead put its saved whole current `project-policy`
+settings item in `reference-project.json`, inside `{"items": [...]}`. Preserve
+its current budgets, grants, permissions, templates and other fields.
+Widen its ceiling and creator role, then combine the items:
+
+```sh
+jq --slurpfile required reference-authority.json --argjson role ROLE -f reference-authority.jq reference-project.json > reference-project-settings.json
+jq -s '{items: [.[].items[]]}' FILE reference-project-settings.json > reference-settings.json
+mv reference-settings.json FILE
+```
+
+Apply through step 3 as owner of both scopes. Refused families need their bit
+at task, project and deployment; notes also need scope bits. Existing tasks
+do not gain widened authority automatically; moving revisions only changes
+charters. Instead, amend or allot their authority explicitly, or start anew.
+
 ## 3. Apply it, or propose it
 
-The deployment's owners decide its items, a project's owners its
-policy and landing rules. A file touching both needs one person who
-owns both; its proposal waits for them. An owner applies it, naming the
-newest revision read:
+Deployment owners decide deployment items; project owners decide their
+policy and landing rules. A file touching both needs one owner of both.
+Apply against the newest revision read:
 
 ```
 temper ctl DIR settings apply FILE --against NEWEST --key KEY
 ```
 
-A party that is no owner proposes it, with a reason as `TEXT`, and
-reads its proposal:
+Other parties propose with reason `TEXT`:
 
 ```
 temper ctl DIR settings propose FILE TEXT --against NEWEST --key KEY
 temper ctl DIR proposal show PROPOSAL
 ```
 
-An owner of every scope the file touches then decides it, from the inbox:
+An owner of both scopes decides:
 
 ```
 temper ctl DIR inbox
@@ -180,24 +219,16 @@ policy line is `project-policy PROJECT · set · now {...} · would be
 
 If not:
 
-- `settings apply: stale; newest revision NEWEST; read settings show
-  again` (exit 2): a change came first; go back to step 1 and decide
-  again on what you read.
-- `settings apply: settings unchanged` (exit 2): the file sets what is
-  there already.
-- `settings apply: out of shape; item 0; charter 1: budget` (exit 2):
-  a value breaks a bound or a reference; the line names the item,
-  counted from 0, its setting and its fault. Mend `FILE`, then a new
-  key.
-- `temper ctl: settings file item 1: item: exactly one of set or edit
-  required` (exit 1): the file is out of form; the line names the item,
-  counted from 1, and its rule.
-- A pending proposal is withdrawn as stale once another change makes a
-  new revision: read the settings again and propose again (temper help
-  proposal).
-- `decided first: by party 2, accepted, 14:02` (exit 0): the proposal
-  was decided already, by the party it names (`you` when it was you),
-  how and when; this decision changes nothing.
+- `settings apply: stale` (exit 2): read the newest revision and decide again.
+- `settings apply: settings unchanged` (exit 2): already set.
+- `settings apply: out of shape` (exit 2): the line names the item
+  (from 0), setting and broken bound or reference. Mend `FILE`; use a new key.
+- `temper ctl: settings file item 1: item: exactly one of set or edit required`
+  (exit 1): invalid file; diagnostics count items from 1 and name the rule.
+- Another accepted edit withdraws pending proposals as stale; read and
+  propose again (temper help proposal).
+- `decided first` (exit 0): names the first decider (`you` if yours),
+  decision and time; nothing changes.
 
 ## 4. See that it took
 
@@ -206,35 +237,27 @@ temper ctl DIR settings show
 temper ctl DIR revision show NEWEST
 ```
 
-Expect: `newest revision NEWEST`, with `charter 1: changed in revision
-NEWEST`; the revision's record then names who decided it and its item,
-`charter 1: set`, with its value.
-
-If not: `charter 1` still follows its default: the change waits as a
-proposal for an owner; read `inbox`.
+Expect: `newest revision NEWEST`, `charter 1: changed in revision NEWEST`,
+and the revision's decider, items and whole values. If charter 1 still
+follows its default, read `inbox`: the proposal may await an owner.
 
 ## 5. Move running work to it
 
-A live agent task, such as a chat started before the change (temper
-help chat), keeps the revision it was made in until it moves: `task
-show TASK` prints it as `settings: revision R · newest NEWEST`, and
-`settings show` lists each held revision with its live tasks. Move the
-tasks of a held revision, `REVISION`, at their next run:
+Tasks retain their creation revision: `task show TASK` prints
+`settings: revision R · newest NEWEST`. `settings show` lists held revisions
+and live tasks. Move `REVISION` at their next run:
 
 ```
 temper ctl DIR revision advance REVISION --key KEY
 temper ctl DIR task show TASK
 ```
 
-Expect: `moved 1 task to revision NEWEST`, the count of tasks moved.
-In `task show`'s output, the task's `settings:` line then reads
-`settings: revision NEWEST`.
+Expect: `moved 1 task to revision NEWEST` (the moved count), and
+`task show`'s `settings: revision NEWEST`.
 
-If not: a task whose charter the newest revision no longer offers with
-its models stays on its revision, and the answer counts it among those
-that could not move; it finishes there. A chat moves by itself at its
-next run. To move running work as you apply, give `--running moves` in
-step 3.
+If not: a task whose charter or models are no longer offered stays on
+its revision and is counted as unable to move. A chat moves at its next
+run. Use `--running moves` in step 3 to move tasks as you apply.
 
 ## 6. Restore what was there
 
@@ -249,9 +272,8 @@ Expect: `revision` and the new revision's number. After a reset,
 `settings show` lists `charter 1: default, last changed in revision
 NEWEST`.
 
-To the settings as an earlier revision left them, find it in the history,
-newest first, a page at a time. A page's last line is the call that reads
-on, `revision list --before REVISION`:
+To restore an earlier revision, find it newest first in the paged history.
+The last line reads on: `revision list --before REVISION`.
 
 ```
 temper ctl DIR revision list
@@ -263,29 +285,20 @@ temper ctl DIR proposal decide PROPOSAL accept --running stays --key KEY
 
 Use a different KEY for each act.
 
-Expect: `proposed restoring revision REVISION as proposal PROPOSAL to
-role K`, then `left out: SETTING` for
-each deleted project's setting or policy left out. Read the proposal's
-items before accepting it. The acceptance makes a new revision; running
-work stays on its revision.
+Expect: `proposed restoring revision REVISION as proposal PROPOSAL to role K`;
+`left out: SETTING` names omitted deleted-project items. Inspect before
+accepting. Acceptance makes a new revision; running work stays put.
 
-If not:
-
-- `temper ctl: revision R is forgotten; the oldest kept is revision O`
-  (exit 2): choose a kept revision; a forgotten one cannot be restored.
-- `revision restore: too large; revision R's settings pass a proposal's
-  bound; restore a later revision` (exit 2): choose a later revision.
-- `revision restore: nothing to restore; the settings are as revision R
-  left them` (exit 2): no change is needed.
-- `revision restore: no revision R; the newest is revision N` (exit 2):
-  choose a revision from the history, numbered from 1.
-- `revision restore: stale; newest revision N; read settings show again`
-  (exit 2): read again, then restore with a new key.
+If not (exit 2): forgotten revisions cannot be restored; choose a kept
+revision. `too large` needs a later revision within the proposal bound;
+`nothing to restore` needs no action; `no revision` needs a listed revision
+(from 1); `stale` needs a fresh read and key.
 
 ## Clean up
 
-- Remove `FILE`; the settings stay as the newest revision left them.
-- A held revision is released once its last task ends or moves.
+- Remove `FILE`, `reference-*.json` and `reference-authority.jq`; keep policies
+  needed later. Applied settings stay.
+- Revisions are released when their last task ends or moves.
 
 ## Next
 
