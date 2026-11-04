@@ -35,8 +35,6 @@ pub fn forge_settings() -> temper_service::forges::Forges {
             git_program: None,
             web: Some(base.into()),
             app_read_only: false,
-            api_token: None,
-            webhook_secret: None,
             user: 1,
             identity: 1,
         }));
@@ -1041,6 +1039,37 @@ pub fn give(world: &mut World<Temper, Joint>, agent: jig_client_world::harness::
     world.event(agent, crate::app::Event::Call { number, call, json, value: None });
     number
 }
+/// Supply the host's already-loaded FILE bytes without touching the filesystem.
+pub fn give_with_file(
+    world: &mut World<Temper, Joint>,
+    agent: jig_client_world::harness::ClientId,
+    words: &[&[u8]],
+    bytes: &[u8],
+) -> u32 {
+    use jig_client_world::harness::Until;
+    use temper_client_tools::jig::call::{Value, Values};
+    let start = world.now();
+    for _ in 0..ANSWER_STEPS {
+        if world.root(agent).agent().ready() && world.root(agent).agent().kept() == 0 {
+            break;
+        }
+        world.run(Until::Steps(2));
+    }
+    assert!(world.now() <= start.saturating_add(WITHIN), "agent ready within world time");
+    assert!(world.root(agent).agent().ready() && world.root(agent).agent().kept() == 0, "agent ready before call");
+    let number = world.root(agent).agent().calls() + 1;
+    let crate::app::Event::Call { mut call, json, .. } = call(words) else { unreachable!() };
+    let mut files = 0;
+    for slot in &mut call.values {
+        if matches!(slot, Some(Values::One(Value::File(_)))) {
+            *slot = Some(Values::One(Value::Text(bytes.into())));
+            files += 1;
+        }
+    }
+    assert_eq!(files, 1, "one FILE slot");
+    world.event(agent, crate::app::Event::Call { number, call, json, value: None });
+    number
+}
 pub fn answered(
     world: &mut World<Temper, Joint>,
     agent: jig_client_world::harness::ClientId,
@@ -1297,4 +1326,134 @@ pub fn finish_chat(front: &mut Joint, task: u64, spent: u64) {
         engine::Parts::none(),
     );
     front.engine.settle();
+}
+
+/// Temper's kinds configured as in the domain world's settings stories.
+#[must_use]
+pub fn kinds_world(seed: u64) -> World<Temper, Joint> {
+    world_with(seed, Joint::with_kinds(seed, domain_limits()))
+}
+
+/// The configuring stories alone offer the stock's charter 3 and template 3.
+#[must_use]
+pub fn configuring_world(seed: u64, member: bool) -> World<Temper, Joint> {
+    let mut limits = domain_limits();
+    // The proposal's whole reason and charter remain visible in its review.
+    limits.client.domain.text = 4096;
+    world_with(seed, Joint::with_configuring(seed, limits, member))
+}
+
+pub(crate) fn configuring_configuration(seed: u64, member: bool) -> engine::Config {
+    use jig_domain_authority as authority;
+    let mut config = temper_engine_domain_world::walking::config(seed);
+    let llm = jig_protocol_config::Llm {
+        endpoints: Box::new([]),
+        models: config.core.settings.models.clone(),
+        descriptions: Box::new([]),
+        providers: Box::new([]),
+    };
+    let stock = temper_service::stock::defaults(&llm);
+    let configuring = stock.charters.iter().find(|charter| charter.number == 3).expect("stock charter 3").clone();
+    config.core.defaults.charters = Box::new([config.core.defaults.charters[0].clone(), configuring]);
+    let template = stock.templates.iter().find(|template| template.number == 3).expect("stock template 3").clone();
+    let mut templates = config.core.defaults.templates.to_vec();
+    templates.push(template);
+    config.core.defaults.templates = templates.into_boxed_slice();
+    config.core.defaults.rules.ceiling.tools.0 |= jig_domain_core::ToolFamilies::JIG.settings;
+    config.core.defaults.rules.ceiling.delegation.kinds =
+        Box::new([authority::Executor::Charter(1), authority::Executor::Charter(3)]);
+    for project in &mut config.core.seed_projects {
+        let policy = &mut project.policy.policy;
+        policy.ceiling = config.core.defaults.rules.ceiling.clone();
+        let owner = &mut policy.roles[0];
+        owner.authority.tools.0 |= jig_domain_core::ToolFamilies::JIG.settings;
+        owner.authority.delegation.kinds.clone_from(&policy.ceiling.delegation.kinds);
+        let mut member = owner.clone();
+        member.number = jig_domain_people::Role::Member.number();
+        member.decides = authority::Proposals(0);
+        policy.roles = Box::new([owner.clone(), member]);
+    }
+    let mut owner = config.core.owners[0].clone();
+    if member {
+        owner.identity.subject = 8_u64.to_be_bytes().into();
+    }
+    config.core.owners =
+        Box::new([owner.clone(), jig_domain_people::InitialOwner { project: 0, identity: owner.identity }]);
+    config
+}
+
+/// A second person is the ctl caller, with a member's project role.
+pub(crate) fn configuring_member(driver: &mut Driver) -> u64 {
+    use jig_domain_people as people;
+    use skein_lib::ReplyTo;
+    driver.sign_in();
+    driver.settle();
+    let member = driver
+        .delivered
+        .iter()
+        .find_map(|delivery| {
+            if let engine::Delivery::WebReply { reply: people::Reply::SignedIn { person, .. }, .. } = delivery {
+                Some(*person)
+            } else {
+                None
+            }
+        })
+        .expect("member signed in");
+    let reply = ReplyTo::new(Token::new(2001));
+    driver.send(engine::Event::Party(engine::PartyInput::SignedIn {
+        held: None,
+        reply_to: ReplyTo::new(Token::new(2001)),
+        identity: people::Identity {
+            key: people::IdentityKey { provider: 0, subject: 8_u64.to_be_bytes().into() },
+            login: b"owner".as_slice().into(),
+            name: b"Owner".as_slice().into(),
+        },
+    }));
+    driver.settle();
+    let (owner, session) = driver
+        .delivered
+        .iter()
+        .find_map(|delivery| {
+            if let engine::Delivery::WebReply { to, reply: people::Reply::SignedIn { person, sign_in, .. } } = delivery
+                && *to == reply
+            {
+                Some((*person, *sign_in))
+            } else {
+                None
+            }
+        })
+        .expect("second person signed in");
+    driver.send(engine::Event::Party(engine::PartyInput::Ask {
+        models: Box::new([]),
+        reply_to: ReplyTo::new(Token::new(2002)),
+        sign_in: session,
+        key: [201; 16],
+        ask: people::Ask::SetRoles {
+            project: 1,
+            holdings: Box::new([
+                people::Holding { person: member, role: people::Role::Member },
+                people::Holding { person: owner, role: people::Role::Owner },
+            ]),
+        },
+    }));
+    driver.settle();
+    assert!(
+        driver.delivered.iter().any(|delivery| matches!(
+            delivery,
+            engine::Delivery::WebReply {
+                reply: people::Reply::Outcome(people::Outcome::RolesSet { project: 1, .. }),
+                ..
+            }
+        )),
+        "the ctl caller is now a member"
+    );
+    member
+}
+
+/// The same ctl root as the other stories, under this world's caller.
+pub fn configuring_agent(world: &mut World<Temper, Joint>) -> jig_client_world::harness::ClientId {
+    let party = world.front().caller;
+    let limits = crate::agent::limits().domain;
+    world.front().next_client_limits(limits);
+    world.client_with(party, inbox(), limits, crate::agent::new)
 }

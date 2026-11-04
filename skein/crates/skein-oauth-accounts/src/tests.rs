@@ -84,6 +84,29 @@ fn setup() -> (Component, Env<Limits>, Queue<Event>) {
     let component = Component::new(accounts, &limits, crypto(1)).expect("component");
     (component, Env { now: Time::ZERO, wall: Wall::EPOCH, limits }, Queue::uncapped())
 }
+
+#[test]
+fn check_accepts_what_new_accepts() {
+    let mut accounts = List::with_capacity(2);
+    assert!(accounts.push(Account::HandedIn).is_ok());
+    assert!(accounts.push(Account::HandedIn).is_ok());
+    assert_eq!(Component::check(accounts, &limits()), Ok(()));
+}
+
+#[test]
+fn check_refuses_more_accounts_than_the_bound() {
+    let mut accounts = List::with_capacity(3);
+    for _ in 0..3_u32 {
+        assert!(accounts.push(Account::HandedIn).is_ok());
+    }
+    assert_eq!(Component::check(accounts, &limits()), Err(Unusable::Accounts { bound: 2 }));
+    let mut accounts = List::with_capacity(3);
+    for _ in 0..3_u32 {
+        assert!(accounts.push(Account::HandedIn).is_ok());
+    }
+    assert_eq!(Component::new(accounts, &limits(), crypto(1)).err(), Some(Unusable::Accounts { bound: 2 }));
+}
+
 fn tests_record(generation: u64) -> SavedToken {
     SavedToken {
         key: 0,
@@ -442,6 +465,12 @@ fn a_plaintext_endpoint_off_loopback_is_refused_at_startup() {
         "account"
     );
     assert_eq!(Component::new(configured, &limits(), crypto(1)).err(), Some(Unusable::Plaintext { account: 0 }));
+    let mut configured = List::with_capacity(1);
+    assert!(
+        configured.push(refresh_account(0, core::net::SocketAddr::from(([192, 0, 2, 1], 31000)))).is_ok(),
+        "account"
+    );
+    assert_eq!(Component::check(configured, &limits()), Err(Unusable::Plaintext { account: 0 }));
 }
 
 #[path = "private_tests.rs"]
@@ -669,6 +698,7 @@ fn valid_accepts_test_limits() {
 fn refuses_limits(bounds: &Limits) {
     assert!(!valid(bounds));
     assert_eq!(Component::new(List::with_capacity(0), bounds, crypto(1)).err(), Some(Unusable::Limits));
+    assert_eq!(Component::check(List::with_capacity(0), bounds).err(), Some(Unusable::Limits));
 }
 
 #[test]

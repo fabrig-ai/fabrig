@@ -12,7 +12,7 @@
         "clients_http.calls": 12,
         "clients_http.streams": 8,
         "core.resume_bytes": 1589625,
-        "documents.lines": 3,
+        "documents.lines": 8,
         "documents.rows": 2,
         "documents.text_bytes": 128,
         "hub.transcript_bytes": 6358497,

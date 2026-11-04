@@ -6,6 +6,7 @@ use skein_lib::{Decimal, List, Writer};
 
 #[derive(Clone, Copy, PartialEq, Eq, Debug)]
 pub enum What {
+    Room(temper_engine_domain::room::Short),
     Stock(crate::stock::Floor),
     Jig(config::What),
     Standalone,
@@ -148,7 +149,8 @@ fn words(what: What) -> &'static [u8] {
         What::Override(limits::Refused::Unknown) => b"no limit of temper's has this name",
         What::Override(limits::Refused::Range) => b"outside its type",
         What::Against { .. } => b"must agree with ",
-        What::Stock(_)
+        What::Room(_)
+        | What::Stock(_)
         | What::Past { .. }
         | What::Within { .. }
         | What::Short { .. }
@@ -371,6 +373,7 @@ fn stock(floor: crate::stock::Floor, writer: &mut Writer, length: &mut usize, me
     } else {
         put(writer, length, measuring, b"; the stock's ");
         let (kind, number): (&[u8], Option<u32>) = match floor.setting {
+            Setting::ProjectPolicy { project } => (b"project-policy ", Some(project)),
             Setting::Charter(number) => (b"charter ", Some(number)),
             Setting::Template(number) => (b"template ", Some(number)),
             Setting::Policy(number) => (b"policy ", Some(number)),
@@ -408,6 +411,7 @@ fn render(problems: &Problems, writer: &mut Writer, measuring: bool) -> usize {
         }
         put(writer, &mut length, measuring, words(problem.what));
         match problem.what {
+            What::Room(short) => put(writer, &mut length, measuring, &short.words()),
             What::Stock(floor) => stock(floor, writer, &mut length, measuring),
             What::Jig(
                 what @ (config::What::PolicyEnvelope { .. }

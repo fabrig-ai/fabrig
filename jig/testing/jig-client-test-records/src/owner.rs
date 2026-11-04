@@ -17,6 +17,7 @@ pub fn frame_two_projects_record() -> w::Me {
                 w::MeProject::new(
                     &lim,
                     w::MeProjectParts {
+                        public: None,
                         templates: Box::from([]),
                         creating: None,
                         project,

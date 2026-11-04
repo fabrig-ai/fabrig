@@ -436,7 +436,8 @@ fn restored_records_rebuild_adoptions_names_topics_and_pool_slots() {
         for request in run(&mut original, event) {
             match request {
                 Request::Save { record } => records.push(record).expect("four changes made four records"),
-                Request::SettingsJudged { .. }
+                Request::SettingsRestored { .. }
+                | Request::SettingsJudged { .. }
                 | Request::SettingsDefaults { .. }
                 | Request::SettingValue { .. }
                 | Request::RestoreRefused { .. }

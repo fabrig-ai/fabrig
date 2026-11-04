@@ -374,8 +374,8 @@ of settings, and a move, become two more operations its random worlds
 draw, at the cost of the steps they take. Each change that adds them
 measures both suites before and after on the gate; past a budget, it
 asks the three questions in 8.1 in order, taking the measurements to
-the user through the director if neither placement nor an efficiency
-fix settles it, rather than cutting the cover.
+the user if neither placement nor an efficiency fix settles it, rather
+than cutting the cover.
 
 ## 10. Open questions
 

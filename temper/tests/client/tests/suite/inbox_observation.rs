@@ -8,8 +8,8 @@ const ATTEMPT: Token = Token::new(1);
 const REQUEST: [u8; 16] = [3; 16];
 #[test]
 fn a_release_is_observed_against_the_inbox_escalation_the_person_saw() {
-    let request = temper_client_domain::Request::Client {
-        request: jig_client::Request::Down {
+    let request = temper_client_domain::Request::Unlinked {
+        request: jig_client::UnlinkedRequest::Down {
             down: jig_client::Down::Send {
                 attempt: ATTEMPT,
                 key: REQUEST,

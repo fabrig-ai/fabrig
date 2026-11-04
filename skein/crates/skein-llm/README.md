@@ -100,7 +100,7 @@ run it:
 
 ```sh
 export SKEIN_TEST_LIVE_OPENAI_AUTH="$HOME/.codex/auth.json"
-heavy cargo nextest run -p skein-llm-world --profile live-skein
+cargo nextest run -p skein-llm-world --profile live-skein
 ```
 
 The other five provider stories are ignored and manual
@@ -117,7 +117,7 @@ name:
 ```sh
 export SKEIN_TEST_LIVE_OPENAI_AUTH="/path/to/login/auth.json"         # an OpenAI story
 export SKEIN_TEST_LIVE_ANTHROPIC_KEY="/path/to/private/anthropic-key" # an Anthropic story
-heavy cargo nextest run -p skein-llm-world --test live --profile live-skein --run-ignored only -E 'test(=NAME)'
+cargo nextest run -p skein-llm-world --test live --profile live-skein --run-ignored only -E 'test(=NAME)'
 ```
 
 `SKEIN_TEST_LIVE_OPENAI_AUTH` names a Codex `auth.json`, or a directory

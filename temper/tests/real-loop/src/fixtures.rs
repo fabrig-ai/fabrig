@@ -359,7 +359,8 @@ fn stock_document(value: &mut serde_json::Value) {
         ("authority.executors", 8),
         ("tasks.executor_kinds", 8),
         ("notes.scopes", 32),
-        ("tasks.charters", 4),
+        ("tasks.charters", 5),
+        ("core.templates", 3),
     ] {
         let held = value["engine"]["limits"]["overrides"][name].as_u64().unwrap_or(0);
         value["engine"]["limits"]["overrides"][name] = held.max(count).into();
@@ -580,7 +581,7 @@ mod tests {
             panic!("the real loop supplies its own defaults")
         };
         let numbers: Vec<_> = defaults.charters.iter().map(|charter| charter.number).collect();
-        assert_eq!(numbers, [1, 2, 4, 6, 3], "all stock charters and the helper are retained");
+        assert_eq!(numbers, [1, 2, 3, 4, 6, 9], "all stock charters and the helper are retained");
         assert!(defaults.charters.len() <= usize::try_from(engine.limits.core.tasks.charters).expect("charter limit"));
     }
 }

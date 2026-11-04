@@ -683,7 +683,7 @@ pub const CHANGE_SETTINGS: Tool = Tool {
     ]],
     keyed: Keyed::Required,
     area: 1,
-    notes: b"The file is `{\"items\": [ITEM, ...]}`, at most 1024 items; an item\nis `{\"setting\": {\"kind\": KIND, \"number\": NUMBER}, \"set\": VALUE}`, or\n`\"edit\": \"removed\"` or `\"reset\"` in place of `set`; rules takes no\nnumber. A file out of form names the item, member and rule (exit\n1). `settings apply: stale; newest revision R; read settings show\nagain` (exit 2): read the settings, then decide again.\n",
+    notes: b"The file is `{\"items\": [ITEM, ...]}`, at most 1024 items; an item\nis `{\"setting\": {\"kind\": KIND, \"number\": NUMBER}, \"set\": VALUE}`, or\n`\"edit\": \"removed\"` or `\"reset\"` in place of `set`; rules takes no\nnumber. A file out of form names the item, member and rule (exit\n1). `settings apply: stale; newest revision R; read settings show\nagain` (exit 2): read the settings, then decide again.\n`{\"kind\": \"project-policy\", \"project\": P}` sets project P's own\npolicy, set alone, once a file; it needs an owner of P, and with\nthe deployment's items one owner of both.\n",
 };
 
 /// The row's position in the tools table.
@@ -827,8 +827,8 @@ pub const PROJECT_SHOW_AT: u8 = 54;
 pub const PROJECT_FUND_AT: u8 = 55;
 pub const PROJECT_SHOW: Tool = Tool {
     name: b"project show",
-    line: b"Read a project, its roles and spends, its open period and each party's pool",
-    prints: b"The project, its homes and spend per period, each role, its open period and each pool",
+    line: b"Read a project, its public page, roles and spends, its open period and each party's pool",
+    prints: b"The project, whether it is public and its public page's path, its homes and spend per period, each role, its open period and each pool",
     result: b"project",
     forms: &[&[positional(b"project", b"PROJECT", Kind::Project { empty: false }, Required, b"The project")]],
     keyed: Keyed::Never,
@@ -952,4 +952,36 @@ set from a client: within bounds, created; past them but proposable,
 proposed (exit 0); not offered or past ceilings, nothing sent (exit 1).
 Then task show TASK --until replied.
 ",
+};
+
+/// The restore's position in the tools table; positions are durable (tests/help.rs).
+pub const RESTORE_AT: u8 = 63;
+pub const RESTORE: Tool = Tool {
+    name: b"revision restore",
+    line: b"Propose the settings as REVISION left them, to the owners of its items",
+    prints: b"`proposed restoring revision R as proposal P to role K`, then each item left out",
+    result: b"restore",
+    forms: &[&[
+        positional(b"revision", b"REVISION", Kind::NumberRange { min: 0, max: 4_294_967_295 }, Required, b"The revision to restore"),
+        positional(b"reason", b"REASON", Kind::Text, Optional, b"Why; restores revision R when absent"),
+    ]],
+    keyed: Keyed::Required,
+    area: 1,
+    notes: b"A forgotten revision exits 2, naming the oldest kept. A revision\ntoo large to restore exits 2; restore a later revision instead.\nRead the proposal with proposal show PROPOSAL, then decide it\nwith proposal decide PROPOSAL accept --key KEY.\n",
+};
+
+/// Visibility's position in the tools table (client/tools.md, 5.3).
+pub const PROJECT_AMEND_AT: u8 = 64;
+pub const PROJECT_AMEND: Tool = Tool {
+    name: b"project amend",
+    line: b"Make a project readable by anyone without signing in, or private again",
+    prints: b"`project 1: public` and, made public, `page: /public/projects/3f2a9c01d4e5b6a7`; made private, `project 1: private`",
+    result: b"project_amend",
+    forms: &[&[
+        positional(b"project", b"PROJECT", Kind::Project { empty: false }, Required, b"The project"),
+        flag(b"visibility", b"public|private", Kind::Word { set: &[b"public", b"private"] }, Required, b"Public reading, or private again"),
+    ]],
+    keyed: Keyed::Required,
+    area: 1,
+    notes: b"Only an owner changes visibility. A member and project 0 are refused, exit 2. The public page is a path under the deployment's address, from me's public identifier. A key replay prints the first answer.\n",
 };

@@ -237,7 +237,8 @@ impl Core {
                         crate::settings::Setting::Template(number) => *number,
                         crate::settings::Setting::Charter(_)
                         | crate::settings::Setting::Policy(_)
-                        | crate::settings::Setting::Rules => continue,
+                        | crate::settings::Setting::Rules
+                        | crate::settings::Setting::ProjectPolicy { .. } => continue,
                         jig_domain_people::Setting::Application { .. } => {
                             unreachable!("an application's setting: apps-core")
                         }
@@ -274,7 +275,42 @@ impl Core {
         if !crate::settings::templates::valid(&self.current, &self.settings, &templates) {
             return Err(people::Refusal::Authority { proposable: None, lacking: people::Lack::Shape });
         }
-        let Some(snapshot) = snapshot(&policy, &permissions, &templates) else {
+        let (snapshot, resize) = self.check_policy_replacement(
+            limits,
+            project,
+            &crate::ConfiguredPolicy {
+                policy: policy.clone(),
+                permissions: permissions.clone(),
+                templates: templates.clone(),
+            },
+            self.authority.rules(),
+        )?;
+        self.commit_policy(project, policy, permissions, templates);
+        Ok((snapshot, resize))
+    }
+
+    /// The current project policy, whole, independently of revisioned settings (engine.md, 17.2).
+    pub(crate) fn configured_policy(&self, project: u32) -> Option<crate::ConfiguredPolicy> {
+        Some(crate::ConfiguredPolicy {
+            policy: self.authority.policy(project)?.clone(),
+            permissions: self.permission_roles.get(&project).cloned().unwrap_or_default(),
+            templates: self.template_overrides.get(&project).cloned().unwrap_or_default(),
+        })
+    }
+
+    /// Owner edits and whole settings replacements share their byte, ceiling and funding checks.
+    pub(crate) fn check_policy_replacement(
+        &self,
+        limits: &Limits,
+        project: u32,
+        value: &crate::ConfiguredPolicy,
+        rules: &authority::Rules,
+    ) -> Result<(people::PolicyValue, crate::funding::Resize), people::Refusal> {
+        let policy = &value.policy;
+        if !map_valid(policy, &value.permissions) {
+            return Err(people::Refusal::Unknown);
+        }
+        let Some(snapshot) = snapshot(policy, &value.permissions, &value.templates) else {
             return Err(people::Refusal::Limit { which: people::LimitKind::Policy });
         };
         if match people::policy_bytes(&snapshot) {
@@ -283,35 +319,36 @@ impl Core {
         } {
             return Err(people::Refusal::Limit { which: people::LimitKind::Policy });
         }
-        self.check_policy_ceilings(project, &policy)?;
-        let resize = self.resize(project, self.authority.policy(project).expect("existing policy"), &policy, limits)?;
+        let before = self.authority.policy(project).ok_or(people::Refusal::Unknown)?;
+        if let Some(ceiling) = authority::policy_ceiling(rules, before, policy) {
+            return Err(ceiling_refusal(ceiling));
+        }
+        if authority::policy_refusal(rules, self.authority.limits(), policy).is_some() {
+            return Err(people::Refusal::Authority { proposable: None, lacking: people::Lack::Shape });
+        }
+        let resize = self.resize(project, before, policy, limits)?;
+        Ok((snapshot, resize))
+    }
+
+    pub(crate) fn commit_policy(
+        &mut self,
+        project: u32,
+        policy: authority::Policy,
+        permissions: Box<[people::PermissionRole]>,
+        templates: Box<[people::TemplateOverride]>,
+    ) {
         let mut facts = Queue::uncapped();
         crate::routing::step::step_authority(self, authority::Event::Policy { project, policy }, &mut facts);
         match facts.pop().expect("policy update terminal") {
             authority::PolicyFact::Changed { .. } => {
                 assert!(self.permission_roles.insert(project, permissions).is_ok(), "admitted permission policy");
                 assert!(self.template_overrides.insert(project, templates).is_ok(), "admitted template policy");
-                Ok((snapshot, resize))
             }
             authority::PolicyFact::Refused { .. } => unreachable!("policy checked before resize"),
             authority::PolicyFact::Added { .. } | authority::PolicyFact::Dropped { .. } => {
                 unreachable!("existing project policy replacement")
             }
         }
-    }
-
-    fn check_policy_ceilings(&self, project: u32, policy: &authority::Policy) -> Result<(), people::Refusal> {
-        if let Some(ceiling) = authority::policy_ceiling(
-            self.authority.rules(),
-            self.authority.policy(project).expect("existing policy"),
-            policy,
-        ) {
-            return Err(ceiling_refusal(ceiling));
-        }
-        if authority::policy_refusal(self.authority.rules(), self.authority.limits(), policy).is_some() {
-            return Err(people::Refusal::Authority { proposable: None, lacking: people::Lack::Shape });
-        }
-        Ok(())
     }
 
     /// Add a project from its committed row alone before admitting party requests.

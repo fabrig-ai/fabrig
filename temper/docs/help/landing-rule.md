@@ -66,6 +66,8 @@ its held landing rules when it judges them.
 
 ## Limits
 
+For the configuration members that need a restart, read `temper help configuration`.
+
 - Rules add: a project's rule cannot relax a deployment rule that
   covers the same branch.
 - The rules' requirements 5 and 6 enforce the held landing rules.

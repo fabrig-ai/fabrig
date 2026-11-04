@@ -1,4 +1,5 @@
-# The fake is ordinary deterministic test code, rather than step code.
+# The reference binary's startup and process tests are ordinary Rust (jig/AGENTS.md).
+# They take replay bans instead of the inherited jig/clippy.toml step-code subset.
 disallowed-types = [
     { path = "std::collections::HashMap", reason = "ordered maps replay from a seed" },
     { path = "std::collections::HashSet", reason = "ordered sets replay from a seed" },

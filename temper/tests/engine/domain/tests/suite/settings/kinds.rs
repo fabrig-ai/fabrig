@@ -418,3 +418,207 @@ fn the_forges_charter_change_reaches_the_next_change() {
     ));
     world.close();
 }
+
+fn proposal_key(rows: &std::collections::BTreeMap<engine::Key, Record>, proposal: u64) -> u64 {
+    rows.values()
+        .find_map(|record| {
+            if let Record::Core(jig_domain_core::Record::Core(jig_domain_core::CoreRecord::Settings(
+                s::Record::Proposal { proposer: people::Proposer::Party(1), proposal: number, value },
+            ))) = record
+                && u64::from(*number) == proposal
+            {
+                value.key
+            } else {
+                None
+            }
+        })
+        .expect("connector proposal key")
+}
+
+fn forge_kept(
+    world: &temper_engine_domain_world::forge_routes::World,
+    kind: u32,
+    number: u32,
+    slot: settings::SettingSlot,
+) -> &settings::Edit {
+    let key = settings::SettingKey { kind, scope: 0, number, slot };
+    let Some(Record::Forge { row }) = world.store.rows.get(&engine::Key::Forge(forge::Key::Setting(key))) else {
+        panic!("missing {key:?}; rows: {:?}", world.store.rows.keys().collect::<Vec<_>>())
+    };
+    let forge::Stored::Setting(row) = row.as_ref() else { panic!("setting row") };
+    &row.edit
+}
+
+fn decide_restore(proposal: u64) -> people::Ask {
+    people::Ask::DecideProposal {
+        project: people::DEPLOYMENT,
+        proposer: people::Proposer::Party(1),
+        proposal,
+        decision: people::ProposalDecision::Accept,
+        running: Some(people::Running::Stays),
+    }
+}
+
+#[test]
+#[ignore = "engine.md, 17.10: Restore is not admitted by people (restore-request)"]
+fn a_landing_rule_and_the_forges_charter_changed_then_restored() {
+    use temper_engine_domain_forge_change::State;
+    use temper_engine_domain_world::forge_routes::{Gate, StoryLimits, Until, World};
+    // The changed charter 2 differs from this story's initial producer charter 1.
+    let mut world = World::configured_limits(
+        true,
+        true,
+        true,
+        1000,
+        Gate::default(),
+        None,
+        StoryLimits { kinds: true, forge_charter: Some(1), ..StoryLimits::default() },
+    );
+    // The fixture imports its kinds in a release before the party edits them.
+    let goal = kinds::goal(&mut world);
+    let earlier_revision = kinds::revision(&world.store.rows) + 1;
+    let replaced_by = u64::from(earlier_revision + 1);
+    let earlier = goal_rule();
+    world_change(
+        &mut world,
+        40,
+        Box::new([
+            kinds::item(1, 0, 2, &settings::Value::Rule(earlier.clone())),
+            kinds::item(3, 0, 1, &settings::Value::Charter(2)),
+        ]),
+    );
+    let mut later = earlier.clone();
+    later.ci = true;
+    world_change(
+        &mut world,
+        41,
+        Box::new([
+            kinds::item(1, 0, 2, &settings::Value::Rule(later)),
+            kinds::item(3, 0, 1, &settings::Value::Charter(1)),
+        ]),
+    );
+    let rule = forge_kept(&world, 1, 2, settings::SettingSlot::Replaced(replaced_by)).clone();
+    let charter = forge_kept(&world, 3, 1, settings::SettingSlot::Replaced(replaced_by)).clone();
+    assert!(matches!(&rule, settings::Edit::Set(value) if value.value == settings::Value::Rule(earlier)));
+    assert!(matches!(&charter, settings::Edit::Set(value) if value.value == settings::Value::Charter(2)));
+    let (change, producer) = kinds::goal_change(&mut world, &goal);
+    kinds::produce(&mut world, change, &producer);
+    for _ in 0..200 {
+        world.tick();
+        if matches!(kinds::change_row(&world, change).change.state, State::Checking { .. }) {
+            break;
+        }
+    }
+    assert!(matches!(kinds::change_row(&world, change).change.state, State::Checking { .. }));
+    assert_eq!(world.merges, 0);
+    world.send(kinds::restore(world.signed_in.expect("owner"), earlier_revision, 42));
+    world.until(Until::Ready);
+    let proposal = world
+        .web_replies
+        .iter()
+        .rev()
+        .find_map(|reply| {
+            if let people::Reply::Outcome(people::Outcome::Restored { proposal, to: 0, left_out }) = reply {
+                assert!(left_out.is_empty());
+                Some(*proposal)
+            } else {
+                None
+            }
+        })
+        .unwrap_or_else(|| panic!("restore: {:?}", world.web_replies));
+    let key = proposal_key(&world.store.rows, proposal);
+    assert_eq!(forge_kept(&world, 1, 2, settings::SettingSlot::Proposal(key)), &rule);
+    assert_eq!(forge_kept(&world, 3, 1, settings::SettingSlot::Proposal(key)), &charter);
+    world.send(engine::Event::Party(engine::PartyInput::Ask {
+        models: Box::new([]),
+        reply_to: ReplyTo::new(Token::new(43)),
+        sign_in: world.signed_in.expect("owner"),
+        key: [43; 16],
+        ask: decide_restore(proposal),
+    }));
+    world.until(Until::Ready);
+    assert_eq!(kinds::revision(&world.store.rows), earlier_revision + 2, "{:?}", world.web_replies);
+    assert_eq!(forge_kept(&world, 1, 2, settings::SettingSlot::Change), &rule);
+    assert_eq!(forge_kept(&world, 3, 1, settings::SettingSlot::Change), &charter);
+    for _ in 0..200 {
+        world.tick();
+        if matches!(kinds::change_row(&world, change).change.state, State::Landed { .. }) {
+            break;
+        }
+    }
+    let row = kinds::change_row(&world, change);
+    assert!(matches!(row.change.state, State::Landed { .. }), "{:?}", row.change.state);
+    assert_eq!(world.merges, 1);
+    let raw::Answer::Pull(pull) = world.external(1, raw::Op::Read(raw::Read::Pull { number: row.pull.expect("pull") }))
+    else {
+        panic!("pull")
+    };
+    assert!(pull.merged.is_some());
+    assert!(!pull.statuses.iter().any(|status| status.state == raw::Check::Passed), "CI never passed");
+    world.close();
+}
+
+#[test]
+#[ignore = "engine.md, 17.10: Restore is not admitted by people (restore-request)"]
+fn a_restore_leaves_out_a_deleted_projects_rule() {
+    let mut driver = kinds::driver();
+    apply(
+        &mut driver,
+        44,
+        Box::new([
+            kinds::item(1, 0, 2, &settings::Value::Rule(rule())),
+            kinds::item(2, 1, 1, &settings::Value::Rule(rule())),
+        ]),
+    );
+    ask(&mut driver, 45, people::Ask::RemoveProject { project: 1, grace: None });
+    driver.fire_at(Duration::from_secs(5));
+    driver.pump();
+    driver.send(kinds::restore(driver.session(), 1, 46));
+    driver.settle();
+    let (proposal, left_out) = kinds::restored(&driver);
+    assert_eq!(left_out.as_ref(), &[s::Setting::Application { kind: 2, scope: 1, number: 1 }]);
+    let key = proposal_key(&driver.store.rows, proposal);
+    assert_eq!(kept(&driver, 2, 1, 1, settings::SettingSlot::Proposal(key)), None);
+    assert!(kept(&driver, 1, 0, 2, settings::SettingSlot::Proposal(key)).is_some());
+    ask(&mut driver, 47, decide_restore(proposal));
+    assert_eq!(kinds::revision(&driver.store.rows), 3, "{:?}", driver.delivered);
+}
+
+#[test]
+#[ignore = "engine.md, 17.10: history pruning sends no ForgetReplaced (restore-request)"]
+fn forgetting_erases_the_forges_replaced_rows() {
+    use temper_engine_domain_world::{direct::Driver, store::Store};
+    let mut limits = kinds::limits();
+    // Keep two earlier revisions beside the current one; making 5 forgets 2.
+    limits.settings.history = 2;
+    // Five edits reach an existing replaced row on both sides of pruning.
+    limits.people.requests = 5;
+    let mut driver = Driver::cold(Store::with_limits(&limits), kinds::configuration(&limits), &limits);
+    driver.settle();
+    driver.sign_in();
+    driver.settle();
+    for (key, enforce) in [(48, true), (49, false), (50, true), (51, false)] {
+        let mut value = rule();
+        value.enforce = enforce;
+        apply(&mut driver, key, Box::new([kinds::item(1, 0, 2, &settings::Value::Rule(value))]));
+    }
+    assert!(!driver.store.rows.contains_key(&engine::Key::Core(jig_domain_core::Key::Core(
+        jig_domain_core::CoreKey::Settings(s::Key::History(2)),
+    ))));
+    assert_eq!(kept(&driver, 1, 0, 2, settings::SettingSlot::Replaced(2)), None);
+    assert!(
+        matches!(kept(&driver, 1, 0, 2, settings::SettingSlot::Replaced(3)), Some(settings::Edit::Set(value)) if value.value == settings::Value::Rule(rule()))
+    );
+    // This row exists before it falls out of history, unlike revision 2's
+    // first set, which replaced no changed value.
+    apply(&mut driver, 52, Box::new([kinds::item(1, 0, 2, &settings::Value::Rule(rule()))]));
+    assert!(!driver.store.rows.contains_key(&engine::Key::Core(jig_domain_core::Key::Core(
+        jig_domain_core::CoreKey::Settings(s::Key::History(3)),
+    ))));
+    assert_eq!(kept(&driver, 1, 0, 2, settings::SettingSlot::Replaced(3)), None);
+    let mut previous = rule();
+    previous.enforce = false;
+    assert!(
+        matches!(kept(&driver, 1, 0, 2, settings::SettingSlot::Replaced(4)), Some(settings::Edit::Set(value)) if value.value == settings::Value::Rule(previous))
+    );
+}

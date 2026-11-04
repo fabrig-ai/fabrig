@@ -253,6 +253,16 @@ fn setting(d: &Decoder, at: u32) -> Result<c::Setting, Error> {
     if kind == b"landing-rule" || kind == b"forge-charter" {
         return crate::kinds::setting(d, &fields, kind);
     }
+    if kind == b"project-policy" {
+        if optional(&fields, b"number").is_some() {
+            return Err(error(b"number", b"project-policy has no number"));
+        }
+        let project = u32::try_from(d.number(field(&fields, b"project")?)?).or(Err(error(b"project", b"u32 bound")))?;
+        if project == 0 {
+            return Err(error(b"project", b"from 1"));
+        }
+        return Ok(c::Setting::ProjectPolicy { project });
+    }
     if optional(&fields, b"project").is_some() {
         return Err(error(b"project", b"unknown member"));
     }
@@ -280,17 +290,24 @@ fn item(d: &Decoder, at: u32) -> Result<c::SettingItem, Error> {
             let value = match setting {
                 c::Setting::Charter(_) => c::SettingValue::Charter(Box::new(values::charter(d, at)?)),
                 c::Setting::Template(_) => c::SettingValue::Template(Box::new(values::template(d, at)?)),
-                c::Setting::Policy(_) => c::SettingValue::Policy(Box::new(values::setting_policy(d, at)?)),
+                c::Setting::Policy(_) | c::Setting::ProjectPolicy { .. } => {
+                    c::SettingValue::Policy(Box::new(values::setting_policy(d, at)?))
+                }
                 c::Setting::Application { kind, .. } => c::SettingValue::Application(crate::kinds::value(d, at, kind)?),
                 c::Setting::Rules => c::SettingValue::Rules(Box::new(values::rules(d, at)?)),
             };
             c::SettingEdit::Set(c::SettingSet { value })
         }
-        (None, Some(at)) => match d.string(at)? {
-            b"removed" => c::SettingEdit::Removed,
-            b"reset" => c::SettingEdit::Reset,
-            _ => return Err(error(b"edit", b"removed or reset required")),
-        },
+        (None, Some(at)) => {
+            if let c::Setting::ProjectPolicy { .. } = setting {
+                return Err(error(b"edit", b"a project's policy is set alone"));
+            }
+            match d.string(at)? {
+                b"removed" => c::SettingEdit::Removed,
+                b"reset" => c::SettingEdit::Reset,
+                _ => return Err(error(b"edit", b"removed or reset required")),
+            }
+        }
         _ => return Err(error(b"item", b"exactly one of set or edit required")),
     };
     Ok(c::SettingItem { setting, edit })
@@ -298,6 +315,28 @@ fn item(d: &Decoder, at: u32) -> Result<c::SettingItem, Error> {
 /// Decode the items in a settings file using the same bounds as ctl.
 pub fn decode(bytes: &[u8], limits: &Limits) -> Result<List<c::SettingItem>, Box<[u8]>> {
     decode_root(bytes, limits, false)
+}
+/// Decode a host read's setting through the settings file's kind decoder.
+pub fn read_setting(bytes: &[u8], limits: &Limits) -> Result<c::Setting, Box<[u8]>> {
+    if u64::try_from(bytes.len()).unwrap_or(u64::MAX) > limits.ask_bytes {
+        return Err(message(None, bound(b"file bytes", u32::try_from(limits.ask_bytes).unwrap_or(u32::MAX))));
+    }
+    let doc = crate::json::document_depth(bytes, 32)
+        .or(Err(message(None, error(b"JSON", b"invalid JSON or depth bound 32"))))?;
+    let d = Decoder { doc, limits: limits.settings, kinds: limits.kinds };
+    let fields = d.object(0, &[b"setting", b"revision", b"history", b"from"]);
+    let fields = match fields {
+        Ok(fields) => fields,
+        Err(why) => return Err(message(None, why)),
+    };
+    let at = match field(&fields, b"setting") {
+        Ok(at) => at,
+        Err(why) => return Err(message(None, why)),
+    };
+    match setting(&d, at) {
+        Ok(setting) => Ok(setting),
+        Err(why) => Err(message(None, why)),
+    }
 }
 /// Decode a host proposal's items in the settings file form.
 pub fn proposal_items(bytes: &[u8], limits: &Limits) -> Result<List<c::SettingItem>, Box<[u8]>> {
@@ -333,6 +372,11 @@ fn decode_root(bytes: &[u8], limits: &Limits, proposal: bool) -> Result<List<c::
             Err(why) => return Err(message(Some(index), why)),
         };
         for previous in &items {
+            if let (c::Setting::ProjectPolicy { .. }, c::Setting::ProjectPolicy { .. }) =
+                (previous.setting, next.setting)
+            {
+                return Err(message(Some(index), error(b"setting", b"one project's policy per file")));
+            }
             if previous.setting == next.setting {
                 return Err(message(Some(index), error(b"setting", b"duplicate setting")));
             }

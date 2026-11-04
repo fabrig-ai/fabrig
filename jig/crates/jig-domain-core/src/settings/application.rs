@@ -65,6 +65,38 @@ pub struct Recorded {
     pub number: u32,
     pub edit: SizedEdit,
 }
+/// The state and size an application item replaced (jig/docs/design/domain/engine.md, 17.10).
+#[derive(Clone, PartialEq, Eq, Hash, Debug)]
+pub enum Replaced {
+    Changed { size: u32 },
+    Default,
+    Removed,
+    NotOffered,
+}
+/// A revision's application item (jig/docs/design/domain/engine.md, 17.10).
+#[derive(Clone, PartialEq, Eq, Hash, Debug)]
+pub struct RevisionRecorded {
+    pub kind: u32,
+    pub scope: u32,
+    pub number: u32,
+    pub edit: SizedEdit,
+    pub replaced: Replaced,
+}
+/// An application item a restore proposes (jig/docs/design/domain/engine.md, 17.10; jig/docs/design/domain/connectors.md, 17).
+#[derive(Clone, PartialEq, Eq, Hash, Debug)]
+pub struct Restored {
+    pub kind: u32,
+    pub scope: u32,
+    pub number: u32,
+    pub edit: RestoredEdit,
+}
+/// Where a restore takes an application's value (jig/docs/design/domain/engine.md, 17.10; jig/docs/design/domain/connectors.md, 17).
+#[derive(Clone, PartialEq, Eq, Hash, Debug)]
+pub enum RestoredEdit {
+    Set { revision: u64 },
+    Remove,
+    Reset,
+}
 #[derive(Clone, PartialEq, Eq, Hash, Debug)]
 pub enum SizedEdit {
     Set { size: u32 },
@@ -87,7 +119,11 @@ pub(crate) fn capacity(kinds: &[Kind], limits: &Limits) -> Option<u32> {
 pub(crate) fn is_application(setting: Setting) -> bool {
     match setting {
         Setting::Application { .. } => true,
-        Setting::Charter(_) | Setting::Template(_) | Setting::Policy(_) | Setting::Rules => false,
+        Setting::Charter(_)
+        | Setting::Template(_)
+        | Setting::Policy(_)
+        | Setting::Rules
+        | Setting::ProjectPolicy { .. } => false,
     }
 }
 
@@ -95,6 +131,7 @@ pub(crate) fn projects(items: &[super::Item]) -> Box<[u32]> {
     let mut names = Map::with_capacity(u32::try_from(items.len()).expect("bounded settings items"));
     for item in items {
         let scope = match item.setting {
+            Setting::ProjectPolicy { project } => project,
             Setting::Application { scope, .. } => scope,
             Setting::Charter(_) | Setting::Template(_) | Setting::Policy(_) | Setting::Rules => people::DEPLOYMENT,
         };
@@ -112,7 +149,11 @@ pub(crate) fn check(core: &Core, items: &[super::Item]) -> Result<(), Failure> {
     for item in items {
         let (kind, scope, number) = match item.setting {
             Setting::Application { kind, scope, number } => (kind, scope, number),
-            Setting::Charter(_) | Setting::Template(_) | Setting::Policy(_) | Setting::Rules => continue,
+            Setting::Charter(_)
+            | Setting::Template(_)
+            | Setting::Policy(_)
+            | Setting::Rules
+            | Setting::ProjectPolicy { .. } => continue,
         };
         let declared = kind_of(&core.kinds, kind).ok_or(Failure { setting: item.setting, fault: Fault::Shape })?;
         let valid_scope = match declared.scope {
@@ -155,7 +196,11 @@ pub(crate) fn check(core: &Core, items: &[super::Item]) -> Result<(), Failure> {
 fn same_scope(setting: Setting, kind: u32, scope: u32) -> bool {
     match setting {
         Setting::Application { kind: held, scope: held_scope, .. } => kind == held && scope == held_scope,
-        Setting::Charter(_) | Setting::Template(_) | Setting::Policy(_) | Setting::Rules => false,
+        Setting::Charter(_)
+        | Setting::Template(_)
+        | Setting::Policy(_)
+        | Setting::Rules
+        | Setting::ProjectPolicy { .. } => false,
     }
 }
 #[expect(clippy::manual_find, reason = "the strict subset iterates without a closure")]
@@ -221,7 +266,11 @@ pub(crate) fn start(
     for item in &change.items {
         let kind = match item.setting {
             Setting::Application { kind, .. } => kind,
-            Setting::Charter(_) | Setting::Template(_) | Setting::Policy(_) | Setting::Rules => continue,
+            Setting::Charter(_)
+            | Setting::Template(_)
+            | Setting::Policy(_)
+            | Setting::Rules
+            | Setting::ProjectPolicy { .. } => continue,
         };
         let connector = kind_of(&core.kinds, kind).expect("checked kind").connector;
         if !connectors.as_slice().contains(&connector) {
@@ -234,7 +283,11 @@ pub(crate) fn start(
         for (at, item) in change.items.iter().enumerate() {
             let kind = match item.setting {
                 Setting::Application { kind, .. } => kind,
-                Setting::Charter(_) | Setting::Template(_) | Setting::Policy(_) | Setting::Rules => continue,
+                Setting::Charter(_)
+                | Setting::Template(_)
+                | Setting::Policy(_)
+                | Setting::Rules
+                | Setting::ProjectPolicy { .. } => continue,
             };
             if kind_of(&core.kinds, kind).expect("checked kind").connector == connector {
                 items.push(translate(item)).expect("group items");
@@ -385,7 +438,7 @@ fn accepted(
     clippy::disallowed_methods,
     reason = "the core checks and cuts connector refusal words at its internal byte boundary"
 )]
-fn words(bytes: &[u8], bound: u32) -> Box<[u8]> {
+pub(crate) fn words(bytes: &[u8], bound: u32) -> Box<[u8]> {
     if core::str::from_utf8(bytes).is_err() {
         return Box::default();
     }
@@ -446,7 +499,7 @@ pub(crate) fn keep(
     kept: Box<[Kept]>,
     revision: u32,
     proposal: Option<u64>,
-) -> Box<[Recorded]> {
+) -> Box<[RevisionRecorded]> {
     let bound = u32::try_from(kept.len()).expect("bounded accepted items");
     let mut records = List::with_capacity(bound);
     let proposed: &[Recorded] = match core.current.head.proposal {
@@ -491,8 +544,20 @@ pub(crate) fn keep(
             Edit::Remove => SizedEdit::Remove,
             Edit::Reset => SizedEdit::Reset,
         };
+        let replaced = match core.current.applications.get(&setting) {
+            Some(State { follows: Follows::Default, .. }) => Replaced::Default,
+            Some(State { follows: Follows::Changed { .. }, size, .. }) => Replaced::Changed { size: *size },
+            Some(State { follows: Follows::Removed { .. }, .. }) => Replaced::Removed,
+            None => Replaced::NotOffered,
+        };
         records
-            .push(Recorded { kind: accepted.item.kind, scope: accepted.item.scope, number: accepted.item.number, edit })
+            .push(RevisionRecorded {
+                kind: accepted.item.kind,
+                scope: accepted.item.scope,
+                number: accepted.item.number,
+                edit,
+                replaced,
+            })
             .expect("sized edits");
         drop(
             core.current
@@ -523,7 +588,11 @@ pub(crate) fn keep_proposal(core: &Core, set: &mut super::Proposal, proposal: u6
     for item in &set.items {
         let (kind, scope, number) = match item.setting {
             Setting::Application { kind, scope, number } => (kind, scope, number),
-            Setting::Charter(_) | Setting::Template(_) | Setting::Policy(_) | Setting::Rules => {
+            Setting::Charter(_)
+            | Setting::Template(_)
+            | Setting::Policy(_)
+            | Setting::Rules
+            | Setting::ProjectPolicy { .. } => {
                 jig.push(item.clone()).expect("bounded jig items");
                 continue;
             }
@@ -556,7 +625,11 @@ pub(crate) fn keep_proposal(core: &Core, set: &mut super::Proposal, proposal: u6
                         items.push(translate(item)).expect("connector proposal items");
                     }
                 }
-                Setting::Charter(_) | Setting::Template(_) | Setting::Policy(_) | Setting::Rules => {}
+                Setting::Charter(_)
+                | Setting::Template(_)
+                | Setting::Policy(_)
+                | Setting::Rules
+                | Setting::ProjectPolicy { .. } => {}
             }
         }
         out.push(Request::Ask {
@@ -696,7 +769,11 @@ impl Starting {
 fn application_failure(setting: Setting, why: crate::start::ApplicationWhy) -> crate::start::Failure {
     match setting {
         Setting::Application { kind, scope, number } => crate::start::Failure::Application { kind, scope, number, why },
-        Setting::Charter(_) | Setting::Template(_) | Setting::Policy(_) | Setting::Rules => {
+        Setting::Charter(_)
+        | Setting::Template(_)
+        | Setting::Policy(_)
+        | Setting::Rules
+        | Setting::ProjectPolicy { .. } => {
             unreachable!("application setting")
         }
     }
@@ -706,7 +783,11 @@ pub(crate) fn restore(core: &mut Core, setting: Setting, state: State) -> bool {
     use crate::start::ApplicationWhy;
     let kind = match setting {
         Setting::Application { kind, .. } => kind_of(&core.kinds, kind),
-        Setting::Charter(_) | Setting::Template(_) | Setting::Policy(_) | Setting::Rules => None,
+        Setting::Charter(_)
+        | Setting::Template(_)
+        | Setting::Policy(_)
+        | Setting::Rules
+        | Setting::ProjectPolicy { .. } => None,
     };
     let Some(kind) = kind else {
         core.refuse_restore(application_failure(setting, ApplicationWhy::Undeclared));
@@ -715,7 +796,11 @@ pub(crate) fn restore(core: &mut Core, setting: Setting, state: State) -> bool {
     assert!(!core.current.applications.contains_key(&setting), "duplicate application state {setting:?}");
     let (number, scope) = match setting {
         Setting::Application { kind, scope, .. } => (kind, scope),
-        Setting::Charter(_) | Setting::Template(_) | Setting::Policy(_) | Setting::Rules => {
+        Setting::Charter(_)
+        | Setting::Template(_)
+        | Setting::Policy(_)
+        | Setting::Rules
+        | Setting::ProjectPolicy { .. } => {
             unreachable!("application setting")
         }
     };
@@ -911,7 +996,11 @@ fn default_setting(default: &connector::DefaultState) -> Setting {
 fn recorded(setting: Setting, edit: SizedEdit) -> Recorded {
     match setting {
         Setting::Application { kind, scope, number } => Recorded { kind, scope, number, edit },
-        Setting::Charter(_) | Setting::Template(_) | Setting::Policy(_) | Setting::Rules => {
+        Setting::Charter(_)
+        | Setting::Template(_)
+        | Setting::Policy(_)
+        | Setting::Rules
+        | Setting::ProjectPolicy { .. } => {
             unreachable!("application setting")
         }
     }
@@ -923,7 +1012,7 @@ pub(crate) fn defaults_changed(core: &Core) -> bool {
         Starting::Saved => false,
     }
 }
-pub(crate) fn save_start(core: &mut Core, revision: Option<u32>, out: &mut Queue<Request>) -> Box<[Recorded]> {
+pub(crate) fn save_start(core: &mut Core, revision: Option<u32>, out: &mut Queue<Request>) -> Box<[RevisionRecorded]> {
     match core::mem::replace(&mut core.settings_restore.applications, Starting::Saved) {
         Starting::Prepared { connectors, edits, writes } => {
             for write in writes {
@@ -940,7 +1029,19 @@ pub(crate) fn save_start(core: &mut Core, revision: Option<u32>, out: &mut Queue
                     }),
                 });
             }
-            edits
+            let mut records = List::with_capacity(u32::try_from(edits.len()).expect("bounded release items"));
+            for item in edits {
+                records
+                    .push(RevisionRecorded {
+                        kind: item.kind,
+                        scope: item.scope,
+                        number: item.number,
+                        edit: item.edit,
+                        replaced: Replaced::Default,
+                    })
+                    .expect("release application items");
+            }
+            records.into_boxed()
         }
         Starting::Saved => Box::default(),
         Starting::Waiting { .. } => unreachable!("defaults prepared before saving"),
@@ -962,7 +1063,11 @@ pub(crate) fn drop_project(core: &mut Core, project: u32, out: &mut Queue<Reques
     for (&setting, _) in &core.current.applications {
         let scope = match setting {
             Setting::Application { scope, .. } => scope,
-            Setting::Charter(_) | Setting::Template(_) | Setting::Policy(_) | Setting::Rules => {
+            Setting::Charter(_)
+            | Setting::Template(_)
+            | Setting::Policy(_)
+            | Setting::Rules
+            | Setting::ProjectPolicy { .. } => {
                 unreachable!("application state")
             }
         };

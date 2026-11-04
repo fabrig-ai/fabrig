@@ -207,6 +207,7 @@ fn charter() -> jig_domain_core::Charter {
             shell: true,
             agents: false,
             call_timeout: Duration::from_secs(1),
+            tools: core::RunPolicy::EVERY_FAMILY,
         },
     }
 }
@@ -294,9 +295,17 @@ fn revision_values_past_the_single_read_budget_name_their_encoded_size() {
         applications: Box::default(),
         head: head(),
         items: Box::new([
-            s::Item { setting: s::Setting::Charter(1), edit: s::Edit::Set(source) },
-            s::Item { setting: s::Setting::Template(2), edit: s::Edit::Removed },
-            s::Item { setting: s::Setting::Policy(3), edit: s::Edit::Reset },
+            s::RevisionItem {
+                setting: s::Setting::Charter(1),
+                edit: s::Edit::Set(source),
+                replaced: s::Replaced::NotOffered,
+            },
+            s::RevisionItem {
+                setting: s::Setting::Template(2),
+                edit: s::Edit::Removed,
+                replaced: s::Replaced::NotOffered,
+            },
+            s::RevisionItem { setting: s::Setting::Policy(3), edit: s::Edit::Reset, replaced: s::Replaced::NotOffered },
         ]),
     };
     for (budget, large) in [(bytes, false), (bytes - 1, true)] {
@@ -490,7 +499,7 @@ fn change_settings_keeps_the_charter_documents() {
 fn application_documents_reads_revisions_and_reviews_carry_metadata_only() {
     use jig_client_domain::contract as c;
     use jig_client_protocol_link::translate::{settings as link, settings_proposals as proposals};
-    use s::application::{Follows, Recorded, SizedEdit, State};
+    use s::application::{Follows, RevisionRecorded, SizedEdit, State};
     let limits = w::CEILINGS;
     let client_limits = f::client_limits();
     let mut settings = List::with_capacity(2);
@@ -538,7 +547,13 @@ fn application_documents_reads_revisions_and_reviews_carry_metadata_only() {
             revision: s::Revision {
                 head: head(),
                 items: Box::new([]),
-                applications: Box::new([Recorded { kind: 7, scope: 0, number: 2, edit: edit.clone() }]),
+                applications: Box::new([RevisionRecorded {
+                    kind: 7,
+                    scope: 0,
+                    number: 2,
+                    edit: edit.clone(),
+                    replaced: s::application::Replaced::NotOffered,
+                }]),
             },
             value_bytes: 0,
         };
@@ -575,4 +590,31 @@ fn application_documents_reads_revisions_and_reviews_carry_metadata_only() {
         assert_eq!(application.edit, expected);
         assert_eq!(application.now.as_ref().unwrap().size, 0);
     }
+}
+
+#[test]
+fn a_charters_tools_round_trip_from_core_through_wire() {
+    let mut charter = charter();
+    charter.policy.tools = jig_domain_tasks::Tools(1536);
+    let source = s::Value::Charter(Box::new(charter));
+    let wire = translate::value(&source, &f::models(), &w::CEILINGS).unwrap();
+    let w::SettingValue::Charter(value) = &wire else { panic!("charter") };
+    assert_eq!(value.tools(), 1536);
+    let client =
+        jig_client_protocol_link::translate::settings::restore_setting_value(&wire, &f::client_limits()).unwrap();
+    let jig_client_domain::contract::SettingValue::Charter(value) = &client else { panic!("charter") };
+    assert_eq!(value.tools, 1536);
+    let wire = jig_client_protocol_link::translate::settings::wire_setting_value(&client, &w::CEILINGS).unwrap();
+    let row = w::SettingItem::new(
+        &w::CEILINGS,
+        w::SettingItemParts {
+            setting: translate::name(s::Setting::Charter(1), &w::CEILINGS).unwrap(),
+            edit: w::SettingEdit::Set(w::SettingSet::new(&w::CEILINGS, w::SettingSetParts { value: wire }).unwrap()),
+        },
+    )
+    .unwrap();
+    let mut writer = skein_lib::Writer::new(skein_lib::length::usize_of(row.measure()));
+    row.encode(&mut writer).unwrap();
+    let items = translate::items(f::pieces(&[writer.finish()]), &f::models(), &w::CEILINGS).unwrap();
+    assert_eq!(items.as_ref(), &[s::Item { setting: s::Setting::Charter(1), edit: s::Edit::Set(source) }]);
 }

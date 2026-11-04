@@ -36,6 +36,23 @@ pub enum SettingEdit {
     Reset,
 }
 
+/// A restore's item names the revision that kept its replaced value.
+#[derive(Clone, PartialEq, Eq, Hash, Debug)]
+pub struct RestoredItem {
+    pub kind: u32,
+    pub scope: u32,
+    pub number: u32,
+    pub edit: RestoredEdit,
+}
+
+/// A set takes a retained value; remove and reset keep their proposal meanings.
+#[derive(Clone, PartialEq, Eq, Hash, Debug)]
+pub enum RestoredEdit {
+    Set { revision: u64 },
+    Remove,
+    Reset,
+}
+
 /// A judgment in the ask's item order.
 #[derive(Clone, PartialEq, Eq, Hash, Debug)]
 pub enum SettingJudged {
@@ -62,12 +79,18 @@ type Key = (u32, u32, u32);
 pub(crate) struct State {
     defaults: BTreeMap<Key, Box<[u8]>>,
     changes: BTreeMap<Key, Option<Box<[u8]>>>,
+    pub(crate) replaced: BTreeMap<(Key, u64), Box<[u8]>>,
     proposals: BTreeMap<(u64, Key), SettingEdit>,
 }
 
 impl State {
     pub(crate) fn new() -> Self {
-        Self { defaults: BTreeMap::new(), changes: BTreeMap::new(), proposals: BTreeMap::new() }
+        Self {
+            defaults: BTreeMap::new(),
+            changes: BTreeMap::new(),
+            replaced: BTreeMap::new(),
+            proposals: BTreeMap::new(),
+        }
     }
 }
 
@@ -186,10 +209,23 @@ fn judge_edit(domain: &Domain, key: Key, edit: &SettingEdit) -> SettingJudged {
     }
 }
 
-pub(crate) fn keep(domain: &mut Domain, proposal: Option<u64>, items: &[SettingItem], out: &mut Queue<Request>) {
+pub(crate) fn keep(
+    domain: &mut Domain,
+    revision: u64,
+    proposal: Option<u64>,
+    items: &[SettingItem],
+    out: &mut Queue<Request>,
+) {
     for item in items {
         let key = (item.kind, item.scope, item.number);
         let edit = chosen_edit(domain, proposal, item).expect("committed proposal item was kept");
+        if let Some(Some(value)) = domain.settings.changes.get(&key) {
+            let value = value.clone();
+            domain.settings.replaced.insert((key, revision), value.clone());
+            out.push(Request::Save {
+                record: Record::SettingReplaced { kind: key.0, scope: key.1, number: key.2, revision, value },
+            });
+        }
         match edit {
             SettingEdit::Reset => {
                 domain.settings.changes.remove(&key);
@@ -224,6 +260,72 @@ pub(crate) fn keep_proposal(domain: &mut Domain, proposal: u64, items: &[Setting
                 number: key.2,
                 edit: item.edit.clone(),
             },
+        });
+    }
+}
+
+pub(crate) fn restore(
+    domain: &mut Domain,
+    token: Token,
+    proposal: u64,
+    items: &[RestoredItem],
+    out: &mut Queue<Request>,
+) {
+    let mut judged = List::with_capacity(u32::try_from(items.len()).expect("bounded restore items"));
+    for item in items {
+        let key = (item.kind, item.scope, item.number);
+        let edit = match item.edit {
+            RestoredEdit::Set { revision } => {
+                let Some(value) = domain.settings.replaced.get(&(key, revision)) else {
+                    judged
+                        .push(SettingJudged::Refuse { why: Box::from(&b"no value kept"[..]) })
+                        .expect("one judgment per item");
+                    continue;
+                };
+                SettingEdit::Set(value.clone())
+            }
+            RestoredEdit::Remove => SettingEdit::Remove,
+            RestoredEdit::Reset => SettingEdit::Reset,
+        };
+        let next = edited(domain, key, &edit);
+        let mut count = 0_u32;
+        for (owner, other) in domain.settings.proposals.keys() {
+            if *owner == proposal && other.1 == key.1 && *other != key {
+                count = count.checked_add(1).expect("bounded proposal items");
+            }
+        }
+        if !fits(domain, key, next.as_deref())
+            || count >= domain.config.settings.as_ref().expect("owned kind").per_scope
+        {
+            judged
+                .push(SettingJudged::Refuse { why: Box::from(&b"setting outside kind bounds"[..]) })
+                .expect("one judgment per item");
+            continue;
+        }
+        let answer = match next {
+            Some(bytes) => SettingJudged::Accept {
+                size: u32::try_from(bytes.len()).expect("bounded setting bytes"),
+                charters: charters(domain, &bytes),
+            },
+            None => SettingJudged::Accept { size: 0, charters: Box::new([]) },
+        };
+        keep_proposal(domain, proposal, &[SettingItem { kind: key.0, scope: key.1, number: key.2, edit }], out);
+        judged.push(answer).expect("one judgment per item");
+    }
+    out.push(Request::SettingsRestored { token, judged: judged.into_boxed() });
+}
+
+pub(crate) fn forget_replaced(domain: &mut Domain, before: u64, out: &mut Queue<Request>) {
+    let mut forgotten = List::with_capacity(u32::try_from(domain.settings.replaced.len()).expect("bounded history"));
+    for (key, revision) in domain.settings.replaced.keys() {
+        if *revision < before {
+            forgotten.push((*key, *revision)).expect("one key per replaced value");
+        }
+    }
+    for (key, revision) in &forgotten {
+        domain.settings.replaced.remove(&(*key, *revision));
+        out.push(Request::Erase {
+            key: RecordKey::SettingReplaced { kind: key.0, scope: key.1, number: key.2, revision: *revision },
         });
     }
 }
@@ -334,6 +436,26 @@ pub(crate) fn restore_change(domain: &mut Domain, key: Key, value: Option<Box<[u
         return;
     }
     domain.settings.changes.insert(key, value);
+}
+
+pub(crate) fn restore_replaced(
+    domain: &mut Domain,
+    key: Key,
+    revision: u64,
+    value: Box<[u8]>,
+    out: &mut Queue<Request>,
+) {
+    let mut count = 0_u32;
+    for (other, owner) in domain.settings.replaced.keys() {
+        if *owner == revision && other.1 == key.1 && *other != key {
+            count = count.checked_add(1).expect("bounded replaced values");
+        }
+    }
+    if !fits(domain, key, Some(&value)) || count >= domain.config.settings.as_ref().expect("owned kind").per_scope {
+        refuse(key, out);
+        return;
+    }
+    domain.settings.replaced.insert((key, revision), value);
 }
 
 pub(crate) fn restore_proposal(

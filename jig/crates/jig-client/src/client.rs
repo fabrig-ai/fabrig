@@ -49,16 +49,20 @@ pub enum Request {
     Told {
         told: Told,
     },
-    Down {
-        down: Down,
-    },
-    SignOut,
     Authorized(crate::Authorized),
     /// Shown once by the host; the client never retains it.
     ServiceCredential {
         party: u64,
         credential: Secret,
     },
+}
+/// What an unlinked client asks of its host (client/domain/client.md, 4.4).
+#[derive(Debug, PartialEq, Eq)]
+pub enum UnlinkedRequest {
+    Told { told: Told },
+    Authorized(crate::Authorized),
+    Down { down: Down },
+    SignOut,
 }
 /// Why the last printed-link sign-in installed no credential (client/domain/client.md, 12).
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
@@ -184,12 +188,8 @@ impl Client {
         }
     }
     pub fn step(&mut self, now: Time, wall: Wall, event: Event, out: &mut Queue<Request>) {
+        assert!(self.link.is_some(), "an unlinked client steps with step_unlinked");
         let env = Env { now, wall, limits: self.limits.domain };
-        if self.link.is_none() {
-            self.step_unlinked(&env, event, out);
-            self.drain(&env, out);
-            return;
-        }
         match event {
             Event::Start { kept } => {
                 domain::step(
@@ -252,6 +252,7 @@ impl Client {
         self.drain(&env, out);
     }
     pub fn fire(&mut self, now: Time, wall: Wall, out: &mut Queue<Request>) {
+        assert!(self.link.is_some(), "an unlinked client steps with step_unlinked");
         let env = Env { now, wall, limits: self.limits.domain };
         if let Some(until) = self.signing_until
             && now >= until
@@ -274,6 +275,23 @@ impl Client {
             domain::fire(&mut self.domain, &env, &mut self.domain_out);
         }
         self.drain(&env, out);
+    }
+    /// Step an unlinked client (client/domain/client.md, 4.4).
+    pub fn step_unlinked(&mut self, now: Time, wall: Wall, event: Event, out: &mut Queue<UnlinkedRequest>) {
+        assert!(self.link.is_none(), "a linked client steps with step");
+        let env = Env { now, wall, limits: self.limits.domain };
+        self.unlinked_event(&env, event, out);
+        self.drain_unlinked(out);
+    }
+    /// Fire an unlinked client's deadlines (client/domain/client.md, 4.4).
+    pub fn fire_unlinked(&mut self, now: Time, wall: Wall, out: &mut Queue<UnlinkedRequest>) {
+        assert!(self.link.is_none(), "a linked client steps with step");
+        let env = Env { now, wall, limits: self.limits.domain };
+        self.drain_unlinked(out);
+        if self.domain.link() != Link::OutOfDate {
+            domain::fire(&mut self.domain, &env, &mut self.domain_out);
+        }
+        self.drain_unlinked(out);
     }
     #[must_use]
     pub fn next_deadline(&self) -> Option<Time> {
@@ -316,7 +334,7 @@ impl Client {
             },
         }
     }
-    fn step_unlinked(&mut self, env: &Env<DomainLimits>, event: Event, out: &mut Queue<Request>) {
+    fn unlinked_event(&mut self, env: &Env<DomainLimits>, event: Event, out: &mut Queue<UnlinkedRequest>) {
         match event {
             Event::StartUnlinked { kept } => self.domain_step(env, domain::Event::Start { kept }),
             Event::Watch { handle, subject } => self.domain_step(env, domain::Event::Watch { handle, subject }),
@@ -348,11 +366,11 @@ impl Client {
                 assert!(with == With::Transport, "unlinked sign-in belongs to the transport");
                 self.up(env, Up::SignedIn);
             }
-            Event::Authorize { .. } => out.push(Request::Authorized(crate::Authorized::Lost)),
+            Event::Authorize { .. } => out.push(UnlinkedRequest::Authorized(crate::Authorized::Lost)),
             Event::SignOut => {
                 self.signing_out = true;
                 self.sign_out_lost = false;
-                out.push(Request::SignOut);
+                out.push(UnlinkedRequest::SignOut);
             }
             Event::SignOutLost => self.sign_out_failed(),
             Event::Stored | Event::NotStored => {}
@@ -481,6 +499,14 @@ impl Client {
         }
         self.reads.push(DeferredRead { read, what });
     }
+    fn drain_unlinked(&mut self, out: &mut Queue<UnlinkedRequest>) {
+        while let Some(request) = self.domain_out.pop() {
+            match request {
+                domain::Request::Told { told } => out.push(UnlinkedRequest::Told { told }),
+                domain::Request::Down { down } => out.push(UnlinkedRequest::Down { down }),
+            }
+        }
+    }
     fn drain(&mut self, env: &Env<DomainLimits>, out: &mut Queue<Request>) {
         self.prune_reads();
         // Link and domain outputs answer each other within this step; the routed event's bounded
@@ -492,7 +518,6 @@ impl Client {
             } else if let Some(request) = self.domain_out.pop() {
                 match request {
                     domain::Request::Told { told } => out.push(Request::Told { told }),
-                    domain::Request::Down { down } if self.link.is_none() => out.push(Request::Down { down }),
                     domain::Request::Down { down: Down::Read { read, what } } => {
                         if self.domain.link() != Link::OutOfDate && self.domain.has_read(read) {
                             self.defer_read(env.now, read, what);

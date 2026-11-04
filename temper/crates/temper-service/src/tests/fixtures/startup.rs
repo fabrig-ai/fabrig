@@ -87,10 +87,6 @@ pub fn parsed() -> skein_json::Document {
 pub fn files() -> settings::Files {
     let mut entries = List::with_capacity(8);
     for (path, value) in [
-        (b"secrets/forge-1.webhook-secret".as_slice(), b"fixture-hook-secret\n".as_slice()),
-        (b"secrets/forge-1.user".as_slice(), b"42\n".as_slice()),
-        (b"secrets/forge-1.api-token".as_slice(), b"api-token\n".as_slice()),
-        (b"secrets/forge-1.git-token".as_slice(), b"git-token\n".as_slice()),
         (b"worker-secret".as_slice(), super::worker::WORKER_SECRET),
         (
             b"secrets/worker-a.digest".as_slice(),
@@ -258,12 +254,11 @@ fn member_span(input: &[u8], path: &[u8]) -> core::ops::Range<usize> {
     start.unwrap()..end.unwrap_or(input.len())
 }
 
-/// One webhook listener and its private secret path, on the shipped profile.
+/// One webhook listener on the shipped profile.
 pub fn webhook_document() -> Box<[u8]> {
     core::str::from_utf8(&document())
         .unwrap()
         .replace("\"webhooks\":null", "\"webhooks\":{\"listener\":{\"socket\":\"127.0.0.1:7200\"}}")
-        .replace("\"webhook_secret\":null", "\"webhook_secret\":\"secrets/forge-1.webhook-secret\"")
         .into_bytes()
         .into_boxed_slice()
 }

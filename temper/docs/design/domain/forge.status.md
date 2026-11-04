@@ -1,6 +1,6 @@
 # forge: status
 
-2026-11-03. Where temper's code lags or departs from [forge.md](forge.md).
+2026-11-04. Where temper's code lags or departs from [forge.md](forge.md).
 
 - **Not yet:**
   - 4.1: a removal without the box, its group's act answered in its
@@ -88,3 +88,7 @@
   (`temper-engine-domain/src/route/forge_route.rs`, `change_delegate`);
   8.4 and 8.11 make a change's delegates under its own authority and
   name no such split.
+- **Departs:** 8.11: every answer relayed down is cut from its end to
+  `tasks.message_bytes` and marked with `…`, as a question passed up is.
+  This keeps the message within its admission bound, where the design says
+  the answer's words are whole.

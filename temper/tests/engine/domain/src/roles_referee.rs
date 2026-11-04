@@ -125,6 +125,7 @@ impl Referee {
                             | people::Stored::SignIn { .. }
                             | people::Stored::Acted { .. }
                             | people::Stored::Deletion { .. }
+                            | people::Stored::Public { .. }
                             | people::Stored::Policy { .. }
                             | people::Stored::Answer { .. },
                         )
@@ -177,6 +178,7 @@ impl Referee {
                             | people::Stored::Roles { .. }
                             | people::Stored::Acted { .. }
                             | people::Stored::Deletion { .. }
+                            | people::Stored::Public { .. }
                             | people::Stored::Policy { .. },
                         )
                         | jig_domain_core::Record::Tasks(_)

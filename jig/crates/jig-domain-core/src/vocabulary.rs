@@ -161,6 +161,8 @@ pub enum Ask {
     DelegateRefused { task: Option<u64> },
     /// Start one admitted procedure through its numbered connector.
     StartProcedure { context: Box<tasks::RunContext>, step: u64 },
+    /// Ask a connector for a public document (jig/docs/design/domain/engine.md, 11).
+    Public { reply: ReplyTo, kind: u16, version: u16, project: u32, task: Option<u64>, public: Box<[u64]> },
 }
 
 /// Store mutation issued by a child of the core.
@@ -255,6 +257,10 @@ pub enum Held {
     NotesWritten { owner: Token, name: u64, revision: u32 },
     /// A note deletion's accepted name.
     NotesDeleted { owner: Token, name: u64 },
+    /// A public read's answer after durability (jig/docs/design/domain/people.md, 13.10).
+    PublicRead { reply: ReplyTo, answer: crate::PublicAnswer },
+    /// Recheck a public read after preceding commits (jig/docs/design/domain/people.md, 13.10).
+    PublicWait { read: Token },
 }
 
 /// Why an unkeyed watch was not admitted (`client/domain/contract.md`, 7.2).
@@ -273,6 +279,8 @@ pub enum WatchRefusal {
 /// Core output that follows no mutation.
 #[derive(Debug)]
 pub enum Now {
+    /// A bounded task read has no durable call record (engine.md, 7.3).
+    TaskRead { to: ReplyTo, key: CallKey, answer: Box<Result<crate::reads::run_task::TaskRead, tasks::Refusal>> },
     /// A settings document leaves without a durable call record (engine.md, 7.3).
     SettingsAnswer { to: ReplyTo, key: CallKey, answer: Box<crate::reads::SettingsAnswer> },
     /// The root answers this host call with its own busy payload.
@@ -386,6 +394,7 @@ pub enum Now {
 /// Limits of the core's child routes.
 #[derive(Clone, Copy, PartialEq, Eq, Debug)]
 pub struct Limits {
+    pub public: PublicIndexLimits,
     /// The most hand-offs one core decision routes, sibling continuations included: the
     /// bound of every drain within a step (skein's programming-model.md, 3 "Bounded"; 4.5).
     pub routes: u32,
@@ -434,6 +443,18 @@ pub struct Limits {
     pub documents: crate::documents::DocumentLimits,
     /// Live view streams.
     pub views: views::Limits,
+}
+
+/// Public index bounds (jig/docs/design/domain/people.md, 13.9).
+#[derive(Clone, Copy, PartialEq, Eq, Debug)]
+pub struct PublicIndexLimits {
+    pub goals: u16,
+    pub ended: u16,
+    pub lines: u16,
+    pub depth: u16,
+}
+impl PublicIndexLimits {
+    pub const OFF: Self = Self { goals: 0, ended: 0, lines: 0, depth: 0 };
 }
 
 /// Budgets for the core's own brief sections.
@@ -710,6 +731,12 @@ pub enum Event {
     View(views::Event),
     /// A scoped note.
     Notes(notes::Event),
+    /// An unsigned public read (jig/docs/design/protocol/client.md, 19).
+    PublicRead { reply: ReplyTo, read: crate::PublicRead },
+    /// A connector's public document (jig/docs/design/domain/engine.md, 11).
+    PublicAnswered { reply: ReplyTo, answer: Option<crate::PublicApplication> },
+    /// The root released this read after preceding commits became durable.
+    PublicDurable { read: Token },
 }
 /// Why a connector refuses a member's holdings (domain/tasks.md, 6.1 and 6.2).
 #[derive(Clone, Copy, PartialEq, Eq, Hash, Debug)]
@@ -744,6 +771,11 @@ pub enum PayloadRefusal {
 /// Connector-free work a named host call asks the core to route.
 #[derive(Debug)]
 pub enum NamedAction {
+    /// Read a related live task or a retained direct delegate without deciding a call.
+    ReadTask {
+        task: u64,
+        from: u64,
+    },
     /// A settings read decides nothing and keeps no call record (engine.md, 7.3).
     Settings(crate::reads::SettingsRead),
     /// A run proposes settings against the revision it read (engine.md, 17.6).
@@ -895,6 +927,7 @@ impl Event {
             | Self::ProposeSettings { .. }
             | Self::Act { .. }
             | Self::Read { .. }
+            | Self::PublicRead { .. }
             | Self::Application { .. }
             | Self::Key { .. }
             | Self::EffectStart { .. }
@@ -910,6 +943,8 @@ impl Event {
             | Self::Stopping
             | Self::Marked { .. }
             | Self::ReadLoaded { .. }
+            | Self::PublicAnswered { .. }
+            | Self::PublicDurable { .. }
             | Self::ApplicationPart { .. }
             | Self::ApplicationFinished { .. }
             | Self::ProjectionSettled { .. }
@@ -1157,6 +1192,7 @@ fn notes_new_work(event: &notes::Event) -> bool {
 #[expect(clippy::match_same_arms, reason = "application settings placeholders have their own arm")]
 fn effectconnector_new_work(event: &crate::effects::connector::Event) -> bool {
     match event {
+        crate::effects::connector::Event::SettingsRestored { .. } => false,
         crate::effects::connector::Event::Resource { .. }
         | crate::effects::connector::Event::PoolSlots { .. }
         | crate::effects::connector::Event::News { .. }

@@ -88,6 +88,8 @@ pub fn env() -> Env<Limits> {
             connector: jig_test_connector_world::LIMITS,
             routes: 512,
             watermark: crate::default_watermark(&journal),
+            public_watermark: crate::default_watermark(&journal).checked_div(2).expect("half the watermark"),
+            public_reads: 0,
             journal,
         },
     }
@@ -210,6 +212,7 @@ pub fn run() -> Box<core::RunCharter> {
             shell: false,
             agents: false,
             call_timeout: Duration::from_secs(10),
+            tools: core::RunPolicy::EVERY_FAMILY,
         },
     })
 }

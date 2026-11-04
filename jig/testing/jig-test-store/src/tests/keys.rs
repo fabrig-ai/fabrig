@@ -44,3 +44,17 @@ fn each_record_lies_within_its_connectors_live_interval() {
         }
     }
 }
+
+#[test]
+fn replaced_keys_keep_the_whole_revision_and_order_it_last() {
+    let mut previous = None;
+    for revision in [0, u64::from(u32::MAX), u64::from(u32::MAX) + 1, u64::MAX] {
+        let key = RecordKey::SettingReplaced { kind: 1, scope: 2, number: 3, revision };
+        let bytes = keys::encode(fixtures::FIRST, &key);
+        assert_eq!(keys::decode(&bytes, &fixtures::LIMITS), Some((fixtures::FIRST, key)));
+        if let Some(previous) = previous {
+            assert!(previous < bytes);
+        }
+        previous = Some(bytes);
+    }
+}

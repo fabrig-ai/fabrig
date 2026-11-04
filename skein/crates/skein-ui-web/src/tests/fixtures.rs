@@ -67,6 +67,8 @@ pub fn exchange(id: u32) -> crate::fetch::Exchange {
         headers: Vec::new(),
         body: b"record".as_slice().into(),
         bound: 1024,
+        cache: crate::fetch::Cache::Browser,
+        keep: &[],
     }
 }
 

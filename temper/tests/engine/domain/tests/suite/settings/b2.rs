@@ -1,4 +1,5 @@
-//! The stock funds B2 at init's default model prices (protocol/configuration.md, 13.4).
+//! The stock funds a chat's advisor and a coordinator's change at init's default model prices
+//! (protocol/configuration.md, 13.4).
 use super::*;
 use jig_domain_tasks as tasks;
 use temper_engine_domain_forge as forge;
@@ -234,7 +235,7 @@ fn chat_in(config: [engine::Config; 2]) -> (Driver, engine::Assignment) {
     );
     assert_eq!(chat.run.policy.model, box_model());
     assert_eq!(chat.run.budget, K);
-    assert_eq!(driver.task(chat.task).expect("chat").numbers.budget, 24 * K);
+    assert_eq!(driver.task(chat.task).expect("chat").numbers.budget, 16 * K);
     (driver, chat)
 }
 
@@ -330,7 +331,7 @@ fn no_settings_or_message_tools(run: &engine::Assignment) {
     assert_eq!(run.run.authority.tools.0 & core::ToolFamilies::JIG.settings, 0);
     assert_eq!(run.run.authority.tools.0 & core::ToolFamilies::JIG.message.0, 0);
     let charter = temper_engine_smith::charter(run);
-    assert_eq!(charter.grants.host_tools.len(), 36);
+    assert_eq!(charter.grants.host_tools.len(), 37);
     for tool in &charter.grants.host_tools {
         assert!(
             tool.name.as_ref() != b"settings"
@@ -353,7 +354,25 @@ pub(super) fn changes_without_settings_or_message() {
     }
     let (mut driver, chat) = chat_in(config);
     assert_ne!(chat.run.authority.tools.0 & core::ToolFamilies::JIG.settings, 0);
-    assert_eq!(temper_engine_smith::charter(&chat).grants.host_tools.len(), 39);
+    assert_eq!(temper_engine_smith::charter(&chat).grants.host_tools.len(), 38);
+    for tool in &temper_engine_smith::charter(&chat).grants.host_tools {
+        assert!(tool.name.as_ref() != b"settings" && tool.name.as_ref() != b"propose_settings");
+    }
+    let mut configuring = delegate(&driver, chat.task, b"Configure temper", 0, K);
+    configuring.executor = tasks::Executor::Agent { charter: 3 };
+    let engine::CallAnswer::Delegated(made) =
+        call(&mut driver, &chat, 40, engine::Tool::Delegate { batch: Box::new([configuring]) })
+    else {
+        panic!("configuring run admitted")
+    };
+    let configuring = assigned(&driver, made[0].task).expect("configuring run");
+    assert_eq!(configuring.charter, 3);
+    for name in [b"settings".as_slice(), b"propose_settings"] {
+        assert!(
+            temper_engine_smith::charter(&configuring).grants.host_tools.iter().any(|tool| tool.name.as_ref() == name)
+        );
+    }
+    finish(&mut driver, &configuring, tasks::TaskResult::Report { words: b"Settings read".as_slice().into() });
     assert_ne!(chat.run.authority.tools.0 & core::ToolFamilies::JIG.message.0, 0);
     let coordinator = delegate(&driver, chat.task, b"Land a change", 5, 11 * K);
     let engine::CallAnswer::Delegated(made) =
@@ -363,7 +382,7 @@ pub(super) fn changes_without_settings_or_message() {
     };
     let coordinator = assigned(&driver, made[0].task).expect("coordinator run");
     assert_ne!(coordinator.run.authority.tools.0 & core::ToolFamilies::JIG.message.0, 0);
-    assert_eq!(temper_engine_smith::charter(&coordinator).grants.host_tools.len(), 39);
+    assert_eq!(temper_engine_smith::charter(&coordinator).grants.host_tools.len(), 38);
     repair_change(&mut driver, &coordinator, 43);
 }
 
@@ -380,12 +399,10 @@ pub(super) fn story() {
     finish(&mut driver, &advisor, tasks::TaskResult::Report { words: report.as_slice().into() });
     assert!(inbox(&driver, chat.task, advisor.task, &tasks::MessageKind::Result(tasks::ResultKind::Report), &report));
     let first = delegate(&driver, chat.task, b"D1", 5, 11 * K);
-    let mut second = delegate(&driver, chat.task, b"D2", 5, 11 * K);
-    second.dependencies = Box::new([engine::Dependency::Batch(0)]);
     let engine::CallAnswer::Delegated(made) =
-        call(&mut driver, &chat, 43, engine::Tool::Delegate { batch: Box::new([first, second]) })
+        call(&mut driver, &chat, 43, engine::Tool::Delegate { batch: Box::new([first]) })
     else {
-        panic!("coordinators admitted");
+        panic!("coordinator admitted");
     };
     let first = assigned(&driver, made[0].task).expect("D1");
     assert_eq!(
@@ -393,8 +410,6 @@ pub(super) fn story() {
         include_bytes!("../../../../../../crates/temper-service/src/stock/chat.txt"),
         "the goal reports a landed change as its result says it"
     );
-    let second = made[1].task;
-    assert!(assigned(&driver, second).is_none(), "D2 waits with worker capacity free");
     let engine::CallAnswer::Sent { message: question } = call(
         &mut driver,
         &first,
@@ -431,22 +446,9 @@ pub(super) fn story() {
     );
     assert!(inbox(&driver, first.task, chat.task, &tasks::MessageKind::Answer { question }, b"Go ahead"));
     repair_change(&mut driver, &first, 46);
-    assert!(assigned(&driver, second).is_none(), "D2 still waits until its coordinator ends");
     finish(&mut driver, &first, tasks::TaskResult::Report { words: b"D1 landed".as_slice().into() });
-    // The extra head-context reads can exhaust this tiny forge's rate window;
-    // D1's branch release must settle before its dependent can be assigned.
-    for _ in 0..30 {
-        if assigned(&driver, second).is_some() {
-            break;
-        }
-        driver.fire_at(Duration::from_nanos(driver.env.now.as_nanos() + 1_000_000_000));
-        driver.pump();
-    }
-    let second = assigned(&driver, second).expect("D2 follows D1's settled ending");
-    repair_change(&mut driver, &second, 47);
-    finish(&mut driver, &second, tasks::TaskResult::Report { words: b"D2 landed".as_slice().into() });
     // The coordinator's ending follows its change's rate-limited branch release.
-    let ended = Key::Core(core::Key::Tasks(tasks::Key::Ended(second.task)));
+    let ended = Key::Core(core::Key::Tasks(tasks::Key::Ended(first.task)));
     for _ in 0..30 {
         if driver.store.rows.contains_key(&ended) {
             break;
@@ -454,10 +456,14 @@ pub(super) fn story() {
         driver.fire_at(Duration::from_nanos(driver.env.now.as_nanos() + 1_000_000_000));
         driver.pump();
     }
-    assert!(driver.store.rows.contains_key(&ended), "D2's ending settles after its branch release");
-    assert_eq!(driver.store.header().tasks, 14, "chat, advisor, coordinators, procedures and eight workers");
+    assert!(driver.store.rows.contains_key(&ended), "D1's ending settles after its branch release");
+    assert_eq!(driver.store.header().tasks, 8, "chat, advisor, coordinator, procedure and four workers");
     let chat = driver.task(chat.task).expect("chat remains open");
-    assert_eq!(chat.numbers.spent_below, 11 * K, "advisor and both five-agent coordinator trees settle full K charges");
+    assert_eq!(
+        chat.numbers.spent_below,
+        6 * K,
+        "the advisor and the five-agent coordinator tree settle full K charges"
+    );
     assert_eq!(chat.run_reserved, K, "the chat keeps its own full run allowance");
 }
 

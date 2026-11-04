@@ -214,7 +214,8 @@ pub(super) fn load(domain: &mut Domain, key: ActKey, act: Act, outcome: Outcome,
 fn permanent(outcome: &Outcome) -> bool {
     match outcome {
         Outcome::Again(_) | Outcome::SignedOut => false,
-        Outcome::Compound { .. }
+        Outcome::Restored { .. }
+        | Outcome::Compound { .. }
         | Outcome::CompoundRefused { .. }
         | Outcome::MarkedSeen { .. }
         | Outcome::Applied { .. }
@@ -226,6 +227,7 @@ fn permanent(outcome: &Outcome) -> bool {
         | Outcome::Renamed { .. }
         | Outcome::ProjectMade { .. }
         | Outcome::ProjectRemoved { .. }
+        | Outcome::VisibilitySet { .. }
         | Outcome::SettingsChanged { .. }
         | Outcome::MovedToNewest { .. }
         | Outcome::PoolSet { .. }

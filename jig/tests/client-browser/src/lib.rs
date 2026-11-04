@@ -15,7 +15,7 @@ mod forgery;
 pub fn jig_test() -> PathBuf {
     let exe = std::env::current_exe().expect("test executable");
     let binary = exe.parent().and_then(Path::parent).expect("target directory").join("jig-test");
-    assert!(binary.is_file(), "build the browser server with heavy cargo build -p jig-test: {}", binary.display());
+    assert!(binary.is_file(), "build the browser server with cargo build -p jig-test: {}", binary.display());
     binary
 }
 #[must_use]
@@ -73,6 +73,10 @@ fn configuration(directory: &Path, bundle: &Path) -> serde_json::Value {
     absolute_paths(&mut value, directory);
     value
 }
+#[expect(
+    clippy::wildcard_enum_match_arm,
+    reason = "the fixture path walker visits JSON containers and rewrites named paths; every other leaf stays unchanged"
+)]
 fn absolute_paths(value: &mut serde_json::Value, directory: &Path) {
     match value {
         serde_json::Value::String(text)

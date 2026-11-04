@@ -43,6 +43,7 @@ fn authorization_go_replaces_the_address_once() {
         exchange,
         status: 200,
         body: encoded(answer.measure(), |writer| answer.encode(writer)),
+        headers: Vec::new(),
     });
     host.requests();
     assert_eq!(host.replace.take().as_deref(), Some(location.as_slice()));

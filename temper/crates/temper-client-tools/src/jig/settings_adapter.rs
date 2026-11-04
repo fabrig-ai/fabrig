@@ -59,6 +59,7 @@ pub fn form_charter(v: &c::Charter) -> n::Charter {
             out
         },
         call_timeout: v.call_timeout,
+        tools: v.tools,
         hosts: form_setting_hosts(&v.hosts),
         spend: v.spend,
         wake: form_wake(v.wake),
@@ -101,6 +102,7 @@ pub fn client_charter(v: &n::Charter) -> c::Charter {
         shell: v.shell(),
         agents: v.agents(),
         call_timeout: v.call_timeout,
+        tools: v.tools,
         hosts: client_setting_hosts(&v.hosts),
         spend: v.spend,
         wake: client_wake(v.wake),
@@ -502,7 +504,18 @@ pub fn form_revision_head(v: &c::RevisionHead) -> n::RevisionHead {
 }
 
 pub fn form_revision_item(v: &c::RevisionItem) -> n::RevisionItem {
-    n::RevisionItem { setting: form_setting(v.setting), edit: form_revision_edit(&v.edit) }
+    n::RevisionItem {
+        setting: form_setting(v.setting),
+        edit: form_revision_edit(&v.edit),
+        replaced: match &v.replaced {
+            c::RevisionReplaced::Value(value) => n::RevisionReplaced::Value(form_setting_set(value)),
+            c::RevisionReplaced::TooLarge(size) => n::RevisionReplaced::TooLarge(form_size(size)),
+            c::RevisionReplaced::Application { size } => n::RevisionReplaced::Application { size: *size },
+            c::RevisionReplaced::Default => n::RevisionReplaced::Default,
+            c::RevisionReplaced::Removed => n::RevisionReplaced::Removed,
+            c::RevisionReplaced::NotOffered => n::RevisionReplaced::NotOffered,
+        },
+    }
 }
 
 pub fn form_revision_item_edit(v: &c::RevisionItemEdit) -> n::RevisionItemEdit {
@@ -598,6 +611,7 @@ pub fn form_setting(v: c::Setting) -> n::Setting {
     match v {
         c::Setting::Charter(x) => n::Setting::Charter(form_setting_number(x)),
         c::Setting::Template(x) => n::Setting::Template(form_setting_number(x)),
+        c::Setting::ProjectPolicy { project } => n::Setting::ProjectPolicy { project },
         c::Setting::Policy(x) => n::Setting::Policy(form_setting_number(x)),
         c::Setting::Application { kind, scope, number } => n::Setting::Application { kind, scope, number },
         c::Setting::Rules => n::Setting::Rules,
@@ -610,6 +624,7 @@ pub fn client_setting(v: n::Setting) -> c::Setting {
         n::Setting::Policy(x) => c::Setting::Policy(client_setting_number(x)),
         n::Setting::Application { kind, scope, number } => c::Setting::Application { kind, scope, number },
         n::Setting::Rules => c::Setting::Rules,
+        n::Setting::ProjectPolicy { project } => c::Setting::ProjectPolicy { project },
     }
 }
 #[expect(clippy::manual_map, reason = "step translations match optional fields without closures")]
@@ -1183,7 +1198,7 @@ pub fn limits(v: &crate::jig::Limits) -> settings_form::Limits {
         result_bytes: v.result_bytes,
         text: v.text,
         rows: 32,
-        authority: 12,
+        authority: 14, // Holds the stock's fourteen forge grants.
         fields: 16,
     }
 }

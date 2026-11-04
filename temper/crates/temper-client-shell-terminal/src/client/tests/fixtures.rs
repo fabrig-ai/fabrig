@@ -155,9 +155,11 @@ pub(super) fn started_kept() -> (NativeClient, skein_lib::Token) {
     });
     let mut frame = None;
     while let Some(request) = host.out.pop() {
-        if let domain::Request::Client {
+        if let domain::Request::Unlinked {
             request:
-                Request::Down { down: Down::Open { watch, subject: Watchable::Jig(jig_client::contract::Subject::Me) } },
+                jig_client::UnlinkedRequest::Down {
+                    down: Down::Open { watch, subject: Watchable::Jig(jig_client::contract::Subject::Me) },
+                },
         } = request
         {
             frame = Some(watch);
@@ -227,9 +229,9 @@ pub(super) fn page_work(host: &mut NativeClient) -> (Vec<skein_lib::Token>, Vec<
     let mut reads = Vec::new();
     let mut watches = Vec::new();
     while let Some(request) = host.out.pop() {
-        if let domain::Request::Client {
+        if let domain::Request::Unlinked {
             request:
-                Request::Down {
+                jig_client::UnlinkedRequest::Down {
                     down:
                         Down::Read {
                             read,
@@ -241,9 +243,9 @@ pub(super) fn page_work(host: &mut NativeClient) -> (Vec<skein_lib::Token>, Vec<
             assert_eq!(task, TASK);
             assert!(before.is_none(), "first page reads the latest activity");
             reads.push(read);
-        } else if let domain::Request::Client {
+        } else if let domain::Request::Unlinked {
             request:
-                Request::Down {
+                jig_client::UnlinkedRequest::Down {
                     down: Down::Open { watch, subject: Watchable::Jig(jig_client::contract::Subject::Task { task }) },
                 },
         } = request

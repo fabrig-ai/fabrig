@@ -76,6 +76,16 @@ pub(super) fn activity_row(
     Ok(row)
 }
 
+enum Projection {
+    Task,
+    Inbox,
+}
+
+struct TaskJoins {
+    ancestors: Box<[u64]>,
+    linked: Box<[Box<tasks::TaskRecord>]>,
+}
+
 pub(super) fn row(
     store: &mut Store,
     value: core::Record,
@@ -83,9 +93,61 @@ pub(super) fn row(
     related: Option<core::Key>,
     spent: &mut Spent,
 ) -> Result<reads::Row, Failure> {
+    projected(store, value, task, related, Projection::Task, spent)
+}
+
+/// Join inbox selection ancestry and its related record without task-document links.
+pub(super) fn inbox_row(
+    store: &mut Store,
+    value: core::Record,
+    task: &tasks::TaskRecord,
+    related: Option<core::Key>,
+    spent: &mut Spent,
+) -> Result<reads::Row, Failure> {
+    projected(store, value, Some(task), related, Projection::Inbox, spent)
+}
+
+fn projected(
+    store: &mut Store,
+    value: core::Record,
+    task: Option<&tasks::TaskRecord>,
+    related: Option<core::Key>,
+    projection: Projection,
+    spent: &mut Spent,
+) -> Result<reads::Row, Failure> {
     if spent.rows == 0 {
         return Err(Failure::Cut);
     }
+    let joined = task_joins(store, task, projection, spent)?;
+    let related = match related {
+        Some(key) => get(store, &key, spent)?,
+        None => None,
+    };
+    let mut owner = None;
+    if let Some(task) = task {
+        owner = Some(Box::new(task.clone()));
+    }
+    let row = reads::Row {
+        value,
+        owner,
+        ancestors: joined.ancestors,
+        related,
+        unjoined: None,
+        ended_read: None,
+        linked: joined.linked,
+        inbox: None,
+    };
+    spent.bytes = spent.bytes.checked_sub(row.owned_bytes().ok_or(Failure::Corrupt)?).ok_or(Failure::Cut)?;
+    spent.rows = spent.rows.checked_sub(1).ok_or(Failure::Cut)?;
+    Ok(row)
+}
+
+fn task_joins(
+    store: &mut Store,
+    task: Option<&tasks::TaskRecord>,
+    projection: Projection,
+    spent: &mut Spent,
+) -> Result<TaskJoins, Failure> {
     let mut linked = List::with_capacity(spent.joins);
     let mut ancestors = List::with_capacity(store.limits.core.tasks.depth.min(spent.joins));
     let mut seen = Set::with_capacity(spent.joins);
@@ -104,39 +166,24 @@ pub(super) fn row(
             ancestors.push(number).or(Err(Failure::Joins))?;
             linked.push(parent).or(Err(Failure::Joins))?;
         }
-        for numbers in
-            [&task.dependencies, &task.spec.inputs, &task.references, &task.delegates, &task.result_followups]
-        {
-            for &number in numbers {
-                if seen.insert(number).or(Err(Failure::Joins))?
-                    && let Some(record) = owner(store, number, spent)?
+        match projection {
+            Projection::Task => {
+                for numbers in
+                    [&task.dependencies, &task.spec.inputs, &task.references, &task.delegates, &task.result_followups]
                 {
-                    linked.push(record).or(Err(Failure::Joins))?;
+                    for &number in numbers {
+                        if seen.insert(number).or(Err(Failure::Joins))?
+                            && let Some(record) = owner(store, number, spent)?
+                        {
+                            linked.push(record).or(Err(Failure::Joins))?;
+                        }
+                    }
                 }
             }
+            Projection::Inbox => {}
         }
     }
-    let related = match related {
-        Some(key) => get(store, &key, spent)?,
-        None => None,
-    };
-    let mut owner = None;
-    if let Some(task) = task {
-        owner = Some(Box::new(task.clone()));
-    }
-    let row = reads::Row {
-        value,
-        owner,
-        ancestors: ancestors.into_boxed(),
-        related,
-        unjoined: None,
-        ended_read: None,
-        linked: linked.into_boxed(),
-        inbox: None,
-    };
-    spent.bytes = spent.bytes.checked_sub(row.owned_bytes().ok_or(Failure::Corrupt)?).ok_or(Failure::Cut)?;
-    spent.rows = spent.rows.checked_sub(1).ok_or(Failure::Cut)?;
-    Ok(row)
+    Ok(TaskJoins { ancestors: ancestors.into_boxed(), linked: linked.into_boxed() })
 }
 
 #[cfg(test)]

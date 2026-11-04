@@ -139,7 +139,7 @@ impl<P: Host, M: Machine, R> Platform for Memory<P, M, R> {
     }
 
     fn send(&mut self, exchange: &fetch::Exchange) {
-        self.send_input(bridge::Input::Exchange(exchange.clone()));
+        self.send_input(bridge::Input::Exchange(exchange.into()));
     }
 
     fn stream(&mut self, duty: StreamDuty) {

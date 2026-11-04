@@ -244,14 +244,27 @@ fn emit(kind: &[u8], edit: Edit, route: &[bool; SHAPES.len()], changed: &mut boo
                             Edit::Word(chosen, _) => chosen.shape == Shape::Item && chosen.name == b"edit",
                             Edit::Base | Edit::Alternative(..) | Edit::Null(_) | Edit::Omit(_) => false,
                         };
-                        if field.name == if edit_only { b"set".as_slice() } else { b"edit".as_slice() } {
+                        if field.name
+                            == if edit_only && kind != b"project-policy" {
+                                b"set".as_slice()
+                            } else {
+                                b"edit".as_slice()
+                            }
+                        {
                             continue;
                         }
                     }
-                    if shape == Shape::Setting && field.name == b"project" && kind != b"landing-rule" {
+                    if shape == Shape::Setting
+                        && field.name == b"project"
+                        && kind != b"landing-rule"
+                        && kind != b"project-policy"
+                    {
                         continue;
                     }
-                    if shape == Shape::Setting && field.name == b"number" && kind == b"rules" {
+                    if shape == Shape::Setting
+                        && field.name == b"number"
+                        && (kind == b"rules" || kind == b"project-policy")
+                    {
                         continue;
                     }
                     stack.push(Action::Field(field)).expect("schema stack bound");
@@ -378,7 +391,7 @@ fn a_member_left_out_is_refused_naming_it() {
         if field.shape == Shape::Item
             || (field.shape == Shape::Setting && field.name == b"project")
             || (field.shape == Shape::Template && field.name == b"resources")
-            || (field.shape == Shape::Charter && field.name == b"wake")
+            || (field.shape == Shape::Charter && [b"wake".as_slice(), b"tools"].contains(&field.name))
             || (field.shape == Shape::Document && field.name == b"heading")
         {
             continue;
@@ -553,7 +566,7 @@ LINE
 ## model
 
 - `"chosen"`: LINE
-- `set`: list of at most 16, each the setting's kind's value: `charter`, `template`, `policy`, `rules`, `landing-rule` or `forge-charter`, or null.
+- `set`: list of at most 16, each the setting's kind's value: `charter`, `template`, `policy`, `rules`, `landing-rule`, `forge-charter` or `project-policy`, or null.
 "#;
     assert_eq!(page.as_ref(), expected);
 }

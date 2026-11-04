@@ -1,8 +1,8 @@
 #!/bin/sh
-# The browser tier (protocol/browser.md, 15), outside the gate (agents'
-# docs/design/landing-flow.md, 4): jig's test application's bundle and
-# jig-test, then the browser suite. Its arguments go to nextest, so that
-# one test runs alone: scripts/browser.sh -E 'test(=NAME)'.
+# The browser tier (protocol/browser.md, 15), outside the gate: jig's test
+# application's bundle and jig-test, then the browser suite. Its arguments
+# go to nextest, so that one test runs alone:
+# scripts/browser.sh -E 'test(=NAME)'.
 set -eu
 
 cd "$(dirname "$0")/.."

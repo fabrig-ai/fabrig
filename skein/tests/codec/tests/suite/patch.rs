@@ -375,7 +375,7 @@ mod tests {
             if write {
                 fs::write(&path, &result).expect("write patched golden");
             } else {
-                assert_eq!(fs::read(&path).expect("patched golden committed; run SKEIN_PATCH_WRITE=1 heavy cargo nextest run -p skein-codec-tests --test suite -E 'test(/^patch::/)'"), result, "{}", golden.name);
+                assert_eq!(fs::read(&path).expect("patched golden committed; run SKEIN_PATCH_WRITE=1 cargo nextest run -p skein-codec-tests --test suite -E 'test(/^patch::/)'"), result, "{}", golden.name);
             }
             assert!(names.insert(golden.name), "golden name unique");
         }

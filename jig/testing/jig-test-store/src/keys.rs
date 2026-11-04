@@ -54,6 +54,9 @@ pub fn encode(number: u16, key: &RecordKey) -> Box<[u8]> {
         RecordKey::SettingProposal { proposal, kind, scope, number } => {
             writer.tag(14).u64(*proposal).u64(u64::from(*kind)).u64(u64::from(*scope)).u64(u64::from(*number));
         }
+        RecordKey::SettingReplaced { kind, scope, number, revision } => {
+            writer.tag(15).u64(u64::from(*kind)).u64(u64::from(*scope)).u64(u64::from(*number)).u64(*revision);
+        }
         RecordKey::Made(key) => {
             writer.tag(11);
             write_key(&mut writer, key);
@@ -94,6 +97,12 @@ pub fn decode(bytes: &[u8], limits: &d::Limits) -> Option<(u16, RecordKey)> {
             kind: u32::try_from(reader.u64()?).ok()?,
             scope: u32::try_from(reader.u64()?).ok()?,
             number: u32::try_from(reader.u64()?).ok()?,
+        },
+        15 => RecordKey::SettingReplaced {
+            kind: u32::try_from(reader.u64()?).ok()?,
+            scope: u32::try_from(reader.u64()?).ok()?,
+            number: u32::try_from(reader.u64()?).ok()?,
+            revision: reader.u64()?,
         },
         _ => return None,
     };

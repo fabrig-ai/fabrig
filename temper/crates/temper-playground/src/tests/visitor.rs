@@ -83,13 +83,15 @@ fn the_visitor_spends_the_printed_link() {
         let mut browser = Time::ZERO;
         let (posts, _, _) = idle(&mut slices, &mut browser);
         let path = printed(&posts).line.strip_prefix(b"http://127.0.0.1:7102").expect("link authority");
-        slices.input(bridge::Input::Exchange(fetch::Exchange {
+        slices.input(bridge::Input::Exchange(bridge::Exchange {
             id: EXCHANGE,
             method: "GET".into(),
             path: path.into(),
             headers: Vec::new(),
             body: Box::new([]),
             bound: BODY_BYTES,
+            cache: fetch::Cache::Browser,
+            keep: Vec::new(),
         }));
         let (posts, _, _) = until(&mut slices, &mut browser, |posts| {
             posts.iter().any(|post| matches!(post, bridge::ToPage::Report(_)))

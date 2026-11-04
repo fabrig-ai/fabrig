@@ -101,3 +101,14 @@ Acceptance:
 
 As the implementer's text says, and also: which checks of the referee the replay judges and which
 it leaves, and why; the replay's world time, step count and wall time.
+
+## Answers
+
+### 2026-11-03: Resume this task after native-walk-a publishes C7's kept story-a.log (recommended), or reassign production of that fixture? The adapter and required test are committed and pushed; the missing fixture prevents acceptance. (playground-browser/one-process-replay-1, foreman playground-browser/one-process-replay/foreman-1)
+
+Resume one-process-replay after native-walk-a publishes C7’s kept story-a.log; fixture production stays with native-walk-a.
+The spec declares `needs = ["native-walk-a"]` and says “the fixture is read, never written.”
+The native-walk-a spec owns `temper/tests/playground/tests/fixtures/story-a.log` and requires recording it with the test that keeps it.
+Acceptance requires the kept log to replay `Complete`, the package tests to pass with trunk’s count plus one within budget, and clippy to pass.
+The task remains incomplete until those checks run successfully.
+The next run consumes the dependency’s fixture, runs the required checks, and reports replay measurements and budget assessment.

@@ -3,8 +3,7 @@
 Draft, 2026-10-23. How a deployment moves to a newer temper and keeps
 its history: its people, projects and accounts, its tasks and goals,
 live and ended, its landings and what agents wrote. It comes from the
-investigation of 2026-10-23 (Codex, read-only;
-`~/src/rust/tmp/roadmap-3/store-upgrades.md`) and a session with the
+investigation of 2026-10-23 (Codex, read-only) and a session with the
 user that day, whose turns shaped it: the records before the formats on
 disk, and a patch landed with each change, as an application migrates
 its database. It crosses skein, smith, jig and temper on purpose; an

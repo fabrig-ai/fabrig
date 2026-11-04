@@ -2,8 +2,8 @@
 use skein_lib::{Duration, Time};
 use skein_playground_world::site::{self, Body, Route, Script, Stage};
 use skein_ui_web::{
-    bridge::Input,
-    fetch::{Exchange, Report},
+    bridge::{Exchange, Input},
+    fetch::Report,
     transport::StreamDuty,
 };
 use skein_world::Memory;
@@ -19,13 +19,15 @@ fn exchange(id: u32, method: &str, path: &[u8], body: &[u8], bound: u32) -> Inpu
         headers: Vec::new(),
         body: body.into(),
         bound,
+        cache: skein_ui_web::fetch::Cache::Browser,
+        keep: Vec::new(),
     })
 }
 fn get(id: u32, path: &[u8]) -> Input {
     exchange(id, "GET", path, b"", ANSWER)
 }
 fn answered(id: u32, status: u16, body: &[u8]) -> Report {
-    Report::Answered { exchange: id, status, body: body.into() }
+    Report::Answered { exchange: id, status, body: body.into(), headers: Vec::new() }
 }
 fn fixed(path: &[u8], status: u16, body: &[u8]) -> Route {
     Route::new(path, status, Body::Fixed(body.into()))
@@ -387,5 +389,47 @@ fn an_abandoned_id_can_be_reused_before_its_connection_closes() {
         vec![never(b"/wait"), fixed(b"/answer", 200, b"new answer")],
         vec![Stage::new(0, vec![get(1, b"/wait"), Input::Abandon { exchange: 1 }, get(1, b"/answer")])],
         vec![answered(1, 200, b"new answer")],
+    ));
+}
+
+fn kept(id: u32, path: &[u8], bound: u32) -> Input {
+    let mut input = exchange(id, "GET", path, b"", bound);
+    if let Input::Exchange(exchange) = &mut input {
+        exchange.cache = skein_ui_web::fetch::Cache::NoStore;
+        exchange.keep = vec!["Age".into(), "cache-control".into(), "missing".into()];
+    }
+    input
+}
+fn freshness(path: &[u8], age: &[u8]) -> Route {
+    let mut route = fixed(path, 200, b"ok");
+    route.headers = [(b"Cache-Control".as_slice(), b"max".as_slice()), (b"Age", age), (b"X-Unkept", b"a long value")]
+        .into_iter()
+        .map(|(name, value)| skein_http::Header { name: name.into(), value: value.into() })
+        .collect();
+    route
+}
+#[test]
+fn the_visitor_reports_only_kept_headers_in_order() {
+    // Both kept values fill the bound, independently of the two-byte body.
+    const BOUND: u32 = 3;
+    run(&Script::new(
+        vec![freshness(b"/fresh", b"123")],
+        vec![Stage::new(0, vec![kept(1, b"/fresh", BOUND)])],
+        vec![Report::Answered {
+            exchange: 1,
+            status: 200,
+            body: b"ok".as_slice().into(),
+            headers: vec![("age".into(), "123".into()), ("cache-control".into(), "max".into())],
+        }],
+    ));
+}
+#[test]
+fn a_kept_header_past_the_bound_fails_the_visitors_exchange() {
+    // Four age bytes exceed the three-byte bound by one.
+    const BOUND: u32 = 3;
+    run(&Script::new(
+        vec![freshness(b"/past", b"1234")],
+        vec![Stage::new(0, vec![kept(1, b"/past", BOUND)])],
+        vec![Report::Failed { exchange: 1 }],
     ));
 }

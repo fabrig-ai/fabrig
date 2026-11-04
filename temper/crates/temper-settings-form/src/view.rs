@@ -28,6 +28,7 @@ pub struct Charter {
     pub model: SettingModel,
     pub alternatives: List<SettingModel>,
     pub call_timeout: Duration,
+    pub tools: u64,
     pub hosts: SettingHosts,
     pub spend: u64,
     pub wake: WakePolicy,
@@ -242,6 +243,17 @@ pub struct RevisionHead {
 pub struct RevisionItem {
     pub setting: Setting,
     pub edit: RevisionEdit,
+    pub replaced: RevisionReplaced,
+}
+/// The state before an item changed it (jig/docs/design/domain/engine.md, 17.10).
+#[derive(Clone, Debug, PartialEq, Eq, Hash)]
+pub enum RevisionReplaced {
+    Value(SettingSet),
+    TooLarge(Size),
+    Application { size: u32 },
+    Default,
+    Removed,
+    NotOffered,
 }
 #[derive(Clone, Debug, PartialEq, Eq, Hash)]
 pub enum RevisionItemEdit {
@@ -286,11 +298,19 @@ pub enum Running {
 }
 #[derive(Clone, Copy, Debug, PartialEq, Eq, Hash)]
 pub enum Setting {
-    Application { kind: u32, scope: u32, number: u32 },
+    Application {
+        kind: u32,
+        scope: u32,
+        number: u32,
+    },
     Charter(SettingNumber),
     Template(SettingNumber),
     Policy(SettingNumber),
     Rules,
+    /// A project's own policy (jig/docs/design/domain/engine.md, 17.2).
+    ProjectPolicy {
+        project: u32,
+    },
 }
 #[derive(Clone, Debug, PartialEq, Eq, Hash)]
 pub struct SettingDocument {

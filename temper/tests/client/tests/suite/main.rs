@@ -12,6 +12,7 @@ mod change_panel;
 mod chat;
 mod choice;
 mod clearing;
+mod configuring_chat;
 mod connect_forge;
 mod connect_model;
 mod forges;
@@ -23,12 +24,14 @@ mod open_chat;
 mod playground;
 mod project_fund;
 mod recovery;
+mod settings_tools;
 mod stories;
 mod task;
 mod task_tree;
 mod welcome;
 mod fuzzy {
     mod client;
+    mod public_address;
 }
 
 mod accounts_edges;

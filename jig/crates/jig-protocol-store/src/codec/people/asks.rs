@@ -296,6 +296,14 @@ pub(super) fn decode_escalation_decision(value: wire::EscalationDecision) -> dom
 #[expect(clippy::too_many_lines, reason = "one exhaustive arm translates each kind of keyed request")]
 pub fn encode_ask(value: &domain::Ask, limits: &wire::Limits) -> Result<wire::Ask, wire::Problem> {
     Ok(match value {
+        domain::Ask::SetVisibility { project, public } => wire::Ask::SetVisibility(wire::AskSetVisibility::new(
+            limits,
+            wire::AskSetVisibilityParts { project: *project, public: *public },
+        )?),
+        domain::Ask::Restore { revision, reason } => wire::Ask::Restore(wire::AskRestore::new(
+            limits,
+            wire::AskRestoreParts { revision: *revision, reason: reason.clone() },
+        )?),
         domain::Ask::RemoveProject { project, grace } => wire::Ask::RemoveProject(wire::AskRemoveProject::new(
             limits,
             wire::AskRemoveProjectParts { project: *project, grace: super::compound::encode_grace(*grace) },
@@ -521,11 +529,18 @@ pub fn encode_ask(value: &domain::Ask, limits: &wire::Limits) -> Result<wire::As
 #[expect(clippy::too_many_lines, reason = "one exhaustive arm translates each kind of keyed request")]
 pub fn decode_ask(value: wire::Ask, limits: &wire::Limits) -> Result<domain::Ask, wire::Problem> {
     Ok(match value {
+        wire::Ask::SetVisibility(value) => {
+            domain::Ask::SetVisibility { project: value.project(), public: value.public() }
+        }
         wire::Ask::RemoveProject(value) => domain::Ask::RemoveProject {
             project: value.project(),
             grace: super::compound::decode_grace(*value.grace()),
         },
         wire::Ask::MoveToNewest(value) => domain::Ask::MoveToNewest { revision: value.revision() },
+        wire::Ask::Restore(value) => {
+            let wire::AskRestoreParts { revision, reason } = value.into_parts();
+            domain::Ask::Restore { revision, reason }
+        }
         wire::Ask::ChangeSettings(value) => {
             let wire::AskChangeSettingsParts { against, digest, projects } = value.into_parts();
             domain::Ask::ChangeSettings { against, digest, projects: projects.into_boxed() }

@@ -20,7 +20,7 @@ pub fn effect() -> d::Effect {
 pub fn record_key(random: &mut Rng) -> (u16, d::RecordKey) {
     let connector = if random.below(2) == 0 { FIRST } else { SECOND };
     let number = random.next_u64();
-    let record = match random.below(15) {
+    let record = match random.below(16) {
         0 => d::RecordKey::ApplicationObject(number),
         1 => d::RecordKey::ApplicationAnswer(Token::new(number)),
         2 => d::RecordKey::Procedure(number),
@@ -35,7 +35,8 @@ pub fn record_key(random: &mut Rng) -> (u16, d::RecordKey) {
         11 => d::RecordKey::Made(random_key(random)),
         12 => d::RecordKey::SettingDefault { kind: u32::try_from(number & 255).expect("byte"), scope: 0, number: 1 },
         13 => d::RecordKey::SettingChange { kind: 1, scope: u32::try_from(number & 255).expect("byte"), number: 1 },
-        _ => d::RecordKey::SettingProposal { proposal: number, kind: 1, scope: 0, number: 1 },
+        14 => d::RecordKey::SettingProposal { proposal: number, kind: 1, scope: 0, number: 1 },
+        _ => d::RecordKey::SettingReplaced { kind: 1, scope: 0, number: 1, revision: number },
     };
     (connector, record)
 }
@@ -80,6 +81,7 @@ pub fn records() -> Box<[d::Record]> {
         pool(),
         outbox(),
         made(),
+        d::Record::SettingReplaced { kind: 1, scope: 0, number: 1, revision: u64::MAX, value: Box::from(&b"old"[..]) },
         d::Record::SettingDefault { kind: 1, scope: 0, number: 1, value: Box::from(&b"default"[..]) },
         d::Record::SettingChange { kind: 1, scope: 0, number: 1, value: Some(Box::from(&b"change"[..])) },
         d::Record::SettingChange { kind: 1, scope: 0, number: 2, value: None },

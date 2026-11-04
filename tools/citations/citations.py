@@ -35,9 +35,13 @@ NUM_RE = re.compile(NUM)
 MD_TOKEN = re.compile(r"(?<![\w/.<>-])((?:(?:\.\./)+|\./|/)?[\w][\w.+-]*(?:/[\w.+-]+)*\.md)(?![\w/-])")
 LINK = re.compile(r"\[([^\]]*)\]\(([^)\s]+)\)")
 OWNER = re.compile(r"(?i)\b(temper|smith|skein|jig)['’]s(?:\s+[\w-]+){0,2}\s*[`\[]*$")
-# Another repository's documents (hearth's, the agents repository's) are not checked.
-EXTERNAL = re.compile(
-    r"(?i)(?:\bhearth['’]s|\bagents['’](?:s)?|\bagents repository['’]s)(?:,?\s+[\w-]+){0,2}\s*[`\[(]*$")
+# hearth's documents are the one other repository's left unchecked ("hearth's `domain/store.md`").
+EXTERNAL = re.compile(r"(?i)\bhearth['’]s(?:,?\s+[\w-]+){0,2}\s*[`\[(]*$")
+# A citation of any other repository's document is refused: never resolved, since resolve()
+# would find a same-named file here by suffix.
+OUTSIDE = re.compile(
+    r"(?i)\b(?!(?:the|a|an|this|that|its|their|each|every|no|one|our|whose|which|any|same|hearth)\b)"
+    r"[\w-]+\s+repository['’]s\s*[`\[(]*$")
 BARE_SECTION = re.compile(r"(?<![\w.])(sections?)\s+(" + NUM + r"(?:" + SEP + r"(?:section\s+)?" + NUM
                           + r")*)(?![\w.]*\d)(?!\.\d)")
 HEADING = re.compile(r"^#{1,6}\s+(\d+(?:\.\d+)*)\.?(?:\s|$)")
@@ -90,7 +94,7 @@ def tree_of(rel):
 
 
 def walk(root, every_md=False):
-    """(relative path, is code) for the files read: docs and AGENTS.md/CLAUDE.md, code naming .md."""
+    """(relative path, is code) for citation sources, or every Markdown target when every_md."""
     for dirpath, dirnames, filenames in os.walk(root):
         dirnames[:] = [d for d in dirnames if d not in (".git", "target", "node_modules", ".claude")]
         rel_dir = os.path.relpath(dirpath, root)
@@ -98,12 +102,16 @@ def walk(root, every_md=False):
         for name in filenames:
             rel = os.path.join(rel_dir, name)
             parts = rel.split("/")
+            if not every_md and parts[0] in TREES and parts[1:3] == ["docs", "plan"]:
+                continue
             if name.endswith(".md"):
                 if every_md:
                     yield rel, False
+                elif rel == "DESIGN.md" or parts[0] == "tools":
+                    yield rel, False
                 elif name in ("AGENTS.md", "CLAUDE.md") and "fixtures" not in parts:
                     yield rel, False
-                elif len(parts) >= 3 and parts[0] in TREES and parts[1] == "docs" and parts[2] != "plan":
+                elif len(parts) >= 3 and parts[0] in TREES and parts[1] == "docs":
                     if not (parts[2] == "development" and DATED.search(name)):
                         yield rel, False
             elif name.endswith(CODE_EXT) and not every_md:
@@ -319,6 +327,9 @@ def check_file(tree, rel, lines, is_code):
             ln = line_at(marks, start)
             ctx = text[max(0, start - 60): end + 60].strip()
             if EXTERNAL.search(before[-50:]):
+                continue
+            if OUTSIDE.search(before[-50:]):
+                out.append(("path", rel, ln, tok, "outside", ctx))
                 continue
             om = OWNER.search(before[-40:])
             owner = om.group(1).lower() if om else None

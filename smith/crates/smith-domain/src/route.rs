@@ -271,12 +271,20 @@ pub(crate) fn deliver(domain: &mut Domain, env: &Env<Limits>, handoff: Handoff) 
         Handoff::Answer { owner } => {
             let flight = domain.flights.remove(&owner).expect("a call is in flight until it is answered");
             match flight.answer {
-                Due::Answered { feedback, spent } => {
-                    session::Event::Answered { owner, text: feedback.text, error: feedback.error, spent }
-                }
-                Due::Yielding { feedback, spent } => {
-                    session::Event::AnsweredAndYield { owner, text: feedback.text, error: feedback.error, spent }
-                }
+                Due::Answered { feedback, spent } => session::Event::Answered {
+                    owner,
+                    text: feedback.text,
+                    error: feedback.error,
+                    spent,
+                    after: session::After::Complete,
+                },
+                Due::Yielding { feedback, spent } => session::Event::Answered {
+                    owner,
+                    text: feedback.text,
+                    error: feedback.error,
+                    spent,
+                    after: session::After::Yield,
+                },
                 Due::Withheld => session::Event::AnswerWithheld { owner },
                 Due::Cancelled { spent } => session::Event::AnswerCancelled { owner, spent },
                 Due::Waiting => unreachable!("a call is on the ready list once the run has returned it"),
@@ -1043,6 +1051,7 @@ fn open(domain: &mut Domain, env: &Env<Limits>, conversation: Token, opening: ru
             budget,
             transcript,
             answered: Box::default(),
+            withheld: Some(Box::from(crate::peer::WAIT_NAME)),
         }),
     };
     session_step(domain, env, event);

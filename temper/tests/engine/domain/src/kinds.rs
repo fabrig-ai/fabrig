@@ -265,3 +265,38 @@ pub fn restart_after_rule_commit(world: &mut crate::forge_routes::World, key: u8
     }
     panic!("settings decision did not reach the store");
 }
+
+/// Restore through the same party entrance as a settings proposal
+/// (jig/docs/design/domain/engine.md, 17.10).
+#[must_use]
+pub fn restore(sign_in: u64, revision: u32, key: u8) -> engine::Event {
+    engine::Event::Party(engine::PartyInput::Ask {
+        models: Box::new([]),
+        reply_to: ReplyTo::new(Token::new(u64::from(key))),
+        sign_in,
+        key: [key; 16],
+        ask: jig_domain_people::Ask::Restore { revision, reason: b"Return to the reviewed rules".as_slice().into() },
+    })
+}
+
+#[must_use]
+pub fn restored(driver: &Driver) -> (u64, Box<[s::Setting]>) {
+    driver
+        .delivered
+        .iter()
+        .rev()
+        .find_map(|delivery| {
+            if let engine::Delivery::WebReply {
+                reply:
+                    jig_domain_people::Reply::Outcome(jig_domain_people::Outcome::Restored { proposal, to, left_out }),
+                ..
+            } = delivery
+            {
+                assert_eq!(*to, jig_domain_people::Role::Owner.number());
+                Some((*proposal, left_out.clone()))
+            } else {
+                None
+            }
+        })
+        .unwrap_or_else(|| panic!("restore answer: {:?}", driver.delivered))
+}

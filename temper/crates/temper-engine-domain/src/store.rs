@@ -52,6 +52,8 @@ impl Changed {
 /// Typed call feedback; amendment details are joined from the decoded tool.
 #[derive(Clone, PartialEq, Eq, Hash, Debug)]
 pub enum CallAnswer {
+    /// A fresh task read; it never becomes a durable call part.
+    TaskRead(Box<Result<jig_domain_core::reads::run_task::TaskRead, jig_domain_tasks::Refusal>>),
     /// Settings proposal admission failed before mutation.
     SettingsRefused(jig_domain_people::Refusal),
     /// The placed hold owner refused this release, with the facts needed to propose it.
@@ -165,9 +167,10 @@ impl CallAnswer {
                 };
                 jig_domain_core::CallPart::Effect { connector, entry: *entry, deadline: *deadline, outcome }
             }
-            CallAnswer::ForgeEffectRefused(_) | CallAnswer::ForgeRead(_) | CallAnswer::ReadRepositoryRefused { .. } => {
-                jig_domain_core::CallPart::Connector { connector }
-            }
+            CallAnswer::TaskRead(_)
+            | CallAnswer::ForgeEffectRefused(_)
+            | CallAnswer::ForgeRead(_)
+            | CallAnswer::ReadRepositoryRefused { .. } => jig_domain_core::CallPart::Connector { connector },
             CallAnswer::ForgeEffectDenied { answer, findings } => {
                 jig_domain_core::CallPart::EffectDenied { answer: *answer, findings: findings.clone() }
             }
@@ -705,7 +708,8 @@ pub fn record_bytes(record: &Record) -> Option<u64> {
                     jig_domain_people::Ask::Propose {
                         action: jig_domain_people::Action::Batch(batch), reason, ..
                     } => people_bytes::batch(batch)?.checked_add(u64::try_from(reason.len()).ok()?),
-                    jig_domain_people::Ask::Propose {
+                    jig_domain_people::Ask::Restore { reason, .. }
+                    | jig_domain_people::Ask::Propose {
                         action: jig_domain_people::Action::Settings { .. },
                         reason,
                         ..
@@ -764,6 +768,7 @@ pub fn record_bytes(record: &Record) -> Option<u64> {
                         u64::try_from(reason.len()).ok()
                     }
                     jig_domain_people::Ask::RemoveProject { .. }
+                    | jig_domain_people::Ask::SetVisibility { .. }
                     | jig_domain_people::Ask::ChangeSettings { .. }
                     | jig_domain_people::Ask::MoveToNewest { .. }
                     | jig_domain_people::Ask::Withdraw { .. }
@@ -799,6 +804,7 @@ pub fn record_bytes(record: &Record) -> Option<u64> {
                 model_context_bytes(models)?.checked_add(payload)?.checked_add(program_answer_bytes(outcome)?)
             }
             jig_domain_people::Stored::Deletion { .. }
+            | jig_domain_people::Stored::Public { .. }
             | jig_domain_people::Stored::SignIn { .. }
             | jig_domain_people::Stored::ReadResults { .. }
             | jig_domain_people::Stored::EndedRead { .. }
@@ -894,6 +900,13 @@ fn decision_bytes(decision: &jig_domain_people::EscalationDecision) -> Option<u6
 
 pub(crate) fn call_answer_bytes(answer: &CallAnswer) -> Option<u64> {
     match answer {
+        CallAnswer::TaskRead(result) => {
+            let carrier = u64::try_from(size_of_val(result.as_ref())).ok()?;
+            carrier.checked_add(match result.as_ref() {
+                Ok(read) => jig_domain_core::reads::run_task::owned_bytes(read),
+                Err(_) => 0,
+            })
+        }
         CallAnswer::ForgeRead(result) => match result.as_ref() {
             Ok(answer) => skein_forge::measure::answer(answer),
             Err(_) => Some(0),
@@ -975,6 +988,9 @@ fn model_context_bytes(models: &[Box<[u8]>]) -> Option<u64> {
 pub(crate) fn program_answer_bytes(outcome: &jig_domain_people::Outcome) -> Option<u64> {
     use jig_domain_people::Outcome;
     match outcome {
+        Outcome::Restored { left_out, .. } => u64::try_from(left_out.len())
+            .ok()?
+            .checked_mul(u64::try_from(size_of::<jig_domain_people::Setting>()).ok()?),
         Outcome::Refused(jig_domain_people::Refusal::Full { tasks, .. }) => {
             u64::try_from(tasks.len()).ok()?.checked_mul(u64::try_from(size_of::<u64>()).ok()?)
         }
@@ -994,6 +1010,7 @@ pub(crate) fn program_answer_bytes(outcome: &jig_domain_people::Outcome) -> Opti
         | Outcome::CompoundRefused { .. }
         | Outcome::ProjectMade { .. }
         | Outcome::ProjectRemoved { .. }
+        | Outcome::VisibilitySet { .. }
         | Outcome::Renamed { .. }
         | Outcome::Created { .. }
         | Outcome::MarkedSeen { .. }

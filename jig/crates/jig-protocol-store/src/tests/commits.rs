@@ -296,7 +296,11 @@ fn archiving_a_settings_revision_copies_its_items_before_erasing_the_held_row() 
             proposal: None,
             moved: false,
         },
-        items: Box::new([s::Item { setting: s::Setting::Template(7), edit: s::Edit::Removed }]),
+        items: Box::new([s::RevisionItem {
+            setting: s::Setting::Template(7),
+            edit: s::Edit::Removed,
+            replaced: s::Replaced::NotOffered,
+        }]),
     };
     assert_committed(
         &commit(

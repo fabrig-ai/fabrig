@@ -292,7 +292,8 @@ impl Core {
                         self.link_allocated_task(&source, given.task);
                     }
                 }
-                people::Outcome::MarkedSeen { seen: people::Seen::Results { .. } }
+                people::Outcome::Restored { .. }
+                | people::Outcome::MarkedSeen { seen: people::Seen::Results { .. } }
                 | people::Outcome::Compound { .. }
                 | people::Outcome::CompoundRefused { .. }
                 | people::Outcome::Again(_)
@@ -308,6 +309,7 @@ impl Core {
                 | people::Outcome::PolicyChanged { .. }
                 | people::Outcome::Renamed { .. }
                 | people::Outcome::ProjectRemoved { .. }
+                | people::Outcome::VisibilitySet { .. }
                 | people::Outcome::ProjectMade { .. }
                 | people::Outcome::SettingsChanged { .. }
                 | people::Outcome::MovedToNewest { .. }

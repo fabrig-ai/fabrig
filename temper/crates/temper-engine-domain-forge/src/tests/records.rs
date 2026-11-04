@@ -229,12 +229,22 @@ pub(super) fn setting_rule() -> setting::LandingRule {
 #[test]
 fn setting_rows_count_scopes_slots_and_proposals_with_checked_arithmetic() {
     let limits = Limits { judge_projects: 2, landing_rules: 3, setting_proposals: 4, ..LIMITS };
-    assert_eq!(setting::rows(&limits), Some(66)); // 9 * 2 + 4 + 4 * 11.
-    assert_eq!(setting::rows(&Limits { judge_projects: 0, landing_rules: 0, setting_proposals: 0, ..LIMITS }), Some(4));
+    assert_eq!(setting::rows(&limits), Some(110)); // 11 * (2 + 4 + 4).
+    assert_eq!(
+        setting::rows(&Limits {
+            judge_projects: 0,
+            landing_rules: 0,
+            setting_proposals: 0,
+            setting_history: 0,
+            ..LIMITS
+        }),
+        Some(4)
+    );
     for limits in [
         Limits { judge_projects: u32::MAX, ..LIMITS },
         Limits { landing_rules: u32::MAX, ..LIMITS },
         Limits { setting_proposals: u32::MAX, ..LIMITS },
+        Limits { setting_history: u32::MAX, ..LIMITS },
         Limits { judge_projects: 0, landing_rules: (u32::MAX - 4) / 2, setting_proposals: 1, ..LIMITS },
     ] {
         assert_eq!(setting::rows(&limits), None);

@@ -159,6 +159,16 @@ fn closing_a_listener_during_start_closes_the_component() {
         &mut None,
     );
     let Some(skein_io::Request::Listen { owner, addr }) = clients.io.pop() else { panic!("listen") };
+    let Some(kit::SecretsRequest::Get { owner: kit::SecretOwner::PublicNames }) = clients.secrets.pop() else {
+        panic!("startup public names lookup")
+    };
+    clients.down(kit::Event::Secrets(kit::SecretsAnswer::Got {
+        owner: kit::SecretOwner::PublicNames,
+        value: Some(kit::Kept {
+            digest: skein_lib::Secret::new(Box::new([5; 32])),
+            expires: skein_lib::Wall::from_nanos(u64::MAX),
+        }),
+    }));
     clients.down(kit::Event::Close);
     assert!(clients.up(skein_io::Event::Listening { owner, listener: LISTENER, addr }));
     clients.iterate(

@@ -9,24 +9,29 @@ simulation, faults and fake machine (`kernel.md`, `io.md`,
 no dialect has yet (the labels, `UpdateRef`) and GitHub's Actions
 routes, `Artifact` and `Commits` among them (`forge.md`,
 `forge-github.md`); the fake GitHub refuses no push as `GH013`
-(`fake-forge.md`). Of the portable crates, the gate's wasm32 clippy
-(fab's gate list) holds `skein-playground` alone (`testing.md`,
-`lib.md`, `shell.md`, `world.md`). json, tls and http's collector have
-no fuzz target (`json.md`, `tls.md`, `http.md`). A few items lag in
-`lib.md`, `examples.md` and `ui.md`. The code departs in three crates'
-`tests/` directories (`testing.md`) and in `skein-playground`'s manifest
-(`playground.md`), and five of the LLM live suite's provider stories are
-manual, run by the owner (`llm.md`). `README.md`,
-`channel.md`, `codec.md`, `kv.md`, `fake-checkout.md`, `fake-llm.md`,
-`forge-client.md`, `forge-connection.md`, `forge-setup.md`,
-`llm-connection.md`, `oauth.md`, `oauth-issuer.md`,
-`ui-text.md`, `ui-web.md` and `browser.md` have no gap. The foundation's
-rules (`../foundation/`) have no status file: of `testing-strategy.md`,
-6, no tree runs transition coverage (`cargo llvm-cov`) or fuzzes a
-machine or a decoder (`cargo fuzz`). Of the drafts, `component-kit.md`
-waits on `lib.md` and
-`io.md` to name its items, and the design departs from `redb.md`: the
-store is `kv.md`'s own machine.
+(`fake-forge.md`). Of the portable crates, `skein-tls`,
+`skein-fake-forge-github` and `skein-fake-peers` are not in the gate's
+wasm32 clippy, though they pass it (`testing.md`). json, tls and http's
+collector have no fuzz target (`json.md`, `tls.md`, `http.md`). A few
+items lag in `lib.md`, `examples.md`, `kv.md` and `ui.md`. The code
+departs in three crates' `tests/` directories (`testing.md`) and in
+`skein-playground`'s manifest (`playground.md`), and five of the LLM
+live suite's provider stories are manual, run by the owner (`llm.md`).
+`README.md`, `codec.md`, `world.md`, `fake-checkout.md`,
+`forge-client.md`, `oauth-issuer.md`, `ui-text.md`, `ui-web.md` and
+`browser.md` have no gap. The state machines of kv, io, channel,
+forge-connection, Forgejo's plans, oauth and its accounts, llm,
+llm-connection and lib's `RequestTable` depart from
+`../foundation/programming-model.md`, 5.4, and the fakes share their
+product's types against `../foundation/testing-strategy.md`, 4
+(`fake-forge.md`, `fake-llm.md`); single departures stand in
+`forge-setup.md`, `forge.md`, `forge-connection.md`, `io.md`, `llm.md`,
+`shell.md` and `testing.md`. The foundation's rules
+(`../foundation/`) have no status file: of `testing-strategy.md`, 6, no
+tree runs transition coverage (`cargo llvm-cov`) or fuzzes a machine or
+a decoder (`cargo fuzz`). Of the drafts, `component-kit.md` waits on
+`lib.md` and `io.md` to name its items, and the design departs from
+`redb.md`: the store is `kv.md`'s own machine.
 
 Design documents:
 - [`README.md`](README.status.md)

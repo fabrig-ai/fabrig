@@ -66,6 +66,7 @@ fn policy_edit(value: &w::PolicyEdit, limits: &Limits) -> Result<c::PolicyEdit, 
 #[expect(clippy::too_many_lines, reason = "one total match restores every client ask")]
 pub(crate) fn restore_ask(value: w::Ask, limits: &Limits) -> Result<c::Ask, w::Problem> {
     Ok(match value {
+        w::Ask::Restore(value) => super::asks::restore_ask_restore(&value, limits)?,
         w::Ask::MoveToNewest(value) => c::Ask::MoveToNewest(c::MoveToNewest { revision: value.revision() }),
         w::Ask::ChangeSettings(value) => {
             c::Ask::ChangeSettings(super::settings::restore_change_settings(&value, limits)?)
@@ -179,6 +180,7 @@ pub(crate) fn restore_ask(value: w::Ask, limits: &Limits) -> Result<c::Ask, w::P
         }
         w::Ask::SignIn(value) => c::Ask::SignIn { holder: account_holder(value.holder()), provider: value.provider() },
         w::Ask::SignOut(value) => c::Ask::SignOut { holder: account_holder(value.holder()), source: value.source() },
+        w::Ask::SetVisibility(value) => c::Ask::SetVisibility { project: value.project(), public: value.public() },
         w::Ask::RemoveProject(value) => c::Ask::RemoveProject { project: value.project(), grace: *value.grace() },
         w::Ask::Rename(value) => c::Ask::Rename { project: value.project(), name: text(value.name(), limits)? },
         w::Ask::MakeProject(value) => c::Ask::MakeProject { name: text(value.name(), limits)?, policy: value.policy() },

@@ -47,6 +47,10 @@ fn application_states_round_trip_at_their_bounds() {
 }
 
 #[test]
+#[expect(
+    clippy::disallowed_methods,
+    reason = "ordinary codec fixtures translate revision literals while retaining proposal items"
+)]
 fn application_revisions_proposals_and_setting_names_round_trip_at_their_bounds() {
     for number in [0, u32::MAX] {
         for count in [0, jig_domain_tasks::SETTINGS_ITEMS] {
@@ -59,8 +63,24 @@ fn application_revisions_proposals_and_setting_names_round_trip_at_their_bounds(
                     history,
                     revision: s::Revision {
                         head: head(number),
-                        items: items.clone(),
-                        applications: applications(count, number),
+                        items: items
+                            .iter()
+                            .map(|item| s::RevisionItem {
+                                setting: item.setting,
+                                edit: item.edit.clone(),
+                                replaced: s::Replaced::NotOffered,
+                            })
+                            .collect(),
+                        applications: applications(count, number)
+                            .iter()
+                            .map(|item| s::application::RevisionRecorded {
+                                kind: item.kind,
+                                scope: item.scope,
+                                number: item.number,
+                                edit: item.edit.clone(),
+                                replaced: s::application::Replaced::NotOffered,
+                            })
+                            .collect(),
                     },
                 });
             }
@@ -131,6 +151,10 @@ fn application_keys_sort_after_rules_by_kind_scope_and_number_in_both_subfamilie
 }
 
 #[test]
+#[expect(
+    clippy::disallowed_methods,
+    reason = "ordinary codec fixtures translate revision literals while retaining proposal items"
+)]
 fn revision_reads_keep_application_items_beside_jig_items() {
     let mut store = fixtures::opened();
     let mut writes = List::with_capacity(3);
@@ -141,8 +165,21 @@ fn revision_reads_keep_application_items_beside_jig_items() {
                 history: number == 1,
                 revision: s::Revision {
                     head: head(number),
-                    items: Box::new([s::Item { setting: s::Setting::Template(1), edit: s::Edit::Removed }]),
-                    applications: applications(3, number),
+                    items: Box::new([s::RevisionItem {
+                        setting: s::Setting::Template(1),
+                        edit: s::Edit::Removed,
+                        replaced: s::Replaced::NotOffered,
+                    }]),
+                    applications: applications(3, number)
+                        .iter()
+                        .map(|item| s::application::RevisionRecorded {
+                            kind: item.kind,
+                            scope: item.scope,
+                            number: item.number,
+                            edit: item.edit.clone(),
+                            replaced: s::application::Replaced::NotOffered,
+                        })
+                        .collect(),
                 },
             }))))
             .unwrap();
@@ -165,7 +202,26 @@ fn revision_reads_keep_application_items_beside_jig_items() {
         let revision = core::reads::settings::record_revision(&row.value).unwrap();
         let number = u32::try_from(at + 1).unwrap();
         assert_eq!(revision.head.number, number);
-        assert_eq!(revision.applications, applications(3, number));
-        assert_eq!(revision.items.as_ref(), &[s::Item { setting: s::Setting::Template(1), edit: s::Edit::Removed }]);
+        assert_eq!(
+            revision.applications,
+            applications(3, number)
+                .iter()
+                .map(|item| s::application::RevisionRecorded {
+                    kind: item.kind,
+                    scope: item.scope,
+                    number: item.number,
+                    edit: item.edit.clone(),
+                    replaced: s::application::Replaced::NotOffered
+                })
+                .collect()
+        );
+        assert_eq!(
+            revision.items.as_ref(),
+            &[s::RevisionItem {
+                setting: s::Setting::Template(1),
+                edit: s::Edit::Removed,
+                replaced: s::Replaced::NotOffered
+            }]
+        );
     }
 }

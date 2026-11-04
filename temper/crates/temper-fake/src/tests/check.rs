@@ -78,6 +78,7 @@ pub const LIMITS: d::Limits = d::Limits {
     landing_rules: 4,
     roles: 4,
     setting_proposals: 4,
+    setting_history: 4,
     brief_sections: 32,
     brief_bytes: 4096,
     client: CLIENT,

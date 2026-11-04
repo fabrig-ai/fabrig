@@ -504,7 +504,7 @@ fn an_agents_live_run_text_reaches_its_thread() {
     page.told(Time::ZERO, &f.client, Told::Changed { handle: page.document }, &mut f.out);
     let handle = page.run.expect("live run");
     let mut emitted = Queue::with_capacity(OUTPUTS);
-    f.client.step(
+    f.client.step_unlinked(
         Time::ZERO,
         Wall::EPOCH,
         Event::Watch { handle, subject: Watchable::Jig(c::Subject::Run { task: f::TASK, turn: None, offset: 0 }) },
@@ -512,7 +512,7 @@ fn an_agents_live_run_text_reaches_its_thread() {
     );
     let mut watch = None;
     while let Some(request) = emitted.pop() {
-        if let jig_client::Request::Down {
+        if let jig_client::UnlinkedRequest::Down {
             down: jig_client::Down::Open { watch: token, subject: Watchable::Jig(c::Subject::Run { .. }) },
         } = request
         {
@@ -532,7 +532,7 @@ fn an_agents_live_run_text_reaches_its_thread() {
         cut: false,
         call: None,
     });
-    f.client.step(
+    f.client.step_unlinked(
         Time::ZERO,
         Wall::EPOCH,
         Event::Up {
@@ -547,7 +547,7 @@ fn an_agents_live_run_text_reaches_its_thread() {
         assert!(page.told(Time::ZERO, &f.client, told, &mut f.out));
         assert_eq!(page.thread.live.get(0).expect("provisional turn").text.bytes(), b"Hello");
     }
-    f.client.step(
+    f.client.step_unlinked(
         Time::ZERO,
         Wall::EPOCH,
         Event::Up {

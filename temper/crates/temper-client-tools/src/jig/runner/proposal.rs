@@ -26,6 +26,9 @@ pub(super) fn next(reading: &Reading) -> Option<(u32, c::Read)> {
             continue;
         }
         for (proposed, value) in [(false, &item.now), (true, &item.would_be)] {
+            if !proposed && let c::Setting::ProjectPolicy { .. } = item.setting {
+                continue;
+            }
             let local = slot(index, proposed);
             let large = match value {
                 c::ReviewValue::TooLarge(_) => true,

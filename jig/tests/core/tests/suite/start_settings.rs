@@ -117,9 +117,10 @@ fn changed_defaults_commit_the_release_revision_before_sweep_and_switch() {
         assert_eq!(revision.head.proposal, None);
         assert_eq!(
             revision.items.as_ref(),
-            &[settings::Item {
+            &[settings::RevisionItem {
                 setting: settings::Setting::Template(1),
                 edit: settings::Edit::Set(settings::Value::Template(template)),
+                replaced: settings::Replaced::Default,
             }]
         );
         assert!(copied && erased && extent);

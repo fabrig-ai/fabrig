@@ -199,6 +199,15 @@ temper-client-journeys          tools/journeys: recorded walks replayed through 
   sum. The client reads no configuration: its only inputs are its two
   arguments (`../protocol/configuration.md`, section 9).
 
+Both shells receive eight entries in a document's short lists,
+including creating's complete charter and procedure lists: the
+browser's client bounds, a constant of `temper-client-shell-web`, are
+the terminal's. This covers `temper init` and the owned example's
+`documents.lines` eight; it is a receiving capacity, independent of how
+many rows a screen shows. A list longer than a client receives makes
+its document undecodable there, and jig's link drops its stream on
+such a record: every watch ends, and the page reads Offline and Behind.
+
 ## 3. The client root
 
 `temper-client-domain` is temper's client root, in jig's one shape
@@ -832,19 +841,21 @@ keeps (`../protocol/configuration.md`, section 2).
     forges and the plans v0.1.0 supports (the user, 2026-10-26), not
     the offered `me.providers` ways.
   - *Forge* is `ConnectForge`'s Choose and Details (`forge.md`, 5.4),
-    its cards and their order the same, its choice in the welcome's
-    address (`browser.md`, 2.3); inside a choice, the foot's one "‹
+    its Choose two cards, GitHub's and one Forgejo card whose "Run on
+    this machine" sets Forgejo on this machine up at once (`forge.md`,
+    5.4), its choice in the welcome's address (`browser.md`, 2.3);
+    inside a choice, the foot's one "‹
     Back" returns to Forge's Choose. The welcome has no "‹ All
     forges"; `ConnectForge` keeps it. The step connects a forge and
     nothing more, on every kind: it adopts no repository and asks no
-    project's name (`../draft/first-run-projects.md`, 4). Forgejo on this machine's card
-    opens its Details, its set up's fields, `work` and `hello`, as
-    `ConnectForge`'s, and "Set up
-    a Forgejo here" sends the `SetUp` that makes the forge
-    (`forge.md`, 5.4), its repository made unadopted
-    (`../protocol/setup.md`, 6.7). Refused, the refusal shows under the button, in
-    the set up's words (4.6); while a set up is pending, or the page is
-    out of date, the button is disabled. Once the `SetUp` is accepted,
+    project's name (`../draft/first-run-projects.md`, 4). "Run on this
+    machine" sends, with no Details, the `SetUp` that makes the forge
+    (`forge.md`, 5.4), its first repository `work/hello`, asked of no
+    one (the user, 2026-11-03: a repository is made later, from the
+    project), made unadopted (`../protocol/setup.md`, 6.7). Refused,
+    the refusal shows under the button, in the set up's words (4.6);
+    while a set up is pending, or the page is out of date, the button
+    is disabled. Once the `SetUp` is accepted,
     the welcome moves on to Model, the set up running on.
     *A forge cut short:* a forge of the person's kept and not finished,
     not connected, or on GitHub connected with no accepted
@@ -880,7 +891,21 @@ keeps (`../protocol/configuration.md`, section 2).
     *Model* is `ConnectModel`'s Choose and Details, its state and acts
     (above), its way in the welcome's address (`browser.md`, 2.3).
     Its ways sit directly under the lead, with neither the standalone
-    Choose container nor its holder controls; entering from a deployment
+    Choose container nor its holder controls, as two cards, one for each
+    plan its card names (the user, 2026-11-03): "ChatGPT", for the
+    `openai` provider, "Your ChatGPT plan: sign in, and temper’s agents
+    use its included usage.", then, while the provider offers keys, the
+    muted "Or paste a key from OpenAI’s platform, billed to its
+    organization.", its buttons "Continue with ChatGPT" and the quiet
+    link "Use an OpenAI API key"; and "Claude", for `anthropic`, "Your
+    Claude subscription, through Claude Code on each host temper’s
+    agents run on.", with "Use your Claude subscription", and a key's
+    line and link while the provider offers keys. A provider with a key
+    alone reads its key's description with its key's link. No other
+    provider's ways are on the welcome, the box's fake model among
+    them, and no card offers "This browser isn't on temper's computer
+    ›"; with neither provider offered, the step shows Choose's cards as
+    `ConnectModel` does. Entering from a deployment
     chooser resets the holder to the person's own. Inside a way, "‹ All
     ways" and the foot's "‹ Back" both return to Model Choose; on Choose
     the foot's returns to Forge. Standalone `ConnectModel` keeps its
@@ -889,7 +914,8 @@ keeps (`../protocol/configuration.md`, section 2).
     tab's departure). Until it does (`ConnectModel`, Signing in),
     the step's body draws the sign-in as `ConnectModel`'s does, its
     address and then its end, and an account made there `ConnectModel`'s
-    Ready. Above
+    Ready, its "Start a chat" replaced by "Continue", to the welcome's
+    Ready (`/welcome?at=ready`), whose act makes the project. Above
     them, once a forge is acted on, the forge's line, so that Model
     says what Forge did: while it sets up or connects, "FORGE ·
     CONNECTION · ORG/NAME", ORG/NAME its first repository, and a disclosure, "Each

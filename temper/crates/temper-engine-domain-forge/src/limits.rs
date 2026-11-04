@@ -58,6 +58,8 @@ pub struct Limits {
     pub roles: u32,
     /// Pending proposals of settings, supplied from jig's `settings.proposals`.
     pub setting_proposals: u32,
+    /// Revisions whose replaced values are retained, supplied from jig's `settings.history`.
+    pub setting_history: u32,
     /// Connector brief sections gathering concurrently.
     pub brief_sections: u32,
     /// Maximum bytes retained for one gathered brief section.

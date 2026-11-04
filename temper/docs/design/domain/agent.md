@@ -138,7 +138,8 @@ a chat that names none, runs with no workspace (worker.md, 4.1).
   has read, write, edit and remove: a file the change drops is removed
   once read.
 - **Every host tool below,** declared in every charter, each with the
-  charter's call timeout, but those of the `settings` family, declared
+  charter's call timeout, but `read_task`, offered only with the task's read
+  family, and those of the `settings` family, declared
   only where the run's charter names that family in its `tools` (jig's
   `domain/engine.md`, 7.1) and its task's authority has it: charter 3
   alone in the stock
@@ -148,15 +149,24 @@ a chat that names none, runs with no workspace (worker.md, 4.1).
   lacked, and the run may `propose` it instead. A refused tool family
   is named from the call's tool, and repeated findings for that family
   print once; the refusal grants no additional authority.
+- **A coordinator's task reads.** `read_task {task, from?}` returns a related
+  task's current specification, state, dependencies and spec revision, and its
+  hold revision, reason and connector-supplied account. It also reads retained
+  ended direct delegates. A cut specification prints `next: OFFSET`; pass that
+  byte offset as `from`, and restart at zero if the spec revision changes.
+  Task reads decide nothing and keep no named-call record. Escalations name
+  their task and hold revision and give this recovery call. Read access does
+  not grant messages or amendments to ended tasks, or the subscribe family.
 - **The host part's budget.** smith refuses a run whose host part (its
   host tools, instructions, brief, and finish and deliver schemas) passes
   its bound, 51,717 bytes in the small profile, before any turn. The largest stock
   charter's non-brief host part, charter 1 with a Change contract, is
-  34,524 bytes; with the authorised brief's 14,592 body bytes and
+  35,612 bytes; with the authorised brief's 14,592 body bytes and
   1,472 bytes for 64 stock sections' titles and framing (16 title bytes
-  and 7 framing bytes each), the sum is 50,588, leaving 1,129 bytes.
-  Charter 1 Open has 32,919 non-brief bytes and leaves 2,734; charter 2
-  has 32,119 and leaves 3,534; charter 4 has 30,640 and leaves 5,013.
+  and 7 framing bytes each), the sum is 51,676, leaving 41 bytes.
+  Charter 1 Open has 33,522 non-brief bytes and leaves 2,131; charter 2
+  has 33,200 and leaves 2,453; charter 4 has 30,980 and leaves 4,673;
+  charter 6 has 31,811 and leaves 3,842.
   A gathered brief spends what the non-brief host part leaves. So a new
   host tool is offered only where a family and the charter gate it,
   never to every run, and a charter's room is measured before a tool
@@ -273,6 +283,14 @@ a chat that names none, runs with no workspace (worker.md, 4.1).
   `temper-engine-smith`'s `turn` takes a turn request alone, and
   answers any other request, a job's included, as not a turn
   (`Problem::Type`).
+
+The refusal says `charter N leaves its brief R bytes of its host part's B;
+it needs at least 2,048`, with thousands' commas in the figures and room
+zero when the non-brief part consumes the bound. A party's direct change or
+proposal is refused as a judged charter item, naming its item index; a run's
+proposal receives a host error with these words and its run continues. On
+restart, a stored current charter that fails the check ends startup with
+`temper serve: restart refused: ` and the same diagnostic (2026-11-04).
 
 #### 4.3.1 A change, in the run's words
 
@@ -672,7 +690,7 @@ run starts fresh, its brief carrying the tail.
 | a foreman (forge.md, 8.11) | none | reads: the workspace's inspection, from the landing branch's tip, and the forge's; `finish` with a verdict | its verdict meets its contract |
 | a chat | its person's words; its delegates' results and questions, and its person's answers to those questions (8.2) | most; `deliver` mid-run; `message`; `wait` | its person closes it |
 | a coordinator | questions, results, overlapping landings, the answers to its own questions (8.2); proposals and escalations to decide | `delegate`, `amend`, `cancel`, `release`, `decide`, `decide_escalation`, `propose`, `subscribe_forge`, `note`, `message`; `wait` | its goal's report is written |
-| the configuring agent (8.1) | its person's words; its proposals' outcomes: accepted, rejected with a reason, withdrawn as stale | `settings`, `propose_settings`, `withdraw`, the forge's reads, `read_docs`; `wait` | its person closes it |
+| the configuring agent (8.1) | its person's words; its proposals' outcomes: accepted, rejected with a reason, withdrawn as stale | `settings`, `propose_settings`, the forge's reads, `read_docs`; `wait` | its person closes it |
 
 The change's agents run under the charters the change was made with,
 kept on it whatever later changes of settings make them
@@ -712,45 +730,80 @@ A reviewer fails when it cannot judge the change.
 
 A chat from template 3, run by charter 3, both stock and both settings
 like any other (`../protocol/configuration.md`, 13.4), which turns how
-a person says they work into a proposal of settings
-(`../draft/configuring.md`, sections 2, 5 and 6).
+a person says they work into one proposal of settings: what temper's
+engine must do becomes settings an owner accepts, and what only its
+agents must do stays text its runs read.
 
-- **Its instructions** are held in the binary, in the `stock` module,
-  and say, in the person's register:
+- **Its input** is the conversation: the person's words, a text they
+  paste, or a document in an adopted repository they point to by its
+  path, which it reads with `read_file`. It reads the settings first,
+  with `settings`: the inventory, then each setting the description
+  touches, whole.
+- **Its instructions** are held in the binary, in the `stock` module's
+  `configuring.txt`, and say, in the person's register:
   - the test for each sentence of a description: would temper's engine
-    act differently without it? What changes what temper wakes,
-    schedules, permits, pays, lands or holds is structure, and becomes
-    settings; what only changes how an agent behaves is a rule, and
-    stays text that runs read, in a charter's instructions;
-  - to read the settings first, and the documents the person points to
-    (a path in an adopted repository, with `read_file`; a pasted text);
-  - to ask until it can propose, one question at a time, and to offer a
-    rule as structure where temper's model has it, saying what it
-    guarantees and what it does not, as the draft's dependency on a
-    designer does (`../draft/configuring.md`, section 2);
-  - to propose once, against the newest revision it read, with a reason
-    whose first line is the proposal's title and whose next lines say,
-    under "temper enforces", each change of structure in the person's
-    words, under "your agents follow", each rule and where it comes
-    from, and what the change does to running work;
-  - to say what temper cannot model, offering the nearest thing, and
-    what needs a restart (the document's members: a provider, a forge,
-    a listener, a worker, a limit), never proposing it;
+    act differently without it? A sentence that changes what temper
+    wakes, schedules, permits, pays for, lands or holds is structure,
+    and becomes settings; one that only changes how an agent behaves
+    is a rule, and stays text that runs read;
+  - where a rule goes: one the person wrote in a document of an adopted
+    repository stays there, and the charters of the roles it concerns
+    name that document (`../protocol/configuration.md`, 13.7), so that
+    a change landed there reaches their next runs; one typed in the
+    chat, with no document behind it, goes into those charters'
+    instructions, in the person's words;
+  - to ask until it can propose, one question at a time, and to offer
+    a rule as structure where temper's settings can say it, saying
+    what each guarantees: "I can make each family's changes wait for
+    its designer, as dependencies temper holds; 'push early' stays a
+    rule your producers follow". The person chooses what is
+    guaranteed; a rule is never made structure without their choice;
+  - to propose once, with `propose_settings`, against the newest
+    revision it read, with a reason whose first line is the
+    proposal's title and whose next lines say, under "temper
+    enforces", each change of structure in the person's words, under
+    "your agents follow", each rule and where it comes from, and what
+    the change does to running work;
+  - to say what temper's settings cannot say, naming it and offering
+    the nearest setting there is, never proposing a stand-in as if it
+    were the thing asked; and what needs a restart (the document's
+    members: a provider, a forge, a listener, a worker, a limit),
+    never proposing it;
   - to explain from the settings and the documentation (`read_docs`),
     naming its pages, never their sections or offsets: the concepts
     `settings`, `revision` (moving running work and restoring a version
     among it), `proposal`, `charter`, `template`, `policy` and
     `landing-rule`, each with what it cannot do and what needs a
     restart; `settings-fields`, each setting's fields, bounds and
-    defaults; `configuration`, the document's members; and the recipes.
-    What happens when work starts, which role runs where, why a task's
-    run had what it had, given the task's `settings:` line the person
-    reads to it;
+    defaults; `configuration` and `configuration-engine`, the
+    document's members, and `limits` and `limits-engine`, the limits
+    it sets; and the recipes. What happens when work starts, which role runs where, why
+    a task's run had what it had, given the task's `settings:` line the
+    person reads to it; and, asked, the settings described back as a
+    workflow: who does what, under which role, and what temper holds
+    them to;
   - on its proposal's outcome, heard in its inbox (jig's
     `domain/engine.md`, 17.6): accepted, to say so in one line with the
-    revision it made; rejected, to take the
-    reason as the person's words and revise; withdrawn as stale, to
-    read the settings again and propose afresh, saying what changed.
+    revision it made; rejected, to take the reason as the person's
+    words and revise; withdrawn as stale, to read the settings again
+    and propose afresh, saying what changed.
+- **Its tools** are the reads and the proposal a person may make,
+  through the same role and proposal checks: charter 3's `tools` name
+  the settings and read families (`../protocol/configuration.md`,
+  13.4), so its runs are offered `settings` and `propose_settings`
+  beside every other host tool (4.3), and its task's authority, policy
+  1's, holds the settings, read, delegation and message families. It
+  has no workspace, its instructions never delegate, and it never
+  calls `withdraw`, whose family, the decide family, policy 1 does not
+  give: a proposal it no longer wants is replaced by a fresh one, and
+  the first one an owner accepts leaves the other stale.
+- **The kinds it reads and proposes** are a settings file's
+  (`../client/tools.md`, 5.3): `charter`, `template`, `policy`,
+  `rules`, `landing-rule` (with its `project`, the deployment's when
+  left out), `forge-charter` and `project-policy` (with its
+  `project`), each named and valued as the file names and values it,
+  so that a description's landing rules, the forge's charters and a
+  project's own policy are proposed as its charters are.
 - **It changes nothing itself.** Its charter's `settings` family reads
   and proposes; only an owner's decision changes settings (jig's
   `domain/engine.md`, 17.6). A member's configuring chat proposes as
@@ -759,7 +812,8 @@ a person says they work into a proposal of settings
   TEXT` (`../client/tools.md`, 5.3), and, once the user's pages land,
   from "Tell temper how you work".
 - **Its tests** are `testing.md`, 6.4's: scripted runs in the engine's
-  domain world for its flows, and one process story through ctl.
+  domain world for its flows, and one story through ctl in the joined
+  client world (`testing.md`, 6.3).
 
 ### 8.2 Asking before the work
 
@@ -872,13 +926,21 @@ host:
 
 ## 10. Open questions
 
-- **Which host tools a charter offers.** jig's charter carries the tools
-  its task's authority gives (jig's `domain/engine.md`, 7.1); temper's
-  declares every host tool but the `settings` family's (4.3), and the
-  authority refuses what it does not allow. Whether to declare only what
-  it allows for the other families too, which the host part's budget
-  (4.3) may force, and how a brief teaches an LLM when to delegate a task
-  rather than a sub-agent.
+- **Which host tools a charter offers.** jig's charter carries the host
+  families its charter's `tools` names and its task's authority holds
+  (jig's `domain/engine.md`, 7.1), each stock charter's named in
+  `../protocol/configuration.md`, 13.4; temper's declares by them the
+  `settings` family alone and every other host tool in every charter
+  (4.3), and the authority refuses what it does not allow. Whether to
+  declare only what the charter names for the other families too, which
+  the host part's budget (4.3) may force, and how a brief teaches an LLM
+  when to delegate a task rather than a sub-agent.
+- **The configuring agent woken by a landing** of a document a charter
+  names, where the landing touches structure, to say what it means for
+  the settings ("the process document changed; here is what it means
+  for your setup": `../draft/configuring.md`, section 6). Default: a
+  person starts it (8.1); a landed document reaches the next runs of the
+  charters that name it (`../protocol/configuration.md`, 13.7).
 - **Who may name a plan's members of `change`:** the control family
   says it (4.3.1), since a plan's maker amends, cancels and releases what
   it makes. A family of its own would let a policy grant control without

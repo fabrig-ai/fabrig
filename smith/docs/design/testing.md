@@ -42,8 +42,8 @@ document's "The world" section.
   processes, against fakes in the focused suite, and against the real
   providers, their issuers, Claude Code and a git remote in a live suite
   outside the gate, on smith's own accounts, signed in once: the
-  pipeline runs it after every landing, and the owner runs the story on
-  a key (2.3).
+  after-landing tier runs it after every landing, and the owner runs the
+  story on a key (2.3).
 - **Benchmarks are not tests.** Real agents on real models are measured
   in a tier of their own, outside both suites and the gate (2.4).
 - **One scenario, every tier its fakes reach.** The local host's
@@ -239,9 +239,10 @@ patch and drift tests check the generated `encoded_bound` and
     cargo nextest run --profile live-smith
     ```
   - **After landing, and the owner's.** After every landing, the
-    pipeline runs `live-smith` on the logins it lends from its shelf:
-    smith's ChatGPT record and Claude Code's login. No shelf holds an
-    API key, so the story on a key is the owner's: it is ignored
+    after-landing tier runs `live-smith` on the two sign-ins it takes as
+    named inputs: smith's ChatGPT record and Claude Code's login, in a
+    `$SMITH_LIVE` laid out as above. No API key is among the tier's
+    inputs, so the story on a key is the owner's: it is ignored
     (`#[ignore]`, whose reason says so), the profile's run leaves it
     out, and the owner runs it alone, with `ANTHROPIC_API_KEY` set in
     the environment:
@@ -346,6 +347,23 @@ patch and drift tests check the generated `encoded_bound` and
     its detail: its fixed words, the agent's exit and whether it was
     forced. It never holds standard output, a prompt, a completion, a
     tool's input or result, a file's bytes or credential bytes.
+  - **A failure report selects fields** (2026-11-04), never a record or
+    process result printed with Debug. It may show the process's exit,
+    forced state, fixed harness error and live-process count; the typed
+    end without detail or setup; a run's resume state, message count,
+    backend, status and turns; its failure's class, attempts, state,
+    exit or end, used and bound, turn, completion class, evidence, phase
+    and status, and smith's own which and reason. It may show a
+    conversation's end, a notice's kind, a tool's verdict and delivery,
+    a check's exit and result, and a session's exit and answered state.
+    Tool names are `finish`, `deliver` or a built-in; other names are
+    unknown. Unknown enum payloads are never printed, except for the
+    short notice kind above. Provider detail, code and `request_id`
+    are left out. Standard error contributes counts and only fixed
+    forms: startup and process-group lines, the chat line, trust and
+    unused-preset notices, numeric turns/spend/time budget lines and
+    smith's credential-state lines, together with the agent-failure
+    form above after its detail is removed.
   - **What they show:** each provider's wire as it is today, refresh and
     rotation at the issuer, Claude Code's stream, prompt tool and login
     as its release has them, and a push to a real forge. A failure is
@@ -709,6 +727,6 @@ benchmarks/                      smith-bench, the benchmark harness (benchmarks.
   repair starts from the first after-landing log whose failure says why
   (2.3), in the lowest tier that shows it.
 - **The key's story after landing.** The story on an Anthropic API key
-  is the owner's for now (2.3): no shelf holds a key. It returns to the
-  after-landing run when the pipeline has a key to lend, which is the
-  user's to give.
+  is the owner's for now (2.3): no key is among the after-landing tier's
+  inputs. It returns to the after-landing tier when a key becomes one of
+  them, which is the user's to give.

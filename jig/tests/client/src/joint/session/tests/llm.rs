@@ -40,7 +40,7 @@ fn ready_with_limits(config: root::Config, limits: &root::Limits) -> (Session, T
 }
 
 fn down(value: jig_client::Down) -> Request {
-    Request::Client { request: jig_client::Request::Down { down: value } }
+    Request::Unlinked { request: jig_client::UnlinkedRequest::Down { down: value } }
 }
 
 fn read(session: &mut Session, now: Time, wall: Wall, what: c::Read) -> c::ReadValue {

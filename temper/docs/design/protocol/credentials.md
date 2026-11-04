@@ -271,8 +271,7 @@ setup.md's (section 9). What is open is listed in section 8.
   paste it again".
   It lives until its run ends. The codec's own form, not a layout of
   temper's own bytes, so that the bundle has a schema's bounds, goldens
-  and version check, its items the records' own (the director's answer
-  of 2026-11-03, `forgejo-connect`).
+  and version check, its items the records' own (decided 2026-11-03).
 - **The core** keeps the number and the digest in the connect's own
   record, no secret, and checks the person's role, the forge's kind and
   mode, and that no run holds the forge. Refused, it answers so, and
@@ -293,6 +292,13 @@ setup.md's (section 9). What is open is listed in section 8.
   as its records say: not connected when its paste wrote nothing, and
   nothing tells the person the connect was cut. Saying "interrupted;
   paste again" waits for a stored connect (section 8).
+
+One pasted item alone holds at most 4,085 value bytes, the carried value's
+4,096 bytes less the codec's version, one-item list count, variant and
+length framing. A file for one pasted credential whose value is outside 1 to
+4,085 bytes is refused with `credential file must contain 1 to 4085 bytes`;
+a multi-item tokens bundle must also fit the aggregate carried-value bound
+(decided 2026-11-03).
 
 ## 3. LLM accounts
 

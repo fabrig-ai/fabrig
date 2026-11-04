@@ -43,6 +43,7 @@ jig-test-service = { path = "../../../jig/testing/jig-test-service" }
 smith-channel.workspace = true
 smith-charter.workspace = true
 skein-lib.workspace = true
+skein-http.workspace = true
 skein-io.workspace = true
 skein-shell.workspace = true
 skein-world.workspace = true

@@ -8,7 +8,8 @@ pub(crate) fn valid(ask: &Ask) -> bool {
         Ask::Propose { action: crate::Action::Batch(batch), reason, .. } => is_utf8(reason) && batch_words(batch),
         Ask::Create { batch, .. } => batch_words(batch),
         Ask::MakeService { name, .. } => is_utf8(name),
-        Ask::Propose { action: crate::Action::Settings { .. }, reason, .. }
+        Ask::Restore { reason, .. }
+        | Ask::Propose { action: crate::Action::Settings { .. }, reason, .. }
         | Ask::Move { reason, .. }
         | Ask::Cancel { reason, .. } => is_utf8(reason),
         Ask::DecideEscalation { decision, .. } => match decision {
@@ -47,6 +48,7 @@ pub(crate) fn valid(ask: &Ask) -> bool {
         | Ask::SetRoles { .. }
         | Ask::ChangePolicy { .. }
         | Ask::RemoveProject { .. }
+        | Ask::SetVisibility { .. }
         | Ask::Rename { .. }
         | Ask::MakeProject { .. }
         | Ask::ChangeSettings { .. }

@@ -38,6 +38,14 @@ pub fn settings() -> Settings {
         key_bytes: 7934,
         redirect_bytes: 4096,
         moved_bytes: 70000,
+        public: skein_lib::List::with_capacity(0),
+        public_bounds: jig_client_protocol_wire::PublicIndexBounds {
+            goals: 0,
+            ended: 0,
+            lines: 0,
+            depth: 0,
+            projects: 0,
+        },
     }
 }
 // Match this world's HTTP intake so it exercises the same component bound.
@@ -45,6 +53,7 @@ pub const MESSAGE_BYTES: u32 = 1024;
 #[must_use]
 pub fn limits() -> Limits {
     Limits {
+        public: jig_protocol_engine_clients::PublicLimits::OFF,
         streams: 2,
         watches_per_stream: 4,
         queued_bytes: 65536,
@@ -179,6 +188,7 @@ pub fn server() -> jig_test_service::server::Server {
 #[must_use]
 pub fn http_limits() -> jig_protocol_engine_clients_http::Limits {
     jig_protocol_engine_clients_http::Limits {
+        public_calls: 0,
         calls: 16,
         streams: 2,
         body: MESSAGE_BYTES,
@@ -194,7 +204,7 @@ pub fn mount() -> jig_protocol_engine_clients_http::Mount {
 #[must_use]
 pub fn mount_with_limits(limits: &jig_protocol_engine_clients_http::Limits) -> jig_protocol_engine_clients_http::Mount {
     let mut mount = jig_protocol_engine_clients_http::Mount::new(
-        jig_protocol_engine_clients_http::Settings { prefix: Box::from(b"/jig".as_slice()), public: None },
+        jig_protocol_engine_clients_http::Settings { max_age: 5, prefix: Box::from(b"/jig".as_slice()), public: None },
         limits,
     );
     let mut hosts = skein_lib::List::with_capacity(1);
@@ -227,5 +237,7 @@ pub fn copy_settings(settings: &Settings) -> Settings {
         key_bytes: settings.key_bytes,
         redirect_bytes: settings.redirect_bytes,
         moved_bytes: settings.moved_bytes,
+        public: settings.public.clone(),
+        public_bounds: settings.public_bounds,
     }
 }

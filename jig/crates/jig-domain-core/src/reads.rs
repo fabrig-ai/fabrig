@@ -21,6 +21,7 @@ pub mod forget;
 pub mod indexed;
 pub(crate) mod indexes;
 mod rows;
+pub mod run_task;
 pub mod settings;
 mod task_text;
 mod turn;
@@ -132,7 +133,9 @@ enum Destination {
     Read(ReplyTo),
     Watch(Token),
     Erase,
+    Restore,
     Settings { to: ReplyTo, key: crate::CallKey },
+    RunTask { to: ReplyTo, key: crate::CallKey, task: u64, from: u64 },
     Done,
 }
 
@@ -140,7 +143,12 @@ impl Pending {
     fn take_reply(&mut self) -> ReplyTo {
         match core::mem::replace(&mut self.destination, Destination::Done) {
             Destination::Read(reply) => reply,
-            Destination::Erase | Destination::Watch(_) | Destination::Settings { .. } | Destination::Done => {
+            Destination::Restore
+            | Destination::Erase
+            | Destination::Watch(_)
+            | Destination::RunTask { .. }
+            | Destination::Settings { .. }
+            | Destination::Done => {
                 unreachable!("a pending read owns its reply")
             }
         }
@@ -561,7 +569,13 @@ fn start_jig(
     out
 }
 
-pub(crate) fn loaded(core: &mut Core, env: &Env<Limits>, load: Token, result: Loaded) -> Queue<Request> {
+pub(crate) fn loaded(
+    core: &mut Core,
+    env: &Env<Limits>,
+    work: &mut Queue<crate::routing::Work>,
+    load: Token,
+    result: Loaded,
+) -> Queue<Request> {
     let name = Id::<Pending>::from_token(load);
     let Some(pending) = core.reads.get(name) else {
         return Queue::uncapped();
@@ -569,7 +583,9 @@ pub(crate) fn loaded(core: &mut Core, env: &Env<Limits>, load: Token, result: Lo
     match &pending.destination {
         Destination::Watch(watcher) => return watch_loaded(core, env, name, *watcher, result),
         Destination::Settings { .. } => return settings::run_loaded(core, env, name, result),
+        Destination::Restore => return settings::restore_loaded(core, env, work, name, result),
         Destination::Erase => return crate::routing::task::erase::loaded(core, env, load, result),
+        Destination::RunTask { .. } => return run_task::loaded(core, env, name, result),
         Destination::Read(_) => {}
         Destination::Done => return Queue::uncapped(),
     }
@@ -657,6 +673,7 @@ pub fn answer_bound(limits: &Limits, kinds: &[crate::settings::Kind]) -> Option<
             .checked_add(List::<PageRow>::price(limits.documents.rows)?)?
             .checked_add(u64::try_from(size_of::<Page>()).ok()?)?
             .checked_add(query_bound(limits)?)?
+            .checked_add(run_task::answer_bound(limits)?)?
             .checked_add(settings::load_bytes(limits, limits.documents.rows)?.checked_mul(2)?)?,
     )
 }

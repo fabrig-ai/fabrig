@@ -2,7 +2,7 @@
 use super::super::{c, list, w};
 use super::{
     wire_document_outcome, wire_note_scope, wire_outcome_moved_to_newest, wire_outcome_settings_changed,
-    wire_person_address, wire_revision,
+    wire_person_address, wire_revision, wire_setting,
 };
 pub(in crate::codec) fn wire_address_change(
     value: &c::AddressChange,
@@ -36,6 +36,16 @@ pub(in crate::codec) fn wire_outcome(value: &c::Outcome, limits: &w::Limits) -> 
     Ok::<_, w::Problem>(match value {
         c::Outcome::SettingsChanged(value) => {
             w::Outcome::SettingsChanged(wire_outcome_settings_changed(value, limits)?)
+        }
+        c::Outcome::Restored { proposal, to, left_out } => {
+            let mut settings = skein_lib::List::with_capacity(left_out.len());
+            for setting in left_out {
+                settings.push(wire_setting(setting, limits)?).expect("same capacity");
+            }
+            w::Outcome::Restored(w::OutcomeRestored::new(
+                limits,
+                w::OutcomeRestoredParts { proposal: *proposal, to: *to, left_out: settings },
+            )?)
         }
         c::Outcome::MovedToNewest(value) => w::Outcome::MovedToNewest(wire_outcome_moved_to_newest(value, limits)?),
         c::Outcome::Document(value) => w::Outcome::Document(w::OutcomeDocument::new(
