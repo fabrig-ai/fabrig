@@ -129,8 +129,9 @@ fn leaving_a_page_unwatches_its_handles_and_drops_their_tells() {
     );
     let mut closes = 0_u32;
     while let Some(request) = out.pop() {
-        if let crate::Request::Client { request: jig_client::Request::Down { down: jig_client::Down::Close { .. } } } =
-            request
+        if let crate::Request::Unlinked {
+            request: jig_client::UnlinkedRequest::Down { down: jig_client::Down::Close { .. } },
+        } = request
         {
             closes += 1;
         }
@@ -196,8 +197,9 @@ fn an_ended_task_opened_before_me_retries_a_busy_document_read() {
     );
     let mut task_watch = None;
     while let Some(request) = out.pop() {
-        if let crate::Request::Client { request: jig_client::Request::Down { down: Down::Open { watch, subject } } } =
-            request
+        if let crate::Request::Unlinked {
+            request: jig_client::UnlinkedRequest::Down { down: Down::Open { watch, subject } },
+        } = request
             && subject == Watchable::Jig(c::Subject::Task { task: TASK })
         {
             task_watch = Some(watch);
@@ -215,8 +217,9 @@ fn an_ended_task_opened_before_me_retries_a_busy_document_read() {
     );
     let mut document_read = None;
     while let Some(request) = out.pop() {
-        if let crate::Request::Client { request: jig_client::Request::Down { down: Down::Read { read, what } } } =
-            request
+        if let crate::Request::Unlinked {
+            request: jig_client::UnlinkedRequest::Down { down: Down::Read { read, what } },
+        } = request
             && what == Readable::Jig(c::Read::Task { task: TASK })
         {
             document_read = Some(read);
@@ -242,7 +245,8 @@ fn an_ended_task_opened_before_me_retries_a_busy_document_read() {
     assert_eq!(root.pages().address(), &address, "the person's navigation stays at the task");
     let mut retried = false;
     while let Some(request) = out.pop() {
-        if let crate::Request::Client { request: jig_client::Request::Down { down: Down::Read { what, .. } } } = request
+        if let crate::Request::Unlinked { request: jig_client::UnlinkedRequest::Down { down: Down::Read { what, .. } } } =
+            request
             && what == Readable::Jig(c::Read::Task { task: TASK })
         {
             retried = true;
@@ -271,8 +275,8 @@ fn ended_task_read() -> (crate::Domain, skein_lib::Token) {
     );
     let mut watch = None;
     while let Some(request) = out.pop() {
-        if let crate::Request::Client {
-            request: jig_client::Request::Down { down: Down::Open { watch: token, subject } },
+        if let crate::Request::Unlinked {
+            request: jig_client::UnlinkedRequest::Down { down: Down::Open { watch: token, subject } },
         } = request
             && subject == Watchable::Jig(c::Subject::Task { task: DOCUMENT_TASK })
         {
@@ -296,8 +300,9 @@ fn take_document_read(out: &mut Queue<crate::Request>) -> Option<skein_lib::Toke
     use jig_client::{Down, Readable, contract as c};
     let mut token = None;
     while let Some(request) = out.pop() {
-        if let crate::Request::Client { request: jig_client::Request::Down { down: Down::Read { read, what } } } =
-            request
+        if let crate::Request::Unlinked {
+            request: jig_client::UnlinkedRequest::Down { down: Down::Read { read, what } },
+        } = request
             && what == Readable::Jig(c::Read::Task { task: DOCUMENT_TASK })
         {
             assert!(token.replace(read).is_none(), "one document read at a time");

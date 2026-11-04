@@ -15,7 +15,7 @@ mod forgery;
 pub fn jig_test() -> PathBuf {
     let exe = std::env::current_exe().expect("test executable");
     let binary = exe.parent().and_then(Path::parent).expect("target directory").join("jig-test");
-    assert!(binary.is_file(), "build the browser server with heavy cargo build -p jig-test: {}", binary.display());
+    assert!(binary.is_file(), "build the browser server with cargo build -p jig-test: {}", binary.display());
     binary
 }
 #[must_use]

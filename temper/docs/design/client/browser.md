@@ -1192,13 +1192,15 @@ never streaming (`../draft/first-release.md`, 5.3).
 
 ### 8.3 What it shows
 
-- **No names:** the records carry no text, so a project is "Project"
-  and a goal "Goal", each with the first eight digits of its public
-  identifier, and a task "task" with the same; an executor is its kind,
-  "an agent", "a procedure", "a person".
-- **The board:** the project's goals, each a line: its identifier, its
-  phase in words, for how long, its spend; under it its tree's lines:
-  "task 3f2a9c01, an agent, running for 14 minutes", its phase, its
+- **Titles and the project's name, no other text:** the records carry
+  no text but these (jig's `domain/people.md`, 13.3), so a project is
+  its name, and a goal is "Goal" and a task "task", each with the first
+  eight digits of its public identifier, then its title, with "…" where
+  cut; an executor is its kind, "an agent", "a procedure", "a person".
+- **The board:** the project's goals, each a line: its identifier and
+  title, its phase in words, for how long, its spend; under it its
+  tree's lines: "task 3f2a9c01 Write the parser, an agent, running for
+  14 minutes", its phase, its
   times; the count of lines folded; and the queues' lines from the
   landings.
 - **A task:** its line, its lineage up to its goal as links, its
@@ -1208,7 +1210,7 @@ never streaming (`../draft/first-release.md`, 5.3).
   its short hash.
 - **The landings:** the turn, each queue in order, without places, and
   the recent landings, each landed commit a link.
-- **Never** a person's name, words, an agent's words, or anything the
+- **Never** a person's name, any words but a title, or anything the
   records do not carry: the view reads only the public records.
 
 ### 8.4 Its tests

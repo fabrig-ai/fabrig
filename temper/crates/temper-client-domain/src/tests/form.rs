@@ -58,15 +58,16 @@ fn a_value_past_its_bound_is_not_taken() {
 fn adopt_sends_one_keyed_request_and_a_second_press_none() {
     let mut root = fixtures::filled();
     let mut out = fixtures::form_act(&mut root, forge::Act::Adopt);
-    let Some(Request::Client { request: jig_client::Request::Down { down: jig_client::Down::Save { record } } }) =
-        out.pop()
+    let Some(Request::Unlinked {
+        request: jig_client::UnlinkedRequest::Down { down: jig_client::Down::Save { record } },
+    }) = out.pop()
     else {
         panic!("saved before sent");
     };
     assert_eq!(record.scope, fixtures::PARTY, "confirmed party scopes the table, distinct from project");
-    let Some(Request::Client {
+    let Some(Request::Unlinked {
         request:
-            jig_client::Request::Down {
+            jig_client::UnlinkedRequest::Down {
                 down: jig_client::Down::Send { key, request: jig_client::Ask::Family { record: family, .. }, .. },
             },
     }) = out.pop()
@@ -169,8 +170,8 @@ fn out_of_date_disables_adopt_and_keeps_the_pending_request() {
 }
 fn sent(out: &mut Queue<Request>) -> skein_lib::Token {
     for _ in 0..out.len() {
-        if let Some(Request::Client {
-            request: jig_client::Request::Down { down: jig_client::Down::Send { attempt, .. } },
+        if let Some(Request::Unlinked {
+            request: jig_client::UnlinkedRequest::Down { down: jig_client::Down::Send { attempt, .. } },
         }) = out.pop()
         {
             return attempt;
@@ -183,8 +184,9 @@ fn sent(out: &mut Queue<Request>) -> skein_lib::Token {
 fn an_adoption_is_the_forges_family_bytes_under_its_asker() {
     let mut root = fixtures::filled();
     let mut out = fixtures::form_act(&mut root, forge::Act::Adopt);
-    let Some(Request::Client { request: jig_client::Request::Down { down: jig_client::Down::Save { record } } }) =
-        out.pop()
+    let Some(Request::Unlinked {
+        request: jig_client::UnlinkedRequest::Down { down: jig_client::Down::Save { record } },
+    }) = out.pop()
     else {
         panic!("kept adoption")
     };
@@ -230,8 +232,9 @@ fn an_adoption_is_the_forges_family_bytes_under_its_asker() {
 fn an_answer_under_the_forges_asker_reaches_the_form() {
     let mut root = fixtures::filled();
     let mut out = fixtures::form_act(&mut root, forge::Act::Adopt);
-    let Some(Request::Client { request: jig_client::Request::Down { down: jig_client::Down::Save { record } } }) =
-        out.pop()
+    let Some(Request::Unlinked {
+        request: jig_client::UnlinkedRequest::Down { down: jig_client::Down::Save { record } },
+    }) = out.pop()
     else {
         panic!("kept adoption")
     };
@@ -253,8 +256,9 @@ fn a_kept_adoption_of_another_version_is_dropped_and_its_form_shows_none_pending
     let limits = fixtures::limits();
     let mut root = fixtures::filled();
     let mut out = fixtures::form_act(&mut root, forge::Act::Adopt);
-    let Some(Request::Client { request: jig_client::Request::Down { down: jig_client::Down::Save { mut record } } }) =
-        out.pop()
+    let Some(Request::Unlinked {
+        request: jig_client::UnlinkedRequest::Down { down: jig_client::Down::Save { mut record } },
+    }) = out.pop()
     else {
         panic!("kept adoption")
     };
@@ -320,14 +324,16 @@ fn version_refused() -> (crate::Domain, jig_client::Key) {
     use jig_client_protocol_link as link;
     let mut root = fixtures::filled();
     let mut out = fixtures::form_act(&mut root, forge::Act::Adopt);
-    let Some(Request::Client { request: jig_client::Request::Down { down: jig_client::Down::Save { record } } }) =
-        out.pop()
+    let Some(Request::Unlinked {
+        request: jig_client::UnlinkedRequest::Down { down: jig_client::Down::Save { record } },
+    }) = out.pop()
     else {
         panic!("kept adoption")
     };
     let stable = record.request.key;
-    let Some(Request::Client {
-        request: jig_client::Request::Down { down: jig_client::Down::Send { attempt, key, request: ask, value } },
+    let Some(Request::Unlinked {
+        request:
+            jig_client::UnlinkedRequest::Down { down: jig_client::Down::Send { attempt, key, request: ask, value } },
     }) = out.pop()
     else {
         panic!("adoption sent")

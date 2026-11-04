@@ -7,7 +7,7 @@
 - **Checked:** 2026-11-03 at `41d63da8c3`
 - **Value:** low (the view's size tests cannot drift from skein-ui)
 - **Size:** S
-- **Status:** open (waits on skein's D046)
+- **Status:** open
 - **Paid when:** jig's tests read a node's text bytes from skein-ui, and `text_bytes` is gone.
 - **Measure:** `rg -l 'text_bytes' jig/crates/jig-client-view/src | wc -l` (41 at base)
 
@@ -24,5 +24,5 @@ for no fault of the view.
 
 ## What pays it back
 
-It waits on skein's `skein/docs/development/debt/D046-ui-limits-and-accounting.md`,
-which has skein-ui expose what it counts; then the helper goes.
+skein-ui's `Node::text_bytes` gives the bytes the builder charges a node
+(`skein/docs/design/ui.md`, 15). The tests read it and the helper goes.

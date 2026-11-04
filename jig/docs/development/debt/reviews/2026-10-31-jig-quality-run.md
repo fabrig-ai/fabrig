@@ -10,13 +10,13 @@ resolved; section 8's are paid.
 
 Sources:
 - **The review:** "jig code-quality review, 2026-10-31", on `main`
-  `c30cf6a03`. It is not in the tree (`~/src/fabrig/notes/` on hel8).
+  `c30cf6a03`. It is not in the tree (the review machine's notes).
   Cited here by its own labels: section (§7), order-of-work item
   ("item 20"), theme (T3), area finding (A6 F2).
 - **The run's records:** its plan, status survey, log and report, and the
   108 Codex task reports (`jq-*`). The jig findings of the playground-reset
   run (`pg-*`) and of the repair of `main` after the day's landings
-  (`mr-*`) are included too. They are in `~/src/fabrig/coord/` on hel8.
+  (`mr-*`) are included too. They are on the review machine, with its coordination records.
 - [`docs/development/tech-debt.md`](tech-debt.md): the
   earlier pass. Its sections 2, 3, 7, 10, 11 and 12 are stale after this
   run (section 8 here).
@@ -374,7 +374,7 @@ Each pays back as the review's appendix says. Grouped by area.
 
 ## 7. Outside jig's code, seen from it
 
-These belong to fabrig's tools (`agents/backlog.md`), not to jig's design.
+These belong to fabrig's development tools and their backlog, not to jig's design.
 They are listed so this file doesn't lose them.
 
 - **`scripts/old_forms.py`:**

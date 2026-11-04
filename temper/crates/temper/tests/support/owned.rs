@@ -34,17 +34,11 @@ pub fn document(value: &mut serde_json::Value, names: &Names<'_>) {
     value["application"]["machine"] = members["machine"].take();
 }
 
-// temper-15 removes this old form and temper-01a's Adopt stand-in.
-pub fn old_form(application: &mut serde_json::Value) {
-    let _ = application;
-}
-
 pub fn configuration(directory: &Path, names: &Names<'_>) {
     super::configuration(directory, &super::Forge::Unreached);
     let path = directory.join("temper.json");
     let mut value = serde_json::from_slice(&fs::read(&path).expect("configuration")).expect("JSON");
     document(&mut value, names);
-    old_form(&mut value["application"]);
     super::write_private(&path, &serde_json::to_vec(&value).expect("JSON"));
     fs::create_dir_all(directory.join("box/groups")).expect("groups");
     super::write_private(&directory.join("box/groups/1"), b"owned\n");

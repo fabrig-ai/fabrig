@@ -32,7 +32,9 @@ fn task_page(root: &mut Domain, task: u64) -> Token {
     let mut out = went(root, Place::Address(Address::Task { task, filter: PlanFilter::All }));
     let mut found = None;
     while let Some(request) = out.pop() {
-        if let Request::Client { request: jig_client::Request::Down { down: Down::Open { watch, subject } } } = request
+        if let Request::Unlinked {
+            request: jig_client::UnlinkedRequest::Down { down: Down::Open { watch, subject } },
+        } = request
         {
             if subject == Watchable::Jig(c::Subject::Task { task }) {
                 found = Some(watch);
@@ -61,9 +63,9 @@ fn document(root: &mut Domain, watch: Token, task: u64, executor: c::ChipExecuto
 fn family_open(out: &mut Queue<Request>, task: u64) -> Option<Token> {
     let mut found = None;
     while let Some(request) = out.pop() {
-        if let Request::Client {
+        if let Request::Unlinked {
             request:
-                jig_client::Request::Down {
+                jig_client::UnlinkedRequest::Down {
                     down: Down::Open { watch, subject: Watchable::Family { scope, window, record } },
                 },
         } = request
@@ -109,7 +111,9 @@ fn deliver(root: &mut Domain, watch: Token, panel: &w::ChangePanel) -> Queue<Req
 fn closes(out: &mut Queue<Request>) -> List<Token> {
     let mut watches = List::with_capacity(out.len());
     while let Some(request) = out.pop() {
-        if let Request::Client { request: jig_client::Request::Down { down: Down::Close { watch } } } = request {
+        if let Request::Unlinked { request: jig_client::UnlinkedRequest::Down { down: Down::Close { watch } } } =
+            request
+        {
             watches.push(watch).unwrap();
         }
     }
@@ -164,16 +168,19 @@ fn another_tasks_page_closes_the_old_panel_and_watches_its_own_subject() {
     let mut closed = List::with_capacity(out.len());
     while let Some(request) = out.pop() {
         match request {
-            Request::Client { request: jig_client::Request::Down { down: Down::Close { watch } } } => {
+            Request::Unlinked { request: jig_client::UnlinkedRequest::Down { down: Down::Close { watch } } } => {
                 closed.push(watch).unwrap();
             }
-            Request::Client { request: jig_client::Request::Down { down: Down::Open { watch, subject } } } => {
+            Request::Unlinked {
+                request: jig_client::UnlinkedRequest::Down { down: Down::Open { watch, subject } },
+            } => {
                 if subject == Watchable::Jig(c::Subject::Task { task: NEXT }) {
                     task = Some(watch);
                 }
                 up(&mut root, Up::Watched { watch, event: c::WatchEvent::Opened });
             }
             Request::Client { .. }
+            | Request::Unlinked { .. }
             | Request::Show { .. }
             | Request::Leave { .. }
             | Request::SignOut
@@ -558,9 +565,9 @@ fn an_ended_panel_reopens_only_for_its_live_change_task_or_change_result() {
                 );
                 let mut other_watch = None;
                 while let Some(request) = out.pop() {
-                    if let Request::Client {
+                    if let Request::Unlinked {
                         request:
-                            jig_client::Request::Down {
+                            jig_client::UnlinkedRequest::Down {
                                 down: Down::Open { watch, subject: Watchable::Jig(c::Subject::Task { task: NEXT }) },
                             },
                     } = request

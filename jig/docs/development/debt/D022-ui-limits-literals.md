@@ -6,7 +6,7 @@
 - **Checked:** 2026-11-03 at `41d63da8c3`
 - **Value:** low (a new skein-ui field is added in one place)
 - **Size:** S
-- **Status:** open (waits on skein's D046)
+- **Status:** open
 - **Paid when:** jig builds a `skein_ui::Limits` without scenes through one constructor, and no literal with `scene_marks: 0` is left.
 - **Measure:** `rg -U -c '(skein_ui::)?Limits \{[^{}]*?scene_marks: 0' -g '*.rs' jig | awk -F: '{s+=$2} END {print s}'` (25 at base)
 
@@ -25,6 +25,5 @@ retyped in each.
 
 ## What pays it back
 
-It waits on skein's `skein/docs/development/debt/D046-ui-limits-and-accounting.md`,
-which gives skein-ui a constructor for a tree without scenes; then the literals are
-replaced by it.
+skein-ui gives `Limits::EMPTY`, an empty tree without scenes a caller sets its
+fields over (`skein/docs/design/ui.md`, 15). The literals move onto it.

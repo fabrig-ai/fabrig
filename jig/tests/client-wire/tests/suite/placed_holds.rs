@@ -77,7 +77,7 @@ fn task_holds_with_a_placed_line_match_their_smallest_and_full_goldens() {
             fs::write(&path, &bytes).expect("write golden");
         }
         let golden = fs::read(&path)
-            .expect("run SKEIN_CODEGEN_WRITE=1 heavy cargo nextest run -p jig-client-wire-world --test placed_holds");
+            .expect("run SKEIN_CODEGEN_WRITE=1 cargo nextest run -p jig-client-wire-world --test placed_holds");
         assert_eq!(bytes.as_ref(), golden);
         assert_eq!(w::ChipHold::decode(&w::CEILINGS, &mut Reader::new(&golden)), Ok(value));
     }

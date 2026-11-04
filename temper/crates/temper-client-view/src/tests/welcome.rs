@@ -1128,8 +1128,8 @@ fn ready_making_and_its_endings_keep_one_retry_act() {
         );
         let mut attempt = None;
         while let Some(request) = out.pop() {
-            if let d::Request::Client {
-                request: jig_client::Request::Down { down: jig_client::Down::Send { attempt: sent, key, .. } },
+            if let d::Request::Unlinked {
+                request: jig_client::UnlinkedRequest::Down { down: jig_client::Down::Send { attempt: sent, key, .. } },
             } = request
             {
                 attempt = Some((sent, key));

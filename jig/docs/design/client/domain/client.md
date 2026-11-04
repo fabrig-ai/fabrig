@@ -256,6 +256,35 @@ read by the application: client.document(handle), client.text(handle), client.pe
   documents with their revisions and offers (contract.md, 5.3), and each
   request's progress and answer.
 
+### 4.4 Without a link
+
+`Client::unlinked` makes a client that holds no link: its host carries
+the domain's work in the link's place, and answers it with `Up`. Each
+mode is stepped by its own pair, and each pair has its own request type:
+
+```
+Client::new:      step(now, wall, Event, &mut Queue<Request>), fire(now, wall, &mut Queue<Request>)
+Client::unlinked: step_unlinked(now, wall, Event, &mut Queue<UnlinkedRequest>),
+                  fire_unlinked(now, wall, &mut Queue<UnlinkedRequest>)
+
+UnlinkedRequest, out
+  Told { told }               as a linked client's
+  Authorized(authorized)      a printed link's authorization, always lost: no link signs in
+  Down { down }               the domain's work, which the host carries: a save, an erase, a send,
+                              a watch opened, continued or closed, a read
+  SignOut                     the sign-out, which the host answers
+Event, in, besides the application's: StartUnlinked { kept } in place of Start, Up { up }, SignOutLost
+```
+
+- **A linked client's `Request` holds no `Down` and no `SignOut`:** what
+  its domain asks goes to the link, and its sign-out is an exchange. A
+  linked host matches only what a linked client asks.
+- **A pair given the other mode's client is a fault** (an assertion), as
+  an event of the other mode is.
+- **An application root stepping either mode** keeps the two apart in its
+  own requests: what the linked client asks, and what the unlinked one
+  asks, each under its own variant.
+
 ## 5. Pages and the working set
 
 Pages, places, navigation and the working set are the reference UI's,

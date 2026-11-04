@@ -1312,8 +1312,9 @@ fn send_switcher(root: &mut temper_client_domain::Domain, act: pages::switcher::
     temper_client_domain::step(root, &env, Event::Client { event: jig_client::Event::Stored }, &mut out);
     let mut sent = None;
     for request in &out {
-        if let Request::Client { request: jig_client::Request::Down { down: jig_client::Down::Send { attempt, .. } } } =
-            request
+        if let Request::Unlinked {
+            request: jig_client::UnlinkedRequest::Down { down: jig_client::Down::Send { attempt, .. } },
+        } = request
         {
             assert!(sent.replace(*attempt).is_none(), "one switcher request");
         }
