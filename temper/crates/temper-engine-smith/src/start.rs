@@ -228,7 +228,7 @@ fn note_omitted(charter: &mut run::Charter, titles: &[Box<[u8]>], room: u64, own
     if titles.is_empty() {
         return;
     }
-    let count = Decimal::of(u64::try_from(titles.len()).expect("bounded sections"));
+    let count = Decimal::of(skein_lib::len_u64(titles.len()));
     let mut length = b"[ sections omitted: ; whole: the task's activity]\n"
         .len()
         .saturating_add(count.as_bytes().len())

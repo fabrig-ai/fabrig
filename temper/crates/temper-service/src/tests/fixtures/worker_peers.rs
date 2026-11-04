@@ -451,7 +451,7 @@ impl AgentPeer {
                             FRAME_HEADER_BYTES.checked_add(header.body_len).unwrap(),
                             "one whole frame per channel write"
                         );
-                        self.written = self.written.checked_add(u64::try_from(bytes.len()).unwrap()).unwrap();
+                        self.written = self.written.checked_add(skein_lib::len_u64(bytes.len())).unwrap();
                         self.writes.push((header.kind, self.written)).unwrap();
                         self.worker_bytes.append(&bytes).unwrap();
                     }
@@ -469,7 +469,7 @@ impl AgentPeer {
             }
             if let Some(bytes) = demanded_bytes(&mut self.worker_read, &mut self.worker_bytes) {
                 progressed = true;
-                self.consumed = self.consumed.checked_add(u64::try_from(bytes.len()).unwrap()).unwrap();
+                self.consumed = self.consumed.checked_add(skein_lib::len_u64(bytes.len())).unwrap();
                 worker.up(self.now, io::Event::Stream { owner: AGENT_OUTPUT, up: stream::Up::Bytes(bytes) });
             } else if self.worker_read.is_some() && self.worker_bytes.is_empty() && self.finished && self.ends == 0 {
                 progressed = true;

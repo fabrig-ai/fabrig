@@ -8,7 +8,7 @@ use jig_protocol_engine_clients as kit;
 use jig_protocol_engine_clients_http as mapping;
 use skein_http::{Header, Method, server as http};
 use skein_lib::{
-    CryptoRng, Decimal, Duration, Env, List, Map, Queue, Secret, Time, Token, Wall, Writer,
+    CryptoRng, Decimal, Duration, List, Map, Queue, Secret, Time, Token, Wall, Writer,
     base64::{self, Alphabet},
     bytes,
     stream::{Down, Read, Up},
@@ -536,7 +536,7 @@ impl Clients {
                 body: if body.is_empty() {
                     http::Body::None
                 } else {
-                    http::Body::Length(u64::try_from(body.len()).expect("bounded page"))
+                    http::Body::Length(skein_lib::len_u64(body.len()))
                 },
                 close: false,
             }),
@@ -813,7 +813,7 @@ impl Clients {
                 google.http.push((exchange, request));
             }
         }
-        let env = Env { now: self.env.now, wall: self.env.wall, limits: limits::fetch(google.limits) };
+        let env = self.env.with(limits::fetch(google.limits));
         let mut keys = List::with_capacity(google.limits.fetches);
         for (key, _) in &google.fetches {
             keys.push(*key).expect("bounded fetch names");
@@ -909,7 +909,7 @@ impl Clients {
             && let Some(owner) = owner
             && let Some(fetch) = google.fetches.get_mut(&owner)
         {
-            let env = Env { now: self.env.now, wall: self.env.wall, limits: limits::fetch(google.limits) };
+            let env = self.env.with(limits::fetch(google.limits));
             fetch.web.up(&env, event, &mut self.io);
         }
     }
