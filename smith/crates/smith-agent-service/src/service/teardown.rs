@@ -14,12 +14,24 @@ use skein_io::{self as io, file, file_layer};
 pub enum Teardown {
     /// The run still owes its answer.
     Live,
+    /// The run still owes its answer, kept unsent for its first cause.
+    LiveUnsent { failure: Failure },
     /// The run has answered; its closes follow any retained LLM measures.
     Answered { at: Time, answer: Answer, close: Close },
     /// Every owned close has been requested; its reports arrive in order.
     Closing { at: Time, answer: Answer, close: Close, step: Step },
     /// Every child reported closed and io is empty; the shell may exit.
     Closed { answer: Answer, close: Close },
+}
+
+impl Teardown {
+    pub(super) const fn failure(self) -> Option<Failure> {
+        match self {
+            Self::Live => None,
+            Self::LiveUnsent { failure } => Some(failure),
+            Self::Answered { answer, .. } | Self::Closing { answer, .. } | Self::Closed { answer, .. } => answer.failure(),
+        }
+    }
 }
 
 /// Whether the service sent its answer or its effects owner holds it.
@@ -32,6 +44,20 @@ pub enum Answer {
 }
 
 impl Answer {
+    const fn failure(self) -> Option<Failure> {
+        match self {
+            Self::Sent => None,
+            Self::Unsent(failure) => Some(failure),
+        }
+    }
+
+    const fn failed(self, reason: Failure) -> Self {
+        match self {
+            Self::Sent => Self::Unsent(reason),
+            Self::Unsent(first) => Self::Unsent(first),
+        }
+    }
+
     pub(super) const fn sent(self) -> bool {
         match self {
             Self::Sent => true,
@@ -64,8 +90,8 @@ pub enum Step {
 
 pub(super) fn answered(service: &mut Stages) {
     match service.teardown {
-        Teardown::Live => {
-            let answer = match service.failure {
+        Teardown::Live | Teardown::LiveUnsent { .. } => {
+            let answer = match service.teardown.failure() {
                 Some(failure) => Answer::Unsent(failure),
                 None => Answer::Sent,
             };
@@ -77,12 +103,13 @@ pub(super) fn answered(service: &mut Stages) {
 
 pub(super) fn failed(service: &mut Stages, failure: Failure) {
     match service.teardown {
-        Teardown::Live => {}
-        Teardown::Answered { at, close, .. } => {
-            service.teardown = Teardown::Answered { at, answer: Answer::Unsent(failure), close };
+        Teardown::Live => service.teardown = Teardown::LiveUnsent { failure },
+        Teardown::LiveUnsent { .. } => {}
+        Teardown::Answered { at, answer, close } => {
+            service.teardown = Teardown::Answered { at, answer: answer.failed(failure), close };
         }
-        Teardown::Closing { at, close, step, .. } => {
-            service.teardown = Teardown::Closing { at, answer: Answer::Unsent(failure), close, step };
+        Teardown::Closing { at, answer, close, step } => {
+            service.teardown = Teardown::Closing { at, answer: answer.failed(failure), close, step };
         }
         Teardown::Closed { .. } => unreachable!("the closed service has no remaining events"),
     }
@@ -120,7 +147,7 @@ fn stream_closed(service: &Stages, frame: Option<&Frame>) -> bool {
 
 pub(super) fn shutdown(service: &mut Stages) {
     let before_terminal = match service.teardown {
-        Teardown::Live => {
+        Teardown::Live | Teardown::LiveUnsent { .. } => {
             if let Some(run) = service.admitted {
                 service.domain_events.push(domain::Event::Cancel { run });
             } else {
@@ -178,7 +205,7 @@ pub(super) fn shutdown(service: &mut Stages) {
 
 pub(super) fn work_pending(service: &Stages, frame: Option<&Frame>) -> bool {
     match service.teardown {
-        Teardown::Live | Teardown::Closed { .. } | Teardown::Closing { step: Step::Usage, .. } => false,
+        Teardown::Live | Teardown::LiveUnsent { .. } | Teardown::Closed { .. } | Teardown::Closing { step: Step::Usage, .. } => false,
         Teardown::Answered { .. } => close_room(service),
         Teardown::Closing { step: Step::Components, .. } => {
             (components_closed(service, frame) && owner_ended(service, frame))
@@ -193,9 +220,9 @@ fn owner_ended(service: &Stages, frame: Option<&Frame>) -> bool {
     frame.is_some() || service.product_exit.is_some() || service.events.is_none()
 }
 
-pub(super) fn advance(service: &mut Stages, frame: Option<&Frame>) {
+pub(super) fn follow(service: &mut Stages, frame: Option<&Frame>) {
     match service.teardown {
-        Teardown::Live | Teardown::Closed { .. } | Teardown::Closing { step: Step::Usage, .. } => {}
+        Teardown::Live | Teardown::LiveUnsent { .. } | Teardown::Closed { .. } | Teardown::Closing { step: Step::Usage, .. } => {}
         Teardown::Answered { at, answer, close } => {
             if close_room(service) {
                 match close {

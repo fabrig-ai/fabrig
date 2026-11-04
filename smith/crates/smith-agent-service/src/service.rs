@@ -208,7 +208,6 @@ pub(crate) struct Stages {
     admitted: Option<Token>,
     run_started: Time,
     cancel_pending: bool,
-    failure: Option<Failure>,
     pub(crate) line: crate::terminal::Line,
     outcome: Option<run::outcome::OutcomeSpec>,
     delivery: Option<run::outcome::ChangeSpec>,
@@ -467,7 +466,7 @@ pub fn iterate(service: &mut Service, now: Time, wall: Wall) {
     up::domain_up(stages, frame);
     down::domain_down(stages, Some(frame));
     down::component_down(stages);
-    teardown::advance(stages, Some(frame));
+    teardown::follow(stages, Some(frame));
     if let Some(events) = &mut stages.events {
         events.sinks().down(stages.io_env.now, &mut stages.io_requests);
     }

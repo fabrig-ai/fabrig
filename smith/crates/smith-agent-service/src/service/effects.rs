@@ -118,7 +118,7 @@ impl Effects {
         let service = &mut self.stages;
         domain_down(service, None);
         component_down(service);
-        teardown::advance(service, None);
+        teardown::follow(service, None);
         if let Some(events) = &mut service.events {
             events.sinks().down(service.io_env.now, &mut service.io_requests);
         }

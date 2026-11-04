@@ -144,14 +144,14 @@ pub(super) fn work_pending(service: &Stages, frame: Option<&Frame>, now: Time) -
 pub(super) fn done(service: &Stages) -> Option<bool> {
     match service.teardown {
         Teardown::Closed { answer, .. } => Some(answer.sent()),
-        Teardown::Live | Teardown::Answered { .. } | Teardown::Closing { .. } => None,
+        Teardown::Live | Teardown::LiveUnsent { .. } | Teardown::Answered { .. } | Teardown::Closing { .. } => None,
     }
 }
 
 /// The first concrete failure, retained for the shell's final stderr line.
 #[must_use]
 pub(super) const fn failure(service: &Stages) -> Option<Failure> {
-    service.failure
+    service.teardown.failure()
 }
 
 impl Stages {
@@ -208,7 +208,6 @@ impl Stages {
                 admitted: None,
                 run_started: Time::ZERO,
                 cancel_pending: false,
-                failure: None,
                 line: crate::terminal::Line::Quiet,
                 outcome: None,
                 delivery: None,
@@ -231,10 +230,7 @@ impl Stages {
     }
 
     pub(super) fn mark_failed(&mut self, reason: Failure) {
-        if self.failure.is_none() {
-            self.failure = Some(reason);
-        }
-        teardown::failed(self, self.failure.expect("kept first failure"));
+        teardown::failed(self, reason);
     }
 
     pub(super) fn refuse_start(&mut self, frame: &mut Frame, reason: run::Invalid) {
