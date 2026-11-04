@@ -1,12 +1,12 @@
 # Agent guidance for fabrig
 
-Provisional, 2026-10-30. What every agent working here must know, whatever its role. Before working in a tree, read its `AGENTS.md`, which holds the facts about that tree's code.
+Provisional, 2026-10-30. What every agent working here must know, whatever its role. An agent that starts work on a tree also reads that tree's `AGENTS.md`, and no other tree's.
 
 ## 1. In one page
 
 - **One repository, four trees, one Cargo workspace:** `skein/` (the io and protocol kit, and the code's rules), `smith/` (the agent kit), `jig/` (the kit for agentic applications), `temper/` (the application). One `Cargo.lock`, path dependencies.
 - **A tree's layout:** step crates in `crates/*`, their worlds in `tests/*`, shared test harnesses in `testing/*` (`skein/docs/design/testing.md, 6`).
-- **`hearth/`** (immutable machines, built on skein alone) is a fifth tree, not yet in the workspace: `hearth/AGENTS.md`.
+- **`hearth/`** (immutable machines, built on skein alone) is a fifth tree, not yet in the workspace.
 - **Dependencies point one way:** skein names none of smith, jig or temper; smith names neither jig nor temper; jig never names temper. A missing generic mechanism goes into skein before its smith or jig consumer. A gate step checks it.
 - **fabrig names no tool, machine, session or repository of whoever runs its development;** `tests/boundary/tests/outward.rs` checks it.
 - **The code's rules are skein's:** `skein/docs/foundation/programming-model.md` and `testing-strategy.md`, section 1 first, a later section when the work touches it; `notes.md` beside them holds the reasons. Depart only with a reason written in the design or the commit.
@@ -20,7 +20,6 @@ Provisional, 2026-10-30. What every agent working here must know, whatever its r
 - Code cites a design section at module or type level, not on every field.
 - Step crates follow the strict subset (`skein/docs/foundation/programming-model.md, 10`): no `std`, no `unsafe` but where a module says why, every `match` lists every variant (no `_`, no `matches!`), no indexing, no unchecked arithmetic, no `as`, no `unwrap`. The workspace's lints and each tree's `clippy.toml` hold it.
 - Test crates are ordinary Rust under their tree's `tests/clippy.toml`: one thread, one loop, and a seed replays.
-- Each tree keeps its `clippy.toml` (smith's bans more types).
 - Some Markdown is read by tests (`.config/gate/read-by-tests.txt`): a docs change there needs its tests.
 - Public code names no path or address of a machine outside the repository, and nothing private: emails, UUIDs, session names, tokens.
 

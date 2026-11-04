@@ -3,6 +3,7 @@
 The agent kit, built on skein.
 
 - **The contracts:** `smith/docs/design/domain/`.
+- **`smith/clippy.toml`** bans more types than the other trees'.
 - **Module docs** say what state is kept, what is never known, and the entry points and contracts. Each public type and variant has one line of prose: what it is, who sends it and, where it has one, its terminal. A field is documented only when its name and type don't say it: units, bounds, invariants.
 - **Production domains are step code.** Review what the compiler can't check: no own-enum `if let` or `let else`, tuple scrutinees, closures, `loop`, `while`, application traits or generics. Test harnesses are ordinary Rust with deterministic clocks and seeds (`programming-model.md, 10.2`).
 - **Style:** public names re-exported explicitly, descriptive parameter names, a blank line between items, the standard `Result` name for fallible operations.
