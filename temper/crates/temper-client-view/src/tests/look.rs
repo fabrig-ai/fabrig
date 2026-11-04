@@ -13,8 +13,9 @@ fn the_frame_carries_its_tokens() {
 fn the_looks_names_pass_skeins_check() {
     assert!(skein_ui::look::check(&[NAMES]).is_none());
 }
-const FLOW_NAMES: [(skein_ui::Style, &[u8]); 24] = [
+const FLOW_NAMES: [(skein_ui::Style, &[u8]); 25] = [
     (FLOW_BUSY, b"temper-flow-busy"),
+    (FLOW_METER, b"temper-flow-meter"),
     (FLOW_PRIMARY, b"temper-flow-primary"),
     (FLOW_FAILED, b"temper-flow-failed"),
     (FLOW_PAIR, b"temper-flow-pair"),
