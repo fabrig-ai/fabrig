@@ -2,18 +2,12 @@
 
 2026-11-04. Where skein's code lags or departs from [forge-connection.md](forge-connection.md).
 
-- **Not yet:** 7.1: `skein-forge-connection/src/component.rs`'s
-  `Component` keeps its forges in parallel lists by position, with one
-  plan type for both dialects, and `Waiting` keeps a call's plan in an
-  enum read at each use. 8.1: `skein-forge-connection/src/connection.rs`'s
-  `Connection` holds its exchange's request, decoder and what was heard,
-  in enums of the two dialects.
 - **Departs:** 8: `skein/docs/foundation/programming-model.md`, 5.4 asks
   for one explicit state enum per lifecycle, each state holding exactly
   its data, no lifecycle in flags or `Option`s beside it, exhaustive
   matches and one handler per cell;
   `skein-forge-connection/src/connection.rs`'s `Connection` keeps
-  `draining`, `closing`, `written` and request data beside a thin `Phase`,
+  `draining`, `closing` and `written` beside a thin `Phase`,
   `hooks/connection.rs`'s `Hooked` keeps flags and `Option`s, and
   `installations.rs`'s `GitHub` keeps mint, read and identity flags and
   `Option`s beside its state enums; no reason is recorded (the code's
