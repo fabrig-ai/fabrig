@@ -164,6 +164,7 @@ pub(super) struct Run {
     pub writes: bool,
     pub machine: Machine,
     pub deadline: Time,
+    pub deadline_why: Why,
     pub pending: Option<reconcile::Need>,
     pub owner: Option<Owner>,
     pub send: Option<Send>,
@@ -187,6 +188,7 @@ impl Run {
         let now = env.now;
         let writes = plan.writes();
         let deadline = deadline(forge, &plan, now);
+        let deadline_why = deadline_why(&plan);
         let mut issued_state = None;
         let machine = match &forge.kind {
             Kind::Forgejo(given) => forgejo_machine(forge, given, plan, &bounds)?,
@@ -265,6 +267,7 @@ impl Run {
             writes,
             machine,
             deadline,
+            deadline_why,
             pending: None,
             owner: None,
             send: None,
@@ -354,6 +357,24 @@ impl Run {
 }
 
 /// Selects the whole-run cut before the plan moves into its machine (4.4 and 4.10).
+pub(crate) fn deadline_why(plan: &Plan) -> Why {
+    match plan {
+        Plan::Copy { .. } => Why::TimedOut,
+        Plan::Manifest { .. }
+        | Plan::Convert { .. }
+        | Plan::Paste { .. }
+        | Plan::Install { .. }
+        | Plan::Accept { .. }
+        | Plan::Reconcile { .. }
+        | Plan::Check { .. }
+        | Plan::TakeOver { .. }
+        | Plan::Adopt { .. }
+        | Plan::Create { .. }
+        | Plan::Reachable { .. } => Why::Down,
+    }
+}
+
+/// Selects the whole-run deadline before the plan moves into its machine (4.4 and 4.10).
 pub(crate) fn deadline(forge: &Forge, plan: &Plan, now: Time) -> Time {
     let times = forge.times();
     let duration = match plan {

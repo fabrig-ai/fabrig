@@ -8,6 +8,7 @@ use crate::{
     call::{Auth, Call},
     reconcile::Reply,
 };
+use alloc::boxed::Box;
 use skein_forge::{
     credential::Credential,
     forgejo::{
@@ -33,6 +34,8 @@ pub(crate) struct Connection {
     pub(super) closing: Option<bool>,
     asked: Option<bool>,
     pub(crate) result: Option<Reply>,
+    pub(crate) words: Option<Box<[u8]>>,
+    refusal: Option<u16>,
     answered: bool,
     http: http::Client,
     http_up: Queue<http::Event>,
@@ -108,6 +111,8 @@ impl Connection {
             closing: None,
             asked: None,
             result: None,
+            words: None,
+            refusal: None,
             answered: false,
             http: http::Client::new(&limits::http_transport(l, tls.is_some())),
             link: skein_link::Link::new(tls),
@@ -180,6 +185,8 @@ impl Connection {
             closing: None,
             asked: None,
             result: None,
+            words: None,
+            refusal: None,
             answered: false,
             http: http::Client::new(&limits::http_transport(l, tls.is_some())),
             link: skein_link::Link::new(tls),
@@ -198,9 +205,18 @@ impl Connection {
         })
     }
     fn json_limits(&self, l: &Limits) -> tokenizer::Limits {
+        self.document_limits(l).json
+    }
+    fn document_limits(&self, l: &Limits) -> skein_forge::forgejo::limits::Limits {
+        let mut documents = limits::documents(l);
+        if self.refusal.is_some() {
+            // Keep the bounded error document's message before cutting its UTF-8 words (6.3).
+            documents.string_bytes = l.body_bytes_in;
+            documents.json.string = l.body_bytes_in;
+        }
         match &self.speech {
-            Speech::Forgejo { .. } => limits::documents(l).json,
-            Speech::GitHub { .. } => limits::github(l).json,
+            Speech::Forgejo { .. } => documents,
+            Speech::GitHub { .. } => limits::github(l),
         }
     }
     pub(crate) fn connect(&mut self, env: &Env<Limits>) {
@@ -242,7 +258,12 @@ impl Connection {
     }
     pub(super) fn fail(&mut self) {
         if !self.answered {
-            self.finish(Reply::Down);
+            let reply = match self.refusal {
+                Some(status) => Reply::Status(status),
+                None => Reply::Down,
+            };
+            self.words = None;
+            self.finish(reply);
         }
     }
     fn finish(&mut self, reply: Reply) {
@@ -256,6 +277,7 @@ impl Connection {
         self.answered = true;
         self.closing = Some(true);
         self.result = None;
+        self.words = None;
         self.upload = None;
         self.call = None;
     }
@@ -343,7 +365,22 @@ impl Connection {
                         },
                     }
                 } else {
-                    self.finish(Reply::Status(response.status));
+                    match &mut self.speech {
+                        Speech::Forgejo { request: request::Request::Migrate { .. }, decoder, .. }
+                            if response.status != 401 =>
+                        {
+                            self.refusal = Some(response.status);
+                            let mut l = limits::documents(&env.limits);
+                            l.string_bytes = env.limits.body_bytes_in;
+                            l.json.string = env.limits.body_bytes_in;
+                            self.json = tokenizer::Tokenizer::new(&l.json);
+                            *decoder = Some(documents::error_decoder(&l));
+                            self.json_next = Some(tokenizer::Request::Next);
+                        }
+                        Speech::Forgejo { .. } | Speech::GitHub { .. } => {
+                            self.finish(Reply::Status(response.status));
+                        }
+                    }
                 }
             }
             http::Event::Body(event) => {
@@ -355,6 +392,10 @@ impl Connection {
                 Up::Failed(_) | Up::Bytes(_) | Up::End => self.fail(),
             },
             http::Event::Done(_) => {
+                if let Some(status) = self.refusal {
+                    self.finish(Reply::Status(status));
+                    return;
+                }
                 let reply = match &mut self.speech {
                     Speech::Forgejo { document, rows, .. } => match document.take() {
                         Some(Document::Listed { skipped: 0 } | Document::RepoSearch { ok: true }) => {
@@ -380,12 +421,13 @@ impl Connection {
         }
     }
     fn json_event(&mut self, env: &Env<Limits>, event: &tokenizer::Event) {
+        let l = self.document_limits(&env.limits);
         match &mut self.speech {
             Speech::Forgejo { decoder, document, rows, .. } => {
                 let Some(decoder) = decoder else {
                     return;
                 };
-                match documents::step(decoder, &limits::documents(&env.limits), event) {
+                match documents::step(decoder, &l, event) {
                     Step::Demand(next) => self.json_next = Some(next),
                     Step::Row(row, next) => {
                         if rows.push(row).is_err() {
@@ -399,6 +441,16 @@ impl Connection {
                         settings.max_response_items = settings.max_response_items.min(env.limits.inner);
                         *document = Some(Document::ApiSettings(settings));
                     }
+                    Step::Done(Document::Error(error)) if self.refusal.is_some() => match error.message {
+                        skein_forge::text::Body::Kept(message) => {
+                            let cap = usize::try_from(env.limits.string_bytes).expect("string bound fits");
+                            let words = bytes::utf8_prefix(&message, cap);
+                            if !words.is_empty() {
+                                self.words = Some(bytes::copy_of(words));
+                            }
+                        }
+                        skein_forge::text::Body::Long(_) => (),
+                    },
                     Step::Done(done) => *document = Some(done),
                     Step::Malformed(_) => self.fail(),
                 }
