@@ -37,13 +37,23 @@ the standing rules every task names.
    - `tasks/skein-kv-subset.md`, high, ~50 minutes, needs the last: no module-wide `#![expect]`, the
      batch in `Writing` and `Syncing`; the item goes.
 
-Part 4 (jig D028) is being cut; it follows in a later push.
+4. **jig-scripted-rules** (jig D028; `jig/docs/design/client/domain/testing.md, 4`), slice 4.
+   `notes/jig-scripted.md` holds each rule's verdict and how a shared story runs.
+   - `tasks/jig-scripted-phase.md`, high, ~45 minutes, needs nothing: `Phase::class`, one count
+     function.
+   - `tasks/jig-scripted-inbox.md`, high, ~100 minutes, needs the last: the fake's sort goes, and a
+     shared story holds the seeded order.
+   - `tasks/jig-scripted-order.md`, high, ~60 minutes, needs the last: stories for Changed and Ended.
+   - `tasks/jig-scripted-requester.md`, high, ~90 minutes, needs the last: the fake names the core's
+     requester, two stories, dead fixtures go; the item goes.
 
 ## Critical path
 
 `skein-kv-admission` → `-table` → `-compaction` → `-recovery` → `-subset` (~320 implementer-minutes),
-one writer on one crate; beside it `smith-bench-observing` → `smith-bench-collect` (~160) and
-`temper-sweep-engine` → `temper-sweep-paid` (~90).
+one writer on one crate. Beside it: `jig-scripted-phase` → `-inbox` → `-order` → `-requester` (~295),
+`smith-bench-observing` → `smith-bench-collect` (~160) and `temper-sweep-engine` → `temper-sweep-paid`
+(~90). The four parts read none of each other's code; only `temper-env-now` crosses a tree, and it
+needs `skein-now-with`, a ~15-minute task.
 
 ## Overlaps
 
@@ -52,7 +62,8 @@ sweep touches, five are also changed there: `temper-engine-domain/src/limits.rs`
 `temper-protocol-store/src/tests/records.rs`, `tests/client/src/front.rs`,
 `tests/engine/domain/src/forge_routes.rs` and `tests/engine/domain/tests/suite/forge_routes/goal_tool.rs`.
 The sweep cannot leave them (a measure must read 0), and each edit is one line; `temper-sweep-paid`
-sweeps what such a merge brings in.
+sweeps what such a merge brings in. skein-kv, smith's benchmarks, `jig-client-scripted-engine`,
+`jig/tests/client`, `jig-client-domain` and `jig-client-view` are changed on neither trunk.
 
 ## Calls made
 
@@ -80,3 +91,15 @@ sweeps what such a merge brings in.
 - **A bug found, not fixed:** a failed create or directory sync on a rollover stops the store with
   no event and leaves its queued commits unanswered. D017 keeps behaviour, so it stays; this cut
   wrote it into `skein/docs/design/kv.status.md`, 4 as a **Departs** entry.
+- **D028's "jig's own code" is the client crates':** `jig/tests/boundary`'s graph test bars the fake
+  from the core, and the core's rules read `tasks::TaskRecord`, which the fake does not hold. The
+  test stands. Phase class goes to the contract, the inbox sort goes altogether, and what must stay
+  computed in the fake (task order, a record's requester) is held by shared stories.
+- **D028's scope is its **Paid when**'s three rules and `queries.rs`'s `order`.** Query admission and
+  subtree counts and folds are other rules, which differ from the core's only where no shared story
+  reaches; this cut recorded them in `jig/docs/design/client/domain/testing.status.md`, so nothing
+  is lost with the item.
+- **No scripted-only story moves:** a survey read them, and each needs a document `Front` cannot seed.
+  Two dead fixtures go. D028's Measure has no target and will barely move (15,420 at base; about 7,600
+  of that is the codec, 3,770 tests): the last task reports it.
+- **No `[[question]]`:** nothing here needs a design change, a breaking interface or a stored format.
