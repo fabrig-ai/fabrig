@@ -340,7 +340,17 @@ fn scrolling_a_log_away_stops_its_following() {
         .iter()
         .filter_map(|op| match op {
             Op::ScrollEnd { node } => Some(*node),
-            _ => None,
+            Op::Insert { .. }
+            | Op::Remove { .. }
+            | Op::Move { .. }
+            | Op::Replace { .. }
+            | Op::Attributes { .. }
+            | Op::Text { .. }
+            | Op::Value { .. }
+            | Op::Choice { .. }
+            | Op::Href { .. }
+            | Op::Focus { .. }
+            | Op::Component { .. } => None,
         })
         .collect();
     assert_eq!(following, vec![]);
@@ -388,7 +398,17 @@ fn a_log_follows_its_end() {
         .iter()
         .filter_map(|op| match op {
             Op::ScrollEnd { node } => Some(*node),
-            _ => None,
+            Op::Insert { .. }
+            | Op::Remove { .. }
+            | Op::Move { .. }
+            | Op::Replace { .. }
+            | Op::Attributes { .. }
+            | Op::Text { .. }
+            | Op::Value { .. }
+            | Op::Choice { .. }
+            | Op::Href { .. }
+            | Op::Focus { .. }
+            | Op::Component { .. } => None,
         })
         .collect();
     assert_eq!(following, vec![LOG]);

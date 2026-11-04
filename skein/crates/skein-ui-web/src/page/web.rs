@@ -298,7 +298,14 @@ impl Mounted {
                     affected.push(parent);
                 }
             }
-            _ => {}
+            Op::Insert { .. }
+            | Op::Text { .. }
+            | Op::Value { .. }
+            | Op::Choice { .. }
+            | Op::Href { .. }
+            | Op::Focus { .. }
+            | Op::ScrollEnd { .. }
+            | Op::Component { .. } => {}
         }
         for element in affected {
             if let Some(node) = self.id(&element)
