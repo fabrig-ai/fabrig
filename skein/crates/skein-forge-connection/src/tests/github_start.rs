@@ -445,7 +445,7 @@ fn github_mint_small_token_at_the_bound_is_kept() {
 }
 #[test]
 fn github_mint_one_past_a_small_token_bound_is_too_large() {
-    use crate::connection::Exchange;
+    use super::fixtures::Exchange;
     use skein_forge::github::{
         plans::{
             plan::Bounds,
@@ -461,21 +461,15 @@ fn github_mint_one_past_a_small_token_bound_is_too_large() {
         Step::Send(exchange) => exchange.request,
         Step::Done(_) => unreachable!("mint sends"),
     };
-    h.connection
-        .start(
-            &h.env,
-            &h.forge,
-            fixtures::USER_AGENT,
-            Exchange::GitHub {
-                exchange: skein_forge::github::plans::plan::Exchange {
-                    request,
-                    retention: None,
-                    comparison: skein_forge::github::plans::plan::Comparison::Full,
-                },
-                authorization: Some(skein_lib::Secret::new(Box::from(b"Bearer artificial-jwt".as_slice()))),
-            },
-        )
-        .expect("mint request");
+    h.start(Exchange::GitHub {
+        exchange: skein_forge::github::plans::plan::Exchange {
+            request,
+            retention: None,
+            comparison: skein_forge::github::plans::plan::Comparison::Full,
+        },
+        authorization: Some(skein_lib::Secret::new(Box::from(b"Bearer artificial-jwt".as_slice()))),
+    })
+    .expect("mint request");
     let token = fixtures::filled(usize::try_from(SMALL_TOKEN_BOUND + 1).expect("bound"), b'x');
     let heard = h.github_answer(&mint(&token, EXPIRES));
     let mut outcome = None;
