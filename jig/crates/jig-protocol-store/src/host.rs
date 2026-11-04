@@ -66,6 +66,10 @@ impl Hosted {
     pub fn limits(&self) -> &crate::Limits {
         &self.env.limits
     }
+    #[must_use]
+    pub fn mark_durable(&self) -> bool {
+        self.component.mark_durable()
+    }
     pub fn clock(&mut self, now: Time, wall: Wall) {
         self.env.now = now;
         self.env.wall = wall;

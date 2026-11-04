@@ -96,7 +96,7 @@ impl Service {
         let (driver_made, restores_waiting, wants_waiting) = accounts.component().startup(source);
         Some(AccountStartup {
             pending_mark: engine.store.host.component.pending_mark(),
-            durable: engine.store.host.component.mark_durable(),
+            durable: engine.store.host.mark_durable(),
             driver_made,
             restores_waiting,
             wants_waiting,
