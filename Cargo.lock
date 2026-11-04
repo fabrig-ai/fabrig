@@ -1395,6 +1395,7 @@ dependencies = [
  "jig-client-protocol-wire",
  "jig-protocol-engine-clients",
  "skein-http",
+ "skein-io",
  "skein-lib",
 ]
 
