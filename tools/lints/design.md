@@ -44,7 +44,7 @@ For ordinary Rust that ships and runs on no ring of its own: `harness`, with
 ### 2.4 ring
 
 For a shell on the ring: ordinary Rust, with the lints that keep the one module allowed `unsafe`
-small and documented (`skein/docs/foundation/programming-model.md`, 9.4), and the subset's checks
+small and documented (`skein/docs/foundation/programming-model.md`, 2.1), and the subset's checks
 that matter next to the syscalls: no silent casts, overflow or panicking indexing. `unsafe_code` is
 denied, so that the ring adapter can expect it in place; a crate here with no `unsafe` says
 `#![forbid(unsafe_code)]` at its root.
