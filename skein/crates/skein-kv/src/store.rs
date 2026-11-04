@@ -16,10 +16,14 @@ use skein_io::kernel::{Error, Fd};
 use skein_lib::{Env, Queue, Token};
 
 use crate::Limits;
-use crate::boundary::{Event, Failure, Op, Page, Range, Refusal, Request, Row};
+use crate::boundary::{Event, Failure, Op, Page, Range, Refusal, Request};
 use crate::frame;
 use crate::map::{KvMap, Queued};
 use crate::snapshot;
+
+mod compaction;
+
+use compaction::Compaction;
 
 const IO_OWNER: Token = Token::new(0x4b56);
 
@@ -46,8 +50,8 @@ enum Phase {
     Closing,
     RecoveryClosing,
     RolloverClosing,
-    SnapIo { log: Token, offset: u64, action: SnapAction },
-    SnapshotFailureClosing { log: Token, offset: u64 },
+    SnapIo { log: Log },
+    SnapshotFailureClosing { log: Log },
     OpenFailureClosing { failure: Failure },
     OpeningSnapshot,
     ReadingSnapshot { file: Token, len: u64, at: u64, reader: snapshot::Reader, failure: Option<Failure> },
@@ -55,50 +59,10 @@ enum Phase {
     RemovingTempOnOpen,
 }
 
-#[derive(Debug)]
-enum SnapAction {
-    Create,
-    RemoveTemp,
-    Header { len: u64 },
-    Chunk { last: Box<[u8]>, rows: u64, payload: u64, len: u64 },
-    Trailer { len: u64 },
-    Sync,
-    Close,
-    Rename,
-    SyncDirectory,
-    RemoveOld { name: Box<[u8]> },
-    CleanupSyncDirectory,
-}
-
-#[derive(Debug)]
-enum SnapStage {
-    Create,
-    Header,
-    Chunk,
-    Trailer,
-    Sync,
-    Close,
-    Rename,
-    SyncDirectory,
-    RemoveOld,
-    CleanupSyncDirectory,
-}
-
-#[derive(Debug)]
-struct Snapshot {
-    start: u64,
-    file: Option<Token>,
+#[derive(Clone, Copy, Debug)]
+struct Log {
+    file: Token,
     offset: u64,
-    cursor: Option<Box<[u8]>>,
-    rows: u64,
-    payload: u64,
-    stage: SnapStage,
-}
-
-impl Snapshot {
-    fn new(start: u64) -> Snapshot {
-        Snapshot { start, file: None, offset: 0, cursor: None, rows: 0, payload: 0, stage: SnapStage::Create }
-    }
 }
 
 /// One store under one directory. It sends file requests below and events
@@ -137,8 +101,7 @@ struct Dir {
     segment_index: usize,
     tail_name: Option<Box<[u8]>>,
     recovered: bool,
-    snapshot: Option<Snapshot>,
-    snapshot_start: Option<u64>,
+    compaction: Compaction,
     has_snapshot: bool,
     has_temp: bool,
     log_bytes: u64,
@@ -157,8 +120,7 @@ impl Dir {
             segment_index: 0,
             tail_name: None,
             recovered: false,
-            snapshot: None,
-            snapshot_start: None,
+            compaction: Compaction::Idle,
             has_snapshot: false,
             has_temp: false,
             log_bytes: 0,
@@ -299,8 +261,7 @@ impl Store {
         dir.segment_index = 0;
         dir.tail_name = None;
         dir.recovered = false;
-        dir.snapshot = None;
-        dir.snapshot_start = None;
+        dir.compaction = Compaction::Idle;
         dir.has_snapshot = false;
         dir.has_temp = false;
         dir.log_bytes = 0;
@@ -315,7 +276,7 @@ impl Store {
             dir.repairing = true;
         }
         if dir.repairing {
-            dir.snapshot_start = Some(next);
+            dir.compaction = Compaction::Due { start: next };
         }
         let name = segment_name(next);
         if dir.segments.iter().any(|entry| entry.as_ref() == name.as_ref()) {
@@ -336,7 +297,8 @@ impl Store {
         let Some(name) = dir.segments.get(dir.segment_index).cloned() else {
             if dir.log_bytes >= limits.snapshot_bound(self.map.live()) {
                 // Recovery creates the snapshot's starting segment without another rollover.
-                dir.snapshot_start = Some(self.last.checked_add(1).expect("commit number did not overflow"));
+                dir.compaction =
+                    Compaction::Due { start: self.last.checked_add(1).expect("commit number did not overflow") };
             }
             return self.finish_recovery(dir, below);
         };
@@ -685,7 +647,7 @@ fn close_requested(store: &Store, mut dir: Dir, phase: Phase, owner: Token, step
     dir.close_owner = Some(owner);
     match phase {
         Phase::Ready { file, offset } => {
-            if dir.snapshot.is_none() && store.queue.is_empty() {
+            if dir.compaction.is_idle() && store.queue.is_empty() {
                 step.below.push(file::Request::Close { owner: IO_OWNER, file });
                 dir.at(Phase::Closing)
             } else {
@@ -868,8 +830,8 @@ pub fn up(
                     unreachable!("the file answer must match this phase's request")
                 }
             },
-            Phase::SnapshotFailureClosing { log, offset } => match event {
-                Done::Finished | Done::Failed { .. } => snapshot_failure_closed(store, dir, log, offset, &mut step),
+            Phase::SnapshotFailureClosing { log } => match event {
+                Done::Finished | Done::Failed { .. } => commits_failed(store, dir, Some(log.file), &mut step),
                 Done::Listed { .. } | Done::Opened { .. } | Done::Read { .. } => {
                     unreachable!("the file answer must match this phase's request")
                 }
@@ -881,7 +843,14 @@ pub fn up(
                 }
             },
             Phase::Ready { .. } => unreachable!("no file request is outstanding"),
-            Phase::SnapIo { log, offset, action } => snapshot_up(store, dir, action, event, log, offset, &mut step),
+            Phase::SnapIo { log } => match event {
+                Done::Finished => compaction::finished(store, dir, log, &mut step),
+                Done::Opened { file, .. } => compaction::opened(store, dir, log, file, &mut step),
+                Done::Failed { error } => compaction::failed(store, dir, log, error, &mut step),
+                Done::Listed { .. } | Done::Read { .. } => {
+                    unreachable!("snapshot replacement never lists or reads a file")
+                }
+            },
         },
     };
 }
@@ -1086,10 +1055,7 @@ fn segment_created(mut dir: Dir, name: Box<[u8]>, file: Token, below: &mut Queue
 fn segment_announced(store: &mut Store, mut dir: Dir, file: Token, step: &mut Step<'_>) -> State {
     let was_recovered = dir.recovered;
     dir.recovered = !dir.repairing;
-    if let Some(start) = dir.snapshot_start.take() {
-        dir.snapshot = Some(Snapshot::new(start));
-        dir.log_bytes = 0;
-    }
+    dir.compaction = dir.compaction.announced(&mut dir.log_bytes);
     if !was_recovered && !dir.repairing {
         announce_recovered(&mut dir, store.last, step.above);
     }
@@ -1121,7 +1087,7 @@ fn batch_synced(store: &mut Store, mut dir: Dir, file: Token, offset: u64, step:
 fn follow_ready(store: &mut Store, dir: Dir, file: Token, offset: u64, step: &mut Step<'_>) -> State {
     if !store.queue.is_empty() {
         store.start_batch(dir, file, offset, &step.env.limits, step.below)
-    } else if dir.close_owner.is_some() && dir.snapshot.is_none() {
+    } else if dir.close_owner.is_some() && dir.compaction.is_idle() {
         step.below.push(file::Request::Close { owner: IO_OWNER, file });
         dir.at(Phase::Closing)
     } else {
@@ -1143,10 +1109,6 @@ fn recovery_closed(store: &mut Store, dir: Dir, step: &mut Step<'_>) -> State {
 fn rollover_closed(store: &mut Store, dir: Dir, step: &mut Step<'_>) -> State {
     let next = store.last.checked_add(1).expect("commit number did not overflow");
     create_segment(dir, segment_name(next), step.below)
-}
-
-fn snapshot_failure_closed(store: &mut Store, dir: Dir, log: Token, _offset: u64, step: &mut Step<'_>) -> State {
-    commits_failed(store, dir, Some(log), step)
 }
 
 fn commits_failed(store: &mut Store, mut dir: Dir, file: Option<Token>, step: &mut Step<'_>) -> State {
@@ -1201,7 +1163,7 @@ pub fn is_ready(store: &Store, limits: &Limits) -> bool {
         State::Closed | State::Memory => false,
         State::Open { dir, phase } => match phase {
             Phase::Ready { .. } => {
-                dir.snapshot.is_some()
+                !dir.compaction.is_idle()
                     || dir.log_bytes >= limits.snapshot_bound(store.map.live())
                     || dir.close_owner.is_some()
             }
@@ -1234,7 +1196,7 @@ pub fn fire(store: &mut Store, env: &Env<Limits>, _above: &mut Queue<Event>, bel
     store.state = match state {
         state @ (State::Closed | State::Memory) => state,
         State::Open { dir, phase } => match phase {
-            Phase::Ready { file, offset } => fire_ready(dir, file, offset, store, env, below),
+            Phase::Ready { file, offset } => compaction::fire_ready(dir, Log { file, offset }, store, env, below),
             phase @ (Phase::Listing
             | Phase::OpeningLog { .. }
             | Phase::ReadingLog { .. }
@@ -1256,215 +1218,4 @@ pub fn fire(store: &mut Store, env: &Env<Limits>, _above: &mut Queue<Event>, bel
             | Phase::RemovingTempOnOpen) => dir.at(phase),
         },
     };
-}
-
-#[expect(clippy::too_many_lines, reason = "fire builds one bounded snapshot request from its stage")]
-fn fire_ready(
-    mut dir: Dir,
-    log: Token,
-    offset: u64,
-    store: &mut Store,
-    env: &Env<Limits>,
-    below: &mut Queue<file::Request>,
-) -> State {
-    if !store.queue.is_empty() {
-        return store.start_batch(dir, log, offset, &env.limits, below);
-    }
-    if dir.snapshot.is_none() {
-        if dir.close_owner.is_some() {
-            below.push(file::Request::Close { owner: IO_OWNER, file: log });
-            return dir.at(Phase::Closing);
-        } else if dir.log_bytes >= env.limits.snapshot_bound(store.map.live()) {
-            dir.snapshot_start = Some(store.last.checked_add(1).expect("commit number did not overflow"));
-            below.push(file::Request::Close { owner: IO_OWNER, file: log });
-            return dir.at(Phase::RolloverClosing);
-        }
-        return dir.at(Phase::Ready { file: log, offset });
-    }
-    let snap = dir.snapshot.as_mut().expect("snapshot exists");
-    let (action, request) = match snap.stage {
-        SnapStage::Create => (
-            SnapAction::Create,
-            file::Request::Create {
-                owner: IO_OWNER,
-                root: dir.root,
-                name: Box::from(&b"snapshot.tmp"[..]),
-                mode: 0o600,
-            },
-        ),
-        SnapStage::Header => {
-            let file = snap.file.expect("snapshot file opened");
-            let bytes = snapshot::header(snap.start);
-            let len = skein_lib::len_u64(bytes.len());
-            (SnapAction::Header { len }, file::Request::WriteAt { owner: IO_OWNER, file, offset: snap.offset, bytes })
-        }
-        SnapStage::Chunk => {
-            let mut rows: Vec<Row> = Vec::new();
-            let mut size: usize = 12;
-            let mut payload: u64 = 0;
-            for (key, value) in store.map.after(snap.cursor.as_deref()) {
-                let row_size =
-                    8_usize.checked_add(key.len()).and_then(|v| v.checked_add(value.len())).expect("row size fits");
-                if size
-                    .checked_add(row_size)
-                    .is_none_or(|v| v > usize::try_from(env.limits.chunk).expect("chunk fits usize"))
-                {
-                    break;
-                }
-                size = size.checked_add(row_size).expect("chunk size fits");
-                payload = payload
-                    .checked_add(
-                        u64::try_from(key.len().checked_add(value.len()).expect("payload fits"))
-                            .expect("length fits u64"),
-                    )
-                    .expect("payload total fits u64");
-                rows.push(Row { key: key.clone(), value: value.clone() });
-            }
-            if rows.is_empty() {
-                snap.stage = SnapStage::Trailer;
-                let file = snap.file.expect("snapshot file opened");
-                let bytes = snapshot::trailer(snap.rows, snap.payload);
-                let len = skein_lib::len_u64(bytes.len());
-                (
-                    SnapAction::Trailer { len },
-                    file::Request::WriteAt { owner: IO_OWNER, file, offset: snap.offset, bytes },
-                )
-            } else {
-                let last = rows.last().expect("a chunk has rows").key.clone();
-                let count = skein_lib::len_u64(rows.len());
-                let bytes = snapshot::chunk(&rows, env.limits.chunk).expect("limits hold one row per chunk");
-                let len = skein_lib::len_u64(bytes.len());
-                let file = snap.file.expect("snapshot file opened");
-                (
-                    SnapAction::Chunk { last, rows: count, payload, len },
-                    file::Request::WriteAt { owner: IO_OWNER, file, offset: snap.offset, bytes },
-                )
-            }
-        }
-        SnapStage::Trailer => {
-            let file = snap.file.expect("snapshot file opened");
-            let bytes = snapshot::trailer(snap.rows, snap.payload);
-            let len = skein_lib::len_u64(bytes.len());
-            (SnapAction::Trailer { len }, file::Request::WriteAt { owner: IO_OWNER, file, offset: snap.offset, bytes })
-        }
-        SnapStage::Sync => {
-            (SnapAction::Sync, file::Request::Sync { owner: IO_OWNER, file: snap.file.expect("snapshot file opened") })
-        }
-        SnapStage::Close => (
-            SnapAction::Close,
-            file::Request::Close { owner: IO_OWNER, file: snap.file.expect("snapshot file opened") },
-        ),
-        SnapStage::Rename => (
-            SnapAction::Rename,
-            file::Request::Rename {
-                owner: IO_OWNER,
-                from_root: dir.root,
-                from: Box::from(&b"snapshot.tmp"[..]),
-                to_root: dir.root,
-                to: Box::from(&b"snapshot"[..]),
-            },
-        ),
-        SnapStage::SyncDirectory => {
-            (SnapAction::SyncDirectory, file::Request::SyncDirectory { owner: IO_OWNER, root: dir.root })
-        }
-        SnapStage::RemoveOld => {
-            let old = dir.segments.iter().find(|name| log_number(name).is_some_and(|n| n < snap.start)).cloned();
-            let Some(name) = old else {
-                snap.stage = SnapStage::CleanupSyncDirectory;
-                below.push(file::Request::SyncDirectory { owner: IO_OWNER, root: dir.root });
-                return dir.at(Phase::SnapIo { log, offset, action: SnapAction::CleanupSyncDirectory });
-            };
-            (
-                SnapAction::RemoveOld { name: name.clone() },
-                file::Request::Remove { owner: IO_OWNER, root: dir.root, name, directory: false },
-            )
-        }
-        SnapStage::CleanupSyncDirectory => {
-            (SnapAction::CleanupSyncDirectory, file::Request::SyncDirectory { owner: IO_OWNER, root: dir.root })
-        }
-    };
-    below.push(request);
-    dir.at(Phase::SnapIo { log, offset, action })
-}
-
-fn snapshot_up(
-    store: &mut Store,
-    mut dir: Dir,
-    action: SnapAction,
-    event: Done,
-    log: Token,
-    offset: u64,
-    step: &mut Step<'_>,
-) -> State {
-    let Step { env, above, below } = step;
-    if let Done::Failed { error, .. } = event {
-        if let SnapAction::Create = action
-            && error == Error::Exists
-        {
-            below.push(file::Request::Remove {
-                owner: IO_OWNER,
-                root: dir.root,
-                name: Box::from(&b"snapshot.tmp"[..]),
-                directory: false,
-            });
-            return dir.at(Phase::SnapIo { log, offset, action: SnapAction::RemoveTemp });
-        }
-        if let Some(file) = dir.snapshot.take().and_then(|snap| snap.file) {
-            below.push(file::Request::Close { owner: IO_OWNER, file });
-            return dir.at(Phase::SnapshotFailureClosing { log, offset });
-        }
-        return commits_failed(store, dir, Some(log), step);
-    }
-    let snap = dir.snapshot.as_mut().expect("snapshot action has state");
-    match (action, event) {
-        (SnapAction::Create, Done::Opened { file, .. }) => {
-            snap.file = Some(file);
-            snap.stage = SnapStage::Header;
-        }
-        (SnapAction::RemoveTemp, Done::Finished) => snap.stage = SnapStage::Create,
-        (SnapAction::Header { len }, Done::Finished) => {
-            snap.offset = snap.offset.checked_add(len).expect("snapshot offset fits");
-            snap.stage = SnapStage::Chunk;
-        }
-        (SnapAction::Chunk { last, rows, payload, len }, Done::Finished) => {
-            snap.offset = snap.offset.checked_add(len).expect("snapshot offset fits");
-            snap.rows = snap.rows.checked_add(rows).expect("snapshot rows fit");
-            snap.payload = snap.payload.checked_add(payload).expect("snapshot payload fits");
-            snap.cursor = Some(last);
-            snap.stage = SnapStage::Chunk;
-        }
-        (SnapAction::Trailer { len }, Done::Finished) => {
-            snap.offset = snap.offset.checked_add(len).expect("snapshot offset fits");
-            snap.stage = SnapStage::Sync;
-        }
-        (SnapAction::Sync, Done::Finished) => snap.stage = SnapStage::Close,
-        (SnapAction::Close, Done::Finished) => {
-            snap.file = None;
-            snap.stage = SnapStage::Rename;
-        }
-        (SnapAction::Rename, Done::Finished) => snap.stage = SnapStage::SyncDirectory,
-        (SnapAction::SyncDirectory, Done::Finished) => {
-            dir.has_snapshot = true;
-            snap.stage = SnapStage::RemoveOld;
-            if dir.repairing {
-                dir.repairing = false;
-                store.repair_required = false;
-                dir.recovered = true;
-                announce_recovered(&mut dir, store.last, above);
-            }
-        }
-        (SnapAction::RemoveOld { name }, Done::Finished) => {
-            dir.segments.retain(|item| item.as_ref() != name.as_ref());
-            snap.stage = SnapStage::RemoveOld;
-        }
-        (SnapAction::CleanupSyncDirectory, Done::Finished) => {
-            dir.snapshot = None;
-        }
-        (_, _) => unreachable!("snapshot event matches its request"),
-    }
-    if store.queue.is_empty() {
-        dir.at(Phase::Ready { file: log, offset })
-    } else {
-        store.start_batch(dir, log, offset, &env.limits, below)
-    }
 }
