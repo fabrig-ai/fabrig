@@ -48,6 +48,20 @@ pub struct Sizes {
     pub commit: u32,
 }
 
+/// What the KV limits take from checked sizes (store.md, 5.4); the page's bytes are the owner's.
+#[must_use]
+pub fn fill(kv: &mut skein_kv::Limits, sizes: &Sizes) -> Option<()> {
+    kv.key = sizes.key;
+    kv.value = sizes.value;
+    kv.ops = sizes.ops;
+    kv.commit = sizes.commit;
+    kv.queued_bytes = u64::from(sizes.commit).checked_mul(u64::from(kv.queued))?;
+    kv.segment = u64::from(sizes.commit).checked_mul(2)?;
+    kv.snapshot_after = u64::from(sizes.commit);
+    kv.chunk = skein_kv::chunk_bytes(sizes.key, sizes.value)?;
+    Some(())
+}
+
 /// The store's commit edge (protocol/store.md, 5.4): commits it queues at
 /// once and writes in one commit.
 #[derive(Clone, Copy, PartialEq, Eq, Debug)]

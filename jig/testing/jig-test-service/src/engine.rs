@@ -129,7 +129,7 @@ impl Engine {
                 Some(workers) => workers.host.next_deadline(),
                 None => None,
             };
-            let next = skein_lib::earliest(skein_lib::earliest(accounts, workers), self.store.next_deadline());
+            let next = skein_lib::earliest(skein_lib::earliest(accounts, workers), self.store.host.next_deadline());
             return skein_lib::earliest(
                 next,
                 match &self.clients {
@@ -138,7 +138,7 @@ impl Engine {
                 },
             );
         }
-        let mut next = skein_lib::earliest(self.store.next_deadline(), self.values.accounts.next_expiry());
+        let mut next = skein_lib::earliest(self.store.host.next_deadline(), self.values.accounts.next_expiry());
         let core = self.domain.core();
         let deadline = if self.held.is_empty() {
             core.next_deadline(self.env.now, self.env.wall)
@@ -168,7 +168,7 @@ impl Engine {
         let components = self.store.work_pending(now)
             || (self.store.opened || self.end.is_some())
                 && (match &self.accounts {
-                    Some(accounts) => accounts.work_pending(now, self.store.component.mark_durable()),
+                    Some(accounts) => accounts.work_pending(now, self.store.host.component.mark_durable()),
                     None => false,
                 } || match &self.workers {
                     Some(workers) => workers.host.work_pending(now),
@@ -185,7 +185,7 @@ impl Engine {
             None => false,
         };
         components
-            || !self.store.above.is_empty()
+            || !self.store.host.above.is_empty()
             || !self.store.routed.is_empty()
             || self.begin
             || (!self.first_periods.is_empty() && self.domain.ready() && !self.blocked)
@@ -196,7 +196,7 @@ impl Engine {
             || (due && (!self.blocked || !self.held.is_empty()))
     }
     fn event_pending(&self) -> bool {
-        if self.domain.ready() || self.store.component.mark_durable() {
+        if self.domain.ready() || self.store.host.component.mark_durable() {
             return !self.events.is_empty();
         }
         for event in &self.events {
@@ -302,7 +302,7 @@ fn wall_deadline(next: Option<Time>, deadline: Option<Wall>, env: &Env<root::Lim
 pub fn iterate(engine: &mut Engine, now: Time, wall: Wall) {
     engine.env.now = now;
     engine.env.wall = wall;
-    engine.store.clock(now, wall);
+    engine.store.host.clock(now, wall);
     engine.store.iterate();
     crate::store::answer(engine);
     if !engine.store.opened && engine.end.is_none() {
