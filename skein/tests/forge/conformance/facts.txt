@@ -262,7 +262,6 @@ holds delivery-pull-is-checking-when-its-push-is-delivered
 # delivery-pull-is-checking-when-its-push-is-delivered: job statuses=[true, true], pull mergeability=[[false, true], [false, true]]
 holds webhook-deliveries
 
-# The following facts retain their prior 17.0.0 / 13.2.0 evidence; not rechecked at the new pin.
 holds component-start-ready
 holds component-start-other-user-stops
 holds component-start-wrong-token-stops
@@ -303,6 +302,7 @@ holds component-keys-found-on-read-back
 holds component-costs-equal-requests-sent
 holds component-read-pull-for-open-after-closed
 holds component-write-open-pull-no-changes
+# The following seven actions-artifact facts retain their 17.0.0 evidence; unobserved at 17.0.1.
 holds actions-artifact-run-read-keeps-dispatch-head
 holds actions-artifacts-unknown-run-is-404
 holds actions-artifact-upload-completes
