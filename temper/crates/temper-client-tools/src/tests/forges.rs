@@ -1346,6 +1346,7 @@ fn lifecycle_answers(words: &[&str], answers: &[(w::Outcome, &[u8], &[u8], u8)])
                 | w::Request::Install(_)
                 | w::Request::Reachable(_)
                 | w::Request::Accept(_)
+                | w::Request::Dismiss(_)
                 | w::Request::StartPlayground) => panic!("unexpected {other:?}"),
             }
             root.adoption_answer(call, outcome.clone());

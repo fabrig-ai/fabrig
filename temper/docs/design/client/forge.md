@@ -607,7 +607,9 @@ and `connect-forge.html`.
     (`README.md`, 4.6, `Making`), or of the kept one, and, once
     accepted, shows Setting up. The fields: "Organization", `work` until changed,
     and "Repository", `hello`; no project's: the set up adopts nothing,
-    its repository made unadopted (`../protocol/setup.md`, 6.7;
+    its repository made unadopted, for the welcome's Ready to adopt
+    into the project it makes, or the person from the form on this
+    flow (`../protocol/setup.md`, 6.7;
     `../draft/first-run-projects.md`, 4). An organization or repository
     left empty is the page's refusal,
     "Required.". The set up's refusals show under the button in its
@@ -1069,7 +1071,8 @@ above:
 Each part is the forge's family's (`README.md`, section 4): read
 or watched by the forge's client side through the family's own reads
 and subjects, under the forge's owner number, each naming its scope, a
-project or the deployment (jig's `client/domain/contract.md`, 7.5; jig's
+project, the deployment or the party's own (jig's
+`client/domain/contract.md`, 7.5; jig's
 `client/domain/root.md`, section 7), their records in
 `temper-client-protocol-wire` beside `Adopt` (`README.md`, 4.6).
 The first read served is the playground's (`README.md`, 4.6 and
@@ -1097,6 +1100,7 @@ and its hold (2.5) follow.
 | a public project's changes and landings, for a visitor (section 11) | jig's public reads, `PublicRead`, of the forge's public kinds | `../domain/forge.md`, sections 8 and 9; `../domain/landing.md`, section 14 |
 | the playground: its forge, project, model, repository, state and suggested requests | the deployment's read, `playground` (`README.md`, 4.6), for its banner, its pages and the chats page; its start and its reset, `StartPlayground` and `EndPlayground` | `../protocol/setup.md`, 8.4 |
 | a forge removed | the deployment's request `RemoveForge` (`README.md`, 4.6), from the Forges page | `../domain/forge.md`, 4.1 |
+| what a person has dismissed | the project's request `Dismiss` and the subject `dismissed`, of the party's own scope (`README.md`, 4.6): the forge side's facts, which no page reads yet | `../domain/forge.md`, 5.5 |
 | temper's settings: a landing rule's value, the forge's charter, and a pending proposal's items of temper's kinds | the deployment's reads `Setting { kind, scope, number }`, `RevisionSetting { kind, scope, number, revision }` and `ProposalItems { key }`, the key jig's settings review gives a pending proposal of settings naming temper's kinds (jig's `domain/engine.md`, 17.6), beside jig's `settings` document, which gives their states and sizes | `../protocol/configuration.md`, 13.2; jig's `domain/engine.md`, 17.5 |
 
 The revision-qualified setting read serves an explicit set item from a

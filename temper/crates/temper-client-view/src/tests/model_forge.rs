@@ -268,8 +268,8 @@ fn done_is_marked_by_style_alone() {
     let view = browser(forge::first_rows(forge::connected(), forge::made()));
     assert_stack(
         view.tree(),
-        "Forgejo on this machine · connected as temper · work/hello made, in no project yet",
-        &["connected as temper", "work/hello made, in no project yet"],
+        "Forgejo on this machine · connected as temper · work/hello made",
+        &["connected as temper", "work/hello made"],
         true,
     );
     assert!(!region(view.tree()).iter().any(|n| n.role == Role::Disclosure));
@@ -315,7 +315,7 @@ fn the_terminal_says_the_status_with_no_bar() {
         (
             "done",
             forge::first_rows(forge::connected(), forge::made()),
-            "✓ Forgejo on this machine · connected as temper · work/hello made, in no project yet",
+            "✓ Forgejo on this machine · connected as temper · work/hello made",
             false,
         ),
         ("failed", failed(), "Forgejo on this machine · work/hello · Set up failed: fetch failed", true),

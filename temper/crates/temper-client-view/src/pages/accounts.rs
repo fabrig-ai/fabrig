@@ -693,6 +693,12 @@ pub(crate) fn account_heading(root: &Domain, w: &Words, row: &c::AccountLine) ->
 /// signed-in plan as "PLAN plan · DISPLAY", with no holder: the model and
 /// its effort are chosen elsewhere (client/README.md, 3.5).
 pub(crate) fn first_usable_short(root: &Domain, w: &Words) -> Option<Box<[u8]>> {
+    first_usable(root, w, true)
+}
+pub(crate) fn first_usable_kind(root: &Domain, w: &Words) -> Option<Box<[u8]>> {
+    first_usable(root, w, false)
+}
+fn first_usable(root: &Domain, w: &Words, with_display: bool) -> Option<Box<[u8]>> {
     let document = accounts::document(root.client())?;
     for row in &document.accounts {
         if rows::playground(root, row.provider) {
@@ -722,6 +728,9 @@ pub(crate) fn first_usable_short(root: &Domain, w: &Words) -> Option<Box<[u8]>> 
             c::AccountKind::Key => (named(w, W::ApiKeyBrand, brand), b"".as_slice()),
             c::AccountKind::None => return Some(account_heading(root, w, row)),
         };
+        if !with_display {
+            return Some(label);
+        }
         let separator = words::say(w, W::Separator, &[]);
         return Some(words::join(&[&label, if display.is_empty() { b"" } else { &separator }, display]));
     }

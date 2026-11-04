@@ -146,6 +146,7 @@ pub struct Domain {
     pub(crate) playground_due: Option<skein_lib::Time>,
     pub(crate) playground_request: Option<Token>,
     bindings: Map<Box<[u8]>, Box<[u8]>>,
+    pub(crate) dismissed: Map<(u64, crate::Dismissal), ()>,
     pub(crate) connections: Map<u16, ConnectionState>,
     /// One setup runs at a time (temper/docs/design/protocol/forge.md, 2.8).
     pub(crate) fetched: Option<(u16, crate::SetUpFetched)>,
@@ -228,6 +229,19 @@ pub struct Domain {
 }
 
 impl Domain {
+    /// The party's rows in key order (temper/docs/design/domain/forge.md, 5.5).
+    #[must_use]
+    pub fn dismissals(&self, party: u64) -> Box<[crate::Dismissal]> {
+        let mut rows = List::with_capacity(self.dismissed.len());
+        for ((owner, what), ()) in self.dismissed.range((party, crate::Dismissal::ToBegin { project: 0 })..) {
+            if *owner != party {
+                break;
+            }
+            rows.push(*what).expect("party's rows fit the dismissal table");
+        }
+        rows.into_boxed()
+    }
+
     /// The core's declared merge bounds (temper/docs/design/domain/worker.md, 4.4).
     pub fn merge_kind(&mut self, spec: u32, result: u32) {
         self.merge_kind = Some((spec, result));
@@ -581,6 +595,7 @@ impl Domain {
             playground_due: None,
             playground_request: None,
             bindings: Map::with_capacity(l.bindings),
+            dismissed: Map::with_capacity(l.dismissed()),
             connections: Map::with_capacity(l.forges),
             fetched: None,
             first: Map::with_capacity(l.forges),
@@ -1270,6 +1285,9 @@ pub fn step(d: &mut Domain, env: &Env<Limits>, event: Event, out: &mut Queue<Req
             crate::Ask::Adopt(adoption) => adoption::start(d, env, request, token, retention, adoption, out),
             ask @ crate::Ask::SetUp { .. } => make::setup(d, env, request, token, retention, ask, carried, out),
         },
+        Event::Dismiss { request, token, party, what } => {
+            crate::dismissed::dismiss(d, request, token, party, what, out);
+        }
         Event::ApplicationAnswered { request, outcome } => adoption::answered(d, env, request, outcome, out),
         Event::ForgetProjection { goal } => {
             if let Some(row) = d.issues.get(&goal)
@@ -5660,6 +5678,9 @@ fn restore(d: &mut Domain, env: &Env<Limits>, record: Stored) {
         Stored::Setting(row) => {
             d.setting_rows.insert(row.key, row.edit).expect("restored setting within limits");
         }
+        Stored::Dismissed { party, what } => {
+            d.dismissed.insert((party, what), ()).expect("restored dismissal room checked");
+        }
         Stored::Binding { address, subject } => {
             d.bindings.insert(address, subject).expect("restored binding within limits");
         }
@@ -6322,7 +6343,11 @@ impl Domain {
                     unreachable!("client forge or repository link")
                 }
             },
-            RecordKind::Forge | RecordKind::Landed | RecordKind::Binding | RecordKind::Setting => {
+            RecordKind::Forge
+            | RecordKind::Landed
+            | RecordKind::Binding
+            | RecordKind::Setting
+            | RecordKind::Dismissed => {
                 unreachable!("row has no links")
             }
         }

@@ -111,7 +111,7 @@ fn a_chats_banner_precedes_main_and_its_chatbar_in_every_project() {
         let mut playground = None;
         let mut thread = None;
         for (index, node) in nodes.iter().enumerate() {
-            if node.role == Role::Banner {
+            if node.styles.as_slice().contains(&crate::look::RAIL) {
                 banner = Some(index);
             }
             if node.role == Role::Main {
@@ -330,7 +330,7 @@ fn the_accounts_banner_is_hidden_only_in_the_running_or_leaving_playground_proje
         let mut playground = None;
         let mut main = None;
         for (index, node) in nodes.iter().enumerate() {
-            if node.role == Role::Banner {
+            if node.styles.as_slice().contains(&crate::look::RAIL) {
                 frame = Some(index);
             }
             if node.name.as_deref() == Some(b"Agents need an LLM account to run.") {
