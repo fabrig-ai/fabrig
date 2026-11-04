@@ -89,3 +89,14 @@ Acceptance:
 ## Report
 
 As the implementer's text asks, with the derived room and `brief_bytes`, and each coupled limit.
+
+## Rebase (2026-11-04, step merge, foreman fabrig-scale/brief-room/foreman-1)
+
+resolve the three merge conflicts while preserving whole-spec brief coverage and integration’s status updates.
+Rebase `8b46110efc` onto the landing’s current integration tip.
+- `temper/crates/temper-service/src/tests/stock_brief.rs` overlaps `046211ac6f` (“Derive B0 carriers and align init standard admission assertions”). Keep host/room/offer/T pins `400_135`, `822_476`, `200_068`, `16_803_810`; retain this task’s six exact charter measurements, tool-mask assertion, and `the_stock_brief_with_a_whole_spec_fits_every_charter_whole`. Resolve `measure_turn` to this task’s unconditional first-turn assertion.
+- Preserve the derived room `362_900` and standard brief `360_299`, including the whole 131,072-byte spec and framing/margin checks.
+- `temper/docs/design/domain/agent.status.md` overlaps main’s `4cec6f4389`, carried through `b2775ed115`. Preserve the expanded explanation of unavailable project-policy reads and the verdict follow-up gap; remove this task’s obsolete 4.3/4.6 host-room/control-family entry.
+- `temper/docs/design/protocol/configuration.status.md` overlaps `8baca21f39`. Keep its November 4 date and removal of the obsolete init/default-sizing gap, then remove “its tools leave out the control family,” from the remaining stock entry. Preserve the separate host-family enforcement gap and other status text.
+Keep the automatic merges in `limits.rs` and `tests/stock.rs`, preserving integration’s unrelated changes and this task’s limits and pins.
+Run the spec’s focused stock tests first, then its remaining acceptance checks, through `heavy`.
