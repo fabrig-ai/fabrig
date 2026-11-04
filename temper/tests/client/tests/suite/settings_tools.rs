@@ -458,7 +458,7 @@ fn proposal_review_groups_changes_and_explains_running_work() {
     assert_review_groups(&review);
     assert!(review.contains("against revision 1, newest 1"), "{review}");
     assert!(review.contains("Review every kind together"), "{review}");
-    assert!(review.contains("revision 1: 1 live tasks"), "{review}");
+    assert!(review.contains("revision 1: 1 live task"), "{review}");
     assert!(review.contains("\"waiting\":2000") && review.contains("Follow the project's new policy."), "{review}");
     assert!(review.contains(" · now ") && review.contains(" · would be "), "{review}");
     assert_review_effect(&review);

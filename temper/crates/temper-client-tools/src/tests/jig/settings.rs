@@ -2934,3 +2934,34 @@ fn proposal_show_prints_the_whole_settings_reason_in_text_and_json() {
         }
     }
 }
+
+#[test]
+fn proposal_effect_pluralizes_zero_one_and_multiple_holders() {
+    for holders in [0, 1, 2] {
+        let mut root = fixtures::signed_in(fixtures::PARTY);
+        let call = root.submit(&["proposal", "show", "p73/7"]);
+        root.serve(
+            call,
+            c::ReadResult::Value(review_proposal(Some(c::SettingsReview {
+                key: None,
+                newest: 5,
+                cut: false,
+                items: list([]),
+            }))),
+        );
+        root.serve(
+            call,
+            c::ReadResult::Value(c::ReadValue::Settings(Box::new(c::SettingsDocument {
+                newest: 5,
+                settings: list([]),
+                pending: list([]),
+                held: list([c::HeldRevision { head: head(c::RevisionDecider::Release), holders }]),
+            }))),
+        );
+        let printed = root.answer(call).expect("proposal effect");
+        let suffix = if holders == 1 { "" } else { "s" };
+        let line = format!("revision 5: {holders} live task{suffix}\n");
+        assert!(String::from_utf8_lossy(&printed.stdout).contains(&line), "{printed:?}");
+    }
+}
+
