@@ -40,12 +40,10 @@ pub struct Domain {
     chat_seed: u64,
     pub(crate) choice: Option<crate::Slash>,
     pub(crate) interactive: bool,
-    pub(crate) closing_last: Option<u64>,
     agent: Agent,
     pub(crate) child: Child,
     pub(crate) ending: crate::end::End,
     pub(crate) chat: Chat,
-    transcript: Option<smith_host_domain::Transcript>,
     records: Map<agent::run::CallName, DeliveryRecord>,
     delivering: Delivering,
     pub(crate) lines: Lines,
@@ -153,12 +151,10 @@ impl Domain {
             chat_seed: seed,
             choice: None,
             interactive: false,
-            closing_last: None,
             agent: Agent::new(&child_limits, agent_config, seed)?,
             chat: Chat::new(seed),
             child: Child::Starting,
             ending: crate::end::End::new(),
-            transcript: None,
             records: Map::with_capacity(limits.smith.run.answered_calls),
             delivering: Delivering::Idle,
             lines,
@@ -616,7 +612,7 @@ fn gone(domain: &mut Domain, end: host::End, detail: Box<[u8]>, out: &mut Queue<
         match &mut domain.chat.phase {
             State::Answered { detail: held, .. } if held.is_empty() => *held = detail,
             State::Loading(_)
-            | State::Idle
+            | State::Idle { .. }
             | State::Starting(_)
             | State::Running { .. }
             | State::Ending(_)
