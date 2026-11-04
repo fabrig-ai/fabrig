@@ -9,6 +9,7 @@ mod restart_control;
 mod stories;
 pub mod world;
 
+pub mod copy;
 mod ctl;
 
 pub mod lower;

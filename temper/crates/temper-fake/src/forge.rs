@@ -433,6 +433,7 @@ fn seed_sources(
             },
         );
         seed_branches(domain, source, first);
+        domain::grant(domain, &source.repository, 1, api::Permission::Read);
         drain_seed_observations(domain);
         repositories
             .push(forgejo::Repository { id, full: source.repository.clone(), protected: None })
