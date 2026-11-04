@@ -2378,7 +2378,7 @@ fn english(word: Word, shell: Shell) -> (&'static [&'static [u8]], &'static [Hol
         Word::WelcomeBoxLine => (&[b" \xc2\xb7 on this machine, to try it \xc2\xb7 more later, from Settings \xc2\xb7 "], &[]),
         Word::WelcomeBoxServer => (&[b"Run temper on a server \xe2\x86\x97"], &[]),
         Word::WelcomeModelSignInTime => (&[b"Sign in, in this tab \xc2\xb7 about a minute"], &[]),
-        Word::WelcomeModelProgramTime => (&[b"A command in a terminal, on each host"], &[]),
+        Word::WelcomeModelProgramTime => (&[b"One command in a terminal, on this machine"], &[]),
         Word::WelcomeForgeDoneDetail => (&[b"connected as ", b""], &[Name]),
         Word::WelcomeForgeDoneRepository => (&[b"", b" made, in no project yet"], &[Name]),
         Word::PublicTitleCut => (&[b"\xe2\x80\xa6"], &[]),
@@ -2478,7 +2478,7 @@ fn english(word: Word, shell: Shell) -> (&'static [&'static [u8]], &'static [Hol
             (&[b"Your ", b" plan: sign in, and temper\xe2\x80\x99s agents use its included usage."], &[Name])
         }
         Word::WelcomeModelSubscription => (
-            &[b"Your ", b" subscription, through Claude Code on each host temper\xe2\x80\x99s agents run on."],
+            &[b"Your ", b" subscription, through Claude Code on this machine, with a config of its own, apart from your own Claude Code."],
             &[Name],
         ),
         Word::BrandChats => (&[b"temper chats"], &[]),

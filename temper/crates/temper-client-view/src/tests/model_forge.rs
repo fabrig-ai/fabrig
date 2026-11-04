@@ -241,3 +241,32 @@ fn the_line_says_the_repository_before_the_status() {
         assert_stack(view.tree(), line, &["work/hello", status], false);
     }
 }
+
+#[test]
+fn the_claude_card_says_this_machine() {
+    let root = root(underway(), None);
+    let browser = f::browser_page_view(&root);
+    let card = browser
+        .tree()
+        .nodes()
+        .iter()
+        .find(|node| node.styles.as_slice().contains(&look::FLOW_CHOICE) && node.name.as_deref() == Some(b"Claude"))
+        .expect("Claude card");
+    let nodes = subtree(browser.tree(), card.role, b"Claude");
+    let terminal = f::page_view(&root);
+    let mut print = skein_ui_text::Print::new(&f::tree_limits()).unwrap();
+    skein_ui_text::render(terminal.tree(), b"temper", None, &mut print);
+    let text = String::from_utf8_lossy(print.text.as_slice());
+    for sentence in [
+        "Your Claude subscription, through Claude Code on this machine, with a config of its own, apart from your own Claude Code.",
+        "One command in a terminal, on this machine",
+    ] {
+        let paragraph = nodes
+            .iter()
+            .find(|node| node.role == Role::Paragraph && node.name.as_deref() == Some(sentence.as_bytes()))
+            .expect(sentence);
+        let words = subtree(browser.tree(), paragraph.role, sentence.as_bytes());
+        assert_eq!(f::nodes_text(words).as_ref(), sentence.as_bytes());
+        assert!(text.lines().any(|line| line.trim() == sentence), "terminal: {sentence}");
+    }
+}

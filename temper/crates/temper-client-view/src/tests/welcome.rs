@@ -576,7 +576,7 @@ fn the_model_step_offers_each_plan_and_no_key() {
         .collect();
     assert_eq!(cards, [b"ChatGPT".as_slice(), b"Claude"]);
     node(tree, Role::Paragraph, "Sign in, in this tab · about a minute");
-    node(tree, Role::Paragraph, "A command in a terminal, on each host");
+    node(tree, Role::Paragraph, "One command in a terminal, on this machine");
     let chatgpt = node(tree, Role::Button, "Continue with ChatGPT");
     let claude = node(tree, Role::Link, "Use your Claude subscription");
     assert!(styled(tree, chatgpt, crate::look::FLOW_PRIMARY));
