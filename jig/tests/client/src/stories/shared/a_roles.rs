@@ -200,3 +200,58 @@ pub fn an_observer_sees_why_creation_is_unavailable<F: Front<Test>>(world: &mut 
         && node.name.as_deref() == Some(b"First words")
         && node.value.as_ref().is_some_and(|value| value.text.as_ref() == b"Hello")));
 }
+
+/// The decision's record names the person who asked, through a delegate.
+pub fn a_delegate_s_escalation_record_names_the_person_who_asked<F: Front<Test>>(world: &mut World<Test, F>) {
+    const DELEGATE: u64 = 2;
+    world.seed(Seed::Roles { story: RoleStory::DelegateHold });
+    let client = enter(world, 1, crate::stories::inbox());
+    world.person(
+        client,
+        vec![
+            Step::See { find: Find::text(b"Held delegate"), within: WITHIN },
+            Step::See { find: Find::exactly_named(Role::Button, b"Leave it held"), within: WITHIN },
+        ],
+    );
+    finish(world);
+    world.person(
+        client,
+        vec![
+            Step::Press { find: Find::exactly_named(Role::Button, b"Leave it held") },
+            Step::Type { find: Find::named(Role::TextArea, b"Your reason"), words: b"Leave held".as_slice().into() },
+            Step::Press { find: Find::exactly_named(Role::Button, b"Confirm") },
+            Step::See { find: Find::text(b"Escalation decided"), within: WITHIN },
+        ],
+    );
+    finish(world);
+    let closer = enter(world, 1, Address::Jig(JigAddress::task(DELEGATE)));
+    super::b_proposals::open(world, closer, Find::exactly_named(Role::Button, b"Cancel"));
+    finish(world);
+    world.person(
+        closer,
+        vec![
+            Step::Press { find: Find::exactly_named(Role::Button, b"Cancel") },
+            Step::Type { find: Find::named(Role::TextArea, b"Your reason"), words: b"Done".as_slice().into() },
+            Step::Press { find: Find::exactly_named(Role::Button, b"Confirm") },
+            Step::See { find: Find::text(b"Cancelled"), within: WITHIN },
+        ],
+    );
+    finish(world);
+    // The application names the record so the page reads the ended escalation afresh.
+    world.event(
+        client,
+        jig_client_test_domain::Event::Jig(jig_client_view::Event::Named {
+            objects: crate::test::list([jig_client_domain::contract::ObjectKey::Escalation(DELEGATE)]),
+            sections: crate::test::list([]),
+        }),
+    );
+    world.person(
+        client,
+        vec![
+            Step::See { find: Find::text(b"Ended escalation"), within: WITHIN },
+            Step::See { find: Find::text(b"Requester task: 3"), within: WITHIN },
+            Step::See { find: Find::text(b"Decision person: 1"), within: WITHIN },
+        ],
+    );
+    finish(world);
+}
