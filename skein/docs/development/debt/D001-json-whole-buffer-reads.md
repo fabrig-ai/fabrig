@@ -46,7 +46,3 @@ collect every token move to `skein_json::parse` and a `Document` walk;
 sites that step a streaming decoder take `Feed`. `skein-oauth`'s `Json`
 goes onto it last. The contract lands in lib.md and json.md first
 (`skein/docs/design/json.md`, 5.3).
-
-temper's three whole-buffer pumps are temper's own item,
-`temper/docs/development/debt/D002-json-pumps.md`: they need only
-`skein_json::parse`, which exists, so they do not wait on this one.

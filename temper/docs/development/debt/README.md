@@ -61,7 +61,6 @@ checks.
 | ID | title | kind | value | size | status |
 |---|---|---|---|---|---|
 | D001 | temper-service carries a drifted copy of jig's reference service | duplication | high | M | open |
-| D002 | Three crates pump the JSON tokenizer by hand beside `skein_json::parse` | duplication | medium | S | open |
 | D003 | Lengths and counts are widened with `try_from` beside skein-lib's helpers | primitives | low | M | open |
 | D004 | `Env` is rebuilt by hand where `env.with(limits)` says it | primitives | low | S | open |
 | D007 | `temper-docs` keeps a page kind no page has | dead code | low | S | open |
