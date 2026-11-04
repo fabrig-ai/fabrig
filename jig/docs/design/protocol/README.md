@@ -177,6 +177,7 @@ An application that mixes the last two has both.
 | `jig-protocol-engine-workers` | component | engine | workers' channels: opening, authentication, liveness, translation to and from the hub's vocabulary (`channel.md`) |
 | `jig-protocol-worker-link` | component | worker | the link: dialling, liveness, the grace's clock, relays across channels, translation to and from the hub's vocabulary, smith's payloads carried as bytes (`channel.md`) |
 | `jig-protocol-charter` | translation | engine | the core's charter put into smith's, as smith's bytes, and a run's result read back (`../domain/hosts.md`, section 8) |
+| `jig-protocol-worker-agents` | component | worker | the program sources and the worker route, between smith's host half and the channel (`service.md`, section 11) |
 | `jig-protocol-tools` | translation | engine | the core's host tools: their schemas and descriptions, their calls decoded into the core's typed requests, their answers rendered as text (`channel.md`, 6.3) |
 | `jig-protocol-accounts` | translation, table | engine | the accounts child's vocabulary to skein's accounts driver's and back, and the values lent, tokens and keys with their scheme (`llm.md`, section 5) |
 | `jig-protocol-config` | parsing | engine, worker | jig's part of a configuration, parsed and checked (`configuration.md`) |
@@ -211,9 +212,11 @@ processes (smith's `protocol/hosts.md`, sections 2 and 3).
   hub's for the channel's sides, the core's (or a child's) for the
   engine's others. None depends on an application's crate, and none names
   a system.
-- **Which crates link smith.** Of jig's, only `jig-protocol-charter` and
-  the client's decoding of turns; `jig-protocol-tools` gives its schemas
-  as bytes the charter declares. The application links the rest where it
+- **Which crates link smith.** Of jig's, only `jig-protocol-charter`,
+  `jig-protocol-worker-agents`, which an application whose workers run no
+  agents leaves out, and the client's decoding of turns;
+  `jig-protocol-tools` gives its schemas as bytes the charter declares.
+  The application links the rest where it
   composes them: its root, the agent capability; its protocol layer,
   smith's components and smith's codecs.
 
@@ -221,7 +224,7 @@ processes (smith's `protocol/hosts.md`, sections 2 and 3).
 
 | Part | In | Written |
 |---|---|---|
-| the protocol layer's routing: io's tokens, events to the root, outputs to components, values between components, timers, smith's payloads decoded and encoded with smith's codec functions | each process | copied from the reference service (`service.md`, section 7) |
+| the protocol layer's routing: io's tokens, events to the root, outputs to components, values between components, timers, smith's payloads decoded and encoded with smith's codec functions | each process | copied from the reference service (`service.md`, section 7), around jig's service parts (`service.md`, section 11) |
 | `iterate` and `main` | each process | copied from the reference service and the reference binary, `jig-test` |
 | an `agent` command, smith's agent shell, if its workers run agent processes from its own binary | the binary | copied from the reference binary (`service.md`, section 7) |
 | its configuration's own members, and their parsing | each process | its own |

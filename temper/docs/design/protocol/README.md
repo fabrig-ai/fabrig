@@ -81,7 +81,8 @@ its tests, is section 15.
 ## 2. Reading order
 
 1. **jig's `protocol/README.md` and `protocol/service.md`:** the layer
-   temper composes, and the services temper copies.
+   temper composes, the service parts jig ships for it, and the routing
+   temper copies.
 2. **README.md:** this overview.
 3. **configuration.md:** what `temper serve` and its other commands are
    told at start.

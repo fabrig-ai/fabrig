@@ -20,3 +20,21 @@ id = 1
 story = "smith's manifests, frame kinds, lengths and deadlines each have one spelling, skein's where skein has one, with no behaviour changed"
 parts = ["smith-items"]
 walk = false
+
+[[part]]
+id = "service-accounts"
+title = "jig D005, temper D001: kernel routes, then the accounts' host, shipped by jig and composed by both services"
+mode = "direct"
+needs = []
+design = "jig/docs/design/protocol/service.md, 11"
+
+[[slice]]
+id = 2
+story = "one accounts host, jig's, carries the refreshes in both services, with each service's events unchanged"
+parts = ["service-accounts"]
+walk = false
+
+[[question]]
+id = "wrong-secret-kind"
+text = """A restored secret of the wrong kind differs between the services. jig stops the engine, pinned by a_restored_sources_wrong_kind_stops_the_engine. In temper, by reading and not by a run, the Corrupt event finds no owner, the accounts child is aborted and the engine runs on; a_restored_sources_other_kind_fails_the_read pins only the event. Which holds? (a) recommended, what this plan builds by default: the shipped host reports the fact and each service acts as it does today, since the request keeps behaviour unchanged. A later small task decides temper's. (b) temper stops too, as jig does: a behaviour change for temper, which needs its own task and a test. Nothing waits on the answer."""
+parts = ["service-accounts"]
