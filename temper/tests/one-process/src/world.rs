@@ -513,8 +513,8 @@ impl Person {
     }
 }
 // Select the story's project and provision its real account before its own acts.
-/// The banner's button for a project `me` leaves unnamed, "Project N"
-/// (client/README.md, 5.1).
+/// The switcher's button for a project `me` leaves unnamed, "Project N"
+/// (client/README.md, 5.3).
 fn an_unnamed_project(name: Option<&[u8]>) -> bool {
     let Some(number) = name.and_then(|name| name.strip_prefix(b"Project ".as_slice())) else { return false };
     !number.is_empty() && number.iter().all(u8::is_ascii_digit)

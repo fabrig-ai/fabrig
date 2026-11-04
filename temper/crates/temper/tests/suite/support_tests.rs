@@ -2,6 +2,11 @@
 use crate::support;
 
 #[test]
+fn terminal_a_command_waits_for_fresh_controls_when_returning_to_settings() {
+    support::terminal::tests::a_command_waits_for_fresh_controls_when_returning_to_settings();
+}
+
+#[test]
 fn native_forgejo_settings_preserve_the_coding_producer() {
     support::forgejo::tests::native_settings_preserve_the_coding_producer();
 }

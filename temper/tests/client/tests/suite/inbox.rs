@@ -31,11 +31,11 @@ fn a_delegates_question_answered_in_the_inbox_reaches_the_delegate() {
             Step::See { find: Find::named(Role::Heading { level: 2 }, b"Needs you"), within: fixtures::WITHIN },
             Step::See { find: Find::exactly_named(Role::Paragraph, b"Question"), within: fixtures::WITHIN },
             Step::See { find: Find::text(QUESTION), within: fixtures::WITHIN },
-            Step::See { find: Find::exactly_named(Role::Link, b"Inbox 1"), within: fixtures::WITHIN },
+            Step::See { find: Find::exactly_named(Role::Link, b"Needs you 1"), within: fixtures::WITHIN },
             Step::Type { find: Find::named(Role::TextArea, b"Answer words"), words: ANSWER.into() },
             Step::Press { find: Find::named(Role::Button, b"Answer") },
             Step::See { find: Find::exactly_named(Role::Status, b"Answered"), within: fixtures::WITHIN },
-            Step::See { find: Find::exactly_named(Role::Link, b"Inbox"), within: fixtures::WITHIN },
+            Step::See { find: Find::exactly_named(Role::Link, b"Needs you"), within: fixtures::WITHIN },
         ],
     );
     let outcome = world.run(Until::Done);

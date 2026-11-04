@@ -203,8 +203,9 @@ comment, no blank.
 - **The page's own state:** skein's page draws one state that its host
   never hears of, an open menu (`Role::Menu`), and a mark taken with
   one open fails the first replay's proof. temper's view draws no such
-  menu (its banner's "Menu" is a disclosure, the browser's own); one
-  that does will need the page's events recorded too (section 10).
+  menu (on a page that is no project's, its banner's "Menu" is a
+  disclosure, the browser's own); one that does will need the page's
+  events recorded too (section 10).
 
 ### 3.5 Fake only
 
