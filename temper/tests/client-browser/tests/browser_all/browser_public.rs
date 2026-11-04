@@ -133,6 +133,7 @@ impl Walk {
             see(Find::text(b"Passed")),
             see(Find::text(b"Approved")),
             see(Find::text("Landed · merge commit ".as_bytes())),
+            press(Find::exactly_named(Role::Link, b"Settings")),
             press(Find::exactly_named(Role::Button, b"Sign out")),
             see(tier.states().signed_out),
             Step::Reopen,

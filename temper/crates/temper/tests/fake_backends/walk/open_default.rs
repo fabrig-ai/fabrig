@@ -21,6 +21,7 @@ fn browser_bounds() -> temper_client_shell_terminal::limits::Limits {
 enum Page {
     Starting,
     Ready,
+    Home,
     Chats,
     Forges,
     Accounts,
@@ -57,12 +58,21 @@ impl Referee<NativeClient> for Judge {
                         client.act(node, skein_ui::Act::Press),
                         "Welcome Ready: Create your project accepts its press"
                     );
-                    self.page = Page::Chats;
+                    self.page = Page::Home;
                 }
+            }
+            Page::Home
+                if named(client, Role::Heading { level: 1 }, b"My project").is_some()
+                    && named(client, Role::Button, b"My project")
+                        .is_some_and(|node| node.states.as_slice().contains(&State::Pressed))
+                    && live(client) =>
+            {
+                client.close();
+                self.page = Page::Done;
             }
             Page::Chats
                 if named(client, Role::Heading { level: 1 }, b"Chats").is_some()
-                    && named(client, Role::Button, b"Default")
+                    && named(client, Role::Button, b"My project")
                         .is_some_and(|node| !self.press || node.states.as_slice().contains(&State::Pressed))
                     && live(client) =>
             {
@@ -90,15 +100,15 @@ impl Referee<NativeClient> for Judge {
                 client.close();
                 self.page = Page::Done;
             }
-            Page::Starting | Page::Chats | Page::Forges | Page::Accounts | Page::Done => {}
+            Page::Starting | Page::Home | Page::Chats | Page::Forges | Page::Accounts | Page::Done => {}
         }
         let missing = match self.page {
             Page::Starting => "Inbox: native client started and Status Owner",
             Page::Ready => "Welcome Ready: enabled Button Create your project",
-            Page::Chats if self.press => {
-                "Chats: Heading Chats level 1, pressed Button Default, Status Live and no Status Behind"
+            Page::Home => {
+                "Home: Heading My project level 1, pressed Button My project, Status Live and no Status Behind"
             }
-            Page::Chats => "Chats: Heading Chats level 1, Button Default, Status Live and no Status Behind",
+            Page::Chats => "Chats: Heading Chats level 1, Button My project, Status Live and no Status Behind",
             Page::Forges => "Forges: Heading Forges level 1 and Disclosure Forgejo on this machine",
             Page::Accounts => {
                 "Accounts: Heading Accounts level 1, Disclosure OpenAI API key · held by the deployment, Status Live and no Status Behind"

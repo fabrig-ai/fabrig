@@ -607,7 +607,9 @@ and `connect-forge.html`.
     (`README.md`, 4.6, `Making`), or of the kept one, and, once
     accepted, shows Setting up. The fields: "Organization", `work` until changed,
     and "Repository", `hello`; no project's: the set up adopts nothing,
-    its repository made unadopted (`../protocol/setup.md`, 6.7;
+    its repository made unadopted, for the welcome's Ready to adopt
+    into the project it makes, or the person from the form on this
+    flow (`../protocol/setup.md`, 6.7;
     `../draft/first-run-projects.md`, 4). An organization or repository
     left empty is the page's refusal,
     "Required.". The set up's refusals show under the button in its

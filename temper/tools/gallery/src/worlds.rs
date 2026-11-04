@@ -32,7 +32,7 @@ fn project(w: World) -> &'static str {
         Solo => "tally",
         World::Bare => "gallery",
         FirstRun { step: 22 } => "widget",
-        FirstRun { .. } => "Default",
+        FirstRun { .. } => "Hello",
     }
 }
 fn doc(s: &str) -> c::DocumentText {

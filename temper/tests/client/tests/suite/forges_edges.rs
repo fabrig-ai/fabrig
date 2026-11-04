@@ -1,5 +1,6 @@
 //! Adversarial scenarios: client/forge.md 5.4; client/README.md
 //! 3.5, 4.6, 4.8, 5.1–5.3, 5.6; client/browser.md 2.3.
+use super::model::press;
 use jig_client_world::harness::{ClientId, Fault, Until, World};
 use skein_fake_person::{Find, Step as PersonStep};
 use skein_lib::Duration;
@@ -843,6 +844,17 @@ fn navigation_dot_names_and_colours_follow_real_rows_only() {
         let mut world = world_for(number);
         connection(&mut world, number, state);
         let client = open(&mut world, Address::Chats { filter: ChatsFilter::All, start: false });
+        follow(
+            &mut world,
+            client,
+            vec![PersonStep::See {
+                find: Find::exactly_named(Role::Text, label).within(Box::new([skein_fake_person::Target::ExactRole {
+                    role: Role::Link,
+                    name: b"Settings".as_slice().into(),
+                }])),
+                within: f::WITHIN,
+            }],
+        );
         let dot = node(&world, client, Role::Text, label);
         assert!(dot.styles.as_slice().contains(&style), "wrong colour: {dot:?}");
     }
@@ -986,7 +998,7 @@ fn running_setup_opened_in_second_tab_is_not_resent() {
 }
 
 #[test]
-fn strip_exclusions_and_forges_navigation_current_match_pages() {
+fn strip_exclusions_and_forges_navigation_through_settings_match_pages() {
     for page in [
         Address::Forges,
         flow(None),
@@ -1002,7 +1014,10 @@ fn strip_exclusions_and_forges_navigation_current_match_pages() {
     for page in [Address::Forges, flow(None)] {
         let mut world = world();
         let client = open(&mut world, page);
-        assert!(node(&world, client, Role::Link, b"Forges").states.as_slice().contains(&State::Current));
+        follow(&mut world, client, vec![press(Role::Link, b"Settings")]);
+        assert!(node(&world, client, Role::Link, b"Settings").states.as_slice().contains(&State::Current));
+        assert!(!node(&world, client, Role::Link, b"Forges").states.as_slice().contains(&State::Current));
+        follow(&mut world, client, vec![press(Role::Link, b"Forges"), see(Role::Heading { level: 1 }, b"Forges")]);
     }
 }
 
@@ -1059,6 +1074,8 @@ fn browser_reload_preserves_running_setup_without_resending() {
 #[test]
 fn accounts_banner_stays_visible_without_the_setup_strip() {
     for (page, _had_strip) in [
+        (Address::Home { project: 1 }, true),
+        (Address::Settings { project: 1 }, true),
         (Address::Chats { filter: ChatsFilter::All, start: false }, true),
         (f::inbox(), true),
         (Address::Adopt { project: 1 }, true),
