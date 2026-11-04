@@ -41,7 +41,7 @@ impl Github {
     pub fn new(seed: u64) -> Self {
         Self {
             service: crate::github::Fake::new(seed).into_service(),
-            app: crate::github::fixture_app(),
+            app: skein_fake_forge_github::fixture::app(),
             verified: skein_fake_forge_github::app::Verified::empty(),
             peers: BTreeMap::new(),
             tally: Tally::new(1),
