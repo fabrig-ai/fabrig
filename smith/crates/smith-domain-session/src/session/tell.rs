@@ -103,11 +103,13 @@ pub(super) fn tell_turn(conversation: &mut Conversation, out: &mut Queue<Request
         let mut blocks = List::with_capacity(count(message.content.len()));
         for block in &message.content {
             let block = match block {
-                Block::ToolCall(call) => {
-                    let mut call = call.clone();
-                    call.call = Decoded::Historical;
-                    Block::ToolCall(call)
-                }
+                Block::ToolCall(call) => Block::ToolCall(crate::llm::ToolCall {
+                    id: call.id.clone(),
+                    name: call.name.clone(),
+                    input: call.input.clone(),
+                    call: Decoded::Historical,
+                    replay: call.replay.clone(),
+                }),
                 Block::Text { .. } | Block::Refusal { .. } | Block::Opaque { .. } | Block::ToolResult { .. } => {
                     block.clone()
                 }
