@@ -105,7 +105,7 @@ fn start_refused(domain: &mut Domain, env: &Env<Limits>, owner: Token, why: &[u8
 }
 
 pub(crate) fn step(domain: &mut Domain, env: &Env<Limits>, event: tooling::Event) {
-    let env = Env { now: env.now, wall: env.wall, limits: env.limits.tooling.clone() };
+    let env = env.with(env.limits.tooling.clone());
     tooling::step(&mut domain.tooling, &env, event, &mut domain.tooling_out);
 }
 
