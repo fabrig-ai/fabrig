@@ -10,7 +10,6 @@
   can be equal on one kernel;
   `skein/testing/skein-world/src/files.rs`'s `TAG` tells them apart by hand
   (the code's side is `skein/docs/development/debt/D044-io-token-tags.md`).
-  7: a `Window` naming a stream gone or closing submits `Fd(-1)`.
 - **Departs:** 3, 5, 7: for pipes, files and signals,
   `skein/docs/foundation/programming-model.md`, 5.4 asks for one explicit
   state enum per lifecycle, each state holding exactly its data, no
