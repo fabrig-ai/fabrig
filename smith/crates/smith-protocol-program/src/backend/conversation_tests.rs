@@ -382,3 +382,197 @@ fn thinking_tokens_is_a_notice_without_state_or_measure() {
     assert!(up.is_empty());
     assert!(below.is_empty());
 }
+
+fn advisor_request(backend: &Backend, owner: u64) -> Complete {
+    let mut complete = Complete::from_request(request(backend));
+    complete.owner = Token::new(owner);
+    complete.prompt.served = Box::new([llm::Served::Finish]);
+    complete.prompt.tools.inspect = true;
+    complete.outcome.report = Some(run::outcome::TextSpec { max: 128, fields: Box::default() });
+    complete
+}
+
+fn advisor_tools(harness: &mut fixtures::Harness, assistant: &[u8], results: &[u8], owner: u64, calls: usize) {
+    harness.backend.line(&env(0), assistant, &mut harness.up, &mut harness.below);
+    let Some(ToDomain::Completed { owner: got, completion }) = harness.up.pop() else { panic!("tool completion") };
+    assert_eq!(got, Token::new(owner));
+    assert_eq!(completion.content.len(), calls);
+    harness.backend.line(&env(0), results, &mut harness.up, &mut harness.below);
+    for _ in 0..calls {
+        let Some(ToDomain::BuiltinResult { owner: got, .. }) = harness.up.pop() else { panic!("built-in result") };
+        assert_eq!(got, Token::new(owner));
+    }
+    assert!(harness.up.is_empty());
+    while harness.backend.pop_measure().is_some() {}
+    let next = advisor_request(&harness.backend, owner.checked_add(1).unwrap());
+    harness.backend.resume(&env(0), next, &mut harness.up, &mut harness.below);
+}
+
+#[test]
+fn advisor_two_reads_reaches_next_completion() {
+    for framed in [false, true] {
+        advisor_two_reads(framed);
+    }
+}
+
+fn advisor_two_reads(framed: bool) {
+    // The tool order is retained evidence. The post-tool StructuredOutput boundary
+    // is a reachable design-admitted transition, not walk-79's proven rejected record.
+    let mut harness = fixtures::Harness::new(active());
+    let first = advisor_request(&harness.backend, 80);
+    harness.backend.current.retain(first, &mut harness.up);
+    advisor_tools(&mut harness,
+        br#"{"type":"assistant","message":{"id":"one","content":[{"type":"tool_use","id":"a","name":"Read","input":{"file_path":"src/main.rs"}},{"type":"tool_use","id":"b","name":"Glob","input":{"pattern":"*"}},{"type":"tool_use","id":"c","name":"Read","input":{"file_path":".forgejo/workflows/ci.yml"}}]}}"#,
+        br#"{"type":"user","message":{"content":[{"type":"tool_result","tool_use_id":"a","content":"source"},{"type":"tool_result","tool_use_id":"b","content":"paths"},{"type":"tool_result","tool_use_id":"c","content":"workflow"}]}}"#, 80, 3);
+    advisor_tools(&mut harness,
+        br#"{"type":"assistant","message":{"id":"two","content":[{"type":"tool_use","id":"d","name":"Read","input":{"file_path":"CONTRIBUTING.md"}},{"type":"tool_use","id":"e","name":"Read","input":{"file_path":"README.md"}}]}}"#,
+        br#"{"type":"user","message":{"content":[{"type":"tool_result","tool_use_id":"d","content":"contributing"},{"type":"tool_result","tool_use_id":"e","content":"readme"}]}}"#, 81, 2);
+    for record in [
+        br#"{"type":"assistant","message":{"id":"outcome","content":[{"type":"text","text":"before"},{"type":"tool_use","id":"s","name":"StructuredOutput","input":{}},{"type":"text","text":"after"}],"usage":{"input_tokens":17,"output_tokens":3}}}"#.as_slice(),
+        br#"{"type":"user","message":{"content":[{"type":"tool_result","tool_use_id":"s","content":"accepted"}]}}"#,
+    ] {
+        harness.backend.line(&env(0), record, &mut harness.up, &mut harness.below);
+        assert!(harness.up.is_empty(), "held outcome, got {:?}", harness.up.pop());
+    }
+    advisor_tail(&mut harness, framed);
+    harness.backend.line(
+        &env(0),
+        br#"{"type":"result","structured_output":{"outcome":{"form":"report","text":"done","fields":{}}}}"#,
+        &mut harness.up,
+        &mut harness.below,
+    );
+    advisor_finish(&harness.up);
+    assert_eq!(harness.backend.turns.closed, 4);
+    assert_eq!(harness.backend.turns.ready.len(), 1);
+    assert_eq!(harness.backend.current.owner(), None);
+    while harness.backend.pop_measure().is_some() {}
+    harness.up = Queue::with_capacity(UP_EVENTS);
+    let next = advisor_request(&harness.backend, 83);
+    harness.backend.resume(&env(0), next, &mut harness.up, &mut harness.below);
+    let tail = finished_reply(&harness.up);
+    assert_eq!(tail.usage.input_tokens, Some(19));
+    assert_eq!(tail.usage.output_tokens, Some(2));
+    assert!(harness.backend.turns.ready.is_empty());
+}
+
+fn advisor_finish(up: &Queue<ToDomain>) {
+    let completion = finished_reply(up);
+    let [
+        llm::Said::Text { text: before, .. },
+        llm::Said::ToolCall { name, call, .. },
+        llm::Said::Text { text: after, .. },
+    ] = completion.content.as_ref()
+    else {
+        panic!("finish in held position")
+    };
+    assert_eq!(before.as_ref(), b"before");
+    assert_eq!(after.as_ref(), b"after");
+    assert_eq!(name.as_ref(), b"finish");
+    let llm::Decoded::Served { ask: run::Ask::Finish { .. } } = call else { panic!("decoded finish") };
+    assert_eq!(completion.usage.input_tokens, Some(17));
+    assert_eq!(completion.usage.output_tokens, Some(3));
+    let mut completions = 0_u32;
+    for event in up {
+        match event {
+            ToDomain::Completed { owner, .. } => {
+                assert_eq!(*owner, Token::new(82));
+                completions = completions.checked_add(1).unwrap();
+            }
+            ToDomain::Text { .. } => {}
+            ToDomain::BuiltinResult { .. }
+            | ToDomain::ReadVersion { .. }
+            | ToDomain::Failed { .. }
+            | ToDomain::Cancelled { .. } => panic!("only the held completion"),
+        }
+    }
+    assert_eq!(completions, 1);
+}
+
+#[test]
+fn rejected_records_name_the_kind_and_condition_without_payloads() {
+    let cases: &[(&[u8], &[u8])] = &[
+        (br#"{"private":"never repeat this"}"#, b"record: top-level record has no string type"),
+        (br#"{"type":"never repeat this"}"#, b"record: unknown top-level record type"),
+        (br#"{"type":"system","private":"never repeat this"}"#, b"system: system record has no string subtype"),
+        (
+            br#"{"type":"stream_event","event":{"type":"never repeat this"}}"#,
+            b"stream_event: unknown stream event type",
+        ),
+        (br#"{"type":"stream_event"}"#, b"stream_event: stream_event has no event"),
+        (
+            br#"{"type":"stream_event","event":{"type":"message_stop"}}"#,
+            b"stream_event: message_stop has no open message",
+        ),
+        (
+            br#"{"type":"assistant","message":{"id":"m","content":[{"type":"never repeat this"}]}}"#,
+            b"assistant: unknown assistant block type",
+        ),
+        (
+            br#"{"type":"assistant","message":{"id":"m","content":[{"type":"tool_use","name":"Read","input":{}}]}}"#,
+            b"assistant: tool_use has no string id",
+        ),
+        (
+            br#"{"type":"user","message":{"content":[{"type":"tool_result"}]}}"#,
+            b"user: tool_result has no string tool_use_id",
+        ),
+    ];
+    for (record, reason) in cases {
+        let (mut backend, mut up, mut below) = active_with_queues();
+        backend.line(&env(0), record, &mut up, &mut below);
+        let Some(ToDomain::Failed { failure, detail, .. }) = up.pop() else { panic!("record rejected") };
+        assert_eq!(failure, llm::Failure::Program { exit: None });
+        assert_eq!(detail.as_ref(), skein_lib::bytes::concat(&[b"smith: ", reason]).as_ref());
+        assert!(detail.len() <= 256);
+    }
+}
+
+fn advisor_tail(harness: &mut fixtures::Harness, framed: bool) {
+    if framed {
+        harness.backend.line(
+            &env(0),
+            br#"{"type":"stream_event","event":{"type":"message_start","message":{"id":"tail"}}}"#,
+            &mut harness.up,
+            &mut harness.below,
+        );
+        harness.backend.line(
+            &env(0),
+            br#"{"type":"stream_event","event":{"type":"content_block_start","index":0}}"#,
+            &mut harness.up,
+            &mut harness.below,
+        );
+    }
+    harness.backend.line(&env(0), br#"{"type":"assistant","message":{"id":"tail","content":[{"type":"text","text":"Done."}],"usage":{"input_tokens":19,"output_tokens":2}}}"#, &mut harness.up, &mut harness.below);
+    if framed {
+        harness.backend.line(
+            &env(0),
+            br#"{"type":"stream_event","event":{"type":"message_stop"}}"#,
+            &mut harness.up,
+            &mut harness.below,
+        );
+    }
+    assert!(harness.up.is_empty(), "outcome and tail wait for the result");
+}
+
+#[test]
+fn unresolved_outcomes_release_on_retry_and_interrupt() {
+    for interrupt in [false, true] {
+        let mut harness = fixtures::Harness::new(active());
+        let first = advisor_request(&harness.backend, 80);
+        harness.backend.current.retain(first, &mut harness.up);
+        harness.backend.line(&env(0), br#"{"type":"assistant","message":{"id":"outcome","content":[{"type":"tool_use","id":"s","name":"StructuredOutput","input":{}}]}}"#, &mut harness.up, &mut harness.below);
+        advisor_tail(&mut harness, false);
+        assert_eq!(harness.backend.turns.ready.len(), 1);
+        if interrupt {
+            harness.backend.turns.interrupted();
+            assert_eq!(harness.backend.turns.closed, 1);
+            let completion = harness.backend.turns.ready.pop().expect("interrupt terminal");
+            assert!(completion.content.is_empty());
+            assert_eq!(completion.usage, llm::Usage::ZERO);
+        } else {
+            harness.backend.turns.retry();
+            assert_eq!(harness.backend.turns.closed, 0);
+        }
+        assert!(harness.backend.turns.ready.is_empty());
+        assert!(harness.backend.turns.message.is_none());
+    }
+}

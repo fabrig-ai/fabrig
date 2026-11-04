@@ -323,7 +323,9 @@ open is section 9.
   position, its usage as the program reported it, and the run's spend.
   The program may send one message as several assistant records, one
   per content block, under one message id: they are one completion, its
-  blocks in order and its usage counted once.
+  blocks in order and its usage counted once. A framed message waits for
+  `message_stop` and all its announced assistant blocks; a boundary before
+  either is a program failure.
   A built-in tool's call is a call with its name and input as the model
   wrote them, and its result is text the program wrote. The program's
   opaque blocks, its thinking and their signatures, are not kept: no
@@ -338,7 +340,13 @@ open is section 9.
   turn's `structured_output.outcome`, taken as a `finish` call's input and
   judged by the same contract, ends the run as an accepted `finish`
   does on the direct backend (domain/run.md, 7.2), the agent closing
-  the program's input. Such a run is not offered `finish` over MCP, so
+  the program's input. A complete message holding `StructuredOutput` keeps
+  its position when another message starts before the turn's `result`.
+  It waits within the bounded completion backlog until that result supplies
+  the finish input, which replaces the call in its block position in that
+  same completion. No extra completion is synthesized for that call.
+  Following messages retain their own blocks and single-counted usage,
+  and cannot pass the held outcome. Such a run is not offered `finish` over MCP, so
   the model has one way to end, never two. A run with no result
   contract, such as an Open run's, is offered `finish` over MCP as on
   the direct backend. A turn with neither is a model that named no
@@ -370,7 +378,11 @@ open is section 9.
   program's, naming the program, with its detail, and no notice.
 - **A program that exits** before its `result`, or whose stream does not
   decode, fails the run the same way, with its exit and its standard
-  error's tail.
+  error's tail. A rejected stream record also names its recognized record
+  kind and the failed grammar, assembly, correlation or receiving condition.
+  Unknown kinds are named as unknown, without copying their value or any
+  message contents. This bounded reason distinguishes a full completion
+  backlog from an invalid record.
 
 ### 5.7 The budget, the clock and a cancel
 
