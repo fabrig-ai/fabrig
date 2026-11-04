@@ -1,8 +1,5 @@
 //! Puller work shares the forge's own connection (forge-connection.md, 6.5).
-use super::{
-    Common, OwnPlan,
-    entry::{Base, GitHubForge},
-};
+use super::{Base, Common, GitHubForge, OwnPlan};
 use crate::{
     Account, Change, Event, Fact, Limits, Stopped,
     hooks::Hinted,
@@ -96,11 +93,10 @@ impl Common {
         gh.plan = None;
     }
     pub(super) fn github_log_error(base: &mut Base, gh: &mut GitHubForge, env: &Env<Limits>, up: &mut Queue<Event>) {
-        let data = &mut gh.state;
-        if data.status == Some(401) {
+        if gh.state.status == Some(401) {
             Self::github_stop(base, gh, Stopped::KeyRefused, up);
         } else {
-            data.puller.finish(env, false);
+            gh.state.puller.finish(env, false);
         }
     }
     pub(super) fn github_log_delivery(
@@ -131,8 +127,7 @@ impl Common {
         match &logged.delivery {
             Delivery::Installation { installation, account, change } => {
                 if *change == github::delivery::Change::Repositories {
-                    let data = &gh.state;
-                    let account = match data.rows.get(installation) {
+                    let account = match gh.state.rows.get(installation) {
                         Some(row) => row.account.clone(),
                         None => Account { id: account.id, login: account.login.clone() },
                     };
@@ -167,10 +162,8 @@ impl Common {
                     self.github_tables.drop_repository(hint.repository);
                 }
             }
-            let source = base.own;
-            let data = &mut gh.state;
-            data.puller.source = source;
-            data.puller.hold(hint);
+            gh.state.puller.source = base.own;
+            gh.state.puller.hold(hint);
         }
     }
 }

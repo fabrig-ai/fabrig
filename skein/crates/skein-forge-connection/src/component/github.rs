@@ -1,8 +1,5 @@
 //! GitHub's typed start plans on the forge's reserved connection (forge-connection.md, 3.4).
-use super::{
-    Common, OwnPlan, backoff,
-    entry::{Base, GitHubForge},
-};
+use super::{Base, Common, GitHubForge, OwnPlan, backoff};
 use crate::{
     Event, Limits, StartRead, Stopped, Value,
     connection::{self, Exchange, Phase},
@@ -96,14 +93,11 @@ impl Common {
             Start::Listing { next } => Some(Active::Listing { next }),
             Start::Minting { next } => Some(Active::Minting { next }),
             Start::Identity { next } => Some(Active::Identity { next }),
-            Start::Ready { cap } => {
-                let data = &gh.state;
-                Some(match data.work {
-                    Work::Minting { next } => Active::Minting { next },
-                    Work::Identity { next } => Active::Identity { next },
-                    Work::Idle | Work::Waiting { .. } => Active::Ready { cap },
-                })
-            }
+            Start::Ready { cap } => Some(match gh.state.work {
+                Work::Minting { next } => Active::Minting { next },
+                Work::Identity { next } => Active::Identity { next },
+                Work::Idle | Work::Waiting { .. } => Active::Ready { cap },
+            }),
             Start::Unconnected
             | Start::Checking { .. }
             | Start::Settings { .. }
@@ -312,8 +306,8 @@ impl Common {
                     }
                     Err(error) => Err(error),
                 };
-                if let Err(error) = result {
-                    Self::github_error(base, gh, error, env, up);
+                if result.is_err() {
+                    Self::github_error(base, gh, env, up);
                 }
                 return;
             }
@@ -329,9 +323,8 @@ impl Common {
             }
         }
         gh.plan = None;
-        let data = &gh.state;
-        let next = if data.connected { env.limits.start_backoff } else { active_next(state) };
-        if data.reread {
+        let next = if gh.state.connected { env.limits.start_backoff } else { active_next(state) };
+        if gh.state.reread {
             Self::github_phase(base, gh, Active::Listing { next });
         } else {
             Self::github_select(base, gh, next, env, up);
@@ -344,8 +337,7 @@ impl Common {
         env: &Env<Limits>,
         up: &mut Queue<Event>,
     ) -> bool {
-        let data = &gh.state;
-        if !data.selected_valid() {
+        if !gh.state.selected_valid() {
             return true;
         }
         match answer {
@@ -357,8 +349,8 @@ impl Common {
                 gh.state.identity_checked = true;
                 true
             }
-            Err(error) => {
-                Self::github_error(base, gh, error, env, up);
+            Err(_) => {
+                Self::github_error(base, gh, env, up);
                 false
             }
         }
@@ -411,22 +403,15 @@ impl Common {
                     }
                 }
             }
-            Err(error) => {
-                Self::github_error(base, gh, error, env, up);
+            Err(_) => {
+                Self::github_error(base, gh, env, up);
                 return false;
             }
         }
         true
     }
-    fn github_error(
-        base: &mut Base,
-        gh: &mut GitHubForge,
-        _error: api::Error,
-        env: &Env<Limits>,
-        up: &mut Queue<Event>,
-    ) {
-        let data = &gh.state;
-        if let Some(status) = data.status
+    fn github_error(base: &mut Base, gh: &mut GitHubForge, env: &Env<Limits>, up: &mut Queue<Event>) {
+        if let Some(status) = gh.state.status
             && (400..500).contains(&status)
             && status != 429
         {
@@ -442,7 +427,7 @@ impl Common {
                     } else if status == 403 || status == 404 {
                         None
                     } else {
-                        Some(Stopped::TokenRefused { installation: data.mint.expect("mint").0, status })
+                        Some(Stopped::TokenRefused { installation: gh.state.mint.expect("mint").0, status })
                     }
                 }
                 Some(Active::Identity { .. }) => Some(Stopped::Refused { read: StartRead::Viewer, status }),
@@ -469,16 +454,14 @@ impl Common {
         } else {
             match state {
                 Active::Listing { .. } | Active::Ready { .. } => {
-                    let data = &gh.state;
-                    let page = match &data.read {
+                    let page = match &gh.state.read {
                         Read::Reading(reading) => reading.page,
                         Read::Idle | Read::Changes(_) | Read::Waiting { .. } => unreachable!("selected read"),
                     };
                     OwnPlan::GitHubInstallations(Installations::new(page))
                 }
                 Active::Minting { .. } => {
-                    let data = &gh.state;
-                    let (id, scope) = data.mint.expect("selected mint");
+                    let (id, scope) = gh.state.mint.expect("selected mint");
                     OwnPlan::GitHubMinting(Minting::new(id, scope))
                 }
                 Active::Identity { .. } => OwnPlan::GitHubIdentity(Identity::new()),
@@ -527,11 +510,9 @@ impl Common {
         let log = Self::github_log_active(gh);
         let c = self.connection_slab.get_mut(id).expect("own connection");
         if c.phase == Phase::Idle {
-            let data = &gh.state;
-            if !log && data.stale_read() {
-                let data = &mut gh.state;
-                data.read = Read::Idle;
-                data.reread = true;
+            if !log && gh.state.stale_read() {
+                gh.state.read = Read::Idle;
+                gh.state.reread = true;
                 gh.plan = None;
                 return false;
             }
@@ -539,7 +520,7 @@ impl Common {
                 Active::Minting { .. } | Active::Identity { .. } => true,
                 Active::Listing { .. } | Active::Ready { .. } => false,
             };
-            if !log && selected && !data.selected_valid() {
+            if !log && selected && !gh.state.selected_valid() {
                 gh.plan = None;
                 Self::github_select(base, gh, active_next(state), env, up);
                 return false;
@@ -683,11 +664,10 @@ impl Common {
     }
     // A listing's local output reaches its owner before the next remote exchange.
     fn local_output_pending(gh: &GitHubForge) -> bool {
-        let data = &gh.state;
-        match &data.read {
+        match &gh.state.read {
             Read::Changes(_) => true,
             Read::Reading(reading) => reading.fact.is_some() || reading.complete,
-            Read::Idle => data.held.is_some(),
+            Read::Idle => gh.state.held.is_some(),
             Read::Waiting { .. } => false,
         }
     }
@@ -872,13 +852,12 @@ impl Common {
         io: &mut Queue<skein_io::Request>,
     ) -> bool {
         let log = Self::github_log_active(gh);
-        let data = &gh.state;
         let c = self.connection_slab.get_mut(id).expect("own connection");
         let unsent = match c.phase {
             Phase::Sending { written } => !written && !c.written,
             Phase::Connecting | Phase::Handshaking | Phase::Closed | Phase::Reading | Phase::Idle => false,
         };
-        if !log && unsent && data.selected.is_some() && !data.selected_valid() {
+        if !log && unsent && gh.state.selected.is_some() && !gh.state.selected_valid() {
             c.close(env, false, io);
             gh.plan = None;
             let next = active_next(Self::github_state(base, gh).expect("selected own work"));
@@ -887,7 +866,6 @@ impl Common {
         }
         false
     }
-    #[expect(clippy::too_many_lines, reason = "the reserved connection's drive keeps its bounded pass together")]
     pub(super) fn drive_github(
         &mut self,
         base: &mut Base,
@@ -897,11 +875,9 @@ impl Common {
         io: &mut Queue<skein_io::Request>,
     ) {
         gh.state.fire(env.now);
-        let state = base.start;
-        let data = &mut gh.state;
-        data.puller.admitted();
-        if self.lifecycle == Lifecycle::Live && super::ready(state) {
-            let _started = data.puller.fire(env);
+        gh.state.puller.admitted();
+        if self.lifecycle == Lifecycle::Live && super::ready(base.start) {
+            let _started = gh.state.puller.fire(env);
         }
         if let Some((until, next)) = backoff(base.start)
             && until <= env.now
@@ -925,8 +901,7 @@ impl Common {
                 continue;
             }
             let state = Self::github_state(base, gh);
-            let data = &gh.state;
-            let reading = match data.read {
+            let reading = match gh.state.read {
                 Read::Reading(_) => true,
                 Read::Idle | Read::Changes(_) | Read::Waiting { .. } => false,
             };

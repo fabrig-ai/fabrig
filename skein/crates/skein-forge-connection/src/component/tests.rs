@@ -38,7 +38,7 @@ fn forgejo_starts_leave_the_github_reserved_slot_free() {
         forge.number = u16::try_from(number).expect("forge number");
         forges.push(forge).expect("forge room");
     }
-    let mut github = fixtures::github_settings().forges.into_boxed().into_iter().next().expect("GitHub forge");
+    let mut github = fixtures::github_settings().forges.into_boxed().into_iter().next().expect("fixture forge");
     github.number = u16::try_from(FORGES).expect("forge number");
     forges.push(github).expect("forge room");
     settings.forges = forges;

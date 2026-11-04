@@ -1,6 +1,5 @@
 //! Installation account routing and bounded repository discovery (forge-connection.md, 4).
-use super::entry::{Base, GitHubForge};
-use super::{CallPlan, Common, Waiting, calls};
+use super::{Base, CallPlan, Common, GitHubForge, Waiting, calls};
 use crate::{
     Event, Limits,
     connection::{self, Exchange, Phase},
@@ -225,14 +224,12 @@ impl Common {
     }
     fn github_bot_permission(&self, id: Id<Waiting>, base: &mut Base, gh: &mut GitHubForge) -> Option<api::Answer> {
         let waiting = self.waiting.get(id).expect("call");
-        let data = &gh.state;
-        let bot = base.forge.access.as_ref()?.user;
         if waiting.discovery.is_none()
             && let Some(api::Op::Read(api::Read::Permission { user })) = waiting.op.as_ref()
-            && *user == bot
+            && *user == base.forge.access.as_ref()?.user
         {
             let route = waiting.route.expect("eligible route");
-            let row = data.rows.get(&route.selected.id).expect("eligible row");
+            let row = gh.state.rows.get(&route.selected.id).expect("eligible row");
             return Some(api::Answer::Permission(row.permissions.permission()));
         }
         None

@@ -11,9 +11,7 @@ use alloc::boxed::Box;
 use skein_lib::{Env, Id, Lifecycle, List, Map, Queue, Slab, Time, Token, earliest};
 mod calls;
 pub(crate) mod entry;
-#[cfg(test)]
-use entry::GitHubForge;
-use entry::{Base, Dialect, ForgeEntry};
+use entry::{Base, Dialect, ForgeEntry, GitHubForge};
 mod github;
 mod github_calls;
 mod github_logs;

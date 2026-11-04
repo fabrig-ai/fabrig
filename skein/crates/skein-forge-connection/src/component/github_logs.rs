@@ -1,6 +1,5 @@
 //! A call follows a job log once to a configured, separately pooled origin (4.5).
-use super::entry::{Base, GitHubForge};
-use super::{Common, Waiting, github_calls::github_plan};
+use super::{Base, Common, GitHubForge, Waiting, github_calls::github_plan};
 use crate::{Event, Fact, Limits};
 use skein_forge::{
     api,
