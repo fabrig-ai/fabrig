@@ -1,4 +1,4 @@
-#[path = "../../render/src/fixtures/decoders/golden.rs"]
+#[path = "../../../../render/src/fixtures/decoders/golden.rs"]
 mod golden;
 use hearth_protocol_template::{limits::SHIPPED, template};
 use hearth_template_world::{check, generate, reference};
