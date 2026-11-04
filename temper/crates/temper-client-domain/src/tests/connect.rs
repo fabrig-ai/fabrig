@@ -103,8 +103,9 @@ fn up(root: &mut crate::Domain, up: Up) -> Queue<Request> {
 }
 fn watch(mut out: Queue<Request>) -> Option<Token> {
     while let Some(request) = out.pop() {
-        if let Request::Client {
-            request: client::Request::Down { down: Down::Open { watch, subject: client::Watchable::Family { .. } } },
+        if let Request::Unlinked {
+            request:
+                client::UnlinkedRequest::Down { down: Down::Open { watch, subject: client::Watchable::Family { .. } } },
         } = request
         {
             return Some(watch);
@@ -146,7 +147,9 @@ fn a_refused_forges_watch_is_kept_until_the_next_sign_in() {
     let mut me = None;
     let mut reopened = None;
     while let Some(request) = out.pop() {
-        if let Request::Client { request: client::Request::Down { down: Down::Open { watch, subject } } } = request {
+        if let Request::Unlinked { request: client::UnlinkedRequest::Down { down: Down::Open { watch, subject } } } =
+            request
+        {
             match subject {
                 client::Watchable::Jig(c::Subject::Me) => me = Some(watch),
                 client::Watchable::Family { .. } => reopened = Some(watch),
@@ -194,7 +197,7 @@ fn set_up_sends_one_at_a_time() {
     let mut out = setup(&mut root);
     let mut sends = 0_u32;
     while let Some(request) = out.pop() {
-        if let Request::Client { request: client::Request::Down { down: Down::Send { .. } } } = request {
+        if let Request::Unlinked { request: client::UnlinkedRequest::Down { down: Down::Send { .. } } } = request {
             sends += 1;
         }
     }
@@ -357,9 +360,11 @@ fn the_dot_is_red_for_a_forge_that_needs_the_person_else_amber_while_one_sets_up
 fn sent(mut out: Queue<Request>) -> (Token, skein_lib::RequestKey, w::Request) {
     let mut found = None;
     while let Some(request) = out.pop() {
-        if let Request::Client {
+        if let Request::Unlinked {
             request:
-                client::Request::Down { down: Down::Send { attempt, key, request: client::Ask::Family { record, .. }, .. } },
+                client::UnlinkedRequest::Down {
+                    down: Down::Send { attempt, key, request: client::Ask::Family { record, .. }, .. },
+                },
         } = request
         {
             assert!(found.is_none(), "one family request");
@@ -746,7 +751,7 @@ fn a_connected_github_advances_only_the_named_welcome_forge() {
                 assert!(*replace);
                 moves += 1;
             }
-            if let Request::Client { request: client::Request::Down { down: Down::Send { .. } } } = request {
+            if let Request::Unlinked { request: client::UnlinkedRequest::Down { down: Down::Send { .. } } } = request {
                 panic!("connecting a forge sends no adoption or project request");
             }
         }
@@ -917,7 +922,7 @@ fn new_owned_setup_binds_the_made_rows_number_without_adopting() {
         assert_eq!(root.forge().set_up().unwrap().forge, Some(HERE));
         assert!(root.forge().setup_form().making.is_none());
         for request in &out {
-            if let Request::Client { request: client::Request::Down { down: Down::Send { .. } } } = request {
+            if let Request::Unlinked { request: client::UnlinkedRequest::Down { down: Down::Send { .. } } } = request {
                 panic!("connecting a forge sends no adoption or project request");
             }
         }

@@ -36,6 +36,10 @@ impl Recovery {
         self.rows.remove(&key);
         self.sent.remove(&key);
     }
+    #[expect(
+        clippy::wildcard_enum_match_arm,
+        reason = "only linked saves and request exchanges update recovery; the root routes unlinked requests separately"
+    )]
     pub(crate) fn output(&mut self, request: &jig_client::Request, limits: &Limits) {
         match request {
             jig_client::Request::Save { records } => {
@@ -52,21 +56,21 @@ impl Recovery {
                     self.sent_name(*request.key());
                 }
             }
-            jig_client::Request::Down { down: jig_client::Down::Save { record } } => {
+            _ => {}
+        }
+    }
+    pub(crate) fn output_unlinked(&mut self, request: &jig_client::UnlinkedRequest) {
+        match request {
+            jig_client::UnlinkedRequest::Down { down: jig_client::Down::Save { record } } => {
                 if self.sent.contains_key(&record.request.key) {
                     self.rows.insert(record.request.key, record.clone());
                 }
             }
-            jig_client::Request::Down { down: jig_client::Down::Send { key, .. } } => self.sent_name(*key),
-            jig_client::Request::Exchange { .. }
-            | jig_client::Request::Down { .. }
-            | jig_client::Request::OpenStream { .. }
-            | jig_client::Request::CloseStream
-            | jig_client::Request::Erase { .. }
-            | jig_client::Request::Told { .. }
-            | jig_client::Request::SignOut
-            | jig_client::Request::Authorized(_)
-            | jig_client::Request::ServiceCredential { .. } => {}
+            jig_client::UnlinkedRequest::Down { down: jig_client::Down::Send { key, .. } } => self.sent_name(*key),
+            jig_client::UnlinkedRequest::Down { .. }
+            | jig_client::UnlinkedRequest::SignOut
+            | jig_client::UnlinkedRequest::Told { .. }
+            | jig_client::UnlinkedRequest::Authorized(_) => {}
         }
     }
     fn sent_name(&mut self, name: skein_lib::RequestKey) {

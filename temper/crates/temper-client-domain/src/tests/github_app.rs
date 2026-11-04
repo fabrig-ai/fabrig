@@ -65,14 +65,13 @@ fn carried(pem: &[u8]) -> Secret {
     let mut carried = None;
     while let Some(request) = out.pop() {
         assert!(skein_lib::bytes::find(format!("{request:?}").as_bytes(), pem).is_none());
-        if let Request::Client {
-            request: jig_client::Request::Down { down: Down::Save { .. } } | jig_client::Request::Save { .. },
-        } = &request
+        if let Request::Unlinked { request: jig_client::UnlinkedRequest::Down { down: Down::Save { .. } } }
+        | Request::Client { request: jig_client::Request::Save { .. } } = &request
         {
             panic!("a carried key never enters the small store");
         }
-        if let Request::Client {
-            request: jig_client::Request::Down { down: Down::Send { request, value: Some(value), .. } },
+        if let Request::Unlinked {
+            request: jig_client::UnlinkedRequest::Down { down: Down::Send { request, value: Some(value), .. } },
         } = request
         {
             assert!(carried.is_none(), "exactly one carried value");
@@ -195,8 +194,9 @@ fn each_forge_refusal_is_said_in_forge_md_words() {
         let mut out = act(&mut root, forge::Act::ConnectApp { forge: 2 });
         let mut attempt = None;
         while let Some(request) = out.pop() {
-            if let Request::Client { request: jig_client::Request::Down { down: Down::Send { attempt: sent, .. } } } =
-                request
+            if let Request::Unlinked {
+                request: jig_client::UnlinkedRequest::Down { down: Down::Send { attempt: sent, .. } },
+            } = request
             {
                 attempt = Some(sent);
             }
@@ -326,8 +326,8 @@ fn install_sends_its_way_back_and_leaves_once_only_from_the_answer() {
         if let Request::Leave { .. } = &request {
             panic!("only the first answer may leave the page");
         }
-        if let Request::Client {
-            request: jig_client::Request::Down { down: Down::Send { attempt: sent, request, value, .. } },
+        if let Request::Unlinked {
+            request: jig_client::UnlinkedRequest::Down { down: Down::Send { attempt: sent, request, value, .. } },
         } = request
         {
             attempt = Some(sent);
