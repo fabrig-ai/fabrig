@@ -33,11 +33,14 @@
     past the target, and `3 × target + 2 × frame` for a frame past it,
     each plus half a target of slack; `chunk` and `frame` are the largest
     chunk or frame held. `Limits::chunk` sets none of these bounds.
+  - 9: the user's request of 11-04 on chunks asks a snapshot's peak by the
+    measure kv-pay-per-use uses, the whole world's; `target.rs` measures
+    it around the store's `fire` alone (`World::fire_measured`), within
+    `2 × target` and a quarter target of slack, because around `drive`
+    the fake disk's own growth and its pending writes would count.
   - 11: the store itself is small, and the user's request of 11-04 aimed
     `skein-kv/src/store.rs` and `store/compaction.rs`, 1,670 lines between
     them, near 1,250, which it also put as about 200 down less what its
     two fixes add, so near 1,490. They read 1,556 (1,175 and 381), because
-    the review's findings landed and nothing past them was cut: target
-    packing and carried-frame reservation add three lines between them,
-    and the shorter recovery lint reason removes three, leaving 306
-    lines past the first number and 66 past the second.
+    the review's findings landed and nothing past them was cut: 306 lines
+    past the first number and 66 past the second.
