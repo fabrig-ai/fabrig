@@ -38,7 +38,13 @@ impl Component {
         self.own_plans.push(None).expect("forge room checked");
     }
 
-    pub(super) fn remove(&mut self, number: u16, up: &mut Queue<Event>, io: &mut Queue<skein_io::Request>) {
+    pub(super) fn remove(
+        &mut self,
+        env: &Env<Limits>,
+        number: u16,
+        up: &mut Queue<Event>,
+        io: &mut Queue<skein_io::Request>,
+    ) {
         let mut position = None;
         for at in 0..self.settings.forges.len() {
             if self.settings.forges.get(at).expect("forge").number == number {
@@ -79,7 +85,7 @@ impl Component {
             let c = self.connection_slab.get_mut(*id).expect("indexed connection");
             if c.forge == number {
                 c.membership = crate::connection::Membership::Removed;
-                c.abort(io);
+                c.abort(env, io);
             }
         }
         let last = self.starts.len().checked_sub(1).expect("configured forge");

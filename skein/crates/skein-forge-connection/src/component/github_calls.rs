@@ -317,7 +317,7 @@ impl Component {
                     }
                     Ok(None) => {}
                     Err(error) => {
-                        self.connection_slab.get_mut(connection).expect("connection").close(true, io);
+                        self.connection_slab.get_mut(connection).expect("connection").close(env, true, io);
                         self.finish(call, id, Err(error), up);
                         break;
                     }
@@ -325,7 +325,7 @@ impl Component {
                 continue;
             }
             if c.phase == Phase::Closed {
-                c.close(true, io);
+                c.close(env, true, io);
             }
             if !c.ready() {
                 break;
@@ -436,7 +436,7 @@ impl Component {
             if c.phase == Phase::Idle && !c.in_flight() {
                 c.deadline = Some(env.now.saturating_add(env.limits.idle));
             } else if !c.draining {
-                c.close(c.in_flight(), io);
+                c.close(env, c.in_flight(), io);
             }
             let _holder = self.holders.remove(&token);
         }

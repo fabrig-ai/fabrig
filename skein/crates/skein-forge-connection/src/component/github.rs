@@ -860,7 +860,7 @@ impl Component {
             Phase::Connecting | Phase::Handshaking | Phase::Closed | Phase::Reading | Phase::Idle => false,
         };
         if !log && unsent && gh.selected.is_some() && !gh.selected_valid() {
-            c.close(false, io);
+            c.close(env, false, io);
             *self.own_plans.get_mut(at).expect("forge plan") = None;
             let next = active_next(self.github_state(at));
             self.github_select(at, next, env, up);
@@ -931,7 +931,7 @@ impl Component {
                     c.deadline = Some(env.now.saturating_add(env.limits.idle));
                 }
                 if self.lifecycle != Lifecycle::Live || c.phase != Phase::Idle || c.deadline <= Some(env.now) {
-                    c.close(c.in_flight(), io);
+                    c.close(env, c.in_flight(), io);
                 }
                 break;
             }
@@ -958,7 +958,7 @@ impl Component {
                 // A plan can finish on the head, leaving an unread exchange behind.
                 if self.own_plans.get(at).expect("forge plan").is_none() {
                     if c.in_flight() {
-                        c.close(true, io);
+                        c.close(env, true, io);
                     } else {
                         c.deadline = None;
                     }
@@ -966,7 +966,7 @@ impl Component {
                 continue;
             }
             if c.phase == Phase::Closed {
-                c.close(c.in_flight(), io);
+                c.close(env, c.in_flight(), io);
                 break;
             }
             if !c.ready() {
