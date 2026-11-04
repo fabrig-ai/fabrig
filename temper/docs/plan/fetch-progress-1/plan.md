@@ -2,8 +2,6 @@
 
 From `inputs/request.md`: while an owned Forgejo's set up fetches its binaries, the person sees how far it has gone, in words in both shells, and in the browser a bar that fills.
 
-The plan is released in pieces; the client's tasks follow, and this file with them.
-
 ## Parts and tasks
 
 | Part | Task | Needs | Minutes | What it does |
@@ -14,6 +12,23 @@ The plan is released in pieces; the client's tasks follow, and this file with th
 | box | `box-relay` | `fetched-line` | 80 | the pipe's `fetched` line, none on a terminal, replies kept |
 | row | `engine-fetched` | | 35 | the forge domain keeps the latest, the row carries it |
 | row | `wire-fetched` | | 30 | `SettingUp.fetched`, generated, every literal `None` |
+| row | `link-fetched` | `engine-fetched`, `wire-fetched` | 40 | the link reads the line, the family writes the wire |
+| client | `client-fetched` | `wire-fetched` | 35 | the client's row and its words |
+| client | `view-fetched` | `client-fetched`, `progress-value` | 45 | the progress node, the step list, the meter's rule |
+| client | `fetched-story` | `link-fetched`, `view-fetched` | 35 | the client's world, through the real family and wire |
+| look | `look-account` | `fetch-count`, `box-relay`, `fetched-story` | 60 | two gallery states, the render check, the status, the account |
+
+Eleven tasks, 500 implementer-minutes. The request's scope, item by item: 1 is `fetch`, `box`, `row` and `client`; 2 is `progress-value`; 3 is `view-fetched`.
+
+Slices, in the order they run: skein's value; the fetch and the box; the row; the clients and the look.
+
+## Critical path
+
+`wire-fetched` (30), `client-fetched` (35), `view-fetched` (45), `fetched-story` (35), `look-account` (60): about 205 implementer-minutes, then the end check. `progress-value` (55) and `link-fetched` (engine or wire, then 40) feed it and are shorter. `fetch-count` and `box-relay` run beside it from `fetched-line` and join only at `look-account`.
+
+## What no test covers
+
+**No test runs a real fetch through a real box to a real client.** The fetch's and the box's sides meet at a line each tests to the same form, the box's and serve's at another, and `fetched-story` runs from the engine's event to the view. A whole run needs an owned forge fetching from a mirror in the process tier, and the draft's Later keeps the fake fetch that would let a journey record it. So the two gallery states and the render check are the only look a person gets until a real fetch runs. `walk = false` on every slice, for that reason.
 
 ## What the cut found
 
@@ -33,7 +48,30 @@ The plan is released in pieces; the client's tasks follow, and this file with th
 - **A new pipe word's form:** `fetched FORGE BINARY DONE TOTAL`, `BINARY` `forgejo` or `runner`, `TOTAL` `none` with no size. On stdout, `fetched forgejo DONE of TOTAL bytes` and `fetched runner DONE bytes`, which a person can read. The draft left the forms open.
 - **A zero `Content-Length` is no size,** since a fraction's total is above zero.
 - **A binary already there says nothing,** and on macOS the bytes are the archive's, its extraction saying nothing.
+- **"41 MB" is `done / 1000000`,** rounded down, true to its name, though the fetch's lines fall at each MiB: the fetch counts as a machine does and the words as a person reads.
+- **The browser's muted detail says "Setting up: fetching Forgejo",** and the bar's end says the figure, as the request's pages draw it. The paragraph's name, the terminal and every other page say the whole line.
+- **With no size the node is still `temper-flow-meter`,** with no `data-progress`, and the stylesheet draws the sliding segment on it, so the bytes take the same place the percentage does ("the bytes in place of the percentage" in the request). `temper-flow-busy` stays for the steps with no figure.
+- **While the runner fetches the node is named "Fetching its runner":** the draft names Forgejo's alone.
+- **`temper forge list` stays as it is:** it prints a state and a step from the domain, not the row's words, and the draft does not name it.
+- **The look's commits carry the trailer:** `client-fetched`, `view-fetched` and `look-account`. `look-account` writes the account.
+- **The request's pages are copied into `notes/request/`,** since no ref holds the request's commit and a slot would not have it. They leave with the plan.
+- **The drafts stay:** their status now has no lag, and retiring or archiving them is for when the plan has landed.
+
+## The question
+
+`progress-runs`, in `plan.toml`: the request makes a public interface beyond the drafts a question, and `Builder::run` taking a progress is one, however small. No task waits: the default is what `progress-value` builds, and another answer is a follow-up task.
 
 ## skein
 
 `skein-ui`, `skein-ui-web`, `skein-ui-bundle`, and `skein-ui-text`'s fixture. **skein-ui isn't on hearth's skein surface:** hearth builds nothing of this and nothing of hearth changes.
+
+## Overlaps with the drafts beside this one
+
+Early work keeps off them: `progress-value`, `fetched-line`, `fetch-count` and `box-relay` touch no file another draft is changing. The rest could not avoid it:
+
+- **`client-wire-v1.schema`, `generated/v1.rs`, its goldens:** `repository-copies-1/making-wire` and `to-begin-store/dismiss-wire`. Their hunks are elsewhere in the schema; the generated file and the goldens are regenerated on a conflict, never merged by hand.
+- **`temper-service/src/family.rs` and `src/tests/family.rs`:** `repository-copies-1/making-run`. `link-fetched` keeps to `connection` and its call.
+- **`temper-engine-domain-forge/src/boundary.rs`, `domain.rs`:** `repository-copies-1/making-*` and `to-begin-store`. `engine-fetched` adds lines and moves none; keeping `Connection::SettingUp` as it is keeps this small.
+- **`temper-client-domain/src/forge/family.rs`, `forges.rs`:** `repository-copies-1/making-facts`.
+- **`temper-client-view`'s tests, `temper.css`, `temper/tests/client/**`, the gallery:** `look-round-3`. No `Word` is added, since any new one meets `words.rs`'s counts, and the meter's lines in `temper.css` are not theirs. The gallery's `samples.rs`, `tests.rs` and `names.txt` are the likeliest catch-up.
+- **Literals another trunk adds:** a `SettingUpParts` written beside this plan will miss `fetched`, a catch-up the compiler names.

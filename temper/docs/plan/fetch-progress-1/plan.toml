@@ -36,6 +36,20 @@ mode = "direct"
 needs = []
 design = "temper/docs/design/protocol/forge.md, 2.8"
 
+[[part]]
+id = "client"
+title = "the clients say it, Setting up: fetching Forgejo · 42%, and the welcome's bar fills"
+mode = "direct"
+needs = ["row", "progress-value"]
+design = "temper/docs/design/client/forge.md, 5.4"
+
+[[part]]
+id = "look"
+title = "welcome-fetch-percentage's deferred rows finished: its gallery states, its render check and its account"
+mode = "direct"
+needs = ["fetch", "box", "client"]
+design = "temper/docs/design/client/browser.md, 2.5"
+
 [[slice]]
 id = 1
 story = "a progress node built with a fraction and words reaches a page with its aria-value attributes and data-progress, and the stylesheet gives an owner's rule a width to read"
@@ -53,3 +67,15 @@ id = 3
 story = "a fetched line on the pipe sets the forge's row, and the row's progress is gone at the next step, at started and at failed"
 parts = ["row"]
 walk = false
+
+[[slice]]
+id = 4
+story = "a row that says how far its fetch has gone reaches a client's view through the real family and wire: both shells' words, the node's value, and the bar's fill"
+parts = ["client", "look"]
+walk = false
+
+[[question]]
+id = "progress-runs"
+parts = ["progress-value"]
+text = """For the user, since the request makes a public interface beyond the drafts a question. progress-value.md says the page writes aria-valuetext "today", but no built tree reaches it: the mapping reads the progress node's own runs, and Builder::run refuses every role but text. The cut made Builder::run take a progress too, additive, no caller breaks, and the task progress-value builds it. The alternative keeps a text child and has the page part read that child's words up to its parent, which adds a patch path and leaves the builder's assertion on a child. No task waits: the default is what is built, and a different answer is a follow-up task."""
+answer = ""
