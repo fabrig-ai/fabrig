@@ -2,8 +2,10 @@
 use super::{Malformed, walk::Node};
 use crate::{
     api,
-    forgejo::{document::Body, id::unsigned, time},
+    forgejo::id::unsigned,
     github::document::{self, Kind, Row},
+    text::Body,
+    time,
 };
 use alloc::boxed::Box;
 use skein_json::Token;

@@ -5,7 +5,7 @@ use super::super::{
     request::{self, Method, Request, Scope},
 };
 use super::{document, output_limits};
-use crate::forgejo::{id::unsigned, time};
+use crate::{forgejo::id::unsigned, time};
 use alloc::boxed::Box;
 use skein_json::{tokenizer, writer::Encoder};
 use skein_lib::{Overflow, Writer};

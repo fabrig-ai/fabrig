@@ -4,7 +4,7 @@ use super::{
     limits::Limits,
     request::Request,
 };
-pub use crate::forgejo::decode::Malformed;
+pub use crate::decode::Malformed;
 use alloc::boxed::Box;
 use skein_json::{Token, tokenizer};
 use skein_lib::List;
