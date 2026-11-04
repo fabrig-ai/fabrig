@@ -23,14 +23,14 @@ impl Component {
         let (call, id) = holder;
         let number = self.waiting.get(id).expect("call").repository.forge;
         let mut position = None;
-        for at in 0..self.settings.forges.len() {
-            if self.settings.forges.get(at).expect("forge").number == number {
+        for at in 0..self.forges.len() {
+            if self.forges.get(at).expect("forge").base.forge.number == number {
                 position = Some(at);
                 break;
             }
         }
         let at = position.expect("call forge");
-        let forge = self.settings.forges.get(at).expect("forge");
+        let forge = &self.forges.get(at).expect("forge").base.forge;
         let mut matched = None;
         for index in 0..forge.log_origins.len() {
             if forge.log_origins.get(index).expect("origin").origin.same(&redirect.origin) {
@@ -45,7 +45,7 @@ impl Component {
         }
         self.release_github_call(id, env, io);
         let Some(index) = matched else {
-            let gh = self.github.get_mut(at).expect("forge").as_mut().expect("GitHub");
+            let gh = &mut self.forges.get_mut(at).expect("forge").github_mut().expect("GitHub").state;
             let mut said = false;
             for origin in &gh.said_origins {
                 if origin.same(&redirect.origin) {

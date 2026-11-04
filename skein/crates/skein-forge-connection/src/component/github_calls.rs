@@ -82,7 +82,7 @@ impl Component {
     #[expect(clippy::manual_map, reason = "the programming model excludes closures")]
     fn github_route(&mut self, id: Id<Waiting>, at: u32, env: &Env<Limits>) -> Result<bool, api::Error> {
         let waiting = self.waiting.get_mut(id).expect("call");
-        let gh = self.github.get(at).expect("forge").as_ref().expect("GitHub");
+        let gh = &self.forges.get(at).expect("forge").github().expect("GitHub").state;
         if let Some(discovery) = &mut waiting.discovery {
             if waiting.revoked {
                 return Err(api::Error::Forbidden);
@@ -167,7 +167,7 @@ impl Component {
         let (call, id) = holder;
         let waiting = self.waiting.get(id).expect("call");
         if waiting.plan.is_none()
-            && self.settings.forges.get(at).expect("forge").log_origins.is_empty()
+            && self.forges.get(at).expect("forge").base.forge.log_origins.is_empty()
             && let Some(api::Op::Read(api::Read::Job { .. })) = waiting.op.as_ref()
         {
             self.finish(call, id, Err(api::Error::Refused), up);
@@ -183,7 +183,7 @@ impl Component {
             let waiting = self.waiting.get_mut(id).expect("call");
             waiting.route = None;
             if missing {
-                let discovery = Discovery::new(self.github.get(at).expect("forge").as_ref().expect("GitHub"));
+                let discovery = Discovery::new(&self.forges.get(at).expect("forge").github().expect("GitHub").state);
                 if discovery.candidates.is_empty() {
                     self.finish(call, id, Err(api::Error::NotInstalled), up);
                     return;
@@ -216,8 +216,8 @@ impl Component {
     }
     fn github_bot_permission(&self, id: Id<Waiting>, at: u32) -> Option<api::Answer> {
         let waiting = self.waiting.get(id).expect("call");
-        let gh = self.github.get(at).expect("forge").as_ref().expect("GitHub");
-        let bot = self.settings.forges.get(at).expect("forge").access.as_ref()?.user;
+        let gh = &self.forges.get(at).expect("forge").github().expect("GitHub").state;
+        let bot = self.forges.get(at).expect("forge").base.forge.access.as_ref()?.user;
         if waiting.discovery.is_none()
             && let Some(api::Op::Read(api::Read::Permission { user })) = waiting.op.as_ref()
             && *user == bot
@@ -259,7 +259,7 @@ impl Component {
             Some(discovery) => &mut discovery.tables,
             None => &mut self.github_tables,
         };
-        let step = plan.begin(bounds(waiting.page_size, env, &self.shared), &self.settings.word, tables);
+        let step = plan.begin(bounds(waiting.page_size, env, &self.shared), &self.owner.word, tables);
         waiting.plan = Some(CallPlan::GitHub(plan));
         step
     }
@@ -304,7 +304,7 @@ impl Component {
             if c.written && !waiting.charged {
                 waiting.cost = waiting.cost.checked_add(1).expect("bounded exchanges");
                 waiting.charged = true;
-                self.github.get_mut(at).expect("forge").as_mut().expect("GitHub").recent =
+                self.forges.get_mut(at).expect("forge").github_mut().expect("GitHub").state.recent =
                     Some(waiting.route.expect("sent route").selected.id);
             }
             if let Some(heard) = c.heard() {
@@ -347,7 +347,7 @@ impl Component {
             Err(_) => return Err(api::Error::Refused),
         }
         let route = waiting.route.as_mut().expect("eligible route");
-        let gh = self.github.get(at).expect("forge").as_ref().expect("GitHub");
+        let gh = &self.forges.get(at).expect("forge").github().expect("GitHub").state;
         let row = gh.rows.get(&route.selected.id).expect("eligible row");
         let authorization = if route.origin.is_some() {
             None
@@ -361,8 +361,8 @@ impl Component {
         c.deadline = Some(waiting.deadline);
         match c.start(
             env,
-            self.settings.forges.get(at).expect("forge"),
-            &self.settings.user_agent,
+            &self.forges.get(at).expect("forge").base.forge,
+            &self.owner.user_agent,
             Exchange::GitHub { exchange, authorization },
         ) {
             Ok(()) => {}
@@ -399,8 +399,8 @@ impl Component {
             Heard::Done(Body::Document(_) | Body::Raw { .. } | Body::Empty) | Heard::Row(_) | Heard::Failed(_) => {}
         }
         let route = waiting.route.expect("sent route");
-        let valid =
-            !waiting.revoked && self.github.get(at).expect("forge").as_ref().expect("GitHub").valid(route.selected);
+        let valid = !waiting.revoked
+            && self.forges.get(at).expect("forge").github().expect("GitHub").state.valid(route.selected);
         let mut discarded = Tables::new(0, 0);
         let tables = if valid {
             match &mut waiting.discovery {
@@ -415,7 +415,7 @@ impl Component {
             CallPlan::GitHub(plan) => plan,
             CallPlan::Forgejo(_) => unreachable!("GitHub plan"),
         };
-        let step = plan.heard(heard, bounds(page_size, env, &self.shared), &self.settings.word, tables);
+        let step = plan.heard(heard, bounds(page_size, env, &self.shared), &self.owner.word, tables);
         let step =
             if refused && route.origin.is_none() { Ok(Some(Step::Done(Err(api::Error::Forbidden)))) } else { step };
         if refused && route.origin.is_none() && valid {
