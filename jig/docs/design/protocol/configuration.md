@@ -526,7 +526,11 @@ host's half reports it (`llm.md`, 5.5).
   5.1). These exceptions change no configured limit or worst-case
   figure. Ordinary unique-key workload, permanent
   refusals and pending reservations still need room throughout the
-  advertised retention.
+  advertised retention. Stock profiles size that room from a daily
+  conversation workload per configured party (creation, messages and a
+  decision), with fivefold headroom shared by all deciding acts,
+  permanent refusals and pending reservations. The calculation lives
+  beside each profile's answer limit; the advertised retention stays a day.
 - **A template's grace** is within the tasks child's limit on a grace's
   span, or the start is refused, naming the template (3.1).
 - **The deployment's message bound** holds every kind of message a

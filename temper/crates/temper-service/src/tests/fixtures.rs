@@ -845,7 +845,8 @@ pub fn settle_root(
         engine.store.iterate();
         crate::engine::answer(engine);
         if let Some(accounts) = &mut engine.accounts {
-            accounts.iterate(
+            crate::accounts::iterate(
+                accounts,
                 engine.env.now,
                 engine.env.wall,
                 &mut engine.values,

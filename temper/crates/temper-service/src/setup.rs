@@ -252,7 +252,7 @@ impl Layer {
             Some(host) => host.next_deadline(),
             None => None,
         };
-        let mut next = crate::accounts::earliest(
+        let mut next = skein_lib::earliest(
             host,
             match self.pages.iter().next() {
                 Some(page) => Some(page.until),
@@ -260,10 +260,10 @@ impl Layer {
             },
         );
         for waiting in &self.waiting {
-            next = crate::accounts::earliest(next, Some(waiting.until));
+            next = skein_lib::earliest(next, Some(waiting.until));
         }
         for held in &self.held {
-            next = crate::accounts::earliest(next, Some(held.until));
+            next = skein_lib::earliest(next, Some(held.until));
         }
         next
     }
