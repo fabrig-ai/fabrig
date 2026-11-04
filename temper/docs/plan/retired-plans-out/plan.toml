@@ -1,3 +1,48 @@
 draft = "retired-plans-out"
 repo = "fabrig"
 sources = ["temper/docs/plan/retired-plans-out/inputs/request.md"]
+
+# The 49 retired plan directories leave main (inputs/request.md, step 4 of 12), after one pass
+# that keeps in the design what only they record. The request's Task 1 runs as four readers,
+# one per family of plans, each writing a kept note in notes/ (notes/contracts.md), and one
+# writer that puts the notes' findings into the design; the citations into the directories are
+# rewritten alongside by a small task of their own. Task 2 deletes the directories once the
+# writer has merged. plan.md says why.
+
+[buffer]
+low = 1.0
+high = 2.0
+
+[[part]]
+id = "citations-out"
+title = "every citation into the 49 directories from outside them rewritten as the fact it stood for, with its date or commit"
+mode = "direct"
+needs = []
+design = "DESIGN.md, 2"
+
+[[part]]
+id = "audit"
+title = "four readers: each family's decisions, contracts and open choices checked against the design, those it lacks written as findings in a kept note"
+mode = "direct"
+needs = []
+design = "DESIGN.md, 1"
+
+[[part]]
+id = "keep-decisions"
+title = "the kept notes' findings written into the design documents and status files they concern, dated, in each document's words"
+mode = "direct"
+needs = ["audit", "citations-out"]
+design = "DESIGN.md, 2"
+
+[[part]]
+id = "plans-out"
+title = "the 49 retired plan directories deleted; citations at 0 and fabrig-boundary green"
+mode = "direct"
+needs = ["keep-decisions"]
+design = "DESIGN.md, 4"
+
+[[slice]]
+id = 1
+story = "every decision, contract and open choice the retired plans alone recorded stands in the design, nothing outside them cites them, and the 49 directories are gone from main with the citations checker at 0 and the outward check green"
+parts = ["citations-out", "audit", "keep-decisions", "plans-out"]
+walk = false
