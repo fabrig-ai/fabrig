@@ -2,7 +2,7 @@
 //! Uses the bounded call ledger: a result waits for its call's Completed owner.
 
 use super::Complete;
-use super::{Backend, Below, policy, stream};
+use super::{Backend, Below, Bound, Rejection, policy, stream};
 use crate::mcp::{self, json};
 use alloc::boxed::Box;
 use skein_json::{Document, Kind};
@@ -134,52 +134,51 @@ impl Backend {
         }
     }
 
-    pub(super) fn builtin_results(&mut self, document: &Document, up: &mut Queue<ToDomain>) -> Option<()> {
-        self.turns.problem = b"user record has no message";
-        let message = json::field(document, 0, b"message")?;
-        self.turns.problem = b"user message has no content";
-        let content = json::field(document, message, b"content")?;
-        if document.token(content)?.kind != Kind::ArrayStart {
-            return Some(());
+    pub(super) fn builtin_results(&mut self, document: &Document, up: &mut Queue<ToDomain>) -> Result<(), Rejection> {
+        let message = json::field(document, 0, b"message").ok_or(Rejection::Malformed)?;
+        let content = json::field(document, message, b"content").ok_or(Rejection::Malformed)?;
+        if document.token(content).ok_or(Rejection::Malformed)?.kind != Kind::ArrayStart {
+            return Ok(());
         }
-        self.turns.problem = b"user content token is missing";
-        let mut index = content.checked_add(1)?;
+        let mut index = content.checked_add(1).ok_or(Rejection::Malformed)?;
         for _ in 0..document.len() {
-            if document.token(index)?.kind == Kind::ArrayEnd {
+            if document.token(index).ok_or(Rejection::Malformed)?.kind == Kind::ArrayEnd {
                 break;
             }
             if json::text_in(document, json::field(document, index, b"type")) == Some(b"tool_result") {
-                self.turns.problem = b"tool_result has no string tool_use_id";
-                let id = json::text_in(document, json::field(document, index, b"tool_use_id"))?;
+                let id = json::text_in(document, json::field(document, index, b"tool_use_id"))
+                    .ok_or(Rejection::Malformed)?;
                 for slot in 0..self.ledger.len() {
-                    let call = self.ledger.get(slot).expect("ledger slot");
+                    let call = self.ledger.get(slot).ok_or(Rejection::Malformed)?;
                     if call.builtin && call.id.as_ref() == id && !call.answered && call.answer.is_none() {
-                        self.turns.problem = b"tool_result content is missing, malformed or exceeds text bound";
-                        let text =
-                            result_text(document, json::field(document, index, b"content")?, self.settings.line_bytes)?;
+                        let text = result_text(
+                            document,
+                            json::field(document, index, b"content").ok_or(Rejection::Malformed)?,
+                            self.settings.line_bytes,
+                        )?;
                         let error = match json::field(document, index, b"is_error") {
-                            Some(value) => document.token(value)?.kind == Kind::True,
+                            Some(value) => document.token(value).ok_or(Rejection::Malformed)?.kind == Kind::True,
                             None => false,
                         };
-                        self.turns.problem = b"tool_result exceeds retained reply byte bound";
-                        if !self.reply_room(skein_lib::len_u64(text.len())) {
-                            return None;
-                        }
-                        self.ledger.get_mut(slot).expect("ledger slot").answer =
+                        self.reply_bytes(skein_lib::len_u64(text.len()))?;
+                        self.ledger.get_mut(slot).ok_or(Rejection::Malformed)?.answer =
                             Some(if error { mcp::Answer::Error(text) } else { mcp::Answer::Text(text) });
                     }
                 }
             }
-            self.turns.problem = b"user block has no closing token";
-            index = json::after(document, index)?;
+            index = json::after(document, index).ok_or(Rejection::Malformed)?;
         }
         self.flush_builtins(up);
-        Some(())
+        Ok(())
     }
 
     // Share the retained-reply budget. Reserve each MCP slot's full cap so
     // its later answer cannot consume bytes already held by a built-in.
     pub(super) fn reply_room(&self, extra: u64) -> bool {
+        self.reply_bytes(extra).is_ok()
+    }
+
+    fn reply_bytes(&self, extra: u64) -> Result<(), Rejection> {
         let maximum = u64::from(self.settings.translation.rendered_result)
             .checked_mul(u64::from(self.settings.ledger_slots().expect("call slots")))
             .expect("reply budget");
@@ -195,10 +194,14 @@ impl Backend {
             };
             retained = match retained.checked_add(bytes) {
                 Some(bytes) => bytes,
-                None => return false,
+                None => return Err(Rejection::Overflow),
             };
         }
-        retained <= maximum
+        if retained > maximum {
+            Err(Rejection::Limit { which: Bound::Reply, value: retained, bound: maximum })
+        } else {
+            Ok(())
+        }
     }
 }
 
@@ -253,30 +256,39 @@ pub(super) fn init_error(
     None
 }
 
-fn result_text(document: &Document, content: u32, maximum: u32) -> Option<Box<[u8]>> {
-    if document.token(content)?.kind == Kind::String {
-        return Some(json::text(document, content)?.into());
+fn result_text(document: &Document, content: u32, maximum: u32) -> Result<Box<[u8]>, Rejection> {
+    if document.token(content).ok_or(Rejection::Malformed)?.kind == Kind::String {
+        let text = json::text(document, content).ok_or(Rejection::Malformed)?;
+        super::turns::check_bound(Bound::ReplyText, skein_lib::len_u64(text.len()), u64::from(maximum))?;
+        return Ok(text.into());
     }
-    if document.token(content)?.kind != Kind::ArrayStart {
-        return None;
+    if document.token(content).ok_or(Rejection::Malformed)?.kind != Kind::ArrayStart {
+        return Err(Rejection::Malformed);
     }
     let mut text = List::with_capacity(maximum);
-    let mut index = content.checked_add(1)?;
+    let mut index = content.checked_add(1).ok_or(Rejection::Overflow)?;
     let mut first = true;
     for _ in 0..document.len() {
-        if document.token(index)?.kind == Kind::ArrayEnd {
+        if document.token(index).ok_or(Rejection::Malformed)?.kind == Kind::ArrayEnd {
             break;
         }
         if json::text_in(document, json::field(document, index, b"type")) == Some(b"text") {
+            let part = json::text_in(document, json::field(document, index, b"text")).ok_or(Rejection::Malformed)?;
+            let value = u64::from(text.len())
+                .checked_add(u64::from(!first))
+                .ok_or(Rejection::Overflow)?
+                .checked_add(skein_lib::len_u64(part.len()))
+                .ok_or(Rejection::Overflow)?;
+            super::turns::check_bound(Bound::ReplyText, value, u64::from(maximum))?;
             if !first {
-                text.push(b'\n').ok()?;
+                text.push(b'\n').expect("admitted result separator");
             }
             first = false;
-            for byte in json::text_in(document, json::field(document, index, b"text"))? {
-                text.push(*byte).ok()?;
+            for byte in part {
+                text.push(*byte).expect("admitted result bytes");
             }
         }
-        index = json::after(document, index)?;
+        index = json::after(document, index).ok_or(Rejection::Malformed)?;
     }
-    Some(text.into_boxed())
+    Ok(text.into_boxed())
 }

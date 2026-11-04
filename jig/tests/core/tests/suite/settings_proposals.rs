@@ -640,6 +640,9 @@ fn accepted_and_rejected_settings_decisions_replay_and_fresh_keys_get_the_first_
 }
 
 fn run_propose(world: &mut World, against: u32, items: Box<[settings::Item]>) -> core::CallPart {
+    run_propose_reason(world, against, items, "Please review these settings")
+}
+fn run_propose_reason(world: &mut World, against: u32, items: Box<[settings::Item]>, reason: &str) -> core::CallPart {
     let (config, limits) = run_configuration();
     let models = settings::model_names(&config.core.settings.models);
     let bytes = jig_protocol_store::codec::settings::encode(
@@ -656,7 +659,7 @@ fn run_propose(world: &mut World, against: u32, items: Box<[settings::Item]>) ->
     for byte in &bytes {
         write!(&mut encoded, "{byte:02x}").expect("hex string");
     }
-    let input = format!("{{\"against\":{against},\"set\":\"{encoded}\",\"reason\":\"Please review these settings\"}}");
+    let input = format!("{{\"against\":{against},\"set\":\"{encoded}\",\"reason\":\"{reason}\"}}");
     world.tool_call(b"propose_settings", input.as_bytes(), true);
     world
         .answers
@@ -944,4 +947,136 @@ fn exhausted_stale_outcome_numbers_refuse_before_changing_settings() {
     assert_eq!(settings_rows(&world), before);
     // The fixture deliberately exhausts message numbers and leaves start refused.
     world.broken();
+}
+
+// Synthetic reasons cover the reported sizes; they are not transcript quotations.
+fn review_reason(bytes: usize) -> String {
+    let mut reason = String::from("engine enforces: review every change. your agents follow: keep reports short. ");
+    let effect = " Running work keeps its current instructions until an owner moves it.";
+    reason.push_str(&"x".repeat(bytes - reason.len() - effect.len()));
+    reason.push_str(effect);
+    assert_eq!(reason.len(), bytes);
+    reason
+}
+fn owner_reason(world: &mut World, signed: u64, proposer: people::Proposer, proposal: u64) -> documents::Text {
+    let reads::Answer::Page(inbox) = read(
+        world,
+        signed,
+        reads::Read::Inbox {
+            group: reads::Group::Proposals,
+            filter: reads::Filter { project: None, goal: None },
+            from: None,
+        },
+    ) else {
+        panic!("owner inbox")
+    };
+    assert!(inbox.rows.iter().any(|row| matches!(row, reads::PageRow::Inbox(entry)
+        if entry.object == documents::InboxObject::Proposal { proposer, number: proposal })));
+    let reads::Answer::Document(document) = read(world, signed, reads::Read::Proposal { proposer, proposal }) else {
+        panic!("pending proposal")
+    };
+    let documents::Document::Proposal(value) = *document else { panic!("proposal document") };
+    value.reason
+}
+#[test]
+fn a_runs_settings_proposal_reason_is_read_whole_after_restart() {
+    for bytes in [900, 649, usize::try_from(run_configuration().1.core.people.words).expect("reason bound")] {
+        let (mut world, signed, task) = proposing_run(true);
+        let reason = review_reason(bytes);
+        let item = run_charter(&world, b"Keep reports short and review every change.");
+        let proposal = run_proposed(&run_propose_reason(&mut world, 1, Box::new([item]), &reason));
+        for restarted in [false, true] {
+            if restarted {
+                let (config, mut limits) = run_configuration();
+                limits.core.documents.text_bytes = 128;
+                world.restart_with_limits(config, limits);
+                assert!(world.domain.ready());
+            }
+            assert_eq!(
+                fixtures::live_row(&world, task).proposal.as_ref().expect("stored proposal").reason.as_ref(),
+                reason.as_bytes()
+            );
+            let shown = owner_reason(&mut world, signed, people::Proposer::Task(task), proposal);
+            assert_eq!(shown.bytes.len(), reason.len(), "whole settings reason");
+            assert_eq!(shown.bytes.as_ref(), reason.as_bytes());
+            assert!(!shown.cut);
+        }
+    }
+}
+fn party_reason_proposal(world: &mut World, signed: u64, item: settings::Item, reason: &str) -> u64 {
+    world.send(root::Event::Core(core::Event::ProposeSettings {
+        reply_to: skein_lib::ReplyTo::new(skein_lib::Token::new(SEED)),
+        sign_in: signed,
+        key: [1; 16],
+        digest: [1; 32],
+        change: Box::new(settings::Proposed { against: 1, items: Box::new([item]), reason: reason.as_bytes().into() }),
+    }));
+    let (_, root::Delivery::Core(core::Held::PeopleReply { reply, .. })) =
+        world.client_peer.as_mut().expect("client").delivered.pop().expect("proposal reply")
+    else {
+        panic!("proposal reply")
+    };
+    proposed(&reply)
+}
+#[test]
+fn a_partys_settings_proposal_reason_is_read_whole_after_restart() {
+    for bytes in [900, 649, usize::try_from(configuration().1.core.people.words).expect("reason bound")] {
+        let mut world = start(64);
+        let signed = sign_in(&mut world);
+        let reason = review_reason(bytes);
+        let item = run_charter(&world, b"Keep reports short and review every change.");
+        let proposal = party_reason_proposal(&mut world, signed, item, &reason);
+        for restarted in [false, true] {
+            if restarted {
+                let (config, mut limits) = configuration();
+                limits.core.documents.text_bytes = 128;
+                world.restart_with_limits(config, limits);
+                assert!(world.domain.ready());
+            }
+            let stored = world
+                .store
+                .rows
+                .values()
+                .find_map(|row| match row {
+                    root::Record::Core(core::Record::Tasks(tasks::Stored::PersonProposal(row)))
+                        if row.proposer == OWNER && row.number == proposal =>
+                    {
+                        Some(row)
+                    }
+                    _ => None,
+                })
+                .expect("stored party proposal");
+            assert_eq!(stored.reason.as_ref(), reason.as_bytes());
+            let shown = owner_reason(&mut world, signed, people::Proposer::Party(OWNER), proposal);
+            assert_eq!(shown.bytes.len(), reason.len(), "whole settings reason");
+            assert_eq!(shown.bytes.as_ref(), reason.as_bytes());
+            assert!(!shown.cut);
+        }
+    }
+}
+
+#[test]
+fn a_runs_settings_reason_past_people_words_is_refused_durably() {
+    let (mut world, _, task) = proposing_run(true);
+    let reason = review_reason(usize::try_from(run_configuration().1.core.people.words).expect("reason bound") + 1);
+    let item = run_charter(&world, b"Short reports");
+    let before = settings_rows(&world);
+    let part = run_propose_reason(&mut world, 1, Box::new([item]), &reason);
+    assert_eq!(part, core::CallPart::SettingsRefused(people::Refusal::Limit { which: people::LimitKind::Words }));
+    assert_eq!(settings_rows(&world), before);
+    assert!(fixtures::live_row(&world, task).proposal.is_none());
+    let rendered = jig_protocol_tools::render(&part);
+    assert!(rendered.error);
+    assert_eq!(
+        rendered.text.as_ref(),
+        b"Settings refused: reason exceeds people.words; shorten the reason and propose again"
+    );
+    let key = world.answers.last().expect("refusal answer").1;
+    let address = root::Key::Core(core::Key::Core(core::CoreKey::Call(key)));
+    let stored = world.store.rows.get(&address).expect("stored refusal").clone();
+    let root::Record::Core(core::Record::Core(core::CoreRecord::Call(call))) = &stored else { panic!("call record") };
+    assert_eq!(call.part, part);
+    restart(&mut world, run_configuration().0);
+    assert_eq!(world.store.rows.get(&address), Some(&stored));
+    assert!(fixtures::live_row(&world, task).proposal.is_none());
 }

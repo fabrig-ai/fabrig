@@ -395,18 +395,31 @@ fn a_goal_branch_found_missing_after_restart_reports_the_missing_entry_allocator
 }
 
 #[test]
-fn a_goal_branch_making_uses_the_known_default_tip() {
+fn a_goal_branch_making_reads_past_a_restored_default_tip() {
+    const CURRENT: skein_forge::api::Commit = [5; 32];
     let mut d = domain();
     outputs(&mut d, Event::Restore { record: Stored::Repository(adopted()) });
-    // This head is already part of the connector's working set before the taking.
     outputs(
         &mut d,
         Event::Restore { record: Stored::BranchHead(BranchHead { name: name(b"main"), commit: TIP, owned: false }) },
     );
     restore_done(&mut d);
     take(&mut d);
-    let made = fixtures::answer_next(&mut d, Err(Error::Missing));
-    assert_kept_making(&made);
+    let missing = fixtures::answer_next(&mut d, Err(Error::Missing));
+    assert_no_making(&missing);
+    let (call, op) = fixtures::next_call(&mut d);
+    assert_eq!(op, Op::Read(Read::Branch { branch: b"main".as_slice().into() }));
+    let made = fixtures::answer(&mut d, call, Ok(Answer::Commit(CURRENT)));
+    let mut expected = entry();
+    expected.effect.write = Write::CreateBranch { branch: GOAL_BRANCH.into(), commit: CURRENT };
+    assert!(
+        made.contains(&Request::Save {
+            release: Some(TAKING),
+            read_afresh: None,
+            record: Stored::Entry { entry: expected, held: false }
+        }),
+        "{made:?}"
+    );
     assert!(!d.is_ready(), "the effect still waits for its durable commit");
 }
 

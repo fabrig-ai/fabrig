@@ -224,6 +224,87 @@ fn report_request(backend: &Backend) -> FromDomain {
 }
 
 #[test]
+fn repeated_structured_calls_use_the_last_position_and_the_result_outcome() {
+    for (framed, split) in [(false, false), (false, true), (true, false), (true, true)] {
+        let (mut backend, mut up, mut below) = repeated_structured_output(framed, split);
+        assert!(up.is_empty(), "all calls wait for the program's outcome");
+        backend.line(&env(0), br#"{"type":"result","is_error":false,"structured_output":{"outcome":{"form":"report","text":"done","fields":{}}}}"#, &mut up, &mut below);
+        let text = match up.pop() {
+            Some(ToDomain::Failed { detail, .. }) => panic!("{}", alloc::string::String::from_utf8_lossy(&detail)),
+            event => event,
+        };
+        let Some(ToDomain::Text { bytes, .. }) = text else { panic!("surrounding text") };
+        assert_eq!(bytes, 11, "surrounding text is counted once");
+        let (owner, completion) = match up.pop() {
+            Some(ToDomain::Completed { owner, completion }) => (owner, completion),
+            Some(ToDomain::Failed { detail, .. }) => panic!("{}", alloc::string::String::from_utf8_lossy(&detail)),
+            _ => panic!("one structured completion"),
+        };
+        assert_eq!(owner, COMPLETION);
+        let [
+            llm::Said::Text { text: before, .. },
+            llm::Said::ToolCall { name: read, .. },
+            llm::Said::ToolCall { name, input, call, .. },
+            llm::Said::Text { text: after, .. },
+        ] = completion.content.as_ref()
+        else {
+            panic!("last structured position and surrounding blocks")
+        };
+        assert_eq!(before.as_ref(), b"before");
+        assert_eq!(read.as_ref(), b"Read");
+        assert_eq!(name.as_ref(), b"finish");
+        assert_eq!(input.as_ref(), br#"{"form":"report","text":"done","fields":{}}"#);
+        let llm::Decoded::Served { ask: smith_domain::run::Ask::Finish { .. } } = call else {
+            panic!("the result outcome satisfies the report contract")
+        };
+        assert_eq!(after.as_ref(), b"after");
+        assert_eq!(completion.usage.input_tokens, Some(13));
+        assert_eq!(completion.usage.output_tokens, Some(7));
+        assert!(up.is_empty(), "one completion and no structured built-in results");
+        assert!(below.is_empty(), "program-owned calls have no smith reply");
+        assert_eq!(backend.startup.phase(), State::Running);
+    }
+}
+
+fn repeated_structured_output(framed: bool, split: bool) -> (Backend, Queue<ToDomain>, Queue<Below>) {
+    use serde_json::json;
+
+    let mut backend = active();
+    fixtures::retain_request(report_request(&backend), &mut backend);
+    let mut up = Queue::with_capacity(32);
+    let mut below = Queue::with_capacity(64);
+    let blocks = [
+        json!({"type":"text","text":"before"}),
+        json!({"type":"tool_use","id":"s1","name":"StructuredOutput","input":{"outcome":{}}}),
+        json!({"type":"tool_use","id":"r","name":"Read","input":{"file_path":"a"}}),
+        json!({"type":"tool_use","id":"s2","name":"StructuredOutput","input":{"outcome":{"form":"report","text":"draft","fields":{}}}}),
+        json!({"type":"text","text":"after"}),
+    ];
+    if framed {
+        backend.line(
+            &env(0),
+            br#"{"type":"stream_event","event":{"type":"message_start","message":{"id":"m"}}}"#,
+            &mut up,
+            &mut below,
+        );
+        backend.line(
+            &env(0),
+            br#"{"type":"stream_event","event":{"type":"content_block_start","index":4}}"#,
+            &mut up,
+            &mut below,
+        );
+    }
+    for content in blocks.chunks(if split { 1 } else { blocks.len() }) {
+        let record = json!({"type":"assistant","message":{"id":"m","content":content,"usage":{"input_tokens":13_u64,"output_tokens":7_u64}}});
+        backend.line(&env(0), &serde_json::to_vec(&record).expect("record"), &mut up, &mut below);
+    }
+    if framed {
+        backend.line(&env(0), br#"{"type":"stream_event","event":{"type":"message_stop"}}"#, &mut up, &mut below);
+    }
+    (backend, up, below)
+}
+
+#[test]
 fn an_init_with_an_ungranted_built_in_fails() {
     let (_, mut up) = init(&["mcp__smith__permission_prompt", "Read"], false);
     failed(up.pop(), b"smith: the program offers a built-in tool the run did not grant: Read");

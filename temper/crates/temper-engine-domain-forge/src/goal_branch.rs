@@ -174,6 +174,17 @@ pub(super) fn answered(
         d.makings.insert(owner, pending).expect("making keeps its read slot");
         return;
     }
+    read_result(d, env, owner, pending, result, out);
+}
+
+fn read_result(
+    d: &mut Domain,
+    env: &Env<Limits>,
+    owner: Token,
+    pending: Making,
+    result: Result<Answer, Error>,
+    out: &mut Queue<Request>,
+) {
     match result {
         Ok(Answer::Commit(commit)) if pending.default => make(d, env, pending, commit, out),
         Ok(Answer::Commit(commit)) => {
@@ -184,57 +195,7 @@ pub(super) fn answered(
             wake(d, &pending.name);
             released(d, pending.task, out);
         }
-        Err(Error::Missing) if !pending.default => {
-            if pending.entry.is_none() {
-                if waiting(d, &pending.name) {
-                    return;
-                }
-                let hold = d.holds.get_mut(&pending.name).expect("restored goal hold");
-                match hold.writer {
-                    Some(Writer::Entry(_)) => {
-                        hold.writer = None;
-                        save_hold(out, hold.clone());
-                    }
-                    Some(Writer::Run { .. } | Writer::Lost { .. }) | None => {}
-                }
-                failed(
-                    pending.task,
-                    pending.name,
-                    b"branch missing after restart; forge has no restored outbox entry allocator",
-                    out,
-                );
-                return;
-            }
-            let resource = to_client(&pending.name, &env.limits).expect("validated held branch");
-            let repository = d.repositories.get(&resource.repository).expect("held repository");
-            let branch = repository.settings.default_branch.clone();
-            // A known default tip is already part of this decision's working set.
-            let mut commit = None;
-            for (name, head) in &d.heads {
-                if name.forge == pending.name.forge
-                    && name.repository == pending.name.repository
-                    && crate::items::branch_matches(name, &branch)
-                {
-                    commit = Some(head.commit);
-                }
-            }
-            if let Some(commit) = commit {
-                make(d, env, pending, commit, out);
-            } else {
-                pending.default = true;
-                d.makings.insert(owner, pending).expect("replaces making read");
-                child(
-                    d,
-                    env,
-                    skein_forge_client::Event::Read {
-                        owner,
-                        repository: resource.repository,
-                        read: Read::Branch { branch },
-                    },
-                    out,
-                );
-            }
-        }
+        Err(Error::Missing) if !pending.default => missing(d, env, owner, pending, out),
         Err(error) => {
             wake(d, &pending.name);
             failed(pending.task, pending.name, crate::effect_words::error_words(error), out);
@@ -246,6 +207,40 @@ pub(super) fn answered(
             released(d, pending.task, out);
         }
     }
+}
+
+fn missing(d: &mut Domain, env: &Env<Limits>, owner: Token, mut pending: Making, out: &mut Queue<Request>) {
+    if pending.entry.is_none() {
+        if waiting(d, &pending.name) {
+            return;
+        }
+        let hold = d.holds.get_mut(&pending.name).expect("restored goal hold");
+        match hold.writer {
+            Some(Writer::Entry(_)) => {
+                hold.writer = None;
+                save_hold(out, hold.clone());
+            }
+            Some(Writer::Run { .. } | Writer::Lost { .. }) | None => {}
+        }
+        failed(
+            pending.task,
+            pending.name,
+            b"branch missing after restart; forge has no restored outbox entry allocator",
+            out,
+        );
+        return;
+    }
+    let resource = to_client(&pending.name, &env.limits).expect("validated held branch");
+    let repository = d.repositories.get(&resource.repository).expect("held repository");
+    let branch = repository.settings.default_branch.clone();
+    pending.default = true;
+    d.makings.insert(owner, pending).expect("replaces making read");
+    child(
+        d,
+        env,
+        skein_forge_client::Event::Read { owner, repository: resource.repository, read: Read::Branch { branch } },
+        out,
+    );
 }
 
 fn make(
