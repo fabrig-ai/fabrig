@@ -34,49 +34,35 @@ impl EphemeralCleanup {
             Some(parent) => Ok(parent),
             None => skein_shell::open_root(path.parent().expect("private parent")).map_err(kernel::Error::Other),
         };
-        let mut failure = None;
-        let directory = match parent {
-            Ok(parent) => Some(io.adopt_root(parent).expect("private parent slot")),
-            Err(error) => {
-                failure = Some(error);
-                None
-            }
+        let (directory, failure) = match parent {
+            Ok(parent) => (Some(io.adopt_root(parent).expect("private parent slot")), None),
+            Err(error) => (None, Some(error)),
         };
         let store = store.map(|root| io.adopt_root(root).expect("unfinished store slot"));
         let mut cleanup = Self {
             io,
             directory,
             name: path.file_name().expect("private directory name").as_encoded_bytes().into(),
-            request: None,
-            state: State::Closed,
+            request: store.map(|file| file::Request::Close { owner: Token::new(1), file }),
+            state: State::StoreRoot,
             failure,
             events: Queue::with_capacity(4),
             completions: Queue::with_capacity(4),
             submissions: Queue::with_capacity(4),
         };
-        match store {
-            Some(file) => {
-                cleanup.state = State::StoreRoot;
-                cleanup.request = Some(file::Request::Close { owner: Token::new(1), file });
-            }
-            None if directory.is_some() => {
-                cleanup.state = State::Directory;
-                cleanup.request = Some(cleanup.remove_directory());
-            }
-            None => cleanup.state = State::Closed,
+        if store.is_none() {
+            cleanup.store_closed();
         }
         cleanup
     }
 
-    fn remove_directory(&self) -> file::Request {
-        file::Request::Remove {
-            owner: Token::new(1),
-            root: self
-                .io
-                .descriptor(self.directory.expect("private parent retained"))
-                .expect("private parent descriptor"),
-            name: self.name.clone(),
-            directory: true,
+    fn store_closed(&mut self) {
+        self.state = State::Closed;
+        if let Some(directory) = self.directory {
+            let root = self.io.descriptor(directory).expect("private parent descriptor");
+            let name = self.name.clone();
+            self.state = State::Directory;
+            self.request = Some(file::Request::Remove { owner: Token::new(1), root, name, directory: true });
         }
     }
 
@@ -105,14 +91,7 @@ impl Host for EphemeralCleanup {
         while let Some(event) = self.events.pop() {
             match event {
                 file::Event::Removed { .. } => self.state = State::Closing,
-                file::Event::Closed { .. } if self.state == State::StoreRoot => {
-                    if self.directory.is_some() {
-                        self.state = State::Directory;
-                        self.request = Some(self.remove_directory());
-                    } else {
-                        self.state = State::Closed;
-                    }
-                }
+                file::Event::Closed { .. } if self.state == State::StoreRoot => self.store_closed(),
                 file::Event::Closed { .. } => self.state = State::Closed,
                 file::Event::Failed { error, .. } => self.failed(error),
                 file::Event::Cancelled { .. } => self.failed(kernel::Error::Cancelled),

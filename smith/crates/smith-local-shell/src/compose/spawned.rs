@@ -5,7 +5,7 @@ use crate::command::Usage;
 use crate::startup::Failure;
 use skein_io::file::Expect;
 use skein_lib::Duration;
-use skein_shell::{Clock, Kernel};
+use skein_shell::{Clock, Kernel, Stored, Unstored};
 use std::path::{Path, PathBuf};
 
 pub(super) struct Startup<'a> {
@@ -37,16 +37,14 @@ impl Startup<'_> {
             };
             let stored = skein_shell::store_file(kernel, clock, store).map_err(|why| {
                 let detail = match why {
-                    skein_shell::Unstored::Kernel(why) => format!("generated agent configuration: {why:?}"),
-                    why @ (skein_shell::Unstored::Unsafe(_) | skein_shell::Unstored::TooLarge) => {
-                        format!("generated agent configuration: {why:?}")
-                    }
+                    Unstored::Kernel(why) => format!("generated agent configuration: {why:?}"),
+                    Unstored::Unsafe(_) | Unstored::TooLarge => format!("generated agent configuration: {why:?}"),
                 };
                 Refused::Local(Failure::Host { detail })
             })?;
             match stored {
-                skein_shell::Stored::Kept => {}
-                skein_shell::Stored::Conflict => unreachable!("Expect::Any cannot conflict"),
+                Stored::Kept => {}
+                Stored::Conflict => unreachable!("Expect::Any cannot conflict"),
             }
         }
         Ok(self.kind.launch(root(self.workspace)?, &path))
