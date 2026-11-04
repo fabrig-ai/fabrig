@@ -39,6 +39,25 @@ pub(super) struct Written {
 }
 
 impl Compaction {
+    /// The snapshot's open file, in each state that holds one.
+    pub(super) fn file(&self) -> Option<Token> {
+        match self {
+            Self::Header { file, .. }
+            | Self::Chunk { written: Written { file, .. }, .. }
+            | Self::Trailer { written: Written { file, .. } }
+            | Self::Sync { file, .. }
+            | Self::Close { file, .. } => Some(*file),
+            Self::Idle
+            | Self::Due { .. }
+            | Self::Create { .. }
+            | Self::RemoveTemp { .. }
+            | Self::Rename { .. }
+            | Self::SyncDirectory { .. }
+            | Self::RemoveOld { .. }
+            | Self::CleanupSyncDirectory => None,
+        }
+    }
+
     pub(super) fn is_idle(&self) -> bool {
         match self {
             Self::Idle => true,
@@ -254,7 +273,7 @@ pub(super) fn opened(store: &mut Store, mut dir: Dir, log: Log, file: Token, ste
         | Compaction::RemoveOld { .. }
         | Compaction::CleanupSyncDirectory => unreachable!("only snapshot creation opens a file"),
     };
-    follow(store, dir, log, step)
+    store.start_batch(dir, log, &step.env.limits, step.below)
 }
 
 pub(super) fn finished(store: &mut Store, mut dir: Dir, log: Log, step: &mut Step<'_>) -> State {
@@ -273,7 +292,7 @@ pub(super) fn finished(store: &mut Store, mut dir: Dir, log: Log, step: &mut Ste
             unreachable!("snapshot creation opens a file; Idle and Due have no snapshot request")
         }
     };
-    follow(store, dir, log, step)
+    store.start_batch(dir, log, &step.env.limits, step.below)
 }
 
 fn created(start: u64, file: Token) -> Compaction {
@@ -328,28 +347,24 @@ fn cleanup_synced() -> Compaction {
     Compaction::Idle
 }
 
-fn follow(store: &mut Store, dir: Dir, log: Log, step: &mut Step<'_>) -> State {
-    if store.queue.is_empty() {
-        dir.at(Phase::Ready { log })
-    } else {
-        store.start_batch(dir, log, &step.env.limits, step.below)
-    }
-}
-
 pub(super) fn failed(store: &mut Store, mut dir: Dir, log: Log, error: Error, step: &mut Step<'_>) -> State {
-    match mem::replace(&mut dir.compaction, Compaction::Idle) {
+    let compaction = mem::replace(&mut dir.compaction, Compaction::Idle);
+    if let Some(file) = compaction.file() {
+        return failure_closing(dir, log, file, step.below);
+    }
+    match compaction {
         Compaction::Create { start } => create_failed(store, dir, log, start, error, step),
-        Compaction::Header { file, .. }
-        | Compaction::Chunk { written: Written { file, .. }, .. }
-        | Compaction::Trailer { written: Written { file, .. } }
-        | Compaction::Sync { file, .. }
-        | Compaction::Close { file, .. } => failure_closing(dir, log, file, step.below),
         Compaction::RemoveTemp { .. }
         | Compaction::Rename { .. }
         | Compaction::SyncDirectory { .. }
         | Compaction::RemoveOld { .. }
         | Compaction::CleanupSyncDirectory => commits_failed(store, dir, Some(log.file), Queue::with_capacity(0), step),
         Compaction::Idle | Compaction::Due { .. } => unreachable!("no snapshot request is outstanding"),
+        Compaction::Header { .. }
+        | Compaction::Chunk { .. }
+        | Compaction::Trailer { .. }
+        | Compaction::Sync { .. }
+        | Compaction::Close { .. } => unreachable!("the snapshot's file is closed before recovery"),
     }
 }
 
