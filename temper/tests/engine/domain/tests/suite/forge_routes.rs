@@ -2274,6 +2274,240 @@ fn a_goal_ending_while_its_issue_is_opening_eventually_closes_that_issue() {
 }
 
 #[test]
+fn a_goal_can_subscribe_to_main_without_guessing_repository_ids() {
+    let (mut world, goal, branch) = subscription_goal();
+    let made = change_tool::change_landing(
+        &mut world,
+        &goal,
+        93,
+        None,
+        b"Make the first batch",
+        Some(engine::ChangeLanding::Goal),
+    );
+    assert!(matches!(made, engine::CallAnswer::Delegated(_)), "first batch: {made:?}");
+    assert!(
+        world.store.rows.values().any(|row| matches!(row,
+        Record::Forge { row } if matches!(row.as_ref(), forge_top::Stored::Change(change)
+            if change.base == branch))),
+        "first batch targets g"
+    );
+    let answer =
+        subscription_json(&mut world, &goal, 94, br#"{"topic":{"kind":"landings","branch":"main"},"paths":["file"]}"#);
+    assert!(matches!(answer, engine::CallAnswer::Subscribed { .. }), "subscription: {answer:?}");
+    let event =
+        world.protocol.answer(Token::new(7), goal.task, goal.attempt, 0, tasks::End::Parked, engine::Parts::none());
+    world.send(event);
+    world.until(Until::Ready);
+    let before = news_count(&world, goal.task);
+    fake::advance(&mut world.fake, &world.fake_env, b"org/repo", b"main", b"file", b"changed", 1)
+        .expect("external landing");
+    world.send(engine::Event::Forge(Box::new(forge_top::Event::Hint {
+        hint: skein_forge::api::Hint {
+            repository: forge_world::REPO,
+            change: skein_forge::api::Change::Branch(b"main".as_slice().into()),
+            key: None,
+        },
+    })));
+    await_new_forge_news(&mut world, goal.task, before);
+    finish_subscription_batch(&mut world, &goal);
+    world.close();
+}
+
+fn finish_subscription_batch(world: &mut World, goal: &engine::Assignment) {
+    world.until(Until::SecondAssignment);
+    let producer = world.assigned.iter().find(|run| run.task != goal.task).expect("batch producer").clone();
+    let tasks::Party::Task(change) = live_task(world, producer.task).requester else { panic!("change producer") };
+    let Some(Record::Forge { row }) = world.store.rows.get(&Key::Forge(forge_top::Key::Change(change))) else {
+        panic!("change")
+    };
+    let forge_top::Stored::Change(row) = row.as_ref() else { panic!("change row") };
+    let branch = row.branch.clone();
+    change_tool::land_change(world, &producer, &branch);
+    let current = world.assigned.iter().rev().find(|run| run.task == goal.task).expect("current goal").clone();
+    let event = world.protocol.answer(
+        Token::new(7),
+        current.task,
+        current.attempt,
+        0,
+        tasks::End::Finished {
+            result: tasks::TaskResult::Report { words: b"Done".as_slice().into() },
+            cancel_delegates: false,
+        },
+        engine::Parts::none(),
+    );
+    world.send(event);
+    world.until(Until::Ready);
+}
+
+#[test]
+fn forge_subscription_admission_names_the_failed_check() {
+    for (repository, expected) in [
+        ("{\"forge\":0,\"repository\":0}", "not adopted"),
+        ("{\"forge\":0,\"repository\":1}", "not adopted"),
+        ("{\"forge\":1,\"repository\":0}", "not adopted"),
+        ("{\"forge\":1,\"repository\":1}", "not adopted"),
+        ("{\"forge\":2,\"repository\":1}", "not adopted"),
+    ] {
+        let (mut world, goal, _) = subscription_goal();
+        let input = format!(r#"{{"topic":{{"kind":"landings","repository":{repository},"branch":"main"}}}}"#);
+        let answer = subscription_json(&mut world, &goal, 94, input.as_bytes());
+        subscription_feedback(&answer, expected);
+        subscription_feedback(&answer, "landings branch main repository {forge:");
+        world.close();
+    }
+}
+
+#[test]
+fn forge_subscription_rooms_name_their_limits() {
+    for (bound, expected) in [
+        ("forge", "subscriptions (limit 1)"),
+        ("resources", "resources_per_task (limit 1)"),
+        ("task", "tasks.subscriptions (limit 1)"),
+        ("paths", "paths_per_subscription (limit 0)"),
+        ("path_bytes", "path exceeds name_bytes"),
+        ("branch_bytes", "branch exceeds name_bytes"),
+        ("branch", "malformed branch"),
+    ] {
+        let (mut world, goal, _) = subscription_goal_bound(bound);
+        if bound == "forge" || bound == "task" {
+            let first = subscription_json(&mut world, &goal, 93, br#"{"topic":{"kind":"landings","branch":"main"}}"#);
+            assert!(matches!(first, engine::CallAnswer::Subscribed { .. }), "room at the bound: {first:?}");
+        }
+        let long = "x".repeat(usize::try_from(world.env.limits.forge.name_bytes).expect("name bound") + 1);
+        let branch = match bound {
+            "branch_bytes" => long.as_str(),
+            "branch" => "bad//branch",
+            _ => "next",
+        };
+        let paths = match bound {
+            "path_bytes" => format!("[\"{long}\"]"),
+            "paths" => "[\"file\"]".into(),
+            _ => "[]".into(),
+        };
+        let input = format!(r#"{{"topic":{{"kind":"landings","branch":"{branch}"}},"paths":{paths}}}"#);
+        let answer = subscription_json(&mut world, &goal, 94, input.as_bytes());
+        subscription_feedback(&answer, expected);
+        world.close();
+    }
+}
+
+#[test]
+fn forge_subscription_selection_and_duplicate_feedback_are_actionable() {
+    for repository in ["\"org/repo\"", "\"\"", "{\"forge\":1,\"repository\":2}"] {
+        let (mut world, goal, _) = subscription_goal();
+        let input = format!(r#"{{"topic":{{"kind":"landings","repository":{repository},"branch":"main"}}}}"#);
+        let first = subscription_json(&mut world, &goal, 94, input.as_bytes());
+        assert!(matches!(first, engine::CallAnswer::Subscribed { .. }), "selected repository: {first:?}");
+        let replay = subscription_json(&mut world, &goal, 94, input.as_bytes());
+        assert_eq!(replay, first, "the named call replays its subscription number");
+        let duplicate = subscription_json(&mut world, &goal, 95, input.as_bytes());
+        subscription_feedback(&duplicate, "duplicate topic");
+        subscription_feedback(&duplicate, "landings branch main repository {forge: 1, repository: 2}");
+        world.close();
+    }
+    subscription_repository_feedback();
+    for (repository, expected) in [
+        (r#"{"forge":1}"#, temper_engine_smith::Problem::Missing(b"repository")),
+        (r#"{"owner":"org","name":"repo"}"#, temper_engine_smith::Problem::Missing(b"forge")),
+        ("[]", temper_engine_smith::Problem::Type(b"repository")),
+        ("1", temper_engine_smith::Problem::Type(b"repository")),
+    ] {
+        let json = format!(r#"{{"topic":{{"kind":"landings","repository":{repository},"branch":"main"}}}}"#);
+        let input = smith_domain_run::HostInput::attested(json.into_bytes().into()).expect("bounded JSON");
+        let Err(problem) = temper_engine_smith::call(
+            smith_domain_run::CallName { activation: 1, completion: 1, position: 1 },
+            b"subscribe_forge",
+            &input,
+        ) else {
+            panic!("malformed repository must fail decoding")
+        };
+        assert_eq!(problem, expected);
+    }
+}
+
+fn subscription_repository_feedback() {
+    let (mut world, goal) = change_tool::chat_world_with_words(false, b"Watch main");
+    let answer = subscription_json(&mut world, &goal, 94, br#"{"topic":{"kind":"landings","branch":"main"}}"#);
+    subscription_feedback(&answer, "this project has no repository to read");
+    world.close();
+    let (mut world, goal) = change_tool::several_repositories();
+    let answer = subscription_json(&mut world, &goal, 94, br#"{"topic":{"kind":"landings","branch":"main"}}"#);
+    subscription_feedback(&answer, "name the repository: org/repo, org/extra");
+    let answer = subscription_json(
+        &mut world,
+        &goal,
+        95,
+        br#"{"topic":{"kind":"landings","repository":"org/missing","branch":"main"}}"#,
+    );
+    subscription_feedback(&answer, "no repository org/missing here; this project has:");
+    world.close();
+}
+
+fn subscription_feedback(answer: &engine::CallAnswer, expected: &str) {
+    let rendered = temper_engine_smith::answer(answer);
+    let words = std::str::from_utf8(rendered.text()).expect("UTF-8 feedback");
+    assert!(rendered.error(), "subscription must be refused for {expected}: {words}");
+    assert!(words.contains(expected), "expected {expected}: {words}");
+    assert_ne!(words, "Refused: task 1 subscription");
+}
+
+fn subscription_goal() -> (World, engine::Assignment, Box<[u8]>) {
+    subscription_goal_bound("")
+}
+
+fn subscription_goal_bound(bound: &str) -> (World, engine::Assignment, Box<[u8]>) {
+    let mut world = World::configured_limits(
+        true,
+        true,
+        true,
+        1000,
+        Gate::default(),
+        None,
+        StoryLimits { tools: Some(1967), ..StoryLimits::default() },
+    );
+    match bound {
+        "forge" => world.env.limits.forge.subscriptions = 1,
+        "resources" => world.env.limits.forge.resources_per_task = 1,
+        "task" => world.env.limits.tasks.subscriptions = 1,
+        "paths" => world.env.limits.forge.paths_per_subscription = 0,
+        _ => {}
+    }
+    let client = world.env.limits.forge.client;
+    world = world.with_forge_client(client);
+    world.adopt();
+    world.send(protocol::hello_slots(Token::new(7), 2, Box::new([])));
+    let people::Ask::Create { project, mut batch } = goal_branch::goal_request(&world, true) else { panic!("goal") };
+    batch[0].authority.tools = 1967;
+    let goal = assigned_chat(&mut world, 92, people::Ask::Create { project, batch });
+    assert_eq!(live_task(&world, goal.task).authority.tools.0, 1967);
+    let branch = format!("temper/{}/g{}", goal.task, goal.task).into_bytes().into();
+    world.until(Until::Ready);
+    (world, goal, branch)
+}
+
+fn subscription_json(world: &mut World, goal: &engine::Assignment, number: u32, json: &[u8]) -> engine::CallAnswer {
+    let input = smith_domain_run::HostInput::attested(json.into()).expect("bounded subscription JSON");
+    let temper_engine_smith::Decoded::Call(call) = temper_engine_smith::call(
+        smith_domain_run::CallName { activation: goal.attempt, completion: number, position: 1 },
+        b"subscribe_forge",
+        &input,
+    )
+    .expect("subscription repository is selectable") else {
+        panic!("decoded subscription")
+    };
+    let before = world.answers.len();
+    let event = world.protocol.call(Token::new(7), goal.task, goal.attempt, u64::from(number), call);
+    world.send(event);
+    for _ in 0..200 {
+        world.tick();
+        if let Some(answer) = world.answers.get(before) {
+            return answer.clone();
+        }
+    }
+    panic!("subscription unanswered: {:?}", world.call_errors);
+}
+
+#[test]
 fn a_goal_subscription_receives_the_connectors_landing_news() {
     let mut world = World::new();
     world.adopt();

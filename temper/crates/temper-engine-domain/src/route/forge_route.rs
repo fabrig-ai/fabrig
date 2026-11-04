@@ -732,6 +732,76 @@ fn describe_agent(
     Ok(EffectFlight::Call { description: Box::new(description), repository, effect: described.effect, key, resource })
 }
 
+/// Resolve project-scoped subscription selection before the existing typed admission.
+#[expect(clippy::too_many_arguments, reason = "the decoded subscription and its named-call envelope travel together")]
+pub(crate) fn subscribe_named_call(
+    domain: &mut Domain,
+    env: &Env<Limits>,
+    decision: &mut Decision,
+    to: ReplyTo,
+    key: CallKey,
+    repository: Option<Box<[u8]>>,
+    mut topic: forge::Topic,
+    own_change: Option<u64>,
+    paths: Box<[Box<[u8]>]>,
+) {
+    let project = domain.core.tasks.delegation(key.task).expect("authorized current subscription task").project;
+    let Ok(adopted) = named_repository(domain, project, repository.as_deref()) else {
+        super::host_route::read(
+            domain,
+            to,
+            CallAnswer::ReadRepositoryRefused { named: repository, repositories: read_repositories(domain, project) },
+        );
+        return;
+    };
+    match &mut topic {
+        forge::Topic::Landings { repository, .. }
+        | forge::Topic::Ci { repository, .. }
+        | forge::Topic::Pull { repository, .. }
+        | forge::Topic::Participation { repository, .. } => {
+            *repository = adopted.provider;
+        }
+    }
+    subscribe_call(domain, env, decision, to, key, topic, own_change, paths);
+}
+
+fn subscription_problem(
+    domain: &Domain,
+    limits: &Limits,
+    subscriber: &forge::Subscriber,
+) -> Option<(&'static [u8], Option<u32>)> {
+    if let Some(problem) = domain.forge.subscription_problem(&limits.forge, subscriber) {
+        return Some(problem);
+    }
+    let repository = match &subscriber.topic {
+        forge::Topic::Landings { repository, .. }
+        | forge::Topic::Ci { repository, .. }
+        | forge::Topic::Pull { repository, .. }
+        | forge::Topic::Participation { repository, .. } => *repository,
+    };
+    let context = domain.core.tasks.delegation(subscriber.task)?;
+    let readable = domain.forge.readable_repositories(context.project);
+    let mut adopted = false;
+    for candidate in &readable {
+        adopted |= candidate.provider == repository;
+    }
+    if !adopted {
+        return Some((b"repository is not readable in this project; select an adopted owner/name", None));
+    }
+    if let Some(task) = domain.core.tasks.task(subscriber.task)
+        && task.subscriptions.len() >= skein_lib::usize_of(limits.tasks.subscriptions)
+    {
+        return Some((b"task subscription room exhausted: tasks.subscriptions", Some(limits.tasks.subscriptions)));
+    }
+    if topic_name(&subscriber.topic, &limits.forge).is_none() {
+        return Some((b"malformed branch: use nonempty slash-separated branch segments", None));
+    }
+    if watch_names(domain, limits, subscriber).is_none() {
+        return Some((b"resource room exhausted: resources_per_task", Some(limits.forge.resources_per_task)));
+    }
+    None
+}
+
 #[expect(clippy::too_many_arguments, reason = "one typed task and connector subscription is routed together")]
 pub(crate) fn subscribe_call(
     domain: &mut Domain,
@@ -743,28 +813,28 @@ pub(crate) fn subscribe_call(
     own_change: Option<u64>,
     paths: Box<[Box<[u8]>]>,
 ) {
-    let Some(number) = crate::fresh(&mut domain.core.counters, Family::Message) else {
-        decide_call(
-            domain,
-            &env.limits,
-            decision,
-            to,
-            key,
-            CallAnswer::SubscriptionRefused(tasks::Problem::new(Some(key.task), tasks::Refusal::Busy)),
-        );
-        return;
-    };
+    let token = to.into_token();
+    let Some(number) = subscription_number(domain, env, decision, token, key) else { return };
+    let to = ReplyTo::new(token);
     let subscriber = forge::Subscriber { task: key.task, number, topic, own_change, goal_tasks: None, paths };
-    if !domain.forge.can_subscribe(&env.limits.forge, &subscriber)
-        || watch_names(domain, &env.limits, &subscriber).is_none()
-    {
+    if let Some((cause, limit)) = subscription_problem(domain, &env.limits, &subscriber) {
+        let existing = match domain.forge.topic_subscriber(key.task, &subscriber.topic) {
+            Some(existing) => Some(existing.number),
+            None => None,
+        };
         decide_call(
             domain,
             &env.limits,
             decision,
             to,
             key,
-            CallAnswer::SubscriptionRefused(tasks::Problem::new(Some(key.task), tasks::Refusal::Subscription)),
+            CallAnswer::ForgeSubscriptionRefused {
+                task: key.task,
+                topic: Box::new(subscriber.topic),
+                cause,
+                limit,
+                existing,
+            },
         );
         return;
     }
@@ -779,6 +849,27 @@ pub(crate) fn subscribe_call(
             kind: tasks::SubscriptionKind::Topic { connector: domain.config.forge_connector, topic: number },
         },
     }));
+}
+
+fn subscription_number(
+    domain: &mut Domain,
+    env: &Env<Limits>,
+    decision: &mut Decision,
+    to: Token,
+    key: CallKey,
+) -> Option<u64> {
+    let Some(number) = crate::fresh(&mut domain.core.counters, Family::Message) else {
+        decide_call(
+            domain,
+            &env.limits,
+            decision,
+            ReplyTo::new(to),
+            key,
+            CallAnswer::SubscriptionRefused(tasks::Problem::new(Some(key.task), tasks::Refusal::Busy)),
+        );
+        return None;
+    };
+    Some(number)
 }
 
 fn branch_parts(branch: &[u8], limit: u32) -> Option<Box<[Box<[u8]>]>> {

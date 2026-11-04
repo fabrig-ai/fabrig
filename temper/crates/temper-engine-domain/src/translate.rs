@@ -185,6 +185,7 @@ pub(crate) fn checked_call(mut body: Call, limits: &Limits) -> Call {
         | Tool::Introduce { .. }
         | Tool::Subscribe { .. }
         | Tool::SubscribeForge { .. }
+        | Tool::SubscribeNamedForge { .. }
         | Tool::ReadNamed { .. }
         | Tool::ReadForge { .. }
         | Tool::EffectForge { .. }
@@ -216,6 +217,7 @@ pub(crate) fn checked_call(mut body: Call, limits: &Limits) -> Call {
             | Tool::Introduce { .. }
             | Tool::Subscribe { .. }
             | Tool::SubscribeForge { .. }
+            | Tool::SubscribeNamedForge { .. }
             | Tool::ReadNamed { .. }
             | Tool::ReadForge { .. }
             | Tool::EffectForge { .. }
@@ -260,6 +262,7 @@ pub(crate) fn call_needs_input(tool: &Tool) -> bool {
         | Tool::Introduce { .. }
         | Tool::Subscribe { .. }
         | Tool::SubscribeForge { .. }
+        | Tool::SubscribeNamedForge { .. }
         | Tool::ReadNamed { .. }
         | Tool::ReadForge { .. }
         | Tool::EffectForge { .. }
@@ -358,6 +361,7 @@ pub(crate) fn call_shape(tool: &Tool, limits: &tasks::Limits) -> Option<tasks::R
         | Tool::Introduce { .. }
         | Tool::Subscribe { .. }
         | Tool::SubscribeForge { .. }
+        | Tool::SubscribeNamedForge { .. }
         | Tool::ReadNamed { .. }
         | Tool::ReadForge { .. }
         | Tool::EffectForge { .. }
@@ -435,9 +439,10 @@ pub(crate) fn tool_kind(tool: &Tool) -> Option<jig_domain_core::ToolKind> {
             jig_domain_core::ToolKind::Decide
         }
         Tool::Propose { .. } => jig_domain_core::ToolKind::Propose,
-        Tool::Subscribe { .. } | Tool::SubscribeForge { .. } | Tool::Unsubscribe { .. } => {
-            jig_domain_core::ToolKind::Subscribe
-        }
+        Tool::Subscribe { .. }
+        | Tool::SubscribeForge { .. }
+        | Tool::SubscribeNamedForge { .. }
+        | Tool::Unsubscribe { .. } => jig_domain_core::ToolKind::Subscribe,
         Tool::EffectForge { .. } => jig_domain_core::ToolKind::Effect,
         Tool::Note { entry, .. } => jig_domain_core::ToolKind::Note { scope: entry.scope.clone() },
         Tool::Recall { by, .. } => jig_domain_core::ToolKind::Recall { by: by.clone() },
@@ -507,6 +512,7 @@ pub(crate) fn keep_connector_answer(
         | CallAnswer::MessageRefused(_)
         | CallAnswer::Subscribed { .. }
         | CallAnswer::Unsubscribed
+        | CallAnswer::ForgeSubscriptionRefused { .. }
         | CallAnswer::SubscriptionRefused(_)
         | CallAnswer::Delegated(_)
         | CallAnswer::DelegationDenied { .. }
@@ -550,6 +556,7 @@ pub(crate) fn is_core_read(tool: &Tool) -> bool {
         | Tool::Introduce { .. }
         | Tool::Subscribe { .. }
         | Tool::SubscribeForge { .. }
+        | Tool::SubscribeNamedForge { .. }
         | Tool::Unsubscribe { .. }
         | Tool::Rejected(_)
         | Tool::RejectedMessage(_)

@@ -27,9 +27,39 @@ pub(crate) fn resource(value: &Value) -> Result<forge::What, Problem> {
     }
 }
 
+/// Decode numeric or project-named selection before the root checks adoption and authority.
+pub(crate) fn subscription(
+    value: &Value,
+    own_change: Option<u64>,
+    paths: Box<[Box<[u8]>]>,
+) -> Result<temper_engine_domain::Tool, Problem> {
+    let value = value.object(b"topic")?;
+    let named = match value.field(b"repository")? {
+        Some(Value::Object(_)) => {
+            return Ok(temper_engine_domain::Tool::SubscribeForge { topic: topic(value)?, own_change, paths });
+        }
+        Some(Value::String(name)) => {
+            if name.is_empty() {
+                None
+            } else {
+                Some(name.clone())
+            }
+        }
+        None => None,
+        Some(Value::Array(_) | Value::Number(_) | Value::Boolean(_) | Value::Null) => {
+            return Err(Problem::Type(b"repository"));
+        }
+    };
+    let topic = selected_topic(value, api::Repository { forge: 0, repository: 0 })?;
+    Ok(temper_engine_domain::Tool::SubscribeNamedForge { repository: named, topic, own_change, paths })
+}
+
 pub(crate) fn topic(value: &Value) -> Result<forge::Topic, Problem> {
     let value = value.object(b"topic")?;
-    let repository = repository(value.required(b"repository")?)?;
+    selected_topic(value, repository(value.required(b"repository")?)?)
+}
+
+fn selected_topic(value: &Value, repository: api::Repository) -> Result<forge::Topic, Problem> {
     match value.required(b"kind")?.text(b"kind")?.as_ref() {
         b"landings" => Ok(forge::Topic::Landings { repository, branch: value.required(b"branch")?.text(b"branch")? }),
         b"ci" => Ok(forge::Topic::Ci { repository, head: commit(value.required(b"head")?, b"head")? }),
