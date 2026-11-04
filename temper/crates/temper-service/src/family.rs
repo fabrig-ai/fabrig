@@ -233,8 +233,49 @@ pub fn to_root(
                         }),
                     }));
                 }
-                w::Request::MakeRepository(_) => {
-                    return Err(Box::new(kit::Event::Application(kit::FromApplication::Undecodable { to: reply_to })));
+                w::Request::MakeRepository(value) => {
+                    let value = value.into_parts();
+                    let from = match value.from {
+                        w::MakeFrom::Empty => forge::MakeFrom::Empty,
+                        w::MakeFrom::Copy(copy) => {
+                            let copy = copy.into_parts();
+                            let Ok(source) = wire::source::parse(&copy.address) else {
+                                return Err(Box::new(kit::Event::Application(kit::FromApplication::Undecodable {
+                                    to: reply_to,
+                                })));
+                            };
+                            forge::MakeFrom::Copy { address: wire::source::address(&source) }
+                        }
+                    };
+                    let into = match value.into {
+                        Some(into) => {
+                            let into = into.into_parts();
+                            Some(forge::MakeInto {
+                                project: into.project,
+                                home: into.home,
+                                host: match forges.get(value.forge) {
+                                    Some(forge) => host(&forge.git),
+                                    None => Box::default(),
+                                },
+                            })
+                        }
+                        None => None,
+                    };
+                    return Ok(root::Event::Party(root::PartyInput::Application {
+                        scope,
+                        reply_to,
+                        sign_in,
+                        key,
+                        digest,
+                        carried,
+                        request: root::Application::Forge(forge::Ask::MakeRepository {
+                            forge: value.forge,
+                            org: value.org,
+                            name: value.name,
+                            from,
+                            into,
+                        }),
+                    }));
                 }
                 w::Request::Adopt(value) => value,
             };
@@ -871,12 +912,16 @@ fn forge_row(row: forge::Row, limits: &w::Limits) -> Option<w::ForgeRow> {
         Some(why) => Some(w::ConnectStopped::new(limits, w::ConnectStoppedParts { why }).ok()?),
         None => None,
     };
+    let mut makings = List::with_capacity(limits.forge_row_makings);
+    for row in row.makings {
+        makings.push(repository_making(row, limits)?).ok()?;
+    }
     w::ForgeRow::new(
         limits,
         w::ForgeRowParts {
             number: row.number,
             host: row.host,
-            makings: List::with_capacity(0),
+            makings,
             read_only: row.read_only,
             kind: forge_kind(row.kind),
             mode: forge_mode(row.mode),
@@ -906,6 +951,55 @@ fn forge_row(row: forge::Row, limits: &w::Limits) -> Option<w::ForgeRow> {
                 None => None,
             },
         },
+    )
+    .ok()
+}
+fn repository_making(row: forge::RepositoryMaking, limits: &w::Limits) -> Option<w::RepositoryMaking> {
+    let from = match row.from {
+        forge::MakeFrom::Empty => w::MakeFrom::Empty,
+        forge::MakeFrom::Copy { address } => {
+            w::MakeFrom::Copy(w::MakeCopy::new(limits, w::MakeCopyParts { address }).ok()?)
+        }
+    };
+    let into = match row.into {
+        Some(into) => Some(w::MakeInto::new(limits, w::MakeIntoParts { project: into.project, home: into.home }).ok()?),
+        None => None,
+    };
+    let state = match row.state {
+        forge::MakingState::Waiting => w::MakingState::Waiting,
+        forge::MakingState::Making => w::MakingState::Making,
+        forge::MakingState::Made { id, branch } => {
+            w::MakingState::Made(w::MakingMade::new(limits, w::MakingMadeParts { id, branch }).ok()?)
+        }
+        forge::MakingState::Adopting { id, branch } => {
+            w::MakingState::Adopting(w::MakingMade::new(limits, w::MakingMadeParts { id, branch }).ok()?)
+        }
+        forge::MakingState::Failed(failed) => {
+            let step = match failed.step {
+                forge::MakeStep::Admin => w::MakeStep::Admin,
+                forge::MakeStep::Org => w::MakeStep::Org,
+                forge::MakeStep::Repository => w::MakeStep::Repository,
+                forge::MakeStep::File => w::MakeStep::File,
+                forge::MakeStep::Adoption => w::MakeStep::Adoption,
+            };
+            let reason = match failed.reason {
+                forge::MakeFailure::Taken => w::MakeFailure::Taken,
+                forge::MakeFailure::Empty => w::MakeFailure::Empty,
+                forge::MakeFailure::TimedOut => w::MakeFailure::TimedOut,
+                forge::MakeFailure::Refused { status } => {
+                    w::MakeFailure::Refused(w::Refused::new(limits, w::RefusedParts { status }).ok()?)
+                }
+                forge::MakeFailure::NotAllowed => w::MakeFailure::NotAllowed,
+                forge::MakeFailure::Other => w::MakeFailure::Other,
+            };
+            w::MakingState::Failed(
+                w::MakingFailed::new(limits, w::MakingFailedParts { step, reason, words: failed.words }).ok()?,
+            )
+        }
+    };
+    w::RepositoryMaking::new(
+        limits,
+        w::RepositoryMakingParts { org: row.key.org, name: row.key.name, from, into, state },
     )
     .ok()
 }

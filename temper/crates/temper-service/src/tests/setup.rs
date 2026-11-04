@@ -1159,6 +1159,8 @@ fn local_stops_missing_busy_and_origin_mismatch_leave_the_other_forge_served() {
                 .insert(
                     Token::new(76),
                     Run {
+                        making: None,
+                        words: None,
                         first: None,
                         forge: 1,
                         kind: Kind::Adopt,
@@ -1460,6 +1462,8 @@ fn takeover_stops_missing_and_busy_keep_the_handover_and_isolate_the_forge() {
                 .insert(
                     Token::new(76),
                     Run {
+                        making: None,
+                        words: None,
                         first: None,
                         forge: 1,
                         kind: Kind::Adopt,
@@ -2026,6 +2030,8 @@ fn the_intent_comes_from_the_record_after_a_restart() {
                 .insert(
                     run,
                     Run {
+                        making: None,
+                        words: None,
                         first: None,
                         forge: 2,
                         kind: Kind::LocalReconcile,

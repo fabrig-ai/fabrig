@@ -236,6 +236,21 @@ impl Domain {
     pub fn forge_ended(&self, forge: u16) -> bool {
         self.forge.forge_ended(forge)
     }
+    /// The connector's kept repository-making row.
+    #[must_use]
+    pub fn making(&self, key: &forge::MakingKey) -> Option<&forge::RepositoryMaking> {
+        self.forge.making(key)
+    }
+    /// The oldest waiting repository-making row on the forge.
+    #[must_use]
+    pub fn next_making(&self, forge: u16) -> Option<&forge::RepositoryMaking> {
+        self.forge.next_making(forge)
+    }
+    /// A made repository whose adoption has no act in flight.
+    #[must_use]
+    pub fn making_due(&self, forge: u16) -> Option<forge::MakingKey> {
+        self.forge.making_due(forge)
+    }
     /// Restored provider ids for the setup host's start-time reconcile.
     #[must_use]
     pub fn adopted_ids(&self, forge: u16) -> Box<[u64]> {
