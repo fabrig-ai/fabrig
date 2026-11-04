@@ -572,13 +572,13 @@ fn a_worlds_own_defaults_replace_the_stock_without_document_members() {
 fn init_inbox_holds_three_message_credits_within_the_store_codec() {
     let engine = engine(&generated());
     let limits = &engine.limits.core;
-    assert_eq!(limits.tasks.result_bytes, 512);
-    assert_eq!(limits.tasks.message_bytes, 4096);
-    assert_eq!(limits.tasks.inbox_bytes, 3 * limits.tasks.message_bytes);
+    assert_eq!(limits.tasks.result_bytes, 10_660);
+    assert_eq!(limits.tasks.message_bytes, 10_660);
+    assert_eq!(limits.tasks.inbox_bytes, 82 * limits.tasks.message_bytes);
     // protocol/configuration.md, 13.4: news and answer credits, four live
     // delegates' result reservations, and one unread result coexist.
     let required = 2 * limits.tasks.message_bytes + 5 * limits.tasks.result_bytes;
-    assert_eq!(required, 10_752);
+    assert_eq!(required, 74_620);
     assert!(limits.tasks.inbox_bytes >= required);
     assert!(jig_protocol_store::codec::limits(limits).is_some(), "the three-credit inbox fits the pinned store codec");
 }

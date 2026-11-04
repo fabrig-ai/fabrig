@@ -1015,7 +1015,9 @@ fn a_worker_alone_with_the_owned_examples_worker_fits_one_ring() {
     const IORING_MAX_ENTRIES: u32 = 32_768;
     let input = fixtures::owned_worker_alone_document();
     let directories = config::Directories::working();
-    let agent = fixtures::owned_worker_agent();
+    let mut agent = fixtures::owned_worker_agent();
+    agent.host_limits.message_bytes = 10_662;
+    agent.host_limits.messages = 82;
     let part = crate::startup::worker_part(&input, &directories).unwrap();
     let operations = crate::system::worker_alone_operations(
         &part.worker.jig.limits.io,

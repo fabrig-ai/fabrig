@@ -64,7 +64,7 @@ fn defaults_leaving_2047_bytes_refuse_the_start() {
     let Err(found) = start(SHORT) else { panic!("a short charter refuses the start") };
     assert_eq!(
         startup::lines(&found).as_ref(),
-        b"charter 3: charter 3 leaves its brief 2,047 bytes of its host part's 51,717; it needs at least 2,048\n",
+        b"charter 3: charter 3 leaves its brief 2,047 bytes of its host part's 400,135; it needs at least 2,048\n",
     );
 }
 

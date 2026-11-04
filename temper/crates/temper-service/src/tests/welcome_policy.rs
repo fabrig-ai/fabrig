@@ -209,14 +209,14 @@ fn reply(driver: &Driver, request: u8) -> &people::Reply {
 )]
 fn real_init_policy_fits_with_two_long_github_repositories() {
     let (config, limits) = generated();
-    // Init inherits today's Small profile; also prove the stricter product question.
+    // Init runs the Standard profile; also prove the stricter product question.
     assert_eq!(limits.policy_bytes, 16_384);
     assert!(config.core.seed_projects.is_empty());
     assert_eq!(config.kinds_stock.len(), 3);
     let stock = config.core.defaults.policies.get(&1).expect("stock policy 1");
     let snapshot =
         core::policy_snapshot(&stock.policy, &stock.permissions, &stock.templates).expect("whole stock policy");
-    assert_eq!(limits.authority.projects, 2);
+    assert_eq!(limits.authority.projects, 8);
     assert!(engine::refused(generated().0, &limits).is_empty());
     let mut strict = limits;
     strict.policy_bytes = 4096;
@@ -316,18 +316,26 @@ fn real_init_policy_fits_with_two_long_github_repositories() {
             assert_eq!(value, &snapshot, "adoption adds no policy grants, requirements or metadata");
         }
     }
-    ask(&mut driver, 3, people::Ask::MakeProject { name: "Third".into(), policy: 1 });
+    let capacity = u8::try_from(limits.authority.projects).expect("profile project capacity fits request keys");
+    for key in 3..=capacity {
+        ask(&mut driver, key, people::Ask::MakeProject { name: format!("Project {key}").into(), policy: 1 });
+        assert_eq!(
+            reply(&driver, key),
+            &people::Reply::Outcome(people::Outcome::ProjectMade { project: u32::from(key) })
+        );
+    }
+    ask(&mut driver, capacity + 1, people::Ask::MakeProject { name: "Past capacity".into(), policy: 1 });
     assert_eq!(
-        reply(&driver, 3),
+        reply(&driver, capacity + 1),
         &people::Reply::Outcome(people::Outcome::Refused(people::Refusal::Limit {
             which: people::LimitKind::Projects
         })),
-        "third welcome selection exceeds the unchanged two-project capacity"
+        "the next welcome selection exceeds the profile's project capacity"
     );
     let bytes = people::policy_bytes(&snapshot).expect("exact joined snapshot bytes");
     assert_eq!(bytes, 3282);
     std::eprintln!(
-        "real init joined policy: {bytes}/4096 requested bytes, configured bound {}; projects 1 and 2; adopted=2; owner=39, repositories=64 bytes each; third welcome MakeProject refuses Projects",
+        "real init joined policy: {bytes}/4096 requested bytes, configured bound {}; profile project capacity {capacity}; adopted=2; owner=39, repositories=64 bytes each; next welcome MakeProject refuses Projects",
         limits.policy_bytes
     );
     assert!(bytes <= 4096);
