@@ -442,6 +442,9 @@ fn read(argv: &[&str], value: c::ReadValue) -> jig::Printed {
             }))),
         );
     }
+    while let Some((_, c::Read::Revision(_))) = root.reads.get(&call) {
+        root.serve(call, c::ReadResult::Value(c::ReadValue::Revision(Box::new(c::RevisionAnswer::Unknown))));
+    }
     while root.family_reads.contains_key(&call) {
         let temper_client_protocol_wire::v1::Read::RevisionSetting(query) = forge_query(&root, call) else {
             panic!("revision value")
@@ -2965,3 +2968,100 @@ fn proposal_effect_pluralizes_zero_one_and_multiple_holders() {
     }
 }
 
+fn replaced_forge_revision(number: u32, edit: Option<c::RevisionEdit>) -> c::ReadResult {
+    let mut header = head(c::RevisionDecider::Release);
+    header.number = number;
+    let items = match edit {
+        Some(edit) => list([c::RevisionItem {
+            setting: c::Setting::Application { kind: 2, scope: 1, number: 1 },
+            edit,
+            replaced: c::RevisionReplaced::Application { size: u32::try_from(forge_value(2).len()).unwrap() },
+        }]),
+        None => list([]),
+    };
+    c::ReadResult::Value(c::ReadValue::Revision(Box::new(c::RevisionAnswer::Revision(c::RevisionDocument {
+        head: header,
+        items,
+    }))))
+}
+
+#[test]
+fn revision_show_hydrates_replaced_values_for_every_edit() {
+    for edit in
+        [c::RevisionEdit::Application(c::SizedEdit::Set { size: 33 }), c::RevisionEdit::Removed, c::RevisionEdit::Reset]
+    {
+        for json in [false, true] {
+            let (mut root, call) = fixtures::read_call(if json {
+                &["revision", "show", "5", "--json"]
+            } else {
+                &["revision", "show", "5"]
+            });
+            let set = match edit {
+                c::RevisionEdit::Application(c::SizedEdit::Set { .. }) => true,
+                c::RevisionEdit::Application(c::SizedEdit::Remove | c::SizedEdit::Reset)
+                | c::RevisionEdit::Set(_)
+                | c::RevisionEdit::TooLarge(_)
+                | c::RevisionEdit::Removed
+                | c::RevisionEdit::Reset => false,
+            };
+            root.serve(call, replaced_forge_revision(5, Some(edit.clone())));
+            assert_eq!(
+                root.reads.get(&call).expect("read preceding history").1,
+                c::Read::Revision(c::ReadRevision { number: 4 })
+            );
+            root.serve(call, replaced_forge_revision(4, None));
+            assert_eq!(
+                root.reads.get(&call).expect("skip unrelated revision").1,
+                c::Read::Revision(c::ReadRevision { number: 3 })
+            );
+            root.serve(
+                call,
+                replaced_forge_revision(3, Some(c::RevisionEdit::Application(c::SizedEdit::Set { size: 33 }))),
+            );
+            for revision in if set { vec![5, 3] } else { vec![3] } {
+                let temper_client_protocol_wire::v1::Read::RevisionSetting(query) = forge_query(&root, call) else {
+                    panic!("historical read")
+                };
+                assert_eq!(query.revision(), revision);
+                root.serve_readout(call, forge_setting_page(Some(forge_value(2))));
+            }
+            let answer = root.answer(call).expect("hydrated replaced value");
+            assert_eq!(answer.status, 0);
+            let text = core::str::from_utf8(&answer.stdout).unwrap();
+            let replaced = text.split_once(if json { "\"replaced\":" } else { "was: " }).expect("previous state").1;
+            assert!(replaced.contains("\"ci\":false"), "{text}");
+        }
+    }
+}
+
+#[test]
+fn revision_show_preserves_unavailable_and_oversized_replaced_values() {
+    let preset = crate::limits::tools();
+    let forgotten =
+        c::ReadResult::Value(c::ReadValue::Revision(Box::new(c::RevisionAnswer::Forgotten(c::RevisionForgotten {
+            oldest: 5,
+        }))));
+    let set = replaced_forge_revision(4, Some(c::RevisionEdit::Application(c::SizedEdit::Set { size: 33 })));
+    for (limits, history, value, expected) in [
+        (preset, forgotten, None, " bytes"),
+        (preset, set.clone(), Some(None), " bytes"),
+        (jig::Limits { result_bytes: 512, ..preset }, set, Some(Some(forge_value(2))), "was: too large,"),
+    ] {
+        let (mut root, call) = fixtures::read_call(&["revision", "show", "5"]);
+        root.limits.tools = limits;
+        root.serve(call, replaced_forge_revision(5, Some(c::RevisionEdit::Reset)));
+        assert_eq!(
+            root.reads.get(&call).expect("preceding history").1,
+            c::Read::Revision(c::ReadRevision { number: 4 })
+        );
+        root.serve(call, history);
+        if let Some(value) = value {
+            root.serve_readout(call, forge_setting_page(value));
+        }
+        let answer = root.answer(call).expect("metadata fallback");
+        assert_eq!(answer.status, 0, "{answer:?}");
+        let text = core::str::from_utf8(&answer.stdout).unwrap();
+        assert!(text.contains(expected), "{text}");
+        assert!(!text.contains("\"ci\":"), "must not read today's value: {text}");
+    }
+}
