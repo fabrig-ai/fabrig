@@ -3,7 +3,7 @@ id = "smith-backend-effects"
 part = "smith-backend-effects"
 kind = "feature"
 needs = []
-files = ["smith/crates/smith-protocol-program/src/backend.rs", "smith/crates/smith-protocol-program/src/backend/**", "smith/crates/smith-protocol-program/src/mcp.rs", "smith/crates/smith-protocol-program/src/mcp/tests.rs", "smith/crates/smith-protocol-program/src/command.rs", "smith/docs/development/debt/D006-backend-two-effect-paths.md", "smith/docs/development/debt/README.md"]
+files = ["smith/crates/smith-protocol-program/src/backend.rs", "smith/crates/smith-protocol-program/src/backend/**", "smith/crates/smith-protocol-program/src/mcp.rs", "smith/crates/smith-protocol-program/src/mcp/json.rs", "smith/crates/smith-protocol-program/src/mcp/tests.rs", "smith/tests/fake-claude/tests/support/relay.rs", "smith/crates/smith-protocol-program/src/command.rs", "smith/docs/development/debt/D006-backend-two-effect-paths.md", "smith/docs/development/debt/README.md"]
 effort = "high"
 minutes = 100
 +++
@@ -33,16 +33,21 @@ Acceptance:
 
 ## Owns and may change
 
-- Owns: all of `smith-protocol-program/src/backend.rs`, `backend/**`, `mcp.rs`, `mcp/tests.rs`, `command.rs`.
+- Owns: all of `smith-protocol-program/src/backend.rs`, `backend/**`, `mcp.rs`, `mcp/json.rs`, `mcp/tests.rs`, `command.rs`.
+- `smith/tests/fake-claude/tests/support/relay.rs`: the relay world's harness drives `Server`'s public face, so
+  it moves with it, as `mcp/tests.rs`' harness does, and nothing else in that world changes.
 - `relay.rs` and `relay/` are the shell's and keep `Queue<io::Request>`: no change.
 - `smith-agent-service/src/service/program.rs` reads `backend::Below` as it is: no change. `Below`'s shape and
   `Backend`'s public step signatures stay.
 - `mcp.rs` may name `crate::backend::Below`: a module cycle inside the crate is fine here.
-- If `command.rs` has a reader outside the crate (at this plan's base it has none: check with `rg`), keep its
-  signature, and in `startup.rs` drain a local `Queue::uncapped()` into `below`.
+- `command.rs` has readers outside the crate (`smith-host-protocol/src/program.rs`, `jig/tests/channel`): keep its
+  signatures, and where the backend calls `Command`, drain a local `Queue::uncapped()` into `below`.
 - A test that calls `backend.flush(&mut below)` drops the call, and reads the queue it passed to the step; one
   that `mcp/tests.rs`' harness pops from `self.server.up()` pops the harness's own `above`. Those are moved
   items. The harness's `drain` unwraps `Below::Io`.
+- The harness in `fake-claude`'s `relay.rs` keeps `requests: Queue<Request>` for its own driver. It gains its own
+  `Queue<mcp::Up>` (capacity 2), popped in `notices`, and a `Queue<Below>` that it moves into `requests` right after
+  each server call, `Server::new` too, so its requests keep their order. Those are moved items.
 
 ## Steps
 
@@ -74,8 +79,8 @@ Acceptance:
    the poll did: not `0..len()`, and not `while let` (no `while` in step code).
 5. `cargo fmt`; `python3 -I -B smith/scripts/old_forms.py`; `heavy cargo clippy -p smith-protocol-program
    -p smith-agent-service --all-targets -- -D warnings`; `heavy cargo nextest run -p smith-protocol-program
-   -p smith-agent-service`; the worlds that run a program: `smith/tests/agent-process` and the program stories
-   in `jig/tests/channel` (package names from their `Cargo.toml`).
+   -p smith-agent-service`; the worlds that run a program: `smith/tests/agent-process` and the relay world `smith-fake-claude`;
+   the program stories in `jig/tests/channel` (package names from their `Cargo.toml`).
 6. Delete the item and its row; the citations check. Commit and push.
 
 ## What can move, and what stops you
@@ -96,3 +101,11 @@ to match. Name in your report each path you found of the second kind.
 ## Report
 
 The common note's items. The tests only move, so no break is owed, but do say which test files changed and how.
+
+## Answers
+
+2026-11-04. May `mcp/json.rs` join the allowed files for the queue's propagation? Yes: `Server::message` and
+`Server::call` take `above` and `call` pushes into it, and `message_event` passes it down; nothing else in that file
+changes. Removing `Server.above` reaches `smith/tests/fake-claude/tests/support/relay.rs` too, which calls
+`Server::up` and the methods step 3 changes, so that harness is allowed as well, and the task's checks run its world.
+`command.rs` does have readers outside the crate, so its signatures stay. The spec above says all three.
