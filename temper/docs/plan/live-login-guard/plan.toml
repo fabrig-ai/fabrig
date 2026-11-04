@@ -1,0 +1,3 @@
+draft = "live-login-guard"
+repo = "fabrig"
+sources = ["temper/docs/plan/live-login-guard/inputs/live-login-guard.md", "AGENTS.md"]
