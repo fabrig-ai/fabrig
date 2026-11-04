@@ -670,6 +670,30 @@ pub(super) fn prepare_proposal(core: &mut Core, env: &Env<Limits>, against: u32,
     });
 }
 
+fn run_proposal_set(
+    core: &mut Core,
+    env: &Env<Limits>,
+    against: u32,
+    items: Box<[s::Item]>,
+    reason: &[u8],
+) -> Result<(u64, u32, s::Proposal), people::Refusal> {
+    if reason.len() > skein_lib::length::usize_of(env.limits.people.words) {
+        return Err(people::Refusal::Limit { which: people::LimitKind::Words });
+    }
+    prepare_proposal(core, env, against, items);
+    let set = *proposal_check(core, env, against)?;
+    let next = core
+        .counters
+        .deployment()
+        .messages
+        .checked_add(1)
+        .ok_or(people::Refusal::Limit { which: people::LimitKind::Arithmetic })?;
+    let Ok(number) = u32::try_from(next) else {
+        return Err(people::Refusal::Limit { which: people::LimitKind::Arithmetic });
+    };
+    Ok((next, number, set))
+}
+
 pub(crate) fn propose_run(
     core: &mut Core,
     env: &Env<Limits>,
@@ -680,10 +704,9 @@ pub(crate) fn propose_run(
 ) -> Queue<Request> {
     use jig_domain_tasks as tasks;
     let s::Proposed { against, items, reason } = change;
-    prepare_proposal(core, env, against, items);
-    let checked = proposal_check(core, env, against);
-    let set = match checked {
-        Ok(set) => *set,
+    let checked = run_proposal_set(core, env, against, items, &reason);
+    let (next, number, set) = match checked {
+        Ok(value) => value,
         Err(why) => {
             return crate::routing::run::calls::route_named_answer(
                 core,
@@ -692,22 +715,6 @@ pub(crate) fn propose_run(
                 crate::CallPart::SettingsRefused(why),
             );
         }
-    };
-    let Some(next) = core.counters.deployment().messages.checked_add(1) else {
-        return crate::routing::run::calls::route_named_answer(
-            core,
-            to,
-            key,
-            crate::CallPart::SettingsRefused(people::Refusal::Limit { which: people::LimitKind::Arithmetic }),
-        );
-    };
-    let Ok(number) = u32::try_from(next) else {
-        return crate::routing::run::calls::route_named_answer(
-            core,
-            to,
-            key,
-            crate::CallPart::SettingsRefused(people::Refusal::Limit { which: people::LimitKind::Arithmetic }),
-        );
     };
     let proposal = tasks::Proposal {
         number: next,

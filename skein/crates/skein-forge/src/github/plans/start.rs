@@ -212,6 +212,7 @@ fn keep_installation(
     let row = match row {
         Row::Installation(row) => row,
         Row::Log(_)
+        | Row::CommitMessage(_)
         | Row::Commit(_)
         | Row::Entry { .. }
         | Row::File(_)

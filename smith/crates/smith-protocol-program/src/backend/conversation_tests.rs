@@ -1,5 +1,6 @@
 use super::*;
 use crate::backend::fixtures::COMPLETION;
+use alloc::format;
 use fixtures::records as active;
 use fixtures::{env, records_with as running, request};
 use smith_domain::run;
@@ -491,29 +492,29 @@ fn advisor_finish(up: &Queue<ToDomain>) {
 #[test]
 fn rejected_records_name_the_kind_and_condition_without_payloads() {
     let cases: &[(&[u8], &[u8])] = &[
-        (br#"{"private":"never repeat this"}"#, b"record: top-level record has no string type"),
-        (br#"{"type":"never repeat this"}"#, b"record: unknown top-level record type"),
-        (br#"{"type":"system","private":"never repeat this"}"#, b"system: system record has no string subtype"),
+        (br#"{"private":"never repeat this"}"#, b"record: decode fields: malformed record"),
+        (br#"{"type":"never repeat this"}"#, b"record: dispatch: unsupported record"),
+        (br#"{"type":"system","private":"never repeat this"}"#, b"system: decode fields: malformed record"),
         (
             br#"{"type":"stream_event","event":{"type":"never repeat this"}}"#,
-            b"stream_event: unknown stream event type",
+            b"stream_event: dispatch: unsupported record",
         ),
-        (br#"{"type":"stream_event"}"#, b"stream_event: stream_event has no event"),
+        (br#"{"type":"stream_event"}"#, b"stream_event: decode fields: malformed record"),
         (
             br#"{"type":"stream_event","event":{"type":"message_stop"}}"#,
-            b"stream_event: message_stop has no open message",
+            b"stream_event: close message: incomplete message boundary",
         ),
         (
             br#"{"type":"assistant","message":{"id":"m","content":[{"type":"never repeat this"}]}}"#,
-            b"assistant: unknown assistant block type",
+            b"assistant: dispatch: unsupported record",
         ),
         (
             br#"{"type":"assistant","message":{"id":"m","content":[{"type":"tool_use","name":"Read","input":{}}]}}"#,
-            b"assistant: tool_use has no string id",
+            b"assistant: decode fields: malformed record",
         ),
         (
             br#"{"type":"user","message":{"content":[{"type":"tool_result"}]}}"#,
-            b"user: tool_result has no string tool_use_id",
+            b"user: decode fields: malformed record",
         ),
     ];
     for (record, reason) in cases {
@@ -521,7 +522,7 @@ fn rejected_records_name_the_kind_and_condition_without_payloads() {
         backend.line(&env(0), record, &mut up, &mut below);
         let Some(ToDomain::Failed { failure, detail, .. }) = up.pop() else { panic!("record rejected") };
         assert_eq!(failure, llm::Failure::Program { exit: None });
-        assert_eq!(detail.as_ref(), skein_lib::bytes::concat(&[b"smith: ", reason]).as_ref());
+        assert_eq!(detail.as_ref(), skein_lib::bytes::concat(&[b"smith: program ", reason]).as_ref());
         assert!(detail.len() <= 256);
     }
 }
@@ -598,4 +599,263 @@ fn an_unresolved_outcome_waits_for_stdout_without_polling() {
     }
     harness.backend.consume_stdout(&env(0), &mut harness.up, &mut harness.below);
     assert_eq!(finished_reply(&harness.up).stop, llm::Stop::ToolUse);
+}
+
+fn rejected_record(mut backend: Backend, record: &[u8]) -> Box<[u8]> {
+    let mut up = Queue::with_capacity(32);
+    let mut below = Queue::with_capacity(64);
+    backend.line(&env(0), record, &mut up, &mut below);
+    let Some(ToDomain::Failed { detail, .. }) = up.pop() else { panic!("rejected record") };
+    assert!(detail.len() <= 256);
+    assert!(skein_lib::bytes::find(&detail, b"private-payload").is_none());
+    detail
+}
+
+#[test]
+fn program_failures_name_the_rejected_record_and_bound() {
+    let syntax = rejected_record(active(), b"{");
+    assert_eq!(syntax.as_ref(), b"smith: the program stream does not decode");
+    let malformed = rejected_record(active(), br#"{"type":"assistant","message":{"id":"private-payload"}}"#);
+    assert_eq!(malformed.as_ref(), b"smith: program assistant: decode fields: malformed record");
+    receiving_bound_diagnostics();
+    backlog_diagnostics();
+    boundary_diagnostics();
+    partial_bound_diagnostics();
+    reply_bound_diagnostics();
+    input_bound_diagnostics();
+    id_bound_diagnostics();
+    builtin_text_diagnostics();
+    result_diagnostics();
+    framed_block_diagnostics();
+    let detail = rejected_record(active(), br#"{"type":"private-payload"}"#);
+    assert_eq!(detail.as_ref(), b"smith: program record: dispatch: unsupported record");
+}
+
+const TEXT_RECORD: &[u8] =
+    br#"{"type":"assistant","message":{"id":"m","content":[{"type":"text","text":"private-payload"}]}}"#;
+const TOOL_RECORD: &[u8] =
+    br#"{"type":"assistant","message":{"id":"m","content":[{"type":"tool_use","id":"t","name":"Read","input":{}}]}}"#;
+
+fn accepted_record(mut backend: Backend, record: &[u8]) {
+    let mut up = Queue::with_capacity(32);
+    let mut below = Queue::with_capacity(64);
+    backend.line(&env(0), record, &mut up, &mut below);
+    for _ in 0..up.len() {
+        if let Some(ToDomain::Failed { detail, .. }) = up.pop() {
+            panic!("record at the bound: {detail:?}");
+        }
+    }
+}
+
+#[expect(clippy::disallowed_macros, reason = "ordinary record fixtures, programming-model.md 10.2")]
+fn receiving_bound_diagnostics() {
+    let held = skein_lib::len_u64(size_of::<llm::Said>()).checked_add(15).unwrap();
+    for (which, bound, label, value) in
+        [(0_u8, 1, "completion blocks", 1), (1, 15, "raw completion bytes", 15), (2, held, "completion bytes", held)]
+    {
+        for accepted in [true, false] {
+            let mut backend = active();
+            let maximum = if accepted { bound } else { bound.checked_sub(1).unwrap() };
+            match which {
+                0 => backend.turns.blocks = u32::try_from(maximum).unwrap(),
+                1 => backend.turns.maximum_raw = u32::try_from(maximum).unwrap(),
+                2 => backend.turns.maximum = maximum,
+                _ => unreachable!(),
+            }
+            if accepted {
+                accepted_record(backend, TEXT_RECORD);
+            } else {
+                let detail = rejected_record(backend, TEXT_RECORD);
+                let expected = format!("smith: program assistant: {label}: value {value}, bound {maximum}");
+                assert_eq!(detail.as_ref(), expected.as_bytes());
+            }
+        }
+    }
+}
+
+fn backlog_diagnostics() {
+    for count in [3, 4] {
+        let mut backend = active();
+        for _ in 0..count {
+            backend.turns.ready.push(llm::Completion {
+                reasoning_dropped: Box::default(),
+                content: Box::default(),
+                stop: llm::Stop::EndTurn,
+                usage: llm::Usage::ZERO,
+            });
+        }
+        backend.turns.closed = count;
+        if count == 3 {
+            accepted_record(backend, TOOL_RECORD);
+        } else {
+            let detail = rejected_record(backend, TOOL_RECORD);
+            assert_eq!(detail.as_ref(), b"smith: program assistant: completion backlog: value 5, bound 4");
+        }
+    }
+}
+
+fn boundary_diagnostics() {
+    let mut backend = active();
+    let mut up = Queue::with_capacity(32);
+    let mut below = Queue::with_capacity(64);
+    backend.line(
+        &env(0),
+        br#"{"type":"stream_event","event":{"type":"message_start","message":{"id":"m"}}}"#,
+        &mut up,
+        &mut below,
+    );
+    let detail = rejected_record(backend, br#"{"type":"result"}"#);
+    assert_eq!(detail.as_ref(), b"smith: program result: close message: incomplete message boundary");
+}
+
+#[expect(clippy::disallowed_macros, reason = "ordinary record fixtures, programming-model.md 10.2")]
+fn partial_bound_diagnostics() {
+    let record = br#"{"type":"stream_event","event":{"type":"content_block_delta","index":0,"delta":{"type":"text_delta","text":"private-payload"}}}"#;
+    for (bound, accepted) in [(15, true), (14, false)] {
+        let mut backend = active();
+        backend.settings.translation.client.answer = bound;
+        backend.current.request_mut().unwrap().deltas.text = true;
+        if accepted {
+            accepted_record(backend, record);
+        } else {
+            let detail = rejected_record(backend, record);
+            assert_eq!(detail.as_ref(), b"smith: program stream_event: partial text bytes: value 15, bound 14");
+        }
+    }
+    for (index, accepted) in [(7_u32, true), (8, false)] {
+        let mut backend = active();
+        backend.current.request_mut().unwrap().deltas.text = true;
+        let record = format!(
+            r#"{{"type":"stream_event","event":{{"type":"content_block_delta","index":{index},"delta":{{"type":"text_delta","text":"x"}}}}}}"#
+        );
+        if accepted {
+            accepted_record(backend, record.as_bytes());
+        } else {
+            let detail = rejected_record(backend, record.as_bytes());
+            assert_eq!(detail.as_ref(), b"smith: program stream_event: completion blocks: value 9, bound 8");
+        }
+    }
+}
+
+#[expect(clippy::disallowed_macros, reason = "ordinary record fixtures, programming-model.md 10.2")]
+fn reply_bound_diagnostics() {
+    let record = br#"{"type":"user","message":{"content":[{"type":"tool_result","tool_use_id":"t","content":"private-payload"}]}}"#;
+    for (held, accepted) in [(25, true), (26, false)] {
+        let mut backend = active();
+        backend.settings.translation.rendered_result = 1;
+        let mut call = reply_tests::call(b"held");
+        call.builtin = true;
+        call.answer = Some(mcp::Answer::Text(alloc::vec![b'x'; held].into_boxed_slice()));
+        backend.ledger.push(call).ok().unwrap();
+        let mut call = reply_tests::call(b"t");
+        call.builtin = true;
+        backend.ledger.push(call).ok().unwrap();
+        if accepted {
+            accepted_record(backend, record);
+        } else {
+            let detail = rejected_record(backend, record);
+            assert_eq!(detail.as_ref(), b"smith: program user: retained reply bytes: value 41, bound 40");
+        }
+    }
+}
+
+fn input_bound_diagnostics() {
+    for (bound, accepted) in [(2, true), (1, false)] {
+        let mut backend = active();
+        backend.settings.translation.client.answer = bound;
+        if accepted {
+            accepted_record(backend, TOOL_RECORD);
+        } else {
+            let detail = rejected_record(backend, TOOL_RECORD);
+            assert_eq!(detail.as_ref(), b"smith: program assistant: tool input bytes: value 2, bound 1");
+        }
+    }
+}
+
+#[expect(clippy::disallowed_macros, reason = "ordinary record fixtures, programming-model.md 10.2")]
+fn id_bound_diagnostics() {
+    for (length, accepted) in [(1024, true), (1025, false)] {
+        let record = format!(r#"{{"type":"assistant","message":{{"id":"{}","content":[]}}}}"#, "x".repeat(length));
+        if accepted {
+            accepted_record(active(), record.as_bytes());
+        } else {
+            let detail = rejected_record(active(), record.as_bytes());
+            assert_eq!(detail.as_ref(), b"smith: program assistant: message id bytes: value 1025, bound 1024");
+        }
+    }
+}
+
+#[expect(clippy::disallowed_macros, reason = "ordinary record fixtures, programming-model.md 10.2")]
+fn builtin_text_diagnostics() {
+    for text in [r#""private-payload""#, r#"[{"type":"text","text":"private-payload"}]"#] {
+        let record = format!(
+            r#"{{"type":"user","message":{{"content":[{{"type":"tool_result","tool_use_id":"t","content":{text}}}]}}}}"#
+        );
+        for (bound, accepted) in [(15, true), (14, false)] {
+            let mut backend = active();
+            backend.settings.line_bytes = bound;
+            let mut call = reply_tests::call(b"t");
+            call.builtin = true;
+            backend.ledger.push(call).ok().unwrap();
+            if accepted {
+                accepted_record(backend, record.as_bytes());
+            } else {
+                let detail = rejected_record(backend, record.as_bytes());
+                assert_eq!(detail.as_ref(), b"smith: program user: built-in result bytes: value 15, bound 14");
+            }
+        }
+    }
+}
+
+fn report_backend() -> Backend {
+    let mut backend = active();
+    let request = backend.current.request_mut().unwrap();
+    request.prompt.served = Box::new([llm::Served::Finish]);
+    request.outcome.report = Some(run::outcome::TextSpec { max: 128, fields: Box::default() });
+    backend
+}
+
+fn result_diagnostics() {
+    for (bound, accepted) in [(2, true), (1, false)] {
+        let mut backend = report_backend();
+        backend.settings.translation.client.answer = bound;
+        let record = br#"{"type":"result","structured_output":{"outcome":{}}}"#;
+        if accepted {
+            accepted_record(backend, record);
+        } else {
+            let detail = rejected_record(backend, record);
+            assert_eq!(detail.as_ref(), b"smith: program result: tool input bytes: value 2, bound 1");
+        }
+    }
+    let detail = rejected_record(report_backend(), br#"{"type":"result","structured_output":{}}"#);
+    assert_eq!(detail.as_ref(), b"smith: program result: decode fields: malformed record");
+    let mut backend = report_backend();
+    let mut up = Queue::with_capacity(32);
+    let mut below = Queue::with_capacity(64);
+    backend.line(&env(0), br#"{"type":"assistant","message":{"id":"m","content":[{"type":"tool_use","id":"s","name":"StructuredOutput","input":{}}]}}"#, &mut up, &mut below);
+    assert!(up.is_empty());
+    let detail = rejected_record(backend, br#"{"type":"result"}"#);
+    assert_eq!(detail.as_ref(), b"smith: program result: close message: incomplete structured output boundary");
+}
+
+#[expect(clippy::disallowed_macros, reason = "ordinary record fixtures, programming-model.md 10.2")]
+fn framed_block_diagnostics() {
+    for (index, accepted) in [(7_u32, true), (8, false)] {
+        let mut backend = active();
+        let mut up = Queue::with_capacity(32);
+        let mut below = Queue::with_capacity(64);
+        backend.line(
+            &env(0),
+            br#"{"type":"stream_event","event":{"type":"message_start","message":{"id":"m"}}}"#,
+            &mut up,
+            &mut below,
+        );
+        let record = format!(r#"{{"type":"stream_event","event":{{"type":"content_block_start","index":{index}}}}}"#);
+        if accepted {
+            accepted_record(backend, record.as_bytes());
+        } else {
+            let detail = rejected_record(backend, record.as_bytes());
+            assert_eq!(detail.as_ref(), b"smith: program stream_event: completion blocks: value 9, bound 8");
+        }
+    }
 }

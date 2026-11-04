@@ -4,6 +4,8 @@
 //! project roles for authenticated reviewers; it does not interpret the forge's
 //! CI, containment, gate or review facts. Judgements are for one named head.
 
+use alloc::boxed::Box;
+use skein_lib::List;
 use temper_engine_domain_forge_change as change;
 
 use crate::{ChangeEvidence, Repository};
@@ -107,43 +109,56 @@ fn approval(
     if !complete {
         return Verdict::Wait;
     }
-    let mut have = 0_u32;
-    for (position, reviewer) in reviewers.iter().enumerate() {
+    let (counted, refused) = approval_count(role, freshness, head, clean, reviewers);
+    if refused {
+        Verdict::Refuse
+    } else if skein_lib::len_u64(counted.len()) < u64::from(people) {
+        Verdict::Wait
+    } else {
+        Verdict::Met
+    }
+}
+
+/// Count each qualifying person once, using the same conflicts and heads as enforcement.
+pub(crate) fn approval_count(
+    role: u32,
+    freshness: Freshness,
+    head: skein_forge::api::Commit,
+    clean: &[skein_forge::api::Commit],
+    reviewers: &[Reviewer],
+) -> (Box<[Reviewer]>, bool) {
+    let mut counted = List::uncapped();
+    let mut refused = false;
+    for reviewer in reviewers {
         if reviewer.role != role || !valid(reviewer.head, head, clean, freshness) {
             continue;
         }
         match reviewer.verdict {
-            skein_forge::api::Verdict::RequestChanges => return Verdict::Refuse,
+            skein_forge::api::Verdict::RequestChanges => refused = true,
             skein_forge::api::Verdict::Comment => {}
             skein_forge::api::Verdict::Approve => {
-                let mut duplicate = false;
                 let mut conflicting = false;
                 for other in reviewers {
                     if other.person == reviewer.person
                         && other.role == role
                         && valid(other.head, head, clean, freshness)
+                        && other.verdict != skein_forge::api::Verdict::Approve
                     {
-                        match other.verdict {
-                            skein_forge::api::Verdict::Approve => {}
-                            skein_forge::api::Verdict::RequestChanges | skein_forge::api::Verdict::Comment => {
-                                conflicting = true;
-                            }
-                        }
+                        conflicting = true;
                     }
                 }
-                for earlier in reviewers.get(..position).expect("review position in bounds") {
-                    duplicate |= earlier.person == reviewer.person
-                        && earlier.role == role
-                        && valid(earlier.head, head, clean, freshness)
-                        && earlier.verdict == skein_forge::api::Verdict::Approve;
+                let mut duplicate = false;
+                for earlier in &counted {
+                    let earlier: &Reviewer = earlier;
+                    duplicate |= earlier.person == reviewer.person;
                 }
-                if !duplicate && !conflicting {
-                    have = have.checked_add(1).expect("admitted reviewer bound fits u32");
+                if !conflicting && !duplicate {
+                    counted.push(*reviewer).expect("admitted reviewers");
                 }
             }
         }
     }
-    if have < people { Verdict::Wait } else { Verdict::Met }
+    (counted.into_boxed(), refused)
 }
 
 /// Judge one configured criterion against the change's coherent evidence.

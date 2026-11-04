@@ -32,6 +32,8 @@ mod permission;
 mod policy;
 mod process;
 mod recovery;
+mod rejection;
+use rejection::{Bound, Rejection};
 mod redaction;
 mod replies;
 mod start;

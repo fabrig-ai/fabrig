@@ -3,7 +3,7 @@
 //! transport timings are inferred. The service drains through `pop_measure`.
 
 use super::Complete;
-use super::{Backend, policy, turns};
+use super::{Backend, Bound, Rejection, policy, turns};
 use crate::mcp::json;
 use alloc::boxed::Box;
 use skein_json::Document;
@@ -159,39 +159,50 @@ impl Backend {
         self.measures.push(Measure::Completion { at, owner, completion: Completion { blocks } });
     }
 
-    pub(super) fn partial_measure(&mut self, at: Time, document: &Document, event: u32) -> Option<()> {
+    pub(super) fn partial_measure(&mut self, at: Time, document: &Document, event: u32) -> Result<(), Rejection> {
         let owner = match self.current.request() {
             Some(Complete { owner, deltas: protocol::Deltas { text: true, .. }, .. }) => *owner,
-            Some(Complete { deltas: protocol::Deltas { text: false, .. }, .. }) | None => return Some(()),
+            Some(Complete { deltas: protocol::Deltas { text: false, .. }, .. }) | None => return Ok(()),
         };
         if self.current.owner() != Some(owner) {
-            return Some(());
+            return Ok(());
         }
         match json::text_in(document, json::field(document, event, b"type")) {
             Some(b"content_block_stop") => {
-                let block = u32::try_from(turns::number(document, json::field(document, event, b"index"))?).ok()?;
+                let block = u32::try_from(
+                    turns::number(document, json::field(document, event, b"index")).ok_or(Rejection::Malformed)?,
+                )
+                .ok()
+                .ok_or(Rejection::Malformed)?;
                 self.flush_delta(at, block);
-                return Some(());
+                return Ok(());
             }
             Some(b"message_stop") => {
                 self.flush_deltas(at);
-                return Some(());
+                return Ok(());
             }
             Some(b"content_block_delta") => {}
-            Some(_) | None => return Some(()),
+            Some(_) | None => return Ok(()),
         }
         let delta = json::field(document, event, b"delta");
         if json::text_in(document, json::field_in(document, delta, b"type")) != Some(b"text_delta") {
-            return Some(());
+            return Ok(());
         }
-        let text = json::text_in(document, json::field_in(document, delta, b"text"))?;
-        let block = u32::try_from(turns::number(document, json::field(document, event, b"index"))?).ok()?;
-        if text.len() > usize::try_from(self.settings.translation.client.answer).ok()?
-            || block >= self.settings.receiving.max_completion_blocks
-        {
-            return None;
+        let text = json::text_in(document, json::field_in(document, delta, b"text")).ok_or(Rejection::Malformed)?;
+        let block =
+            u32::try_from(turns::number(document, json::field(document, event, b"index")).ok_or(Rejection::Malformed)?)
+                .ok()
+                .ok_or(Rejection::Malformed)?;
+        let bound = u64::from(self.settings.translation.client.answer);
+        let value = skein_lib::len_u64(text.len());
+        if value > bound {
+            return Err(Rejection::Limit { which: Bound::Delta, value, bound });
         }
-        self.text_delta(at, owner, block, text)
+        let bound = u64::from(self.settings.receiving.max_completion_blocks);
+        if u64::from(block) >= bound {
+            return Err(Rejection::Limit { which: Bound::Blocks, value: u64::from(block).saturating_add(1), bound });
+        }
+        self.text_delta(at, owner, block, text).ok_or(Rejection::Malformed)
     }
 
     pub(super) fn retry_measure(&mut self, at: Time, document: &Document) {

@@ -91,6 +91,7 @@ impl Service {
             | crate::reads::Read::PullsFor { .. }
             | crate::reads::Read::PullFiles { .. }
             | crate::reads::Read::Compare { .. }
+            | crate::reads::Read::Commits { .. }
             | crate::reads::Read::Raw { .. }
             | crate::reads::Read::Issues { .. }
             | crate::reads::Read::Issue { .. }

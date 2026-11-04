@@ -112,6 +112,8 @@ pub fn valid(l: &Limits) -> bool {
         || l.collaborators == 0
         || l.landings == 0
         || l.landing_rules == 0
+        || l.landing_rules.saturating_mul(l.roles).saturating_mul(2) > 8192
+        || l.client.inbox > 256
         || l.brief_sections == 0
         || l.brief_bytes == 0
         || !skein_forge_client::valid(&l.client)

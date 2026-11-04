@@ -12,6 +12,7 @@ use alloc::boxed::Box;
 use skein_lib::List;
 
 mod checks;
+mod commits;
 mod done;
 mod files;
 mod issues;
@@ -42,6 +43,7 @@ enum Read {
     Reviews { number: u64, page: u32 },
     File { head: api::Commit, path: Box<[u8]>, max_bytes: u32 },
     Compare { before: api::Commit, after: api::Commit },
+    Commits { before: api::Commit, after: api::Commit, page: u32 },
     PullFiles { number: u64, head: api::Commit, page: u32 },
     Job { attempt: api::JobAttempt, max_bytes: u32 },
 }
@@ -106,17 +108,14 @@ pub struct Plan {
     directory: Option<Box<crate::directory::Listing>>,
     job_step: Option<api::Step>,
     files: files::State,
+    commits: List<api::CommitMessage>,
     protection: protection::State,
 }
 impl Plan {
     #[must_use]
     pub fn new(repository: api::Repository, read: api::Read) -> Self {
         let read = match read {
-            api::Read::Runs { .. }
-            | api::Read::Run { .. }
-            | api::Read::Tree { .. }
-            | api::Read::Artifact { .. }
-            | api::Read::Commits { .. } => {
+            api::Read::Runs { .. } | api::Read::Run { .. } | api::Read::Tree { .. } | api::Read::Artifact { .. } => {
                 unreachable!("turn calls refused before read plan")
             }
             api::Read::Locate { owner, name } => Read::Locate { owner, name },
@@ -129,6 +128,7 @@ impl Plan {
             api::Read::PullFor { head, base } => Read::PullFor { head, base },
             api::Read::Statuses { commit, page } => Read::Statuses { commit, page },
             api::Read::Compare { before, after } => Read::Compare { before, after },
+            api::Read::Commits { before, after, page } => Read::Commits { before, after, page },
             api::Read::File { head, path, max_bytes } => Read::File { head, path, max_bytes },
             api::Read::Reviews { number, page } => Read::Reviews { number, page },
             api::Read::Remarks { number, review, page } => Read::Remarks { number, review, page },
@@ -163,6 +163,7 @@ impl Plan {
             directory: None,
             job_step: None,
             files: files::State::new(),
+            commits: List::with_capacity(0),
             protection: protection::State::new(),
         }
     }
@@ -190,6 +191,7 @@ impl Plan {
             Read::Items { .. } | Read::Item { .. } => self.issue_admission(bounds)?,
             Read::Pull { .. } | Read::PullFor { .. } | Read::Statuses { .. } => self.pull_admission(bounds)?,
             Read::Checks { .. } => self.checks_admission(bounds)?,
+            Read::Commits { .. } => self.commits_admission(bounds)?,
             Read::Compare { .. } | Read::PullFiles { .. } => self.files_admission(bounds)?,
             Read::File { path, max_bytes, .. } => {
                 let path = u32::try_from(path.len()).ok().ok_or(api::Error::TooLarge)?;
@@ -244,6 +246,7 @@ impl Plan {
             Read::Job { .. } => return self.job_initial(),
             Read::Permission { .. } => return self.permission_initial(),
             Read::Compare { .. } => return self.compare_initial(),
+            Read::Commits { .. } => return self.commits_initial(),
             Read::PullFiles { .. } => return self.pull_files_initial(),
             Read::File { .. } => return self.file_initial(),
             Read::Reviews { .. } => return self.reviews_initial(),
@@ -283,6 +286,7 @@ impl Plan {
             | Read::Reviews { .. }
             | Read::File { .. }
             | Read::Compare { .. }
+            | Read::Commits { .. }
             | Read::PullFiles { .. }
             | Read::Protection { .. }
             | Read::Job { .. } => return Err(api::Error::InvalidAnswer),
@@ -372,6 +376,7 @@ impl Plan {
                         | Read::Reviews { .. }
                         | Read::File { .. }
                         | Read::Compare { .. }
+                        | Read::Commits { .. }
                         | Read::PullFiles { .. }
                         | Read::Protection { .. }
                         | Read::Job { .. } => {}
@@ -491,6 +496,7 @@ impl Plan {
         tables: &mut Tables,
     ) -> Result<(), api::Error> {
         match self.read {
+            Read::Commits { .. } => return self.commit_row(row, bounds),
             Read::Protection { .. } => return self.protection_row(row, bounds),
             Read::Checks { .. } => return self.checks_row(row, bounds),
             Read::File { .. } => {
@@ -546,6 +552,7 @@ impl Plan {
             | document::Row::Pull(_)
             | document::Row::Context(_)
             | document::Row::Run(_)
+            | document::Row::CommitMessage(_)
             | document::Row::Commit(_)
             | document::Row::Entry { .. }
             | document::Row::File(_)

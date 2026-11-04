@@ -563,6 +563,8 @@ fn panel() -> forge::Panel {
         hold: Some(change::Hold::Updates),
         runs: Some(81),
         ci: change::Status::Pending,
+        approvals: Box::new([]),
+        unmapped_reviews: Box::new([]),
         gates: Box::new([
             forge::PanelGate {
                 number: 1,
@@ -639,6 +641,8 @@ fn a_panel_encodes_and_decodes_back_whole() {
             runs: Some(81),
             ci: w::Ci::Pending,
             gates,
+            approvals: List::with_capacity(0),
+            unmapped_reviews: List::with_capacity(0),
             repairs: w::Used::new(&w::CEILINGS, w::UsedParts { used: 1, limit: 3 }).unwrap(),
             resolutions: w::Used::new(&w::CEILINGS, w::UsedParts { used: 2, limit: 4 }).unwrap(),
             updates: w::Used::new(&w::CEILINGS, w::UsedParts { used: 3, limit: 5 }).unwrap(),
@@ -1510,12 +1514,12 @@ fn installations_and_the_last_connect_end_encode_unchanged() {
 }
 
 #[test]
-fn embedded_client_refusals_keep_their_bytes_at_client_thirteen() {
+fn embedded_client_refusals_keep_their_bytes_at_client_fourteen() {
     // Embedded jig refusal tags keep their bytes at this forge family version.
     let mut after = skein_lib::Writer::new(1);
     jig_client_protocol_wire::v19::Refusal::Unknown.encode(&mut after).unwrap();
     assert_eq!(after.finish().as_ref(), &[9]);
-    assert_eq!(wire::CLIENT_VERSION, 13);
+    assert_eq!(wire::CLIENT_VERSION, 14);
 }
 
 #[test]
@@ -1674,6 +1678,7 @@ fn landing_view() -> forge::LandingView {
             base: Some([2; 32]),
             candidate: Some([3; 32]),
             landed: None,
+
             gates: Box::new([forge::LandingGate {
                 name: Box::from(b"gate".as_slice()),
                 blocking: true,

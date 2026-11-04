@@ -225,16 +225,7 @@ pub fn finish_missing(d: &mut Domain) -> Box<[Request]> {
     let green = checks(skein_forge::api::Check::Passed);
     answer_next(d, Ok(green.clone()));
     answer_next(d, Ok(green));
-    answer_next(
-        d,
-        Ok(skein_forge::api::Answer::Compare {
-            before: BASE,
-            after: HEAD,
-            contains_before: true,
-            files: Box::new([]),
-            commits: Box::new([]),
-        }),
-    )
+    answer_next(d, Ok(skein_forge::api::Answer::Commits { commits: Box::new([]), more: false }))
 }
 
 /// `OpenPull` succeeds after the current chain has already read Missing.
@@ -257,18 +248,9 @@ pub fn checks(check: skein_forge::api::Check) -> skein_forge::api::Answer {
     }]))
 }
 
-/// Read the head contexts for the result, then the base and comparison.
+/// Read the head contexts for the result, then the base and ancestry range.
 pub fn finish_open(d: &mut Domain) -> Box<[Request]> {
     answer_next(d, Ok(checks(skein_forge::api::Check::Passed)));
     answer_next(d, Ok(checks(skein_forge::api::Check::Passed)));
-    answer_next(
-        d,
-        Ok(skein_forge::api::Answer::Compare {
-            before: BASE,
-            after: HEAD,
-            contains_before: true,
-            files: Box::new([]),
-            commits: Box::new([]),
-        }),
-    )
+    answer_next(d, Ok(skein_forge::api::Answer::Commits { commits: Box::new([]), more: false }))
 }

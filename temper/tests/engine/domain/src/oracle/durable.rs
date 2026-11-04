@@ -57,7 +57,15 @@ pub fn forge(
     document
 }
 fn durable_panel(panel: &mut temper_engine_domain_forge::Panel) {
-    use temper_engine_domain_forge::PanelStep;
+    use temper_engine_domain_forge::{PanelStep, ReviewRead};
+    // Last judged reviews are unsaved observations (domain/forge.md, 8.7).
+    panel.unmapped_reviews = Box::new([]);
+    for approval in &mut panel.approvals {
+        approval.read = ReviewRead::Unread;
+        approval.counted = Box::new([]);
+        approval.remaining = None;
+        approval.refused = false;
+    }
     if !matches!(
         panel.step,
         PanelStep::Ended

@@ -15,7 +15,10 @@
   or run `settings`, which the projection keeps durable, others for a
   frame's `needs` with a person proposal left pending and
   `Deployment.messages` advancing on a retried deadline; the core
-  world's `world` and `direct` drivers run no oracle. 17.6: a
+  world's `world` and `direct` drivers run no oracle.
+  17.6: pending reasons admitted past `people.words` are cut at that bound
+  in the review, with loss stated; no continuation is served.
+  17.6: a
   proposal of settings waits for the deployment's owners whatever it
   names, its holder always the deployment's policy
   (`jig-domain-core/src/admission/proposals.rs`, `holder`): one naming
