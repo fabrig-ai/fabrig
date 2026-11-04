@@ -111,3 +111,13 @@ Options, each pre-approved:
 ## Report
 
 As `notes/common.md`, Your report, every state above with where it renders.
+
+## Rebase (2026-11-04, step merge, foreman look-round-4/home-everyday/foreman-1)
+
+resolve the Home status conflict by preserving both branches’ gap removals.
+Rebase onto the landing trunk; the conflict is confined to `temper/docs/design/client/README.status.md`, its “3.5, Home” entry.
+Task commit `a41bb64162` removes the missing Needs you and Chats gap.
+Trunk commit `e78531d37bbfd77516d415377c1299f21cf36ebb` (merged by `f7feaf1d7f`) removes the missing dismissal plumbing and configuring-chat distinction gaps.
+Combine those changes: retain the task’s revised Home entry, but remove “(`Dismiss` has no sender, and `dismissed` no reader)” and the sentence claiming `configured` and `chat_asked` cannot distinguish configuring chats.
+Keep the remaining view gaps: numbered To begin steps, missing card, Optional tag, Skip control, delivery/skip display rule, Accounts link, and Connected with rename.
+Preserve all other status entries and the task’s implementation.
