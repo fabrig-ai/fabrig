@@ -9,7 +9,7 @@ use jig_domain_core as core;
 use jig_domain_core::effects::connector;
 use jig_domain_fleet as fleet;
 use jig_domain_host as host;
-use jig_domain_hub_link::{Event as LinkEvent, Procedure};
+use jig_domain_hub_link::{Event as LinkEvent, Procedure, no_workspace};
 use jig_domain_tasks as tasks;
 use jig_ops_domain_connectors::Connector;
 use jig_ops_domain_infrastructure as infrastructure;
@@ -1272,38 +1272,28 @@ fn core_now(
     value: core::Now,
     work: &mut Queue<Work>,
 ) {
-    match value {
-        core::Now::Relayed { channel, run, attempt, call, answer } => crate::link::route(
-            domain,
-            env,
-            decision,
-            LinkEvent::Relayed { channel, run, attempt, call, answer },
-            false,
-            work,
-        ),
-        core::Now::Undelivered { message, .. } => {
-            drop(domain.hub_link.take_payload(message.words));
+    let value = match jig_domain_hub_link::now(value) {
+        Ok(event) => {
+            crate::link::route(domain, env, decision, event, false, work);
+            return;
         }
+        Err(value) => value,
+    };
+    match value {
+        core::Now::Undelivered { message, .. } => drop(domain.hub_link.take_payload(message.words)),
         core::Now::Activate { context } => {
             work.push(Work::Core(core::Event::Activate { context, ready: domain.ready(), busy: false }));
         }
-        value @ core::Now::StartPreparation { .. } => {
-            now(domain, Output::CoreLoad(value));
-        }
+        value @ core::Now::StartPreparation { .. } => now(domain, Output::CoreLoad(value)),
         core::Now::BriefCorePlanned { task, sections, .. } => {
-            work.push(Work::Core(jig_domain_hub_link::brief_plan(
-                task,
-                sections,
-                env.limits.core.brief.brief_bytes,
-                env.now.saturating_add(env.limits.policy.brief_timeout),
-            )));
+            let budget = env.limits.core.brief.brief_bytes;
+            let deadline = env.now.saturating_add(env.limits.policy.brief_timeout);
+            work.push(Work::Core(jig_domain_hub_link::brief_plan(task, sections, budget, deadline)));
         }
         core::Now::CompleteBrief { brief, order } => {
             work.push(Work::Core(domain.hub_link.complete_brief(brief, order)));
         }
-        core::Now::WorkspaceRequest { task, attempt, .. } => {
-            work.push(Work::Core(jig_domain_hub_link::no_workspace(task, attempt)));
-        }
+        core::Now::WorkspaceRequest { task, attempt, .. } => work.push(Work::Core(no_workspace(task, attempt))),
         core::Now::RunPrepared {
             live,
             task,
@@ -1342,26 +1332,6 @@ fn core_now(
             drop(domain.hub_link.take_assignment(task));
             drop(domain.hub_link.take_brief(task));
         }
-        core::Now::DropPayload { payload } => {
-            crate::link::route(domain, env, decision, LinkEvent::DropPayload { payload }, false, work);
-        }
-        core::Now::TurnPayload { run, attempt, turn, body } => {
-            crate::link::route(domain, env, decision, LinkEvent::TurnPayload { run, attempt, turn, body }, false, work);
-        }
-        core::Now::AnswerPayload { run, attempt, payload } => {
-            crate::link::route(domain, env, decision, LinkEvent::AnswerPayload { run, attempt, payload }, false, work);
-        }
-        core::Now::AcceptedTurn { payload, task, attempt, turn, accepted } => crate::link::route(
-            domain,
-            env,
-            decision,
-            LinkEvent::AcceptedTurn { payload, task, attempt, turn, accepted },
-            false,
-            work,
-        ),
-        core::Now::RefusedPayload { request, problem } => {
-            crate::link::route(domain, env, decision, LinkEvent::RefusedPayload { request, problem }, false, work);
-        }
         load @ (core::Now::SeenConversation { .. }
         | core::Now::LoadEndedRead { .. }
         | core::Now::EndedProposal { .. }
@@ -1369,10 +1339,7 @@ fn core_now(
         | core::Now::EndedEscalation { .. }
         | core::Now::EndedPersonTask { .. }
         | core::Now::EndedTask { .. }
-        | core::Now::PartyInputs { .. }) => {
-            now(domain, Output::CoreLoad(load));
-        }
-
+        | core::Now::PartyInputs { .. }) => now(domain, Output::CoreLoad(load)),
         core::Now::RestoreRefused => {
             assert!(domain.core.start_failure().is_some(), "a refused row records its start failure");
         }
@@ -1389,7 +1356,13 @@ fn core_now(
         core::Now::DropCall { call } => {
             crate::link::route(domain, env, decision, LinkEvent::DropCall { call }, false, work);
         }
-        other @ (core::Now::Call { .. }
+        other @ (core::Now::Relayed { .. }
+        | core::Now::DropPayload { .. }
+        | core::Now::TurnPayload { .. }
+        | core::Now::AnswerPayload { .. }
+        | core::Now::AcceptedTurn { .. }
+        | core::Now::RefusedPayload { .. }
+        | core::Now::Call { .. }
         | core::Now::EffectAnswer { .. }
         | core::Now::TaskRead { .. }
         | core::Now::SettingsAnswer { .. }
