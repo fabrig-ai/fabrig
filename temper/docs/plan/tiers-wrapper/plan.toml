@@ -1,0 +1,31 @@
+draft = "tiers-wrapper"
+repo = "fabrig"
+sources = ["temper/docs/plan/tiers-wrapper/inputs/request.md"]
+
+# The slow tiers run plain commands unless told otherwise (inputs/request.md). Two direct tasks,
+# in order: every file is in tools/tiers/, and cancellation's tests share test_cpu.py with the
+# settings' cpu-run fixture and outward.txt's adjacent lines. plan.md says what was decided.
+
+[buffer]
+low = 1.0
+high = 2.0
+
+[[part]]
+id = "settings"
+title = "the wrapper and the disk wait are settings: run and cpu-run issue plain commands unless TIERS_WRAPPER and TIERS_DISK_BYTES say otherwise, and the retired qa-temper's handling goes"
+mode = "direct"
+needs = []
+design = "tools/tiers/design.md, 3"
+
+[[part]]
+id = "cancellation"
+title = "cancellation is the tiers' own: the command's session and group stopped by signals, the output named command-output.txt, and a nextest global timeout or a cancelled attempt counted starved"
+mode = "direct"
+needs = ["settings"]
+design = "tools/tiers/design.md, 7.3"
+
+[[slice]]
+id = 1
+story = "a checkout with neither setting runs a tier, its CPU collection and a hard-wall cancellation on plain commands, with no tool of the lab on PATH; a caller that sets them gets its prefix and disk wait on every command, and section 10's signatures and results as they stood"
+parts = ["settings", "cancellation"]
+walk = false
