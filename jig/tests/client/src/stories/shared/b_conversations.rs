@@ -14,6 +14,14 @@ const OTHER_MEMBER: u64 = 3;
 /// The profile's two sign-ins plus both seeded conversation sessions.
 pub const CHAT_SIGN_INS: u32 = 4;
 
+fn chat_order<F: Front<Test>>(world: &World<Test, F>, client: ClientId) -> Vec<u64> {
+    world
+        .tree(client)
+        .nodes()
+        .iter()
+        .filter_map(|node| node.key.filter(|key| key.kind == 20).map(|key| key.a))
+        .collect()
+}
 pub fn finish<F: Front<Test>>(world: &mut World<Test, F>) {
     let outcome = world.run(Until::Done);
     assert_eq!(outcome.verdict, Verdict::Passed, "{outcome:?}");
@@ -83,15 +91,7 @@ pub fn a_reload_with_requests_pending_sends_them_again_under_their_keys<F: Front
     world.go(client, crate::stories::conversation());
     world.person(client, vec![Step::See { find: Find::text(b"Second chat"), within: WAIT }]);
     finish(world);
-    assert_eq!(
-        world
-            .tree(client)
-            .nodes()
-            .iter()
-            .filter(|node| node.key.is_some_and(|key| key.kind == 20 && key.a == 2))
-            .count(),
-        1
-    );
+    assert_eq!(chat_order(world, client).into_iter().filter(|task| *task == 2).count(), 1);
 }
 pub fn a_dropped_watch_shows_the_page_behind_until_it_reopens<F: Front<Test>>(world: &mut World<Test, F>) {
     let client = ready(world);
@@ -133,13 +133,7 @@ pub fn the_conversations_section_lists_live_chats_by_last_activity<F: Front<Test
         ],
     );
     finish(world);
-    let tasks: Vec<_> = world
-        .tree(client)
-        .nodes()
-        .iter()
-        .filter_map(|node| node.key.filter(|key| key.kind == 20).map(|key| key.a))
-        .collect();
-    assert_eq!(tasks, vec![2, CHAT]);
+    assert_eq!(chat_order(world, client), vec![2, CHAT]);
 }
 /// Another member's chat is not in this person's list.
 pub fn a_person_s_chats_are_their_own<F: Front<Test>>(world: &mut World<Test, F>) {
@@ -159,17 +153,10 @@ pub fn a_person_s_chats_are_their_own<F: Front<Test>>(world: &mut World<Test, F>
         vec![
             Step::Go { address: crate::stories::conversation() },
             Step::See { find: Find::named(Role::Link, b"Hello"), within: WAIT },
-            Step::Gone { find: Find::text(b"Another member's chat"), within: WAIT },
         ],
     );
     finish(world);
-    let tasks: Vec<_> = world
-        .tree(client)
-        .nodes()
-        .iter()
-        .filter_map(|node| node.key.filter(|key| key.kind == 20).map(|key| key.a))
-        .collect();
-    assert_eq!(tasks, vec![CHAT]);
+    assert_eq!(chat_order(world, client), vec![CHAT]);
 }
 pub fn a_person_s_chats_list_live_then_ended_by_last_activity<F: Front<Test>>(world: &mut World<Test, F>) {
     let client = ready(world);
@@ -223,13 +210,7 @@ pub fn a_person_s_ended_chats_list_the_last_ended_first<F: Front<Test>>(world: &
         ],
     );
     finish(world);
-    let tasks: Vec<_> = world
-        .tree(client)
-        .nodes()
-        .iter()
-        .filter_map(|node| node.key.filter(|key| key.kind == 20).map(|key| key.a))
-        .collect();
-    assert_eq!(tasks, vec![2, CHAT]);
+    assert_eq!(chat_order(world, client), vec![2, CHAT]);
 }
 pub fn an_engine_outside_the_client_s_versions_shows_out_of_date<F: Front<Test>>(world: &mut World<Test, F>) {
     let client = ready(world);

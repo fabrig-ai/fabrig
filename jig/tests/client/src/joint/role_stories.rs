@@ -194,3 +194,9 @@ mod fault_stories;
 
 #[path = "role_stories/family_stories.rs"]
 mod family_stories;
+
+#[test]
+fn a_delegate_s_escalation_record_names_the_person_who_asked() {
+    let mut world = super::world(super::turn());
+    crate::stories::shared::a_roles::a_delegate_s_escalation_record_names_the_person_who_asked(&mut world);
+}
