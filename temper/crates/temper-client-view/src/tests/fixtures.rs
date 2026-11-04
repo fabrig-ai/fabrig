@@ -384,11 +384,9 @@ pub(super) fn root_at_with_forges(
     for _ in 0..out.len() {
         let request = out.pop().expect("counted request");
         if let Request::Unlinked {
-            request:
-                jig_client::UnlinkedRequest::Down {
-                    down: jig_client::Down::Open { watch, subject: jig_client::Watchable::Family { .. } },
-                },
+            request: jig_client::UnlinkedRequest::Down { down: jig_client::Down::Open { watch, subject } },
         } = &request
+            && Some(subject.clone()) == forge::forges::watch(&limits.forge)
         {
             forges = Some(*watch);
         }

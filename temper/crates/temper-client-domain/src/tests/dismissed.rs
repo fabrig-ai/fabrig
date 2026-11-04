@@ -1,0 +1,216 @@
+use super::fixtures as f;
+use crate::{
+    Domain, Event, Request,
+    forge::{
+        self,
+        dismissed::{self, Dismissal},
+    },
+};
+use jig_client::{Ask, Down, Family, Link, Told, Up, Watchable, contract as c};
+use skein_lib::{List, Queue, Token};
+use temper_client_protocol_wire::{self as wire, v1 as w};
+
+const WHAT: Dismissal = Dismissal::ToBegin { project: f::PROJECT };
+const OTHER: Dismissal = Dismissal::ToBegin { project: 17 };
+
+fn event(root: &mut Domain, event: Event) -> Queue<Request> {
+    let mut out = Queue::uncapped();
+    crate::step(root, &f::env(&f::limits()), event, &mut out);
+    out
+}
+fn up(root: &mut Domain, up: Up) -> Queue<Request> {
+    event(root, Event::Client { event: jig_client::Event::Up { up } })
+}
+fn opening(out: &mut Queue<Request>) -> Option<Token> {
+    let mut found = None;
+    while let Some(request) = out.pop() {
+        if let Request::Unlinked { request: jig_client::UnlinkedRequest::Down { down: Down::Open { watch, subject } } } =
+            request
+            && subject == dismissed::watch(&f::limits().forge).unwrap()
+        {
+            assert!(found.is_none(), "one dismissal watch");
+            found = Some(watch);
+        }
+    }
+    found
+}
+fn opened() -> (Domain, Token, Token) {
+    let mut root = crate::unlinked(&f::limits(), f::SEED);
+    let frame = f::start(&mut root, List::with_capacity(0));
+    let mut out = Queue::uncapped();
+    f::confirm(&mut root, frame, f::PARTY, &mut out);
+    let watch = opening(&mut out).expect("dismissal watch");
+    up(&mut root, Up::Watched { watch, event: c::WatchEvent::Opened });
+    (root, watch, frame)
+}
+fn record(projects: &[u32]) -> Family {
+    let mut dismissed = List::with_capacity(wire::DISMISSED);
+    for project in projects {
+        dismissed
+            .push(w::Dismissal::ToBegin(w::ToBegin::new(&w::CEILINGS, w::ToBeginParts { project: *project }).unwrap()))
+            .unwrap();
+    }
+    Family {
+        family: wire::FORGE,
+        version: wire::CLIENT_VERSION,
+        bytes: wire::dismissals(&w::Dismissals::new(&w::CEILINGS, w::DismissalsParts { dismissed }).unwrap()),
+    }
+}
+fn deliver(root: &mut Domain, watch: Token, projects: &[u32]) -> Queue<Request> {
+    up(root, Up::FamilyDelivered { watch, record: record(projects) })
+}
+fn closes(out: &mut Queue<Request>, expected: Token) -> u32 {
+    let mut count = 0_u32;
+    while let Some(request) = out.pop() {
+        if let Request::Unlinked { request: jig_client::UnlinkedRequest::Down { down: Down::Close { watch } } } =
+            request
+            && watch == expected
+        {
+            count = count.checked_add(1).expect("bounded close count");
+        }
+    }
+    count
+}
+fn link(root: &mut Domain, link: Link) -> Queue<Request> {
+    let mut out = Queue::uncapped();
+    crate::route::told(root, &f::env(&f::limits()), Told::Link { link }, &mut out);
+    out
+}
+
+#[test]
+fn the_watch_opens_once_the_party_is_known() {
+    let mut root = crate::unlinked(&f::limits(), f::SEED);
+    let frame = f::start(&mut root, List::with_capacity(0));
+    let mut child = Queue::uncapped();
+    dismissed::configure(&mut root.forge, f::limits().forge, &mut child);
+    assert!(child.is_empty(), "no party yet");
+    let mut out = Queue::uncapped();
+    let Watchable::Family { scope, window, record } = dismissed::watch(&f::limits().forge).unwrap() else {
+        panic!("family watch")
+    };
+    assert_eq!(scope, c::Scope::Own);
+    assert_eq!(window, c::Window { rows: 0, after: None });
+    assert_eq!((record.family, record.version), (wire::FORGE, wire::CLIENT_VERSION));
+    assert_eq!(wire::decode_watching(&record.bytes, &w::CEILINGS).unwrap().watch(), &w::Watch::Dismissed);
+    assert_eq!(dismissed::handle().asker, f::FORGE_ASKER);
+    assert_eq!(dismissed::handle().number, 2);
+    f::confirm(&mut root, frame, f::PARTY, &mut out);
+    assert!(opening(&mut out).is_some());
+    assert!(root.client().document(dismissed::handle()).is_some());
+    f::confirm(&mut root, frame, f::PARTY, &mut out);
+    assert_eq!(opening(&mut out), None, "same party opens no second watch");
+    assert_eq!(opening(&mut link(&mut root, Link::Offline)), None);
+    assert_eq!(opening(&mut link(&mut root, Link::Live)), None);
+}
+
+#[test]
+fn the_document_is_the_sides_facts() {
+    let (mut root, watch, _) = opened();
+    assert_eq!(root.forge().dismissed(WHAT), None);
+    let shown = forge::shown(root.forge());
+    deliver(&mut root, watch, &[f::PROJECT]);
+    assert_eq!(root.forge().dismissed(WHAT), Some(true));
+    assert_eq!(root.forge().dismissed(OTHER), Some(false));
+    assert_ne!(forge::shown(root.forge()), shown);
+}
+
+#[test]
+fn a_later_document_replaces_the_facts() {
+    let (mut root, watch, _) = opened();
+    deliver(&mut root, watch, &[f::PROJECT]);
+    deliver(&mut root, watch, &[17]);
+    assert_eq!(root.forge().dismissed(WHAT), Some(false));
+    assert_eq!(root.forge().dismissed(OTHER), Some(true));
+    deliver(&mut root, watch, &[]);
+    assert_eq!(root.forge().dismissed(WHAT), Some(false));
+    assert_eq!(root.forge().dismissed(OTHER), Some(false));
+}
+
+#[test]
+fn an_undecodable_document_ends_the_facts() {
+    for bad in [
+        Family { bytes: b"bad".as_slice().into(), ..record(&[]) },
+        Family { family: 99, ..record(&[]) },
+        Family { version: wire::CLIENT_VERSION + 1, ..record(&[]) },
+    ] {
+        let (mut root, watch, frame) = opened();
+        deliver(&mut root, watch, &[f::PROJECT]);
+        let mut out = up(&mut root, Up::FamilyDelivered { watch, record: bad });
+        assert_eq!(root.forge().dismissed(WHAT), None);
+        assert_eq!(closes(&mut out, watch), 1);
+        f::confirm(&mut root, frame, f::PARTY, &mut out);
+        assert_eq!(opening(&mut out), None, "invalid documents stay ended");
+        deliver(&mut root, watch, &[f::PROJECT]);
+        assert_eq!(root.forge().dismissed(WHAT), None, "late documents stay ended");
+    }
+}
+
+#[test]
+fn a_refused_watch_keeps_no_rows_until_the_next_sign_in() {
+    for end in [c::WatchEnd::NotAllowed, c::WatchEnd::SubjectEnded] {
+        let (mut root, watch, frame) = opened();
+        deliver(&mut root, watch, &[f::PROJECT]);
+        let mut out = up(&mut root, Up::WatchEnded { watch, end });
+        assert_eq!(root.forge().dismissed(WHAT), None, "{end:?}");
+        assert_eq!(opening(&mut out), None);
+        f::confirm(&mut root, frame, f::PARTY, &mut out);
+        assert_eq!(opening(&mut out), None, "ended watch does not reopen");
+        assert_eq!(opening(&mut link(&mut root, Link::Offline)), None);
+        assert_eq!(opening(&mut link(&mut root, Link::Live)), None);
+        up(&mut root, Up::SignedOut);
+        assert_eq!(root.forge().dismissed(WHAT), None);
+        let mut signed_in = up(&mut root, Up::SignedIn);
+        let mut frame = None;
+        let mut next = None;
+        while let Some(request) = signed_in.pop() {
+            if let Request::Unlinked {
+                request: jig_client::UnlinkedRequest::Down { down: Down::Open { watch, subject } },
+            } = request
+            {
+                if subject == Watchable::Jig(c::Subject::Me) {
+                    frame = Some(watch);
+                }
+                if subject == dismissed::watch(&f::limits().forge).unwrap() {
+                    next = Some(watch);
+                }
+            }
+        }
+        let frame = frame.expect("next sign-in opens me");
+        f::confirm(&mut root, frame, f::PARTY, &mut out);
+        let next = opening(&mut out).or(next).expect("next sign-in opens dismissals");
+        assert_ne!(next, watch);
+        deliver(&mut root, next, &[]);
+        assert_eq!(root.forge().dismissed(WHAT), Some(false));
+    }
+}
+
+#[test]
+fn signing_out_closes_the_watch_and_clears_the_facts() {
+    for ending in [Link::SignedOut, Link::OutOfDate] {
+        let (mut root, watch, _) = opened();
+        deliver(&mut root, watch, &[f::PROJECT]);
+        let mut out = link(&mut root, ending);
+        assert_eq!(root.forge().dismissed(WHAT), None);
+        assert_eq!(closes(&mut out, watch), 1);
+        assert_eq!(opening(&mut link(&mut root, ending)), None);
+    }
+}
+
+#[test]
+fn ask_is_of_the_projects_scope() {
+    for project in [0, f::PROJECT, u32::MAX] {
+        let Ask::Family { scope, record } = dismissed::ask(Dismissal::ToBegin { project }, &f::limits().forge).unwrap()
+        else {
+            panic!("family request")
+        };
+        assert_eq!(scope, c::Scope::Project(project));
+        assert_eq!((record.family, record.version), (wire::FORGE, wire::CLIENT_VERSION));
+        let w::Request::Dismiss(value) =
+            wire::decode_requesting(&record.bytes, &w::CEILINGS).unwrap().into_parts().request
+        else {
+            panic!("dismiss request")
+        };
+        let w::Dismissal::ToBegin(value) = value.what();
+        assert_eq!(value.project(), project);
+    }
+}

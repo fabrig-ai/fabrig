@@ -1,5 +1,6 @@
 use super::*;
 use jig_domain_people::ApplicationScope;
+use skein_lib::List;
 use temper_engine_domain_forge_landing as policy;
 
 fn row(task: u64, phase: policy::Phase) -> LandingRow {
@@ -60,7 +61,7 @@ fn setup() -> Domain {
     d
 }
 fn document(d: &Domain, task: u64) -> Document {
-    d.document(task, ApplicationScope::Project(5), env().wall, &LIMITS).expect("document")
+    d.document(task, ApplicationScope::Project(5), 1, env().wall, &LIMITS).expect("document")
 }
 fn view(d: &Domain, task: u64) -> LandingView {
     let Document::Landing(view) = document(d, task) else { panic!("landing view") };
@@ -94,7 +95,7 @@ fn a_landing_view_shows_its_member_gate_and_turn() {
             faults: 1
         }
     );
-    assert!(d.document(61, ApplicationScope::Project(6), env().wall, &LIMITS).is_none());
+    assert!(d.document(61, ApplicationScope::Project(6), 1, env().wall, &LIMITS).is_none());
 }
 #[test]
 fn a_gate_whose_key_another_landing_dispatched_is_waiting() {
@@ -194,5 +195,37 @@ fn a_landed_queue_change_is_a_change_document_and_has_no_turn_landing() {
         assert_eq!(panel.turn, None);
         assert!(panel.landings.is_empty());
     }
-    assert!(d.document(fixtures::CHANGE, ApplicationScope::Project(6), env().wall, &LIMITS).is_none());
+    assert!(d.document(fixtures::CHANGE, ApplicationScope::Project(6), 1, env().wall, &LIMITS).is_none());
+}
+
+#[test]
+fn dismissed_is_each_watchers_own_rows() {
+    let mut d = domain();
+    for (party, project) in [(1, 7), (2, 9), (1, 3)] {
+        outputs(&mut d, Event::Restore { record: Stored::Dismissed { party, what: Dismissal::ToBegin { project } } });
+    }
+    for (party, projects) in [(1, [3, 7].as_slice()), (2, [9].as_slice()), (3, [].as_slice())] {
+        let mut rows = List::with_capacity(2);
+        for project in projects {
+            rows.push(Dismissal::ToBegin { project: *project }).unwrap();
+        }
+        let rows = rows.into_boxed();
+        let expected = Document::Dismissals(rows);
+        assert_eq!(
+            d.document(DISMISSED_SUBJECT, ApplicationScope::Own, party, env().wall, &LIMITS),
+            Some(expected.clone())
+        );
+        assert_eq!(expected.owned_bytes(), size_of::<Document>() + size_of::<Dismissal>() * d.dismissals(party).len());
+    }
+}
+
+#[test]
+fn the_own_scope_answers_no_other_subject() {
+    let d = setup();
+    for subject in [0, fixtures::CHANGE, landings_subject(5, false)] {
+        assert_eq!(d.document(subject, ApplicationScope::Own, 1, env().wall, &LIMITS), None);
+    }
+    for scope in [ApplicationScope::Project(5), ApplicationScope::Deployment] {
+        assert_eq!(d.document(DISMISSED_SUBJECT, scope, 1, env().wall, &LIMITS), None);
+    }
 }

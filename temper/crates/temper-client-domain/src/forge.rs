@@ -5,6 +5,7 @@ pub mod admin;
 pub mod change;
 pub mod connect;
 pub mod deployment;
+pub mod dismissed;
 pub mod family;
 pub mod forges;
 mod form;
@@ -54,11 +55,14 @@ pub enum Request {
     Send { request: skein_lib::Token, name: Option<skein_lib::RequestKey>, ask: jig_client::Ask },
 }
 #[derive(Debug)]
+#[expect(clippy::struct_excessive_bools, reason = "each session watch keeps whether its own handle is open")]
 pub struct Side {
     playground: playground::State,
     deployment: deployment::State,
     forges: forges::State,
     forges_open: bool,
+    dismissed: dismissed::State,
+    dismissed_open: bool,
     set_up: Option<Box<forges::SetUp>>,
     setup_form: forges::Draft,
     admin_form: admin::Draft,
@@ -87,6 +91,8 @@ impl Side {
             deployment: deployment::State::new(),
             forges: forges::State::Unknown,
             forges_open: false,
+            dismissed: dismissed::State::Unknown,
+            dismissed_open: false,
             set_up: None,
             setup_form: forges::Draft::new(),
             admin_form: admin::Draft::new(),
