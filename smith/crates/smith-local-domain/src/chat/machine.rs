@@ -339,8 +339,7 @@ pub(super) fn follow_chat(domain: &mut Domain, env: &Env<Limits>, out: &mut Queu
     let state = mem::replace(&mut domain.chat.phase, State::Done);
     domain.chat.phase = match state {
         State::Starting(mut starting) => {
-            let survey = mem::replace(&mut starting.survey, HeadSurvey::Complete);
-            starting.survey = match survey {
+            starting.survey = match starting.survey {
                 HeadSurvey::Ready(directory) => {
                     out.push(Request::Git {
                         owner: Token::new(0),

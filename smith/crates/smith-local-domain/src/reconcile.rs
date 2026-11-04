@@ -200,13 +200,9 @@ pub(super) fn follow(
     match state {
         State::Advance => reconcile_next(domain, env, reconcile, out),
         State::Interrupted { directory } => reconcile_answer(reconcile, Some(directory), out),
-        State::Answer(answer) => save_answer(
-            reconcile.record.name,
-            *answer,
-            reconcile.receipts.into_boxed(),
-            AfterSave::ResumeLoading,
-            out,
-        ),
+        State::Answer(answer) => {
+            save_answer(reconcile.record.name, *answer, reconcile.receipts.into_boxed(), AfterSave::ResumeLoading, out)
+        }
         State::Unknown => recovery_unknown(domain, out),
         state @ (State::Inspect { .. } | State::Push { .. } | State::InspectPush) => {
             reconcile.state = state;

@@ -68,7 +68,7 @@ pub(crate) enum Load {
     },
 }
 
-#[derive(Debug)]
+#[derive(Clone, Copy, Debug)]
 enum Metadata {
     Ready,
     Pending,
@@ -156,16 +156,14 @@ impl Chat {
     }
 
     pub(crate) fn metadata_started(&mut self) {
-        let state = core::mem::replace(&mut self.metadata, Metadata::Ready);
-        self.metadata = match state {
+        self.metadata = match self.metadata {
             Metadata::Ready => Metadata::Pending,
             Metadata::Pending => unreachable!("one metadata save at a time"),
         };
     }
 
     pub(crate) fn metadata_saved(&mut self) {
-        let state = core::mem::replace(&mut self.metadata, Metadata::Ready);
-        self.metadata = match state {
+        self.metadata = match self.metadata {
             Metadata::Pending => Metadata::Ready,
             Metadata::Ready => unreachable!("one terminal for each metadata save"),
         };
@@ -179,16 +177,14 @@ impl Chat {
     }
 
     pub(crate) fn close_input(&mut self) {
-        let state = core::mem::replace(&mut self.input, Input::Closed);
-        self.input = match state {
+        self.input = match self.input {
             Input::Open | Input::Closed => Input::Closed,
             state @ Input::Draining { .. } => state,
         };
     }
 
     pub(crate) fn drain_until(&mut self, last: u64) {
-        let state = core::mem::replace(&mut self.input, Input::Closed);
-        self.input = match state {
+        self.input = match self.input {
             Input::Open => Input::Draining { last },
             Input::Closed | Input::Draining { .. } => unreachable!("input closes once"),
         };
