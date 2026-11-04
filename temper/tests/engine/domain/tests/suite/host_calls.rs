@@ -356,3 +356,119 @@ fn task_reads_do_not_settle_over_a_mutation_call() {
         .expect("task read delivered");
     assert_eq!(reply, &host::Relayed::Answer { error: false, text: body });
 }
+
+// Designer changes and the charter-7 close-out share delegation admission
+// (temper/docs/design/domain/agent.md, 4.3.1).
+#[test]
+fn a_change_authority_refusal_names_producer_and_settings() {
+    let (mut world, chat) = producer_refusal_world();
+    for (number, input, member) in [
+        (71, br#"{"words":"design the next cut","producer":7}"#.as_slice(), "member 1"),
+        (72, br#"{"words":"close out the plan","producer":7}"#.as_slice(), "member 1"),
+        (73, br#"{"changes":[{"words":"code","producer":2},{"words":"design","producer":7}]}"#.as_slice(), "member 2"),
+    ] {
+        let text = producer_refusal(&mut world, &chat, number, input);
+        assert!(text.contains("charter 7"), "producer missing: {text}");
+        assert!(text.contains(member), "batch member missing: {text}");
+        assert!(text.contains("executor permission"), "dimension missing: {text}");
+        for setting in [
+            "task authority.delegation.kinds",
+            "project policy.ceiling.delegation.kinds",
+            "rules.ceiling.delegation.kinds",
+        ] {
+            assert!(text.contains(setting), "setting {setting} missing: {text}");
+        }
+        let before = world.store.applied;
+        let replay = producer_refusal(&mut world, &chat, number, input);
+        assert_eq!(replay, text, "settled refusal replays its words");
+        assert_eq!(world.store.applied, before, "replay makes no decision");
+    }
+}
+
+fn producer_refusal_world() -> (temper_engine_domain_world::forge_routes::World, engine::Assignment) {
+    use temper_engine_domain_world::{
+        forge_routes::{Until, World},
+        protocol,
+    };
+    let model = crate::stock::box_model();
+    let llm = jig_protocol_config::Llm {
+        endpoints: Box::new([]),
+        providers: Box::new([]),
+        descriptions: Box::new([None]),
+        models: Box::new([model.clone()]),
+    };
+    let mut defaults = temper_service::stock::defaults(&llm, 384);
+    let mut designer = defaults.charters[1].clone();
+    designer.number = 7;
+    defaults.charters = [defaults.charters.as_ref(), &[designer]].concat().into();
+    let mut limits = temper_engine_domain_world::forge_routes::box_limits();
+    limits.tasks.batch = 2;
+    let mut world = World::configured_stock_limits(&defaults, &model, &limits);
+    world.adopt();
+    let mut hello = protocol::hello_slots(Token::new(7), 2, Box::new([]));
+    let engine::Event::Worker(engine::WorkerInput::Link { link: engine::Link::Hello { hello: ref mut worker, .. }, .. }) = hello else { panic!("hello") };
+    worker.bounds = jig_test_profile::fixtures::bounds();
+    worker.bounds.time = skein_lib::Duration::from_secs(28_800);
+    worker.bounds.models = Box::new([host::ModelBound { name: model.name, window: model.window, output: model.output }]);
+    world.send(hello);
+    let ask = world.chat(1, b"coordinate designers and close out the plan");
+    world.send(engine::Event::Party(engine::PartyInput::Ask {
+        models: Box::new([]),
+        reply_to: skein_lib::ReplyTo::new(Token::new(1001)),
+        sign_in: world.signed_in.expect("owner"),
+        key: [31; 16],
+        ask,
+    }));
+    world.until(Until::Assigned);
+    let chat = world.assigned.last().expect("chat authorized for plan fields").clone();
+    assert_ne!(chat.run.authority.tools.0 & jig_domain_core::ToolFamilies::JIG.control.0, 0);
+    world.protocol.defer_render = true;
+    (world, chat)
+}
+
+fn producer_refusal(
+    world: &mut temper_engine_domain_world::forge_routes::World,
+    chat: &engine::Assignment,
+    number: u64,
+    input: &[u8],
+) -> String {
+    let input = smith_domain_run::HostInput::attested(input.into()).expect("bounded change");
+    let temper_engine_smith::Decoded::Call(call) = temper_engine_smith::call(
+        smith_domain_run::CallName {
+            activation: chat.attempt,
+            completion: 1,
+            position: u32::try_from(number).expect("call"),
+        },
+        b"change",
+        &input,
+    )
+    .expect("decoded change") else {
+        panic!("engine call")
+    };
+    let event = world.protocol.call(Token::new(7), chat.task, chat.attempt, number, call);
+    let before = world.call_errors.len();
+    world.send(event);
+    for _ in 0..200 {
+        world.tick();
+        if !world.protocol.pending_renders.is_empty() || world.call_errors.len() > before { break; }
+    }
+    if let Some((to, _)) = world.protocol.pending_renders.pop() {
+        let answer = &world.protocol.answers.last().expect("fresh refusal").1;
+        assert!(matches!(answer, engine::CallAnswer::DelegationDenied { .. }), "{answer:?}");
+        let rendered = temper_engine_smith::answer_for_tool(answer, b"change", 4096);
+        let (body, error) = rendered.into_parts();
+        assert!(error);
+        world.send(engine::Event::Worker(engine::WorkerInput::RenderedHostCall {
+            to,
+            answer: jig_domain_core::SettledAnswer::Host { error, body },
+        }));
+        for _ in 0..200 {
+            world.tick();
+            if world.call_errors.len() > before { break; }
+        }
+    }
+    assert_eq!(world.call_errors.len(), before + 1, "one refusal reaches the worker");
+    let error = world.call_errors.last().expect("refusal delivered to worker");
+    assert_eq!(error.call.as_ref(), number.to_be_bytes());
+    String::from_utf8(error.text.to_vec()).expect("refusal words")
+}
