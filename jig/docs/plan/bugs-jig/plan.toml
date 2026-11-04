@@ -1,0 +1,49 @@
+draft = "bugs-jig"
+repo = "fabrig"
+sources = ["jig/docs/plan/bugs-jig/inputs/bugs-jig.md", "AGENTS.md"]
+
+# The jig bugs the debt backfill routed (inputs/bugs-jig.md). Low priority: small tasks, no
+# reshaping. Released in batches: first the fixes that needed no survey, then what the surveys left.
+
+[buffer]
+low = 1.0
+high = 2.0
+
+[[part]]
+id = "source-name"
+title = "bug 6: the test service answers a source name smith refuses"
+mode = "direct"
+needs = []
+design = "jig/docs/design/domain/hosts.md, 5.1"
+
+[[part]]
+id = "chat-status"
+title = "bug 4: chat_status reads any chip"
+mode = "direct"
+needs = []
+design = "jig/docs/design/client/domain/client.md, 19"
+
+[[part]]
+id = "charter-rail"
+title = "bug 3: jig's charter grants modify only with deliver"
+mode = "direct"
+needs = []
+design = "jig/docs/design/domain/hosts.md, 8"
+
+[[slice]]
+id = 1
+story = "a stored source name smith refuses is answered, not aborted on"
+parts = ["source-name"]
+walk = false
+
+[[slice]]
+id = 2
+story = "a chip with no end time or no retry notice reads a status"
+parts = ["chat-status"]
+walk = false
+
+[[slice]]
+id = 3
+story = "a run that cannot deliver gets no modify, from jig's translation, for every root"
+parts = ["charter-rail"]
+walk = false

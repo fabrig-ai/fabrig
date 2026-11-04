@@ -175,7 +175,9 @@ the shell: fetch, skein's HTTP client, a socket            skein's HTTP server, 
   against the client's limits before they reach `jig-client-domain`: a
   document past its bytes, rows, a path's segments, an authority's
   entries or texts is refused at decoding, as too large, never cut
-  silently (`../client/domain/client.md`, section 16). An authority
+  silently (`../client/domain/client.md`, section 16), and a chip whose
+  phase lacks what it names, an ended chip's end time or a backing-off
+  chip's notice, is refused as malformed. An authority
   carries no cut mark (`../client/domain/contract.md`, 5.3). The wire's
   generated worst cases price each document at the client's limits.
   Connector hold accounts retain their independent 512-byte bound
