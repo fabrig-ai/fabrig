@@ -1,6 +1,6 @@
 //! The accounts driver, its records in the secrets' store and secret-free
 //! translation (llm.md, 5; store.md, 9).
-use crate::{Files, Seeds, values::Values};
+use crate::{Seeds, values::Values};
 use alloc::boxed::Box;
 use jig_domain_accounts as domain;
 use jig_domain_core as core;
@@ -32,16 +32,6 @@ fn problem(path: Path, what: What) -> Problems {
     let mut found = Problems::empty();
     found.push(path, what);
     found
-}
-impl Files {
-    pub(crate) fn contents(&self, path: &[u8]) -> Option<&[u8]> {
-        for (name, value) in &self.entries {
-            if name.as_ref() == path {
-                return Some(value.expose());
-            }
-        }
-        None
-    }
 }
 fn registration_input(
     configured: &config::llm::Registration,
