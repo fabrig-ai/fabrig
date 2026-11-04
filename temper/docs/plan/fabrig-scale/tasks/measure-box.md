@@ -94,3 +94,36 @@ Acceptance:
 
 As the implementer's text asks, with every reading (time, process, figure) and how each was
 taken.
+
+## Answers
+
+2026-11-04. **Does idle summed RSS of 100.585472 MB pass "up to about 100 MB", and how far may
+the later readings go?** The user's answer: it passes. 92 MB of the 98 MB RSS is the 245 MB dev
+binary's executable pages, shared between box and serve; temper's own anonymous memory is
+12.5 MB, the same as `small`. This replaces the spec's memory method and bound above; the rest
+of the spec stands, the dev build among it.
+
+- **The gate is anonymous memory:** the `Anonymous` line of `/proc/<pid>/smaps_rollup`, summed
+  over the box's own processes (the box and `temper serve`; a transient child such as the git
+  probe is left out of the sum and named in the report). Beside it, at the same reading, the
+  summed `Pss` and `VmRSS`, and at the end the summed `VmHWM`.
+- **Stop and ask only** if anonymous memory passes 100 MB (100,000,000 bytes) at a reading, or
+  the store on disk passes 1 GB (1,000,000,000 bytes, the `du -sb` of `generations/`, `active`,
+  `transcripts/`). RSS or PSS past 100 MB stops nothing; a question then carries the figures
+  and what drives them, as "Past a bound" says, and nothing is written in the status file.
+- **Every reading is taken, on one box:** the first run's box and scratch are gone, so the
+  rerun starts from a new init and build and takes idle again. Memory at each of: idle; one goal
+  running; its end; the 80 chats live; after the playground's change lands; after the restart,
+  once idle. Disk as the spec says. While the goal runs, sample `smaps_rollup` at least once a
+  second: the kernel keeps no anonymous high-water mark, so the peak is the largest sample,
+  and the report says so.
+- **The status entry,** in place of the spec's form, in this form exactly:
+
+  `- **Measured** (8.3, the resource gate, YYYY-MM-DD, on HOST, dev build): a fresh box at
+  init's defaults: anonymous memory (smaps Anonymous, box and serve summed) idle A MB (serve
+  B MB, box C MB), with one goal running D MB, its sampled peak E MB, after 80 chats and the
+  playground's change I MB, after a restart J MB; beside it, summed, RSS idle K MB, with one
+  goal running L MB, PSS idle M MB, with one goal running N MB; the store on disk fresh F MB,
+  after 80 chats and the playground's change, and a restart, G MB (the data directory H MB).`
+
+  MB is 1,000,000 bytes. The 8.3 **Not yet** clause goes as the spec says.
