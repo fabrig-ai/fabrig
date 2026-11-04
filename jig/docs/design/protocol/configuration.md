@@ -739,6 +739,11 @@ the same capacities even when every run slot is occupied.
 - **Profiles' numbers** beyond fabrig's development, which sizes
   standard's work (section 6): small's, and each profile's machine
   concurrency, from the first deployments' measurements.
+- **A person's words past people-v14's ceiling.** `standard`'s
+  `people.words` is 8,192, the most that format takes, so a spec a
+  person writes stops there, below `tasks.spec_bytes`; raising it
+  changes those ceilings in place, before the first release
+  (`store.md`, section 5). Default: as it stands.
 - **A configuration's format version,** once a deployment's configuration
   must survive a release that changes it.
 
