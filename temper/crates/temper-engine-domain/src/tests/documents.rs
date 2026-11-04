@@ -373,3 +373,171 @@ fn a_gathered_document_keeps_its_kind_and_frees_the_binding_at_completion() {
     assert!(domain.brief_connectors.is_empty());
     assert!(domain.forge.briefs_idle());
 }
+
+// Own-scope application documents (temper/docs/design/domain/forge.md, 5.5).
+fn dismissal_root() -> (Domain, Env<Limits>) {
+    use jig_domain_people as people;
+    let mut config = resume_fixture::config_with_project_room(1, 2);
+    let seed = config.core.seed_projects.first().unwrap();
+    let second = jig_domain_core::SeedProject { number: 2, name: "Second".into(), policy: seed.policy.clone() };
+    let first =
+        jig_domain_core::SeedProject { number: seed.number, name: seed.name.clone(), policy: seed.policy.clone() };
+    config.core.seed_projects = Box::new([first, second]);
+    let mut limits = resume_fixture::limits();
+    limits.authority.projects = 2;
+    limits.people.projects = 3;
+    let mut records = List::uncapped();
+    for (party, subject) in [(1, b"first".as_slice()), (2, b"second".as_slice())] {
+        for row in [
+            people::Stored::Person {
+                number: party,
+                identity: people::Identity {
+                    key: people::IdentityKey { provider: 0, subject: subject.into() },
+                    login: Box::new([]),
+                    name: Box::new([]),
+                },
+            },
+            people::Stored::SignIn {
+                number: party.checked_mul(10).unwrap(),
+                person: party,
+                expires: skein_lib::Wall::from_nanos(100),
+            },
+        ] {
+            records.push(crate::Record::Core(jig_domain_core::Record::People(row))).unwrap();
+        }
+    }
+    records
+        .push(crate::Record::Core(jig_domain_core::Record::People(people::Stored::Roles {
+            project: 1,
+            holdings: Box::new([people::Holding { person: 1, role: people::Role::Observer }]),
+        })))
+        .unwrap();
+    records
+        .push(crate::Record::Forge {
+            row: Box::new(forge::Stored::Dismissed { party: 2, what: forge::Dismissal::ToBegin { project: 2 } }),
+        })
+        .unwrap();
+    resume_fixture::root_with_records(config, &limits, records.as_slice())
+}
+
+fn settle_dismissals(domain: &mut Domain, env: &Env<Limits>) -> Box<[crate::Request]> {
+    let mut out = Queue::uncapped();
+    let mut requests = List::uncapped();
+    for _ in 0_u32..32 {
+        crate::release(domain, env, &mut out);
+        crate::release(domain, env, &mut out);
+        while let Some(request) = out.pop() {
+            if let crate::Request::Store(crate::StoreRequest::Commit { number, .. }) = request {
+                crate::try_step(domain, env, crate::Event::Store(crate::StoreInput::Committed { number, fill: 0 }))
+                    .unwrap();
+            } else if let crate::Request::ToChild(released) = request {
+                crate::try_step(domain, env, crate::Event::Released(released)).unwrap();
+            } else {
+                requests.push(request).unwrap();
+            }
+        }
+        crate::try_step(domain, env, crate::Event::Resume).unwrap();
+    }
+    requests.into_boxed()
+}
+
+fn dismissal_document(watcher: Token, projects: &[u32]) -> crate::Request {
+    let mut rows = List::with_capacity(u32::try_from(projects.len()).unwrap());
+    for project in projects {
+        rows.push(forge::Dismissal::ToBegin { project: *project }).unwrap();
+    }
+    crate::Request::Party(crate::PartyRequest::Deliver(crate::Delivery::ForgeDocument {
+        watcher,
+        document: Box::new(forge::Document::Dismissals(rows.into_boxed())),
+    }))
+}
+
+fn watch_dismissals(domain: &mut Domain, env: &Env<Limits>, party: u64) -> Token {
+    let watcher = Token::new(100_u64.checked_add(party).unwrap());
+    crate::try_step(
+        domain,
+        env,
+        crate::Event::Party(crate::PartyInput::Watch {
+            watcher,
+            sign_in: party.checked_mul(10).unwrap(),
+            subject: jig_domain_core::documents::Watched::Application {
+                scope: jig_domain_people::ApplicationScope::Own,
+                connector: 0,
+                subject: Token::new(forge::DISMISSED_SUBJECT),
+            },
+            window: jig_domain_core::documents::Window { rows: 1, after: None },
+        }),
+    )
+    .unwrap();
+    let projects: &[u32] = if party == 1 { &[] } else { &[2] };
+    assert_eq!(settle_dismissals(domain, env).as_ref(), [dismissal_document(watcher, projects)]);
+    crate::try_step(domain, env, crate::Event::Party(crate::PartyInput::Delivered { watcher })).unwrap();
+    watcher
+}
+
+fn commit_dismissal(domain: &mut Domain, env: &Env<Limits>) -> Box<[crate::Request]> {
+    crate::try_step(
+        domain,
+        env,
+        crate::Event::Party(crate::PartyInput::Application {
+            scope: jig_domain_people::ApplicationScope::Project(1),
+            reply_to: skein_lib::ReplyTo::new(Token::new(90)),
+            sign_in: 10,
+            key: [1; 16],
+            digest: [1; 32],
+            carried: None,
+            request: crate::Application::Dismiss { what: forge::Dismissal::ToBegin { project: 1 } },
+        }),
+    )
+    .unwrap();
+    let mut out = Queue::uncapped();
+    let mut commit = None;
+    for _ in 0_u32..8 {
+        crate::release(domain, env, &mut out);
+        while let Some(request) = out.pop() {
+            let crate::Request::Store(crate::StoreRequest::Commit { number, writes }) = request else {
+                panic!("dismissal delivered before commit: {request:?}");
+            };
+            assert!(writes.contains(&crate::Write::Save(crate::Record::Forge {
+                row: Box::new(forge::Stored::Dismissed { party: 1, what: forge::Dismissal::ToBegin { project: 1 } })
+            })));
+            assert!(commit.replace(number).is_none());
+        }
+    }
+    crate::try_step(
+        domain,
+        env,
+        crate::Event::Store(crate::StoreInput::Committed { number: commit.expect("dismissal commit"), fill: 0 }),
+    )
+    .unwrap();
+    settle_dismissals(domain, env)
+}
+
+fn dismissal_answer() -> crate::Request {
+    crate::Request::Party(crate::PartyRequest::Deliver(crate::Delivery::Application {
+        to: skein_lib::ReplyTo::new(Token::new(90)),
+        outcome: Some(crate::ApplicationAnswer::Dismiss(forge::DismissAnswer::Dismissed)),
+    }))
+}
+
+#[test]
+fn a_dismissal_makes_the_watchers_document_again() {
+    let (mut domain, env) = dismissal_root();
+    let watcher = watch_dismissals(&mut domain, &env, 1);
+    let got = commit_dismissal(&mut domain, &env);
+    assert_eq!(got.len(), 2, "one answer and one document: {got:?}");
+    assert!(got.contains(&dismissal_answer()));
+    assert!(got.contains(&dismissal_document(watcher, &[1])));
+}
+
+#[test]
+fn two_parties_watching_dismissed_get_their_own_documents() {
+    let (mut domain, env) = dismissal_root();
+    let first = watch_dismissals(&mut domain, &env, 1);
+    let second = watch_dismissals(&mut domain, &env, 2);
+    let got = commit_dismissal(&mut domain, &env);
+    assert_eq!(got.len(), 3, "one answer and two documents: {got:?}");
+    assert!(got.contains(&dismissal_answer()));
+    assert!(got.contains(&dismissal_document(first, &[1])));
+    assert!(got.contains(&dismissal_document(second, &[2])));
+}

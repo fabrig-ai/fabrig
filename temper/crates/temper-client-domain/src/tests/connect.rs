@@ -139,10 +139,9 @@ fn up(root: &mut crate::Domain, up: Up) -> Queue<Request> {
 }
 fn watch(mut out: Queue<Request>) -> Option<Token> {
     while let Some(request) = out.pop() {
-        if let Request::Unlinked {
-            request:
-                client::UnlinkedRequest::Down { down: Down::Open { watch, subject: client::Watchable::Family { .. } } },
-        } = request
+        if let Request::Unlinked { request: client::UnlinkedRequest::Down { down: Down::Open { watch, subject } } } =
+            request
+            && subject == forges::watch(&f::limits().forge).unwrap()
         {
             return Some(watch);
         }

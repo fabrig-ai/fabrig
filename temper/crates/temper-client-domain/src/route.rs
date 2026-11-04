@@ -311,6 +311,7 @@ fn forge_me(root: &mut Domain, env: &Env<Limits>, told: &jig_client::Told, out: 
     let consumed = forge::me::told(&mut root.forge, &root.client, told, &mut child);
     if consumed {
         forge::forges::configure(&mut root.forge, env.limits.forge, &mut child);
+        forge::dismissed::configure(&mut root.forge, env.limits.forge, &mut child);
     }
     route_forge(root, env, &mut child, out);
     consumed
@@ -374,7 +375,8 @@ fn playground(root: &mut Domain, env: &Env<Limits>, out: &mut Queue<Request>) {
 
 fn forge_forges(root: &mut Domain, env: &Env<Limits>, told: &jig_client::Told, out: &mut Queue<Request>) -> bool {
     let mut child = Queue::uncapped();
-    let consumed = forge::admin::told(&mut root.forge, &root.client, told, env.limits.forge, &mut child)
+    let consumed = forge::dismissed::told(&mut root.forge, &root.client, told, env.limits.forge, &mut child)
+        || forge::admin::told(&mut root.forge, &root.client, told, env.limits.forge, &mut child)
         || forge::github::told(&mut root.forge, &root.client, told, env.limits.forge, &mut child)
         || forge::forges::told(&mut root.forge, &root.client, told, env.limits.forge, &mut child);
     if consumed
