@@ -457,13 +457,13 @@ fn a_person_types_over_words_then_clears_the_field() {
     let scratch = Scratch::new("harness-replace");
     let bundle = fixture_bundle(
         &scratch,
-        br#"export default function init() {
+        br"export default function init() {
         const field = document.createElement('input');
         field.setAttribute('aria-label', 'Title'); field.value = 'Old words';
         const heading = document.createElement('h1'); heading.textContent = 'Old words';
         field.addEventListener('input', () => { heading.textContent = field.value || 'Empty'; });
         document.querySelector('#app').append(field, heading);
-    }"#,
+    }",
     );
     let mut person = Script::new(Box::new([
         harness::Step::Person(Step::See {
