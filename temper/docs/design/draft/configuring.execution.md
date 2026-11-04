@@ -45,10 +45,10 @@ under Old code, assessed in hel8's `~/src/fabrig/coord/old-repos-value/`.
 
 | | Phase | Executes (`configuring.md`) | Needs | State |
 |---|---|---|---|---|
-| P1 | Documents, revisions, a chat's template | 2 (rules reach the runs), 4, 5.4 (`chat start`) | | done: landed 2026-11-03 01:39Z (plan `configuring-p1`, 13 tasks); its walk folds into P2's |
-| P2 | Settings through ctl | 3.3, 5.4 | P1; the reference's M3 | done: landed 2026-11-03 16:12Z (plans `configuring-p2`, design, and `configuring-p2-build`, 14 tasks) |
-| P3 | The configuring agent | 5.3, 6 | P2 | done: landed 2026-11-03 20:36Z (plan `configuring-p3`, 15 tasks) |
-| P4 | Stage 1 | 8.1 | P3 | done: landed 2026-11-03 23:12Z (plan `configuring-p4`); its walk is 8.1, run again as the reference lands |
+| P1 | Documents, revisions, a chat's template | 2 (rules reach the runs), 4, 5.4 (`chat start`) | | done: landed 2026-11-03 01:39Z (`be16409150`); its walk folds into P2's |
+| P2 | Settings through ctl | 3.3, 5.4 | P1; the reference's M3 | done: landed 2026-11-03 16:12Z (`bfa287bbc4`) |
+| P3 | The configuring agent | 5.3, 6 | P2 | done: landed 2026-11-03 20:36Z (`a6a8155d35`) |
+| P4 | Stage 1 | 8.1 | P3 | done: landed 2026-11-03 23:12Z (`062fc5fb1f`); its walk is 8.1, run again as the reference lands |
 | P5 | Stage 2, rung D | 8.2 | P4; rung C (the reference's M10) | not started |
 
 ### P1. Documents, revisions, a chat's template

@@ -1,6 +1,6 @@
 # engine: status
 
-2026-11-03. Where jig's code lags or departs from [engine.md](engine.md).
+2026-11-04. Where jig's code lags or departs from [engine.md](engine.md).
 
 - **Not yet:** 2, 8: runs on the engine's own slots under
   `smith-inline-agent`; the engine hub's hello before placement; the
@@ -34,6 +34,18 @@
   the project's deletion (`connectors.md`, 17); whether they pass
   unignored is unknown. The core's own tests of a restore run
   (`jig-domain-core/src/tests/settings/restore.rs`).
+- **Not yet:** 17.5: validation of declared application kinds against
+  configured limits before construction is missing, because
+  `jig-domain-core/src/settings.rs`, `Current::new`, expects the capacity to
+  be representable instead of returning a named configuration refusal; the
+  bounds check takes limits without declared kinds. No reason is recorded.
+
+- **Not yet:** 5.1, 17.6: the whole project-deletion commit has no
+  established admission price against `journal.writes`, because the
+  established allowance covers settings-proposal withdrawals alone,
+  excluding the remaining state writes, closing the project and cancellation
+  operations. No reason is recorded.
+
 - **Departs:** 6: `Core::new` without a start is ready, because the
   core's unit fixtures need no start; every root starts it. 8: the
   client wire drops the failing charter's number of a

@@ -200,6 +200,14 @@ on the timer, or after a message:
   what the page heard before a clock is all the world said up to that
   clock's step (6.1).
 
+Each encoded bridge variant starts with a tag byte, so none is the empty
+ready message. Integers are fixed-width little-endian; each byte string
+and list starts with its u32 length. Decoding refuses short input,
+trailing bytes, an unknown tag or a length past the input, and allocates
+no more than the input's length. Encoding then decoding gives the same
+message back. This is the build's unversioned bridge, separate from the
+session log's versioned text (decided 2026-11-03).
+
 ## 6. The session log
 
 - **The world is a function of** its build, its seed, its start (the
@@ -243,6 +251,12 @@ on the timer, or after a message:
 - **What changes a log:** a change that makes a kept log's replay
   differ is a new log, recorded again, or a finding (temper's
   `docs/design/playground.md`, testing).
+
+Each stamp keeps the oldest input the page sent that has no stamp yet.
+A stamp with no input waiting breaks the contract and panics. Before the
+first clock, a snapshot ends at the start, step 0 and instant 0, with the
+digest of nothing. Thereafter, the last clock's step and instant, and
+what was said through that clock, give its end (decided 2026-11-03).
 
 ### 6.1 The log's text, version 1
 

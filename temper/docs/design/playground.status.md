@@ -1,6 +1,6 @@
 # playground: status
 
-2026-11-03. Where temper's code lags or departs from [playground.md](playground.md).
+2026-11-04. Where temper's code lags or departs from [playground.md](playground.md).
 
 - **Not yet:**
   - 4: the playground's setup entry's handover: the composition lays a
@@ -30,3 +30,8 @@
     `shell.md`, 2.5, and its status). A log replayed, and the browser
     tier's walk.
   - 10: the bar.
+- **Departs:** `AGENTS.md`, 1: 9's entry above calls the gate's list by
+  the pipeline's name, the one name this file holds
+  (`tests/boundary/outward.txt`). The playground-browser plan, unlanded,
+  rewrites that entry and its version keeps the name: the word changes
+  there, or once it lands.

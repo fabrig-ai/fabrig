@@ -3,8 +3,7 @@
 2026-11-03. The evidence behind `../design/protocol/configuration.md`, section 11 ("What the
 project's checks run at each push"), gathered for the reference's M10 from fabrig's history:
 every repair of a red that reached a plan's shared branch (`<draft>/integration`) in 14
-plans, 2026-10-30 to 11-03 (reference-m1 to m9, configuring-p1, first-run-projects,
-withdrawn-forms, playground-reset r4 and r6). In those plans each implementer ran `cargo fmt`,
+plans landed on main from 2026-10-30 to 11-03. In those plans each implementer ran `cargo fmt`,
 clippy on its changed packages and their focused tests before it pushed.
 
 ## Reds that reached the shared branch, by cause

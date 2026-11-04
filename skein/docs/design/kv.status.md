@@ -1,10 +1,11 @@
 # kv: status
 
-2026-11-03. Where skein's code lags or departs from [kv.md](kv.md).
+2026-11-04. Where skein's code lags or departs from [kv.md](kv.md).
 
-- **Not yet:** 9: the model-map referee across simulated-disk commits,
-  loads, snapshots and crash recovery, commits racing every snapshot
-  chunk, and the recovered value check over the real ring. In
+- **Not yet:** 9: the model-map referee
+  across simulated-disk commits, loads, snapshots and crash recovery,
+  commits racing every snapshot chunk, and the recovered value check
+  over the real ring. In
   `skein/tests/kv/tests/suite/fuzzy/map.rs`,
   `generated_commits_and_pages_match_the_model` uses `Store::memory`;
   `store.rs` has commit and snapshot crash cuts, but

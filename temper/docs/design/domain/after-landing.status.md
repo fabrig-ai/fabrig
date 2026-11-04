@@ -1,11 +1,11 @@
 # after-landing: status
 
-2026-11-03. Where temper's code lags or departs from [after-landing.md](after-landing.md).
+2026-11-04. Where temper's code lags or departs from [after-landing.md](after-landing.md).
 
 - **Not yet:** 3: the pending verdict status a run posts on its tip
   before it is held (section 9's). 5.2, 11: the suspects' rule and a
   red's pause, kind 4's alone (`landing.md`, 13.1, and its status):
-  every red range is bisected (`temper-engine-domain/src/translate.rs`),
+  every red range is probed (`temper-engine-domain/src/translate.rs`),
   and no red pauses its repository. 6: a cleared verdict is news to no
   goal, only a red one (section 7); and a verdict after the bound, or
   after a verifying change is cancelled, reaches no one: the
@@ -26,3 +26,8 @@
   section 11), because jig gives a procedure the deployment starts its
   project's ceiling (`jig-domain-core/src/effects/connector.rs`,
   `procedure_seed`).
+- **Departs:** 5.2: probes visit changed-key landings linearly, oldest
+  first, rather than bisecting the range. The first candidate whose commit
+  fails a test owns it; the last candidate owns what remains without a
+  probe. Unchanged-key landings are skipped. No reason for choosing this
+  traversal over bisection is recorded.
