@@ -79,12 +79,14 @@ fn unfinished_later_steps_never_offer_the_playground() {
         let mut world = f::accounts_world(f::SEED);
         let client = open_from_chats(&mut world, step);
         follow(&mut world, client, vec![see(Role::Heading { level: 1 }, heading)]);
-        if step == Step::Ready {
-            for role in [Role::Link, Role::Button] {
-                follow(&mut world, client, vec![gone(role, b"Later"), gone(role, "‹ Back".as_bytes())]);
+        for role in [Role::Link, Role::Button] {
+            follow(&mut world, client, vec![gone(role, b"Later")]);
+            if step == Step::Ready {
+                follow(&mut world, client, vec![gone(role, "‹ Back".as_bytes())]);
             }
-        } else {
-            follow(&mut world, client, vec![see(Role::Link, b"Later")]);
+        }
+        if step != Step::Ready {
+            follow(&mut world, client, vec![see(Role::Link, "‹ Back".as_bytes())]);
         }
         follow(
             &mut world,
@@ -124,7 +126,11 @@ fn later_welcome_steps_do_not_redirect_on_their_own() {
         follow(
             &mut world,
             client,
-            vec![if step == Step::Ready { gone(Role::Link, b"Later") } else { see(Role::Link, b"Later") }],
+            vec![if step == Step::Ready {
+                gone(Role::Link, "‹ Back".as_bytes())
+            } else {
+                see(Role::Link, "‹ Back".as_bytes())
+            }],
         );
     }
 }

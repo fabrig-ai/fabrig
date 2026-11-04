@@ -240,10 +240,10 @@ const HOLDS: [Holds; samples::N] = [
         name: "welcome-forge-choose",
         heading: "Connect a forge",
         parts: &[
-            Part::Named { role: Role::Region, name: "GitHub" },
             Part::Named { role: Role::Region, name: "Forgejo" },
             Part::Named { role: Role::Button, name: "Run on this machine" },
-            Part::Named { role: Role::Link, name: "Or connect your deployment" },
+            Part::Named { role: Role::Region, name: "GitHub" },
+            Part::Named { role: Role::Button, name: "Connect GitHub" },
         ],
     },
     Holds {
@@ -259,8 +259,8 @@ const HOLDS: [Holds; samples::N] = [
         name: "welcome-model-choose",
         heading: "Connect a model",
         parts: &[
+            Part::Named { role: Role::Paragraph, name: "Sign in, in this tab · about a minute" },
             Part::Named { role: Role::Button, name: "Continue with ChatGPT" },
-            Part::Named { role: Role::Link, name: "Use an OpenAI API key" },
         ],
     },
     Holds {
@@ -995,7 +995,7 @@ fn model_samples_link_the_mockup_state_that_draws_them() {
 fn connection_samples_assign_priority_and_progress_to_the_bundled_nodes() {
     use temper_client_view::look;
     for (name, expected) in [
-        ("welcome-forge-choose", vec!["Connect GitHub"]),
+        ("welcome-forge-choose", vec!["Run on this machine"]),
         ("welcome-forge-details", vec!["Set up a Forgejo here"]),
         ("welcome-model-choose", vec!["Continue with ChatGPT"]),
         ("github-app-details", vec!["GitHub"]),
