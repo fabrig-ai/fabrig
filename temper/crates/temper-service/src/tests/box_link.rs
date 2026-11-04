@@ -232,12 +232,12 @@ fn a_fetched_line_it_cannot_read_is_named() {
 fn the_longest_fetched_line_fits_the_least_line_bound() {
     // setup.md, 7.1: LF included, with u16::MAX and two u64::MAX values.
     const LEAST_LINE_BYTES: u32 = 64;
-    let line = b"fetched 65535 forgejo 18446744073709551615 18446744073709551615\n";
+    let bytes = b"fetched 65535 forgejo 18446744073709551615 18446744073709551615\n";
     let mut link = Link::new(LEAST_LINE_BYTES, true);
     let mut out = Queue::with_capacity(OUTPUTS);
     link.ask(u16::MAX, REQUEST, &mut out);
     discard(&mut out);
-    for byte in line {
+    for byte in bytes {
         link.read(core::slice::from_ref(byte), &mut out);
     }
     tells(
@@ -254,13 +254,17 @@ fn the_longest_fetched_line_fits_the_least_line_bound() {
         fetched: SetUpFetched { binary: SetUpBinary::Forgejo, done: u64::MAX, total: Some(u64::MAX) },
     });
     crate::route::box_link::drain(engine, &mut out);
+    let Some(temper_engine_domain::Event::Forge(event)) = engine.events.pop() else {
+        panic!("fetch progress reaches the root")
+    };
     assert_eq!(
-        engine.events.pop(),
-        Some(temper_engine_domain::Event::Forge(Box::new(temper_engine_domain_forge::Event::Fetched {
+        *event,
+        temper_engine_domain_forge::Event::Fetched {
             forge: u16::MAX,
             fetched: SetUpFetched { binary: SetUpBinary::Forgejo, done: u64::MAX, total: Some(u64::MAX) }
-        })))
+        }
     );
+    assert!(engine.events.is_empty());
 }
 #[test]
 fn an_unknown_word_step_or_number_is_named_and_dropped() {
