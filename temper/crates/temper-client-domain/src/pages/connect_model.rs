@@ -38,6 +38,8 @@ pub const fn open(address: &Address) -> bool {
         | Address::Welcome { .. }
         | Address::Chat { .. }
         | Address::Task { .. }
+        | Address::Home { .. }
+        | Address::Settings { .. }
         | Address::Adopt { .. } => false,
     }
 }
@@ -65,6 +67,8 @@ pub fn address(current: &Address, way: Option<ModelWay>) -> Address {
         | Address::ConnectModel { .. }
         | Address::Chat { .. }
         | Address::Task { .. }
+        | Address::Home { .. }
+        | Address::Settings { .. }
         | Address::Adopt { .. } => Address::ConnectModel { way },
     }
 }
@@ -80,6 +84,8 @@ pub fn way(pages: &Pages, client: &Client) -> Option<Way> {
         | Address::Welcome { .. }
         | Address::Chat { .. }
         | Address::Task { .. }
+        | Address::Home { .. }
+        | Address::Settings { .. }
         | Address::Adopt { .. } => return None,
     };
     let me = accounts::current_me(client)?;

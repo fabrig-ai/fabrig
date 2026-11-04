@@ -173,6 +173,8 @@ pub(crate) fn route_forge(
                     | Address::Welcome { .. }
                     | Address::Chat { .. }
                     | Address::Task { .. }
+                    | Address::Home { .. }
+                    | Address::Settings { .. }
                     | Address::Adopt { .. } => continue,
                 };
                 out.push(Request::Show { address, replace: true });

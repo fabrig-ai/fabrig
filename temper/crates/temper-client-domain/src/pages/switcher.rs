@@ -86,7 +86,12 @@ impl Switcher {
             | Address::ConnectModel { .. }
             | Address::Welcome { .. }
             | Address::Inbox { .. } => self.close(),
-            Address::Chats { .. } | Address::Chat { .. } | Address::Task { .. } | Address::Adopt { .. } => {}
+            Address::Home { .. }
+            | Address::Settings { .. }
+            | Address::Chats { .. }
+            | Address::Chat { .. }
+            | Address::Task { .. }
+            | Address::Adopt { .. } => {}
         }
     }
     pub(super) fn close(&mut self) {

@@ -52,6 +52,8 @@ pub enum Word {
     NewProjectPlaceholder,
     CreateProject,
     NoProjectYet,
+    SettingsFor,
+    ProjectNotYours,
     TokensTitle,
     TokensDescription,
     TokensApi,
@@ -753,9 +755,10 @@ pub(crate) const SCRIPTED_MODEL: &[u8] = b"demo";
 // Ready's first project adds four literal phrases and one of a hole; its
 // checklist's forge status and model account phrases are gone (3.5).
 // Model’s connected login and first repository are separate detail phrases (3.5).
-const PHRASES: u32 = 1266;
-const SEGMENTS: u32 = 2163;
-const ALL: [Word; 671] = [
+// Home and Settings add two phrases, each with one hole and three segments (3.5).
+const PHRASES: u32 = 1268;
+const SEGMENTS: u32 = 2169;
+const ALL: [Word; 673] = [
     Word::PlaygroundBanner,
     Word::PlaygroundSetUp,
     Word::BannerSetUp,
@@ -796,6 +799,8 @@ const ALL: [Word; 671] = [
     Word::NewProjectPlaceholder,
     Word::CreateProject,
     Word::NoProjectYet,
+    Word::SettingsFor,
+    Word::ProjectNotYours,
     Word::TokensTitle,
     Word::TokensDescription,
     Word::TokensApi,
@@ -1470,6 +1475,8 @@ impl Word {
             Self::NewProjectPlaceholder => 2188,
             Self::CreateProject => 2189,
             Self::NoProjectYet => 1949,
+            Self::SettingsFor => 2200,
+            Self::ProjectNotYours => 2201,
             Self::ModelKeyDescription => 2100,
             Self::ModelKeyField => 2101,
             Self::ModelAddKey => 2102,
@@ -2430,6 +2437,8 @@ fn english(word: Word, shell: Shell) -> (&'static [&'static [u8]], &'static [Hol
         Word::NewProjectPlaceholder => (&[b"+ New project"], &[]),
         Word::CreateProject => (&[b"Create"], &[]),
         Word::NoProjectYet => (&[b"No project yet"], &[]),
+        Word::SettingsFor => (&[b"Settings for ", b""], &[Name]),
+        Word::ProjectNotYours => (&[b"Project ", b" is not one of yours."], &[Number]),
         Word::ModelKeyDescription => (&[b"From ", b"\xe2\x80\x99s platform, under API keys. What temper\xe2\x80\x99s agents use is billed to the key\xe2\x80\x99s organization."], &[Name]),
         Word::ModelKeyField => (&[b"Key (pasted once)"], &[]),
         Word::ModelAddKey => (&[b"Add key"], &[]),

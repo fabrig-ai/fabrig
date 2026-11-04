@@ -381,7 +381,9 @@ pub(crate) fn navigation(builder: &mut Builder, root: &Domain, words: &crate::wo
     let (inbox_current, adopt_current) = match root.pages().address() {
         Address::Inbox { .. } => (true, false),
         Address::Adopt { .. } => (false, true),
-        Address::ConnectForge { .. }
+        Address::Home { .. }
+        | Address::Settings { .. }
+        | Address::ConnectForge { .. }
         | Address::Forges
         | Address::Welcome { .. }
         | Address::Chats { .. }
@@ -434,6 +436,8 @@ pub(crate) fn navigation(builder: &mut Builder, root: &Domain, words: &crate::wo
             | Address::Welcome { .. }
             | Address::Inbox { .. }
             | Address::Task { .. }
+            | Address::Home { .. }
+            | Address::Settings { .. }
             | Address::Adopt { .. }
             | Address::ConnectModel { .. }
             | Address::Accounts => false,
@@ -463,6 +467,8 @@ pub(crate) fn navigation(builder: &mut Builder, root: &Domain, words: &crate::wo
         | Address::ConnectForge { .. }
         | Address::Chat { .. }
         | Address::Task { .. }
+        | Address::Home { .. }
+        | Address::Settings { .. }
         | Address::Adopt { .. } => false,
     } {
         builder.state(skein_ui::State::Current);
@@ -529,6 +535,8 @@ fn forges_entry(builder: &mut Builder, root: &Domain, words: &crate::words::Word
         | Address::Chat { .. }
         | Address::Task { .. }
         | Address::Inbox { .. }
+        | Address::Home { .. }
+        | Address::Settings { .. }
         | Address::Adopt { .. } => false,
     };
     if current {
