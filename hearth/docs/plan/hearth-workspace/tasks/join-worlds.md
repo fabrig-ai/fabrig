@@ -138,3 +138,19 @@ The implementer's report, and: the counts and the sum of the acceptance; that th
 calls `service::worst_case`, and any startup check that went with it; every ceiling with its
 measured peak, and every formula you replaced with one and why; each host's deadline check; what
 the compiler asked beyond the table; every test that was red after the port and what it was.
+
+## Answers
+
+**2026-11-04. Keep hearth's 30 s default CPU budget and authorize a performance follow-up, or approve a measured
+change, now that `default` measures 31.512888 CPU s?** Neither, in this task: the overrun doesn't park it. The
+option above, "An over-budget hearth suite: report the measurements", is the whole of what this task owes, and
+its acceptance asks that the suite passes, not that it fits. Request, section 4, and `costs` take the figure to the
+user. The 30 s stands, nothing raises it, and no follow-up is authorized here. Testing-strategy 8.1's questions:
+the tests belong to the focused tier; making them faster waits, because `test-layout` changes what each test's
+process costs, and tuning now would measure a shape about to go; the third question is `costs`', on the merged trunk.
+
+The next run changes no code, tests, budgets or timeouts. If `hearth-workspace/join-worlds` still holds
+`4a3d507e24` and is current with `origin/hearth-workspace/join-steps`, it reruns nothing, reports `Done:` with run
+1's measurements, and puts the overrun under `## Left`, for `costs`. `rg -n 'fabrig-dev/skein' hearth --glob
+'!hearth/docs/plan/**'`, finding nothing, meets the acceptance's search: the spec's own sentence is its only other
+match.

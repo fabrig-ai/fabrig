@@ -104,3 +104,13 @@ Pre-approved:
 ## Report
 
 The implementer's report, the table, and each figure's source command.
+
+## Answers
+
+**2026-11-04. What of `join-worlds`' 31.512888 CPU s `default`, over hearth's 30 s (its run's question)?** It comes
+here, for the user's ruling. Run step 1 with `NEXTEST_DOUBLE_SPAWN=0`, as the gate and `tools/tiers/run` do:
+`tools/tiers/cpu.py` runs the command as given and doesn't set it. Whether `join-worlds`' figure had it is unknown.
+If hearth's `default` or `fuzzy` is still over its budget, add a fifth item to `Figures awaiting the user`: the
+measured figure against 30 s or 120 s, the slowest tests, and the options, keep the budget and repair the tests, or
+the user sets a measured figure. Under 8.1 it stays red until the user rules; `join-worlds`' recommendation is to keep
+30 s and repair them, keeping every assertion and case.
