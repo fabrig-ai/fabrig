@@ -738,6 +738,12 @@ fn home_domain(name: &str) -> Domain {
     let mut projects = List::with_capacity(1);
     projects.push(me.projects.get(0).expect("Hello project").clone()).expect("one project");
     me.projects = projects;
+    me.needs_total = match name {
+        "home-at-work" => 1,
+        "home-needs-several" => 3,
+        _ => 0,
+    };
+    me.needs = c::Needs { questions: me.needs_total, proposals: 0, escalations: 0, person_tasks: 0 };
     let accounts = temper_client_domain::pages::accounts::document(source.client()).expect("sample accounts").clone();
     let (chats, _) = crate::worlds::world(Solo, CHATS, Shown);
     let Some(Latest::Jig(c::Delivery::Tasks(chat_rows))) =

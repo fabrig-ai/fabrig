@@ -104,6 +104,7 @@ const HOLDS: [Holds; samples::N] = [
         name: "home-at-work",
         heading: "One thing needs you.",
         parts: &[
+            Part::Named { role: Role::Link, name: "Needs you 1" },
             Part::Named { role: Role::Heading { level: 2 }, name: "Needs you · 1" },
             Part::Named { role: Role::Paragraph, name: "The repository has no license. Name one in the README?" },
             Part::Named { role: Role::Button, name: "Reply" },
@@ -118,6 +119,7 @@ const HOLDS: [Holds; samples::N] = [
         name: "home-needs-several",
         heading: "3 things need you.",
         parts: &[
+            Part::Named { role: Role::Link, name: "Needs you 3" },
             Part::Named { role: Role::Heading { level: 2 }, name: "Needs you · 3" },
             Part::Named { role: Role::Link, name: "Answer in a row" },
             Part::Named { role: Role::Link, name: "Hello in Rust · a question · 4 min" },
