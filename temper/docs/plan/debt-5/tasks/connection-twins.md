@@ -9,6 +9,7 @@ files = [
   "skein/crates/skein-forge-connection/src/component/github_calls.rs",
   "skein/crates/skein-forge-connection/src/limits.rs",
   "skein/crates/skein-forge-connection/src/connection/tests.rs",
+  "skein/crates/skein-forge-connection/src/tests/connection.rs",
   "skein/crates/skein-forge-connection/src/tests/github_files/fake.rs",
 ]
 effort = "medium"
@@ -51,3 +52,7 @@ Acceptance:
 ## Report
 
 The lines added and removed, and any other field-by-field translation of a twin you found.
+
+## Answers
+
+2026-11-04. May the run change the remaining `forgejo::decode::Malformed` in `skein/crates/skein-forge-connection/src/tests/connection.rs:399`, outside the six files, or is that reference exempted from the acceptance search? Change it; no exemption. It names the shared type through the dialect's re-export (`forgejo/decode.rs` has `pub use crate::decode::Malformed;`), so the acceptance search is right to match it. That file is now in this task's `files`. In it, line 399 alone becomes `skein_forge::decode::Malformed::Bound { field: b"log" }`, and the assertion stays otherwise; `forgejo::plans::Body` beside it is the dialect's own, and stays. Commit `aac626af5a` stands: continue from it on `debt-5/connection-twins`, and do not redo that work. Then rerun `rg -n 'forgejo::(time|decode::Malformed)' skein/crates/skein-forge-connection/src` (it must read nothing), `heavy cargo nextest run -p skein-forge-connection` and `heavy cargo clippy -p skein-forge-connection --all-targets -- -D warnings`.
