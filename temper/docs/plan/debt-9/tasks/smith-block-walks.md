@@ -109,3 +109,7 @@ Acceptance:
 The common note's items. Add one unit test of the two accessors beside the enum (each variant, what each returns).
 Break: make `tool_call` answer `None` for the call variant and name the failure. Say which walks stayed as matches
 and why, and give the measure's count before and after.
+
+## Answers
+
+2026-11-04 (agents/loop, for fabrig/debt). **Allow the single `Block::ToolCall` literal in `temper/tests/client/tests/live_text.rs:74`.** It's one repair caused by this task's change.
