@@ -1,10 +1,11 @@
 # Agent guidance for fabrig
 
-Provisional, 2026-10-30. What every agent working here must know, whatever its role. Read it first, then the `AGENTS.md` of the tree you work in, which holds the facts about its code.
+Provisional, 2026-10-30. What every agent working here must know, whatever its role. Before working in a tree, read its `AGENTS.md`, which holds the facts about that tree's code.
 
 ## 1. In one page
 
 - **One repository, four trees, one Cargo workspace:** `skein/` (the io and protocol kit, and the code's rules), `smith/` (the agent kit), `jig/` (the kit for agentic applications), `temper/` (the application). One `Cargo.lock`, path dependencies.
+- **A tree's layout:** step crates in `crates/*`, their worlds in `tests/*`, shared test harnesses in `testing/*` (`skein/docs/design/testing.md, 6`).
 - **`hearth/`** (immutable machines, built on skein alone) is a fifth tree, not yet in the workspace: `hearth/AGENTS.md`.
 - **Dependencies point one way:** skein names none of smith, jig or temper; smith names neither jig nor temper; jig never names temper. A missing generic mechanism goes into skein before its smith or jig consumer. A gate step checks it.
 - **fabrig names no tool, machine, session or repository of whoever runs its development;** `tests/boundary/tests/outward.rs` checks it.
@@ -17,9 +18,10 @@ Provisional, 2026-10-30. What every agent working here must know, whatever its r
 - A lint exception is a scoped `#[expect(..., reason = "...")]`, never `#[allow]`.
 - Comments say what is true now, in the design's words: no history ("originally"), no emphasis words ("actual", "genuine").
 - Code cites a design section at module or type level, not on every field.
+- Step crates follow the strict subset (`skein/docs/foundation/programming-model.md, 10`): no `std`, no `unsafe` but where a module says why, every `match` lists every variant (no `_`, no `matches!`), no indexing, no unchecked arithmetic, no `as`, no `unwrap`. The workspace's lints and each tree's `clippy.toml` hold it.
 - Test crates are ordinary Rust under their tree's `tests/clippy.toml`: one thread, one loop, and a seed replays.
-- Each tree keeps its `clippy.toml` (smith's bans more types); its `AGENTS.md` lists its code facts (smith's module-doc rules, jig's "the core never links smith", temper's `docs/help/` compiled into its help tests, and so on).
-- Some Markdown is read by tests (skein's UI fixtures and conformance designs, smith's design and fixture trees, jig's `protocol/store.md`, temper's `docs/help/`): a docs change there needs its tests.
+- Each tree keeps its `clippy.toml` (smith's bans more types).
+- Some Markdown is read by tests (`.config/gate/read-by-tests.txt`): a docs change there needs its tests.
 - Public code names no path or address of a machine outside the repository, and nothing private: emails, UUIDs, session names, tokens.
 
 ## 3. Security
