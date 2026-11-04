@@ -44,6 +44,16 @@ pub(crate) fn main(
 ) {
     b.open(Role::Main);
     b.style(crate::look::MAIN);
+    if let Some(me) = root.pages().me(root.client())
+        && me.projects.is_empty()
+        && let Some(deployment) = root.forge().deployment()
+        && !deployment.welcome
+    {
+        text(b, Role::Heading { level: 1 }, &words.say(Word::NoProjectYet, &[]));
+        text(b, Role::Paragraph, &words.say(Word::NoProjectLine, &[]));
+        b.close();
+        return;
+    }
     let playground = playground_start(root);
     b.open(Role::Complementary);
     b.name(&words.say(Word::ProjectPane, &[]));

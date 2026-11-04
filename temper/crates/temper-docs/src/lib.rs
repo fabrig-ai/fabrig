@@ -453,14 +453,14 @@ pub static PAGES: [Page; 59] = [
         name: "configuration",
         kind: Kind::Reference,
         title: "Configuration",
-        summary: "The configuration document's top level and application members, their bounds and what temper init writes.",
+        summary: "The configuration document's top level and application members, their bounds and what temper init --box writes.",
         text: include_str!("../../../docs/help/reference/configuration.md"),
     },
     Page {
         name: "configuration-engine",
         kind: Kind::Reference,
         title: "Engine configuration",
-        summary: "The engine and worker configuration members, their bounds and what temper init writes.",
+        summary: "The engine and worker configuration members, their bounds and what temper init --box writes.",
         text: include_str!("../../../docs/help/reference/configuration-engine.md"),
     },
     Page {

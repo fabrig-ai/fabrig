@@ -420,19 +420,23 @@ pub(super) fn root_at_with_forges(
         );
     }
 
-    if playground.is_some() || welcome || forge_rows_answered {
-        let mut read = None;
-        while let Some(request) = out.pop() {
-            if let Request::Unlinked {
-                request:
-                    jig_client::UnlinkedRequest::Down {
-                        down: jig_client::Down::Read { read: token, what: jig_client::Readable::Family { .. } },
-                    },
-            } = request
-            {
-                read = Some(token);
+    let mut read = None;
+    while let Some(request) = out.pop() {
+        if let Request::Unlinked {
+            request:
+                jig_client::UnlinkedRequest::Down {
+                    down: jig_client::Down::Read { read: token, what: jig_client::Readable::Family { record, .. } },
+                },
+        } = request
+        {
+            match wire::decode_reading(&record.bytes, &w::CEILINGS).expect("forge read").read() {
+                w::Read::Deployment => deliver_deployment(&mut root, token, true, true),
+                w::Read::Playground => read = Some(token),
+                w::Read::Setting(_) | w::Read::ProposalItems(_) => {}
             }
         }
+    }
+    if playground.is_some() || welcome || forge_rows_answered {
         if let Some((project, model, state)) = playground {
             playground_session(
                 &mut root,
@@ -1460,6 +1464,11 @@ pub fn deliver_playground(
     )
     .expect("playground answer");
     playground_record(root, read, Some(wire::playground_answer(&answer)));
+}
+pub fn deliver_deployment(root: &mut temper_client_domain::Domain, read: Token, welcome: bool, owned: bool) {
+    let answer =
+        w::DeploymentAnswer::new(&w::CEILINGS, w::DeploymentAnswerParts { welcome, owned }).expect("deployment answer");
+    playground_record(root, read, Some(wire::deployment_answer(&answer)));
 }
 pub fn deliver_no_playground(root: &mut temper_client_domain::Domain, read: Token) {
     playground_record(root, read, None);

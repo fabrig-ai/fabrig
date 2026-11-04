@@ -347,7 +347,8 @@ skein's (skein's `ui-web.md`), and how a client of jig's does is jig's
   cookie, so the browser's stays as it was (jig's `domain/people.md`,
   section 3); a cookie the engine does not know, or one ended or
   expired, signs in afresh, with a new cookie. The welcome follows,
-  which moves on to the chats page once the first run is over
+  which moves on to the chats page once the first run is over, and to
+  the inbox, drawing nothing of itself, on a deployment with no welcome
   (`README.md`, 3.5, The welcome).
 - **A reload, or another tab,** signs in with `Transport`, by the cookie
   (jig's `client/domain/client.md`, section 12).

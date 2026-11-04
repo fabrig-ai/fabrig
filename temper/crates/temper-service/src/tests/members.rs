@@ -24,6 +24,7 @@ const APPLICATION: &[u8] = br#"{
  "github":{"api":{"host":"api.example.test","port":443},"transport":{"tls":{"server_name":"api.example.test","trust":null}},
  "remote":"https://git.example.test","web":"https://web.example.test","git":"demo/bin/github-git"}},
 "clients":{"listener":{"socket":"127.0.0.1:8367"},"bundle":"/bundle","public":"https://temper.example.test"},
+"welcome":true,
 "webhooks":{"listener":{"socket":"127.0.0.1:8371"}},
 "sign_in":{"google":{"provider":3,"client":"client-a","secret":"sign-in.secret",
  "endpoints":{"issuer":"https://issuer.example.test","authorization":"https://issuer.example.test/authorize",

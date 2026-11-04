@@ -258,6 +258,9 @@ impl Referee {
                     && crate::stories::adopted(&self.store.borrow().rows) > 0
             }
             crate::world::Phase::Story => match self.story {
+                crate::world::Story::NoWelcome => other
+                    .iter()
+                    .any(|proc| matches!(proc, Proc::Other(HarnessProcess::Client(person)) if person.finished)),
                 crate::world::Story::Chat { .. } => terminals(&self.store.borrow()) > 0,
                 crate::world::Story::ChatReadThenWait { .. } => chat_waited(&self.store.borrow()),
                 crate::world::Story::Adoption => crate::stories::adopted(&self.store.borrow().rows) > 0,
@@ -502,6 +505,7 @@ impl skein_world::Referee<Proc> for Referee {
                         || matches!(
                             self.story,
                             crate::world::Story::Adoption
+                                | crate::world::Story::NoWelcome
                                 | crate::world::Story::Adopt
                                 | crate::world::Story::Merge
                                 | crate::world::Story::HeldChange
