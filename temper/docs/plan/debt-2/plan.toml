@@ -22,3 +22,29 @@ id = 1
 story = "a skein caller builds a tree's limits by setting only the fields it means over Limits::EMPTY, and reads a node's text bytes from skein-ui instead of counting them itself"
 parts = ["skein-ui-limits"]
 walk = false
+
+[[part]]
+id = "jig-client-modes"
+title = "jig D018: the linked client's requests hold no Down or SignOut; the unlinked mode has its own"
+mode = "direct"
+needs = []
+design = "jig/docs/design/client/domain/client.md, 4.4"
+
+[[slice]]
+id = 2
+story = "an unlinked client is stepped by its own pair and asks UnlinkedRequest, every root and host in jig and temper steps each mode by its pair, and the native shell matches only what a linked client asks, with no panic! left"
+parts = ["jig-client-modes"]
+walk = false
+
+[[part]]
+id = "temper-forge-records"
+title = "temper D005: the fixtures connect their forges by records, and the Forgejo file-credential path goes"
+mode = "direct"
+needs = []
+design = "temper/docs/design/protocol/credentials.md, 5"
+
+[[slice]]
+id = 3
+story = "every temper-service fixture connects its forges by records as the shipped path does, and temper-service keeps no file-credential path and names no credential member in a refusal"
+parts = ["temper-forge-records"]
+walk = false
