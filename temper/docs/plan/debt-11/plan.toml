@@ -43,3 +43,68 @@ parts = ["check"]
 id = "precheck-line"
 text = """The request says the check runs in the queue's precheck beside tools/citations/citations.py. That precheck is not in fabrig, and this cut could not read it, so it does not know whether a new tool is picked up by itself. Within fabrig, lint-gate adds the check to .config/gate/README.md, and a fabrig-boundary test runs it, which the gate selects on every change, so a red holds from the day it lands. (a) recommended: add the line `python3 -I -B tools/lints/lints.py` to the precheck beside citations.py, once debt-11 lands; before then it would be red on every branch. (b) leave the boundary test as the only run. Nothing waits on the answer."""
 parts = ["check"]
+
+[[part]]
+id = "hearth"
+title = "hearth D010: every package on a profile, every clippy.toml a variant"
+mode = "direct"
+needs = ["check"]
+design = "tools/lints/design.md, 3"
+
+[[slice]]
+id = 3
+story = "the smallest tree takes the shared profiles, and the check reads it at 0"
+parts = ["hearth"]
+walk = false
+
+[[part]]
+id = "jig"
+title = "jig D019: the test crates and shells on profiles, the clippy.toml copies on variants"
+mode = "direct"
+needs = ["check"]
+design = "tools/lints/design.md, 3"
+
+[[slice]]
+id = 4
+story = "jig's 41 hand-held blocks are copies of two definitions, and each clippy.toml says why it differs"
+parts = ["jig"]
+walk = false
+
+[[part]]
+id = "skein"
+title = "skein D036: every package on a profile, with the review's gaps closed, and three clippy.toml variants"
+mode = "direct"
+needs = ["check"]
+design = "tools/lints/design.md, 2.2"
+
+[[slice]]
+id = 5
+story = "skein's 14 block variants and 14 clippy.toml variants become the definitions' copies, and test crates may use a wildcard arm"
+parts = ["skein"]
+walk = false
+
+[[part]]
+id = "temper"
+title = "temper: every package on a profile, every clippy.toml a variant"
+mode = "direct"
+needs = ["check"]
+design = "tools/lints/design.md, 3"
+
+[[slice]]
+id = 6
+story = "temper's worlds, tools and shells take the shared profiles, and each clippy.toml header is true"
+parts = ["temper"]
+walk = false
+
+[[part]]
+id = "gate"
+title = "the check goes on in the gate, and the four debt items go"
+mode = "direct"
+needs = ["hearth", "jig", "skein", "temper", "manual-map"]
+design = "tools/lints/design.md, 5"
+
+[[slice]]
+id = 7
+story = "a manifest that drifts from its profile goes red on any branch, and the four items are paid"
+parts = ["gate"]
+walk = false
