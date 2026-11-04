@@ -71,11 +71,11 @@ fn startup_names_a_frame_one_byte_past_the_profile_page_ceiling() {
 
 #[test]
 fn startup_names_a_transcript_past_the_codec_ceiling() {
-    let document = transcript_document(8_388_609);
+    let document = transcript_document(33_554_433);
     let found = crate::named(&document, &config::Directories::working()).unwrap_err();
     assert_eq!(
         lines(&found).as_ref(),
-        b"application.limits.overrides.root.loads.transcript_bytes: 8388609 bytes, past the transcript codec's ceiling of 8388608\n"
+        b"application.limits.overrides.root.loads.transcript_bytes: 33554433 bytes, past the transcript codec's ceiling of 33554432\n"
     );
 }
 
@@ -1015,7 +1015,9 @@ fn a_worker_alone_with_the_owned_examples_worker_fits_one_ring() {
     const IORING_MAX_ENTRIES: u32 = 32_768;
     let input = fixtures::owned_worker_alone_document();
     let directories = config::Directories::working();
-    let agent = fixtures::owned_worker_agent();
+    let mut agent = fixtures::owned_worker_agent();
+    agent.host_limits.message_bytes = 10_662;
+    agent.host_limits.messages = 82;
     let part = crate::startup::worker_part(&input, &directories).unwrap();
     let operations = crate::system::worker_alone_operations(
         &part.worker.jig.limits.io,
@@ -1596,14 +1598,19 @@ fn landing_configuration_reads_goal_tiers_and_optional_spans() {
 fn capacity_overrides_name_the_failed_dependency() {
     let initial = super::stock::generated();
     for (member, value, causes) in [
-        (b"tasks.tasks".as_slice(), 64, &["tasks.tasks", "64", "people.inbox_tasks", "128"][..]),
+        (b"tasks.tasks".as_slice(), 129, &["tasks.tasks", "129", "people.inbox_tasks", "258"][..]),
         (b"tasks.project_tasks", 64, &[][..]),
-        (b"tasks.batch", 8, &["tasks.batch", "8", "ResultFollowupsDelegates.value", "4", "schema ceiling", "reduce"]),
-        (b"tasks.batch", 2, &["tasks.batch", "2", "TaskRecord", "2391079", "2166900", "profile ceiling", "reduce"]),
-        (b"tasks.delegates", 8, &["tasks.delegates", "8", "people.operations", "9"]),
-        (b"tasks.delegates", 16, &["tasks.delegates", "16", "people.operations", "17"]),
+        (
+            b"tasks.batch",
+            1025,
+            &["tasks.batch", "1025", "TaskInterests.result_followups", "1024", "schema ceiling", "reduce"],
+        ),
+        (b"tasks.delegates", 81, &["tasks.delegates", "81", "people.operations", "82"]),
+        (b"tasks.delegates", 82, &["tasks.delegates", "82", "people.operations", "83"]),
         (b"documents.lines", 8, &[][..]),
         (b"tasks.tree_tasks", 128, &[][..]),
+        (b"tasks.message_bytes", 874_121, &["tasks.message_bytes", "874121", "tasks.inbox_bytes", "874121"]),
+        (b"authority.grants", 30, &["authority.grants", "30", "notes.scopes", "33"]),
     ] {
         let document = super::stock::limited(&initial, member, value);
         if causes.is_empty() {
@@ -1630,4 +1637,14 @@ fn capacity_overrides_name_the_failed_dependency() {
         assert!(!text.contains("invalid override"), "capacity cause must survive validation: {text}");
         assert_eq!(text.lines().count(), 1, "unrelated init overrides must not be accused: {text}");
     }
+}
+
+#[test]
+fn a_task_store_value_refusal_names_batch_bytes_and_inbox_messages() {
+    let mut problems = Problems::empty();
+    problems.push(
+        Path::root().member(b"engine").member(b"limits").member(b"overrides").member(b"tasks.batch_bytes"),
+        What::StoreTask { needs: 1001, has: 1000, batch_bytes: 512 },
+    );
+    assert_eq!(lines(&problems).as_ref(), b"engine.limits.overrides.tasks.batch_bytes: the store's map value, 1001 bytes, past its bound of 1000 bytes; binding record tasks-v9.TaskRecord with tasks.batch_bytes 512; fixed profile ceiling engine.limits.store.value; reduce tasks.batch_bytes, tasks.inbox_messages or the task record's spec/message/result/authority capacities; this ceiling has no scalar override\n");
 }

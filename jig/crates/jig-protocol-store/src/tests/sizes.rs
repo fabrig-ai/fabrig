@@ -12,3 +12,16 @@ fn restore_bytes_prices_two_rows_without_u32_truncation() {
     limits.store.value = u32::MAX;
     assert_eq!(crate::sizes::restore_bytes(&limits), Some(17_179_869_180));
 }
+
+#[test]
+fn the_task_row_grows_with_the_batch_count_only_by_its_numbers() {
+    let mut domain = fixtures::TASKS_LIMITS;
+    domain.batch = 4;
+    let small = crate::codec::tasks::limits(&domain).expect("small count");
+    domain.batch = 160;
+    let large = crate::codec::tasks::limits(&domain).expect("large count");
+    let small = crate::tasks_v9::TaskRecord::encoded_bound(&small).expect("small row");
+    let large = crate::tasks_v9::TaskRecord::encoded_bound(&large).expect("large row");
+    // Last batch and result followups each retain 156 additional u64 numbers.
+    assert_eq!(large - small, 2 * 156 * 8);
+}

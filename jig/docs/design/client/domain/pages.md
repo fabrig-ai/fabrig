@@ -180,7 +180,11 @@ questions are entries, not tasks (contract.md, 5.1 and 7.1).
   where its stall applies, when it will pass up. Updates, newest first,
   those not yet read marked new.
 - **Filtered** by project, by kind of entry, and by goal: an entry belongs
-  to a goal when its task is in the goal's subtree.
+  to a goal when its task is in the goal's subtree. Each entry carries
+  every goal it belongs to, its task's ancestors that are goals and the
+  task itself, so at most `tasks.depth` plus one (33 in `standard`); the
+  client wire's list holds 64, and a client receives as many, whatever
+  its rows.
 - **Derived, not kept.** An entry is there while its object waits: a
   proposal pending, a question unanswered, a person task active, an
   update unread. Deciding it, on this page or any other where its card

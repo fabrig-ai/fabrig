@@ -34,12 +34,9 @@ pub enum Word {
     WelcomeForgejo,
     WelcomeForgejoDescription,
     WelcomeForgejoRun,
-    WelcomeForgejoDeployment,
     WelcomeContinue,
     WelcomeModelPlan,
     WelcomeModelSubscription,
-    WelcomeModelKeyToo,
-    WelcomeYourModel,
     BrandChats,
     ForgeHereVersionDetails,
     ForgeFetchVersions,
@@ -159,7 +156,6 @@ pub enum Word {
     WelcomeForgeConnected,
     WelcomeForgeStatus,
     WelcomeForgeLine,
-    WelcomeForgeDone,
     WelcomeModelAccount,
     WelcomeModelSigningIn,
     ForgeConfigCode,
@@ -262,7 +258,6 @@ pub enum Word {
     WelcomeModelLead,
     WelcomeReadyTitle,
     WelcomeBack,
-    WelcomeLater,
     WelcomePlaygroundInstead,
 
     TimeClosed,
@@ -685,6 +680,12 @@ pub enum Word {
     PublicStaleProofs,
     PublicTitleCut,
     PublicAsOf,
+    WelcomeBoxName,
+    WelcomeBoxLine,
+    WelcomeBoxServer,
+    WelcomeModelSignInTime,
+    WelcomeModelProgramTime,
+    WelcomeForgeDoneDetail,
 }
 // Room for temper, jig, account, card and forge phrases.
 // Six chat projection phrases, alongside the agent's original work-line words.
@@ -720,7 +721,7 @@ pub enum Word {
 // A task document's reading line and eight lasting read ends (client/README.md, 3.5).
 // The paste of a sign-in's address adds fifteen phrases and twenty-one segments.
 // M1's Model details add eight phrases and sixteen segments.
-// The welcome's Forgejo card adds four literal phrases and segments.
+// The welcome's Forgejo card adds three literal phrases and segments.
 // Eighteen playground, removal and forge choice literals.
 pub(crate) const SCRIPTED_MODEL: &[u8] = b"demo";
 // The post-landing panel has ten phrases and eighteen segments.
@@ -728,10 +729,13 @@ pub(crate) const SCRIPTED_MODEL: &[u8] = b"demo";
 // The banner's setup link and project switcher add two literal phrases (5.1 and 5.6).
 // Restore's forgotten refusal adds one phrase and two segments.
 // The welcome's "Continue" to Ready adds one literal phrase (client/README.md, 3.5).
-// The welcome's Model cards add three phrases of one hole and three segments each (3.5).
-const PHRASES: u32 = 1249;
-const SEGMENTS: u32 = 2152;
-const ALL: [Word; 654] = [
+// The welcome's Model cards add two phrases of one hole and three segments each (3.5).
+// The welcome's temper box line, its Model cards' notes and its forge line's detail
+// add six phrases and ten segments; its ticked forge line's old phrase, one phrase
+// and five segments, is gone (client/README.md, 3.5).
+const PHRASES: u32 = 1250;
+const SEGMENTS: u32 = 2151;
+const ALL: [Word; 655] = [
     Word::PlaygroundBanner,
     Word::PlaygroundSetUp,
     Word::BannerSetUp,
@@ -755,12 +759,9 @@ const ALL: [Word; 654] = [
     Word::WelcomeForgejo,
     Word::WelcomeForgejoDescription,
     Word::WelcomeForgejoRun,
-    Word::WelcomeForgejoDeployment,
     Word::WelcomeContinue,
     Word::WelcomeModelPlan,
     Word::WelcomeModelSubscription,
-    Word::WelcomeModelKeyToo,
-    Word::WelcomeYourModel,
     Word::BrandChats,
     Word::ForgeHereVersionDetails,
     Word::ForgeFetchVersions,
@@ -875,7 +876,6 @@ const ALL: [Word; 654] = [
     Word::WelcomeForgeConnected,
     Word::WelcomeForgeStatus,
     Word::WelcomeForgeLine,
-    Word::WelcomeForgeDone,
     Word::WelcomeModelAccount,
     Word::WelcomeModelSigningIn,
     Word::ForgeConfigCode,
@@ -975,7 +975,6 @@ const ALL: [Word; 654] = [
     Word::WelcomeModelLead,
     Word::WelcomeReadyTitle,
     Word::WelcomeBack,
-    Word::WelcomeLater,
     Word::WelcomePlaygroundInstead,
     Word::TimeClosed,
     Word::ChatClosed,
@@ -1386,6 +1385,12 @@ const ALL: [Word; 654] = [
     Word::PublicStaleProofs,
     Word::PublicTitleCut,
     Word::PublicAsOf,
+    Word::WelcomeBoxName,
+    Word::WelcomeBoxLine,
+    Word::WelcomeBoxServer,
+    Word::WelcomeModelSignInTime,
+    Word::WelcomeModelProgramTime,
+    Word::WelcomeForgeDoneDetail,
 ];
 impl Word {
     #[expect(clippy::too_many_lines, reason = "one exhaustive table keeps the frame phrase IDs stable")]
@@ -1414,8 +1419,6 @@ impl Word {
             Self::WelcomeForgejo => 2132,
             Self::WelcomeForgejoDescription => 2133,
             Self::WelcomeForgejoRun => 2134,
-            Self::WelcomeForgejoDeployment => 2135,
-            Self::WelcomeYourModel => 2123,
             Self::BrandChats => 2110,
             Self::ForgeHereVersionDetails => 2116,
             Self::ForgeFetchVersions => 2117,
@@ -1534,7 +1537,6 @@ impl Word {
             Self::WelcomeForgeConnected => 1708,
             Self::WelcomeForgeStatus => 1709,
             Self::WelcomeForgeLine => 1835,
-            Self::WelcomeForgeDone => 1836,
             Self::WelcomeModelAccount => 1710,
             Self::WelcomeModelSigningIn => 1832,
             Self::ForgeConfigCode => 1711,
@@ -1637,7 +1639,6 @@ impl Word {
             Self::WelcomeModelLead => 1318,
             Self::WelcomeReadyTitle => 1319,
             Self::WelcomeBack => 1321,
-            Self::WelcomeLater => 1322,
             Self::WelcomePlaygroundInstead => 1323,
 
             Self::TimeClosed => 1260,
@@ -1852,7 +1853,6 @@ impl Word {
             Self::WelcomeContinue => 2194,
             Self::WelcomeModelPlan => 2195,
             Self::WelcomeModelSubscription => 2196,
-            Self::WelcomeModelKeyToo => 2197,
             Self::NewChatLink => 1258,
             Self::Ready => 287,
             Self::Playground => 187,
@@ -2044,6 +2044,12 @@ impl Word {
             Self::PublicStaleProofs => 3023,
             Self::PublicTitleCut => 3024,
             Self::PublicAsOf => 3025,
+            Self::WelcomeBoxName => 3026,
+            Self::WelcomeBoxLine => 3027,
+            Self::WelcomeBoxServer => 3028,
+            Self::WelcomeModelSignInTime => 3029,
+            Self::WelcomeModelProgramTime => 3030,
+            Self::WelcomeForgeDoneDetail => 3031,
 
             Self::ItsTasksNoneYet => 1251,
             Self::ItsTasksNone => 1252,
@@ -2316,6 +2322,14 @@ fn english(word: Word, shell: Shell) -> (&'static [&'static [u8]], &'static [Hol
         Word::PlaygroundSetUp => (&[b"set up temper"], &[]),
         Word::BannerSetUp => (&[b"Set up temper"], &[]),
         Word::PublicAsOf => (&[b"As of ", b""], &[Name]),
+        Word::WelcomeBoxName => (&[b"temper box"], &[]),
+        Word::WelcomeBoxLine => (&[b" \xc2\xb7 on this machine, to try it \xc2\xb7 more later, from Settings \xc2\xb7 "], &[]),
+        Word::WelcomeBoxServer => (&[b"Run temper on a server \xe2\x86\x97"], &[]),
+        Word::WelcomeModelSignInTime => (&[b"Sign in, in this tab \xc2\xb7 about a minute"], &[]),
+        Word::WelcomeModelProgramTime => (&[b"A command in a terminal, on each host"], &[]),
+        Word::WelcomeForgeDoneDetail => {
+            (&[b"connected as ", b" \xc2\xb7 ", b" made, in no project yet"], &[Name, Name])
+        }
         Word::PublicTitleCut => (&[b"\xe2\x80\xa6"], &[]),
         Word::PublicProjects => (&[b"Public projects"], &[]),
         Word::PublicProject => (&[b"Project ", b""], &[Name]),
@@ -2386,9 +2400,8 @@ fn english(word: Word, shell: Shell) -> (&'static [&'static [u8]], &'static [Hol
         Word::GitHubReadReload => (&[b"Reload this page to try again."], &[]),
         Word::GitHubRepositories => (&[b"Repositories"], &[]),
         Word::WelcomeForgejo => (&[b"Forgejo"], &[]),
-        Word::WelcomeForgejoDescription => (&[b"A forge of your own. temper can start it and manage it, or you can connect your own deployment."], &[]),
+        Word::WelcomeForgejoDescription => (&[b"A forge of your own: temper starts it on this machine and manages it."], &[]),
         Word::WelcomeForgejoRun => (&[b"Run on this machine"], &[]),
-        Word::WelcomeForgejoDeployment => (&[b"Or connect your deployment"], &[]),
         Word::WelcomeContinue => (&[b"Continue"], &[]),
         Word::WelcomeModelPlan => {
             (&[b"Your ", b" plan: sign in, and temper\xe2\x80\x99s agents use its included usage."], &[Name])
@@ -2397,10 +2410,6 @@ fn english(word: Word, shell: Shell) -> (&'static [&'static [u8]], &'static [Hol
             &[b"Your ", b" subscription, through Claude Code on each host temper\xe2\x80\x99s agents run on."],
             &[Name],
         ),
-        Word::WelcomeModelKeyToo => {
-            (&[b"Or paste a key from ", b"\xe2\x80\x99s platform, billed to its organization."], &[Name])
-        }
-        Word::WelcomeYourModel => (&[b"Your model: ChatGPT or Claude"], &[]),
         Word::BrandChats => (&[b"temper chats"], &[]),
         Word::ForgeHereVersionDetails => (&[b"temper box downloads Forgejo ", b" and its runner, starts them, and makes your first repository, with a README and a CI workflow. No restart."], &[Name]),
         Word::ForgeFetchVersions => (&[b"Fetching Forgejo ", b" and its runner ", b""], &[Name, Name]),
@@ -2488,7 +2497,6 @@ fn english(word: Word, shell: Shell) -> (&'static [&'static [u8]], &'static [Hol
         Word::ForgeStatus => (&[b"", b" \xc2\xb7 ", b""], &[Name, Name]),
         Word::WelcomeForgeConnected => (&[b"Forge: ", b", connected as ", b""], &[Name, Name]),
         Word::WelcomeForgeLine => (&[b"", b" \xc2\xb7 ", b" \xc2\xb7 ", b""], &[Name, Name, Name]),
-        Word::WelcomeForgeDone => (&[b"", b" \xc2\xb7 ", b""], &[Name, Name]),
         Word::WelcomeForgeStatus => (&[b"Forge: ", b" \xc2\xb7 ", b""], &[Name, Name]),
         Word::WelcomeModelAccount => (&[b"Model: ", b""], &[Name]),
         Word::WelcomeModelSigningIn => (&[b"Model: ", b" \xc2\xb7 signing in"], &[Name]),
@@ -2578,19 +2586,18 @@ fn english(word: Word, shell: Shell) -> (&'static [&'static [u8]], &'static [Hol
         Word::WelcomeHow => (&[b"how"], &[]),
         Word::WelcomeWantDone => (&[b" you want it done, and it happens."], &[]),
         Word::WelcomePlayground => (&[b"Try the playground"], &[]),
-        Word::WelcomePlaygroundDescription => (&[b"A built-in scripted model and forge. Get a taste of how temper feels."], &[]),
+        Word::WelcomePlaygroundDescription => (&[b"A scripted model and a forge, built in. A taste of how temper feels, with nothing to connect."], &[]),
         Word::WelcomePlaygroundCost => (&[b"Fully offline \xc2\xb7 Ready at once"], &[]),
         Word::WelcomeSetup => (&[b"Set up temper"], &[]),
-        Word::WelcomeSetupDescription => (&[b"Your forge: GitHub or Forgejo"], &[]),
+        Word::WelcomeSetupDescription => (&[b"Your forge: a Forgejo temper runs for you, or GitHub. Your model: ChatGPT or Claude."], &[]),
         Word::WelcomeSetupTime => (&[b"About five minutes"], &[]),
-        Word::WelcomeAfter => (&[b"Started in the playground? Connect your own forge and model whenever you like; the playground then steps aside."], &[]),
+        Word::WelcomeAfter => (&[b"Tried the playground first? Set up whenever you like; the playground then steps aside."], &[]),
         Word::WelcomeForgeTitle => (&[b"Connect a forge"], &[]),
         Word::WelcomeForgeLead => (&[b"Where your code lives: you tell temper what you want, agents push and land code."], &[]),
         Word::WelcomeModelTitle => (&[b"Connect a model"], &[]),
-        Word::WelcomeModelLead => (&[b"temper\xe2\x80\x99s agents run on it: on a plan you sign in to, or on a key."], &[]),
+        Word::WelcomeModelLead => (&[b"temper\xe2\x80\x99s agents run on a plan you sign in to."], &[]),
         Word::WelcomeReadyTitle => (&[b"Almost ready"], &[]),
         Word::WelcomeBack => (&[b"\xe2\x80\xb9 Back"], &[]),
-        Word::WelcomeLater => (&[b"Later"], &[]),
         Word::WelcomePlaygroundInstead => (&[b"Try the playground instead"], &[]),
 
         Word::DelegationChange => (&[b"T", b" \xc2\xb7 CHANGE"], &[Number]),

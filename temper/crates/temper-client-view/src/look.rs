@@ -329,6 +329,8 @@ pub const PROJECT_RENAME: Style = Style { owner: owner(), token: 161 };
 pub const PROJECT_NEW: Style = Style { owner: owner(), token: 162 };
 /// The open project's row while it is renamed (temper/docs/design/client/README.md, 5.3).
 pub const PROJECT_RENAME_FORM: Style = Style { owner: owner(), token: 163 };
+/// The welcome's temper box line, in its top bar (temper/docs/design/client/README.md, 3.5).
+pub const WELCOME_BOX_LINE: Style = Style { owner: owner(), token: 164 };
 /// Native browser elements for the admin group and Model’s definition list.
 pub const ELEMENTS: &[(skein_ui::Owner, skein_ui::Role, Style, &str)] = &[
     (owner(), skein_ui::Role::Region, ADMIN_FIRST, "fieldset"),
@@ -506,6 +508,7 @@ pub const NAMES: Names<'static> = Names {
         b"temper-project-rename",
         b"temper-project-new",
         b"temper-project-rename-form",
+        b"temper-welcome-box-line",
     ],
     regions: &[b"temper-link"],
 };

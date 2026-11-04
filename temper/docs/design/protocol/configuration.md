@@ -609,20 +609,33 @@ have one, an engine alone none. Each:
   setup host's, the clients' listener's forge routes' and the picker's;
   and the box's, which `temper serve` checks and takes none of but
   `box.line_bytes`, its pipe's (setup.md, section 7).
-- **One profile, `small`,** for one person's machine; another name is
-  refused. Its numbers are constants in `temper-service`'s limits module,
-  and the setup's and the box's in their own crates, each documented
-  with what it bounds; the design names limits and what they bound
-  (jig's `protocol/configuration.md`, section 6). The stock fit below
-  states the figures that must agree across the agent and its carriers.
-  The small profile holds everything a person reasonably needs to
-  operate temper. Its brief admits 14,592 body bytes, with 4,608 for
-  reviews (`root.brief.budgets.reviews`); `root.brief.brief_bytes`
-  and `root.journal.result_bytes` are both 14,592, so gathering and
-  journalling hold the same brief. The stock host part holds that brief
-  whole (`../domain/agent.md`, 4.3); trimming is the fallback.
-  Where a limit of temper's is a quantity jig's profile also sets, its
-  constant cites jig's small profile's.
+- **Two profiles, as jig's:** `small`, for one person's machine with
+  the mechanics' smallest work, and `standard`, a project of fabrig's
+  scale, its own development, with five times the
+  largest figure seen (13.4); another name is refused. `temper init`'s
+  document names `standard` for the engine's, the worker's and the
+  application's limits alike (`setup.md`, 8.3). Their numbers are
+  constants in `temper-service`'s limits module, and the setup's and
+  the box's in their own crates, each documented with what it bounds;
+  the design names limits and what they bound (jig's
+  `protocol/configuration.md`, section 6), and the figures the draft
+  sized in 13.4. The stock fit below states the figures that must agree
+  across the agent and its carriers. `standard` is `small` with the
+  forge's work at that scale: `forge.tasks`, `forge.holds` and
+  `forge.changes` 128, the forge client's `resources` 128 (at least the
+  holds), `forge.landings` 32, a change's policy's `questions`, `tasks`,
+  `repairs`, `resolutions` and `updates` 80, an issue's `plan_items`
+  384, and the brief's task section a whole spec of jig's `standard`
+  (131,072 bytes) with its contract's and requester's lines; what the
+  start's checks tie to these moves with them, the least that passes.
+  small's brief admits 14,592 body bytes, with 4,608 for reviews
+  (`root.brief.budgets.reviews`); in each profile
+  `root.brief.brief_bytes` and `root.journal.result_bytes` are equal,
+  so gathering and journalling hold the same brief. The stock host part
+  holds the authorised brief whole at `temper init`'s models
+  (`../domain/agent.md`, 4.3); trimming is the fallback. Where a limit
+  of temper's is a quantity jig's profile also sets, its constant cites
+  jig's profile's.
 - **`small` starts as it stands,** with no override, against the agent
   temper runs: smith's, whose run bounds (its directories, their names,
   its accounts) are smith's own and no configuration changes (smith's
@@ -757,7 +770,7 @@ have one, an engine alone none. Each:
     sockets left once the clients' listener and the forge's connections
     are counted. The sockets are temper's own, a constant of
     `temper-service`'s limits module that its io check takes in place
-    of the sum of jig's engine's and worker's, and `small`'s hold a
+    of the sum of jig's engine's and worker's, and hold, under `standard`, a
     document with both listeners and a sign-in, as the owned example has (setup.md,
     8.1);
   - the channel's (channel.md, section 8): each of temper's largest
@@ -1267,18 +1280,6 @@ one owned Forgejo's place, with its own values (setup.md, 8.1).
   focused tests at a push in the box's worker, warm and cold, beside
   the checks' deadline (the agent's `policy.check_timeout`, 60 s on the
   box, a timeout the user sets).
-- **The reference's sizes on the small profile** (13.9). Small's store
-  bounds, which no override moves, hold the largest task record, which
-  grows with a result's bytes, a batch, the live delegates and the
-  people's operations, so the profile cannot take the table's values
-  for those on a small box; init's agent and worker carriers hold a
-  run's inbox and the agent's tool payload at init's. Default: on a
-  small box the profile takes, of each, the largest the start admits,
-  so a designer's report is cut at that bound and a family's changes
-  may be made one to a call. Either the reference's box runs the
-  standard profile, whose store holds a larger record, or jig's store
-  bounds follow the limits they hold; the case's walk shows whether a
-  family's list, cut at that bound, still reaches the coordinator.
 - **Who writes the case's workflows** (13.9). The repository a case runs
   on carries CI and `tier-slow.yml` and `tier-goal.yml` for its landing
   to meet them. Who writes them, and the runner's budget they take, are
@@ -1694,20 +1695,20 @@ init`'s document carries none of them (`setup.md`, 8.3).
 
 | Setting | Its value |
 |---|---|
-| charter 1, a chat's | the instructions in the `stock` module's `chat.txt`; this table holds the structure alone; models: every model `engine.llm` configures, in the document's order, the first its default; hosts `workers`; waiting 10 s; resume; a run of 8 turns and 120 s, a reserve of 1 turn and 60 s; a default spend of K (below); the inspect and agents tool families, no modify, no shell; a call's timeout 10 s |
-| charter 2, a coding agent's | as charter 1, with the `stock` module's `coding.txt` and the modify family, but a run of 16 turns and 120 s, a reserve of 1 turn and 60 s: the shipped model, `gpt-6-luna` at effort medium, reads before it writes, and 8 turns leave the smallest change unwritten; K is unmoved, its floor of 4 units a run turn counting the chat's 8, so a coding agent at a cheap model's coarse prices is held to its spend before its 16 turns; a run that meets its 120 s before its turns is the figure to raise next |
-| charter 4, a reviewer's | its instructions in the `stock` module's `review.txt`; charter 2's models, hosts and run, so 16 turns; the inspect family and the forge's reads alone, no modify, no shell, no agents, no delegation; a review's verdict as its contract (`../domain/forge.md`, 8.3) |
+| charter 1, a chat's | the instructions in the `stock` module's `chat.txt`; this table holds the structure alone; models: every model `engine.llm` configures, in the document's order, the first its default; hosts `workers`; waiting 10 s; resume; a run of 64 turns and 3,600 s, a reserve of 1 turn and 60 s; a default spend of K (below); the inspect and agents tool families, no modify, no shell; a call's timeout 10 s |
+| charter 2, a coding agent's | as charter 1, with the `stock` module's `coding.txt` and the modify family, but a run of 800 turns and 28,800 s (8 hours), a reserve of 1 turn and 60 s: five times the longest run fabrig's development has had, 156 turns and 76 minutes; K is unmoved, its floor of 4 units a run turn counting the chat's 64, so a coding agent's run is held by its spend, a run's own, its person funding more (`../domain/forge.md`, 8.4), long before its turns |
+| charter 4, a reviewer's | its instructions in the `stock` module's `review.txt`; charter 2's models, hosts and run, so 800 turns and 8 hours; the inspect family and the forge's reads alone, no modify, no shell, no agents, no delegation; a review's verdict as its contract (`../domain/forge.md`, 8.3) |
 | charter 6, a foreman's | as charter 4, with the `stock` module's `foreman.txt`: settle the question its brief carries from the change's words, the design in its checkout and the change's pushed head, read through the forge's reads; `answer` only what they settle, `finish` where the work done holds and the rest is the asker's Left list, `escalate` with its reasons otherwise, never guessing past them; a foreman's verdict as its contract (`../domain/forge.md`, 8.11) |
-| template 1, a chat | jig's chat, run by charter 1 |
+| template 1, a chat | jig's chat, run by charter 1; its report the deployment's `tasks.result_bytes`, read at each start as C is (below) |
 | charter 3, the configuring agent's | as charter 1, with the `stock` module's `configuring.txt` (`../domain/agent.md`, 8.1: each sentence of a description sorted into structure, which becomes settings, and rules, which stay text runs read; a rule offered as structure where the settings can say it, the person choosing; one question at a time until it can propose, then one proposal) and no sub-agents (`agents` false); its `tools` the settings and read families, 1,536, so that its runs alone in the stock are offered jig's `settings` family (jig's `domain/engine.md`, 7.3), as `settings` and `propose_settings`, beside the forge's reads and `read_docs`; no workspace (it names no repository), and its instructions delegate nothing and effect nothing |
-| template 2, a goal | jig's goal, its executor chosen |
+| template 2, a goal | jig's goal, its executor chosen; its report as template 1's |
 | template 3, the configuring chat | a chat named `configuring`, flagged conversation and labelled as jig's chat is, its contract and budget template 1's, run by charter 3 |
-| policy 1 | today's seeded project's policy, with no requirements: role 0 requests and decides everything, a period's spend of 48K for the project and for role 0, an authority's spend of 16K (below), with the rules' grants and delegation; its ceiling's and role 0's tool families 1,539, delegation, messages, reads and settings (jig's `ToolFamilies` Delegate, Message, Read and Settings), so that a chat reads the forge it works on and answers its delegates' questions, and a configuring chat (template 3) reads the settings and proposes, a proposal changing nothing until an owner decides it (jig's `domain/engine.md`, 17.6); its ceiling's and role 0's delegation 18 tasks 4 deep (the chat counted among them), so that a chat's advisor and two dependent delegates, each with its change's procedure and the procedure's six (a producer, a review, and two repairs each followed by its review), fit: 1 + 1 + 2 × 8 |
-| the rules | today's: tools 1,539, delegation, messages, reads and settings, the forge's grants under `forge`, delegation to charters 1, 2, 3, 4 and 6 and the change procedure, 18 tasks 4 deep, a spend and a period's spend of 48K, a run's spend from 2C to K (below); and 13.3's two requirements |
+| policy 1 | today's seeded project's policy, with no requirements: role 0 requests and decides everything, a period's spend of 80 × 24K, 1,920K, for the project and for role 0, an authority's spend of 24K (below), with the rules' grants and delegation; its ceiling's and role 0's tool families 1,543, delegation, messages, control, reads and settings (jig's `ToolFamilies` Delegate, Message, Control, Read and Settings), so that a chat reads the forge it works on and answers its delegates' questions, a goal's `change` names its plan's members (`../domain/agent.md`, 4.3.1), and a configuring chat (template 3) reads the settings and proposes, a proposal changing nothing until an owner decides it (jig's `domain/engine.md`, 17.6); its ceiling's and role 0's delegation 384 tasks 32 deep, jig's `standard` tree and depth, so that one goal's tree holds five times the largest fabrig's development has made, 73 tasks, and five times its depth, 5 |
+| the rules | today's: tools 1,543, delegation, messages, control, reads and settings, the forge's grants under `forge`, delegation to charters 1, 2, 3, 4 and 6 and the change procedure, 384 tasks 32 deep, a spend and a period's spend of 1,920K, a run's spend from 2C to K (below); and 13.3's two requirements |
 | kind 1, rule 1 | everywhere (`forge`, open), enforced: CI passed, up to date, and gate 1, an agent's review, blocking, fresh at a clean head, as `docs/examples/owned.json` has it; no approvals. Until 13.6's second step it is `temper init`'s `application.landing` |
 | kind 3 | number 1, the change's charter: charter 2; number 2, its reviews' charter: charter 4; number 3, its foremen's charter: charter 6 |
 | kind 6 | none for every project: a change asks no one unless its maker names a route |
-| a period's span | 7 days, from each project's first period, renewed by the calendar (`../domain/root.md`, 5.7), so policy 1's period spend of 48K is a week's. A constant of the stock until 13.6's second step, which makes it a setting of temper's, the deployment's |
+| a period's span | 7 days, from each project's first period, renewed by the calendar (`../domain/root.md`, 5.7), so policy 1's period spend of 1,920K is a week's. A constant of the stock until 13.6's second step, which makes it a setting of temper's, the deployment's |
 
 - **Each charter's host families** (its `tools`, jig's
   `domain/engine.md`, 7.1): charter 1, a chat's, names every host
@@ -1723,12 +1724,16 @@ init`'s document carries none of them (`setup.md`, 8.3).
   `ToolFamilies` bits: charter 1 1,023, every family but settings;
   charter 2 514; charter 3 1,536; charters 4 and 6 512.
   smith's host part counts a run's brief beside its tools, so a brief
-  is rendered within the room its charter leaves. The small profile
-  gives the host part 51,717 bytes: 34,524 for the largest stock
-  charter's non-brief host part, 14,592 for the authorised brief and
-  1,472 for its 64 sections' titles and framing, a sum of 50,588 with
-  1,129 of margin. The stock brief fits whole; cutting from its last
-  section is the fallback.
+  is rendered within the room its charter leaves. At `temper init`'s
+  models the host part's bound is that of their smallest window, which
+  init's scripted model sets at `gpt-6-luna`'s (`setup.md`, 8.3): it
+  holds the largest stock charter's non-brief host part, charter 1
+  with a Change contract and the control family's plan form of `change`
+  (`../domain/agent.md`, 4.3.1), with the authorised brief, whose task
+  section holds a whole spec of jig's `standard` (section 7), and its 64
+  sections' titles and framing, with margin; `temper-service`'s step
+  tests hold the figures. The stock brief fits whole; cutting from its
+  last section is the fallback.
   Each charter leaves at least 2,048 bytes
   (`../domain/agent.md`, 4.3). A run is offered a family's tools
   where its charter names the family and its task's authority holds it,
@@ -1763,7 +1768,7 @@ init`'s document carries none of them (`setup.md`, 8.3).
   prices). A run is admitted only with two of them free (its reserve,
   reserve turns 1 + 1), so its allowance is K = 4C: its admission and
   room for its working turns; and at least four units for each of a
-  charter's run turns (32 for the stock's 8), so that where C is small
+  charter's run turns (256 for the chat's 64), so that where C is small
   and prices coarse, smith's one-unit floor per completion still leaves
   a run its turns. A delegate is given half of what its
   parent has left (`../domain/agent.md`, 4.3.1, for `change`; a goal
@@ -1772,44 +1777,74 @@ init`'s document carries none of them (`setup.md`, 8.3).
   it leaves, so that a change whose runs each spent a whole K would be
   held for its budget at its sixth, naming it (`../domain/forge.md`,
   8.4), and funded by a release or `temper ctl project fund`; an advisor K; a coordinator 11K, its own run and a change; a
-  chat 16K, its run, an advisor and a coordinator; the ceilings and
-  the periods 48K, three chats open in one period; a goal, half a chat, holds 7K and each change it makes 3K, so that a
-  change whose runs each spent a whole K is held for its budget at its fourth. A deployment whose models change
+  chat 24K, its run, an advisor and two coordinators; the ceilings and
+  the periods 80 × 24K, 1,920K, so that eighty chats or goals, each
+  taking a chat's 24K as allowed, are funded at once from the owner's
+  pool, five times the fourteen fabrig's development has had at once. A deployment whose models change
   between starts gets new defaults, a release's revision (13.6, step 1).
 - **A fine unit.** smith charges each completion at least one whole
   unit, so `temper init` states its models' prices in a unit a thousandth
   of a coarse one, that floor costing a run nothing it needs; C, and so
   every budget above, scales with it.
 - **The box's limits for that work.** `temper init`'s document, and
-  `docs/examples/owned.json`, raise `authority.executors` and
-  `tasks.executor_kinds` to 12 (small's 4), holding the stock and the
-  reference's whole delegation (13.9) within the fourteen entries
-  ctl's settings form takes in an authority's list;
-  `tasks.charters` to 8 (small's 4), since the stock holds five
-  charters and a deployment's settings add their own (13.9);
-  `tasks.contract_choices` to 4, since a foreman's verdict has three
-  choices (`../domain/forge.md`, 8.11) and a coordinator's person task
-  offers its person up to four options;
-  `clients.streams` and `clients_http.streams` to 8 (small's 2), since
-  every `temper ctl` call holds a stream and a wait holds it for the
-  wait, so a person and a walk hold three to five at once, with what carries each stream raised
-  beside them, since a stream is a long-lived call on the jig mount and
-  a connection to temper's server: the mount's HTTP calls and temper's
-  server connections to the streams plus 4 (12 and 12), the 4 room for
-  ordinary exchanges beside every stream held; and jig's
-  `clients.exchanges`, an override, to the streams plus 4 (12), since
-  the component's connection map holds every stream's connection
-  beside the exchanges (small's 8 and the 2 a sign-in unchanged); a
-  full map answers a refusal naming its bound, never a panic; the four
-  measured together against the declarations, the largest streams
-  figure that fits taken, its carriers 4 above it, if 8 does not; and
-  `tasks.inbox_bytes` to 12,288, so that a goal that asked a question
-  holds its news slot and an answer slot (two messages), four live
-  delegates' 512 bytes each and one unread result (10,752 in all),
-  priced before it lands. `tasks.result_bytes` stays small's 512, about 80 words,
-  which holds a goal's and an advisor's report; a deployment may raise
-  it to `tasks.message_bytes`, as the reference's profile does (13.9). The
-  box's live tasks stay small's unless a story shows them binding.
+  `docs/examples/owned.json`, name the `standard` profiles, jig's and
+  temper's (section 7; jig's `protocol/configuration.md`, section 6),
+  sized for a project of fabrig's scale: its own development,
+  measured over three days (1,834 Codex runs and 636 Claude
+  calls), with five times the largest figure seen, rounded up, so that
+  a fresh box runs such a project with no override (the user's
+  decision, 2026-11-03):
+
+  | What | Largest seen (median) | The default |
+  |---|---|---|
+  | tasks in one goal's tree, over its life | 73 (2) | `tasks.tree_tasks` 384; the stock's delegation 384 |
+  | depth of the work tree | 5 | `tasks.depth` 32; the stock's delegation 32 deep |
+  | tasks made in one atomic creation (a plan's tasks at once) | 30 | `tasks.batch` 160 |
+  | live tasks in a deployment | 25 (3) | `tasks.tasks` and `tasks.project_tasks` 128 |
+  | live tasks under one goal | 15 | 80, within the project's 128 |
+  | live goals at once | 14 | `tasks.project_goals` 80 |
+  | live direct delegates of one task | 15 | `tasks.delegates` 80, `people.operations` 81 |
+  | questions per change or task | 15 (1) | `forge.change_policy.questions` 80; a task's inbox, `tasks.inbox_messages` 82 |
+  | runs per task (repairs, retries) | 14 (1) | a change's `repairs`, `resolutions`, `updates` and `tasks` 80 |
+  | turns in one run | 156 (37) | the stock's 800; the agent's `max_turns` 800 |
+  | one run's wall time | 76 minutes (8) | the stock's 8 hours |
+  | tool calls in one model response | 9 (1) | the agent's `calls_per_response` 48 |
+  | sub-agents at once in one run | 5 | the agent's `conversations` 26, a run and 25 |
+  | a task's spec, a message | 19 kB (5.9 kB) | `tasks.spec_bytes` 131,072; `tasks.message_bytes` 262,144 in the profile, since a result is a message in its parent's inbox; the box's, what its agent takes (below) |
+  | a report (a result) | 46 kB (4.9 kB) | `tasks.result_bytes` 262,144 in the profile; the box's, its message bound; templates 1 and 2's report, the deployment's result bound |
+  | a run's brief | 200 kB (55 kB) | what the host part leaves at `temper init`'s models (`../domain/agent.md`, 4.3) |
+  | chats or goals funded at once from one owner's pool | 14 | 80 (the budgets, above) |
+  | live changes in a project | 18 | `forge.changes` 128, `forge.holds` and `forge.tasks` 128 |
+
+  The stock and the reference's whole delegation (13.9) fit the
+  fourteen entries ctl's settings form takes in an authority's list.
+  A limit the table does not name moves with the ones it is coupled to
+  (a store row, a carrier, an inbox), sized the same way or the least
+  the start's checks take. jig's and temper's stored formats changed in
+  place for these figures, before the first release (jig's
+  `protocol/store.md`, 5.1 and 5.3). The document's overrides say only
+  what differs from the profiles: temper's client's documents
+  (`documents.rows` 2, `documents.lines` 8, `documents.text_bytes`
+  128), the agent's carriers (13.8; `setup.md`, 8.1), the forge's
+  repositories and output (`setup.md`, 8.3), and the machine's
+  concurrency, which is the machine's to size and stays what the box
+  had: the worker's one slot, the hubs' and the fleet's slots, and the
+  clients' streams, `clients.streams` and `clients_http.streams` 8,
+  each with four ordinary exchanges beside it in what carries it
+  (`clients.exchanges`, `clients_http.calls` and temper's server
+  connections, 12), since every `temper ctl` call holds a stream and a
+  wait holds it for the wait, so a person and a walk hold three to five
+  at once. One call's arguments are bounded by its model's output, not
+  by the message bound: the agent's `tool_payload`, and
+  `checkout.message_bytes` with it, is the largest smith admits at
+  init's models (13.8). smith offers a run a message within the same
+  payload, two bytes less for its separator, and the fleet holds a
+  host's agent to the engine's message bound at its hello (jig's
+  `protocol/configuration.md`, 6), so the box's `tasks.message_bytes`
+  and `tasks.result_bytes` are its agent's message, the payload less
+  two, overridden below the profile's 262,144: a report or message of
+  the table's size reaches a run only from a model whose output admits
+  that payload (13.8).
 - **The stock sets floors under the limits.** Its own values must fit
   the limits they are checked against: a configuration whose
   `core.policy_bytes` is below policy 1's encoding, or whose
@@ -2002,7 +2037,7 @@ repository and branch form above (2026-11-04).
 
 `temper init`'s limits hold its model, a window of 1,048,576 tokens and
 an output of 8,192 (13.4's C). A deployment that configures a larger
-output (gpt-6.1-sol at effort high, output 32,000, for one) overrides the small profile's turn limits, each derived
+output (gpt-6.1-sol at effort high, output 32,000, for one) overrides its profile's turn limits, each derived
 from the agent's largest turn, T, which the start checks name "the
 agent's largest turn" (`temper-service`'s `startup/checks.rs`).
 
@@ -2010,35 +2045,51 @@ agent's largest turn" (`temper-service`'s `startup/checks.rs`).
   turn (`smith-agent-service`'s `profile.rs`). That measurement uses the
   smallest shared room over every configured model, so one set of bounds
   holds whichever model a charter names (smith's `limits.md`, 3.9).
-  With `temper init`'s demo endpoint, window 177,523, output 8,192,
-  `reasoning_item` 65,536 and two calls per response, T is 1,662,042 bytes.
-  A box without the demo is measured from its own models and must declare
+  `temper init`'s agent takes 48 calls per response and 26
+  conversations (13.4's table), its models an output of 8,192 and a
+  `reasoning_item` of at most 65,536; T is what smith measures for it,
+  within smith's own ceiling of 33,554,432 bytes (smith's
+  `protocol/limits.md`, 4, `turn-in-channel`), and init's document
+  holds it, written by the test's writer (`setup.md`, 8.1). A box
+  without the demo is measured from its own models and must declare
   every carrier at least as large as that measurement.
-  Init's stock profile takes `calls_per_response` 2;
-  `docs/examples/owned/agent.json` keeps 1, with T of 1,589,621 bytes
-  in `docs/examples/owned.json`. Its sub-agent calls run one after another.
-  Init keeps the demo, whose window gives the 51,717-byte host part
-  (13.4), enough for the stock tools and authorised brief.
-- **The store's ceiling:** small's page holds a loaded transcript of at
-  most 1,662,042 bytes (its 1,662,106 less the frame's 64), so T is at
-  most that. The page ceiling admits the largest shipped ordinary
-  transcript (jig's `protocol/configuration.md`, 6). A deployment with
-  larger output or reasoning items derives T from its own agent and
-  checks that its full frame fits the selected profile's page.
+  `docs/examples/owned/agent.json` takes init's figures but its
+  endpoints and programs, with its own T in `docs/examples/owned.json`.
+  Init keeps the demo, its window `gpt-6-luna`'s, so the host part is
+  that window's (13.4; `setup.md`, 8.3).
+- **The store's ceiling:** jig's `standard` page holds a turn's frame of
+  a transcript of up to 33,554,432 bytes, any turn smith admits, and the
+  store's frame and the worker wire carry it (jig's
+  `protocol/store.md`, 8.1); small's page holds a loaded transcript of
+  at most 1,662,042 bytes (its 1,662,106 less the frame's 64), so a
+  deployment on `small` keeps T within that. The page ceiling admits
+  the largest shipped ordinary transcript (jig's
+  `protocol/configuration.md`, 6). A deployment with larger output or
+  reasoning items derives T from its own agent and checks that its full
+  frame fits the selected profile's page.
 - **The limits T sets,** "both hubs" being the engine's and each
-  worker's; init's values are output 8,192's with two calls per response:
+  worker's; init's values are its agent's T's, in its document:
 
-| Limit | Relation | Init |
-|---|---|---|
-| both `hub.turn_bytes` | T | 1,662,042 |
-| the engine's `core.resume_bytes` | T + 4 | 1,662,046 |
-| both `hub.transcript_bytes` | resume + 12 × ⌊resume / 4⌋ | 6,648,178 |
-| both `hub.turn_queue_bytes` | 8 × T | 13,296,336 |
-| `root.journal.transcript_bytes` | resume | 1,662,046 |
-| `root.loads.transcript_bytes` | T, at most 1,662,042 | 1,662,042 |
-| `root.loads.bytes`, `root.loads.reply_bytes` | T + a temper record's size | 1,662,290 |
-| `root.loads.read_bytes` | init: 2 × T; holds T and a row and a record | 3,324,084 |
+| Limit | Relation |
+|---|---|
+| both `hub.turn_bytes` | T |
+| the engine's `core.resume_bytes` | T + 4 |
+| both `hub.transcript_bytes` | resume + 12 × ⌊resume / 4⌋ |
+| both `hub.turn_queue_bytes` | 8 × T |
+| `root.journal.transcript_bytes` | resume |
+| `root.loads.transcript_bytes` | T |
+| `root.loads.bytes`, `root.loads.reply_bytes` | T + a temper record's size |
+| `root.loads.read_bytes` | init: 2 × T; holds T and a row and a record |
 
+- **One call's payload:** skein bounds a call's decoded input by the
+  completion's answer, eight bytes a token of the model's output, at
+  six bytes a payload byte with its framing, so at init's output of
+  8,192 a call carries at most about 10,662 bytes; the agent's
+  `tool_payload` is the largest smith admits at init's models, and
+  `checkout.message_bytes` equals it, so the checkout accepts the
+  agent's largest call, and the engine's message and result bounds are
+  the payload less two (13.4). A deployment whose models' output is
+  larger raises them with its T.
 - **Memory:** `engine.memory_bytes` is the engine's byte budget
   (`../domain/root.md`, 4.1), independent of a model's edge bounds.
   The start checks those bounds, without comparing memory with a sum
@@ -2134,7 +2185,7 @@ that changes the stock changes nothing of them.
   (`../domain/agent.md`, 4.3.1), and role 0 to their delegation, so the
   coordinator may ask its person through a person task (jig's
   `domain/people.md`, section 8), and jig's notes family beside it, so
-  that it notes what it learns, then applied whole. The box's twelve
+  that it notes what it learns, then applied whole. The box's sixteen
   executor places (13.4) hold this delegation without a delegation-limit
   change or restart; the profile's limits (below) reserve room for
   further work.
@@ -2176,9 +2227,9 @@ that changes the stock changes nothing of them.
     `docs/foundation/programming-model.md`'s "1. In one page", on the
     home repository's `main`.
   Charter 7 joins the rules' and policy 1's delegation as charter 5 did.
-  The reference's profile (below) holds the added charters and the
+  The box's `standard` profile (13.4) holds the added charters and the
   delegation's executors within `tasks.charters`, `authority.executors`
-  and `tasks.executor_kinds`.
+  and `tasks.executor_kinds`, 12, 16 and 16.
   Each document names the forge's host, owner and repository the walk's
   document fills in, as the landing rules do.
 - **The landing rules** are kind 1's rules 1 and 2, items of the
@@ -2266,9 +2317,6 @@ that changes the stock changes nothing of them.
     document before its first start, member by member, an object's
     members over the document's and any other value replacing it, as
     `jq -s '.[0] * .[1]'` merges two files;
-  - `agent.json`, the same for the agent's configuration (section 5,
-    smith's `protocol/agent.md`, section 4): its policy's `max_turns`
-    and its declared `tool_payload`;
   - `landing.json`, the document's `application.landing`, carried whole;
   - `settings.json`, applied once after the first start; then the rules
     and policy 1 changed as above, before the case's project is made,
@@ -2283,33 +2331,32 @@ that changes the stock changes nothing of them.
 
   | Limit | The box (`temper init`) | The reference | For |
   |---|---|---|---|
-  | `tasks.tree_tasks` | 32 | 1,024 | a goal's tree over its life: about a hundred changes of about eight tasks each, G and its person tasks (N21) |
-  | `tasks.tasks`, `tasks.project_tasks` | 8 | 64 | live at once: G, about sixteen live changes, each its procedure and one agent or job at a time, and the person's chats |
-  | `tasks.delegates`, `people.operations` | 4, 8 | 32, 33 | G's live delegates: a family's changes beside S's, the designers', a catch-up and repairs; operations one more |
-  | `tasks.inbox_messages`, `tasks.run_inbox` | 8 | 40 | a result's room for each live delegate (jig's `domain/tasks.md`, 8.2), a question's and an answer's |
-  | `tasks.inbox_bytes` | 12,288 | 163,840 | those 40 messages at 4,096 bytes |
-  | `tasks.result_bytes` | 512 | 4,096 | a designer's report listing up to eleven changes (N15), at most `tasks.message_bytes`, 4,096 |
-  | `tasks.batch`, `authority.batch`, `people.batch` | 1, 2, 2 | 4 | a family's changes four to a `change` call, jig's batch list holding four |
-  | `forge.change_policy.tasks` | 6 | 8 | a producer, two merge jobs, two resolutions and three repairs: twelve tasks with four foremen (`../domain/agent.md`, 4.3.1) |
-  | `forge.changes`, `forge.holds`, `forge.tasks` | 8 | 32, 32, 64 | the live changes, their branches' holds and the goal's, the tasks the forge follows |
-  | `authority.executors`, `tasks.executor_kinds` | 12 | 16 | the stock's seven executors (charters 1, 2, 4 and 6; procedures 2, 3 and 4) and the reference's five (charters 5, 7 and 8, the merge kind, role 0) |
-  | `tasks.charters` | 8 | 12 | the stock's four charters (five with charter 3) and the reference's three |
-  | the agent's `tool_payload`, `checkout.message_bytes`, `core.call_answer_bytes` | 4,098; 4,098; 32,768 | 16,386 for the first two, the third as it is | a `change` call carrying four changes' words |
-  | the agent's `max_turns` | 16 | 64 | a run of the cut, of a family's design, or of a change with its checks |
+  | `tasks.tree_tasks` | 384 | 1,024 | a goal's tree over its life: about a hundred changes of about eight tasks each, G and its person tasks (N21) |
 
-  The settings file sizes its charters and template to them: charters
-  5, 7 and 2 take 64 turns, charter 6 and 8 the box's 16; template 4's
-  report takes 4,096 bytes; each charter names at most two documents,
-  `tasks.charter_documents`, small's 2, which jig's settings schema
-  holds; template 4 names the forge's *its own goal branch*
-  (`../client/tools.md`, 5.3). Charter 5 makes a family's changes in
-  `change` calls of at most four, a later call naming an earlier one's
-  changes in `after` by the task numbers its answer gave, and one change
-  to a call where a call is refused for its size. The rules and policy
-  1 take the delegation the plan needs: 1,024 tasks, as `tasks.tree_tasks`,
-  4 deep as the stock's (G at the root, a change 1 below, its agents 2).
-  A limit the start's checks ask to move with these (a store page, a
-  carrier of the agent's largest call) moves with them, sized, and
+  Every other limit the case needs the box's `standard` profiles hold
+  (13.4): G's live delegates (80) with the operations and the inbox
+  that follow them, a designer's report (the box's result bound, its
+  agent's message), a family's
+  changes in one `change` call (160), the live changes, holds and tasks
+  the forge follows (128), a change's twelve tasks with four foremen
+  (80), the executors and charters (16 and 12), and the agent's turns
+  (800); so `limits.json` holds `tasks.tree_tasks` alone, and the
+  reference sets nothing of the agent's configuration.
+
+  The settings file sizes its charters and template to the box: charters
+  2, 5, 6, 7 and 8 take the stock's run, 800 turns and 8 hours (13.4),
+  since a charter is a whole value and its run is no reason of the
+  reference's; template 4's report takes the box's `tasks.result_bytes`; each
+  charter names at most two documents, `tasks.charter_documents`,
+  which jig's settings schema holds; template 4 names the forge's *its
+  own goal branch* (`../client/tools.md`, 5.3). Charter 5 makes a
+  family's changes in `change` calls each within one call's payload,
+  which its model's output bounds (13.8), a later call naming an
+  earlier one's changes in `after` by the task numbers its answer gave,
+  and fewer changes to a call where a call is refused for its size. The
+  rules and policy 1 take the delegation the plan needs: 1,024 tasks,
+  as `tasks.tree_tasks`, 32 deep as the stock's. A limit the start's
+  checks ask to move with these moves with them, sized, and
   `limits.json` holds it.
 - **What the repository carries:** the merge commit is its merge style
   on its forge, the repository's default on Forgejo
@@ -2326,12 +2373,12 @@ that changes the stock changes nothing of them.
 - **Checked as it is read:** a test decodes the settings file as
   `temper ctl settings apply` decodes one, and the landing member as the
   document's is parsed, so an edition that no longer reads is red before
-  a walk meets it; and a test merges `limits.json` and `agent.json` over
-  `temper init`'s document and agent configuration, runs the start's
-  checks on them, and holds the settings file to them: its charters
+  a walk meets it; and a test merges `limits.json` over `temper
+  init`'s document, runs the start's checks on it with init's agent
+  configuration, and holds the settings file to them: its charters
   within `tasks.charters`, their documents within
-  `tasks.charter_documents`, their turns within `max_turns`, template
-  4's report within `tasks.result_bytes`.
+  `tasks.charter_documents`, their turns within the agent's
+  `max_turns`, template 4's report within `tasks.result_bytes`.
 
 The reference's charter 6 also returns `finish` for a red the change did not
 cause, with that red on the asker's Left list (2026-11-04).

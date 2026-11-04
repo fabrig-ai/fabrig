@@ -590,28 +590,20 @@ fn decode_problem_blocked_by(values: List<wire::Number>) -> Box<[u64]> {
     result.into_boxed()
 }
 
-fn encode_result_followups_delegates_value(
-    values: &[tasks::New],
-    limits: &Limits,
-) -> Result<List<wire::Creation>, wire::Problem> {
-    let mut result = List::with_capacity(match u32::try_from(values.len()) {
-        Ok(value) => value,
-        Err(error) => return Err(too_large(error)),
-    });
-    for value in values {
-        result.push(super::phase::new(value, limits, None)?).expect("same number of members");
-    }
-    Ok(result)
+fn encode_result_followups_delegates_value(values: &[tasks::New], limits: &Limits) -> Result<Box<[u8]>, wire::Problem> {
+    super::pieces::creations(
+        values,
+        limits,
+        limits.result_followups_delegates_value,
+        wire::Path::ResultFollowupsDelegatesValue,
+        None,
+    )
 }
 fn decode_result_followups_delegates_value(
-    values: List<wire::Creation>,
+    values: Box<[u8]>,
     limits: &Limits,
 ) -> Result<Box<[tasks::New]>, wire::Problem> {
-    let mut result = List::with_capacity(values.len());
-    for value in values.into_boxed() {
-        result.push(super::phase::read_new(value, limits)?).expect("same number of members");
-    }
-    Ok(result.into_boxed())
+    super::pieces::read_creations(values, limits, wire::Path::ResultFollowupsDelegatesValue)
 }
 pub fn problem(value: &tasks::Problem, limits: &Limits) -> Result<Box<[u8]>, wire::Problem> {
     let value = encode_problem(value, limits)?;

@@ -20,6 +20,7 @@ Every limit engine.limits.overrides and a worker's limits.overrides take: its un
 - `tasks.references`: count, 8. Bounds introduced peer references per live task.
 - `tasks.subscriptions`: count, 4. Bounds standing interests per task.
 - `tasks.batch`: count, 2. Bounds directly created tasks in one atomic nonempty `Make` batch.
+- `tasks.batch_bytes`: bytes, 131,072. Bounds the complete owned bytes of one task batch.
 - `tasks.dependencies`: count, 8. Bounds immutable dependency identities per task, including its remaining live waiting subset.
 - `tasks.circle`: count, 8. Bounds tasks a circle of waits names in a refusal or a hold.
 - `tasks.holdings`: count, 4. Bounds resources required by one task.

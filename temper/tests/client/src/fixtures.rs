@@ -493,7 +493,8 @@ pub struct Dependents {
 /// A tracked goal with two report delegates; the first has spent, the second waits for it.
 pub fn goal_with_dependent_delegates(front: &mut Joint) -> Dependents {
     use temper_engine_domain_world::fixtures::report_delegate;
-    *front = Joint::with_delegates(SEED, &domain_limits(), DEPENDENT_DELEGATES);
+    let limits = domain_limits();
+    *front = Joint::with_delegates(SEED, &limits, DEPENDENT_DELEGATES, limits.client.domain.rows);
     let goal = make_goal_with_delegation(front, false, Some(DEPENDENT_DELEGATES));
     let driver = &mut front.engine;
     let parent = driver.last_assignment();
@@ -1348,7 +1349,8 @@ pub(crate) fn configuring_configuration(seed: u64, member: bool) -> engine::Conf
         descriptions: Box::new([]),
         providers: Box::new([]),
     };
-    let stock = temper_service::stock::defaults(&llm);
+    let stock =
+        temper_service::stock::defaults(&llm, temper_engine_domain_world::fixtures::forge_limits().tasks.result_bytes);
     let configuring = stock.charters.iter().find(|charter| charter.number == 3).expect("stock charter 3").clone();
     config.core.defaults.charters = Box::new([config.core.defaults.charters[0].clone(), configuring]);
     let template = stock.templates.iter().find(|template| template.number == 3).expect("stock template 3").clone();

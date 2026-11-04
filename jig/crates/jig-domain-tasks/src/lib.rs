@@ -155,7 +155,7 @@ pub use grace::Grace;
 pub use holds::valid_name;
 pub use limits::{Limits, VERDICT_FIELDS, valid};
 pub use llm::{AccountWhy, CharterModels, LlmChoice, LlmFault, MODELS, ModelEffort};
-pub use owned::{phase_bytes, stored_bytes, task_bytes, terminal_bytes};
+pub use owned::{batch_bytes, phase_bytes, stored_bytes, task_bytes, terminal_bytes};
 pub use parts::{Part, PartKey, PartKind};
 pub use periods::PeriodTimes;
 pub use proposals::{

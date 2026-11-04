@@ -639,7 +639,7 @@ enum InboxObject { question: InboxObjectQuestion, proposal: InboxObjectProposal,
 record InboxCursorNumber { number: u64 }
 record InboxCursorInbox { task: u64 object: InboxObject at: option u64 }
 enum InboxCursor { number: InboxCursorNumber, inbox: InboxCursorInbox }
-record InboxSelection { cursor: InboxCursor goals: list 32 u64 }
+record InboxSelection { cursor: InboxCursor goals: list 64 u64 }
 record InboxEntry { reply: option TaskLine task: TaskLink project: option u32 object: InboxObject activity: option u64 at: option u64 unread: option bool cursor: InboxCursor }
 record InboxPage { selection: option bytes 16777216 cut: bool rows: bytes 16777216 before: option Cursor after: option Cursor }
 record PoolLedger { source: Funder parent: option Funder numbers: Numbers left: u64 closed: bool began: option u64 next: option u64 }

@@ -152,8 +152,42 @@ fn operations_below_goals_per_project_refuse_the_start() {
 }
 
 #[test]
+fn a_message_past_the_inbox_bytes_refuses_the_start() {
+    let mut engine = engine();
+    engine.limits.core.tasks.message_bytes = 8_192;
+    let mut problems = crate::Problems::empty();
+    crate::domain::whole(&engine, &mut problems);
+    let problem = problems.problems.get(0).expect("message capacity problem");
+    assert_eq!(problem.path, crate::domain::codec_path(b"tasks.message_bytes"));
+    assert_eq!(
+        problem.what,
+        What::Capacity {
+            member: b"tasks.message_bytes",
+            configured: 8_192,
+            requires: b"tasks.inbox_bytes",
+            required: 8_192,
+        },
+    );
+}
+
+#[test]
+fn roles_past_the_documents_capacity_refuse_the_start() {
+    let mut engine = engine();
+    // Override parsing derives documents.roles from authority.roles.
+    engine.limits.core.documents.roles = 3;
+    let mut problems = crate::Problems::empty();
+    crate::domain::whole(&engine, &mut problems);
+    let problem = problems.problems.get(0).expect("roles capacity problem");
+    assert_eq!(problem.path, crate::domain::codec_path(b"authority.roles"));
+    assert_eq!(
+        problem.what,
+        What::Capacity { member: b"authority.roles", configured: 4, requires: b"documents.roles", required: 4 },
+    );
+}
+
+#[test]
 fn the_shipped_profiles_hold_operations_per_request() {
-    for (profile, expected) in [(crate::Profile::Small, (8, 4, 8)), (crate::Profile::Standard, (16, 8, 16))] {
+    for (profile, expected) in [(crate::Profile::Small, (8, 4, 8)), (crate::Profile::Standard, (81, 80, 80))] {
         let limits = crate::profile(profile).core;
         assert_eq!((limits.people.operations, limits.tasks.delegates, limits.tasks.project_goals), expected);
         assert!(limits.people.operations > limits.tasks.delegates, "{profile:?}");

@@ -297,7 +297,6 @@ impl Process {
             assert_eq!(restored.turns, history.turns, "restored concrete history is the committed prefix");
         }
         let mut settings = Settings::calm(self.seed);
-        let largest = smith::max_turn_bytes(&settings.limits).expect("bounded Smith turn");
         let mut mounted = Disk::new();
         let workspace = mount(&start.directories, around.disk, &mut mounted);
         self.mounts = mount_paths(&start.directories);
@@ -311,6 +310,11 @@ impl Process {
         settings.limits.run.brief_sections = 16;
         settings.limits.run.host_reply_bytes = 8192;
         settings.limits.session.spend = charter.budget.spend;
+        settings.limits.session.budget.turns = charter.budget.turns;
+        settings.limits.session.budget.time = charter.budget.time;
+        // A parked activation and its resumed run retain both sides of each completion.
+        settings.limits.session.history_messages = charter.budget.turns.saturating_mul(4).saturating_add(1);
+        let largest = smith::max_turn_bytes(&settings.limits).expect("bounded Smith turn");
         let event = smith::Event::Start(smith::Start {
             reply_to: ReplyTo::new(Token::new(402)),
             host_run: start.logical_run,
