@@ -19,9 +19,10 @@ set -eu
 exec 9>{lock}
 flock -x 9
 : > {returning}
+if [ "${{1-}}" != --box-ended ]; then : > {terminal}; fi
 if [ ! -e {account} ]; then
-  rung_account=$({binary} ctl {client} account list --json | jq -er '.accounts.party | map(select(.provider == 1 and .plan == true)) | if length == 1 then .[0].number else error("expected one held ChatGPT plan") end')
-  {binary} ctl {client} account export "$rung_account" {account}
+  rung_account=$({binary} ctl {client} account list --json </dev/null | jq -er '.accounts.party | map(select(.provider == 1 and .plan == true)) | if length == 1 then .[0].number else error("expected one held ChatGPT plan") end')
+  {binary} ctl {client} account export "$rung_account" {account} </dev/null
 fi
 [ "$(LC_ALL=C stat -c %F -- {account})" = 'regular file' ]
 [ "$(stat -c %a -- {account})" = 600 ]
@@ -32,10 +33,36 @@ stat -c 'LOGIN BACK: %F mode=%a bytes=%s owner=%u' -- {account}
         binary = quote(binary),
         client = quote(client),
         lock = quote(&store.join("login.lock")),
+        terminal = quote(&store.join("terminal-return")),
         returning = quote(&store.join("returning"))
     );
-    super::write_private(&hook, body.as_bytes());
-    fs::set_permissions(hook, fs::Permissions::from_mode(0o700)).expect("executable return hook");
+    install_hook(store, &hook, &body);
+}
+
+fn install_hook(store: &Path, hook: &Path, body: &str) {
+    let pending = store.join("give-back-next");
+    super::write_private(&pending, body.as_bytes());
+    fs::set_permissions(&pending, fs::Permissions::from_mode(0o700)).expect("executable return hook");
+    let installed = std::process::Command::new("flock")
+        .arg("-x")
+        .arg(store.join("login.lock"))
+        .args([
+            "sh",
+            "-c",
+            r#"set -eu
+test ! -e "$1/terminal-return" || exit 1
+mv -f -- "$2" "$3"
+rm -f -- "$1/returning"
+"#,
+            "sh",
+        ])
+        .arg(store)
+        .arg(pending)
+        .arg(hook)
+        .stdin(std::process::Stdio::null())
+        .status()
+        .expect("install return hook under the import lock");
+    assert!(installed.success(), "terminal return excludes another import");
 }
 
 /// The import and return share exclusion, including a return after an interrupted reply.
@@ -60,10 +87,63 @@ exec {binary} ctl {client} "$@" </dev/null
     super::ctl::Call::command(&wrapper, arguments)
 }
 
-/// A successful first run retains the account for the restart proof.
+/// Each box returns the account before stopping, on success and failure alike.
 #[must_use]
 pub const fn due_back(first: bool, failed: bool) -> bool {
-    !first || failed
+    let _ = (first, failed);
+    true
+}
+
+/// The return-before-stop stage shared by the live driver and its fake box.
+pub struct Ending {
+    returning: bool,
+    started: bool,
+    until: skein_lib::Time,
+}
+
+/// One effect of ending a box; a failed return still stops and fails the story.
+pub enum End {
+    /// Run and verify the held record's give-back.
+    Return,
+    /// Let the outstanding ctl or give-back process finish.
+    Wait,
+    /// Stop the box, retaining any return failure as the story's failure.
+    Stop(Option<&'static str>),
+}
+
+impl Ending {
+    /// Begin teardown with the same return policy for successful and failed boxes.
+    #[must_use]
+    pub fn new(held: bool, first: bool, failed: bool, now: skein_lib::Time) -> Self {
+        Self {
+            returning: held && due_back(first, failed),
+            started: false,
+            until: now.saturating_add(skein_lib::Duration::from_secs(60)),
+        }
+    }
+
+    /// The return's deadline, while its process is outstanding.
+    #[must_use]
+    pub const fn deadline(&self) -> skein_lib::Time {
+        self.until
+    }
+
+    /// Admit export only after ctl drains, and stop only after its result or deadline.
+    #[must_use]
+    pub fn next(&mut self, now: skein_lib::Time, idle: bool, exit: Option<Option<skein_io::kernel::Exit>>) -> End {
+        if !self.returning {
+            End::Stop(None)
+        } else if let Some(exit) = exit {
+            End::Stop((exit != Some(skein_io::kernel::Exit::Code(0))).then_some("give-back failed"))
+        } else if now >= self.until {
+            End::Stop(Some("give-back exceeded its 60 second deadline"))
+        } else if !self.started && idle {
+            self.started = true;
+            End::Return
+        } else {
+            End::Wait
+        }
+    }
 }
 
 /// A held record lent to a story's store, from before its import to the test's end

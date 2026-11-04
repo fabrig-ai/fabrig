@@ -169,3 +169,186 @@ fn a_missing_document_says_so_and_the_run_goes_on() {
     assert_running(&world, &next);
     world.close();
 }
+
+fn settings_world() -> (World, u64) {
+    let model = stock::box_model();
+    let llm = jig_protocol_config::Llm {
+        endpoints: Box::new([]),
+        providers: Box::new([]),
+        descriptions: Box::new([None]),
+        models: Box::new([model.clone()]),
+    };
+    let limits = temper_engine_domain_world::forge_routes::box_limits();
+    let defaults = temper_service::stock::defaults(&llm, limits.tasks.result_bytes);
+    let mut world = World::configured_stock_limits(&defaults, &model, &limits);
+    let head = push_document(&mut world, b"README.md", WHOLE);
+    world.adopt();
+    (world, head)
+}
+
+fn shown_charter(world: &mut World, number: u32) -> (u32, serde_json::Value) {
+    use jig_domain_core::{reads, settings as s};
+    let reads::Answer::Setting(document) = world.party_read(reads::Read::Setting {
+        setting: s::Setting::Charter(number),
+        revision: temper_engine_domain_world::kinds::revision(&world.store.rows),
+        proposal: None,
+    }) else {
+        panic!("charter read")
+    };
+    let limits = temper_client_tools::limits::tools();
+    let wire = jig_protocol_engine_clients::translate::settings::setting_document(&document, &[], &limits.settings)
+        .expect("wire charter");
+    let preset = temper_client_tools::limits::client().client;
+    let link = jig_client_protocol_link::Limits::new(preset.domain, preset.exchanges).expect("client limits");
+    let value =
+        jig_client_protocol_link::translate::settings::restore_setting_document(&wire, &link).expect("client charter");
+    let text = temper_client_tools::jig::render::settings_text(
+        &jig_client::contract::ReadValue::Setting(Box::new(value)),
+        None,
+        &limits,
+    );
+    let text = std::str::from_utf8(&text).expect("shown charter text");
+    let json = text.lines().find(|line| line.starts_with('{')).expect("shown charter value");
+    (document.revision, serde_json::from_str(json).expect("charter JSON"))
+}
+
+fn document_items(number: u32, value: &serde_json::Value) -> Box<[jig_domain_core::settings::Item]> {
+    use jig_client::contract as c;
+    let file = serde_json::to_vec(&serde_json::json!({
+        "items": [{"setting": {"kind": "charter", "number": number}, "set": value}]
+    }))
+    .expect("settings file");
+    let limits = temper_client_tools::limits::tools();
+    let items = temper_client_tools::jig::settings_file::decode(&file, &limits).expect("shared settings decoder");
+    let ask = c::Ask::ChangeSettings(c::ChangeSettings { against: 1, items, running: c::Running::Stays });
+    let jig_client_protocol_wire::Ask::ChangeSettings(change) =
+        jig_client_protocol_link::translate::asks::ask(&ask, &limits.settings).expect("settings wire")
+    else {
+        panic!("settings change")
+    };
+    jig_protocol_engine_clients::translate::settings::items(change.items().into(), &[], &limits.settings)
+        .expect("settings items reach the core")
+}
+
+fn accept_document(world: &mut World, proposal: u64, against: u32) {
+    use jig_domain_core::{documents as d, reads};
+    let reads::Answer::Document(document) =
+        world.party_read(reads::Read::Proposal { proposer: people::Proposer::Party(1), proposal })
+    else {
+        panic!("proposal read")
+    };
+    let d::Document::Proposal(document) = document.as_ref() else { panic!("proposal document") };
+    let d::ProposalAction::Settings { review: Some(review), .. } = &document.action else { panic!("settings review") };
+    assert_eq!(review.newest, against);
+    assert!(matches!(review.items.get(0).expect("reviewed charter").would_be.as_ref(),
+        Some(jig_domain_core::settings::Value::Charter(charter)) if charter.documents[0].connector == 1));
+    world.send(engine::Event::Party(engine::PartyInput::Ask {
+        models: Box::new([]),
+        reply_to: ReplyTo::new(Token::new(81)),
+        sign_in: world.signed_in.expect("owner"),
+        key: [81; 16],
+        ask: people::Ask::DecideProposal {
+            project: people::DEPLOYMENT,
+            proposer: people::Proposer::Party(1),
+            proposal,
+            decision: people::ProposalDecision::Accept,
+            running: Some(people::Running::Stays),
+        },
+    }));
+    world.until(Until::Ready);
+    assert!(
+        world.web_replies.iter().any(|reply| matches!(
+            reply,
+            people::Reply::Outcome(people::Outcome::ProposalDecided { choice: people::ProposalChoice::Accepted, .. })
+        )),
+        "acceptance: {:?}",
+        world.web_replies
+    );
+}
+
+fn chat_with_document(world: &mut World) -> engine::Assignment {
+    let mut event = protocol::hello(CHANNEL, Box::new([]));
+    let engine::Event::Worker(engine::WorkerInput::Link { link: engine::Link::Hello { hello, .. }, .. }) = &mut event
+    else {
+        panic!("worker hello")
+    };
+    let bounds = &mut hello.bounds;
+    let model = stock::box_model();
+    bounds.models = Box::new([host::ModelBound { name: model.name, window: model.window, output: model.output }]);
+    bounds.turns = 800;
+    bounds.time = Duration::from_secs(28_800);
+    bounds.spend = 2_500_000;
+    bounds.message_bytes = world.env.limits.tasks.message_bytes.max(world.env.limits.tasks.result_bytes);
+    bounds.inbox = world.env.limits.tasks.run_inbox;
+    world.send(event);
+    let ask = world.chat(PROJECT, b"Follow the README document");
+    assigned_chat(world, 92, ask)
+}
+
+#[test]
+fn a_proposed_charter_document_reaches_a_later_runs_brief() {
+    let (mut world, head) = settings_world();
+    let (against, mut value) = shown_charter(&mut world, 1);
+    let document = serde_json::json!({
+        "forge": "forge.example", "repository": "org/repo", "branch": "main", "path": "README.md"
+    });
+    value["documents"] = serde_json::json!([document]);
+    world.send(temper_engine_domain_world::kinds::proposal(
+        world.signed_in.expect("owner"),
+        against,
+        80,
+        document_items(1, &value),
+    ));
+    world.until(Until::Ready);
+    let proposal = world
+        .web_replies
+        .iter()
+        .find_map(|reply| match reply {
+            people::Reply::Outcome(people::Outcome::Proposed { proposal, .. }) => Some(*proposal),
+            _ => None,
+        })
+        .unwrap_or_else(|| panic!("document proposal refused: {:?}", world.web_replies));
+    accept_document(&mut world, proposal, against);
+    let (revision, shown) = shown_charter(&mut world, 1);
+    assert_eq!(revision, against + 1);
+    let mut expected = document;
+    expected["heading"] = serde_json::Value::Null;
+    assert_eq!(shown["documents"], serde_json::json!([expected]));
+    let assignment = chat_with_document(&mut world);
+    assert_eq!(assignment.run.revision, revision);
+    assert_document(&assignment, b"Document org/repo README.md", &at_head(head, WHOLE));
+    world.close();
+}
+
+#[test]
+fn applied_charter_documents_keep_null_and_named_headings() {
+    let (mut world, head) = settings_world();
+    for number in [1, 2] {
+        for heading in [serde_json::Value::Null, serde_json::json!("Rules")] {
+            let (against, mut value) = shown_charter(&mut world, number);
+            let document = serde_json::json!({
+                "forge": "forge.example", "repository": "org/repo", "branch": "main",
+                "path": "README.md", "heading": heading,
+            });
+            value["documents"] = serde_json::json!([document]);
+            let key = u8::try_from(against + 70).expect("fixture request key");
+            world.send(temper_engine_domain_world::kinds::change(
+                world.signed_in.expect("owner"),
+                against,
+                key,
+                document_items(number, &value),
+            ));
+            world.until(Until::Ready);
+            let (revision, shown) = shown_charter(&mut world, number);
+            assert_eq!(revision, against + 1, "apply: {:?}", world.web_replies);
+            assert_eq!(shown["documents"], serde_json::json!([document]));
+        }
+    }
+    let assignment = chat_with_document(&mut world);
+    assert_document(
+        &assignment,
+        b"Document org/repo README.md, \"Rules\"",
+        &at_head(head, b"## Rules\nRun the focused tests.\n"),
+    );
+    world.close();
+}

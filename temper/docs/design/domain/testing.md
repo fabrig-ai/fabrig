@@ -1193,7 +1193,12 @@ section 8; testing-strategy.md, 2.9).
   naming a held ChatGPT record, a fresh store's first run moves it in by
   `temper ctl account import FILE --key connect-plan`, which removes
   FILE, and waits for it usable in place of the person's sign-in, as an
-  account import does; the script refuses it with a kept store.
+  account import does; the script refuses it with a kept store. Each box
+  exports and verifies the record before stopping, including a successful
+  first box whose result is checked before the restart. The second box
+  imports the returned record with a distinct operation key. Hook installation
+  and reopening import share the give-back's lock; a terminal give-back
+  excludes later imports.
   Every ctl call of a sitting names one DIRECTORY, `client` beneath the
   run's root in the store (`first`, `second`, or tagged on a kept
   store): the import, the held record's give-back and the sitting's
