@@ -29,6 +29,7 @@ mod settings_tools;
 mod stories;
 mod task;
 mod task_tree;
+mod to_begin;
 mod welcome;
 mod fuzzy {
     mod client;
