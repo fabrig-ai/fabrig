@@ -1262,20 +1262,31 @@ producing ─► opening ─► checking ─► gating ─► queued ─► firs
    result's words' first line, the pull request with its address the
    second, and the landing said in words the third, `Landed: pull request
    #7 merged into main as 0123456789ab.`: `root.md`, section 6; then its
+   repairs, when any were asked, with their count, why each was asked
+   (a check that failed, a review's remarks), and each successful repair's
+   result words, attributed to its task in completion order; then its
    producer's last report, the words of its producing task's last
    successful result as that task wrote them, under a line `Report:`
-   (none for a change handed a pushed branch); then what the landing
-   passed, as facts
-   the change itself saw: each check at the landed head with its
-   conclusion, the repairs with their count and why each was asked (a
-   check that failed, a review's remarks), and each review's verdict;
-   all that follows the three lines cut to the result's bound, the
-   change's contract's words (the deployment's `tasks.result_bytes`),
-   from the end and marked; a check or a test
-   the change never saw is never named, so whoever reports the landing
-   reports only what ran). The report is kept with the change from its
-   producer's result, as its pull request's title is (8.1), bounded by
-   that result's own bound. It then verifies until its landing
+   (none for a change handed a pushed branch). After repairs that line is
+   `Producer report (historical; before repairs):`: its export description
+   remains, while its unresolved-work statements describe the producing
+   head, before those repairs. The repair accounts precede those caveats
+   so a long producer report cannot spend their result space. Failed,
+   cancelled, no-change and unrelated children supply no successful
+   repair account. Only production sets the pull request's title (8.1).
+   Then what the landing passed, as facts the change itself saw: each
+   check at the landed head with its conclusion, and each review's verdict
+   (without repairs, their count remains after the checks). All that
+   follows the three lines is cut to the result's bound, the change's
+   contract's words (the deployment's `tasks.result_bytes`), from the end
+   at a UTF-8 boundary and marked with the omitted byte count; a check or
+   a test the change never saw is never named, so whoever reports the
+   landing reports only what ran). The producer report is kept with the
+   change from its producer's result, as its pull request's title is
+   (8.1), bounded by that result's own bound. Successful repair words are
+   retained with the repair reasons in their existing bounded history,
+   including through restart; its prefix and omitted byte count survive
+   later additions. It then verifies until its landing
    is cleared (`after-landing.md`, section 6), and closes, its branch
    deleted as its hold is released (section 11).
 

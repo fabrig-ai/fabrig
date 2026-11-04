@@ -147,16 +147,35 @@ impl ChangeResult {
         self.reviews.add(b" at ", bound);
         self.reviews.add(&crate::commit_text(head), bound);
     }
-    /// The producer's report followed by the landing's observations, cut together from the end.
+    /// Retain a successful repair account with its task identity in completion order.
+    pub(crate) fn completed(&mut self, child: u64, report: &[u8], bound: u32) {
+        self.repairs.add(b"\nsuccessful repair task ", bound);
+        self.repairs.add(Decimal::of(child).as_bytes(), bound);
+        self.repairs.add(b": ", bound);
+        self.repairs.add(report, bound);
+    }
+    /// Repair accounts precede the producer's historical report, then the landing's observations; cut from the end.
     #[must_use]
     pub fn reported(&self, report: &[u8], head: &Commit, bound: u32) -> ResultText {
         let mut words = ResultText::empty();
+        if self.repair_count != 0 {
+            self.repair_words(&mut words, bound);
+            words.add(b"\n", bound);
+        }
         if !report.is_empty() {
-            words.add(b"Report:\n", bound);
+            words.add(
+                if self.repair_count == 0 { b"Report:\n" } else { b"Producer report (historical; before repairs):\n" },
+                bound,
+            );
             words.add(report, bound);
             words.add(b"\n", bound);
         }
-        words.join(&self.words(head, bound), bound);
+        if self.repair_count == 0 {
+            words.join(&self.words(head, bound), bound);
+        } else {
+            self.check_words(&mut words, head, bound);
+            self.review_words(&mut words, bound);
+        }
         words
     }
 
@@ -164,6 +183,14 @@ impl ChangeResult {
     #[must_use]
     pub fn words(&self, head: &Commit, bound: u32) -> ResultText {
         let mut words = ResultText::empty();
+        self.check_words(&mut words, head, bound);
+        words.add(b"\n", bound);
+        self.repair_words(&mut words, bound);
+        self.review_words(&mut words, bound);
+        words
+    }
+
+    fn check_words(&self, words: &mut ResultText, head: &Commit, bound: u32) {
         words.add(b"checks at ", bound);
         words.add(&crate::commit_text(head), bound);
         words.add(b": ", bound);
@@ -172,19 +199,24 @@ impl ChangeResult {
         } else {
             words.add(b"none", bound);
         }
-        words.add(b"\nrepairs: ", bound);
+    }
+
+    fn repair_words(&self, words: &mut ResultText, bound: u32) {
+        words.add(b"repairs: ", bound);
         words.add(Decimal::of(self.repair_count).as_bytes(), bound);
         if self.repair_count != 0 {
             words.add(b": ", bound);
             words.join(&self.repairs, bound);
         }
+    }
+
+    fn review_words(&self, words: &mut ResultText, bound: u32) {
         words.add(b"\nreviews: ", bound);
         if self.reviews.bytes.is_empty() && self.reviews.cut == 0 {
             words.add(b"none", bound);
         } else {
             words.join(&self.reviews, bound);
         }
-        words
     }
 }
 

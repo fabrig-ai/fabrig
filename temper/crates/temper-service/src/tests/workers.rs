@@ -794,3 +794,72 @@ fn job_assignment(workspace: bool) -> host::JobAssignment {
         grants: Box::new([]),
     }
 }
+
+fn failed_answer(run: &temper_engine_domain::Assignment) -> temper_engine_domain::Event {
+    use temper_engine_domain as root;
+    root::Event::Worker(root::WorkerInput::Link {
+        channel: Token::new(7),
+        link: root::Link::Up {
+            up: host::LinkUp::Answer {
+                run: Token::new(run.task),
+                attempt: Token::new(run.attempt),
+                answer: host::RunAnswer {
+                    read: None,
+                    refused: Box::new([]),
+                    turns: 0,
+                    spent: 47,
+                    ending: host::Ending::Failed {
+                        failure: host::Failure::Run(host::RunFailure::Model),
+                        detail: b"program claude exit 1: bad stream".as_slice().into(),
+                        work: host::Work { left: None, saved: None },
+                    },
+                },
+            },
+            parts: root::Parts::none(),
+        },
+    })
+}
+
+/// temper/docs/design/domain/worker.md, 4.3: a failed answer reaches the operator once.
+#[test]
+fn failed_answer_detail_reaches_operator_once() {
+    use temper_engine_domain::RunDiagnostic;
+    for full in [false, true] {
+        let (mut service, run) = fixtures::claimed_chat();
+        while service.notes().pop().is_some() {}
+        for delivery in 0_u32..2 {
+            if full {
+                while service.notes().room() > 0 {
+                    service.notes().push(crate::Note::ForgeLacking { number: 1, names: Box::new([]) });
+                }
+            }
+            service.engine.as_mut().unwrap().step(failed_answer(&run));
+            if full {
+                advance_refusal(&mut service);
+                while let Some(note) = service.notes().pop() {
+                    assert_eq!(note, crate::Note::ForgeLacking { number: 1, names: Box::new([]) });
+                }
+                let engine = service.engine.as_mut().unwrap();
+                crate::engine::clock(engine, engine.env.now, engine.env.wall);
+            }
+            fixtures::settle_root(&mut service, &mut skein_lib::Queue::uncapped());
+            let mut found = 0_u32;
+            while let Some(note) = service.notes().pop() {
+                if let crate::Note::RunFailed(diagnostic) = note {
+                    assert_eq!(
+                        diagnostic,
+                        RunDiagnostic {
+                            task: run.task,
+                            run: run.task,
+                            attempt: run.attempt,
+                            failure: host::Failure::Run(host::RunFailure::Model),
+                            detail: b"program claude exit 1: bad stream".as_slice().into(),
+                        }
+                    );
+                    found = found.saturating_add(1);
+                }
+            }
+            assert_eq!(found, u32::from(delivery == 0), "one diagnostic per answer; full={full}");
+        }
+    }
+}

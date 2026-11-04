@@ -288,6 +288,17 @@ jig's types (jig's `domain/hosts.md`, 6.3), with temper's detail:
   **cancelled,** as jig's say, each with bounded detail for operators
   that no LLM is shown.
 
+When the hub accepts a run's failed answer, serve writes one operator line
+on stderr, which the box keeps in `<data>/box/logs/serve.log`
+(`../protocol/setup.md`, 7.2). The line names the task, run, attempt and
+failure class and includes the last at most 4,096 bytes of the worker's
+bounded detail. Newlines, control bytes and non-ASCII bytes are escaped,
+so the record is one line. Acceptance emits it once; resending a kept
+answer emits no second line. In-process and socket workers share this
+path. The evidence is volatile operator output, outside turns, facts,
+`TaskResult` and the review's reason sentence; no wire or stored field
+carries an extra copy.
+
 **A configured model-call bound** is reported as jig's
 `RunFailure::Exceeded(Exceeded { bound, value })`. Smith's
 `CompletionFailure::Limit { which, bound }` supplies `value` unchanged:

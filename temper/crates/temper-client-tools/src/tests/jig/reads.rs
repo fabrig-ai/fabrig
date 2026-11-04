@@ -9,6 +9,86 @@ fn a_task_read_prints_its_document() {
     fixtures::check_golden("task_goal_waiting", &answer.stdout);
 }
 #[test]
+fn a_tool_heavy_chat_keeps_its_conversation_words() {
+    for json in [false, true] {
+        for payloads in [false, true] {
+            let argv = fixtures::extended(fixtures::CHAT_CALL, if json { &["--json"] } else { &[] });
+            let (mut root, call) = fixtures::read_call(argv.as_slice());
+            root.serve(call, fixtures::settings_conversation(payloads));
+            root.end(call, &fixtures::run_watch(), jig_client::contract::WatchEnd::SubjectEnded);
+            let answer = root.answer(call).expect("conversation answered");
+            assert_eq!(answer.status, 0);
+            assert!(answer.stderr.is_empty());
+            assert!(answer.stdout.len() < usize::try_from(crate::limits::TEXT).expect("text bound fits"));
+            let mut previous = None;
+            for words in fixtures::CONVERSATION_WORDS {
+                let at = skein_lib::bytes::find(&answer.stdout, words)
+                    .expect("complete conversation words survive tool payloads");
+                if let Some(previous) = previous {
+                    assert!(previous < at, "conversation words remain chronological");
+                }
+                previous = Some(at);
+            }
+            assert!(skein_lib::bytes::find(&answer.stdout, b"bytes left").is_none());
+            assert!(skein_lib::bytes::find(&answer.stdout, b"24 \xc2\xb7 \n").is_none());
+            if json {
+                fixtures::unique_keys(&answer.stdout).expect("valid conversation JSON");
+            } else {
+                conversation_boundaries(&answer.stdout);
+            }
+        }
+        conversation_continuation(json);
+    }
+}
+fn conversation_boundaries(stdout: &[u8]) {
+    let mut previous = 0;
+    for boundary in [
+        b"run 1 began".as_slice(),
+        b"turn 1.1",
+        b"run 1 ended",
+        b"24 \xc2\xb7 ",
+        b"run 2 began",
+        b"turn 2.9",
+        b"run 2 ended",
+        b"run 3 began",
+        b"turn 3.1",
+        b"run 3 ended",
+        b"no more",
+    ] {
+        let at = skein_lib::bytes::find(stdout, boundary).expect("run boundary retained");
+        assert!(previous <= at, "run boundaries remain chronological");
+        previous = at;
+    }
+}
+fn conversation_continuation(json: bool) {
+    use jig_client::contract as c;
+    let ReadResult::Value(c::ReadValue::Activity(mut page)) = fixtures::settings_conversation(true) else {
+        unreachable!("conversation fixture")
+    };
+    let archive = page.rows.get_mut(1).expect("first turn").decoded.as_mut().expect("decoded archive");
+    let c::TurnRead::Decoded(turn) = &mut archive.turn else { unreachable!("decoded fixture") };
+    *turn.messages.get_mut(0).expect("assistant reply").blocks.get_mut(2).expect("words after payloads") =
+        c::Block::Text(fixtures::text(fixtures::LONG_PART));
+    let archive = archive.clone();
+    let argv = fixtures::extended(fixtures::CHAT_CALL, if json { &["--json"] } else { &[] });
+    let (mut root, call) = fixtures::read_call(argv.as_slice());
+    root.serve(call, ReadResult::Value(c::ReadValue::Activity(page)));
+    root.end(call, &fixtures::run_watch(), c::WatchEnd::SubjectEnded);
+    let answer = root.answer(call).expect("paged conversation");
+    assert_eq!(answer.status, 0);
+    assert!(skein_lib::bytes::find(&answer.stdout, b"task turn 41 1.1 --part 4 --from 16384").is_some());
+    assert!(answer.stdout.len() < usize::try_from(crate::limits::TEXT).expect("text bound fits"));
+    let argv = fixtures::extended(
+        &["task", "turn", "41", "1.1", "--part", "4", "--from", "16384"],
+        if json { &["--json"] } else { &[] },
+    );
+    let answer = fixtures::read_answer(argv.as_slice(), ReadResult::Value(c::ReadValue::Turn(Box::new(archive))));
+    assert_eq!(answer.status, 0);
+    assert!(
+        skein_lib::bytes::find(&answer.stdout, if json { br#""text":"x","bytes_left":0"# } else { b"\nx\n" }).is_some()
+    );
+}
+#[test]
 fn a_closed_chat_reads_its_kept_conversation() {
     use jig_client::contract as c;
     for json in [false, true] {

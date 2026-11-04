@@ -352,6 +352,9 @@ impl Host for Agent {
             diagnostic(self.errors.as_mut(), "commands run in process groups and are not contained");
             diagnostic(self.errors.as_mut(), "agent started");
         }
+        while let Some((owner, fault)) = self.service.pop_program_diagnostic() {
+            diagnostic(self.errors.as_mut(), &program_diagnostic_line(owner, fault));
+        }
         if self.result.is_some() && !self.reported {
             self.reported = true;
             if let Some(Err(why)) = &self.result {
@@ -497,6 +500,22 @@ pub fn given_up_line(given_up: smith_protocol_events::GivenUp) -> String {
     format!("event destination {name} was given up: {why}; later records count as lost")
 }
 
+fn program_diagnostic_line(owner: Token, fault: smith_domain::run::Fault) -> String {
+    let smith_domain::run::Fault::Program { name, exit, detail } = fault else {
+        unreachable!("the operator program drain retains only program faults")
+    };
+    let exit = match exit {
+        Some(exit) => exit.to_string(),
+        None => String::from("unknown"),
+    };
+    format!(
+        "program {} owner={} exit={exit}: {}",
+        String::from_utf8_lossy(&name).escape_debug(),
+        owner.raw(),
+        String::from_utf8_lossy(&detail).escape_debug(),
+    )
+}
+
 fn diagnostic(errors: &mut dyn Write, line: &str) {
     // Diagnostics are best effort, as trace records are; a broken operator
     // output cannot prevent the channel's answer or its lower settlement.
@@ -572,6 +591,19 @@ pub fn identity() -> smith_events::Agent {
 mod tests {
     use super::given_up_line;
     use smith_protocol_events::{Destination, GivenUp, Why};
+
+    #[test]
+    fn program_lines_keep_correlation_and_escape_operator_detail() {
+        for (exit, word) in [(Some(73), "73"), (None, "unknown")] {
+            let fault = smith_domain::run::Fault::Program {
+                name: b"claude_code".as_slice().into(),
+                exit,
+                detail: b"first\nlast stderr\x1b[31m\xff".as_slice().into(),
+            };
+            let line = super::program_diagnostic_line(skein_lib::Token::new(19), fault);
+            assert_eq!(line, format!("program claude_code owner=19 exit={word}: first\\nlast stderr\\u{{1b}}[31m�"));
+        }
+    }
 
     #[test]
     fn the_given_up_line_names_the_destination_and_why() {

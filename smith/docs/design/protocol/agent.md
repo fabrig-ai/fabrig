@@ -278,6 +278,15 @@ spawns one (hosts.md, section 5.2).
     section 10; llm.md, section 6). The words are rendered from the
     typed failure, matched exhaustively, never from a debug rendering.
 
+  Program failures also drain to standard error as they arrive, even when
+  capture is disabled and the main conversation later succeeds. Each line
+  names `claude_code`, its process-local conversation owner token, and the
+  exit code when available (`unknown` otherwise), followed by at most 512
+  bytes of the already-redacted diagnostic tail, with controls escaped.
+  The pending lines have the service queue's entry bound; a full queue
+  holds further terminals until the shell drains it. These lines never
+  enter canonical model feedback (domain/session.md, section 4).
+
   Its host keeps the tail of standard error and never parses it
   (domain/host.md, section 4).
 - **Startup:**

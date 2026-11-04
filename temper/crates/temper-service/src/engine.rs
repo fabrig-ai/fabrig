@@ -221,7 +221,7 @@ impl Engine {
         } else {
             self.admission = watcher;
         }
-        self.drain_facts();
+        self.drain_notes();
     }
     fn can_pass(&self) -> bool {
         self.passing.is_none()
@@ -231,7 +231,11 @@ impl Engine {
                 None => false,
             }
     }
-    fn drain_facts(&mut self) {
+    fn drain_notes(&mut self) {
+        for _ in 0..self.notes.room() {
+            let Some(diagnostic) = self.domain.pop_run_diagnostic() else { break };
+            self.notes.push(crate::Note::RunFailed(diagnostic));
+        }
         self.facts_waiting = false;
         for _ in 0..root::FACTS {
             if self.notes.room() == 0 {
@@ -341,7 +345,7 @@ impl Engine {
 /// Every child sees this iteration's time before an input can arm a deadline.
 pub(crate) fn clock(engine: &mut Engine, now: Time, wall: Wall) {
     if engine.facts_waiting && engine.notes.room() > 0 {
-        engine.drain_facts();
+        engine.drain_notes();
     }
     engine.env.now = now;
     engine.env.wall = wall;
@@ -468,7 +472,7 @@ fn input_pass(engine: &mut Engine, now: Time) {
         && deadline <= now
     {
         root::fire(&mut engine.domain, &engine.env);
-        engine.drain_facts();
+        engine.drain_notes();
     }
 }
 
@@ -522,7 +526,7 @@ pub(crate) fn release(engine: &mut Engine) {
         }
         if engine.requests.is_empty() {
             root::try_step(&mut engine.domain, &engine.env, root::Event::Resume).expect("owner continuation admitted");
-            engine.drain_facts();
+            engine.drain_notes();
             #[cfg(test)]
             let before = engine.requests.len();
             root::release(&mut engine.domain, &engine.env, &mut engine.requests);
@@ -531,7 +535,7 @@ pub(crate) fn release(engine: &mut Engine) {
                 trace.released(&engine.requests, before, engine.store.above.len());
             }
         }
-        engine.drain_facts();
+        engine.drain_notes();
         if !engine.requests.is_empty() || engine.domain.quiescent() {
             engine.blocked = false;
         }
@@ -795,7 +799,7 @@ fn forge_answer(engine: &mut Engine, answer: skein_forge_connection::Answered) {
             crate::forge::back(event).expect("the routing hands the root only the component's answers"),
         ));
     }
-    engine.drain_facts();
+    engine.drain_notes();
 }
 fn forge_hint(engine: &mut Engine, hinted: skein_forge_connection::hooks::Hinted) {
     if engine.drain.is_some() || engine.end.is_some() || engine.domain.forge_ended(hinted.hint.repository.forge) {
@@ -813,7 +817,7 @@ fn forge_hint(engine: &mut Engine, hinted: skein_forge_connection::hooks::Hinted
             hint,
         }));
     }
-    engine.drain_facts();
+    engine.drain_notes();
 }
 fn forge_stopped(engine: &mut Engine, forge: u16, why: skein_forge_connection::Stopped) {
     crate::forge::tokens::accepted(engine, forge, &[]);
