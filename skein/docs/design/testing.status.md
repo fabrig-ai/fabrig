@@ -1,6 +1,6 @@
 # testing: status
 
-2026-11-03. Where skein's code lags or departs from [testing.md](testing.md).
+2026-11-04. Where skein's code lags or departs from [testing.md](testing.md).
 
 - **Not yet:** 4: the fake machine's entry inodes, groups, modes past
   `0o777`, times and attributes, its subvolume and filesystem answers,
@@ -12,7 +12,11 @@
   warnings denied.
   7: `live-skein` has no CPU budget or wall hard limit in
   `tools/tiers/budgets.toml`.
-- **Departs:** 6: `crates/skein-fail-stop`, `crates/skein-fake-forge-protocol`
+- **Departs:** 5, 10: `skein/testing/skein-world/src/lib.rs` fences six
+  items `cfg(unix)`, though these sections have the crate native, on
+  Linux and macOS, so off unix it fails to build however it is fenced; no
+  reason is recorded.
+  6: `crates/skein-fail-stop`, `crates/skein-fake-forge-protocol`
   (a memory suite) and `crates/skein-forge` have a `tests/` directory,
   where 6 puts what drives a crate from outside under `tests/`; no reason
   is recorded.
@@ -27,4 +31,9 @@
   `skein-llm-world` and `skein-tls-world`, and `skein-llm/Cargo.toml`
   uses `skein-json-world` as a dev-dependency; no reason is recorded
   (the code's side is
-  `skein/docs/development/debt/D028-worlds-as-kits.md`).
+  `skein/docs/development/debt/D028-worlds-as-kits.md`). 6: `skein-scratch`
+  is the tests' scratch directory, removed when dropped, but
+  `skein/testing/skein-codegen/tests/suite/patch_run.rs` and
+  `patch_generated.rs` make theirs by hand and remove them after their
+  assertions, so a failing test leaves one behind, and a reused pid then
+  fails on it; no reason is recorded.
