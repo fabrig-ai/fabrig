@@ -824,28 +824,45 @@ impl Domain {
     /// Check one typed task interest before the root adds its matching durable task row.
     #[must_use]
     pub fn can_subscribe(&self, limits: &Limits, subscription: &Subscriber) -> bool {
-        if match &subscription.goal_tasks {
-            Some(tasks) => tasks.len() > skein_lib::usize_of(limits.issue_policy.plan_items),
-            None => false,
-        } || subscription.number == 0
-            || subscription.paths.len() > skein_lib::usize_of(limits.paths_per_subscription)
+        self.subscription_problem(limits, subscription).is_none()
+    }
+
+    /// Name the failed subscription check and its configured limit, before any task row is added.
+    #[must_use]
+    pub fn subscription_problem(
+        &self,
+        limits: &Limits,
+        subscription: &Subscriber,
+    ) -> Option<(&'static [u8], Option<u32>)> {
+        if let Some(tasks) = &subscription.goal_tasks
+            && tasks.len() > skein_lib::usize_of(limits.issue_policy.plan_items)
         {
-            return false;
+            return Some((b"goal_tasks exceeds issue_policy.plan_items", Some(limits.issue_policy.plan_items)));
+        }
+        if subscription.number == 0 {
+            return Some((b"subscription number must be positive", None));
+        }
+        if subscription.paths.len() > skein_lib::usize_of(limits.paths_per_subscription) {
+            return Some((b"paths exceeds paths_per_subscription", Some(limits.paths_per_subscription)));
         }
         match self.subscriptions.get(&(subscription.task, subscription.topic.clone())) {
-            Some(existing) if existing.number != subscription.number => return false,
-            None if self.subscriptions.len() == limits.subscriptions => return false,
+            Some(existing) if existing.number != subscription.number => {
+                return Some((b"duplicate topic; keep the existing subscription or unsubscribe it first", None));
+            }
+            None if self.subscriptions.len() == limits.subscriptions => {
+                return Some((b"forge subscription room exhausted: subscriptions", Some(limits.subscriptions)));
+            }
             Some(_) | None => {}
         }
         for path in &subscription.paths {
             if path.len() > skein_lib::usize_of(limits.name_bytes) {
-                return false;
+                return Some((b"path exceeds name_bytes", Some(limits.name_bytes)));
             }
         }
         let repository = match &subscription.topic {
             Topic::Landings { repository, branch } => {
                 if branch.len() > skein_lib::usize_of(limits.name_bytes) {
-                    return false;
+                    return Some((b"branch exceeds name_bytes", Some(limits.name_bytes)));
                 }
                 *repository
             }
@@ -853,7 +870,10 @@ impl Domain {
                 *repository
             }
         };
-        self.repositories.contains_key(&repository)
+        if !self.repositories.contains_key(&repository) {
+            return Some((b"repository is not adopted; select an adopted owner/name", None));
+        }
+        None
     }
 
     /// Current subscriber for an automatic goal topic, preserving its durable number.

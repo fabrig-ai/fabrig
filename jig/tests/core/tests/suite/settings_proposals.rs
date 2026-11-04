@@ -723,6 +723,91 @@ fn accepted(reply: &people::Reply) {
         "{reply:?}"
     );
 }
+
+// Keep the review inline bound below the tool input bound for a hex-encoded set.
+const CHARTER_REVIEW_BYTES: u32 = 128;
+
+fn large_run_charter(world: &mut World, signed: u64, number: u32) -> settings::Item {
+    let mut charter = world.domain.settings().charter(1).expect("fixture charter").clone();
+    charter.number = number;
+    let setting = settings::Setting::Charter(number);
+    if number != 1 {
+        let newest = world.domain.settings().newest();
+        let item =
+            settings::Item { setting, edit: settings::Edit::Set(settings::Value::Charter(Box::new(charter.clone()))) };
+        changed(&change(world, signed, 107, newest, Box::new([item])), newest + 1);
+    }
+    let inline = usize::try_from(CHARTER_REVIEW_BYTES).expect("inline bound");
+    let mut instructions = charter.policy.instructions.repeat(inline / charter.policy.instructions.len() + 1);
+    instructions.extend_from_slice(b" Keep change reports short.");
+    charter.policy.instructions = instructions.into_boxed_slice();
+    settings::Item { setting, edit: settings::Edit::Set(settings::Value::Charter(Box::new(charter))) }
+}
+
+fn run_charter_review(world: &mut World, signed: u64, task: u64, proposal: u64, expected: &settings::Value) {
+    let reads::Answer::Document(document) =
+        read(world, signed, reads::Read::Proposal { proposer: people::Proposer::Task(task), proposal })
+    else {
+        panic!("pending run proposal")
+    };
+    let documents::Document::Proposal(document) = *document else { panic!("proposal review") };
+    let documents::ProposalAction::Settings { review: Some(review), .. } = document.action else {
+        panic!("settings review")
+    };
+    let settings::Value::Charter(charter) = expected else { panic!("proposed charter") };
+    assert!(u64::try_from(charter.policy.instructions.len()).expect("instructions size") > review.value_bytes);
+    let item = review.items.get(0).expect("reviewed charter");
+    assert_eq!(item.setting, settings::Setting::Charter(charter.number));
+    assert_eq!(item.would_be.as_ref(), Some(expected));
+}
+
+fn run_setting_readers(world: &mut World, owner: u64, point: &reads::Read, task: u64, proposal: u64) {
+    for (subject, role) in [
+        (b"deployment member".as_slice(), Some((people::DEPLOYMENT, people::Role::Member))),
+        (b"project owner".as_slice(), Some((1, people::Role::Owner))),
+        (b"outsider".as_slice(), None),
+    ] {
+        let (_, signed) = party(world, subject, role);
+        let review = reads::Read::Proposal { proposer: people::Proposer::Task(task), proposal };
+        assert_eq!(read(world, signed, review), reads::Answer::None(reads::Why::Unknown));
+        assert_eq!(read(world, signed, point.clone()), reads::Answer::None(reads::Why::Unknown));
+    }
+    let mut wrong = point.clone();
+    let reads::Read::Setting { proposal: Some((_, number)), .. } = &mut wrong else { panic!("proposal read") };
+    *number += 1;
+    assert_eq!(read(world, owner, wrong), reads::Answer::None(reads::Why::Unknown));
+}
+
+#[test]
+fn a_runs_large_proposed_charter_is_read_whole_by_its_reviewer() {
+    for (number, decision, running) in [
+        (1, people::ProposalDecision::Accept, Some(people::Running::Stays)),
+        (2, people::ProposalDecision::Reject { reason: b"Keep the current charter".as_slice().into() }, None),
+    ] {
+        let (mut world, signed, task) = proposing_run(true);
+        let item = large_run_charter(&mut world, signed, number);
+        let settings::Edit::Set(expected) = item.edit.clone() else { panic!("set charter") };
+        let newest = world.domain.settings().newest();
+        let proposal = run_proposed(&run_propose(&mut world, newest, Box::new([item])));
+        let (config, mut limits) = run_configuration();
+        limits.core.documents.text_bytes = CHARTER_REVIEW_BYTES;
+        world.restart_with_limits(config, limits);
+        run_charter_review(&mut world, signed, task, proposal, &expected);
+        let point = reads::Read::Setting {
+            setting: settings::Setting::Charter(number),
+            revision: 0,
+            proposal: Some((people::Proposer::Task(task), proposal)),
+        };
+        let answer = read(&mut world, signed, point.clone());
+        let reads::Answer::Setting(document) = answer else { panic!("whole proposed charter: {answer:?}") };
+        assert_eq!(document.value.as_ref(), Some(&expected), "complete instructions including the added sentence");
+        run_setting_readers(&mut world, signed, &point, task, proposal);
+        let reply = run_decide(&mut world, signed, task, proposal, decision, running);
+        assert!(matches!(reply, people::Reply::Outcome(people::Outcome::ProposalDecided { .. })), "{reply:?}");
+        assert_eq!(read(&mut world, signed, point), reads::Answer::None(reads::Why::Unknown));
+    }
+}
+
 #[test]
 fn a_run_proposes_settings_and_an_owner_accepts_moving_its_work() {
     let (mut world, signed, task) = proposing_run(true);
