@@ -1521,6 +1521,34 @@ fn a_changes_questions_and_foreman_charter_round_trip_unchanged() {
 }
 
 #[test]
+fn standard_sized_question_words_and_held_answers_round_trip() {
+    use temper_engine_domain_forge_change::{Open, Stands, State};
+    let mut limits = fixtures::LIMITS;
+    limits.client.op_bytes = 262_144;
+    let bounds = crate::bounds(&limits, limits.client.op_bytes).expect("standard operation bounds");
+    let mut row = fixtures::change_row(State::Producing { requested: true });
+    row.questions.open = Box::new([Open {
+        asker: 7,
+        number: 1,
+        line: Box::new([]),
+        words: skein_lib::bytes::zeroed(262_144),
+        stands: Stands::Held { answer: skein_lib::bytes::zeroed(262_144) },
+    }]);
+    let row = forge::Stored::Change(row);
+    let bytes = records::encode(&row);
+    assert_eq!(records::decode(&bytes, &bounds), Ok(row));
+    for words in [false, true] {
+        let mut short = bounds;
+        if words {
+            short.limits.open_words -= 1;
+        } else {
+            short.limits.held_answer -= 1;
+        }
+        assert_eq!(records::decode(&bytes, &short), Err(crate::Undecodable));
+    }
+}
+
+#[test]
 fn a_held_answer_is_bounded_by_the_forge_operation_bytes() {
     use temper_engine_domain_forge_change::{Open, Stands, State};
     let bound = fixtures::LIMITS.client.op_bytes;
