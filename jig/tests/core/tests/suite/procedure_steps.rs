@@ -118,7 +118,12 @@ fn a_step_naming_a_moved_revision_is_refused_and_told_what_it_is_now() {
     world.send(root::Event::Core(core::Event::NamedAction {
         to: ReplyTo::new(Token::new(AMEND_CALL)),
         key: core::CallKey { task: run.0, attempt: run.1, completion: MOVED_COMPLETION, position: 0 },
-        action: core::NamedAction::Amend { target: child, revision: 0, amendment: amendment.clone() },
+        action: core::NamedAction::Amend {
+            keep_parameters: false,
+            target: child,
+            revision: 0,
+            amendment: amendment.clone(),
+        },
     }));
     world.send(root::Event::Core(core::Event::Tasks(tasks::Event::WakeProcedure { task: procedure })));
     let before = live_row(&world, child).clone();
@@ -215,7 +220,7 @@ fn a_procedure_steps_again_after_its_amendment_is_refused_as_moved() {
     world.send(root::Event::Core(core::Event::NamedAction {
         to: ReplyTo::new(Token::new(AMEND_CALL)),
         key: core::CallKey { task: run.0, attempt: run.1, completion: MOVED_COMPLETION, position: 0 },
-        action: core::NamedAction::Amend { target: child, revision: 0, amendment },
+        action: core::NamedAction::Amend { keep_parameters: false, target: child, revision: 0, amendment },
     }));
     next_program_step(&mut world, procedure);
     let key = root::Key::Connector { number: CONNECTOR, key: connector::RecordKey::Procedure(procedure) };
@@ -366,6 +371,7 @@ fn move_delegate(world: &mut World, child: u64) {
         to: ReplyTo::new(Token::new(AMEND_CALL)),
         key: core::CallKey { task: run.0, attempt: run.1, completion: MOVED_COMPLETION, position: 0 },
         action: core::NamedAction::Amend {
+            keep_parameters: false,
             target: child,
             revision: 0,
             amendment: tasks::Amendment {
@@ -495,7 +501,7 @@ fn kept_procedure(seed: u64) -> (World, u64, u64) {
     world.send(root::Event::Core(core::Event::NamedAction {
         to: ReplyTo::new(Token::new(AMEND_CALL)),
         key: core::CallKey { task: parent.0, attempt: parent.1, completion: 3, position: 0 },
-        action: core::NamedAction::Amend { target: procedure, revision: 0, amendment },
+        action: core::NamedAction::Amend { keep_parameters: false, target: procedure, revision: 0, amendment },
     }));
     (world, procedure, dependency)
 }
@@ -610,7 +616,6 @@ fn a_party_amendment_dropping_a_started_from_dependency_is_refused_naming_it() {
     }
     assert!(named, "the core preserves the party amendment's exact task problem");
     assert_eq!(world.domain.core().tasks.task(procedure), Some(&before));
-
     let mut party_amendment = jig_test_profile::fixtures::person_unchanged(b"remove prerequisite");
     party_amendment.dependencies = Some(Box::new([]));
     crate::read_support::request(
@@ -633,10 +638,11 @@ fn a_party_amendment_dropping_a_started_from_dependency_is_refused_naming_it() {
     assert_eq!(live_row(&world, procedure), &before);
 
     let parent = world.assignments[0];
+    let revision = before.revisions.spec;
     world.send(root::Event::Core(core::Event::NamedAction {
         to: ReplyTo::new(Token::new(9901)),
         key: core::CallKey { task: parent.0, attempt: parent.1, completion: 4, position: 0 },
-        action: core::NamedAction::Amend { target: procedure, revision: before.revisions.spec, amendment },
+        action: core::NamedAction::Amend { keep_parameters: false, target: procedure, revision, amendment },
     }));
     assert!(matches!(&world.answers.last().expect("tool refusal").2,
         core::CallPart::ControlRefused(refused) if *refused == problem

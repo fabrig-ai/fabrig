@@ -1,6 +1,8 @@
 # worker: status
 
 2026-11-04. Where temper's code lags or departs from [worker.md](worker.md).
+Section 4.3's failed-answer diagnostics reach serve's stderr and the box's
+`serve.log`; that operator-output path has no gap.
 
 - **Not yet:** 4.4: the prepare and key kinds: neither kind's entry is
   built, so the worker's hello declares the merge kind alone

@@ -27,22 +27,20 @@ A change is a task that writes one repository's branch and lands it: its pull re
   Next is `questions: ROUTE · TAKEN of LIMIT taken`, then each open
   question with its asker, number, first line and where it stands;
   with route `none` and nothing taken, `questions: none`.
-- **Its result** names its merge commit, any tier verdict, then its pull
-  request and address and `Landed: pull request #N merged into BASE as
-  SHORT.`. `Report:` gives the coder's report, followed by what
-  the landing passed: `checks at HEAD:` with conclusions,
-  `repairs: N:` with repair reasons, and `reviews:` with each
-  verdict at its judged head, cut from the end and marked when long.
-  It names no check or test the change didn't see. Where tiers follow
-  its landing branch (temper help tier), the result waits for them:
-  `Cleared by TIER run N.`, or, for a landing once red, `Cleared by TIER
+- **Its result** names the merge commit, tier verdict, pull request and
+  address, and `Landed: pull request #N merged into BASE as SHORT.`.
+  With repairs, `repairs: N:` lists reasons and successful reports by
+  task, in completion order. `Producer report (historical; before repairs):`
+  marks the coder's pre-repair report (`Report:` without repairs). `checks at HEAD:` gives conclusions and `reviews:`
+  verdicts at their heads, with `repairs: 0` between them without repairs.
+  End cuts are marked; no unseen check or test is named. On tiered branches (temper help tier), the result waits for
+  `Cleared by TIER run N.`, or, after a red landing, `Cleared by TIER
   run N, which passed the failures blamed on it; repaired by COMMIT.`
   where a change naming it repaired it, or `Not cleared: no verdict
-  within the verification bound.` Verdicts precede the address
-  to fit `task show TASK`'s text window. Or it fails or is
-  cancelled. A coder finding no change applies ends
-  successfully, saying why, with no pull request or claimed landing;
-  failure for good holds it at `producing` (below).
+  within the verification bound.` Verdicts fit before the address in
+  `task show TASK`. Or it fails or is cancelled. No change applies: ends
+  successfully with why, no pull request or landing. Failure holds it at
+  `producing` (below).
 
 ## How it changes
 

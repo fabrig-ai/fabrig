@@ -401,6 +401,59 @@ fn finish_story(story: &mut Story) {
     story.world.close();
 }
 
+fn amend_spec(story: &mut Story, target: u64, spec: &str, completion: u32) {
+    let revision = live_task(&story.world, target).revisions.spec;
+    let input = format!(
+        "{{\"target\":{target},\"revision\":{revision},\"amendment\":{{\"spec\":{spec},\"reason\":\"Clarify scope.\"}}}}"
+    );
+    let input = smith_domain_run::HostInput::attested(input.into_bytes().into_boxed_slice()).expect("bounded amend");
+    let temper_engine_smith::Decoded::Call(call) = temper_engine_smith::call(
+        smith_domain_run::CallName { activation: story.goal.attempt, completion, position: 1 },
+        b"amend",
+        &input,
+    )
+    .expect("amend decodes") else {
+        panic!("amend call")
+    };
+    let answer = story.world.scripted_call(&story.goal, u64::from(completion), call.tool);
+    assert!(matches!(answer, engine::CallAnswer::Amended { .. }), "words amended: {answer:?}");
+}
+
+#[test]
+fn amending_with_explicit_parameters_replaces_them() {
+    let cases: [(u32, &str, Box<[tasks::Parameter]>); 2] = [
+        (94, "[]", Box::new([])),
+        (95, r#"[{"kind":"number","name":14,"value":1}]"#, Box::new([tasks::Parameter::Number { name: 14, value: 1 }])),
+    ];
+    let mut story = start(None);
+    let change = story.producer.task;
+    for (completion, parameters, expected) in cases {
+        let spec = format!(r#"{{"words":"Widen the close-out scope.","parameters":{parameters}}}"#);
+        amend_spec(&mut story, change, &spec, completion);
+        assert_eq!(live_task(&story.world, change).spec.parameters, expected, "explicit replacement: {parameters}");
+    }
+    settle_a(&mut story);
+    finish_story(&mut story);
+}
+
+#[test]
+fn amending_only_words_preserves_change_parameters() {
+    let mut story = start(None);
+    let before = live_task(&story.world, story.a);
+    let parameters = before.spec.parameters.clone();
+    let revision = before.revisions.spec;
+    assert!(!parameters.is_empty(), "the live change has its procedure parameters");
+    let change = story.a;
+    amend_spec(&mut story, change, r#"{"words":"Widen the close-out scope."}"#, 94);
+    let after = live_task(&story.world, story.a);
+    assert_eq!(after.spec.words.as_ref(), b"Widen the close-out scope.");
+    assert_eq!(after.spec.parameters, parameters, "a words amendment keeps every procedure parameter");
+    assert_eq!(after.revisions.spec, revision + 1);
+    let tip = settle_a(&mut story);
+    assert_ne!(tip, story.main, "the amended change proceeds through questions and landing");
+    finish_story(&mut story);
+}
+
 #[test]
 fn a_foreman_settles_a_question_and_the_change_lands() {
     let mut story = start(None);
@@ -443,8 +496,11 @@ fn an_answer_that_adds_a_dependency_waits_for_it() {
     let mut amendment = temper_engine_domain_world::fixtures::task_amendment(None, None, b"Wait for C's design");
     amendment.dependencies = Some(Box::new([story.a, c]));
     let revision = live_task(&story.world, story.b).revisions.spec;
-    let answer =
-        story.world.scripted_call(&story.goal, 111, engine::Tool::Amend { target: story.b, revision, amendment });
+    let answer = story.world.scripted_call(
+        &story.goal,
+        111,
+        engine::Tool::Amend { keep_parameters: false, target: story.b, revision, amendment },
+    );
     assert!(matches!(answer, engine::CallAnswer::Amended { .. }), "dependency added: {answer:?}");
     story.world.goal_answer(&story.goal, 112, story.b, up, DEPENDENCY_ANSWER);
     for _ in 0..STEPS {

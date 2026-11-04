@@ -23,6 +23,198 @@ use skein_lib::Duration;
 use teardown::{Answer, Close};
 
 #[test]
+fn a_child_program_fault_reaches_operator_diagnostics_without_capture() {
+    for (seed, activation) in [(1, 2), (1, 3), (2, 2), (2, 3)] {
+        let mut agent = diagnostic_parent(seed, activation);
+        assert!(agent.stages.events.is_none(), "capture is disabled");
+        let (main, _) = diagnostic_prompt(&mut agent);
+        let ask = run::Ask::SubAgent {
+            brief: b"Inspect the task".as_slice().into(),
+            families: run::charter::Families {
+                tools: run::charter::Tools { inspect: false, modify: false, shell: false },
+                agents: false,
+            },
+            llm: None,
+            share: run::Share::UNASKED,
+        };
+        diagnostic_answer(&mut agent, main, ask);
+        let (child, _) = diagnostic_prompt(&mut agent);
+        enter(
+            &mut agent,
+            Input::Provider(llm::ToDomain::Failed {
+                owner: child,
+                failure: domain::llm::Failure::Program { exit: Some(73) },
+                evidence: domain::llm::Evidence::Unsent,
+                detail: b"program stopped\ndistinctive stderr tail".as_slice().into(),
+                report: domain::llm::Report::none(),
+            }),
+        );
+        component_up(&mut agent.stages, Some(&mut agent.frame));
+        domain_up(&mut agent.stages, &mut agent.frame);
+        let (again, prompt) = diagnostic_prompt(&mut agent);
+        assert_eq!(again, main);
+        let result = prompt.messages.last().expect("parent feedback").content.first().expect("tool result");
+        let domain::llm::Block::ToolResult { result: domain::llm::Returned::Text { text, .. }, .. } = result else {
+            panic!("child feedback: {result:?}")
+        };
+        assert!(skein_lib::bytes::find(text, b"unanswered end=fault:program").is_some());
+        assert!(
+            skein_lib::bytes::find(text, b"distinctive stderr").is_none(),
+            "operator detail stays outside model history"
+        );
+        diagnostic_answer(
+            &mut agent,
+            main,
+            run::Ask::Finish {
+                outcome: run::outcome::Declared::Report(run::outcome::Report {
+                    text: b"Parent succeeded".as_slice().into(),
+                    fields: Box::default(),
+                }),
+            },
+        );
+        diagnostic_success(&mut agent);
+        assert_child_diagnostic(&mut agent, child);
+    }
+}
+
+fn assert_child_diagnostic(agent: &mut Service, child: Token) {
+    let (owner, fault) = agent.pop_program_diagnostic().expect("child fault has an independent operator diagnostic");
+    assert_eq!(owner, child);
+    let run::Fault::Program { name, exit, detail } = fault else { panic!("typed program fault") };
+    assert_eq!(name.as_ref(), b"claude_code");
+    assert_eq!(exit, Some(73));
+    assert_eq!(detail.as_ref(), b"program stopped\ndistinctive stderr tail");
+    assert!(agent.pop_program_diagnostic().is_none(), "one diagnostic per failure");
+}
+
+#[test]
+fn program_diagnostics_bound_backlog_and_retain_the_stderr_tail() {
+    let mut agent = service();
+    let count = agent.stages.limits.queue;
+    let mut detail = Box::new([b'x'; 4096]);
+    for (target, source) in detail.iter_mut().rev().zip(b"\nlast stderr\x1b[31m".iter().rev()) {
+        *target = *source;
+    }
+    for owner in 0..=count {
+        enter(
+            &mut agent,
+            Input::Provider(llm::ToDomain::Failed {
+                owner: Token::new(u64::from(owner)),
+                failure: domain::llm::Failure::Program { exit: None },
+                evidence: domain::llm::Evidence::Unsent,
+                detail: detail.clone(),
+                report: domain::llm::Report::none(),
+            }),
+        );
+    }
+    for _ in 0_u32..2 {
+        component_up(&mut agent.stages, Some(&mut agent.frame));
+    }
+    assert_eq!(agent.stages.llm_events.len(), 1, "full diagnostics retain the next failure upstream");
+    let (_, fault) = agent.pop_program_diagnostic().expect("first failure");
+    let run::Fault::Program { exit, detail, .. } = fault else { panic!("typed program fault") };
+    assert_eq!(exit, None);
+    assert_eq!(detail.len(), smith_events::DETAIL_BYTES, "the operator tail is bounded");
+    assert!(detail.ends_with(b"\nlast stderr\x1b[31m"), "stderr suffix is retained");
+    component_up(&mut agent.stages, Some(&mut agent.frame));
+    assert!(agent.stages.llm_events.is_empty(), "draining resumes upstream delivery");
+    let mut remaining = 0;
+    while agent.pop_program_diagnostic().is_some() {
+        remaining += 1;
+    }
+    assert_eq!(remaining, count, "every admitted failure drains once");
+}
+
+fn diagnostic_parent(seed: u64, activation: u64) -> Service {
+    let mut charter = charter(&smith_agent_world::Settings::calm(1));
+    charter.conventions = None;
+    charter.models = Box::default();
+    charter.llm.account = None;
+    charter.grants.tools = run::charter::Tools { inspect: false, modify: false, shell: false };
+    charter.outcome = run::outcome::OutcomeSpec {
+        change: None,
+        verdicts: Box::default(),
+        failure: None,
+        report: Some(run::outcome::TextSpec { max: 1024, fields: Box::default() }),
+    };
+    let mut config = configuration();
+    config.domain = domain_configuration(&charter);
+    config.limits.domain.configured_model_bytes =
+        config.limits.domain.configured_model_bytes.checked_add(128).expect("room for program declaration");
+    config.domain.programs =
+        Box::new([domain::Program { endpoint: charter.llm.endpoint, name: b"claude_code".as_slice().into() }]);
+    let mut agent = Service::new(config, seed).expect("diagnostic service");
+    enter(
+        &mut agent,
+        Input::Domain(domain::Event::Start(domain::Start {
+            reply_to: ReplyTo::new(Token::new(1)),
+            host_run: Token::new(1),
+            activation,
+            identity: None,
+            charter,
+            workspace: None,
+            grants: Box::default(),
+            transcript: None,
+            answered: Box::default(),
+            messages: Box::default(),
+            window: domain::Window { turns: u32::MAX, bytes: u64::MAX },
+        })),
+    );
+    domain_up(&mut agent.stages, &mut agent.frame);
+    agent
+}
+
+fn diagnostic_prompt(agent: &mut Service) -> (Token, domain::llm::Prompt) {
+    for _ in 0_u32..16 {
+        while let Some(request) = agent.stages.domain_requests.pop() {
+            if let domain::Request::Lower(domain::Lower::Complete { owner, prompt, .. }) = request {
+                return (owner, prompt);
+            }
+        }
+        agent.frame.domain.reclaim();
+        domain_up(&mut agent.stages, &mut agent.frame);
+    }
+    panic!("script must reach its next provider prompt");
+}
+
+fn diagnostic_answer(agent: &mut Service, owner: Token, ask: run::Ask) {
+    enter(
+        agent,
+        Input::Provider(llm::ToDomain::Completed {
+            owner,
+            completion: domain::llm::Completion {
+                reasoning_dropped: Box::default(),
+                stop: domain::llm::Stop::ToolUse,
+                usage: domain::llm::Usage::ZERO,
+                content: Box::new([domain::llm::Said::ToolCall {
+                    id: b"call".as_slice().into(),
+                    name: b"served".as_slice().into(),
+                    input: b"{}".as_slice().into(),
+                    call: domain::llm::Decoded::Served { ask },
+                    replay: None,
+                }]),
+            },
+        }),
+    );
+    component_up(&mut agent.stages, Some(&mut agent.frame));
+    domain_up(&mut agent.stages, &mut agent.frame);
+}
+
+fn diagnostic_success(agent: &mut Service) {
+    for _ in 0_u32..16 {
+        while let Some(request) = agent.stages.domain_requests.pop() {
+            if let domain::Request::Answer { answer, .. } = request {
+                let run::Answer::Accepted { .. } = answer else { panic!("parent succeeds: {answer:?}") };
+                return;
+            }
+        }
+        agent.frame.domain.reclaim();
+        domain_up(&mut agent.stages, &mut agent.frame);
+    }
+    panic!("parent must answer");
+}
+
+#[test]
 fn a_colocated_host_gets_typed_machine_terminals_without_an_agent_channel() {
     let mut effects = Effects::new(configuration(), 1).expect("bounded effects");
     effects.request(smith_domain::Lower::Probe {

@@ -809,6 +809,8 @@ pub enum NamedAction {
         target: u64,
         revision: u64,
         amendment: tasks::Amendment,
+        /// Resolve omitted host specification parameters from the current task before admission.
+        keep_parameters: bool,
     },
     DecideEscalation {
         task: u64,

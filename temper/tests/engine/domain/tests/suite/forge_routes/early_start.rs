@@ -523,7 +523,8 @@ fn an_amendment_dropping_a_dependency_started_from_is_refused_naming_it() {
     let revision = spec_revision(&world, c3);
     let mut amendment = temper_engine_domain_world::fixtures::task_amendment(None, None, b"Drop C2");
     amendment.dependencies = Some(Box::new([]));
-    let answer = call(&mut world, &goal, engine::Tool::Amend { target: c3, revision, amendment });
+    let answer =
+        call(&mut world, &goal, engine::Tool::Amend { keep_parameters: false, target: c3, revision, amendment });
     let engine::CallAnswer::ControlRefused(problem) = answer else { panic!("amendment refused: {answer:?}") };
     assert_eq!(problem.why, tasks::Refusal::Dependencies);
     assert_eq!(problem.blocked_by.as_deref(), Some([c2].as_slice()));

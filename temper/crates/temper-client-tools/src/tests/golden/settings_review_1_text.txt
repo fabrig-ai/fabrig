@@ -1,5 +1,22 @@
 proposal p73/7 · settings · against revision 5, newest 6
 more time
+temper enforces
+  template 4 · value (now and proposed below)
+  template 4 · value (now and proposed below)
+  template 4 · value (now and proposed below)
+  template 4 · value (now and proposed below)
+  template 4 · value (now and proposed below)
+  template 4 · value (now and proposed below)
+your agents follow
+  no changes
+Effect
+New work follows this from the moment it is accepted. Nothing restarts.
+--running stays (default): let running tasks finish on their revision.
+--running moves: move compatible tasks at their next run; a live run continues until it ends.
+Conversations move at their next run when compatible, with either choice.
+Tasks whose charter is removed or whose model is no longer allowed retain their revision.
+Authority remains current: rules, project policy and the authority chain apply even to tasks retaining a charter revision.
+settings:
 template 4 · set · now {"resources":[],"number":4,"name":{"bytes":"work","cut":false},"executor":{"charter":3},"contract":{"report":{"words":1024}},"shallower":1,"budget":{"as_allowed":{"cap":1000}},"deadline":{"span":10000000000},"tracked":5,"flags":{"conversation":false,"listed":true,"retention":"kept","ended_by":"result"},"label":1,"grace":1000000000,"llm":{"account":9,"main":{"model":"model","effort":"high"},"subagents":[{"model":"model","effort":null}]}} (revision 4) · would be {"resources":[],"number":4,"name":{"bytes":"work","cut":false},"executor":{"charter":3},"contract":{"report":{"words":1024}},"shallower":1,"budget":{"as_allowed":{"cap":1000}},"deadline":{"span":10000000000},"tracked":5,"flags":{"conversation":false,"listed":true,"retention":"kept","ended_by":"result"},"label":1,"grace":1000000000,"llm":{"account":9,"main":{"model":"model","effort":"high"},"subagents":[{"model":"model","effort":null}]}}
 template 4 · removed · now {"resources":[],"number":4,"name":{"bytes":"work","cut":false},"executor":{"charter":3},"contract":{"report":{"words":1024}},"shallower":1,"budget":{"as_allowed":{"cap":1000}},"deadline":{"span":10000000000},"tracked":5,"flags":{"conversation":false,"listed":true,"retention":"kept","ended_by":"result"},"label":1,"grace":1000000000,"llm":{"account":9,"main":{"model":"model","effort":"high"},"subagents":[{"model":"model","effort":null}]}} (default) · would be none
 template 4 · changed · now none (not offered) · would be {"resources":[],"number":4,"name":{"bytes":"work","cut":false},"executor":{"charter":3},"contract":{"report":{"words":1024}},"shallower":1,"budget":{"as_allowed":{"cap":1000}},"deadline":{"span":10000000000},"tracked":5,"flags":{"conversation":false,"listed":true,"retention":"kept","ended_by":"result"},"label":1,"grace":1000000000,"llm":{"account":9,"main":{"model":"model","effort":"high"},"subagents":[{"model":"model","effort":null}]}}

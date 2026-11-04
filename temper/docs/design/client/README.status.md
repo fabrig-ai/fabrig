@@ -7,15 +7,12 @@
   `Board { project }` with its reordering, and `Changes { project }`: no
   address in `temper-client-domain`'s `address.rs`. 3.5, 5.13, 10:
   `HowWorkRuns`, `Proposal { proposal }` and a proposal's card in a chat,
-  with their tests. 3.5, 4.6, 8: Forget, on the Forges page and as the FORGE
+  with their tests; ctl supplies the review groups and running-work effect
+  (`tools.md`, 5.2). 3.5, 4.6, 8: Forget, on the Forges page and as the FORGE
   request `Forget`: no `forget` in `temper-client-protocol-wire`'s schema
   or in `temper-service`'s routing.
   4.4: the picker, which the adoption page does not draw
   (`temper-client-view`'s `forge/page.rs`).
-  3.5, The welcome: the Forgejo card's refusal and its disabled
-  button while a set up is pending; `forge/connect.rs`
-  `welcome_choices` draws neither, the domain sending no second
-  `SetUp` while one is pending.
   5.5: a plan's first use, its card in the conversation. 3.5, 3.6, 10:
   Delete on a project's settings, confirmed by its name, and jig's
   `RemoveProject` by `shapes::remove_project`, with the chat

@@ -140,11 +140,23 @@ fn assert_held_record_export() {
     let root = scratch.path();
     let account = root.join("synthetic-record");
     let run = || std::process::Command::new(root.join("give-back")).output().expect("return hook");
+    let stub = held_record_exporter(root);
+    support::held_login::return_hook(&stub, root, &root.join("return-client"), &account);
+    assert!(run().status.success(), "export selects the actual account number from public ctl metadata");
+    let returned = fs::symlink_metadata(&account).expect("returned synthetic record");
+    assert!(returned.is_file() && returned.len() > 0);
+    assert_eq!(returned.permissions().mode() & 0o777, 0o600);
+    scratch.remove();
+}
+
+fn held_record_exporter(root: &Path) -> std::path::PathBuf {
     let stub = root.join("ctl-stub's path");
     support::write_private(
         &stub,
         br#"#!/bin/sh
 set -eu
+root=$(dirname "$0")
+test "$2" = "$root/return-client"
 case "$4" in
 list) printf '%s\n' '{"accounts":{"party":[{"provider":1,"plan":true,"number":7}]}}' ;;
 export) test "$5" = 7; umask 077; printf '%s' synthetic > "$6" ;;
@@ -153,12 +165,7 @@ esac
 "#,
     );
     fs::set_permissions(&stub, fs::Permissions::from_mode(0o700)).expect("executable synthetic ctl");
-    support::held_login::return_hook(&stub, root, root, &account);
-    assert!(run().status.success(), "export selects the actual account number from public ctl metadata");
-    let returned = fs::symlink_metadata(&account).expect("returned synthetic record");
-    assert!(returned.is_file() && returned.len() > 0);
-    assert_eq!(returned.permissions().mode() & 0o777, 0o600);
-    scratch.remove();
+    stub
 }
 
 #[test]
@@ -185,6 +192,129 @@ printf '%s\n' "$@"
     let ended = support::ctl::alone(root, call);
     assert_eq!(ended.exit, Some(skein_io::kernel::Exit::Code(1)));
     assert!(ended.stdout.is_empty(), "refusal never starts ctl");
+    scratch.remove();
+}
+
+/// temper/docs/design/domain/testing.md, 2.7: terminal cleanup permits recovery, keeping imports closed.
+#[test]
+fn a_failed_terminal_return_allows_recovery_without_reopening_import() {
+    let scratch = support::Scratch::startup("held-terminal-recovery");
+    let root = scratch.path();
+    let account = root.join("synthetic-record");
+    let client = root.join("return-client");
+    let stub = held_record_exporter(root);
+    support::held_login::return_hook(Path::new("/bin/false"), root, root, &account);
+    let run = || std::process::Command::new(root.join("give-back")).output().expect("return hook");
+    assert!(!run().status.success(), "terminal return fails with no box up");
+    assert!(!account.exists());
+    support::held_login::recovery_hook(&stub, root, &client, &account);
+    assert!(root.join("terminal-return").is_file(), "terminal state survives recovery setup");
+    assert!(root.join("returning").is_file(), "recovery never reopens import");
+    let arguments = ["account", "import", account.to_str().expect("record path"), "--key", "restart-plan"];
+    let imported = support::ctl::alone(root, support::held_login::import_guard(&stub, root, &client, &arguments));
+    assert_eq!(imported.exit, Some(skein_io::kernel::Exit::Code(1)));
+    assert!(imported.stdout.is_empty(), "excluded import never starts ctl");
+    assert!(run().status.success(), "recovery uses its fresh client to export");
+    let metadata = fs::symlink_metadata(&account).expect("returned synthetic record");
+    assert!(metadata.is_file() && metadata.len() > 0);
+    assert_eq!(metadata.permissions().mode() & 0o7777, 0o600);
+    let installed = std::panic::catch_unwind(|| support::held_login::return_hook(&stub, root, root, &account));
+    assert!(installed.is_err(), "recovery cannot admit a later sitting");
+    scratch.remove();
+}
+
+/// temper/docs/design/domain/testing.md, 2.7: stat disarms the held record's guard.
+#[test]
+fn a_held_record_at_its_path_owes_the_guard_nothing() {
+    let scratch = support::Scratch::startup("held-record-at-rest");
+    let root = scratch.path();
+    let paths = ["config", "data", "cache"].map(|name| root.join(name));
+    let account = root.join("synthetic-record");
+    let binary = Path::new("/must-not-export");
+    support::write_private(&account, b"synthetic fixture");
+    support::held_login::return_hook(binary, root, root, &account);
+    drop(support::held_login::Lent::new(binary, &paths, &account));
+    for name in ["returning", "return-client", "box.out", "call-0.out"] {
+        assert!(!root.join(name).exists(), "nothing owed: no {name}");
+    }
+    fs::set_permissions(&account, fs::Permissions::from_mode(0o644)).expect("unsafe mode");
+    let before = fs::symlink_metadata(&account).expect("fixture metadata");
+    let refused = std::panic::catch_unwind(|| drop(support::held_login::Lent::new(binary, &paths, &account)))
+        .expect_err("unsafe metadata fails the test");
+    let message = refused.downcast_ref::<String>().expect("guard's message");
+    assert!(message.starts_with("LOGIN NOT BACK: "), "{message}");
+    assert!(!message.contains(account.to_str().expect("fixture path")), "only the store is named");
+    let after = fs::symlink_metadata(&account).expect("fixture left alone");
+    assert_eq!(after.permissions().mode(), before.permissions().mode());
+    assert_eq!(after.len(), before.len());
+    for name in ["returning", "return-client", "box.out", "call-0.out"] {
+        assert!(!root.join(name).exists(), "unsafe metadata runs no {name}");
+    }
+    scratch.remove();
+}
+
+/// temper/docs/design/domain/testing.md, 2.7: the sitting's hook returns once.
+#[test]
+fn a_lent_record_returns_through_the_box_still_up_and_once() {
+    let scratch = support::Scratch::startup("lent-record-hook");
+    let root = scratch.path();
+    let paths = ["config", "data", "cache"].map(|name| root.join(name));
+    let account = root.join("synthetic-record");
+    let stub = root.join("ctl-stub's path");
+    support::write_private(
+        &stub,
+        br#"#!/bin/sh
+set -eu
+printf '%s\n' "$4" >> seen
+case "$4" in
+list) printf '%s\n' '{"accounts":{"party":[{"provider":1,"plan":true,"number":7}]}}' ;;
+export) test "$5" = 7; umask 077; printf '%s' synthetic > "$6" ;;
+*) exit 1 ;;
+esac
+"#,
+    );
+    fs::set_permissions(&stub, fs::Permissions::from_mode(0o700)).expect("executable synthetic ctl");
+    support::held_login::return_hook(&stub, root, root, &account);
+    support::write_private(&account, b"synthetic fixture");
+    fs::remove_file(&account).expect("record moved in");
+    let returned = std::panic::catch_unwind(|| drop(support::held_login::Lent::new(&stub, &paths, &account)));
+    assert!(!root.join("return-client").exists(), "a box still up needs no new client");
+    assert!(!root.join("box.out").exists(), "the installed hook runs before any new box");
+    returned.expect("the sitting's box returned the record");
+    let metadata = fs::symlink_metadata(&account).expect("returned synthetic record");
+    assert!(metadata.is_file() && metadata.len() > 0);
+    assert_eq!(metadata.permissions().mode() & 0o7777, 0o600);
+    drop(support::held_login::Lent::new(&stub, &paths, &account));
+    assert_eq!(fs::read_to_string(root.join("seen")).expect("ctl calls"), "list\nexport\n");
+    scratch.remove();
+}
+
+/// temper/docs/design/domain/testing.md, 2.7: a failed return preserves the story's panic.
+#[test]
+fn a_lent_record_not_back_keeps_its_store_and_the_storys_panic() {
+    let scratch = support::Scratch::startup("lent-record-not-back");
+    let root = scratch.path();
+    let paths = ["config", "data", "cache"].map(|name| root.join(name));
+    let account = root.join("synthetic-record");
+    let stub = root.join("temper-stub");
+    support::write_private(&stub, b"#!/bin/sh\nexit 1\n");
+    fs::set_permissions(&stub, fs::Permissions::from_mode(0o700)).expect("executable failing ctl");
+    support::held_login::return_hook(&stub, root, root, &account);
+    let failed = std::panic::catch_unwind(|| {
+        let _lent = support::held_login::Lent::new(&stub, &paths, &account);
+        panic!("the story's own failure");
+    })
+    .expect_err("story failed");
+    assert_eq!(failed.downcast_ref::<&str>(), Some(&"the story's own failure"));
+    assert!(root.is_dir() && stub.is_file() && root.join("give-back").is_file(), "store retained");
+    let failed = std::panic::catch_unwind(|| drop(support::held_login::Lent::new(&stub, &paths, &account)))
+        .expect_err("an otherwise passing test fails when the record is not back");
+    let message = failed.downcast_ref::<String>().expect("guard's message");
+    assert!(message.starts_with("LOGIN NOT BACK: "), "{message}");
+    assert!(message.ends_with(&format!("; store {} retained for recovery", root.display())), "{message}");
+    assert!(!message.contains(account.to_str().expect("fixture path")), "only the store is named");
+    assert!(root.is_dir() && stub.is_file() && root.join("give-back").is_file(), "store retained again");
+    assert!(!account.exists(), "failed return creates no record");
     scratch.remove();
 }
 

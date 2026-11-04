@@ -278,6 +278,11 @@ fn llm_events_up(service: &mut Stages, mut frame: Option<&mut Frame>) {
         if !super::llm_events_ready(service, frame.as_deref()) {
             break;
         }
+        if let Some(frame) = frame.as_deref()
+            && frame.program_diagnostics.room() == 0
+        {
+            break;
+        }
         let Some(event) = service.llm_events.pop() else { break };
         match event {
             llm::ToDomain::ReadVersion { owner, place, version } => {
@@ -295,6 +300,7 @@ fn llm_events_up(service: &mut Stages, mut frame: Option<&mut Frame>) {
                 lower_event(service, frame.is_some(), domain::Below::Completed { owner, completion });
             }
             llm::ToDomain::Failed { owner, failure, evidence, detail, report } => {
+                program_failure(frame.as_deref_mut(), owner, failure, &detail);
                 if let Some(events) = &mut service.events {
                     events.sinks().attempt_ready(owner);
                     events.sinks().failed(owner, failure, evidence, &detail, &report);
@@ -311,20 +317,49 @@ fn llm_events_up(service: &mut Stages, mut frame: Option<&mut Frame>) {
                 }
                 lower_event(service, frame.is_some(), domain::Below::Cancelled { owner });
             }
-            llm::ToDomain::Text { owner: _, bytes } => {
-                let Some(frame) = frame.as_deref_mut() else { continue };
-                let token = service.next_send();
-                let result = frame.channel.send_text_arrived(
-                    service.domain_env.now.saturating_since(Time::ZERO),
-                    u64::from(bytes),
-                    token,
-                    &mut service.channel_events,
-                    &mut service.channel_below,
-                );
-                super::link::sent(service, result.is_ok());
-            }
+            llm::ToDomain::Text { owner: _, bytes } => text_arrived(service, frame.as_deref_mut(), bytes),
         }
     }
+}
+
+fn text_arrived(service: &mut Stages, frame: Option<&mut Frame>, bytes: u32) {
+    let Some(frame) = frame else { return };
+    let token = service.next_send();
+    let result = frame.channel.send_text_arrived(
+        service.domain_env.now.saturating_since(Time::ZERO),
+        u64::from(bytes),
+        token,
+        &mut service.channel_events,
+        &mut service.channel_below,
+    );
+    super::link::sent(service, result.is_ok());
+}
+
+fn program_failure(frame: Option<&mut Frame>, owner: Token, failure: domain::llm::Failure, detail: &[u8]) {
+    let exit = match failure {
+        domain::llm::Failure::Program { exit } => exit,
+        domain::llm::Failure::Limit { .. }
+        | domain::llm::Failure::ApplicationLimit
+        | domain::llm::Failure::Protocol
+        | domain::llm::Failure::Cancelled
+        | domain::llm::Failure::Overloaded
+        | domain::llm::Failure::RateLimited { .. }
+        | domain::llm::Failure::Unavailable
+        | domain::llm::Failure::TimedOut { .. }
+        | domain::llm::Failure::ContextTooLong
+        | domain::llm::Failure::Invalid
+        | domain::llm::Failure::Unauthorized
+        | domain::llm::Failure::SignedOut
+        | domain::llm::Failure::SessionGone
+        | domain::llm::Failure::Refused
+        | domain::llm::Failure::Unsupported
+        | domain::llm::Failure::Exhausted { .. } => return,
+    };
+    let Some(frame) = frame else { return };
+    let from = detail.len().saturating_sub(smith_events::DETAIL_BYTES);
+    let detail = detail.get(from..).expect("bounded diagnostic suffix").into();
+    let fault = run::Fault::Program { name: b"claude_code".as_slice().into(), exit, detail };
+    frame.program_diagnostics.push((owner, fault));
 }
 
 pub(super) fn channel_event(service: &mut Stages, frame: &mut Frame, event: channel::Heard) {

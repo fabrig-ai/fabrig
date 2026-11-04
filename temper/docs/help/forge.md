@@ -98,6 +98,12 @@ A forge is where repositories live, GitHub or Forgejo, numbered when it is set u
 - **Yourself:** read diffs, reviews, CI runs and logs on the forge,
   at the numbers and links ctl prints (temper help ctl).
 
+A resolver's pull request section keeps its pinned pull request and gathered
+content when the base comparison exceeds the forge client's answer limit.
+It marks the comparison omitted within the section's byte budget and lets the
+resolver run. This also applies to review and repair pull request sections;
+other comparison read failures still fail preparation.
+
 A CI repair's brief carries the failed check and the end of its failed
 step's log, with a marker when bytes were cut. On GitHub the end is the
 runner's failed-process line, before post-job cleanup; logs without that

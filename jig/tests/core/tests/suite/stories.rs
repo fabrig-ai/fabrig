@@ -72,13 +72,10 @@ fn a_plan_of_reports_and_a_procedure_is_revised_midway_and_done() {
         to: ReplyTo::new(Token::new(9101)),
         key: core::CallKey { task: parent.0, attempt: parent.1, completion: 2, position: 0 },
         action: core::NamedAction::Amend {
+            keep_parameters: false,
             target: report,
             revision: 0,
             amendment: tasks::Amendment {
-                tracked: None,
-                addressed: None,
-                release: None,
-                instructions: None,
                 spec: Some(tasks::Spec {
                     job: None,
                     asks: false,
@@ -86,11 +83,7 @@ fn a_plan_of_reports_and_a_procedure_is_revised_midway_and_done() {
                     parameters: Box::new([]),
                     inputs: Box::new([]),
                 }),
-                wake: None,
-                dependencies: None,
-                authority: None,
-                llm: None,
-                reason: b"new evidence".as_slice().into(),
+                ..jig_test_profile::fixtures::unchanged(b"new evidence")
             },
         },
     }));

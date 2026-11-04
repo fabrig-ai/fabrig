@@ -271,7 +271,12 @@ fn a_refused_foreman_goes_up_without_holding_the_change() {
         b"Keep the existing coding and review delegation",
     );
     let revision = live_task(&world, change).revisions.spec;
-    call(&mut world, &requester, 94, engine::Tool::Amend { target: change, revision, amendment });
+    call(
+        &mut world,
+        &requester,
+        94,
+        engine::Tool::Amend { keep_parameters: false, target: change, revision, amendment },
+    );
     world.restore_delegate_question(producer.task, b"Which behavior?");
     wait_up(&mut world, change);
     let words = replies(&world, requester.task, change);
@@ -292,7 +297,12 @@ fn a_foreman_beyond_task_authority_goes_up_with_its_words() {
     let amendment =
         temper_engine_domain_world::fixtures::task_amendment(None, Some(authority), b"Keep only the producing task");
     let revision = live_task(&world, change).revisions.spec;
-    call(&mut world, &requester, 94, engine::Tool::Amend { target: change, revision, amendment });
+    call(
+        &mut world,
+        &requester,
+        94,
+        engine::Tool::Amend { keep_parameters: false, target: change, revision, amendment },
+    );
     world.restore_delegate_question(producer.task, b"Which behavior?");
     wait_up(&mut world, change);
     let text =

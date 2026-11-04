@@ -284,11 +284,11 @@ pub(crate) fn relay_payload(
                         },
                     }));
                 }
-                Tool::Amend { target, revision, amendment } => {
+                Tool::Amend { keep_parameters, target, revision, amendment } => {
                     domain.work.push(Work::Core(core::Event::NamedAction {
                         to: reply_to,
                         key,
-                        action: core::NamedAction::Amend { target, revision, amendment },
+                        action: core::NamedAction::Amend { keep_parameters, target, revision, amendment },
                     }));
                 }
                 Tool::Cancel { target, reason } => {

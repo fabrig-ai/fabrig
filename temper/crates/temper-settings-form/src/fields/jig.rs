@@ -111,7 +111,7 @@ pub static FIELDS: [Field; 191] = [
             Word { word: b"charter", line: b"" },
             Word { word: b"template", line: b"" },
             Word { word: b"policy", line: b"" },
-            Word { word: b"project-policy", line: b"A project's own policy, set alone and at most once; its value is a policy." },
+            Word { word: b"project-policy", line: b"A project's own policy: only `set`, at most once per file; may share a file with other settings. Its value is a policy." },
             Word { word: b"rules", line: b"" },
             Word { word: b"landing-rule", line: b"" },
             Word { word: b"forge-charter", line: b"" },

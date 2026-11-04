@@ -176,7 +176,13 @@ pub enum Tool {
     /// Create one authorized batch of direct task delegates.
     Delegate { batch: Box<[Delegate]> },
     /// Amend one live delegate after authority fitting and finite source checks.
-    Amend { target: u64, revision: u64, amendment: tasks::Amendment },
+    Amend {
+        target: u64,
+        revision: u64,
+        amendment: tasks::Amendment,
+        /// The host omitted parameters; jig keeps the current task's before admission.
+        keep_parameters: bool,
+    },
     /// Cancel one live delegate's whole subtree with a bounded reason.
     Cancel { target: u64, reason: Box<[u8]> },
     /// Release one held delegate.
@@ -1002,4 +1008,20 @@ pub(crate) fn delivery_output(delivery: Delivery) -> Request {
 pub struct Unsettled {
     pub entry: u64,
     pub task: u64,
+}
+
+/// A failed run's volatile operator evidence (temper/docs/design/domain/worker.md, 4.3).
+/// It is neither a task result nor a fact, and is never journaled or shown to an LLM.
+#[derive(PartialEq, Eq, Debug)]
+pub struct RunDiagnostic {
+    /// The task whose accepted answer failed.
+    pub task: u64,
+    /// The worker run token.
+    pub run: u64,
+    /// The fenced activation attempt.
+    pub attempt: u64,
+    /// The failure classification reported by the worker.
+    pub failure: jig_domain_host::Failure,
+    /// Worker-bounded evidence for the operator sink alone.
+    pub detail: Box<[u8]>,
 }

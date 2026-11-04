@@ -393,48 +393,6 @@ fn using(b: &mut Builder, root: &Domain, task: Option<&c::Task>, w: &Words) {
     }
 }
 
-/// Ready pairs a supplied model only with an account selected for that model's provider.
-pub(crate) fn ready_model(root: &Domain, w: &Words) -> Box<[u8]> {
-    use crate::accounts::words::{self as aw, Word as A};
-    let project = root.pages().project();
-    let choice = match (temper_client_domain::pages::accounts::current_me(root.client()), project) {
-        (Some(me), Some(project)) => match jig_client::shapes::template(me, project, jig_client::shapes::CHAT) {
-            Some(template) => template.llm.as_ref(),
-            None => None,
-        },
-        _ => None,
-    };
-    let Some((model, provider)) = model_words(root, None, choice, project, w) else {
-        return match crate::pages::accounts::first_usable_heading(root, w) {
-            Some(account) => account,
-            None => new_chat_model(root, w),
-        };
-    };
-    let Some(me) = temper_client_domain::pages::accounts::current_me(root.client()) else { return model };
-    let Some(doc) = temper_client_domain::pages::accounts::document(root.client()) else { return model };
-    if doc.cut {
-        return model;
-    }
-    let Some(program) = program_endpoint(me, provider) else { return model };
-    let preferred = match choice {
-        Some(choice) => choice.account,
-        None => None,
-    };
-    let account = match pinned(doc, me.party.number, provider, [preferred, None]) {
-        Some(row) => Some(row),
-        None => selected_account(doc, me.party.number, provider, program),
-    };
-    let Some(account) = account else { return model };
-    if account.cut {
-        return model;
-    }
-    let SourceChoice::Chosen(_) = chosen_source(account, program) else { return model };
-    // The account the model runs on, by its whole heading, then the model.
-    let separator = aw::say(w, A::Separator, &[]);
-    let heading = crate::pages::accounts::account_heading(root, w, account);
-    aw::join(&[&heading, &separator, &model])
-}
-
 /// Ready uses the same model and effort words as a new chat's composer.
 pub(crate) fn new_chat_model(root: &Domain, w: &Words) -> Box<[u8]> {
     let project = root.pages().project();
