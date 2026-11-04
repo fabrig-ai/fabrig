@@ -949,6 +949,10 @@ losslessly by count.
   the history probe measures whether a host's text or a person's
   messages want more of it; what it gives the presets is
   `docs/design/shell.md`'s, 6.1.
+- **The translation limits' names:** whether `tool_bytes` and
+  `history_bytes` are named under `translation`, their layer's field:
+  a change to the event vocabulary (events.md, section 6), which recorded
+  runs hold.
 - **The rest of the codecs' ceilings:** whether the channel's and the
   transcript's decoding also draws on a shared pool, as LLM calls do, or
   its decoded bound at its derived limits stays small enough.
