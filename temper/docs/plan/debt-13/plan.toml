@@ -1,0 +1,3 @@
+draft = "debt-13"
+repo = "fabrig"
+sources = ["temper/docs/plan/debt-13/inputs/request.md", "skein/docs/development/debt/D013-forge-connection-parallel-lists.md", "jig/docs/development/debt/D004-ops-root-jig-wiring.md"]
