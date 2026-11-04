@@ -156,6 +156,7 @@ struct Frame {
     domain: domain::Domain,
     channel: channel::Component,
     io: io::Io,
+    program_diagnostics: Queue<(Token, run::Fault)>,
 }
 
 /// Lower construction and the inputs retained for framed composition.
@@ -293,8 +294,12 @@ impl Service {
             Ok(channel) => channel,
             Err(error) => return Err(ConfigError::Channel(error)),
         };
-        let frame =
-            Frame { domain: domain::Domain::new(&limits.domain, domain, seed), channel, io: io::Io::new(&limits.io) };
+        let frame = Frame {
+            domain: domain::Domain::new(&limits.domain, domain, seed),
+            channel,
+            io: io::Io::new(&limits.io),
+            program_diagnostics: Queue::with_capacity(limits.queue),
+        };
         Ok(Service { stages, frame })
     }
 
@@ -344,6 +349,13 @@ impl Service {
     /// An unread process usage terminal, reported once without changing the answer.
     pub fn pop_usage_unread(&mut self) -> bool {
         core::mem::replace(&mut self.stages.usage_unread, false)
+    }
+
+    /// Drain one owner and bounded `Fault::Program` for the operator's stderr log,
+    /// independently of capture and the main answer (smith/docs/design/protocol/agent.md, section 6).
+    /// The owner token correlates it with this process's conversation events.
+    pub fn pop_program_diagnostic(&mut self) -> Option<(Token, run::Fault)> {
+        self.frame.program_diagnostics.pop()
     }
 
     /// Kernel completions arriving since the last iteration.
