@@ -1,5 +1,6 @@
 use super::*;
 use crate::backend::Pipes;
+use crate::backend::fixtures::pop_io;
 
 const CHILD: skein_lib::Token = skein_lib::Token::new(30);
 const INPUT: skein_lib::Token = skein_lib::Token::new(31);
@@ -20,7 +21,7 @@ fn a_result_releases_its_action_without_forgetting_escalation() {
     stopping.begin(Action::Close, Some(Time::from_nanos(10)));
     stopping.terminate(Time::from_nanos(10), GRACE, &mut process, &mut below);
     assert_eq!(
-        below.pop(),
+        pop_io(&mut below),
         Some(io::Request::Signal { child: CHILD, to: kernel::Target::Group, signal: kernel::Signal::Terminate })
     );
     stopping.result();
@@ -30,11 +31,11 @@ fn a_result_releases_its_action_without_forgetting_escalation() {
     stopping.begin(Action::Close, Some(Time::from_nanos(30)));
     stopping.terminate(Time::from_nanos(30), GRACE, &mut process, &mut below);
     assert_eq!(
-        below.pop(),
+        pop_io(&mut below),
         Some(io::Request::Signal { child: CHILD, to: kernel::Target::Group, signal: kernel::Signal::Kill })
     );
-    assert_eq!(below.pop(), Some(io::Request::Abort { entity: INPUT }));
-    assert_eq!(below.pop(), Some(io::Request::Close { entity: CHILD }));
+    assert_eq!(pop_io(&mut below), Some(io::Request::Abort { entity: INPUT }));
+    assert_eq!(pop_io(&mut below), Some(io::Request::Close { entity: CHILD }));
     assert!(below.is_empty());
 }
 
@@ -51,7 +52,7 @@ fn repeated_pre_spawn_expiry_still_gives_the_late_child_one_terminate_grace() {
     process.spawned(CHILD, Pipes::CLOSED);
     stopping.spawned(Time::from_nanos(30), GRACE, &mut process, &mut below);
     assert_eq!(
-        below.pop(),
+        pop_io(&mut below),
         Some(io::Request::Signal { child: CHILD, to: kernel::Target::Group, signal: kernel::Signal::Terminate })
     );
     assert!(below.is_empty());

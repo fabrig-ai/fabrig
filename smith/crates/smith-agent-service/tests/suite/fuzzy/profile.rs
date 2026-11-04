@@ -36,9 +36,9 @@ fn random_tool_render_caps_derive_a_machine_that_holds_them() {
         assert!(machine.search_bytes >= tools.search_bytes);
         assert!(machine.path_bytes >= tools.path_bytes);
         assert_eq!(machine.env_bytes, configuration.environment_bytes);
-        let mut stated = smith_protocol_llm::Stated::from_tools(&tools, limits.llm.adapter.client.input)
+        let mut stated = smith_protocol_llm::Stated::from_tools(&tools, limits.llm.translation.client.input)
             .expect("derived quantities fit");
         stated.host_part = limits.domain.run.host_part;
-        assert_eq!(limits.llm.adapter.stated, stated);
+        assert_eq!(limits.llm.translation.stated, stated);
     }
 }

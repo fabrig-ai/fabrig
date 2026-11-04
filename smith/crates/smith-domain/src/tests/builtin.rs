@@ -43,7 +43,7 @@ fn a_builtin_result_reaches_the_session() {
         .flat_map(|message| &message.content)
         .filter_map(|block| match block {
             session::llm::Block::ToolResult { id, result } => Some((id.as_ref(), result)),
-            session::llm::Block::ToolCall { .. }
+            session::llm::Block::ToolCall(_)
             | session::llm::Block::Text { .. }
             | session::llm::Block::Refusal { .. }
             | session::llm::Block::Opaque { .. } => None,

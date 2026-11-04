@@ -303,7 +303,7 @@ pub const WELCOME_CHECKLIST: Style = Style { owner: owner(), token: 148 };
 pub const WELCOME_END: Style = Style { owner: owner(), token: 149 };
 /// The small note below Ready’s disabled action.
 pub const WELCOME_TINY: Style = Style { owner: owner(), token: 150 };
-/// Model’s muted forge status above its heading.
+/// Model’s forge status beside its choices.
 pub const WELCOME_STATUS: Style = Style { owner: owner(), token: 151 };
 /// A private repository's tag in the first-run picker.
 pub const REPOSITORY_PRIVATE: Style = Style { owner: owner(), token: 152 };
@@ -349,6 +349,11 @@ pub const WELCOME_SHEET_FOOT: Style = Style { owner: owner(), token: 171 };
 /// Ready's first project: its name's field, Create, and "Rename it
 /// whenever you like.".
 pub const WELCOME_PROJECT: Style = Style { owner: owner(), token: 172 };
+/// The welcome forge's indeterminate setup bar (temper/docs/design/client/README.md, 3.5).
+pub const FLOW_BUSY: Style = Style { owner: owner(), token: 173 };
+/// The welcome forge's fetch meter (temper/docs/design/draft/fetch-progress.md, 5 and 6).
+/// No node carries it yet.
+pub const FLOW_METER: Style = Style { owner: owner(), token: 174 };
 /// Native browser elements for the admin group, Model’s definition list and
 /// the welcome sheet's choices.
 pub const ELEMENTS: &[(skein_ui::Owner, skein_ui::Role, Style, &str)] = &[
@@ -538,6 +543,8 @@ pub const NAMES: Names<'static> = Names {
         b"temper-welcome-option-more",
         b"temper-welcome-sheet-foot",
         b"temper-welcome-project",
+        b"temper-flow-busy",
+        b"temper-flow-meter",
     ],
     regions: &[b"temper-link"],
 };

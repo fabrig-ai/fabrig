@@ -101,7 +101,8 @@ use skein_lib::{Deadlines, Duration, Env, Id, Queue, ReplyTo, Slab, Time, Token}
 use crate::Workspace;
 use crate::agent;
 use crate::boundary::{
-    Answer, Ask, AskRefusal, End, Failure, Fault, Invalid, Policy, Ran, Read, Refusal, Request, Returned, Stop, Window,
+    Answer, Ask, AskRefusal, End, Fault, Invalid, Policy, Ran, Read, Refusal, Request, Returned, RunFailure, Stop,
+    Window,
 };
 use crate::budget::{Exhausted, Spend};
 use crate::call::{Call, Calls, Withdrawal, Work};
@@ -132,7 +133,7 @@ pub(crate) struct Run {
     pub(crate) lease: crate::lease::Lease,
     pub(crate) charter: Charter,
     pub(crate) workspace: Option<Workspace>,
-    /// What it found in its checkout as it prepared.
+    /// What it found in its workspace as it prepared.
     pub(crate) found: Found,
     /// Each directory's guide bound after the charter's host bytes are measured.
     guide_bytes: u32,
@@ -172,13 +173,13 @@ pub(crate) struct Run {
 
 #[derive(Debug)]
 enum State {
-    /// Looking in its checkout: the look `step` is in flight. Its main
+    /// Looking in its workspace: the look `step` is in flight. Its main
     /// conversation has its slot, and is not opened yet.
     Preparing { reply_to: ReplyTo, main: Id<Conversation>, step: Step },
     /// Prepared without work; main remains unopened while wall and idle time run.
     Awaiting { reply_to: ReplyTo, main: Id<Conversation>, until: Time },
     /// It fails with `failure` once the look in flight has ended.
-    Stopping { reply_to: ReplyTo, main: Id<Conversation>, failure: Failure },
+    Stopping { reply_to: ReplyTo, main: Id<Conversation>, failure: RunFailure },
     /// Its main conversation is at work.
     Working { reply_to: ReplyTo, main: Id<Conversation> },
     /// Main wait remains unanswered; wall and idle timers remain distinct.
@@ -197,7 +198,7 @@ enum Ending {
     Parked,
     Accepted(Declared),
     Over(Exhausted),
-    Failed(Failure),
+    Failed(RunFailure),
 }
 
 /// A conversation a run opened: main, or a sub-agent.
@@ -604,13 +605,15 @@ pub(crate) fn cancel(domain: &mut Domain, run: Token, out: &mut Queue<Request>) 
         return;
     };
     facts.about(id.token());
-    let cancelled = Ending::Failed(Failure::Cancelled);
+    let cancelled = Ending::Failed(RunFailure::Cancelled);
     let state = mem::replace(&mut run.state, State::Closed);
     run.state = match state {
         State::Awaiting { reply_to, main, until: _ } => {
-            stop(run, conversations, reply_to, main, Failure::Cancelled, out)
+            stop(run, conversations, reply_to, main, RunFailure::Cancelled, out)
         }
-        State::Preparing { reply_to, main, step: _ } => State::Stopping { reply_to, main, failure: Failure::Cancelled },
+        State::Preparing { reply_to, main, step: _ } => {
+            State::Stopping { reply_to, main, failure: RunFailure::Cancelled }
+        }
         State::Waiting { reply_to, main, call, until: _ } => {
             out.push(Request::Return { spent: 0, call, result: Returned::Cancelled });
             wind_down(conversations, reply_to, main, cancelled, out)
@@ -644,7 +647,7 @@ pub(crate) fn started(domain: &mut Domain, conversation: Token, peer: Token, out
 fn hard_stop(
     state: State,
     conversations: &mut Slab<Conversation>,
-    failure: Failure,
+    failure: RunFailure,
     out: &mut Queue<Request>,
 ) -> State {
     match state {
@@ -665,15 +668,15 @@ fn hard_stop(
     }
 }
 
-fn hard_ending(ending: Ending, failure: Failure) -> Ending {
+fn hard_ending(ending: Ending, failure: RunFailure) -> Ending {
     match failure {
-        Failure::Budget { exhausted: Exhausted::Overflow(_), .. } => failed_ending(failure),
-        Failure::Transcript(_)
-        | Failure::Model(_)
-        | Failure::Budget { exhausted: _, .. }
-        | Failure::Policy(_)
-        | Failure::Cancelled
-        | Failure::Stale => match ending {
+        RunFailure::Budget { exhausted: Exhausted::Overflow(_), .. } => failed_ending(failure),
+        RunFailure::Transcript(_)
+        | RunFailure::Model(_)
+        | RunFailure::Budget { exhausted: _, .. }
+        | RunFailure::Policy(_)
+        | RunFailure::Cancelled
+        | RunFailure::Stale => match ending {
             ending @ Ending::Accepted(Declared::Change(_)) => ending,
             Ending::Accepted(_) | Ending::Parked | Ending::Over(_) | Ending::Failed(_) => failed_ending(failure),
         },
@@ -923,13 +926,13 @@ fn child_ready(run: &Run, out: &mut Queue<Request>) {
     }
 }
 
-fn terminal_failure(end: &End) -> Option<Failure> {
+fn terminal_failure(end: &End) -> Option<RunFailure> {
     match end {
         End::PriceOverflow => {
-            Some(Failure::Budget { exhausted: Exhausted::Overflow(crate::Overflow::Spend), used: None, bound: None })
+            Some(RunFailure::Budget { exhausted: Exhausted::Overflow(crate::Overflow::Spend), used: None, bound: None })
         }
         End::UsageOverflow => {
-            Some(Failure::Budget { exhausted: Exhausted::Overflow(crate::Overflow::Usage), used: None, bound: None })
+            Some(RunFailure::Budget { exhausted: Exhausted::Overflow(crate::Overflow::Usage), used: None, bound: None })
         }
         End::Receiving(_)
         | End::TranscriptRefused { .. }
@@ -1068,7 +1071,7 @@ fn main_ended(
     run_id: Id<Run>,
     id: Id<Conversation>,
     end: End,
-    failure: Option<Failure>,
+    failure: Option<RunFailure>,
     detail: Box<[u8]>,
     snapshot: crate::facts::Standing,
     budget_changed: bool,
@@ -1107,7 +1110,7 @@ pub(crate) fn deadline(domain: &mut Domain, id: Id<Run>, out: &mut Queue<Request
     let Domain { rng: _, runs, conversations, calls: _, alarms, facts, ready } = domain;
     let run = runs.get_mut(id).expect("an alarm is cancelled before its run closes");
     facts.about(id.token());
-    let failure = Failure::Budget {
+    let failure = RunFailure::Budget {
         exhausted: run.charter.budget.exhausted(run.spent).unwrap_or(Exhausted::Time),
         used: None,
         bound: None,
@@ -1327,7 +1330,7 @@ fn settle(domain: &mut Domain, id: Id<Call>, settled: Settled, out: &mut Queue<R
         }
         Settled::Stale => match state {
             State::Working { reply_to, main } => {
-                wind_down(conversations, reply_to, main, Ending::Failed(Failure::Stale), out)
+                wind_down(conversations, reply_to, main, Ending::Failed(RunFailure::Stale), out)
             }
             state @ State::Winding { .. } => state,
             State::Awaiting { .. }
@@ -1459,7 +1462,7 @@ fn stop(
     conversations: &mut Slab<Conversation>,
     reply_to: ReplyTo,
     main: Id<Conversation>,
-    failure: Failure,
+    failure: RunFailure,
     out: &mut Queue<Request>,
 ) -> State {
     unopened(run, conversations, reply_to, main, Answer::Failed { failure, spent: run.spent, turns: run.turns }, out)
@@ -1726,14 +1729,14 @@ fn answer(
 
 fn budget_answer(answer: Answer, run: &Run, now: Time) -> Answer {
     match answer {
-        Answer::Failed { failure: Failure::Budget { exhausted, .. }, spent, turns } => {
+        Answer::Failed { failure: RunFailure::Budget { exhausted, .. }, spent, turns } => {
             Answer::Failed { failure: budget_failure(exhausted, run, now), spent, turns }
         }
         other @ (Answer::Failed { .. } | Answer::Accepted { .. } | Answer::Parked { .. } | Answer::Refused(_)) => other,
     }
 }
 
-fn budget_failure(exhausted: Exhausted, run: &Run, now: Time) -> Failure {
+fn budget_failure(exhausted: Exhausted, run: &Run, now: Time) -> RunFailure {
     let fields = match exhausted {
         Exhausted::Turns => Some((u64::from(run.spent.turns), u64::from(run.charter.budget.turns))),
         Exhausted::Spend => Some((run.spent.units, run.charter.budget.spend)),
@@ -1746,17 +1749,17 @@ fn budget_failure(exhausted: Exhausted, run: &Run, now: Time) -> Failure {
         Some((used, bound)) => (Some(used), Some(bound)),
         None => (None, None),
     };
-    Failure::Budget { exhausted, used, bound }
+    RunFailure::Budget { exhausted, used, bound }
 }
 
-fn failed_ending(failure: Failure) -> Ending {
+fn failed_ending(failure: RunFailure) -> Ending {
     match failure {
-        Failure::Budget { exhausted, .. } => Ending::Over(exhausted),
-        failure @ (Failure::Transcript(_)
-        | Failure::Model(_)
-        | Failure::Policy(_)
-        | Failure::Cancelled
-        | Failure::Stale) => Ending::Failed(failure),
+        RunFailure::Budget { exhausted, .. } => Ending::Over(exhausted),
+        failure @ (RunFailure::Transcript(_)
+        | RunFailure::Model(_)
+        | RunFailure::Policy(_)
+        | RunFailure::Cancelled
+        | RunFailure::Stale) => Ending::Failed(failure),
     }
 }
 
@@ -1765,7 +1768,7 @@ fn failed_ending(failure: Failure) -> Ending {
 fn ending(end: End, spent: Spend, turns: u32) -> Answer {
     match end {
         End::PriceOverflow => Answer::Failed {
-            failure: Failure::Budget {
+            failure: RunFailure::Budget {
                 exhausted: Exhausted::Overflow(crate::Overflow::Spend),
                 used: None,
                 bound: None,
@@ -1774,7 +1777,7 @@ fn ending(end: End, spent: Spend, turns: u32) -> Answer {
             turns,
         },
         End::UsageOverflow => Answer::Failed {
-            failure: Failure::Budget {
+            failure: RunFailure::Budget {
                 exhausted: Exhausted::Overflow(crate::Overflow::Usage),
                 used: None,
                 bound: None,
@@ -1783,16 +1786,16 @@ fn ending(end: End, spent: Spend, turns: u32) -> Answer {
             turns,
         },
         End::Receiving(limit) => Answer::Failed {
-            failure: Failure::Budget { exhausted: Exhausted::Tokens(limit), used: None, bound: None },
+            failure: RunFailure::Budget { exhausted: Exhausted::Tokens(limit), used: None, bound: None },
             spent,
             turns,
         },
-        End::TranscriptRefused { reason } => Answer::Failed { failure: Failure::Transcript(reason), spent, turns },
+        End::TranscriptRefused { reason } => Answer::Failed { failure: RunFailure::Transcript(reason), spent, turns },
         End::Busy => Answer::Refused(Refusal::Busy),
         End::Invalid => Answer::Refused(Refusal::Invalid(Invalid::Conversation)),
-        End::Fault(fault) => Answer::Failed { failure: Failure::Model(fault), spent, turns },
+        End::Fault(fault) => Answer::Failed { failure: RunFailure::Model(fault), spent, turns },
         End::Budget(exhausted) => {
-            Answer::Failed { failure: Failure::Budget { exhausted, used: None, bound: None }, spent, turns }
+            Answer::Failed { failure: RunFailure::Budget { exhausted, used: None, bound: None }, spent, turns }
         }
         End::Closed => unreachable!("a conversation ends closed only once its run has closed it, winding down"),
     }
@@ -1813,7 +1816,7 @@ fn finished(ending: Ending, run: &Run, now: Time) -> Answer {
 /// Counts a nudge for a run whose LLM stopped without finishing for `stop`,
 /// or says how the run fails instead: when its nudges are used up, or no turn
 /// is left in its budget for the LLM to carry on with.
-fn nudge(run: &mut Run, stop: Stop, limits: &Limits) -> Result<(), Failure> {
+fn nudge(run: &mut Run, stop: Stop, limits: &Limits) -> Result<(), RunFailure> {
     if run.nudges >= limits.nudges {
         return Err(unfinished(stop, run.nudges, run.rejected));
     }
@@ -1822,10 +1825,10 @@ fn nudge(run: &mut Run, stop: Stop, limits: &Limits) -> Result<(), Failure> {
     let spent = run.spent;
     let budget = &run.charter.budget;
     if spent.turns >= budget.turns {
-        return Err(Failure::Budget { exhausted: Exhausted::Turns, used: None, bound: None });
+        return Err(RunFailure::Budget { exhausted: Exhausted::Turns, used: None, bound: None });
     }
     if spent.units >= budget.spend {
-        return Err(Failure::Budget { exhausted: Exhausted::Spend, used: None, bound: None });
+        return Err(RunFailure::Budget { exhausted: Exhausted::Spend, used: None, bound: None });
     }
     run.nudges = run.nudges.saturating_add(1);
     Ok(())
@@ -1834,13 +1837,13 @@ fn nudge(run: &mut Run, stop: Stop, limits: &Limits) -> Result<(), Failure> {
 /// How a run fails when its LLM stops without finishing, through `nudges`
 /// nudges and `rejected` refused outcomes: as unfinished, or with the fault
 /// its last stop shows.
-fn unfinished(stop: Stop, nudges: u32, rejected: u32) -> Failure {
+fn unfinished(stop: Stop, nudges: u32, rejected: u32) -> RunFailure {
     match stop {
         Stop::Budget => unreachable!("main has no session-owned final turn"),
-        Stop::EndTurn => Failure::Policy(Policy::Unfinished { nudges, rejected }),
-        Stop::MaxTokens => Failure::Model(Fault::Truncated),
-        Stop::Refusal => Failure::Model(Fault::Declined),
-        Stop::NoCalls => Failure::Model(Fault::Malformed),
+        Stop::EndTurn => RunFailure::Policy(Policy::Unfinished { nudges, rejected }),
+        Stop::MaxTokens => RunFailure::Model(Fault::Truncated),
+        Stop::Refusal => RunFailure::Model(Fault::Declined),
+        Stop::NoCalls => RunFailure::Model(Fault::Malformed),
     }
 }
 

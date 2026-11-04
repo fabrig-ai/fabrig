@@ -437,18 +437,18 @@ impl Producer {
         self.sinks.answer_failure(&mut record);
         self.overflow_notice = match answer {
             run::Answer::Failed { failure, .. } => match failure {
-                run::Failure::Budget { exhausted, .. } => match exhausted {
+                run::RunFailure::Budget { exhausted, .. } => match exhausted {
                     run::Exhausted::Overflow(overflow) => Some(*overflow),
                     run::Exhausted::Turns
                     | run::Exhausted::Spend
                     | run::Exhausted::Time
                     | run::Exhausted::Tokens(_) => None,
                 },
-                run::Failure::Model(_)
-                | run::Failure::Policy(_)
-                | run::Failure::Cancelled
-                | run::Failure::Stale
-                | run::Failure::Transcript(_) => None,
+                run::RunFailure::Model(_)
+                | run::RunFailure::Policy(_)
+                | run::RunFailure::Cancelled
+                | run::RunFailure::Stale
+                | run::RunFailure::Transcript(_) => None,
             },
             run::Answer::Accepted { .. } | run::Answer::Parked { .. } | run::Answer::Refused(_) => None,
         };

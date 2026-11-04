@@ -204,7 +204,7 @@ impl Collector {
     /// Error records and their owned bytes, plus the excluded error's key.
     #[must_use]
     pub fn worst_case(limits: &crate::limits::Limits) -> Option<u64> {
-        skein_lib::List::<Error>::worst_case(limits.errors)?.checked_add(limits.error_bytes)?.checked_add(4_096 + 63)
+        skein_lib::List::<Error>::price(limits.errors)?.checked_add(limits.error_bytes)?.checked_add(4_096 + 63)
     }
     #[cfg(test)]
     pub(crate) fn errors(&self) -> Box<[Error]> {

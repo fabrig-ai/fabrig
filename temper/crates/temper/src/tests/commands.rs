@@ -81,6 +81,8 @@ fn every_row_parses_from_an_example() {
             row.words
         );
     }
+    assert!(matches!(configured(&["init"]).expect("bare init"), Command::Init { boxed: false, .. }));
+    assert!(matches!(configured(&["init", "--box"]).expect("boxed init"), Command::Init { boxed: true, .. }));
     assert!(matches!(configured(&["box", "--fake-backends"]).expect("fake box"), Command::BoxFakeBackends { .. }));
 }
 

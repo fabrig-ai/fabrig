@@ -1,5 +1,6 @@
 {
   "application": {
+    "welcome": true,
     "clients": {
       "bundle": null,
       "listener": {

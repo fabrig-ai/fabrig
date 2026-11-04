@@ -271,7 +271,7 @@ impl Component {
                 self.drive(env, up, io);
             }
             Request::Remove { forge } => {
-                self.remove(forge, up, io);
+                self.remove(env, forge, up, io);
                 self.drive(env, up, io);
             }
             Request::Connect { forge, access } => {
@@ -341,7 +341,7 @@ impl Component {
                         break;
                     };
                     let (call, id) = (*call, *id);
-                    self.expire(call, id, up, io);
+                    self.expire(call, id, env, up, io);
                 }
                 self.shed();
                 self.abort(env, up, io);
@@ -451,7 +451,7 @@ impl Component {
             && let Some(id) = self.connections.get(&token)
         {
             let c = self.connection_slab.get_mut(*id).expect("start connection");
-            c.close(c.in_flight(), io);
+            c.close(env, c.in_flight(), io);
         }
         *self.own_plans.get_mut(at).expect("configured plan") = None;
         if let Some(github) = self.github.get_mut(at).expect("forge slot") {
@@ -506,13 +506,12 @@ impl Component {
                 if let Some(id) = self.connections.get(&owner)
                     && let Some(c) = self.connection_slab.get_mut(*id)
                 {
-                    c.socket = Some(socket);
+                    c.link.connecting(socket, io);
                 }
             }
             skein_io::Event::Connected { owner } => {
                 if let Some(id) = self.connections.get(&owner)
                     && let Some(c) = self.connection_slab.get_mut(*id)
-                    && !c.closing
                 {
                     c.connect(env);
                 }
@@ -533,7 +532,9 @@ impl Component {
             }
             skein_io::Event::Closed { owner } => {
                 if let Some(id) = self.connections.remove(&owner) {
-                    let closing = self.connection_slab.get(id).expect("indexed connection").closing;
+                    let c = self.connection_slab.get_mut(id).expect("indexed connection");
+                    c.link.closed();
+                    let closing = c.closing;
                     if let Some(call) = self.holders.remove(&owner)
                         && self.lifecycle == Lifecycle::Live
                     {
@@ -577,6 +578,9 @@ impl Component {
         }
     }
     pub fn fire(&mut self, env: &Env<Limits>, up: &mut Queue<Event>, io: &mut Queue<skein_io::Request>) {
+        for (_, id) in &self.connections {
+            self.connection_slab.get_mut(*id).expect("indexed connection").link.fire(env.now, io);
+        }
         if self.lifecycle != Lifecycle::Live {
             self.drive(env, up, io);
             return;
@@ -592,7 +596,7 @@ impl Component {
             let Some((call, id)) = due else {
                 break;
             };
-            self.expire(call, id, up, io);
+            self.expire(call, id, env, up, io);
         }
         self.drive(env, up, io);
     }
@@ -604,7 +608,9 @@ impl Component {
             next = earliest(next, gh.deadline());
         }
         for (_, id) in &self.connections {
-            next = earliest(next, self.connection_slab.get(*id).expect("indexed connection").deadline);
+            let c = self.connection_slab.get(*id).expect("indexed connection");
+            next = earliest(next, c.deadline);
+            next = earliest(next, c.link.next_deadline());
         }
         if self.lifecycle == Lifecycle::Live {
             for state in &self.starts {
@@ -683,7 +689,7 @@ impl Component {
                 .expect("indexed connection");
             if self.lifecycle != Lifecycle::Live {
                 *self.own_plans.get_mut(at).expect("configured forge") = None;
-                c.close(c.in_flight(), io);
+                c.close(env, c.in_flight(), io);
                 break;
             }
             let state = *self.starts.get(at).expect("configured start");
@@ -691,7 +697,7 @@ impl Component {
                 && deadline <= env.now
             {
                 if c.phase == Phase::Idle && ready(state) {
-                    c.close(false, io);
+                    c.close(env, false, io);
                     break;
                 }
                 c.timeout();
@@ -738,12 +744,12 @@ impl Component {
                 if backoff(*self.starts.get(at).expect("configured start")).is_some()
                     || stopped(*self.starts.get(at).expect("configured start")).is_some()
                 {
-                    c.close(true, io);
+                    c.close(env, true, io);
                 }
                 continue;
             }
             if c.phase == Phase::Closed {
-                c.close(c.in_flight(), io);
+                c.close(env, c.in_flight(), io);
             }
             if !c.ready() {
                 break;
@@ -756,7 +762,7 @@ impl Component {
         for (_, id) in &self.connections {
             let c = self.connection_slab.get_mut(*id).expect("indexed connection");
             if self.lifecycle == Lifecycle::Aborting || c.membership == connection::Membership::Removed {
-                c.abort(io);
+                c.abort(env, io);
             }
         }
         if self.settings.webhooks.is_some() {

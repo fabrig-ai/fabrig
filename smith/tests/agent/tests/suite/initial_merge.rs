@@ -251,7 +251,7 @@ fn conflict_read(turn: &smith_domain::Turn) -> bool {
         .filter(|message| message.role == llm::Role::Assistant)
         .flat_map(|message| &message.content)
         .filter_map(|block| {
-            if let llm::Block::ToolCall { id, name, input, call: llm::Decoded::Historical, .. } = block
+            if let llm::Block::ToolCall(llm::ToolCall { id, name, input, call: llm::Decoded::Historical, .. }) = block
                 && name.as_ref() == b"read"
                 && input.as_ref() == READ_CONFLICT
             {
@@ -294,7 +294,7 @@ fn assert_conflict_read(world: &World, root: Token) {
                     _ => unreachable!("three independent record corruptions"),
                 }
             }
-            if let llm::Block::ToolCall { input, .. } = block
+            if let llm::Block::ToolCall(llm::ToolCall { input, .. }) = block
                 && field == 2
                 && input.as_ref() == READ_CONFLICT
             {

@@ -9,6 +9,8 @@ mod settings_fields;
 fn directory_commands_take_flags_after_their_command_words() {
     for (words, valid) in [
         (vec!["init"], true),
+        (vec!["init", "--box"], true),
+        (vec!["init", "--box", "--box"], false),
         (vec!["init", "extra"], false),
         (vec!["serve"], true),
         (vec!["box"], true),

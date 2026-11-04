@@ -136,7 +136,10 @@ fn a_refused_compaction_fails_the_run_as_refused_its_message_unread() {
         b"unread".as_slice().into(),
     );
     world.run(ITERATIONS);
-    assert!(matches!(world.answer(), run::Answer::Failed { failure: run::Failure::Model(run::Fault::Declined), .. }));
+    assert!(matches!(
+        world.answer(),
+        run::Answer::Failed { failure: run::RunFailure::Model(run::Fault::Declined), .. }
+    ));
     assert!(world.turns().is_empty(), "no summary turn is told");
     assert!(!world.messages_seen().iter().any(|(_, seen)| matches!(seen,
         smith_agent_world::messages_referee::Seen::Turn { read: Some(token), .. } if *token == Token::new(9))));

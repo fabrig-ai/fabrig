@@ -75,11 +75,13 @@ section 16; connecting GitHub, section 17.
   owned forge (section 7).
 - **`temper init` writes a deployment that starts** into the three
   directories (configuration.md, section 12): the default document, its
-  agent's configuration, the worker's secret and the scripted model's
-  key; no forge, no account and no credential, which are the client's.
-  `temper box` runs it first on an empty configuration directory (8.2,
-  8.3).
-- **A first run is empty** (8.3): the store holds no forge, and the
+  agent's configuration and the worker's secret; no forge, no account
+  and no credential, which are the client's. With `--box` it adds the
+  box's parts: the welcome's member, the owned Forgejo and the
+  playground. `temper box` runs `temper init --box` first on an empty
+  configuration directory (8.2, 8.3).
+- **A first run is empty** (8.3): the store holds no forge, and, where
+  the document shows the welcome (configuration.md, section 3), the
   person tries the playground or sets temper up. The playground is made
   when chosen (`StartPlayground`): a fake forge's record, its box group,
   the scripted account and the playground's project, into which
@@ -1113,7 +1115,7 @@ temper box
 ```
 
 - **An empty configuration directory,** absent or with no entry, is
-  written first by `temper init` (8.2), in the box's own process, before
+  written first by `temper init --box` (8.2), in the box's own process, before
   the document is read; the box says so on its terminal, `First run:
   wrote the configuration, <path>` (7.2), and goes on to its steps.
   Otherwise the box
@@ -1483,7 +1485,7 @@ temper box
   `failed`, a started one to `stopped`, and one to `removed`, by lines
   and exits alone (13.1).
 - **The binary hands it the steps.** `temper box` resolves its three
-  directories, runs `temper init` when the configuration directory is
+  directories, runs `temper init --box` when the configuration directory is
   empty (7.1), checks the document as section 8 says, asks
   `temper-forge-setup` for its kinds' steps, `temper serve` and the
   owned kind's group, and `temper-fake` for the fake kind's group (8.4),
@@ -1507,6 +1509,13 @@ owned forge is refused *not under the box* (6.5), and `temper forge
 fetch`, `prepare`, `run` and `remove` find no group's file for a forge
 the box did not run (7.1). GitHub and a Forgejo elsewhere connect as
 under the box.
+
+The welcome follows the document under every arrangement, its member
+`application.welcome` (configuration.md, section 3), and never `--box`,
+which only the box gives `temper internal serve`, for its pipe. A unit
+running `temper box` shows the welcome as any box does; one running
+`temper serve` on a hand-written document shows it only if that document
+asks.
 
 - **systemd,** a unit for `temper box`, whose own stop stops its tree
   (7.2), or one for `temper serve` alone; `temper serve`'s
@@ -1636,7 +1645,7 @@ document.
 - **The document keeps the machine's:** the clients' and the webhooks'
   listeners; in `application.machine` (configuration.md, section 3),
   what the forges a box can run take from this machine, the box's owned
-  Forgejo's port and the fakes' ports among it, which `temper init`
+  Forgejo's port and the fakes' ports among it, which `temper init --box`
   chooses and the box holds from its start (7.1, 8.2); and the limits,
   whose forge members count the deployment's forges and repositories,
   never a sum over its forges (forge.md, section 7).
@@ -1737,6 +1746,8 @@ document.
   (7.1).
 - **`application.demo`,** the scripted model's fake LLM, `llm` alone,
   or null for none (8.4).
+- **`application.welcome`,** `true` to show the welcome; absent, none
+  (configuration.md, section 3).
 - **An owned example** ships for a person, a test or QA's host to start
   from (8.1).
 - **`temper init`** writes a deployment that starts (8.2), with the
@@ -1744,7 +1755,7 @@ document.
 
 ### 8.1 The owned example
 
-The box document written by `temper init` and the owned example take
+The box document written by `temper init --box` and the owned example take
 jig's `standard`'s `documents.lines`, sixteen entries for each creating
 executor list, and its `tasks.charters`, twelve.
 This holds the reference's eligible charters 1, 2, 4, 5, 6 and 7 and its
@@ -1936,23 +1947,31 @@ runs it (section 7).
 
 ### 8.2 `temper init`
 
-`temper init [DIRECTORIES]` writes a deployment that starts, from its
-three directories (configuration.md, section 12) and what it finds on
-the machine. `temper box` runs it first when the configuration
-directory is empty (7.1).
+`temper init [DIRECTORIES] [--box]` writes a deployment that starts,
+from its three directories (configuration.md, section 12) and what it
+finds on the machine. Alone, it writes a bare deployment: no welcome, no
+playground and no Forgejo on this machine.
 
+- **The box's parts, one flag:** `--box` adds them: the welcome's
+  member; the owned Forgejo, its person and its port; and the
+  playground, `application.demo` with its `demo/` files and its two
+  ports. `temper box`'s first run passes it (7.1); a person may pass it
+  too. The document keeps them as three members, so that splitting the
+  flag later changes no format (section 15).
 - **Refused,** exit 1, before it writes anything, naming the file: when
   the configuration directory holds `temper.json`, or the data
-  directory holds `worker.secret`, `worker.digest`, `demo/llm.key` or
-  `demo/bin/git`. It never replaces a file; a person who starts again
-  removes them.
+  directory holds `worker.secret`, `worker.digest` or, with `--box`,
+  `demo/llm.key` or `demo/bin/git`. It never replaces a file; a person
+  who starts again removes them.
 - **Its directories:** the data and cache directories made and checked
   as every command makes and checks them (configuration.md, section
   12), and the configuration directory made the same way when absent;
-  an existing configuration directory is taken as it is; and the data
-  directory's `demo/` and `demo/bin/`, made private (0o700).
+  an existing configuration directory is taken as it is; and, with
+  `--box`, the data directory's `demo/` and `demo/bin/`, made private
+  (0o700).
 - **Its files,** each created new, in this order, the document last, so
-  that a configuration directory holding one holds them all:
+  that a configuration directory holding one holds them all, the two in
+  `demo/` with `--box` alone:
 
   | File | Directory | Mode | What it is |
   |---|---|---|---|
@@ -1960,20 +1979,21 @@ directory is empty (7.1).
   | `worker.digest` | data | 0o600 | the SHA-256 of the secret's digits without its newline, as 64 lowercase hexadecimal digits and a newline, as the walk `box` (`temper help box`) makes it |
   | `demo/llm.key` | data | 0o600 | the scripted model's key (8.4): 32 bytes from the kernel's random source, as 64 lowercase hexadecimal digits and a newline |
   | `demo/bin/git` | data | a link | the playground's git, `temper fake git` (8.4): a symbolic link to the binary |
-  | `agent.json` | configuration | 0o644 | smith's agent configuration (configuration.md, section 5): the owned example's endpoints, models and profile (8.1), and the scripted provider's endpoint and model (8.3); Claude Code's program at the `claude` found on `PATH`, and its programs directory, `programs` in the data directory; with no `claude` on `PATH`, no program, and Anthropic's models by key alone |
+  | `agent.json` | configuration | 0o644 | smith's agent configuration (configuration.md, section 5): the owned example's endpoints, models and profile (8.1), and, with `--box`, the scripted provider's endpoint and model (8.3); Claude Code's program at the `claude` found on `PATH`, and its programs directory, `programs` in the data directory; with no `claude` on `PATH`, no program, and Anthropic's models by key alone |
   | `temper.json` | configuration | 0o644 | the default document (8.3) |
 
 - **What it finds,** each written absolute:
   - *the binary,* the running `temper`'s own path: the worker's agent's
     `program`, with `arguments` `["internal", "agent",
     <configuration>/agent.json]` and `configuration` that same path
-    (configuration.md, section 5), and the playground's git link's target;
+    (configuration.md, section 5), and, with `--box`, the playground's
+    git link's target;
   - *git,* the `git` found on `PATH`: the worker's `git`; with none,
     `null`, written without refusing, and init says so (git.md, section
-    3). The playground's link, `<data>/demo/bin/git`, is the machine's
-    `fake.git` (section 8), so that the playground's git is `temper fake
-    git` (8.4) whatever git the machine has, or none;
-  - *the person,* the machine's owned Forgejo's (8.3): its `login` the
+    3). With `--box`, the playground's link, `<data>/demo/bin/git`, is
+    the machine's `fake.git` (section 8), so that the playground's git
+    is `temper fake git` (8.4) whatever git the machine has, or none;
+  - *the person,* with `--box`, the machine's owned Forgejo's (8.3): its `login` the
     name of the effective uid's entry in `/etc/passwd` (`geteuid`, then
     that file), the login the person signs in to their Forgejo with; its
     `email` `LOGIN@localhost`. With no entry, or a name that is not a
@@ -1993,20 +2013,20 @@ directory is empty (7.1).
     `127.0.0.1:8367`, else the port the kernel assigns to a bind of port
     0; the port written fixed, as GitHub requires (17.1). A later start on a port taken is
     refused, naming it and the document, as any start is;
-  - *the machine's ports:* 8368, the owned Forgejo's (8.3); 8369, the
-    playground's fake forge's, and 8370, the scripted model's fake LLM's
-    (8.4), each by the same rule;
+  - *the machine's ports,* with `--box`: 8368, the owned Forgejo's
+    (8.3); 8369, the playground's fake forge's, and 8370, the scripted
+    model's fake LLM's (8.4), each by the same rule;
   - *the webhooks' listener's port:* 8371, by the same rule (8.3). The
-    five sockets, the clients', these three and the webhooks', are held
-    until all five ports are chosen, so that no two are the same; then
-    `temper init` closes them, and `temper box`, whose first run ran
-    init in its own process, keeps them, and holds each for its step
+    sockets, the clients', these three with `--box` and the webhooks',
+    are held until all the ports are chosen, so that no two are the
+    same; then `temper init` closes them, and `temper box`, whose first
+    run ran init in its own process, keeps them, and holds each for its step
     from then on (7.1), so that no port it wrote is free between init and
     the step's bind. The port is written fixed, since the setup host gives the
     hook's address from the document at its start (5.3); a listener
     bound to port 0, its hooks given the address it reports, is later.
 - **Choosing ports for another box:** keep the first running and give
-  init three separate empty directories. Its occupied preferred ports
+  `temper init --box` three separate empty directories. Its occupied preferred ports
   fall back by the rule above, and both documents name the chosen ports
   consistently, including the machine's remotes and the scripted LLM
   endpoint.
@@ -2019,35 +2039,36 @@ directory is empty (7.1).
   `init: this temper has no browser (built with TEMPER_BUNDLE=none):
   the browser is not served` from a binary built without its bundle;
   `init: no git on PATH: a real forge's repositories need git
-  2.41 or later, set as workers[].git` when there is none; `init:
-  LOGIN cannot be a Forgejo login: the owned Forgejo's person is
-  person` when the login falls back (above); `init: uid UID has no login
-  in /etc/passwd: the owned Forgejo's person is person` with no login;
-  and last,
-  `init: start it with temper box`, with the flags init was given,
-  then `init: after starting, continue with ChatGPT or add an OpenAI API
-  key from the accounts page`. Its
-  stdout is empty; exit 0.
+  2.41 or later, set as workers[].git` when there is none; with
+  `--box`, `init: LOGIN cannot be a Forgejo login: the owned Forgejo's
+  person is person` when the login falls back (above) and `init: uid UID
+  has no login in /etc/passwd: the owned Forgejo's person is person`
+  with no login; `init: after starting, continue with ChatGPT or add an
+  OpenAI API key from the accounts page`; and last, `init: start it with
+  temper serve`, or with `--box` `init: start it with temper box`, with
+  the flags init was given. Its stdout is empty; exit 0.
 - **Nothing else:** no forge, no account, no credential, no repository
   and no store. The engine's first start makes its store; accounts,
   forges and repositories are the client's (credentials.md, section 3;
   `../client/forge.md`), and the playground's forge, account, project
   and repository its start's (8.4).
 - **Its code:** `temper-init`, step code (section 11): given the facts
-  above, git's path or none and the person's login among them, the three
-  directories, the secret's 32 bytes and the scripted key's 32 bytes, it
-  answers the files, each with its directory, its name, its bytes and
-  whether it is private, and the person's login, fallen back to `person`
-  or not; it reads, writes and binds nothing. The binary's `init` finds
+  above, git's path or none among them, the box's parts' or none, those
+  being the person's login, the machine's ports and the scripted key's
+  32 bytes, the three directories and the secret's 32 bytes, it answers
+  the files, each with its directory, its name, its bytes and whether it
+  is private, and, with the box's parts, the person's login, fallen back
+  to `person` or not; it reads, writes and binds nothing. The binary's `init` finds
   the facts, checks the refusals and writes the files, on skein-io.
-- **Checked:** temper-init's step tests check that its `engine.llm` is the
-  owned example's with the scripted provider (8.3), that the digest is
+- **Checked:** temper-init's step tests check that the box's `engine.llm` is the
+  owned example's with the scripted provider (8.3), that the bare
+  document is the box's less its parts, that the digest is
   the secret's, the files' names, directories and order, and the
   machine's part with the person's login found and fallen back. The binary's
-  crate tests, on scratch directories, check that the document init writes
+  crate tests, on scratch directories, check that each document init writes
   passes configuration.md, section 8, as `temper serve` checks it, with
   the agent's configuration it writes, at the fixed ports and at kernel's
-  ports, the five always distinct, with and without `claude` and git;
+  ports, always distinct, with and without `claude` and git;
   a second init while the first holds its five listeners, on separate
   directories, writes disjoint ports and matching listener, remote
   and scripted LLM addresses in both documents; `clients.bundle` always
@@ -2065,6 +2086,14 @@ development, with five times the largest figure seen
 (configuration.md, 13.4), so a fresh box runs such a project with no
 override.
 
+- **The box's parts,** `temper init --box`'s alone (8.2):
+  `application.welcome` `true`; the machine's `owned`; and the
+  playground: the machine's `fake`, `application.demo`, the scripted
+  provider in `engine.llm` and in the agent's configuration, and the
+  reset's grant in `engine.acts`. A document without them is the same
+  document less those members: the machine part `github` null alone,
+  `application.demo` null, `engine.llm` the owned example's and no
+  `engine.acts`.
 - **No forge** (section 8): a first run's store holds none, and the
   person makes each from the client, none needing a restart: the
   playground's fake one by trying it (8.4), an owned Forgejo by setting
@@ -2141,7 +2170,7 @@ override.
   A document without the grant still serves: `temper serve` starts on
   it, and only the reset's acts are refused, *not offered*: each is
   kept, and named in serve's log with the grant to add to
-  `engine.acts`, the one `temper init` writes, until a start's document
+  `engine.acts`, the one `temper init --box` writes, until a start's document
   grants it.
 - **Its charters and templates,** the owned example's, but both
   charters' models end with the scripted model, `demo`: chat, 1, and coding, 2, the one the
@@ -2163,7 +2192,7 @@ override.
   it into an explicit one. The charters, the
   templates and the forge's charter are the binary's stock settings,
   their models every model `engine.llm` configures in the document's
-  order, the scripted model last as `temper init` writes it; the document names
+  order, the scripted model last as `temper init --box` writes it; the document names
   none of them (configuration.md, 13.4), and a person changes them from
   "How work runs" (`../client/README.md`, 5.13).
 - **One worker,** in the process, its `root` `workspaces` in the data
@@ -2225,8 +2254,9 @@ them as it does any Forgejo.
   first (6.7), and a whole one is not; one ended, being removed
   (`../domain/forge.md`, 4.1), is in no list and counts for nothing, as
   the welcome counts it (`../client/README.md`, 3.5); also while the
-  row reads resetting, and when the document has no `application.demo`
-  or the machine no `fake`. A real account alone does not end it. It is offered again
+  row reads resetting, and when the document shows no welcome
+  (configuration.md, section 3), has no `application.demo` or the
+  machine no `fake`. A real account alone does not end it. It is offered again
   once its reset is done, while no real forge is kept: it has no ended
   state and no end but its reset, and no other forge's connect changes
   it.
@@ -3349,6 +3379,11 @@ it checks of this document:
 
 Each is intended; what it needs is named with it.
 
+- **The deployment's own UX:** what `temper init` alone writes and says
+  beyond 8.2, and how a server is set up. For now it is the cheapest
+  bare deployment.
+- **Flags of their own** (`--welcome`, `--playground`), when a
+  deployment wants some of the box's parts and not others (8.2).
 - **After the first repository** (6.7): "New repository" on a connected owned or managed card is the general
   form of the same flow, with the same fields and `Create`, a managed
   forge's org needing an owner, and like it adopting nothing. The

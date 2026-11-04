@@ -66,8 +66,13 @@ struct Held {
     at: Position,
     value: Option<Value>,
 }
-pub const UP_MAX_OUT: tk::MaxOut = tk::MaxOut { above: 1, below: 1 };
-pub const DOWN_MAX_OUT: tk::MaxOut = UP_MAX_OUT;
+#[derive(Clone, Copy, PartialEq, Eq, Hash, Debug)]
+pub struct MaxOut {
+    pub above: u32,
+    pub below: u32,
+}
+pub const UP_MAX_OUT: MaxOut = MaxOut { above: 1, below: 1 };
+pub const DOWN_MAX_OUT: MaxOut = UP_MAX_OUT;
 impl Decoder {
     #[must_use]
     pub fn new(limits: &Limits) -> Decoder {
@@ -312,10 +317,10 @@ fn finish(frame: Frame) -> Value {
 /// (programming-model.md, 6.3; domain/render.md, 2.3).
 #[must_use]
 pub fn worst_case(limits: &Limits) -> Option<u64> {
-    let tokenizer = tk::worst_case(&limits::tokenizer(limits))?;
-    let frames = Stack::<Frame>::worst_case(limits.depth)?;
-    let events = Queue::<tk::Event>::worst_case(1)?;
-    let maps = Map::<Box<[u8]>, Held>::worst_case(limits.keys)?.checked_mul(u64::from(limits.depth))?;
+    let tokenizer = tk::tokenizer_bound(&limits::tokenizer(limits))?;
+    let frames = Stack::<Frame>::price(limits.depth)?;
+    let events = Queue::<tk::Event>::price(1)?;
+    let maps = Map::<Box<[u8]>, Held>::price(limits.keys)?.checked_mul(u64::from(limits.depth))?;
     let values = u64::from(limits.document).checked_div(2)?.checked_add(1)?;
     // A growing array holds its old capacity and twice that capacity; all
     // other values share the same document, rather than adding a full tree.
@@ -334,7 +339,7 @@ pub(crate) fn held(limits: &Limits) -> Option<u64> {
     values
         .checked_mul(record)?
         .checked_add(u64::from(limits.document))?
-        .checked_add(tk::worst_case(&limits::tokenizer(limits))?)?
-        .checked_add(Stack::<Frame>::worst_case(limits.depth)?)?
-        .checked_add(Queue::<tk::Event>::worst_case(1)?)
+        .checked_add(tk::tokenizer_bound(&limits::tokenizer(limits))?)?
+        .checked_add(Stack::<Frame>::price(limits.depth)?)?
+        .checked_add(Queue::<tk::Event>::price(1)?)
 }

@@ -5,6 +5,7 @@ use crate::{
     settings::{self, Origin, Problem, Refusal, Settings},
 };
 use serde::Serialize;
+use smith_agent_shell::config::ProgramName;
 use std::{collections::BTreeMap, ffi::OsString, os::unix::fs::PermissionsExt, path::PathBuf};
 
 mod accounts;
@@ -132,9 +133,9 @@ fn report_for(
     let credentials = accounts::report(&resolved, wall, clock);
     let programs = resolved
         .agent
-        .programs
+        .program
         .iter()
-        .map(|(name, program)| (crate::credentials::program_check::key(*name), program.path.clone()))
+        .map(|program| (crate::credentials::program_check::key(ProgramName::ClaudeCode), program.path.clone()))
         .collect();
     for (account, state) in &credentials {
         if !state.required && !state.credential.usable() {

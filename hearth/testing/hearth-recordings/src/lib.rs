@@ -1,4 +1,5 @@
 //! Captured tool runs, domain/testing.md, 4.5. Paths are relative to this checkout.
+use skein_scratch::paths;
 use std::{
     fs,
     path::{Path, PathBuf},
@@ -18,7 +19,7 @@ pub struct Recording {
     pub stanzas: Option<Vec<u8>>,
 }
 fn root(tool: &str) -> PathBuf {
-    Path::new(env!("CARGO_MANIFEST_DIR")).join("../recordings").join(tool)
+    paths::tree().join("testing/recordings").join(tool)
 }
 fn lines(bytes: &[u8]) -> Vec<Vec<u8>> {
     if bytes.is_empty() {

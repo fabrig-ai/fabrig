@@ -120,16 +120,16 @@ pub(crate) fn answer(value: run::Answer, read: Option<Token>, now: skein_lib::Ti
     }
 }
 
-fn failure(value: run::Failure, now: skein_lib::Time) -> host::RunFailure {
+fn failure(value: run::RunFailure, now: skein_lib::Time) -> host::RunFailure {
     match value {
-        run::Failure::Transcript(value) => host::RunFailure::Transcript(value),
-        run::Failure::Model(value) => host::RunFailure::Model(model_fault(value, now)),
-        run::Failure::Budget { exhausted: value, used, bound } => {
+        run::RunFailure::Transcript(value) => host::RunFailure::Transcript(value),
+        run::RunFailure::Model(value) => host::RunFailure::Model(model_fault(value, now)),
+        run::RunFailure::Budget { exhausted: value, used, bound } => {
             host::RunFailure::Budget { exhausted: value, used, bound }
         }
-        run::Failure::Policy(policy) => host::RunFailure::Policy(policy),
-        run::Failure::Cancelled => host::RunFailure::Cancelled,
-        run::Failure::Stale => host::RunFailure::Stale,
+        run::RunFailure::Policy(policy) => host::RunFailure::Policy(policy),
+        run::RunFailure::Cancelled => host::RunFailure::Cancelled,
+        run::RunFailure::Stale => host::RunFailure::Stale,
     }
 }
 

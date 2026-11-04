@@ -266,7 +266,7 @@ fn run_story(
             handshake: skein_lib::Duration::from_secs(1),
             name: llm::Endpoint(1),
             destination: skein_llm_connection::Endpoint {
-                limits: limits().adapter.client,
+                limits: limits().translation.client,
                 credential: skein_llm::client::CredentialLimits { value: limits().grant_value_bytes },
                 address: Addr::from((Ipv4Addr::LOCALHOST, 443)),
                 transport: skein_llm_connection::Transport::Tls {

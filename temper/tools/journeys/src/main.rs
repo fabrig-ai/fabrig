@@ -77,7 +77,7 @@ fn build(root: &Path, scratch: &Path, chromium: PathBuf) -> Result<Paths, String
     let status = Command::new("cargo")
         .current_dir(root)
         .env("TEMPER_BUNDLE", "none")
-        .args(["build", "-p", "temper", "-p", "temper-fake-claude"])
+        .args(["build", "-p", "temper", "-p", "smith-fake-claude"])
         .status()
         .map_err(|error| format!("cannot start cargo build: {error}"))?;
     if !status.success() {

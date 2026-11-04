@@ -81,7 +81,7 @@ pub(super) fn backend_with_line_bytes(line_bytes: u32) -> Backend {
             relay: b"/agent".as_slice().into(),
             environment: Box::default(),
             mcp: mcp::Limits { calls: 4, unauthenticated: Time::from_nanos(1000), ..mcp::fixture::SMALL },
-            adapter: limits.adapter,
+            translation: limits.translation,
             receiving: limits.receiving,
             stream_tokens: Settings::stream_tokens(line_bytes),
             prompt_bytes: 4096,
@@ -126,6 +126,14 @@ pub(super) fn request(backend: &Backend) -> FromDomain {
     }
 }
 
+pub(super) fn pop_io(below: &mut Queue<Below>) -> Option<io::Request> {
+    match below.pop() {
+        Some(Below::Io(request)) => Some(request),
+        Some(Below::File { .. }) => panic!("expected I/O effect"),
+        None => None,
+    }
+}
+
 pub(super) fn connect_server(backend: &mut Backend) {
     let first = Token::new(100);
     let owner = Token::new(101);
@@ -150,9 +158,10 @@ pub(super) fn connect_server(backend: &mut Backend) {
             listener: Token::new(200),
             addr: io::Addr::Ip(core::net::SocketAddr::from(([127, 0, 0, 1], 47100))),
         },
+        &mut backend.server_up,
         &mut io,
     );
-    let Some(mcp::Up::Listening { .. }) = server.up() else { panic!("listening") };
+    let Some(mcp::Up::Listening { .. }) = backend.server_up.pop() else { panic!("listening") };
     server.from_io(
         env(0).now,
         io::Event::Accepted {
@@ -160,30 +169,37 @@ pub(super) fn connect_server(backend: &mut Backend) {
             socket: Token::new(201),
             peer: io::Addr::Ip(core::net::SocketAddr::from(([127, 0, 0, 1], 50000))),
         },
+        &mut backend.server_up,
         &mut io,
     );
     let secret = mcp::secret_text(&[7; 32]);
     server.from_io(
         env(0).now,
         io::Event::Stream { owner, up: skein_lib::stream::Up::Bytes(skein_lib::bytes::concat(&[&secret, b"\n"])) },
+        &mut backend.server_up,
         &mut io,
     );
     let right = io
         .iter()
-        .find_map(|request| match request {
-            io::Request::Output { down: skein_lib::stream::OutputDown::Room { right, .. }, .. } => Some(*right),
-            io::Request::Listen { .. }
-            | io::Request::Connect { .. }
-            | io::Request::Bind { .. }
-            | io::Request::Reject { .. }
-            | io::Request::Stream { .. }
-            | io::Request::Output { .. }
-            | io::Request::Spawn { .. }
-            | io::Request::Signal { .. }
-            | io::Request::Usage { .. }
-            | io::Request::Window { .. }
-            | io::Request::Close { .. }
-            | io::Request::Abort { .. } => None,
+        .find_map(|request| {
+            match match request {
+                Below::Io(request) => request,
+                Below::File { .. } => panic!("MCP emits I/O"),
+            } {
+                io::Request::Output { down: skein_lib::stream::OutputDown::Room { right, .. }, .. } => Some(*right),
+                io::Request::Listen { .. }
+                | io::Request::Connect { .. }
+                | io::Request::Bind { .. }
+                | io::Request::Reject { .. }
+                | io::Request::Stream { .. }
+                | io::Request::Output { .. }
+                | io::Request::Spawn { .. }
+                | io::Request::Signal { .. }
+                | io::Request::Usage { .. }
+                | io::Request::Window { .. }
+                | io::Request::Close { .. }
+                | io::Request::Abort { .. } => None,
+            }
         })
         .expect("ack room");
     server.from_io(
@@ -192,16 +208,21 @@ pub(super) fn connect_server(backend: &mut Backend) {
             owner,
             up: skein_lib::stream::OutputUp::Settled { right, outcome: skein_lib::stream::OutputOutcome::Granted },
         },
+        &mut backend.server_up,
         &mut io,
     );
-    assert_eq!(server.up(), Some(mcp::Up::Connected));
-    backend.startup.install_server(server, &mut backend.io);
+    assert_eq!(backend.server_up.pop(), Some(mcp::Up::Connected));
+    backend.startup.install_server(server, &mut backend.server_up, &mut io);
 }
 
-pub(super) fn server_reply(backend: &mut Backend) -> serde_json::Value {
+pub(super) fn server_reply(backend: &mut Backend, below: &mut Queue<Below>) -> serde_json::Value {
     for _ in 0_u8..16 {
-        for _ in 0..backend.io.capacity() {
-            let Some(request) = backend.io.pop() else { break };
+        for _ in 0..below.len() {
+            let Some(effect) = below.pop() else { break };
+            let request = match effect {
+                Below::Io(request) => request,
+                Below::File { .. } => continue,
+            };
             match request {
                 io::Request::Output { stream, down: skein_lib::stream::OutputDown::Room { right, .. } }
                     if stream == Token::new(201) =>
@@ -215,7 +236,8 @@ pub(super) fn server_reply(backend: &mut Backend) -> serde_json::Value {
                                 outcome: skein_lib::stream::OutputOutcome::Granted,
                             },
                         },
-                        &mut backend.io,
+                        &mut backend.server_up,
+                        below,
                     );
                 }
                 io::Request::Output { stream, down: skein_lib::stream::OutputDown::Send { bytes, .. } }
@@ -330,7 +352,7 @@ pub(super) fn spawning() -> Backend {
 pub(super) fn starting() -> Backend {
     let mut backend = active();
     preparing(&mut backend);
-    backend.startup.launch(env(30).now, &mut backend.io);
+    backend.startup.launch(env(30).now, &mut backend.server_up, &mut Queue::uncapped());
     attach_process(Some(backend.token(Owner::Program)), &mut backend);
     backend
 }
@@ -344,12 +366,12 @@ pub(super) fn running_child() -> Backend {
 }
 
 /// A program input line waiting for output room.
-pub(super) fn input(bytes: Box<[u8]>) -> Backend {
+pub(super) fn input(bytes: Box<[u8]>, below: &mut Queue<Below>) -> Backend {
     let mut backend = backend();
     initialized(&mut backend);
     attach_pipes(Pipes { input: Some(Token::new(31)), ..backend.process.pipes() }, &mut backend);
     backend.outgoing = Some(bytes);
-    backend.send_input();
+    backend.send_input(below);
     backend
 }
 
@@ -466,20 +488,20 @@ pub(super) fn begin_prompt(request: &FromDomain, backend: &mut Backend) {
 
 /// Prepare an invocation while retaining the scenario's MCP/window resources.
 pub(super) fn preparing(backend: &mut Backend) {
-    backend.startup.preparing_fixture(&mut backend.io);
+    backend.startup.preparing_fixture(&mut backend.server_up, &mut Queue::uncapped());
 }
 
 /// Observe init for the scenario's invocation.
 pub(super) fn initialized(backend: &mut Backend) {
     preparing(backend);
-    backend.startup.initialized(&mut backend.io);
+    backend.startup.initialized(&mut backend.server_up, &mut Queue::uncapped());
 }
 
 pub(super) fn new_window(id: [u8; 16], backend: &mut Backend) {
     if backend.startup.phase() == State::Idle {
         preparing(backend);
     }
-    backend.startup.window(startup::Window::New(id), &mut backend.io);
+    backend.startup.window(startup::Window::New(id), &mut backend.server_up, &mut Queue::uncapped());
 }
 
 pub(super) fn fresh_window(backend: &mut Backend) {
@@ -490,14 +512,14 @@ pub(super) fn fresh_window(backend: &mut Backend) {
         Some(id) => startup::Window::New(id),
         None => startup::Window::Unidentified,
     };
-    backend.startup.window(window, &mut backend.io);
+    backend.startup.window(window, &mut backend.server_up, &mut Queue::uncapped());
 }
 
 pub(super) fn resume_window(id: [u8; 16], backend: &mut Backend) {
     if backend.startup.phase() == State::Idle {
         preparing(backend);
     }
-    backend.startup.window(startup::Window::Resume(id), &mut backend.io);
+    backend.startup.window(startup::Window::Resume(id), &mut backend.server_up, &mut Queue::uncapped());
 }
 
 /// Settle the standard child, its pipes and the connected fixture's MCP slots.

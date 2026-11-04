@@ -85,7 +85,7 @@ fn result_caps(messages: &[Message]) -> Vec<u64> {
             Block::Opaque { .. }
             | Block::Refusal { .. }
             | Block::Text { .. }
-            | Block::ToolCall { .. }
+            | Block::ToolCall(_)
             | Block::ToolResult { .. } => None,
         })
         .collect()
@@ -143,7 +143,7 @@ fn without_a_reported_prompt_reads_keep_their_declared_caps() {
             Block::Opaque { .. }
             | Block::Refusal { .. }
             | Block::Text { .. }
-            | Block::ToolCall { .. }
+            | Block::ToolCall(_)
             | Block::ToolResult { .. } => None,
         })
         .collect();
@@ -167,7 +167,7 @@ fn the_line_holds_exact_minima_and_falls_back_one_byte_short() {
                 Block::Opaque { .. }
                 | Block::Refusal { .. }
                 | Block::Text { .. }
-                | Block::ToolCall { .. }
+                | Block::ToolCall(_)
                 | Block::ToolResult { .. } => None,
             })
             .collect();

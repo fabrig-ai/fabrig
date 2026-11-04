@@ -819,3 +819,24 @@ fn a_connection_takes_no_further_answer_until_its_heard_one_is_taken() {
     assert!(world.script_done());
     assert!(world.close());
 }
+
+#[test]
+fn a_secure_graceful_close_reaches_the_server_before_socket_settlement() {
+    let mut world = transport_machine(
+        true,
+        vec![
+            Answer { request: "GET /api/v1/user", response: Response::Bytes(keepalive("user")) },
+            Answer { request: "GET /api/v1/settings/api", response: Response::Bytes(keepalive("settings-api")) },
+        ],
+    );
+    world.run_for(SECOND);
+    assert!(world.script_done());
+    assert_eq!(world.tls_closed(), [false], "one live TLS peer");
+    world.hold_settlement();
+    assert!(!world.close(), "component Closed waits for socket settlement");
+    assert_eq!(world.tls_closed(), [true], "the server read close_notify");
+    assert_eq!((world.closes(), world.aborts()), (1, 0), "TLS flushed before the socket's Close");
+    world.release_settlement();
+    assert_eq!(world.closed_events(), 1);
+    assert_eq!(world.event_order().last(), Some(&"closed"));
+}

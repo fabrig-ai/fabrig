@@ -105,10 +105,10 @@ impl Io {
             }
         }
     }
-    fn ports(&mut self, preferred: [u16; 5]) -> Result<Vec<(Fd, NonZeroU16)>, String> {
+    fn ports(&mut self, preferred: &[u16]) -> Result<Vec<(Fd, NonZeroU16)>, String> {
         let mut held = Vec::with_capacity(preferred.len());
         for port in preferred {
-            match self.port(port) {
+            match self.port(*port) {
                 Ok(pair) => held.push(pair),
                 Err(why) => {
                     for (fd, _) in held {
@@ -184,20 +184,44 @@ pub(crate) fn write_with_program(
     preferred: [u16; 5],
     program: Option<&Path>,
 ) -> Result<Written, String> {
-    let document = directories.document();
-    for destination in [
-        &document,
-        &path(&directories.data).join("worker.secret"),
-        &path(&directories.data).join("worker.digest"),
-        &path(&directories.data).join("demo/llm.key"),
-        &path(&directories.data).join("demo/bin/git"),
-    ] {
-        match std::fs::symlink_metadata(destination) {
+    write_deployment(directories, environment, binary, &preferred, program, true)
+}
+pub(crate) fn write_bare(
+    directories: &Directories,
+    environment: &[EnvironmentEntry],
+    binary: &Path,
+    preferred: [u16; 2],
+) -> Result<Written, String> {
+    write_deployment(directories, environment, binary, &preferred, None, false)
+}
+fn check_destinations(directories: &Directories, boxed: bool) -> Result<(), String> {
+    let mut destinations = vec![
+        directories.document(),
+        path(&directories.data).join("worker.secret"),
+        path(&directories.data).join("worker.digest"),
+    ];
+    if boxed {
+        destinations
+            .extend([path(&directories.data).join("demo/llm.key"), path(&directories.data).join("demo/bin/git")]);
+    }
+    for destination in destinations {
+        match std::fs::symlink_metadata(&destination) {
             Ok(_) => return Err(format!("{}: already exists", destination.display())),
             Err(why) if why.kind() == std::io::ErrorKind::NotFound => {}
             Err(why) => return Err(format!("{}: {why}", destination.display())),
         }
     }
+    Ok(())
+}
+fn write_deployment(
+    directories: &Directories,
+    environment: &[EnvironmentEntry],
+    binary: &Path,
+    preferred: &[u16],
+    program: Option<&Path>,
+    boxed: bool,
+) -> Result<Written, String> {
+    check_destinations(directories, boxed)?;
     let git = find(environment, b"git");
     let claude = match program {
         Some(path) => Some(path.to_path_buf()),
@@ -206,39 +230,55 @@ pub(crate) fn write_with_program(
     let mut io = Io::open()?;
     let listeners = io.ports(preferred)?;
     let result = (|| {
-        let ports = temper_init::Ports {
-            clients: listeners[0].1,
-            owned: listeners[1].1,
-            forge: listeners[2].1,
-            llm: listeners[3].1,
-            webhooks: listeners[4].1,
-        };
         let secret = skein_shell::crypto_seed().map_err(|errno| format!("random secret: errno {errno}"))?;
-        let demo_key = skein_shell::crypto_seed().map_err(|errno| format!("random demo key: errno {errno}"))?;
-        let login = crate::login(skein_shell::effective_user()).ok();
-        let answer = temper_init::files(
-            &temper_init::Facts {
-                binary: binary.as_os_str().as_bytes(),
-                git: git.as_ref().map(|path| path.as_os_str().as_bytes()),
-                claude: claude.as_ref().map(|path| path.as_os_str().as_bytes()),
-                ports,
-                login: login.as_deref(),
-            },
-            &temper_init::Directories { config: &directories.config, data: &directories.data },
-            secret.expose().try_into().expect("32-byte seed"),
-            demo_key.expose().try_into().expect("32-byte seed"),
-        )
-        .map_err(|why| format!("{:?}: {:?}", why.fact, why.reason))?;
+        let directories_facts = temper_init::Directories { config: &directories.config, data: &directories.data };
+        let binary = binary.as_os_str().as_bytes();
+        let git = git.as_ref().map(|path| path.as_os_str().as_bytes());
+        let claude = claude.as_ref().map(|path| path.as_os_str().as_bytes());
+        let (files, person, login) = if boxed {
+            let demo_key = skein_shell::crypto_seed().map_err(|errno| format!("random demo key: errno {errno}"))?;
+            let login = crate::login(skein_shell::effective_user()).ok();
+            let answer = temper_init::files(
+                &temper_init::Facts {
+                    binary,
+                    git,
+                    claude,
+                    login: login.as_deref(),
+                    ports: temper_init::Ports {
+                        clients: listeners[0].1,
+                        owned: listeners[1].1,
+                        forge: listeners[2].1,
+                        llm: listeners[3].1,
+                        webhooks: listeners[4].1,
+                    },
+                },
+                &directories_facts,
+                secret.expose().try_into().expect("32-byte seed"),
+                demo_key.expose().try_into().expect("32-byte seed"),
+            )
+            .map_err(|why| format!("{:?}: {:?}", why.fact, why.reason))?;
+            (answer.files, answer.person, login)
+        } else {
+            let files = temper_init::bare(
+                &temper_init::Bare { binary, git, claude, clients: listeners[0].1, webhooks: listeners[1].1 },
+                &directories_facts,
+                secret.expose().try_into().expect("32-byte seed"),
+            )
+            .map_err(|why| format!("{:?}: {:?}", why.fact, why.reason))?;
+            (files, temper_init::Person::Found, None)
+        };
         directories.open(skein_shell::effective_user())?;
         let data = path(&directories.data);
-        make_private(&data.join("demo"), skein_shell::effective_user())?;
-        make_private(&data.join("demo/bin"), skein_shell::effective_user())?;
+        if boxed {
+            make_private(&data.join("demo"), skein_shell::effective_user())?;
+            make_private(&data.join("demo/bin"), skein_shell::effective_user())?;
+        }
         let config = path(&directories.config);
         if !config.exists() {
             make_private(config, skein_shell::effective_user())?;
         }
-        let mut paths = Vec::with_capacity(answer.files.len());
-        for file in answer.files {
+        let mut paths = Vec::with_capacity(files.len());
+        for file in files {
             let root = match file.directory {
                 temper_init::Directory::Config => config,
                 temper_init::Directory::Data => path(&directories.data),
@@ -257,7 +297,7 @@ pub(crate) fn write_with_program(
             result.map_err(|why| format!("{}: {why}", destination.display()))?;
             paths.push(destination);
         }
-        Ok((paths, git.is_none(), answer.person, login))
+        Ok((paths, git.is_none(), person, login))
     })();
     match result {
         Ok((paths, missing_git, person, login)) => Ok(Written { paths, listeners, missing_git, person, login }),
@@ -273,8 +313,12 @@ pub(crate) fn core(directories: &Directories) -> Result<Written, String> {
     let binary = std::env::current_exe().map_err(|why| why.to_string())?;
     write(directories, &skein_shell::environment(), &binary, [8367, 8368, 8369, 8370, 8371])
 }
-pub(crate) fn run(directories: &Directories) -> Result<u8, String> {
-    let written = core(directories)?;
+pub(crate) fn bare(directories: &Directories) -> Result<Written, String> {
+    let binary = std::env::current_exe().map_err(|why| why.to_string())?;
+    write_bare(directories, &skein_shell::environment(), &binary, [8367, 8371])
+}
+pub(crate) fn run(directories: &Directories, boxed: bool) -> Result<u8, String> {
+    let written = if boxed { core(directories)? } else { bare(directories)? };
     for path in written.paths {
         eprintln!("init: wrote {}", path.display());
     }
@@ -288,7 +332,8 @@ pub(crate) fn run(directories: &Directories) -> Result<u8, String> {
         eprintln!("{line}");
     }
     eprintln!("init: after starting, continue with ChatGPT or add an OpenAI API key from the accounts page");
-    let mut line = String::from("init: start it with temper box");
+    let mut line =
+        String::from(if boxed { "init: start it with temper box" } else { "init: start it with temper serve" });
     for (index, (name, value)) in
         [("config", &directories.config), ("data", &directories.data), ("cache", &directories.cache)].iter().enumerate()
     {

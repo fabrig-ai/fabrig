@@ -73,7 +73,7 @@ fn an_interrupted_result_after_a_stop_is_no_failure() {
         panic!("cancel terminal");
     };
     assert!(up.is_empty());
-    backend.flush(&mut below);
+
     assert!(input_closed(&below));
 }
 
@@ -93,7 +93,7 @@ fn the_wind_down_requests_one_interrupt() {
     assert_eq!(signal(&below, kernel::Signal::Interrupt), 0);
     assert_eq!(control_rooms(&below), 1);
     backend.line(&env(0), br#"{"type":"result","is_error":true,"subtype":"error_during_execution","terminal_reason":"aborted_streaming"}"#, &mut up, &mut below);
-    backend.flush(&mut below);
+
     assert!(backend.stopping.intent() == stopping::Intent::Finishing);
     assert_eq!(backend.startup.phase(), State::Running);
     let note: serde_json::Value = serde_json::from_slice(backend.outgoing.as_ref().expect("finishing note")).unwrap();
@@ -123,7 +123,7 @@ fn the_wind_down_sends_answers_before_the_note() {
             llm::Block::Text { text: b"finish now".as_slice().into(), replay: None },
         ]),
     }]);
-    let tail = tail::render(&mut prompt, &backend.ledger, &backend.settings.adapter, 4096).unwrap();
+    let tail = tail::render(&mut prompt, &backend.ledger, &backend.settings.translation, 4096).unwrap();
     let decoded: serde_json::Value = serde_json::from_slice(&tail).unwrap();
     assert_eq!(decoded["message"]["content"], "result of call: answer\nfinish now\n");
 }
@@ -151,11 +151,11 @@ fn builtin(backend: &mut Backend) {
     fixtures::answered_completion(backend);
 }
 
-fn prompt(backend: &mut Backend, labelled: bool) {
-    prompt_input(backend, labelled, serde_json::json!({}));
+fn prompt(backend: &mut Backend, labelled: bool, below: &mut Queue<Below>) {
+    prompt_input(backend, labelled, serde_json::json!({}), below);
 }
 
-fn prompt_input(backend: &mut Backend, labelled: bool, input: serde_json::Value) {
+fn prompt_input(backend: &mut Backend, labelled: bool, input: serde_json::Value, below: &mut Queue<Below>) {
     let mut message = serde_json::json!({"jsonrpc":"2.0","id":1_u32,"method":"tools/call","params":{"name":"permission_prompt","arguments":{"tool_name":"Read","input":{}}}});
     message["params"]["arguments"]["input"] = input;
     if labelled {
@@ -166,35 +166,40 @@ fn prompt_input(backend: &mut Backend, labelled: bool, input: serde_json::Value)
     server.from_io(
         env(0).now,
         io::Event::Stream { owner: Token::new(101), up: skein_lib::stream::Up::Bytes(bytes) },
-        &mut backend.io,
+        &mut backend.server_up,
+        below,
     );
-    let prompt = server.up().expect("permission prompt");
-    backend.permission(prompt);
+    let prompt = backend.server_up.pop().expect("permission prompt");
+    backend.permission(prompt, below);
 }
 
-fn decision(backend: &mut Backend) -> serde_json::Value {
-    let reply = fixtures::server_reply(backend);
+fn decision(backend: &mut Backend, below: &mut Queue<Below>) -> serde_json::Value {
+    let reply = fixtures::server_reply(backend, below);
     assert_eq!(reply["id"], serde_json::json!(1_u32));
     serde_json::from_str(reply["result"]["content"][0]["text"].as_str().expect("permission JSON")).expect("verdict")
 }
 
 #[test]
 fn a_prompt_waits_for_its_complete() {
+    let mut below = Queue::with_capacity(64);
     let mut backend = active();
     builtin(&mut backend);
     fixtures::connect_server(&mut backend);
-    prompt(&mut backend, true);
+    prompt(&mut backend, true, &mut below);
     assert_eq!(backend.calls.len(), 1, "the permission prompt is held");
-    for request in &backend.io {
+    for request in below.iter().filter_map(|effect| match effect {
+        Below::Io(request) => Some(request),
+        Below::File { .. } => None,
+    }) {
         if let io::Request::Output { .. } = request {
             panic!("no permission response before Complete");
         }
     }
     let mut up = Queue::with_capacity(32);
-    let mut below = Queue::with_capacity(64);
+
     backend.resume(&env(0), Complete::from_request(request(&backend)), &mut up, &mut below);
     assert!(backend.calls.is_empty());
-    assert_eq!(decision(&mut backend)["behavior"], "deny");
+    assert_eq!(decision(&mut backend, &mut below)["behavior"], "deny");
 }
 
 #[test]
@@ -206,13 +211,14 @@ fn a_prompt_after_its_complete_is_answered_at_once() {
     let mut up = Queue::with_capacity(32);
     let mut below = Queue::with_capacity(64);
     backend.resume(&env(0), Complete::from_request(request(&backend)), &mut up, &mut below);
-    prompt(&mut backend, false);
+    prompt(&mut backend, false, &mut below);
     assert!(backend.calls.is_empty());
-    assert_eq!(decision(&mut backend)["behavior"], "deny");
+    assert_eq!(decision(&mut backend, &mut below)["behavior"], "deny");
 }
 
 #[test]
 fn a_built_in_outside_the_choice_is_denied() {
+    let mut below = Queue::with_capacity(64);
     let mut backend = active();
     builtin(&mut backend);
     fixtures::connect_server(&mut backend);
@@ -221,15 +227,16 @@ fn a_built_in_outside_the_choice_is_denied() {
     let FromDomain::Complete { prompt: next_prompt, .. } = &mut next else { panic!("complete") };
     next_prompt.choice = llm::ToolChoice::Only(Box::new([llm::Served::Finish, llm::Served::Deliver]));
     backend.resume(&env(0), Complete::from_request(next), &mut Queue::with_capacity(32), &mut Queue::with_capacity(64));
-    prompt(&mut backend, true);
+    prompt(&mut backend, true, &mut below);
     assert_eq!(
-        decision(&mut backend),
+        decision(&mut backend, &mut below),
         serde_json::json!({"behavior":"deny","message":"not run: allowed calls now: finish deliver "})
     );
 }
 
 #[test]
 fn an_answered_builtin_does_not_release_the_next_prompt() {
+    let mut below = Queue::with_capacity(64);
     let mut backend = active();
     builtin(&mut backend);
     backend.permitted_message = 2;
@@ -241,18 +248,13 @@ fn an_answered_builtin_does_not_release_the_next_prompt() {
     backend.ledger.get_mut(1).unwrap().input = br#"{"a":1}"#.as_slice().into();
     backend.turns.closed = 2;
     fixtures::connect_server(&mut backend);
-    prompt_input(&mut backend, false, serde_json::json!({"a":1_u32}));
+    prompt_input(&mut backend, false, serde_json::json!({"a":1_u32}), &mut below);
     assert_eq!(backend.calls.len(), 1);
     assert!(!backend.ledger.get(1).unwrap().prompted);
-    backend.resume(
-        &env(0),
-        Complete::from_request(request(&backend)),
-        &mut Queue::with_capacity(32),
-        &mut Queue::with_capacity(64),
-    );
+    backend.resume(&env(0), Complete::from_request(request(&backend)), &mut Queue::with_capacity(32), &mut below);
     assert!(backend.calls.is_empty());
     assert!(backend.ledger.get(1).unwrap().prompted);
-    assert_eq!(decision(&mut backend)["behavior"], "deny");
+    assert_eq!(decision(&mut backend, &mut below)["behavior"], "deny");
 }
 
 #[test]
@@ -343,11 +345,18 @@ fn a_tail_checks_its_exact_encoded_length() {
         ]);
         let length = u32::try_from(encoded.len()).unwrap();
         assert!(
-            tail::render_observed(&mut prompt, &backend.ledger, &backend.settings.adapter, length - 1, prefix, true)
-                .is_none()
+            tail::render_observed(
+                &mut prompt,
+                &backend.ledger,
+                &backend.settings.translation,
+                length - 1,
+                prefix,
+                true
+            )
+            .is_none()
         );
         let rendered =
-            tail::render_observed(&mut prompt, &backend.ledger, &backend.settings.adapter, length, prefix, true)
+            tail::render_observed(&mut prompt, &backend.ledger, &backend.settings.translation, length, prefix, true)
                 .unwrap();
         assert_eq!(rendered.line, encoded);
         assert_eq!(rendered.text.as_deref(), Some(expected.as_slice()));
@@ -363,7 +372,7 @@ fn a_tail_refuses_invalid_utf8_before_encoding() {
         role: llm::Role::User,
         content: Box::new([llm::Block::Text { text: Box::new([255]), replay: None }]),
     }]);
-    assert!(tail::render(&mut prompt, &backend.ledger, &backend.settings.adapter, 4096).is_none());
+    assert!(tail::render(&mut prompt, &backend.ledger, &backend.settings.translation, 4096).is_none());
 }
 
 #[test]
@@ -391,13 +400,14 @@ fn a_tail_moves_served_results_after_the_last_assistant() {
             ]),
         },
     ]);
-    let line = tail::render(&mut prompt, &backend.ledger, &backend.settings.adapter, 4096).unwrap();
+    let line = tail::render(&mut prompt, &backend.ledger, &backend.settings.translation, 4096).unwrap();
     let decoded: serde_json::Value = serde_json::from_slice(&line).unwrap();
     assert_eq!(decoded["message"]["content"], "result of Read: new reply\nfinish now\n");
 }
 
 #[test]
 fn a_call_arriving_during_interrupt_is_not_run() {
+    let mut below = Queue::with_capacity(64);
     let mut backend = active();
     fixtures::connect_server(&mut backend);
     backend.stopping.begin(stopping::Action::Yield, None);
@@ -406,24 +416,26 @@ fn a_call_arriving_during_interrupt_is_not_run() {
     backend.startup.server_mut().expect("server").from_io(
         env(0).now,
         io::Event::Stream { owner: Token::new(101), up: skein_lib::stream::Up::Bytes(bytes.as_slice().into()) },
-        &mut backend.io,
+        &mut backend.server_up,
+        &mut below,
     );
-    let call = backend.startup.server_mut().expect("server").up().expect("call");
+    let call = backend.server_up.pop().expect("call");
     backend.calls.push(call).expect("one held call");
-    backend.match_calls();
-    let reply = fixtures::server_reply(&mut backend);
+    backend.match_calls(&mut below);
+    let reply = fixtures::server_reply(&mut backend, &mut below);
     assert_eq!(reply["result"]["isError"], true);
     assert_eq!(reply["result"]["content"][0]["text"], "not run: the program turn was interrupted");
 }
 
 #[test]
 fn a_prompt_arriving_during_interrupt_is_not_run() {
+    let mut below = Queue::with_capacity(64);
     let mut backend = active();
     fixtures::connect_server(&mut backend);
     backend.stopping.begin(stopping::Action::Yield, None);
-    prompt(&mut backend, true);
+    prompt(&mut backend, true, &mut below);
     assert_eq!(
-        decision(&mut backend),
+        decision(&mut backend, &mut below),
         serde_json::json!({
             "behavior":"deny", "message":"not run: the program turn was interrupted",
         })
@@ -598,7 +610,7 @@ fn a_held_wait_closes_input_after_its_control_result() {
     assert!(!input_closed(&below));
     backend.line(&env(0), CONTROL_SUCCESS, &mut up, &mut below);
     backend.line(&env(0), INTERRUPTED_RESULT, &mut up, &mut below);
-    backend.flush(&mut below);
+
     assert_eq!(sent_lines(&below)[0]["type"], "control_request");
     assert_eq!(signal(&below, kernel::Signal::Interrupt), 0);
     assert!(input_closed(&below));
@@ -608,12 +620,13 @@ fn a_held_wait_closes_input_after_its_control_result() {
 fn a_control_interrupt_follows_the_whole_user_line() {
     // One byte beyond the backend's 4096-byte native write chunk.
     const TEXT_BYTES: usize = 4097;
+    let mut below = Queue::with_capacity(64);
     let mut backend = active();
     let original = alloc::vec![b'x'; TEXT_BYTES];
     backend.outgoing = stream::text_message(&original, backend.settings.input_bytes);
-    backend.send_input();
+    backend.send_input(&mut below);
     let mut up = Queue::with_capacity(32);
-    let mut below = Queue::with_capacity(64);
+
     backend.yield_for_wind_down(&env(0), &mut up, &mut below);
     grant_input(&mut backend, 1, &mut up, &mut below);
     grant_input(&mut backend, 1, &mut up, &mut below);

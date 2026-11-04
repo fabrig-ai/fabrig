@@ -23,20 +23,20 @@ fn cases(spent: run::Spend) -> [(run::Answer, Status, Option<AnswerClass>, u64);
             0,
         ),
         (
-            run::Answer::Failed { failure: run::Failure::Cancelled, spent, turns: 2 },
+            run::Answer::Failed { failure: run::RunFailure::Cancelled, spent, turns: 2 },
             Status::Failed,
             Some(AnswerClass::Cancelled),
             19,
         ),
         (
-            run::Answer::Failed { failure: run::Failure::Stale, spent, turns: 2 },
+            run::Answer::Failed { failure: run::RunFailure::Stale, spent, turns: 2 },
             Status::Failed,
             Some(AnswerClass::Stale),
             19,
         ),
         (
             run::Answer::Failed {
-                failure: run::Failure::Budget { exhausted: run::Exhausted::Spend, used: None, bound: None },
+                failure: run::RunFailure::Budget { exhausted: run::Exhausted::Spend, used: None, bound: None },
                 spent,
                 turns: 2,
             },
@@ -46,7 +46,7 @@ fn cases(spent: run::Spend) -> [(run::Answer, Status, Option<AnswerClass>, u64);
         ),
         (
             run::Answer::Failed {
-                failure: run::Failure::Policy(run::Policy::Unfinished { nudges: 3, rejected: 5 }),
+                failure: run::RunFailure::Policy(run::Policy::Unfinished { nudges: 3, rejected: 5 }),
                 spent,
                 turns: 2,
             },
@@ -56,7 +56,7 @@ fn cases(spent: run::Spend) -> [(run::Answer, Status, Option<AnswerClass>, u64);
         ),
         (
             run::Answer::Failed {
-                failure: run::Failure::Transcript(run::TranscriptRefusal::Unresolved),
+                failure: run::RunFailure::Transcript(run::TranscriptRefusal::Unresolved),
                 spent,
                 turns: 2,
             },
@@ -66,7 +66,7 @@ fn cases(spent: run::Spend) -> [(run::Answer, Status, Option<AnswerClass>, u64);
         ),
         (
             run::Answer::Failed {
-                failure: run::Failure::Model(run::Fault::Completion {
+                failure: run::RunFailure::Model(run::Fault::Completion {
                     failure: run::CompletionFailure::RateLimited { retry_after: Duration::from_millis(23) },
                     evidence: run::CompletionEvidence::Response { status: None },
                     model: 0,
@@ -112,7 +112,7 @@ fn every_seen_answer_kind_preserves_its_terminal_and_accounting() {
         }
     }
     let why = failure_record(
-        run::Failure::Model(run::Fault::Completion {
+        run::RunFailure::Model(run::Fault::Completion {
             failure: run::CompletionFailure::RateLimited { retry_after: Duration::from_millis(23) },
             evidence: run::CompletionEvidence::Response { status: None },
             model: 0,
@@ -137,7 +137,7 @@ fn every_seen_answer_kind_preserves_its_terminal_and_accounting() {
         })
     );
     assert_eq!(
-        failure_record(run::Failure::Transcript(run::TranscriptRefusal::Unresolved), meta().now).reason.as_deref(),
+        failure_record(run::RunFailure::Transcript(run::TranscriptRefusal::Unresolved), meta().now).reason.as_deref(),
         Some(b"unresolved".as_slice())
     );
 }
@@ -154,7 +154,7 @@ fn a_limited_accounts_reset_is_measured_at_the_answer() {
         meta.now = skein_lib::Time::from_nanos(answer_at);
         meta.elapsed = Duration::from_secs(999);
         let answer = run::Answer::Failed {
-            failure: run::Failure::Model(run::Fault::Limited { account: 23, reset_at }),
+            failure: run::RunFailure::Model(run::Fault::Limited { account: 23, reset_at }),
             spent: run::Spend::ZERO,
             turns: 0,
         };
@@ -167,7 +167,7 @@ fn a_limited_accounts_reset_is_measured_at_the_answer() {
 #[test]
 fn a_budget_failure_keeps_run_usage_instead_of_product_elapsed_time() {
     let answer = run::Answer::Failed {
-        failure: run::Failure::Budget { exhausted: run::Exhausted::Time, used: Some(1073), bound: Some(1000) },
+        failure: run::RunFailure::Budget { exhausted: run::Exhausted::Time, used: Some(1073), bound: Some(1000) },
         spent: run::Spend::ZERO,
         turns: 0,
     };
@@ -181,7 +181,7 @@ fn a_budget_failure_keeps_run_usage_instead_of_product_elapsed_time() {
 #[test]
 fn program_failures_keep_their_terminal_metadata() {
     for (exit, expected) in [(None, None), (Some(7), Some(smith_events::AgentExit::Code(7)))] {
-        let fault = run::Failure::Model(run::Fault::Program {
+        let fault = run::RunFailure::Model(run::Fault::Program {
             name: b"claude_code".as_slice().into(),
             exit,
             detail: b"program detail".as_slice().into(),

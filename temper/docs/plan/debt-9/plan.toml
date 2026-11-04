@@ -1,0 +1,67 @@
+draft = "debt-9"
+repo = "fabrig"
+sources = ["temper/docs/plan/debt-9/inputs/request.md", "skein/docs/development/debt/D016-transport-four-copies.md", "smith/docs/development/debt/D005-block-walks.md", "smith/docs/development/debt/D006-backend-two-effect-paths.md", "smith/docs/development/debt/D008-one-program-map.md", "smith/docs/development/debt/D013-names-left.md"]
+
+# Three parts in the request, cut finer so that each item stands alone. plan.md says what was decided and why.
+
+[buffer]
+low = 1.0
+high = 2.0
+
+[[part]]
+id = "smith-one-program"
+title = "smith D008: the configuration holds its one program, and the map's lint exceptions go"
+mode = "direct"
+needs = []
+design = "smith/docs/design/protocol/programs.md, 4.2"
+
+[[part]]
+id = "smith-backend-effects"
+title = "smith D006: the program backend's effects leave by the caller's queues"
+mode = "direct"
+needs = []
+design = "smith/docs/design/protocol/programs.md, 3"
+
+[[part]]
+id = "smith-block-walks"
+title = "smith D005: a tool call is its own type, reached through one accessor"
+mode = "direct"
+needs = []
+design = "skein/docs/foundation/programming-model.md, 10.2"
+
+[[slice]]
+id = 3
+story = "smith's configuration, program backend and session say each thing once, with no behaviour changed"
+parts = ["smith-one-program", "smith-backend-effects", "smith-block-walks"]
+walk = false
+
+[[part]]
+id = "smith-names"
+title = "smith D013: the run's failure, the local host's hub and the LLM's limits say what the design says"
+mode = "direct"
+needs = ["smith-block-walks", "smith-backend-effects"]
+design = "smith/docs/design/domain/README.md, 3"
+
+[[slice]]
+id = 4
+story = "a reviewer reads RunFailure in the run as in the host, no adapter for the hub or the limits, and checkout only for git's"
+parts = ["smith-names"]
+walk = false
+
+[[part]]
+id = "transport"
+title = "skein D016: one Link under the four components, each sending close_notify on a graceful close"
+mode = "direct"
+needs = []
+design = "skein/docs/design/link.md, 3"
+
+[[slice]]
+id = 5
+story = "the four components stand on one transport, and a graceful close over TLS reaches the server as close_notify"
+parts = ["transport"]
+walk = false
+
+[[question]]
+id = "link-role"
+text = """Where does skein-link sit? skein/docs/design/draft/component-kit.md, 6.2 says a "component kit" role would change the code's rules and is the user's to decide, naming the shared transport as a later member. D016 needs a crate on lib, io and TLS, and neither io nor a machine may hold it. What this plan builds by default: the crate takes the existing protocol layer row of programming-model.md, 4, which allows lib, io and machines, so no rule changes and 6.2 stays open (skein/docs/design/link.md, 2). (a) recommended: that stands. (b) the kit role lands instead: only the role's wording changes, in a later small task, with the crate as it is. Nothing waits on the answer."""
+parts = ["transport"]

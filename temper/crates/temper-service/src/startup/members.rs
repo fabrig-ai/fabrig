@@ -117,7 +117,7 @@ pub static SHAPES: [Shape; 32] = [
 ];
 
 /// Every member the application decoders take, including refused settings members.
-pub static MEMBERS: [Member; 107] = [
+pub static MEMBERS: [Member; 108] = [
     Member {
         shape: "document",
         name: "engine",
@@ -161,6 +161,15 @@ pub static MEMBERS: [Member; 107] = [
         bound: "engine shapes only",
         required: true,
         line: "The playground’s scripted model, or null for none.",
+        gone: None,
+    },
+    Member {
+        shape: "application",
+        name: "welcome",
+        kind: "boolean",
+        bound: "",
+        required: false,
+        line: "Whether the document shows the welcome and offers the playground.",
         gone: None,
     },
     Member {

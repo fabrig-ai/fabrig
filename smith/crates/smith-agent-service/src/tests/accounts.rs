@@ -140,7 +140,7 @@ fn a_limited_run_answers_with_reset_ms() {
             elapsed: ELAPSED,
         };
         let answer = run::Answer::Failed {
-            failure: run::Failure::Model(run::Fault::Limited { account: ACCOUNT, reset_at: row.reset_at }),
+            failure: run::RunFailure::Model(run::Fault::Limited { account: ACCOUNT, reset_at: row.reset_at }),
             spent: run::Spend::ZERO,
             turns: 0,
         };

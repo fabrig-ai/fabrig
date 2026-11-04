@@ -593,6 +593,66 @@ fn a_stalled_drain_is_closed_by_idleness_without_a_second_terminal() {
     assert_replays(7, 8, |seed| run_a_stalled_drain_is_closed_by_idleness_without_a_second_terminal(seed).report());
 }
 
+fn idle_tls_world() -> World {
+    let mut world = World::new(Deadlines::none(), 47, true);
+    world.run_until_request();
+    world.wire.write(&skein_llm_world::text_response(true));
+    let keep = Time::ZERO.saturating_add(limits().idle_keep);
+    for _ in 0..20_000 {
+        world.tick();
+        if !world.terminals.is_empty() && world.component.next_deadline() == Some(keep) {
+            break;
+        }
+    }
+    assert!(matches!(world.terminals.as_slice(), [Event::Completed { .. }]));
+    assert_eq!(world.component.next_deadline(), Some(keep), "the connection is idle");
+    world.now = keep;
+    world
+}
+
+#[test]
+fn an_idle_tls_connection_sends_close_notify_before_socket_close() {
+    let mut world = idle_tls_world();
+    let env = world.env();
+    world.component.fire(&env, &mut world.up, &mut world.io);
+    for _ in 0..1000 {
+        world.tick();
+        if world.closed {
+            break;
+        }
+    }
+    match &world.wire {
+        TransportWire::Handshake(wire) => assert!(wire.server.closed, "the server read close_notify"),
+        TransportWire::Plaintext(_) => unreachable!("the endpoint uses TLS"),
+    }
+    assert!(world.closed, "the idle connection settled its socket");
+    assert!(!world.component.has_work());
+    assert_eq!(world.component.next_deadline(), None);
+}
+
+#[test]
+fn a_stalled_tls_close_expires_at_the_links_deadline() {
+    let mut world = idle_tls_world();
+    let env = world.env();
+    world.component.fire(&env, &mut world.up, &mut world.io);
+    let until = world.now.saturating_add(limits().io.close_timeout);
+    assert_eq!(world.component.next_deadline(), Some(until), "TLS's close is bounded while room waits");
+    assert!(!world.component.has_work(), "the link waits for io room");
+    world.now = until;
+    let env = world.env();
+    world.component.fire(&env, &mut world.up, &mut world.io);
+    assert_eq!(world.io.iter().last(), Some(&IoRequest::Abort { entity: Token::new(100) }));
+    assert_eq!(world.component.next_deadline(), None);
+    for _ in 0..1000 {
+        world.tick();
+        if world.closed {
+            break;
+        }
+    }
+    assert!(world.closed, "the abort settles the stalled TLS close");
+    assert!(!world.component.has_work());
+}
+
 #[test]
 fn a_close_while_handshaking_lets_the_tls_call_complete_and_says_closed_last() {
     let mut world = World::new(Deadlines::none(), 47, true);

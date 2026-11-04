@@ -130,7 +130,7 @@ pub(crate) fn worst_case(limits: &Limits) -> Option<u64> {
     if limits.depth > encode::DEPTH {
         return None;
     }
-    Stack::<Open>::worst_case(limits.depth)?
+    Stack::<Open>::price(limits.depth)?
         .checked_add(u64::from(limits.depth).checked_mul(u64::from(limits.key))?)?
         .checked_add(u64::from(limits.key))
 }

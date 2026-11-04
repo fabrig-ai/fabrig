@@ -6,7 +6,7 @@ use std::collections::BTreeMap;
 
 use skein_lib::{Duration, Env, Queue, Time, Token, Wall};
 use smith_domain_run as run;
-use smith_domain_run::{Answer, Budget, Exhausted, Failure, Fault, Invalid, Limits, Policy, Refusal};
+use smith_domain_run::{Answer, Budget, Exhausted, Fault, Invalid, Limits, Policy, Refusal, RunFailure};
 use smith_run_world::host;
 use smith_run_world::partner::Script;
 use smith_run_world::{Checkouts, Settings, Span, World, noisy};
@@ -144,7 +144,7 @@ fn a_completion_whose_maximum_does_not_fit_is_not_made_and_the_run_ends_for_its_
         },
     );
     assert!(matches!(ended.as_slice(), [run::Request::Answer {
-        answer: Answer::Failed { failure: Failure::Budget { exhausted: Exhausted::Spend, .. }, spent, .. }, ..
+        answer: Answer::Failed { failure: RunFailure::Budget { exhausted: Exhausted::Spend, .. }, spent, .. }, ..
     }] if *spent == run::Spend::ZERO));
 }
 
@@ -231,7 +231,7 @@ fn sub_agents_reserve_from_the_runs_budget_and_spend_never_passes_it() {
         },
     );
     assert!(matches!(ended.as_slice(), [run::Request::Answer {
-        answer: Answer::Failed { failure: Failure::Budget { exhausted: Exhausted::Spend, .. }, spent, .. }, ..
+        answer: Answer::Failed { failure: RunFailure::Budget { exhausted: Exhausted::Spend, .. }, spent, .. }, ..
     }] if spent.units == 50 && spent.units <= 100));
 }
 
@@ -336,10 +336,10 @@ fn answered_host_call_before_turn_crash_wakes_as_host_text_with_new_call_namespa
     assert!(matches!(fresh.as_slice(), [run::Request::HostCall { name, .. }] if *name == new_name));
 }
 
-fn failure(answer: &Answer) -> Failure {
+fn failure(answer: &Answer) -> RunFailure {
     match answer {
-        Answer::Failed { failure: Failure::Budget { exhausted, .. }, .. } => {
-            Failure::Budget { exhausted: *exhausted, used: None, bound: None }
+        Answer::Failed { failure: RunFailure::Budget { exhausted, .. }, .. } => {
+            RunFailure::Budget { exhausted: *exhausted, used: None, bound: None }
         }
         Answer::Failed { failure, .. } => failure.clone(),
         Answer::Refused(refusal) => panic!("the run was refused: {refusal:?}"),
@@ -353,7 +353,7 @@ fn an_llm_that_keeps_stopping_is_nudged_until_the_run_fails_as_unfinished() {
     let calm = Settings::calm(1);
     let world = settled(&Settings { partner: Script { yields: 1000, ..calm.partner }, ..calm });
     for answer in answers(&world) {
-        assert_eq!(failure(answer), Failure::Policy(Policy::Unfinished { nudges: calm.run.nudges, rejected: 0 }));
+        assert_eq!(failure(answer), RunFailure::Policy(Policy::Unfinished { nudges: calm.run.nudges, rejected: 0 }));
     }
     let stats = world.stats();
     assert_eq!((stats.opens, stats.says, stats.closes), (4, 4 * calm.run.nudges, 4));
@@ -367,8 +367,8 @@ fn an_llm_that_fails_fails_its_run_with_the_fault() {
     for answer in answers(&world) {
         assert!(
             [
-                Failure::Model(Fault::Provider),
-                Failure::Model(Fault::Completion {
+                RunFailure::Model(Fault::Provider),
+                RunFailure::Model(Fault::Completion {
                     failure: smith_domain_run::CompletionFailure::Limit {
                         which: smith_domain_run::Limit::History,
                         bound: 65_536
@@ -391,7 +391,7 @@ fn an_llm_whose_last_stop_shows_a_fault_fails_the_run_with_it() {
     let calm = Settings::calm(3);
     let script = Script { yields: 1000, odd_stops: 1000, ..calm.partner };
     let world = settled(&Settings { run: Limits { nudges: 0, ..calm.run }, partner: script, ..calm });
-    let faults = [Fault::Truncated, Fault::Declined, Fault::Malformed].map(Failure::Model);
+    let faults = [Fault::Truncated, Fault::Declined, Fault::Malformed].map(RunFailure::Model);
     for answer in answers(&world) {
         assert!(faults.contains(&failure(answer)), "{answer:?}");
     }
@@ -402,7 +402,7 @@ fn an_llm_that_works_on_runs_out_of_turns() {
     let calm = Settings::calm(4);
     let world = settled(&Settings { partner: Script { yields: 0, ..calm.partner }, ..calm });
     for answer in answers(&world) {
-        assert_eq!(failure(answer), Failure::Budget { exhausted: Exhausted::Turns, used: None, bound: None });
+        assert_eq!(failure(answer), RunFailure::Budget { exhausted: Exhausted::Turns, used: None, bound: None });
     }
     assert!(world.stats().partner.ceilings >= 4, "each conversation kept to its share of turns");
 }
@@ -412,7 +412,7 @@ fn an_llm_that_runs_out_of_spend_fails_without_crossing_its_budget() {
     let calm = Settings::calm(5);
     let host = host::Script { tokens_min: 80_000, tokens_max: 100_000, turns_min: 100, turns_max: 100, ..calm.host };
     let world = settled(&Settings { host, partner: Script { yields: 0, ..calm.partner }, ..calm });
-    let tokens = [Failure::Budget { exhausted: Exhausted::Spend, used: None, bound: None }];
+    let tokens = [RunFailure::Budget { exhausted: Exhausted::Spend, used: None, bound: None }];
     assert!(world.facts_seen().iter().any(|fact| matches!(fact.kind,
         run::facts::FactKind::Budget { standing, .. }
             if standing.stage == run::Stage::WindDown
@@ -431,7 +431,7 @@ fn a_run_out_of_time_fails_for_time() {
     let script = Script { turn: Span::millis(3_000, 8_000), yields: 0, ..calm.partner };
     let world = settled(&Settings { host, partner: script, ..calm });
     for answer in answers(&world) {
-        assert_eq!(failure(answer), Failure::Budget { exhausted: Exhausted::Time, used: None, bound: None });
+        assert_eq!(failure(answer), RunFailure::Budget { exhausted: Exhausted::Time, used: None, bound: None });
     }
 }
 
@@ -441,7 +441,7 @@ fn a_cancelled_run_closes_its_conversation_and_answers_as_cancelled() {
     let host = host::Script { cancels: 1000, cancel: Span::millis(0, 30_000), ..calm.host };
     let world = settled(&Settings { host, partner: Script { yields: 0, ..calm.partner }, ..calm });
     for answer in answers(&world) {
-        assert_eq!(failure(answer), Failure::Cancelled);
+        assert_eq!(failure(answer), RunFailure::Cancelled);
     }
     let stats = world.stats();
     assert_eq!((stats.cancels, stats.closes), (4, 4));
@@ -456,7 +456,7 @@ fn a_cancel_that_comes_before_main_starts_closes_main_once_it_does() {
     let checkout = Checkouts { io: Span::millis(0, 0), ..calm.checkout };
     let world = settled(&Settings { host, hop: Span::millis(50, 100), checkout, ..calm });
     for answer in answers(&world) {
-        assert_eq!(failure(answer), Failure::Cancelled);
+        assert_eq!(failure(answer), RunFailure::Cancelled);
     }
     let first = |what: &str| world.trace().iter().position(|line| line.contains(what)).expect("it happened");
     assert!(first("run <- Cancel {") < first("run <- Started {"), "the first cancel came before the first start");
@@ -471,7 +471,7 @@ fn a_cancel_while_the_run_reads_its_checkout_answers_once_the_read_has_ended() {
     let checkout = Checkouts { io: Span::millis(500, 1_000), ..calm.checkout };
     let world = settled(&Settings { host, checkout, ..calm });
     for answer in answers(&world) {
-        assert_eq!(failure(answer), Failure::Cancelled);
+        assert_eq!(failure(answer), RunFailure::Cancelled);
     }
     let stats = world.stats();
     assert_eq!((stats.cancels, stats.opens, stats.reads), (4, 0, 4), "each run stopped at its first read");
@@ -573,7 +573,7 @@ fn a_change_whose_branch_moved_ends_its_run_as_stale() {
     let stats = world.stats();
     assert!(stats.partner.moved > 0 && stats.partner.accepted == 0, "{stats:?}");
     for answer in answers(&world) {
-        assert!(matches!(answer, Answer::Failed { failure: Failure::Stale, .. }), "{answer:?}");
+        assert!(matches!(answer, Answer::Failed { failure: RunFailure::Stale, .. }), "{answer:?}");
     }
 }
 
@@ -620,7 +620,7 @@ fn a_check_deadline_terminal_returns_feedback_without_submitting_to_host() {
     assert_eq!(stats.deliveries, 0, "{stats:?}");
     for answer in answers(&world) {
         assert!(
-            matches!(answer, Answer::Failed { failure: Failure::Budget { exhausted: Exhausted::Time, .. }, .. }),
+            matches!(answer, Answer::Failed { failure: RunFailure::Budget { exhausted: Exhausted::Time, .. }, .. }),
             "{answer:?}"
         );
     }
@@ -892,7 +892,7 @@ fn a_cancelled_run_closes_its_sub_agents_down_the_tree() {
         if stats.children > 0 && stats.partner.withdrawn > 0 {
             for answer in answers(&world) {
                 assert!(
-                    matches!(answer, Answer::Failed { failure: Failure::Cancelled, .. } | Answer::Accepted { .. }),
+                    matches!(answer, Answer::Failed { failure: RunFailure::Cancelled, .. } | Answer::Accepted { .. }),
                     "{answer:?}"
                 );
             }

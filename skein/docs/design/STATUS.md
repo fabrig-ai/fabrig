@@ -16,7 +16,7 @@ suite's logins have no design (`skein-live`), five of its provider
 stories being manual, run by the owner (`llm.md`). The code departs
 in three crates' `tests/` directories (`testing.md`) and in
 `skein-playground`'s manifest (`playground.md`).
-`README.md`, `codec.md`, `world.md`, `fake-checkout.md`,
+`README.md`, `codec.md`, `link.md`, `world.md`, `fake-checkout.md`,
 `forge-client.md`, `oauth-issuer.md`, `ui-text.md`, `ui-web.md` and
 `browser.md` have no gap. The state machines of io, channel,
 forge-connection, Forgejo's plans, oauth and its accounts, llm,
@@ -47,6 +47,7 @@ Design documents:
 - [`kv.md`](kv.status.md)
 - [`http.md`](http.status.md)
 - [`tls.md`](tls.status.md)
+- [`link.md`](link.status.md)
 - [`channel.md`](channel.status.md)
 - [`llm.md`](llm.status.md)
 - [`llm-connection.md`](llm-connection.status.md)
