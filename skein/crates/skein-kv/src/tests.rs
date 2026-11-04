@@ -527,3 +527,12 @@ fn applying_an_earlier_commit_keeps_a_later_charge_on_the_same_key() {
         "the later commit's charge survives the earlier commit applying",
     );
 }
+
+#[test]
+fn chunk_target_is_the_target_under_a_higher_ceiling() {
+    for (chunk, target) in
+        [(4096, 4096), (crate::CHUNK_TARGET, crate::CHUNK_TARGET), (crate::CHUNK_TARGET + 1, crate::CHUNK_TARGET)]
+    {
+        assert_eq!(Limits { chunk, ..limits() }.chunk_target(), target);
+    }
+}
