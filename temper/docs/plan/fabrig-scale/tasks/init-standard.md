@@ -3,7 +3,7 @@ id = "init-standard"
 part = "box"
 kind = "feature"
 needs = ["standard-scale", "forge-profile", "smith-calls", "client-capacities"]
-files = ["temper/crates/temper-init/template/temper.json", "temper/crates/temper-init/template/agent.json", "temper/docs/examples/owned.json", "temper/docs/examples/owned/agent.json", "temper/crates/temper-init/src/tests/**", "temper/crates/temper/tests/suite/startup.rs", "temper/crates/temper/tests/suite/configuration.rs", "temper/crates/temper/tests/support/owned.rs", "temper/crates/temper-service/src/tests/startup.rs", "temper/crates/temper-service/src/tests/stock_brief.rs", "temper/tests/real-loop/tests/suite/template_bounds.rs", "temper/tests/engine/domain/src/forge_routes.rs", "temper/docs/design/protocol/configuration.status.md", "temper/docs/design/protocol/setup.status.md", "temper/crates/temper-service/src/limits.rs", "temper/crates/temper-service/src/tests/checks.rs", "temper/docs/design/protocol/configuration.md", "temper/crates/temper-engine-domain/src/limits.rs", "temper/crates/temper/tests/support/forge_land/rung.rs", "temper/crates/temper-service/src/tests/welcome_policy.rs", "temper/tests/engine/domain/src/store.rs", "temper/tests/engine/domain/tests/suite/forge_routes/b2_tree.rs"]
+files = ["temper/crates/temper-init/template/temper.json", "temper/crates/temper-init/template/agent.json", "temper/docs/examples/owned.json", "temper/docs/examples/owned/agent.json", "temper/crates/temper-init/src/tests/**", "temper/crates/temper/tests/suite/startup.rs", "temper/crates/temper/tests/suite/configuration.rs", "temper/crates/temper/tests/support/owned.rs", "temper/crates/temper-service/src/tests/startup.rs", "temper/crates/temper-service/src/tests/stock_brief.rs", "temper/tests/real-loop/tests/suite/template_bounds.rs", "temper/tests/engine/domain/src/forge_routes.rs", "temper/docs/design/protocol/configuration.status.md", "temper/docs/design/protocol/setup.status.md", "temper/crates/temper-service/src/limits.rs", "temper/crates/temper-service/src/tests/checks.rs", "temper/docs/design/protocol/configuration.md", "temper/crates/temper-engine-domain/src/limits.rs", "temper/crates/temper/tests/support/forge_land/rung.rs", "temper/crates/temper-service/src/tests/welcome_policy.rs", "temper/tests/engine/domain/src/store.rs", "temper/tests/engine/domain/tests/suite/forge_routes/b2_tree.rs", "temper/**/tests/**", "temper/**/src/tests/**", "temper/**/fixtures/**", "temper/**/golden/**", "temper/**/testdata/**"]
 effort = "high"
 minutes = 240
 +++
@@ -327,3 +327,11 @@ the box allowance" is the proof and stays as it is, and no task owns the fixture
 
 Then the full `-p temper-engine-domain-world`, the acceptance's remaining checks with the three
 exclusions the answer above names, the status lines, clippy and the push.
+
+2026-11-04 (fabrig/qa via agents/loop, a standing answer). **May this task change a test, fixture,
+golden or test helper outside its files to follow init's move to the standard profile?** Yes,
+without asking: any test, fixture, golden file or test helper whose expected figures, bounds or
+profile follow from init's profile moving to standard may be updated in place (the files above now
+take temper's test, fixture and golden trees). Stop and ask only for product code outside the
+files, or for a design change. Run the whole of each touched test binary before pushing, so the
+next pinned figure is found in this run, not the next.
