@@ -339,14 +339,15 @@ fn completion_answer_fields() {
         });
         world.run(20_000);
         let fault = expected_fault(expected, &world);
-        let resolved =
-            if let run::Answer::Failed { failure: run::RunFailure::Model(run::Fault::Completion { model, .. }), .. } =
-                world.answer()
-            {
-                charter.model(*model).map(|value| (&value.endpoint, &value.model))
-            } else {
-                None
-            };
+        let resolved = if let run::Answer::Failed {
+            failure: run::RunFailure::Model(run::Fault::Completion { model, .. }),
+            ..
+        } = world.answer()
+        {
+            charter.model(*model).map(|value| (&value.endpoint, &value.model))
+        } else {
+            None
+        };
         let expected_model = if let run::Fault::Completion { .. } = &fault {
             Some((&charter.llm.endpoint, &charter.llm.model))
         } else {

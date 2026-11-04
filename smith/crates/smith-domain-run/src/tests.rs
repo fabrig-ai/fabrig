@@ -23,8 +23,8 @@ use crate::outcome::{
 };
 use crate::prepare::{Found, Guide};
 use crate::{
-    Answer, Ask, AskRefusal, Budget, Charter, Delivery, Domain, End, Event, Exhausted, Exit, RunFailure, Fault, Invalid,
-    Limits, Opening, Place, Policy, Ran, Read, Refusal, Request, Returned, Spend, Stop, fire, step, valid,
+    Answer, Ask, AskRefusal, Budget, Charter, Delivery, Domain, End, Event, Exhausted, Exit, Fault, Invalid, Limits,
+    Opening, Place, Policy, Ran, Read, Refusal, Request, Returned, RunFailure, Spend, Stop, fire, step, valid,
 };
 use crate::{Directory, Workspace};
 

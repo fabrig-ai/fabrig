@@ -77,7 +77,8 @@ impl Backend {
         up: &mut Queue<ToDomain>,
         below: &mut Queue<Below>,
     ) {
-        let Some(document) = stream::collect(bytes, self.settings.translation.client.depth, self.settings.stream_tokens)
+        let Some(document) =
+            stream::collect(bytes, self.settings.translation.client.depth, self.settings.stream_tokens)
         else {
             self.fail_program(env, b"smith: the program stream does not decode", up, below);
             return;
@@ -291,8 +292,15 @@ impl Backend {
                     match call {
                         llm::Decoded::Builtin { .. } => {}
                         llm::Decoded::Owned { .. } | llm::Decoded::Served { .. } | llm::Decoded::Invalid { .. } => {
-                            *call =
-                                decode_call(id, name, input, prompt, outcome, deliver.as_ref(), &self.settings.translation);
+                            *call = decode_call(
+                                id,
+                                name,
+                                input,
+                                prompt,
+                                outcome,
+                                deliver.as_ref(),
+                                &self.settings.translation,
+                            );
                         }
                     }
                     decoded = match call.owned_bytes() {

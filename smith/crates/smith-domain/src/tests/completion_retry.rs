@@ -299,7 +299,10 @@ fn a_limited_account_ends_the_run_with_its_reset() {
 fn a_refused_account_ends_the_run_with_its_code() {
     let report = crate::llm::Report { code: bytes(b"not-eligible"), request: bytes(b"request"), field: Box::default() };
     let terminal = account_failure(Failure::Refused, report, Time::ZERO, Time::ZERO, Some(0)).0;
-    assert_eq!(terminal, Some(run::RunFailure::Model(run::Fault::Refused { account: 0, code: bytes(b"not-eligible") })));
+    assert_eq!(
+        terminal,
+        Some(run::RunFailure::Model(run::Fault::Refused { account: 0, code: bytes(b"not-eligible") }))
+    );
 }
 
 #[test]

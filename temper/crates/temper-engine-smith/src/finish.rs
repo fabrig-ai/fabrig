@@ -75,7 +75,9 @@ pub fn result(answer: run::Answer, change: Option<ChangeResource>) -> Result<Ter
         run::Answer::Failed { failure, spent, turns } => {
             let class = match failure {
                 run::RunFailure::Transcript(_) | run::RunFailure::Stale => tasks::Class::Transient,
-                run::RunFailure::Model(_) | run::RunFailure::Budget { .. } | run::RunFailure::Policy(_) => tasks::Class::Run,
+                run::RunFailure::Model(_) | run::RunFailure::Budget { .. } | run::RunFailure::Policy(_) => {
+                    tasks::Class::Run
+                }
                 run::RunFailure::Cancelled => tasks::Class::Agent,
             };
             Ok(Terminal { cumulative: spent.units, turns, end: tasks::End::Failed(class) })

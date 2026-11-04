@@ -345,8 +345,15 @@ fn a_tail_checks_its_exact_encoded_length() {
         ]);
         let length = u32::try_from(encoded.len()).unwrap();
         assert!(
-            tail::render_observed(&mut prompt, &backend.ledger, &backend.settings.translation, length - 1, prefix, true)
-                .is_none()
+            tail::render_observed(
+                &mut prompt,
+                &backend.ledger,
+                &backend.settings.translation,
+                length - 1,
+                prefix,
+                true
+            )
+            .is_none()
         );
         let rendered =
             tail::render_observed(&mut prompt, &backend.ledger, &backend.settings.translation, length, prefix, true)

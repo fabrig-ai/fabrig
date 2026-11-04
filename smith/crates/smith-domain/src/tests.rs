@@ -1668,7 +1668,8 @@ fn settle_default_convention_control(harness: &mut Harness, run: Token, main: To
         ended.push(request);
     }
     let ended = collected_requests(ended);
-    let [Request::Answer { answer: run::Answer::Failed { failure: run::RunFailure::Cancelled, .. }, .. }] = ended.as_ref()
+    let [Request::Answer { answer: run::Answer::Failed { failure: run::RunFailure::Cancelled, .. }, .. }] =
+        ended.as_ref()
     else {
         panic!("positive default control settles its original Start: {ended:?}");
     };
@@ -2213,7 +2214,8 @@ fn command_span_ends_at_the_seen_io_terminal_after_cancel() {
     assert_eq!(h.domain.commands.len(), 0);
     assert_eq!(h.long.as_slice(), &[Some(crate::Operation::Completion), None, Some(crate::Operation::Command), None]);
     let ended = if ended.is_empty() { h.next() } else { ended };
-    let [Request::Answer { answer: run::Answer::Failed { failure: run::RunFailure::Cancelled, .. }, .. }] = ended.as_ref()
+    let [Request::Answer { answer: run::Answer::Failed { failure: run::RunFailure::Cancelled, .. }, .. }] =
+        ended.as_ref()
     else {
         panic!("only IO settlement permits the cancellation answer: {ended:?}");
     };

@@ -101,7 +101,8 @@ use skein_lib::{Deadlines, Duration, Env, Id, Queue, ReplyTo, Slab, Time, Token}
 use crate::Workspace;
 use crate::agent;
 use crate::boundary::{
-    Answer, Ask, AskRefusal, End, RunFailure, Fault, Invalid, Policy, Ran, Read, Refusal, Request, Returned, Stop, Window,
+    Answer, Ask, AskRefusal, End, Fault, Invalid, Policy, Ran, Read, Refusal, Request, Returned, RunFailure, Stop,
+    Window,
 };
 use crate::budget::{Exhausted, Spend};
 use crate::call::{Call, Calls, Withdrawal, Work};
@@ -610,7 +611,9 @@ pub(crate) fn cancel(domain: &mut Domain, run: Token, out: &mut Queue<Request>) 
         State::Awaiting { reply_to, main, until: _ } => {
             stop(run, conversations, reply_to, main, RunFailure::Cancelled, out)
         }
-        State::Preparing { reply_to, main, step: _ } => State::Stopping { reply_to, main, failure: RunFailure::Cancelled },
+        State::Preparing { reply_to, main, step: _ } => {
+            State::Stopping { reply_to, main, failure: RunFailure::Cancelled }
+        }
         State::Waiting { reply_to, main, call, until: _ } => {
             out.push(Request::Return { spent: 0, call, result: Returned::Cancelled });
             wind_down(conversations, reply_to, main, cancelled, out)

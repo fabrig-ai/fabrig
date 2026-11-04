@@ -5,7 +5,7 @@ use std::collections::{BTreeMap, BTreeSet};
 
 use skein_lib::{Duration, Rng};
 use smith_domain_run as run;
-use smith_domain_run::{Answer, Exhausted, RunFailure, Fault, Invalid, Limits, Policy, Refusal};
+use smith_domain_run::{Answer, Exhausted, Fault, Invalid, Limits, Policy, Refusal, RunFailure};
 use smith_run_world::host;
 use smith_run_world::partner::Script;
 use smith_run_world::{Checkouts, Settings, Span, World, noisy};

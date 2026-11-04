@@ -1212,7 +1212,10 @@ fn account_notices_are_not_turns_and_terminal_failure_classes_stay_distinct() {
     for (failure, class) in [
         (run::RunFailure::Stale, tasks::Class::Transient),
         (run::RunFailure::Transcript(run::TranscriptRefusal::Malformed), tasks::Class::Transient),
-        (run::RunFailure::Budget { exhausted: run::Exhausted::Turns, used: Some(2), bound: Some(2) }, tasks::Class::Run),
+        (
+            run::RunFailure::Budget { exhausted: run::Exhausted::Turns, used: Some(2), bound: Some(2) },
+            tasks::Class::Run,
+        ),
         (run::RunFailure::Policy(run::Policy::Unfinished { nudges: 1, rejected: 1 }), tasks::Class::Run),
         (run::RunFailure::Model(run::Fault::Provider), tasks::Class::Run),
         (run::RunFailure::Cancelled, tasks::Class::Agent),

@@ -147,7 +147,11 @@ fn raw_usage_overflow_ends_with_only_the_charged_prefix() {
         assert!(harness.step(Event::Used { conversation: main, spend: full }).is_empty());
         assert_eq!(
             crate::completion_overflow(&harness.domain, main, 0, overflow),
-            Some(RunFailure::Budget { exhausted: Exhausted::Overflow(crate::Overflow::Usage), used: None, bound: None })
+            Some(RunFailure::Budget {
+                exhausted: Exhausted::Overflow(crate::Overflow::Usage),
+                used: None,
+                bound: None
+            })
         );
         assert_eq!(
             harness.step(Event::Used { conversation: main, spend: overflow }).as_ref(),

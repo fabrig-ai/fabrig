@@ -14,7 +14,11 @@ fn backend_edges(settings: &Settings) -> Option<()> {
     settings.path_bytes.checked_mul(2)?.checked_add(1)?;
     settings.ledger_slots()?;
     measures::capacity(settings)?;
-    settings.translation.client.tools.checked_add(u32::try_from(super::policy::BUILTINS.len()).ok()?.checked_add(1)?)?;
+    settings
+        .translation
+        .client
+        .tools
+        .checked_add(u32::try_from(super::policy::BUILTINS.len()).ok()?.checked_add(1)?)?;
     super::redaction::capacity(settings)?;
     let input = settings.translation.stated.call_input_bytes;
     // Probe the individual document/collector/writer edges, without their

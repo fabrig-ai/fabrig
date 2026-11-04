@@ -65,7 +65,6 @@ it says what a reviewer checks.
 | [D007](D007-tools-namespace.md) | The tools serve a namespace no run produces | complexity | low | M | open |
 | [D011](D011-bench-string-errors.md) | The benchmarks carry failures as strings | other | low | M | open |
 | [D012](D012-large-domain-files.md) | `session.rs` and `run.rs` are too large to read | complexity | low | M | open |
-| [D013](D013-names-left.md) | Names the 10-31 review flagged remain | naming | low | S | open |
 | [D015](D015-path-modules.md) | Code is shared between targets by `#[path]` | tests | low | M | open |
 | [D017](D017-domain-worlds-on-protocols.md) | Two domain worlds call protocol crates | coupling | low | S | open |
 | [D018](D018-domain-formats-text.md) | The local domain composes person-facing text | coupling | low | S | open |

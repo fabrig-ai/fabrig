@@ -18,7 +18,7 @@ use skein_lib::{Duration, Queue, Slab, Time, Token};
 use crate::budget::{Granted, Share, Stage};
 use crate::charter::Reserve;
 
-use crate::boundary::{Answer, End, Exit, RunFailure, Refusal, Request, Returned};
+use crate::boundary::{Answer, End, Exit, Refusal, Request, Returned, RunFailure};
 use crate::run::{self, Conversation, Run};
 
 /// An observation stamped with the injected time of its emitting step.

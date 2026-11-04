@@ -2,7 +2,8 @@ use super::*;
 
 #[test]
 fn each_settled_answer_gives_its_last_line() {
-    let failed = run::RunFailure::Model(run::Fault::Limited { account: 7, reset_at: Some(Time::from_nanos(75_000_000)) });
+    let failed =
+        run::RunFailure::Model(run::Fault::Limited { account: 7, reset_at: Some(Time::from_nanos(75_000_000)) });
     let refusal = run::Refusal::Invalid(run::Invalid::Workspace);
     let now = Time::from_nanos(2_000_000);
     let rows = [

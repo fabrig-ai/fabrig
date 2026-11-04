@@ -10,7 +10,7 @@ use super::{Conversation, Phase, Run, State, follow, hard_stop, standing};
 use crate::charter::{self, Mode};
 use crate::facts::FactKind;
 use crate::wind_down::Cause;
-use crate::{CompletionPermit, Domain, Exhausted, RunFailure, Request, Spend, prompt};
+use crate::{CompletionPermit, Domain, Exhausted, Request, RunFailure, Spend, prompt};
 
 /// Session own prices are monotonic activation totals. Stale names are inert;
 /// subtree updates do not add global spend.
