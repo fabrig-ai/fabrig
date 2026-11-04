@@ -47,3 +47,16 @@ id = 3
 story = "a run that cannot deliver gets no modify, from jig's translation, for every root"
 parts = ["charter-rail"]
 walk = false
+
+[[part]]
+id = "close-grace"
+title = "bug 1: an environment's close takes its grace from ops's configuration"
+mode = "direct"
+needs = []
+design = "jig/docs/design/examples.md, 7.3"
+
+[[slice]]
+id = 4
+story = "a chat closed with its environment gets the grace ops configures, whichever template made it"
+parts = ["close-grace"]
+walk = false
