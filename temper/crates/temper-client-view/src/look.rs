@@ -303,7 +303,7 @@ pub const WELCOME_CHECKLIST: Style = Style { owner: owner(), token: 148 };
 pub const WELCOME_END: Style = Style { owner: owner(), token: 149 };
 /// The small note below Ready’s disabled action.
 pub const WELCOME_TINY: Style = Style { owner: owner(), token: 150 };
-/// Model’s muted forge status above its heading.
+/// Model’s forge status beside its choices.
 pub const WELCOME_STATUS: Style = Style { owner: owner(), token: 151 };
 /// A private repository's tag in the first-run picker.
 pub const REPOSITORY_PRIVATE: Style = Style { owner: owner(), token: 152 };

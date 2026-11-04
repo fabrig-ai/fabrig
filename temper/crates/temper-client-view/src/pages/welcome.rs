@@ -152,15 +152,16 @@ pub(crate) fn main(
             crate::forge::connect::welcome(b, root, w, bindings, forge, forge_choice, sign_in);
         }
         Step::Model { .. } => {
-            if let Some(row) = crate::forge::connect::personal(root) {
-                b.open(Role::Slot);
-                b.style(look::WELCOME_STATUS);
-                crate::forge::connect::welcome_line(b, root, w, row);
-                b.close();
-            }
             text(b, w, Role::Heading { level: 1 }, Word::WelcomeModelTitle);
             paragraph(b, w, Word::WelcomeModelLead, look::WELCOME_LEAD);
             super::connect_model::body(b, root, w, accounts, text_per_node);
+            if let Some(row) = crate::forge::connect::personal(root) {
+                b.open(Role::Complementary);
+                b.style(look::WELCOME_STATUS);
+                b.name(&w.say(Word::WelcomeForgeStep, &[]));
+                crate::forge::connect::welcome_line(b, root, w, row);
+                b.close();
+            }
         }
         Step::Ready => {
             ready(b, root, w, bindings, accounts, forge, sign_in);
