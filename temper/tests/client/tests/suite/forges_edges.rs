@@ -232,6 +232,9 @@ fn world_for(number: u16) -> Pages {
 fn connection(world: &mut Pages, number: u16, state: forge::Connection) {
     world.front().engine.send(engine::Event::Forge(Box::new(forge::Event::Connection { forge: number, state })));
 }
+fn fetched(world: &mut Pages, number: u16, fetched: forge::SetUpFetched) {
+    world.front().engine.send(engine::Event::Forge(Box::new(forge::Event::Fetched { forge: number, fetched })));
+}
 fn connected() -> forge::Connection {
     forge::Connection::Connected { id: BOT_ID, login: BOT.into() }
 }
@@ -1139,4 +1142,38 @@ fn browser_client(seed: u64) -> (temper_client_world::app::Root, temper_client_w
         Root::Person(Box::new(temper_client_domain::unlinked(&limits, seed))),
         View::Person(Box::new(temper_client_view::View::new(&bounds, &limits, words, f::FORGE))),
     )
+}
+
+#[test]
+fn a_forge_row_says_how_far_its_fetch_has_gone() {
+    let mut world = world();
+    connection(&mut world, OWNED, forge::Connection::SettingUp { step: Some(forge::SetUpStep::Fetch) });
+    let client = open(&mut world, Address::Forges);
+    for (progress, words) in [
+        (
+            forge::SetUpFetched { binary: forge::SetUpBinary::Forgejo, done: 42_000_000, total: Some(100_000_000) },
+            "forge 1 · Forgejo · Setting up: fetching Forgejo · 42%",
+        ),
+        (
+            forge::SetUpFetched { binary: forge::SetUpBinary::Forgejo, done: 67_000_000, total: Some(100_000_000) },
+            "forge 1 · Forgejo · Setting up: fetching Forgejo · 67%",
+        ),
+        (
+            forge::SetUpFetched { binary: forge::SetUpBinary::Runner, done: 8_000_000, total: Some(10_000_000) },
+            "forge 1 · Forgejo · Setting up: fetching its runner · 80%",
+        ),
+        (
+            forge::SetUpFetched { binary: forge::SetUpBinary::Runner, done: 41_999_999, total: None },
+            "forge 1 · Forgejo · Setting up: fetching its runner · 41 MB",
+        ),
+    ] {
+        fetched(&mut world, OWNED, progress);
+        pending(&mut world);
+        let row = node(&world, client, Role::Disclosure, b"Forgejo on this machine");
+        assert_eq!(row.description.as_deref(), Some(words.as_bytes()));
+    }
+    connection(&mut world, OWNED, forge::Connection::SettingUp { step: Some(forge::SetUpStep::Prepare) });
+    pending(&mut world);
+    let row = node(&world, client, Role::Disclosure, b"Forgejo on this machine");
+    assert_eq!(row.description.as_deref(), Some("forge 1 · Forgejo · Setting up: preparing".as_bytes()));
 }
