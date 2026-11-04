@@ -273,9 +273,12 @@ fn a_connected_app_without_an_accepted_installation_asks_to_install() {
     {
         let mut row = github_row();
         row.installations = Box::new([Installation { id: 1, account: None, suspended, stray }]);
-        assert_eq!(step(Some(crate::Choice::Forge(2)), &State::Rows(Box::new([row])), None), expected);
+        assert_eq!(step(Some(crate::Choice::Forge(2)), &State::Rows(Box::new([row])), None, true), expected);
     }
-    assert_eq!(step(Some(crate::Choice::Forge(2)), &State::Rows(Box::new([github_row()])), None), Shown::SettingUp(2));
+    assert_eq!(
+        step(Some(crate::Choice::Forge(2)), &State::Rows(Box::new([github_row()])), None, true),
+        Shown::SettingUp(2)
+    );
 }
 #[test]
 fn a_stopped_connect_returns_to_details_with_its_reason() {
@@ -292,7 +295,7 @@ fn a_stopped_connect_returns_to_details_with_its_reason() {
             b"The last connect stopped: the pasted value changed"
         );
         assert_eq!(
-            step(Some(crate::Choice::Forge(2)), &State::Rows(Box::new([row])), None),
+            step(Some(crate::Choice::Forge(2)), &State::Rows(Box::new([row])), None, true),
             Shown::Details(crate::Choice::Forge(2))
         );
     }

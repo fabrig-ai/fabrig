@@ -114,7 +114,7 @@ pub(crate) fn held(domain: &mut Domain, env: &Env<Limits>, decision: &mut Decisi
         }
         core::Held::NotesLoad { owner, range } => notes_load(domain, env, decision, owner, range),
         core::Held::ReadLoad { load, range } => emit(decision, &env.limits, Delivery::ReadLoad { load, range }),
-        core::Held::Read { reply, answer } => emit(decision, &env.limits, Delivery::Read { reply, answer }),
+        core::Held::Read { reply, answer } => super::kinds::revision_answer(domain, env, decision, reply, answer),
         core::Held::Delivery { watcher, document } => {
             emit(decision, &env.limits, Delivery::Document { watcher, document });
         }

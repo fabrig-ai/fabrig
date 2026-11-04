@@ -1,6 +1,6 @@
 # The mockups' status
 
-Revised 2026-11-03. How far temper's client is from its mockups
+Revised 2026-11-04. How far temper's client is from its mockups
 (`README.md`), a group of pages at a time. A group under the rules has
 a row for each thing its main drawing shows that the client doesn't
 draw yet (a lag), and for each place the client does otherwise (a

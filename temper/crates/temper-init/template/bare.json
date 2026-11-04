@@ -1,0 +1,222 @@
+{
+  "engine": {
+    "limits": {
+      "profile": "standard",
+      "overrides": {
+        "clients.exchanges": 12,
+        "clients.streams": 8,
+        "clients_http.calls": 12,
+        "clients_http.streams": 8,
+        "core.resume_bytes": 16803814,
+        "documents.rows": 2,
+        "documents.text_bytes": 128,
+        "fleet.configured_workers": 8,
+        "fleet.slots": 2,
+        "fleet.workers": 2,
+        "hub.slots": 2,
+        "hub.transcript_bytes": 67215250,
+        "hub.turn_bytes": 16803810,
+        "hub.turn_queue_bytes": 134430480,
+        "tasks.inbox_bytes": 874120,
+        "tasks.message_bytes": 10660,
+        "tasks.result_bytes": 10660
+      }
+    },
+    "llm": {
+      "providers": [
+        {
+          "name": "openai",
+          "number": 1,
+          "signed_in_plan": true,
+          "manage_usage": "https://chatgpt.com/settings/usage",
+          "models": [
+            "gpt-6-luna"
+          ],
+          "sources": {
+            "keys": true,
+            "sign_in": {
+              "issuer": "https://auth.openai.com",
+              "client": "dynamic_agent_client",
+              "name_hint": "temper",
+              "authorization": "https://auth.openai.com/api/accounts/authorize",
+              "token": "https://auth.openai.com/api/accounts/oauth/token",
+              "revocation": "https://auth.openai.com/api/accounts/oauth/revoke",
+              "keys": "https://auth.openai.com/.well-known/jwks.json",
+              "transport": "tls",
+              "server_name": "auth.openai.com",
+              "scopes": [
+                "openid",
+                "profile",
+                "email",
+                "offline_access",
+                "resource.invoke",
+                "chatgpt.tokens.use.direct"
+              ],
+              "must_grant": [
+                "chatgpt.tokens.use.direct"
+              ],
+              "resource": "https://api.openai.com/v1",
+              "redirect_path": "auth/callback",
+              "redirect_port": 1455
+            }
+          }
+        }
+      ],
+      "endpoints": [
+        {
+          "name": "openai",
+          "number": 1,
+          "dialect": 3,
+          "provider": "openai",
+          "address": {
+            "host": "api.openai.com",
+            "port": 443
+          },
+          "transport": "tls",
+          "headers": [],
+          "connect_ms": 10000,
+          "handshake_ms": 10000,
+          "server_name": "api.openai.com"
+        }
+      ],
+      "models": [
+        {
+          "name": "gpt-6-luna",
+          "endpoint": "openai",
+          "window": 1048576,
+          "output": 8192,
+          "prices": {
+            "input": 1,
+            "cached": 1,
+            "output": 1,
+            "unit": 1000
+          }
+        }
+      ]
+    },
+    "hosts": {
+      "workers": [
+        {
+          "name": "worker",
+          "digest": "worker.digest"
+        }
+      ],
+      "listener": [
+        {
+          "in_process": "workers"
+        }
+      ]
+    },
+    "clients": {
+      "heartbeat_ms": 10000,
+      "link": true
+    },
+    "deployment": {
+      "directory": "deployment",
+      "seed": 7
+    },
+    "owners": [
+      {
+        "provider": 1,
+        "subject": "owner-a"
+      }
+    ],
+    "providers": [
+      {
+        "number": 1,
+        "kind": "link"
+      },
+      {
+        "number": 2,
+        "kind": "deployment"
+      }
+    ],
+    "connectors": [
+      1
+    ],
+    "memory_bytes": 1073741824,
+    "projects": []
+  },
+  "workers": [
+    {
+      "engine": {
+        "in_process": "workers"
+      },
+      "name": "worker",
+      "secret": "worker.secret",
+      "slots": 1,
+      "graces": {
+        "grace_ms": 10000,
+        "agent_stop_ms": 5000,
+        "delivery_ms": 1000,
+        "save_ms": 1000
+      },
+      "programs": {
+        "check_interval_ms": 60000
+      },
+      "agent": {
+        "program": "$binary",
+        "configuration": "$agent",
+        "arguments": [
+          "internal",
+          "agent",
+          "$agent"
+        ]
+      },
+      "limits": {
+        "profile": "standard",
+        "overrides": {
+          "hub.accounts": 4,
+          "hub.event_bytes": 10660,
+          "hub.run_calls": 48,
+          "hub.slots": 2,
+          "hub.transcript_bytes": 67215250,
+          "hub.turn_bytes": 16803810,
+          "hub.turn_queue_bytes": 134430480
+        }
+      }
+    }
+  ],
+  "application": {
+    "machine": {
+      "github": null
+    },
+    "clients": {
+      "listener": {
+        "socket": "$listener"
+      },
+      "bundle": null,
+      "public": null
+    },
+    "webhooks": {
+      "listener": {
+        "socket": "$webhooks"
+      }
+    },
+    "sign_in": null,
+    "demo": null,
+    "limits": {
+      "profile": "standard",
+      "overrides": {
+        "checkout.message_bytes": 10662,
+        "forge.client.op_bytes": 10660,
+        "forge.client.repositories": 3,
+        "forge.judge_projects": 8,
+        "forge.output": 82,
+        "forge.repositories": 3,
+        "forge_component.body_bytes": 21341,
+        "root.journal.transcript_bytes": 16803814,
+        "root.loads.bytes": 16804058,
+        "root.loads.read_bytes": 33607620,
+        "root.loads.reply_bytes": 16804058,
+        "root.loads.transcript_bytes": 16803810
+      }
+    },
+    "workers": [
+      {
+        "root": "workspaces",
+        "git": "$git"
+      }
+    ]
+  }
+}

@@ -73,7 +73,8 @@ section 11.
   which resets it and opens the welcome's Forge step, and the
   playground's project's chats page suggests the requests its model
   plays (5.6). The printed link's sign-in in a browser lands on the
-  chats page (`browser.md`, 2.4).
+  welcome where the document shows it, and on the inbox otherwise
+  (`browser.md`, 2.4).
 - **The forge's family.** Its words for the connector, a repository, a
   branch, a pull request and each kind of write need no document (4.1).
   Its other parts are documents its client side reads, with requests of
@@ -321,7 +322,10 @@ credential.
   `../draft/archive/first-run.md`, 2.3), which shows its first step while the
   store is empty, opens at the step left undone while it is
   unfinished, and moves on to the chats page once it is whole (3.5,
-  The welcome).
+  The welcome). On a deployment with no welcome it moves on to the
+  inbox, with nothing of the welcome drawn first (3.5, The welcome).
+  The terminal, which opens at the inbox, reads the same fact for the
+  pages it changes.
 
 ### 3.5 Its pages
 
@@ -780,6 +784,18 @@ keeps (`../protocol/configuration.md`, section 2).
   step Welcome, Forge, Model or Ready, at `/welcome` and
   `/welcome?at=forge`, `model` or `ready` (`browser.md`, 2.3); its
   words are its mockup's (5.6).
+  - *Whether it shows* is the document's
+    (`../protocol/configuration.md`, section 3), which the domain learns
+    from the deployment's read (4.6): the forge's side reads it when a
+    link first becomes live and each time one becomes live after it was
+    not, as it reads the playground (4.8), and keeps the last answer. A
+    read refused, failed, ended or not served, with no answer kept,
+    reads as no welcome. Until it has answered, the page draws temper's
+    name alone: no line of the box's, no step and no heading. With no
+    welcome, the page at any step, `/welcome` and each `/welcome?at=`
+    alike, moves on to the inbox, its address replacing the welcome's,
+    and the store's state is not judged: the rest of this entry holds
+    where the document shows it.
   - *Its frame* is temper's brand link to Chats (named "temper chats"),
     temper box's line and the steps alone: no person's name or "Sign
     out", no project, navigation or link state, and no accounts' banner
@@ -827,14 +843,16 @@ keeps (`../protocol/configuration.md`, section 2).
     nothing, so the store reads as it would without it: empty, unless
     an account of the person's own, added before, is usable, which
     makes it unfinished at Forge (4.8). Its facts are
-    in once the playground's read has answered, a playground or none,
+    in once the deployment's read and the playground's have answered,
+    a playground or none,
     the `accounts` document is delivered, its accounts as far as it
     shows them, and the `forges` watch has delivered its rows. A read
     refused, failed, ended or not served is in, with nothing in it: no
     playground, no account, no forge, so that the page never waits on
     a read that will not answer. Until its facts are in, the step shows
     its heading alone. Its other steps never move on of their own.
-  - *The playground is offered* while no real forge is kept: the
+  - *The playground is offered* where the document shows the welcome,
+    while no real forge is kept: the
     Welcome step's card, "Try the playground", and the foot's "Try the
     playground instead" on Forge and Model. Once one is kept it is
     offered nowhere, and a start is refused as not offered
@@ -1075,7 +1093,10 @@ keeps (`../protocol/configuration.md`, section 2).
   project.", with "Set up temper", to the welcome, which opens at the
   step left undone (The welcome, above); and, while the
   playground is offered and none is read (3.5, The welcome; 4.8),
-  "Try the playground". The navigation offers no project's entries
+  "Try the playground". With no welcome (3.5, The welcome) the page
+  offers neither, and its line reads "Make one from the project
+  switcher.": "+ New project" there makes one
+  (`../draft/first-run-projects.md`, 7). The navigation offers no project's entries
   (5.3), and the project's place in it reads "No project yet".
 - **A project with no repository** (`../draft/first-run-projects.md`,
   5): a project has none while the `forges` watch has delivered its
@@ -1690,6 +1711,16 @@ for its kind, its user's login and its installations. Its nodes:
   the configuration's order (section 8). On the wire it is
   `Reading`'s `playground`, `Reading` naming which of the family's
   reads a read is; none is the read's empty answer.
+- **The deployment's read, `deployment`:** of the deployment's scope,
+  with no fields and no subject: what it answers is the document's, so
+  it changes only with a start. Its answer is always a record,
+  `DeploymentAnswer`: `welcome` (bool), whether the document shows the
+  welcome (`../protocol/configuration.md`, section 3); and `owned`
+  (bool), whether Forgejo on this machine can be set up: the document
+  has `application.machine.owned` and the engine runs under the box
+  (`../protocol/setup.md`, 7.4). A first run's store keeps no forge, so
+  no row of the `forges` watch can say so (`forge.md`, 5.4). On the
+  wire it is `Reading`'s `deployment`, beside `playground`.
 - **A change's panel, the subject `change`** (`forge.md`, 9.2): of a
   project's scope, its window unused, naming the change task's number
   (u64). On the wire it is `Watching`'s `change`, `Watching` naming
@@ -1943,6 +1974,7 @@ client removes no account and closes no chat of its own.
     which a browser folds
     behind its ☰ at phone width alone (`browser.md`, 2.5) and the
     terminal and the fake person find whole; on `Welcome`, temper's
+    name alone until the deployment's read answers, then temper's
     name, temper box's line and the welcome's steps alone (3.5, The
     welcome);
   - *the accounts' banner,* while no account the person's work may use
@@ -2525,7 +2557,8 @@ repository, and the cues the playground's, copied in from its read:
   mockup is not edited): the Forge step's Details have no "Into a new
   project, named" and the step no "Choose a repository to start in";
   the forge's line names no project, "FORGE · ORG/NAME · CONNECTION"
-  and "✓ FORGE · ORG/NAME"; Ready's checklist has no "Project PROJECT,
+  and "✓ FORGE · connected as LOGIN · ORG/NAME made, in no project
+  yet"; Ready's checklist has no "Project PROJECT,
   with ORG/NAME" line, and its act makes a project with no
   repository, in place of "ORG/NAME is ready", "It opens once ORG/NAME
   is made." and "Adopt a repository"; and the chats page of a project with no
@@ -4162,6 +4195,13 @@ own tests:
   of the forge's family both ways, a change's panel's watch to the root
   with its scope, and its document encoded with the pull request's
   address on a GitHub forge, on a Forgejo and with no `web`.
+- **No welcome** (3.5, The welcome), in the domain and the view: the
+  deployment's read, its answer kept across a link's gap and a read
+  that ends with no record; `Welcome` at each step moving on to the
+  inbox, drawing temper's name alone before it; no playground offered;
+  the chats page with no project; and, with `temper-service`'s real
+  answer, one person signing in on a document with no welcome and
+  finding the inbox.
 - **The playground and the welcome** (3.5, 4.8), in the domain and
   the view: the welcome's three states, empty with its two cards,
   unfinished opening at Forge or at Model, whole moving on to the
@@ -4656,6 +4696,16 @@ own tests:
   while tests walk the playground by them, to revisit (11-03).
   Default: a list under the composer's line, in the playground's start
   alone.
+- **The account's email on Ready** (3.5, The welcome): a signed-in
+  plan's line names the provider's verified email, a fact beside the
+  account's display (`jig/docs/design/draft/account-facts.md`, 1 and
+  6). Default: the display, as its holder gave it.
+- **How far the forge's fetch has gone** (3.5, The welcome;
+  `forge.md`, 5.4): the line naming the binary, the percentage or the
+  bytes in the progress node, as its text and value, and "Each step"'s
+  first step (`../draft/fetch-progress.md`, 5). Default: the line says
+  the step alone, and the browser's node is textless, named by the
+  connection.
 - **A taken name at Ready** (3.5, The welcome;
   `../draft/first-run-projects.md`, 9): a person who made a project of
   the name Ready's field holds, "Default" unless they wrote another,

@@ -56,7 +56,7 @@ fn taken_default_owned_and_webhooks_ports_get_distinct_kernel_ports() {
         let mut io = Io::open().expect("startup io");
         let mut preferred = [0; 5];
         preferred[at] = preferred_port;
-        let held = io.ports(preferred).expect("reserved ports");
+        let held = io.ports(&preferred).expect("reserved ports");
         let chosen = held.iter().map(|(_, port)| *port).collect::<Vec<_>>();
         assert_ne!(chosen[at].get(), preferred_port);
         for (index, port) in chosen.iter().enumerate() {
@@ -274,6 +274,11 @@ fn init_refusals_leave_every_file_and_directory_untouched() {
             fs::write(&destination, b"kept").expect("existing file");
         }
         let before = snapshot(&root);
+        if !row.starts_with("demo/") {
+            let why = write_bare(&dirs, &env, &root.join("bin/temper"), [0; 2]).expect_err("bare refused");
+            assert_eq!(why, format!("{}: already exists", destination.display()));
+            assert_eq!(snapshot(&root), before, "{row}: bare refusal changes nothing");
+        }
         let why = write(&dirs, &env, &root.join("bin/temper"), [0, 0, 0, 0, 0]).expect_err("refused");
         assert_eq!(why, format!("{}: already exists", destination.display()));
         assert_eq!(snapshot(&root), before, "{row}: every file and directory untouched");
@@ -346,4 +351,53 @@ fn explicit_program_fact_precedes_path_discovery() {
     assert_eq!(agent["programs"]["claude_code"]["path"], adapter.to_str().expect("path"));
     crate::close(written.listeners.into_iter().map(|(fd, _)| fd).collect());
     fs::remove_dir_all(root).expect("fixture cleanup");
+}
+
+#[test]
+fn a_bare_configuration_passes_the_same_checks_as_serve() {
+    for claude in [false, true] {
+        let root = scratch(&format!("bare-acceptance-{claude}"));
+        let dirs = directories(&root);
+        let env = environment(&root, claude);
+        let written = write_bare(&dirs, &env, &root.join("bin/temper"), [0; 2]).expect("bare init");
+        let bytes = fs::read(dirs.document()).expect("document");
+        let deployment = crate::setup::check(&bytes, &dirs.jig()).expect("bare document passes setup and named");
+        let machine = crate::box_command::machine(&bytes, &dirs).expect("machine");
+        assert!(machine.owned.is_none());
+        assert!(machine.fake.is_none());
+        assert!(deployment.demo.is_none());
+        assert!(!path(&dirs.data).join("demo").exists());
+        assert_eq!(written.person, temper_init::Person::Found);
+        assert!(written.login.is_none());
+        assert_eq!(
+            written.paths,
+            [
+                path(&dirs.data).join("worker.secret"),
+                path(&dirs.data).join("worker.digest"),
+                path(&dirs.config).join("agent.json"),
+                dirs.document()
+            ]
+        );
+        let document: serde_json::Value = serde_json::from_slice(&bytes).expect("JSON");
+        assert!(document["application"].get("welcome").is_none());
+        let ports = ["clients", "webhooks"].map(|name| {
+            document["application"][name]["listener"]["socket"]
+                .as_str()
+                .expect("socket")
+                .parse::<std::net::SocketAddr>()
+                .expect("address")
+                .port()
+        });
+        assert_ne!(ports[0], ports[1]);
+        assert_eq!(written.listeners.iter().map(|(_, port)| port.get()).collect::<Vec<_>>(), ports);
+        for (_, port) in &written.listeners {
+            assert!(TcpListener::bind((std::net::Ipv4Addr::LOCALHOST, port.get())).is_err(), "bare listener held");
+        }
+        let agent: serde_json::Value =
+            serde_json::from_slice(&fs::read(path(&dirs.config).join("agent.json")).expect("agent")).expect("JSON");
+        assert_eq!(agent["programs"].as_object().expect("programs").contains_key("claude_code"), claude);
+        check_agent(&dirs, agent);
+        crate::close(written.listeners.into_iter().map(|(fd, _)| fd).collect());
+        fs::remove_dir_all(root).expect("cleanup");
+    }
 }

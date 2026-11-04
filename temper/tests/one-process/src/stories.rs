@@ -95,7 +95,7 @@ pub(crate) fn provider(story: Story) -> skein_fake_peers::llm::Peer {
     if matches!(story, Story::ChatReadThenWait { .. }) {
         return fixtures::read_then_wait_provider();
     }
-    if matches!(story, Story::Chat { .. }) {
+    if matches!(story, Story::Chat { .. } | Story::NoWelcome) {
         return fixtures::provider();
     }
     let grant = |kind| serde_json::json!({"connector":fixtures::FORGE_CONNECTOR,"kind":kind,"segments":["forge","127.0.0.1:3000"],"terminal":"open","last":"acme"});
@@ -277,7 +277,7 @@ pub(crate) fn configure(value: &mut serde_json::Value) {
     if STORY.with(|slot| matches!(slot.get(), Story::ChatReadThenWait { .. })) {
         return;
     }
-    if STORY.with(|slot| matches!(slot.get(), Story::Chat { .. })) {
+    if STORY.with(|slot| matches!(slot.get(), Story::Chat { .. } | Story::NoWelcome)) {
         return;
     }
     documents::configure(value);
@@ -308,7 +308,7 @@ pub(crate) fn held_change() -> bool {
 
 /// Chat-only seeds fit the stock ceiling; repository seeds use wider own defaults.
 pub(crate) fn uses_stock() -> bool {
-    STORY.with(|slot| matches!(slot.get(), Story::Chat { .. } | Story::ChatReadThenWait { .. }))
+    STORY.with(|slot| matches!(slot.get(), Story::Chat { .. } | Story::ChatReadThenWait { .. } | Story::NoWelcome))
 }
 
 thread_local! { static FIRST_START: std::cell::Cell<bool> = const { std::cell::Cell::new(false) }; }
@@ -319,7 +319,11 @@ thread_local! { static SETTINGS: std::cell::Cell<bool> = const { std::cell::Cell
 thread_local! { static REVISION: std::cell::Cell<u32> = const { std::cell::Cell::new(1) }; }
 pub(crate) fn setup_settings(phase: crate::world::Phase) {
     FIRST_START.with(|slot| {
-        slot.set(!playground() && matches!(phase, crate::world::Phase::Story | crate::world::Phase::Fault { .. }));
+        slot.set(
+            !playground()
+                && !STORY.with(|story| matches!(story.get(), Story::NoWelcome))
+                && matches!(phase, crate::world::Phase::Story | crate::world::Phase::Fault { .. }),
+        );
     });
     SETTINGS.with(|slot| slot.set(matches!(phase, crate::world::Phase::Drain)));
     REVISION.with(|slot| {

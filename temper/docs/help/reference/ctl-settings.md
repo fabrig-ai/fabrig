@@ -21,13 +21,15 @@ settings show charter|template|policy NUMBER [--revision REVISION]
   --revision REVISION: a number from 0 to 4294967295; optional. Its value at this revision; the newest when absent
 settings show rules
   rules (kind): one of rules; required. The deployment's rules
-settings show landing-rule NUMBER [--project PROJECT]
+settings show landing-rule NUMBER [--project PROJECT] [--revision REVISION]
   landing-rule (kind): one of landing-rule; required. A landing rule
   NUMBER (number): a number from 1 to 4294967295; required. The rule's number
   --project PROJECT: a project's name or number; optional. The project's rule; the deployment's when absent
-settings show forge-charter NUMBER
+  --revision REVISION: a number from 1 to 4294967295; optional. The value set by this retained revision; the current value when absent
+settings show forge-charter NUMBER [--revision REVISION]
   forge-charter (kind): one of forge-charter; required. One of the forge's charters
   NUMBER (number): a number from 1 to 2; required. 1 the change's charter, 2 its reviews'
+  --revision REVISION: a number from 1 to 4294967295; optional. The value set by this retained revision; the current value when absent
 Read one setting's value whole
 Prints: `KIND N, revision R`, or `rules, revision R`, then the value as JSON; temper's settings also show their state
 --json: the record setting.

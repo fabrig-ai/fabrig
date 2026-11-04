@@ -1,4 +1,4 @@
-family temper-client-wire 11
+family temper-client-wire 12
 
 # The role, as temper-engine-domain-forge's Role, in its order.
 enum Role { owned, adopted, fork, context }
@@ -75,7 +75,8 @@ versioned record Forges { forges: list 16 ForgeRow }
 # The forge's reads (temper/docs/design/client/forge.md, 9).
 record SettingRead { kind: u32 scope: u32 number: u32 }
 record ProposalItemsRead { key: u64 }
-enum Read { playground, setting: SettingRead, proposal_items: ProposalItemsRead }
+record RevisionSettingRead { kind: u32 scope: u32 number: u32 revision: u32 }
+enum Read { playground, setting: SettingRead, proposal_items: ProposalItemsRead, deployment, revision_setting: RevisionSettingRead }
 # Values are kinds-codec's LandingRule and ForgeCharter records.
 versioned record SettingAnswer { value: option bytes 1048576 }
 record SettingValue { value: bytes 1048576 }
@@ -87,6 +88,9 @@ versioned record Reading { read: Read }
 # temper/docs/design/client/README.md, 4.6: no playground is no record.
 enum PlaygroundState { starting, running, resetting }
 versioned record PlaygroundAnswer { forge: u16 project: option u32 provider: u32 owner: bytes 1024 name: bytes 1024 state: PlaygroundState cues: list 8 text 256 }
+
+# The deployment's read (temper/docs/design/client/README.md, 4.6).
+versioned record DeploymentAnswer { welcome: bool owned: bool }
 
 # A change's watched panel (client/README.md, 4.6; client/forge.md, 9.2).
 record ChangeSubject { task: u64 }

@@ -21,6 +21,13 @@ const _: () = {
     assert!(forge::PANEL_NAME_BYTES == w::CEILINGS.change_panel_landing, "panel landing branch bound");
 };
 
+/// The start's deployment facts (temper/docs/design/client/README.md, 4.6).
+#[derive(Clone, Copy, PartialEq, Eq, Debug)]
+pub struct Deployment {
+    pub welcome: bool,
+    pub owned: bool,
+}
+
 /// Decode the keyed request, preserving its admission envelope and supplied digest.
 #[expect(clippy::too_many_lines, reason = "one exhaustive match translates the family's typed requests")]
 pub fn to_root(
@@ -28,6 +35,7 @@ pub fn to_root(
     exchange: kit::ToApplication,
     forges: &crate::forges::Forges,
     demo: Option<&crate::settings::Demo>,
+    deployment: Deployment,
     playground: Option<&forge::Playground>,
     limits: &w::Limits,
 ) -> Result<root::Event, Box<kit::Event>> {
@@ -260,17 +268,18 @@ pub fn to_root(
                 && let Some(reading) = wire::decode_reading(&record, limits)
             {
                 let query = match reading.into_parts().read {
-                    w::Read::Setting(value) => Some(root::ForgeRead::Setting {
-                        kind: value.kind(),
-                        scope: value.scope(),
-                        number: value.number(),
-                    }),
-                    w::Read::ProposalItems(value) => Some(root::ForgeRead::ProposalItems { key: value.key() }),
+                    w::Read::Deployment => {
+                        answer = Some(deployment_answer(deployment, limits));
+                        None
+                    }
                     w::Read::Playground => {
                         if let (Some(row), Some(demo)) = (playground, demo) {
                             answer = Some(playground_answer(row, demo, limits));
                         }
                         None
+                    }
+                    read @ (w::Read::Setting(_) | w::Read::RevisionSetting(_) | w::Read::ProposalItems(_)) => {
+                        forge_settings_query(read)
                     }
                 };
                 if let Some(query) = query {
@@ -1203,6 +1212,15 @@ fn forge_refusal(value: forge::ForgeRefusal) -> w::ForgeRefusal {
     }
 }
 
+fn deployment_answer(deployment: Deployment, limits: &w::Limits) -> Box<[u8]> {
+    let answer = w::DeploymentAnswer::new(
+        limits,
+        w::DeploymentAnswerParts { welcome: deployment.welcome, owned: deployment.owned },
+    )
+    .expect("deployment booleans fit the wire");
+    wire::deployment_answer(&answer)
+}
+
 /// The kept row supplies progress and ids; settings supply the scripted model's public view.
 /// temper/docs/design/protocol/setup.md, 8.4.
 fn playground_answer(row: &forge::Playground, demo: &crate::settings::Demo, limits: &w::Limits) -> Box<[u8]> {
@@ -1278,5 +1296,21 @@ pub fn forge_read(answer: root::ForgeReadAnswer, limits: &w::Limits) -> Option<B
             let record = w::ProposalItemsAnswer::new(limits, w::ProposalItemsAnswerParts { items }).ok()?;
             Some(wire::proposal_items_answer(&record))
         }
+    }
+}
+
+fn forge_settings_query(read: w::Read) -> Option<root::ForgeRead> {
+    match read {
+        w::Read::Setting(value) => {
+            Some(root::ForgeRead::Setting { kind: value.kind(), scope: value.scope(), number: value.number() })
+        }
+        w::Read::RevisionSetting(value) => Some(root::ForgeRead::RevisionSetting {
+            kind: value.kind(),
+            scope: value.scope(),
+            number: value.number(),
+            revision: value.revision(),
+        }),
+        w::Read::ProposalItems(value) => Some(root::ForgeRead::ProposalItems { key: value.key() }),
+        w::Read::Playground | w::Read::Deployment => None,
     }
 }

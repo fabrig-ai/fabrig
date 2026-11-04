@@ -1632,6 +1632,26 @@ VM tier its one real machine relies on.
   2.14's env block, systemd 262). It depends on which suites hearth's
   targets run.
 - **The ceilings outside the gate** (9.2): provisional until measured.
+- **The suites' figures** (9.1): whether 30 and 120 seconds stay wall
+  time or become CPU budgets, what the workspace's global timeouts then
+  hold, and whether `hearth-render-world` stays on every change. A
+  budget is CPU seconds, and until the user sets one these figures stand
+  as idle-machine figures (`skein/docs/foundation/testing-strategy.md`,
+  8.1). It depends on the user's ruling on the measurements.
+- **The conformance tier's budget and its runs** (5.5, 9.2):
+  `tools/tiers/budgets.toml` has no `conformance-hearth` entry, and the
+  tier runs by hand. Whether it takes a budget and a place after landing
+  depends on the user, and on a runner holding its prerequisites (6.4).
+- **The fail-stop check:** `hearth/scripts/fail_stop.py` keeps to
+  hearth's packages, and no gate runs it. Over the workspace it names two
+  of temper's binaries, `temper-stage-one` and `playground-serve`.
+  Whether the gate takes it depends on those two.
+- **The newer model:** `worst_case` and `MAX_OUT` stay in hearth as
+  allowed old forms, which may only fall
+  (`skein/docs/foundation/programming-model.md`, 6.3). Moving to the
+  model is hearth's debt (`hearth/docs/development/debt/README.md`, D001
+  to D003), and 8.4's memory check and domain/render.md, 8.4 change with
+  it.
 - **Live changes on a real machine:** every item domain/slots.md, section 15
   lists as to verify, run as 7.3's scenarios. Until then the fake
   machine follows the kernel's and systemd's sources (257 to 262) as
