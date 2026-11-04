@@ -15,6 +15,8 @@ pub mod public_v1 {
     include!("generated/public_v1.rs");
 }
 
+pub mod source;
+
 mod public;
 pub use public::{public_bounds, public_limits};
 
@@ -68,6 +70,8 @@ pub const CLIENT_VERSION: u32 = 11;
 pub const FORGES: u32 = 16;
 /// The maximum installations per GitHub forge (client/README.md, 4.6).
 pub const INSTALLATIONS: u32 = 64;
+/// The maximum repository makings per forge (temper/docs/design/client/README.md, 4.6).
+pub const MAKINGS: u32 = 64;
 /// The last connect's maximum stop reason length (client/README.md, 4.6).
 pub const CONNECT_WHY_BYTES: u32 = 256;
 /// The box's maximum setup failure line length (client/README.md, 4.6).
@@ -100,6 +104,7 @@ pub struct Bounds {
 
 /// Set the schema limits from their source fields, refusing past a ceiling.
 #[must_use]
+#[expect(clippy::too_many_lines, reason = "one literal maps each wire limit to its source bound")]
 pub fn limits(bounds: &Bounds) -> Option<v1::Limits> {
     let limits = v1::Limits {
         setting_answer_value_some: v1::CEILINGS.setting_answer_value_some,
@@ -125,6 +130,14 @@ pub fn limits(bounds: &Bounds) -> Option<v1::Limits> {
         adoption_name: bounds.field_bytes,
         forge_row_web_some: ADDRESS_BYTES,
         forge_row_repositories: 16,
+        forge_row_makings: MAKINGS,
+        make_copy_address: 512,
+        make_repository_org: bounds.field_bytes,
+        make_repository_name: bounds.field_bytes,
+        making_made_branch: bounds.field_bytes,
+        making_failed_words: 256,
+        repository_making_org: bounds.field_bytes,
+        repository_making_name: bounds.field_bytes,
         reached_name: bounds.field_bytes,
         page_rows: 100,
         install_back_some: 512,
@@ -340,6 +353,7 @@ pub fn decode_requesting(bytes: &[u8], limits: &v1::Limits) -> Option<v1::Reques
         | v1::Request::Accept(_)
         | v1::Request::Install(_)
         | v1::Request::Return(_)
+        | v1::Request::MakeRepository(_)
         | v1::Request::Adopt(_)
         | v1::Request::Replace(_)
         | v1::Request::RemoveForge(_)

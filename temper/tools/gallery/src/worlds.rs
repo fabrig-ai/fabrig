@@ -309,6 +309,7 @@ fn forges(world: World) -> Box<[u8]> {
             w::ForgeRow::new(
                 &limits,
                 w::ForgeRowParts {
+                    makings: List::with_capacity(0),
                     number: FORGE,
                     kind: w::Kind::Forgejo,
                     mode: w::Mode::Fake,
@@ -348,6 +349,7 @@ fn forges(world: World) -> Box<[u8]> {
             w::ForgeRow::new(
                 &limits,
                 w::ForgeRowParts {
+                    makings: List::with_capacity(0),
                     number: 2,
                     kind: w::Kind::Github,
                     mode: w::Mode::Managed,
@@ -416,6 +418,7 @@ fn forges(world: World) -> Box<[u8]> {
             w::ForgeRow::new(
                 &limits,
                 w::ForgeRowParts {
+                    makings: List::with_capacity(0),
                     number: 3,
                     kind: w::Kind::Forgejo,
                     mode: if step == 23 { w::Mode::Managed } else { w::Mode::Owned },
