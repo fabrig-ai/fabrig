@@ -29,7 +29,6 @@ pub enum Echo {
     Steps,
 }
 /// The descriptors and command inherited from the binary.
-#[derive(Debug)]
 pub struct Settings {
     pub program: Box<[u8]>,
     pub environment: Box<[Box<[u8]>]>,
@@ -41,6 +40,23 @@ pub struct Settings {
     pub signals: Fd,
     pub stdout: Fd,
     pub stderr: Fd,
+}
+// Environment entries may contain credentials; Debug shows only their count (skein/docs/design/lib.md, 6).
+impl core::fmt::Debug for Settings {
+    fn fmt(&self, f: &mut core::fmt::Formatter<'_>) -> core::fmt::Result {
+        f.debug_struct("Settings")
+            .field("program", &self.program)
+            .field("environment_entries", &self.environment.len())
+            .field("serve", &self.serve)
+            .field("listeners", &self.listeners)
+            .field("root", &self.root)
+            .field("echo", &self.echo)
+            .field("data", &self.data)
+            .field("signals", &self.signals)
+            .field("stdout", &self.stdout)
+            .field("stderr", &self.stderr)
+            .finish()
+    }
 }
 /// Serve URL payload cap (LF excluded); diagnostic pieces share the read cap.
 pub const LINE_BYTES: u32 = 4096;

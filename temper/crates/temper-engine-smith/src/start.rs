@@ -126,7 +126,7 @@ fn charter_with_history(assignment: &engine::Assignment, resumed: bool) -> run::
             .expect("bounded brief sections");
     }
     let policy = &assignment.run.policy;
-    let declarations = crate::calls::tools_for(policy.call_timeout, assignment.run.authority.tools);
+    let declarations = crate::calls::tools_for(policy.call_timeout, policy.tools, assignment.run.authority.tools);
     let mut tools = List::with_capacity(u32::try_from(declarations.len()).expect("bounded host tools"));
     for tool in declarations {
         tools

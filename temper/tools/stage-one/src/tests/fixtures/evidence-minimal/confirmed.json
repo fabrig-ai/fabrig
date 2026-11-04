@@ -1,0 +1,9 @@
+{
+  "box": [
+    {
+      "id": "box.project",
+      "present": true,
+      "seen": "Project 1 adopted acme/widget."
+    }
+  ]
+}

@@ -70,6 +70,7 @@ fn assignment() -> engine::Assignment {
                 shell: false,
                 agents: false,
                 call_timeout: Duration::from_secs(10),
+                tools: engine::RunPolicy::EVERY_FAMILY,
             },
             contract: tasks::Contract::Report { words: 128 },
             authority: tasks::Authority {
@@ -131,7 +132,11 @@ fn root_charter_becomes_a_smith_start_with_ordered_brief_and_exact_budget() {
 }
 
 fn goal_tools(timeout: Duration) -> Box<[run::HostTool]> {
-    let mut expected = crate::calls::tools_for(timeout, tasks::Tools(!jig_domain_core::ToolFamilies::JIG.control.0));
+    let mut expected = crate::calls::tools_for(
+        timeout,
+        engine::RunPolicy::EVERY_FAMILY,
+        tasks::Tools(!jig_domain_core::ToolFamilies::JIG.control.0),
+    );
     for tool in &mut expected {
         tool.reserve = tool.name.as_ref() == b"message";
     }
@@ -140,14 +145,22 @@ fn goal_tools(timeout: Duration) -> Box<[run::HostTool]> {
 
 #[test]
 fn settings_tools_are_offered_only_with_the_runs_settings_family() {
-    for allowed in [false, true] {
+    // The registry offers 37 declarations with message and without settings; settings adds two.
+    const WITHOUT_SETTINGS: usize = 37;
+    const WITH_SETTINGS: usize = 39;
+    let settings = jig_domain_core::ToolFamilies::JIG.settings;
+    let authority = 1 | jig_domain_core::ToolFamilies::JIG.message.0;
+    for (charter, authority, allowed, count) in [
+        (0, authority, false, WITHOUT_SETTINGS),
+        (0, authority | settings, false, WITHOUT_SETTINGS),
+        (settings, authority, false, WITHOUT_SETTINGS),
+        (settings, authority | settings, true, WITH_SETTINGS),
+    ] {
         let mut assignment = assignment();
-        assignment.run.authority.tools.0 |= jig_domain_core::ToolFamilies::JIG.message.0;
-        if allowed {
-            assignment.run.authority.tools.0 |= jig_domain_core::ToolFamilies::JIG.settings;
-        }
+        assignment.run.policy.tools = tasks::Tools(charter);
+        assignment.run.authority.tools = tasks::Tools(authority);
         let charter = crate::charter(&assignment);
-        assert_eq!(charter.grants.host_tools.len(), if allowed { 39 } else { 37 });
+        assert_eq!(charter.grants.host_tools.len(), count);
         for name in [b"settings".as_slice(), b"propose_settings"] {
             let mut found = false;
             for tool in &charter.grants.host_tools {
@@ -158,11 +171,30 @@ fn settings_tools_are_offered_only_with_the_runs_settings_family() {
             assert_eq!(found, allowed);
         }
         for tool in goal_tools(Duration::from_secs(10)) {
-            if tool.name.as_ref() != b"settings" && tool.name.as_ref() != b"propose_settings" {
+            if tool.name.as_ref() != b"settings"
+                && tool.name.as_ref() != b"propose_settings"
+                && tool.name.as_ref() != b"read_task"
+            {
                 assert!(charter.grants.host_tools.contains(&tool), "unchanged declaration: {:?}", tool.name);
             }
         }
     }
+}
+
+#[test]
+fn settings_tools_need_the_charters_family_too() {
+    let stock = 1_539;
+    let mut assignment = assignment();
+    assignment.run.policy.tools = tasks::Tools(512);
+    assignment.run.authority.tools = tasks::Tools(stock | 1024);
+    let charter = crate::charter(&assignment);
+    let mut offered = charter.grants.host_tools.iter();
+    for tool in goal_tools(Duration::from_secs(10)) {
+        if tool.name.as_ref() != b"settings" && tool.name.as_ref() != b"propose_settings" {
+            assert_eq!(offered.next(), Some(&tool), "unchanged declaration and order: {:?}", tool.name);
+        }
+    }
+    assert_eq!(offered.next(), None, "no settings or additional tools");
 }
 
 #[test]
@@ -184,13 +216,17 @@ fn message_is_offered_only_with_the_runs_message_family() {
             for tool in &expected {
                 if (!settings && (tool.name.as_ref() == b"settings" || tool.name.as_ref() == b"propose_settings"))
                     || (!message && tool.name.as_ref() == b"message")
+                    || (authority & families.read.0 == 0 && tool.name.as_ref() == b"read_task")
                 {
                     continue;
                 }
                 assert_eq!(offered.next(), Some(tool), "{role}: unchanged declaration and order");
             }
             assert_eq!(offered.next(), None, "{role}: no additional tools");
-            assert_eq!(charter.grants.host_tools.len(), 36 + usize::from(message) + 2 * usize::from(settings));
+            assert_eq!(
+                charter.grants.host_tools.len(),
+                36 + usize::from(message) + 2 * usize::from(settings) + usize::from(authority & families.read.0 != 0)
+            );
         }
     }
 }
@@ -370,10 +406,10 @@ fn message_schema_decodes_a_named_question_and_rejects_a_malformed_body() {
     assert_eq!(decided(b"message", br#"{"target":23,,"form":"words","words":"x"}"#), Err(Problem::Malformed));
 }
 
-#[test]
-fn every_declared_tool_decodes_its_minimum_shape_and_rejects_a_wrong_shape() {
-    let cases: &[(&[u8], &[u8], &[u8])] = &[
+fn tool_cases() -> &'static [(&'static [u8], &'static [u8], &'static [u8])] {
+    &[
         (b"settings", br"{}", br#"{"from":-1}"#),
+        (b"read_task", br#"{"task":23}"#, br#"{"task":0}"#),
         (b"propose_settings", br#"{"against":1,"items":[],"reason":"why"}"#, br#"{"against":0,"items":[],"reason":"why"}"#),
         (b"read_items", br#"{"repository":"qa/pilot","since":0,"page":1}"#, br#"{"repository":"qa/pilot","page":0}"#),
         (b"read_item", br#"{"repository":"qa/pilot","number":1,"after":0}"#, br#"{"repository":"qa/pilot","page":0}"#),
@@ -412,7 +448,12 @@ fn every_declared_tool_decodes_its_minimum_shape_and_rejects_a_wrong_shape() {
         (b"note", br#"{"scope":{"kind":"project","project":1},"description":"slow start","body":"warm it first"}"#, br#"{"scope":{"kind":"project"},"description":"slow start","body":"warm it first"}"#),
         (b"read_docs", br#"{"topic":"box"}"#, br#"{"topic":3}"#),
         (b"recall", br#"{"kind":"name","name":1}"#, br#"{"kind":"name","name":0}"#),
-    ];
+    ]
+}
+
+#[test]
+fn every_declared_tool_decodes_its_minimum_shape_and_rejects_a_wrong_shape() {
+    let cases = tool_cases();
     let declared = tools(Duration::from_secs(10));
     assert_eq!(declared.len(), cases.len());
     for tool in &declared {
@@ -430,7 +471,7 @@ fn every_declared_tool_decodes_its_minimum_shape_and_rejects_a_wrong_shape() {
         assert!(found, "tool declared: {name:?}");
         assert!(decoded(name, valid).is_ok(), "valid input for {name:?}");
         assert!(decoded(name, invalid).is_err(), "invalid input for {name:?}");
-        if name.starts_with(b"read_") && *name != b"read_docs" {
+        if name.starts_with(b"read_") && *name != b"read_docs" && *name != b"read_task" {
             let start = skein_lib::bytes::find(valid, b"qa/pilot").unwrap();
             let end = start.checked_add(b"qa/pilot".len()).unwrap();
             let mut input = skein_lib::Writer::new(valid.len().checked_sub(b"qa/pilot".len()).unwrap());
@@ -1773,7 +1814,9 @@ fn change_offers_its_plan_members_only_with_control() {
     let stock = 1_539;
     for (authority, schema) in [(stock, legacy.as_slice()), (stock | 0b100, plan.as_slice())] {
         let mut found = false;
-        for tool in crate::calls::tools_for(Duration::from_secs(10), tasks::Tools(authority)) {
+        for tool in
+            crate::calls::tools_for(Duration::from_secs(10), engine::RunPolicy::EVERY_FAMILY, tasks::Tools(authority))
+        {
             if tool.name.as_ref() == b"change" {
                 found = true;
                 assert_eq!(tool.schema.as_ref(), schema);
@@ -1872,6 +1915,7 @@ fn change_repository_refusals_render_the_three_choices() {
 mod brief_fit;
 mod docs;
 mod reference;
+mod room;
 
 #[test]
 fn flat_forge_reads_decode_the_repository_name_and_name_bad_members() {
@@ -2303,5 +2347,120 @@ fn commit_reads_refuse_abbreviated_or_non_hexadecimal_identifiers() {
         input.put(full).unwrap();
         input.put(suffix).unwrap();
         decoded(b"read_file", &input.finish()).expect("full identifier accepted");
+    }
+}
+
+#[test]
+fn task_reads_declare_read_effect_and_decode_continuations() {
+    for allowed in [false, true] {
+        let authority = if allowed { jig_domain_core::ToolFamilies::JIG.read.0 } else { 0 };
+        let tools =
+            crate::calls::tools_for(Duration::from_secs(10), engine::RunPolicy::EVERY_FAMILY, tasks::Tools(authority));
+        let mut found = false;
+        for declaration in &tools {
+            if declaration.name.as_ref() == b"read_task" {
+                assert_eq!(declaration.effect, run::HostEffect::Read);
+                found = true;
+            }
+        }
+        assert_eq!(found, allowed);
+    }
+    let decoded = decided(b"read_task", br#"{"task":23,"from":17}"#).expect("task read decodes");
+    assert_eq!(decoded.tool, engine::Tool::ReadTask { task: 23, from: 17 });
+    let _zero = decided(b"read_task", br#"{"task":0}"#).expect_err("positive task number");
+    let _negative = decided(b"read_task", br#"{"task":23,"from":-1}"#).expect_err("nonnegative offset");
+}
+
+fn held_task_read() -> jig_domain_core::reads::run_task::TaskRead {
+    jig_domain_core::reads::run_task::TaskRead {
+        task: 23,
+        state: jig_domain_core::reads::run_task::TaskState::Held,
+        spec_revision: 8,
+        dependencies: Box::new([5]),
+        words: jig_domain_core::reads::TaskText {
+            task: 23,
+            field: jig_domain_core::reads::TaskTextField::Specification,
+            from: 0,
+            total: 480,
+            next: None,
+            bytes: Box::new([b'x'; 480]),
+        },
+        hold: Some(jig_domain_core::reads::run_task::TaskHold {
+            revision: 9,
+            reason: tasks::Hold::Dependency(5),
+            words: Some(b"restart vetoed; amend authority and release".as_slice().into()),
+        }),
+    }
+}
+
+#[test]
+fn task_reads_fit_the_host_bound_and_continue_cut_words() {
+    const WORDS: &[u8] = b"Words from 0:\n";
+    const NEXT: &[u8] = b"\nnext: ";
+    let mut read = held_task_read();
+    read.words.total = u64::try_from(read.words.bytes.len()).expect("source length");
+    let answer = engine::CallAnswer::TaskRead(Box::new(Ok(read.clone())));
+    let first = crate::answer_bounded(&answer, 256);
+    assert!(!first.error());
+    assert!(first.text().len() <= 256);
+    let text = first.text();
+    assert!(skein_lib::bytes::find(text, b"spec revision 8").is_some());
+    assert!(skein_lib::bytes::find(text, b"Hold revision 9: dependency 5").is_some());
+    assert!(skein_lib::bytes::find(text, b"restart vetoed; amend authority and release").is_some());
+    let start = skein_lib::bytes::find(text, WORDS).expect("words").checked_add(WORDS.len()).expect("header");
+    let body = text.get(start..).expect("words body");
+    let cut = skein_lib::bytes::find(body, NEXT).expect("continuation");
+    let prefix = body.get(..cut).expect("prefix");
+    let offset = body.get(cut.checked_add(NEXT.len()).expect("next label")..).expect("offset");
+    let next = prefix.len();
+    let number = skein_lib::Decimal::of(u64::try_from(next).expect("source offset"));
+    assert_eq!(offset, number.as_bytes());
+    assert!(next > 0 && next < read.words.bytes.len());
+    read.words.bytes = read.words.bytes.get(next..).expect("continuation offset").into();
+    read.words.from = u64::try_from(next).expect("offset");
+    let answer = engine::CallAnswer::TaskRead(Box::new(Ok(read)));
+    assert!(!crate::answer_bounded(&answer, 1024).error());
+    for maximum in [0, 1, 64] {
+        let answer = crate::answer_bounded(&answer, maximum);
+        assert!(answer.error());
+        assert!(answer.text().len() <= usize::try_from(maximum).expect("u32 fits"));
+    }
+}
+
+#[test]
+fn escalations_name_the_subject_revision_and_task_read_recovery() {
+    let word = tasks::Word {
+        number: 1,
+        from: tasks::Party::Task(23),
+        at: skein_lib::Wall::EPOCH,
+        hits: 1,
+        eligible: true,
+        kind: tasks::MessageKind::Escalation { task: 23, revision: 9 },
+        words: b"Held task needs a decision".as_slice().into(),
+    };
+    let words = engine::inbox_words(1, &word);
+    assert!(skein_lib::bytes::find(&words, b"Held task needs a decision").is_some());
+    assert!(skein_lib::bytes::find(&words, b"Held task 23, hold revision 9").is_some());
+    assert!(skein_lib::bytes::find(&words, b"Use read_task on that task").is_some());
+}
+
+#[test]
+fn task_read_hold_reasons_keep_their_numbers_and_failure_classes() {
+    for (reason, expected) in [
+        (
+            tasks::Hold::Exceeded(tasks::Exceeded { bound: tasks::Bound::Window, value: 1024 }),
+            b"window tokens 1024".as_slice(),
+        ),
+        (tasks::Hold::Failures(tasks::Class::Permanent), b"permanent failures".as_slice()),
+        (tasks::Hold::Placed { hold: 19 }, b"placed hold 19".as_slice()),
+        (tasks::Hold::Uncertain { entry: 12 }, b"uncertain, entry 12".as_slice()),
+        (tasks::Hold::PoolLost { pool: 6 }, b"pool lost 6".as_slice()),
+    ] {
+        let mut read = held_task_read();
+        read.hold.as_mut().expect("held task").reason = reason;
+        let answer = crate::answer_bounded(&engine::CallAnswer::TaskRead(Box::new(Ok(read))), 512);
+        assert!(!answer.error());
+        assert!(answer.text().len() <= 512);
+        assert!(skein_lib::bytes::find(answer.text(), expected).is_some());
     }
 }

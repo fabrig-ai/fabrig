@@ -1,6 +1,9 @@
 //! The small profile and checked field overrides (protocol/configuration.md, section 7).
 mod names;
+mod reference;
 use alloc::boxed::Box;
+pub use names::{NAMES, Name, Unit, find};
+pub use reference::{engine_reference, reference};
 use skein_lib::Duration;
 use temper_engine_domain as engine;
 use temper_engine_domain_forge as forge;
@@ -390,6 +393,9 @@ pub(crate) fn engine_candidate(jig: &jig_protocol_config::Limits, limits: &Limit
         // The budget is the engine's own memory_bytes, set where it starts.
         memory_bytes: u64::MAX,
         watermark: engine::default_watermark(&limits.root.journal),
+        public_watermark: engine::default_watermark(&limits.root.journal).checked_div(2).expect("half the watermark"),
+        public_reads: jig.clients.public.reads,
+        public: jig.core.public,
         journal: limits.root.journal,
         loads: limits.root.loads,
         brief: limits.root.brief,

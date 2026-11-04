@@ -217,6 +217,7 @@ impl Clients {
             },
             close: busy,
         };
+        let response = if busy { self.mount.refusal(head) } else { response };
         self.server.answer(call, http::Request::Discard, &mut self.server_out);
         self.server.answer(call, http::Request::Respond(response), &mut self.server_out);
         if length != 0 {

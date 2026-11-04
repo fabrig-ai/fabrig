@@ -117,7 +117,12 @@ pub fn draw(random: &mut Rng, bound: u64) -> u64 {
 }
 
 pub fn answer(exchange: u32) -> ToPage {
-    ToPage::Report(fetch::Report::Answered { exchange, status: 200, body: Box::from(&b"answer"[..]) })
+    ToPage::Report(fetch::Report::Answered {
+        exchange,
+        status: 200,
+        body: Box::from(&b"answer"[..]),
+        headers: Vec::new(),
+    })
 }
 
 pub fn line(stream: bridge::Stream, bytes: &[u8]) -> ToPage {

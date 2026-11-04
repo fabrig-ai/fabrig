@@ -23,9 +23,11 @@ the client, a committed turn's objects,
 drawing family (`client/domain/`); and `ops` standalone, with its
 service and its connectors' protocols (`examples.md`). `RemoveProject`
 is offered in no project's document (`client/domain/contract.md`).
+Public reading's remaining departure is the public index's memory fit
+check (`protocol/configuration.md`).
 The code departs in a few single items (`README.md`, `client/domain/client.md`, `domain/engine.md`,
-`domain/people.md`, `domain/root.md`, `examples.md`,
-`protocol/client.md`, `protocol/configuration.md`). `domain/core.md`,
+`client/domain/contract.md`, `domain/people.md`, `domain/root.md`, `examples.md`,
+`protocol/README.md`, `protocol/client.md`, `protocol/configuration.md`). `domain/core.md`,
 `domain/providers.md`, `client/domain/README.md` and
 `protocol/browser.md` have no gap of their own. jig has no drafts.
 

@@ -115,11 +115,16 @@ A task is one numbered piece of work in a project, done by an agent, a procedure
 - **temper's runs** act on their delegates with the host tools
   `delegate`, `change`, `goal`, `amend`, `message`, `cancel`, `release`,
   `subscribe`, `introduce`, `decide_escalation` and `propose`.
+  `read_task` (read family): related tasks and retained ended delegates' words,
+  state, dependencies, revisions and connector hold details. Use
+  `from=next`; restart at zero on a new spec revision.
   `message` is offered only to a run whose authority holds the message
   family: a change's coder, repairer and resolver are offered it where
   the change relays their questions; its reviewer is not offered it.
 
 ## Limits
+
+For the configuration members that need a restart, read `temper help configuration`.
 
 - temper does not let ctl take a task, hand it back, move it to
   another party, reorder it or mark it seen: those acts print `(no

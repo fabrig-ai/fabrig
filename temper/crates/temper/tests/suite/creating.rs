@@ -10,16 +10,15 @@ fn cluster_engine(name: &str) -> jig_protocol_config::Engine {
     let scratch = crate::support::Scratch::startup(name);
     let cluster = super::cluster_documents(scratch.path());
     let value = super::cluster_document(&cluster, "engine");
-    let bytes = serde_json::to_vec(&value["engine"]).expect("engine JSON");
-    let document = jig_protocol_config::document(
-        &bytes,
-        &jig_protocol_config::DocumentLimits { bytes: 1_048_576, tokens: 65_536, depth: 32 },
-    )
-    .expect("engine document");
-    let engine = temper_service::startup::engine(&document, 0, &jig_protocol_config::Directories::working())
-        .expect("stock engine");
+    let engine = configured_engine(&value);
     scratch.remove();
     engine
+}
+
+fn configured_engine(value: &serde_json::Value) -> jig_protocol_config::Engine {
+    let bytes = serde_json::to_vec(&value["engine"]).expect("engine JSON");
+    let document = jig_protocol_config::document(&bytes, &super::DOCUMENT).expect("engine document");
+    temper_service::startup::engine(&document, 0, &jig_protocol_config::Directories::working()).expect("stock engine")
 }
 
 fn stock_frame(engine: &jig_protocol_config::Engine) -> Frame {
@@ -83,7 +82,7 @@ fn the_cluster_offers_every_stock_charter() {
     let mut engine = cluster_engine("cluster-creating");
     let frame = stock_frame(&engine);
     let expected: Vec<_> = engine.charters.iter().map(|charter| charter.number).collect();
-    assert_eq!(expected.len(), 4, "stock chat, producer and reviewers");
+    assert_eq!(expected.len(), 5, "stock chat, producer, configuring and reviewers");
     assert_eq!(offered(&frame), expected);
     let received = browser_frame(&frame, &jig_protocol_config::clients::models(&engine.llm));
     let words = jig_client::contract::Text::new(b"Hello".as_slice().into(), engine.limits.core.people.words)
@@ -93,7 +92,7 @@ fn the_cluster_offers_every_stock_charter() {
     assert_eq!(project, 1);
     assert_eq!(tasks.len(), 1);
     assert_eq!(tasks.get(0).expect("chat task").executor, jig_client::contract::Executor::Agent { charter: 1 });
-    engine.limits.core.documents.lines = 3;
+    engine.limits.core.documents.lines = 4;
     assert!(stock_frame(&engine).projects.get(0).expect("project").creating.is_none(), "overflow refuses whole");
 }
 
@@ -101,10 +100,31 @@ fn the_cluster_offers_every_stock_charter() {
 fn the_browser_receives_a_complete_stock_me_offer() {
     let mut engine = cluster_engine("browser-creating");
     // Isolate the receiver from the cluster's independently checked offer capacity.
-    engine.limits.core.documents.lines = 4;
+    engine.limits.core.documents.lines = 5;
     let frame = stock_frame(&engine);
     assert_eq!(offered(&frame).len(), engine.charters.len());
     let received = browser_frame(&frame, &jig_protocol_config::clients::models(&engine.llm));
     let creating = received.projects.get(0).expect("project").creating.as_ref().expect("creating");
     assert_eq!(creating.within.charters.as_slice(), offered(&frame));
+}
+
+#[test]
+fn the_forgejo_fixture_offers_every_stock_charter() {
+    use crate::support::{self, Forge};
+    let scratch = support::Scratch::startup("forgejo-creating");
+    let forge = Forge::Throwaway {
+        forgejo: std::path::Path::new("/fixture/forgejo"),
+        api: "127.0.0.1:3000".parse().expect("fixture address"),
+        git: "http://127.0.0.1:3000/".into(),
+    };
+    support::configuration(scratch.path(), &forge);
+    let bytes = std::fs::read(scratch.path().join("temper.json")).expect("process configuration");
+    let value: serde_json::Value = serde_json::from_slice(&bytes).expect("deployment JSON");
+    let engine = configured_engine(&value);
+    assert_eq!(engine.charters.len(), 5);
+    assert_eq!(
+        offered(&stock_frame(&engine)),
+        engine.charters.iter().map(|charter| charter.number).collect::<Vec<_>>()
+    );
+    scratch.remove();
 }

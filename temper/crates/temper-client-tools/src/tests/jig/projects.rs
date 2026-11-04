@@ -14,7 +14,7 @@ fn list<T>(values: Vec<T>) -> List<T> {
     }
     out
 }
-fn project() -> c::Project {
+pub(super) fn project() -> c::Project {
     let authority = c::AuthorityDocument::complete(c::Authority {
         models: None,
         tools: 0,
@@ -126,7 +126,7 @@ fn project_show_lists_a_fork_home_and_keeps_an_owned_non_home_out() {
     let printed = read(&["project", "show", "1"], project.clone());
     assert_eq!(printed.status, 0);
     let text = String::from_utf8_lossy(&printed.stdout);
-    assert_eq!(text.lines().nth(1), Some("homes: src/lib.rs"));
+    assert_eq!(text.lines().nth(2), Some("homes: src/lib.rs"));
     let printed = read(&["project", "show", "1", "--json"], project);
     f::unique_keys(&printed.stdout).expect("valid JSON with unique keys");
     let json = String::from_utf8_lossy(&printed.stdout);

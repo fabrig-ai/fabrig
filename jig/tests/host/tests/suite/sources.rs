@@ -231,6 +231,19 @@ fn shutdown_preserves_the_active_sign_outs_real_result() {
     assert!(world.host.sources_settled());
     assert_eq!(world.host.next_deadline(), None);
 }
+
+#[test]
+fn source_updates_during_shutdown_leave_the_link_open_for_run_acknowledgements() {
+    let (mut world, check) = World::checking(&[b"a"]);
+    world.step(host::Event::CancelAll { reason: host::Reason::Shutdown });
+    assert!(world.sources(&[]).is_empty(), "a late list must not fault the draining link");
+    assert!(world.sources(&[b"b"]).is_empty(), "shutdown admits no replacement source work");
+    assert!(world.step(host::Event::Down(host::LinkDown::Check { name: name_of(b"a") })).is_empty());
+    assert!(!world.host.sources_settled(), "the admitted check still owns its command");
+    assert!(world.checked(check, host::LoginState::Usable).is_empty());
+    assert!(world.host.sources_settled());
+    assert_eq!(world.host.next_deadline(), None);
+}
 #[test]
 fn sign_out_after_shutdown_answers_closed_without_starting_work() {
     let mut world = World::usable();

@@ -172,6 +172,7 @@ fn frame(watch: u64) -> w::StreamEvent {
             w::MeProject::new(
                 &w::CEILINGS,
                 w::MeProjectParts {
+                    public: None,
                     project: PROJECT,
                     name: text(b"First"),
                     role: w::HeldRole::Member,

@@ -936,6 +936,7 @@ the core checks inherited authority and the prospective financial payer.
 | Tool | What it does | Answers |
 |---|---|---|
 | `delegate` | makes a batch of tasks as its delegates, each with what a party's `Create` names, its label, flags and LLM choice among them (tasks.md, section 4) | their numbers and their specs' revisions, and what a budget given `AsAllowed` was given; refused, and why; beyond authority, naming what it lacked and whether a proposal could be accepted |
+| `read_task` | reads its own task, its requester, live direct delegates, explicit references or escalation subjects in its project; retained ended direct delegates remain readable | bounded specification words, lifecycle, dependencies, spec revision, hold revision and reason, including connector hold words; `from` continues cut specification words at the printed `next` byte offset |
 | `message` | words, a question or an answer to a task it references | sent; no reference; the inbox full; too large for a run to read |
 | `amend`, `release` | a task below it: an amendment naming its spec's revision as the run last read it, but for a change of priority alone, and adding or removing dependencies within its reach (tasks.md, section 7); a release naming its hold's, and, for an effect held uncertain, whether to make it again (tasks.md, 5.5 and section 7) | done, with the task's spec revision after the commit, the one its next amendment names (a release moves none); refused, and why; moved, with what it is now |
 | `cancel` | a task below it and its tree, with a reason, and a grace if the run gives one, within the tasks child's bound: the task is asked to finish first (tasks.md, section 7) | done; refused, and why |
@@ -951,13 +952,19 @@ the core checks inherited authority and the prospective financial payer.
 | `note`, `recall` | writes a note in a scope; reads entries by name or by a search (section 10) | written; the entries |
 | a connector's reads | reads its system (connectors.md, section 9) | the answer, within the read's budget |
 
-**A run's reads are not recorded.** A connector's read and the
+**A run's reads are not recorded.** A connector's read, `read_task`, and the
 `settings` family's reads decide nothing: checked against the task's
 tools, served from the state as it stands, their answer leaves through
 the journal's door for outputs that decide nothing (root.md, section
 3), and no call record keeps it. A read asked again under its name is
 read again, and may see what changed since. A proposal of settings is a
 decided call, as every other is.
+
+Task reads authorize against the run's own task relationships, not a person's
+project visibility. A stored delegate's owner row proves its immediate requester;
+loading it grants no message, amendment or subscription authority. Authorization
+and the current attempt are checked again after a stored read. Every chunk names
+the current spec revision; restart at zero if it changes between chunks.
 
 **Calls are named, and decided once.** Every call names its task's
 attempt and the run's own name for it. The core commits a call that
@@ -1324,6 +1331,19 @@ computes for them is said below (11.1 to 11.5).
   (connectors.md, 5.5). Its watches and reads carry a window, as jig's
   do (`../client/domain/contract.md`, 7.5). Only the document, or why
   there is none, crosses back; the root only routes.
+- **Public reads** (people.md, section 13) are the public party's,
+  with no sign-in: the core admits one only on its public index
+  (people.md, 13.9), the project first, then the task, before any other
+  work, and answers every other unknown alike. It makes jig's public
+  documents (projects, a board, a card) by their projections from the
+  index alone, within the board's bounds, never scanning the live tasks
+  or loading from the store; an application's it asks of the connector
+  that declared the kind, handing it the project's public tasks, and
+  checks the tasks its answer names again in the step that completes
+  the read (people.md, 13.10). It keeps the index with every decision
+  that changes what is public (people.md, 13.7), building a project's
+  entry from its live tasks at start and when it is made public.
+  No watch is opened, nothing is marked, nothing is committed.
 - **Level-triggered,** as facts are (core.md, section 4). A delivery is
   the subject's whole current document, within the watch's window, made
   by the subject's owner when the delivery is made: the core, or a

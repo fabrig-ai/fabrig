@@ -7,12 +7,14 @@ pub mod boundary;
 mod component;
 mod exchange;
 pub mod limits;
+pub mod public;
 mod routes;
 mod served;
 mod sign_in;
 mod stream;
 pub use boundary::*;
 pub use component::{Component, Unusable};
-pub use limits::{Limits, provider_limits, valid};
+pub use limits::{Limits, PublicLimits, provider_limits, valid};
+pub use public::{PublicKind, jig_kinds};
 
 pub mod translate;

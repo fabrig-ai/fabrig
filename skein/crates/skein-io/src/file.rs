@@ -27,7 +27,7 @@ pub struct Residue {
     pub error: crate::kernel::Error,
 }
 
-#[derive(PartialEq, Eq, Debug)]
+#[derive(PartialEq, Eq)]
 pub enum Request {
     /// Takes an exclusive lock without waiting: `Locked`, `Busy` or `Failed`.
     Lock {
@@ -180,6 +180,138 @@ pub enum Request {
     },
 }
 
+// io.md, 5: a file's contents print as their length, never their bytes.
+impl core::fmt::Debug for Request {
+    #[expect(clippy::too_many_lines, reason = "io.md, 5: exhaustively preserve every request variant and field")]
+    fn fmt(&self, f: &mut core::fmt::Formatter<'_>) -> core::fmt::Result {
+        match self {
+            Request::Lock { owner, root } => f.debug_struct("Lock").field("owner", owner).field("root", root).finish(),
+            Request::MakeDirectory { owner, root, path, mode } => f
+                .debug_struct("MakeDirectory")
+                .field("owner", owner)
+                .field("root", root)
+                .field("path", path)
+                .field("mode", mode)
+                .finish(),
+            Request::OpenPrivate { owner, root, path } => {
+                f.debug_struct("OpenPrivate").field("owner", owner).field("root", root).field("path", path).finish()
+            }
+            Request::Create { owner, root, name, mode } => f
+                .debug_struct("Create")
+                .field("owner", owner)
+                .field("root", root)
+                .field("name", name)
+                .field("mode", mode)
+                .finish(),
+            Request::CreateNoFollow { owner, root, name, mode } => f
+                .debug_struct("CreateNoFollow")
+                .field("owner", owner)
+                .field("root", root)
+                .field("name", name)
+                .field("mode", mode)
+                .finish(),
+            Request::OpenRead { owner, root, name } => {
+                f.debug_struct("OpenRead").field("owner", owner).field("root", root).field("name", name).finish()
+            }
+            Request::OpenReadNoFollow { owner, root, name } => f
+                .debug_struct("OpenReadNoFollow")
+                .field("owner", owner)
+                .field("root", root)
+                .field("name", name)
+                .finish(),
+            Request::OpenWrite { owner, root, name } => {
+                f.debug_struct("OpenWrite").field("owner", owner).field("root", root).field("name", name).finish()
+            }
+            Request::OpenWriteNoFollow { owner, root, name } => f
+                .debug_struct("OpenWriteNoFollow")
+                .field("owner", owner)
+                .field("root", root)
+                .field("name", name)
+                .finish(),
+            Request::OpenDirectory { owner, root, name, no_follow } => f
+                .debug_struct("OpenDirectory")
+                .field("owner", owner)
+                .field("root", root)
+                .field("name", name)
+                .field("no_follow", no_follow)
+                .finish(),
+            Request::Load { owner, root, path, max, no_follow } => f
+                .debug_struct("Load")
+                .field("owner", owner)
+                .field("root", root)
+                .field("path", path)
+                .field("max", max)
+                .field("no_follow", no_follow)
+                .finish(),
+            Request::Scan { owner, root, path, max, max_bytes, no_follow } => f
+                .debug_struct("Scan")
+                .field("owner", owner)
+                .field("root", root)
+                .field("path", path)
+                .field("max", max)
+                .field("max_bytes", max_bytes)
+                .field("no_follow", no_follow)
+                .finish(),
+            Request::Store { owner, root, path, bytes, expected, no_follow } => f
+                .debug_struct("Store")
+                .field("owner", owner)
+                .field("root", root)
+                .field("path", path)
+                .field("len", &bytes.len())
+                .field("expected", expected)
+                .field("no_follow", no_follow)
+                .finish(),
+            Request::Stat { owner, file } => f.debug_struct("Stat").field("owner", owner).field("file", file).finish(),
+            Request::WriteAt { owner, file, offset, bytes } => f
+                .debug_struct("WriteAt")
+                .field("owner", owner)
+                .field("file", file)
+                .field("offset", offset)
+                .field("len", &bytes.len())
+                .finish(),
+            Request::ReadAt { owner, file, offset, max } => f
+                .debug_struct("ReadAt")
+                .field("owner", owner)
+                .field("file", file)
+                .field("offset", offset)
+                .field("max", max)
+                .finish(),
+            Request::Cut { owner, file, length } => {
+                f.debug_struct("Cut").field("owner", owner).field("file", file).field("length", length).finish()
+            }
+            Request::Sync { owner, file } => f.debug_struct("Sync").field("owner", owner).field("file", file).finish(),
+            Request::Close { owner, file } => {
+                f.debug_struct("Close").field("owner", owner).field("file", file).finish()
+            }
+            Request::SyncDirectory { owner, root } => {
+                f.debug_struct("SyncDirectory").field("owner", owner).field("root", root).finish()
+            }
+            Request::Rename { owner, from_root, from, to_root, to } => f
+                .debug_struct("Rename")
+                .field("owner", owner)
+                .field("from_root", from_root)
+                .field("from", from)
+                .field("to_root", to_root)
+                .field("to", to)
+                .finish(),
+            Request::Remove { owner, root, name, directory } => f
+                .debug_struct("Remove")
+                .field("owner", owner)
+                .field("root", root)
+                .field("name", name)
+                .field("directory", directory)
+                .finish(),
+            Request::List { owner, root } => f.debug_struct("List").field("owner", owner).field("root", root).finish(),
+            Request::ListPage { owner, directory, max } => f
+                .debug_struct("ListPage")
+                .field("owner", owner)
+                .field("directory", directory)
+                .field("max", max)
+                .finish(),
+        }
+    }
+}
+
 #[derive(PartialEq, Eq, Debug)]
 pub struct Entry {
     pub name: Box<[u8]>,
@@ -201,7 +333,7 @@ pub enum Unsafe {
     Owner { found: u32, expected: u32 },
 }
 
-#[derive(PartialEq, Eq, Debug)]
+#[derive(PartialEq, Eq)]
 pub enum Event {
     /// The lock is taken, or already held through this root.
     Locked {
@@ -298,6 +430,61 @@ pub enum Event {
     Cancelled {
         owner: Token,
     },
+}
+
+// io.md, 5: a file's contents print as their length, never their bytes.
+impl core::fmt::Debug for Event {
+    fn fmt(&self, f: &mut core::fmt::Formatter<'_>) -> core::fmt::Result {
+        match self {
+            Event::Locked { owner } => f.debug_struct("Locked").field("owner", owner).finish(),
+            Event::Busy { owner } => f.debug_struct("Busy").field("owner", owner).finish(),
+            Event::Made { owner } => f.debug_struct("Made").field("owner", owner).finish(),
+            Event::Refused { owner, found } => {
+                f.debug_struct("Refused").field("owner", owner).field("found", found).finish()
+            }
+            Event::Opened { owner, file, len } => {
+                f.debug_struct("Opened").field("owner", owner).field("file", file).field("len", len).finish()
+            }
+            Event::Loaded { owner, bytes } => {
+                f.debug_struct("Loaded").field("owner", owner).field("len", &bytes.len()).finish()
+            }
+            Event::Scanned { owner, entries, more } => {
+                f.debug_struct("Scanned").field("owner", owner).field("entries", entries).field("more", more).finish()
+            }
+            Event::Stored { owner, digest } => {
+                f.debug_struct("Stored").field("owner", owner).field("digest", digest).finish()
+            }
+            Event::Conflict { owner, now } => {
+                f.debug_struct("Conflict").field("owner", owner).field("now", now).finish()
+            }
+            Event::TooLarge { owner, size } => {
+                f.debug_struct("TooLarge").field("owner", owner).field("size", size).finish()
+            }
+            Event::Stated { owner, stat } => {
+                f.debug_struct("Stated").field("owner", owner).field("stat", stat).finish()
+            }
+            Event::Written { owner } => f.debug_struct("Written").field("owner", owner).finish(),
+            Event::Read { owner, bytes } => {
+                f.debug_struct("Read").field("owner", owner).field("len", &bytes.len()).finish()
+            }
+            Event::Cut { owner } => f.debug_struct("Cut").field("owner", owner).finish(),
+            Event::Synced { owner } => f.debug_struct("Synced").field("owner", owner).finish(),
+            Event::Closed { owner } => f.debug_struct("Closed").field("owner", owner).finish(),
+            Event::Renamed { owner } => f.debug_struct("Renamed").field("owner", owner).finish(),
+            Event::Removed { owner } => f.debug_struct("Removed").field("owner", owner).finish(),
+            Event::Listed { owner, entries } => {
+                f.debug_struct("Listed").field("owner", owner).field("entries", entries).finish()
+            }
+            Event::Failed { owner, error, committed, residue } => f
+                .debug_struct("Failed")
+                .field("owner", owner)
+                .field("error", error)
+                .field("committed", committed)
+                .field("residue", residue)
+                .finish(),
+            Event::Cancelled { owner } => f.debug_struct("Cancelled").field("owner", owner).finish(),
+        }
+    }
 }
 
 impl Event {

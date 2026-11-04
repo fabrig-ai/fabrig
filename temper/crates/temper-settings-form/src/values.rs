@@ -48,6 +48,8 @@ pub fn encode_charter(value: &c::Charter, out: &mut Encoder) {
     out.boolean(value.agents());
     out.key(b"call_timeout");
     out.unsigned(value.call_timeout.as_nanos());
+    out.key(b"tools");
+    out.unsigned(value.tools);
     out.key(b"hosts");
     encode_setting_hosts(&value.hosts, out);
     out.key(b"spend");

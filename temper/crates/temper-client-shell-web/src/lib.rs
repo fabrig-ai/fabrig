@@ -20,6 +20,7 @@ pub mod host;
 pub mod journey;
 pub mod limits;
 pub mod playground;
+pub mod public;
 pub mod records;
 #[cfg(target_arch = "wasm32")]
 enum Report {
@@ -77,6 +78,16 @@ impl ShellPlatform for platform::Browser<Report> {
 #[cfg(target_arch = "wasm32")]
 #[cfg_attr(not(feature = "playground"), wasm_bindgen::prelude::wasm_bindgen(start))]
 pub fn start() {
+    let window = web_sys::window().expect("window");
+    let path = window.location().pathname().expect("path") + &window.location().search().expect("query");
+    if matches!(temper_client_domain::address::parse(path.as_bytes()), temper_client_domain::Place::Public(_)) {
+        public::web::start(path.as_bytes());
+        return;
+    }
+    start_signed_in();
+}
+#[cfg(target_arch = "wasm32")]
+fn start_signed_in() {
     if !skein_ui_web::restart::Restart::new(
         3,
         skein_lib::Duration::from_secs(60),

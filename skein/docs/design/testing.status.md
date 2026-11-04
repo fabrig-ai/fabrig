@@ -16,3 +16,15 @@
   (a memory suite) and `crates/skein-forge` have a `tests/` directory,
   where 6 puts what drives a crate from outside under `tests/`; no reason
   is recorded.
+  6: step tests belong in `src/tests.rs` and `src/tests/`, but
+  `skein-shell/src/listener_calls.rs` loads sibling `listener_tests.rs`
+  through `#[path]`, as other crates load `*_tests.rs`, and
+  `skein-llm/src/translate.rs` and other source files hold inline test
+  modules; no reason is recorded (the code's side is
+  `skein/docs/development/debt/D027-step-test-layouts.md`). 6: shared
+  harnesses belong in `testing/`, but worlds under `tests/` serve as
+  kits: `skein/tests/llm-connection/Cargo.toml` depends on
+  `skein-llm-world` and `skein-tls-world`, and `skein-llm/Cargo.toml`
+  uses `skein-json-world` as a dev-dependency; no reason is recorded
+  (the code's side is
+  `skein/docs/development/debt/D028-worlds-as-kits.md`).

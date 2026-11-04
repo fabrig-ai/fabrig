@@ -22,6 +22,8 @@ use temper_engine_domain_forge as forge;
 pub enum StartStop {
     /// jig's start refused a fit at this phase (jig/docs/design/domain/engine.md, 6).
     Core { phase: Option<jig_domain_core::start::Phase>, failure: jig_domain_core::start::Failure },
+    /// A current charter leaves too little brief room (temper/docs/design/domain/agent.md, 4.3).
+    Room(crate::room::Short),
     /// A startup page could not be read.
     Load(loads::RestoreFailure),
     /// The forge's restored records do not fit its limits.
@@ -40,8 +42,10 @@ pub enum StartStop {
     reason = "the journal door, header, pending switch, sweep page and opened milestone are independent"
 )]
 pub struct Domain {
+    pub(crate) host_part: Option<crate::room::HostPart>,
     revision: u64,
     held_bytes: u64,
+    pub(crate) public_reads: u32,
     /// Retired M1 reset marker; readiness never reads it. Keeping the marker
     /// needs no clock pair beside the retained restore failure.
     pub(crate) settled: Option<()>,
@@ -398,8 +402,10 @@ impl Domain {
         );
         assert!(configured.is_empty(), "configuration emits no request");
         Ok(Domain {
+            host_part: config.host_part,
             revision: 0,
             held_bytes: 0,
+            public_reads: 0,
             calendar: calendar::Calendar::new(
                 &calendar::Limits { projects: limits.authority.projects },
                 config.period_span,
@@ -521,6 +527,20 @@ impl Domain {
             Some(Phase::AdoptRuns | Phase::ReadAfresh { .. } | Phase::SettleOutbox { .. } | Phase::Open) => true,
             None => self.opened,
         }
+    }
+
+    /// Check the effective settings after `LoadCore` has restored their changes
+    /// (temper/docs/design/domain/agent.md, 4.3).
+    pub(crate) fn check_room(&self) -> Result<(), crate::room::Short> {
+        let Some(host) = self.host_part else { return Ok(()) };
+        for setting in self.core.current.offered().into_boxed() {
+            if let jig_domain_core::settings::Setting::Charter(number) = setting
+                && let Some(charter) = self.core.current.charter(number)
+            {
+                host.check(number, &charter.policy)?;
+            }
+        }
+        Ok(())
     }
 
     pub(crate) fn stop_start(&mut self, stop: StartStop) {
@@ -834,6 +854,9 @@ fn release_one(domain: &mut Domain, out: &mut Queue<Request>) -> skein_lib::Rele
     let status = domain.journal.release(out);
     let mut bytes = 0_u64;
     for request in out.iter().skip(before) {
+        if let Request::Party(crate::PartyRequest::Deliver(Delivery::Public { admitted: true, .. })) = request {
+            domain.public_reads = domain.public_reads.checked_sub(1).expect("one answer per admitted public read");
+        }
         if let Request::Worker(crate::WorkerRequest::Deliver(Delivery::Assigned { assignment, .. })) = request {
             bytes = bytes
                 .checked_add(crate::budget::assignment_bytes(assignment))
@@ -1032,6 +1055,9 @@ fn released_into(
     out: &mut Queue<Request>,
 ) {
     match released.0 {
+        Delivery::PublicWait { read } => {
+            domain.work.push(Work::Core(jig_domain_core::Event::PublicDurable { read }));
+        }
         Delivery::ProjectReleased { connector, project } => {
             domain.work.push(Work::Core(jig_domain_core::Event::ProjectReleased { connector, project }));
         }
@@ -1108,6 +1134,7 @@ fn released_into(
         | Delivery::ForgeDocument { .. }
         | Delivery::Panel { .. }
         | Delivery::Application { .. }
+        | Delivery::Public { .. }
         | Delivery::WebReply { .. }
         | Delivery::CarriedUnused { .. }
         | Delivery::ForgeRead { .. }

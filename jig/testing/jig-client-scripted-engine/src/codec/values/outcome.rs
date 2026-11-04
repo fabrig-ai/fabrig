@@ -125,6 +125,9 @@ pub(in crate::codec) fn wire_document_outcome(
         c::DocumentOutcome::Renamed { project } => {
             w::DocumentOutcome::Renamed(w::OutcomeRenamed::new(limits, w::OutcomeRenamedParts { project: *(project) })?)
         }
+        c::DocumentOutcome::VisibilitySet { project, public } => w::DocumentOutcome::VisibilitySet(
+            w::OutcomeVisibilitySet::new(limits, w::OutcomeVisibilitySetParts { project: *project, public: *public })?,
+        ),
         c::DocumentOutcome::ProjectRemoved { project } => w::DocumentOutcome::ProjectRemoved(
             w::OutcomeProjectRemoved::new(limits, w::OutcomeProjectRemovedParts { project: *(project) })?,
         ),

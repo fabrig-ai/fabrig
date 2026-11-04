@@ -503,7 +503,7 @@ fn stateless_accept_keeps_the_checked_installation_without_drawing_or_taking_sta
     let mut world = ConvertHost::new();
     world.io = Queue::uncapped();
     let state = world.state(4, Purpose::Accept);
-    let mut crypto = world.host.crypto.clone();
+    let mut crypto = fixtures::crypto();
     let run = Token::new(1);
     world.down(Request::Run {
         run,

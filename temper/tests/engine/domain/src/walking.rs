@@ -173,6 +173,9 @@ pub fn limits() -> engine::Limits {
         authority: authority_limits(),
         memory_bytes: u64::MAX,
         watermark: engine::default_watermark(&journal),
+        public_watermark: (engine::default_watermark(&journal)).checked_div(2).expect("half the watermark"),
+        public_reads: 0,
+        public: jig_domain_core::PublicIndexLimits::OFF,
         journal,
         loads: loads::Limits {
             read_bytes: 65_536,
@@ -299,6 +302,7 @@ pub fn config(seed: u64) -> engine::Config {
         requirements: Box::new([]),
     };
     engine::Config {
+        host_part: None,
         kinds_stock: engine::landing_stock(&[], &skein_lib::Map::with_capacity(0), 1, 4),
         period_span: PERIOD_SPAN,
         core: jig_domain_core::Config {
@@ -446,6 +450,7 @@ pub fn charter() -> engine::Charter {
             shell: true,
             agents: true,
             call_timeout: Duration::from_secs(10),
+            tools: engine::RunPolicy::EVERY_FAMILY,
         },
         hosts: fleet::Kinds::Workers,
         spend: 100,
@@ -955,6 +960,8 @@ impl World {
             | Delivery::ForgeRead { .. }
             | Delivery::Read { .. }
             | Delivery::ReadLoad { .. }
+            | Delivery::Public { .. }
+            | Delivery::PublicWait { .. }
             | Delivery::Document { .. }
             | Delivery::WatchEnded { .. }
             | Delivery::Drained

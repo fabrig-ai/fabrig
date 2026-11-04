@@ -4,6 +4,15 @@
 
 - **Not yet:** 4.6: item 12, the playground's story A on the built
   playground and its log replayed natively (`../playground.status.md`).
+  8.4: the public browser walk's project-link checks expect
+  `Project <identifier prefix>` (`temper/tests/client-browser/tests/browser_all/browser_public.rs`,
+  `Walk::project_label`), where the public projects view uses the
+  project's name (`temper/crates/temper-client-view/src/public/pages.rs`,
+  `Draw::projects`).
+- **Departs:** 8.3: public pages show a project's name and tasks' first-line
+  titles (`temper/crates/temper-client-view/src/public/pages.rs` and
+  `lines.rs`), as the user decided on 2026-11-03; people's names stay
+  hidden (`../draft/first-release.status.md`).
 - **Departs:** 2.3: `?forge=elsewhere` still reads, as A Forgejo
   elsewhere's Details (`temper-client-domain`'s `address.rs`
   `forge_choice`), words for a forge added to the configuration by hand,

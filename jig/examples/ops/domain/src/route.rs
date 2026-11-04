@@ -156,6 +156,9 @@ fn event_in(
                 carried: None,
             }));
         }
+        Event::Core(core::Event::PublicRead { reply, .. }) => {
+            held(decision, Output::Core(core::Held::PublicRead { reply, answer: core::PublicAnswer::Busy }));
+        }
         Event::Core(event) => work.push(Work::Core(event)),
         Event::Infrastructure(event) => work.push(Work::Infrastructure(event)),
         Event::Observability(event) => work.push(Work::Observability(event)),
@@ -282,6 +285,8 @@ fn core_held(
         Err(value) => value,
     };
     match value {
+        core::Held::PublicRead { .. } => {}
+        core::Held::PublicWait { read } => child(decision, Released::Core(core::Event::PublicDurable { read })),
         core::Held::Load(load) => held(decision, Output::CoreLoad(*load)),
         core::Held::ApplicationDelivery { .. } => unreachable!("document assembly owns this synchronous output"),
         core::Held::ApplicationWatchEnded { watcher, connector, subject, why } => {
@@ -420,6 +425,9 @@ fn core_ask(
 ) {
     let destination = jig_ops_domain_connectors::connector(number);
     match (destination, ask) {
+        (Some(Connector::Infrastructure | Connector::Observability) | None, core::Ask::Public { reply, .. }) => {
+            work.push(Work::Core(core::Event::PublicAnswered { reply, answer: None }));
+        }
         (Some(Connector::Infrastructure | Connector::Observability) | None, core::Ask::ReleaseProject { project }) => {
             work.push(Work::Core(core::Event::ProjectReleased { connector: number, project }));
         }
@@ -1411,6 +1419,7 @@ fn core_now(
         }
         other @ (core::Now::Call { .. }
         | core::Now::EffectAnswer { .. }
+        | core::Now::TaskRead { .. }
         | core::Now::SettingsAnswer { .. }
         | core::Now::NoteBusy { .. }
         | core::Now::SettledCallRefused { .. }

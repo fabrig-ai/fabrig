@@ -12,6 +12,9 @@ the task reads its charter, whole:
 
 - its instructions, which the run's agent reads before its task's brief;
 - its models: `model`, the default, then `alternatives`, in order;
+- its `tools`: the host tool families it names; temper uses this list
+  to offer the settings family alone, and offers the other host tools
+  by the task's authority;
 - its tools in the workspace: to inspect, to modify (write, edit and remove
   files), to run a shell, to open sub-agents; a run modifies files only
   where it can deliver them, a change's run: a chat's, a goal's or an
@@ -21,6 +24,11 @@ the task reads its charter, whole:
 - a run's limits: its turns and time, a reserve of each for finishing,
   how long it waits idle, and the timeout of its calls to temper's
   tools.
+
+The stock offers five charters: 1 for chats, 2 for coding, 3 for the
+configuring agent, 4 for reviews and 6 for foremen. The configuring
+agent turns how a person describes their work into a proposal of
+settings (`temper help chat`).
 
 The forge's procedures run a change's agent work under three charters,
 which the change keeps from its making to its end: its producing and
@@ -66,9 +74,14 @@ Tasks made before keep it, on their revision.
 
 - `temper ctl`: `settings show` reads one, as the newest revision or a
   held one has it; `settings apply` and `settings propose` change it.
-- A run reads charters with the host tool `settings`.
+- A run reads charters with the host tool `settings` only when its
+  charter names the settings family and its task's authority holds it:
+  charter 3 alone in the stock. That family also offers
+  `propose_settings`; it changes nothing until an owner accepts.
 
 ## Limits
+
+For the configuration members that need a restart, read `temper help configuration`.
 
 - temper does not give a charter's `spend` to its runs: a run is given
   what its task has left, at most the rules' `maximum_run_spend`. A

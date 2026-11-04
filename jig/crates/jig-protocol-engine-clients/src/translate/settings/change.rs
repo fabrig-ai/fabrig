@@ -167,6 +167,7 @@ fn charter(value: w::Charter) -> c::Charter {
             shell,
             agents,
             call_timeout: v.call_timeout,
+            tools: jig_domain_tasks::Tools(v.tools),
         },
     }
 }

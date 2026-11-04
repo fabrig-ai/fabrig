@@ -348,6 +348,7 @@ impl<A: crate::Application> Engine<A> {
             | Ask::AccountChange { .. }
             | Ask::SignOut { .. }
             | Ask::RemoveProject { .. }
+            | Ask::SetVisibility { .. }
             | Ask::Rename { .. }
             | Ask::ChangeSettings(_)
             | Ask::MoveToNewest(_)
@@ -409,6 +410,7 @@ impl<A: crate::Application> Engine<A> {
                 | Ask::MakeService { .. }
                 | Ask::Withdraw { .. }
                 | Ask::RemoveProject { .. }
+                | Ask::SetVisibility { .. }
                 | Ask::Rename { .. }
                 | Ask::ChangeSettings(_)
                 | Ask::MoveToNewest(_)
@@ -500,6 +502,7 @@ impl<A: crate::Application> Engine<A> {
             | Ask::SetRoles { .. }
             | Ask::MakeService { .. }
             | Ask::RemoveProject { .. }
+            | Ask::SetVisibility { .. }
             | Ask::Rename { .. }
             | Ask::ChangeSettings(_)
             | Ask::MoveToNewest(_)
@@ -640,7 +643,8 @@ fn decision_kind(decision: &Decision) -> ActKind {
 type Target = (Option<u32>, Option<ObjectKey>, ActKind, Option<(Revision, Moved)>);
 fn target(ask: &Ask) -> Option<Target> {
     Some(match ask {
-        Ask::Lift { .. }
+        Ask::SetVisibility { .. }
+        | Ask::Lift { .. }
         | Ask::ChangeSettings(_)
         | Ask::MoveToNewest(_)
         | Ask::Restore { .. }

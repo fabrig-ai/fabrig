@@ -28,7 +28,11 @@ project's question route nor the foremen's charter is a setting. A
 project's policy in a change of settings and a revision restored are
 built through ctl, but the restore's stories in the domain world and
 the joined client world are ignored (`protocol/configuration.md`,
-`client/tools.md`). The
+`client/tools.md`). The configuring agent, charter 3 and template 3, is
+in the stock and the reference pages it reads are built, but its runs
+cannot read a project's own policy (`domain/agent.md`), and a charter's
+`tools` decides only whether its runs are offered the settings family
+(`protocol/configuration.md`). The
 reference is one profile a box is set up with, but on a small box a
 result's bytes, a batch and the live delegates stay below the sizes it
 is designed for, and the case's repository carries no CI or tiers'
@@ -45,9 +49,17 @@ commands and the baseline (`protocol/README.md`), and the release
 (`release.md`). Forges kept in the store, a forge's removal and the
 playground's reset are designed and built; the code departs where the
 box's group file holds a forge's kind alone (`protocol/setup.md`,
-`protocol/forge.md`, `protocol/README.md`), and lags in a
+`protocol/forge.md`, `protocol/README.md`), where the setup shell keeps
+a reconcile host no product calls (`protocol/README.md`,
+`protocol/setup.md`) and temper's service is an unrecorded copy of
+jig's reference service (`protocol/README.md`), and lags in a
 removal without the box (`domain/forge.md`) and a project's Delete
-(`client/README.md`); a connected Forgejo, its connect with its bot's
+(`client/README.md`); public reading still lacks a deployment's proxy
+configuration and figures, and the negative walk's real-service checks
+(`protocol/sign-in.md`). The browser walk's project-link checks expect
+an identifier label where the view shows the project's name; public
+pages show project names and task titles where the browser design says
+none (`client/browser.md`); a connected Forgejo, its connect with its bot's
 tokens and a forge's Replace are built, but for the real loop's story
 (`client/tools.md`) and a connected Forgejo made managed
 (`protocol/setup.md`); with `application.machine.github` null, GitHub's

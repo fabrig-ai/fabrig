@@ -296,6 +296,10 @@ pub(super) fn decode_escalation_decision(value: wire::EscalationDecision) -> dom
 #[expect(clippy::too_many_lines, reason = "one exhaustive arm translates each kind of keyed request")]
 pub fn encode_ask(value: &domain::Ask, limits: &wire::Limits) -> Result<wire::Ask, wire::Problem> {
     Ok(match value {
+        domain::Ask::SetVisibility { project, public } => wire::Ask::SetVisibility(wire::AskSetVisibility::new(
+            limits,
+            wire::AskSetVisibilityParts { project: *project, public: *public },
+        )?),
         domain::Ask::Restore { revision, reason } => wire::Ask::Restore(wire::AskRestore::new(
             limits,
             wire::AskRestoreParts { revision: *revision, reason: reason.clone() },
@@ -525,6 +529,9 @@ pub fn encode_ask(value: &domain::Ask, limits: &wire::Limits) -> Result<wire::As
 #[expect(clippy::too_many_lines, reason = "one exhaustive arm translates each kind of keyed request")]
 pub fn decode_ask(value: wire::Ask, limits: &wire::Limits) -> Result<domain::Ask, wire::Problem> {
     Ok(match value {
+        wire::Ask::SetVisibility(value) => {
+            domain::Ask::SetVisibility { project: value.project(), public: value.public() }
+        }
         wire::Ask::RemoveProject(value) => domain::Ask::RemoveProject {
             project: value.project(),
             grace: super::compound::decode_grace(*value.grace()),

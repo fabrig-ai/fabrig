@@ -69,6 +69,8 @@ A repository is a forge's repository adopted into a project: owned, a fork or co
 
 ## Limits
 
+For the configuration members that need a restart, read `temper help configuration`.
+
 - temper lands every change on the repository's default branch, read
   at the adoption, whatever landing branch the adoption names.
 - temper has no call that ends an adoption or changes one but by

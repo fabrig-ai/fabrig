@@ -6,6 +6,8 @@ mod fixtures;
 mod forms;
 mod hosts;
 mod llm;
+mod members;
+mod names;
 mod overrides;
 mod profile;
 mod providers;
@@ -23,3 +25,5 @@ mod provider;
 mod defaults;
 
 mod seed_policy;
+
+mod public;

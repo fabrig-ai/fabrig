@@ -111,7 +111,7 @@ fn provider(
     directories: &Directories,
     problems: &mut Problems,
 ) -> Option<Provider> {
-    let mut object = check::object(document, at, path, problems)?;
+    let mut object = check::object(document, at, path, problems, "llm-provider")?;
     let name = public_text(&mut object, document, b"name", jig_domain_accounts::PROVIDER_NAME, path, problems);
     let signed_at = object.member(document, b"signed_in_plan");
     let signed_in_plan = match signed_at {
@@ -228,7 +228,7 @@ fn sources(
     directories: &Directories,
     problems: &mut Problems,
 ) -> Option<Sources> {
-    let mut object = check::object(document, at, path, problems)?;
+    let mut object = check::object(document, at, path, problems, "sources")?;
     let mut failed = false;
     let mut sign_in = None;
     if let Some(at) = object.member(document, b"sign_in") {
@@ -268,7 +268,7 @@ fn registration(
     directories: &Directories,
     problems: &mut Problems,
 ) -> Option<Registration> {
-    let mut object = check::object(document, at, path, problems)?;
+    let mut object = check::object(document, at, path, problems, "registration")?;
     let issuer = present(check::text(&mut object, document, b"issuer", path, problems), b"issuer", path, problems);
     let client = present(check::text(&mut object, document, b"client", path, problems), b"client", path, problems);
     let mut scopes = None;

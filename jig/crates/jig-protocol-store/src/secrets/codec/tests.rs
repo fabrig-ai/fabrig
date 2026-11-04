@@ -3,8 +3,8 @@ use crate::{CARRIED, CarriedKind, HELD, SecretOwner, SecretValue, secrets::codec
 use alloc::boxed::Box;
 use skein_lib::{Secret, Writer};
 
-// Two credential owners, two source variants, three carried variants and raw application bytes.
-const KINDS: usize = 8;
+// Two credential owners, two source variants, three carried variants, application bytes and public names.
+const KINDS: usize = 9;
 fn values() -> [(SecretOwner, u64, SecretValue); KINDS] {
     let payload = Secret::new(Box::from(b"opaque nested record or key".as_slice()));
     [
@@ -17,6 +17,7 @@ fn values() -> [(SecretOwner, u64, SecretValue); KINDS] {
         (SecretOwner::Application, CARRIED, SecretValue::Carried { kind: CarriedKind::Value, value: payload.clone() }),
         (SecretOwner::Application, CARRIED, SecretValue::Carried { kind: CarriedKind::Moved, value: payload.clone() }),
         (SecretOwner::Application, CARRIED - 1, SecretValue::Application(payload)),
+        (SecretOwner::PublicNames, 0, SecretValue::Key(Secret::new(Box::new([31; 32])))),
     ]
 }
 
@@ -34,7 +35,13 @@ fn stored_digests_match_generated_decoding_for_every_owner() {
         let expected = codec::digest(&value);
         let bytes = codec::encode(value, u32::MAX).expect("fixture encoding");
         assert_eq!(codec::durable_digest(owner, number, &bytes), Some(expected));
-        for owner in [SecretOwner::SignIn, SecretOwner::Service, SecretOwner::Source, SecretOwner::Application] {
+        for owner in [
+            SecretOwner::SignIn,
+            SecretOwner::Service,
+            SecretOwner::Source,
+            SecretOwner::Application,
+            SecretOwner::PublicNames,
+        ] {
             for number in [0, CARRIED - 1, CARRIED, HELD - 1, HELD, u64::MAX] {
                 agrees(owner, number, &bytes);
             }
@@ -85,6 +92,7 @@ fn each_payload_bound_agrees_with_the_generated_decoder() {
         (SecretOwner::Application, CARRIED, 0, w::CEILINGS.carried_key_key),
         (SecretOwner::Application, CARRIED, 1, w::CEILINGS.carried_value_value),
         (SecretOwner::Application, CARRIED, 2, w::CEILINGS.carried_moved_moved),
+        (SecretOwner::PublicNames, 0, 1, 32),
     ] {
         for length in [0, bound, bound.checked_add(1).expect("past bound")] {
             agrees(owner, number, &envelope(tag, length));

@@ -56,7 +56,7 @@ fn went(root: &mut Domain, env: &Env<Limits>, place: Place, out: &mut Queue<Requ
                 forge(root, env, forge::Event::Left, out);
             }
         }
-        Place::Authorize { .. } | Place::AuthorizeMalformed | Place::Missing => {
+        Place::Authorize { .. } | Place::AuthorizeMalformed | Place::Missing | Place::Public(_) => {
             pages(root, env, crate::pages::Event::Left, out);
             forge(root, env, forge::Event::Left, out);
         }

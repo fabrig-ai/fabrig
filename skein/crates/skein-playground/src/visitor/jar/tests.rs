@@ -38,3 +38,19 @@ fn the_count_and_byte_bounds_refuse_without_replacing() {
     jar.set(b"a=2", b"/", Wall::EPOCH);
     assert_eq!(jar.header(b"/", Wall::EPOCH).as_deref(), Some(b"a=2".as_slice()));
 }
+
+#[test]
+fn debug_of_a_jar_shows_cookie_lengths_never_values() {
+    const CANARY: &[u8] = b"canary-7f3a9c";
+    let mut jar = Jar::new(3, 64);
+    jar.set(b"session=canary-7f3a9c", b"/", Wall::EPOCH);
+
+    let debug = alloc::fmt::format(format_args!("{jar:?}"));
+    let canary_debug = alloc::fmt::format(format_args!("{CANARY:?}"));
+    assert!(!debug.contains("canary-7f3a9c"));
+    assert!(!debug.contains(&canary_debug));
+    assert_eq!(
+        debug,
+        "Jar { cookies: [Cookie { name: [115, 101, 115, 115, 105, 111, 110], value_len: 13, path: [47], expires: None }], count: 3, bytes: 64 }"
+    );
+}

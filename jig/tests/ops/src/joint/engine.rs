@@ -316,6 +316,8 @@ impl Application for OpsApplication {
             root::Output::Core(
                 core::Held::ApplicationDelivery { .. }
                 | core::Held::ReadLoad { .. }
+                | core::Held::PublicRead { .. }
+                | core::Held::PublicWait { .. }
                 | core::Held::Applied { .. }
                 | core::Held::MakeEffect { .. }
                 | core::Held::SettledCall { .. }
@@ -348,6 +350,7 @@ impl Application for OpsApplication {
             | root::Output::Now(
                 core::Now::Relayed { .. }
                 | core::Now::EffectAnswer { .. }
+                | core::Now::TaskRead { .. }
                 | core::Now::SettingsAnswer { .. }
                 | core::Now::SettledCallRefused { .. }
                 | core::Now::Call { .. }
