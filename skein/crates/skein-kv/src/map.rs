@@ -27,11 +27,18 @@ pub(crate) struct KvMap {
     live: u64,
 }
 
+/// A key's charge once the commits touching it apply, and the last of those commits.
+#[derive(Debug)]
+struct Charge {
+    bytes: Option<u64>,
+    number: u64,
+}
+
 /// What the commits in flight and queued leave behind: each key they touch, with its charge
 /// once they apply, and the map's used bytes and entries then (skein/docs/design/kv.md, 7).
 #[derive(Debug)]
 pub(crate) struct Queued {
-    charges: Map<Box<[u8]>, Option<u64>>,
+    charges: Map<Box<[u8]>, Charge>,
     used: u64,
     count: u32,
 }
@@ -41,15 +48,20 @@ impl Queued {
         Queued { charges: Map::uncapped(), used: 0, count: 0 }
     }
 
+    #[cfg(test)]
+    pub(crate) fn keys(&self) -> u32 {
+        self.charges.len()
+    }
+
     /// Admit `ops` after those already admitted, or refuse them and change nothing.
-    pub(crate) fn admit(&mut self, map: &KvMap, ops: &[Op], limits: &Limits) -> Result<(), Refusal> {
+    pub(crate) fn admit(&mut self, map: &KvMap, ops: &[Op], limits: &Limits, number: u64) -> Result<(), Refusal> {
         let (used, count) = self.check(map, ops, limits)?;
         for (index, op) in ops.iter().enumerate() {
             if has_later(ops, index, op.key()) {
                 continue;
             }
             let charge = op_charge(op).expect("the last op's charge passed admission");
-            let previous = self.charges.insert(Box::from(op.key()), charge);
+            let previous = self.charges.insert(Box::from(op.key()), Charge { bytes: charge, number });
             assert!(previous.is_ok(), "projected keys are bounded by admitted commits");
         }
         self.used = used;
@@ -79,7 +91,7 @@ impl Queued {
                 continue;
             }
             let old = match self.charges.get(key) {
-                Some(charge) => *charge,
+                Some(charge) => charge.bytes,
                 None => match map.entries.get(key) {
                     Some(value) => Some(charge(key, value)?),
                     None => None,
@@ -102,7 +114,18 @@ impl Queued {
         Ok((used, count))
     }
 
-    /// Nothing is queued or in flight any more: forget what was projected.
+    /// Commit `number` is in the map: forget the keys no later commit touches.
+    pub(crate) fn applied(&mut self, ops: &[Op], number: u64) {
+        for op in ops {
+            if let Some(charge) = self.charges.get(op.key())
+                && charge.number <= number
+            {
+                let _charge = self.charges.remove(op.key());
+            }
+        }
+    }
+
+    /// The commits failed: forget their projection before recovering the map.
     pub(crate) fn clear(&mut self) {
         *self = Queued::new();
     }
