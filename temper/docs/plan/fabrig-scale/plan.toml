@@ -1,9 +1,8 @@
 draft = "fabrig-scale"
 repo = "fabrig"
 sources = ["temper/docs/plan/fabrig-scale/inputs/request.md", "AGENTS.md"]
-# Held (fabrig/qa for the user, 11-03 23:55Z; hold since 11-04 06:40Z): the trunk catches up and checks but is not readied until QA says "land fabrig-scale"; agents/loop takes hold off then.
+# Released (fabrig/qa, 11-04 ~08:30Z): the combined footprint check passed at 4059f9ff9e.
 ready = true
-hold = true
 
 # temper's defaults sized for fabrig's own development with 5x headroom (inputs/request.md).
 # Released in batches: first the independent ceilings and the override refusal; then jig's
