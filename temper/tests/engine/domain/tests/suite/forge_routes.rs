@@ -183,6 +183,7 @@ fn a_merge_asked_while_kept_is_refused_naming_the_pending() {
     assert_eq!(live_task(&world, e.task).spec.words.as_ref(), b"dependency e");
     let mut amendment = temper_engine_domain_world::fixtures::task_amendment(None, None, b"wait for e");
     amendment.dependencies = Some(Box::new([e.task]));
+    let revision = spec_revision(&world, c);
     let event = world.protocol.call(
         Token::new(7),
         chat.task,
@@ -191,7 +192,7 @@ fn a_merge_asked_while_kept_is_refused_naming_the_pending() {
         engine::Call {
             completion: 1,
             position: 3,
-            tool: engine::Tool::Amend { target: c, revision: spec_revision(&world, c), amendment },
+            tool: engine::Tool::Amend { keep_parameters: false, target: c, revision, amendment },
         },
     );
     world.send(event);
@@ -224,7 +225,6 @@ fn a_merge_asked_while_kept_is_refused_naming_the_pending() {
     let rendered = temper_engine_smith::answer(&engine::CallAnswer::EffectRefused(problem));
     assert_eq!(rendered.text(), format!("Refused: kept until T{} is done", e.task).as_bytes());
     assert!(matches!(live_task(&world, c).phase, tasks::Phase::Active(_)), "kept change is not held");
-
     let event = world.protocol.answer(
         Token::new(7),
         e.task,

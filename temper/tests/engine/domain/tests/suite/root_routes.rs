@@ -2089,7 +2089,12 @@ fn an_amendment_reaches_a_live_run() {
     let running = assigned_task(&driver, child);
     let amendment = task_amendment(Some(b"revised"), Some(wider), b"the target changed");
     let revision = live(&driver, child).revisions.spec;
-    tool_call(&mut driver, &parent, 91, engine::Tool::Amend { target: child, revision, amendment });
+    tool_call(
+        &mut driver,
+        &parent,
+        91,
+        engine::Tool::Amend { keep_parameters: false, target: child, revision, amendment },
+    );
     assert_eq!(
         driver.answered(91),
         Some(&engine::CallAnswer::Amended {
@@ -2176,7 +2181,12 @@ fn an_agent_changes_a_live_delegates_controls_and_replays_the_answer() {
     let revision = live(&driver, child).revisions.spec;
     let mut priority = task_amendment(None, None, b"do this first");
     priority.tracked = Some(tasks::Tracking::Tracked { priority: 1 });
-    tool_call(&mut driver, &parent, 91, engine::Tool::Amend { target: child, revision: 0, amendment: priority });
+    tool_call(
+        &mut driver,
+        &parent,
+        91,
+        engine::Tool::Amend { keep_parameters: false, target: child, revision: 0, amendment: priority },
+    );
     amended_text(
         &driver,
         91,
@@ -2187,12 +2197,11 @@ fn an_agent_changes_a_live_delegates_controls_and_replays_the_answer() {
     assert_eq!(live(&driver, child).tracked, Some(1));
     assert_eq!(live(&driver, child).revisions.spec, revision);
     assert!(messages_to(&driver, &running).iter().any(|(_, words)| words.as_ref() == b"do this first"));
-
     let deadline = Wall::from_nanos(Duration::from_secs(120).as_nanos());
     let mut authority = live(&driver, child).authority.clone();
     authority.budget.deadline = Some(deadline);
     let amendment = task_amendment(None, Some(authority.clone()), b"finish later");
-    let deadline_tool = engine::Tool::Amend { target: child, revision, amendment };
+    let deadline_tool = engine::Tool::Amend { keep_parameters: false, target: child, revision, amendment };
     driver.protocol.defer_render = true;
     tool_call(&mut driver, &parent, 92, deadline_tool.clone());
     let changed = engine::Changed { tracked: None, fields: engine::Changed::AUTHORITY };
@@ -2209,14 +2218,13 @@ fn an_agent_changes_a_live_delegates_controls_and_replays_the_answer() {
     assert_eq!(amended_text(&driver, 96, child, revision + 1, changed), text);
     assert_eq!(live(&driver, child), &after_deadline);
     driver.protocol.defer_render = false;
-
     let mut instructions = task_amendment(None, None, b"replace your instructions");
     instructions.instructions = Some(b"Use the full new plan.".as_slice().into());
     tool_call(
         &mut driver,
         &parent,
         93,
-        engine::Tool::Amend { target: child, revision: revision + 1, amendment: instructions },
+        engine::Tool::Amend { keep_parameters: false, target: child, revision: revision + 1, amendment: instructions },
     );
     amended_text(
         &driver,
@@ -2227,14 +2235,13 @@ fn an_agent_changes_a_live_delegates_controls_and_replays_the_answer() {
     );
     assert_eq!(live(&driver, child).instructions.as_deref(), Some(b"Use the full new plan.".as_slice()));
     assert!(messages_to(&driver, &running).iter().any(|(_, words)| words.as_ref() == b"Use the full new plan."));
-
     let mut untrack = task_amendment(None, None, b"no longer a goal");
     untrack.tracked = Some(tasks::Tracking::Untracked);
     tool_call(
         &mut driver,
         &parent,
         94,
-        engine::Tool::Amend { target: child, revision: revision + 2, amendment: untrack },
+        engine::Tool::Amend { keep_parameters: false, target: child, revision: revision + 2, amendment: untrack },
     );
     amended_text(
         &driver,
@@ -2247,7 +2254,6 @@ fn an_agent_changes_a_live_delegates_controls_and_replays_the_answer() {
     assert_eq!(live(&driver, child).revisions.spec, revision + 2);
     assert!(messages_to(&driver, &running).iter().any(|(_, words)| words.as_ref() == b"no longer a goal"));
     assert!(!cancelled(&driver).contains(&(child, running.attempt)));
-
     // Crash before the deadline answer's render: only the core part is durable.
     let store = driver.store.fork();
     let calls = driver.store.header().calls;
@@ -2256,7 +2262,6 @@ fn an_agent_changes_a_live_delegates_controls_and_replays_the_answer() {
     assert!(downs(&driver).iter().any(|down| matches!(down,
         host::LinkDown::Relayed { call, answer: host::Relayed::Answer { error: false, text: replayed }, .. }
             if call.as_ref() == 99_u64.to_be_bytes() && replayed == &text)));
-
     let (configuration, _) = batch_settings(2, 1, 200, false, false, false);
     let mut restarted = Driver::configured(store, configuration, &bounds);
     let hosting = Box::new([
@@ -2287,6 +2292,7 @@ fn tracking_an_untracked_delegate_requires_its_current_revision() {
         &parent,
         91,
         engine::Tool::Amend {
+            keep_parameters: false,
             target: child,
             revision: first,
             amendment: task_amendment(Some(b"revised delegate"), None, b"new plan"),
@@ -2302,14 +2308,19 @@ fn tracking_an_untracked_delegate_requires_its_current_revision() {
         &mut driver,
         &parent,
         92,
-        engine::Tool::Amend { target: child, revision: 0, amendment: amendment.clone() },
+        engine::Tool::Amend { keep_parameters: false, target: child, revision: 0, amendment: amendment.clone() },
     );
     assert_eq!(
         driver.answered(92),
         Some(&engine::CallAnswer::Moved { task: child, now: people::Moved::Spec { revision } })
     );
     assert_eq!(live(&driver, child), &before);
-    tool_call(&mut driver, &parent, 93, engine::Tool::Amend { target: child, revision, amendment });
+    tool_call(
+        &mut driver,
+        &parent,
+        93,
+        engine::Tool::Amend { keep_parameters: false, target: child, revision, amendment },
+    );
     assert_eq!(live(&driver, child).revisions.spec, revision);
     let text = amended_text(
         &driver,
@@ -2340,7 +2351,12 @@ fn an_ancestor_amends_a_live_grandchild() {
     let grandchild_run = assigned_task(&driver, grandchild);
     let amendment = task_amendment(Some(b"revised by ancestor"), None, b"tree plan changed");
     let revision = live(&driver, grandchild).revisions.spec;
-    tool_call(&mut driver, &root, 903, engine::Tool::Amend { target: grandchild, revision, amendment });
+    tool_call(
+        &mut driver,
+        &root,
+        903,
+        engine::Tool::Amend { keep_parameters: false, target: grandchild, revision, amendment },
+    );
     assert_eq!(
         driver.answered(903),
         Some(&engine::CallAnswer::Amended {
@@ -2367,7 +2383,12 @@ fn a_narrowing_stops_the_old_run_and_offers_the_amendment_to_the_next() {
     let first = assigned_task(&driver, child);
     let amendment = task_amendment(None, Some(narrower), b"smaller scope");
     let revision = live(&driver, child).revisions.spec;
-    tool_call(&mut driver, &parent, 91, engine::Tool::Amend { target: child, revision, amendment });
+    tool_call(
+        &mut driver,
+        &parent,
+        91,
+        engine::Tool::Amend { keep_parameters: false, target: child, revision, amendment },
+    );
     assert!(cancelled(&driver).contains(&(child, first.attempt)));
     driver.answer(Token::new(7), child, first.attempt, 0, tasks::End::Parked, engine::Parts::none());
     driver.settle();

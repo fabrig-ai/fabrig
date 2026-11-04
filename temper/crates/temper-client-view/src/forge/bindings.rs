@@ -27,6 +27,7 @@ pub enum Meaning {
     SetUp(u16),
     SetUpAtOnce(u16),
     SetupField(forge::forges::SetupField),
+    Copies,
 }
 #[derive(Debug)]
 struct Entry {
@@ -73,6 +74,7 @@ pub fn decode(bindings: &Bindings, token: Token, act: Act) -> Option<Action> {
             (Meaning::SetupField(field), Act::Input { value }) => {
                 Some(Action::Forge(forge::Act::SetupWrite { field, text: value }))
             }
+            (Meaning::Copies, Act::Input { value }) => Some(Action::Forge(forge::Act::CopiesWrite { text: value })),
             (Meaning::Field(field), Act::Input { value }) => {
                 let typed = match field {
                     forge::Text::Forge => forge::Typed::Forge(forge_number(&value)),
@@ -110,7 +112,8 @@ pub fn decode(bindings: &Bindings, token: Token, act: Act) -> Option<Action> {
                 | Meaning::AppId
                 | Meaning::AppKey
                 | Meaning::Field(_)
-                | Meaning::SetupField(_) => return None,
+                | Meaning::SetupField(_)
+                | Meaning::Copies => return None,
             }),
             (_, Act::Input { .. } | Act::Submit | Act::Drawing { .. }) => None,
         };
@@ -195,7 +198,8 @@ pub fn event(bindings: &Bindings, token: Token, act: Act) -> Option<temper_clien
             | Meaning::Install { .. }
             | Meaning::SetUp(_)
             | Meaning::SetUpAtOnce(_)
-            | Meaning::SetupField(_) => {}
+            | Meaning::SetupField(_)
+            | Meaning::Copies => {}
         }
     }
     Some(temper_client_domain::Event::Act { action: decode(bindings, token, act)? })

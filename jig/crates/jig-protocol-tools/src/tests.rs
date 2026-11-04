@@ -5,6 +5,31 @@ mod fixtures;
 mod llm;
 mod settings;
 
+#[test]
+#[expect(clippy::disallowed_macros, reason = "the test assembles bounded JSON from parameter cases")]
+fn amendment_parameter_omission_is_distinct_from_replacement() {
+    for (parameters, keep, expected) in [
+        ("", true, 0),
+        (r#", "parameters":[]"#, false, 0),
+        (r#", "parameters":[{"kind":"number","name":14,"value":1}]"#, false, 1),
+    ] {
+        let input = format!(
+            "{{\"target\":3,\"revision\":1,\"amendment\":{{\"spec\":{{\"words\":\"new\"{parameters}}},\"reason\":\"scope\"}}}}"
+        );
+        let Decoded::Action(core::NamedAction::Amend { amendment, keep_parameters, .. }) =
+            crate::decode(b"amend", input.as_bytes(), &fixtures::LIMITS)
+        else {
+            panic!("decoded amendment")
+        };
+        assert_eq!(keep_parameters, keep, "{parameters}");
+        let spec = amendment.spec.expect("amended spec");
+        assert_eq!(spec.parameters.len(), expected);
+        if expected == 1 {
+            assert_eq!(spec.parameters.as_ref(), &[jig_domain_tasks::Parameter::Number { name: 14, value: 1 }]);
+        }
+    }
+}
+
 const PROPOSED_NUMBER: u64 = 9;
 const TASK_HOLDER: u64 = 3;
 const PERSON_HOLDER: u64 = 4;
@@ -681,7 +706,7 @@ fn a_cancel_call_without_a_grace_decodes_as_before() {
 }
 #[test]
 fn an_amend_of_a_priority_alone_needs_no_revision() {
-    let Decoded::Action(core::NamedAction::Amend { target, revision, amendment }) =
+    let Decoded::Action(core::NamedAction::Amend { keep_parameters: false, target, revision, amendment }) =
         crate::decode(b"amend", TRACK_PRIORITY, &fixtures::LIMITS)
     else {
         panic!("decoded priority amendment")

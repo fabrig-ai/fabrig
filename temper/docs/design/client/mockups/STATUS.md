@@ -34,20 +34,23 @@ Where the client does otherwise:
   `../../draft/first-run-projects.md`, 4): Forgejo on this machine's
   Details have no "Into a new project, named" and GitHub's step no
   "Choose a repository to start in"; the forge's line names no project;
-  Ready's last line is "Project: Default" and its act "Open Default",
-  which makes the project and opens its chats page, where the mockup's
-  Ready names its repository, "ORG/NAME is ready", and opens it. The
-  mockup is not edited.
+  Ready's act makes the first project with no repository and opens
+  its chats page, where the mockup's Ready names its repository,
+  "ORG/NAME is ready", and opens it. The mockup is not edited.
 - **The welcome's greenfield pass** (the client README's 3.5 and 5.6;
   `../browser.md`, 2.5, The welcome's look; the user, 2026-11-04): the
   frame holds temper box's line and the steps, and no person's name or
   "Sign out"; "Set up temper" is the first card and the default;
   Forge's Forgejo card comes first with "Run on this machine" alone,
-  no "Or connect your deployment"; Model's cards hold the plans alone,
+  no "Or connect your deployment", which opens Forgejo's sheet, what
+  it starts with, an empty repository by default, as the user's
+  greenfield mock draws it; Model's cards hold the plans alone,
   no key; the forge's ticked line says who temper is on it and that
   its first repository is in no project yet; the foot has no "Later";
-  and the words of the cards and leads are the client's. The mockup is
-  not edited.
+  Ready is the greenfield mock's, its checklist and its first
+  project's form, "Default" until the person names it otherwise, and
+  "Create your project"; and the words of the cards and leads are the
+  client's. The mockup is not edited.
 
 Not yet known: whether GitHub keeps the state through its
 installation's Configure and Save, and whether the picker reads the

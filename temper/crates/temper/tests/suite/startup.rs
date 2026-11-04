@@ -140,11 +140,23 @@ fn assert_held_record_export() {
     let root = scratch.path();
     let account = root.join("synthetic-record");
     let run = || std::process::Command::new(root.join("give-back")).output().expect("return hook");
+    let stub = held_record_exporter(root);
+    support::held_login::return_hook(&stub, root, &root.join("return-client"), &account);
+    assert!(run().status.success(), "export selects the actual account number from public ctl metadata");
+    let returned = fs::symlink_metadata(&account).expect("returned synthetic record");
+    assert!(returned.is_file() && returned.len() > 0);
+    assert_eq!(returned.permissions().mode() & 0o777, 0o600);
+    scratch.remove();
+}
+
+fn held_record_exporter(root: &Path) -> std::path::PathBuf {
     let stub = root.join("ctl-stub's path");
     support::write_private(
         &stub,
         br#"#!/bin/sh
 set -eu
+root=$(dirname "$0")
+test "$2" = "$root/return-client"
 case "$4" in
 list) printf '%s\n' '{"accounts":{"party":[{"provider":1,"plan":true,"number":7}]}}' ;;
 export) test "$5" = 7; umask 077; printf '%s' synthetic > "$6" ;;
@@ -153,12 +165,7 @@ esac
 "#,
     );
     fs::set_permissions(&stub, fs::Permissions::from_mode(0o700)).expect("executable synthetic ctl");
-    support::held_login::return_hook(&stub, root, root, &account);
-    assert!(run().status.success(), "export selects the actual account number from public ctl metadata");
-    let returned = fs::symlink_metadata(&account).expect("returned synthetic record");
-    assert!(returned.is_file() && returned.len() > 0);
-    assert_eq!(returned.permissions().mode() & 0o777, 0o600);
-    scratch.remove();
+    stub
 }
 
 #[test]
@@ -185,6 +192,34 @@ printf '%s\n' "$@"
     let ended = support::ctl::alone(root, call);
     assert_eq!(ended.exit, Some(skein_io::kernel::Exit::Code(1)));
     assert!(ended.stdout.is_empty(), "refusal never starts ctl");
+    scratch.remove();
+}
+
+/// temper/docs/design/domain/testing.md, 2.7: terminal cleanup permits recovery, keeping imports closed.
+#[test]
+fn a_failed_terminal_return_allows_recovery_without_reopening_import() {
+    let scratch = support::Scratch::startup("held-terminal-recovery");
+    let root = scratch.path();
+    let account = root.join("synthetic-record");
+    let client = root.join("return-client");
+    let stub = held_record_exporter(root);
+    support::held_login::return_hook(Path::new("/bin/false"), root, root, &account);
+    let run = || std::process::Command::new(root.join("give-back")).output().expect("return hook");
+    assert!(!run().status.success(), "terminal return fails with no box up");
+    assert!(!account.exists());
+    support::held_login::recovery_hook(&stub, root, &client, &account);
+    assert!(root.join("terminal-return").is_file(), "terminal state survives recovery setup");
+    assert!(root.join("returning").is_file(), "recovery never reopens import");
+    let arguments = ["account", "import", account.to_str().expect("record path"), "--key", "restart-plan"];
+    let imported = support::ctl::alone(root, support::held_login::import_guard(&stub, root, &client, &arguments));
+    assert_eq!(imported.exit, Some(skein_io::kernel::Exit::Code(1)));
+    assert!(imported.stdout.is_empty(), "excluded import never starts ctl");
+    assert!(run().status.success(), "recovery uses its fresh client to export");
+    let metadata = fs::symlink_metadata(&account).expect("returned synthetic record");
+    assert!(metadata.is_file() && metadata.len() > 0);
+    assert_eq!(metadata.permissions().mode() & 0o7777, 0o600);
+    let installed = std::panic::catch_unwind(|| support::held_login::return_hook(&stub, root, root, &account));
+    assert!(installed.is_err(), "recovery cannot admit a later sitting");
     scratch.remove();
 }
 

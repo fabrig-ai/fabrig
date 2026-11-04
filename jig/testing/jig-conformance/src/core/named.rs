@@ -38,7 +38,7 @@ fn operation(operation: &people::Operation) -> Vec<r::Observed> {
 
 pub(super) fn run(event: &core::Event) -> Vec<r::Observed> {
     if let core::Event::NamedAction { action, .. } = event {
-        if let core::NamedAction::Amend { target, revision, amendment } = action {
+        if let core::NamedAction::Amend { target, revision, amendment, .. } = action {
             let mut observed = spec(*target, *revision, run_priority(amendment));
             observed.extend(amendment.release.map(|r| named(*target, r::Revision::Hold(r))));
             return observed;

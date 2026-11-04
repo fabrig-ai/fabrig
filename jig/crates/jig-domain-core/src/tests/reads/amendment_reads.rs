@@ -91,7 +91,7 @@ fn agent_read(core: &mut Core, limits: &Limits) -> Token {
         Event::NamedAction {
             to: ReplyTo::new(TOKEN),
             key: CALL,
-            action: NamedAction::Amend { target: TARGET, revision: 0, amendment: edit },
+            action: NamedAction::Amend { keep_parameters: false, target: TARGET, revision: 0, amendment: edit },
         },
     );
     runs::result_reads::requested(&out, DEPENDENCY)

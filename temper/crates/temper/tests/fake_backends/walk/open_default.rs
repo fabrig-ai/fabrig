@@ -1,4 +1,4 @@
-//! Open Default and reload on the fake box (temper/docs/design/domain/testing.md, 2;
+//! Ready's Create and reload on the fake box (temper/docs/design/domain/testing.md, 2;
 //! temper/docs/design/client/README.md, 2).
 use crate::support::WITHIN;
 use skein_lib::Time;
@@ -49,11 +49,14 @@ impl Referee<NativeClient> for Judge {
                 self.page = if self.press { Page::Ready } else { Page::Chats };
             }
             Page::Ready => {
-                if let Some(button) = named(client, Role::Button, b"Open Default")
+                if let Some(button) = named(client, Role::Button, b"Create your project")
                     && !button.states.as_slice().contains(&State::Disabled)
                 {
                     let node = button.id;
-                    assert!(client.act(node, skein_ui::Act::Press), "Welcome Ready: Open Default accepts its press");
+                    assert!(
+                        client.act(node, skein_ui::Act::Press),
+                        "Welcome Ready: Create your project accepts its press"
+                    );
                     self.page = Page::Chats;
                 }
             }
@@ -91,7 +94,7 @@ impl Referee<NativeClient> for Judge {
         }
         let missing = match self.page {
             Page::Starting => "Inbox: native client started and Status Owner",
-            Page::Ready => "Welcome Ready: enabled Button Open Default",
+            Page::Ready => "Welcome Ready: enabled Button Create your project",
             Page::Chats if self.press => {
                 "Chats: Heading Chats level 1, pressed Button Default, Status Live and no Status Behind"
             }
@@ -104,7 +107,7 @@ impl Referee<NativeClient> for Judge {
         };
         assert!(
             matches!(self.page, Page::Done) || now < self.until,
-            "Open Default session {} missing {missing}; tree names: {:?}",
+            "Ready's Create session {} missing {missing}; tree names: {:?}",
             if self.press { 1 } else { 2 },
             client
                 .tree()
@@ -155,6 +158,6 @@ pub(super) fn open_and_reload(config: &Path, client: &Path) {
             .expect("browser-bounded native client")
         });
         let ended = world.run(&clock, WITHIN);
-        assert!(ended.procs.iter().all(Host::is_empty), "Open Default session {} drained", if press { 1 } else { 2 });
+        assert!(ended.procs.iter().all(Host::is_empty), "Ready's Create session {} drained", if press { 1 } else { 2 });
     }
 }

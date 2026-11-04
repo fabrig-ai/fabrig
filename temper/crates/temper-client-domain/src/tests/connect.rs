@@ -858,6 +858,55 @@ fn choosing_owned_sends_set_up_new_owned() {
     assert_eq!((request.org(), request.repository()), (b"work".as_slice(), b"hello".as_slice()));
 }
 #[test]
+fn the_sheets_run_sets_up_owned_with_an_empty_repository_as_written() {
+    let (mut root, _, _) = opened(true);
+    assert_eq!(root.forge().setup_form().start, forges::Start::Empty);
+    write_setup(&mut root, forges::SetupField::Organization, b"mine");
+    write_setup(&mut root, forges::SetupField::Repository, b"first");
+    let (_, _, request) = sent(f::form_act(&mut root, forge::Act::Forges(forges::Act::RunOwned)));
+    let w::Request::SetUp(request) = request else { panic!("set up") };
+    let w::Making::New(new) = request.forge() else { panic!("new") };
+    assert_eq!(*new.forge(), w::ForgeAsk::Owned);
+    assert_eq!(
+        (request.org(), request.repository(), request.playground()),
+        (b"mine".as_slice(), b"first".as_slice(), false)
+    );
+    assert!(!root.forge().setup_form().not_yet);
+}
+#[test]
+fn the_sheets_copies_and_nothing_are_not_made_yet() {
+    for start in [forges::Start::Copies, forges::Start::Nothing] {
+        let (mut root, _, _) = opened(true);
+        assert!(f::form_act(&mut root, forge::Act::Forges(forges::Act::Start(start))).is_empty());
+        assert!(
+            f::form_act(&mut root, forge::Act::CopiesWrite { text: b"github.com/a/b".as_slice().into() }).is_empty()
+        );
+        let draft = root.forge().setup_form();
+        assert_eq!((draft.start, &*draft.copies, draft.copies_written), (start, b"github.com/a/b".as_slice(), 1));
+        assert!(f::form_act(&mut root, forge::Act::Forges(forges::Act::RunOwned)).is_empty());
+        assert!(root.forge().set_up().is_none());
+        assert!(root.forge().setup_form().not_yet);
+        assert!(f::form_act(&mut root, forge::Act::Forges(forges::Act::Start(forges::Start::Empty))).is_empty());
+        assert!(!root.forge().setup_form().not_yet);
+        let (_, _, request) = sent(f::form_act(&mut root, forge::Act::Forges(forges::Act::RunOwned)));
+        let w::Request::SetUp(request) = request else { panic!("set up") };
+        assert_eq!((request.org(), request.repository()), (b"work".as_slice(), b"hello".as_slice()));
+    }
+}
+#[test]
+fn the_sheets_addresses_are_bounded_as_a_field() {
+    let (mut root, _, _) = opened(true);
+    let bound = f::limits().forge.field_bytes.checked_add(1).unwrap();
+    let mut long = List::with_capacity(bound);
+    for _ in 0..bound {
+        long.push(b'a').unwrap();
+    }
+    let long = long.into_boxed();
+    assert!(f::form_act(&mut root, forge::Act::CopiesWrite { text: long }).is_empty());
+    let draft = root.forge().setup_form();
+    assert_eq!((&*draft.copies, draft.copies_written), (b"".as_slice(), 0));
+}
+#[test]
 fn an_unfinished_github_with_its_app_offers_go_on_first() {
     let mut candidate = row(4, Kind::GitHub, Mode::Connected, C::Stopped { reason: Box::default() }, Offer::NotOffered);
     candidate.app = Some(forges::AppWay::Manifest);
