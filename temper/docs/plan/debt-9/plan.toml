@@ -1,0 +1,3 @@
+draft = "debt-9"
+repo = "fabrig"
+sources = ["temper/docs/plan/debt-9/inputs/request.md", "skein/docs/development/debt/D016-transport-four-copies.md", "smith/docs/development/debt/D005-block-walks.md", "smith/docs/development/debt/D006-backend-two-effect-paths.md", "smith/docs/development/debt/D008-one-program-map.md", "smith/docs/development/debt/D013-names-left.md"]
