@@ -170,3 +170,29 @@ Facts read:
 As your text says, with: regression or the fake's, and how you know; which of the three states the
 box was in; the rule each new test pins and the break that bit it; the walk's CPU time in
 `process-temper`; the builder's `hostname`.
+
+## Answers
+
+2026-11-04. Question: land the verified Ready-ending fix and fake-box coverage, or hold them until
+the original sign-in failure reproduces?
+
+**Land them.** The branch's two commits, `dda8950279` and `d3ab955d88`, are the task's work, with no
+sign-in change. This replaces the first two acceptance items, and the rest stand:
+
+- The first item is met by the two fake-box walks, which pass and bite under the scope mutation. No
+  test failed on the unmodified base, because the walk's stop did not reproduce on a fresh fake box
+  through a native client: that finding is the result, and nobody is to invent a fault to fit it.
+- The second item is met by `welcome_end`, the one fault shown, with its test in `temper-client-view`.
+- The report's first section stands as written: not reproduced, breaking commit and original ending
+  unknown, the fake unchanged since `68cddad304` for this sign-in.
+
+The next run changes no code. It checks that `fake-signin-model/signin-model` still holds both commits,
+and reports `Done:`, carrying this report's findings and its `## Left`. If its `hostname` is
+`debian-16gb-hel1-6` and the walk's logs are there, it reads `05-ready.json`, `06-ready-settled.json`
+and `box.stderr` and adds what they show of `last_end`, `signing` and the sign-in's end. Otherwise it
+reaches no other machine. A fault those logs show is reported, not fixed, in this task.
+
+The two process failures under `## Left` are not this task's and hold nothing here.
+
+The walk that stopped drove Chromium with the recording bundle, and these walks do not.
+`record-landing` walks that path again, so it is where the fault shows if it remains.
