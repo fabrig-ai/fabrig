@@ -44,6 +44,7 @@ pub mod b_effects;
 pub mod b_family;
 pub mod b_goals;
 pub mod b_held;
+pub mod b_inbox;
 pub mod b_proposals;
 mod b_runner;
 pub mod b_scenarios;

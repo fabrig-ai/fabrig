@@ -11,6 +11,7 @@ macro_rules! person_story_suite {
         }
     };
     ($make:path; release: [$($release:meta)*], compound_release: [$($compound_release:meta)*], inbox_chat: [$($inbox_chat:meta)*], close: [$($close:meta)*], family: [$($family:meta)*] $(,)?) => {
+        $crate::person_story_suite!(@test $make, a_person_s_inbox_lists_needs_oldest_first_and_updates_newest_first, b_inbox, $crate::stories::shared::b_seed::Facts::InboxOrder, []);
         $crate::person_story_suite!(@test $make, a_draft_is_kept_across_a_reload, b_conversations, $crate::stories::shared::b_seed::Facts::Goals, []);
         $crate::person_story_suite!(@test $make, a_reload_with_requests_pending_sends_them_again_under_their_keys, b_conversations, $crate::stories::shared::b_seed::Facts::Goals, []);
         $crate::person_story_suite!(@test $make, a_dropped_watch_shows_the_page_behind_until_it_reopens, b_conversations, $crate::stories::shared::b_seed::Facts::Goals, []);

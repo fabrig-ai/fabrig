@@ -3,6 +3,7 @@ use super::b_seed::Facts;
 use jig_fake_workers::{Call, Script, Worker};
 
 #[must_use]
+#[expect(clippy::too_many_lines, reason = "each story configures its policy, limits and worker scripts together")]
 pub fn setup(
     seed: u64,
     facts: &Facts,
@@ -45,7 +46,7 @@ pub fn setup(
                 configuration.second.procedures = Box::new([procedure]);
             }
         }
-        Facts::ProposedGoal | Facts::Delegates => {
+        Facts::ProposedGoal | Facts::Delegates | Facts::InboxOrder => {
             configuration.core.seed_projects[0].policy.policy.roles[0].authority.delegation.tasks = 3;
             configuration.core.defaults.templates[0].budget = jig_domain_people::TemplateBudget::Amount(10);
             let mut rules = configuration.core.defaults.rules.clone();
@@ -89,6 +90,7 @@ pub fn setup(
                     Script::Wait,
                 ]
                 .into_boxed_slice(),
+                Facts::InboxOrder => super::b_inbox::proposal_script(),
                 Facts::Goals
                 | Facts::HeldConversation
                 | Facts::FamilyResource
@@ -99,6 +101,12 @@ pub fn setup(
             }];
         }
         Facts::Goals | Facts::HeldConversation | Facts::FamilyResource => {}
+    }
+    if matches!(facts, Facts::InboxOrder) {
+        limits.core.tasks.tasks = super::b_inbox::CONVERSATIONS;
+        limits.core.tasks.project_tasks = super::b_inbox::CONVERSATIONS;
+        scripts.push(super::b_inbox::proposal_script());
+        scripts.extend(super::b_inbox::result_scripts());
     }
     let peers = jig_core_world::peers::Peers::new(vec![Worker::new(1, 1, scripts)], Vec::new());
     (configuration, limits, peers)
