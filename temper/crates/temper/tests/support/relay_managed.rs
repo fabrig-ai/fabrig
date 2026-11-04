@@ -482,7 +482,10 @@ fn redact(value: &Value, path: &str) -> Value {
         }
     }
 }
-#[expect(clippy::disallowed_methods, reason = "the sitting's bounded socket relay runs on owned threads")]
+#[expect(
+    clippy::disallowed_methods,
+    reason = "the sitting supplies the bounded socket relay's environment and runs it on owned threads"
+)]
 pub fn run() -> io::Result<()> {
     let directory = PathBuf::from(std::env::var_os("TEMPER_MANAGED_SCRATCH").ok_or_else(invalid)?);
     let prefix = std::env::var("TEMPER_MANAGED_PREFIX").map_err(|_| invalid())?;
@@ -565,6 +568,10 @@ pub fn run() -> io::Result<()> {
 }
 
 #[test]
+#[expect(
+    clippy::disallowed_methods,
+    reason = "the loopback relay and upstream serve the synchronous test client on scoped threads"
+)]
 fn journal_distinguishes_learn_redirect_guard_and_upstream_refusals() {
     use std::net::TcpStream;
     let upstream = TcpListener::bind("127.0.0.1:0").expect("loopback upstream");
@@ -652,6 +659,10 @@ fn journal_distinguishes_learn_redirect_guard_and_upstream_refusals() {
 }
 
 #[test]
+#[expect(
+    clippy::disallowed_methods,
+    reason = "the loopback relay serves the synchronous test client on a scoped thread"
+)]
 fn delivery_polls_have_their_own_cap_and_leave_the_git_budget_available() {
     use std::net::TcpStream;
     let path = skein_scratch::paths::target_tmp().join(format!("managed-polls-{}.jsonl", std::process::id()));
