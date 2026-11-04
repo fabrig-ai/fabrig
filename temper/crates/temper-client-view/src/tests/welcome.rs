@@ -1115,6 +1115,12 @@ fn github_ready_has_the_same_checklist_and_project_control_as_owned_forgejo() {
     }
 }
 fn ready_ending(end: jig_client::contract::AccountEnd, message: &str, key: bool) {
+    ready_ending_with_role(end, message, key, Role::Alert);
+}
+fn ready_status_ending(end: jig_client::contract::AccountEnd, message: &str) {
+    ready_ending_with_role(end, message, false, Role::Status);
+}
+fn ready_ending_with_role(end: jig_client::contract::AccountEnd, message: &str, key: bool, role: Role) {
     use jig_client::contract as c;
     let (mut root, watch) = ready_model_fixture();
     let mut doc = signing_document();
@@ -1137,13 +1143,21 @@ fn ready_ending(end: jig_client::contract::AccountEnd, message: &str, key: bool)
     assert_eq!(nodes[ending].role, Role::Slot);
     assert!(nodes[ending].styles.as_slice().contains(&crate::look::WELCOME_END));
     let end = ending.checked_add(usize::try_from(nodes[ending].size).unwrap()).unwrap();
-    assert!(nodes[ending..end].iter().any(|n| n.role == Role::Alert && n.name.as_deref() == Some(message.as_bytes())));
+    assert!(
+        (ending..end)
+            .any(|index| nodes[index].role == role && f::node_text(tree, index).as_ref() == message.as_bytes()),
+        "the ending keeps its Model role and words: {role:?} {message}"
+    );
     assert!(
         nodes[ending..end]
             .iter()
             .any(|n| n.role == Role::Button && n.name.as_deref() == Some(b"Continue with ChatGPT"))
     );
-    node(tree, Role::Alert, message);
+    let create = nodes
+        .iter()
+        .find(|node| node.role == Role::Button && node.name.as_deref() == Some(b"Create your project"))
+        .expect("Ready's Create");
+    assert!(create.states.as_slice().contains(&State::Disabled));
     assert_eq!(f::find(view.tree(), Role::Link, b"Use an API key").is_some(), key);
     if key {
         assert_eq!(
@@ -1200,6 +1214,46 @@ fn ready_draws_a_misconfigured_sign_in_with_retry() {
         "OpenAI refused temper’s sign-in. Check the configuration’s registration.",
         false,
     );
+}
+
+#[test]
+fn ready_draws_every_other_sign_in_ending_with_its_model_role_and_retry() {
+    use jig_client::contract::{self as c, AccountEnd as E, AccountFailure as F, AccountRefusal as R};
+    for (end, message) in [
+        (E::Refused { refusal: R::NotLimited }, "This source is not limited."),
+        (E::Refused { refusal: R::Uses }, "The provider does not permit these uses."),
+        (E::Refused { refusal: R::NotKept { why: c::AccountKeyFailure::TooLong } }, "The key is too long."),
+        (E::Refused { refusal: R::NotKept { why: c::AccountKeyFailure::NotStored } }, "The key could not be stored."),
+        (E::Refused { refusal: R::Limit { bound: c::AccountBound::Accounts } }, "Account limit reached."),
+        (E::Refused { refusal: R::Limit { bound: c::AccountBound::HolderAccounts } }, "Holder account limit reached."),
+        (E::Refused { refusal: R::Limit { bound: c::AccountBound::Sources } }, "Source limit reached."),
+        (E::Refused { refusal: R::Limit { bound: c::AccountBound::SignIns } }, "Sign-in limit reached."),
+        (E::Refused { refusal: R::Provider { provider: 17 } }, "Unknown or unavailable LLM provider 17"),
+        (E::Refused { refusal: R::Subject }, "This provider subject cannot be joined."),
+        (E::Refused { refusal: R::Unknown }, "Unknown account or source."),
+        (E::Refused { refusal: R::Numbers }, "No account or source numbers remain."),
+        (E::Refused { refusal: R::Kind { kind: c::AccountKind::Program } }, "Source kind refused: Program login"),
+        (E::Refused { refusal: R::Closing }, "Closing"),
+        (E::Refused { refusal: R::NotStarted }, "Sign-in has not started."),
+        (E::Refused { refusal: R::NotSignedIn }, "Not signed in"),
+        (E::Refused { refusal: R::NotOurs }, "Not this application's record"),
+        (E::Refused { refusal: R::Cancelled }, "The move was cancelled"),
+        (E::Refused { refusal: R::Moving }, "Moving to another deployment"),
+        (E::Failed { failure: F::Later { after: None } }, "Try later"),
+        (
+            E::Failed { failure: F::Later { after: Some(skein_lib::Duration::from_secs(5)) } },
+            "Try laterTry again after 5",
+        ),
+        (E::Failed { failure: F::SignInAgain }, "Needs sign-in"),
+        (E::Failed { failure: F::MissingScope { scope: 19 } }, "Missing required scope 19"),
+        (
+            E::Failed { failure: F::Unloaded { at: c::AccountPlace::File, why: c::AccountUnread::Unreadable } },
+            "Cannot load File: Unreadable",
+        ),
+        (E::Failed { failure: F::Cancelled }, "Cancelled"),
+    ] {
+        ready_status_ending(end, message);
+    }
 }
 
 pub(super) fn owned_adopted_rows() -> skein_lib::List<w::ForgeRow> {
