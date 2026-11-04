@@ -88,6 +88,11 @@ pub struct Installations {
     minted: u64,
 }
 impl Installations {
+    #[cfg(test)]
+    pub(crate) fn next_draw(&mut self) -> u64 {
+        self.rng.next_u64()
+    }
+
     #[must_use]
     pub fn new(limits: &Limits, seed: u64) -> Self {
         Self {

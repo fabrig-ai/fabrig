@@ -278,10 +278,6 @@ pub fn down(
             }
         }
     }
-    if result == Err(api::Error::Timeout) && service.rng.chance(500) {
-        close(server, service, env, above, below);
-        return;
-    }
     let reply = match result {
         Ok(answer) => response::answer(&service.config, &service.setup, &env.limits, request, &server.select, &answer),
         Err(error) => Err(error),

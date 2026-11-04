@@ -1,6 +1,6 @@
 # forge-setup: status
 
-2026-11-03. Where skein's code lags or departs from [forge-setup.md](forge-setup.md).
+2026-11-04. Where skein's code lags or departs from [forge-setup.md](forge-setup.md).
 
 - **Departs:** 7: the setup world plays the host component through HTTP
   bytes, but `skein/tests/forge/setup/src/world.rs` and `host.rs` write

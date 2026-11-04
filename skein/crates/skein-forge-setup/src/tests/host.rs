@@ -325,7 +325,16 @@ fn the_hosts_debug_shows_no_token_in_flight() {
 fn the_host_refuses_unusable_settings_naming_each() {
     use crate::given::{Place, Refused};
     use skein_forge::forgejo::limits::Problem;
-    let mut cases = List::with_capacity(10);
+    let mut cases = List::with_capacity(13);
+    let mut l = limits();
+    l.io.sockets = 1 << 29_u32;
+    cases.push((l, settings(&[1]), Unusable::Io)).unwrap();
+    let mut l = limits();
+    l.tls.read = 0;
+    cases.push((l, settings(&[1]), Unusable::Tls)).unwrap();
+    let mut l = limits();
+    l.io.intake = 0;
+    cases.push((l, settings(&[1]), Unusable::Io)).unwrap();
     let mut l = limits();
     l.runs = 0;
     cases.push((l, settings(&[1]), Unusable::Zero)).unwrap();

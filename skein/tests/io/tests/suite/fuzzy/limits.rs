@@ -1,14 +1,13 @@
 //! Seeded capacity admission checks (programming-model.md, 6.3).
-use super::super::limits::draw;
+use super::super::limits::{LAST_FLIGHT_SOCKETS, draw};
 use skein_io::{Limits, valid};
 use skein_lib::{Duration, Rng};
 
 #[test]
 fn valid_checks_seeded_usable_limits_against_the_flight_capacity_edge() {
-    // The flight table needs 8*sockets+4 slots in a u32; the other
-    // derived capacities fit whenever it does. Alternate small and
-    // full-range socket counts to cover admission and refusal.
-    const LAST_FLIGHT_SOCKETS: u32 = 536_870_911;
+    // The flight table needs 8*sockets+4 slots below the file lane
+    // (io.md, 5); the other derived capacities fit whenever it does.
+    // Alternate small and full-range socket counts to cover admission and refusal.
     const DRAWS: u32 = 4096;
     const SMALL: u32 = 255;
     let mut rng = Rng::new(0x7067_7661_6c69_6401);

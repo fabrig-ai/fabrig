@@ -98,7 +98,7 @@ impl Wire {
                     }
                 }
             }
-            Up::Room => panic!("TLS ciphertext uses independent output rights"),
+            Up::Room => unreachable!("TLS ciphertext uses independent output rights"),
             Up::End => {
                 self.reading = false;
                 self.ended = true;

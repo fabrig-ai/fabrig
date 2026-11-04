@@ -26,8 +26,9 @@ records travel through `skein-http` as in `skein-llm`.
 The caller supplies a `Registration` with an authorization URL, token
 endpoint, client id, redirect URI, requested scope, token wire format, and
 optional client secret. The authorization URL and token endpoint are `https`,
-or `http` on loopback for an issuer on the same machine, such as a replaying
-tier's fake (testing-strategy.md, 4.4). It admits one `Client` machine for an
+with a host and no userinfo, or `http` on loopback for an issuer on the same
+machine, such as a replaying tier's fake (testing-strategy.md, 4.4). It admits
+one `Client` machine for an
 exchange. The endpoint binding is kept through the exchange; a redirect cannot
 choose a new token endpoint. A public client requires an already bound
 loopback listener and a redirect URI whose loopback address, port, and path
@@ -325,6 +326,14 @@ settlement. A successful token response consumes the code or refresh attempt;
 it is never replayed by the machine. A retry of a sign-in code exchange is
 permitted only if the prior request was proved unsent. The caller can start
 another sign-in after a failure with a new state and verifier.
+
+A start in any state but Idle is refused in that step and changes nothing:
+the exchange it found goes on, its terminal still to come, and Done still
+waits for its reset. A refused `SignIn` or `Refresh` emits `Failed` with
+`Limit`, a refused `Revoke` emits `Revoked`, unconfirmed. The caller
+dispatches each step's output before the next, so a terminal in a start's
+own output answers that start, and no caller is left waiting on a start the
+client did not take.
 
 An `Http` demand names its method: a POST, or a GET for the issuer's
 metadata and keys, which carries no secret and may be retried as any

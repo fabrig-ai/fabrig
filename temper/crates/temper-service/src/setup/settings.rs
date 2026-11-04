@@ -227,6 +227,8 @@ pub(crate) fn problems(why: host::Unusable, found: &mut Problems) {
     use host::{Stacked, Unusable};
     let names: &[&[u8]] = match why {
         Unusable::Zero => &[b"setup.runs", b"setup.states", b"forge_component", b"io"],
+        Unusable::Io => &[b"io"],
+        Unusable::Tls => &[b"forge_component.tls.read", b"forge_component.tls.send"],
         Unusable::TokenBytes { .. } => &[b"forge_component.token_bytes"],
         Unusable::Documents(_) | Unusable::GitHubDocuments(_) => {
             &[b"forge_component.depth", b"forge_component.body_bytes_in", b"forge_component.chunk"]
@@ -262,6 +264,8 @@ pub(crate) fn problems(why: host::Unusable, found: &mut Problems) {
                 }
                 Unusable::Reachable { .. } => &[b"picker.page", b"forge_component.inner"],
                 Unusable::Zero
+                | Unusable::Io
+                | Unusable::Tls
                 | Unusable::TokenBytes { .. }
                 | Unusable::Documents(_)
                 | Unusable::GitHubDocuments(_)

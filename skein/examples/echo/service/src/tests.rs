@@ -289,6 +289,8 @@ fn limits_are_checked_layer_by_layer_and_against_each_other() {
     assert_eq!(Limits { queue: 2, ..good }.check(), Ok(()), "the minimum admits every stage");
     let io = skein_io::Limits { output: 0, ..good.io };
     assert_eq!(Limits { io, ..good }.check(), Err(Unusable::Io));
+    let io = skein_io::Limits { sockets: 1 << 29, ..good.io };
+    assert_eq!(Limits { io, ..good }.check(), Err(Unusable::Io));
     let protocol = protocol::Limits { conns: 0, ..good.protocol };
     assert_eq!(Limits { protocol, ..good }.check(), Err(Unusable::Protocol));
     assert_eq!(Limits { queue: 1, ..good }.check(), Err(Unusable::Queue));

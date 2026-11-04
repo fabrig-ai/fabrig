@@ -126,6 +126,25 @@ fn a_window_on_a_terminal_that_hung_up_is_gone() {
     rig.empty();
 }
 
+#[test]
+fn a_window_on_a_stream_closing_or_gone_is_gone_without_the_kernel() {
+    let mut rig = Rig::new(limits());
+    let stream = rig.io.adopt_read_pipe(Fd::new(60)).expect("input stream");
+    let read = rig.next().take(Kind::PipeRead);
+    let cancel = rig.down(Request::Abort { entity: stream }).take(Kind::Cancel);
+    rig.down(Request::Window { owner: super::owner(7), stream }).nothing();
+    assert_eq!(rig.next().events, [Event::Window { owner: super::owner(7), window: crate::Window::Gone }]);
+    rig.complete(cancel, Ok(Done::Nothing));
+    let close = rig.complete(read, Err(Error::Cancelled)).take(Kind::Close);
+    rig.complete(close, Ok(Done::Nothing));
+    rig.io.reclaim();
+
+    rig.down(Request::Window { owner: super::owner(7), stream }).nothing();
+    assert!(!rig.io.is_empty(), "the Window owner is still owed Gone");
+    assert_eq!(rig.next().events, [Event::Window { owner: super::owner(7), window: crate::Window::Gone }]);
+    rig.empty();
+}
+
 const CHILD_SENDER: crate::kernel::Sender = crate::kernel::Sender::new(71);
 
 struct SignalChild {

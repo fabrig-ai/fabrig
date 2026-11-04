@@ -18,4 +18,4 @@ cargo run -p skein-ui-bundle -- \
 cargo build -p skein-ui-example-server
 SKEIN_UI_EXAMPLE_BUNDLE="$(pwd)/target/ui-example-bundle"
 export SKEIN_UI_EXAMPLE_BUNDLE
-cargo nextest run --workspace --profile browser "$@"
+cargo nextest run --workspace --profile browser-skein "$@"

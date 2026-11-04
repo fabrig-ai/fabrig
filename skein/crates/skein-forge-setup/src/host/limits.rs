@@ -97,6 +97,10 @@ pub enum Stacked {
 #[derive(Clone, Copy, PartialEq, Eq, Debug)]
 pub enum Unusable {
     Zero,
+    /// The io limits are unusable or their derived capacities are unrepresentable.
+    Io,
+    /// The TLS client limits are unusable.
+    Tls,
     TokenBytes {
         token_bytes: u32,
     },
@@ -162,8 +166,11 @@ pub(super) fn check(l: &Limits, settings: &Settings) -> Result<(), Unusable> {
             return Err(Unusable::Zero);
         }
     }
-    if !l.io.is_usable() || !skein_tls::client::valid(&l.tls) {
-        return Err(Unusable::Zero);
+    if !skein_io::valid(&l.io) {
+        return Err(Unusable::Io);
+    }
+    if !skein_tls::client::valid(&l.tls) {
+        return Err(Unusable::Tls);
     }
     if l.token_bytes < 64 {
         return Err(Unusable::TokenBytes { token_bytes: l.token_bytes });
