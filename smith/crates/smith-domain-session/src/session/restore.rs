@@ -113,8 +113,15 @@ pub(super) fn validate_transcript(
                     let missing = validate_link(previous, message, withheld_name)?;
                     if let Some(position) = missing {
                         let assistant = previous.expect("a missing result follows its assistant call");
-                        withheld = Some(&assistant.content.get(usize::try_from(position).expect("u32 fits"))
-                            .expect("validated call position").tool_call().expect("validation returns a call position").id);
+                        withheld = Some(
+                            &assistant
+                                .content
+                                .get(usize::try_from(position).expect("u32 fits"))
+                                .expect("validated call position")
+                                .tool_call()
+                                .expect("validation returns a call position")
+                                .id,
+                        );
                     }
                 }
             }
@@ -168,7 +175,8 @@ pub(super) fn validate_answers(
         let Ok(position) = usize::try_from(answer.origin.position) else {
             return Err(Refusal::Malformed);
         };
-        if tail.content.get(position).and_then(Block::tool_call).is_none() {
+        let Some(block) = tail.content.get(position) else { return Err(Refusal::Malformed) };
+        if block.tool_call().is_none() {
             return Err(Refusal::Malformed);
         }
         for earlier in answered.iter().take(index) {
@@ -193,7 +201,8 @@ pub(super) fn resumed_tail(tail: &Message, withheld: Option<&[u8]>, withheld_nam
             Role::User => Resumed::Settled,
             Role::Assistant => {
                 let mut withheld = None;
-                for call in tail.content.iter().filter_map(Block::tool_call) {
+                for part in &tail.content {
+                    let Some(call) = part.tool_call() else { continue };
                     if withheld_name == Some(call.name.as_ref()) {
                         if withheld.is_some() {
                             // Only a single matching call identifies a withheld result.
@@ -294,10 +303,7 @@ pub(super) fn restore(
                 let mut parts = prompt.content.into_iter();
                 let text = match parts.next().expect("admission's initial text") {
                     Block::Text { text, .. } => text,
-                    Block::Refusal { .. }
-                    | Block::Opaque { .. }
-                    | Block::ToolCall(_)
-                    | Block::ToolResult { .. } => {
+                    Block::Refusal { .. } | Block::Opaque { .. } | Block::ToolCall(_) | Block::ToolResult { .. } => {
                         unreachable!("admission constructs one text block")
                     }
                 };
@@ -330,20 +336,20 @@ pub(super) fn unrun_cost(
     }
     for (position, part) in content.iter().enumerate() {
         let Some(call) = part.tool_call() else { continue };
-                cost = cost.checked_add(block)?.checked_add(len(&call.id)?)?;
-                for answer in answered {
-                    if usize::try_from(answer.origin.position).ok()? == position {
-                        match &answer.result {
-                            Returned::Text { text, .. } => cost = cost.checked_add(len(text)?)?,
-                            Returned::Owned { .. }
-                            | Returned::Invalid { .. }
-                            | Returned::NotRun { .. }
-                            | Returned::Withdrawn => {
-                                return None;
-                            }
-                        }
+        cost = cost.checked_add(block)?.checked_add(len(&call.id)?)?;
+        for answer in answered {
+            if usize::try_from(answer.origin.position).ok()? == position {
+                match &answer.result {
+                    Returned::Text { text, .. } => cost = cost.checked_add(len(text)?)?,
+                    Returned::Owned { .. }
+                    | Returned::Invalid { .. }
+                    | Returned::NotRun { .. }
+                    | Returned::Withdrawn => {
+                        return None;
                     }
                 }
+            }
+        }
     }
     Some(cost)
 }
@@ -405,7 +411,8 @@ pub(super) fn validate_link(
             // Call ids must be unique within a provider completion.
             for (index, block) in message.content.iter().enumerate() {
                 let Some(call) = block.tool_call() else { continue };
-                for earlier in message.content.iter().take(index).filter_map(Block::tool_call) {
+                for part in message.content.iter().take(index) {
+                    let Some(earlier) = part.tool_call() else { continue };
                     if call.id == earlier.id {
                         return Err(Refusal::Malformed);
                     }
@@ -448,24 +455,24 @@ pub(super) fn validate_results(
     if previous.role == Role::Assistant {
         for (position, block) in previous.content.iter().enumerate() {
             let Some(call) = block.tool_call() else { continue };
-                    let matches = match seen {
-                        Some(position) => {
-                            result_id(
-                                message
-                                    .content
-                                    .get(usize::try_from(position).expect("u32 fits"))
-                                    .expect("validated result position"),
-                            ) == call.id.as_ref()
-                        }
-                        None => false,
-                    };
-                    if matches {
-                        seen = next_result(&message.content, &mut next)?;
-                    } else if withheld_name == Some(call.name.as_ref()) && withheld.is_none() {
-                        withheld = Some(u32::try_from(position).or(Err(Refusal::TooLarge))?);
-                    } else {
-                        return Err(Refusal::Malformed);
-                    }
+            let matches = match seen {
+                Some(position) => {
+                    result_id(
+                        message
+                            .content
+                            .get(usize::try_from(position).expect("u32 fits"))
+                            .expect("validated result position"),
+                    ) == call.id.as_ref()
+                }
+                None => false,
+            };
+            if matches {
+                seen = next_result(&message.content, &mut next)?;
+            } else if withheld_name == Some(call.name.as_ref()) && withheld.is_none() {
+                withheld = Some(u32::try_from(position).or(Err(Refusal::TooLarge))?);
+            } else {
+                return Err(Refusal::Malformed);
+            }
         }
     }
     if seen.is_some() {
