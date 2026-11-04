@@ -111,6 +111,7 @@ pub struct Parameters {
     pub seed: u64,
     pub links: Links,
     pub forge: temper_fake_git::Typed,
+    pub route: Option<skein_fake_forge_protocol::Limits>,
     pub disk: Rc<RefCell<skein_fake_machine::Machine>>,
 }
 thread_local! { static PARAMETERS: RefCell<Option<Parameters>> = const { RefCell::new(None) }; }
@@ -299,11 +300,12 @@ pub fn agent<H: Harness>(_spawn: &Spawn, inherited: &Inherited) -> Process<H> {
 #[must_use]
 pub fn git<H: Harness>(spawn: &Spawn, inherited: &Inherited) -> Process<H> {
     H::spawned(Role::Git, inherited, b"worker");
-    if H::github() {
+    let route = if H::github() { Some(H::git_limits()) } else { parameters().route };
+    if let Some(limits) = route {
         Process::GitRoute(Box::new(temper_fake_git::Git::new(
             spawn,
             temper_fake_git_hosted::start(inherited),
-            temper_fake_git::Route::new(H::git_limits()),
+            temper_fake_git::Route::new(limits),
         )))
     } else {
         Process::Git(Box::new(temper_fake_git_hosted::git(spawn, inherited, parameters().forge)))

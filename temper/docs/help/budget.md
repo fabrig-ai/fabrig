@@ -28,7 +28,7 @@ A budget is what a task may spend, in units its models' prices make of their usa
   from C, one costliest completion of the first configured model at
   its prices: its rules' floor is 2C and their run cap K, 4C or four
   units for each of the chat's run turns (32 for its 8), whichever is
-  more; a person's chat may spend 24K, and the ceilings and a
+  more; a person's chat may spend 16K, and the ceilings and a
   project's period 48K. On `temper init`'s box C is 1,057 units, so a
   run draws 2,114 to 4,228. The stock chat runs 8 turns, the coding
   agent and its reviewers 16, each 120 seconds with a reserve of 1

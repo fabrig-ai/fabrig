@@ -23,7 +23,7 @@ pub const REPOSITORY: u32 = 2;
 /// Producer tools for the composition.
 pub const PRODUCER_TOOLS: u64 = 3;
 /// Document lines for the composition.
-pub const DOCUMENT_LINES: u32 = 2;
+pub const DOCUMENT_LINES: u32 = 4;
 /// Chat wait ms for the composition.
 pub const CHAT_WAIT_MS: u32 = 1000;
 /// Worker user for the composition.
@@ -37,10 +37,10 @@ pub const IMPLICATIONS: [u16; 2] = [1, 2];
 /// The repository agent's turn allowance.
 pub const CHARTER_TURNS: u32 = 8;
 /// Engine overrides for the composition.
-pub const ENGINE_OVERRIDES: [(&str, u32); 20] = [
+pub const ENGINE_OVERRIDES: [(&str, u32); 22] = [
     ("tasks.tasks", 4),
     ("tasks.project_tasks", 4),
-    ("tasks.tree_tasks", 4),
+    ("tasks.tree_tasks", 6),
     ("people.people", 4),
     ("people.inbox_tasks", 8),
     ("fleet.attempts", 4),
@@ -50,7 +50,9 @@ pub const ENGINE_OVERRIDES: [(&str, u32); 20] = [
     ("tasks.result_bytes", 128),
     ("tasks.resource_reports", 4),
     ("tasks.pools", 2),
-    ("tasks.parameters", 4),
+    ("tasks.parameters", 5),
+    ("tasks.spec_bytes", 187),
+    ("tasks.contract_choices", 2),
     ("tasks.executor_kinds", 2),
     ("tasks.authority_grants", 4),
     ("tasks.authority_segments", 4),
@@ -161,7 +163,7 @@ pub fn world_document_with(edit: impl FnOnce(&mut serde_json::Value)) -> serde_j
     }
     edit(&mut value);
     for (name, count) in [
-        ("people.amendment_bytes", 512),
+        ("people.amendment_bytes", 1053),
         ("tasks.hold_bytes", 256),
         ("tasks.funders", 4),
         ("tasks.dependencies", 2),
@@ -169,7 +171,7 @@ pub fn world_document_with(edit: impl FnOnce(&mut serde_json::Value)) -> serde_j
         ("notes.entries_per_scope", 2),
         ("notes.recalled", 2),
         ("people.holdings", 2),
-        ("people.pending", 2),
+        ("people.pending", 5),
         ("people.waiters", 2),
     ] {
         value["engine"]["limits"]["overrides"][name] = count.into();
@@ -196,7 +198,11 @@ pub fn chat_policy(value: &mut serde_json::Value) {
         ("core.policy_bytes", 4096),
         ("authority.grants", 16),
         ("authority.executors", 8),
+        ("authority.segments", 8),
+        ("tasks.authority_grants", 14),
+        ("tasks.authority_bytes", 70),
         ("tasks.executor_kinds", 8),
+        ("tasks.result_bytes", 128),
         ("notes.scopes", 32),
     ] {
         value["engine"]["limits"]["overrides"][name] = count.into();
@@ -320,7 +326,8 @@ pub fn agent() -> temper_service::settings::Agent {
             output: 512,
         }]),
         turns: agent_profile().policy.max_turns,
-        spend: 100,
+        // Story A's stock run allowance at its model's template prices.
+        spend: 4200,
         time: Duration::from_secs(300),
         waiting: Duration::from_secs(60),
         checks: Duration::from_secs(5),
@@ -439,7 +446,7 @@ pub fn given_with(document: &serde_json::Value, stock: bool, read_wait: bool) ->
     }
     if read_wait {
         defaults.charters[0].policy.waiting = skein_lib::Duration::from_millis(u64::from(CHAT_WAIT_MS));
-    } else {
+    } else if document["application"]["demo"].is_null() {
         defaults.templates[0].flags.ended_by = jig_domain_tasks::EndedBy::Result;
     }
     let seed = engine.projects.first().expect("world policy");
@@ -480,7 +487,17 @@ pub fn given_with(document: &serde_json::Value, stock: bool, read_wait: bool) ->
         charter.policy.turns = CHARTER_TURNS;
         charter.spend = PRODUCER_SPEND;
     }
-    temper_service::stock::Given::Own { jig: defaults, forge: settings::forge(&document) }
+    let forge = if document["application"]["demo"].is_null() {
+        settings::forge(&document)
+    } else {
+        let limits = temper_service::limits::engine(
+            &engine.limits,
+            &temper_service::limits::profile(temper_service::limits::Profile::Small),
+        )
+        .expect("playground engine limits");
+        temper_service::stock::forge(&limits)
+    };
+    temper_service::stock::Given::Own { jig: defaults, forge }
 }
 /// Independent streams derived from a world's single seed.
 #[derive(Debug, PartialEq, Eq)]
