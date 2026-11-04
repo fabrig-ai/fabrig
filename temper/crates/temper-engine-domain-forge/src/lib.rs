@@ -8,7 +8,8 @@
 //! parent's decision. `Committed` is the only way a newly enqueued effect
 //! reaches the client. `resume` and `fire` drive the client after earlier
 //! saves have crossed that barrier. The top never knows tasks beyond numbers,
-//! authorization grants or protocol wire formats.
+//! authorization grants. Its public projections encode the visitor records
+//! (temper/docs/design/client/forge.md, 11).
 #![cfg_attr(not(test), no_std)]
 #![forbid(unsafe_code)]
 extern crate alloc;
@@ -38,6 +39,9 @@ mod kinds;
 mod landing;
 mod limits;
 mod panel;
+mod public;
+pub use public::{PublicAsk, PublicMade, PublicTask};
+
 mod playground;
 pub mod purpose;
 mod red;
@@ -54,6 +58,9 @@ pub use reconcile::{MissingLink, Need, RecordKind};
 pub mod resources;
 pub mod settings;
 pub use settings::ForgeCharters;
+#[cfg(test)]
+#[path = "tests/public.rs"]
+mod public_tests;
 mod settle;
 mod standing;
 #[cfg(test)]

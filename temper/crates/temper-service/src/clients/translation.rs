@@ -7,6 +7,7 @@ use temper_engine_domain as root;
 
 /// Translate the core events the clients' component issues. An internal core
 /// event on this boundary aborts the component instead of deciding root work.
+#[expect(clippy::too_many_lines, reason = "one exhaustive match translates the clients' core boundary")]
 pub fn to_root(event: core::Event) -> Result<root::PartyInput, Box<kit::Event>> {
     let value = match event {
         core::Event::ProposeSettings { reply_to, sign_in, key, digest, change } => {
@@ -40,6 +41,7 @@ pub fn to_root(event: core::Event) -> Result<root::PartyInput, Box<kit::Event>> 
         core::Event::Key { reply_to, sign_in, key, ask, carried } => {
             root::PartyInput::Key { reply_to, sign_in, key, ask, carried }
         }
+        core::Event::PublicRead { reply, read } => root::PartyInput::PublicRead { reply, read },
         core::Event::Read { reply, sign_in, read } => root::PartyInput::Read { reply_to: reply, sign_in, read },
         core::Event::Watch { watcher, sign_in, subject, window } => {
             root::PartyInput::Watch { watcher, sign_in, subject, window }
@@ -56,6 +58,8 @@ pub fn to_root(event: core::Event) -> Result<root::PartyInput, Box<kit::Event>> 
         | core::Event::Stopping
         | core::Event::Marked { .. }
         | core::Event::ReadLoaded { .. }
+        | core::Event::PublicAnswered { .. }
+        | core::Event::PublicDurable { .. }
         | core::Event::Application { .. }
         | core::Event::ApplicationPart { .. }
         | core::Event::ApplicationFinished { .. }
@@ -154,6 +158,7 @@ pub fn to_component(request: root::PartyRequest) -> Option<kit::Event> {
 }
 fn delivered(delivery: root::Delivery) -> Option<kit::Event> {
     match delivery {
+        root::Delivery::Public { reply, answer, .. } => Some(kit::Event::Public { reply, answer }),
         root::Delivery::WebReply { to, reply } => Some(kit::Event::Reply { to, reply }),
         root::Delivery::CarriedUnused { number } => {
             Some(kit::Event::Application(kit::FromApplication::Unused { number }))
@@ -186,6 +191,7 @@ fn delivered(delivery: root::Delivery) -> Option<kit::Event> {
         | root::Delivery::Assigned { .. }
         | root::Delivery::ForgeRead { .. }
         | root::Delivery::ReadLoad { .. }
+        | root::Delivery::PublicWait { .. }
         | root::Delivery::Drained
         | root::Delivery::Refuse { .. }
         | root::Delivery::TurnBusy { .. }
@@ -199,6 +205,9 @@ fn delivered(delivery: root::Delivery) -> Option<kit::Event> {
 #[expect(clippy::match_same_arms, reason = "Whose keeps its explicit not-ready answer beside the party refusals")]
 pub fn not_ready(input: root::PartyInput) -> Option<kit::Event> {
     match input {
+        root::PartyInput::PublicRead { reply, .. } => {
+            Some(kit::Event::Public { reply, answer: core::PublicAnswer::Busy })
+        }
         root::PartyInput::Whose { reply_to, .. } => {
             Some(kit::Event::Reply { to: reply_to, reply: people::Reply::Again(people::Again::NotReady) })
         }

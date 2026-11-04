@@ -86,6 +86,8 @@ fn a_printed_link_under_another_prefix_is_refused() {
     );
 }
 
+mod public;
+
 #[test]
 fn debug_of_a_keyed_call_shows_lengths_never_the_bearer_or_body() {
     const CANARY: &[u8] = b"canary-jig-call-7f3a9c";

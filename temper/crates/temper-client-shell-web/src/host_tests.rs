@@ -383,6 +383,7 @@ fn the_first_task_activity_answer_survives_transport_sign_in() {
         exchange: activity,
         status: 200,
         body: encoded(answer.measure(), |writer| answer.encode(writer)),
+        headers: Vec::new(),
     });
     build(&mut host);
     let shown = host

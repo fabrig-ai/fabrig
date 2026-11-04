@@ -18,6 +18,7 @@ mod configuration;
 mod forgery;
 mod github;
 mod issuer;
+mod public;
 
 /// How long a story waits for what a page shows.
 pub const WITHIN: skein_lib::Duration = skein_lib::Duration::from_secs(10);

@@ -223,7 +223,7 @@ struct Text<'a> {
 impl Text<'_> {
     fn heard(&mut self, heard: &Heard) {
         match heard {
-            Heard::Answered { exchange, status, body } => {
+            Heard::Answered { exchange, status, body, headers: _ } => {
                 self.word(b"answered");
                 self.number(u64::from(*exchange));
                 self.number(u64::from(*status));
@@ -442,7 +442,9 @@ fn read(line: &[u8]) -> Result<Line, &'static str> {
         b"due" => Line::Due,
         b"place" => Line::Place(r.bytes()?),
         b"heard" => Line::Heard(match r.word()?.as_ref() {
-            b"answered" => Heard::Answered { exchange: r.count()?, status: r.status()?, body: r.bytes()? },
+            b"answered" => {
+                Heard::Answered { exchange: r.count()?, status: r.status()?, body: r.bytes()?, headers: Vec::new() }
+            }
             b"failed" => Heard::Failed { exchange: r.count()? },
             b"opened" => Heard::StreamOpened,
             b"refused" => Heard::StreamRefused { status: r.status()? },
@@ -567,8 +569,8 @@ pub(super) fn clone_act(act: &Act) -> Act {
 }
 pub(super) fn clone_heard(heard: &Heard) -> Heard {
     match heard {
-        Heard::Answered { exchange, status, body } => {
-            Heard::Answered { exchange: *exchange, status: *status, body: body.clone() }
+        Heard::Answered { exchange, status, body, headers: _ } => {
+            Heard::Answered { exchange: *exchange, status: *status, body: body.clone(), headers: Vec::new() }
         }
         Heard::Failed { exchange } => Heard::Failed { exchange: *exchange },
         Heard::StreamOpened => Heard::StreamOpened,
