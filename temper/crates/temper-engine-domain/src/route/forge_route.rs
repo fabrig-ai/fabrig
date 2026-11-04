@@ -801,7 +801,6 @@ fn branch_what(branch: &[u8], limit: u32) -> Option<forge::What> {
     Some(forge::What::Branch(branch_parts(branch, limit)?))
 }
 
-#[expect(clippy::manual_map, reason = "the strict subset does not use closures")]
 fn tree_branch(
     repository: &forge::Repository,
     root: u64,
@@ -1784,7 +1783,6 @@ pub(crate) fn claimed_writes(
     Some((writes.into_boxed(), holders.into_boxed()))
 }
 
-#[expect(clippy::manual_map, reason = "the strict subset uses an explicit option match")]
 fn pull_what(number: Option<u64>) -> Option<forge::What> {
     match number {
         Some(number) => Some(forge::What::Pull(number)),
@@ -3977,7 +3975,6 @@ fn change_decision(domain: &mut Domain, env: &Env<Limits>, task: u64, choice: fo
 }
 
 #[expect(clippy::too_many_lines, reason = "one exhaustive connector output translation")]
-#[expect(clippy::manual_map, reason = "the foundation requires explicit option matching")]
 pub(crate) fn outputs(
     domain: &mut Domain,
     env: &Env<Limits>,

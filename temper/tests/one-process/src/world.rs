@@ -929,7 +929,6 @@ pub fn sign_in_again(settings: Settings) -> [Outcome; 2] {
     [first, again]
 }
 
-#[expect(clippy::wildcard_enum_match_arm, reason = "the snapshot selects only durable sign-in rows")]
 fn sign_ins(store: &Store) -> Vec<(u64, u64, Wall)> {
     store
         .rows

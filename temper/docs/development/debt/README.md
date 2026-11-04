@@ -61,5 +61,4 @@ checks.
 | ID | title | kind | value | size | status |
 |---|---|---|---|---|---|
 | D001 | temper-service's adapter overlap exceeds the debt measure's bound | duplication | low | M | open |
-| D011 | `clippy::manual_map` is excused site by site, 127 times | lints | low | S | open |
 | D012 | The forge's domain and route files, and nine more, are too large to read | complexity | medium | L | open |

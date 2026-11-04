@@ -89,7 +89,6 @@ struct Child {
     tail: Tail,
 }
 impl Child {
-    #[expect(clippy::manual_map, reason = "programming-model.md: match rather than Option::map")]
     fn new(serve: &[u8], step: &Step, tail_lines: u32) -> Self {
         Self {
             owner: None,

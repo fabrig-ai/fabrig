@@ -462,7 +462,7 @@ impl<'a> Page<'a> {
                 for part in rendered.children {
                     match part {
                         Child::Element(part) if part.attribute("data-node").is_some() => destination.append(part),
-                        part => option_descriptions.push(part),
+                        part @ (Child::Element(_) | Child::Text(_)) => option_descriptions.push(part),
                     }
                 }
             } else {

@@ -45,7 +45,6 @@ fn decode_watch(value: w::Watch) -> skein_forge_client::Watch {
         participating,
     }
 }
-#[expect(clippy::manual_map, reason = "step translations use explicit matches without closures")]
 fn encode_cached(value: &skein_forge_client::Cached) -> w::Cached {
     let skein_forge_client::Cached { item, pull, tip } = value;
     w::Cached::new(
@@ -64,7 +63,6 @@ fn encode_cached(value: &skein_forge_client::Cached) -> w::Cached {
     )
     .expect(FITS)
 }
-#[expect(clippy::manual_map, reason = "step translations use explicit matches without closures")]
 fn decode_cached(value: w::Cached, bounds: &Bounds) -> Result<skein_forge_client::Cached, Undecodable> {
     let w::CachedParts { item, pull, tip } = value.into_parts();
     Ok(skein_forge_client::Cached {
@@ -147,7 +145,6 @@ fn decode_live(value: w::LiveRecord, bounds: &Bounds) -> Result<skein_forge_clie
         echoes: decode_echoes(echoes),
     })
 }
-#[expect(clippy::manual_map, reason = "step translations use explicit matches without closures")]
 fn encode_repository(value: skein_forge_client::RepositoryRecord) -> w::RepositoryRecord {
     let skein_forge_client::RepositoryRecord { repository, mark, clock } = value;
     w::RepositoryRecord::new(
@@ -163,7 +160,6 @@ fn encode_repository(value: skein_forge_client::RepositoryRecord) -> w::Reposito
     )
     .expect(FITS)
 }
-#[expect(clippy::manual_map, reason = "step translations use explicit matches without closures")]
 fn decode_repository(value: w::RepositoryRecord) -> skein_forge_client::RepositoryRecord {
     let w::RepositoryRecordParts { repository, mark, clock } = value.into_parts();
     skein_forge_client::RepositoryRecord {

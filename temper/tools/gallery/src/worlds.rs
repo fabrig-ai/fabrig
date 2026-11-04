@@ -977,7 +977,6 @@ fn budget(f: &TaskFacts) -> c::Budget {
         deadline: None,
     }
 }
-#[expect(clippy::manual_map, reason = "fixture follows the step crates’ explicit Option matches")]
 fn document(w: World, number: u64) -> c::Task {
     let f = facts(w, number);
     let mut t = base_task(number, f.title);
@@ -1006,13 +1005,7 @@ fn document(w: World, number: u64) -> c::Task {
     } else {
         Some(c::LlmChoice {
             account: Some(f.account),
-            main: c::ModelEffort {
-                model: text(f.model),
-                effort: match f.effort {
-                    Some(e) => Some(text(e)),
-                    None => None,
-                },
-            },
+            main: c::ModelEffort { model: text(f.model), effort: f.effort.map(text) },
             subagents: List::with_capacity(0),
         })
     };
