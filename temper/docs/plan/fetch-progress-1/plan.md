@@ -55,6 +55,7 @@ Slices, in the order they run: skein's value; the fetch and the box; the row; th
 - **`temper forge list` stays as it is:** it prints a state and a step from the domain, not the row's words, and the draft does not name it.
 - **The look's commits carry the trailer:** `client-fetched`, `view-fetched` and `look-account`. `look-account` writes the account.
 - **The request's pages are copied into `notes/request/`,** since no ref holds the request's commit and a slot would not have it. They leave with the plan.
+- **`welcome-set-up`'s pages 07 and 08 show preparing, not the request's 42%:** the `fetched` lines keep the page moving through the fetch, and `again` marks a still page alone (`temper/docs/design/client/journeys.md`, 8.1), so the walk's first still page comes after the fetch. The acts hold, and the fetching state's look is held by the view's tests. A page at 42% waits for a fake fetch, `fetch-progress.md`, 8.
 - **The drafts stay:** their status now has no lag, and retiring or archiving them is for when the plan has landed.
 
 ## The question
