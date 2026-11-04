@@ -37,7 +37,7 @@ enum Phase {
     Closed,
     Listing,
     OpeningLog { name: Box<[u8]> },
-    ReadingLog { file: Token, first: u64, len: u64, at: u64, bytes: Vec<u8> },
+    ReadingLog { file: Token, len: u64, at: u64, bytes: Vec<u8>, replayed: Result<bool, Failure> },
     ClosingRecovered,
     RemovingTail,
     Creating { name: Box<[u8]> },
@@ -52,7 +52,7 @@ enum Phase {
     SnapshotFailureClosing { log: Token, offset: u64 },
     OpenFailureClosing { failure: Failure },
     OpeningSnapshot,
-    ReadingSnapshot { file: Token, len: u64, at: u64, bytes: Vec<u8> },
+    ReadingSnapshot { file: Token, len: u64, at: u64, reader: snapshot::Reader, failure: Option<Failure> },
     ClosingSnapshot,
     RemovingTempOnOpen,
 }
@@ -381,23 +381,49 @@ impl Store {
         }
     }
 
-    fn apply_snapshot(&mut self, bytes: &[u8], limits: &Limits) -> Result<(), Failure> {
-        let (start, rows) = snapshot::decode(bytes, limits.chunk).ok_or(Failure::Corrupt)?;
-        self.last = start.checked_sub(1).ok_or(Failure::Corrupt)?;
-        for row in rows {
-            let op = Op::Put { key: row.key, value: row.value };
-            let used = self.map.check(core::slice::from_ref(&op), limits).map_err(|_| Failure::Full)?;
-            self.map.apply(core::slice::from_ref(&op), used);
+    fn apply_snapshot(
+        &mut self,
+        reader: &mut snapshot::Reader,
+        read: &[u8],
+        failure: &mut Option<Failure>,
+        limits: &Limits,
+    ) {
+        if *failure == Some(Failure::Corrupt) {
+            return;
         }
-        self.segments.retain(|name| log_number(name).is_some_and(|number| number >= start));
-        self.segment_index = 0;
-        Ok(())
+        let mut input = read;
+        // Each part consumes bytes of this read; an incomplete part ends the pass.
+        for _ in 0..read.len() {
+            if input.is_empty() {
+                break;
+            }
+            let Some(part) = reader.next(&mut input, limits.chunk) else {
+                *failure = Some(Failure::Corrupt);
+                return;
+            };
+            match part {
+                snapshot::Part::NeedMore => break,
+                snapshot::Part::Start { start } => {
+                    self.last = start.checked_sub(1).expect("the checked snapshot starts past zero");
+                }
+                snapshot::Part::Rows { rows } => {
+                    for row in rows {
+                        if failure.is_some() {
+                            break;
+                        }
+                        let op = Op::Put { key: row.key, value: row.value };
+                        match self.map.check(core::slice::from_ref(&op), limits) {
+                            Ok(used) => self.map.apply(core::slice::from_ref(&op), used),
+                            Err(_) => *failure = Some(Failure::Full),
+                        }
+                    }
+                }
+                snapshot::Part::End => {}
+            }
+        }
     }
 
-    fn replay(&mut self, first: u64, bytes: &[u8], limits: &Limits) -> Result<bool, Failure> {
-        if first != self.last.checked_add(1).ok_or(Failure::Corrupt)? {
-            return Ok(false);
-        }
+    fn replay(&mut self, bytes: &mut Vec<u8>, limits: &Limits) -> Result<bool, Failure> {
         let mut at: usize = 0;
         while at < bytes.len() {
             let Some(head_end) = at.checked_add(usize::try_from(frame::HEADER).expect("frame header fits usize"))
@@ -405,14 +431,14 @@ impl Store {
                 return Ok(false);
             };
             let Some(head) = bytes.get(at..head_end) else {
-                return Ok(false);
+                break;
             };
             let Some(length) = frame::frame_len(head, limits.commit) else {
                 return Ok(false);
             };
             let Some(end) = at.checked_add(length) else { return Ok(false) };
             let Some(encoded) = bytes.get(at..end) else {
-                return Ok(false);
+                break;
             };
             let Some(decoded) = frame::decode(encoded, limits.commit) else {
                 return Ok(false);
@@ -427,6 +453,11 @@ impl Store {
             self.map.apply(&decoded.ops, used);
             self.last = decoded.number;
             at = end;
+        }
+        // Keep only the unapplied suffix between reads, moving it once per
+        // read rather than once per frame; the applied allocation is released.
+        if at != 0 {
+            *bytes = bytes.get(at..).expect("replay ended within its bytes").to_vec();
         }
         Ok(true)
     }
@@ -682,7 +713,7 @@ pub fn up(
                 open_failed_file(store, file, Failure::Full, below);
                 return;
             }
-            store.phase = Phase::ReadingSnapshot { file, len, at: 0, bytes: Vec::new() };
+            store.phase = Phase::ReadingSnapshot { file, len, at: 0, reader: snapshot::Reader::new(), failure: None };
             below.push(file::Request::ReadAt {
                 owner: IO_OWNER,
                 file,
@@ -690,16 +721,16 @@ pub fn up(
                 max: read_size(env.limits.chunk, len, 0),
             });
         }
-        (Phase::ReadingSnapshot { file, len, at, mut bytes }, file::Event::Read { bytes: read, .. }) => {
+        (Phase::ReadingSnapshot { file, len, at, mut reader, mut failure }, file::Event::Read { bytes: read, .. }) => {
             let next = at.checked_add(skein_lib::len_u64(read.len()));
             if read.is_empty() || next.is_none_or(|next| next > len) {
                 open_failed_file(store, file, Failure::Corrupt, below);
                 return;
             }
-            bytes.extend_from_slice(&read);
+            store.apply_snapshot(&mut reader, &read, &mut failure, &env.limits);
             let next = next.expect("checked read offset");
             if next < len {
-                store.phase = Phase::ReadingSnapshot { file, len, at: next, bytes };
+                store.phase = Phase::ReadingSnapshot { file, len, at: next, reader, failure };
                 below.push(file::Request::ReadAt {
                     owner: IO_OWNER,
                     file,
@@ -707,10 +738,17 @@ pub fn up(
                     max: read_size(env.limits.chunk, len, next),
                 });
             } else {
-                if let Err(failure) = store.apply_snapshot(&bytes, &env.limits) {
+                let start = reader.finish();
+                if start.is_none() {
+                    failure = Some(Failure::Corrupt);
+                }
+                if let Some(failure) = failure {
                     open_failed_file(store, file, failure, below);
                     return;
                 }
+                let start = start.expect("the snapshot ends with a checked trailer");
+                store.segments.retain(|name| log_number(name).is_some_and(|number| number >= start));
+                store.segment_index = 0;
                 store.phase = Phase::ClosingSnapshot;
                 below.push(file::Request::Close { owner: IO_OWNER, file });
             }
@@ -723,7 +761,21 @@ pub fn up(
                 return;
             }
             let first = log_number(&name).expect("an opened log has a numbered name");
-            store.phase = Phase::ReadingLog { file, first, len, at: 0, bytes: Vec::new() };
+            if len != 0 {
+                let Some(next) = store.last.checked_add(1) else {
+                    open_failed_file(store, file, Failure::Corrupt, below);
+                    return;
+                };
+                if first != next {
+                    store.segment_index = store.segments.len();
+                    store.repairing = true;
+                    store.repair_required = true;
+                    store.phase = Phase::ClosingRecovered;
+                    below.push(file::Request::Close { owner: IO_OWNER, file });
+                    return;
+                }
+            }
+            store.phase = Phase::ReadingLog { file, len, at: 0, bytes: Vec::new(), replayed: Ok(true) };
             if len == 0 {
                 below.push(file::Request::Close { owner: IO_OWNER, file });
                 store.phase = Phase::ClosingRecovered;
@@ -736,16 +788,23 @@ pub fn up(
                 });
             }
         }
-        (Phase::ReadingLog { file, first, len, at, mut bytes }, file::Event::Read { bytes: read, .. }) => {
+        (Phase::ReadingLog { file, len, at, mut bytes, mut replayed }, file::Event::Read { bytes: read, .. }) => {
             let next = at.checked_add(skein_lib::len_u64(read.len()));
             if read.is_empty() || next.is_none_or(|next| next > len) {
                 open_failed_file(store, file, Failure::Corrupt, below);
                 return;
             }
-            bytes.extend_from_slice(&read);
+            if replayed == Ok(true) {
+                bytes.reserve_exact(read.len());
+                bytes.extend_from_slice(&read);
+                replayed = store.replay(&mut bytes, &env.limits);
+                if replayed != Ok(true) {
+                    bytes = Vec::new();
+                }
+            }
             let next = next.expect("checked read offset");
             if next < len {
-                store.phase = Phase::ReadingLog { file, first, len, at: next, bytes };
+                store.phase = Phase::ReadingLog { file, len, at: next, bytes, replayed };
                 below.push(file::Request::ReadAt {
                     owner: IO_OWNER,
                     file,
@@ -753,10 +812,9 @@ pub fn up(
                     max: read_size(env.limits.chunk, len, next),
                 });
             } else {
-                let replayed = store.replay(first, &bytes, &env.limits);
                 match replayed {
                     Ok(whole) => {
-                        if !whole {
+                        if !whole || !bytes.is_empty() {
                             store.segment_index = store.segments.len();
                             store.repairing = true;
                             store.repair_required = true;

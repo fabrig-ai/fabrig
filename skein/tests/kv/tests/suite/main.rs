@@ -7,6 +7,7 @@ mod golden;
 mod memory;
 mod open;
 mod real;
+mod recovery;
 mod store;
 
 mod fuzzy {
