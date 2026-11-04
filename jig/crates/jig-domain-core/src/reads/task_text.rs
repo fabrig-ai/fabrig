@@ -11,6 +11,8 @@ pub enum TaskTextField {
     Specification,
     /// Its override, or the charter instructions at its recorded settings revision.
     Instructions,
+    /// The kept terminal report words, without overview truncation.
+    Result,
 }
 
 /// One UTF-8 chunk with byte offsets into the complete source.
@@ -26,7 +28,7 @@ pub struct TaskText {
 
 /// Read a visible live or retained owner without projecting its summary first.
 /// Reject offsets outside the text or inside a UTF-8 character. An unavailable
-/// effective instruction source is unknown, rather than an empty invention.
+/// effective instruction source or terminal report is unknown, rather than empty.
 pub fn task_text_from_row(
     core: &Core,
     limits: &Limits,
@@ -40,6 +42,7 @@ pub fn task_text_from_row(
     }
     let source = match field {
         TaskTextField::Specification => row.spec.words.as_ref(),
+        TaskTextField::Result => report(row).ok_or(Why::Unknown)?,
         TaskTextField::Instructions => {
             let tasks::Executor::Agent { charter } = row.executor else { return Err(Why::Unknown) };
             match &row.instructions {
@@ -81,5 +84,26 @@ pub(super) fn answer(
     match task_text_from_row(core, limits, party, row, field, from) {
         Ok(value) => Answer::TaskText(Box::new(value)),
         Err(why) => Answer::None(why),
+    }
+}
+
+fn report(row: &tasks::TaskRecord) -> Option<&[u8]> {
+    let result = match &row.phase {
+        tasks::Phase::Ended(tasks::Ending::Done(result) | tasks::Ending::Cancelled { result: Some(result), .. }) => {
+            result
+        }
+        tasks::Phase::Ended(tasks::Ending::Failed { .. } | tasks::Ending::Cancelled { result: None, .. })
+        | tasks::Phase::Waiting
+        | tasks::Phase::Active(_)
+        | tasks::Phase::Closing(_)
+        | tasks::Phase::Held { .. } => return None,
+    };
+    match result {
+        tasks::TaskResult::Report { words } | tasks::TaskResult::NoChange { words } => Some(words),
+        tasks::TaskResult::Job { .. }
+        | tasks::TaskResult::Approved { .. }
+        | tasks::TaskResult::Verdict { .. }
+        | tasks::TaskResult::Change { .. }
+        | tasks::TaskResult::Failure { .. } => None,
     }
 }
