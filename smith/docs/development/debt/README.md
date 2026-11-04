@@ -74,4 +74,3 @@ it says what a reviewer checks.
 | [D016](D016-retyped-primitives.md) | Small primitives are retyped beside skein's | primitives | low | S | open |
 | [D017](D017-domain-worlds-on-protocols.md) | Two domain worlds call protocol crates | coupling | low | S | open |
 | [D018](D018-domain-formats-text.md) | The local domain composes person-facing text | coupling | low | S | open |
-| [D019](D019-channel-component-twins.md) | The channel's two components copy their kind text | duplication | low | S | open |
