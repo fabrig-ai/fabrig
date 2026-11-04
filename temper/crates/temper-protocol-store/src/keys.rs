@@ -21,6 +21,8 @@ pub const PLAYGROUND: u8 = 27;
 pub const TIER: u8 = 28;
 /// One landing's verification (temper/docs/design/protocol/store.md, 2).
 pub const VERIFICATION: u8 = 29;
+/// Repositories being made (temper/docs/design/protocol/store.md, 2).
+pub const MAKING: u8 = 35;
 
 fn write_name(writer: &mut KeyWriter, name: &forge::Name) {
     writer.u64(u64::from(name.forge)).u64(u64::from(name.repository));
@@ -84,7 +86,8 @@ pub fn largest(limits: &forge::Limits) -> Option<u32> {
     let topic = limits.name_bytes.checked_mul(2)?.checked_add(28)?;
     // Writer is one family byte and an eight-byte forge number: 9 bytes.
     // Binding: family byte, two bytes per NUL, and byte-string terminator.
-    Some(name.max(topic).max(159).max(1 + 2 * 254 + 2))
+    let making = limits.name_bytes.min(1024).checked_mul(4)?.checked_add(13)?;
+    Some(name.max(topic).max(making).max(159).max(1 + 2 * 254 + 2))
 }
 
 /// Encode one relative key, or refuse it when it exceeds `limit`.
@@ -206,6 +209,9 @@ pub fn encode(key: &forge::Key, limit: u32) -> Option<Box<[u8]>> {
         forge::Key::Application(token) => {
             writer.tag(15).u64(*token);
         }
+        forge::Key::Making(key) => {
+            writer.tag(MAKING).u64(u64::from(key.forge)).bytes(&key.org).bytes(&key.name);
+        }
         forge::Key::Binding(address) => {
             if address.len() > 254 {
                 return None;
@@ -283,6 +289,11 @@ pub fn decode(bytes: &[u8], limits: &forge::Limits) -> Option<forge::Key> {
             forge::Key::Setting(forge::settings::SettingKey { kind, scope, number, slot })
         }
         FLIGHT => forge::Key::Flight { task: reader.u64()?, entry: reader.u64()? },
+        MAKING => forge::Key::Making(forge::MakingKey {
+            forge: u16::try_from(reader.u64()?).ok()?,
+            org: read_branch(&mut reader, limits)?,
+            name: read_branch(&mut reader, limits)?,
+        }),
         BINDING => {
             let address = reader.bytes()?;
             if address.len() > 254 {

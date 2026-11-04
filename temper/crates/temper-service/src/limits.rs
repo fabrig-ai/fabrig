@@ -181,6 +181,7 @@ const FORGE: forge::Limits = forge::Limits {
     facts: 16,
     // Adoptions in flight, from the engine forge world fixture.
     adoptions: 2,
+    makings: 32,
     // Product capacity: keyed adoption answers retained for the request retention.
     applications: 32,
     // protocol/sign-in.md, 5: small permits 64 durable member bindings.
@@ -580,5 +581,39 @@ pub(crate) fn merge_jobs(jig: &jig_protocol_config::Limits) -> Box<[jig_domain_h
         Box::new([bound])
     } else {
         Box::new([])
+    }
+}
+
+#[cfg(test)]
+mod making_tests {
+    use super::*;
+    #[test]
+    fn making_limits_default_to_thirty_two() {
+        for selected in [Profile::Small, Profile::Standard] {
+            assert_eq!(profile(selected).forge.makings, 32);
+        }
+    }
+    #[test]
+    fn making_limits_parse_at_both_bounds() {
+        let mut limits = profile(Profile::Small);
+        for count in [1, 64] {
+            assert_eq!(apply(&mut limits, b"forge.makings", count), Ok(()));
+            assert_eq!(u64::from(limits.forge.makings), count);
+            assert!(forge::valid(&limits.forge));
+        }
+    }
+    #[test]
+    fn making_limits_refuse_both_sides_outside_the_bound() {
+        let mut limits = profile(Profile::Small);
+        let before = limits.forge.makings;
+        for count in [0, 65, u64::MAX] {
+            assert_eq!(apply(&mut limits, b"forge.makings", count), Err(Refused::Range));
+            assert_eq!(limits.forge.makings, before);
+        }
+        for count in [0, 65] {
+            let mut limits = limits.forge;
+            limits.makings = count;
+            assert!(!forge::valid(&limits));
+        }
     }
 }

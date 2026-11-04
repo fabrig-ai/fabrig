@@ -558,6 +558,7 @@ pub struct Row {
     pub app: Option<AppWay>,
     pub web: Option<Box<[u8]>>,
     pub repositories: Box<[AdoptedRow]>,
+    pub makings: Box<[crate::RepositoryMaking]>,
     pub owned: Option<Owned>,
     pub admin: bool,
     pub ended_stop: Option<AdminStop>,
@@ -579,6 +580,8 @@ pub enum ApplicationOutcome {
     Adopted(AdoptedRepository),
     CoreRefused(jig_domain_people::Refusal),
     ForgeRefused(AdoptionRefusal),
+    MakeKept,
+    MakeRefused(crate::MakeRefusal),
 }
 /// The repository facts shown by the adoption's terminal (client/README.md, 4.6).
 #[derive(Clone, PartialEq, Eq, Debug)]
@@ -1107,6 +1110,7 @@ pub enum Stored {
     Playground(Playground),
     Tier(TierRow),
     Verification(Verification),
+    Making(crate::RepositoryMaking),
 }
 /// A bounded connector payload awaiting an authority holder's decision.
 #[derive(Clone, PartialEq, Eq, Hash, Debug)]
@@ -1147,6 +1151,7 @@ pub enum Key {
     Playground,
     Tier { repository: skein_forge::api::Repository, tier: Box<[u8]> },
     Verification { repository: skein_forge::api::Repository, commit: skein_forge::api::Commit },
+    Making(crate::MakingKey),
 }
 /// A completed phase of the connector's restart contract.
 #[derive(Clone, Copy, PartialEq, Eq, Debug)]
