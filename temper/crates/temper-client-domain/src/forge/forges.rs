@@ -35,6 +35,17 @@ pub enum Step {
     Run,
 }
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
+pub enum Binary {
+    Forgejo,
+    Runner,
+}
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+pub struct Fetched {
+    pub binary: Binary,
+    pub done: u64,
+    pub total: Option<u64>,
+}
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
 pub enum Offer {
     NotOffered,
     NotUnderTheBox,
@@ -130,6 +141,8 @@ pub struct Row {
     pub kind: Kind,
     pub mode: Mode,
     pub connection: Connection,
+    /// Only at Fetch, with a positive total no smaller than done when known.
+    pub fetched: Option<Fetched>,
     pub offer: Offer,
     pub first: Option<First>,
     pub installations: Box<[Installation]>,

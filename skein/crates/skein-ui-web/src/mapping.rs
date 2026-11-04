@@ -1,6 +1,6 @@
 //! The default semantic tree mapping (ui-web.md, 6).
 
-use skein_ui::{EntryKind, Made, Modifier, Role, Run, Shortcut, Source, State, TextRun};
+use skein_ui::{EntryKind, Fraction, Made, Modifier, Role, Run, Shortcut, Source, State, TextRun};
 
 use crate::{
     Look,
@@ -133,6 +133,12 @@ fn core_element(made: &Made, look: &Look<'_>, prefix: &[u8], primary: Primary) -
         if !text.is_empty() {
             e.set("aria-valuetext", &text);
         }
+        if let Some(fraction) = a.fraction {
+            e.set("aria-valuemin", "0");
+            e.set("aria-valuemax", &fraction.total.to_string());
+            e.set("aria-valuenow", &fraction.done.to_string());
+            e.set("data-progress", &percent(fraction).to_string());
+        }
     }
     if a.role == Role::Choice || a.role == Role::Check || (a.role == Role::TextField && a.name.is_some()) {
         return labelled(e, made);
@@ -155,6 +161,14 @@ fn core_element(made: &Made, look: &Look<'_>, prefix: &[u8], primary: Primary) -
         return pair;
     }
     e
+}
+
+fn percent(fraction: Fraction) -> u128 {
+    u128::from(fraction.done)
+        .checked_mul(100)
+        .expect("a u64 times 100 fits u128")
+        .checked_div(u128::from(fraction.total))
+        .expect("a fraction's total is above zero")
 }
 
 fn labelled(mut e: Element, made: &Made) -> Element {

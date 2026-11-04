@@ -137,3 +137,28 @@ fn start_kind_and_remove_parse_strictly() {
 fn a_bare_start_still_names_todays_group() {
     assert_eq!(pipe::command(b"start 3\n"), Command::Start(3));
 }
+
+#[test]
+fn fetched_lines_have_the_wire_spelling() {
+    for (line, expected) in [
+        (
+            b"fetched forgejo 1048576 of 122057320 bytes\n".as_slice(),
+            b"fetched 3 forgejo 1048576 122057320\n".as_slice(),
+        ),
+        (b"fetched runner 1048576 bytes\n", b"fetched 3 runner 1048576 none\n"),
+    ] {
+        let fetched = temper_forge_setup::fetch::Fetched::read(line).unwrap();
+        assert_eq!(pipe::fetched(3, fetched).as_ref(), expected);
+    }
+}
+#[test]
+fn the_longest_fetched_line_fits_the_least_line_bound() {
+    // protocol/setup.md, 7.1: box.line_bytes is at least 64.
+    const LEAST_LINE_BYTES: usize = 64;
+    let mut fetched = temper_forge_setup::fetch::Fetched::read(b"fetched forgejo 1 of 1 bytes").unwrap();
+    fetched.done = u64::MAX;
+    fetched.total = Some(u64::MAX);
+    let line = pipe::fetched(u16::MAX, fetched);
+    assert!(line.len() <= LEAST_LINE_BYTES);
+    assert_eq!(line.as_ref(), b"fetched 65535 forgejo 18446744073709551615 18446744073709551615\n");
+}

@@ -1858,3 +1858,37 @@ fn restored_owned_group_survives_serve_abort() {
     rig.closed(2);
     assert_eq!(&*rig.effects(), &[Order::Close { step: 2 }, Order::Signal { step: 0 }], "Forgejo stays live");
 }
+
+fn fetching_rig(recorded: &[u16]) -> Rig {
+    let placed = crate::layout::flatten(super::fixtures::fetching_steps());
+    let mut rig = Rig {
+        machine: crate::machine::Machine::new(&limits::small(), &placed).unwrap(),
+        now: skein_lib::Time::ZERO,
+        out: skein_lib::Queue::uncapped(),
+    };
+    rig.machine.start(rig.now, recorded, &mut rig.out);
+    rig.started(3); // The group's three steps precede serve.
+    rig.effects();
+    rig
+}
+#[test]
+fn a_running_fetch_of_a_starting_group_is_relayed() {
+    let mut rig = fetching_rig(&[]);
+    rig.input(Input::Ask { forge: 3 });
+    rig.started(0);
+    assert_eq!(rig.machine.relay(0), crate::machine::Relay::Send);
+}
+#[test]
+fn a_running_fetch_of_a_started_group_is_unasked() {
+    let mut rig = fetching_rig(&[3]);
+    rig.started(0);
+    assert_eq!(rig.machine.relay(0), crate::machine::Relay::Unasked);
+}
+#[test]
+fn an_exited_fetch_is_not_relayed() {
+    let mut rig = fetching_rig(&[]);
+    rig.input(Input::Ask { forge: 3 });
+    rig.started(0);
+    rig.exited(0, Exit::Code(0));
+    assert_eq!(rig.machine.relay(0), crate::machine::Relay::Exited);
+}

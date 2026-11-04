@@ -212,3 +212,13 @@ fn the_glue_loads_its_sibling_module_when_init_has_no_argument() {
     let js = std::str::from_utf8(&glue.js).expect("generated JavaScript");
     assert!(js.contains("new URL('notes_bg.wasm', import.meta.url)"));
 }
+
+#[test]
+fn the_stylesheet_sets_a_progress_for_every_whole_percent() {
+    let stylesheet = std::str::from_utf8(STYLESHEET).expect("stylesheet is UTF-8");
+    for percent in 0..=100 {
+        let rule = format!("[data-progress=\"{percent}\"] {{ --skein-ui-progress: {percent}%; }}");
+        assert!(stylesheet.lines().any(|line| line == rule), "missing rule: {rule}");
+    }
+    assert_eq!(stylesheet.matches("[data-progress=").count(), 101);
+}

@@ -1,4 +1,4 @@
-use skein_ui::{Binding, Builder, Limits, NodeId, Owner, Region, Role, Run, State, Tree};
+use skein_ui::{Binding, Builder, Fraction, Limits, NodeId, Owner, Region, Role, Run, State, Tree};
 
 use skein_lib::{Queue, Token};
 
@@ -210,7 +210,8 @@ fn remaining(b: &mut Builder) {
     leaf(b, Role::Alert, b"Warning");
     b.open(Role::Progress);
     b.name(b"Progress");
-    b.text(Run::Plain, b"half");
+    b.run(Run::Plain, b"half");
+    b.fraction(Fraction { done: 1, total: 2 });
     b.close();
     leaf(b, Role::Time, b"today");
     leaf(b, Role::Code, b"one\ntwo");
