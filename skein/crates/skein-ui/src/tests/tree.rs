@@ -492,3 +492,55 @@ fn a_placeholder_shares_the_trees_byte_bound() {
     b.name(b"Name");
     b.placeholder(b"Hint");
 }
+
+#[test]
+fn a_progress_holds_its_fraction_and_its_words() {
+    let mut b = Builder::new(&LIMITS);
+    b.open(Role::Progress);
+    b.run(Run::Plain, b"42");
+    b.run(Run::Strong, b"%");
+    let fraction = crate::Fraction { done: 42, total: 100 };
+    b.fraction(fraction);
+    b.close();
+    let tree = b.finish();
+    let node = tree.get(0).expect("progress exists");
+    assert_eq!(node.fraction, Some(fraction));
+    assert_eq!(crate::Made::of(node).attribute.fraction, Some(fraction));
+    assert_eq!(node.text.len(), 2);
+    assert_eq!(node.text.get(0).expect("first run").text.as_ref(), b"42");
+    assert_eq!(node.text.get(1).expect("second run").text.as_ref(), b"%");
+}
+
+#[test]
+#[should_panic(expected = "fractions belong to progress")]
+fn a_fraction_off_a_progress_is_an_assertion() {
+    let mut b = Builder::new(&LIMITS);
+    b.open(Role::Text);
+    b.fraction(crate::Fraction { done: 1, total: 2 });
+}
+
+#[test]
+#[should_panic(expected = "a fraction's done is at most its total")]
+fn a_fraction_done_past_total_is_an_assertion() {
+    let mut b = Builder::new(&LIMITS);
+    b.open(Role::Progress);
+    b.fraction(crate::Fraction { done: 3, total: 2 });
+}
+
+#[test]
+#[should_panic(expected = "a fraction's total is above zero")]
+fn a_fraction_with_zero_total_is_an_assertion() {
+    let mut b = Builder::new(&LIMITS);
+    b.open(Role::Progress);
+    b.fraction(crate::Fraction { done: 0, total: 0 });
+}
+
+#[test]
+#[should_panic(expected = "a fraction has its words")]
+fn a_fraction_without_its_own_runs_is_an_assertion() {
+    let mut b = Builder::new(&LIMITS);
+    b.open(Role::Progress);
+    b.fraction(crate::Fraction { done: 1, total: 2 });
+    b.text(Run::Plain, b"half");
+    b.close();
+}
