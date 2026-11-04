@@ -29,7 +29,7 @@ with open(os.environ["CALLS"], "a") as output:
         key: os.environ.get(key) for key in (
             "NEXTEST_DOUBLE_SPAWN", "TEMPER_BUNDLE", "SKEIN_UI_EXAMPLE_BUNDLE",
             "JIG_TEST_BUNDLE", "TEMPER_TEST_BUNDLE", "TEMPER_TEST_CLAUDE")}}) + "\\n")
-if name == "cargo":
+if name == "cargo" and args[:1] == ["metadata"]:
     if args != ["metadata", "--format-version", "1", "--no-deps"]:
         sys.exit(91)
     if os.environ.get("BAD_METADATA"):
@@ -40,8 +40,13 @@ if name == "cargo":
 if name == "df":
     print("Avail\\n80000000000")
     sys.exit(0)
-if name == "heavy":
-    print("heavy: task fixture log /fixture/heavy.log", flush=True)
+if name in ("wrap", "cargo", "cc"):
+    if name == "wrap":
+        if args[:2] == ["--flag", "one"]:
+            args = args[2:]
+    else:
+        args = [name, *args]
+    print("wrap: task fixture log /fixture/wrap.log", flush=True)
     if args[1] == "nextest":
         if args[2] == "list":
             if os.environ.get("BAD_LISTING"):
@@ -62,7 +67,7 @@ if name == "heavy":
                     "fixture::suite": {"package-name": "fixture", "binary-id": "fixture::suite",
                                        "testcases": tests},
                     "fixture::skipped": {"status": "skipped"}}}, indent=2))
-            print("heavy: task fixture exit log /fixture/list.log", flush=True)
+            print("wrap: task fixture exit log /fixture/list.log", flush=True)
             sys.exit(int(os.environ.get("NEXTEST_EXIT", "0")))
         if "--tool-config-file" in args:
             import tomllib
@@ -111,7 +116,7 @@ class RunnerTests(unittest.TestCase):
         self.bin.mkdir()
         self.target = self.root / "relocated artifacts"
         (self.target / "debug").mkdir(parents=True)
-        for path in [*(self.bin / name for name in ("cargo", "heavy", "df")),
+        for path in [*(self.bin / name for name in ("cargo", "cc", "wrap", "df")),
                      self.target / "debug/skein-ui-bundle"]:
             path.write_text(FAKE)
             path.chmod(0o700)
@@ -121,8 +126,9 @@ class RunnerTests(unittest.TestCase):
                         TEMPER_BUNDLE="none", NEXTEST_DOUBLE_SPAWN="1")
         for key in ("FAIL_BUILD", "NEXTEST_EXIT", "BUNDLE_EXIT", "BAD_METADATA", "METADATA_EXIT",
                     "SKEIN_UI_EXAMPLE_BUNDLE", "JIG_TEST_BUNDLE", "TEMPER_TEST_BUNDLE",
-                    "BAD_LISTING", "MISMATCH"):
+                    "BAD_LISTING", "MISMATCH", "TIERS_WRAPPER", "TIERS_DISK_BYTES"):
             self.env.pop(key, None)
+        self.env.update(TIERS_WRAPPER="wrap", TIERS_DISK_BYTES="80000000000")
 
     def invoke(self, *arguments, **env):
         self.calls.unlink(missing_ok=True)
@@ -138,7 +144,7 @@ class RunnerTests(unittest.TestCase):
                                  '[binaries]\nnew-tier-newtree = []\n')
         result, calls = self.invoke("newtree", "new-tier", "--", "-E", "test(=one)")
         self.assertEqual(result.returncode, 0, result.stderr)
-        self.assertEqual([call['name'] for call in calls], ["df", "heavy"])
+        self.assertEqual([call['name'] for call in calls], ["df", "wrap"])
         self.assertEqual(calls[-1]['args'], ["cargo", "nextest", "run", "-p", "a-package", "-p", "z-package", "--profile",
                                             "new-tier-newtree", "--no-fail-fast", "-E", "test(=one)"])
         result, calls = self.invoke("skein", "browser")
@@ -151,10 +157,19 @@ class RunnerTests(unittest.TestCase):
             with self.subTest(tree=tree, tier=tier):
                 result, calls = self.invoke(tree, tier)
                 self.assertEqual(result.returncode, 0, result.stderr)
-                self.assertEqual([call['name'] for call in calls], ["df", "heavy"])
+                self.assertEqual([call['name'] for call in calls], ["df", "wrap"])
                 self.assertEqual(calls[-1]['env']['NEXTEST_DOUBLE_SPAWN'], "0")
-                self.assertIn("/fixture/heavy.log", result.stdout)
+                self.assertIn("/fixture/wrap.log", result.stdout)
                 self.assertIn("Summary: fixture tests", result.stdout)
+
+    def test_qa_temper_has_native_prerequisites_without_bundle(self):
+        result, calls = self.invoke("temper", "qa")
+        self.assertEqual(result.returncode, 0, result.stderr)
+        self.assertEqual([call['name'] for call in calls], ["df", "wrap"] * 3)
+        self.assertEqual(calls[1]['args'], ["cargo", "build", "-p", "temper", "--bin", "temper"])
+        self.assertEqual(calls[3]['args'], ["cargo", "build", "-p", "temper-fake-claude", "--bin", "fake-claude"])
+        self.assertEqual(calls[5]['args'][:3], ["cargo", "nextest", "run"])
+        self.assertIsNone(calls[5]['env']['TEMPER_TEST_BUNDLE'])
 
     def test_all_bundle_prerequisites(self):
         cases = (
@@ -171,23 +186,18 @@ class RunnerTests(unittest.TestCase):
               "--files", "jig/testing/jig-client-test-shell-web/files",
               "--noscript", "jig needs WebAssembly and scripts."]),
         )
-        for tier in ("browser", "qa"):
-            shell = "temper/crates/temper-client-shell-web"
-            cases += (("temper", tier, "temper-client-shell-web", "temper", "TEMPER_TEST_BUNDLE",
-                       "temper-bundle", ["--features", "loopback-navigation"],
-                       ["--stylesheet", f"{shell}/temper.css", "--stylesheet", f"{shell}/task-pages.css",
-                        "--files", f"{shell}/files", "--noscript", "temper needs WebAssembly and scripts."]),)
+        shell = "temper/crates/temper-client-shell-web"
+        cases += (("temper", "browser", "temper-client-shell-web", "temper", "TEMPER_TEST_BUNDLE",
+                   "temper-bundle", ["--features", "loopback-navigation"],
+                   ["--stylesheet", f"{shell}/temper.css", "--stylesheet", f"{shell}/task-pages.css",
+                    "--files", f"{shell}/files", "--noscript", "temper needs WebAssembly and scripts."]),)
         for tree, tier, package, server, variable, out, features, options in cases:
             with self.subTest(tree=tree, tier=tier):
                 result, calls = self.invoke(tree, tier, "--", "-E", "test(=one)", **{variable: "/stale"})
                 self.assertEqual(result.returncode, 0, result.stderr)
-                if tier == "qa":
-                    self.assertEqual(calls[9]['args'], ["cargo", "build", "-p", "temper-fake-claude",
-                                                       "--bin", "fake-claude"])
-                    del calls[8:10]
                 self.assertEqual([call['name'] for call in calls],
-                                 ["cargo", "df", "heavy", "df", "heavy", "skein-ui-bundle",
-                                  "df", "heavy", "df", "heavy"])
+                                 ["cargo", "df", "wrap", "df", "wrap", "skein-ui-bundle",
+                                  "df", "wrap", "df", "wrap"])
                 self.assertEqual(calls[2]['args'], ["cargo", "build", "--target", "wasm32-unknown-unknown",
                                                    *features, "-p", package])
                 self.assertEqual(calls[4]['args'], ["cargo", "build", "-p", "skein-ui-bundle"])
@@ -217,9 +227,9 @@ class RunnerTests(unittest.TestCase):
                 result, calls = self.invoke("skein", "browser", **env)
                 self.assertEqual(result.returncode, 2)
                 self.assertIn(f"failed step {step}", result.stderr)
-                heavy = [call for call in calls if call['name'] == "heavy"]
-                self.assertEqual(len(heavy), count)
-                self.assertFalse(any('nextest' in call['args'] for call in heavy))
+                wrap = [call for call in calls if call['name'] == "wrap"]
+                self.assertEqual(len(wrap), count)
+                self.assertFalse(any('nextest' in call['args'] for call in wrap))
 
     def test_native_binary_order_and_failure_stop_later_steps(self):
         self.packages.write_text(self.packages.read_text().replace(
@@ -227,7 +237,7 @@ class RunnerTests(unittest.TestCase):
             '{package="last", bin="two"}]'))
         result, calls = self.invoke("jig", "process")
         self.assertEqual(result.returncode, 0, result.stderr)
-        self.assertEqual([call['name'] for call in calls], ["df", "heavy"] * 3)
+        self.assertEqual([call['name'] for call in calls], ["df", "wrap"] * 3)
         self.assertEqual(calls[1]['args'], ["cargo", "build", "-p", "first", "--bin", "one"])
         self.assertEqual(calls[3]['args'], ["cargo", "build", "-p", "last", "--bin", "two"])
         self.assertEqual(calls[5]['args'][:3], ["cargo", "nextest", "run"])
@@ -271,13 +281,13 @@ class RunnerTests(unittest.TestCase):
             'process-jig = [{package="adapter",bin="fake-claude",env="TEMPER_TEST_CLAUDE"}]'))
         result, calls = self.invoke("jig", "process", TEMPER_TEST_CLAUDE="/stale")
         self.assertEqual(result.returncode, 0, result.stderr)
-        self.assertEqual([call['name'] for call in calls], ["cargo", "df", "heavy", "df", "heavy"])
+        self.assertEqual([call['name'] for call in calls], ["cargo", "df", "wrap", "df", "wrap"])
         self.assertEqual(calls[2]['args'], ["cargo", "build", "-p", "adapter", "--bin", "fake-claude"])
         self.assertEqual(calls[2]['env']['TEMPER_TEST_CLAUDE'], "/stale")
         self.assertEqual(calls[-1]['env']['TEMPER_TEST_CLAUDE'], str(self.target / "debug/fake-claude"))
         result, calls = self.invoke("--verify", "jig", "process", TEMPER_TEST_CLAUDE="/stale")
         self.assertEqual(result.returncode, 0, result.stderr)
-        self.assertEqual([call['name'] for call in calls], ["df", "heavy", "df", "heavy"])
+        self.assertEqual([call['name'] for call in calls], ["df", "wrap", "df", "wrap"])
 
     def test_nextest_exit_is_preserved(self):
         for code in (4, 100):
@@ -313,7 +323,7 @@ class RunnerTests(unittest.TestCase):
     def test_verify_lists_both_selections_without_prerequisites(self):
         result, calls = self.invoke("--verify", "temper", "qa")
         self.assertEqual(result.returncode, 0, result.stderr)
-        self.assertEqual([call['name'] for call in calls], ["df", "heavy", "df", "heavy"])
+        self.assertEqual([call['name'] for call in calls], ["df", "wrap", "df", "wrap"])
         prefix = ["cargo", "nextest", "list"]
         suffix = ["--profile", "qa-temper", "--message-format", "json"]
         self.assertEqual(calls[1]['args'], [*prefix, "--workspace", *suffix])
@@ -335,11 +345,11 @@ class RunnerTests(unittest.TestCase):
     def test_verify_all_checks_every_configured_pair_even_after_mismatch(self):
         result, calls = self.invoke("--verify-all", MISMATCH="1")
         self.assertEqual(result.returncode, 1, result.stderr)
-        heavy = [call for call in calls if call['name'] == "heavy"]
+        wrap = [call for call in calls if call['name'] == "wrap"]
         profiles = sorted(name for name in MODULE['tomllib'].loads(self.packages.read_text())
                           if name != 'binaries')
-        self.assertEqual(len(heavy), 2 * len(profiles))
-        self.assertEqual([call['args'][call['args'].index('--profile') + 1] for call in heavy],
+        self.assertEqual(len(wrap), 2 * len(profiles))
+        self.assertEqual([call['args'][call['args'].index('--profile') + 1] for call in wrap],
                          [profile for profile in profiles for _ in range(2)])
         self.packages.write_text('qa-smith = ["smith"]')
         result, calls = self.invoke("--verify-all")
@@ -364,7 +374,7 @@ class RunnerTests(unittest.TestCase):
         directory = self.root / 'CPU results'
         result, calls = self.invoke('--cpu', str(directory), 'smith', 'qa')
         self.assertEqual(result.returncode, 0, result.stderr + result.stdout)
-        self.assertEqual([call['name'] for call in calls], ['cargo', 'df', 'heavy', 'df', 'heavy'])
+        self.assertEqual([call['name'] for call in calls], ['cargo', 'df', 'wrap', 'df', 'wrap'])
         self.assertEqual(calls[2]['args'], ['cc', '-std=c11', '-O2', '-static', '-Wall', '-Wextra', '-Werror',
                                           'tools/tiers/cpu-wrapper.c', '-o', str(self.target / 'tiers-cpu-wrapper')])
         self.assertEqual(calls[-1]['args'], ['cargo', 'nextest', 'run', '--config-file', str(directory / 'repository.toml'),
@@ -386,7 +396,7 @@ class RunnerTests(unittest.TestCase):
         directory = self.root / 'CPU with native'
         result, calls = self.invoke('--cpu', str(directory), 'smith', 'qa', TEMPER_TEST_CLAUDE='/stale')
         self.assertEqual(result.returncode, 0, result.stderr + result.stdout)
-        self.assertEqual([call['name'] for call in calls], ['cargo', 'df', 'heavy', 'df', 'heavy', 'df', 'heavy'])
+        self.assertEqual([call['name'] for call in calls], ['cargo', 'df', 'wrap', 'df', 'wrap', 'df', 'wrap'])
         self.assertEqual(calls[2]['args'], ['cargo', 'build', '-p', 'adapter', '--bin', 'fake-claude'])
         self.assertEqual(calls[4]['args'][0], 'cc')
         self.assertEqual(calls[6]['args'][:3], ['cargo', 'nextest', 'run'])
@@ -395,12 +405,12 @@ class RunnerTests(unittest.TestCase):
             self.assertEqual(call['env']['TEMPER_TEST_CLAUDE'], str(self.target / 'debug/fake-claude'))
         result, calls = self.invoke('--cpu', str(self.root / 'native-failure'), 'smith', 'qa', FAIL_BUILD='adapter')
         self.assertEqual(result.returncode, 2, result.stderr)
-        self.assertEqual([call['name'] for call in calls], ['cargo', 'df', 'heavy'])
+        self.assertEqual([call['name'] for call in calls], ['cargo', 'df', 'wrap'])
         result, calls = self.invoke('--cpu', str(self.root / 'wrapper-failure'), 'smith', 'qa',
                                     FAIL_BUILD='tools/tiers/cpu-wrapper.c')
         self.assertEqual(result.returncode, 2, result.stderr)
         self.assertIn('failed step CPU wrapper: exit 19', result.stderr)
-        self.assertEqual([call['name'] for call in calls], ['cargo', 'df', 'heavy', 'df', 'heavy'])
+        self.assertEqual([call['name'] for call in calls], ['cargo', 'df', 'wrap', 'df', 'wrap'])
 
     def test_verify_all_validates_budgets_before_any_command(self):
         path = self.root / 'tools/tiers/budgets.toml'
@@ -416,9 +426,62 @@ class RunnerTests(unittest.TestCase):
         self.assertEqual(result.returncode, 0, result.stderr)
         self.assertEqual(len(calls), 2)
 
-    def test_disk_wait_before_heavy(self):
+    def test_no_settings_run_plain_commands(self):
+        self.env.pop("TIERS_WRAPPER")
+        self.env.pop("TIERS_DISK_BYTES")
+        cases = (("smith", "qa"), ("skein", "browser"), ("--verify", "smith", "qa"),
+                 ("--verify-all",), ("--cpu", str(self.root / "plain CPU"), "smith", "qa"))
+        for arguments in cases:
+            with self.subTest(arguments=arguments):
+                result, calls = self.invoke(*arguments)
+                self.assertEqual(result.returncode, 0, result.stderr)
+                self.assertFalse(any(call['name'] in ("wrap", "df") for call in calls))
+                if "--verify" not in arguments and "--verify-all" not in arguments:
+                    self.assertEqual(calls[-1]['name'], "cargo")
+                    self.assertEqual(calls[-1]['args'][:2], ["nextest", "run"])
+                if "--cpu" in arguments:
+                    self.assertEqual([call['name'] for call in calls], ["cargo", "cc", "cargo"])
+
+    def test_wrapper_prefixes_every_command(self):
+        for index, prefix in enumerate((None, "", "wrap", "wrap --flag one")):
+            if prefix is None:
+                self.env.pop("TIERS_WRAPPER", None)
+            else:
+                self.env["TIERS_WRAPPER"] = prefix
+            for arguments in (("skein", "browser"), ("--verify", "smith", "qa"),
+                              ("--verify-all",),
+                              ("--cpu", str(self.root / f"prefix CPU {index}"), "smith", "qa")):
+                with self.subTest(prefix=prefix, arguments=arguments):
+                    result, calls = self.invoke(*arguments)
+                    self.assertEqual(result.returncode, 0, result.stderr)
+                    commands = []
+                    for call in calls:
+                        if call['name'] in ("df", "skein-ui-bundle"):
+                            continue
+                        if call['name'] == "cargo" and call['args'][:1] == ["metadata"]:
+                            self.assertEqual(call['args'], ["metadata", "--format-version", "1", "--no-deps"])
+                            continue
+                        if prefix:
+                            self.assertEqual(call['name'], "wrap")
+                            flags = prefix.split()[1:]
+                            self.assertEqual(call['args'][:len(flags)], flags)
+                            commands.append(call['args'][len(flags):])
+                        else:
+                            self.assertIn(call['name'], ("cargo", "cc"))
+                            commands.append([call['name'], *call['args']])
+                    self.assertTrue(commands)
+                    self.assertEqual(sum(call['name'] == "df" for call in calls), len(commands))
+                    if "--cpu" in arguments:
+                        self.assertEqual(commands[0][:1], ["cc"])
+                        self.assertEqual(commands[-1][:4], ["cargo", "nextest", "run", "--config-file"])
+                        self.assertEqual(commands[-1][5], "--tool-config-file")
+                    if arguments == ("skein", "browser"):
+                        self.assertEqual(sum(call['name'] == "skein-ui-bundle" for call in calls), 1)
+
+    def test_disk_wait_on_and_off(self):
         events = []
-        available = iter((79_999_999_999, 1, 80_000_000_000))
+        self.env["TIERS_DISK_BYTES"] = "42"
+        available = iter((41, 1, 42))
 
         def fake_run(command, **kwargs):
             events.append(command)
@@ -432,18 +495,42 @@ class RunnerTests(unittest.TestCase):
         output = io.StringIO()
         with mock.patch.object(subprocess, "run", side_effect=fake_run), \
                 mock.patch.object(time, "sleep", side_effect=sleep), contextlib.redirect_stdout(output):
-            self.assertEqual(MODULE['step']("fixture", ["heavy", "cargo", "check"], self.env), 0)
+            self.assertEqual(MODULE['step']("fixture", ["cargo", "check"], self.env), 0)
         self.assertEqual(events, [["df", "-B1", "--output=avail", "/"], ["sleep", 60],
                                   ["df", "-B1", "--output=avail", "/"], ["sleep", 60],
-                                  ["df", "-B1", "--output=avail", "/"], ["heavy", "cargo", "check"]])
+                                  ["df", "-B1", "--output=avail", "/"], ["wrap", "cargo", "check"]])
         self.assertEqual(output.getvalue().count("waiting for disk"), 2)
+        self.assertIn("need 42;", output.getvalue())
+        for minimum in (None, "", "0"):
+            if minimum is None:
+                self.env.pop("TIERS_DISK_BYTES", None)
+            else:
+                self.env["TIERS_DISK_BYTES"] = minimum
+            for arguments in (("smith", "qa"), ("--verify", "smith", "qa")):
+                result, calls = self.invoke(*arguments)
+                self.assertEqual(result.returncode, 0, result.stderr)
+                self.assertEqual(sum(call['name'] == "df" for call in calls),
+                                 (2 if "--verify" in arguments else 1) if minimum == "0" else 0)
+        for minimum in ("plenty", "-1", "1.5", " 1", "١"):
+            for arguments, step in ((("smith", "qa"), "nextest"),
+                                    (("--verify", "smith", "qa"), "list qa-smith workspace"),
+                                    (("--verify-all",), "list browser-jig workspace"),
+                                    (("--cpu", str(self.root / "bad disk CPU"), "smith", "qa"), "CPU wrapper")):
+                with self.subTest(minimum=minimum, arguments=arguments):
+                    result, calls = self.invoke(*arguments, TIERS_DISK_BYTES=minimum)
+                    self.assertEqual(result.returncode, 2, result.stderr)
+                    self.assertIn(f"failed step {step}", result.stderr)
+                    self.assertIn("TIERS_DISK_BYTES", result.stderr)
+                    self.assertEqual([call['args'] for call in calls],
+                                     [["metadata", "--format-version", "1", "--no-deps"]]
+                                     if "--cpu" in arguments else [])
 
     def test_disk_and_launch_errors_name_the_step(self):
         for error in (FileNotFoundError("missing command"),
                       subprocess.CalledProcessError(1, ["df"])):
             with mock.patch.object(subprocess, "run", side_effect=error):
                 with self.assertRaisesRegex(MODULE['FailedStep'], "fixture"):
-                    MODULE['step']("fixture", ["heavy", "cargo", "check"], self.env)
+                    MODULE['step']("fixture", ["cargo", "check"], self.env)
 
 
 if __name__ == "__main__":
