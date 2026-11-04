@@ -266,6 +266,7 @@ pub fn to_root(
                         number: value.number(),
                     }),
                     w::Read::ProposalItems(value) => Some(root::ForgeRead::ProposalItems { key: value.key() }),
+                    w::Read::Deployment => None,
                     w::Read::Playground => {
                         if let (Some(row), Some(demo)) = (playground, demo) {
                             answer = Some(playground_answer(row, demo, limits));

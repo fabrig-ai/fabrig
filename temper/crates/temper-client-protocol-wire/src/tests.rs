@@ -1015,6 +1015,20 @@ fn remove_and_playground_requests_round_trip() {
     assert_eq!(crate::decode_reading(&crate::reading(&read), &limits), Some(read));
 }
 #[test]
+fn deployment_read_and_answer_round_trip() {
+    let limits = fixtures::limits();
+    let read = v1::Reading::new(&limits, v1::ReadingParts { read: v1::Read::Deployment }).unwrap();
+    let bytes = crate::reading(&read);
+    assert_eq!(crate::decode_reading(&bytes, &limits), Some(read));
+    for welcome in [true, false] {
+        let answer = v1::DeploymentAnswer::new(&limits, v1::DeploymentAnswerParts { welcome }).unwrap();
+        let bytes = crate::deployment_answer(&answer);
+        assert_eq!(crate::decode_deployment_answer(&bytes, &limits), Some(answer));
+        assert_eq!(crate::decode_deployment_answer(&fixtures::trailing(&bytes), &limits), None);
+    }
+}
+
+#[test]
 fn playground_answer_round_trips_at_its_bounds() {
     let limits = fixtures::limits();
     for state in [v1::PlaygroundState::Starting, v1::PlaygroundState::Running, v1::PlaygroundState::Resetting] {
