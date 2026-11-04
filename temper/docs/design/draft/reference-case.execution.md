@@ -21,7 +21,7 @@ are named as theirs.
   here and the draft sections it cites. Shared design is kept to the
   least: no milestone designs ahead for another, and where several
   touch one section, each adds its own part (section 4).
-- **Done when it lands on main;** its walk, a QA brief of the case's
+- **Done when it lands on main;** its walk, a story of the case's
   steps it makes possible through `temper ctl` alone, follows where
   there is something to walk, blocks nothing, and sends its findings
   back as fixes.
@@ -54,12 +54,12 @@ are named as theirs.
 5. **Its walk, where there is something to walk:** a rung of the
    ladder, which blocks nothing. Whether what landed makes a story
    walkable through `temper ctl` is judged as it lands; if not yet, the
-   walk folds into a later milestone's. A brief is in a rung's form
+   walk folds into a later milestone's. A story is in a rung's form
    (`v0.1.0.md`, section 3): the case's steps the milestone makes
    possible, with the case's names, on the case's backends; a step that
    needs a later milestone is walked in its plainest form or left out,
-   and the brief says which. Its findings go back as fixes. Walks grow,
-   each brief extending the earlier ones, so M10's is the case.
+   and the story says which. Its findings go back as fixes. Walks grow,
+   each story extending the earlier ones, so M10's is the case.
 
 ## 3. The milestones
 
@@ -377,7 +377,7 @@ section 14 it adds.
   pages are rung W's.
 - **After the case:** fabrig's own drafts carried out by temper, on
   fabrig's forge, GitHub, a rung behind (`v0.1.0.md`, 2.2 and section 6).
-  It gets a brief of its own once M10 passes.
+  It gets a story of its own once M10 passes.
 
 ## 7. Open questions
 
