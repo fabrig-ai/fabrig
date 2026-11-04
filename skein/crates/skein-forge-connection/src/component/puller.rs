@@ -1,5 +1,5 @@
 //! Puller work shares the forge's own connection (forge-connection.md, 6.5).
-use super::{Common, ForgeEntry, OwnPlan};
+use super::{Base, Common, GitHubForge, OwnPlan};
 use crate::{
     Account, Change, Event, Fact, Limits, Stopped,
     hooks::Hinted,
@@ -25,103 +25,109 @@ impl Common {
             inner: l.inner,
         }
     }
-    pub(super) fn github_log_active(entry: &ForgeEntry) -> bool {
-        match &entry.github().expect("GitHub").plan {
+    pub(super) fn github_log_active(gh: &GitHubForge) -> bool {
+        match &gh.plan {
             Some(OwnPlan::GitHubLogPage(_) | OwnPlan::GitHubLogDelivery(_)) => true,
             Some(OwnPlan::GitHubInstallations(_) | OwnPlan::GitHubMinting(_) | OwnPlan::GitHubIdentity(_)) | None => {
                 false
             }
         }
     }
-    pub(super) fn github_log_selected(entry: &ForgeEntry) -> bool {
-        if !super::ready(entry.base.start) {
+    pub(super) fn github_log_selected(base: &Base, gh: &GitHubForge) -> bool {
+        if !super::ready(base.start) {
             return false;
         }
-        let gh = &entry.github().expect("GitHub").state;
-        let reading = match gh.read {
+        let data = &gh.state;
+        let reading = match data.read {
             Read::Reading(_) | Read::Changes(_) => true,
             Read::Idle | Read::Waiting { .. } => false,
         };
-        let working = match gh.work {
+        let working = match data.work {
             Work::Minting { .. } | Work::Identity { .. } => true,
             Work::Idle | Work::Waiting { .. } => false,
         };
-        !reading && !working && gh.puller.wants_request()
+        !reading && !working && data.puller.wants_request()
     }
     pub(super) fn github_log_local(
         &mut self,
-        entry: &mut ForgeEntry,
+        base: &mut Base,
+        gh: &mut GitHubForge,
         env: &Env<Limits>,
         up: &mut Queue<Event>,
     ) -> bool {
-        let forge = entry.base.forge.number;
-        let gh = &mut entry.github_mut().expect("GitHub").state;
-        match gh.puller.local(env) {
+        let forge = base.forge.number;
+        let data = &mut gh.state;
+        match data.puller.local(env) {
             Action::Idle => false,
             Action::Progress => true,
             Action::Installations => {
-                gh.reread = true;
+                data.reread = true;
                 true
             }
             Action::Gap { reread } => {
-                gh.reread |= reread;
+                data.reread |= reread;
                 up.push(Event::Fact { forge, fact: Fact::Gap });
                 true
             }
             Action::Hint(hint) => {
-                up.push(Event::Hint(Hinted { connection: gh.puller.source.expect("delivery source"), hint }));
+                up.push(Event::Hint(Hinted { connection: data.puller.source.expect("delivery source"), hint }));
                 self.wake = Some(env.now);
                 false
             }
         }
     }
-    pub(super) fn github_log_failed(entry: &mut ForgeEntry, env: &Env<Limits>) {
-        let delivery = match &entry.github().expect("GitHub").plan {
+    pub(super) fn github_log_failed(gh: &mut GitHubForge, env: &Env<Limits>) {
+        let delivery = match &gh.plan {
             Some(OwnPlan::GitHubLogDelivery(_)) => true,
             Some(OwnPlan::GitHubLogPage(_)) => false,
             Some(OwnPlan::GitHubInstallations(_) | OwnPlan::GitHubMinting(_) | OwnPlan::GitHubIdentity(_)) | None => {
                 unreachable!("active log read")
             }
         };
-        let gh = &mut entry.github_mut().expect("GitHub").state;
+        let data = &mut gh.state;
         if delivery {
-            gh.puller.reading();
+            data.puller.reading();
         } else {
-            gh.puller.finish(env, false);
+            data.puller.finish(env, false);
         }
-        entry.github_mut().expect("GitHub").plan = None;
+        gh.plan = None;
     }
-    pub(super) fn github_log_error(entry: &mut ForgeEntry, env: &Env<Limits>, up: &mut Queue<Event>) {
-        let gh = &mut entry.github_mut().expect("GitHub").state;
-        if gh.status == Some(401) {
-            Self::github_stop(entry, Stopped::KeyRefused, up);
+    pub(super) fn github_log_error(base: &mut Base, gh: &mut GitHubForge, env: &Env<Limits>, up: &mut Queue<Event>) {
+        if gh.state.status == Some(401) {
+            Self::github_stop(base, gh, Stopped::KeyRefused, up);
         } else {
-            gh.puller.finish(env, false);
+            gh.state.puller.finish(env, false);
         }
     }
     pub(super) fn github_log_delivery(
         &mut self,
-        entry: &mut ForgeEntry,
+        base: &mut Base,
+        gh: &mut GitHubForge,
         answer: Result<github::log::Logged, api::Error>,
         up: &mut Queue<Event>,
     ) {
-        entry.github_mut().expect("GitHub").state.puller.reading();
+        gh.state.puller.reading();
         match answer {
-            Ok(logged) => self.github_logged(entry, logged, up),
+            Ok(logged) => self.github_logged(base, gh, logged, up),
             Err(_) => {
-                if entry.github().expect("GitHub").state.status == Some(401) {
-                    Self::github_stop(entry, Stopped::KeyRefused, up);
+                if gh.state.status == Some(401) {
+                    Self::github_stop(base, gh, Stopped::KeyRefused, up);
                 }
             }
         }
     }
-    pub(super) fn github_logged(&mut self, entry: &mut ForgeEntry, logged: github::log::Logged, up: &mut Queue<Event>) {
-        let forge = entry.base.forge.number;
+    pub(super) fn github_logged(
+        &mut self,
+        base: &mut Base,
+        gh: &mut GitHubForge,
+        logged: github::log::Logged,
+        up: &mut Queue<Event>,
+    ) {
+        let forge = base.forge.number;
         match &logged.delivery {
             Delivery::Installation { installation, account, change } => {
                 if *change == github::delivery::Change::Repositories {
-                    let gh = &entry.github().expect("GitHub").state;
-                    let account = match gh.rows.get(installation) {
+                    let account = match gh.state.rows.get(installation) {
                         Some(row) => row.account.clone(),
                         None => Account { id: account.id, login: account.login.clone() },
                     };
@@ -156,10 +162,8 @@ impl Common {
                     self.github_tables.drop_repository(hint.repository);
                 }
             }
-            let source = entry.base.own;
-            let gh = &mut entry.github_mut().expect("GitHub").state;
-            gh.puller.source = source;
-            gh.puller.hold(hint);
+            gh.state.puller.source = base.own;
+            gh.state.puller.hold(hint);
         }
     }
 }

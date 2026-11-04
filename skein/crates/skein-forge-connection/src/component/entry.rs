@@ -34,7 +34,6 @@ pub(crate) struct GitHubForge {
 impl ForgeEntry {
     /// A forge as it's added: its start from its access, its dialect from its kind.
     pub fn new(forge: Forge, limits: &Limits) -> Self {
-        let start = if forge.access.is_some() { initial(forge.kind, limits.start_backoff) } else { Start::Unconnected };
         let dialect = match forge.kind {
             crate::settings::Kind::Forgejo => Dialect::Forgejo { plan: None },
             crate::settings::Kind::GitHub => {
@@ -43,20 +42,7 @@ impl ForgeEntry {
                 Dialect::GitHub(Box::new(GitHubForge { state, plan: None }))
             }
         };
+        let start = if forge.access.is_some() { initial(&dialect, limits.start_backoff) } else { Start::Unconnected };
         Self { base: Base { forge, start, own: None }, dialect }
-    }
-
-    pub fn github(&self) -> Option<&GitHubForge> {
-        match &self.dialect {
-            Dialect::Forgejo { .. } => None,
-            Dialect::GitHub(github) => Some(github),
-        }
-    }
-
-    pub fn github_mut(&mut self) -> Option<&mut GitHubForge> {
-        match &mut self.dialect {
-            Dialect::Forgejo { .. } => None,
-            Dialect::GitHub(github) => Some(github),
-        }
     }
 }
