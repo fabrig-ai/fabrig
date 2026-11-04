@@ -106,41 +106,41 @@ impl Walk {
             return self.restored(visitor);
         }
         match self.stage {
-            0 | 2 => {
-                let number = if self.stage == 0 { 2 } else { 3 };
+            // Keep both projects within the shipped client's me receiving bound.
+            0 => {
                 self.calls.push(requests::ask(
                     visitor,
                     &c::Ask::MakeProject {
-                        name: c::Text::new(format!("Project {number}").into_bytes().into(), 64).expect("name"),
+                        name: c::Text::new(b"Project 2".as_slice().into(), 64).expect("name"),
                         policy: 1,
                     },
-                    u8::try_from(150 + number).expect("key"),
+                    152,
                 ));
             }
-            1 | 3 => {
+            1 => {
                 let answer = requests::answer(
                     &visitor.answers[self.calls.last().expect("create project")].as_ref().expect("HTTP response").body,
                 );
                 assert!(matches!(answer, c::Answer::Done(_)), "project made before opening: {answer:?}");
             }
-            4 if self.name == "write_private_store" => return true,
-            4..=6 => self.calls.push(requests::ask(
+            2 if self.name == "write_private_store" => return true,
+            2..=3 => self.calls.push(requests::ask(
                 visitor,
-                &c::Ask::SetVisibility { project: u32::try_from(self.stage - 3).expect("project"), public: true },
+                &c::Ask::SetVisibility { project: u32::try_from(self.stage - 1).expect("project"), public: true },
                 u8::try_from(160 + self.stage).expect("key"),
             )),
-            7 => self.calls.push(visitor.send(
+            4 => self.calls.push(visitor.send(
                 fixtures::CLIENTS,
                 Method::Get,
                 b"/jig/v1/public/0/1/1",
                 &[(b"Host", b"one.example")],
             )),
-            8 => {
+            5 => {
                 let answer = visitor.answers[self.calls.last().expect("public projects")].as_ref().expect("answer");
                 assert_eq!(answer.status, 200);
                 let projects =
                     p::PublicProjects::decode(&p::CEILINGS, &mut Reader::new(&answer.body)).expect("projects");
-                assert_eq!(projects.projects().len(), 3, "calibration exposes each real project's identifier");
+                assert_eq!(projects.projects().len(), 2, "calibration exposes each real project's identifier");
                 IDS.with(|ids| *ids.borrow_mut() = projects.projects().iter().map(p::PublicProject::project).collect());
                 return true;
             }
@@ -174,7 +174,7 @@ impl Walk {
                 }
             }
         } else {
-            assert_eq!(self.calls.len(), 7);
+            assert_eq!(self.calls.len(), 5);
             let baseline = visitor.answers[&self.calls[1]].as_ref().expect("unknown");
             assert_eq!(baseline.status, 404);
             assert!(baseline.body.is_empty());
