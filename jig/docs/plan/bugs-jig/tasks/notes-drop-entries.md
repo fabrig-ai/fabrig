@@ -3,7 +3,7 @@ id = "notes-drop-entries"
 part = "closed-project"
 kind = "feature"
 needs = []
-files = ["jig/crates/jig-domain-notes/src/drop_project.rs", "jig/tests/notes/src/referee.rs", "jig/tests/notes/tests/suite/drop_project.rs", "jig/tests/core/tests/suite/deletion.rs"]
+files = ["jig/crates/jig-domain-notes/src/drop_project.rs", "jig/crates/jig-domain-notes/src/tests.rs", "jig/tests/notes/src/referee.rs", "jig/tests/notes/tests/suite/drop_project.rs", "jig/tests/core/tests/suite/deletion.rs"]
 effort = "medium"
 minutes = 45
 +++
@@ -41,6 +41,8 @@ Acceptance:
 
 - `jig/crates/jig-domain-notes/src/drop_project.rs`: `loaded`'s `Record::Line` arm and the module
   comment, which says the entries go with their lines.
+- `jig/crates/jig-domain-notes/src/tests.rs`: `a_project_drop_retries_busy_loads_and_answers_only_after_an_empty_page`
+  matches the line's erase, then the entry's, then the next load, and asserts the entry's key.
 - `jig/tests/notes/src/referee.rs`: `before_commit`'s `DropProject` branch admits `Key::Entry` erases
   of an entry in the project's scope; its panic text.
 - `jig/tests/notes/tests/suite/drop_project.rs`: the module comment; `in_project` counts a
@@ -69,3 +71,14 @@ Acceptance:
 ## Report
 
 As the implementer's text asks, with how the test failed on the old code.
+
+## Answers
+
+2026-11-04. Extend the task to the project-drop unit expectation in
+`jig/crates/jig-domain-notes/src/tests.rs`, or hand it to another task? Extend: the acceptance's
+four packages cannot be green without it, and the fix itself is what turns it red, so the file is
+now in this spec's `files` and "Owns and may change". Only that test changes: match
+`[Erase { key }, Erase { key: entry }, Load { .. }]`, assert
+`entry == &crate::Key::Entry { name: 20 }`, and keep every other assertion, the `key` cursor checks
+included. The pushed commit `84908ab7f7` on `bugs-jig/notes-drop-entries` stands: add to it, run the
+failing test alone, then step 4's four packages, and finish step 5.
