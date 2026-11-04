@@ -54,6 +54,18 @@ Where the client does otherwise:
   user's greenfield mock's `home.html`, which `chats.html`, `chat.html`,
   `inbox.html`, `accounts.html`, `forges.html` and the first run's pages
   do not draw, under their top bar; the project's first page is Home.
+  Home's numbered steps become ticks when done; its headline counts
+  what is left. Its kicker shows the current day and time, and an
+  adopted repository's line describes checked changes landing through
+  the merge queue, without claiming a creation age or a first CI
+  result (`../README.md`, 11). The switcher shows repository names and
+  counts, the first listed standing in for the home; "3 repositories"
+  without that stand-in is unreached (`../README.md`, 5.3). Home's
+  GitHub picker and reached count and the model account's email wait
+  as `../README.status.md`, 3.5 and 4.4, records. The gallery draws
+  Home's states; the recorded project landing still prints Welcome
+  while the fake sign-in leaves Ready with no usable model
+  (`../journeys.status.md`, 9).
   The mockups are not edited.
 - **The welcome's greenfield pass** (the client README's 3.5 and 5.6;
   `../browser.md`, 2.5, The welcome's look; the user, 2026-11-04): the
