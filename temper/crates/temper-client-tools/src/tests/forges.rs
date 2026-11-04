@@ -233,7 +233,9 @@ fn a_wait_follows_each_setup_step_and_releases_the_watch_and_timer() {
     for step in [None, Some(w::SetUpStep::Prepare), Some(w::SetUpStep::Run)] {
         deliver(
             &mut root,
-            record(w::Connection::SettingUp(w::SettingUp::new(&limits, w::SettingUpParts { step }).unwrap())),
+            record(w::Connection::SettingUp(
+                w::SettingUp::new(&limits, w::SettingUpParts { step, fetched: None }).unwrap(),
+            )),
         );
         assert!(root.answer(call).is_none());
     }

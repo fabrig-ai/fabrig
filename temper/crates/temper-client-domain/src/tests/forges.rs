@@ -98,27 +98,32 @@ fn cases() -> Box<[(w::Connection, Connection, &'static [u8])]> {
         (w::Connection::NotConnected, Connection::NotConnected, b"Not connected"),
         (w::Connection::NotSetUp, Connection::NotSetUp, b"Not set up"),
         (
-            w::Connection::SettingUp(w::SettingUp::new(&limits(), w::SettingUpParts { step: None }).unwrap()),
+            w::Connection::SettingUp(
+                w::SettingUp::new(&limits(), w::SettingUpParts { step: None, fetched: None }).unwrap(),
+            ),
             Connection::SettingUp { step: None },
             b"Setting up",
         ),
         (
             w::Connection::SettingUp(
-                w::SettingUp::new(&limits(), w::SettingUpParts { step: Some(w::SetUpStep::Fetch) }).unwrap(),
+                w::SettingUp::new(&limits(), w::SettingUpParts { step: Some(w::SetUpStep::Fetch), fetched: None })
+                    .unwrap(),
             ),
             Connection::SettingUp { step: Some(Step::Fetch) },
             b"Setting up: fetching",
         ),
         (
             w::Connection::SettingUp(
-                w::SettingUp::new(&limits(), w::SettingUpParts { step: Some(w::SetUpStep::Prepare) }).unwrap(),
+                w::SettingUp::new(&limits(), w::SettingUpParts { step: Some(w::SetUpStep::Prepare), fetched: None })
+                    .unwrap(),
             ),
             Connection::SettingUp { step: Some(Step::Prepare) },
             b"Setting up: preparing",
         ),
         (
             w::Connection::SettingUp(
-                w::SettingUp::new(&limits(), w::SettingUpParts { step: Some(w::SetUpStep::Run) }).unwrap(),
+                w::SettingUp::new(&limits(), w::SettingUpParts { step: Some(w::SetUpStep::Run), fetched: None })
+                    .unwrap(),
             ),
             Connection::SettingUp { step: Some(Step::Run) },
             b"Setting up: starting",
