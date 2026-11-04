@@ -2335,7 +2335,7 @@ hearth/docs/design/domain/artifacts.md (7.3) cite it.
 | `@T.srv`, `@T.srv.core`, `@T.srv.data`, `@T.srv.cache` made at format time, with `journal` and `iwd` bound by fstab's template; snapper for snapshots | the classes `@<target>.core`, `.data` and `.cache`, made when an entry uses one; each entry a directory bound at its path; snapshots by class, the `hearth` task's (5.7, 5.12) |
 | `deploy patch`, rewriting a running root's `/etc` | live changes: a prepared slot's delta mounted over the running one, its consumers declared (5.14; hearth/docs/design/domain/slots.md, 6.6) |
 
-## 13. What is open
+## 13. Open questions
 
 - **Identity kinds beyond SSH host keys:** the Syncthing
   certificate and DKIM keys could be identity or imported secrets; it

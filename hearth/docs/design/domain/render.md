@@ -1430,14 +1430,14 @@ Over generated repositories, valid by construction and then mutated:
   reported and never failed on (hearth/docs/design/domain/testing.md, 9.3). The suites' budgets
   are hearth/docs/design/domain/testing.md's (section 9).
 
-## 10. What is open
+## 10. Open questions
 
 - **A decompressor for the indices:** after a chrootless simulate run,
   `--skip=cleanup/apt/lists` leaves `InRelease` and the decompressed
   `Packages` files in the scratch directory, as the recordings show
   (9.6), and M1 refuses a compressed one (5.3). One is needed only if an
-  apt keeps them compressed (`Acquire::GzipIndexes`), and skein has
-  none; it depends on such an apt.
+  apt keeps them compressed (`Acquire::GzipIndexes`); it depends on
+  such an apt.
 - **The `Inst` line with several origins** (`(2.41-12 Debian:13.1/stable,
   Debian-Security:13/stable-security [amd64])`), to verify against
   recordings.
@@ -1466,8 +1466,8 @@ Over generated repositories, valid by construction and then mutated:
   runs of mmdebstrap 1.5.7 and apt 3.0.3 for a package apt does not
   know, one with no installation candidate, dependencies apt cannot
   satisfy, a snapshot timestamp before the archive and an unreachable
-  proxy. A hash mismatch, a full disk and a 5xx answer have no recording
-  yet; theirs will confirm or correct it.
+  proxy. Recordings of a hash mismatch, a full disk and a 5xx answer
+  will confirm or correct it.
 - **Keeping decoded documents across revisions** within one builder's
   life, a pass and its linger (hearth/docs/design/domain/steward.md, 4.1): what a pass's later
   renders, a diff's two revisions or the bless's render, would save,
