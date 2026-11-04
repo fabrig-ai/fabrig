@@ -72,7 +72,7 @@ impl Tail {
     /// The queue, retained text and at most one named cause.
     #[must_use]
     pub fn worst_case(limits: &Limits) -> Option<u64> {
-        Queue::<Box<[u8]>>::worst_case(limits.tail_lines)?
+        Queue::<Box<[u8]>>::price(limits.tail_lines)?
             .checked_add(u64::from(limits.tail_lines).checked_mul(u64::from(limits.tail_line))?)?
             .checked_add(u64::from(limits.name))
     }

@@ -137,7 +137,7 @@ fn take(file: File, text: Option<&[u8]>, limits: &Limits, lines: &mut List<Line>
 #[must_use]
 pub fn worst_case(limits: &Limits) -> Option<u64> {
     let names = u64::from(limits.lines).checked_mul(u64::from(limits.name))?.min(u64::from(limits.file));
-    List::<Line>::worst_case(limits.lines)?.checked_add(names)
+    List::<Line>::price(limits.lines)?.checked_add(names)
 }
 #[cfg(test)]
 mod tests;

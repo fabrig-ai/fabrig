@@ -12,7 +12,7 @@ pub const SHIPPED: Limits = Limits { layers: 3, steps: crate::plan::MAX_STEPS };
 #[must_use]
 pub fn worst_case(limits: &Limits) -> Option<u64> {
     use skein_lib::{List, Queue};
-    let plan = List::<Planned>::worst_case(limits.layers)?
-        .checked_add(List::<Step>::worst_case(limits.steps)?.checked_mul(u64::from(limits.layers))?)?;
-    plan.checked_add(Queue::<crate::vocabulary::Output>::worst_case(crate::MAX_OUT)?)
+    let plan = List::<Planned>::price(limits.layers)?
+        .checked_add(List::<Step>::price(limits.steps)?.checked_mul(u64::from(limits.layers))?)?;
+    plan.checked_add(Queue::<crate::vocabulary::Output>::price(crate::MAX_OUT)?)
 }

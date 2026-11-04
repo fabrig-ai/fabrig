@@ -685,6 +685,7 @@ pub enum Word {
     WelcomeModelSignInTime,
     WelcomeModelProgramTime,
     WelcomeForgeDoneDetail,
+    WelcomeForgeDoneRepository,
     WelcomeForgejoLead,
     WelcomeForgejoStartWith,
     WelcomeForgejoEmpty,
@@ -753,9 +754,10 @@ pub(crate) const SCRIPTED_MODEL: &[u8] = b"demo";
 // Ready's first project adds four literal phrases and one of a hole; its
 // checklist's forge status and model account phrases are gone (3.5).
 // The chats page with no welcome and no project adds one literal phrase (3.5).
-const PHRASES: u32 = 1266;
-const SEGMENTS: u32 = 2163;
-const ALL: [Word; 671] = [
+// Model’s connected login and first repository are separate detail phrases (3.5).
+const PHRASES: u32 = 1267;
+const SEGMENTS: u32 = 2164;
+const ALL: [Word; 672] = [
     Word::PlaygroundBanner,
     Word::PlaygroundSetUp,
     Word::BannerSetUp,
@@ -1410,6 +1412,7 @@ const ALL: [Word; 671] = [
     Word::WelcomeModelSignInTime,
     Word::WelcomeModelProgramTime,
     Word::WelcomeForgeDoneDetail,
+    Word::WelcomeForgeDoneRepository,
     Word::WelcomeForgejoLead,
     Word::WelcomeForgejoStartWith,
     Word::WelcomeForgejoEmpty,
@@ -2085,6 +2088,7 @@ impl Word {
             Self::WelcomeModelSignInTime => 3029,
             Self::WelcomeModelProgramTime => 3030,
             Self::WelcomeForgeDoneDetail => 3031,
+            Self::WelcomeForgeDoneRepository => 3049,
             Self::WelcomeForgejoLead => 3032,
             Self::WelcomeForgejoStartWith => 3033,
             Self::WelcomeForgejoEmpty => 3034,
@@ -2378,10 +2382,9 @@ fn english(word: Word, shell: Shell) -> (&'static [&'static [u8]], &'static [Hol
         Word::WelcomeBoxLine => (&[b" \xc2\xb7 on this machine, to try it \xc2\xb7 more later, from Settings \xc2\xb7 "], &[]),
         Word::WelcomeBoxServer => (&[b"Run temper on a server \xe2\x86\x97"], &[]),
         Word::WelcomeModelSignInTime => (&[b"Sign in, in this tab \xc2\xb7 about a minute"], &[]),
-        Word::WelcomeModelProgramTime => (&[b"A command in a terminal, on each host"], &[]),
-        Word::WelcomeForgeDoneDetail => {
-            (&[b"connected as ", b" \xc2\xb7 ", b" made, in no project yet"], &[Name, Name])
-        }
+        Word::WelcomeModelProgramTime => (&[b"One command in a terminal, on this machine"], &[]),
+        Word::WelcomeForgeDoneDetail => (&[b"connected as ", b""], &[Name]),
+        Word::WelcomeForgeDoneRepository => (&[b"", b" made, in no project yet"], &[Name]),
         Word::PublicTitleCut => (&[b"\xe2\x80\xa6"], &[]),
         Word::PublicProjects => (&[b"Public projects"], &[]),
         Word::PublicProject => (&[b"Project ", b""], &[Name]),
@@ -2480,7 +2483,7 @@ fn english(word: Word, shell: Shell) -> (&'static [&'static [u8]], &'static [Hol
             (&[b"Your ", b" plan: sign in, and temper\xe2\x80\x99s agents use its included usage."], &[Name])
         }
         Word::WelcomeModelSubscription => (
-            &[b"Your ", b" subscription, through Claude Code on each host temper\xe2\x80\x99s agents run on."],
+            &[b"Your ", b" subscription, through Claude Code on this machine, with a config of its own, apart from your own Claude Code."],
             &[Name],
         ),
         Word::BrandChats => (&[b"temper chats"], &[]),

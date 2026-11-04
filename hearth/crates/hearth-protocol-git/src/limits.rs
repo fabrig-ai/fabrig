@@ -34,14 +34,14 @@ pub enum Decoder {
 #[must_use]
 pub fn worst_case(decoder: Decoder, limits: &Limits) -> Option<u64> {
     match decoder {
-        Decoder::Tail => skein_lib::Queue::<Box<[u8]>>::worst_case(limits.tail_lines)?
+        Decoder::Tail => skein_lib::Queue::<Box<[u8]>>::price(limits.tail_lines)?
             .checked_add(u64::from(limits.tail_lines).checked_mul(u64::from(limits.tail_line))?)?
             .checked_add(u64::from(limits.tail_line).checked_mul(2)?),
-        Decoder::Listing => skein_lib::List::<crate::listing::Entry>::worst_case(limits.entries)?
+        Decoder::Listing => skein_lib::List::<crate::listing::Entry>::price(limits.entries)?
             .checked_add(u64::from(limits.paths_total))?
             .checked_add(u64::from(crate::listing::RECORD).checked_add(u64::from(limits.path))?),
         // Two files of retained text, a reusable line buffer, and one delivery.
-        Decoder::Diff => skein_lib::List::<crate::hunks::Line>::worst_case(limits.hunk_lines)?
+        Decoder::Diff => skein_lib::List::<crate::hunks::Line>::price(limits.hunk_lines)?
             .checked_add(u64::from(limits.hunk_file).checked_mul(3)?)?
             .checked_add(u64::from(limits.chunk)),
         Decoder::Batch => Some(u64::from(crate::batch::largest_demand(limits))),

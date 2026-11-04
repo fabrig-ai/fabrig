@@ -112,7 +112,7 @@ impl Host for Reader {
     fn work_pending(&self, _now: Time) -> bool {
         !self.completions.is_empty() || self.input.is_some() || (!self.reading && self.output.is_some())
     }
-    fn next_deadline(&self) -> Option<Time> {
+    fn next_mechanism_deadline(&self) -> Option<Time> {
         None
     }
     fn next_policy_deadline(&self) -> Option<Time> {
@@ -123,9 +123,6 @@ impl Host for Reader {
     }
     fn operations(&self) -> u32 {
         3
-    }
-    fn worst_case(&self) -> u64 {
-        131_072
     }
 }
 enum Process {
@@ -159,8 +156,8 @@ impl Host for Process {
     fn work_pending(&self, now: Time) -> bool {
         self.host().work_pending(now)
     }
-    fn next_deadline(&self) -> Option<Time> {
-        self.host().next_deadline()
+    fn next_mechanism_deadline(&self) -> Option<Time> {
+        self.host().next_mechanism_deadline()
     }
     fn next_policy_deadline(&self) -> Option<Time> {
         self.host().next_policy_deadline()
@@ -170,9 +167,6 @@ impl Host for Process {
     }
     fn operations(&self) -> u32 {
         self.host().operations()
-    }
-    fn worst_case(&self) -> u64 {
-        self.host().worst_case()
     }
     fn drain(&mut self) {
         self.host_mut().drain();

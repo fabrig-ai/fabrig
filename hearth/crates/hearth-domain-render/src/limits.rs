@@ -68,38 +68,37 @@ pub fn worst_case(limits: &Limits) -> Option<u64> {
     // Render's domain receives the listing at domain/render.md, 8.4's bounds.
     const ENTRIES: u32 = 16_384;
     const PATHS: u64 = 4_194_304;
-    let listing = List::<revision::Entry>::worst_case(ENTRIES)?
-        .checked_add(List::<vocabulary::Blob>::worst_case(ENTRIES)?)?
-        .checked_add(Map::<revision::Oid, hearth_lib::encode::Digest>::worst_case(ENTRIES)?)?
-        .checked_add(Map::<revision::Oid, Box<[u8]>>::worst_case(ENTRIES)?)?
-        .checked_add(Map::<revision::Oid, ()>::worst_case(ENTRIES)?)?
-        .checked_add(Map::<hearth_lib::encode::Digest, u64>::worst_case(ENTRIES)?)?
+    let listing = List::<revision::Entry>::price(ENTRIES)?
+        .checked_add(List::<vocabulary::Blob>::price(ENTRIES)?)?
+        .checked_add(Map::<revision::Oid, hearth_lib::encode::Digest>::price(ENTRIES)?)?
+        .checked_add(Map::<revision::Oid, Box<[u8]>>::price(ENTRIES)?)?
+        .checked_add(Map::<revision::Oid, ()>::price(ENTRIES)?)?
+        .checked_add(Map::<hearth_lib::encode::Digest, u64>::price(ENTRIES)?)?
         .checked_add(PATHS.checked_mul(6)?)?
         .checked_add(u64::from(ENTRIES).checked_mul(64 * 5 + 1)?)?;
     let decoded = revision::decoded_worst_case(limits)?;
     // Provenance enlarges the 32-byte value records. During a merge, the old
     // value, its patch, and the rebuilt value may coexist.
     let settings = compose::worst_case(limits)?;
-    let targets = List::<compose::Target>::worst_case(limits.targets)?
-        .checked_add(List::<Box<[compose::Index]>>::worst_case(limits.targets)?)?
+    let targets = List::<compose::Target>::price(limits.targets)?
+        .checked_add(List::<Box<[compose::Index]>>::price(limits.targets)?)?
         .checked_add(
             u64::from(limits.targets)
                 .checked_mul(u64::from(limits.tasks).checked_add(1)?)?
                 .checked_mul(u64::try_from(size_of::<compose::Index>()).ok()?)?,
         )?
-        .checked_add(Map::<Box<[u8]>, diff::Made>::worst_case(limits.targets)?)?;
+        .checked_add(Map::<Box<[u8]>, diff::Made>::price(limits.targets)?)?;
     // A find or record arrival holds one full record transiently; retained
     // specs, file sizes and diff closures share the command budget.
     // A frame byte can introduce one input item; package strings additionally
     // follow domain/store.md, 6.1's fixed M1 name/path limits.
     let record = u64::from(4_194_304_u32)
         .checked_mul(u64::try_from(size_of::<hearth_lib::encode::Item>()).ok()?)?
-        .checked_add(List::<crate::resolution::Package>::worst_case(limits.closure.max(8_192))?)?
+        .checked_add(List::<crate::resolution::Package>::price(limits.closure.max(8_192))?)?
         .checked_add(u64::from(limits.closure.max(8_192)).checked_mul(3 * 256 + 4_096)?)?;
-    let resolutions =
-        Map::<hearth_lib::encode::Digest, Option<crate::call::resolution::Known>>::worst_case(limits.targets)?
-            .checked_add(record)?
-            .checked_add(limits.specs.checked_mul(4)?)?;
+    let resolutions = Map::<hearth_lib::encode::Digest, Option<crate::call::resolution::Known>>::price(limits.targets)?
+        .checked_add(record)?
+        .checked_add(limits.specs.checked_mul(4)?)?;
     let retained = listing
         .checked_add(decoded)?
         .checked_add(targets)?

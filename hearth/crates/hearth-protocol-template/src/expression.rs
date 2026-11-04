@@ -84,10 +84,10 @@ fn parse(text: &[u8], limits: &Limits, conditional: bool) -> Result<Expression, 
 pub(crate) fn worst_case(length: u32) -> Option<u64> {
     // Shrinking the output to the returned box can hold both allocations.
     // All capacities are text-sized: binary operators do not count as nesting.
-    List::<Operation>::worst_case(length)?
+    List::<Operation>::price(length)?
         .checked_mul(2)?
-        .checked_add(Stack::<Pending>::worst_case(length)?)?
-        .checked_add(List::<u32>::worst_case(length)?)?
+        .checked_add(Stack::<Pending>::price(length)?)?
+        .checked_add(List::<u32>::price(length)?)?
         // Lexer text, retained name/string bytes, and a full string buffer.
         // While spelling a name, the last allowance covers its temporary copy.
         .checked_add(u64::from(length).checked_mul(3)?)
