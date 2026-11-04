@@ -1,24 +1,28 @@
-//! HTTP framing over seeded streams for the landed in-process GitHub service.
+//! HTTP framing over seeded streams (skein/docs/design/fake-forge.md, 10.6).
 use crate::{fixtures, github_fixture as fixture, referee::Accounting};
 use skein_fake_forge_domain::{self as fake, api as raw};
-use skein_fake_forge_github::service::{Outcome, Pending, Request as ApiRequest, Service};
-use skein_forge::github::request::Method;
+use skein_fake_forge_github::{
+    inline::{self, Lent},
+    server::{self, Server},
+    service::{Limits as ServiceLimits, Service},
+};
 use skein_forge_connection::{Component, Event, Limits, Request};
 use skein_forge_machine_world::{
     fixtures as machine,
     joint::REPO,
     pipe::{Cut, Pipe},
 };
-use skein_http::server as http;
 use skein_lib::{
     Duration, Env, Queue, ReplyTo, Rng, Secret, Time, Token, Wall,
-    stream::{Down, Read, Up},
+    stream::{Down, Up},
 };
 use std::collections::BTreeMap;
 
 // Recovery listing timestamps must be above the observed issues-since cutoff.
 const WALL_BASE: Wall = Wall::from_nanos(31_536_000_000_000_000);
 const TURN: Duration = Duration::from_nanos(100_000);
+// More request heads than one pass over a connection can deliver.
+const HEADS: u32 = 64;
 
 #[derive(Default)]
 struct Trace {
@@ -28,27 +32,21 @@ struct Trace {
 
 struct Peer {
     pipe: Pipe,
-    server: http::Server,
-    above: Queue<http::Event>,
+    server: Server,
+    above: Queue<server::Event>,
     below: Queue<Down>,
-    head: Option<http::Call>,
-    body: Vec<u8>,
-    reply: Vec<u8>,
-    offset: usize,
     traces: Vec<Trace>,
     entrance: usize,
     sent: Vec<u8>,
     remaining: usize,
     delayed: bool,
+    lost: bool,
+    graphql: Option<Vec<u8>>,
     received: Vec<u8>,
     receiving_body: usize,
     delivered_heads: usize,
 }
 impl Peer {
-    fn action(&mut self, env: &Env<http::Limits>, request: http::Request) {
-        http::down(&mut self.server, env, request, &mut self.above, &mut self.below);
-    }
-
     // Observe bytes at Send, before the pipe cuts or fragments them. Heads are
     // queued whole by HTTP; bodies may arrive in separate sends.
     fn sent(&mut self, bytes: &[u8], secrets: &mut Vec<Secret>) {
@@ -91,12 +89,23 @@ impl Peer {
         self.received.extend_from_slice(bytes);
         loop {
             let consume = self.receiving_body.min(self.received.len());
+            if let Some(body) = &mut self.graphql {
+                body.extend_from_slice(&self.received[..consume]);
+            }
             self.received.drain(..consume);
             self.receiving_body -= consume;
             if self.receiving_body > 0 {
                 return;
             }
+            if let Some(body) = self.graphql.take() {
+                let index = self.delivered_heads.checked_sub(1).expect("delivered request");
+                self.traces.get_mut(index).expect("trace").own =
+                    body.as_slice() == br#"{"query":"query { viewer { login databaseId } }"}"#;
+            }
             let Some(end) = self.received.windows(4).position(|w| w == b"\r\n\r\n") else { return };
+            if self.received[..end].split(|b| *b == b' ').nth(1) == Some(b"/graphql".as_slice()) {
+                self.graphql = Some(Vec::new());
+            }
             for line in self.received[..end].split(|b| *b == b'\n').skip(1) {
                 let colon = line.iter().position(|b| *b == b':').expect("header colon");
                 if line[..colon].eq_ignore_ascii_case(b"Content-Length") {
@@ -134,7 +143,7 @@ pub(crate) struct Github {
     lines: Vec<Vec<u8>>,
     totals: Accounting,
     lose_creation: bool,
-    pub(crate) ambiguous_updates: bool,
+    seen_mints: u64,
     seed: u64,
     key: &'static [u8],
 }
@@ -186,7 +195,7 @@ impl Github {
             secrets: Vec::new(),
             mints: 0,
             lose_creation: false,
-            ambiguous_updates: false,
+            seen_mints: 0,
             seed,
             key: fixture::key(),
         };
@@ -205,7 +214,10 @@ impl Github {
     }
     pub fn busy(&self) -> bool {
         !self.below.is_empty()
-            || self.peers.values().any(|p| p.pipe.has_work() || !p.above.is_empty() || !p.below.is_empty())
+            || self
+                .peers
+                .values()
+                .any(|p| p.pipe.has_work() || p.server.has_work() || !p.above.is_empty() || !p.below.is_empty())
     }
     pub fn run_for(&mut self, span: Duration) {
         let end = self.env.now.saturating_add(span);
@@ -220,41 +232,60 @@ impl Github {
         }
         self.tick();
     }
-    fn http_env(&self) -> Env<http::Limits> {
-        Env { now: self.env.now, wall: self.env.wall, limits: machine::fake_limits().http }
+    fn server_env(&self) -> Env<ServiceLimits> {
+        Env { now: self.env.now, wall: self.env.wall, limits: fixture::service_limits() }
     }
     fn release_hooks(&mut self) {
-        // The bounded domain may have several zero-latency hooks before its next call.
-        while self.domain.next_deadline().is_some_and(|at| at <= self.fake_env.now) {
-            let mut out = Queue::uncapped();
-            fake::fire(&mut self.domain, &self.fake_env, &mut out);
-            while let Some(hook) = out.pop() {
-                assert!(matches!(hook, fake::Request::Hook { .. }), "direct calls settle synchronously");
-                let post = self.service.hook(&hook, self.env.wall).expect("fixture hook fits");
-                assert!(post.is_none(), "App hook has no endpoint");
-            }
+        inline::release(&mut self.service, &mut self.domain, &self.fake_env);
+    }
+    fn take_minted(&mut self) {
+        let store = self.service.installations_mut();
+        while self.seen_mints < store.minted() {
+            self.seen_mints += 1;
+            self.secrets.push(store.minted_token(self.seen_mints).expect("newly minted token").clone());
+            self.mints += 1;
         }
-        self.service.poll(self.env.wall);
     }
     pub fn tick(&mut self) {
         self.release_hooks();
         while let Some(request) = self.below.pop() {
             self.io(request);
         }
-        let env = self.http_env();
+        let env = self.server_env();
         let owners: Vec<_> = self.peers.keys().copied().collect();
         for owner in owners {
             let mut peer = self.peers.remove(&owner).expect("live peer");
             while let Some(down) = peer.below.pop() {
-                peer.pipe.server_down(down);
+                peer.lost |= peer.delayed && matches!(&down, Down::Send(_));
+                if !peer.lost {
+                    peer.pipe.server_down(down);
+                }
             }
             if let Some(up) = peer.pipe.server_up() {
                 if let Up::Bytes(bytes) = &up {
                     peer.received(bytes);
                 }
-                http::up(&mut peer.server, &env, up, &mut peer.above, &mut peer.below);
+                server::up(&mut peer.server, &mut self.service, &env, up, &mut peer.above, &mut peer.below);
             }
-            self.server_events(&mut peer, &env);
+            for _ in 0..HEADS {
+                inline::pass(
+                    &mut peer.server,
+                    &mut self.service,
+                    &mut Lent { domain: &mut self.domain, env: &self.fake_env, hooks: true },
+                    &env,
+                    &mut peer.above,
+                    &mut peer.below,
+                );
+                self.take_minted();
+                let Some(call) = peer.server.take_head() else { break };
+                let trace = peer.traces.get_mut(peer.entrance).expect("head follows write");
+                assert!(!trace.served);
+                trace.served = true;
+                peer.entrance += 1;
+                peer.delayed =
+                    self.lose_creation && call.method == skein_http::Method::Post && call.target.ends_with(b"/issues");
+                self.lose_creation &= !peer.delayed;
+            }
             let up = peer.pipe.client_up();
             self.peers.insert(owner, peer);
             if let Some(up) = up {
@@ -284,168 +315,17 @@ impl Github {
         self.domain.reclaim();
         self.component.reclaim();
     }
-    fn server_events(&mut self, peer: &mut Peer, env: &Env<http::Limits>) {
-        while let Some(event) = peer.above.pop() {
-            match event {
-                http::Event::Call(call) => {
-                    let trace = peer.traces.get_mut(peer.entrance).expect("head follows write");
-                    assert!(!trace.served);
-                    trace.served = true;
-                    peer.entrance += 1;
-                    peer.head = Some(call);
-                    peer.body.clear();
-                    peer.action(env, http::Request::Body(Down::Demand { read: Read::Arrived { max: 1024 }, room: 0 }));
-                }
-                http::Event::Body(Up::Bytes(bytes)) => {
-                    peer.body.extend_from_slice(&bytes);
-                    peer.action(env, http::Request::Body(Down::Demand { read: Read::Arrived { max: 1024 }, room: 0 }));
-                }
-                http::Event::Body(Up::End) => {
-                    self.serve(peer, env);
-                }
-                http::Event::Reply(Up::Room) => {
-                    let end = (peer.offset + usize::try_from(env.limits.send).expect("send")).min(peer.reply.len());
-                    let bytes = Box::from(&peer.reply[peer.offset..end]);
-                    peer.offset = end;
-                    peer.action(env, http::Request::Reply(Down::Send(bytes)));
-                    if end == peer.reply.len() {
-                        peer.action(env, http::Request::Reply(Down::Finish));
-                    } else {
-                        peer.action(
-                            env,
-                            http::Request::Reply(Down::Demand { read: Read::Nothing, room: env.limits.send }),
-                        );
-                    }
-                }
-                http::Event::Done(http::Reuse::Keep) => peer.action(env, http::Request::Next),
-                http::Event::Done(http::Reuse::Close)
-                | http::Event::Ended
-                | http::Event::Failed(_)
-                | http::Event::Closed
-                | http::Event::Body(Up::Failed(_))
-                | http::Event::Reply(Up::Failed(_)) => {}
-                http::Event::Body(Up::Room) | http::Event::Reply(Up::Bytes(_) | Up::End) | http::Event::Refused(_) => {
-                    panic!("HTTP adapter contract")
-                }
-            }
-        }
-    }
-    fn response(&mut self, request: &ApiRequest<'_>, wall: Wall) -> skein_fake_forge_github::service::Response {
-        let mut outcome = self.service.request(request, wall, ReplyTo::new(Token::new(77)));
-        let mut response = loop {
-            outcome = match outcome {
-                Outcome::Reply(response) => break response,
-                Outcome::Admit(admission) => self.service.admit(
-                    admission,
-                    &mut self.domain,
-                    &Env { now: self.fake_env.now, wall, limits: self.fake_env.limits },
-                    ReplyTo::new(Token::new(77)),
-                ),
-                Outcome::Call(pending, event) => self.continue_call(pending, event),
-            };
-        };
-        // This scenario varies the refusal spelling while preserving the fake conflict.
-        if self.ambiguous_updates && request.target.ends_with(b"/update-branch") && response.status == 422 {
-            response.body = Box::from("{\"message\":\"expected head sha didn’t match current head ref.\"}".as_bytes());
-        }
-        response
-    }
-    fn serve(&mut self, peer: &mut Peer, env: &Env<http::Limits>) {
-        let call = peer.head.take().expect("request head");
-        let method = match call.method {
-            skein_http::Method::Get => Method::Get,
-            skein_http::Method::Post => Method::Post,
-            skein_http::Method::Put => Method::Put,
-            skein_http::Method::Patch => Method::Patch,
-            skein_http::Method::Delete => Method::Delete,
-            skein_http::Method::Head | skein_http::Method::Options => panic!("API method"),
-        };
-        let request = ApiRequest {
-            validator: call.header(b"If-None-Match"),
-            method,
-            target: &call.target,
-            authorization: call.header(b"Authorization"),
-            version: call.header(b"X-GitHub-Api-Version"),
-            agent: call.header(b"User-Agent").is_some(),
-            body: &peer.body,
-        };
-        if call.target.as_ref() == b"/graphql" {
-            let trace = peer.traces.get_mut(peer.entrance.checked_sub(1).expect("served request")).expect("trace");
-            trace.own = peer.body.as_slice() == br#"{"query":"query { viewer { login databaseId } }"}"#;
-        }
-        let response = self.response(&request, env.wall);
-        if call.target.ends_with(b"/access_tokens") && response.status == 201 {
-            // Keep the fake's minted response as a private credential observation,
-            // including the narrower git token that never authenticates an API call.
-            let prefix = b"\"token\":\"";
-            let start =
-                response.body.windows(prefix.len()).position(|w| w == prefix).expect("minted token") + prefix.len();
-            let rest = &response.body[start..];
-            let end = rest.iter().position(|b| *b == b'"').expect("token end");
-            self.secrets.push(Secret::new(Box::from(&rest[..end])));
-            self.mints += 1;
-        }
-        peer.delayed = self.lose_creation && method == Method::Post && call.target.ends_with(b"/issues");
-        self.lose_creation &= !peer.delayed;
-        let mut headers = vec![skein_http::Header {
-            name: Box::from(b"Content-Type".as_slice()),
-            value: Box::from(b"application/json".as_slice()),
-        }];
-        if let Some(rate) = response.rate {
-            let mut fields = skein_lib::List::with_capacity(6);
-            skein_fake_forge_github::rates::headers(rate, response.status == 403, &mut fields);
-            headers.extend(fields.into_boxed());
-        }
-        if let Some(etag) = response.etag {
-            headers.push(skein_http::Header { name: Box::from(b"ETag".as_slice()), value: etag });
-        }
-        if let Some(link) = response.link {
-            headers.push(skein_http::Header { name: Box::from(b"Link".as_slice()), value: link });
-        }
-        peer.reply = response.body.into_vec();
-        peer.offset = 0;
-        if !peer.delayed {
-            peer.action(
-                env,
-                http::Request::Respond(http::Response {
-                    status: response.status,
-                    headers: headers.into_boxed_slice(),
-                    body: http::Body::Length(skein_lib::len_u64(peer.reply.len())),
-                    close: false,
-                }),
-            );
-            if !peer.reply.is_empty() {
-                peer.action(env, http::Request::Reply(Down::Demand { read: Read::Nothing, room: env.limits.send }));
-            }
-        }
-    }
-    fn continue_call(&mut self, pending: Pending, event: fake::Event) -> Outcome {
-        let result = self.domain_call(event);
-        self.service.finish(pending, result, ReplyTo::new(Token::new(77)), &self.domain)
-    }
-    fn domain_call(&mut self, event: fake::Event) -> Result<raw::Answer, raw::Error> {
-        self.release_hooks();
-        let mut out = Queue::uncapped();
-        fake::step_admitted(&mut self.domain, &self.fake_env, event, &mut out);
-        for _ in 0..64 {
-            if !out.is_empty() {
-                break;
-            }
-            fake::fire(&mut self.domain, &self.fake_env, &mut out);
-        }
-        let Some(fake::Request::Reply { result, .. }) = out.pop() else { panic!("zero-latency reply") };
-        assert!(out.is_empty());
-        self.domain.reclaim();
-        result
-    }
     pub fn direct(&mut self, op: raw::Op) -> Result<raw::Answer, raw::Error> {
-        self.domain_call(fake::Event::Call {
+        self.release_hooks();
+        let event = fake::Event::Call {
             reply_to: ReplyTo::new(Token::new(77)),
             user: 2,
             repository: Box::from(fixture::PATH),
             op,
-        })
+        };
+        inline::call(&mut self.domain, &self.fake_env, event)
     }
+
     fn up(&mut self, event: skein_io::Event) {
         self.component.up(&self.env, event, &mut self.above, &mut self.below);
     }
@@ -454,26 +334,24 @@ impl Github {
             skein_io::Request::Connect { owner, .. } => {
                 let cut =
                     if self.rng.chance(self.cut_chance) { Cut::At(self.rng.between(0, 2048)) } else { Cut::Never };
-                let env = self.http_env();
+                let env = self.server_env();
                 let mut peer = Peer {
                     pipe: Pipe::new(self.rng.next_u64(), cut),
-                    server: http::Server::new(&env.limits),
+                    server: Server::new(owner, &env.limits).expect("GitHub server limits"),
                     above: Queue::with_capacity(64),
                     below: Queue::with_capacity(64),
-                    head: None,
-                    body: Vec::new(),
-                    reply: Vec::new(),
-                    offset: 0,
                     traces: Vec::new(),
                     entrance: 0,
                     sent: Vec::new(),
                     remaining: 0,
                     delayed: false,
+                    lost: false,
+                    graphql: None,
                     received: Vec::new(),
                     receiving_body: 0,
                     delivered_heads: 0,
                 };
-                peer.action(&env, http::Request::Next);
+                server::start(&mut peer.server, &mut self.service, &env, &mut peer.above, &mut peer.below);
                 assert!(self.peers.insert(owner, peer).is_none());
                 self.up(skein_io::Event::Connecting { owner, socket: owner });
                 self.up(skein_io::Event::Connected { owner });
@@ -549,9 +427,13 @@ impl Github {
         self.action(Request::Installations { forge: 1, accepted: Box::from([1]) });
         self.action(Request::Connect { forge: 1, access: fixture::access(self.key) });
     }
+    pub fn ambiguous_updates(&mut self) {
+        self.service.ambiguous_updates();
+    }
     pub fn rotate(&mut self, key: &'static [u8]) {
         self.key = key;
         self.service = fixture::service(self.seed + 1, key);
+        self.seen_mints = 0;
         self.action(Request::Connect { forge: 1, access: fixture::access(key) });
     }
     pub fn call(&mut self, call: u64, repository: skein_forge::api::Repository, op: skein_forge::api::Op) {
