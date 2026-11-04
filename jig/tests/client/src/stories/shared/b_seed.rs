@@ -9,7 +9,6 @@ pub enum Facts {
     /// Equal priorities make moving the second goal up amend only the first.
     Goals,
     HeldConversation,
-    DelegateEscalation,
     FamilyResource,
     NoChatTemplate,
     GoalOffer {
@@ -25,7 +24,7 @@ pub fn scripted(front: &mut Scripted, facts: Facts) {
     match facts {
         Facts::InboxOrder => super::b_inbox::scripted(front),
         Facts::OwnChats => {}
-        Facts::ProposedGoal | Facts::Delegates | Facts::DelegateEscalation => {
+        Facts::ProposedGoal | Facts::Delegates => {
             super::b_scenarios::scripted(front, facts);
         }
         Facts::FamilyResource => super::b_family::scripted(front),
@@ -91,7 +90,7 @@ pub fn core(driver: &mut Driver, now: Time, wall: Wall, facts: Facts) {
     use jig_fake_parties::{Act, Ask, Party, Role};
     match facts {
         Facts::InboxOrder => super::b_inbox::core(driver, now, wall),
-        Facts::ProposedGoal | Facts::Delegates | Facts::DelegateEscalation => {
+        Facts::ProposedGoal | Facts::Delegates => {
             super::b_scenarios::core(driver, now, wall, facts);
         }
         Facts::FamilyResource => super::b_family::core(driver, now, wall),

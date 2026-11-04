@@ -47,7 +47,7 @@ pub fn setup(
                 configuration.second.procedures = Box::new([procedure]);
             }
         }
-        Facts::ProposedGoal | Facts::Delegates | Facts::InboxOrder | Facts::DelegateEscalation => {
+        Facts::ProposedGoal | Facts::Delegates | Facts::InboxOrder => {
             configuration.core.seed_projects[0].policy.policy.roles[0].authority.delegation.tasks = 3;
             configuration.core.defaults.templates[0].budget = jig_domain_people::TemplateBudget::Amount(10);
             let mut rules = configuration.core.defaults.rules.clone();
@@ -92,11 +92,6 @@ pub fn setup(
                 ]
                 .into_boxed_slice(),
                 Facts::InboxOrder => super::b_inbox::proposal_script(),
-                Facts::DelegateEscalation => vec![
-                    Script::Call(Call::Delegate { words: b"Held delegate".as_slice().into(), budget: 1 }),
-                    Script::Park,
-                ]
-                .into_boxed_slice(),
                 Facts::OwnChats
                 | Facts::Goals
                 | Facts::HeldConversation
