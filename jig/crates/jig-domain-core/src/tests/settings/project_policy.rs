@@ -584,3 +584,62 @@ fn a_whole_policy_checks_each_roles_models_as_an_owner_edit_does() {
     assert_eq!(outcome(&output), malformed(s::Setting::ProjectPolicy { project: PROJECT }, s::Fault::Reference));
     assert_eq!(core.current.newest(), 1);
 }
+
+fn read_policy(core: &mut Core, limits: &Limits, sign_in: u64, project: u32, revision: u32) -> crate::reads::Answer {
+    let held = read_start(
+        core,
+        limits,
+        sign_in,
+        crate::reads::Read::Setting { setting: s::Setting::ProjectPolicy { project }, revision, proposal: None },
+    );
+    let Held::Read { answer, .. } = held else { panic!("setting terminal") };
+    answer
+}
+#[test]
+fn current_project_policy_reads_are_whole_only_at_newest() {
+    for replaced in [false, true] {
+        let (mut core, limits) = fixture();
+        if replaced {
+            let head = core.current.head.clone();
+            let value = replacement(&core);
+            let output = change(&mut core, &limits, Box::new([item(value)]));
+            assert_eq!(outcome(&output), people::Outcome::SettingsChanged { revision: 2 });
+            core.held.heads.insert(head.number, head).unwrap();
+            assert!(core.held(1), "an older revision is refused even when retained");
+            assert_eq!(
+                read_policy(&mut core, &limits, SIGN_IN, PROJECT, 1),
+                crate::reads::Answer::None(crate::reads::Why::Unknown)
+            );
+        }
+        let revision = core.current.newest();
+        let expected = core.configured_policy(PROJECT).unwrap();
+        assert_eq!(
+            read_policy(&mut core, &limits, SIGN_IN, PROJECT, revision),
+            crate::reads::Answer::Setting(Box::new(crate::reads::SettingDocument {
+                setting: s::Setting::ProjectPolicy { project: PROJECT },
+                revision,
+                value: Some(s::Value::Policy(Box::new(expected))),
+                application: None,
+                proposed: None,
+            }))
+        );
+        for project in [people::DEPLOYMENT, PROJECT + 1] {
+            assert_eq!(
+                read_policy(&mut core, &limits, SIGN_IN, project, revision),
+                crate::reads::Answer::None(crate::reads::Why::Unknown)
+            );
+        }
+    }
+}
+#[test]
+fn a_project_policy_read_preserves_the_settings_audience() {
+    let (mut core, limits) = project_core(OTHER, &[OWNER]);
+    let revision = core.current.newest();
+    assert_eq!(
+        read_policy(&mut core, &limits, OTHER_SIGN_IN, PROJECT, revision),
+        crate::reads::Answer::None(crate::reads::Why::Unknown)
+    );
+    let crate::reads::Answer::Setting(_) = read_policy(&mut core, &limits, SIGN_IN, PROJECT, revision) else {
+        panic!("deployment member reads settings")
+    };
+}
