@@ -59,7 +59,7 @@ pub(crate) fn to_agent(domain: &mut Domain, env: &Env<Limits>, request: host::To
         host::ToAgent::Cancel { agent } => smith::parent::Event::Stop { agent },
         // The hub hands its agent only the LLM accounts' grants, and keeps
         // the application credentials, the git identities, to itself (jig's
-        // domain/hosts.md, 6.2; jig 7ca3c388): the table needs no reading.
+        // domain/hosts.md, 6.2): the table needs no reading.
         host::ToAgent::Grant { agent, grant } => smith::parent::Event::Grant {
             agent,
             grant: translate::grant(grant).expect("the hub forwards only account grants"),
