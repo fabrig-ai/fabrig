@@ -122,3 +122,15 @@ Options, each pre-approved:
 ## Report
 
 As `notes/common.md`, Your report.
+
+## Rebase (2026-11-04, step merge, foreman look-round-3/ready-adopts/foreman-1)
+
+Rebase Ready adoption while preserving main’s deployment tests and combining word counts.
+The merge conflicts with changes brought into integration by `68447058b8`.
+In `temper/crates/temper-client-domain/src/tests/pages/welcome.rs`, retain both additions at the file’s end: main’s deployment tests from `61984956b5`, and this branch’s `home_moved` and `ready_without_first` helpers.
+Keep main’s deployment-aware `answer`/`playground_answer` split and no-welcome tests from `192d9a151a`; retain this branch’s helper visibility and Home assertions.
+In `temper/crates/temper-client-view/src/words.rs`, combine main’s `NoProjectLine` from `6037cd4e9b` (retained by `ef18ee6553`) with `WelcomeReadyRepositoryLead`.
+The combined declarations are `PHRASES = 1270`, `SEGMENTS = 2175`, and `ALL: [Word; 675]`; retain both explanatory comments.
+Keep word numbers 2197 and 3060 respectively, both enum/list/English entries, and this branch’s `WelcomeForgeDoneRepository` text ending in `" made"`.
+Preserve the automatically merged deployment gating alongside Ready’s adoption and Home landing.
+Run the spec’s checks after resolving, including domain welcome/adoption tests and view phrasebook checks. Every new commit needs `Look-request: project-home`.
