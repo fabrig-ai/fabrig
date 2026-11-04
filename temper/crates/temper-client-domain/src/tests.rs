@@ -7,6 +7,7 @@ mod address;
 mod admin;
 mod amend;
 mod deployment;
+mod dismissed;
 mod playground;
 mod public;
 
