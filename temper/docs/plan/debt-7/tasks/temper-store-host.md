@@ -24,7 +24,8 @@ Acceptance:
 - `Store::secrets` stays on the adapter, and counts as today: `secret_requests`, `forge_loads` and `erases` read as they do.
 - temper's immediate set holds: `NotReady::Above`, so `SecretsNotReady` waits in `above` for `answer`.
 - Every test passes, changed only in the path of a moved field or method.
-- **Size cap:** the branch's net lines are at most -90. Measure it, and stop and ask if it's passed.
+- **Size cap:** the branch's net lines are at most -70, against `fb9c3c1527` (see `## Answers`). Measure it, and stop and ask if it's
+  passed.
 
 ## Inputs
 
@@ -93,3 +94,24 @@ Acceptance:
 ## Report
 
 The common note's items, the measure by file, any site the `sed` got wrong, and net lines against the cap. No test is added.
+
+## Answers
+
+2026-11-04. May the -90 net-line cap be relaxed for the formatting the path change forces? **Yes: the cap is -70, for this
+task only**, under the rule of the plan's owner (fabrig/debt, 2026-11-04) for a cut-set cap: compact first, then an answer may
+raise it by up to 25%; -90 to -70 is 22%. Measured: -78 at `02dfb5edb6`, `git diff --shortstat fb9c3c1527 02dfb5edb6`, 235
+insertions and 313 deletions; the five repairs below add about 2, so the branch should end near -76. Why: the adapter gives
+-103 and rustfmt's wrapping of the longer paths gives +25 (`T/tests/engine.rs` 19, `T/tests/fixtures.rs` 6), which the cut's
+estimate didn't count. Neither can be compacted away: what's left in `T/store.rs` is what this spec says stays, and a test may
+change only in a moved path, so no local binding in a test to shorten a line.
+
+Keep both pushed commits, and compact nothing further. `git fetch origin` and merge `origin/debt-7/temper-store-host` first:
+your slot may not hold them. Then finish what the size stop left, in order:
+
+1. The five sites, by hand, in one commit: `T/tests/engine.rs`, the multi-line `.store` / `.above` at line 122 of that commit,
+   and `reopened.component`
+   (line 1009), each gaining `.host`; `T/tests/stop.rs` line 60, the same multi-line form; `T/tests/accounts_host.rs` lines 774
+   and 843, back to `config.limits.store.secrets`: those are limits, not a `Store`.
+2. Step 4's checks, all of them, one at a time: none has passed yet, and the focused run that was tried compiled nothing.
+3. Measure again against `fb9c3c1527`, merges of trunk excluded as the common note says, and report the figure. Past -70 is
+   still a `Question:`.
