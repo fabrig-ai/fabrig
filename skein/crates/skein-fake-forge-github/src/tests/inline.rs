@@ -1,4 +1,4 @@
-use super::{fixtures as f, wall};
+use super::{fixtures as f, read_support as r, wall, write_support as w};
 use crate::inline::{self, Inline, Lent};
 use crate::server::{self, Server};
 use crate::{Service, fixture, installations::Scope};
@@ -142,4 +142,45 @@ fn the_fixture_builds_a_valid_service() {
         fixture::install_three(&mut service);
         assert!(service.installations_mut().get(3).unwrap().suspended, "third suspended");
     }
+}
+#[test]
+fn a_minted_token_is_read_by_its_number() {
+    let mut forge = forge(8);
+    let store = forge.service.installations_mut();
+    let (token, _) = store.mint(1, Scope::Full, wall(1200)).unwrap();
+    assert_eq!(store.minted_token(1).unwrap().expose(), token.expose());
+    assert!(store.minted_token(2).is_none(), "second mint absent");
+}
+#[test]
+fn an_ambiguous_update_answers_the_stale_refusal() {
+    let mut h = w::harness();
+    let settings = a::Settings { default: f::boxed(b"trunk"), merge: true, squash: true, rebase: true };
+    domain::settings(&mut h.domain, fixture::PATH, settings);
+    let (number, head) = r::pull(&mut h);
+    let tree = Box::from([a::File { path: f::boxed(b"one"), content: f::boxed(b"conflict") }]);
+    let base = domain::commit(&mut h.domain, &h.env.limits, h.first, tree, b"base").unwrap().unwrap();
+    r::call(&mut h, a::Op::Git(a::Git::Push { branch: f::boxed(b"trunk"), commit: base, expected: None }));
+    let token = r::token(&mut h);
+    let (owner, name) = (f::boxed(b"acme"), f::boxed(b"widgets"));
+    let request = github::request::Request::Update { owner, name, number, head: r::object(head) };
+    for text in [crate::texts::UPDATE_CONFLICT, crate::texts::UPDATE_STALE] {
+        let response = w::ask(&mut h, &token, &request);
+        f::refusal(&h, &response, 422, text);
+        h.service.ambiguous_updates();
+    }
+}
+#[test]
+fn a_hooked_pass_releases_due_hooks_ahead_of_its_call() {
+    let (mut forge, auth) = token(9);
+    assert!(forge.service.installations_mut().take_event().is_some(), "installation setup event");
+    let sha = skein_forge::forgejo::id::write(&skein_fake_forge_protocol::routes::object(1));
+    let body = f::parts(&[br#"{"ref":"refs/heads/feature","sha":""#, &sha, br#""}"#]);
+    let wire = request(b"POST", b"/repos/acme/widgets/git/refs", auth.expose(), &body);
+    assert!(forge.serve(&wire, wall(1199)).starts_with(b"HTTP/1.1 201 "), "branch created");
+    let mut c = Connection::head(&mut forge, b"/repos/acme/widgets/branches/main", auth.expose());
+    drop(c.server.take_head());
+    c.run(&mut forge, None, true);
+    assert_eq!(forge.domain.tally().answered, 2);
+    assert_eq!(forge.domain.tally().hooks, 1);
+    assert!(forge.service.next_deadline().is_some(), "hook recorded before reply");
 }
