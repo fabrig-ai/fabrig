@@ -1,6 +1,6 @@
 //! Host-owned window transfers and activation replay on a retained fake filesystem.
 //! Saved frames cross the channel; session markers stay on the fake machine.
-//! No agent state is inspected (smith/docs/design/protocol/programs.md, 5.8 and 5.10).
+//! No agent state is inspected.
 use skein_lib::Reader;
 
 /// Extract the transcript bodies the agent gave its host, without inspecting domains.
