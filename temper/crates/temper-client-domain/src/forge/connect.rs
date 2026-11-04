@@ -36,9 +36,10 @@ pub fn row(number: u16, rows: &State, playground: Option<u16>) -> Option<&Row> {
     None
 }
 #[must_use]
-pub fn step(choice: Option<AddressChoice>, rows: &State, playground: Option<u16>) -> Shown {
+pub fn step(choice: Option<AddressChoice>, rows: &State, playground: Option<u16>, owned: bool) -> Shown {
     match choice {
         None => Shown::Choose,
+        Some(AddressChoice::Owned) if !owned_offered(records(rows), playground, owned) => Shown::Choose,
         Some(
             choice @ (AddressChoice::GitHub | AddressChoice::Owned | AddressChoice::Managed | AddressChoice::Elsewhere),
         ) => Shown::Details(choice),
@@ -87,7 +88,7 @@ pub fn at_once(row: &Row) -> bool {
         && row.offer == Offer::Offered
 }
 #[must_use]
-pub fn welcome_step(choice: Option<AddressChoice>, rows: &State, playground: Option<u16>) -> Shown {
+pub fn welcome_step(choice: Option<AddressChoice>, rows: &State, playground: Option<u16>, owned: bool) -> Shown {
     if choice.is_none()
         && let Some(row) = unfinished(records(rows), playground)
     {
@@ -99,7 +100,7 @@ pub fn welcome_step(choice: Option<AddressChoice>, rows: &State, playground: Opt
     {
         return Shown::Choose;
     }
-    step(choice, rows, playground)
+    step(choice, rows, playground, owned)
 }
 #[must_use]
 pub(crate) fn admin_stopped(row: &Row) -> bool {
@@ -144,24 +145,29 @@ pub fn records(state: &State) -> &[Row] {
 }
 /// The deployment fact supplies availability before any owned record exists.
 #[must_use]
-pub fn choices(rows: &[Row], playground: Option<u16>, under_box: bool) -> Box<[Choice]> {
+pub fn choices(rows: &[Row], playground: Option<u16>, owned: bool) -> Box<[Choice]> {
     let mut choices = List::with_capacity(3);
     if playground.is_some() {
         return choices.into_boxed();
     }
-    let mut owned = under_box;
-    for row in rows {
-        if row.mode == Mode::Owned {
-            owned = row.offer == Offer::Offered;
-            break;
-        }
-    }
     choices.push(Choice::GitHub).expect("three choices");
-    if owned {
+    if owned_offered(rows, playground, owned) {
         choices.push(Choice::Owned).expect("three choices");
     }
     choices.push(Choice::Managed).expect("three choices");
     choices.into_boxed()
+}
+
+fn owned_offered(rows: &[Row], playground: Option<u16>, owned: bool) -> bool {
+    if playground.is_some() {
+        return false;
+    }
+    for row in rows {
+        if row.mode == Mode::Owned {
+            return row.offer == Offer::Offered;
+        }
+    }
+    owned
 }
 
 /// A real record offers recovery until connected and, for GitHub, installed.

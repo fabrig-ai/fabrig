@@ -2,7 +2,7 @@
 
 2026-11-04. Where temper's code lags or departs from [forge.md](forge.md).
 
-- **Not yet:** 5.4: Forgejo on this machine, offered from the deployment's read: `temper-client-view`'s `forge/connect.rs` passes `true` to `connect::choices`, and `connect::step` shows its Details from the address alone. 2.1, 3: the `Changes` page, its queues and a queued
+- **Not yet:** 2.1, 3: the `Changes` page, its queues and a queued
   change's place (no `Changes` address in `temper-client-domain`). 2.3:
   amending a change's gates from its panel. 4: approvals, a person
   task's card at a head and the forge's reviews counted in the panel.
