@@ -1,7 +1,9 @@
 # oauth: status
 
-2026-11-03. Where skein's code lags or departs from [oauth.md](oauth.md).
+2026-11-04. Where skein's code lags or departs from [oauth.md](oauth.md).
 
+- **Not yet:** 3: a start outside Idle is dropped with no terminal:
+  `skein-oauth/src/machine.rs`'s `Client::step` returns early.
 - **Departs:** 3: `skein/docs/foundation/programming-model.md`, 5.4 asks
   for one explicit state enum per lifecycle, each state holding exactly
   its data, no lifecycle in flags or `Option`s beside it, exhaustive

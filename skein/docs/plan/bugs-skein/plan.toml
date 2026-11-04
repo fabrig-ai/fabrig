@@ -1,3 +1,67 @@
 draft = "bugs-skein"
 repo = "fabrig"
 sources = ["skein/docs/plan/bugs-skein/inputs/bugs-skein.md", "AGENTS.md"]
+
+# The skein bugs the debt backfill routed (inputs/bugs-skein.md): low priority, small tasks, no
+# reshaping. Released in batches: first the bugs seen and re-read here; then what the surveys of
+# the "not re-checked" ones hold (plan.md).
+
+[buffer]
+low = 1.0
+high = 2.0
+
+[[part]]
+id = "scripts"
+title = "skein's browser script names the nextest profile that exists (bug 5)"
+mode = "direct"
+needs = []
+design = "skein/docs/design/ui-web.md, 14.1"
+
+[[part]]
+id = "browser-kit"
+title = "the browser kit's contains takes an empty needle (bug 19)"
+mode = "direct"
+needs = []
+design = "skein/docs/design/browser.md, 6"
+
+[[part]]
+id = "oauth-client"
+title = "the oauth client refuses a start outside Idle with a terminal (bug 2)"
+mode = "direct"
+needs = []
+design = "skein/docs/design/oauth.md, 3"
+
+[[part]]
+id = "forge-client"
+title = "a Config's writers count at a fixed width (bug 9)"
+mode = "direct"
+needs = []
+design = "skein/docs/design/forge-client.md, 7.1"
+
+[[part]]
+id = "forge-dialects"
+title = "the GitHub walker honours the configured depth (bug 10)"
+mode = "direct"
+needs = []
+design = "skein/docs/design/forge.md, 4.1"
+
+[[part]]
+id = "fake-forges"
+title = "the fake GitHub's stores draw apart (bug 14)"
+mode = "direct"
+needs = []
+design = "skein/docs/design/fake-forge.md, 10.3"
+
+[[part]]
+id = "codec"
+title = "one codec family to a golden directory (bug 18)"
+mode = "direct"
+needs = []
+design = "skein/docs/design/codec.md, 6"
+
+[[slice]]
+id = 1
+story = "the bugs seen on the tree: each fixed with a test that fails on the old code, none waiting on another"
+parts = ["scripts", "browser-kit", "oauth-client", "forge-client", "forge-dialects", "fake-forges", "codec"]
+walk = false
+
