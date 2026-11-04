@@ -1,5 +1,4 @@
 use crate::route;
-use crate::route::Invalid;
 use jig_domain_host as host;
 use skein_lib::Writer;
 use smith_host_domain as agent;
@@ -18,8 +17,8 @@ fn delivery_evidence_disagreeing_with_its_outcome_is_invalid() {
     assert_eq!(bytes.as_ref(), &[1], "delivery evidence golden");
     for (row, outcome, evidence, expected) in [
         ("agreeing", host::DeliveryOutcome::Nothing, bytes.as_ref(), Ok(agent::Delivery::Nothing)),
-        ("disagreeing", host::DeliveryOutcome::Delivered, bytes.as_ref(), Err(Invalid::Evidence)),
-        ("malformed", host::DeliveryOutcome::Nothing, &[255, 0, 1], Err(Invalid::Evidence)),
+        ("disagreeing", host::DeliveryOutcome::Delivered, bytes.as_ref(), Err(host::Undecoded::Evidence)),
+        ("malformed", host::DeliveryOutcome::Nothing, &[255, 0, 1], Err(host::Undecoded::Evidence)),
     ] {
         assert_eq!(route::evidence(outcome, evidence), expected, "{row}");
     }
@@ -27,5 +26,5 @@ fn delivery_evidence_disagreeing_with_its_outcome_is_invalid() {
     writer.put(&bytes).unwrap();
     writer.put(&[0]).unwrap();
     let trailing = writer.finish();
-    assert_eq!(route::evidence(host::DeliveryOutcome::Nothing, &trailing), Err(Invalid::Evidence), "trailing");
+    assert_eq!(route::evidence(host::DeliveryOutcome::Nothing, &trailing), Err(host::Undecoded::Evidence), "trailing");
 }

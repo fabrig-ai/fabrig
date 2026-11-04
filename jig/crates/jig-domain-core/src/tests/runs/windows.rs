@@ -4,7 +4,7 @@ fn window_core(resume_bytes: u32) -> Core {
     let mut config = config(1);
     config.settings.resume_bytes = resume_bytes;
     let mut core = Core::new(config, &limits()).expect("fixture core configuration");
-    core.begin_transcript(1, 1);
+    core.begin_transcript(1, 1, None);
     window(&mut core).window = Some((1, 1));
     core
 }
@@ -99,7 +99,7 @@ fn a_fresh_brief_keeps_whole_newest_texts_under_its_own_budget() {
     send_task(&mut core, &limits, tasks::Event::Prepare { reply_to: ReplyTo::new(Token::new(1)), task: 1 });
     let context = core.tasks.run_context(1).unwrap();
     core.contexts.insert(1, context).unwrap();
-    core.begin_transcript(1, 1);
+    core.begin_transcript(1, 1, None);
     window(&mut core).window = Some((1, 1));
     for (number, body) in [(1, [b'a'; 40]), (2, [b'b'; 40]), (3, [b'c'; 40])] {
         append(&mut core, number, &body);
@@ -197,7 +197,7 @@ fn closed_window() -> (Core, Limits) {
     core.counters.deployment.runs = 7;
     let proof = core.proofs.get_mut(&1).unwrap();
     proof.window = Some(CurrentWindow { attempt: 1, turn: 1, closed: true });
-    core.begin_transcript(1, 1);
+    core.begin_transcript(1, 1, Some((1, 1)));
     (core, limits)
 }
 
@@ -301,7 +301,7 @@ fn beginning_a_crossed_claims_transcript_without_a_window_keeps_it_fresh() {
     let mut proof = RunProof::claimed(1, 1, 1, None, fleet::HostKind::Worker);
     proof.crossed = true;
     core.proofs.insert(1, proof).unwrap();
-    core.begin_transcript(1, 1);
+    core.begin_transcript(1, 1, None);
     let transcript = core.transcripts.get(&1).unwrap();
     assert!(transcript.closed, "a crossed claim cannot resume even without a window");
     assert_eq!(transcript.window, None);

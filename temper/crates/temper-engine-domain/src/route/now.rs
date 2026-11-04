@@ -82,7 +82,7 @@ pub(crate) fn now(domain: &mut Domain, env: &Env<Limits>, decision: &mut Decisio
         }
         core::Now::Activate { context } => {
             let ready = domain.ready() && crate::domain::within_budget(domain, &env.limits);
-            domain.work.push(Work::Due { context, ready });
+            domain.work.push(Work::Activate { context, ready });
         }
         core::Now::StartPreparation { task, from } => {
             start_preparation(domain, env, decision, task, from);

@@ -938,7 +938,7 @@ pub(crate) fn resume_routed(domain: &mut Domain, env: &Env<Limits>, out: &mut Qu
             && within_budget(domain, &env.limits)
             && let Some(context) = domain.core.take_due()
         {
-            domain.work.push(Work::Activate(context));
+            domain.work.push(Work::Activate { context, ready: true });
             let decision = route(domain, env);
             close(domain, env, decision, out);
             return;

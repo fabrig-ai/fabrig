@@ -71,7 +71,7 @@ impl Service {
             engine: match &self.engine {
                 Some(engine) => Some(WaitEngine {
                     restart: engine.domain.start_phase(),
-                    mark_durable: engine.store.host.component.mark_durable(),
+                    mark_durable: engine.store.host.mark_durable(),
                     store_closed: engine.store.closed(),
                     clients: WaitOwner { closed: engine.clients.closed, io: engine.clients.io.len() },
                     workers: WaitOwner { closed: engine.workers.host.closed(), io: engine.workers.host.io.len() },
@@ -589,7 +589,7 @@ impl Service {
                         && engine.clients.closed
                         && engine.clients.io.is_empty()
                         && match &engine.accounts {
-                            Some(accounts) => accounts.is_empty(),
+                            Some(accounts) => accounts.idle(),
                             None => true,
                         }
                 }

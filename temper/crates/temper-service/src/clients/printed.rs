@@ -1,6 +1,6 @@
 //! Print the sign-in URL after the listener address is known.
 use alloc::boxed::Box;
-pub(crate) use jig_protocol_engine_clients::host::address_text;
+pub(crate) use jig_protocol_engine_clients_http::address_text;
 pub(crate) fn link(address: ::core::net::SocketAddr, secret: &skein_lib::Secret) -> Box<[u8]> {
     jig_protocol_engine_clients_http::printed_link(
         address,

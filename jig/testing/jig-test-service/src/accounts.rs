@@ -18,7 +18,7 @@ pub(super) fn iterate(
     events: &mut Queue<root::Event>,
     store: &mut crate::store::Store,
 ) {
-    let marked = store.host.component.mark_durable();
+    let marked = store.host.mark_durable();
     let count = accounts.begin(now, wall, marked, store.installation, &mut store.host.sources);
     for _ in 0..count {
         match accounts.output(&mut values.accounts) {

@@ -2,7 +2,7 @@
 use alloc::boxed::Box;
 use jig_domain_host as hub;
 use jig_protocol_worker_agents::route;
-use jig_test_worker::{Encodable, Encoded, Invalid};
+use jig_test_worker::{Encodable, Encoded};
 use skein_lib::Token;
 use smith_host_domain as smith;
 use smith_host_protocol::Limits;
@@ -27,14 +27,12 @@ pub(super) fn encode(value: Encodable, limits: &Limits, endpoints: &Endpoints) -
     }
 }
 
-pub(super) fn decode(run: Token, source: hub::Start, agent: &crate::Agent) -> Result<Box<smith::Start>, Invalid> {
-    match route::decode(run, source, &agent.limits, &agent.host_limits, &agent.endpoints, route::Evidence::Text) {
-        Ok(start) => Ok(start),
-        Err(route::Invalid::Charter) => Err(Invalid::Charter),
-        Err(route::Invalid::Transcript) => Err(Invalid::Transcript),
-        Err(route::Invalid::CallName) => Err(Invalid::CallName),
-        Err(route::Invalid::Evidence) => unreachable!("text evidence is never decoded"),
-    }
+pub(super) fn decode(
+    run: Token,
+    source: hub::Start,
+    agent: &crate::Agent,
+) -> Result<Box<smith::Start>, hub::Undecoded> {
+    route::decode(run, source, &agent.limits, &agent.host_limits, &agent.endpoints, route::Evidence::Text)
 }
 
 pub(super) fn process(event: smith_host_protocol::ProcessEvent) -> Option<jig_test_worker::Event> {

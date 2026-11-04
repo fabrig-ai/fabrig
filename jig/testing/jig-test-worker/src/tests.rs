@@ -1,5 +1,5 @@
 mod fixtures;
-use crate::{Encodable, Encoded, Event, Invalid, Request};
+use crate::{Encodable, Encoded, Event, Request};
 use alloc::boxed::Box;
 use fixtures::Worker;
 use jig_domain_host as host;
@@ -44,7 +44,7 @@ fn an_undecodable_charter_fails_the_start_as_invalid() {
     let mut worker = Worker::new(fixtures::limits());
     worker.assign();
     let (owner, _) = worker.take_decode();
-    worker.step(Event::Decoded { agent: owner, start: Err(Invalid::Charter) });
+    worker.step(Event::Decoded { agent: owner, start: Err(host::Undecoded::Charter) });
     assert_eq!(worker.spawns(), 0);
     assert_eq!(
         worker.take_answer().ending,
@@ -309,7 +309,7 @@ fn admission_dependencies_translate_hand_out_owners_to_agents() {
     let mut worker = Worker::new(fixtures::limits());
     worker.assign();
     let (owner, _) = worker.take_decode();
-    worker.step(Event::Decoded { agent: owner, start: Err(Invalid::Charter) });
+    worker.step(Event::Decoded { agent: owner, start: Err(host::Undecoded::Charter) });
     worker.clear();
     let mut assignment = fixtures::assignment(fixtures::charter_bytes());
     assignment.assignment.run = Token::new(42);
@@ -332,7 +332,7 @@ fn admission_dependencies_translate_hand_out_owners_to_agents() {
     for (event, expected) in [
         (Event::Activity { owner, activity: None }, true),
         (Event::Encoded { owner, encoded: Encoded::Undecodable }, true),
-        (Event::Decoded { agent: owner, start: Err(Invalid::Charter) }, true),
+        (Event::Decoded { agent: owner, start: Err(host::Undecoded::Charter) }, true),
         (Event::Activity { owner: fixtures::AGENT, activity: None }, false),
         (Event::Encoded { owner: fixtures::AGENT, encoded: Encoded::Undecodable }, false),
         (Event::Process(Box::new(smith::process::Event::Exited { owner: fixtures::AGENT, exit: None })), true),

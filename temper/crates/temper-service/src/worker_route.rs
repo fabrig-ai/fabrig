@@ -5,7 +5,7 @@ use jig_domain_host as hub;
 use jig_protocol_worker_agents::route;
 use skein_lib::{List, Reader, Token};
 use smith_host_domain as smith;
-use temper_worker_domain::{Encodable, Encoded, Invalid};
+use temper_worker_domain::{Encodable, Encoded};
 
 pub use route::activity;
 
@@ -28,14 +28,12 @@ pub fn encode(value: Encodable, agent: &crate::settings::Agent) -> Encoded {
 }
 
 /// Decode the hub start, including its live ask (domain/worker.md, 4.1 and 7).
-pub fn decode(run: Token, source: hub::Start, agent: &crate::settings::Agent) -> Result<Box<smith::Start>, Invalid> {
-    match route::decode(run, source, &agent.limits, &agent.host_limits, &agent.endpoints, route::Evidence::Reply) {
-        Ok(start) => Ok(start),
-        Err(route::Invalid::Charter) => Err(Invalid::Charter),
-        Err(route::Invalid::Transcript) => Err(Invalid::Transcript),
-        Err(route::Invalid::CallName) => Err(Invalid::CallName),
-        Err(route::Invalid::Evidence) => Err(Invalid::Evidence),
-    }
+pub fn decode(
+    run: Token,
+    source: hub::Start,
+    agent: &crate::settings::Agent,
+) -> Result<Box<smith::Start>, hub::Undecoded> {
+    route::decode(run, source, &agent.limits, &agent.host_limits, &agent.endpoints, route::Evidence::Reply)
 }
 
 #[must_use]
