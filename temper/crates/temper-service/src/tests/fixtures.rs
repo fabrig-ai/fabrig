@@ -833,6 +833,7 @@ pub fn settle_root(
                 | root::Request::Install { .. }
                 | root::Request::Accept { .. }
                 | root::Request::EraseCarried { .. }
+                | root::Request::MakingCopied { .. }
                 | root::Request::SetUp { .. }
                 | root::Request::Bound { .. }
                 | root::Request::Return { .. }

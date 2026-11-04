@@ -9,6 +9,7 @@ pub(crate) mod box_link;
 pub(crate) fn request(engine: &mut Engine, request: root::Request) {
     #[expect(clippy::match_same_arms, reason = "each request's arm is filled by its own task")]
     match request {
+        root::Request::MakingCopied { .. } => {}
         root::Request::PlaygroundActs { .. } => {}
         root::Request::ResetAct { .. } => {}
         root::Request::ForgeKept(record) => crate::forges::record(engine, record),

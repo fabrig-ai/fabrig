@@ -140,7 +140,26 @@ pub(crate) fn ask(domain: &mut Domain, env: &Env<Limits>, decision: &mut Decisio
             }
             None
         }
-        core::Ask::Adopt { request, .. } => {
+        core::Ask::Adopt { request, project, adoption } => {
+            if connector == domain.config.forge_connector
+                && domain.core.application_part_request(request).is_none()
+                && let Some((adoption, repository)) = super::making::asked(domain, project, &adoption)
+            {
+                if domain.adoption_restore.len() < env.limits.forge.adoptions {
+                    let previous = domain.forge.repository(repository).cloned();
+                    assert!(
+                        domain.adoption_restore.insert(request, (request, previous)) == Ok(None),
+                        "one act adoption flight"
+                    );
+                    domain.work.push(Work::Forge(forge::Event::MakingAsked { request, adoption, repository }));
+                } else {
+                    domain.work.push(Work::People(people::Event::Decided {
+                        request,
+                        outcome: people::Outcome::Again(people::Again::Busy),
+                    }));
+                }
+                return;
+            }
             let located = if connector == domain.config.forge_connector
                 && let Some(application) = domain.core.application_part_request(request)
                 && let Some(repository) = domain.forge.applying(application)
