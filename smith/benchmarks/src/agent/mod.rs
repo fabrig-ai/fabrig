@@ -8,6 +8,11 @@ use serde::{Deserialize, Serialize};
 use sha2::{Digest, Sha256};
 
 use crate::Refusal;
+use crate::arm::ArmRef;
+use crate::isolate::Setup;
+use crate::process::ProcessResult;
+use crate::run::{Archive, Work};
+use crate::{AttemptResult, CacheObservation, CheckVerdict, End, Exit, Forced, Identity, Measure, Task};
 
 pub mod codex;
 
@@ -83,6 +88,23 @@ pub enum Observing {
     Smith(smith::Observing),
 }
 
+/// Borrowed captures and their bound for the adapter's trace archives.
+#[derive(Clone, Copy, Debug)]
+pub(crate) struct Traces<'a> {
+    pub(crate) trace: &'a [u8],
+    pub(crate) stdout: &'a [u8],
+    pub(crate) maximum: usize,
+}
+
+/// The settled tree and authored checks an adapter reads (benchmarks.md, 6).
+#[derive(Clone, Copy, Debug)]
+pub(crate) struct Ended<'a> {
+    pub(crate) exit: Exit,
+    pub(crate) forced: Forced,
+    pub(crate) task: &'a Task,
+    pub(crate) workspace: &'a Path,
+}
+
 /// A stream or collection fault, naming its persisted field or file.
 #[derive(Debug)]
 pub struct HarnessFault {
@@ -90,6 +112,63 @@ pub struct HarnessFault {
 }
 
 impl Agent {
+    /// Why this agent cannot run yet, if it cannot.
+    #[must_use]
+    pub fn refusal(self) -> Option<&'static str> {
+        match self {
+            Self::Codex | Self::Smith => None,
+            Self::ClaudeCode => Some("Claude Code belongs to the next comparison pass"),
+        }
+    }
+
+    /// The login directory this adapter reads, from the harness's read-only one.
+    pub fn home(self, source: &Path) -> Result<PathBuf, String> {
+        match self {
+            Self::Codex | Self::ClaudeCode => Ok(source.to_path_buf()),
+            Self::Smith => smith::home(source),
+        }
+    }
+
+    /// Whether a pinned request's authored arguments are this adapter's to pass on.
+    #[must_use]
+    pub fn takes_arguments(self, arguments: &[String]) -> bool {
+        match self {
+            Self::Codex | Self::ClaudeCode => false,
+            Self::Smith => smith::takes_arguments(arguments),
+        }
+    }
+
+    /// The stream carries the event checks a task may decide on.
+    #[must_use]
+    pub fn reports_events(self) -> bool {
+        match self {
+            Self::Codex | Self::ClaudeCode => false,
+            Self::Smith => true,
+        }
+    }
+
+    /// The arm and version this attempt's executable is, checked against its identity.
+    pub(crate) fn source_arm(self, work: Work<'_>, identity: &Identity) -> Result<(ArmRef, String), String> {
+        match self {
+            Self::Codex => codex::source_arm(work, identity),
+            Self::Smith => smith::source_arm(work, identity),
+            Self::ClaudeCode => Err(self.refusal().expect("unsupported agent").into()),
+        }
+    }
+
+    /// Prepare, with the adapter's own setup check where it has one.
+    pub(crate) fn prepare_checked(
+        self,
+        context: &Context<'_>,
+        arguments: &[String],
+    ) -> Result<(PreparedAgent, Option<ProcessResult>), Setup> {
+        match self {
+            Self::Codex | Self::ClaudeCode => self.prepare(context).map(|prepared| (prepared, None)),
+            Self::Smith => smith::prepare_checked(context, arguments)
+                .map(|(prepared, receipt)| (PreparedAgent::Smith(prepared), receipt)),
+        }
+    }
+
     /// Prepare a supported adapter; missing faces or versions refuse as setup.
     pub fn prepare(self, context: &Context<'_>) -> Result<PreparedAgent, crate::isolate::Setup> {
         match self {
@@ -104,6 +183,22 @@ impl Agent {
 }
 
 impl PreparedAgent {
+    /// Archive what the attempt was prepared with.
+    pub(crate) fn archive(&self, archive: Archive<'_>, result: &mut AttemptResult) -> Result<(), String> {
+        match self {
+            Self::Codex(prepared) => prepared.archive(archive, result),
+            Self::Smith(prepared) => prepared.archive(archive, result),
+        }
+    }
+
+    /// Refuse an identity that differs from what was prepared.
+    pub fn check_identity(&self, identity: &Identity) -> Result<(), String> {
+        match self {
+            Self::Codex(_) => Ok(()),
+            Self::Smith(_) => smith::Prepared::check_identity(identity),
+        }
+    }
+
     /// Build the command with its pinned configuration overrides.
     #[must_use]
     pub fn command(&self) -> Invocation {
@@ -128,6 +223,100 @@ impl PreparedAgent {
 }
 
 impl Observing {
+    /// The stream has ended: faults a closing read finds.
+    pub fn finish(&mut self) -> Result<(), String> {
+        match self {
+            Self::Codex(_) => Ok(()),
+            Self::Smith(observing) => observing.finish(),
+        }
+    }
+
+    /// A refusal at startup, read from the stream and standard error.
+    #[must_use]
+    pub fn refused(&self, task: &Task, exit: Exit, forced: Forced, stderr: &[u8]) -> Option<End> {
+        match self {
+            Self::Codex(_) => None,
+            Self::Smith(observing) => observing.refused(task, exit, forced, stderr),
+        }
+    }
+
+    /// Archive the traces this adapter keeps beside its stream.
+    pub(crate) fn archive_traces(
+        &mut self,
+        archive: Archive<'_>,
+        result: &mut AttemptResult,
+        process: Traces<'_>,
+    ) -> Result<(), String> {
+        match self {
+            Self::Codex(_) => Ok(()),
+            Self::Smith(observing) => observing.archive_traces(archive, result, process.maximum),
+        }
+    }
+
+    /// Archive the main trace after the standard streams (benchmarks.md, 10).
+    pub(crate) fn archive_trace(
+        &self,
+        archive: Archive<'_>,
+        result: &mut AttemptResult,
+        process: Traces<'_>,
+    ) -> Result<(), String> {
+        match self {
+            Self::Codex(_) => codex::Observing::archive_trace(archive, result, process.trace),
+            Self::Smith(observing) => observing.archive_trace(archive, result, process),
+        }
+    }
+
+    /// The tree has ended: health, this adapter's checks, and its credential proof.
+    pub(crate) fn settle(
+        &mut self,
+        archive: Archive<'_>,
+        result: &mut AttemptResult,
+        ended: Ended<'_>,
+    ) -> Result<(), String> {
+        match self {
+            Self::Codex(observing) => observing.settle(archive, result),
+            Self::Smith(observing) => {
+                observing.settle(result, ended);
+                Ok(())
+            }
+        }
+    }
+
+    /// What the agent persisted (benchmarks.md, 6, collect).
+    pub(crate) fn collect(&mut self, archive: Archive<'_>, result: &mut AttemptResult) -> Result<(), String> {
+        match self {
+            Self::Codex(observing) => observing.collect_result(archive, result),
+            Self::Smith(observing) => observing.collect(result),
+        }
+    }
+
+    /// Cache reuse over this attempt's responses.
+    #[must_use]
+    pub fn cache_reuse(&self, threshold: f64, miss_limit: u32) -> Measure<CacheObservation> {
+        match self {
+            Self::Codex(observing) => observing.cache_reuse(threshold, miss_limit),
+            Self::Smith(observing) => observing.events().cache_reuse(threshold, miss_limit),
+        }
+    }
+
+    /// The check this adapter leaves to a whole triplet, where a cache measure exists.
+    #[must_use]
+    pub fn cache_check(&self) -> Option<CheckVerdict> {
+        match self {
+            Self::Codex(_) => Some(codex::Observing::cache_check()),
+            Self::Smith(_) => None,
+        }
+    }
+
+    /// The accepted answers come from a program account, not a provider.
+    #[must_use]
+    pub fn program_source(&self) -> bool {
+        match self {
+            Self::Codex(_) => false,
+            Self::Smith(observing) => observing.prepared.program_source(),
+        }
+    }
+
     /// An offline stream replay: Codex's JSON lines, with no preparation behind them.
     #[must_use]
     pub fn replay() -> Observing {

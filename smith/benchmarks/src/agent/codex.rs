@@ -12,6 +12,10 @@ mod prepare;
 
 mod rollouts;
 
+mod run;
+
+pub(super) use run::source_arm;
+
 pub use prepare::{Observing, PreparedCodex, prepare};
 
 pub use rollouts::{ChildThread, Link, ResponseUsage, RolloutFile, Rollouts, collect_rollouts, parse_rollout};

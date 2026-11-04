@@ -27,10 +27,6 @@ mod cache;
 
 mod passive;
 
-mod startup;
-
-mod traces;
-
 /// An adapter's prepared pipe invocation and author-supplied harness policies.
 /// Arguments already name the planned scratch paths; the runner owns its cwd.
 #[derive(Clone, Debug, Deserialize, Serialize)]
@@ -40,7 +36,7 @@ pub struct Request {
     pub identity: Identity,
     pub program: PathBuf,
     pub arguments: Vec<String>,
-    /// Codex's read-only login; Smith selects the sibling `smith` directory.
+    /// The harness's read-only login; each adapter selects its directory from it.
     #[serde(rename = "codex_home")]
     pub logins: Option<PathBuf>,
     /// The committed adapter pin; absent only for offline stream replays.
@@ -172,7 +168,7 @@ pub(crate) fn private_parent(guard: &Guard, directory: &Path) -> Result<(), Stri
     Ok(())
 }
 
-fn valid_name(name: &str) -> bool {
+pub(crate) fn valid_name(name: &str) -> bool {
     !name.is_empty() && name.bytes().all(|byte| byte.is_ascii_alphanumeric() || matches!(byte, b'-' | b'_'))
 }
 
@@ -184,7 +180,7 @@ pub fn scratch_root(state: &Path, prepared: &Request) -> Result<PathBuf, String>
     Ok(state.join("scratch").join(format!("{}-{}", prepared.identity.run, prepared.identity.attempt)))
 }
 
-fn raw(
+pub(crate) fn raw(
     clock: &Clock,
     machine: &Machine,
     private: &Private,
@@ -238,7 +234,7 @@ fn raw_environment(
     )
 }
 
-fn succeeded(result: &ProcessResult) -> bool {
+pub(crate) fn succeeded(result: &ProcessResult) -> bool {
     result.exit == Exit::Code(0) && result.forced == Forced::No && result.error.is_none()
 }
 
@@ -317,6 +313,19 @@ fn archive(
 ) -> Result<(), String> {
     result.artifacts.push(crate::grade::archive(guard, directory, name, bytes)?);
     Ok(())
+}
+
+/// The attempt's archive directory (benchmarks.md, 10).
+#[derive(Clone, Copy, Debug)]
+pub(crate) struct Archive<'a> {
+    pub(crate) guard: &'a Guard,
+    pub(crate) directory: &'a Path,
+}
+
+impl Archive<'_> {
+    pub(crate) fn put(&self, result: &mut AttemptResult, name: &str, bytes: &[u8]) -> Result<(), String> {
+        archive(self.guard, self.directory, result, name, bytes)
+    }
 }
 
 fn seed_commit(
@@ -442,7 +451,7 @@ fn prepare(
         if task.requested_model(prepared.identity.agent, &prepared.identity.model.requested_model)?
             != prepared.identity.model.requested_model
         {
-            return Err("prepared model differs from the authored Smith model override".into());
+            return Err("prepared model differs from the authored model override".into());
         }
         let prompt = task.prompt.as_bytes().to_vec();
         if prompt.is_empty()
@@ -458,8 +467,8 @@ fn prepare(
         if crate::arm::binary_digest(&prepared.program)? != prepared.identity.binary_sha256 {
             return Err("prepared binary digest differs".into());
         }
-        if prepared.identity.agent == crate::Agent::ClaudeCode {
-            return Err("Claude Code belongs to the next comparison pass".into());
+        if let Some(reason) = prepared.identity.agent.refusal() {
+            return Err(reason.into());
         }
         if prepared.setup_deadline_seconds == 0 || task.deadline_seconds == 0 {
             return Err("setup and task require positive author deadlines".into());
@@ -533,56 +542,6 @@ fn prepare(
     prepared_attempt.map_err(|reason| Setup { step, reason })
 }
 
-fn collect_observation(
-    guard: &Guard,
-    directory: &Path,
-    result: &mut AttemptResult,
-    process: &mut ProcessResult,
-) -> Result<(), String> {
-    if let Some(observing) = process.observing.as_mut() {
-        match observing.as_mut() {
-            crate::agent::Observing::Codex(observing) if observing.prepared.is_some() => {
-                result.delegation =
-                    crate::Delegation::unavailable("Codex does not report child shares or parent blocking");
-                if let Some(thread) = observing.observer.thread().map(str::to_owned) {
-                    let collection = observing.collect().map(|_| ()).map_err(|error| error.what);
-                    if let Some(rollouts) = &observing.collected {
-                        for file in &rollouts.files {
-                            if !valid_name(&file.thread) {
-                                return Err("rollout thread id cannot name an archive file".into());
-                            }
-                            archive(guard, directory, result, &format!("rollout-{}.jsonl", file.thread), &file.bytes)?;
-                        }
-                    }
-                    collection?;
-                    let rollouts = observing.collected.as_ref().expect("completed collection");
-                    rollouts.resolve_model(&thread, &mut result.identity.model).map_err(|error| error.to_string())?;
-                    rollouts.timing(&thread, &mut result.timing).map_err(|error| error.to_string())?;
-                    let ledger = rollouts.token_ledger(&thread)?;
-                    result.tokens = ledger.records()?;
-                    result.spend.priced = crate::result::priced_spend(result, ledger.responses());
-                    rollouts.counts(&thread, &mut result.counts).map_err(|error| error.to_string())?;
-                }
-            }
-            crate::agent::Observing::Codex(_) => {}
-            crate::agent::Observing::Smith(observing) => {
-                observing.events().resolve_model(&mut result.identity.model);
-                observing.events().timing(&mut result.timing);
-                result.tokens = observing.tokens()?;
-                result.spend = observing.spend(&result.tokens)?;
-                result.spend.priced = crate::result::priced_spend(
-                    result,
-                    &observing.events().response_tokens().map_err(|error| error.what)?,
-                );
-                result.resources.own_peak_rss_bytes = observing.observer.own_peak_rss_bytes();
-                result.counts = observing.counts();
-                result.delegation = observing.delegation();
-            }
-        }
-    }
-    Ok(())
-}
-
 fn observe(
     guard: &Guard,
     directory: &Path,
@@ -598,11 +557,18 @@ fn observe(
             .map_err(|error| error.to_string())?
             .format(&time::format_description::well_known::Rfc3339)
             .map_err(|error| error.to_string())?;
-    traces::collect(guard, directory, result, process, maximum)?;
-    startup::finish(process)?;
-    let observing = process.observing.as_ref().expect("attempt observer checked above");
+    let archives = Archive { guard, directory };
+    let traces = crate::agent::Traces { trace: &process.trace, stdout: &process.stdout, maximum };
+    let observing = process.observing.as_mut().expect("attempt observer checked above");
+    observing.archive_traces(archives, result, traces)?;
+    observing.finish()?;
     let classification = observing.classify(process.exit, process.forced);
-    result.outcome.end = startup::classify(process, task).unwrap_or(classification.end);
+    result.outcome.end = if process.error.is_none() {
+        observing.refused(task, process.exit, process.forced, &process.stderr)
+    } else {
+        None
+    }
+    .unwrap_or(classification.end);
     result.outcome.warnings = classification.warnings;
     result.outcome.exit = Measure::Observed { value: process.exit };
     result.outcome.forced = process.forced;
@@ -616,50 +582,22 @@ fn observe(
     }
     archive(guard, directory, result, "stdout.log", &process.stdout)?;
     archive(guard, directory, result, "stderr.log", &process.stderr)?;
-    if !process.trace.is_empty() {
-        archive(guard, directory, result, "trace.jsonl", &process.trace)?;
-    } else if process.observing.as_deref().is_some_and(
-        |observing| matches!(observing, crate::agent::Observing::Smith(smith) if smith.prepared.program_source()),
-    ) {
-        archive(guard, directory, result, "trace.jsonl", &process.stdout)?;
-    }
+    observing.archive_trace(archives, result, traces)?;
     let credential_refresh = Measure::unavailable("the credentials pair has not settled");
-    if let Some(observing) = &mut process.observing {
-        match observing.as_mut() {
-            crate::agent::Observing::Codex(observing) if observing.prepared.is_some() => {
-                result.delegation =
-                    crate::Delegation::unavailable("Codex does not report child shares or parent blocking");
-                if let Some(borrowed) = observing.prepared.as_mut().expect("prepared above").borrowed.take() {
-                    let proof = borrowed.finish(guard)?;
-                    archive(
-                        guard,
-                        directory,
-                        result,
-                        "credential-proof.json",
-                        &serde_json::to_vec_pretty(&proof).map_err(|error| error.to_string())?,
-                    )?;
-                }
-            }
-            crate::agent::Observing::Codex(_) => {}
-            crate::agent::Observing::Smith(observing) => {
-                if let Some(health) = observing.health(process.exit, process.forced) {
-                    result.health = health;
-                }
-                result.outcome.checks.extend(observing.checks_in_workspace(&task.event, &task.prompt, workspace));
-            }
-        }
-    }
+    observing.settle(
+        archives,
+        result,
+        crate::agent::Ended { exit: process.exit, forced: process.forced, task, workspace },
+    )?;
     result.resources = resources(process)?;
     let observing = process.observing.as_ref().expect("attempt observer checked above");
     observing.stream_measures(result)?;
-    collect_observation(guard, directory, result, process)?;
+    process.observing.as_mut().expect("attempt observer checked above").collect(archives, result)?;
     result.cache = cache::observation(process, task);
-    if result.identity.agent == crate::Agent::Codex && result.cache.is_some() {
-        result.outcome.checks.push(crate::CheckVerdict {
-            check: "cache-reuse".into(),
-            passed: Measure::unavailable("cache reuse is judged on a complete three-repetition triplet"),
-            evidence: vec![],
-        });
+    if result.cache.is_some()
+        && let Some(check) = process.observing.as_ref().expect("attempt observer checked above").cache_check()
+    {
+        result.outcome.checks.push(check);
     }
     result.outcome.writes_outside_workspace =
         process.observing.as_ref().expect("attempt observer checked above").writes_outside(workspace);
@@ -687,14 +625,14 @@ fn settled_outcome(
 }
 
 #[derive(Clone, Copy, Debug)]
-struct Work<'a> {
-    clock: &'a Clock,
-    guard: &'a Guard,
-    machine: &'a Machine,
-    private: &'a Private,
-    task: &'a Task,
-    prepared: &'a Request,
-    directory: &'a Path,
+pub(crate) struct Work<'a> {
+    pub(crate) clock: &'a Clock,
+    pub(crate) guard: &'a Guard,
+    pub(crate) machine: &'a Machine,
+    pub(crate) private: &'a Private,
+    pub(crate) task: &'a Task,
+    pub(crate) prepared: &'a Request,
+    pub(crate) directory: &'a Path,
 }
 
 fn credential_lifetime(work: Work<'_>) -> Result<Duration, String> {
@@ -702,96 +640,6 @@ fn credential_lifetime(work: Work<'_>) -> Result<Duration, String> {
         .checked_add(Duration::from_millis(work.prepared.grace_ms))
         .and_then(|span| span.checked_add(Duration::from_millis(work.prepared.settlement_ms)))
         .ok_or_else(|| "credential lifetime overflow".into())
-}
-
-fn archive_preparation(
-    prepared: &crate::agent::PreparedAgent,
-    work: Work<'_>,
-    result: &mut AttemptResult,
-) -> Result<(), String> {
-    match prepared {
-        crate::agent::PreparedAgent::Codex(prepared) => {
-            result.identity.user_configuration_sha256 =
-                Measure::unavailable("attempt-owned Codex home; user configuration is not read");
-            archive(
-                work.guard,
-                work.directory,
-                result,
-                "overrides.json",
-                &serde_json::to_vec_pretty(&prepared.overrides).map_err(|error| error.to_string())?,
-            )?;
-        }
-        crate::agent::PreparedAgent::Smith(prepared) => {
-            if let Some(check) = prepared.check_document() {
-                for (path, name) in
-                    [(check.clone(), "check.json"), (check.with_file_name("check-stderr.log"), "check-stderr.log")]
-                {
-                    archive(
-                        work.guard,
-                        work.directory,
-                        result,
-                        name,
-                        &fs::read(path).map_err(|error| error.to_string())?,
-                    )?;
-                }
-            }
-            result.identity.user_configuration_sha256 = Measure::unavailable("Smith uses frozen harness settings only");
-            archive(
-                work.guard,
-                work.directory,
-                result,
-                "settings.json",
-                &serde_json::to_vec_pretty(&prepared.rendered).map_err(|error| error.to_string())?,
-            )?;
-            archive(
-                work.guard,
-                work.directory,
-                result,
-                "face.json",
-                &serde_json::to_vec_pretty(&prepared.registry).map_err(|error| error.to_string())?,
-            )?;
-        }
-    }
-    Ok(())
-}
-
-fn source_arm(work: Work<'_>, identity: &Identity) -> Result<(crate::arm::ArmRef, String), String> {
-    match identity.agent {
-        crate::Agent::Codex => {
-            let pin = crate::read_configuration(work.prepared.configuration.as_ref().ok_or("Codex requires its pin")?)
-                .map_err(|error| error.to_string())?;
-            if pin.pin.sha256.as_deref() != Some(identity.binary_sha256.as_str()) {
-                return Err("Codex executable digest differs from its pin".into());
-            }
-            let version = raw(
-                work.clock,
-                work.machine,
-                work.private,
-                &[work.prepared.program.to_str().ok_or("program path must be UTF-8")?.into(), "--version".into()],
-                work.prepared.setup_deadline_seconds,
-                work.prepared,
-            )?;
-            if !succeeded(&version) {
-                return Err("cannot verify the installed agent version".into());
-            }
-            let version = std::str::from_utf8(&version.stdout).map_err(|error| error.to_string())?.to_owned();
-            if version.trim().strip_prefix("codex-cli ").unwrap_or(version.trim()) != identity.agent_version {
-                return Err("installed version differs from the planned identity".into());
-            }
-            Ok((crate::arm::ArmRef::Installed { program: work.prepared.program.clone() }, version))
-        }
-        crate::Agent::Smith => {
-            let build = crate::arm::read_build(&work.prepared.program)?;
-            if build.arm.commit != identity.agent_version
-                || !matches!(identity.smith_face, Some(crate::SmithFace::Events))
-            {
-                return Err("Smith built arm differs from the planned full source version".into());
-            }
-            let version = build.arm.commit.clone();
-            Ok((crate::arm::ArmRef::Built(build), version))
-        }
-        crate::Agent::ClaudeCode => Err("Claude Code belongs to the next comparison pass".into()),
-    }
 }
 
 fn invocation(
@@ -817,11 +665,7 @@ fn invocation(
                 None,
             ));
         };
-        if !work.prepared.arguments.is_empty()
-            && (result.identity.agent != crate::Agent::Smith
-                || !work.prepared.arguments.len().is_multiple_of(2)
-                || work.prepared.arguments.chunks_exact(2).any(|pair| pair[0] != "-c"))
-        {
+        if !work.prepared.arguments.is_empty() && !result.identity.agent.takes_arguments(&work.prepared.arguments) {
             return Err("pinned adapters render their own arguments".into());
         }
         if crate::arm::binary_digest(&work.prepared.program)? != result.identity.binary_sha256 {
@@ -831,11 +675,10 @@ fn invocation(
         if pin.sha256 != result.identity.configuration_sha256 || pin.pin.agent != result.identity.agent {
             return Err("adapter configuration differs from the planned identity".into());
         }
-        let (arm, version) = source_arm(work, &result.identity)?;
+        let (arm, version) = result.identity.agent.source_arm(work, &result.identity)?;
         let source =
             work.prepared.logins.as_deref().ok_or("the adapter requires its read-only source login directory")?;
-        let smith_home = source.parent().ok_or("source login needs its harness parent")?.join("smith");
-        let home = if result.identity.agent == crate::Agent::Smith { smith_home.as_path() } else { source };
+        let home = result.identity.agent.home(source)?;
         let model = crate::ModelChoice {
             model: Some(result.identity.model.requested_model.clone()),
             effort: Some(result.identity.model.requested_effort.clone()),
@@ -850,33 +693,22 @@ fn invocation(
             model: &model,
             arm: &arm,
             installed_version: &version,
-            home,
+            home: &home,
             wall: work.clock.now().wall,
             lifetime: credential_lifetime(work)?,
             environment: &environment,
         };
-        let (prepared, receipt) = match result.identity.agent {
-            crate::Agent::Smith => crate::agent::smith::prepare_checked(&context, &work.prepared.arguments)
-                .map(|(prepared, receipt)| (crate::agent::PreparedAgent::Smith(prepared), receipt)),
-            crate::Agent::Codex | crate::Agent::ClaudeCode => {
-                result.identity.agent.prepare(&context).map(|prepared| (prepared, None))
-            }
-        }
-        .map_err(|error| {
-            step = error.step;
-            error.reason
-        })?;
-        if let crate::agent::PreparedAgent::Smith(_) = &prepared {
-            let selected = crate::SmithFace::Events;
-            if result.identity.smith_face != Some(selected) {
-                return Err("Smith identity names a different face than its source registry".into());
-            }
-        }
-        archive_preparation(&prepared, work, result)?;
+        let (prepared, receipt) =
+            result.identity.agent.prepare_checked(&context, &work.prepared.arguments).map_err(|error| {
+                step = error.step;
+                error.reason
+            })?;
+        prepared.check_identity(&result.identity)?;
+        prepared.archive(Archive { guard: work.guard, directory: work.directory }, result)?;
         if let Some(receipt) = &receipt
             && !work.task.event.contains(&crate::EventCheck::NoRun)
         {
-            return Err(format!("Smith check refused setup with {:?}", receipt.exit));
+            return Err(format!("the adapter's check refused setup with {:?}", receipt.exit));
         }
         let mut invocation = prepared.command();
         crate::batch::settings_arguments(&mut invocation.arguments, &work.prepared.arguments);
@@ -1051,7 +883,7 @@ pub fn attempt(guard: &Guard, machine: &Machine, state: &Path, prepared: &Reques
         })?;
         let script = script(&task, &capture);
         let mut process = if let Some(mut receipt) = receipt {
-            let Capture::Agent(observing) = capture else { return Err("Smith check needs its event observer".into()) };
+            let Capture::Agent(observing) = capture else { return Err("a checked adapter needs its observer".into()) };
             receipt.observing = Some(observing);
             receipt
         } else {
