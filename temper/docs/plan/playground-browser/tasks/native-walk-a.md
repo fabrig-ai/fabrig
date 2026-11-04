@@ -707,3 +707,12 @@ failure is the sizing assertion after the walk, below).
 - The checks, once each: `heavy cargo nextest run -p temper-engine-domain-world -E 'test(/settings/) or
   test(/b2s_tree_admits/)'`, then the rest as the previous answer lists them. Report the walk's CPU
   against 3 s, and push. What it says stays left stays left.
+
+## Rebase (2026-11-04, step merge, foreman playground-browser/native-walk-a/foreman-18)
+
+resolve visitor.rs’s overlapping bridge-exchange migrations using the integration version
+The merge conflict is in `temper/crates/temper-playground/src/tests/visitor.rs`, function `the_visitor_spends_the_printed_link`.
+Branch commit `7212ac038a` and integration commit `24ed2d6e7b` independently replace `fetch::Exchange` with `bridge::Exchange`.
+Both add `keep: Vec::new()`; the branch sets `cache: fetch::Cache::NoStore`, while integration sets `fetch::Cache::Browser`.
+Resolve this hunk with `bridge::Exchange`, `cache: fetch::Cache::Browser`, and `keep: Vec::new()`, matching integration. Preserve the remaining test code.
+Run `heavy cargo nextest run -p temper-playground --lib -E 'test(=tests::visitor::the_visitor_spends_the_printed_link)'`, then the package’s tests.
