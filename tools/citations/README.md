@@ -27,8 +27,7 @@ python3 -I -B tools/citations/test_citations.py
   everything under a tree's `docs/plan/`, whatever its extension (a runner's records of a
   change: a task spec cites what its task deletes), and
   `docs/development/` files dated in their name, which describe the tree at their date.
-- **Another repository's documents:** hearth's ("hearth's `domain/store.md`") are left
-  unchecked. A citation of any other repository's document ("the probe repository's
+- **Another repository's documents:** a citation of one ("the probe repository's
   `docs/a.md`") is refused: a finding (`outside`) even where a file of that name exists
   here.
 - **Not citations:** dates or counts ("`x.md`, 21 places") after a path,

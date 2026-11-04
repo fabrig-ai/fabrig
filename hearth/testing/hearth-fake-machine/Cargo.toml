@@ -1,0 +1,17 @@
+[package]
+name = "hearth-fake-machine"
+description = "The deterministic files and processes beneath hearth's tests"
+version.workspace = true
+edition.workspace = true
+license.workspace = true
+rust-version.workspace = true
+publish.workspace = true
+
+[dependencies]
+skein-lib.workspace = true
+skein-io.workspace = true
+skein-sim.workspace = true
+skein-world.workspace = true
+
+[lints]
+workspace = true

@@ -1,0 +1,207 @@
+use hearth_protocol_template::{
+    ErrorKind,
+    limits::{Limits, SHIPPED},
+};
+use skein_lib::Rng;
+use std::collections::BTreeSet;
+pub const LIMITS: Limits = SHIPPED;
+/// A sixteenth of the shipped text size still fills every allocation in the
+/// template/interpolation formula, including all offsets and instructions.
+pub const MEMORY_LIMITS: Limits = Limits { template: SHIPPED.template / 16, ..SHIPPED };
+#[derive(Clone, Copy, Debug)]
+pub struct Shape {
+    pub width: u32,
+}
+pub const SMALL_TEMPLATES: Shape = Shape { width: 8 };
+pub const WIDE_TEMPLATES: Shape = Shape { width: 48 };
+pub const TEMPLATE_KINDS: &[&str] = &[
+    "long",
+    "character",
+    "unterminated",
+    "escape",
+    "integer",
+    "expected",
+    "deep",
+    "misplaced",
+    "filter",
+    "arity",
+    "test",
+    "utf8",
+    "return",
+    "unclosed",
+    "statement",
+    "unmatched",
+    "unended",
+    "shadows",
+];
+pub const SMALL: Shape = Shape { width: 16 };
+pub const WIDE: Shape = Shape { width: 260 };
+#[must_use]
+pub fn limits(rng: &mut Rng) -> Limits {
+    if rng.below(4) != 0 {
+        SHIPPED
+    } else {
+        Limits {
+            expression: u32::try_from(rng.between(1, 256)).expect("bounded by fixture or checked text"),
+            statements: u32::try_from(rng.between(1, 4)).expect("tiny statement limit"),
+            template: u32::try_from(rng.between(64, 4096)).expect("tiny template limit"),
+            nesting: u32::try_from(rng.between(1, 8)).expect("bounded by fixture or checked text"),
+        }
+    }
+}
+#[must_use]
+pub fn kind(kind: &ErrorKind) -> &'static str {
+    match kind {
+        ErrorKind::Interpolation => "interpolation",
+        ErrorKind::Unmatched => "unmatched",
+        ErrorKind::Unended => "unended",
+        ErrorKind::Shadows => "shadows",
+        ErrorKind::Utf8 => "utf8",
+        ErrorKind::Return => "return",
+        ErrorKind::Unclosed => "unclosed",
+        ErrorKind::UnknownStatement => "statement",
+        ErrorKind::TooLong => "long",
+        ErrorKind::Character => "character",
+        ErrorKind::Unterminated => "unterminated",
+        ErrorKind::Escape => "escape",
+        ErrorKind::Integer => "integer",
+        ErrorKind::Expected(_) => "expected",
+        ErrorKind::TooDeep => "deep",
+        ErrorKind::Misplaced => "misplaced",
+        ErrorKind::UnknownFilter => "filter",
+        ErrorKind::UnknownTest => "test",
+        ErrorKind::Arity { .. } => "arity",
+    }
+}
+pub const EVERY_KIND: &[&str] = &[
+    "long",
+    "character",
+    "unterminated",
+    "escape",
+    "integer",
+    "expected",
+    "deep",
+    "misplaced",
+    "filter",
+    "arity",
+    "test",
+];
+pub fn assert_fell(fell: &BTreeSet<&str>, kinds: &[&str]) {
+    for kind in kinds {
+        assert!(fell.contains(kind), "missing {kind}");
+    }
+}
+
+type LimitSpec =
+    (&'static str, &'static str, usize, &'static str, &'static str, &'static str, &'static str, Result<(), u32>);
+pub type LimitText = (Vec<u8>, &'static str, Result<(), u32>);
+// Head, repeated opening, count, middle, repeated closing, tail, label, outcome.
+const LIMIT_TEXTS: &[LimitSpec] = &[
+    ("[0", ",0", 2046, "", "", "] ", "4096-byte list", Ok(())),
+    ("[0", ",0", 2046, "", "", "]  ", "one byte past the list", Err(4096)),
+    ("", "(", 64, "a", ")", "", "64 groups", Ok(())),
+    ("", "(", 65, "a", ")", "", "65 groups", Err(64)),
+    ("", "[", 64, "a", "]", "", "64 lists", Ok(())),
+    ("", "[", 65, "a", "]", "", "65 lists", Err(64)),
+    ("", "a[", 64, "a", "]", "", "64 indices", Ok(())),
+    ("", "a[", 65, "a", "]", "", "65 indices", Err(129)),
+    ("", "not ", 64, "a", "", "", "64 negations", Ok(())),
+    ("", "not ", 65, "a", "", "", "65 negations", Err(256)),
+    ("", "a if c else ", 64, "b", "", "", "64 else branches", Ok(())),
+    ("", "a if c else ", 65, "b", "", "", "65 else branches", Err(770)),
+    ("'", "a", 4094, "", "", "'", "longest string", Ok(())),
+    ("'", "a", 4095, "", "", "'", "one byte past the string", Err(4096)),
+    ("a", ".a", 2047, "", "", " ", "longest chain", Ok(())),
+    ("a", ".a", 2048, "", "", "", "one byte past the chain", Err(4096)),
+    ("", "a", 4096, "", "", "", "longest name", Ok(())),
+    ("", "a", 4097, "", "", "", "one byte past the name", Err(4096)),
+    ("['a'", ",'a'", 1022, "", "", "]   ", "many retained strings", Ok(())),
+];
+#[must_use]
+pub fn at_the_limits() -> Vec<LimitText> {
+    LIMIT_TEXTS
+        .iter()
+        .map(|&(head, open, count, middle, close, tail, what, outcome)| {
+            let text = [
+                head.as_bytes(),
+                open.repeat(count).as_bytes(),
+                middle.as_bytes(),
+                close.repeat(count).as_bytes(),
+                tail.as_bytes(),
+            ]
+            .concat();
+            (text, what, outcome)
+        })
+        .collect()
+}
+
+pub const STRING_KINDS: &[&str] = &[
+    "long",
+    "character",
+    "unterminated",
+    "escape",
+    "integer",
+    "expected",
+    "deep",
+    "misplaced",
+    "filter",
+    "arity",
+    "test",
+    "unclosed",
+    "interpolation",
+];
+
+#[derive(Clone, Copy)]
+enum TemplateShape {
+    Text,
+    Outputs,
+    Lines,
+    Ifs,
+    Fors,
+    Expression,
+}
+const TEMPLATE_LIMIT_TEXTS: &[(&str, TemplateShape, bool)] = &[
+    ("template text", TemplateShape::Text, false),
+    ("one past template text", TemplateShape::Text, true),
+    ("template outputs", TemplateShape::Outputs, false),
+    ("one past template outputs", TemplateShape::Outputs, true),
+    ("template line table", TemplateShape::Lines, false),
+    ("one past template line table", TemplateShape::Lines, true),
+    ("nested conditions", TemplateShape::Ifs, false),
+    ("one past nested conditions", TemplateShape::Ifs, true),
+    ("nested loops", TemplateShape::Fors, false),
+    ("one past nested loops", TemplateShape::Fors, true),
+    ("template expression", TemplateShape::Expression, false),
+    ("one past template expression", TemplateShape::Expression, true),
+];
+/// The template entry point's text, instruction, line, nesting and expression bounds.
+#[must_use]
+pub fn templates_at_the_limits(limits: &Limits) -> Vec<(Vec<u8>, &'static str, bool)> {
+    TEMPLATE_LIMIT_TEXTS
+        .iter()
+        .map(|&(what, shape, past)| {
+            let length = limits.template as usize + usize::from(past);
+            let depth = limits.statements as usize + usize::from(past);
+            let text = match shape {
+                TemplateShape::Text => vec![b'a'; length],
+                TemplateShape::Lines => vec![b'\n'; length],
+                TemplateShape::Outputs => [b"{{a}}".repeat(length / 5), vec![b'a'; length % 5]].concat(),
+                TemplateShape::Ifs => {
+                    [b"{% if a %}".repeat(depth), b"body".to_vec(), b"{% endif %}".repeat(depth)].concat()
+                }
+                TemplateShape::Fors => {
+                    [b"{% for x in a %}".repeat(depth), b"body".to_vec(), b"{% endfor %}".repeat(depth)].concat()
+                }
+                TemplateShape::Expression => {
+                    [b"{{".to_vec(), vec![b'a'; limits.expression as usize + usize::from(past)], b"}}".to_vec()]
+                        .concat()
+                }
+            };
+            let text_sized = match shape {
+                TemplateShape::Text | TemplateShape::Outputs | TemplateShape::Lines => true,
+                TemplateShape::Ifs | TemplateShape::Fors | TemplateShape::Expression => false,
+            };
+            (text, what, text_sized)
+        })
+        .collect()
+}
