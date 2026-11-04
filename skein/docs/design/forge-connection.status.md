@@ -7,7 +7,7 @@
   its data, no lifecycle in flags or `Option`s beside it, exhaustive
   matches and one handler per cell;
   `skein-forge-connection/src/connection.rs`'s `Connection` keeps
-  `draining`, `closing`, `written` and request data beside a thin `Phase`,
+  `draining`, `closing` and `written` beside a thin `Phase`,
   `hooks/connection.rs`'s `Hooked` keeps flags and `Option`s, and
   `installations.rs`'s `GitHub` keeps mint, read and identity flags and
   `Option`s beside its state enums; no reason is recorded (the code's

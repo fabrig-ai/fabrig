@@ -4,51 +4,18 @@ use jig_ops_domain_infrastructure as infrastructure;
 use jig_ops_domain_observability as observability;
 use skein_lib::Env;
 
-/// How the root takes an event (jig/docs/design/domain/root.md, 3).
-#[derive(Clone, Copy, PartialEq, Eq, Debug)]
-pub enum Class {
-    /// Finishes or advances admitted work, taken at any backlog.
-    Admitted,
-    /// New work, handed back unchanged at the watermark.
-    New,
-    /// Its admitted part is stepped; its new part waits at the watermark.
-    Mixed,
-}
+pub use jig_domain_link::Class;
 
 /// Class an event by its variant and payload alone.
 #[must_use]
 pub fn class(event: &Event) -> Class {
     match event {
-        Event::Core(event) => {
-            if event.new_work() {
-                Class::New
-            } else {
-                Class::Admitted
-            }
-        }
-        Event::Timer(timer) => {
-            if timer.new_work() {
-                Class::New
-            } else {
-                Class::Admitted
-            }
-        }
+        Event::Core(event) => Class::of(event.new_work()),
+        Event::Timer(timer) => Class::of(timer.new_work()),
         Event::Observability(event) => observability_class(event),
         Event::Infrastructure(event) => infrastructure_class(event),
-        Event::Host(event) => {
-            if event.new_work() {
-                Class::New
-            } else {
-                Class::Admitted
-            }
-        }
-        Event::Agent(event) => {
-            if event.new_work() {
-                Class::New
-            } else {
-                Class::Admitted
-            }
-        }
+        Event::Host(event) => Class::of(event.new_work()),
+        Event::Agent(event) => Class::of(event.new_work()),
         Event::WatchApplication { .. }
         | Event::ReadApplication { .. }
         | Event::Application { .. }

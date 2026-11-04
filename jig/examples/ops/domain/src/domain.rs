@@ -308,11 +308,7 @@ pub(crate) fn decide(domain: &mut Domain, env: &Env<Limits>, first: Work) {
     if finish_only {
         assert!(!domain.wrote && !domain.core.counters.dirty(), "stopping continuation makes no commit");
     }
-    let header = if domain.wrote { Some(domain.core.commit_header()) } else { domain.core.cold_header() };
-    if let Some(header) = header {
-        let core::Write::Save(header) = header else {
-            unreachable!("a deployment header is a save");
-        };
+    if let Some(header) = domain.core.decision_header(domain.wrote) {
         write(domain, &mut decision, Write::Save(Record::Core(header)));
     }
     domain.journal.accept(decision);
@@ -371,11 +367,6 @@ pub fn release(domain: &mut Domain, env: &Env<Limits>, out: &mut Queue<Output>) 
     }
 }
 
-fn wall_due(env: &Env<Limits>, expiry: skein_lib::Wall) -> bool {
-    let remaining = expiry.as_nanos().saturating_sub(env.wall.as_nanos());
-    env.now.saturating_add(skein_lib::Duration::from_nanos(remaining)) <= env.now
-}
-
 fn timers_due(domain: &Domain, env: &Env<Limits>) -> bool {
     for due in [
         domain.core.next_deadline(env.now, env.wall),
@@ -390,7 +381,7 @@ fn timers_due(domain: &Domain, env: &Env<Limits>) -> bool {
         }
     }
     match domain.core.effect_deadline() {
-        Some(due) => wall_due(env, due),
+        Some(due) => env.wall_due(due),
         None => false,
     }
 }

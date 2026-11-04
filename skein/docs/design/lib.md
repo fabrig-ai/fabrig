@@ -103,6 +103,8 @@ exactly and never past the cap. A B-tree allocates as it fills, so its
 allocation price through `price(capacity)`.
 
 `List::from_boxed` makes a list of owned items, its capacity their count.
+`List::swap_remove` takes one item out, the last taking its place, and
+`List::iter_mut` hands each item to change in place.
 
 **`Queue::uncapped()`, `Map::uncapped()` and `List::uncapped()`**
 start empty and grow, with `u32::MAX` as their capacity. They hold the
@@ -509,6 +511,8 @@ cannot manufacture independent room.
 **`Env<L>`** is what a step reads besides its own state: `now`, `wall`,
 and its layer's `limits: L`. A step gets it behind a shared borrow.
 `env.with(limits)` hands a child step the same clocks with its own limits.
+`env.wall_due(expiry)` says whether a wall-clock expiry has come, on the
+step's clocks.
 
 ## 10. Testing
 
