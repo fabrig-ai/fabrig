@@ -170,7 +170,7 @@ fn transcript(routes: &Routes, owner: Token, after: Option<u64>) -> Option<Reque
 }
 fn window(now: core::Now) -> Option<(u64, u64, u32)> {
     match now {
-        core::Now::StartPreparation { task, from: Some((attempt, turn)), .. } => Some((task, attempt, turn)),
+        core::Now::StartPreparation { task, from: (attempt, turn), .. } => Some((task, attempt, turn)),
         core::Now::RelayBusy { .. }
         | core::Now::CallBusy { .. }
         | core::Now::Relayed { .. }
@@ -196,8 +196,6 @@ fn window(now: core::Now) -> Option<(u64, u64, u32)> {
         | core::Now::AcceptedTurn { .. }
         | core::Now::RefusedPayload { .. }
         | core::Now::Activate { .. }
-        | core::Now::PrepareAgent { .. }
-        | core::Now::StartPreparation { from: None, .. }
         | core::Now::CompleteBrief { .. }
         | core::Now::BriefCorePlanned { .. }
         | core::Now::WorkspaceRequest { .. }
