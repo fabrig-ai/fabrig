@@ -3,8 +3,8 @@
 //! Contract: smith/docs/design/protocol/agent.md, section 6.
 
 use alloc::boxed::Box;
-use smith_domain::run;
 use skein_lib::Time;
+use smith_domain::run;
 use smith_events::AnswerFailure;
 
 /// The answer the settled agent's last line reports (smith/docs/design/protocol/agent.md, section 6).
@@ -49,12 +49,7 @@ pub fn last(service: &crate::Service) -> Option<Last> {
     }
 }
 
-pub(crate) fn remember(
-    service: &mut crate::service::Stages,
-    answer: &run::Answer,
-    detail: Box<[u8]>,
-    now: Time,
-) {
+pub(crate) fn remember(service: &mut crate::service::Stages, answer: &run::Answer, detail: Box<[u8]>, now: Time) {
     service.line = match answer {
         run::Answer::Failed { failure, .. } => Line::Failed { failure: failure.clone(), at: now, detail },
         run::Answer::Refused(refusal) => Line::Refused { refusal: *refusal, detail },

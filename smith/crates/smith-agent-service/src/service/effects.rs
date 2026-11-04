@@ -59,10 +59,9 @@ impl Effects {
         }
         for (directory, fd) in workspace.directories.iter_mut().zip(&roots) {
             let root = self.stages.files.adopt_root(*fd).ok_or(ConfigError::Io)?;
-            self.stages.roots.push(root).expect("admitted root count");
+            self.stages.roots.adopt(root, self.stages.limits.machine.roots);
             directory.root = root;
         }
-        self.stages.root_close_next = self.stages.roots.len();
         self.stages.machine.workspace(&workspace);
         Ok(workspace)
     }

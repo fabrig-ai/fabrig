@@ -74,8 +74,11 @@ pub(super) fn interrupted_before_admission(run: u64) -> Service {
         Some(&mut service.frame),
         io::Event::Shutdown { signal: kernel::ServiceSignal::Interrupt, from: None },
     );
-    assert_eq!(service.stages.admission, admission::Admission::Cancelled,
-        "the opening run retains cancellation until admission");
+    assert_eq!(
+        service.stages.admission,
+        admission::Admission::Cancelled,
+        "the opening run retains cancellation until admission"
+    );
     with_admission(service, Some(Token::new(run)))
 }
 

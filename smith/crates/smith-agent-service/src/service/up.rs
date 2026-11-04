@@ -88,8 +88,7 @@ pub(super) fn lower_events(service: &mut Stages, mut frame: Option<&mut Frame>) 
     }
     for _ in 0..service.limits.queue {
         let Some(event) = service.file_events.pop() else { break };
-        if event.owner() == super::ROOT_CLOSE_OWNER && service.root_close_pending {
-            service.root_close_pending = false;
+        if event.owner() == super::ROOT_CLOSE_OWNER && service.roots.reported() {
             continue;
         }
         let Some(event) = program::file_event(service, event) else { continue };

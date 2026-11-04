@@ -11,10 +11,11 @@ mod admission;
 mod down;
 mod effects;
 mod face;
-mod opening;
 pub(crate) mod link;
+mod opening;
 mod readiness;
 mod request;
+mod roots;
 mod routing;
 mod stages;
 mod up;
@@ -41,7 +42,7 @@ use teardown::Teardown;
 
 use skein_channel::{Lower as ChannelLower, StreamMode};
 use skein_io::{self as io, file, file_layer, kernel};
-use skein_lib::{Duration, Env, List, Map, Queue, Slab, Time, Token, Wall};
+use skein_lib::{Duration, Env, Map, Queue, Slab, Time, Token, Wall};
 use smith_domain::{self as domain, run};
 use smith_protocol_channel as channel;
 use smith_protocol_llm as llm;
@@ -212,9 +213,7 @@ pub(crate) struct Stages {
     pub(crate) line: crate::terminal::Line,
     opening: opening::Opening,
     pipe_routes: Map<Token, Token>,
-    roots: List<Token>,
-    root_close_next: u32,
-    root_close_pending: bool,
+    roots: roots::Roots,
 }
 
 const START_REPLY: Token = Token::new(1);
@@ -404,8 +403,7 @@ impl Service {
         match root {
             Ok(fd) => match self.stages.files.adopt_root(fd) {
                 Some(token) => {
-                    self.stages.roots.push(token).expect("root count was checked before opening");
-                    self.stages.root_close_next = self.stages.roots.len();
+                    self.stages.roots.adopt(token, self.stages.limits.machine.roots);
                     self.stages.opening.attached(host, token);
                     opening::follow(&mut self.stages, &mut self.frame);
                 }

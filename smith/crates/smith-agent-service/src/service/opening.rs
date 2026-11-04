@@ -51,14 +51,16 @@ impl Opening {
                 let mounts = start.mounts.as_ref().expect("a requested root belongs to a workspace");
                 let index = usize::try_from(directories.len()).expect("root index fits usize");
                 let mount = mounts.get(index).expect("one mount requested at a time");
-                directories.push(run::Directory {
-                    host,
-                    name: mount.name.clone(),
-                    root,
-                    writable: mount.writable,
-                    git: mount.git,
-                    conflicts: mount.conflicts.clone(),
-                }).expect("root count was checked before opening");
+                directories
+                    .push(run::Directory {
+                        host,
+                        name: mount.name.clone(),
+                        root,
+                        writable: mount.writable,
+                        git: mount.git,
+                        conflicts: mount.conflicts.clone(),
+                    })
+                    .expect("root count was checked before opening");
                 Self::Attaching { start, directories }
             }
             Self::Idle | Self::Started { .. } => unreachable!("a root belongs to a pending Start"),

@@ -7,8 +7,11 @@ fn each_settled_answer_gives_its_last_line() {
     let now = Time::from_nanos(2_000_000);
     let rows = [
         (run::Answer::Parked { spent: run::Spend::ZERO, turns: 0 }, None, None),
-        (run::Answer::Failed { failure: failed.clone(), spent: run::Spend::ZERO, turns: 0 }, None,
-            Some(smith_protocol_events::failure_record(failed, now))),
+        (
+            run::Answer::Failed { failure: failed.clone(), spent: run::Spend::ZERO, turns: 0 },
+            None,
+            Some(smith_protocol_events::failure_record(failed, now)),
+        ),
         (run::Answer::Refused(refusal), None, Some(smith_protocol_events::refusal_record(refusal))),
         (run::Answer::Parked { spent: run::Spend::ZERO, turns: 0 }, Some(Failure::Send), None),
     ];
@@ -19,7 +22,7 @@ fn each_settled_answer_gives_its_last_line() {
             service.stages.mark_failed(reason);
         }
         teardown::answered(&mut service.stages);
-        for _ in 0..3 {
+        for _ in 0_u32..3 {
             teardown::follow(&mut service.stages, Some(&service.frame));
         }
         assert_eq!(done(&service), Some(unsent.is_none()));
@@ -65,8 +68,11 @@ fn a_failure_before_the_answer_leaves_the_run_live() {
     assert!(service.stages.io_requests.is_empty());
     assert!(!service.stages.llm.closed());
     assert_eq!(done(&service), None);
-    route_io_event(&mut service.stages, Some(&mut service.frame),
-        io::Event::Shutdown { signal: kernel::ServiceSignal::Interrupt, from: None });
+    route_io_event(
+        &mut service.stages,
+        Some(&mut service.frame),
+        io::Event::Shutdown { signal: kernel::ServiceSignal::Interrupt, from: None },
+    );
     match service.stages.domain_events.pop().expect("live shutdown cancels") {
         domain::Event::Cancel { run } => assert_eq!(run, Token::new(19)),
         other => panic!("cancel: {other:?}"),
@@ -131,12 +137,18 @@ fn a_start_attaches_its_mounts_in_order_then_enters_the_domain() {
             charter: charter(&smith_agent_world::Settings::calm(1)),
             mounts: Some(Box::new([
                 smith_protocol_translate::Mount {
-                    name: Box::from(b"first".as_slice()), path: Box::from(b"/first".as_slice()),
-                    writable: true, git: true, conflicts: Box::default(),
+                    name: Box::from(b"first".as_slice()),
+                    path: Box::from(b"/first".as_slice()),
+                    writable: true,
+                    git: true,
+                    conflicts: Box::default(),
                 },
                 smith_protocol_translate::Mount {
-                    name: Box::from(b"second".as_slice()), path: Box::from(b"/second".as_slice()),
-                    writable: false, git: false, conflicts: Box::default(),
+                    name: Box::from(b"second".as_slice()),
+                    path: Box::from(b"/second".as_slice()),
+                    writable: false,
+                    git: false,
+                    conflicts: Box::default(),
                 },
             ])),
             transcript: None,

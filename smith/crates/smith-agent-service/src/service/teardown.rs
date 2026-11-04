@@ -6,7 +6,7 @@
 use skein_lib::Time;
 
 use super::{Failure, Frame, Operation, Stages, USAGE_OWNER, face};
-use skein_io::{self as io, file, file_layer};
+use skein_io as io;
 
 /// Where the service is in its end, advanced after each routing pass.
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
@@ -28,7 +28,9 @@ impl Teardown {
         match self {
             Self::Live => None,
             Self::LiveUnsent { failure } => Some(failure),
-            Self::Answered { answer, .. } | Self::Closing { answer, .. } | Self::Closed { answer, .. } => answer.failure(),
+            Self::Answered { answer, .. } | Self::Closing { answer, .. } | Self::Closed { answer, .. } => {
+                answer.failure()
+            }
         }
     }
 }
@@ -200,11 +202,14 @@ pub(super) fn shutdown(service: &mut Stages) {
 
 pub(super) fn work_pending(service: &Stages, frame: Option<&Frame>) -> bool {
     match service.teardown {
-        Teardown::Live | Teardown::LiveUnsent { .. } | Teardown::Closed { .. } | Teardown::Closing { step: Step::Usage, .. } => false,
+        Teardown::Live
+        | Teardown::LiveUnsent { .. }
+        | Teardown::Closed { .. }
+        | Teardown::Closing { step: Step::Usage, .. } => false,
         Teardown::Answered { .. } => close_room(service),
         Teardown::Closing { step: Step::Components, .. } => {
             (components_closed(service, frame) && owner_ended(service, frame))
-                || (!service.roots.is_empty() && roots_closable(service))
+                || (service.roots.held() && super::roots::closable(service))
         }
         Teardown::Closing { step: Step::Stream, .. } => stream_closed(service, frame),
         Teardown::Closing { step: Step::Signals, .. } => service.signals.is_none() && stream_closed(service, frame),
@@ -217,7 +222,10 @@ fn owner_ended(service: &Stages, frame: Option<&Frame>) -> bool {
 
 pub(super) fn follow(service: &mut Stages, frame: Option<&Frame>) {
     match service.teardown {
-        Teardown::Live | Teardown::LiveUnsent { .. } | Teardown::Closed { .. } | Teardown::Closing { step: Step::Usage, .. } => {}
+        Teardown::Live
+        | Teardown::LiveUnsent { .. }
+        | Teardown::Closed { .. }
+        | Teardown::Closing { step: Step::Usage, .. } => {}
         Teardown::Answered { at, answer, close } => {
             if close_room(service) {
                 match close {
@@ -244,12 +252,12 @@ pub(super) fn follow(service: &mut Stages, frame: Option<&Frame>) {
                         }
                     }
                 }
-                close_roots(service);
+                super::roots::follow(service);
                 service.teardown = Teardown::Closing { at, answer, close, step: Step::Components };
             }
         }
         Teardown::Closing { at, answer, close, step: Step::Components } => {
-            close_roots(service);
+            super::roots::follow(service);
             if components_closed(service, frame) && owner_ended(service, frame) {
                 let step = match &service.events {
                     Some(_) => {
@@ -276,26 +284,6 @@ pub(super) fn follow(service: &mut Stages, frame: Option<&Frame>) {
             if service.signals.is_none() && stream_closed(service, frame) {
                 service.teardown = Teardown::Closed { answer, close };
             }
-        }
-    }
-}
-
-fn close_roots(service: &mut Stages) {
-    service.machine.close(&mut service.machine_below);
-    if roots_closable(service) {
-        if service.root_close_next > 0 {
-            service.root_close_next = service.root_close_next.checked_sub(1).expect("positive root count");
-            let root = *service.roots.get(service.root_close_next).expect("closed roots in reverse order");
-            service.root_close_pending = true;
-            file_layer::down(
-                &mut service.files,
-                service.io_env.now,
-                file::Request::Close { owner: super::ROOT_CLOSE_OWNER, file: root },
-                &mut service.file_events,
-                &mut service.file_submissions,
-            );
-        } else {
-            service.roots.clear();
         }
     }
 }
@@ -343,17 +331,9 @@ fn settled(service: &Stages, frame: Option<&Frame>, streams: u32) -> bool {
         }
         && service.files.takes()
         && service.files.open_files() == 0
-        && service.roots.is_empty()
+        && service.roots.closed()
         && service.owners.is_empty()
         && service.pipe_routes.is_empty()
         && operations_settled(service)
         && service.submissions.is_empty()
-}
-
-fn roots_closable(service: &Stages) -> bool {
-    service.machine.closed()
-        && service.owners.is_empty()
-        && service.pipe_routes.is_empty()
-        && service.files.takes()
-        && !service.root_close_pending
 }

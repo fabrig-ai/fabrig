@@ -3,9 +3,9 @@ use super::routing::io_down;
 use super::stages::backlog;
 use super::up::{component_up, domain_up, lower_events};
 use setup::{Input, enter};
-use skein_lib::ReplyTo;
-mod setup;
+use skein_lib::{List, ReplyTo};
 mod lifecycles;
+mod setup;
 
 pub(crate) use setup::{account_request, account_service, charter, configuration, domain_configuration};
 use setup::{

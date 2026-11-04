@@ -366,9 +366,9 @@ pub(super) fn install(
             {
                 return Err(());
             }
-            if let Some(file) = service.roots.get(0) {
-                let descriptor = service.files.descriptor(*file).ok_or(())?;
-                let root = backend::Root { file: *file, descriptor };
+            if let Some(file) = service.roots.first() {
+                let descriptor = service.files.descriptor(file).ok_or(())?;
+                let root = backend::Root { file, descriptor };
                 program.workspace = Some(root);
                 program.backend.workspace(root);
             }
