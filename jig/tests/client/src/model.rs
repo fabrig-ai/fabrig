@@ -174,14 +174,8 @@ impl Model {
 
 #[test]
 fn local_typing_survives_unchanged_writes_and_same_count_value_patches_are_rejected() {
-    let limits = skein_ui::Limits {
-        nodes: 1,
-        depth: 1,
-        text_per_node: 8,
-        text_bytes: 8,
-        patches: 8,
-        ..skein_ui::Limits::EMPTY
-    };
+    let limits =
+        skein_ui::Limits { nodes: 1, depth: 1, text_per_node: 8, text_bytes: 8, patches: 8, ..skein_ui::Limits::EMPTY };
     let mut view = skein_ui::View::new(&limits);
     let mut patches = skein_lib::Queue::with_capacity(limits.patches);
     let mut builder = view.builder();

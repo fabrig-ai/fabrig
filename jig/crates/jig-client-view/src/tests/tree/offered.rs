@@ -87,8 +87,8 @@ fn every_closed_offer_control_and_whole_refusal_fits_the_public_card_tree_with_t
         let mut total = 0_u64;
         let mut decoded = Vec::new();
         for node in tree.nodes() {
-            assert!(crate::tests::text_bytes(node) <= limits.text_per_node);
-            total += u64::from(crate::tests::text_bytes(node));
+            assert!(node.text_bytes() <= limits.text_per_node);
+            total += u64::from(node.text_bytes());
             if node.role == Role::Button
                 && let Some(binding) = node.binding
                 && let Some(Action::Intend { object, act }) = decode(&mut bindings, binding.token, Act::Press)
