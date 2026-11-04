@@ -39,7 +39,8 @@ the shapes that cross tasks are `notes/contracts.md`. Every task names `notes/co
 7. **replay** (`temper/docs/design/playground.md, 9`), slice 5.
    - `tasks/one-process-replay.md`, feature, high, ~120 min, needs `native-walk-a`: the kept log
      replayed over the playground's composition with the one-process world's forge referee as
-     skein's `Turns`, judging the CSV change landed and `main` green.
+     skein's `Turns`, judging the CSV change landed, each merge green at its head and `main` green
+     at the end.
 8. **browser** (`temper/docs/design/client/browser.md, 4.6`), slice 6, **walked** (story A in the
    browser tier, and by hand on Firefox and Safari on a desktop: `playground.md`, 10).
    - `tasks/browser-walk.md`, feature, high, ~150 min, needs `bundle-playground` and
