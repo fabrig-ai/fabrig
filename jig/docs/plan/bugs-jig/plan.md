@@ -11,8 +11,9 @@ The jig bugs the debt backfill routed (`inputs/bugs-jig.md`), cut for fab by one
 | `chat-status` | 4 | `chat-status-total` | released |
 | `charter-rail` | 3 | `rail-jig`, then `rail-temper` | released |
 | `close-grace` | 1 | `close-grace` | released |
+| `closed-project` | 9 | `creation-closed-project`, `notes-drop-entries` | released |
 
-Bugs 2, 5, 8 and 9 are under survey and come in later batches. Bug 7 is dropped: see below.
+Bug 5 and three of bug 9's hazards are under survey. The dropped bugs are below.
 
 ## Design written by this cut
 
@@ -41,7 +42,16 @@ Bugs 2, 5, 8 and 9 are under survey and come in later batches. Bug 7 is dropped:
   a change to `engine.md`'s "No decision reads one", and left a shared label wrong. A chat's own
   template's grace is honoured by no close; giving a task its grace as a value would do it, and is a
   stored format, so it is the user's, and not cut here.
-- **Bug 7 is dropped:** `d8e8eb62a8` gave `Resources` a `Debug` of counts, with tests.
+- **Dropped, gone on main:**
+  - bug 2: deletion erases the project's roles in its decision, and `finish_watches`, by
+    `end_invalid` and `visibility_end`, ends each watch there (`close_views` is dead code);
+  - bug 7: `d8e8eb62a8` gave `Resources` a `Debug` of counts, with tests;
+  - bug 8: `ed10323e26` answers an unknown `Unwatch`, and a closing stream no longer waits on core;
+  - `Fact::Delivered` at request time: `687f59ae5d`;
+  - `WatchEnd::Stopping`: `097c1fcb48` left the retry to jig-client;
+  - the token nibbles: `17850c5ddc`;
+  - the `Recipient::Roles` bound: the frame and object paths each price what they allocate;
+  - the catalogue clone per row: `b1f80ab430`.
 
 ## Overlaps
 
