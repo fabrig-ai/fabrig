@@ -8,6 +8,152 @@ use temper_engine_forge_world::changes::{
 use temper_engine_forge_world::{REPO, World, translate};
 
 #[test]
+fn goal_landing_above_compare_limits_lands_up_to_date() {
+    // Each pair fits exactly, then exceeds one independent admission bound.
+    for (commits, files, content, rows, bytes, fits) in [
+        (16, 1, 1, 16, 4096, true),
+        (17, 1, 1, 16, 4096, false),
+        (17, 32, 1, 32, 8192, true),
+        (17, 33, 1, 32, 8192, false),
+        (17, 1, 2048, 32, 2660, true),
+        (17, 1, 2049, 32, 2660, false),
+    ] {
+        for restart in [false, true] {
+            let mut world = World::with_goal_room(277, rows, bytes);
+            prepare_goal_history(&mut world, commits, files, content);
+            let base = world.branch(b"main");
+            let goal = world.branch(b"temper/g");
+            assert_eq!(world.comparison_fits(base, goal), fits, "independent bound");
+            let head = translate::commit(goal);
+            queue_goal_landing(&mut world, head);
+            if restart {
+                world.restart();
+            }
+            let landed = finish_goal_landing(&mut world, head, 1);
+            assert_eq!(
+                landed,
+                Some(translate::commit(world.branch(b"main"))),
+                "goal must land with up-to-date required; commits={commits}, files={files}, content={content}, restart={restart}"
+            );
+            assert_ne!(world.branch(b"main"), base);
+            let skein_fake_forge_domain::api::Answer::File(landed) =
+                world.inspect(&skein_fake_forge_domain::api::Read::File {
+                    commit: world.branch(b"main"),
+                    path: b"f000".as_slice().into(),
+                })
+            else {
+                panic!("landed file")
+            };
+            assert_eq!(landed.as_ref(), vec![b'x'; content]);
+        }
+    }
+}
+
+fn prepare_goal_history(world: &mut World, commits: u32, files: u32, content: usize) {
+    world.adopt();
+    world.produce_on(b"temper/g", b"main");
+    let tree: Box<[_]> = (0..files)
+        .map(|i| skein_fake_forge_domain::api::File {
+            path: format!("f{i:03}").into_bytes().into(),
+            content: vec![b'x'; content].into(),
+        })
+        .collect();
+    for _ in 1..commits {
+        world.push_tree(b"temper/g", tree.clone());
+    }
+}
+
+fn finish_goal_landing(
+    world: &mut World,
+    head: skein_forge::api::Commit,
+    first: u64,
+) -> Option<skein_forge::api::Commit> {
+    let verdict = Box::new([change::GateReport { number: 9, head, status: change::Status::Passed }]);
+    for entry in first..first + 12 {
+        if let change::Decision::Finish { merge } = change_step(world, entry, change::Status::Passed, verdict.clone()) {
+            return Some(merge);
+        }
+    }
+    None
+}
+
+#[test]
+fn goal_landing_updates_a_moved_base_with_a_fresh_ancestry_range() {
+    let mut world = World::with_goal_room(278, 16, 4096);
+    prepare_goal_history(&mut world, 17, 1, 1);
+    let old_head = translate::commit(world.branch(b"temper/g"));
+    queue_goal_landing(&mut world, old_head);
+    world.push_file(b"main", b"base", b"moved");
+    let base = translate::commit(world.branch(b"main"));
+    assert!(!world.comparison_fits(world.branch(b"main"), world.branch(b"temper/g")));
+    let gates = Box::new([change::GateReport { number: 9, head: old_head, status: change::Status::Passed }]);
+    assert_eq!(
+        change_step(&mut world, 1, change::Status::Passed, gates),
+        change::Decision::Effect(change::Effect::Update { base, head: old_head })
+    );
+    let head = translate::commit(world.branch(b"temper/g"));
+    assert_ne!(head, old_head);
+    world.restart();
+    assert_eq!(finish_goal_landing(&mut world, old_head, 2), Some(translate::commit(world.branch(b"main"))));
+    let calls = world.take_calls();
+    for before in [old_head, head] {
+        assert!(calls.contains(&skein_forge::api::Op::Read(skein_forge::api::Read::Commits {
+            before,
+            after: base,
+            page: 1
+        })));
+    }
+    assert_eq!(world.writes(), 2, "one update, one merge");
+}
+
+#[test]
+fn goal_landing_refuses_to_merge_without_complete_ancestry() {
+    use skein_forge::api::{Answer, Error};
+    for result in [
+        Err(Error::TooLarge),
+        Err(Error::Refused),
+        Err(Error::InvalidAnswer),
+        Ok(Answer::Commits { commits: Box::new([]), more: true }),
+    ] {
+        let mut world = World::with_goal_room(279, 16, 4096);
+        prepare_goal_history(&mut world, 17, 1, 1);
+        let base = world.branch(b"main");
+        let head = translate::commit(world.branch(b"temper/g"));
+        queue_goal_landing(&mut world, head);
+        world.script_ancestry(Some(result.clone()));
+        let gates = Box::new([change::GateReport { number: 9, head, status: change::Status::Passed }]);
+        for entry in 1..3 {
+            let decision = change_step(&mut world, entry, change::Status::Passed, gates.clone());
+            assert!(matches!(decision, change::Decision::Wait { .. }), "ancestry {result:?}: {decision:?}");
+            assert_eq!(world.writes(), 0, "no merge or comparison fallback");
+            assert_eq!(world.branch(b"main"), base);
+            world.restart();
+        }
+        world.script_ancestry(None);
+        assert_eq!(finish_goal_landing(&mut world, head, 3), Some(translate::commit(world.branch(b"main"))));
+    }
+}
+
+fn queue_goal_landing(world: &mut World, head: skein_forge::api::Commit) {
+    world.status(b"temper/g", skein_fake_forge_domain::api::Check::Passed);
+    let pull = world.open_pull(b"temper/g", b"main");
+    let mut row = change_row();
+    row.branch = b"temper/g".as_slice().into();
+    row.pull = Some(pull);
+    row.change.last_head = Some(head);
+    row.change.owns_turn = true;
+    row.change.state = change::State::First { head, ready_since: world.wall() };
+    row.change.gates = Box::new([change::Gate {
+        number: 9,
+        kind: change::GateKind::Agent,
+        blocking: true,
+        freshness: change::Freshness::Clean,
+        eager: false,
+    }]);
+    world.event(top::Event::Change { row });
+}
+
+#[test]
 fn a_reused_branch_lands_its_own_pull_after_an_earlier_deployment() {
     const BRANCH: &[u8] = b"temper/1/c3";
     let mut world = World::new(142);
