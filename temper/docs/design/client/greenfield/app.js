@@ -728,7 +728,7 @@ ${events.length ? `\n${events.map(esc).join('\n')}\n` : ''}<span class="cursor">
           ${choice('Try the playground', 'A built-in scripted model and forge. Get a taste of how temper feels.', 'Fully offline · Ready at once', '<button type="button" class="btn" data-playground>Try the playground</button>')}
           ${choice('Set up temper', 'Your forge: GitHub or Forgejo<br>Your model: ChatGPT or Claude', 'About five minutes', `<a class="btn primary" href="welcome.html?at=${f ? (m?.ready ? 'ready' : 'model') : 'forge'}">${f ? 'Go on setting up' : 'Set up temper'}</a>`, ' lead')}
         </div>
-        <p class="facts">Started in the playground? Connect your own forge and model whenever you like; the playground then steps aside.</p>`;
+        <p class="facts">Tried the playground first? Set up whenever you like; the playground then steps aside.</p>`;
     } else if (at === 'forge') {
       const which = params.get('forge');
       if (f && f.kind === 'github' && !f.done) {
