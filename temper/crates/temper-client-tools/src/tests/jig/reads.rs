@@ -460,7 +460,7 @@ fn a_document_at_its_byte_bound_prints_its_maximal_json_escapes() {
     let printed = document::print(Document::Task(&task, None), true, &crate::limits::tools(), &crate::root::Parts);
 
     assert_eq!(printed.status, 0, "{:?}", printed.stderr);
-    assert!(u64::try_from(printed.stdout.len()).expect("output length fits") > crate::limits::DOCUMENT);
+    assert!(skein_lib::len_u64(printed.stdout.len()) > crate::limits::DOCUMENT);
     assert!(skein_lib::bytes::find(&printed.stdout, br"\u0000").is_some(), "control text is JSON escaped");
 }
 

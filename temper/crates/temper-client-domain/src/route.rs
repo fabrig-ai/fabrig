@@ -4,7 +4,7 @@ use crate::{Action, Address, Domain, Event, Fact, Limits, Place, Request, forge,
 use skein_lib::{Env, Queue};
 pub(crate) fn forge(root: &mut Domain, env: &Env<Limits>, event: forge::Event, out: &mut Queue<Request>) {
     let mut child = Queue::uncapped();
-    forge::step(&mut root.forge, &Env { now: env.now, wall: env.wall, limits: env.limits.forge }, event, &mut child);
+    forge::step(&mut root.forge, &env.with(env.limits.forge), event, &mut child);
     route_forge(root, env, &mut child, out);
 }
 pub(crate) fn event(root: &mut Domain, env: &Env<Limits>, event: Event, out: &mut Queue<Request>) {
