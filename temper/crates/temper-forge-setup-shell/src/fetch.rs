@@ -11,14 +11,12 @@ use skein_lib::{
 };
 use skein_shell::{Clock, Config, Kernel, Trust, Wait};
 use skein_tls::client as tls;
-use std::{
-    fs,
-    io::{self, Read as _, Write as _},
-    net::ToSocketAddrs,
-    os::unix::fs::{DirBuilderExt, OpenOptionsExt, PermissionsExt},
-};
+use std::fs;
+use std::io::{self, Read as _, Write as _};
+use std::net::ToSocketAddrs;
+use std::os::unix::fs::{DirBuilderExt, OpenOptionsExt, PermissionsExt};
 use temper_forge_setup::{
-    fetch::{self, Event, Extraction, Failure, Fetch, Request},
+    fetch::{self, Event, Failure, Fetch, Request},
     setup::Origin,
 };
 
@@ -94,51 +92,6 @@ fn finish(handle: &fs::File, part: &[u8], file: &[u8]) -> Result<(), Failed> {
         .and_then(|dir| dir.sync_all())
         .map_err(|why| file_error(file, &why))
 }
-fn extract(archive: &[u8], member: &[u8], file: &mut fs::File, bound: u64) -> Extraction {
-    use std::process::{Command, Stdio};
-    let Ok(mut child) = Command::new("/usr/bin/tar")
-        .arg("-xzOf")
-        .arg(crate::path(archive))
-        .arg(crate::path(member))
-        .env_clear()
-        .stdin(Stdio::null())
-        .stdout(Stdio::piped())
-        .stderr(Stdio::null())
-        .spawn()
-    else {
-        return Extraction::Failed;
-    };
-    let mut output = child.stdout.take().expect("tar stdout piped");
-    let mut buffer = [0; CHUNK as usize];
-    let mut total = 0_u64;
-    let mut hash = Sha256::new();
-    let refusal = loop {
-        let count = match output.read(&mut buffer) {
-            Ok(0) => break None,
-            Ok(count) => count,
-            Err(why) if why.kind() == io::ErrorKind::Interrupted => continue,
-            Err(_) => break Some(Extraction::Failed),
-        };
-        let length = skein_lib::len_u64(count);
-        if length > bound.saturating_sub(total) {
-            break Some(Extraction::Bytes);
-        }
-        total += length;
-        hash.update(&buffer[..count]);
-        if file.write_all(&buffer[..count]).is_err() {
-            break Some(Extraction::Failed);
-        }
-    };
-    if let Some(refusal) = refusal {
-        drop(child.kill());
-        drop(child.wait());
-        return refusal;
-    }
-    match child.wait() {
-        Ok(status) if status.success() && total != 0 => Extraction::Digest(hash.finish()),
-        Ok(_) | Err(_) => Extraction::Failed,
-    }
-}
 /// Runs the machine; an interrupted body leaves its part to be truncated next time.
 pub fn run(limits: &skein_io::Limits, trust: &Trust, mut machine: Fetch) -> Result<(), Failed> {
     let roots = skein_shell::read_trust_roots(
@@ -190,7 +143,7 @@ pub fn run(limits: &skein_io::Limits, trust: &Trust, mut machine: Fetch) -> Resu
             Request::Extract { archive, member, part, bound } => {
                 part_file = None;
                 open(&part).map(|mut file| {
-                    let extraction = extract(&archive, &member, &mut file, bound);
+                    let extraction = crate::process::extract(&archive, &member, &mut file, bound);
                     part_file = Some(file);
                     part_path = part;
                     Event::Extracted(extraction)
