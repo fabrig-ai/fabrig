@@ -4,9 +4,10 @@ mod issuer;
 mod provider;
 use alloc::boxed::Box;
 pub use issuer::{ProviderUrls, provider_issuer};
+use jig_protocol_engine_clients as kit;
 pub use provider::{Provider, ProviderClient, provider_key};
 use skein_json::Document;
-use skein_lib::{Duration, List};
+use skein_lib::{Duration, List, Secret};
 #[derive(Debug)]
 pub struct Clients {
     pub heartbeat: Duration,
@@ -66,6 +67,78 @@ pub fn models(llm: &crate::Llm) -> Box<[jig_protocol_engine_clients::Model]> {
             .expect("one row per model");
     }
     models.into_boxed()
+}
+
+/// What an application adds to the clients' settings (protocol/service.md, 11.6).
+#[derive(Debug)]
+pub struct Application {
+    pub link: Option<jig_domain_people::Identity>,
+    pub served: List<kit::Served>,
+    /// Its own public kinds, after jig's.
+    pub public: List<kit::PublicKind>,
+    pub moved_bytes: u64,
+}
+/// The provider of kind link, for the printed link's identity.
+#[must_use]
+pub fn link_provider(config: &crate::Engine) -> Option<u16> {
+    let mut link = None;
+    for provider in &config.providers {
+        match provider.kind {
+            crate::ProviderKind::Link => link = Some(provider.number),
+            crate::ProviderKind::Deployment | crate::ProviderKind::Application => {}
+        }
+    }
+    link
+}
+#[must_use]
+pub fn public_bounds(config: &crate::Engine) -> jig_client_protocol_wire::PublicIndexBounds {
+    jig_client_protocol_wire::PublicIndexBounds {
+        goals: config.limits.core.public.goals,
+        ended: config.limits.core.public.ended,
+        lines: config.limits.core.public.lines,
+        depth: config.limits.core.public.depth,
+        projects: config.limits.core.people.projects,
+    }
+}
+/// The clients' settings, with no provider and no addresses (client.md, 18).
+#[must_use]
+pub fn settings(config: &crate::Engine, application: &Application, seed: Secret, stream: u64) -> kit::Settings {
+    let mut providers = List::with_capacity(u32::try_from(config.providers.len()).expect("bounded providers"));
+    let mut deployment_provider = 0;
+    for provider in &config.providers {
+        match provider.kind {
+            crate::ProviderKind::Link => {}
+            crate::ProviderKind::Deployment => deployment_provider = provider.number,
+            crate::ProviderKind::Application => {
+                providers.push(provider.number).expect("provider count");
+            }
+        }
+    }
+    let mut public = List::with_capacity(3_u32.checked_add(application.public.len()).expect("public kinds"));
+    for kind in kit::jig_kinds(&public_bounds(config)) {
+        public.push(kind).expect("public kinds");
+    }
+    for kind in &application.public {
+        public.push(*kind).expect("public kinds");
+    }
+    kit::Settings {
+        public,
+        public_bounds: public_bounds(config),
+        provider: None,
+        addresses: Box::new([]),
+        link: application.link.clone(),
+        deployment_provider,
+        heartbeat: config.clients.heartbeat,
+        rows: config.limits.core.documents.rows,
+        served: application.served.clone(),
+        providers,
+        seed,
+        stream,
+        models: models(&config.llm),
+        redirect_bytes: config.limits.driver.client.uri_bytes,
+        key_bytes: config.limits.driver.client.document.token_bytes.min(config.limits.clients.wire.keyed_value_some),
+        moved_bytes: application.moved_bytes,
+    }
 }
 
 pub(crate) fn check_provider(engine: &crate::Engine, problems: &mut Problems) {
