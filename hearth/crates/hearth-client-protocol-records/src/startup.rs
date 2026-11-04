@@ -1,4 +1,4 @@
-//! Refusals before an answer can be made (client/README.md, 3.2).
+//! Refusals before an answer can be made (hearth/docs/design/client/README.md, 3.2).
 use crate::{
     form::{json::field, text::Lines},
     outcome::Outcome,

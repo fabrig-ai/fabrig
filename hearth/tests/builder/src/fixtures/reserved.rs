@@ -1,7 +1,8 @@
 use super::{File, Form, Rendered, Repository};
 pub const WAIT: File = task(br#"{"cmdline": {"wait": {"param": "rootwait"}}}"#);
 pub const PASSWORD: File = task(br#"{"preseeds": {"d/p": {"type": "password", "value": "x"}}}"#);
-pub const CONFIGURATION_EXIT: skein_io::kernel::Exit = skein_io::kernel::Exit::Code(2); // client/README.md, 3.3.
+// hearth/docs/design/client/README.md, 3.3.
+pub const CONFIGURATION_EXIT: skein_io::kernel::Exit = skein_io::kernel::Exit::Code(2);
 pub const PARAMETER_BYTES: usize = 1000; // Two parameters make 139 + 2 * (1 + 1000) = 2141 bytes.
 #[must_use]
 pub fn long_params() -> String {

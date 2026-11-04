@@ -10,7 +10,7 @@ const CODES: [(Outcome, u8); 6] = [
 #[test]
 fn each_outcome_exits_with_its_client_readme_code() {
     for (outcome, expected) in CODES {
-        assert_eq!(outcome::code(outcome), expected, "client/README.md, 3.3's table");
+        assert_eq!(outcome::code(outcome), expected, "hearth/docs/design/client/README.md, 3.3's table");
     }
 }
 
