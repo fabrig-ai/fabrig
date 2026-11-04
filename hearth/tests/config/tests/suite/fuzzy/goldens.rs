@@ -1,4 +1,4 @@
-#[path = "../../render/src/fixtures/decoders/golden.rs"]
+#[path = "../../../../render/src/fixtures/decoders/golden.rs"]
 mod golden;
 use hearth_config_world::{
     generate,

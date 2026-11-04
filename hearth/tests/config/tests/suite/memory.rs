@@ -1,12 +1,9 @@
 use hearth_config_world::fixtures;
 use hearth_protocol_config::json;
-use skein_heap::Counting;
-#[path = "../src/fixtures/metered.rs"]
+#[path = "../../src/fixtures/metered.rs"]
 mod measured;
-#[path = "../src/fixtures/memory.rs"]
+#[path = "../../src/fixtures/memory.rs"]
 mod memory;
-#[global_allocator]
-static HEAP: Counting = Counting;
 #[test]
 fn each_step_holds_no_more_than_the_worst_case_under_tiny_limits() {
     let limits = memory::JSON;
