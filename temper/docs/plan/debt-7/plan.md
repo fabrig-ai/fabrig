@@ -14,7 +14,11 @@ task names. This file grows with each release; what is here so far is what has b
    - `tasks/skein-startup-store.md`, high, ~50 minutes, needs nothing: `skein_shell::store_file`.
    - `tasks/smith-startup-writers.md`, high, ~50 minutes, needs `skein-startup-store`: D009.
 
-2. **jig D005 and temper D001:** being cut.
+2. **jig D005 and temper D001** (`jig/docs/design/protocol/service.md, 11`). `notes/service-parts.md` holds the
+   contracts. The parts' order is fixed there: each jig task moves a part into a product crate and `jig-test-service`
+   adapts; each temper task deletes temper's copy. One writer each for `jig-test-service` and `temper-service`.
+   - `tasks/skein-kernel-routes.md`, medium, ~30 minutes, needs nothing: `skein_io::kernel::Routes`.
+   - The accounts' host, the worker's side and the clients' side are being written.
 
 3. **skein D029:** being cut.
 
@@ -39,10 +43,29 @@ task names. This file grows with each release; what is here so far is what has b
   a new cleanup host too: about +190 in skein, at most -50 in smith, both capped in their specs. Part
   smith-items may not end below its start, against the request's aim. The tasks' reports give the sum.
 
+- **The whole of D005 is cut, in the order the code allows, with every part one chain.** jig and temper each move a
+  part at a time. The last task, `service-items`, reads D001's measure and either deletes both items or rewrites
+  them to say what's left, as the request allows. The clients' part decides whether the measure falls below 200.
+- **The accounts' host goes first after all.** The survey says it needs the store's core moved first, because
+  `iterate` takes `&mut Store`. A pull breaks that: the host hands out its store requests, as
+  `jig_protocol_store::host::Host` hands out submissions, and the adapter calls its own `store.secrets`.
+- **The new smith-linked crate is `jig-protocol-worker-agents`,** and `jig-protocol-worker-link` stays bytes: an
+  application whose workers run no agents leaves the new crate out. It widens `protocol/README.md`, 5's rule.
+- **The server goes in `jig-protocol-engine-clients-http`,** though it names no jig type and skein's rule points to
+  skein: the request and D005 say jig ships it, and skein's `D016-transport-four-copies.md` is where a generic one
+  would come from.
+- **Behaviour differences stay differences:** `notes/service-parts.md` lists each, and how both sides keep theirs.
+  One carries a question for the user (`wrong-secret-kind`).
+- **D001's and D005's facts have moved.** The measure reads 1,388, not 1,369, and `Resources`' `Debug` is now hidden
+  in both copies. `service-items` corrects what survives.
+
 ## Critical path
 
 So far: `skein-concat`, then `smith-primitives`; `skein-startup-store`, then `smith-startup-writers`.
 
 ## Overlaps
 
-So far, none: `fabrig-scale` and `v0.1.0-ladder` change no file of these tasks.
+`fabrig-scale` changes none of the seven parts' files. It does change, beside them: `T/limits.rs`, `T/startup*`,
+`T/tests/fixtures.rs`, `J/tests.rs` (the store's limits' figures) and `jig/crates/jig-protocol-store` (86 files, not
+`host.rs` or `boundary.rs`), with `store.md`. Those are unavoidable for `jig-store-host` and `temper-store-host`,
+which come late in their chains for that reason as well.

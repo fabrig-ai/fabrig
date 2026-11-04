@@ -8,7 +8,8 @@ configuration, opens the store, starts the loop and ends it; and its
 server, which owns the clients' listener and its URL space, and mounts
 jig's clients' component there. It is to the protocol layer what
 `../domain/root.md` is to the domain: one shape every application copies,
-from the reference binary and its service (section 7). The mechanics are
+from the reference binary and its service (section 7), around the parts
+jig ships for it (section 11). The mechanics are
 skein's programming-model.md, sections 2 and 4. What is still open is
 listed in section 9.
 
@@ -45,10 +46,14 @@ listed in section 9.
   nothing waits for a commit, then closes everything, as skein's owner
   close asks (programming-model.md, 5.2).
 - **The reference is jig's test application's:** its binary, `jig-test`,
-  and its service, `jig-test-service`, step code written to be copied,
-  like the reference root, which mount the clients' component at `/jig`
-  with the default HTTP mapping and serve jig's test application's
-  bundle themselves (section 7).
+  and its service, `jig-test-service`, step code that composes jig's
+  service parts (section 11) and whose routing, `iterate` and startup are
+  written to be copied, like the reference root, which mount the clients'
+  component at `/jig` with the default HTTP mapping and serve jig's test
+  application's bundle themselves (section 7).
+- **What every application writes alike, jig ships:** the accounts' host,
+  the store's host, the program sources, the worker route, the workers'
+  side, the server and the clients' side, as product code (section 11).
 - **In one process,** a client the process holds reaches the clients'
   component by an in-process transport, with no listener (section 10).
 
@@ -64,7 +69,7 @@ listed in section 9.
     │   └── skein-oauth-accounts
     ├── smith-protocol-llm            smith-inline-agent's completions, for the engine's own slots (shape 2) (llm.md)
     │   └── skein-llm-connection
-    ├── <server>                      the clients' listener, its routes, its pages and bundle: the application's (browser.md, section 12)
+    ├── <server>                      the clients' listener, its routes, its pages and bundle: the application's, on jig's server part (section 11; browser.md, section 12)
     ├── jig-protocol-engine-clients-http   jig's default HTTP mapping, its engine end, mounted under the server's prefix (client.md, section 17; browser.md, 12.2)
     ├── jig-protocol-engine-clients   the clients' component: jig's messages, credentials, the stream's pacing; no HTTP (client.md)
     ├── <connector>…                  each connector's protocol, and its webhooks' listener: the application's
@@ -306,10 +311,11 @@ down:  released and door outputs → components → io submissions
 ## 7. The reference binary and service
 
 - **The reference service, `jig-test-service`,** among jig's test kits
-  but written as step code, so that it can be copied: jig's test
-  application's engine protocol layer (the store's host, the accounts' component, the
-  host tools' translation, its server and the clients' component, the
-  workers' side, its test connector's system answered in memory); its
+  but written as step code: jig's test application's engine protocol
+  layer, composed from jig's service parts (section 11), with the host
+  tools' translation and its test connector's system answered in memory.
+  Its routing, its `iterate` and its startup are what an application
+  copies; the parts it composes, an application composes too. Its
   engine runs no agents of its own and a test worker's (the link,
   smith's host half and its agent processes, the test workspace), each
   with its `iterate`, composed in one process (section 10), with a
@@ -495,3 +501,41 @@ between hosts.
   Joined sockets are io's own and never reach skein's simulator (skein's
   `io.md`, 3.5), so the link's cuts and stalls are the channel's protocol
   world's, over streams cut at random (`channel.md`, section 12).
+
+## 11. The service parts
+
+What every application's protocol layer writes alike, jig ships as
+product code, which the reference service and an application's service
+both compose. A fix in a part reaches every application, and one ordering
+of token refreshes holds everywhere (`jig/AGENTS.md`). An application keeps
+its routing, `iterate` and `main`, its connectors and its own settings.
+
+- **A part is a host,** step code a service owns as a field and drives
+  from `iterate`. It holds no root type, and no trait, generic item or
+  callback (programming-model.md, 10.3). `jig_protocol_store::host::Host`
+  is the form.
+- **Values in, typed outputs out.** A part takes values at `new`. What it
+  can't decide it hands its owner as a typed output, which the owner pulls
+  in its own pass and routes: tagging tokens from its own table, pushing
+  onto its own root queue, calling its own store. A pass hands out in the
+  order it holds, so the owner's root sees events in the part's order.
+- **A difference is the owner's.** Where two applications act differently
+  on one fact, the part reports the fact and each owner acts; it takes no
+  setting that names an application. A difference of amount is a value.
+- **A part that holds credentials shows none in `Debug`:** it implements
+  no `Debug`, or a hand-written one that counts them.
+
+| Part | Crate, module | It holds | The application keeps |
+|---|---|---|---|
+| the accounts' host | `jig-protocol-accounts`, `host` | the accounts' component and its provider templates, the pass over the store's answers and the component's effects, the table's grants | its tokens, its store's calls, its root's event, what an invalid restored secret means |
+| the store's host | `jig-protocol-store`, `host` | the component and the file drivers behind one owner's calls: requests, the secrets' answers in the same pass, closing, submissions by lane | its routes, its route's table and answers, its sizes and wires, its tokens |
+| the program sources | `jig-protocol-worker-agents`, `sources` | the source's command, one at a time, and the program's environment, hidden from `Debug` | how settings name a program |
+| the worker route | `jig-protocol-worker-agents`, `route` | smith's host half's records to and from the channel's values | its application's decoding of parts, what a delivery's evidence must say (`channel.md`) |
+| the workers' side | `jig-protocol-engine-workers`, `host` | the channel component, its listeners and sockets, closing them | its assignment's encoding, its parts' decoding, what a lost listener means |
+| the server | `jig-protocol-engine-clients-http`, `server` | one listener's connections, their deadlines and page policy, each call handed out as routed | its routes, its bundle, its pages' extra fields |
+| the clients' side | `jig-protocol-engine-clients`, `host` | the bridge between the component's secrets and the store's, sign-in endings and printed links | its pass, its calls, its families |
+
+`jig-protocol-worker-agents` links smith, so an application whose workers
+run no agents leaves it out, as `README.md`, 5 says. The kernel's hand-off
+between a process's owners of records is skein's, `kernel::Routes`
+(skein's `kernel.md`, 5).
