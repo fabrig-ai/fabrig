@@ -4,8 +4,8 @@
 
 - **Not yet:** 3.5, The welcome, and 5.6: Ready's offered name, its
   lead naming the repository and its adoption; the code offers "Default"
-  and adopts nothing. 3.5: `Home { project }` and `Settings { project }`,
-  and the frame they stand in (5.1, 5.3). 3.4, 5.5: the composer's
+  and adopts nothing. 3.5: `Home { project }`,
+  and the project frame (5.1, 5.3). 3.4, 5.5: the composer's
   supplied default, jig's
   `resolved_default`, which neither jig's `Me` nor temper carries. 3.5:
   `Board { project }` with its reordering, and `Changes { project }`: no
@@ -22,9 +22,9 @@
   5.5: a plan's first use, its card in the conversation. 3.5, 3.6, 10:
   Delete on a project's settings, confirmed by its name, and jig's
   `RemoveProject` by `shapes::remove_project`, with the chat
-  template's grace: no project's settings and no such act in
-  `temper-client-domain`. 3.5, The welcome: for a person whose role
-  does not hold the deployment's forges, the model alone deciding;
+  template's grace: no such act in `temper-client-domain`. 3.5, The welcome:
+  for a person whose role does not hold the deployment's forges, the model
+  alone deciding;
   `temper-client-domain`'s `pages/welcome.rs` `decision` reads a
   refused `forges` watch as no forge, so a usable model opens Forge.
   The playground offered on Forge's and Model's foot while a real

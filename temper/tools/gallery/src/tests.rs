@@ -409,6 +409,16 @@ const HOLDS: [Holds; samples::N] = [
         ],
     },
     Holds {
+        name: "settings",
+        heading: "Settings for tally",
+        parts: &[
+            Part::Named { role: Role::Link, name: "Forges" },
+            Part::Named { role: Role::Link, name: "Accounts" },
+            Part::Named { role: Role::Link, name: "Adopt a repository" },
+            Part::Named { role: Role::Button, name: "Sign out" },
+        ],
+    },
+    Holds {
         name: "task-solo-T3",
         heading: "CSV import",
         parts: &[

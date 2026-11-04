@@ -1414,3 +1414,10 @@ body > noscript, #app:not(:empty):not(:has(*)) { margin-top: 213px; }
   #app > .temper-welcome form.temper-welcome-project { grid-template-columns: minmax(0, 1fr); margin-bottom: 24px; }
   #app > .temper-welcome .temper-welcome-project > button { justify-content: center; min-height: 48px; font-size: 15.5px; }
 }
+
+/* The project's settings */
+.temper-settings > ul { list-style: none; margin: 7px 0 14px; padding: 0; }
+.temper-settings > ul > li { padding: 9.33px 0; }
+.temper-settings .temper-nav-needs, .temper-settings .temper-nav-limited { display: inline-block; width: 6px; height: 6px; border-radius: 50%; margin-left: 5px; vertical-align: 1px; overflow: hidden; text-indent: 100%; white-space: nowrap; }
+.temper-settings .temper-nav-needs { background: var(--temper-red); }
+.temper-settings .temper-nav-limited { background: var(--temper-amber); }
