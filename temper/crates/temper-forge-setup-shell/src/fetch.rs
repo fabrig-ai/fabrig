@@ -18,7 +18,7 @@ use std::{
     os::unix::fs::{DirBuilderExt, OpenOptionsExt, PermissionsExt},
 };
 use temper_forge_setup::{
-    fetch::{self, Event, Failure, Fetch, Request},
+    fetch::{self, Event, Extraction, Failure, Fetch, Request},
     setup::Origin,
 };
 
@@ -94,6 +94,51 @@ fn finish(handle: &fs::File, part: &[u8], file: &[u8]) -> Result<(), Failed> {
         .and_then(|dir| dir.sync_all())
         .map_err(|why| file_error(file, &why))
 }
+fn extract(archive: &[u8], member: &[u8], file: &mut fs::File, bound: u64) -> Extraction {
+    use std::process::{Command, Stdio};
+    let Ok(mut child) = Command::new("/usr/bin/tar")
+        .arg("-xzOf")
+        .arg(crate::path(archive))
+        .arg(crate::path(member))
+        .env_clear()
+        .stdin(Stdio::null())
+        .stdout(Stdio::piped())
+        .stderr(Stdio::null())
+        .spawn()
+    else {
+        return Extraction::Failed;
+    };
+    let mut output = child.stdout.take().expect("tar stdout piped");
+    let mut buffer = [0; CHUNK as usize];
+    let mut total = 0_u64;
+    let mut hash = Sha256::new();
+    let refusal = loop {
+        let count = match output.read(&mut buffer) {
+            Ok(0) => break None,
+            Ok(count) => count,
+            Err(why) if why.kind() == io::ErrorKind::Interrupted => continue,
+            Err(_) => break Some(Extraction::Failed),
+        };
+        let length = skein_lib::len_u64(count);
+        if length > bound.saturating_sub(total) {
+            break Some(Extraction::Bytes);
+        }
+        total += length;
+        hash.update(&buffer[..count]);
+        if file.write_all(&buffer[..count]).is_err() {
+            break Some(Extraction::Failed);
+        }
+    };
+    if let Some(refusal) = refusal {
+        drop(child.kill());
+        drop(child.wait());
+        return refusal;
+    }
+    match child.wait() {
+        Ok(status) if status.success() && total != 0 => Extraction::Digest(hash.finish()),
+        Ok(_) | Err(_) => Extraction::Failed,
+    }
+}
 /// Runs the machine; an interrupted body leaves its part to be truncated next time.
 pub fn run(limits: &skein_io::Limits, trust: &Trust, mut machine: Fetch) -> Result<(), Failed> {
     let roots = skein_shell::read_trust_roots(
@@ -112,11 +157,11 @@ pub fn run(limits: &skein_io::Limits, trust: &Trust, mut machine: Fetch) -> Resu
         assert_eq!(out.len(), 1, "one fetch request per event");
         let answer = match out.pop().expect("one fetch request") {
             Request::Hash { file } => hash(&file).map(Event::Hashed),
-            Request::Get { origin, path } => {
+            Request::Get { origin, path, authorization } => {
                 if let Some(mut old) = connection.take() {
                     old.close();
                 }
-                match Connection::new(limits, &config, &origin, &path) {
+                match Connection::new(limits, &config, &origin, &path, authorization) {
                     Ok(next) => {
                         connection = Some(next);
                         connection.as_mut().expect("new connection").answer()
@@ -141,6 +186,15 @@ pub fn run(limits: &skein_io::Limits, trust: &Trust, mut machine: Fetch) -> Resu
                     .and_then(|_| file.write_all(&bytes))
                     .map(|()| Event::Done)
                     .map_err(|why| file_error(&part_path, &why))
+            }
+            Request::Extract { archive, member, part, bound } => {
+                part_file = None;
+                open(&part).map(|mut file| {
+                    let extraction = extract(&archive, &member, &mut file, bound);
+                    part_file = Some(file);
+                    part_path = part;
+                    Event::Extracted(extraction)
+                })
             }
             Request::Finish { part, file } => {
                 let handle = part_file.take().expect("finish follows Open");
@@ -188,6 +242,7 @@ impl Connection {
         config: &skein_tls::Config,
         origin: &Origin,
         path: &[u8],
+        authorization: Option<Box<[u8]>>,
     ) -> Result<Self, Failed> {
         let url = fetch::url(origin, path);
         let fail = |why| Failed::Transport { url: url.clone(), why };
@@ -208,6 +263,13 @@ impl Connection {
         if origin.port != 443 {
             authority.extend_from_slice(format!(":{}", origin.port).as_bytes());
         }
+        let mut headers = vec![
+            skein_http::Header { name: b"Host".as_slice().into(), value: authority.into_boxed_slice() },
+            skein_http::Header { name: b"User-Agent".as_slice().into(), value: b"temper".as_slice().into() },
+        ];
+        if let Some(value) = authorization {
+            headers.push(skein_http::Header { name: b"Authorization".as_slice().into(), value });
+        }
         let mut connection = Self {
             io: Io::new(limits),
             limits: *limits,
@@ -227,10 +289,7 @@ impl Connection {
             call: Some(http::Call {
                 method: skein_http::Method::Get,
                 target: path.into(),
-                headers: Box::new([
-                    skein_http::Header { name: b"Host".as_slice().into(), value: authority.into_boxed_slice() },
-                    skein_http::Header { name: b"User-Agent".as_slice().into(), value: b"temper".as_slice().into() },
-                ]),
+                headers: headers.into_boxed_slice(),
                 body: http::Body::None,
                 close: true,
             }),
@@ -330,6 +389,7 @@ impl Connection {
                 http::Event::Response(response) => {
                     self.result = Some(Ok(Event::Answered {
                         status: response.status,
+                        location: response.header(b"location").map(Into::into),
                         length: match response.framing {
                             http::Framing::Length(n) => Some(n),
                             http::Framing::Empty => Some(0),
