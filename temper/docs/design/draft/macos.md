@@ -99,11 +99,10 @@ and everything only Linux can give (containment, trees, io_uring).
   - the tools of its CI's steps as macOS's own have them (`base64 -w0`
     is GNU's), within the cleared environments of its children: the
     box's `/usr/bin:/bin`, and the owned runner's configured `PATH`;
-  - no process outliving the box, as far as Group can tell (3.5): the
-    story's `left` is Linux's whole-tree proof, and on macOS it says only
-    that the box stopped cleanly and its own children are gone. The
-    story keeps the two apart rather than claiming the one for the
-    other.
+  - the story's `left`, Linux's whole-tree proof: under Group (3.5) it
+    is empty without observing a descendant, so it proves nothing there.
+    macOS's evidence is a successful exit, settled io and an empty
+    observed group, and the story says which it holds on each platform.
 - **No containers:** its jobs run on the runner's host, under the
   `temper-host` label, as on Linux. The macOS runners offer no Docker,
   and the story needs none.
@@ -111,9 +110,9 @@ and everything only Linux can give (containment, trees, io_uring).
   of the workflow's own that starts empty, so each run also shows that
   the pinned addresses still answer. `TEMPER_FORGEJO` and
   `TEMPER_FORGEJO_RUNNER` then name what it fetched.
-- **It runs alone:** `cargo nextest run --profile process-temper -p temper
-  --test process -E 'test(=NAME)'`, its one selected test checked, with
-  `TEMPER_BUNDLE=none`.
+- **It runs alone,** `TEMPER_BUNDLE=none`, with its one selected test
+  checked: `cargo nextest run --profile process-temper -p temper --test
+  process -E 'test(=a_csv_change_passes_ci_and_a_blocking_agent_review_on_the_owned_forge_then_lands_and_survives_restart)'`.
 - **It proves the plumbing, not a person's Mac:** a real account, the
   Keychain and a person's browser stay 2.3's.
 
@@ -251,10 +250,11 @@ and everything only Linux can give (containment, trees, io_uring).
     archive's digest, within `setup.fetch_bytes`. Only on a match is
     the one member, by its exact name, taken out by macOS's own
     `/usr/bin/tar` into `<file>.part`, within the same bound, its digest
-    checked, made `0o755` and renamed over its name. A wrong digest or a
-    failed extraction removes both files and refuses, and an interrupted
-    fetch starts again from nothing, as 6.6 has it. A binary already at
-    its name with another digest is refused, never overwritten.
+    checked, made `0o755` and renamed over its name, and the archive
+    removed. A wrong digest, a bound passed or a failed extraction
+    removes both files and refuses, and an interrupted fetch starts
+    again from nothing, as 6.6 has it. A binary already at its name with
+    another digest is refused, never overwritten.
 - **Two digests per binary on macOS,** in `skein-forge` beside Linux's
   (skein's `forge.md`, 4.3): the archive's, which is its address, and
   the binary's, which a file already in the cache is held to. A pin is
@@ -324,11 +324,11 @@ and everything only Linux can give (containment, trees, io_uring).
 
 ### 5.2 Linux-only, by name
 
-- **One list per tree,** in its nextest configuration or as
-  `cfg(target_os = "linux")` on whole test binaries (the owner's call),
-  each entry with its reason. skein's is `shell.md`, section 9; the
-  others follow it, and a test that keeps a tree from compiling joins
-  its list before the workflow's first run.
+- **One list per tree,** each entry with its reason; skein's is
+  `shell.md`, section 9, and the others follow it. Code Darwin cannot
+  compile takes `cfg(target_os = "linux")` on its binary, module or
+  support, before the workflow's first run; a test that compiles and
+  cannot run may instead go in the tree's nextest configuration.
 - **What it holds, known now:** skein's ring and ring-conformance tests,
   the tree keeper's cgroup and subreaper tests; temper's `unshare`
   adversary and its cgroup cluster; and the after-landing tiers, which
