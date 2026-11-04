@@ -7,6 +7,68 @@ use alloc::boxed::Box;
 use skein_forge::forgejo::pin::{self, Binary, Form, Platform};
 use skein_lib::{Decimal, List, Queue, Writer, sha256::Sha256};
 
+/// The fetch's progress on stdout (protocol/setup.md, 6.6).
+#[derive(Clone, Copy, PartialEq, Eq, Debug)]
+pub struct Fetched {
+    pub binary: Binary,
+    pub done: u64,
+    pub total: Option<u64>,
+}
+impl Fetched {
+    /// The progress line, its line feed included.
+    #[must_use]
+    pub fn line(&self) -> Box<[u8]> {
+        let done = Decimal::of(self.done);
+        match self.total {
+            Some(total) => joined(&[
+                b"fetched ",
+                self.word(),
+                b" ",
+                done.as_bytes(),
+                b" of ",
+                Decimal::of(total).as_bytes(),
+                b" bytes\n",
+            ]),
+            None => joined(&[b"fetched ", self.word(), b" ", done.as_bytes(), b" bytes\n"]),
+        }
+    }
+    /// `forgejo` or `runner`, in this line and on the pipe.
+    #[must_use]
+    pub fn word(&self) -> &'static [u8] {
+        match self.binary {
+            Binary::Forgejo => b"forgejo",
+            Binary::Runner => b"runner",
+        }
+    }
+    /// Reads a progress line with an optional line feed, refusing invalid totals.
+    #[must_use]
+    pub fn read(line: &[u8]) -> Option<Fetched> {
+        let line = match line.strip_suffix(b"\n") {
+            Some(line) => line,
+            None => line,
+        };
+        let rest = line.strip_prefix(b"fetched ")?.strip_suffix(b" bytes")?;
+        let (binary, numbers) = if let Some(numbers) = rest.strip_prefix(b"forgejo ") {
+            (Binary::Forgejo, numbers)
+        } else {
+            (Binary::Runner, rest.strip_prefix(b"runner ")?)
+        };
+        let (done, total) = match skein_lib::bytes::find(numbers, b" of ") {
+            Some(at) => {
+                let done = skein_lib::bytes::decimal(numbers.get(..at)?)?;
+                let after = at.checked_add(b" of ".len())?;
+                let total = skein_lib::bytes::decimal(numbers.get(after..)?)?;
+                if total == 0 || done > total {
+                    return None;
+                }
+                (done, Some(total))
+            }
+            None => (skein_lib::bytes::decimal(numbers)?, None),
+        };
+        Some(Self { binary, done, total })
+    }
+}
+
 /// One pinned release at its resolved cache path.
 #[derive(Clone, PartialEq, Eq, Debug)]
 pub struct Pin {
