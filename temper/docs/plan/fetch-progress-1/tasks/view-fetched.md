@@ -44,7 +44,7 @@ Pre-approved:
 - A departure from the draft's look, which the request's page draws with a `<span>`: the figure is the node's own run, a text node of the grid. It takes the same grid cell.
 - `temper-flow-meter`'s selector is under `.temper-welcome-status`, and the node is built there alone. If the step list's `·` shows on Details too, that is the design; leave it.
 - `look::FLOW_METER` is registered already. No `Word` moves: the `·` joins as `welcome_line` joins, by bytes.
-- The journeys' pages do not change, the fake box fetching nothing a walk can see: their recordings do, for `SettingUp`'s new field (see Answers). If a page differs by more than Answers allows, stop and say so in the report.
+- The journeys' recordings change, for `SettingUp`'s new field, and `welcome-set-up`'s pages 07 and 08 with them: they show the set up's state at the walk's still page (see Answers). If a page differs by more than Answers allows, stop and say so in the report.
 
 ## Steps
 
@@ -102,3 +102,12 @@ As the implementer's text has it, with each rule broken for a new test and the f
 - **What may differ in the prints:** the new walk's times and the fake box's loopback ports (8), and `skein-ui.css`. Words, roles, styles or the pages' count are not expected to move: if they do, or if `again` refuses or cannot run, stop and say so in the report with its output; change neither the tool nor a journey's `README.md`.
 - **On a later merge conflict in a recording,** take either side and run `again` once more; never resolve one by hand.
 - **Commits:** the journeys in a commit of their own, which says why, with `Look-request: welcome-fetch-percentage` as this task's commits carry it.
+
+2026-11-04. **Question: accept the regenerated `welcome-set-up` pages 07 and 08 at preparing, or require fetching-state pages and a timing repair?** Accept them. `b48668c795` stands; run no `again` for this.
+
+- **The cause:** the box's `fetched` lines reach the row, so the page changes every few milliseconds for as long as the fetch lasts (4.56 s to 7.84 s of the new walk, 190 frames). `again` takes a key's mark once the page is still, half a second with nothing but dues (`temper/docs/design/client/journeys.md`, 8.1), and a mark that catches the page moving is refused. Its first still page is after the fetch, at preparing. The earlier recording caught fetching because that step then changed nothing on the page. This task's premise that the fake box fetches nothing a walk can see was wrong; the view is not at fault.
+- **Why not a repair:** a mark during the fetch needs the tool's rule changed, or a fake fetch, which `temper/docs/design/draft/fetch-progress.md`, 8, leaves Later. Both are outside the request.
+- **The pages hold:** the journey's acts and marks passed `again`'s check, and page 07 still is "the set up running on", as the journey's `README.md` and `journeys.md`, section 9, say. Preparing's words and `look::FLOW_BUSY` are the view's, unchanged. Leave the `README.md` and the tool.
+- **The earlier answer widens:** besides times, loopback ports and `skein-ui.css`, pages 07 and 08 may differ by the set up's state alone: the paragraph's name and detail, the busy node's name, and each step's words, `aria-current`, status and `temper-flow-done`. Any other difference, or a change in the pages' count, is still a stop. A later `again`, after a merge conflict in a recording, may land on another state; the same rule holds.
+- **The look request:** these pages do not equal the request's, which draw 42%. `journeys.md`, 7, asks the landing to say why: `plan.md` says it, and your report repeats it in a line.
+- **What remains is step 5:** `cargo fmt`, the old-forms check, the clippy command and the final nextest command to its end, with a count for each, then push. The report still owes each rule broken for a new test and the failure seen.
