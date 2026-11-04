@@ -2054,7 +2054,7 @@ directory is empty (7.1).
 ### 8.3 The default document
 
 Sized for a person's real work: a project of fabrig's scale, its own
-development as fab runs it, with five times the largest figure seen
+development, with five times the largest figure seen
 (configuration.md, 13.4), so a fresh box runs such a project with no
 override.
 
