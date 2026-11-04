@@ -17,16 +17,21 @@ pub(super) const LIMITS: Limits = Limits {
     retry: Duration::from_nanos(1),
 };
 
+// io.md, 5: 8*sockets+4 flight slots must fit below the 2^27 file lane.
+pub(super) const LAST_FLIGHT_SOCKETS: u32 = 16_777_215;
+
 #[test]
 fn valid_checks_representable_capacity_edges() {
     // Capacities are 8*sockets+4 flights, 4*sockets+2 operations, 2*sockets timers.
-    const FLIGHT_LAST: u32 = 536_870_911;
+    const U32_FLIGHT_LAST: u32 = 536_870_911;
     const OPERATION_LAST: u32 = 1_073_741_823;
     const TIMER_LAST: u32 = 2_147_483_647;
     let cases = [
         ("minimal", LIMITS, true),
-        ("last flights", Limits { sockets: FLIGHT_LAST, ..LIMITS }, true),
-        ("first flight overflow", Limits { sockets: FLIGHT_LAST + 1, ..LIMITS }, false),
+        ("last flights", Limits { sockets: LAST_FLIGHT_SOCKETS, ..LIMITS }, true),
+        ("first file lane overlap", Limits { sockets: LAST_FLIGHT_SOCKETS + 1, ..LIMITS }, false),
+        ("last u32 flights", Limits { sockets: U32_FLIGHT_LAST, ..LIMITS }, false),
+        ("first flight overflow", Limits { sockets: U32_FLIGHT_LAST + 1, ..LIMITS }, false),
         ("last operations", Limits { sockets: OPERATION_LAST, ..LIMITS }, false),
         ("first operation overflow", Limits { sockets: OPERATION_LAST + 1, ..LIMITS }, false),
         ("last timers", Limits { sockets: TIMER_LAST, ..LIMITS }, false),
@@ -75,7 +80,6 @@ fn valid_refuses_unusable_io_limits() {
 #[test]
 fn valid_accepts_maximum_flight_capacity_with_maximum_sends() {
     // The last representable flight table accepts the full send limit.
-    const LAST_FLIGHT_SOCKETS: u32 = 536_870_911;
     let limits = Limits { sockets: LAST_FLIGHT_SOCKETS, sends: u32::MAX, ..LIMITS };
     assert!(valid(&limits));
 }
