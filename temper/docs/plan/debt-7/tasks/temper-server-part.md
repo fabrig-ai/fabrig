@@ -119,3 +119,12 @@ The task’s Answers section requires: “confirm `git status` shows `debt-7/tem
 The reported merge HEAD 9fdba1c656 does not meet that explicit precondition, even though the five task paths are unchanged.
 The next run confirms the branch and commit, preserves the pushed implementation, and completes the checks listed in Answers.
 Leave `jig/crates/jig-domain-tasks/src/control.rs` outside this task.
+
+### 2026-11-04: Have fab restore this slot to fcfee88275 before resuming (recommended, as already answered), or explicitly amend the required HEAD precondition to permit 175cd8b355? (debt-7/temper-server-part-3, foreman debt-7/temper-server-part/foreman-3)
+
+Have fab restore the slot to fcfee88275 before continuing the remaining checks.
+The task’s Answers explicitly say: “Have fab restore the slot to fcfee88275 before continuing the remaining checks.”
+They require: “confirm `git status` shows `debt-7/temper-server-part` at that commit first”.
+The reported HEAD 175cd8b355 does not meet that precondition.
+The next run confirms the branch and commit, preserves the pushed implementation, and completes the remaining checks and measurements.
+Leave `jig/crates/jig-domain-tasks/src/control.rs` outside this task.
