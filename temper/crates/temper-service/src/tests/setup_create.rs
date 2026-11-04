@@ -31,6 +31,7 @@ impl Forge {
             repositories: List::with_capacity(0),
             max_response_items: 32,
             default_paging_num: 30,
+            sources: Box::new([]),
             faults: fake::Faults { reset: 0, drop: 0, server_error: 0 },
         };
         let mut service = fake::Service::new(config, &limits, 7).unwrap();

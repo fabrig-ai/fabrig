@@ -258,6 +258,7 @@ impl Document {
             repositories,
             max_response_items: 32,
             default_paging_num: 30,
+            sources: Box::new([]),
             hooks: None,
             faults: forgejo::Faults { reset: 0, drop: 0, server_error: 0 },
         };
