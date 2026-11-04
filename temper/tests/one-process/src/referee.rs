@@ -329,6 +329,7 @@ impl skein_world::Referee<Proc> for Referee {
             | Proc::Git(_)
             | Proc::Shell(_)
             | Proc::Forge(_)
+            | Proc::Visitor(_)
             | Proc::Other(HarnessProcess::Ctl(_) | HarnessProcess::Calls(_)) => true,
         });
         if crate::stories::adopted(&self.store.borrow().rows) > 0 {
@@ -611,6 +612,7 @@ pub(crate) fn shutdown_peer(proc: &mut Proc) {
         | Proc::GitRoute(_)
         | Proc::Git(_)
         | Proc::Shell(_)
+        | Proc::Visitor(_)
         | Proc::Other(HarnessProcess::Client(_) | HarnessProcess::Ctl(_) | HarnessProcess::Calls(_)) => {}
     }
 }

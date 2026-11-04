@@ -367,6 +367,7 @@ ring = { version = "0.17" }
 # its std, whose clock wasm32-unknown-unknown lacks, is native only, asked for by each crate
 # that uses it.
 rustls = { version = "=0.23.41", default-features = false, features = ["ring", "tls12"] }
+rustls-pki-types = { version = "1.15" }
 smith-transcript-patches = { path = "smith/tests/transcript-patches" }
 smith-fake-claude = { path = "smith/tests/fake-claude" }
 skein-tls-world = { path = "skein/tests/tls" }
@@ -472,6 +473,7 @@ temper-docs = { path = "temper/crates/temper-docs" }
 temper-github-app = { path = "temper/testing/temper-github-app" }
 temper-fake = { path = "temper/crates/temper-fake" }
 temper-playground = { path = "temper/crates/temper-playground" }
+temper-playground-world = { path = "temper/tests/playground" }
 temper-protocol-records = { path = "temper/crates/temper-protocol-records", default-features = false }
 temper-box = { path = "temper/crates/temper-box" }
 temper-forge-setup-shell = { path = "temper/crates/temper-forge-setup-shell" }
@@ -624,4 +626,8 @@ codegen-units = 1
 panic = "abort"
 overflow-checks = true
 strip = true
+
+[profile.playground]
+inherits = "web"
+opt-level = "z"
 

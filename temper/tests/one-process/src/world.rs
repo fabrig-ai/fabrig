@@ -133,7 +133,7 @@ impl Harness for OneProcess {
             Role::Agent => observer::process(Observed::Agent, inherited, base),
             Role::Git => observer::process(Observed::Git, inherited, base),
             Role::Shell => observer::process(Observed::Shell, inherited, base),
-            Role::Provider | Role::Forge | Role::Other => {}
+            Role::Provider | Role::Forge | Role::Visitor | Role::Other => {}
         }
     }
     fn complete(role: Role, complete: &Complete) {
@@ -145,7 +145,7 @@ impl Harness for OneProcess {
             Role::Shell => Observed::Shell,
             Role::Provider => Observed::Provider,
             Role::Forge => Observed::Forge,
-            Role::Other => return,
+            Role::Visitor | Role::Other => return,
         };
         observer::complete(role, complete);
     }
@@ -181,6 +181,7 @@ pub(crate) fn parameters(machine: &Machine, forge: temper_fake_git_hosted::Typed
         seed: fixtures::SEED,
         links: Links::Keep,
         forge,
+        route: None,
         disk: machine.0.clone(),
     }
 }
@@ -1012,6 +1013,8 @@ fn run_phase(
     let machine = Machine::new(disk);
     let mut parameters = parameters(&machine, transport.clone());
     let peers = start.map(|start| {
+        parameters.route =
+            temper_playground::story::route(&serde_json::from_slice(&start.deployment).expect("story A's deployment"));
         parameters.deployment = start.deployment;
         parameters.seed = start.seed;
         parameters.links = start.links;
@@ -1088,6 +1091,7 @@ fn run_phase(
             | Proc::Shell(_)
             | Proc::Peer(_)
             | Proc::Forge(_)
+            | Proc::Visitor(_)
             | Proc::Other(HarnessProcess::Ctl(_) | HarnessProcess::Calls(_)) => None,
         })
         .sum();
