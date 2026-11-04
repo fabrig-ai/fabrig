@@ -76,17 +76,24 @@ impl Text {
 /// and byte escaping. A cut keeps the log's end and says bytes were omitted.
 #[must_use]
 pub fn answer_bounded(answer: &CallAnswer, max_bytes: u32) -> HostAnswer {
-    bounded(answer, &[], max_bytes)
+    bounded(answer, &[], max_bytes, None)
 }
 
 /// Render a decided answer with its host tool's name, naming a refused family.
 /// Job logs fit the configured bound, including metadata and byte escaping.
 #[must_use]
 pub fn answer_for_tool(answer: &CallAnswer, tool: &[u8], max_bytes: u32) -> HostAnswer {
-    bounded(answer, tool, max_bytes)
+    bounded(answer, tool, max_bytes, None)
 }
 
-fn bounded(answer: &CallAnswer, tool: &[u8], max_bytes: u32) -> HostAnswer {
+/// Render host feedback with the proposing task's ctl name, retaining its holder.
+/// Task and job reads use the configured host body bound.
+#[must_use]
+pub fn answer_for_task(answer: &CallAnswer, tool: &[u8], max_bytes: u32, task: u64) -> HostAnswer {
+    bounded(answer, tool, max_bytes, Some(task))
+}
+
+fn bounded(answer: &CallAnswer, tool: &[u8], max_bytes: u32, task: Option<u64>) -> HostAnswer {
     if let CallAnswer::TaskRead(read) = answer {
         let cap = usize::try_from(max_bytes).expect("u32 fits").min(HostAnswer::CAPACITY);
         return match task_read(read, cap) {
@@ -117,7 +124,7 @@ fn bounded(answer: &CallAnswer, tool: &[u8], max_bytes: u32) -> HostAnswer {
             }
         };
     }
-    answer_text(answer, tool)
+    answer_text(answer, tool, task)
 }
 
 fn job_text(
@@ -177,11 +184,11 @@ fn escaped_len(text: &[u8]) -> usize {
 /// becomes a bounded host error, so no decided call is left unanswered.
 #[must_use]
 pub fn answer(answer: &CallAnswer) -> HostAnswer {
-    answer_text(answer, &[])
+    answer_text(answer, &[], None)
 }
 
-fn answer_text(answer: &CallAnswer, tool: &[u8]) -> HostAnswer {
-    match rendered(answer, tool) {
+fn answer_text(answer: &CallAnswer, tool: &[u8], task: Option<u64>) -> HostAnswer {
+    match rendered(answer, tool, task) {
         Ok(answer) => answer,
         Err(Problem::TooLarge) => HostAnswer::new(
             bytes::copy_of(b"The recorded answer exceeded the host text limit; ask a narrower read."),
@@ -195,8 +202,31 @@ fn answer_text(answer: &CallAnswer, tool: &[u8]) -> HostAnswer {
     }
 }
 
+fn proposed(
+    text: &mut Text,
+    proposal: u64,
+    holder: jig_domain_tasks::ProposalHolder,
+    task: Option<u64>,
+) -> Result<(), Problem> {
+    let settings = holder
+        == (jig_domain_tasks::ProposalHolder::Policy { project: 0, kind: jig_domain_tasks::ProposalKind::Settings });
+    text.add(if settings { b"proposed as " } else { b"Proposed as " })?;
+    if let Some(task) = task {
+        text.add(b"t")?;
+        text.number(task)?;
+        text.add(b"/")?;
+    } else if settings {
+        text.add(b"proposal ")?;
+    }
+    text.number(proposal)?;
+    if settings {
+        text.add(b" to the deployment's owners")?;
+    }
+    Ok(())
+}
+
 #[expect(clippy::too_many_lines, reason = "one exhaustive durable answer vocabulary")]
-fn rendered(answer: &CallAnswer, tool: &[u8]) -> Result<HostAnswer, Problem> {
+fn rendered(answer: &CallAnswer, tool: &[u8], task: Option<u64>) -> Result<HostAnswer, Problem> {
     let mut text = Text::new();
     let error = match answer {
         CallAnswer::TaskRead(read) => return task_read(read, HostAnswer::CAPACITY),
@@ -290,18 +320,7 @@ fn rendered(answer: &CallAnswer, tool: &[u8]) -> Result<HostAnswer, Problem> {
             true
         }
         CallAnswer::Proposed { proposal, holder } => {
-            if let jig_domain_tasks::ProposalHolder::Policy {
-                project: 0,
-                kind: jig_domain_tasks::ProposalKind::Settings,
-            } = holder
-            {
-                text.add(b"proposed as proposal ")?;
-                text.number(*proposal)?;
-                text.add(b" to the deployment's owners")?;
-            } else {
-                text.add(b"Proposed as ")?;
-                text.number(*proposal)?;
-            }
+            proposed(&mut text, *proposal, *holder, task)?;
             false
         }
         CallAnswer::ProposalDecided { proposal, .. } => {

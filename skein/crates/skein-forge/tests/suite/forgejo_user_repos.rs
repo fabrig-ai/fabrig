@@ -17,6 +17,15 @@ fn reachable(push: bool) -> Reachable {
     Reachable { repository: 7, owner: 3, login: Box::from(*b"acme"), name: Box::from(*b"widgets"), private: true, push }
 }
 #[test]
+#[expect(clippy::disallowed_methods, reason = "the assertion locates named transcripts in the finite mutation corpus")]
+fn repository_listing_provisioning_answers_keep_json_mutation_coverage() {
+    let cases = forgejo::json_cases();
+    for case in ["setup-user-repos-alice", "setup-user-repos-bob"] {
+        let (_, request) = cases.iter().find(|(name, _)| name == case).expect("provisioning transcript included");
+        assert_eq!(request, &None, "{case}: provisioning outside the dialect uses the error decoder");
+    }
+}
+#[test]
 fn forgejo_user_repos_request_encodes_page_and_limit() {
     let encoded = client::encode(&request(), &forgejo::limits()).unwrap();
     let (method, target, body) = common::goldens::request("user-repos");

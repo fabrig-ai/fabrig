@@ -1031,7 +1031,7 @@ terminal client, the captures and the faults.
   the story once, its model side a face: the fake issuer and the fake
   LLM peer here, ChatGPT itself in the live tier (2.7), which reuses
   every step and check but the face's:
-  - *the box and its forge:* `temper init` into three empty private
+  - *the box and its forge:* `temper init --box` into three empty private
     directories, the sign-in's and the LLM endpoint's addresses swapped
     for the fakes', then `temper box` on them, which reads that
     document; the owned forge set up from the client and `work/hello` made and
@@ -1439,6 +1439,66 @@ section 8; testing-strategy.md, 2.9).
   landing pair above, run after every landing; `scripts/proof-live.sh` and
   `scripts/proof-live-github.sh` select their own story over it
   (`--ignore-default-filter` and their own filter), one at a time. Never at the gate.
+
+### 2.8 macOS
+
+macOS is a person's own machine and Linux the platform of record
+(`../draft/macos.md`). What macOS runs is one workflow; the gate never
+reads it, and whatever is Linux's may be degraded there.
+
+- **The workflow,** `.github/workflows/macos.yml`, on GitHub's `macos-26`,
+  arm64: on the newest `main` four times a day by a schedule, and by
+  hand, on any branch that holds it; never on a push. A red run blocks
+  nothing: it is a finding.
+- **What it runs:** every target of skein, smith, jig and temper
+  compiled, hearth left out
+  (`cargo check --workspace --exclude 'hearth*' --all-targets --keep-going`),
+  then the one story below. Each check runs whatever an earlier one
+  gave, so that one run shows every failure.
+- **What it installs:** Rust 1.95, the workspace's `rust-version`, and
+  `cargo-nextest`, each download checked by its SHA-256.
+- **The runner is small:** line tables only for debug information, no
+  incremental build, `TEMPER_BUNDLE=none`, the registry and the
+  dependencies' build cached by the lock, and each run reports its disk.
+- **A failure reads without a login:** the repository is public, and
+  each failing check annotates its run with its failing tests or errors
+  and the end of its output, which the public API gives.
+- **The one story:**
+  `a_csv_change_passes_ci_and_a_blocking_agent_review_on_the_owned_forge_then_lands_and_survives_restart`
+  (2.6), never a copy of it: the workflow runs it alone under the profile
+  `process-temper`, and a run that selects nothing is red.
+- **Its binaries come through `temper forge fetch`** (`../protocol/setup.md`,
+  6.6), into a cache of the workflow's own that starts empty, so each
+  run shows that the pinned addresses still answer; `TEMPER_FORGEJO` and
+  `TEMPER_FORGEJO_RUNNER` then name what it fetched, and the box's own
+  fetch finds them in place and holds them to the pins' binary digests.
+  The workflow prints each one's version first, so that a binary that
+  does not run shows apart from the story.
+- **Its support on macOS,** each the simplest that works:
+  - `parent::Guard` holds its child and gives it no parent-death signal,
+    which is Linux's: the test's own ending stops what it started;
+  - the steps of the story's CI use what both systems' tools have, within
+    the cleared `PATH`s of the box and of the owned runner;
+  - `left`, Linux's whole-tree proof, proves nothing under the tree
+    keeper's Group (`skein/docs/design/shell.md`, section 9): it reads
+    empty there, so the story holds the box's clean exit alone.
+- **No containers:** its jobs run on the runner's host under the
+  `temper-host` label, as on Linux.
+- **The Darwin check.** On our Linux machines clippy reaches, for
+  `aarch64-apple-darwin`, the members that do not reach rustls, whose
+  `ring` crate compiles C against Apple's headers (skein's `shell.md`,
+  section 9); the rest are the workflow's.
+- **Linux's own tests, by name.** A test that only Linux can run is built
+  for Linux alone, `cfg(target_os = "linux")` on its test, module or
+  binary, with its reason beside it, and listed here. A test that
+  compiles and fails on macOS and would take real work to port joins the
+  list; none is dropped silently.
+
+  | Test | Its reason |
+  |---|---|
+  | `crates/temper/src/tests.rs`: `id_login_agrees_with_the_effective_users_passwd_entry` | Linux supplies the effective user's passwd entry to compare with macOS's command lookup |
+  | `crates/temper/tests/process.rs`: `a_story_box_and_its_steps_die_when_the_test_process_is_killed` | a parent-death signal is Linux's |
+  | `crates/temper/tests/process.rs`: `a_forgejo_elsewhere_connected_as_its_admin_makes_the_first_repository_lands_a_chats_change_and_is_found_after_a_restart`, and `crates/temper/tests/support/forgejo_elsewhere.rs` | the capture witness uses Linux's abstract Unix sockets |
 
 ## 3. Neighbours and their faces
 

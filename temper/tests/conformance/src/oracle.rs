@@ -16,7 +16,6 @@ pub(super) struct Replies {
     documents: BTreeMap<u64, forge::Document>,
 }
 impl Replies {
-    #[expect(clippy::wildcard_enum_match_arm, reason = "only oracle read and watch replies are captured")]
     pub(super) fn receive(&mut self, delivery: &Delivery) {
         match delivery {
             Delivery::Read { reply, answer } if *reply == ReplyTo::new(Token::new(REPLY)) => {

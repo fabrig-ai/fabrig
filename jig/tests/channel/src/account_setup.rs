@@ -268,7 +268,6 @@ fn text(value: &[u8]) -> c::Text {
     c::Text::new(value.into(), 512).expect("bounded fixture value")
 }
 
-#[expect(clippy::wildcard_enum_match_arm, reason = "this fixture checks only run activity and provisional text")]
 fn observe(client: &jig_client_protocol_world::native::NativeClient, views: &mut crate::world::Views) {
     if let Some(text) = client.text(crate::live_text::RUN) {
         views.text_bytes = views.text_bytes.max(text.text.bytes().len());

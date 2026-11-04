@@ -715,7 +715,7 @@ fn aborting_does_not_submit_an_llm_key_adoption_to_the_closing_store() {
     accounts.abort();
     let heard = pump_accounts(&mut accounts, engine);
     assert!(!has_llm_key_grant(&heard, 1));
-    assert!(accounts.is_empty(), "abort settles the component");
+    assert!(accounts.idle(), "abort settles the component");
     let Some(store::Event::Secret { value: None, .. }) =
         engine.store.secrets(Token::new(123), store::Secrets::Get { owner: store::SecretOwner::Source, number: 7 })
     else {
@@ -1125,7 +1125,7 @@ fn aborting_drops_a_finish_in_flight() {
     };
     assert!(events.is_empty());
     assert!(accounts.io.is_empty());
-    assert!(accounts.is_empty());
+    assert!(accounts.idle());
 }
 
 #[test]

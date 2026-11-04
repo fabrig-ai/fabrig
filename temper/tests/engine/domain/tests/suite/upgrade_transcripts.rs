@@ -30,9 +30,7 @@ fn pending_reply(driver: &mut Driver) -> engine::Event {
     for _ in 0..STEPS {
         let found = driver.events.iter().position(|event| {
             if let engine::Event::Store(engine::StoreInput::Loaded { owner, .. }) = event {
-                driver.loads.iter().any(|(issued, range)| {
-                    issued == owner && matches!(range, engine::Range::Core(engine::CoreRange::TaskTranscript { .. }))
-                })
+                driver.loads.iter().any(|(issued, range)| issued == owner && transcript_task(range).is_some())
             } else {
                 false
             }
@@ -215,15 +213,8 @@ fn waiting_for_room(driver: &Driver, chats: &[engine::Assignment]) {
     );
 }
 
-#[test]
-fn a_full_read_table_keeps_a_waking_chat_due_until_a_read_retires() {
-    let (mut driver, chats) = parked_chats();
-    for (index, chat) in chats.iter().enumerate() {
-        driver.send(say_ask(driver.session(), chat.task, FIRST_WAKE + u8::try_from(index).expect("three chats")));
-    }
-    hold_replies(&mut driver);
-    waiting_for_room(&driver, &chats);
-    let reply = pending_reply(&mut driver);
+fn retire_read_and_prepare_waiter(driver: &mut Driver, chats: &[engine::Assignment]) {
+    let reply = pending_reply(driver);
     driver.send(reply);
     // Complete the read terminal's queued core continuation before owner progress.
     driver.send(engine::Event::Resume);
@@ -236,9 +227,20 @@ fn a_full_read_table_keeps_a_waking_chat_due_until_a_read_retires() {
         }),
         "the next Resume prepares the chat that was waiting for room"
     );
-    hold_replies(&mut driver);
-    assert_eq!(transcript_tasks(&driver), [chats[0].task, chats[1].task, chats[2].task]);
+    hold_replies(driver);
+    assert_eq!(transcript_tasks(driver), [chats[0].task, chats[1].task, chats[2].task]);
     driver.settle();
+}
+
+#[test]
+fn a_full_read_table_keeps_a_waking_chat_due_until_a_read_retires() {
+    let (mut driver, chats) = parked_chats();
+    for (index, chat) in chats.iter().enumerate() {
+        driver.send(say_ask(driver.session(), chat.task, FIRST_WAKE + u8::try_from(index).expect("three chats")));
+    }
+    hold_replies(&mut driver);
+    waiting_for_room(&driver, &chats);
+    retire_read_and_prepare_waiter(&mut driver, &chats);
     for chat in chats {
         no_failure_charged(&driver, chat.task);
     }
@@ -265,20 +267,5 @@ fn two_activations_in_one_decision_share_the_last_read_slot() {
     }));
     hold_replies(&mut driver);
     waiting_for_room(&driver, &chats);
-    let reply = pending_reply(&mut driver);
-    driver.send(reply);
-    // Complete the read terminal's queued core continuation before owner progress.
-    driver.send(engine::Event::Resume);
-    let before = driver.transactions.len();
-    driver.send(engine::Event::Resume);
-    assert!(
-        driver.transactions[before..].iter().flatten().any(|write| {
-            matches!(write, engine::Write::Save(engine::Record::Core(core::Record::Tasks(tasks::Stored::Live(row))))
-            if row.number == chats[2].task && row.phase == tasks::Phase::Active(tasks::Active::Preparing))
-        }),
-        "the next Resume prepares the chat that was waiting for room"
-    );
-    hold_replies(&mut driver);
-    assert_eq!(transcript_tasks(&driver), [chats[0].task, chats[1].task, chats[2].task]);
-    driver.settle();
+    retire_read_and_prepare_waiter(&mut driver, &chats);
 }

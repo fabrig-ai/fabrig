@@ -1,4 +1,4 @@
-family temper-client-wire 11
+family temper-client-wire 13
 
 # The role, as temper-engine-domain-forge's Role, in its order.
 enum Role { owned, adopted, fork, context }
@@ -69,13 +69,14 @@ enum AdminStop { not_admin, refused: AdminRefused, unmarked, other }
 enum AppWay { manifest, pasted }
 record Adoption { owner: bytes 1024 name: bytes 1024 project: u32 }
 record OwnedForge { forgejo: bytes 64 runner: option bytes 64 password: bytes 512 }
-record ForgeRow { number: u16 kind: Kind mode: Mode connection: Connection offer: Offer first: option FirstRepository installations: list 64 Installation ended: option ConnectStopped app: option AppWay web: option bytes 2048 repositories: list 16 Adoption owned: option OwnedForge admin: bool ended_stop: option AdminStop read_only: bool }
+record ForgeRow { number: u16 host: bytes 2048 kind: Kind mode: Mode connection: Connection offer: Offer first: option FirstRepository installations: list 64 Installation ended: option ConnectStopped app: option AppWay web: option bytes 2048 repositories: list 16 Adoption owned: option OwnedForge admin: bool ended_stop: option AdminStop read_only: bool }
 versioned record Forges { forges: list 16 ForgeRow }
 
 # The forge's reads (temper/docs/design/client/forge.md, 9).
 record SettingRead { kind: u32 scope: u32 number: u32 }
 record ProposalItemsRead { key: u64 }
-enum Read { playground, setting: SettingRead, proposal_items: ProposalItemsRead, deployment }
+record RevisionSettingRead { kind: u32 scope: u32 number: u32 revision: u32 }
+enum Read { playground, setting: SettingRead, proposal_items: ProposalItemsRead, deployment, revision_setting: RevisionSettingRead }
 # Values are kinds-codec's LandingRule and ForgeCharter records.
 versioned record SettingAnswer { value: option bytes 1048576 }
 record SettingValue { value: bytes 1048576 }

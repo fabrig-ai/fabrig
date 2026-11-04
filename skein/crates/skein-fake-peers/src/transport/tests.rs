@@ -43,7 +43,6 @@ struct Pair {
 }
 
 impl Pair {
-    #[expect(clippy::panic, reason = "the test helper asserts that the fixed handshake progresses")]
     fn new() -> Self {
         let mut roots = RootCertStore::empty();
         roots
@@ -85,7 +84,6 @@ impl Pair {
         panic!("fixed handshake progresses");
     }
 
-    #[expect(clippy::panic, reason = "the test helper asserts valid wire requests and bounded output progress")]
     fn output(&mut self) -> Vec<u8> {
         let mut bytes = Vec::new();
         for _ in 0..20 {

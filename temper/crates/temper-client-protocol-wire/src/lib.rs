@@ -62,7 +62,7 @@ pub const fn owner(number: u16) -> Option<Owner> {
     }
 }
 /// Every record's version, served by both ends (client/README.md, 4.6).
-pub const CLIENT_VERSION: u32 = 11;
+pub const CLIENT_VERSION: u32 = 13;
 
 /// The deployment's maximum number of forges (client/README.md, 4.6).
 pub const FORGES: u32 = 16;
@@ -123,6 +123,7 @@ pub fn limits(bounds: &Bounds) -> Option<v1::Limits> {
         owned_forge_password: v1::CEILINGS.owned_forge_password,
         adoption_owner: bounds.field_bytes,
         adoption_name: bounds.field_bytes,
+        forge_row_host: ADDRESS_BYTES,
         forge_row_web_some: ADDRESS_BYTES,
         forge_row_repositories: 16,
         reached_name: bounds.field_bytes,

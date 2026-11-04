@@ -4,7 +4,9 @@ use crate::store::{Record, Refused, Store};
 #[test]
 fn records_are_base64_under_the_prefix() {
     let mut platform = FakePlatform::default();
-    Store::new(b"notes-", None).write(b"key", b"record", &mut platform).unwrap();
+    Store::new(b"notes-", None)
+        .write(b"key", b"record", &mut platform)
+        .expect("fixture write has no quota or size bound");
     assert_eq!(platform.calls, vec![Call::Write(b"notes-a2V5".to_vec(), b"cmVjb3Jk".to_vec())]);
 }
 #[test]

@@ -372,10 +372,6 @@ impl Application for Temper {
             assert!(domain.returned.replace(event).is_none(), "one input per iteration");
         }
     }
-    #[expect(
-        clippy::wildcard_enum_match_arm,
-        reason = "every native nonstore request is retained unchanged as a released delivery"
-    )]
     fn release(domain: &mut Domain, config: &Config, clock: Clock) -> Vec<Output<engine::Write, Delivery>> {
         let environment = env(config, clock);
         engine::release(&mut domain.root, &environment, &mut domain.outputs);
@@ -407,10 +403,6 @@ impl Application for Temper {
         }
         outputs
     }
-    #[expect(
-        clippy::wildcard_enum_match_arm,
-        reason = "the peer retains asks and charge evidence without interpreting other inputs"
-    )]
     fn inbound(peers: &mut Peers, _: &Store, _: Clock, input: &mut Event) {
         let Event::Root(input) = input else { return };
         match input {
@@ -441,10 +433,6 @@ impl Application for Temper {
             _ => {}
         }
     }
-    #[expect(
-        clippy::wildcard_enum_match_arm,
-        reason = "one boundary adapter acknowledges selected native outputs and retains their receipts"
-    )]
     fn deliver(
         peers: &mut Peers,
         systems: &mut systems::FakeForge,
@@ -715,7 +703,6 @@ impl Application for Temper {
 
 /// One delivery to the worker or the person, and the durable receipts its
 /// release requires.
-#[expect(clippy::wildcard_enum_match_arm, reason = "the scripted peers take only the deliveries their stories use")]
 fn delivered(peers: &mut Peers, clock: Clock, delivery: root::Delivery) {
     let mut requires = Vec::new();
     match delivery {

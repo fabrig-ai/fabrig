@@ -1,0 +1,23 @@
+# clippy variant: ordinary (tools/lints/design.md, 4).
+# What ordinary Rust may not use (skein/docs/foundation/programming-model.md, 10.2):
+# std, closures, traits and formatting are in, but a run is one thread and one
+# loop, and a seed replays (skein/docs/foundation/testing-strategy.md, 1).
+
+# Test code may unwrap (skein/docs/foundation/testing-strategy.md, 4); a harness
+# in a crate's src/ says what it expects instead.
+allow-unwrap-in-tests = true
+
+disallowed-types = [
+    { path = "std::collections::HashMap", reason = "iteration order depends on a random seed: BTreeMap" },
+    { path = "std::collections::HashSet", reason = "iteration order depends on a random seed: BTreeSet" },
+    { path = "std::hash::RandomState", reason = "iteration order would depend on a random seed: BTreeMap" },
+    { path = "std::time::Instant", reason = "a run's time comes from its world; on the ring, skein_shell::Clock" },
+    { path = "std::time::SystemTime", reason = "a run's time comes from its world; on the ring, skein_shell::Clock" },
+]
+
+disallowed-methods = [
+    { path = "std::thread::spawn", reason = "one thread, one loop, so that a run replays" },
+    { path = "std::thread::Builder::spawn", reason = "one thread, one loop, so that a run replays" },
+    { path = "std::thread::scope", reason = "one thread, one loop, so that a run replays" },
+    { path = "std::env::var", reason = "a run's settings come from its code, not the environment" },
+]

@@ -212,7 +212,7 @@ pub(super) fn world(w: World, address: Address, then: Then) -> (Domain, Option<T
                                 playground_read = true;
                             }
                         }
-                        v1::Read::Setting(_) | v1::Read::ProposalItems(_) => {}
+                        v1::Read::Setting(_) | v1::Read::RevisionSetting(_) | v1::Read::ProposalItems(_) => {}
                     }
                 }
                 jig_client::Down::Open { watch, subject: jig_client::Watchable::Family { record, .. } }
@@ -309,6 +309,7 @@ fn forges(world: World) -> Box<[u8]> {
             w::ForgeRow::new(
                 &limits,
                 w::ForgeRowParts {
+                    host: b"git.example:3000".as_slice().into(),
                     number: FORGE,
                     kind: w::Kind::Forgejo,
                     mode: w::Mode::Fake,
@@ -348,6 +349,7 @@ fn forges(world: World) -> Box<[u8]> {
             w::ForgeRow::new(
                 &limits,
                 w::ForgeRowParts {
+                    host: b"git.example:3000".as_slice().into(),
                     number: 2,
                     kind: w::Kind::Github,
                     mode: w::Mode::Managed,
@@ -416,6 +418,7 @@ fn forges(world: World) -> Box<[u8]> {
             w::ForgeRow::new(
                 &limits,
                 w::ForgeRowParts {
+                    host: b"git.example:3000".as_slice().into(),
                     number: 3,
                     kind: w::Kind::Forgejo,
                     mode: if step == 23 { w::Mode::Managed } else { w::Mode::Owned },
@@ -974,7 +977,6 @@ fn budget(f: &TaskFacts) -> c::Budget {
         deadline: None,
     }
 }
-#[expect(clippy::manual_map, reason = "fixture follows the step crates’ explicit Option matches")]
 fn document(w: World, number: u64) -> c::Task {
     let f = facts(w, number);
     let mut t = base_task(number, f.title);
@@ -1003,13 +1005,7 @@ fn document(w: World, number: u64) -> c::Task {
     } else {
         Some(c::LlmChoice {
             account: Some(f.account),
-            main: c::ModelEffort {
-                model: text(f.model),
-                effort: match f.effort {
-                    Some(e) => Some(text(e)),
-                    None => None,
-                },
-            },
+            main: c::ModelEffort { model: text(f.model), effort: f.effort.map(text) },
             subagents: List::with_capacity(0),
         })
     };

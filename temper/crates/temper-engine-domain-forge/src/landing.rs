@@ -247,7 +247,6 @@ impl Domain {
     }
     /// The project's retained verification settings (domain/after-landing.md, 11).
     #[must_use]
-    #[expect(clippy::manual_map, reason = "the foundation uses explicit options without callbacks")]
     pub fn after_landing(&self, project: u32) -> Option<crate::AfterLanding> {
         match self.landing.projects.get(&project) {
             Some((_, _, after, _)) => Some(*after),
@@ -834,7 +833,6 @@ fn wait(task: u64, env: &Env<Limits>, out: &mut Queue<Request>) {
     );
 }
 #[expect(clippy::too_many_lines, reason = "one exhaustive bounded landing read chain")]
-#[expect(clippy::manual_map, reason = "the foundation uses explicit matches without closures")]
 #[expect(clippy::match_like_matches_macro, reason = "the foundation forbids matches macros in step code")]
 pub(crate) fn answered(
     d: &mut Domain,
@@ -1619,7 +1617,6 @@ fn keep(
     );
 }
 
-#[expect(clippy::manual_map, reason = "step code uses explicit options without closures")]
 pub(crate) fn put_receipt(
     d: &mut Domain,
     env: &Env<Limits>,
@@ -1860,7 +1857,6 @@ pub(crate) fn change_advanced(
         emit(out, Request::WakeProcedure { task });
     }
 }
-#[expect(clippy::manual_map, reason = "the foundation uses explicit option matches without closures")]
 pub(crate) fn rebuild(d: &mut Domain) {
     let mut flights = List::with_capacity(slots(&d.landing.limits).expect("flight bound"));
     for (_, row) in &d.landing.rows {

@@ -7,6 +7,26 @@ use skein_lib::List;
 use temper_engine_domain as engine;
 
 #[test]
+fn a_settings_proposal_answer_prints_its_ctl_name() {
+    for (task, proposal, name) in [(1, 2, "t1/2"), (1, 8, "t1/8"), (7, 13, "t7/13")] {
+        let answer = engine::CallAnswer::Proposed {
+            proposal,
+            holder: jig_domain_tasks::ProposalHolder::Policy {
+                project: 0,
+                kind: jig_domain_tasks::ProposalKind::Settings,
+            },
+        };
+        let (body, error) = crate::answer_for_task(&answer, b"propose_settings", crate::DOC_ANSWER, task).into_parts();
+        assert!(!error);
+        assert_eq!(
+            body.as_ref(),
+            format!("proposed as {name} to the deployment's owners").as_bytes(),
+            "task {task}'s proposal keeps its proposer and shared counter"
+        );
+    }
+}
+
+#[test]
 fn every_settings_read_form_and_offset_decodes() {
     for (input, read, from) in [
         (br"{}".as_slice(), SettingsRead::Inventory, 0),

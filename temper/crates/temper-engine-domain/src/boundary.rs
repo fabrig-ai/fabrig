@@ -538,8 +538,21 @@ pub enum ApplicationAnswer {
 /// Forge-owned settings reads (temper/docs/design/client/forge.md, 9).
 #[derive(Clone, Copy, PartialEq, Eq, Debug)]
 pub enum ForgeRead {
-    Setting { kind: u32, scope: u32, number: u32 },
-    ProposalItems { key: u64 },
+    /// The explicit value set in a retained revision.
+    RevisionSetting {
+        kind: u32,
+        scope: u32,
+        number: u32,
+        revision: u32,
+    },
+    Setting {
+        kind: u32,
+        scope: u32,
+        number: u32,
+    },
+    ProposalItems {
+        key: u64,
+    },
 }
 /// Typed answers from the forge's held settings, encoded at the clients' boundary.
 #[derive(Clone, PartialEq, Eq, Debug)]
@@ -878,8 +891,7 @@ pub(crate) enum Work {
     ProjectGoal(Box<jig_domain_core::ProjectionFeed>),
     GoalSubscribe(forge::Subscriber),
     AgreedGoal(Box<GoalWords>),
-    Activate(Box<tasks::RunContext>),
-    Due { context: Box<tasks::RunContext>, ready: bool },
+    Activate { context: Box<tasks::RunContext>, ready: bool },
     EscalationLoaded { waiter: Token, rows: Box<[Record]> },
     EscalationFailed { waiter: Token },
     ProposalLoaded { waiter: Token, rows: Box<[Record]> },

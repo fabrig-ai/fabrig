@@ -15,16 +15,6 @@ pub enum Evidence {
     Reply,
 }
 
-/// What of the hub's start did not decode.
-#[derive(Clone, Copy, PartialEq, Eq, Debug)]
-pub enum Invalid {
-    Charter,
-    Transcript,
-    CallName,
-    /// A resumed delivery's evidence, which must decode and agree with its outcome.
-    Evidence,
-}
-
 /// An agent process's event, in the worker root's terms.
 #[derive(Debug)]
 pub enum Processed {
@@ -151,27 +141,27 @@ pub fn decode(
     host_limits: &smith::Limits,
     endpoints: &Endpoints,
     evidence: Evidence,
-) -> Result<Box<smith::Start>, Invalid> {
+) -> Result<Box<smith::Start>, hub::Undecoded> {
     let Ok(charter) = smith_protocol_channel::decode_charter(&source.charter, &limits.charter, endpoints) else {
-        return Err(Invalid::Charter);
+        return Err(hub::Undecoded::Charter);
     };
-    let charter = smith::Charter::new(charter, host_limits.charter_bytes).ok_or(Invalid::Charter)?;
-    let piece = smith_protocol_channel::transcript_piece(&source.turns).ok_or(Invalid::Transcript)?;
+    let charter = smith::Charter::new(charter, host_limits.charter_bytes).ok_or(hub::Undecoded::Charter)?;
+    let piece = smith_protocol_channel::transcript_piece(&source.turns).ok_or(hub::Undecoded::Transcript)?;
     let transcript = match smith_protocol_channel::decode_transcript(
         &piece,
-        u32::try_from(host_limits.transcript_bytes.checked_div(4).ok_or(Invalid::Transcript)?)
-            .or(Err(Invalid::Transcript))?,
+        u32::try_from(host_limits.transcript_bytes.checked_div(4).ok_or(hub::Undecoded::Transcript)?)
+            .or(Err(hub::Undecoded::Transcript))?,
         limits.transcript.found_hits,
         &limits.transcript,
         endpoints,
     ) {
         Ok(Some(value)) => {
-            Some(smith::Transcript::new(value, host_limits.transcript_bytes).ok_or(Invalid::Transcript)?)
+            Some(smith::Transcript::new(value, host_limits.transcript_bytes).ok_or(hub::Undecoded::Transcript)?)
         }
         Ok(None) => None,
-        Err(_) => return Err(Invalid::Transcript),
+        Err(_) => return Err(hub::Undecoded::Transcript),
     };
-    let mut answered = List::with_capacity(u32::try_from(source.answered.len()).or(Err(Invalid::CallName))?);
+    let mut answered = List::with_capacity(u32::try_from(source.answered.len()).or(Err(hub::Undecoded::CallName))?);
     for call in source.answered {
         let mut reader = Reader::new(&call.name);
         let name = match smith_channel::CallName::decode(&limits.bodies, &mut reader) {
@@ -180,7 +170,7 @@ pub fn decode(
                 completion: value.completion(),
                 position: value.position(),
             },
-            Ok(_) | Err(_) => return Err(Invalid::CallName),
+            Ok(_) | Err(_) => return Err(hub::Undecoded::CallName),
         };
         let reply = match call.answer {
             hub::SettledAnswer::Host { error, body } => smith::SavedReply::Host { error, body },
@@ -194,7 +184,7 @@ pub fn decode(
         };
         answered.push(smith::AnsweredCall { name, tool: call.tool, reply }).expect("answer count");
     }
-    let mut messages = List::with_capacity(u32::try_from(source.messages.len()).or(Err(Invalid::Charter))?);
+    let mut messages = List::with_capacity(u32::try_from(source.messages.len()).or(Err(hub::Undecoded::Charter))?);
     for message in source.messages {
         messages
             .push(smith::Message {
@@ -205,7 +195,7 @@ pub fn decode(
             })
             .expect("inbox count");
     }
-    let mut grants = List::with_capacity(u32::try_from(source.grants.len()).or(Err(Invalid::Charter))?);
+    let mut grants = List::with_capacity(u32::try_from(source.grants.len()).or(Err(hub::Undecoded::Charter))?);
     for grant in source.grants {
         if let Some(grant) = self::grant(grant) {
             grants.push(grant).expect("grant count");
@@ -234,16 +224,16 @@ pub fn decode(
     }))
 }
 
-fn delivery(outcome: hub::DeliveryOutcome, evidence: Box<[u8]>) -> Result<smith::Delivery, Invalid> {
+fn delivery(outcome: hub::DeliveryOutcome, evidence: Box<[u8]>) -> Result<smith::Delivery, hub::Undecoded> {
     Ok(match outcome {
         hub::DeliveryOutcome::Delivered => {
-            let receipt = smith::Receipt::new(0, evidence).ok_or(Invalid::CallName)?;
-            smith::Delivery::Delivered(smith::Delivered::new(Box::new([receipt])).ok_or(Invalid::CallName)?)
+            let receipt = smith::Receipt::new(0, evidence).ok_or(hub::Undecoded::CallName)?;
+            smith::Delivery::Delivered(smith::Delivered::new(Box::new([receipt])).ok_or(hub::Undecoded::CallName)?)
         }
         hub::DeliveryOutcome::Nothing => smith::Delivery::Nothing,
         hub::DeliveryOutcome::Stale => smith::Delivery::Stale,
         hub::DeliveryOutcome::Refused => {
-            smith::Delivery::Refused(smith::DeliveryRefusal::new(None, evidence).ok_or(Invalid::CallName)?)
+            smith::Delivery::Refused(smith::DeliveryRefusal::new(None, evidence).ok_or(hub::Undecoded::CallName)?)
         }
         hub::DeliveryOutcome::Failed => smith::Delivery::Failed(smith::DeliveryFailure {
             directory: 0,
@@ -306,8 +296,8 @@ fn grant(value: hub::Grant) -> Option<smith::Grant> {
 }
 
 /// Decode a resumed delivery's evidence and check its committed outcome.
-pub fn evidence(outcome: hub::DeliveryOutcome, bytes: &[u8]) -> Result<smith::Delivery, Invalid> {
-    let value = decoded_delivery(bytes).ok_or(Invalid::Evidence)?;
+pub fn evidence(outcome: hub::DeliveryOutcome, bytes: &[u8]) -> Result<smith::Delivery, hub::Undecoded> {
+    let value = decoded_delivery(bytes).ok_or(hub::Undecoded::Evidence)?;
     let recorded = match &value {
         smith::Delivery::Delivered(_) => hub::DeliveryOutcome::Delivered,
         smith::Delivery::Nothing => hub::DeliveryOutcome::Nothing,
@@ -315,7 +305,7 @@ pub fn evidence(outcome: hub::DeliveryOutcome, bytes: &[u8]) -> Result<smith::De
         smith::Delivery::Refused(_) => hub::DeliveryOutcome::Refused,
         smith::Delivery::Failed(_) => hub::DeliveryOutcome::Failed,
     };
-    if recorded == outcome { Ok(value) } else { Err(Invalid::Evidence) }
+    if recorded == outcome { Ok(value) } else { Err(hub::Undecoded::Evidence) }
 }
 
 fn decoded_delivery(bytes: &[u8]) -> Option<smith::Delivery> {

@@ -10,6 +10,7 @@
 
 #![cfg_attr(not(test), no_std)]
 #![forbid(unsafe_code)]
+#![cfg_attr(test, expect(clippy::manual_map, reason = "step code matches optional fields without closures"))]
 extern crate alloc;
 
 mod answers;
@@ -26,7 +27,7 @@ pub mod room;
 mod settings;
 mod start;
 
-pub use answers::{answer, answer_bounded, answer_for_tool};
+pub use answers::{answer, answer_bounded, answer_for_task, answer_for_tool};
 pub use calls::{call, call_configured, tools};
 pub use finish::{ChangeResource, Terminal, result, turn};
 pub use reference::reference;

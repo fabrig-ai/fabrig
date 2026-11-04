@@ -79,7 +79,6 @@ impl Peer {
         self.machine.down(request, &mut self.above, &mut self.below);
     }
 
-    #[expect(clippy::wildcard_enum_match_arm, reason = "the world fails on unexpected channel events")]
     fn step(&mut self, wire: &mut Wire) {
         self.machine.poll(&mut self.above, &mut self.below);
         while let Some(record) = self.below.pop() {

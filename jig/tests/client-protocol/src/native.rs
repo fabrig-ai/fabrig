@@ -94,7 +94,6 @@ pub struct NativeClient {
     wire: wire::Wire,
     credential: Option<skein_lib::Secret>,
     terminal: Option<skein_ui_text::Terminal>,
-    #[expect(clippy::disallowed_types, reason = "scenario input hands inherited pipes to the host between iterations")]
     pipes: core::cell::Cell<Option<(Fd, Fd)>>,
     complete: Queue<Complete>,
     root: client::Domain,

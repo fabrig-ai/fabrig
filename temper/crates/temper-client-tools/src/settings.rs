@@ -43,7 +43,16 @@ pub(crate) fn setting_query(kind: u32, scope: u32, number: u32) -> w::Read {
 pub(crate) fn read(query: Query) -> Readable {
     let query = match query {
         Query::Setting(c::Setting::Application { kind, scope, number }) => setting_query(kind, scope, number),
-        Query::Setting(_) => unreachable!("application setting"),
+        Query::RevisionSetting { setting: c::Setting::Application { kind, scope, number }, revision } => {
+            w::Read::RevisionSetting(
+                w::RevisionSettingRead::new(
+                    &w::CEILINGS,
+                    w::RevisionSettingReadParts { kind, scope, number, revision },
+                )
+                .expect("fixed read"),
+            )
+        }
+        Query::Setting(_) | Query::RevisionSetting { .. } => unreachable!("application setting"),
         Query::ProposalItems { key } => w::Read::ProposalItems(
             w::ProposalItemsRead::new(&w::CEILINGS, w::ProposalItemsReadParts { key }).expect("fixed read"),
         ),
@@ -95,11 +104,12 @@ fn proposal_items(page: &Readout) -> Option<w::ProposalItemsAnswer> {
 }
 pub(crate) fn decode(query: Query, page: &Readout) -> Option<Answer> {
     match query {
-        Query::Setting(c::Setting::Application { kind, .. }) => match setting(page, kind) {
+        Query::Setting(c::Setting::Application { kind, .. })
+        | Query::RevisionSetting { setting: c::Setting::Application { kind, .. }, .. } => match setting(page, kind) {
             Ok(value) => Some(Answer::Setting(value)),
             Err(()) => None,
         },
-        Query::Setting(_) => unreachable!("application setting"),
+        Query::Setting(_) | Query::RevisionSetting { .. } => unreachable!("application setting"),
         Query::ProposalItems { .. } => {
             let record = proposal_items(page)?;
             let mut items = List::with_capacity(record.items().len());
@@ -125,10 +135,14 @@ pub(crate) fn decode(query: Query, page: &Readout) -> Option<Answer> {
 }
 pub(crate) fn selector(call: &Call) -> Option<c::Setting> {
     if call.form == 2 || call.form == 3 {
-        let scope = match value(call, 2) {
-            Some(Value::Project(Project::Number(project))) => *project,
-            Some(_) => unreachable!("resolved project"),
-            None => 0,
+        let scope = if call.form == 3 {
+            0
+        } else {
+            match value(call, 2) {
+                Some(Value::Project(Project::Number(project))) => *project,
+                Some(_) => unreachable!("resolved project"),
+                None => 0,
+            }
         };
         return Some(c::Setting::Application {
             kind: if call.form == 3 {
@@ -173,6 +187,7 @@ pub const SETTING: Tool = Tool {
                 Optional,
                 b"The project's rule; the deployment's when absent",
             ),
+            revision_flag(),
         ],
         &[
             positional(
@@ -189,6 +204,7 @@ pub const SETTING: Tool = Tool {
                 Required,
                 b"1 the change's charter, 2 its reviews'",
             ),
+            revision_flag(),
         ],
     ],
     ..rows::SETTING
@@ -213,3 +229,13 @@ pub(crate) fn name(setting: c::Setting, out: &mut Text) -> bool {
 }
 mod value;
 pub(crate) use value::render;
+
+const fn revision_flag() -> crate::jig::table::Argument {
+    flag(
+        b"revision",
+        b"REVISION",
+        Kind::NumberRange { min: 1, max: 4_294_967_295 },
+        Optional,
+        b"The value set by this retained revision; the current value when absent",
+    )
+}

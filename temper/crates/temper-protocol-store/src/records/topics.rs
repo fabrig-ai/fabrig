@@ -150,7 +150,6 @@ pub(super) fn decode_ci_state(value: w::CiState) -> d::CiState {
     d::CiState { repository: decode_repository(repository), head, status: decode_ci(status) }
 }
 
-#[expect(clippy::manual_map, reason = "step translations use explicit matches without closures")]
 pub(super) fn encode_subscriber(value: &d::Subscriber) -> w::Subscriber {
     let d::Subscriber { task, number, topic, own_change, goal_tasks, paths } = value;
     w::Subscriber::new(
@@ -169,7 +168,6 @@ pub(super) fn encode_subscriber(value: &d::Subscriber) -> w::Subscriber {
     )
     .expect(FITS)
 }
-#[expect(clippy::manual_map, reason = "step translations use explicit matches without closures")]
 pub(super) fn decode_subscriber(value: w::Subscriber) -> d::Subscriber {
     let w::SubscriberParts { task, number, topic, own_change, goal_tasks, paths } = value.into_parts();
     d::Subscriber {
@@ -188,7 +186,6 @@ pub(super) fn decode_subscriber(value: w::Subscriber) -> d::Subscriber {
 pub(super) fn encode_landed(commit: api::Commit, task: u64) -> w::Landed {
     w::Landed::new(&w::CEILINGS, w::LandedParts { commit, task }).expect(FITS)
 }
-#[expect(clippy::manual_map, reason = "step translations use explicit matches without closures")]
 pub(super) fn encode_release(value: &d::ReleaseRow) -> w::ReleaseRow {
     let d::ReleaseRow { task, root, ending, close_pull, comment, pending, failed, effects_settled, releasing } = value;
     let pending = match pending {

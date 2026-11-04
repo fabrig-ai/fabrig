@@ -167,7 +167,7 @@ designs them:
 
 ```
 documentation  temper help [NAME | --search WORDS...]
-deployment     temper init [DIRECTORIES]
+deployment     temper init [DIRECTORIES] [--box]
                temper serve [DIRECTORIES]
                temper box [DIRECTORIES] [--echo none|steps] [--fake-backends [--bundle DIR]]
                temper versions

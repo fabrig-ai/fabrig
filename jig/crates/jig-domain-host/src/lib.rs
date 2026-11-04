@@ -41,7 +41,7 @@ pub use boundary::{
     AgentFailure, AnsweredCall, Ask, Assignment, Bound, CallAnswer, Delivery, DeliveryOutcome, Ending, Event, Exceeded,
     Failure, Finish, FromAgent, FromJob, Invalid, JobAssignment, JobEnd, JobEnding, JobFailure, JobInvalid, JobRefusal,
     MessageRefusal, Preparation, Reason, Refusal, Refused, Request, RunAnswer, RunAssignment, RunFailure,
-    SettledAnswer, Start, StartCause, StartMessage, ToAgent, ToJob, Turn, Work, Workspace,
+    SettledAnswer, Start, StartCause, StartMessage, ToAgent, ToJob, Turn, Undecoded, Work, Workspace,
 };
 pub use domain::{Hub, fire_sources, resume, resume_runs, sources_due, step};
 pub use facts::Fact;

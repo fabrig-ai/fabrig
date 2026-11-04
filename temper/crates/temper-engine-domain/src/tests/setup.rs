@@ -208,6 +208,7 @@ fn the_deployment_owner_watches_forges_again_after_a_connection_changes() {
             watcher: WATCHER,
             forges: forge::Forges {
                 rows: Box::new([forge::Row {
+                    host: Box::new([]),
                     number: 1,
                     kind: forge::Kind::Forgejo,
                     mode: forge::Mode::Owned,
@@ -247,6 +248,7 @@ fn a_party_without_a_deployment_role_cannot_watch_forges_or_ask_the_box() {
 
 fn row(connection: forge::Connection) -> forge::Row {
     forge::Row {
+        host: Box::new([]),
         number: 1,
         kind: forge::Kind::Forgejo,
         mode: forge::Mode::Owned,

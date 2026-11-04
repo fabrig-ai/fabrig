@@ -450,14 +450,7 @@ pub(crate) fn route_into(domain: &mut Domain, env: &Env<Limits>, decision: &mut 
             Work::ProjectGoal(goal) => forge_route::project_goal(domain, env, &goal),
             Work::GoalSubscribe(subscriber) => forge_route::goal_subscribed(domain, env, subscriber),
             Work::AgreedGoal(read) => goal::ready(domain, env, decision, *read),
-            Work::Due { context, ready } => activate(domain, env, decision, context, ready),
-            Work::Activate(context) => {
-                if domain.settling.active() || domain.core.stopping() {
-                    continue;
-                }
-                let ready = domain.ready();
-                activate(domain, env, decision, context, ready);
-            }
+            Work::Activate { context, ready } => activate(domain, env, decision, context, ready),
             Work::EscalationLoaded { waiter, rows } => escalation::loaded(domain, env, waiter, rows),
             Work::EscalationFailed { waiter } => escalation::failed(domain, waiter),
             Work::ProposalLoaded { waiter, rows } => proposals::historical_loaded(domain, waiter, rows),
