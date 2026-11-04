@@ -3,7 +3,7 @@
 - **Kind:** duplication
 - **Where:** `temper-service/src/{accounts,program_sources,store,worker_route,clients,workers}.rs`, `temper-service/src/clients/{bundle,translation}.rs`; counterparts under `jig/testing/jig-test-service/src/`
 - **Seen:** 2026-10-31 at `c30cf6a03`, in the jig review of that day (`jig/docs/development/debt/reviews/2026-10-31-jig.md`), findings A4 F3, A11 F6 and A11 F7
-- **Seen:** 2026-11-03 at `41d63da8c3`, in jig's backfill (`jig/docs/development/debt/D005-accounts-host-copied.md`)
+- **Seen:** 2026-11-03 at `41d63da8c3`, in jig's backfill (jig's D005)
 - **Checked:** 2026-11-04 at `4e32610862`
 - **Value:** low (356 shared distinct lines, largely braces and adapter calls; the hosts' invariants already share one implementation)
 - **Size:** M
