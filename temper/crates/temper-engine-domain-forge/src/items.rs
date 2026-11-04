@@ -46,6 +46,9 @@ pub struct Item {
     pub credential: Option<u32>,
     pub bytes: u64,
 }
+/// A checkout's start, optional push branch and holder.
+type CheckoutSelection = (Start, Option<Box<[u8]>>, Option<u64>);
+
 impl Domain {
     /// The project's context repositories are added to every checkout read-only.
     #[must_use]
@@ -119,7 +122,7 @@ impl Domain {
                 ),
                 change::Delegate::Gate { .. } => (Start::Branch(row.branch.clone()), None, None),
             },
-            None => (Start::Base(repository.settings.default_branch.clone()), Some(seed.run_branch), None),
+            None => self.task_workspace_item(&seed, repository)?,
         };
         if let Some(saved) = seed.saved_branch {
             start = Start::Saved(saved);
@@ -203,6 +206,30 @@ impl Domain {
         })
     }
 
+    /// A goal inspects its confirmed held branch; other tasks start at the repository's base
+    /// (temper/docs/design/domain/forge.md, 11.1).
+    fn task_workspace_item(&self, seed: &Seed, repository: &crate::Repository) -> Option<CheckoutSelection> {
+        if repository.role != Role::Context {
+            for (name, hold) in &self.holds {
+                if name.forge != seed.repository.forge
+                    || name.repository != seed.repository.repository
+                    || hold.task != seed.task
+                    || hold.drift.is_some()
+                {
+                    continue;
+                }
+                if let Some((_, task)) = goal_branch(name, &repository.prefix)
+                    && task == seed.task
+                    && let Some(head) = self.heads.get(name)
+                    && head.owned
+                {
+                    return Some((Start::Branch(branch_bytes(name)?), None, None));
+                }
+            }
+        }
+        Some((Start::Base(repository.settings.default_branch.clone()), Some(seed.run_branch.clone()), None))
+    }
+
     /// Repairs and resolutions write under the branch's hold (temper/docs/design/domain/forge.md, 8.1).
     fn change_branch_holder(&self, row: &crate::ChangeRow) -> u64 {
         match crate::domain::change_branch_hold(self, row) {
@@ -276,6 +303,15 @@ pub(crate) fn branch_starts_with(name: &crate::Name, prefix: &[u8]) -> bool {
 
 /// The goal's own branch (temper/docs/design/domain/forge.md, 11.1).
 pub(crate) fn goal_branch(name: &crate::Name, prefix: &[u8]) -> Option<(u64, u64)> {
+    let branch = branch_bytes(name)?;
+    let own = branch.strip_prefix(prefix)?;
+    let slash = skein_lib::bytes::find(own, b"/")?;
+    let root = decimal(own.get(..slash)?)?;
+    let task = own.get(slash.checked_add(1)?..)?.strip_prefix(b"g")?;
+    Some((root, decimal(task)?))
+}
+
+fn branch_bytes(name: &crate::Name) -> Option<Box<[u8]>> {
     let parts = match &name.what {
         crate::What::Branch(parts) => parts,
         crate::What::Repository | crate::What::Pull(_) | crate::What::Issue(_) => return None,
@@ -296,11 +332,7 @@ pub(crate) fn goal_branch(name: &crate::Name, prefix: &[u8]) -> Option<(u64, u64
             branch.push(*byte).ok()?;
         }
     }
-    let own = branch.as_slice().strip_prefix(prefix)?;
-    let slash = skein_lib::bytes::find(own, b"/")?;
-    let root = decimal(own.get(..slash)?)?;
-    let task = own.get(slash.checked_add(1)?..)?.strip_prefix(b"g")?;
-    Some((root, decimal(task)?))
+    Some(branch.into_boxed())
 }
 
 fn decimal(bytes: &[u8]) -> Option<u64> {
