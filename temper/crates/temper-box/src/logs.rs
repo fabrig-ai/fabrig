@@ -181,7 +181,6 @@ impl Logs {
         }
         self.piece = Some(piece);
     }
-    #[expect(clippy::manual_map, reason = "programming-model.md: match rather than closure combinators")]
     pub fn step(&self) -> Option<usize> {
         match &self.piece {
             Some(piece) => Some(piece.step),

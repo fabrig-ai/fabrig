@@ -75,7 +75,7 @@ recording refuses it when the flag is absent.
 
 ```sh
 cargo run -p forgejo-conformance -- --admin-scopes \
-  --forgejo <absolute path to Forgejo 17.0.0> \
+  --forgejo <absolute path to Forgejo 17.0.1> \
   --scratch target/admin-scopes --out <output directory>
 ```
 
@@ -88,7 +88,7 @@ README initialization, Actions' default, repeated creation and raw reads:
 
 ```sh
 cargo run -p forgejo-conformance -- --create-repository \
-  --forgejo <absolute path to Forgejo 17.0.0> \
+  --forgejo <absolute path to Forgejo 17.0.1> \
   --scratch target/create-repository --out <output directory>
 ```
 

@@ -159,7 +159,7 @@ fn admin_how(call: &jig::call::Call, limits: &Limits) -> Result<w::ForgejoAdmin,
 }
 const MANAGED_FAILURE: &[u8] = b"invalid --api, --tls, --git, --web or --git-program";
 
-#[expect(clippy::manual_map, clippy::too_many_lines, reason = "the connection forms share admission and sending")]
+#[expect(clippy::too_many_lines, reason = "the connection forms share admission and sending")]
 pub(super) fn send(
     state: &mut Forges,
     client: &jig_client::Client,

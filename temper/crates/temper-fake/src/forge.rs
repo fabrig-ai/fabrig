@@ -521,7 +521,6 @@ pub fn checks(ci: Option<&Ci>) -> api::Checks {
 }
 /// The same CI cue with a fixed verdict latency (protocol/setup.md, 8.4).
 #[must_use]
-#[expect(clippy::manual_map, reason = "step code uses explicit matches, never closures")]
 pub fn checks_paced(ci: Option<&Ci>, ci_ms: u32) -> api::Checks {
     let latency = Duration::from_millis(u64::from(ci_ms));
     api::Checks {

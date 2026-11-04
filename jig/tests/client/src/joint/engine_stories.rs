@@ -1,4 +1,3 @@
-#![expect(clippy::wildcard_enum_match_arm, reason = "ordinary story fixtures reject every unexpected public result")]
 //! Genuine engine acts feed the root; the person's corrections use the view
 //! (domain/engine.md, 15; client/domain/testing.md, 5).
 use super::*;

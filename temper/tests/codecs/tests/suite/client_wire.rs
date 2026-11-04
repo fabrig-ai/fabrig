@@ -60,29 +60,10 @@ fn first(state: v1::FirstState) -> v1::FirstRepository {
     .expect("record within schema ceilings")
 }
 #[test]
-fn setup_and_every_first_repository_state_round_trip_at_version_eleven() {
+fn setup_and_every_first_repository_state_round_trip_at_version_thirteen() {
     use temper_client_protocol_wire as wire;
-    assert_eq!(wire::CLIENT_VERSION, 11);
-    let request = v1::Requesting::new(
-        &v1::CEILINGS,
-        v1::RequestingParts {
-            request: v1::Request::SetUp(
-                v1::SetUp::new(
-                    &v1::CEILINGS,
-                    v1::SetUpParts {
-                        playground: false,
-                        forge: v1::Making::Kept(
-                            v1::Kept::new(&v1::CEILINGS, v1::KeptParts { forge: 3 }).expect("kept forge"),
-                        ),
-                        org: b"work".as_slice().into(),
-                        repository: b"hello".as_slice().into(),
-                    },
-                )
-                .expect("record within schema ceilings"),
-            ),
-        },
-    )
-    .expect("record within schema ceilings");
+    assert_eq!(wire::CLIENT_VERSION, 13);
+    let request = setup_request();
     assert_eq!(wire::decode_requesting(&wire::requesting(&request), &v1::CEILINGS), Some(request));
     for state in [
         v1::FirstState::Making,
@@ -110,6 +91,7 @@ fn setup_and_every_first_repository_state_round_trip_at_version_eleven() {
             &v1::CEILINGS,
             v1::ForgeRowParts {
                 makings: List::with_capacity(0),
+                host: b"git.example:3000".as_slice().into(),
                 number: 3,
                 kind: v1::Kind::Forgejo,
                 mode: v1::Mode::Owned,
@@ -134,6 +116,29 @@ fn setup_and_every_first_repository_state_round_trip_at_version_eleven() {
             v1::Forges::new(&v1::CEILINGS, v1::ForgesParts { forges: rows }).expect("record within schema ceilings");
         assert_eq!(wire::decode_forges(&wire::forges(&rows), &v1::CEILINGS), Some(rows));
     }
+}
+
+fn setup_request() -> v1::Requesting {
+    v1::Requesting::new(
+        &v1::CEILINGS,
+        v1::RequestingParts {
+            request: v1::Request::SetUp(
+                v1::SetUp::new(
+                    &v1::CEILINGS,
+                    v1::SetUpParts {
+                        playground: false,
+                        forge: v1::Making::Kept(
+                            v1::Kept::new(&v1::CEILINGS, v1::KeptParts { forge: 3 }).expect("kept forge"),
+                        ),
+                        org: b"work".as_slice().into(),
+                        repository: b"hello".as_slice().into(),
+                    },
+                )
+                .expect("record within schema ceilings"),
+            ),
+        },
+    )
+    .expect("record within schema ceilings")
 }
 
 #[test]

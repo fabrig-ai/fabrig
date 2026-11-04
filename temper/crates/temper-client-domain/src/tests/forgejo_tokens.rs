@@ -36,6 +36,7 @@ fn row(number: u16, kind: w::Kind, mode: w::Mode, connection: w::Connection, end
         &w::CEILINGS,
         w::ForgeRowParts {
             makings: List::with_capacity(0),
+            host: b"git.example:3000".as_slice().into(),
             number,
             kind,
             mode,

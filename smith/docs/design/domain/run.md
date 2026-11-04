@@ -1068,6 +1068,9 @@ timings, budgets and shares within its own (`docs/design/testing.md`).
   ordinals should continue across activations, which would need the
   count kept with the transcript, waits on a capture showing a provider
   keeps state per thread.
+- **The workspace's word in the system text:** whether it says
+  "workspace", as this design does, or "checkout": a change to what the
+  LLM reads (3.3).
 - **A child's context:** whether a sub-agent may open from its parent's
   transcript, bounded by its limits and counted in its share, so it
   starts warm.

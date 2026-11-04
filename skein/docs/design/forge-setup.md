@@ -835,9 +835,9 @@ and `uninstall_strays`. The owner chooses both for each forge.
   the items' decoders and the host component. Its plans depend on
   skein-lib, skein-json and `skein-forge`, which holds the setup's
   documents (forge.md, section 5; forge-github.md, section 11). The host
-  component adds io's vocabulary, skein-http's client and skein-tls's
-  client and signing, as the forge component does (forge-connection.md,
-  section 2).
+  component adds io's vocabulary, `skein-link`, skein-http's client and
+  skein-tls's client and signing, as the forge component does
+  (forge-connection.md, section 2).
 - **The owner checks the setup's values and limits at its start,** for
   every command it runs. The crate gives the checks. A refusal names a
   `Place`, the crate's name for each given value and each limit (an org

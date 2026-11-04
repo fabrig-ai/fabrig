@@ -1,5 +1,4 @@
 //! Root forge stories with its durable store and the independent fake Forgejo.
-#![expect(clippy::wildcard_enum_match_arm, reason = "the fixture selects only the forge rows relevant to each story")]
 use crate as temper_engine_domain_world;
 use crate::forge_routes as paths;
 use crate::journal_limits as journal;
@@ -956,6 +955,24 @@ impl World {
         }
     }
 
+    /// Choose the settings owner's identity and admit settings kinds before the world's first input.
+    #[must_use]
+    pub fn with_settings_owner(mut self, identity: &people::IdentityKey) -> Self {
+        assert_eq!(self.env.now, Time::ZERO, "owner identity precedes startup");
+        for owner in &mut self.restart_config.core.owners {
+            owner.identity = identity.clone();
+        }
+        self.restart_config.core.kinds =
+            temper_service::stock::kinds(&self.env.limits, self.restart_config.core.connectors[0]);
+        let mut bootstrap = crate::oracle::config::copy(&self.restart_config);
+        bootstrap.core.kinds = Box::new([]);
+        self.store = crate::fixtures::restored_over(Store::with_limits(&self.env.limits), bootstrap, &self.env.limits);
+        self.events = VecDeque::from([engine::Event::Restart { pending: self.store.pending_generation }]);
+        self.root = engine::Domain::new(crate::oracle::config::copy(&self.restart_config), &self.env.limits)
+            .expect("valid owner identity");
+        self
+    }
+
     /// Replace the forge client's admission bounds before the world's first input.
     /// The bootstrap rows and scripted worker retain their configured policy.
     #[must_use]
@@ -1214,7 +1231,6 @@ impl World {
         panic!("external fake call did not return")
     }
 
-    #[expect(clippy::wildcard_enum_match_arm, reason = "the world records only its scripted root deliveries")]
     #[expect(clippy::too_many_lines, reason = "one exhaustive root output table")]
     pub fn collect(&mut self) {
         for _ in 0..self.out.len() {

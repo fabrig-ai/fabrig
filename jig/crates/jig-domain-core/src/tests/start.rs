@@ -266,7 +266,7 @@ fn every_operational_entrance_prevents_late_start() {
                 let _news = core.connector_news(1, 1, tasks::NewsClass::Dropped, Box::new([]), env.wall);
             },
         },
-        Entrance { name: "begin_transcript", input: |core, _| core.begin_transcript(1, 1) },
+        Entrance { name: "begin_transcript", input: |core, _| core.begin_transcript(1, 1, None) },
         Entrance {
             name: "append_transcript",
             input: |core, env| {

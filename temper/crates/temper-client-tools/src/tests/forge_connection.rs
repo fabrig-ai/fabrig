@@ -435,6 +435,7 @@ fn first_page(root: &mut f::Harness, connection: w::Connection, state: w::FirstS
             &l,
             w::ForgeRowParts {
                 makings: skein_lib::List::with_capacity(0),
+                host: b"git.example:3000".as_slice().into(),
                 number: 3,
                 kind: w::Kind::Forgejo,
                 mode: w::Mode::Managed,

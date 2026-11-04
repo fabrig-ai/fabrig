@@ -1,8 +1,6 @@
 //! Private-root owners over the shared world (io.md, section 5.3).
 //! The scenario observes metadata, reads and terminals; it never interprets secrets.
 
-#![expect(clippy::wildcard_enum_match_arm, reason = "unexpected scenario terminals retain their debug value")]
-
 use skein_fake_machine::{How, Item, Machine as Files, Opened};
 use skein_io::file::{Event, Expect, Request, Unsafe};
 use skein_io::file_layer::{self, FileIo};

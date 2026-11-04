@@ -53,6 +53,7 @@ fn pipe() -> (Fd, Fd) {
 // closes those slots, and restores them after the check. Fixtures also move
 // above 63 before dup2, so neither activation slot can clobber a fixture.
 #[expect(clippy::disallowed_types, reason = "a child isolates activation fds and environment from the test harness")]
+#[expect(clippy::disallowed_methods, reason = "the child environment selects the isolated activation check")]
 fn inherited_case(name: &str, count: Option<&str>, check: impl FnOnce()) {
     if std::env::var("SKEIN_LISTENER_TEST").ok().as_deref() == Some(name) {
         let saved = [3, 4].map(|raw| {
@@ -128,6 +129,7 @@ fn inherited_zero() {
 }
 
 #[test]
+#[expect(clippy::disallowed_methods, reason = "the activation check verifies the inherited environment stays intact")]
 fn inherited_two() {
     inherited_case("inherited_two", Some("2"), || {
         let (first, first_addr) = open_listener(addr(), 8).expect("first listener");

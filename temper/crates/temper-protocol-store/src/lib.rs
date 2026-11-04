@@ -1,6 +1,7 @@
 //! Temper's ordered families under jig's application tag (protocol/store.md).
 #![cfg_attr(not(test), no_std)]
 #![forbid(unsafe_code)]
+#![expect(clippy::manual_map, reason = "step code matches optional fields without closures")]
 extern crate alloc;
 use alloc::boxed::Box;
 pub mod keys;

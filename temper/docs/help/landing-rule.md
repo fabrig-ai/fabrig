@@ -25,6 +25,19 @@ The rules are settings: kind 1 holds the deployment's rules, kind 2 each
 project's. Rules are numbered from 1 within their scope and add together.
 The forge judges each change to them before it is kept.
 
+An enforcing approval rule needs enough distinct people already known to
+temper by their forge user ids, holding the required role in every project
+whose adopted writable repositories the pattern covers. A deployment owner
+login or a matching display name does not establish a forge identity. On a
+box the deployment login can be separate from the person's forge account;
+adoption may return only temper as a collaborator. Such an owner cannot
+satisfy a person's approval requirement until the forge identity and project
+role are known. Acceptance refuses an unsatisfiable rule, naming the project,
+role, required count and current eligible count. Add the known forge people
+and their project roles, or leave approvals out and use agent review alone.
+Membership can change later; only known people with the role at the merge
+count.
+
 The binary supplies one deployment rule, covering every branch of every
 repository, that enforces CI passed, up to date, and gate 1, an agent's
 review, blocking and fresh at a clean head; no approvals. Every change

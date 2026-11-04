@@ -1424,6 +1424,7 @@ fn a_configured_git_base_is_bounded_by_its_priced_pull_address_bytes() {
 
 fn setup_row(number: u16, kind: Kind, connection: Connection, offer: Offer) -> Row {
     Row {
+        host: Box::new([]),
         number,
         kind,
         mode: Mode::Owned,
@@ -1539,6 +1540,7 @@ fn closing_the_box_fails_setup_and_marks_every_offer_unavailable() {
         d.forges().rows.as_ref(),
         [
             Row {
+                host: Box::new([]),
                 failed: Some(FailedStep::Run),
                 ..setup_row(
                     1,

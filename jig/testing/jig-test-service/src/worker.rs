@@ -187,10 +187,9 @@ impl Worker {
             let _request = self.out.pop();
         }
         self.link_down(self.env.now, link::Event::Abort);
-        if let Some(at) = self.sources.next_deadline()
-            && let Some((owner, answer)) = self.sources.fire(at, &mut self.io)
-        {
-            self.source_events.push(jig_domain_host::Event::SourceAnswered { owner, answer });
+        if let Some(at) = self.sources.next_deadline() {
+            let settled = self.sources.fire(at, &mut self.io);
+            self.answered(settled);
         }
         for (entity, _) in &self.entities {
             self.io.push(io::Request::Abort { entity: *entity });
@@ -234,9 +233,8 @@ impl Worker {
     pub(super) fn up(&mut self, now: Time, mut event: io::Event) {
         let owner = event.owner().expect("routed owner");
         if self.sources.owns(owner) {
-            if let Some((owner, answer)) = self.sources.from_io(event, &mut self.io) {
-                self.source_events.push(jig_domain_host::Event::SourceAnswered { owner, answer });
-            }
+            let settled = self.sources.from_io(event, &mut self.io);
+            self.answered(settled);
             return;
         }
         if owner == Token::new(self.prefix) {
@@ -374,17 +372,10 @@ impl Worker {
                         let io_owner = Token::new(self.prefix.checked_add(self.next).expect("source owner range"));
                         self.next = self.next.checked_add(1).expect("source owner sequence");
                         assert!(self.next < (1_u64 << 48_u32), "worker owner range");
-                        if let Some((owner, answer)) = self.sources.start(
-                            owner,
-                            io_owner,
-                            name,
-                            operation,
-                            self.directory.expect("worker root"),
-                            deadline,
-                            &mut self.io,
-                        ) {
-                            self.source_events.push(jig_domain_host::Event::SourceAnswered { owner, answer });
-                        }
+                        let root = self.directory.expect("worker root");
+                        let settled =
+                            self.sources.start(owner, io_owner, name, operation, root, deadline, &mut self.io);
+                        self.answered(settled);
                     }
                     root::Request::SourceFault => self.link_down(self.env.now, link::Event::SourceFault),
                     root::Request::Hello(hello) => self.link_down(self.env.now, link::Event::Hello { hello }),
@@ -562,15 +553,19 @@ impl Worker {
             }
         }
     }
+    fn answered(&mut self, settled: Option<(Token, jig_domain_host::sources::Answer)>) {
+        if let Some((owner, answer)) = settled {
+            self.source_events.push(jig_domain_host::Event::SourceAnswered { owner, answer });
+        }
+    }
     pub(super) fn iterate(&mut self, now: Time, wall: Wall) {
         self.env.now = now;
         self.env.wall = wall;
         if !self.started {
             self.started = true;
         }
-        if let Some((owner, answer)) = self.sources.fire(now, &mut self.io) {
-            self.source_events.push(jig_domain_host::Event::SourceAnswered { owner, answer });
-        }
+        let settled = self.sources.fire(now, &mut self.io);
+        self.answered(settled);
         for _ in 0..self.source_events.len() {
             let event = self.source_events.pop().expect("source terminal");
             if self.aborted.is_none() {

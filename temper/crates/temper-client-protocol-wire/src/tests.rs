@@ -82,6 +82,7 @@ fn limits_take_each_bound_from_its_source_field() {
             owned_forge_password: 512,
             adoption_owner: 16,
             adoption_name: 16,
+            forge_row_host: crate::ADDRESS_BYTES,
             forge_row_web_some: crate::ADDRESS_BYTES,
             forge_row_repositories: 16,
             forge_row_makings: crate::MAKINGS,
@@ -300,6 +301,7 @@ fn forges_rows(numbers: &[u16], connection: &v1::Connection) -> v1::Forges {
                     &limits,
                     v1::ForgeRowParts {
                         makings: List::with_capacity(0),
+                        host: b"git.example:3000".as_slice().into(),
                         number: *number,
                         kind: v1::Kind::Forgejo,
                         mode: v1::Mode::Owned,
@@ -333,6 +335,7 @@ fn each_forge_offer_round_trips() {
             &limits,
             v1::ForgeRowParts {
                 makings: List::with_capacity(0),
+                host: b"git.example:3000".as_slice().into(),
                 number,
                 kind: v1::Kind::Forgejo,
                 mode: v1::Mode::Owned,
@@ -428,6 +431,7 @@ fn forge_fields_refuse_one_past_their_bounds_on_construction_and_decode() {
             &v1::CEILINGS,
             v1::ForgeRowParts {
                 makings: List::with_capacity(0),
+                host: b"git.example:3000".as_slice().into(),
                 number: 1,
                 kind: v1::Kind::Github,
                 mode: v1::Mode::Connected,
@@ -469,6 +473,7 @@ fn forges_refuse_seventeen_rows_unsorted_rows_and_duplicate_numbers() {
             &limits,
             v1::ForgeRowParts {
                 makings: List::with_capacity(0),
+                host: b"git.example:3000".as_slice().into(),
                 number: 17,
                 kind: v1::Kind::Github,
                 mode: v1::Mode::Fake,
@@ -535,6 +540,7 @@ fn forge_login_and_stop_reason_round_trip_at_schema_ceilings() {
                         &limits,
                         v1::ForgeRowParts {
                             makings: List::with_capacity(0),
+                            host: b"git.example:3000".as_slice().into(),
                             number: u16::MAX,
                             kind: kind.clone(),
                             mode: mode.clone(),
@@ -703,6 +709,7 @@ fn installation_row(count: u32, why_bytes: usize) -> v1::ForgeRowParts {
     }
     v1::ForgeRowParts {
         makings: List::with_capacity(0),
+        host: b"git.example:3000".as_slice().into(),
         number: 1,
         kind: v1::Kind::Github,
         mode: v1::Mode::Connected,
@@ -724,15 +731,17 @@ fn installation_row(count: u32, why_bytes: usize) -> v1::ForgeRowParts {
 }
 // Encode the fields explicitly to feed invalid lengths to the receiving boundary.
 fn installation_row_bytes(parts: v1::ForgeRowParts, why: &[u8]) -> Box<[u8]> {
-    // Number (2), four enum tags, first tag, list length (4), end tag, why length (4),
+    // Number (2), host length (4) and bytes, four enum tags, first tag, list length (4), end tag, why length (4),
     // app tag, web tag, repositories length (4), owned tag, admin bool, typed stop tag, read-only bool,
     // makings length (4).
-    let mut size = why.len().checked_add(30).unwrap();
+    let mut size = why.len().checked_add(34).unwrap().checked_add(parts.host.len()).unwrap();
     for installation in &parts.installations {
         size = size.checked_add(usize::try_from(installation.measure()).unwrap()).unwrap();
     }
     let mut writer = skein_lib::Writer::new(size);
     writer.put(&parts.number.to_be_bytes()).unwrap();
+    writer.put(&u32::try_from(parts.host.len()).unwrap().to_be_bytes()).unwrap();
+    writer.put(&parts.host).unwrap();
     parts.kind.encode(&mut writer).unwrap();
     parts.mode.encode(&mut writer).unwrap();
     parts.connection.encode(&mut writer).unwrap();
@@ -1032,6 +1041,26 @@ fn remove_and_playground_requests_round_trip() {
     let read = v1::Reading::new(&limits, v1::ReadingParts { read: v1::Read::Playground }).unwrap();
     assert_eq!(crate::decode_reading(&crate::reading(&read), &limits), Some(read));
 }
+#[test]
+fn revision_setting_read_appends_after_the_deployment_tag() {
+    let limits = fixtures::limits();
+    let revision = v1::Read::RevisionSetting(
+        v1::RevisionSettingRead::new(
+            &limits,
+            v1::RevisionSettingReadParts { kind: 1, scope: 2, number: 3, revision: 4 },
+        )
+        .unwrap(),
+    );
+    for (read, bytes) in [
+        (v1::Read::Deployment, &[0, 13, 3][..]),
+        (revision, &[0, 13, 4, 0, 0, 0, 1, 0, 0, 0, 2, 0, 0, 0, 3, 0, 0, 0, 4][..]),
+    ] {
+        let record = v1::Reading::new(&limits, v1::ReadingParts { read }).unwrap();
+        assert_eq!(crate::reading(&record).as_ref(), bytes);
+        assert_eq!(crate::decode_reading(bytes, &limits), Some(record));
+    }
+}
+
 #[test]
 fn deployment_read_and_answer_round_trip() {
     let limits = fixtures::limits();

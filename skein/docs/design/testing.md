@@ -363,6 +363,7 @@ tests/kv                        the store over file io, the simulated kernel and
 tests/browser                   the browser kit's machine world against a fake browser, its tests against real Chromium, and its peaks under scenario ceilings with the counting allocator, skein-browser-world
 tests/tls                       the TLS client's machine worlds against a rustls server in memory, the HTTP client stacked on it, and its peaks under scenario ceilings with the counting allocator, skein-tls-world
 tests/tls/fixtures              its certificates and key, and the script that makes them
+tests/link                      a link's close rule against a rustls server in memory, skein-link-world (link.md, 4)
 tests/ui                        skein-ui's peaks under scenario ceilings with the counting allocator, and its comparisons with naive functions, skein-ui-tests (ui.md, 17)
 tests/ui-text                   the text shell's terminal on the simulated machine, skein-ui-text-tests (ui-text.md, 8)
 tests/ui-web                    the browser parts' host tests that need more than a crate's step tests, and the UI example's browser tier, skein-ui-web-tests (ui-web.md, 14)
@@ -395,8 +396,8 @@ world meters its processes; a simulated world checking memory meters
 every iteration.
 
 What a crate under `testing/` holds is shared by the tests of more than
-one crate, and is ordinary Rust held to the step crates' lints, each with
-a `clippy.toml` of its own. `skein-heap` holds the one `unsafe` in skein
+one crate, and is ordinary Rust on a lint profile, each with a
+`clippy.toml` of its own, or the step crates' (`tools/lints/design.md`, 3). `skein-heap` holds the one `unsafe` in skein
 beside the ring adapter: a global allocator is an `unsafe impl`.
 programming-model.md (1, 2.1, 10.2) confines `unsafe` to the ring adapter
 in code a service runs, and in tests to this `unsafe impl GlobalAlloc`: a

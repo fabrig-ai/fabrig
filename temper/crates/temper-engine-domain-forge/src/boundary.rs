@@ -547,6 +547,8 @@ pub struct AdoptedRow {
 pub struct Row {
     pub read_only: bool,
     pub number: u16,
+    /// The host in repository resource names, including an explicit port.
+    pub host: Box<[u8]>,
     pub kind: Kind,
     pub mode: Mode,
     pub connection: Connection,

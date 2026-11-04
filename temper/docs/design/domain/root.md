@@ -528,8 +528,12 @@ section 13's.
   `Setting` keeps the typed values, encoded by `temper-protocol-store`
   as every family of the forge's is (`../protocol/store.md`, section
   2).
-- **The root routes, never judges** (section 11): what a landing rule
-  means and whether it is well formed is the forge's.
+- **The forge judges rule structure; the root joins approval eligibility.**
+  When a rule is set, including acceptance of a proposal, the root checks
+  its enforcing approvals against the core's known forge identities and
+  project roles (forge.md, 8.9). It refuses an unmet count before any
+  settings become effective, naming the project, role and count with the
+  remedy. Meaning and structural validity remain the forge's.
 - **The forge's charter is the forge's own value,** read from its kind
   3 when a change is made, and kept on the change (section 6).
 
@@ -1042,9 +1046,11 @@ Startup also checks the seed policy after enforced landing requirements are join
 - keep anything between steps but its children, the journal and the
   values in flight of section 2;
 - read or rewrite a value it carries, beyond wrapping and translating
-  it;
+  it and joining a landing rule's approvals to the core's identities
+  and roles (5.6);
 - give the core a type of the forge's, or the forge one of the core's;
-- route by content beyond the variant;
+- route by content beyond the variant and the approval eligibility
+  check of section 5.6;
 - price a forge effect, or grant the forge's API token, App key or
   webhook secret.
 

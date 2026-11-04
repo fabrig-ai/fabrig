@@ -48,7 +48,6 @@ pub struct Facts<'a> {
     pub steps: Option<u8>,
 }
 #[must_use]
-#[expect(clippy::manual_map, reason = "the client's domain matches without a closure")]
 pub fn facts(task: &c::Task) -> Facts<'_> {
     let kind = match task.result_contract {
         c::TaskContractDocument::Change { .. } => Kind::Change,

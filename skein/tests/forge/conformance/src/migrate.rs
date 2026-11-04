@@ -519,6 +519,10 @@ fn proxy(
     Ok(())
 }
 
+#[expect(
+    clippy::disallowed_methods,
+    reason = "the recorder holds a real migration request open while it stops and restarts its loopback Forgejo"
+)]
 fn interrupted(r: &mut Recorder<'_>, source: u16, facts: &mut Vec<Fact>) -> Result<()> {
     let stall = Stall::start(source, true)?;
     r.mask.listener(stall.port);

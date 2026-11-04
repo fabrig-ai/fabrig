@@ -246,7 +246,6 @@ impl Layer {
             self.closed = true;
         }
     }
-    #[expect(clippy::manual_map, reason = "the step subset uses explicit matches")]
     pub(crate) fn next_deadline(&self) -> Option<Time> {
         let host = match &self.component {
             Some(host) => host.next_deadline(),
@@ -618,7 +617,6 @@ fn begin(engine: &mut crate::engine::Engine) {
         }
     }
 }
-#[expect(clippy::manual_map, reason = "the step subset uses explicit matches")]
 pub(crate) fn advance(engine: &mut crate::engine::Engine) {
     engine.setup.env.now = engine.env.now;
     engine.setup.env.wall = engine.env.wall;
@@ -770,7 +768,6 @@ fn run_plan(engine: &mut crate::engine::Engine, run: Token, plan: host::Plan) {
     }
 }
 
-#[expect(clippy::manual_map, reason = "the step subset uses explicit matches")]
 fn read_item(
     engine: &crate::engine::Engine,
     run: Token,

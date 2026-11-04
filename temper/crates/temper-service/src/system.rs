@@ -64,14 +64,13 @@ enum BoxOutput {
 impl Service {
     /// Payload-free closure and queue state at the shell's wait boundary.
     #[must_use]
-    #[expect(clippy::manual_map, reason = "the step subset uses explicit matches")]
     pub fn wait_state(&self) -> crate::diagnostics::Wait {
         use crate::diagnostics::{Wait, WaitEngine, WaitOwner};
         Wait {
             engine: match &self.engine {
                 Some(engine) => Some(WaitEngine {
                     restart: engine.domain.start_phase(),
-                    mark_durable: engine.store.host.component.mark_durable(),
+                    mark_durable: engine.store.host.mark_durable(),
                     store_closed: engine.store.closed(),
                     clients: WaitOwner { closed: engine.clients.closed, io: engine.clients.io.len() },
                     workers: WaitOwner { closed: engine.workers.host.closed(), io: engine.workers.host.io.len() },
@@ -401,7 +400,6 @@ impl Service {
     /// Snapshot current readiness without advancing any component or exposing payloads.
     /// Only diagnostics callers pay for walking and copying the pending event tags.
     #[must_use]
-    #[expect(clippy::manual_map, reason = "the step subset uses explicit matches")]
     pub fn pending(&self, now: Time) -> crate::diagnostics::Pending {
         crate::diagnostics::Pending {
             work_pending: self.work_pending(now),
@@ -589,7 +587,7 @@ impl Service {
                         && engine.clients.closed
                         && engine.clients.io.is_empty()
                         && match &engine.accounts {
-                            Some(accounts) => accounts.is_empty(),
+                            Some(accounts) => accounts.idle(),
                             None => true,
                         }
                 }
@@ -1099,7 +1097,6 @@ pub(crate) const fn deployment_owned(document_owned: bool, under_box: bool) -> b
     document_owned && under_box
 }
 
-#[expect(clippy::manual_map, reason = "the strict subset uses explicit matches")]
 pub(crate) fn playground_config(
     demo: Option<&settings::Demo>,
     welcome: bool,
@@ -1118,7 +1115,6 @@ pub(crate) fn playground_config(
 pub(crate) const GITHUB_REMOTE: &[u8] = b"https://github.com";
 
 /// Machine places passed to the root (temper/docs/design/protocol/configuration.md, 3).
-#[expect(clippy::manual_map, reason = "the configuration boundary uses explicit matches")]
 pub(crate) fn machine_config(machine: &temper_forge_setup::machine::Machine) -> temper_engine_domain_forge::Machine {
     use temper_engine_domain_forge::{Address, Machine, Place};
     let github = match &machine.github {

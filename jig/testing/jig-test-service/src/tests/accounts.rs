@@ -8,7 +8,7 @@ fn finish_start(service: &mut crate::Service) {
     for _ in 0_u32..64 {
         fixtures::turn(service);
         if fixtures::engine(service).domain.ready() {
-            assert!(fixtures::engine(service).store.host.component.mark_durable());
+            assert!(fixtures::engine(service).store.host.mark_durable());
             return;
         }
     }
