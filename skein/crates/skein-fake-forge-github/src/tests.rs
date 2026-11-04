@@ -17,24 +17,14 @@ mod service_reads;
 use crate::{
     app::App,
     installations::{Installations, Kind, Limits, Reach},
-    keys::KEYS,
 };
-use alloc::boxed::Box;
-use skein_lib::{Secret, Wall};
+use skein_lib::Wall;
 
 fn wall(seconds: u64) -> Wall {
     Wall::from_nanos(seconds.checked_mul(1_000_000_000).expect("fixture time"))
 }
 fn app() -> App {
-    App {
-        id: 7,
-        slug: Box::from(*b"test-app"),
-        owner: 1,
-        permissions: Box::from([]),
-        events: Box::from([]),
-        key: KEYS.first().expect("first test key"),
-        webhook: Secret::new(Box::from(*b"test-webhook")),
-    }
+    crate::fixture::app()
 }
 fn store(seed: u64) -> Installations {
     let mut rows = Installations::new(&Limits { installations: 2, tokens: 2, listed: 2 }, seed);
