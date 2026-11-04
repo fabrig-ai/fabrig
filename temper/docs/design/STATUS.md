@@ -84,6 +84,8 @@ git program drives skein's JSON tokenizer over a whole body by hand,
 the ladder has no twin past B1 and no live story but B0's, and the
 live scripts default to a scratch layout of whoever runs fabrig's
 development, in a form the outward check does not match
+(`domain/testing.md`). temper's one story on macOS has not run green
+on the runner, so `draft/macos.md`'s acceptance stands open
 (`domain/testing.md`). The forge's connect refusals that
 ctl renders name no remedy (`protocol/documentation.md`). Six
 hand-written widenings stand beside skein's `len_u64` and

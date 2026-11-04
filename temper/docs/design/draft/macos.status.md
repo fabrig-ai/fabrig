@@ -2,12 +2,13 @@
 
 2026-11-04. Where the design lags or departs from [macos.md](macos.md).
 
-skein carries section 3: the readiness backend on epoll and kqueue (skein's `kernel.md`; `shell.md`, 7.5).
+skein carries section 3: the readiness backend on epoll and kqueue (skein's `kernel.md`; `shell.md`, 7.5). Section 6's steps 1 to 4 and the workflow of its step 5 stand in the design: skein's `forge.md`, 4.3, `../protocol/setup.md`, 6.1 and 6.6, and `../domain/testing.md`, 2.8. Step 5 itself, 2.4's story green on the runner, which is this draft's acceptance, stands open: no builder runs macOS, and `../domain/testing.status.md` holds it as not yet.
 
 - **Design lags:**
-  - 4.1: smith's design says nothing of finding `rg` and `git` rather than taking `/usr/bin/rg` and `/usr/bin/git`, or of its tests' addresses and `/proc` uses.
-  - 4.3: skein's `shell.md`, section 9 keeps the throwaway Forgejo Linux's, saying macOS has no owned Forgejo.
+  - 4.1: smith's design says nothing of finding `rg` and `git` rather than taking `/usr/bin/rg` and `/usr/bin/git`, or of its tests' addresses and `/proc` uses. The code keeps both paths, though section 6's step 4 names smith's tools: the story's scripts reach no `rg` and macOS has `/usr/bin/git`, so the cut of `macos-cheap` left them, a small follow-up if a run shows otherwise.
+  - 4.3: skein's `shell.md`, section 9 keeps the throwaway Forgejo Linux's, saying macOS has no owned Forgejo, until section 6's step 6 takes it off the list.
+  - 4.3: no design says that errors print errno's names, and temper's print numbers (`temper/crates/temper/src/box_command.rs`). Section 6's first steps leave it out, and the story doesn't need it.
   - 4.4: `../protocol/configuration.md` does not say that the XDG directories hold on macOS, or that case-only differences in a checkout's names are refused.
-  - 5: no `macos` nextest profile exists, and no design lists smith's or jig's Linux-only tests by name; `../domain/testing.md`, 2.8 has the workflow compile every target and run the one story, what the first stages ask of it.
+  - 5: no `macos` nextest profile exists, and no design lists smith's or jig's Linux-only tests by name; `../domain/testing.md`, 2.8 has the workflow compile every target and run the one story, what the first stages ask of it, and its section 11 defers the rest of 2.1, 2.2 and 2.3.
 - **Design departs:**
   - 4.3: `../protocol/setup.md`, 7.2 and 8.2: the pipe check stays Linux's and asks the shell nothing, and macOS's login is what `/usr/bin/id -un` prints, where the draft has the shell's `getpwuid` answer on both. It needs no change to skein and leaves Linux as it is, by the user's rule of 2026-11-04; the cut of `macos-cheap` chose it.
