@@ -561,3 +561,36 @@ files gain the five below, for this repair alone; its acceptance (the other two 
   `--run-ignored all` (its `#[ignore]` lifted only if it passes). Past this, a refusal outside the
   earlier allowances' classes is a question with its evidence, asked after committing and pushing
   what is repaired.
+
+2026-11-04. **The completed walk costs 2.197 s CPU (median of three, `-j 1`) against the 2 s guide,
+and `perf` is missing on the builder: make a profiler available there, or give the performance work
+to another task?** Neither. This task finds the cause, without a profiler and without touching the
+builder. A tool on a builder is a machine change, and that is the user's. The world budget stays in
+this task's acceptance: the behaviour is done and the cost belongs to the same walk. The pushed commits
+(to `3133264738`) stay, and the next run starts from them. No budget, guide, pace, profile or
+timeout moves.
+
+- **Split the cost with throwaway timing,** untracked and gone before the push.
+  `std::time::Instant` is allowed in that code. The run's own numbers already point at the world:
+  the replay drives the same world with no page, host or person and takes 1.876 s, so the page side
+  costs about 0.3 s and the world about 1.9 s. Measure, over the walk's 12,972 world steps:
+  - the time and call count in each process's turns (service, worker, fake LLM, fake forge, CI,
+    visitor);
+  - the time in the session log's work (each input's record and any digest it takes);
+  - the time in the page's side (the host, `adapter::requests`, `transport::carry`, the view and its
+    draws, the person's `next` over the tree).
+
+  Report each one's total and its share. Look first for a cost that grows with the walk:
+  a digest, a clone, a serialisation or a tree walk over the whole state on every step or turn.
+  That is testing-strategy.md 8.1's question 2 (an O(n) where O(1) would do, a missing cache).
+- **The cause in this task's files** (`temper/tests/playground/**`, and `story.rs`, `stories.rs`,
+  `programs.rs` and `documents*` in `temper-playground`): fix that cause, keep the behaviour, the
+  kept log and the replay as they are (a changed log is re-recorded under `SKEIN_CODEGEN_WRITE` and
+  the reason stated), and re-measure the same way: median of three, alone, `-j 1`.
+- **The cause outside them** (skein's simulator or session log, `temper-service`,
+  `temper-client-view`, `temper-client-shell-web`, jig): stop and ask with the split, the file and
+  function, and a proposed fix. skein stays untouched by this plan (`notes/common.md`), and fixing
+  a lower tier's cost is that tier's work (testing-strategy.md, 9).
+- **No single cause** (the cost spread evenly across the steps' ordinary work): stop and ask with
+  the split and the three measurements. That is 8.1's question 3, which goes to the user through
+  the director.
