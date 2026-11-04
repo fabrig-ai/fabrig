@@ -2,7 +2,7 @@
 id = "copy-words"
 part = "copy-plan"
 kind = "feature"
-needs = ["copy-surface"]
+needs = ["copy-surface", "copy-machine"]
 files = ["skein/crates/skein-forge-setup/src/host/connection.rs", "skein/crates/skein-forge-setup/src/host.rs", "skein/crates/skein-forge-setup/src/tests/host.rs"]
 effort = "high"
 minutes = 45
@@ -61,3 +61,18 @@ beside the status. 2. `host.rs` raises `Event::Said`. 3. `cut`'s why. 4. The tes
 ## Report
 
 As the implementer's text asks.
+
+## Answers
+
+2026-11-04. May this task merge `origin/repository-copies-1/copy-machine`, or are its six full-copy
+HTTP tests deferred? **Merge it; the acceptance stands as written.** `copy-machine` joins `needs`: the
+six tests drive a `Copy` through its steps, so they cannot hold without that machine. It is on the
+trunk, and the merge with this branch's `dcc929699d` meets no conflict.
+
+- Keep the branch and its commit; merge `f6af07a7ae` or later, then finish the steps from there.
+- Run the six tests and do their mutations, among them reading a 401's body and passing `Down` from
+  the deadline.
+- This task's fixtures in `src/tests/host.rs` are its own: fit their replies to the machine's needs.
+- `copy.rs`, `create.rs` and `run.rs`'s `Machine` arms stay `copy-machine`'s. If a test shows a fault
+  there, report `Question:` with the log.
+- Not checked by a test here: this call built nothing.
