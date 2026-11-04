@@ -47,7 +47,7 @@ impl Backend {
         } else {
             self.deliver(env, up, below);
         }
-        self.flush(below);
+        self.load_native(below);
     }
 
     pub(super) fn active_turn(&self) -> bool {
@@ -94,7 +94,7 @@ impl Backend {
         if !self.stopping.waiting() {
             self.completion_deadline(env, true, up);
         }
-        self.flush(below);
+        self.load_native(below);
         None
     }
 
@@ -167,11 +167,11 @@ impl Backend {
             None | Some(super::stopping::Action::Close) => false,
         };
         if keeping && active && !waiting && self.process.child().is_some() {
-            match self.interrupt.prepare(self.settings.input_bytes, &mut self.io) {
+            match self.interrupt.prepare(self.settings.input_bytes, below) {
                 Some(()) => {
                     // Finish any user line already being written before this line.
                     if self.outgoing.is_none() {
-                        self.send_interrupt();
+                        self.send_interrupt(below);
                     }
                 }
                 None => {
@@ -192,26 +192,26 @@ impl Backend {
             .begin(if keeping { super::stopping::Action::Finish } else { super::stopping::Action::Close }, until);
         if active && let Some(child) = self.process.child() {
             if !keeping && (!waiting || was_keeping) {
-                self.io.push(io::Request::Signal {
+                below.push(Below::Io(io::Request::Signal {
                     child,
                     to: kernel::Target::Group,
                     signal: kernel::Signal::Interrupt,
-                });
+                }));
             }
         } else if !waiting {
-            self.finish_stop();
+            self.finish_stop(below);
         }
     }
 
-    pub(super) fn send_interrupt(&mut self) {
-        self.interrupt.offer(self.process.pipes().input, &mut self.io);
+    pub(super) fn send_interrupt(&mut self, below: &mut Queue<Below>) {
+        self.interrupt.offer(self.process.pipes().input, below);
     }
 
-    pub(super) fn control_response(&mut self, document: &skein_json::Document) -> bool {
+    pub(super) fn control_response(&mut self, document: &skein_json::Document, below: &mut Queue<Below>) -> bool {
         let response = mcp::json::field(document, 0, b"response");
         let subtype = mcp::json::text_in(document, mcp::json::field_in(document, response, b"subtype"));
         let id = mcp::json::text_in(document, mcp::json::field_in(document, response, b"request_id"));
-        subtype == Some(b"success") && self.interrupt.acknowledge(id, &mut self.io)
+        subtype == Some(b"success") && self.interrupt.acknowledge(id, below)
     }
 
     pub(super) fn stopped_result(
@@ -233,13 +233,13 @@ impl Backend {
             // message has no completion to charge (smith/docs/design/protocol/programs.md 5.5, 5.9).
             self.turns.interrupted();
         }
-        self.finish_stop();
+        self.finish_stop(below);
         if self.startup.phase() == State::Running && !self.startup.switching() {
             self.completion_deadline(env, true, up);
         }
     }
 
-    fn refuse_unanswered(&mut self) {
+    fn refuse_unanswered(&mut self, below: &mut Queue<Below>) {
         let calls = core::mem::replace(&mut self.calls, List::with_capacity(u32::from(self.settings.mcp.calls)));
         for pending in calls.into_boxed() {
             match pending {
@@ -247,14 +247,14 @@ impl Backend {
                     self.startup.server_mut().expect("held MCP call").answer(
                         call,
                         mcp::Answer::Error(INTERRUPTED.into()),
-                        &mut self.io,
+                        below,
                     );
                 }
                 mcp::Up::Prompt { call, .. } => {
                     self.startup.server_mut().expect("held permission prompt").verdict(
                         call,
                         mcp::Verdict::Deny { message: INTERRUPTED.into() },
-                        &mut self.io,
+                        below,
                     );
                 }
                 mcp::Up::Listening { .. } | mcp::Up::Connected | mcp::Up::Ended(_) => unreachable!("held calls"),
@@ -268,15 +268,15 @@ impl Backend {
                 self.startup.server_mut().expect("correlated MCP call").answer(
                     rpc,
                     mcp::Answer::Error(INTERRUPTED.into()),
-                    &mut self.io,
+                    below,
                 );
             }
         }
     }
 
-    fn finish_stop(&mut self) {
+    fn finish_stop(&mut self, below: &mut Queue<Below>) {
         self.native_writes = skein_lib::Map::with_capacity(self.native_writes.capacity());
-        self.refuse_unanswered();
+        self.refuse_unanswered(below);
         for index in 0..self.ledger.len() {
             let call = self.ledger.get_mut(index).expect("ledger cell");
             call.rpc = None;
@@ -286,14 +286,14 @@ impl Backend {
         match self.stopping.action() {
             Some(super::stopping::Action::Close | super::stopping::Action::Park) => {
                 if let Some(input) = self.process.pipes().input {
-                    self.io.push(io::Request::Close { entity: input });
+                    below.push(Below::Io(io::Request::Close { entity: input }));
                 }
             }
             Some(super::stopping::Action::Finish) => {
                 let closed = self.turns.closed;
                 self.turns = turns::Turns::new(&self.settings.receiving, self.settings.adapter.client.answer);
                 self.turns.closed = closed;
-                self.send_input();
+                self.send_input(below);
             }
             Some(super::stopping::Action::Yield) | None => {}
         }

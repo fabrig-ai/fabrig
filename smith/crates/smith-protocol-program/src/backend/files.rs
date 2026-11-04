@@ -405,7 +405,7 @@ impl Backend {
             return;
         }
         let Some(root) = self.settings.directory else {
-            self.startup.ended(&mut self.io);
+            self.startup.ended(&mut self.server_up, below);
             return;
         };
         if let Some(residue) = &self.files.residue {

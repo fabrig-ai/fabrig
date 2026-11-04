@@ -20,24 +20,24 @@ impl Backend {
         up: &mut Queue<ToDomain>,
         below: &mut Queue<Below>,
     ) {
-        let Some(event) = self.startup.io_event(env.now, event, &mut self.io) else { return };
+        let Some(event) = self.startup.io_event(env.now, event, &mut self.server_up, below) else { return };
         match event {
             io::Event::Spawned { child, pipes, .. } => {
                 self.process.spawned(child, Pipes::from_spawn(&pipes));
-                self.interrupt.restart(&mut self.io);
-                self.read_stdout();
+                self.interrupt.restart(below);
+                self.read_stdout(below);
                 if let Some(pipe) = self.process.pipes().errors {
-                    Self::demand(pipe, PIPE_BYTES, &mut self.io);
+                    Self::demand(pipe, PIPE_BYTES, below);
                 }
                 if self.startup.phase() == State::Ending {
-                    self.io.push(io::Request::Close { entity: self.process.pipes().input.expect("stdin") });
-                    self.stopping.spawned(env.now, self.settings.grace, &mut self.process, &mut self.io);
+                    below.push(Below::Io(io::Request::Close { entity: self.process.pipes().input.expect("stdin") }));
+                    self.stopping.spawned(env.now, self.settings.grace, &mut self.process, below);
                 } else {
-                    self.send_input();
+                    self.send_input(below);
                 }
             }
             io::Event::Exited { exit, .. } => {
-                self.process.exited(exit, env.now.saturating_add(self.settings.grace), &mut self.io);
+                self.process.exited(exit, env.now.saturating_add(self.settings.grace), below);
             }
             io::Event::Closed { owner } => {
                 self.process.closed(owner, self.token(Owner::Program));
@@ -56,7 +56,7 @@ impl Backend {
             io::Event::Stream { owner, up: stream::Up::Bytes(bytes) } => {
                 if self.process.pipes().errors == Some(owner) {
                     self.keep_error(&bytes);
-                    Self::demand(owner, PIPE_BYTES, &mut self.io);
+                    Self::demand(owner, PIPE_BYTES, below);
                 } else {
                     self.stdout_demanding = false;
                     self.completion_deadline(env, false, up);
@@ -68,7 +68,7 @@ impl Backend {
                 }
             }
             io::Event::Stream { owner, up: stream::Up::End | stream::Up::Failed(_) } => {
-                self.io.push(io::Request::Close { entity: owner });
+                below.push(Below::Io(io::Request::Close { entity: owner }));
             }
             io::Event::Stream { up: stream::Up::Room, .. } => {}
             io::Event::Output { up: stream::OutputUp::Settled { right, outcome }, .. } => {
@@ -82,7 +82,7 @@ impl Backend {
                                 return;
                             }
                             if right == super::INTERRUPT_RIGHT {
-                                self.interrupt.send(self.process.pipes().input.expect("interrupt write"), &mut self.io);
+                                self.interrupt.send(self.process.pipes().input.expect("interrupt write"), below);
                             } else if let Some(bytes) = &self.outgoing {
                                 let start = usize::try_from(self.written).expect("input cursor");
                                 let end = start
@@ -92,17 +92,17 @@ impl Backend {
                                 let chunk = Box::from(bytes.get(start..end).expect("input range"));
                                 self.written = u32::try_from(end).expect("input ceiling");
                                 let finished = end == bytes.len();
-                                self.io.push(io::Request::Output {
+                                below.push(Below::Io(io::Request::Output {
                                     stream: self.process.pipes().input.expect("input write"),
                                     down: stream::OutputDown::Send { right, bytes: chunk },
-                                });
+                                }));
                                 if finished {
                                     self.outgoing = None;
                                     self.written = 0;
-                                    self.remember_session();
-                                    self.send_interrupt();
+                                    self.remember_session(below);
+                                    self.send_interrupt(below);
                                 } else {
-                                    self.send_input();
+                                    self.send_input(below);
                                 }
                             }
                         }
@@ -123,26 +123,26 @@ impl Backend {
         }
     }
 
-    pub(super) fn demand(pipe: Token, max: u32, below: &mut Queue<io::Request>) {
-        below.push(io::Request::Stream {
+    pub(super) fn demand(pipe: Token, max: u32, below: &mut Queue<Below>) {
+        below.push(Below::Io(io::Request::Stream {
             stream: pipe,
             down: stream::Down::Demand { read: stream::Read::Arrived { max }, room: 0 },
-        });
+        }));
     }
 
-    pub(super) fn read_stdout(&mut self) {
+    pub(super) fn read_stdout(&mut self, below: &mut Queue<Below>) {
         if !self.stdout_demanding
             && self.intake.is_empty()
             && let Some(pipe) = self.process.pipes().output
         {
-            Self::demand(pipe, PIPE_BYTES, &mut self.io);
+            Self::demand(pipe, PIPE_BYTES, below);
             self.stdout_demanding = true;
         }
     }
 
-    pub(super) fn send_input(&mut self) {
+    pub(super) fn send_input(&mut self, below: &mut Queue<Below>) {
         if let Some(bytes) = &self.outgoing {
-            self.io.push(io::Request::Output {
+            below.push(Below::Io(io::Request::Output {
                 stream: self.process.pipes().input.expect("spawned input"),
                 down: stream::OutputDown::Room {
                     right: super::INPUT_RIGHT,
@@ -152,7 +152,7 @@ impl Backend {
                         .expect("remaining input")
                         .min(PIPE_BYTES),
                 },
-            });
+            }));
         }
     }
 

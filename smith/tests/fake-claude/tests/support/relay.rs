@@ -13,7 +13,10 @@ use skein_lib::{
 use skein_shell::{Delegate, Host};
 use skein_world::{HostedProgram, Inherited, Machine, Referee};
 use smith_fake_claude::{Fake, Story};
-use smith_protocol_program::mcp::{self, Answer, Server, Tool, Verdict};
+use smith_protocol_program::{
+    backend::Below,
+    mcp::{self, Answer, Server, Tool, Verdict},
+};
 
 const CHILD: Token = Token::new(200);
 const ROOT_CLOSE: Token = Token::new(u64::MAX);
@@ -38,9 +41,20 @@ fn server_limits() -> mcp::Limits {
     mcp::Limits { unauthenticated: Time::from_nanos(1_000_000_000), ..smith_protocol_program::mcp::fixture::SMALL }
 }
 
+fn move_requests(below: &mut Queue<Below>, requests: &mut Queue<Request>) {
+    while let Some(request) = below.pop() {
+        match request {
+            Below::Io(request) => requests.push(request),
+            Below::File { .. } => panic!("MCP emits only I/O"),
+        }
+    }
+}
+
 pub struct Agent {
     io: Io,
     server: Server,
+    above: Queue<mcp::Up>,
+    below: Queue<Below>,
     seen: Vec<mcp::Up>,
     messages: Vec<Value>,
     root: Option<Fd>,
@@ -64,6 +78,7 @@ pub struct Agent {
 impl Agent {
     fn new(root: Fd, turns: usize, deny: bool) -> Self {
         let mut requests = Queue::with_capacity(QUEUE);
+        let mut below = Queue::with_capacity(QUEUE);
         let server = Server::new(
             Token::new(10),
             47100,
@@ -74,12 +89,15 @@ impl Agent {
                 input_schema: br#"{"type":"object"}"#.as_slice().into(),
             }]),
             server_limits(),
-            &mut requests,
+            &mut below,
         )
         .expect("small tool list");
+        move_requests(&mut below, &mut requests);
         Self {
             io: Io::new(&limits()),
             server,
+            above: Queue::with_capacity(2),
+            below,
             seen: Vec::new(),
             messages: Vec::new(),
             root: Some(root),
@@ -122,7 +140,7 @@ impl Agent {
         });
     }
     fn notices(&mut self) {
-        while let Some(up) = self.server.up() {
+        while let Some(up) = self.above.pop() {
             match &up {
                 mcp::Up::Listening { port } => {
                     assert_eq!(*port, 47100);
@@ -130,7 +148,8 @@ impl Agent {
                 }
                 mcp::Up::Connected => {}
                 mcp::Up::Call { call, .. } => {
-                    self.server.answer(*call, Answer::Text(b"accepted".as_slice().into()), &mut self.requests)
+                    self.server.answer(*call, Answer::Text(b"accepted".as_slice().into()), &mut self.below);
+                    move_requests(&mut self.below, &mut self.requests);
                 }
                 mcp::Up::Prompt { call, input, .. } => {
                     let verdict = if self.deny {
@@ -138,7 +157,8 @@ impl Agent {
                     } else {
                         Verdict::Allow { updated_input: input.clone() }
                     };
-                    self.server.verdict(*call, verdict, &mut self.requests);
+                    self.server.verdict(*call, verdict, &mut self.below);
+                    move_requests(&mut self.below, &mut self.requests);
                 }
                 mcp::Up::Ended(_) => self.server_done = true,
             }
@@ -171,7 +191,8 @@ impl Agent {
     fn event(&mut self, now: Time, event: Event) {
         let owner = event.owner();
         if owner.is_some_and(|owner| self.server.owns(owner)) {
-            self.server.from_io(now, event, &mut self.requests);
+            self.server.from_io(now, event, &mut self.above, &mut self.below);
+            move_requests(&mut self.below, &mut self.requests);
             self.notices();
             return;
         }
@@ -212,7 +233,8 @@ impl Agent {
                 assert_eq!(exit, Exit::Code(0));
                 self.fake_done = true;
                 self.requests.push(Request::Close { entity: self.child.expect("fake child") });
-                self.server.close(&mut self.requests);
+                self.server.close(&mut self.above, &mut self.below);
+                move_requests(&mut self.below, &mut self.requests);
                 self.notices();
             }
             Event::Closed { owner } => {
@@ -251,7 +273,8 @@ impl Host for Agent {
         while let Some(event) = self.events.pop() {
             self.event(now, event);
         }
-        self.server.fire(now, &mut self.requests);
+        self.server.fire(now, &mut self.above, &mut self.below);
+        move_requests(&mut self.below, &mut self.requests);
         self.notices();
         io::stage::down(&mut self.io, &env, &mut self.requests, &mut self.submissions);
         self.io.reclaim();

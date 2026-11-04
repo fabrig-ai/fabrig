@@ -42,9 +42,9 @@ impl Backend {
             self.fail(env, llm::Failure::Program { exit: None }, &detail, up, below);
             return;
         }
-        self.startup.initialized(&mut self.io);
+        self.startup.initialized(&mut self.server_up, below);
         if !self.compaction() {
-            self.remember_session();
+            self.remember_session(below);
         }
         self.completion_deadline(env, true, up);
     }

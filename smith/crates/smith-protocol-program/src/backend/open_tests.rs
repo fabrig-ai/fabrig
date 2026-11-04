@@ -56,10 +56,11 @@ fn an_open_result_completes_text_and_keeps_input_open() {
     assert_eq!(text.as_ref(), b"Hello.");
     assert_eq!(backend.process.pipes().input, Some(Token::new(31)));
     assert_eq!(
-        backend
-            .io
+        below
             .iter()
-            .filter_map(|effect| { if let io::Request::Close { entity } = effect { Some(entity) } else { None } })
+            .filter_map(|effect| {
+                if let Below::Io(io::Request::Close { entity }) = effect { Some(entity) } else { None }
+            })
             .count(),
         0
     );
