@@ -263,6 +263,8 @@ const STANDARD_FORGE: forge::Limits = forge::Limits {
     client: skein_forge_client::Limits {
         // Watched resources, at least one for each held branch.
         resources: 128,
+        // Whole task results, as jig-protocol-config/src/profile/standard.rs sets tasks.result_bytes.
+        op_bytes: 262_144,
         ..CLIENT
     },
     change_policy: temper_engine_domain_forge_change::Limits {
@@ -393,7 +395,12 @@ const STANDARD_BRIEF: engine::BriefLimits = engine::BriefLimits {
 };
 const STANDARD_ROOT: Root = Root {
     brief: STANDARD_BRIEF,
-    journal: engine::JournalLimits { result_bytes: STANDARD_BRIEF.brief_bytes, ..ROOT.journal },
+    journal: engine::JournalLimits {
+        // Deep task row at jig standard's bounds, including its inbox (engine::row_bound).
+        transcript_bytes: 22_467_632,
+        result_bytes: STANDARD_BRIEF.brief_bytes,
+        ..ROOT.journal
+    },
     ..ROOT
 };
 const CLIENTS: Clients = Clients {

@@ -3,7 +3,7 @@ id = "stock-scale"
 part = "stock"
 kind = "feature"
 needs = ["brief-room"]
-files = ["temper/crates/temper-service/src/stock.rs", "temper/crates/temper-service/src/startup.rs", "temper/crates/temper-service/src/startup/checks.rs", "temper/crates/temper-service/src/startup/problems.rs", "temper/crates/temper-service/src/tests/stock.rs", "temper/crates/temper-service/src/tests/startup.rs", "temper/docs/help/budget.md", "temper/docs/help/configure.md", "temper/crates/temper/tests/support/forge_land/rung.rs", "temper/crates/temper/tests/suite/startup.rs", "temper/crates/temper/tests/proof_live.rs", "jig/crates/jig-domain-core/src/tests/funding/settings.rs", "temper/docs/design/protocol/configuration.status.md", "temper/crates/temper-service/src/tests/fixtures/agent.rs", "temper/crates/temper-service/src/tests/fixtures/startup.rs", "temper/crates/temper-service/src/tests/fixtures.rs", "temper/crates/temper-playground/src/documents.rs", "temper/tests/engine/domain/src/protocol.rs"]
+files = ["temper/crates/temper-service/src/stock.rs", "temper/crates/temper-service/src/startup.rs", "temper/crates/temper-service/src/startup/checks.rs", "temper/crates/temper-service/src/startup/problems.rs", "temper/crates/temper-service/src/tests/stock.rs", "temper/crates/temper-service/src/tests/startup.rs", "temper/docs/help/budget.md", "temper/docs/help/configure.md", "temper/crates/temper/tests/support/forge_land/rung.rs", "temper/crates/temper/tests/suite/startup.rs", "temper/crates/temper/tests/proof_live.rs", "jig/crates/jig-domain-core/src/tests/funding/settings.rs", "temper/docs/design/protocol/configuration.status.md", "temper/crates/temper-service/src/tests/fixtures/agent.rs", "temper/crates/temper-service/src/tests/fixtures/startup.rs", "temper/crates/temper-service/src/tests/fixtures.rs", "temper/crates/temper-playground/src/documents.rs", "temper/tests/engine/domain/src/protocol.rs", "temper/crates/temper-docs/src/tests/rules.rs"]
 effort = "high"
 minutes = 150
 +++
@@ -173,3 +173,34 @@ acceptance needs it, and no other task owns it. This widens "Owns and may change
   limit refusing the stock's figures). The production agent needs no change:
   `temper/crates/temper/src/agent.rs` offers the profile's policy (`max_turns` 800, spend and
   time at smith's defaults of 1,000,000,000 and 24 h).
+
+### 2026-11-04: budget.md comes to 8,380 bytes past the concept bound of 8,192, and `capacity_help_names_members_and_dependencies` pins the words this task replaces: may the task trim the page and change the assertion?
+
+Yes, option A. The bound stays 8,192 and the run bullet stays verbatim. This widens "Nothing else
+of the page" and the header's files by exactly what follows.
+
+- **`temper/docs/help/budget.md`,** three cuts of repeated prose, which bring the branch's page
+  from 8,380 to 8,174 bytes. Each fact stays on the page: "What it is" says the open period
+  resizes at once; "What it is" and "The period spent" give `project fund` for the project and
+  for a role; "How it changes" says a project made after a change of policy 1 takes the new
+  period spend.
+  - In "The period spent", ``or until it is raised. `project fund PROJECT AMOUNT` raises the
+    project's period spend, and the open period's budget with it. A person's chats`` becomes
+    ``or until `project fund PROJECT AMOUNT` raises it. A person's chats``.
+  - In "Acting on it", ``\`project fund\` raises the project's period spend or a role's; `` goes.
+  - In "Limits", the last bullet ends at ``(`project fund`).``: ``; `settings show` reads policy
+    1, which only new projects copy`` goes.
+- **`temper/crates/temper-docs/src/tests/rules.rs`,** `capacity_help_names_members_and_dependencies`
+  alone: `spec/result/authority` becomes `spec, message, result and authority sizes`, and
+  `tasks.batch_bytes` and `profile store ceiling` join the list both pages meet. `schema ceiling`
+  leaves that list for `configure` alone, whose sentence keeps it, and `budget` alone is held to
+  `tasks.inbox_messages`, which `configure` does not name. `budget_help_sizes_a_hundred_change_goal`
+  and `PAGES`' bound do not change.
+- **The two failures of `## Left`** stay there, as the run reported them:
+  `the_standard_profile_passes_each_domains_validity` and
+  `the_reference_profile_passes_startup_admission`. Neither is this task's; acceptance holds with
+  them reported, and the trunk's other tasks or its end check take them.
+- **Still to run** before the report: `heavy cargo nextest run -p temper-docs`, and the packages
+  the last report did not reach (`temper` `--lib`, `temper-fake`, `temper-client-world`,
+  `temper-real-loop-world`, `temper-system-world`), each passing or naming a failure under `## Left`
+  with the reason it is not this task's.
