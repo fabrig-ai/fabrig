@@ -237,8 +237,11 @@ pub fn hook(service: &mut crate::Service) -> skein_forge_connection::hooks::Hint
     let mut found = jig_protocol_config::Problems::empty();
     let mut settings =
         crate::forge::settings(&super::forges(), super::forge_runtime(), None, &mut found).expect("settings");
-    settings.forges.get_mut(0).expect("forge").access.as_mut().expect("access").webhook_secret =
-        Some(Secret::new(Box::from(SECRET)));
+    settings.forges.get_mut(0).expect("forge").access = Some(skein_forge_connection::Access {
+        credential: skein_forge::credential::Credential::Token(Secret::new(super::FORGE_TOKEN.into())),
+        user: 42,
+        webhook_secret: Some(Secret::new(SECRET.into())),
+    });
     settings.webhooks =
         Some(skein_forge_connection::hooks::Webhooks { listener: io::Addr::Ip(([127, 0, 0, 1], 7200).into()) });
     let layer = &mut service.engine.as_mut().expect("engine").forge;
