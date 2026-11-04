@@ -3,6 +3,11 @@
 use crate::Page;
 use skein_lib::Duration;
 
+/// The least log since a snapshot's start that the next waits for (skein/docs/design/kv.md, 5).
+pub const SNAPSHOT_FLOOR: u64 = 65_536;
+/// The next snapshot's trigger, in multiples of the live map's encoded size (skein/docs/design/kv.md, 5).
+pub const SNAPSHOT_MULTIPLE: u64 = 2;
+
 #[derive(Clone, Copy, PartialEq, Eq, Debug)]
 pub struct Limits {
     pub key: u32,
@@ -20,6 +25,11 @@ pub struct Limits {
 }
 
 impl Limits {
+    /// The log since the last snapshot's start past which the next starts (skein/docs/design/kv.md, 5).
+    pub(crate) fn snapshot_bound(&self, live: u64) -> u64 {
+        SNAPSHOT_MULTIPLE.saturating_mul(live).max(SNAPSHOT_FLOOR).min(self.snapshot_after)
+    }
+
     #[must_use]
     pub fn is_usable(&self) -> bool {
         self.key > 0

@@ -962,7 +962,9 @@ fn open_failed_file(store: &mut Store, file: Token, failure: Failure, below: &mu
 #[must_use]
 pub fn is_ready(store: &Store, limits: &Limits) -> bool {
     if let Phase::Ready { .. } = store.phase {
-        store.snapshot.is_some() || store.log_bytes >= limits.snapshot_after || store.close_owner.is_some()
+        store.snapshot.is_some()
+            || store.log_bytes >= limits.snapshot_bound(store.map.live())
+            || store.close_owner.is_some()
     } else {
         false
     }
@@ -981,7 +983,7 @@ pub fn fire(store: &mut Store, env: &Env<Limits>, _above: &mut Queue<Event>, bel
         if store.close_owner.is_some() {
             store.phase = Phase::Closing;
             below.push(file::Request::Close { owner: IO_OWNER, file: log });
-        } else if store.log_bytes >= env.limits.snapshot_after {
+        } else if store.log_bytes >= env.limits.snapshot_bound(store.map.live()) {
             store.snapshot_start = Some(store.last.checked_add(1).expect("commit number did not overflow"));
             store.phase = Phase::RolloverClosing;
             below.push(file::Request::Close { owner: IO_OWNER, file: log });
