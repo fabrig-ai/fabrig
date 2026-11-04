@@ -55,14 +55,14 @@ fn owned_binaries_and_mirror() {
                 .map(|_| Mirror { forgejo: origin(b"mirror.test", 443), runner: origin(b"127.0.0.1", 8443) }),
         };
         expected.forgejo = if expected.fetch.forgejo {
-            b"/cache/forgejo/17.0.0/forgejo".as_slice().into()
+            b"/cache/forgejo/17.0.1/forgejo".as_slice().into()
         } else {
             forgejo.as_bytes().into()
         };
         expected.runner = runner.map(|binary| {
             let mut value = base.runner.clone().unwrap();
             value.binary = if binary == "fetched" {
-                b"/cache/forgejo-runner/13.2.0/forgejo-runner".as_slice().into()
+                b"/cache/forgejo-runner/13.2.1/forgejo-runner".as_slice().into()
             } else {
                 binary.as_bytes().into()
             };
@@ -174,8 +174,8 @@ fn architecture_pins() {
             false,
             Ok((
                 "amd64",
-                "5a3b07e124ed70b4e46ee3939515f003bd3cc85352257a9a4607a527251042ca",
-                "fadaec897f5e6641c363f87ecaf75f866f99c81b7097ec6b433e4c48123fcad1",
+                "51a8cdf4a1252e79f4b3855d7a7891af6c6635105420768c460e2f0690385d6f",
+                "bb369fe1ecb50fdc983c0b1d993f19b0920df6e5864511892b3cdbf16d858b34",
             )),
         ),
         (
@@ -185,8 +185,8 @@ fn architecture_pins() {
             false,
             Ok((
                 "arm64",
-                "e5ec437cd6357e8d1b4580cb47ab1daa58a32b33971a63db63446a535d33adb7",
-                "9d3d462ee83e4e629f959faeacceb20eed2f25290bddea402e65ace46a31afd9",
+                "1e99403746406e8199efc903ddd1940d5728a60e50241f7aa6c9f2b907bd8ec9",
+                "eeddb7902f79abe488972f4189fbe3ea02762ee827d1b406b469420bf0d62dd9",
             )),
         ),
         (
@@ -196,8 +196,8 @@ fn architecture_pins() {
             false,
             Ok((
                 "amd64",
-                "5a3b07e124ed70b4e46ee3939515f003bd3cc85352257a9a4607a527251042ca",
-                "fadaec897f5e6641c363f87ecaf75f866f99c81b7097ec6b433e4c48123fcad1",
+                "51a8cdf4a1252e79f4b3855d7a7891af6c6635105420768c460e2f0690385d6f",
+                "bb369fe1ecb50fdc983c0b1d993f19b0920df6e5864511892b3cdbf16d858b34",
             )),
         ),
         (
@@ -207,8 +207,8 @@ fn architecture_pins() {
             false,
             Ok((
                 "amd64",
-                "5a3b07e124ed70b4e46ee3939515f003bd3cc85352257a9a4607a527251042ca",
-                "fadaec897f5e6641c363f87ecaf75f866f99c81b7097ec6b433e4c48123fcad1",
+                "51a8cdf4a1252e79f4b3855d7a7891af6c6635105420768c460e2f0690385d6f",
+                "bb369fe1ecb50fdc983c0b1d993f19b0920df6e5864511892b3cdbf16d858b34",
             )),
         ),
         (
@@ -218,8 +218,8 @@ fn architecture_pins() {
             true,
             Ok((
                 "amd64",
-                "5a3b07e124ed70b4e46ee3939515f003bd3cc85352257a9a4607a527251042ca",
-                "fadaec897f5e6641c363f87ecaf75f866f99c81b7097ec6b433e4c48123fcad1",
+                "51a8cdf4a1252e79f4b3855d7a7891af6c6635105420768c460e2f0690385d6f",
+                "bb369fe1ecb50fdc983c0b1d993f19b0920df6e5864511892b3cdbf16d858b34",
             )),
         ),
         ("riscv64", true, true, false, Err(Failure::Architecture(b"riscv64".as_slice().into()))),
@@ -230,8 +230,8 @@ fn architecture_pins() {
             false,
             Ok((
                 "amd64",
-                "5a3b07e124ed70b4e46ee3939515f003bd3cc85352257a9a4607a527251042ca",
-                "fadaec897f5e6641c363f87ecaf75f866f99c81b7097ec6b433e4c48123fcad1",
+                "51a8cdf4a1252e79f4b3855d7a7891af6c6635105420768c460e2f0690385d6f",
+                "bb369fe1ecb50fdc983c0b1d993f19b0920df6e5864511892b3cdbf16d858b34",
             )),
         ),
     ] {
@@ -246,7 +246,7 @@ fn architecture_pins() {
             if forgejo {
                 pins.push(Pin {
                     origin: if mirror { origin(b"mirror.test", 443) } else { origin(b"codeberg.org", 443) },
-                    path: format!("/forgejo/forgejo/releases/download/v17.0.0/forgejo-17.0.0-linux-{arch}")
+                    path: format!("/forgejo/forgejo/releases/download/v17.0.1/forgejo-17.0.1-linux-{arch}")
                         .as_bytes()
                         .into(),
                     digest: unhex(fj),
@@ -256,7 +256,7 @@ fn architecture_pins() {
             if runner {
                 pins.push(Pin {
                     origin: if mirror { origin(b"127.0.0.1", 8443) } else { origin(b"code.forgejo.org", 443) },
-                    path: format!("/forgejo/runner/releases/download/v13.2.0/forgejo-runner-13.2.0-linux-{arch}")
+                    path: format!("/forgejo/runner/releases/download/v13.2.1/forgejo-runner-13.2.1-linux-{arch}")
                         .as_bytes()
                         .into(),
                     digest: unhex(run),

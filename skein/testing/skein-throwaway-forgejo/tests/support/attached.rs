@@ -15,7 +15,7 @@ fn main() {
             head.extend_from_slice(&byte);
         }
         let body = if head.starts_with(b"GET /api/v1/version ") {
-            b"{\"version\":\"17.0.0\"}".to_vec()
+            b"{\"version\":\"17.0.1\"}".to_vec()
         } else {
             format!("{{\"login\":\"{}\",\"id\":{}}}", args[1], args[2]).into_bytes()
         };
