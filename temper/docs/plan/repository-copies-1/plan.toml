@@ -22,3 +22,37 @@ id = 1
 story = "skein's dialect can ask Forgejo for a copy and can delete what a copy cut short left"
 parts = ["forgejo-requests"]
 walk = false
+
+[[part]]
+id = "copy-plan"
+title = "skein's plan Copy: its surface, its steps, its words and its deadline"
+mode = "direct"
+needs = ["forgejo-requests"]
+design = "skein/docs/design/forge-setup.md, 4.10"
+
+[[part]]
+id = "copy-facts"
+title = "the throwaway for a migration, and the facts a copy relies on, recorded"
+mode = "direct"
+needs = ["forgejo-requests"]
+design = "skein/docs/design/forge-setup.md, 8"
+
+[[part]]
+id = "fake-migration"
+title = "the fake forge's copy and delete, its migration route and its catalogue of sources"
+mode = "direct"
+needs = []
+design = "skein/docs/design/fake-forge.md, 2.6"
+
+[[part]]
+id = "copy-story"
+title = "the plan on the fake's route, through HTTP bytes"
+mode = "direct"
+needs = ["copy-plan", "fake-migration"]
+design = "skein/docs/design/forge-setup.md, 4.10"
+
+[[slice]]
+id = 2
+story = "a copy of a catalogue's source lands on the fake forge, private, with the bot's access and the starter, and a run cut short, run again, finishes it"
+parts = ["copy-plan", "copy-facts", "fake-migration", "copy-story"]
+walk = false
