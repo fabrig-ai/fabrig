@@ -18,8 +18,6 @@ wasm32 clippy, which it fails (`shell.md`), and the benchmarks'
 calibrations and arms, with four departures (`benchmarks.md`).
 Two domain worlds call protocol crates (`testing.md`), and the local domain composes
 person-facing text, which the designer is to decide on (`domain/host.md`).
-`HostIo`, the local `Domain`'s delivery save and the agent service's `Stages` hold
-their lifecycles in flags and `Option`s (`domain/host.md`, `protocol/agent.md`).
 `domain/session.md`, `protocol/channel.md`, `protocol/charter.md`,
 `protocol/limits.md`, `protocol/llm.md` and `protocol/transcript.md` have no gap. smith has no drafts.
 

@@ -124,13 +124,10 @@ pub fn limits(view: &crate::Config, client: &jig_client::DomainLimits, words: &W
         depth: client.rows.checked_add(32)?,
         text_per_node,
         text_bytes: nodes.checked_mul(text_per_node)?,
-        drawing_bytes: 0,
         styles_per_node: 2,
-        patches: 0,
         bindings: nodes,
         slots: nodes,
         markdown_depth: 3,
-        scene_marks: 0,
-        scene_bytes: 0,
+        ..skein_ui::Limits::EMPTY
     })
 }

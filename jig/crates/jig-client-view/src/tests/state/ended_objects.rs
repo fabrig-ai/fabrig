@@ -112,7 +112,7 @@ fn build(value: &Ended, words: &crate::words::Words) -> (Tree, JigBindings) {
     let tree = b.finish();
     crate::tests::tree::cards_access::check(&tree);
     assert!(tree.len() <= f.nodes);
-    assert!(tree.nodes().iter().map(crate::tests::text_bytes).sum::<u32>() <= f.text_bytes);
+    assert!(tree.nodes().iter().map(skein_ui::Node::text_bytes).sum::<u32>() <= f.text_bytes);
     assert!(
         tree.nodes()
             .iter()
@@ -366,7 +366,7 @@ fn ended_selected_language_uses_checked_native_captions_and_preserves_opaque_goa
     goldens.check(&tree);
     let f = crate::tests::render_limits(&CLIENT, &words).unwrap();
     assert!(tree.len() <= f.nodes);
-    assert!(tree.nodes().iter().map(crate::tests::text_bytes).sum::<u32>() <= f.text_bytes);
+    assert!(tree.nodes().iter().map(skein_ui::Node::text_bytes).sum::<u32>() <= f.text_bytes);
     for phrase in crate::words::ended_words::ALL {
         assert!(words.book().capacity(phrase.id()).is_some());
     }

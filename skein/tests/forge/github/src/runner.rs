@@ -1056,37 +1056,23 @@ fn decode(
     kind: github::document::Kind,
 ) -> Result<(Vec<github::document::Row>, github::document::Document)> {
     use skein_json::tokenizer;
-    use skein_lib::{
-        Env, Intake, Queue, Time,
-        stream::{Down, Up},
-    };
     let bounds = fake::bounds();
     let mut decoder = github::decode::decoder(kind, &bounds);
-    let env = Env { now: Time::ZERO, wall: Wall::EPOCH, limits: bounds.json };
-    let mut tokenizer = tokenizer::Tokenizer::new(&bounds.json);
-    let mut above = Queue::with_capacity(1);
-    let mut below = Queue::with_capacity(1);
-    let mut intake = Intake::with_capacity(bounds.writer.length);
-    intake.append(bytes).map_err(|e| format!("dialect intake bound: {e:?}"))?;
+    if bytes.len() > usize::try_from(bounds.writer.length)? {
+        return Err("dialect intake bound".into());
+    }
+    let mut feed = tokenizer::Feed::new(bytes, &bounds.json);
+    let mut request = tokenizer::Request::Next;
     let mut rows = vec![];
-    tokenizer::down(&mut tokenizer, &env, tokenizer::Request::Next, &mut above, &mut below);
-    for _ in 0..bytes.len() * 8 + 64 {
-        if let Some(event) = above.pop() {
-            let (request, step) = decoder.step(event);
-            match step {
-                github::decode::Step::Demand => {}
-                github::decode::Step::Row(row) => rows.push(row),
-                github::decode::Step::Done(document) => return Ok((rows, document)),
-                github::decode::Step::Malformed(_) => return Err("dialect document malformed".into()),
-            }
-            tokenizer::down(&mut tokenizer, &env, request, &mut above, &mut below);
-        } else {
-            let Down::Demand { read, .. } = below.pop().ok_or("JSON demand absent")? else {
-                return Err("JSON demand invalid".into());
-            };
-            let up = intake.meet(read).map_or(Up::End, Up::Bytes);
-            tokenizer::up(&mut tokenizer, &env, up, &mut above, &mut below);
+    for _answer in 0..=bytes.len() {
+        let (next, step) = decoder.step(feed.answer(request));
+        match step {
+            github::decode::Step::Demand => {}
+            github::decode::Step::Row(row) => rows.push(row),
+            github::decode::Step::Done(document) => return Ok((rows, document)),
+            github::decode::Step::Malformed(_) => return Err("dialect document malformed".into()),
         }
+        request = next;
     }
     Err("dialect decoding progress bound".into())
 }

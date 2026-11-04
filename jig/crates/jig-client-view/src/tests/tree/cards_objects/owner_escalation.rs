@@ -171,8 +171,8 @@ fn check_exact_storage(row: &Escalation, allocation: skein_ui::Limits, tree: &Tr
             .unwrap(),
     )
     .unwrap();
-    let per_node = tree.nodes().iter().map(crate::tests::text_bytes).max().unwrap();
-    let total = tree.nodes().iter().map(crate::tests::text_bytes).sum::<u32>();
+    let per_node = tree.nodes().iter().map(skein_ui::Node::text_bytes).max().unwrap();
+    let total = tree.nodes().iter().map(skein_ui::Node::text_bytes).sum::<u32>();
     let exact = skein_ui::Limits { nodes: tree.len(), depth, text_per_node: per_node, text_bytes: total, ..allocation };
     assert_eq!(build_closed_offers(row, exact, w).len(), tree.len());
     for below in [

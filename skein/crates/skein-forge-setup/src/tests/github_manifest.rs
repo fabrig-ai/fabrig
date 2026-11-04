@@ -7,10 +7,7 @@ use crate::{
     reconcile::{Event, Failure, Need, Outcome, Reply, Stage, Why},
 };
 use skein_json::{Token, tokenizer};
-use skein_lib::{
-    Env, Intake, List, Queue, Time, Wall, Writer, bytes,
-    stream::{Down, Up},
-};
+use skein_lib::{List, Queue, Writer, bytes};
 
 const STATE: &[u8] = b"0123456789abcdef0123456789abcdef";
 const RANDOM: &[u8] = &[0x00, 0x8a, 0xff];
@@ -92,35 +89,18 @@ fn stopped() -> Need {
 fn tokens(input: &[u8]) -> List<Token> {
     let bound = u32::try_from(input.len()).expect("small document");
     let limits = tokenizer::Limits { depth: 4, string: bound, number: 20, chunk: bound, length: bound };
-    let env = Env { now: Time::ZERO, wall: Wall::EPOCH, limits };
-    let mut machine = tokenizer::Tokenizer::new(&limits);
-    let mut above = Queue::uncapped();
-    let mut below = Queue::uncapped();
-    let mut intake = Intake::with_capacity(bound.max(tokenizer::largest_demand(&limits)));
-    intake.append(input).expect("input capacity");
+    let mut feed = tokenizer::Feed::new(input, &limits);
     let mut tokens = List::with_capacity(bound);
-    tokenizer::down(&mut machine, &env, tokenizer::Request::Next, &mut above, &mut below);
-    for _tick in 0..input.len().saturating_mul(8).saturating_add(64) {
-        match above.pop() {
-            Some(tokenizer::Event::Token(token)) => {
+    for _answer in 0..=input.len() {
+        match feed.answer(tokenizer::Request::Next) {
+            tokenizer::Event::Token(token) => {
                 tokens.push(token).expect("token capacity");
-                tokenizer::down(&mut machine, &env, tokenizer::Request::Next, &mut above, &mut below);
             }
-            Some(tokenizer::Event::Done) => return tokens,
-            Some(
-                tokenizer::Event::Failed(_)
-                | tokenizer::Event::Long(_)
-                | tokenizer::Event::Skipped(_)
-                | tokenizer::Event::Closed,
-            ) => panic!("valid manifest JSON"),
-            None => {
-                let Some(Down::Demand { read, room: 0 }) = below.pop() else { panic!("JSON read demand") };
-                let delivery = match intake.meet(read) {
-                    Some(bytes) => Up::Bytes(bytes),
-                    None => Up::End,
-                };
-                tokenizer::up(&mut machine, &env, delivery, &mut above, &mut below);
-            }
+            tokenizer::Event::Done => return tokens,
+            tokenizer::Event::Failed(_)
+            | tokenizer::Event::Long(_)
+            | tokenizer::Event::Skipped(_)
+            | tokenizer::Event::Closed => panic!("valid manifest JSON"),
         }
     }
     panic!("bounded JSON decode")
