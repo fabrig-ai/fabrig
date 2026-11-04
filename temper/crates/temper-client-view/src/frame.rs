@@ -373,7 +373,6 @@ pub(crate) fn banner(
     builder.close();
     builder.close();
 }
-#[expect(clippy::too_many_lines, reason = "one navigation tree keeps page states and account marks together")]
 pub(crate) fn navigation(builder: &mut Builder, root: &Domain, words: &crate::words::Words, bindings: &mut Bindings) {
     if unavailable(root).is_some() {
         return;
@@ -454,39 +453,8 @@ pub(crate) fn navigation(builder: &mut Builder, root: &Domain, words: &crate::wo
             bindings,
         );
     }
-    forges_entry(builder, root, words, bindings);
-    let name = crate::accounts::words::say(words, crate::accounts::words::Word::Accounts, &[]);
-    crate::link(builder, &name, bindings.insert(Act::Go { address: Address::Accounts }));
-    builder.text(Run::Plain, &name);
-    if match root.pages().address() {
-        Address::Accounts | Address::ConnectModel { .. } => true,
-        Address::Inbox { .. }
-        | Address::Chats { .. }
-        | Address::Welcome { .. }
-        | Address::Forges
-        | Address::ConnectForge { .. }
-        | Address::Chat { .. }
-        | Address::Task { .. }
-        | Address::Home { .. }
-        | Address::Settings { .. }
-        | Address::Adopt { .. } => false,
-    } {
-        builder.state(skein_ui::State::Current);
-    }
-    if let Some(mark) = crate::accounts::words::mark(root) {
-        use crate::accounts::words::{Mark, Word};
-        let (word, style) = match mark {
-            Mark::Needs => (Word::NavNeeds, crate::look::NAV_NEEDS),
-            Mark::Limited => (Word::NavLimited, crate::look::NAV_LIMITED),
-        };
-        let words = crate::accounts::words::say(words, word, &[]);
-        builder.open(Role::Text);
-        builder.style(style);
-        builder.name(&words);
-        builder.run(Run::Plain, &words);
-        builder.close();
-    }
-    builder.close();
+    forges_link(builder, root, words, bindings);
+    accounts_link(builder, root, words, bindings);
     builder.close();
 }
 
@@ -519,7 +487,7 @@ pub(crate) fn playground_banner(
     b.close();
 }
 
-fn forges_entry(builder: &mut Builder, root: &Domain, words: &crate::words::Words, bindings: &mut Bindings) {
+pub(crate) fn forges_link(builder: &mut Builder, root: &Domain, words: &crate::words::Words, bindings: &mut Bindings) {
     use temper_client_domain::forge::listed::{self, Dot};
     crate::link(
         builder,
@@ -555,6 +523,47 @@ fn forges_entry(builder: &mut Builder, root: &Domain, words: &crate::words::Word
         builder.style(style);
         builder.name(&said);
         builder.run(Run::Plain, &said);
+        builder.close();
+    }
+    builder.close();
+}
+
+/// The accounts link and its mark (temper/docs/design/client/README.md, 5.3).
+pub(crate) fn accounts_link(
+    builder: &mut Builder,
+    root: &Domain,
+    words: &crate::words::Words,
+    bindings: &mut Bindings,
+) {
+    let name = crate::accounts::words::say(words, crate::accounts::words::Word::Accounts, &[]);
+    crate::link(builder, &name, bindings.insert(Act::Go { address: Address::Accounts }));
+    builder.text(Run::Plain, &name);
+    if match root.pages().address() {
+        Address::Accounts | Address::ConnectModel { .. } => true,
+        Address::Inbox { .. }
+        | Address::Chats { .. }
+        | Address::Welcome { .. }
+        | Address::Forges
+        | Address::ConnectForge { .. }
+        | Address::Chat { .. }
+        | Address::Task { .. }
+        | Address::Home { .. }
+        | Address::Settings { .. }
+        | Address::Adopt { .. } => false,
+    } {
+        builder.state(skein_ui::State::Current);
+    }
+    if let Some(mark) = crate::accounts::words::mark(root) {
+        use crate::accounts::words::{Mark, Word};
+        let (word, style) = match mark {
+            Mark::Needs => (Word::NavNeeds, crate::look::NAV_NEEDS),
+            Mark::Limited => (Word::NavLimited, crate::look::NAV_LIMITED),
+        };
+        let words = crate::accounts::words::say(words, word, &[]);
+        builder.open(Role::Text);
+        builder.style(style);
+        builder.name(&words);
+        builder.run(Run::Plain, &words);
         builder.close();
     }
     builder.close();
