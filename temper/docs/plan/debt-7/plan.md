@@ -11,7 +11,8 @@ task names. This file grows with each release; what is here so far is what has b
    - `tasks/smith-kind-text.md`, medium, ~20 minutes, needs nothing: D019.
    - `tasks/skein-concat.md`, medium, ~15 minutes, needs nothing: `skein_lib::bytes::concat`.
    - `tasks/smith-primitives.md`, medium, ~75 minutes, needs `skein-concat`: D016.
-   - D009 follows in a later batch.
+   - `tasks/skein-startup-store.md`, high, ~50 minutes, needs nothing: `skein_shell::store_file`.
+   - `tasks/smith-startup-writers.md`, high, ~50 minutes, needs `skein-startup-store`: D009.
 
 2. **jig D005 and temper D001:** being cut.
 
@@ -29,9 +30,18 @@ task names. This file grows with each release; what is here so far is what has b
 - **D014's check is not built.** The item's **Paid when** does not ask for it.
 - **D016's measure misses longer receivers:** 90 against 105 by a wider search. The spec holds both.
 
+- **D009's call takes an open root.** The two sites differ: credentials open their directory through io's
+  private-file checks, while the generated configuration's directory may be any directory a person named,
+  so a private check there would refuse what runs today. `store_file` serves both, with
+  `StoreDirectory::{Root, Private}` (`skein/docs/design/shell.md`, 6.7). The caller opens the root, so the
+  errors both sites answer stay as they are.
+- **D009 adds lines.** A skein host and its first tests, against two copies smith loses, and the item asks for
+  a new cleanup host too: about +190 in skein, at most -50 in smith, both capped in their specs. Part
+  smith-items may not end below its start, against the request's aim. The tasks' reports give the sum.
+
 ## Critical path
 
-So far: `skein-concat`, then `smith-primitives`.
+So far: `skein-concat`, then `smith-primitives`; `skein-startup-store`, then `smith-startup-writers`.
 
 ## Overlaps
 
