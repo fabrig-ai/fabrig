@@ -213,7 +213,6 @@ pub fn entry(machine: &Machine, forge: u16, kind: BoxKind, directories: &config:
         forge,
         directory: directories.join(config::Directory::Data, &directory(forge, kind)).ok()?,
         bot: Account { login: bytes::copy_of(b"temper"), email: bytes::copy_of(b"temper@localhost") },
-        orgs: Box::new([]),
         mode,
         asked: kind == BoxKind::Owned,
     })

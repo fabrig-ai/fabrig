@@ -1,5 +1,6 @@
-# What the worlds, their tests and harnesses under tests/ may not use: they are
-# ordinary Rust, but a seed must replay to the same run.
+# The conformance kit is ordinary Rust used by worlds (jig/AGENTS.md).
+# It takes the replay bans of jig/tests/clippy.toml instead of the step-code
+# subset in jig/clippy.toml that it would otherwise inherit.
 
 disallowed-types = [
     { path = "std::collections::HashMap", reason = "iteration order depends on a random seed: BTreeMap" },

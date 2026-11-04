@@ -21,7 +21,7 @@ live suite's provider stories are manual, run by the owner (`llm.md`).
 `forge-client.md`, `oauth-issuer.md`, `ui-text.md`, `ui-web.md` and
 `browser.md` have no gap. The state machines of kv, io, channel,
 forge-connection, Forgejo's plans, oauth and its accounts, llm,
-llm-connection, the echo and lib's `RequestTable` depart from
+llm-connection and lib's `RequestTable` depart from
 `../foundation/programming-model.md`, 5.4, and the fakes share their
 product's types against `../foundation/testing-strategy.md`, 4
 (`fake-forge.md`, `fake-llm.md`); single departures stand in

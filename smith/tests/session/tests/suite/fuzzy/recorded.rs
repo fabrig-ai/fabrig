@@ -46,6 +46,7 @@ fn randomized_priced_turns_and_terminal_races() {
                 text: vec![b'v'; usize::try_from(rng.below(64)).expect("the scenario supplied a value")].into(),
                 error: false,
                 spent: child,
+                after: session::After::Complete,
             });
         } else {
             world.step(session::Event::AnswerCancelled { owner, spent: child });

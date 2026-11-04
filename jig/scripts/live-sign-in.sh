@@ -4,8 +4,7 @@
 set -euo pipefail
 umask 077
 cd "$(dirname "$0")/.."
-# The machine's build queue where it has one, plain cargo where it hasn't
-# (agents' docs/design/build-infrastructure.md 12).
+# The machine's build queue where it has one, plain cargo where it hasn't.
 heavy=$(command -v heavy || true)
 printf '%s\n' 'The browser must reach 127.0.0.1:1455 on this machine: ssh -L 1455:127.0.0.1:1455 HOST'
 export NEXTEST_DOUBLE_SPAWN=0
