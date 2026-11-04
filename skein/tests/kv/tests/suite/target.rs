@@ -1,7 +1,9 @@
 //! Snapshot chunks pack to a target, with heap for their rows and one encoding
 //! (skein/docs/design/kv.md, 5, 7 and 9).
 
-use skein_kv::{Event, Limits, Op, Page, Request};
+use skein_fake_machine::Item;
+use skein_heap::Span;
+use skein_kv::{Event, Failure, Limits, Op, Page, Request};
 use skein_kv_tests::world::World;
 use skein_lib::{Duration, Token};
 
@@ -107,15 +109,20 @@ fn many_small_rows_pack_to_the_target() {
     const { assert!(SNAPSHOT_BOUND < CEILING / 4) };
 }
 
-#[test]
-fn a_row_past_the_target_has_a_chunk_of_its_own() {
+fn large_row() -> (World, Vec<u8>, Vec<u8>) {
     let mut world = open(limits());
     let small = vec![b's'; usize::try_from(VALUE_BYTES).expect("small value fits")];
-    let large_len = 3 * TARGET / 2;
-    let large = vec![b'b'; usize::try_from(large_len).expect("large value fits")];
+    let large = vec![b'b'; usize::try_from(3 * TARGET / 2).expect("large value fits")];
     let ops = Box::new([put(b"a", &small), put(b"b", &large), put(b"c", &small)]);
     world.request_no_fire(Request::Commit { owner: OWNER, ops });
     assert_eq!(world.pop(), Event::Committed { owner: OWNER, number: 1 });
+    (world, small, large)
+}
+
+#[test]
+fn a_row_past_the_target_has_a_chunk_of_its_own() {
+    let (mut world, small, large) = large_row();
+    let large_len = u32::try_from(large.len()).expect("large value fits");
     world.drive(true);
     close(&mut world);
     let files = world.files();
@@ -154,4 +161,123 @@ fn a_row_at_the_ceiling_round_trips() {
     assert_eq!(world.pop(), Event::Opened { owner: OWNER, last: 1 });
     read_row(&mut world, &key, &value);
     close(&mut world);
+}
+
+/// Reopen with every recovery read and the whole world's transient heap measured.
+fn recover(world: &mut World, last: u64, bound: u32) -> i64 {
+    let files = world.files();
+    let file_bytes: u64 = files
+        .iter()
+        .filter(|(name, _)| name.as_ref() == b"snapshot" || name.starts_with(b"log-"))
+        .map(|(_, bytes)| u64::try_from(bytes.len()).expect("file size fits"))
+        .sum();
+    world.asked_reads = 0;
+    world.asked_bytes = 0;
+    world.asked_most = 0;
+    let span = Span::start();
+    world.reopen();
+    let grown = span.end();
+    let transient = grown.peak - grown.net;
+    eprintln!(
+        "recovery: peak {} net {}, transient {transient}, bound {bound}, asked_most {}, asked_reads {}, asked_bytes {}",
+        grown.peak, grown.net, world.asked_most, world.asked_reads, world.asked_bytes
+    );
+    assert_eq!(world.pop(), Event::Opened { owner: OWNER, last });
+    assert!(world.asked_most <= TARGET, "read asks {} > {TARGET}", world.asked_most);
+    assert_eq!(world.asked_bytes, file_bytes, "reads total the snapshot and log bytes");
+    assert!(transient <= i64::from(bound), "recovery transient {transient} > {bound}");
+    transient
+}
+
+#[test]
+fn recovery_stays_near_the_target_under_a_large_chunk() {
+    let mut world = small_rows(ROWS);
+    world.drive(true);
+    close(&mut world);
+    let bound = 4 * TARGET + TARGET / 2;
+    let transient = recover(&mut world, ROWS.div_ceil(BATCH), bound);
+    assert!(transient < i64::from(CEILING / 2));
+    let value = vec![b'v'; usize::try_from(VALUE_BYTES).expect("value fits")];
+    for key in (0..ROWS).step_by(64) {
+        read_row(&mut world, &key.to_be_bytes(), &value);
+    }
+    close(&mut world);
+}
+
+#[test]
+fn a_row_past_the_target_recovers_within_its_chunk() {
+    let (mut world, small, large) = large_row();
+    world.drive(true);
+    close(&mut world);
+    let chunk = skein_kv::chunk_bytes(1, u32::try_from(large.len()).expect("large value fits")).expect("chunk fits");
+    recover(&mut world, 1, 2 * TARGET + 2 * chunk + TARGET / 2);
+    for (key, value) in [(b"a", &small), (b"b", &large), (b"c", &small)] {
+        read_row(&mut world, key, value);
+    }
+    close(&mut world);
+}
+
+#[test]
+fn a_frame_longer_than_a_read_replays() {
+    let mut world = open(Limits { snapshot_after: u64::MAX, ..limits() });
+    let value_len = 3 * TARGET / 2;
+    let value = vec![b'b'; usize::try_from(value_len).expect("value fits")];
+    world.request_no_fire(Request::Commit { owner: OWNER, ops: Box::new([put(b"b", &value)]) });
+    assert_eq!(world.pop(), Event::Committed { owner: OWNER, number: 1 });
+    close(&mut world);
+    let files = world.files();
+    assert!(!files.contains_key(&b"snapshot"[..]));
+    assert!(files.keys().any(|name| name.starts_with(b"log-")));
+    let frame = skein_kv::FRAME_BYTES + skein_kv::put_bytes(1, value_len).expect("put fits");
+    recover(&mut world, 1, 3 * TARGET + 2 * frame + TARGET / 2);
+    read_row(&mut world, b"b", &value);
+    close(&mut world);
+}
+
+/// A ceiling-packed snapshot: two 640 KiB rows together exceed the read target.
+fn packed_snapshot(value: &[u8]) -> Vec<u8> {
+    let mut snapshot = b"SKVS".to_vec();
+    snapshot.extend_from_slice(&1_u16.to_be_bytes());
+    snapshot.extend_from_slice(&1_u64.to_be_bytes());
+    snapshot.extend_from_slice(&super::recovery::crc32c(&snapshot).to_be_bytes());
+    let mut chunk = 2_u32.to_be_bytes().to_vec();
+    let value_len = u32::try_from(value.len()).expect("value fits");
+    chunk.extend_from_slice(&(2 * (8 + 1 + value_len)).to_be_bytes());
+    for key in [b'a', b'b'] {
+        chunk.extend_from_slice(&1_u32.to_be_bytes());
+        chunk.extend_from_slice(&value_len.to_be_bytes());
+        chunk.push(key);
+        chunk.extend_from_slice(value);
+    }
+    chunk.extend_from_slice(&super::recovery::crc32c(&chunk).to_be_bytes());
+    assert!(chunk.len() > usize::try_from(TARGET).expect("target fits"));
+    assert!(chunk.len() <= usize::try_from(CEILING).expect("ceiling fits"));
+    snapshot.extend_from_slice(&chunk);
+    let mut trailer = b"SNPE".to_vec();
+    trailer.extend_from_slice(&2_u64.to_be_bytes());
+    trailer.extend_from_slice(&(2 * (1 + u64::from(value_len))).to_be_bytes());
+    trailer.extend_from_slice(&super::recovery::crc32c(&trailer).to_be_bytes());
+    trailer.extend_from_slice(b"END!");
+    snapshot.extend_from_slice(&trailer);
+    snapshot
+}
+
+#[test]
+fn a_chunk_is_read_up_to_the_ceiling() {
+    let value = vec![b'v'; 640 * 1024];
+    let snapshot = packed_snapshot(&value);
+    let mut world = World::untraced(limits(), &[Item::file(b"snapshot", &snapshot)]);
+    recover(&mut world, 0, 2 * TARGET + 2 * (12 + 2 * (9 + 640 * 1024)) + TARGET / 2);
+    for key in [b"a", b"b"] {
+        read_row(&mut world, key, &value);
+    }
+    close(&mut world);
+
+    let mut world = World::untraced(
+        Limits { chunk: TARGET, value: TARGET - 28, ..limits() },
+        &[Item::file(b"snapshot", &snapshot)],
+    );
+    world.request_no_fire(Request::Open { owner: OWNER, root: world.root });
+    assert_eq!(world.pop(), Event::OpenFailed { owner: OWNER, failure: Failure::Corrupt });
+    assert_eq!(world.io.open_files(), 0);
 }
