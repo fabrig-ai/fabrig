@@ -34,7 +34,7 @@ fn main_find(tree: &skein_ui::Tree, role: Role, name: &[u8]) -> skein_ui::NodeId
 #[test]
 fn project_pages_draw_their_heading_in_both_shells() {
     for (address, heading) in [
-        (Address::Home { project: f::PROJECT }, b"Shop".as_slice()),
+        (Address::Home { project: f::PROJECT }, b"You\xe2\x80\x99re set up. Nothing has run yet.".as_slice()),
         (Address::Settings { project: f::PROJECT }, b"Settings for Shop".as_slice()),
     ] {
         let (root, _, _) = f::root_at(address, &f::domain_limits());
@@ -203,4 +203,608 @@ fn subtree(tree: &skein_ui::Tree, id: skein_ui::NodeId) -> &[skein_ui::Node] {
         }
     }
     panic!("subtree root exists")
+}
+
+use jig_client::contract as c;
+use skein_lib::{List, Queue, Token};
+use temper_client_protocol_wire::{self as wire, v1 as w};
+
+fn drive(root: &mut d::Domain, event: d::Event) -> Queue<d::Request> {
+    let mut out = Queue::uncapped();
+    d::step(
+        root,
+        &skein_lib::Env { now: skein_lib::Time::ZERO, wall: f::NOW, limits: f::domain_limits() },
+        event,
+        &mut out,
+    );
+    out
+}
+fn deliver(root: &mut d::Domain, watch: Token, value: c::Delivery) {
+    drive(
+        root,
+        d::Event::Client {
+            event: jig_client::Event::Up {
+                up: jig_client::Up::Watched { watch, event: c::WatchEvent::Delivered(value) },
+            },
+        },
+    );
+}
+fn home_root(rows: List<w::ForgeRow>, configured: bool, chat: bool) -> (d::Domain, Token) {
+    let (mut root, me_watch, _, _, accounts, _) = f::root_at_with_forges(
+        Address::Settings { project: f::PROJECT },
+        &f::domain_limits(),
+        b"Shop",
+        None,
+        None,
+        Some(rows),
+    );
+    let template_root = f::chat::messaging_root();
+    let template_me = template_root.pages().me(template_root.client()).unwrap();
+    let mut me = root.pages().me(root.client()).unwrap().clone();
+    let member = me.projects.get_mut(0).unwrap();
+    member.role = c::HeldRole::Owner;
+    member.templates = template_me.projects.get(0).unwrap().templates.clone();
+    member.models = List::with_capacity(1);
+    member
+        .models
+        .push(c::MeModel {
+            name: c::Text::new(b"gpt-6-luna".as_slice().into(), 32).unwrap(),
+            provider: Some(17),
+            description: None,
+            prices: c::ModelPrices { input: 0, cached: 0, cache_write: None, output: 0, unit: 1 },
+            window: 200_000,
+            output: 16_384,
+            efforts: List::with_capacity(0),
+        })
+        .unwrap();
+    f::deliver_me(&mut root, me_watch, me);
+    let out = drive(&mut root, d::Event::Went { place: d::Place::Address(Address::Home { project: f::PROJECT }) });
+    let mut settings = None;
+    let mut live = None;
+    for request in &out {
+        if let d::Request::Unlinked {
+            request:
+                jig_client::UnlinkedRequest::Down {
+                    down: jig_client::Down::Open { watch, subject: jig_client::Watchable::Jig(subject) },
+                },
+        } = request
+        {
+            match subject {
+                c::Subject::Settings => settings = Some(*watch),
+                c::Subject::Tasks { .. } => live = Some(*watch),
+                c::Subject::Me
+                | c::Subject::Task { .. }
+                | c::Subject::Tree { .. }
+                | c::Subject::Chips { .. }
+                | c::Subject::Inbox { .. }
+                | c::Subject::Run { .. }
+                | c::Subject::Deployment
+                | c::Subject::Accounts => {}
+            }
+        }
+    }
+    let mut lines = List::with_capacity(1);
+    lines
+        .push(c::SettingLine {
+            setting: c::Setting::Rules,
+            name: None,
+            follows: if configured { c::SettingFollows::Change } else { c::SettingFollows::Default },
+            last: None,
+            application: None,
+        })
+        .unwrap();
+    deliver(
+        &mut root,
+        settings.expect("Home settings"),
+        c::Delivery::Settings(Box::new(c::SettingsDocument {
+            newest: 0,
+            settings: lines,
+            held: List::with_capacity(0),
+            pending: List::with_capacity(0),
+        })),
+    );
+    let mut rows = List::with_capacity(1);
+    if chat {
+        rows.push(super::chats::line()).unwrap();
+    }
+    deliver(&mut root, live.expect("Home chats"), c::Delivery::Tasks(Box::new(c::Tasks { rows, more: false })));
+    (root, accounts.unwrap())
+}
+fn forge_rows(in_project: bool) -> List<w::ForgeRow> {
+    let mut rows = super::connect_forge::first_rows(super::connect_forge::connected(), super::connect_forge::made());
+    if in_project {
+        let mut parts = rows.get(0).unwrap().clone().into_parts();
+        parts.repositories = List::with_capacity(1);
+        parts
+            .repositories
+            .push(
+                w::Adoption::new(
+                    &w::CEILINGS,
+                    w::AdoptionParts {
+                        owner: b"work".as_slice().into(),
+                        name: b"hello".as_slice().into(),
+                        project: f::PROJECT,
+                    },
+                )
+                .unwrap(),
+            )
+            .unwrap();
+        *rows.get_mut(0).unwrap() = w::ForgeRow::new(&w::CEILINGS, parts).unwrap();
+    }
+    rows
+}
+fn contains(text: &[u8], words: &str) {
+    assert!(skein_lib::bytes::find(text, words.as_bytes()).is_some(), "missing {words}: {text:?}");
+}
+fn absent(text: &[u8], words: &str) {
+    assert!(skein_lib::bytes::find(text, words.as_bytes()).is_none(), "unexpected {words}");
+}
+#[expect(clippy::disallowed_methods, reason = "test assertions inspect semantic nodes and their event bindings")]
+fn styled(tree: &skein_ui::Tree, style: skein_ui::Style) -> &skein_ui::Node {
+    main_nodes(tree).iter().find(|node| node.styles.as_slice().contains(&style)).expect("styled Home node")
+}
+fn children(nodes: &[skein_ui::Node]) -> Box<[&skein_ui::Node]> {
+    let mut children = List::with_capacity(u32::try_from(nodes.len()).unwrap());
+    let mut at = 1;
+    while at < nodes.len() {
+        children.push(&nodes[at]).unwrap();
+        at = at.checked_add(usize::try_from(nodes[at].size).unwrap()).unwrap();
+    }
+    children.into_boxed()
+}
+fn assert_action(view: &mut crate::View, role: Role, name: &[u8], act: d::pages::Act) {
+    let id = main_find(view.tree(), role, name);
+    let Some(d::Event::Act { action }) = crate::event(view, id, Act::Press) else { panic!("page act event") };
+    assert_eq!(action, d::Action::Pages(act.clone()));
+    assert_eq!(crate::act(view, id, Act::Press), Some(d::Action::Pages(act)));
+}
+
+#[test]
+#[expect(clippy::disallowed_methods, reason = "test assertions inspect semantic nodes and their event bindings")]
+fn home_counts_steps_and_removes_done_acts_in_both_shells() {
+    for configured in [false, true] {
+        for repository in [false, true] {
+            for chat in [false, true] {
+                let (root, _) =
+                    home_root(if repository { forge_rows(true) } else { List::with_capacity(0) }, configured, chat);
+                let left = u8::from(!configured) + u8::from(!repository) + u8::from(!chat);
+                let headline = match left {
+                    3 => "You’re set up. Nothing has run yet.",
+                    2 => "Two things left to begin with.",
+                    1 => "One thing left to begin with.",
+                    0 => "Shop is ready for work.",
+                    _ => unreachable!(),
+                };
+                for view in [f::page_view(&root), f::browser_page_view(&root)] {
+                    main_find(view.tree(), Role::Heading { level: 1 }, headline.as_bytes());
+                    assert_eq!(
+                        main_nodes(view.tree())
+                            .iter()
+                            .filter(|node| node.styles.as_slice().contains(&crate::look::HOME_DONE))
+                            .count(),
+                        usize::from(3 - left)
+                    );
+                    for (role, name, done) in
+                        [(Role::Button, b"Start".as_slice(), configured), (Role::Link, b"New chat", chat)]
+                    {
+                        assert_eq!(
+                            main_nodes(view.tree())
+                                .iter()
+                                .any(|node| node.role == role && node.name.as_deref() == Some(name)),
+                            !done
+                        );
+                    }
+                    let main = f::main_text(view.tree());
+                    contains(
+                        &main,
+                        "In your own words: how you plan, review and land work. temper proposes how it will run that, and nothing changes until you accept.",
+                    );
+                    contains(&main, "Ask a question or ask for a change.");
+                    if repository {
+                        contains(&main, "work/hello is in Shop");
+                        contains(
+                            &main,
+                            "temper can change its code now; checked changes land on main through temper's merge queue.",
+                        );
+                    }
+                }
+                let terminal = printed(&f::page_view(&root));
+                assert!(terminal.strip_prefix(b"== ").unwrap().starts_with(headline.as_bytes()));
+                for words in ["To begin", "1. ", "2. ", "3. ", "Connected"] {
+                    contains(&terminal, words);
+                }
+            }
+        }
+    }
+}
+
+#[expect(clippy::disallowed_methods, reason = "test assertions inspect semantic nodes and their event bindings")]
+fn adopting(root: &mut d::Domain, refused: Option<w::ForgeReason>) {
+    let mut out = drive(root, d::Event::Act { action: d::Action::Pages(d::pages::Act::AdoptFirst) });
+    let mut stored = drive(root, d::Event::Client { event: jig_client::Event::Stored });
+    while let Some(request) = stored.pop() {
+        out.push(request);
+    }
+    if let Some(reason) = refused {
+        let attempt = out
+            .iter()
+            .find_map(|request| match request {
+                d::Request::Unlinked {
+                    request: jig_client::UnlinkedRequest::Down { down: jig_client::Down::Send { attempt, .. } },
+                } => Some(*attempt),
+                d::Request::Client { .. }
+                | d::Request::Unlinked { .. }
+                | d::Request::Show { .. }
+                | d::Request::Leave { .. }
+                | d::Request::SignOut
+                | d::Request::Dropped { .. }
+                | d::Request::Fact { .. } => None,
+            })
+            .expect("adoption request");
+        let answer = w::Answer::new(
+            &w::CEILINGS,
+            w::AnswerParts {
+                outcome: w::Outcome::ForgeRefused(
+                    w::ForgeRefused::new(&w::CEILINGS, w::ForgeRefusedParts { reason }).unwrap(),
+                ),
+            },
+        )
+        .unwrap();
+        drive(
+            root,
+            d::Event::Client {
+                event: jig_client::Event::Up {
+                    up: jig_client::Up::Answer {
+                        attempt,
+                        envelope: skein_lib::RequestEnvelope::Final,
+                        why: None,
+                        answer: Some(jig_client::Answered::Family(jig_client::Family {
+                            family: wire::FORGE,
+                            version: wire::CLIENT_VERSION,
+                            bytes: wire::answer(&answer),
+                        })),
+                    },
+                },
+            },
+        );
+    }
+}
+#[test]
+#[expect(clippy::disallowed_methods, reason = "test assertions inspect semantic nodes and their event bindings")]
+#[expect(clippy::too_many_lines, reason = "the repository state matrix also checks every shared forge refusal")]
+fn home_repository_states_keep_their_words_and_events() {
+    for state in ["offered", "adopting", "refused", "none", "github"] {
+        let mut rows = if state == "none" || state == "github" { List::with_capacity(1) } else { forge_rows(false) };
+        if state == "github" {
+            let mut parts = super::connect_forge::row(
+                2,
+                w::Kind::Github,
+                w::Mode::Managed,
+                super::connect_forge::connected(),
+                w::Offer::NotOffered,
+            )
+            .into_parts();
+            parts.installations = List::with_capacity(1);
+            parts
+                .installations
+                .push(
+                    w::Installation::new(
+                        &w::CEILINGS,
+                        w::InstallationParts {
+                            id: 1,
+                            account: Some(
+                                w::Account::new(
+                                    &w::CEILINGS,
+                                    w::AccountParts { id: 73, login: b"octo".as_slice().into() },
+                                )
+                                .unwrap(),
+                            ),
+                            suspended: false,
+                            stray: false,
+                        },
+                    )
+                    .unwrap(),
+                )
+                .unwrap();
+            rows.push(w::ForgeRow::new(&w::CEILINGS, parts).unwrap()).unwrap();
+        }
+        let (mut root, _) = home_root(rows, false, false);
+        if state == "adopting" || state == "refused" {
+            adopting(&mut root, if state == "refused" { Some(w::ForgeReason::HomeHeld) } else { None });
+        }
+        for mut view in [f::page_view(&root), f::browser_page_view(&root)] {
+            let words = f::main_text(view.tree());
+            contains(&words, "Shop has no repository yet.");
+            if state == "adopting" {
+                contains(&words, "Adopting work/hello into Shop");
+                contains(&words, "Chats can change its code once it is in.");
+                assert!(!main_nodes(view.tree()).iter().any(|node| node.name.as_deref() == Some(b"Adopt work/hello")));
+            } else if state == "offered" || state == "refused" {
+                contains(
+                    &words,
+                    "work/hello, made on your Forgejo at set up, is in no project yet. Until one is in, chats talk and plan but change no code.",
+                );
+                assert_action(&mut view, Role::Button, b"Adopt work/hello", d::pages::Act::AdoptFirst);
+                assert_action(
+                    &mut view,
+                    Role::Link,
+                    "Adopt another…".as_bytes(),
+                    d::pages::Act::Go { address: Address::Adopt { project: f::PROJECT } },
+                );
+                if state == "refused" {
+                    let mut b = skein_ui::Builder::new(&f::tree_limits());
+                    crate::forge::page::outcome(
+                        &mut b,
+                        (b"work", b"hello", b"temper/", b"3"),
+                        &d::forge::Answer::ForgeRefused(d::forge::Reason::HomeHeld),
+                        &f::words(),
+                        512,
+                    );
+                    let expected = f::text(&b.finish());
+                    assert!(skein_lib::bytes::find(&words, &expected).is_some());
+                }
+            } else {
+                contains(&words, "Until one is in, chats talk and plan but change no code.");
+                if state == "github" {
+                    contains(&words, "temper’s App reaches its repositories on octo.");
+                }
+                assert_action(
+                    &mut view,
+                    Role::Link,
+                    b"Adopt",
+                    d::pages::Act::Go { address: Address::Adopt { project: f::PROJECT } },
+                );
+            }
+            contains(&words, "Project Shop · no repository yet");
+            if state != "none" {
+                assert_action(&mut view, Role::Link, b"Forges", d::pages::Act::Go { address: Address::Forges });
+            }
+            assert_action(&mut view, Role::Button, b"Start", d::pages::Act::FirstChat);
+            assert_action(
+                &mut view,
+                Role::Link,
+                b"New chat",
+                d::pages::Act::Go { address: Address::Chats { filter: ChatsFilter::All, start: true } },
+            );
+        }
+        let terminal = printed(&f::page_view(&root));
+        contains(&terminal, if state == "adopting" { "Adopting work/hello into Shop" } else { "Adopt a repository" });
+    }
+    for (wire_reason, reason) in [
+        (w::ForgeReason::NoSuchForge, d::forge::Reason::NoSuchForge),
+        (w::ForgeReason::NotFound, d::forge::Reason::NotFound),
+        (w::ForgeReason::NoAccess, d::forge::Reason::NoAccess),
+        (w::ForgeReason::Refused, d::forge::Reason::Refused),
+        (w::ForgeReason::AnotherProject, d::forge::Reason::AnotherProject),
+        (w::ForgeReason::HomeHeld, d::forge::Reason::HomeHeld),
+        (w::ForgeReason::PrefixOccupied, d::forge::Reason::PrefixOccupied),
+        (w::ForgeReason::InFlight, d::forge::Reason::InFlight),
+        (w::ForgeReason::TooLarge, d::forge::Reason::TooLarge),
+        (w::ForgeReason::Unreachable, d::forge::Reason::Unreachable),
+        (w::ForgeReason::InvalidAnswer, d::forge::Reason::InvalidAnswer),
+    ] {
+        let (mut root, _) = home_root(forge_rows(false), false, false);
+        adopting(&mut root, Some(wire_reason));
+        let mut b = skein_ui::Builder::new(&f::tree_limits());
+        crate::forge::page::outcome(
+            &mut b,
+            (b"work", b"hello", b"temper/", b"3"),
+            &d::forge::Answer::ForgeRefused(reason),
+            &f::words(),
+            512,
+        );
+        let expected = f::text(&b.finish());
+        for view in [f::page_view(&root), f::browser_page_view(&root)] {
+            assert!(skein_lib::bytes::find(&f::main_text(view.tree()), &expected).is_some());
+        }
+    }
+}
+
+#[test]
+#[expect(clippy::disallowed_methods, reason = "test assertions inspect semantic nodes and their event bindings")]
+fn home_outline_matches_the_requested_main_and_terminal_lines_join() {
+    let (mut root, accounts) = home_root(forge_rows(true), false, false);
+    super::accounts::deliver(
+        &mut root,
+        accounts,
+        super::accounts::card_document(b"openai", b"", c::AccountKind::SignIn),
+    );
+    let mut view = f::view_of(f::browser_words());
+    let mut sign_in = crate::forge_sign_in::Forges::new();
+    sign_in.read("3 forgejo http://forge.example:3000 owned");
+    view.forge_sign_in(sign_in);
+    f::build(&mut view, &root);
+    let tree = view.tree();
+    let main = main_nodes(tree);
+    contains(&f::main_text(tree), "ChatGPT plan · gpt-6-luna");
+    assert_eq!(main[0].styles.as_slice(), &[crate::look::MAIN, crate::look::HOME]);
+    let top = children(main);
+    assert_eq!(top.len(), 3);
+    for (node, (style, role)) in top.iter().zip([
+        (crate::look::HOME_INTRO, Role::Slot),
+        (crate::look::HOME_BEGIN, Role::Region),
+        (crate::look::HOME_CONNECTED, Role::Region),
+    ]) {
+        assert_eq!(node.styles.as_slice(), &[style]);
+        assert_eq!(node.role, role);
+    }
+    let intro = children(subtree(tree, top[0].id));
+    assert_eq!(intro.len(), 3);
+    for (node, role) in intro.iter().zip([Role::Paragraph, Role::Heading { level: 1 }, Role::Paragraph]) {
+        assert_eq!(node.role, role);
+    }
+    assert_eq!(intro[0].styles.as_slice(), &[crate::look::HOME_KICKER]);
+    assert_eq!(intro[2].styles.as_slice(), &[crate::look::HOME_LEDE]);
+    contains(
+        &f::node_text(tree, tree.nodes().iter().position(|node| node.id == intro[2].id).unwrap()),
+        "Your agents run on your ChatGPT plan. Forgejo runs on this machine.",
+    );
+    let begin = children(subtree(tree, top[1].id));
+    assert_eq!(begin.len(), 2);
+    assert_eq!(begin[0].role, Role::Heading { level: 2 });
+    assert_eq!(begin[1].role, Role::List);
+    assert_eq!(begin[1].styles.as_slice(), &[crate::look::HOME_STEPS]);
+    let steps = children(subtree(tree, begin[1].id));
+    assert_eq!(steps.len(), 3);
+    for (step, done) in steps.iter().zip([false, true, false]) {
+        assert_eq!(step.role, Role::Item);
+        assert!(step.styles.as_slice().contains(&crate::look::HOME_STEP));
+        assert_eq!(step.styles.as_slice().contains(&crate::look::HOME_DONE), done);
+        let parts = children(subtree(tree, step.id));
+        assert_eq!(parts[0].role, Role::Heading { level: 3 });
+        assert_eq!(parts[1].role, Role::Paragraph);
+        assert_eq!(parts.len(), if done { 2 } else { 3 });
+        if !done {
+            assert_eq!(parts[2].styles.as_slice(), &[crate::look::HOME_ACTS]);
+        }
+    }
+    let connected = children(subtree(tree, top[2].id));
+    assert_eq!(connected[1].styles.as_slice(), &[crate::look::HOME_LINES]);
+    let lines = children(subtree(tree, connected[1].id));
+    assert_eq!(lines.len(), 3);
+    for line in &lines {
+        let parts = children(subtree(tree, line.id));
+        assert_eq!(parts[0].role, Role::Paragraph);
+        assert_eq!(parts.len(), 2);
+        let muted = subtree(tree, parts[0].id)
+            .iter()
+            .find(|node| node.styles.as_slice().contains(&crate::look::HOME_MUTED))
+            .unwrap();
+        assert_eq!(muted.role, Role::Text);
+        assert_eq!(muted.size, 1);
+        assert_eq!(muted.text.len(), 1);
+    }
+    let open = main_find(tree, Role::Link, "Open Forgejo ↗".as_bytes());
+    assert_eq!(
+        tree.nodes().iter().find(|node| node.id == open).unwrap().external.as_ref().unwrap().as_ref(),
+        b"http://forge.example:3000/user/oauth2/temper"
+    );
+    assert_action(&mut view, Role::Link, b"Accounts", d::pages::Act::Go { address: Address::Accounts });
+    let mut terminal = f::view();
+    let mut sign_in = crate::forge_sign_in::Forges::new();
+    sign_in.read("3 forgejo http://forge.example:3000 owned");
+    terminal.forge_sign_in(sign_in);
+    f::build(&mut terminal, &root);
+    let printed = printed(&terminal);
+    contains(&printed, "Forgejo on this machine · connected as temper · work/hello, in Shop\n");
+    contains(&printed, "Project Shop · work/hello\n");
+    absent(&printed, "Change model");
+}
+
+#[test]
+#[expect(clippy::disallowed_methods, reason = "test assertions inspect semantic nodes and their event bindings")]
+fn home_rename_stays_in_connected_and_is_only_offered_to_owners() {
+    let (mut root, _) = home_root(forge_rows(true), false, false);
+    let mut view = f::browser_page_view(&root);
+    assert_action(&mut view, Role::Button, b"Rename", d::pages::Act::Switcher(d::pages::switcher::Act::RenameHere));
+    drive(
+        &mut root,
+        d::Event::Act { action: d::Action::Pages(d::pages::Act::Switcher(d::pages::switcher::Act::RenameHere)) },
+    );
+    assert!(root.pages().switcher().renaming_here());
+    for mut view in [f::page_view(&root), f::browser_page_view(&root)] {
+        let field = main_find(view.tree(), Role::TextField, b"Rename");
+        assert!(
+            subtree(view.tree(), styled(view.tree(), crate::look::HOME_CONNECTED).id)
+                .iter()
+                .any(|node| node.id == field)
+        );
+        assert_eq!(
+            view.tree()
+                .nodes()
+                .iter()
+                .filter(|node| node.role == Role::TextField && node.name.as_deref() == Some(b"Rename"))
+                .count(),
+            1
+        );
+        let Some(d::Event::Act { action }) =
+            crate::event(&view, field, Act::Input { value: b"Renamed".as_slice().into() })
+        else {
+            panic!("rename input event")
+        };
+        assert_eq!(
+            action,
+            d::Action::Pages(d::pages::Act::Switcher(d::pages::switcher::Act::RenameWords {
+                words: b"Renamed".as_slice().into()
+            }))
+        );
+        assert_action(&mut view, Role::Button, b"Save", d::pages::Act::Switcher(d::pages::switcher::Act::Save));
+        assert_action(&mut view, Role::Button, b"Cancel", d::pages::Act::Switcher(d::pages::switcher::Act::Cancel));
+    }
+    drive(&mut root, d::Event::Went { place: d::Place::Address(Address::Settings { project: f::PROJECT }) });
+    assert!(!root.pages().switcher().renaming_here());
+    assert_eq!(root.pages().switcher().renaming(), None);
+    let (mut other, me_watch, _) = f::root_at(Address::Home { project: f::PROJECT }, &f::domain_limits());
+    let mut me = other.pages().me(other.client()).unwrap().clone();
+    me.projects.get_mut(0).unwrap().role = c::HeldRole::Member;
+    f::deliver_me(&mut other, me_watch, me);
+    drive(
+        &mut other,
+        d::Event::Act { action: d::Action::Pages(d::pages::Act::Switcher(d::pages::switcher::Act::RenameHere)) },
+    );
+    assert!(!other.pages().switcher().renaming_here());
+    assert_eq!(other.pages().switcher().renaming(), None);
+    for view in [f::page_view(&other), f::browser_page_view(&other)] {
+        assert!(
+            !main_nodes(view.tree()).iter().any(|node| node.styles.as_slice().contains(&crate::look::PROJECT_RENAME))
+        );
+    }
+}
+
+#[test]
+fn home_kicker_tracks_the_current_day_and_minute() {
+    let (root, _) = home_root(List::with_capacity(0), false, false);
+    let mut view = f::browser_page_view(&root);
+    let kicker = styled(view.tree(), crate::look::HOME_KICKER).name.as_deref().unwrap();
+    contains(kicker, "Thursday 1 January");
+    contains(kicker, "00:00");
+    absent(kicker, "Shop");
+    assert_eq!(view.next_change(), Some(skein_lib::Wall::from_nanos(60_000_000_000)));
+    crate::build(&mut view, &root, skein_lib::Wall::from_nanos(60_000_000_000), &mut Queue::uncapped());
+    contains(styled(view.tree(), crate::look::HOME_KICKER).name.as_deref().unwrap(), "00:01");
+}
+
+#[test]
+fn home_unknown_and_ended_forges_draw_only_known_facts() {
+    let (mut root, _, _, _, _, watch) =
+        f::root_at_with_forges(Address::Home { project: f::PROJECT }, &f::domain_limits(), b"Shop", None, None, None);
+    // An ended watch cannot claim that the project has no repository.
+    let watch = watch.expect("forges watch");
+    drive(
+        &mut root,
+        d::Event::Client {
+            event: jig_client::Event::Up { up: jig_client::Up::WatchEnded { watch, end: c::WatchEnd::NotAllowed } },
+        },
+    );
+    for mut view in [f::page_view(&root), f::browser_page_view(&root)] {
+        let text = f::main_text(view.tree());
+        contains(&text, "Until one is in, chats talk and plan but change no code.");
+        absent(&text, "Shop has no repository yet.");
+        absent(&text, "connected as");
+        assert_action(
+            &mut view,
+            Role::Link,
+            b"Adopt",
+            d::pages::Act::Go { address: Address::Adopt { project: f::PROJECT } },
+        );
+    }
+    let mut root = d::unlinked(&f::domain_limits(), f::SEED);
+    drive(
+        &mut root,
+        d::Event::Start { address: Address::Home { project: f::PROJECT }, kept: List::with_capacity(0), with: None },
+    );
+    for event in [
+        jig_client::Event::StartUnlinked { kept: List::with_capacity(0) },
+        jig_client::Event::SignIn { with: jig_client::With::Transport },
+        jig_client::Event::Up { up: jig_client::Up::Served { served: true, versions: None } },
+    ] {
+        drive(&mut root, d::Event::Client { event });
+    }
+    for view in [f::page_view(&root), f::browser_page_view(&root)] {
+        let text = f::main_text(view.tree());
+        absent(&text, "Adopt a repository");
+        absent(&text, "Until one is in");
+        absent(&text, "has no repository yet");
+        contains(&text, "Nothing has run yet.");
+    }
 }

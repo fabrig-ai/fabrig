@@ -11,6 +11,34 @@ pub const PROJECTS_ACTS: Style = Style { owner: owner(), token: 191 };
 pub const PROJECTS_REPO: Style = Style { owner: owner(), token: 192 };
 /// The additional repository count.
 pub const PROJECTS_MORE: Style = Style { owner: owner(), token: 193 };
+/// Home's home (client/README.md, 3.5).
+pub const HOME: Style = Style { owner: owner(), token: 200 };
+/// Home's intro (client/README.md, 3.5).
+pub const HOME_INTRO: Style = Style { owner: owner(), token: 201 };
+/// Home's kicker (client/README.md, 3.5).
+pub const HOME_KICKER: Style = Style { owner: owner(), token: 202 };
+/// Home's lede (client/README.md, 3.5).
+pub const HOME_LEDE: Style = Style { owner: owner(), token: 203 };
+/// Home's begin (client/README.md, 3.5).
+pub const HOME_BEGIN: Style = Style { owner: owner(), token: 204 };
+/// Home's steps (client/README.md, 3.5).
+pub const HOME_STEPS: Style = Style { owner: owner(), token: 205 };
+/// Home's step (client/README.md, 3.5).
+pub const HOME_STEP: Style = Style { owner: owner(), token: 206 };
+/// Home's acts (client/README.md, 3.5).
+pub const HOME_ACTS: Style = Style { owner: owner(), token: 207 };
+/// Home's primary (client/README.md, 3.5).
+pub const HOME_PRIMARY: Style = Style { owner: owner(), token: 208 };
+/// Home's quiet (client/README.md, 3.5).
+pub const HOME_QUIET: Style = Style { owner: owner(), token: 209 };
+/// Home's connected (client/README.md, 3.5).
+pub const HOME_CONNECTED: Style = Style { owner: owner(), token: 210 };
+/// Home's lines (client/README.md, 3.5).
+pub const HOME_LINES: Style = Style { owner: owner(), token: 211 };
+/// Home's muted (client/README.md, 3.5).
+pub const HOME_MUTED: Style = Style { owner: owner(), token: 212 };
+/// Home's done (client/README.md, 3.5).
+pub const HOME_DONE: Style = Style { owner: owner(), token: 213 };
 /// The frame's banner.
 pub const BANNER: Style = Style { owner: owner(), token: 0 };
 /// The frame's navigation.
@@ -591,20 +619,20 @@ pub const NAMES: Names<'static> = Names {
         b"temper-reserved-197",
         b"temper-reserved-198",
         b"temper-reserved-199",
-        b"temper-reserved-200",
-        b"temper-reserved-201",
-        b"temper-reserved-202",
-        b"temper-reserved-203",
-        b"temper-reserved-204",
-        b"temper-reserved-205",
-        b"temper-reserved-206",
-        b"temper-reserved-207",
-        b"temper-reserved-208",
-        b"temper-reserved-209",
-        b"temper-reserved-210",
-        b"temper-reserved-211",
-        b"temper-reserved-212",
-        b"temper-reserved-213",
+        b"temper-home",
+        b"temper-home-intro",
+        b"temper-home-kicker",
+        b"temper-home-lede",
+        b"temper-home-begin",
+        b"temper-home-steps",
+        b"temper-home-step",
+        b"temper-home-acts",
+        b"temper-home-primary",
+        b"temper-home-quiet",
+        b"temper-home-connected",
+        b"temper-home-lines",
+        b"temper-home-muted",
+        b"temper-home-done",
         b"temper-reserved-214",
         b"temper-reserved-215",
         b"temper-reserved-216",

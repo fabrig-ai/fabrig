@@ -185,7 +185,9 @@ pub(crate) fn switcher(
                     builder.bind(bindings.insert(Act::Project { project: row.project }));
                     builder.close();
                     if selected && place == Place::Banner {
-                        if root.pages().switcher().renaming() == Some(row.project) {
+                        if root.pages().switcher().renaming() == Some(row.project)
+                            && !root.pages().switcher().renaming_here()
+                        {
                             rename_form(builder, root, words, &name, bindings);
                         } else if row.role == jig_client::contract::HeldRole::Owner {
                             builder.open(Role::Button);
@@ -206,7 +208,7 @@ pub(crate) fn switcher(
                     continue;
                 }
                 let name = crate::pages::project_name(Some(me), row.project).expect("open project has a name");
-                if root.pages().switcher().renaming() == Some(row.project) {
+                if root.pages().switcher().renaming() == Some(row.project) && !root.pages().switcher().renaming_here() {
                     rename_form(builder, root, words, &name, bindings);
                 } else if row.role == jig_client::contract::HeldRole::Owner {
                     builder.open(Role::Button);
@@ -279,7 +281,13 @@ fn project_row(b: &mut Builder, root: &Domain, w: &crate::words::Words, project:
     }
 }
 // The switcher's forms (temper/docs/design/client/README.md, 5.3).
-fn rename_form(b: &mut Builder, root: &Domain, words: &crate::words::Words, project: &[u8], bindings: &mut Bindings) {
+pub(crate) fn rename_form(
+    b: &mut Builder,
+    root: &Domain,
+    words: &crate::words::Words,
+    project: &[u8],
+    bindings: &mut Bindings,
+) {
     use crate::words::Word;
     let switcher = root.pages().switcher();
     let pending = switcher.pending().is_some();

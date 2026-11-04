@@ -2,8 +2,7 @@
 
 2026-11-04. Where temper's code lags or departs from [README.md](README.md).
 
-- **Not yet:** 3.5: `Home { project }`,
-  and the rail's project switcher (5.3). 3.4, 5.5: the composer's
+- **Not yet:** the rail's project switcher (5.3). 3.4, 5.5: the composer's
   supplied default, jig's
   `resolved_default`, which neither jig's `Me` nor temper carries. 3.5:
   `Board { project }` with its reordering, and `Changes { project }`: no
@@ -16,7 +15,12 @@
   email for a ChatGPT sign-in, whose account's display is empty, since
   the engine keeps no email: it waits on
   `jig/docs/design/draft/account-facts.md`, 6, its second step.
-  4.4: the picker, which the adoption page does not draw
+  3.5, 11: a project's creation age and its repository's first CI run
+  are not supplied to Home. Its kicker uses the current day and time,
+  and its repository step describes checked changes landing through
+  the merge queue, per the user's answer in the Home task.
+  4.4: Home's GitHub step's repository picker and reached count, and
+  the picker, which the adoption page does not draw
   (`temper-client-view`'s `forge/page.rs`).
   5.5: a plan's first use, its card in the conversation. 3.5, 3.6, 10:
   Delete on a project's settings, confirmed by its name, and jig's
