@@ -233,8 +233,25 @@ watch's subject, its digest (5.4). It needs no key.
 | `settings show charter NUMBER [--revision REVISION]`, `settings show template\|policy NUMBER`, `settings show rules` | one setting's value whole, as the newest reads it, or a charter as held REVISION reads it; with `--json`, the value in the form `settings apply` takes. A REVISION no longer held exits 2, `temper ctl: revision R is no longer held; its record is in temper ctl revision show R, and the held ones in temper ctl settings show` | `setting{kind, number, revision}` |
 | `settings show landing-rule NUMBER [--project PROJECT]`, `settings show forge-charter NUMBER` | one of temper's settings (`../protocol/configuration.md`, 13.2): a landing rule of the deployment's, or of PROJECT's, or one of the forge's charters, 1 the change's and 2 its reviews'; its state from jig's `settings`, its value from the forge's read; with `--json`, the value in the form `settings apply` takes | the forge's `Setting { kind, scope, number }` (`forge.md`, section 9) |
 | `revision show REVISION` | a revision: the revision it was made against, when, who decided it (a party, the release or the first start), the proposal it came from, whether it moved running work, and its items, each set with its value whole (or its size, too large, to read with `settings show`), removed or reset, and what it replaced (`was:` its value whole or its size, its default, removed, or not offered), a project's policy item with the policy it set and the one it replaced, temper's kinds' items with their sizes and the state they replaced alone, the forge keeping those values for a restore (jig's `domain/engine.md`, 17.10); a revision forgotten past the history names the oldest kept | `revision{n}` |
-| `proposal show PROPOSAL` | a proposal of any kind, including its settings review: current values, origins, proposed values and the newest revision, each value whole: one past the review document's bound is read whole with `setting{…, proposal}` (jig's `domain/engine.md`, 17.10) and the current one with `setting{…}`, so a review never shows a value as too large; a decided or withdrawn proposal retains its state | `proposal{proposer, number}`, `setting{…}` |
+| `proposal show PROPOSAL` | a proposal of any kind, including its settings review: current values, origins, proposed values and the newest revision, each value whole: one past the review document's bound is read whole with `setting{…, proposal}` (jig's `domain/engine.md`, 17.10) and the current one with `setting{…}`, so a review never shows a value as too large; a decided or withdrawn proposal retains its state | `proposal{proposer, number}`, `settings`, `setting{…}` |
 | `revision list [--before REVISION]` | the history a page, newest first: each revision's record and its items without values, cut at the page's bound with how many more; the last page says whether older ones were forgotten | `revisions` |
+
+- **A settings proposal's review** derives its groups from the delivered
+  settings values, independently of the proposer's reason: *temper
+  enforces* for the settings other than a charter's instructions and
+  documents, *your agents follow* for those instructions and documents.
+  A charter changing both appears in both groups; each group's entries
+  name their fields and refer to the whole before and after values.
+  Its *Effect* reads `settings` for live-task counts by held revision,
+  explains new work on acceptance, no restarts, stays or moves, conversations
+  at their next run and incompatible tasks retaining their revision.
+  Authority remains current even on a retained charter revision (jig's
+  `domain/engine.md`, 17.4). Counts of tasks eligible to move are not
+  available (`README.md`, section 11). JSON retains the whole values and
+  adds `review.groups` with setting and field references and `review.effect`
+  with held revisions and their live-task counts, the running choices and
+  their default, compatibility conditions and the same explanation. A
+  failed inventory read reports unavailable counts, never a count of zero.
 
 - **A revision's value too large to print** says `too large, N bytes;
   read with settings show charter NUMBER --revision REVISION` for a

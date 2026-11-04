@@ -426,7 +426,7 @@ fn read(argv: &[&str], value: c::ReadValue) -> jig::Printed {
     if let c::ReadValue::Setting(_) = &value {
         newest_for_setting(&mut root, call);
     }
-    root.serve(call, c::ReadResult::Value(value));
+    serve_review(&mut root, call, value);
     while let Some((_, c::Read::Setting(request))) = root.reads.get(&call).cloned() {
         let (_, value) =
             values().into_iter().find(|(setting, _)| *setting == request.setting).expect("fixture setting");
@@ -442,6 +442,12 @@ fn read(argv: &[&str], value: c::ReadValue) -> jig::Printed {
         );
     }
     root.answer(call).expect("read completed")
+}
+fn serve_review(root: &mut fixtures::Harness, call: u32, value: c::ReadValue) {
+    root.serve(call, c::ReadResult::Value(value));
+    if let Some((_, c::Read::Settings)) = root.reads.get(&call) {
+        newest_for_setting(root, call);
+    }
 }
 fn newest_for_setting(root: &mut fixtures::Harness, call: u32) {
     if root.reads.get(&call).expect("setting read").1 == c::Read::Settings {
@@ -1520,6 +1526,22 @@ fn settings_refusals_propose_the_called_tool_without_a_retry_call() {
     }
 }
 
+fn large_charter_review(setting: c::Setting) -> c::ReadValue {
+    let large = c::ReviewValue::TooLarge(c::Size { bytes: 8192 });
+    review_proposal(Some(c::SettingsReview {
+        key: None,
+        newest: 6,
+        cut: false,
+        items: list([c::ReviewItem {
+            setting,
+            edit: c::RevisionItemEdit::Set,
+            now: large.clone(),
+            would_be: large,
+            origin: c::SettingOrigin::Default(c::OriginRevision { revision: 1 }),
+            application: None,
+        }]),
+    }))
+}
 #[test]
 fn proposal_review_reads_both_large_values_whole_and_keeps_refusals_in_place() {
     for json in [false, true] {
@@ -1527,23 +1549,7 @@ fn proposal_review_reads_both_large_values_whole_and_keeps_refusals_in_place() {
             let (setting, value) = values().remove(0);
             let mut root = fixtures::signed_in(fixtures::PARTY);
             let call = root.submit_prepared(fixtures::call(&["proposal", "show", "p73/7"]), json, None);
-            let large = c::ReviewValue::TooLarge(c::Size { bytes: 8192 });
-            root.serve(
-                call,
-                c::ReadResult::Value(review_proposal(Some(c::SettingsReview {
-                    key: None,
-                    newest: 6,
-                    cut: false,
-                    items: list([c::ReviewItem {
-                        setting,
-                        edit: c::RevisionItemEdit::Set,
-                        now: large.clone(),
-                        would_be: large,
-                        origin: c::SettingOrigin::Default(c::OriginRevision { revision: 1 }),
-                        application: None,
-                    }]),
-                }))),
-            );
+            serve_review(&mut root, call, large_charter_review(setting));
             assert_eq!(
                 root.reads.get(&call).expect("now read").1,
                 c::Read::Setting(c::ReadSetting { setting, revision: 6, proposal: None })
@@ -1858,28 +1864,28 @@ fn forge_settings_inventory_names_the_kinds_with_defaults_changes_and_removals()
         assert!(text.contains(line), "{text}");
     }
 }
+fn forge_review() -> c::ReadValue {
+    review_proposal(Some(c::SettingsReview {
+        key: Some(u64::MAX),
+        newest: 5,
+        items: list([c::ReviewItem {
+            setting: c::Setting::Application { kind: 1, scope: 0, number: 1 },
+            edit: c::RevisionItemEdit::Set,
+            now: c::ReviewValue::None,
+            would_be: c::ReviewValue::None,
+            origin: c::SettingOrigin::Default(c::OriginRevision { revision: 1 }),
+            application: None,
+        }]),
+        cut: true,
+    }))
+}
 #[test]
 fn forge_proposal_show_reads_the_reviews_key_and_prints_every_temper_edit() {
     use temper_client_protocol_wire::{self as wire, v1 as w};
     for json in [false, true] {
         let mut root = fixtures::signed_in(fixtures::PARTY);
         let call = root.submit_prepared(fixtures::call(&["proposal", "show", "p73/7"]), json, None);
-        root.serve(
-            call,
-            c::ReadResult::Value(review_proposal(Some(c::SettingsReview {
-                key: Some(u64::MAX),
-                newest: 5,
-                items: list([c::ReviewItem {
-                    setting: c::Setting::Application { kind: 1, scope: 0, number: 1 },
-                    edit: c::RevisionItemEdit::Set,
-                    now: c::ReviewValue::None,
-                    would_be: c::ReviewValue::None,
-                    origin: c::SettingOrigin::Default(c::OriginRevision { revision: 1 }),
-                    application: None,
-                }]),
-                cut: true,
-            }))),
-        );
+        serve_review(&mut root, call, forge_review());
         let w::Read::ProposalItems(query) = forge_query(&root, call) else { panic!("proposal items") };
         assert_eq!(query.key(), u64::MAX, "the review's key, not proposer 73's number 7");
         let record = w::ProposalItemsAnswer::new(
@@ -2093,7 +2099,7 @@ fn a_large_project_policy_review_reads_the_proposed_value_and_keeps_the_current_
         ),
     ] {
         let (mut root, call) = fixtures::read_call(&argv);
-        root.serve(call, c::ReadResult::Value(review.clone()));
+        serve_review(&mut root, call, review.clone());
         let setting = c::Setting::ProjectPolicy { project: 1 };
         assert_eq!(
             root.reads.get(&call).expect("proposed policy read").1,
