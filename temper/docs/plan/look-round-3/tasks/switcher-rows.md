@@ -89,3 +89,16 @@ Options, each pre-approved:
 ## Report
 
 As `notes/common.md`, Your report.
+
+## Rebase (2026-11-04, step merge, foreman look-round-3/switcher-rows/foreman-1)
+
+regenerate project-landing/01.html from the merged recording and renderer.
+The merge conflicts in `temper/docs/design/client/journeys/project-landing/01.html`.
+Branch commit `3baf97d825` adds the switcher panel to its previous Chats print.
+Main commit `82618af6f5` refreshes that journey’s recording and print; its page now shows “Welcome to temper”.
+Integration merge `5e9e9fd3af` preserves that refreshed recording and print.
+Keep the landing target’s recording and the branch’s switcher implementation; resolve the HTML by reprinting with the merged renderer.
+Run `heavy cargo run -p temper-client-journeys`; commit only the task-authorized changed prints.
+Do not restore the old Chats page or insert a rail into the welcome page.
+Verify with `heavy cargo nextest run -p temper-client-journeys --lib -E 'test(=tests::the_committed_journeys_are_their_print)'`.
+Keep the required `Look-request: project-home` trailer on the resolution commit.
