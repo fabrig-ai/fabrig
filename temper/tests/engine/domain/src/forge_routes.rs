@@ -763,7 +763,7 @@ impl World {
                 // The story changes whole rules through the settings entrance.
                 limits.people.amendment_bytes = 2048;
             }
-            if kinds && index == 1 {
+            if (kinds || stock.is_some()) && index == 1 {
                 config.core.kinds = temper_service::stock::kinds(&limits, config.core.connectors[0]);
             }
             (config, limits)
@@ -954,6 +954,33 @@ impl World {
             writes: Vec::new(),
             repository_writes: Vec::new(),
         }
+    }
+
+    /// Choose a deployment owner's authenticated identity before the world's first input.
+    #[must_use]
+    pub fn with_owner_identity(mut self, identity: people::IdentityKey) -> Self {
+        assert_eq!(self.env.now, Time::ZERO, "owner identity precedes startup");
+        for owner in &mut self.restart_config.core.owners {
+            owner.identity = identity.clone();
+        }
+        if !self.restart_config.core.owners.iter().any(|owner| owner.project == people::DEPLOYMENT) {
+            let mut owners = self.restart_config.core.owners.to_vec();
+            owners.push(people::InitialOwner { project: people::DEPLOYMENT, identity });
+            self.restart_config.core.owners = owners.into_boxed_slice();
+            self.env.limits.people.initial_owners = self
+                .env
+                .limits
+                .people
+                .initial_owners
+                .max(u32::try_from(self.restart_config.core.owners.len()).expect("bounded owner roster"));
+        }
+        let mut bootstrap = crate::oracle::config::copy(&self.restart_config);
+        bootstrap.core.kinds = Box::new([]);
+        self.store = crate::fixtures::restored_over(Store::with_limits(&self.env.limits), bootstrap, &self.env.limits);
+        self.events = VecDeque::from([engine::Event::Restart { pending: self.store.pending_generation }]);
+        self.root = engine::Domain::new(crate::oracle::config::copy(&self.restart_config), &self.env.limits)
+            .expect("valid owner identity");
+        self
     }
 
     /// Replace the forge client's admission bounds before the world's first input.
