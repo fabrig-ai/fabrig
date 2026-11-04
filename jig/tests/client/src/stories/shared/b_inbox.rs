@@ -26,18 +26,18 @@ const GROUP_ROWS: u32 = 2;
 pub const CONVERSATIONS: u32 = 4;
 
 #[must_use]
-pub fn proposal_script() -> Box<[Script]> {
-    Box::new([
+pub fn scripts() -> Vec<Box<[Script]>> {
+    let proposal = Box::new([
         Script::Call(Call::ProposeGoal { words: b"First need".as_slice().into(), budget: 2, priority: 0 }),
         Script::Park,
-    ])
-}
-#[must_use]
-pub fn result_scripts() -> Vec<Box<[Script]>> {
-    [b"Older result".as_slice(), b"Newer result".as_slice()]
-        .into_iter()
-        .map(|report| Box::new([Script::Finish { report: report.into() }]) as Box<[Script]>)
-        .collect()
+    ]);
+    let mut scripts: Vec<Box<[Script]>> = vec![proposal.clone(), proposal];
+    scripts.extend(
+        [b"Older result".as_slice(), b"Newer result".as_slice()]
+            .into_iter()
+            .map(|report| Box::new([Script::Finish { report: report.into() }]) as Box<[Script]>),
+    );
+    scripts
 }
 pub fn core(driver: &mut Driver, now: Time, wall: Wall) {
     use jig_fake_parties::{Act, Ask, Party, Role};
