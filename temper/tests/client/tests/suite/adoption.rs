@@ -90,7 +90,7 @@ fn a_reload_with_an_adoption_pending_sends_it_once() {
     let person = world.client(fixtures::PARTY, fixtures::project());
     world.person(
         person,
-        vec![Step::See { find: Find::named(Role::Link, b"Adopt a repository"), within: fixtures::WITHIN }],
+        vec![Step::See { find: Find::exactly_named(Role::Link, b"Settings"), within: fixtures::WITHIN }],
     );
     assert_eq!(world.run(Until::Done).verdict, Verdict::Passed);
     world.fault(FrontFault::NoAnswer);
