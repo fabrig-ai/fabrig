@@ -145,8 +145,8 @@ pub fn account_names(accounts: &crate::kinds::users::Accounts) -> Box<[&[u8]]> {
 }
 pub fn user_rows(first: &[crate::entries::Made], second: &[crate::entries::Made]) -> Expansion {
     kinds::account_expansion(&[
-        (b"a", Map::Users, &[crate::entries::Concrete { fields: first.into(), ..kinds::file(b"free", []) }]),
-        (b"b", Map::Users, &[crate::entries::Concrete { fields: second.into(), ..kinds::file(b"free", []) }]),
+        (b"a", Map::Users, &[crate::entries::Concrete { fields: first.into(), ..kinds::file(b"alice", []) }]),
+        (b"b", Map::Users, &[crate::entries::Concrete { fields: second.into(), ..kinds::file(b"alice", []) }]),
     ])
 }
 pub fn group_with_user(gid: i64) -> Expansion {
@@ -154,9 +154,9 @@ pub fn group_with_user(gid: i64) -> Expansion {
         kinds::account_expansion(&[(
             b"a",
             Map::Users,
-            &[kinds::file(b"free", [kinds::integer(Name::Uid, ACCOUNT_ID)])],
+            &[kinds::file(b"alice", [kinds::integer(Name::Uid, ACCOUNT_ID)])],
         )]),
-        kinds::account_expansion(&[(b"b", Map::Groups, &[kinds::file(b"free", [kinds::integer(Name::Gid, gid)])])]),
+        kinds::account_expansion(&[(b"b", Map::Groups, &[kinds::file(b"alice", [kinds::integer(Name::Gid, gid)])])]),
     ])
 }
 pub fn id_collisions(accounts: &crate::kinds::users::Accounts) -> Box<[Error]> {
@@ -189,5 +189,5 @@ pub fn equal_users() -> Expansion {
 pub const MIN_RANGE_COUNT: i64 = 1;
 
 pub fn first_range() -> crate::kinds::users::User {
-    ranged(b"free", b"a", RANGE_BASE, RANGE_COUNT)
+    ranged(b"alice", b"a", RANGE_BASE, RANGE_COUNT)
 }

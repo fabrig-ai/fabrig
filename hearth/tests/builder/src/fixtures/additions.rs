@@ -1,6 +1,6 @@
 use super::{Asked, File, Rendered, Repository};
 pub const SUBORDINATE: &[File] = &[
-    File { path: "tasks/ci/task.json", mode: 0o644, body: br#"{"users": {"ci": {"subordinate": {"base": 100000, "count": 65536}}, "free": {"uid": 1000, "subordinate": {"base": 165536, "count": 65536}}}}"# },
+    File { path: "tasks/ci/task.json", mode: 0o644, body: br#"{"users": {"ci": {"subordinate": {"base": 100000, "count": 65536}}, "alice": {"uid": 1000, "subordinate": {"base": 165536, "count": 65536}}}}"# },
     File { path: "hosts/x1/x1.json", mode: 0o644, body: br#"{"motd": {}, "ci": {}}"# },
 ];
 pub const DATA_MODE: File = File { path: "tasks/motd/task.json", mode: 0o644, body: br#"{"data":{"journal":{"class":"core","path":"/var/log/journal","mode":"0755","group":"systemd-journal"},"iwd":{"class":"core","path":"/var/lib/iwd","mode":"0700"}},"groups":{"systemd-journal":{"from":"package","gid":999}}}"# };
