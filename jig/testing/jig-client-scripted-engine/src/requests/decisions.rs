@@ -3,7 +3,7 @@ use jig_client_domain::contract::{
     Ask, ChipPhase, ChipPhaseFacts, DecideOn, Decision, DocumentOutcome, DocumentText, Ended, EndedValue,
     EscalationChoice, EscalationDecision, EscalationDecisionRecord, ObjectKey, Phase, ProposalAction, ProposalChoice,
     ProposalHistory, ProposalHistoryState, Proposer, ReadValue, Requester, RetainedAction, RetainedActionSettings,
-    RunStage, Runtime,
+    RunStage, Runtime, Task,
 };
 use skein_lib::Wall;
 
@@ -41,6 +41,7 @@ pub(super) fn repeated(value: &ReadValue, ask: &Ask) -> Option<DocumentOutcome> 
 }
 
 pub(super) fn decided(
+    truth: &crate::Truth,
     value: ReadValue,
     ask: &Ask,
     by: u64,
@@ -49,7 +50,7 @@ pub(super) fn decided(
 ) -> Option<(ReadValue, DocumentOutcome)> {
     match value {
         ReadValue::Proposal(value) => proposal_decided(*value, by, at, how),
-        ReadValue::Escalation(value) => escalation_decided(*value, ask, by, at, how),
+        ReadValue::Escalation(value) => escalation_decided(truth, *value, ask, by, at, how),
         ReadValue::Task(value) => task_released(value, ask),
         ReadValue::Settings(_)
         | ReadValue::Setting(_)
@@ -135,6 +136,7 @@ fn proposal_decided(
 }
 
 fn escalation_decided(
+    truth: &crate::Truth,
     value: jig_client_domain::contract::Escalation,
     ask: &Ask,
     by: u64,
@@ -144,14 +146,14 @@ fn escalation_decided(
     let Ask::Decide { on: DecideOn::Escalation { task, revision, .. }, project } = ask else { return None };
     let (decision, choice) = match how {
         Decision::Accepted | Decision::Released { .. } => (EscalationDecision::Release, EscalationChoice::Released),
-        Decision::Rejected { reason } => {
+        Decision::Rejected { reason } | Decision::LeftHeld { reason } => {
             (EscalationDecision::Reject { reason: reason.clone() }, EscalationChoice::Rejected)
         }
-        Decision::PassedUp | Decision::LeftHeld { .. } => return None,
+        Decision::PassedUp => return None,
     };
     let record = EscalationDecisionRecord {
         project: *project,
-        requester: by,
+        requester: person_who_asked(truth, &value.task),
         task: *task,
         revision: revision.value,
         by,
@@ -167,6 +169,25 @@ fn escalation_decided(
         })),
         DocumentOutcome::EscalationDecided { task: *task, revision: *revision, by, at, choice },
     ))
+}
+
+/// The person a task's requesters reach, or 0 for the deployment
+/// (jig-domain-tasks's `context`).
+fn person_who_asked(truth: &crate::Truth, task: &Task) -> u64 {
+    let mut above = task.requester;
+    for _ in 0..=task.lineage.len() {
+        match above {
+            Requester::Person(person) => return person,
+            Requester::Deployment { .. } => return 0,
+            Requester::Task(parent) => {
+                let Some(ReadValue::Task(parent)) = truth.objects.get(&ObjectKey::Task(parent)) else {
+                    unreachable!("a requester task is present in truth");
+                };
+                above = parent.requester;
+            }
+        }
+    }
+    unreachable!("lineage bounds the requester walk")
 }
 
 fn task_released(mut value: Box<jig_client_domain::contract::Task>, ask: &Ask) -> Option<(ReadValue, DocumentOutcome)> {

@@ -10,7 +10,6 @@ use jig_client_test_domain::Address as RootAddress;
 use jig_client_view::address::Address;
 use skein_lib::{Duration, Wall};
 pub mod client_construction;
-pub mod closing;
 pub mod conversations;
 pub mod goals;
 pub mod own_proposal;
