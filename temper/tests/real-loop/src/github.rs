@@ -302,7 +302,7 @@ impl State {
             domain::repository(&mut domain, &config, setup);
         }
         domain::grant(&mut domain, b"acme/app", APP.bot, api::Permission::Admin);
-        let env = skein_lib::Env { now: clock.now, wall: clock.wall, limits: config };
+        let env = clock.with(config);
         (fixture.prepare)(&mut domain, &env);
         let handle = Rc::new(RefCell::new(Forge::new(domain, env.limits)));
         let wire = protocol_limits();

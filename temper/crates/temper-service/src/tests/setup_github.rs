@@ -534,7 +534,7 @@ fn connected(service: &mut crate::Service, accepted_ids: &[u64], listing: &[u8])
 
 fn minted(service: &mut crate::Service, face: &mut Face) {
     let head = b"HTTP/1.1 201 Created\r\nContent-Length: ";
-    let length = skein_lib::Decimal::of(u64::try_from(MINT.len()).unwrap());
+    let length = skein_lib::Decimal::of(skein_lib::len_u64(MINT.len()));
     let mut bytes = skein_lib::Writer::new(
         head.len()
             .checked_add(length.as_bytes().len())
@@ -574,7 +574,7 @@ fn unaccepted_and_other_account_adoptions_keep_the_wire_reason_gap() {
                 engine.domain.forge_connection(FORGE)
             )
         };
-        // Known gap, temper-07: NotInstalled projects to NoAccess on the family wire.
+        // Known gap (client/README.md, 4.7): NotInstalled projects to NoAccess on the family wire.
         assert_eq!(refusal.reason(), &w::ForgeReason::NoAccess, "{name}");
         assert!(
             service.engine.as_ref().unwrap().domain.forges().rows[0].repositories.is_empty(),

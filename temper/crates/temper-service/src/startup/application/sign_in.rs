@@ -250,9 +250,8 @@ fn members(
             if let (Some(address), Some(login)) = (address, login) {
                 read::form(self::address(&address), path.member(b"address"), problems);
                 read::form(self::login(&login), path.member(b"login"), problems);
-                let identity_bytes = u64::try_from(address.len())
-                    .expect("bounded address")
-                    .saturating_add(u64::try_from(login.len()).expect("bounded login").saturating_mul(2));
+                let identity_bytes =
+                    skein_lib::len_u64(address.len()).saturating_add(skein_lib::len_u64(login.len()).saturating_mul(2));
                 for (limit, bound) in [
                     (b"engine.limits.clients.identity_bytes".as_slice(), jig.limits.clients.identity_bytes),
                     (b"engine.limits.people.identity_bytes", jig.limits.core.people.identity_bytes),

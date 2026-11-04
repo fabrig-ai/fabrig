@@ -149,7 +149,7 @@ fn checks(form: &Form, most: u32) -> Option<&[u32]> {
         Typed::Checks(Some(checks)) => checks,
         Typed::Checks(None) | Typed::Bytes | Typed::Forge(_) => return None,
     };
-    if checks.len() > usize::try_from(most).expect("u32 fits usize") {
+    if checks.len() > skein_lib::usize_of(most) {
         return None;
     }
     for (index, check) in checks.iter().enumerate() {
@@ -235,14 +235,14 @@ pub fn write(form: &mut Form, text: Text, value: Box<[u8]>, typed: Typed, bound:
     let field = form.texts.get_mut(text.index()).expect("six form fields");
     // A refused write also sends the retained value back to the view.
     field.written = field.written.checked_add(1).expect("field writes fit u64");
-    if value.len() > usize::try_from(bound).expect("u32 fits usize") {
+    if value.len() > skein_lib::usize_of(bound) {
         field.broken = Some(Broken::Long { bound });
         return;
     }
     field.text = value;
     field.typed = match typed {
         Typed::Checks(Some(checks)) => {
-            if checks.len() > usize::try_from(most).expect("u32 fits usize") {
+            if checks.len() > skein_lib::usize_of(most) {
                 Typed::Checks(None)
             } else {
                 Typed::Checks(Some(checks))

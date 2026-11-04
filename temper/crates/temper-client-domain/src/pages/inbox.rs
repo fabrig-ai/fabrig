@@ -1,4 +1,4 @@
-//! The inbox owns its reads; watched documents stay in the client (ruling 235).
+//! The inbox owns its reads; watched documents stay in the client.
 use super::Request;
 use crate::{
     Limits,

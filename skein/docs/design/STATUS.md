@@ -1,6 +1,6 @@
 # Status
 
-2026-11-03. Where skein's code lags or departs from its design, and its
+2026-11-04. Where skein's code lags or departs from its design, and its
 design from its drafts, from the status files below. The kernel's
 records of a tree's metadata, the filesystem's status and btrfs's
 subvolumes, and cgroups with contained spawn, are not built, nor their
@@ -13,20 +13,21 @@ routes, `Artifact` and `Commits` among them (`forge.md`,
 `skein-fake-forge-github` and `skein-fake-peers` are not in the gate's
 wasm32 clippy, though they pass it (`testing.md`). json, tls and http's
 collector have no fuzz target (`json.md`, `tls.md`, `http.md`). A few
-items lag in `lib.md`, `examples.md`, `kv.md` and `ui.md`. The code
-departs in three crates' `tests/` directories (`testing.md`) and in
-`skein-playground`'s manifest (`playground.md`), and five of the LLM
-live suite's provider stories are manual, run by the owner (`llm.md`).
+items lag in `lib.md`, `examples.md`, `forge-setup.md`, `kv.md` and
+`ui.md`. The code departs in three crates' `tests/` directories
+(`testing.md`) and in `skein-playground`'s manifest (`playground.md`),
+and five of the LLM live suite's provider stories are manual, run by
+the owner (`llm.md`).
 `README.md`, `codec.md`, `world.md`, `fake-checkout.md`,
 `forge-client.md`, `oauth-issuer.md`, `ui-text.md`, `ui-web.md` and
-`browser.md` have no gap. The state machines of kv, io, channel,
+`browser.md` have no gap. The state machines of io, channel,
 forge-connection, Forgejo's plans, oauth and its accounts, llm,
 llm-connection and lib's `RequestTable` depart from
 `../foundation/programming-model.md`, 5.4, and the fakes share their
 product's types against `../foundation/testing-strategy.md`, 4
 (`fake-forge.md`, `fake-llm.md`); single departures stand in
-`forge-setup.md`, `forge.md`, `forge-connection.md`, `io.md`, `llm.md`,
-`shell.md` and `testing.md`. The foundation's rules
+`forge-setup.md`, `forge-connection.md`, `io.md`, `json.md`, `kv.md`,
+`llm.md`, `shell.md` and `testing.md`. The foundation's rules
 (`../foundation/`) have no status file: of `testing-strategy.md`, 6, no
 tree runs transition coverage (`cargo llvm-cov`) or fuzzes a machine or
 a decoder (`cargo fuzz`). Of the drafts, `component-kit.md` waits on

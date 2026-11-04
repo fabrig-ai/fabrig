@@ -632,7 +632,7 @@ impl World {
                 let mut facts = Queue::uncapped();
                 authority::step(&mut domain, authority::Event::Policy { project: 1, policy }, &mut facts);
                 assert_eq!(facts.pop(), Some(authority::PolicyFact::Added { project: 1 }));
-                // A chat's authority is its role's, one level shallower (jig a2616181).
+                // A chat's authority is its role's, one level shallower.
                 config.core.seed_projects[0].policy.policy = domain.policy(1).expect("configured seed policy").clone();
                 config.core.defaults.rules = domain.rules().clone();
             }
@@ -1189,7 +1189,7 @@ impl World {
         let mut config = self.fake_env.limits;
         config.latency_min = Duration::ZERO;
         config.latency_max = Duration::ZERO;
-        let env = Env { now: self.env.now, wall: self.env.wall, limits: config };
+        let env = self.env.with(config);
         fake::step(
             &mut self.fake,
             &env,
@@ -1361,7 +1361,7 @@ impl World {
                         limits.latency_min = delay;
                         limits.latency_max = delay;
                     }
-                    let fake_env = Env { now: self.fake_env.now, wall: self.fake_env.wall, limits };
+                    let fake_env = self.fake_env.with(limits);
                     fake::step(
                         &mut self.fake,
                         &fake_env,
@@ -1972,7 +1972,7 @@ pub fn change_world_funded(
             depth: 1,
         },
         // Each run's spend must fund its finishing reserve, six with the
-        // world's charter (jig a020bf1c): room for six attempts of five.
+        // world's charter: room for six attempts of five.
         budget: tasks::Budget { spend, deadline: None },
         notes: tasks::Scopes(0),
         note_resources: Box::new([]),

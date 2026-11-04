@@ -294,7 +294,8 @@ a marker (forge.md, section 6).
 - **`Config { namespace, writers }`** holds `Writer { forge, author }`
   entries: none to `repositories` of them, at most one per forge, no
   author 0, the namespace of 1 to 65535 bytes, and both within
-  `op_bytes`. `configured` refuses an invalid one (`TooLarge`). Until a
+  `op_bytes`, each writer counted at `WRITER_BYTES`, 16 bytes on every
+  platform. `configured` refuses an invalid one (`TooLarge`). Until a
   forge has a writer, the client refuses its effects `Forbidden` and
   believes no key of it.
 - **A writer at runtime.** `writer(d, env, Writer { forge, author },

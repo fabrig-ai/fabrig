@@ -59,7 +59,7 @@ pub(crate) fn to_agent(domain: &mut Domain, env: &Env<Limits>, request: host::To
         host::ToAgent::Cancel { agent } => smith::parent::Event::Stop { agent },
         // The hub hands its agent only the LLM accounts' grants, and keeps
         // the application credentials, the git identities, to itself (jig's
-        // domain/hosts.md, 6.2; jig 7ca3c388): the table needs no reading.
+        // domain/hosts.md, 6.2): the table needs no reading.
         host::ToAgent::Grant { agent, grant } => smith::parent::Event::Grant {
             agent,
             grant: translate::grant(grant).expect("the hub forwards only account grants"),
@@ -231,7 +231,7 @@ pub(crate) fn decoded(domain: &mut Domain, env: &Env<Limits>, owner: Token, star
             // (`domain/agent.md`, 4.3), after the protocol decodes the start.
             for call in &mut start.answered {
                 if let smith::SavedReply::Host { body, .. } = &call.reply
-                    && body.len() > usize::try_from(env.limits.reply_bytes).expect("u32 fits usize")
+                    && body.len() > skein_lib::usize_of(env.limits.reply_bytes)
                 {
                     call.reply = smith::SavedReply::TooLarge;
                 }

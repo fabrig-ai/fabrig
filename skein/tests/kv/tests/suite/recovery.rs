@@ -99,6 +99,36 @@ fn snapshot_world(rows: u64, chunk: u32) -> World {
 }
 
 #[test]
+fn a_snapshot_removes_a_recreated_empty_tail_once() {
+    let mut world = World::with_items(Limits { snapshot_after: 1, ..limits() }, &[Item::file(LOG_NAME, b"")]);
+    open(&mut world);
+    assert_eq!(world.pop(), Event::Opened { owner: OWNER, last: 0 });
+    world.request_no_fire(Request::Commit { owner: OWNER, ops: Box::new([put(0)]) });
+    assert_eq!(world.pop(), Event::Committed { owner: OWNER, number: 1 });
+
+    let mut removed = 0;
+    loop {
+        if let Some(skein_io::file::Request::Remove { name, .. }) = world.below.iter().next()
+            && name.as_ref() == LOG_NAME
+        {
+            removed += 1;
+        }
+        if !world.step(true) {
+            break;
+        }
+    }
+    assert_eq!(removed, 1, "the snapshot removes the recreated segment once");
+    assert!(world.above.is_empty(), "snapshot cleanup fails no request: {:?}", world.above);
+    let files = world.files();
+    assert!(files.contains_key(&b"snapshot"[..]));
+    assert!(!files.contains_key(LOG_NAME));
+    read_row(&mut world, 0, 0);
+    world.request(Request::Close { owner: OWNER });
+    assert_eq!(world.pop(), Event::Closed { owner: OWNER });
+    assert_eq!(world.io.open_files(), 0);
+}
+
+#[test]
 fn an_empty_root_opens_within_the_allowance() {
     let mut world = World::untraced(limits(), &[]);
     let span = Span::start();

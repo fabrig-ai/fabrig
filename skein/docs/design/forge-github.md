@@ -56,7 +56,8 @@ fake-forge.md's, sections 10 and 11.
 
 ## 2. What the module holds
 
-By forge.md 4.1's list:
+By forge.md 4.1's list, what holds for both dialects alike sitting at
+the crate's root (forge.md, 4.4):
 
 - **Each request,** as a sized encoder, and **each answer,** as a
   decoder over skein-json's tokens with a bounded stack, keeping only
@@ -90,8 +91,9 @@ The plans hear `github::Head`: the status and the header fields `Date`,
 `x-ratelimit-resource` and `Connection: close`. Each else as forge.md
 4.2 says: `Row`, `Done` with the body, or `Failed` (`Unseen`, `Seen`).
 
-The plans' tables are the module's own, which the component keeps and
-hands them as it does Forgejo's (forge.md, 4.2):
+The plans' tables are the module's own except for the root's logins'
+table (forge.md, 4.4); the component keeps and hands them as it does
+Forgejo's (forge.md, 4.2):
 
 - **A repository's row:** its `owner` and `name` (its path), its
   owner's account id (by which the component chooses the installation,

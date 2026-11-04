@@ -13,6 +13,7 @@ rustls.workspace = true
 
 [target.'cfg(all(target_arch = "wasm32", target_os = "unknown"))'.dependencies]
 ring = { workspace = true, features = ["wasm32_unknown_unknown_js"] }
+rustls-pki-types = { workspace = true, features = ["web"] }
 
 [lints]
 workspace = true

@@ -418,7 +418,7 @@ impl Directory {
             Stage::KeyRead => file::Request::ReadAt {
                 owner: OWNER,
                 file: self.key.expect("key file"),
-                offset: u64::try_from(self.key_bytes.len()).expect("key offset"),
+                offset: skein_lib::len_u64(self.key_bytes.len()),
                 max: self.link_max + 1 - u32::try_from(self.key_bytes.len()).expect("key length"),
             },
             Stage::KeyClose => file::Request::Close { owner: OWNER, file: self.key.expect("key file") },

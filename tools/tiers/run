@@ -8,36 +8,46 @@ import runpy
 from pathlib import Path
 import re
 import shlex
+import signal
 import subprocess
 import sys
 import time
 import tomllib
 
 
-DISK_BYTES = 80_000_000_000
-
-
 class FailedStep(Exception):
     pass
 
 
+def command_prefix(env):
+    """TIERS_WRAPPER, split on spaces (tools/tiers/design.md, 3); empty when unset."""
+    return env.get("TIERS_WRAPPER", "").split()
+
+
 def wait_for_disk(env):
+    minimum = env.get("TIERS_DISK_BYTES")
+    if not minimum:
+        return
+    if not (minimum.isascii() and minimum.isdigit()):
+        raise ValueError(f"TIERS_DISK_BYTES is no number of bytes: {minimum}")
+    minimum = int(minimum)
     while True:
         result = subprocess.run(["df", "-B1", "--output=avail", "/"],
                                 check=True, text=True, capture_output=True, env=env,
                                 stdin=subprocess.DEVNULL)
         available = int(result.stdout.splitlines()[-1].strip())
-        if available >= DISK_BYTES:
+        if available >= minimum:
             return
         print(f"tiers: waiting for disk: {available} bytes available; "
-              f"need {DISK_BYTES}; checking in 60s", flush=True)
+              f"need {minimum}; checking in 60s", flush=True)
         time.sleep(60)
 
 
-def step(name, command, env, *, heavy=True):
+def step(name, command, env, *, wrapped=True):
     try:
-        if heavy:
+        if wrapped:
             wait_for_disk(env)
+            command = [*command_prefix(env), *command]
         print(f"tiers: {name}: {shlex.join(command)}", flush=True)
         return subprocess.run(command, env=env, stdin=subprocess.DEVNULL).returncode
     except (OSError, ValueError, subprocess.SubprocessError) as error:
@@ -45,7 +55,7 @@ def step(name, command, env, *, heavy=True):
 
 
 def build(name, arguments, env):
-    code = step(name, ["heavy", "cargo", "build", *arguments], env)
+    code = step(name, ["cargo", "build", *arguments], env)
     if code:
         raise FailedStep(f"{name}: exit {code}")
 
@@ -85,7 +95,7 @@ def bundle(tree, target, env):
     command = [str(target / "debug/skein-ui-bundle"),
                "--module", str(target / "wasm32-unknown-unknown/debug" / f"{module}.wasm"),
                "--name", module, "--prefix", "/bundle/", *options, "--out", str(out)]
-    code = step("browser bundle", command, env, heavy=False)
+    code = step("browser bundle", command, env, wrapped=False)
     if code:
         raise FailedStep(f"browser bundle: exit {code}")
     env[variable] = str(out)
@@ -134,14 +144,13 @@ def selected_tests(listing):
 
 def list_tests(profile, selection, env):
     name = f"list {profile} {'workspace' if selection == ['--workspace'] else 'packages'}"
-    command = ["heavy", "cargo", "nextest", "list", *selection,
+    command = [*command_prefix(env), "cargo", "nextest", "list", *selection,
                "--profile", profile, "--message-format", "json"]
     try:
         wait_for_disk(env)
         print(f"tiers: {name}: {shlex.join(command)}", flush=True)
-        # Heavy wraps stdout with its evidence and normally tails it. Preserve the
-        # entire JSON document, including when nextest pretty-prints it.
-        result = subprocess.run(command, env=dict(env, HEAVY_TAIL=str(sys.maxsize)),
+        # A wrapper may print around the JSON, which may be pretty-printed.
+        result = subprocess.run(command, env=env,
                                 stdin=subprocess.DEVNULL, text=True, stdout=subprocess.PIPE)
         if result.returncode:
             print(result.stdout, end="", flush=True)
@@ -253,9 +262,18 @@ def main(argv=None):
                     matches = False
             return 0 if matches else 1
         target = None
-        if (args.tier == "browser" and args.tree in ("skein", "jig", "temper")) or profile == "qa-temper":
+        if args.tier == "browser" and args.tree in ("skein", "jig", "temper"):
             target = target_directory(env)
             bundle(args.tree, target, env)
+            if profile == "browser-temper":
+                playground = target / "temper-playground"
+                started = time.monotonic()
+                code = step("playground bundle", ["temper/scripts/bundle.sh", "--playground", str(playground)],
+                            dict(env, CARGO_TARGET_DIR=str(target)))
+                if code:
+                    raise FailedStep(f"playground bundle: exit {code}")
+                print(f"tiers: playground bundle built in {time.monotonic() - started:.3f}s", flush=True)
+                env["TEMPER_TEST_PLAYGROUND"] = str(playground)
         elif any("env" in binary for binary in binary_map[profile]):
             target = target_directory(env)
         for binary in binary_map[profile]:
@@ -264,25 +282,29 @@ def main(argv=None):
             if "env" in binary:
                 env[binary["env"]] = str(target / "debug" / binary["bin"])
         if args.cpu:
-            # The conditional C prerequisite shares admission with Cargo binaries;
+            # The conditional C prerequisite shares the disk wait with Cargo binaries;
             # per-pair Cargo entries apply even when CPU collection is disabled.
             if target is None:
                 target = target_directory(env)
             wrapper = target / "tiers-cpu-wrapper"
             target.mkdir(parents=True, exist_ok=True)
-            code = step("CPU wrapper", ["heavy", "cc", "-std=c11", "-O2", "-static", "-Wall", "-Wextra", "-Werror",
+            code = step("CPU wrapper", ["cc", "-std=c11", "-O2", "-static", "-Wall", "-Wextra", "-Werror",
                         "tools/tiers/cpu-wrapper.c", "-o", str(wrapper)], env)
             if code:
                 raise FailedStep(f"CPU wrapper: exit {code}")
-        command = ["heavy", "cargo", "nextest", "run", *package_arguments(package_map[profile]), "--profile", profile,
+        selection = [*package_arguments(package_map[profile]), "--profile", profile,
                    "--no-fail-fast", *extra]
         if args.cpu:
             overlay = cpu["prepare"](args.cpu, profile, wrapper)
-            command = [*command[:4], *overlay, *command[4:]]
+            command = [*command_prefix(env), "cargo", "nextest", "run", *overlay, *selection]
             wait_for_disk(env)
             print(f"tiers: nextest: {shlex.join(command)}", flush=True)
+            def interrupt(signum, frame):
+                raise KeyboardInterrupt
+            signal.signal(signal.SIGTERM, interrupt)
+            signal.signal(signal.SIGHUP, interrupt)
             return cpu["execute"](command, env, args.cpu, profile, limits)
-        return step("nextest", command, env)
+        return step("nextest", ["cargo", "nextest", "run", *selection], env)
     except (FailedStep, OSError, ValueError, KeyError, TypeError) as error:
         print(f"tiers: failed step {error}", file=sys.stderr)
         return 2

@@ -140,14 +140,14 @@ snapshot removes them with its own.
   `Limits::snapshot_after`, which is a ceiling only. The bound holds both
   the disk a store keeps, its snapshot and less than the bound of log,
   and the replay a restart does: a store of a few KB keeps under 64 KiB
-  of log, and a store whose map churns in place never more than twice
-  its map, whatever its limits. While a snapshot runs, the log before
-  its start stays until it finishes.
+  of log, and a larger one whose map churns in place never more than
+  twice its map, whatever its limits. While a snapshot runs, the log
+  before its start stays until it finishes.
 - **Across restarts:** the frames a recovery replays count toward the
   next snapshot's bound, so a store reopened past its bound snapshots
   once it is open, and restarts never let segments pile up. Closing
-  takes no snapshot: a close stays quick, and the next open counts what
-  it replays.
+  starts no snapshot, and finishes one already running: a close past
+  the bound stays quick, and the next open counts what it replays.
 - **Fuzzy, so nothing is frozen.** Frames carry whole values, puts and
   erases, so applying a frame twice is harmless. A snapshot records the
   next commit number as it starts, S, then writes the live map in key
@@ -257,10 +257,10 @@ failed syncs.
   moves the format's version.
 - **What it pays for:** an open asks reads totalling the bytes of the
   files it reads, whatever the chunk; a store whose map churns in place
-  keeps its log within its bound (section 5), across restarts and a
-  crash at each step of a snapshot too; recovery's transient heap stays
-  within a read and a frame or snapshot chunk, whatever the retained
-  log's length.
+  keeps its log within its bound and a segment (section 5), across
+  restarts too; a crash at each step of a snapshot leaves no segment
+  past the next snapshot; recovery's transient heap stays within a read
+  and a frame or snapshot chunk, whatever the retained log's length.
 - **Over the real ring:** a scratch-directory integration test commits,
   closes, reopens on the same root descriptor and verifies the value. A
   killed process leaves the page cache, so the ring shows integration,
@@ -360,6 +360,12 @@ around it:
   stores sharing a sync; reads at one commit across pages, for a
   consistent view of many; `Load` in reverse order, where reversed keys
   do not serve.
+- A rollover's `Close` answered `Failed` goes as a failed write does
+  (section 4), but the simulator fails no `Close`, so no test reaches
+  it. Later: that fault, beside `io_error`.
+- A deployment's budgets are a later design: a configured ceiling on its
+  memory and its store, from which `Limits` are derived, beside
+  section 7's rule that a store pays for what it holds.
 - When the dataset outgrows memory, retention comes first, then values
   on disk: keys in memory with where their values lie, values read by
   offset, compaction in place of snapshots, and the index rebuilt at

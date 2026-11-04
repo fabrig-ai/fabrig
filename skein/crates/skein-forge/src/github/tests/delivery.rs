@@ -1,7 +1,6 @@
 use super::fixtures::{SHA, delivery_decode, limits};
 use crate::{
     api,
-    forgejo::document::Body,
     github::{
         decode::Malformed,
         delivery::{self, Account, Change, Ci, Delivery, Pull},
@@ -10,6 +9,7 @@ use crate::{
         server,
     },
     marker,
+    text::Body,
 };
 use skein_json::{
     tokenizer,
@@ -469,8 +469,9 @@ fn github_delivery_logged_payload_decodes() {
     );
     let mut relaxed = limits();
     relaxed.json.depth = DEPTH.saturating_add(1);
+    assert_eq!(delivery::decode(b"issues", &nested_payload(relaxed.json.depth), &relaxed), Ok(read(b"issues", ISSUE)));
     assert_eq!(
-        delivery::decode(b"issues", &nested_payload(DEPTH.saturating_add(1)), &relaxed),
+        delivery::decode(b"issues", &nested_payload(relaxed.json.depth.saturating_add(1)), &relaxed),
         Err(Malformed::Json(tokenizer::Error::TooDeep))
     );
 }

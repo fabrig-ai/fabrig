@@ -48,7 +48,7 @@ pub fn worker(document: &Document, at: u32, directories: &Directories) -> Result
     let Some(mut object) = check::object(document, at, &path, &mut problems, "worker") else {
         return Err(problems);
     };
-    let mut limits = profile(Profile::Small);
+    let mut limits = profile(Profile::Standard);
     if let Some(at) = object.required(document, b"limits", &path, &mut problems) {
         let parsed = overrides::parse(document, at, &path.member(b"limits"));
         limits = parsed.limits;

@@ -1239,8 +1239,13 @@ with a person in front of a tree, are view.md's, 18.10.
     until it parks, and is idle meanwhile (`../../domain/engine.md`,
     7.4). The party it waits on is the signed-in one where it names
     them, or a role `me` says they hold in the chat's project; any other
-    is another party. How each status is said is the presentation's
-    (the reference UI's: pages.md, section 4);
+    is another party. The helper reads whatever chip it is given and
+    never aborts on one: a record missing what its phase names is the
+    link's to refuse (`../../protocol/client.md`, section 3), and a chip
+    built past the link with no end time ends at its phase's `since`,
+    and one backing off with no notice says until when alone. How each
+    status is said is the presentation's (the reference UI's: pages.md,
+    section 4);
   - *an act's offer and effect:* the engine's admission of the act, as
     the document offers it (made, proposable and to whom, bounded, or
     refused; contract.md, 5.3), and what a decision will do, where the

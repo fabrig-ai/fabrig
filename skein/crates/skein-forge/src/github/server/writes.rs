@@ -6,10 +6,7 @@ use skein_json::{
     tokenizer::{self, Event},
     writer::Encoder,
 };
-use skein_lib::{
-    Env, Intake, List, Overflow, Queue, Time, Wall, Writer,
-    stream::{Down, Up},
-};
+use skein_lib::{List, Overflow, Writer, bytes};
 
 /// Repository write paths carry placeholders until `write_body` decodes the body.
 pub(super) fn route(method: super::Method, path: &[u8]) -> Option<Request> {
@@ -54,7 +51,7 @@ pub(super) fn route(method: super::Method, path: &[u8]) -> Option<Request> {
     }
     if let Some(tail) = tail.strip_prefix(b"pulls/") {
         let (number, suffix) = super::split(tail, b'/');
-        let number = super::unsigned(number)?;
+        let number = bytes::decimal(number)?;
         return match suffix {
             b"merge" if method == super::Method::Put => Some(Request::Merge {
                 owner,
@@ -87,7 +84,7 @@ pub(super) fn route(method: super::Method, path: &[u8]) -> Option<Request> {
     }
     let tail = tail.strip_prefix(b"issues/")?;
     let (number, suffix) = super::split(tail, b'/');
-    let number = super::unsigned(number)?;
+    let number = bytes::decimal(number)?;
     match suffix {
         b"" if method == super::Method::Patch => Some(Request::Edit { owner, name, number, title: None, body: None }),
         b"comments" if method == super::Method::Post => {
@@ -335,37 +332,18 @@ fn parse(body: &[u8], specs: &[Field], limits: &Limits) -> Option<Fields> {
     if u64::try_from(body.len()).ok()? > u64::from(limits.body_bytes) {
         return None;
     }
-    let env = Env { now: Time::ZERO, wall: Wall::EPOCH, limits: limits.json };
-    let mut tokenizer = tokenizer::Tokenizer::new(&limits.json);
+    let mut feed = tokenizer::Feed::new(body, &limits.json);
     let mut parser = Parser {
         want: Want::Start,
         variables: false,
         has_variables: false,
         fields: Fields { values: List::with_capacity(u32::try_from(specs.len()).ok()?), logins: None },
     };
-    let mut above = Queue::uncapped();
-    let mut below = Queue::uncapped();
-    let mut intake =
-        Intake::with_capacity(u32::try_from(body.len()).ok()?.max(tokenizer::largest_demand(&limits.json)));
-    intake.append(body).ok()?;
-    tokenizer::down(&mut tokenizer, &env, tokenizer::Request::Next, &mut above, &mut below);
-    for _ in 0..body.len().checked_mul(8)?.checked_add(64)? {
-        if let Some(event) = above.pop() {
-            let demand = parser.event(event, specs, limits)?;
-            if demand == tokenizer::Request::Close {
-                return Some(parser.fields);
-            }
-            tokenizer::down(&mut tokenizer, &env, demand, &mut above, &mut below);
-        } else {
-            let read = match below.pop()? {
-                Down::Demand { read, room: 0 } => read,
-                Down::Demand { .. } | Down::Send(_) | Down::Finish => return None,
-            };
-            let event = match intake.meet(read) {
-                Some(bytes) => Up::Bytes(bytes),
-                None => Up::End,
-            };
-            tokenizer::up(&mut tokenizer, &env, event, &mut above, &mut below);
+    let mut request = tokenizer::Request::Next;
+    for _answer in 0..=body.len() {
+        request = parser.event(feed.answer(request), specs, limits)?;
+        if request == tokenizer::Request::Close {
+            return Some(parser.fields);
         }
     }
     None

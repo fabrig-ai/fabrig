@@ -137,7 +137,7 @@ fn encoded(records: Records) -> Result<Vec<Vec<u8>>, String> {
 #[test]
 fn observations() {
     let root = scratch("fake-check-observations");
-    let bound = usize::try_from(temper_fake::limits::OBSERVATION_BYTES).expect("u32 fits usize");
+    let bound = skein_lib::usize_of(temper_fake::limits::OBSERVATION_BYTES);
     // Exactly one byte beyond the line bound (including LF).
     let mut overlong = vec![b'x'; bound];
     overlong.push(b'\n');

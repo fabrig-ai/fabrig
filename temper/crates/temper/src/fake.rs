@@ -288,7 +288,7 @@ impl Created {
         {
             return Err(format!("{}: output changed while opening", path.display()));
         }
-        let bound = u64::try_from(expected.len()).expect("bounded output").checked_add(1).expect("output bound");
+        let bound = skein_lib::len_u64(expected.len()).checked_add(1).expect("output bound");
         let mut content = Vec::new();
         file.take(bound).read_to_end(&mut content).map_err(|why| format!("{}: {why}", path.display()))?;
         if content != expected {
@@ -567,10 +567,9 @@ fn host_operations(peer: &Peer, control: Option<&control::Control>) -> u32 {
         .checked_add(2 + control.map_or(0, |_| control::Control::operations()))
         .expect("peer, control and signals")
 }
-// Both own tokens have slot u32::MAX, which io never issues: at skein
-// 9d34791e, crates/skein-io/src/layer.rs:291-303 uses Id::token;
-// crates/skein-lib/src/id.rs:41-44 puts the slot in the high half, and
-// crates/skein-lib/src/slab.rs:49-56 allocates only 0..capacity (u32).
+// Both own tokens have slot u32::MAX, which io never issues: skein-io's layer
+// uses Id::token, skein-lib's Id puts the slot in the high half, and its slab
+// allocates only 0..capacity (u32).
 const SIGNAL: Token = Token::new(u64::MAX);
 const CANCEL_SIGNAL: Token = Token::new(u64::MAX - 1);
 #[derive(PartialEq, Eq)]
@@ -628,7 +627,7 @@ impl Host {
         }
     }
     /// The host has ended sending after an unwritten pass: `BrokenPipe`, as
-    /// after this side's Shutdown (skein 9d34791e, crates/skein-io/src/kernel.rs:809-812).
+    /// after this side's Shutdown.
     /// Unlike `Cancelled`, this reaches `broken` in `open_sent` and `Flush::Done` in
     /// `closing_sent` (crates/skein-io/src/stream.rs:1186-1190,1364-1366).
     /// The protocol closes a failed stream; `Close` on `Broken` cancels its `Recv`,

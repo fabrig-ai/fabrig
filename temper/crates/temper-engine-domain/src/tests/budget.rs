@@ -183,7 +183,7 @@ fn replacing_a_turn_write_releases_only_the_old_body_and_issue_releases_the_new_
 fn turn_root() -> (Domain, Env<Limits>) {
     let (mut domain, env) = resume_fixture::root();
     let mut out = Queue::uncapped();
-    let task_env = Env { now: env.now, wall: env.wall, limits: env.limits.tasks };
+    let task_env = env.with(env.limits.tasks);
     for event in [
         tasks::Event::Restored,
         tasks::Event::OpenPeriod { reply_to: ReplyTo::new(Token::new(2)), project: 1, period: 1, budget: 100 },

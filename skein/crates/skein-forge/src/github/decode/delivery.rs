@@ -8,13 +8,10 @@ use super::{
     Malformed,
     walk::{Move, Payload, Walk},
 };
-use crate::forgejo::document::Body;
+use crate::text::Body;
 use alloc::boxed::Box;
 use skein_json::{Token, tokenizer};
-use skein_lib::{
-    Env, Queue, Time, Wall, bytes,
-    stream::{Down, Read, Up},
-};
+use skein_lib::bytes;
 
 #[derive(Clone, PartialEq, Eq, Hash, Debug)]
 pub enum Step {
@@ -267,7 +264,7 @@ impl Decoder {
     }
 }
 fn unsigned(text: &[u8]) -> u64 {
-    crate::forgejo::id::unsigned(text).expect("walker checked integer")
+    bytes::decimal(text).expect("walker checked integer")
 }
 
 /// Reads one whole payload with the same streaming decoder and bounded input pieces.
@@ -278,45 +275,13 @@ pub fn decode(event: &[u8], body: &[u8], limits: &Limits) -> Result<Delivery, Ma
     if body.len() > usize::try_from(limits.json.length).expect("u32 fits usize") {
         return Err(Malformed::Json(tokenizer::Error::TooLong));
     }
-    let env = Env { now: Time::ZERO, wall: Wall::EPOCH, limits: limits.json };
-    let mut tokenizer = tokenizer::Tokenizer::new(&limits.json);
-    let mut above = Queue::uncapped();
-    let mut below = Queue::uncapped();
-    tokenizer::down(&mut tokenizer, &env, first(&decoder), &mut above, &mut below);
-    let mut at = 0_usize;
-    for _tick in 0..body.len().saturating_mul(8).saturating_add(64) {
-        if let Some(event) = above.pop() {
-            match decoder.step(event) {
-                Step::Demand(demand) => tokenizer::down(&mut tokenizer, &env, demand, &mut above, &mut below),
-                Step::Done(delivery) => return Ok(delivery),
-                Step::Malformed(error) => return Err(error),
-            }
-        } else {
-            let read = match below.pop().expect("tokenizer demand") {
-                Down::Demand { read, .. } => read,
-                Down::Send(_) | Down::Finish => unreachable!("tokenizer only reads"),
-            };
-            let remaining = body.get(at..).expect("input position");
-            let count = match read {
-                Read::Fill(count) => usize::try_from(count).expect("u32 fits usize"),
-                Read::Scan { until, max } => {
-                    let max = usize::try_from(max).expect("u32 fits usize");
-                    let scanned = remaining.get(..remaining.len().min(max)).expect("bounded scan");
-                    match bytes::find(scanned, until.as_bytes()) {
-                        Some(position) => position.saturating_add(until.as_bytes().len()),
-                        None => max,
-                    }
-                }
-                Read::Nothing | Read::Line { .. } | Read::Arrived { .. } => unreachable!("tokenizer fills or scans"),
-            };
-            let delivery = if count <= remaining.len() {
-                let bytes = bytes::copy_of(remaining.get(..count).expect("bounded piece"));
-                at = at.checked_add(count).expect("position within body");
-                Up::Bytes(bytes)
-            } else {
-                Up::End
-            };
-            tokenizer::up(&mut tokenizer, &env, delivery, &mut above, &mut below);
+    let mut feed = tokenizer::Feed::new(body, &limits.json);
+    let mut request = first(&decoder);
+    for _answer in 0..=body.len() {
+        match decoder.step(feed.answer(request)) {
+            Step::Demand(demand) => request = demand,
+            Step::Done(delivery) => return Ok(delivery),
+            Step::Malformed(error) => return Err(error),
         }
     }
     Err(Malformed::Json(tokenizer::Error::Unexpected))

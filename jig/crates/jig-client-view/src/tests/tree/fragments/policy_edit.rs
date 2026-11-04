@@ -16,14 +16,7 @@ fn shown(value: &PolicyEdit) -> skein_ui::Tree {
         depth: required.depth.checked_add(1).unwrap(),
         text_per_node: required.text_per_node,
         text_bytes: required.text_bytes,
-        drawing_bytes: 0,
-        styles_per_node: 0,
-        patches: 0,
-        bindings: 0,
-        slots: 0,
-        markdown_depth: 0,
-        scene_marks: 0,
-        scene_bytes: 0,
+        ..skein_ui::Limits::EMPTY
     });
     b.open(Role::Page);
     policy_edit::render(

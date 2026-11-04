@@ -6,14 +6,15 @@ use crate::{ChatState, CredentialFailure};
 use alloc::boxed::Box;
 use skein_lib::{Map, Rng, Time};
 use smith_domain::run::Identity;
+use smith_host_domain::Transcript;
 
 /// One invocation's chat phase and the data held until its next transition.
 #[derive(Debug)]
 pub(crate) enum State {
     /// Waiting for the store's typed transcript.
     Loading(Load),
-    /// Ready for a person line or exit.
-    Idle,
+    /// Ready for a person line or exit, holding what the next start hands over.
+    Idle { history: Option<Transcript> },
     /// Saving names and obtaining grants before the child starts.
     Starting(Starting),
     /// Child run is live and can receive named messages.
@@ -29,6 +30,7 @@ pub(crate) enum State {
 /// The admission work retained before spawning the child.
 #[derive(Debug)]
 pub(crate) struct Starting {
+    pub(crate) history: Option<Transcript>,
     pub(crate) grants: Grants,
     pub(crate) grant_failed: Option<(u32, CredentialFailure)>,
     pub(crate) saved: bool,
@@ -56,18 +58,30 @@ pub(crate) enum HeadSurvey {
 pub(crate) enum Load {
     Ready,
     Waiting,
+    /// Loaded: saved intents settle before the chat is idle.
+    Settling {
+        history: Option<Transcript>,
+    },
+    /// A selection runs; a refusal returns to this history.
+    Selecting {
+        history: Option<Transcript>,
+    },
 }
 
-#[derive(Debug)]
+#[derive(Clone, Copy, Debug)]
 enum Metadata {
     Ready,
     Pending,
 }
 
-#[derive(Debug)]
+#[derive(Clone, Copy, Debug)]
 enum Input {
     Open,
     Closed,
+    /// The person closed interactive input: lines drain through activation `last`.
+    Draining {
+        last: u64,
+    },
 }
 
 /// Durable metadata and independent store/input terminal rights.
@@ -97,9 +111,9 @@ impl Chat {
         match &self.phase {
             State::Loading(load) => match load {
                 Load::Ready => false,
-                Load::Waiting => true,
+                Load::Waiting | Load::Settling { .. } | Load::Selecting { .. } => true,
             },
-            State::Idle
+            State::Idle { .. }
             | State::Starting(_)
             | State::Running { .. }
             | State::Ending(_)
@@ -112,14 +126,26 @@ impl Chat {
         let state = core::mem::replace(&mut self.phase, State::Done);
         self.phase = match state {
             State::Loading(Load::Ready) => State::Loading(Load::Waiting),
-            State::Loading(Load::Waiting)
-            | State::Idle
+            State::Loading(Load::Waiting | Load::Settling { .. } | Load::Selecting { .. })
+            | State::Idle { .. }
             | State::Starting(_)
             | State::Running { .. }
             | State::Ending(_)
             | State::Answered { .. }
             | State::Done => unreachable!("one request owns the selected chat's load"),
         };
+    }
+
+    pub(crate) fn take_idle(&mut self) -> Option<Transcript> {
+        match core::mem::replace(&mut self.phase, State::Done) {
+            State::Idle { history } => history,
+            State::Loading(_)
+            | State::Starting(_)
+            | State::Running { .. }
+            | State::Ending(_)
+            | State::Answered { .. }
+            | State::Done => unreachable!("only an idle chat hands over its history"),
+        }
     }
 
     pub(crate) fn state_pending(&self) -> bool {
@@ -130,16 +156,14 @@ impl Chat {
     }
 
     pub(crate) fn metadata_started(&mut self) {
-        let state = core::mem::replace(&mut self.metadata, Metadata::Ready);
-        self.metadata = match state {
+        self.metadata = match self.metadata {
             Metadata::Ready => Metadata::Pending,
             Metadata::Pending => unreachable!("one metadata save at a time"),
         };
     }
 
     pub(crate) fn metadata_saved(&mut self) {
-        let state = core::mem::replace(&mut self.metadata, Metadata::Ready);
-        self.metadata = match state {
+        self.metadata = match self.metadata {
             Metadata::Pending => Metadata::Ready,
             Metadata::Ready => unreachable!("one terminal for each metadata save"),
         };
@@ -148,22 +172,43 @@ impl Chat {
     pub(crate) fn closed(&self) -> bool {
         match self.input {
             Input::Open => false,
-            Input::Closed => true,
+            Input::Closed | Input::Draining { .. } => true,
         }
     }
 
     pub(crate) fn close_input(&mut self) {
-        let state = core::mem::replace(&mut self.input, Input::Closed);
-        self.input = match state {
+        self.input = match self.input {
             Input::Open | Input::Closed => Input::Closed,
+            state @ Input::Draining { .. } => state,
         };
+    }
+
+    pub(crate) fn drain_until(&mut self, last: u64) {
+        self.input = match self.input {
+            Input::Open => Input::Draining { last },
+            Input::Closed | Input::Draining { .. } => unreachable!("input closes once"),
+        };
+    }
+
+    pub(crate) fn drained(&self) -> bool {
+        match self.input {
+            Input::Draining { last } => self.state.activation >= last,
+            Input::Open | Input::Closed => false,
+        }
+    }
+
+    /// The chat a selection opens, with this invocation's input as it stands.
+    pub(crate) fn selected(&self, seed: u64) -> Chat {
+        let mut chat = Chat::new(seed);
+        chat.input = self.input;
+        chat
     }
 
     pub(crate) fn starting(&self) -> &Starting {
         match &self.phase {
             State::Starting(starting) => starting,
             State::Loading(_)
-            | State::Idle
+            | State::Idle { .. }
             | State::Running { .. }
             | State::Ending(_)
             | State::Answered { .. }
@@ -174,7 +219,7 @@ impl Chat {
     pub(crate) fn live(&self) -> &Live {
         match &self.phase {
             State::Running { live, .. } | State::Ending(live) => live,
-            State::Loading(_) | State::Idle | State::Starting(_) | State::Answered { .. } | State::Done => {
+            State::Loading(_) | State::Idle { .. } | State::Starting(_) | State::Answered { .. } | State::Done => {
                 unreachable!("delivery belongs to a live activation")
             }
         }
@@ -183,7 +228,7 @@ impl Chat {
     pub(crate) fn live_mut(&mut self) -> &mut Live {
         match &mut self.phase {
             State::Running { live, .. } | State::Ending(live) => live,
-            State::Loading(_) | State::Idle | State::Starting(_) | State::Answered { .. } | State::Done => {
+            State::Loading(_) | State::Idle { .. } | State::Starting(_) | State::Answered { .. } | State::Done => {
                 unreachable!("delivery belongs to a live activation")
             }
         }
@@ -193,7 +238,7 @@ impl Chat {
         match self.phase {
             State::Running { deadline, .. } => Some(deadline),
             State::Loading(_)
-            | State::Idle
+            | State::Idle { .. }
             | State::Starting(_)
             | State::Ending(_)
             | State::Answered { .. }
@@ -206,7 +251,7 @@ impl State {
     pub(crate) fn is_loading(&self) -> bool {
         match self {
             Self::Loading(_) => true,
-            Self::Idle
+            Self::Idle { .. }
             | Self::Starting(_)
             | Self::Running { .. }
             | Self::Ending(_)
@@ -216,7 +261,7 @@ impl State {
     }
     pub(crate) fn is_idle(&self) -> bool {
         match self {
-            Self::Idle => true,
+            Self::Idle { .. } => true,
             Self::Loading(_)
             | Self::Starting(_)
             | Self::Running { .. }
@@ -229,7 +274,7 @@ impl State {
         match self {
             Self::Starting(_) => true,
             Self::Loading(_)
-            | Self::Idle
+            | Self::Idle { .. }
             | Self::Running { .. }
             | Self::Ending(_)
             | Self::Answered { .. }
@@ -240,7 +285,7 @@ impl State {
         match self {
             Self::Running { .. } => true,
             Self::Loading(_)
-            | Self::Idle
+            | Self::Idle { .. }
             | Self::Starting(_)
             | Self::Ending(_)
             | Self::Answered { .. }
@@ -250,9 +295,12 @@ impl State {
     pub(crate) fn is_answered(&self) -> bool {
         match self {
             Self::Answered { .. } => true,
-            Self::Loading(_) | Self::Idle | Self::Starting(_) | Self::Running { .. } | Self::Ending(_) | Self::Done => {
-                false
-            }
+            Self::Loading(_)
+            | Self::Idle { .. }
+            | Self::Starting(_)
+            | Self::Running { .. }
+            | Self::Ending(_)
+            | Self::Done => false,
         }
     }
 }
@@ -260,6 +308,24 @@ impl State {
 #[cfg(test)]
 mod tests {
     use super::Chat;
+
+    #[test]
+    fn a_selected_chat_keeps_the_invocations_drain() {
+        let mut chat = Chat::new(8084);
+        chat.drain_until(2);
+        chat.close_input();
+        chat.state.activation = 2;
+        assert!(chat.drained());
+        let mut selected = chat.selected(8085);
+        assert!(selected.closed());
+        assert!(!selected.drained());
+        selected.state.activation = 1;
+        assert!(!selected.drained());
+        selected.state.activation = 2;
+        assert!(selected.drained());
+        selected.state.activation = 3;
+        assert!(selected.drained());
+    }
 
     #[test]
     fn a_new_chat_mints_one_replayable_identity_from_its_own_seed() {

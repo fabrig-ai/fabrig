@@ -1914,6 +1914,7 @@ fn change_repository_refusals_render_the_three_choices() {
 
 mod brief_fit;
 mod docs;
+mod json;
 mod reference;
 mod room;
 
@@ -2398,7 +2399,7 @@ fn task_reads_fit_the_host_bound_and_continue_cut_words() {
     const WORDS: &[u8] = b"Words from 0:\n";
     const NEXT: &[u8] = b"\nnext: ";
     let mut read = held_task_read();
-    read.words.total = u64::try_from(read.words.bytes.len()).expect("source length");
+    read.words.total = skein_lib::len_u64(read.words.bytes.len());
     let answer = engine::CallAnswer::TaskRead(Box::new(Ok(read.clone())));
     let first = crate::answer_bounded(&answer, 256);
     assert!(!first.error());

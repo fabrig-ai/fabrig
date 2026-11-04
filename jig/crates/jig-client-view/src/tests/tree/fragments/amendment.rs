@@ -130,25 +130,19 @@ fn build(value: &AmendmentState, words: &Words) -> Tree {
         depth: f.depth,
         text_bytes: f.text_bytes,
         text_per_node: f.text_per_node,
-        drawing_bytes: 0,
         styles_per_node: 2,
-        patches: 0,
         bindings: f.bindings,
         slots: f.slots,
         markdown_depth: 2,
-        scene_marks: 0,
-        scene_bytes: 0,
+        ..Limits::EMPTY
     };
 
     let mut builder = Builder::new(&limits);
     view::render(&mut builder, value, words, client_limits().client.text, client_limits().client.rows);
     let tree = builder.finish();
     assert!(tree.len() <= f.nodes);
-    assert!(tree.nodes().iter().all(|node| crate::tests::text_bytes(node) <= f.text_per_node));
-    assert!(
-        tree.nodes().iter().map(|node| u64::from(crate::tests::text_bytes(node))).sum::<u64>()
-            <= u64::from(f.text_bytes)
-    );
+    assert!(tree.nodes().iter().all(|node| node.text_bytes() <= f.text_per_node));
+    assert!(tree.nodes().iter().map(|node| u64::from(node.text_bytes())).sum::<u64>() <= u64::from(f.text_bytes));
     assert!(tree.nodes().iter().all(|node| node.binding.is_none() && node.slot.is_none()));
 
     tree

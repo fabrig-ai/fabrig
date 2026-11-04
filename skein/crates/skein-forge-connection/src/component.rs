@@ -227,6 +227,7 @@ impl Component {
         }
         self.drive(env, up, io);
     }
+    #[expect(clippy::too_many_lines, reason = "the entrance keeps lifecycle and request dispatch together")]
     pub fn down(
         &mut self,
         env: &Env<Limits>,
@@ -236,13 +237,33 @@ impl Component {
     ) {
         match self.lifecycle {
             Lifecycle::Live => {}
-            Lifecycle::Closing => {
-                if let Request::Abort = request {
-                    self.abort(env, up, io);
+            Lifecycle::Closing | Lifecycle::Aborting => {
+                match request {
+                    Request::Call { call, .. } => up.push(Event::Answered(Answered {
+                        call,
+                        cost: 0,
+                        free: 0,
+                        rate: None,
+                        result: Err(api::Error::Unavailable),
+                    })),
+                    Request::Abort => {
+                        if self.lifecycle == Lifecycle::Closing {
+                            self.abort(env, up, io);
+                        }
+                    }
+                    Request::Add(_)
+                    | Request::Remove { .. }
+                    | Request::Connect { .. }
+                    | Request::Installations { .. }
+                    | Request::RefusedHint(_)
+                    | Request::Refused(_)
+                    | Request::Returned(_)
+                    | Request::Offer
+                    | Request::Close => {}
                 }
                 return;
             }
-            Lifecycle::Aborting | Lifecycle::Closed => return,
+            Lifecycle::Closed => return,
         }
         match request {
             Request::Add(forge) => {

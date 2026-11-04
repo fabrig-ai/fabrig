@@ -2,11 +2,11 @@
 //! Each startup transition moves its grants and survey by value. Follow derives
 //! the pending head request and the answer's store/child settlement barrier.
 use super::{
-    Agent, AgentFailure, Box, Chat, ChatState, Child, Config, DeliveryRecord, DeliveryState, Domain, Env, ExitStatus,
-    Fact, Failure, GitOp, GitResult, HeadSurvey, Limits, List, Live, Map, Notice, Queue, Reconcile, Request, RunStart,
-    Starting, State, StoreFailure, Token, Undelivered, agent, command, deliver_to_agent, host, mem, observe, parent,
-    reconcile_next,
+    Agent, AgentFailure, Box, ChatState, Child, Config, DeliveryRecord, DeliveryState, Domain, Env, ExitStatus, Fact,
+    Failure, GitOp, GitResult, HeadSurvey, Limits, List, Live, Map, Notice, Queue, Request, RunStart, Starting, State,
+    StoreFailure, Token, Undelivered, agent, command, host, mem, observe, parent, reconcile_intent, save_failed,
 };
+use crate::chat::Load;
 use crate::credentials::Grants;
 
 pub(super) fn receive_line(domain: &mut Domain, env: &Env<Limits>, text: Box<[u8]>, out: &mut Queue<Request>) {
@@ -27,7 +27,7 @@ pub(super) fn dispatch_line(domain: &mut Domain, env: &Env<Limits>, out: &mut Qu
         return;
     }
     match &domain.chat.phase {
-        State::Idle | State::Running { .. } => {}
+        State::Idle { .. } | State::Running { .. } => {}
         State::Loading(_) | State::Starting(_) | State::Ending(_) | State::Answered { .. } | State::Done => return,
     }
     if domain.lines.received() {
@@ -46,7 +46,9 @@ pub(super) fn dispatch_line(domain: &mut Domain, env: &Env<Limits>, out: &mut Qu
             return;
         };
         domain.chat.state.activation = activation;
+        let history = domain.chat.take_idle();
         domain.chat.phase = State::Starting(Starting {
+            history,
             grants: Grants {
                 values: List::with_capacity(env.limits.smith.accounts),
                 awaiting: u32::try_from(domain.config.accounts.len()).expect("validated account count"),
@@ -85,7 +87,7 @@ pub(crate) fn select_chat(
         || domain.chat.state_pending()
         || !domain.turns.unsaved.is_empty()
         || !domain.lines.is_empty()
-        || domain.saving.is_some()
+        || domain.delivering.saving()
     {
         Some(crate::ChatRefusal::Busy)
     } else {
@@ -99,8 +101,8 @@ pub(crate) fn select_chat(
         stop_names(domain, out);
         return;
     }
-    domain.chat.phase = State::Loading(crate::chat::Load::Ready);
-    domain.chat.request_load();
+    let history = domain.chat.take_idle();
+    domain.chat.phase = State::Loading(Load::Selecting { history });
     out.push(Request::SelectChat { name, create });
 }
 
@@ -114,10 +116,20 @@ pub(super) fn chat_selected(
         return;
     }
     assert!(domain.child.run().is_none() && !domain.chat.state_pending(), "selection ends between activations");
-    assert!(domain.chat.phase.is_loading() && domain.chat.load_requested(), "selection has one terminal");
+    let phase = mem::replace(&mut domain.chat.phase, State::Done);
+    let history = match phase {
+        State::Loading(Load::Selecting { history }) => history,
+        State::Loading(Load::Waiting) => None,
+        State::Loading(Load::Ready | Load::Settling { .. })
+        | State::Idle { .. }
+        | State::Starting(_)
+        | State::Running { .. }
+        | State::Ending(_)
+        | State::Answered { .. }
+        | State::Done => unreachable!("selection has one terminal"),
+    };
     match result {
         Ok(()) => {
-            let closed = domain.chat.closed();
             domain.chat_seed = match domain.chat_seed.checked_add(1) {
                 Some(seed) => seed,
                 None => {
@@ -125,16 +137,13 @@ pub(super) fn chat_selected(
                     return;
                 }
             };
-            domain.chat = Chat::new(domain.chat_seed);
-            if closed {
-                domain.chat.close_input();
-            }
+            domain.chat = domain.chat.selected(domain.chat_seed);
             domain.chat.request_load();
             domain.config.chat = name;
             out.push(Request::Load);
         }
         Err(reason) => {
-            domain.chat.phase = State::Idle;
+            domain.chat.phase = State::Idle { history };
             out.push(Request::Notice { notice: Notice::ChatRefused { name, reason } });
             if domain.chat.closed() {
                 closed(domain, out);
@@ -151,12 +160,17 @@ pub(super) fn loaded(
     deliveries: Box<[DeliveryRecord]>,
     out: &mut Queue<Request>,
 ) {
-    assert!(
-        domain.chat.phase.is_loading() && domain.chat.load_requested(),
-        "Load has one terminal: phase {:?}, requested {}",
-        domain.chat.phase,
-        domain.chat.load_requested()
-    );
+    let phase = mem::replace(&mut domain.chat.phase, State::Done);
+    domain.chat.phase = match phase {
+        State::Loading(Load::Waiting) => State::Loading(Load::Settling { history: transcript }),
+        State::Loading(Load::Ready | Load::Settling { .. } | Load::Selecting { .. })
+        | State::Idle { .. }
+        | State::Starting(_)
+        | State::Running { .. }
+        | State::Ending(_)
+        | State::Answered { .. }
+        | State::Done => unreachable!("Load has one terminal"),
+    };
     match state {
         Some(mut saved) => {
             if !domain.config.resume {
@@ -169,7 +183,6 @@ pub(super) fn loaded(
                 ChatState { identity: domain.chat.state.identity, activation: 0, next_message: 0, read: None };
         }
     }
-    domain.transcript = transcript;
     domain.records = Map::with_capacity(env.limits.smith.run.answered_calls);
     for record in deliveries {
         match domain.records.insert(record.name, record) {
@@ -187,14 +200,23 @@ pub(super) fn resume_loading(domain: &mut Domain, env: &Env<Limits>, out: &mut Q
     for (_, record) in &domain.records {
         match &record.state {
             DeliveryState::Intent(_) => {
-                domain.reconciling = Some(Reconcile::new(record.clone()));
-                reconcile_next(domain, env, out);
+                reconcile_intent(domain, env, record.clone(), out);
                 return;
             }
             DeliveryState::Answer(_) => {}
         }
     }
-    domain.chat.phase = State::Idle;
+    let phase = mem::replace(&mut domain.chat.phase, State::Done);
+    domain.chat.phase = match phase {
+        State::Loading(Load::Settling { history }) => State::Idle { history },
+        State::Loading(Load::Ready | Load::Waiting | Load::Selecting { .. })
+        | State::Idle { .. }
+        | State::Starting(_)
+        | State::Running { .. }
+        | State::Ending(_)
+        | State::Answered { .. }
+        | State::Done => unreachable!("saved intents settle the loaded chat"),
+    };
     crate::choices::apply(domain, env, out);
     if !domain.chat.phase.is_idle() {
         return;
@@ -225,7 +247,7 @@ pub(super) fn state_saved(domain: &mut Domain, env: &Env<Limits>, out: &mut Queu
             State::Starting(starting)
         }
         state @ (State::Loading(_)
-        | State::Idle
+        | State::Idle { .. }
         | State::Running { .. }
         | State::Ending(_)
         | State::Answered { .. }
@@ -259,7 +281,7 @@ pub(super) fn credential(
             state
         }
         state @ State::Answered { .. } => state,
-        State::Loading(_) | State::Idle | State::Done => unreachable!("grant answers a live account request"),
+        State::Loading(_) | State::Idle { .. } | State::Done => unreachable!("grant answers a live account request"),
     };
     maybe_start(domain, env, out);
 }
@@ -292,7 +314,9 @@ pub(super) fn no_credential(
             state
         }
         state @ State::Answered { .. } => state,
-        State::Loading(_) | State::Idle | State::Done => unreachable!("missing grant answers a live account request"),
+        State::Loading(_) | State::Idle { .. } | State::Done => {
+            unreachable!("missing grant answers a live account request")
+        }
     };
     maybe_start(domain, env, out);
 }
@@ -302,7 +326,7 @@ pub(super) fn maybe_start(domain: &mut Domain, env: &Env<Limits>, out: &mut Queu
     domain.chat.phase = match state {
         State::Starting(starting) => start_progress(domain, starting, env, out),
         state @ (State::Loading(_)
-        | State::Idle
+        | State::Idle { .. }
         | State::Running { .. }
         | State::Ending(_)
         | State::Answered { .. }
@@ -315,8 +339,7 @@ pub(super) fn follow_chat(domain: &mut Domain, env: &Env<Limits>, out: &mut Queu
     let state = mem::replace(&mut domain.chat.phase, State::Done);
     domain.chat.phase = match state {
         State::Starting(mut starting) => {
-            let survey = mem::replace(&mut starting.survey, HeadSurvey::Complete);
-            starting.survey = match survey {
+            starting.survey = match starting.survey {
                 HeadSurvey::Ready(directory) => {
                     out.push(Request::Git {
                         owner: Token::new(0),
@@ -331,7 +354,7 @@ pub(super) fn follow_chat(domain: &mut Domain, env: &Env<Limits>, out: &mut Queu
             State::Starting(starting)
         }
         state @ (State::Loading(_)
-        | State::Idle
+        | State::Idle { .. }
         | State::Running { .. }
         | State::Ending(_)
         | State::Answered { .. }
@@ -339,9 +362,9 @@ pub(super) fn follow_chat(domain: &mut Domain, env: &Env<Limits>, out: &mut Queu
     };
     match &domain.chat.phase {
         State::Answered { .. } if domain.turns.unsaved.is_empty() => crate::person::finish_answer(domain, out),
-        State::Idle if domain.chat.closed() => closed(domain, out),
+        State::Idle { .. } if domain.chat.closed() => closed(domain, out),
         State::Loading(_)
-        | State::Idle
+        | State::Idle { .. }
         | State::Starting(_)
         | State::Running { .. }
         | State::Ending(_)
@@ -381,7 +404,7 @@ pub(super) fn start_progress(
                 out.push(Request::Exit { status: ExitStatus::Credentials { account } });
                 State::Done
             }
-            crate::Mode::Chat { .. } => State::Idle,
+            crate::Mode::Chat { .. } => State::Idle { history: starting.history },
         };
     }
     match starting.survey {
@@ -394,7 +417,7 @@ pub(super) fn start_progress(
         HeadSurvey::Complete => {}
         HeadSurvey::NotStarted => unreachable!("survey chooses a repository or completes"),
     }
-    let history = if domain.config.resume { domain.transcript.take() } else { None };
+    let history = if domain.config.resume { starting.history } else { None };
     let mut answered = List::with_capacity(env.limits.smith.run.answered_calls);
     if domain.config.resume {
         for (name, record) in &domain.records {
@@ -494,7 +517,7 @@ pub(super) fn head_result(
     domain.chat.phase = match state {
         State::Starting(starting) => head_read(domain, starting, result, out),
         State::Loading(_)
-        | State::Idle
+        | State::Idle { .. }
         | State::Running { .. }
         | State::Ending(_)
         | State::Answered { .. }
@@ -542,7 +565,7 @@ pub(super) fn head_read(
                     out.push(Request::Exit { status: ExitStatus::Refused });
                     State::Done
                 }
-                crate::Mode::Chat { .. } => State::Idle,
+                crate::Mode::Chat { .. } => State::Idle { history: starting.history },
             }
         }
         GitResult::Status { .. }
@@ -620,7 +643,7 @@ pub(super) fn interrupt(domain: &mut Domain, env: &Env<Limits>, out: &mut Queue<
     }
     let state = mem::replace(&mut domain.chat.phase, State::Done);
     domain.chat.phase = match state {
-        State::Idle => {
+        State::Idle { .. } => {
             out.push(Request::Exit { status: ExitStatus::Accepted });
             State::Done
         }
@@ -651,7 +674,7 @@ pub(crate) fn closed(domain: &mut Domain, out: &mut Queue<Request>) {
     }
     if domain.interactive && !domain.chat.closed() {
         let extra = if domain.child.run().is_some() || domain.chat.phase.is_starting() { 1 } else { 2 };
-        domain.closing_last = Some(domain.chat.state.activation.saturating_add(extra));
+        domain.chat.drain_until(domain.chat.state.activation.saturating_add(extra));
     }
     domain.chat.close_input();
     if domain.chat.phase.is_idle() && domain.lines.is_empty() {
@@ -689,30 +712,7 @@ pub(super) fn store_failed(
     domain.chat.close_input();
     domain.turns.unsaved = Queue::with_capacity(env.limits.unsaved);
     out.push(Request::Notice { notice: Notice::Failure(Failure::Store { turn, reason }) });
-    if let Some(record) = domain.saving.take() {
-        let owner = domain.delivery_owner.take();
-        match &record.state {
-            DeliveryState::Answer(agent::run::Delivery::Delivered(_)) => {
-                out.push(Request::Notice { notice: Notice::Failure(Failure::DeliveryUnsaved) });
-            }
-            DeliveryState::Intent(_)
-            | DeliveryState::Answer(
-                agent::run::Delivery::Nothing
-                | agent::run::Delivery::Refused(_)
-                | agent::run::Delivery::Failed(_)
-                | agent::run::Delivery::Stale,
-            ) => {}
-        }
-        let delivery = match record.state {
-            DeliveryState::Intent(_) => {
-                agent::run::Delivery::Failed(agent::run::DeliveryFailure::new(0, agent::run::DeliveryReason::Broken))
-            }
-            DeliveryState::Answer(delivery) => delivery,
-        };
-        if let Some(owner) = owner {
-            deliver_to_agent(domain, env, owner, delivery);
-        }
-    }
+    save_failed(domain, env, out);
     if let Some(run) = domain.child.run() {
         command(&mut domain.agent, env.now, env.wall, parent::Event::Drop { agent: run });
         end_chat(domain);
@@ -726,6 +726,7 @@ pub(super) fn end_chat(domain: &mut Domain) {
     let state = mem::replace(&mut domain.chat.phase, State::Done);
     domain.chat.phase = match state {
         State::Running { live, .. } | State::Ending(live) => State::Ending(live),
-        state @ (State::Loading(_) | State::Idle | State::Starting(_) | State::Answered { .. } | State::Done) => state,
+        state
+        @ (State::Loading(_) | State::Idle { .. } | State::Starting(_) | State::Answered { .. } | State::Done) => state,
     };
 }

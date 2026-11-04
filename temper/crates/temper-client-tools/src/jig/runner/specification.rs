@@ -69,7 +69,7 @@ impl Specification {
         self.stopped = true;
         let Readout::Jig(c::ReadResult::Value(c::ReadValue::TaskText(page))) = page else { return };
         let from = u64::from(self.bytes.len());
-        let Some(end) = page.from.checked_add(u64::try_from(page.text.bytes().len()).expect("chunk bound")) else {
+        let Some(end) = page.from.checked_add(skein_lib::len_u64(page.text.bytes().len())) else {
             return;
         };
         let changed = match self.total {

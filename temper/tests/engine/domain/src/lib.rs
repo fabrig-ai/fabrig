@@ -27,6 +27,7 @@ pub mod forge_stand;
 pub mod kinds;
 pub mod oracle;
 pub mod tier_runs;
+pub mod tier_task_show;
 
 /// Take ready journal output, then admit one owner continuation if none was ready.
 pub fn poll(

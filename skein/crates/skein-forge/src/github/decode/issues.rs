@@ -2,12 +2,13 @@
 use super::{Malformed, walk::Node};
 use crate::{
     api,
-    forgejo::{document::Body, id::unsigned, time},
     github::document::{self, Kind, Row},
+    text::Body,
+    time,
 };
 use alloc::boxed::Box;
 use skein_json::Token;
-use skein_lib::{List, Wall};
+use skein_lib::{List, Wall, bytes};
 
 #[derive(Debug)]
 pub(super) struct State {
@@ -74,7 +75,7 @@ impl State {
     pub(super) fn scalar(&mut self, node: Node, key: &'static [u8], token: Token) -> Result<(), Malformed> {
         match token {
             Token::Number(text) => {
-                let value = unsigned(&text).expect("walker checked integer");
+                let value = bytes::decimal(&text).expect("walker checked integer");
                 if (node == Node::Issue || node == Node::Comment) && value == 0 {
                     return Err(Malformed::Range { field: key });
                 }

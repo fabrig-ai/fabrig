@@ -144,14 +144,14 @@ pub(super) fn work_pending(service: &Stages, frame: Option<&Frame>, now: Time) -
 pub(super) fn done(service: &Stages) -> Option<bool> {
     match service.teardown {
         Teardown::Closed { answer, .. } => Some(answer.sent()),
-        Teardown::Live | Teardown::Answered { .. } | Teardown::Closing { .. } => None,
+        Teardown::Live { .. } | Teardown::Answered { .. } | Teardown::Closing { .. } => None,
     }
 }
 
 /// The first concrete failure, retained for the shell's final stderr line.
 #[must_use]
 pub(super) const fn failure(service: &Stages) -> Option<Failure> {
-    service.failure
+    service.teardown.failure()
 }
 
 impl Stages {
@@ -169,7 +169,7 @@ impl Stages {
             stages: Stages {
                 limits,
                 events,
-                teardown: Teardown::Live,
+                teardown: Teardown::Live { failure: None },
                 product_exit: None,
                 usage_unread: false,
                 live: crate::live::Live::new(None, limits.live_interval),
@@ -205,23 +205,12 @@ impl Stages {
                 input: None,
                 output: None,
                 signals: None,
-                admitted: None,
+                admission: super::admission::Admission::Waiting,
                 run_started: Time::ZERO,
-                cancel_pending: false,
-                failure: None,
-                final_answer_at: Time::ZERO,
-                final_failure: None,
-                final_refusal: None,
-                final_detail: Box::default(),
-                outcome: None,
-                delivery: None,
-                pending_start: None,
-                directories: List::with_capacity(limits.machine.roots),
-                root_index: 0,
+                line: crate::terminal::Last::Quiet,
+                opening: super::opening::Opening::Idle,
                 pipe_routes: Map::with_capacity(limits.machine.processes.checked_mul(2).ok_or(ConfigError::Limits)?),
-                roots: List::with_capacity(limits.machine.roots),
-                root_close_next: 0,
-                root_close_pending: false,
+                roots: super::roots::Roots::Empty,
             },
             domain,
             channel_endpoints,
@@ -234,14 +223,11 @@ impl Stages {
     }
 
     pub(super) fn mark_failed(&mut self, reason: Failure) {
-        if self.failure.is_none() {
-            self.failure = Some(reason);
-        }
-        teardown::failed(self, self.failure.expect("kept first failure"));
+        teardown::failed(self, reason);
     }
 
     pub(super) fn refuse_start(&mut self, frame: &mut Frame, reason: run::Invalid) {
-        self.pending_start = None;
+        self.opening.refuse();
         let token = self.next_send();
         let answer = run::Answer::Refused(run::Refusal::Invalid(reason));
         crate::terminal::remember(self, &answer, Box::default(), self.domain_env.now);
@@ -262,19 +248,14 @@ impl Stages {
     }
 
     pub(super) fn start_ready(&mut self, frame: &mut Frame) {
-        let start = self.pending_start.take().expect("all roots opened for pending Start");
+        let (start, directories) = self.opening.take();
         let workspace = match start.mounts {
-            Some(_) => Some(run::Workspace {
-                directories: core::mem::replace(&mut self.directories, List::with_capacity(self.limits.machine.roots))
-                    .into_boxed(),
-            }),
+            Some(_) => Some(run::Workspace { directories: directories.into_boxed() }),
             None => None,
         };
         if let Some(ref workspace) = workspace {
             self.machine.workspace(workspace);
         }
-        self.outcome = Some(start.charter.outcome.clone());
-        self.delivery.clone_from(&start.charter.outcome.change);
         if self.llm.bind_grants(&start.charter).is_err() {
             self.refuse_start(frame, run::Invalid::Grants);
             return;
@@ -298,6 +279,7 @@ impl Stages {
                 .expect("grant count was checked at Start");
         }
         self.run_started = self.domain_env.now;
+        self.opening.contract(start.charter.outcome.clone());
         self.domain_events.push(domain::Event::Start(domain::Start {
             messages: start.messages,
             reply_to: ReplyTo::new(START_REPLY),

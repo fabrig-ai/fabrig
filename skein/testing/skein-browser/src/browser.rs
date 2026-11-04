@@ -1791,12 +1791,20 @@ fn frame_id(value: Value<'_>, key: &[u8], limit: u32) -> Option<Box<[u8]>> {
 }
 
 fn contains(haystack: &[u8], needle: &[u8]) -> bool {
-    for window in haystack.windows(needle.len()) {
-        if window == needle {
-            return true;
+    crate::find::words(haystack, needle)
+}
+
+#[cfg(test)]
+mod tests {
+    use super::contains;
+
+    #[test]
+    fn contains_takes_an_empty_needle() {
+        const HAYSTACKS: &[&[u8]] = &[b"browser", b""];
+        for haystack in HAYSTACKS {
+            assert!(contains(haystack, b""), "haystack {haystack:?}");
         }
     }
-    false
 }
 
 impl Browser {

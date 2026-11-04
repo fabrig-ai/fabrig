@@ -21,8 +21,7 @@ alone has 16, each as `u64::try_from(..).ok()?`, a refusal path that cannot be t
 ## Why it matters
 
 Each site spells an infallible widening as a fallible one, and new code copies the form.
-skein's and temper's sites are their own items (skein's D002, temper's
-`temper/docs/development/debt/D003-widening-try-from.md`).
+skein's sites are its own item (skein's D002).
 
 ## What pays it back
 

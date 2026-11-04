@@ -73,7 +73,15 @@ mod tests {
             "record_empty_full.bin",
             "record_scalars_full.bin",
         ] {
-            let golden = std::fs::read(std::path::Path::new("golden/v1").join(name)).expect("golden readable");
+            let golden = std::fs::read(
+                std::path::Path::new(if name == "record_empty_full.bin" || name == "record_scalars_full.bin" {
+                    "golden/scalars-v1"
+                } else {
+                    "golden/sample-v1"
+                })
+                .join(name),
+            )
+            .expect("golden readable");
             check_all(&golden);
             for _round in 0_u32..200 {
                 let mut mutated = golden.clone();

@@ -122,6 +122,14 @@ fn a_worker_name_past_the_profiles_bound_is_refused() {
 fn more_slots_than_the_hub_can_host_are_refused() {
     refuses(br#""slots": 2"#, br#""slots": 3"#, fixtures::path(&[b"slots"]), What::Bound);
 }
+fn a_worker_with_no_profile_adds_no_bound_of_small() {
+    let bytes = fixtures::with(fixtures::WORKER_SMALL, br#""slots": 2"#, br#""slots": 3"#);
+    let bytes = fixtures::with(&bytes, br#""profile": "small""#, br#""profile": "standrd""#);
+    let problems = worker(&bytes).unwrap_err();
+    assert_eq!(problems.problems.len(), 1, "{problems:?}");
+    assert_eq!(problems.past, 0, "{problems:?}");
+    assert_eq!(problems.problems.get(0).unwrap().path, fixtures::path(&[b"limits", b"profile"]));
+}
 fn a_grace_past_a_duration_is_refused() {
     refuses(
         br#""save_ms": 5000"#,
@@ -192,6 +200,7 @@ fn worker_configuration_problems_name_the_invalid_fields() {
         ("an_agent_without_a_program_is_refused", an_agent_without_a_program_is_refused),
         ("a_worker_name_past_the_profiles_bound_is_refused", a_worker_name_past_the_profiles_bound_is_refused),
         ("more_slots_than_the_hub_can_host_are_refused", more_slots_than_the_hub_can_host_are_refused),
+        ("a_worker_with_no_profile_adds_no_bound_of_small", a_worker_with_no_profile_adds_no_bound_of_small),
         ("a_grace_past_a_duration_is_refused", a_grace_past_a_duration_is_refused),
         ("graces_whose_sum_overflows_refuse_the_start", graces_whose_sum_overflows_refuse_the_start),
         ("a_worker_refuses_an_unknown_grace", a_worker_refuses_an_unknown_grace),

@@ -131,14 +131,9 @@ fn scene(container: Role, effect: &[u8], sibling: bool) -> (View, NodeId) {
         depth: 5,
         text_per_node: 64,
         text_bytes: 256,
-        drawing_bytes: 0,
-        styles_per_node: 0,
         patches: 64,
-        bindings: 0,
-        slots: 0,
         markdown_depth: 1,
-        scene_marks: 0,
-        scene_bytes: 0,
+        ..skein_ui::Limits::EMPTY
     };
     let mut view = View::new(&limits);
     let mut b = view.builder();

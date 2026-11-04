@@ -347,9 +347,7 @@ impl Operation {
                         stream::Up::Bytes(bytes) if i != 0 => {
                             if i == 1 {
                                 if child.dropped != 0 || child.stdout.write(&bytes).is_err() {
-                                    child.dropped = child
-                                        .dropped
-                                        .saturating_add(u64::try_from(bytes.len()).expect("bounded bytes"));
+                                    child.dropped = child.dropped.saturating_add(skein_lib::len_u64(bytes.len()));
                                 }
                             } else {
                                 child.stderr.write(&bytes);
@@ -450,7 +448,7 @@ impl Child {
     fn send(&mut self, room: u32, out: &mut Outputs) {
         let token = self.pipes.first().copied().flatten().expect("commit stdin");
         let remaining = self.message.len().checked_sub(self.sent).expect("sent within message");
-        let amount = remaining.min(usize::try_from(room).expect("u32 fits usize"));
+        let amount = remaining.min(skein_lib::usize_of(room));
         let end = self.sent.checked_add(amount).expect("bounded message");
         let bytes = Box::from(self.message.get(self.sent..end).expect("message piece"));
         emit(out, io::Request::Stream { stream: token, down: stream::Down::Send(bytes) });

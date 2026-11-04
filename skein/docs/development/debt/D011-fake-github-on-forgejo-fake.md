@@ -8,7 +8,7 @@
 - **Value:** medium
 - **Size:** M
 - **Status:** open
-- **Paid when:** the git route the two fakes share is typed by neutral types, not by Forgejo's `Limits`; the GitHub fake names no `forgejo::` item beyond what the neutral root (D010) holds; the crate that is the Forgejo fake says so in its name; the two fake servers share one connection core.
+- **Paid when:** the git route the two fakes share is typed by neutral types, not by Forgejo's `Limits`; the GitHub fake names no `forgejo::` item beyond what skein-forge's neutral root (`skein/docs/design/forge.md`, 4.4) holds; the crate that is the Forgejo fake says so in its name; the two fake servers share one connection core.
 - **Measure:** `rg -c 'forgejo::' skein/crates/skein-fake-forge-github/src | awk -F: '{s+=$2} END{print s}'`: 26 at base
 
 ## What
@@ -31,6 +31,7 @@ looking for the neutral layer opens the Forgejo one.
 
 ## What pays it back
 
-After D010: a neutral git route, the GitHub fake on neutral types, one
+The neutral pieces sit at skein-forge's root (`skein/docs/design/forge.md`,
+4.4). What remains is a neutral git route, the GitHub fake on neutral types, one
 connection core for both servers, and a rename of the Forgejo fake
 (a public crate name temper uses, so the rename is the user's call).

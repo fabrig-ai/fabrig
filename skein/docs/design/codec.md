@@ -288,6 +288,11 @@ reserved for fields.
   result with the committed code and golden bytes. On a difference it
   fails, saying how to write them again, which the same test does when an
   environment variable asks it to.
+- **One family to a golden directory:** a crate that holds several
+  families gives each version of each a directory of its own, as skein's
+  fixtures do with `golden/<family>-v<N>`, and a directory holds that
+  version's goldens and nothing else. The command writes `golden/v<N>`, for
+  a crate of one family (section 12).
 - **The generator's cost grows with its schema,** not with its square:
   what it needs of a type or a field (its declaration by name, whether a
   type holds bounds, a field's path) is found once per generation. The

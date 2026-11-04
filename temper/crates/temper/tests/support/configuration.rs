@@ -1,7 +1,6 @@
 //! Pure configuration fixtures shared by unit and process tests.
 use std::path::Path;
-#[path = "../../../../tests/real-loop/src/turn_bounds.rs"]
-pub mod turn_bounds;
+pub use temper_playground::documents::turn_bounds;
 #[must_use]
 pub fn documents(directory: &Path, program: &str) -> (Vec<u8>, Vec<u8>) {
     let agent = serde_json::json!({
@@ -105,7 +104,7 @@ pub fn fake_entry(entry: &mut serde_json::Value, listen: &str) {
     *entry = serde_json::json!({"listen":{"socket":listen}, "remote":format!("http://{listen}"), "git":"demo/bin/git"});
 }
 
-/// temper-15: the explicit old-form fake and managed command fixtures, without creating files.
+/// The explicit old-form fake and managed command fixtures, without creating files.
 #[must_use]
 pub fn old_form_check_document(directory: &Path) -> serde_json::Value {
     check_document(directory)

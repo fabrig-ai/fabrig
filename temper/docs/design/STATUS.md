@@ -38,7 +38,8 @@ cannot read a project's own policy (`domain/agent.md`), and a charter's
 (`protocol/configuration.md`). The limits' check leaves temper's kinds out
 of the settings answer's bound (`domain/root.md`), and a change's refusal
 omits what authority it lacked and which model its charter refused
-(`domain/agent.md`). The
+(`domain/agent.md`). A run that cannot deliver keeps the shell
+its charter grants (`domain/agent.md`). The
 reference is one profile a box is set up with, but on a small box a
 result's bytes, a batch and the live delegates stay below the sizes it
 is designed for, and the case's repository carries no CI or tiers'
@@ -47,10 +48,9 @@ Much of a change's own bounds and gates, the forge's merge queue and a
 goal's issue lag (`domain/forge.md`); so do the client's Board, Changes
 and How work runs pages and many of ctl's tools (`client/README.md`,
 `client/forge.md`, `client/tools.md`),
-the client's web shell in the gate's wasm32 clippy (`client/browser.md`),
-the playground in the browser, whose world is composed natively but
-whose story A stalls at the playground's setup (`playground.md`,
-`domain/testing.md`), upgrades'
+the playground in the browser, whose story A walks in the browser tier
+but not yet by hand, whose download is past its bar and which the
+gate's wasm32 clippy leaves out (`playground.md`), upgrades'
 commands and the baseline (`protocol/README.md`), and the release
 (`release.md`). Forges kept in the store, a forge's removal and the
 playground's reset are designed and built; the code departs where the
@@ -64,17 +64,27 @@ plays the proxy's own rules against scripted upstreams rather than
 temper's service (`protocol/sign-in.md`); a connected Forgejo, its connect with its bot's
 tokens and a forge's Replace are built, but for the real loop's story
 (`client/tools.md`) and a connected Forgejo made managed
-(`protocol/setup.md`); with `application.machine.github` null, GitHub's
-remotes come out malformed (`protocol/configuration.md`). The case library's
-purpose is retired (`domain/testing.md`), and the `welcome-set-up`
-journey waits on a new walk (`client/journeys.md`). Of the drafts, the reference
+(`protocol/setup.md`); a kept GitHub forge whose base ends in `/` keeps
+remotes with two after the host (`protocol/configuration.md`). A duplicate
+person's identity panics at a start, which the user's request counts a
+bug (`domain/root.md`). The case library's
+purpose is retired, the fake git program drives skein's JSON tokenizer
+over a whole body by hand, the ladder has no twin past B1 and no live
+story but B0's, and the live scripts default to a scratch layout of
+whoever runs fabrig's development, in a form the outward check does not
+match (`domain/testing.md`), and the `welcome-set-up`
+journey waits on a new walk (`client/journeys.md`). The forge's connect
+refusals that ctl renders name no remedy (`protocol/documentation.md`).
+Six hand-written
+widenings stand beside skein's `len_u64` and `usize_of`, two of them in
+the worker's steps (`README.md`). Of the drafts, the reference
 drafts' statuses hold two departures decided 2026-11-03, a foreman's
 LLM choice and a red of a goal branch's tier that wakes its goal only
 when new, and a lag, the coordinator's decide, propose, subscribe and
 recall families, which the reference's profile does not grant and
 configuring's stage 1 follows (`draft/reference-code-production.md`);
 the others record what the design carries of
-them and where it lags or departs. `README.md`, `domain/README.md` and
+them and where it lags or departs. `domain/README.md` and
 `protocol/llm.md` have no gap.
 
 Design documents:

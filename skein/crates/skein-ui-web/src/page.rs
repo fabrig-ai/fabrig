@@ -11,6 +11,8 @@ use skein_ui::{
 mod components;
 #[cfg(any(test, target_arch = "wasm32"))]
 mod fold;
+#[cfg(any(test, target_arch = "wasm32"))]
+mod measure;
 #[cfg(target_arch = "wasm32")]
 pub mod web;
 

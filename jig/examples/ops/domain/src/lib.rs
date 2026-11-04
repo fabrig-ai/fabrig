@@ -32,7 +32,7 @@ mod translate;
 pub use admission::{Class, class, try_step};
 pub use boundary::{AgentContent, ClientDocument, ClientMissing, ClientSubject, Event, Output, Released, Store, Timer};
 pub use domain::{Config, Domain, fire, release, step};
-pub use limits::{ENVIRONMENT_CLOSED_REASON, Limits, Policy, default_watermark};
+pub use limits::{ENVIRONMENT_CLOSE_GRACE, ENVIRONMENT_CLOSED_REASON, Limits, Policy, default_watermark};
 pub use store::{Key, Range, Record, Write};
 #[cfg(test)]
 mod tests;

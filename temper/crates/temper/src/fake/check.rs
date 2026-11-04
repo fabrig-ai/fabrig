@@ -456,7 +456,7 @@ impl Lines {
     fn next_line(&mut self) -> Result<Option<Result<(), String>>, String> {
         self.bytes.clear();
         let mut overlong = false;
-        let bound = usize::try_from(temper_fake::limits::OBSERVATION_BYTES).expect("u32 fits usize");
+        let bound = skein_lib::usize_of(temper_fake::limits::OBSERVATION_BYTES);
         loop {
             let chunk = self.reader.fill_buf().map_err(|why| format!("observations read: {why}"))?;
             if chunk.is_empty() {

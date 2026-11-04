@@ -416,7 +416,7 @@ fn signings_without_rows(
     root: &Domain,
     w: &Words,
     doc: &c::Accounts,
-    counts: temper_client_domain::limits::AccountLimits,
+    counts: jig_client::AccountCounts,
 ) {
     for signing in doc.signing.iter().take(usize::try_from(counts.sign_ins).expect("bounded sign-ins")) {
         let mut in_row = false;
@@ -579,9 +579,7 @@ pub(super) fn outcome(
             } else {
                 words::say(w, W::OpenSignIn, &[])
             };
-            let bytes = u64::try_from(label.len())
-                .expect("word length fits")
-                .saturating_add(u64::try_from(address.len()).expect("address length fits"));
+            let bytes = skein_lib::len_u64(label.len()).saturating_add(skein_lib::len_u64(address.len()));
             if bytes <= u64::from(text_per_node) {
                 b.open(Role::Link);
                 if root.pages().connect_model().is_some() {
@@ -593,14 +591,7 @@ pub(super) fn outcome(
                 b.close();
             } else {
                 b.open(Role::Alert);
-                b.text(
-                    Run::Plain,
-                    &words::say(
-                        w,
-                        W::AddressLong,
-                        &[Hole::Number(u64::try_from(address.len()).expect("address length fits"))],
-                    ),
-                );
+                b.text(Run::Plain, &words::say(w, W::AddressLong, &[Hole::Number(skein_lib::len_u64(address.len()))]));
                 b.close();
             }
         } else {

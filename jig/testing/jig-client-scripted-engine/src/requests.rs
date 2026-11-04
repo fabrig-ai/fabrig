@@ -272,18 +272,22 @@ impl<A: crate::Application> Engine<A> {
                     Vec::new(),
                 ));
             }
-            let waiting = match value {
+            let standing = match value {
                 ReadValue::Proposal(value) => match value.waiting.holder {
-                    jig_client_domain::contract::HistoryHolder::Person(person) => Some(Recipient::Party(person)),
-                    jig_client_domain::contract::HistoryHolder::Task(task) => Some(Recipient::Task(task)),
+                    jig_client_domain::contract::HistoryHolder::Person(person) => {
+                        Some(recipient(&self.truth, party, &Recipient::Party(person)))
+                    }
+                    jig_client_domain::contract::HistoryHolder::Task(task) => {
+                        Some(recipient(&self.truth, party, &Recipient::Task(task)))
+                    }
                     jig_client_domain::contract::HistoryHolder::Policy { .. } => None,
                 },
                 ReadValue::Escalation(value) => value.task.hold.as_ref().and_then(|hold| match hold.escalation {
                     Some(jig_client_domain::contract::HoldEscalation::Waiting { holder, .. }) => Some(match holder {
-                        jig_client_domain::contract::EscalationHolder::Person(person) => Recipient::Party(person),
-                        jig_client_domain::contract::EscalationHolder::Task(task) => Recipient::Task(task),
+                        jig_client_domain::contract::EscalationHolder::Person(person) => person == party,
+                        jig_client_domain::contract::EscalationHolder::Task(_) => false,
                         jig_client_domain::contract::EscalationHolder::Role { project, role } => {
-                            Recipient::Role { project, role }
+                            recipient(&self.truth, party, &Recipient::Role { project, role })
                         }
                     }),
                     _ => None,
@@ -310,7 +314,7 @@ impl<A: crate::Application> Engine<A> {
                 | ReadValue::Notes(_)
                 | ReadValue::Deployment(_) => None,
             };
-            if waiting.as_ref().is_some_and(|waiting| !recipient(&self.truth, party, waiting)) {
+            if standing == Some(false) {
                 return Ok((
                     Answer::Refused {
                         refusal: Refusal::Moved { now: Revision { value: 0 }, what: Moved::Waiting },
@@ -511,11 +515,11 @@ impl<A: crate::Application> Engine<A> {
             | Ask::SetPool { .. } => None,
         };
         if let (Some(key), Some(how)) = (object, how) {
-            if matches!(how, Decision::PassedUp | Decision::LeftHeld { .. }) {
+            if matches!(how, Decision::PassedUp) {
                 return Ok((Answer::Refused { refusal: Refusal::NotOffered, at: None }, Vec::new()));
             }
             let value = self.truth.objects.get(&key).expect("target checked").clone();
-            let Some((value, outcome)) = decided(value, ask, party, wall, &how) else {
+            let Some((value, outcome)) = decided(&self.truth, value, ask, party, wall, &how) else {
                 return Ok((Answer::Refused { refusal: Refusal::NotOffered, at: None }, Vec::new()));
             };
             let change =

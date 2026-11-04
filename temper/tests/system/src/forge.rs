@@ -239,7 +239,7 @@ impl World {
                 let mut facts = Queue::uncapped();
                 authority::step(&mut domain, authority::Event::Policy { project: 1, policy }, &mut facts);
                 assert_eq!(facts.pop(), Some(authority::PolicyFact::Added { project: 1 }));
-                // A chat's authority is its role's, one level shallower (jig a2616181).
+                // A chat's authority is its role's, one level shallower.
                 config.core.seed_projects[0].policy.policy = domain.policy(1).expect("configured seed policy").clone();
                 config.core.defaults.rules = domain.rules().clone();
             }
@@ -324,7 +324,7 @@ impl World {
         let mut config = self.fake_env.limits;
         config.latency_min = Duration::ZERO;
         config.latency_max = Duration::ZERO;
-        let env = Env { now: self.env.now, wall: self.env.wall, limits: config };
+        let env = self.env.with(config);
         fake::step(
             &mut self.fake,
             &env,

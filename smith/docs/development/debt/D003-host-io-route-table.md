@@ -16,14 +16,14 @@
 skein's `Io` and `FileIo` mint operation tokens that can collide on one
 kernel, and nothing says which machine a completion belongs to. Each
 consumer works around it. smith's is `HostIo.operations: Map<Token,
-Operation>` (`host_io.rs:74`), which records every submission as `Io`,
+Operation>` (`host_io.rs:68`), which records every submission as `Io`,
 `File` or `ProgramRoot` and routes each completion back by lookup.
 
-Beside it, `native_io_valid` (`host_io.rs:110`) rebuilds a validity check by
+Beside it, `native_io_valid` (`host_io.rs:100`) rebuilds a validity check by
 hand: `is_usable`, the operation count doubled and the socket count
 doubled. skein's `skein_io::valid` (`skein/crates/skein-io/src/limits.rs`) checks
 operations, flights and timers instead. smith calls its own at startup
-(`host_io.rs:95`, `credentials.rs:90`, the headless front).
+(`host_io.rs:85`, `credentials.rs:90`, the headless front).
 
 Because these services multiplex several machines on one kernel, they cannot
 use `skein_io::stage` and drive io by hand: 15 `io::resume` calls remain, in
@@ -41,5 +41,4 @@ skein first: a lane chosen at construction, held in the token's top bits
 (skein's review's io F1; skein's `skein/docs/development/debt/D044-io-token-tags.md`, which this item waits on), and one public validity check (its F6). Then
 `HostIo` routes by lane, drops the table, calls `skein_io::valid` plus its
 own doubling rule, and the services move onto `stage`. skein's
-`skein/docs/design/io.status.md` does not record the collision yet. Goes well with
-D002's `HostIo` conversion.
+`skein/docs/design/io.status.md` does not record the collision yet.

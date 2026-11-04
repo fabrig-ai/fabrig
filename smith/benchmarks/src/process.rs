@@ -1,5 +1,5 @@
 //! Attempt output and caller-owned deadlines on Skein's real world.
-//! The pipe observer retains bounded bytes and parsed Codex records, never
+//! The pipe observer retains bounded bytes and parsed agent records, never
 //! agent state. Binary owns process-tree discovery, signals and settlement.
 //! Ended terminal masters stay held until Binary settles the tree.
 //! Contract: benchmarks.md, sections 6, 8 and 10.
@@ -12,16 +12,12 @@ use skein_shell::Clock;
 use skein_world::end_to_end::{Binary, Command, Expectation, Mode, Streams};
 use skein_world::{Delegate, Host, Referee, real};
 
-use crate::agent::codex;
-
 /// Application output interpretation selected by the prepared invocation.
 #[derive(Debug)]
 pub enum Capture {
-    /// Codex's JSON-lines stream, including the final turn's answer.
-    Codex,
     /// Setup or grading output with no agent terminal vocabulary.
     Raw,
-    /// The observer paired with an adapter's pinned preparation.
+    /// The adapter's selected stream and any pinned preparation.
     Agent(Box<crate::agent::Observing>),
 }
 
@@ -50,7 +46,6 @@ pub struct ProcessResult {
     pub stderr: Vec<u8>,
     /// Raw native file trace, retained before any parsing fault is reported.
     pub trace: Vec<u8>,
-    pub observer: codex::Observer,
     pub observing: Option<Box<crate::agent::Observing>>,
     pub error: Option<String>,
     pub counts: skein_world::end_to_end::Counts,
@@ -93,7 +88,6 @@ struct Output {
     bytes: Vec<u8>,
     line: Vec<u8>,
     capture: Capture,
-    observer: codex::Observer,
     answered: Option<Time>,
     error: Option<String>,
     completions: Queue<Complete>,
@@ -125,7 +119,6 @@ impl Output {
             bytes: Vec::new(),
             line: Vec::new(),
             capture,
-            observer: codex::Observer::default(),
             answered: None,
             error: None,
             completions: Queue::with_capacity(8),
@@ -147,17 +140,6 @@ impl Output {
         if self.error.is_none() {
             match &mut self.capture {
                 Capture::Raw => {}
-                Capture::Codex => match std::str::from_utf8(&self.line) {
-                    Ok(line) => {
-                        if let Err(error) = self.observer.observe_line(line) {
-                            self.error = Some(error.to_string());
-                        }
-                        if self.answered.is_none() && self.observer.answer().is_some() {
-                            self.answered = Some(now);
-                        }
-                    }
-                    Err(error) => self.error = Some(format!("stdout UTF-8: {error}")),
-                },
                 Capture::Agent(observing) => match std::str::from_utf8(&self.line) {
                     Ok(line) => match observing.feed_line(line) {
                         Ok(seen) => {
@@ -527,17 +509,8 @@ impl Referee<Process> for Policy {
 
 fn trace_file(capture: &Capture) -> Result<Option<std::fs::File>, String> {
     match capture {
-        Capture::Agent(observing) => match observing.as_ref() {
-            crate::agent::Observing::Codex(_) => Ok(None),
-            crate::agent::Observing::Smith(observing) => match observing.prepared.face {
-                crate::agent::smith::events::Shape::Exec => Ok(None),
-                crate::agent::smith::events::Shape::Chat => {
-                    let path = observing.prepared.trace.as_ref().ok_or("Smith Chat requires a trace path")?;
-                    std::fs::File::open(path).map(Some).map_err(|error| format!("trace open: {error}"))
-                }
-            },
-        },
-        Capture::Raw | Capture::Codex => Ok(None),
+        Capture::Agent(observing) => observing.trace_file(),
+        Capture::Raw => Ok(None),
     }
 }
 
@@ -551,13 +524,8 @@ pub fn execute(
     bounds: Bounds,
 ) -> Result<ProcessResult, String> {
     let close = match &capture {
-        Capture::Agent(observing)
-            if matches!(observing.as_ref(), crate::agent::Observing::Smith(observing)
-            if observing.prepared.face != crate::agent::smith::events::Shape::Exec) =>
-        {
-            crate::agent::Close::AfterAnswer
-        }
-        Capture::Agent(_) | Capture::Raw | Capture::Codex => crate::agent::Close::AfterPrompt,
+        Capture::Agent(observing) => observing.close(),
+        Capture::Raw => crate::agent::Close::AfterPrompt,
     };
     let cues = if prompt.is_empty() {
         Vec::new()
@@ -638,15 +606,9 @@ pub fn execute_script(
         skein_io::kernel::Exit::Code(code) => crate::Exit::Code(i32::from(code)),
         skein_io::kernel::Exit::Signal(signal) => crate::Exit::Signal(i32::try_from(signal).expect("kernel signal")),
     };
-    let (observer, observing) = match output.capture {
-        Capture::Agent(observing) => {
-            let observer = match observing.as_ref() {
-                crate::agent::Observing::Codex(observing) => observing.observer.clone(),
-                crate::agent::Observing::Smith(_) => codex::Observer::default(),
-            };
-            (observer, Some(observing))
-        }
-        Capture::Codex | Capture::Raw => (output.observer, None),
+    let observing = match output.capture {
+        Capture::Agent(observing) => Some(observing),
+        Capture::Raw => None,
     };
     Ok(ProcessResult {
         exit,
@@ -658,7 +620,6 @@ pub fn execute_script(
         stdout: output.bytes,
         stderr: binary.stderr().to_vec(),
         trace: output.trace_bytes,
-        observer,
         observing,
         error,
         counts: binary.counts().expect("tree settlement"),

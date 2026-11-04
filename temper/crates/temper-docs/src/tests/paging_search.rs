@@ -6,18 +6,18 @@ fn find_requires_the_exact_name() {
     for name in [b"Box".as_slice(), b"box ", b"nope", b""] {
         assert!(find(name).is_none(), "{name:?}: no exact entry");
     }
-    assert_eq!(KINDS.map(Kind::word), ["index", "concept", "walk", "recipe", "reference", "guide"]);
+    assert_eq!(KINDS.map(Kind::word), ["index", "concept", "walk", "recipe", "reference"]);
 }
 
 #[test]
 fn page_stops_at_the_last_line_end_that_fits() {
-    static ENTRY: Page = fixture(Kind::Guide, "ab\nc\nlonger\n");
+    static ENTRY: Page = fixture(Kind::Reference, "ab\nc\nlonger\n");
     assert_eq!(page(&ENTRY, 0, 10), Cut { text: "ab\nc\n", next: Some(5) });
 }
 
 #[test]
 fn page_cuts_a_long_line_then_continues_at_its_next_offset() {
-    static ENTRY: Page = fixture(Kind::Guide, "abcdefgh\nx\n");
+    static ENTRY: Page = fixture(Kind::Reference, "abcdefgh\nx\n");
     let first = page(&ENTRY, 0, 5);
     assert_eq!(first, Cut { text: "abcde", next: Some(5) });
     assert_eq!(page(&ENTRY, first.next.expect("next page"), 5), Cut { text: "fgh\n", next: Some(9) });
@@ -25,7 +25,7 @@ fn page_cuts_a_long_line_then_continues_at_its_next_offset() {
 
 #[test]
 fn page_cuts_at_character_boundaries_and_counts_non_ascii_bytes_once() {
-    static ENTRY: Page = fixture(Kind::Guide, "ab·cd");
+    static ENTRY: Page = fixture(Kind::Reference, "ab·cd");
     assert_eq!(page(&ENTRY, 0, 3), Cut { text: "ab", next: Some(2) });
     assert_eq!(page(&ENTRY, 0, 4), Cut { text: "ab·", next: Some(4) });
     assert_eq!(page(&ENTRY, 2, 2), Cut { text: "·", next: Some(4) });
@@ -33,28 +33,28 @@ fn page_cuts_at_character_boundaries_and_counts_non_ascii_bytes_once() {
 
 #[test]
 fn page_from_inside_a_character_starts_at_the_next_boundary() {
-    static ENTRY: Page = fixture(Kind::Guide, "ab·cd");
-    static LAST: Page = fixture(Kind::Guide, "ab·");
+    static ENTRY: Page = fixture(Kind::Reference, "ab·cd");
+    static LAST: Page = fixture(Kind::Reference, "ab·");
     assert_eq!(page(&ENTRY, 3, 2), Cut { text: "cd", next: None });
     assert_eq!(page(&LAST, 3, 2), Cut { text: "", next: None });
 }
 
 #[test]
 fn page_counts_quotes_backslashes_and_line_ends_twice() {
-    static ENTRY: Page = fixture(Kind::Guide, "\"\\\"\\\nend");
+    static ENTRY: Page = fixture(Kind::Reference, "\"\\\"\\\nend");
     assert_eq!(page(&ENTRY, 0, 5), Cut { text: "\"\\", next: Some(2) });
     assert_eq!(page(&ENTRY, 2, 6), Cut { text: "\"\\\n", next: Some(5) });
 }
 
 #[test]
 fn page_returns_the_whole_rest_when_it_fits_without_a_final_line_end() {
-    static ENTRY: Page = fixture(Kind::Guide, "a\nb");
+    static ENTRY: Page = fixture(Kind::Reference, "a\nb");
     assert_eq!(page(&ENTRY, 0, 4), Cut { text: "a\nb", next: None });
 }
 
 #[test]
 fn page_at_or_past_the_end_is_empty() {
-    static ENTRY: Page = fixture(Kind::Guide, "x\n");
+    static ENTRY: Page = fixture(Kind::Reference, "x\n");
     for from in [2, 3, u32::MAX] {
         assert_eq!(page(&ENTRY, from, 2), Cut { text: "", next: None });
     }
@@ -63,7 +63,7 @@ fn page_at_or_past_the_end_is_empty() {
 #[test]
 #[should_panic(expected = "a page must fit every rendered byte")]
 fn page_requires_room_for_every_rendered_byte() {
-    static ENTRY: Page = fixture(Kind::Guide, "x");
+    static ENTRY: Page = fixture(Kind::Reference, "x");
     let _page = page(&ENTRY, 0, 1);
 }
 
@@ -91,14 +91,14 @@ static SEARCH: [Page; 2] = [
         name: "z-first",
         title: "First title",
         ..fixture(
-            Kind::Guide,
+            Kind::Reference,
             "# First title\n\nAlpha beta head.\n\n## One\nOnly ALPHA.\n\n## Two\nBeta first.\nalpha first line.\nALPHA later.\n```sh\n## Pretend\nbeta inside fence\n```\n## Three\nalpha beta last.\n",
         )
     },
     Page {
         name: "a-second",
         title: "Second title",
-        ..fixture(Kind::Guide, "# Second title\n\nAlpha beta head.\n## Last\nalpha beta section.\n")
+        ..fixture(Kind::Reference, "# Second title\n\nAlpha beta head.\n## Last\nalpha beta section.\n")
     },
 ];
 
@@ -143,7 +143,7 @@ fn search_takes_the_first_line_with_the_first_word() {
 #[test]
 fn search_cuts_the_matching_line_to_its_byte_bound() {
     static LONG: [Page; 1] = [fixture(
-        Kind::Guide,
+        Kind::Reference,
         concat!(
             "# Fixture\n",
             "alpha ",
@@ -161,7 +161,7 @@ fn search_cuts_the_matching_line_to_its_byte_bound() {
 #[test]
 fn search_cuts_before_a_character_straddling_its_byte_bound() {
     static LONG: [Page; 1] = [fixture(
-        Kind::Guide,
+        Kind::Reference,
         concat!(
             "# Fixture\n",
             "alpha ",

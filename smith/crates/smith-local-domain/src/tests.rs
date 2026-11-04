@@ -81,6 +81,71 @@ fn a_refused_selection_keeps_the_current_chat_identity() {
     assert_eq!(domain.chat.state.identity, identity);
 }
 
+fn chat_with_loaded_history() -> (Domain, Env<Limits>, Queue<Request>) {
+    let limits = limits();
+    let env = Env { now: Time::ZERO, wall: Wall::EPOCH, limits: limits.clone() };
+    let mut domain = Domain::new(config(), &limits, 11).unwrap();
+    let mut out = Queue::uncapped();
+    crate::resume(&mut domain, &env, &mut out);
+    let Some(Request::Load) = out.pop() else { panic!("initial load") };
+    let turn = crate::fixture::turn();
+    let transcript = smith_host_domain::Transcript::new(
+        smith_domain::Transcript {
+            version: turn.version,
+            endpoint: turn.endpoint,
+            dialect: turn.dialect,
+            turns: Box::new([turn]),
+        },
+        host_limits().transcript_bytes,
+    )
+    .unwrap();
+    crate::step(
+        &mut domain,
+        &env,
+        Event::Loaded { state: None, transcript: Some(transcript), deliveries: Box::new([]) },
+        &mut out,
+    );
+    assert!(out.is_empty());
+    (domain, env, out)
+}
+
+#[test]
+fn a_refused_selection_keeps_the_loaded_history_for_the_next_start() {
+    let (mut domain, env, mut out) = chat_with_loaded_history();
+    crate::step(&mut domain, &env, Event::SelectChat { name: b"absent".as_slice().into(), create: false }, &mut out);
+    let Some(Request::SelectChat { .. }) = out.pop() else { panic!("selection request") };
+    crate::step(
+        &mut domain,
+        &env,
+        Event::ChatSelected { name: b"absent".as_slice().into(), result: Err(crate::ChatRefusal::Missing) },
+        &mut out,
+    );
+    let crate::chat::State::Idle { history: Some(history) } = &domain.chat.phase else {
+        panic!("refused selection retains the next start's history")
+    };
+    assert_eq!(history.value().turns.as_ref(), &[crate::fixture::turn()]);
+}
+
+#[test]
+fn a_refused_grant_keeps_the_loaded_history_for_the_next_start() {
+    let (mut domain, env, mut out) = chat_with_loaded_history();
+    crate::step(&mut domain, &env, Event::Line { text: b"continue".as_slice().into() }, &mut out);
+    let Some(Request::Credential { account: 7 }) = out.pop() else { panic!("requested grant") };
+    let Some(Request::SaveState { .. }) = out.pop() else { panic!("saved activation") };
+    crate::step(
+        &mut domain,
+        &env,
+        Event::NoCredential { account: 7, reason: crate::CredentialFailure::Missing },
+        &mut out,
+    );
+    assert!(domain.chat.phase.is_starting(), "refusal waits for the state's save");
+    crate::step(&mut domain, &env, Event::StateSaved, &mut out);
+    let crate::chat::State::Idle { history: Some(history) } = &domain.chat.phase else {
+        panic!("refused grant retains the next start's history")
+    };
+    assert_eq!(history.value().turns.as_ref(), &[crate::fixture::turn()]);
+}
+
 #[test]
 fn selecting_an_idle_chat_loads_its_saved_identity_after_a_fresh_one() {
     let (mut domain, env, mut out) = idle_chat(11);

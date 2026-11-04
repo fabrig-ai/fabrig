@@ -71,7 +71,7 @@ impl HostIo {
         if self.store_io.store_actions.is_empty()
             && let Some(store) = &mut self.store_io.store
         {
-            if self.closing.is_some() {
+            if self.close.closing() {
                 store.close(now, &mut self.store_io.store_actions);
             } else if store.takes()
                 && let Some(request) = self.store_io.store_requests.pop()

@@ -378,8 +378,8 @@ fn rows_naming(world: &World, project: u32) -> Vec<String> {
             let names = match row {
                 root::Record::Core(core::Record::People(row)) => people_names(row, project),
                 root::Record::Core(core::Record::Notes(row)) => match row {
-                    // Globally named bodies can be shared; their scope lines own project membership.
-                    notes::Record::Entry(_) => false,
+                    // Entries and their index lines belong to the same project scope.
+                    notes::Record::Entry(row) => scope_names(&row.scope, project),
                     notes::Record::Line(row) => scope_names(&row.scope, project),
                 },
                 root::Record::Core(core::Record::Accounts(accounts::Stored::Account { number, uses, .. })) => {

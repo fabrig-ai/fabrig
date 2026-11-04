@@ -113,8 +113,8 @@ fn build(client: &Fixture, w: &Words) -> Tree {
     assert!(tree.len() <= limits.nodes);
     let mut total = 0_u64;
     for node in tree.nodes() {
-        assert!(crate::tests::text_bytes(node) <= limits.text_per_node);
-        total = total.checked_add(u64::from(crate::tests::text_bytes(node))).unwrap();
+        assert!(node.text_bytes() <= limits.text_per_node);
+        total = total.checked_add(u64::from(node.text_bytes())).unwrap();
     }
     assert!(total <= u64::from(limits.text_bytes));
     tree

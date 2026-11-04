@@ -5,10 +5,7 @@ use super::super::{
     request::Request,
 };
 use skein_json::{tokenizer, writer};
-use skein_lib::{
-    Env, Intake, List, Queue, Time, Wall, Writer,
-    stream::{Down, Up},
-};
+use skein_lib::{List, Wall, Writer};
 // GitHub's depth is 10; this fixture holds the first documents in 4096 bytes.
 pub const DOCUMENT_BYTES: u32 = 4096;
 pub const STRING_BYTES: u32 = 128;
@@ -54,7 +51,7 @@ pub fn refusal() -> super::super::document::Refusal {
     }
 }
 pub fn wall() -> Wall {
-    crate::forgejo::time::read(b"2026-10-20T08:00:00Z").unwrap()
+    crate::time::read(b"2026-10-20T08:00:00Z").unwrap()
 }
 pub fn decode(kind: Kind, body: &[u8], chunk: u32, limits: &Limits) -> (List<Row>, Result<Document, Malformed>) {
     decode_with(decode::decoder(kind, limits), body, chunk, limits)
@@ -65,39 +62,18 @@ pub fn decode_with(
     chunk: u32,
     limits: &Limits,
 ) -> (List<Row>, Result<Document, Malformed>) {
-    let mut limits = *limits;
-    limits.json.chunk = chunk;
-    let env = Env { now: Time::ZERO, wall: Wall::EPOCH, limits: limits.json };
-    let mut tokenizer = tokenizer::Tokenizer::new(&limits.json);
-    let mut above = Queue::with_capacity(1);
-    let mut below = Queue::with_capacity(1);
-    let mut intake =
-        Intake::with_capacity(u32::try_from(body.len()).unwrap().max(tokenizer::largest_demand(&limits.json)));
-    intake.append(body).unwrap();
+    let mut feed = tokenizer::Feed::new(body, &tokenizer::Limits { chunk, ..limits.json });
     let mut rows = List::with_capacity(limits.inner.saturating_mul(2).max(16));
-    tokenizer::down(&mut tokenizer, &env, tokenizer::Request::Next, &mut above, &mut below);
-    for _ in 0..body.len().saturating_mul(8).saturating_add(64) {
-        if let Some(event) = above.pop() {
-            let (demand, step) = decoder.step(event);
-            match step {
-                Step::Demand => {}
-                Step::Row(row) => rows.push(row).unwrap(),
-                Step::Done(document) => return (rows, Ok(document)),
-                Step::Malformed(error) => return (rows, Err(error)),
-            }
-            tokenizer::down(&mut tokenizer, &env, demand, &mut above, &mut below);
-        } else {
-            match below.pop().expect("tokenizer demand") {
-                Down::Demand { read, room: 0 } => {
-                    let delivery = match intake.meet(read) {
-                        Some(bytes) => Up::Bytes(bytes),
-                        None => Up::End,
-                    };
-                    tokenizer::up(&mut tokenizer, &env, delivery, &mut above, &mut below);
-                }
-                Down::Demand { .. } | Down::Send(_) | Down::Finish => panic!("JSON only demands input"),
-            }
+    let mut request = tokenizer::Request::Next;
+    for _answer in 0..=body.len() {
+        let (demand, step) = decoder.step(feed.answer(request));
+        match step {
+            Step::Demand => {}
+            Step::Row(row) => rows.push(row).unwrap(),
+            Step::Done(document) => return (rows, Ok(document)),
+            Step::Malformed(error) => return (rows, Err(error)),
         }
+        request = demand;
     }
     panic!("decoder did not settle within input's step bound")
 }
@@ -164,31 +140,14 @@ pub fn delivery_decode(
     let Some(mut decoder) = delivery::decoder(event, &limits) else {
         return Ok(delivery::Delivery::Other);
     };
-    let env = Env { now: Time::ZERO, wall: Wall::EPOCH, limits: limits.json };
-    let mut tokenizer = tokenizer::Tokenizer::new(&limits.json);
-    let mut above = Queue::with_capacity(1);
-    let mut below = Queue::with_capacity(1);
-    let mut intake =
-        Intake::with_capacity(u32::try_from(body.len()).unwrap().max(tokenizer::largest_demand(&limits.json)));
-    intake.append(body).unwrap();
-    tokenizer::down(&mut tokenizer, &env, delivery::first(&decoder), &mut above, &mut below);
-    for _ in 0..body.len().saturating_mul(8).saturating_add(64) {
-        if let Some(event) = above.pop() {
-            match delivery::step(&mut decoder, &limits, &event) {
-                delivery::Step::Demand(demand) => tokenizer::down(&mut tokenizer, &env, demand, &mut above, &mut below),
-                delivery::Step::Done(value) => return Ok(value),
-                delivery::Step::Malformed(error) => return Err(error),
-            }
-        } else {
-            let read = match below.pop().expect("tokenizer demand") {
-                Down::Demand { read, room: 0 } => read,
-                Down::Demand { .. } | Down::Send(_) | Down::Finish => panic!("JSON only demands input"),
-            };
-            let event = match intake.meet(read) {
-                Some(bytes) => Up::Bytes(bytes),
-                None => Up::End,
-            };
-            tokenizer::up(&mut tokenizer, &env, event, &mut above, &mut below);
+    let mut feed = tokenizer::Feed::new(body, &limits.json);
+    let mut request = delivery::first(&decoder);
+    for _answer in 0..=body.len() {
+        let event = feed.answer(request);
+        match delivery::step(&mut decoder, &limits, &event) {
+            delivery::Step::Demand(demand) => request = demand,
+            delivery::Step::Done(value) => return Ok(value),
+            delivery::Step::Malformed(error) => return Err(error),
         }
     }
     panic!("delivery did not settle within input's step bound")

@@ -777,10 +777,10 @@ impl Domain {
     #[must_use]
     pub fn can_subscribe(&self, limits: &Limits, subscription: &Subscriber) -> bool {
         if match &subscription.goal_tasks {
-            Some(tasks) => tasks.len() > usize::try_from(limits.issue_policy.plan_items).expect("u32 fits usize"),
+            Some(tasks) => tasks.len() > skein_lib::usize_of(limits.issue_policy.plan_items),
             None => false,
         } || subscription.number == 0
-            || subscription.paths.len() > usize::try_from(limits.paths_per_subscription).expect("u32 fits usize")
+            || subscription.paths.len() > skein_lib::usize_of(limits.paths_per_subscription)
         {
             return false;
         }
@@ -790,13 +790,13 @@ impl Domain {
             Some(_) | None => {}
         }
         for path in &subscription.paths {
-            if path.len() > usize::try_from(limits.name_bytes).expect("u32 fits usize") {
+            if path.len() > skein_lib::usize_of(limits.name_bytes) {
                 return false;
             }
         }
         let repository = match &subscription.topic {
             Topic::Landings { repository, branch } => {
-                if branch.len() > usize::try_from(limits.name_bytes).expect("u32 fits usize") {
+                if branch.len() > skein_lib::usize_of(limits.name_bytes) {
                     return false;
                 }
                 *repository
@@ -1575,7 +1575,7 @@ pub fn writer(d: &mut Domain, env: &Env<Limits>, writer: skein_forge_client::Wri
 }
 
 fn child_env(env: &Env<Limits>) -> Env<skein_forge_client::Limits> {
-    Env { now: env.now, wall: env.wall, limits: env.limits.client }
+    env.with(env.limits.client)
 }
 
 pub(crate) fn child(d: &mut Domain, env: &Env<Limits>, event: skein_forge_client::Event, out: &mut Queue<Request>) {
@@ -1879,7 +1879,7 @@ fn valid_name(d: &Domain, l: &Limits, name: &Name) -> bool {
                 };
                 bytes = next;
             }
-            bytes <= usize::try_from(l.name_bytes).expect("u32 fits usize")
+            bytes <= skein_lib::usize_of(l.name_bytes)
         }
     }
 }
@@ -2091,7 +2091,7 @@ fn claim(
     holders: &[u64],
     out: &mut Queue<Request>,
 ) {
-    if writes.len() > usize::try_from(env.limits.resources_per_task).expect("u32 fits usize") {
+    if writes.len() > skein_lib::usize_of(env.limits.resources_per_task) {
         emit(out, Request::Refused { task });
         return;
     }
@@ -2478,8 +2478,8 @@ fn register_change(d: &mut Domain, env: &Env<Limits>, mut row: ChangeRow, out: &
         || row.change.task != task
         || row.branch.is_empty()
         || row.base.is_empty()
-        || row.branch.len() > usize::try_from(env.limits.name_bytes).expect("u32 fits usize")
-        || row.base.len() > usize::try_from(env.limits.name_bytes).expect("u32 fits usize")
+        || row.branch.len() > skein_lib::usize_of(env.limits.name_bytes)
+        || row.base.len() > skein_lib::usize_of(env.limits.name_bytes)
         || (!d.changes.contains_key(&task) && d.changes.len() == env.limits.changes)
         || d.changes.contains_key(&task)
     {
@@ -2649,7 +2649,7 @@ fn delegate_result(
         change::Delegate::Merge { .. } => {
             if status == change::Status::Passed {
                 let bound = match d.merge_kind {
-                    Some((_, result)) => usize::try_from(result).expect("u32 fits usize"),
+                    Some((_, result)) => skein_lib::usize_of(result),
                     None => 0,
                 };
                 row.merge_result =
@@ -2781,7 +2781,7 @@ fn step_change(d: &mut Domain, env: &Env<Limits>, input: StepInput, out: &mut Qu
             owner = Some(*token);
         }
     }
-    if gates.len() > usize::try_from(env.limits.change_policy.gates).expect("u32 fits usize") {
+    if gates.len() > skein_lib::usize_of(env.limits.change_policy.gates) {
         emit(out, Request::Refused { task });
         return;
     }
@@ -3157,7 +3157,7 @@ fn step_read(
                     emit(out, Request::Refused { task: pending.task });
                     return;
                 };
-                if total > usize::try_from(env.limits.client.inbox).expect("u32 fits usize") {
+                if total > skein_lib::usize_of(env.limits.client.inbox) {
                     pending.reviews_complete = false;
                     finish_step(d, env, pending, out);
                     return;
@@ -3698,8 +3698,7 @@ fn change_write(row: &ChangeRow, effect: change::Effect, limits: &Limits) -> Opt
     match effect {
         change::Effect::Open => {
             // domain/forge.md, 8.1: fit the explicit title independently of the brief.
-            let room = usize::try_from(limits.client.op_bytes)
-                .expect("u32 fits usize")
+            let room = skein_lib::usize_of(limits.client.op_bytes)
                 .saturating_sub(row.branch.len())
                 .saturating_sub(row.base.len());
             let marker = "…\nThe change's full words are on its task in temper.".as_bytes();
@@ -4027,7 +4026,7 @@ fn release(
     out: &mut Queue<Request>,
 ) {
     if let Some(reason) = &reason
-        && reason.len() > usize::try_from(env.limits.client.op_bytes).expect("u32 fits usize")
+        && reason.len() > skein_lib::usize_of(env.limits.client.op_bytes)
     {
         emit(out, Request::ReleaseFailed { task, account: None });
         return;
@@ -4481,7 +4480,7 @@ fn project(
 }
 
 fn projection_limits(d: &Domain, limits: &Limits, prior: &IssueRow, view: &issues::GoalView) -> Option<issues::Limits> {
-    let title_bound = usize::try_from(limits.issue_policy.title_bytes).expect("u32 fits usize");
+    let title_bound = skein_lib::usize_of(limits.issue_policy.title_bytes);
     let title_bytes = if view.title.len() <= title_bound {
         view.title.len()
     } else {
@@ -6308,5 +6307,5 @@ fn merge_available(d: &Domain, row: &ChangeRow, pending: &PendingStep, base_tip:
         let Some(sum) = length.checked_add(part) else { return false };
         length = sum;
     }
-    length <= usize::try_from(bound).expect("u32 fits usize")
+    length <= skein_lib::usize_of(bound)
 }

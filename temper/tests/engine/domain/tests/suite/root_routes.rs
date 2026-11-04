@@ -217,8 +217,8 @@ fn with_policy(configuration: &mut engine::Config, change: impl FnOnce(&mut auth
 }
 
 /// The walking configuration with its role's chats at 100 each: a chat takes
-/// its role's spend from its person's pool (jig a2616181), so one pool of 500
-/// funds more than one.
+/// its role's spend from its person's pool, so one pool of 500 funds more
+/// than one.
 fn two_slot_limits() -> engine::Limits {
     let mut limits = limits();
     limits.fleet.slots = 2;
@@ -302,7 +302,7 @@ fn sign_in_person(driver: &mut Driver, user: u64, reply: u64) -> (u64, u64) {
 }
 
 /// The person and session a sign-in's reply named. Person numbers come from
-/// the replies: a first start seeds the configured owners (jig 0f55ef2d).
+/// the replies: a first start seeds the configured owners.
 fn signed_in(driver: &Driver, reply: u64) -> (u64, u64) {
     driver
         .delivered
@@ -372,7 +372,7 @@ fn a_member_starts_a_chat_and_an_observer_is_refused() {
         ask: driver.chat_ask(1, b"hello"),
     }));
     driver.settle();
-    // Role refusals carry the role held (jig b7bdd9e8).
+    // Role refusals carry the role held.
     let refused = people::Refusal::Role { held: Some(people::Role::Observer) };
     assert!(driver.delivered.iter().any(|delivery| matches!(
         delivery,
@@ -728,7 +728,7 @@ fn a_members_goal_past_their_allotment_becomes_a_proposal_a_maintainer_accepts()
         Record::Core(jig_domain_core::Record::Tasks(tasks::Stored::Live(task)))
             if task.requester == tasks::Party::Person(member) && task.tracked == Some(7)
     )));
-    // A decided proposal moves to its history family (jig c231752c).
+    // A decided proposal moves to its history family.
     assert!(
         matches!(driver.store.rows.get(&Key::Core(jig_domain_core::Key::Tasks(tasks::Key::DecidedProposal(proposal)))),
             Some(Record::Core(jig_domain_core::Record::Tasks(tasks::Stored::DecidedProposal(row))))
@@ -832,8 +832,8 @@ fn durable_start_turn_and_answer_callbacks_survive_full_journal_pressure() {
     assert_eq!(driver.delivered.iter().filter(|delivery| matches!(delivery, Delivery::Result { .. })).count(), 1);
 }
 
-// The named result read that followed the restart is the core's now (jig
-// 62410d35); the restart's own promise stays.
+// The named result read that followed the restart is the core's now;
+// the restart's own promise stays.
 #[test]
 fn restart_replays_no_raw_notice_of_an_ended_result() {
     let mut world = World::new(Settings { restart: false, ..Settings::calm(92) });
@@ -858,8 +858,8 @@ fn restart_replays_no_raw_notice_of_an_ended_result() {
     );
 }
 
-// The role inbox views between the steps are the core's reads now (jig
-// 62410d35); the claim's own route stays.
+// The role inbox views between the steps are the core's reads now;
+// the claim's own route stays.
 #[test]
 fn a_person_task_addressed_to_a_role_taken_by_one_handed_back_answered_by_another() {
     let (mut driver, root) = batch_fixture_custom(2, 1, 500, true, false, true);
@@ -1088,7 +1088,7 @@ fn a_refused_assignment_spends_no_try() {
     assert_eq!(task.tries, tasks::Tries::NONE);
 }
 
-// A chat's authority comes from its person's role policy (jig a2616181).
+// A chat's authority comes from its person's role policy.
 #[test]
 fn static_authority_waits_are_durable_holds_and_do_not_spin_the_ready_pass() {
     for deadline in [false, true] {
@@ -1124,29 +1124,51 @@ fn static_authority_waits_are_durable_holds_and_do_not_spin_the_ready_pass() {
     }
 }
 
+fn person(number: u64, subject: u64, name: &[u8]) -> Record {
+    Record::Core(jig_domain_core::Record::People(people::Stored::Person {
+        number,
+        identity: people::Identity {
+            key: people::IdentityKey { provider: 0, subject: subject.to_be_bytes().into() },
+            login: b"same".as_slice().into(),
+            name: name.into(),
+        },
+    }))
+}
+
 #[test]
-#[ignore = "start: duplicate people identity panics at Person(2) instead of refusing the page"]
 fn invalid_nonfinal_people_restore_page_stops_before_issuing_its_continuation() {
+    let mut bounds = limits();
+    bounds.people.people = 12;
+    let oversized = vec![b'x'; skein_lib::usize_of(bounds.people.identity_bytes) + 1];
+    let mut store_bounds = temper_engine_domain_world::store::widest();
+    store_bounds.people.identity_bytes = 64;
+    let mut store = Store::with_limits(&store_bounds);
+    for number in 1..=12 {
+        let name: &[u8] = if number == 2 { &oversized } else { b"Same" };
+        store.seed(Box::new([person(number, number, name)]), Box::new([]));
+    }
+    let mut driver = Driver::configured(store, [config(91), config(91)], &bounds);
+    for _ in 0..30 {
+        driver.advance(true);
+    }
+    driver.broken("oversized identity deliberately refuses startup");
+    assert!(driver.stopped, "oversized identity in a middle page is a terminal startup failure");
+    assert!(!driver.root.ready());
+    assert!(!driver.root.quiescent());
+    assert!(driver.events.is_empty(), "failed page did not issue another continuation");
+}
+
+#[test]
+#[should_panic(expected = "identity index collision at Person(2)")]
+fn a_duplicate_person_identity_panics_at_its_link_naming_its_row() {
     let mut store = Store::new();
     for number in 1..=3 {
-        let record = Record::Core(jig_domain_core::Record::People(people::Stored::Person {
-            number,
-            identity: people::Identity {
-                key: people::IdentityKey { provider: 0, subject: 7_u64.to_be_bytes().into() },
-                login: b"same".as_slice().into(),
-                name: b"Same".as_slice().into(),
-            },
-        }));
-        store.seed(Box::new([record]), Box::new([]));
+        store.seed(Box::new([person(number, 7, b"Same")]), Box::new([]));
     }
     let mut driver = Driver::new(store);
     for _ in 0..30 {
         driver.advance(true);
     }
-    assert!(driver.stopped, "duplicate identity in middle page is a terminal startup failure");
-    assert!(!driver.root.ready());
-    assert!(!driver.root.quiescent());
-    assert!(driver.events.is_empty(), "failed page did not issue another continuation");
 }
 
 #[test]
@@ -1257,7 +1279,7 @@ fn unavailable_call(driver: &mut Driver, assignment: &engine::Assignment, call: 
     driver.call(Token::new(7), assignment.task, assignment.attempt, call, body);
 }
 
-// A chat's delegation comes from its role's, one level shallower (jig a2616181).
+// A chat's delegation comes from its role's, one level shallower.
 fn delegate_fixture() -> (Driver, engine::Assignment) {
     let configuration = std::array::from_fn(|_| {
         let mut configuration = config(91);
@@ -1304,8 +1326,8 @@ fn batch_fixture_with_pool(slots: u32, depth: u32, pool_budget: u64) -> (Driver,
 
 // Chats are funded by their role's policy: its period spend is the person's
 // pool, and the chat's authority is the role's, one level shallower, within
-// the pool (jig a2616181). The role's spend covers a 150 goal and leaves the
-// pool room for one beside its chat.
+// the pool. The role's spend covers a 150 goal and leaves the pool room for
+// one beside its chat.
 fn batch_fixture_custom(
     slots: u32,
     depth: u32,
@@ -1384,8 +1406,8 @@ fn batch_settings(
                 },
             ]);
         }
-        // A run's budget holds its finishing reserve (jig a020bf1c); as jig's
-        // fixtures do, the charter's price unit keeps a run budget of 5 fundable.
+        // A run's budget holds its finishing reserve; as jig's fixtures do,
+        // the charter's price unit keeps a run budget of 5 fundable.
         let mut cheaper = charter();
         cheaper.policy.model.price_unit = 2000;
         configuration.core.settings.models = Box::new([cheaper.policy.model.clone()]);
@@ -1424,7 +1446,7 @@ fn batch_settings(
     (configuration, bounds)
 }
 
-// A chat's note scopes are its role's (jig a2616181).
+// A chat's note scopes are its role's.
 fn note_config() -> engine::Config {
     let mut configuration = config(3100);
     let mut rules = configuration.core.defaults.rules.clone();
@@ -1510,7 +1532,7 @@ fn a_new_runs_brief_carries_the_durable_note_index() {
     )));
 }
 
-// A chat's tool families are its role's (jig a2616181).
+// A chat's tool families are its role's.
 #[test]
 fn a_note_tool_without_its_family_is_refused_with_an_authority_finding() {
     let configuration = std::array::from_fn(|_| {
@@ -1598,7 +1620,7 @@ fn a_note_written_corrected_by_a_person_and_recalled_is_durable() {
     assert_eq!(entries, 1, "reasking a named note did not write a second entry");
 }
 
-// A note named in another scope moved from what the person saw (jig b7bdd9e8).
+// A note named in another scope moved from what the person saw.
 #[test]
 fn a_person_deletes_a_note_only_in_its_authorized_scope_and_after_commit() {
     let (mut driver, assignment) = note_fixture();
@@ -2334,7 +2356,7 @@ fn an_ancestor_amends_a_live_grandchild() {
     assert!(messages_to(&driver, &grandchild_run).iter().any(|(name, _)| *name == amended));
 }
 
-// Waiting words travel in the run's start (jig 0f6041cb).
+// Waiting words travel in the run's start.
 #[test]
 fn a_narrowing_stops_the_old_run_and_offers_the_amendment_to_the_next() {
     let (mut driver, parent) = batch_fixture_with(2, 1);
@@ -3006,7 +3028,7 @@ fn failed_named_escalation_history_read_closes_once_and_same_key_retries() {
     assert!(driver.root.quiescent());
     assert_eq!(driver.store.rows, rows, "failed IO saves no keyed answer or task/financial change");
     assert_eq!(driver.delivered.len(), 1);
-    // A retryable answer is Again, outside the final refusals (jig b7bdd9e8).
+    // A retryable answer is Again, outside the final refusals.
     assert!(matches!(
         &driver.delivered[0],
         Delivery::WebReply { reply: people::Reply::Again(people::Again::Busy), .. }
@@ -3174,8 +3196,8 @@ fn restored_waiting_keeps_its_committed_holder_despite_current_membership() {
     )));
 }
 
-// The escalation reads that followed the restart are the core's now (jig
-// 62410d35); the restart's own promise stays.
+// The escalation reads that followed the restart are the core's now;
+// the restart's own promise stays.
 #[test]
 fn a_rejected_hold_stays_rejected_across_a_restart() {
     use temper_engine_domain_world::{escalation, escalation_referee::Story};
@@ -3411,8 +3433,8 @@ fn administration_config(seed: u64) -> engine::Config {
     config
 }
 
-// A chat's authority is its role's at the time it starts (jig a2616181): a
-// later chat takes the changed role's tools, an earlier one keeps its grant.
+// A chat's authority is its role's at the time it starts: a later chat takes
+// the changed role's tools, an earlier one keeps its grant.
 #[test]
 fn a_policy_change_applies_to_later_decisions_only() {
     let mut driver =
@@ -3494,8 +3516,8 @@ fn a_policy_change_applies_to_later_decisions_only() {
     assert_eq!(first.tools, tasks::Tools(1023));
 }
 
-// The first start saves the configured policy (jig 0f55ef2d); a refused
-// change leaves it as it was.
+// The first start saves the configured policy; a refused change leaves it
+// as it was.
 #[test]
 fn a_policy_change_beyond_the_deployments_rules_is_refused() {
     let mut driver =
@@ -3641,7 +3663,7 @@ fn held_cohort() -> (Driver, [u64; 2], [u64; 2], Vec<tasks::TaskRecord>) {
         Driver::configured(prior.store, [administration_config(9310), administration_config(9310)], &configured);
     driver.settle();
     // The held chat took its person's whole pool, so a second chat of theirs
-    // is held at its start and waits at them too (jig a2616181).
+    // is held at its start and waits at them too.
     let people::Ask::Create { project, mut batch } = driver.chat_ask(1, QUESTION) else { unreachable!() };
     batch[0].budget = people::Budget::Named;
     driver.send(engine::Event::Party(engine::PartyInput::Ask {
@@ -3677,8 +3699,8 @@ fn held_cohort() -> (Driver, [u64; 2], [u64; 2], Vec<tasks::TaskRecord>) {
 
 // The backlog watermark hands the ask back to the world, saving no keyed answer
 // (D6; jig's `domain/root.md`, 3); the world offers it again after progress.
-// Rerouting keeps each hold's revision (jig 00de0b8c), so a roster
-// change cannot exhaust one: that overflow case goes with the mechanism.
+// Rerouting keeps each hold's revision, so a roster change cannot exhaust
+// one: that overflow case goes with the mechanism.
 #[test]
 fn multiple_waiting_recipients_preflight_together_and_a_full_journal_hands_the_ask_back() {
     let (mut driver, sessions, persons, original) = held_cohort();
@@ -3738,7 +3760,7 @@ fn multiple_waiting_recipients_preflight_together_and_a_full_journal_hands_the_a
                 | Write::Erase(_) => None,
             })
             .expect("each exact affected task belongs to the same cohort");
-        // Rerouting keeps the hold's revision (jig 00de0b8c).
+        // Rerouting keeps the hold's revision.
         assert!(matches!(actual.escalation, tasks::Escalation::Waiting {
             revision: 1, holder: tasks::EscalationHolder::Role { project: 1, role: 0 }, entry, ..
         } if entry > old_entry));
@@ -3858,7 +3880,7 @@ fn a_read_fence_takes_only_what_the_run_read() {
     }))));
 }
 
-// Waiting words travel in the run's start (jig 0f6041cb).
+// Waiting words travel in the run's start.
 #[test]
 fn words_to_a_parked_chat_wake_it() {
     let (mut driver, assignment) = Driver::open_chat();
@@ -3872,8 +3894,7 @@ fn words_to_a_parked_chat_wake_it() {
     assert_eq!(next.messages[0].words.as_ref(), [44]);
 }
 
-// A resumed run continues its transcript's window; a run's first turn opens
-// one (jig c83ab353).
+// A resumed run continues its transcript's window; a run's first turn opens one.
 #[test]
 fn a_chat_parks_and_resumes_from_its_transcript() {
     let (mut driver, first) = Driver::chat();
@@ -4030,7 +4051,7 @@ fn a_delegate_held_past_its_tries_is_escalated_two_levels_to_a_person_released_a
         },
         other => panic!("held delegate row: {other:?}"),
     };
-    // Passing keeps the hold's revision (jig 00de0b8c).
+    // Passing keeps the hold's revision.
     assert_eq!(second_revision, revision);
     tool_call(
         &mut driver,
@@ -4170,8 +4191,8 @@ fn a_move_the_new_funder_cannot_cover_is_refused_whole() {
         ask: people::Ask::Move { project: 1, task: child, reason: b"out of room".as_slice().into() },
     }));
     driver.settle();
-    // Authority refusals carry what is lacking (jig b7bdd9e8): the child's
-    // budget against the person's spent pool.
+    // Authority refusals carry what is lacking: the child's budget against
+    // the person's spent pool.
     let lacking = people::Lack::Budget { needs: 10, left: 0 };
     assert!(
         replied(

@@ -60,7 +60,6 @@ debt it says what a reviewer checks.
 
 | ID | title | kind | value | size | status |
 |---|---|---|---|---|---|
-| [D001](D001-json-whole-buffer-reads.md) | Whole-buffer JSON reads are hand-driven, with no slice-fed driver | primitives | high | M | open |
 | [D002](D002-index-and-length-widening.md) | Index and length conversions are written by hand beside lib's helpers | primitives | medium | M | open |
 | [D003](D003-env-rewraps.md) | `Env` is rebuilt by hand where `Env::with` does it | primitives | medium | S | open |
 | [D004](D004-utf8-checks.md) | UTF-8 is checked by a hand loop in codec and by `from_utf8` under expects | duplication | low | S | open |
@@ -69,14 +68,12 @@ debt it says what a reviewer checks.
 | [D007](D007-joined-and-measure.md) | Byte joining and measuring helpers are copied per file | duplication | low | S | open |
 | [D008](D008-http-head-parsing.md) | HTTP client and server parse message heads separately | duplication | medium | S | open |
 | [D009](D009-oauth-credentials-raw.md) | The oauth crates hold credentials as raw bytes, not `Secret` | primitives | medium | M | open |
-| [D010](D010-github-on-forgejo-modules.md) | GitHub's dialect stands on Forgejo's modules | coupling | high | M | open |
 | [D011](D011-fake-github-on-forgejo-fake.md) | The fake GitHub stands on the fake Forgejo, which is named as the neutral fake | coupling | medium | M | open |
 | [D012](D012-anthropic-on-openai.md) | Anthropic's dialect stands on `openai/`, with a mirror vocabulary | coupling | medium | M | open |
 | [D013](D013-forge-connection-parallel-lists.md) | forge-connection keeps forges in parallel lists and dialects as runtime tags | complexity | high | M | open |
 | [D014](D014-forge-setup-vocabulary.md) | forge-setup's shared vocabulary lives in Forgejo's reconcile, and `Reply` mixes dialects | coupling | medium | M | open |
 | [D015](D015-flat-forge-enums.md) | Flat forge request, answer and node enums are re-matched in every module | complexity | medium | L | open |
 | [D016](D016-transport-four-copies.md) | The socket, TLS and HTTP transport is written four times | primitives | high | M | open |
-| [D017](D017-kv-store-states.md) | skein-kv's store keeps its lifecycle in flags, with the subset switched off | complexity | high | M | open |
 | [D018](D018-io-pipe-and-file-states.md) | io's pipe, signals and file machines keep state in flags and literals | complexity | medium | M | open |
 | [D019](D019-channel-machine-flags.md) | The channel machine keeps its lifecycle in eleven bools | complexity | medium | S | open |
 | [D020](D020-forge-connection-states.md) | forge-connection's connections keep their state in flags beside a thin tag | complexity | medium | M | open |

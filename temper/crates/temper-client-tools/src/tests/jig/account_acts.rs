@@ -736,11 +736,7 @@ fn exports_wait_for_the_record_acknowledgment_and_render_public_fields() {
         assert!(root.answer(call).is_none());
         assert!(root.saved.is_empty());
         let mut out = skein_lib::Queue::with_capacity(f::OUTPUTS);
-        let env = skein_lib::Env {
-            now: root.now,
-            wall: root.wall,
-            limits: crate::root::Limits::new(root.limits.domain, root.limits.tools),
-        };
+        let env = root.env(crate::root::Limits::new(root.limits.domain, root.limits.tools));
         root.root.recorded(&env, call, Ok(()), &mut out);
         root.outputs(out);
         assert_ne!(root.sent_name(call).expect("written name"), name);

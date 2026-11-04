@@ -18,7 +18,7 @@ impl ResultText {
     }
 
     pub(crate) fn add(&mut self, bytes: &[u8], bound: u32) {
-        let room = usize::try_from(bound).expect("u32 fits usize").saturating_sub(self.bytes.len());
+        let room = skein_lib::usize_of(bound).saturating_sub(self.bytes.len());
         let kept = if self.cut == 0 { crate::held::edge(bytes, room.min(bytes.len()), false) } else { &[] };
         let mut writer = Writer::new(self.bytes.len().checked_add(kept.len()).expect("bounded result text"));
         writer.put(&self.bytes).expect("measured prefix");

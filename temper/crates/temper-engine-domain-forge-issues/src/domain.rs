@@ -17,15 +17,14 @@ use crate::{Decision, Effect, GoalView, Key, Limits, MilestoneKey, Phase, Projec
     reason = "one ordered projection decision: body, prefix, folded suffix, Finished, close"
 )]
 pub fn project(goal: &GoalView, last: &Projected, now: Wall, limits: &Limits) -> Projection {
-    if last.milestones.len() > usize::try_from(limits.milestones).expect("u32 fits usize") || !valid_history(goal, last)
-    {
+    if last.milestones.len() > skein_lib::usize_of(limits.milestones) || !valid_history(goal, last) {
         return held(last);
     }
     let mut fitted = goal.clone();
     fit_words(&mut fitted, limits);
     let goal = &fitted;
     let body = body(goal);
-    let prefix = usize::try_from(limits.milestones.saturating_sub(2)).expect("u32 fits usize");
+    let prefix = skein_lib::usize_of(limits.milestones.saturating_sub(2));
     let mut digest = Sha256::new();
     digest.update(goal.title.as_bytes());
     digest.update(&body);
@@ -259,7 +258,7 @@ fn counted(count: usize, last: &str, bound: u32) -> Box<str> {
         }
     }
     let header = b" more milestones; the last: ";
-    let room = usize::try_from(bound).expect("u32 fits usize");
+    let room = skein_lib::usize_of(bound);
     let prefix = digits.len().checked_sub(at).expect("decimal prefix").checked_add(header.len()).expect("fixed header");
     let mut text = List::with_capacity(bound.max(u32::try_from(prefix).expect("fixed header")));
     append(&mut text, digits.get(at..).expect("decimal prefix"));
@@ -271,7 +270,7 @@ fn counted(count: usize, last: &str, bound: u32) -> Box<str> {
 
 #[expect(clippy::disallowed_methods, reason = "the shared title projection preserves already validated UTF-8")]
 fn fit_words(goal: &mut GoalView, limits: &Limits) {
-    let title = crate::text::title(goal.title.as_bytes(), usize::try_from(limits.title_bytes).expect("u32 fits usize"));
+    let title = crate::text::title(goal.title.as_bytes(), skein_lib::usize_of(limits.title_bytes));
     goal.title = Box::from(core::str::from_utf8(&title).expect("fitted UTF-8 title"));
     let mut fixed = 9usize.checked_add(label(goal.phase).len()).expect("fixed syntax");
     let mut text = goal.goal_text.len();
@@ -283,7 +282,7 @@ fn fit_words(goal: &mut GoalView, limits: &Limits) {
             .expect("phase label");
         text = text.checked_add(item.text.len()).expect("bounded plan words");
     }
-    let room = usize::try_from(limits.body_bytes).expect("u32 fits usize").saturating_sub(fixed);
+    let room = skein_lib::usize_of(limits.body_bytes).saturating_sub(fixed);
     if text <= room {
         return;
     }
@@ -432,8 +431,8 @@ fn append(into: &mut List<u8>, bytes: &[u8]) {
 }
 
 fn comment(goal: &GoalView, last: &Projected, key: MilestoneKey, words: Box<str>, limits: &Limits) -> Projection {
-    let words = cut(&words, usize::try_from(limits.comment_bytes).expect("u32 fits usize"));
-    if last.milestones.len() >= usize::try_from(limits.milestones).expect("u32 fits usize") {
+    let words = cut(&words, skein_lib::usize_of(limits.comment_bytes));
+    if last.milestones.len() >= skein_lib::usize_of(limits.milestones) {
         return held(last);
     }
     let mut keys = List::with_capacity(limits.milestones);

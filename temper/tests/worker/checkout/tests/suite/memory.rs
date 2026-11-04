@@ -116,10 +116,7 @@ impl Fill {
                     prepared: match prepared {
                         Prepared::Ready { workspace, conflicts } => Preparation::Ready {
                             workspace,
-                            conflicts: conflicts
-                                .iter()
-                                .map(|row| u64::try_from(row.files.len()).expect("an admitted path count fits u32"))
-                                .sum(),
+                            conflicts: conflicts.iter().map(|row| skein_lib::len_u64(row.files.len())).sum(),
                         },
                         Prepared::Refused { refusal } => Preparation::Refused { refusal },
                         Prepared::Failed { failure } => Preparation::Failed { failure },

@@ -225,6 +225,40 @@ pub(crate) fn settled(domain: &mut Domain, env: &Env<Limits>, number: u64, out: 
     }
 }
 
+fn ready_waiter(domain: &mut Domain, env: &Env<Limits>, number: u64, out: &mut Queue<Request>) -> bool {
+    let task = record(domain, number).expect("waiting task live");
+    if !domain.dependencies_ready(task) {
+        return false;
+    }
+    if !task.holdings.is_empty() {
+        crate::holds::wait(domain, env, number, out);
+        return false;
+    }
+    crate::holds::take(domain, number, out);
+    task_mut(domain, number).expect("waiting task live").record.phase = Phase::Active(Active::Due);
+    publish(domain, env, number, out);
+    activate(domain, number, out);
+    true
+}
+
+fn begin_effects(domain: &mut Domain, env: &Env<Limits>, number: u64, out: &mut Queue<Request>) -> bool {
+    let task = record(domain, number).expect("closing task live");
+    if !task.delegates.is_empty()
+        || task.result_proposal
+        || crate::funders::funded_live(domain, number)
+        || crate::writers::closing_blocked(domain, number)
+    {
+        return false;
+    }
+    let Phase::Closing(closing) = &task.phase else { unreachable!("closing task") };
+    let ending = closing.ending.clone();
+    let task = task_mut(domain, number).expect("closing task live");
+    task.record.phase = Phase::Closing(Closing { stage: Stage::Effects, ending: ending.clone() });
+    publish(domain, env, number, out);
+    out.push(Request::Close { task: number, ending });
+    true
+}
+
 pub(crate) fn progress(domain: &mut Domain, env: &Env<Limits>, out: &mut Queue<Request>) {
     // Every pass must advance a phase or end a task to need another pass;
     // bounded live waits and delegation depth bound the cascade.
@@ -237,33 +271,13 @@ pub(crate) fn progress(domain: &mut Domain, env: &Env<Limits>, out: &mut Queue<R
             };
             match &task.phase {
                 Phase::Waiting => {
-                    if domain.dependencies_ready(task) {
-                        if task.holdings.is_empty() {
-                            crate::holds::take(domain, number, out);
-                            task_mut(domain, number).expect("waiting task live").record.phase =
-                                Phase::Active(Active::Due);
-                            publish(domain, env, number, out);
-                            activate(domain, number, out);
-                            changed = true;
-                        } else {
-                            crate::holds::wait(domain, env, number, out);
-                        }
-                    }
+                    changed |= ready_waiter(domain, env, number, out);
                 }
                 Phase::Closing(closing) => match closing.stage {
-                    Stage::Delegates
-                        if task.delegates.is_empty()
-                            && !task.result_proposal
-                            && !crate::funders::funded_live(domain, number) =>
-                    {
-                        let ending = closing.ending.clone();
-                        let task = task_mut(domain, number).expect("closing task live");
-                        task.record.phase = Phase::Closing(Closing { stage: Stage::Effects, ending: ending.clone() });
-                        publish(domain, env, number, out);
-                        out.push(Request::Close { task: number, ending });
-                        changed = true;
+                    Stage::Delegates => {
+                        changed |= begin_effects(domain, env, number, out);
                     }
-                    Stage::Run { .. } | Stage::Effects | Stage::Releases | Stage::Delegates => {}
+                    Stage::Run { .. } | Stage::Effects | Stage::Releases => {}
                     Stage::Settled => {
                         let requester = task.requester;
                         end_task(domain, env, number, out);

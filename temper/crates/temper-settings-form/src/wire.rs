@@ -264,7 +264,7 @@ pub(crate) fn documents_owner_resource_scope_piece(
             return Ok(rows);
         };
         sum = sum
-            .checked_add(u64::try_from(item.len()).expect("piece fits u64"))
+            .checked_add(skein_lib::len_u64(item.len()))
             .ok_or(root_too_large())?
             .checked_add(4)
             .ok_or(root_too_large())?;
@@ -346,7 +346,7 @@ pub(crate) fn documents_owner_grant_piece(
             return Ok(rows);
         };
         sum = sum
-            .checked_add(u64::try_from(item.len()).expect("piece fits u64"))
+            .checked_add(skein_lib::len_u64(item.len()))
             .ok_or(root_too_large())?
             .checked_add(4)
             .ok_or(root_too_large())?;
@@ -614,7 +614,7 @@ pub(crate) fn documents_verdict_choice_piece(
             return Ok(rows);
         };
         sum = sum
-            .checked_add(u64::try_from(item.len()).expect("piece fits u64"))
+            .checked_add(skein_lib::len_u64(item.len()))
             .ok_or(root_too_large())?
             .checked_add(4)
             .ok_or(root_too_large())?;
@@ -649,7 +649,7 @@ pub(crate) fn documents_field_rule_fields(value: &w::FieldRule, limits: &Limits)
 }
 
 pub(crate) fn documents_raw(value: &[u8], limits: &Limits) -> Result<Box<[u8]>, w::Problem> {
-    if u64::try_from(value.len()).expect("usize fits u64") > u64::from(limits.text) {
+    if skein_lib::len_u64(value.len()) > u64::from(limits.text) {
         return Err(root_too_large());
     }
     Ok(bytes::copy_of(value))
@@ -785,7 +785,7 @@ pub(crate) fn settings_text(value: &[u8], bound: u32) -> Result<c::Text, w::Prob
 }
 
 pub(crate) fn settings_item_count(values: &[u8], limits: &Limits) -> Result<u32, w::Problem> {
-    if u64::try_from(values.len()).expect("piece bytes fit u64") > limits.ask_bytes {
+    if skein_lib::len_u64(values.len()) > limits.ask_bytes {
         return Err(root_too_large());
     }
     let mut reader = Reader::new(values);
@@ -1029,9 +1029,9 @@ pub(crate) fn asks_wire_owner_resource_scope_piece(
     if length > limits.owned_record {
         return Err(root_too_large());
     }
-    let mut writer = Writer::new(usize::try_from(length).expect("u32 fits usize"));
+    let mut writer = Writer::new(skein_lib::usize_of(length));
     for row in rows {
-        let mut item = Writer::new(usize::try_from(row.measure()).expect("u32 fits usize"));
+        let mut item = Writer::new(skein_lib::usize_of(row.measure()));
         row.encode(&mut item).expect("measured row");
         let item = item.finish();
         skein_codec::piece::write(&mut writer, &item).expect("measured piece");
@@ -1081,9 +1081,9 @@ pub(crate) fn asks_wire_owner_grant_piece(rows: &List<w::Grant>, limits: &w::Lim
     if length > limits.owned_record {
         return Err(root_too_large());
     }
-    let mut writer = Writer::new(usize::try_from(length).expect("u32 fits usize"));
+    let mut writer = Writer::new(skein_lib::usize_of(length));
     for row in rows {
-        let mut item = Writer::new(usize::try_from(row.measure()).expect("u32 fits usize"));
+        let mut item = Writer::new(skein_lib::usize_of(row.measure()));
         row.encode(&mut item).expect("measured row");
         let item = item.finish();
         skein_codec::piece::write(&mut writer, &item).expect("measured piece");

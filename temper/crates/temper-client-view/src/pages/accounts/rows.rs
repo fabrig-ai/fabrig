@@ -118,7 +118,7 @@ fn draw(
     for source in sources {
         moving |= source.state == c::AccountState::Moving;
     }
-    let pays = pays(w, plan, uses, bindings.counts().uses);
+    let pays = pays(w, plan, uses, bindings.row_uses());
     let use_line: Box<[u8]> = match row.holder {
         c::AskAccountHolder::Own => Box::new([]),
         c::AskAccountHolder::Deployment => use_line(w, runs, waiting),
@@ -693,7 +693,7 @@ fn program_hosts(
     w: &Words,
     source: &c::AccountSource,
     notice: bool,
-    counts: temper_client_domain::limits::AccountLimits,
+    counts: jig_client::AccountCounts,
 ) -> bool {
     let Some(doc) = accounts::document(root.client()) else { return false };
     let mut needs_check = false;

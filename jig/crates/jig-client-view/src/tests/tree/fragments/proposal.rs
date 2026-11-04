@@ -159,8 +159,8 @@ fn build(value: &Proposal, w: &Words) -> (Tree, JigBindings) {
         .nodes()
         .iter()
         .map(|n| {
-            assert!(crate::tests::text_bytes(n) <= f.text_per_node);
-            u64::from(crate::tests::text_bytes(n))
+            assert!(n.text_bytes() <= f.text_per_node);
+            u64::from(n.text_bytes())
         })
         .sum();
     assert!(total <= u64::from(f.text_bytes));

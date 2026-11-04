@@ -602,6 +602,59 @@ fn proved_unsent_attempt_retries_with_bounded_backoff() {
 }
 
 #[test]
+fn issuer_https_endpoints_name_a_host() {
+    for (uri, admitted) in [
+        (b"https://".as_slice(), false),
+        (b"https://a@b", false),
+        (b"https://@b/x", false),
+        (b"https:///x", false),
+        (b"https://?q", false),
+        (b"https://:443/x", false),
+        (b"https://issuer.example", true),
+        (b"https://issuer.example:8443/t?x=1", true),
+        (b"https://a/b@c", true),
+    ] {
+        for authorization in [false, true] {
+            for public in [false, true] {
+                let mut configured = registration(public, WireFormat::Form);
+                if authorization {
+                    configured.authorization_url = boxed(uri);
+                } else {
+                    configured.token_endpoint = boxed(uri);
+                }
+                let mut client = Client::new(limits()).expect("limits");
+                let result = step(
+                    &mut client,
+                    Event::SignIn {
+                        issued_client_id: None,
+                        id_token: None,
+                        subject: None,
+                        nonce: None,
+                        port: None,
+                        registration: configured,
+                        key: 1,
+                        generation: 0,
+                        state: state(),
+                        verifier: if public { Some(verifier()) } else { None },
+                        now: time(1),
+                    },
+                );
+                if admitted {
+                    let Some(Request::Visit { url }) = result else { panic!("expected Visit for {uri:?}") };
+                    if authorization {
+                        assert!(url.starts_with(uri));
+                    }
+                } else {
+                    assert_eq!(failure(result), Failure::Malformed, "{uri:?}");
+                    assert!(client.is_done());
+                    assert!(step(&mut client, Event::Tick { now: time(2) }).is_none());
+                }
+            }
+        }
+    }
+}
+
+#[test]
 fn issuer_http_endpoints_are_admitted_only_on_numeric_loopback() {
     for (uri, admitted) in [
         (b"http://127.0.0.1/issuer".as_slice(), true),

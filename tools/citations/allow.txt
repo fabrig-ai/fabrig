@@ -1,6 +1,7 @@
 # Citations the checker does not hold against a branch, one per line: FILE TARGET # reason.
 # FILE and TARGET are as citations.py prints them; FILE may be a glob, and TARGET * is every target.
 # Data, examples and names quoted as such.
+temper/docs/development/acceptance.md CONTRIBUTING.md # a story repository's file, as data
 smith/docs/design/benchmarks.md CODEX_HOME/AGENTS.md # codex-cli's file under CODEX_HOME, not a document here
 temper/crates/temper-engine-domain-forge-landing/src/tests/key.rs crates.md # a test's path, as data
 temper/docs/design/client/README.md process.md # a charter's document in an example, quoted
@@ -10,7 +11,6 @@ temper/docs/design/domain/testing.md changes/1.md # the walk repository's file, 
 temper/docs/design/draft/configuring.md process.md # a charter's document in an example, quoted
 temper/docs/design/draft/dashboards.md status-page.md # an adopted repository's document, the test's data
 # History kept on purpose.
-temper/docs/design/draft/notes.md status.md # the earlier pipeline's file names, as history
 temper/docs/design/draft/notes.md notes/contracts.md # a plan's file name in the replay's account, not a document here
 temper/docs/design/draft/notes.md landing-model.md # the retired draft, readable at the commit it names
 # The citation README's examples of the forms it describes.

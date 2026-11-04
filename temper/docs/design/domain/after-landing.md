@@ -533,8 +533,8 @@ with failing tests by id and uploading their artifacts:
   the draft; the forge's runners here, workers once a worker runs jobs.
 - **Blame on a goal's branch:** whether a tier following goal branches
   should bisect a red to the merge that brought it and name that change
-  in its news, rather than leave the goal to triage (5.4). Triage
-  matched the evidence; blame would need the verdict machinery on a
+  in its news, rather than leave the goal to triage (5.4). Triage costs
+  a wake and no machinery; blame would need the verdict machinery on a
   goal's branch (`../draft/reference-code-production.md`, section 17).
 
 ## 14. Later

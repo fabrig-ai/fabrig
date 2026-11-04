@@ -8,7 +8,7 @@ use temper_engine_domain_calendar as calendar;
 pub(crate) fn route(domain: &mut Domain, env: &Env<Limits>, event: calendar::Event, source_budget: Option<u64>) {
     let limits = calendar::Limits { projects: env.limits.authority.projects };
     let mut out = Queue::uncapped();
-    calendar::step(&mut domain.calendar, &Env { now: env.now, wall: env.wall, limits }, event, &mut out);
+    calendar::step(&mut domain.calendar, &env.with(limits), event, &mut out);
     while let Some(request) = out.pop() {
         let (project, period, next, supplied) = match request {
             calendar::Request::Next { project, period, next } => (project, period, next, source_budget),

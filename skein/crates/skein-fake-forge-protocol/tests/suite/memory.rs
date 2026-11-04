@@ -73,11 +73,8 @@ mod tests {
     }
     #[test]
     fn client_objects_decoder_fits_its_priced_scratch() {
-        use skein_json::tokenizer::{self as json, Tokenizer};
-        use skein_lib::{
-            Env, Queue, Time, Wall,
-            stream::{Down, Held},
-        };
+        use skein_json::tokenizer as json;
+        use skein_lib::Time;
         let limits = fixtures::limits();
         let domain = fixtures::fake_config().limits;
         let mut objects = List::with_capacity(5);
@@ -97,33 +94,18 @@ mod tests {
                 .expect("five largest trees fit the wire");
         let bound = git::decoder_bound(&limits)
             .expect("decoder bound")
-            .checked_add(json::tokenizer_bound(&limits.documents.json).expect("tokenizer bound"))
-            .expect("combined bound")
-            .checked_add(Queue::<json::Event>::price(1).expect("event slot"))
-            .expect("combined bound")
-            .checked_add(Queue::<Down>::price(1).expect("demand slot"))
+            .checked_add(json::feed_bound(&limits.documents.json).expect("feed bound"))
             .expect("combined bound");
         let meter = Meter::new();
         meter.start();
         let mut decoder = git::client::decoder(git::Name::Objects, 200, Time::ZERO, &limits);
-        let mut tokenizer = Tokenizer::new(&limits.documents.json);
-        let env = Env { now: Time::ZERO, wall: Wall::EPOCH, limits: limits.documents.json };
-        let mut above = Queue::with_capacity(1);
-        let mut below = Queue::with_capacity(1);
-        let mut input = Held::new(body);
-        json::down(&mut tokenizer, &env, git::client::first(&decoder), &mut above, &mut below);
+        let mut feed = json::Feed::new(&body, &limits.documents.json);
+        let mut request = git::client::first(&decoder);
         let answer = loop {
-            if let Some(event) = above.pop() {
-                match git::client::step(&mut decoder, &limits, &event) {
-                    git::client::Step::Demand(request) => {
-                        json::down(&mut tokenizer, &env, request, &mut above, &mut below);
-                    }
-                    git::client::Step::Decoded(answer) => break answer.expect("objects answer"),
-                    git::client::Step::Malformed => panic!("objects grammar"),
-                }
-            } else {
-                let Some(Down::Demand { read, .. }) = below.pop() else { panic!("tokenizer demand") };
-                json::up(&mut tokenizer, &env, input.answer(read).expect("whole body"), &mut above, &mut below);
+            match git::client::step(&mut decoder, &limits, &feed.answer(request)) {
+                git::client::Step::Demand(next) => request = next,
+                git::client::Step::Decoded(answer) => break answer.expect("objects answer"),
+                git::client::Step::Malformed => panic!("objects grammar"),
             }
         };
         let git::Answer::Objects { objects, graph } = answer else { panic!("objects") };

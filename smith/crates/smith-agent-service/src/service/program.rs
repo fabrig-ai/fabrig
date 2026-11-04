@@ -366,9 +366,9 @@ pub(super) fn install(
             {
                 return Err(());
             }
-            if let Some(file) = service.roots.get(0) {
-                let descriptor = service.files.descriptor(*file).ok_or(())?;
-                let root = backend::Root { file: *file, descriptor };
+            if let Some(file) = service.roots.first() {
+                let descriptor = service.files.descriptor(file).ok_or(())?;
+                let root = backend::Root { file, descriptor };
                 program.workspace = Some(root);
                 program.backend.workspace(root);
             }
@@ -673,7 +673,7 @@ pub(super) fn backlog(service: &Stages) -> u32 {
 pub(super) fn fire(service: &mut Stages) {
     if let Some(program) = &mut service.program {
         match service.teardown {
-            super::Teardown::Live => {}
+            super::Teardown::Live { .. } => {}
             super::Teardown::Answered { .. } | super::Teardown::Closing { .. } | super::Teardown::Closed { .. } => {
                 program.close(&service.llm_env, &mut service.llm_events);
             }
@@ -710,8 +710,8 @@ pub(super) fn deadline(service: &Stages) -> Option<skein_lib::Time> {
 // (child close grace and MCP sockets); they do not await policy work.
 pub(super) fn policy_deadline(service: &Stages) -> Option<skein_lib::Time> {
     match service.teardown {
-        super::Teardown::Live if answer_head(service) => None,
-        super::Teardown::Live => deadline(service),
+        super::Teardown::Live { .. } if answer_head(service) => None,
+        super::Teardown::Live { .. } => deadline(service),
         super::Teardown::Answered { .. } | super::Teardown::Closing { .. } | super::Teardown::Closed { .. } => None,
     }
 }

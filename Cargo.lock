@@ -2032,6 +2032,7 @@ version = "1.15.1"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "2f4925028c7eb5d1fcdaf196971378ed9d2c1c4efc7dc5d011256f76c99c0a96"
 dependencies = [
+ "web-time",
  "zeroize",
 ]
 
@@ -2984,6 +2985,7 @@ version = "0.0.0"
 dependencies = [
  "ring",
  "rustls",
+ "rustls-pki-types",
  "skein-lib",
 ]
 
@@ -4037,6 +4039,7 @@ dependencies = [
  "temper-forge-setup",
  "temper-forge-setup-shell",
  "temper-init",
+ "temper-playground",
  "temper-protocol-store",
  "temper-real-loop-world",
  "temper-service",
@@ -4085,14 +4088,17 @@ dependencies = [
  "skein-json",
  "skein-lib",
  "skein-oauth",
+ "skein-playground",
  "skein-scratch",
  "skein-sim",
  "skein-tls-world",
  "skein-ui",
  "skein-ui-bundle",
+ "skein-ui-web",
  "skein-world",
- "smith-agent-shell",
- "temper-engine-domain",
+ "temper-client-domain",
+ "temper-playground",
+ "temper-playground-world",
  "temper-service",
 ]
 
@@ -4112,6 +4118,7 @@ dependencies = [
  "skein-ui",
  "skein-world",
  "temper-client-protocol-wire",
+ "temper-fixtures",
  "temper-protocol-records",
 ]
 
@@ -4131,6 +4138,7 @@ dependencies = [
  "temper-client-protocol-wire",
  "temper-client-shell-terminal",
  "temper-client-view",
+ "temper-fixtures",
 ]
 
 [[package]]
@@ -4203,6 +4211,7 @@ dependencies = [
  "temper-client-domain",
  "temper-client-protocol-wire",
  "temper-client-view",
+ "temper-fixtures",
 ]
 
 [[package]]
@@ -4249,6 +4258,7 @@ dependencies = [
  "temper-client-protocol-wire",
  "temper-client-shell-terminal",
  "temper-docs",
+ "temper-fixtures",
  "temper-settings-form",
 ]
 
@@ -4267,6 +4277,7 @@ dependencies = [
  "skein-ui-text",
  "temper-client-domain",
  "temper-client-protocol-wire",
+ "temper-fixtures",
 ]
 
 [[package]]
@@ -4673,6 +4684,15 @@ dependencies = [
 ]
 
 [[package]]
+name = "temper-fixtures"
+version = "0.0.0"
+dependencies = [
+ "jig-client",
+ "skein-io",
+ "skein-lib",
+]
+
+[[package]]
 name = "temper-forge-setup"
 version = "0.0.0"
 dependencies = [
@@ -4767,9 +4787,12 @@ dependencies = [
  "skein-io",
  "skein-kv",
  "skein-lib",
+ "skein-playground",
  "skein-shell",
  "skein-sim",
+ "skein-sim-world",
  "skein-ui",
+ "skein-ui-web",
  "skein-world",
  "smith-channel",
  "smith-charter",
@@ -4779,6 +4802,7 @@ dependencies = [
  "temper-engine-domain",
  "temper-engine-domain-forge",
  "temper-fake-git-hosted",
+ "temper-fixtures",
  "temper-github-app",
  "temper-playground",
  "temper-protocol-store",
@@ -4815,9 +4839,11 @@ dependencies = [
  "skein-llm",
  "skein-llm-connection",
  "skein-llm-world",
+ "skein-playground",
  "skein-shell",
  "skein-sim",
  "skein-sim-world",
+ "skein-ui-web",
  "smith-agent-process-world",
  "smith-agent-service",
  "smith-agent-shell",
@@ -4837,21 +4863,32 @@ dependencies = [
  "temper-fake",
  "temper-fake-git",
  "temper-fake-git-hosted",
+ "temper-forge-setup",
  "temper-service",
  "temper-worker-checkout-world",
  "temper-worker-protocol-git",
+ "wasm-bindgen",
 ]
 
 [[package]]
 name = "temper-playground-world"
 version = "0.0.0"
 dependencies = [
+ "jig-client-shell-web",
  "serde_json",
+ "skein-fake-forge-domain",
+ "skein-fake-person",
  "skein-heap",
  "skein-io",
  "skein-lib",
+ "skein-playground",
  "skein-sim",
  "skein-sim-world",
+ "skein-ui",
+ "skein-ui-web",
+ "temper-client-domain",
+ "temper-client-shell-web",
+ "temper-client-view",
  "temper-playground",
  "temper-service",
 ]
@@ -4950,7 +4987,9 @@ dependencies = [
  "temper-fake",
  "temper-fake-git",
  "temper-fake-git-hosted",
+ "temper-fixtures",
  "temper-github-app",
+ "temper-playground",
  "temper-protocol-records",
  "temper-protocol-store",
  "temper-service",
@@ -5447,6 +5486,16 @@ name = "web-sys"
 version = "0.3.103"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "8622dcb61c0bcc9fffa6938bed81210af2da9a7e4a1a834b2e37a59b6dfb6141"
+dependencies = [
+ "js-sys",
+ "wasm-bindgen",
+]
+
+[[package]]
+name = "web-time"
+version = "1.1.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "5a6580f308b1fad9207618087a65c04e7a10bc77e02c8e84e9b00dd4b12fa0bb"
 dependencies = [
  "js-sys",
  "wasm-bindgen",

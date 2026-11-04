@@ -1,6 +1,5 @@
-//! Project index lines are erased a bounded page at a time
-//! (jig/docs/design/domain/engine.md, 10). Globally named entries
-//! remain; they may also be indexed outside the project. The parent commits
+//! Project index lines and their entries are erased a bounded page at a time
+//! (jig/docs/design/domain/engine.md, 10). The parent commits
 //! each page before its next load, and completion follows an empty page.
 
 use skein_lib::{Queue, Token};
@@ -54,12 +53,14 @@ pub(crate) fn loaded(domain: &mut Domain, limits: &Limits, owner: Token, rows: R
                 };
                 assert!(project == dropping.project, "project load returns its own lines");
                 domain.invalidate(&line.scope);
-                let key = Key::Line { scope: line.scope, name: line.name };
+                let name = line.name;
+                let key = Key::Line { scope: line.scope, name };
                 if let Some(after) = &dropping.after {
                     assert!(&key > after, "project lines are ordered");
                 }
                 dropping.after = Some(key.clone());
                 out.push(Request::Erase { key });
+                out.push(Request::Erase { key: Key::Entry { name } });
             }
             Record::Entry(_) => unreachable!("project load returns index lines"),
         }

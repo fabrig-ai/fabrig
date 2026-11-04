@@ -354,7 +354,7 @@ child puts live first.
 | people | parties, sign-ins (no secret), roles, projects' names, whether each is public (`../domain/people.md`, 13.2), and whole policies (their ceilings, escalation roles and overrides of templates among them), seeded and made alike, read positions over results and over live conversations, answered keys within the retention, a party's or, for the deployment's acts, a connector's (`../domain/people.md`, 5.3), including typed policy-ceiling refusals (holder, dimension and optional scalar bound and requested values), program declarations and checks, their declared names, and sign-out/removal answers naming unconfirmed configured workers with their original failure reasons; each project being deleted, with the step its deletion has reached and the grace it gives its conversations (`../domain/people.md`, 5.2), at most one per project the deployment has room for, erased with the deletion's last step | as the people child keys them; a live conversation's position by party, then task; a deletion by its project | at start |
 | people | ended conversations' read positions (7.4) | task, then party | at start, by the census, every row (7.2); otherwise on demand |
 | accounts | issued program names, including retired ones, with their source number and original holder and desired sign-out (key tag 4, after the installation's reserved tag); the next number the accounts child gives, below which it gives none again; LLM accounts: each one's holder, LLM provider, subject and display name, and its uses; their sources, each at its place in its holder's order, with its kind, its name for a program's, and its hold: limited, with its reset as a wall time where it has one, refused, or moving (a signed-in source whose record is out with a move, or back and not yet refreshed: `../domain/accounts.md`, section 6). The rest of a source's state is heard again at each start, and none is kept per host (`../domain/accounts.md`, 3.5) | source for an issued name; none: one row; account; account, source | at start, issued names before live account/source records |
-| notes | entries, and an index line per entry per scope | name; scope, name | when a scope is in use; entries on demand |
+| notes | entries, and an index line per entry, under its scope | name; scope, name | when a scope is in use; entries on demand |
 | tasks | the results' index, the inbox's census's (7.2): a row per result of a task a party requested, at its position among that party's results, past the tasks child's live families | party, position | at start, by the census, past each party's read position over results |
 | tasks, people | indexes for parties' reads (7.4): each party's inbox by time; ended tasks by requester party and by project; ended delegates; a subtree's delegates | the index's own, newest first where it reads so: an ended index's by party or project, then label, ended at reversed and task | on demand |
 
@@ -1490,8 +1490,9 @@ The stores open (step 1), and the format row, the layouts and the
 deployment's header are read and checked (step 2, 5.3). Every refusal of
 the levels, versions, layouts and deployment comes here, and nothing has
 been written but skein-kv's recovery of the active generation's maps
-(its next segment, a leftover snapshot's removal; skein's `kv.md`,
-section 3).
+(its next segment, a leftover snapshot's removal, and the snapshot a torn
+tail or a replay past its bound starts; skein's `kv.md`, sections 3 and
+5).
 
 #### 10.1.5 The strays removed
 
@@ -2137,9 +2138,10 @@ was made (`../domain/tasks.md`, section 3):
 - **Three file drivers,** one for each store (skein's `kv.md`, section
   12) and one for transcripts, so a turn's sync never queues behind a
   store's write, nor a store's behind a turn's.
-- **The worst case** is both stores' (skein's `kv.md`, section 7: about
-  three times each map's budget), the component's buffers and tables, and
-  the three drivers' (skein's `io.md`, section 5). Patching's peak (10.2:
+- **The worst case** is both stores' (skein's `kv.md`, section 7: each
+  map's budget, its queued commits and its buffers of a chunk), the
+  component's buffers and tables, and the three drivers' (skein's
+  `io.md`, section 5). Patching's peak (10.2:
   one map open, one machine per kept family within its own map's record
   room, the walk's page and commit buffers at the larger of the two
   maps' bounds, since one walk serves both, the copy's chunk, and the

@@ -157,14 +157,13 @@ impl SignInWorld {
                 io::Request::Listen { owner, addr } => {
                     let io::Addr::Ip(mut address) = addr else { panic!("IP listener") };
                     address.set_port(41000_u16.checked_add(u16::try_from(self.listeners.len()).unwrap()).unwrap());
-                    let listener =
-                        Token::new(100_u64.checked_add(u64::try_from(self.listeners.len()).unwrap()).unwrap());
+                    let listener = Token::new(100_u64.checked_add(skein_lib::len_u64(self.listeners.len())).unwrap());
                     let addr = io::Addr::Ip(address);
                     self.listeners.push((owner, listener, addr));
                     self.accounts.up(io::Event::Listening { owner, listener, addr });
                 }
                 io::Request::Connect { owner, .. } => {
-                    let socket = Token::new(1000_u64.checked_add(u64::try_from(self.sockets.len()).unwrap()).unwrap());
+                    let socket = Token::new(1000_u64.checked_add(skein_lib::len_u64(self.sockets.len())).unwrap());
                     self.sockets.push(SignInSocket::new(socket, owner, false));
                     self.accounts.up(io::Event::Connecting { owner, socket });
                     self.accounts.up(io::Event::Connected { owner });
@@ -321,7 +320,7 @@ impl SignInWorld {
 
     fn native_socket(&mut self) -> Token {
         let (owner, _, addr) = self.listeners.last().unwrap();
-        let socket = Token::new(1000_u64.checked_add(u64::try_from(self.sockets.len()).unwrap()).unwrap());
+        let socket = Token::new(1000_u64.checked_add(skein_lib::len_u64(self.sockets.len())).unwrap());
         self.sockets.push(SignInSocket::new(socket, *owner, true));
         self.accounts.up(io::Event::Accepted { owner: *owner, socket, peer: *addr });
         self.settle();

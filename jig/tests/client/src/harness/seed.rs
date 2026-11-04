@@ -85,6 +85,8 @@ pub fn seed_core(driver: &mut Driver, now: Time, wall: Wall, seed: Seed) {
 /// Starting work shared by people with project roles.
 #[derive(Clone, Copy, Debug)]
 pub enum RoleStory {
+    /// A member's delegate awaiting the owner's escalation decision.
+    DelegateHold,
     /// A member's goal awaiting a holder's decision.
     Proposal,
     /// A role-addressed person task choosing between reports.

@@ -3,13 +3,14 @@
 //! Contract: smith/docs/design/protocol/agent.md, section 6.
 
 use alloc::boxed::Box;
+use skein_lib::Time;
 use smith_domain::run;
 use smith_events::AnswerFailure;
 
 /// The settled agent's last operator line (smith/docs/design/protocol/agent.md, section 6).
-#[derive(Debug)]
+#[derive(Clone, Debug)]
 pub enum Last {
-    /// An accepted or parked answer needs no failure line.
+    /// No answer yet, or an accepted or parked answer that needs no failure line.
     Quiet,
     /// A failed or refused answer, with its operator detail.
     Failed { failure: Box<AnswerFailure>, detail: Box<[u8]> },
@@ -24,27 +25,17 @@ pub fn last(service: &crate::Service) -> Option<Last> {
     if !answered {
         return Some(Last::Unanswered(crate::failure(service).expect("an unanswered end keeps its first cause")));
     }
-    let failure = match service.stages.final_failure.clone() {
-        Some(why) => smith_protocol_events::failure_record(why, service.stages.final_answer_at),
-        None => match service.stages.final_refusal {
-            Some(why) => smith_protocol_events::refusal_record(why),
-            None => return Some(Last::Quiet),
-        },
-    };
-    Some(Last::Failed { failure: Box::new(failure), detail: service.stages.final_detail.clone() })
+    Some(service.stages.line.clone())
 }
 
-pub(crate) fn remember(
-    service: &mut crate::service::Stages,
-    answer: &run::Answer,
-    detail: Box<[u8]>,
-    now: skein_lib::Time,
-) {
-    service.final_detail = detail;
-    service.final_answer_at = now;
-    match answer {
-        run::Answer::Failed { failure, .. } => service.final_failure = Some(failure.clone()),
-        run::Answer::Refused(refusal) => service.final_refusal = Some(*refusal),
-        run::Answer::Accepted { .. } | run::Answer::Parked { .. } => {}
-    }
+pub(crate) fn remember(service: &mut crate::service::Stages, answer: &run::Answer, detail: Box<[u8]>, now: Time) {
+    service.line = match answer {
+        run::Answer::Failed { failure, .. } => {
+            Last::Failed { failure: Box::new(smith_protocol_events::failure_record(failure.clone(), now)), detail }
+        }
+        run::Answer::Refused(refusal) => {
+            Last::Failed { failure: Box::new(smith_protocol_events::refusal_record(*refusal)), detail }
+        }
+        run::Answer::Accepted { .. } | run::Answer::Parked { .. } => Last::Quiet,
+    };
 }

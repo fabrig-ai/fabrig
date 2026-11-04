@@ -418,18 +418,12 @@ pub(crate) fn more(domain: &mut Ui, window: Token, end: End, out: &mut Queue<Req
 /// Whether the chat has a live phase, independent of the runtime's words.
 #[must_use]
 pub const fn live(phase: contract::Phase) -> bool {
-    match phase {
-        contract::Phase::Ended | contract::Phase::Done | contract::Phase::Failed | contract::Phase::Cancelled => false,
-        contract::Phase::Waiting
-        | contract::Phase::Idle
-        | contract::Phase::Due
-        | contract::Phase::Preparing
-        | contract::Phase::Claimed
-        | contract::Phase::Running
-        | contract::Phase::BackingOff
-        | contract::Phase::Active
-        | contract::Phase::Closing
-        | contract::Phase::Held => true,
+    match phase.class() {
+        contract::PhaseClass::Ended => false,
+        contract::PhaseClass::Waiting
+        | contract::PhaseClass::Working
+        | contract::PhaseClass::Closing
+        | contract::PhaseClass::Held => true,
     }
 }
 /// Whether these limits are representable: every edge bound they size

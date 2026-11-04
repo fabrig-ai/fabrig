@@ -187,7 +187,7 @@ impl Runtime {
                 lifecycle::IntentSource::Request
             },
             repositories: match &entry.mode {
-                setup::Mode::Fake(fake) => u64::try_from(fake.repositories.len()).expect("bounded fake repositories"),
+                setup::Mode::Fake(fake) => skein_lib::len_u64(fake.repositories.len()),
                 setup::Mode::Owned(_) | setup::Mode::Managed { .. } => 0,
             },
             pending: true,

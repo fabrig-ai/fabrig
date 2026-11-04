@@ -5,10 +5,21 @@ fn client_crates_carry_the_client_prefix() {
     // Tests run from their package's directory, `tests/client`.
     let root = std::env::current_dir().expect("package directory").join("../..");
     let root = root.canonicalize().expect("temper's root");
+    // The playground composes the engine, worker and visitor (temper/docs/design/playground.md, 3).
     let breaches = jig_boundary::client_names::breaches(
         &root,
         "temper",
-        &["temper", "temper-one-process-world", "temper-real-loop-world"],
+        &[
+            "temper",
+            // The engine world and shared fixtures keep their test-kit names
+            // (temper/docs/design/domain/testing.md, 7).
+            "temper-engine-domain-world",
+            "temper-fixtures",
+            "temper-one-process-world",
+            "temper-real-loop-world",
+            "temper-playground",
+            "temper-playground-world",
+        ],
     );
     assert!(breaches.is_empty(), "client crates outside temper-client: {}", breaches.join(", "));
 }

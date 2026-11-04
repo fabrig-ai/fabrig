@@ -1,6 +1,6 @@
 # benchmarks: status
 
-2026-11-03. Where smith's code lags or departs from [benchmarks.md](benchmarks.md).
+2026-11-04. Where smith's code lags or departs from [benchmarks.md](benchmarks.md).
 
 - **Not yet:**
   - 3.1, 5.2, 11.5: calibrations. The probes `budget`, `cache-reuse`,
@@ -11,7 +11,7 @@
     (`benchmarks/src/probe/gating.rs`), the smoke suite's among them.
     `cache-reuse/idle-gap` has no variant, and `budget/spend` is missing
     from `suites/probes.toml`.
-  - 6: the Claude Code arm: `benchmarks/src/run.rs` refuses it.
+  - 6: the Claude Code arm: `benchmarks/src/agent/mod.rs` refuses it.
   - 7: no `anthropic` arm (`agents/models.toml`'s `[working.anthropic]`
     is empty), and no suite runs `smith-claude-code`.
   - 11.1: the `mid-work` and `build-environment` probes.
@@ -25,14 +25,10 @@
     (`benchmarks/src/agent/mod.rs`, `Provider::Codex`, and every suite's
     `provider = "codex"`), where the design names smith's preset,
     `openai`; the code keeps the earlier name.
-  - 6: agents are adapters, but `benchmarks/src/run.rs`,
-    `collect_observation`, branches on `agent::Observing::Codex` and
-    `agent::Observing::Smith`, and the runner chooses archives by agent
-    and smith's program source; `benchmarks/src/process.rs`,
-    `ProcessResult::observer` and `Capture::Codex`, keep a Codex observer
-    outside the adapters in `benchmarks/src/agent/`. No reason is
-    recorded (the code's side is
-    `smith/docs/development/debt/D010-bench-runner-knows-agents.md`).
+  - 6: `benchmarks/src/run.rs` names an agent once, where the user's
+    request of 11-04 asked it to name none: `Request`'s `logins`, which
+    each adapter reads, is stored as `codex_home`, since that request
+    kept stored formats as they are.
   - 7, 10: smith's `anthropic` endpoint runs on the `claude` program
     account (`agents/smith/accounts.toml`), not on a key; no reason is
     recorded.
