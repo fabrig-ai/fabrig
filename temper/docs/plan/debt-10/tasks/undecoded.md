@@ -57,3 +57,15 @@ Acceptance:
 
 As the implementer's text says. No test here pins a new rule, so `notes/common.md`'s table is empty; give the net
 lines.
+
+## Rebase (2026-11-04, step merge, foreman debt-10/undecoded/foreman-1)
+
+resolve the service status conflict by preserving trunk’s gaps and removing only the completed 11.2 gap.
+The merge failed in `jig/docs/design/protocol/service.status.md`.
+Trunk commit `fcf65bd271` reconciled main’s status changes; task commit `ec8a949bf2` removes the adjacent 11.2 entry.
+Rebase onto the current landing trunk and resolve this file as follows:
+- Remove the **Not yet:** 11.2 line mentioning `route::Invalid`.
+- Preserve trunk’s revised 11.4 entry describing temper’s remaining bundle duplication.
+- Preserve trunk’s section 11 entry recording 356 shared distinct lines against the bound of 200.
+- Preserve the other remaining gaps and set the date to the rebase day.
+Keep the task’s `Undecoded` implementation unchanged for this conflict.
