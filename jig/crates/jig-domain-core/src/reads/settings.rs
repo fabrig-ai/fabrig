@@ -136,7 +136,7 @@ fn setting_value(core: &Core, setting: settings::Setting, revision: u32) -> Answ
         return Answer::None(Why::Unknown);
     }
     match setting {
-        settings::Setting::ProjectPolicy { .. } => return Answer::None(Why::Unknown),
+        settings::Setting::ProjectPolicy { project } => return project_policy(core, project, revision),
         settings::Setting::Application { .. } => {
             if revision != core.current.newest() {
                 return Answer::None(Why::Unknown);
@@ -177,6 +177,23 @@ fn setting_value(core: &Core, setting: settings::Setting, revision: u32) -> Answ
             setting,
             revision,
             value: Some(value.clone()),
+            application: None,
+            proposed: None,
+        })),
+        None => Answer::None(Why::Unknown),
+    }
+}
+
+// engine.md, 17.6: current authority is read whole, never as a retained revision.
+fn project_policy(core: &Core, project: u32, revision: u32) -> Answer {
+    if revision != core.current.newest() {
+        return Answer::None(Why::Unknown);
+    }
+    match core.configured_policy(project) {
+        Some(value) => Answer::Setting(Box::new(SettingDocument {
+            setting: settings::Setting::ProjectPolicy { project },
+            revision,
+            value: Some(settings::Value::Policy(Box::new(value))),
             application: None,
             proposed: None,
         })),

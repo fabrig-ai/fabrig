@@ -321,6 +321,7 @@ fn operation(service: &Service, request: Request, access: &Access) -> Result<(St
         | Request::Branches { .. }
         | Request::PullFiles { .. }
         | Request::Compare { .. }
+        | Request::Commits { .. }
         | Request::Raw { .. }
         | Request::RulesForBranch { .. }
         | Request::Ruleset { .. }

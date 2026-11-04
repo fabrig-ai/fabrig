@@ -121,6 +121,7 @@ impl State {
             | Node::JobStep
             | Node::User
             | Node::Compare
+            | Node::Range(_)
             | Node::MergeBaseOnly
             | Node::EntryRows
             | Node::Entry
@@ -331,6 +332,7 @@ impl State {
                 | Node::BotUser
                 | Node::User
                 | Node::Compare
+                | Node::Range(_)
                 | Node::MergeBaseOnly
                 | Node::EntryRows
                 | Node::Entry

@@ -437,14 +437,20 @@ Each within jig's suites' budgets.
   root's does; whether it is copied and filled, or generated.
 - **Supervision:** what restarts an engine that stopped, and how often,
   is the deployment's; whether jig's guidance names one.
-- **A bundle's helpers.** Serving a bundle takes file kinds, the lookup
-  of a digest's path and a reply cut into chunks, which no application
-  decides; its bundle, routes, page fields and response policy are its
-  own (11.4). Whether those helpers become a part. Default: each service
-  keeps its own.
-- **The server's home.** The server (11.4) names no type of jig's, and a
-  generic mechanism belongs in skein. Default: it stays in
-  `jig-protocol-engine-clients-http` until skein has a server to offer.
+- **The server's home.** The server and its bundle helpers (11.4) name
+  no type of jig's, and a generic mechanism belongs in skein. `kind`
+  spells skein's closed list a second time, since skein's own is in
+  `skein_ui_bundle::types`, a build tool step code can't link. Default:
+  they stay in `jig-protocol-engine-clients-http` until skein has a
+  server to offer.
+- **What the services share.** temper's debt measure bounds the lines
+  both services' adapters have in common below 200. Every move section
+  11 allows leaves about 310, and below 200 takes a clients' part
+  holding the pass, which 11.6 rules out. Default: each application
+  keeps its pass, and the bound stands unmet. The user's to choose, with
+  no answer yet: the overlap is kept as composition section 11 assigns;
+  or the bound is restated near what section 11 allows; or 11.6 is
+  revised and a clients' part built.
 
 ## 10. One process
 

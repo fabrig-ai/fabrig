@@ -959,7 +959,10 @@ guides and checks; and a scripted host: messages, host tools' answers
 (busy, errors, lost), deliveries' outcomes, grants, cancels. The agent's
 top-level world puts the run with real sessions and tools, a fake LLM
 provider and the scripted host; a host's own system world (temper's
-worker's) puts it under that host.
+worker's) puts it under that host. Its typed provider adapter decodes
+owned file calls under the caller's session answer bound and tool
+declarations, so a deployment profile is exercised without a smaller
+fixture's receiving limit.
 
 Its stories: a change produced, checked and delivered; a verdict judged
 against its contract, corrected and accepted; a chat that waits, hears

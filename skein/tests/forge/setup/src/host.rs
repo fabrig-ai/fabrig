@@ -709,10 +709,7 @@ mod tests {
         }
         world.settle();
         let [Heard::Stop { at: ended, .. }] = world.heard() else { panic!("reply ends the run") };
-        let bound = Time::ZERO
-            .saturating_add(*ended)
-            .saturating_add(world.env.limits.io.close_timeout)
-            .saturating_add(world.env.limits.io.close_timeout);
+        let bound = Time::ZERO.saturating_add(*ended).saturating_add(world.env.limits.io.close_timeout);
         world.run(2);
         world.settle();
         assert!(

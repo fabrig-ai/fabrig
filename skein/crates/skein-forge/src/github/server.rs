@@ -118,6 +118,16 @@ fn repo_route(owner: Box<[u8]>, name: Box<[u8]>, tail: &[u8], query: &Query) -> 
     }
     if let Some(tail) = tail.strip_prefix(b"compare/") {
         let at = bytes::find(tail, b"...")?;
+        if query.get(b"page").is_some() {
+            return Some(Request::Commits {
+                owner,
+                name,
+                before: id::commit(tail.get(..at)?)?,
+                after: id::commit(tail.get(at.checked_add(3)?..)?)?,
+                page: query.page()?,
+                per_page: query.size()?,
+            });
+        }
         return Some(Request::Compare {
             owner,
             name,
@@ -458,7 +468,7 @@ mod reviews;
 pub use reviews::{remarks, reviews};
 
 mod files;
-pub use files::{compare, file_rows};
+pub use files::{commits, compare, file_rows};
 
 /// Writes a directory contents response in forge order.
 pub fn entries(entries: &[crate::api::Entry], out: &mut Writer) -> Result<(), Overflow> {

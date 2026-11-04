@@ -1498,6 +1498,8 @@ reads it, and whatever is Linux's may be degraded there.
   |---|---|
   | `crates/temper/src/tests.rs`: `id_login_agrees_with_the_effective_users_passwd_entry` | Linux supplies the effective user's passwd entry to compare with macOS's command lookup |
   | `crates/temper/tests/process.rs`: `a_story_box_and_its_steps_die_when_the_test_process_is_killed` | a parent-death signal is Linux's |
+  | `crates/temper/tests/suite/startup.rs`: `parent_guard_observes_its_recorded_process_after_reaping` and `observing_parent_descendants_leaves_cleanup_with_their_world`; `crates/temper/tests/suite/box_listeners.rs`: `stop`'s check that no process outlived the box | `parent::Guard`'s retained identities and its observation are Linux's |
+  | `crates/temper/tests/suite/startup.rs`: `forge_parent_listener_helper`, `forge_run_ignores_its_childs_term_relays_the_listener_and_dies_with_its_status` and `killing_forge_run_alone_kills_its_forgejo_child` | `forge run` stays Forgejo's parent on Linux alone (`../protocol/setup.md`, 6.4) |
   | `crates/temper/tests/process.rs`: `a_forgejo_elsewhere_connected_as_its_admin_makes_the_first_repository_lands_a_chats_change_and_is_found_after_a_restart`, and `crates/temper/tests/support/forgejo_elsewhere.rs` | the capture witness uses Linux's abstract Unix sockets |
 
 ## 3. Neighbours and their faces
@@ -1804,7 +1806,7 @@ loop (2.4) and from another process.
 - **What it takes:** the invocations of ../protocol/git.md, section 4, with
   their settings (../protocol/git.md, section 3) and their environment
   (../protocol/git.md, section 5), and `git version`, answered as git
-  2.53 answers it (../protocol/git.md, section 3), and nothing else.
+  2.47 answers it (../protocol/git.md, section 3), and nothing else.
   Any other argument vector exits as git's usage error does, which fails
   the test that caused it.
 - **What it does:** it acts on the repositories' files on the machine,
@@ -2699,7 +2701,7 @@ scripts/proof-live.sh               the live tier
   (2.6).
 - **The machine's git in the process tier.** Default: whatever git the
   test host has, 2.41 or later, which ../protocol/git.md's start refuses below
-  (../protocol/git.md, section 3); transcripts are of 2.53.
+  (../protocol/git.md, section 3); transcripts are of 2.47.
 
 ## 11. Later
 
@@ -2711,3 +2713,11 @@ scripts/proof-live.sh               the live tier
   process runs no `Drop`, and the runner's `give-back` finds no box up:
   the record stays in the store and the notice says so (2.7). Closing it
   is a return that starts its own box, in the runner's part.
+- **macOS past the one story** (`../draft/macos.md`, section 6, steps 6 to
+  8): each tree's suites on the runner, under a `macos` nextest profile
+  measured there and with each tree's list of Linux's own tests; the
+  checklist for a person on a real Mac; and the first run's demo in a
+  browser. A test that would take real work joins 2.8's list.
+- **The macOS workflow's results in after-landing.** A red run is a
+  finding (2.8), and nothing reads it yet. The repository is public, so
+  a run's results need no token.

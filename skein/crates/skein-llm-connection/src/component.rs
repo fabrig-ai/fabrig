@@ -370,22 +370,15 @@ impl Component {
             IoEvent::Connecting { socket, .. } => match self.connections.get_mut(id) {
                 Some(connection) => {
                     connection.link.connecting(socket, io);
-                    if connection.phase == Phase::Closing {
-                        connection.close_socket(env, io);
-                    }
                     connection.route(env, owner, up, io);
                 }
                 None => {}
             },
             IoEvent::Connected { .. } => match self.connections.get_mut(id) {
-                Some(connection) => {
-                    if connection.phase == Phase::Connecting {
-                        connection.connected(env, owner, up, io);
-                    } else {
-                        connection.close_socket(env, io);
-                    }
+                Some(connection) if connection.phase == Phase::Connecting => {
+                    connection.connected(env, owner, up, io);
                 }
-                None => {}
+                Some(_) | None => {}
             },
             IoEvent::Stream { up: stream, .. } => match self.connections.get_mut(id) {
                 Some(connection) => connection.cipher_up(env, owner, stream, up, io),
@@ -471,10 +464,7 @@ impl Component {
             match self.slots.get(index) {
                 Some(Some(id)) => match self.connections.get_mut(*id) {
                     Some(connection) => {
-                        let close_due = match connection.link.next_deadline() {
-                            Some(deadline) => deadline <= env.now,
-                            None => false,
-                        };
+                        let close_due = connection.link.due(env.now);
                         if !connection.has_work() && connection.deadlines.due(env.now).is_none() && !close_due {
                             continue;
                         }
@@ -873,15 +863,7 @@ mod link_tests {
         };
         let connection = component.connections.get_mut(Id::from_token(owner)).expect("physical binding");
         connection.link.connecting(Token::new(100), &mut io);
-        connection.link.close(
-            &Env {
-                now: env.now,
-                wall: env.wall,
-                limits: skein_link::Limits { tls: env.limits.tls, close_timeout: env.limits.io.close_timeout },
-            },
-            false,
-            &mut io,
-        );
+        connection.link.close(&crate::call::link_env(&env), false, &mut io);
         // The routing budget can leave TLS's Closed queued between entrances.
         connection.phase = Phase::Closing;
         connection.call = None;
