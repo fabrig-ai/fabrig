@@ -138,7 +138,7 @@ fn child_scalar_receiving_and_unknown_prefix_ends_remain_distinct_literal_feedba
         assert!(
             feedback(
                 run::Returned::Unanswered { end, used: USED, left: LEFT },
-                u64::try_from(expected.len() - 1).expect("short label")
+                skein_lib::len_u64(expected.len() - 1)
             )
             .is_err()
         );
