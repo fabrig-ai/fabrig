@@ -6,9 +6,9 @@ use smith_domain_tools::{self as tools, Call};
 
 pub(super) fn suppressed(block: &Block) -> bool {
     match block {
-        Block::ToolCall { call: Decoded::Owned { call }, .. } => tools::effect(call) == Effect::Write,
-        Block::ToolCall { call: Decoded::Delegated { effect, .. }, .. } => *effect == Effect::Write,
-        Block::ToolCall { call: Decoded::Builtin { .. } | Decoded::Invalid { .. } | Decoded::Historical, .. }
+        Block::ToolCall(crate::llm::ToolCall { call: Decoded::Owned { call }, .. }) => tools::effect(call) == Effect::Write,
+        Block::ToolCall(crate::llm::ToolCall { call: Decoded::Delegated { effect, .. }, .. }) => *effect == Effect::Write,
+        Block::ToolCall(crate::llm::ToolCall { call: Decoded::Builtin { .. } | Decoded::Invalid { .. } | Decoded::Historical, .. })
         | Block::Text { .. }
         | Block::Refusal { .. }
         | Block::Opaque { .. }
@@ -18,8 +18,8 @@ pub(super) fn suppressed(block: &Block) -> bool {
 
 pub(super) fn answer_skipped(conversation: &Conversation, block: &Block, index: u32, tools: &mut Tools) -> bool {
     match block {
-        Block::ToolCall { call: Decoded::Builtin { .. }, .. } => return false,
-        Block::ToolCall { .. }
+        Block::ToolCall(crate::llm::ToolCall { call: Decoded::Builtin { .. }, .. }) => return false,
+        Block::ToolCall(_)
         | Block::Text { .. }
         | Block::Refusal { .. }
         | Block::Opaque { .. }
@@ -87,14 +87,14 @@ pub(super) fn answered(tools: &mut Tools, slot: u32, block: &Block, result: &Ret
 /// Forecast invalid calls and skip the same writes as advancement does.
 pub(super) fn scheduled(block: &Block, failed: &mut bool) -> bool {
     match block {
-        Block::ToolCall { call: Decoded::Invalid { .. }, .. } => {
+        Block::ToolCall(crate::llm::ToolCall { call: Decoded::Invalid { .. }, .. }) => {
             *failed = true;
             false
         }
-        Block::ToolCall { call: Decoded::Owned { .. } | Decoded::Delegated { .. }, .. } => {
+        Block::ToolCall(crate::llm::ToolCall { call: Decoded::Owned { .. } | Decoded::Delegated { .. }, .. }) => {
             !*failed || !suppressed(block)
         }
-        Block::ToolCall { call: Decoded::Builtin { .. } | Decoded::Historical, .. }
+        Block::ToolCall(crate::llm::ToolCall { call: Decoded::Builtin { .. } | Decoded::Historical, .. })
         | Block::Text { .. }
         | Block::Refusal { .. }
         | Block::Opaque { .. }
@@ -104,16 +104,16 @@ pub(super) fn scheduled(block: &Block, failed: &mut bool) -> bool {
 
 fn file_change(block: &Block) -> bool {
     match block {
-        Block::ToolCall { call: Decoded::Owned { call }, .. } => match call {
+        Block::ToolCall(crate::llm::ToolCall { call: Decoded::Owned { call }, .. }) => match call {
             Call::Remove { .. } | Call::Write { .. } | Call::Edit { .. } => true,
             Call::Read { .. } | Call::List { .. } | Call::Search { .. } | Call::Shell { .. } | Call::Job { .. } => {
                 false
             }
         },
-        Block::ToolCall {
+        Block::ToolCall(crate::llm::ToolCall {
             call: Decoded::Delegated { .. } | Decoded::Builtin { .. } | Decoded::Invalid { .. } | Decoded::Historical,
             ..
-        }
+        })
         | Block::Text { .. }
         | Block::Refusal { .. }
         | Block::Opaque { .. }
@@ -165,8 +165,8 @@ pub(super) fn end_waits(
 
 pub(super) fn poll(block: &Block) -> bool {
     match block {
-        Block::ToolCall { call: Decoded::Owned { call: Call::Job { stop: false, .. } }, .. } => true,
-        Block::ToolCall { .. }
+        Block::ToolCall(crate::llm::ToolCall { call: Decoded::Owned { call: Call::Job { stop: false, .. } }, .. }) => true,
+        Block::ToolCall(_)
         | Block::Text { .. }
         | Block::Refusal { .. }
         | Block::Opaque { .. }
@@ -177,21 +177,21 @@ pub(super) fn poll(block: &Block) -> bool {
 fn other_call(conversation: &Conversation) -> bool {
     for block in &conversation.transcript.last().expect("the completion precedes its results").content {
         match block {
-            Block::ToolCall { call: Decoded::Owned { call: Call::Job { .. } }, .. }
+            Block::ToolCall(crate::llm::ToolCall { call: Decoded::Owned { call: Call::Job { .. } }, .. })
             | Block::Text { .. }
             | Block::Refusal { .. }
             | Block::Opaque { .. }
             | Block::ToolResult { .. } => {}
-            Block::ToolCall {
+            Block::ToolCall(crate::llm::ToolCall {
                 name,
                 call: Decoded::Builtin { .. } | Decoded::Invalid { .. } | Decoded::Historical,
                 ..
-            } => {
+            }) => {
                 if name.as_ref() != b"job" {
                     return true;
                 }
             }
-            Block::ToolCall { .. } => return true,
+            Block::ToolCall(_) => return true,
         }
     }
     false

@@ -52,7 +52,7 @@ pub(super) fn recorded_turn_shape(turn: &crate::record::Turn, assistants: u32) -
                     Block::Text { .. } => {}
                     Block::Refusal { .. }
                     | Block::Opaque { .. }
-                    | Block::ToolCall { .. }
+                    | Block::ToolCall(_)
                     | Block::ToolResult { .. } => {
                         return Err(Refusal::Malformed);
                     }
@@ -124,7 +124,7 @@ pub(super) fn validate_transcript(
                             .get(usize::try_from(position).expect("u32 fits"))
                             .expect("validated call position")
                         {
-                            Block::ToolCall { id, .. } => Some(id),
+                            Block::ToolCall(crate::llm::ToolCall { id, .. }) => Some(id),
                             Block::Text { .. }
                             | Block::Opaque { .. }
                             | Block::Refusal { .. }
@@ -186,7 +186,7 @@ pub(super) fn validate_answers(
             return Err(Refusal::Malformed);
         };
         match tail.content.get(position) {
-            Some(Block::ToolCall { .. }) => {}
+            Some(Block::ToolCall(_)) => {}
             Some(Block::Text { .. } | Block::Refusal { .. } | Block::Opaque { .. } | Block::ToolResult { .. })
             | None => {
                 return Err(Refusal::Malformed);
@@ -216,7 +216,7 @@ pub(super) fn resumed_tail(tail: &Message, withheld: Option<&[u8]>, withheld_nam
                 let mut withheld = None;
                 for block in &tail.content {
                     match block {
-                        Block::ToolCall { id, name, .. } if withheld_name == Some(name.as_ref()) => {
+                        Block::ToolCall(crate::llm::ToolCall { id, name, .. }) if withheld_name == Some(name.as_ref()) => {
                             if withheld.is_some() {
                                 // A generic assistant tail may hold several unstarted calls.
                                 // Only a single matching call identifies a withheld result.
@@ -224,7 +224,7 @@ pub(super) fn resumed_tail(tail: &Message, withheld: Option<&[u8]>, withheld_nam
                             }
                             withheld = Some(id);
                         }
-                        Block::ToolCall { .. }
+                        Block::ToolCall(_)
                         | Block::Text { .. }
                         | Block::Opaque { .. }
                         | Block::Refusal { .. }
@@ -307,7 +307,7 @@ pub(super) fn restore(
             let mut blocks = prompt.content.into_iter();
             let text = match blocks.next().expect("admission's initial text") {
                 Block::Text { text, .. } => text,
-                Block::Refusal { .. } | Block::Opaque { .. } | Block::ToolCall { .. } | Block::ToolResult { .. } => {
+                Block::Refusal { .. } | Block::Opaque { .. } | Block::ToolCall(_) | Block::ToolResult { .. } => {
                     unreachable!("admission constructs one text block")
                 }
             };
@@ -325,7 +325,7 @@ pub(super) fn restore(
                     Block::Text { text, .. } => text,
                     Block::Refusal { .. }
                     | Block::Opaque { .. }
-                    | Block::ToolCall { .. }
+                    | Block::ToolCall(_)
                     | Block::ToolResult { .. } => {
                         unreachable!("admission constructs one text block")
                     }
@@ -342,7 +342,7 @@ pub(super) fn restore(
 pub(super) fn initial_text(prompt: &Message) -> &[u8] {
     match prompt.content.first().expect("admission's initial text") {
         Block::Text { text, .. } => text,
-        Block::Refusal { .. } | Block::Opaque { .. } | Block::ToolCall { .. } | Block::ToolResult { .. } => {
+        Block::Refusal { .. } | Block::Opaque { .. } | Block::ToolCall(_) | Block::ToolResult { .. } => {
             unreachable!("admission constructs one text block")
         }
     }
@@ -364,7 +364,7 @@ pub(super) fn unrun_cost(
     }
     for (position, part) in content.iter().enumerate() {
         match part {
-            Block::ToolCall { id, .. } => {
+            Block::ToolCall(crate::llm::ToolCall { id, .. }) => {
                 cost = cost.checked_add(block)?.checked_add(len(id)?)?;
                 for answer in answered {
                     if usize::try_from(answer.origin.position).ok()? == position {
@@ -391,7 +391,7 @@ pub(super) fn validate_recorded(message: &Message) -> Result<(), crate::record::
     for block in &message.content {
         match block {
             Block::Opaque { .. } | Block::Text { .. } | Block::Refusal { .. } => {}
-            Block::ToolCall { call, .. } => {
+            Block::ToolCall(crate::llm::ToolCall { call, .. }) => {
                 if message.role != Role::Assistant {
                     return Err(Refusal::Malformed);
                 }
@@ -430,7 +430,7 @@ pub(super) fn validate_link(
         for block in &message.content {
             match block {
                 Block::Text { .. } | Block::Refusal { .. } | Block::Opaque { .. } => {}
-                Block::ToolCall { .. } | Block::ToolResult { .. } => return Err(Refusal::Malformed),
+                Block::ToolCall(_) | Block::ToolResult { .. } => return Err(Refusal::Malformed),
             }
         }
         return Ok(None);
@@ -443,10 +443,10 @@ pub(super) fn validate_link(
             // Call ids must be unique within a provider completion.
             for (index, block) in message.content.iter().enumerate() {
                 match block {
-                    Block::ToolCall { id, .. } => {
+                    Block::ToolCall(crate::llm::ToolCall { id, .. }) => {
                         for earlier in message.content.iter().take(index) {
                             match earlier {
-                                Block::ToolCall { id: other, .. } => {
+                                Block::ToolCall(crate::llm::ToolCall { id: other, .. }) => {
                                     if id == other {
                                         return Err(Refusal::Malformed);
                                     }
@@ -476,7 +476,7 @@ pub(super) fn validate_withheld_result(message: &Message, withheld: &[u8]) -> Re
     for block in &message.content {
         match block {
             Block::ToolResult { id, .. } if id.as_ref() == withheld && !found => found = true,
-            Block::ToolResult { .. } | Block::ToolCall { .. } => return Err(crate::record::Refusal::Malformed),
+            Block::ToolResult { .. } | Block::ToolCall(_) => return Err(crate::record::Refusal::Malformed),
             Block::Text { .. } | Block::Refusal { .. } | Block::Opaque { .. } => {}
         }
     }
@@ -498,7 +498,7 @@ pub(super) fn validate_results(
     if previous.role == Role::Assistant {
         for (position, block) in previous.content.iter().enumerate() {
             match block {
-                Block::ToolCall { id, name, .. } => {
+                Block::ToolCall(crate::llm::ToolCall { id, name, .. }) => {
                     let matches = match seen {
                         Some(position) => {
                             result_id(
@@ -531,7 +531,7 @@ pub(super) fn validate_results(
 pub(super) fn result_id(block: &Block) -> &[u8] {
     match block {
         Block::ToolResult { id, .. } => id,
-        Block::Text { .. } | Block::Refusal { .. } | Block::Opaque { .. } | Block::ToolCall { .. } => {
+        Block::Text { .. } | Block::Refusal { .. } | Block::Opaque { .. } | Block::ToolCall(_) => {
             unreachable!("next_result returns a result position")
         }
     }
@@ -544,7 +544,7 @@ pub(super) fn next_result(blocks: &[Block], next: &mut u32) -> Result<Option<u32
         *next = position.checked_add(1).ok_or(crate::record::Refusal::TooLarge)?;
         match blocks.get(usize::try_from(position).expect("u32 fits")).expect("within blocks") {
             Block::ToolResult { .. } => return Ok(Some(position)),
-            Block::ToolCall { .. } => return Err(crate::record::Refusal::Malformed),
+            Block::ToolCall(_) => return Err(crate::record::Refusal::Malformed),
             Block::Text { .. } | Block::Refusal { .. } | Block::Opaque { .. } => {}
         }
     }

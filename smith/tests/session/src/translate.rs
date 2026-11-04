@@ -129,7 +129,7 @@ fn part(block: agent::Block, namespace: &Namespace) -> provider::Part {
         agent::Block::Text { text, .. } | agent::Block::Refusal { text, .. } => provider::Part::Text { text },
         agent::Block::Opaque { bytes } => provider::Part::Opaque { bytes },
         // The call goes back as the LLM wrote it.
-        agent::Block::ToolCall { id, name, input, call: _, .. } => {
+        agent::Block::ToolCall(agent::ToolCall { id, name, input, call: _, .. }) => {
             provider::Part::ToolCall { id, name, arguments: input }
         }
         agent::Block::ToolResult { id, result } => {
@@ -180,7 +180,7 @@ fn block(part: provider::Part, tickets: &mut Tickets, opener: u64, served: &[age
                 }
                 None => decode(&name, &arguments),
             };
-            agent::Block::ToolCall { id, name, input: arguments, call, replay: None }
+            agent::Block::ToolCall(agent::ToolCall { id, name, input: arguments, call, replay: None })
         }
         provider::Part::ToolOutput { .. } => unreachable!("the fake answers with text and tool calls"),
     }

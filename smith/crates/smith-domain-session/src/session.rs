@@ -1564,16 +1564,16 @@ fn answered(
     }
     for block in &completion.content {
         match block {
-            Block::ToolCall { call: Decoded::Historical, .. } => {
+            Block::ToolCall(crate::llm::ToolCall { call: Decoded::Historical, .. }) => {
                 release_provider(conversation);
                 clear_pending(conversation);
                 return finish(End::Invalid);
             }
-            Block::ToolCall {
+            Block::ToolCall(crate::llm::ToolCall {
                 call:
                     Decoded::Builtin { .. } | Decoded::Owned { .. } | Decoded::Delegated { .. } | Decoded::Invalid { .. },
                 ..
-            }
+            })
             | Block::Opaque { .. }
             | Block::Text { .. }
             | Block::Refusal { .. }
@@ -1700,7 +1700,7 @@ fn advance(
             continue;
         }
         match block {
-            Block::ToolCall { id: provider_id, name, input, call: Decoded::Owned { call }, .. } => {
+            Block::ToolCall(crate::llm::ToolCall { id: provider_id, name, input, call: Decoded::Owned { call }, .. }) => {
                 let effect = tools::effect(call);
                 if !joins(batch, effect, started, env.limits.parallel_tools) {
                     next = index;
@@ -1742,13 +1742,13 @@ fn advance(
                 let result = Block::ToolResult { id: call_id(conversation, index), result };
                 batching::put_next(&mut tools, Slot::Done { result });
             }
-            Block::ToolCall {
+            Block::ToolCall(crate::llm::ToolCall {
                 id: provider_id,
                 name,
                 input,
                 call: Decoded::Delegated { source, ticket, effect, descriptor: _ },
                 ..
-            } => {
+            }) => {
                 if !joins(batch, *effect, started, env.limits.parallel_tools) {
                     next = index;
                     break;
@@ -1768,11 +1768,11 @@ fn advance(
                 started = started.saturating_add(1);
                 batch = Some(*effect);
             }
-            Block::ToolCall { call: Decoded::Builtin { .. }, .. } => batching::next_slot(&mut tools),
-            Block::ToolCall { id: call, name: _, input: _, call: Decoded::Invalid { problem, .. }, .. } => {
+            Block::ToolCall(crate::llm::ToolCall { call: Decoded::Builtin { .. }, .. }) => batching::next_slot(&mut tools),
+            Block::ToolCall(crate::llm::ToolCall { id: call, name: _, input: _, call: Decoded::Invalid { problem, .. }, .. }) => {
                 batching::invalid_slot(&mut tools, block, call, problem);
             }
-            Block::ToolCall { call: Decoded::Historical, .. }
+            Block::ToolCall(crate::llm::ToolCall { call: Decoded::Historical, .. })
             | Block::Opaque { .. }
             | Block::Text { .. }
             | Block::Refusal { .. }
@@ -1916,7 +1916,7 @@ fn unrun(
     let mut waking = Some(text);
     for (position, block) in message.content.iter().enumerate() {
         match block {
-            Block::ToolCall { id, .. } => {
+            Block::ToolCall(crate::llm::ToolCall { id, .. }) => {
                 let mut result = if withheld == Some(id.as_ref()) {
                     Returned::Text { text: waking.take().expect("one withheld call"), error: false, replay: None }
                 } else {
@@ -2224,12 +2224,12 @@ fn current_block(conversation: &Conversation, index: u32) -> &Block {
 
 fn chosen(choice: &ToolChoice, block: &Block) -> bool {
     match block {
-        Block::ToolCall { call: Decoded::Builtin { .. }, .. }
+        Block::ToolCall(crate::llm::ToolCall { call: Decoded::Builtin { .. }, .. })
         | Block::Text { .. }
         | Block::Refusal { .. }
         | Block::Opaque { .. }
         | Block::ToolResult { .. } => true,
-        Block::ToolCall { call, .. } => match choice {
+        Block::ToolCall(crate::llm::ToolCall { call, .. }) => match choice {
             ToolChoice::Auto => true,
             ToolChoice::None => false,
             ToolChoice::Only(tickets) => match call {
@@ -2352,7 +2352,7 @@ fn call_id(conversation: &Conversation, block: u32) -> Box<[u8]> {
     let message = conversation.transcript.last().expect("the assistant message is last while tooling");
     let index = usize::try_from(block).expect("a u32 fits in a usize");
     match message.content.get(index).expect("the call in flight is a block of the message") {
-        Block::ToolCall { id, .. } => id.clone(),
+        Block::ToolCall(crate::llm::ToolCall { id, .. }) => id.clone(),
         Block::Opaque { .. } | Block::Text { .. } | Block::Refusal { .. } | Block::ToolResult { .. } => {
             unreachable!("the call in flight is a tool call")
         }
@@ -2369,7 +2369,7 @@ fn text_of(content: &[Block]) -> Box<[u8]> {
             Block::Text { text, .. } | Block::Refusal { text, .. } => {
                 len = len.checked_add(text.len()).expect("bytes held fit in a usize");
             }
-            Block::Opaque { .. } | Block::ToolCall { .. } | Block::ToolResult { .. } => {}
+            Block::Opaque { .. } | Block::ToolCall(_) | Block::ToolResult { .. } => {}
         }
     }
     let mut text = Writer::new(len);
@@ -2378,7 +2378,7 @@ fn text_of(content: &[Block]) -> Box<[u8]> {
             Block::Text { text: part, .. } | Block::Refusal { text: part, .. } => {
                 text.put(part).expect("the length was counted above");
             }
-            Block::Opaque { .. } | Block::ToolCall { .. } | Block::ToolResult { .. } => {}
+            Block::Opaque { .. } | Block::ToolCall(_) | Block::ToolResult { .. } => {}
         }
     }
     text.finish()
@@ -2393,13 +2393,13 @@ fn tally(content: &[Block]) -> (u32, u32) {
     let (mut calls, mut invalid): (u32, u32) = (0, 0);
     for block in content {
         match block {
-            Block::ToolCall {
+            Block::ToolCall(crate::llm::ToolCall {
                 call: Decoded::Builtin { .. } | Decoded::Owned { .. } | Decoded::Delegated { .. } | Decoded::Historical,
                 ..
-            } => {
+            }) => {
                 calls = calls.saturating_add(1);
             }
-            Block::ToolCall { call: Decoded::Invalid { .. }, .. } => {
+            Block::ToolCall(crate::llm::ToolCall { call: Decoded::Invalid { .. }, .. }) => {
                 calls = calls.saturating_add(1);
                 invalid = invalid.saturating_add(1);
             }

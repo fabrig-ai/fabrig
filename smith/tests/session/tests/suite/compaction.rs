@@ -183,7 +183,7 @@ fn calls_in_a_compactions_answer_are_not_run() {
     let mut world = asked(4705);
     let content = Box::new([
         llm::Block::Text { text: bytes(b"summary"), replay: None },
-        llm::Block::ToolCall {
+        llm::Block::ToolCall(llm::ToolCall {
             id: bytes(b"ignored"),
             name: bytes(b"finish"),
             input: bytes(b"{}"),
@@ -194,7 +194,7 @@ fn calls_in_a_compactions_answer_are_not_run() {
                 descriptor: Token::new(19),
             },
             replay: None,
-        },
+        }),
     ]);
     world.complete(content, llm::Stop::ToolUse, llm::Usage::ZERO);
     assert!(world.delegated.is_empty() && world.operations.is_empty());

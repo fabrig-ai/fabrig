@@ -816,7 +816,7 @@ impl<B: Backend> World<B> {
                     SavedBlock::Text { text, .. }
                     | SavedBlock::Refusal { text, .. }
                     | SavedBlock::Opaque { bytes: text }
-                    | SavedBlock::ToolCall { input: text, .. } => Some(text),
+                    | SavedBlock::ToolCall(smith_domain::session::llm::ToolCall { input: text, .. }) => Some(text),
                     SavedBlock::ToolResult { .. } => None,
                 };
                 let Some(payload) = payload.filter(|payload| payload.len() > 1024) else { continue };

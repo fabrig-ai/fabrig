@@ -131,7 +131,7 @@ fn encode_block(source: &llm::Block, dialect: u32, limits: &wire::v6::Limits) ->
                 Err(problem) => return Err(Error::TranscriptBody(problem)),
             },
         ),
-        llm::Block::ToolCall { id, name, input, call: _, replay } => wire::Block::Call(
+        llm::Block::ToolCall(llm::ToolCall { id, name, input, call: _, replay }) => wire::Block::Call(
             match wire::Call::new(
                 limits,
                 wire::CallParts {

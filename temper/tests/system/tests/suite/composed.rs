@@ -429,7 +429,7 @@ fn assert_plan_reads(world: &World) {
                     Block::Opaque { .. }
                     | Block::Refusal { .. }
                     | Block::Text { .. }
-                    | Block::ToolCall { .. }
+                    | Block::ToolCall(_)
                     | Block::ToolResult { .. } => None,
                 })
                 .next_back()
@@ -625,7 +625,7 @@ fn assert_unfinished_reads(agent: &smith_agent_world::World) {
                     Block::Opaque { .. }
                     | Block::Refusal { .. }
                     | Block::Text { .. }
-                    | Block::ToolCall { .. }
+                    | Block::ToolCall(_)
                     | Block::ToolResult { .. } => None,
                 })
                 .expect("each read is answered")

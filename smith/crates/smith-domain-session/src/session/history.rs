@@ -125,7 +125,7 @@ fn owe_stopped_calls(conversation: &mut Conversation) {
     let mut results = List::with_capacity(calls);
     for block in &message.content {
         match block {
-            Block::ToolCall { id, .. } => results
+            Block::ToolCall(crate::llm::ToolCall { id, .. }) => results
                 .push(Block::ToolResult { id: id.clone(), result: Returned::NotRun { why: NotRun::Stopped } })
                 .expect("one result for each stopped call"),
             Block::Text { .. } | Block::Refusal { .. } | Block::Opaque { .. } | Block::ToolResult { .. } => {}
@@ -158,15 +158,15 @@ pub(super) fn reserve_batch(conversation: &mut Conversation, next: u32, failed: 
             continue;
         }
         let (effect, credit) = match block {
-            Block::ToolCall { call: Decoded::Owned { call }, .. } => {
+            Block::ToolCall(crate::llm::ToolCall { call: Decoded::Owned { call }, .. }) => {
                 (tools::effect(call), super::owned_credit(call, limits))
             }
-            Block::ToolCall { call: Decoded::Delegated { effect, .. }, .. } => {
+            Block::ToolCall(crate::llm::ToolCall { call: Decoded::Delegated { effect, .. }, .. }) => {
                 (*effect, super::delegated_credit(limits))
             }
-            Block::ToolCall {
+            Block::ToolCall(crate::llm::ToolCall {
                 call: Decoded::Builtin { .. } | Decoded::Invalid { .. } | Decoded::Historical, ..
-            }
+            })
             | Block::Text { .. }
             | Block::Refusal { .. }
             | Block::Opaque { .. }
@@ -214,13 +214,13 @@ pub(super) fn reserve_batch(conversation: &mut Conversation, next: u32, failed: 
             continue;
         }
         let credit = match block {
-            Block::ToolCall { call: Decoded::Owned { call }, .. } => {
+            Block::ToolCall(crate::llm::ToolCall { call: Decoded::Owned { call }, .. }) => {
                 super::owned_credit(call, &tool_limits(call, share, limits)).min(share)
             }
-            Block::ToolCall { call: Decoded::Delegated { .. }, .. } => super::delegated_credit(limits).min(share),
-            Block::ToolCall {
+            Block::ToolCall(crate::llm::ToolCall { call: Decoded::Delegated { .. }, .. }) => super::delegated_credit(limits).min(share),
+            Block::ToolCall(crate::llm::ToolCall {
                 call: Decoded::Builtin { .. } | Decoded::Invalid { .. } | Decoded::Historical, ..
-            }
+            })
             | Block::Text { .. }
             | Block::Refusal { .. }
             | Block::Opaque { .. }
