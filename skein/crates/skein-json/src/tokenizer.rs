@@ -46,6 +46,9 @@
 //! string or skipped value until the next demand (json.md, 3.6).
 //! Outcomes give the byte at fault or the end of what was read.
 
+mod feed;
+pub use feed::{Feed, feed_bound};
+
 mod position;
 use position::Lines;
 pub use position::Position;
@@ -119,7 +122,7 @@ pub fn tokenizer_bound(limits: &Limits) -> Option<u64> {
 #[must_use]
 pub fn validation_bound(limits: &Limits) -> Option<u64> {
     let bounded = Limits { string: 0, ..*limits };
-    tokenizer_bound(&bounded)?.checked_add(Queue::<Event>::price(1)?)?.checked_add(Queue::<Down>::price(1)?)
+    feed_bound(&bounded)
 }
 
 /// Checks one borrowed value through `Skip`, including trailing whitespace.
@@ -129,52 +132,17 @@ pub fn validate(input: &[u8], limits: &Limits) -> Result<(), Error> {
         return Err(Error::TooLong);
     }
     let bounded = Limits { string: 0, ..*limits };
-    let env = Env { now: skein_lib::Time::ZERO, wall: skein_lib::Wall::EPOCH, limits: bounded };
-    let mut machine = Tokenizer::new(&bounded);
-    let mut above = Queue::uncapped();
-    let mut below = Queue::uncapped();
-    down(&mut machine, &env, Request::Skip, &mut above, &mut below);
-    let mut at = 0_usize;
-    let ticks = input.len().saturating_mul(4).saturating_add(16);
-    for _tick in 0..ticks {
-        match above.pop() {
-            Some(Event::Skipped(_)) => {
-                down(&mut machine, &env, Request::Next, &mut above, &mut below);
-                continue;
-            }
-            Some(Event::Done) => return Ok(()),
-            Some(Event::Failed(error)) => return Err(error),
-            Some(Event::Token(_) | Event::Long(_) | Event::Closed) => return Err(Error::Unexpected),
-            None => {}
-        }
-        let demand = below.pop().ok_or(Error::Unexpected)?;
-        let read = match demand {
-            Down::Demand { read, .. } => read,
-            Down::Send(_) | Down::Finish => return Err(Error::Unexpected),
-        };
-        let remaining = input.get(at..).ok_or(Error::Unexpected)?;
-        let count = match read {
-            Read::Fill(count) => usize::try_from(count).expect("u32 fits usize"),
-            Read::Scan { until, max } => {
-                let max = usize::try_from(max).expect("u32 fits usize");
-                let scanned = remaining.get(..remaining.len().min(max)).expect("bounded slice");
-                match skein_lib::bytes::find(scanned, until.as_bytes()) {
-                    Some(position) => position.saturating_add(until.as_bytes().len()),
-                    None => max,
-                }
-            }
-            Read::Nothing | Read::Line { .. } | Read::Arrived { .. } => return Err(Error::Unexpected),
-        };
-        let delivery = if count <= remaining.len() {
-            let bytes = skein_lib::bytes::copy_of(remaining.get(..count).expect("delivery within input"));
-            at = at.checked_add(count).ok_or(Error::TooLong)?;
-            Up::Bytes(bytes)
-        } else {
-            Up::End
-        };
-        up(&mut machine, &env, delivery, &mut above, &mut below);
+    let mut feed = Feed::new(input, &bounded);
+    match feed.answer(Request::Skip) {
+        Event::Skipped(_) => match feed.answer(Request::Next) {
+            Event::Done => Ok(()),
+            Event::Failed(error) => Err(error),
+            Event::Token(_) | Event::Skipped(_) | Event::Long(_) | Event::Closed => Err(Error::Unexpected),
+        },
+        Event::Done => Ok(()),
+        Event::Failed(error) => Err(error),
+        Event::Token(_) | Event::Long(_) | Event::Closed => Err(Error::Unexpected),
     }
-    Err(Error::Unexpected)
 }
 
 /// From the side above.
