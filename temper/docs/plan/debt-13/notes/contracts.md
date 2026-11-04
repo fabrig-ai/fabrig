@@ -157,11 +157,13 @@ pub struct Given<'a> {
     pub tools: Box<[Tool]>,
     pub endpoints: &'a [EndpointName],
     pub deployment: &'a [u8; 16],
-    pub limits: &'a Limits,
+    pub limits: &'a smith_charter::v4::Limits,
     pub answered: u32,
     pub messages: u32,
 }
 pub fn hosted(assignment: &jig_domain_hub_link::Assignment, given: Given<'_>) -> Option<host::Assignment>;
+/// A task's message, as the host carries it (domain/hosts.md, 9).
+pub fn message(run: Token, attempt: Token, word: &tasks::Word) -> host::LinkDown;
 ```
 
 The `pub use` of `Class` at each root's `admission` keeps its readers' paths. Field and type names in these
