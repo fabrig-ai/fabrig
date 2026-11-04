@@ -27,3 +27,9 @@
     decoded beside that. `skein/tests/kv/tests/suite/recovery.rs` measures
     the whole world, so its bounds are `3 × chunk + commit` over the log
     and `4 × chunk` over the snapshot, each plus its `RECOVERY_ALLOWANCE`.
+  - 11: the store itself is small, and the user's request of 11-04 aimed
+    `skein-kv/src/store.rs` and `store/compaction.rs`, 1,670 lines between
+    them, near 1,250, which it also put as about 200 down less what its
+    two fixes add, so near 1,490. They read 1,556, because the review's
+    findings landed and nothing past them was cut: 306 lines past the
+    first number and 66 past the second.

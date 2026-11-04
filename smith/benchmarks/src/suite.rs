@@ -357,7 +357,7 @@ pub fn choose_guards_with_costs(
     let mut candidates = Vec::new();
     let mut selection =
         GuardSelection { selected: Vec::new(), omitted: Vec::new(), estimated_seconds: 0, estimated_tokens: 0 };
-    let arms = u64::try_from(suite.arms.len().max(1)).expect("arm count fits u64");
+    let arms = skein_lib::len_u64(suite.arms.len().max(1));
     for entry in tasks {
         if !entry.task.guards.iter().any(|guard| sections.contains(guard)) {
             continue;

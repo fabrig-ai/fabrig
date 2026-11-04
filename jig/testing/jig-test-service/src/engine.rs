@@ -129,9 +129,8 @@ impl Engine {
                 Some(workers) => workers.next_deadline(),
                 None => None,
             };
-            let next =
-                crate::accounts::earliest(crate::accounts::earliest(accounts, workers), self.store.next_deadline());
-            return crate::accounts::earliest(
+            let next = skein_lib::earliest(skein_lib::earliest(accounts, workers), self.store.next_deadline());
+            return skein_lib::earliest(
                 next,
                 match &self.clients {
                     Some(clients) => clients.next_deadline(),
@@ -139,14 +138,14 @@ impl Engine {
                 },
             );
         }
-        let mut next = crate::accounts::earliest(self.store.next_deadline(), self.values.accounts.next_expiry());
+        let mut next = skein_lib::earliest(self.store.next_deadline(), self.values.accounts.next_expiry());
         let core = self.domain.core();
         let deadline = if self.held.is_empty() {
             core.next_deadline(self.env.now, self.env.wall)
         } else {
             core.next_finishing_deadline(self.env.now, self.env.wall)
         };
-        next = crate::accounts::earliest(next, deadline);
+        next = skein_lib::earliest(next, deadline);
         if !self.domain.stopping() {
             for (_, deadline) in self.domain.connector_deadlines() {
                 next = wall_deadline(next, deadline, &self.env);
@@ -154,13 +153,13 @@ impl Engine {
             next = wall_deadline(next, self.domain.effect_deadline(), &self.env);
         }
         if let Some(accounts) = &self.accounts {
-            next = crate::accounts::earliest(next, accounts.next_deadline());
+            next = skein_lib::earliest(next, accounts.next_deadline());
         }
         if let Some(workers) = &self.workers {
-            next = crate::accounts::earliest(next, workers.next_deadline());
+            next = skein_lib::earliest(next, workers.next_deadline());
         }
         if let Some(clients) = &self.clients {
-            next = crate::accounts::earliest(next, clients.next_deadline());
+            next = skein_lib::earliest(next, clients.next_deadline());
         }
         next
     }
@@ -310,7 +309,7 @@ pub fn iterate(engine: &mut Engine, now: Time, wall: Wall) {
         return;
     }
     if let Some(accounts) = &mut engine.accounts {
-        accounts.iterate(now, wall, &mut engine.values, &mut engine.events, &mut engine.store);
+        crate::accounts::iterate(accounts, now, wall, &mut engine.values, &mut engine.events, &mut engine.store);
     }
     if let Some(workers) = &mut engine.workers {
         workers.iterate(now, &mut engine.events);

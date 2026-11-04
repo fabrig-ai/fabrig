@@ -50,13 +50,10 @@ pub(super) fn change_model(conversation: &mut Conversation, llm: crate::record::
     {
         return Some(End::TranscriptRefused { reason: crate::record::Refusal::Malformed });
     }
-    let cost = match u64::try_from(llm.model.len()) {
-        Ok(bytes) => bytes.checked_add(match &llm.effort {
-            Some(effort) => skein_lib::len_u64(effort.len()),
-            None => 0,
-        }),
-        Err(_) => None,
-    };
+    let cost = skein_lib::len_u64(llm.model.len()).checked_add(match &llm.effort {
+        Some(effort) => skein_lib::len_u64(effort.len()),
+        None => 0,
+    });
     if !super::charge(conversation, cost, limits) {
         return Some(End::TranscriptRefused { reason: crate::record::Refusal::TooLarge });
     }
@@ -116,12 +113,11 @@ pub(super) fn prompt_bytes(conversation: &Conversation) -> Option<u64> {
 }
 
 pub(super) fn prompt_prefix_bytes(conversation: &Conversation, messages: usize) -> Option<u64> {
-    let mut bytes = u64::try_from(conversation.model.len())
-        .ok()?
-        .checked_add(u64::try_from(conversation.system.len()).ok()?)?
+    let mut bytes = skein_lib::len_u64(conversation.model.len())
+        .checked_add(skein_lib::len_u64(conversation.system.len()))?
         .checked_add(conversation.namespace.owned_bytes()?)?;
     if let Some(effort) = &conversation.effort {
-        bytes = bytes.checked_add(u64::try_from(effort.len()).ok()?)?;
+        bytes = bytes.checked_add(skein_lib::len_u64(effort.len()))?;
     }
     for message in conversation.transcript.iter().take(messages) {
         for block in &message.content {
@@ -281,17 +277,17 @@ fn new_bytes(conversation: &Conversation, content: &[Block]) -> Option<u64> {
     spec_cost(&conversation.model, &conversation.system, &conversation.delegated, content)?
         .checked_add(match &conversation.backend {
             crate::record::Backend::Direct => 0,
-            crate::record::Backend::Program { name } => u64::try_from(name.len()).ok()?,
+            crate::record::Backend::Program { name } => skein_lib::len_u64(name.len()),
         })?
         .checked_add(conversation.namespace.owned_bytes()?)?
         .checked_add(super::ticket_bytes(&conversation.choice))?
         .checked_add(super::choice_bytes(conversation.choice_names.as_deref()))?
-        .checked_add(conversation.final_turn.note_bytes()?)?
-        .checked_add(u64::try_from(conversation.task.len()).ok()?)?
-        .checked_add(u64::try_from(conversation.summary.len()).ok()?)?
-        .checked_add(u64::try_from(conversation.preamble.len()).ok()?)?
+        .checked_add(conversation.final_turn.note_bytes())?
+        .checked_add(skein_lib::len_u64(conversation.task.len()))?
+        .checked_add(skein_lib::len_u64(conversation.summary.len()))?
+        .checked_add(skein_lib::len_u64(conversation.preamble.len()))?
         .checked_add(match &conversation.effort {
-            Some(effort) => u64::try_from(effort.len()).ok()?,
+            Some(effort) => skein_lib::len_u64(effort.len()),
             None => 0,
         })
 }

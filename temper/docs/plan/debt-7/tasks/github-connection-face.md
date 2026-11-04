@@ -64,3 +64,13 @@ Acceptance:
 
 The common note's items; the two peaks, base and branch; the package's nextest total, base and branch; net lines.
 No new test, so no break.
+
+## Answers
+
+2026-11-04. Who repairs `Inline`'s response buffer? **`github-fake-surface`, on its next run, with the 17 clippy
+errors in its crate; see its `## Answers`.** This task's files don't widen. Keep your pushed commit and your files. At the start, and before you push, `git fetch origin` and merge
+`origin/debt-7/github-fake-surface`. If that branch still has `Writer` in `src/inline.rs` or has no
+`Installations::minted_token`, its repair hasn't arrived: report that and stop, changing nothing outside your files.
+Then run what the first
+run couldn't: the whole package, clippy, and the two peaks. The output now grows in a `List`: a ceiling passed is still
+a stop. Net lines stand at -258 against -250.

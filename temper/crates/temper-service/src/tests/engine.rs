@@ -268,7 +268,7 @@ fn a_frame_refusal_stops_with_its_details_and_releases_no_later_output() {
 fn kernel_operations_are_routed_back_to_their_owner() {
     use skein_io::kernel::{Complete, Done, Error, Fd, Op, Submit};
     use skein_lib::{Queue, Token};
-    let mut kernel = crate::accounts::Kernel::new(4);
+    let mut kernel = skein_io::kernel::Routes::new(4);
     let mut sockets = Queue::with_capacity(2);
     sockets.push(Submit { op: Token::new(1), kind: Op::Close { fd: Fd::new(6) } });
     let mut output = Queue::with_capacity(4);
@@ -566,7 +566,7 @@ fn nothing_leaves_before_the_mark() {
     let engine = service.engine.as_mut().expect("engine");
     assert!(engine.store.held_mark.is_some(), "public restore reaches its mark without secret bootstrap");
     assert!(!engine.store.component.mark_durable());
-    assert_eq!(engine.accounts.as_ref().expect("accounts").startup_state(), (false, 0, 0));
+    assert_eq!(engine.accounts.as_ref().expect("accounts").component().startup(0), (false, 0, 0));
     assert_eq!(engine.domain.start_phase(), Some(jig_domain_core::start::Phase::Wires));
     assert!(engine.values.identities.numbers().is_empty(), "restored identities wait for the durable wires");
     assert!(engine.workers.forges.is_empty(), "runtime forges wait for the durable wires");
@@ -589,7 +589,7 @@ fn nothing_leaves_before_the_mark() {
     fixtures::restart(&mut service);
     let engine = service.engine.as_ref().expect("engine");
     assert!(engine.store.component.mark_durable());
-    assert_eq!(engine.accounts.as_ref().expect("accounts").startup_state(), (true, 0, 0));
+    assert_eq!(engine.accounts.as_ref().expect("accounts").component().startup(0), (true, 0, 0));
     assert_eq!(engine.store.forge_loads.as_slice(), [None], "one application-secrets pass");
     assert!(engine.forge_records.done());
     assert!(engine.forge.startup_begun());
@@ -599,7 +599,7 @@ fn nothing_leaves_before_the_mark() {
         fixtures::turn(&mut service);
     }
     let engine = service.engine.as_ref().expect("engine");
-    assert_eq!(engine.accounts.as_ref().expect("accounts").startup_state(), (true, 0, 0));
+    assert_eq!(engine.accounts.as_ref().expect("accounts").component().startup(0), (true, 0, 0));
     assert_eq!(engine.store.secret_requests, secrets, "bootstrap is not repeated");
     assert_eq!(engine.store.forge_loads.as_slice(), [None]);
 }

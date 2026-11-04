@@ -63,9 +63,9 @@ impl Resolved {
     #[must_use]
     pub fn owned_bytes(&self) -> Option<u64> {
         match self {
-            Self::Working { path } | Self::Outside { path } => u64::try_from(path.len()).ok(),
+            Self::Working { path } | Self::Outside { path } => Some(skein_lib::len_u64(path.len())),
             Self::Other { directory, path } => {
-                u64::try_from(directory.as_bytes().len()).ok()?.checked_add(u64::try_from(path.len()).ok()?)
+                skein_lib::len_u64(directory.as_bytes().len()).checked_add(skein_lib::len_u64(path.len()))
             }
         }
     }
@@ -89,7 +89,7 @@ impl Namespace {
     pub fn owned_bytes(&self) -> Option<u64> {
         match self {
             Self::NoWorkspace | Self::One => Some(0),
-            Self::Several { working } => u64::try_from(working.as_bytes().len()).ok(),
+            Self::Several { working } => Some(skein_lib::len_u64(working.as_bytes().len())),
         }
     }
 }

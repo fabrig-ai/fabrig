@@ -86,14 +86,16 @@ pub(super) fn sign_in(world: &mut World) -> u64 {
     assert_eq!(person, OWNER);
     sign_in
 }
+/// Encode a distinct key for every numbered deciding request.
+pub(super) fn request_key(number: u32) -> [u8; 16] {
+    u128::from(number).to_be_bytes()
+}
 pub(super) fn ask(world: &mut World, signed: u64, key: u8, ask: people::Ask) -> people::Reply {
-    world.send(root::Event::Core(core::Event::People(people::Event::Ask {
-        models: Box::new([]),
-        reply_to: ReplyTo::new(Token::new(SEED)),
-        sign_in: signed,
-        key: [key; 16],
-        ask,
-    })));
+    ask_key(world, signed, [key; 16], ask)
+}
+/// Submit a deciding act with a full-width key and return its reply after the world settles.
+pub(super) fn ask_key(world: &mut World, signed: u64, key: [u8; 16], ask: people::Ask) -> people::Reply {
+    world.send(ask_event(signed, key, ask));
     let (_, root::Delivery::Core(core::Held::PeopleReply { reply, .. })) =
         world.client_peer.as_mut().expect("settings story fixture").delivered.pop().expect("settings story fixture")
     else {
@@ -149,13 +151,17 @@ pub(super) fn change(
     against: u32,
     items: Box<[settings::Item]>,
 ) -> people::Reply {
-    world.send(root::Event::Core(core::Event::ChangeSettings {
-        reply_to: ReplyTo::new(Token::new(SEED)),
-        sign_in: signed,
-        key: [key_number; 16],
-        digest: [key_number; 32],
-        change: Box::new(settings::Change { against, items, running: settings::Running::Stays }),
-    }));
+    change_key(world, signed, [key_number; 16], against, items)
+}
+/// Apply settings with a full-width key and a digest stable across retries.
+pub(super) fn change_key(
+    world: &mut World,
+    signed: u64,
+    key: [u8; 16],
+    against: u32,
+    items: Box<[settings::Item]>,
+) -> people::Reply {
+    world.send(change_event(signed, key, against, items));
     let (_, root::Delivery::Core(core::Held::PeopleReply { reply, .. })) =
         world.client_peer.as_mut().expect("client").delivered.pop().expect("settings reply")
     else {
@@ -449,4 +455,195 @@ pub(super) fn run_charter(world: &World, instructions: &[u8]) -> settings::Item 
         setting: settings::Setting::Charter(1),
         edit: settings::Edit::Set(settings::Value::Charter(Box::new(charter))),
     }
+}
+
+// Peak 16,224,965 bytes with both stock workloads; a quarter above, rounded up.
+const REQUEST_HEAP_CEILING: u64 = 21_000_000;
+
+/// The core and journal with a domain store fake, without protocol copies or histories.
+pub(super) struct RequestWorld {
+    /// The core and its commit barrier under test.
+    pub(super) domain: root::Domain,
+    /// Durable answers retained by the domain store fake.
+    pub(super) store: jig_fake_store::Store<root::Key, root::Record>,
+    env: skein_lib::Env<root::Limits>,
+    meter: skein_world::domain::heap::Meter,
+}
+impl RequestWorld {
+    /// Start a deployment with the caller's limits and empty durable rows.
+    pub(super) fn new(config: root::Config, limits: &root::Limits) -> Self {
+        let meter = skein_world::domain::heap::Meter::new();
+        let mut world = Self {
+            domain: request_domain(config, limits),
+            store: jig_fake_store::Store::new(),
+            env: skein_lib::Env { now: skein_lib::Time::ZERO, wall: skein_lib::Wall::EPOCH, limits: *limits },
+            meter,
+        };
+        world.send(root::Event::StartBegin { pending: false });
+        assert!(
+            world.domain.ready(),
+            "phase {:?}; failure {:?}",
+            world.domain.start_phase(),
+            world.domain.start_failure()
+        );
+        world
+    }
+
+    /// Drive each commit whole before releasing its replies, without advancing time.
+    pub(super) fn send(&mut self, event: root::Event) -> Option<people::Reply> {
+        root::step(&mut self.domain, &self.env, event);
+        let mut reply = None;
+        for _ in 0..300 {
+            let mut out = skein_lib::Queue::uncapped();
+            root::release(&mut self.domain, &self.env, &mut out);
+            if out.is_empty() {
+                assert!(self.domain.quiescent());
+                return reply;
+            }
+            while let Some(request) = out.pop() {
+                match request {
+                    root::Request::Commit { number, writes } => self.commit(number, writes),
+                    root::Request::Start { phase, census } => self.restore(phase, census),
+                    root::Request::Deliver(root::Delivery::Core(core::Held::PeopleReply { reply: value, .. })) => {
+                        assert!(reply.replace(value).is_none(), "one reply per call");
+                    }
+                    root::Request::Deliver(_) | root::Request::Now(_) => {}
+                    other @ (root::Request::Stop | root::Request::Busy { .. } | root::Request::ReadResult { .. }) => {
+                        panic!("unexpected request: {other:?}");
+                    }
+                }
+            }
+            self.domain.reclaim();
+            assert!(self.meter.held() <= REQUEST_HEAP_CEILING, "retained answer workload heap");
+        }
+        panic!("request world settles");
+    }
+
+    fn commit(&mut self, number: u64, mut writes: skein_lib::Queue<root::Write>) {
+        let mut changes = Vec::new();
+        while let Some(write) = writes.pop() {
+            match write {
+                root::Write::Save(row) => changes.push(jig_fake_store::Write::Save { key: row.key(), row }),
+                root::Write::Erase(key) => changes.push(jig_fake_store::Write::Erase(key)),
+                root::Write::CopySettingsRevision(number) => {
+                    let mut row = self.store.rows[&key(settings::Key::Held(number))].clone();
+                    let root::Record::Core(core::Record::Core(core::CoreRecord::Settings(
+                        settings::Record::Revision { history, .. },
+                    ))) = &mut row
+                    else {
+                        panic!("held settings revision")
+                    };
+                    *history = true;
+                    changes.push(jig_fake_store::Write::Save { key: row.key(), row });
+                }
+                root::Write::Wires => {}
+                root::Write::DropTranscript { .. } => panic!("no tasks in the answer workload"),
+            }
+        }
+        self.store.submit(number, changes.into_boxed_slice(), 0);
+        assert_eq!(self.store.tick(false), Ok(Some(number)));
+        root::step(&mut self.domain, &self.env, root::Event::Committed { number, fill: 0 });
+    }
+
+    fn restore(&mut self, phase: core::start::Phase, census: Option<core::Census>) {
+        use core::start::Phase;
+        let ranges = match phase {
+            Phase::LoadCore => core::RestoreRange::LIVE.to_vec(),
+            Phase::LoadInbox => vec![core::RestoreRange::Census(census.expect("inbox census"))],
+            Phase::Sweep => vec![core::RestoreRange::People],
+            Phase::RestoreConnector { .. } | Phase::Switch => Vec::new(),
+            other @ (Phase::Link
+            | Phase::Wires
+            | Phase::AdoptRuns
+            | Phase::ReadAfresh { .. }
+            | Phase::SettleOutbox { .. }
+            | Phase::Open) => panic!("root owns phase {other:?}"),
+        };
+        for range in ranges {
+            for (key, row) in &self.store.rows {
+                if let root::Key::Core(key) = key
+                    && range.admits(key)
+                {
+                    root::start_record(&mut self.domain, &self.env, row.clone());
+                }
+            }
+        }
+        root::step(&mut self.domain, &self.env, root::Event::StartDone(phase));
+    }
+
+    /// Sign in the configured owner through the same authenticated request entrance.
+    pub(super) fn sign_in(&mut self) -> u64 {
+        let reply = self.send(root::Event::Core(core::Event::SignIn {
+            held: None,
+            reply_to: ReplyTo::new(Token::new(SEED)),
+            identity: people::Identity {
+                key: people::IdentityKey { provider: 1, subject: b"owner-a".as_slice().into() },
+                login: Box::new([]),
+                name: Box::new([]),
+            },
+        }));
+        let Some(people::Reply::SignedIn { person: OWNER, sign_in, .. }) = reply else {
+            panic!("owner signs in: {reply:?}")
+        };
+        sign_in
+    }
+
+    /// Apply a numbered predecessor or replay the same change under its retained key.
+    pub(super) fn change(&mut self, signed: u64, number: u32) {
+        let mut template = self.domain.settings().template(1).expect("chat template").clone();
+        template.grace = Some(Duration::from_secs(6 + u64::from(number % 2)));
+        let against = number;
+        let items = Box::new([settings::Item {
+            setting: settings::Setting::Template(1),
+            edit: settings::Edit::Set(settings::Value::Template(Box::new(template))),
+        }]);
+        let reply = self.send(change_event(signed, request_key(number), against, items)).expect("settings reply");
+        changed(&reply, against + 1);
+    }
+
+    /// Continue ordinary deciding work through the same shared answer entrance.
+    pub(super) fn visibility(&mut self, signed: u64, number: u32) {
+        let public = number.is_multiple_of(2);
+        assert_eq!(
+            self.send(ask_event(signed, request_key(number), people::Ask::SetVisibility { project: 1, public })),
+            Some(people::Reply::Outcome(people::Outcome::VisibilitySet { project: 1, public }))
+        );
+    }
+
+    /// Restore retained keys from the fake's durable rows and preserve the wall clock.
+    pub(super) fn restart(&mut self) {
+        let newest = self.domain.settings().newest();
+        self.store.crash();
+        self.domain = request_domain(configuration().0, &self.env.limits);
+        self.send(root::Event::StartBegin { pending: false });
+        assert!(self.domain.ready());
+        assert_eq!(self.domain.settings().newest(), newest);
+    }
+}
+
+fn request_domain(mut config: root::Config, limits: &root::Limits) -> root::Domain {
+    // No task or connector resource participates in settings and answer admission.
+    config.first.resources = Box::new([]);
+    config.second.resources = Box::new([]);
+    root::Domain::new(config, limits)
+}
+
+fn ask_event(signed: u64, key: [u8; 16], ask: people::Ask) -> root::Event {
+    root::Event::Core(core::Event::People(people::Event::Ask {
+        models: Box::new([]),
+        reply_to: ReplyTo::new(Token::new(SEED)),
+        sign_in: signed,
+        key,
+        ask,
+    }))
+}
+
+fn change_event(signed: u64, key: [u8; 16], against: u32, items: Box<[settings::Item]>) -> root::Event {
+    root::Event::Core(core::Event::ChangeSettings {
+        reply_to: ReplyTo::new(Token::new(SEED)),
+        sign_in: signed,
+        key,
+        digest: [key, key].concat().try_into().expect("digest width"),
+        change: Box::new(settings::Change { against, items, running: settings::Running::Stays }),
+    })
 }

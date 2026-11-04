@@ -590,6 +590,7 @@ fn worker_programs_with(root: kernel::Fd, runs: bool) -> Proc {
                     Box::from(b"ANTHROPIC_API_KEY=fixture-only".as_slice()),
                     Box::from(b"CLAUDE_CODE_OAUTH_TOKEN=fixture-only".as_slice()),
                 ]),
+                jig_test_service::program_sources::PATH_BYTES,
             )
             .expect("private bounded source resources"),
         )

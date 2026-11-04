@@ -95,7 +95,7 @@ pub fn read(path: &Path) -> Result<Configuration, String> {
 
 /// Validate generated child configuration before the local host spawns it.
 pub fn decode(bytes: &[u8]) -> Result<Decoded, String> {
-    if u64::try_from(bytes.len()).expect("byte length fits u64") > CONFIG_BYTES {
+    if skein_lib::len_u64(bytes.len()) > CONFIG_BYTES {
         return Err(format!("configuration is larger than {CONFIG_BYTES} bytes"));
     }
     let document: Document = serde_json::from_slice(bytes).map_err(|error| format!("configuration JSON: {error}"))?;

@@ -319,15 +319,14 @@ impl Backend {
                             .unwrap_or(u64::MAX),
                         None => u64::MAX,
                     };
-                    u64::try_from(id.len().saturating_add(name.len()).saturating_add(input.len()))
-                        .unwrap_or(u64::MAX)
+                    skein_lib::len_u64(id.len().saturating_add(name.len()).saturating_add(input.len()))
                         .saturating_add(extra)
                 }
                 llm::Said::Text { text: bytes, .. } | llm::Said::Refusal { text: bytes, .. } => {
                     text = text.saturating_add(u32::try_from(bytes.len()).unwrap_or(u32::MAX));
-                    u64::try_from(bytes.len()).unwrap_or(u64::MAX)
+                    skein_lib::len_u64(bytes.len())
                 }
-                llm::Said::Opaque { bytes } => u64::try_from(bytes.len()).unwrap_or(u64::MAX),
+                llm::Said::Opaque { bytes } => skein_lib::len_u64(bytes.len()),
             };
             held =
                 held.saturating_add(u64::try_from(size_of::<llm::Said>()).expect("block cell")).saturating_add(payload);

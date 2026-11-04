@@ -335,6 +335,17 @@ impl Installations {
         Ok((secret, expires))
     }
 
+    /// Lends a retained token by its mint number, including a reply lost on the wire.
+    #[must_use]
+    pub fn minted_token(&self, mint: u64) -> Option<&Secret> {
+        for token in self.tokens.iter().flatten() {
+            if token.mint == mint {
+                return Some(&token.secret);
+            }
+        }
+        None
+    }
+
     /// Suspension is checked by the route; it does not revoke a grant here.
     pub fn token(&self, bearer: &[u8], now: Wall) -> Result<&Grant, Denied> {
         match self.token_slot(bearer, now) {

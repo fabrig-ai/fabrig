@@ -26,7 +26,7 @@ Acceptance:
   signatures; no file of `skein/tests/forge/setup` or `temper/tests/engine/protocol-forge` changes.
 - The test files change only as `temper/docs/plan/debt-7/notes/fake-github.md`, 4 lists.
 - The record run (the note, 3) gives two equal lists, base and branch, over both packages.
-- Net lines at most -330.
+- Net lines at most -300.
 
 ## Inputs
 
@@ -81,3 +81,17 @@ Acceptance:
 
 The common note's items; the lines compared in the record run; the packages' nextest totals, base and branch; net
 lines. No new test, so no break.
+
+## Answers
+
+2026-11-04. Who repairs `Inline` and the lints? **`github-fake-surface`, on its next run; see its `## Answers`.**
+This task's files don't widen. Keep your pushed commit and your files. At the start, and before you push, `git fetch origin` and merge
+`origin/debt-7/github-fake-surface`. If that branch still has `Writer` in `src/inline.rs` or has no
+`Installations::minted_token`, its repair hasn't arrived: report that and stop, changing nothing outside your files.
+Then run what the first run couldn't: the record run's branch half
+against the 605 lines of the run's `base-records.txt`, the readers, the fuzzy run, clippy, and the totals.
+
+**Size.** The cap was set by the cut; the push measures -306, 24 short of -330. Compact what can go in the lines this
+task owns, keeping `Fake`'s public surface and the `fixture_domain` family, which the spec keeps. Why the cap can't be
+counted on: nearly all of the 320 lines left are those two. So it eases to **-300**, under the 25% the plan's owner
+allows. Short of that, stop and ask, with the measurements.

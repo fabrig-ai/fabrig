@@ -56,7 +56,9 @@ pub(super) const PEOPLE: people::Limits = people::Limits {
     projects: 9,
     holdings: 32,
     initial_owners: 4,
-    requests: 128,
+    // A day: 16 people * 20 conversations * (creation + 3 messages + decision),
+    // with fivefold room for deciding acts, refusals and pending reservations.
+    requests: 16 * 20 * 5 * 5,
     room_refusals: 32,
     pending: 32,
     facts: 128,
