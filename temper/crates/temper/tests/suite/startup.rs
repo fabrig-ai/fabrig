@@ -349,6 +349,7 @@ fn a_box_on_a_fresh_init_reaches_serves_link_with_forge_3_dormant() {
     let scratch = support::Scratch::startup("box-fresh-init");
     let init = std::process::Command::new(skein_scratch::paths::binary("temper"))
         .arg("init")
+        .arg("--box")
         .args(support::configuration::flags(scratch.path()))
         .output()
         .expect("init command");
@@ -374,6 +375,7 @@ fn a_box_adopts_an_inherited_clients_listener_without_binding_again() {
     let scratch = support::Scratch::startup("box-inherited-client");
     let init = std::process::Command::new(skein_scratch::paths::binary("temper"))
         .arg("init")
+        .arg("--box")
         .args(support::configuration::flags(scratch.path()))
         .output()
         .expect("init command");
@@ -548,6 +550,20 @@ fn serve_prepares_once_on_the_owned_example() {
     let scratch = owned_example("owned-example-prepared");
     let prepared = temper::prepare_in(&support::configuration::directories(scratch.path()));
     assert!(prepared.is_ok(), "{}", prepared.err().unwrap_or_default());
+    scratch.remove();
+}
+#[test]
+fn serve_prepares_once_on_a_bare_init() {
+    let scratch = support::Scratch::startup("bare-init-prepared");
+    let output = std::process::Command::new(skein_scratch::paths::binary("temper"))
+        .arg("init")
+        .args(support::configuration::flags(scratch.path()))
+        .output()
+        .expect("bare init");
+    assert!(output.status.success(), "{}", String::from_utf8_lossy(&output.stderr));
+    let prepared = temper::prepare_in(&support::configuration::directories(scratch.path()));
+    assert!(prepared.is_ok(), "{}", prepared.err().unwrap_or_default());
+    assert!(!scratch.path().join("demo").exists(), "bare init creates no demo");
     scratch.remove();
 }
 #[test]
@@ -1191,8 +1207,8 @@ fn program_login_prepares_private_directories_through_each_supported_parent() {
 fn init_prints_written_files_account_guidance_and_explicit_start_flags_on_stderr() {
     const NO_GIT: &str =
         "init: no git on PATH: a real forge's repositories need git 2.41 or later, set as workers[].git";
-    for has_git in [true, false] {
-        let scratch = support::Scratch::startup(&format!("init-command-{has_git}"));
+    for (has_git, boxed) in [(true, false), (false, false), (true, true), (false, true)] {
+        let scratch = support::Scratch::startup(&format!("init-command-{has_git}-{boxed}"));
         let bin = scratch.path().join("bin");
         fs::create_dir(&bin).expect("bin");
         let git = bin.join("git");
@@ -1202,6 +1218,7 @@ fn init_prints_written_files_account_guidance_and_explicit_start_flags_on_stderr
         }
         let output = std::process::Command::new(skein_scratch::paths::binary("temper"))
             .arg("init")
+            .args(if boxed { vec!["--box"] } else { vec![] })
             .args(support::configuration::flags(scratch.path()))
             .env_clear()
             .env("PATH", &bin)
@@ -1211,7 +1228,12 @@ fn init_prints_written_files_account_guidance_and_explicit_start_flags_on_stderr
         assert!(output.stdout.is_empty());
         let lines = String::from_utf8(output.stderr).expect("init lines");
         let mut expected = String::new();
-        for name in ["worker.secret", "worker.digest", "demo/llm.key", "demo/bin/git", "agent.json", "temper.json"] {
+        let names = if boxed {
+            vec!["worker.secret", "worker.digest", "demo/llm.key", "demo/bin/git", "agent.json", "temper.json"]
+        } else {
+            vec!["worker.secret", "worker.digest", "agent.json", "temper.json"]
+        };
+        for name in names {
             writeln!(expected, "init: wrote {}", scratch.path().join(name).display()).expect("string");
         }
         assert!(lines.starts_with(&expected), "files are reported in write order");
@@ -1221,9 +1243,10 @@ fn init_prints_written_files_account_guidance_and_explicit_start_flags_on_stderr
             )
         );
         let path = scratch.path().display();
-        assert!(
-            lines.ends_with(&format!("init: start it with temper box --config {path} --data {path} --cache {path}\n"))
-        );
+        let command = if boxed { "box" } else { "serve" };
+        assert!(lines.ends_with(&format!(
+            "init: start it with temper {command} --config {path} --data {path} --cache {path}\n"
+        )));
 
         let diagnostics: Vec<_> = lines.lines().filter(|line| line.starts_with("init: no git")).collect();
         assert_eq!(diagnostics, if has_git { vec![] } else { vec![NO_GIT] });
@@ -1231,6 +1254,11 @@ fn init_prints_written_files_account_guidance_and_explicit_start_flags_on_stderr
             serde_json::from_slice(&fs::read(scratch.path().join("temper.json")).expect("configuration"))
                 .expect("JSON");
         assert_eq!(document["application"]["workers"][0]["git"].is_null(), !has_git);
+        assert_eq!(document["application"]["welcome"].as_bool(), if boxed { Some(true) } else { None });
+        assert_eq!(scratch.path().join("demo").exists(), boxed);
+        if !boxed {
+            assert!(!lines.contains("person is person"), "bare init has no person diagnostic");
+        }
         scratch.remove();
     }
 }
