@@ -82,7 +82,6 @@ pub(crate) fn gate(core: &mut Core, event: Event) -> Result<Event, Queue<Request
         Event::Fleet(event) => Ok(Event::Fleet(event)),
         Event::Stopping
         | Event::Activate { .. }
-        | Event::PreparedAgent { .. }
         | Event::BriefAssembled { .. }
         | Event::WorkspacePrepared { .. }
         | Event::ClaimPrepared { .. }

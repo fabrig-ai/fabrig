@@ -14,6 +14,20 @@ pub fn copy_of(bytes: &[u8]) -> Box<[u8]> {
     Box::from(bytes)
 }
 
+/// The parts, in order, in a box of exactly their summed length.
+#[must_use]
+pub fn concat(parts: &[&[u8]]) -> Box<[u8]> {
+    let mut length = 0_usize;
+    for part in parts {
+        length = length.checked_add(part.len()).expect("parts held in memory fit a length");
+    }
+    let mut writer = crate::Writer::new(length);
+    for part in parts {
+        writer.put(part).expect("the writer is the parts' length");
+    }
+    writer.finish()
+}
+
 /// A box of `len` zero bytes, for the side below to fill: a receive buffer,
 /// at a length the side below computed (programming-model.md, 6.2).
 #[must_use]

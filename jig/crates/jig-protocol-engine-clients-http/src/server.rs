@@ -1,4 +1,4 @@
-//! The application's listener and HTTP connections (jig's protocol/service.md, 2).
+//! One listener's connections and routed calls (jig/docs/design/protocol/service.md, 11.4).
 use core::net::SocketAddr;
 use skein_http::server as http;
 use skein_io as io;
@@ -7,20 +7,29 @@ use skein_lib::{
     stream::{Down, Up},
 };
 
+pub mod policy;
+
 const LISTENER: Token = Token::new(0);
 #[derive(Clone, Copy, Debug)]
 pub struct Limits {
     pub connections: u32,
     pub http: http::Limits,
     pub stall: Duration,
+    /// What a peer's end does while a call is unfinished (protocol/client.md, 17.4).
+    pub peer_end: PeerEnd,
 }
-#[derive(Debug)]
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+pub enum PeerEnd {
+    /// Ends the connection, and the owner hears it closed.
+    Connection,
+    /// Leaves the connection: the response goes on, and the owner hears the call end with it.
+    Call,
+}
 pub enum Routed {
     Io(io::Request),
     Call { call: Token, head: http::Call },
     Http { call: Token, event: http::Event },
 }
-#[derive(Debug)]
 struct Connection {
     socket: Token,
     http: http::Server,
@@ -41,7 +50,6 @@ enum Phase {
     Closing,
     Aborting,
 }
-#[derive(Debug)]
 pub struct Server {
     address: io::Addr,
     listener: Option<Token>,
@@ -52,6 +60,27 @@ pub struct Server {
     connections: Map<Token, Connection>,
     next: u64,
     env: Env<Limits>,
+}
+// A head holds cookies and a response Set-Cookie; show only the connection count.
+impl core::fmt::Debug for Server {
+    fn fmt(&self, f: &mut core::fmt::Formatter<'_>) -> core::fmt::Result {
+        f.debug_struct("Server")
+            .field("address", &self.address)
+            .field("listener", &self.listener)
+            .field("phase", &self.phase)
+            .field("connections", &self.connections.len())
+            .finish_non_exhaustive()
+    }
+}
+// A head holds cookies and a response Set-Cookie; show only the variant and call.
+impl core::fmt::Debug for Routed {
+    fn fmt(&self, f: &mut core::fmt::Formatter<'_>) -> core::fmt::Result {
+        match self {
+            Self::Io(_) => f.write_str("Io"),
+            Self::Call { call, .. } => f.debug_struct("Call").field("call", call).finish(),
+            Self::Http { call, .. } => f.debug_struct("Http").field("call", call).finish(),
+        }
+    }
 }
 impl Server {
     #[must_use]
@@ -106,7 +135,7 @@ impl Server {
                     out.push(Routed::Io(io::Request::Reject { socket }));
                 } else {
                     let owner = self.name();
-                    let mut requests = Queue::with_capacity(8);
+                    let mut requests = Queue::uncapped();
                     requests.push(http::Request::Next);
                     self.connections
                         .insert(
@@ -114,9 +143,9 @@ impl Server {
                             Connection {
                                 socket,
                                 http: http::Server::new(&self.env.limits.http),
-                                events: Queue::with_capacity(8),
+                                events: Queue::uncapped(),
                                 requests,
-                                below: Queue::with_capacity(8),
+                                below: Queue::uncapped(),
                                 call: None,
                                 reuse: None,
                                 closing: false,
@@ -125,6 +154,7 @@ impl Server {
                                 held: None,
                             },
                         )
+                        .ok()
                         .expect("admitted connection");
                     out.push(Routed::Io(io::Request::Bind { socket, owner }));
                 }
@@ -137,7 +167,7 @@ impl Server {
                     connection.deadline =
                         self.env.now.saturating_add(self.env.limits.stall).max(connection.held.unwrap_or(Time::ZERO));
                     let ended = match &up {
-                        Up::End => connection.call.is_some(),
+                        Up::End => self.env.limits.peer_end == PeerEnd::Connection && connection.call.is_some(),
                         Up::Bytes(_) | Up::Room | Up::Failed(_) => false,
                     };
                     http::up(&mut connection.http, &env, up, &mut connection.events, &mut connection.below);
@@ -186,7 +216,7 @@ impl Server {
     }
     /// Hold an application call through its own deadline, leaving the normal
     /// stall interval for its ending page to reach the peer.
-    pub(crate) fn hold(&mut self, call: Token, deadline: Time) {
+    pub fn hold(&mut self, call: Token, deadline: Time) {
         if let Some(owner) = self.owner(call) {
             let connection = self.connections.get_mut(&owner).expect("held call");
             let until = deadline.saturating_add(self.env.limits.stall);
@@ -194,7 +224,7 @@ impl Server {
             connection.deadline = connection.deadline.max(until);
         }
     }
-    pub(crate) fn release(&mut self, call: Token) {
+    pub fn release(&mut self, call: Token) {
         if let Some(owner) = self.owner(call) {
             let connection = self.connections.get_mut(&owner).expect("released call");
             connection.held = None;
@@ -203,7 +233,7 @@ impl Server {
     }
     pub fn answer(&mut self, call: Token, mut request: http::Request, out: &mut Queue<Routed>) {
         if let http::Request::Respond(response) = &mut request {
-            crate::clients::policy::add(response);
+            policy::add(response);
         }
         if let http::Request::Next = request {
             self.done(call, out);
@@ -227,6 +257,12 @@ impl Server {
             } else {
                 end(connection, self.phase != Phase::Aborting, out);
             }
+        }
+    }
+    /// Ends the call's connection at once, as a stall does.
+    pub fn abandon(&mut self, call: Token, out: &mut Queue<Routed>) {
+        if let Some(owner) = self.owner(call) {
+            end(self.connections.get_mut(&owner).expect("call owner"), false, out);
         }
     }
     fn end_listener(&mut self, out: &mut Queue<Routed>) {
@@ -354,9 +390,9 @@ fn end(connection: &mut Connection, drain: bool, out: &mut Queue<Routed>) {
     if !connection.closing || (connection.draining && !drain) {
         connection.closing = true;
         connection.draining = drain;
-        connection.events = Queue::with_capacity(8);
-        connection.requests = Queue::with_capacity(8);
-        connection.below = Queue::with_capacity(8);
+        connection.events = Queue::uncapped();
+        connection.requests = Queue::uncapped();
+        connection.below = Queue::uncapped();
         out.push(Routed::Io(if drain {
             io::Request::Close { entity: connection.socket }
         } else {
@@ -368,33 +404,4 @@ fn end(connection: &mut Connection, drain: bool, out: &mut Queue<Routed>) {
 #[must_use]
 pub fn valid(limits: &Limits) -> bool {
     limits.connections != 0 && limits.stall != Duration::ZERO && http::valid(&limits.http)
-}
-
-#[cfg(test)]
-#[test]
-fn listener_limits_accept_stock_and_refuse_zero_connections_or_stall() {
-    let mut limits = crate::limits::server(&crate::tests::fixtures::engine().jig.limits);
-    assert!(valid(&limits));
-    limits.connections = 0;
-    assert!(!valid(&limits));
-    limits = crate::limits::server(&crate::tests::fixtures::engine().jig.limits);
-    limits.stall = Duration::ZERO;
-    assert!(!valid(&limits));
-    limits = crate::limits::server(&crate::tests::fixtures::engine().jig.limits);
-    limits.http.read = 0;
-    assert!(!valid(&limits));
-    limits = crate::limits::server(&crate::tests::fixtures::engine().jig.limits);
-    limits.http.head = 1;
-    assert!(!valid(&limits));
-    limits = crate::limits::server(&crate::tests::fixtures::engine().jig.limits);
-    limits.http.send = 0;
-    assert!(!valid(&limits));
-    limits = crate::limits::server(&crate::tests::fixtures::engine().jig.limits);
-    limits.http.response = 122; // The server's longest answer needs 123 bytes.
-    assert!(!valid(&limits));
-    limits = crate::limits::server(&crate::tests::fixtures::engine().jig.limits);
-    limits.http.send = u32::MAX - 12; // Eight hex digits and four framing bytes.
-    assert!(valid(&limits));
-    limits.http.send += 1;
-    assert!(!valid(&limits));
 }

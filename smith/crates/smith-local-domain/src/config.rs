@@ -148,12 +148,8 @@ impl Config {
         }
         let mut brief_bytes = 0_u64;
         for section in &self.brief.sections {
-            let Ok(title) = u64::try_from(section.title.len()) else {
-                return Err(Invalid::Text);
-            };
-            let Ok(text) = u64::try_from(section.text.len()) else {
-                return Err(Invalid::Text);
-            };
+            let title = skein_lib::len_u64(section.title.len());
+            let text = skein_lib::len_u64(section.text.len());
             brief_bytes = brief_bytes.checked_add(title).ok_or(Invalid::Text)?;
             brief_bytes = brief_bytes.checked_add(text).ok_or(Invalid::Text)?;
         }

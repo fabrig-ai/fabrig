@@ -3,10 +3,10 @@
 mod ranges;
 pub mod route;
 use jig_protocol_store as protocol;
-use protocol::host::{Host, Lane, check_read_page, max_whole};
+use protocol::host::{Hosted, Lane, NotReady, check_read_page, max_whole};
 use route::Up;
 use skein_io::kernel::{Complete, Fd, Op, Submit};
-use skein_lib::{Env, Queue, Time, Token, Wall};
+use skein_lib::{Queue, Time, Token};
 use temper_engine_domain as root;
 use temper_engine_domain_forge as forge;
 /// The wires this engine speaks to its workers (jig's protocol/store.md,
@@ -30,13 +30,6 @@ const fn record_version(version: u64) -> u32 {
 const MASK: u64 = (1_u64 << 60) - 1;
 pub(crate) const KERNEL_HANDOFF_ENTRIES: u32 = protocol::host::KERNEL_HANDOFF_ENTRIES;
 #[derive(Debug)]
-#[cfg_attr(
-    test,
-    expect(
-        clippy::struct_excessive_bools,
-        reason = "the held startup mark test control is independent of the store lifecycle"
-    )
-)]
 pub struct Store {
     #[cfg(test)]
     pub(crate) forge_loads: skein_lib::List<Option<u64>>,
@@ -48,22 +41,15 @@ pub struct Store {
     pub(crate) held_mark: Option<root::StoreRequest>,
     #[cfg(test)]
     pub(crate) secret_requests: u32,
-    pub(crate) component: protocol::Store,
-    env: Env<protocol::Limits>,
+    pub(crate) host: Hosted,
     pub(crate) routes: route::Routes,
-    pub(crate) above: Queue<protocol::Event>,
     pub(crate) routed: Queue<Up>,
-    pub(crate) secrets: Queue<protocol::Event>,
-    /// The answers to the accounts' records' loads and writes (jig's store.md 9).
-    pub(crate) sources: Queue<protocol::Event>,
-    host: Host,
     pub(crate) submitted: Queue<Submit>,
     pub(crate) opened: bool,
     pub(crate) pending_generation: bool,
     /// The installation's identifier: the drawn one until the store opens,
     /// then the one it keeps (jig's store.md 4.4).
     pub(crate) installation: [u8; 16],
-    closing: bool,
 }
 
 /// Admit the core, journal and temper families, then copy checked sizes to KV.
@@ -143,14 +129,7 @@ pub(crate) fn layout(
         Ok(sizes) => sizes,
         Err(why) => return Err(Refusal::Map(why)),
     };
-    kv.key = sizes.key;
-    kv.value = sizes.value;
-    kv.ops = sizes.ops;
-    kv.commit = sizes.commit;
-    kv.queued_bytes = u64::from(sizes.commit).checked_mul(u64::from(kv.queued)).ok_or(arithmetic)?;
-    kv.segment = u64::from(sizes.commit).checked_mul(2).ok_or(arithmetic)?;
-    kv.snapshot_after = u64::from(sizes.commit);
-    kv.chunk = skein_kv::chunk_bytes(sizes.key, sizes.value).ok_or(arithmetic)?;
+    protocol::sizes::fill(&mut kv, &sizes).ok_or(arithmetic)?;
     kv.page.bytes = page_bytes(&core, transcript, sizes.key, sizes.value).ok_or(arithmetic)?;
     if kv.page.bytes > profile.store.page.bytes {
         let frame = protocol::sizes::frame(&core, transcript).ok_or(arithmetic)?;
@@ -178,7 +157,7 @@ fn page_bytes(core: &jig_domain_core::Limits, transcript: u32, key: u32, value: 
 impl Store {
     #[cfg(test)]
     pub(crate) fn opening_limits(&self) -> protocol::Limits {
-        self.env.limits
+        *self.host.limits()
     }
 
     #[must_use]
@@ -194,16 +173,11 @@ impl Store {
             temper_protocol_store::bounds(&application.forge, application.tasks.spec_bytes)
                 .expect("checked family bounds"),
         );
-        let host = Host::new(limits, u64::from_le_bytes(*installation.first_chunk::<8>().expect("installation seed")));
-        let seeded = host.seeded();
-        let mut component = protocol::Store::on_directory(
-            limits,
-            temper_protocol_store::application(&application.forge, application.tasks.spec_bytes)
-                .expect("checked application sizes"),
-            models,
-            seeded,
-        );
-        assert!(component.wires(&WIRES), "valid engine wires before open");
+        let application_sizes = temper_protocol_store::application(&application.forge, application.tasks.spec_bytes)
+            .expect("checked application sizes");
+        let seed = u64::from_le_bytes(*installation.first_chunk::<8>().expect("installation seed"));
+        let mut host = Hosted::new(limits, application_sizes, models, seed, NotReady::Above);
+        assert!(host.component.wires(&WIRES), "valid engine wires before open");
         Self {
             #[cfg(test)]
             forge_loads: skein_lib::List::with_capacity(128),
@@ -215,19 +189,13 @@ impl Store {
             held_mark: None,
             #[cfg(test)]
             secret_requests: 0,
-            component,
-            env: Env { now: Time::ZERO, wall: Wall::EPOCH, limits: *limits },
             routes,
-            above: Queue::uncapped(),
             routed: Queue::uncapped(),
-            secrets: Queue::uncapped(),
-            sources: Queue::uncapped(),
             host,
             submitted: Queue::with_capacity(KERNEL_HANDOFF_ENTRIES),
             opened: false,
             pending_generation: false,
             installation,
-            closing: false,
         }
     }
     /// Whether the component has reported that its deployment opened.
@@ -236,31 +204,7 @@ impl Store {
         self.opened
     }
     pub fn adopt(&mut self, fd: Fd, user: u32) -> Result<(), Fd> {
-        self.host.adopt(fd, user, Token::new(1), self.installation)
-    }
-    pub fn clock(&mut self, now: Time, wall: Wall) {
-        self.env.now = now;
-        self.env.wall = wall;
-    }
-    pub fn ask(&mut self, request: protocol::Request) {
-        match request {
-            protocol::Request::Secrets { owner, request } => {
-                if let Some(event) = self.secrets(owner, request) {
-                    self.above.push(event);
-                }
-            }
-            request @ (protocol::Request::Open { .. }
-            | protocol::Request::Switch { .. }
-            | protocol::Request::Commit { .. }
-            | protocol::Request::Restore { .. }
-            | protocol::Request::Load { .. }
-            | protocol::Request::Read { .. }
-            | protocol::Request::Get { .. }
-            | protocol::Request::Transcript { .. }
-            | protocol::Request::Site { .. }) => {
-                self.host.down(&mut self.component, &self.env, request, &mut self.above);
-            }
-        }
+        self.host.adopt(fd, user, self.installation)
     }
     pub fn down(&mut self, out: root::StoreRequest) -> bool {
         #[cfg(test)]
@@ -273,7 +217,7 @@ impl Store {
             return true;
         }
         if let Some(request) = route::down(&mut self.routes, out) {
-            self.ask(request);
+            self.host.ask(request);
             true
         } else {
             false
@@ -295,45 +239,11 @@ impl Store {
         if let protocol::Secrets::Erase { .. } = &request {
             self.erases = self.erases.checked_add(1).expect("test erases");
         }
-        let immediate = match &request {
-            protocol::Secrets::Get { .. } | protocol::Secrets::Load { .. } => true,
-            protocol::Secrets::AdoptValue { .. }
-            | protocol::Secrets::Adopt { .. }
-            | protocol::Secrets::Keep { .. }
-            | protocol::Secrets::Replace { .. }
-            | protocol::Secrets::Erase { .. }
-            | protocol::Secrets::Hold { .. }
-            | protocol::Secrets::Carry { .. } => false,
-        };
-        self.host.down(&mut self.component, &self.env, protocol::Request::Secrets { owner, request }, &mut self.above);
-        let mut answer = None;
-        if immediate {
-            for _ in 0..self.above.len() {
-                let event = self.above.pop().expect("store terminals");
-                if let protocol::Event::Secret { owner: found, .. }
-                | protocol::Event::SecretsLoaded { owner: found, .. } = &event
-                    && *found == owner
-                {
-                    answer = Some(event);
-                } else {
-                    self.above.push(event);
-                }
-            }
-        }
-        answer
-    }
-    #[must_use]
-    pub fn next_deadline(&self) -> Option<Time> {
-        self.host.next_deadline()
+        self.host.secrets(owner, request)
     }
     #[must_use]
     pub fn work_pending(&self, now: Time) -> bool {
-        !self.secrets.is_empty()
-            || !self.sources.is_empty()
-            || !self.above.is_empty()
-            || !self.routed.is_empty()
-            || !self.submitted.is_empty()
-            || self.host.work_pending(now)
+        self.host.work_pending(now) || !self.routed.is_empty() || !self.submitted.is_empty()
     }
     #[must_use]
     pub fn closed(&self) -> bool {
@@ -341,28 +251,15 @@ impl Store {
     }
     #[must_use]
     pub fn idle(&self) -> bool {
-        (self.closing || self.routes.idle())
-            && self.secrets.is_empty()
-            && self.sources.is_empty()
-            && self.above.is_empty()
+        (self.host.closing() || self.routes.idle())
             && self.routed.is_empty()
             && self.submitted.is_empty()
             && self.host.idle()
     }
     pub fn close(&mut self) {
-        self.closing = true;
         self.host.close();
-        for _ in 0..self.above.len() {
-            let _terminal = self.above.pop();
-        }
         for _ in 0..self.routed.len() {
             let _up = self.routed.pop();
-        }
-        for _ in 0..self.secrets.len() {
-            let _terminal = self.secrets.pop();
-        }
-        for _ in 0..self.sources.len() {
-            let _terminal = self.sources.pop();
         }
     }
     pub fn complete(&mut self, mut complete: Complete) {
@@ -388,7 +285,7 @@ impl Store {
         }
     }
     pub fn iterate(&mut self) {
-        self.host.iterate(&mut self.component, &self.env, &mut self.above);
+        self.host.iterate();
         self.publish();
     }
 }

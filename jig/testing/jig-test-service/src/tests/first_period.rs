@@ -82,8 +82,8 @@ fn reply(service: &mut Service) -> people::Reply {
 }
 fn get(service: &mut Service, key: core::Key) -> Option<core::Record> {
     let engine = f::engine(service);
-    engine.store.ask(store::Request::Get { owner: Token::new(991), key: store::Get::Jig(key) });
-    let Some(store::Event::Got { row, .. }) = engine.store.above.pop() else { panic!("store get") };
+    engine.store.host.ask(store::Request::Get { owner: Token::new(991), key: store::Get::Jig(key) });
+    let Some(store::Event::Got { row, .. }) = engine.store.host.above.pop() else { panic!("store get") };
     match row {
         Some(store::Row::Jig(record)) => Some(record),
         Some(store::Row::Application { .. }) => panic!("jig row"),
@@ -158,7 +158,7 @@ fn stored_period() -> tasks::FundingRecord {
 fn later_start() -> Service {
     let mut service = started();
     let engine = f::engine(&mut service);
-    let opened = engine.store.above.pop().expect("store opened before its fixture commit");
+    let opened = engine.store.host.above.pop().expect("store opened before its fixture commit");
     let header = core::Deployment {
         id: [7; 16],
         tasks: 0,
@@ -189,11 +189,11 @@ fn later_start() -> Service {
     ] {
         writes.push(write).expect("fixture first commit");
     }
-    engine.store.ask(store::Request::Commit { number: 1, writes: writes.into_boxed() });
+    engine.store.host.ask(store::Request::Commit { number: 1, writes: writes.into_boxed() });
     engine.store.iterate();
-    let Some(store::Event::Committed { number, .. }) = engine.store.above.pop() else { panic!("fixture commit") };
+    let Some(store::Event::Committed { number, .. }) = engine.store.host.above.pop() else { panic!("fixture commit") };
     assert_eq!(number, 1);
-    engine.store.above.push(opened);
+    engine.store.host.above.push(opened);
     service
 }
 

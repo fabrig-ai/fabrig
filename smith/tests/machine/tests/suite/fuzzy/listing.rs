@@ -62,14 +62,14 @@ fn seeded_selected_paths_keep_the_exact_tree_prefix_and_omitted_count_within_mem
         let mut expected = Vec::new();
         let mut used = 0_u64;
         for (name, kind) in &all {
-            let next = used + u64::try_from(core::mem::size_of::<tools::Entry>() + name.len()).expect("finite entry");
+            let next = used + skein_lib::len_u64(core::mem::size_of::<tools::Entry>() + name.len());
             if expected.len() == usize::try_from(maximum).expect("finite count") || next > bytes {
                 break;
             }
             expected.push(tools::Entry { name: name.clone().into(), kind: *kind });
             used = next;
         }
-        let more = u64::try_from(all.len() - expected.len()).expect("finite remainder");
+        let more = skein_lib::len_u64(all.len() - expected.len());
         let meter = Meter::new();
         meter.start();
         let mut listing = Listing::new(maximum, bytes, depth, 256);

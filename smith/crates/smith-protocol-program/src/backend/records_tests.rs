@@ -48,7 +48,7 @@ fn assistant_text_redacts_private_values_before_completion() {
     let mut backend = active();
     let secret = mcp::secret_text(backend.names.mcp.expose().try_into().expect("entropy"));
     let path = backend.run_path(b"mcp.json");
-    let input = mcp::json::join(&[b"program error ", &path, b" ", &secret, b" end"]);
+    let input = skein_lib::bytes::concat(&[b"program error ", &path, b" ", &secret, b" end"]);
     let mut value = text();
     value["message"]["content"][0]["text"] = json!(core::str::from_utf8(&input).expect("fixture text"));
     let mut up = Queue::with_capacity(32);

@@ -193,8 +193,9 @@ fn each_path_is_answered_by_its_part_of_the_server() {
     }
 }
 #[test]
+#[expect(clippy::default_trait_access, reason = "fixture type is private to its module")]
 fn with_no_bundle_a_page_get_is_404() {
-    let reply = f::answer(&mut f::server(), b"GET /tasks/7 HTTP/1.1\r\nHost: localhost\r\n\r\n");
+    let reply = f::answer(&mut Default::default(), b"GET /tasks/7 HTTP/1.1\r\nHost: localhost\r\n\r\n");
     assert_eq!(reply.status, 404);
     assert_eq!(reply.body.as_ref(), b"");
 }
@@ -327,7 +328,7 @@ fn the_bundle_is_installed_before_the_service_loop() {
     let mut service = f::started(&document);
     assert_eq!(service.serve(f::bundle()), Ok(()));
     let clients = f::engine(&mut service).clients.as_mut().expect("clients");
-    assert_eq!(clients.server.route(&f::head(Method::Get, b"/tasks/7", &[])), Answer::Page);
+    assert_eq!(clients.pages.route(&f::head(Method::Get, b"/tasks/7", &[])), Answer::Page);
 }
 #[test]
 fn a_bundle_is_refused_after_the_service_loop_starts() {
@@ -393,4 +394,56 @@ fn a_native_http_client_accepts_the_mount_s_answer_with_the_policy() {
     // The protocol world's native peer reserves room for the reference origin policy.
     let head = f::native_head(&response, 16);
     assert_eq!(head.status, 200);
+}
+
+#[test]
+#[expect(clippy::disallowed_methods, reason = "test inspects routed events")]
+fn a_peers_end_during_a_call_follows_its_value() {
+    use crate::server::{PeerEnd, Server};
+    for peer_end in [PeerEnd::Call, PeerEnd::Connection] {
+        let mut limits = crate::limits::profile_limits(jig_protocol_config::Profile::Small).server;
+        limits.peer_end = peer_end;
+        let mut server = Server::new(skein_io::Addr::Ip("127.0.0.1:7100".parse().expect("listener")), &limits);
+        let mut out = Queue::uncapped();
+        f::server_call(&mut server, &mut out);
+        while out.pop().is_some() {}
+        server.up(skein_io::Event::Stream { owner: OWNER, up: skein_lib::stream::Up::End }, &mut out);
+        f::server_drain(&mut server, &mut out);
+        let abort = |routed: &Routed| match routed {
+            Routed::Io(skein_io::Request::Abort { entity }) => *entity == SOCKET,
+            Routed::Io(_) | Routed::Call { .. } | Routed::Http { .. } => false,
+        };
+        let http = |routed: &Routed| match routed {
+            Routed::Http { .. } => true,
+            Routed::Io(_) | Routed::Call { .. } => false,
+        };
+        assert_eq!(out.iter().any(abort), peer_end == PeerEnd::Connection, "{peer_end:?}: connection end");
+        assert!(!out.iter().any(http), "{peer_end:?}: nothing said above");
+    }
+}
+#[test]
+#[expect(clippy::disallowed_methods, reason = "test inspects the parsed head")]
+fn debug_of_the_server_shows_no_cookie() {
+    const CANARY: &str = "jig=canary-server-cookie-84d2f6";
+    let mut server = f::server();
+    let mut out = Queue::uncapped();
+    server.up(f::listening(), &mut out);
+    server.up(f::accepted(SOCKET), &mut out);
+    f::server_drain(&mut server, &mut out);
+    let request = f::join(&[
+        b"POST /jig/v1/read HTTP/1.1\r\nHost: localhost\r\nCookie: ",
+        CANARY.as_bytes(),
+        b"\r\nContent-Length: 0\r\n\r\n",
+    ]);
+    f::server_bytes(&mut server, &mut out, &request);
+    let call = |routed: &Routed| match routed {
+        Routed::Call { .. } => true,
+        Routed::Io(_) | Routed::Http { .. } => false,
+    };
+    assert!(out.iter().any(call), "a parsed head holds the cookie");
+    let canary_bytes = alloc::fmt::format(format_args!("{:?}", CANARY.as_bytes()));
+    for debug in [alloc::fmt::format(format_args!("{server:?}")), alloc::fmt::format(format_args!("{out:?}"))] {
+        assert!(!debug.contains(CANARY), "Debug hides the cookie's text");
+        assert!(!debug.contains(canary_bytes.as_str()), "Debug hides the cookie's bytes");
+    }
 }

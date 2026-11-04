@@ -1,5 +1,4 @@
-//! Accepted streams, the workers' component and its typed root handoff
-//! (jig's protocol/channel.md, 10.2).
+//! The workers' host and temper's typed root handoff (jig/docs/design/protocol/service.md, 11.3).
 use crate::{
     assignment::Encoding,
     settings::{Files, Forge},
@@ -7,37 +6,19 @@ use crate::{
 };
 use alloc::boxed::Box;
 use jig_domain_host as host;
-use jig_protocol_config::{self as config, Path, Problems, What};
+use jig_protocol_config::{self as config, Problems, What};
 use jig_protocol_engine_workers as kit;
 use jig_protocol_worker_wire::Part;
-use skein_channel::{Lower, LowerEvent};
 use skein_io::{self as io};
-use skein_lib::{List, Map, Queue, Reader, Time, Token, stream};
+use skein_lib::{List, Queue, Reader, Time, Token};
 use temper_engine_domain as root;
 use temper_protocol_worker_wire::v1 as wire;
-const LISTENERS: u64 = crate::tokens::WORKER_LISTENERS;
-const CONNECTIONS: u64 = crate::tokens::WORKER_CONNECTIONS;
 #[derive(Debug)]
 pub struct Workers {
-    /// Bound address awaiting the system's note routing.
-    pub(crate) listening: Option<core::net::SocketAddr>,
-    pub(crate) component: kit::Component,
-    out: Queue<kit::Request>,
-    pub(crate) io: Queue<io::Request>,
-    pub(crate) listeners: List<(Token, io::Addr, Option<Token>)>,
-    pub(crate) sockets: Map<Token, Token>,
-    next: u64,
-    pub(crate) opened: bool,
-    ending: Option<Closing>,
-    pub(crate) component_closed: bool,
+    pub(crate) host: kit::host::Workers,
     pub(crate) encoding: Encoding,
     pub(crate) forges: crate::forges::Forges,
     pub(crate) bad_parts: u64,
-}
-fn invalid(what: What) -> Problems {
-    let mut found = Problems::empty();
-    found.push(Path::root().member(b"engine").member(b"hosts"), what);
-    found
 }
 impl Workers {
     pub fn new(
@@ -48,74 +29,21 @@ impl Workers {
         forge_limit: u32,
         limits: &kit::Limits,
     ) -> Result<Self, Problems> {
-        let mut workers = List::with_capacity(limits.names);
-        for worker in &config.hosts.workers {
-            let digest = match config::digest(files.contents(&worker.digest).ok_or(invalid(What::Unreadable))?) {
-                Ok(digest) => digest,
-                Err(what) => return Err(invalid(what)),
-            };
-            workers.push(kit::Worker { name: worker.name.clone(), digest }).or(Err(invalid(What::Bound)))?;
+        let tokens = kit::host::Tokens {
+            listeners: crate::tokens::prefix(Token::new(crate::tokens::WORKER_LISTENERS)),
+            connections: crate::tokens::prefix(Token::new(crate::tokens::WORKER_CONNECTIONS)),
+        };
+        let host =
+            kit::host::Workers::new(config, files, tokens, temper_protocol_worker_wire::PAYLOAD_VERSION, limits)?;
+        let mut table = crate::forges::Forges::with_capacity(forge_limit);
+        for forge in forges {
+            assert!(table.insert(forge), "unique fixture forges");
         }
-        let component = kit::Component::new(limits, workers.into_boxed(), temper_protocol_worker_wire::PAYLOAD_VERSION)
-            .or(Err(invalid(What::Bound)))?;
-        let count = u32::try_from(config.hosts.listener.len()).or(Err(invalid(What::Bound)))?;
-        if count == 0 || count > config.limits.io.sockets {
-            return Err(invalid(What::Bound));
-        }
-        let mut listeners = List::with_capacity(count);
-        let mut io = Queue::uncapped();
-        for (index, address) in config.hosts.listener.iter().enumerate() {
-            let config::Address::Addr(address) = address else {
-                return Err(invalid(What::Form));
-            };
-            let owner = Token::new(
-                LISTENERS.checked_add(u64::try_from(index).expect("listener count")).expect("listener owner"),
-            );
-            io.push(io::Request::Listen { owner, addr: *address });
-            listeners.push((owner, *address, None)).expect("listener count");
-        }
-        Ok(Self {
-            listening: None,
-            component,
-            out: Queue::uncapped(),
-            io,
-            listeners,
-            sockets: Map::with_capacity(limits.workers.checked_add(limits.opening).expect("connections")),
-            next: 1,
-            opened: false,
-            ending: None,
-            component_closed: false,
-            encoding,
-            forges: {
-                let mut table = crate::forges::Forges::with_capacity(forge_limit);
-                for forge in forges {
-                    assert!(table.insert(forge), "unique fixture forges");
-                }
-                table
-            },
-            bad_parts: 0,
-        })
-    }
-    #[must_use]
-    pub fn next_deadline(&self) -> Option<Time> {
-        self.component.next_deadline()
-    }
-    #[must_use]
-    pub fn opened(&self) -> bool {
-        self.opened
-    }
-    #[must_use]
-    pub fn work_pending(&self, now: Time) -> bool {
-        !self.io.is_empty()
-            || !self.out.is_empty()
-            || match self.next_deadline() {
-                Some(deadline) => deadline <= now,
-                None => false,
-            }
+        Ok(Self { host, encoding, forges: table, bad_parts: 0 })
     }
     pub fn down(&mut self, now: Time, event: kit::Event, events: &mut Queue<root::Event>) {
-        self.component.down(now, event, &mut self.out);
-        self.drain(events);
+        self.host.down(now, event);
+        self.pull(events);
     }
     pub fn assignment(
         &mut self,
@@ -171,153 +99,54 @@ impl Workers {
         self.down(now, delivery(now, channel, down, values), events);
     }
     pub fn up(&mut self, now: Time, event: io::Event, events: &mut Queue<root::Event>) -> bool {
-        let Some(owner) = event.owner() else {
-            return false;
-        };
-        match event {
-            io::Event::Listening { listener, addr, .. } => {
-                self.listening = addr.socket();
-                for index in 0..self.listeners.len() {
-                    let (name, _, slot) = self.listeners.get_mut(index).expect("listener index");
-                    if *name == owner {
-                        *slot = Some(listener);
-                    }
-                }
-                self.opened = listeners_open(&self.listeners);
-                self.late_listener(listener);
-            }
-            io::Event::Accepted { socket, .. } => {
-                let connection = Token::new(CONNECTIONS.checked_add(self.next).expect("connection owner"));
-                self.next = self.next.checked_add(1).expect("connection owner sequence");
-                if self.sockets.insert(connection, socket).is_err() {
-                    self.io.push(io::Request::Reject { socket });
-                } else {
-                    self.down(now, kit::Event::Accepted { connection }, events);
-                }
-            }
-            io::Event::Stream { up, .. } => {
-                self.down(now, kit::Event::Lower { connection: owner, event: LowerEvent::Read(up) }, events);
-            }
-            io::Event::Output { up, .. } => {
-                self.down(now, kit::Event::Lower { connection: owner, event: LowerEvent::Write(up) }, events);
-            }
-            io::Event::Closed { .. } => {
-                if self.listener_closed(owner) {
-                    return self.ending.is_some();
-                }
-                let _socket = self.sockets.remove(&owner);
-                self.down(now, kit::Event::Gone { connection: owner }, events);
-            }
-            io::Event::Failed { .. }
-            | io::Event::Connecting { .. }
-            | io::Event::Connected { .. }
-            | io::Event::Spawned { .. }
-            | io::Event::Exited { .. }
-            | io::Event::Usage { .. }
-            | io::Event::Resized
-            | io::Event::Window { .. }
-            | io::Event::Shutdown { .. } => return false,
-        }
-        true
-    }
-    fn drain(&mut self, events: &mut Queue<root::Event>) {
-        for _ in 0..self.out.len() {
-            match self.out.pop().expect("worker requests") {
-                kit::Request::Take { connection } => self.io.push(io::Request::Bind {
-                    socket: *self.sockets.get(&connection).expect("accepted socket"),
-                    owner: connection,
-                }),
-                kit::Request::TurnAway { connection } => {
-                    if let Some(socket) = self.sockets.remove(&connection) {
-                        self.io.push(io::Request::Reject { socket });
-                    }
-                }
-                kit::Request::Close { connection } => {
-                    if let Some(socket) = self.sockets.get(&connection) {
-                        self.io.push(io::Request::Close { entity: *socket });
-                    }
-                }
-                kit::Request::Abort { connection } => {
-                    if let Some(socket) = self.sockets.get(&connection) {
-                        self.io.push(io::Request::Abort { entity: *socket });
-                    }
-                }
-                kit::Request::Lower { connection, lower } => {
-                    if let Some(socket) = self.sockets.get(&connection) {
-                        self.io.push(match lower {
-                            Lower::Read(down) => io::Request::Stream { stream: *socket, down },
-                            Lower::Write(down) => io::Request::Output { stream: *socket, down },
-                            Lower::FinishWrite => io::Request::Stream { stream: *socket, down: stream::Down::Finish },
-                        });
-                    }
-                }
-                kit::Request::Hello { channel, worker, hello } => {
-                    events.push(root::Event::Worker(root::WorkerInput::Link {
-                        channel,
-                        link: root::Link::Hello { worker, hello },
-                    }));
-                }
-                kit::Request::Up { channel, up, parts } => {
-                    self.received(channel, up, &parts, events);
-                }
-                kit::Request::Lost { channel } => {
-                    events.push(root::Event::Worker(root::WorkerInput::Link { channel, link: root::Link::Lost }));
-                }
-                kit::Request::Closed => self.component_closed = true,
-            }
+        let seen = self.host.up(now, event);
+        self.pull(events);
+        match seen {
+            kit::host::Seen::Taken => true,
+            kit::host::Seen::Unknown => false,
+            kit::host::Seen::ListenerClosed { ending } => ending,
         }
     }
     pub fn iterate(&mut self, now: Time, events: &mut Queue<root::Event>) {
-        self.component.fire(now, &mut self.out);
-        self.drain(events);
+        self.host.iterate(now);
+        self.pull(events);
     }
     pub fn abort(&mut self, now: Time, events: &mut Queue<root::Event>) {
-        if self.ending != Some(Closing::Abort) {
-            self.ending = Some(Closing::Abort);
-            for (_, _, listener) in &self.listeners {
-                if let Some(listener) = listener {
-                    self.io.push(io::Request::Abort { entity: *listener });
-                }
+        self.host.abort(now);
+        self.pull(events);
+    }
+    pub fn close(&mut self, now: Time, events: &mut Queue<root::Event>) {
+        self.host.close(now);
+        self.pull(events);
+    }
+    fn pull(&mut self, events: &mut Queue<root::Event>) {
+        for _ in 0..self.host.pending() {
+            if let Some(output) = self.host.output() {
+                self.route(output, events);
             }
-            self.down(now, kit::Event::Abort, events);
         }
     }
-}
-fn listeners_open(listeners: &List<(Token, io::Addr, Option<Token>)>) -> bool {
-    for (_, _, entity) in listeners {
-        if entity.is_none() {
-            return false;
+    fn route(&mut self, output: kit::host::Output, events: &mut Queue<root::Event>) {
+        match output {
+            kit::host::Output::Hello { channel, worker, hello } => {
+                events.push(root::Event::Worker(root::WorkerInput::Link {
+                    channel,
+                    link: root::Link::Hello { worker, hello },
+                }));
+            }
+            kit::host::Output::Up { channel, up, parts } => self.received(channel, up, &parts, events),
+            kit::host::Output::Lost { channel } => {
+                events.push(root::Event::Worker(root::WorkerInput::Link { channel, link: root::Link::Lost }));
+            }
         }
     }
-    true
-}
-#[must_use]
-pub fn owner(event: &io::Event) -> Option<Token> {
-    event.owner()
 }
 
 fn delivery(now: Time, channel: Token, down: host::LinkDown, values: &Values) -> kit::Event {
-    let grants = match &down {
-        host::LinkDown::AssignJob { job } => values.grants(&job.grants, now),
-        host::LinkDown::Assign { assignment } => values.grants(&assignment.assignment.grants, now),
-        host::LinkDown::Grant { grant, .. } => values.grants(::core::slice::from_ref(grant), now),
-        host::LinkDown::Sources { .. }
-        | host::LinkDown::Check { .. }
-        | host::LinkDown::SignOut { .. }
-        | host::LinkDown::Message { .. }
-        | host::LinkDown::Relayed { .. }
-        | host::LinkDown::TurnKept { .. }
-        | host::LinkDown::Acknowledge { .. }
-        | host::LinkDown::Cancel { .. } => Box::default(),
-    };
-    kit::Event::Down { channel, down, parts: Box::default(), values: grants }
+    let values = values.grants(kit::host::grants(&down), now);
+    kit::Event::Down { channel, down, parts: Box::default(), values }
 }
 
-#[derive(Clone, Copy, PartialEq, Eq, Debug)]
-enum Closing {
-    Drain,
-    Abort,
-}
 impl Workers {
     /// Decode application records in this step, discarding and counting a bad set.
     pub fn received(&mut self, channel: Token, up: host::LinkUp, records: &[Part], events: &mut Queue<root::Event>) {
@@ -329,54 +158,6 @@ impl Workers {
             }
         };
         events.push(root::Event::Worker(root::WorkerInput::Link { channel, link: root::Link::Up { up, parts } }));
-    }
-    pub(crate) fn listener_address(&self, owner: Option<Token>) -> Option<io::Addr> {
-        for (name, address, _) in &self.listeners {
-            if Some(*name) == owner {
-                return Some(*address);
-            }
-        }
-        None
-    }
-    fn listener_closed(&mut self, owner: Token) -> bool {
-        for index in 0..self.listeners.len() {
-            let (name, _, listener) = self.listeners.get_mut(index).expect("listener index");
-            if *name == owner {
-                *listener = None;
-                return true;
-            }
-        }
-        false
-    }
-    fn late_listener(&mut self, listener: Token) {
-        match self.ending {
-            Some(Closing::Abort) => self.io.push(io::Request::Abort { entity: listener }),
-            Some(Closing::Drain) => self.io.push(io::Request::Close { entity: listener }),
-            None => {}
-        }
-    }
-    /// Close listeners and drain the channel component.
-    pub fn close(&mut self, now: Time, events: &mut Queue<root::Event>) {
-        self.ending = Some(Closing::Drain);
-        for (_, _, listener) in &self.listeners {
-            if let Some(listener) = listener {
-                self.io.push(io::Request::Close { entity: *listener });
-            }
-        }
-        self.down(now, kit::Event::Close, events);
-    }
-    /// Every listener, accepted socket and queued request has closed.
-    #[must_use]
-    pub fn closed(&self) -> bool {
-        if !self.component_closed || !self.sockets.is_empty() || !self.io.is_empty() {
-            return false;
-        }
-        for (_, _, listener) in &self.listeners {
-            if listener.is_some() {
-                return false;
-            }
-        }
-        true
     }
 }
 /// Decode the answer's named parts; any missing or bad part discards all parts.
@@ -563,7 +344,7 @@ fn channel_limits_accept_stock_and_refuse_zero_handshake() {
 impl Workers {
     /// Construct checked channels from the service's typed settings.
     pub fn configured(settings: &mut crate::settings::Engine, deployment: [u8; 16]) -> Result<Self, Problems> {
-        let worker_limits = limits(settings).ok_or(invalid(What::Bound))?;
+        let worker_limits = limits(settings).ok_or(kit::host::invalid(What::Bound))?;
         let mut endpoints =
             List::with_capacity(u32::try_from(settings.jig.llm.endpoints.len()).expect("endpoint count"));
         for endpoint in &settings.jig.llm.endpoints {
@@ -579,7 +360,7 @@ impl Workers {
             &settings.jig,
             &settings.files,
             Encoding {
-                limits: crate::translate::limits(&settings.limits).ok_or(invalid(What::Bound))?,
+                limits: crate::translate::limits(&settings.limits).ok_or(kit::host::invalid(What::Bound))?,
                 endpoints: smith_protocol_channel::Endpoints::new(endpoints),
                 deployment,
             },
@@ -608,8 +389,12 @@ mod tests {
             bounds: crate::tests::fixtures::worker_agent().bounds,
         };
         let mut events = Queue::uncapped();
-        service.engine.as_mut().expect("engine").workers.out.push(kit::Request::Hello { channel, worker: 1, hello });
-        service.engine.as_mut().expect("engine").workers.drain(&mut events);
+        service
+            .engine
+            .as_mut()
+            .expect("engine")
+            .workers
+            .route(kit::host::Output::Hello { channel, worker: 1, hello }, &mut events);
         let Some(root::Event::Worker(root::WorkerInput::Link {
             channel: forwarded_channel,
             link: root::Link::Hello { worker, .. },

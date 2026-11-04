@@ -25,9 +25,7 @@ the client, a committed turn's objects,
 drawing family (`client/domain/`); and `ops` standalone, with its
 service and its connectors' protocols (`examples.md`). `RemoveProject`
 is offered in no project's document (`client/domain/contract.md`).
-Every root still carries a due task's activation and an agent's
-preparation back to the core (`domain/root.md`). Public reading's
-remaining departure is the public index's memory fit
+Public reading's remaining departure is the public index's memory fit
 check (`protocol/configuration.md`).
 The code departs in a few single items (`README.md`, `client/domain/client.md`, `domain/engine.md`,
 `client/domain/contract.md`, `client/domain/testing.md`, `domain/hosts.md`, `domain/people.md`, `domain/root.md`, `domain/testing.md`, `examples.md`,

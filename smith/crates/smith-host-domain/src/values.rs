@@ -69,7 +69,7 @@ impl Transcript {
     /// The caller attests that the piece holds exactly these turns as received.
     #[must_use]
     pub fn from_saved(value: agent::Transcript, saved: Box<[u8]>, capacity: u64) -> Option<Self> {
-        let bytes = value.owned_bytes()?.checked_add(u64::try_from(saved.len()).ok()?)?;
+        let bytes = value.owned_bytes()?.checked_add(skein_lib::len_u64(saved.len()))?;
         if bytes > capacity {
             return None;
         }

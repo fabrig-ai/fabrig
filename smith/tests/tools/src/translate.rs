@@ -112,7 +112,7 @@ pub fn exited(exit: Option<fake::Exit>, output: &[u8], head: u32, tail: u32) -> 
     };
     let head = usize::try_from(head).expect("a small head").min(output.len());
     let tail = usize::try_from(tail).expect("a small tail").min(output.len() - head);
-    let dropped = u64::try_from(output.len() - head - tail).expect("a small output");
+    let dropped = skein_lib::len_u64(output.len() - head - tail);
     let (kept, rest) = output.split_at(head);
     Done::Exited { exit, head: kept.into(), tail: rest[rest.len() - tail..].into(), dropped }
 }
@@ -172,7 +172,7 @@ pub fn perform(checkout: &mut fake::Checkout, op: Op) -> Done {
                 // rg exits with 2 for a pattern it cannot read.
                 Err(fake::Searched::Unreadable(stderr)) => {
                     let head = usize::try_from(bytes).expect("small").min(stderr.len());
-                    let dropped = u64::try_from(stderr.len() - head).expect("small");
+                    let dropped = skein_lib::len_u64(stderr.len() - head);
                     let head = stderr[..head].into();
                     Done::Exited { exit: Exit::Code { code: 2 }, head, tail: Box::new([]), dropped }
                 }

@@ -83,7 +83,6 @@ pub(crate) fn immediate(now: core::Now, admission: &mut Option<Token>) -> Option
         | core::Now::AcceptedTurn { .. }
         | core::Now::RefusedPayload { .. }
         | core::Now::Activate { .. }
-        | core::Now::PrepareAgent { .. }
         | core::Now::StartPreparation { .. }
         | core::Now::SeenConversation { .. }
         | core::Now::LoadEndedRead { .. }
@@ -178,7 +177,6 @@ pub(crate) fn watcher(value: &core::Event) -> Option<Token> {
         | core::Event::AcceptedTurn { .. }
         | core::Event::RefusedPayload { .. }
         | core::Event::Activate { .. }
-        | core::Event::PreparedAgent { .. }
         | core::Event::EndedReadLoaded { .. }
         | core::Event::SeenConversationLoaded { .. }
         | core::Event::EndedProposal { .. }
@@ -258,7 +256,6 @@ pub(crate) fn starting(value: core::Event) -> Option<kit::Event> {
         | core::Event::AcceptedTurn { .. }
         | core::Event::RefusedPayload { .. }
         | core::Event::Activate { .. }
-        | core::Event::PreparedAgent { .. }
         | core::Event::EndedReadLoaded { .. }
         | core::Event::SeenConversationLoaded { .. }
         | core::Event::EndedProposal { .. }

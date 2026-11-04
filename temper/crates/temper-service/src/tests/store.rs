@@ -8,10 +8,10 @@ use temper_engine_domain as engine;
 fn the_store_opens_over_memory_and_answers_a_commit() {
     let mut store = fixtures::memory_store();
     fixtures::commit(&mut store, 1, Box::new([]));
-    let Some(jig_protocol_store::Event::Committed { number: 1, .. }) = store.above.pop() else {
+    let Some(jig_protocol_store::Event::Committed { number: 1, .. }) = store.host.above.pop() else {
         panic!("first commit")
     };
-    assert!(store.above.is_empty());
+    assert!(store.host.above.is_empty());
 }
 
 #[test]
@@ -112,7 +112,7 @@ fn a_forge_row_committed_is_restored_by_the_forge_interval() {
         1,
         Box::new([engine::Write::Save(engine::Record::Forge { row: Box::new(row.clone()) })]),
     );
-    let Some(jig_protocol_store::Event::Committed { number: 1, .. }) = store.above.pop() else {
+    let Some(jig_protocol_store::Event::Committed { number: 1, .. }) = store.host.above.pop() else {
         panic!("first commit")
     };
     let rows = fixtures::load(&mut store, engine::Range::Forge);
@@ -150,7 +150,7 @@ fn the_store_closes_after_its_drivers() {
     store.iterate();
     assert!(store.closed());
     assert!(!store.work_pending(Time::ZERO));
-    assert_eq!(store.next_deadline(), None);
+    assert_eq!(store.host.next_deadline(), None);
 }
 
 fn take_openings(store: &mut Store, root: Fd) -> [Submit; 2] {
@@ -189,7 +189,7 @@ fn a_writer_committed_is_reloaded_through_the_real_store() {
         1,
         Box::new([engine::Write::Save(engine::Record::Forge { row: Box::new(row.clone()) })]),
     );
-    let Some(jig_protocol_store::Event::Committed { number: 1, .. }) = store.above.pop() else {
+    let Some(jig_protocol_store::Event::Committed { number: 1, .. }) = store.host.above.pop() else {
         panic!("writer commit")
     };
     assert_eq!(
@@ -234,10 +234,10 @@ fn settings_history_loads_with_the_roots_effective_envelope() {
             settings::Record::Revision { history: false, revision: revision.clone() },
         ))))]),
     );
-    let Some(jig_protocol_store::Event::Committed { .. }) = store.above.pop() else {
+    let Some(jig_protocol_store::Event::Committed { .. }) = store.host.above.pop() else {
         panic!("settings history commit")
     };
-    store.ask(jig_protocol_store::Request::Read {
+    store.host.ask(jig_protocol_store::Request::Read {
         owner: Token::new(42),
         range: reads::Range {
             party: 1,
@@ -249,7 +249,7 @@ fn settings_history_loads_with_the_roots_effective_envelope() {
         },
     });
     let Some(jig_protocol_store::Event::Read { result: reads::Loaded::Page { rows, next: None }, .. }) =
-        store.above.pop()
+        store.host.above.pop()
     else {
         panic!("settings history must answer a value, not Busy")
     };
@@ -264,7 +264,7 @@ fn every_service_start_keeps_the_shells_wires() {
     let service = fixtures::ready();
     let (root, _, profile) = fixtures::store_limits();
     let limits = store::limits(&root, &root.forge, &profile).expect("fixture limits");
-    let mut maps = service.engine.expect("started engine").store.component.into_stores();
+    let mut maps = service.engine.expect("started engine").store.host.component.into_stores();
     let mut above = Queue::uncapped();
     let mut below = Queue::uncapped();
     skein_kv::down(
@@ -297,8 +297,8 @@ fn stalled_file_publication_keeps_targets_and_cancels_within_operation_credit() 
     store.adopt(Fd::new(10), 1000).unwrap();
     store.iterate();
     assert_eq!(store.submitted.len(), 2, "both directory opens wait for publication");
-    let due = store.next_deadline().expect("file requests have deadlines");
-    store.clock(due, Wall::EPOCH);
+    let due = store.host.next_deadline().expect("file requests have deadlines");
+    store.host.clock(due, Wall::EPOCH);
     store.iterate();
     assert_eq!(store.submitted.len(), 4, "each stalled open has one cancellation");
     store.iterate();

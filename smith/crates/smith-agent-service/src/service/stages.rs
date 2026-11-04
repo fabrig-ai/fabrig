@@ -10,7 +10,7 @@ use super::{
 };
 use alloc::boxed::Box;
 use skein_io::kernel;
-use skein_lib::{Env, List, Map, Queue, ReplyTo, Slab, Time, Token, Wall};
+use skein_lib::{Env, List, Map, Queue, ReplyTo, Slab, Time, Token, Wall, earliest};
 use smith_domain::{self as domain, run};
 use smith_protocol_llm as llm;
 use smith_protocol_machine as machine;
@@ -29,49 +29,37 @@ pub(super) fn clocks(service: &mut Stages, now: Time, wall: Wall) {
 /// Earliest active deadline over all child machines.
 #[must_use]
 pub(super) fn next_deadline(service: &Stages, frame: Option<&Frame>) -> Option<Time> {
-    earliest(&[
-        match face::domain(frame) {
-            Some(domain) => domain.next_deadline(),
-            None => None,
-        },
-        service.llm.next_deadline(),
-        program::deadline(service),
-        service.machine.next_deadline(),
+    let mut next = match face::domain(frame) {
+        Some(domain) => domain.next_deadline(),
+        None => None,
+    };
+    next = earliest(next, service.llm.next_deadline());
+    next = earliest(next, program::deadline(service));
+    next = earliest(next, service.machine.next_deadline());
+    next = earliest(
+        next,
         match face::io(frame) {
             Some(io) => io.next_deadline(),
             None => None,
         },
-        service.files.next_deadline(),
-        service.live.deadline(),
-    ])
+    );
+    next = earliest(next, service.files.next_deadline());
+    next = earliest(next, service.live.deadline());
+    next
 }
 
 /// Earliest policy deadline, excluding IO and file settlement.
 #[must_use]
 pub(super) fn next_policy_deadline(service: &Stages, frame: Option<&Frame>) -> Option<Time> {
-    earliest(&[
-        match face::domain(frame) {
-            Some(domain) => domain.next_deadline(),
-            None => None,
-        },
-        service.llm.next_deadline(),
-        program::policy_deadline(service),
-        service.machine.next_deadline(),
-        service.live.deadline(),
-    ])
-}
-
-fn earliest(deadlines: &[Option<Time>]) -> Option<Time> {
-    let mut earliest = None;
-    for deadline in deadlines {
-        if let Some(next) = *deadline {
-            earliest = Some(match earliest {
-                Some(old) => Time::min(old, next),
-                None => next,
-            });
-        }
-    }
-    earliest
+    let mut next = match face::domain(frame) {
+        Some(domain) => domain.next_deadline(),
+        None => None,
+    };
+    next = earliest(next, service.llm.next_deadline());
+    next = earliest(next, program::policy_deadline(service));
+    next = earliest(next, service.machine.next_deadline());
+    next = earliest(next, service.live.deadline());
+    next
 }
 
 // Count internal handoffs, including the optional program's lower queue.

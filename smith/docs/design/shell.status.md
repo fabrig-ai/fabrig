@@ -3,17 +3,6 @@
 2026-11-04. Where smith's code lags or departs from [shell.md](shell.md).
 
 - **Not yet:**
-  - 2.5: the gate's wasm32 list (`.config/gate/wasm32.txt`) leaves out
-    `smith-agent-shell`, and no listed package reaches it on wasm32,
-    so the gate's wasm32 clippy does not lint it. Outside the gate,
-    `smith-agent-shell` fails that clippy, warnings denied, first with
-    `unused_imports` at
-    `smith/crates/smith-agent-shell/src/config/native.rs:10`: in
-    `src/config/`, what only its `cfg(unix)` code reads is unused on
-    wasm32: the import `skein_tls as tls` (`native.rs:10`), the
-    parameter `errors` (`native.rs:31`), the constant `CERTIFICATES`
-    (`native.rs:74`), `TrustDocument`'s fields (`document.rs:185`) and
-    those of `EndpointTransport::Tls` (`endpoints.rs:39`).
   - 4, 5.2: the `--account` flag and the `account` setting.
     `smith-local-shell/src/command.rs` parses no `--account`, and
     `settings/schema.rs` has no `account` key, so 4.1's refusal that

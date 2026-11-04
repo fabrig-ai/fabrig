@@ -50,3 +50,5 @@ smith-protocol-events
 smith-protocol-llm
 smith-protocol-program
 smith-agent-service
+smith-agent-shell
+temper-playground

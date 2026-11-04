@@ -1026,7 +1026,7 @@ fn continue_ready(domain: &mut Domain, env: &Env<Limits>) {
             return;
         }
         if let Some(context) = domain.core.take_due() {
-            decide(domain, env, Work::Core(core::Event::Activate { context, ready: true }));
+            decide(domain, env, Work::Core(core::Event::Activate { context, ready: true, busy: false }));
             return;
         }
         if domain.core.fleet.is_ready() || domain.core.finish_owed() || timers_due(domain, env) {
