@@ -15,9 +15,11 @@ pub const BOT: u64 = 9;
 pub const OWNER: u64 = 22;
 pub const PERSON: u64 = 31;
 pub const PATH: &[u8] = b"acme/widgets";
+#[must_use]
 pub fn key() -> &'static [u8] {
     crate::keys::KEYS.first().expect("first test key")
 }
+#[must_use]
 pub fn app() -> App {
     App {
         id: APP,
@@ -29,6 +31,7 @@ pub fn app() -> App {
         webhook: Secret::new(bytes::copy_of(b"test-webhook")),
     }
 }
+#[must_use]
 pub fn accounts() -> List<Account> {
     let mut rows = List::with_capacity(2);
     for (login, id, organization) in [(b"acme".as_slice(), OWNER, true), (b"alice", PERSON, false)] {
@@ -36,6 +39,7 @@ pub fn accounts() -> List<Account> {
     }
     rows
 }
+#[must_use]
 pub fn repositories() -> List<Row> {
     let mut rows = List::with_capacity(3);
     for (id, name, organization, private) in
@@ -45,6 +49,7 @@ pub fn repositories() -> List<Row> {
     }
     rows
 }
+#[must_use]
 pub fn widgets(id: u32) -> List<Row> {
     let mut rows = List::with_capacity(3);
     rows.push(row(id, b"widgets", true, true)).expect("fixture repository");
@@ -53,6 +58,7 @@ pub fn widgets(id: u32) -> List<Row> {
 fn row(id: u32, name: &[u8], organization: bool, private: bool) -> Row {
     Row { id, owner: bytes::copy_of(b"acme"), owner_id: OWNER, name: bytes::copy_of(name), organization, private }
 }
+#[must_use]
 pub fn config(repositories: List<Row>) -> Config {
     Config {
         rate_quota: 5000,
@@ -78,6 +84,7 @@ pub fn config(repositories: List<Row>) -> Config {
         person: bytes::copy_of(b"alice"),
     }
 }
+#[must_use]
 pub fn limits() -> Limits {
     Limits {
         deliveries: crate::delivery::Limits { entries: 64, payload_bytes: 32768 },
@@ -107,6 +114,7 @@ pub fn limits() -> Limits {
         git_records: 16,
     }
 }
+#[must_use]
 pub fn domain_config() -> fake::Config {
     fake::Config {
         limits: fake::Limits {
@@ -164,7 +172,11 @@ pub fn domain_config() -> fake::Config {
 }
 
 pub fn install_one(service: &mut Service, at: Wall) {
-    assert_eq!(service.installations_mut().install(OWNER, b"acme", Kind::Organization, Reach::All, at), Ok(1));
+    assert_eq!(
+        service.installations_mut().install(OWNER, b"acme", Kind::Organization, Reach::All, at),
+        Ok(1),
+        "first installation"
+    );
 }
 pub fn install_three(service: &mut Service) {
     let mut listed = List::with_capacity(2);
@@ -174,12 +186,22 @@ pub fn install_three(service: &mut Service) {
     let store = service.installations_mut();
     assert_eq!(
         store.install(OWNER, b"acme", Kind::Organization, Reach::Listed(listed), Wall::from_nanos(1_000_000_000_000)),
-        Ok(1)
+        Ok(1),
+        "first installation"
     );
-    assert_eq!(store.install(23, b"example", Kind::User, Reach::All, Wall::from_nanos(1_001_000_000_000)), Ok(2));
-    assert_eq!(store.install(24, b"other", Kind::User, Reach::All, Wall::from_nanos(1_002_000_000_000)), Ok(3));
+    assert_eq!(
+        store.install(23, b"example", Kind::User, Reach::All, Wall::from_nanos(1_001_000_000_000)),
+        Ok(2),
+        "second installation"
+    );
+    assert_eq!(
+        store.install(24, b"other", Kind::User, Reach::All, Wall::from_nanos(1_002_000_000_000)),
+        Ok(3),
+        "third installation"
+    );
     assert!(store.suspend(3, true), "third installation exists");
 }
+#[must_use]
 pub fn setup(id: u32, name: &[u8]) -> a::Setup {
     a::Setup {
         id,
