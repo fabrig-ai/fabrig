@@ -123,7 +123,8 @@ fn owe_stopped_calls(conversation: &mut Conversation) {
         return;
     }
     let mut results = List::with_capacity(calls);
-    for call in message.content.iter().filter_map(Block::tool_call) {
+    for part in &message.content {
+        let Some(call) = part.tool_call() else { continue };
         results
             .push(Block::ToolResult { id: call.id.clone(), result: Returned::NotRun { why: NotRun::Stopped } })
             .expect("one result for each stopped call");
