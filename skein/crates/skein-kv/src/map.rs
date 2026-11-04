@@ -24,13 +24,14 @@ pub(crate) struct PageRows {
 pub(crate) struct KvMap {
     entries: Map<Box<[u8]>, Box<[u8]>>,
     used: u64,
+    live: u64,
 }
 
 impl KvMap {
     pub(crate) fn new(limits: &Limits) -> KvMap {
         let possible = limits.budget / ENTRY;
         let capacity = u32::try_from(possible).unwrap_or(u32::MAX);
-        KvMap { entries: Map::with_capacity(capacity), used: 0 }
+        KvMap { entries: Map::with_capacity(capacity), used: 0, live: 0 }
     }
 
     #[must_use]
@@ -41,6 +42,13 @@ impl KvMap {
     #[must_use]
     pub(crate) fn used(&self) -> u64 {
         self.used
+    }
+
+    /// Each row's key and value and 8 bytes of lengths, as a snapshot's chunks hold them
+    /// (skein/docs/design/kv.md, 5 and 7).
+    #[must_use]
+    pub(crate) fn live(&self) -> u64 {
+        self.live
     }
 
     #[must_use]
@@ -106,7 +114,10 @@ impl KvMap {
             if ops.get(index + 1..).expect("index is within ops").iter().any(|later| later.key() == op.key()) {
                 continue;
             }
-            drop(self.entries.remove(op.key()));
+            if let Some(old) = self.entries.remove(op.key()) {
+                let size = row_bytes(op.key(), &old);
+                self.live = self.live.checked_sub(size).expect("the removed row is counted");
+            }
         }
         for (index, op) in ops.iter().enumerate() {
             if ops.get(index + 1..).expect("index is within ops").iter().any(|later| later.key() == op.key()) {
@@ -115,6 +126,7 @@ impl KvMap {
             if let Op::Put { key, value } = op {
                 let old = self.entries.insert(key.clone(), value.clone());
                 assert!(old.is_ok(), "a checked commit fits the map");
+                self.live = self.live.checked_add(row_bytes(key, value)).expect("a checked map's encoded size fits");
             }
         }
         self.used = used;
@@ -144,4 +156,9 @@ impl KvMap {
         }
         Ok(PageRows { rows: rows.into_boxed_slice(), next })
     }
+}
+
+fn row_bytes(key: &[u8], value: &[u8]) -> u64 {
+    let size = 8_u64.checked_add(skein_lib::len_u64(key.len())).expect("a checked key's encoded size fits");
+    size.checked_add(skein_lib::len_u64(value.len())).expect("a checked row's encoded size fits")
 }
