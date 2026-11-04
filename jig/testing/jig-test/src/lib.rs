@@ -121,7 +121,7 @@ fn agent(configuration: &Path) -> Result<AgentStart, String> {
         }
     }
     let policy = configuration.profile.policy;
-    let sources = configuration.programs.get(&smith_agent_shell::config::ProgramName::ClaudeCode).map(|program| {
+    let sources = configuration.program.as_ref().map(|program| {
         let environment = configuration.service.environment.command_entries();
         SourceSettings {
             directory: program.directory.as_os_str().as_bytes().into(),
@@ -134,7 +134,7 @@ fn agent(configuration: &Path) -> Result<AgentStart, String> {
         limits: protocol,
         host_limits,
         bounds: jig_domain_host::Bounds {
-            program_endpoints: configuration.endpoint_programs.keys().copied().collect::<Vec<_>>().into_boxed_slice(),
+            program_endpoints: configuration.program_endpoints.iter().copied().collect::<Vec<_>>().into_boxed_slice(),
             models: models.into_boxed_slice(),
             turns: policy.max_turns,
             spend: policy.max_spend,

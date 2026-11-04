@@ -64,7 +64,6 @@ it says what a reviewer checks.
 | [D003](D003-host-io-route-table.md) | The local host routes io completions through its own table | primitives | low | M | open |
 | [D005](D005-block-walks.md) | Every walk of a message destructures `Block` again | duplication | low | S | open |
 | [D007](D007-tools-namespace.md) | The tools serve a namespace no run produces | complexity | low | M | open |
-| [D008](D008-one-program-map.md) | The agent shell maps endpoints to a one-variant program name | complexity | low | S | open |
 | [D011](D011-bench-string-errors.md) | The benchmarks carry failures as strings | other | low | M | open |
 | [D012](D012-large-domain-files.md) | `session.rs` and `run.rs` are too large to read | complexity | low | M | open |
 | [D013](D013-names-left.md) | Names the 10-31 review flagged remain | naming | low | S | open |
