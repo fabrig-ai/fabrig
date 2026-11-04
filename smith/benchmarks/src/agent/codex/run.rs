@@ -45,11 +45,7 @@ impl super::PreparedCodex {
 }
 
 impl super::Observing {
-    pub(crate) fn archive_trace(
-        archive: Archive<'_>,
-        result: &mut AttemptResult,
-        trace: &[u8],
-    ) -> Result<(), String> {
+    pub(crate) fn archive_trace(archive: Archive<'_>, result: &mut AttemptResult, trace: &[u8]) -> Result<(), String> {
         if !trace.is_empty() {
             archive.put(result, "trace.jsonl", trace)?;
         }
