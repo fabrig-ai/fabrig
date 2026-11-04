@@ -89,3 +89,18 @@ behaviour.
 ## Report
 
 As `notes/common.md`, Your report.
+
+## Answers
+
+2026-11-04. May the gallery's first-run seed change to "Hello" with its tests passing, or does its
+"Default" stand as an exception to the acceptance?
+
+Change it. The acceptance governs: `temper/tools/gallery/src/worlds.rs`, line 35, becomes
+`FirstRun { .. } => "Hello"`, gallery tests passing or not; "Change it only if a gallery test fails"
+is withdrawn. No test reads that word and no sample presses Create, so nothing the task owns moves
+with it. That one word is all that is left: keep the commit `66fb352e2d`, add the change under the
+request's trailer, run the gallery's tests, `temper-client-gallery` alone, and report the task's
+acceptance whole. `FirstRun { step: 22 } => "widget"` stays, and the gallery's playground worlds
+showing this name in place of "Demo" are not this task's.
+`temper/crates/temper/tests/fake_backends/walk/open_default.rs`, whose walk reads a "Default"
+button, is `ready-adopts`'s (its step 6): leave it, under `## Left`.
