@@ -22,7 +22,14 @@ task names. This file grows with each release; what is here so far is what has b
 
 3. **fake-github** (`skein/docs/design/fake-forge.md, 10.6`), slice 3. `notes/fake-github.md` holds its contracts.
    - `tasks/github-fake-surface.md`, high, ~100 minutes, needs nothing: what the four faces build on, additions only.
-   - The faces' tasks follow.
+   - `tasks/github-connection-face.md`, high, ~50 minutes, needs the surface: the step harness's face.
+   - `tasks/github-machine-face.md`, high, ~100 minutes, needs the surface: the machine world's.
+   - `tasks/github-protocol-face.md`, high, ~120 minutes, needs the surface: the protocol world's.
+   - `tasks/github-fixture-readers.md`, medium, ~50 minutes, needs the surface: the fixture's other readers.
+   - `tasks/github-joint-face.md`, high, ~90 minutes, needs `github-machine-face`: the joint world's.
+   - `tasks/github-close.md`, medium, ~15 minutes, needs the five: pays D029.
+
+   Each face's task has its net-lines cap. Their sum with the surface's +520 is at most -430.
 
 ## What the cut decided
 
@@ -63,7 +70,8 @@ task names. This file grows with each release; what is here so far is what has b
 
 ## Critical path
 
-So far: `skein-concat`, then `smith-primitives`; `skein-startup-store`, then `smith-startup-writers`.
+So far: `skein-concat`, then `smith-primitives`; `skein-startup-store`, then `smith-startup-writers`;
+`github-fake-surface`, `github-machine-face`, `github-joint-face`, `github-close`.
 
 ## Overlaps
 

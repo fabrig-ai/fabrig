@@ -100,7 +100,7 @@ the lines section 4 lists; the test count of each package named here equals its 
 | Family | Stays | What differs below the tests | Extra check |
 |---|---|---|---|
 | `skein-forge-connection`, `tests::github_files::*` and the heap ceilings | every `Answer`, `cost`, ceiling | a `Date` and a charset on replies, no `Content-Type` on an empty body | the two `largest_github_*` peaks, printed, base and branch, in the report |
-| `skein-forge-machine-world`, `github_*`; `skein-forge-setup-world` | statuses, bodies, heads the tests read | a head's field order; no `Content-Length` on 204 or 304; no `Content-Type` on an empty body | a differential run (below) |
+| `skein-forge-machine-world`, `github_*`; `skein-forge-setup-world` | statuses, bodies, heads the tests read | a head's field order; no `Content-Length` on 204 or 304; no `Content-Type` on an empty body | the record run (below) |
 | `skein-forge-machine-world`, `github_joint`; `temper-engine-protocol-forge-world` | `tally`, `request_lines`, `start_counts`, `request_counts`, answers | rate fields and `ETag` now reach the component, so `Answered.rate` is `Some` and a log poll may be answered `304`; `Date` as before | `the_joints_request_lines_are_the_same_after_many_polls` unchanged; request lines of three named stories compared, base and branch |
 | `skein-forge-protocol-world`, GitHub stories | `accounting`, `lines`, costs, `secrets_absent`, `github_mints`, the referee's verdicts | the real media type, which only corrects: a `Location` on a redirect; one more field on an issue's `201`; no `Content-Length` on a `304` | request lines of three named stories compared, base and branch |
 | `skein-fake-peers-tests`, `skein-fake-forge-tests`, `github-conformance` | everything: `Peer::github` is byte for byte the same | nothing | run them after any change to `server.rs` |
@@ -109,12 +109,14 @@ the lines section 4 lists; the test count of each package named here equals its 
 If one goes red (`cuts > 0`, `cut_heads > 0`, a count), that's a test's outcome changing: stop and ask, with the
 seed and what moved.
 
-**The differential run** is throwaway, never pushed. While `Fake::serve`, `blob` and `page` go through `Inline`,
-keep beside them, untracked, a second `(Service, Domain)` built the same way and answered by the old loop (the
-base's `finish`, `page` and `domain_reply`, copied), feed it every request, and assert status, body, `Location`,
-`Link`, `ETag` and the rate fields equal. Run `skein-forge-machine-world` and `skein-forge-setup-world` with it.
-Two services of one seed fed the same requests draw the same tokens and ids. The report gives the requests
-compared.
+**The record run** is throwaway, never pushed. Before you change a line, at the base, add one helper to
+`skein/tests/forge/machine/src/github.rs` and call it on what `serve`, `blob` and `page` return: it prints one line,
+`record <status> <fields> <hash>`, where `<fields>` is the response head's fields, sorted, without `Content-Length`,
+without `X-Accepted-GitHub-Permissions`, and without `Content-Type` on an empty body, and `<hash>` is
+`std::hash::DefaultHasher` over the body. Run `heavy cargo nextest run -p skein-forge-machine-world -p
+skein-forge-setup-world --no-capture`, which runs one test at a time, and keep the `record` lines. Do the same on the
+branch, with the same helper. The two lists must be equal, in order: seeds replay, so tokens and ids match. The report
+gives how many lines were compared.
 
 **Request lines compared** means: at base and on the branch, in a throwaway print, the `lines()` or
 `request_lines()` of the stories the spec names, at cut chance 0, diffed. They must be equal, line for line.
