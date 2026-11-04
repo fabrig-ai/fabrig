@@ -40,6 +40,23 @@ const FLOW_NAMES: [(skein_ui::Style, &[u8]); 25] = [
     (MODEL_FACT, b"temper-model-fact"),
     (MODEL_SIGN_IN, b"temper-model-sign-in"),
 ];
+const HOME_NAMES: [(skein_ui::Style, &[u8]); 15] = [
+    (HOME_NEEDS, b"temper-home-needs"),
+    (HOME_HEAD, b"temper-home-head"),
+    (HOME_SIGNAL, b"temper-home-signal"),
+    (HOME_IN_A_ROW, b"temper-home-in-a-row"),
+    (HOME_ROWS, b"temper-home-rows"),
+    (HOME_WHEN, b"temper-home-when"),
+    (HOME_EMPTY, b"temper-home-empty"),
+    (HOME_CHATS, b"temper-home-chats"),
+    (HOME_CTA, b"temper-home-cta"),
+    (HOME_CTA_GO, b"temper-home-cta-go"),
+    (ASK, b"temper-ask"),
+    (ASK_META, b"temper-ask-meta"),
+    (ASK_QUESTION, b"temper-ask-question"),
+    (ASK_CHOICES, b"temper-ask-choices"),
+    (ASK_QUIET, b"temper-ask-quiet"),
+];
 const RAIL_NAMES: [(skein_ui::Style, &[u8]); 5] = [
     (RAIL, b"temper-rail"),
     (RAIL_NAV, b"temper-rail-nav"),
@@ -145,7 +162,7 @@ fn each_style_or_region_is_named_under_temper() {
         (ENDED, b"temper-ended"),
         (MENU, b"temper-menu"),
     ];
-    for (style, name) in named.into_iter().chain(FLOW_NAMES).chain(RAIL_NAMES) {
+    for (style, name) in named.into_iter().chain(FLOW_NAMES).chain(RAIL_NAMES).chain(HOME_NAMES) {
         assert_eq!(NAMES.style(style), Some(name));
     }
     assert_eq!(NAMES.region(crate::frame::link_region()), Some(&b"temper-link"[..]));

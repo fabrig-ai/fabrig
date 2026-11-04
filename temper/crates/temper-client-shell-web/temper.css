@@ -1425,8 +1425,9 @@ body > noscript, #app:not(:empty):not(:has(*)) { margin-top: 213px; }
 /* The project's frame */
 :root:has(#app > .temper-rail) {
   --gf-paper: #f7f7f5; --gf-surface: #ffffff; --gf-ink: #18181b; --gf-ink-2: #3f3f46; --gf-muted: #5b5b63; --gf-faint: #6b6b73;
-  --gf-line: #e7e7e3; --gf-line-2: #d4d4cf; --gf-hover: #ececea; --gf-signal: #c2410c; --gf-good: #15803d;
+  --gf-line: #e7e7e3; --gf-line-2: #d4d4cf; --gf-hover: #ececea; --gf-signal: #c2410c; --gf-signal-pale: #fff7ed; --gf-good: #15803d;
   --gf-sans: 'IBM Plex Sans', 'Noto Sans', system-ui, sans-serif;
+  --gf-mono: 'IBM Plex Mono', 'JetBrains Mono', ui-monospace, monospace;
 }
 :root:has(#app > .temper-rail) body { background: var(--gf-paper); color: var(--gf-ink); font: 15px/1.6 var(--gf-sans); letter-spacing: normal; -webkit-font-smoothing: antialiased; }
 #app:has(> .temper-rail) { display: grid; grid-template-columns: 232px minmax(0, 1fr); align-content: start; min-height: 100vh; --temper-mono: var(--gf-sans); }
@@ -1496,7 +1497,6 @@ body > noscript, #app:not(:empty):not(:has(*)) { margin-top: 213px; }
 #app:has(> .temper-rail) .temper-sidebar .temper-row > p:not(:first-of-type):not(.temper-details):not(.temper-time) { margin: 3.5px 0; text-align: left; }
 #app:has(> .temper-rail) .temper-sidebar .temper-row > :is(.temper-details, .temper-time) { display: inline-block; margin: 4px 10px 0 0; padding: 0; border: 0; border-radius: 0; background: none; text-align: left; }
 
-#app > .temper-rail .temper-nav-count { color: var(--gf-muted); }
 #app > :is(.temper-rail, .temper-tabbar) :is(.temper-nav-needs, .temper-nav-limited) { display: inline-block; width: 6px; height: 6px; border-radius: 50%; margin-left: 5px; vertical-align: 1px; overflow: hidden; text-indent: 100%; white-space: nowrap; }
 #app > :is(.temper-rail, .temper-tabbar) .temper-nav-needs { background: var(--temper-red); }
 #app > :is(.temper-rail, .temper-tabbar) .temper-nav-limited { background: var(--temper-amber); }
@@ -1520,7 +1520,7 @@ body > noscript, #app:not(:empty):not(:has(*)) { margin-top: 213px; }
 #app > .temper-home h1 { margin: 0; font: 500 32px/1.25 var(--gf-sans); letter-spacing: -.02em; color: var(--gf-ink); }
 #app > .temper-home .temper-home-lede { margin: 0; font-size: 17px; line-height: 1.65; color: var(--gf-ink-2); }
 #app > .temper-home > section { display: flex; flex-direction: column; gap: 14px; }
-#app > .temper-home > section > h2 { margin: 0; font: 600 13px/1.6 var(--gf-sans); letter-spacing: .06em; text-transform: uppercase; color: var(--gf-muted); }
+#app > .temper-home > section > h2, #app > .temper-home > section > .temper-home-head > h2 { margin: 0; font: 600 13px/1.6 var(--gf-sans); letter-spacing: .06em; text-transform: uppercase; color: var(--gf-muted); }
 /* To begin: numbered steps, each ticked once done. */
 #app > .temper-home .temper-home-steps { display: flex; flex-direction: column; margin: 0; padding: 0; border-top: 1px solid var(--gf-line); list-style: none; counter-reset: temper-home-step; }
 #app > .temper-home .temper-home-steps > li { display: grid; grid-template-columns: 30px minmax(0, 1fr); column-gap: 12px; padding: 18px 4px; border-bottom: 1px solid var(--gf-line); counter-increment: temper-home-step; }
@@ -1544,10 +1544,49 @@ body > noscript, #app:not(:empty):not(:has(*)) { margin-top: 213px; }
 #app > .temper-home .temper-home-lines .temper-home-muted { color: var(--gf-muted); }
 #app > .temper-home .temper-home-lines > li > :is(a, button) { flex: none; padding: 0; border: 0; background: none; color: var(--gf-faint); font: 13px/1.6 var(--gf-sans); text-decoration: underline; text-decoration-color: var(--gf-line-2); text-underline-offset: 3px; }
 #app > .temper-home .temper-home-lines > li > :is(a, button):hover { text-decoration-color: var(--gf-ink); }
+/* Home for a project at work, the greenfield mockup's everyday home.html:
+   what changed since the person last looked, what needs them, the chats,
+   and the landing's line. */
+#app > .temper-home .temper-home-byline { margin: 0; font-size: 12px; color: var(--gf-faint); }
+#app > .temper-home .temper-home-head { display: flex; align-items: baseline; justify-content: space-between; gap: 12px; }
+#app > .temper-home .temper-home-head > h2.temper-home-signal { color: var(--gf-signal); }
+#app > .temper-home .temper-home-head > a { font-size: 13px; color: var(--gf-ink); text-decoration: underline; text-decoration-color: var(--gf-line-2); text-underline-offset: 3px; }
+#app > .temper-home .temper-home-head > a:hover { text-decoration-color: var(--gf-ink); }
+#app > .temper-rail > .temper-rail-nav > a > .temper-nav-count, #app > .temper-tabbar > a > .temper-nav-count { color: var(--gf-signal); font-weight: 600; }
+/* A question that needs the person, answered in place. */
+#app > .temper-home .temper-ask { display: flex; flex-direction: column; gap: 16px; padding: 24px; border-radius: 12px; background: var(--gf-surface); box-shadow: 0 1px 2px rgba(24, 24, 27, .06), 0 0 0 1px rgba(24, 24, 27, .03); }
+#app > .temper-home .temper-ask > p { margin: 0; }
+#app > .temper-home .temper-ask-meta { font-family: var(--gf-mono); font-size: 12px; color: var(--gf-faint); }
+#app > .temper-home .temper-ask-meta > a { text-decoration: underline; text-decoration-color: var(--gf-line-2); text-underline-offset: 3px; }
+#app > .temper-home .temper-ask-meta > a:hover { text-decoration-color: var(--gf-ink); }
+#app > .temper-home .temper-ask-question { font-size: 17px; line-height: 1.55; color: var(--gf-ink); }
+#app > .temper-home .temper-ask-context { color: var(--gf-ink-2); }
+#app > .temper-home .temper-ask-choices { display: flex; flex-wrap: wrap; gap: 8px; }
+#app > .temper-home .temper-ask-choices > button { display: inline-flex; align-items: center; gap: 8px; min-height: 40px; padding: 8px 16px; border: 1px solid var(--gf-line-2); border-radius: 8px; background: var(--gf-surface); color: var(--gf-ink); font: 400 14.5px/1.6 var(--gf-sans); text-align: left; }
+#app > .temper-home .temper-ask-choices > button:hover { border-color: #b4b4ae; }
+#app > .temper-home .temper-ask-choices > .temper-ask-recommended { border-color: var(--gf-ink); background: var(--gf-ink); color: #fff; font-weight: 500; }
+#app > .temper-home .temper-ask-choices > .temper-ask-recommended:hover { background: #000; }
+#app > .temper-home .temper-ask-rec { margin-left: auto; padding-left: 6px; font-size: 12px; font-weight: 400; opacity: .72; }
+#app > .temper-home .temper-ask-choices > .temper-ask-quiet { border-color: transparent; background: none; color: var(--gf-muted); }
+#app > .temper-home .temper-ask-choices > .temper-ask-quiet:hover { background: var(--gf-hover); color: var(--gf-ink); }
+/* On a phone, the question gives way to one line and "Answer". */
+#app > .temper-home .temper-home-cta { display: none; }
+/* The chats: a line each, its state and age at the right. */
+#app > .temper-home .temper-home-rows { display: flex; flex-direction: column; margin: 0; padding: 0; border-top: 1px solid var(--gf-line); list-style: none; }
+#app > .temper-home .temper-home-rows > li { border-bottom: 1px solid var(--gf-line); }
+#app > .temper-home .temper-home-rows > li > a { display: flex; justify-content: space-between; align-items: baseline; gap: 16px; padding: 14px 4px; color: var(--gf-ink); }
+#app > .temper-home .temper-home-rows > li > a:hover { background: #f1f1ef; }
+#app > .temper-home .temper-home-when { flex: none; font-size: 13px; color: var(--gf-faint); }
+#app > .temper-home > .temper-home-facts { font-size: 13.5px; color: var(--gf-muted); }
+#app > .temper-home .temper-home-empty { margin: 0; padding: 4px 0; color: var(--gf-muted); }
 
 @media (max-width: 760px) {
   #app > .temper-home { padding: 8px 20px 112px; gap: 32px; }
   #app > .temper-home > .temper-home-intro { gap: 10px; }
   #app > .temper-home h1 { font-size: 25px; line-height: 1.3; letter-spacing: -.015em; }
   #app > .temper-home .temper-home-lede { font-size: 15.5px; }
+  #app > .temper-home .temper-home-in-a-row { display: none; }
+  #app > .temper-home .temper-ask { display: none; }
+  #app > .temper-home .temper-home-cta { display: flex; flex-direction: column; gap: 10px; padding: 18px; border-radius: 14px; background: var(--gf-signal-pale); color: var(--gf-ink); }
+  #app > .temper-home .temper-home-cta-go { display: flex; align-items: center; justify-content: center; min-height: 48px; border-radius: 10px; background: var(--gf-ink); color: #fff; font-weight: 500; }
 }
