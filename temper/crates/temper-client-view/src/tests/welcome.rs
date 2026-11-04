@@ -248,7 +248,7 @@ fn model_names_the_first_repository_while_forgejo_sets_up() {
         d::Event::Went { place: d::Place::Address(Address::Welcome { step: Step::Model { way: None } }) },
     );
     let view = f::page_view(&root);
-    line_in_forge(view.tree(), "Forgejo on this machine · Setting up · work/hello");
+    line_in_forge(view.tree(), "Forgejo on this machine · work/hello · Setting up");
     each_step(view.tree(), true);
 }
 
@@ -325,22 +325,22 @@ fn model_names_the_failed_first_repository_step() {
     for (step, connection, failed) in [
         (
             w::CreateStep::Admin,
-            "Forgejo on this machine · Set up failed: checking the admin's token · work/hello",
+            "Forgejo on this machine · work/hello · Set up failed: checking the admin's token",
             "Making work/hello failed: checking the admin's token",
         ),
         (
             w::CreateStep::Org,
-            "Forgejo on this machine · Set up failed: making the organization · work/hello",
+            "Forgejo on this machine · work/hello · Set up failed: making the organization",
             "Making work/hello failed: making the organization",
         ),
         (
             w::CreateStep::Repository,
-            "Forgejo on this machine · Set up failed: making the repository · work/hello",
+            "Forgejo on this machine · work/hello · Set up failed: making the repository",
             "Making work/hello failed: making the repository",
         ),
         (
             w::CreateStep::File,
-            "Forgejo on this machine · Set up failed: adding the starter workflow · work/hello",
+            "Forgejo on this machine · work/hello · Set up failed: adding the starter workflow",
             "Making work/hello failed: adding the starter workflow",
         ),
     ] {
@@ -358,7 +358,7 @@ fn model_names_the_failed_first_repository_step() {
 #[test]
 fn model_keeps_steps_while_the_first_repository_is_making() {
     let view = model_view(forge::first_rows(w::Connection::Connecting, w::FirstState::Making));
-    line_in_forge(view.tree(), "Forgejo on this machine · Connecting · work/hello");
+    line_in_forge(view.tree(), "Forgejo on this machine · work/hello · Connecting");
     each_step(view.tree(), true);
     node(view.tree(), Role::Status, "under way");
 }

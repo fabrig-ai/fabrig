@@ -349,6 +349,8 @@ pub const WELCOME_SHEET_FOOT: Style = Style { owner: owner(), token: 171 };
 /// Ready's first project: its name's field, Create, and "Rename it
 /// whenever you like.".
 pub const WELCOME_PROJECT: Style = Style { owner: owner(), token: 172 };
+/// The welcome forge's indeterminate setup bar (temper/docs/design/client/README.md, 3.5).
+pub const FLOW_BUSY: Style = Style { owner: owner(), token: 173 };
 /// Native browser elements for the admin group, Model’s definition list and
 /// the welcome sheet's choices.
 pub const ELEMENTS: &[(skein_ui::Owner, skein_ui::Role, Style, &str)] = &[
@@ -538,6 +540,7 @@ pub const NAMES: Names<'static> = Names {
         b"temper-welcome-option-more",
         b"temper-welcome-sheet-foot",
         b"temper-welcome-project",
+        b"temper-flow-busy",
     ],
     regions: &[b"temper-link"],
 };
