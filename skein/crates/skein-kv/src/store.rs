@@ -32,72 +32,29 @@ struct Pending {
     frame: Box<[u8]>,
 }
 
+#[expect(clippy::disallowed_types, reason = "replay retains at most Limits::commit plus one Limits::chunk read")]
 #[derive(Debug)]
 enum Phase {
     Listing,
-    OpeningLog {
-        name: Box<[u8]>,
-        next: usize,
-    },
-    ReadingLog {
-        file: Token,
-        len: u64,
-        at: u64,
-        #[expect(
-            clippy::disallowed_types,
-            reason = "replay retains at most Limits::commit plus one Limits::chunk read"
-        )]
-        bytes: Vec<u8>,
-        next: usize,
-    },
-    ClosingRecovered {
-        next: usize,
-    },
-    RemovingTail {
-        name: Box<[u8]>,
-    },
-    Creating {
-        name: Box<[u8]>,
-    },
-    Announcing {
-        file: Token,
-    },
-    Ready {
-        log: Log,
-    },
-    Writing {
-        log: Log,
-        batch: Queue<Pending>,
-    },
-    Syncing {
-        log: Log,
-        batch: Queue<Pending>,
-    },
+    OpeningLog { name: Box<[u8]>, next: usize },
+    ReadingLog { file: Token, len: u64, at: u64, bytes: Vec<u8>, next: usize },
+    ClosingRecovered { next: usize },
+    RemovingTail { name: Box<[u8]> },
+    Creating { name: Box<[u8]> },
+    Announcing { file: Token },
+    Ready { log: Log },
+    Writing { log: Log, batch: Queue<Pending> },
+    Syncing { log: Log, batch: Queue<Pending> },
     Closing,
     RecoveryClosing,
     RolloverClosing,
-    SnapIo {
-        log: Log,
-    },
-    SnapshotFailureClosing {
-        log: Log,
-    },
-    OpenFailureClosing {
-        failure: Failure,
-    },
+    SnapIo { log: Log },
+    SnapshotFailureClosing { log: Log },
+    OpenFailureClosing { failure: Failure },
     OpeningSnapshot,
-    ReadingSnapshot {
-        file: Token,
-        len: u64,
-        at: u64,
-        reader: snapshot::Reader,
-    },
-    ClosingSnapshot {
-        next: usize,
-    },
-    RemovingTempOnOpen {
-        snapshot: bool,
-    },
+    ReadingSnapshot { file: Token, len: u64, at: u64, reader: snapshot::Reader },
+    ClosingSnapshot { next: usize },
+    RemovingTempOnOpen { snapshot: bool },
 }
 
 impl Phase {
