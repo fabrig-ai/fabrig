@@ -212,7 +212,7 @@ pub(super) fn world(w: World, address: Address, then: Then) -> (Domain, Option<T
                                 playground_read = true;
                             }
                         }
-                        v1::Read::Setting(_) | v1::Read::ProposalItems(_) => {}
+                        v1::Read::Setting(_) | v1::Read::RevisionSetting(_) | v1::Read::ProposalItems(_) => {}
                     }
                 }
                 jig_client::Down::Open { watch, subject: jig_client::Watchable::Family { record, .. } }
@@ -231,7 +231,7 @@ pub(super) fn world(w: World, address: Address, then: Then) -> (Domain, Option<T
                             continue;
                         }
                         w::Watch::Change(subject) => subject,
-                        w::Watch::Landing(_) | w::Watch::Landings(_) => continue,
+                        w::Watch::Landing(_) | w::Watch::Landings(_) | w::Watch::Dismissed => continue,
                     };
                     if let Some(panel) = change_panel(w, subject.task()) {
                         for up in [

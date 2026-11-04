@@ -9,4 +9,3 @@
   - 5: "erased with its project or its party": `../protocol/store.md`, section 2 erases a `Dismissed` row with its project alone, because jig erases no party and tells a connector of none, so there is nothing to erase it with; decided by the cut `to-begin-store`, for the user to confirm (`../protocol/store.md`, section 7).
 - **Open:**
   - 7: every new project with steps left shows "To begin", or the welcome's alone.
-  - 7: the kicker, the day and the time, or "made just now", which needs the project's making time kept by jig.
