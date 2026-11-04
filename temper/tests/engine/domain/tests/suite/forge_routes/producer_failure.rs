@@ -6,7 +6,7 @@ use temper_engine_domain_forge_change::{Hold, State};
 
 const CHANNEL: Token = Token::new(7);
 const STEPS: u32 = 200;
-const REASON: &[u8] = b"the repository has no search UI: it is a CSV command-line program; no files changed";
+const REASON: &[u8] = b"the repository has no search UI: it is a table-printing command-line program; no files changed";
 
 pub(super) fn failed_production(reason: &[u8]) -> (World, engine::Assignment, u64) {
     production(tasks::TaskResult::Failure { reason: reason.into() })
@@ -58,22 +58,7 @@ fn production(result: tasks::TaskResult) -> (World, engine::Assignment, u64) {
 #[test]
 fn an_inapplicable_change_finishes_without_a_hold() {
     let (mut world, chat, change) = production(tasks::TaskResult::NoChange { words: REASON.into() });
-    let key = Key::Core(jig_domain_core::Key::Tasks(tasks::Key::Ended(change)));
-    let Some(Record::Core(jig_domain_core::Record::Tasks(tasks::Stored::Ended(row)))) = world.store.rows.get(&key)
-    else {
-        panic!("no-change task ended")
-    };
-    assert!(matches!(&row.phase, tasks::Phase::Ended(tasks::Ending::Done(tasks::TaskResult::NoChange { words }))
-        if words.as_ref() == REASON));
-    assert!(!world.store.rows.values().any(|row| matches!(row,
-        Record::Core(jig_domain_core::Record::Tasks(tasks::Stored::Live(task)))
-        if matches!(task.escalation, tasks::Escalation::Waiting { .. }))));
-    let Some(Record::Forge { row }) = world.store.rows.get(&Key::Forge(forge_top::Key::Change(change))) else {
-        panic!("durable change")
-    };
-    let forge_top::Stored::Change(row) = row.as_ref() else { panic!("durable change") };
-    assert!(row.pull.is_none());
-    assert_eq!(world.merges, 0);
+    assert_no_change(&world, change);
     let resumed = super::reviews::next_assignment(&mut world, 2);
     assert_eq!(resumed.task, chat.task);
     let notice = resumed
@@ -98,6 +83,144 @@ fn an_inapplicable_change_finishes_without_a_hold() {
     };
     let reads::EndedValue::Turn(turn) = past.value else { panic!("chat turn") };
     assert_eq!(turn.transcript.as_ref(), reply);
+}
+
+fn assert_no_change(world: &World, change: u64) {
+    let key = Key::Core(jig_domain_core::Key::Tasks(tasks::Key::Ended(change)));
+    let Some(Record::Core(jig_domain_core::Record::Tasks(tasks::Stored::Ended(row)))) = world.store.rows.get(&key)
+    else {
+        panic!("no-change task ended")
+    };
+    assert!(matches!(&row.phase, tasks::Phase::Ended(tasks::Ending::Done(tasks::TaskResult::NoChange { words }))
+        if words.as_ref() == REASON));
+    assert!(!world.store.rows.values().any(|row| matches!(row,
+        Record::Core(jig_domain_core::Record::Tasks(tasks::Stored::Live(task)))
+        if matches!(task.escalation, tasks::Escalation::Waiting { .. }))));
+    let Some(Record::Forge { row }) = world.store.rows.get(&Key::Forge(forge_top::Key::Change(change))) else {
+        panic!("durable change")
+    };
+    let forge_top::Stored::Change(row) = row.as_ref() else { panic!("durable change") };
+    assert!(row.pull.is_none());
+    assert_eq!(world.merges, 0);
+}
+
+// temper/docs/design/domain/agent.md, 4.3.1: a successful no-change result needs a chat reply.
+const NO_CHANGE_REPORT: &str = "For successful NoChange, tell the person nothing changed and why from the delegate's conclusion; claim no landing, implementation or tests.";
+
+fn stock_search_chat() -> (World, engine::Assignment) {
+    let model = stock::box_model();
+    let llm = jig_protocol_config::Llm {
+        models: Box::new([model.clone()]),
+        descriptions: Box::new([None]),
+        providers: Box::default(),
+        endpoints: Box::default(),
+    };
+    let limits = temper_engine_domain_world::forge_routes::box_limits();
+    let defaults = temper_service::stock::defaults(&llm, limits.tasks.result_bytes);
+    let mut world = World::configured_stock_limits(&defaults, &model, &limits);
+    world.adopt();
+    let mut event = protocol::hello_slots(CHANNEL, 2, Box::default());
+    let engine::Event::Worker(engine::WorkerInput::Link { link: engine::Link::Hello { hello, .. }, .. }) = &mut event
+    else {
+        panic!("scripted worker hello")
+    };
+    hello.bounds.turns = 800;
+    hello.bounds.time = Duration::from_secs(28_800);
+    hello.bounds.spend = defaults.rules.maximum_run_spend;
+    hello.bounds.models = Box::new([host::ModelBound { name: model.name, window: model.window, output: model.output }]);
+    hello.bounds.message_bytes = world.env.limits.tasks.result_bytes.max(world.env.limits.tasks.message_bytes);
+    hello.bounds.inbox = world.env.limits.tasks.run_inbox;
+    world.send(event);
+    let people::Ask::Create { project, mut batch } = world.chat(1, b"Fix widget's empty search state") else {
+        panic!("chat request")
+    };
+    batch[0].executor = people::TaskExecutor::Agent { charter: 1 };
+    batch[0].contract = people::Contract::Report { words: limits.tasks.result_bytes };
+    batch[0].flags.ended_by = people::EndedBy::Requester;
+    let chat = assigned_chat(&mut world, 92, people::Ask::Create { project, batch });
+    assert_eq!(chat.charter, 1);
+    (world, chat)
+}
+
+fn read_search_code(world: &mut World, chat: &engine::Assignment) {
+    const CODE: &[u8] = b"fn main() { println!(\"name count\"); }\n";
+    let head = fake::advance(&mut world.fake, &world.fake_env, b"org/repo", b"main", b"src/main.rs", CODE, 1)
+        .expect("table printer");
+    let branch = super::change_tool::named_read(world, chat, 93, b"read_branch", br#"{"branch":"main"}"#);
+    let digits = engine::commit_text(&translate::commit(head));
+    let rendered = temper_engine_smith::answer(&branch);
+    assert!(!rendered.error(), "{branch:?}");
+    assert!(rendered.text().windows(digits.len()).any(|part| part == digits.as_ref()));
+    let input = format!(r#"{{"head":"{}","path":"src/main.rs"}}"#, core::str::from_utf8(&digits).expect("head"));
+    let file = super::change_tool::named_read(world, chat, 94, b"read_file", input.as_bytes());
+    let rendered = temper_engine_smith::answer(&file);
+    assert!(!rendered.error(), "{file:?}");
+    assert!(rendered.text().windows(CODE.len()).any(|part| part == CODE));
+}
+
+fn person_reply(world: &mut World, chat: &engine::Assignment, reply: &[u8]) {
+    let read = chat.messages.iter().map(|word| word.number).max();
+    world.send(protocol::turn(CHANNEL, chat.task, chat.attempt, 1, 0, read, reply));
+    park_after_turn(world, chat, read, 1);
+    for _ in 0..STEPS {
+        world.tick();
+    }
+    let reads::Answer::Ended(past) =
+        world.party_read(reads::Read::Turn { task: chat.task, attempt: chat.attempt, turn: 1 })
+    else {
+        panic!("person reads the chat's reply")
+    };
+    let reads::EndedValue::Turn(turn) = past.value else { panic!("chat turn") };
+    assert_eq!(turn.transcript.as_ref(), reply);
+}
+
+#[test]
+fn a_stock_chat_reports_its_delegates_no_change_conclusion() {
+    let (mut world, chat) = stock_search_chat();
+    read_search_code(&mut world, &chat);
+    let engine::CallAnswer::Delegated(made) = super::change_tool::change(
+        &mut world,
+        &chat,
+        95,
+        None,
+        b"Fix widget's empty search state. The code prints a table; it has no search implementation.",
+    ) else {
+        panic!("change delegated")
+    };
+    let change = made[0].task;
+    let producer = super::reviews::next_assignment(&mut world, 1);
+    person_reply(&mut world, &chat, b"Work started.");
+    let event = world.protocol.answer(
+        CHANNEL,
+        producer.task,
+        producer.attempt,
+        5,
+        tasks::End::Finished { result: tasks::TaskResult::NoChange { words: REASON.into() }, cancel_delegates: false },
+        engine::Parts::none(),
+    );
+    world.send(event);
+    let resumed = super::reviews::next_assignment(&mut world, 2);
+    assert_eq!(resumed.task, chat.task);
+    assert!(resumed.attempt > chat.attempt);
+    assert_no_change(&world, change);
+    let notice = resumed
+        .messages
+        .iter()
+        .find(|word| {
+            word.from == tasks::Party::Task(change)
+                && word.kind == tasks::MessageKind::Result(tasks::ResultKind::NoChange)
+        })
+        .expect("successful no-change conclusion wakes the chat");
+    assert_eq!(notice.words.as_ref(), REASON);
+    let instructions = core::str::from_utf8(&resumed.run.policy.instructions).expect("stock instructions");
+    assert!(instructions.contains(NO_CHANGE_REPORT), "stock chat must report successful NoChange to the person");
+    assert!(instructions.contains("After calling change, say only that work started until the delegate reports."));
+    // The scripted worker relays the delivered conclusion under the assigned stock instructions.
+    let reply = format!("Nothing changed: {}", core::str::from_utf8(&notice.words).expect("conclusion"));
+    person_reply(&mut world, &resumed, reply.as_bytes());
+    assert_eq!(world.assigned.len(), 3, "the chat parks after consuming its result");
+    assert!(matches!(live_task(&world, chat.task).phase, tasks::Phase::Active(tasks::Active::Idle)));
+    world.close();
 }
 
 fn account(world: &World, change: u64) -> &[u8] {
