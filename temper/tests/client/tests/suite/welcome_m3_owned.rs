@@ -195,3 +195,119 @@ fn accepted_owned_setup_keeps_its_target_on_model_before_box_status_arrives() {
     );
     assert!(shown.contains("work/hello, into the new project Default"), "{shown}");
 }
+
+fn browser_draw(root: &Root) -> View {
+    let limits = fixtures::domain_limits();
+    let words = temper_client_view::words::Words::english(
+        fixtures::FORGE,
+        limits.client.domain.text,
+        temper_client_view::words::Shell::Browser,
+    )
+    .expect("browser words fit the client bounds");
+    let bounds = fixtures::view_bounds(&limits, &words);
+    let mut view = View::Person(Box::new(temper_client_view::View::new(&bounds, &limits, words, fixtures::FORGE)));
+    let mut patches = Queue::with_capacity(Temper::view_limits(&view).patches);
+    Temper::build(&mut view, root, &mut patches);
+    view
+}
+
+#[test]
+fn owned_setup_says_how_far_the_fetch_has_gone() {
+    use skein_ui::{Fraction, Role};
+
+    let (mut front, mut root) = owned_fixture(Some(b"64.5.6"));
+    act(&mut front, &mut root, Role::Button, b"Set up a Forgejo here", skein_ui::Act::Press);
+    h::event(&mut front, &mut root, Temper::went(Address::Welcome { step: Step::Model { way: None } }));
+    let (forge, request) = front.set_ups().last().copied().expect("one setup sent");
+    front.engine.send(engine::Event::Forge(Box::new(forge::Event::Connection {
+        forge,
+        state: forge::Connection::SettingUp { step: Some(forge::SetUpStep::Fetch) },
+    })));
+    front.engine.send(engine::Event::Forge(Box::new(forge::Event::SetUpAnswered {
+        forge,
+        request,
+        answer: forge::SetUpAnswer::SettingUp,
+    })));
+    for (binary, done, total, name, figure, words) in [
+        (
+            forge::SetUpBinary::Forgejo,
+            42_000_000,
+            Some(100_000_000),
+            "Fetching Forgejo",
+            "42%",
+            "Setting up: fetching Forgejo · 42%",
+        ),
+        (
+            forge::SetUpBinary::Forgejo,
+            67_000_000,
+            Some(100_000_000),
+            "Fetching Forgejo",
+            "67%",
+            "Setting up: fetching Forgejo · 67%",
+        ),
+        (
+            forge::SetUpBinary::Runner,
+            8_000_000,
+            Some(10_000_000),
+            "Fetching its runner",
+            "80%",
+            "Setting up: fetching its runner · 80%",
+        ),
+        (
+            forge::SetUpBinary::Runner,
+            41_999_999,
+            None,
+            "Fetching its runner",
+            "41 MB",
+            "Setting up: fetching its runner · 41 MB",
+        ),
+        (
+            forge::SetUpBinary::Runner,
+            50_000_000,
+            Some(50_000_000),
+            "Fetching its runner",
+            "100%",
+            "Setting up: fetching its runner · 100%",
+        ),
+    ] {
+        front.engine.send(engine::Event::Forge(Box::new(forge::Event::Fetched {
+            forge,
+            fetched: forge::SetUpFetched { binary, done, total },
+        })));
+        front.engine.settle();
+        h::settle(&mut front, &mut root);
+        let shown = text(&root);
+        let line = format!("Forgejo on this machine · work/hello · {words}");
+        assert!(shown.contains(&line), "{shown}");
+        let view = browser_draw(&root);
+        let nodes = Temper::tree(&view).nodes();
+        assert!(nodes.iter().any(|node| node.role == Role::Paragraph && node.name.as_deref() == Some(line.as_bytes())));
+        let progress = nodes.iter().find(|node| node.role == Role::Progress).expect("welcome progress");
+        assert_eq!(progress.name.as_deref(), Some(name.as_bytes()));
+        assert_eq!(progress.text.iter().map(|run| run.text.as_ref()).collect::<Vec<_>>(), [figure.as_bytes()]);
+        assert_eq!(progress.fraction, total.map(|total| Fraction { done, total }));
+        let steps = nodes
+            .iter()
+            .position(|node| node.role == Role::List && node.name.as_deref() == Some(b"Each step"))
+            .expect("setup steps");
+        let first = nodes[steps..].iter().find(|node| node.role == Role::Text).expect("first setup step");
+        let fetching = format!("Fetching Forgejo 71.2.3 and its runner 64.5.6 · {figure}");
+        assert_eq!(first.text.iter().map(|run| run.text.as_ref()).collect::<Vec<_>>(), [fetching.as_bytes()]);
+    }
+    front.engine.send(engine::Event::Forge(Box::new(forge::Event::Connection {
+        forge,
+        state: forge::Connection::SettingUp { step: Some(forge::SetUpStep::Prepare) },
+    })));
+    front.engine.settle();
+    h::settle(&mut front, &mut root);
+    let shown = text(&root);
+    assert!(shown.contains("Forgejo on this machine · work/hello · Setting up: preparing"), "{shown}");
+    assert!(shown.contains("Fetched Forgejo 71.2.3 and its runner 64.5.6"), "{shown}");
+    assert!(!shown.contains('%') && !shown.contains(" MB"), "{shown}");
+    let view = browser_draw(&root);
+    let progress =
+        Temper::tree(&view).nodes().iter().find(|node| node.role == Role::Progress).expect("welcome progress");
+    assert_eq!(progress.name.as_deref(), Some(b"Setting up: preparing".as_slice()));
+    assert!(progress.text.is_empty());
+    assert_eq!(progress.fraction, None);
+}
