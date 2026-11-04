@@ -12,8 +12,10 @@ draws it, and landed apart from this draft.
 
 ## 1. In one page
 
-- **On Home, at the top:** the intro and "To begin", its steps one row
-  each, then Home's other parts. It fits a laptop's first screen
+- **On Home, at the top:** the intro and "To begin", a card of its
+  own marked "Optional", with "Skip" a button, its steps one row each.
+  Nothing else on Home while it shows, but what needs the person and
+  the chats once there are any. It fits a laptop's first screen
   (section 2).
 - **Three steps:** "Tell temper how you work", the project's
   repository, and "Start a chat", each with its act while it is left
@@ -35,18 +37,24 @@ draws it, and landed apart from this draft.
 ## 2. On Home
 
 - **The intro,** while "To begin" shows: the kicker as on any Home,
-  the day and the time; the headline counting the steps left, "Two
-  things left to begin with.", "One thing left to begin with."; the
+  the day and the time; the headline "PROJECT is ready.", never a
+  count of what is left, since nothing in "To begin" is owed; the
   lede naming the model's account and the forge, "Your agents run on
   your ChatGPT plan. Forgejo runs on this machine.", from the LLM
   accounts and the forges the client reads already.
-- **"To begin",** a section headed so, "Skip" at the heading's right.
-  One row a step, in section 3's order: its mark, the step's number or
+- **"To begin," optional and plainly so:** a card of its own, headed
+  "To begin" beside an "Optional" tag, "Skip" a button at its top
+  right; under the heading, "Two steps left. Skip them if you like;
+  they stay in Settings and Chats.", its count the steps left. Then
+  one row a step, in section 3's order: its mark, the step's number or
   a check once done; its title over one short line; its act at the
-  row's right while the step is left.
-- **Then Home's other parts,** as on any Home: Needs you and Chats
-  when they hold something, empty ones left out, since the steps stand
-  for them; Connected; the landing's line.
+  row's right while the step is left (the user, 2026-11-04).
+- **Nothing else but what has content:** Needs you and Chats when they
+  hold something, as on any Home; empty, they are left out, since the
+  steps stand for them. Connected and the landing's line wait for
+  "To begin" to go: the lede says what Connected would, the second
+  step says the repository, and nothing has landed yet (the user,
+  2026-11-04).
 - **Small:** "To begin" and the intro fit the first screen of a 1366
   by 768 laptop with its browser's bars, and of a phone (the user,
   2026-11-04).
@@ -58,7 +66,7 @@ draws it, and landed apart from this draft.
 | Step | Done once | Left: its line and act | Done: its line |
 |---|---|---|---|
 | 1. "Tell temper how you work" | a configuring chat (`configuring.md`, 5.1) runs or ran in the project, or a setting the project reads holds a change (`configuring.md`, 3.2) | "temper runs its default way of working until you change it.", "Start", filled: the configuring chat, as the chats page's offer starts it (`first-run-projects.md`, section 6) | its title alone |
-| 2. the repository | the project has a home repository (jig's `domain/people.md`, 5.2) | "Adopt a repository", "Adopt", to the adoption form into the project (`first-run-projects.md`, section 5) | "ORG/NAME is in PROJECT", "temper can change its code now; each change is checked, then lands on main through temper's merge queue." |
+| 2. the repository | the project has a home repository (jig's `domain/people.md`, 5.2) | "Adopt a repository", "Adopt", to the adoption form into the project (`first-run-projects.md`, section 5) | "ORG/NAME is in PROJECT", "temper can change its code now; checked changes land on main through temper's merge queue.", one line on a laptop |
 | 3. "Start a chat" | the project holds a chat other than a configuring one | "Ask a question or ask for a change.", "New chat" | its title alone |
 
 - **A new project runs on temper's defaults,** its stock policy and
