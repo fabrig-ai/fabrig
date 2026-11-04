@@ -1,11 +1,11 @@
 //! Inbox row order on each front (jig/docs/design/client/domain/testing.md, 4–5).
 use super::{
     b_conversations::{WAIT, finish, sign_in},
-    b_seed::Facts,
+    b_seed::{Facts, inbox_source, install},
 };
 use crate::{Front, Scripted, Test, World, harness::Seed, joint::engine::Driver};
 use jig_client_domain::contract as c;
-use jig_client_scripted_engine::{Change, Rows, Source};
+use jig_client_scripted_engine::Change;
 use jig_fake_workers::{Call, Script};
 use skein_fake_person::{Find, Step};
 use skein_lib::{Duration, Time, Wall};
@@ -68,43 +68,9 @@ pub fn scripted(front: &mut Scripted) {
     frame.updates.value = GROUP_ROWS;
     front.engine.act(Time::ZERO, Wall::EPOCH, Change::Me(frame)).expect("frame fits");
     let needs = vec![need(front, PROPOSER, 1), need(front, SECOND_PROPOSER, 2)];
-    front
-        .engine
-        .act(
-            Time::ZERO,
-            Wall::EPOCH,
-            Change::Source(Source {
-                party: PARTY,
-                read: c::Read::Inbox {
-                    group: c::InboxReadGroup::Needs,
-                    project: None,
-                    kind: None,
-                    goal: None,
-                    after: None,
-                },
-                rows: Rows::Inbox(needs),
-            }),
-        )
-        .expect("inbox fits");
+    inbox_source(front, PARTY, c::InboxReadGroup::Needs, needs);
     let updates = vec![update(front, NEWER_RESULT, 4), update(front, OLDER_RESULT, 3)];
-    front
-        .engine
-        .act(
-            Time::ZERO,
-            Wall::EPOCH,
-            Change::Source(Source {
-                party: PARTY,
-                read: c::Read::Inbox {
-                    group: c::InboxReadGroup::Updates,
-                    project: None,
-                    kind: None,
-                    goal: None,
-                    after: None,
-                },
-                rows: Rows::Inbox(updates),
-            }),
-        )
-        .expect("inbox fits");
+    inbox_source(front, PARTY, c::InboxReadGroup::Updates, updates);
 }
 fn need(front: &mut Scripted, task: u64, position: u64) -> c::InboxEntry {
     let key = c::ProposalKey { proposer: c::Proposer::Task(task), number: position };
@@ -113,18 +79,7 @@ fn need(front: &mut Scripted, task: u64, position: u64) -> c::InboxEntry {
     proposal.waiting.holder = c::HistoryHolder::Person(PARTY);
     proposal.waiting.since = Wall::from_nanos(position);
     proposal.funding.clear();
-    front
-        .engine
-        .act(
-            Time::ZERO,
-            Wall::EPOCH,
-            Change::Object {
-                project: PROJECT,
-                key: c::ObjectKey::Proposal(key),
-                value: c::ReadValue::Proposal(Box::new(proposal)),
-            },
-        )
-        .expect("proposal fits");
+    install(front, c::ObjectKey::Proposal(key), c::ReadValue::Proposal(Box::new(proposal)));
     crate::stories::inbox_entry(
         c::ObjectKey::Proposal(key),
         PROJECT,
@@ -150,18 +105,7 @@ fn update(front: &mut Scripted, task: u64, position: u64) -> c::InboxEntry {
         details: None,
         acts: crate::test::list([]),
     };
-    front
-        .engine
-        .act(
-            Time::ZERO,
-            Wall::EPOCH,
-            Change::Object {
-                project: PROJECT,
-                key: c::ObjectKey::Result(task),
-                value: c::ReadValue::Result(Box::new(result)),
-            },
-        )
-        .expect("result fits");
+    install(front, c::ObjectKey::Result(task), c::ReadValue::Result(Box::new(result)));
     crate::stories::inbox_entry(
         c::ObjectKey::Result(task),
         PROJECT,
