@@ -8,7 +8,7 @@ use skein_io::file_layer::{self, FileIo};
 use skein_io::kernel::{Complete, Fd, Submit};
 use skein_kv::{Event, Limits, Request, Store};
 use skein_lib::{Env, Queue, Time, Token, Wall};
-use skein_sim::{Config, Handle, Pid, Sim};
+use skein_sim::{Config, Handle, Pid, Sim, Trace};
 
 pub struct World {
     machine: Machine,
@@ -36,9 +36,19 @@ impl World {
 
     #[must_use]
     pub fn with_items(limits: Limits, items: &[Item]) -> World {
+        Self::configured(limits, items, Config::calm())
+    }
+
+    /// A world that keeps no simulator trace, for recovery heap measurements.
+    #[must_use]
+    pub fn untraced(limits: Limits, items: &[Item]) -> World {
+        Self::configured(limits, items, Config { trace: Trace::Off, ..Config::calm() })
+    }
+
+    fn configured(limits: Limits, items: &[Item], config: Config) -> World {
         let mut machine = Machine::new();
         let handle = machine.lay(items);
-        let mut sim = Sim::new(1, Config::calm());
+        let mut sim = Sim::new(1, config);
         let pid = sim.spawn_process();
         let root = sim.root(pid, Handle::new(handle.raw()));
         World {
@@ -127,7 +137,7 @@ impl World {
     pub fn crash(&mut self, seed: u64) {
         self.machine.crash(seed);
         let handle = self.machine.reopen_root(0);
-        self.sim = Sim::new(seed, Config::calm());
+        self.sim = Sim::new(seed, Config { trace: self.sim.config().trace, ..Config::calm() });
         self.pid = self.sim.spawn_process();
         self.root = self.sim.root(self.pid, Handle::new(handle.raw()));
         self.io = FileIo::new(8, self.env.limits.chunk, 1024, self.env.limits.deadline);
