@@ -25,7 +25,7 @@ pub struct Panel {
     pub state: State,
     pub handle: Option<Handle>,
 }
-/// Progress keeps jig's retry; an invalid delivery needs an unwatch, an ending does not.
+/// Progress keeps jig's retry; invalid deliveries and endings release the handle.
 #[derive(Debug)]
 pub enum Watched {
     Waiting,
@@ -152,6 +152,7 @@ pub(super) fn watched(side: &mut Side, handle: Handle, watched: Watched, out: &m
         }
         Watched::Ended(why) => {
             panel.handle = None;
+            out.push(Request::Client { asked: jig_client::Event::Unwatch { handle } });
             // Only SubjectEnded may be refreshed by the root (client/forge.md, 9.2).
             match why {
                 Why::SubjectEnded => (State::Unknown, true),

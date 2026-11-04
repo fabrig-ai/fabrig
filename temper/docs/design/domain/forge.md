@@ -850,6 +850,42 @@ then writes; then keeping up; then the slow pass. temper's values:
 `forge.client.reserve` of each window kept for keeping up and the slow
 pass.
 
+### 5.5 A person's dismissals
+
+What a person has dismissed, kept by the engine so that it holds on
+every device and across restarts: `ToBegin { project }`, the one kind
+for now, "Skip" on that project's "To begin"
+(`../draft/to-begin.md`, section 5). It owes nothing to the forge: the
+connector keeps it because `Stored` holds every family of temper's, as
+it does `Binding` (`../protocol/store.md`, section 2).
+
+- **Its rows** are held in memory, each its party and what it dismissed,
+  restored whole at the restart step, at most `bindings` times
+  `judge_projects`; a row past that is refused at restart, as each
+  family's is.
+- **`Dismiss { what }`** (`../client/README.md`, 4.6) is admitted by the
+  core, the root naming `what`'s project as its scope: a party with a
+  role there, in a project not being deleted. The core's ask names the
+  party, and the root hands the connector the request with it. In the
+  decision:
+  - a row held already: answered dismissed, nothing written;
+  - the bound reached: answered too large, nothing written;
+  - otherwise the row saved, the subject `dismissed` marked, answered
+    dismissed, the answer held behind the commit.
+
+  The answer is held as a set up's is, in memory, and is unknown after
+  a restart; the row says what stands.
+- **Its document:** the subject `dismissed` is one number,
+  `DISMISSED_SUBJECT`, outside the task numbers as `landings_subject`'s
+  are, of the party's own scope. The core's ask for a document names the
+  watcher's party, and the connector answers that party's rows in key
+  order: each watcher's own. A mark makes every watcher's document
+  again, so a dismissal costs each signed-in client one small document.
+- **Erased with its project:** the release of a project being deleted
+  (jig's `domain/connectors.md`, section 2) erases its rows in its
+  decision, beside its settings, and marks the subject when any went.
+  jig erases no party (`../protocol/store.md`, section 7).
+
 ## 6. Effects
 
 Every effect is committed into the outbox and made by `client`, in

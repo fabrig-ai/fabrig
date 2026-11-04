@@ -21,7 +21,7 @@ pub const ME: Tool = Tool {
 pub const INBOX: Tool = Tool {
     name: b"inbox",
     line: b"Read what waits on your party, then its updates",
-    prints: b"A line per item, its task and what waits; a question's words, cut and marked past the line's bound, then `read whole: task activity TASK` when cut and `answer: task answer TASK N TEXT`; then `read on with: inbox ... --after CURSOR` or `no more`, and, unfiltered, `digest: inbox`",
+    prints: b"A line per item, its task and what waits; a question's words, cut and marked past the line's bound, then `read whole: task activity TASK` when cut and `answer: task answer TASK N TEXT`; a person task's `read: task show TASK`; then `read on with: inbox ... --after CURSOR` or `no more`, and, unfiltered, `digest: inbox`",
     result: b"inbox",
     forms: &[&[
         flag(b"project", b"PROJECT", Kind::Project { empty: false }, Optional, b"Only this project"),
@@ -232,19 +232,60 @@ pub const CLOSE: Tool = Tool {
     area: 1,
     notes: b"Every live delegate that `--move` does not name is cancelled with\nthe chat. A `--move` naming no live delegate fails, `move is not a\nlive delegate` (exit 1).\n",
 };
+/// Numbered questions and revisioned person contracts have distinct answer forms.
 pub const ANSWER: Tool = Tool {
     name: b"task answer",
-    line: b"Answer a task's question",
+    line: b"Answer a numbered question or a revisioned person task",
     prints: b"`done: task N, answer`",
     result: b"answer",
-    forms: &[&[
-        positional(b"task", b"TASK", Kind::Number, Required, b"The task's number"),
-        positional(b"question", b"QUESTION", Kind::Number, Required, b"The question's number, as the inbox prints it"),
-        positional(b"text", b"TEXT", Kind::Text, Required, b"The answer"),
-    ]],
+    forms: &[
+        &[
+            positional(b"task", b"TASK", Kind::Number, Required, b"The task's number"),
+            positional(
+                b"question",
+                b"QUESTION",
+                Kind::Number,
+                Required,
+                b"The question's number, as the inbox prints it",
+            ),
+            positional(b"text", b"TEXT", Kind::Text, Required, b"The answer"),
+        ],
+        &[
+            positional(b"task", b"TASK", Kind::Number, Required, b"The person task's number"),
+            flag(b"rev", b"REV", Kind::Number, Required, b"The person-task revision shown by task show"),
+            positional(b"choice", b"CHOICE", Kind::Number, Required, b"The contract's choice code"),
+            positional(b"text", b"TEXT", Kind::Text, Required, b"The reason for this choice"),
+        ],
+        &[
+            positional(b"task", b"TASK", Kind::Number, Required, b"The person task's number"),
+            flag(b"rev", b"REV", Kind::Number, Required, b"The person-task revision shown by task show"),
+            positional(b"text", b"TEXT", Kind::Text, Required, b"The answer in words"),
+        ],
+        &[
+            positional(b"task", b"TASK", Kind::Number, Required, b"The person task's number"),
+            flag(b"rev", b"REV", Kind::Number, Required, b"The person-task revision shown by task show"),
+            flag(
+                b"approve",
+                b"STATE",
+                Kind::Literal,
+                Required,
+                b"The exact approval state, as lowercase hexadecimal; empty is an empty state",
+            ),
+            positional(b"text", b"TEXT", Kind::Text, Optional, b"An optional explanation"),
+        ],
+        &[
+            positional(b"task", b"TASK", Kind::Number, Required, b"The person task's number"),
+            flag(b"rev", b"REV", Kind::Number, Required, b"The person-task revision shown by task show"),
+            flag(b"cannot", b"REASON", Kind::Text, Required, b"Why the task cannot be done"),
+        ],
+    ],
     keyed: Keyed::Optional,
     area: 1,
-    notes: b"",
+    notes: b"Read task show first. A role-addressed person task must be taken
+with task take before answering; task hand-back returns it to the role.
+Use the printed revision: a changed contract refuses a stale answer.
+Choice codes belong to the contract; TEXT explains the choice.
+",
 };
 pub const DECIDE: Tool = Tool {
     name: b"proposal decide",
@@ -984,4 +1025,31 @@ pub const PROJECT_AMEND: Tool = Tool {
     keyed: Keyed::Required,
     area: 1,
     notes: b"Only an owner changes visibility. A member and project 0 are refused, exit 2. The public page is a path under the deployment's address, from me's public identifier. A key replay prints the first answer.\n",
+};
+
+/// Appended host position for claiming role-addressed person work.
+pub const TAKE_AT: u8 = 65;
+/// Appended host position for returning person work to its role.
+pub const HAND_BACK_AT: u8 = 66;
+/// Claim a role-addressed person task before answering its contract.
+pub const TAKE: Tool = Tool {
+    name: b"task take",
+    line: b"Take a person task addressed to your role",
+    prints: b"`done: task N, take`",
+    result: b"take",
+    forms: &[&[positional(b"task", b"TASK", Kind::Number, Required, b"The person task's number")]],
+    keyed: Keyed::Optional,
+    area: 3,
+    notes: b"Read task show for the current holder and offered acts.\n",
+};
+/// Give a claimed person task back to its role.
+pub const HAND_BACK: Tool = Tool {
+    name: b"task hand-back",
+    line: b"Return your person task to its role",
+    prints: b"`done: task N, hand-back`",
+    result: b"hand-back",
+    forms: TAKE.forms,
+    keyed: Keyed::Optional,
+    area: 3,
+    notes: b"Only the current holder may hand it back.\n",
 };

@@ -195,6 +195,13 @@ pub enum Tool {
     Subscribe { kind: tasks::SubscriptionKind },
     /// Subscribe this task to typed connector news, with overlap paths for landings.
     SubscribeForge { topic: forge::Topic, own_change: Option<u64>, paths: Box<[Box<[u8]>]> },
+    /// Resolve an owner/name or the project's sole readable adoption before subscribing.
+    SubscribeNamedForge {
+        repository: Option<Box<[u8]>>,
+        topic: forge::Topic,
+        own_change: Option<u64>,
+        paths: Box<[Box<[u8]>]>,
+    },
     /// Remove one current interest by its root-issued number.
     Unsubscribe { subscription: u64 },
     /// Root-normalized whole-batch shape refusal after bounded ingress.
@@ -520,6 +527,7 @@ pub enum WorkerInput {
 pub enum Application {
     Forge(forge::Ask),
     Return { source: u32, path: Box<[u8]> },
+    Dismiss { what: forge::Dismissal },
 }
 /// The family's terminal answer; root returns are volatile, like forge setup answers.
 #[derive(Clone, Debug, PartialEq, Eq)]
@@ -534,6 +542,7 @@ pub enum ApplicationAnswer {
     Accept(forge::AcceptAnswer),
     Reachable(forge::ReachableAnswer),
     Returning,
+    Dismiss(forge::DismissAnswer),
 }
 /// Forge-owned settings reads (temper/docs/design/client/forge.md, 9).
 #[derive(Clone, Copy, PartialEq, Eq, Debug)]

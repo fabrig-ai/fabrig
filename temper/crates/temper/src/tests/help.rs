@@ -3,6 +3,24 @@ use std::{fs, os::unix::ffi::OsStrExt};
 use temper_client_tools::jig::call::Parsed;
 
 #[test]
+fn box_step_seven_names_every_ending_and_the_direct_report() {
+    let page = help::answer(&configured(&["help", "box"])).expect("box help");
+    let (_, steps) = page.split_once("\n## 7. ").expect("step 7");
+    let (step, _) = steps.split_once("\n## 8. ").expect("step 8");
+    let text = step.split_whitespace().collect::<Vec<_>>().join(" ");
+    for words in [
+        "`not met: ended`",
+        "`not met: ended: cancelled`",
+        "`not met: ended: failed`",
+        "completed, no change",
+        "`temper ctl DIR task show CHANGE` prints its report",
+    ] {
+        assert!(text.contains(words), "step 7 must explain {words}");
+    }
+    assert!(!text.contains("its tree says why"));
+}
+
+#[test]
 fn charter_help_explains_documents_and_host_discovery() {
     let page = help::answer(&configured(&["help", "charter"])).expect("charter help");
     let text = page.split_whitespace().collect::<Vec<_>>().join(" ");

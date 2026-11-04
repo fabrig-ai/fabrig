@@ -189,6 +189,7 @@ impl World {
         self.top.document(
             subject,
             jig_domain_people::ApplicationScope::Project(project),
+            0,
             self.env.wall,
             &self.env.limits,
         )
@@ -1259,6 +1260,7 @@ fn key(row: &top::Stored) -> top::Key {
         top::Stored::Issue(row) => top::Key::Issue(row.goal),
         top::Stored::Setting(row) => top::Key::Setting(row.key),
         top::Stored::Binding { address, .. } => top::Key::Binding(address.clone()),
+        top::Stored::Dismissed { party, what } => top::Key::Dismissed { party: *party, what: *what },
         top::Stored::Flight { task, entry } => top::Key::Flight { task: *task, entry: *entry },
         top::Stored::Release(row) => top::Key::Release(row.task),
         top::Stored::Application { token, .. } => top::Key::Application(*token),

@@ -604,6 +604,8 @@ pub(crate) fn act_tool(tool: u8) -> &'static crate::jig::table::Tool {
         rows::MESSAGE_AT => &rows::MESSAGE,
         rows::CLOSE_AT => &rows::CLOSE,
         rows::ANSWER_AT => &rows::ANSWER,
+        rows::TAKE_AT => &rows::TAKE,
+        rows::HAND_BACK_AT => &rows::HAND_BACK,
         rows::DECIDE_AT => &rows::DECIDE,
         rows::TASK_DECIDE_AT => &rows::TASK_DECIDE,
         rows::RELEASE_AT => &rows::RELEASE,

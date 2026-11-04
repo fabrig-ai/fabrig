@@ -55,8 +55,9 @@ fn ready_opens_default_then_the_whole_welcome_moves_to_chats() {
     let button = super::connect_forge::node(&view, Role::Button, b"Create your project");
     let action = temper_client_view::act(&mut view, button, skein_ui::Act::Press).expect("Create your project");
     accounts::event(&mut front, &mut root, d::Event::Act { action }.into());
-    assert_eq!(root.person().pages().address(), &fixtures::chats_page());
-    assert!(!front.engine_adopted(1, 42));
+    let project = root.person().pages().project().expect("Ready's project");
+    assert_eq!(root.person().pages().address(), &Address::Home { project });
+    assert!(front.engine_adopted(1, 42));
     assert_eq!(d::pages::welcome::decision(root.person()), Some(d::pages::welcome::FirstRun::Whole));
     accounts::event(&mut front, &mut root, Temper::went(Address::Welcome { step: Step::Welcome }));
     assert_eq!(root.person().pages().address(), &fixtures::chats_page());

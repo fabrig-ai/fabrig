@@ -29,6 +29,8 @@ mod capabilities;
 mod ci;
 mod commit;
 mod connect;
+mod dismissed;
+pub use dismissed::{DISMISSED_SUBJECT, DismissAnswer, Dismissal};
 mod domain;
 mod effect_words;
 mod forges;
@@ -281,6 +283,7 @@ pub fn stored_key(row: &Stored) -> Key {
         Stored::Writer(row) => Key::Writer(row.forge),
         Stored::Setting(row) => Key::Setting(row.key),
         Stored::Binding { address, .. } => Key::Binding(address.clone()),
+        Stored::Dismissed { party, what } => Key::Dismissed { party: *party, what: *what },
         Stored::Flight { task, entry } => Key::Flight { task: *task, entry: *entry },
     }
 }
@@ -455,7 +458,8 @@ pub fn stored_bytes(record: &Stored) -> Option<u64> {
         Stored::Binding { address, subject } => bytes(address).checked_add(bytes(subject)),
         Stored::BranchHead(row) => name(&row.name),
         Stored::PullState(row) => name(&row.name),
-        Stored::ForgeNumber { .. }
+        Stored::Dismissed { .. }
+        | Stored::ForgeNumber { .. }
         | Stored::Playground(_)
         | Stored::Ci(_)
         | Stored::Landed { .. }

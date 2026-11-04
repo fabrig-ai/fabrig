@@ -2,7 +2,8 @@
 
 2026-11-04. Where temper's code lags or departs from [README.md](README.md).
 
-- **Not yet:** 3.4, 5.5: the composer's supplied default, jig's
+- **Not yet:** 3.4, 5.5: the composer's
+  supplied default, jig's
   `resolved_default`, which neither jig's `Me` nor temper carries. 3.5:
   `Board { project }` with its reordering, and `Changes { project }`: no
   address in `temper-client-domain`'s `address.rs`. 3.5, 5.13, 10:
@@ -10,18 +11,25 @@
   with their tests; ctl supplies the review groups and running-work effect
   (`tools.md`, 5.2). 3.5, 4.6, 8: Forget, on the Forges page and as the FORGE
   request `Forget`: no `forget` in `temper-client-protocol-wire`'s schema
-  or in `temper-service`'s routing. 3.5: Ready's model line names no
+  or in `temper-service`'s routing. 3.5: Ready's and Home's model lines name no
   email for a ChatGPT sign-in, whose account's display is empty, since
   the engine keeps no email: it waits on
   `jig/docs/design/draft/account-facts.md`, 6, its second step.
-  4.4: the picker, which the adoption page does not draw
+  3.5, 11: a project's creation age and its repository's first CI run
+  are not supplied to Home. Its kicker uses the current day and time,
+  and its repository step describes checked changes landing through
+  the merge queue, per the user's answer to `home-age-and-ci` in
+  `temper/docs/plan/look-round-3/plan.toml`; neither claims the missing
+  fact (README.md, 11).
+  4.4: Home's GitHub step's repository picker and reached count, and
+  the picker, which the adoption page does not draw
   (`temper-client-view`'s `forge/page.rs`).
   5.5: a plan's first use, its card in the conversation. 3.5, 3.6, 10:
   Delete on a project's settings, confirmed by its name, and jig's
   `RemoveProject` by `shapes::remove_project`, with the chat
-  template's grace: no project's settings and no such act in
-  `temper-client-domain`. 3.5, The welcome: for a person whose role
-  does not hold the deployment's forges, the model alone deciding;
+  template's grace: no such act in `temper-client-domain`. 3.5, The welcome:
+  for a person whose role does not hold the deployment's forges, the model
+  alone deciding;
   `temper-client-domain`'s `pages/welcome.rs` `decision` reads a
   refused `forges` watch as no forge, so a usable model opens Forge.
   The playground offered on Forge's and Model's foot while a real

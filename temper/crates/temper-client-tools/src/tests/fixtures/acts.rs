@@ -182,6 +182,12 @@ pub(crate) fn proposal(proposer: c::Proposer, acts: &[c::ActKind]) -> c::ReadVal
     }))
 }
 pub(crate) fn act_document(call: &crate::jig::call::Call) -> c::ReadResult {
+    if call.tool == crate::jig::rows::TAKE_AT
+        || call.tool == crate::jig::rows::HAND_BACK_AT
+        || (call.tool == crate::jig::rows::ANSWER_AT && call.form != 0)
+    {
+        return c::ReadResult::Value(c::ReadValue::PersonTask(Box::new(person_document())));
+    }
     let task = act_task();
     c::ReadResult::Value(match call.tool {
         11 => c::ReadValue::Question(Box::new(c::Question {
@@ -343,4 +349,24 @@ pub(crate) fn act_ask(root: &Harness, call: u32) -> &c::Ask {
 pub(crate) fn close_operations(root: &Harness, call: u32) -> &List<c::Operation> {
     let c::Ask::Compound { operations, .. } = act_ask(root, call) else { panic!("compound close") };
     operations
+}
+
+/// A person subject supplies routing and offers independently of a replay's answer shape.
+pub(crate) fn person_document() -> c::PersonTask {
+    let task = offered(&[c::ActKind::Answer, c::ActKind::Take, c::ActKind::HandBack]);
+    c::PersonTask {
+        task: task.chip,
+        revision: c::Revision { value: 7 },
+        requester: task.requester,
+        spec: task.spec,
+        address: c::PersonAddress::Role(0),
+        taken_by: Some(PARTY),
+        since: None,
+        stall: None,
+        deadline: None,
+        contract: task.result_contract,
+        results: List::with_capacity(EMPTY),
+        cut: false,
+        acts: task.acts,
+    }
 }

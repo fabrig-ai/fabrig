@@ -172,6 +172,8 @@ pub(crate) fn route_forge(
                     | Address::Welcome { .. }
                     | Address::Chat { .. }
                     | Address::Task { .. }
+                    | Address::Home { .. }
+                    | Address::Settings { .. }
                     | Address::Adopt { .. } => continue,
                 };
                 out.push(Request::Show { address, replace: true });
@@ -309,6 +311,7 @@ fn forge_me(root: &mut Domain, env: &Env<Limits>, told: &jig_client::Told, out: 
     let consumed = forge::me::told(&mut root.forge, &root.client, told, &mut child);
     if consumed {
         forge::forges::configure(&mut root.forge, env.limits.forge, &mut child);
+        forge::dismissed::configure(&mut root.forge, env.limits.forge, &mut child);
     }
     route_forge(root, env, &mut child, out);
     consumed
@@ -372,7 +375,8 @@ fn playground(root: &mut Domain, env: &Env<Limits>, out: &mut Queue<Request>) {
 
 fn forge_forges(root: &mut Domain, env: &Env<Limits>, told: &jig_client::Told, out: &mut Queue<Request>) -> bool {
     let mut child = Queue::uncapped();
-    let consumed = forge::admin::told(&mut root.forge, &root.client, told, env.limits.forge, &mut child)
+    let consumed = forge::dismissed::told(&mut root.forge, &root.client, told, env.limits.forge, &mut child)
+        || forge::admin::told(&mut root.forge, &root.client, told, env.limits.forge, &mut child)
         || forge::github::told(&mut root.forge, &root.client, told, env.limits.forge, &mut child)
         || forge::forges::told(&mut root.forge, &root.client, told, env.limits.forge, &mut child);
     if consumed
@@ -390,7 +394,12 @@ fn forge_forges(root: &mut Domain, env: &Env<Limits>, told: &jig_client::Told, o
     consumed
 }
 
+#[expect(clippy::manual_map, reason = "step code reads the first repository without closures")]
 fn playground_facts(root: &mut Domain) {
+    root.pages.welcome_first = match forge::listed::unadopted_first(root.forges()) {
+        Some((forge, org, name)) => Some(crate::pages::welcome::First { forge, org: org.into(), name: name.into() }),
+        None => None,
+    };
     root.pages.welcome_decision = crate::pages::welcome::decision(root);
     root.pages.playground_provider = root.forge.playground_provider();
     crate::pages::project_changed(&mut root.pages, &root.client);

@@ -58,6 +58,7 @@ enum Action {
 fn typed_control(bytes: &[u8], control: &[u8], words: &[u8]) -> Option<Vec<u8>> {
     for line in bytes.split(|byte| *byte == b'\n').rev().skip(1) {
         let line = line.trim_ascii_start();
+        let line = line.strip_prefix(b"- ").unwrap_or(line);
         let Some(line) = line.strip_prefix(b"[") else { continue };
         let Some(end) = line.iter().position(|byte| *byte == b']') else { continue };
         // A link's outward mark follows its name for show; the person types the name (5.7).
@@ -142,11 +143,13 @@ impl Host for Pipes {
                 }
                 Some(Action::Type(_)) => {
                     let Some(Action::Type(bytes)) = self.actions.pop_front() else { panic!("type action") };
+                    self.bytes.clear();
                     self.typed = Some((bytes, 0));
                 }
                 Some(Action::On { control, words }) => {
                     if let Some(bytes) = typed_control(&self.bytes, control, words) {
                         self.actions.pop_front();
+                        self.bytes.clear();
                         self.typed = Some((bytes, 0));
                     }
                 }
@@ -327,7 +330,7 @@ impl Typist {
         bytes.push(b'\n');
         self.actions.push_back(Action::Type(bytes));
     }
-    /// Type the number printed beside the last matching control, then its words.
+    /// Type the last matching control, then read fresh output before the next act.
     pub fn type_on(&mut self, control: &[u8], words: &[u8]) {
         self.actions.push_back(Action::On { control: control.to_vec(), words: words.to_vec() });
     }
@@ -368,5 +371,42 @@ impl Typist {
             Exit::Code(code) => code,
             Exit::Signal(_) => 1,
         }
+    }
+}
+
+#[cfg(test)]
+pub mod tests {
+    use super::*;
+
+    pub fn a_command_waits_for_fresh_controls_when_returning_to_settings() {
+        let mut pipes = Pipes::new(
+            &Streams::Pipes { input: Fd::new(3), output: Fd::new(4) },
+            VecDeque::from([
+                Action::On { control: b"Settings".to_vec(), words: Vec::new() },
+                Action::On { control: b"Adopt a repository".to_vec(), words: Vec::new() },
+            ]),
+        );
+        pipes.bytes.extend_from_slice(
+            b"== Settings for Project 1 == Live\n- [1] Adopt a repository\n== Forges == Live\n[2] Settings\n",
+        );
+        pipes.iterate(Time::ZERO, Wall::EPOCH);
+        let write = pipes.submit.pop().expect("Settings command");
+        let Op::PipeWrite { ref bytes, .. } = write.kind else { panic!("stdin write") };
+        assert_eq!(bytes.as_ref(), b"2\n");
+        pipes.complete.push(Complete { op: write.op, kind: write.kind, result: Ok(Done::Count(2)) });
+        pipes.iterate(Time::ZERO, Wall::EPOCH);
+        assert!(pipes.typed.is_none(), "the previous page cannot supply a control after a command");
+
+        let page = b"== Settings for Project 1 == Live\n- [9] Adopt a repository\n";
+        let read = pipes.submit.pop().expect("stdout read");
+        pipes.complete.push(Complete {
+            op: read.op,
+            kind: Op::PipeRead { fd: Fd::new(4), buf: page.as_slice().into() },
+            result: Ok(Done::Count(u32::try_from(page.len()).expect("small page"))),
+        });
+        pipes.iterate(Time::ZERO, Wall::EPOCH);
+        let write = pipes.submit.pop().expect("adoption command");
+        let Op::PipeWrite { bytes, .. } = write.kind else { panic!("Settings' list link must produce a stdin write") };
+        assert_eq!(bytes.as_ref(), b"9\n", "the current Settings page supplies the control");
     }
 }

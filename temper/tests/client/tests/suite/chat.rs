@@ -320,7 +320,7 @@ fn opening_a_chat_clears_its_reply_from_the_engines_inbox() {
             Step::See { find: Find::named(Role::Heading { level: 3 }, b"replied"), within: fixtures::WITHIN },
             Step::Go { address: fixtures::chat_page(task) },
             Step::See { find: Find::named(Role::TextArea, b"Message"), within: fixtures::WITHIN },
-            Step::Press { find: Find::exactly_named(Role::Link, b"Inbox") },
+            Step::Press { find: Find::exactly_named(Role::Link, b"Needs you") },
             Step::See { find: Find::named(Role::Heading { level: 1 }, b"Inbox"), within: fixtures::WITHIN },
             Step::Gone { find: Find::named(Role::Heading { level: 3 }, b"replied"), within: fixtures::WITHIN },
         ],

@@ -11,7 +11,11 @@ task run TASK [--since DIGEST] [--until CONDITION] [--timeout DURATION]
 task message TASK TEXT --key KEY
   Send words to a task
 task answer TASK QUESTION TEXT [--key KEY]
-  Answer a task's question
+task answer TASK --rev REV CHOICE TEXT [--key KEY]
+task answer TASK --rev REV TEXT [--key KEY]
+task answer TASK --rev REV --approve STATE [TEXT] [--key KEY]
+task answer TASK --rev REV --cannot REASON [--key KEY]
+  Answer a numbered question or a revisioned person task
 task release TASK --hold REV [--again] [--key KEY]
   Lift a task's hold
 task stop TASK [--key KEY]
@@ -26,3 +30,7 @@ task decide TASK --hold REV release|leave|pass-up [REASON] [--key KEY]
   Decide the escalation of a held task
 task text TASK [--field specification|instructions|result] [--from OFFSET]
   Read a chunk of a task's specification, effective instructions or kept report
+task take TASK [--key KEY]
+  Take a person task addressed to your role
+task hand-back TASK [--key KEY]
+  Return your person task to its role

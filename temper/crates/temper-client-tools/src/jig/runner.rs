@@ -193,7 +193,9 @@ fn run(runner: &mut Runner, client: &Client, env: &Env<crate::jig::Limits>, call
         rows::CONNECT_AT | rows::ADD_KEY_AT | rows::DECLARE_AT | rows::IMPORT_AT => {
             accounts::start(runner, client, env, called, out);
         }
-        rows::GOAL_START_AT
+        rows::TAKE_AT
+        | rows::HAND_BACK_AT
+        | rows::GOAL_START_AT
         | rows::CHAT_CREATE_AT..=rows::CANCEL_AT
         | rows::LIFT_AT
         | rows::TASK_DECIDE_AT
