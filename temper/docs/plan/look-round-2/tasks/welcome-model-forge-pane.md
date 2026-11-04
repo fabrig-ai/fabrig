@@ -14,6 +14,7 @@ files = [
   "temper/crates/temper-client-shell-web/temper.css",
   "temper/tools/gallery/src/samples.rs",
   "temper/tools/gallery/src/tests.rs",
+  "temper/tools/gallery/names.txt",
   "temper/docs/design/client/journeys/welcome-set-up/07.html",
   "temper/docs/design/client/journeys/welcome-set-up/08.html",
   "temper/docs/design/client/journeys/welcome-set-up/README.md",
@@ -218,3 +219,13 @@ Options, each pre-approved:
 
 As `notes/common.md`, Your report: the account whole, the render check's result, the builder and
 directory of the screenshots, and the terminal's three prints.
+
+## Answers
+
+2026-11-04. May the task also edit `temper/tools/gallery/names.txt` to add its three sample names?
+Yes: `browser.md`, 7.2 keeps that file by hand so that a name added fails until the file says so,
+and step 6's states can't hold without it. Add `welcome-model-forge-under-way`,
+`welcome-model-forge-done` and `welcome-model-forge-failed`, in that order, right after
+`welcome-model-choose` as `samples()` draws them, and change nothing else in the file; it is now in
+`files`. Keep the pushed work, rerun the focused suite and report it. The commit carries the
+request's trailer.
