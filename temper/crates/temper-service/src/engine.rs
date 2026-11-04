@@ -252,7 +252,7 @@ impl Engine {
         }
     }
     pub(crate) fn next_deadline(&self) -> Option<Time> {
-        let mut next = skein_lib::earliest(self.store.next_deadline(), self.workers.next_deadline());
+        let mut next = skein_lib::earliest(self.store.next_deadline(), self.workers.host.next_deadline());
         if self.end.is_none() {
             next = skein_lib::earliest(next, self.domain.next_deadline(&self.env));
             next = skein_lib::earliest(next, self.values.accounts.next_expiry());
@@ -277,7 +277,7 @@ impl Engine {
             || effects && self.setup.lifecycle_ready(self) && self.events.room() >= 4
             || self.store.work_pending(now)
             || effects && self.forge.work_pending(now)
-            || (self.store.opened || self.end.is_some()) && self.workers.work_pending(now)
+            || (self.store.opened || self.end.is_some()) && self.workers.host.work_pending(now)
             || effects
                 && match &self.accounts {
                     Some(accounts) => accounts.work_pending(now, true),

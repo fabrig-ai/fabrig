@@ -91,9 +91,9 @@ fn load_routing(service: &mut crate::Service) {
         let _startup_note = service.engine.as_mut().expect("engine").notes.pop();
     }
     // These routing tests fake the listeners, leaving the host and forge as their real components.
-    for _ in 0..service.engine.as_mut().expect("engine").workers.io.len() {
+    for _ in 0..service.engine.as_mut().expect("engine").workers.host.io.len() {
         let skein_io::Request::Listen { owner, addr } =
-            service.engine.as_mut().expect("engine").workers.io.pop().unwrap()
+            service.engine.as_mut().expect("engine").workers.host.io.pop().unwrap()
         else {
             panic!("worker listener")
         };
