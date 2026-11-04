@@ -21,3 +21,16 @@ id = 1
 story = "temper's client reads jig's account counts, its fixtures live in a test kit crate, its comments say what holds now, and temper-docs keeps only the design's page kinds"
 parts = ["temper-items"]
 walk = false
+
+[[part]]
+id = "smith-lifecycles"
+title = "smith: the spot review of debt-3's lifecycle machines, findings 1 to 10"
+mode = "direct"
+needs = []
+design = "skein/docs/foundation/programming-model.md, 5.4"
+
+[[slice]]
+id = 2
+story = "smith's lifecycle machines keep their behaviour with about 190 lines fewer, one transition rule and names that say they mutate"
+parts = ["smith-lifecycles"]
+walk = false
