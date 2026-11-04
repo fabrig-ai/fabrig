@@ -260,7 +260,21 @@ pub fn forges(bytes: &[u8], limits: &w::Limits) -> Option<Box<[forge::forges::Ro
                 .push(forge::forges::Adoption { owner: adopted.owner, name: adopted.name, project: adopted.project })
                 .ok()?;
         }
+        let mut makings = List::with_capacity(row.makings.len());
+        for making in row.makings.into_boxed() {
+            let making = making.into_parts();
+            makings
+                .push(forge::making::Making {
+                    org: making.org,
+                    name: making.name,
+                    from: making.from,
+                    into: making.into,
+                    state: making.state,
+                })
+                .ok()?;
+        }
         rows.push(Row {
+            makings: makings.into_boxed(),
             read_only: row.read_only,
             number: row.number,
             kind: match row.kind {

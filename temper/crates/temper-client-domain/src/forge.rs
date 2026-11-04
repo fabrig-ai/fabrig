@@ -10,6 +10,7 @@ pub mod forges;
 mod form;
 pub mod github;
 pub mod listed;
+pub mod making;
 pub(crate) mod me;
 pub mod model;
 pub mod panel;
