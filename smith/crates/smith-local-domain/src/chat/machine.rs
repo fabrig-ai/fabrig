@@ -46,16 +46,7 @@ pub(super) fn dispatch_line(domain: &mut Domain, env: &Env<Limits>, out: &mut Qu
             return;
         };
         domain.chat.state.activation = activation;
-        let phase = mem::replace(&mut domain.chat.phase, State::Done);
-        let history = match phase {
-            State::Idle { history } => history,
-            State::Loading(_)
-            | State::Starting(_)
-            | State::Running { .. }
-            | State::Ending(_)
-            | State::Answered { .. }
-            | State::Done => unreachable!("a person line starts an idle chat"),
-        };
+        let history = domain.chat.take_idle();
         domain.chat.phase = State::Starting(Starting {
             history,
             grants: Grants {
@@ -110,16 +101,8 @@ pub(crate) fn select_chat(
         stop_names(domain, out);
         return;
     }
-    let phase = mem::replace(&mut domain.chat.phase, State::Done);
-    domain.chat.phase = match phase {
-        State::Idle { history } => State::Loading(Load::Selecting { history }),
-        State::Loading(_)
-        | State::Starting(_)
-        | State::Running { .. }
-        | State::Ending(_)
-        | State::Answered { .. }
-        | State::Done => unreachable!("selection is admitted only between activations"),
-    };
+    let history = domain.chat.take_idle();
+    domain.chat.phase = State::Loading(Load::Selecting { history });
     out.push(Request::SelectChat { name, create });
 }
 

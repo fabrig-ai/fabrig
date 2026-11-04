@@ -136,6 +136,18 @@ impl Chat {
         };
     }
 
+    pub(crate) fn take_idle(&mut self) -> Option<Transcript> {
+        match core::mem::replace(&mut self.phase, State::Done) {
+            State::Idle { history } => history,
+            State::Loading(_)
+            | State::Starting(_)
+            | State::Running { .. }
+            | State::Ending(_)
+            | State::Answered { .. }
+            | State::Done => unreachable!("only an idle chat hands over its history"),
+        }
+    }
+
     pub(crate) fn state_pending(&self) -> bool {
         match self.metadata {
             Metadata::Ready => false,
