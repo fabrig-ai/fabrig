@@ -4,6 +4,6 @@
 set -eu
 cd "$(dirname "$0")/.."
 cargo fmt --all --check
-for tree in skein smith jig temper; do
+for tree in skein smith jig temper hearth; do
     (cd "$tree" && python3 -I -B scripts/old_forms.py)
 done

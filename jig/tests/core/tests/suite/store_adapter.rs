@@ -77,7 +77,7 @@ fn turn_commit(task: u64, turn: u32, bytes: &[u8]) -> Box<[root::Write]> {
     ])
 }
 fn window_turns(store: &mut Store, task: u64) -> Vec<Box<[u8]>> {
-    store.ask(StoreOut::Now(core::Now::StartPreparation { task, transcript_waiter: None, from: Some((1, 1)) }));
+    store.ask(StoreOut::Now(core::Now::StartPreparation { task, from: (1, 1) }));
     let mut found = Vec::new();
     for answer in store.answers() {
         if let Up::Root(root::Event::TranscriptLoaded { rows, .. }) = answer {

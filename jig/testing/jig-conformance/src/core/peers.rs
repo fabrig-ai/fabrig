@@ -54,14 +54,14 @@ pub fn notes_loaded(owner: Token, records: List<notes::Record>, more: bool) -> c
 pub fn transcript(
     records: &BTreeMap<core::Key, &core::Record>,
     task: u64,
-    from: Option<(u64, u32)>,
+    from: (u64, u32),
 ) -> Result<Vec<core::TurnRecord>, Box<core::Event>> {
     let mut rows: Vec<_> = records
         .values()
         .filter_map(|record| {
             if let core::Record::Core(core::CoreRecord::Turn(row)) = record
                 && row.task == task
-                && from.is_some_and(|start| (row.attempt, row.turn) >= start)
+                && (row.attempt, row.turn) >= from
             {
                 Some(row.clone())
             } else {
@@ -70,9 +70,7 @@ pub fn transcript(
         })
         .collect();
     rows.sort_by_key(|row| (row.attempt, row.turn));
-    if let Some(start) = from
-        && !rows.first().is_some_and(|row| (row.attempt, row.turn) == start && row.opens_window)
-    {
+    if !rows.first().is_some_and(|row| (row.attempt, row.turn) == from && row.opens_window) {
         return Err(Box::new(core::Event::TranscriptLoaded { task, load: core::TranscriptLoad::Unread }));
     }
     Ok(rows)

@@ -879,6 +879,7 @@ pub(crate) enum Work {
     GoalSubscribe(forge::Subscriber),
     AgreedGoal(Box<GoalWords>),
     Activate(Box<tasks::RunContext>),
+    Due { context: Box<tasks::RunContext>, ready: bool },
     EscalationLoaded { waiter: Token, rows: Box<[Record]> },
     EscalationFailed { waiter: Token },
     ProposalLoaded { waiter: Token, rows: Box<[Record]> },
