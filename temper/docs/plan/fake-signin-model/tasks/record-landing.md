@@ -77,3 +77,15 @@ Pre-approved:
 ## Report
 
 As your text says, with: the walk step by step, the last page reached, and the builder's `hostname`.
+
+## Answers
+
+2026-11-04. From `signin-model`'s question: what if the walk stops at Ready with no model again?
+
+`signin-model` did not reproduce that stop through a native client, so it lands with no sign-in fix,
+and this Chromium walk is the first to repeat the path that stopped. If Ready, after the sign-in,
+has no model and Create stays disabled, that one stop is a `Question:`, not the `Done:` the spec
+allows for other stops, since it is the fault this draft is for. Before removing the box, keep in the
+walk's logs `box.stderr`, the page Ready drew with any ending's words, and from `temper account list
+--json` only `usable`, `last_end` and `signing`. Say which of `signin-model`'s three states it is.
+Fix nothing in the sign-in; the answer to that question widens the work.
