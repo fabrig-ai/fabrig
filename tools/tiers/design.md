@@ -506,6 +506,16 @@ since 7.3 counts only known timeout terminations as starvation; a caller
 reconciles such attempts with its own evidence of the cancellation.
 Counting them starved in the summary itself is left for later.
 
+The build command is `heavy` throughout: sections 1, 2 and 7 build and
+run through it, section 6's `HEAVY_TAIL` and 7.3's cancellation are its,
+and 10.3's `heavy-output.txt` is named for it. A runner that takes its
+caller's build command instead is left for later; it keeps section 10's
+names, arguments, results and files as they stand.
+
+`budgets.toml`'s first comment cites the user's decision on its figures
+by a record kept outside this repository; stating where the figures come
+from in this repository's own words is left for later.
+
 ## 9. Fixture readers
 
 `.config/fixture-readers.toml` declares the readers and generators of tracked
