@@ -52,8 +52,7 @@ impl Plan {
                 api::Read::Runs { .. }
                 | api::Read::Run { .. }
                 | api::Read::Tree { .. }
-                | api::Read::Artifact { .. }
-                | api::Read::Commits { .. } => true,
+                | api::Read::Artifact { .. } => true,
                 api::Read::Locate { .. }
                 | api::Read::Items { .. }
                 | api::Read::Item { .. }
@@ -66,6 +65,7 @@ impl Plan {
                 | api::Read::Branches { .. }
                 | api::Read::PullFiles { .. }
                 | api::Read::Compare { .. }
+                | api::Read::Commits { .. }
                 | api::Read::Checks { .. }
                 | api::Read::Job { .. }
                 | api::Read::File { .. }
@@ -160,11 +160,13 @@ pub enum Retention {
     },
 }
 
-/// A pull's merge-base lookup skips comparison completeness fields and lists.
+/// Select only the comparison fields required by this exchange.
 #[derive(Clone, Copy, PartialEq, Eq, Hash, Debug)]
 pub enum Comparison {
     Full,
     MergeBase,
+    /// Decode the commit range and skip all changed files.
+    Commits,
 }
 impl Exchange {
     /// Selects the successful response decoder; error responses use `Kind::Error`.
@@ -174,10 +176,13 @@ impl Exchange {
         if let request::Request::LogDelivery { event, .. } = &self.request {
             return Some(crate::github::decode::log_delivery_decoder(event, limits));
         }
-        if kind == crate::github::document::Kind::Compare && self.comparison == Comparison::MergeBase {
-            Some(crate::github::decode::merge_base_decoder(limits))
-        } else {
-            Some(crate::github::decode::decoder(kind, limits))
+        if kind == crate::github::document::Kind::Compare {
+            return Some(match self.comparison {
+                Comparison::Full => crate::github::decode::decoder(kind, limits),
+                Comparison::MergeBase => crate::github::decode::merge_base_decoder(limits),
+                Comparison::Commits => crate::github::decode::commits_decoder(limits),
+            });
         }
+        Some(crate::github::decode::decoder(kind, limits))
     }
 }

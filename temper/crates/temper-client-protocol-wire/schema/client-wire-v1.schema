@@ -1,4 +1,4 @@
-family temper-client-wire 13
+family temper-client-wire 14
 
 # The role, as temper-engine-domain-forge's Role, in its order.
 enum Role { owned, adopted, fork, context }
@@ -145,7 +145,13 @@ record Foreman { task: option u64 }
 enum Stands { taken, foreman: Foreman, asked, held }
 record Question { asker: u64 number: u64 line: bytes 256 stands: Stands }
 record Questions { route: Route taken: Used open: list 8 Question }
-versioned record ChangePanel { task: u64 forge: u16 owner: bytes 1024 name: bytes 1024 branch: bytes 1024 landing: bytes 1024 head: option fixed 32 pull: option Pull step: Step hold: option Hold runs: option u64 ci: Ci gates: list 64 Gate repairs: Used resolutions: Used updates: Used way: Way in_landing: option u64 questions: Questions }
+# Landing-rule approvals (domain/forge.md, 8.7; client/forge.md, 4).
+enum RuleFreshness { exact, clean }
+enum ReviewRead { unread, incomplete, complete }
+record CountedReview { person: u64 head: fixed 32 }
+record UnmappedReview { account: u64 head: fixed 32 verdict: Verdict }
+record Approval { scope: u32 number: u32 role: u32 freshness: RuleFreshness required: u32 read: ReviewRead counted: list 256 CountedReview remaining: option u32 refused: bool }
+versioned record ChangePanel { task: u64 forge: u16 owner: bytes 1024 name: bytes 1024 branch: bytes 1024 landing: bytes 1024 head: option fixed 32 pull: option Pull step: Step hold: option Hold runs: option u64 ci: Ci gates: list 64 Gate approvals: list 8192 Approval unmapped_reviews: list 256 UnmappedReview repairs: Used resolutions: Used updates: Used way: Way in_landing: option u64 questions: Questions }
 
 # Its outcome (client/README.md, 4.6 and 4.7).
 record Kinds { read: bool push: bool open: bool land: bool review: bool status: bool comment: bool issue: bool branch: bool }
@@ -181,7 +187,6 @@ record LandingExact { value: bytes 4096 }
 record LandingOpen { value: bytes 4096 }
 enum LandingLast { exact: LandingExact, open: LandingOpen }
 record LandingPattern { segments: list 16 bytes 4096 last: LandingLast }
-enum RuleFreshness { exact, clean }
 record RuleGate { number: u32 blocking: bool freshness: RuleFreshness }
 record RuleApproval { role: u32 people: u32 freshness: RuleFreshness }
 record LandingRule { pattern: LandingPattern enforce: bool ci: bool up_to_date: bool gates: list 64 RuleGate approvals: list 64 RuleApproval }

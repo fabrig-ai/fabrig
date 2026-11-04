@@ -1813,7 +1813,8 @@ fn landing_reviewers(
     env: &Env<Limits>,
     row: &forge::ChangeRow,
     evidence: &forge::ChangeEvidence,
-) -> Option<Box<[forge::Reviewer]>> {
+) -> Option<forge::ReviewFacts> {
+    let mut unmapped = List::with_capacity(env.limits.forge.client.inbox);
     let mut reviews = List::with_capacity(env.limits.forge.client.inbox);
     for review in &evidence.reviews {
         let mut superseded = false;
@@ -1831,6 +1832,9 @@ fn landing_reviewers(
             people::IdentityKey { provider: 0, subject: review.author.to_be_bytes().into() },
             domain.forge.repository(row.repository)?.project,
         ) else {
+            unmapped
+                .push(forge::UnmappedReview { account: review.author, head: review.commit, verdict: review.verdict })
+                .ok()?;
             continue;
         };
         reviews
@@ -1842,7 +1846,12 @@ fn landing_reviewers(
             })
             .ok()?;
     }
-    Some(reviews.into_boxed())
+    Some(forge::ReviewFacts {
+        head: evidence.head,
+        reviews_complete: evidence.reviews_complete,
+        reviewers: reviews.into_boxed(),
+        unmapped: unmapped.into_boxed(),
+    })
 }
 
 fn describe_change_effect(
@@ -4901,6 +4910,9 @@ pub(crate) fn effect_ask(
                     if let Some(resource) = writer {
                         domain.work.push(Work::Tasks(tasks::Event::EffectSettled { resource, entry }));
                     }
+                    if answer == authority::Answer::Wait {
+                        retain_review_wait(domain, env, task, &evidence);
+                    }
                     domain.work.push(Work::Forge(forge::Event::VetoChange { task, entry, prior: evidence.prior }));
                     if answer == authority::Answer::Wait {
                         domain.forge.wait_change(&super::environment_forge(env), task, None);
@@ -4955,13 +4967,8 @@ pub(crate) fn effect_ask(
                         closing,
                     }));
                 }
-                Some(EffectFlight::Landing { entry, task, .. }) => {
-                    domain.work.push(Work::Forge(forge::Event::VetoLanding { task, entry }));
-                    if answer == authority::Answer::Wait {
-                        domain.forge.wait_landing(&super::environment_forge(env), task, None);
-                    } else {
-                        domain.work.push(Work::Tasks(tasks::Event::Hold { task, why: tasks::Hold::Effects }));
-                    }
+                Some(EffectFlight::Landing { entry, task, evidence, .. }) => {
+                    drop_landing(domain, env, entry, task, evidence, answer);
                 }
                 Some(EffectFlight::Tier { entry, task, .. }) => {
                     domain.work.push(Work::Forge(forge::Event::VetoTier { task, entry }));
@@ -5027,6 +5034,37 @@ pub(crate) fn effect_ask(
     }
 }
 
+fn drop_landing(
+    domain: &mut Domain,
+    env: &Env<Limits>,
+    entry: u64,
+    task: u64,
+    evidence: Option<Box<forge::LandingEvidence>>,
+    answer: authority::Answer,
+) {
+    domain.work.push(Work::Forge(forge::Event::VetoLanding { task, entry }));
+    if answer == authority::Answer::Wait {
+        if let Some(evidence) = evidence {
+            retain_review_wait(domain, env, evidence.change, &evidence.facts);
+        }
+        domain.forge.wait_landing(&super::environment_forge(env), task, None);
+    } else {
+        domain.work.push(Work::Tasks(tasks::Event::Hold { task, why: tasks::Hold::Effects }));
+    }
+}
+
+fn retain_review_wait(domain: &mut Domain, env: &Env<Limits>, task: u64, evidence: &forge::ChangeEvidence) {
+    let Some(row) = domain.forge.change(task) else { return };
+    let Some(facts) = landing_reviewers(domain, env, row, evidence) else { return };
+    if domain.forge.keep_review_facts(task, facts) {
+        let mut subjects = List::with_capacity(1);
+        subjects.push(Token::new(task)).expect("one changed panel");
+        domain
+            .work
+            .push(Work::Core(jig_domain_core::Event::Marked { connector: domain.config.forge_connector, subjects }));
+    }
+}
+
 fn judge_effect(
     domain: &Domain,
     env: &Env<Limits>,
@@ -5056,7 +5094,7 @@ fn judge_effect(
                 *task,
                 state,
                 evidence,
-                &reviewers,
+                &reviewers.reviewers,
             );
             let verdict = match verdict {
                 Some(forge::JudgeVerdict::Met) => authority::Verdict::Met,
@@ -5082,7 +5120,7 @@ fn judge_effect(
                 *task,
                 state,
                 &evidence.facts,
-                &reviewers,
+                &reviewers.reviewers,
             );
             (
                 match verdict {

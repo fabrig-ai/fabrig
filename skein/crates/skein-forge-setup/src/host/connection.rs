@@ -604,6 +604,7 @@ fn github_row_bound(request: &dialect::request::Request) -> Option<u32> {
         | Request::Branches { .. }
         | Request::PullFiles { .. }
         | Request::Compare { .. }
+        | Request::Commits { .. }
         | Request::Raw { .. }
         | Request::RulesForBranch { .. }
         | Request::Ruleset { .. }
@@ -680,6 +681,7 @@ pub(crate) fn kind_of(request: &dialect::request::Request) -> Result<Option<dial
         | Request::Branches { .. }
         | Request::PullFiles { .. }
         | Request::Compare { .. }
+        | Request::Commits { .. }
         | Request::Raw { .. }
         | Request::RulesForBranch { .. }
         | Request::Ruleset { .. }

@@ -64,7 +64,7 @@ pub const fn owner(number: u16) -> Option<Owner> {
     }
 }
 /// Every record's version, served by both ends (client/README.md, 4.6).
-pub const CLIENT_VERSION: u32 = 13;
+pub const CLIENT_VERSION: u32 = 14;
 
 /// The deployment's maximum number of forges (client/README.md, 4.6).
 pub const FORGES: u32 = 16;
@@ -104,28 +104,14 @@ pub struct Bounds {
 
 /// Set the schema limits from their source fields, refusing past a ceiling.
 #[must_use]
-#[expect(clippy::too_many_lines, reason = "one literal maps each wire limit to its source bound")]
 pub fn limits(bounds: &Bounds) -> Option<v1::Limits> {
     let limits = v1::Limits {
-        setting_answer_value_some: v1::CEILINGS.setting_answer_value_some,
-        setting_value_value: v1::CEILINGS.setting_value_value,
-        proposal_items_answer_items: v1::CEILINGS.proposal_items_answer_items,
         landing_exact_value: bounds.segment_bytes,
         landing_open_value: bounds.segment_bytes,
         landing_pattern_segments: bounds.segments,
         landing_pattern_segments_item: bounds.segment_bytes,
         landing_rule_gates: bounds.gates,
         landing_rule_approvals: bounds.approvals,
-        verifying_tiers: 32,
-        verifying_tiers_item: 8192,
-        red_tiers: 32,
-        red_tiers_item: 8192,
-        cleared_tiers: 32,
-        cleared_tiers_item: 8192,
-        authority_hold_reason: 512,
-        owned_forge_forgejo: 64,
-        owned_forge_runner_some: 64,
-        owned_forge_password: v1::CEILINGS.owned_forge_password,
         adoption_owner: bounds.field_bytes,
         adoption_name: bounds.field_bytes,
         forge_row_host: ADDRESS_BYTES,
@@ -140,12 +126,8 @@ pub fn limits(bounds: &Bounds) -> Option<v1::Limits> {
         repository_making_org: bounds.field_bytes,
         repository_making_name: bounds.field_bytes,
         reached_name: bounds.field_bytes,
-        page_rows: 100,
-        install_back_some: 512,
-        git_hub_manifest_back_some: 512,
         link_address: ADDRESS_BYTES,
         forges_forges: FORGES,
-        return_path: 512,
         set_up_failed_why: SET_UP_WHY_BYTES,
         group_failed_why: SET_UP_WHY_BYTES,
         connected_login: bounds.field_bytes,
@@ -154,44 +136,24 @@ pub fn limits(bounds: &Bounds) -> Option<v1::Limits> {
         connect_stopped_why: CONNECT_WHY_BYTES,
         stopped_reason: bounds.field_bytes,
         pull_address: ADDRESS_BYTES,
-        receipted_address: 2048,
-        gate_proof_name: 32,
-        member_owner: 1024,
-        member_name: 1024,
-        member_branch: 1024,
-        member_landing: 1024,
-        member_gates: 8,
-        landing_panel_members: 8,
-        landing_line_changes: 8,
-        landing_line_repositories: 8,
-        landing_line_repositories_item: 2048,
-        landing_line_landed: 8,
-        landings_panel_landings: 64,
         queued_ahead: TASKS_AHEAD,
         change_panel_owner: bounds.field_bytes,
         change_panel_name: bounds.field_bytes,
         change_panel_branch: bounds.field_bytes,
         change_panel_landing: bounds.field_bytes,
         change_panel_gates: GATES,
-        question_line: 256,
-        questions_open: 8,
-        managed_forge_host: 255,
-        managed_forge_tls_some: 255,
         managed_forge_git: ADDRESS_BYTES,
         managed_forge_web_some: ADDRESS_BYTES,
-        managed_forge_git_program_some: 4096,
         playground_answer_owner: bounds.field_bytes,
         playground_answer_name: bounds.field_bytes,
         playground_answer_cues: CUES,
         playground_answer_cues_item: CUE_BYTES,
         first_ask_org: bounds.field_bytes,
         first_ask_repository: bounds.field_bytes,
-        first_ask_label: 64,
         set_up_org: bounds.field_bytes,
         set_up_repository: bounds.field_bytes,
         first_repository_org: bounds.field_bytes,
         first_repository_repository: bounds.field_bytes,
-        first_repository_label: 64,
         adopt_owner: bounds.field_bytes,
         adopt_name: bounds.field_bytes,
         adopt_prefix: bounds.field_bytes,
@@ -203,6 +165,7 @@ pub fn limits(bounds: &Bounds) -> Option<v1::Limits> {
         rule_contexts: bounds.contexts,
         rule_contexts_item: bounds.field_bytes,
         core_refused_refusal: bounds.refusal_bytes,
+        ..v1::CEILINGS
     };
     match v1::check_limits(&limits) {
         Ok(()) => Some(limits),
