@@ -33,7 +33,7 @@ pub(super) fn start(domain: &mut Domain, admission: Admission, request: Applicat
             | forge::Ask::Accept { .. }
             | forge::Ask::Reachable { .. },
         ) => people::ApplicationScope::Deployment,
-        Application::Forge(forge::Ask::Adopt(_)) => scope,
+        Application::Forge(forge::Ask::Adopt(_) | forge::Ask::MakeRepository { .. }) => scope,
         Application::Return { .. } => people::ApplicationScope::Own,
     };
     if request == Application::Forge(forge::Ask::StartPlayground) {
@@ -138,6 +138,7 @@ pub(super) fn answer(domain: &Domain, token: Token) -> Option<ApplicationAnswer>
         return Some(ApplicationAnswer::Returning);
     }
     match domain.forge.application_answer(token) {
+        Some(forge::Answered::Make(answer)) => Some(ApplicationAnswer::Make(answer)),
         Some(forge::Answered::Adopt(answer)) => Some(ApplicationAnswer::Adopt(answer)),
         Some(forge::Answered::SetUp(answer)) => Some(ApplicationAnswer::SetUp(answer)),
         Some(forge::Answered::RemoveForge(answer)) => Some(ApplicationAnswer::RemoveForge(answer)),
