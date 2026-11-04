@@ -82,20 +82,7 @@ const ROWS: &[Row] = &[
     Row { role: Role::TextField, entry: Some(EntryKind::Time), name: "case-entry_time" },
     Row { role: Role::TextField, entry: Some(EntryKind::Secret), name: "case-entry_secret" },
 ];
-const LIMITS: Limits = Limits {
-    nodes: 4,
-    depth: 4,
-    text_per_node: 128,
-    text_bytes: 512,
-    drawing_bytes: 0,
-    styles_per_node: 0,
-    patches: 8,
-    bindings: 0,
-    slots: 0,
-    markdown_depth: 0,
-    scene_marks: 0,
-    scene_bytes: 0,
-};
+const LIMITS: Limits = Limits { nodes: 4, depth: 4, text_per_node: 128, text_bytes: 512, patches: 8, ..Limits::EMPTY };
 
 fn no_drawing(_: skein_ui::DrawingKind, _: &[u8], _: u16, _: u16, _: &mut skein_ui::scene::Scene) -> bool {
     false
