@@ -93,6 +93,14 @@ pub(crate) fn frame_len(head: &[u8], max: u32) -> Option<usize> {
     Some(total)
 }
 
+/// Reserves a carried frame's whole length once its header has arrived, so that it moves
+/// at most once (skein/docs/design/kv.md, 3).
+pub(crate) fn reserve_frame(bytes: &mut Vec<u8>, max: u32) {
+    if let Some(total) = frame_len(bytes, max) {
+        bytes.reserve_exact(total.saturating_sub(bytes.len()));
+    }
+}
+
 pub(crate) fn decode(bytes: &[u8], max: u32) -> Option<Frame> {
     let total = frame_len(bytes, max)?;
     if bytes.len() != total {
