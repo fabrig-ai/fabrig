@@ -179,6 +179,7 @@ impl Lifecycle {
                 continue;
             }
             if let Reconcile::Local(local) = pending
+                && !super::making::running(runs, *forge)
                 && (local.pending && local.restored || local.file.completed())
             {
                 return true;
@@ -847,7 +848,7 @@ pub(super) fn advance(engine: &mut crate::engine::Engine) {
         if engine.events.room() < 4 || engine.notes.room() == 0 {
             continue;
         }
-        if file_answer(engine, *forge) || start_pending(engine, *forge) {
+        if super::making::retry(engine, *forge) || file_answer(engine, *forge) || start_pending(engine, *forge) {
             continue;
         }
         if busy(engine, *forge) {
@@ -981,7 +982,7 @@ fn local_stopped(engine: &mut crate::engine::Engine, forge: u16, why: crate::Set
     state(engine, forge, connection);
 }
 fn start_pending(engine: &mut crate::engine::Engine, forge: u16) -> bool {
-    if super::making::running(engine, forge) {
+    if super::making::running(&engine.setup.runs, forge) {
         return false;
     }
     if let Some(local) = engine.setup.lifecycle.local(forge)
@@ -1350,7 +1351,7 @@ pub(crate) fn started(engine: &mut crate::engine::Engine, forge: u16) {
     }
     let local = engine.setup.lifecycle.local_mut(forge).expect("local start");
     local.trigger = Trigger::Asked;
-    if super::making::running(engine, forge) {
+    if super::making::running(&engine.setup.runs, forge) {
         engine.setup.lifecycle.local_mut(forge).expect("local start").pending = true;
         return;
     }
@@ -1460,6 +1461,9 @@ pub(crate) fn removed(engine: &mut crate::engine::Engine, forge: u16, run: Token
 }
 /// Shell completions wait for the ordinary step's output room before doing work.
 fn file_answer(engine: &mut crate::engine::Engine, forge: u16) -> bool {
+    if super::making::running(&engine.setup.runs, forge) {
+        return false;
+    }
     let Some(local) = engine.setup.lifecycle.local_mut(forge) else { return false };
     if !local.file.completed() {
         return false;

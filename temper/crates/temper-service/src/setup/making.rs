@@ -2,7 +2,7 @@
 use super::lifecycle::{self, Kind, Run};
 use alloc::boxed::Box;
 use skein_forge_setup::{host, reconcile};
-use skein_lib::{Secret, Token};
+use skein_lib::{Map, Secret, Token};
 use temper_engine_domain as root;
 use temper_engine_domain_forge as domain;
 
@@ -27,18 +27,37 @@ fn available(engine: &crate::engine::Engine, forge: u16) -> bool {
 pub(super) fn ready(engine: &crate::engine::Engine) -> bool {
     for forge in engine.workers.forges.iter() {
         if available(engine, forge.number)
-            && !engine.setup.busy(forge.number)
-            && (engine.domain.making_due(forge.number).is_some()
-                || engine.setup.runs.len() < engine.setup.env.limits.runs
-                    && engine.domain.next_making(forge.number).is_some())
+            && (waiting(engine, forge.number).is_some()
+                || !engine.setup.busy(forge.number)
+                    && (engine.domain.making_due(forge.number).is_some()
+                        || engine.setup.runs.len() < engine.setup.env.limits.runs
+                            && engine.domain.next_making(forge.number).is_some()))
         {
             return true;
         }
     }
     false
 }
-pub(super) fn running(engine: &crate::engine::Engine, forge: u16) -> bool {
-    for (_, run) in &engine.setup.runs {
+// A Busy stop keeps the run waiting in the layer's bounded staged plans.
+fn waiting(engine: &crate::engine::Engine, forge: u16) -> Option<Token> {
+    for (token, run) in &engine.setup.runs {
+        if run.forge == forge && run.kind == Kind::Making && engine.setup.staged.contains_key(token) {
+            return Some(*token);
+        }
+    }
+    None
+}
+pub(super) fn retry(engine: &mut crate::engine::Engine, forge: u16) -> bool {
+    if !available(engine, forge) {
+        return false;
+    }
+    let Some(token) = waiting(engine, forge) else { return false };
+    let plan = engine.setup.staged.remove(&token).expect("waiting making plan");
+    super::run_plan(engine, token, plan);
+    true
+}
+pub(super) fn running(runs: &Map<Token, Run>, forge: u16) -> bool {
+    for (_, run) in runs {
         if run.forge == forge && run.kind == Kind::Making {
             return true;
         }
@@ -162,6 +181,13 @@ pub(super) fn done(engine: &mut crate::engine::Engine, token: Token, outcome: re
     event(engine, domain::Event::MakingMade { key: run.making.expect("making key"), id: id.get(), branch });
 }
 pub(super) fn stopped(engine: &mut crate::engine::Engine, token: Token, failure: reconcile::Failure) {
+    if failure.why == reconcile::Why::Busy {
+        let key = engine.setup.runs.get(&token).expect("busy making run").making.as_ref().expect("making key");
+        let row = engine.domain.making(key).expect("busy making row");
+        let plan = plan(engine, row);
+        engine.setup.staged.insert(token, plan).expect("one waiting plan per admitted run");
+        return;
+    }
     let run = engine.setup.runs.remove(&token).expect("making run stopped");
     let step = match failure.step {
         reconcile::Stage::Admin => domain::MakeStep::Admin,
