@@ -100,7 +100,8 @@ pub(super) fn prepare(
     let message = conversation.transcript.last().expect("assistant precedes its results");
     let mut builtins = 0_u32;
     let mut others = 0_u32;
-    for call in message.content.iter().filter_map(Block::tool_call) {
+    for part in &message.content {
+        let Some(call) = part.tool_call() else { continue };
         match &call.call {
             Decoded::Builtin { .. } => builtins = builtins.checked_add(1).expect("bounded calls"),
             Decoded::Owned { .. } | Decoded::Delegated { .. } | Decoded::Invalid { .. } | Decoded::Historical => {
@@ -346,18 +347,19 @@ pub(super) fn finish_closing(conversation: &mut Conversation, tools: Option<Tool
     let message = conversation.transcript.last().expect("assistant recorded before tooling");
     let mut results = List::with_capacity(tools.slots.len());
     let mut slots = tools.slots.into_boxed().into_iter();
-    for call in message.content.iter().filter_map(Block::tool_call) {
+    for part in &message.content {
+        let Some(call) = part.tool_call() else { continue };
         match slots.next().expect("one prepared slot per call") {
-                Slot::Done { result } => results.push(result).expect("result slot"),
-                Slot::Unstarted => results
-                    .push(Block::ToolResult {
-                        id: call.id.clone(),
-                        result: Returned::NotRun { why: crate::llm::NotRun::Stopped },
-                    })
-                    .expect("stopped result slot"),
-                Slot::Withheld => {}
-                Slot::Running { .. } => unreachable!("closing waits for active calls"),
-            }
+            Slot::Done { result } => results.push(result).expect("result slot"),
+            Slot::Unstarted => results
+                .push(Block::ToolResult {
+                    id: call.id.clone(),
+                    result: Returned::NotRun { why: crate::llm::NotRun::Stopped },
+                })
+                .expect("stopped result slot"),
+            Slot::Withheld => {}
+            Slot::Running { .. } => unreachable!("closing waits for active calls"),
+        }
     }
     if !results.is_empty() {
         conversation
