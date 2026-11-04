@@ -1048,8 +1048,10 @@ keeps (`../protocol/configuration.md`, section 2).
     the welcome mockup draws them: declined, held or misconfigured,
     using `ConnectModel`'s words (5.5, A sign-in), with a fresh
     "Continue with ChatGPT", and "Use an API key" for declined when
-    offered. These read `OwnerAccounts.last_end`, without retaining
-    the signing page. The port-taken fact is not in that document
+    offered. Any other refusal or failure says so in its words of 5.5,
+    A sign-in, with the same fresh "Continue with ChatGPT": a sign-in
+    that ends with no model usable never leaves Ready silent. These
+    read `OwnerAccounts.last_end`, without retaining the signing page. The port-taken fact is not in that document
     (M-j); Not eligible remains Future in the mockup. There is no model
     line until the `accounts` document is delivered. Under the
     checklist, Ready's one form, its first project
