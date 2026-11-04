@@ -1,41 +1,22 @@
 //! Runtime forge membership (skein/docs/design/forge-connection.md, 3.1).
-use super::{Component, Event, Limits, Start, initial};
-use crate::settings::{Forge, Kind};
-use alloc::boxed::Box;
+use super::{Component, Event, ForgeEntry, Limits};
+use crate::settings::Forge;
 use skein_forge::api;
-use skein_lib::{Env, List, Queue};
+use skein_lib::{Env, Queue};
 
 impl Component {
     pub(super) fn add(&mut self, env: &Env<Limits>, forge: Forge) {
-        for configured in &self.settings.forges {
-            if configured.number == forge.number {
+        for configured in &self.forges {
+            if configured.base.forge.number == forge.number {
                 return;
             }
         }
-        if self.settings.forges.len() >= env.limits.forges {
+        if self.forges.len() >= env.limits.forges
+            || crate::limits::check_added(&env.limits, &self.shared, &self.owner, &forge).is_err()
+        {
             return;
         }
-        let state =
-            if forge.access.is_some() { initial(forge.kind, env.limits.start_backoff) } else { Start::Unconnected };
-        let kind = forge.kind;
-        let before = self.settings.forges.len();
-        self.settings.forges.push(forge).expect("forge room checked");
-        if crate::limits::check(&env.limits, &self.shared, &self.settings).is_err() {
-            self.settings.forges.truncate(before);
-            return;
-        }
-        let github = match kind {
-            Kind::Forgejo => None,
-            Kind::GitHub => {
-                let mut github = crate::installations::GitHub::new(env.limits.installations);
-                github.said_origins = Queue::with_capacity(env.limits.log_origins);
-                Some(Box::new(github))
-            }
-        };
-        self.starts.push(state).expect("forge room checked");
-        self.github.push(github).expect("forge room checked");
-        self.own_tokens.push(None).expect("forge room checked");
-        self.own_plans.push(None).expect("forge room checked");
+        self.forges.push(ForgeEntry::new(forge, &env.limits)).expect("forge room checked");
     }
 
     pub(super) fn remove(
@@ -46,8 +27,8 @@ impl Component {
         io: &mut Queue<skein_io::Request>,
     ) {
         let mut position = None;
-        for at in 0..self.settings.forges.len() {
-            if self.settings.forges.get(at).expect("forge").number == number {
+        for at in 0..self.forges.len() {
+            if self.forges.get(at).expect("forge").base.forge.number == number {
                 position = Some(at);
                 break;
             }
@@ -88,34 +69,6 @@ impl Component {
                 c.abort(env, io);
             }
         }
-        let last = self.starts.len().checked_sub(1).expect("configured forge");
-        let state = core::mem::replace(self.starts.get_mut(last).expect("last start"), Start::Unconnected);
-        *self.starts.get_mut(at).expect("removed start") = state;
-        self.starts.truncate(last);
-        let github = self.github.get_mut(last).expect("last GitHub slot").take();
-        *self.github.get_mut(at).expect("removed GitHub slot") = github;
-        self.github.truncate(last);
-        let token = self.own_tokens.get_mut(last).expect("last token").take();
-        *self.own_tokens.get_mut(at).expect("removed token") = token;
-        self.own_tokens.truncate(last);
-        let plan = self.own_plans.get_mut(last).expect("last plan").take();
-        *self.own_plans.get_mut(at).expect("removed plan") = plan;
-        self.own_plans.truncate(last);
-        let forges = core::mem::replace(&mut self.settings.forges, List::with_capacity(self.starts.capacity()));
-        let mut forges = forges.into_boxed();
-        if at != last {
-            let [removed, moved] = forges
-                .get_disjoint_mut([
-                    usize::try_from(at).expect("forge index"),
-                    usize::try_from(last).expect("last forge index"),
-                ])
-                .expect("distinct configured forge positions");
-            core::mem::swap(removed, moved);
-        }
-        for (index, forge) in forges.into_iter().enumerate() {
-            if index < usize::try_from(last).expect("last forge index") {
-                self.settings.forges.push(forge).expect("remaining forges fit");
-            }
-        }
+        let _removed = self.forges.swap_remove(at).expect("configured forge");
     }
 }
