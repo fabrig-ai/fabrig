@@ -1,13 +1,14 @@
 # lib: status
 
-2026-10-29. Where `skein-lib` lags or departs from [lib.md](lib.md).
+2026-11-04. Where skein's code lags or departs from [lib.md](lib.md).
 
-- **Built:** 3, 5, 11, 12: slab growth, container and table prices, uncapped collections and decisions; journal limits hold only `release`.
-- **Not yet:** 3: `Slab::get2_mut` (see `lib.status.md`).
-
-- **3, the slab:** `Slab::get2_mut` is not built.
-- **5, containers:** built: allocation prices are `price(capacity)`;
-  `Slab` and `Deadlines` expose table prices, and `RequestTable` exposes
-  `price(&limits)`.
-- **11, the journal:** built: uncapped decisions use `push_write` and
-  `push_held`; `JournalLimits` holds only `release`.
+- **Not yet:** 3: `Slab::get2_mut`.
+- **Departs:** 12: `skein/docs/foundation/programming-model.md`, 5.4
+  asks for one explicit state enum per lifecycle, each state holding
+  exactly its data, no lifecycle in flags or `Option`s beside it,
+  exhaustive matches and one handler per cell;
+  `skein-lib/src/requests.rs`'s `RequestTable` keeps `Entry`'s
+  `restored`, `save` and `changed` flags and `progress` and `anchor`
+  options beside `state`, rather than in lifecycle states; no reason is
+  recorded (the code's side is
+  `skein/docs/development/debt/D025-request-table-in-lib.md`).

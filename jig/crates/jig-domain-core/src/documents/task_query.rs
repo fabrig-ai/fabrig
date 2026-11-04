@@ -65,6 +65,7 @@ fn executor(row: &tasks::TaskRecord) -> ExecutorKind {
         tasks::Executor::Agent { .. } => ExecutorKind::Agent,
         tasks::Executor::Procedure { .. } => ExecutorKind::Procedure,
         tasks::Executor::Person(_) => ExecutorKind::Person,
+        tasks::Executor::Job { .. } => ExecutorKind::Job,
     }
 }
 fn phase(row: &tasks::TaskRecord) -> PhaseClass {

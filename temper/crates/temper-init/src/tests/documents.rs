@@ -7,8 +7,36 @@ fn set(value: &mut Value, path: &str, replacement: Value) {
     *value.pointer_mut(path).expect("the member exists in the owned example") = replacement;
 }
 
-fn every_forge() -> Value {
-    json!({"segments": ["forge"], "last": "open", "value": ""})
+#[test]
+fn the_box_has_room_for_reference_creating_executors() {
+    let answered = files(&fixtures::facts(), &DIRECTORIES, &[0; 32], &[0xab; 32]).unwrap();
+    let written = parse(content(&answered, b"temper.json"));
+    let reference = parse(include_bytes!("../../../../docs/examples/reference/settings.json"));
+    let mut charters = vec![1, 2, 3, 4];
+    for item in reference["items"].as_array().unwrap() {
+        if item["setting"]["kind"] == "charter" {
+            charters.push(item["setting"]["number"].as_u64().unwrap());
+        }
+    }
+    charters.sort_unstable();
+    charters.dedup();
+    assert_eq!(charters, [1, 2, 3, 4, 5, 6, 7, 8]);
+    let bytes = serde_json::to_vec(&written["engine"]["limits"]).unwrap();
+    let document = jig_protocol_config::document(
+        &bytes,
+        &jig_protocol_config::DocumentLimits { bytes: 65_536, tokens: 4096, depth: 16 },
+    )
+    .unwrap();
+    let parsed = jig_protocol_config::overrides::parse(&document, 0, &jig_protocol_config::Path::root());
+    assert!(parsed.problems.is_empty(), "{:?}", parsed.problems);
+    let limits = parsed.limits.core;
+    jig_protocol_config::check_effective_limits(&limits).expect("deployment receiving limits fit the codecs");
+    assert_eq!(limits.documents.lines, 8);
+    assert!(usize::try_from(limits.documents.lines).unwrap() >= charters.len());
+    assert!(limits.documents.lines >= limits.tasks.charters);
+    // The reference permits procedures p2, p3 and p4 on each configured connector.
+    let procedures = 3 * written["engine"]["connectors"].as_array().unwrap().len();
+    assert!(usize::try_from(limits.documents.lines).unwrap() >= procedures);
 }
 
 #[test]
@@ -103,7 +131,6 @@ fn the_default_is_the_owned_example_so_edited() {
         let mut expected = owned.clone();
         // A review names repository, base, branch, gate and head, then offers two verdicts.
         expected["engine"]["limits"]["overrides"]["tasks.parameters"] = json!(5_u32);
-        expected["engine"]["limits"]["overrides"]["tasks.contract_choices"] = json!(2_u32);
         expected["engine"]["acts"] = json!([{ "connector": 1_u16, "may": ["remove_project", "remove_account"] }]);
         assert!(!actual["engine"]["owners"].as_array().unwrap().is_empty());
         // The startup turn_bounds writer holds these to each document's own
@@ -175,7 +202,7 @@ fn the_default_is_the_owned_example_so_edited() {
                     None => Value::Null,
                 },
             ),
-            ("/application/landing/projects/0/rules/0/pattern", every_forge()),
+            ("/engine/projects", parse(b"[]")),
             ("/engine/hosts/workers/0/digest", json!("worker.digest")),
             ("/engine/deployment/directory", json!("deployment")),
             ("/workers/0/secret", json!("worker.secret")),
@@ -185,9 +212,6 @@ fn the_default_is_the_owned_example_so_edited() {
         ] {
             set(&mut expected, path, value);
         }
-        expected["application"]["landing"]["deployment"] =
-            expected["application"]["landing"]["projects"][0]["rules"].clone();
-        expected["application"]["landing"]["projects"] = parse(b"[]");
         for member in ["charters", "templates", "policies", "rules"] {
             expected["engine"].as_object_mut().unwrap().remove(member);
             assert!(actual["engine"].get(member).is_none(), "{row}: {member}");
@@ -329,10 +353,18 @@ fn demo_model() -> Value {
 fn demo_agent(port: u16) -> Value {
     json!({"name": "demo", "number": 3_u64, "dialect": 3_u64, "provider": "openai",
            "address": format!("127.0.0.1:{port}"), "transport": "plaintext",
-           "identity": "plain", "connect": 10_000_u64, "handshake": 10_000_u64, "headers": parse(b"[]"),
+           "connect": 10_000_u64, "handshake": 10_000_u64, "headers": parse(b"[]"),
            "models": [{"name": "demo", "window": 177_523_u64, "output": 8_192_u64,
                        "prices": {"input": 1_u64, "cached": 1_u64, "output": 1_u64, "unit": 1_000_u64},
                        "reasoning_item": 2_048_u64, "head": 60_000_u64, "idle": 30_000_u64}]})
+}
+
+#[test]
+fn the_agent_profile_holds_a_run_and_two_sub_agents() {
+    for source in [template::AGENT, fixtures::AGENT] {
+        let agent = parse(source);
+        assert_eq!(agent["profile"]["declared"]["conversations"], 3_u32);
+    }
 }
 
 #[test]
@@ -346,6 +378,7 @@ fn the_agent_configuration_is_the_owned_examples_but_its_programs() {
             None => json!({}),
         };
         set(&mut expected, "/programs", programs);
+        set(&mut expected, "/profile/declared/calls_per_response", json!(2_u32));
         set(&mut expected, "/endpoints", json!([owned["endpoints"][0], demo_agent(facts.ports.llm.get())]));
         expected["endpoints"][0]["models"][0]["prices"]["unit"] = json!(1000_u64);
         assert_eq!(parse(content(&answered, b"agent.json")), expected, "{row}");
@@ -467,23 +500,12 @@ fn the_person_keeps_a_forgejo_login_or_falls_back() {
 }
 
 #[test]
-fn the_template_keeps_project_one_without_settings_members() {
+fn the_template_seeds_no_project_and_no_settings_members() {
     let document = parse(template::TEMPER);
-    assert_eq!(document["engine"]["projects"].as_array().unwrap().len(), 1);
-    assert_eq!(document["engine"]["projects"][0]["number"], 1_u32);
-    assert_eq!(document["engine"]["projects"][0]["policy"], 1_u32);
-    assert!(document["engine"]["projects"][0].get("roles").is_none());
+    assert_eq!(document["engine"]["projects"], parse(b"[]"));
     for member in ["charters", "templates", "policies", "rules"] {
         assert!(document["engine"].get(member).is_none());
     }
-    let landing = &document["application"]["landing"];
-    assert_eq!(landing["projects"], parse(b"[]"));
-    assert_eq!(
-        landing["deployment"],
-        json!([{
-            "connector": 1_u16, "kind": 4_u16, "pattern": every_forge(),
-            "enforce": true, "ci": true, "up_to_date": true,
-            "gates": [{"number": 1_u32, "blocking": true, "freshness": "clean"}], "approvals": parse(b"[]")
-        }])
-    );
+    assert!(document["application"].get("landing").is_none());
+    assert!(document["application"].get("charter").is_none());
 }

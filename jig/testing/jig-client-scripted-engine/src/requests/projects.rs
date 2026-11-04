@@ -11,11 +11,13 @@ type ProjectDecision = Result<(Answer, Vec<Change>), Invalid>;
 impl<A: Application> Engine<A> {
     pub(super) fn project_request(&mut self, party: u64, ask: &Ask) -> Option<ProjectDecision> {
         let (project, name, policy) = match ask {
-            Ask::RemoveProject { project } => return Some(self.remove_project(party, *project)),
+            Ask::RemoveProject { project, .. } => return Some(self.remove_project(party, *project)),
             Ask::Rename { project, name } => (Some(*project), name, None),
             Ask::MakeProject { name, policy } => (None, name, Some(*policy)),
-            Ask::ChangeSettings(_)
+            Ask::SetVisibility { .. }
+            | Ask::ChangeSettings(_)
             | Ask::MoveToNewest(_)
+            | Ask::Restore { .. }
             | Ask::Create { .. }
             | Ask::Propose { .. }
             | Ask::Withdraw { .. }
@@ -155,6 +157,7 @@ impl<A: Application> Engine<A> {
         }
         projects
             .push(MeProject {
+                public: None,
                 project,
                 name: DocumentText::complete(name.clone()),
                 role: HeldRole::Owner,

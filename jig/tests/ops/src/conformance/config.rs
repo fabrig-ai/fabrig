@@ -92,6 +92,7 @@ pub fn root_for(seed: u64, environment_chat: bool) -> (Config, Limits) {
     };
     let mut config = Config {
         environment_closed_reason: jig_ops_domain::ENVIRONMENT_CLOSED_REASON.into(),
+        environment_close_grace: jig_ops_domain::ENVIRONMENT_CLOSE_GRACE,
         agent_bounds: super::agent_bounds(),
         tools: crate::protocol::tools(Duration::from_secs(30)),
         core: jig_test_profile::config(seed).core,
@@ -106,7 +107,7 @@ pub fn root_for(seed: u64, environment_chat: bool) -> (Config, Limits) {
         backend: infrastructure::Backend::OperationIds,
         charter_endpoints: Box::new([jig_protocol_charter::EndpointName {
             number: 1,
-            dialect: 1,
+            dialect: 3,
             name: Box::from(&b"fake"[..]),
         }]),
     };

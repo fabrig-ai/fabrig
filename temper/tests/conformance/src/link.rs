@@ -174,8 +174,8 @@ pub(crate) fn down(peers: &mut Peers, now: Time, down: host::LinkDown) -> Vec<r:
             vec![receipt]
         }
         host::LinkDown::Relayed { call, answer, .. } => relayed(peers, now, &call, answer),
-        // Grants carry secret-free generations the scripted worker does not use.
-        host::LinkDown::Grant { .. } => Vec::new(),
+        // The scripted worker carries neither jobs nor grant values.
+        host::LinkDown::AssignJob { .. } | host::LinkDown::Grant { .. } => Vec::new(),
         host::LinkDown::Assign { .. } => panic!("temper's root hands assignments as typed deliveries"),
     }
 }

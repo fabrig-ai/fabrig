@@ -1,13 +1,12 @@
 # The first release
 
-Draft, 2026-10-23. What it takes for temper to go public, beyond the
-v0.1.0 that roadmaps 1 and 2 make (the reference case on fakes, then
-real backends). It records a brainstorm with the user on 2026-10-23 and
-the two investigations run for it, and it is roadmap 3's north star:
-its work is broken into missions progressively, each mission taking a
-piece of it. Roadmap 3 has a lower priority than roadmaps 1 and 2. It
-crosses skein, smith, jig and temper on purpose, and a website outside
-them. Nothing here is adopted.
+Draft, 2026-10-23. What it takes for temper to go public: its public
+faces, the site, the forge, temper's own deployment and the download,
+from a brainstorm with the user on 2026-10-23. It crosses skein, smith,
+jig and temper on purpose, and a website outside them. Upgrades are
+`upgrades.md`'s, configuring temper by talking to it `configuring.md`'s,
+the playground in the browser `../playground.md`'s and the download's
+file `../release.md`'s. Nothing here is adopted.
 
 ## 1. In one page
 
@@ -15,31 +14,19 @@ them. Nothing here is adopted.
   fabrig.ai; the forge, git.fabrig.ai; temper's own deployment,
   dev.fabrig.ai; the playground, playground.fabrig.ai; and a single
   binary to download.
-- **The site** tells the factory's vision (`factory.md`) in plain words
-  and presents temper as its first deliverable, with an honest status.
-  It is static, and private until there is something to watch or try
-  (section 3).
+- **The site** says what fabrig makes in plain words and presents
+  temper as its first deliverable, with an honest status. It is static,
+  and private until there is something to watch or try (section 3).
 - **The forge is our own Forgejo,** a systemd service; GitHub is its
   mirror (section 4).
 - **dev.fabrig.ai is the real thing:** a standalone engine and several
-  workers under systemd, where temper's own development moves lane by
-  lane. Anyone may read it without signing in, as an anonymous party
-  whose load is capped and who sees nothing an agent wrote (section 5).
-- **Upgrades are patches,** landed with each stored change from a
-  baseline at the first release, proposed as v0.1.0, and applied at
-  start, as `upgrades.md` designs. Workers may keep their runs while the
-  engine alone restarts. Until the
-  baseline, dev.fabrig.ai's history resets when a format changes
-  (section 6).
-- **A person configures temper by talking to it:** they describe their
-  workflow, as agents' `roles/owners.md` and `roles/director.md` describe ours, and
-  an agent proposes how temper will run it. Settings live in the store,
-  never in the configuration document; new work follows a change while
-  running work keeps what it started under, as `configuring.md` designs
-  (section 7).
-- **The playground runs in the visitor's browser,** fakes only: the
-  one-process world built for wasm32, served as static files. An
-  investigation found it feasible (section 8).
+  workers under systemd, where temper's own development runs. Anyone may
+  read it without signing in, as an anonymous party whose load is capped
+  and who sees nothing an agent wrote (section 5).
+- **Until upgrades' baseline,** dev.fabrig.ai's history resets when a
+  stored format changes (5.4; `upgrades.md`).
+- **The playground runs in the visitor's browser,** fakes only
+  (`../playground.md`).
 - **Trying temper for real is a download:** one binary, `temper box`
   (section 9).
 
@@ -56,35 +43,31 @@ them. Nothing here is adopted.
 - **TLS ends at a reverse proxy** in front of the forge and temper, which
   serve plain HTTP behind it. temper grows no TLS server, as the user's
   rule for v0.1.0 asks.
-- **The licence is MIT everywhere:** skein, smith and jig were already;
-  temper (5a913979b) and hearth (463fa1700) followed on 2026-10-23.
+- **The licence is MIT everywhere:** skein, smith, jig, temper and
+  hearth.
 
 ## 3. fabrig.ai, the site
 
-- **The front page** is the vision in plain words: temper writes, the
-  lab proves, production runs, meeting through the forge (`factory.md`,
-  section 1). temper is the part that exists; the rest is direction, and
-  the page says so. `factory.md`'s vocabulary is internal, so the page
-  is written fresh, not excerpted.
+- **The front page** says what fabrig makes in plain words. temper is
+  the part that exists; the rest is direction, and the page says so.
 - **Its strongest proof is that temper is built by temper,** shown live
-  on dev.fabrig.ai. Before temper-on-temper runs, the current process (a
-  director running owners, agents landing most of the code) is the
-  story.
+  on dev.fabrig.ai, as `reference-code-production.md` and
+  `reference-landing.md` describe it.
 - **Static,** in a repository of its own, on a host that serves TLS. Its
   look may share its tokens with temper's client.
 - **Built now, published at launch.** The copy and the look are taste:
   drafted by Claude, chosen by the user through option pages.
 - **It hosts** the download page (section 9), the documentation's public
-  side (`configuring.md`, section 7), and links to the forge,
-  dev.fabrig.ai and the playground.
+  side (whether it renders `docs/help/` is `agent-docs.md`'s open
+  question), and links to the forge, dev.fabrig.ai and the playground.
 
 ## 4. git.fabrig.ai, the forge
 
 - **Our own Forgejo, a systemd service,** owned or managed from temper's
   point of view. As designed, an owned Forgejo is one temper fetches and
-  starts itself (`first-run.md`, 3.7 and 3.8); a Forgejo that systemd
-  runs and temper administers may be closer to managed. Which one it is
-  is open (section 12).
+  starts itself (`../protocol/setup.md`); a Forgejo that systemd runs and
+  temper administers may be closer to managed. Which one it is is open
+  (section 12).
 - **GitHub is a push mirror.** Its issues and pull requests are off, or
   point to git.fabrig.ai.
 - **It is where code is read.** Casual visitors browse commits, diffs and
@@ -113,16 +96,6 @@ them. Nothing here is adopted.
   deployment needs (upgrades, backups, restarts, the proxy), and opens
   to the public once section 5.3 is built.
 
-### 5.2 temper-on-temper, lane by lane
-
-- **The owners process moves in pieces,** as roadmap 1 reaches the
-  reference case incrementally: one low-risk lane first, such as landings
-  of documentation or the triage of findings, then more as the gaps of
-  `temper-on-temper.md`, 6.8, close.
-- **Its backends** are roadmap 2's: an owned Forgejo and a ChatGPT plan
-  first, which is exactly this forge. Whether temper-on-temper needs
-  Claude before it starts (the current process uses Claude for taste) is
-  open.
 
 ### 5.3 Reading without signing in
 
@@ -181,194 +154,31 @@ direction:
 
 ### 5.4 Until upgrades
 
-Until the v0.1.0 baseline (section 6), dev.fabrig.ai starts afresh
-whenever a stored format changes, and a banner says so. git.fabrig.ai
-keeps the lasting record (code, changes, releases) throughout.
-
-## 6. Upgrades
-
-Designed in `upgrades.md`, from an investigation of 2026-10-23 (Codex,
-read-only; `~/src/rust/tmp/roadmap-3/store-upgrades.md`). In short:
-
-- **Patches, from a baseline,** as an application migrates its
-  database: every landing that changes what is stored brings a patch,
-  and a start applies the pending ones to a copy of the store and
-  switches to it. Any store from the baseline on upgrades to any later
-  `main`, so dev.fabrig.ai may follow `main`. The baseline is the first
-  release, proposed as v0.1.0 (skein's `codec.md`, section 5). Until
-  then versions keep their current numbers, schemas and their one set of
-  golden bytes change in place, and a store from an older build is made
-  again when its families change (section 5.4).
-- **What survives:** every record, live and ended. An agent resumes its
-  conversation, its old turns patched as they are read, unless a patch
-  says its window starts fresh.
-- **dev.fabrig.ai's workers may keep their runs** while the engine alone
-  is upgraded, when their wire is unchanged and the window fits their
-  grace (`upgrades.md`, section 9). An upgrade that changes the workers'
-  wire upgrades them too, and their runs end.
-- **The policy from the baseline** costs a patch per stored change,
-  most of them derived by a tool from two schemas that skein-codec reads
-  at run time, and the gate holds it (`upgrades.md`, sections 4, 5 and
-  12).
-- **Retention.** A long-lived deployment keeps history on purpose. Tasks
-  forgotten once read and transcripts past their horizon are erased
-  (jig's `protocol/store.md`), and temper's table of landings is bounded
-  (`../protocol/store.md`). Its retention policy is roadmap 1's gap 8 (a
-  retention policy), designed before dev.fabrig.ai opens; an upgrade
-  cannot bring back what retention erased.
-
-## 7. Configuring temper by talking to it
-
-Designed in `configuring.md`, from a session with the user on
-2026-10-23. In short:
-
-- **A person describes how they work,** as agents' `roles/owners.md` and
-  `roles/director.md` describe ours, and an agent proposes how temper will
-  run it; an owner accepts, on a page in plain words.
-- **Structure becomes settings; rules stay text** that runs read, so
-  most changes to a process need no configuring.
-- **Settings live in the store,** never in `temper.json`: charters,
-  templates, the policies projects are made from, the rules and the
-  landing rules. A setting the store does not hold takes the binary's
-  default, and a change is one decision, with no restart.
-- **New work follows a change; running work keeps the charter it
-  started under,** in revisions side by side. Conversations move at
-  their next run, and what a task may do is never pinned.
-- **The documentation is built into the binary,** for the site, the
-  command line and the agent; the agent's test is the encoding
-  `temper-on-temper.md` made by hand.
-
-## 8. The playground
-
-*Superseded by `browser-playground.md` (2026-10-26), which takes this
-section over.*
-
-Fakes only: the demo with richer stories, in the visitor's browser.
-
-### 8.1 In the browser
-
-An investigation of 2026-10-23 (Codex, with builds;
-`~/src/rust/tmp/roadmap-3/playground-wasm.md`, its patches beside it).
-
-- **The base is the one-process world** (`../domain/testing.md`, 2.5):
-  the engine and a worker, jig's store on skein-kv over the simulator's
-  disk, smith's agents as hosted programs, the fake LLM, forge and git,
-  all on skein's simulator. No operating system's process or socket is
-  needed.
-- **It builds and runs, measured.** With throwaway patches, the world
-  and the web client build for wasm32, and the chat story and the
-  adoption-and-change story finish, calm, in Node's wasm engine. The
-  patches show what is needed:
-  - skein's shell separating a portable host from the native ring,
-    clock, seed and terminal (medium);
-  - smith's agent shell fencing off its native launch, sign-in and path
-    handling (medium);
-  - browser features for `getrandom`, `ring` and rustls, and skein's
-    world gating its real-ring helpers (small).
-- **Size, measured** (`gzip -9`): the world 14.7 MB raw, 5.2 MB
-  compressed, with the harness still in it; the web client 2.5 MB and
-  0.9 MB. Brotli and leaving the harness out shrink both.
-- **Two modules:** the client on the page, the world in a Web Worker, a
-  small bridge between them carrying requests and streamed answers.
-- **What a page adds:** a world that ticks instead of running to its
-  end, its clock paced to the browser's with pause and speed (medium); an
-  in-page link from the web client to the world, as a virtual HTTP
-  adapter with its own cookie jar or a direct transport of jig's
-  (medium); the page's start, reset, speed and errors.
-- **Its estimate:** about 10 milestones, 24 to 36 hours with
-  contingency, for one guided story with no faults. The riskiest part is
-  turning a finite test world into a long-lived interactive one without
-  breaking flow control, sign-in or the store's acknowledgements.
-- **After macOS's split:** the macOS port splits skein's shell and the
-  simulator's harness by platform (`macos.md`, 3.5 and section 6), the
-  same seams the playground needs; the portable host builds on that
-  split.
-
-### 8.2 Memory
-
-The investigation's world grew the wasm memory to 548 MB at its first
-step, and to 627 MB and 671 MB through its stories. That is reserved
-memory, not profiled. The test fixtures leave memory unbounded on
-purpose (a `memory_bytes` of 2^60), and the harness keeps the
-simulator's whole trace. The user's lever: the playground has a
-configuration of its own, with capacities and a memory bound just big
-enough for its stories, and the harness's trace and captures stay out.
-The memory milestone's first question is how much of the 548 MB that
-configuration controls, and what else reserves it; its bar is a phone's
-browser.
-
-### 8.3 Stories
-
-- **The fake LLM's scripts are the playground's content:** cues in the
-  text select ordered turns, tool calls and finishes. The demo's stories
-  (`first-run.md`) carry over; richer ones come from
-  `reference-case.md`, each with its forge, files, CI and the visitor's
-  expected actions.
-- **Off-script,** a visitor gets a useful answer and the suggested next
-  actions, never a real model.
-
-### 8.4 Later
-
-- **Pull the plug:** a button that kills the service or cuts the
-  power at a chosen moment, then shows temper recover on the fake disk.
-  The deterministic simulation, shown rather than claimed.
-- **Saving across a reload,** in IndexedDB: medium for snapshots, large
-  for a faithful disk.
+Until upgrades' baseline (`upgrades.md`, 4.1), dev.fabrig.ai starts
+afresh whenever a stored format changes, and a banner says so.
+git.fabrig.ai keeps the lasting record (code, changes, releases)
+throughout.
 
 ## 9. The download
 
 - **One binary, `temper box`,** is how a person tries temper for real,
-  with their own model sign-in and forge; roadmap 2 makes that work.
+  with their own model sign-in and forge (`../release.md`).
 - **Releases** on git.fabrig.ai, mirrored to GitHub: builds for Linux,
   and macOS as `macos.md` designs; the download page on fabrig.ai.
-- **What the box expects on the machine** (git, a browser) is checked and
-  stated, and the demo needs no git (`first-run.md`, section 8).
-
-## 10. Already done
-
-- MIT in all five repositories (section 2).
-- The two investigations of sections 6 and 8.
-
-## 11. Order
-
-Roadmap 3 takes what roadmaps 1 and 2 leave free. Its tracks, each
-broken into missions as it starts:
-
-1. **The user's calls:** the names, the launch bar, the forge's mode
-   (section 12).
-2. **The site,** now, private until launch.
-3. **The playground in the browser,** after the macOS split: the
-   portable host and the hosted agent, the ticking world, the in-page
-   link, memory, one story, the static page.
-4. **Public reading,** designed in jig first (the anonymous party,
-   visibility, public routes), then temper's projections and pages.
-5. **dev.fabrig.ai,** private first: the forge, the engine and workers
-   under systemd, WireGuard, backups; resets until the baseline; then
-   public reading; then lanes moved onto it.
-6. **Configuring by talking,** in `configuring.md`'s order: a survey,
-   settings in the store and their revisions, in jig then temper; the
-   pages; documentation in the binary; the configuring agent.
-7. **The download,** from roadmap 2's usable point.
-8. **Upgrades,** designed in `upgrades.md`, built as the baseline
-   approaches, with the policy turned on by the user at the baseline.
-   Retention before dev.fabrig.ai opens.
+- **What the box expects on the machine** is checked and stated
+  (`../release.md`, section 4), and the playground needs no git.
 
 ## 12. Open questions
 
-- **Names:** fabrig, the factory, temper, the lab, hearth, and which the
-  public sees first (`factory.md`, section 14). They stick once public.
-  Default: settled before the site launches.
+- **Names:** fabrig, temper, hearth, and which the public sees first.
+  They stick once public. Default: settled before the site launches.
 - **The launch bar.** Default: the site, and either dev.fabrig.ai
   readable or a downloadable v0.1.0.
 - **The forge's mode:** owned, which as designed temper starts itself,
   or managed, run by systemd and administered by temper. Default:
-  whichever needs less new design, decided with roadmap 2's owned
-  Forgejo.
+  whichever needs less new design.
 - **Configuration in a repository:** `configuring.md`, section 10.
   Default: the store alone.
 - **People's names on public pages.** Default: hidden.
-- **Claude for temper-on-temper's first lane,** or ChatGPT alone.
-  Default: ChatGPT, roadmap 2's first backend.
 - **When the upgrade policy starts.** At the first release, the baseline
   (skein's `codec.md`, section 5), proposed as v0.1.0; its date is open.
-- **The playground's memory bar.** Default: a phone's browser.

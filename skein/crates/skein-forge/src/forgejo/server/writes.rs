@@ -474,6 +474,9 @@ impl BodyDecoder {
                 | Request::PullFiles { .. }
                 | Request::Compare { .. }
                 | Request::Contents { .. }
+                | Request::Artifacts { .. }
+                | Request::ArtifactZip { .. }
+                | Request::Commits { .. }
                 | Request::Raw { .. }
                 | Request::Tree { .. }
                 | Request::WorkflowRuns { .. }
@@ -664,6 +667,9 @@ impl BodyDecoder {
             | Request::Permission { .. }
             | Request::PullFiles { .. }
             | Request::Compare { .. }
+            | Request::Artifacts { .. }
+            | Request::ArtifactZip { .. }
+            | Request::Commits { .. }
             | Request::Contents { .. }
             | Request::Raw { .. }
             | Request::Tree { .. }
@@ -732,6 +738,9 @@ impl BodyDecoder {
             | Request::Permission { .. }
             | Request::PullFiles { .. }
             | Request::Compare { .. }
+            | Request::Artifacts { .. }
+            | Request::ArtifactZip { .. }
+            | Request::Commits { .. }
             | Request::Contents { .. }
             | Request::Raw { .. }
             | Request::Tree { .. }

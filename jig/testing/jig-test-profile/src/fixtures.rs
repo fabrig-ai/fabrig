@@ -49,6 +49,7 @@ pub fn templates() -> Box<[jig_domain_core::Template]> {
     use jig_domain_tasks::{Contract, Flags, Retention};
     Box::new([
         jig_domain_core::Template {
+            resources: Box::new([]),
             number: 1,
             name: Box::from(&b"chat"[..]),
             executor: TemplateExecutor::Charter(1),
@@ -68,6 +69,7 @@ pub fn templates() -> Box<[jig_domain_core::Template]> {
             llm: None,
         },
         jig_domain_core::Template {
+            resources: Box::new([]),
             number: 2,
             name: Box::from(&b"goal"[..]),
             executor: TemplateExecutor::Chosen,
@@ -139,6 +141,7 @@ pub fn propose_goal(ask: jig_domain_people::Ask) -> jig_domain_people::Ask {
 pub fn people_member(words: &[u8], spend: u64) -> jig_domain_people::Member {
     use jig_domain_people as people;
     people::Member {
+        symbols: Box::new([]),
         deadline: jig_domain_people::Deadline::Named,
         executor: people::TaskExecutor::Agent { charter: 1 },
         words: words.into(),
@@ -157,7 +160,7 @@ pub fn people_member(words: &[u8], spend: u64) -> jig_domain_people::Member {
             notes: 0,
             note_resources: Box::new([]),
         },
-        wake: people::WakePolicy {
+        wake: Some(people::WakePolicy {
             words: people::WakeRule::Immediate,
             notices: people::WakeRule::Never,
             news: people::WakeRule::Never,
@@ -165,7 +168,7 @@ pub fn people_member(words: &[u8], spend: u64) -> jig_domain_people::Member {
             questions: false,
             answers: false,
             timers: false,
-        },
+        }),
         dependencies: Box::new([]),
         tracked: None,
         label: 0,
@@ -208,7 +211,7 @@ pub fn create_chat(creating: &Creating, project: u32, role: u32, words: Box<[u8]
     };
     member.label = jig_client_test_records::CHAT;
     member.contract = people::Contract::Report { words: 128 };
-    member.wake = people::WakePolicy {
+    member.wake = Some(people::WakePolicy {
         words: people::WakeRule::Immediate,
         notices: people::WakeRule::Immediate,
         news: people::WakeRule::Immediate,
@@ -216,7 +219,7 @@ pub fn create_chat(creating: &Creating, project: u32, role: u32, words: Box<[u8]
         questions: true,
         answers: true,
         timers: true,
-    };
+    });
     people::Ask::Create { project, batch: Box::new([member]) }
 }
 
@@ -377,6 +380,7 @@ pub fn forgettable_conversation() -> people::Ask {
 #[must_use]
 pub fn conversation_member(forgettable: bool) -> people::Member {
     people::Member {
+        symbols: Box::new([]),
         deadline: jig_domain_people::Deadline::Named,
         executor: people::TaskExecutor::Agent { charter: 1 },
         words: b"make an effect".as_slice().into(),
@@ -399,7 +403,7 @@ pub fn conversation_member(forgettable: bool) -> people::Member {
             notes: 0,
             note_resources: Box::new([]),
         },
-        wake: people::WakePolicy {
+        wake: Some(people::WakePolicy {
             words: people::WakeRule::Immediate,
             notices: people::WakeRule::Immediate,
             news: people::WakeRule::Immediate,
@@ -407,7 +411,7 @@ pub fn conversation_member(forgettable: bool) -> people::Member {
             questions: true,
             answers: true,
             timers: true,
-        },
+        }),
         dependencies: Box::new([]),
         tracked: None,
         label: jig_client_test_records::CHAT,

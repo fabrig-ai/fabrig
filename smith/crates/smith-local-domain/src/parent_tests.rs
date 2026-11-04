@@ -18,6 +18,27 @@ fn running(config: Config) -> (Domain, Env<Limits>, Queue<Request>) {
     (domain, env, out)
 }
 
+fn plain_delivery_config() -> Config {
+    let mut config = crate::tests::config();
+    config.reserve.time = crate::tests::limits().smith.run.check_timeout;
+    config.budget.time = Duration::from_secs(120);
+    config.contract = Contract::Change(run::outcome::ChangeSpec {
+        checks_must_pass: false,
+        fields: Box::from([run::outcome::FieldRule { name: b"title".as_slice().into(), max: 64 }]),
+    });
+    config.workspace = Some(run::Workspace {
+        directories: Box::from([run::Directory {
+            host: Box::from(b"/host".as_slice()),
+            name: b"work".as_slice().into(),
+            root: Token::new(9),
+            writable: true,
+            git: false,
+            conflicts: Box::default(),
+        }]),
+    });
+    config
+}
+
 #[test]
 fn started_binds_the_handle_and_admission_keeps_an_empty_person_queue() {
     let (_, env, mut out) = running(crate::tests::config());
@@ -178,8 +199,37 @@ fn account_notices() -> [(parent::Request, AccountFailure); 4] {
 
 #[test]
 fn told_and_withdrawn_do_not_abandon_a_durable_delivery() {
-    let (_, env, mut out) = running(crate::tests::config());
-    let mut domain = Domain::running_delivery(crate::tests::config(), &env.limits, 71, Token::new(55));
+    let (mut domain, env, mut out) = running(plain_delivery_config());
+    parent_request(
+        &mut domain,
+        &env,
+        parent::Request::Called {
+            client: Token::new(1),
+            logical_run: Token::new(1),
+            call: Token::new(55),
+            name: host::CallName { activation: 1, completion: 2, position: 1 },
+            deadline: Time::from_nanos(99),
+            ask: host::Ask::Deliver {
+                fields: host::Fields::new(
+                    run::outcome::Change {
+                        fields: Box::from([run::outcome::Field {
+                            name: b"title".as_slice().into(),
+                            value: b"keep the change".as_slice().into(),
+                        }]),
+                    },
+                    1024,
+                )
+                .expect("bounded fields"),
+            },
+        },
+        &mut out,
+    );
+    let Some(Request::PlainStatus { owner, .. }) = out.pop() else { panic!("survey delivery") };
+    assert_eq!(owner, Token::new(55));
+    crate::step(&mut domain, &env, Event::PlainStatus { owner, changed: true }, &mut out);
+    let Some(Request::SaveDelivery { record }) = out.pop() else { panic!("save intent") };
+    let crate::DeliveryState::Intent(_) = &record.state else { panic!("save a delivery intent") };
+    assert!(out.is_empty());
     parent_request(
         &mut domain,
         &env,
@@ -192,7 +242,14 @@ fn told_and_withdrawn_do_not_abandon_a_durable_delivery() {
         parent::Request::Withdrawn { client: Token::new(1), call: Token::new(55) },
         &mut out,
     );
-    assert_eq!(domain.delivery_owner, Some(Token::new(55)));
+    assert!(out.is_empty());
+    crate::step(&mut domain, &env, Event::DeliverySaved { name: record.name }, &mut out);
+    let Some(Request::SaveDelivery { record: answer }) = out.pop() else { panic!("save delivery answer") };
+    assert_eq!(answer.name, record.name);
+    let crate::DeliveryState::Answer(run::Delivery::Delivered(delivered)) = answer.state else {
+        panic!("withdrawn delivery still lands")
+    };
+    assert_eq!(delivered.receipts()[0].text(), b"files kept");
     assert!(out.is_empty());
 }
 
@@ -398,23 +455,7 @@ fn gone_without_an_answer_fails_after_retained_turns_are_saved() {
 
 #[test]
 fn a_delivery_call_keeps_its_fields_owner_and_deadline_in_local_policy() {
-    let mut config = crate::tests::config();
-    config.reserve.time = crate::tests::limits().smith.run.check_timeout;
-    config.budget.time = Duration::from_secs(120);
-    config.contract = Contract::Change(run::outcome::ChangeSpec {
-        checks_must_pass: false,
-        fields: Box::from([run::outcome::FieldRule { name: b"title".as_slice().into(), max: 64 }]),
-    });
-    config.workspace = Some(run::Workspace {
-        directories: Box::from([run::Directory {
-            host: Box::from(b"/host".as_slice()),
-            name: b"work".as_slice().into(),
-            root: Token::new(9),
-            writable: true,
-            git: false,
-            conflicts: Box::default(),
-        }]),
-    });
+    let config = plain_delivery_config();
     let (mut domain, env, mut out) = running(config);
     let change = run::outcome::Change {
         fields: Box::from([run::outcome::Field {
@@ -848,4 +889,262 @@ fn a_late_metadata_save_cannot_show_an_answer_before_its_turn_is_durable() {
     }
     assert_eq!(answered, 1);
     assert!(domain.chat.phase.is_loading());
+}
+
+#[test]
+#[expect(clippy::too_many_lines, reason = "one invocation exercises the live delivery and its next load together")]
+fn an_unknown_delivery_settles_at_the_next_load_of_the_same_invocation() {
+    let mut config = plain_delivery_config();
+    config.workspace.as_mut().expect("delivery workspace").directories[0].git = true;
+    let (mut domain, env, mut out) = running(config);
+    domain.chat.live_mut().heads.insert(0, b"before".as_slice().into()).expect("one repository");
+    parent_request(
+        &mut domain,
+        &env,
+        parent::Request::Called {
+            client: Token::new(1),
+            logical_run: Token::new(1),
+            call: Token::new(55),
+            name: host::CallName { activation: 1, completion: 2, position: 1 },
+            deadline: Time::from_nanos(99),
+            ask: host::Ask::Deliver {
+                fields: host::Fields::new(
+                    run::outcome::Change {
+                        fields: Box::from([run::outcome::Field {
+                            name: b"title".as_slice().into(),
+                            value: b"keep the change".as_slice().into(),
+                        }]),
+                    },
+                    1024,
+                )
+                .expect("bounded fields"),
+            },
+        },
+        &mut out,
+    );
+    let Some(Request::Git { owner, op: crate::GitOp::Status, .. }) = out.pop() else { panic!("survey repository") };
+    crate::step(
+        &mut domain,
+        &env,
+        Event::Git {
+            owner,
+            result: crate::GitResult::Status { changed: true, merging: None, head: b"before".as_slice().into() },
+        },
+        &mut out,
+    );
+    let Some(Request::SaveDelivery { record }) = out.pop() else { panic!("save intent") };
+    let crate::DeliveryState::Intent(_) = &record.state else { panic!("save a delivery intent") };
+    crate::step(&mut domain, &env, Event::DeliverySaved { name: record.name }, &mut out);
+    let Some(Request::Git { op: crate::GitOp::Commit { .. }, .. }) = out.pop() else { panic!("execute commit") };
+    crate::step(
+        &mut domain,
+        &env,
+        Event::Git {
+            owner,
+            result: crate::GitResult::Uncertain {
+                reason: run::DeliveryReason::TimedOut,
+                diagnostic: Box::new(run::Diagnostic::empty()),
+            },
+        },
+        &mut out,
+    );
+    let Some(Request::Git { op: crate::GitOp::Inspect { name }, .. }) = out.pop() else { panic!("inspect commit") };
+    assert_eq!(name, record.name);
+    crate::step(
+        &mut domain,
+        &env,
+        Event::Git {
+            owner,
+            result: crate::GitResult::Failed {
+                reason: run::DeliveryReason::Broken,
+                diagnostic: Box::new(run::Diagnostic::empty()),
+            },
+        },
+        &mut out,
+    );
+    assert!(out.is_empty(), "unknown keeps the intent for the next load");
+    parent_request(
+        &mut domain,
+        &env,
+        parent::Request::Answered {
+            client: Token::new(1),
+            answer: host::Answer { read: None, turns: 0, spent: 0, result: host::RunResult::Parked },
+            detail: Box::default(),
+        },
+        &mut out,
+    );
+    parent_request(&mut domain, &env, crate::fixture::gone(host::End::Settled, Box::default()), &mut out);
+    let Some(Request::Show { .. }) = out.pop() else { panic!("show answer") };
+    let Some(Request::Answered { .. }) = out.pop() else { panic!("answer reaches shell") };
+    let Some(Request::Load) = out.pop() else { panic!("reload same chat") };
+    assert!(out.is_empty());
+    crate::step(
+        &mut domain,
+        &env,
+        Event::Loaded { state: None, transcript: None, deliveries: Box::from([*record]) },
+        &mut out,
+    );
+    let Some(Request::Git { owner, op: crate::GitOp::Inspect { name }, .. }) = out.pop() else {
+        panic!("reconcile intent")
+    };
+    assert_eq!(owner, Token::new(0));
+    crate::step(
+        &mut domain,
+        &env,
+        Event::Git { owner, result: crate::GitResult::Inspected { head: b"landed".as_slice().into(), named: true } },
+        &mut out,
+    );
+    let Some(Request::SaveDelivery { record }) = out.pop() else { panic!("save reconciled answer") };
+    assert_eq!(record.name, name);
+    let crate::DeliveryState::Answer(run::Delivery::Delivered(_)) = &record.state else {
+        panic!("save a delivered answer")
+    };
+    crate::step(&mut domain, &env, Event::DeliverySaved { name }, &mut out);
+    assert!(domain.chat.phase.is_idle());
+    assert!(out.is_empty());
+}
+
+#[test]
+fn a_delivery_save_landing_after_a_store_failure_is_ignored() {
+    let (mut domain, env, mut out) = running(plain_delivery_config());
+    parent_request(
+        &mut domain,
+        &env,
+        parent::Request::Called {
+            client: Token::new(1),
+            logical_run: Token::new(1),
+            call: Token::new(55),
+            name: host::CallName { activation: 1, completion: 2, position: 1 },
+            deadline: Time::from_nanos(99),
+            ask: host::Ask::Deliver {
+                fields: host::Fields::new(
+                    run::outcome::Change {
+                        fields: Box::from([run::outcome::Field {
+                            name: b"title".as_slice().into(),
+                            value: b"keep the change".as_slice().into(),
+                        }]),
+                    },
+                    1024,
+                )
+                .expect("bounded fields"),
+            },
+        },
+        &mut out,
+    );
+    let Some(Request::PlainStatus { owner, .. }) = out.pop() else { panic!("survey delivery") };
+    assert_eq!(owner, Token::new(55));
+    crate::step(&mut domain, &env, Event::PlainStatus { owner, changed: true }, &mut out);
+    let Some(Request::SaveDelivery { record }) = out.pop() else { panic!("save intent") };
+    let crate::DeliveryState::Intent(_) = &record.state else { panic!("save a delivery intent") };
+    assert!(out.is_empty());
+    crate::step(&mut domain, &env, Event::StoreFailed { turn: Some(2), reason: crate::StoreFailure::Write }, &mut out);
+    let Some(Request::Notice {
+        notice: Notice::Failure(Failure::Store { turn: Some(2), reason: crate::StoreFailure::Write }),
+    }) = out.pop()
+    else {
+        panic!("store failure notice")
+    };
+    assert!(out.is_empty());
+    crate::step(&mut domain, &env, Event::DeliverySaved { name: record.name }, &mut out);
+    assert!(out.is_empty());
+}
+
+#[test]
+fn a_store_failure_while_a_delivered_answer_saves_tells_the_person() {
+    let (mut domain, env, mut out) = running(plain_delivery_config());
+    parent_request(
+        &mut domain,
+        &env,
+        parent::Request::Called {
+            client: Token::new(1),
+            logical_run: Token::new(1),
+            call: Token::new(55),
+            name: host::CallName { activation: 1, completion: 2, position: 1 },
+            deadline: Time::from_nanos(99),
+            ask: host::Ask::Deliver {
+                fields: host::Fields::new(
+                    run::outcome::Change {
+                        fields: Box::from([run::outcome::Field {
+                            name: b"title".as_slice().into(),
+                            value: b"keep the change".as_slice().into(),
+                        }]),
+                    },
+                    1024,
+                )
+                .expect("bounded fields"),
+            },
+        },
+        &mut out,
+    );
+    let Some(Request::PlainStatus { owner, .. }) = out.pop() else { panic!("survey delivery") };
+    assert_eq!(owner, Token::new(55));
+    crate::step(&mut domain, &env, Event::PlainStatus { owner, changed: true }, &mut out);
+    let Some(Request::SaveDelivery { record }) = out.pop() else { panic!("save intent") };
+    let crate::DeliveryState::Intent(_) = &record.state else { panic!("save a delivery intent") };
+    assert!(out.is_empty());
+    crate::step(&mut domain, &env, Event::DeliverySaved { name: record.name }, &mut out);
+    let Some(Request::SaveDelivery { record }) = out.pop() else { panic!("save delivered answer") };
+    let crate::DeliveryState::Answer(run::Delivery::Delivered(_)) = &record.state else {
+        panic!("save a delivered answer")
+    };
+    crate::step(&mut domain, &env, Event::StoreFailed { turn: Some(2), reason: crate::StoreFailure::Write }, &mut out);
+    let Some(Request::Notice {
+        notice: Notice::Failure(Failure::Store { turn: Some(2), reason: crate::StoreFailure::Write }),
+    }) = out.pop()
+    else {
+        panic!("store failure first")
+    };
+    let Some(Request::Notice { notice: Notice::Failure(Failure::DeliveryUnsaved) }) = out.pop() else {
+        panic!("landed delivery was not saved")
+    };
+    assert!(out.is_empty());
+}
+
+#[test]
+fn a_store_failure_while_a_reconciled_answer_saves_exits_with_its_notice() {
+    let limits = crate::tests::limits();
+    let env = Env { now: Time::ZERO, wall: Wall::EPOCH, limits: limits.clone() };
+    let mut domain = Domain::new(plain_delivery_config(), &limits, 71).expect("loading chat");
+    let mut out = Queue::uncapped();
+    crate::resume(&mut domain, &env, &mut out);
+    let Some(Request::Load) = out.pop() else { panic!("initial load") };
+    crate::step(
+        &mut domain,
+        &env,
+        Event::Loaded {
+            state: None,
+            transcript: None,
+            deliveries: Box::from([crate::DeliveryRecord {
+                name: run::CallName { activation: 1, completion: 2, position: 1 },
+                state: crate::DeliveryState::Intent(crate::DeliveryIntent {
+                    directories: Box::from([crate::IntentDirectory {
+                        directory: 0,
+                        changed: true,
+                        head: None,
+                        push: None,
+                    }]),
+                }),
+                landed: Box::default(),
+            }]),
+        },
+        &mut out,
+    );
+    let Some(Request::SaveDelivery { record }) = out.pop() else { panic!("save reconciled plain delivery") };
+    let crate::DeliveryState::Answer(run::Delivery::Delivered(_)) = &record.state else {
+        panic!("save a delivered answer")
+    };
+    crate::step(&mut domain, &env, Event::StoreFailed { turn: None, reason: crate::StoreFailure::Write }, &mut out);
+    let Some(Request::Notice {
+        notice: Notice::Failure(Failure::Store { turn: None, reason: crate::StoreFailure::Write }),
+    }) = out.pop()
+    else {
+        panic!("store failure first")
+    };
+    let Some(Request::Notice { notice: Notice::Failure(Failure::DeliveryUnsaved) }) = out.pop() else {
+        panic!("unsaved delivery notice before exit")
+    };
+    let Some(Request::Exit { status: crate::ExitStatus::RunFailed }) = out.pop() else {
+        panic!("failed recovery exits")
+    };
+    assert!(out.is_empty());
 }

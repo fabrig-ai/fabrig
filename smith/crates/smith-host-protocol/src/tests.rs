@@ -84,6 +84,72 @@ fn a_start_keeps_host_bytes_and_service_values_in_order() {
 }
 
 #[test]
+fn a_resumed_start_forwards_saved_turns_from_an_unconfigured_endpoint() {
+    use alloc::boxed::Box;
+    use skein_lib::{List, Reader, Token};
+    use smith_host_domain::{Transcript, channel};
+
+    let limits = process_limits();
+    let mut names = List::with_capacity(1);
+    names
+        .push(smith_protocol_translate::Endpoint { name: Box::from(&b"old"[..]), number: 0, dialect: 0 })
+        .expect("saved endpoint");
+    let old_endpoints = smith_protocol_translate::Endpoints::new(names);
+    let mut history = smith_host_world::transcript_value(512).into_value();
+    let first = history.turns[0].clone();
+    let second =
+        smith_domain::Turn { kind: smith_domain::session::record::Kind::Ordinary, sequence: 2, ..first.clone() };
+    history.turns = Box::from([first, second]);
+    let mut bodies = List::with_capacity(2);
+    for turn in &history.turns {
+        let body = smith_protocol_translate::encode_turn(turn, &limits.transcript, &old_endpoints).expect("saved turn");
+        bodies.push(body).expect("two saved turns");
+    }
+    let piece = smith_protocol_translate::transcript_piece(bodies.as_slice()).expect("saved piece");
+    let decoded = smith_protocol_translate::decode_transcript(&piece, 2, u32::MAX, &limits.transcript, &endpoints())
+        .expect("unconfigured endpoint is carried over")
+        .expect("saved history");
+    assert_eq!(decoded.endpoint, None);
+    assert_eq!(decoded.turns[0].endpoint, None);
+    let owned = decoded.owned_bytes().expect("decoded ownership") + u64::try_from(piece.len()).expect("piece size");
+    assert!(Transcript::from_saved(decoded.clone(), piece.clone(), owned - 1).is_none());
+    let transcript = Transcript::from_saved(decoded, piece.clone(), owned).expect("exact ownership bound");
+    assert_eq!(transcript.owned_bytes(), owned);
+    let start = channel::Start {
+        live: None,
+        messages: Box::default(),
+        logical_run: Token::new(2),
+        identity: Some(smith_domain::run::Identity::new(*b"stable-chat-name")),
+        activation: 3,
+        workspace: None,
+        charter: smith_host_world::charter_value(7),
+        transcript: Some(transcript),
+        answered: Box::default(),
+        directories: Box::default(),
+        grants: Box::default(),
+    };
+    let frame = crate::encode_start(
+        start,
+        channel::Window { turns: 1, bytes: 4096 },
+        crate::Values { paths: Box::default(), credentials: Box::default() },
+        &limits.bodies,
+        &limits.charter,
+        &limits.transcript,
+        &endpoints(),
+    )
+    .expect("saved history does not require a configured endpoint");
+    let start =
+        smith_channel::Start::decode(&limits.bodies, &mut Reader::new(&frame.bytes()[8..])).expect("Start decodes");
+    assert_eq!(start.transcript(), piece.as_ref());
+    let mut reader = Reader::new(start.transcript());
+    for body in &bodies {
+        let length = reader.u32().expect("body length");
+        assert_eq!(reader.bytes(length).expect("saved body"), body.as_ref());
+    }
+    assert!(reader.is_empty());
+}
+
+#[test]
 fn the_host_sends_open_before_the_domain_hears_anything() {
     let limits = process_limits();
     let mut component = Component::new(&limits, StreamMode::Two, endpoints()).expect("checked schema");

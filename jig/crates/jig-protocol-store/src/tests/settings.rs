@@ -27,6 +27,8 @@ fn model() -> core::Model {
 }
 fn charter() -> core::Charter {
     core::Charter {
+        wake: jig_domain_tasks::WakePolicy::DEFAULT,
+        documents: Box::new([]),
         number: 1,
         hosts: fleet::Kinds::Both,
         spend: 100,
@@ -45,6 +47,7 @@ fn charter() -> core::Charter {
             shell: true,
             agents: false,
             call_timeout: Duration::from_secs(1),
+            tools: core::RunPolicy::EVERY_FAMILY,
         },
     }
 }
@@ -114,6 +117,7 @@ fn policy() -> core::ConfiguredPolicy {
 }
 fn template() -> core::Template {
     core::Template {
+        resources: Box::new([]),
         number: 1,
         name: Box::from(b"template".as_slice()),
         executor: people::TemplateExecutor::Charter(1),
@@ -145,6 +149,10 @@ fn template() -> core::Template {
     }
 }
 #[test]
+#[expect(
+    clippy::disallowed_methods,
+    reason = "ordinary codec fixtures translate revision literals while retaining proposal items"
+)]
 fn each_settings_record_round_trips_its_whole_domain_value() {
     let mut domain = fixtures::CORE_LIMITS;
     domain.run_bytes = 4096;
@@ -160,10 +168,14 @@ fn each_settings_record_round_trips_its_whole_domain_value() {
     };
     let mut rows = skein_lib::List::with_capacity(28);
     for row in [
-        s::Record::Extent { oldest: 1 },
+        s::Record::Extent { oldest: 1, keys: 1 },
         s::Record::Revision {
             history: false,
-            revision: s::Revision { head: s::Head { number: 1, against: 0, ..head.clone() }, items: Box::new([]) },
+            revision: s::Revision {
+                applications: Box::default(),
+                head: s::Head { number: 1, against: 0, ..head.clone() },
+                items: Box::new([]),
+            },
         },
         s::Record::Charter { charter: 1, revision: 2, value: s::CharterVersion { charter: Some(Box::new(charter())) } },
         s::Record::Charter { charter: 1, revision: 3, value: s::CharterVersion { charter: None } },
@@ -189,18 +201,40 @@ fn each_settings_record_round_trips_its_whole_domain_value() {
         ]);
         rows.push(s::Record::Revision {
             history: false,
-            revision: s::Revision { head: head.clone(), items: items.clone() },
+            revision: s::Revision {
+                applications: Box::default(),
+                head: head.clone(),
+                items: items
+                    .iter()
+                    .map(|item| s::RevisionItem {
+                        setting: item.setting,
+                        edit: item.edit.clone(),
+                        replaced: s::Replaced::NotOffered,
+                    })
+                    .collect(),
+            },
         })
         .expect("settings fixture count");
         rows.push(s::Record::Revision {
             history: true,
-            revision: s::Revision { head: head.clone(), items: items.clone() },
+            revision: s::Revision {
+                applications: Box::default(),
+                head: head.clone(),
+                items: items
+                    .iter()
+                    .map(|item| s::RevisionItem {
+                        setting: item.setting,
+                        edit: item.edit.clone(),
+                        replaced: s::Replaced::NotOffered,
+                    })
+                    .collect(),
+            },
         })
         .expect("settings fixture count");
         rows.push(s::Record::Proposal {
             proposer: people::Proposer::Party(6),
             proposal: 7,
-            value: s::Proposal { against: 2, items },
+            value: s::Proposal { key: None, applications: Box::default(), against: 2, items },
         })
         .expect("settings fixture count");
     }
@@ -247,7 +281,7 @@ fn frozen_model_masks_and_template_choices_follow_names_after_a_catalogue_reorde
                 assert_eq!(choice.main.model, 1);
                 assert_eq!(choice.subagents[0].model, 0);
             }
-            s::Value::Policy(_) | s::Value::Charter(_) => panic!("fixture setting"),
+            s::Value::Policy(_) | s::Value::Charter(_) | s::Value::Application(_) => panic!("fixture setting"),
         }
     }
 }
@@ -278,6 +312,8 @@ fn live_settings_remap_efforts_by_name_and_refuse_missing_efforts() {
             proposer: people::Proposer::Party(1),
             proposal: 1,
             value: s::Proposal {
+                key: None,
+                applications: Box::default(),
                 against: 1,
                 items: Box::new([s::Item { setting: s::Setting::Template(1), edit: s::Edit::Set(value.clone()) }]),
             },
@@ -297,7 +333,10 @@ fn live_settings_remap_efforts_by_name_and_refuse_missing_efforts() {
                     s::Edit::Set(value) => value,
                     s::Edit::Removed | s::Edit::Reset => panic!("set"),
                 },
-                s::Record::Revision { .. } | s::Record::Extent { .. } | s::Record::Charter { .. } => {
+                s::Record::Application { .. }
+                | s::Record::Revision { .. }
+                | s::Record::Extent { .. }
+                | s::Record::Charter { .. } => {
                     panic!("live fixture")
                 }
             };
@@ -322,4 +361,312 @@ fn live_settings_remap_efforts_by_name_and_refuse_missing_efforts() {
     };
     let s::Value::Template(value) = changed.value.unwrap() else { panic!("template") };
     assert_eq!(value.llm.unwrap().main.model, u8::MAX);
+}
+
+/// Settings' policies retain job kinds (jig/docs/design/protocol/store.md, 5.1).
+#[test]
+fn job_delegation_kinds_round_trip_in_settings() {
+    let limits = codec::limits(&fixtures::CORE_LIMITS).unwrap();
+    let mut value = rules();
+    value.ceiling.models = a::Models::ALL;
+    value.ceiling.delegation.kinds = Box::new([a::Executor::Job(0), a::Executor::Job(u32::MAX)]);
+    let row = s::Record::Default {
+        setting: s::Setting::Rules,
+        default: s::Default { revision: 1, value: s::Value::Rules(Box::new(value)) },
+    };
+    let bytes = codec::settings::encode(&row, &limits.settings, &[]).unwrap();
+    assert_eq!(codec::settings::decode(&row.key(), &bytes, &limits.settings, &[]), Ok(row));
+}
+
+#[test]
+fn a_template_with_resources_round_trips_through_the_settings_store() {
+    const BOUND: u16 = 32;
+    let limits = codec::limits(&fixtures::CORE_LIMITS).expect("store limits");
+    let names = Box::new([catalogue_name(b"one"), catalogue_name(b"two")]);
+    assert_eq!(limits.settings.template_resources, u32::from(BOUND));
+    for count in [0, 2, BOUND, BOUND + 1] {
+        let mut template = template();
+        let mut symbols = skein_lib::List::with_capacity(u32::from(count));
+        for symbol in 0..count {
+            symbols.push(people::Symbol { connector: u16::MAX - symbol, symbol }).expect("symbol fixture count");
+        }
+        template.resources = symbols.into_boxed();
+        let row = core::Record::Core(core::CoreRecord::Settings(s::Record::Default {
+            setting: s::Setting::Template(template.number),
+            default: s::Default { value: s::Value::Template(Box::new(template)), revision: 1 },
+        }));
+        if count > BOUND {
+            assert!(codec::encode(&row, &limits, &*names).is_none(), "one past the resource bound");
+            continue;
+        }
+        let bytes = codec::encode(&row, &limits, &*names).expect("bounded resources");
+        assert_eq!(codec::decode(&row.key(), &bytes, &limits, &*names), Some(row.clone()));
+        if count == BOUND {
+            let mut narrower = limits;
+            narrower.settings.template_resources = u32::from(BOUND - 1);
+            assert!(codec::decode(&row.key(), &bytes, &narrower, &*names).is_none(), "decoded resource bound");
+        }
+    }
+}
+
+#[test]
+fn a_charters_tools_survive_the_store() {
+    let limits = codec::limits(&fixtures::CORE_LIMITS).expect("store limits");
+    for tools in [tasks::Tools(1_536), core::RunPolicy::EVERY_FAMILY] {
+        let mut charter = charter();
+        charter.policy.tools = tools;
+        let row = s::Record::Charter {
+            charter: 1,
+            revision: 2,
+            value: s::CharterVersion { charter: Some(Box::new(charter)) },
+        };
+        let bytes = codec::settings::encode(&row, &limits.settings, &[]).expect("charter encoding");
+        assert_eq!(codec::settings::decode(&row.key(), &bytes, &limits.settings, &[]), Ok(row));
+    }
+}
+
+#[test]
+fn a_charters_paced_wake_policy_round_trips() {
+    let limits = codec::limits(&fixtures::CORE_LIMITS).expect("store limits");
+    let mut charter = charter();
+    charter.wake = tasks::WakePolicy {
+        words: tasks::WakeRule::Never,
+        notices: tasks::WakeRule::Batch { count: 3, age: Duration::from_secs(2) },
+        news: tasks::WakeRule::Paced { span: Duration::from_millis(1_800_000) },
+        results: tasks::ResultsWake::Each,
+        ..tasks::WakePolicy::DEFAULT
+    };
+    let row =
+        s::Record::Charter { charter: 1, revision: 2, value: s::CharterVersion { charter: Some(Box::new(charter)) } };
+    let bytes = codec::settings::encode(&row, &limits.settings, &[]).expect("charter encoding");
+    assert_eq!(codec::settings::decode(&row.key(), &bytes, &limits.settings, &[]), Ok(row));
+}
+
+#[test]
+fn a_members_absent_wake_round_trips_without_a_default() {
+    let limits = codec::people::limits(&fixtures::CORE_LIMITS).expect("people store limits");
+    let mut member = fixtures::people_member();
+    member.wake = None;
+    let ask = people::Ask::Create { project: 1, batch: Box::new([member]) };
+    let value = codec::people::encode_ask(&ask, &limits).expect("bounded batch");
+    let mut writer = skein_lib::Writer::new(skein_lib::length::usize_of(value.measure()));
+    value.encode(&mut writer).expect("measured batch");
+    let bytes = writer.finish();
+    let value = crate::people_v14::Ask::decode(&limits, &mut skein_lib::Reader::new(&bytes)).expect("stored batch");
+    assert_eq!(codec::people::decode_ask(value, &limits), Ok(ask));
+}
+
+fn document_domain() -> core::Limits {
+    let mut domain = fixtures::CORE_LIMITS;
+    domain.authority.segments = 8;
+    domain.authority.segment_bytes = 4096;
+    domain.tasks.hold_bytes = 4096;
+    domain
+}
+
+fn charter_with_documents() -> core::Charter {
+    let domain = document_domain();
+    let mut segments = skein_lib::List::with_capacity(domain.authority.segments);
+    for _ in 0..domain.authority.segments {
+        segments.push(Box::<[u8]>::from([b'n'; 4096])).unwrap();
+    }
+    let document = core::Document {
+        connector: 7,
+        name: a::Name { segments: segments.into_boxed() },
+        path: Box::new([b'p'; 256]),
+        heading: Some(Box::new([b'h'; 80])),
+    };
+    let mut without_heading = document.clone();
+    without_heading.connector = 9;
+    without_heading.heading = None;
+    core::Charter { documents: Box::new([document, without_heading]), ..charter() }
+}
+
+#[expect(
+    clippy::disallowed_methods,
+    reason = "ordinary codec fixtures translate revision literals while retaining proposal items"
+)]
+fn document_records(charter: core::Charter) -> [s::Record; 6] {
+    let setting = s::Setting::Charter(charter.number);
+    let value = s::Value::Charter(Box::new(charter.clone()));
+    let items = Box::new([s::Item { setting, edit: s::Edit::Set(value.clone()) }]);
+    let revision = s::Revision {
+        applications: Box::default(),
+        head: s::Head {
+            number: 2,
+            against: 1,
+            at: Wall::from_nanos(10),
+            by: s::Decider::Party(3),
+            proposal: None,
+            moved: false,
+        },
+        items: items
+            .iter()
+            .map(|item| s::RevisionItem {
+                setting: item.setting,
+                edit: item.edit.clone(),
+                replaced: s::Replaced::NotOffered,
+            })
+            .collect(),
+    };
+    [
+        s::Record::Default { setting, default: s::Default { value: value.clone(), revision: 2 } },
+        s::Record::Changed { setting, changed: s::Changed { value: Some(value), revision: 2 } },
+        s::Record::Charter {
+            charter: charter.number,
+            revision: 2,
+            value: s::CharterVersion { charter: Some(Box::new(charter)) },
+        },
+        s::Record::Revision { history: false, revision: revision.clone() },
+        s::Record::Revision { history: true, revision },
+        s::Record::Proposal {
+            proposer: people::Proposer::Party(3),
+            proposal: 4,
+            value: s::Proposal { key: None, applications: Box::default(), against: 1, items },
+        },
+    ]
+}
+
+/// Documents stay with every stored charter value (jig/docs/design/domain/engine.md, 17.9).
+#[test]
+fn charter_documents_at_their_bounds_round_trip_in_every_settings_record() {
+    let limits = codec::settings::limits(&document_domain()).unwrap();
+    for row in document_records(charter_with_documents()) {
+        let bytes = codec::settings::encode(&row, &limits, &[]).unwrap();
+        assert_eq!(codec::settings::decode(&row.key(), &bytes, &limits, &[]), Ok(row));
+    }
+}
+
+// The generated encoder refuses these rows; write their document fields directly
+// to check that stored bytes past the bounds are refused at decode too.
+#[expect(clippy::disallowed_methods, reason = "ordinary tests construct stored bytes that the bounded encoder refuses")]
+fn assert_documents_refused(charter: core::Charter) {
+    let limits = codec::settings::limits(&document_domain()).unwrap();
+    for row in document_records(charter.clone()) {
+        assert_eq!(codec::settings::encode(&row, &limits, &[]).unwrap_err().reason, skein_codec::Reason::Bound);
+    }
+    let empty = s::Record::Charter {
+        charter: charter.number,
+        revision: 2,
+        value: s::CharterVersion {
+            charter: Some(Box::new(core::Charter { documents: Box::new([]), ..charter.clone() })),
+        },
+    };
+    let mut bytes = codec::settings::encode(&empty, &limits, &[]).unwrap().into_vec();
+    bytes.truncate(bytes.len().checked_sub(4).unwrap());
+    bytes.extend_from_slice(&u32::try_from(charter.documents.len()).unwrap().to_be_bytes());
+    for document in &charter.documents {
+        bytes.extend_from_slice(&document.connector.to_be_bytes());
+        bytes.extend_from_slice(&u32::try_from(document.name.segments.len()).unwrap().to_be_bytes());
+        for segment in &document.name.segments {
+            bytes.extend_from_slice(&u32::try_from(segment.len()).unwrap().to_be_bytes());
+            bytes.extend_from_slice(segment);
+        }
+        bytes.extend_from_slice(&u32::try_from(document.path.len()).unwrap().to_be_bytes());
+        bytes.extend_from_slice(&document.path);
+        match &document.heading {
+            None => bytes.push(0),
+            Some(heading) => {
+                bytes.push(1);
+                bytes.extend_from_slice(&u32::try_from(heading.len()).unwrap().to_be_bytes());
+                bytes.extend_from_slice(heading);
+            }
+        }
+    }
+    assert_eq!(
+        codec::settings::decode(&empty.key(), &bytes, &limits, &[]).unwrap_err().reason,
+        skein_codec::Reason::Bound
+    );
+}
+
+#[test]
+fn charter_documents_one_past_the_count_are_refused() {
+    let mut charter = charter_with_documents();
+    charter.documents =
+        Box::new([charter.documents[0].clone(), charter.documents[0].clone(), charter.documents[0].clone()]);
+    assert_documents_refused(charter);
+}
+
+#[test]
+fn charter_document_names_one_past_the_segments_are_refused() {
+    let mut charter = charter_with_documents();
+    let mut segments = skein_lib::List::with_capacity(9);
+    for _ in 0_u32..9 {
+        segments.push(Box::from(b"n".as_slice())).unwrap();
+    }
+    charter.documents[0].name.segments = segments.into_boxed();
+    assert_documents_refused(charter);
+}
+
+#[test]
+fn charter_document_segments_one_past_the_bytes_are_refused() {
+    let mut charter = charter_with_documents();
+    charter.documents[0].name.segments[0] = Box::new([b'n'; 4097]);
+    assert_documents_refused(charter);
+}
+
+#[test]
+fn charter_document_paths_one_past_the_bytes_are_refused() {
+    let mut charter = charter_with_documents();
+    charter.documents[0].path = Box::new([b'p'; 257]);
+    assert_documents_refused(charter);
+}
+
+#[test]
+fn charter_document_headings_one_past_the_bytes_are_refused() {
+    let mut charter = charter_with_documents();
+    charter.documents[0].heading = Some(Box::new([b'h'; 81]));
+    assert_documents_refused(charter);
+}
+
+#[test]
+fn charter_documents_obey_lowered_limits_in_every_settings_record() {
+    let domain = document_domain();
+    let limits = codec::settings::limits(&domain).unwrap();
+    let mut fewer_documents = domain;
+    fewer_documents.tasks.charter_documents -= 1;
+    let mut fewer_segments = domain;
+    fewer_segments.authority.segments -= 1;
+    let mut shorter_segments = domain;
+    shorter_segments.authority.segment_bytes -= 1;
+    let shorter_segments = codec::settings::limits(&shorter_segments).unwrap();
+    assert_eq!(shorter_segments.segment_bytes, limits.segment_bytes, "hold paths retain their byte bound");
+    for row in document_records(charter_with_documents()) {
+        let bytes = codec::settings::encode(&row, &limits, &[]).unwrap();
+        for lowered in [
+            codec::settings::limits(&fewer_documents).unwrap(),
+            codec::settings::limits(&fewer_segments).unwrap(),
+            shorter_segments,
+            crate::settings_v1::Limits { document_path: core::DOCUMENT_PATH_BYTES - 1, ..limits },
+            crate::settings_v1::Limits { document_heading_some: core::DOCUMENT_HEADING_BYTES - 1, ..limits },
+        ] {
+            assert_eq!(codec::settings::encode(&row, &lowered, &[]).unwrap_err().reason, skein_codec::Reason::Bound);
+            assert_eq!(
+                codec::settings::decode(&row.key(), &bytes, &lowered, &[]).unwrap_err().reason,
+                skein_codec::Reason::Bound
+            );
+        }
+    }
+}
+
+mod applications;
+mod replaced;
+
+#[test]
+fn proposal_keys_and_the_extent_counter_round_trip_without_narrowing() {
+    let limits = codec::settings::limits(&fixtures::CORE_LIMITS).unwrap();
+    for key in [None, Some(1), Some(u64::MAX)] {
+        let row = s::Record::Proposal {
+            proposer: people::Proposer::Task(8),
+            proposal: 7,
+            value: s::Proposal { key, against: 1, items: Box::default(), applications: Box::default() },
+        };
+        let bytes = codec::settings::encode(&row, &limits, &[]).unwrap();
+        assert_eq!(codec::settings::decode(&row.key(), &bytes, &limits, &[]), Ok(row));
+    }
+    for keys in [1, u64::MAX] {
+        let row = s::Record::Extent { oldest: 2, keys };
+        let bytes = codec::settings::encode(&row, &limits, &[]).unwrap();
+        assert_eq!(codec::settings::decode(&row.key(), &bytes, &limits, &[]), Ok(row));
+    }
 }

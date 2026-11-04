@@ -7,6 +7,9 @@ use skein_lib::{Duration, List};
 /// The most models configuration names: authority keeps a party's models one bit each
 /// (configuration.md, section 6).
 pub(crate) const MODELS: u32 = 64;
+// smith/docs/design/protocol/agent.md, section 4: the dialect numbers are fixed for good.
+const ANTHROPIC: u32 = 2;
+const OPENAI: u32 = 3;
 #[derive(Debug)]
 pub struct Llm {
     pub endpoints: Box<[Endpoint]>,
@@ -48,7 +51,7 @@ pub(crate) fn parse(
     directories: &Directories,
     problems: &mut Problems,
 ) -> Option<Llm> {
-    let mut object = check::object(document, at, path, problems)?;
+    let mut object = check::object(document, at, path, problems, "llm")?;
     let mut endpoints = List::<Endpoint>::with_capacity(document.len());
     if let Some(items) = check::list(&mut object, document, b"endpoints", document.len(), path, problems) {
         for (index, at) in items.iter().enumerate() {
@@ -133,10 +136,16 @@ fn endpoint(
     directories: &Directories,
     problems: &mut Problems,
 ) -> Option<Endpoint> {
-    let mut object = check::object(document, at, path, problems)?;
+    let mut object = check::object(document, at, path, problems, "endpoint")?;
     let name = check::text(&mut object, document, b"name", path, problems);
     let number = check::count(&mut object, document, b"number", path, problems);
     let dialect = check::count(&mut object, document, b"dialect", path, problems);
+    if let Some(dialect) = dialect {
+        match dialect {
+            ANTHROPIC | OPENAI => {}
+            _ => problems.push(path.member(b"dialect"), What::Form),
+        }
+    }
     let provider = check::text(&mut object, document, b"provider", path, problems);
     let program = optional_text(&mut object, document, b"program", path, problems);
     let address = check::address(&mut object, document, b"address", path, problems);
@@ -211,7 +220,7 @@ fn headers(object: &mut read::Object, document: &Document, path: &Path, problems
     if let Some(items) = check::list(object, document, b"headers", document.len(), path, problems) {
         for (index, at) in items.iter().enumerate() {
             let path = path.member(b"headers").child(Segment::Index(u32::try_from(index).expect("bounded list")));
-            if let Some(mut object) = check::object(document, *at, &path, problems) {
+            if let Some(mut object) = check::object(document, *at, &path, problems, "header") {
                 let name = check::text(&mut object, document, b"name", &path, problems);
                 let value = check::text(&mut object, document, b"value", &path, problems);
                 object.finish(document, &path, problems);
@@ -236,7 +245,7 @@ fn model(
     endpoints: &[Endpoint],
     problems: &mut Problems,
 ) -> Option<ParsedModel> {
-    let mut object = check::object(document, at, path, problems)?;
+    let mut object = check::object(document, at, path, problems, "model")?;
     let mut name = None;
     if let Some(at) = object.required(document, b"name", path, problems) {
         match read::text(document, at, jig_domain_core::MODEL_NAME_BYTES) {
@@ -322,7 +331,7 @@ fn model_efforts(document: &Document, at: u32, path: &Path, problems: &mut Probl
     Some(efforts.into_boxed())
 }
 fn price(document: &Document, at: u32, path: &Path, problems: &mut Problems) -> Option<Model> {
-    let mut object = check::object(document, at, path, problems)?;
+    let mut object = check::object(document, at, path, problems, "prices")?;
     let input_price = check::integer(&mut object, document, b"input", path, problems);
     let cached_price = check::integer(&mut object, document, b"cached", path, problems);
     let output_price = check::integer(&mut object, document, b"output", path, problems);

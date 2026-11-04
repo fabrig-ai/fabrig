@@ -44,18 +44,24 @@ pub fn encode_start(
         }
     }
     let workspace = encode_workspace(&start.directories, &values.paths, limits)?;
-    let transcript = match &start.transcript {
+    let transcript = match start.transcript {
         Some(history) => {
-            let mut bodies = List::with_capacity(u32::try_from(history.value().turns.len()).or(Err(Error::Value))?);
-            for turn in &history.value().turns {
-                let Ok(body) = smith_protocol_translate::encode_turn(turn, transcript_limits, endpoints) else {
-                    return Err(Error::Value);
-                };
-                if bodies.push(body).is_err() {
-                    return Err(Error::MissingValue);
+            let (history, saved) = history.into_parts();
+            match saved {
+                Some(piece) => piece,
+                None => {
+                    let mut bodies = List::with_capacity(u32::try_from(history.turns.len()).or(Err(Error::Value))?);
+                    for turn in &history.turns {
+                        let Ok(body) = smith_protocol_translate::encode_turn(turn, transcript_limits, endpoints) else {
+                            return Err(Error::Value);
+                        };
+                        if bodies.push(body).is_err() {
+                            return Err(Error::MissingValue);
+                        }
+                    }
+                    smith_protocol_translate::transcript_piece(bodies.as_slice()).ok_or(Error::Value)?
                 }
             }
-            smith_protocol_translate::transcript_piece(bodies.as_slice()).ok_or(Error::Value)?
         }
         None => Box::default(),
     };
@@ -295,7 +301,6 @@ pub fn grant_form(value: &smith_protocol_translate::GrantValue) -> Result<host::
             let name = host::SourceName::new(name).ok_or(Error::Grants)?;
             Ok(host::Form::Program(name))
         }
-        GrantValue::Withdrawn { .. } => Ok(host::Form::Withdrawn),
     }
 }
 
@@ -311,14 +316,6 @@ pub(crate) fn grant_value(
             smith_protocol_translate::program_name(&name).or(Err(Error::Grants))?;
             let value = wire::ProgramValue::new(limits, wire::ProgramValueParts { name }).or(Err(Error::Grants))?;
             Ok(wire::GrantValue::Program(value))
-        }
-        GrantValue::Withdrawn { account_id, bearer } => {
-            let value = wire::WithdrawnValue::new(
-                limits,
-                wire::WithdrawnValueParts { id: account_id, bearer: skein_lib::Secret::new(bearer) },
-            )
-            .or(Err(Error::Grants))?;
-            Ok(wire::GrantValue::Withdrawn(value))
         }
     }
 }

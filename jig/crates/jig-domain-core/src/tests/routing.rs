@@ -7,6 +7,7 @@ pub(in crate::tests) mod route_orders;
 pub(in crate::tests) mod sign_ins;
 
 mod erase;
+mod room;
 
 use crate::tests::{routing::engine_timers::timer_core, *};
 

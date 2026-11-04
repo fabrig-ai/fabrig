@@ -180,6 +180,17 @@ pub enum Event {
         assignment: Assignment,
         grants: Box<[Grant]>,
     },
+    /// Place or restore a job claim without agent placement requirements
+    /// (jig/docs/design/domain/engine.md, 7.5). Restored claims use the
+    /// same adoption grace and listings as `Adopt`, with no turn prefix.
+    StartJob {
+        reply_to: ReplyTo,
+        run: Token,
+        attempt: Token,
+        workstream: u64,
+        job: jig_domain_link::JobBound,
+        adopt: bool,
+    },
     /// Pass a named message and its label and words to the live host.
     Inbound {
         run: Token,
@@ -376,6 +387,12 @@ pub enum Request {
         activation: u64,
         assignment: Assignment,
     },
+    /// Place the job's attempt (jig/docs/design/domain/engine.md, 7.5).
+    AssignJob {
+        channel: Token,
+        run: Token,
+        attempt: Token,
+    },
     /// Pass a named message with its label and words to the current host.
     Inbound {
         channel: Token,
@@ -559,8 +576,8 @@ pub enum Request {
     },
 }
 
-/// How a run's attempt was answered (domain/hosts.md, 4.3): what the fleet
-/// acts on. The rest is the payload's.
+/// How a run's attempt was answered (jig/docs/design/domain/hosts.md, section 2
+/// and 6.2): what the fleet acts on. The rest is the payload's.
 #[derive(Clone, Copy, PartialEq, Eq, Hash, Debug)]
 pub enum Answer {
     /// It ended with its outcome.

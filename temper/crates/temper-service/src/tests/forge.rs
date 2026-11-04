@@ -3,6 +3,55 @@ use crate::{End, Stop, forge, limits};
 use skein_forge_connection::{StartRead, Stopped};
 use skein_lib::{Duration, Time, Token};
 use temper_engine_domain as root;
+
+#[test]
+fn github_job_log_origins_reach_startup_and_runtime_endpoints() {
+    let mut forges = fixtures::forges();
+    forges[0].kind = crate::settings::Kind::GitHub;
+    let default = job_origins(b"productionresultssa1.blob.core.windows.net", 443);
+    let custom = job_origins(b"logs.test", 9000);
+    for override_origins in [None, Some(custom), Some(skein_lib::List::with_capacity(0))] {
+        forges[0].log_origins = override_origins;
+        let expected = forges[0].log_origins.as_ref().unwrap_or(&default);
+        let mut runtime = fixtures::forge_runtime();
+        runtime.get_mut(0).unwrap().log_origins = default.clone();
+        let mut service = fixtures::started_with_two_forges();
+        service.engine.as_mut().unwrap().forge.github = Some(crate::ForgeRuntime {
+            number: 0,
+            address: ([127, 0, 0, 1], 3000).into(),
+            transport: skein_forge_connection::settings::Transport::Plaintext { name: None },
+            log_origins: default.clone(),
+        });
+        let mut found = jig_protocol_config::Problems::empty();
+        let configured = forge::settings(&forges, runtime, None, &mut found).unwrap();
+        assert_eq!(configured.forges.get(0).unwrap().log_origins.as_slice(), expected.as_slice());
+        let endpoint = crate::forges::endpoint(service.engine.as_ref().unwrap(), &forges[0]).unwrap();
+        assert_eq!(endpoint.log_origins.as_slice(), expected.as_slice());
+    }
+}
+
+fn job_origins(host: &[u8], port: u16) -> skein_lib::List<skein_forge_connection::settings::LogOrigin> {
+    let mut origins = skein_lib::List::with_capacity(1);
+    origins
+        .push(skein_forge_connection::settings::LogOrigin {
+            origin: skein_forge::github::redirect::Origin { tls: port == 443, host: host.into(), port },
+            address: skein_io::Addr::Ip(([127, 0, 0, 1], port).into()),
+        })
+        .unwrap();
+    origins
+}
+
+#[test]
+fn runtime_job_origins_keep_the_forges_count_limit() {
+    let mut forges = fixtures::forges();
+    let origin = job_origins(b"logs.test", 9000).get(0).unwrap().clone();
+    forges[0].log_origins = Some(skein_lib::List::from_boxed(Box::new([origin.clone(), origin])));
+    let mut service = fixtures::started_with_two_forges();
+    let engine = service.engine.as_mut().unwrap();
+    engine.forge.log_origin_limit = 1;
+    assert!(crate::forges::endpoint(engine, &forges[0]).is_none());
+}
+
 #[test]
 fn a_stopped_forge_is_named_and_only_its_calls_are_not_connected() {
     use skein_forge::api::{Answer, Error, Op, Read, Repository};
@@ -65,7 +114,7 @@ fn a_stopped_forge_is_named_and_only_its_calls_are_not_connected() {
 }
 fn forge_ok(body: &[u8]) -> Box<[u8]> {
     const HEAD: &[u8] = b"HTTP/1.1 200 OK\r\nContent-Length: ";
-    let length = skein_lib::Decimal::of(u64::try_from(body.len()).unwrap());
+    let length = skein_lib::Decimal::of(skein_lib::len_u64(body.len()));
     let size = HEAD
         .len()
         .checked_add(length.as_bytes().len())
@@ -380,7 +429,7 @@ fn temper_word_keeps_the_marker_bytes_and_length() {
         forge::settings(&fixtures::forges(), fixtures::forge_runtime(), None, &mut found).expect("fixture settings");
     let defaults = config.limits.forge_component;
     assert!(settings.forges.get(0).unwrap().log_origins.is_empty());
-    assert_eq!((defaults.log_origins, defaults.log_pages, defaults.delivery_bytes), (4, 10, 1_048_576));
+    assert_eq!((defaults.log_origins, defaults.log_pages, defaults.delivery_bytes), (20, 10, 1_048_576));
     assert_eq!(defaults.log_poll, Duration::from_secs(5));
     assert_eq!(defaults.log_catch_up, Duration::from_secs(86_400));
     assert_eq!(settings.word.as_ref(), b"temper");
@@ -473,8 +522,7 @@ fn the_shared_numbers_are_the_clients_plain_numbers() {
     );
 }
 
-const HEAD_PROBLEMS: &[u8] = b"application.forges[0].api_token: past its bound\n\
-    application.limits.overrides.forge_component.target_bytes: past its bound\n\
+const HEAD_PROBLEMS: &[u8] = b"application.limits.overrides.forge_component.target_bytes: past its bound\n\
     application.limits.overrides.forge_component.token_bytes: past its bound\n\
     application.limits.overrides.forge_component.tls.send: past its bound\n\
     application.limits.overrides.io.output: past its bound\n";
@@ -565,7 +613,6 @@ fn records_service() -> (crate::Service, skein_lib::Secret) {
         forge.number = number;
         if number != 1 {
             forge.kind = Kind::GitHub;
-            forge.api_token = None;
         }
         forge.api = jig_protocol_config::Address::Addr(skein_io::Addr::Ip(
             ([127, 0, 0, 1], 2999_u16.checked_add(number).unwrap()).into(),
@@ -574,6 +621,7 @@ fn records_service() -> (crate::Service, skein_lib::Secret) {
         forges.push(forge).unwrap();
         runtime
             .push(crate::ForgeRuntime {
+                log_origins: List::with_capacity(0),
                 number,
                 address: ([127, 0, 0, 1], 2999_u16.checked_add(number).unwrap()).into(),
                 transport: skein_forge_connection::settings::Transport::Plaintext { name: None },
@@ -582,9 +630,9 @@ fn records_service() -> (crate::Service, skein_lib::Secret) {
     }
     settings.forges = forges.into_boxed();
     fixtures::fill_files(&mut settings);
-    let file_token = settings.forges[0].api_token.clone().unwrap();
+    let token = skein_lib::Secret::new(fixtures::FORGE_TOKEN.into());
     let service = fixtures::configured_service(settings, &fixtures::seeds(), None, runtime).unwrap();
-    (service, file_token)
+    (service, token)
 }
 #[expect(clippy::disallowed_macros, reason = "ordinary fixtures build versioned row bytes")]
 fn startup_records() -> skein_lib::List<(u64, skein_lib::Secret)> {
@@ -655,7 +703,7 @@ fn records_start_erases_carried_rows_before_connecting_without_decoding_them() {
     use jig_protocol_store::{SecretOwner, Secrets};
     use skein_lib::List;
     use temper_protocol_records::{self as records, NotConnected};
-    let (mut service, file_token) = records_service();
+    let (mut service, token) = records_service();
     let kept = startup_records();
     for (number, value) in &kept {
         assert!(
@@ -752,7 +800,7 @@ fn records_start_erases_carried_rows_before_connecting_without_decoding_them() {
         face.sent().windows(b"GET /api/v1/user ".len()).any(|part| part == b"GET /api/v1/user "),
         "Forgejo starts with its kept access"
     );
-    assert!(face.sent().windows(file_token.expose().len()).any(|part| part == file_token.expose()));
+    assert!(face.sent().windows(token.expose().len()).any(|part| part == token.expose()));
     face.capture_answers();
     for number in 3..=9 {
         service.engine.as_mut().expect("engine").forge.down(skein_forge_connection::Request::Call {
@@ -863,4 +911,69 @@ fn a_records_key_that_cannot_sign_stops_only_its_forge() {
     face.select(1);
     assert!(face.sent().starts_with(b"GET /api/v1/"));
     assert_eq!(service.engine.as_ref().expect("engine").store.erases, 2);
+}
+
+#[test]
+fn a_refused_job_log_origin_is_visible_and_logged_once_until_restart() {
+    let mut service = fixtures::started_with_two_forges();
+    fixtures::restart(&mut service);
+    service.notes().clear();
+    let origin = skein_forge::github::redirect::Origin {
+        tls: true,
+        host: b"unrelated.example.test".as_slice().into(),
+        port: 443,
+    };
+    let engine = service.engine.as_mut().unwrap();
+    for _ in 0_u32..2 {
+        engine.forge.above.push(skein_forge_connection::Event::Fact {
+            forge: 1,
+            fact: skein_forge_connection::Fact::Origin { origin: origin.clone() },
+        });
+    }
+    crate::engine::forge_pass(engine);
+    assert_eq!(engine.notes.pop(), Some(crate::Note::ForgeOrigin { number: 1, origin: origin.clone() }));
+    assert!(engine.notes.is_empty());
+    let rows = engine.forge.origins.rows(engine.domain.forges());
+    assert_eq!(
+        rows.rows[0].ended.as_deref(),
+        Some(b"Job-log origin refused: https://unrelated.example.test:443".as_slice())
+    );
+    assert!(rows.rows[1].ended.is_none(), "diagnostics belong to one forge");
+    let bytes = crate::family::forges(rows, &temper_client_protocol_wire::v1::CEILINGS).unwrap();
+    assert!(temper_client_protocol_wire::decode_forges(&bytes, &temper_client_protocol_wire::v1::CEILINGS).is_some());
+    engine.forge.origins.clear(1);
+    assert!(engine.forge.origins.rows(engine.domain.forges()).rows[0].ended.is_none());
+    engine
+        .forge
+        .above
+        .push(skein_forge_connection::Event::Fact { forge: 1, fact: skein_forge_connection::Fact::Origin { origin } });
+    crate::engine::forge_pass(engine);
+    assert!(engine.notes.is_empty(), "reconnect does not repeat the shell note");
+}
+
+#[test]
+fn a_refused_origin_waits_for_note_room() {
+    let mut service = fixtures::started_with_two_forges();
+    fixtures::restart(&mut service);
+    service.notes().clear();
+    let engine = service.engine.as_mut().unwrap();
+    while engine.notes.room() > 0 {
+        engine.notes.push(crate::Note::ForgeUnkept { number: 2, installation: 1 });
+    }
+    engine.forge.above.push(skein_forge_connection::Event::Fact {
+        forge: 1,
+        fact: skein_forge_connection::Fact::Origin {
+            origin: skein_forge::github::redirect::Origin {
+                tls: true,
+                host: b"other.test".as_slice().into(),
+                port: 443,
+            },
+        },
+    });
+    crate::engine::forge_pass(engine);
+    assert_eq!(engine.forge.above.len(), 1);
+    engine.notes.clear();
+    crate::engine::forge_pass(engine);
+    assert_eq!(engine.notes.len(), 1);
+    assert!(engine.forge.above.is_empty());
 }

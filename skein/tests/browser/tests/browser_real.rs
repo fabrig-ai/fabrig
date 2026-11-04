@@ -132,19 +132,6 @@ fn chromium_reports_a_selector_without_an_element() {
 }
 
 #[test]
-fn chromium_reads_the_pages_look_and_captures_a_distant_part_at_double_scale() {
-    let profile = Profile::fresh();
-    let mut rig = Rig::new(&chromium(), &profile.0, Scenario::Look);
-    rig.look_fixture();
-    rig.run();
-    assert!(
-        rig.version.starts_with(b"Chrome/147."),
-        "look facts require Chromium 147: {}",
-        String::from_utf8_lossy(&rig.version)
-    );
-}
-
-#[test]
 fn a_download_is_saved_in_the_persons_directory() {
     let profile = Profile::fresh();
     let mut rig = Rig::new(&chromium(), &profile.0, Scenario::Download { allow: true });

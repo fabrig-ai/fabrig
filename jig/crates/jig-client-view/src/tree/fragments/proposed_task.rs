@@ -16,6 +16,7 @@ pub fn text(b: &mut Builder, words: &Words, phrase: ProposedPhrase, holes: &[Hol
 }
 pub fn executor(b: &mut Builder, value: Executor, words: &Words) {
     match value {
+        Executor::Job { kind } => words.text(b, JigPhrase::Job, &[Hole::Number(u64::from(kind))]),
         Executor::Agent { charter } => {
             text(b, words, ProposedPhrase::ExecutorCharter, &[Hole::Number(u64::from(charter))]);
         }
@@ -95,6 +96,9 @@ pub fn contract(b: &mut Builder, value: &TaskContractDocument, words: &Words, bi
             text(b, words, ProposedPhrase::ContractApproval, &[]);
             crate::words::literal_segment::render(b, state);
             part(b, reference, words, bindings);
+        }
+        TaskContractDocument::Job { bytes } => {
+            text(b, words, ProposedPhrase::ContractJob, &[Hole::Number(u64::from(*bytes))]);
         }
         TaskContractDocument::Report { words: cap } => {
             text(b, words, ProposedPhrase::ContractReport, &[Hole::Number(u64::from(*cap))]);

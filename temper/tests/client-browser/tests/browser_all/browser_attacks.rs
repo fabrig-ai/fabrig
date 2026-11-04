@@ -1,4 +1,5 @@
-//! Origin and frame policies share a signed-in browser (client/browser.md, 4.6, 6).
+//! Origin and frame policies share a signed-in browser
+//! (temper/docs/design/client/browser.md, 4.6, item 6).
 use jig_client_fake_person_browser::pages;
 use skein_fake_person::{Find, Step as PersonStep};
 use skein_fake_person_browser::{Harness, Outcome, Script, Step, origins::Origin};

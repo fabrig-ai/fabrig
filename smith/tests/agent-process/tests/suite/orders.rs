@@ -1,5 +1,5 @@
 //! Loaded entrance orders through the real service loop and simulated pipes
-//! (skein/docs/design/draft/dynamic-memory.md, 4.6).
+//! (skein/docs/foundation/programming-model.md, 7.2).
 
 use skein_fake_llm_domain::api;
 use skein_lib::Duration;

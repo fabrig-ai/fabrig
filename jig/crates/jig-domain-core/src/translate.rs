@@ -57,6 +57,7 @@ pub(crate) fn tasks_authority(value: &tasks::Authority) -> authority::Authority 
                 tasks::AuthorityExecutor::Charter(number) => authority::Executor::Charter(*number),
                 tasks::AuthorityExecutor::Procedure(number) => authority::Executor::Procedure(*number),
                 tasks::AuthorityExecutor::Role(number) => authority::Executor::Role(*number),
+                tasks::AuthorityExecutor::Job(number) => authority::Executor::Job(*number),
             })
             .expect("executor capacity");
     }
@@ -105,6 +106,7 @@ pub fn task_authority(value: &authority::Authority) -> tasks::Authority {
                 authority::Executor::Charter(number) => tasks::AuthorityExecutor::Charter(*number),
                 authority::Executor::Procedure(number) => tasks::AuthorityExecutor::Procedure(*number),
                 authority::Executor::Role(number) => tasks::AuthorityExecutor::Role(*number),
+                authority::Executor::Job(number) => tasks::AuthorityExecutor::Job(*number),
             })
             .expect("executor capacity");
     }
@@ -183,6 +185,7 @@ pub fn people_authority(value: people::Authority) -> Option<authority::Authority
             .push(match kind {
                 people::Executor::Charter(number) => authority::Executor::Charter(number),
                 people::Executor::Procedure(number) => authority::Executor::Procedure(number),
+                people::Executor::Job(number) => authority::Executor::Job(number),
                 people::Executor::Role(number) => authority::Executor::Role(number),
             })
             .ok()?;
@@ -225,6 +228,7 @@ pub fn authority_to_people(value: &authority::Authority) -> Option<people::Autho
                 authority::Executor::Charter(number) => people::Executor::Charter(*number),
                 authority::Executor::Procedure(number) => people::Executor::Procedure(*number),
                 authority::Executor::Role(number) => people::Executor::Role(*number),
+                authority::Executor::Job(number) => people::Executor::Job(*number),
             })
             .ok()?;
     }

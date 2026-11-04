@@ -40,7 +40,7 @@ impl Domain {
             let task = self.task(number).expect("indexed live task");
             let agent = match task.executor {
                 Executor::Agent { .. } => true,
-                Executor::Procedure { .. } | Executor::Person(_) => false,
+                Executor::Procedure { .. } | Executor::Person(_) | Executor::Job { .. } => false,
             };
             if agent && (task.settings.task == revision || task.settings.run == Some(revision)) {
                 if tasks.len() < limit {
@@ -95,14 +95,14 @@ fn release_settings(domain: &mut Domain, settings: SettingsRevision) {
 pub(crate) fn hold(domain: &mut Domain, task: &TaskRecord) {
     match task.executor {
         Executor::Agent { .. } => hold_settings(domain, task.settings),
-        Executor::Procedure { .. } | Executor::Person(_) => {}
+        Executor::Procedure { .. } | Executor::Person(_) | Executor::Job { .. } => {}
     }
 }
 
 pub(crate) fn release(domain: &mut Domain, task: &TaskRecord) {
     match task.executor {
         Executor::Agent { .. } => release_settings(domain, task.settings),
-        Executor::Procedure { .. } | Executor::Person(_) => {}
+        Executor::Procedure { .. } | Executor::Person(_) | Executor::Job { .. } => {}
     }
 }
 
@@ -112,7 +112,7 @@ pub(crate) fn publish(domain: &mut Domain, number: u64) {
         task.record.settings.run = None;
     }
     match task.record.executor {
-        Executor::Procedure { .. } | Executor::Person(_) => return,
+        Executor::Procedure { .. } | Executor::Person(_) | Executor::Job { .. } => return,
         Executor::Agent { .. } => {}
     }
     let after = task.record.settings;
@@ -151,7 +151,7 @@ pub(crate) fn recount(domain: &mut Domain) {
         let task = &domain.tasks.get(id).expect("live task").record;
         match task.executor {
             Executor::Agent { .. } => {}
-            Executor::Procedure { .. } | Executor::Person(_) => continue,
+            Executor::Procedure { .. } | Executor::Person(_) | Executor::Job { .. } => continue,
         }
         add_to(&mut domain.holders, task.settings.task);
         if let Some(run) = task.settings.run

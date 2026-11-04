@@ -52,6 +52,7 @@ fn prefix() -> Path {
 
 fn config() -> Config {
     Config {
+        settings: None,
         deployment: [9; 16],
         prefix: prefix(),
         resources: Box::from([

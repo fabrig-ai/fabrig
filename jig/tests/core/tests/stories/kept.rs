@@ -148,6 +148,7 @@ fn a_kept_delegate_restarts_then_wakes_and_finishes_after_its_dependency_is_done
         worker: 0,
         channel: Token::new(7),
         hello: jig_domain_fleet::Hello {
+            jobs: Box::default(),
             bounds: jig_test_profile::fixtures::bounds(),
             stop_bound: skein_lib::Duration::from_millis(100),
             slots: limits.core.fleet.slots,

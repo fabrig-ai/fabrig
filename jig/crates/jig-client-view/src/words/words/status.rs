@@ -44,26 +44,29 @@ impl Words {
             },
             ChatStatus::Parked => self.text(b, P::Word(Word::Status(StatusWord::Parked)), &[]),
             ChatStatus::Retrying { until, notice } => {
-                self.text(b, P::RunBackingOff, &[Hole::Wall(self.adjusted_wall(*until))]);
-                match notice {
-                    RetryNotice::OwnerFailed { class, count, allowance } => {
-                        crate::tree::fragments::chip::hold_failure(b, *class, self);
-                        self.text(
-                            b,
-                            P::RunRetryFailed,
-                            &[Hole::Number(u64::from(*count)), Hole::Number(u64::from(*allowance))],
-                        );
-                    }
-                    RetryNotice::Failed { class, count, allowance } => {
-                        crate::tree::cards::chip::failure(b, *class, self);
-                        self.text(
-                            b,
-                            P::RunRetryFailed,
-                            &[Hole::Number(u64::from(*count)), Hole::Number(u64::from(*allowance))],
-                        );
-                    }
-                    RetryNotice::Refused { count } => {
-                        self.text(b, P::RunRetryRefused, &[Hole::Number(u64::from(*count))]);
+                self.text(b, P::Word(Word::status(status)), &[]);
+                self.wall(b, *until);
+                if let Some(notice) = notice {
+                    match notice {
+                        RetryNotice::OwnerFailed { class, count, allowance } => {
+                            crate::tree::fragments::chip::hold_failure(b, *class, self);
+                            self.text(
+                                b,
+                                P::RunRetryFailed,
+                                &[Hole::Number(u64::from(*count)), Hole::Number(u64::from(*allowance))],
+                            );
+                        }
+                        RetryNotice::Failed { class, count, allowance } => {
+                            crate::tree::cards::chip::failure(b, *class, self);
+                            self.text(
+                                b,
+                                P::RunRetryFailed,
+                                &[Hole::Number(u64::from(*count)), Hole::Number(u64::from(*allowance))],
+                            );
+                        }
+                        RetryNotice::Refused { count } => {
+                            self.text(b, P::RunRetryRefused, &[Hole::Number(u64::from(*count))]);
+                        }
                     }
                 }
             }
@@ -76,7 +79,7 @@ impl Words {
         }
     }
     fn host_refused(&self, b: &mut Builder, why: jig_client::contract::TaskWaitRefused) {
-        use jig_client::contract::{HostKind, OpenProgram, TaskWaitRefused as R};
+        use jig_client::contract::{HostKind, TaskWaitRefused as R};
         match why {
             R::Hello { kind, at, why } => {
                 let phrase = match kind {
@@ -85,21 +88,6 @@ impl Words {
                 };
                 self.text(b, phrase, &[Hole::Wall(self.adjusted_wall(at))]);
                 crate::tree::fragments::deployment::hello_refusal(b, self, why);
-            }
-            R::Program(OpenProgram::Model) => {
-                self.text(b, P::OpenProgramModel, &[]);
-                self.text(b, P::OpenProgramUnavailable, &[]);
-                self.text(b, P::OpenProgramChooseModel, &[]);
-            }
-            R::Program(OpenProgram::Source { account, source }) => {
-                self.text(
-                    b,
-                    P::OpenProgramSource,
-                    &[Hole::Number(u64::from(account)), Hole::Number(u64::from(source))],
-                );
-                self.text(b, P::OpenProgramUnavailable, &[]);
-                self.text(b, P::OpenProgramNoSwitch, &[]);
-                self.text(b, P::OpenProgramChooseModel, &[]);
             }
         }
     }

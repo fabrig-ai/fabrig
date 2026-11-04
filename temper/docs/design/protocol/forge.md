@@ -1,6 +1,6 @@
 # The forge's protocol layer
 
-Provisional, 2026-10-03, revised 2026-10-22. How the engine reaches a
+Provisional, 2026-10-03, revised 2026-11-02. How the engine reaches a
 forge, on skein's forge kit: what temper's forge component, its setup's
 host and its forge connector do with it, and what the kit leaves to
 temper. The kit is skein's (`forge.md`, `forge-connection.md`,
@@ -36,9 +36,16 @@ forge in section 13, and what is open in section 14.
   budget charges what the forge actually served (skein's
   `forge-connection.md`, section 1; `forge-client.md`, section 6).
 - **temper's routing hands the component every value** (section 2): the
-  component reads no file. The values are temper's configuration's and
-  each forge's records', with two of temper's own: the word `temper` and
+  component reads no file. The values are each forge's records', in
+  temper's store and in jig's secrets' store, and the configuration's
+  machine and limits, with two of temper's own: the word `temper` and
   the user agent `temper/0.0.0`.
+- **A forge is a record, made at runtime and removable** (2.1 to 2.3).
+  The forge connector keeps each forge in temper's store: its kind,
+  mode, place, git program, bot and a first set up's intent. `SetUp` and `Connect` make it, numbered next and never
+  reused; no forge is configured. Its removal ends it at once: no call
+  served, its access dropped, its secrets erased, and the box asked to
+  remove its group (2.8).
 - **Repositories by the forge's own id; paged, bounded, and decoded as
   it streams.** Forgejo's conventions are skein's (`forge.md`, section
   5); the paths and the users the component keeps are
@@ -55,7 +62,7 @@ forge in section 13, and what is open in section 14.
   by `Request::Connect` once a setup's run has kept them (2.2). A forge
   with none answers each call `NotConnected`. A forge whose credential
   is refused is stopped and named to the root, and the engine and every
-  other forge run on (2.3). The credential is the component's alone:
+  other forge run on; a forge removed is ended (2.3). The credential is the component's alone:
   never granted to a worker, never in the main store, and the first
   exchange with the forge checks that it stands for the forge's user
   (skein's `forge-connection.md`, section 3; credentials.md, the forges'
@@ -126,7 +133,7 @@ skein-io socket
   deadlines and kernel submission edges; the routing
   carries what passes between it, io and the root, and decides nothing
   (README.md, sections 5 and 6; jig's `protocol/service.md`, section 2).
-  One component serves every configured forge. What it holds is skein's
+  One component serves every kept forge. What it holds is skein's
   (`forge-connection.md`, sections 3 to 7): the calls in flight, the
   forges' connections, each forge's start, the repositories' paths and
   the users, a GitHub App's installations and tokens, the translation
@@ -135,18 +142,20 @@ skein-io socket
 - **What the routing hands the component.** The component reads no file
   (skein's `forge-connection.md`, section 3), and no forge's credential
   is a file: each is a record in jig's secrets' store, which the
-  routing, `temper-service`, loads (2.1). For each entry of
-  `application.forges` (configuration.md, section 3), a `Forge { number,
-  kind, address, transport, access, log_origins }`:
+  routing, `temper-service`, loads (2.1). For each forge kept in the
+  store (2.1), a `Forge { number, kind, address, transport, access,
+  log_origins }`, added as its record is kept (2.2) and dropped as it
+  ends (2.3):
   - the forge's number, and its kind, Forgejo or GitHub, which names the
     dialect;
-  - its API's address and transport: plaintext, or TLS with its server
-    name and its trust (the machine's roots when `trust` is null);
-    GitHub's default to github.com's, and are given only to point at a
-    fake;
+  - its API's address and transport, its record's: plaintext to a
+    socket address on loopback, or TLS with its server name and the
+    machine's roots; GitHub's are github.com's unless the configuration's
+    machine names a fake (configuration.md, section 3);
   - its access, `Some` or `None` (2.1): the credential, the user it must
     stand for, and a Forgejo forge's webhook secret when it has one;
-  - its `log_origins`, the origins a job log's redirect may reach (3.6).
+  - its `log_origins`, the origins a job log's redirect may reach, its
+    kind's (3.6).
 
   And `application.webhooks`, the listener's address, when configured.
   And temper's two values of its own: the word `temper`, which marks its
@@ -155,11 +164,11 @@ skein-io socket
   and the values the component shares with the forge client (section
   12).
   The setup's host gives its plans the same word (setup.md, section 5),
-  and their requests carry the same user agent. The component reads no
-  other member: a forge's `git` base is the routing's, for runs' remotes
-  (channel.md, section 4), its `web` is the setup's and the client's
-  (GitHub's browser pages), and its `identity` names a git identity,
-  which the component never holds (2.5).
+  and their requests carry the same user agent. The component reads
+  nothing else of a forge's record: its `git` base is the routing's, for
+  runs' remotes (channel.md, section 4), its `web` is the setup's and
+  the client's (GitHub's browser pages), and its bot is its git
+  identity's, which the component never holds (2.5).
 - **What crosses to the root** is the root's boundary: a
   `Request::Forge { call, repository, op }`, which the routing hands to
   the component, ended by exactly one `client::Event::Answered { call,
@@ -191,14 +200,58 @@ skein-io socket
   asking again would not mend (skein's `forge-connection.md`, sections 3
   and 8). The engine and every other forge run on.
 
-### 2.1 At start: each forge's records, and its access
+### 2.1 A forge's records, and its access at start
 
+- **A forge is a record of the forge connector,** as its repositories
+  are: a `Forge` row of temper's store under its number (store.md,
+  section 2), holding
+  - its kind, Forgejo or GitHub, and its mode, connected, managed,
+    owned or fake (setup.md, the modes);
+  - its place: its API's host, port and TLS name, none for plaintext to
+    loopback; the base of its remotes, `git`; and GitHub's browser
+    pages, `web`;
+  - its git program, the executable workers run for its repositories,
+    or none for their own (configuration.md, section 4): a Forgejo's as
+    its admin's `Connect` gives it, GitHub's the machine's
+    (configuration.md, section 3); a fake forge runs the machine's fake
+    `git`;
+  - whether a pasted GitHub App is another's, read-only (setup.md,
+    17.7);
+  - its bot's git identity: a login, and the name and email it commits
+    as, read on Forgejo alone: a connected Forgejo's login is the user
+    its tokens answer as, written over the one the record was made with
+    at each `Check` done (2.2); a GitHub forge commits as its App's bot,
+    from its `AppSlug` and `User` records (2.5);
+  - for a first set up, the first repository's intent: its
+    organization, name and runner label, and no project (setup.md, 6.7), kept
+    so that a restart before the repository is made makes it at the next
+    connect;
+  - its state: kept, or ended, with whether its secrets are erased and
+    its box group removed (2.3).
+
+  Nothing in it is secret: a forge's credentials are its rows in jig's
+  secrets' store (below). A managed, owned or fake forge's setup entry
+  is made from the record and, for an owned or fake one, the machine's
+  part of its kind (setup.md, section 8).
+- **Numbered next, never reused.** The forge connector gives a new
+  forge the number after the last it gave, kept in its `ForgeNumber`
+  row (store.md, section 2), and never gives a number twice, since the
+  number keys every record of the forge: its rows in jig's secrets'
+  store, its repositories, its writer and its git identity
+  (credentials.md, 2.1 and section 4). A removed forge's number stays
+  spent; a forge set up again is a new forge.
+- **Restored, then handed over.** The forge's restart step restores
+  each `Forge` row (store.md, section 5), and the connector hands each
+  kept one to the routing, as it hands a new one (2.2), which adds its
+  forge to the component, its identity to the identities' table and an
+  owned or fake one to the setup host. An ended one's removal resumes
+  instead (2.3).
 - **One load, before the component starts.** The routing reads temper's
   rows of jig's secrets' store (`Request::Secrets`, `Load` under
   `SecretOwner::Application`, paged by number; jig's
   `protocol/store.md`, section 9) and groups them by forge. A row's
   number is `family << 48 | forge << 16 | item`: family 1 is a forge's
-  records, `forge` the configured forge's `number`, and `item` what the
+  records, `forge` the forge's number, and `item` what the
   row holds: 1 `AdminToken`, 2 `ApiToken`, 3 `GitToken`, 4 `User`, 5
   `WebhookSecret` (Forgejo's alone), 6 `AppId`, 7 `AppSlug`, 8 `AppKey`,
   9 `Accepted` and 10 `Origin`, codes that never change meaning
@@ -233,9 +286,9 @@ skein-io socket
   Forgejo forge, an `ApiToken` under a GitHub one), named "its records
   were made for <kind> at <address>". Nothing is erased: connecting
   again overwrites. Every other forge starts as it would.
-- **Rows of a forge the configuration does not name** are left as they
-  are, and named once in the log; erasing them is disconnecting, later
-  (section 14). Carried rows, pasted values whose run a restart cut, are
+- **Rows of a forge with no record** are left as they are, and named
+  once in the log (section 14); a kept forge's are erased by its
+  removal (2.3). Carried rows, pasted values whose run a restart cut, are
   loaded from 2^63, where jig numbers them; the core decides their
   erase, which the routing carries out (2.6).
 - **A managed, owned or fake Forgejo starts connecting:** after the
@@ -251,23 +304,51 @@ skein-io socket
   failed removal leaves that forge not connected, named by the step,
   never a secret; every other forge runs on. A connected Forgejo and a
   GitHub forge start with their access.
-- **An owned forge set up from the client** (setup.md, 6.5) starts not
-  set up: one whose setup says `"start": "asked"`, with neither the
-  handover file nor an `AdminToken` record, has its access `None` and no
-  run until the box answers `started` on its pipe (2.2). Then the engine
-  runs the same handover, removal, reconcile and connect sequence as at
-  a start, with access and git value from records.
-- **The mode is no record** (setup.md, the modes): owned is the
-  configuration's (a `setup` entry owning the forge), managed is an
-  `AdminToken` row on a forge not owned, and connected is neither.
+- **An owned forge is set up from the client** (setup.md, 6.5), and
+  starts not set up: with neither the handover file nor an `AdminToken`
+  record, its access is `None` and nothing runs for it until the box
+  answers `started` on its pipe (2.2). Then the engine runs the same
+  handover, removal, reconcile and connect sequence as at a start, with
+  access and git value from records.
+- **The mode is the record's** (setup.md, the modes), as the act that
+  made the forge gave it (2.2): owned by `SetUp`, fake by the
+  playground's start, managed by a `Connect` as a Forgejo's admin, and
+  connected by a `Connect` with a Forgejo's tokens or a GitHub App.
 - **Checked at start,** each refusal named (configuration.md, its
   starts): `records.value_bytes` against the largest value jig's
-  secrets' store takes; and, when a GitHub forge is configured, a fixed
+  secrets' store takes. **Checked at a GitHub `Connect`:** a fixed
   address for the clients' listener, since the App's `redirect_url` and
-  `setup_url` name it and the API cannot change them.
+  `setup_url` name it and the API cannot change them; with port 0 the
+  connect is refused, naming `application.clients.listener`.
 
 ### 2.2 Connecting at runtime
 
+- **A forge is made by the act that sets it up or connects it**
+  (`../client/README.md`, section 8): `SetUp` and `Connect` name a kept
+  forge by its number, or ask for a new one, and the forge connector
+  makes its record (2.1) in the act's decision, numbered next, once the
+  act is admitted, so a refused act makes nothing:
+  - `SetUp` of a new owned Forgejo, under the box alone and while no
+    owned forge is kept, takes the machine's owned place
+    (configuration.md, section 3), and keeps the first repository's
+    intent;
+  - `Connect` of a new GitHub forge takes the machine's GitHub place,
+    github.com's when it names none, and its git program;
+  - `Connect` as a Forgejo's admin (setup.md, 5.5) takes the address,
+    the remotes' base, the pages and the git program the person gives,
+    its mode managed, and the first repository's intent when it names
+    one;
+  - `Connect` with a Forgejo's bot's tokens (setup.md, section 4) takes
+    them as an admin's does, its mode connected, with no first
+    repository;
+  - the playground's start makes its fake forge on the machine's fake
+    place (setup.md, 8.4).
+
+  A forge past `forge.forges` (section 7) is refused busy. The record is
+  then handed to the routing, as a restored one is (2.1): its forge
+  added to the component with no access, its git identity to the
+  identities' table, and an owned or fake one to the setup host, until
+  the act's run or the box's group connects it.
 - **`Request::Connect { forge, access }`** hands a running forge its
   access: a first connect, a replacement and a reconnect after a stop
   alike (skein's `forge-connection.md`, 3.5). The routing sends it after
@@ -278,8 +359,9 @@ skein-io socket
   the records, as at start, never from the run's outcome: a forge
   connected at runtime is the forge a restart would load.
 - **`Event::Connected { forge }`** reaches the root through the routing
-  with the identity the records hold, its id and login (the `User` row;
-  on GitHub, the App's bot user): the forge is connected, and the
+  with the identity the records hold, its id and login (the `User` row
+  and, on Forgejo, the record's bot; on GitHub, the App's bot user): the
+  forge is connected, and the
   deployment's page says as whom (client/forge.md, the deployment's
   page). The connector then gives the forge client its writer, which the
   forge client keeps as its own record and restores at start (skein's
@@ -288,7 +370,8 @@ skein-io socket
   (2.6); it ends in no connect.
 - **The box's pipe** (setup.md, 7.1), under the box alone, through the
   routing's box link (2.8): at `SetUp { forge }` (client/README.md,
-  section 8), admitted by the root, the link writes `start FORGE`, one
+  section 8), admitted by the root, and at the playground's start, the
+  routing writes the group's file and the link writes `start FORGE`, one
   ask at a time, and refuses it "not under the box" with no pipe; it
   tells the root each `step` line, the forge setting up and at which
   step; at `started FORGE`, the forge's `TakeOver` when the handover
@@ -301,12 +384,32 @@ skein-io socket
   once, at cost 0 (2.7). The root shows the forge connecting while a run
   holds it, setting up while the box runs its group, and not connected
   otherwise.
+- **A connected Forgejo's `Check`** (2.6), at its `Connect` and at each
+  `Replace`, ends `Done` with the user its tokens answer as, its id and
+  login. The routing keeps the run's `User` write, then each pasted
+  item, the tokens and the secret, then the `Origin`, and tells the root
+  the login with the run's end. The forge connector writes it as the
+  record's bot login in that decision and hands the record to the
+  routing again (2.1), before the carried row's erase and
+  `Request::Connect`, so the `Connected` that follows names it and a
+  restart reads it from the record. A login renamed on Forgejo is the
+  same user, by its id: the next `Check` keeps the new one.
+- **A forge's user stays.** A connected Forgejo's `Check` compares the
+  user its tokens answer as with the kept `User`, on a forge connected
+  again as on a `Replace`: tokens of another user stop the run
+  `OtherUser`, nothing kept and the forge as it was. A forge's writer is
+  its user (skein's `forge-client.md`, 7.1; credentials.md, 2.1), so
+  another user's tokens connect a new forge, once this one is removed.
+- **`Replace`** runs `Check` on a connected Forgejo, its pasted tokens
+  read before the forge's rows, so that a token not pasted is the kept
+  one, and `Paste` on GitHub with the kept `AppId` (setup.md, 17.3); on
+  `Done` each pasted item is kept over the old, then `Request::Connect`.
 - **A replacement** ends the calls the old access began `Forbidden`, as
   a revocation would. A credential that answers as another user is
   refused before anything is kept (`Check`, `Paste`); one the component
   refuses stops the forge (2.3).
 
-### 2.3 A forge stopped
+### 2.3 A forge stopped, or removed
 
 - **`Event::Stopped { forge, why }`** stops that forge only: its key or
   token refused, a user other than its own, an access the component
@@ -316,10 +419,41 @@ skein-io socket
 - **Named to the root,** which shows the forge and why on its row, with
   Replace (client/forge.md, the deployment's page). The engine and every
   other forge run on; nothing is erased, and the next start tries the
-  same records. Pending in the code: it is named on `temper serve`'s
-  standard error, not yet to the root.
+  same records.
 - **The webhooks' listener** stays the engine's: one that fails stops
   the engine (section 5).
+- **A forge removed** is ended in one decision of the forge
+  connector's, by its owners' `RemoveForge { forge }` or the
+  playground's reset (`../domain/forge.md`, 4.1; setup.md, 8.4): its
+  record reads ended, and the root asks the routing for the service's
+  side at once:
+  - **no call served:** the component drops the forge (`Remove {
+    forge }`), its calls in flight ending with it; the root sends it
+    none, and one the routing meets is answered `NotConnected` (8.1);
+  - **its access dropped:** its endpoint and any access built for it,
+    its git identity's values in the identities' table, its grant
+    withdrawn (credentials.md, section 4), and its place in the setup
+    host, whose run for it ends;
+  - **its secrets erased at once:** each of its family-1 rows,
+    `AdminToken` through `Origin` (credentials.md, 2.1), one `Erase`
+    after another under `SecretOwner::Application`, each durable before
+    the next, a row that is absent among them, since a run may have had
+    a write in flight; then the root is told (`SecretsErased`) and the
+    record keeps that step done. A removal restored at start erases
+    once the start's store mark is durable;
+  - **its writer and its flights** go in the decision itself: the
+    writer's row erased, and its writes in flight withdrawn
+    (`../domain/forge.md`, 4.1);
+  - **its box group removed:** an owned or fake forge's, by `remove
+    FORGE` on the box's link (2.8), the step done at `removed FORGE`; a
+    connected or managed forge has none, and the step reads done in the
+    decision.
+
+  On the forge itself, nothing is undone but what temper ran. **Kept
+  until whole:** at each start the connector asks again for each step
+  its ended record has not heard done; once both are, and no kept task
+  names its repositories, the record is erased, its number spent (2.1;
+  `../domain/forge.md`, 4.1).
 
 ### 2.4 GitHub's installations
 
@@ -368,7 +502,8 @@ skein-io socket
 ### 2.5 Git's tokens, and generations
 
 One git identity per forge (credentials.md, git identities): its number
-and author are the configuration's, its value the forge's.
+is the forge's, its login and author on Forgejo the record's bot (2.1)
+and on GitHub the App's (below), and its value the forge's.
 
 - **Forgejo's value** is the `GitToken` record's, its login the bot's
   (`User`): generation 1 at start, or at the first connect after the
@@ -415,9 +550,10 @@ skein's in-process host component (`forge-setup.md`, its host), a child
 of the engine's protocol layer beside the forge component. The routing
 carries what passes between it, the root and the records.
 
-The engine builds the setup host once at start from the configured
-forges, checking the host's entrance limits and settings before it
-builds it; a full host answers `Why::Busy` at a Run's start, and the page shows it as busy, try again (skein's
+The engine builds the setup host once at start, checking the host's
+entrance limits and settings before it builds it, with room for
+`forge.forges`; each kept forge joins it as its record is handed over
+(2.1, 2.2) and leaves it at its removal (2.3). A full host answers `Why::Busy` at a Run's start, and the page shows it as busy, try again (skein's
 `forge-setup.md`, 6.5).
 
 - **Down,** `Run { run, plan }` and `Answer { run, answer }`; **up,**
@@ -433,7 +569,8 @@ builds it; a full host answers `Why::Busy` at a Run's start, and the page shows 
 | `Reconcile { forge, adopted }` | each start of a managed or owned Forgejo; a managed connect; the box's `started`, after its `TakeOver` (2.2) | converges the forge on what the deployment needs (setup.md, section 5), then the forge connects |
 | `TakeOver { forge, admin_token }` | an owned or fake forge's start, or the box's `started`, whenever the handover file is present, even with a kept `AdminToken` (setup.md, 6.5) | keeps the handover's admin token; only after its `Done` and the record kept is the file removed, before reconcile |
 | `Adopt { forge, repository }` | a managed or owned forge's adoption, before its reads | gives the bot access to the repository (`../domain/forge.md`, 4.2) |
-| `Check { forge }` | a connected Forgejo's pasted tokens, and their replacement | both tokens answer as one user, and as the kept user on a replacement |
+| `Create { forge, org, repository, files }` | an owned or managed forge's first repository, at its set up (setup.md, 6.7) | the repository made in its organization, the bot given access, the owner's files put on its main (skein's `forge-setup.md`, 4.9) |
+| `Check { forge }` | a connected Forgejo's `Connect` with its pasted tokens, and each `Replace` of them | both tokens answer as one user, not a site admin, and as the kept `User` when there is one, else it writes `User`; it ends `Done(Identity { id, login })`, the login kept as the record's bot's (2.2) |
 | `Manifest { forge, target }` | GitHub's Connect, always for `Personal`: the App is the person's, public, and installs on any account GitHub offers them (setup.md, 17.2) | a fresh state, the form's target and the manifest; it ends `Done(Manifest { state, target, manifest })`, from which temper renders the manifest's page (client/forge.md, 9.1) |
 | `Convert { forge, code, state }` | GitHub's redirect back | the code exchanged for the App's id, slug and key, the conversion's webhook secret and OAuth pair never kept; the bot user found; it writes `AppId`, `AppSlug`, `AppKey` and `User` |
 | `Install { forge }` | Install the App, or Install on another account | a fresh state, and the install link (`Link`) |
@@ -495,7 +632,8 @@ builds it; a full host answers `Why::Busy` at a Run's start, and the page shows 
 - **A run's `Done`:** its writes kept and its carried row's erase
   carried out, then `Request::Connect` (2.2) after a plan that connects
   (a Forgejo's `Reconcile` or `Check`, GitHub's `Convert` or `Paste`),
-  and never after GitHub's `Reconcile`; after `Convert`'s, `Install`
+  after a `Check` once its login is kept (2.2), and never after GitHub's
+  `Reconcile`; after `Convert`'s, `Install`
   first, whose link answers the browser (setup.md, 17.2);
   `Request::Installations` after an `Accept` (2.4); the adoption's
   reads after an `Adopt`; `Reconcile` after a `TakeOver`. **A run's
@@ -536,7 +674,8 @@ routing carries it to the root, and the domain reads it
   given one is conditional, and each `304` is counted in the answer's
   `free`, which no rate counts and the budget charges nothing for. The
   delivery log's polls take one (5.1).
-- **A forge no one configured:** `Unavailable`, at once.
+- **A forge with no record,** never made or erased: `Unavailable`, at
+  once.
 
 ### 2.8 The box's link
 
@@ -556,10 +695,13 @@ service's io.
   box's lines in.
 - **An ask** is the forge domain's, once it has decided the `SetUp {
   forge }` by the forge's offer (`../domain/forge.md`, 4.1), which
-  refuses "not offered", "not under the box" and "busy" itself. The
-  link writes `start FORGE`, tells the root the forge setting up, with
-  no step yet, and answers the ask by the request's token the root gave
-  it: setting up. The domain asks once at a time, so a second ask while
+  refuses "not offered", "not under the box" and "busy" itself, or the
+  playground's start for its fake forge (setup.md, 8.4). The routing
+  writes the group's file, `<data>/box/groups/FORGE`, with the forge's
+  kind, its setup entry and its port (setup.md, 7.1); the box knows
+  kinds, not forges. The link writes `start FORGE`, tells the
+  root the forge setting up, with no step yet, and answers the ask by
+  the request's token the root gave it: setting up. The domain asks once at a time, so a second ask while
   one runs is a fault of the domain's: the link answers it "busy",
   named in the log. The answer goes back to the root, whose forge
   connector keeps it as the `SetUp` request's outcome, in memory alone,
@@ -588,13 +730,17 @@ service's io.
   FailedStep` (fetch, prepare, run or connect). The schema, generated
   codec and goldens update in place at CLIENT_VERSION 11 before the
   first release; no store or record version changes.
-- **A stop** is the forge domain's too, at the demo's end (setup.md,
-  8.4), which no request waits on: the link writes `stop FORGE`,
+- **A removal** is the forge domain's too, at a forge's removal's
+  decision and at each start while its record has not heard it done
+  (2.3), and no request waits on it: the link writes `remove FORGE`,
   holding it while another ask is out and sending it once that one is
-  answered, as it holds a start. `stopped FORGE` ends it, telling the
-  root nothing, since the forge is already ended (8.1); `failed FORGE
-  WHY` ends it too, named in the log. The pipe closed during it ends it
-  with the link.
+  answered, as it holds a start; a start held for that forge is
+  dropped. The box stops the group and removes its file, its `started`
+  record and the forge's directory, keeping the cache (setup.md, 7.1).
+  `removed FORGE` ends it, telling the root the box's step done, which
+  the forge's record keeps; `failed FORGE WHY` ends it too, named in the
+  log, the step left for the next start. The pipe closed during it ends
+  it with the link, and the next start asks again.
 - **Named and dropped,** each in one line of the log and changing no
   state: a line for a forge other than the one asked, or while none is;
   a line whose word, forge number or step the link does not know; and a
@@ -609,7 +755,8 @@ service's io.
 - **Nothing kept.** The link's ask and the states it tells are in
   memory alone (8.1): a restart makes a pipe and a link afresh, with no
   ask, and a group the box still runs answers the next ask by its own
-  lines (setup.md, 7.1).
+  lines (setup.md, 7.1). What a removal needs again is the forge's
+  record's (2.3).
 
 ## 3. Forgejo's API as temper uses it
 
@@ -646,25 +793,34 @@ Held by skein's `forge-github.md`: the dialect's paths, headers, paging,
 validators, pauses and failures, each a named fact (section 13). Of it,
 temper sets one thing, where a job log may be read from:
 
-- **A job log's redirect** is followed only to an origin named in the
-  forge's `log_origins` (configuration.md, the forges), resolved at
-  start: at most `forges.log_origins` entries, each an origin, `https`,
-  or `http` to a loopback host alone, matched as skein's component
-  matches a redirect's (scheme, host in ASCII case, port; skein's
-  `forge-connection.md`, 4.5). GitHub's default names the one blob
-  store GitHub's logs are served from; empty, no job log is fetched,
-  and a check's failure is shown without its log.
+- **A job log's redirect** is followed only to an origin its forge's
+  kind names, resolved at start: at most `forges.log_origins` entries,
+  each an origin, `https`, or `http` to a loopback host alone, matched
+  as skein's component matches a redirect's (scheme, host in ASCII
+  case, port; skein's `forge-connection.md`, 4.5). GitHub's names the
+  twenty results hosts `productionresultssa0.blob.core.windows.net`
+  through `productionresultssa19.blob.core.windows.net`, over TLS on
+  port 443, when the machine names no GitHub of its own; a GitHub the
+  machine names (configuration.md, section 3) and a Forgejo name none.
+  The shell resolves them before serving, with no network probe. An
+  unresolved host is skipped and named once in the log, and never
+  refuses startup. If none resolves, or the kind names none, no job log
+  is fetched; a check's failure is then shown without its log.
 - **A redirect to any other origin** is answered `Refused`, and the
   component's `Fact::Origin` names that origin once for each connect
   (2.4). The routing keeps it per forge in memory, at most
   `forge_component.log_origins` of them, and forgets them at the forge's
-  next connect; it shows it on that forge's row (client/forge.md, the
-  deployment's page), and logs it once until a start names it; the
-  operator adds the origin to `forges[].log_origins` and restarts
-  (section 14).
+  next connect. The latest distinct origin appears in that forge's row
+  diagnostic (client/forge.md, the deployment's page), when no connect
+  failure occupies it. The routing logs each of the first
+  `forge_component.log_origins` distinct refused origins once per start,
+  retaining that bounded log memory across reconnects. The log contains
+  only scheme, host and port, never a signed path, query or
+  credentials; no member adds an origin (section 14).
 - **No document, example or test of temper's calls github.com:** GitHub's
-  default addresses are named in the configuration, and every test points
-  the forge at skein's fake (section 10).
+  addresses are the machine's GitHub place, github.com's when it names
+  none (configuration.md, section 3), and every test names skein's fake
+  there (section 10).
 
 ## 4. The engine's marks
 
@@ -819,7 +975,7 @@ values are temper's: `../domain/forge.md`, 5.2 and 5.4.
 
 | Rule | Kept by |
 |---|---|
-| No listing without a filter on a periodic path; no history | the client's one keep-up listing per repository, always `since` (skein's `forge-client.md`, section 4; the listing, `forge.md`, 5.2); the slow pass reads live resources one at a time (`forge-client.md`, section 4) |
+| No listing without a filter on a periodic path; no history | the client's one keep-up listing per repository, always `since` (skein's `forge-client.md`, section 4; the listing, skein's `forge.md`, 5.2); the slow pass reads live resources one at a time (`forge-client.md`, section 4) |
 | Calls per pass do not grow with history | one listing per pass, nothing listed by label (skein's `forge-client.md`, section 4); checked by temper's cost checks (10) |
 | Cache by change token | comments and reviews by revision (skein's `forge.md`, 5.3); repositories' paths and users cached (`forge-connection.md`, section 4); a pull request read on a backoff (`forge-client.md`, section 4); a read given a validator is conditional, and its `304` is free (2.7), as each poll of a GitHub App's log (5.1) |
 | One path to CI; never a closed pull request's | statuses of the head only (skein's `forge.md`, 5.2); a closed item leaves the working set when its owner stops naming it (`forge-client.md`, section 3; temper's top, `../domain/forge.md`, 5.1) |
@@ -827,7 +983,7 @@ values are temper's: `../domain/forge.md`, 5.2 and 5.4.
 | Contents only when a decision reads them | a pull request's files and a comparison, read for a brief or an overlap, each file's reads charged (skein's `forge.md`, 5.2; `forge-client.md`, section 6) |
 | Webhooks: hints, answered first, merged, targeted, echoes dropped | skein's `forge.md`, section 7 and `forge-connection.md`, section 6; the client merges hints into one earlier pass (`forge-client.md`, section 4); temper's domain drops its own echoes, by key and by pusher (`../domain/forge.md`, 5.2); a GitHub App's log read every `log_poll`, conditionally (5.1) |
 | Closed items by deltas, not sweeps | the keep-up listing's `since`: a closed item is listed only when it changes, and its owner stops naming it (skein's `forge-client.md`, sections 3 and 4) |
-| Backoff and jitter; honour the rate; no blind retries of writes | the client's backoff and budget (skein's `forge-client.md`, sections 4 and 6); `RateLimited { after }`, Forgejo's `429` and GitHub's pauses alike, and no retry in the component (`forge.md`, 5.4; `forge-github.md`); each answer's `rate`, the least of which the budget keeps (2.7); keyed creations found again after a `Timeout` (`forge-client.md`, section 7) |
+| Backoff and jitter; honour the rate; no blind retries of writes | the client's backoff and budget (skein's `forge-client.md`, sections 4 and 6); `RateLimited { after }`, Forgejo's `429` and GitHub's pauses alike, and no retry in the component (skein's `forge.md`, 5.4, and `forge-github.md`); each answer's `rate`, the least of which the budget keeps (2.7); keyed creations found again after a `Timeout` (`forge-client.md`, section 7) |
 | Slow cadences; webhooks for latency, polling for liveness | the client's `poll`, `hinted` and `slow`, unchanged by webhooks (skein's `forge-client.md`, section 4); a forge with no hook, or on another host, polls alone (section 5); a GitHub forge polls as a Forgejo one does, its log's hints only cutting the latency (5.1) |
 
 Nothing the engine writes changes often: it writes the forge only to
@@ -839,24 +995,34 @@ Held by skein's `forge-connection.md`, section 7. temper's values are
 its `limits` member (configuration.md, section 7), set in
 `temper-service`'s profile `small`. By name, those this layer adds:
 
+- **The forges kept:** `forge.forges`, the forges kept at most, of
+  every kind and mode, an ended one counted until its removal is whole
+  (2.1, 2.3); a forge made past it is refused busy (2.2). It sizes the
+  component's forges, the setup host's, the identities' table and the
+  routing's per-forge state, and is at most the accounts child's
+  `credentials` in `engine.limits` and in the worker's `limits`, since
+  each kept forge has a git identity. Counts, not a list: no forge is
+  configured, and `forge.repositories` and its kin are the
+  deployment's, shared by every kept forge, never a sum over them
+  (configuration.md, section 7).
 - **temper's own:** `records.value_bytes`, the largest record or carried
   value, checked against jig's secrets' store at start (2.1);
   `forges.installations`, the installations a GitHub forge accepts, at
   most the component's `installations` (2.4); `forges.log_origins`, at
-  most 4 hosts per forge (3.6).
+  most 32 hosts per forge, default 20 (3.6).
 - **The component's, for GitHub** (skein's `forge-connection.md`, 7.2):
   `installations`, `log_origins`, `key_bytes`, `renew_before` (10 min;
   2.5), `log_poll` (5 s), `log_catch_up` (24 h), `log_pages` (10) and
   `delivery_bytes` (5.1). The component has no defaults: each is
   temper's, named in its limits module and given once at
-  `Component::new` for every forge, none per forge and none in
-  `forges[]`. `log_catch_up` bounds only a later start of a forge
+  `Component::new` for every forge, none per forge. `log_catch_up`
+  bounds only a later start of a forge
   within one process.
 - **The setup's host:** `setup.states`, `setup.state_life_ms` (1 h) and
   `setup.runs` (2.6); its `Reachable` plan's `reachable` is the
   picker's `picker.page`.
 - **The box's link** (2.8): `box.line_bytes`, its one line read and
-  its one line written, and one ask.
+  its one line written, one ask, and one start and one removal held.
 - **Beside this layer,** the clients' listener's `routes.query_bytes`
   and the picker's `picker.page` (100, GitHub's page), which bound the
   GitHub routes and the picker's reads (client/README.md, the routes and
@@ -864,7 +1030,8 @@ its `limits` member (configuration.md, section 7), set in
 
 The domain's `temper_engine_domain_forge::valid` checks the entrance
 constraints of `../domain/forge.md`, sections 4, 8 and 16, and count
-representability: demo acts, reconciliation rows and landing capacities.
+representability: the forges kept, reconciliation rows and landing
+capacities.
 Names and gates fit the panel, and the client's admissions cover the
 top's rows. The connection owner's forge-by-installation row count must
 be representable. Internal output envelopes and heap sums do not
@@ -881,23 +1048,24 @@ Held by skein's `forge-connection.md`, section 8: a forge connection
 | State | Entered on | Its calls |
 |---|---|---|
 | not connected | start with no access, an incomplete, unreadable or mismatched set (2.1); a setup run's `Stop` on a forge with none | `NotConnected` |
-| not set up | start, an owned forge whose setup says `"start": "asked"` with any of its files absent (setup.md, 6.5) | `NotConnected` |
-| setting up | the box's link's `start` written, then each `step` line, with its step (2.8) | `NotConnected` |
+| not set up | start, an owned forge with neither its handover file nor an `AdminToken` record (setup.md, 6.5) | `NotConnected` |
+| setting up | the box's link's `start` written, for an owned forge's `SetUp` or the playground's fake forge, then each `step` line, with its step (2.8) | `NotConnected` |
 | set up failed | the box's `failed`, or its pipe closed during the ask (2.8) | `NotConnected` |
 | connecting | a run that connects begins (2.6) | `NotConnected` |
 | connected | `Event::Connected` (2.2) | served |
 | stopped | `Event::Stopped` (2.3) | `NotConnected` |
-| ended | the demo's end, or a start whose `Demo` record reads ended: the demo's forge alone (setup.md, 8.4) | `NotConnected`, by the routing, which passes none on to the connection component |
+| ended | its removal's decision, its owners' `RemoveForge` or the playground's reset, or a start whose record reads ended (2.3) | `NotConnected`, by the routing, which passes none on to the connection component |
 
 A connecting forge goes back to what it was when its run stops; a
-stopped one is connected again by its next `Connected`, after a Replace.
+stopped one is connected again by its next `Connected`, after a Replace
+or, on a connected Forgejo, a `Connect` with its tokens.
 A setting up forge, at the box's `started`, connects as 2.2 says; set up
-failed, it is asked again from the client, as not set up is. Only an
-owned forge whose setup says `"start": "asked"` is ever not set up,
-setting up or set up failed. An ended forge stays ended: the routing's
-events for it change nothing, the setup host runs nothing for it, a
-webhook's hint for it is dropped, and no list shows it
-(`../domain/forge.md`, 4.1).
+failed, it is asked again from the client, as not set up is. Only a
+forge the box runs, owned or fake, is ever setting up or set up failed,
+and only an owned one not set up. An ended forge stays ended until its
+removal is whole and its record erased (2.3): the routing's events for
+it change nothing, the setup host runs nothing for it, a webhook's hint
+for it is dropped, and no list shows it (`../domain/forge.md`, 4.1).
 The state is the routing's and the root's, in memory, and is rebuilt at
 each start from the records and the events (`../domain/forge.md`,
 4.1).
@@ -960,9 +1128,23 @@ The tiers, the fakes and the layout are `../domain/testing.md`'s (sections 2,
   - **connecting at runtime:** a run's writes kept before
     `Request::Connect`, the access built from the records, `Connected`
     told to the root with the identity, and calls `NotConnected` at cost
-    0 until then;
+    0 until then; a connected Forgejo's `Check` with its pasted tokens,
+    its `User` write, the tokens and the secret then the `Origin` kept,
+    its login the record's bot's before `Request::Connect`, and
+    `Connected` naming it; tokens of two users, of a site admin, or of
+    another user than the kept one, each stopping it with nothing kept;
+    a `Replace` of the git token alone, checked with the kept API token
+    and kept over the old one; and on GitHub a `Replace` running `Paste`
+    with the kept `AppId`;
   - **one forge stopped:** its key refused, it answers `NotConnected`,
     is named with Replace, and the engine and the other forges run on;
+  - **a forge made and removed:** a record kept, numbered next, joining
+    the component, the identities' table and the setup host; a removal
+    dropping it from each, its calls `NotConnected`, its rows erased
+    one after another, each durable before the next, and the root told
+    once the last is; a removal restored at start erasing only once the
+    start's store mark is durable; and the other forges serving
+    throughout;
   - **installations:** an `Accept` kept before `Request::Installations`,
     a deletion rewriting `Accepted`, a suspension's calls `Forbidden`,
     and `NotInstalled` at cost 0;
@@ -978,7 +1160,10 @@ The tiers, the fakes and the layout are `../domain/testing.md`'s (sections 2,
     each line for the forge asked; a line for another forge, an unknown
     word, step or number, each named and dropped; a line at
     `box.line_bytes` read and one byte past it named and skipped; the
-    pipe closed during an ask. Then the routing with a scripted box on a
+    pipe closed during an ask; `remove 3` held behind an ask and sent
+    once it is answered, a start held for forge 3 dropped, `removed 3`
+    telling the root, and `failed 3 WHY` named with the step left
+    undone. Then the routing with a scripted box on a
     pipe pair: an ask, `start 3`, `step 3 prepare`, `failed 3 prepare 3
     exited 1`, the ask again and `start 3` again, a third refused
     "busy", a stray `started 9` dropped, and the root told each state;
@@ -1022,7 +1207,7 @@ The tiers, the fakes and the layout are `../domain/testing.md`'s (sections 2,
 - **The real Forgejo check,** its transcripts, its facts and the
   throwaway Forgejo it runs against (`../domain/testing.md`, 2.6): skein's
   `fake-forge.md`, sections 6 and 7.
-- **The pin** is skein's (`forge.md`, 4.3): one patch release of Forgejo
+- **The pin** is skein's (skein's `forge.md`, 4.3): one patch release of Forgejo
   v17.0 and one of forgejo-runner v13.2, constants the throwaway
   Forgejo, the conformance and owned mode share (setup.md, 6.1); a
   binary of another release is refused, naming it. A later patch changes
@@ -1052,10 +1237,10 @@ and 5's. What an owner owes the component is skein's
   `free`, and keeps the least `rate` (`../domain/forge.md`, 5.4; skein's
   `forge-client.md`, section 6).
 - **The writer,** given by the connector at each `Connected`, since a
-  forge connected at runtime has no writer in the configuration (2.2).
+  forge's writer is its connect's user (2.2).
   The forge client keeps it as its own record, `writer(d, env, Writer {
   forge, author }, out)`: `Stored::Writer` under `Key::Writer(forge)`,
-  in temper's small store under its tag 16 (`STORE_VERSION` 3), restored
+  in temper's small store under its tag 16, restored
   at start, so a restored effect never meets `Forbidden` (skein's
   `forge-client.md`, 7.1).
 - **Hints,** as the vocabulary has them: `Hint { repository, change, key
@@ -1123,14 +1308,16 @@ temper's part:
     6).
 - **GitHub's dialect and setup's open questions** are skein's
   (`forge-github.md`; `forge-setup.md`, GitHub's plans). temper's:
-  - **A job log's origin learned at runtime.** Default: `log_origins` is
-    resolved at start; another origin is named (`Fact::Origin`, 3.6),
-    and the operator adds it and restarts.
+  - **A job log's origin learned at runtime.** Default: the kind's
+    list; an origin outside it is named by `Fact::Origin`, and its log
+    is not fetched (3.6). A member naming more origins, later. DNS
+    resolution while serving remains later: skein's loop has no
+    resolver.
   - **A Forgejo secret with no listener.** Default: handed none, the
     forge polls alone, named once in the log (section 5).
-  - **Rows of a forge the configuration does not name.** Default: left
-    as they are, named once in the log at start; erasing them is
-    disconnecting, later (2.1).
+  - **Rows of a forge with no record.** Default: left as they are,
+    named once in the log at start; a removal erases a kept forge's
+    (2.1, 2.3).
   - **Generations across starts.** Default: generation 1 at each start,
     while no worker outlives its engine (2.5; credentials.md, its open
     questions).

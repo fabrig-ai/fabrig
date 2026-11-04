@@ -301,10 +301,7 @@ fn check_form(table: &[&Tool], call: &Call, limits: &Limits) -> Result<(), Usage
     if tool.name == super::rows::HELP.name && !help_valid(table, call) {
         return Err(Usage::Tool);
     }
-    // The creation row owns this rule; reading a chat has no keyed choice form.
-    if tool.name == super::rows::CHAT_CREATE.name && tool.keyed == Keyed::Required {
-        check_choice(call, 2, 3, limits)?;
-    }
+    check_creation(tool, call, limits)?;
     if tool.name == b"task amend" {
         check_amend(call, limits)?;
     }
@@ -651,8 +648,8 @@ fn present(call: &Call, index: usize) -> bool {
 }
 fn check_amend(call: &Call, limits: &Limits) -> Result<(), Usage> {
     check_choice(call, 10, 11, limits)?;
-    let mut change = false;
-    let mut needs_revision = false;
+    let mut change = present(call, 13);
+    let mut needs_revision = change;
     for index in 2..12 {
         if present(call, index) {
             change = true;
@@ -672,6 +669,9 @@ fn check_amend(call: &Call, limits: &Limits) -> Result<(), Usage> {
     }
     if let Some(Value::Text(text)) = crate::jig::call::value(call, 4) {
         deadline(text).ok_or(Usage::Kind { tool: 0, form: 0, argument: 4 })?;
+    }
+    if let Some(tasks) = crate::jig::call::number(call, 13) {
+        u32::try_from(tasks).or(Err(Usage::Kind { tool: 0, form: 0, argument: 13 }))?;
     }
     if let Some(priority) = crate::jig::call::number(call, 2) {
         u32::try_from(priority).or(Err(Usage::Kind { tool: 0, form: 0, argument: 2 }))?;
@@ -733,4 +733,25 @@ fn help_valid(table: &[&Tool], call: &Call) -> bool {
         None => true,
         Some(_) => false,
     }
+}
+
+fn check_goal(call: &Call, limits: &Limits) -> Result<(), Usage> {
+    check_choice(call, 8, 9, limits)?;
+    if present(call, 5) && present(call, 6) {
+        return Err(Usage::Twice { tool: 0, form: 0, argument: 6 });
+    }
+    if let Some(Value::Text(text)) = super::call::value(call, 7) {
+        deadline(text).ok_or(Usage::Kind { tool: 0, form: 0, argument: 7 })?;
+    }
+    Ok(())
+}
+
+fn check_creation(tool: &Tool, call: &Call, limits: &Limits) -> Result<(), Usage> {
+    if tool.name == super::rows::CHAT_CREATE.name && tool.keyed == Keyed::Required {
+        check_choice(call, 3, 4, limits)?;
+    }
+    if tool.name == super::rows::GOAL_START.name {
+        check_goal(call, limits)?;
+    }
+    Ok(())
 }

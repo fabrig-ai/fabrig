@@ -9,10 +9,12 @@ use skein_lib::Writer;
 )]
 pub(crate) fn refusal(value: p::Refusal, limits: &w::Limits) -> Result<w::Refusal, w::Problem> {
     Ok(match value {
+        p::Refusal::Forgotten { .. } => unreachable!("a restore: settings-wire"),
         // Only ChangeSettings emits Stale; forge applications never carry that ask.
         p::Refusal::Stale { .. }
         // Only settings admission emits Full; a forge application carries no settings value.
         | p::Refusal::Full { .. }
+        | p::Refusal::Judged { .. }
         // Only finishing an account sign-in emits SignInRedirect.
         | p::Refusal::SignInRedirect { .. } => {
             return Err(w::Problem { path: w::Path::RefusalTag, reason: skein_codec::Reason::Bound });

@@ -51,7 +51,9 @@ fn offered(current: &Current, defaults: bool, items: &[Item]) -> skein_lib::List
             names.insert(setting, ()).expect("change names");
         }
         for item in items {
-            names.insert(item.setting, ()).expect("overlay names");
+            if !super::application::is_application(item.setting) {
+                names.insert(item.setting, ()).expect("overlay names");
+            }
         }
     }
     let mut result = skein_lib::List::with_capacity(names.len());
@@ -128,9 +130,10 @@ fn check_set(
         Some(Value::Charter(_) | Value::Template(_) | Value::Policy(_)) | None => {
             return Err(Failure { setting: Setting::Rules, fault: Fault::Rules });
         }
+        Some(Value::Application(_)) => unreachable!("an application's setting: apps-core"),
     };
-    if !authority::valid_rules(rules, &limits.authority) {
-        return Err(Failure { setting: Setting::Rules, fault: Fault::Rules });
+    if let Some(fault) = rules_fault(rules, &limits.authority, Fault::Rules) {
+        return Err(Failure { setting: Setting::Rules, fault });
     }
     if !authority_refs(current, defaults, items, &rules.ceiling, None, connectors, settings)
         || !requirement_refs(&rules.requirements, connectors)
@@ -160,7 +163,13 @@ fn check_set(
         })
         .expect("offered setting")
         {
-            Value::Charter(charter) => charter_fault(charter, settings, limits),
+            Value::Charter(charter) => {
+                let mut registered = true;
+                for document in &charter.documents {
+                    registered &= connectors.contains(&document.connector);
+                }
+                if registered { charter_fault(charter, settings, limits) } else { Some(Fault::Shape) }
+            }
             Value::Template(template) => {
                 template_fault(current, defaults, items, template, template.executor, settings, connectors, limits)
             }
@@ -168,6 +177,7 @@ fn check_set(
                 policy_fault(current, defaults, items, policy, rules, settings, connectors, limits)
             }
             Value::Rules(_) => None,
+            Value::Application(_) => unreachable!("application values stay outside jig's offered settings"),
         };
         if let Some(fault) = fault {
             return Err(Failure { setting, fault });
@@ -177,7 +187,9 @@ fn check_set(
 }
 pub(crate) fn shape(setting: Setting, value: &Value, limits: &Limits) -> Result<(), Failure> {
     let valid = match value {
-        Value::Charter(value) => setting == Setting::Charter(value.number) && value.number != 0,
+        Value::Charter(value) => {
+            setting == Setting::Charter(value.number) && value.number != 0 && tasks::wake_valid(&value.wake)
+        }
         Value::Template(value) => {
             setting == Setting::Template(value.number)
                 && value.number != 0
@@ -185,9 +197,18 @@ pub(crate) fn shape(setting: Setting, value: &Value, limits: &Limits) -> Result<
         }
         Value::Policy(_) => match setting {
             Setting::Policy(number) => number != 0,
-            Setting::Charter(_) | Setting::Template(_) | Setting::Rules => false,
+            Setting::ProjectPolicy { project } => project != 0,
+            Setting::Charter(_) | Setting::Template(_) | Setting::Rules | Setting::Application { .. } => false,
         },
-        Value::Rules(value) => setting == Setting::Rules && authority::valid_rules(value, &limits.authority),
+        Value::Rules(value) => {
+            if setting == Setting::Rules
+                && let Some(fault) = rules_fault(value, &limits.authority, Fault::Shape)
+            {
+                return Err(Failure { setting, fault });
+            }
+            setting == Setting::Rules
+        }
+        Value::Application(_) => super::application::is_application(setting),
     };
     if !valid {
         return Err(Failure { setting, fault: Fault::Shape });
@@ -198,10 +219,13 @@ pub(crate) fn shape(setting: Setting, value: &Value, limits: &Limits) -> Result<
 /// Stored values retain their byte and count bounds without judging their writer.
 pub(crate) fn restore_fit(setting: Setting, value: &Value, limits: &Limits) -> Result<(), Failure> {
     let valid = match value {
-        Value::Charter(value) => match crate::limits::policy_owned_bytes(&value.policy) {
-            Some(bytes) => bytes <= u64::from(limits.run_bytes),
-            None => false,
-        },
+        Value::Charter(value) => {
+            documents_fit(value, limits)
+                && match crate::limits::policy_owned_bytes(&value.policy) {
+                    Some(bytes) => bytes <= u64::from(limits.run_bytes),
+                    None => false,
+                }
+        }
         Value::Template(value) => {
             value.name.len() <= skein_lib::length::usize_of(limits.documents.text_bytes)
                 && contract_fits(&value.contract, &limits.tasks)
@@ -219,15 +243,52 @@ pub(crate) fn restore_fit(setting: Setting, value: &Value, limits: &Limits) -> R
         }
         Value::Rules(value) => {
             let bound = &limits.authority;
+            if !delegation_fits(value, bound) {
+                return Err(Failure { setting, fault: Fault::Count });
+            }
             value.ceiling.grants.len() <= skein_lib::length::usize_of(bound.grants)
                 && value.ceiling.note_resources.len() <= skein_lib::length::usize_of(bound.grants)
-                && value.ceiling.delegation.kinds.len() <= skein_lib::length::usize_of(bound.executors)
                 && value.requirements.len() <= skein_lib::length::usize_of(bound.requirements)
                 && value.implies.len() <= bound.implications
                 && rules_patterns_fit(value, bound)
         }
+        Value::Application(_) => super::application::is_application(setting),
     };
     if valid { Ok(()) } else { Err(Failure { setting, fault: Fault::Shape }) }
+}
+
+fn delegation_fits(rules: &authority::Rules, limits: &authority::Limits) -> bool {
+    rules.ceiling.delegation.kinds.len() <= skein_lib::length::usize_of(limits.executors)
+}
+
+fn rules_fault(rules: &authority::Rules, limits: &authority::Limits, malformed: Fault) -> Option<Fault> {
+    if !delegation_fits(rules, limits) {
+        Some(Fault::Count)
+    } else if !authority::valid_rules(rules, limits) {
+        Some(malformed)
+    } else {
+        None
+    }
+}
+
+fn documents_fit(charter: &crate::Charter, limits: &Limits) -> bool {
+    if charter.documents.len() > skein_lib::length::usize_of(limits.tasks.charter_documents) {
+        return false;
+    }
+    for document in &charter.documents {
+        if !authority::name_within(&document.name, &limits.authority)
+            || document.path.is_empty()
+            || document.path.len() > skein_lib::length::usize_of(crate::DOCUMENT_PATH_BYTES)
+        {
+            return false;
+        }
+        if let Some(heading) = &document.heading
+            && (heading.is_empty() || heading.len() > skein_lib::length::usize_of(crate::DOCUMENT_HEADING_BYTES))
+        {
+            return false;
+        }
+    }
+    true
 }
 
 fn rules_patterns_fit(value: &authority::Rules, limits: &authority::Limits) -> bool {
@@ -266,6 +327,7 @@ fn pattern_fits(value: &authority::Pattern, limits: &authority::Limits) -> bool 
 
 fn contract_fits(value: &tasks::Contract, limits: &tasks::Limits) -> bool {
     match value {
+        tasks::Contract::Job { .. } => false,
         tasks::Contract::Report { words } | tasks::Contract::Change { words, .. } => *words <= limits.result_bytes,
         tasks::Contract::Approval { state, part } => {
             if state.len() > skein_lib::length::usize_of(limits.result_bytes) {
@@ -363,6 +425,7 @@ fn template_fault(
     limits: &Limits,
 ) -> Option<Fault> {
     match &template.contract {
+        tasks::Contract::Job { .. } => return Some(Fault::Reference),
         tasks::Contract::Change { connector, .. } => {
             if !connectors.contains(connector) {
                 return Some(Fault::Reference);
@@ -400,6 +463,7 @@ fn template_fault(
             } {
                 Some(Value::Charter(value)) => value,
                 Some(Value::Template(_) | Value::Policy(_) | Value::Rules(_)) | None => return Some(Fault::Reference),
+                Some(Value::Application(_)) => unreachable!("an application's setting: apps-core"),
             };
             if let Some(choice) = &template.llm
                 && !crate::runs::llm::takes(&settings.models, &charter.policy, choice)
@@ -511,6 +575,7 @@ fn policy_fault(
         } {
             Some(Value::Template(value)) => value,
             Some(Value::Charter(_) | Value::Policy(_) | Value::Rules(_)) | None => return Some(Fault::Reference),
+            Some(Value::Application(_)) => unreachable!("an application's setting: apps-core"),
         };
         let executor = entry.executor.unwrap_or(template.executor);
         if let Some(fault) = template_fault(current, defaults, items, template, executor, settings, connectors, limits)
@@ -568,7 +633,7 @@ fn authority_refs(
                     }
                 }
             }
-            authority::Executor::Procedure(_) => {}
+            authority::Executor::Procedure(_) | authority::Executor::Job(_) => {}
         }
     }
     true
@@ -587,7 +652,7 @@ pub(super) fn count(setting: Setting, counts: &mut [u32; 3], limits: &Limits) ->
         Setting::Charter(_) => (0, limits.tasks.charters),
         Setting::Template(_) => (1, limits.templates),
         Setting::Policy(_) => (2, limits.authority.projects),
-        Setting::Rules => return Ok(()),
+        Setting::Rules | Setting::Application { .. } | Setting::ProjectPolicy { .. } => return Ok(()),
     };
     let count = counts.get_mut(slot).expect("three numbered kinds");
     *count = count.saturating_add(1);
@@ -647,7 +712,8 @@ pub(crate) fn changed_charters(
     for &setting in &offered(current, defaults, items) {
         match setting {
             Setting::Charter(_) => {}
-            Setting::Template(_) | Setting::Policy(_) | Setting::Rules => continue,
+            Setting::Template(_) | Setting::Policy(_) | Setting::Rules | Setting::ProjectPolicy { .. } => continue,
+            Setting::Application { .. } => unreachable!("an application's setting: apps-core"),
         }
         let value = match edit(items, setting) {
             Some(Edit::Set(value)) => Some(value),
@@ -658,6 +724,7 @@ pub(crate) fn changed_charters(
         let charter = match value {
             Some(Value::Charter(charter)) => charter,
             Some(Value::Template(_) | Value::Policy(_) | Value::Rules(_)) | None => unreachable!("checked charter"),
+            Some(Value::Application(_)) => unreachable!("an application's setting: apps-core"),
         };
         result.push(super::charters::one_models(charter, current.newest(), settings)).expect("checked charter count");
     }

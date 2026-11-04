@@ -12,6 +12,14 @@ use jig_domain_tasks as tasks;
 use jig_domain_views as views;
 use skein_lib::{List, ReplyTo, Token, Wall};
 
+/// A charter document's section in a core plan, for the root to give its connector
+/// (domain/engine.md, 17.9).
+#[derive(Clone, PartialEq, Eq, Debug)]
+pub struct PlannedDocument {
+    pub token: Token,
+    pub document: crate::Document,
+}
+
 /// A value a client's request carried, kept in the secrets' store before
 /// the core sees the request (`protocol/client.md`, section 5): the core
 /// gets its number and digest, never the value.
@@ -85,7 +93,13 @@ pub enum Ask {
     /// A core-selected effect handoff completed inside this decision.
     Effect(crate::effects::connector::Ask),
     /// Tell the owning connector that this task took a write hold.
-    Hold { task: u64, resource: tasks::Name },
+    Hold {
+        task: u64,
+        resource: tasks::Name,
+        /// The taking's own outbox entry, for the effects its connector's kind has at a taking
+        /// (domain/connectors.md, 4.7).
+        entry: u64,
+    },
     /// Tell the owning connector to end a task's topic interest.
     EndTopic { task: u64, subscription: u64 },
     /// Gather a section within the brief's budget.
@@ -103,7 +117,17 @@ pub enum Ask {
     /// Tell a connector that a fenced host attempt was lost.
     Lost { task: u64, attempt: u64 },
     /// Ask this connector which bounded task holdings its resources require.
-    TaskHoldings { request: Token, project: u32, root: u64, number: u64, executor: tasks::Executor, spec: tasks::Spec },
+    TaskHoldings {
+        request: Token,
+        project: u32,
+        root: u64,
+        number: u64,
+        executor: tasks::Executor,
+        spec: tasks::Spec,
+        tracked: bool,
+        /// This connector's symbols of the member, in the member's order.
+        symbols: Box<[u16]>,
+    },
     /// Ask one connector for the holdings of every member of a named delegate batch.
     DelegateHoldings { request: Token, from: u64, members: Box<[HoldingsNeed]> },
     /// Ask one connector for a procedure's delegated batch holdings.
@@ -118,6 +142,17 @@ pub enum Ask {
     UnsubscriptionDone { request: Token, key: CallKey },
     /// Complete a prepared claim through the connector that owns its writes.
     ClaimDone { task: u64, attempt: u64, kinds: fleet::Kinds, version: fleet::Version },
+    /// Start a claimed job after its decision is durable (jig/docs/design/domain/engine.md, 7.5).
+    JobClaimed {
+        task: u64,
+        attempt: u64,
+        kind: jig_domain_link::JobKind,
+        spec: Box<[u8]>,
+        deadline: skein_lib::Duration,
+        result: u32,
+        grants: Box<[jig_domain_accounts::Grant]>,
+        workspace: Option<Box<[u8]>>,
+    },
     /// Discard one rejected connector subscription flight.
     DropSubscription { request: Token },
     /// Ask a connector whether a refused repair belongs to a held task.
@@ -126,6 +161,8 @@ pub enum Ask {
     DelegateRefused { task: Option<u64> },
     /// Start one admitted procedure through its numbered connector.
     StartProcedure { context: Box<tasks::RunContext>, step: u64 },
+    /// Ask a connector for a public document (jig/docs/design/domain/engine.md, 11).
+    Public { reply: ReplyTo, kind: u16, version: u16, project: u32, task: Option<u64>, public: Box<[u64]> },
 }
 
 /// Store mutation issued by a child of the core.
@@ -220,6 +257,10 @@ pub enum Held {
     NotesWritten { owner: Token, name: u64, revision: u32 },
     /// A note deletion's accepted name.
     NotesDeleted { owner: Token, name: u64 },
+    /// A public read's answer after durability (jig/docs/design/domain/people.md, 13.10).
+    PublicRead { reply: ReplyTo, answer: crate::PublicAnswer },
+    /// Recheck a public read after preceding commits (jig/docs/design/domain/people.md, 13.10).
+    PublicWait { read: Token },
 }
 
 /// Why an unkeyed watch was not admitted (`client/domain/contract.md`, 7.2).
@@ -238,6 +279,8 @@ pub enum WatchRefusal {
 /// Core output that follows no mutation.
 #[derive(Debug)]
 pub enum Now {
+    /// A bounded task read has no durable call record (engine.md, 7.3).
+    TaskRead { to: ReplyTo, key: CallKey, answer: Box<Result<crate::reads::run_task::TaskRead, tasks::Refusal>> },
     /// A settings document leaves without a durable call record (engine.md, 7.3).
     SettingsAnswer { to: ReplyTo, key: CallKey, answer: Box<crate::reads::SettingsAnswer> },
     /// The root answers this host call with its own busy payload.
@@ -315,8 +358,14 @@ pub enum Now {
     PartyInputs { request: Token, person: u64, project: u32, tasks: Box<[u64]> },
     /// Assemble connector-held sections for a still-current brief.
     CompleteBrief { brief: Token, order: Box<[brief::GatherPlaced]> },
-    /// Core-owned sections are ready; the root may append its connector sections.
-    BriefCorePlanned { task: u64, parent: Option<u64>, sections: List<brief::Planned> },
+    /// Core-owned sections and charter documents are ready; the root may append its connector
+    /// sections (domain/engine.md, 17.9).
+    BriefCorePlanned {
+        task: u64,
+        parent: Option<u64>,
+        sections: List<brief::Planned>,
+        documents: Box<[PlannedDocument]>,
+    },
     /// The root assembles a numbered connector workspace for this core-selected attempt.
     WorkspaceRequest { task: u64, attempt: u64, context: Box<tasks::RunContext> },
     /// Core admission and claim preparation failed; discard root-owned assembly parts.
@@ -345,6 +394,7 @@ pub enum Now {
 /// Limits of the core's child routes.
 #[derive(Clone, Copy, PartialEq, Eq, Debug)]
 pub struct Limits {
+    pub public: PublicIndexLimits,
     /// The most hand-offs one core decision routes, sibling continuations included: the
     /// bound of every drain within a step (skein's programming-model.md, 3 "Bounded"; 4.5).
     pub routes: u32,
@@ -393,6 +443,18 @@ pub struct Limits {
     pub documents: crate::documents::DocumentLimits,
     /// Live view streams.
     pub views: views::Limits,
+}
+
+/// Public index bounds (jig/docs/design/domain/people.md, 13.9).
+#[derive(Clone, Copy, PartialEq, Eq, Debug)]
+pub struct PublicIndexLimits {
+    pub goals: u16,
+    pub ended: u16,
+    pub lines: u16,
+    pub depth: u16,
+}
+impl PublicIndexLimits {
+    pub const OFF: Self = Self { goals: 0, ended: 0, lines: 0, depth: 0 };
 }
 
 /// Budgets for the core's own brief sections.
@@ -517,7 +579,17 @@ pub enum Event {
     /// The root assembled all selected connector sections, or found a missing owner.
     BriefAssembled { task: u64, ready: bool },
     /// The root translated the selected connector's workspace writes.
-    WorkspacePrepared { task: u64, attempt: u64, writes: Option<Box<[authority::Write]>>, credentials: Box<[u32]> },
+    WorkspacePrepared {
+        task: u64,
+        attempt: u64,
+        writes: Option<Box<[authority::Write]>>,
+        /// A job's held names, translated by its connectors from workspace writes
+        /// (jig/docs/design/domain/engine.md, 7.1, step 3); empty for an agent.
+        holds: Box<[tasks::Name]>,
+        credentials: Box<[u32]>,
+        /// A job's application-encoded workspace items, within `Limits::run_bytes`.
+        workspace: Option<Box<[u8]>>,
+    },
     /// The root returned translated workspace names after assembling the run assignment.
     ClaimPrepared { task: u64, attempt: u64, budget: u64, writes: Box<[tasks::Name]> },
     /// A connector refused the held names of a pending task claim.
@@ -625,22 +697,56 @@ pub enum Event {
     /// One retained input load failed validation before named delegation.
     DelegateInputFailed { to: ReplyTo, key: CallKey },
     /// One connector's batch holdings, in the same order as the core's request.
-    DelegateHoldings { request: Token, connector: u16, holdings: Option<Box<[Box<[tasks::Holding]>]>> },
+    DelegateHoldings {
+        request: Token,
+        connector: u16,
+        holdings: Option<Box<[Box<[tasks::Holding]>]>>,
+        /// A reason for refusal, set only when `holdings` is `None`.
+        refused: Option<HoldingsRefusal>,
+    },
     /// One connector's procedure batch holdings in requested order.
-    ProcedureHoldings { task: u64, step: u64, connector: u16, holdings: Option<Box<[Box<[tasks::Holding]>]>> },
+    ProcedureHoldings {
+        task: u64,
+        step: u64,
+        connector: u16,
+        holdings: Option<Box<[Box<[tasks::Holding]>]>>,
+        /// A reason for refusal, set only when `holdings` is `None`.
+        refused: Option<HoldingsRefusal>,
+    },
     /// A numbered connector's procedure choice in the core's vocabulary.
     ProcedureStep { task: u64, step: u64, connector: u16, code: u32, decision: ProcedureStep },
     /// A gathered section.
     Brief(brief::GatherEvent),
     /// One numbered connector's answer to a task-holdings handoff.
-    Holdings { request: Token, connector: u16, holdings: Option<Box<[tasks::Holding]>> },
+    Holdings {
+        request: Token,
+        connector: u16,
+        holdings: Option<Box<[tasks::Holding]>>,
+        /// A reason for refusal, set only when `holdings` is `None`.
+        refused: Option<HoldingsRefusal>,
+    },
     /// An account refresh or grant.
     Account(accounts::Event),
     /// A live view.
     View(views::Event),
     /// A scoped note.
     Notes(notes::Event),
+    /// An unsigned public read (jig/docs/design/protocol/client.md, 19).
+    PublicRead { reply: ReplyTo, read: crate::PublicRead },
+    /// A connector's public document (jig/docs/design/domain/engine.md, 11).
+    PublicAnswered { reply: ReplyTo, answer: Option<crate::PublicApplication> },
+    /// The root released this read after preceding commits became durable.
+    PublicDurable { read: Token },
 }
+/// Why a connector refuses a member's holdings (domain/tasks.md, 6.1 and 6.2).
+#[derive(Clone, Copy, PartialEq, Eq, Hash, Debug)]
+pub enum HoldingsRefusal {
+    /// The member names a symbol this connector does not offer it.
+    Symbol { symbol: u16 },
+    /// The member would write a resource this task holds, outside its subtree.
+    Held { holder: u64 },
+}
+
 /// One member's concrete identity passed to a connector for its own holdings.
 #[derive(Clone, Debug)]
 pub struct HoldingsNeed {
@@ -649,6 +755,9 @@ pub struct HoldingsNeed {
     pub number: u64,
     pub executor: tasks::Executor,
     pub spec: tasks::Spec,
+    pub tracked: bool,
+    /// This connector's symbols of the member, in the member's order.
+    pub symbols: Box<[u16]>,
 }
 /// Connector-free shape of a root-owned host payload after refusal.
 #[derive(Debug)]
@@ -662,6 +771,11 @@ pub enum PayloadRefusal {
 /// Connector-free work a named host call asks the core to route.
 #[derive(Debug)]
 pub enum NamedAction {
+    /// Read a related live task or a retained direct delegate without deciding a call.
+    ReadTask {
+        task: u64,
+        from: u64,
+    },
     /// A settings read decides nothing and keeps no call record (engine.md, 7.3).
     Settings(crate::reads::SettingsRead),
     /// A run proposes settings against the revision it read (engine.md, 17.6).
@@ -813,6 +927,7 @@ impl Event {
             | Self::ProposeSettings { .. }
             | Self::Act { .. }
             | Self::Read { .. }
+            | Self::PublicRead { .. }
             | Self::Application { .. }
             | Self::Key { .. }
             | Self::EffectStart { .. }
@@ -828,6 +943,8 @@ impl Event {
             | Self::Stopping
             | Self::Marked { .. }
             | Self::ReadLoaded { .. }
+            | Self::PublicAnswered { .. }
+            | Self::PublicDurable { .. }
             | Self::ApplicationPart { .. }
             | Self::ApplicationFinished { .. }
             | Self::ProjectionSettled { .. }
@@ -968,6 +1085,7 @@ fn fleet_new_work(event: &fleet::Event) -> bool {
         | fleet::Event::Relay { .. } => true,
         fleet::Event::Logins { .. }
         | fleet::Event::SignedOut { .. }
+        | fleet::Event::StartJob { .. }
         | fleet::Event::Start { .. }
         | fleet::Event::Inbound { .. }
         | fleet::Event::Adopt { .. }
@@ -1071,8 +1189,10 @@ fn notes_new_work(event: &notes::Event) -> bool {
     }
 }
 
+#[expect(clippy::match_same_arms, reason = "application settings placeholders have their own arm")]
 fn effectconnector_new_work(event: &crate::effects::connector::Event) -> bool {
     match event {
+        crate::effects::connector::Event::SettingsRestored { .. } => false,
         crate::effects::connector::Event::Resource { .. }
         | crate::effects::connector::Event::PoolSlots { .. }
         | crate::effects::connector::Event::News { .. }
@@ -1089,6 +1209,8 @@ fn effectconnector_new_work(event: &crate::effects::connector::Event) -> bool {
         | crate::effects::connector::Event::Adopted { .. }
         | crate::effects::connector::Event::Closed { .. }
         | crate::effects::connector::Event::RestartDone { .. } => false,
+        &crate::effects::connector::Event::SettingsJudged { .. }
+        | &crate::effects::connector::Event::SettingsDefaults { .. } => false,
     }
 }
 

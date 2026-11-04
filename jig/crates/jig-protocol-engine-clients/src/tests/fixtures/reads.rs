@@ -34,9 +34,10 @@ pub fn value_answer(value: &w::ReadValue) -> w::ReadAnswer {
 pub fn read_none(value: w::ReadNone) -> w::ReadAnswer {
     w::ReadAnswer::None(w::ReadAnswerNone::new(&wire(), w::ReadAnswerNoneParts { value }).expect("none"))
 }
-pub fn held_reads() -> [(&'static str, w::Read, reads::Read, reads::Answer, w::ReadAnswer); 4] {
+pub fn held_reads() -> [(&'static str, w::Read, reads::Read, reads::Answer, w::ReadAnswer); 5] {
     let limits = wire();
     [
+        task_text_read(),
         (
             "document",
             w::Read::Me,
@@ -254,4 +255,44 @@ fn note_cursors(rows: &mut List<(&'static str, reads::Cursor)>) {
         ))
         .expect("cursor fixture room");
     }
+}
+
+fn task_text_read() -> (&'static str, w::Read, reads::Read, reads::Answer, w::ReadAnswer) {
+    let limits = wire();
+    let bytes = "é CI failed: missing artifact".as_bytes();
+    let from = 127_u64;
+    let total = from.checked_add(u64::try_from(bytes.len()).unwrap()).unwrap();
+    (
+        "task text",
+        w::Read::TaskText(
+            w::ReadTaskText::new(
+                &limits,
+                w::ReadTaskTextParts { task: 7, field: w::TaskTextField::Instructions, from },
+            )
+            .unwrap(),
+        ),
+        reads::Read::TaskText { task: 7, field: reads::TaskTextField::Instructions, from },
+        reads::Answer::TaskText(Box::new(reads::TaskText {
+            task: 7,
+            field: reads::TaskTextField::Instructions,
+            from,
+            total,
+            next: None,
+            bytes: Box::from(bytes),
+        })),
+        value_answer(&w::ReadValue::TaskText(
+            w::TaskText::new(
+                &limits,
+                w::TaskTextParts {
+                    task: 7,
+                    field: w::TaskTextField::Instructions,
+                    from,
+                    total,
+                    next: None,
+                    words: Box::from(bytes),
+                },
+            )
+            .unwrap(),
+        )),
+    )
 }

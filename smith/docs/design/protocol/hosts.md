@@ -19,8 +19,7 @@ The contract is domain/host.md's.
   - translates between the channel's records and `smith-host-domain`'s
     vocabulary;
   - fills grants' values in from the host's credentials, each in the
-    form the channel names (channel.md, section 6), the withdrawn
-    one included for a host that still writes it;
+    form the channel names (channel.md, section 6);
   - checks a program source's login, and signs it out, when its host
     asks (section 2).
 - **The streams are the host's to make:**
@@ -453,14 +452,6 @@ directory, each record under its lock (`docs/design/shell.md`, section
   - each failure shown in its words, in neither a turn nor a prompt;
   - each with the inline agent, and with a spawned agent, resumes,
     replays and lines crossing the answer included.
-
-## 8. From temper
-
-- **The worker's agent child's protocol half** becomes
-  `smith-host-protocol`, without temper's names.
-- **The worker's push** stays temper's, as its delivery (temper's
-  `domain/agent.md`, section 6).
-- **The local host is new.**
 
 ## 9. Open questions
 

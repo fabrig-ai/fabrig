@@ -125,6 +125,7 @@ its own, wherever a presentation builds on skein's UI kit.
   time; a run's text written out over time. It holds the truth the
   referee compares with: what it committed, and when.
   It encodes what it serves with jig's wire codec and hands it to the client through the link's decoding, so the link's bounds are the one admission rule for both fronts.
+  It decides as little of the core's as it can: a task's phase class is the contract's (`Phase::class`), its inbox rows come in the order a story seeds them, and what it still decides, a task page's order and the requester a record names, a shared story holds on both fronts (section 5).
 - **The transport, played by the world:** it carries the client's
   exchanges and its stream to the scripted engine, and its records to
   the small store, with section 7's faults between.
@@ -154,7 +155,7 @@ its own, wherever a presentation builds on skein's UI kit.
   pages.md's, section 10, each written once in a person's terms, through
   jig's test application.
 - **Read cancellation at credential boundaries** uses client-domain
-  step tests and the existing composed `jig-client` sign-in fixture:
+  step tests and the composed `jig-client` sign-in fixture:
   `Held` and `Transport`, successful `Link` and `Service`, response
   before and after the boundary, sign-out learned from a read, and
   reads before the first `me`. Each pending jig or family read ends
@@ -172,8 +173,8 @@ its own, wherever a presentation builds on skein's UI kit.
   and link outputs; deferred reads alone may wait on exchange credit
   (client.md, sections 3 and 11; programming-model.md, 7.2).
 - **Shapes** preserve a template's omitted LLM intent even when its
-  `resolved_default` preview names a model; the existing shapes step
-  tests check that the preview never enters `Create`.
+  `resolved_default` preview names a model; the shapes step tests check
+  that the preview never enters `Create`.
 - **At the text shell.** A client of the reference UI's stories may be
   played as skein's text shell is (view.md, section 15): each tree it
   shows printed by its renderer, and each act the person makes typed as
@@ -239,13 +240,13 @@ In every world, whatever stands in front of the client:
   request is reported before the commit that answers it is durable.
 - **Ordinary deciding requests made once:** each is made once by the
   engine, whatever the faults: drops, restarts, a request sent twice
-  under one key, reloads. New `Seen` retains no completed engine answer:
+  under one key, reloads. `Seen` retains no completed engine answer:
   a retry after completion checks current subject and authority and
   advances the durable watermark only forward (contract.md, 3.1).
 - **Kept work survives restart:** every kept request is answered,
   reported unknown past the engine's retention, or restored and reported
   kept; every word sent and reported answered is in its task's activity,
-  or its task ended. New unanswered `Seen` is silently lost on closing,
+  or its task ended. An unanswered `Seen` is silently lost on closing,
   reload or crash, and the next opening checks and sends the watermark
   again. While the client lives it keeps the same pending lifecycle and
   one answer. A request carrying a value follows client.md, section 6.
@@ -269,20 +270,19 @@ In every world, whatever stands in front of the client:
 - **Bounded:** the client within its limits, the heap within its worst
   case.
 
-Existing client-domain request step tests cover `Seen`'s consumed table
+The client-domain request step tests cover `Seen`'s consumed table
 save with no `Down::Save`, parked-to-live sending, retries under the same
 engine key, application-key joins and conflicts, and named `Send` held
-while its name is held. Existing composed-client store tests contrast
+while its name is held. The composed-client store tests contrast
 `Seen` alone, which needs no own `Stored` before its exchange, with
 ordinary and mixed requests: kept requests wait for `Stored`, failed
 writes answer only the ordinary records they carried as not kept, and
 held `Seen` exchanges are lost and retry. Final answers and retention's
-unknown outcome still erase; acknowledging an absent-key `Seen` erase
-then a later ordinary save must allow that request to send, with no
-tracked write left waiting. Legacy stored pending `Seen` records decode,
-restore as kept, never save again, and erase normally at terminal; the
-existing link codec's legacy `Seen` record fixture remains readable.
-These proofs use the existing tiers, harnesses and budgets.
+unknown outcome erase; acknowledging an absent-key `Seen` erase then a
+later ordinary save must allow that request to send, with no tracked
+write left waiting. A kept `Seen` record restores as kept, is never
+saved again and erases at its terminal. These proofs use the client's tiers, harnesses and
+budgets (sections 2 and 9).
 
 ### 6.2 jig's check
 
@@ -427,3 +427,7 @@ suite and budget are `../../protocol/browser.md`'s, section 15.
   also run with people in front, or only the stories about people.
 - **Coverage of the roots' arms,** as for the engine's root
   (`../../domain/testing.md`, section 10).
+- **Stories on one front:** a story that needs a document the shared
+  stories cannot seed runs on the scripted front alone, so the joint
+  world does not check it. Whether one is worth what seeding its
+  document costs. Default: they stay.

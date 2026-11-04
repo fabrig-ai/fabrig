@@ -22,7 +22,7 @@ fn positive(value: &Value, name: &'static [u8]) -> Result<u32, Problem> {
     let n = value.small(name)?;
     if n == 0 { Err(Problem::Range(name)) } else { Ok(n) }
 }
-pub(crate) fn read(value: &Value) -> Result<engine::Tool, Problem> {
+pub(crate) fn read(value: &Value, bytes: &[u8]) -> Result<engine::Tool, Problem> {
     only(value, &[b"setting", b"revision", b"history", b"from"], b"settings")?;
     let from = match value.field(b"from")? {
         Some(v) => v.small(b"from")?,
@@ -45,22 +45,34 @@ pub(crate) fn read(value: &Value) -> Result<engine::Tool, Problem> {
         };
         SettingsRead::Revisions { before }
     } else if let Some(setting) = setting {
-        only(setting, &[b"kind", b"number"], b"setting")?;
+        only(setting, &[b"kind", b"number", b"project"], b"setting")?;
         let kind = setting.required(b"kind")?.text(b"kind")?;
         let number = setting.field(b"number")?;
-        let setting = if kind.as_ref() == b"rules" {
+        let project = setting.field(b"project")?;
+        if project.is_some() && kind.as_ref() != b"landing-rule" && kind.as_ref() != b"project-policy" {
+            return Err(Problem::Range(b"project"));
+        }
+        if kind.as_ref() == b"rules" || kind.as_ref() == b"project-policy" {
             if number.is_some() {
                 return Err(Problem::Range(b"number"));
             }
-            s::Setting::Rules
         } else {
-            let number = positive(number.ok_or(Problem::Missing(b"number"))?, b"number")?;
-            match kind.as_ref() {
-                b"charter" => s::Setting::Charter(number),
-                b"template" => s::Setting::Template(number),
-                b"policy" => s::Setting::Policy(number),
-                _ => return Err(Problem::Range(b"kind")),
-            }
+            positive(number.ok_or(Problem::Missing(b"number"))?, b"number")?;
+        }
+        if let Some(project) = project {
+            positive(project, b"project")?;
+        } else if kind.as_ref() == b"project-policy" {
+            return Err(Problem::Missing(b"project"));
+        }
+        let setting = settings_form::file::read_setting(bytes, &settings_form::Limits::standard())
+            .or(Err(Problem::Range(b"kind")))?;
+        let setting = match setting {
+            c::Setting::Charter(value) => s::Setting::Charter(value.number),
+            c::Setting::Template(value) => s::Setting::Template(value.number),
+            c::Setting::Policy(value) => s::Setting::Policy(value.number),
+            c::Setting::Rules => s::Setting::Rules,
+            c::Setting::Application { kind, scope, number } => s::Setting::Application { kind, scope, number },
+            c::Setting::ProjectPolicy { project } => s::Setting::ProjectPolicy { project },
         };
         SettingsRead::Setting { setting, revision: revision.unwrap_or(0) }
     } else if let Some(number) = revision {
@@ -118,11 +130,36 @@ pub(crate) fn proposal(name: run::CallName, bytes: &[u8], configured: &[engine::
             return Err(Problem::Range(b"items"));
         }
     };
+    let kinds = kind_values(&items)?;
     Ok(Decoded::Call(engine::Call {
         completion: name.completion,
         position: name.position,
-        tool: engine::Tool::ProposeSettings { against, items, reason },
+        tool: engine::Tool::ProposeSettings { against, items, reason, kinds },
     }))
+}
+
+/// Type application values at the schema ceilings; the forge judges deployment bounds
+/// (temper/docs/design/domain/root.md, 5.6).
+pub(super) fn kind_values(items: &[s::Item]) -> Result<Box<[engine::KindValue]>, Problem> {
+    let ceilings = temper_client_protocol_wire::v1::CEILINGS;
+    let bounds = crate::kinds::Bounds {
+        segments: ceilings.landing_pattern_segments,
+        segment_bytes: ceilings.landing_pattern_segments_item,
+        gates: ceilings.landing_rule_gates,
+        approvals: ceilings.landing_rule_approvals,
+    };
+    let mut values = List::with_capacity(u32::try_from(items.len()).expect("bounded settings items"));
+    for item in items {
+        let s::Setting::Application { kind: kind @ 1..=3, scope, number } = item.setting else { continue };
+        let bytes = match &item.edit {
+            s::Edit::Set(s::Value::Application(bytes)) => bytes,
+            s::Edit::Set(_) => return Err(Problem::Range(b"items")),
+            s::Edit::Removed | s::Edit::Reset => continue,
+        };
+        let value = crate::kinds::decode(kind, bytes, &bounds).ok_or(Problem::Range(b"items"))?;
+        values.push(engine::KindValue { kind, scope, number, value }).expect("one value per set item");
+    }
+    Ok(values.into_boxed())
 }
 
 /// Render the same settings document through the same text layer as ctl.
@@ -175,7 +212,17 @@ pub fn settings_answer(
     from: u32,
     requested: Option<u64>,
     models: &[engine::Model],
+    application: Option<&temper_engine_domain_forge::settings::SizedValue>,
 ) -> run::HostAnswer {
+    let enriched;
+    let answer = if let (SettingsAnswer::Setting(document), Some(value)) = (answer, application) {
+        let mut document = document.clone();
+        document.value = Some(s::Value::Application(crate::kinds::encode(&value.value)));
+        enriched = SettingsAnswer::Setting(document);
+        &enriched
+    } else {
+        answer
+    };
     match settings_text(answer, requested, models) {
         Ok(text) => match settings_form::page::page(&text, from) {
             Ok(body) => {
@@ -199,14 +246,62 @@ pub fn settings_answer(
 
 pub(crate) fn refusal(why: &jig_domain_people::Refusal) -> Box<[u8]> {
     use jig_domain_people::{Malformed, Refusal};
+    match why {
+        Refusal::Forgotten { oldest } => {
+            let mut measure = settings_form::Text::measure();
+            measure.put(b"forgotten; oldest kept revision ");
+            measure.number(u64::from(*oldest));
+            let mut out = settings_form::Text::writing_exact(measure);
+            out.put(b"forgotten; oldest kept revision ");
+            out.number(u64::from(*oldest));
+            return out.finish();
+        }
+        Refusal::Judged { why, .. } => {
+            let mut out = settings_form::Text::measure();
+            out.put(b"refused by its owner: ");
+            out.put(why);
+            let mut rendered = settings_form::Text::writing_exact(out);
+            rendered.put(b"refused by its owner: ");
+            rendered.put(why);
+            return rendered.finish();
+        }
+        Refusal::SignInRedirect { .. }
+        | Refusal::Stale { .. }
+        | Refusal::Full { .. }
+        | Refusal::NameTaken
+        | Refusal::AccountMove { .. }
+        | Refusal::Circle { .. }
+        | Refusal::Dependency { .. }
+        | Refusal::Kept { .. }
+        | Refusal::Account { .. }
+        | Refusal::NotWellFormed { .. }
+        | Refusal::Role { .. }
+        | Refusal::Authority { .. }
+        | Refusal::Limit { .. }
+        | Refusal::Moved { .. }
+        | Refusal::Ended { .. }
+        | Refusal::Taken { .. }
+        | Refusal::NotWaiting
+        | Refusal::NoFurther
+        | Refusal::Unknown
+        | Refusal::NotOffered
+        | Refusal::Provider
+        | Refusal::KeyConflict
+        | Refusal::NoEscalationHolder
+        | Refusal::Llm { .. } => {}
+    }
     let view = if let Refusal::Stale { newest } = why {
         settings_form::Refusal::Stale(*newest)
     } else if let Refusal::NotWellFormed { at, why: Malformed::Settings { setting, fault } } = why {
         let setting = match setting {
+            s::Setting::ProjectPolicy { project } => c::Setting::ProjectPolicy { project: *project },
             s::Setting::Charter(number) => c::Setting::Charter(c::SettingNumber { number: *number }),
             s::Setting::Template(number) => c::Setting::Template(c::SettingNumber { number: *number }),
             s::Setting::Policy(number) => c::Setting::Policy(c::SettingNumber { number: *number }),
             s::Setting::Rules => c::Setting::Rules,
+            s::Setting::Application { kind, scope, number } => {
+                c::Setting::Application { kind: *kind, scope: *scope, number: *number }
+            }
         };
         let fault = match fault {
             jig_domain_people::SettingFault::Shape => c::SettingFault::Shape,
@@ -216,6 +311,7 @@ pub(crate) fn refusal(why: &jig_domain_people::Refusal) -> Box<[u8]> {
             jig_domain_people::SettingFault::Budget => c::SettingFault::Budget,
             jig_domain_people::SettingFault::Grace => c::SettingFault::Grace,
             jig_domain_people::SettingFault::Owner => c::SettingFault::Owner,
+            jig_domain_people::SettingFault::Judged => c::SettingFault::Judged,
         };
         settings_form::Refusal::Malformed { at: *at, setting, fault }
     } else if let Refusal::NotWellFormed { why: Malformed::SettingsUnchanged, .. } = why {

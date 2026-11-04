@@ -289,7 +289,9 @@ impl Files {
                 self.root = None;
                 self.stage = Stage::Closed;
             }
-            Stage::Unopened | Stage::Ready | Stage::Closed => panic!("unexpected file terminal"),
+            Stage::Unopened | Stage::Ready | Stage::Closed => {
+                unreachable!("a file terminal answers the request in flight")
+            }
         }
     }
     fn encode(&self) -> Option<Box<[u8]>> {

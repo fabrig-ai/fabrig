@@ -2,7 +2,7 @@
 use alloc::boxed::Box;
 use skein_lib::{List, Secret};
 
-/// The scripted provider and its key file (temper/docs/design/draft/playground-reset.md, 6.1).
+/// The scripted provider and its key file (temper/docs/design/protocol/setup.md, 8.4).
 #[derive(Debug)]
 pub struct Demo {
     pub provider: u32,
@@ -13,9 +13,12 @@ pub struct Demo {
     pub key_file: Box<[u8]>,
 }
 
-/// A runtime forge row made from its kept record (temper/docs/design/draft/playground-reset.md, 3).
+/// A runtime forge row made from its kept record (temper/docs/design/protocol/forge.md, 2.1).
 #[derive(Clone, Debug)]
 pub struct Forge {
+    /// Resolved configured job-log origins; none uses the kind's runtime defaults
+    /// (temper/docs/design/protocol/configuration.md, 3).
+    pub log_origins: Option<List<skein_forge_connection::settings::LogOrigin>>,
     pub mode: temper_engine_domain_forge::Mode,
     pub number: u16,
     pub kind: Kind,
@@ -29,9 +32,6 @@ pub struct Forge {
     pub web: Option<Box<[u8]>>,
     /// The pasted GitHub App, its hook and installations belong to another owner.
     pub app_read_only: bool,
-    /// The API token, read from its private file: the forge component's alone.
-    pub api_token: Option<Secret>,
-    pub webhook_secret: Option<Secret>,
     /// The forge user the API token belongs to: the forge writer.
     pub user: u64,
     /// The number of this forge's git identity.
@@ -54,7 +54,7 @@ pub enum Transport {
     Tls { server_name: Box<[u8]>, trust: Option<Box<[u8]>> },
 }
 
-/// A runtime git identity made from its kept forge (temper/docs/design/draft/playground-reset.md, 3).
+/// A runtime git identity made from its kept forge (temper/docs/design/protocol/forge.md, 2.1).
 #[derive(Clone, Debug)]
 pub struct Identity {
     pub number: u32,
@@ -101,6 +101,8 @@ pub struct Setup {
 /// temper's members (protocol/configuration.md, sections 2 and 3).
 #[derive(Debug)]
 pub struct Engine {
+    /// Charter brief-room costs of the configured agent (temper/docs/design/domain/agent.md, 4.3).
+    pub host_part: Option<temper_engine_domain::room::HostPart>,
     pub machine: temper_forge_setup::machine::Machine,
     pub directories: jig_protocol_config::Directories,
     pub jig: jig_protocol_config::Engine,
@@ -109,8 +111,8 @@ pub struct Engine {
     pub webhooks: Option<skein_forge_connection::hooks::Webhooks>,
     pub files: Files,
     pub demo: Option<Demo>,
-    pub landing: temper_engine_domain::LandingPolicy,
-    pub charter: u32,
+    pub kinds_stock: Box<[temper_engine_domain_forge::settings::Stock]>,
+    pub landings: skein_lib::Map<u32, temper_engine_domain::ProjectLanding>,
     pub limits: super::limits::Limits,
 }
 

@@ -1,6 +1,6 @@
 //! Root handoff orders under concurrent session and host pressure.
 //! Contract: smith/docs/design/domain/run.md, sections 3.2, 5.3 and 11;
-//! skein/docs/design/draft/dynamic-memory.md, section 4.6.
+//! skein/docs/foundation/programming-model.md, section 7.2.
 
 use std::collections::{BTreeMap, BTreeSet};
 

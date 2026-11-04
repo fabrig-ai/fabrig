@@ -365,6 +365,7 @@ fn goal_issue(world: &mut World) -> Result<(), Violation> {
     let milestone = engine::Delegate {
         executor: tasks::Executor::Agent { charter: 1 },
         spec: tasks::Spec {
+            job: None,
             asks: false,
             words: b"First milestone".as_slice().into(),
             parameters: Box::new([]),
@@ -374,7 +375,7 @@ fn goal_issue(world: &mut World) -> Result<(), Violation> {
         authority,
         symbolic_grants: Box::new([]),
         dependencies: Box::new([]),
-        wake: tasks::WakePolicy::DEFAULT,
+        wake: Some(tasks::WakePolicy::DEFAULT),
         ..temper_engine_domain_world::fixtures::report_delegate(b"fixture", Box::new([]))
     };
     let tool = engine::Tool::Delegate { batch: Box::new([milestone]) };

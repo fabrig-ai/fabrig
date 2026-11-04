@@ -2,6 +2,10 @@ use super::fixtures;
 use crate::{jig, table};
 use skein_lib::List;
 const GOLDENS: &[(Option<u8>, &str)] = &[
+    (Some(jig::rows::PROJECT_AMEND_AT), "help_project_amend"),
+    (Some(jig::rows::GOAL_START_AT), "help_goal_start"),
+    (Some(jig::rows::CHAT_CREATE_AT), "help_chat_start"),
+    (Some(jig::rows::TASK_TEXT_AT), "help_task_text"),
     (Some(jig::rows::LIFT_AT), "help_hold_lift"),
     (Some(3), "help_task_show"),
     (Some(12), "help_proposal_decide"),
@@ -9,14 +13,15 @@ const GOLDENS: &[(Option<u8>, &str)] = &[
     (Some(10), "help_chat_close"),
     (Some(16), "help_task_tree"),
     (Some(34), "help_forge_list"),
-    (Some(49), "help_change_show"),
-    (Some(56), "help_landing_show"),
-    (Some(57), "help_landing_list"),
+    (Some(50), "help_change_show"),
+    (Some(57), "help_landing_show"),
+    (Some(58), "help_landing_list"),
     (Some(20), "help_pending"),
     (Some(17), "help_repository_adopt"),
     (Some(31), "help_task_amend"),
     (Some(37), "help_forge_connect"),
-    (Some(38), "help_forge_install"),
+    (Some(38), "help_forge_replace"),
+    (Some(39), "help_forge_install"),
     (Some(jig::rows::EXPORT_AT), "help_account_export"),
     (Some(jig::rows::IMPORT_AT), "help_account_import"),
     (Some(jig::rows::SETTINGS_AT), "help_settings_show"),
@@ -27,6 +32,7 @@ const GOLDENS: &[(Option<u8>, &str)] = &[
     (Some(jig::rows::PROPOSE_SETTINGS_AT), "help_settings_propose"),
     (Some(jig::rows::PROPOSAL_AT), "help_proposal_show"),
     (Some(jig::rows::MOVE_TO_NEWEST_AT), "help_revision_advance"),
+    (Some(jig::rows::RESTORE_AT), "help_revision_restore"),
     (Some(jig::rows::PROJECT_SHOW_AT), "help_project_show"),
     (Some(jig::rows::PROJECT_FUND_AT), "help_project_fund"),
 ];
@@ -50,6 +56,124 @@ fn the_help_prints_as_its_golden_files() {
         assert_eq!(fixtures::help(*tool), fixtures::golden(name), "{name}");
     }
 }
+
+#[test]
+fn chat_start_explains_subagent_choices() {
+    let help = fixtures::help(Some(jig::rows::CHAT_CREATE_AT));
+    for explanation in [
+        "each model named once, with one effort",
+        "effort is required when the model declares efforts",
+        "--sub-agent MODEL_A:EFFORT_A --sub-agent MODEL_B:EFFORT_B",
+        "distinct model names offered by `model list`",
+        "Available choices only: this list neither starts children nor assigns",
+        "choices by child order",
+        "The parent's `sub_agent` call selects a model with",
+        "optional `llm`; omitted, it uses main's model and effort",
+        "One model cannot be offered at two child efforts",
+        "multiple children may use the same choice",
+    ] {
+        assert!(
+            skein_lib::bytes::find(&help, explanation.as_bytes()).is_some(),
+            "chat start help must explain: {explanation}"
+        );
+    }
+}
+#[test]
+fn chat_start_points_to_model_list_and_models_print_readably() {
+    let help = fixtures::help(Some(jig::rows::CHAT_CREATE_AT));
+    for reference in ["as model list shows it", "distinct model names offered by `model list`"] {
+        assert!(skein_lib::bytes::find(&help, reference.as_bytes()).is_some(), "{reference}");
+    }
+    let mut root = fixtures::account_root(false);
+    root.deliver(jig_client::contract::Delivery::Me(Box::new(readable_models())));
+    let call = root.submit(&["model", "list", "--project", "1"]);
+    fixtures::deliver_accounts(&mut root, fixtures::accounts());
+    let printed = root.answer(call).expect("model panel");
+    assert_eq!(printed.status, 0);
+    for fact in [
+        "models for project 1",
+        "provider 9 · Scripted",
+        "model chosen-model",
+        "description: Careful reasoning",
+        "window: 8192 tokens",
+        "output: 1024 tokens",
+        "efforts: high",
+        "prices (per 1000 tokens)",
+        "input: 7",
+        "cached input: 2",
+        "cache write: 9",
+        "output: 11",
+        "account 43",
+        "source 71",
+        "not usable",
+        "model plain-model",
+        "provider unknown",
+        "efforts: none listed",
+        "digest: models ",
+    ] {
+        assert!(fixtures::has(&printed, fact.as_bytes()), "{fact}: {printed:?}");
+    }
+    for raw in [b"provider_name:".as_slice(), b"bytes:", b"cut:", b"cache_write:", b"needs an account"] {
+        assert!(!fixtures::has(&printed, raw), "{raw:?}: {printed:?}");
+    }
+    let json = root.submit(&["model", "list", "--project", "1", "--json"]);
+    fixtures::deliver_accounts(&mut root, fixtures::accounts());
+    let json = root.answer(json).expect("model records");
+    assert_eq!(json.status, 0);
+    assert!(fixtures::has(&printed, &fixtures::last_digest(&json.stdout)));
+}
+
+#[test]
+fn model_panels_keep_projection_loss_and_output_bounds() {
+    use jig_client::contract as c;
+    for loss in 0..3u8 {
+        let mut me = readable_models();
+        match loss {
+            0 => me.providers.get_mut(0).expect("provider").name.cut = true,
+            1 => {
+                let mut description = skein_lib::Writer::new(usize::try_from(crate::limits::TEXT).expect("text bound"));
+                for _ in 0..crate::limits::TEXT {
+                    description.put(b"x").expect("description bound");
+                }
+                me.projects.get_mut(0).expect("project").models.get_mut(0).expect("model").description =
+                    Some(c::Text::new(description.finish(), crate::limits::TEXT).expect("description"));
+            }
+            _ => {
+                let project = me.projects.get_mut(0).expect("project");
+                let model = project.models.get(0).expect("model").clone();
+                project.models = List::with_capacity(64);
+                for _ in 0..64u32 {
+                    project.models.push(model.clone()).expect("model room");
+                }
+            }
+        }
+        let mut root = fixtures::account_root(false);
+        root.deliver(c::Delivery::Me(Box::new(me)));
+        let call = root.submit(&["model", "list", "--project", "1"]);
+        fixtures::deliver_accounts(&mut root, fixtures::accounts());
+        let printed = root.answer(call).expect("cut model panel");
+        assert_eq!(printed.status, 0);
+        assert!(printed.stdout.len() <= usize::try_from(crate::limits::TEXT).expect("text bound"));
+        assert!(fixtures::has(&printed, b"cut: true"), "loss {loss}: {printed:?}");
+        let json = root.submit(&["model", "list", "--project", "1", "--json"]);
+        fixtures::deliver_accounts(&mut root, fixtures::accounts());
+        let json = root.answer(json).expect("cut model records");
+        assert!(fixtures::has(&json, b"\"cut\":true"));
+        assert!(fixtures::has(&printed, &fixtures::last_digest(&json.stdout)));
+    }
+}
+
+fn readable_models() -> jig_client::contract::Me {
+    use jig_client::contract as c;
+    let mut me = fixtures::choice_me(100);
+    me.providers = fixtures::provider_offers();
+    let model = me.projects.get_mut(0).expect("project").models.get_mut(0).expect("model");
+    model.provider = Some(fixtures::PROVIDER);
+    model.description = Some(fixtures::act_text(b"Careful reasoning"));
+    model.prices = c::ModelPrices { input: 7, cached: 2, cache_write: Some(9), output: 11, unit: 1000 };
+    me
+}
+
 // client/tools.md 5.2--5.6, with the plan's typed proposals and close reason.
 const USAGES: &[&[u8]] = &[
     b"me [--since DIGEST] [--until CONDITION] [--timeout DURATION]\n",
@@ -60,7 +184,7 @@ const USAGES: &[&[u8]] = &[
     b"task activity TASK [--before CURSOR] [--limit COUNT]\n",
     b"task turn TASK TURN [--part PART] [--from OFFSET]\n",
     b"task run TASK [--since DIGEST] [--until CONDITION] [--timeout DURATION]\n",
-    b"chat start --project PROJECT TEXT [--model MODEL] [--effort EFFORT] --key KEY\n",
+    b"chat start --project PROJECT [--template TEMPLATE] TEXT [--model MODEL] [--effort EFFORT] [--sub-agent MODEL[:EFFORT]]... --key KEY\n",
     b"task message TASK TEXT --key KEY\n",
     b"chat close TASK [--move TASK]... [--reason TEXT] --key KEY\n",
     b"task answer TASK QUESTION TEXT [--key KEY]\n",
@@ -83,19 +207,20 @@ const USAGES: &[&[u8]] = &[
     b"account forget ACCOUNT [--source sign_in|key|program] [--key KEY]\n",
     b"account rank ACCOUNT POSITION [--source sign_in|key|program] [--key KEY]\n",
     b"account retry ACCOUNT [--source sign_in|key|program] [--key KEY]\n",
-    b"task amend TASK [--rev REV] [--priority PRIORITY | --untracked] [--deadline TIME | --no-deadline] [--instructions FILE] [--spec FILE] [--dependency TASK]... [--no-dependencies] [--model MODEL [--effort EFFORT]] REASON [--key KEY]\n",
+    b"task amend TASK [--rev REV] [--priority PRIORITY | --untracked] [--deadline TIME | --no-deadline] [--instructions FILE] [--spec FILE] [--dependency TASK]... [--no-dependencies] [--model MODEL [--effort EFFORT]] [--tasks N] REASON [--key KEY]\n",
     b"account declare PROVIDER ADAPTER NAME [--account ACCOUNT] --key KEY\n",
     b"account verify ACCOUNT [--source sign_in|key|program] [--key KEY]\n",
     b"forge list [--since DIGEST] [--until CONDITION] [--timeout DURATION]\n",
     b"forge setup [FORGE] [--org ORG] [--repository REPOSITORY] [--project PROJECT] [--playground] [--key KEY]\n",
     b"playground start [--key KEY]\n",
-    b"forge connect FORGE github-app APP FILE [--read-only] --key KEY\nforge connect FORGE github --key KEY\nforge connect FORGE forgejo FILE --key KEY\nforge connect FORGE forgejo-admin FILE [--first ORG/REPOSITORY] [--project PROJECT] [--label LABEL] --key KEY\nforge connect github-app APP FILE [--read-only] --key KEY\nforge connect github --key KEY\nforge connect forgejo-admin FILE [--first ORG/REPOSITORY] [--project PROJECT] [--label LABEL] --api HOST:PORT [--tls NAME] --git URL [--web URL] [--git-program FILE] --key KEY\n",
+    b"forge connect FORGE github-app APP FILE [--read-only] --key KEY\nforge connect FORGE github --key KEY\nforge connect FORGE forgejo FILE --key KEY\nforge connect FORGE forgejo-admin FILE [--first ORG/REPOSITORY] [--project PROJECT] [--label LABEL] --key KEY\nforge connect github-app APP FILE [--read-only] --key KEY\nforge connect github --key KEY\nforge connect forgejo-admin FILE [--first ORG/REPOSITORY] [--project PROJECT] [--label LABEL] --api HOST:PORT [--tls NAME] --git URL [--web URL] [--git-program FILE] --key KEY\nforge connect forgejo FILE --api HOST:PORT [--tls NAME] --git URL [--web URL] [--git-program FILE] --key KEY\n",
+    b"forge replace FORGE FILE --key KEY\n",
     b"forge install FORGE [--key KEY]\n",
     b"forge repositories FORGE [--installation INSTALLATION] [--page PAGE]\n",
     b"account export ACCOUNT FILE\n",
     b"account import FILE --key KEY\n",
     b"settings show\n",
-    b"settings show charter|template|policy NUMBER [--revision REVISION]\nsettings show rules\n",
+    b"settings show charter|template|policy NUMBER [--revision REVISION]\nsettings show rules\nsettings show landing-rule NUMBER [--project PROJECT]\nsettings show forge-charter NUMBER\n",
     b"revision show REVISION\n",
     b"revision list [--before REVISION]\n",
     b"settings apply FILE --against REVISION [--running stays|moves] --key KEY\n",
@@ -112,6 +237,10 @@ const USAGES: &[&[u8]] = &[
     b"landing list --project PROJECT [--ended]\n",
     b"forge remove FORGE [--key KEY]\n",
     b"playground end [--key KEY]\n",
+    b"task text TASK [--field specification|instructions] [--from OFFSET]\n",
+    b"goal start --project PROJECT [--template TEMPLATE] TEXT [--charter CHARTER] [--priority PRIORITY] [--budget AMOUNT] [--as-allowed] [--deadline TIME] [--model MODEL] [--effort EFFORT] [--sub-agent MODEL[:EFFORT]]... --key KEY\n",
+    b"revision restore REVISION [REASON] --key KEY\n",
+    b"project amend PROJECT --visibility public|private --key KEY\n",
 ];
 #[test]
 fn a_tools_usage_reads_as_the_design_writes_it() {
@@ -123,7 +252,8 @@ fn a_tools_usage_reads_as_the_design_writes_it() {
 #[test]
 fn each_derivation_names_every_tool() {
     let mut forms = List::with_capacity(fixtures::TOOL_FORMS);
-    for words in fixtures::EVERY_TOOL {
+    let restore: &[&[&str]] = &[&["revision", "restore", "4", "--key", "restore-4"]];
+    for words in fixtures::EVERY_TOOL.iter().chain(restore) {
         let mut call = fixtures::call(words);
         if call.tool == jig::rows::CHANGE_SETTINGS_AT || call.tool == jig::rows::PROPOSE_SETTINGS_AT {
             *call.values.get_mut(0).expect("FILE") =
@@ -319,6 +449,10 @@ fn the_project_reference_is_what_the_table_renders() {
 }
 
 #[test]
+fn the_chat_reference_is_what_the_table_renders() {
+    reference_matches(b"chat", b"ctl-chat");
+}
+#[test]
 fn the_account_reference_is_what_the_table_renders() {
     reference_matches(b"account", b"ctl-account");
 }
@@ -355,4 +489,23 @@ fn reference_matches(group_name: &[u8], page_name: &[u8]) {
         return;
     }
     assert_eq!(page.text.as_bytes(), rendered.as_ref(), "{}: the lead updates the reference page", page.name);
+}
+
+#[test]
+fn the_settings_reference_is_what_the_table_renders() {
+    reference_matches(b"settings", b"ctl-settings");
+}
+#[test]
+fn the_proposal_reference_is_what_the_table_renders() {
+    reference_matches(b"proposal", b"ctl-proposal");
+}
+
+#[test]
+fn the_goal_reference_is_what_the_table_renders() {
+    reference_matches(b"goal", b"ctl-goal");
+}
+
+#[test]
+fn the_revision_reference_is_what_the_table_renders() {
+    reference_matches(b"revision", b"ctl-revision");
 }

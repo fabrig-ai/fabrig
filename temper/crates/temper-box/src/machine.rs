@@ -1,5 +1,5 @@
 //! Steps, exits and timers in; process orders out (protocol/setup.md, 7.2).
-//! Kind slots and removal follow temper/docs/design/draft/playground-reset.md, 3 and 4.
+//! Kind slots and removal follow temper/docs/design/protocol/setup.md, 7.1.
 use crate::layout::Placed;
 use crate::limits::{Limits, Unfit, check};
 use crate::terminal::Fact;
@@ -1190,7 +1190,9 @@ impl Machine {
                 Phase::Backoff { at, next: following } if at <= now => {
                     let mut first = step;
                     for before in (0..step).rev() {
-                        if self.chain(before) != self.chain(step) {
+                        if self.states.get(before).expect("bounded step").role != Role::Command
+                            || self.chain(before) != self.chain(step)
+                        {
                             continue;
                         }
                         if self.states.get(before).expect("bounded step").kind != Kind::Once {

@@ -44,10 +44,14 @@ A forge is where repositories live, GitHub or Forgejo, numbered when it is set u
   playground's.
 - **Set up:** a box's owned Forgejo is fetched, prepared and started
   with its runner, then makes its first repository with a starter CI
-  workflow and adopts it.
-- **Connected:** GitHub by its App, a Forgejo by its admin's token; a
-  managed Forgejo can make and adopt a first repository as it
-  connects.
+  workflow; `forge setup` adopts it, and the client's welcome leaves it
+  for you to adopt.
+- **Connected:** GitHub by its App; a Forgejo by its admin's token, or
+  by a user's two tokens: `forge connect forgejo FILE`, FILE a tokens
+  file, one `NAME VALUE` line each for `api`, `git` and, for hooks to
+  temper's listener, `webhook_secret`; a managed Forgejo can make
+  a first repository as it connects, which `forge connect --first`
+  adopts.
 - **Its installations,** on GitHub: one made through temper's install
   link is accepted at once; one made on GitHub waits to be accepted. An
   installation not accepted prints ` · not accepted · uninstalled at
@@ -94,20 +98,34 @@ A forge is where repositories live, GitHub or Forgejo, numbered when it is set u
 - **Yourself:** read diffs, reviews, CI runs and logs on the forge,
   at the numbers and links ctl prints (temper help ctl).
 
-A CI repair's brief carries the failed check and the end of its job's
-log, with a marker when the log was cut. On GitHub, `read_checks` also
+A CI repair's brief carries the failed check and the end of its failed
+step's log, with a marker when bytes were cut. On GitHub the end is the
+runner's failed-process line, before post-job cleanup; logs without that
+marker use the job's tail. On GitHub, `read_checks` also
 reports the resolved Actions job attempt for a failed check. Use those
 head, run, job and attempt values with `read_job` to read its log; a
 check-run number can differ from the job number. If no job attempt was
-resolved, the check says so.
+resolved, the check says so. `read_job` keeps the diagnostic end within
+the configured answer limit, including the step's name and escaped bytes.
+
+GitHub job logs follow redirects only to permitted origins. The default
+permits its twenty results hosts, `productionresultssa0.blob.core.windows.net`
+through `productionresultssa19.blob.core.windows.net`, using TLS on port 443.
+An unresolved default host is skipped and named in the serve log; when none
+resolves, no job log is fetched. A refused redirect's origin is shown on the
+forge's row and logged without its signed path or query. Add an explicit
+origin and restart if needed; an explicit unresolved host refuses startup,
+and an empty origin list disables job logs.
 
 ## Limits
 
-- temper cannot replace a forge's key: a second connect is refused
-  with `connected already` (exit 2). Removed and connected again, it
-  is a new forge, with a new number.
-- temper does not connect a Forgejo by a user's token: only as its
-  site admin.
+For the configuration members that need a restart, read `temper help configuration`.
+
+- A forge's key or tokens are replaced by `forge replace FORGE FILE`:
+  a GitHub App's new key, or a tokens file of the same Forgejo user. A
+  second connect is refused with `connected already` (exit 2).
+  Another user's tokens are another forge: removed and connected
+  again, a forge is new, with a new number.
 - temper sets up an owned Forgejo under a box alone: elsewhere, `forge
   setup` is refused with `refused: not under the box` (exit 2).
 - A Forgejo connected at a host name, not an IP address, is reached

@@ -367,7 +367,7 @@ pub(crate) fn finish_answer(domain: &mut Domain, out: &mut Queue<Request>) {
     domain.chat.phase = match state {
         State::Answered { answer, detail } => finish_answered(domain, answer, detail, out),
         state @ (State::Loading(_)
-        | State::Idle
+        | State::Idle { .. }
         | State::Starting(_)
         | State::Running { .. }
         | State::Ending(_)
@@ -407,11 +407,7 @@ fn finish_answered(domain: &mut Domain, answer: host::Answer, detail: Box<[u8]>,
         crate::Mode::Headless { .. } => true,
         crate::Mode::Chat { .. } => false,
     };
-    let drained = match domain.closing_last {
-        Some(last) => domain.chat.state.activation >= last,
-        None => false,
-    };
-    if domain.chat.closed() && drained {
+    if domain.chat.drained() {
         show_dropped(&mut domain.lines, out);
     }
     if (domain.chat.closed() && domain.lines.is_empty()) || headless {
@@ -528,7 +524,7 @@ pub(crate) fn answered(domain: &mut Domain, answer: host::Answer, detail: Box<[u
     let state = core::mem::replace(&mut domain.chat.phase, State::Done);
     domain.chat.phase = match state {
         State::Running { .. } | State::Ending(_) => State::Answered { answer, detail },
-        State::Loading(_) | State::Idle | State::Starting(_) | State::Answered { .. } | State::Done => {
+        State::Loading(_) | State::Idle { .. } | State::Starting(_) | State::Answered { .. } | State::Done => {
             unreachable!("one answer belongs to the live activation")
         }
     };

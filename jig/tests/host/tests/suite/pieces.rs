@@ -31,6 +31,7 @@ fn pieces(world: &World) -> Vec<(Token, Token, Piece)> {
             | LinkUp::AccountRefused { .. }
             | LinkUp::Turn { .. }
             | LinkUp::Call { .. }
+            | LinkUp::JobAnswer { .. }
             | LinkUp::Answer { .. } => None,
         })
         .collect()

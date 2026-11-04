@@ -28,6 +28,7 @@ pub(super) const TASKS: tasks::Limits = tasks::Limits {
     pools: 32,
     hold_waiters: 32,
     charters: 8,
+    charter_documents: 2,
     revisions: 8,
     versions: 16,
     facts: 128,
@@ -107,6 +108,7 @@ pub(super) const DOCUMENTS: core::documents::DocumentLimits = core::documents::D
     ..small::DOCUMENTS
 };
 pub(super) const CORE: core::Limits = core::Limits {
+    public: core::PublicIndexLimits::OFF,
     // The sum of child route bounds when this configured hand-off bound was set.
     routes: 151_655,
     settings: core::settings::Limits {
@@ -153,6 +155,7 @@ pub(super) const LIMITS: Limits = Limits {
     },
     clients: CLIENTS,
     clients_http: jig_protocol_engine_clients_http::Limits {
+        public_calls: 0,
         calls: 16,
         streams: 8,
         body: CLIENTS.message_bytes,
@@ -166,6 +169,7 @@ pub(super) const LIMITS: Limits = Limits {
 };
 
 pub(super) const CLIENTS: jig_protocol_engine_clients::Limits = jig_protocol_engine_clients::Limits {
+    public: jig_protocol_engine_clients::PublicLimits::OFF,
     streams: 8,
     exchanges: 32,
     mints: 16,
@@ -188,15 +192,18 @@ const JOURNAL: super::JournalSizes = super::JournalSizes { commits: 3, writes: 1
 // Ending authority adds (batch + 1)^2 = (4 + 1)^2 = 25 bytes: the row,
 // its recurring members and its proposed creations with their recurring members.
 // Task/run settings revisions add nine bytes: u32 plus an optional u32.
+// Each stored spec includes optional job bytes and a deadline.
+// The optional live-room condition costs fourteen bytes in the largest task row.
+// Started-from dependencies cost a four-byte count plus 16 eight-byte numbers = 132 bytes.
 const STORE_KV: skein_kv::Limits = skein_kv::Limits {
-    value: 10_664_775,
+    value: 10_767_550,
     ops: 303_350,
     commit: 901_830_282,
     queued_bytes: 2_705_490_846,
     segment: 1_803_660_564,
     snapshot_after: 901_830_282,
-    chunk: 10_666_874,
-    page: skein_kv::Page { rows: 2, bytes: 10_666_854 },
+    chunk: 10_769_649,
+    page: skein_kv::Page { rows: 2, bytes: 10_769_629 },
     ..small::STORE_KV
 };
 const STORE: jig_protocol_store::Limits = jig_protocol_store::Limits {

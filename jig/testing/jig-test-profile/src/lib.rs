@@ -64,6 +64,7 @@ fn profile() -> root::Limits {
         saved_resources: 2,
         contract_choices: 1,
         charters: 1,
+        charter_documents: 2,
         revisions: 4,
         versions: 8,
         authority_grants: 1,
@@ -134,8 +135,11 @@ fn profile() -> root::Limits {
         journal,
         routes: 200,
         watermark: root::default_watermark(&journal),
+        public_watermark: root::default_watermark(&journal).checked_div(2).expect("half the watermark"),
+        public_reads: 0,
         connector: connector::LIMITS,
         core: core::Limits {
+            public: jig_domain_core::PublicIndexLimits::OFF,
             routes: 20_783,
             settings: core::settings::Limits {
                 revisions: 4,
@@ -258,7 +262,7 @@ fn authority_value(spend: u64, kinds: Box<[authority::Executor]>) -> authority::
 #[must_use]
 pub fn scripted_model() -> core::Model {
     core::Model {
-        dialect: 1,
+        dialect: 3,
         endpoint: 1,
         program: None,
         name: b"scripted".as_slice().into(),
@@ -326,6 +330,8 @@ pub fn config(seed: u64) -> root::Config {
         first,
         second,
         core: core::Config {
+            jobs: Box::new([]),
+            kept_starts: Box::new([]),
             worker_names: Box::new([b"alpha".as_slice().into(), b"beta".as_slice().into()]),
             deployment: [31; 16],
             seed,
@@ -369,8 +375,11 @@ pub fn config(seed: u64) -> root::Config {
                     }]),
                 },
             },
+            kinds: Box::default(),
             defaults: core::settings::Defaults {
                 charters: Box::new([core::Charter {
+                    wake: jig_domain_tasks::WakePolicy::DEFAULT,
+                    documents: Box::new([]),
                     number: 1,
                     hosts: fleet::Kinds::Workers,
                     spend: 100,
@@ -389,6 +398,7 @@ pub fn config(seed: u64) -> root::Config {
                         shell: true,
                         agents: true,
                         call_timeout: Duration::from_secs(10),
+                        tools: core::RunPolicy::EVERY_FAMILY,
                     },
                 }]),
                 templates: crate::fixtures::templates(),

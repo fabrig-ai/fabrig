@@ -34,7 +34,6 @@ pub(crate) struct Layer {
     public: Map<Token, public::Caller>,
     backs: Queue<public::ReturnTo>,
     pastes: Map<u64, u16>,
-    file_api: Map<u16, Secret>,
     erases: Map<Token, u16>,
     lifecycle: lifecycle::Lifecycle,
     writes: Map<Token, Write>,
@@ -101,12 +100,12 @@ impl Layer {
                     local.trigger = lifecycle::Trigger::Start;
                 }
                 if let temper_forge_setup::setup::Mode::Fake(fake) = &setup.entry.mode {
-                    local.repositories = u64::try_from(fake.repositories.len()).expect("fixture repositories");
+                    local.repositories = skein_lib::len_u64(fake.repositories.len());
                 }
             }
         }
     }
-    /// Keep the shell-resolved endpoint before the forge joins setup (draft/playground-reset.md, 3).
+    /// Keep the shell-resolved endpoint before the forge joins setup (temper/docs/design/protocol/forge.md, 2.6).
     pub(crate) fn resolved(&mut self, endpoint: crate::ForgeRuntime) {
         if let Some(runtime) = &mut self.runtime {
             runtime.resolved(endpoint);
@@ -187,7 +186,6 @@ impl Layer {
             public: Map::with_capacity(limits.runs),
             backs: Queue::with_capacity(limits.states),
             pastes: Map::with_capacity(limits.forges),
-            file_api: Map::with_capacity(limits.forges),
             erases: Map::with_capacity(limits.forges),
             lifecycle: lifecycle::Lifecycle::new(limits.forges, installations),
             writes: Map::with_capacity(limits.runs.checked_add(limits.forges).expect("setup writes")),
@@ -240,7 +238,6 @@ impl Layer {
         self.held = Queue::with_capacity(self.env.limits.forges);
         self.backs = Queue::with_capacity(self.env.limits.states);
         self.public = Map::with_capacity(self.env.limits.runs);
-        self.file_api = Map::with_capacity(self.env.limits.forges);
         self.staged = Map::with_capacity(self.env.limits.runs);
         if self.component.is_some() {
             self.down(host::Request::Close);
@@ -359,12 +356,11 @@ impl Layer {
     }
 }
 /// Stop serving a removed forge, including events already queued by its host
-/// (temper/docs/design/draft/playground-reset.md, 4).
+/// (temper/docs/design/protocol/forge.md, 2.3).
 pub(crate) fn forget(engine: &mut crate::engine::Engine, forge: u16) {
     let layer = &mut engine.setup;
     layer.served.remove(&forge);
     layer.unserved.remove(&forge);
-    layer.file_api.remove(&forge);
     layer.lifecycle.forget(forge);
     if let Some(runtime) = &mut layer.runtime {
         runtime.forget(forge);
@@ -770,14 +766,6 @@ fn run_plan(engine: &mut crate::engine::Engine, run: Token, plan: host::Plan) {
     }
 }
 
-/// Connected Forgejo's legacy file input remains a host-local credential.
-fn file_api_token(engine: &crate::engine::Engine, forge: u16) -> Option<&[u8]> {
-    match engine.setup.file_api.get(&forge) {
-        Some(value) => Some(value.expose()),
-        None => None,
-    }
-}
-
 #[expect(clippy::manual_map, reason = "the step subset uses explicit matches")]
 fn read_item(
     engine: &crate::engine::Engine,
@@ -792,6 +780,22 @@ fn read_item(
             }
             Some(public::Pasted::Admin(value)) if item == skein_forge_setup::item::Item::AdminToken => {
                 return Some(value.clone());
+            }
+            Some(public::Pasted::Tokens(items)) => {
+                if let Some(record) = item_record(item) {
+                    for (code, value) in items {
+                        if *code == record.code() {
+                            return Some(value.clone());
+                        }
+                    }
+                    return match engine.forge_records.rows.forge(forge) {
+                        Some(rows) => match rows.get(record) {
+                            Ok(value) => Some(Secret::new(Box::from(value))),
+                            Err(_) => None,
+                        },
+                        None => None,
+                    };
+                }
             }
             Some(public::Pasted::App(_) | public::Pasted::Admin(_)) | None => {}
         }
@@ -817,11 +821,6 @@ fn read_item(
             Some(rows) => rows.get(item).ok(),
             None => None,
         },
-    };
-    let value = match value {
-        Some(value) => Some(value),
-        None if item == Item::ApiToken => file_api_token(engine, forge),
-        None => None,
     };
     match value {
         Some(bytes) => Some(Secret::new(Box::from(bytes))),

@@ -119,7 +119,7 @@ const FILE_SPEC: Spec = Spec {
 const JOB_SCHEMA: &[u8] = br#"{"type":"object","additionalProperties":false,"properties":{"repository":{"type":"string","description":"The repository, as owner/name; leave it out, or empty, when the project has one."},"head":{"type":"string","description":"The commit's id the CI ran on: 40 or 64 lowercase hexadecimal digits."},"run":{"type":"integer","description":"The CI run's id.","minimum":1,"maximum":18446744073709551615},"job":{"type":"integer","description":"The CI job's id, which may be 0 on Forgejo.","minimum":0,"maximum":18446744073709551615},"attempt":{"type":"integer","description":"The attempt's number, which may be 0 on Forgejo.","minimum":0,"maximum":4294967295},"max_bytes":{"type":"integer","description":"At most this many bytes; the read's limit when absent.","minimum":1,"maximum":4294967295}},"required":["head","run","job","attempt"]}"#;
 const JOB_SPEC: Spec = Spec {
     name: b"read_job",
-    description: b"Read one CI job's log, cut at a byte limit.",
+    description: b"Read one CI job's failed-step end or job tail, cut at a byte limit.",
     schema: JOB_SCHEMA,
     effect: run::HostEffect::Read,
 };
@@ -152,7 +152,9 @@ const PERMISSION_SPEC: Spec = Spec {
     effect: run::HostEffect::Read,
 };
 
-pub(crate) const SPECS: [Spec; 39] = [
+const PLAN_CHANGE: Spec = Spec { name: b"change", description: b"Have one change written on a branch of a repository of this project, opened as a pull request and merged once its checks pass; you hear its result.", schema: br#"{"type":"object","properties":{"words":{"type":"string","description":"What to change: the files, and the exact text where it matters. It is all the change's coder reads."},"repository":{"type":"string","description":"The repository, as owner/name; leave it out when the project has one you may write."},"name":{"type":"string","description":"Its name in this call, for a later change's after."},"landing":{"type":"string","description":"goal: your own goal branch; or a branch's name; left out, the default branch."},"branch":{"type":"string","enum":["mine"],"description":"mine: your own goal branch, landed whole as it stands, with no coder; left out, a branch of the change's own."},"merge":{"type":"string","description":"A catch-up: the commit to merge into a branch made at the landing branch's tip, as 40 or 64 hexadecimal digits; the merge job, not an agent, produces it."},"after":{"type":"array","description":"What it lands after: your live delegates' task numbers, or names given earlier in this call.","items":{"oneOf":[{"type":"integer","minimum":1},{"type":"string"}]}},"producer":{"type":"integer","minimum":1,"description":"The charter its producer, repairs and resolutions run under; left out, the forge's change charter."},"llm":{"type":"object","description":"LLM choices by role, producer and review: each {main: {model, effort}, sub_agents: [{model, effort}]}, by configured names; a role left out takes its charter's default."},"changes":{"type":"array","description":"Instead of words: several changes as one batch, each with the members above.","items":{"type":"object","properties":{"repairs":{"type":"string","description":"The red landing this change repairs: its merge commit's 40 or 64 hexadecimal digits, as the red's news names it.","pattern":"^([0-9a-f]{40}|[0-9a-f]{64})$"}}}},"repairs":{"type":"string","description":"The red landing this change repairs: its merge commit's 40 or 64 hexadecimal digits, as the red's news names it.","pattern":"^([0-9a-f]{40}|[0-9a-f]{64})$"},"questions":{"type":"string","enum":["none","foreman","up"],"description":"How its producer's questions go: foreman, settled first by a foreman from the words and the design; up, straight to you; none, it asks no one. Left out, the project's setting."}}}"#, effect: run::HostEffect::Write };
+
+pub(crate) const SPECS: [Spec; 40] = [
     Spec { name: b"goal", description: b"Have one goal in your words tracked and reported; it may plan, ask you and call change. With advisor set, it reads and reports and changes nothing.", schema: br#"{"type":"object","additionalProperties":false,"properties":{"words":{"type":"string"},"advisor":{"type":"boolean","description":"Set by a goal alone, for a survey that changes nothing."},"agree":{"type":"boolean","description":"Set by the person's chat when they want the work agreed first: the goal asks its plan before any change."}},"required":["words"]}"#, effect: run::HostEffect::Write },
     Spec { name: b"change", description: b"Have one change written on a branch of a repository of this project, opened as a pull request and merged once its checks pass; you hear its result.", schema: br#"{"type":"object","properties":{"words":{"type":"string","description":"What to change: the files, and the exact text where it matters. It is all the change's coder reads."},"repository":{"type":"string","description":"The repository, as owner/name; leave it out when the project has one you may write."}},"required":["words"]}"#, effect: run::HostEffect::Write },
     Spec { name: b"delegate", description: b"Make a batch of direct delegates within your authority. tracked {priority} makes one a goal, the lower first. For a change to a repository, call change.", schema: br#"{"type":"object","properties":{"batch":{"type":"array","description":"The tasks: each with executor, spec, contract, authority; optionally deadline_seconds, tracked, dependencies, wake, llm.","items":{"type":"object","properties":{"executor":{"type":"object","description":"{kind: agent, charter}, {kind: procedure, connector, code}, {kind: person, person} or {kind: role, role}.","properties":{"kind":{"type":"string","enum":["agent","procedure","person","role"]},"charter":{"type":"integer","minimum":0},"connector":{"type":"integer","minimum":0},"code":{"type":"integer","minimum":0},"person":{"type":"integer","minimum":0},"role":{"type":"integer","minimum":0}},"required":["kind"]},"spec":{"type":"object","properties":{"words":{"type":"string"},"parameters":{"type":"array","items":{"type":"object","description":"{name, kind: number, value}, {name, kind: bytes, value} or {name, kind: resource, connector, resource}.","properties":{"name":{"type":"integer","minimum":0},"kind":{"type":"string","enum":["number","bytes","resource"]},"value":{},"connector":{"type":"integer","minimum":0},"resource":{"type":"integer","minimum":0}},"required":["name","kind"]}},"inputs":{"type":"array","items":{"type":"integer","minimum":0}}},"required":["words"]},"contract":{"type":"object","description":"{kind: report, words}, {kind: change, connector, change_kind, words} or {kind: verdict, choices: [{code, words}]}.","properties":{"kind":{"type":"string","enum":["report","change","verdict"]},"words":{"type":"integer","minimum":0},"connector":{"type":"integer","minimum":0},"change_kind":{"type":"integer","minimum":0},"choices":{"type":"array","items":{"type":"object","properties":{"code":{"type":"integer","minimum":0},"words":{"type":"integer","minimum":0}},"required":["code","words"]}}},"required":["kind"]},"authority":{"type":"object","description":"Whole: restate every member you keep.","properties":{"tools":{"type":"integer","description":"The tool families, as a bit set.","minimum":0},"grants":{"type":"array","items":{"type":"object","properties":{"connector":{"type":"integer","minimum":0},"kind":{"type":"integer","minimum":0},"segments":{"type":"array","items":{"type":"string"}},"terminal":{"type":"string","enum":["exact","open"]},"last":{"type":"string"}},"required":["connector","kind","segments","terminal","last"]}},"delegation":{"type":"object","properties":{"kinds":{"type":"array","items":{"type":"object","properties":{"kind":{"type":"string","enum":["agent","procedure","role"]},"number":{"type":"integer","minimum":0}},"required":["kind","number"]}},"tasks":{"type":"integer","minimum":0},"depth":{"type":"integer","minimum":0}},"required":["kinds","tasks","depth"]},"budget":{"type":"object","properties":{"spend":{"type":"integer","minimum":0},"deadline":{"type":"integer","description":"Wall-clock nanoseconds since the Unix epoch.","minimum":0}},"required":["spend"]},"notes":{"type":"integer","minimum":0,"maximum":255},"note_resources":{"type":"array","items":{"type":"object","properties":{"connector":{"type":"integer","minimum":0},"pattern":{"type":"object","properties":{"segments":{"type":"array","items":{"type":"string"}},"terminal":{"type":"string","enum":["exact","open"]},"last":{"type":"string"}},"required":["segments","terminal","last"]}},"required":["connector","pattern"]}}},"required":["tools","grants","delegation","budget","notes"]},"deadline_seconds":{"type":"integer","description":"It must end this many seconds after it is made. Give this or authority.budget.deadline; with neither, it ends with you.","minimum":1},"tracked":{"type":"object","description":"Track it as a goal at this priority, the lower first. Leave it out for an untracked task.","properties":{"priority":{"type":"integer","minimum":0,"maximum":4294967295}},"required":["priority"]},"dependencies":{"type":"array","items":{"type":"object","properties":{"kind":{"type":"string","enum":["batch","existing"]},"number":{"type":"integer","minimum":0}},"required":["kind","number"]}},"wake":{"type":"object","properties":{"words":{"type":"object","properties":{"kind":{"type":"string","enum":["never","immediate","batch"]},"count":{"type":"integer","minimum":0},"age":{"type":"integer","description":"Nanoseconds.","minimum":0}},"required":["kind"]},"notices":{"type":"object","properties":{"kind":{"type":"string","enum":["never","immediate","batch"]},"count":{"type":"integer","minimum":0},"age":{"type":"integer","description":"Nanoseconds.","minimum":0}},"required":["kind"]},"news":{"type":"object","properties":{"kind":{"type":"string","enum":["never","immediate","batch"]},"count":{"type":"integer","minimum":0},"age":{"type":"integer","description":"Nanoseconds.","minimum":0}},"required":["kind"]},"results":{"type":"string","enum":["never","each","last_or_failure"]},"questions":{"type":"boolean"},"answers":{"type":"boolean"},"timers":{"type":"boolean"}},"required":["words","notices","news","results","questions","answers","timers"]},"llm":{"type":"object","description":"main {model, effort} names the model, effort optional; subagents and account are optional.","properties":{"main":{"type":"object","properties":{"model":{"type":"integer","minimum":0,"maximum":255},"effort":{"type":"integer","minimum":0,"maximum":255}},"required":["model"]},"subagents":{"type":"array","items":{"type":"object","properties":{"model":{"type":"integer","minimum":0,"maximum":255},"effort":{"type":"integer","minimum":0,"maximum":255}},"required":["model"]}},"account":{"type":"integer","minimum":0}},"required":["main"]},"symbolic_grants":{"type":"array","items":{"type":"object","properties":{"connector":{"type":"integer","minimum":0},"kind":{"type":"integer","minimum":0},"segments":{"type":"array","items":{"type":"string"}},"terminal":{"type":"string","enum":["exact","open"]},"last":{"type":"string"}},"required":["connector","kind","segments","terminal","last"]}}},"required":["executor","spec","contract","authority"]}}},"required":["batch"]}"#, effect: run::HostEffect::Write },
@@ -172,13 +174,19 @@ pub(crate) const SPECS: [Spec; 39] = [
     Spec { name: b"subscribe_forge", description: b"Hear forge news: landings on a branch, CI on a head, a pull request's state, or the comments and reviews on an issue or pull request.", schema: br#"{"type":"object","properties":{"topic":{"type":"object","description":"{kind, repository: {forge, repository}}: landings with branch, ci with head, pull or participation with number."},"own_change":{"type":"integer","description":"For landings: your change task's number; its own landing does not wake you.","minimum":1},"paths":{"type":"array","description":"For landings: a landing wakes you when it changes one of these paths, or a file below one.","items":{"type":"string"}}},"required":["topic"]}"#, effect: run::HostEffect::Write },
     Spec { name: b"effect_forge", description: b"Make one write on an adopted repository through the forge's connector: an issue, a comment or a status, among the forge's writes.", schema: br#"{"type":"object","properties":{"repository":{"type":"object","description":"The repository, as {forge, repository}: the forge's number and the repository's."},"resource":{"type":"object","description":"What it writes on: {kind: repository}, {kind: pull, number}, {kind: issue, number} or {kind: branch, segments}."},"write":{"type":"object","description":"{kind: create_issue, key, title, body}, {kind: post, number, key, body} or {kind: status, commit, context, check}."}},"required":["repository","resource","write"]}"#, effect: run::HostEffect::Write },
     Spec {
+        name: b"read_task",
+        description: b"Read related tasks and retained ended delegates: words, state, dependencies, revisions and hold reason. Continue cut words with from=next.",
+        schema: br#"{"type":"object","additionalProperties":false,"properties":{"task":{"type":"integer","minimum":1},"from":{"type":"integer","minimum":0,"default":0}},"required":["task"]}"#,
+        effect: run::HostEffect::Read,
+    },
+    Spec {
         name: b"settings", description: b"Read the deployment's settings: the inventory with no member, or a setting, a revision's record or a page of the history; a long answer goes on from an offset.",
-        schema: br#"{"type":"object","additionalProperties":false,"properties":{"setting":{"type":"object","additionalProperties":false,"properties":{"kind":{"enum":["charter","template","policy","rules"],"description":"The setting's kind."},"number":{"type":"integer","minimum":1,"maximum":4294967295,"description":"Its number; the rules have none."}},"required":["kind"],"description":"One setting's whole value, named as a settings file names it."},"revision":{"type":"integer","minimum":1,"maximum":4294967295,"description":"Alone, that revision's record: its items and who decided it. With a charter, the charter as that held revision has it."},"history":{"type":"object","additionalProperties":false,"properties":{"before":{"type":"integer","minimum":1,"maximum":4294967295,"description":"The page before this revision; the newest page when absent."}},"description":"A page of the revisions, the newest first."},"from":{"type":"integer","minimum":0,"maximum":4294967295,"description":"Where to go on in the answer's text: the offset after next: on its last line; 0 when absent."}}}"#,
+        schema: br#"{"type":"object","additionalProperties":false,"properties":{"setting":{"type":"object","additionalProperties":false,"properties":{"kind":{"enum":["charter","template","policy","rules","landing-rule","forge-charter","project-policy"],"description":"The setting's kind."},"number":{"type":"integer","minimum":1,"maximum":4294967295,"description":"Its number; rules and project-policy have none."},"project":{"type":"integer","minimum":1,"maximum":4294967295,"description":"For a landing rule, its project, the deployment's when left out; for a project's policy, its project."}},"required":["kind"],"description":"One setting's whole value, named as a settings file names it."},"revision":{"type":"integer","minimum":1,"maximum":4294967295,"description":"Alone, that revision's record: its items and who decided it. With a charter, the charter as that held revision has it."},"history":{"type":"object","additionalProperties":false,"properties":{"before":{"type":"integer","minimum":1,"maximum":4294967295,"description":"The page before this revision; the newest page when absent."}},"description":"A page of the revisions, the newest first."},"from":{"type":"integer","minimum":0,"maximum":4294967295,"description":"Where to go on in the answer's text: the offset after next: on its last line; 0 when absent."}}}"#,
         effect: run::HostEffect::Read,
     },
     Spec {
         name: b"propose_settings", description: b"Propose a change of the deployment's settings to its owners, with a reason. You hear in your messages whether it was accepted, rejected or went stale.",
-        schema: br#"{"type":"object","additionalProperties":false,"properties":{"against":{"type":"integer","minimum":1,"maximum":4294967295,"description":"The newest revision you read. A proposal against an older one is stale, and you hear the newest."},"reason":{"type":"string","description":"Why; the owners read it."},"items":{"type":"array","items":{"type":"object","additionalProperties":false,"properties":{"setting":{"type":"object","properties":{"kind":{"enum":["charter","template","policy","rules"],"description":"The setting's kind."},"number":{"type":"integer","minimum":1,"description":"Its number; the rules have none."}},"required":["kind"],"description":"The setting, named as a settings file names it."},"set":{"type":"object","description":"Its whole new value, one JSON object as a settings file holds it; read the setting first."},"edit":{"enum":["reset","removed"],"description":"In place of set: reset, to follow its default again, or removed, no longer offered."}},"required":["setting"]},"description":"The changes, at most one per setting."}},"required":["against","items","reason"]}"#,
+        schema: br#"{"type":"object","additionalProperties":false,"properties":{"against":{"type":"integer","minimum":1,"maximum":4294967295,"description":"The newest revision you read. A proposal against an older one is stale, and you hear the newest."},"reason":{"type":"string","description":"Why; the owners read it."},"items":{"type":"array","items":{"type":"object","additionalProperties":false,"properties":{"setting":{"type":"object","properties":{"kind":{"enum":["charter","template","policy","rules","landing-rule","forge-charter","project-policy"],"description":"The setting's kind."},"number":{"type":"integer","minimum":1,"description":"Its number; rules and project-policy have none."},"project":{"type":"integer","minimum":1,"maximum":4294967295,"description":"For a landing rule, its project, the deployment's when left out; for a project's policy, its project."}},"required":["kind"],"description":"The setting, named as a settings file names it."},"set":{"description":"Its whole new value, as a settings file holds it; forge-charter takes a charter number. Read the setting first."},"edit":{"enum":["reset","removed"],"description":"In place of set: reset, to follow its default again, or removed, no longer offered."}},"required":["setting"]},"description":"The changes, at most one per setting."}},"required":["against","items","reason"]}"#,
         effect: run::HostEffect::Write,
     },
     ITEMS_SPEC,
@@ -205,21 +213,33 @@ pub(crate) const SPECS: [Spec; 39] = [
 /// The complete host-tool registry, with exact schemas and write effects.
 #[must_use]
 pub fn tools(timeout: Duration) -> Box<[run::HostTool]> {
-    offered_tools(timeout, true, true)
+    offered_tools(timeout, tasks::Tools(u64::MAX))
 }
 
-/// Settings and message declarations require their respective run families.
+/// Settings declarations require the charter's and the run's settings family.
+/// Message, task-read and plan declarations require their run families.
 /// Root authority still decides each accepted call by its durable name.
-pub(crate) fn tools_for(timeout: Duration, authority: tasks::Tools) -> Box<[run::HostTool]> {
+pub(crate) fn tools_for(timeout: Duration, charter: tasks::Tools, authority: tasks::Tools) -> Box<[run::HostTool]> {
     let families = jig_domain_core::ToolFamilies::JIG;
-    offered_tools(timeout, authority.0 & families.settings != 0, authority.0 & families.message.0 != 0)
+    let mut offered = authority;
+    if charter.0 & families.settings == 0 {
+        offered.0 &= !families.settings;
+    }
+    offered_tools(timeout, offered)
 }
 
-fn offered_tools(timeout: Duration, settings: bool, message: bool) -> Box<[run::HostTool]> {
+fn offered_tools(timeout: Duration, authority: tasks::Tools) -> Box<[run::HostTool]> {
+    let families = jig_domain_core::ToolFamilies::JIG;
+    let settings = authority.0 & families.settings != 0;
+    let message = authority.0 & families.message.0 != 0;
+    let plan = authority.0 & families.control.0 != 0;
+    let read = authority.0 & families.read.0 != 0;
     let mut tools = List::with_capacity(u32::try_from(SPECS.len()).expect("fixed tool list"));
     for spec in SPECS {
+        let spec = if plan && spec.name == b"change" { PLAN_CHANGE } else { spec };
         if (!settings && (spec.name == b"settings" || spec.name == b"propose_settings"))
             || (!message && spec.name == b"message")
+            || (!read && spec.name == b"read_task")
         {
             continue;
         }
@@ -256,7 +276,14 @@ pub fn call_configured(
     }
     let value = crate::json::parse(input.bytes())?;
     let tool = match tool {
-        b"settings" => crate::settings::read(&value)?,
+        b"read_task" => engine::Tool::ReadTask {
+            task: positive(&value, b"task")?,
+            from: match value.field(b"from")? {
+                Some(from) => from.number(b"from")?,
+                None => 0,
+            },
+        },
+        b"settings" => crate::settings::read(&value, input.bytes())?,
         b"read_docs" => {
             let answer = match docs::read(&value)? {
                 Ok(read) => docs::answer(&temper_docs::PAGES, &read),
@@ -319,31 +346,27 @@ pub fn call_configured(
             }
         }
         b"change" => {
-            let words = value.required(b"words")?.text(b"words")?;
-            if words.is_empty() {
-                return Err(Problem::Range(b"words"));
-            }
-            let repository = match value.field(b"repository")? {
-                Some(name) => {
-                    let name = name.text(b"repository")?;
-                    let mut slash = None;
-                    for (at, byte) in name.iter().enumerate() {
-                        if *byte == b'/' {
-                            if slash.is_some() {
-                                return Err(Problem::Range(b"repository"));
-                            }
-                            slash = Some(at);
+            let changes = match value.field(b"changes")? {
+                Some(changes) => {
+                    if value.field(b"words")?.is_some() {
+                        return Err(Problem::Range(b"changes"));
+                    }
+                    let items = changes.array(b"changes")?;
+                    if items.is_empty() {
+                        return Err(Problem::Range(b"changes"));
+                    }
+                    let Ok(capacity) = u32::try_from(items.len()) else { return Err(Problem::TooLarge) };
+                    let mut changes = List::with_capacity(capacity);
+                    for item in items {
+                        if changes.push(change(item.object(b"changes")?, models)?).is_err() {
+                            return Err(Problem::TooLarge);
                         }
                     }
-                    let slash = slash.ok_or(Problem::Range(b"repository"))?;
-                    if slash == 0 || slash.checked_add(1) == Some(name.len()) {
-                        return Err(Problem::Range(b"repository"));
-                    }
-                    Some(name)
+                    changes.into_boxed()
                 }
-                None => None,
+                None => Box::new([change(&value, models)?]),
             };
-            engine::Tool::Change { words, repository }
+            engine::Tool::Change { changes }
         }
         b"delegate" => engine::Tool::Delegate { batch: nested::delegates(value.required(b"batch")?)? },
         b"amend" => {
@@ -502,4 +525,230 @@ fn optional_bool(value: &Value, field: &'static [u8], default: bool) -> Result<b
         Some(value) => value.boolean(field),
         None => Ok(default),
     }
+}
+
+#[expect(clippy::too_many_lines, reason = "each change member is decoded together at the host-tool boundary")]
+fn change(value: &Value, models: &[engine::Model]) -> Result<engine::ChangeCall, Problem> {
+    if value.field(b"changes")?.is_some() {
+        return Err(Problem::Range(b"changes"));
+    }
+    let words = value.required(b"words")?.text(b"words")?;
+    if words.is_empty() {
+        return Err(Problem::Range(b"words"));
+    }
+    let repository = match value.field(b"repository")? {
+        Some(name) => {
+            let name = name.text(b"repository")?;
+            let mut slash = None;
+            for (at, byte) in name.iter().enumerate() {
+                if *byte == b'/' {
+                    if slash.is_some() {
+                        return Err(Problem::Range(b"repository"));
+                    }
+                    slash = Some(at);
+                }
+            }
+            let slash = slash.ok_or(Problem::Range(b"repository"))?;
+            if slash == 0 || slash.checked_add(1) == Some(name.len()) {
+                return Err(Problem::Range(b"repository"));
+            }
+            Some(name)
+        }
+        None => None,
+    };
+    let name = match value.field(b"name")? {
+        Some(name) => {
+            let name = name.text(b"name")?;
+            if name.is_empty() || name.len() > 64 {
+                return Err(Problem::Range(b"name"));
+            }
+            Some(name)
+        }
+        None => None,
+    };
+    let landing = match value.field(b"landing")? {
+        Some(landing) => {
+            let landing = landing.text(b"landing")?;
+            if landing.is_empty() {
+                return Err(Problem::Range(b"landing"));
+            }
+            Some(if landing.as_ref() == b"goal" {
+                engine::ChangeLanding::Goal
+            } else {
+                engine::ChangeLanding::Branch(landing)
+            })
+        }
+        None => None,
+    };
+    let branch = match value.field(b"branch")? {
+        Some(branch) => {
+            let branch = branch.text(b"branch")?;
+            if branch.as_ref() != b"mine" {
+                return Err(Problem::Range(b"branch"));
+            }
+            Some(engine::ChangeBranch::Mine)
+        }
+        None => None,
+    };
+    let merge = match value.field(b"merge")? {
+        Some(value) => Some(merge_commit(value)?),
+        None => None,
+    };
+    let after = match value.field(b"after")? {
+        Some(after) => {
+            let items = after.array(b"after")?;
+            let Ok(capacity) = u32::try_from(items.len()) else { return Err(Problem::TooLarge) };
+            let mut after = List::with_capacity(capacity);
+            for item in items {
+                let dependency = match item {
+                    Value::String(name) => {
+                        if name.is_empty() {
+                            return Err(Problem::Range(b"after"));
+                        }
+                        engine::ChangeAfter::Name(name.clone())
+                    }
+                    Value::Number(_) => {
+                        let task = item.number(b"after")?;
+                        if task == 0 {
+                            return Err(Problem::Range(b"after"));
+                        }
+                        engine::ChangeAfter::Task(task)
+                    }
+                    Value::Object(_) | Value::Array(_) | Value::Boolean(_) | Value::Null => {
+                        return Err(Problem::Type(b"after"));
+                    }
+                };
+                if after.push(dependency).is_err() {
+                    return Err(Problem::TooLarge);
+                }
+            }
+            after.into_boxed()
+        }
+        None => Box::new([]),
+    };
+    let questions = match value.field(b"questions")? {
+        Some(questions) => Some(match questions.text(b"questions")?.as_ref() {
+            b"none" => engine::ChangeQuestions::None,
+            b"foreman" => engine::ChangeQuestions::Foreman,
+            b"up" => engine::ChangeQuestions::Up,
+            _ => return Err(Problem::Range(b"questions")),
+        }),
+        None => None,
+    };
+    let repairs = match value.field(b"repairs")? {
+        Some(value) => {
+            let text = value.text(b"repairs")?;
+            if text.len() != 40 && text.len() != 64 {
+                return Err(Problem::Range(b"repairs"));
+            }
+            let mut commit = [0_u8; 32];
+            for (pair, cell) in text.chunks_exact(2).zip(&mut commit) {
+                for digit in pair {
+                    let nibble = match digit {
+                        b'0'..=b'9' => digit.saturating_sub(b'0'),
+                        b'a'..=b'f' => digit.saturating_sub(b'a').saturating_add(10),
+                        _ => return Err(Problem::Range(b"repairs")),
+                    };
+                    *cell = cell.saturating_mul(16).saturating_add(nibble);
+                }
+            }
+            Some(commit)
+        }
+        None => None,
+    };
+    let producer = change_producer(value.field(b"producer")?)?;
+    let llm = change_llm(value.field(b"llm")?, models)?;
+    Ok(engine::ChangeCall { words, repository, name, landing, branch, merge, after, producer, llm, questions, repairs })
+}
+
+fn change_producer(value: Option<&Value>) -> Result<Option<u32>, Problem> {
+    let Some(value) = value else { return Ok(None) };
+    let producer = value.small(b"producer")?;
+    if producer == 0 {
+        return Err(Problem::Range(b"producer"));
+    }
+    Ok(Some(producer))
+}
+
+fn change_llm(value: Option<&Value>, models: &[engine::Model]) -> Result<engine::ChangeLlm, Problem> {
+    let mut llm = engine::ChangeLlm::default();
+    let Some(value) = value else { return Ok(llm) };
+    let Value::Object(members) = value else { return Err(Problem::Type(b"llm")) };
+    for (role, choice) in members {
+        match role.as_ref() {
+            b"producer" => llm.producer = Some(change_choice(choice, models)?),
+            b"review" => llm.review = Some(change_choice(choice, models)?),
+            _ => return Err(Problem::Range(b"llm")),
+        }
+    }
+    Ok(llm)
+}
+
+fn change_choice(value: &Value, models: &[engine::Model]) -> Result<tasks::LlmChoice, Problem> {
+    let value = value.object(b"llm")?;
+    let main = change_model_effort(value.required(b"main")?, models)?;
+    let subagents = match value.field(b"sub_agents")? {
+        Some(values) => {
+            let items = values.array(b"sub_agents")?;
+            let count = u32::try_from(items.len()).or(Err(Problem::TooLarge))?;
+            if count > tasks::MODELS {
+                return Err(Problem::TooLarge);
+            }
+            let mut subagents = List::with_capacity(count);
+            for item in items {
+                subagents.push(change_model_effort(item, models)?).or(Err(Problem::TooLarge))?;
+            }
+            subagents.into_boxed()
+        }
+        None => Box::new([]),
+    };
+    Ok(tasks::LlmChoice { account: None, main, subagents })
+}
+
+fn change_model_effort(value: &Value, models: &[engine::Model]) -> Result<tasks::ModelEffort, Problem> {
+    let value = value.object(b"model")?;
+    let name = value.required(b"model")?.text(b"model")?;
+    for (index, model) in models.iter().enumerate() {
+        if model.name != name {
+            continue;
+        }
+        let effort = match value.field(b"effort")? {
+            Some(value) => {
+                let name = value.text(b"effort")?;
+                let mut found = None;
+                for (index, effort) in model.efforts.iter().enumerate() {
+                    if *effort == name {
+                        found = Some(u8::try_from(index).or(Err(Problem::Range(b"effort")))?);
+                        break;
+                    }
+                }
+                Some(found.ok_or(Problem::Range(b"effort"))?)
+            }
+            None => None,
+        };
+        return Ok(tasks::ModelEffort { model: u8::try_from(index).or(Err(Problem::Range(b"model")))?, effort });
+    }
+    Err(Problem::Range(b"model"))
+}
+
+// A catch-up accepts either hexadecimal case; procedure parameters use lowercase.
+fn merge_commit(value: &Value) -> Result<[u8; 32], Problem> {
+    let text = value.text(b"merge")?;
+    if text.len() != 40 && text.len() != 64 {
+        return Err(Problem::Range(b"merge"));
+    }
+    let mut commit = [0_u8; 32];
+    for (pair, cell) in text.chunks_exact(2).zip(&mut commit) {
+        let mut byte = 0_u8;
+        for digit in pair {
+            let digit = match digit.to_ascii_lowercase() {
+                digit @ b'0'..=b'9' => digit.saturating_sub(b'0'),
+                digit @ b'a'..=b'f' => digit.saturating_sub(b'a').saturating_add(10),
+                _ => return Err(Problem::Range(b"merge")),
+            };
+            byte = byte.saturating_mul(16).saturating_add(digit);
+        }
+        *cell = byte;
+    }
+    Ok(commit)
 }

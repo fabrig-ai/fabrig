@@ -22,6 +22,7 @@ pub fn class(event: &Event) -> Class {
             LinkDown::Sources { .. }
             | LinkDown::Check { .. }
             | LinkDown::SignOut { .. }
+            | LinkDown::AssignJob { .. }
             | LinkDown::Assign { .. }
             | LinkDown::Message { .. } => Class::New,
             LinkDown::Relayed { .. }
@@ -75,6 +76,23 @@ pub fn class(event: &Event) -> Class {
 
 pub(crate) fn must_follow(domain: &Domain, held: &Event, event: &Event) -> bool {
     match held {
+        Event::Link(LinkDown::AssignJob { job }) => match event {
+            Event::Link(link) => named_assignment(link) == Some((job.run, job.attempt)),
+            Event::Ready
+            | Event::Lost
+            | Event::Source(_)
+            | Event::GracePassed
+            | Event::Resend { .. }
+            | Event::RelayCancelled { .. }
+            | Event::Process(_)
+            | Event::Live { .. }
+            | Event::Decoded { .. }
+            | Event::Encoded { .. }
+            | Event::Activity { .. }
+            | Event::Shutdown
+            | Event::Timer
+            | Event::Checks => false,
+        },
         Event::Link(LinkDown::Assign { assignment }) => match event {
             Event::Link(link) => {
                 named_assignment(link) == Some((assignment.assignment.run, assignment.assignment.attempt))
@@ -151,6 +169,7 @@ fn named_assignment(link: &LinkDown) -> Option<(Token, Token)> {
         LinkDown::Sources { .. }
         | LinkDown::Check { .. }
         | LinkDown::SignOut { .. }
+        | LinkDown::AssignJob { .. }
         | LinkDown::Assign { .. }
         | LinkDown::Message { .. } => None,
     }

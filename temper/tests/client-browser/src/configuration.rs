@@ -29,7 +29,7 @@ pub(crate) fn documents(directory: &Path, program: &Path, bundle: &Path) -> (Box
             "policy":{"max_turns":16,"group_stop":10,"inbox":8,"unacknowledged":8,"check_timeout":60000}},
         "endpoints":[{"name":"fake","number":0,"dialect":3,"provider":"openai",
             "address":UNREACHED,"transport":"tls","server_name":"skein.test","trust_der":directory.join("root.der"),
-            "identity":"plain","connect":1000,"handshake":1000,
+            "connect":1000,"handshake":1000,
             "models":[{"name":"fake","prices":{"input":1,"cached":1,"output":1,"unit":1_000_000},"window":1_048_576,"output":2048,"reasoning_item":64,"head":60000,"idle":30000}]}],
         "environment":[]});
     let mut value: serde_json::Value =
@@ -42,16 +42,17 @@ pub(crate) fn documents(directory: &Path, program: &Path, bundle: &Path) -> (Box
         project["policy"] = 1.into();
         project.as_object_mut().expect("seed").remove("roles");
     }
-    // Admit stock policy 1's fourteen grants and six executor kinds.
+    // Admit stock policy 1's fourteen grants and eight executor kinds.
     for (name, count) in [
         ("core.policy_bytes", 4096),
         ("authority.grants", 16),
-        ("authority.executors", 6),
+        ("authority.executors", 8),
         ("tasks.authority_grants", 16),
-        ("tasks.executor_kinds", 6),
+        ("tasks.executor_kinds", 8),
         ("tasks.authority_bytes", 128),
         ("notes.scopes", 32),
-        ("tasks.charters", 4),
+        ("tasks.charters", 5),
+        ("core.templates", 3),
     ] {
         value["engine"]["limits"]["overrides"][name] = count.into();
     }
@@ -72,8 +73,8 @@ pub(crate) fn documents(directory: &Path, program: &Path, bundle: &Path) -> (Box
     value["engine"]["llm"]["endpoints"][0]["address"] = serde_json::json!({"socket":UNREACHED});
     value["engine"]["limits"]["overrides"]["core.load_slots"] = 8.into();
     value["engine"]["limits"]["overrides"]["documents.rows"] = 2.into();
-    // The creation offer includes all three stock procedures.
-    value["engine"]["limits"]["overrides"]["documents.lines"] = 3.into();
+    // The creation offer carries five stock charters and three procedures.
+    value["engine"]["limits"]["overrides"]["documents.lines"] = 5.into();
     value["engine"]["limits"]["overrides"]["documents.text_bytes"] = 128.into();
     value["engine"]["limits"]["overrides"]["people.sign_ins"] = 2.into();
     value["engine"]["limits"]["overrides"]["views.watchers"] = 16.into();
@@ -81,7 +82,7 @@ pub(crate) fn documents(directory: &Path, program: &Path, bundle: &Path) -> (Box
     value["application"] = serde_json::json!({
         "webhooks":null,
         "clients":{"listener":{"socket":"127.0.0.1:0"},"public":null,"bundle":bundle},
-        "machine":{"github":null},"demo":null,"sign_in":null,"landing":{"deployment":[],"projects":[]},"charter":1,
+        "machine":{"github":null},"demo":null,"sign_in":null,
         "limits":{"profile":"small","overrides":{"checkout.name_bytes":256,"checkout.repositories":2,
             "checkout.message_bytes":4096,"forge.name_bytes":64,"forge.resources_per_task":2,"git_component.stdout_bytes":2048}},
         "workers":[{"root":"worker-root","git":"/usr/bin/git"}]});
@@ -178,6 +179,52 @@ pub(crate) fn demo(directory: &Path, program: &Path, bundle: &Path) {
     private(&path, &serde_json::to_vec(&agent).expect("demo agent JSON"));
 }
 
+/// Public reading's demo alone (temper/docs/design/protocol/sign-in.md, 2.4;
+/// jig/docs/design/domain/people.md, 13.7). Its two-second freshness is the walk's subject.
+pub(crate) fn public_demo(directory: &Path, program: &Path, bundle: &Path) {
+    demo(directory, program, bundle);
+    let path = directory.join("temper.json");
+    let mut value: serde_json::Value =
+        serde_json::from_slice(&fs::read(&path).expect("public demo deployment")).expect("JSON");
+    let overrides = value["engine"]["limits"]["overrides"].as_object_mut().expect("demo overrides");
+    for (name, figure) in [
+        ("clients.public.rate", 20),
+        ("clients.public.rate_burst", 20),
+        ("clients.public.bytes", 2_097_152),
+        ("clients.public.bytes_burst", 2_097_152),
+        // The 20/20/50 board reserves 730,728 bytes; this tier's approved ceiling is 1 MiB.
+        ("clients.public.answer_bytes", 1_048_576),
+        ("clients.public.reads", 8),
+        ("clients.public.max_age", 2),
+        ("clients_http.public_calls", 8),
+        ("core.public.goals", 20),
+        ("core.public.ended", 20),
+        ("core.public.lines", 50),
+        ("core.public.depth", 16),
+    ] {
+        overrides.insert(name.into(), figure.into());
+    }
+    let mut delegates = 0_u32;
+    for script in value["application"]["demo"]["llm"]["asked"].as_array_mut().expect("asked scripts") {
+        if script["cue"] != "Add CSV export to widget" {
+            continue;
+        }
+        for turn in script["turns"].as_array_mut().expect("CSV turns") {
+            for line in turn["lines"].as_array_mut().expect("CSV lines") {
+                if line["call"] == "delegate" {
+                    for member in line["arguments"]["batch"].as_array_mut().expect("delegate batch") {
+                        // delegate's host-tool spelling of tracked priority 1.
+                        member["tracked"] = serde_json::json!({"priority": 1});
+                        delegates = delegates.checked_add(1).expect("bounded script");
+                    }
+                }
+            }
+        }
+    }
+    assert_eq!(delegates, 1, "one CSV delegate becomes a public goal");
+    private(&path, &serde_json::to_vec(&value).expect("public demo JSON"));
+}
+
 /// Update references to a reserved listener in both documents, including the forge's git URL.
 fn replace_sockets(value: &mut serde_json::Value, replacements: &[(String, String)]) {
     match value {
@@ -204,5 +251,25 @@ fn replace_sockets(value: &mut serde_json::Value, replacements: &[(String, Strin
             }
         }
         serde_json::Value::Null | serde_json::Value::Bool(_) | serde_json::Value::Number(_) => {}
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    #[test]
+    fn the_browser_fixture_admits_every_stock_charter() {
+        let directory = std::path::Path::new("/fixture");
+        let (_, bytes) = super::documents(directory, &directory.join("temper"), &directory.join("bundle"));
+        let value: serde_json::Value = serde_json::from_slice(&bytes).expect("deployment JSON");
+        let bytes = serde_json::to_vec(&value["engine"]).expect("engine JSON");
+        let document = jig_protocol_config::document(
+            &bytes,
+            &jig_protocol_config::DocumentLimits { bytes: 1_048_576, tokens: 65_536, depth: 32 },
+        )
+        .expect("engine document");
+        let engine = temper_service::startup::engine(&document, 0, &jig_protocol_config::Directories::working())
+            .expect("stock engine");
+        assert_eq!(engine.charters.len(), 5);
+        assert_eq!(usize::try_from(engine.limits.core.documents.lines).expect("line capacity"), engine.charters.len());
     }
 }

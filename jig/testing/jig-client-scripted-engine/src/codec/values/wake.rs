@@ -25,6 +25,9 @@ pub(in crate::codec) fn wire_wake_rule(value: &c::WakeRule, limits: &w::Limits) 
         c::WakeRule::Batch { count, age } => {
             w::WakeRule::Batch(w::WakeRuleBatch::new(limits, w::WakeRuleBatchParts { count: *(count), age: *(age) })?)
         }
+        c::WakeRule::Paced { span } => {
+            w::WakeRule::Paced(w::WakeRulePaced::new(limits, w::WakeRulePacedParts { span: *span })?)
+        }
     })
 }
 

@@ -23,10 +23,34 @@ fn a_model_naming_an_unknown_endpoint_is_refused() {
 }
 #[test]
 fn an_endpoint_account_is_unknown_at_its_exact_path() {
-    fixtures::refuses(br#""dialect": 0,"#, br#""dialect": 0, "account": 1,"#, endpoint_path(b"account"), What::Unknown);
+    fixtures::refuses(br#""dialect": 3,"#, br#""dialect": 3, "account": 1,"#, endpoint_path(b"account"), What::Unknown);
+}
+fn refuses_dialect(member: &[u8]) {
+    let bytes = fixtures::with(fixtures::ENGINE_SMALL, br#""dialect": 3,"#, member);
+    let problems = fixtures::engine(&bytes).expect_err("unsupported dialect");
+    assert_eq!(problems.problems.len(), 1);
+    assert_eq!(problems.problems.get(0), Some(&crate::Problem { path: endpoint_path(b"dialect"), what: What::Form }));
+}
+fn a_zero_dialect_is_refused() {
+    refuses_dialect(br#""dialect": 0,"#);
+}
+fn dialect_one_is_refused() {
+    refuses_dialect(br#""dialect": 1,"#);
+}
+fn dialect_four_is_refused() {
+    refuses_dialect(br#""dialect": 4,"#);
+}
+#[test]
+fn endpoints_accept_the_dialects_smith_serves() {
+    for (member, dialect) in [(br#""dialect": 2,"#.as_slice(), 2), (br#""dialect": 3,"#.as_slice(), 3)] {
+        let bytes = fixtures::with(fixtures::ENGINE_SMALL, br#""dialect": 3,"#, member);
+        let engine = fixtures::engine(&bytes).expect("supported endpoint dialect");
+        assert_eq!(engine.llm.endpoints[0].dialect, dialect);
+        assert_eq!(engine.llm.models[0].dialect, dialect);
+    }
 }
 fn two_endpoints_with_one_name_are_refused() {
-    let endpoint = br#"{"name":"fake","number":2,"dialect":0,"provider":"fake","address":{"socket":"127.0.0.1:7102"},"transport":"plaintext","headers":[],"connect_ms":10000,"handshake_ms":10000}"#;
+    let endpoint = br#"{"name":"fake","number":2,"dialect":3,"provider":"fake","address":{"socket":"127.0.0.1:7102"},"transport":"plaintext","headers":[],"connect_ms":10000,"handshake_ms":10000}"#;
     let mut writer = skein_lib::Writer::new(
         endpoint
             .len()
@@ -211,7 +235,7 @@ fn efforts_that_are_not_a_list_are_refused() {
 #[test]
 fn a_model_uses_its_endpoint() {
     let model = model(fixtures::ENGINE_SMALL);
-    assert_eq!((model.endpoint, model.dialect), (1, 0));
+    assert_eq!((model.endpoint, model.dialect), (1, 3));
 }
 
 #[test]
@@ -247,6 +271,9 @@ fn endpoint_headers_are_retained() {
 #[test]
 fn llm_configuration_problems_name_the_invalid_fields() {
     table([
+        ("a_zero_dialect_is_refused", a_zero_dialect_is_refused),
+        ("dialect_one_is_refused", dialect_one_is_refused),
+        ("dialect_four_is_refused", dialect_four_is_refused),
         ("a_model_naming_an_unknown_endpoint_is_refused", a_model_naming_an_unknown_endpoint_is_refused),
         ("two_endpoints_with_one_name_are_refused", two_endpoints_with_one_name_are_refused),
         ("plaintext_to_a_public_address_is_refused", plaintext_to_a_public_address_is_refused),
@@ -275,12 +302,12 @@ fn table<const N: usize>(cases: [Case; N]) {
 }
 
 fn program_endpoint(offered: bool, name: &str) -> Box<[u8]> {
-    let prefix = br#""dialect": 0, "program": ""#;
+    let prefix = br#""dialect": 3, "program": ""#;
     let mut member = skein_lib::Writer::new(prefix.len().checked_add(name.len()).unwrap().checked_add(2).unwrap());
     member.put(prefix).unwrap();
     member.put(name.as_bytes()).unwrap();
     member.put(b"\",").unwrap();
-    let document = fixtures::with(fixtures::ENGINE_SMALL, br#""dialect": 0,"#, &member.finish());
+    let document = fixtures::with(fixtures::ENGINE_SMALL, br#""dialect": 3,"#, &member.finish());
     if offered {
         fixtures::with(
             &document,

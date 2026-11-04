@@ -235,6 +235,8 @@ impl Plan {
                 | d::Row::Entry { .. }
                 | d::Row::File(_)
                 | d::Row::Commit(_)
+                | d::Row::Artifact(_)
+                | d::Row::CommitMessage(_)
                 | d::Row::TreeEntry(_)
                 | d::Row::Run(_)
                 | d::Row::Hook(_)

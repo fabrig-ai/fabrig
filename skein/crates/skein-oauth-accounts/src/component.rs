@@ -135,52 +135,73 @@ pub struct Component {
 }
 
 impl Component {
+    /// Checks accounts against the limits as making the component does, making nothing
+    /// and taking no generator (oauth.md, 6.7).
+    pub fn check(accounts: List<Account>, limits: &Limits) -> Result<(), Unusable> {
+        drop(Self::configure(accounts, limits, None)?);
+        Ok(())
+    }
+
     /// Validates configuration before the loop; the owner keys its generator on a process-distinct stream.
     pub fn new(accounts: List<Account>, limits: &Limits, crypto: CryptoRng) -> Result<Component, Unusable> {
+        Ok(Self::configure(accounts, limits, Some(crypto))?.expect("a generator makes the component"))
+    }
+
+    fn configure(
+        mut accounts: List<Account>,
+        limits: &Limits,
+        crypto: Option<CryptoRng>,
+    ) -> Result<Option<Component>, Unusable> {
         if accounts.len() > limits.accounts {
             return Err(Unusable::Accounts { bound: limits.accounts });
         }
         if !valid(limits) {
             return Err(Unusable::Limits);
         }
-        let mut names = List::with_capacity(limits.accounts);
-        for _ in 0..limits.accounts {
-            names.push(Name::Free).expect("bounded names");
-        }
-        let mut states = List::with_capacity(limits.accounts);
-        let mut sources = List::with_capacity(limits.accounts);
-        let mut bindings = List::with_capacity(limits.accounts);
-        let mut keepers = List::with_capacity(limits.accounts);
-        for (index, account) in accounts.into_boxed().into_iter().enumerate() {
-            let index = u32::try_from(index).expect("bounded accounts");
+        let mut component = match crypto {
+            Some(crypto) => {
+                let mut names = List::with_capacity(limits.accounts);
+                for _ in 0..limits.accounts {
+                    names.push(Name::Free).expect("bounded names");
+                }
+                Some(Component {
+                    accounts: List::with_capacity(limits.accounts),
+                    names,
+                    sources: List::with_capacity(limits.accounts),
+                    bindings: List::with_capacity(limits.accounts),
+                    exchanges: Slab::with_capacity(limits.exchanges),
+                    admissions: 0,
+                    lifecycle: Lifecycle::Live,
+                    crypto,
+                    keepers: List::with_capacity(limits.accounts),
+                    file_owner: 0,
+                })
+            }
+            None => None,
+        };
+        for index in 0..accounts.len() {
+            let account = core::mem::replace(accounts.get_mut(index).expect("bounded account"), Account::HandedIn);
             let (source, state, store) = accounts::admit(index, account, limits)?;
-            *names.get_mut(index).expect("bounded name") = Name::Live { number: index, wanted: false };
-            match states.push(state) {
-                Ok(()) => {}
-                Err(State::Empty | State::Record { .. } | State::Loaded { .. }) => unreachable!("validated accounts"),
-            }
-            match sources.push(source) {
-                Ok(()) => {}
-                Err(Source::HandedIn | Source::SignIn { .. }) => unreachable!("validated accounts"),
-            }
-            bindings.push(None).expect("validated accounts");
-            match keepers.push(store) {
-                Ok(()) => {}
-                Err(Store::Owner | Store::Private(_)) => unreachable!("validated accounts"),
+            if let Some(component) = &mut component {
+                *component.names.get_mut(index).expect("bounded name") = Name::Live { number: index, wanted: false };
+                match component.accounts.push(state) {
+                    Ok(()) => {}
+                    Err(State::Empty | State::Record { .. } | State::Loaded { .. }) => {
+                        unreachable!("validated accounts")
+                    }
+                }
+                match component.sources.push(source) {
+                    Ok(()) => {}
+                    Err(Source::HandedIn | Source::SignIn { .. }) => unreachable!("validated accounts"),
+                }
+                component.bindings.push(None).expect("validated accounts");
+                match component.keepers.push(store) {
+                    Ok(()) => {}
+                    Err(Store::Owner | Store::Private(_)) => unreachable!("validated accounts"),
+                }
             }
         }
-        Ok(Component {
-            accounts: states,
-            names,
-            sources,
-            bindings,
-            exchanges: Slab::with_capacity(limits.exchanges),
-            admissions: 0,
-            lifecycle: Lifecycle::Live,
-            crypto,
-            keepers,
-            file_owner: 0,
-        })
+        Ok(component)
     }
 
     fn initialize(&mut self, env: &Env<Limits>) {
@@ -810,7 +831,7 @@ impl Component {
                     Keeping::Kept => {
                         let generation = candidate.generation;
                         let subject = candidate.subject.clone();
-                        *slot = recorded(candidate, env, held);
+                        *slot = just_kept(candidate, env, held);
                         if exchange.signing_in() {
                             up.push(Event::SignedIn {
                                 account: number(&self.names, account),
@@ -1226,6 +1247,18 @@ fn turn_of(exchange: &Exchange, lifecycle: Lifecycle, now: Time) -> Option<Turn>
         return Some(Turn::Progress);
     }
     None
+}
+
+fn just_kept(record: SavedToken, env: &Env<Limits>, held: bool) -> State {
+    let half = Duration::from_nanos(record.remaining(env.wall).as_nanos().checked_div(2).expect("nonzero divisor"));
+    let mut state = recorded(record, env, held);
+    match &mut state {
+        State::Record { lead, .. } => {
+            *lead = (*lead).max(env.now.saturating_add(half));
+        }
+        State::Empty | State::Loaded { .. } => unreachable!("record installed after keeping"),
+    }
+    state
 }
 
 fn recorded(record: SavedToken, env: &Env<Limits>, held: bool) -> State {

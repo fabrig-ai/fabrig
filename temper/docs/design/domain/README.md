@@ -45,11 +45,12 @@ all. Then temper's:
 temper's engine
 temper-engine-domain                       the root (root.md)
 ├── jig-domain-core                        jig's core and its children (jig's domain/engine.md)
-└── temper-engine-domain-forge             the forge connector's top (forge.md)
-    ├── skein-forge-client                 the working set, keeping up, fresh reads, the request budget, effects' keys, write lanes (skein's forge-client.md)
-    ├── temper-engine-domain-forge-change  the change procedure and the landing queues
-    ├── temper-engine-domain-forge-landing the landing by turn (landing.md)
-    └── temper-engine-domain-forge-issues  the goals' issues
+├── temper-engine-domain-forge             the forge connector's top (forge.md)
+│   ├── skein-forge-client                 the working set, keeping up, fresh reads, the request budget, effects' keys, write lanes (skein's forge-client.md)
+│   ├── temper-engine-domain-forge-change  the change procedure and the landing queues
+│   ├── temper-engine-domain-forge-landing the landing by turn (landing.md)
+│   └── temper-engine-domain-forge-issues  the goals' issues
+└── temper-engine-domain-calendar          each project's funding period, renewed (root.md, 5.7)
 
 temper's worker
 temper-worker-domain                       the worker's root (worker.md)
@@ -91,7 +92,8 @@ temper-worker-domain                       the worker's root (worker.md)
   `tools/git-transcripts/facts.txt` hold the evidence, named by fact.
 - **Each document** says in one page what it is, then its structure, its
   parts, what it owes and is owed below the domain, its world, and what
-  is open. It states the contract; what is built is `../STATUS.md`'s.
+  is open. It states the contract; where the code lags or departs is
+  its status file's, `<name>.status.md`, beside it.
 
 ## 4. Names
 
@@ -121,7 +123,7 @@ smith's are smith's.
 | push | temper's delivery: the tree the run checked, committed and pushed as a fast-forward, never forced (agent.md, section 6) |
 | git identity | a forge's token and commit author for git, one per forge, one of temper's application credentials (`../protocol/credentials.md`, section 4) |
 | failed preparation | a repository the worker could not prepare, for good: the forge lacks it, its branch or its commit, or refused the identity (worker.md, 4.3; root.md, 7.4) |
-| the forge's charter | the charter configuration names for the agent tasks the forge's procedures make (root.md, section 6) |
+| the forge's charters | temper's kind 3: the charters the agent tasks of a change are made under, its producer's by default, its reviews' and its foremen's (`../protocol/configuration.md`, 13.2; root.md, section 6) |
 | standalone | one engine and one worker in one process on one person's machine (`../protocol/README.md`, section 8) |
 
 ## 5. Decisions this design takes
@@ -183,7 +185,8 @@ What temper decides within jig's design, with where each is answered:
   `AGENTS.md`); notes are jig's, a repository's a resource scope on the
   forge (root.md, section 6; agent.md, 4.5).
 - **Periods from the smallest source:** one per configured project at
-  the first start (`../protocol/configuration.md`, section 8).
+  the first start (`../protocol/configuration.md`, section 8), each
+  renewed by the root's calendar (root.md, 5.7).
 
 ## 6. What is open
 
@@ -195,8 +198,7 @@ Each document lists its own; the ones that reach across:
   12);
 - a person's approval posted on the forge as the person (`../README.md`,
   section 8; forge.md, section 20);
-- a calendar for periods, as a child of temper's root
-  (`../protocol/configuration.md`, section 11);
+
 - which host tools a charter offers, and a cancel's grace (agent.md,
   section 10);
 - jig's, which temper's root inherits: commits in flight, briefs'

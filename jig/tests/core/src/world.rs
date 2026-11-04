@@ -91,6 +91,7 @@ pub struct AssignedTranscript {
 pub struct World {
     /// Explicit admission tests retain outputs and control each store completion.
     pub manual: bool,
+    pub public_referee: crate::referee::public::Referee,
     pub returned: u64,
     pub released: Vec<root::Request>,
     serial: u64,
@@ -129,6 +130,8 @@ pub struct World {
     account_generations: std::collections::BTreeMap<u32, u64>,
     move_provider: Option<u32>,
     pub assignments: Vec<(u64, u64)>,
+    /// Job assignments released after their claim is durable.
+    pub jobs: Vec<(Token, jig_domain_host::JobAssignment)>,
     pub assignment_transcripts: Vec<AssignedTranscript>,
     pub cancellations: Vec<(u64, u64)>,
     pub busy_turns: Vec<(u64, u64, u32)>,
@@ -215,6 +218,32 @@ pub struct World {
 }
 
 impl World {
+    /// A scripted worker declares the job kinds it can host (engine.md, 7.5).
+    pub fn job_hello(&mut self, channel: Token, worker: u32, kinds: Box<[jig_domain_host::JobBound]>) {
+        let mut bounds = jig_test_profile::fixtures::bounds();
+        bounds.models = Box::new([]);
+        self.send(root::Event::Core(core::Event::Fleet(fleet::Event::Hello {
+            worker,
+            channel,
+            hello: fleet::Hello {
+                jobs: kinds,
+                bounds,
+                stop_bound: Duration::from_millis(100),
+                slots: 1,
+                workstreams: Box::new([]),
+                hosting: Box::new([]),
+            },
+        })));
+    }
+
+    /// Answer through the job's host link (jig/docs/design/domain/engine.md, 7.5).
+    pub fn answer_job(&mut self, channel: Token, task: Token, attempt: Token, ending: jig_domain_host::JobEnding) {
+        self.send(root::Event::Link {
+            channel,
+            link: root::link::Event::Up(jig_domain_host::LinkUp::JobAnswer { run: task, attempt, answer: ending }),
+        });
+    }
+
     /// Supply monotonic time and wall time independently, including wall corrections.
     pub fn set_clock(&mut self, now: Time, wall: Wall) {
         if self.supplied_wall.is_some() {
@@ -381,6 +410,7 @@ impl World {
                 if self.tracing {
                     self.trace.push(format!("input {event:?}"));
                 }
+                self.public_rule_input(&mut event);
                 if self.manual {
                     if let Err(event) = root::try_step(&mut self.domain, &env, event) {
                         self.returned += 1;
@@ -394,7 +424,8 @@ impl World {
             root::release(&mut self.domain, &env, &mut out);
             let empty = out.is_empty();
             for _ in 0..out.len() {
-                let request = out.pop().expect("root output count");
+                let mut request = out.pop().expect("root output count");
+                self.public_rule_output(&mut request);
                 if self.tracing {
                     self.trace.push(format!("output {request:?}"));
                 }
@@ -557,6 +588,7 @@ impl World {
                 walking.tick(self);
                 self.walking = Some(walking);
             }
+            crate::referee::public::check(self);
             self.domain.reclaim();
             self.observer.observe(self.wall, self.heap.observed());
             if steps == 1 {
@@ -704,6 +736,7 @@ impl World {
                 budget: jig_domain_people::Budget::Named,
                 executor: tasks::Executor::Procedure { connector: 1, code: 1 },
                 spec: tasks::Spec {
+                    job: None,
                     asks: false,
                     words: b"make a checked effect".as_slice().into(),
                     parameters: Box::new([]),
@@ -714,7 +747,7 @@ impl World {
                 llm: None,
                 symbolic_grants: Box::new([]),
                 dependencies: Box::new([]),
-                wake: tasks::WakePolicy::DEFAULT,
+                wake: Some(tasks::WakePolicy::DEFAULT),
             }]),
             stubs: Box::new([]),
         }));
@@ -892,3 +925,11 @@ impl World {
 }
 
 mod stopping;
+
+impl World {
+    /// Offer a public story's controlled input without releasing or applying commits.
+    pub fn public_offer(&mut self, mut event: root::Event) {
+        self.public_rule_input(&mut event);
+        self.offer(event);
+    }
+}

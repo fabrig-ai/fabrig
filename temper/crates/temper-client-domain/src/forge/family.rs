@@ -168,18 +168,9 @@ pub fn set_up(
     forge: u16,
     org: Box<[u8]>,
     repository: Box<[u8]>,
-    project: forge::forges::SetUpProject,
     playground: bool,
     limits: &w::Limits,
 ) -> Option<jig_client::Family> {
-    let project = match project {
-        forge::forges::SetUpProject::Existing(project) => {
-            w::SetUpProject::Existing(w::ExistingProject::new(limits, w::ExistingProjectParts { project }).ok()?)
-        }
-        forge::forges::SetUpProject::New(name) => {
-            w::SetUpProject::New(w::NewProject::new(limits, w::NewProjectParts { name }).ok()?)
-        }
-    };
     let request = w::SetUp::new(
         limits,
         w::SetUpParts {
@@ -187,7 +178,6 @@ pub fn set_up(
             forge: w::Making::Kept(w::Kept::new(limits, w::KeptParts { forge }).ok()?),
             org,
             repository,
-            project,
         },
     )
     .ok()?;
@@ -211,7 +201,6 @@ pub fn set_up_answer(record: &jig_client::Family, limits: &w::Limits) -> Option<
             w::SetUpRefusal::NotOffered => R::NotOffered,
             w::SetUpRefusal::NotUnderTheBox => R::NotUnderTheBox,
             w::SetUpRefusal::Busy => R::Busy,
-            w::SetUpRefusal::NewProject => R::NewProject,
             w::SetUpRefusal::Invalid => R::Invalid,
         }),
         w::Outcome::Unknown => O::Unknown,
@@ -358,16 +347,12 @@ fn owned_from(owned: w::OwnedForge) -> forge::forges::Owned {
 }
 
 fn first_from(first: w::FirstRepository) -> forge::forges::First {
-    use forge::forges::{CreateStep, First, FirstState, SetUpProject};
+    use forge::forges::{CreateStep, First, FirstState};
     let first = first.into_parts();
     First {
         playground: first.playground,
         org: first.org,
         repository: first.repository,
-        project: match first.project {
-            w::SetUpProject::Existing(project) => SetUpProject::Existing(project.project()),
-            w::SetUpProject::New(project) => SetUpProject::New(project.into_parts().name),
-        },
         state: match first.state {
             w::FirstState::Making => FirstState::Making,
             w::FirstState::Made(value) => FirstState::Made { id: value.id() },
@@ -438,7 +423,7 @@ fn admin_stop(stop: w::AdminStop) -> forge::forges::AdminStop {
     }
 }
 
-/// Decode the playground's complete record (temper/docs/design/draft/playground-reset.md, 6.1).
+/// Decode the playground's complete record (temper/docs/design/client/README.md, 4.8).
 #[must_use]
 pub fn playground(record: &[u8], limits: &w::Limits) -> Option<forge::Playground> {
     let answer = wire::decode_playground_answer(record, limits)?.into_parts();

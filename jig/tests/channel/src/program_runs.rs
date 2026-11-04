@@ -45,7 +45,7 @@ fn engine_configured(inherited: &Inherited, open: bool) -> Proc {
             r#""sources":{"keys":true}"#,
             r#""manage_usage":"https://usage.example/","sources":{"programs":["claude_code"]}"#,
         )
-        .replace(r#""dialect": 1,"#, r#""dialect": 1, "program": "claude_code","#)
+        .replace(r#""dialect": 3,"#, r#""dialect": 3, "program": "claude_code","#)
         .replace(r#""window": 1048576"#, r#""window": 272000"#)
         .replace(r#""inspect": false"#, r#""inspect": true"#);
     if open {
@@ -89,14 +89,12 @@ pub(crate) fn configuration() -> smith_agent_service::Config {
     let mut destination = destinations.into_boxed().into_vec().pop().expect("one destination");
     destination.limits = service.limits.llm.adapter.client;
     destination.credential.value = service.limits.llm.grant_value_bytes;
-    destination.credential.account_id = service.limits.llm.grant_value_bytes;
     service.llm_endpoints = smith_protocol_llm::Endpoints::new(
         Box::new([smith_protocol_llm::ConfiguredEndpoint {
             name: smith_domain::llm::Endpoint(0),
             destination,
             connect: Duration::from_secs(1),
             handshake: Duration::from_secs(1),
-            identity: smith_protocol_llm::IdentityProfile::Plain,
             models: Box::new([]),
         }]),
         1,

@@ -47,8 +47,8 @@ pub(crate) fn delegate(value: &Value) -> Result<engine::Delegate, Problem> {
         None => Box::new([]),
     };
     let wake = match value.field(b"wake")? {
-        Some(wake) => wake_policy(wake)?,
-        None => tasks::WakePolicy::DEFAULT,
+        Some(wake) => Some(wake_policy(wake)?),
+        None => None,
     };
     Ok(engine::Delegate {
         deadline,
@@ -172,7 +172,7 @@ fn spec(value: &Value) -> Result<tasks::Spec, Problem> {
         Some(items) => numbers(items, b"inputs")?,
         None => Box::new([]),
     };
-    Ok(tasks::Spec { asks: false, words, parameters, inputs })
+    Ok(tasks::Spec { job: None, asks: false, words, parameters, inputs })
 }
 
 fn contract(value: &Value) -> Result<tasks::Contract, Problem> {

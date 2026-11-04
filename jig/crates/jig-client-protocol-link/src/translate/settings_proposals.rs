@@ -33,6 +33,19 @@ pub fn wire_review_item(value: &c::ReviewItem, limits: &w::Limits) -> Result<w::
             now: wire_review_value(&value.now, limits)?,
             origin: wire_setting_origin(&value.origin, limits)?,
             would_be: wire_review_value(&value.would_be, limits)?,
+            application: match &value.application {
+                Some(v) => Some(w::ApplicationReview::new(
+                    limits,
+                    w::ApplicationReviewParts {
+                        edit: super::settings::wire_sized_edit(&v.edit, limits)?,
+                        now: match &v.now {
+                            Some(v) => Some(super::settings::wire_application_state(v, limits)?),
+                            None => None,
+                        },
+                    },
+                )?),
+                None => None,
+            },
         },
     )
 }
@@ -43,12 +56,23 @@ pub fn restore_review_item(value: &w::ReviewItem, limits: &Limits) -> Result<c::
         now: restore_review_value(value.now(), limits)?,
         origin: restore_setting_origin(value.origin())?,
         would_be: restore_review_value(value.would_be(), limits)?,
+        application: match value.application() {
+            Some(v) => Some(c::ApplicationReview {
+                edit: super::settings::restore_sized_edit(v.edit()),
+                now: match v.now() {
+                    Some(v) => Some(super::settings::restore_application_state(v)),
+                    None => None,
+                },
+            }),
+            None => None,
+        },
     })
 }
 pub fn wire_settings_review(value: &c::SettingsReview, limits: &w::Limits) -> Result<w::SettingsReview, w::Problem> {
     w::SettingsReview::new(
         limits,
         w::SettingsReviewParts {
+            key: value.key,
             newest: value.newest,
             items: encode_review_pieces(&value.items, limits)?,
             cut: value.cut,
@@ -57,6 +81,7 @@ pub fn wire_settings_review(value: &c::SettingsReview, limits: &w::Limits) -> Re
 }
 pub fn restore_settings_review(value: &w::SettingsReview, limits: &Limits) -> Result<c::SettingsReview, w::Problem> {
     Ok(c::SettingsReview {
+        key: *value.key(),
         newest: value.newest(),
         items: decode_review_pieces(value.items(), limits)?,
         cut: value.cut(),

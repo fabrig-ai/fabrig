@@ -641,7 +641,7 @@ mod failure_tests {
             &models,
             512,
             Some(b"work"),
-            Some(b"codex"),
+            Some(b"openai"),
             Some(skein_lib::Wall::from_nanos(36_000_000_000_000)),
         )
     }
@@ -657,7 +657,7 @@ mod failure_tests {
         });
         assert_eq!(
             named_failure(failure, b"provider reason\nignored").as_ref(),
-            b"run failed: codex/small unavailable (HTTP 503) after 3 attempts: provider reason\n"
+            b"run failed: openai/small unavailable (HTTP 503) after 3 attempts: provider reason\n"
         );
     }
 
@@ -795,7 +795,7 @@ mod failure_tests {
                     attempts: 1,
                     report: host::Report::none(),
                 },
-                b"run failed: codex/small invalid after 1 attempts\n".as_slice(),
+                b"run failed: openai/small invalid after 1 attempts\n".as_slice(),
             ),
         ]
     }

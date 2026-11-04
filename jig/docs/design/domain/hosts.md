@@ -84,9 +84,9 @@ Between the core's fleet and a host, whatever its shape:
     for each LLM account its check chose, its source's credential or a
     program source's name, and the application's credentials its
     workspace needs (engine.md, 7.1); and the **ask** for live content:
-    one boolean per kind, `text`, `reasoning`, which the core
-    sets for a run whose task is a conversation (engine.md, 7.1) and the
-    hub passes into smith's start (6.2, 6.5);
+    one boolean per kind, `text`, `input` and `reasoning`, the first two
+    set by the core for a run whose task is a conversation (engine.md,
+    7.1), which the hub passes into smith's start (6.2, 6.5);
   - **messages** for the run, named, in order (tasks.md, 8.2);
   - **answers** to the run's relayed calls;
   - **grants** renewed while the run lives: each new generation of a
@@ -195,7 +195,8 @@ On a worker:
 <application>-worker           the worker's root: the application's; routes among its children
 ├── jig-domain-host            the hub: hosted runs, admit, prepare, start, relay, park or end
 ├── smith-host-domain          the agent, smith's: processes, spawn, channel, watchdog, cancel then kill
-└── <workspace>                the application's: prepare, save, deliver, release (section 7)
+├── <workspace>                the application's: prepare, save, deliver, release (section 7)
+└── <jobs>                     the application's job capability, if it has one: its kinds, run, stop (6.9)
 ```
 
 A worker's root may compose `smith-inline-agent` in place of
@@ -203,8 +204,8 @@ A worker's root may compose `smith-inline-agent` in place of
 
 Each tree follows programming-model.md, 4.5. The hub knows a hosted run's
 lifecycle and nothing of the application's workspaces, of processes, of
-channels or of the core, and links no smith crate; the agent and the
-workspace are capabilities, which the root translates to and from with
+channels or of the core, and links no smith crate; the agent, the
+workspace and the job capability are capabilities, which the root translates to and from with
 small total functions, the same functions for both kinds of agent, since
 both speak smith's parent face, smith's payloads among them by hand-out
 (6.8). A hand-off goes from a capability to the hub, from the hub to a
@@ -315,7 +316,6 @@ These commands take no run slot. An unconfigured program counts as an
 absent login: it cannot sign in or use a program login. A failed check after
 an exit or timeout keeps withholding new placement until a later check
 establishes absence, because a lost reply does not prove the login absent.
-The joint holder check will narrow this restriction to the person's runs.
 Shutdown reports an active sign-out's actual result once it settles; only a
 queued sign-out that never started fails as closed. Channel loss suppresses
 its old-channel reply, while the replacement channel starts with a fresh
@@ -604,7 +604,7 @@ Nothing decides on a fact.
   come up smith's channel, which the host's half decodes (smith's
   `protocol/channel.md`, sections 3 and 4); in `smith-inline-agent`'s
   host they are drained in the process (5.2). A run whose assignment does
-  not ask gives none, as every host did before: its words appear as each
+  not ask gives none: its words appear as each
   turn commits. A sub-agent's or a compaction's completion gives no text.
 - **A tool begun with its call, only from a host that has it:** a hub
   whose agent is `smith-inline-agent` hands up a tool begun naming its
@@ -649,7 +649,7 @@ Nothing decides on a fact.
 - **One text, whatever its host.** Above the hub, the core's views, the
   client and the application see a run's text the same way from an agent
   process and from `smith-inline-agent`.
-- **What jig still asks of smith, later:** the LLM component's abort and
+- **What jig asks of smith, later:** the LLM component's abort and
   closed terminal (`../protocol/README.md`, section 11).
 - **A conversation's delegated tasks give no text.** Only the run of the
   conversation's own task is asked; a task it delegates streams nothing
@@ -712,7 +712,7 @@ reach past the grace.
     (6.5), so the hub and jig's channel carry jig's activity, never
     smith's facts. Each live piece from smith's channel goes to the hub
     as jig's typed piece, and to the agent process's watchdog as its
-    progress, as before (5.1).
+    progress (5.1).
 - **Who links smith:** `jig-protocol-charter` (section 8), a client's
   decoding of turns (`../client/domain/client.md`, section 10), and an
   application's roots that compose smith's agent capability, with their
@@ -722,7 +722,7 @@ reach past the grace.
 
 ### 6.9 Jobs
 
-Designed, not built. A job task (core.md, 3.2) is hosted as a run is,
+A job task (core.md, 3.2) is hosted as a run is,
 with no agent:
 
 - **Its assignment** is a run's but for the agent's part: the job's
@@ -804,7 +804,7 @@ engine's protocol layer calls for every run, on workers and in the
 engine alike, and which reads every run's result back by the path of
 host tools' calls (6.8).
 
-Its `assignment` builds that charter from the core's run charter, the brief and the run's sources, with the contract's policy, which is jig's, not an application's: a contract's text at most 1024 bytes, its checks required to pass, and the workspace tools the run's policy grants. A root calls it and decides none of it.
+Its `assignment` assembles that charter from the core's run charter, the brief and the run's sources, with the contract's policy, which is jig's, not an application's: a contract's text at most 1024 bytes, its checks required to pass, and the workspace tools the run's policy grants. Its `charter` translates what `assignment` assembled, decides `deliver`, and grants `modify` only to a run that can deliver: what a run writes leaves its workspace only by a delivery, so a run with no `deliver` inspects alone, whatever its policy says (a rail, not an instruction). A root calls them and decides none of it.
 
 - **Instructions and brief:** the charter's instructions, and the brief's
   sections rendered as smith's titled sections, in order, the
@@ -813,8 +813,8 @@ Its `assignment` builds that charter from the core's run charter, the brief and 
 
   | jig's family | In smith |
   |---|---|
-  | inspecting, modifying, the shell | smith's inspect, modify and shell, when the run has a workspace; on a program backend, the program's built-in tools of these families, each call asked of smith's policy through the program's permission prompt (smith's `protocol/programs.md`, 5.3 and 5.4) |
-  | sub-agents | smith's sub-agents, on the direct backend; none on a program backend (smith's `protocol/programs.md`, section 2) |
+  | inspecting, modifying, the shell | smith's inspect, modify and shell, when the run has a workspace, and modify only with `deliver`; on a program backend, the program's built-in tools of these families, each call asked of smith's policy through the program's permission prompt (smith's `protocol/programs.md`, 5.3 and 5.4) |
+  | sub-agents | smith's sub-agents; on a program backend, inspect only, each a program session of its own (smith's `protocol/programs.md`, 5.10) |
   | the engine's tools (engine.md, 7.3) | host tools, each declared with its schema, its description and whether it writes |
   | each connector's reads, and the effects and topics it offers to agents | host tools, declared by the application; its effects through the engine's `effect`, its topics through `subscribe` |
   | waiting, by its wake policy | smith's `wait` |
@@ -859,7 +859,10 @@ Its `assignment` builds that charter from the core's run charter, the brief and 
   `domain/run.md`, 7.1): a report; a verdict, with its labels, fields and
   follow-ups; a connector's result, as a delivery the run must make
   through its workspace before it finishes, with the fields its workspace
-  asks for; a failure. The core judges a result again as it commits it
+  asks for, or a successful `no_change` verdict with bounded explanation
+  and no fields or items; a failure. The no-change verdict maps to the
+  task's distinct successful `NoChange` result, with no resource.
+  The core judges a result again as it commits it
   (tasks.md, 5.6).
 - **Budget, models, waiting:** the run's budget, its turns, spend and
   time, its spend reserved from its task at its claim, in the
@@ -901,7 +904,7 @@ Its `assignment` builds that charter from the core's run charter, the brief and 
   attempts with it, and takes none of that charter's new runs; its next
   hello is admitted or refused as any is. The same admission decision is public as
   `jig_domain_fleet::shortfall`, using the core's owned
-  `fleet_needs::configured` requirements, so an application's startup can
+  `settings::fleet_needs::configured` requirements, so an application's startup can
   diagnose its prospective host before it says hello. A start smith refuses
   all the same fails its
   attempt as invalid, naming why (6.3).
@@ -917,9 +920,7 @@ smith runs an Open run on a program backend, keeping the program across
 its turns (smith's `protocol/programs.md`, 5.9): selection and the
 claim's recheck judge its models and grants by the same view as any
 task's, each source, account and host still checked and the binding
-revalidated exactly, and no run waits as `OpenProgram`. The client's
-`TaskWaitRefused.program` arm, which would name that wait, stays on the
-wire with no producer.
+revalidated exactly.
 
 Each admitted hello declares the program endpoint numbers its channel
 serves, the engine host's among them, fixed for that channel. At most 64 distinct
@@ -950,14 +951,14 @@ agent for ever.
   waits. A proposal or an escalation relayed to a run and decided before
   its turn commits, often by a call in that very turn, still ends read
   when the turn names it (tasks.md, section 9).
-- **A grace asks the run to finish.** Jig keeps `FinishRequested { revision }`
+- **A grace asks the run to finish.** jig keeps `FinishRequested { revision }`
   as a durable inbox kind, separately reserved from merged amendments. Its
   live message and its carried Start message translate to smith's
   `finish_requested: true`; every other kind translates to false. The
   owned kind travels through held deliveries, without querying later task
-  state. In an Open run, admission enters smith's existing wind-down, so
-  its next text parks. Finite runs hear an ordinary amendment; cancellation,
-  refusals and read fences keep their existing meaning. The hub carries the
+  state. In an Open run, admission enters smith's wind-down, so its next
+  text parks. Finite runs hear an ordinary amendment, and the flag changes
+  nothing of cancellation, refusals or read fences. The hub carries the
   flag without linking smith; application roots only translate it.
 - **The start carries the inbox,** as many of its messages as the run's
   inbox takes, oldest first; the rest are relayed as the run reads
@@ -1048,8 +1049,8 @@ agent for ever.
   its parent, so the person sees the delegate write; whether that asks
   of the assignment, or of the views, is open.
 - **Reasoning as it streams.** Its kind is in the wire (6.5), but smith
-  has no producer for it. Input is now produced by agent processes;
-  reasoning still needs each provider asked for readable reasoning.
+  has no producer for it. Agent processes produce input; reasoning needs
+  each provider asked for readable reasoning.
 
 - **Fairness on the engine's loop:** whether runs in the engine need a
   share of each iteration, so many chats never slow the engine's
@@ -1072,6 +1073,10 @@ agent for ever.
 - **Containing a run from the programs directory,** so that a worker
   keeping several people's program logins may take each one's runs:
   accounts.md, section 7.
+- **A failed login check's restriction:** whether a check that failed
+  after an exit or timeout (5.1) withholds new placement only from the
+  runs its source's holder pays for, by a check joined with the holder's,
+  rather than from every run on the worker.
 - **Agents other than smith:** the contract of section 2 is jig's; an
   agent that spoke it through a capability of its own could run beside
   smith. Not wanted yet.

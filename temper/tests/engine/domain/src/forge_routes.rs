@@ -76,7 +76,10 @@ pub struct World {
     pub forge_calls: u32,
     pub adopted: Vec<forge_top::ApplicationOutcome>,
     pub signed_in: Option<u64>,
+    pub web_replies: Vec<people::Reply>,
     pub assigned: Vec<engine::Assignment>,
+    pub jobs: Vec<host::JobAssignment>,
+    pub job_workspaces: BTreeMap<u64, engine::ForgeWorkspace>,
     /// Inbox messages delivered after an assignment, as a real worker receives them.
     pub delivered_messages: BTreeMap<(u64, u64), Vec<u64>>,
     pub answers: Vec<temper_engine_domain::CallAnswer>,
@@ -115,7 +118,9 @@ pub struct World {
 }
 
 #[derive(Clone, Copy, Default)]
+#[expect(clippy::struct_excessive_bools, reason = "stories independently configure landing rules, kind and authority")]
 pub struct StoryLimits {
+    pub tier: Option<crate::tier_runs::Tier>,
     pub turn: bool,
     pub across: bool,
     pub library_gate_latency: Option<Duration>,
@@ -127,6 +132,11 @@ pub struct StoryLimits {
     pub spec_bytes: Option<u32>,
     pub result_bytes: Option<u32>,
     pub forge_charter: Option<u32>,
+    pub kinds: bool,
+    pub questions: Option<u32>,
+    pub merge_kind: bool,
+    pub resolutions: Option<u32>,
+    pub merge_authority: bool,
 }
 
 #[derive(Clone, Copy, Debug)]
@@ -209,6 +219,7 @@ impl World {
             None,
             StoryLimits::default(),
             Some((defaults, model, None)),
+            &[],
         )
     }
 
@@ -228,6 +239,7 @@ impl World {
             None,
             StoryLimits::default(),
             Some((defaults, model, Some(limits))),
+            &[],
         )
     }
 
@@ -241,7 +253,24 @@ impl World {
         documents: Option<jig_domain_core::documents::DocumentLimits>,
         timing: StoryLimits,
     ) -> Self {
-        Self::configured_settings(with_read, with_change, silent_ci, passes, gate, documents, timing, None)
+        Self::configured_settings(with_read, with_change, silent_ci, passes, gate, documents, timing, None, &[])
+    }
+
+    /// Charter documents through the core's plan, root binding and forge gather
+    /// (temper/docs/design/domain/testing.md, 6.4).
+    #[must_use]
+    pub fn configured_documents(documents: &[jig_domain_core::Document]) -> Self {
+        Self::configured_settings(
+            true,
+            false,
+            true,
+            1000,
+            paths::Gate::default(),
+            None,
+            StoryLimits::default(),
+            None,
+            documents,
+        )
     }
 
     #[expect(
@@ -258,6 +287,7 @@ impl World {
         documents: Option<jig_domain_core::documents::DocumentLimits>,
         timing: StoryLimits,
         stock: Option<(&jig_domain_core::settings::Defaults, &engine::Model, Option<&engine::Limits>)>,
+        charter_documents: &[jig_domain_core::Document],
     ) -> Self {
         // Sizes subscription/hold notifications and workspace-resource bookkeeping
         let StoryLimits {
@@ -266,16 +296,25 @@ impl World {
             spec_bytes,
             result_bytes,
             forge_charter,
+            kinds,
+            questions,
+            merge_kind,
+            merge_authority,
+            resolutions,
             turn,
             landing_members,
             slots,
             tasks,
             across,
             library_gate_latency,
+            tier,
         } = timing;
         let paths::Gate { approval, agent: agent_gate, owner: owner_gate } = gate;
-        let [(bootstrap, mut limits), (config, _)] = std::array::from_fn(|_| {
+        let [(bootstrap, mut limits), (config, _)] = std::array::from_fn(|index| {
             let mut limits = walking::limits();
+            if let Some(questions) = questions {
+                limits.forge.change_policy.questions = questions;
+            }
             if let Some(bytes) = result_bytes {
                 limits.tasks.result_bytes = bytes;
             }
@@ -283,11 +322,10 @@ impl World {
                 jig_protocol_config::profile(jig_protocol_config::Profile::Small).core.people.amendment_bytes;
             limits.people.people = 4;
             limits.people.holdings = 4;
-            if owner_gate {
-                limits.people.amendment_bytes = 2048;
-            }
             limits.journal.writes = journal::WALKING_WRITES;
             let mut config = walking::config(71);
+            let mut landing_rules =
+                engine::LandingRules { deployment: Box::default(), projects: skein_lib::Map::with_capacity(1) };
             if approval.is_some() || agent_gate || owner_gate {
                 limits.authority.roles = 3;
             }
@@ -325,7 +363,7 @@ impl World {
                 limits.tasks.depth = 4;
                 limits.tasks.parameters = 8;
                 limits.tasks.spec_bytes = 512;
-                limits.tasks.executor_kinds = 4;
+                limits.tasks.executor_kinds = 5;
                 limits.tasks.charters = 4;
                 let mut producer = walking::charter();
                 producer.number = 2;
@@ -333,16 +371,18 @@ impl World {
                 reviewer.number = 4;
                 reviewer.policy.modify = false;
                 reviewer.policy.agents = false;
-                config.core.defaults.charters = Box::new([walking::charter(), producer, reviewer]);
-                config.forge_charter = forge_charter.unwrap_or(1);
+                let mut foreman = reviewer.clone();
+                foreman.number = 6;
+                foreman.policy.shell = false;
+                config.core.defaults.charters = Box::new([walking::charter(), producer, reviewer, foreman]);
                 limits.tasks.authority_grants = 10;
                 limits.journal.run_bytes = 8192;
                 limits.tasks.authority_segments = 9;
                 limits.tasks.authority_bytes = 512;
-                limits.tasks.contract_choices = 2;
+                limits.tasks.contract_choices = 3;
                 limits.tasks.inbox_messages = 8;
                 limits.tasks.inbox_bytes = 1024;
-                limits.authority.executors = 4;
+                limits.authority.executors = 5;
                 limits.authority.batch = 2;
                 limits.authority.grants = 10;
                 limits.authority.segments = 8;
@@ -434,7 +474,7 @@ impl World {
                     let landing: Box<[engine::LandingRule]> = Box::new([engine::LandingRule {
                         connector: 0,
                         kind: 4,
-                        enforce: !owner_gate,
+                        enforce: true,
                         pattern: authority::Pattern {
                             segments: Box::new([
                                 Box::from(&b"forge"[..]),
@@ -458,15 +498,16 @@ impl World {
                         },
                     }]);
                     if !owner_gate {
-                        config.landing.deployment.clone_from(&landing);
+                        landing_rules.deployment.clone_from(&landing);
                     }
-                    assert!(config.landing.projects.insert(1, landing).is_ok());
+                    assert!(landing_rules.projects.insert(1, landing).is_ok());
                 }
                 if with_change {
                     rules.ceiling.delegation.kinds = Box::new([
                         authority::Executor::Charter(1),
                         authority::Executor::Charter(2),
                         authority::Executor::Charter(4),
+                        authority::Executor::Charter(6),
                         authority::Executor::Procedure(2),
                     ]);
                     rules.ceiling.delegation.tasks = 12;
@@ -497,11 +538,11 @@ impl World {
                     limits.fleet.attempts = 3;
                     limits.fleet.workstreams = 3;
                 }
-                if turn {
+                if turn || tier.is_some() {
                     limits.authority.grants = 14;
                     limits.tasks.authority_grants = 14;
-                    limits.authority.executors = 6;
-                    limits.tasks.executor_kinds = 6;
+                    limits.authority.executors = 7;
+                    limits.tasks.executor_kinds = 7;
                     limits.tasks.result_bytes = 256;
                     limits.journal.run_bytes = 32768;
                     if let Some(slots) = landing_members {
@@ -519,6 +560,7 @@ impl World {
                         authority::Executor::Charter(1),
                         authority::Executor::Charter(2),
                         authority::Executor::Charter(4),
+                        authority::Executor::Charter(6),
                         authority::Executor::Procedure(2),
                         authority::Executor::Procedure(3),
                         authority::Executor::Procedure(4),
@@ -542,33 +584,45 @@ impl World {
                     if across {
                         let mut lib = rule.clone();
                         lib.pattern.segments[3] = b"lib".as_slice().into();
-                        config.landing.deployment = Box::new([rule.clone(), lib.clone()]);
-                        config.landing.projects.insert(1, Box::new([rule.clone(), lib])).expect("two repository rules");
+                        landing_rules.deployment = Box::new([rule.clone(), lib.clone()]);
+                        landing_rules.projects.insert(1, Box::new([rule.clone(), lib])).expect("two repository rules");
                     } else {
-                        config.landing.deployment = Box::new([rule.clone()]);
-                        config.landing.projects.insert(1, Box::new([rule])).expect("turn landing requirements");
+                        landing_rules.deployment = Box::new([rule.clone()]);
+                        landing_rules.projects.insert(1, Box::new([rule])).expect("turn landing requirements");
                     }
                     config
-                        .landing
                         .landings
                         .insert(
                             1,
                             engine::ProjectLanding {
-                                by: engine::Way::Turn,
+                                merge_job: None,
+                                after: engine::AfterLandingCheck {
+                                    tier_retries: 2,
+                                    verification_bound_ms: tier.map_or(7_200_000, |tier| tier.bound_ms),
+                                },
+                                by: if turn { engine::Way::Turn } else { engine::Way::Queue },
                                 repositories: Box::new([engine::RepositoryChecks {
+                                    tiers: match tier {
+                                        Some(tier) => crate::tier_runs::checks(tier),
+                                        None => Box::new([]),
+                                    },
                                     repository: forge_world::REPO,
-                                    gates: Box::new([engine::GateCheck {
-                                        name: b"gate".as_slice().into(),
-                                        workflow: b"gate.yml".as_slice().into(),
-                                        ignored: Box::new([b"docs".as_slice().into()]),
-                                        blocking: true,
-                                    }]),
+                                    gates: if turn {
+                                        Box::new([engine::GateCheck {
+                                            name: b"gate".as_slice().into(),
+                                            workflow: b"gate.yml".as_slice().into(),
+                                            ignored: Box::new([b"docs".as_slice().into()]),
+                                            blocking: true,
+                                        }])
+                                    } else {
+                                        Box::new([])
+                                    },
                                 }]),
                             },
                         )
                         .expect("one turn project");
                     if across {
-                        let landing = config.landing.landings.get_mut(&1).expect("turn project");
+                        let landing = config.landings.get_mut(&1).expect("turn project");
                         let mut lib = landing.repositories[0].clone();
                         lib.repository = skein_forge::api::Repository { forge: 1, repository: 4 };
                         landing.repositories = Box::new([landing.repositories[0].clone(), lib]);
@@ -583,8 +637,8 @@ impl World {
                 config.core.defaults.rules = domain.rules().clone();
             }
             if let Some((defaults, model, _)) = stock {
-                const STOCK_CHARTERS: u32 = 4;
-                const STOCK_EXECUTORS: u32 = 7;
+                const STOCK_CHARTERS: u32 = 5;
+                const STOCK_EXECUTORS: u32 = 8;
                 const TREE_TASKS: u32 = 12; // Stock lifetime ceiling, including the root.
                 const LANDED_CHANGES: u32 = 2;
                 const RETAINED_HOLDINGS: u32 = 1 + LANDED_CHANGES * 2;
@@ -607,14 +661,13 @@ impl World {
                 config.core.settings.models = Box::new([model.clone()]);
                 config.core.settings.llm_providers.providers[0].models = Box::new([model.name.clone()]);
                 config.core.connectors = Box::new([1]);
-                config.forge_charter = 2;
-                for rule in &mut config.landing.deployment {
+                for rule in &mut landing_rules.deployment {
                     rule.connector = 1;
                     for gate in &mut rule.gates {
                         gate.freshness = engine::Freshness::Clean;
                     }
                 }
-                config.landing.projects = skein_lib::Map::with_capacity(1);
+                landing_rules.projects = skein_lib::Map::with_capacity(1);
                 // Stock includes the review and configuring charters; all ten forge grants fit.
                 limits.tasks.charters = STOCK_CHARTERS;
                 limits.tasks.executor_kinds = STOCK_EXECUTORS;
@@ -654,6 +707,29 @@ impl World {
             if let Some(spec_bytes) = spec_bytes {
                 limits.tasks.spec_bytes = spec_bytes;
             }
+            if merge_kind {
+                let mut bound = protocol::merge_bound();
+                bound.spec = bound.spec.min(limits.tasks.spec_bytes);
+                bound.result = bound.result.min(limits.tasks.result_bytes);
+                config.core.jobs = Box::new([bound]);
+            }
+            if merge_authority {
+                let kinds = &mut config.core.defaults.rules.ceiling.delegation.kinds;
+                let mut extended = kinds.to_vec();
+                extended.push(authority::Executor::Job(3));
+                let executors = u32::try_from(extended.len()).expect("fixture executor count fits");
+                limits.tasks.executor_kinds = limits.tasks.executor_kinds.max(executors);
+                limits.authority.executors = limits.authority.executors.max(executors);
+                *kinds = extended.into_boxed_slice();
+                for project in &mut config.core.seed_projects {
+                    let policy = &mut project.policy.policy;
+                    policy.ceiling.delegation.kinds.clone_from(kinds);
+                    policy.roles[0].authority.delegation.kinds.clone_from(kinds);
+                }
+            }
+            if let Some(resolutions) = resolutions {
+                limits.forge.change_policy.resolutions = resolutions;
+            }
             if let Some(stall) = stall {
                 limits.forge.change_policy.stall = stall;
             }
@@ -665,6 +741,30 @@ impl World {
             }
             if let Some((_, _, Some(deployment))) = stock {
                 limits = *deployment;
+            }
+            if !charter_documents.is_empty() {
+                // Six core sections and the two documents admitted by these stories
+                // (jig/docs/design/domain/engine.md, 17.9).
+                const DOCUMENT_SECTIONS: u32 = 8;
+                const CHARTER_DOCUMENTS: u32 = 2;
+                limits.brief.sections = DOCUMENT_SECTIONS;
+                limits.tasks.charter_documents = CHARTER_DOCUMENTS;
+                let mut charter = walking::charter();
+                charter.documents = charter_documents.into();
+                config.core.defaults.charters[0] = charter;
+            }
+            config.kinds_stock = engine::landing_stock(
+                &landing_rules.deployment,
+                &landing_rules.projects,
+                if stock.is_some() { 2 } else { forge_charter.unwrap_or(1) },
+                4,
+            );
+            if kinds {
+                // The story changes whole rules through the settings entrance.
+                limits.people.amendment_bytes = 2048;
+            }
+            if kinds && index == 1 {
+                config.core.kinds = temper_service::stock::kinds(&limits, config.core.connectors[0]);
             }
             (config, limits)
         });
@@ -680,21 +780,38 @@ impl World {
             fake_config.limits.workflows = 1;
             fake_config.limits.workflow_runs = 8;
         }
+        if tier.is_some() {
+            // The baseline, range, rerun and probes coexist with ordinary CI runs.
+            fake_config.limits.workflows = 2;
+            fake_config.limits.workflow_runs = 16;
+            fake_config.limits.branches = 16;
+            // Four live changes retain producer and merge statuses beside the baseline.
+            fake_config.limits.statuses = 16;
+            // The two failed test cases and JUnit wrapper exceed a source file's 128 bytes.
+            fake_config.limits.content_bytes = 512;
+        }
         let mut fake = fake::Domain::new(&fake_config, 71);
         let setup = raw::Setup {
-            workflows: if turn {
-                Box::new([raw::Workflow {
-                    file: b"gate.yml".as_slice().into(),
-                    jobs: Box::new([b"test".as_slice().into()]),
-                    latency_min: Duration::from_secs(1),
-                    latency_max: Duration::from_secs(1),
-                    silent: 0,
-                    passes: 1000,
-                    cue: None,
-                }])
-            } else {
-                Box::new([])
-            },
+            workflows: crate::tier_runs::workflows(
+                tier,
+                if turn {
+                    Box::new([raw::Workflow {
+                        fails: Box::new([]),
+                        flaky: Box::new([]),
+                        report: None,
+                        select: None,
+                        file: b"gate.yml".as_slice().into(),
+                        jobs: Box::new([b"test".as_slice().into()]),
+                        latency_min: Duration::from_secs(1),
+                        latency_max: Duration::from_secs(1),
+                        silent: 0,
+                        passes: 1000,
+                        cue: None,
+                    }])
+                } else {
+                    Box::new([])
+                },
+            ),
             id: 2,
             name: Box::from(&b"org/repo"[..]),
             default: Box::from(&b"main"[..]),
@@ -758,7 +875,7 @@ impl World {
             Some((_, _, Some(deployment))) => *deployment,
             Some((_, _, None)) | None => temper_engine_domain_world::store::widest(),
         };
-        if turn {
+        if turn || tier.is_some() {
             store_limits.tasks.executor_kinds = limits.tasks.executor_kinds;
             store_limits.tasks.authority_grants = limits.tasks.authority_grants;
             store_limits.authority.grants = limits.authority.grants;
@@ -773,6 +890,7 @@ impl World {
         store_limits.tasks.executor_kinds = limits.tasks.executor_kinds;
         store_limits.authority.executors = limits.authority.executors;
         store_limits.tasks.charters = limits.tasks.charters;
+        store_limits.tasks.contract_choices = limits.tasks.contract_choices;
         if stock.is_some() {
             store_limits.forge.issue_policy = limits.forge.issue_policy;
             store_limits.forge.client.op_bytes = limits.forge.client.op_bytes;
@@ -804,7 +922,10 @@ impl World {
             forge_calls: 0,
             adopted: Vec::new(),
             signed_in: None,
+            web_replies: Vec::new(),
             assigned: Vec::new(),
+            jobs: Vec::new(),
+            job_workspaces: BTreeMap::new(),
             delivered_messages: BTreeMap::new(),
             answers: Vec::new(),
             call_errors: Vec::new(),
@@ -844,6 +965,114 @@ impl World {
         self.env.limits.forge.client = limits;
         self.root = engine::Domain::new(crate::oracle::config::copy(&self.restart_config), &self.env.limits)
             .expect("valid client admission bounds");
+        self
+    }
+
+    /// Configure a second model, allowed by charter 2 alone, before the world's first input.
+    #[must_use]
+    pub fn with_producer_model(mut self, name: &[u8]) -> Self {
+        assert_eq!(self.env.now, Time::ZERO, "models precede world startup");
+        assert!(!self.root.ready(), "models precede bootstrap");
+        let settings = &mut self.restart_config.core.settings;
+        let mut second = settings.models[0].clone();
+        second.name = name.into();
+        settings.models = Box::new([settings.models[0].clone(), second.clone()]);
+        settings.llm_providers.providers[0].models = Box::new([settings.models[0].name.clone(), second.name.clone()]);
+        let producer = self
+            .restart_config
+            .core
+            .defaults
+            .charters
+            .iter_mut()
+            .find(|charter| charter.number == 2)
+            .expect("producer charter 2");
+        producer.policy.alternatives = Box::new([second]);
+        self.root = engine::Domain::new(crate::oracle::config::copy(&self.restart_config), &self.env.limits)
+            .expect("valid producer model configuration");
+        self
+    }
+
+    /// Size a goal's question story for its changes and their foremen before startup
+    /// (temper/docs/design/domain/forge.md, 8.11 and 11.1).
+    #[must_use]
+    pub fn with_goal_question_capacity(mut self, tasks: u32, inbox_bytes: u32) -> Self {
+        assert_eq!(self.env.now, Time::ZERO, "question capacity precedes startup");
+        assert!(!self.root.ready(), "question capacity precedes bootstrap");
+        self.env.limits.tasks.tasks = tasks;
+        self.env.limits.tasks.project_tasks = tasks;
+        self.env.limits.tasks.tree_tasks = tasks;
+        self.env.limits.tasks.inbox_bytes = inbox_bytes;
+        self.env.limits.tasks.batch = 2;
+        self.env.limits.people.inbox_tasks = tasks * 2;
+        self.env.limits.forge.tasks = tasks;
+        self.env.limits.forge.client.resources = tasks * self.env.limits.forge.resources_per_task;
+        self.env.limits.brief.budgets.task = 512;
+        self.restart_config.core.defaults.rules.ceiling.delegation.tasks = tasks;
+        let policy = &mut self.restart_config.core.seed_projects[0].policy.policy;
+        policy.ceiling.delegation.tasks = tasks;
+        policy.roles[0].authority.delegation.tasks = tasks;
+        self.creating = jig_test_profile::fixtures::Creating::new(&self.restart_config.core, tasks);
+        let mut codec = crate::store::widest();
+        codec.tasks = self.env.limits.tasks;
+        codec.authority = self.env.limits.authority;
+        codec.people.words = self.env.limits.people.words;
+        self.store = crate::fixtures::restored_over(
+            Store::with_limits(&codec),
+            crate::oracle::config::copy(&self.restart_config),
+            &self.env.limits,
+        );
+        self.events = VecDeque::from([engine::Event::Restart { pending: self.store.pending_generation }]);
+        self.root = engine::Domain::new(crate::oracle::config::copy(&self.restart_config), &self.env.limits)
+            .expect("valid goal question capacity");
+        self
+    }
+
+    /// Configure the project's merge command before the first input.
+    #[must_use]
+    pub fn with_merge_job(mut self, command: &[u8]) -> Self {
+        assert_eq!(self.env.now, Time::ZERO, "merge command precedes world startup");
+        if let Some(landing) = self.restart_config.landings.get_mut(&1) {
+            landing.merge_job = Some(command.into());
+        } else {
+            self.restart_config
+                .landings
+                .insert(
+                    1,
+                    engine::ProjectLanding {
+                        merge_job: Some(command.into()),
+                        by: engine::Way::Queue,
+                        repositories: Box::new([]),
+                        after: engine::AfterLandingCheck { tier_retries: 2, verification_bound_ms: 7_200_000 },
+                    },
+                )
+                .expect("one project's landing");
+        }
+        self.root = engine::Domain::new(crate::oracle::config::copy(&self.restart_config), &self.env.limits)
+            .expect("valid merge job configuration");
+        self
+    }
+
+    /// Replace the deployment's landing rules before the world's first input.
+    #[must_use]
+    #[expect(clippy::needless_pass_by_value, reason = "the world builder takes ownership of its startup rule inputs")]
+    pub fn with_landing_deployment(mut self, rules: Box<[engine::LandingRule]>) -> Self {
+        assert_eq!(self.env.now, Time::ZERO, "landing rules precede world startup");
+        assert!(!self.root.ready(), "landing rules precede bootstrap");
+        let replacement = engine::landing_stock(&rules, &skein_lib::Map::with_capacity(0), 1, 4);
+        let mut stock = skein_lib::List::uncapped();
+        for item in replacement {
+            if item.kind == 1 {
+                stock.push(item).expect("uncapped replacement landing rules");
+            }
+        }
+        for item in &self.restart_config.kinds_stock {
+            if item.kind != 1 {
+                stock.push(item.clone()).expect("uncapped project rules and charters");
+            }
+        }
+        self.restart_config.kinds_stock = stock.into_boxed();
+        self.root = engine::Domain::new(crate::oracle::config::copy(&self.restart_config), &self.env.limits)
+            .expect("valid deployment landing rules");
         self
     }
 
@@ -897,18 +1126,36 @@ impl World {
     pub fn restart_with_charter(&mut self, with_read: bool, with_change: bool, forge_charter: Option<u32>) {
         assert!(self.store.pending.is_empty(), "the chosen cut resolves store uncertainty first");
         assert!(self.pending.is_empty(), "old API terminals are drained at this cut");
-        let mut fresh = Self::configured_limits(
+        let fresh = Self::configured_limits(
             with_read,
             with_change,
             false,
             if self.gate.owner { 0 } else { 1000 },
             self.gate,
             None,
-            StoryLimits { brief: Some(self.env.limits.brief), forge_charter, ..StoryLimits::default() },
+            StoryLimits {
+                brief: Some(self.env.limits.brief),
+                forge_charter,
+                questions: Some(self.env.limits.forge.change_policy.questions),
+                stall: Some(self.env.limits.forge.change_policy.stall),
+                ..StoryLimits::default()
+            },
         );
-        self.restart_config = fresh.restart_config;
-        std::mem::swap(&mut self.root, &mut fresh.root);
-        std::mem::swap(&mut self.out, &mut fresh.out);
+        self.restart_domain(fresh.restart_config, with_change);
+    }
+
+    /// Restart with the same tier and project configuration, retaining only durable rows.
+    pub fn restart_same(&mut self) {
+        self.restart_domain(crate::oracle::config::copy(&self.restart_config), true);
+    }
+
+    fn restart_domain(&mut self, config: engine::Config, with_change: bool) {
+        assert!(self.store.pending.is_empty(), "store answers precede a restart");
+        assert!(self.pending.is_empty(), "API answers precede a restart");
+        self.root =
+            engine::Domain::new(crate::oracle::config::copy(&config), &self.env.limits).expect("restart config");
+        self.restart_config = config;
+        self.out = Queue::uncapped();
         self.events.clear();
         self.held_write_answers.clear();
         self.hold_write_answers = None;
@@ -922,9 +1169,10 @@ impl World {
         if !self.assigned.is_empty() {
             self.events.push_back(protocol::hello_slots(
                 Token::new(7),
-                if with_change { 2 } else { 1 },
+                self.oracle_peer.map_or(if with_change { 2 } else { 1 }, |(_, _, slots)| slots),
                 self.assigned
                     .iter()
+                    .filter(|assignment| matches!(self.store.rows.get(&Key::Core(jig_domain_core::Key::Tasks(tasks::Key::Live(assignment.task)))), Some(Record::Core(jig_domain_core::Record::Tasks(tasks::Stored::Live(row)))) if matches!(row.phase, tasks::Phase::Active(tasks::Active::Running { attempt }) if attempt == assignment.attempt)))
                     .map(|assignment| {
                         protocol::hosting(assignment.task, assignment.attempt, jig_domain_host::Phase::Active)
                     })
@@ -941,7 +1189,7 @@ impl World {
         let mut config = self.fake_env.limits;
         config.latency_min = Duration::ZERO;
         config.latency_max = Duration::ZERO;
-        let env = Env { now: self.env.now, wall: self.env.wall, limits: config };
+        let env = self.env.with(config);
         fake::step(
             &mut self.fake,
             &env,
@@ -1113,7 +1361,7 @@ impl World {
                         limits.latency_min = delay;
                         limits.latency_max = delay;
                     }
-                    let fake_env = Env { now: self.fake_env.now, wall: self.fake_env.wall, limits };
+                    let fake_env = self.fake_env.with(limits);
                     fake::step(
                         &mut self.fake,
                         &fake_env,
@@ -1128,10 +1376,19 @@ impl World {
                 }
                 engine::Request::Worker(engine::WorkerRequest::Deliver(delivery))
                 | engine::Request::Party(engine::PartyRequest::Deliver(delivery)) => match delivery {
+                    Delivery::WebReply { reply, .. } if !matches!(reply, people::Reply::SignedIn { .. }) => {
+                        self.web_replies.push(reply);
+                    }
                     Delivery::WebReply { reply: people::Reply::SignedIn { sign_in, .. }, .. } => {
                         self.signed_in = Some(sign_in);
                     }
                     Delivery::Assigned { assignment, .. } => self.assigned.push(assignment),
+                    Delivery::AssignedJob { job, workspace, .. } => {
+                        if let Some(workspace) = workspace {
+                            self.job_workspaces.insert(job.run.raw(), workspace);
+                        }
+                        self.jobs.push(job);
+                    }
                     Delivery::Read { reply, answer } => self.reads.push((reply, answer)),
                     Delivery::Link { down: host::LinkDown::Message { run, attempt, name, .. }, .. } => {
                         self.delivered_messages.entry((run.raw(), attempt.raw())).or_default().push(name.raw());
@@ -1176,6 +1433,7 @@ impl World {
                 | engine::Request::ResetAct { .. }
                 | engine::Request::BoxRemove { .. }
                 | engine::Request::Connect { .. }
+                | engine::Request::Replace { .. }
                 | engine::Request::Manifest { .. }
                 | engine::Request::Reachable { .. }
                 | engine::Request::Install { .. }
@@ -1208,8 +1466,142 @@ impl World {
         self.events.extend(self.held_write_answers.drain(..));
     }
 
-    /// Restore a question admitted by an older delegate, including its reserved
-    /// answer room. Current change delegates cannot call Message themselves.
+    /// Read the messages offered to this run before its next scripted action.
+    pub fn scripted_read_inbox(&mut self, run: &engine::Assignment) {
+        let proof_key = Key::Core(jig_domain_core::Key::Core(jig_domain_core::CoreKey::RunProof(run.task)));
+        let Some(Record::Core(jig_domain_core::Record::Core(jig_domain_core::CoreRecord::RunProof(proof)))) =
+            self.store.rows.get(&proof_key)
+        else {
+            panic!("scripted run proof")
+        };
+        let Some(read) = proof.outstanding.last().copied() else { return };
+        let task_key = Key::Core(jig_domain_core::Key::Tasks(tasks::Key::Live(run.task)));
+        let Some(Record::Core(jig_domain_core::Record::Tasks(tasks::Stored::Live(row)))) =
+            self.store.rows.get(&task_key)
+        else {
+            panic!("scripted reader is live")
+        };
+        let turn = row.turn + 1;
+        self.send(protocol::turn(
+            Token::new(7),
+            run.task,
+            run.attempt,
+            turn,
+            0,
+            Some(read),
+            b"Read the offered messages",
+        ));
+        for _ in 0..STEPS {
+            self.tick();
+            if let Some(Record::Core(jig_domain_core::Record::Tasks(tasks::Stored::Live(row)))) =
+                self.store.rows.get(&task_key)
+                && row.turn >= turn
+                && self.store.pending.is_empty()
+            {
+                return;
+            }
+        }
+        panic!("scripted reader commits turn {turn}");
+    }
+
+    /// Send a scripted agent's tool call and commit its turn's call evidence.
+    pub fn scripted_call(&mut self, run: &engine::Assignment, number: u64, tool: engine::Tool) -> engine::CallAnswer {
+        const CHANNEL: Token = Token::new(7);
+        self.scripted_read_inbox(run);
+        let key = Key::Core(jig_domain_core::Key::Tasks(tasks::Key::Live(run.task)));
+        let Some(Record::Core(jig_domain_core::Record::Tasks(tasks::Stored::Live(row)))) = self.store.rows.get(&key)
+        else {
+            panic!("scripted caller is live")
+        };
+        let turn = row.turn + 1;
+        let before = self.answers.len();
+        let errors = self.call_errors.len();
+        let event = self.protocol.call(
+            CHANNEL,
+            run.task,
+            run.attempt,
+            number,
+            engine::Call { completion: turn, position: 1, tool },
+        );
+        self.send(event);
+        for _ in 0..STEPS {
+            self.tick();
+            assert_eq!(self.call_errors.len(), errors, "scripted call {number}: {:?}", self.call_errors);
+            if self.answers.len() > before && self.store.pending.is_empty() {
+                let answer = self.answers[before].clone();
+                let proof_key = Key::Core(jig_domain_core::Key::Core(jig_domain_core::CoreKey::RunProof(run.task)));
+                let Some(Record::Core(jig_domain_core::Record::Core(jig_domain_core::CoreRecord::RunProof(proof)))) =
+                    self.store.rows.get(&proof_key)
+                else {
+                    panic!("scripted run proof")
+                };
+                let read = proof.turn.as_ref().and_then(|turn| turn.read);
+                self.send(protocol::turn(CHANNEL, run.task, run.attempt, turn, 0, read, b"Continue the agreed work"));
+                for _ in 0..STEPS {
+                    self.tick();
+                    if let Some(Record::Core(jig_domain_core::Record::Tasks(tasks::Stored::Live(row)))) =
+                        self.store.rows.get(&key)
+                        && row.turn >= turn
+                        && self.store.pending.is_empty()
+                    {
+                        return answer;
+                    }
+                }
+                panic!("scripted call {number} turn committed");
+            }
+        }
+        panic!("scripted call {number} answered: {:?}", self.answers);
+    }
+
+    /// A producer asks its change through the worker's message call.
+    pub fn producer_question(&mut self, producer: &engine::Assignment, number: u64, words: &[u8]) -> u64 {
+        let key = Key::Core(jig_domain_core::Key::Tasks(tasks::Key::Live(producer.task)));
+        let Some(Record::Core(jig_domain_core::Record::Tasks(tasks::Stored::Live(row)))) = self.store.rows.get(&key)
+        else {
+            panic!("live producer")
+        };
+        let tasks::Party::Task(target) = row.requester else { panic!("producer's change") };
+        let engine::CallAnswer::Sent { message } = self.scripted_call(
+            producer,
+            number,
+            engine::Tool::Message { target, form: engine::MessageForm::Question, words: words.into() },
+        ) else {
+            panic!("producer's question sent")
+        };
+        message
+    }
+
+    /// A foreman settles its contract through the worker's result.
+    pub fn foreman_verdict(&mut self, foreman: &engine::Assignment, code: u32, words: &[u8]) {
+        let event = self.protocol.answer(
+            Token::new(7),
+            foreman.task,
+            foreman.attempt,
+            5,
+            tasks::End::Finished {
+                result: tasks::TaskResult::Verdict { code, fields: Box::new([]), words: words.into() },
+                cancel_delegates: false,
+            },
+            engine::Parts::none(),
+        );
+        self.send(event);
+    }
+
+    /// The goal answers the change's own question through its message call.
+    pub fn goal_answer(&mut self, goal: &engine::Assignment, number: u64, change: u64, question: u64, words: &[u8]) {
+        let answer = self.scripted_call(
+            goal,
+            number,
+            engine::Tool::Message {
+                target: change,
+                form: engine::MessageForm::Answer { question },
+                words: words.into(),
+            },
+        );
+        assert!(matches!(answer, engine::CallAnswer::Sent { .. }), "goal answers question {question}: {answer:?}");
+    }
+
+    /// Restore a delegate question with its reserved answer room at a committed cut.
     pub fn restore_delegate_question(&mut self, delegate: u64, words: &[u8]) -> u64 {
         assert!(self.store.pending.is_empty());
         let mut header = self.store.header();
@@ -1231,12 +1623,14 @@ impl World {
         };
         assert!(target.delegates.contains(&delegate));
         sender.activity += 1;
-        sender.questions = Box::new([tasks::QuestionCredit {
+        let mut credits = sender.questions.into_vec();
+        credits.push(tasks::QuestionCredit {
             number: question,
             answerer: tasks::Party::Task(change),
             asked: tasks::Party::Task(change),
             line: sender.activity,
-        }]);
+        });
+        sender.questions = credits.into_boxed_slice();
         let mut inbox = target.inbox.into_vec();
         inbox.push(tasks::Word {
             number: question,
@@ -1521,67 +1915,11 @@ pub fn change_world_funded(
     policy: paths::Change,
     spend: u64,
 ) -> (World, engine::Assignment, engine::Assignment, Box<[u8]>) {
-    let paths::Change { no_ci, owner_gate, tracked } = policy;
+    let paths::Change { no_ci, owner_gate: _, tracked } = policy;
     if no_ci {
         world.adopt_with_checks(false, Box::new([1]));
     } else {
         world.adopt();
-    }
-    if owner_gate {
-        let branch = people::Pattern {
-            segments: Box::new([
-                Box::from(&b"forge"[..]),
-                Box::from(&b"forge.example"[..]),
-                Box::from(&b"org"[..]),
-                Box::from(&b"repo"[..]),
-                Box::from(&b"branch"[..]),
-            ]),
-            last: people::Last::Exact(Box::from(&b"main"[..])),
-        };
-        world.send(engine::Event::Party(engine::PartyInput::Ask {
-            models: Box::new([]),
-            reply_to: ReplyTo::new(Token::new(900)),
-            sign_in: world.signed_in.expect("owner session"),
-            key: [90; 16],
-            ask: people::Ask::ChangePolicy {
-                project: 1,
-                change: people::PolicyChange::Requirements {
-                    requirements: Box::new([
-                        people::Requirement {
-                            connector: 0,
-                            kind: 4,
-                            pattern: branch.clone(),
-                            judge: people::Judge { connector: 0, requirement: 1, parameters: 0x8000_0000 },
-                            guard: people::Guard::Guarded,
-                            must_be_guarded: true,
-                        },
-                        people::Requirement {
-                            connector: 0,
-                            kind: 4,
-                            pattern: branch.clone(),
-                            judge: people::Judge { connector: 0, requirement: 2, parameters: 0x8000_0001 },
-                            guard: people::Guard::Observed { freshness: Duration::ZERO },
-                            must_be_guarded: false,
-                        },
-                        people::Requirement {
-                            connector: 0,
-                            kind: 4,
-                            pattern: branch,
-                            judge: people::Judge { connector: 0, requirement: 3, parameters: 0x8000_0002 },
-                            guard: people::Guard::Guarded,
-                            must_be_guarded: true,
-                        },
-                    ]),
-                },
-            },
-        }));
-        world.until(Until::Ready);
-        assert!(
-            world.store.rows.contains_key(&Key::Core(jig_domain_core::Key::People(people::Key::Policy(1)))),
-            "owner policy committed"
-        );
-        world.restart(true, true);
-        world.until(Until::Ready);
     }
     world.send(protocol::hello_slots(Token::new(7), 2, Box::new([])));
     let ask = if tracked {
@@ -1652,6 +1990,7 @@ pub fn change_world_funded(
                 batch: Box::new([engine::Delegate {
                     executor: tasks::Executor::Procedure { connector: 0, code: 2 },
                     spec: tasks::Spec {
+                        job: None,
                         asks: false,
                         words: Box::from(&b"Small fix"[..]),
                         parameters: Box::new([
@@ -1687,7 +2026,7 @@ pub fn change_world_funded(
                         },
                     }]),
                     dependencies: Box::new([]),
-                    wake: tasks::WakePolicy::DEFAULT,
+                    wake: Some(tasks::WakePolicy::DEFAULT),
                     ..temper_engine_domain_world::fixtures::report_delegate(b"fixture", Box::new([]))
                 }]),
             },
@@ -1823,9 +2162,11 @@ pub fn hint_world() -> forge_world::World {
 pub fn hint_step(world: &mut forge_world::World, task: u64, entry: u64) {
     use temper_engine_domain_forge_change as change;
     world.event(forge_top::Event::StepChange {
+        merge_job: false,
         task,
         entry,
         heard: change::Heard {
+            start_conflict: None,
             lacking: None,
             spend: None,
             delegate: change::Status::Unknown,
@@ -1835,6 +2176,7 @@ pub fn hint_step(world: &mut forge_world::World, task: u64, entry: u64) {
         },
         gates: Box::new([]),
         queue_repair_active: false,
+        pending: Box::new([]),
         kept: true,
     });
     world.run_for(1);

@@ -96,6 +96,9 @@ pub(crate) fn gate(core: &mut Core, event: Event) -> Result<Event, Queue<Request
         | Event::Marked { .. }
         | Event::ReadLoaded { .. }
         | Event::Read { .. }
+        | Event::PublicRead { .. }
+        | Event::PublicAnswered { .. }
+        | Event::PublicDurable { .. }
         | Event::ApplicationPart { .. }
         | Event::ApplicationFinished { .. }
         | Event::ProjectionSettled { .. }
@@ -244,6 +247,7 @@ impl Core {
             && self.replaced.is_empty()
             && self.contexts.is_empty()
             && self.workspace_credentials.is_empty()
+            && self.job_workspaces.is_empty()
             && self.transcripts.is_empty()
             && self.restoring_proofs.is_empty()
             && self.unreported_restored.is_empty()

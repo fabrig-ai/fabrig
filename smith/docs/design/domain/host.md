@@ -273,9 +273,9 @@ policy.
   its own channel's losses; a host that keeps no transcript acknowledges
   at once.
 - **A turn the host cannot keep is never acknowledged.** An
-  acknowledgement means durable (channel.md, section 7). A host whose
-  store fails therefore drops the run at once (9.2): nothing the run says
-  after that could be kept, and its window would never open again.
+  acknowledgement means durable (protocol/channel.md, section 7). A host
+  whose store fails therefore drops the run at once (9.2): nothing the run
+  says after that could be kept, and its window would never open again.
   - **The drop releases the held turns.** It releases every turn held for
     the host, unacknowledged. The agent is gone once what the run started
     has settled, and does not wait for acknowledgements that can no
@@ -426,8 +426,8 @@ the inline agent it is the `smith` product:
   plain directory's files kept as they are, changed or not by a bounded
   snapshot, and a tree past its bounds counted as changed
   (protocol/hosts.md, section 5.5).
-- **Host tools:** none of its own at first; tools from MCP servers it is
-  configured with, once MCP is a tool source.
+- **Host tools:** none of its own. Tools from MCP servers it is
+  configured with are an open question (protocol/hosts.md, section 9).
 
 It runs its agent inline, in its own process (section 9), except a run
 whose account's source is a program, which the inline agent cannot run:
@@ -558,11 +558,9 @@ A child a host embeds, beside or instead of `smith-host-domain`:
   and no domain parses: the spawned kind's bytes are
   `smith-host-protocol`'s, below `smith-host-domain` (skein's
   `programming-model.md`, section 4).
-- **smith's own.** `smith-inline-agent` is built in smith, with jig's
-  `jig-inline-agent` as a reference for its shape, not as code to keep in
-  step: the typed face, the workspace routing and the stop ladder (9.2)
-  are smith's design. jig is not changed by this work; whether it later
-  takes smith's is jig's (section 11).
+- **smith's own.** The typed face, the workspace routing and the stop
+  ladder (9.2) are smith's design; jig's hosts compose
+  `smith-inline-agent` as it is (jig's `domain/hosts.md`, section 5.2).
 - **A wall bound, and no progress watchdog** (9.1).
 
 ## 10. The world
@@ -623,22 +621,6 @@ sends one to three
 lines at random moments, with store delays and the end of input
 anywhere. Simulated time is free, so these fit the focused and fuzzy
 budgets.
-
-## 11. From temper
-
-- **The contract and the channel** are temper's channel's agent hop, as
-  temper's design changed it (turns, transcripts, messages carried whole,
-  relayed calls with names, spend, waiting), with temper's names gone:
-  runs are a host's, push is delivery, and the engine's tools are host
-  tools.
-- **`smith-host-domain`** is temper's worker's agent child domain, as
-  temper's `domain/worker.md`, section 6, describes it: one process per
-  run, the watchdog, cancel then kill.
-- **The inline agent** follows jig's `jig-inline-agent`, the first of its
-  kind, in shape, and is smith's own: typed, with a workspace and the
-  drop's settlement. smith's APIs change freely for it; jig and temper
-  adapt separately, on their own schedule.
-- **The local host** is new.
 
 ## 12. Open questions
 

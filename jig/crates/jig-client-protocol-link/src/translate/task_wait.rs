@@ -12,12 +12,6 @@ pub(super) fn waiting(value: Option<&w::TaskRunWait>) -> Option<c::TaskRunWait> 
                 at: skein_lib::Wall::from_nanos(row.at()),
                 why: super::documents::hello_refusal_fields(row.why()),
             },
-            w::TaskWaitRefused::Program(value) => c::TaskWaitRefused::Program(match value.value() {
-                w::TaskWaitProgram::Model => c::OpenProgram::Model,
-                w::TaskWaitProgram::Source(row) => {
-                    c::OpenProgram::Source { account: row.account(), source: row.source() }
-                }
-            }),
         }),
         w::TaskRunWait::Account(row) => c::TaskRunWait::Account {
             account: *row.account(),

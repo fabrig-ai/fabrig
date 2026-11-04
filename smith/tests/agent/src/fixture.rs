@@ -3,6 +3,9 @@
 
 use skein_fake_checkout::{Checkout, Exit, Program};
 
+/// The activation instruction expected by independent resumed-history oracles.
+pub const RESUME: &[u8] = b"A new activation starts with the fresh bounded turns and wall time in ## Budget. Earlier exhaustion and finish-now instructions are superseded for this activation. Continue the saved work; spending remains bounded by the task's remaining funds.";
+
 pub(crate) const CHECKS: &[u8] = b".temper/pre-pr";
 
 pub(crate) const CODE: &[u8] = b"src/lib.rs";

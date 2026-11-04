@@ -53,13 +53,19 @@ fn delegate(world: &mut World) {
         tracked: None,
         budget: jig_domain_people::Budget::Named,
         executor: tasks::Executor::Agent { charter: 1 },
-        spec: tasks::Spec { asks: false, words: words.into(), parameters: Box::new([]), inputs: Box::new([]) },
+        spec: tasks::Spec {
+            job: None,
+            asks: false,
+            words: words.into(),
+            parameters: Box::new([]),
+            inputs: Box::new([]),
+        },
         contract: tasks::Contract::Report { words: 128 },
         authority: authority.clone(),
         llm: None,
         symbolic_grants: Box::new([]),
         dependencies: Box::new([]),
-        wake: tasks::WakePolicy::DEFAULT,
+        wake: Some(tasks::WakePolicy::DEFAULT),
     });
     world.send(root::Event::Core(core::Event::DelegateValidated {
         to: ReplyTo::new(Token::new(DELEGATE_REPLY)),

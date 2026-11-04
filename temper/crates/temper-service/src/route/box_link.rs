@@ -1,4 +1,4 @@
-//! Serve's box pipe (temper/docs/design/draft/playground-reset.md, 3 and 4).
+//! Serve's box pipe (temper/docs/design/protocol/forge.md, 2.8).
 
 use alloc::boxed::Box;
 use skein_lib::{Decimal, List, Queue, Token, Writer, bytes};
@@ -71,7 +71,7 @@ pub(crate) struct Link {
     pub(crate) write: Option<Box<[u8]>>,
     ended: bool,
     asked: Option<Ask>,
-    // A start retains its kind until the active ask ends (temper/docs/design/draft/playground-reset.md, 3).
+    // A start retains its kind until the active ask ends (temper/docs/design/protocol/forge.md, 2.8).
     held: Option<Start>,
     pending_end: Option<End>,
     line_bytes: u32,

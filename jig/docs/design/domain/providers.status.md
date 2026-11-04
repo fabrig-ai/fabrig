@@ -1,5 +1,6 @@
 # providers: status
 
-2026-10-29. Where jig's code lags or departs from [providers.md](providers.md).
+2026-11-02. Where jig's code lags or departs from [providers.md](providers.md).
 
-- **Built:** Provider names, plan/usage terms and whole manage-usage addresses reach account/deployment documents; sign-in carries the installation identifier.
+No gap: this document states the LLM providers' terms, which jig's code
+applies through accounts.md.

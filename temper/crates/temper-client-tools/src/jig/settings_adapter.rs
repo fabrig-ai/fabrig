@@ -30,6 +30,19 @@ pub fn client_authority_models(v: &n::AuthorityModels) -> c::AuthorityModels {
 
 pub fn form_charter(v: &c::Charter) -> n::Charter {
     n::Charter {
+        documents: {
+            let mut out = List::with_capacity(v.documents.len());
+            for item in &v.documents {
+                out.push(n::CharterDocument {
+                    connector: item.connector,
+                    name: item.name.clone(),
+                    path: item.path.clone(),
+                    heading: item.heading.clone(),
+                })
+                .expect("one value per input");
+            }
+            out
+        },
         number: v.number,
         instructions: form_text(&v.instructions),
         waiting: v.waiting,
@@ -46,13 +59,28 @@ pub fn form_charter(v: &c::Charter) -> n::Charter {
             out
         },
         call_timeout: v.call_timeout,
+        tools: v.tools,
         hosts: form_setting_hosts(&v.hosts),
         spend: v.spend,
+        wake: form_wake(v.wake),
         switches: [v.resume, v.inspect, v.modify, v.shell, v.agents],
     }
 }
 pub fn client_charter(v: &n::Charter) -> c::Charter {
     c::Charter {
+        documents: {
+            let mut out = List::with_capacity(v.documents.len());
+            for item in &v.documents {
+                out.push(c::CharterDocument {
+                    connector: item.connector,
+                    name: item.name.clone(),
+                    path: item.path.clone(),
+                    heading: item.heading.clone(),
+                })
+                .expect("one value per input");
+            }
+            out
+        },
         number: v.number,
         instructions: client_text(&v.instructions),
         waiting: v.waiting,
@@ -74,8 +102,10 @@ pub fn client_charter(v: &n::Charter) -> c::Charter {
         shell: v.shell(),
         agents: v.agents(),
         call_timeout: v.call_timeout,
+        tools: v.tools,
         hosts: client_setting_hosts(&v.hosts),
         spend: v.spend,
+        wake: client_wake(v.wake),
     }
 }
 pub fn form_document_text(v: &c::DocumentText) -> n::DocumentText {
@@ -188,6 +218,7 @@ pub fn client_owner_authority(v: &n::Authority) -> c::Authority {
 }
 pub fn form_owner_authority_executor(v: c::AuthorityExecutor) -> n::AuthorityExecutor {
     match v {
+        c::AuthorityExecutor::Job(x) => n::AuthorityExecutor::Job(x),
         c::AuthorityExecutor::Charter(x) => n::AuthorityExecutor::Charter(x),
         c::AuthorityExecutor::Procedure(x) => n::AuthorityExecutor::Procedure(x),
         c::AuthorityExecutor::Role(x) => n::AuthorityExecutor::Role(x),
@@ -195,6 +226,7 @@ pub fn form_owner_authority_executor(v: c::AuthorityExecutor) -> n::AuthorityExe
 }
 pub fn client_owner_authority_executor(v: n::AuthorityExecutor) -> c::AuthorityExecutor {
     match v {
+        n::AuthorityExecutor::Job(x) => c::AuthorityExecutor::Job(x),
         n::AuthorityExecutor::Charter(x) => c::AuthorityExecutor::Charter(x),
         n::AuthorityExecutor::Procedure(x) => c::AuthorityExecutor::Procedure(x),
         n::AuthorityExecutor::Role(x) => c::AuthorityExecutor::Role(x),
@@ -448,6 +480,7 @@ pub fn form_revision_document(v: &c::RevisionDocument) -> n::RevisionDocument {
 
 pub fn form_revision_edit(v: &c::RevisionEdit) -> n::RevisionEdit {
     match v {
+        c::RevisionEdit::Application(x) => n::RevisionEdit::Application(form_sized_edit(x)),
         c::RevisionEdit::Set(x) => n::RevisionEdit::Set(form_setting_set(x)),
         c::RevisionEdit::TooLarge(x) => n::RevisionEdit::TooLarge(form_size(x)),
         c::RevisionEdit::Removed => n::RevisionEdit::Removed,
@@ -471,7 +504,18 @@ pub fn form_revision_head(v: &c::RevisionHead) -> n::RevisionHead {
 }
 
 pub fn form_revision_item(v: &c::RevisionItem) -> n::RevisionItem {
-    n::RevisionItem { setting: form_setting(v.setting), edit: form_revision_edit(&v.edit) }
+    n::RevisionItem {
+        setting: form_setting(v.setting),
+        edit: form_revision_edit(&v.edit),
+        replaced: match &v.replaced {
+            c::RevisionReplaced::Value(value) => n::RevisionReplaced::Value(form_setting_set(value)),
+            c::RevisionReplaced::TooLarge(size) => n::RevisionReplaced::TooLarge(form_size(size)),
+            c::RevisionReplaced::Application { size } => n::RevisionReplaced::Application { size: *size },
+            c::RevisionReplaced::Default => n::RevisionReplaced::Default,
+            c::RevisionReplaced::Removed => n::RevisionReplaced::Removed,
+            c::RevisionReplaced::NotOffered => n::RevisionReplaced::NotOffered,
+        },
+    }
 }
 
 pub fn form_revision_item_edit(v: &c::RevisionItemEdit) -> n::RevisionItemEdit {
@@ -567,7 +611,9 @@ pub fn form_setting(v: c::Setting) -> n::Setting {
     match v {
         c::Setting::Charter(x) => n::Setting::Charter(form_setting_number(x)),
         c::Setting::Template(x) => n::Setting::Template(form_setting_number(x)),
+        c::Setting::ProjectPolicy { project } => n::Setting::ProjectPolicy { project },
         c::Setting::Policy(x) => n::Setting::Policy(form_setting_number(x)),
+        c::Setting::Application { kind, scope, number } => n::Setting::Application { kind, scope, number },
         c::Setting::Rules => n::Setting::Rules,
     }
 }
@@ -576,11 +622,29 @@ pub fn client_setting(v: n::Setting) -> c::Setting {
         n::Setting::Charter(x) => c::Setting::Charter(client_setting_number(x)),
         n::Setting::Template(x) => c::Setting::Template(client_setting_number(x)),
         n::Setting::Policy(x) => c::Setting::Policy(client_setting_number(x)),
+        n::Setting::Application { kind, scope, number } => c::Setting::Application { kind, scope, number },
         n::Setting::Rules => c::Setting::Rules,
+        n::Setting::ProjectPolicy { project } => c::Setting::ProjectPolicy { project },
     }
 }
+#[expect(clippy::manual_map, reason = "step translations match optional fields without closures")]
 pub fn form_setting_document(v: &c::SettingDocument) -> n::SettingDocument {
-    n::SettingDocument { setting: form_setting(v.setting), revision: v.revision, value: form_setting_value(&v.value) }
+    n::SettingDocument {
+        setting: form_setting(v.setting),
+        revision: v.revision,
+        value: match &v.value {
+            Some(v) => Some(form_setting_value(v)),
+            None => None,
+        },
+        application: match &v.application {
+            Some(v) => Some(form_application_state(v)),
+            None => None,
+        },
+        proposed: match &v.proposed {
+            Some(v) => Some(form_sized_edit(v)),
+            None => None,
+        },
+    }
 }
 
 pub fn client_setting_edit(v: &n::SettingEdit) -> c::SettingEdit {
@@ -598,6 +662,7 @@ pub fn form_setting_fault(v: c::SettingFault) -> n::SettingFault {
         c::SettingFault::Rules => n::SettingFault::Rules,
         c::SettingFault::Budget => n::SettingFault::Budget,
         c::SettingFault::Grace => n::SettingFault::Grace,
+        c::SettingFault::Judged => n::SettingFault::Judged,
         c::SettingFault::Owner => n::SettingFault::Owner,
     }
 }
@@ -627,12 +692,17 @@ pub fn client_setting_hosts(v: &n::SettingHosts) -> c::SettingHosts {
 pub fn client_setting_item(v: &n::SettingItem) -> c::SettingItem {
     c::SettingItem { setting: client_setting(v.setting), edit: client_setting_edit(&v.edit) }
 }
+#[expect(clippy::manual_map, reason = "step translations match optional fields without closures")]
 pub fn form_setting_line(v: &c::SettingLine) -> n::SettingLine {
     n::SettingLine {
         setting: form_setting(v.setting),
         name: form_optional_document_text(v.name.as_ref()),
         follows: form_setting_follows(&v.follows),
         last: v.last,
+        application: match &v.application {
+            Some(v) => Some(form_application_state(v)),
+            None => None,
+        },
     }
 }
 
@@ -780,6 +850,7 @@ pub fn client_setting_set(v: &n::SettingSet) -> c::SettingSet {
 }
 pub fn form_setting_value(v: &c::SettingValue) -> n::SettingValue {
     match v {
+        c::SettingValue::Application(x) => n::SettingValue::Application(x.clone()),
         c::SettingValue::Charter(x) => n::SettingValue::Charter(Box::new(form_charter(x))),
         c::SettingValue::Template(x) => n::SettingValue::Template(Box::new(form_template(x))),
         c::SettingValue::Policy(x) => n::SettingValue::Policy(Box::new(form_setting_policy(x))),
@@ -788,6 +859,7 @@ pub fn form_setting_value(v: &c::SettingValue) -> n::SettingValue {
 }
 pub fn client_setting_value(v: &n::SettingValue) -> c::SettingValue {
     match v {
+        n::SettingValue::Application(x) => c::SettingValue::Application(x.clone()),
         n::SettingValue::Charter(x) => c::SettingValue::Charter(Box::new(client_charter(x))),
         n::SettingValue::Template(x) => c::SettingValue::Template(Box::new(client_template(x))),
         n::SettingValue::Policy(x) => c::SettingValue::Policy(Box::new(client_setting_policy(x))),
@@ -834,6 +906,7 @@ pub fn form_task_contract_document(v: &c::TaskContractDocument) -> n::TaskContra
         c::TaskContractDocument::Approval { state, part } => {
             n::TaskContractDocument::Approval { state: state.clone(), part: form_owner_part(part) }
         }
+        c::TaskContractDocument::Job { bytes } => n::TaskContractDocument::Job { bytes: *bytes },
         c::TaskContractDocument::Report { words } => n::TaskContractDocument::Report { words: *words },
         c::TaskContractDocument::Verdict { choices, cut } => n::TaskContractDocument::Verdict {
             choices: {
@@ -855,6 +928,7 @@ pub fn client_task_contract_document(v: &n::TaskContractDocument) -> c::TaskCont
         n::TaskContractDocument::Approval { state, part } => {
             c::TaskContractDocument::Approval { state: state.clone(), part: client_owner_part(part) }
         }
+        n::TaskContractDocument::Job { bytes } => c::TaskContractDocument::Job { bytes: *bytes },
         n::TaskContractDocument::Report { words } => c::TaskContractDocument::Report { words: *words },
         n::TaskContractDocument::Verdict { choices, cut } => c::TaskContractDocument::Verdict {
             choices: {
@@ -889,6 +963,13 @@ pub fn client_task_flags(v: n::TaskFlags) -> c::TaskFlags {
 }
 pub fn form_template(v: &c::Template) -> n::Template {
     n::Template {
+        resources: {
+            let mut out = List::with_capacity(v.resources.len());
+            for item in &v.resources {
+                out.push(n::Symbol { connector: item.connector, symbol: item.symbol }).expect("one value per input");
+            }
+            out
+        },
         number: v.number,
         name: form_document_text(&v.name),
         executor: form_template_executor(v.executor),
@@ -905,6 +986,13 @@ pub fn form_template(v: &c::Template) -> n::Template {
 }
 pub fn client_template(v: &n::Template) -> c::Template {
     c::Template {
+        resources: {
+            let mut out = List::with_capacity(v.resources.len());
+            for item in &v.resources {
+                out.push(c::Symbol { connector: item.connector, symbol: item.symbol }).expect("one value per input");
+            }
+            out
+        },
         number: v.number,
         name: client_document_text(&v.name),
         executor: client_template_executor(v.executor),
@@ -1105,11 +1193,12 @@ fn client_optional_template_deadline(v: Option<&n::TemplateDeadline>) -> Option<
 pub fn limits(v: &crate::jig::Limits) -> settings_form::Limits {
     settings_form::Limits {
         settings: v.settings,
+        kinds: settings_form::Limits::standard().kinds,
         ask_bytes: v.ask_bytes,
         result_bytes: v.result_bytes,
         text: v.text,
         rows: 32,
-        authority: 12,
+        authority: 14, // Holds the stock's fourteen forge grants.
         fields: 16,
     }
 }
@@ -1119,7 +1208,8 @@ pub fn form_read_value(v: &c::ReadValue) -> n::ReadValue {
         c::ReadValue::Setting(x) => n::ReadValue::Setting(Box::new(form_setting_document(x))),
         c::ReadValue::Revision(x) => n::ReadValue::Revision(Box::new(form_revision_answer(x))),
         c::ReadValue::Revisions(x) => n::ReadValue::Revisions(Box::new(form_revisions_page(x))),
-        c::ReadValue::Tasks(_)
+        c::ReadValue::TaskText(_)
+        | c::ReadValue::Tasks(_)
         | c::ReadValue::Project(_)
         | c::ReadValue::Ended(_)
         | c::ReadValue::Me(_)
@@ -1137,5 +1227,72 @@ pub fn form_read_value(v: &c::ReadValue) -> n::ReadValue {
         | c::ReadValue::Spend(_)
         | c::ReadValue::Notes(_)
         | c::ReadValue::Deployment(_) => unreachable!("selected settings read"),
+    }
+}
+
+fn form_wake(v: c::WakePolicy) -> n::WakePolicy {
+    n::WakePolicy {
+        words: form_wake_rule(v.words),
+        notices: form_wake_rule(v.notices),
+        news: form_wake_rule(v.news),
+        results: match v.results {
+            c::ResultsWake::Never => n::ResultsWake::Never,
+            c::ResultsWake::Each => n::ResultsWake::Each,
+            c::ResultsWake::LastOrFailure => n::ResultsWake::LastOrFailure,
+        },
+        questions: v.questions,
+        answers: v.answers,
+        timers: v.timers,
+    }
+}
+fn form_wake_rule(v: c::WakeRule) -> n::WakeRule {
+    match v {
+        c::WakeRule::Never => n::WakeRule::Never,
+        c::WakeRule::Immediate => n::WakeRule::Immediate,
+        c::WakeRule::Batch { count, age } => n::WakeRule::Batch { count, age },
+        c::WakeRule::Paced { span } => n::WakeRule::Paced { span },
+    }
+}
+
+fn client_wake(v: n::WakePolicy) -> c::WakePolicy {
+    c::WakePolicy {
+        words: client_wake_rule(v.words),
+        notices: client_wake_rule(v.notices),
+        news: client_wake_rule(v.news),
+        results: match v.results {
+            n::ResultsWake::Never => c::ResultsWake::Never,
+            n::ResultsWake::Each => c::ResultsWake::Each,
+            n::ResultsWake::LastOrFailure => c::ResultsWake::LastOrFailure,
+        },
+        questions: v.questions,
+        answers: v.answers,
+        timers: v.timers,
+    }
+}
+fn client_wake_rule(v: n::WakeRule) -> c::WakeRule {
+    match v {
+        n::WakeRule::Never => c::WakeRule::Never,
+        n::WakeRule::Immediate => c::WakeRule::Immediate,
+        n::WakeRule::Batch { count, age } => c::WakeRule::Batch { count, age },
+        n::WakeRule::Paced { span } => c::WakeRule::Paced { span },
+    }
+}
+
+fn form_sized_edit(v: &c::SizedEdit) -> n::SizedEdit {
+    match v {
+        c::SizedEdit::Set { size } => n::SizedEdit::Set { size: *size },
+        c::SizedEdit::Remove => n::SizedEdit::Remove,
+        c::SizedEdit::Reset => n::SizedEdit::Reset,
+    }
+}
+fn form_application_state(v: &c::ApplicationState) -> n::ApplicationState {
+    n::ApplicationState {
+        follows: match v.follows {
+            c::ApplicationFollows::Default => n::ApplicationFollows::Default,
+            c::ApplicationFollows::Changed { revision } => n::ApplicationFollows::Changed { revision },
+            c::ApplicationFollows::Removed { revision } => n::ApplicationFollows::Removed { revision },
+        },
+        size: v.size,
+        charters: v.charters.clone(),
     }
 }

@@ -103,7 +103,7 @@ pub fn closing_a_chat_cancels_one_delegate_and_moves_the_other_to_the_person<F: 
     finish(world);
 }
 
-fn open<F: Front<Test>>(world: &mut World<Test, F>, client: ClientId, find: Find) {
+pub(super) fn open<F: Front<Test>>(world: &mut World<Test, F>, client: ClientId, find: Find) {
     world.person(client, vec![Step::Pause { span: skein_lib::Duration::from_millis(20) }]);
     finish(world);
     let steps = vec![Step::See { find, within: WAIT }];

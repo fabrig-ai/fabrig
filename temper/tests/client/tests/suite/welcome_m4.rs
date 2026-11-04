@@ -121,13 +121,14 @@ fn unavailable_playground_read_does_not_retire_a_project() {
 }
 
 #[test]
-fn running_playground_project_is_named_playground() {
+fn running_playground_project_is_named_by_its_record() {
     let (mut front, mut root) = harness::playground_fixture(fixtures::SEED, true);
     let view = page(&mut front, &mut root, fixtures::chats_page());
     let tree = Temper::tree(&view);
     assert!(
-        tree.nodes().iter().any(|node| node.name.as_deref() == Some(b"Playground")),
-        "project chooser names the running playground: {:?}",
+        tree.nodes().iter().any(|node| node.role == Role::Button && node.name.as_deref() == Some(b"Project 1")),
+        "project chooser uses the stored project name: {:?}",
         words(tree)
     );
+    assert!(!tree.nodes().iter().any(|node| node.role == Role::Button && node.name.as_deref() == Some(b"Playground")));
 }

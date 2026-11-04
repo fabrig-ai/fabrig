@@ -49,6 +49,7 @@ pub(crate) fn route(outcome: &Outcome) -> Route {
             | DocumentOutcome::AccountSignInStarted { .. }
             | DocumentOutcome::AccountSignedOut { .. }
             | DocumentOutcome::ProjectRemoved { .. }
+            | DocumentOutcome::VisibilitySet { .. }
             | DocumentOutcome::Renamed { .. }
             | DocumentOutcome::ProjectMade { .. }
             | DocumentOutcome::PoolSet { .. }
@@ -67,5 +68,6 @@ pub(crate) fn route(outcome: &Outcome) -> Route {
             }
         },
         Outcome::SettingsChanged(_) | Outcome::MovedToNewest(_) => Route::Other,
+        Outcome::Restored { .. } => Route::Proposed,
     }
 }

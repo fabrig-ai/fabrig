@@ -12,11 +12,13 @@ pub fn task_word(number: u64) -> jig_domain_tasks::Word {
         eligible: true,
     }
 }
+#[expect(clippy::too_many_lines, reason = "complete durable task fixture includes the optional room condition")]
 pub fn task_record() -> jig_domain_tasks::TaskRecord {
     use jig_domain_tasks as task;
     use skein_lib::{Duration, Wall};
     let new = task_creation(17);
     task::TaskRecord {
+        started_from: Box::new([]),
         asked_requester: false,
         placed: None,
         settings: task::SettingsRevision { task: 3, run: Some(2) },
@@ -110,6 +112,7 @@ pub fn task_record() -> jig_domain_tasks::TaskRecord {
         tries: task::Tries { transient: 2, permanent: 3, run: 5, agent: 7, lost: 11, invalid: 13 },
         invalid_result: Some(task::InvalidResult::Followups),
         refusals: 127,
+        room_wait: None,
         phase: task_phase(),
     }
 }

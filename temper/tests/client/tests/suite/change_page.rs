@@ -196,6 +196,15 @@ fn a_change_prepared_by_the_existing_engine_driver_shows_its_current_line() {
         w::Step::Repairing(_) => "Repairing:",
         w::Step::Landing => "Merging at its head.",
         w::Step::Landed(_) => "Landed · merge commit",
+        w::Step::Verifying(_) => "Verifying · merge commit",
+        w::Step::Red(_) => "Red · merge commit",
+        w::Step::Cleared(ref value) => {
+            if value.uncleared() {
+                "Landed, uncleared · merge commit"
+            } else {
+                "Cleared · merge commit"
+            }
+        }
     };
     assert!(page.contains(line), "panel at {step:?} supplies line {line:?}, drawn page: {page}");
 }

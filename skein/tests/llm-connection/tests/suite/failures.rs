@@ -119,7 +119,7 @@ impl World {
                 },
                 llm: call.endpoint,
                 limits: skein_llm_world::limits(),
-                credential: skein_llm::client::CredentialLimits { value: 2048, account_id: 128 },
+                credential: skein_llm::client::CredentialLimits { value: 2048 },
             })
             .expect("one endpoint");
         let mut world = World {
@@ -805,8 +805,8 @@ fn the_terminal_event_is_in_the_largest_gap_for_plaintext_and_tls() {
 fn a_provider_failure_reaches_the_owner_with_its_report() {
     let mut world = World::new(Deadlines::none(), 1, false);
     world.run_until_request();
-    let body = br#"{"error":{"code":"usage_limit_reached","message":"spent","param":"model"}}"#;
-    let source = skein_llm_world::response(429, "x-oai-request-id: fixture-request\r\n", body, false);
+    let body = br#"{"error":{"code":"subscription_sharing_usage_limit_exceeded","message":"spent","param":"model"}}"#;
+    let source = skein_llm_world::response(429, "x-request-id: fixture-request\r\n", body, false);
     world.wire.write(&source);
     while world.terminals.is_empty() {
         world.tick();
@@ -819,7 +819,7 @@ fn a_provider_failure_reaches_the_owner_with_its_report() {
     assert_eq!(
         report,
         Some(&skein_llm::Report {
-            code: b"usage_limit_reached".as_slice().into(),
+            code: b"subscription_sharing_usage_limit_exceeded".as_slice().into(),
             request: b"fixture-request".as_slice().into(),
             field: b"model".as_slice().into(),
         })

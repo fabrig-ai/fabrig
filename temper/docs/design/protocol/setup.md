@@ -1,22 +1,23 @@
 # The forge's setup
 
-Provisional, 2026-10-16, revised 2026-10-30. How a forge comes to be
+Provisional, 2026-10-16, revised 2026-11-02. How a forge comes to be
 ready for temper, in three modes: connected, where a person runs and sets
 up the forge and gives temper only what it strictly needs; managed,
 where a person runs it and temper sets itself up on it, with a Forgejo
 site admin's token or, on GitHub, with an App made from temper's
 manifest; and owned, where temper runs Forgejo and its runner, and sets
-itself up on them. A fourth, fake, is the demo's: temper runs its own
-fake Forgejo, seeded with a demo repository, and sets itself up on it as
-on an owned one (8.4). A person chooses a forge's mode and connects it from
-temper's client (`../client/forge.md`, the deployment's page). The
+itself up on them. A fourth, fake, is the playground's: temper runs its
+own fake Forgejo, seeded with the playground's repository, and sets
+itself up on it as on an owned one (8.4). A forge is a record of temper's
+store, made by the act that sets it up or connects it (forge.md, 2.1 and
+2.2); a person chooses a forge's mode and makes it from temper's client
+(`../client/forge.md`, the deployment's page), and may remove it
+(`../domain/forge.md`, 4.1). The
 engine is the same in every mode: each mode makes the records the one
 below reads, kept in jig's secrets' store (credentials.md, the records),
 and the engine's forge component reads connected's. Owned mode is
-commands any host can arrange; `temper box` is one arrangement, and
-wiring only. A box is what temper's first milestone is set up on and
-checked by CI on (`../README.md`, section 2), and what QA's agents drive
-(`../draft/qa.md`, 4.1). The members are configuration.md's (section 3),
+commands a box arranges, and `temper box` is wiring only. A box is what temper's first milestone is set up on and
+checked by CI on (`../README.md`, section 2). The members are configuration.md's (section 3),
 the credentials credentials.md's (section 2), the webhooks forge.md's
 (section 5), and the commands and crates README.md's (sections 4 and 5).
 The walks are the pages `box`, `forgejo` and `github` (`temper help
@@ -31,9 +32,19 @@ section 16; connecting GitHub, section 17.
   GitHub. Managed: a person runs it, and pastes a Forgejo site admin's
   token, or on GitHub makes temper's App from its manifest in their
   browser. Owned: temper runs Forgejo and its runner. A fourth, fake,
-  is the default document's and never chosen: temper runs its fake
-  Forgejo in place of Forgejo, with no runner and its git a route of its
-  own, and sets it up as an owned one (8.4).
+  is the playground's, made when the person tries it and never chosen
+  as a mode: temper runs its fake Forgejo in place of Forgejo, with no
+  runner and its git a route of its own, and sets it up as an owned one
+  (8.4).
+- **Forges are records in the store** (forge.md, 2.1): each made by the
+  act that sets it up or connects it, `SetUp` for an owned Forgejo,
+  `Connect` for GitHub or a Forgejo elsewhere, `StartPlayground` for the
+  playground's fake one, and numbered next when it is made, a number
+  never reused (forge.md, 2.2). The document names no forge: it keeps
+  the machine's, its listeners, what a box's owned Forgejo and fakes
+  take from the machine, and the limits (section 8). A forge can be
+  removed whole (`../domain/forge.md`, 4.1); its box group is then
+  stopped and its directory removed, the cache kept (7.1).
 - **Each mode is a layer that makes the inputs of the one below.**
   Owned's preparation makes a Forgejo and an admin's token, managed's
   input, and hands the token over in a file; managed's plans make the
@@ -41,7 +52,7 @@ section 16; connecting GitHub, section 17.
   The forge component always runs connected: it reads the same records,
   checks the same user, and never holds an admin's token (section 3).
 - **The records are the interface.** Each forge's records, under its
-  configured `number`, a stable id never reused, are kept in jig's
+  number, a stable id never reused, are kept in jig's
   secrets' store by the engine's protocol layer alone (credentials.md,
   the records). The one file that passes between the layers is an owned
   forge's handover, `admin_token`, which the engine takes once.
@@ -55,26 +66,35 @@ section 16; connecting GitHub, section 17.
   `temper forge run` (section 6). No command writes the records.
 - **`temper box` is wiring only.** It runs a configuration's steps in
   order (the fakes, fetch, prepare, Forgejo, its runner, `temper
-  serve`), restarts what exits, and stops them in reverse order. An
-  owned forge's steps, and the demo's fakes, may wait, dormant, until
-  the client asks for them over a pipe to `temper serve` (7.1). It names no
-  Forgejo request and nothing of setup but its steps. systemd, QA's
-  environments or a test arrange the same commands another way (section
-  7).
+  serve`), restarts what exits, and stops them in reverse order. It
+  knows kinds, not forges: an owned Forgejo's group and the playground's
+  fakes' wait, dormant, until `temper serve` asks over a pipe for one of
+  them for a forge, and run again at each later start once started
+  (7.1). It names no Forgejo request and nothing of setup but its
+  steps. systemd or a test arrange the commands another way, with no
+  owned forge (section 7).
 - **`temper init` writes a deployment that starts** into the three
   directories (configuration.md, section 12): the default document, its
-  charters, its agent's configuration, the worker's secret and the demo
-  model's key; no account and no credential, which are the client's.
+  agent's configuration, the worker's secret and the scripted model's
+  key; no forge, no account and no credential, which are the client's.
   `temper box` runs it first on an empty configuration directory (8.2,
   8.3).
-- **A first run is a demo** (8.4): the default document's fake LLM and
-  fake forge are the box's steps, dormant until the person chooses the
-  playground; the engine's start of the demo then asks for them, adds
-  the demo model's key and adopts the demo repository, as the person
-  would. Real backends are added from the client beside it: GitHub
-  and an owned Forgejo are in the default document, so connecting
-  either needs no restart, and the owned one's steps wait until the
-  client asks for its setup (8.3, 7.1).
+- **A first run is empty** (8.3): the store holds no forge, and the
+  person tries the playground or sets temper up. The playground is made
+  when chosen (`StartPlayground`): a fake forge's record, its box group,
+  the scripted account and the playground's project, into which
+  `playground/widget` is adopted; its reset (`EndPlayground`) deletes
+  the project and removes the forge and the account, and the person is
+  on the welcome's Forge step as if they had never tried it. It is
+  offered while no real forge is kept, and never once one is (8.4).
+  Real forges are made from the client: an owned Forgejo set up under
+  the box, its group asked when the person sets it up (6.5, 7.1), and
+  GitHub or a Forgejo elsewhere connected (section 17, 5.5); none needs
+  a restart.
+- **A set up writes as it goes, and starts over by removal** (6.7): the
+  forge's record and its first repository's intent are kept as it goes;
+  an unfinished forge found later is removed and set up again, Forgejo's
+  binaries kept in the cache.
 - **Reconcile converges at every start** of a managed or owned Forgejo,
   in the engine: the bot user, made when missing and otherwise checked,
   never edited; its two tokens; and each
@@ -131,19 +151,20 @@ section 16; connecting GitHub, section 17.
   start serves the seed afresh, and reconcile makes the bot again
   (8.4).
 - **Per forge.** A deployment may mix them: an owned Forgejo beside a
-  connected one, or beside GitHub, or the demo's fake beside a person's
-  real forges. Each owned or fake forge has a directory and an address
-  of its own.
-- **A mode is no record** (credentials.md, the records): a forge is
-  owned or fake when its `setup` entry says so (section 8); managed when
-  it is neither and its `AdminToken` record is kept; connected otherwise. On
+  connected one, or beside GitHub. The playground's fake forge is made
+  only while no real forge is kept (8.4). Each owned or fake forge has a directory and an address
+  of its own, and a box runs at most one of each kind (7.1).
+- **A mode is its forge's record's** (forge.md, 2.1), set by the act
+  that made the forge: owned by `SetUp` (6.5), fake by
+  `StartPlayground` (8.4), managed by `Connect` with a Forgejo site
+  admin's token (5.5); a Forgejo connected with its bot's tokens is
+  connected (section 4), and so is a managed one whose `AdminToken`
+  record is forgotten (below). It is no credential record
+  (credentials.md, the records). On
   GitHub, managed and connected end in the same records, and differ only
   in how the App came to be (section 17).
 - **A mode changes:**
-  - owned to managed, by the configuration and a restart: the forge's
-    `setup` entry says `"managed"`, temper stops running Forgejo, and
-    its directory's `forgejo/` is a stock work path a person runs; the
-    `AdminToken` record, taken over (6.5), stays valid;
+  - owned to managed is later (section 15);
   - managed to connected, from the client, "Forget the admin's token":
     the `AdminToken` record is erased, no reconcile runs for the forge,
     and its bot, tokens, id and hooks stay as reconcile last kept them;
@@ -172,8 +193,10 @@ managed    the engine's setup host   ──► the forge's records (below); take
 connected  the forge component       ◄── its access, built from the records
 ```
 
-- **One directory per owned or fake forge,** named by its setup (section
-  8): private, `0o700`, the user's own and not reached through a link,
+- **One directory per owned or fake forge,** named by its kind and
+  number beneath the data directory, `forge-N` for an owned forge and
+  `playground-N` for the playground's fake one, and removed with the
+  forge (7.1): private, `0o700`, the user's own and not reached through a link,
   as a worker's root is (configuration.md, section 4). `temper forge
   prepare` makes it so when it is absent; a directory that is not so
   refuses the command, naming it. A managed or connected forge has none.
@@ -188,7 +211,7 @@ connected  the forge component       ◄── its access, built from the record
   | `state` | prepare | prepare, `run` | owned's record: the versions prepared, whether the first preparation ended, Forgejo's own secrets |
   | `admin_token` | prepare, when missing | the engine's setup host, once, at start or the box's `started` (6.5) | the handover: temper's admin's token, kept as the forge's `AdminToken` record by `TakeOver`, after whose `Done` the file is removed (6.5) |
   | `person_password` | prepare | the person | the person's first password on the owned Forgejo |
-  | `person_read.header`, `person_write.header` | prepare | the person, or their agent (`../qa.md`, 4) | the person's two tokens as one header line each, `Authorization: token TOKEN`: one that reads (`read:repository`, `read:issue`, `read:organization`, `read:user`), one that writes (`write:repository`, `write:issue`, `read:organization`, `read:user`) |
+  | `person_read.header`, `person_write.header` | prepare | the person, or their agent (`../client/tools.md`, 11.5) | the person's two tokens as one header line each, `Authorization: token TOKEN`: one that reads (`read:repository`, `read:issue`, `read:organization`, `read:user`), one that writes (`write:repository`, `write:issue`, `read:organization`, `read:user`) |
 
 - **What the preparation leaves for the engine** is `admin_token`
   alone: the token's text, nothing else, private and written whole;
@@ -205,8 +228,7 @@ connected  the forge component       ◄── its access, built from the record
   Their `api_token`, `git_token`, `user` and `webhook_secret` files,
   including any left by an earlier temper, stay unread. Each record is
   written by a plan, `User` as its 8 bytes within a version-1 record
-  (credentials.md, the records). The managed and connected old forms are
-  transitional until temper-15 (6.5).
+  (credentials.md, the records).
 - **Written whole.** Each file is written beside its name and renamed
   over it, private, so a reader never sees half a token.
 - **The handover is read** as configuration.md, section 6 reads a
@@ -228,7 +250,8 @@ connected  the forge component       ◄── its access, built from the record
   named on the deployment's page; nothing is erased, and connecting
   again overwrites them (credentials.md, the records).
 - **Nothing passes between the layers** in an argument or the
-  environment but the configuration's path and the forge's number.
+  environment but the directories' flags and the forge's number; the
+  commands read the forge's setup from its group's file (7.1).
 
 ## 4. Connected
 
@@ -248,17 +271,35 @@ connected  the forge component       ◄── its access, built from the record
   Forgejo's `[webhook] ALLOWED_HOST_LIST` letting it reach the listener;
   CI, as each repository has it.
 - **Pasted from the client, together** (`Connect` with `ForgejoTokens`;
-  `../client/forge.md`, the deployment's page): both tokens, and the
-  secret when given, one value, kept by jig until its run ends
-  (credentials.md, pasted values). The setup host's `Check { forge }`
-  (skein's `forge-setup.md`, 4.6) finds that both answer as one user,
-  not a site admin, and writes that user, and the routing keeps the
-  tokens and the secret as the forge's records; the page then says
-  "Connected as LOGIN", with its id on an Account line (6.5). Tokens of
-  two users stop it `OtherUser`, a site admin's `BotIsAdmin`, a refused
-  token `Refused`, each named, and the forge stays as it was.
-- **Replaced** from the client (`Replace`): a new token, checked to
-  answer as the kept user, kept before the old is erased.
+  `../client/forge.md`, the deployment's page; `../client/tools.md`,
+  5.5): both tokens, and the secret when given, one value, kept by jig
+  until its run ends (credentials.md, pasted values). Its connect makes
+  the forge's record, connected, from the address the person gives, its
+  API's host, port and transport, its git and web bases, and its git
+  program when given, numbered next (forge.md, 2.2), in the connect's
+  admission, before any run; or, on a connected Forgejo kept and not
+  connected or stopped, connects it again. Any other forge refuses it,
+  *not taken*. The setup host's `Check { forge }` (skein's
+  `forge-setup.md`, 4.6) finds that both answer as one user, not a site
+  admin, and writes that user; the routing keeps the tokens and the
+  secret as the forge's records, then its `Origin`, and the forge
+  connector keeps the user's login as the record's bot (forge.md, 2.2);
+  the page then says "Connected as LOGIN", with its id on an Account
+  line (6.5). Tokens of two users stop it `OtherUser`, a site admin's
+  `BotIsAdmin`, a refused token `Refused`, each named, and the forge
+  stays as it was. This form makes no bot, organization, repository or
+  hook: the person's user is temper's, as it is.
+- **Connected again,** on a kept forge whose `User` is kept, by the same
+  user alone: `Check` compares the tokens' user with it, and tokens of
+  another user stop it `OtherUser`, nothing kept, the forge as it was.
+  A forge's writer is its user, so another user's tokens connect a new
+  forge, once this one is removed (credentials.md, 2.1).
+- **Replaced** from the client (`Replace`): a new API token, git token
+  or both, and the secret when it changes, one value: `Check` reads each
+  pasted token before the forge's record, so a token not pasted is the
+  kept one, and finds that both answer as the kept user; each pasted
+  item is then kept over the old, and the forge connects with them. A
+  stop keeps nothing, and the forge stays as it was.
 - **Nothing more is required** (`../domain/forge.md`, section 4): polling
   stands in for webhooks, and a project's checks for CI.
 - **A connected GitHub** is an App the person made, pasted (17.3).
@@ -267,9 +308,8 @@ connected  the forge component       ◄── its access, built from the record
 
 Reconcile is skein's plan, run by the engine's setup host at each start
 of a managed, owned or fake Forgejo, at a managed connect and at an
-owned forge's set up from the client (5.1). The managed and connected
-old forms alone keep their transitional command until temper-15 (6.5);
-otherwise nothing but the setup host runs it or writes what it makes.
+owned forge's set up from the client (5.1). Nothing but the setup host
+runs it or writes what it makes.
 
 ### 5.1 The setup host in the engine
 
@@ -334,7 +374,7 @@ otherwise nothing but the setup host runs it or writes what it makes.
 |---|---|---|---|
 | `Reconcile { forge, adopted }` | Forgejo, managed, owned or fake | each managed, owned or fake start; a managed connect; the box's `started` (5.1) | section 4 |
 | `Adopt { forge, repository }` | Forgejo, managed, owned or fake | an adoption, before its reads; the fake's start (8.4) | 4.5 |
-| `Create { forge, org, repository, files }` | Forgejo, owned | the box's `started`, when the set up asked for a first repository (6.7) | 4.9 |
+| `Create { forge, org, repository, files }` | Forgejo, owned or managed | an owned forge's, after reconcile at the box's `started` or a start, while its record keeps a first repository's intent not yet made (6.7); a managed connect's with `first` (5.5) | 4.9 |
 | `Check { forge }` | Forgejo, connected | a connect; a replacement | 4.6 |
 | `TakeOver { forge, admin_token }` | Forgejo, owned or fake | a start or the box's `started` with a handover, even with a kept `AdminToken` (6.5) | 4.7 |
 | `Reachable { forge, installation?, page }` | every kind | the picker | 4.8 |
@@ -380,17 +420,17 @@ otherwise nothing but the setup host runs it or writes what it makes.
 
   | Reconcile's value | temper's |
   |---|---|
-  | the forge's number | the forge's `number` (configuration.md, section 3) |
-  | the bot's login and email | the setup's `bot.login` and `bot.email` (section 8); at a connect as its admin of a forge connected before, the connected user's login (5.5) |
+  | the forge's number | its record's (forge.md, 2.1) |
+  | the bot's login and email | its record's bot (forge.md, 2.1); at a connect as its admin of a forge connected before, the connected user's login (5.5) |
   | the tokens' names | `temper-api` for the API's, `temper-git` for git's |
   | the orgs, and their owner | none: reconcile makes no org; an owned forge's org is its first repository's, made by `Create` (6.7) |
   | the repositories | the forge's adopted repositories, the root's, restored before the start's reconcile |
   | the name a failure gives the admin | `temper-admin` |
   | the listener's address | `application.webhooks.listener`'s, when configured; none otherwise. Each hook's URL, `http://<address>/hooks/<number>`, is derived from it (skein's `forge-setup.md`, 4.1) |
   | the word | `temper`, so the bot's mark is `temper:bot` |
-  | its limits | `orgs` from `setup.orgs`, `repositories` from `forge.client.repositories`, `reachable` from `picker.page`, and `deadline`, `backoff` and `backoff_max` from `setup.deadline_ms`, `setup.backoff_ms` and `setup.backoff_max_ms` (configuration.md, section 7) |
+  | its limits | `repositories` from `forge.client.repositories`, `reachable` from `picker.page`, and `deadline`, `backoff` and `backoff_max` from `setup.deadline_ms`, `setup.backoff_ms` and `setup.backoff_max_ms` (configuration.md, section 7); `orgs` 1, the least the kit takes, since temper gives no org |
 
-  The API's address is the forge's `api` (configuration.md, section 3).
+  The API's address is the forge's record's place (forge.md, 2.1).
   temper-forge-setup maps the setup onto these values and runs the
   kit's check on them, at each start and for every command (section
   11); a value the check refuses comes back as its `Place` (skein's
@@ -424,8 +464,8 @@ otherwise nothing but the setup host runs it or writes what it makes.
   is shown as that scope missing, named with its step.
 - **At each start,** reconcile's step 6 checks each adopted
   repository's access, and repairs what changed.
-- **A fake forge,** until this section is built: its repositories are
-  its entry's, so the setup host runs `Adopt` for each of them at the
+- **A fake forge:** its repositories are
+  its setup's (section 8), so the setup host runs `Adopt` for each of them at the
   engine's start, before the forge connects, in place of each
   adoption's (8.4, the fake's start-time adoption).
 - **Nothing org-wide:** the bot reaches the repositories adopted, a
@@ -437,10 +477,15 @@ otherwise nothing but the setup host runs it or writes what it makes.
 ### 5.5 Connecting as its admin, and forgetting
 
 - **"Connect as its admin"** (`Connect` with `ForgejoAdmin`;
-  `../client/forge.md`, the deployment's page), on a Forgejo neither owned,
-  connected nor connecting, whose `setup` entry is the string `"managed"`
-  (section 8): the site admin's token, with the preparation's scopes
-  (6.3), pasted, kept by jig until its run ends. One run holds the paste:
+  `../client/forge.md`, the deployment's page), for a Forgejo elsewhere:
+  its connect makes the forge's record, managed, from the address the
+  person gives, its API's host, port and transport, its git and web
+  bases, and its git program when given, numbered next (forge.md, 2.2),
+  in the connect's admission, before any run; or, on a managed Forgejo
+  kept and neither connected nor connecting, connects it again. Any
+  other forge refuses it, *not taken*. The site admin's token, with the
+  preparation's scopes (6.3), is pasted and kept by jig until its run
+  ends. One run holds the paste:
   `Reconcile` reads it, never an older `AdminToken` record; its writes
   are kept, then the forge's `Origin` under `AdminOrigin`. With `first`,
   `Create` (6.7) runs with the same paste. Only after both plans are Done
@@ -452,18 +497,18 @@ otherwise nothing but the setup host runs it or writes what it makes.
   reconciles from that record and connects, with no Create or `TakeOver`;
   without the record it offers Connect, not connected. This form serves
   no organizations or organization owner and no listener: it polls.
-- **Its bot:** on a forge with no records, the setup's `bot.login`, made
-  when missing; on a forge with records, the recorded user's login.
+- **Its bot:** on a forge with no secret records, its record's bot,
+  the one its connect carries, `temper` unless it names another, made
+  when missing; on a forge with them, the recorded user's login.
   Reconcile uses it only when its full name carries `temper:bot`, or stops `Unmarked`,
   named, and restores the connection's previous state.
 - **A first organization named as the bot** is refused at admission
   (`FirstIsBot`), before any run or write, and its carried value named
   unused: a Forgejo user and organization can't share a name, so Create
   would stop at the organization, and a second paste couldn't help. The
-  check compares `first`'s organization with the setup's `bot.login`,
-  ASCII case-folded, as Forgejo compares names.
-- **A Forgejo with no `setup` entry** refuses it, naming
-  `application.setup` (section 16).
+  check compares `first`'s organization with the record's bot's login,
+  ASCII case-folded, as Forgejo compares names. A connect refused at
+  admission makes no record.
 - **"Forget the admin's token"** (`Forget`): the `AdminToken` record is
   erased, and the forge is connected, its bot, tokens, id and hooks
   kept; no reconcile runs for it after.
@@ -475,12 +520,11 @@ otherwise nothing but the setup host runs it or writes what it makes.
   refused at start, naming it (section 15). A managed forge's is TLS, or
   plaintext to a loopback host alone; plaintext to another host is refused
   at start, naming it.
-- **The bot's email** is the setup's `bot.email` when reconcile makes
-  the bot, and stays as it is after: a change to `bot.email` reaches
-  only a bot made after it, and an existing bot's email is the
-  person's to change, on Forgejo. temper reads no mail of the bot's,
-  and its commits name the identity's `author` (configuration.md,
-  section 3), not this email.
+- **The bot's email** is its record's bot's (forge.md, 2.1) when
+  reconcile makes the bot, and stays as it is after: an existing bot's
+  email is the person's to change, on Forgejo. temper reads no mail of
+  the bot's, and its commits name its bot's git identity, the record's
+  (forge.md, 2.1).
 - **The scopes** of the tokens are section 4's.
 - **What it cannot set:** Forgejo's settings, which its API does not
   change (skein's `forge-setup.md`, section 4): the webhooks'
@@ -544,8 +588,9 @@ private, never edited by hand:
 
 `temper forge prepare [DIRECTORIES] FORGE`, before Forgejo runs. It takes
 Forgejo's lock (6.4), and the runner's too when it writes the runner's
-files: at a first preparation, and for a runner older than its pin
-(item 3) or added (item 4); checks the binaries; and decides by
+files: at a first preparation, for changed settings (item 2), and for
+a runner older than its pin (item 3) or added (item 4); checks the
+binaries; and decides by
 `state`:
 
 1. **The first preparation:** the layout of section 3; `app.ini`;
@@ -570,7 +615,7 @@ files: at a first preparation, and for a runner older than its pin
    written whole into `person_read.header` and `person_write.header`,
    private, so that the person's agent reads the forge, or acts on it
    as the person, by a file's path and never a token on a command line
-   (`../qa.md`, 4); the runner's
+   (`../client/tools.md`, 11.5); the runner's
    secret drawn into `runner/secret` (40 hexadecimal digits, no line
    feed), registered as a global runner by `forgejo-cli actions register
    --secret-file`, and the runner's connection written from it into the
@@ -594,9 +639,16 @@ files: at a first preparation, and for a runner older than its pin
    an admin a person deleted fails the preparation, naming it; the
    person's two header files made again, each alone, when missing, as
    on a forge prepared before they were (a person who revokes a token
-   deletes its file, and the next start mints a new one); nothing
-   else. It takes Forgejo's lock alone, so a box restarts a Forgejo,
-   after its preparation, while the runner runs.
+   deletes its file, and the next start mints a new one). A configured
+   runner is registered again with its existing secret, keeping the same
+   registration, and its configuration is rendered from the current setup.
+   If the configuration is identical, its file is left untouched and no
+   runner lock is needed, so a box can restart Forgejo while the runner
+   runs. A changed or missing configuration is written whole under the
+   runner's lock; a running runner refuses that preparation. The prepared
+   versions and Forgejo's secrets are recorded unchanged. Stop the box,
+   edit `CONFIG/temper.json` and restart with the same directories to
+   apply changed capacity, labels or `PATH` without replacing secrets.
 3. **An upgrade:** a recorded Forgejo older than the pin is dumped
    (`forgejo dump`) into `backups/forgejo-<old>-to-<new>.zip`, written as
    `backups/dump.partial.zip` (Forgejo adds `.zip` to a name without it)
@@ -759,35 +811,33 @@ files: at a first preparation, and for a runner older than its pin
   engine and every other forge run on. "Set up again"
   asks the box, which answers a started group `started` at once (7.1),
   and the engine runs the same sequence again.
-- **Until temper-15, managed and connected Forgejo's old members**
-  (`api_token`, `user`, `webhook_secret`, and the old managed form)
-  still read their files as before (configuration.md, section 6).
-  `temper forge reconcile` remains a command for those forges alone.
-  A records-only owned or fake entry is refused: "forge N starts from
-  its records: `temper serve` takes its handover".
 - **Then reconcile runs as managed's** (section 5), and makes no org:
   the set up's org is its first repository's, made by `Create` (6.7).
 - **Then the first repository,** at the box's `started`, when the set
   up asked for one (6.7): `Create`, before the forge's connect.
-- **A forge not prepared,** with neither a handover nor an `AdminToken`
-  record, is not set up: no access and no connect, including an owned
-  forge whose setup says `"start": "asked"`; every other forge starts as
-  it would. The deployment's page (`../client/forge.md`, 5.4):
-  - **Under the box,** offers "Set up a Forgejo here" for an owned forge
-    whose setup says `"start": "asked"`. Its card says CI jobs run here
-    unisolated, Forgejo stops with `temper box`, and its files are kept
-    in temper's data directory. The routing writes `start FORGE`; at
-    `started FORGE` the engine takes the handover, reconciles, makes the
-    first repository (6.7) and connects; at `failed FORGE WHY` the page names the step and offers
-    it again. Until that line carries the reason, the page points to
-    `temper box`'s output for it.
-  - **Without the box** (7.4), names `temper forge fetch N`, `temper
-    forge prepare N`, `temper forge run N forgejo` and `temper forge run
-    N runner`, then a restart of `temper serve`, N the forge's number.
-    The connected card offers the repository form.
+- **A forge not prepared,** an owned forge's record with neither a
+  handover nor an `AdminToken` record, is not set up: no access and no
+  connect; every other forge starts as it would. The deployment's page
+  (`../client/forge.md`, 5.4):
+  - **Under the box,** offers "Set up a Forgejo here" while no owned
+    forge is kept and the machine's part names the box's owned Forgejo
+    (section 8). Its card says CI jobs run here unisolated, Forgejo
+    stops with `temper box`, and its files are kept in temper's data
+    directory. `SetUp` makes the forge's record, owned, numbered next
+    (forge.md, 2.2), with its first repository's intent (6.7), in its
+    decision, and the routing asks the box for the forge's group (7.1);
+    at `started FORGE` the engine takes the handover, reconciles, makes
+    the first repository (6.7) and connects; at `failed FORGE WHY` the
+    page names the step and offers it again, "Set up again", on the
+    same record. A box runs one owned Forgejo: a `SetUp` of a new one
+    while one is kept is refused *not offered*, or *busy* while that one
+    sets up.
+  - **Without the box** (7.4), offers none: an owned forge's group is
+    the box's, and `SetUp` is refused *not under the box*.
 - **The page's actions** are the engine domain's offers, from the same
   function that gives the set up's offer (`../domain/forge.md`, 4.1).
-  "Connect as its admin" needs a managed setup entry (section 8).
+  "Connect as its admin" makes a Forgejo elsewhere from the address the
+  person gives (5.5).
 - **The connected card** says "Connected as LOGIN", with its id on an
   Account line. Access is "Site admin, with temper's own token" for
   owned, "Site admin, with a token you gave" for managed, and "Its bot's
@@ -799,16 +849,17 @@ files: at a first preparation, and for a runner older than its pin
   (`sign-in.md`, 9.4), and temper keeps no record of that sign-in by
   which to drop the line after it. A stopped owned
   forge says "Restart temper box: its preparation mends it". Owned and
-  managed offer "New repository", with the set up's organization,
-  repository and project fields (section 15).
+  managed offer "New repository", with the set up's organization and
+  repository fields (section 15).
 - **The person** signs in on Forgejo's web as a site admin with
   `person_password`, and may change it when they like; makes
   repositories in their orgs, with Actions,
   and adopts them through temper's client. temper's admin is temper's; a
   person who deletes it makes the next start's reconcile and the next
   preparation stop, naming it.
-- **The forge's members** are connected's, written out: `api` the
-  address, `transport` plaintext, `git` `http://<address>` (section 8).
+- **The forge's place,** in its record (forge.md, 2.1), is the
+  machine's owned Forgejo's (section 8): `api` its address, `transport`
+  plaintext, `git` `http://<address>`.
 
 ### 6.6 Fetching
 
@@ -869,19 +920,18 @@ its own for any other host.
 
 ### 6.7 The first repository
 
-- **Asked with the set up.** `SetUp` carries an organization (default
-  `work`), a repository (default `hello`) and a project: a new
-  project's name, the repository's until the person changes it, or an
-  existing project's number, which the first run never offers
-  (`../draft/first-run.md`, 2.4). A new one is refused "a new project"
-  until jig makes projects at runtime (jig's `MakeProject`, its
-  `domain/core.md`, 6.1). The forge domain keeps
-  them with the forge, the set up's intent: one per forge, in memory
-  alone, replaced by the next `SetUp` it admits, and kept until the
-  repository is made or the set up has failed.
+- **Asked with the set up, with no project.** `SetUp` carries an
+  organization (default `work`) and a repository (default `hello`),
+  and names no project: the repository is made unadopted, and its
+  adoption is a later act's, into a project the person has
+  (`../draft/first-run-projects.md`, 4). The forge domain keeps
+  them in the forge's record (forge.md, 2.1), the set up's intent: one
+  per forge, written in the decision that admits `SetUp`, and replaced
+  by the next `SetUp` it admits.
 - **Asked at a managed connect.** `ForgejoAdmin.first` carries the same
-  organization, repository and project, and the person's runner label
-  (default `docker` in the client and ctl). After Reconcile and its
+  organization and repository, with no project, and the person's runner label
+  (default `docker` in the client and ctl), kept in the forge's record
+  as `SetUp`'s are. After Reconcile and its
   `AdminOrigin` write are kept, Create makes the repository
   before the admin token is kept and the forge connects (5.5). A missing
   organization is owned by the admin Create has verified. No listener is
@@ -892,7 +942,8 @@ its own for any other host.
   `Unmarked` or `Other`. `SetupStage` names admin, bot, token, org,
   repository, file, app, installation or state. `ended` is the separate
   diagnostic; the client chooses its stop's words from `ended_stop`.
-- **Made after reconcile.** At the box's `started FORGE`, once
+- **Made after reconcile.** At the box's `started FORGE`, or at a start
+  while the record keeps an intent whose repository is not made, once
   `TakeOver` and `Reconcile` are done (6.5), the setup host runs
   `Create { forge, org, repository, files }` (skein's `forge-setup.md`,
   4.9) by the admin's token: the org, private and owned by the person;
@@ -935,35 +986,60 @@ its own for any other host.
   asked of a real forge and a real model. Forgejo's README stays, since
   Create keeps a file already there (skein's `forge-setup.md`, 4.9);
   the fake's `check.yml` is not copied, since the box's runner runs the
-  starter. The project is a new one, named `widget`, unless the set up
-  names one. A set up asked again takes its own request's fields, with
+  starter. ctl's call adopts it, as below, into a new project named
+  `widget` unless the call names one. A set up asked again takes its own request's fields, with
   the flag or without: a first repository already made stays, and the
   new one is made beside it.
 - **The row says it,** the forge's first repository beside its
   connection (`../client/forge.md`, 5.4; `../client/README.md`, 4.6):
   none; making `ORG/NAME` from the `SetUp`'s admission; made
-  `ORG/NAME`, with its project, once `Create` is done; or failed
+  `ORG/NAME`, unadopted, once `Create` is done; or failed
   `ORG/NAME`, at the step that stopped (the admin, the org, the
   repository with its access, or the file). A `Create` that stops
   blocks the connect as any step does (6.5): the forge is set up
   failed, its `why` naming the step, and "Set up again" asks with the
-  same fields. A restart drops the row's first repository to none.
-- **Adopted by the client, for now.** Once the row says made, the
-  client sends, under the same party, jig's `MakeProject` for a new
-  project, its name and policy 1, the default document's (8.3), then
-  `Adopt`: the project, the forge,
-  `ORG`, `NAME`, landing on `main`, owned, the project's home, with CI.
-  `temper ctl forge setup` does it (`../client/tools.md`, 5.5), and so
-  does the set up flow's Ready step (`../client/forge.md`, 5.4). It is
-  transitional, until jig carries a deployment owner's act after
-  `SetUp`'s admission (section 15).
-- **A restart before the repository is made** loses the intent: the
-  start's sequence makes no repository, and the forge, set up by its
-  record, no longer offers "Set up a Forgejo here". The person makes it
-  with "New repository" (section 15).
-- **Its code:** the intent in `temper-engine-domain-forge`; `Create`'s
-  start and its end in `temper-service`'s setup; the starter workflow's
-  bytes and the plan's limits in `temper-forge-setup`.
+  same fields. A restart reads the row's first repository from the
+  record, making `ORG/NAME`, until `Create` answers again.
+- **Adopted by ctl's call alone.** The welcome and `ConnectForge`
+  adopt nothing: the made repository waits, unadopted, for the person
+  to adopt it into a project of theirs from the adoption form
+  (`../client/README.md`, 3.5 and 4.4), one choice away.
+  `temper ctl forge setup` and `forge connect … --first` hold their
+  `--project` in their own run (`../client/tools.md`, 5.5): once the
+  row says made, the call sends, under the same party, jig's
+  `MakeProject` for a new project, its name and policy 1, the default
+  document's (8.3), when `--project` names no project, then `Adopt`:
+  the project, the forge, `ORG`, `NAME`, landing on `main`, owned, the
+  project's home, with CI. Nothing in the engine reads a project for
+  it.
+- **A restart before the repository is made** keeps the intent, since
+  the record holds it: the start's sequence, or the box's `started`,
+  makes the repository at the next connect, after reconcile (6.5).
+- **A set up writes as it goes:** each act and plan keeps what it makes
+  when it makes it, the forge's record and its intent at `SetUp`'s
+  admission, each credential record as its plan writes it (5.1), and the
+  box's group file and record as the group starts (7.1). Nothing is
+  staged in memory to be written at the end, and no write spans two
+  stores.
+- **Found later, it starts over.** A set up cut short, by a restart or a
+  failure, leaves its forge kept but not connected, or its first
+  repository not made: the welcome's Forge step shows it unfinished,
+  "FORGE · not finished", with Start over (`../client/README.md`, 3.5),
+  which removes the forge (`../domain/forge.md`, 4.1) and opens the
+  step's choices again. An owned Forgejo then sets up afresh, as a new
+  forge numbered next: its binaries from the cache (6.6), which its
+  removal keeps, and its directory prepared anew (6.3), the old one
+  removed with its forge (7.1).
+- **GitHub goes on by default:** its App's records are kept as they come
+  (17.2), so the step offers Go on, to the App's installation, before
+  Start over, which removes the forge and names the App on GitHub as the
+  person's to delete (`../domain/forge.md`, 4.1).
+- **An account added before** stays: it is the person's, not the set
+  up's, and the Model step shows it ready (`../client/README.md`, 3.5).
+- **Its code:** the intent, in the forge's record, in
+  `temper-engine-domain-forge`; `Create`'s start and its end in
+  `temper-service`'s setup; the starter workflow's bytes and the plan's
+  limits in `temper-forge-setup`.
 
 ### 6.8 Signing in through temper
 
@@ -1012,27 +1088,28 @@ Then `temper serve`, and the printed command, once, on Forgejo's host.
 
 ### 7.1 What it runs
 
-`temper box [DIRECTORIES] [--echo none|steps]` runs the configuration's steps, which
-`temper-fake`'s `steps` gives (8.4), each a command of the `temper`
+`temper box [DIRECTORIES] [--echo none|steps]` runs its steps, which
+`temper-forge-setup`'s `kinds` and `temper-fake`'s fake slot give from
+the document (section 8), each a command of the `temper`
 binary, as a child process given the box's three directories as flags,
 `--config C --data D --cache K`, each absolute (configuration.md,
-section 12), written `DIRS` below:
+section 12), written `DIRS` below, `N` a forge's number:
 
 ```
 temper box
-├── temper fake llm DIRS              long, with the demo (8.4)
-├── temper forge prepare DIRS 1       once, per fake forge: its handover
-├── temper fake forge DIRS 1          long, per fake forge (8.4)
-│                                     the demo's forge's two and the fake LLM, the demo's group: asked (below)
-├── temper forge fetch DIRS 3         once, per owned forge whose binaries are fetched (6.6)
-├── temper forge prepare DIRS 3       once, per owned forge
-├── temper forge run DIRS 3 forgejo    long: Forgejo's parent on Linux with fd 3 (6.4)
+│                                     the fake kind's group, the playground's fakes: asked (below)
+├── temper fake llm DIRS              long (8.4)
+├── temper forge prepare DIRS N       once: the fake forge's handover
+├── temper fake forge DIRS N          long (8.4)
+│                                     the owned kind's group, an owned Forgejo's: asked (below)
+├── temper forge fetch DIRS N         once, when its binaries are fetched (6.6)
+├── temper forge prepare DIRS N       once
+├── temper forge run DIRS N forgejo   long: Forgejo's parent on Linux with fd 3 (6.4)
 │   └── forgejo web                   via temper internal forge-child; execs without fd 3
-├── forgejo-runner daemon             long: temper forge run DIRS 3 runner
-│                                     these, the forge's group: here, or asked (below)
+├── forgejo-runner daemon             long: temper forge run DIRS N runner
 └── temper internal serve DIRS --box  long: its own tree (README.md, section 4); its setup
-│                                     host takes each handover and reconciles (section 5);
-│                                     its listeners from fd 3, then its pipe to the box (below)
+                                      host takes each handover and reconciles (section 5);
+                                      its listeners from fd 3, then its pipe to the box (below)
 ```
 
 - **An empty configuration directory,** absent or with no entry, is
@@ -1042,38 +1119,59 @@ temper box
   Otherwise the box
   never writes the document: a configuration directory with entries but
   no document is refused as every command refuses it.
-- **An owned forge's group,** its fetch, its preparation, its Forgejo
-  and its runner, runs in its place in order at every start of the box
-  when its setup has no `start`. With `"start": "asked"` (section 8) the
-  box knows the group's steps and starts none of them until `temper
-  serve` asks on the pipe, or until the box's record
-  `<data>/box/started/FORGE` exists: one empty file per forge, written
-  once the group's preparation has exited 0, so that a later box runs
-  the group in its place, as an unasked one, before `temper serve`. The
-  record is written beneath the data directory, `box` and `box/started`
-  made as needed, mode 0600. When it cannot be written, the box's stderr
-  names why, the group answers `failed FORGE record not written` and is
-  dormant again. At its start the box looks for each asked group's
-  record; one it cannot look at is named on its stderr, and its group
-  stays dormant.
-- **The demo's group,** the fake LLM, then the demo forge's preparation
-  and its fake forge (`application.demo.forge`, 8.4), is always asked,
-  and writes no record: the demo's state is the engine's alone (8.4),
-  so a box started again runs it only when `temper serve` asks, which
-  serve does at the person's choice and at each of its starts while the
-  demo runs. Its `started` follows its long steps' start, as the steps'
-  order takes them (7.2). At the demo's end serve sends `stop FORGE`,
-  and the box stops the group (below, 7.2): a box started after the end
-  runs none of it, since serve never asks again (8.4). A fake forge
-  other than the demo's runs in its place, unasked.
+- **The box knows kinds, not forges.** It has a group for each kind
+  the document's machine part gives it (section 8): the owned kind's,
+  an owned Forgejo's fetch, preparation, Forgejo and runner
+  (`temper-forge-setup`'s steps), when the machine names the box's owned
+  Forgejo; and the fake kind's, the playground's fake LLM, a fake
+  forge's preparation and the fake forge (`temper-fake`'s), when it
+  names the fakes and the document has `application.demo`. Each is
+  dormant until serve asks for it for a forge, and then runs for that
+  forge alone, its steps' forge number that forge's: a box runs at most
+  one group of each kind. It reads no store and names no forge of its
+  own: it stays wiring only.
+- **A forge's group, asked.** Under the box, serve writes the group's
+  settings, the forge's kind, its setup entry (section 8) and its port,
+  to `<data>/box/groups/N`, private, then asks `start N` on the pipe:
+  at an owned forge's set up (6.5) and at the playground's start (8.4).
+  The box builds the group's steps by the kind from that file, and runs
+  them in order; `temper forge fetch`, `prepare`, `run` and `remove`
+  read forge N's setup from the same file, and refuse a forge with none.
+  Once the group's long steps have started and, for an owned Forgejo,
+  Forgejo answers, the box writes its record, `<data>/box/started/N`, one empty file, and
+  answers `started N`. `box`, `box/groups` and `box/started` are made as
+  needed, 0o700, their files 0o600. A record that cannot be written is
+  named on the box's stderr, and the group answers `failed N record not
+  written` and is dormant again.
+- **At a later start,** the box lists `box/groups`, at most `box.groups`
+  files (configuration.md, section 7), and runs each group whose
+  `started` record exists from its file, in its place, as an unasked
+  group, before `temper serve`; a group with a file and no record stays
+  dormant until asked. A file it cannot read, or a record it cannot look
+  at, is named on its stderr, and its group stays dormant; of two
+  started groups of one kind, the one of the higher number runs, and the
+  other is named and stays dormant.
+- **A forge's group, removed.** At a forge's removal
+  (`../domain/forge.md`, 4.1) serve asks `remove N`, and again at each of
+  its starts until it is answered `removed N`. The box stops the group's
+  steps as it stops a group (7.2), then runs its remover, `temper forge
+  remove DIRS N`, a once step, which removes the forge's directory,
+  `<data>/forge-N` or `<data>/playground-N`, and refuses any path
+  outside the data directory or within the cache, so the cache, and
+  Forgejo's fetched binaries in it, stay (6.6). The box then removes
+  `box/groups/N` and `box/started/N`, and answers `removed N`. For a
+  forge with no group's file it knows, it removes those files alone. A
+  removal that fails answers `failed N WHY`, `WHY` one of `remove:
+  exited <code>`, `remove: did not start` and `remove: files not
+  removed`, and the group is dormant again, to be asked again.
 - **The listeners are the box's,** every step's, from the box's start
   to its end, a dormant group's among them: so that the port a step
   reports is its own from before it starts, and a second first run's
   init finds the first one's ports taken (8.2). Each step names its
   listeners, the socket addresses the document gives it (7.3): `temper
-  serve` the clients' and the webhooks' listeners, a fake its `listen`,
-  on Linux, `temper forge run N forgejo` the owned forge's `listen`
-  (6.4). On a
+  serve` the clients' and the webhooks' listeners, the fake LLM and the
+  fake forge their ports, and, on Linux, `temper forge run N forgejo` the
+  owned Forgejo's port, the machine's (section 8; 6.4). On a
   first run the box keeps the sockets `temper init` chose (8.2); on a later
   start it opens each at the document's address before any step, with
   skein's `open_listener`, and a port taken refuses its start, naming
@@ -1092,7 +1190,7 @@ temper box
   own `Listen` for that address then takes the socket it was given
   (skein's `io.md`, 3.2), so nothing above io knows it was given one. A
   step with no listener is given none, and no `LISTEN_FDS`. On Linux,
-  `temper forge run N forgejo` is given the owned forge's `listen` and
+  `temper forge run N forgejo` is given the owned Forgejo's port and
   stays Forgejo's parent (6.4); on macOS it is given none, and a fresh
   box closes the reservation `temper init` made for its port, so
   Forgejo binds it itself. A listener at port 0 is not held: its step binds it, as without the box, since a
@@ -1113,12 +1211,14 @@ temper box
 
   | Line | From | Says |
   |---|---|---|
-  | `start FORGE` | serve, at the client's ask (6.5); the demo's, at the playground's start and at serve's start while the demo runs (8.4) | start the forge's group |
+  | `start FORGE` | serve, once it has written the group's file: at an owned forge's set up (6.5) and at the playground's start (8.4) | start the forge's group, by its file |
   | `step FORGE STEP` | the box | the group's step `fetch`, `prepare` or `run` is starting, for the client's row (`../client/forge.md`, 5.4) |
-  | `started FORGE` | the box | the group's long steps are started, Forgejo answers, and its record is written, the demo's group writing none; the engine then takes the handover and reconciles (6.5) |
-  | `failed FORGE WHY` | the box | the group stopped: `WHY` names the step by its name, as its log file and the box's terminal name it (7.2), such as `prepare 3 exited 1`: `<step> exited <code>`, `<step> killed by signal <n>`, `<step> did not start`, or `record not written`, cut to fit the line's bound, and holds no secret; a step's own lines are in its log, the last of them under the terminal's `failed` line (7.2) |
-  | `stop FORGE` | serve, the demo's, at the demo's end (8.4) | stop the forge's group |
-  | `stopped FORGE` | the box | the group's steps are closed, as the box's own stop closes them (7.2), and the group is dormant again; a record it wrote stays |
+  | `started FORGE` | the box | the group's long steps are started, an owned Forgejo answers, and its record is written; the engine then takes the handover and reconciles (6.5) |
+  | `failed FORGE WHY` | the box | the group stopped: `WHY` names the step by its name, as its log file and the box's terminal name it (7.2), such as `prepare-3 exited 1`: `<step> exited <code>`, `<step> killed by signal <n>`, `<step> did not start`, `record not written`, or a removal's `remove: exited <code>`, `remove: did not start` or `remove: files not removed`, cut to fit the line's bound, and holds no secret; a step's own lines are in its log, the last of them under the terminal's `failed` line (7.2) |
+  | `stop FORGE` | serve | stop the forge's group, its file and record kept |
+  | `stopped FORGE` | the box | the group's steps are closed, as the box's own stop closes them (7.2), and the group is dormant again; its file and record stay |
+  | `remove FORGE` | serve, at the forge's removal (`../domain/forge.md`, 4.1), and at each of its starts until answered | stop the forge's group and remove its directory, its file and its record (above) |
+  | `removed FORGE` | the box | the group's steps are closed, and its directory, its file and its record removed; the cache is kept |
 
   One ask at a time: a `start` for another forge while a group starts,
   or while a failed group's steps close, is answered `failed FORGE busy`;
@@ -1131,9 +1231,13 @@ temper box
   `stopped FORGE`; for a dormant one, `stopped FORGE` at once; for a
   group starting, or whose failed steps close, `failed FORGE busy`; for
   a forge with no group, `failed FORGE not asked`; and while the box
-  stops, `failed FORGE stopping`. While a group's steps close at its
-  `stop`, a `start` or a `stop` for any forge is answered `failed FORGE
-  busy`. An
+  stops, `failed FORGE stopping`. A `remove` is an ask as a `stop` is,
+  answered `removed FORGE` where a `stop` is answered `stopped FORGE`,
+  once its remover has run and its files are removed; for a forge with
+  no group's file the box knows, it removes the files and answers at
+  once. While a group's steps close at its `stop` or `remove`, or its
+  remover runs, a `start`, a `stop` or a `remove` for any forge is
+  answered `failed FORGE busy`. An
   answer to a `temper serve` that has exited is dropped: its restart
   finds the handover at its start (6.5). Each line is at most
   `box.line_bytes` (configuration.md, section 7), which both sides
@@ -1144,10 +1248,11 @@ temper box
 - **A group's failure** before `started` answers `failed`, and the group
   is dormant again, to be asked again; the box runs on. Once started,
   its long steps are restarted, and given up on, as 7.2 says.
-- **The default document's steps:** `temper serve` alone runs at the
-  start; the demo's group is dormant until the person chooses the
-  playground (8.4), and forge 3's until the client asks for it (8.3).
-  No step is a link: serve's first line is the person's.
+- **A first run's steps** (8.3): `temper serve` alone runs at the
+  start; the fake kind's group is dormant until the person tries the
+  playground (8.4), and the owned kind's until the person sets up an
+  owned Forgejo (6.5). No step is a link: serve's first line is the
+  person's.
 
 ### 7.2 What it does
 
@@ -1195,14 +1300,15 @@ temper box
   without bound on a filesystem that stalls (skein's `kernel.md`, section 6),
   and a signal or a deadline is acted on only once it returns. It exits 0
   after a stop it was asked for.
-- **Stops a group** at `stop FORGE` (7.1): the group's running steps
+- **Stops a group** at `stop FORGE` or `remove FORGE` (7.1): the group's running steps
   alone, as the box's stop does, in reverse order, each by a signal,
   `box.grace_ms`, a second signal, `box.grace_ms` again, then a close;
   a step that exits during it is not restarted, and a once step still
   running is closed with them; a step still starting is treated as at the
-  box's stop. Once they are all closed the box answers
-  `stopped FORGE`, the group dormant, says `<label>: stopped` on its
-  terminal (below), and runs on; a termination signal during it
+  box's stop. Once they are all closed the group is dormant, the box
+  says `<label>: stopped` on its terminal (below), and answers
+  `stopped FORGE`, or at a `remove` runs the group's remover (7.1), and
+  runs on; a termination signal during it
   stops the box as above, which closes them too.
 - **Its stdout** carries `temper serve`'s stdout alone, the sign-in
   links, but for its first line when a link step follows it, which is
@@ -1229,7 +1335,7 @@ temper box
     `<label>: stopped` as the pipe says them; its `step` lines are the
     client's row's alone; each start of an owned forge, an asked
     group's `started` or the box's own start of one that starts with it,
-    is followed by its hands (`../qa.md`, 4): `<label>: api
+    is followed by its hands (`../client/tools.md`, 11.5): `<label>: api
     http://ADDRESS/api/v1` and `<label>: person LOGIN, read header PATH,
     write header PATH`, the files' paths and never their contents;
   - a long step's exit, `<WHY>; restarting in <n> s`, and the box's give
@@ -1352,63 +1458,63 @@ temper box
 ### 7.3 What it names
 
 - **Steps only:** each step's name, its arguments and whether it is
-  once, long or link; and which of them are a forge's dormant group,
-  by the forge's number alone. Its policy is a small machine of its own
-  (steps, exits, timers and the pipe's lines in; spawns, signals,
-  closes, the pipe's lines and the groups' records out), hosted on
-  skein-io.
+  once, long or link; and which of them are a kind's dormant group,
+  bound to a forge by its number alone at its ask. Its policy is a small
+  machine of its own (steps, exits, timers and the pipe's lines in;
+  spawns, signals, closes, the pipe's lines and the groups' files and
+  records out), hosted on skein-io.
 - **The steps in groups:** `Steps { always, asked }`, `always` the steps
-  run in order, and `asked` a list of `Group { forge, before, steps, recorded, label }`,
-  each dormant until asked (7.1), `recorded` whether its `started`
-  writes the box's record: an owned forge's does, the demo's does not.
-  `label: Box<[u8]>` is the words the terminal names it by (7.2),
-  owned opaque bytes passed from the setup/fake constructor into the box's
-  layout and written verbatim: `Playground` for the demo's,
-  `Forge N (Forgejo)` for an owned forge's. The box never infers a label
-  from arguments; it adds no label field to a wire reply or stored record.
-  `before` is its place in the order:
+  run in order, and `asked` a list of `Group { kind, forge, before,
+  steps, remover, recorded, label }`, each a kind's group, dormant until
+  asked for a forge (7.1). Its steps name the forge by a placeholder,
+  `FORGE_ARGUMENT`, which the box replaces with the forge's number when
+  it binds the group to it, its steps' names taking the number too;
+  `remover` is the once step its removal runs (7.1); and its `started`
+  writes the box's record. `label: Box<[u8]>` is the words the terminal
+  names it by (7.2), owned opaque bytes passed from the setup/fake
+  constructor into the box's layout and written verbatim: `Playground`
+  for the fake kind's, `Forgejo` for the owned kind's. The box never
+  infers a label from arguments; it adds no label field to a wire reply
+  or stored record. `before` is its place in the order:
   the index in `always` it runs just before (its length puts it last).
   Each step carries its `Stage`, whose word its `step` lines carry, and
   its listeners, the socket addresses the box holds and gives it (7.1). The
   machine's step tests drive a group from dormant to `started`, and to
-  `failed`, and a started one to `stopped`, by lines and exits alone
-  (13.1).
+  `failed`, a started one to `stopped`, and one to `removed`, by lines
+  and exits alone (13.1).
 - **The binary hands it the steps.** `temper box` resolves its three
   directories, runs `temper init` when the configuration directory is
-  empty (7.1), checks the document as section 8 says, asks `temper-fake`
-  for its steps, `temper-forge-setup`'s with the fakes' before them
-  and the demo's group among the asked (8.4), and gives them to
-  `temper-box`, each asked group apart.
+  empty (7.1), checks the document as section 8 says, asks
+  `temper-forge-setup` for its kinds' steps, `temper serve` and the
+  owned kind's group, and `temper-fake` for the fake kind's group (8.4),
+  and gives them to `temper-box`, each asked group apart.
 - **Welcome peers first:** the fake-backend configuration supplies an
   always-running prefix before the ordinary steps. Every asked group's
   insertion point, the playground's included, follows that prefix.
-  An empty prefix leaves the ordinary order unchanged. Stopping an asked
-  group never stops these peers.
+  An empty prefix leaves the ordinary order unchanged. Stopping or
+  removing an asked group never stops these peers.
 - **Checked:** a boundary test fails the gate when `temper-box` depends
   on a crate named `temper-*` but `temper-forge-setup`, or names an item
-  of it but `steps`, `Steps`, `Group`, `Stage`, `Step` and its `Kind`.
+  of it but `steps`, `Steps`, `Group`, `Stage`, `Step` and its `Kind`,
+  `FORGE_ARGUMENT`, and of its kinds and group's files `BoxKind`,
+  `group_path`, `group_file` and `parse_group_file`.
 
 ### 7.4 Other arrangements of the same commands
 
-Each needs nothing below the commands to change. None has the box's
-pipe: `temper serve` runs without `--box`, an owned forge is set up by
-running its commands, and the client names them (6.5).
+None has the box's pipe: `temper serve` runs without `--box`, and runs
+no owned forge. An owned forge's group is the box's: `SetUp` of an
+owned forge is refused *not under the box* (6.5), and `temper forge
+fetch`, `prepare`, `run` and `remove` find no group's file for a forge
+the box did not run (7.1). GitHub and a Forgejo elsewhere connect as
+under the box.
 
-- **systemd,** a unit per long step: `fetch` and `prepare` as
-  `ExecStartPre=` of Forgejo's unit, `run` and `temper serve` as
-  `ExecStart=`, the order as the units' dependencies; `temper serve`'s
+- **systemd,** a unit for `temper box`, whose own stop stops its tree
+  (7.2), or one for `temper serve` alone; `temper serve`'s
   unit keeps systemd's default kill of its control group, which ends a
   crashed service's whole tree before its restart (skein's `shell.md`,
   13);
-- **the process tier** (section 13.4), which runs the commands itself;
-- **QA's environments** (`../draft/qa.md`, 4.1), whose "temper in a box" is
-  an owned setup with a scripted LLM, made by its own host from the same
-  commands, its LLM key added from the client once signed in
-  (`../client/tools.md`, section 10);
-- **the QA loop's cluster** (`../draft/qa-loop.md`, sections 4 and 11): the same
-  `temper fake llm` and `temper fake forge` programs, with the loop's
-  additions (deliveries, git and TLS with skein's test root; 8.4), beside
-  `temper serve`, and the demo's start through `temper ctl`;
+- **the process tier** (section 13.4), which runs the commands itself,
+  writing a group's file as serve does under the box;
 - **a container image** whose entry point is `temper box`, every process
   of its tree ending with the container.
 
@@ -1434,7 +1540,8 @@ directories, the fakes' origins and the files a walk pastes
 (configuration.md, 12.1).
 GitHub has one fixed person and repository. Its App 1 is seeded and
 installed, with the setup URL a person gives an App of their own (17.3),
-`http://<listener>/forges/2/github/setup`, so that the own-App path's
+`http://<listener>/forges/1/github/setup`, the number GitHub's forge
+takes when it is the first forge a walk makes, so that the own-App path's
 Install comes back to temper; App 1's private key is D'/github-app.pem,
 mode 0600. The dummy model key is the key a walk pastes. The elsewhere
 Forgejo's admin token is kept in its private file: instructions name only
@@ -1486,137 +1593,150 @@ are revalidated on both paths; edits are not silently replaced.
 
 Held listeners provide the ordinary fake peers' readiness and accept
 backlog. Restart, backoff, give-up and reverse-order shutdown use the
-ordinary supervisor. Retiring the playground must not end a newly connected
-person's model or issuer. Peer memory lasts one launch: a restarted peer
+ordinary supervisor. The playground's reset ends no peer of these, so a
+person's newly connected model or issuer runs on. Peer memory lasts one launch: a restarted peer
 uses the same seed and output files, but does not recover in-memory Apps or
 other changes. Effective configuration and temper's data remain retained.
 
-Forgejo here remains owned and real. Elsewhere is forge 4, preserving
-forge 1's playground, forge 2's GitHub and forge 3's owned configuration.
+Forgejo here remains owned and real. The machine's part points GitHub
+at its fake (section 8), and names no forge: each is made by the walk's
+own `SetUp` or `Connect`. Elsewhere is a Forgejo the walk connects as its
+admin (5.5), at the address preparation prints.
 Its separate `fake forgejo` long step uses
 `fake forge --document C'/forgejo.json --seed 7`, with its held loopback
 listener before ordinary steps and outside the playground's asked group.
 The fixed peer prefix order is fake github, fake issuer, fake model,
 then fake forgejo. Its retained token output is D'/forgejo-admin.token,
 subject to the same private-file validation and seed-output reuse as the
-other peers. The
-ordinary managed entry offers the person's admin connect; its empty setup
-directory is valid for that mode. Admission and reconciliation use the
+other peers. Admission and reconciliation use the
 ordinary configuration checks, without raised budgets or policy limits.
 The program way uses a separately provisioned fake adapter
 (configuration.md, 12.1) and the ordinary program-login mechanism. Only
 after validating the adapter does the box print the exact program-login
 command for its effective directories; a walker starts the box before using
-it. No product path branches on the flag. Retained M2 deployments may still
-have a manually started issuer: a conflicting issuer listener is a refusal,
-not a reason to bind another port or regenerate the retained document.
+it. No product path branches on the flag. A conflicting issuer listener is a
+refusal, not a reason to bind another port or regenerate the retained
+document.
 
 ## 8. The configuration
 
 - **One document,** `temper serve`'s, `temper.json` in the
   configuration directory (configuration.md, sections 2 and 12). Every
   `temper forge` command and `temper box` read it whole, check it
-  as configuration.md, section 8 says, `setup` among it, and act on
-  their part: they read no file but their own part's.
-- **`application.setup`,** a list, at most one entry per forge:
+  as configuration.md, section 8 says, `application.machine` among it,
+  and act on their part: they read no file but their own part's.
+- **It names no forge.** A forge is a record of the forge connector,
+  made by the act that sets it up or connects it, and numbered next when
+  it is made (forge.md, 2.1 and 2.2): its kind, mode, place, git
+  program, bot and first repository's intent are its record's, carried
+  by the act that makes it, `SetUp` for an owned Forgejo (6.5, 6.7),
+  `Connect` for a Forgejo elsewhere (5.5) or GitHub (section 17), and
+  `StartPlayground` for the playground's fake one (8.4). A first run's
+  document names none (8.3).
+- **The document keeps the machine's:** the clients' and the webhooks'
+  listeners; in `application.machine` (configuration.md, section 3),
+  what the forges a box can run take from this machine, the box's owned
+  Forgejo's port and the fakes' ports among it, which `temper init`
+  chooses and the box holds from its start (7.1, 8.2); and the limits,
+  whose forge members count the deployment's forges and repositories,
+  never a sum over its forges (forge.md, section 7).
+- **`application.machine`,** each of its parts absent, or null, for
+  none:
 
   ```
-  "setup": [
-    {"forge": 1,
-     "bot": {"login": "temper", "email": "temper@example.invalid"},
-     "mode": "managed"},
-    {"forge": 2, "directory": "forge-2",
-     "bot": {"login": "temper", "email": "temper@example.invalid"},
-     "mode": {"owned": {
-       "forgejo": "/opt/forgejo/forgejo",
-       "runner": {"binary": "/opt/forgejo/forgejo-runner",
-                  "labels": ["temper-host:host"], "capacity": 1,
-                  "path": "/usr/local/bin:/usr/bin:/bin"},
-       "listen": {"socket": "127.0.0.1:3000"},
-       "person": {"login": "ada", "email": "ada@example.invalid"}}}},
-    {"forge": 3, "directory": "demo/forge",
-     "bot": {"login": "temper", "email": "temper@example.invalid"},
-     "mode": {"fake": {
-       "listen": {"socket": "127.0.0.1:8369"},
-       "git": "demo/bin/git",
-       "owner": "playground",
-       "repositories": [{"name": "widget", "landing": "main"}]}}}
-  ]
+  "machine": {
+    "owned": {
+      "forgejo": "/opt/forgejo/forgejo",
+      "runner": {"binary": "/opt/forgejo/forgejo-runner",
+                 "labels": ["temper-host:host"], "capacity": 1,
+                 "path": "/usr/local/bin:/usr/bin:/bin"},
+      "listen": {"socket": "127.0.0.1:3000"},
+      "remote": "http://127.0.0.1:3000",
+      "person": {"login": "ada", "email": "ada@example.invalid"}},
+    "fake": {
+      "listen": {"socket": "127.0.0.1:8369"},
+      "remote": "http://127.0.0.1:8369",
+      "git": "demo/bin/git"},
+    "github": null}
   ```
 
   | Member | Type | Bounds |
   |---|---|---|
-  | `forge` | u16 | the `number` of one entry of `forges`, of kind Forgejo |
-  | `directory` | a data path (configuration.md, section 12) | when owned or fake, and only then: a private directory (section 3), unique among `setup` |
-  | `bot` | `{"login", "email"}` | a Forgejo login; an email, the bot's when reconcile makes it (5.6) |
-  | `mode` | `"managed"`, `{"owned": ...}` or `{"fake": ...}` | managed: temper may be given a site admin's token for the forge from the client (5.5); fake: the demo's (8.4) |
-  | `start` | absent, or `"asked"` | when owned, and only then: absent, the box runs the forge's steps at every start; `"asked"`, they wait, dormant, until the client asks for them or the box's record says they ran (7.1) |
+  | `owned` | the box's owned Forgejo | its members below; the owned kind's group (7.1) and the offer to set one up (6.5) need it |
   | `owned.forgejo`, `owned.runner.binary` | cache paths (configuration.md, section 12), or `"fetched"` | checked against the pins of 6.1; `"fetched"` names temper's pinned build in the cache, which `temper forge fetch` writes (6.6) |
   | `owned.mirror` | absent, or `{"forgejo", "runner"}`, each an origin | each `https://HOST` or `https://HOST:PORT`, no path: where `temper forge fetch` asks for the pinned paths (6.6) |
   | `owned.public` | absent, or an origin | `https://HOST` or `https://HOST:PORT`, no path: the address people reach this Forgejo at, behind a proxy; written as `ROOT_URL` and `DOMAIN` (6.2) |
   | `owned.runner` | the runner's members, or null for none | `capacity` at least 1; `labels` at least one, at most 8 |
-  | `owned.listen` | an address, jig's format | a socket address on loopback; unique among the deployment's listeners and owned and fake forges |
+  | `owned.listen` | an address, jig's format | a socket address on loopback; unique among the deployment's listeners and the machine's ports |
+  | `owned.remote` | an HTTP base | `http://<listen>`: the forge's git base |
   | `owned.person` | `{"login", "email"}` | a Forgejo login other than the bot's and `temper-admin` |
+  | `fake` | the playground's fake forge | its members below; the fake kind's group (7.1) and the playground's start (8.4) need it, and `application.demo` beside it |
   | `fake.listen` | an address, jig's format | as `owned.listen` |
-  | `fake.git` | a data path | the demo's git, a link to `temper fake git` (8.2, 8.4), mutually exclusive with the forge's `git_program` (configuration.md, section 3): the program the engine names in each of the forge's repositories' records, for the worker to spawn in place of `workers[].git` (channel.md, section 4) |
-  | `fake.owner` | a Forgejo login | other than the bot's and `temper-admin`: the user who owns the fake's repositories |
-  | `fake.repositories` | a list of `{"name", "landing"}` | at least 1, at most 8, each `name` a Forgejo repository name, unique ignoring ASCII case as Forgejo's are, and `landing` a branch name; their contents are `temper-fake`'s (8.4) |
+  | `fake.remote` | an HTTP base | `http://<listen>` |
+  | `fake.git` | a data path | the playground's git, a link to `temper fake git` (8.2, 8.4): the program the engine names in each of the fake forge's repositories' records, for the worker to spawn in place of `workers[].git` (channel.md, section 4) |
+  | `github` | GitHub's place, `{"api", "transport", "remote", "web", "git"}`, or null | null for github.com's (17.1); a place only to point at a fake (7.5) |
 
-  `"mode": "managed"` takes no `directory`, `start` or `orgs`, and its
-  forge in `forges[]` names no token files: its records are made when the
-  person connects as its admin (5.5). Its admin token name is `admin`,
-  not the owned forge's `temper-admin`. The object form
-  `{"managed": {"admin_token": PATH}}` stays until `temper forge reconcile` goes (`../draft/github.md`, 16.6).
-
-  An owned entry names no org: its org is its first repository's,
-  made by `Create` (6.7). An owned entry that still gives
-  `person.orgs`, or the entry's own older `orgs`, is refused as an
-  unknown member, naming its path. A legacy managed entry keeps its `orgs`,
-  at least one and at most `setup.orgs`, and a fake entry has none,
-  until the entry's form is brought to this table (temper-15).
-
-- **A Forgejo with no `setup` entry** is connected's alone; GitHub takes
-  no entry (section 17).
+- **Runner slots:** change CI and tiers whose workflows use `temper-host`
+  share the owned runner's capacity, including other repositories' jobs.
+  `application.machine.owned.runner.capacity` has minimum and default 1
+  (8.3). To run CI beside one single-job tier takes 2 slots; beside two
+  such tiers takes 3. Multi-job workflows need a slot for each concurrent
+  job. With only one slot a slow tier can keep CI waiting and prevent
+  landings during its run. A capacity edit reaches an existing runner
+  through re-preparation (6.3); stop the box, edit `CONFIG/temper.json`,
+  then restart on the same configuration, data and cache directories.
+- **A forge's setup entry,** what the setup host and the box's commands
+  set an owned, fake or managed forge up with, is made from its record
+  and, for an owned or fake forge, the machine's part of its kind: its
+  bot, the record's, `temper` for an owned or fake one; an owned or fake
+  forge's directory, `forge-N` or `playground-N` (section 3); an owned forge's binaries,
+  runner, port, person and origins, `owned`'s; a fake forge's port and
+  git, `fake`'s, its seed's owner `playground` and its one repository
+  `widget`, landing on `main` (8.4). A managed forge's is its record's
+  alone: its records are made when the person connects as its admin
+  (5.5), and its admin token's name is `admin`, not the owned forge's
+  `temper-admin`. No entry names an org: an owned forge's org is its
+  first repository's, made by `Create` (6.7).
+- **A Forgejo connected** with its bot's tokens has no setup entry
+  (section 4); GitHub takes none (section 17).
 - **The page's actions are the engine domain's offers**
-  (`../domain/forge.md`, 4.1), including "Connect as its admin": a
-  Forgejo elsewhere needs a managed setup entry with its forge number
-  and bot, as above, for that action (5.5). An address alone offers
-  no admin connect. The client cannot infer these offers from the
-  configuration.
+  (`../domain/forge.md`, 4.1): "Set up a Forgejo here" while the
+  machine names the box's owned Forgejo and none is kept (6.5), and
+  "Connect as its admin", which makes a Forgejo elsewhere from the
+  address the person gives (5.5). The client cannot infer these offers
+  from the configuration.
 - **The owned card's configuration** gives its data directory, Forgejo's
   and its runner's versions and the person CI jobs run as; the card says
   CI is unisolated and Forgejo stops with `temper box` (6.5;
   `../client/forge.md`, 5.4). After connect it offers "New repository",
-  with the set up's organization, repository and project fields (section
-  15), including after the without-box commands and restart. The card
+  with the set up's organization and repository fields (section
+  15), including after a restart. The card
   names the `person_password` path, never its value.
 - **GitHub's connected card** shows the setup URL to set on GitHub
   (17.3); before any accepted installation, the action is "Install the
   App", and after one, "Install on another account" (17.4).
-- **The forge's own members name no credential:** its records hold
-  them (section 3). They stay connected's, written out, never derived,
-  and checked against its setup; a mismatch refuses every command,
-  naming the path: when owned or fake, its `api` is `listen`, its
-  `transport` plaintext and its `git` `http://<listen>`, which a fake
-  forge does not serve yet (8.4); an identity's `login`, when given, is
-  the bot's.
-- **A forge's `number` is its stable id** (configuration.md, section
-  3), never reused: its records are kept under it, so a forge given
-  another number is a new forge, not connected; and records made for
-  another kind or address leave a forge not connected, named, with
-  nothing erased (section 3).
+- **A forge's record names no credential:** its secret records hold
+  them (section 3). An owned or fake forge's place is the machine's
+  part's, written out, never derived: its `api` the port's address,
+  plaintext, and its `git` the `remote`, `http://<listen>`, which a fake
+  forge does not serve yet (8.4).
+- **A forge's number is its stable id** (forge.md, 2.1), given when it
+  is made and never reused, even once the forge is removed: its secret
+  records are kept under it; and records made for another kind or
+  address leave a forge not connected, named, with nothing erased
+  (section 3).
 - **`webhooks`,** `application.webhooks`, `{"listener": address}`, on
   loopback; each Forgejo forge's secret is its `WebhookSecret` record
   (configuration.md, section 3; skein's `forge.md`, section 7).
-- **The clients' listener at a fixed address** when a GitHub forge is
-  configured: GitHub's redirect and setup URLs name it, so its port is
-  never 0, checked at start (17.1).
-- **`temper serve` checks `setup`,** and reads one file of it, an owned
-  or fake forge's handover (section 3). Under the box, as `temper
-  internal serve --box`, it adopts the box's pipe, over which it asks
-  for an owned forge's steps whose `start` is `"asked"` (7.1).
-- **`application.demo`,** the demo's fake LLM, forge and project, or
-  null for none (8.4).
+- **The clients' listener at a fixed address,** for GitHub: GitHub's
+  redirect and setup URLs name it, so its port is never 0 (17.1).
+- **`temper serve` checks `application.machine`,** and reads one file
+  of a forge's setup, an owned or fake forge's handover (section 3).
+  Under the box, as `temper internal serve --box`, it adopts the box's
+  pipe, over which it asks for a forge's group, and for its removal
+  (7.1).
+- **`application.demo`,** the scripted model's fake LLM, `llm` alone,
+  or null for none (8.4).
 - **An owned example** ships for a person, a test or QA's host to start
   from (8.1).
 - **`temper init`** writes a deployment that starts (8.2), with the
@@ -1624,10 +1744,17 @@ not a reason to bind another port or regenerate the retained document.
 
 ### 8.1 The owned example
 
+The box document written by `temper init` and the owned example give
+`documents.lines` eight entries for each creating executor list, alongside
+`tasks.charters` eight.
+This holds the reference's eligible charters 1, 2, 4, 5, 6 and 7 and its
+configured procedures without shortening either offer. The deployment's
+effective limits must still fit its codecs.
+
 `docs/examples/owned/` is a configuration directory (configuration.md,
 section 12). Its document, `temper.json`, is a whole one, `engine`,
-`workers` and `application`, for one owned forge with a runner,
-webhooks, one git identity, one worker and two LLM providers, with no
+`workers` and `application`, for the box's owned Forgejo with a runner,
+webhooks, one worker and two LLM providers, with no
 LLM account: a person adds one from the client once the deployment has
 started (credentials.md, section 3). Beside it are the files it names
 that hold no secret: the agent's configuration, `agent.json`, and the
@@ -1638,12 +1765,14 @@ directory. A person, a test or QA's host starts from a copy, edits the
 agent's absolute paths to the copy's, and `temper box --config COPY`
 runs it (section 7).
 
-- **Its forge,** forge 1, is owned, in `forge-1`, with a runner whose
-  label is `temper-host:host`, the bot `temper`, and the person `ada`,
-  whose org is `acme`. Its members are its setup's, written out (above):
-  `api` and `git` from `listen`, plaintext; no credential, since its
-  records are made at the engine's first start, from the handover
-  (6.5); the identity's `login` the bot's.
+- **Its owned Forgejo,** the machine's `owned` (above), with a runner
+  whose label is `temper-host:host`, at `127.0.0.1:3000`, and the person
+  `ada`, whose org is `acme`; the document names no forge. The person
+  sets it up from the client under the box (6.5): its `SetUp` makes
+  forge 1, the first forge made, in
+  `forge-1`, its bot `temper`, its place the machine's, `api` and `git`
+  from `listen`, plaintext; no credential, since its records are made
+  at `started`, from the handover (6.5).
 - **Its landing rule** covers `acme/widget`'s `main`, and asks for CI,
   Actions on the owned runner, the head up to date with its base, and an
   agent's review, gate 1, at a clean head (configuration.md, section 3).
@@ -1683,7 +1812,12 @@ runs it (section 7).
   directory the person names; and takes the process tier's profile, the
   sizes its live tier runs a real model with: smith's `standard`, with
   `declared` `memory` 2,147,483,648, `tool_payload` 4,098, `read_window`
-  256, `conversations` 1 and `calls_per_response` 1, and `policy`
+  256, `conversations` 3 (room for a run and two sub-agents, smith's
+  `protocol/limits.md`, 2.2: a run's main conversation and its
+  sub-agents', each a program session of its own on Claude Code, smith's
+  `protocol/programs.md`, 5.10) and `calls_per_response` 1 (sub-agent
+  calls run one after another, smith's `domain/session.md`, 5, and
+  `protocol/limits.md`, 2.3), and `policy`
   `max_turns` 8, `check_timeout` 60,000 ms, `group_stop` 10, `inbox` 8
   and `unacknowledged` 8. Both charters require eight turns; each permits
   modifying work with a 60,000 ms reserve, so the agent's check timeout
@@ -1694,6 +1828,10 @@ runs it (section 7).
   (configuration.md, section 7, `small` against the agent). smith's
   standard sizes with nothing declared refuse the example's model
   declaration at start.
+  `temper init`'s stock profile instead takes `calls_per_response` 2:
+  two adjacent inspect-only sub-agent calls can run side by side. Its
+  demo endpoint gives a smaller turn and resume carrier than the owned
+  example (configuration.md, 13.8).
 - **Its `engine.limits`** are jig's small profile with the overrides
   configuration.md, section 7 asks so that the engine's documents, its
   watch room and the forge's paths fit temper's client, and those its
@@ -1701,7 +1839,7 @@ runs it (section 7).
   - `authority.segments`, `tasks.hold_segments` and
     `tasks.authority_segments`, 8: a name's segments, the forge's
     deepest path;
-  - `documents.rows` 2, `documents.lines` 2 and `documents.text_bytes`
+  - `documents.rows` 2, `documents.lines` 8 and `documents.text_bytes`
     128: temper's client's rows and text;
   - `views.watchers` and `views.watchers_per_party`, 16: the watch room,
     as the root holds it whatever `engine.limits` says
@@ -1754,9 +1892,11 @@ runs it (section 7).
   SKEIN_CODEGEN_WRITE=1 cargo nextest run --locked -p temper --test suite -E 'test(startup::turn_bounds)'
   ```
 
-  jig's store and its KV bounds and the worker wire's ceilings stay as
-  they are: a turn's body is a transcript file's, never a KV value, and
-  each figure is within its wire field's ceiling.
+  jig's small store page ceiling admits the largest shipped ordinary
+  transcript's full frame (jig's `protocol/configuration.md`, 6).
+  The other KV bounds and the worker wire's ceilings stay as they are:
+  a turn's body is a transcript file's, never a KV value. Startup refuses
+  a figure past its wire field's ceiling.
 - **Its `memory_bytes`** are deployment budgets, never declarations of
   a service's worst case. `engine.memory_bytes` meters the engine's
   held bytes (`../domain/root.md`, 4.1); no start compares memory with
@@ -1813,30 +1953,30 @@ directory is empty (7.1).
   |---|---|---|---|
   | `worker.secret` | data | 0o600 | 32 bytes from the kernel's random source, as 64 lowercase hexadecimal digits and a newline |
   | `worker.digest` | data | 0o600 | the SHA-256 of the secret's digits without its newline, as 64 lowercase hexadecimal digits and a newline, as the walk `box` (`temper help box`) makes it |
-  | `demo/llm.key` | data | 0o600 | the demo model's key (8.4): 32 bytes from the kernel's random source, as 64 lowercase hexadecimal digits and a newline |
-  | `demo/bin/git` | data | a link | the demo's git, `temper fake git` (8.4): a symbolic link to the binary |
-  | `charters/chat.txt`, `charters/coding.txt` | configuration | 0o644 | the charters' instructions, the owned example's; designed, not built: no longer written, the binary holding them (configuration.md, 13.4) |
-  | `agent.json` | configuration | 0o644 | smith's agent configuration (configuration.md, section 5): the owned example's endpoints, models and profile (8.1), and the demo's endpoint and model (8.3); Claude Code's program at the `claude` found on `PATH`, and its programs directory, `programs` in the data directory; with no `claude` on `PATH`, no program, and Anthropic's models by key alone |
+  | `demo/llm.key` | data | 0o600 | the scripted model's key (8.4): 32 bytes from the kernel's random source, as 64 lowercase hexadecimal digits and a newline |
+  | `demo/bin/git` | data | a link | the playground's git, `temper fake git` (8.4): a symbolic link to the binary |
+  | `agent.json` | configuration | 0o644 | smith's agent configuration (configuration.md, section 5): the owned example's endpoints, models and profile (8.1), and the scripted provider's endpoint and model (8.3); Claude Code's program at the `claude` found on `PATH`, and its programs directory, `programs` in the data directory; with no `claude` on `PATH`, no program, and Anthropic's models by key alone |
   | `temper.json` | configuration | 0o644 | the default document (8.3) |
 
 - **What it finds,** each written absolute:
   - *the binary,* the running `temper`'s own path: the worker's agent's
     `program`, with `arguments` `["internal", "agent",
     <configuration>/agent.json]` and `configuration` that same path
-    (configuration.md, section 5), and the demo's link's target;
+    (configuration.md, section 5), and the playground's git link's target;
   - *git,* the `git` found on `PATH`: the worker's `git`; with none,
     `null`, written without refusing, and init says so (git.md, section
-    3). The demo's link, `<data>/demo/bin/git`, is the fake entry's
-    `git` (section 8), so that the demo's git is `temper fake git`
-    (8.4) whatever git the machine has, or none;
-  - *the person,* forge 3's (8.3): its `login` the name of the effective
-    uid's entry in `/etc/passwd` (`geteuid`, then that file), the login
-    the person signs in to their Forgejo with; its `email`
-    `LOGIN@localhost`; its one org `work`. With no entry, or a name that
-    is not a Forgejo login, is one of Forgejo's reserved names (such as
-    `admin`), or is the bot's, `temper-admin` or `work`, the login is
-    `person`, and init says so: forge 3 waits dormant, so the person's
-    login is never a reason the first run does not start;
+    3). The playground's link, `<data>/demo/bin/git`, is the machine's
+    `fake.git` (section 8), so that the playground's git is `temper fake
+    git` (8.4) whatever git the machine has, or none;
+  - *the person,* the machine's owned Forgejo's (8.3): its `login` the
+    name of the effective uid's entry in `/etc/passwd` (`geteuid`, then
+    that file), the login the person signs in to their Forgejo with; its
+    `email` `LOGIN@localhost`. With no entry, or a name that is not a
+    Forgejo login, is one of Forgejo's reserved names (such as `admin`),
+    or is the bot's, `temper-admin` or `work`, the first repository's
+    default org (6.7), the login is `person`, and init says so: no owned
+    forge is set up until the person asks, so the person's login is
+    never a reason the first run does not start;
   - *the bundle:* none to find. `clients.bundle` is always `null`, the
     binary's own (`../client/browser.md`, 2.6): a temper built with its
     browser starts its first run with it. From a binary built without
@@ -1846,12 +1986,11 @@ directory is empty (7.1).
     bundle (`../client/browser.md`, 2.2), never a bare `404`;
   - *the clients' listener's port:* 8367, when a socket binds
     `127.0.0.1:8367`, else the port the kernel assigns to a bind of port
-    0; the port written fixed, as a GitHub forge requires
-    (configuration.md, section 3). A later start on a port taken is
+    0; the port written fixed, as GitHub requires (17.1). A later start on a port taken is
     refused, naming it and the document, as any start is;
-  - *the forges' ports:* 8368, forge 3's, the owned Forgejo's (8.3);
-    8369, the fake forge's, and 8370, the fake LLM's (8.4), each by the
-    same rule;
+  - *the machine's ports:* 8368, the owned Forgejo's (8.3); 8369, the
+    playground's fake forge's, and 8370, the scripted model's fake LLM's
+    (8.4), each by the same rule;
   - *the webhooks' listener's port:* 8371, by the same rule (8.3). The
     five sockets, the clients', these three and the webhooks', are held
     until all five ports are chosen, so that no two are the same; then
@@ -1864,7 +2003,8 @@ directory is empty (7.1).
 - **Choosing ports for another box:** keep the first running and give
   init three separate empty directories. Its occupied preferred ports
   fall back by the rule above, and both documents name the chosen ports
-  consistently, including the forge remotes and the demo LLM endpoint.
+  consistently, including the machine's remotes and the scripted LLM
+  endpoint.
   The saved addresses stay fixed; a separate init releases its
   reservations when it exits, so it does not reserve them for a later
   box. A first-run `temper box` on empty directories keeps the
@@ -1875,40 +2015,42 @@ directory is empty (7.1).
   the browser is not served` from a binary built without its bundle;
   `init: no git on PATH: a real forge's repositories need git
   2.41 or later, set as workers[].git` when there is none; `init:
-  LOGIN cannot be a Forgejo login: forge 3's person is person` when
-  the login falls back (above); `init: uid UID has no login in
-  /etc/passwd: forge 3's person is person` with no login; and last,
+  LOGIN cannot be a Forgejo login: the owned Forgejo's person is
+  person` when the login falls back (above); `init: uid UID has no login
+  in /etc/passwd: the owned Forgejo's person is person` with no login;
+  and last,
   `init: start it with temper box`, with the flags init was given,
   then `init: after starting, continue with ChatGPT or add an OpenAI API
   key from the accounts page`. Its
   stdout is empty; exit 0.
-- **Nothing else:** no account, no forge credential, no repository and
-  no store. The engine's first start makes its store; accounts, forges
-  and repositories are the client's (credentials.md, section 3;
-  `../client/forge.md`), and the demo's account and repository the
-  demo's start's (8.4).
+- **Nothing else:** no forge, no account, no credential, no repository
+  and no store. The engine's first start makes its store; accounts,
+  forges and repositories are the client's (credentials.md, section 3;
+  `../client/forge.md`), and the playground's forge, account, project
+  and repository its start's (8.4).
 - **Its code:** `temper-init`, step code (section 11): given the facts
   above, git's path or none and the person's login among them, the three
-  directories, the secret's 32 bytes and the demo key's 32 bytes, it
+  directories, the secret's 32 bytes and the scripted key's 32 bytes, it
   answers the files, each with its directory, its name, its bytes and
   whether it is private, and the person's login, fallen back to `person`
   or not; it reads, writes and binds nothing. The binary's `init` finds
   the facts, checks the refusals and writes the files, on skein-io.
 - **Checked:** temper-init's step tests check that its `engine.llm` is the
-  owned example's with the demo's provider (8.3), that the digest is the
-  secret's, the files' names, directories and order, and forge 3's
-  entries with the person's login found and fallen back. The binary's
+  owned example's with the scripted provider (8.3), that the digest is
+  the secret's, the files' names, directories and order, and the
+  machine's part with the person's login found and fallen back. The binary's
   crate tests, on scratch directories, check that the document init writes
   passes configuration.md, section 8, as `temper serve` checks it, with
   the agent's configuration it writes, at the fixed ports and at kernel's
   ports, the five always distinct, with and without `claude` and git;
   a second init while the first holds its five listeners, on separate
-  directories, writes disjoint ports and matching listener, forge remote
-  and demo LLM addresses in both documents; `clients.bundle` always
+  directories, writes disjoint ports and matching listener, remote
+  and scripted LLM addresses in both documents; `clients.bundle` always
   `null`; each refusal writing nothing, the person's fallback login
   among them; the files' modes; and the link's target. A box on a fresh init,
-  among those tests, reaches `temper serve`'s sign-in link with forge 3
-  dormant: no `forge-3` directory and nothing in the cache. The process
+  among those tests, reaches `temper serve`'s sign-in link with no forge
+  and every group dormant: no `forge-N` directory, no group's file and
+  nothing in the cache. The process
   tier starts a box on empty directories (13.4).
 
 ### 8.3 The default document
@@ -1916,43 +2058,32 @@ directory is empty (7.1).
 A working minimum, for the mechanics and a person's first run; good
 defaults for a person's real work are open (section 16).
 
-- **Its forges,** each by its stable number (configuration.md, section
-  3):
-  - 1, the demo forge, Forgejo, its members its setup's (section 8):
-    `api` `127.0.0.1:<the fake forge's port>`, plaintext, and one git
-    identity whose `login` is the bot's, `temper`;
-  - 2, GitHub, at GitHub's addresses, with one git identity whose
-    members are GitHub's defaults, not connected until the person
-    connects it from the client (section 17);
-  - 3, the person's own Forgejo, its members its setup's (section 8):
-    `api` `127.0.0.1:<its port>`, 8368 (8.2), plaintext, `git`
-    `http://127.0.0.1:<its port>`, and one git identity whose `login` is
-    the bot's, `temper`; dormant, not connected until the person sets it
-    up from the client (6.5). Its handover is `forge-3/admin_token`; its
-    access and git value are records, with no other credential file
-    written or read.
-
-  GitHub and the owned Forgejo are in the document from the first run,
-  so that connecting either from the client needs no restart. A start
-  resolves each forge's `api` name once (README.md, section 14); a name
-  that does not resolve, GitHub's on a machine without DNS, refuses no
-  start: that forge starts not connected, and each connect of it,
-  restored or asked, is answered unreachable, naming the host, until a
-  start that resolves it. The other forges start as they would. A
-  forge so held keeps its connection and its setup entries, built with
-  the address `127.0.0.1:0`, which no listener can hold, and temper sends
-  neither a connect nor a setup request for it: the placeholder never
-  reaches a socket.
-- **Two `setup` entries:**
-  - forge 1's, fake, in `demo/forge`, its `git` the demo's link (8.2),
-    its bot `temper`, its `owner` `playground`, its one repository `widget`,
-    landing on `main` (8.4);
-  - forge 3's, owned, in `forge-3`, `"start": "asked"` (7.1): its
-    `forgejo` and `runner.binary` `"fetched"` (6.6); its runner the
-    owned example's, `temper-host:host`, capacity 1, and its `path`;
-    its `listen` `127.0.0.1:<its port>`; its bot `temper`; and its
-    person the one init finds, `LOGIN@localhost`, with the org `work`
-    (8.2).
+- **No forge** (section 8): a first run's store holds none, and the
+  person makes each from the client, none needing a restart: the
+  playground's fake one by trying it (8.4), an owned Forgejo by setting
+  it up under the box (6.5), GitHub or a Forgejo elsewhere by connecting
+  it (section 17, 5.5). A start resolves each kept forge's `api` name
+  once (README.md, section 14); a name that does not resolve, GitHub's
+  on a machine without DNS, refuses no start: that forge starts not
+  connected, and each connect of it, restored or asked, is answered
+  unreachable, naming the host, until a start that resolves it. The
+  other forges start as they would. A forge so held keeps its connection
+  and its setup entry, built with the address `127.0.0.1:0`, which no
+  listener can hold, and temper sends neither a connect nor a setup
+  request for it: the placeholder never reaches a socket.
+- **Its machine part,** `application.machine` (section 8):
+  - `owned`, the box's owned Forgejo: its `forgejo` and `runner.binary`
+    `"fetched"` (6.6); its runner the owned example's,
+    `temper-host:host`, capacity 1, and its `path`; its `listen`
+    `127.0.0.1:<its port>`, 8368 (8.2), and its `remote`
+    `http://127.0.0.1:<its port>`; and its person the one init finds,
+    `LOGIN@localhost` (8.2). Set up, it is forge N in `forge-N`, its
+    handover `forge-N/admin_token`; its access and git value are
+    records, with no other credential file written or read;
+  - `fake`, the playground's fake forge: its `listen`
+    `127.0.0.1:<the fake forge's port>`, its `remote`, and its `git` the
+    playground's link (8.2);
+  - `github` null, GitHub at github.com's addresses (section 17).
 
 - **The webhooks' listener,** `application.webhooks.listener`,
   `127.0.0.1:<its port>` (8.2). Each Forgejo's `WebhookSecret` is a
@@ -1960,20 +2091,27 @@ defaults for a person's real work are open (section 16).
   repository's hook; the fake's start-time adoption hooks its seeded
   repositories (8.4). GitHub's hints come from its App's delivery log.
 - **Its LLM providers:** the owned example's `engine.llm`, whole (8.1),
-  with no account; and 3, Demo, the demo model's (8.4): one endpoint,
+  with no account; and 3, `demo`, the scripted provider, the
+  playground's (8.4): one endpoint,
   `demo`, at `127.0.0.1:<the fake LLM's port>`, plaintext, OpenAI's
   dialect on its public route; one model, `demo`, priced as the owned
   example's model is, 1 per 1,000,000 for input, cached and output (jig
   and smith refuse a price of 0); its window 177,523 and its output
-  8,192, giving smith's 51,870-byte host part at the owned threshold,
+  8,192, giving smith's 51,717-byte host part at the owned threshold,
   4/5, for the largest stock charter's tools and authorised brief
   (`../domain/agent.md`, 4.3 and 4.6). The owned message bound stays
   4,098 bytes, and a request at the threshold
   stays within the fake's request bound; its source a key. The agent's
   configuration declares it too (8.2).
-- **No project** (`../draft/first-run.md`, 2.4): the playground's
-  start makes the playground's (8.4), and the person's first repository
-  theirs (6.7). One policy, `engine.policies` 1 (jig's
+- **Its projects:** none. Its `engine.projects` is `[]`: jig makes
+  each first owner a deployment owner with no project configured
+  (jig's `domain/people.md`, 3), and the engine, the playground and the
+  client run a deployment with no project. Projects are made at
+  runtime: the playground's start makes the playground's, "Demo"
+  (8.4), and the welcome's Ready the person's first, "Default"
+  (`../client/README.md`, 3.5). A deployment whose
+  first start seeded a project, project 1 as the document seeded it
+  before, keeps it: no start removes or renames it. One policy, `engine.policies` 1 (jig's
   `protocol/configuration.md`, section 3), which each project made
   starts from: its owner's grants, the rules' ceiling and its
   projections the owned example's, on the pattern below in place of
@@ -1982,74 +2120,77 @@ defaults for a person's real work are open (section 16).
   ["forge"], "last": "open", "value": ""}`, `enforce`d, with `ci` and
   `up_to_date`, and no gate or approval: a change lands on green CI
   with no person in between, in every project, seeded or made
-  (configuration.md, section 8). The document seeds project 1 with that
-  policy, and the playground's start adopts into it (section 15); the
-  first repository goes into a project made at runtime by jig's
-  `MakeProject` (6.7). Designed, not built: the policy and the landing rule are
+  (configuration.md, section 8). Each project is made on that policy
+  by jig's `MakeProject` (8.4, 6.7). The policy and the landing rule are
   the binary's stock settings, policy 1 and the deployment's rule 1, and
   the document names neither (configuration.md, 13.4); `temper init`
   writes no `engine.policies`, `engine.rules` or `application.landing`.
 - **Its acts:** `engine.acts` (jig's `protocol/configuration.md`,
-  section 3) grants the forge connector, 1, the demo end's acts
-  (8.4), `{"connector": 1, "may": ["close", "remove_account"]}`,
-  and no other connector any. The
+  section 3) grants the forge connector, 1, the playground's reset's
+  acts (8.4), `{"connector": 1, "may": ["remove_project",
+  "remove_account"]}`, and no other connector any. The
   document's first owner, whom the grant needs, is its `owners`' first.
-  A document written before the grant still serves: `temper serve`
-  starts on it, and only the demo's acts are refused, *not offered*.
-  A start then fails *not granted*, its message naming the missing
-  grant and the line to add to `engine.acts`, the one `temper init`
-  writes; the end's acts are kept and named in serve's log until a
-  start's document grants them.
+  A document without the grant still serves: `temper serve` starts on
+  it, and only the reset's acts are refused, *not offered*: each is
+  kept, and named in serve's log with the grant to add to
+  `engine.acts`, the one `temper init` writes, until a start's document
+  grants it.
 - **Its charters and templates,** the owned example's, but both
-  charters' models end with `demo`: chat, 1, and coding, 2, the one the
-  forge's procedures start agents' work under (`application.charter`);
+  charters' models end with the scripted model, `demo`: chat, 1, and coding, 2, the one the
+  forge's procedures start agents' work under (kind 3's number 1,
+  configuration.md, 13.2);
   the templates `chat` and `goal`. A task with no model chosen takes the
   first of its charter's models whose provider has an account serving
-  its payer (jig's `jig-domain-core` `llm.rs`), so on a first run, whose
-  one account is the demo's, a chat and the coding agent of the change
-  it delegates both run on the demo model, with no pick, until the
-  person adds an account. jig resolves that default once, at the task's
-  Create, and records it: a chat started before the account stays on
-  the demo model, and a chat started after takes the charter's first,
+  its payer (jig's `jig-domain-core` `llm.rs`), so in the playground,
+  whose project's one account is the scripted one (8.4), a chat and the
+  coding agent of the change it delegates both run on the scripted
+  model, with no pick. jig resolves that default once, at the task's
+  Create, and records it: a chat started before an account of a real
+  provider stays on the model it took, and a chat started after takes
+  the charter's first,
   `gpt-6-luna` once an OpenAI key serves it. The composer's line says
   which, before the start, from jig's `resolved_default` preview in
   `me`, never by guessing from catalogue order (`../client/README.md`,
   5.5). The request keeps its omitted choice; the preview does not turn
-  it into an explicit one. Designed, not built: the charters, the
+  it into an explicit one. The charters, the
   templates and the forge's charter are the binary's stock settings,
   their models every model `engine.llm` configures in the document's
-  order, the demo's last as `temper init` writes it; the document names
+  order, the scripted model last as `temper init` writes it; the document names
   none of them (configuration.md, 13.4), and a person changes them from
   "How work runs" (`../client/README.md`, 5.13).
 - **One worker,** in the process, its `root` `workspaces` in the data
   directory, its `git` the machine's, or null (8.2); the deployment's directory
   `deployment` in the data directory; the clients' listener
   `127.0.0.1:<port>` (8.2).
-- **Its limits:** the owned example's (8.1), but room for its three
-  forges: `forge.repositories` and `forge.client.repositories` 3, and
-  `forge.output` 82. Its `memory_bytes` are deployment budgets, as the
-  owned example's are (8.1). Startup checks its limits with its strings
-  at their bounds, the fake entry's `git`, which the engine names to
-  the worker, among them; the two literals of `temper-init`'s
-  forgejo-elsewhere/demo document are checked the same way.
-- **`application.demo`,** the demo's (8.4).
-- **Its box's steps:** `temper serve`; the demo's group, the fake LLM,
-  forge 1's preparation and its fake, dormant until the person chooses
-  the playground (7.1, 8.4); and forge 3's group, dormant until the
-  client asks for it: its fetch, its preparation, Forgejo's web and
-  the runner's daemon; the engine takes the handover and reconciles
-  (6.5).
+- **Its limits:** the owned example's (8.1), with `forge.repositories`
+  and `forge.client.repositories` 3, counts of the deployment's
+  (forge.md, section 7), and `forge.output` 82. Its `memory_bytes` are
+  deployment budgets, as the owned example's are (8.1). Startup checks
+  its limits with its strings at their bounds, the machine's
+  `fake.git`, which the engine names to the worker, among them; the two
+  literals of `temper-init`'s forgejo-elsewhere/demo document are
+  checked the same way.
+- **`application.demo`,** the scripted model's fake LLM (8.4).
+- **Its box's steps** (7.1): `temper serve`; the fake kind's group, the
+  fake LLM, a fake forge's preparation and the fake forge, dormant until
+  the person tries the playground (8.4); and the owned kind's group,
+  dormant until the person sets up an owned Forgejo: its fetch, its
+  preparation, Forgejo's web and the runner's daemon; the engine takes
+  the handover and reconciles (6.5).
 
-### 8.4 The demo
+### 8.4 The playground
 
-A person's first run is a demo (`../draft/first-run.md`, 3.5, 3.6 and
-5, step 3): once the person chooses the playground, the box runs a
-fake LLM and a fake Forgejo from temper's own binary, the engine sets
-itself up on the fake as on an owned one, and makes the playground's
-project, adds the demo model's key and adopts the demo's repository
-itself (the demo's start, below).
+A person's first run offers the playground (`../draft/archive/first-run.md`,
+3.5, 3.6 and 5, step 3): once the person tries it, the engine makes its
+records, a fake forge's, the scripted account and the playground's
+project; the box runs a fake LLM and a fake Forgejo from temper's own
+binary for that forge, the engine sets itself up on the fake as on an
+owned one, and adopts `playground/widget` into the playground's project
+itself (its start, below). Once the person sets temper up, its reset
+removes them all (below). Its pages and its banner are the client's
+(`../client/README.md`, 4.8).
 Its bar: one suggested request landed
-end to end on the demo model, by the engine's own loop with nothing
+end to end on the scripted model, by the engine's own loop with nothing
 staged. The chat delegates a change on `playground/widget`; its coding agent
 edits a file; the worker commits and pushes the branch with `temper
 fake git`, on the fake forge's git route; the change opens its pull
@@ -2058,6 +2199,130 @@ so. The other suggestions answer in text. The engine hears the fake by
 its deliveries to the box's webhooks' listener (8.3), and polls beside
 them as it does any Forgejo.
 
+- **Its records:** a `Playground` row of temper's store (store.md,
+  section 2), none when there is no playground, naming what its start
+  makes: its fake forge's number, and, once made, its project's and its
+  account's; its state *starting*, from its start's decision until its
+  acts are made, *running*, or *resetting* at its reset's step,
+  `project`, `forge` or `account` (below). Its fake forge is a forge's
+  record (forge.md, 2.1), fake, its place the machine's `fake` (section
+  8), its bot `temper`, its setup entry the playground's: its directory
+  `playground-N`, its seed's owner `playground` and its one repository
+  `widget` (section 8). Its account is the deployment's account of the
+  scripted provider, `application.demo.llm.provider`.
+- **Offered while no real forge is kept:** `StartPlayground` is
+  refused *not offered* while any forge but the playground's own is
+  kept, whatever its state but ended: an unfinished one is started over
+  first (6.7), and a whole one is not; one ended, being removed
+  (`../domain/forge.md`, 4.1), is in no list and counts for nothing, as
+  the welcome counts it (`../client/README.md`, 3.5); also while the
+  row reads resetting, and when the document has no `application.demo`
+  or the machine no `fake`. A real account alone does not end it. It is offered again
+  once its reset is done, while no real forge is kept: it has no ended
+  state and no end but its reset, and no other forge's connect changes
+  it.
+- **Its start,** `StartPlayground` ("Try the playground",
+  `../client/README.md`, 3.5 and 4.8), of the deployment's scope,
+  admitted as `SetUp` is. With no row, in one decision, the forge
+  connector makes the fake forge's record, numbered next (forge.md,
+  2.2), and the row, *starting*, naming it; and under the box, unless
+  the fake forge is connected or connecting, asks the box for its group
+  (7.1), which the box link holds while another group starts and sends
+  once that one answers. Without a pipe it asks nothing: the fakes are
+  the runner's (7.4). Once the fake forge connects, its acts follow, in
+  order, each under the sign-in of the person who sent the start, with a
+  key derived from the start's, since the account's uses are its
+  holder's request, a first owner's for the deployment's account, which
+  no act in the deployment's name makes (jig's `domain/people.md`, 5.1
+  and 5.3):
+  1. the scripted account: `llm.key`'s bytes less a final newline, as
+     the deployment's account of `llm.provider`, by `AddKey { provider,
+     join: None, digest }`, unless the deployment holds one of that
+     provider. The service reads the file at each start and carries its
+     bytes as a pasted value's (`../client/README.md`, section 8); a
+     start that adds no account leaves the value unused, erased before
+     the answer;
+  2. the playground's project: jig's `MakeProject`, named `Demo`, on
+     the stock policy 1 (configuration.md, 13.4), the person its owner:
+     an ordinary project, which the client shows by the name its record
+     holds (`../client/README.md`, 5.6);
+  3. the scripted account's uses, naming the playground's project
+     alone (jig's `domain/accounts.md`, 4.2);
+  4. `playground/widget` adopted into the project by `Adopt`, from its
+     fake forge, owned, landing on `main`, the project's home, with CI.
+
+  The row keeps each of the project and the account as it is made. The
+  start is answered once all are done, *running*, the row then running;
+  or at the first that fails, *start failed*, naming why: the group's
+  `failed` with its `WHY`, the account's refusal, the project's or the
+  adoption's, or the forge not connected within `setup.deadline_ms` of
+  the start. A start while the playground runs is answered *running* at
+  once; one while another is under way waits for it and takes its
+  answer. The answer is kept in memory alone, as `SetUp`'s is
+  (`../client/README.md`, section 8): the same key while it is held
+  answers the same outcome, and after a restart, unknown.
+- **The scripted model, the playground's alone:** the playground's
+  project allows only the scripted model, and no other project allows
+  it, so a person's own account added before the start never runs the
+  playground's scripts, nor the scripted account a real project's work.
+  The scripted provider stays in `engine.llm` (8.3), its endpoint the
+  fake LLM's port, the machine's (section 15).
+- **Its reset,** `EndPlayground`, the banner's "set up temper"
+  (`../client/README.md`, 4.8), of the deployment's scope: in one
+  decision the row reads *resetting*, a start under way is answered *not
+  offered*, and the forge connector keeps the reset's acts, in order,
+  each the deployment's, the row's step naming the one under way, and
+  each sent under a key derived from the fake forge's number and the
+  step; the project's and the account's are acts in the deployment's
+  name, the forge connector's own (jig's `domain/people.md`, 5.3),
+  granted by the document's `acts` (8.3), and the forge's is the
+  connector's own removal, which needs no grant:
+  1. `project`: the playground's project deleted, by `RemoveProject`
+     (jig's `domain/people.md`, 5.2), with the grace of temper's chat
+     template (template 1, `configuration.md`, section 2) as the
+     settings hold it when the act is sent, or none once it is removed:
+     jig's core reads no template, so temper's root reads it and fills
+     the act, as it reads the goal template for a goal
+     (`../domain/agent.md`, 4.3.2). It is answered removed once the
+     project is closed, so the step passes then; its chats are asked to
+     finish within that grace, as their person's close asks one, then
+     cancelled and erased with it in the deletion's own kept steps,
+     which go on beside the reset's next steps until whole. The act
+     sent again at a start carries the grace the settings hold then: if
+     the act was made before the restart with another, it is another
+     act under the key, refused as a key conflict, which moves the row
+     on as a refusal does (below), and the deletion made then goes on
+     with the grace it keeps;
+  2. `forge`: the fake forge removed (`../domain/forge.md`, 4.1), its
+     group stopped and its directory, file and record removed (7.1);
+  3. `account`: the scripted account removed, by `RemoveAccount`;
+
+  then the row erased, none again, and the reset answered *reset*. A
+  step with nothing to remove, the project or the account not made,
+  passes on. The page shows "Leaving the playground…" until the reset
+  answers, then opens the welcome's Forge step, `/welcome?at=forge`
+  (`../client/README.md`, 3.5): the store as a person who pressed "Set
+  up temper" from the welcome finds it. With no row the reset is
+  refused *not offered*; one while another is under way waits for it
+  and takes its answer.
+- **Kept until whole:** a step's act answered with a saved answer, made
+  or refused, moves the row to its next step. One answered with none
+  keeps the row at its step: *not offered*, the act not granted, named
+  in serve's log with the grant to add to `engine.acts` (8.3); lacking
+  the role, no first owner configured, named too; or busy. At each start
+  of the engine, once the core is ready (jig's restart's `Open`), a row
+  reading resetting sends its step's act again, with its key: an act
+  made before the restart is answered from its saved answer, and one the
+  restart lost is made then, so a reset a restart cut ends whole, and
+  the page shows the reset under way until the row is none.
+- **A start a restart cut short,** the row *starting*, is reset at the
+  next start, as `EndPlayground` resets it, with no client: its fake
+  forge removed, and its project and account deleted and removed when
+  made. The person then finds the welcome, the store empty.
+- **A box restarted while the playground runs:** its fake forge keeps
+  no state across its starts (below), so the engine's records of the
+  branches it lost would outlive it. The start resets the playground,
+  as the banner does, and the person meets the welcome.
 - **`application.demo`,** or null for none:
 
   ```
@@ -2068,33 +2333,27 @@ them as it does any Forgejo.
                        "turns": ["..."]}],
             "cued": [{"cue": "Export widget's table as CSV",
                       "turns": ["..."]}],
-            "otherwise": ["..."]},
-    "forge": 1, "project": {"name": "Playground", "policy": 1}}
+            "otherwise": ["..."]}}
   ```
 
   | Member | Type | Bounds |
   |---|---|---|
-  | `llm.listen` | an address, jig's format | a socket address on loopback; unique among the deployment's listeners and owned and fake forges |
+  | `llm.listen` | an address, jig's format | a socket address on loopback; unique among the deployment's listeners and the machine's ports |
   | `llm.provider` | u32 | the number of one of `engine.llm`'s providers (configuration.md, section 2), whose endpoints are each at `llm.listen`, plaintext, OpenAI's dialect on its public route, and whose source is a key alone |
   | `llm.key` | a data path (configuration.md, section 12) | a secret's file, 0o600 (section 9): the key is its bytes less a final newline |
   | `llm.asked` | a list of `{"cue", "turns"}` | at most 8 with `cued`'s; each `cue` non-empty text of at most 256 bytes, unique across `asked` and `cued`, the words of a request the client suggests (`../client/README.md`, 4.8 and 5.6); `turns` 1 to 8 turns (below) |
   | `llm.cued` | a list of `{"cue", "turns"}`, optional, none when absent | as `asked`'s; the scripts the fake plays and the client never suggests, an agent's, cued by its brief |
   | `llm.otherwise` | a list of turns | 1 to 8 |
-  | `forge` | u16 | the `forge` of one fake `setup` entry (section 8) |
-  | `project` | `{"name", "policy"}` | the project the demo's start makes (below): `name` a project's name in jig's shape (jig's `domain/core.md`, 6.1), `Playground` as `temper init` writes it; `policy` the number of one of `engine.policies` (jig's `protocol/configuration.md`, section 3); designed, not built: of the policies offered at its start, the stock policy 1 unless changed (configuration.md, 13.4) |
 
   The scripts, `asked`, `cued` and `otherwise` together, fit skein's fake LLM's
   `script_bytes` (skein's `fake-llm.md`), which `temper-fake` sets.
-  Any other member is refused, naming it (configuration.md, section 1),
-  `client` among them: a document `temper init` wrote while the demo
-  had its seed is refused at its next start, naming
-  `application.demo.client`, until the member is removed.
+  Any other member is refused, naming it (configuration.md, section 1).
 - **A turn** is skein's `Turn` (skein's `fake-llm.md`, section 2), in
   either of two spellings:
   - *a text:* one text line, finishing `stop`, its tokens its bytes
     divided by 4, rounded up;
-  - *an object,* `{"lines", "finish", "tokens"}`, the QA loop's and the
-    demo's: `lines`
+  - *an object,* `{"lines", "finish", "tokens"}`, the document form's and the
+    playground's: `lines`
     1 to 8, each `{"text"}`, non-empty text, or `{"call", "arguments"}`,
     a tool's name of 1 to 64 ASCII letters, digits, `_` and `-` and its
     arguments a JSON object, which `temper-fake` writes compact as the
@@ -2104,19 +2363,20 @@ them as it does any Forgejo.
   Each is checked as skein checks a script's turns (its section 2.3).
   No turn holds a hold, a failing line or opaque bytes.
 - **Its words,** as `temper init` writes them (8.2), the playground's,
-  as the person meets the demo (`../draft/first-run.md`, 2.3; the
+  as the person meets it (`../draft/archive/first-run.md`, 2.3; the
   client's phrasebook, `../client/README.md`, 5.6): one `asked` script
-  for each request the client suggests in the demo project
+  for each request the client suggests in the playground's project
   (`../client/mockups/first-run.html`), "Add CSV export to widget", "Add
   a dark theme to widget" and "Fix widget's empty search state"; one
   `cued` script, for the coding agent of the change the first
   delegates; and an
   `otherwise` that says it is the scripted model, the playground's,
   which answers only the
-  suggested requests, and how to connect a real one from the client's
-  accounts page. Each turn is an object, its tokens its lines' bytes
-  divided by 4, rounded up. Their content is the demo's follow-up
-  (`../draft/first-run.md`, section 8).
+  suggested requests, and that setting temper up, from the banner,
+  gives other work a model of the person's. Each turn is an object, its
+  tokens its lines' bytes divided by 4, rounded up. Their content is the
+  first run's follow-up
+  (`../draft/archive/first-run.md`, section 8).
   - *"Add CSV export to widget",* the chat's, three turns, each
     finishing `tool_calls`:
     1. the text "I’ll delegate this change in playground/widget. It
@@ -2178,10 +2438,10 @@ them as it does any Forgejo.
   matched apart where it is looked for, a chat's in its person's
   request and an agent's in its system text, and absent from the
   others',
-  within `temper-fake`'s bounds; the process tier's first run plays
-  them (13.4). The real loop's landing story already plays a cued
-  chat's `delegate` to its landing on skein's peers, so the demo adds
-  no story there.
+  within `temper-fake`'s bounds; the real loop's playground stories
+  play them (13.4). The real loop's landing story already plays a cued
+  chat's `delegate` to its landing on skein's peers, so the playground
+  adds no story there.
 - **`temper fake llm DIRS`,** a long step: skein's fake LLM peer, run
   `without_records` as a peer serving a person is (skein's
   `fake-llm.md`), its domain `Domain::played` with `asked` as its asked
@@ -2205,30 +2465,31 @@ them as it does any Forgejo.
   would. It serves `llm.provider`'s models, at their windows and
   outputs; no failure and no latency is configured, and its limits
   are `temper-fake`'s constants.
-- **`temper forge prepare DIRS N` on a fake entry,** a once step: its
+- **`temper forge prepare DIRS N` on a fake forge,** a once step: its
   directory made private; `admin_token` written when absent, 20 bytes
   from the kernel's random source as 40 lowercase hexadecimal digits,
   as Forgejo's tokens are. The fake reads it before it binds, so the
   handover is the preparation's, not the fake's own at its start, as
   the draft had it: no step races `temper serve` for the file.
 - **`temper fake forge DIRS N`,** a long step: skein's fake forge peer,
-  `without_records`, at `fake.listen`. It reads `admin_token` before it
+  `without_records`, at the machine's `fake.listen`. It reads `admin_token` before it
   binds, refusing to start without it, naming the file, and leaves the
   file for `temper serve`. Its seed:
   - *temper's admin,* `temper-admin`, a site admin of the setup's
     routes, its one token the handover's, with every scope (skein's
     `fake-forge.md`, section 4);
-  - *the owner,* `fake.owner`, a user of the domain, numbered apart from
-    the setup's accounts (skein's `fake-forge.md`, section 5);
-  - *its repositories,* `fake.repositories`, each the owner's, in the
+  - *the owner,* its setup's, `playground` (section 8), a user of the
+    domain, numbered apart from the setup's accounts (skein's
+    `fake-forge.md`, section 5);
+  - *its repositories,* its setup's, `widget` on `main`, each the owner's, in the
     protocol's `config.repositories` and the domain alike, numbered
     from 1 in the list's order at every start, so the box's
-    `playground/widget` and the QA loop's `fake/widget` are each 1; on its
+    `playground/widget` and the document form's `fake/widget` are each 1; on its
     `landing` branch, one commit of `temper-fake`'s constants, its
     files, author and time alike, so its head is the same commit at
     every start: `README.md`; `src/main.rs`, whose `main` prints
     widget's table, three rows of a name and a count, the file the
-    demo's change edits; and `.forgejo/workflows/check.yml`, which
+    playground's change edits; and `.forgejo/workflows/check.yml`, which
     describes the check the fake's CI stands for and is not run;
   - *its CI,* `Checks` with one context, `check`, with no latency,
     silence or rerun: on a repository with a cue, the domain's `Cue { path, green
@@ -2245,9 +2506,9 @@ them as it does any Forgejo.
   no git smart HTTP; it keeps no state across its starts.
 - **The fake's start-time adoption,** in `temper serve`'s setup host:
   after the records' load, the root's restore, the handover and
-  reconcile (6.5), the demo's forge's at its group's `started` (7.1),
+  reconcile (6.5), the playground's forge's at its group's `started` (7.1),
   one `Adopt { forge, repository }` for each of
-  `fake.repositories` not already adopted, numbered from 1 in the list's
+  its setup's repositories not already adopted, numbered from 1 in the list's
   order as the fake numbers them. A repository restored by the root is
   already adopted: reconcile checks its access, and start-time adoption
   skips it. The plans run one after another (5.1), with the same given
@@ -2256,8 +2517,8 @@ them as it does any Forgejo.
   makes the bot a collaborator with write and the repository's hook; the
   forge connects from records once they all end done. A stop leaves the
   forge not connected, named by its step; the engine and every other
-  forge run on. The demo's start adopts the repository into the
-  project once the forge is connected (below). `temper forge fetch` and `run` refuse a fake, "it is fake,
+  forge run on. The playground's start adopts the repository into its
+  project once the forge is connected (above). `temper forge fetch` and `run` refuse a fake, "it is fake,
   not owned".
 - **Its deliveries follow the setup's hooks** (skein's `fake-forge.md`,
   section 4): each event goes to each hook a repository's setup holds
@@ -2267,11 +2528,11 @@ them as it does any Forgejo.
   reaches serve's listener as a Forgejo does: a push, a pull request's
   change, CI's end and the merge each send one. The box's listener is
   on loopback (8.3), and its fake draws no loss and no latency; it
-  records no delivery, being `without_records`. The QA loop's serve
+  records no delivery, being `without_records`. A runner's serve
   has one too, on loopback.
-- **`temper fake git`,** no step: the demo forge's git, which the
+- **`temper fake git`,** no step: the playground's forge's git, which the
   worker spawns for the fake's repositories by the program their
-  records name, the fake entry's `git`, the demo's link (8.2; channel.md,
+  records name, the machine's `fake.git`, the playground's link (8.2; channel.md,
   section 4), in place of `workers[].git`, as it spawns real git
   (git.md, section 5), and which it checks at its first use as it checks
   real git, by `git version` (git.md, section 3). A real forge's
@@ -2282,8 +2543,8 @@ them as it does any Forgejo.
   engine gives; its credential the bot's, from git's
   `http.extraHeader`; its store the fake's domain, so a push is the
   head the engine reads.
-- **Its programs' flags,** for the box and the QA loop's runner alike
-  (`../draft/qa-loop.md`, sections 4 and 11), after the operands:
+- **Its programs' flags,** for the box and a runner alike, after the
+  operands:
   - `--ready PREFIX`: once its listener is bound, the program writes
     PREFIX, then the bound address as `127.0.0.1:<port>`, then a
     newline on stdout, flushed; nothing else is on its stdout;
@@ -2319,7 +2580,7 @@ them as it does any Forgejo.
   Both peers run `without_records`, with the flags or without them,
   but the fake LLM given `--observations`, which records its queries.
 - **From a document of its own,** `temper fake llm --document FILE` and
-  `temper fake forge --document FILE`, the QA loop's form, which reads
+  `temper fake forge --document FILE`, the document form, which reads
   no deployment: FILE is a fake's configuration, a JSON object, as
   `temper-fake` derives it from the deployment's document in the box's
   form, with what a run needs beside it. The LLM's:
@@ -2387,7 +2648,7 @@ them as it does any Forgejo.
   `{"ci_ms"}`, a u32 of milliseconds from a head's push to its CI's
   verdict, the `Checks` latency with its least and its most alike
   (skein's `fake-forge.md`, 2.3). Each at most 60000; absent, 0, as the
-  box's fakes and the QA loop's run.
+  box's fakes and a runner's run.
 - **Its outputs,** in a document's form, where the box's fakes read the
   files `temper init` and the preparation drew: the fake writes each
   file the document names before it binds, so that each exists before
@@ -2404,8 +2665,7 @@ them as it does any Forgejo.
   `temper forge prepare` does. Each key, `key`'s and `added_keys`', and the admin token are each 20
   bytes as 40 lowercase hexadecimal digits, from skein-lib's `Rng`
   seeded by `--seed` and a constant of each credential's (an added key's its index's), a stream apart
-  from the domain's draws, so the runner draws none
-  (`../draft/qa-loop.md`, section 4). A seeded credential is no secret
+  from the domain's draws, so the runner draws none. A seeded credential is no secret
   from whoever holds the run's record: it opens only that run's loopback
   processes, which end with it, which is why the box draws its own from
   the kernel instead. `tls.root` gets
@@ -2413,7 +2673,7 @@ them as it does any Forgejo.
   fixed chain that root signs, whose leaf names `skein.test` and
   `127.0.0.1` (skein's `fake-llm.md`, section 3); an endpoint reaching
   it names `skein.test` as its server and trusts that file alone
-  (configuration.md, section 12), as the QA loop's serve and agent do.
+  (configuration.md, section 12), as a runner's serve and agent do.
   The fake removes none of them at its stop; the engine takes and
   removes the handover (6.5), and the run's directories go with the run.
 - **A runner** starts the fakes first, learns their addresses from their
@@ -2421,169 +2681,15 @@ them as it does any Forgejo.
   handover the fake wrote, and starts `temper serve`.
 - **`temper serve`** takes the fake's handover and reconciles from
   records (6.5), runs its start-time adoption from those records, then
-  connects (8.4): under the box, the demo's forge once its group has
-  started (7.1).
-- **The demo's state** is the engine's, one record of temper's store,
-  `Demo`, keyed by the demo's forge (`store.md`, section 2): none, *not
-  started*; *running*, from the person's choice of the playground; and
-  *ended*, for good, once real backends replace the demo
-  (`../draft/first-run.md`, 2.3), written by the demo's end (below).
-  Nothing else holds it: the box keeps no record of the
-  demo's group (7.1), and the client reads it with the demo
-  (`../client/README.md`, 4.8). The client's `DemoAnswer` carries
-  `DemoState::Ended` with the configured provider, forge and project when
-  retired; an empty answer means the deployment has no demo. A reload
-  retains that identity without offering or starting the playground.
-  Each start of the engine reads it, so a
-  restart and the moment of the choice look alike: running, the box
-  link asks for the demo's group at serve's first link, as the start
-  below does, and the group's `started` takes the handover and
-  reconciles (6.5); not started or ended, the demo's fakes stay
-  dormant. `temper fake seed`, a link step that made the start's acts
-  through `temper ctl` calls, goes with it.
-- **The demo's start,** the client's `StartDemo`
-  (`../client/README.md`, 4.6 and section 8), of the deployment's
-  scope, admitted as `SetUp` is. The forge connector reads the record:
-  with no demo, or one ended, it refuses, *not offered*. Otherwise, in
-  one decision, it writes *running* when the record is none and, unless
-  the demo's forge is connected or connecting, asks for the demo's
-  group (`start FORGE`, 7.1), which the box link holds while another
-  group starts and sends once that one answers; without a pipe it asks
-  nothing, the fakes being the runner's (7.4). Then it
-  makes the seed's acts itself, each reading first and done when it
-  finds itself done:
-  1. the demo's project: the `Demo` row's, once a start has made it
-     (`store.md`, section 2); else a project named `project.name`,
-     which a start cut short after making it leaves; else made, by
-     jig's `MakeProject` of that name and `project.policy`, the person
-     its owner and only party (`../draft/first-run.md`, 2.4). Its
-     number is then written to the row;
-  2. the demo model's key, `llm.key`'s bytes less a final newline, as
-     the deployment's account of `llm.provider`, unless the deployment
-     holds an account of that provider. The service reads the file at
-     each start and carries its bytes as a pasted value's
-     (`../client/README.md`, section 8); a start that adds no account
-     leaves the value unused, erased before the answer;
-  3. once the demo's forge is connected, `fake.repositories`' first
-     adopted into the demo's project, from `forge`, the fake's `owner`, on its
-     `landing`, with the adoption form's defaults
-     (`../client/README.md`, 4.4), unless the project has it.
-
-  Each act is the deployment's, the forge connector's own (jig's
-  `domain/people.md`, 5.3), granted by the document's `acts` (8.3),
-  never the person's: no sign-in admits it and no role of the person's
-  bounds it. The account is `AddKey { provider, join: None, digest }`,
-  carrying the start's value, under a key derived from the start's key
-  and `account`; the adoption is `Adopt { project, adoption }`, the
-  forge connector locating the repository and answering the core's ask
-  as it does a party's adoption, under a key derived from the start's
-  key and `adoption`. The account is asked in the start's own
-  decision, so no restart comes between the two. The start
-  is answered once all three are done, *running*, or at the first that
-  fails, *start failed*, naming why: the group's `failed` with its
-  `WHY`, the project's refusal, the account's refusal, the adoption's
-  refusal, the acts not granted (*not granted*, naming the `acts` line
-  to add, above), or the forge
-  not connected within `setup.deadline_ms` of the start. A start while
-  the demo runs makes what is not done, and is answered the same: a
-  second start, or a start that failed, sent again, adds and adopts
-  nothing twice. A start while another is under way waits for it and
-  takes its answer. The answer is kept in memory alone, as `SetUp`'s
-  is (`../client/README.md`, section 8): the same key while it is held
-  answers the same outcome, and after a restart, unknown.
-- **A start a restart cut short** leaves the record running and the
-  adoption undone, since it waits for the forge to connect. The engine
-  mends it with no client: each time the demo's forge connects while
-  the record reads running, no start is under way and the project does
-  not have the repository, the forge connector makes the adoption
-  itself, `Adopt` under a key derived from the demo's forge and the
-  repository's number alone, so that every start of the engine sends
-  the same act and jig makes it once. Its refusal is named in serve's
-  log, and the next connection tries again. The account is never
-  re-made: the start made it in its own decision, and a person who
-  removed it since removed it for good.
-- **A restart** of the box starts no fake until serve asks: serve's
-  start reads the demo running and asks for its group (above), its
-  preparation draws a new handover, and the engine takes it at
-  `started` and reconciles, which makes the bot, its tokens and each
-  adopted repository's access again (5.3, step 6). The account and the
-  adoption are jig's records and stay; no act is made again but the
-  adoption a start left undone (above), and the end's acts still kept
-  (below). The fake
-  seeds its repositories the same at every start, so a worker's clone
-  of one still matches it; a branch an agent pushed is lost with the
-  fake's state, and the engine's records of it outlive it, until the
-  fake keeps its state across starts (below).
-- **The demo's end,** for good (`../draft/first-run.md`, 2.3), the
-  forge connector's, in one decision: the first time it is told a
-  configured forge other than the demo's connected (`forge`; never
-  every fake), while the record is none or running, it
-  1. writes *ended*: a demo never started is ended the same way, and
-     never starts;
-  2. ends the demo's forge in its domain (`../domain/forge.md`, 4.1):
-     no list shows it, the routing serves it no call and drops its
-     hints (`forge.md`, 8.1), and the setup host sets it up no more;
-     and with it `fake.repositories`' repository, which leaves the
-     project's repositories while its tasks, chats and landings stay
-     readable;
-  3. under the box, when the demo ran, asks the box link for `stop
-     FORGE` (7.1), which the link holds while another group starts and
-     sends once that one answers, as it does a start; the box closes
-     the group's steps, the fake LLM's with them, and answers `stopped
-     FORGE`, and a `failed` is named in the log alone. Without a pipe
-     it asks nothing: the fakes are the runner's (7.4), and stopping
-     them is the service manager's;
-  4. answers a start under way *not offered*, as it answers every
-     start after;
-  5. ends what the demo left, as the deployment's acts (jig's
-     `domain/people.md`, 5.3), each kept as a `DemoAct` row of temper's
-     store (`store.md`, section 2) under its key, written in this
-     decision, and asked in it:
-     - *the demo's chats,* each closed by `Close { project, task, grace,
-       reason }`, its reason `Ended with the playground`, its grace the
-       chat template's (the template whose flags mark a conversation,
-       jig's `engine.templates`), its key derived from the chat's
-       number and `close`. The demo's chats are the live conversations
-       of the demo's project whose requester is a person, as they stand
-       at the end: until the end no forge but the demo's is connected,
-       so no chat of the project works on another forge's repository,
-       while a chat opened after it, on the person's first repository
-       in the same project, is not the demo's and stays open. The
-       selection is the end's, kept in its rows, never read again later;
-     - *the demo model's account,* the deployment's account of
-       `llm.provider`, when it holds one, removed by `RemoveAccount {
-       account }`, its key derived from the account's number and
-       `remove`.
-
-     The client's page of a chat so closed reads it cancelled by the
-     deployment, "Cancelled HH:MM · Ended with the playground"
-     (`../client/README.md`, 3.5).
-
-  Each start of the engine reads the record: ended, the demo's forge
-  is ended from the start and its group never asked, so a restart and
-  the moment of the end look alike. The client's read answers none
-  (`../client/README.md`, 4.8), so no page shows the playground.
-- **The end's acts, answered and kept.** The forge connector erases an
-  act's row when its answer is saved: made (the compound, the account
-  removed); refused *ended* for a chat or *unknown* for either, which
-  jig answers past its retention for a chat closed or an account
-  removed since, both taken as done; or any other saved refusal, named
-  in serve's log. It keeps the row on an answer jig does not save: *not
-  offered*, the act not granted; lacking the role, no first owner
-  configured; or busy, not ready. The first two are named in serve's
-  log too, never dropped. At each start of the engine, once the core is
-  ready (jig's restart's `Open`), it sends every kept row's act again,
-  with its key: an act made before the restart is answered from its
-  saved answer, the chat closed once, and an act the restart lost is
-  made then, so an end that no client saw, or that a restart cut, ends
-  whole.
+  connects (above): under the box, the playground's forge once its
+  group has started (7.1).
 - **`temper fake forge check DIRS N OBSERVATIONS STORE`,** no step: the
-  retained check of the fake forge's promises; the lab was retired for
-  `../qa.md`'s process. It is
+  check of the fake forge's promises. It is
   skein's judge (skein's `fake-forge.md`, 2.5) over forge N's
   observations, with temper's decisions from temper's own record, a
-  copy of its store, never from the merges judged (decision 259). It
-  reads the document for forge N, a fake `setup` entry, and for the
+  copy of its store, never from the merges judged. It
+  reads forge N's setup from its group's file (7.1), a fake forge's,
+  the document for the
   store's limits; it reaches no peer and writes nothing but the copy,
   which opening may repair.
   - *OBSERVATIONS,* the file `--observations` wrote, or a copy of it:
@@ -2653,7 +2759,7 @@ them as it does any Forgejo.
     decision is saved before its merge is sent (`../domain/forge.md`,
     section 6), so a store copied after the observations holds the
     decision behind every merge they hold.
-  - *Its verdict,* by the retained check's contract (decision 259): a pass is status 0 and no line; breaches are status
+  - *Its verdict,* by the check's contract: a pass is status 0 and no line; breaches are status
     1, a `{"fail": LINE, "summary": TEXT}` line each, its `line()` the
     signature and its summary the promise's words, then an
     `{"undecided": REASON}` line when the evidence is also incomplete;
@@ -2671,14 +2777,17 @@ them as it does any Forgejo.
     each decision, its head the fake's commit number. A reader's refusal
     follows as a text line.
   - *Its own errors:* a refused argument, a document that does not read
-    or check, or a forge N without a fake entry is the check's error,
+    or check, or a forge N that is no fake forge is the check's error,
     not the run's: status 1, its refusal on stderr and no line, which
     a caller reads as the check's error, never a pass. The check creates no directory.
-- **Its code:** `temper-fake`, step code (section 11): the member's
+- **Its code:** the playground's row, its start's and its reset's
+  decisions, the forge connector's, in `temper-engine-domain-forge`, the
+  acts they make routed by `temper-engine-domain`, and the row kept by
+  `temper-protocol-store`; the fakes' in `temper-fake`, step code
+  (section 11): the member's
   types and checks; the fake LLM's and the fake forge's configurations
   and seeds, from the deployment's document or from one of their own;
-  `steps`, the box's steps for the document, the demo's group among
-  the asked. It names no host. Its dependencies:
+  the fake kind's group, its slot among the box's steps. It names no host. Its dependencies:
   `temper-forge-setup`, `skein-fake-forge-domain`,
   `skein-fake-forge-protocol`, `skein-fake-llm-domain`,
   `skein-fake-llm-protocol`, `skein-llm`, `skein-http`, `skein-forge`,
@@ -2697,10 +2806,6 @@ them as it does any Forgejo.
   system (`../domain/testing.md`, 4.3), which `main` runs when its
   `argv[0]`'s last component is `git`.
   `Mode::Fake` and the link step's kind are `temper-forge-setup`'s.
-- **Not yet:** git's smart HTTP on the fake, its pages, and its state
-  across starts; and a webhooks' listener in the box, so the demo's
-  forge delivers as the QA loop's does; each is the demo's follow-up
-  (`../draft/qa-loop.md`, sections 4 and 11).
 
 ## 9. Credentials
 
@@ -2716,7 +2821,7 @@ them as it does any Forgejo.
 | the webhooks' secret | Forgejo, every mode | the person, pasted; reconcile, drawn | the `WebhookSecret` record | the webhooks' listener; Forgejo's hooks |
 | a GitHub App's key | GitHub | GitHub, at the manifest's conversion; the person, pasted as PEM | the `AppKey` record, DER; a PEM never | the forge component, for its tokens; the setup host, while a plan runs |
 | an installation's token; a GitHub git token | GitHub | the forge component, from the App's key | memory alone | the forge component; git |
-| the demo model's key | the demo | `temper init`, random (8.2), or the fake LLM from its seed in a document's form (8.4) | `demo/llm.key`, or the document's `key` | the fake LLM, its one credential; the service, which carries it at the demo's start for the deployment's account (8.4) |
+| the scripted model's key | the playground | `temper init`, random (8.2), or the fake LLM from its seed in a document's form (8.4) | `demo/llm.key`, or the document's `key` | the fake LLM, its one credential; the service, which carries it at the playground's start for the deployment's scripted account (8.4) |
 
 - **Every credential the engine holds is a record** in jig's secrets'
   store (credentials.md, the records), written by the setup host's
@@ -2817,27 +2922,29 @@ skein-forge-setup            the setup's plans, their types and checks, the acce
 │                              host component a service runs them on (skein's forge-setup.md, section 6)
 ├── skein-forge
 └── skein-lib, skein-json
-temper-forge-setup           step code: the setup's types and checks, read from the configuration; the
-│                              setup mapped onto the plans' given values, and the kit's check of them;
-│                              the fetch's machine and the preparation's; app.ini and the runner's
-│                              files; the processes' specs; the configuration's steps. Names no host
+temper-forge-setup           step code: the setup's types and checks; the machine's part, read from the
+│                              configuration, and a forge's setup entry by its kind; the setup mapped
+│                              onto the plans' given values, and the kit's check of them; the fetch's
+│                              machine and the preparation's; app.ini and the runner's files; the
+│                              processes' specs; the kinds' steps and the group's file. Names no host
 ├── skein-forge-setup, skein-forge
 └── jig-protocol-config, skein-lib, skein-json
 temper-forge-setup-shell     ordinary Rust: the hosts of fetch, prepare and run: commands, files, the
 │                              forge's locks, the exec, the fetch's requests over TLS, on skein-io
 ├── temper-forge-setup
 └── skein-io, skein-http, skein-tls, skein-lib, skein-json, skein-shell
-temper-box                   the box's machine (step code), its asked groups and its pipe to temper
-│                              serve among it, and its host (ordinary Rust) on skein-io's processes;
-│                              nothing of setup but its steps (7.3); one crate, under the subset's
+temper-box                   the box's machine (step code), its kinds' groups, their files and records
+│                              and its pipe to temper serve among it, and its host (ordinary Rust) on
+│                              skein-io's processes; nothing of setup but its steps and its kinds
+│                              (7.3); one crate, under the subset's
 │                              lints, its host written within the subset
 ├── temper-forge-setup
 └── skein-lib, skein-io, skein-shell
 temper-init                  step code: the default document and the files temper init writes, from
 │                              the facts the binary finds (8.2, 8.3); reads, writes and binds nothing
 └── skein-lib, skein-json
-temper-fake                  step code: the demo's member, its types and checks; the fakes'
-│                              configurations and seeds; the box's steps (8.4).
+temper-fake                  step code: the playground's member, application.demo, its types and
+│                              checks; the fakes' configurations and seeds; the fake kind's group (8.4).
 │                              Names no host
 ├── temper-forge-setup
 ├── skein-fake-forge-domain, skein-fake-forge-protocol, skein-fake-llm-domain, skein-fake-peers
@@ -2846,7 +2953,7 @@ temper-fake-git              ordinary Rust: the fake git program's core, temper 
 │                              its two remotes (../domain/testing.md, 4.3)
 ├── skein-fake-checkout, skein-fake-forge-domain, skein-fake-forge-protocol, skein-fake-peers
 └── skein-lib, skein-io, skein-http, skein-json
-temper                       the binary: temper forge fetch|prepare|run, temper box, temper init,
+temper                       the binary: temper forge fetch|prepare|run|remove, temper box, temper init,
                                temper fake llm|forge|git
 ```
 
@@ -2854,9 +2961,9 @@ temper                       the binary: temper forge fetch|prepare|run, temper 
   temper-service maps each forge's setup onto the plans' given values
   through `temper-forge-setup` (section 5), and depends on neither
   `temper-forge-setup-shell` nor `temper-box`.
-- **The binary checks `setup` and its limits** for every command,
-  `temper serve`'s included: `temper-forge-setup` checks `setup` and the
-  `setup.` limits, and `temper-box` the `box.` limits, beside
+- **The binary checks the machine's part and its limits** for every
+  command, `temper serve`'s included: `temper-forge-setup` checks
+  `application.machine` and the `setup.` limits, and `temper-box` the `box.` limits, beside
   temper-service's startup.
 - **Machines, not scripts.** The plans (skein's) and the preparation
   decide from what they read, and say each request or command they need;
@@ -2882,10 +2989,6 @@ temper                       the binary: temper forge fetch|prepare|run, temper 
   for.
 - **The process tier** (`../domain/testing.md`, 2.6), on owned mode in place of
   its own provisioning, with CI and webhooks (13.4).
-- **QA's environments** (`../draft/qa.md`, 4.1), each an owned setup made
-  from the same commands (7.4): a box an agent starts, drives through
-  temper's client and Forgejo's API as the person, reads the logs in its
-  files, and throws away.
 
 ## 13. Testing
 
@@ -2903,7 +3006,11 @@ relies on.
   binary refused; a missing `admin_token` made again, under a fresh name;
   a preparation cut short made again from an empty layout; Forgejo's
   files with no `state` refused; a later preparation taking Forgejo's
-  lock alone.
+  lock alone when the runner configuration is unchanged; a changed
+  capacity at the same versions rewrites the runner's YAML while keeping
+  its registration and secrets. The shell checks that a live runner's
+  lock permits identical YAML to remain and refuses changed YAML until
+  the runner stops.
 - **The specs:** each command's arguments and environment, and no secret
   of the preparation's in any argument.
 - **The plans' decisions** from answers are skein's (skein's
@@ -2912,14 +3019,12 @@ relies on.
   of an owned one becomes its value, the word `temper` and the names
   `temper-api` and `temper-git` among them, and each `Place` the kit's
   check refuses is named by its path.
-- **The configuration:** each mismatch of section 8 refused, naming its
-  path; a managed entry with a `directory`, and an owned or fake one
-  without, refused; `steps` for each arrangement of modes, with and
-  without the demo.
-- **The demo,** in temper-fake: each bound of `application.demo`
-  refused, naming its path; the fakes' configurations and seeds from
-  the default document; `steps` with the demo's group asked and
-  unrecorded.
+- **The configuration:** each bound of section 8's machine part
+  refused, naming its path; a forge's setup entry made from the machine's
+  part by its kind; the kinds' steps with and without each part.
+- **The playground's fakes,** in temper-fake: each bound of
+  `application.demo` refused, naming its path; the fakes' configurations
+  and seeds from the default document; the fake kind's group.
 - **The box's machine:** the order; a restart after its once steps; the
   backoff and the cap; the stop's order, and `temper serve`'s second
   signal; a link step started on its long step's first line, given it
@@ -2949,10 +3054,13 @@ relies on.
   second `start` while one runs answered busy, a re-ask of the starting
   forge answered by its own lines, an ask while stopping, a record not
   written, a forge with no group `not asked`, and a started one
-  `started`; a start with the record
-  running the group as an always group; an unrecorded group, the
-  demo's, answering `started` with no record written, and dormant again
-  at the box's next start until asked; a line past `box.line_bytes`
+  `started`; a kind's group bound to the forge it is asked for, its
+  file and its record written; at a later start, a group with its
+  record run in place as an always group, one without it dormant, and a
+  second started group of one kind not started, named; `remove FORGE`
+  stopping the group, running its remover and removing its file and
+  record, answered `removed FORGE`, on the real ring too, and a removal
+  that fails answered `failed`; a line past `box.line_bytes`
   refused; `temper serve` restarted with a pipe afresh, an answer meant
   for the exited one dropped; a restart held unsent and then a stop
   launching nothing; a held spawn's late start and late failure during a
@@ -2992,8 +3100,8 @@ relies on.
   record kept before removal, then `Reconcile` and the connect, the row
   "Connecting" between; a stop or failed removal leaving it "Set up
   failed", named by its step; `failed` naming the box's step and
-  pointing to its output for the rest; with no pipe, the row naming the
-  commands (6.5).
+  pointing to its output for the rest; with no pipe, `SetUp` of an
+  owned forge refused *not under the box* (6.5).
 - **The setup host's close** (5.1), in the existing temper-service
   setup step fixture: notes full and never popped, host outputs full
   before close is requested, and `Closed` behind the active notes,
@@ -3002,38 +3110,25 @@ relies on.
   actual host/socket terminal events and io settlement complete it.
   Events and counts establish the order, with no sleeps, new harness,
   unbounded queue or timeout change.
-- **The demo's state and start** (8.4), in the engine's domain world
-  (`tests/engine/domain`) and the forge connector's tests: no record,
-  not started, the demo read answering it; a start writing running and
-  asking for the demo's group in one decision, the box link holding it
-  while another group starts; the account added unless the deployment
-  holds one of the provider, the value left unused otherwise; the
-  demo's project made once, found again by the row and, after a start
-  cut short, by its name; the
-  adoption once the forge connects, unless the project has it; the
-  answer, running, once all three are done, and start failed at the first
-  that fails, the forge not connected by `setup.deadline_ms` among them;
-  a second start while running answered the same, adding and adopting
-  nothing twice; the same key answered from memory, and unknown after a
-  restart; a restart while running asking for the group again and
-  making no act but an adoption a start left undone, made once the
-  forge connects with no client, and once across starts; each act the
-  deployment's, the forge connector's, refused not offered when the
-  document does not grant it, the start failing *not granted* with the
-  `acts` line to add while the engine starts and serves on that
-  document; refused,
-  not offered, with no demo or one ended; and in temper-service's step
-  tests, a start carrying `llm.key`'s bytes.
-- **The demo's end's acts** (8.4), in the engine's domain world: the
-  selection both ways, a chat of the demo's project open at the end
-  closed with its delegates and the reason, and a person's chat opened
-  after the end in the same project, on their first repository, left
-  open; the demo model's account removed, and none asked without one;
-  each act kept in the end's decision and its row erased on its saved
-  answer, ended and unknown among them; a restart between the keep and
-  the answer sending it again, answered once, the chat closed once; an
-  act not granted kept, named in the log, and sent again at the next
-  start.
+- **The playground's start and reset** (8.4), in the engine's domain
+  world (`tests/engine/domain`) and the forge connector's tests: no
+  row, none; a start making the fake forge's record and the row,
+  starting, and asking for its group in one decision, the box link
+  holding it while another group starts; once the forge connects, the
+  account added unless the deployment holds one of the provider, the
+  value left unused otherwise, the project made, the account's uses
+  naming it alone, and `playground/widget` adopted; the answer,
+  running, once all are done, and start failed at the first that fails,
+  the forge not connected by `setup.deadline_ms` among them; a second
+  start while running answered the same; the same key answered from
+  memory, and unknown after a restart; a start refused *not offered*
+  while a real forge is kept, or while the row resets; a start a
+  restart cut short reset at the next start; the reset deleting the
+  project, then removing the forge, then the account, then erasing the
+  row; an act not granted kept, named with its grant, and sent again at
+  the next start; a reset cut after each act ending whole at the next
+  start; and in temper-service's step tests, a start carrying
+  `llm.key`'s bytes.
 - **The fake's start-time adoption** (8.4), in temper-service's step
   tests: after handover and reconcile, one `Adopt` for each seeded
   repository not already restored, in order, with the deployment's
@@ -3131,8 +3226,9 @@ it checks of this document:
   directories' flags, each a scratch directory of the test's own; the
   owned example is copied as a configuration directory (8.1). No test
   resolves a default under `$HOME`.
-- **Owned in place of the test's support:** the test runs `temper forge
-  prepare`, `run forgejo` and `run runner` itself, then `temper serve`,
+- **Owned in place of the test's support:** the test writes the
+  forge's group's file as serve does under the box (7.1), runs `temper
+  forge prepare`, `run forgejo` and `run runner` itself, then `temper serve`,
   whose setup host takes the handover and reconciles (6.5), with the
   binaries `TEMPER_FORGEJO` and `TEMPER_FORGEJO_RUNNER` name, and
   webhooks on. Its repository runs Actions, so its landing rule asks for
@@ -3151,59 +3247,54 @@ it checks of this document:
   link on its stdout, and whole on one pipe given as both its stdout and
   its stderr, as a terminal is (7.2); Forgejo killed and restarted, with the engine still
   serving; a stop leaving no process it started.
-- **A first run,** a test of its own: `temper box` on three empty
-  scratch directories writes the configuration (8.2), says so (init's
-  line for no browser among its lines only from a binary built without
-  one: the test checks the build it runs in, `../client/browser.md`,
-  2.6), and prints one sign-in link, which signs the owner in, the demo's fakes
-  dormant; the owner starts the demo with `temper ctl playground start`
-  (`../client/tools.md`, 5.5), answered once the demo forge is
-  connected and `playground/widget` adopted into Playground, project 1,
-  which the start made. The owner sends
-  "Add CSV export to widget" to the project's chat, which runs on the
-  demo model with no pick (8.3); the chat's last message says the
-  change landed, its delegated task ended landed, and the landed
-  change's merge commit, the id temper's own read of the change gives,
-  holds on the fake the seeded head as its first parent and the seeded
-  files with `src/main.rs` the coding agent's edit (8.4): the test reads
-  the commit's tree, file bytes and parents by the fake's `POST
-  /.fake/git/objects` (skein's `fake-forge.md`), which takes no token,
-  so the story reads no credential. The test prints each box run's
-  time, asserting no time. It reads no hook, since the fake's hook
-  read takes a token. A delivery's acceptance is shown by
-  `tests/real-loop/tests/suite/forge.rs`'s
-  `a_forge_delivery_is_accepted_by_the_engines_listener`; its secret's
-  matching is checked by the step tests. A second box on the same
-  directories finds the demo running, starts its fakes at serve's ask
-  with no act made again, and its clone holds the seeded head, since
-  the fake keeps no state across its starts.
-- **The playground's end,** a test of its own: a first run's box, the
-  demo started and connected, then a second box on the same
-  directories, its document given a second fake forge, which runs in
-  its place, unasked, and connects at serve's start: the demo ends
-  (8.4), the box's terminal says `Playground: stopped` (7.2),
-  `forge list` lists the second forge alone, and
-  `temper ctl playground start` is answered not offered. A third box
-  starts nothing of the demo's group, and answers the same. Before the
-  end, a chat is
-  opened on the demo, and no client watches the end: once the third
-  box is up, the chat reads cancelled by the deployment, `Ended with
-  the playground`, and the deployment holds no account of the demo's
-  provider.
+- **A first run, into the playground and out,** a test of its own:
+  `temper box` on three empty scratch directories writes the
+  configuration (8.2), says so (init's line for no browser among its
+  lines only from a binary built without one: the test checks the build
+  it runs in, `../client/browser.md`, 2.6), and prints one sign-in link,
+  which signs the owner in, with no forge kept and every group dormant.
+  The owner starts the playground with `temper ctl playground start`
+  (`../client/tools.md`, 5.5), answered running once its fake forge is
+  connected and `playground/widget` adopted into Demo, the project its
+  start made (8.4); then resets it with `temper ctl playground end`,
+  answered reset. The store then reads empty, as a first run's: no
+  forge listed, no account of the deployment's, no project, and no
+  `playground-N`, `box/groups/N` or `box/started/N`
+  left; and a native client reloaded opens the welcome at its Forge
+  step (`../client/README.md`, 3.5).
+- **A reset the box's death cut,** a test of its own: a first run's box,
+  the playground started, then reset while the box is held before its
+  `removed`, after the project's deletion is committed, and the box
+  killed with the reset unanswered. The next box on the same
+  directories, with no client asking, ends the reset whole at its start
+  (8.4): the store reads empty as above.
 - **Two first runs, one after the other,** a test of its own: a first
   run's box, signed in, then a second box on three other empty scratch
   directories while the first runs. The second's init finds the first's
   ports held and writes the ports the kernel assigns (8.2), and the
-  second signs in, starts its demo and answers a suggested request on
-  its own fakes while the first, which starts no demo, holds the
+  second signs in, starts its playground and answers a suggested request
+  on its own fakes while the first, which starts none, holds the
   defaults. No first-run story takes a lock
   on the default ports: each box holds its own (7.1), so the stories
   run beside each other as any others do.
-- **A start a restart cut short,** a test of its own: a first run's
-  box stopped once the demo's start has written running and before its
-  forge connects; a second box on the same directories, with no client
-  and no start sent, adopts `playground/widget` into the demo's project
-  once the forge connects, and a chat on the demo then answers.
+- **A set up cut short, started over,** a test of its own: under the
+  box, with Forgejo's binaries placed in the cache as below, the
+  owner's set up of an owned Forgejo is killed with the box at each of
+  its steps, its fetch, its preparation, its Forgejo's run, and after
+  its `started` record with the engine held before it hears it. Each
+  next box finds the forge kept and its first repository not made, and
+  its removal, `temper ctl forge remove N`, answers removed and leaves
+  no `forge-N`, `box/groups/N` or `box/started/N`. A set up after the
+  four makes forge 5, since numbers are never reused, connects it and
+  makes its first repository; the cache's binaries are the ones placed,
+  unchanged (6.7). Then a removal the box's death cut, the box held
+  after the removal was answered and killed: the next box ends it whole
+  at its start, no forge listed and nothing of it left.
+- **GitHub gone on after a restart,** a test of its own, on `temper box
+  --fake-backends`' fake GitHub (7.5): GitHub's set up stopped after
+  its App's records are kept, the box restarted, and the forge found
+  unfinished, then gone on, to the App's installation, with no Start
+  over, and connected (6.7).
 - **A first run set up for real,** a test of its own: `temper box` on
   three empty scratch directories, with the binaries `TEMPER_FORGEJO`
   and `TEMPER_FORGEJO_RUNNER` name placed where the fetch looks,
@@ -3211,39 +3302,39 @@ it checks of this document:
   `<cache>/forgejo-runner/RUNNER_VERSION/forgejo-runner`, so that the
   fetch hashes them against the pins and fetches nothing (6.6): no
   mirror, no TLS and no call off the machine. The owner asks "Set up a
-  Forgejo here" through the client, `temper ctl DIRECTORY forge setup
-  3`, answered setting up; forge 3's row, followed by `forge list
-  --until settled`, goes through "Setting up" and "Connecting" to
-  "Connected as temper", with no restart, and its first repository made,
-  `work/hello`; the call adopts it into the new project `hello`,
-  project 2, after the demo's project 1 (6.7). The
+  Forgejo here" through the client, `temper ctl DIRECTORY forge
+  setup`, answered setting up; the new forge's row, forge 1, the first
+  made, followed by `forge list --until settled`, goes through "Setting
+  up" and "Connecting" to "Connected as temper", with no restart, and
+  its first repository made, `work/hello`; the call adopts it into the
+  new project `hello`, project 1, the first made (6.7). The
   workflow's push has run on the owned runner: before the owner's first
   task, the runner's output, which the box, run with `--echo steps`,
-  gives on its stderr as `runner 3: ` lines, says it took a task on `work/hello`, main's
+  gives on its stderr as `runner-1: ` lines, says it took a task on `work/hello`, main's
   push's, since no pull exists yet. It shows the run taken, not its
   verdict: no read of temper's says CI at a repository's `main`, and
   the story reads no credential. The owner's first task
   in the project, on the fake LLM, changes `hello`: its worker clones
   it, its pull's run of the starter workflow passes, and it lands; the
   test reads it all through temper's own reads, with no credential:
-  the set up's answer names `work/hello` adopted, owned, on forge 3;
-  the task, given in project 2, runs on and lands into `work/hello`;
+  the set up's answer names `work/hello` adopted, owned, on forge 1;
+  the task, given in project 1, runs on and lands into `work/hello`;
   the change's checks at its pull's head are the starter workflow's
   run, passed; and the task ends landed. The
   handover file is gone, and
-  forge 3's directory has no `api_token`, `git_token`, `user` or
+  `forge-1` has no `api_token`, `git_token`, `user` or
   `webhook_secret` file. The service's step world shows the git value
   and its generation (forge.md, section 10, the box's link). A second
   box on the same directories starts the group by its record, before
   `temper serve`. Preparation makes a new handover; serve takes it over
-  and connects forge 3 from its records (6.5), and the task is found
+  and connects forge 1 from its records (6.5), and the task is found
   landed, its CI at its head unknown until a next step reads it
   (`../domain/forge.md`, 8.8).
-- **The first-run behaviours** use their lower owners: the stock scripts'
-  data tests, the real-loop playground stories, and the client and engine
-  setup/reset worlds. The process tier has one short fake wiring test;
-  it does not replay the playground before the owned repository story
-  (`../domain/testing.md`, 2.6).
+- **The first-run behaviours** past these use their lower owners: the
+  stock scripts' data tests, the real-loop playground stories, and the
+  client and engine setup/reset worlds. The process tier has one short
+  fake wiring test; it does not replay the playground before the owned
+  repository story (`../domain/testing.md`, 2.6).
 
 ## 15. Later
 
@@ -3251,25 +3342,23 @@ Each is intended; what it needs is named with it.
 
 - **After the first repository** (6.7): "New repository" on a connected owned or managed card is the general
   form of the same flow, with the same fields and `Create`, a managed
-  forge's org needing an owner. A new project, named in the form,
-  waits on jig's projects at runtime (MakeProject); until jig carries
-  a follow-up act on `SetUp`'s admission, the first repository's
-  adoption is the client's, while the demo's start makes its acts as
-  the deployment's (8.4). Projects are
-  seeded at the first start, and made at runtime by jig's
-  `MakeProject` (jig's `domain/core.md`, 6.1): the first repository's
-  set up makes its project, named after the repository unless the
-  person names one, so the first run's `work/hello` is project 2's,
-  after the seeded project 1 (`../client/tools.md`, 5.5;
-  `../draft/first-run.md`, 2.4). The playground's start still adopts
-  into the seeded project 1 until its own project (below). The set up's intent is kept in
-  memory alone; keeping it across a restart is open (section 16).
-- **The playground's own project** (8.4): once jig's deployment acts
-  make a project (`MakeProject`, jig's `domain/people.md`, 5.3), the
-  demo's start makes Playground as its first act, and the demo's chats
-  become simply the open chats of that project, read from it at the
-  end in place of the end's selection by the moment (8.4, step 5),
-  with `make_project` in the document's grant (8.3).
+  forge's org needing an owner, and like it adopting nothing. The
+  first repository is adopted by the person from the adoption form, or
+  by ctl's call in its own run, while the playground's start makes its
+  acts itself (8.4). Projects are
+  made at runtime by jig's `MakeProject` (jig's `domain/core.md`,
+  6.1), none seeded (8.3): the welcome's Ready makes the first run's,
+  "Default" (`../client/README.md`, 3.5), and ctl's `forge setup`
+  makes its `--project`, named after the repository unless the call
+  names one, so that on a box set up by ctl alone `work/hello` is
+  project 1's, the first made (`../client/tools.md`, 5.5).
+- **An owned forge made managed** (section 2): an act that makes an
+  owned forge's record managed, after which temper stops running
+  Forgejo, its directory's `forgejo/` is a stock work path a person
+  runs, and its `AdminToken` record, taken over (6.5), stays valid.
+- **The LLM providers out of the document,** each a design of its own;
+  the scripted provider, the playground's (8.4), may become the binary's
+  stock first, its endpoint the fake LLM's port, the machine's.
 - **A lock and an exec in skein's shell,** onto which 6.4's module
   moves once skein's shell offers an exec and a lock held across it,
   which skein's `Lock` is not (skein's `io.md`, section 5). A second
@@ -3306,15 +3395,11 @@ Each is intended; what it needs is named with it.
   Forgejo's web, with the scopes they choose; never the preparation's
   `admin_token`, which the engine's setup host alone takes (section
   9).
-- **The set up's intent across a restart** (6.7). Default: in memory
-  alone, so a restart before the first repository is made loses it,
-  and "New repository" makes it; a kept intent would be a stored
-  format to version, which nothing on the first run needs.
 - **Backups beyond an upgrade's.** Default: the person's, of the forge's
   directory and the store, with the box stopped.
 - **Two deployments on one managed forge.** Default: each its own bot
-  login, and so its own collaborators and hooks; the marker does not
-  tell deployments apart.
+  login, carried by its connect (5.5), and so its own collaborators and
+  hooks; the marker does not tell deployments apart.
 - **A hook left at an old listener's address,** after the listener
   moves, is skein's question (skein's `forge-setup.md`, section 9).
   Default: left alone; the person deletes it.
@@ -3327,9 +3412,6 @@ Each is intended; what it needs is named with it.
   bot its access (5.4). Default: the admin's view, through `Reachable`,
   plus "not listed" by owner and name; the admin's token stays the
   setup host's, and the picker gets the rows alone.
-- **"Connect as its admin" on a Forgejo with no `setup` entry.**
-  Default: refused, naming `application.setup`, since the bot's login
-  and email are the configuration's (5.5).
 - **A start's reconcile that stops.** Default: that forge is not
   connected, named with its step, until the next start, a managed
   connect or an owned forge's next set up ask (6.5).
@@ -3347,6 +3429,11 @@ Each is intended; what it needs is named with it.
   written in the merge's `Entry`'s commit, is the route when a run
   needs either, a store schema change in place until the first release
   (store.md, section 4; skein's `codec.md`, section 5).
+- **Demo after a reset** (8.4; `../draft/first-run-projects.md`, 9):
+  a second playground run makes "Demo" again, the first having been
+  deleted by the reset, and reuses nothing but the name. The user's to
+  confirm. Default: as 8.4's start makes it, the reading the draft's
+  status records while the user is away.
 
 ## 17. Connecting GitHub
 
@@ -3365,8 +3452,8 @@ listener's (`../client/forge.md`, the browser's steps).
   contents, pull requests, issues and merge queues, write; checks,
   statuses, actions, administration and metadata, read; never
   workflows, never administration's write. Its events are skein's
-  (5.6). Designed, not built (`../domain/landing.md`, 8;
-  `../draft/landing-model.md`, F3): statuses and actions, write,
+  (5.6). Beside them (`../domain/landing.md`, 8): statuses and actions,
+  write,
   so that a project landing by turn has its gates dispatched and its
   receipts and verdicts posted; installations made before keep reading
   only until their owner accepts the new permissions, and adoption says
@@ -3382,13 +3469,14 @@ listener's (`../client/forge.md`, the browser's steps).
 - **Its records:** `AppId`, `AppSlug`, `AppKey` (DER; a PEM is never
   kept), `User` (the App's bot user), `Accepted` and `Origin`
   (credentials.md, the records).
-- **Its addresses** are github.com's when the forge's `api`, `git` and
-  `web` are null (configuration.md, section 3); a forge names them only
-  to point at a fake.
+- **Its addresses,** its record's place, are the machine's GitHub
+  place's, github.com's when the machine's `github` is null (section 8);
+  the machine names a place only to point at a fake (7.5).
 - **The clients' listener at a fixed address,** a loopback port the
   person's browser reaches, since GitHub's redirect and setup URLs name
-  it; its port 0 is refused at start while a GitHub forge is
-  configured.
+  it; a GitHub `Connect` on its port 0 is refused, naming
+  `application.clients.listener` (forge.md, 2.1; configuration.md,
+  section 3).
 - **A repository's own rules** are read and said at adoption, and never
   changed (`../domain/forge.md`, what adoption says of the branch's
   rules): a merge queue is taken as it is; required approvals need the
@@ -3527,11 +3615,10 @@ listener's (`../client/forge.md`, the browser's steps).
 ### 17.6 Job logs, and the delivery log
 
 - **A job's log** lies behind a redirect to a storage host, which the
-  forge component follows only to an origin its `log_origins` lists
-  (configuration.md, section 3; forge.md, GitHub's API as temper uses
-  it): on GitHub one origin by default; `[]` fetches no job log. An
-  origin not listed is named on the deployment's page, and the person
-  adds it to the forge's `log_origins` and restarts.
+  forge component follows only to an origin its forge's log origins
+  list (forge.md, GitHub's API as temper uses it): on GitHub one origin
+  by default, its kind's. An origin not listed is named on the
+  deployment's page.
 - **The delivery log** is read by the forge component every
   `log_poll`, and its deliveries become hints as Forgejo's webhooks do
   (forge.md, a GitHub App's delivery log).
@@ -3539,8 +3626,8 @@ listener's (`../client/forge.md`, the browser's steps).
 ### 17.7 A pasted App another owns: read-only
 
 - **`forge connect [FORGE] github-app APP FILE --read-only`** sets the
-  kept forge's `read_only`, called `app_read_only` by configuration.md,
-  section 3. The wire's `GitHubApp.read_only` is optional, absent meaning
+  kept forge's record's `read_only` (forge.md, 2.1), called
+  `app_read_only` below. The wire's `GitHubApp.read_only` is optional, absent meaning
   false; it travels through the engine's `How::GitHubApp` to that record.
   It says the
   pasted App (17.3), its hook and its installations are another's to

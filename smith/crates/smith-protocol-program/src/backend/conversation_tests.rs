@@ -1,7 +1,9 @@
 use super::*;
 use crate::backend::fixtures::COMPLETION;
+use crate::mcp::json;
 use fixtures::records as active;
 use fixtures::{env, records_with as running, request};
+use smith_domain::run;
 
 #[test]
 fn an_unframed_tool_message_completes_without_any_partial() {
@@ -66,23 +68,77 @@ fn a_result_without_an_assistant_hands_the_nudge_to_the_domain() {
     assert_eq!(completion.stop, llm::Stop::EndTurn);
     assert_eq!(completion.usage, llm::Usage::ZERO);
 }
-#[test]
-fn the_unoffered_sub_agent_tool_is_not_executed() {
+
+fn sub_agent_call(input: &[u8], served: bool) -> llm::Decoded {
     let mut backend = active();
     let Some(Complete { prompt, .. }) = backend.current.request_mut() else {
         panic!("completion");
     };
-    prompt.served = Box::new([llm::Served::SubAgent]);
+    prompt.served = if served { Box::new([llm::Served::SubAgent]) } else { Box::default() };
     let mut up = Queue::with_capacity(32);
     let mut below = Queue::with_capacity(64);
-    backend.line(&env(0),br#"{"type":"assistant","message":{"id":"unframed","content":[{"type":"tool_use","id":"t","name":"mcp__smith__sub_agent","input":{}}]}}"#,&mut up,&mut below);
+    let line = json::join(&[
+        br#"{"type":"assistant","message":{"id":"unframed","content":[{"type":"tool_use","id":"t","name":"mcp__smith__sub_agent","input":"#,
+        input,
+        b"}]}}",
+    ]);
+    backend.line(&env(0), &line, &mut up, &mut below);
     let Some(ToDomain::Completed { completion, .. }) = up.pop() else {
         panic!("completion");
     };
-    let llm::Said::ToolCall { call, .. } = &completion.content[0] else {
+    let mut content = completion.content.into_iter();
+    let llm::Said::ToolCall { call, .. } = content.next().expect("one tool call") else {
         panic!("tool call");
     };
-    assert_eq!(*call, llm::Decoded::Invalid { problem: llm::Problem::UnknownTool });
+    assert!(content.next().is_none());
+    call
+}
+
+#[test]
+fn a_served_sub_agent_call_decodes_inspect_only() {
+    assert_eq!(
+        sub_agent_call(br#"{"brief":"Read lib.rs","tools":["inspect"]}"#, true),
+        llm::Decoded::Served {
+            ask: run::Ask::SubAgent {
+                brief: b"Read lib.rs".as_slice().into(),
+                families: run::charter::Families {
+                    tools: run::charter::Tools { inspect: true, modify: false, shell: false },
+                    agents: false,
+                },
+                llm: None,
+                share: run::Share { turns: None, time: None },
+            }
+        }
+    );
+}
+
+#[test]
+fn a_sub_agent_asking_to_write_is_invalid_naming_tools() {
+    for input in [
+        br#"{"brief":"Read lib.rs","tools":["inspect","modify"]}"#.as_slice(),
+        br#"{"brief":"Read lib.rs","tools":["shell"]}"#,
+    ] {
+        assert_eq!(
+            sub_agent_call(input, true),
+            llm::Decoded::Invalid { problem: llm::Problem::BadValue { field: b"tools".as_slice().into() } }
+        );
+    }
+}
+
+#[test]
+fn a_sub_agent_call_without_a_brief_is_missing_it() {
+    assert_eq!(
+        sub_agent_call(br#"{"tools":["inspect"]}"#, true),
+        llm::Decoded::Invalid { problem: llm::Problem::Missing { field: b"brief".as_slice().into() } }
+    );
+}
+
+#[test]
+fn the_unoffered_sub_agent_tool_is_not_executed() {
+    assert_eq!(
+        sub_agent_call(br#"{"brief":"Read lib.rs","tools":["inspect"]}"#, false),
+        llm::Decoded::Invalid { problem: llm::Problem::UnknownTool }
+    );
 }
 
 #[test]

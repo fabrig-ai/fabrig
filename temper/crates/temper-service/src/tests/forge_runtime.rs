@@ -1,4 +1,4 @@
-//! Record-driven forge runtimes (temper/docs/design/draft/playground-reset.md, 3).
+//! Record-driven forge runtimes (temper/docs/design/protocol/forge.md, 2.2).
 use super::fixtures;
 use crate::{Service, forge};
 use skein_lib::{List, Secret, Token};
@@ -92,7 +92,6 @@ fn a_kept_record_adds_its_forge_and_connects_from_its_secrets() {
     assert_eq!((kept.number, kept.identity, kept.user), (NUMBER, u32::from(NUMBER), 42));
     assert_eq!(kept.mode, domain::Mode::Connected);
     assert_eq!(kept.git_program.as_deref(), Some(b"/data/bin/git".as_slice()));
-    assert!(kept.api_token.is_none());
     assert_eq!(kept.git.as_ref(), b"http://forge.test:3076");
     let (number, access) = engine.forge.starts.get(0).unwrap();
     assert_eq!((*number, access.user), (NUMBER, 42));
@@ -295,6 +294,7 @@ fn a_kept_github_uses_the_machine_endpoint_and_the_records_tls_name() {
     let roots = roots();
     service.configure_forge_runtime(
         crate::ForgeRuntime {
+            log_origins: List::with_capacity(0),
             number: 0,
             address: ([192, 0, 2, 9], 443).into(),
             transport: skein_forge_connection::settings::Transport::Tls {

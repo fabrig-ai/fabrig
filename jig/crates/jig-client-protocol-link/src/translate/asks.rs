@@ -146,6 +146,9 @@ pub(crate) fn wire_wake_rule(value: &c::WakeRule, limits: &w::Limits) -> Result<
         c::WakeRule::Batch { count, age } => {
             w::WakeRule::Batch(w::WakeRuleBatch::new(limits, w::WakeRuleBatchParts { count: *count, age: *age })?)
         }
+        c::WakeRule::Paced { span } => {
+            w::WakeRule::Paced(w::WakeRulePaced::new(limits, w::WakeRulePacedParts { span: *span })?)
+        }
     })
 }
 
@@ -228,6 +231,9 @@ pub(crate) fn wire_owner_authority_executor(
     limits: &w::Limits,
 ) -> Result<w::AuthorityExecutor, w::Problem> {
     Ok(match value {
+        c::AuthorityExecutor::Job(value) => {
+            w::AuthorityExecutor::Job(w::AuthorityExecutorJob::new(limits, w::AuthorityExecutorJobParts { value })?)
+        }
         c::AuthorityExecutor::Charter(value) => w::AuthorityExecutor::Charter(w::AuthorityExecutorCharter::new(
             limits,
             w::AuthorityExecutorCharterParts { value },
@@ -541,6 +547,7 @@ pub(crate) fn wire_holding(value: &c::Holding, limits: &w::Limits) -> Result<w::
 #[expect(clippy::too_many_lines, reason = "one exhaustive field translation arm per client ask")]
 pub fn ask(value: &c::Ask, limits: &w::Limits) -> Result<w::Ask, w::Problem> {
     Ok(match value {
+        c::Ask::Restore { revision, reason } => w::Ask::Restore(wire_ask_restore(*revision, reason, limits)?),
         c::Ask::MoveToNewest(value) => {
             w::Ask::MoveToNewest(w::MoveToNewest::new(limits, w::MoveToNewestParts { revision: value.revision })?)
         }
@@ -673,9 +680,14 @@ pub fn ask(value: &c::Ask, limits: &w::Limits) -> Result<w::Ask, w::Problem> {
             limits,
             w::AskSignOutParts { holder: account_holder(*holder), source: *source },
         )?),
-        c::Ask::RemoveProject { project } => {
-            w::Ask::RemoveProject(w::RemoveProject::new(limits, w::RemoveProjectParts { project: *project })?)
-        }
+        c::Ask::SetVisibility { project, public } => w::Ask::SetVisibility(w::SetVisibility::new(
+            limits,
+            w::SetVisibilityParts { project: *project, public: *public },
+        )?),
+        c::Ask::RemoveProject { project, grace } => w::Ask::RemoveProject(w::RemoveProject::new(
+            limits,
+            w::RemoveProjectParts { project: *project, grace: *grace },
+        )?),
         c::Ask::Rename { project, name } => w::Ask::Rename(w::Rename::new(
             limits,
             w::RenameParts { project: *project, name: bytes::copy_of(name.bytes()) },
@@ -809,4 +821,12 @@ fn account_set_uses(
             },
         },
     )?))
+}
+
+pub fn wire_ask_restore(revision: u32, reason: &c::Text, limits: &w::Limits) -> Result<w::Restore, w::Problem> {
+    w::Restore::new(limits, w::RestoreParts { revision, reason: bytes::copy_of(reason.bytes()) })
+}
+pub fn restore_ask_restore(value: &w::Restore, limits: &crate::Limits) -> Result<c::Ask, w::Problem> {
+    let reason = super::store::text(value.reason(), limits)?;
+    Ok(c::Ask::Restore { revision: value.revision(), reason })
 }

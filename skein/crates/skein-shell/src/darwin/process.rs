@@ -376,6 +376,7 @@ const WAIT_REAPED: i32 = -10_001;
 const WAITID_NO_CHILD: i32 = -10_002;
 const WAIT_UNEXPECTED_STATUS: i32 = -10_003;
 
+/// An `EINTR` is returned, not retried (shell.md, 7.4).
 pub(crate) fn poll_child(handle: Fd, reap: bool) -> Result<Option<Exit>, Error> {
     let mut children = CHILDREN.lock().expect("child table is not poisoned");
     let child = children.get_mut(&handle).ok_or(Error::Other(libc::EBADF))?;
@@ -386,17 +387,15 @@ pub(crate) fn poll_child(handle: Fd, reap: bool) -> Result<Option<Exit>, Error> 
     let mut info: libc::siginfo_t = unsafe { std::mem::zeroed() };
     // XNU bsd_kern_kern_exit.c:3270-3276 skips stops without WSTOPPED;
     // 3364-3380 leaves info untouched when WNOHANG finds no exit.
-    retry(|| {
-        // SAFETY: pid names this table's unreaped child; info is exclusive
-        // writable storage. Holding the lock excludes signal/reap races.
-        super::status(unsafe {
-            libc::waitid(
-                libc::P_PID,
-                u32::try_from(child.pid).expect("positive pid"),
-                ptr::from_mut(&mut info),
-                libc::WEXITED | libc::WNOHANG | if reap { 0 } else { libc::WNOWAIT },
-            )
-        })
+    // SAFETY: pid names this table's unreaped child; info is exclusive
+    // writable storage. Holding the lock excludes signal/reap races.
+    super::status(unsafe {
+        libc::waitid(
+            libc::P_PID,
+            u32::try_from(child.pid).expect("positive pid"),
+            ptr::from_mut(&mut info),
+            libc::WEXITED | libc::WNOHANG | if reap { 0 } else { libc::WNOWAIT },
+        )
     })
     .map_err(|errno| Error::Other(if errno == libc::ECHILD { WAITID_NO_CHILD } else { errno }))?;
     if info.si_pid == 0 {

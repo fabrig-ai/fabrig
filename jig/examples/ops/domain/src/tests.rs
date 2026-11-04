@@ -54,6 +54,7 @@ fn fixture_with_commits(commits: u32) -> (Domain, Env<Limits>) {
     };
     let mut config = Config {
         environment_closed_reason: crate::ENVIRONMENT_CLOSED_REASON.into(),
+        environment_close_grace: crate::ENVIRONMENT_CLOSE_GRACE,
         agent_bounds: fixtures::agent_bounds(),
         tools: fixtures::tools(Duration::from_secs(30)),
         core: jig_test_profile::config(17).core,
@@ -62,7 +63,7 @@ fn fixture_with_commits(commits: u32) -> (Domain, Env<Limits>) {
         backend: infrastructure::Backend::OperationIds,
         charter_endpoints: Box::new([jig_protocol_charter::EndpointName {
             number: 1,
-            dialect: 1,
+            dialect: 3,
             name: Box::from(&b"fake"[..]),
         }]),
     };

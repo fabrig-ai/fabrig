@@ -14,7 +14,7 @@ use jig_domain_core as core;
 use jig_domain_fleet as fleet;
 use jig_domain_host as host;
 use jig_domain_tasks as tasks;
-use skein_lib::{Decimal, Reader, Secret, Token};
+use skein_lib::{Decimal, Reader, Token};
 use smith_domain_run as run;
 use temper_engine_domain as engine;
 use temper_protocol_worker_wire::v1;
@@ -30,6 +30,7 @@ pub fn assignment(assignment: &engine::Assignment) -> (host::Assignment, wire::W
     let forges = {
         let mut table = temper_service::forges::Forges::with_capacity(1);
         assert!(table.insert(settings::Forge {
+            log_origins: None,
             mode: temper_engine_domain_forge::Mode::Connected,
             number: temper_engine_forge_world::REPO.forge,
             kind: settings::Kind::Forgejo,
@@ -39,8 +40,6 @@ pub fn assignment(assignment: &engine::Assignment) -> (host::Assignment, wire::W
             git_program: None,
             web: None,
             app_read_only: false,
-            api_token: Some(Secret::new(Box::new([]))),
-            webhook_secret: None,
             user: 1,
             identity: 1,
         }));
@@ -86,8 +85,8 @@ pub fn decode(call: &fleet::Call) -> engine::Call {
     let name =
         run::CallName { activation: name.activation(), completion: name.completion(), position: name.position() };
     let input = run::HostInput::attested(call.input.clone()).expect("bounded host input");
-    let temper_engine_smith::Decoded::Call(body) =
-        temper_engine_smith::call(name, &call.tool, &input).expect("the run calls the declared host schema")
+    let temper_engine_smith::Decoded::Call(body) = temper_engine_smith::call(name, &call.tool, &input)
+        .unwrap_or_else(|error| panic!("tool {:?}: {error:?}, input {:?}", call.tool, call.input))
     else {
         panic!("script tool answered at decode")
     };
@@ -105,6 +104,11 @@ pub fn render(answer: &engine::CallAnswer) -> core::SettledAnswer {
 /// result codec, then temper's translation of an accepted result.
 #[must_use]
 pub fn end(outcome: &[u8]) -> tasks::End {
+    end_with(outcome, None)
+}
+
+/// Translate a terminal with the resource established by the engine's forge route.
+pub fn end_with(outcome: &[u8], change: Option<temper_engine_smith::ChangeResource>) -> tasks::End {
     let declared = smith_protocol_channel::decode_declared(outcome, &smith_charter::CEILINGS).expect("smith's result");
     let spent = run::Spend {
         turns: 0,
@@ -116,7 +120,7 @@ pub fn end(outcome: &[u8]) -> tasks::End {
         units: 0,
     };
     let answer = run::Answer::Accepted { outcome: declared, spent, turns: 0 };
-    temper_engine_smith::result(answer, None).expect("a result the engine takes").end
+    temper_engine_smith::result(answer, change).expect("a result the engine takes").end
 }
 
 fn identity(task: u64, conversation: u64) -> [u8; 16] {

@@ -304,3 +304,326 @@ fn a_withheld_store_commit_holds_the_party_reply_and_worker_assignment() {
     world.run();
     assert_eq!(world.observed.answers, 1);
 }
+
+// This system world is the lowest one with real engine, worker and smith tool choice.
+#[test]
+fn an_agreed_goals_seventh_completion_question_parks_at_the_stock_turn_boundary() {
+    agreed_goal_walk(920, true);
+}
+
+#[test]
+fn an_agreed_goals_earlier_wait_parks_and_resumes_with_stock_turns() {
+    agreed_goal_walk(921, false);
+}
+
+#[test]
+fn an_agreed_goals_repeated_delegation_receives_the_plan_refusal_then_asks_and_waits() {
+    use skein_fake_llm_domain::api::Part;
+    use temper_system_world::composed::call;
+    const REQUEST: &[u8] = br#"{"words":"Add CSV export to widget. Before anything is changed, have the work tell me its plan and wait for my go-ahead.","agree":true}"#;
+    const REFUSAL: &[u8] =
+        b"this work is to be agreed: ask your requester your plan with message, as a question, and wait";
+    let mut script = plan_script(false);
+    // The repeated goal call is the observed transcript; asking and waiting are the repair oracle.
+    let mut turns = script.turns.into_vec();
+    turns.insert(0, call(b"goal", REQUEST));
+    script.turns = turns.into_boxed_slice();
+    let mut world = World::agreed_goal(922, script);
+    world.run();
+    assert!(
+        world
+            .agent()
+            .prompts()
+            .iter()
+            .flat_map(|prompt| &prompt.messages)
+            .flat_map(|message| &message.parts)
+            .any(|part| matches!(part,
+            Part::ToolOutput { output, is_error: true, .. } if output.as_ref() == REFUSAL))
+    );
+    assert!(matches!(world.agent().answer(), smith_domain_run::Answer::Parked { spent, .. } if spent.turns == 3));
+    world.pending_plan();
+    world.hold_goal(skein_lib::Duration::from_secs(121));
+    world.pending_plan();
+}
+
+fn plan_script(reads: bool) -> skein_fake_llm_domain::api::Script {
+    use temper_system_world::composed::call;
+    let mut turns = Vec::new();
+    if reads {
+        turns.push(call(b"read_branch", br#"{"repository":".","branch":"main"}"#));
+        turns.push(call(b"read_branch", br#"{"branch":"main"}"#));
+        for path in [".", "src", "README.md", "src/main.rs"] {
+            turns.push(call(
+                b"read_file",
+                format!(r#"{{"head":"0000000000000000000000000000000000000001","path":"{path}","max_bytes":4096}}"#)
+                    .as_bytes(),
+            ));
+        }
+    }
+    turns
+        .push(call(b"message", br#"{"target":1,"form":"question","words":"Add CSV export with a header. Go ahead?"}"#));
+    turns.push(call(b"wait", b"{}"));
+    skein_fake_llm_domain::api::Script {
+        cue: b"Help the person with their work.".as_slice().into(),
+        turns: turns.into_boxed_slice(),
+    }
+}
+
+fn agreed_goal_walk(seed: u64, reads: bool) {
+    use skein_fake_llm_domain::api::Script;
+    use temper_system_world::composed::call;
+    let mut world = World::agreed_goal(seed, plan_script(reads));
+    world.run();
+    assert_eq!(world.assignment().task, 2);
+    assert_eq!((world.assignment().run.policy.turns, world.assignment().run.policy.reserve_turns), (8, 1));
+    assert!(
+        matches!(world.agent().answer(), smith_domain_run::Answer::Parked { spent, .. } if spent.turns == if reads { 8 } else { 2 })
+    );
+    if reads {
+        assert_plan_reads(&world);
+    }
+    world.pending_plan();
+    world.hold_goal(skein_lib::Duration::from_secs(121));
+    world.pending_plan();
+    world.next_script(Script {
+        cue: b"Read only what the change needs".as_slice().into(),
+        turns: Box::new([
+            call(b"write", br#"{"path":"export.csv","content":"fruit,count\n"}"#),
+            call(b"finish", br#"{"title":"Add CSV export","body":"Add the agreed header."}"#),
+        ]),
+    });
+    world.answer_goal(
+        b"Go ahead. The CSV's first line must be the header fruit,count.",
+        Script {
+            cue: b"Help the person with their work.".as_slice().into(),
+            turns: Box::new([
+                call(b"change", br#"{"words":"Add export.csv containing fruit,count and a newline"}"#),
+                call(b"wait", b"{}"),
+                call(b"finish", br#"{"report":"The agreed CSV export landed."}"#),
+            ]),
+        },
+    );
+    world.finish_goal();
+    world.assert_goal_landed();
+}
+
+fn assert_plan_reads(world: &World) {
+    use smith_domain_session::llm::{Block, Returned};
+    let outcomes = world
+        .agent()
+        .turns()
+        .iter()
+        .take(6)
+        .map(|turn| {
+            turn.messages
+                .iter()
+                .flat_map(|message| &message.content)
+                .filter_map(|block| match block {
+                    Block::ToolResult { result: Returned::Text { error, .. }, .. } => Some(*error),
+                    Block::Opaque { .. }
+                    | Block::Refusal { .. }
+                    | Block::Text { .. }
+                    | Block::ToolCall { .. }
+                    | Block::ToolResult { .. } => None,
+                })
+                .next_back()
+                .expect("each read has a result")
+        })
+        .collect::<Vec<_>>();
+    assert_eq!(outcomes, [true, false, false, false, false, false]);
+}
+
+#[test]
+fn an_unfinished_review_is_retried_at_the_same_head() {
+    let mut world = World::review_change(923, unfinished_review(), approve_review());
+    world.until_review_or_terminal(3);
+    let first = world.assignment().task;
+    let head = review_started(&mut world);
+    world.until_review_or_terminal(first);
+    assert!(world.assignment().task > first, "a failed review needs a fresh task");
+    assert_eq!(review_started(&mut world), head);
+    assert_retry_brief(&world, b"without a verdict");
+    assert_no_person_escalation(&world);
+    assert_review_failed(&world, first);
+    assert_unfinished_reads(world.review_agent(first));
+    world.until_review_or_terminal(world.assignment().task);
+    assert!(
+        matches!(world.reviewed_change().change.state, temper_engine_domain_forge_change::State::Landed { .. }),
+        "{:?}",
+        world.reviewed_change()
+    );
+    assert_eq!(world.reviewed_change().change.repairs, 0);
+}
+
+#[test]
+fn a_review_model_failure_is_retried_and_two_failures_hold_the_change() {
+    let mut world = World::review_change(924, failed_review_model(), failed_review_model());
+    world.until_review_or_terminal(3);
+    let first = world.assignment().task;
+    let head = review_started(&mut world);
+    world.until_review_or_terminal(first);
+    let second = world.assignment().task;
+    assert!(second > first, "model failure needs a fresh review task");
+    assert_eq!(review_started(&mut world), head);
+    assert_retry_brief(&world, b"model call failed");
+    assert_no_person_escalation(&world);
+    assert_review_failed(&world, first);
+    let agent = world.review_agent(first);
+    assert!(matches!(
+        agent.answer(),
+        smith_domain_run::Answer::Failed { failure: smith_domain_run::Failure::Model(_), .. }
+    ));
+    assert!(agent.host_submissions().is_empty(), "no transcript of tool calls in the model-failure sighting");
+    world.until_review_or_terminal(second);
+    world.run();
+    assert_review_failed(&world, second);
+    assert_failed_review_hold(&world);
+}
+
+fn assert_failed_review_hold(world: &World) {
+    let reviews = world
+        .store
+        .rows
+        .values()
+        .filter(|row| {
+            matches!(row,
+        Record::Core(jig_domain_core::Record::Tasks(tasks::Stored::Ended(row)))
+            if row.requester == tasks::Party::Task(2) && matches!(row.contract, tasks::Contract::Verdict { .. }))
+        })
+        .count();
+    assert_eq!(reviews, 2, "no third review");
+    assert!(matches!(
+        world.reviewed_change().change.state,
+        temper_engine_domain_forge_change::State::Held { why: temper_engine_domain_forge_change::Hold::Failed, .. }
+    ));
+    assert_eq!(world.reviewed_change().change.repairs, 0);
+    assert!(world.reviewed_change().verdicts.is_empty());
+    let Some(Record::Core(jig_domain_core::Record::Tasks(tasks::Stored::Live(change)))) =
+        world.store.rows.get(&Key::Core(jig_domain_core::Key::Tasks(tasks::Key::Live(2))))
+    else {
+        panic!("held change")
+    };
+    assert!(matches!(change.phase, tasks::Phase::Held { why: tasks::Hold::EffectFailed, .. }));
+    assert!(
+        matches!(&change.phase, tasks::Phase::Held { source: Some(source), .. }
+        if matches!(source.as_ref(), tasks::HoldSource::Account { words, .. }
+            if words.windows(b"model call failed".len()).any(|bytes| bytes == b"model call failed"))),
+        "the hold names the failed review: {:?}",
+        change.phase
+    );
+    assert!(
+        world
+            .reviewed_change()
+            .gate_remarks
+            .iter()
+            .any(|remark| remark.words.windows(b"model call failed".len()).any(|bytes| bytes == b"model call failed"))
+    );
+}
+
+fn unfinished_review() -> skein_fake_llm_domain::api::Script {
+    use temper_system_world::composed::call;
+    // Only the two abbreviated-hash reads and the missing verdict are recorded
+    // in the sighting; the other four reads use the brief's full head.
+    let mut turns = vec![
+        call(b"read_compare", br#"{"repository":"org/repo","before":"f471720","after":"$HEAD"}"#),
+        call(b"read_file", br#"{"repository":"org/repo","head":"f471720","path":"README.md"}"#),
+    ];
+    for _ in 0..4 {
+        turns.push(call(b"read_file", br#"{"repository":"org/repo","head":"$HEAD","path":"README.md"}"#));
+    }
+    turns.push(skein_fake_llm_domain::api::Turn {
+        lines: Box::default(),
+        finish: skein_fake_llm_domain::api::Finish::Stop,
+        tokens: 0,
+    });
+    skein_fake_llm_domain::api::Script { cue: b"Review the change".as_slice().into(), turns: turns.into_boxed_slice() }
+}
+
+fn approve_review() -> skein_fake_llm_domain::api::Script {
+    use temper_system_world::composed::call;
+    skein_fake_llm_domain::api::Script {
+        cue: b"Review the change".as_slice().into(),
+        turns: Box::new([call(b"finish", br#"{"verdict":"1","body":"The CSV header is correct."}"#)]),
+    }
+}
+
+fn failed_review_model() -> skein_fake_llm_domain::api::Script {
+    use skein_fake_llm_domain::api::{Error, Finish, Line, Report, Script, Turn};
+    Script {
+        cue: b"Review the change".as_slice().into(),
+        turns: Box::new([Turn {
+            lines: Box::new([Line::Fail {
+                error: Error::InvalidRequest,
+                report: Report::none(),
+                credentials: Box::default(),
+            }]),
+            finish: Finish::Stop,
+            tokens: 0,
+        }]),
+    }
+}
+
+fn review_started(world: &mut World) -> [u8; 32] {
+    world.assert_review_ci();
+    let row = world.reviewed_change();
+    let head = row.change.last_head.expect("review head");
+    assert!(row.verdicts.is_empty());
+    assert_eq!(row.change.repairs, 0);
+    head
+}
+
+fn assert_retry_brief(world: &World, reason: &[u8]) {
+    assert!(
+        world.assignment().sections.iter().any(|section| matches!(&section.body,
+        temper_engine_domain::BriefBody::Text(text) if text.windows(reason.len()).any(|bytes| bytes == reason))),
+        "retry brief must name {}",
+        String::from_utf8_lossy(reason)
+    );
+}
+
+fn assert_no_person_escalation(world: &World) {
+    assert!(world.store.rows.values().all(|row| !matches!(row,
+        Record::Core(jig_domain_core::Record::Tasks(tasks::Stored::Live(row)))
+            if matches!(row.phase, tasks::Phase::Held { .. })
+                || !matches!(row.escalation, tasks::Escalation::Unheld { revision: 0 }))));
+}
+
+fn assert_review_failed(world: &World, task: u64) {
+    let Some(Record::Core(jig_domain_core::Record::Tasks(tasks::Stored::Ended(row)))) =
+        world.store.rows.get(&Key::Core(jig_domain_core::Key::Tasks(tasks::Key::Ended(task))))
+    else {
+        panic!("review task {task} must end failed");
+    };
+    assert!(matches!(row.phase, tasks::Phase::Ended(tasks::Ending::Failed { .. })));
+}
+
+fn assert_unfinished_reads(agent: &smith_agent_world::World) {
+    use smith_domain_session::llm::{Block, Returned};
+    assert!(matches!(
+        agent.answer(),
+        smith_domain_run::Answer::Failed {
+            failure: smith_domain_run::Failure::Policy(smith_domain_run::Policy::Unfinished { rejected: 0, .. }),
+            ..
+        }
+    ));
+    let refused = agent
+        .turns()
+        .iter()
+        .take(6)
+        .map(|turn| {
+            turn.messages
+                .iter()
+                .flat_map(|message| &message.content)
+                .find_map(|block| match block {
+                    Block::ToolResult { result: Returned::Text { error, .. }, .. } => Some(*error),
+                    Block::Opaque { .. }
+                    | Block::Refusal { .. }
+                    | Block::Text { .. }
+                    | Block::ToolCall { .. }
+                    | Block::ToolResult { .. } => None,
+                })
+                .expect("each read is answered")
+        })
+        .collect::<Vec<_>>();
+    assert_eq!(refused, [true, true, false, false, false, false]);
+}

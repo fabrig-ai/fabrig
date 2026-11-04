@@ -201,7 +201,7 @@ mod tests {
             "-C",
             "work",
             "-m",
-            "codex/small",
+            "openai/small",
             "--effort",
             "low",
             "--chat",
@@ -216,7 +216,7 @@ mod tests {
         };
         assert!(plain);
         assert_eq!(shared.directory, Some("work".into()));
-        assert_eq!(shared.model.as_deref(), Some("codex/small"));
+        assert_eq!(shared.model.as_deref(), Some("openai/small"));
         assert_eq!(shared.effort.as_deref(), Some("low"));
         assert_eq!(shared.chat.as_deref(), Some("work"));
         assert_eq!(shared.trace, Some("trace".into()));
@@ -234,7 +234,7 @@ mod tests {
             "-C",
             "work",
             "-m",
-            "codex/model",
+            "openai/model",
             "--effort",
             "high",
             "--chat",
@@ -252,7 +252,7 @@ mod tests {
         assert!(json);
         assert!(execution.is_none());
         assert_eq!(shared.directory, Some(PathBuf::from("work")));
-        assert_eq!(shared.model.as_deref(), Some("codex/model"));
+        assert_eq!(shared.model.as_deref(), Some("openai/model"));
         assert_eq!(shared.effort.as_deref(), Some("high"));
         assert_eq!(shared.chat.as_deref(), Some("plan"));
         assert_eq!(shared.trace, Some(PathBuf::from("trace")));

@@ -70,6 +70,8 @@ pub enum Stop {
         phase: Option<jig_domain_core::start::Phase>,
         failure: jig_domain_core::start::Failure,
     },
+    /// A restored charter leaves too little brief room (temper/docs/design/domain/agent.md, 4.3).
+    Room(temper_engine_domain::room::Short),
     /// A startup page could not be read: the root's range kind, and the store's
     /// typed cause where the store gave one (jig-protocol-store `restore::Failure`).
     RestorePage {
@@ -146,13 +148,31 @@ pub struct SetupStep {
 /// Operator diagnostics taken by the shell (protocol/forge.md, 2.3).
 #[derive(PartialEq, Eq, Debug)]
 pub enum Note {
+    /// A forge read refusal with its task, tool, layer and authority findings.
+    ReadRefused {
+        task: u64,
+        attempt: u64,
+        tool: Box<[u8]>,
+        layer: &'static str,
+        reason: &'static str,
+        findings: Box<[jig_domain_authority::Finding]>,
+        error: Option<skein_forge::api::Error>,
+    },
+    /// A decoded call that could not enter the engine's admission room.
+    CallAdmissionRefused {
+        task: u64,
+        attempt: u64,
+        tool: Box<[u8]>,
+        layer: &'static str,
+        reason: &'static str,
+    },
     /// One patch finished before the store opened (jig's protocol/store.md, 10.2).
     Patched {
         of: jig_protocol_store::Owner,
         patch: u32,
         counts: jig_protocol_store::Counts,
     },
-    /// A bounded reset diagnostic (temper/docs/design/draft/playground-reset.md, 6.2).
+    /// A bounded reset diagnostic (temper/docs/design/protocol/setup.md, 8.4).
     Playground {
         line: Box<[u8]>,
     },
@@ -195,6 +215,11 @@ pub enum Note {
         number: u16,
         why: NotConnected,
     },
+    /// A refused job-log redirect, with no signed path or query (protocol/forge.md, 3.6).
+    ForgeOrigin {
+        number: u16,
+        origin: skein_forge::github::redirect::Origin,
+    },
     ForgeUnkept {
         number: u16,
         installation: u64,
@@ -225,7 +250,7 @@ pub use jig_protocol_worker_wire::Reason as WorkerRefusalReason;
 pub use temper_engine_domain::Unsettled;
 
 impl Service {
-    /// Machine inputs loaded once by the shell (temper/docs/design/draft/playground-reset.md, 3).
+    /// Machine inputs loaded once by the shell (temper/docs/design/protocol/configuration.md, 3).
     pub fn configure_forge_runtime(&mut self, github: ForgeRuntime, roots: skein_tls::Config) {
         if let Some(engine) = &mut self.engine {
             assert!(engine.forge.serving.is_none(), "machine inputs precede serving");
@@ -234,7 +259,7 @@ impl Service {
         }
     }
 
-    /// Kept names awaiting the shell's startup resolution (playground-reset.md, 3).
+    /// Kept names awaiting the shell's startup resolution (temper/docs/design/protocol/forge.md, 2.2).
     #[must_use]
     #[expect(clippy::type_complexity, reason = "the startup resolution contract returns numbered host and port tuples")]
     pub fn unresolved(&self) -> Box<[(u16, Box<[u8]>, u16)]> {
@@ -253,7 +278,7 @@ impl Service {
         names.into_boxed()
     }
 
-    /// Re-add a kept forge with the shell's answer before serving (playground-reset.md, 3).
+    /// Re-add a kept forge with the shell's answer before serving (temper/docs/design/protocol/forge.md, 2.2).
     pub fn resolved(&mut self, forge: u16, address: Option<core::net::SocketAddr>) {
         let Some(engine) = &mut self.engine else { return };
         if engine.forge.serving.is_some() || engine.forge.unreachable(forge).is_none() {

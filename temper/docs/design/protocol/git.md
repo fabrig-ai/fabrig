@@ -130,7 +130,7 @@ pipes      stdin (written, then closed), stdout, stderr
 | `protocol.version=2` | fetch by any object id (gitprotocol-v2: wants are not limited to advertised refs) |
 | `protocol.allow=never` | no transport by default: not `file`, `ssh` or `ext` |
 | `protocol.https.allow=always` | the forge's transport |
-| `protocol.http.allow=always` | the forge's transport where configuration allows plaintext, on loopback only (configuration.md, section 3) |
+| `protocol.http.allow=always` | the forge's transport where its record's remotes' base is plaintext, on loopback only (forge.md, 2.1; configuration.md, section 3) |
 | `credential.helper=` | the empty value clears the list: no credential helper runs |
 | `http.sslVerify=true` | the forge's certificate is always checked |
 | `gc.auto=0` | no automatic garbage collection, which detaches and outlives the invocation |
@@ -459,7 +459,7 @@ tip frozen by its prepare; the comparison alone is never a push receipt.
 
 ### 4.10 Rewrite
 
-Designed, not built (`../domain/worker.md`, 4.4). `Rewrite { at,
+A prepare job's (`../domain/worker.md`, 4.4). `Rewrite { at,
 remote, commit, branch, expected, identity }`: the branch moved to
 `commit` only if it is still at `expected`, whether or not `commit`
 descends from it:
@@ -676,7 +676,7 @@ checks this document's contract:
   credential in an argument; scenario memory peaks under their ceilings.
   Its scripted outputs are the transcripts.
 - **The fake git program,** its core `crates/temper-fake-git` and its
-  hosted half `testing/temper-fake-git-hosted` (`../domain/testing.md`,
+  hosted half `crates/temper-fake-git-hosted` (`../domain/testing.md`,
   4.3), answers this document's invocations as real
   git does, and is checked against the same transcripts: each
   transcript's arguments and environment, run on the fake over the
@@ -694,16 +694,16 @@ checks this document's contract:
   next invocation. Default: accepted on one person's machine
   (credentials.md, section 8); the command-line settings of section 3
   and the URL on the command line cover what they name. Contained trees
-  (skein's `draft/process.md`), with the git directory unwritable by an
+  (skein's `io.md`, 6.3), with the git directory unwritable by an
   agent's tree, close both.
 - **HEAD after a commit.** Default: not moved (section 4.7), keeping each
   commit to four invocations; an agent that reads git sees the work
   since its start as uncommitted. Moving it costs a fifth invocation
   (`git reset -q <commit>`).
 - **A forge whose certificate needs its own trust for git.** Default: the
-  machine's roots; configuration gives a trust file for the API only
-  (configuration.md, section 3). Between hosts, the trust would come with
-  the workspace's items.
+  machine's roots, for git as for the forge's API, whose record names
+  its TLS name alone (forge.md, 2.1). Between hosts, the trust would
+  come with the workspace's items.
 - **Git LFS.** Default: not supported; no filter is configured, so a
   repository's large files stay pointer files in its working tree.
 - **Another git's messages.** Default: classified against 2.53's, from

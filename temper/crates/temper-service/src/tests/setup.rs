@@ -46,6 +46,7 @@ fn routing_service_at(
     let mut runtime = List::with_capacity(1);
     runtime
         .push(crate::ForgeRuntime {
+            log_origins: List::with_capacity(0),
             number: 1,
             address: ([127, 0, 0, 1], 3000).into(),
             transport: skein_forge_connection::settings::Transport::Plaintext { name: None },
@@ -70,7 +71,7 @@ fn github_config(
     config.identities[0].author.email = Box::new([]);
     config.forges[0].api = jig_protocol_config::Address::Addr(skein_io::Addr::Ip(([127, 0, 0, 1], 3000).into()));
     config.forges[0].web = Some(Box::from(b"http://127.0.0.1:3000".as_slice()));
-    config.forges[0].api_token = None;
+    config.without_records = Box::new([1]);
     config.forges[0].transport = crate::settings::Transport::Plaintext;
     config.limits.setup.states = states;
     config.limits.setup.state_life = life;
@@ -301,7 +302,7 @@ impl Face {
         self.reply_status(service, b"200 OK", body);
     }
     fn reply_status(&mut self, service: &mut crate::Service, status: &[u8], body: &[u8]) {
-        let length = skein_lib::Decimal::of(u64::try_from(body.len()).unwrap());
+        let length = skein_lib::Decimal::of(skein_lib::len_u64(body.len()));
         let head = b"HTTP/1.1 ";
         let content = b"\r\nContent-Length: ";
         let mut writer = skein_lib::Writer::new(
@@ -459,18 +460,19 @@ fn tls_forges() -> (fixtures::ConfiguredEngine, List<crate::ForgeRuntime>) {
     let mut config = fixtures::configured_engine();
     config.forges =
         Box::new([fixtures::forges().into_iter().next().unwrap(), fixtures::forges().into_iter().next().unwrap()]);
+    config.without_records = Box::new([1, 2]);
     let mut runtime = List::with_capacity(2);
     for (index, (number, name, address)) in
         [(1, "first.test", [192, 0, 2, 7]), (2, "second.test", [192, 0, 2, 8])].into_iter().enumerate()
     {
         config.forges[index].number = number;
         config.forges[index].kind = crate::settings::Kind::GitHub;
-        config.forges[index].api_token = None;
         config.forges[index].transport =
             crate::settings::Transport::Tls { server_name: name.as_bytes().into(), trust: None };
         let (trust, _) = skein_tls::Config::from_der(core::slice::from_ref(&root), &[name.as_bytes()]).unwrap();
         runtime
             .push(crate::ForgeRuntime {
+                log_origins: List::with_capacity(0),
                 number,
                 address: (address, 443).into(),
                 transport: skein_forge_connection::settings::Transport::Tls {
@@ -568,6 +570,8 @@ fn every_host_unusable_arm_has_an_operator_path() {
     use host::{Stacked, Unusable};
     for why in [
         Unusable::Zero,
+        Unusable::Io,
+        Unusable::Tls,
         Unusable::TokenBytes { token_bytes: 1 },
         Unusable::Documents(skein_forge::forgejo::limits::Problem::Depth),
         Unusable::GitHubDocuments(skein_forge::github::limits::Problem::Depth),
@@ -621,7 +625,7 @@ fn invalid_host_limits_stop_after_load_and_setup_overrides_are_checked() {
     config.identities[0].login = Box::new([]);
     config.identities[0].author.name = Box::new([]);
     config.identities[0].author.email = Box::new([]);
-    config.forges[0].api_token = None;
+    config.without_records = Box::new([1]);
     config.limits.forge_component.inner = 13;
     config.limits.picker.page = 1;
     let mut endpoints =
@@ -630,7 +634,7 @@ fn invalid_host_limits_stop_after_load_and_setup_overrides_are_checked() {
     advance(service.engine.as_mut().expect("engine"));
     assert!(service.end().is_some());
     let mut own = crate::limits::profile(crate::limits::Profile::Small);
-    for name in [b"setup.states".as_slice(), b"setup.runs", b"setup.state_life_ms", b"setup.orgs"] {
+    for name in [b"setup.states".as_slice(), b"setup.runs", b"setup.state_life_ms"] {
         assert_eq!(crate::limits::apply(&mut own, name, 0), Err(crate::limits::Refused::Range));
     }
     assert_eq!(crate::limits::apply(&mut own, b"setup.runs", 3), Ok(()));
@@ -653,8 +657,7 @@ fn stopped_connection_text_has_a_fixed_bound() {
     reasons.push(Stopped::KeyRefused).unwrap();
     for why in &reasons {
         assert!(
-            u64::try_from(lifecycle::stopped_text(*why).len()).unwrap()
-                <= temper_engine_domain_forge::STOPPED_TEXT_BYTES
+            skein_lib::len_u64(lifecycle::stopped_text(*why).len()) <= temper_engine_domain_forge::STOPPED_TEXT_BYTES
         );
     }
 }
@@ -666,7 +669,7 @@ fn configured(runs: u32, states: u32, tls: bool) -> (fixtures::ConfiguredEngine,
     config.identities[0].login = Box::new([]);
     config.identities[0].author.name = Box::new([]);
     config.identities[0].author.email = Box::new([]);
-    config.forges[0].api_token = None;
+    config.without_records = Box::new([1]);
     config.limits.setup.runs = runs;
     config.limits.setup.states = states;
     fixtures::fill_files(&mut config);
@@ -687,7 +690,7 @@ fn an_unresolved_forge_keeps_its_setup_entry_but_restored_and_asked_connects_nev
     let mut config = fixtures::configured_engine();
     config.forges[0].kind = crate::settings::Kind::GitHub;
     config.forges[0].api = jig_protocol_config::Address::Host { name: b"forge.example".as_slice().into(), port: 443 };
-    config.forges[0].api_token = None;
+    config.without_records = Box::new([1]);
     let mut other = fixtures::forges().into_iter().next().unwrap();
     other.number = 2;
     let first = config.forges.into_iter().next().unwrap();
@@ -782,8 +785,7 @@ fn local_config(records: bool, fake: bool) -> fixtures::ConfiguredEngine {
         });
     }
     if records {
-        config.records_only = Box::new([1]);
-        config.forges[0].api_token = None;
+        config.without_records = Box::new([1]);
         config.forges[0].user = 0;
         config.identities[0].token = Secret::new(Box::new([]));
         config.identities[0].login = if fake { Box::new([]) } else { b"git-user".as_slice().into() };
@@ -1073,8 +1075,14 @@ fn local_with_other(config: fixtures::ConfiguredEngine, store: crate::store::Sto
     let mut other = fixtures::forges().into_iter().next().unwrap();
     other.number = 2;
     other.kind = crate::settings::Kind::GitHub;
-    other.api_token = None;
     other.api = jig_protocol_config::Address::Addr(skein_io::Addr::Ip(([127, 0, 0, 1], 3000).into()));
+    let mut without_records =
+        List::with_capacity(u32::try_from(config.without_records.len()).unwrap().checked_add(1).unwrap());
+    for number in config.without_records {
+        without_records.push(number).unwrap();
+    }
+    without_records.push(2).unwrap();
+    config.without_records = without_records.into_boxed();
     config.forges = Box::new([config.forges.into_iter().next().unwrap(), other]);
     let mut runtime = List::with_capacity(2);
     runtime.push(fixtures::forge_runtime().into_boxed().into_iter().next().unwrap()).unwrap();
@@ -1630,6 +1638,9 @@ mod bound_webhook;
 #[path = "setup_admin.rs"]
 mod admin_tests;
 
+#[path = "setup_tokens.rs"]
+mod tokens_tests;
+
 #[path = "setup_create.rs"]
 mod create_tests;
 
@@ -1909,7 +1920,6 @@ fn insert_runtime_forge(engine: &mut crate::engine::Engine, record: &domain::For
     source.web = record.place.web.clone();
     source.git = record.place.git.clone();
     source.transport = crate::settings::Transport::Plaintext;
-    source.api_token = None;
     assert!(engine.workers.forges.insert(source));
     root::step(
         &mut engine.domain,
@@ -1986,7 +1996,6 @@ fn the_intent_comes_from_the_record_after_a_restart() {
             playground: true,
             org: b"kept-org".as_slice().into(),
             repository: b"kept-repository".as_slice().into(),
-            project: domain::SetUpProject::Existing(1),
             label: b"kept-label".as_slice().into(),
         });
         for _restart in 0_u32..2 {
@@ -2051,6 +2060,7 @@ fn tls_github_service(address: core::net::SocketAddr) -> crate::Service {
     };
     service.configure_forge_runtime(
         crate::ForgeRuntime {
+            log_origins: List::with_capacity(0),
             number: 0,
             address,
             transport: skein_forge_connection::settings::Transport::Tls {
@@ -2246,7 +2256,7 @@ fn fixture_setup(
     snapshot.forges = config.forges.clone();
     snapshot.identities = config.identities.clone();
     snapshot.setup = config.setup.clone();
-    snapshot.records_only = config.records_only.clone();
+    snapshot.without_records = config.without_records.clone();
     fixtures::fill_files(&mut snapshot);
     let endpoints = core::mem::replace(endpoints, crate::forge::prepare(&snapshot.engine, List::with_capacity(0))?);
     let service = fixtures::configured_prepared(snapshot, &fixtures::seeds(), None, endpoints, None, None)?;
@@ -2276,3 +2286,6 @@ fn fixture_fixed(
     let (settings, _) = layer.pending.unwrap();
     Ok((settings, layer.env.limits))
 }
+
+#[path = "setup_replace.rs"]
+mod replace_tests;

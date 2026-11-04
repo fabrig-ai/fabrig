@@ -4,7 +4,7 @@ use skein_fake_oauth as fake;
 use skein_world::Host;
 use smith_local_process_world::oauth::{Browser, Peer};
 
-const ACCESS: &[u8] = b"eyJhbGciOiJub25lIn0.eyJleHAiOjEwMDAwLCJodHRwczovL2FwaS5vcGVuYWkuY29tL2F1dGgiOnsiY2hhdGdwdF9hY2NvdW50X2lkIjoiYWNjb3VudC1zZXZlbiJ9fQ.c2ln";
+const ACCESS: &[u8] = b"synthetic-private-access";
 const AUTHORIZE: &[u8] = b"http://127.0.0.1:444/authorize";
 const ENDPOINT: &[u8] = b"http://127.0.0.1:444/token";
 const REDIRECT: &[u8] = b"http://127.0.0.1:2345/callback";
@@ -61,7 +61,7 @@ fn record(expired: bool) -> skein_oauth::SavedToken {
         generation: 1,
         access_token: ACCESS.into(),
         refresh_token: Some(b"refresh-old".as_slice().into()),
-        metadata: Some(b"account-seven".as_slice().into()),
+        metadata: None,
         expires_at: if expired { wall() } else { Wall::from_nanos(300_000_000_000) },
     }
 }
@@ -157,16 +157,12 @@ impl Private {
                             wire: skein_oauth::WireFormat::Form,
                             client_secret: None,
                             pkce_for_confidential: false,
-                            metadata_claim: Some(skein_oauth::ClaimSelector {
-                                object: b"https://api.openai.com/auth".as_slice().into(),
-                                field: b"chatgpt_account_id".as_slice().into(),
-                            }),
+                            metadata_claim: None,
                         },
                         endpoint: oauth::Endpoint {
                             address: kernel::Addr::from(([127, 0, 0, 1], 444)),
                             transport: oauth::Transport::Plaintext
                         },
-                        account_id: Box::new([]),
                         interactive: story == Story::Interactive,
                     })
                     .is_ok()
@@ -362,6 +358,12 @@ fn a_private_sign_in_lends_only_after_the_native_record_is_durable() {
     let mut world = Private::new(Story::SignIn);
     world.until(Until::Ready);
     assert!(world.kept_before_grant);
+    for outcome in &world.outcomes {
+        if let CredentialRequest::Ready { event: local::Event::Credential { form, grant }, .. } = outcome {
+            assert_eq!(*form, smith_host_domain::Form::Credential(smith_host_domain::Scheme::Bearer));
+            assert!(grant.renewable);
+        }
+    }
     assert_eq!(world.saved().refresh_token.as_deref(), Some(b"refresh-new".as_slice()));
     world.close();
     assert!(world.browser.as_ref().expect("visited browser").1.saw_reply());
@@ -374,15 +376,6 @@ fn a_private_refresh_keeps_its_rotation_before_lending_the_new_grant() {
     assert!(world.kept_before_grant);
     assert_eq!(world.saved().generation, 2);
     assert_eq!(world.count(Until::Visit), 0);
-    world.close();
-}
-
-#[test]
-fn a_loaded_private_grant_supplies_its_account_id_from_the_claims() {
-    let mut world = Private::new(Story::Load);
-    world.until(Until::Ready);
-    assert_eq!(world.owner.account_id(7), Some(b"account-seven".as_slice()));
-    assert_eq!(world.renames, 0);
     world.close();
 }
 

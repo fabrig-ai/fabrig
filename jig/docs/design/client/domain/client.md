@@ -36,7 +36,7 @@ still open is listed in section 18.
   names, retries and one answer while the client lives (section 6).
 - **Work kept across a restart.** The small store holds kept requests
   not yet answered. At start, each is restored and told to the
-  application as kept. New unanswered `Seen` is silently lost on closing,
+  application as kept. An unanswered `Seen` is silently lost on closing,
   reload or crash; the next opening checks and sends the forward-only
   watermark again (section 11).
 - **The link is the client's to judge,** from the stream and its own
@@ -256,6 +256,35 @@ read by the application: client.document(handle), client.text(handle), client.pe
   documents with their revisions and offers (contract.md, 5.3), and each
   request's progress and answer.
 
+### 4.4 Without a link
+
+`Client::unlinked` makes a client that holds no link: its host carries
+the domain's work in the link's place, and answers it with `Up`. Each
+mode is stepped by its own pair, and each pair has its own request type:
+
+```
+Client::new:      step(now, wall, Event, &mut Queue<Request>), fire(now, wall, &mut Queue<Request>)
+Client::unlinked: step_unlinked(now, wall, Event, &mut Queue<UnlinkedRequest>),
+                  fire_unlinked(now, wall, &mut Queue<UnlinkedRequest>)
+
+UnlinkedRequest, out
+  Told { told }               as a linked client's
+  Authorized(authorized)      a printed link's authorization, always lost: no link signs in
+  Down { down }               the domain's work, which the host carries: a save, an erase, a send,
+                              a watch opened, continued or closed, a read
+  SignOut                     the sign-out, which the host answers
+Event, in, besides the application's: StartUnlinked { kept } in place of Start, Up { up }, SignOutLost
+```
+
+- **A linked client's `Request` holds no `Down` and no `SignOut`:** what
+  its domain asks goes to the link, and its sign-out is an exchange. A
+  linked host matches only what a linked client asks.
+- **A pair given the other mode's client is a fault** (an assertion), as
+  an event of the other mode is.
+- **An application root stepping either mode** keeps the two apart in its
+  own requests: what the linked client asks, and what the unlinked one
+  asks, each under its own variant.
+
 ## 5. Pages and the working set
 
 Pages, places, navigation and the working set are the reference UI's,
@@ -312,7 +341,7 @@ handles, as every presentation does (sections 7 and 8).
     and nothing is sent. The key stays held until its holder's record is
     erased; the application asks again then. Within the engine's
     retention an ordinary deciding request gets its original answer
-    again. A new `Seen` retains no engine answer after completion and
+    again. A `Seen` retains no engine answer after completion and
     is processed against current state on retry (contract.md, 3.1).
   - *Never loud.* A name comes from outside the application (an agent's
     key), so a name held is never the application's mistake. The same
@@ -348,7 +377,7 @@ handles, as every presentation does (sections 7 and 8).
   progress, retry after busy, not ready or lost, parking, confirmed-party
   checks, retention's unknown outcome, and one answer while the client
   lives. It counts against the same request and byte limits. The engine
-  retains no new completed `Seen` answer on success or routed refusal;
+  retains no completed `Seen` answer on success or routed refusal;
   after completion a retry checks current subject and authority and may
   answer `Unknown` after forget or `Role` after authority loss
   (contract.md, 3.1 and 3.2).
@@ -489,8 +518,8 @@ handles, as every presentation does (sections 7 and 8).
   an exchange use the old credential until successful installation.
 - **Pending ownership** is internal: `PendingRead { token: Token,
   family: Option<u16> }`. A response before the credential boundary
-  wins; the boundary before a response emits cancellation. Existing
-  token matching prevents a late reply or loss from completing a
+  wins; the boundary before a response emits cancellation. Token
+  matching prevents a late reply or loss from completing a
   replacement read under the same handle. A read under an old credential
   never answers under the new one. Supersession and `Unwatch` still
   abandon reads as above; credential boundaries do not.
@@ -757,7 +786,7 @@ for any presentation of a chat or of any agent task's activity.
 ## 11. The small store
 
 - **What the client keeps across its own restart:** the requests not yet
-  answered, except new top-level `Seen` and requests carrying a value
+  answered, except top-level `Seen` and requests carrying a value
   (section 6), as the request table's records, each with the key the
   engine knows it by, its party, the application's key, the request (jig's record, or a family's
   bytes under its owner's number and version), and the wall time of its first
@@ -793,7 +822,7 @@ for any presentation of a chat or of any agent task's activity.
   the write is durable, live attempts leave in FIFO order; stale
   attempts are skipped. Not kept reports a store failure, not internal
   queue room (programming-model.md, 7.2).
-- **New `Seen` has no save of its own.** Closing, reload or crash silently
+- **`Seen` has no save of its own.** Closing, reload or crash silently
   loses an unanswered in-memory mark, with no `Kept`, `Dropped` or not
   kept notice from its own store. The next opening checks and sends the
   watermark again; repeating a forward-only read position is safe. Its
@@ -802,15 +831,11 @@ for any presentation of a chat or of any agent task's activity.
   not kept; a `Seen` exchange held behind it is lost and follows its
   normal retry. Consuming the table's save creates no tracked store
   write and changes no store acknowledgement protocol.
-- **Every terminal still erases.** The table's terminal `Erase` remains
-  for new `Seen` too: erasing an absent key is harmless, and its store
-  acknowledgement still completes normally. Legacy stored pending
-  `Seen` records decode and restore under the usual rules, reported
-  `Kept`, never saved again, and erased at their normal terminal. They
-  may still cause a closing warning until erased; no migration or eager
-  drop is needed. These client records are distinct from the engine's
-  legacy completed `Seen` answers, retained until their original expiry
-  (contract.md, 3.1).
+- **Every terminal erases.** The table's terminal `Erase` holds for
+  `Seen` too: erasing an absent key is harmless, and its store
+  acknowledgement completes normally. A `Seen` record the small store
+  holds is not read: it is dropped, counted in `Dropped`, and its key
+  erased at start.
 - **Restored at `Start { kept }`,** before any other event: each
   request's record admitted to the table under its key, parked until
   the link is live, its party confirmed and the retention known; and
@@ -843,8 +868,7 @@ for any presentation of a chat or of any agent task's activity.
   stream gone, once, which the original takes as a drop (8.2).
 - **It is never the truth.** An ordinary deciding request kept is
   answered by the engine by its key, made once whatever the client did
-  before. A restored legacy `Seen` follows the engine's replay exception
-  (contract.md, 3.1).
+  before.
 
 ## 12. Signing in
 
@@ -1120,6 +1144,12 @@ with a person in front of a tree, are view.md's, 18.10.
   level-triggered watches and the link are jig's while they have one
   user; whether they move to skein, by a rename and a crate move, once
   a second user wants them.
+- **A root's two modes:** an application root chooses its mode at run
+  time, so it holds both modes' requests under one type (4.4), and a
+  host that only ever runs a linked root still matches the unlinked
+  variant, as a cell it never reaches. Whether each root splits by mode,
+  so that such a host is never handed that variant, is a change to every
+  application root and its hosts.
 
 ## 19. Helpers
 
@@ -1132,14 +1162,28 @@ with a person in front of a tree, are view.md's, 18.10.
   the application's data that `me` serves (contract.md, 3.6;
   `../../protocol/configuration.md`, 3.1):
   - `shapes::chat(me, project, words)` fills the chat template into a
-    `Create`;
+    `Create`, and `shapes::chat_from(me, project, template, words)`
+    fills a chat's template named by its number the same way, for an
+    application offering more than one (temper's configuring chat,
+    template 3): a template `me` does not offer the project, or one
+    whose flags make no conversation (contract.md, 3.2), gives
+    `NotOffered::Template`;
   - `shapes::close_chat(task, disposals)` gives one compound request:
     each live delegate cancelled or moved to the party, then the chat
     cancelled with the grace of the chat template `me` offers now, or
     with none once a change of settings removed it: closing is an act,
     and reads the newest settings as every act does
     (`../../domain/core.md`, section 13), so a chat can always be closed;
-  - `shapes::set_goal(..)` fills the goal template, compares the draft
+  - `shapes::remove_project(me, project)` gives a project's
+    `RemoveProject` with the same grace, the chat template's as `me`
+    offers it now, or none once a change of settings removed it: the
+    grace each of the project's live conversations is asked to finish
+    within as its deletion closes it (`../../domain/people.md`, 5.2);
+    a project not in `me` gives `NotOffered::Project`, and nothing is
+    sent;
+  - `shapes::set_goal(..)` fills the stock goal template;
+    `shapes::set_goal_from(me, project, template, draft, reason)` fills
+    an offered template by number. Each compares the filled draft
     with the project's creating bounds in `me` (contract.md, 5.3), a
     deadline given as a span within both, for the engine to judge, and
     gives one of four: *made,* a `Create`, within the first bound;
@@ -1161,7 +1205,8 @@ with a person in front of a tree, are view.md's, 18.10.
     by configured names (contract.md, 3.2), none being the charter's
     default resolved at Create. Shapes copy configured intent, never
     `resolved_default`, the separate preview served in `me`;
-    no parameters, inputs, dependencies or grants named after it;
+    no parameters, inputs or dependencies; symbolic resources copied
+    from the template for the engine to resolve;
   - a template it cannot fill gives `NotOffered::Template`, and nothing
     is sent: a contract no `Create` names (an approval, or a verdict
     whose choices its document cut), a value its helper takes no input
@@ -1194,8 +1239,13 @@ with a person in front of a tree, are view.md's, 18.10.
     until it parks, and is idle meanwhile (`../../domain/engine.md`,
     7.4). The party it waits on is the signed-in one where it names
     them, or a role `me` says they hold in the chat's project; any other
-    is another party. How each status is said is the presentation's
-    (the reference UI's: pages.md, section 4);
+    is another party. The helper reads whatever chip it is given and
+    never aborts on one: a record missing what its phase names is the
+    link's to refuse (`../../protocol/client.md`, section 3), and a chip
+    built past the link with no end time ends at its phase's `since`,
+    and one backing off with no notice says until when alone. How each
+    status is said is the presentation's (the reference UI's: pages.md,
+    section 4);
   - *an act's offer and effect:* the engine's admission of the act, as
     the document offers it (made, proposable and to whom, bounded, or
     refused; contract.md, 5.3), and what a decision will do, where the
@@ -1238,9 +1288,8 @@ on, and then a dependency it waits on, which is parked; then a refused
 start; and only then its stage, so a chat backing off is retrying and
 one claimed or running reads its host's report. A summary row, which
 holds no run wait, passes none and is never refused. A refusal is not a
-reply. The reference view shows Hello's observed
-kind, time and cause, or the task-specific program compatibility cause;
-it promises no automatic source switch.
+reply. The reference view shows the refusal's observed host kind, time
+and cause; it promises no automatic source switch.
 
 ## 20. Modes
 

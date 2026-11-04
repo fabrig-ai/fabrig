@@ -212,7 +212,7 @@ fn project_filter(b: &mut Builder, root: &Domain, filter: Filter, words: &Words,
         b.open(Role::Disclosure);
         b.style(look::KIND_MENU);
         let chosen = match filter.project {
-            Some(project) => super::project_name(Some(me), root.forge().playground(), project, words)
+            Some(project) => super::project_name(Some(me), project)
                 .unwrap_or(words.say(Word::Project, &[Hole::Number(u64::from(project))])),
             None => words.say(Word::AllProjects, &[]),
         };
@@ -274,7 +274,7 @@ fn entry(
         b.open(Role::Slot);
         b.style(look::META);
         if let Some(project) = card.project {
-            let name = super::project_name(root.pages().me(root.client()), root.forge().playground(), project, words)
+            let name = super::project_name(root.pages().me(root.client()), project)
                 .unwrap_or(words.say(Word::Project, &[Hole::Number(u64::from(project))]));
             b.open(Role::Text);
             b.run(Run::Plain, &name);
@@ -422,6 +422,7 @@ fn has_facts(page: &ReadValue) -> bool {
         | ReadValue::Settings(_)
         | ReadValue::Setting(_)
         | ReadValue::Revision(_)
+        | ReadValue::TaskText(_)
         | ReadValue::Revisions(_)
         | ReadValue::Tasks(_)
         | ReadValue::Project(_)
@@ -474,6 +475,7 @@ fn body(b: &mut Builder, page: &ReadValue, words: &Words) {
         | ReadValue::Settings(_)
         | ReadValue::Setting(_)
         | ReadValue::Revision(_)
+        | ReadValue::TaskText(_)
         | ReadValue::Revisions(_)
         | ReadValue::Tasks(_)
         | ReadValue::Project(_)
@@ -521,6 +523,7 @@ pub(crate) fn waiting_since(page: &ReadValue) -> Option<skein_lib::Wall> {
         ReadValue::Settings(_)
         | ReadValue::Setting(_)
         | ReadValue::Revision(_)
+        | ReadValue::TaskText(_)
         | ReadValue::Revisions(_)
         | ReadValue::Tasks(_)
         | ReadValue::Project(_)
@@ -606,6 +609,7 @@ fn arrival(page: &ReadValue, reply: bool) -> Option<skein_lib::Wall> {
         ReadValue::Settings(_)
         | ReadValue::Setting(_)
         | ReadValue::Revision(_)
+        | ReadValue::TaskText(_)
         | ReadValue::Revisions(_)
         | ReadValue::Tasks(_)
         | ReadValue::Project(_)
@@ -652,6 +656,7 @@ fn update_body(b: &mut Builder, card: &Card, page: &ReadValue, words: &Words, bi
         ReadValue::Settings(_)
         | ReadValue::Setting(_)
         | ReadValue::Revision(_)
+        | ReadValue::TaskText(_)
         | ReadValue::Revisions(_)
         | ReadValue::Tasks(_)
         | ReadValue::Project(_)

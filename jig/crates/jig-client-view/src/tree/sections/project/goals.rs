@@ -121,7 +121,7 @@ pub(super) fn choice(
             &[Hole::Number(u64::from(connector)), Hole::Number(u64::from(code))],
             Act::GoalForm { form },
         ),
-        Executor::Person(_) => {}
+        Executor::Job { .. } | Executor::Person(_) => {}
     }
 }
 

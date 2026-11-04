@@ -26,6 +26,7 @@ use crate::limits::Limits;
 
 #[derive(Debug)]
 pub(crate) struct Hosted {
+    pub(crate) job: Option<Box<crate::jobs::Job>>,
     /// The engine's names for the run and for the attempt hosted.
     pub(crate) run: Token,
     pub(crate) attempt: Token,
@@ -219,6 +220,7 @@ fn assign_runtime(
     let RunAssignment { run, attempt, workspace, save, live, charter, grants, identity: _ } = assignment;
     let held = Queue::with_capacity(env.limits.held);
     let entry = Hosted {
+        job: None,
         run,
         attempt,
         grants,
@@ -278,6 +280,9 @@ fn inbound_named(
     let Some(id) = fenced(&domain.names, &domain.hosted, run, attempt) else {
         return;
     };
+    if crate::jobs::owns(domain, id.token()) {
+        return;
+    }
     let sender_len = match &message.sender {
         Some(sender) => len(sender),
         None => 0,
@@ -371,7 +376,9 @@ pub(crate) fn relayed(
             );
         }
         call::State::Settling => {}
-        call::State::Delivering { .. } | call::State::Closed => unreachable!("only a live relay receives an answer"),
+        call::State::JobDelivering | call::State::Delivering { .. } | call::State::Closed => {
+            unreachable!("only a live relay receives an answer")
+        }
     }
     relay_ended(domain, call_id, out);
 }
@@ -383,7 +390,10 @@ pub(crate) fn relay_cancelled(domain: &mut Hub, run: Token, attempt: Token, call
     let entry = domain.calls.get(call_id).expect("a cancelled relay lives until its terminal");
     match entry.state {
         call::State::Settling => {}
-        call::State::Relayed { .. } | call::State::Delivering { .. } | call::State::Closed => {
+        call::State::Relayed { .. }
+        | call::State::JobDelivering
+        | call::State::Delivering { .. }
+        | call::State::Closed => {
             unreachable!("a relay is cancelled only after its cancel request")
         }
     }
@@ -787,7 +797,7 @@ pub(crate) fn delivered(domain: &mut Hub, owner: Token, delivery: Delivery, out:
             let name = name.expect("a delivery retains its opaque name");
             answer_call(agent, name, CallAnswer::Delivered(delivery), out);
         }
-        call::State::Relayed { .. } | call::State::Settling | call::State::Closed => {
+        call::State::JobDelivering | call::State::Relayed { .. } | call::State::Settling | call::State::Closed => {
             unreachable!("only a delivery ends a delivery call")
         }
     }
@@ -817,6 +827,13 @@ pub(crate) fn saved(domain: &mut Hub, owner: Token, at: Option<Token>, out: &mut
 /// has closed.
 pub(crate) fn hosting(domain: &Hub, owner: Token) -> Option<Hosting> {
     let entry = domain.hosted.get(Id::<Hosted>::from_token(owner))?;
+    if let Some(job) = &entry.job {
+        let phase = job.phase();
+        if phase == Phase::Answered && entry.answer.is_none() {
+            return None;
+        }
+        return Some(Hosting { run: entry.run, attempt: entry.attempt, phase });
+    }
     match &entry.state {
         State::Closed => {
             entry.answer.is_some().then_some(Hosting { run: entry.run, attempt: entry.attempt, phase: Phase::Answered })
@@ -841,6 +858,10 @@ fn fenced(names: &Map<Token, Id<Hosted>>, hosted: &Slab<Hosted>, run: Token, att
 
 /// Cancels the run `id` for `reason`: the cancel cells.
 fn stop(domain: &mut Hub, env: &Env<Limits>, id: Id<Hosted>, reason: Reason, out: &mut Queue<Request>) {
+    if crate::jobs::owns(domain, id.token()) {
+        crate::jobs::stop(domain, id, reason, out);
+        return;
+    }
     let Hub { hosted, calls, .. } = domain;
     let entry = hosted.get_mut(id).expect("a run on the names or the ready list is hosted");
     let state = mem::replace(&mut entry.state, State::Closed);
@@ -1023,7 +1044,7 @@ fn answer(
         refused: entry.refusals.take(),
         ending: answer,
     };
-    entry.answer = Some(crate::answers::Kept { answer: answer.clone() });
+    entry.answer = Some(crate::answers::Kept::Run(answer.clone()));
     out.push(Request::Up(LinkUp::Answer { run, attempt, answer }));
     State::Closed
 }
@@ -1147,7 +1168,7 @@ fn withdraw(entry: &mut Hosted, calls: &mut Slab<Call>, call: CallName, out: &mu
             out.push(Request::CancelRelay { run: entry.run, attempt: entry.attempt, call });
         }
         call::State::Settling => {}
-        call::State::Delivering { .. } | call::State::Closed => {
+        call::State::JobDelivering | call::State::Delivering { .. } | call::State::Closed => {
             unreachable!("found among the active relays")
         }
     }
@@ -1166,7 +1187,7 @@ fn leave(run: Token, attempt: Token, relays: &Set<Id<Call>>, calls: &mut Slab<Ca
                 out.push(Request::CancelRelay { run, attempt, call: name });
             }
             call::State::Settling => {}
-            call::State::Delivering { .. } | call::State::Closed => {
+            call::State::JobDelivering | call::State::Delivering { .. } | call::State::Closed => {
                 unreachable!("the run holds only its pending relays")
             }
         }
@@ -1373,5 +1394,27 @@ fn agent_grant(form: crate::Form) -> bool {
     match form.table() {
         GrantTable::Accounts | GrantTable::Name => true,
         GrantTable::Application => false,
+    }
+}
+
+impl Hosted {
+    pub(crate) fn job(run: Token, attempt: Token, job: crate::jobs::Job) -> Self {
+        Self {
+            job: Some(Box::new(job)),
+            run,
+            attempt,
+            answer: None,
+            grants: Box::new([]),
+            refreshed: false,
+            refusals: crate::refusals::Refusals::new(0),
+            save: false,
+            live: crate::LiveAsk::NONE,
+            left: None,
+            relays: Set::with_capacity(0),
+            delivery: None,
+            runtime: Runtime { start: None, turns: 0, spent: 0, read: None },
+            state: State::Closed,
+            observed: None,
+        }
     }
 }

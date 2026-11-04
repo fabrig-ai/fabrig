@@ -1,6 +1,15 @@
 # oauth: status
 
-2026-10-29. Where skein's code lags or departs from [oauth.md](oauth.md).
+2026-11-04. Where skein's code lags or departs from [oauth.md](oauth.md).
 
-- **Built:** 5, 6.7, 6.8: client, common, accounts, listener and fake edge checks and scenario ceilings without heap sums. 3, 6.3, 6.5, 6.8: listener and pasted redirects judged against the waiting sign-in, bounded state refusals and one listener per fixed port. 5: fake issuer's account claims. 6.7: sign-in return and listener's 303. 6.4: the kept record is SavedToken from schema/oauth-v3.schema.
-- **Not yet:** 7: IPv6 loopback, device authorization and credential helper.
+- **Departs:** 3: `skein/docs/foundation/programming-model.md`, 5.4 asks
+  for one explicit state enum per lifecycle, each state holding exactly
+  its data, no lifecycle in flags or `Option`s beside it, exhaustive
+  matches and one handler per cell; `skein-oauth/src/machine.rs` keeps
+  `Client::phase` beside `active: Option<Exchange>` and tests the phase
+  by comparison, while `skein-oauth-accounts/src/component.rs` keeps
+  `accounts`, `names`, `sources`, `bindings` and `keepers` in parallel
+  lists and five flags in `State::Record`, and `exchange.rs` keeps
+  `pending_grant`, `aborted` and `file_active` beside `Exchange::stage`;
+  no reason is recorded (the code's side is
+  `skein/docs/development/debt/D022-oauth-states.md`).

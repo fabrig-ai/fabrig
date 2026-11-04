@@ -140,6 +140,13 @@ impl Workspace {
             engine::ForgeStart::Base(branch) => checkout::Start::Base { branch: branch.clone() },
             engine::ForgeStart::Branch(branch) => checkout::Start::Branch { branch: branch.clone() },
             engine::ForgeStart::Saved(branch) => checkout::Start::Saved { branch: branch.clone() },
+            engine::ForgeStart::Merged { branch, heads } => {
+                let mut commits = skein_lib::List::with_capacity(u32::try_from(heads.len()).expect("bounded heads"));
+                for head in heads {
+                    commits.push(checkout::git::Commit::new(*head)).expect("measured heads");
+                }
+                checkout::Start::Merged { branch: branch.clone(), heads: commits.into_boxed() }
+            }
             engine::ForgeStart::Merge { branch, base } => {
                 checkout::Start::Merge { branch: branch.clone(), base: checkout::git::Commit::new(*base) }
             }

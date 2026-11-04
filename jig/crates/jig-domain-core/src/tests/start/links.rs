@@ -503,7 +503,12 @@ fn settings_proposals_link_both_records_and_the_retained_revision() {
                     CoreRecord::Settings(crate::settings::Record::Proposal {
                         proposer: people::Proposer::Party(1),
                         proposal: 7,
-                        value: crate::settings::Proposal { against, items: Box::new([]) },
+                        value: crate::settings::Proposal {
+                            key: None,
+                            applications: Box::default(),
+                            against,
+                            items: Box::new([])
+                        },
                     }),
                     &env.limits
                 ),
@@ -580,7 +585,7 @@ fn connector_resource_roles_link_their_projects() {
     ] {
         let (mut core, env) = loaded();
         if let Some(step) = deletion {
-            restore_person(&mut core, &env, people::Stored::Deletion { project, step });
+            restore_person(&mut core, &env, people::Stored::Deletion { project, step, grace: None });
             assert!(core.authority.policy(project).is_none());
         }
         let mut out = Queue::uncapped();

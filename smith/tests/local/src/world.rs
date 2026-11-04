@@ -1044,7 +1044,10 @@ impl World {
                 } else {
                     self.events.push_back(Event::Loaded {
                         state: self.store.state,
-                        transcript: self.store.history(),
+                        transcript: self
+                            .store
+                            .history()
+                            .map(|value| local::Transcript::new(value, u64::MAX).expect("world history ownership")),
                         deliveries: self.store.deliveries.values().cloned().collect::<Vec<_>>().into_boxed_slice(),
                     });
                 }
@@ -1554,7 +1557,7 @@ impl World {
                 let done = tools::Done::Failed { fault: tools::Fault::Other };
                 self.events.push_back(self.below(Below::Done { owner, done }));
             }
-            Lower::Yield { .. } | Lower::CancelIo { .. } | Lower::Abort { .. } => {}
+            Lower::Yield { .. } | Lower::Close { .. } | Lower::CancelIo { .. } | Lower::Abort { .. } => {}
             Lower::Read { owner, at, max, deadline: _ } => {
                 let read = match self.disk.load(at.root.raw(), &at.path, u64::from(max)) {
                     Ok((text, _)) => run::Read::Text { text: text.into(), whole: true },

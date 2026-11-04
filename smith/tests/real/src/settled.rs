@@ -111,7 +111,7 @@ impl Before {
             })
             .count();
         assert_eq!(
-            transcript.turns.len(),
+            transcript.value().turns.len(),
             old_turns
                 + if binary {
                     seen.queries.len()
@@ -132,7 +132,7 @@ impl Before {
             }
         }
         let mut new_deliveries = BTreeSet::new();
-        for turn in &transcript.turns {
+        for turn in &transcript.value().turns {
             let path = chat.join(format!("{:010}.turn", turn.sequence));
             // A resumed run appends; already durable turns cannot be rewritten.
             if !self.entries.contains_key(&path) {

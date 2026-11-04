@@ -3,35 +3,9 @@ use crate::ChatsFilter;
 use crate::{Action, Address, Domain, Event, Fact, Limits, Place, Request, forge, owner::Owner};
 use skein_lib::{Env, Queue};
 pub(crate) fn forge(root: &mut Domain, env: &Env<Limits>, event: forge::Event, out: &mut Queue<Request>) {
-    // Any first-repository adoption advances the welcome, whichever flow asked for it
-    // (client/README.md, The welcome). Standalone ConnectForge keeps its Ready card.
-    let mut adopted_in_welcome = false;
-    if let Address::Welcome { step: crate::Step::Forge { .. } } = root.pages.address()
-        && let forge::Event::Answered { request, answer: forge::Answer::Adopted(adopted) } = &event
-    {
-        let pending = match root.forge.picker(adopted.forge) {
-            Some(picker) => picker.adoption.as_ref(),
-            None => match root.forge.set_up() {
-                Some(last) if last.forge == Some(adopted.forge) => last.adoption.as_ref(),
-                Some(_) | None => None,
-            },
-        };
-        if let Some(adoption) = pending
-            && adoption.request == *request
-            && adoption.outcome.is_none()
-        {
-            adopted_in_welcome = true;
-        }
-    }
     let mut child = Queue::uncapped();
-    forge::step(&mut root.forge, &Env { now: env.now, wall: env.wall, limits: env.limits.forge }, event, &mut child);
+    forge::step(&mut root.forge, &env.with(env.limits.forge), event, &mut child);
     route_forge(root, env, &mut child, out);
-    if adopted_in_welcome {
-        out.push(Request::Show {
-            address: Address::Welcome { step: crate::Step::Model { way: None } },
-            replace: false,
-        });
-    }
 }
 pub(crate) fn event(root: &mut Domain, env: &Env<Limits>, event: Event, out: &mut Queue<Request>) {
     match event {
@@ -82,7 +56,7 @@ fn went(root: &mut Domain, env: &Env<Limits>, place: Place, out: &mut Queue<Requ
                 forge(root, env, forge::Event::Left, out);
             }
         }
-        Place::Authorize { .. } | Place::AuthorizeMalformed | Place::Missing => {
+        Place::Authorize { .. } | Place::AuthorizeMalformed | Place::Missing | Place::Public(_) => {
             pages(root, env, crate::pages::Event::Left, out);
             forge(root, env, forge::Event::Left, out);
         }
@@ -181,6 +155,28 @@ pub(crate) fn route_forge(
 ) {
     for _ in 0..child.len() {
         match child.pop().expect("counted forge output") {
+            forge::Request::ConnectForge { forge } => {
+                let choice = Some(crate::Choice::Forge(forge));
+                let address = match root.pages.address() {
+                    Address::ConnectForge { forge: Some(crate::Choice::Managed) } => {
+                        Address::ConnectForge { forge: choice }
+                    }
+                    Address::Welcome { step: crate::Step::Forge { forge: Some(crate::Choice::Managed) } } => {
+                        Address::Welcome { step: crate::Step::Forge { forge: choice } }
+                    }
+                    Address::Inbox { .. }
+                    | Address::Chats { .. }
+                    | Address::Accounts
+                    | Address::Forges
+                    | Address::ConnectForge { .. }
+                    | Address::ConnectModel { .. }
+                    | Address::Welcome { .. }
+                    | Address::Chat { .. }
+                    | Address::Task { .. }
+                    | Address::Adopt { .. } => continue,
+                };
+                out.push(Request::Show { address, replace: true });
+            }
             forge::Request::PanelEnded { subject } => refresh_panel(root, env, subject, true, out),
             forge::Request::Client { asked } => client(root, env, asked, out),
             forge::Request::Leave { to } => out.push(Request::Leave { to, replace: false }),
@@ -210,8 +206,14 @@ pub(crate) fn route_forge(
 }
 pub(crate) fn client(root: &mut Domain, env: &Env<Limits>, event: jig_client::Event, out: &mut Queue<Request>) {
     let mut child = Queue::uncapped();
-    root.client.step(env.now, env.wall, event, &mut child);
-    route_client(root, env, &mut child, out);
+    if root.unlinked {
+        root.client.step_unlinked(env.now, env.wall, event, &mut child);
+        route_unlinked(root, env, &mut child, out);
+    } else {
+        let mut child = Queue::uncapped();
+        root.client.step(env.now, env.wall, event, &mut child);
+        route_client(root, env, &mut child, out);
+    }
 }
 pub(crate) fn route_client(
     root: &mut Domain,
@@ -228,9 +230,24 @@ pub(crate) fn route_client(
             | jig_client::Request::Exchange { .. }
             | jig_client::Request::OpenStream { .. }
             | jig_client::Request::CloseStream
-            | jig_client::Request::Down { .. }
-            | jig_client::Request::ServiceCredential { .. }
-            | jig_client::Request::SignOut) => out.push(Request::Client { request }),
+            | jig_client::Request::ServiceCredential { .. }) => out.push(Request::Client { request }),
+        }
+    }
+    forge_served(root, env, out);
+}
+pub(crate) fn route_unlinked(
+    root: &mut Domain,
+    env: &Env<Limits>,
+    child: &mut Queue<jig_client::UnlinkedRequest>,
+    out: &mut Queue<Request>,
+) {
+    while let Some(request) = child.pop() {
+        match request {
+            jig_client::UnlinkedRequest::Told { told: value } => told(root, env, value, out),
+            jig_client::UnlinkedRequest::Authorized(answer) => crate::authorize::answered(root, answer, out),
+            request @ (jig_client::UnlinkedRequest::Down { .. } | jig_client::UnlinkedRequest::SignOut) => {
+                out.push(Request::Unlinked { request });
+            }
         }
     }
     forge_served(root, env, out);
@@ -355,8 +372,7 @@ fn playground(root: &mut Domain, env: &Env<Limits>, out: &mut Queue<Request>) {
 
 fn forge_forges(root: &mut Domain, env: &Env<Limits>, told: &jig_client::Told, out: &mut Queue<Request>) -> bool {
     let mut child = Queue::uncapped();
-    let consumed = forge::picker::told(&mut root.forge, &root.client, told, env.limits.forge)
-        || forge::admin::told(&mut root.forge, &root.client, told, env.limits.forge, &mut child)
+    let consumed = forge::admin::told(&mut root.forge, &root.client, told, env.limits.forge, &mut child)
         || forge::github::told(&mut root.forge, &root.client, told, env.limits.forge, &mut child)
         || forge::forges::told(&mut root.forge, &root.client, told, env.limits.forge, &mut child);
     if consumed
@@ -375,6 +391,7 @@ fn forge_forges(root: &mut Domain, env: &Env<Limits>, told: &jig_client::Told, o
 }
 
 fn playground_facts(root: &mut Domain) {
+    root.pages.welcome_decision = crate::pages::welcome::decision(root);
     root.pages.playground_provider = root.forge.playground_provider();
     crate::pages::project_changed(&mut root.pages, &root.client);
     let project = match root.forge.playground() {
@@ -396,9 +413,20 @@ pub(crate) fn playground_progress(root: &mut Domain, env: &Env<Limits>, out: &mu
     playground_facts(root);
 }
 
-/// Ready reads only while its flow is shown; pending starts survive navigation.
-pub(crate) fn picker_progress(root: &mut Domain, env: &Env<Limits>, out: &mut Queue<Request>) {
-    let mut child = Queue::uncapped();
-    forge::picker::progress(&mut root.forge, &root.client, root.pages.address(), env.limits.forge, env.now, &mut child);
-    route_forge(root, env, &mut child, out);
+/// Advance a named connected forge to Model (temper/docs/design/client/README.md, 3.5).
+pub(crate) fn welcome_progress(root: &mut Domain, _env: &Env<Limits>, out: &mut Queue<Request>) {
+    if let Address::Welcome { step: crate::Step::Forge { forge: Some(crate::Choice::Forge(number)) } } =
+        root.pages.address()
+        && let forge::forges::State::Rows(rows) = root.forges()
+    {
+        for row in rows {
+            if row.number == *number && crate::pages::welcome::forge_connected(row) {
+                out.push(Request::Show {
+                    address: Address::Welcome { step: crate::Step::Model { way: None } },
+                    replace: true,
+                });
+                return;
+            }
+        }
+    }
 }

@@ -128,7 +128,10 @@ child domain `smith-domain-session`, whose own child is the tools domain
   not-run result as an ordinary continuation, unless the opener answers
   it as the session opens, as a run answers the `wait` it withheld when
   it parked; answers the history does not hold go to the LLM as text in
-  the waking prompt (run.md, section 6).
+  the waking prompt (run.md, section 6). The opener names in its opening
+  the one call it may have withheld, by its tool's name, and the session
+  restores that call alone as withheld: it knows none of its opener's
+  tools by name.
 - **Refused transcripts.** Another version, a malformed, unresolved or
   oversized history are distinct refusals; the run treats every one as
   a transient failure (run.md, section 6).
@@ -271,7 +274,7 @@ child domain `smith-domain-session`, whose own child is the tools domain
       a version not read or stale, an `old` that matched nothing or more
       than once, edits that together leave the file as it was
       (`unchanged`: like every failed edit, it applies none of the
-      call's edits, tools.md, section 3; revised 2026-10-20), a size
+      call's edits, tools.md, section 3), a size
       refused, `failed`, which may have stored part of its
       change, and every other.
   - **Nothing else stops them:** a `shell` or a `job` call's answer,
@@ -296,7 +299,8 @@ child domain `smith-domain-session`, whose own child is the tools domain
   tools offered never change (section 3); the choice narrows what may be
   called.
   - The opener gives the choice when it continues the session, as a run
-    winding down offers only `finish` and `deliver` (run.md, section 9).
+    winding down offers `finish`, granted `deliver` and `wait`, and host tools
+    marked for the reserve (run.md, section 9).
     The session sets `None` on its own final turn (section 7), and on a
     compaction (8.2), whatever the conversation's choice.
   - A call outside the choice, one a dialect that cannot express `Only`
@@ -487,7 +491,7 @@ window, history only grows (section 3).
   filled has no room for another completion, so the next is the
   compaction, whose request cuts the owed results to its own room (8.2).
 
-- **Nor do they cross the line** (revised 2026-10-20). Every batch, the first
+- **Nor do they cross the line.** Every batch, the first
   included, also runs within an estimate of what is left below the line in
   the guard's units: the line, less the last prompt's reported size, less
   the retained byte count beyond that prompt's payload-byte baseline and
@@ -539,7 +543,7 @@ window, history only grows (section 3).
   output, beside its prompt as every completion's is, and takes no room
   in the window (protocol/limits.md, 2.1). The history before them is
   the ordinary prompt's, unchanged:
-  - **on the Codex dialect,** which keeps the tool choice outside the
+  - **on the OpenAI dialect,** which keeps the tool choice outside the
     cached prefix, the request reads the cached prefix;
   - **on the Anthropic dialect,** a changed choice keeps the cache of the
     tools and the system text and loses that of the messages, so a
@@ -760,12 +764,3 @@ budgets.
   within a turn and never keeps it in a transcript.
 - **Provider-native compaction:** a dialect's own compaction items,
   replayed verbatim, as a later optimisation of section 8.2.
-
-## 12. From temper
-
-The session is temper's agent's, as its second version: turns told with
-names resolved, transcripts versioned, prices and spend in a unit,
-history checked before a completion. temper's first version, which
-tickets made meaningful only inside its session, stays with temper's
-legacy run until temper's cutover; smith starts at the second. Windows,
-the affinity and tool choice are new.

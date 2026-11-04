@@ -134,7 +134,6 @@ impl Shell {
             client::Request::Told { .. }
             | client::Request::Authorized(_)
             | client::Request::ServiceCredential { .. } => {}
-            client::Request::Down { .. } | client::Request::SignOut => panic!("linked hosts emit wire work"),
         }
     }
     /// Inspect admission without progressing files, sockets or the request queue.
@@ -151,8 +150,6 @@ impl Shell {
                 | client::Request::Save { .. }
                 | client::Request::Erase { .. }
                 | client::Request::Told { .. }
-                | client::Request::Down { .. }
-                | client::Request::SignOut
                 | client::Request::Authorized(_)
                 | client::Request::ServiceCredential { .. } => unreachable!("only exchanges and streams held"),
             };
@@ -258,7 +255,7 @@ impl Transport {
             | io::Event::Usage { .. }
             | io::Event::Resized
             | io::Event::Window { .. }
-            | io::Event::Shutdown { .. } => panic!("client owns sockets only"),
+            | io::Event::Shutdown { .. } => unreachable!("the client's io carries its sockets alone"),
         }
     }
     /// Call once per host iteration, after io events and before io's reclaim.

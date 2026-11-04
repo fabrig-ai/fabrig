@@ -10,8 +10,8 @@ pub const APPLICATION: &[u8] = br#"{
 "webhooks":null,
 "clients":{"listener":{"socket":"127.0.0.1:7100"},"public":null,"bundle":null},
 "machine":{},
-"landing":{"deployment":[],"projects":[{"project":1,"rules":[{"connector":1,"kind":4,"pattern":{"segments":["forge","127.0.0.1:9","acme","app"],"last":"open","value":"main"},"enforce":true,"ci":false,"up_to_date":true,"gates":[],"approvals":[]}]}]},
-"demo":null,"sign_in":null,"charter":1,"limits":{"profile":"small","overrides":{}},"workers":[{"root":"worker-root","git":"/usr/bin/git"}]
+"landing":{"projects":[{"project":1}]},
+"demo":null,"sign_in":null,"limits":{"profile":"small","overrides":{}},"workers":[{"root":"worker-root","git":"/usr/bin/git"}]
 }"#;
 pub const DEMO: &str = r#""demo":{"llm":{"listen":{"socket":"$llm"},"provider":3,"key":"demo/llm.key",
 "asked":[{"cue":"Add CSV export to widget","turns":["CSV"]},
@@ -87,10 +87,6 @@ pub fn parsed() -> skein_json::Document {
 pub fn files() -> settings::Files {
     let mut entries = List::with_capacity(8);
     for (path, value) in [
-        (b"secrets/forge-1.webhook-secret".as_slice(), b"fixture-hook-secret\n".as_slice()),
-        (b"secrets/forge-1.user".as_slice(), b"42\n".as_slice()),
-        (b"secrets/forge-1.api-token".as_slice(), b"api-token\n".as_slice()),
-        (b"secrets/forge-1.git-token".as_slice(), b"git-token\n".as_slice()),
         (b"worker-secret".as_slice(), super::worker::WORKER_SECRET),
         (
             b"secrets/worker-a.digest".as_slice(),
@@ -258,12 +254,11 @@ fn member_span(input: &[u8], path: &[u8]) -> core::ops::Range<usize> {
     start.unwrap()..end.unwrap_or(input.len())
 }
 
-/// One webhook listener and its private secret path, on the shipped profile.
+/// One webhook listener on the shipped profile.
 pub fn webhook_document() -> Box<[u8]> {
     core::str::from_utf8(&document())
         .unwrap()
         .replace("\"webhooks\":null", "\"webhooks\":{\"listener\":{\"socket\":\"127.0.0.1:7200\"}}")
-        .replace("\"webhook_secret\":null", "\"webhook_secret\":\"secrets/forge-1.webhook-secret\"")
         .into_bytes()
         .into_boxed_slice()
 }
@@ -335,7 +330,7 @@ pub fn owned_worker_agent() -> settings::Agent {
                 start_messages: 8,
                 host_ask_input: 4_098,
                 field_text: 4_096,
-                turn_body: 1_589_850,
+                turn_body: 1_589_621,
                 accepted_result: 8_192,
                 ..smith_channel::CEILINGS
             },
@@ -371,12 +366,12 @@ pub fn owned_worker_agent() -> settings::Agent {
             channel: skein_channel::Limits {
                 chunk: 4096,
                 credential: 0,
-                skip: 72_113_866,
-                output_bytes: 72_113_874,
+                skip: 72_105_650,
+                output_bytes: 72_105_658,
                 output_frames: 26,
                 kinds: 20,
             },
-            start_bytes: 72_113_866,
+            start_bytes: 72_105_650,
             calls: 1,
         },
         bounds: jig_domain_host::Bounds {

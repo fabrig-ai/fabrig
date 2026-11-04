@@ -4,9 +4,7 @@ use crate::boundary::{
 };
 use crate::limits::{Limits, backlog, core_limits, environment_core, payload_slots, run_policy_bound, valid};
 use crate::restart::{connector_restarting, request_load};
-use crate::route::{
-    LandingRule, forge_route, host_route, landing, policy_translate, route_core_requests, route_into, step_routed,
-};
+use crate::route::{forge_route, host_route, policy_translate, route_core_requests, route_into, step_routed};
 use crate::translate::{Config, RootConfig, environment_forge};
 use crate::{CallKey, Decision, Delivery, Journal, JournalOutput as Output, Range, Write, loads};
 use alloc::boxed::Box;
@@ -18,13 +16,14 @@ use jig_domain_tasks as tasks;
 use skein_lib::{Env, Id, List, Map, Queue, ReplyTo, Slab, Time, Token, Wall};
 use temper_engine_domain_calendar as calendar;
 use temper_engine_domain_forge as forge;
-use temper_engine_domain_forge_change as forge_change;
 
 /// Why a start stopped before decisions opened (temper/docs/design/domain/root.md, 9.1).
 #[derive(Clone, PartialEq, Eq, Debug)]
 pub enum StartStop {
     /// jig's start refused a fit at this phase (jig/docs/design/domain/engine.md, 6).
     Core { phase: Option<jig_domain_core::start::Phase>, failure: jig_domain_core::start::Failure },
+    /// A current charter leaves too little brief room (temper/docs/design/domain/agent.md, 4.3).
+    Room(crate::room::Short),
     /// A startup page could not be read.
     Load(loads::RestoreFailure),
     /// The forge's restored records do not fit its limits.
@@ -43,8 +42,10 @@ pub enum StartStop {
     reason = "the journal door, header, pending switch, sweep page and opened milestone are independent"
 )]
 pub struct Domain {
+    pub(crate) host_part: Option<crate::room::HostPart>,
     revision: u64,
     held_bytes: u64,
+    pub(crate) public_reads: u32,
     /// Retired M1 reset marker; readiness never reads it. Keeping the marker
     /// needs no clock pair beside the retained restore failure.
     pub(crate) settled: Option<()>,
@@ -78,10 +79,14 @@ pub struct Domain {
     pub(crate) core_header_loaded: bool,
     pub(crate) restored_commits: Option<u64>,
     pub(crate) brief_connectors: Slab<BriefConnector>,
+    pub(crate) brief_document_titles: Map<u64, Box<[Box<[u8]>]>>,
     pub(crate) forge_briefs: Map<Token, BriefSection>,
     pub(crate) run_workspaces: Map<u64, PreparedWorkspace>,
+    pub(crate) job_workspaces: Map<u64, crate::ForgeWorkspace>,
     pub(crate) forge: forge::Domain,
     pub(crate) application: Option<(Token, crate::Application)>,
+    pub(crate) kinds: Box<[crate::KindValue]>,
+    pub(crate) kinds_stock: Option<Box<[forge::settings::Stock]>>,
     pub(crate) application_carried: Option<jig_domain_core::Carried>,
     pub(crate) application_playground: Option<crate::route::playground::Context>,
     pub(crate) playground_contexts: Map<Token, crate::route::playground::Context>,
@@ -100,7 +105,7 @@ pub struct Domain {
     pub(crate) forge_effecting: Map<u64, (ReplyTo, CallKey)>,
     pub(crate) forge_effects: Map<Token, forge_route::EffectFlight>,
     pub(crate) next_effect_owner: u64,
-    pub(crate) forge_delegating: Map<(u64, u64), forge_change::Delegate>,
+    pub(crate) forge_delegating: Map<(u64, u64), forge_route::ChangeStep>,
     pub(crate) loads: loads::Loads,
     pub(crate) hub_link: jig_domain_hub_link::Link,
     pub(crate) assignment_parts: Map<u64, crate::boundary::AssignmentParts>,
@@ -194,6 +199,14 @@ impl Domain {
         self.revision = self.revision.checked_add(1).expect("root revision space");
     }
 
+    /// Wake deployment-row subscribers after volatile routing diagnostics change.
+    pub fn mark_forges(&mut self) {
+        self.changed();
+        let mut subjects = List::with_capacity(1);
+        subjects.push(Token::new(0)).expect("one forges subject");
+        self.work.push(Work::Core(jig_domain_core::Event::Marked { connector: self.config.forge_connector, subjects }));
+    }
+
     /// Routing capacities are fixed before the first input and priced by the service.
     pub fn connection_limits(&mut self, forges: u32, installations: u32) {
         self.changed();
@@ -210,7 +223,7 @@ impl Domain {
     pub fn forges(&self) -> forge::Forges {
         self.forge.forges()
     }
-    /// The playground row as the service reads it (temper/docs/design/draft/playground-reset.md, 6.1–6.2).
+    /// The playground row as the service reads it (temper/docs/design/protocol/setup.md, 8.4).
     #[must_use]
     pub fn playground(&self) -> Option<&forge::Playground> {
         self.forge.playground()
@@ -256,11 +269,6 @@ impl Domain {
                 limits.journal.run_bytes
             );
         }
-        let mut forge_charter = false;
-        for charter in &config.core.defaults.charters {
-            forge_charter |= charter.number == config.forge_charter;
-        }
-        assert!(forge_charter, "the forge's agent work runs under a configured charter");
         assert!(
             config.core.settings.resume_bytes > 0
                 && config.core.settings.resume_bytes <= limits.journal.transcript_bytes,
@@ -271,29 +279,14 @@ impl Domain {
                 && limits.forge.judge_criteria >= limits.authority.requirements,
             "forge judge table covers authority policy bounds"
         );
-        assert!(
-            config.landing.projects.capacity() <= limits.authority.projects
-                && config.landing.landings.capacity() <= limits.authority.projects,
-            "typed landing project table fits the policy bound"
-        );
-
-        assert!(
-            landing_within(&config.landing.deployment, limits.journal.transcript_bytes),
-            "deployment landing policy fits owned-byte bound"
-        );
-        for (_, rules) in &config.landing.projects {
-            assert!(
-                landing_within(rules, limits.journal.transcript_bytes),
-                "project landing policy fits owned-byte bound"
-            );
-        }
+        assert!(config.landings.capacity() <= limits.authority.projects, "landing project table fits the policy bound");
         assert!(
             config.core.seed_projects.len() <= usize::try_from(limits.authority.projects).expect("project bound"),
             "permission policy project bound"
         );
         for project in &config.core.seed_projects {
             let mappings = &project.policy.permissions;
-            let count = u64::try_from(mappings.len()).expect("usize fits u64");
+            let count = skein_lib::len_u64(mappings.len());
             let unit = u64::try_from(size_of::<people::PermissionRole>()).expect("type size fits u64");
             assert!(
                 match count.checked_mul(unit) {
@@ -347,53 +340,44 @@ impl Domain {
             None => None,
         };
         forge.configure_playground(config.playground.take());
-        let built = policy_translate::build_landing(
-            &config.landing.deployment,
-            false,
-            limits.authority.requirements,
-            forge_connector,
-        )
-        .expect("deployment landing requirements bounded");
         assert!(
-            add_configured_requirements(&mut config.core.defaults.rules, &built.requirements, &limits.authority),
-            "deployment landing requirements fit authority configuration"
+            add_configured_requirements(
+                &mut config.core.defaults.rules,
+                &policy_translate::standing_requirements(forge_connector),
+                &limits.authority,
+            ),
+            "standing landing requirements fit authority configuration"
         );
-        assert!(forge.deployment_judges(built.criteria), "deployment judge table bounded");
-        for (&project, rules) in &config.landing.projects {
-            let built = policy_translate::build_landing(rules, true, limits.authority.requirements, forge_connector)
-                .expect("project landing requirements bounded");
-            let policy =
-                seed_policy_mut(&mut config.core.seed_projects, project).expect("landing project has a policy");
-            assert!(
-                policy_translate::landing_roles(policy, &config.landing.deployment),
-                "deployment landing roles configured"
-            );
-            assert!(policy_translate::landing_roles(policy, rules), "project landing roles configured");
-            let combined = policy_translate::combine_requirements(
-                &policy.requirements,
-                &built.requirements,
-                limits.authority.requirements,
-            )
-            .expect("project landing requirements fit authority policy");
-            policy.requirements = combined;
-            assert!(forge.project_judges(project, built.criteria), "project judge table bounded");
-        }
-        let gate_policy = policy_translate::gate_policy(
-            &config.landing,
-            limits.authority.requirements,
-            limits.forge.change_policy.gates,
-        )
-        .expect("landing gate templates bounded");
-        assert!(forge.gate_policy(gate_policy, &limits.forge), "forge owns bounded landing templates");
-        for (&project, landing) in &config.landing.landings {
+        for (&project, landing) in &config.landings {
             assert!(
                 crate::translate::project_landing(&mut forge, project, landing),
                 "project landing configuration bounded and supported"
             );
         }
-        let root_config =
-            RootConfig { forge_connector, forge_charter: config.forge_charter, landings: config.landing.landings };
+        let mut declares_forge_kinds = false;
+        for kind in &config.core.kinds {
+            declares_forge_kinds |= kind.connector == forge_connector;
+        }
+        let stock = config.kinds_stock;
+        let kinds_stock = if declares_forge_kinds {
+            Some(stock)
+        } else {
+            forge.give_settings_defaults(stock);
+            None
+        };
+        let mut merge_kind = None;
+        for bound in &config.core.jobs {
+            if bound.kind.0 == forge::MERGE_KIND {
+                merge_kind = Some(*bound);
+            }
+        }
+        if let Some(bound) = merge_kind {
+            forge.merge_kind(bound.spec, bound.result);
+        }
+        let root_config = RootConfig { merge_kind, forge_connector, landings: config.landings };
         let link_rng = skein_lib::Rng::new(config.core.seed);
+        config.core.kept_starts =
+            Box::new([tasks::KeptStart { connector: forge_connector, code: forge_route::CHANGE_CODE }]);
         let mut core = Core::new(config.core, &core_limits(limits))?;
         // temper/docs/design/domain/agent.md, 8.2: the person answers in their inbox.
         core.person_answers();
@@ -418,8 +402,10 @@ impl Domain {
         );
         assert!(configured.is_empty(), "configuration emits no request");
         Ok(Domain {
+            host_part: config.host_part,
             revision: 0,
             held_bytes: 0,
+            public_reads: 0,
             calendar: calendar::Calendar::new(
                 &calendar::Limits { projects: limits.authority.projects },
                 config.period_span,
@@ -458,10 +444,14 @@ impl Domain {
                     .checked_mul(2)
                     .expect("validated brief connector room"),
             ),
+            brief_document_titles: Map::with_capacity(limits.brief.briefs),
             forge_briefs: Map::uncapped(),
             run_workspaces: Map::with_capacity(limits.tasks.tasks),
+            job_workspaces: Map::with_capacity(limits.tasks.tasks),
             forge,
             application: None,
+            kinds: Box::default(),
+            kinds_stock,
             application_carried: None,
             application_playground: None,
             playground_contexts: Map::with_capacity(limits.forge.applications),
@@ -539,6 +529,20 @@ impl Domain {
         }
     }
 
+    /// Check the effective settings after `LoadCore` has restored their changes
+    /// (temper/docs/design/domain/agent.md, 4.3).
+    pub(crate) fn check_room(&self) -> Result<(), crate::room::Short> {
+        let Some(host) = self.host_part else { return Ok(()) };
+        for setting in self.core.current.offered().into_boxed() {
+            if let jig_domain_core::settings::Setting::Charter(number) = setting
+                && let Some(charter) = self.core.current.charter(number)
+            {
+                host.check(number, &charter.policy)?;
+            }
+        }
+        Ok(())
+    }
+
     pub(crate) fn stop_start(&mut self, stop: StartStop) {
         if self.start_stop.is_none() {
             self.start_stop = Some(stop);
@@ -563,6 +567,7 @@ impl Domain {
             && self.loads.quiescent()
             && self.work.is_empty()
             && self.assignment_parts.is_empty()
+            && self.job_workspaces.is_empty()
             && self.hub_link.payload_count() == 0
             && self.answer_parts.is_empty()
             && self.refused_calls.is_empty()
@@ -578,6 +583,7 @@ impl Domain {
             && self.forge_effecting.is_empty()
             && self.forge_effects.is_empty()
             && self.brief_connectors.is_empty()
+            && self.brief_document_titles.is_empty()
             && !self.forge.is_ready()
     }
 
@@ -683,6 +689,7 @@ fn finish_close(
     finishing_only: bool,
 ) -> bool {
     if domain.start_stop().is_some() {
+        domain.kinds = Box::default();
         out.push(Request::Stop);
         return false;
     }
@@ -694,6 +701,7 @@ fn finish_close(
     let finished = requests.is_empty();
     route_core_requests(domain, env, &mut decision, requests);
     route_into(domain, env, &mut decision);
+    domain.kinds = Box::default();
     let persist_header = domain.core_header_loaded
         && (domain.start_phase() != Some(jig_domain_core::start::Phase::LoadCore) || domain.startup_range.is_none());
     let empty = finished
@@ -776,6 +784,7 @@ pub(crate) fn stage_now(domain: &mut Domain, out: &mut Queue<Request>) {
             request @ (Request::Worker(_)
             | Request::Party(_)
             | Request::Connect { .. }
+            | Request::Replace { .. }
             | Request::Manifest { .. }
             | Request::Reachable { .. }
             | Request::Install { .. }
@@ -845,6 +854,9 @@ fn release_one(domain: &mut Domain, out: &mut Queue<Request>) -> skein_lib::Rele
     let status = domain.journal.release(out);
     let mut bytes = 0_u64;
     for request in out.iter().skip(before) {
+        if let Request::Party(crate::PartyRequest::Deliver(Delivery::Public { admitted: true, .. })) = request {
+            domain.public_reads = domain.public_reads.checked_sub(1).expect("one answer per admitted public read");
+        }
         if let Request::Worker(crate::WorkerRequest::Deliver(Delivery::Assigned { assignment, .. })) = request {
             bytes = bytes
                 .checked_add(crate::budget::assignment_bytes(assignment))
@@ -1043,6 +1055,9 @@ fn released_into(
     out: &mut Queue<Request>,
 ) {
     match released.0 {
+        Delivery::PublicWait { read } => {
+            domain.work.push(Work::Core(jig_domain_core::Event::PublicDurable { read }));
+        }
         Delivery::ProjectReleased { connector, project } => {
             domain.work.push(Work::Core(jig_domain_core::Event::ProjectReleased { connector, project }));
         }
@@ -1058,8 +1073,7 @@ fn released_into(
                 );
             }
             // jig's domain/engine.md, "a project made": the root hears it after commit.
-            // LandingPolicy.projects, forge Judges.projects and GatePolicy.projects
-            // hold optional seeded overrides; deployment rules already cover this project.
+            // The forge holds optional project rules; deployment rules cover new projects.
             // Repositories and homes arise on adoption, panels on watching.
             // None needs an empty-project row.
         }
@@ -1110,6 +1124,7 @@ fn released_into(
         }
         delivery @ (Delivery::PlaygroundNote { .. }
         | Delivery::Host(_)
+        | Delivery::AssignedJob { .. }
         | Delivery::Link { .. }
         | Delivery::ForgeCall { .. }
         | Delivery::Bound { .. }
@@ -1119,8 +1134,10 @@ fn released_into(
         | Delivery::ForgeDocument { .. }
         | Delivery::Panel { .. }
         | Delivery::Application { .. }
+        | Delivery::Public { .. }
         | Delivery::WebReply { .. }
         | Delivery::CarriedUnused { .. }
+        | Delivery::ForgeRead { .. }
         | Delivery::Read { .. }
         | Delivery::ReadLoad { .. }
         | Delivery::Document { .. }
@@ -1152,13 +1169,12 @@ pub enum Refused {
     /// A seeded owner's project names no escalation role from 0 to 3.
     Escalation { project: u32 },
     /// The deployment's landing rules (`None`) or a project's: beyond
-    /// `journal.transcript_bytes`, the authority's requirements, or the
-    /// forge's judges and gate templates.
+    /// document bridge's byte, rule or gate bounds.
     Landing { project: Option<u32> },
     /// A project's permission mappings, `None` past `u64`, beyond
     /// `journal.transcript_bytes`.
     Permissions { project: u32, bytes: Option<u64> },
-    /// The full seed policy after joining landing requirements, `None` past
+    /// The full seed policy, `None` past
     /// accounting bounds, beyond `policy_bytes`.
     Policy { project: u32, bytes: Option<u64> },
     /// The forges' writers or git identities beyond the forge's repositories,
@@ -1174,8 +1190,7 @@ pub fn refused(mut config: Config, limits: &Limits) -> Box<[Refused]> {
     let room = u32::try_from(config.core.defaults.charters.len().saturating_add(config.core.owners.len()))
         .expect("bounded configuration")
         .saturating_add(u32::try_from(config.core.seed_projects.len()).expect("bounded projects").saturating_mul(2))
-        .saturating_add(config.landing.projects.len())
-        .saturating_add(config.landing.landings.len())
+        .saturating_add(config.landings.len())
         .saturating_add(7);
     let mut refused = List::with_capacity(room);
     if let Err(problem) = fleet::Membership::check(
@@ -1199,10 +1214,6 @@ pub fn refused(mut config: Config, limits: &Limits) -> Box<[Refused]> {
     if resume == 0 || resume > limits.journal.transcript_bytes {
         refused.push(Refused::Resume { bytes: resume }).expect("counted refusals");
     }
-    // Judges' tables smaller than the authority's refuse each landing set
-    // past them, so only the tables are named.
-    let judges = limits.forge.judge_projects >= limits.authority.projects
-        && limits.forge.judge_criteria >= limits.authority.requirements;
     if limits.forge.judge_projects < limits.authority.projects {
         refused.push(Refused::JudgeProjects).expect("counted refusals");
     }
@@ -1212,8 +1223,7 @@ pub fn refused(mut config: Config, limits: &Limits) -> Box<[Refused]> {
     for seed in &config.core.seed_projects {
         let project = seed.number;
         let mappings = &seed.policy.permissions;
-        let bytes = u64::try_from(mappings.len())
-            .expect("usize fits u64")
+        let bytes = skein_lib::len_u64(mappings.len())
             .checked_mul(u64::try_from(size_of::<people::PermissionRole>()).expect("type size fits u64"));
         let fits = match bytes {
             Some(bytes) => bytes <= u64::from(limits.journal.transcript_bytes),
@@ -1261,53 +1271,20 @@ pub fn refused(mut config: Config, limits: &Limits) -> Box<[Refused]> {
         refused.push(Refused::Forges).expect("counted refusals");
         return refused.into_boxed();
     };
-    let deployment = match policy_translate::build_landing(
-        &config.landing.deployment,
-        false,
-        limits.authority.requirements,
-        connector,
+    if !add_configured_requirements(
+        &mut config.core.defaults.rules,
+        &policy_translate::standing_requirements(connector),
+        &limits.authority,
     ) {
-        Some(built) => {
-            landing_within(&config.landing.deployment, limits.journal.transcript_bytes)
-                && add_configured_requirements(&mut config.core.defaults.rules, &built.requirements, &limits.authority)
-                && forge.deployment_judges(built.criteria)
-                && gates_fit(&mut forge, &config.landing.deployment, false, limits)
-        }
-        None => false,
-    };
-    if !deployment && judges {
         refused.push(Refused::Landing { project: None }).expect("counted refusals");
     }
-    for (&project, rules) in &config.landing.projects {
-        let joined = landing_project(
-            &mut config.core.seed_projects,
-            &mut forge,
-            (project, rules, &config.landing.deployment),
-            connector,
-            limits,
-        );
-        if !joined && judges {
-            refused.push(Refused::Landing { project: Some(project) }).expect("counted refusals");
-        }
-    }
-    if config.landing.landings.capacity() > limits.authority.projects {
+    if config.landings.capacity() > limits.authority.projects {
         refused.push(Refused::Landing { project: None }).expect("counted refusals");
     }
-    for (&project, landing) in &config.landing.landings {
+    for (&project, landing) in &config.landings {
         if !crate::translate::project_landing(&mut forge, project, landing) {
             refused.push(Refused::Landing { project: Some(project) }).expect("counted refusals");
         }
-    }
-    let gates = match policy_translate::gate_policy(
-        &config.landing,
-        limits.authority.requirements,
-        limits.forge.change_policy.gates,
-    ) {
-        Some(gates) => forge.gate_policy(gates, &limits.forge),
-        None => false,
-    };
-    if !gates && refused.is_empty() {
-        refused.push(Refused::Landing { project: None }).expect("counted refusals");
     }
     for seed in &config.core.seed_projects {
         let bytes = match jig_domain_core::policy_snapshot(
@@ -1329,69 +1306,10 @@ pub fn refused(mut config: Config, limits: &Limits) -> Box<[Refused]> {
     refused.into_boxed()
 }
 
-/// One project's landing rules joined to its policy, as `Domain::new` joins them.
-fn landing_project(
-    policies: &mut [jig_domain_core::SeedProject],
-    forge: &mut forge::Domain,
-    (project, rules, deployment): (u32, &[LandingRule], &[LandingRule]),
-    connector: u16,
-    limits: &Limits,
-) -> bool {
-    if !landing_within(rules, limits.journal.transcript_bytes) {
-        return false;
-    }
-    let Some(built) = policy_translate::build_landing(rules, true, limits.authority.requirements, connector) else {
-        return false;
-    };
-    let Some(policy) = seed_policy_mut(policies, project) else { return false };
-    if !policy_translate::landing_roles(policy, deployment) || !policy_translate::landing_roles(policy, rules) {
-        return false;
-    }
-    let Some(combined) = policy_translate::combine_requirements(
-        &policy.requirements,
-        &built.requirements,
-        limits.authority.requirements,
-    ) else {
-        return false;
-    };
-    policy.requirements = combined;
-    forge.project_judges(project, built.criteria) && gates_fit(forge, rules, true, limits)
-}
-
-/// One set of rules' gate templates within the forge's, alone.
-fn gates_fit(forge: &mut forge::Domain, rules: &[LandingRule], project: bool, limits: &Limits) -> bool {
-    match policy_translate::gate_templates(
-        rules,
-        project,
-        limits.authority.requirements,
-        limits.forge.change_policy.gates,
-    ) {
-        Some(templates) => forge
-            .gate_policy(forge::GatePolicy { deployment: templates, projects: Map::with_capacity(0) }, &limits.forge),
-        None => false,
-    }
-}
-
-fn landing_within(rules: &[LandingRule], bytes: u32) -> bool {
-    match landing::landing_rules_bytes(rules) {
-        Some(held) => held <= u64::from(bytes),
-        None => false,
-    }
-}
-
 fn seed_policy(seeds: &[jig_domain_core::SeedProject], project: u32) -> Option<&authority::Policy> {
     for seed in seeds {
         if seed.number == project {
             return Some(&seed.policy.policy);
-        }
-    }
-    None
-}
-
-fn seed_policy_mut(seeds: &mut [jig_domain_core::SeedProject], project: u32) -> Option<&mut authority::Policy> {
-    for seed in seeds {
-        if seed.number == project {
-            return Some(&mut seed.policy.policy);
         }
     }
     None

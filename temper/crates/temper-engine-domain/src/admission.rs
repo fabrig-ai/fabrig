@@ -1,6 +1,6 @@
 //! Admission at the service boundary: new work waits at the watermark,
-//! while completions of admitted work are always taken (skein's draft
-//! `dynamic-memory.md`, 4).
+//! while completions of admitted work are always taken (skein's
+//! `programming-model.md`, 7.1).
 use crate::boundary::{Event, Link, PartyInput, StoreInput, WorkerInput};
 use crate::domain::{Domain, admits, step};
 use crate::limits::Limits;
@@ -25,38 +25,15 @@ pub fn completes(event: &Event) -> bool {
         | Event::Account(_)
         | Event::Setup { .. }
         | Event::Stop
-        | Event::Worker(
-            WorkerInput::DecodedHostCall { .. }
-            | WorkerInput::RenderedHostCall { .. }
-            | WorkerInput::ResultRead { .. }
-            | WorkerInput::Link { link: Link::Hello { .. } | Link::Lost, .. }
-            | WorkerInput::Link {
-                link:
-                    Link::Up {
-                        up:
-                            LinkUp::Piece { .. }
-                            | LinkUp::Logins { .. }
-                            | LinkUp::SignedOut { .. }
-                            | LinkUp::Activity { .. }
-                            | LinkUp::Unauthorized { .. }
-                            | LinkUp::Limited { .. }
-                            | LinkUp::AccountRefused { .. }
-                            | LinkUp::Turn { .. }
-                            | LinkUp::Answer { .. },
-                        ..
-                    },
-                ..
-            },
-        )
         | Event::Party(
             PartyInput::Unwatch { .. }
             | PartyInput::Delivered { .. }
             | PartyInput::StreamDelivered { .. }
             | PartyInput::ProcedureStep { .. },
         ) => true,
-        Event::Worker(WorkerInput::Link { link: Link::Up { up: LinkUp::Call { .. }, .. }, .. })
-        | Event::Party(
-            PartyInput::Whose { .. }
+        Event::Party(
+            PartyInput::PublicRead { .. }
+            | PartyInput::Whose { .. }
             | PartyInput::ProposeSettings { .. }
             | PartyInput::ChangeSettings { .. }
             | PartyInput::SignOut { .. }
@@ -66,12 +43,14 @@ pub fn completes(event: &Event) -> bool {
             | PartyInput::SignedIn { .. }
             | PartyInput::Ask { .. }
             | PartyInput::Key { .. }
+            | PartyInput::ForgeRead { .. }
             | PartyInput::Read { .. }
             | PartyInput::Watch { .. }
             | PartyInput::WatchRun { .. },
         )
         | Event::Credential { .. }
         | Event::Restart { .. } => false,
+        Event::Worker(worker) => worker_completes(worker),
         Event::Forge(event) => match event.as_ref() {
             forge::Event::Bind { .. } | forge::Event::Installation { .. } | forge::Event::Hint { .. } => false,
             forge::Event::OrderLanding { .. }
@@ -79,6 +58,11 @@ pub fn completes(event: &Event) -> bool {
             | forge::Event::Landing { .. }
             | forge::Event::VetoLanding { .. }
             | forge::Event::StepLanding { .. }
+            | forge::Event::TierWords { .. }
+            | forge::Event::TierTask { .. }
+            | forge::Event::TierRefused { .. }
+            | forge::Event::StepTier { .. }
+            | forge::Event::VetoTier { .. }
             | forge::Event::Settle
             | forge::Event::AppRecorded { .. }
             | forge::Event::PlaygroundMade { .. }
@@ -92,6 +76,7 @@ pub fn completes(event: &Event) -> bool {
             | forge::Event::AcceptAnswered { .. }
             | forge::Event::InstallAnswered { .. }
             | forge::Event::ConnectEnded { .. }
+            | forge::Event::BotLogin { .. }
             | forge::Event::SetUpAnswered { .. }
             | forge::Event::FirstMade { .. }
             | forge::Event::FirstFailed { .. }
@@ -99,6 +84,7 @@ pub fn completes(event: &Event) -> bool {
             | forge::Event::Application { .. }
             | forge::Event::ApplicationAnswered { .. }
             | forge::Event::ForgetProjection { .. }
+            | forge::Event::PlanDocument { .. }
             | forge::Event::PlanBrief { .. }
             | forge::Event::GatherPlanned { .. }
             | forge::Event::GatherBrief { .. }
@@ -129,6 +115,9 @@ pub fn completes(event: &Event) -> bool {
             | forge::Event::DelegateAdmissionRefused { .. }
             | forge::Event::DelegateRefused { .. }
             | forge::Event::DelegateResult { .. }
+            | forge::Event::RelayRefused { .. }
+            | forge::Event::Relayed { .. }
+            | forge::Event::StartConflicted { .. }
             | forge::Event::StepChange { .. }
             | forge::Event::ReleaseChange { .. }
             | forge::Event::SettleEffects { .. }
@@ -182,6 +171,16 @@ pub fn try_step(domain: &mut Domain, env: &Env<Limits>, event: Event) -> Result<
             step(domain, env, Event::Released(released));
             Ok(())
         }
+        Event::Party(PartyInput::PublicRead { reply, read }) => {
+            if crate::limits::backlog(domain) >= u64::from(env.limits.public_watermark)
+                || domain.public_reads >= env.limits.public_reads
+            {
+                crate::route::public::busy(domain, reply);
+            } else {
+                step(domain, env, Event::Party(PartyInput::PublicRead { reply, read }));
+            }
+            Ok(())
+        }
         event @ (Event::Worker(_)
         | Event::Party(_)
         | Event::Account(_)
@@ -211,5 +210,33 @@ pub fn try_step(domain: &mut Domain, env: &Env<Limits>, event: Event) -> Result<
             step(domain, env, event);
             Ok(())
         }
+    }
+}
+
+fn worker_completes(worker: &WorkerInput) -> bool {
+    match worker {
+        WorkerInput::DecodedHostCall { .. }
+        | WorkerInput::RenderedHostCall { .. }
+        | WorkerInput::ResultRead { .. }
+        | WorkerInput::Link { link: Link::Hello { .. } | Link::Lost, .. }
+        | WorkerInput::Link {
+            link:
+                Link::Up {
+                    up:
+                        LinkUp::Piece { .. }
+                        | LinkUp::Logins { .. }
+                        | LinkUp::SignedOut { .. }
+                        | LinkUp::Activity { .. }
+                        | LinkUp::Unauthorized { .. }
+                        | LinkUp::Limited { .. }
+                        | LinkUp::AccountRefused { .. }
+                        | LinkUp::Turn { .. }
+                        | LinkUp::JobAnswer { .. }
+                        | LinkUp::Answer { .. },
+                    ..
+                },
+            ..
+        } => true,
+        WorkerInput::Link { link: Link::Up { up: LinkUp::Call { .. }, .. }, .. } => false,
     }
 }

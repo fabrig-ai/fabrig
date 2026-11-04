@@ -52,6 +52,46 @@ fn chat_fills_the_chat_template_into_one_as_allowed_task() {
     );
 }
 #[test]
+fn chat_from_fills_a_named_conversation_template() {
+    let mut me = me();
+    let project = shape_project(&mut me);
+    let base = project.templates.get(0).unwrap().clone();
+    // The two offered templates plus the named conversation's.
+    let mut templates = List::with_capacity(3);
+    for template in &project.templates {
+        templates.push(template.clone()).unwrap();
+    }
+    templates.push(Template { number: 3, executor: TemplateExecutor::Charter(3), ..base }).unwrap();
+    project.templates = templates;
+    // The fixture's charter and the named conversation's charter.
+    let mut charters = List::with_capacity(2);
+    for charter in &project.creating.as_ref().unwrap().within.charters {
+        charters.push(*charter).unwrap();
+    }
+    charters.push(3).unwrap();
+    project.creating.as_mut().unwrap().within.charters = charters;
+    let ask = chat_from(&me, PROJECT, 3, words()).unwrap();
+    let Ask::Create { project, .. } = &ask else { panic!("create") };
+    assert_eq!(*project, PROJECT);
+    let task = shape_task(ask);
+    assert_eq!(task.executor, Executor::Agent { charter: 3 });
+    assert!(task.flags.conversation);
+    assert_eq!(task.spec.words, words());
+}
+#[test]
+fn chat_from_template_1_is_chat() {
+    let me = me();
+    assert_eq!(chat_from(&me, PROJECT, CHAT, words()), chat(&me, PROJECT, words()));
+}
+#[test]
+fn chat_from_refuses_a_template_that_is_no_conversation() {
+    assert_eq!(chat_from(&me(), PROJECT, GOAL, words()), Err(NotOffered::Template));
+}
+#[test]
+fn chat_from_refuses_a_template_not_offered() {
+    assert_eq!(chat_from(&me(), PROJECT, 9, words()), Err(NotOffered::Template));
+}
+#[test]
 fn close_chat_cancels_the_chat_last_with_its_template_s_grace() {
     let delegates = [Delegate { task: CANCELLED, fate: Fate::Cancel }, Delegate { task: MOVED, fate: Fate::Move }];
     let Ask::Compound { project, operations } = close_chat(&me(), PROJECT, CHAT_TASK, &delegates, words()).unwrap()
@@ -67,6 +107,25 @@ fn close_chat_cancels_the_chat_last_with_its_template_s_grace() {
             Operation::Cancel { project: PROJECT, task: CHAT_TASK, reason: words(), grace: Some(SHAPE_GRACE) },
         ]
     );
+}
+#[test]
+fn remove_project_gives_the_chat_template_s_grace() {
+    assert_eq!(remove_project(&me(), PROJECT), Ok(Ask::RemoveProject { project: PROJECT, grace: Some(SHAPE_GRACE) }));
+}
+#[test]
+fn remove_project_gives_no_grace_once_the_chat_template_is_gone() {
+    let mut me = me();
+    let templates = &mut shape_project(&mut me).templates;
+    let goal = templates.get(1).unwrap().clone();
+    templates.clear();
+    templates.push(goal).unwrap();
+    assert_eq!(remove_project(&me, PROJECT), Ok(Ask::RemoveProject { project: PROJECT, grace: None }));
+}
+#[test]
+fn remove_project_of_a_project_not_in_me_is_not_offered() {
+    let mut me = me();
+    me.projects.clear();
+    assert_eq!(remove_project(&me, PROJECT), Err(NotOffered::Project));
 }
 #[test]
 fn fall_puts_a_draft_without_a_deadline_beyond_a_bound_that_has_one() {
@@ -291,4 +350,53 @@ fn close_chat_reads_the_edited_template_grace() {
         operations.as_slice(),
         &[Operation::Cancel { project: PROJECT, task: CHAT_TASK, reason: words(), grace: Some(grace) }]
     );
+}
+
+#[test]
+fn a_filled_template_carries_its_resources_as_symbols() {
+    let resources =
+        List::from_boxed(Box::new([Symbol { connector: 7, symbol: 3 }, Symbol { connector: 2, symbol: 11 }]));
+    let mut me = me();
+    let project = shape_project(&mut me);
+    for index in 0..project.templates.len() {
+        project.templates.get_mut(index).unwrap().resources = resources.clone();
+    }
+    let task = shape_task(chat(&me, PROJECT, words()).unwrap());
+    assert_eq!(task.symbols, resources);
+    let Judged::Propose { ask, .. } = set_goal(&me, PROJECT, draft(), words()) else { panic!("proposed") };
+    let Ask::Propose { action: ProposeAction::Batch { tasks }, .. } = ask else { panic!("batch") };
+    assert_eq!(tasks.get(0).unwrap().symbols, resources);
+}
+
+#[test]
+fn set_goal_from_keeps_named_template_defaults_and_judges_its_executor() {
+    let mut me = me();
+    let project = shape_project(&mut me);
+    let mut named = project.templates.get(1).unwrap().clone();
+    named.number = 4;
+    named.executor = TemplateExecutor::Charter(1);
+    named.label = 9;
+    named.resources = List::with_capacity(1);
+    named.resources.push(Symbol { connector: 7, symbol: 1 }).unwrap();
+    let mut templates = List::with_capacity(3);
+    for template in &project.templates {
+        templates.push(template.clone()).unwrap();
+    }
+    templates.push(named).unwrap();
+    project.templates = templates;
+    let Judged::Propose { ask: Ask::Propose { action: ProposeAction::Batch { tasks }, .. }, .. } =
+        set_goal_from(&me, PROJECT, 4, draft(), words())
+    else {
+        panic!("proposed goal")
+    };
+    let task = tasks.get(0).unwrap();
+    assert_eq!(task.label, 9);
+    assert_eq!(task.symbols.as_slice(), &[Symbol { connector: 7, symbol: 1 }]);
+    assert_eq!(task.executor, Executor::Agent { charter: 1 });
+    let mut wrong = draft();
+    wrong.executor = Executor::Agent { charter: 3 };
+    let Judged::NotOffered(why) = set_goal_from(&me, PROJECT, 4, wrong, words()) else { panic!("executor refused") };
+    assert_eq!(why, NotOffered::ChipExecutor);
+    let Judged::NotOffered(why) = set_goal_from(&me, PROJECT, 9, draft(), words()) else { panic!("template refused") };
+    assert_eq!(why, NotOffered::Template);
 }

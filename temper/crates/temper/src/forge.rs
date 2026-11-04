@@ -1,4 +1,4 @@
-//! Forge commands and slot removal (temper/docs/design/draft/playground-reset.md, 3 and 4).
+//! Forge commands and slot removal (temper/docs/design/protocol/setup.md, 7.1).
 use std::{
     ffi::OsString,
     fs,
@@ -159,7 +159,7 @@ pub(crate) fn start(
         Refused {
         verb: "prepare",
         number: None,
-        why: "usage: temper forge fetch [DIRECTORIES] FORGE | temper forge prepare [DIRECTORIES] FORGE | temper forge run [DIRECTORIES] FORGE forgejo|runner | temper forge reconcile [DIRECTORIES] FORGE | temper forge sign-in [DIRECTORIES] FORGE | temper forge remove [DIRECTORIES] FORGE".into(),
+        why: "usage: temper forge fetch [DIRECTORIES] FORGE | temper forge prepare [DIRECTORIES] FORGE | temper forge run [DIRECTORIES] FORGE forgejo|runner | temper forge sign-in [DIRECTORIES] FORGE | temper forge remove [DIRECTORIES] FORGE".into(),
     }
     };
     let (verb, number, which) = match arguments {
@@ -167,7 +167,6 @@ pub(crate) fn start(
         [verb, number] if verb == "fetch" => ("fetch", number, None),
         [verb, number] if verb == "prepare" => ("prepare", number, None),
         [verb, number] if verb == "sign-in" => ("sign-in", number, None),
-        [verb, number] if verb == "reconcile" => ("reconcile", number, None),
         [verb, number, which] if verb == "run" => {
             let which = match which.to_str() {
                 Some("forgejo") => Which::Forgejo,
@@ -190,9 +189,6 @@ pub(crate) fn start(
         super::setup::check(&bytes, &directories.jig()).map_err(refused)?;
     if verb == "sign-in" {
         return super::forge_sign_in::run(directories, &bytes, &named, number).map_err(refused);
-    }
-    if verb == "reconcile" {
-        return Err(refused(format!("forge {number} is kept by the service: connect it from the client")));
     }
     let entry = entry(directories, &bytes, number).map_err(refused)?;
     let owned = match &entry.mode {
@@ -314,10 +310,7 @@ fn webhook_listener(named: &temper_service::startup::Named) -> Result<Option<cor
     named.webhooks.as_ref().map(|hooks| super::address(&hooks.listener)).transpose()
 }
 
-#[cfg(test)]
-mod tests;
-
-/// Composes a group's kind with the machine (temper/docs/design/draft/playground-reset.md, 3).
+/// Composes a group's kind with the machine (temper/docs/design/protocol/setup.md, 7.1).
 pub(crate) fn entry(
     directories: &super::Directories,
     bytes: &[u8],
@@ -336,7 +329,7 @@ fn group_kind(directories: &super::Directories, number: u16) -> Result<temper_fo
         skein_shell::read_file(&path, 16).map_err(|why| format!("{}: {}", path.display(), super::unread(why)))?;
     machine::parse_group_file(&bytes).ok_or_else(|| format!("{}: invalid group kind", path.display()))
 }
-/// Removes a slot's directory beneath data, keeping the cache (3, 4).
+/// Removes a slot's directory beneath data, keeping the cache (7.1).
 fn remove(directories: &super::Directories, number: u16) -> Result<(), String> {
     let kind = group_kind(directories, number)?;
     let data = super::path(&directories.data);

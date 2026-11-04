@@ -545,11 +545,12 @@ pub(crate) fn proposal_request(
                         env,
                         routed,
                         person,
+                        request,
                         key,
                         running.expect("settings acceptance"),
                     );
                     match outcome {
-                        Ok(revision) => {
+                        Ok(Some(revision)) => {
                             let request =
                                 core.fly_goal(request, GoalRoute::Deciding { proposer: number, proposal, by: person });
                             routed.work.push(Work::Event(Event::Tasks(tasks::Event::DecidePersonProposal {
@@ -562,6 +563,7 @@ pub(crate) fn proposal_request(
                                 decision: tasks::ProposalDecision::Accept,
                             })));
                         }
+                        Ok(None) => return,
                         Err(why) => routed.work.push(Work::Event(Event::People(people::Event::Decided {
                             request,
                             outcome: people::Outcome::Refused(why),
@@ -708,10 +710,12 @@ fn task_settings_decide(
             env,
             routed,
             person,
+            request,
             key,
             running.expect("acceptance running choice"),
         ) {
-            Ok(revision) => tasks::SettingsOutcome::Accepted { revision },
+            Ok(Some(revision)) => tasks::SettingsOutcome::Accepted { revision },
+            Ok(None) => return,
             Err(why) => return pool_refused(&mut routed.work, request, why),
         }
     } else {

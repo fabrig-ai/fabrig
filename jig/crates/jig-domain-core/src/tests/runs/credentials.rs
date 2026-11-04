@@ -12,6 +12,7 @@ fn a_run_waits_while_a_credential_it_needs_is_unusable() {
             worker: 0,
             channel: Token::new(1),
             hello: fleet::Hello {
+                jobs: Box::default(),
                 bounds: fixtures::bounds(),
                 stop_bound: Duration::ZERO,
                 slots: 1,

@@ -376,3 +376,47 @@ fn a_too_linked_read_keeps_its_bound_after_decoding() {
     h.answer(exchange, &fixtures::read_none_answer(none));
     assert_eq!(h.read_answered(), Some(&Readout::Jig(c::ReadResult::None(c::ReadNone::TooLinked { joins: 4 }))));
 }
+
+#[test]
+fn source_text_reads_keep_offsets_and_reject_false_continuations() {
+    let limits = fixtures::limits();
+    let field = c::TaskTextField::Instructions;
+    let w::Read::TaskText(read) =
+        translate::reads::read(&c::Read::TaskText { task: 7, field, from: 127 }, limits.wire()).unwrap()
+    else {
+        panic!("source read")
+    };
+    assert_eq!(read.from(), 127);
+    assert_eq!(read.field(), &w::TaskTextField::Instructions);
+    for (from, total, next, text, valid) in [
+        (127, 130, None, "éZ", true),
+        (127, 131, Some(130), "éZ", true),
+        (127, 131, None, "éZ", false),
+        (127, 131, Some(127), "éZ", false),
+        (127, 126, None, "", false),
+        (127, 131, Some(127), "", false),
+        (u64::MAX, u64::MAX, None, "éZ", false),
+    ] {
+        let value = w::ReadValue::TaskText(
+            w::TaskText::new(
+                limits.wire(),
+                w::TaskTextParts {
+                    task: 7,
+                    field: w::TaskTextField::Instructions,
+                    from,
+                    total,
+                    next,
+                    words: Box::from(text.as_bytes()),
+                },
+            )
+            .unwrap(),
+        );
+        let mut bytes = skein_lib::Writer::new(usize::try_from(value.measure()).unwrap());
+        value.encode(&mut bytes).unwrap();
+        let decoded = translate::reads::value(&bytes.finish(), &limits);
+        assert_eq!(decoded.is_ok(), valid, "{from} {total} {next:?}");
+        if let Ok(c::ReadValue::TaskText(page)) = decoded {
+            assert_eq!(page.text.bytes(), text.as_bytes());
+        }
+    }
+}

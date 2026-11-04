@@ -345,6 +345,7 @@ impl Continuation {
                                 budget: jig_domain_people::Budget::Named,
                                 executor: tasks::Executor::Agent { charter: 1 },
                                 spec: tasks::Spec {
+                                    job: None,
                                     asks: false,
                                     words: b"pool work".as_slice().into(),
                                     parameters: Box::new([tasks::Parameter::Resource {
@@ -359,7 +360,7 @@ impl Continuation {
                                 llm: None,
                                 symbolic_grants: Box::new([]),
                                 dependencies: Box::new([]),
-                                wake: tasks::WakePolicy::DEFAULT,
+                                wake: Some(tasks::WakePolicy::DEFAULT),
                             }]),
                             stubs: Box::new([]),
                         }));
@@ -491,6 +492,7 @@ impl Continuation {
                                 executor: tasks::Executor::Agent { charter: 1 },
                                 llm: None,
                                 spec: tasks::Spec {
+                                    job: None,
                                     asks: false,
                                     words: b"period work".as_slice().into(),
                                     parameters: Box::new([]),

@@ -2,6 +2,17 @@ use crate::{Retry, failures::backoff};
 use skein_lib::{Duration, Rng};
 
 #[test]
+fn verdict_field_bytes_refuse_more_than_the_schema_count() {
+    let mut fields = skein_lib::List::with_capacity(crate::VERDICT_FIELDS + 1);
+    for name in 0..=crate::VERDICT_FIELDS {
+        fields
+            .push(crate::ResultField { name: Box::new(name.to_be_bytes()), value: Box::new([]) })
+            .expect("one past the schema field count");
+    }
+    assert_eq!(crate::verdict::fields_bytes(fields.as_slice()), None);
+}
+
+#[test]
 fn exponential_equal_jitter_saturates_without_overflow_and_replays() {
     let retry = Retry { retries: 4, base: Duration::from_millis(10), max: Duration::from_secs(1) };
     let mut first = Rng::new(42);
@@ -50,6 +61,7 @@ mod payer;
 
 mod account;
 
+mod room;
 mod waits;
 
 mod settings_proposals;
@@ -178,4 +190,45 @@ fn change_titles_and_words_have_independent_contract_bounds() {
         let tight = crate::Limits { result_bytes: 3, ..limits };
         assert!(!crate::run::valid_result(&contract, &result, &tight));
     }
+}
+
+#[test]
+fn no_change_requires_a_change_contract_and_both_word_bounds() {
+    use crate::{Contract, TaskResult};
+    let limits = revisions::LIMITS;
+    let contract = Contract::Change { connector: 1, kind: 2, words: 4 };
+    for length in [0, 4, 5] {
+        let result = TaskResult::NoChange { words: skein_lib::bytes::zeroed(length) };
+        assert_eq!(crate::run::valid_result(&contract, &result, &limits), length <= 4);
+        assert_eq!(
+            crate::run::valid_result(&contract, &result, &crate::Limits { result_bytes: 3, ..limits }),
+            length <= 3
+        );
+        assert!(!crate::run::valid_result(&Contract::Report { words: 4 }, &result, &limits));
+        assert!(!crate::run::valid_result(&Contract::Verdict { choices: Box::new([]) }, &result, &limits));
+        assert!(!crate::run::valid_result(
+            &Contract::Approval {
+                state: Box::new([]),
+                part: crate::Part { connector: 1, kind: crate::PartKind::Result, key: crate::PartKey::Number(1) }
+            },
+            &result,
+            &limits
+        ));
+    }
+}
+
+/// Job allocations count toward admission bytes (jig/docs/design/domain/tasks.md, 3 and 5.3.1).
+#[test]
+fn job_spec_and_result_heap_bytes_include_their_allocations() {
+    use super::{End, JobSpec, TaskResult, task_bytes, terminal_bytes};
+    use revisions::{Harness, task};
+    let mut h = Harness::new();
+    h.make([task(1, &[])].into());
+    let row = h.domain.task(1).unwrap();
+    let before = task_bytes(row).unwrap();
+    let mut row = row.clone();
+    row.spec.job = Some(Box::new(JobSpec { bytes: Box::new([0xff; 7]), deadline: Duration::from_secs(1) }));
+    assert_eq!(task_bytes(&row), Some(before + u64::try_from(size_of::<JobSpec>()).unwrap() + 7));
+    let end = End::Finished { result: TaskResult::Job { bytes: Box::new([0xff; 11]) }, cancel_delegates: false };
+    assert_eq!(terminal_bytes(&end), Some(11));
 }

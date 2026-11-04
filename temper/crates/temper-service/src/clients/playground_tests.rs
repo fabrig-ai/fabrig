@@ -145,6 +145,7 @@ fn the_playground_read_uses_the_restored_engine_row() {
     let mut service = fixtures::restarting_from(previous);
     fixtures::restart(&mut service);
     let engine = service.engine.as_ref().unwrap();
-    assert_eq!(engine.domain.playground(), Some(&row));
-    assert_eq!(engine.clients.playground, Some(row));
+    let resetting = forge::Playground { state: forge::PlaygroundState::Resetting(forge::ResetStep::Project), ..row };
+    assert_eq!(engine.domain.playground(), Some(&resetting));
+    assert_eq!(engine.clients.playground.as_ref(), engine.domain.playground());
 }

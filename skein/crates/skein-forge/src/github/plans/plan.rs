@@ -49,7 +49,11 @@ impl Plan {
     pub fn new(repository: api::Repository, op: api::Op) -> Self {
         let refused = match &op {
             api::Op::Read(read) => match read {
-                api::Read::Runs { .. } | api::Read::Run { .. } | api::Read::Tree { .. } => true,
+                api::Read::Runs { .. }
+                | api::Read::Run { .. }
+                | api::Read::Tree { .. }
+                | api::Read::Artifact { .. }
+                | api::Read::Commits { .. } => true,
                 api::Read::Locate { .. }
                 | api::Read::Items { .. }
                 | api::Read::Item { .. }
@@ -141,9 +145,19 @@ impl Plan {
 /// Head and tail retain at most the cap; Whole reports overflow through `Body::Raw.more`.
 #[derive(Clone, Copy, PartialEq, Eq, Hash, Debug)]
 pub enum Retention {
-    Head { bytes: u32 },
-    Tail { bytes: u32 },
-    Whole { bytes: u32 },
+    Head {
+        bytes: u32,
+    },
+    Tail {
+        bytes: u32,
+    },
+    /// Keep the end of the first failed process, falling back to the job tail.
+    FailedStep {
+        bytes: u32,
+    },
+    Whole {
+        bytes: u32,
+    },
 }
 
 /// A pull's merge-base lookup skips comparison completeness fields and lists.

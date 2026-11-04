@@ -23,7 +23,7 @@ fn the_frozen_control_is_refused_at_startup_or_services_finish_after_four_turns(
         environment_bytes: 835,
         endpoints: Box::new([Endpoint {
             number: 1,
-            provider: skein_llm::Provider::OpenAiCodex,
+            provider: skein_llm::Provider::OpenAi,
             option_bytes: 3,
             connect: Duration::from_secs(30),
             handshake: Duration::from_secs(30),
@@ -97,7 +97,13 @@ fn the_frozen_control_is_refused_at_startup_or_services_finish_after_four_turns(
         llm::Usage::ZERO,
     );
     assert_eq!(world.delegated.len(), 1, "fourth-turn finish must be served: {:?}", world.end);
-    world.step(session::Event::Answered { owner: world.delegated[0], text: bytes(b"ALPHA"), error: false, spent: 0 });
+    world.step(session::Event::Answered {
+        owner: world.delegated[0],
+        text: bytes(b"ALPHA"),
+        error: false,
+        spent: 0,
+        after: session::After::Complete,
+    });
     assert!(world.delegated.is_empty(), "finish receiving right has its terminal");
     world.close();
 }

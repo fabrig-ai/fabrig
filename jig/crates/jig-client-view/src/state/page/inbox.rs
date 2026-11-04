@@ -363,6 +363,7 @@ pub const fn query_filter(query: Option<&Read>) -> Option<Filter> {
         Some(
             Read::Tasks { .. }
             | Read::Me
+            | Read::TaskText { .. }
             | Read::Task { .. }
             | Read::Proposal { .. }
             | Read::Escalation { .. }

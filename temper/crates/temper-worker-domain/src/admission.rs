@@ -11,8 +11,10 @@ use crate::{Event, Limits, host};
 pub fn is_new_work(event: &Event) -> bool {
     match event {
         Event::Assign { .. }
+        | Event::AssignJob { .. }
         | Event::Link(
-            host::LinkDown::Assign { .. }
+            host::LinkDown::AssignJob { .. }
+            | host::LinkDown::Assign { .. }
             | host::LinkDown::Message { .. }
             | host::LinkDown::Check { .. }
             | host::LinkDown::SignOut { .. },
@@ -31,6 +33,7 @@ pub fn is_new_work(event: &Event) -> bool {
         | Event::GracePassed
         | Event::Resend { .. }
         | Event::RelayCancelled { .. }
+        | Event::Job { .. }
         | Event::Process(_)
         | Event::Live { .. }
         | Event::Decoded { .. }
@@ -54,8 +57,10 @@ pub fn passes(event: &Event) -> bool {
         | Event::RelayCancelled { .. }
         | Event::Resend { .. } => true,
         Event::Assign { .. }
+        | Event::AssignJob { .. }
         | Event::Link(
-            host::LinkDown::Assign { .. }
+            host::LinkDown::AssignJob { .. }
+            | host::LinkDown::Assign { .. }
             | host::LinkDown::Message { .. }
             | host::LinkDown::Check { .. }
             | host::LinkDown::SignOut { .. }
@@ -67,6 +72,7 @@ pub fn passes(event: &Event) -> bool {
         | Event::Ready
         | Event::Lost
         | Event::GracePassed
+        | Event::Job { .. }
         | Event::Process(_)
         | Event::Live { .. }
         | Event::Decoded { .. }

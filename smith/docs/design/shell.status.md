@@ -1,7 +1,31 @@
 # shell: status
 
-2026-11-02. Where smith's code lags or departs from [shell.md](shell.md).
+2026-11-04. Where smith's code lags or departs from [shell.md](shell.md).
 
-- **Built:** 4 to 7: interactive/exec product, task role and account sources. 4.1, 4.3, 5.3: older-chat refusal words, exit 1 and trace admission are prepared. 2.5: the hosted face, portable, checked for wasm32. 4.5, 6.5: `sign_in` waits up to `sign_in_time`, 10 minutes, prints `Waiting up to 10 minutes for the browser.` after the `Sign in:` address (and its `ssh -L` line), and ends a sign-in its deadline passed with `account <name>: not signed in: no answer from the browser within 10 minutes`.
-- **Departs:** 4.5: `smith login` tells the deadline from other time-outs by the clock alone, so a redirect taken in the deadline's last `request_time` (20 s) whose code exchange is not answered before the deadline ends with the browser's words, though the browser answered.
-- **Not yet:** 5.1: sync startup directories into parents. 8, 9: per-tree limits and `isolate`.
+- **Not yet:**
+  - 2.5: the gate's wasm32 list (`.config/gate/wasm32.txt`) leaves out
+    `smith-protocol-events`, `smith-protocol-llm`,
+    `smith-protocol-program`, `smith-agent-service` and
+    `smith-agent-shell`, and no listed package reaches them on wasm32,
+    so the gate's wasm32 clippy lints none of them. Outside the gate,
+    in `temper-playground`'s wasm32 graph, the first four pass it,
+    warnings denied, and `smith-agent-shell` fails it: in
+    `src/config/`, what only its `cfg(unix)` code reads is unused on
+    wasm32: the import `skein_tls as tls` (`native.rs:10`), the
+    parameter `errors` (`native.rs:31`), the constant `CERTIFICATES`
+    (`native.rs:74`), `TrustDocument`'s fields (`document.rs:185`) and
+    those of `EndpointTransport::Tls` (`endpoints.rs:39`).
+  - 4, 5.2: the `--account` flag and the `account` setting.
+    `smith-local-shell/src/command.rs` parses no `--account`, and
+    `settings/schema.rs` has no `account` key, so 4.1's refusal that
+    names `--account` points at nothing yet.
+  - 5.2: the `anthropic` preset names an account, its endpoint's
+    `account = 'anthropic'` and `[accounts.anthropic]` with `variable =
+    'ANTHROPIC_API_KEY'` (`smith-local-shell/src/presets.rs`), where no
+    preset names one.
+- **Departs:** 4.5: `smith login` tells the sign-in deadline from
+  other time-outs by the clock alone, because
+  `skein_oauth::Failure::TimedOut` does not say which deadline passed:
+  a redirect taken in the deadline's last `request_time` (20 s) whose
+  code exchange is not answered before the deadline ends with the
+  browser's words, though the browser answered.

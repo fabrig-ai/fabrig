@@ -40,9 +40,14 @@ fn finish() -> Step {
 fn a_program_run_s_events_name_its_backend() {
     let run = run(vec![finish()], false);
     let mut models = 0;
+    let mut starts = 0;
     for record in &run.events {
         let model = match &record.event {
-            Event::RunStarted(start) => Some(&start.main),
+            Event::RunStarted(start) => {
+                starts += 1;
+                assert!(!start.resumed, "a fresh program run opens without a transcript");
+                Some(&start.main)
+            }
             Event::ConversationOpened(opening) => Some(&opening.model),
             Event::ResponseStarted(start) => Some(&start.model),
             Event::ToolStarted(call) => {
@@ -56,6 +61,7 @@ fn a_program_run_s_events_name_its_backend() {
             models += 1;
         }
     }
+    assert_eq!(starts, 1, "one RunStarted per admitted run");
     assert!(models >= 3);
     let prompt = run
         .events
@@ -107,7 +113,7 @@ fn an_api_retry_is_a_failed_response() {
 }
 
 #[test]
-fn the_run_s_tools_withhold_sub_agents() {
+fn the_run_s_tools_offer_sub_agents_and_withhold_no_family() {
     let run = run(vec![finish()], true);
     let start = run
         .events
@@ -117,18 +123,18 @@ fn the_run_s_tools_withhold_sub_agents() {
             _ => None,
         })
         .expect("bounded event fixture");
-    assert_eq!(start.tools.withheld.as_slice(), &[smith_events::Family::SubAgents]);
+    assert!(start.tools.withheld.is_empty());
     for record in &run.events {
         if let Event::ResponseStarted(start) = &record.event {
             assert!(
-                !start
+                start
                     .prompt
                     .as_ref()
                     .expect("bounded event fixture")
                     .tools
                     .as_ref()
                     .is_some_and(|tools| tools.iter().any(|tool| tool.as_ref() == b"sub_agent")),
-                "the accepted init contains no sub_agent server tool"
+                "the accepted init offers the sub_agent server tool"
             );
         }
     }

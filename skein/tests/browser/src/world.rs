@@ -12,8 +12,6 @@ pub enum Fault {
     Drop,
     Delay,
     Error,
-    Vanish,
-    NoBox,
     ContextGone,
     ScopeGone,
     InvalidSelector,
@@ -35,16 +33,8 @@ pub struct World {
     pub selected: u64,
     pub attributes: String,
     pub tree: String,
-    pub styles: String,
-    pub fonts: BTreeMap<u64, String>,
-    pub children: String,
-    pub border: String,
     pub metrics: String,
     pub png: String,
-    pub loader: String,
-    pub sheet: String,
-    pub frontend: u64,
-    pub gone: bool,
     pub disabled: bool,
     pub covered: bool,
     pub hidden: bool,
@@ -52,7 +42,6 @@ pub struct World {
     fault: Option<(Vec<u8>, Fault)>,
     delayed: VecDeque<Vec<u8>>,
     outstanding: BTreeMap<u64, Time>,
-    document: u64,
     download_on_press: Option<(u64, bool)>,
     download_serial: u64,
     pub downloads_begun: Vec<(Token, Token, Vec<u8>)>,
@@ -80,16 +69,8 @@ impl World {
             selected: 7,
             attributes: r#"["value","first","data-note","named","empty",""]"#.into(),
             tree: r#"{"nodes":[{"nodeId":"1","role":{"value":"RootWebArea"},"childIds":["2"]},{"nodeId":"2","ignored":true,"childIds":["3"]},{"nodeId":"3","backendDOMNodeId":7,"role":{"value":"heading"},"name":{"value":"Title"},"value":{"value":"Words"},"properties":[{"name":"level","value":{"value":1}},{"name":"focused","value":{"value":true}},{"name":"disabled","value":{"value":true}},{"name":"checked","value":{"value":true}},{"name":"expanded","value":{"value":true}},{"name":"selected","value":{"value":true}},{"name":"multiline","value":{"value":true}}]}]}"#.into(),
-            styles: r#"{"computedStyle":[{"name":"font-size","value":"16px"},{"name":"color","value":"rgb(17, 17, 17)"}]}"#.into(),
-            children: r#"[{"nodeId":8,"nodeType":3,"nodeValue":"Fixture"}]"#.into(),
-            fonts: [(8, r#"{"fonts":[{"familyName":"Fixture","isCustomFont":true,"glyphCount":5},{"familyName":"Fallback","isCustomFont":false,"glyphCount":2}]}"#.into())].into(),
-            border: r#"{"model":{"border":[10.25,20.5,110.75,20.5,110.75,60.9,10.25,60.9]}}"#.into(),
             metrics: r#"{"cssLayoutViewport":{"pageX":0,"pageY":0},"cssVisualViewport":{"pageX":0,"pageY":0,"clientWidth":390,"clientHeight":844}}"#.into(),
             png: "iVBORw0KGgo=".into(),
-            loader: "l0".into(),
-            sheet: "sh1".into(),
-            frontend: 7,
-            gone: false,
             disabled: false,
             covered: false,
             hidden: false,
@@ -97,7 +78,6 @@ impl World {
             fault: None,
             delayed: VecDeque::new(),
             outstanding: BTreeMap::new(),
-            document: 0,
             download_on_press: None,
             download_serial: 0,
             downloads_begun: Vec::new(),
@@ -202,13 +182,6 @@ impl World {
                         self.outstanding.insert(id, self.env.now.saturating_add(self.env.limits.answer));
                         let method = root.get(b"method").and_then(|method| method.text()).expect("method");
                         let session = root.get(b"sessionId").and_then(|session| session.text());
-                        if method.as_ref() == b"Page.navigate"
-                            || method.as_ref() == b"Page.reload"
-                            || method.as_ref() == b"Page.navigateToHistoryEntry"
-                        {
-                            self.document = self.document.checked_add(1).expect("world document id");
-                            self.loader = format!("l{}", self.document);
-                        }
                         if method.as_ref() == b"DOM.getNodeForLocation" {
                             let params = root.get(b"params").expect("hit test params");
                             let x = params.get(b"x").and_then(|value| value.i64()).expect("hit x");
@@ -271,11 +244,9 @@ impl World {
                             Some(Fault::InvalidSelector) => replies.push_back(format!("{{\"id\":{id}{session_field},\"error\":{{\"code\":-32000,\"message\":\"DOM Error while querying\"}}}}\0").into_bytes()),
                             Some(Fault::ScopeGone) => replies.push_back(format!("{{\"id\":{id}{session_field},\"error\":{{\"code\":-32000,\"message\":\"Node with given id does not belong to the document\"}}}}\0").into_bytes()),
                             Some(Fault::ContextGone) => replies.push_back(format!("{{\"id\":{id}{session_field},\"error\":{{\"code\":-32000,\"message\":\"Cannot find context with specified id\"}}}}\0").into_bytes()),
-                            Some(Fault::Error | Fault::Vanish) => {
-                                if fault == Some(Fault::Vanish) { self.gone = true; }
+                            Some(Fault::Error) => {
                                 replies.push_back(format!("{{\"id\":{id}{session_field},\"error\":{{\"code\":-32000,\"message\":\"No node found for given backend id\"}}}}\0").into_bytes());
                             }
-                            Some(Fault::NoBox) => replies.push_back(format!("{{\"id\":{id}{session_field},\"error\":{{\"code\":-32000,\"message\":\"Could not compute box model.\"}}}}\0").into_bytes()),
                             Some(Fault::Oversize) => replies.push_back(vec![b'x'; usize::try_from(self.env.limits.message).expect("message fits usize") + 2]),
                             Some(Fault::Crash) => {
                                 up(&mut self.browser, &self.env, Below::Replies(stream::Up::End), &mut self.above, &mut self.below);
@@ -340,42 +311,7 @@ impl World {
 
     fn reply(&self, method: &[u8], params: Option<skein_browser::wire::decode::Value<'_>>) -> String {
         match method {
-            b"Page.getFrameTree" => {
-                return format!(r#"{{"frameTree":{{"frame":{{"id":"f1","loaderId":"{}"}}}}}}"#, self.loader);
-            }
-            b"CSS.createStyleSheet" => return format!(r#"{{"styleSheetId":"{}"}}"#, self.sheet),
-            b"CSS.setStyleSheetText" => return "{}".into(),
             b"Accessibility.getFullAXTree" => return self.tree.clone(),
-            b"CSS.getComputedStyleForNode" => return self.styles.clone(),
-            b"CSS.getPlatformFontsForNode" => {
-                let node = params.and_then(|p| p.get(b"nodeId")).and_then(|n| n.u64()).expect("font node");
-                return self.fonts.get(&node).cloned().unwrap_or_else(|| r#"{"fonts":[]}"#.into());
-            }
-            b"DOM.describeNode" if params.is_some_and(|p| p.get(b"depth").and_then(|d| d.i64()) == Some(-1)) => {
-                return format!(
-                    r#"{{"node":{{"nodeId":{},"backendNodeId":7,"nodeType":1,"children":{}}}}}"#,
-                    self.frontend, self.children
-                );
-            }
-            b"DOM.getBoxModel" => return self.border.clone(),
-            b"DOM.pushNodesByBackendIdsToFrontend" => {
-                let backend = params
-                    .and_then(|p| p.get(b"backendNodeIds"))
-                    .and_then(|a| a.array())
-                    .and_then(|mut a| a.next())
-                    .and_then(|n| n.u64())
-                    .expect("pushed backend");
-                return format!(
-                    "{{\"nodeIds\":[{}]}}",
-                    if self.gone {
-                        0
-                    } else if backend == 7 {
-                        self.frontend
-                    } else {
-                        backend
-                    }
-                );
-            }
             b"Page.captureScreenshot" => return format!("{{\"data\":\"{}\"}}", self.png),
             b"Page.getLayoutMetrics" => return self.metrics.clone(),
             _ => {}

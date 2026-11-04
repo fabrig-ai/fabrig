@@ -657,7 +657,7 @@ the engine     the application's root around jig's core, and jig's clients' comp
     decision names the revision it saw, and a moved revision is refused;
     an ordinary deciding request is made once, and every request is
     answered once durable; `Seen` advances a read position only forward
-    without retaining a new engine answer (`client/domain/contract.md`,
+    without retaining an engine answer (`client/domain/contract.md`,
     3.1); a document reflects only committed state, and leaves after the
     commit it
     reflects; admission and authority are the engine's; a credential is
@@ -732,8 +732,6 @@ application as its first user.
   skein's. Its `README.md` gives the reading order, the names,
   what jig needs from skein and smith, and what the domain owes, and
   `store.md` the store.
-- **`draft/`:** drafts, not contract: ideas and inputs gathered for a
-  design to come.
 
 ## 13. Conventions
 
@@ -827,7 +825,7 @@ open (`domain/README.md`, section 5), and the client's on its own
 | `jig-client-test-domain`, `jig-client-test-view`, `jig-client-test-kit`, `jig-client-test-records`, `jig-client-test-protocol-wire` | the client's test kits | `client/domain/testing.md` |
 | `jig-client-scripted-engine` | the engine as the client's worlds play it | `client/domain/testing.md`, section 4 |
 | `jig-client-fake-person-browser` | jig's stories for a browser shell and its attack stories, on skein's face and harness | `protocol/browser.md`, section 15 |
-| `jig-client-world`, `jig-client-protocol-world`, `jig-client-wire-world` | the client's worlds: through its surface; through bytes; its wire's records | `client/domain/testing.md`, section 4; `protocol/client.md`, section 14 |
+| `jig-client-world`, `jig-client-protocol-world`, `jig-client-wire-world`, `jig-client-browser-world` | the client's worlds: through its surface; through bytes; its wire's records; the browser tier | `client/domain/testing.md`, section 4; `protocol/client.md`, section 14; `protocol/browser.md`, section 15 |
 | `jig-ops-client-domain`, `jig-ops-client-protocol-wire`, `jig-ops-client-view`, `jig-ops-client-shell-web` | `ops`'s client crates, written to be copied: its client's domain, its families' wire, its presentation on the reference UI, its browser shell | `examples.md`, section 8; `protocol/client.md`, section 11 |
 | `<application>-client-shell-web` | an application's browser shell: its start and its loop, copied from `jig-client-test-shell-web` | `protocol/browser.md`, 3.1 |
 

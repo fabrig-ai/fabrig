@@ -54,7 +54,7 @@ pub fn combined(row: &document::Combined, contexts: &[document::Context], out: &
 pub fn runs(rows: &[document::Run], out: &mut Writer) -> Result<(), Overflow> {
     encode(&Answer::Runs(rows), out)
 }
-/// Writes the Actions job identity and attempt, without steps or logs.
+/// Writes the Actions job identity, attempt and first failed step, without logs.
 pub fn job(row: &document::Job, out: &mut Writer) -> Result<(), Overflow> {
     encode(&Answer::Job(row), out)
 }
@@ -108,18 +108,7 @@ fn answer_json(answer: &Answer<'_>, json: &mut Encoder) -> Result<(), Overflow> 
         }
         Answer::EnqueueRefused(kind, message) => enqueue_refused_json(kind, message, json),
         Answer::PullGraphql(row) => pull_graphql_json(row, json)?,
-        Answer::Job(row) => {
-            json.object_start();
-            json.key(b"id");
-            json.unsigned(row.id);
-            json.key(b"run_id");
-            json.unsigned(row.run);
-            json.key(b"run_attempt");
-            json.unsigned(u64::from(row.attempt));
-            json.key(b"head_sha");
-            json.string(&id::write_commit(&row.head).ok_or(Overflow)?);
-            json.object_end();
-        }
+        Answer::Job(row) => job_json(row, json)?,
         Answer::Pull(row) => pull_json(row, true, json)?,
         Answer::Pulls(rows) => {
             json.array_start();
@@ -331,6 +320,33 @@ fn pull_graphql_json(row: &document::PullGraphql, json: &mut Encoder) -> Result<
     json.object_end();
     json.object_end();
     json.object_end();
+    json.object_end();
+    Ok(())
+}
+
+fn job_json(row: &document::Job, json: &mut Encoder) -> Result<(), Overflow> {
+    json.object_start();
+    json.key(b"id");
+    json.unsigned(row.id);
+    json.key(b"run_id");
+    json.unsigned(row.run);
+    json.key(b"run_attempt");
+    json.unsigned(u64::from(row.attempt));
+    json.key(b"head_sha");
+    json.string(&id::write_commit(&row.head).ok_or(Overflow)?);
+    json.key(b"steps");
+    json.array_start();
+    if let Some(step) = &row.step {
+        json.object_start();
+        json.key(b"number");
+        json.unsigned(u64::from(step.number));
+        json.key(b"name");
+        json.string(&step.name);
+        json.key(b"conclusion");
+        json.string(b"failure");
+        json.object_end();
+    }
+    json.array_end();
     json.object_end();
     Ok(())
 }

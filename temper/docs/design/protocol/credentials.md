@@ -1,6 +1,6 @@
 # Credentials
 
-Provisional, 2026-10-03, revised 2026-10-24. temper's credentials: which
+Provisional, 2026-10-03, revised 2026-11-02. temper's credentials: which
 secrets temper's processes hold, where each comes from, who may use it,
 and how it reaches the process that does. LLM accounts, workers' secrets
 and people's sign-ins are jig's (jig's `protocol/README.md`, section 8;
@@ -61,9 +61,13 @@ setup.md's (section 9). What is open is listed in section 8.
   runs and dropped. A worker gets the git identity alone, never the
   forge's access.
 - **A forge's credential failing stops that forge, never the engine.** A
-  credential the forge refuses, or records that do not fit the configured
-  forge, leave that forge stopped or not connected, named, with Replace
-  or Connect offered; other forges and the engine run on (section 5).
+  credential the forge refuses, or records that do not fit the forge's
+  record, leave that forge stopped or not connected, named, with
+  Replace or Connect offered; other forges and the engine run on
+  (section 5).
+- **A forge removed takes its credentials with it:** its rows are
+  erased at once, its access dropped and its git identity withdrawn
+  (2.1; forge.md, 2.3).
 - **Workers keep nothing between runs.** A worker's configuration holds
   no credential but its own secret; every other comes with assignments.
 
@@ -72,7 +76,7 @@ setup.md's (section 9). What is open is listed in section 8.
 | Credential | Owner | Kind | Source | Held by | Used by | Changes |
 |---|---|---|---|---|---|---|
 | an LLM account's source | jig | a signed-in record (refresh token, access token, expiry), a key, or a program's login | a sign-in or a key from the client; a program's login, `temper program-login` on each host (section 3) | jig's secrets' store, lent by skein's accounts driver, the access tokens and keys in jig's accounts' table; a program's login, the program, in the source's configuration directory | the worker's agent processes, through grants | the driver refreshes a signed-in record; a key's holder replaces it from the client; the program renews its own login |
-| a git identity | temper | a token with its login, and an author: on Forgejo the `GitToken` record; on GitHub the accepted installations' tokens | the forge's records and tokens, and the identity's members (section 4) | the identities' table on the engine, and on the worker from grants | the git component's invocations | a new generation at each change of value (section 4) |
+| a git identity | temper | a token with its login, and an author: on Forgejo the `GitToken` record; on GitHub the accepted installations' tokens | the forge's records and tokens, and on Forgejo its record's bot (section 4) | the identities' table on the engine, and on the worker from grants | the git component's invocations | a new generation at each change of value (section 4) |
 | a forge's API token | temper | a Forgejo token, the `ApiToken` record | pasted from the client at a connect, or made by the setup host's reconcile when the forge is managed or owned (setup.md, section 5) | jig's secrets' store; the forge component, in the forge's access | that forge's API requests | replaced from the client (section 5), or made again by reconcile when it does not answer as the bot |
 | a GitHub App's key | temper | an RSA private key, PKCS#1 DER, 2048 bits, the `AppKey` record beside `AppId` | the manifest's conversion; or pasted from the client as GitHub gives it, PEM, which the setup host decodes to DER | jig's secrets' store; the forge component, in the forge's access; the setup host, while a plan runs | signing the App's own requests, and minting its installations' tokens | replaced from the client with a key of the same App (section 5) |
 | an installation's token | temper | a GitHub token, expiring within the hour | minted by the forge component with the App's key, one per accepted installation (section 5); by the setup host, for a page of the picker | the forge component; the forge's git identity; the setup host, while a page is read; never kept | that installation's API requests; git's, through the identity; the picker's page | minted again `renew_before` ahead of its expiry; a picker's page's, dropped with the page |
@@ -113,11 +117,10 @@ setup.md's (section 9). What is open is listed in section 8.
   a forge's records; other families, up to `0x7FFF`, are free for
   temper's later records. temper's own numbers keep the top bit clear,
   below 2^63, where jig numbers carried values under temper's tag itself
-  (section 2.2). `forge` is the
-  configured forge's `number` (`u16`; configuration.md, section 3), its
-  explicit, stable id: reordering, adding or removing forges never moves
-  one forge's records to another, and a forge given another number is a
-  new forge, not connected.
+  (section 2.2). `forge` is the forge's number (`u16`), given when the
+  forge's record is made and never given again (forge.md, 2.1): adding
+  or removing forges never moves one forge's records to another, and a
+  forge set up again is a new forge, with a new number and no rows.
 - **The items** (`item`, `u16`):
 
   | Code | Item | Value | Forges |
@@ -137,29 +140,29 @@ setup.md's (section 9). What is open is listed in section 8.
   Code 0 is never written, and a code never changes its meaning. temper
   maps skein's setup items to these codes; on GitHub, `User` is the
   App's bot user. `Origin` is temper's own, written at each connect.
-- **The value:** a version byte, 1, then the item's bytes exactly as
-  skein's setup host writes them, which skein's `forge-setup.md` (6.4)
-  pins:
+- **The value:** a versioned `Stored` record of the family
+  `temper-secrets` (`temper-protocol-records`,
+  `schema/secrets-v1.schema`; README.md, section 9), its item one of the
+  table's:
   - the tokens (`AdminToken`, `ApiToken`, `GitToken`, `WebhookSecret`):
-    text, at most `token_bytes`;
-  - `User` and `AppId`: a `u64`, little-endian, 8 bytes, never 0;
+    a secret, at most `token_bytes`;
+  - `User` and `AppId`: a `u64`, never 0;
   - `AppSlug`: text, at most `name_bytes`;
-  - `AppKey`: PKCS#1 DER, at most `key_bytes`;
-  - `Accepted`: the installations' ids, each a `u64` little-endian,
-    concatenated, ascending, distinct, at most `installations` of them,
-    empty for none;
-  - `Origin`, temper's: `[kind u8][api as text]`, the kind 1 for Forgejo
-    and 2 for GitHub, and the `api` address as `<host>:<port>`: a socket
-    address as Rust writes it (`[<ipv6>]:<port>` for IPv6), a host's
-    name as configured, and `api.github.com:443` for GitHub's `null`.
-    Equal bytes are the same forge; the text is shown as is.
+  - `AppKey`: a secret holding PKCS#1 DER, at most `key_bytes`;
+  - `Accepted`: the installations' ids, a list of `u64`s, ascending,
+    distinct, at most `installations` of them, empty for none;
+  - `Origin`, temper's: the forge's kind, Forgejo or GitHub, and the
+    `api` address as text, `<host>:<port>`: a socket address as Rust
+    writes it (`[<ipv6>]:<port>` for IPv6), a host's name as the
+    forge's record holds it, `api.github.com:443` for github.com's.
+    Equal origins are the same forge; the text is shown as is.
 
-  Each item has one total decoder, skein's (temper's for `Origin`); a
-  change of an item's bytes is a new item, under a new code. temper keeps
-  the values opaque, hands them back unchanged on the setup host's read,
-  and decodes only what builds an access. A value is at most
-  `records.value_bytes` (configuration.md, section 7), checked against
-  jig's secrets' store's bound at start.
+  A record of another version is an unreadable row (below); a change of
+  an item's meaning is a new item, under a new code.
+  temper keeps the values opaque, hands them back unchanged on the setup
+  host's read, and decodes only what builds an access. A value is at
+  most `records.value_bytes` (configuration.md, section 7), checked
+  against jig's secrets' store's bound at start.
 - **A PEM is never a record.** skein's setup plan decodes the
   conversion's key and a pasted key to DER before it writes; a pasted PEM
   sits only in its carried row, which jig numbered, until its run ends.
@@ -168,32 +171,48 @@ setup.md's (section 9). What is open is listed in section 8.
 - **Replacement:** `Keep` under the same number replaces; the new value is
   durable before the forge component or a worker gets it.
 - **Read at start, whole:** one `Load`, paged, grouped by forge, builds
-  each configured forge's access before the forge component starts
-  (forge.md, the forge component's start).
-- **Records that do not fit the configured forge** (an `Origin` naming
+  each kept forge's access before the forge component starts (forge.md,
+  2.1).
+- **Records that do not fit the forge's record** (an `Origin` naming
   another kind or `api` address, an `AppKey` under a Forgejo forge, an
   `ApiToken` under a GitHub forge): that forge is not connected, named on
   the deployment's page, "its records were made for <kind> at <address>";
-  nothing is erased, and connecting again overwrites them.
+  nothing is erased, and connecting again overwrites them, its user
+  aside (below).
+- **A connected Forgejo's user stays:** connecting it again overwrites
+  the rows its paste and its run write and keeps the others, but its
+  kept `User` row binds: its `Check` compares the user the new tokens
+  answer as with it, and tokens of another user stop the run
+  `OtherUser`, the forge as it was (setup.md, section 4). A forge's
+  writer is its user (section 5), which skein's client never changes
+  under a writer (skein's `forge-client.md`, 7.1): another user's
+  tokens are another forge, connected anew once this one is removed.
 - **An unreadable row** (an unknown version, bytes skein's decoder
   refuses): that forge is not connected, named, "its records are
   unreadable"; other forges run on; nothing is erased.
 - **An incomplete set** (a crash inside a conversion: an `AppId` kept, no
   `AppKey`): the forge is not connected; the next Connect overwrites it.
-- **Rows of a forge not configured** are left as they are, and
-  named once in the log at start (section 8).
-- **A mode is not a record.** Owned is configuration's (`setup[]`'s owned
-  entry); managed is an `AdminToken` row on a forge not owned; connected
-  is neither. A GitHub App made from the manifest and one pasted end in
-  the same rows.
+- **Erased with the forge, at once:** its removal erases each of its
+  rows, `AdminToken` through `Origin`, one after another, each durable
+  before the next, an absent row among them, since a run may have had a
+  write in flight; a removal a restart cut erases again at the next
+  start (forge.md, 2.3). The setup host forgets the forge first, and
+  each erase follows any write its run had in flight.
+- **Rows of a forge with no record** are left as they are, and named
+  once in the log at start (section 8).
+- **A mode is no row of this store.** It is the forge's record's, in
+  temper's main store (forge.md, 2.1): owned, fake, managed or
+  connected, as the act that made the forge gave it. A GitHub App made
+  from the manifest and one pasted end in the same rows.
 - **Never kept:** installations' tokens; a GitHub forge's git tokens; the
   manifest's states and pages; the conversion's PEM; the App's OAuth
   client and its secret; any generation number.
-- **The main store** keeps no credential. It keeps each forge's writer,
-  which is not secret: the writer given at runtime (section 5), kept by
+- **The main store** keeps no credential. It keeps each forge's
+  record, its kind, mode, place and bot (forge.md, 2.1), and its writer,
+  neither secret: the writer given at runtime (section 5), kept by
   skein's forge client as its own record (skein's `forge-client.md`,
   7.1), `Stored::Writer` under `Key::Writer(forge)`, temper's small
-  store's tag 16, `STORE_VERSION` 3. It is restored at start, so effects
+  store's tag 16. It is restored at start, so effects
   restored with it never meet `Forbidden`.
 
 ### 2.2 Pasted values
@@ -205,13 +224,22 @@ setup.md's (section 9). What is open is listed in section 8.
   number and its digest. The value never reaches the core, a root, a
   document or a log.
 - **The requests that carry one** (`../client/README.md`, the FORGE
-  requests): `Connect` with `ForgejoTokens` (one bundle: the API token,
-  the git token, and the webhooks' secret when given), with
-  `ForgejoAdmin` (the admin's token) and with `GitHubApp` (the App's key
-  as GitHub gives it, PEM; the id rides in the request); and `Replace`
-  (one token or key). A GitHub App has no webhooks' secret: a pasted
-  App's connect writes `AppId`, `AppSlug`, `AppKey` and `User`, and sets
-  the App's hook to `https://<slug>.invalid/` (section 2).
+  requests), each bundle holding the items its request takes and no
+  other: `Connect` with `ForgejoTokens`, `ApiToken` and `GitToken`, and
+  `WebhookSecret` when the person gives one; with `ForgejoAdmin`,
+  `AdminToken`; with `GitHubApp`, `Pasted`, the App's key as GitHub
+  gives it, PEM (the id rides in the request); and `Replace`, on a
+  connected Forgejo `ApiToken`, `GitToken` or both, and `WebhookSecret`
+  when its hooks' secret changes, on GitHub `Pasted`, the App's new key.
+  A bundle that lacks an item its request needs, or holds one it does
+  not take, stops the run before any plan, in its way's words: "the
+  pasted value is not a key" (an App's), "the pasted value is not a
+  token" (an admin's), or "the pasted values are not a Forgejo's
+  tokens" (`ForgejoTokens`, and a Forgejo's `Replace`); its carried
+  value is erased as at any run's end. A
+  GitHub App has no webhooks' secret: a pasted App's connect writes
+  `AppId`, `AppSlug`, `AppKey` and `User`, and sets the App's hook to
+  `https://<slug>.invalid/` (section 2).
 - **The number is jig's.** jig numbers each carried value itself, under
   temper's tag from 2^63 up, from a next number it keeps durably in a
   counter row of its own, which is not one of temper's rows and never
@@ -228,13 +256,22 @@ setup.md's (section 9). What is open is listed in section 8.
   row's erase when it is left unused, at its run's end, and at start, is
   a decision of the core's; the routing carries out those at a run's end
   and at start.
-- **The value:** temper's bundle, versioned: `[1][count u8]`, then per
-  entry `[item u16][length u16][bytes]`, both `u16`s little-endian, the
-  item one of 2.1's codes (`Pasted` for a pasted App key's PEM), at
-  most 4 KiB in all, jig's bound on a carried value, and at most
-  `records.value_bytes`.
-  A pasted App's PEM key, under 2 KiB for GitHub's 2048-bit keys, fits.
-  It lives until its run ends.
+- **The value:** temper's bundle, the `Pasted` record of the family
+  `temper-secrets` (`temper-protocol-records`,
+  `schema/secrets-v1.schema`), versioned as `Stored` is: a list of
+  items in the codec's own form (skein's `codec.md`), at most three,
+  each one of 2.1's items or `Pasted` (code 11, a pasted App key's PEM)
+  and each at most once, in any order; at most 4 KiB in all, jig's
+  bound on a carried value, and at most `records.value_bytes`. A pasted
+  App's PEM key, under 2 KiB for GitHub's 2048-bit keys, fits, and so
+  do a Forgejo's two tokens and its hooks' secret. A list with no item
+  or an item twice, an item empty or past its bound, or bytes the codec
+  refuses stop the run as a bundle of the wrong items does (above); a
+  bundle of another version, "pasted with another version of temper:
+  paste it again".
+  It lives until its run ends. The codec's own form, not a layout of
+  temper's own bytes, so that the bundle has a schema's bounds, goldens
+  and version check, its items the records' own (decided 2026-11-03).
 - **The core** keeps the number and the digest in the connect's own
   record, no secret, and checks the person's role, the forge's kind and
   mode, and that no run holds the forge. Refused, it answers so, and
@@ -255,6 +292,13 @@ setup.md's (section 9). What is open is listed in section 8.
   as its records say: not connected when its paste wrote nothing, and
   nothing tells the person the connect was cut. Saying "interrupted;
   paste again" waits for a stored connect (section 8).
+
+One pasted item alone holds at most 4,085 value bytes, the carried value's
+4,096 bytes less the codec's version, one-item list count, variant and
+length framing. A file for one pasted credential whose value is outside 1 to
+4,085 bytes is refused with `credential file must contain 1 to 4085 bytes`;
+a multi-item tokens bundle must also fit the aggregate carried-value bound
+(decided 2026-11-03).
 
 ## 3. LLM accounts
 
@@ -339,7 +383,7 @@ sources in its holder's order. temper configures the LLM providers
   hub and the link, to the accounts child, fenced by attempt (jig's
   `domain/accounts.md`, 3.5). Unknown limit resets stay absent; an explicit
   zero remains supplied. A notice does not replace the run's terminal answer.
-  At the current jig/smith pins, Bearer, Key and Withdrawn forms are checked
+  At the current jig/smith pins, Bearer and Key forms are checked
   against the lent value at start and renewal. A program source's grant
   is jig's Program grant, its name and generation with no credential
   table's value (jig's `domain/accounts.md`, 3.4), installed by smith's
@@ -426,15 +470,15 @@ sources in its holder's order. temper configures the LLM providers
 - **What one is:** the token git authenticates with, the login it goes
   with, and the author (a name and an email) of the commits made with
   it. It is an application credential (jig's `domain/engine.md`, 12.1),
-  numbered by configuration (configuration.md, section 3).
-- **One per forge.** Each identity serves exactly one forge, and each
-  repository's runs use its forge's: configuration names the identity's
-  number, its forge and its author; its value is the forge's. The root's
-  `GitIdentity { forge, credential }` comes from configuration, and each
-  repository of an assignment's workspace names its forge's.
+  numbered by its forge: its number is the forge's (forge.md, 2.1).
+- **One per forge.** Each kept forge has exactly one identity, and each
+  repository's runs use its forge's: the forge's record gives its
+  number, its login and its author, its bot's; its value is the
+  forge's. The root's `GitIdentity { forge, credential }` comes with the
+  forge's record, made or restored, and each repository of an
+  assignment's workspace names its forge's.
 - **On Forgejo:** the forge's `GitToken` record, with the bot's login,
-  as the forge's `Connected` names it, unless configuration gives
-  another. Its validity
+  the record's, which the forge's `Connected` names. Its validity
   is unbounded (`Duration` at its largest, as jig's reference service
   gives its credential): Forgejo's tokens do not expire.
 - **On GitHub:** a list of entries, one per installation that has a
@@ -528,13 +572,18 @@ sources in its holder's order. temper configures the LLM providers
   (`../domain/worker.md`, 4.3), a push `Landing::Refused`
   (`../domain/worker.md`, section 5). Limited, refused and unauthorized
   are LLM accounts' notices only (jig's `domain/accounts.md`, 3.5).
+- **Withdrawn with its forge.** A forge's removal takes its identity's
+  values out of the identities' table at once, and withdraws its grant
+  in jig's accounts with a last generation valid for no time, which
+  lapses at once (jig's `domain/engine.md`, 12.1), so no run is granted
+  it again and its room in jig's table is free (forge.md, 2.3). Its number is never another forge's.
 - **Replaced** from the client: `Replace` on a Forgejo forge's git token
   (section 5) keeps the new record, then announces the next generation.
   A GitHub forge's tokens renew themselves. Generation 1 at each start is
   sound only because no worker outlives the engine: in standalone the
   worker is in the engine's process, and the cluster restarts whole,
   its workers stopped before its engine and never left under a new one
-  (README, 15.4; section 8).
+  (`README.md`, 15.4; section 8).
 
 ## 5. The forges' access
 
@@ -552,8 +601,8 @@ sources in its holder's order. temper configures the LLM providers
     and the component reads changes from the App's delivery log (forge.md,
     a GitHub App's delivery log).
 
-  Each request goes over TLS unless the forge is on loopback
-  (configuration.md, section 3).
+  Each request goes over TLS unless the forge's record names plaintext
+  to loopback (forge.md, 2.1).
 - **Never granted, never stored elsewhere:** an access's values are in no
   grant, root, record of the main store, fact or log, and are never sent
   to another forge or another host. An installation's token is never
@@ -562,9 +611,11 @@ sources in its holder's order. temper configures the LLM providers
 - **Its user, checked.** A connect's run finds the user its credentials
   answer as, and keeps its id (`User`) with the `Origin` the records
   were made for. A connected Forgejo's two pasted tokens must
-  answer as one user; a replacement must answer as the forge's kept
-  user, and on GitHub be a key of the same App (setup.md, the setup
-  host's plans). The forge component's first exchange with each forge
+  answer as one user, not a site admin; a replacement, and a connected
+  Forgejo connected again, must answer as the forge's kept user, and on
+  GitHub be a key of the same App (setup.md, the setup host's plans).
+  A connected Forgejo's login is its record's bot's, kept by its
+  connector at each `Check` (forge.md, 2.2). The forge component's first exchange with each forge
   checks its access answers as that user (skein's `forge-connection.md`,
   section 3): until it passes, the forge's calls wait in the component,
   and a check that goes unanswered is made again (skein's
@@ -597,10 +648,10 @@ sources in its holder's order. temper configures the LLM providers
   page holds repositories only, never the token (`../domain/forge.md`,
   the picker). `Forget` erases the record: the forge is then connected,
   the bot's tokens its whole power.
-- **Replaced from the client:** `Replace { forge, value }` carries the
-  new token or key (section 2.2); the setup host checks it answers as
-  the forge's user, the new record is kept, and the forge component is
-  given the new access. On a managed or owned Forgejo, reconcile makes
+- **Replaced from the client:** `Replace { forge }` carries the new
+  tokens or key as its value (section 2.2); the setup host checks they
+  answer as the forge's user, each new record is kept over the old, and
+  the forge component is given the new access. On a managed or owned Forgejo, reconcile makes
   the bot's tokens again when they do not answer as the bot (setup.md,
   section 5).
 
@@ -655,7 +706,10 @@ sources in its holder's order. temper configures the LLM providers
   renewed, each a new generation; a credential of another user, or one
   refused, stopping that forge alone, named, while the engine and the
   other forges run on; calls waiting until the user check is answered,
-  and an unanswered check made again.
+  and an unanswered check made again; a removal erasing each of the
+  forge's rows in order, each durable before the next, its identity's
+  values gone from the table and its grant lapsed, and a removal cut by
+  a restart erasing again.
 - **Startup:** a secret file readable by another user, or reached
   through a link, refuses the start, naming it.
 - **`temper program-login`,** step tests: each refusal (a name out of
@@ -689,9 +743,9 @@ sources in its holder's order. temper configures the LLM providers
   value once a record is replaced or a token minted, which is sound only
   while no worker outlives the engine; a GitHub forge's identity moves
   about one generation an hour per installation. Default: standalone,
-  and the cluster restarted whole (README, 15.4); a fleet whose workers
+  and the cluster restarted whole (`README.md`, 15.4); a fleet whose workers
   outlive the engine waits for generations kept across starts, with
-  hosts apart (README, section 14).
+  hosts apart (`README.md`, section 14).
 - **A GitHub entry chosen by the owner's id.** The routing matches a
   repository to an entry by its owner's login, since an adopted
   repository keeps no owner's id, so an account renamed after adoption
@@ -706,11 +760,13 @@ sources in its holder's order. temper configures the LLM providers
   take the connect's own record (its forge, number and digest) in the
   small store, a stored format (the store's version), read at start
   and erased once said; a carried row alone names no forge.
-- **Rows of a forge not configured.** Default: left as they are and
-  named once in the log at start; erasing them waits for a request that
-  disconnects a forge.
+- **Rows of a forge with no record.** Default: left as they are and
+  named once in the log at start; a kept forge's are erased by its
+  removal (2.1).
 - **Backups of the secrets' store.** Default: none; a deployment moved
-  elsewhere takes its secrets' directory, or connects its forges again.
+  elsewhere takes its secrets' directory with its store, since its
+  forges' records are there, or sets up and connects its forges
+  again.
 - **A second program.** `temper program-login` signs in the agent's
   one program, Claude Code. Default: it takes `--program ADAPTER` once
   smith's agent adapts a second (smith's `protocol/programs.md`).

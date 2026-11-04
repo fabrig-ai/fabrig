@@ -38,10 +38,12 @@ pub fn settings_setup(client: &Path, following: Vec<ctl::Call>) -> Vec<ctl::Step
             chat["waiting"] = 1_000_000.into();
             let mut recipe = template["value"].clone();
             recipe["budget"] = serde_json::json!({"as_allowed":{"cap":64}});
-            let change = serde_json::json!({"items":[
+            let mut change = serde_json::json!({"items":[
                 {"setting":charter["setting"],"set":chat},
                 {"setting":template["setting"],"set":recipe}
             ]});
+            let rules = client_landing_items(&file);
+            change["items"].as_array_mut().expect("GitHub settings").extend(rules);
             fs::write(&file, serde_json::to_vec(&change).expect("GitHub settings JSON")).expect("settings FILE");
             ctl::settings_change(&calls[1], &file, "github-settings")
         })),
@@ -848,4 +850,14 @@ pub fn file_scan_excludes_only_jigs_generation_secrets_store() {
     fs::write(engine.join("ordinary"), &scan.der).expect("key outside secrets store");
     assert!(std::panic::catch_unwind(|| scan.files(scratch.path(), &excluded, &downloaded)).is_err());
     scratch.remove();
+}
+
+fn client_landing_items(file: &Path) -> Vec<Value> {
+    let path = file.parent().expect("client directory").join("landing-settings.json");
+    if !path.exists() {
+        return Vec::new();
+    }
+    let items: Value =
+        serde_json::from_slice(&fs::read(path).expect("landing settings")).expect("landing settings JSON");
+    items.as_array().expect("landing items").clone()
 }

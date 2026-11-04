@@ -1,6 +1,6 @@
 //! Copy this entry-point shape. Every child hand-off belongs to the admitted
 //! decision, and its synchronous route finishes before the next entrance
-//! (domain/root.md, 3–4; skein's draft `dynamic-memory.md`, 4.6).
+//! (domain/root.md, 3–4; skein's `programming-model.md`, 7.2).
 use crate::{Event, Limits, Output, Record, Released, Store, Write};
 use alloc::boxed::Box;
 use jig_domain_core as core;
@@ -16,6 +16,8 @@ use skein_lib::{Decision, Env, Journal, Queue, Token};
 pub struct Config {
     /// Reason used by the deployment's environment-close acts.
     pub environment_closed_reason: Box<[u8]>,
+    /// Grace used by the deployment's environment-close acts.
+    pub environment_close_grace: skein_lib::Duration,
     /// Core rules and its children.
     pub core: core::Config,
     /// Agent capability supplied by its configuration, checked by the fleet.
@@ -55,6 +57,7 @@ pub(crate) struct Start {
 #[derive(Debug)]
 pub struct Domain {
     pub(crate) environment_closed_reason: Box<[u8]>,
+    pub(crate) environment_close_grace: skein_lib::Duration,
     pub(crate) deployment: [u8; 16],
     pub(crate) core: core::Core,
     pub(crate) observability: observability::Domain,
@@ -81,6 +84,7 @@ impl Domain {
     /// The core's configured workers exceed the priced membership bounds.
     pub fn new(config: Config, limits: &Limits) -> Result<Self, core::Problem> {
         assert!(limits.routes > 0, "nonempty route");
+        assert!(config.environment_close_grace <= limits.core.tasks.grace, "environment close grace bound");
         assert!(limits.host.slots == limits.core.fleet.engine_slots, "engine slot agreement");
         assert!(
             config.charter_endpoints.len() <= skein_lib::length::usize_of(limits.endpoints),
@@ -149,6 +153,7 @@ impl Domain {
         hub_link.connect(Token::new(0));
         Ok(Self {
             environment_closed_reason: config.environment_closed_reason,
+            environment_close_grace: config.environment_close_grace,
             deployment,
             core,
             observability: observability::Domain::with_templates(&limits.observability, config.triage_templates)
@@ -413,6 +418,7 @@ fn check_engine_hello(domain: &mut fleet::Domain, limits: &fleet::Limits, agent_
             worker: 0,
             channel: Token::new(0),
             hello: fleet::Hello {
+                jobs: Box::default(),
                 slots,
                 stop_bound: skein_lib::Duration::ZERO,
                 workstreams: Box::new([]),

@@ -1,4 +1,4 @@
-//! Runtime setup entries (temper/docs/design/draft/playground-reset.md, 3).
+//! Runtime setup entries (temper/docs/design/protocol/forge.md, 2.6).
 use alloc::boxed::Box;
 use core::net::SocketAddr;
 /// A Forgejo account temper names.
@@ -65,13 +65,12 @@ pub enum Mode {
     Owned(Owned),
     Fake(Fake),
 }
-/// One forge's directory, bot, orgs and mode.
+/// One forge's directory, bot and mode.
 #[derive(Clone, PartialEq, Eq, Debug)]
 pub struct Entry {
     pub forge: u16,
     pub directory: Box<[u8]>,
     pub bot: Account,
-    pub orgs: Box<[Box<[u8]>]>,
     pub mode: Mode,
     pub asked: bool,
 }

@@ -70,7 +70,9 @@ pub fn address_admit(row: &crate::TaskRecord, addressed: &Option<AddressChange>)
         Some(change) => {
             match row.executor {
                 crate::Executor::Person(_) => {}
-                crate::Executor::Agent { .. } | crate::Executor::Procedure { .. } => return Err(Refusal::Executor),
+                crate::Executor::Agent { .. } | crate::Executor::Procedure { .. } | crate::Executor::Job { .. } => {
+                    return Err(Refusal::Executor);
+                }
             }
             if !valid_address(change.address) {
                 return Err(Refusal::Executor);
@@ -97,7 +99,9 @@ pub fn instruction_admit(
             }
             match executor {
                 crate::Executor::Agent { .. } => Ok(()),
-                crate::Executor::Procedure { .. } | crate::Executor::Person(_) => Err(Refusal::Executor),
+                crate::Executor::Procedure { .. } | crate::Executor::Person(_) | crate::Executor::Job { .. } => {
+                    Err(Refusal::Executor)
+                }
             }
         }
     }
@@ -144,7 +148,7 @@ fn settings(task: &crate::TaskRecord) -> Settings {
         tracked: task.tracked,
         addressed: match task.executor {
             crate::Executor::Person(address) => Some(address),
-            crate::Executor::Agent { .. } | crate::Executor::Procedure { .. } => None,
+            crate::Executor::Agent { .. } | crate::Executor::Procedure { .. } | crate::Executor::Job { .. } => None,
         },
         taken_by: task.taken_by,
         instructions: task.instructions.clone(),
@@ -283,6 +287,15 @@ pub(crate) fn check_amend(
         Some(dependencies) => &**dependencies,
         None => old.dependencies,
     };
+    let mut omitted = skein_lib::List::with_capacity(env.limits.dependencies);
+    for dependency in &old.started_from {
+        if !crate::batch::contains(dependencies, *dependency) {
+            omitted.push(*dependency).expect("marks bounded by dependencies");
+        }
+    }
+    if !omitted.is_empty() {
+        return Err(Box::new(crate::Problem::naming(Some(number), Refusal::Dependencies, omitted.as_slice())));
+    }
     let mut waiting = skein_lib::List::with_capacity(env.limits.dependencies);
     let mut added = skein_lib::List::with_capacity(env.limits.dependencies);
     let mut pending = skein_lib::List::with_capacity(env.limits.dependencies);
@@ -432,6 +445,9 @@ fn check_amend_fields(
         return Err(Refusal::Reference);
     }
     let old = staged.record(domain, number).ok_or(Refusal::Unknown)?;
+    if crate::batch::matches_job(old.executor) {
+        return Err(Refusal::Executor);
+    }
     if let Some(Tracking::Tracked { .. }) = amendment.tracked
         && old.tracked.is_none()
         && let Err(why) = staged.goals(domain, old.project, &env.limits)
@@ -476,7 +492,7 @@ fn check_amend_fields(
     if let Some(wake) = &amendment.wake
         && !crate::wake::valid(wake)
     {
-        return Err(Refusal::Read);
+        return Err(Refusal::Spec);
     }
     if let Some(dependencies) = &amendment.dependencies {
         if dependencies.len() > skein_lib::length::usize_of(env.limits.dependencies) {
@@ -544,7 +560,7 @@ fn check_amend_fields(
     };
     let person_changed = match old.executor {
         crate::Executor::Person(_) => spec_changed || dependencies_changed || address_changed,
-        crate::Executor::Agent { .. } | crate::Executor::Procedure { .. } => false,
+        crate::Executor::Agent { .. } | crate::Executor::Procedure { .. } | crate::Executor::Job { .. } => false,
     };
     if (changed && old.revisions.spec == u64::MAX) || (person_changed && old.revisions.person == u64::MAX) {
         return Err(Refusal::State);
@@ -639,7 +655,7 @@ pub(crate) fn apply_amend(
         crate::funders::resize(domain, env, number, authority.budget.spend, out);
     }
     let was_kept = crate::run::ends::kept(domain, number).blocks_claims();
-    let was_queued = crate::holds::queued(record(domain, number).expect("amendment task live"));
+    let was_queued = crate::holds::queued(domain, record(domain, number).expect("amendment task live"));
     let task = task_mut(domain, number).expect("amendment task live");
     if let Some(tracked) = amendment.tracked {
         task.record.tracked = match tracked {
@@ -690,7 +706,7 @@ pub(crate) fn apply_amend(
     }
     task.record.phase =
         crate::run::ends::for_record(&task.record).amended(task.record.executor, task.record.phase.clone());
-    let queued = crate::holds::queued(&task.record);
+    let queued = crate::holds::queued(domain, record(domain, number).expect("amendment task live"));
     if was_queued && !queued {
         crate::holds::leave(domain, number);
     }
@@ -1019,7 +1035,7 @@ pub(crate) fn return_to_waits(domain: &mut Domain, env: &Env<Limits>, number: u6
     }
     if let Err(problem) = crate::waits::check_return(domain, &crate::compound::Staged::new(0), &env.limits, number) {
         crate::waits::hold_circle(domain, env, number, problem, out);
-    } else if crate::holds::queued(record(domain, number).expect("released task")) {
+    } else if crate::holds::queued(domain, record(domain, number).expect("released task")) {
         crate::holds::back(domain, env, number, out);
     }
     if record(domain, number).expect("released task live").phase == Phase::Active(Active::Due) {

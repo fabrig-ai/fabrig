@@ -22,6 +22,7 @@ fn rule(b: &mut Builder, value: WakeRule, book: &Phrasebook, language: u16) {
         WakeRule::Batch { count, age } => {
             text(b, book, language, WakePhrase::Batch, &[Hole::Number(u64::from(count)), Hole::Number(age.as_nanos())]);
         }
+        WakeRule::Paced { span } => text(b, book, language, WakePhrase::Paced, &[Hole::Number(span.as_nanos())]),
     }
 }
 /// Render every channel choice, including channels that do not wake.

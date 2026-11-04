@@ -89,9 +89,10 @@ pub(crate) fn key_file(call: &Call) -> Option<&[u8]> {
         0
     } else if name == b"forge connect" && call.form == 0 {
         3
-    } else if name == b"forge connect" && (call.form == 3 || call.form == 4) {
+    } else if name == b"forge connect" && (call.form == 2 || call.form == 3 || call.form == 4) {
         2
-    } else if (name == b"forge connect" && call.form == 6)
+    } else if (name == b"forge connect" && (call.form == 6 || call.form == 7))
+        || name == b"forge replace"
         || name == rows::ADD_KEY.name
         || name == rows::REPLACE_KEY.name
     {
@@ -127,12 +128,14 @@ pub fn text_files(parsed: &Parsed) -> Vec<(u8, Box<[u8]>)> {
     files
 }
 
-/// A forge credential has seven bytes of carried-bundle framing within jig's 4096-byte bound.
+/// A forge credential reserves the carried bundle's framing within jig's 4096-byte bound.
 pub(crate) fn key_bytes(call: &Call) -> u32 {
     if call.tool == temper_client_tools::jig::rows::IMPORT_AT {
         temper_client_tools::limits::MOVED_BYTES
-    } else if TOOLS[usize::from(call.tool)].name == b"forge connect" {
-        4089
+    } else if TOOLS[usize::from(call.tool)].name == b"forge connect"
+        || TOOLS[usize::from(call.tool)].name == b"forge replace"
+    {
+        u32::try_from(temper_client_domain::forge::forges::PASTED_PAYLOAD).expect("carried bundle bound")
     } else {
         temper_client_tools::limits::KEY_BYTES
     }

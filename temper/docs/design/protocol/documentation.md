@@ -4,9 +4,8 @@ Provisional, 2026-10-26, revised 2026-10-27. temper's documentation,
 for agents: pages in the repository, compiled into the binary, read at
 the command line by the agents that run and drive temper and by
 temper's own runs through a host tool. It builds `../draft/agent-docs.md`
-(the readers, the map, the kinds and the voice), which takes over
-`../draft/configuring.md` 7 for agents; this document is its contract
-for the pages and their machinery, and `../client/tools.md` for ctl's
+(the readers, the map, the kinds and the voice); this document is its
+contract for the pages and their machinery, and `../client/tools.md` for ctl's
 help. People read the site, which is outside temper's design.
 
 ## 1. In one page
@@ -20,8 +19,7 @@ help. People read the site, which is outside temper's design.
   (`../draft/agent-docs.md`, section 4), and the directory equals it.
 - **Five kinds, each with its template and bound:** `index`, `concept`,
   `walk`, `recipe` and `reference`, the last generated from the code's
-  tables. Today's guides are a sixth, `guide`, transitional, for their
-  eight names alone, until each is rewritten into the others (2.2).
+  tables (2.2).
 - **Compiled in, as data.** `temper-docs` holds every page as static
   text, and the functions that find, page and search them. It decides
   nothing and has no state: the same binary always says the same thing.
@@ -66,24 +64,18 @@ help. People read the site, which is outside temper's design.
 
 | Kind | Bound | Headings, in order | Names |
 |---|---|---|---|
-| `index` | 6,144 bytes | free; it names every other page but the reference and the guides once, by `temper help NAME` | `index` alone |
+| `index` | 6,144 bytes | free; it names every other page but the reference pages once, by `temper help NAME` | `index` alone |
 | `concept` | 8,192 bytes | `What it is`; `How it changes` (optional); `What temper guarantees`; `Acting on it`; `Limits` | the map's nouns |
 | `walk` | 12,288 bytes | `Before you start`; numbered steps, `## 1. …`; `Clean up`; `Next` | the map's walks |
 | `recipe` | 3,072 bytes | `Goal`; `Settings`; `Enforced and followed`; `Checking it took` | the map's recipes |
 | `reference` | 32,768 bytes | a heading per row, its usage's words | generated (8.1 of the draft) |
-| `guide` | 32,768 bytes | free | `box`, `budgets`, `charters`, `forgejo`, `github`, `server`, `settings`, `tasks`, while each is not yet rewritten |
 
 - **A walk's step** holds its commands, then a paragraph that starts
   `Expect:` with the output's first line verbatim, then one that starts
   `If not:` with each other outcome a sound temper gives and its act.
 - **A concept** gives no verb's arguments or flags (`Acting on it` names
   its ctl tools and host tools), and its `Limits` link the page
-  `configuration` for what needs a restart once that page exists.
-- **A rewritten guide** takes its place in the map under its new name
-  and kind in the same change that removes its `guide` row: `tasks`
-  becomes `task`, `chat` and `goal`; `charters` becomes `charter`,
-  `template` and `policy`; `settings` becomes `settings`, `revision` and
-  `proposal`; `budgets` becomes `budget`.
+  `configuration` for what needs a restart.
 - **At most 96 pages,** `MAX_PAGES`.
 
 ### 2.3 The voice, checked
@@ -95,15 +87,15 @@ section 6) is the writer's and the review's.
 
 ## 3. `temper-docs`
 
-A crate of no side (`README.md`, section 9), `#![no_std]` with `alloc`,
+A crate of no side (`../README.md`, section 9), `#![no_std]` with `alloc`,
 that depends on nothing of temper's and that `temper`,
 `temper-client-tools` and `temper-engine-smith` depend on.
 
 - **The table:** `PAGES: [Page; N]`, each `Page { name, kind, title,
-  summary, text }` as `&'static str` (kind an enum of section 2.2's six),
+  summary, text }` as `&'static str` (kind an enum of section 2.2's five),
   its text the file's whole bytes by `include_str!`, in this order:
-  `index`, then the concepts, walks, recipes, reference pages and guides,
-  each by name. The table is written by hand; the step test (section 6)
+  `index`, then the concepts, walks, recipes and reference pages, each
+  by name. The table is written by hand; the step test (section 6)
   keeps it equal to the directory.
 - **`find(name) -> Option<&Page>`**, by the exact name.
 - **`page(page, from, bytes) -> Cut`:** the page's text from byte
@@ -136,8 +128,8 @@ that depends on nothing of temper's and that `temper`,
   `NAME: HEADING: LINE`, then `and more; narrow the words` when more
   matched; none exits 1, printing `temper: nothing matches`.
 - It reads no directory and no configuration: it works before `temper
-  init`. `temper --help` stays the commands' usage until the binary's
-  table (`../draft/agent-docs.md`, 7.1); `temper ctl help` prints the
+  init`. `temper --help` prints the binary's table, its rows by who runs
+  them (`README.md`, section 4); `temper ctl help` prints the
   page `ctl`, then the tools (`../client/tools.md`, 11.5).
 
 ## 5. `read_docs`, for agents
@@ -173,7 +165,7 @@ that depends on nothing of temper's and that `temper`,
 
 | Where | What |
 |---|---|
-| `temper-docs`' step tests | the table equals `docs/help/`'s files, in name, kind and bytes; each page's head within 2.1's bounds; each page within its kind's bound, its headings its kind's (2.2), a walk's steps each with `Expect:`; the `guide` rows among the eight names alone; `index` names every concept, walk and recipe once; every `temper help NAME` in a page names a page; placeholders (2.1) and the voice's words (2.3) in written pages; `page` over a page's lines (a cut at a line end, a long line cut at a character, `from` past the end, `next`); `search` over a small fixture table (all words, case, order, the limit and more) |
+| `temper-docs`' step tests | the table equals `docs/help/`'s files, in name, kind and bytes; each page's head within 2.1's bounds; each page within its kind's bound, its headings its kind's (2.2), a walk's steps each with `Expect:`; `index` names every concept, walk and recipe once; every `temper help NAME` in a page names a page; placeholders (2.1) and the voice's words (2.3) in written pages; `page` over a page's lines (a cut at a line end, a long line cut at a character, `from` past the end, `next`); `search` over a small fixture table (all words, case, order, the limit and more) |
 | `temper`'s step tests | every fenced line of every page that starts `temper ctl ` parses with ctl's argument parser to a tool, cut at its first shell operator (`|`, `>`, `<`, `;`, `&&`) and each placeholder replaced by a value of its kind (`PROPOSAL` by `t1/1`, a number's by `1`), and every one that starts `temper ` and names another command parses with the binary's; each reference page equals what its table renders (`settings-fields` first, from ctl's `FIELDS`, `../client/tools.md` 5.3), printing the page as it should be; every setting field a written page names in a code span as a path from its kind (`charter.model.name`) resolves to a row of `FIELDS`; a page that says a ctl group or tool does not exist (`no ctl group `NAME``, `NAME (no tool)`) fails when the table has it, so a tool's landing finds the pages that deny it; `temper help`, `help NAME`, an unknown name and `--search` print and exit as section 4 says |
 | `temper-engine-smith`'s step tests | `read_docs`' schema; a page's first and next cut; a search; an unknown page; both members, or neither, answered as an error naming what is wrong |
 | the engine's domain world | a run's `read_docs` call answered with no commit, no record, and the run going on (one story) |
@@ -204,25 +196,37 @@ in `../draft/agent-docs.md` 6's voice.
 | `ctl-GROUP`, a page per group | ctl's tools (`temper-client-tools`; `../client/tools.md`, 5.1) | a tool: its usage, line, arguments, result line, keyedness and notes |
 | `settings-fields` | `FIELDS`, beside the settings form's decoder (`temper-settings-form`; `../client/tools.md`, 5.3) | a member of a shape |
 | `host-tools` | the host tools' declarations (`temper-engine-smith`; `../domain/agent.md`, 4.3) | a host tool: its name, its description, then each top-level member of its input's schema with its type, bound, whether it is required and its description (a nested member stays in the schema the run reads); in the one order the run's tool list has |
-| `limits`, a page per owner prefix where one page would pass 32,768 bytes | the limits' names: temper's (`temper-service`, today the overrides' match) and jig's (`jig-protocol-config`) | a named limit: its dotted name, its unit (a count, bytes, milliseconds), the small profile's value, a line |
-| `configuration` and `configuration-engine` | the configuration document's members by shape, beside each decoder: jig's shapes beside jig's, temper's beside temper's (`configuration.md`) | a member of a shape, the shape's section naming every path it is read at: its type and bound, whether it is required, what `temper init` writes, a line; the document's settings members (`engine.charters`, `templates`, `policies`, `rules`) are one row each, saying what a start does with them and sending the reader to `settings`, since the document's forms are not the settings file's |
+| `limits` and `limits-engine` | the limits' names: `limits` temper's, those `application.limits.overrides` takes (`temper-service`'s, the setup's `setup.*` and the box's `box.*`), and `limits-engine` jig's, those `engine.limits.overrides` and a worker's `limits.overrides` take (`jig-protocol-config`) | a named limit: its dotted name, its unit (a count, bytes, milliseconds), the small profile's value, a line |
+| `configuration` and `configuration-engine` | the configuration document's members by shape, beside each decoder: `configuration` temper's, the document's top level and `application`'s shapes, beside temper's decoders; `configuration-engine` jig's, `engine`'s and a worker's shapes, beside `jig-protocol-config`'s (`configuration.md`) | a member of a shape, the shape's section naming every path it is read at: its type and bound, whether it is required, what `temper init` writes, a line; the members that left the document for the store (`engine.charters`, `templates`, `policies` and `rules`; `application.charter` and `application.landing`'s rules: `configuration.md`, 13.5) are one row each, saying that a start refuses it and where it went, as the refusal says, and sending the reader to `settings` |
 
 - **`host-tools`' text is the run's:** the page renders the same
   description a run reads beside each tool, at most 160 bytes, and a
   member's, at most 120, each present, never empty: bounds and presence
   that `temper-engine-smith`'s step tests hold; so a run's tool and its
   page never differ, and a tool added without its words fails the gate.
-- **`limits`:** the overrides' parser becomes a lookup in the names
-  table, so that a name the parser takes is a row and a row a name it
-  takes. jig gives its own names as a list beside its parser, each with
-  its unit and line, generic to jig's applications, which temper's
-  table renders with its own.
-- **`configuration`:** every member is read at a start, so a change to
-  any of them needs a restart; the page says so once, and the concepts'
-  `Limits` link it. A step test holds the table to the decoder: every
-  member `temper init` writes and every member the decoder takes is a
-  row, and every row is one of them. Where the decoder is jig's, its
-  members' rows are jig's, as `limits`' are.
+- **`limits` and `limits-engine`:** each parser of overrides looks a
+  name up in its names table before anything else, refusing a name the
+  table lacks as unknown, so that a name the parser takes is a row; a
+  step test applies every row's name at the small profile's value, so
+  that a row is a name the parser takes. A row reads its value from the
+  profile, never a copy of it. jig gives its own names as a list beside
+  its parser (`jig-protocol-config`'s `names` module), each with its
+  unit, its line and its value's reader, generic to jig's applications,
+  which temper renders as `limits-engine`; temper's table, in
+  `temper-service`'s `limits` module beside its parser, holds its own
+  and the setup's and the box's, which their crates give as lists
+  beside their parsers. A line is at most 120 bytes, so that each page
+  stays within 32,768.
+- **`configuration` and `configuration-engine`:** every member is read
+  at a start, so a change to any of them needs a restart; each page says
+  so once, and the concepts' `Limits` link `configuration`. Each shape's
+  decoder reads its members through its table, a member it asks for
+  that the table lacks failing every test that decodes it, so that
+  every member the decoder takes is a row; a step test holds that every member
+  `temper init` writes is a row, and that every row is a member the
+  decoder takes or one of the members gone, which its decoder refuses
+  naming where it went. Where the decoder is jig's, its members' rows
+  are jig's, as `limits-engine`'s are.
 
 ## 9. Errors
 

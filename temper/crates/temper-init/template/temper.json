@@ -4,27 +4,28 @@
     "limits": {
       "profile": "small",
       "overrides": {
-        "authority.executors": 6,
+        "authority.executors": 12,
         "authority.grants": 14,
         "authority.segments": 8,
-        "clients.streams": 8,
         "clients.exchanges": 12,
-        "clients_http.streams": 8,
+        "clients.streams": 8,
         "clients_http.calls": 12,
-        "core.resume_bytes": 1067223,
-        "documents.lines": 3,
+        "clients_http.streams": 8,
+        "core.resume_bytes": 1662046,
+        "documents.lines": 8,
         "documents.rows": 2,
         "documents.text_bytes": 128,
-        "hub.transcript_bytes": 4268883,
-        "hub.turn_bytes": 1067219,
-        "hub.turn_queue_bytes": 8537752,
+        "hub.transcript_bytes": 6648178,
+        "hub.turn_bytes": 1662042,
+        "hub.turn_queue_bytes": 13296336,
         "notes.scopes": 17,
         "tasks.authority_bytes": 512,
         "tasks.authority_grants": 14,
         "tasks.authority_segments": 8,
         "tasks.batch": 1,
-        "tasks.contract_choices": 2,
-        "tasks.executor_kinds": 6,
+        "tasks.charters": 8,
+        "tasks.contract_choices": 4,
+        "tasks.executor_kinds": 12,
         "tasks.hold_segments": 8,
         "tasks.inbox_bytes": 12288,
         "tasks.parameters": 5,
@@ -166,12 +167,7 @@
       1
     ],
     "memory_bytes": 1073741824,
-    "projects": [
-      {
-        "number": 1,
-        "policy": 1
-      }
-    ]
+    "projects": []
   },
   "workers": [
     {
@@ -204,9 +200,9 @@
         "overrides": {
           "hub.accounts": 4,
           "hub.event_bytes": 4096,
-          "hub.transcript_bytes": 4268883,
-          "hub.turn_bytes": 1067219,
-          "hub.turn_queue_bytes": 8537752
+          "hub.transcript_bytes": 6648178,
+          "hub.turn_bytes": 1662042,
+          "hub.turn_queue_bytes": 13296336
         }
       }
     }
@@ -241,30 +237,6 @@
       },
       "github": null
     },
-    "landing": {
-      "deployment": [
-        {
-          "connector": 1,
-          "kind": 4,
-          "pattern": {
-            "segments": [
-              "forge"
-            ],
-            "last": "open",
-            "value": ""
-          },
-          "enforce": true,
-          "ci": true,
-          "up_to_date": true,
-          "gates": [
-            {"number": 1, "blocking": true, "freshness": "clean"}
-          ],
-          "approvals": []
-        }
-      ],
-      "projects": []
-    },
-    "charter": 2,
     "clients": {
       "listener": {
         "socket": "$listener"
@@ -550,11 +522,11 @@
         "forge.client.repositories": 3,
         "forge.output": 82,
         "forge.repositories": 3,
-        "root.journal.transcript_bytes": 1067223,
-        "root.loads.bytes": 1067467,
-        "root.loads.read_bytes": 2134438,
-        "root.loads.reply_bytes": 1067467,
-        "root.loads.transcript_bytes": 1067219,
+        "root.journal.transcript_bytes": 1662046,
+        "root.loads.bytes": 1662290,
+        "root.loads.read_bytes": 3324084,
+        "root.loads.reply_bytes": 1662290,
+        "root.loads.transcript_bytes": 1662042,
         "routes.query_bytes": 2048
       }
     },

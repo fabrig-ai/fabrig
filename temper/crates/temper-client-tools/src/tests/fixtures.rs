@@ -57,6 +57,22 @@ pub(crate) fn owned(words: &[&str]) -> Box<[Box<[u8]>]> {
 }
 /// One argv per table row and form; the help derivation shares these examples.
 pub(crate) const EVERY_TOOL: &[&[&str]] = &[
+    &["project", "amend", "shop", "--visibility", "public", "--key", "visibility"],
+    &[
+        "goal",
+        "start",
+        "--project",
+        "1",
+        "--charter",
+        "1",
+        "--budget",
+        "80",
+        "--deadline",
+        "1970-01-01T00:01Z",
+        "work",
+        "--key",
+        "goal-1",
+    ],
     &["hold", "lift", "12", "--rev", "1", "--with-tasks"],
     &["me"],
     &["inbox"],
@@ -114,6 +130,19 @@ pub(crate) const EVERY_TOOL: &[&[&str]] = &[
         "--key",
         "new-admin",
     ],
+    &[
+        "forge",
+        "connect",
+        "forgejo",
+        "tokens",
+        "--api",
+        "forge.invalid:3000",
+        "--git",
+        "http://forge.invalid:3000",
+        "--key",
+        "new-tokens",
+    ],
+    &["forge", "replace", "3", "tokens", "--key", "replace"],
     &["forge", "remove", "3"],
     &["playground", "end"],
     &["forge", "install", "3"],
@@ -124,6 +153,8 @@ pub(crate) const EVERY_TOOL: &[&[&str]] = &[
     &["settings", "show"],
     &["settings", "show", "charter", "3"],
     &["settings", "show", "rules"],
+    &["settings", "show", "landing-rule", "1", "--project", "shop"],
+    &["settings", "show", "forge-charter", "1"],
     &["revision", "show", "5"],
     &["revision", "list"],
     &["settings", "apply", "FILE", "--against", "5", "--key", "settings-5"],
@@ -135,6 +166,7 @@ pub(crate) const EVERY_TOOL: &[&[&str]] = &[
     &["project", "fund", "1", "200", "--key", "fund"],
     &["landing", "show", "41"],
     &["landing", "list", "--project", "1"],
+    &["task", "text", "1"],
 ];
 
 /// Parse the printer's bytes back without re-creating argv in each test.
@@ -304,6 +336,7 @@ pub(crate) fn me(party: u64) -> c::Me {
     let mut projects = List::with_capacity(PROJECTS);
     projects
         .push(c::MeProject {
+            public: None,
             project: PROJECT,
             name: document_text(b"shop"),
             role: c::HeldRole::Owner,
@@ -411,6 +444,7 @@ pub(crate) struct Harness {
     pub wall: Wall,
     pub limits: root::Limits,
     pub reads: BTreeMap<u32, (Token, c::Read)>,
+    pub family_reads: BTreeMap<u32, (Token, client::Readable)>,
     pub extra_reads: BTreeMap<u32, Queue<(Token, c::Read)>>,
     pub serving: Option<u32>,
     pub closed: List<client::Watchable>,
@@ -448,6 +482,7 @@ pub(crate) fn started_with_limits(
         wall: Wall::EPOCH,
         limits,
         reads: BTreeMap::new(),
+        family_reads: BTreeMap::new(),
         extra_reads: BTreeMap::new(),
         serving: None,
         closed: List::with_capacity(OUTPUTS),
@@ -476,9 +511,13 @@ pub(crate) fn signed_in(party: u64) -> Harness {
     harness
 }
 impl Harness {
+    /// The harness's clocks with the limits of the step a test calls.
+    pub(crate) fn env<L>(&self, limits: L) -> Env<L> {
+        let (now, wall) = (self.now, self.wall);
+        Env { now, wall, limits }
+    }
     fn event(&mut self, event: root::Event) {
-        let env =
-            Env { now: self.now, wall: self.wall, limits: root::Limits::new(self.limits.domain, self.limits.tools) };
+        let env = self.env(root::Limits::new(self.limits.domain, self.limits.tools));
         let mut out = Queue::with_capacity(OUTPUTS);
         root::step(&mut self.root, &env, event, &mut out);
         self.outputs(out);
@@ -486,9 +525,11 @@ impl Harness {
     pub(crate) fn outputs(&mut self, mut out: Queue<root::Request>) {
         for _ in 0..out.len() {
             match out.pop().expect("counted root output") {
-                root::Request::Client {
+                root::Request::Unlinked {
                     request:
-                        client::Request::Down { down: client::Down::Read { read, what: client::Readable::Jig(what) } },
+                        client::UnlinkedRequest::Down {
+                            down: client::Down::Read { read, what: client::Readable::Jig(what) },
+                        },
                 } => {
                     let call = match self.serving {
                         Some(call) => call,
@@ -501,12 +542,26 @@ impl Harness {
                         self.extra_reads.get_mut(&call).expect("read queue").push((read, what));
                     }
                 }
-                root::Request::Client {
-                    request: client::Request::Down { down: client::Down::Open { watch, subject } },
+                root::Request::Unlinked {
+                    request:
+                        client::UnlinkedRequest::Down {
+                            down: client::Down::Read { read, what: what @ client::Readable::Family { .. } },
+                        },
+                } => {
+                    let call = match self.serving {
+                        Some(call) => call,
+                        None => self.pending_reads.pop().expect("submitted family read"),
+                    };
+                    assert!(self.family_reads.insert(call, (read, what)).is_none(), "one family read per call");
+                }
+                root::Request::Unlinked {
+                    request: client::UnlinkedRequest::Down { down: client::Down::Open { watch, subject } },
                 } => {
                     self.watches.insert(watch, subject);
                 }
-                root::Request::Client { request: client::Request::Down { down: client::Down::Close { watch } } } => {
+                root::Request::Unlinked {
+                    request: client::UnlinkedRequest::Down { down: client::Down::Close { watch } },
+                } => {
                     let subject = self.watches.remove(&watch).expect("open watch closes");
                     self.closed.push(subject).expect("bounded closes");
                     self.client(client::Event::Up { up: client::Up::WatchEnded { watch, end: c::WatchEnd::Closed } });
@@ -521,8 +576,8 @@ impl Harness {
                     }
                     assert!(self.answers.insert(number, printed).is_none(), "answered exactly once");
                 }
-                root::Request::Client {
-                    request: client::Request::Down { down: client::Down::Send { attempt, key, request, value } },
+                root::Request::Unlinked {
+                    request: client::UnlinkedRequest::Down { down: client::Down::Send { attempt, key, request, value } },
                 } => {
                     let call = self.serving.unwrap_or(self.next);
                     self.sends.insert(call, (attempt, key, request));
@@ -530,7 +585,9 @@ impl Harness {
                         self.carried.insert(call, value);
                     }
                 }
-                root::Request::Client { request: client::Request::Down { down: client::Down::Save { record } } } => {
+                root::Request::Unlinked {
+                    request: client::UnlinkedRequest::Down { down: client::Down::Save { record } },
+                } => {
                     let call = self.serving.unwrap_or(self.next);
                     self.saved.insert(call, record.key);
                 }
@@ -542,7 +599,7 @@ impl Harness {
                 root::Request::Record { number, record } => {
                     self.records.insert(number, record);
                 }
-                root::Request::Client { .. } | root::Request::Ready => {}
+                root::Request::Client { .. } | root::Request::Unlinked { .. } | root::Request::Ready => {}
             }
         }
     }
@@ -585,8 +642,12 @@ impl Harness {
                 | 9..=15
                 | crate::jig::rows::TASK_DECIDE_AT
                 | 31
-                | 42..=45
+                | crate::jig::rows::SETTINGS_AT
+                | crate::jig::rows::SETTING_AT
+                | crate::jig::rows::REVISION_AT
+                | crate::jig::rows::REVISIONS_AT
                 | crate::jig::rows::PROPOSAL_AT
+                | crate::jig::rows::TASK_TEXT_AT
                 | crate::jig::rows::PROJECT_SHOW_AT => SINGLE_READ,
                 3 => {
                     if crate::jig::call::number(&call, 2).is_some() {
@@ -621,7 +682,10 @@ impl Harness {
         self.serve_readout(call, client::Readout::Jig(result));
     }
     pub fn serve_readout(&mut self, call: u32, result: client::Readout) {
-        let (token, _) = self.reads.remove(&call).expect("the call read once");
+        let token = match self.reads.remove(&call) {
+            Some((token, _)) => token,
+            None => self.family_reads.remove(&call).expect("the call read once").0,
+        };
         if let Some(reads) = self.extra_reads.get_mut(&call)
             && let Some(next) = reads.pop()
         {
@@ -742,7 +806,7 @@ pub(crate) const UNKNOWN_ASKER: client::Asker = client::Asker(999);
 /// A stable stored request's engine key, unrelated to its client call prefix.
 const KEPT_KEY: skein_lib::RequestKey = [9; 16];
 /// One slot per row and form; fewer omits decide's second form.
-pub(super) const TOOL_FORMS: u32 = 67;
+pub(super) const TOOL_FORMS: u32 = 75;
 /// Exactly one example exercises each row and form; zero misses it entirely.
 pub(super) const EXAMPLES_PER_FORM: u32 = 1;
 /// One missing byte exercises the first refused destination; zero would fit.
@@ -794,3 +858,6 @@ pub(super) fn selected_help(selection: crate::help::Selection) -> Box<[u8]> {
     crate::help::selected(selection, &mut exact).expect("measured help");
     exact.finish()
 }
+
+mod task_text;
+pub(crate) use task_text::{source_chunk, source_show, source_summary, source_task};

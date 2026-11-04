@@ -14,10 +14,10 @@ fn environment(limits: &Limits) -> Env<Limits> {
     Env { now: Time::ZERO, wall: Wall::EPOCH, limits: *limits }
 }
 
-fn begin(core: &mut Core, limits: &Limits, project: u32) -> (Queue<Work>, Queue<Request>) {
+fn begin(core: &mut Core, limits: &Limits, project: u32, grace: Option<Duration>) -> (Queue<Work>, Queue<Request>) {
     let mut work = Queue::uncapped();
     let mut out = Queue::uncapped();
-    deletion::begin(core, &environment(limits), &mut work, &mut out, Token::new(90), project).unwrap();
+    deletion::begin(core, &environment(limits), &mut work, &mut out, Token::new(90), project, grace).unwrap();
     (work, out)
 }
 
@@ -89,7 +89,7 @@ fn removing_a_project_closes_it_and_answers_in_one_decision() {
         &mut work,
         &mut out,
         Token::new(90),
-        people::Act::RemoveProject { project: 1 },
+        people::Act::RemoveProject { project: 1, grace: None },
     );
     assert_eq!(outcome(&core, work), people::Outcome::ProjectRemoved { project: 1 });
     assert!(!core.open_project(1));
@@ -111,7 +111,7 @@ fn an_owners_ask_removes_it_and_a_members_is_refused() {
             person: 1,
             project: 1,
             role: Some(role),
-            ask: Box::new(people::Ask::RemoveProject { project: 1 }),
+            ask: Box::new(people::Ask::RemoveProject { project: 1, grace: None }),
             models: Box::new([]),
         });
         let mut work = Queue::uncapped();
@@ -127,9 +127,261 @@ fn an_owners_ask_removes_it_and_a_members_is_refused() {
 }
 
 #[test]
+fn an_owners_grace_at_the_bound_is_admitted_and_kept() {
+    let (mut core, limits) = core();
+    let mut child = Queue::uncapped();
+    child.push(people::Request::Route {
+        request: Token::new(90),
+        person: 1,
+        project: 1,
+        role: Some(people::Role::Owner),
+        ask: Box::new(people::Ask::RemoveProject { project: 1, grace: Some(limits.tasks.grace) }),
+        models: Box::new([]),
+    });
+    let mut work = Queue::uncapped();
+    let _requests = crate::routing::party::people::tag_people(&mut core, &environment(&limits), child, &mut work);
+    assert_eq!(outcome(&core, work), people::Outcome::ProjectRemoved { project: 1 });
+    assert!(!core.open_project(1));
+    assert_eq!(core.people.deletions().get(&1).unwrap().grace, Some(limits.tasks.grace));
+}
+
+#[test]
+fn a_grace_past_the_bound_is_refused_and_nothing_is_deleted() {
+    for owner in [false, true] {
+        let (mut core, limits) = make_tree();
+        let grace = Some(Duration::from_nanos(limits.tasks.grace.as_nanos() + 1));
+        let mut work = Queue::uncapped();
+        let mut out = Queue::uncapped();
+        if owner {
+            let mut child = Queue::uncapped();
+            child.push(people::Request::Route {
+                request: Token::new(90),
+                person: 1,
+                project: 1,
+                role: Some(people::Role::Owner),
+                ask: Box::new(people::Ask::RemoveProject { project: 1, grace }),
+                models: Box::new([]),
+            });
+            out = crate::routing::party::people::tag_people(&mut core, &environment(&limits), child, &mut work);
+        } else {
+            crate::routing::party::deployment_acts::route(
+                &mut core,
+                &environment(&limits),
+                &mut work,
+                &mut out,
+                Token::new(90),
+                people::Act::RemoveProject { project: 1, grace },
+            );
+        }
+        assert_eq!(
+            outcome(&core, work),
+            people::Outcome::Refused(people::Refusal::Limit { which: people::LimitKind::Grace })
+        );
+        assert!(core.open_project(1));
+        assert!(!core.deletions.contains(1));
+        assert!(core.people.deletions().is_empty());
+        assert!(out.is_empty());
+        for number in 1..=4 {
+            assert!(!closing(&core, number));
+        }
+    }
+}
+
+#[test]
+fn a_deletion_keeps_its_grace_through_each_step() {
+    let (mut core, limits) = core();
+    let grace = Some(limits.tasks.grace);
+    let _started = begin(&mut core, &limits, 1, grace);
+    assert_eq!(core.people.deletions().get(&1).unwrap().grace, grace);
+    let mut out = Queue::uncapped();
+    deletion::tasks_erased(&mut core, &environment(&limits), &mut out, 1);
+    assert_eq!(core.people.deletions().get(&1).unwrap().step, people::DeletionStep::Rows);
+    assert_eq!(core.people.deletions().get(&1).unwrap().grace, grace);
+    let _settled = settle_notes(&mut core, &limits, out);
+    assert_eq!(core.people.deletions().get(&1).unwrap().step, people::DeletionStep::Release);
+    assert_eq!(core.people.deletions().get(&1).unwrap().grace, grace);
+}
+
+const CHAT: u64 = 1;
+const DELEGATES: [u64; 3] = [2, 3, 4];
+const PLAIN_ROOT: u64 = 5;
+const CHAT_GROUP: u32 = 4; // The conversation and its three delegates.
+const GRACE: Duration = Duration::from_secs(5);
+
+fn conversation_tree() -> (Core, Limits) {
+    let (mut core, mut limits) = make_tree();
+    limits.people.operations = CHAT_GROUP + 1; // Room for the chat group and the plain root.
+    restore_conversation(&mut core, &limits, CHAT);
+    (core, limits)
+}
+
+fn restore_conversation(core: &mut Core, limits: &Limits, chat: u64) {
+    let mut rows = List::with_capacity(limits.tasks.tasks);
+    for task in core.tasks.view_tasks() {
+        let mut row = core.tasks.task(task.number).unwrap().clone();
+        if task.number == chat {
+            row.flags.conversation = true;
+            row.flags.ended_by = tasks::EndedBy::Requester;
+            row.phase = tasks::Phase::Active(tasks::Active::Running { attempt: 1 });
+        }
+        rows.push(row).unwrap();
+    }
+    let ledger = *core.tasks.funding(tasks::Funder::Period { project: 1, period: 1 }).unwrap();
+    core.tasks = fixtures::fresh_tasks(core, limits);
+    send_task(core, limits, tasks::Event::Restore { record: tasks::Stored::Ledger(ledger) });
+    for row in rows.into_boxed() {
+        send_task(core, limits, tasks::Event::Restore { record: tasks::Stored::Live(Box::new(row)) });
+    }
+    send_task(core, limits, tasks::Event::Check);
+    send_task(core, limits, tasks::Event::Restored);
+}
+
+fn assert_chat_grace(core: &Core, grace: Duration) {
+    let row = core.tasks.task(CHAT).unwrap();
+    assert!(!closing(core, CHAT));
+    let finish = row.grace.as_ref().expect("conversation asked to finish");
+    assert_eq!(finish.until, Wall::from_nanos(grace.as_nanos()));
+    assert_eq!(finish.by, tasks::Party::Deployment { project: 1 });
+    assert!(finish.reason.is_empty());
+    assert_ne!(finish.message, 0);
+    for delegate in DELEGATES {
+        assert!(closing(core, delegate));
+    }
+}
+
+fn add_plain_root(core: &mut Core, limits: &Limits) {
+    let root = new_row(core, PLAIN_ROOT, tasks::Funder::Period { project: 1, period: 1 }, None);
+    fixtures::make_batch(core, limits, tasks::Party::Person(1), Box::new([root]));
+}
+
+#[test]
+fn a_deleted_projects_conversation_is_asked_to_finish_within_the_grace() {
+    let (mut core, limits) = conversation_tree();
+    add_plain_root(&mut core, &limits);
+    let _started = begin(&mut core, &limits, 1, Some(GRACE));
+    assert_chat_grace(&core, GRACE);
+    assert!(closing(&core, PLAIN_ROOT));
+    assert!(core.tasks.task(PLAIN_ROOT).unwrap().grace.is_none());
+}
+
+#[test]
+fn a_root_finishing_under_a_grace_is_not_asked_again() {
+    let (mut core, limits) = conversation_tree();
+    let _started = begin(&mut core, &limits, 1, Some(GRACE));
+    let messages = core.counters.deployment.messages;
+    let resumed = resume_fleet(&mut core, &environment(&limits));
+    assert!(resumed.is_empty());
+    assert_eq!(core.counters.deployment.messages, messages);
+    assert_chat_grace(&core, GRACE);
+}
+
+fn resume_graced(core: &mut Core, limits: &Limits, grace: Duration) {
+    deletion::restore_project(core, 1, people::DeletionStep::Tasks, Some(grace));
+    core.start.phase = Some(crate::start::Phase::Open);
+    let closed = resume_fleet(core, &environment(limits));
+    assert!(closed.is_empty());
+    assert!(core.tasks.task(CHAT).unwrap().grace.is_none());
+    let mut out = Queue::uncapped();
+    let crate::start::Action::Idle = core.start_done(&environment(limits), crate::start::Phase::Open, &mut out) else {
+        panic!("open completes the start")
+    };
+    let _opened = resume_fleet(core, &environment(limits));
+}
+
+#[test]
+fn a_kept_deletion_resumes_with_its_grace() {
+    let (mut core, limits) = conversation_tree();
+    resume_graced(&mut core, &limits, GRACE);
+    assert_chat_grace(&core, GRACE);
+}
+
+#[test]
+fn a_kept_grace_past_a_lowered_bound_is_given_as_that_bound() {
+    let (mut core, mut limits) = conversation_tree();
+    limits.tasks.grace = GRACE;
+    resume_graced(&mut core, &limits, Duration::from_nanos(GRACE.as_nanos() + 1));
+    assert_chat_grace(&core, GRACE);
+}
+
+#[test]
+fn a_full_compound_leaves_the_next_root_for_later() {
+    let (mut core, mut limits) = conversation_tree();
+    add_plain_root(&mut core, &limits);
+    limits.people.operations = CHAT_GROUP;
+    let _started = begin(&mut core, &limits, 1, Some(GRACE));
+    assert_chat_grace(&core, GRACE);
+    assert!(!closing(&core, PLAIN_ROOT));
+    let _resumed = resume_fleet(&mut core, &environment(&limits));
+    assert!(closing(&core, PLAIN_ROOT));
+}
+
+#[test]
+fn a_conversation_group_waits_for_room_in_the_next_compound() {
+    const NEXT_CHAT: u64 = 5;
+    const NEXT_DELEGATE: u64 = 6;
+    let (mut core, limits) = conversation_tree();
+    let next = new_row(&core, NEXT_CHAT, tasks::Funder::Period { project: 1, period: 1 }, None);
+    fixtures::make_batch(&mut core, &limits, tasks::Party::Person(1), Box::new([next]));
+    let delegate = new_row(&core, NEXT_DELEGATE, tasks::Funder::Task(NEXT_CHAT), None);
+    fixtures::make_batch(&mut core, &limits, tasks::Party::Task(NEXT_CHAT), Box::new([delegate]));
+    restore_conversation(&mut core, &limits, NEXT_CHAT);
+    // Five operations hold the first group of four, but cannot split the next group of two.
+    let _started = begin(&mut core, &limits, 1, Some(GRACE));
+    assert_chat_grace(&core, GRACE);
+    assert!(core.tasks.task(NEXT_CHAT).unwrap().grace.is_none());
+    assert!(!closing(&core, NEXT_CHAT));
+    assert!(!closing(&core, NEXT_DELEGATE));
+    let _resumed = resume_fleet(&mut core, &environment(&limits));
+    assert!(core.tasks.task(NEXT_CHAT).unwrap().grace.is_some());
+    assert!(closing(&core, NEXT_DELEGATE));
+}
+
+#[test]
+fn a_deletion_restored_from_people_keeps_its_grace() {
+    let (mut core, limits) = conversation_tree();
+    let mut out = Queue::uncapped();
+    people::step(
+        &mut core.people,
+        &Env { now: Time::ZERO, wall: Wall::EPOCH, limits: limits.people },
+        people::Event::Deleting { project: 1, step: Some(people::DeletionStep::Tasks), grace: Some(GRACE) },
+        &mut out,
+    );
+    assert!(deletion::restored(&mut core));
+    let _resumed = resume_fleet(&mut core, &environment(&limits));
+    assert_chat_grace(&core, GRACE);
+}
+
+#[test]
+fn a_conversation_larger_than_the_compound_bound_is_cancelled_alone() {
+    let (mut core, mut limits) = conversation_tree();
+    add_plain_root(&mut core, &limits);
+    limits.people.operations = 2; // Below the chat's group, with room for an unrelated root.
+    let _started = begin(&mut core, &limits, 1, Some(GRACE));
+    let row = core.tasks.task(CHAT).unwrap();
+    assert!(!closing(&core, CHAT));
+    assert!(row.grace.is_some());
+    assert!(!closing(&core, PLAIN_ROOT));
+    for delegate in DELEGATES {
+        assert!(!closing(&core, delegate));
+    }
+}
+
+#[test]
+fn an_exhausted_message_counter_cancels_the_conversation_without_grace() {
+    let (mut core, limits) = conversation_tree();
+    core.counters.deployment.messages = u64::MAX;
+    let _started = begin(&mut core, &limits, 1, Some(GRACE));
+    assert!(closing(&core, CHAT));
+    assert!(core.tasks.task(CHAT).unwrap().grace.is_none());
+    for delegate in DELEGATES {
+        assert!(closing(&core, delegate));
+    }
+}
+
+#[test]
 fn removing_an_unknown_or_deleting_project_is_refused_unknown() {
     let (mut core, limits) = core();
-    let _started = begin(&mut core, &limits, 1);
+    let _started = begin(&mut core, &limits, 1, None);
     for project in [1, 99] {
         let mut work = Queue::uncapped();
         let mut out = Queue::uncapped();
@@ -139,7 +391,7 @@ fn removing_an_unknown_or_deleting_project_is_refused_unknown() {
             &mut work,
             &mut out,
             Token::new(90),
-            people::Act::RemoveProject { project },
+            people::Act::RemoveProject { project, grace: None },
         );
         assert_eq!(outcome(&core, work), people::Outcome::Refused(people::Refusal::Unknown));
         assert!(out.is_empty());
@@ -153,7 +405,7 @@ fn live_roots_past_the_operation_bound_are_cancelled_next() {
     let first = new_row(&core, 1, tasks::Funder::Period { project: 1, period: 1 }, None);
     let second = new_row(&core, 2, tasks::Funder::Period { project: 1, period: 1 }, None);
     fixtures::make_batch(&mut core, &limits, tasks::Party::Person(1), Box::new([first, second]));
-    let _started = begin(&mut core, &limits, 1);
+    let _started = begin(&mut core, &limits, 1, None);
     assert!(closing(&core, 1));
     assert!(!closing(&core, 2));
     let _resumed = resume_fleet(&mut core, &environment(&limits));
@@ -163,7 +415,7 @@ fn live_roots_past_the_operation_bound_are_cancelled_next() {
 #[test]
 fn the_steps_run_in_order_and_the_row_goes_last() {
     let (mut core, limits) = core();
-    let _started = begin(&mut core, &limits, 1);
+    let _started = begin(&mut core, &limits, 1, None);
     assert!(core.authority.policy(1).is_some());
     let mut out = Queue::uncapped();
     deletion::tasks_erased(&mut core, &environment(&limits), &mut out, 1);
@@ -185,7 +437,7 @@ fn the_steps_run_in_order_and_the_row_goes_last() {
 #[test]
 fn every_connector_is_asked_and_the_row_waits_for_all() {
     let (mut core, limits) = core();
-    let _started = begin(&mut core, &limits, 1);
+    let _started = begin(&mut core, &limits, 1, None);
     let mut out = Queue::uncapped();
     deletion::tasks_erased(&mut core, &environment(&limits), &mut out, 1);
     assert_eq!(released_connectors(&settle_notes(&mut core, &limits, out)).as_ref(), &[1, 2]);
@@ -201,7 +453,7 @@ fn every_connector_is_asked_and_the_row_waits_for_all() {
 #[test]
 fn close_and_adopt_on_a_closed_project_are_refused_unknown() {
     let (mut core, limits) = make_tree();
-    let _started = begin(&mut core, &limits, 1);
+    let _started = begin(&mut core, &limits, 1, None);
     for act in [
         people::Act::Close { project: 1, task: 1, grace: None, reason: Box::new([]) },
         people::Act::Adopt {
@@ -232,7 +484,7 @@ fn close_and_adopt_on_a_closed_project_are_refused_unknown() {
 fn a_period_or_recurring_start_for_a_closed_project_decides_nothing() {
     let (mut core, limits) = core();
     let authority = new_row(&core, 1, tasks::Funder::Period { project: 1, period: 1 }, None).authority;
-    let _started = begin(&mut core, &limits, 1);
+    let _started = begin(&mut core, &limits, 1, None);
     let out = step(&mut core, &environment(&limits), Event::Period { project: 1, period: 2, budget: 1, next: None });
     only_decided(out);
     let out = step(
@@ -267,7 +519,7 @@ fn restored_projects() -> (Core, Limits) {
 fn a_freed_name_restores_beside_its_new_holder() {
     let (mut core, limits) = restored_projects();
     // People projects the committed deletion row after the policy rows load.
-    deletion::restore_project(&mut core, 1, people::DeletionStep::Tasks);
+    deletion::restore_project(&mut core, 1, people::DeletionStep::Tasks, None);
     let mut out = Queue::uncapped();
     let env = environment(&limits);
     let crate::start::Action::Step(crate::start::Phase::LoadInbox) =
@@ -285,7 +537,7 @@ fn a_freed_name_restores_beside_its_new_holder() {
 #[test]
 fn a_kept_deletion_resumes_at_its_tasks_step_after_open() {
     let (mut core, limits) = make_tree();
-    deletion::restore_project(&mut core, 1, people::DeletionStep::Tasks);
+    deletion::restore_project(&mut core, 1, people::DeletionStep::Tasks, None);
     core.start.phase = Some(crate::start::Phase::Open);
     let _closed = resume_fleet(&mut core, &environment(&limits));
     assert!(!closing(&core, 1));
@@ -301,7 +553,7 @@ fn a_kept_deletion_resumes_at_its_tasks_step_after_open() {
 #[test]
 fn a_kept_deletion_resumes_at_its_rows_step_after_open() {
     let (mut core, limits) = core();
-    deletion::restore_project(&mut core, 1, people::DeletionStep::Rows);
+    deletion::restore_project(&mut core, 1, people::DeletionStep::Rows, None);
     core.start.phase = Some(crate::start::Phase::Open);
     let closed = resume_fleet(&mut core, &environment(&limits));
     let closed = collect(closed);
@@ -320,7 +572,7 @@ fn a_kept_deletion_resumes_at_its_rows_step_after_open() {
 #[test]
 fn a_kept_deletion_resumes_at_its_release_step_after_open() {
     let (mut core, limits) = core();
-    deletion::restore_project(&mut core, 1, people::DeletionStep::Release);
+    deletion::restore_project(&mut core, 1, people::DeletionStep::Release, None);
     core.start.phase = Some(crate::start::Phase::Open);
     let closed = resume_fleet(&mut core, &environment(&limits));
     let closed = collect(closed);
@@ -342,7 +594,7 @@ fn the_load_and_link_start_checks_names_after_hiding_deletions() {
         let (mut core, limits) = restored_projects();
         core.start.phase = Some(crate::start::Phase::LoadCore);
         if deleting {
-            deletion::restore_project(&mut core, 1, people::DeletionStep::Tasks);
+            deletion::restore_project(&mut core, 1, people::DeletionStep::Tasks, None);
         }
         let mut out = Queue::uncapped();
         let action = core.start_done(&environment(&limits), crate::start::Phase::LoadCore, &mut out);
@@ -360,7 +612,7 @@ fn the_load_and_link_start_checks_names_after_hiding_deletions() {
 #[test]
 fn a_load_and_link_deletion_waits_until_open_completes() {
     let (mut core, limits) = core();
-    deletion::restore_project(&mut core, 1, people::DeletionStep::Release);
+    deletion::restore_project(&mut core, 1, people::DeletionStep::Release, None);
     core.start.phase = Some(crate::start::Phase::Open);
     let closed = resume_fleet(&mut core, &environment(&limits));
     assert!(released_connectors(&collect(closed)).is_empty());
@@ -398,7 +650,7 @@ fn settle_notes(core: &mut Core, limits: &Limits, mut pending: Queue<Request>) -
 fn a_deletion_without_connectors_finishes_after_its_notes() {
     let (mut core, limits) = core();
     core.connectors = Box::new([]);
-    let _started = begin(&mut core, &limits, 1);
+    let _started = begin(&mut core, &limits, 1, None);
     let mut out = Queue::uncapped();
     deletion::tasks_erased(&mut core, &environment(&limits), &mut out, 1);
     let requests = settle_notes(&mut core, &limits, out);
@@ -410,7 +662,7 @@ fn a_deletion_without_connectors_finishes_after_its_notes() {
 fn a_kept_deletion_advances_after_fleet_inputs_and_timers() {
     for timer in [false, true] {
         let (mut core, limits) = core();
-        let _started = begin(&mut core, &limits, 1);
+        let _started = begin(&mut core, &limits, 1, None);
         let metered = step(&mut core, &environment(&limits), Event::Fill { bytes: 1 });
         only_decided(metered);
         let requests = if timer {

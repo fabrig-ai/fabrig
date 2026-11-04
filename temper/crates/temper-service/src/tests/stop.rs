@@ -308,8 +308,9 @@ fn an_unknown_flight_key_is_named_in_lowercase_hex() {
 #[test]
 fn missing_forge_links_panic_before_startup_wires() {
     use temper_engine_domain::{Record, Write};
-    use temper_engine_domain_forge::{Key, MissingLink, Need, RecordKind, Stored};
-    const ABSENT_TASK: u64 = 999;
+    use temper_engine_domain_forge::{Key, MissingLink, Name, Need, RecordKind, Stored, What};
+    const KEPT_TASK: u64 = 999;
+    const ABSENT_REPOSITORY: skein_forge::api::Repository = skein_forge::api::Repository { forge: 1, repository: 999 };
     // Same completed-restart horizon as the service's startup stories.
     const PASSES: u32 = 256;
     let mut previous = fixtures::ready().engine.expect("running engine");
@@ -317,7 +318,14 @@ fn missing_forge_links_panic_before_startup_wires() {
         &mut previous.store,
         1,
         Box::new([Write::Save(Record::Forge {
-            row: Box::new(Stored::Names { task: ABSENT_TASK, resources: Box::new([]) }),
+            row: Box::new(Stored::Names {
+                task: KEPT_TASK,
+                resources: Box::new([Name {
+                    forge: ABSENT_REPOSITORY.forge,
+                    repository: ABSENT_REPOSITORY.repository,
+                    what: What::Repository,
+                }]),
+            }),
         })]),
     );
     drop(previous.store.above.pop().expect("fixture commit answer"));
@@ -332,8 +340,8 @@ fn missing_forge_links_panic_before_startup_wires() {
         service.engine.as_ref().expect("linking engine").domain.forge_missing_link(),
         Some(MissingLink {
             kind: RecordKind::Names,
-            key: Key::Names(ABSENT_TASK),
-            need: Need::Task { task: ABSENT_TASK, retired: None },
+            key: Key::Names(KEPT_TASK),
+            need: Need::Repository(ABSENT_REPOSITORY),
         })
     );
     assert_eq!(service.end(), None, "no startup refusal");

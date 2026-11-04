@@ -20,6 +20,8 @@ pub struct Template {
     /// The LLM choice a task filled from it carries, each model configured with an effort it
     /// takes; none for its charter's default (configuration.md, 3.1; domain/tasks.md, 3).
     pub llm: Option<jig_domain_tasks::LlmChoice>,
+    /// Connectors' symbols a task filled from this template holds (protocol/configuration.md, 3.3).
+    pub resources: Box<[jig_domain_people::Symbol]>,
 }
 
 /// Apply the project's named overrides in configuration order (configuration.md, 3.1).
@@ -115,7 +117,11 @@ pub(crate) fn valid(
     for setting in &current.offered() {
         let number = match setting {
             super::Setting::Template(number) => *number,
-            super::Setting::Charter(_) | super::Setting::Policy(_) | super::Setting::Rules => continue,
+            super::Setting::Charter(_)
+            | super::Setting::Policy(_)
+            | super::Setting::Rules
+            | jig_domain_people::Setting::ProjectPolicy { .. } => continue,
+            jig_domain_people::Setting::Application { .. } => unreachable!("an application's setting: apps-core"),
         };
         let template = current.template(number).expect("offered template");
         let mut executor = template.executor;
@@ -135,8 +141,9 @@ pub(crate) fn valid(
 }
 
 pub(crate) fn list_bound(limits: &crate::Limits) -> Option<u64> {
-    let fields = u64::from(limits.tasks.result_bytes)
-        .checked_mul(u64::try_from(size_of::<jig_domain_tasks::FieldRule>()).ok()?.checked_add(1)?)?;
+    let fields = u64::from(jig_domain_tasks::VERDICT_FIELDS.min(limits.tasks.result_bytes))
+        .checked_mul(u64::try_from(size_of::<jig_domain_tasks::FieldRule>()).ok()?)?
+        .checked_add(u64::from(limits.tasks.result_bytes))?;
     let choices = skein_lib::List::<jig_domain_tasks::Verdict>::price(limits.tasks.contract_choices)?
         .checked_add(u64::from(limits.tasks.contract_choices).checked_mul(fields)?)?;
     let models = u64::from(jig_domain_tasks::MODELS)
@@ -190,7 +197,11 @@ pub fn current_merged(current: &super::Current, overrides: &[jig_domain_people::
     for setting in &names {
         let number = match setting {
             super::Setting::Template(number) => *number,
-            super::Setting::Charter(_) | super::Setting::Policy(_) | super::Setting::Rules => continue,
+            super::Setting::Charter(_)
+            | super::Setting::Policy(_)
+            | super::Setting::Rules
+            | jig_domain_people::Setting::ProjectPolicy { .. } => continue,
+            jig_domain_people::Setting::Application { .. } => unreachable!("an application's setting: apps-core"),
         };
         let template = current.template(number).expect("offered template");
         let mut value = template.clone();

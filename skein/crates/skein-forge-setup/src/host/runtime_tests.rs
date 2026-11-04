@@ -1,4 +1,4 @@
-//! Runtime membership (temper/docs/design/draft/playground-reset.md, 3 and 4).
+//! Runtime membership (skein/docs/design/forge-setup.md, 6.3).
 use super::*;
 
 fn unknown(run: u64, forge: u16) -> Event {

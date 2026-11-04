@@ -1,6 +1,7 @@
-//! What the fleet relays between the parent and the runs (domain/engine.md,
-//! section 8; domain/hosts.md, 4.2): inbound events down, a run's host calls
-//! up and their answers back, its facts up. Each goes through
+//! What the fleet relays between the parent and the runs
+//! (jig/docs/design/domain/engine.md, section 8;
+//! jig/docs/design/domain/hosts.md, section 2): inbound events down, a run's
+//! host calls up and their answers back, its facts up. Each goes through
 //! only while its attempt is the parent's live claim; what comes for an
 //! attempt cancelled, replaced, lost or answered is dropped (attempts are
 //! fenced), and an inbound event that reaches no worker goes back to the
@@ -50,6 +51,9 @@ fn live(domain: &Domain, id: Id<Attempt>) -> Live {
     let Some(entry) = domain.attempts.get(id) else {
         return Live::Not;
     };
+    if entry.job.is_some() {
+        return Live::Not;
+    }
     match &entry.state {
         State::Claimed { at: Where::On(channel), .. } => Live::On(channel::token(&domain.channels, *channel)),
         State::Claimed { at: Where::Adrift { .. }, .. } => Live::Adrift,
@@ -142,6 +146,12 @@ pub(crate) fn relayed(domain: &mut Domain, to: ReplyTo, answer: Token, out: &mut
 
 /// A message is handed to the claimed host of its fenced attempt.
 pub(crate) fn inbound(domain: &mut Domain, run: Token, attempt: Token, message: Message, out: &mut Queue<Request>) {
+    if let Some(&id) = domain.names.get(&(run, attempt))
+        && domain.attempts.get(id).expect("named attempt").job.is_some()
+    {
+        out.push(Request::Undelivered { run, attempt, message, undelivered: Undelivered::Gone });
+        return;
+    }
     let undelivered = match domain.names.get(&(run, attempt)) {
         Some(&id) => match &domain.attempts.get(id).expect("a named attempt is tracked").state {
             State::Claimed { at: Where::On(channel), .. } => {

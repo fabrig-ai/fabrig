@@ -30,11 +30,13 @@ pub(crate) fn route_people(
     work: &mut Queue<Work>,
     event: people::Event,
 ) -> Queue<Request> {
+    let mut restore_out = Queue::uncapped();
     if let people::Event::Forget { task, .. } = &event {
         drop(core.ended_chats.remove(task));
     }
     let event = match event {
         people::Event::Decided { request, outcome } => {
+            let outcome = crate::routing::settings::restore::outcome(core, request, outcome, &mut restore_out);
             let request = match core.land_kind(request, crate::routing::flight::Kind::Party) {
                 Some(crate::routing::flight::Flight::Party { request }) => request,
                 Some(crate::routing::flight::Flight::PartyPart { application, original, connector }) => {
@@ -79,7 +81,11 @@ pub(crate) fn route_people(
     };
     let mut child = Queue::uncapped();
     crate::routing::step::step_people(core, env, event, &mut child);
-    tag_people(core, env, child, work)
+    let mut tagged = tag_people(core, env, child, work);
+    for _ in 0..tagged.len() {
+        restore_out.push(tagged.pop().expect("tagged people output"));
+    }
+    restore_out
 }
 
 pub(crate) fn sign_in(
@@ -130,6 +136,7 @@ pub(crate) fn tag_people(
 }
 
 #[expect(clippy::too_many_lines, reason = "one exhaustive party vocabulary routes its bounded child decision")]
+#[expect(clippy::wildcard_enum_match_arm, reason = "only project removal bypasses the exhaustive act admission")]
 pub(crate) fn tag_people_part(
     core: &mut Core,
     env: &Env<Limits>,
@@ -174,11 +181,15 @@ pub(crate) fn tag_people_part(
                     | people::Key::SignIn(_)
                     | people::Key::Roles(_)
                     | people::Key::Deletion(_)
+                    | people::Key::Public(_)
                     | people::Key::Policy(_) => {}
                 }
                 Request::Write(Write::Erase(Key::People(key)))
             }
             people::Request::Reply { to, reply } => match reply {
+                people::Reply::Outcome(people::Outcome::Restored { .. }) => {
+                    Request::Held(Box::new(Held::PeopleReply { to, reply }))
+                }
                 reply @ (people::Reply::Full { .. }
                 | people::Reply::Again(people::Again::Busy)
                 | people::Reply::Outcome(people::Outcome::Again(people::Again::Busy))) => {
@@ -222,6 +233,7 @@ pub(crate) fn tag_people_part(
                     | people::Outcome::Renamed { .. }
                     | people::Outcome::ProjectMade { .. }
                     | people::Outcome::ProjectRemoved { .. }
+                    | people::Outcome::VisibilitySet { .. }
                     | people::Outcome::SettingsChanged { .. }
                     | people::Outcome::MovedToNewest { .. }
                     | people::Outcome::PoolSet { .. }
@@ -258,10 +270,14 @@ pub(crate) fn tag_people_part(
                     })));
                     continue;
                 }
-                let admission = if *ask == (people::Ask::RemoveProject { project }) {
-                    Ok(())
-                } else {
-                    crate::acts::request(core, &env.limits, person, project, role, &ask, env.wall)
+                let admission = match &*ask {
+                    people::Ask::RemoveProject { project: named, .. }
+                    | people::Ask::SetVisibility { project: named, .. }
+                        if *named == project =>
+                    {
+                        Ok(())
+                    }
+                    other => crate::acts::request(core, &env.limits, person, project, role, other, env.wall),
                 };
                 if let Err(why) = admission {
                     routed.work.push(Work::Event(Event::People(people::Event::Decided {
@@ -272,7 +288,20 @@ pub(crate) fn tag_people_part(
                 }
                 let party = super::dispatch::Party { request, person, project, role };
                 match *ask {
-                    people::Ask::RemoveProject { project } => {
+                    people::Ask::SetVisibility { public, .. } => {
+                        super::projects::visibility_request(core, env, &mut routed, party, public);
+                    }
+                    people::Ask::Restore { revision, reason } => {
+                        let mut restoring =
+                            crate::routing::settings::restore::start(core, env, party, revision, reason);
+                        for _ in 0..restoring.out.len() {
+                            routed.out.push(restoring.out.pop().expect("restore outputs"));
+                        }
+                        for _ in 0..restoring.work.len() {
+                            routed.work.push(restoring.work.pop().expect("restore continuations"));
+                        }
+                    }
+                    people::Ask::RemoveProject { project, grace } => {
                         let result = if !core.open_project(project) {
                             Err(people::Refusal::Unknown)
                         } else if role == Some(people::Role::Owner) {
@@ -283,6 +312,7 @@ pub(crate) fn tag_people_part(
                                 &mut routed.out,
                                 request,
                                 project,
+                                grace,
                             )
                         } else {
                             Err(people::Refusal::Role { held: role })

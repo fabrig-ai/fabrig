@@ -170,6 +170,9 @@ pub(crate) fn activation(
     if attempt == 0 || crate::run::run_attempt(&old.phase) != Some(attempt) || old.last_answer == Some(attempt) {
         return refused(to, Some(number), Refusal::Attempt, out);
     }
+    if crate::run::refuses_job_end(old.executor, &end) {
+        return refused(to, Some(number), Refusal::Executor, out);
+    }
     if !crate::run::saved_within(saved.as_deref(), &environment.limits) {
         return refused(to, Some(number), Refusal::Contract, out);
     }
@@ -221,15 +224,9 @@ pub(crate) fn activation(
             if !old.narrowing
                 && crate::run::invalid_followups(&old.contract, result, followups, &environment.limits).is_none()
             {
-                match result {
-                    TaskResult::Verdict { .. } => {}
-                    TaskResult::Approved { .. }
-                    | TaskResult::Report { .. }
-                    | TaskResult::Change { .. }
-                    | TaskResult::Failure { .. } => {
-                        return refused(to, Some(number), Refusal::Contract, out);
-                    }
-                }
+                let TaskResult::Verdict { .. } = result else {
+                    return refused(to, Some(number), Refusal::Contract, out);
+                };
                 if !old.delegates.is_empty() {
                     return out.push(Request::Refused {
                         reply_to: to,

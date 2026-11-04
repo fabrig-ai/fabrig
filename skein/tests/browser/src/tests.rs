@@ -547,8 +547,6 @@ fn keys_refuse_text_that_is_not_utf8() {
 
 mod attribute;
 
-mod look;
-
 #[test]
 fn select_all_sends_control_a_and_the_select_all_command_without_text_and_ignoring_shift() {
     for shift in [false, true] {

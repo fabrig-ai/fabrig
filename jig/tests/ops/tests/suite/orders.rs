@@ -1,5 +1,5 @@
-//! The root keeps these orders whatever admits work (skein's draft
-//! `dynamic-memory.md`, 4.6): complete application routes, completion arrival
+//! The root keeps these orders whatever admits work (skein's
+//! `programming-model.md`, 7.2): complete application routes, completion arrival
 //! order within an output lane, and older held notices before later ones.
 use jig_domain_core as core;
 use jig_domain_host as host;

@@ -66,6 +66,7 @@ fn domain() -> Domain {
 fn domain_with_limits(limits: &Limits) -> Domain {
     Domain::new(
         Config {
+            settings: None,
             prefix: prefix(),
             resources: Box::from([
                 ResourceSpec {
@@ -356,6 +357,7 @@ fn adoption_and_names_report_roles_and_holds_from_the_connector() {
 #[test]
 fn context_resources_cannot_be_upgraded_to_a_write_role() {
     let mut config = Config {
+        settings: None,
         prefix: prefix(),
         resources: Box::from([ResourceSpec { credential: None, path: service(), hold: Hold::None, writable: false }]),
         pools: Box::from([]),
@@ -434,7 +436,12 @@ fn restored_records_rebuild_adoptions_names_topics_and_pool_slots() {
         for request in run(&mut original, event) {
             match request {
                 Request::Save { record } => records.push(record).expect("four changes made four records"),
-                Request::Resource { .. }
+                Request::SettingsRestored { .. }
+                | Request::SettingsJudged { .. }
+                | Request::SettingsDefaults { .. }
+                | Request::SettingValue { .. }
+                | Request::RestoreRefused { .. }
+                | Request::Resource { .. }
                 | Request::Named { .. }
                 | Request::Described { .. }
                 | Request::EffectBusy { .. }
@@ -895,3 +902,33 @@ fn releasing_a_project_erases_only_its_adoptions_before_answering() {
         &[Request::ProjectReleased { project: 1 }]
     );
 }
+
+/// A job action waits for its delegate's signal (jig/docs/design/domain/engine.md, 7.5).
+#[test]
+fn a_procedure_job_waits_for_delegate_done_before_finishing() {
+    let mut connector = domain();
+    let deadline = skein_lib::Duration::from_secs(60);
+    connector.config.procedures[0].actions = Box::new([
+        crate::ProcedureAction::Job { kind: 7, spec: Box::new([1, 2]), deadline },
+        crate::ProcedureAction::Finish { result: crate::ProcedureResult::Succeeded },
+    ]);
+    let first = run(&mut connector, procedure_event(crate::ProcedureSignal::Activate));
+    assert_eq!(
+        first.get(1),
+        Some(&Request::Step {
+            task: 9,
+            decision: crate::StepDecision::Job { kind: 7, spec: Box::new([1, 2]), deadline },
+        })
+    );
+    assert!(run(&mut connector, procedure_event(crate::ProcedureSignal::Message)).is_empty());
+    let finished = run(&mut connector, procedure_event(crate::ProcedureSignal::DelegateDone));
+    assert_eq!(
+        finished.last(),
+        Some(&Request::Step {
+            task: 9,
+            decision: crate::StepDecision::Finish { result: crate::ProcedureResult::Succeeded },
+        })
+    );
+}
+
+mod settings;

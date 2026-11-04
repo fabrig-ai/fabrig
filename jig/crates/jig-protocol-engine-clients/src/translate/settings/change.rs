@@ -60,6 +60,8 @@ fn setting(value: w::Setting) -> s::Setting {
         w::Setting::Template(value) => s::Setting::Template(value.number()),
         w::Setting::Policy(value) => s::Setting::Policy(value.number()),
         w::Setting::Rules => s::Setting::Rules,
+        w::Setting::ProjectPolicy(v) => s::Setting::ProjectPolicy { project: v.project() },
+        w::Setting::Application(v) => s::Setting::Application { kind: v.kind(), scope: v.scope(), number: v.number() },
     }
 }
 fn setting_value(
@@ -68,6 +70,7 @@ fn setting_value(
     limits: &w::Limits,
 ) -> Result<s::Value, Untranslatable> {
     Ok(match value {
+        w::SettingValue::Application(value) => s::Value::Application(value.into_parts().bytes),
         w::SettingValue::Charter(value) => s::Value::Charter(Box::new(charter(*value))),
         w::SettingValue::Template(value) => s::Value::Template(Box::new(template(*value, models, limits)?)),
         w::SettingValue::Policy(value) => s::Value::Policy(Box::new(policy(*value, models, limits)?)),
@@ -92,6 +95,30 @@ fn model(value: w::SettingModel) -> c::Model {
         effort: v.effort,
     }
 }
+fn wake_rule(value: w::WakeRule) -> t::WakeRule {
+    match value {
+        w::WakeRule::Never => t::WakeRule::Never,
+        w::WakeRule::Immediate => t::WakeRule::Immediate,
+        w::WakeRule::Batch(value) => t::WakeRule::Batch { count: value.count(), age: value.age() },
+        w::WakeRule::Paced(value) => t::WakeRule::Paced { span: value.span() },
+    }
+}
+fn wake(value: w::WakePolicy) -> t::WakePolicy {
+    let value = value.into_parts();
+    t::WakePolicy {
+        words: wake_rule(value.words),
+        notices: wake_rule(value.notices),
+        news: wake_rule(value.news),
+        results: match value.results {
+            w::ResultsWake::Never => t::ResultsWake::Never,
+            w::ResultsWake::Each => t::ResultsWake::Each,
+            w::ResultsWake::LastOrFailure => t::ResultsWake::LastOrFailure,
+        },
+        questions: value.questions,
+        answers: value.answers,
+        timers: value.timers,
+    }
+}
 fn charter(value: w::Charter) -> c::Charter {
     let resume = value.resume();
     let inspect = value.inspect();
@@ -103,7 +130,20 @@ fn charter(value: w::Charter) -> c::Charter {
     for value in v.alternatives.into_boxed() {
         alternatives.push(model(value)).expect("same count");
     }
+    let mut documents = List::with_capacity(v.documents.len());
+    for document in v.documents.into_boxed() {
+        let document = document.into_parts();
+        documents
+            .push(c::Document {
+                connector: document.connector,
+                name: a::Name { segments: document.name.into_boxed() },
+                path: document.path,
+                heading: document.heading,
+            })
+            .expect("same count");
+    }
     c::Charter {
+        documents: documents.into_boxed(),
         number: v.number,
         hosts: match v.hosts {
             w::SettingHosts::Workers => jig_domain_fleet::Kinds::Workers,
@@ -111,6 +151,7 @@ fn charter(value: w::Charter) -> c::Charter {
             w::SettingHosts::Both => jig_domain_fleet::Kinds::Both,
         },
         spend: v.spend,
+        wake: wake(v.wake),
         policy: c::RunPolicy {
             instructions: v.instructions,
             waiting: v.waiting,
@@ -126,6 +167,7 @@ fn charter(value: w::Charter) -> c::Charter {
             shell,
             agents,
             call_timeout: v.call_timeout,
+            tools: jig_domain_tasks::Tools(v.tools),
         },
     }
 }
@@ -249,7 +291,14 @@ fn template(value: w::Template, models: &[crate::Model], limits: &w::Limits) -> 
         }
         None => None,
     };
+    let mut resources = List::with_capacity(v.resources.len());
+    for symbol in v.resources.into_boxed() {
+        resources
+            .push(jig_domain_people::Symbol { connector: symbol.connector(), symbol: symbol.symbol() })
+            .expect("same capacity");
+    }
     Ok(c::Template {
+        resources: resources.into_boxed(),
         number: v.number,
         name: v.name.into_parts().bytes,
         executor: operations::executor(v.executor),
@@ -280,6 +329,7 @@ fn template(value: w::Template, models: &[crate::Model], limits: &w::Limits) -> 
 }
 fn contract(value: w::TaskContractDocument, limits: &w::Limits) -> Result<t::Contract, Untranslatable> {
     Ok(match value {
+        w::TaskContractDocument::Job(_) => return Err(bad()),
         w::TaskContractDocument::Report(value) => t::Contract::Report { words: value.words() },
         w::TaskContractDocument::Change(value) => {
             t::Contract::Change { connector: value.connector(), kind: value.kind(), words: value.words() }

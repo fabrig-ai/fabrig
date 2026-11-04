@@ -119,7 +119,8 @@ pub fn task_digest(value: &Value) -> Result<&str, String> {
 }
 
 /// The guide's init and the existing owned-forge fixture, with QA's model/room
-/// recipe (qa.md, 3; configuration.md, 13.8), before the first start.
+/// recipe (temper/docs/development/qa.md, 3; protocol/configuration.md, 13.8),
+/// before the first start.
 pub fn deployment(paths: &[PathBuf; 3]) {
     let _ = super::live_deployment(paths, super::LiveModel::ChatGpt { account: None });
     let config = paths[0].join("temper.json");
@@ -140,22 +141,9 @@ pub fn deployment(paths: &[PathBuf; 3]) {
     worker["endpoints"][0]["models"][0]["name"] = "gpt-6.1-sol".into();
     worker["endpoints"][0]["models"][0]["output"] = 32_000.into();
     worker["endpoints"][0]["models"][0]["reasoning_item"] = 32_768.into();
-    value["engine"]["limits"]["overrides"]["hub.turn_bytes"] = 1_507_539.into();
-    value["engine"]["limits"]["overrides"]["hub.transcript_bytes"] = 6_030_163.into();
-    value["workers"][0]["limits"]["overrides"]["hub.turn_bytes"] = 1_507_539.into();
-    value["workers"][0]["limits"]["overrides"]["hub.transcript_bytes"] = 6_030_163.into();
-    value["workers"][0]["limits"]["overrides"]["hub.turn_queue_bytes"] = 12_060_312.into();
-    value["engine"]["limits"]["overrides"]["core.resume_bytes"] = 1_507_543.into();
-    value["engine"]["limits"]["overrides"]["people.requests"] = 256.into();
-    for (name, count) in [
-        ("root.loads.loads", 32),
-        ("root.journal.transcript_bytes", 1_507_543),
-        ("root.loads.transcript_bytes", 1_507_539),
-        ("root.loads.bytes", 1_507_787),
-        ("root.loads.reply_bytes", 1_507_787),
-    ] {
-        value["application"]["limits"]["overrides"][name] = count.into();
-    }
+    // B0's fixed carriers describe its one-call recipe.
+    worker["profile"]["declared"]["calls_per_response"] = 1.into();
+    turn_limits(&mut value);
     // Walk 1's admitted declarations, not a phase-bound increase.
     value["engine"]["memory_bytes"] = 817_372_775_016_049_u64.into();
     value["workers"][0]["memory_bytes"] = 3_700_000_000_000_u64.into();
@@ -175,6 +163,25 @@ pub fn deployment(paths: &[PathBuf; 3]) {
     directories.cache = paths[2].as_os_str().as_bytes().into();
     temper::boxed_operations_in(&directories, &fs::read(&config).expect("configuration"))
         .unwrap_or_else(|message| panic!("B0 setup refused: {message}"));
+}
+
+fn turn_limits(value: &mut Value) {
+    value["engine"]["limits"]["overrides"]["hub.turn_bytes"] = 1_507_539.into();
+    value["engine"]["limits"]["overrides"]["hub.transcript_bytes"] = 6_030_163.into();
+    value["workers"][0]["limits"]["overrides"]["hub.turn_bytes"] = 1_507_539.into();
+    value["workers"][0]["limits"]["overrides"]["hub.transcript_bytes"] = 6_030_163.into();
+    value["workers"][0]["limits"]["overrides"]["hub.turn_queue_bytes"] = 12_060_312.into();
+    value["engine"]["limits"]["overrides"]["core.resume_bytes"] = 1_507_543.into();
+    value["engine"]["limits"]["overrides"]["people.requests"] = 256.into();
+    for (name, count) in [
+        ("root.loads.loads", 32),
+        ("root.journal.transcript_bytes", 1_507_543),
+        ("root.loads.transcript_bytes", 1_507_539),
+        ("root.loads.bytes", 1_507_787),
+        ("root.loads.reply_bytes", 1_507_787),
+    ] {
+        value["application"]["limits"]["overrides"][name] = count.into();
+    }
 }
 
 /// A private command transcript, with a hard wall bound and no pipe backpressure.
@@ -833,15 +840,7 @@ fn setup_tools(driver: &mut Driver) -> Result<(), String> {
         "playground/widget adopted",
     )?;
     let me = driver.ctl(&["me"], None)?;
-    let made = first["first"]["project"]["new"].as_str().ok_or("playground project name")?;
-    let project = me["projects"]
-        .as_array()
-        .ok_or("projects missing")?
-        .iter()
-        .find(|p| p["name"]["bytes"] == made)
-        .and_then(|p| p["project"].as_u64())
-        .ok_or("playground project")?
-        .to_string();
+    let project = super::super::first_repository::project_number(&me, "widget")?.to_string();
     driver.project.clone_from(&project);
     driver.ctl(&["project", "fund", &project, "449696", "--key", "rung-project-funds"], None)?;
     driver.ctl(&["project", "fund", &project, "415104", "--role", "0", "--key", "rung-role-funds"], None)?;

@@ -62,7 +62,7 @@ pub(crate) fn build(selection: Selection, document: bool) -> Result<(Resolved, B
             outside_models.insert(
                 model,
                 if program {
-                    "a program runs no sub-agent"
+                    "a sub-agent runs on a program only on main's account"
                 } else if children {
                     "account has no source"
                 } else {
@@ -119,11 +119,7 @@ pub(crate) fn build(selection: Selection, document: bool) -> Result<(Resolved, B
     let resolved = Resolved { agent, local, accounts, limits, settings, outside_models };
     for account in &resolved.accounts {
         if account.source() == AccountSource::SignIn {
-            crate::credentials::registration(
-                account,
-                crate::credentials::product_codex(&resolved, account.number),
-                &resolved.settings.workspace,
-            )?;
+            crate::credentials::registration(account, &resolved.settings.workspace)?;
         }
     }
     Ok((resolved, bytes))

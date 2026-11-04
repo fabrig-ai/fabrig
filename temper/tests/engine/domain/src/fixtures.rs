@@ -41,7 +41,13 @@ pub fn report_delegate(words: &[u8], dependencies: Box<[engine::Dependency]>) ->
         flags: tasks::Flags::PLAIN,
         budget: jig_domain_people::Budget::Named,
         executor: tasks::Executor::Agent { charter: 1 },
-        spec: tasks::Spec { asks: false, words: words.into(), parameters: Box::new([]), inputs: Box::new([]) },
+        spec: tasks::Spec {
+            job: None,
+            asks: false,
+            words: words.into(),
+            parameters: Box::new([]),
+            inputs: Box::new([]),
+        },
         contract: tasks::Contract::Report { words: 128 },
         authority: tasks::Authority {
             tools: tasks::Tools(1023),
@@ -55,7 +61,7 @@ pub fn report_delegate(words: &[u8], dependencies: Box<[engine::Dependency]>) ->
         llm: None,
         symbolic_grants: Box::new([]),
         dependencies,
-        wake: tasks::WakePolicy::DEFAULT,
+        wake: Some(tasks::WakePolicy::DEFAULT),
     }
 }
 
@@ -75,6 +81,7 @@ pub fn task_amendment(words: Option<&[u8]>, authority: Option<tasks::Authority>,
         instructions: None,
         release: None,
         spec: words.map(|words| tasks::Spec {
+            job: None,
             asks: false,
             words: words.into(),
             parameters: Box::new([]),
@@ -137,6 +144,7 @@ pub fn templates_ending(chat: jig_domain_tasks::EndedBy) -> Box<[jig_domain_core
     use jig_domain_tasks::{Contract, Flags, Retention};
     Box::new([
         jig_domain_core::Template {
+            resources: Box::new([]),
             number: 1,
             name: Box::from(&b"chat"[..]),
             executor: TemplateExecutor::Charter(1),
@@ -151,6 +159,7 @@ pub fn templates_ending(chat: jig_domain_tasks::EndedBy) -> Box<[jig_domain_core
             llm: None,
         },
         jig_domain_core::Template {
+            resources: Box::new([]),
             number: 2,
             name: Box::from(&b"goal"[..]),
             executor: TemplateExecutor::Chosen,

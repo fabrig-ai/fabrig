@@ -48,14 +48,93 @@ pub fn encode_charter(value: &c::Charter, out: &mut Encoder) {
     out.boolean(value.agents());
     out.key(b"call_timeout");
     out.unsigned(value.call_timeout.as_nanos());
+    out.key(b"tools");
+    out.unsigned(value.tools);
     out.key(b"hosts");
     encode_setting_hosts(&value.hosts, out);
     out.key(b"spend");
     out.unsigned(value.spend);
+    out.key(b"wake");
+    encode_wake(value.wake, out);
+    out.key(b"documents");
+    out.array_start();
+    for document in &value.documents {
+        encode_document(document, out);
+    }
+    out.array_end();
     out.object_end();
+}
+fn encode_document(value: &c::CharterDocument, out: &mut Encoder) {
+    out.object_start();
+    if forge_branch(value) {
+        out.key(b"forge");
+        out.string(value.name.get(1).expect("forge host"));
+        out.key(b"repository");
+        out.string(&joined_name(&value.name, 2, 4));
+        out.key(b"branch");
+        out.string(&joined_name(&value.name, 5, value.name.len()));
+    } else {
+        out.key(b"connector");
+        out.unsigned(u64::from(value.connector));
+        out.key(b"name");
+        out.array_start();
+        for segment in &value.name {
+            out.string(segment);
+        }
+        out.array_end();
+    }
+    out.key(b"path");
+    out.string(&value.path);
+    out.key(b"heading");
+    match &value.heading {
+        Some(heading) => out.string(heading),
+        None => out.null(),
+    }
+    out.object_end();
+}
+fn forge_branch(value: &c::CharterDocument) -> bool {
+    if value.connector != 0
+        || value.name.len() < 6
+        || value.name.get(0).expect("name prefix").as_ref() != b"forge"
+        || value.name.get(4).expect("branch prefix").as_ref() != b"branch"
+    {
+        return false;
+    }
+    for segment in &value.name {
+        if segment.is_empty() || segment.contains(&b'/') {
+            return false;
+        }
+    }
+    true
+}
+fn joined_name(name: &skein_lib::List<alloc::boxed::Box<[u8]>>, start: u32, end: u32) -> alloc::boxed::Box<[u8]> {
+    let mut measured = crate::Text::measure();
+    write_joined_name(name, start, end, &mut measured);
+    let mut out = crate::Text::writing_exact(measured);
+    write_joined_name(name, start, end, &mut out);
+    out.finish()
+}
+fn write_joined_name(name: &skein_lib::List<alloc::boxed::Box<[u8]>>, start: u32, end: u32, out: &mut crate::Text) {
+    for at in start..end {
+        if at != start {
+            out.put(b"/");
+        }
+        out.put(name.get(at).expect("name range"));
+    }
 }
 pub fn encode_template(value: &c::Template, out: &mut Encoder) {
     out.object_start();
+    out.key(b"resources");
+    out.array_start();
+    for symbol in &value.resources {
+        out.object_start();
+        out.key(b"connector");
+        out.unsigned(u64::from(symbol.connector));
+        out.key(b"symbol");
+        out.unsigned(u64::from(symbol.symbol));
+        out.object_end();
+    }
+    out.array_end();
     out.key(b"number");
     out.unsigned(u64::from(value.number));
     out.key(b"name");
@@ -236,6 +315,15 @@ pub fn encode_template_executor(value: c::TemplateExecutor, out: &mut Encoder) {
 }
 pub fn encode_task_contract_document(value: &c::TaskContractDocument, out: &mut Encoder) {
     match value {
+        c::TaskContractDocument::Job { bytes } => {
+            out.object_start();
+            out.key(b"job");
+            out.object_start();
+            out.key(b"bytes");
+            out.unsigned(u64::from(*bytes));
+            out.object_end();
+            out.object_end();
+        }
         c::TaskContractDocument::Approval { state, part } => {
             out.object_start();
             out.key(b"approval");
@@ -659,6 +747,12 @@ pub fn encode_field_rule(value: &c::FieldRule, out: &mut Encoder) {
 pub fn encode_owner_authority_executor(value: c::AuthorityExecutor, out: &mut Encoder) {
     let value = &value;
     match value {
+        c::AuthorityExecutor::Job(value) => {
+            out.object_start();
+            out.key(b"job");
+            out.unsigned(u64::from(*value));
+            out.object_end();
+        }
         c::AuthorityExecutor::Charter(value) => {
             out.object_start();
             out.key(b"charter");
@@ -691,6 +785,52 @@ pub fn encode_owner_pattern_end(value: &c::PatternEnd, out: &mut Encoder) {
             out.object_start();
             out.key(b"open");
             crate::hex(value, out);
+            out.object_end();
+        }
+    }
+}
+
+fn encode_wake(value: c::WakePolicy, out: &mut Encoder) {
+    out.object_start();
+    out.key(b"words");
+    encode_wake_rule(value.words, out);
+    out.key(b"notices");
+    encode_wake_rule(value.notices, out);
+    out.key(b"news");
+    encode_wake_rule(value.news, out);
+    out.key(b"results");
+    out.string(match value.results {
+        c::ResultsWake::Never => b"never",
+        c::ResultsWake::Each => b"each",
+        c::ResultsWake::LastOrFailure => b"last_or_failure",
+    });
+    out.key(b"questions");
+    out.boolean(value.questions);
+    out.key(b"answers");
+    out.boolean(value.answers);
+    out.key(b"timers");
+    out.boolean(value.timers);
+    out.object_end();
+}
+fn encode_wake_rule(value: c::WakeRule, out: &mut Encoder) {
+    match value {
+        c::WakeRule::Never => out.string(b"never"),
+        c::WakeRule::Immediate => out.string(b"immediate"),
+        c::WakeRule::Batch { count, age } => {
+            out.object_start();
+            out.key(b"batch");
+            out.object_start();
+            out.key(b"count");
+            out.unsigned(u64::from(count));
+            out.key(b"age");
+            out.unsigned(age.as_nanos());
+            out.object_end();
+            out.object_end();
+        }
+        c::WakeRule::Paced { span } => {
+            out.object_start();
+            out.key(b"paced");
+            out.unsigned(span.as_nanos());
             out.object_end();
         }
     }

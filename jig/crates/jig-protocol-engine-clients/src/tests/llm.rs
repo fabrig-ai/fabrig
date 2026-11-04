@@ -342,18 +342,6 @@ fn assert_task_refusal_round_trip(
 }
 
 #[test]
-fn program_refusals_survive_server_bytes_and_client_task_translation() {
-    use jig_client_domain::contract as c;
-    use jig_domain_core::documents as d;
-    for (source, expected) in [
-        (d::OpenProgram::Model, c::OpenProgram::Model),
-        (d::OpenProgram::Source { account: 42, source: 91 }, c::OpenProgram::Source { account: 42, source: 91 }),
-    ] {
-        assert_task_refusal_round_trip(d::TaskWaitRefused::Program(source), c::TaskWaitRefused::Program(expected));
-    }
-}
-
-#[test]
 fn hello_refusals_reuse_the_deployment_context_through_server_bytes_and_client_tasks() {
     use jig_client_domain::contract as c;
     use jig_domain_core::documents as d;
@@ -372,6 +360,7 @@ fn hello_refusals_reuse_the_deployment_context_through_server_bytes_and_client_t
             fleet::HelloRefusal::StopBound { grace: Duration::from_secs(10) },
             c::HelloRefusal::StopBound { grace: Duration::from_secs(10) },
         ),
+        (fleet::HelloRefusal::JobKinds, c::HelloRefusal::JobKinds),
         (fleet::HelloRefusal::Position { worker: 7 }, c::HelloRefusal::Position { worker: 7 }),
         (fleet::HelloRefusal::Workers { limit: 3 }, c::HelloRefusal::Workers { limit: 3 }),
     ] {

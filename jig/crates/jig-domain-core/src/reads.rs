@@ -21,8 +21,11 @@ pub mod forget;
 pub mod indexed;
 pub(crate) mod indexes;
 mod rows;
+pub mod run_task;
 pub mod settings;
+mod task_text;
 mod turn;
+pub use task_text::{TaskText, TaskTextField, task_text_from_row};
 mod vocabulary;
 pub(crate) mod watches;
 
@@ -59,7 +62,7 @@ pub fn admits(party: u64, scope: &Scope, key: &crate::Key) -> bool {
             }
             Key::Core(_) | Key::Tasks(_) | Key::People(_) | Key::Notes(_) | Key::Accounts(_) => false,
         },
-        Scope::Task { task } | Scope::PersonTask { task } | Scope::Result { task } => {
+        Scope::TaskText { task, .. } | Scope::Task { task } | Scope::PersonTask { task } | Scope::Result { task } => {
             key == &Key::Tasks(TaskKey::Live(*task)) || key == &Key::Tasks(TaskKey::Ended(*task))
         }
         Scope::Reply { task, activity } => key == &Key::Tasks(TaskKey::Activity { task: *task, position: *activity }),
@@ -130,7 +133,9 @@ enum Destination {
     Read(ReplyTo),
     Watch(Token),
     Erase,
+    Restore,
     Settings { to: ReplyTo, key: crate::CallKey },
+    RunTask { to: ReplyTo, key: crate::CallKey, task: u64, from: u64 },
     Done,
 }
 
@@ -138,7 +143,12 @@ impl Pending {
     fn take_reply(&mut self) -> ReplyTo {
         match core::mem::replace(&mut self.destination, Destination::Done) {
             Destination::Read(reply) => reply,
-            Destination::Erase | Destination::Watch(_) | Destination::Settings { .. } | Destination::Done => {
+            Destination::Restore
+            | Destination::Erase
+            | Destination::Watch(_)
+            | Destination::RunTask { .. }
+            | Destination::Settings { .. }
+            | Destination::Done => {
                 unreachable!("a pending read owns its reply")
             }
         }
@@ -153,6 +163,7 @@ fn terminal(reply: ReplyTo, answer: Answer) -> Queue<Request> {
 
 pub(crate) fn scope(read: &Read) -> Option<Scope> {
     match read {
+        Read::TaskText { task, field, from } => Some(Scope::TaskText { task: *task, field: *field, from: *from }),
         Read::Task { task } => Some(Scope::Task { task: *task }),
         Read::Proposal { proposer, proposal } => Some(Scope::Proposal { proposer: *proposer, proposal: *proposal }),
         Read::Escalation { task } => Some(Scope::Escalation { task: *task }),
@@ -193,6 +204,7 @@ fn cursor(read: &Read) -> Option<&Cursor> {
         | Read::Spend { from, .. } => from.as_ref(),
         Read::Activity { before, .. } => before.as_ref(),
         Read::Frame
+        | Read::TaskText { .. }
         | Read::Task { .. }
         | Read::Proposal { .. }
         | Read::Escalation { .. }
@@ -225,7 +237,8 @@ fn subject(read: &Read, party: u64) -> Option<Subject> {
         Read::Deployment => Some(Subject::Deployment),
         Read::Inbox { .. } => Some(Subject::Inbox { party }),
         Read::Tasks { query, .. } => Some(Subject::Query { query: *query }),
-        Read::Setting { .. }
+        Read::TaskText { .. }
+        | Read::Setting { .. }
         | Read::Revision { .. }
         | Read::Revisions { .. }
         | Read::Application { .. }
@@ -246,6 +259,7 @@ fn backwards(scope: &Scope) -> bool {
         Scope::EndedTasks
         | Scope::TaskRows { .. }
         | Scope::SettingsHistory { .. }
+        | Scope::TaskText { .. }
         | Scope::Task { .. }
         | Scope::Question { .. }
         | Scope::PersonTask { .. }
@@ -275,6 +289,7 @@ fn refused_application(reply: ReplyTo, read: &Read, why: Why) -> Queue<Request> 
             out
         }
         Read::Frame
+        | Read::TaskText { .. }
         | Read::Task { .. }
         | Read::Proposal { .. }
         | Read::Escalation { .. }
@@ -327,6 +342,7 @@ pub(crate) fn start(core: &mut Core, env: &Env<Limits>, reply: ReplyTo, sign_in:
             return out;
         }
         Read::Frame
+        | Read::TaskText { .. }
         | Read::Task { .. }
         | Read::Proposal { .. }
         | Read::Escalation { .. }
@@ -362,6 +378,7 @@ pub(crate) fn start(core: &mut Core, env: &Env<Limits>, reply: ReplyTo, sign_in:
         | Read::Tasks { .. }
         | Read::Application { .. }
         | Read::Frame
+        | Read::TaskText { .. }
         | Read::Task { .. }
         | Read::Proposal { .. }
         | Read::Escalation { .. }
@@ -392,6 +409,7 @@ fn bounded_query(read: &Read, limits: &Limits) -> bool {
                 }
         }
         Read::Frame
+        | Read::TaskText { .. }
         | Read::Task { .. }
         | Read::Proposal { .. }
         | Read::Escalation { .. }
@@ -465,6 +483,11 @@ fn start_jig(
 ) -> Queue<Request> {
     if !bounded_query(&read, &env.limits) {
         return terminal(reply, Answer::None(Why::Busy));
+    }
+    if let Read::TaskText { task, field, from } = &read
+        && let Some(row) = core.tasks.task(*task)
+    {
+        return terminal(reply, task_text::answer(core, &env.limits, party, row, *field, *from));
     }
     let target = scope(&read);
     let Some(start) = read_start(&read, party) else {
@@ -546,7 +569,13 @@ fn start_jig(
     out
 }
 
-pub(crate) fn loaded(core: &mut Core, env: &Env<Limits>, load: Token, result: Loaded) -> Queue<Request> {
+pub(crate) fn loaded(
+    core: &mut Core,
+    env: &Env<Limits>,
+    work: &mut Queue<crate::routing::Work>,
+    load: Token,
+    result: Loaded,
+) -> Queue<Request> {
     let name = Id::<Pending>::from_token(load);
     let Some(pending) = core.reads.get(name) else {
         return Queue::uncapped();
@@ -554,7 +583,9 @@ pub(crate) fn loaded(core: &mut Core, env: &Env<Limits>, load: Token, result: Lo
     match &pending.destination {
         Destination::Watch(watcher) => return watch_loaded(core, env, name, *watcher, result),
         Destination::Settings { .. } => return settings::run_loaded(core, env, name, result),
+        Destination::Restore => return settings::restore_loaded(core, env, work, name, result),
         Destination::Erase => return crate::routing::task::erase::loaded(core, env, load, result),
+        Destination::RunTask { .. } => return run_task::loaded(core, env, name, result),
         Destination::Read(_) => {}
         Destination::Done => return Queue::uncapped(),
     }
@@ -632,8 +663,8 @@ fn task_live(
 
 /// Maximum answer payload retained in a root's held-output slot.
 #[must_use]
-pub fn answer_bound(limits: &Limits) -> Option<u64> {
-    let document = documents::document_with_context_bound(limits)?;
+pub fn answer_bound(limits: &Limits, kinds: &[crate::settings::Kind]) -> Option<u64> {
+    let document = documents::document_with_context_bound(limits, kinds)?;
     // Run settings answers own the same documents, in an inline sum carrier.
     u64::try_from(size_of::<Answer>().max(size_of::<SettingsAnswer>())).ok()?.checked_add(
         document
@@ -642,6 +673,7 @@ pub fn answer_bound(limits: &Limits) -> Option<u64> {
             .checked_add(List::<PageRow>::price(limits.documents.rows)?)?
             .checked_add(u64::try_from(size_of::<Page>()).ok()?)?
             .checked_add(query_bound(limits)?)?
+            .checked_add(run_task::answer_bound(limits)?)?
             .checked_add(settings::load_bytes(limits, limits.documents.rows)?.checked_mul(2)?)?,
     )
 }

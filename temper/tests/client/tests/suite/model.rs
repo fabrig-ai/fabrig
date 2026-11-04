@@ -35,7 +35,7 @@ pub fn open(world: &mut Pages, path: &[u8]) -> ClientId {
 
 pub fn type_key() -> Step<Address> {
     Step::Type {
-        find: skein_fake_person::Find::named(Role::TextField, b""),
+        find: Find::exactly_named(Role::TextField, b"Key (pasted once)"),
         // Existing account_acts::kept acknowledges this fake value.
         words: b"test-private-key".as_slice().into(),
     }

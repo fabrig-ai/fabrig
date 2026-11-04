@@ -5,6 +5,7 @@
 //! The agent vocabulary supplies the value semantics and ownership counts;
 //! these envelopes own the common receiving contract of both capabilities.
 
+use alloc::boxed::Box;
 use smith_domain::{self as agent, run};
 
 /// A parent's bounded charter, sent in a start without encoding.
@@ -44,10 +45,12 @@ impl Charter {
     }
 }
 
-/// Concrete history supplied by a parent when the run resumes.
+/// Concrete resumed history, optionally retaining its validated saved bytes unchanged
+/// (smith/docs/design/protocol/transcript.md, sections 4 and 8).
 #[derive(Clone, PartialEq, Eq, Debug)]
 pub struct Transcript {
     value: agent::Transcript,
+    saved: Option<Box<[u8]>>,
     bytes: u64,
 }
 
@@ -59,7 +62,24 @@ impl Transcript {
         if bytes > capacity {
             return None;
         }
-        Some(Self { value, bytes })
+        Some(Self { value, saved: None, bytes })
+    }
+
+    /// Admit decoded history beside its validated saved transcript piece.
+    /// The caller attests that the piece holds exactly these turns as received.
+    #[must_use]
+    pub fn from_saved(value: agent::Transcript, saved: Box<[u8]>, capacity: u64) -> Option<Self> {
+        let bytes = value.owned_bytes()?.checked_add(u64::try_from(saved.len()).ok()?)?;
+        if bytes > capacity {
+            return None;
+        }
+        Some(Self { value, saved: Some(saved), bytes })
+    }
+
+    /// Move the concrete history and its optional saved piece to the protocol encoder.
+    #[must_use]
+    pub fn into_parts(self) -> (agent::Transcript, Option<Box<[u8]>>) {
+        (self.value, self.saved)
     }
 
     /// The concrete history kept by the parent.

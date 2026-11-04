@@ -1,10 +1,10 @@
 # A key-value store on Skein's loop
 
-Implemented core, 2026-10-05. A built-in store for a service whose durable
+Provisional, 2026-10-05. A built-in store for a service whose durable
 dataset fits in memory: ordered keys and values held in memory, an
 append-only commit log, and snapshots, all as a Skein machine on Skein's
 file I/O. Large append-only payloads go beside it, in logs of their own
-whose committed lengths the store records (section 6, not built yet).
+whose committed lengths the store records (section 6).
 Read it with [the programming model](../foundation/programming-model.md),
 [the testing strategy](../foundation/testing-strategy.md), and
 [the file design](io.md).
@@ -18,14 +18,19 @@ Read it with [the programming model](../foundation/programming-model.md),
 - **What it assumes.** The dataset fits a stated memory budget; one
   service owns the store's directory; values are opaque, and the service
   versions its own record shapes.
+- **What it pays for.** What the store holds on disk and in memory
+  follows its live data: a read asks what its file holds, a snapshot's
+  trigger follows the live map's size, and recovery holds a read and the
+  frame it applies, never a whole file. Its limits are ceilings and
+  admission, never the sizes it starts at (sections 3, 5 and 7).
 - **Why not redb here.** Keeping redb on the loop means an in-memory
   virtual file and a persistence machine that replays redb's storage
-  calls (redb.md, sections 1 to 4): all the data in memory and a
+  calls (`draft/redb.md`, sections 1 to 4): all the data in memory and a
   persistence protocol of our own anyway, with crash-safety resting on
   redb's internal call patterns. With the data in memory, a log and
   snapshots are the whole of what is needed, and their recovery rule is
   simple enough to test by crashing at every operation.
-- **A Skein machine.** Unlike redb (redb.md, section 6), the store is an
+- **A Skein machine.** Unlike redb (`draft/redb.md`, section 6), the store is an
   ordinary `no_std` step machine: its state is the map and its
   persistence state, and its disk work is io's file requests, with one
   terminal event each.
@@ -99,6 +104,17 @@ next number. Nothing after that point was ever answered as committed. A
 new segment starts after recovery; a segment with a torn tail is never
 appended to, and is deleted with the others the next snapshot covers.
 
+Recovery reads each file from its start a chunk at a time, never past
+its end: each read asks the smaller of `Limits::chunk` and what the file
+holds past the read's offset (the length its open reports), so a small
+store opens with reads of its own size. It applies the snapshot a chunk
+at a time and the log a frame at a time as the reads arrive, holding
+one read and the chunk or frame being applied (section 7); a snapshot
+found corrupt part way fails the start, as a whole one would. Segments
+named before the snapshot's start, which a crash between a snapshot's
+rename and their removal leaves (section 5), are not replayed; the next
+snapshot removes them with its own.
+
 ## 4. Commits
 
 - **Group commit.** While a sync is in flight, commits queue; the next
@@ -116,9 +132,22 @@ appended to, and is deleted with the others the next snapshot covers.
 
 ## 5. Snapshots
 
-- **When:** the log since the last snapshot passes a bound (a multiple of
-  the snapshot's size, or a fixed size), which bounds both disk use and
-  the replay a restart does.
+- **When:** the log since the last snapshot's start passes a bound that
+  follows the live map: `SNAPSHOT_MULTIPLE` (2) times the map's encoded
+  size, each row's key and value and 8 bytes of lengths, as a snapshot's
+  chunks hold them; at least `SNAPSHOT_FLOOR` (64 KiB), so that a tiny
+  store does not snapshot on every commit; and at most
+  `Limits::snapshot_after`, which is a ceiling only. The bound holds both
+  the disk a store keeps, its snapshot and less than the bound of log,
+  and the replay a restart does: a store of a few KB keeps under 64 KiB
+  of log, and a larger one whose map churns in place never more than
+  twice its map, whatever its limits. While a snapshot runs, the log
+  before its start stays until it finishes.
+- **Across restarts:** the frames a recovery replays count toward the
+  next snapshot's bound, so a store reopened past its bound snapshots
+  once it is open, and restarts never let segments pile up. Closing
+  starts no snapshot, and finishes one already running: a close past
+  the bound stays quick, and the next open counts what it replays.
 - **Fuzzy, so nothing is frozen.** Frames carry whole values, puts and
   erases, so applying a frame twice is harmless. A snapshot records the
   next commit number as it starts, S, then writes the live map in key
@@ -131,7 +160,10 @@ appended to, and is deleted with the others the next snapshot covers.
   `snapshot`, sync the directory. Only then are the segments wholly
   before S deleted.
 - **A crash during a snapshot** leaves the previous snapshot and every
-  segment since it, so recovery is unchanged.
+  segment since it, so recovery is unchanged. A crash after the rename,
+  before the old segments are deleted, leaves them beside the new
+  snapshot: recovery skips them and the next snapshot deletes them
+  (section 3).
 
 ## 6. Payload logs beside the store (planned)
 
@@ -162,8 +194,13 @@ transcripts), and so are not held in memory:
 
 - **The budget** covers the map's keys, values and per-entry overhead,
   queued commits, the frames being written, a snapshot's chunk, and
-  recovery's buffers. Recovery that would pass it fails the start, saying
-  so.
+  recovery's buffers: one read of at most a chunk, and the snapshot
+  chunk or frame being applied (section 3), whatever the retained log's
+  length. Recovery that would pass it fails the start, saying so.
+- **Limits are ceilings:** the store pays for what it holds, not for its
+  limits. A read asks what its file holds (section 3), the snapshot's
+  trigger follows the live map up to `snapshot_after` (section 5), and
+  recovery holds a read and a frame, not the log it replays.
 - **`Limits::is_usable` checks the limits:** key and value sizes, operations and
   bytes per commit, queued bytes, segment and chunk sizes and derived
   capacities remain checked at the entrance. The map's byte budget is
@@ -171,7 +208,7 @@ transcripts), and so are not held in memory:
 - **Loop latency** stays bounded: a commit applies its ops to the map, a
   load returns a page, a snapshot writes a chunk per step.
 
-- **Sizes for the layer above:** `FRAME_BYTES`, `put_bytes`, `erase_bytes` and `chunk_bytes` are the frame's and a snapshot chunk's encoded sizes, the numbers a user's limits are derived from, written once here.
+- **Sizes for the layer above:** `FRAME_BYTES`, `put_bytes`, `erase_bytes` and `chunk_bytes` are the frame's and a snapshot chunk's encoded sizes, the numbers a user's limits are derived from, written once here. `SNAPSHOT_FLOOR` and `SNAPSHOT_MULTIPLE` are the snapshot's trigger (section 5), from which the disk a store keeps is estimated.
 
 ## 8. What it needs of io
 
@@ -218,6 +255,12 @@ failed syncs.
   upgrade of the store's own, run before any records are patched
   (temper's `draft/upgrades.md`, 6.5). The test says so, and the change
   moves the format's version.
+- **What it pays for:** an open asks reads totalling the bytes of the
+  files it reads, whatever the chunk; a store whose map churns in place
+  keeps its log within its bound and a segment (section 5), across
+  restarts too; a crash at each step of a snapshot leaves no segment
+  past the next snapshot; recovery's transient heap stays within a read
+  and a frame or snapshot chunk, whatever the retained log's length.
 - **Over the real ring:** a scratch-directory integration test commits,
   closes, reopens on the same root descriptor and verifies the value. A
   killed process leaves the page cache, so the ring shows integration,
@@ -233,7 +276,7 @@ failed syncs.
   `0o600`.
 - **Transcripts** as payload logs: a turn's bytes appended and synced,
   then committed with its spend and the messages it took; the worker's
-  acknowledgement after that commit, as today.
+  acknowledgement after that commit.
 - **Retention is temper's:** ended tasks moved out of the map, or into
   payload logs, past a horizon, so the budget holds for years.
 
@@ -273,7 +316,7 @@ So a budget of **1–2 GB for the map** covers a busy deployment with
 several connectors and a retention horizon, for years; a store that is
 designed to reach about 10 GB in memory before its limits bite leaves
 room for the cases this estimate is wrong about. Past that, retention
-tightens first, then redb.md's approach or an on-disk index.
+tightens first, then `draft/redb.md`'s approach or an on-disk index.
 
 - **The map fits in memory comfortably** with a retention horizon, and
   even without one for the first year or two on a server; the live
@@ -287,7 +330,7 @@ tightens first, then redb.md's approach or an on-disk index.
   milliseconds covers a burst. The log grows by roughly 10–20 MB a day
   before snapshots fold it.
 - **Restart** reads a snapshot of a few hundred megabytes, about a
-  second from an SSD, and a log bounded by the snapshot's trigger.
+  second from an SSD, and a log of at most twice the map (section 5).
 
 ## 11. Where the risk is
 
@@ -308,17 +351,21 @@ around it:
 
 - Frames and snapshot chunks use version 1 and CRC-32C. Snapshot files
   have a checksummed trailer; recovery rejects one without it.
-- `Limits` supplies fixed segment and snapshot thresholds, and a timeout
-  for each file request. A hung kernel operation is cancelled; its owner
-  receives one terminal failure after the operation settles.
+- `Limits` supplies a fixed segment size, the snapshot's ceiling
+  (section 5) and a timeout for each file request. A hung kernel
+  operation is cancelled; its owner receives one terminal failure after
+  the operation settles.
 - One store owns one directory and one file driver.
 - Later, when a user needs them: payload logs (section 6); several
   stores sharing a sync; reads at one commit across pages, for a
   consistent view of many; `Load` in reverse order, where reversed keys
   do not serve.
+- A deployment's budgets are a later design: a configured ceiling on its
+  memory and its store, from which `Limits` are derived, beside
+  section 7's rule that a store pays for what it holds.
 - When the dataset outgrows memory, retention comes first, then values
   on disk: keys in memory with where their values lie, values read by
   offset, compaction in place of snapshots, and the index rebuilt at
   start from hint files. `Get` and `Load` then answer after their reads,
   not in the step that asks; the rest of the vocabulary stays. The
-  approach in redb.md is the other way past memory.
+  approach in `draft/redb.md` is the other way past memory.

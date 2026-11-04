@@ -85,79 +85,49 @@ fn origin_bodies_replace_peer_and_server_placeholders() {
     assert!(wire.ends_with(b"127.0.0.1:8080/127.0.0.1:9090/127.0.0.1:8080"));
 }
 
-#[test]
-fn verbatim_origins_serve_placeholders_as_written() {
-    let body = b"{neighbor}/{address}/{neighbor}";
-    let pages = vec![serve::Page {
-        path: b"/".as_slice().into(),
-        kind: b"text/html".as_slice().into(),
-        body: body.as_slice().into(),
-        headers: vec![],
-    }];
-    let wire = served(
-        serve::Pages::verbatim(pages, Time::ZERO, Wall::EPOCH, 0),
-        "/",
-        &[(b"neighbor".as_slice().into(), "127.0.0.1:8080".into())],
-    );
-    assert!(wire.ends_with(body));
-}
-
-fn query_response(verbatim: bool, target: &str) -> Vec<u8> {
+fn query_response(target: &str) -> Vec<u8> {
     let pages = vec![serve::Page {
         path: b"/a.html".as_slice().into(),
         kind: b"text/html".as_slice().into(),
         body: b"page at {address}".as_slice().into(),
         headers: vec![(b"X-Page".as_slice().into(), b"fixture".as_slice().into())],
     }];
-    let pages = if verbatim {
-        serve::Pages::verbatim(pages, Time::ZERO, Wall::EPOCH, 0)
-    } else {
-        serve::Pages::new(pages, Time::ZERO, Wall::EPOCH)
-    };
-    served(pages, target, &[])
+    served(serve::Pages::new(pages, Time::ZERO, Wall::EPOCH), target, &[])
 }
 
-fn assert_query_page(verbatim: bool, target: &str, body: &[u8]) {
-    let wire = query_response(verbatim, target);
-    assert!(wire.starts_with(b"HTTP/1.1 200 OK\r\n"), "{target}, verbatim={verbatim}");
+fn assert_query_page(target: &str, body: &[u8]) {
+    let wire = query_response(target);
+    assert!(wire.starts_with(b"HTTP/1.1 200 OK\r\n"), "{target}");
     let wire_text = String::from_utf8_lossy(&wire);
     assert!(wire_text.contains("\r\nContent-Type: text/html\r\n"));
     assert!(wire_text.contains("\r\nX-Page: fixture\r\n"));
-    assert!(wire.ends_with(body), "{target}, verbatim={verbatim}");
+    assert!(wire.ends_with(body), "{target}");
 }
 
 #[test]
 fn origin_queries_leave_the_page_response_intact() {
-    for (verbatim, body) in [(false, b"page at 127.0.0.1:9090".as_slice()), (true, b"page at {address}".as_slice())] {
-        for target in ["/a.html?x=1", "/a.html?", "/a.html?x=1?y=2"] {
-            assert_query_page(verbatim, target, body);
-        }
+    for target in ["/a.html?x=1", "/a.html?", "/a.html?x=1?y=2"] {
+        assert_query_page(target, b"page at 127.0.0.1:9090");
     }
 }
 
 #[test]
 fn origin_paths_with_queries_do_not_climb() {
-    for verbatim in [false, true] {
-        for target in ["/../a.html?x=1", "/x/..%2fa.html?y", "/a.html/..?x", "/unknown?x=1"] {
-            let wire = query_response(verbatim, target);
-            assert!(wire.starts_with(b"HTTP/1.1 404 Not Found\r\n"), "{target}, verbatim={verbatim}");
-            assert!(wire.ends_with(b"not found"));
-        }
+    for target in ["/../a.html?x=1", "/x/..%2fa.html?y", "/a.html/..?x", "/unknown?x=1"] {
+        let wire = query_response(target);
+        assert!(wire.starts_with(b"HTTP/1.1 404 Not Found\r\n"), "{target}");
+        assert!(wire.ends_with(b"not found"));
     }
 }
 
 #[test]
 fn origin_queries_can_hold_slashes_and_parent_segments() {
-    for (verbatim, body) in [(false, b"page at 127.0.0.1:9090".as_slice()), (true, b"page at {address}".as_slice())] {
-        assert_query_page(verbatim, "/a.html?p=../../etc/passwd", body);
-    }
+    assert_query_page("/a.html?p=../../etc/passwd", b"page at 127.0.0.1:9090");
 }
 
 #[test]
 fn origin_favicon_queries_are_no_content() {
-    for verbatim in [false, true] {
-        let wire = query_response(verbatim, "/favicon.ico?v=1");
-        assert!(wire.starts_with(b"HTTP/1.1 204 No Content\r\n"));
-        assert!(wire.ends_with(b"\r\n\r\n"));
-    }
+    let wire = query_response("/favicon.ico?v=1");
+    assert!(wire.starts_with(b"HTTP/1.1 204 No Content\r\n"));
+    assert!(wire.ends_with(b"\r\n\r\n"));
 }

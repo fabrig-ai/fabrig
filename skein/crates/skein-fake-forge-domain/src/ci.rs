@@ -2,11 +2,10 @@
 //! branch's or a pull request's head, each context of the repository's checks
 //! is pending at once, then passes or fails after a drawn latency, or never
 //! reports, by the repository's chances; or, where a cue is configured, as the
-//! commit's file content or message says (testing.md, 4.2: the stand-in until CI
-//! follows content for real). Pull-file cues start a new run when a push
-//! head becomes a pull head, binding its number; other CI runs once per
-//! commit and repository. A context that reported may be run again once,
-//! by the repository's chance:
+//! commit's file content or message says (skein/docs/design/fake-forge.md,
+//! 2.3). Pull-file cues start a new run when a push head becomes a pull
+//! head, binding its number; other CI runs once per commit and repository. A
+//! context that reported may be run again once, by the repository's chance:
 //! pending again at once, then a verdict drawn again, so a head's CI can
 //! move after it settled. Users with write permission report statuses of
 //! their own.
@@ -46,7 +45,7 @@ pub(crate) fn start(domain: &mut Domain, env: &Env<Config>, id: Id<Repository>, 
         for context in &repository.checks.contexts {
             match cue(&repository.checks, context) {
                 Some(Cue::PullFile { .. }) => templated = true,
-                Some(Cue::File { .. } | Cue::Message { .. }) | None => {}
+                Some(Cue::File { .. } | Cue::Message { .. } | Cue::Tests { .. }) | None => {}
             }
         }
         if !changed || !templated {
@@ -117,6 +116,19 @@ pub(crate) fn report(domain: &mut Domain, env: &Env<Config>, id: Id<Repository>,
             }
             None => *no_pull,
         },
+        Some(Cue::Tests { path }) => {
+            let object = domain.object(commit).expect("CI commit");
+            match object.tree.get(&**path) {
+                Some(bytes) => {
+                    if crate::reports::lines(bytes, &env.limits.limits).expect("bounded cue").is_empty() {
+                        Check::Passed
+                    } else {
+                        Check::Failed
+                    }
+                }
+                None => Check::Passed,
+            }
+        }
         Some(Cue::File { path, green }) => {
             let tree = &domain.commits.get(&commit).expect("a commit of the store").tree;
             let green = match tree.get(&**path) {

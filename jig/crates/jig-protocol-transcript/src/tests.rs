@@ -1,6 +1,6 @@
 use super::*;
 
-const DIALECT: u32 = 1;
+const DIALECT: u32 = 3;
 use smith::{Block as SBlock, CEILINGS, MessageParts, TurnParts, UsageParts};
 
 fn limits() -> Limits {
@@ -147,7 +147,7 @@ fn whole_turn_preserves_blocks_and_joins_results_to_calls() {
     }
     match &turn.messages.get(0).unwrap().blocks.get(3).unwrap() {
         Block::Opaque { dialect, size } => {
-            assert_eq!(dialect.bytes(), b"1");
+            assert_eq!(dialect.bytes(), b"3");
             assert_eq!(*size, 2);
         }
         Block::Text(_) | Block::Call(_) | Block::Result { .. } => panic!("opaque expected"),
@@ -632,7 +632,7 @@ fn brief_opaque_blocks_show_only_their_dialect_and_size() {
             .unwrap(),
         )],
     )]);
-    assert_eq!(brief_text(&limits(), &encode(&turn)).unwrap().as_ref(), b"[opaque 1 block, 3 bytes]\n");
+    assert_eq!(brief_text(&limits(), &encode(&turn)).unwrap().as_ref(), b"[opaque 3 block, 3 bytes]\n");
 }
 
 #[test]

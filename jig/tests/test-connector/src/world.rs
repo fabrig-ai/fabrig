@@ -59,6 +59,7 @@ pub const fn kind(seed: u8, local: u16) -> u16 {
 #[must_use]
 pub fn config(seed: u8) -> Config {
     Config {
+        settings: None,
         deployment: (u128::from(seed) + 1).to_be_bytes(),
         prefix: path(seed, 0),
         resources: Box::from([
@@ -130,7 +131,7 @@ pub fn config(seed: u8) -> Config {
 #[derive(Debug)]
 pub struct World {
     pub seed: u8,
-    configuration: Config,
+    pub configuration: Config,
     limits: Limits,
     pub wall: u64,
     pub domain: Domain,
@@ -189,7 +190,12 @@ impl World {
                     self.records.remove(key);
                     self.commits += 1;
                 }
-                Request::Verdict { .. }
+                Request::SettingsRestored { .. }
+                | Request::SettingsJudged { .. }
+                | Request::SettingsDefaults { .. }
+                | Request::SettingValue { .. }
+                | Request::RestoreRefused { .. }
+                | Request::Verdict { .. }
                 | Request::Step { .. }
                 | Request::Answer { .. }
                 | Request::Ready { .. }
@@ -275,7 +281,12 @@ impl World {
                     let reply = self.system.answer(call, faults.pop_front().unwrap_or(Fault::None));
                     self.event(Event::System(reply))
                 }
-                Request::Verdict { .. }
+                Request::SettingsRestored { .. }
+                | Request::SettingsJudged { .. }
+                | Request::SettingsDefaults { .. }
+                | Request::SettingValue { .. }
+                | Request::RestoreRefused { .. }
+                | Request::Verdict { .. }
                 | Request::Step { .. }
                 | Request::Answer { .. }
                 | Request::Ready { .. }
@@ -341,7 +352,11 @@ impl World {
                 Record::Procedure(state) => {
                     live.insert(state.resource.clone());
                 }
-                Record::ApplicationObject { .. }
+                Record::SettingDefault { .. }
+                | Record::SettingChange { .. }
+                | Record::SettingReplaced { .. }
+                | Record::SettingProposal { .. }
+                | Record::ApplicationObject { .. }
                 | Record::ApplicationAnswer { .. }
                 | Record::Proposal { .. }
                 | Record::Subscription { .. }

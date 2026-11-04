@@ -41,9 +41,21 @@ fn found(place: &Place) -> Result<Found, Failed> {
         files: files::present(place).map_err(|why| Failed::Io("directory", why.kind()))?,
     })
 }
+fn write(place: &Place, file: File, contents: &[u8], locks: &mut Vec<(File, process::Lock)>) -> Result<(), Failed> {
+    let path = place.path(file);
+    if file == File::RunnerConfiguration && !locks.iter().any(|(file, _)| *file == File::RunnerLock) {
+        match skein_shell::read_private_file(crate::path(&path), 1 << 20, skein_shell::effective_user()) {
+            Ok(before) if before.expose() == contents => return Ok(()),
+            Ok(_) | Err(skein_shell::Unread::Absent) => {}
+            Err(_) => return Err(Failed::Io("runner configuration", io::ErrorKind::PermissionDenied)),
+        }
+        locks.push((File::RunnerLock, locked(place, File::RunnerLock)?));
+    }
+    files::write_private(crate::path(&path), contents).map_err(|why| Failed::Io("file", why.kind()))
+}
 /// Holds every acquired lock until the terminal answer.
 pub fn run(limits: &skein_io::Limits, place: &Place, mut machine: Prepare) -> Result<(), Failed> {
-    let mut locks = vec![locked(place, File::ForgejoLock)?];
+    let mut locks = vec![(File::ForgejoLock, locked(place, File::ForgejoLock)?)];
     let mut event = Event::Found(found(place)?);
     let mut out = Queue::uncapped();
     loop {
@@ -61,7 +73,7 @@ pub fn run(limits: &skein_io::Limits, place: &Place, mut machine: Prepare) -> Re
                 Event::Ran(command::run_one(limits, &spec).map_err(Failed::Command)?)
             }
             Request::Lock(file) => {
-                locks.push(locked(place, file)?);
+                locks.push((file, locked(place, file)?));
                 Event::Done
             }
             Request::Draw => {
@@ -76,8 +88,7 @@ pub fn run(limits: &skein_io::Limits, place: &Place, mut machine: Prepare) -> Re
                 Event::Done
             }
             Request::Write { file, contents } => {
-                files::write_private(crate::path(&place.path(file)), contents.expose())
-                    .map_err(|why| Failed::Io("file", why.kind()))?;
+                write(place, file, contents.expose(), &mut locks)?;
                 Event::Done
             }
             Request::Exists { path } => {

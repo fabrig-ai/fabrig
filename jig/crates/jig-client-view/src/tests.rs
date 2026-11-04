@@ -10,23 +10,6 @@ pub(crate) mod state;
 pub(crate) mod tree;
 pub(crate) mod words;
 
-fn text_bytes(node: &skein_ui::Node) -> u32 {
-    let mut bytes = 0_u32;
-    if let Some(name) = &node.name {
-        bytes = u32::try_from(name.len()).unwrap();
-    }
-    if let Some(value) = &node.value {
-        bytes = bytes.checked_add(u32::try_from(value.text.len()).unwrap()).unwrap();
-    }
-    if let Some(external) = &node.external {
-        bytes = bytes.checked_add(u32::try_from(external.len()).unwrap()).unwrap();
-    }
-    for run in &node.text {
-        bytes = bytes.checked_add(u32::try_from(run.text.len()).unwrap()).unwrap();
-    }
-    bytes
-}
-
 // Match production English's checked segment sum, once per loaded language.
 // These selected-language fixtures change literal bytes, retaining the segment shapes.
 fn english_phrase_segments(languages: u32) -> u32 {

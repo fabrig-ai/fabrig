@@ -163,6 +163,11 @@ Authority
   environment", "its runs' branches") and resolves them once the task has
   its number, each with its grant, so a creator can narrow a delegate to
   its own resources without knowing its number.
+  A batch member may also name a connector's **symbol**, a resource the
+  connector names after the task and its tree (a forge's *its own goal
+  branch*), which the connector resolves into the name the task holds
+  (`connectors.md`, 3.1; tasks.md, 6.2). A symbol adds a hold, never a
+  grant: what the task may do to it is its authority's.
 - **Kinds are a connector's,** with an order of their own where one
   implies another: scaling a service may imply restarting it, while
   landing into a branch does not imply pushing to it. A kind's order is a
@@ -252,6 +257,11 @@ deployment's rules       the most any project may have; requirements on effects
     section 8). Each projection effect is checked against it, its
     requirements included, as any effect is (8.2), and it costs no
     task's budget.
+- **The public party's role,** `public`, is fixed in code and in no
+  policy: it grants the public reads of a public project and nothing
+  else (people.md, section 13). It has no number, and a policy, the
+  rules and a seed name roles by number alone, so none can name it. No
+  authority, spend or proposal reaches it.
 - **A party's authority** in a project is their role's, and their
   allotment is a pool per period with its own amount left. A party who
   creates a task (a chat, a goal), or accepts a proposal, funds it from
@@ -266,7 +276,7 @@ deployment's rules       the most any project may have; requirements on effects
 - **The deployment** is the requester of what configuration or a
   connector starts on a project's behalf (a recurring task, a standing
   watch), with the authority the project's policy gives such tasks,
-  funded from the project's spend. Designed, not built: a procedure task
+  funded from the project's spend. A procedure task
   it starts that runs no agent (a forge's landing or tier run, which
   only make effects) is made with a budget of zero, so that a period its
   people have reserved whole never stops it; an effect it asks for that
@@ -395,8 +405,7 @@ deployment's rules       the most any project may have; requirements on effects
   so a role's raise that the open period has no room for is refused
   whole, naming what the period has left: its owners raise the
   project's first. A project's spend below a role's is refused as well,
-  so a cut goes the other way, the role's first (o/configuring-periods'
-  raise, jig 5c8420d15). Its writes are a pool per party in the role, within
+  so a cut goes the other way, the role's first. Its writes are a pool per party in the role, within
   the project's parties (engine.md, section 13), all checked before
   any is made.
 - **Periods are the application's to say.** The engine keeps no
@@ -589,6 +598,10 @@ pool has left.
   root's requester, by a batch, a move or an acceptance, only while its
   escalations have a holder (people.md, 5.1); otherwise the request is
   refused, whatever authority it fits.
+- **A task amendment's offered task allowance** is a replacement lifetime
+  limit under the giver's role, not the target's remaining allowance.
+  Exhaustion does not prevent granting more tasks. The request still
+  passes the same funding and authority-ceiling admission checks.
 - **A compound request** is checked as people.md, 5.1 says: each
   operation as it would be alone, in order.
 - **Account requests** (accounts.md, section 5) are checked against the

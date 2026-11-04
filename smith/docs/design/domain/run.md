@@ -1,6 +1,6 @@
 # The run
 
-Provisional, 2026-10-05, revised 2026-10-21. What a smith run is, as a
+Provisional, 2026-10-05, revised 2026-11-02. What a smith run is, as a
 domain layer: one activation of an agent, from the charter its host gives
 it to the answer it gives back. It is the child domain `smith-domain-run`,
 composed with its sessions by `smith-domain` (README.md, section 4). The
@@ -188,9 +188,8 @@ outcomes stay typed (tools.md, section 4).
     was done and found, with exact values, names and paths as they were
     read; what remains; and the decisions taken;
   - not to restate the task or its required answer;
-  - to keep within 1,000 words (revised 2026-10-20: a summary is
-    generated at the model's output rate, and the median was 3,350
-    tokens, 76 seconds).
+  - to keep within 1,000 words, since a summary is generated at the
+    model's output rate.
 
   The preamble says that what follows is the model's own summary of an
   earlier window, and that the work goes on. Both are the same whatever
@@ -226,8 +225,9 @@ that is not empty, or a message.
   itself where its instructions would have it delegate. A Finite run's
   opening, a sub-agent's and a resumed window's are as above.
   When concrete history is selected for resume, the waking prompt contains
-  the offered messages without a new instruction to begin; without offered
-  messages it says “Continue the saved conversation.” It first includes
+  an instruction that starts a fresh bounded activation and supersedes prior
+  exhaustion, followed by the offered messages without a new instruction to
+  begin. With no messages, that activation instruction stands alone. It first includes
   any host answers absent from the transcript (section 6). The session
   supplies this prompt as the result of a withheld `wait`, or as user text
   otherwise (section 6). The first turn told names the last offered message
@@ -310,14 +310,14 @@ that is not empty, or a message.
 
 | Source | Tools | Who answers | Effect |
 |---|---|---|---|
-| the workspace | `read`, `list`, `search`; `write`, `edit`, `shell`; `job` | the session, through its tools (tools.md) | reads; writes; `job` reads, and writes with `stop` |
+| the workspace | `read`, `list`, `search`; `write`, `edit`, `remove`; `shell`, `job` | the session, through its tools (tools.md) | reads; writes; `job` reads, and writes with `stop` |
 | the run | `finish`, `deliver`, `wait`, sub-agents | the run | `finish` and `deliver` write; a sub-agent's follows its tools |
 | the host | declared in the charter | the host, relayed | as declared |
 | MCP servers, later | as each server lists them | the protocol layer, as opaque calls | as the charter declares |
 
 Names are unique across sources; a declared tool may not take one of
 smith's, nor `permission_prompt`, which a program backend keeps for its
-prompt tool (programs.md, 5.3). The charter's families say which of
+prompt tool (protocol/programs.md, 5.3). The charter's families say which of
 smith's tools the LLM sees; a host tool is offered exactly when it is
 declared.
 
@@ -433,6 +433,14 @@ section 6).
   share, so a brief names the paths, the decisions already made and the
   scope; independent reading splits among inspect-only children, which
   run side by side; a writing child runs alone.
+- **On a program backend** (protocol/programs.md, 5.10), the run serves
+  `sub_agent` through the agent's MCP server and answers it as here,
+  each child a program session of its own at the model and effort of
+  its LLM, or a direct session where its LLM's endpoint names no
+  program. Its children are granted inspect alone: none holds the
+  lease, and they run side by side. Its share, its final turn, its
+  result and its spend are this section's; how the program is told
+  them is the program's document's.
 
 Within a run, sub-agents: cheap, sharing its workspace and budget, ended
 with the call that asked for them. Work that should outlive the run, run
@@ -513,6 +521,10 @@ host tool for it, as temper's `delegate` does.
 - **Awaiting** a first message is waiting without a session (3.4): told,
   timed and parked the same way. It has read nothing, so its waiting
   names no fence.
+- **Parking in Finite wind-down.** A granted main `wait` parks immediately,
+  including on the last reserved completion. Queued words stay unread for the
+  next activation; no further completion spends this activation's reserve.
+  This does not grant wait to a child or bypass hard monetary or wall limits.
 - **Parking.** Past its charter's waiting time it parks: every turn it
   took is sent, and it answers parked. A run whose ordinary time runs out
   while it waits parks too: it has nothing to finish, so it does not
@@ -530,7 +542,11 @@ host tool for it, as temper's `delegate` does.
   turn was never told, the agent having stopped between the two, or one
   the run withdrew and its host decided later), with their answers, so the
   LLM does not ask them again; and goes on with the messages that woke
-  it, which its start carries (3.2). Its waking prompt follows section
+  it, which its start carries (3.2). Each activation starts with fresh bounded
+  turns and wall time; its waking instruction explicitly supersedes exhaustion
+  and finish-now instructions retained from earlier activations. The host
+  supplies only the task funding still available, so monetary spend stays
+  cumulative and bounded across activations. Its waking prompt follows section
   3.4's resume form; it does not add a fresh begin instruction. A transcript
   it cannot use (another version, malformed, unresolved, too large) fails
   the run as transient, saying which (session.md, section 3), and the host decides
@@ -538,15 +554,14 @@ host tool for it, as temper's `delegate` does.
   dialect, account or backend is not refused: it is carried over
   (session.md, 8.2). A run that does not resume starts fresh from its
   brief, which carries what the host thinks it needs.
-- **Messages mid-work,** designed here and built later. Between
+- **Messages mid-work.** Between
   completions, not only when main yields, the run offers its queued
   messages to the working session, which appends them after the results
   of the calls it just ran, in its next request; the turn that reads them
   is told with them, its fence naming the last. Nothing in flight is
   interrupted and nothing already sent changes, so the prefix holds and
   every rule above stands. The run's threshold notes on its budget take
-  the same path, as text the run wrote, with no name (9.2). Until then, a
-  message waits for main to yield, also while main waits on a sub-agent.
+  the same path, as text the run wrote, with no name (9.2).
 
 ## 7. Results
 
@@ -787,6 +802,7 @@ answers as it was ending; the host has the delivery's own answer.
      In Finite, main then gets at most the reserve's turns of completions,
      the first with the run's note that the budget is spent and it is to finish now
      with what it has. They offer only `finish`, `deliver` when granted,
+     granted `wait` to park until another message,
      and host tools whose declaration sets `reserve`: the same tool definitions
      are sent, and the note names the reserve host tools for meeting outstanding
      obligations. The model is told to choose among those only (session.md, section 5).
@@ -796,7 +812,7 @@ answers as it was ending; the host has the delivery's own answer.
 
   On a program backend, the program's turn is ended and the note sent
   as its next user message. The program's tools are not narrowed, so
-  the agent refuses every call but `finish`, granted `deliver` and host tools
+  the agent refuses every call but `finish`, granted `deliver`, granted `wait` and host tools
   declared for the reserve from then on,
   each as an invalid call is answered (protocol/programs.md, 5.7).
   An Open run on a program backend gets its last reply as
@@ -821,6 +837,8 @@ exact values are the facts', in milliseconds (protocol/events.md).
   and the turns and time the run has left above its reserve.
 - **Open replies,** under `## Replying` (section 6), and a last-reply note
   in place of Finite finishing instructions (9.1).
+- **The waking instruction** (section 6) scopes prior exhaustion to the earlier
+  activation and names the fresh allowance in `## Budget`.
 - **The wind-down's note** (9.1) and **a child's final-turn note** (5.3),
   appended.
 - **Threshold notes,** with messages mid-work (section 6): as the run's
@@ -1029,29 +1047,9 @@ These are domain-speed stories under a deterministic clock and seed,
 within the focused suite's budget; the fuzzy suite draws message
 timings, budgets and shares within its own (`docs/design/testing.md`).
 
-## 14. From temper
-
-- **The run, as temper built it, stays:** charters judged at the
-  entrance, sessions with budgets and retries, typed tools, finishing
-  with checks, a delivery's feedback.
-- **Served tools grow** from `finish` and sub-agents to `deliver` and
-  `wait`; **host tools** replace the engine's tools as a closed list, and
-  the forge and outlet grants, which nothing served.
-- **The result contract** gains reports and declared failures, and
-  carries the verdict lists temper's agent fixed in code; a change's
-  title and body become fields.
-- **Push becomes delivery,** its reasons the host's, its bounded
-  diagnostic tail kept; a moved branch is a stale delivery.
-- **Conventions** replace `.temper/pre-pr` and `AGENTS.md` in code.
-- **Budgets** move from temper's token split to the host's unit with
-  prices.
-- **New, as temper's `domain/agent.md` planned them:** messages, `wait`,
-  parking, resuming from a transcript, calls asked again, delivering
-  mid-run, and merges in progress.
-
 ## 15. Open questions
 
-- **A sub-agent's result:** its final message today; whether a sub-agent
+- **A sub-agent's result:** its final message; whether a sub-agent
   may be given a contract of its own.
 - **A run's refusal on the channel:** a run that refuses its start for
   policy answers failed; whether refusal wants a kind of its own.

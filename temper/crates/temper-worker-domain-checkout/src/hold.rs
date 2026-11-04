@@ -5,7 +5,10 @@
 //! A prepare that passes the entrance holds a workspace ([`crate::cache`]) and
 //! readies it, one operation at a time. A workspace made again is made empty,
 //! and each repository cloned into it. Then each repository is fetched at its
-//! starting point and checked out. A base branch the forge does not have is
+//! starting point and checked out. A base with heads merged in fetches every
+//! head and commits each new merge in order before it is ready. Its last
+//! commit is the save baseline; its merges are delivered by the first push.
+//! A base branch the forge does not have is
 //! created there from the default branch, for a repository that may be
 //! written, and only created: if another party created it meanwhile, it is
 //! fetched again and the workspace starts from wherever that party put it.
@@ -86,7 +89,7 @@ use alloc::boxed::Box;
 use core::mem;
 
 use skein_lib::bytes::{copy_of, find};
-use skein_lib::{Env, Id, List, Queue, Slab, Token};
+use skein_lib::{Env, Id, List, Queue, Slab, Token, Writer};
 
 use crate::boundary::{
     Conflicts, Failure, Landing, Message, Outcome, Prepared, Refusal, Repository, Request, Spec, Start,
@@ -192,15 +195,25 @@ enum PrepareStep {
         repository: u32,
         ours: Commit,
         base: Commit,
+        head: Option<u32>,
     },
     CheckOutMerge {
         repository: u32,
         ours: Commit,
         base: Commit,
     },
+    CompareHead {
+        repository: u32,
+        head: u32,
+    },
     Merge {
         repository: u32,
         theirs: Commit,
+        head: Option<u32>,
+    },
+    CommitHead {
+        repository: u32,
+        head: u32,
     },
 }
 
@@ -560,7 +573,15 @@ fn prepared(holding: &mut Holding, cache: &mut Cache, step: PrepareStep, done: D
                 Next::Step(PrepareStep::FetchLanding { repository, ours: commit })
             }
             Done::Fetched { commit } => match nth(holding, repository).start {
-                Start::Merge { base, .. } => Next::Step(PrepareStep::FetchBase { repository, ours: commit, base }),
+                Start::Merge { base, .. } => {
+                    Next::Step(PrepareStep::FetchBase { repository, ours: commit, base, head: None })
+                }
+                Start::Merged { ref heads, .. } => Next::Step(PrepareStep::FetchBase {
+                    repository,
+                    ours: commit,
+                    base: *heads.first().expect("admitted heads are nonempty"),
+                    head: Some(0),
+                }),
                 Start::Saved { .. } if nth(holding, repository).push.is_some() => {
                     Next::Step(PrepareStep::FetchPush { repository, saved: commit })
                 }
@@ -706,19 +727,21 @@ fn prepared(holding: &mut Holding, cache: &mut Cache, step: PrepareStep, done: D
                 unreachable!("io ends a checkout with its own terminals")
             }
         },
-        merge @ (PrepareStep::FetchBase { .. } | PrepareStep::CheckOutMerge { .. } | PrepareStep::Merge { .. }) => {
-            prepared_merge(holding, merge, done, limits)
-        }
+        merge @ (PrepareStep::FetchBase { .. }
+        | PrepareStep::CheckOutMerge { .. }
+        | PrepareStep::Merge { .. }
+        | PrepareStep::CompareHead { .. }
+        | PrepareStep::CommitHead { .. }) => prepared_merge(holding, merge, done, limits),
     }
 }
 
 fn prepared_merge(holding: &mut Holding, step: PrepareStep, done: Done, limits: &Limits) -> Next {
     let last = count(holding.repositories.len()).checked_sub(1).expect("a spec names a repository");
     match step {
-        PrepareStep::FetchBase { repository, ours, base } => match done {
+        PrepareStep::FetchBase { repository, ours, base, head } => match done {
             Done::Fetched { commit } => {
                 assert_eq!(commit, base, "fetching an exact commit returns that commit");
-                Next::Step(PrepareStep::CheckOutMerge { repository, ours, base })
+                fetched_merge_base(holding, repository, ours, base, head)
             }
             Done::Failed { fault } | Done::FailedWithOutput { fault, .. } => Next::Failed(failure(repository, fault)),
             Done::Succeeded
@@ -731,19 +754,7 @@ fn prepared_merge(holding: &mut Holding, step: PrepareStep, done: Done, limits: 
             | Done::Conflicted { .. } => unreachable!("io ends a fetch with its own terminals"),
         },
         PrepareStep::CheckOutMerge { repository, ours, base } => match done {
-            Done::Succeeded => {
-                let tips = Tips {
-                    start: ours,
-                    head: ours,
-                    pushed: Some(ours),
-                    delivered: false,
-                    merging: Some(base),
-                    landing: None,
-                    expected: nth(holding, repository).expected,
-                };
-                holding.tips.push(tips).expect("room for each repository's tips");
-                Next::Step(PrepareStep::Merge { repository, theirs: base })
-            }
+            Done::Succeeded => checked_out_merge(holding, repository, ours, base),
             Done::Failed { .. } | Done::FailedWithOutput { .. } => Next::Failed(Failure::Transient),
             Done::Fetched { .. }
             | Done::Committed { .. }
@@ -754,9 +765,15 @@ fn prepared_merge(holding: &mut Holding, step: PrepareStep, done: Done, limits: 
             | Done::Merged
             | Done::Conflicted { .. } => unreachable!("io ends a checkout with its own terminals"),
         },
-        PrepareStep::Merge { repository, .. } => match done {
-            Done::Merged => after_merged(repository, last),
+        PrepareStep::Merge { repository, theirs, head } => match done {
+            Done::Merged => match head {
+                Some(head) => Next::Step(PrepareStep::CommitHead { repository, head }),
+                None => after_merged(repository, last),
+            },
             Done::Conflicted { files } => {
+                if head.is_some() {
+                    return Next::Failed(Failure::Conflicted { repository, head: theirs });
+                }
                 assert!(paths_fit(&files, limits), "terminal admission bounds retained paths");
                 holding.conflicts.push(Conflicts { repository, files }).expect("room for each repository's conflicts");
                 after_merged(repository, last)
@@ -770,6 +787,40 @@ fn prepared_merge(holding: &mut Holding, step: PrepareStep, done: Done, limits: 
             | Done::IsAncestor { .. }
             | Done::Rejected => unreachable!("io ends a merge with its own terminals"),
         },
+        PrepareStep::CompareHead { repository, head } => match done {
+            Done::IsAncestor { contains: true } => next_head(holding, repository, head, last),
+            Done::IsAncestor { contains: false } => Next::Step(PrepareStep::Merge {
+                repository,
+                theirs: merged_head(holding, repository, head),
+                head: Some(head),
+            }),
+            Done::Failed { .. } | Done::FailedWithOutput { .. } => Next::Failed(Failure::Transient),
+            Done::Succeeded
+            | Done::Fetched { .. }
+            | Done::Committed { .. }
+            | Done::Unchanged
+            | Done::Exists
+            | Done::Rejected
+            | Done::Merged
+            | Done::Conflicted { .. } => unreachable!("ancestry query has its own terminals"),
+        },
+        PrepareStep::CommitHead { repository, head } => match done {
+            Done::Committed { commit } => {
+                tips_mut(holding, repository).head = commit;
+                next_head(holding, repository, head, last)
+            }
+            Done::Conflicted { .. } => {
+                Next::Failed(Failure::Conflicted { repository, head: merged_head(holding, repository, head) })
+            }
+            Done::Failed { .. } | Done::FailedWithOutput { .. } => Next::Failed(Failure::Transient),
+            Done::Succeeded
+            | Done::Fetched { .. }
+            | Done::Unchanged
+            | Done::Exists
+            | Done::Rejected
+            | Done::IsAncestor { .. }
+            | Done::Merged => unreachable!("explicit merge commit has its own terminals"),
+        },
         PrepareStep::Make
         | PrepareStep::Clone { .. }
         | PrepareStep::Fetch { .. }
@@ -780,6 +831,77 @@ fn prepared_merge(holding: &mut Holding, step: PrepareStep, done: Done, limits: 
         | PrepareStep::CheckOut { .. }
         | PrepareStep::FetchPush { .. } => unreachable!("merge preparation has only its own steps"),
     }
+}
+
+fn fetched_merge_base(holding: &Holding, repository: u32, ours: Commit, base: Commit, head: Option<u32>) -> Next {
+    if let Some(head) = head {
+        let next = after(head);
+        if let Some(base) = merged_heads(holding, repository).get(usize::try_from(next).expect("bounded index")) {
+            return Next::Step(PrepareStep::FetchBase { repository, ours, base: *base, head: Some(next) });
+        }
+    }
+    Next::Step(PrepareStep::CheckOutMerge { repository, ours, base })
+}
+
+fn checked_out_merge(holding: &mut Holding, repository: u32, ours: Commit, base: Commit) -> Next {
+    let merging = match nth(holding, repository).start {
+        Start::Merged { .. } => None,
+        Start::Merge { .. } => Some(base),
+        Start::Base { .. } | Start::Branch { .. } | Start::Commit { .. } | Start::Saved { .. } => {
+            unreachable!("only merge starts check out here")
+        }
+    };
+    let tips = Tips {
+        start: ours,
+        head: ours,
+        pushed: Some(ours),
+        delivered: false,
+        merging,
+        landing: None,
+        expected: nth(holding, repository).expected,
+    };
+    holding.tips.push(tips).expect("room for each repository's tips");
+    match merging {
+        None => Next::Step(PrepareStep::CompareHead { repository, head: 0 }),
+        Some(theirs) => Next::Step(PrepareStep::Merge { repository, theirs, head: None }),
+    }
+}
+
+fn merged_heads(holding: &Holding, repository: u32) -> &[Commit] {
+    let Start::Merged { heads, .. } = &nth(holding, repository).start else {
+        unreachable!("only a merged start loops over heads")
+    };
+    heads
+}
+
+fn merged_head(holding: &Holding, repository: u32, head: u32) -> Commit {
+    *merged_heads(holding, repository).get(usize::try_from(head).expect("bounded index")).expect("admitted head index")
+}
+
+fn next_head(holding: &mut Holding, repository: u32, head: u32, last: u32) -> Next {
+    let next = after(head);
+    if next < count(merged_heads(holding, repository).len()) {
+        Next::Step(PrepareStep::CompareHead { repository, head: next })
+    } else {
+        let tips = tips_mut(holding, repository);
+        tips.start = tips.head;
+        after_merged(repository, last)
+    }
+}
+
+/// Full object spelling for the merge message (protocol/channel.md, 4).
+fn merge_title(head: Commit) -> Box<[u8]> {
+    let raw = head.raw();
+    let size = if raw.get(20..).expect("fixed id") == [0; 12] { 20_usize } else { 32 };
+    let length = size.checked_mul(2).expect("fixed id").checked_add(6).expect("fixed prefix");
+    let mut title = Writer::new(length);
+    title.put(b"Merge ").expect("measured prefix");
+    for byte in raw.get(..size).expect("fixed id") {
+        for digit in [byte >> 4_u32, byte & 15] {
+            title.put(&[*b"0123456789abcdef".get(usize::from(digit)).expect("hex nibble")]).expect("measured hex");
+        }
+    }
+    title.finish()
 }
 
 fn after_merged(repository: u32, last: u32) -> Next {
@@ -847,7 +969,8 @@ fn prepare_step(
                 Start::Base { branch }
                 | Start::Branch { branch }
                 | Start::Saved { branch }
-                | Start::Merge { branch, .. } => Want::Branch { branch: copy_of(branch) },
+                | Start::Merge { branch, .. }
+                | Start::Merged { branch, .. } => Want::Branch { branch: copy_of(branch) },
                 Start::Commit { commit } => Want::Commit { commit: *commit },
             };
             let remote = copy_of(&repository.remote);
@@ -866,7 +989,11 @@ fn prepare_step(
             let repository = nth(holding, repository);
             let branch = match &repository.start {
                 Start::Base { branch } => copy_of(branch),
-                Start::Branch { .. } | Start::Commit { .. } | Start::Saved { .. } | Start::Merge { .. } => {
+                Start::Branch { .. }
+                | Start::Commit { .. }
+                | Start::Saved { .. }
+                | Start::Merge { .. }
+                | Start::Merged { .. } => {
                     unreachable!("only a base branch is created")
                 }
             };
@@ -913,12 +1040,31 @@ fn prepare_step(
         PrepareStep::CheckOutMerge { repository, ours, .. } => {
             Op::CheckOut { at: place(workspace, nth(holding, repository)), commit: ours, clean: true }
         }
-        PrepareStep::Merge { repository, theirs } => {
+        PrepareStep::CompareHead { repository, head } => Op::IsAncestor {
+            at: place(workspace, nth(holding, repository)),
+            ancestor: merged_head(holding, repository, head),
+            commit: tips(holding, repository).head,
+        },
+        PrepareStep::Merge { repository, theirs, .. } => {
             Op::Merge { at: place(workspace, nth(holding, repository)), theirs }
         }
+        PrepareStep::CommitHead { repository, head } => commit_head(holding, workspace, repository, head),
     };
     io(id, op, env, out);
     State::Preparing { step, asked: Asked::Nothing }
+}
+
+fn commit_head(holding: &Holding, workspace: Token, repository: u32, head: u32) -> Op {
+    let spec = nth(holding, repository);
+    let theirs = merged_head(holding, repository, head);
+    Op::Commit {
+        at: place(workspace, spec),
+        parent: tips(holding, repository).head,
+        merging: Some(theirs),
+        title: merge_title(theirs),
+        body: Box::new([]),
+        identity: spec.identity,
+    }
 }
 
 /// Ready, push or save: commits and pushes each writable repository in turn,
@@ -1383,6 +1529,12 @@ fn fits(spec: &Spec, limits: &Limits) -> bool {
         let start = match &repository.start {
             Start::Base { branch } | Start::Branch { branch } | Start::Saved { branch } => named(branch, limits),
             Start::Commit { .. } => true,
+            Start::Merged { branch, heads } => {
+                named(branch, limits)
+                    && (1..=64).contains(&heads.len())
+                    && limits.conflicts > 0
+                    && limits.path_bytes > 0
+            }
             Start::Merge { branch, .. } => named(branch, limits) && limits.conflicts > 0 && limits.path_bytes > 0,
         };
         let push = match &repository.push {
@@ -1454,7 +1606,11 @@ fn landing_branch(repository: &Repository) -> Option<&[u8]> {
             Some(push) if branch == push => repository.landing.as_deref(),
             Some(_) | None => None,
         },
-        Start::Base { .. } | Start::Saved { .. } | Start::Commit { .. } | Start::Merge { .. } => None,
+        Start::Base { .. }
+        | Start::Saved { .. }
+        | Start::Commit { .. }
+        | Start::Merge { .. }
+        | Start::Merged { .. } => None,
     }
 }
 
@@ -1464,7 +1620,11 @@ fn creates_base(holding: &Holding, repository: u32) -> bool {
     let spec = nth(holding, repository);
     let base = match spec.start {
         Start::Base { .. } => true,
-        Start::Branch { .. } | Start::Commit { .. } | Start::Saved { .. } | Start::Merge { .. } => false,
+        Start::Branch { .. }
+        | Start::Commit { .. }
+        | Start::Saved { .. }
+        | Start::Merge { .. }
+        | Start::Merged { .. } => false,
     };
     base && spec.push.is_some()
 }

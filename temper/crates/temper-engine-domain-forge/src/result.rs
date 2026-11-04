@@ -18,7 +18,7 @@ impl ResultText {
     }
 
     pub(crate) fn add(&mut self, bytes: &[u8], bound: u32) {
-        let room = usize::try_from(bound).expect("u32 fits usize").saturating_sub(self.bytes.len());
+        let room = skein_lib::usize_of(bound).saturating_sub(self.bytes.len());
         let kept = if self.cut == 0 { crate::held::edge(bytes, room.min(bytes.len()), false) } else { &[] };
         let mut writer = Writer::new(self.bytes.len().checked_add(kept.len()).expect("bounded result text"));
         writer.put(&self.bytes).expect("measured prefix");
@@ -147,6 +147,19 @@ impl ChangeResult {
         self.reviews.add(b" at ", bound);
         self.reviews.add(&crate::commit_text(head), bound);
     }
+    /// The producer's report followed by the landing's observations, cut together from the end.
+    #[must_use]
+    pub fn reported(&self, report: &[u8], head: &Commit, bound: u32) -> ResultText {
+        let mut words = ResultText::empty();
+        if !report.is_empty() {
+            words.add(b"Report:\n", bound);
+            words.add(report, bound);
+            words.add(b"\n", bound);
+        }
+        words.join(&self.words(head, bound), bound);
+        words
+    }
+
     /// Result suffix, including only checks read at the head that landed.
     #[must_use]
     pub fn words(&self, head: &Commit, bound: u32) -> ResultText {

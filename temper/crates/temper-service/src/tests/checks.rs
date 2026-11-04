@@ -40,6 +40,11 @@ fn standalone_shape_is_required_of_jigs_parts() {
     }
 }
 #[test]
+fn the_longest_remote_of_an_empty_machine_measures_github_com() {
+    let machine = temper_forge_setup::machine::Machine { owned: None, fake: None, github: None };
+    assert_eq!(checks::machine_remote(&machine, 10), Some(44));
+}
+#[test]
 fn a_remote_past_the_checkouts_names_refuses_the_start() {
     let document = fixtures::with(
         &fixtures::document(),
@@ -122,7 +127,7 @@ fn an_endpoint_or_model_missing_from_the_agent_is_named() {
             true,
             b"engine.llm.endpoints[0]: not in the agent's configuration under the same name\n".as_slice(),
         ),
-        ("model", true, false, b"charter 1.model: not in the agent's configuration under the same name\ncharter 2.model: not in the agent's configuration under the same name\ncharter 4.model: not in the agent's configuration under the same name\n"),
+        ("model", true, false, b"charter 1.model: not in the agent's configuration under the same name\ncharter 2.model: not in the agent's configuration under the same name\ncharter 3.model: not in the agent's configuration under the same name\ncharter 4.model: not in the agent's configuration under the same name\ncharter 6.model: not in the agent's configuration under the same name\n"),
     ] {
         let mut agent = fixtures::startup_agent();
         if !endpoints {
@@ -449,7 +454,7 @@ fn agent_model_bounds_are_checked_under_the_configured_name() {
         checks::agent(&engine, &agent, &mut problems);
         assert_eq!(
             &*lines(&problems),
-            b"charter 1.model: not in the agent's configuration under the same name\ncharter 2.model: not in the agent's configuration under the same name\ncharter 4.model: not in the agent's configuration under the same name\n"
+            b"charter 1.model: not in the agent's configuration under the same name\ncharter 2.model: not in the agent's configuration under the same name\ncharter 3.model: not in the agent's configuration under the same name\ncharter 4.model: not in the agent's configuration under the same name\ncharter 6.model: not in the agent's configuration under the same name\n"
         );
     }
 }

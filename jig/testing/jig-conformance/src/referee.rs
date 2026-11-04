@@ -310,7 +310,7 @@ pub struct Snapshot {
     pub person_spend: BTreeMap<u64, u64>,
     /// Budget, direct spend, settled funded spend and open reservations.
     pub balances: Vec<(u64, u64, u64, u64)>,
-    /// Projects whose deletion row is kept (playground-reset.md, 5).
+    /// Projects whose deletion row is kept (jig/docs/design/domain/people.md, 5.2).
     pub deleting: BTreeSet<u32>,
     /// Every durable row that names a project or a task, from the store adapter.
     pub naming: Vec<Naming>,

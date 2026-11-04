@@ -176,7 +176,7 @@
   // and the gaps temper lacks for what a page draws (the README lists
   // them).
   function ref(name) { return name ? `<i class="case-ref" title="The reference case's name">${esc(name)}</i>` : ''; }
-  function gap(id, what) { return `<i class="gap" title="temper-on-temper.md ${esc(id)}: ${esc(what)}. Drawn ahead of temper's design.">gap ${esc(id)}</i>`; }
+  function gap(id, what) { return `<i class="gap" title="Gap ${esc(id)}: ${esc(what)}. Drawn ahead of temper's design.">gap ${esc(id)}</i>`; }
 
   // A piece the engine can't supply yet, shown only under View → Future,
   // marked with what would supply it: a mission, a draft, or "not
@@ -186,7 +186,7 @@
     display: ['the account’s email', 'the account’s display, its email, which jig’s sign-in leaves empty (jig’s client/domain/contract.md, 7.1, OwnerAccountLine.display)'],
     preview: ['the resolved default', 'the model a new chat’s first run takes, before it runs: jig’s Template.resolved_default (jig’s client/domain/contract.md, 5.3)'],
     ci: ['a CI read at main', 'the verdict of CI at a repository’s main: a later mission (design STATUS.md, first-repo)'],
-    projectless: ['no project at first', 'temper init seeding no project, which the playground’s start or the first repository makes (draft first-run.md, 2.4; design STATUS.md, first-run-ux-2)'],
+    projectless: ['no project at first', 'temper init seeding no project, which the playground’s start or the first repository makes (draft archive/first-run.md, 2.4; design STATUS.md, first-run-ux-2)'],
     eligible: ['jig’s not-eligible end', 'a sign-in’s ending for an account not eligible for plan usage (client README, section 11)'],
     port: ['jig’s port-taken end', 'a sign-in’s ending for the listener’s port held by another program (client README, section 11)'],
     login: ['the person’s login', 'the person’s Forgejo login on the owned forge’s row (client forge.md, 5.4)'],
@@ -380,7 +380,7 @@
   const projectTasks = () => Object.keys(world.tasks).filter(k => inProject(T(k)));
   // A first run's deployment has the project `temper init` seeds; with
   // no project until the playground's start or the first repository
-  // makes one (draft first-run.md, 2.4), its place reads "No project yet".
+  // makes one (draft archive/first-run.md, 2.4), its place reads "No project yet".
   const seeded = () => world.seeded && shownProject() === world.seeded;
   const project = () => seeded()
     ? variant('projectless', conf('engine.projects, its first, unnamed, so “Project 1” (protocol/setup.md, 8.3)', esc(world.seeded)), 'No project yet')
@@ -1496,7 +1496,7 @@
     }[why];
     return `<div class="forge-setup"><h3>${esc(head)}</h3><p>${fact('client forge.md, 9.1: the clients’ listener’s own page, in its words', esc(words))}</p><a class="button primary" href="${esc(u(back, step))}">Back to temper</a></div>`;
   }
-  function ownedCommands(f) { return `<div class="forge-setup"><h3>Set it up from a terminal</h3><p>temper was not started by temper box, so it does not start a Forgejo itself. Run these, keep the last two running (a service manager is best), then restart temper:</p><pre><code>${conf('the owned forge’s number in the configuration', esc(`temper forge fetch ${f.n}\ntemper forge prepare ${f.n}\ntemper forge run ${f.n} forgejo\ntemper forge run ${f.n} runner`))}</code></pre><p>Once it is connected, make your first repository here.</p></div>`; }
+  function ownedNotUnderTheBox(f) { return `<div class="forge-setup"><h3>Set it up under temper box</h3><p>temper was not started by temper box, so it does not start a Forgejo itself. Start temper with temper box to set one up here.</p></div>`; }
   function ownedForm(f, target = `connect-forge.html?forge=${f.n}`, at = '6') {
     const setup = f.setup;
     return `<div class="forge-setup">
@@ -1530,9 +1530,9 @@
         <p class="muted tiny">Open Forgejo signs you in as ${conf('the person’s Forgejo login', esc(f.person))}, through temper.</p>
         <p class="gap-note">Until signing in through temper: sign in as ${conf('the person’s Forgejo login', esc(f.person))} with the password in ${conf('the owned forge’s person password file', esc(`~/.local/share/temper/forge-${f.n}/person_password`))}. Forgejo asks for a new one at once.</p>`;
     // A Forgejo whose people sign in through temper, as its OpenID
-    // provider (draft sign-in.md, section 5).
+    // provider (protocol/sign-in.md, section 9).
     if (f.through && f.state === 'connected') return `<div class="rule"></div><div class="button-row">
-      <a class="button primary" href="#" data-later="${esc(`Mockup: ${f.web}/user/oauth2/temper, in a new tab: Forgejo starts its sign-in with the temper source, temper answers at once, and Forgejo opens signed in as ${world.site.login}.`)}">Open Forgejo ↗</a>${ahead('provider', 'temper as Forgejo’s OpenID provider: draft sign-in.md, section 5')}
+      <a class="button primary" href="#" data-later="${esc(`Mockup: ${f.web}/user/oauth2/temper, in a new tab: Forgejo starts its sign-in with the temper source, temper answers at once, and Forgejo opens signed in as ${world.site.login}.`)}">Open Forgejo ↗</a>${ahead('provider', 'temper as Forgejo’s OpenID provider: protocol/sign-in.md, section 9')}
       <button class="button" data-later="Mockup: the set-up’s three fields again; temper makes the repository, grants its bot, and adopts it.">New repository</button>
       <button class="button" data-later="Mockup: the adoption form (client README, 4.4) has no mockup.">Adopt a repository</button>
       <button class="button" data-later="Mockup: the admin’s token erased; temper keeps its bot and tokens, and the forge becomes connected.">Forget the admin’s token</button></div>
@@ -1637,7 +1637,7 @@
     if (f.kind === 'GitHub') return f.state === 'connected' ? githubReady(f, from) : f.state === 'connecting' ? githubConnecting(f, from) : githubAppForm(f);
     if (f.state === 'connected') return `<h3>${fact('temper: the repository made at set-up', esc(`${f.setup.org}/${f.setup.repo} is ready`))}</h3><p>In the new project ${fact('jig’s client/domain/contract.md, 3.2: MakeProject’s ProjectMade, and Row.repositories[].project', esc(f.setup.project))}, on ${esc(forgeName(f))}.${future('ci', ' Its first CI run passed, on this machine.')}</p>${ownedProgress(f, { allDone: true })}<div class="button-row"><a class="button primary" href="${esc(u(`chats.html?project=${encodeURIComponent(f.setup.project)}`))}">Open ${esc(f.setup.project)}</a><a class="text-link" href="#" data-later="${esc(`Mockup: Forgejo opens in a new tab at its /user/oauth2/temper, and signs ${f.person} in through temper.`)}">Open Forgejo ↗</a></div><p class="muted tiny">${conf('the forge’s name', esc(forgeName(f)))} is on the <a class="text-link" href="${esc(u('forges.html'))}">Forges</a> page, with its details.</p>`;
     if (['setting up', 'set up failed'].includes(f.state)) return `<h3>Setting up Forgejo on this machine</h3>${chosenValues(f)}${ownedProgress(f, { failedAt: f.state === 'set up failed' ? 'preparing' : null })}${f.state === 'set up failed' ? `${ownedFailure()}<button class="button" data-later="Mockup: the box runs the steps again; a fetched binary is kept.">Set up again</button>` : '<p class="muted tiny">You may leave this page: the steps go on, and the banner says where they are.</p>'}`;
-    return f.box ? ownedForm(f) : ownedCommands(f);
+    return f.box ? ownedForm(f) : ownedNotUnderTheBox(f);
   }
   const flowCurrent = f => !f ? 1 : f.state === 'connected' ? 4 : ['setting up', 'connecting', 'set up failed'].includes(f.state) ? 2 : 1;
   const flowWrap = content => `<section class="card card-pad forge-flow">${content}</section>`;
@@ -1645,7 +1645,7 @@
     const github = world.forges.find(f => f.kind === 'GitHub' && f.state === 'not connected');
     const offer = world.forges.find(f => f.mode === 'owned' && f.state === 'not set up');
     const admin = world.forges.filter(f => f.admin && f.state === 'not connected').map(f => `<section class="card card-pad"><h3>Forgejo at ${esc(f.web || `forge ${f.n}`)}</h3><p>temper connects as its site admin, makes its bot and your first repository.</p><a class="button" href="${esc(u(`${target}${f.n}`))}">Connect as its admin</a></section>`).join('');
-    return `<div class="forge-choices">${github ? `<section class="card card-pad"><h3>GitHub</h3><p>Your repositories on GitHub. temper makes its own App there; you choose the account and the repositories it may use.</p><p class="muted tiny">In this tab, on GitHub · about two minutes</p><div class="button-row"><a class="button primary" href="${esc(toGithub('create', target.startsWith('welcome') ? 'welcome' : 'connect-forge', '2'))}">Connect GitHub</a></div></section>` : ''}${offer ? (target.startsWith('welcome') ? `<section class="card card-pad"><h3>Forgejo</h3><p>A forge of your own. temper can start it and manage it, or you can connect your own deployment.</p><p class="muted tiny">${offer.box ? 'Here · about a minute' : 'Needs four commands and a restart'}</p><div class="button-row"><a class="button" href="${esc(u(`${target}${offer.n}`))}">Run on this machine</a><a class="text-link" href="https://github.com/fabrig-ai/temper/blob/main/docs/help/server.md">Or connect your deployment</a></div></section>` : `<section class="card card-pad"><h3>Forgejo on this machine</h3><p>A forge of your own, run by temper box. No account needed: temper makes your first repository, and you start in it.</p><p class="muted tiny">${offer.box ? 'Here · about a minute' : 'Needs four commands and a restart'}</p><a class="button" href="${esc(u(`${target}${offer.n}`))}">Choose</a></section>`) : ''}${admin}${target.startsWith('welcome') ? '' : `<section class="card card-pad"><h3>A Forgejo elsewhere</h3><p>Your own Forgejo server. temper connects as its admin, or with its bot’s tokens.</p><p class="muted tiny">Needs a change to temper’s configuration and a restart</p><a class="button" href="${esc(u(`${target}elsewhere`))}">Show how</a></section>`}</div>`;
+    return `<div class="forge-choices">${github ? `<section class="card card-pad"><h3>GitHub</h3><p>Your repositories on GitHub. temper makes its own App there; you choose the account and the repositories it may use.</p><p class="muted tiny">In this tab, on GitHub · about two minutes</p><div class="button-row"><a class="button primary" href="${esc(toGithub('create', target.startsWith('welcome') ? 'welcome' : 'connect-forge', '2'))}">Connect GitHub</a></div></section>` : ''}${offer ? (target.startsWith('welcome') ? `<section class="card card-pad"><h3>Forgejo</h3><p>A forge of your own. temper can start it and manage it, or you can connect your own deployment.</p><p class="muted tiny">${offer.box ? 'Here · about a minute' : 'Needs four commands and a restart'}</p><div class="button-row"><a class="button" href="${esc(u(`${target}${offer.n}`))}">Run on this machine</a><a class="text-link" href="https://github.com/fabrig-ai/fabrig/blob/main/temper/docs/help/server.md">Or connect your deployment</a></div></section>` : `<section class="card card-pad"><h3>Forgejo on this machine</h3><p>A forge of your own, run by temper box. No account needed: temper makes your first repository, and you start in it.</p><p class="muted tiny">${offer.box ? 'Here · about a minute' : 'Needs four commands and a restart'}</p><a class="button" href="${esc(u(`${target}${offer.n}`))}">Choose</a></section>`) : ''}${admin}${target.startsWith('welcome') ? '' : `<section class="card card-pad"><h3>A Forgejo elsewhere</h3><p>Your own Forgejo server. temper connects as its admin, or with its bot’s tokens.</p><p class="muted tiny">Needs a change to temper’s configuration and a restart</p><a class="button" href="${esc(u(`${target}elsewhere`))}">Show how</a></section>`}</div>`;
   }
 
   // The welcome (client README, 3.5): over, its link opens Chats in its
@@ -1696,7 +1696,7 @@
       const chosen = world.forges.find(f => String(f.n) === which && f.mode !== 'fake');
       const next = Math.max(...world.forges.map(f => f.n)) + 1;
       const details = which === 'elsewhere' ? elsewhereHow(next) : (chosen?.kind === 'GitHub' || chosen?.admin) ? flowCard(chosen, 'welcome') : chosen ? ownedForm(chosen, 'welcome.html?at=model&world=first-run-real&step=2') : '';
-      content = `<h2>Connect a forge</h2><p class="muted welcome-lead">Where your code lives: you file issues, agents push and land code.</p>${which ? flowWrap(details) : forgeChoices('welcome.html?at=forge&forge=')}${foot}`;
+      content = `<h2>Connect a forge</h2><p class="muted welcome-lead">Where your code lives: you tell temper what you want, agents push and land code.</p>${which ? flowWrap(details) : forgeChoices('welcome.html?at=forge&forge=')}${foot}`;
     } else if (current === 'model') {
       // The forge's line, so that Model says what Forge did: under way,
       // with its steps, or done, ticked, with its first repository.
@@ -1879,8 +1879,8 @@
   // ---- Signing in -----------------------------------------------------
 
   // The stock sign-in page, the same for every deployment whose people
-  // sign in with Google, in the world google-sign-in (draft sign-in.md,
-  // sections 4 to 6): the client's signed-out main in the browser, the
+  // sign in with Google, in the world google-sign-in (protocol/sign-in.md,
+  // sections 4 and 9): the client's signed-out main in the browser, the
   // client's Authorize place for Forgejo, and the pages Google's return
   // route answers at each ending. `?state=` names an ending,
   // `?from=forgejo` an authorization of Forgejo's. Each says, in slate,
@@ -1909,8 +1909,8 @@
     const state = params.get('state');
     const fromForgejo = params.get('from') === 'forgejo';
     const where = (address, how) => `<p class="mock-url"><b>${esc(address)}</b>${how ? `<br>${how}` : ''}</p>`;
-    const googleMarkNote = ahead('Google', 'signing in with Google, through jig’s Mint: draft sign-in.md, section 4');
-    const providerNote = ahead('provider', 'temper as Forgejo’s OpenID provider: draft sign-in.md, section 5');
+    const googleMarkNote = ahead('Google', 'signing in with Google, through jig’s Mint: protocol/sign-in.md, section 4');
+    const providerNote = ahead('provider', 'temper as Forgejo’s OpenID provider: protocol/sign-in.md, section 9');
     const brand = '<p class="sign-in-brand"><svg viewBox="0 0 24 24" aria-hidden="true"><path fill="currentColor" d="M12 1.5c1.5 5.6 2.9 7 8.5 8.5-5.6 1.5-7 2.9-8.5 8.5C10.5 12.9 9.1 11.5 3.5 10 9.1 8.5 10.5 7.1 12 1.5Z"/><circle cx="18.5" cy="18.5" r="2" fill="currentColor"/></svg><span>temper</span></p>';
     const page = (address, how, body, after = '') => `<main class="sign-in-page">${where(address, how)}<section class="card sign-in-card">${brand}${body}</section>${after}</main>`;
     const authorize = `${site.origin}/oauth/authorize?client_id=forgejo&redirect_uri=https%3A%2F%2F${forgeHost}%2Fuser%2Foauth2%2Ftemper%2Fcallback&response_type=code&scope=openid+email+profile&state=Zk9x…&nonce=…`;
@@ -1922,7 +1922,7 @@
     const member = fact('Google: the ID token’s verified address', esc(site.member));
     const stranger = fact('Google: the ID token’s address', esc(site.stranger));
     const front = (under, then) => `<h1>Sign in</h1>${under}${ways(then)}`;
-    const variants = bare ? '' : `<section class="mock-variants" id="other-states"><h2>Other states, for reference</h2><p>Not steps of this world: the front page after Sign out (draft sign-in.md, section 6), each page Google’s return route answers instead of signing in (4.3), and Forgejo’s authorization refused (5.3).</p><ul class="sign-in-variants">${SIGN_IN_STATES.map(([s, what]) => `<li><a href="${esc(u(`sign-in.html?state=${s}`))}">${esc(what)}</a></li>`).join('')}</ul></section>`;
+    const variants = bare ? '' : `<section class="mock-variants" id="other-states"><h2>Other states, for reference</h2><p>Not steps of this world: the front page after Sign out (protocol/sign-in.md, 9.6), each page Google’s return route answers instead of signing in (4.3), and Forgejo’s authorization refused (9.3).</p><ul class="sign-in-variants">${SIGN_IN_STATES.map(([s, what]) => `<li><a href="${esc(u(`sign-in.html?state=${s}`))}">${esc(what)}</a></li>`).join('')}</ul></section>`;
 
     if (fromForgejo && world.signedIn) {
       return page(authorize, `From Forgejo’s “Sign in with temper”, or its route /user/oauth2/temper, which Open Forgejo ↗ opens. temper’s page, read by the client as its Authorize place: signed in, it sends jig’s Authorize, and replaces its address with Forgejo’s callback and the code. ${providerNote}`,
@@ -1940,7 +1940,7 @@
     switch (state) {
       case 'signed-out':
         return page(`${site.origin}/`, 'After Sign out: jig ended the sign-in and cleared its cookie. The client’s signed-out main, with a line of the page’s own for having signed out, and, while a forge signs its people in through temper, for that forge.',
-          front(`<p class="sign-in-notice">You signed out. ${forgeName} keeps its own sign-in: sign out there too. ${ahead('sign-out', 'no single sign-out: draft sign-in.md, section 6')}</p>`, '/'));
+          front(`<p class="sign-in-notice">You signed out. ${forgeName} keeps its own sign-in: sign out there too. ${ahead('sign-out', 'no single sign-out: protocol/sign-in.md, 9.6')}</p>`, '/'));
       case 'not-member':
         return page(returned('code=…&state=Rk2p…'), 'Google’s return: the state matched this browser’s cookie and the ID token checked, but its address is no member’s. Nothing is minted.',
           `<h1>${stranger} can’t sign in here</h1><p class="muted">Google signed you in, but no one here signs in with this address. Ask an owner to add it, or use the Google account they added.</p>${another}`);

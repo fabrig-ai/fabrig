@@ -7,6 +7,7 @@ use skein_fake_forge_github::{
 };
 use skein_fake_peers::forge::{Forge, Observation, Peer};
 use skein_fake_peers_tests as support;
+use skein_forge::github::plans::plan::Retention;
 use skein_forge::{
     api,
     github::{
@@ -20,12 +21,10 @@ use skein_forge::{
         request::Method,
     },
 };
+use skein_forge_connection::grow::Tail;
 use skein_io::kernel::{Complete, Done, Family, Fd, Op, Submit};
 use skein_json::tokenizer;
-use skein_lib::{
-    Env, Intake, List, Queue, ReplyTo, Secret, Time, Token, Wall, bytes,
-    stream::{Down, Up},
-};
+use skein_lib::{List, Queue, ReplyTo, Secret, Time, Token, Wall, bytes};
 use skein_shell::Host;
 use skein_sim::{Pid, Sim};
 use std::{cell::RefCell, rc::Rc};
@@ -157,31 +156,18 @@ impl Reply {
         mut decoder: github::decode::Decoder,
         bounds: &github::limits::Limits,
     ) -> (Vec<github::document::Row>, Document) {
-        let env = Env { now: Time::ZERO, wall: Wall::EPOCH, limits: bounds.json };
-        let mut tokenizer = tokenizer::Tokenizer::new(&bounds.json);
-        let mut above = Queue::with_capacity(1);
-        let mut below = Queue::with_capacity(1);
-        let mut intake = Intake::with_capacity(RESPONSE_BYTES);
-        intake.append(&self.body).expect("response fits intake");
+        let mut feed = tokenizer::Feed::new(&self.body, &bounds.json);
+        let mut request = tokenizer::Request::Next;
         let mut rows = Vec::new();
-        tokenizer::down(&mut tokenizer, &env, tokenizer::Request::Next, &mut above, &mut below);
-        for _ in 0..self.body.len().saturating_mul(8).saturating_add(64) {
-            if let Some(event) = above.pop() {
-                let (request, step) = decoder.step(event);
-                match step {
-                    github::decode::Step::Demand => {}
-                    github::decode::Step::Row(row) => rows.push(row),
-                    github::decode::Step::Done(doc) => return (rows, doc),
-                    github::decode::Step::Malformed(_) => panic!("response document must decode"),
-                }
-                tokenizer::down(&mut tokenizer, &env, request, &mut above, &mut below);
-            } else {
-                let Down::Demand { read, .. } = below.pop().expect("JSON input demand") else {
-                    panic!("JSON reads only")
-                };
-                let up = intake.meet(read).map_or(Up::End, Up::Bytes);
-                tokenizer::up(&mut tokenizer, &env, up, &mut above, &mut below);
+        for _answer in 0..=self.body.len() {
+            let (next, step) = decoder.step(feed.answer(request));
+            match step {
+                github::decode::Step::Demand => {}
+                github::decode::Step::Row(row) => rows.push(row),
+                github::decode::Step::Done(doc) => return (rows, doc),
+                github::decode::Step::Malformed(_) => panic!("response document must decode"),
             }
+            request = next;
         }
         panic!("response decoding settles")
     }
@@ -403,23 +389,7 @@ impl World {
                     }
                     events
                 }
-                Step::Redirect { redirect, retention } => {
-                    let address = self.github.blob_address().expect("bound blob origin");
-                    assert_eq!(redirect.origin.port, address.port());
-                    assert!(!redirect.origin.tls);
-                    assert_eq!(redirect.origin.host.as_ref(), address.ip().to_string().as_bytes());
-                    let response = self.fetch_blob(&redirect.target, false);
-                    assert_eq!(response.status, 200);
-                    let github::plans::plan::Retention::Tail { bytes } = retention else {
-                        panic!("job log retains tail")
-                    };
-                    let cap = usize::try_from(bytes).expect("u32 fits usize");
-                    let start = response.body.len().saturating_sub(cap);
-                    vec![
-                        Heard::Head { status: response.status, head: github::header::Head::new() },
-                        Heard::Done(Body::Raw { bytes: f::boxed(&response.body[start..]), more: start != 0 }),
-                    ]
-                }
+                Step::Redirect { redirect, retention } => self.job_log_events(&redirect, retention),
             };
             let mut next = None;
             for event in events {
@@ -431,6 +401,25 @@ impl World {
             step = next.expect("exchange advances plan");
         }
         panic!("bounded plan settles")
+    }
+    fn job_log_events(&mut self, redirect: &github::redirect::Redirect, retention: Retention) -> Vec<Heard> {
+        let address = self.github.blob_address().expect("bound blob origin");
+        assert_eq!(redirect.origin.port, address.port());
+        assert!(!redirect.origin.tls);
+        assert_eq!(redirect.origin.host.as_ref(), address.ip().to_string().as_bytes());
+        let response = self.fetch_blob(&redirect.target, false);
+        assert_eq!(response.status, 200);
+        let mut tail = match retention {
+            Retention::Tail { bytes } => Tail::new(bytes, bytes),
+            Retention::FailedStep { bytes } => Tail::failed_step(bytes, bytes),
+            Retention::Head { .. } | Retention::Whole { .. } => panic!("job log retains a suffix"),
+        };
+        tail.write(&response.body);
+        let more = tail.dropped();
+        vec![
+            Heard::Head { status: response.status, head: github::header::Head::new() },
+            Heard::Done(Body::Raw { bytes: tail.finish(), more }),
+        ]
     }
     fn settle(&mut self) {
         self.github.shutdown();

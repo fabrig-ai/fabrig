@@ -15,6 +15,7 @@ mod server;
 mod service;
 pub mod setup;
 pub mod tally;
+mod zip;
 pub use server::{Event, Server, close, closed, down, resume, resume_with_domain, start, up, up_with_domain};
 pub use service::{Error, Service, valid};
 pub use tally::{Route, Tally, route};

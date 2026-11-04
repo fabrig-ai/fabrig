@@ -41,7 +41,7 @@ pub(crate) fn parse(
     grants.into_boxed()
 }
 fn grant(document: &Document, at: u32, path: &Path, problems: &mut Problems) -> Option<ActGrant> {
-    let mut object = check::object(document, at, path, problems)?;
+    let mut object = check::object(document, at, path, problems, "act")?;
     let connector = check::short(&mut object, document, b"connector", path, problems);
     let items = check::list(&mut object, document, b"may", document.len(), path, problems);
     object.finish(document, path, problems);

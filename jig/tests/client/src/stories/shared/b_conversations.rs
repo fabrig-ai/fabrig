@@ -10,7 +10,18 @@ use skein_world::domain::Verdict;
 pub const WAIT: Duration = Duration::from_secs(2);
 pub const PARTY: u64 = 1;
 pub const CHAT: u64 = 1;
+const OTHER_MEMBER: u64 = 3;
+/// The profile's two sign-ins plus both seeded conversation sessions.
+pub const CHAT_SIGN_INS: u32 = 4;
 
+fn chat_order<F: Front<Test>>(world: &World<Test, F>, client: ClientId) -> Vec<u64> {
+    world
+        .tree(client)
+        .nodes()
+        .iter()
+        .filter_map(|node| node.key.filter(|key| key.kind == 20).map(|key| key.a))
+        .collect()
+}
 pub fn finish<F: Front<Test>>(world: &mut World<Test, F>) {
     let outcome = world.run(Until::Done);
     assert_eq!(outcome.verdict, Verdict::Passed, "{outcome:?}");
@@ -80,15 +91,7 @@ pub fn a_reload_with_requests_pending_sends_them_again_under_their_keys<F: Front
     world.go(client, crate::stories::conversation());
     world.person(client, vec![Step::See { find: Find::text(b"Second chat"), within: WAIT }]);
     finish(world);
-    assert_eq!(
-        world
-            .tree(client)
-            .nodes()
-            .iter()
-            .filter(|node| node.key.is_some_and(|key| key.kind == 20 && key.a == 2))
-            .count(),
-        1
-    );
+    assert_eq!(chat_order(world, client).into_iter().filter(|task| *task == 2).count(), 1);
 }
 pub fn a_dropped_watch_shows_the_page_behind_until_it_reopens<F: Front<Test>>(world: &mut World<Test, F>) {
     let client = ready(world);
@@ -130,13 +133,30 @@ pub fn the_conversations_section_lists_live_chats_by_last_activity<F: Front<Test
         ],
     );
     finish(world);
-    let tasks: Vec<_> = world
-        .tree(client)
-        .nodes()
-        .iter()
-        .filter_map(|node| node.key.filter(|key| key.kind == 20).map(|key| key.a))
-        .collect();
-    assert_eq!(tasks, vec![2, CHAT]);
+    assert_eq!(chat_order(world, client), vec![2, CHAT]);
+}
+/// Another member's chat is not in this person's list.
+pub fn a_person_s_chats_are_their_own<F: Front<Test>>(world: &mut World<Test, F>) {
+    world.seed(Seed::ChatProject { party: PARTY, project: 1 });
+    world.seed(Seed::Conversation { party: PARTY, project: 1, words: b"Hello".as_slice().into() });
+    world.seed(Seed::ChatProject { party: OTHER_MEMBER, project: 1 });
+    world.seed(Seed::Conversation {
+        party: OTHER_MEMBER,
+        project: 1,
+        words: b"Another member's chat".as_slice().into(),
+    });
+    let client = world.client(PARTY, crate::stories::conversation());
+    world.person(client, sign_in(vec![Step::See { find: Find::named(Role::Link, b"Hello"), within: WAIT }]));
+    finish(world);
+    world.person(
+        client,
+        vec![
+            Step::Go { address: crate::stories::conversation() },
+            Step::See { find: Find::named(Role::Link, b"Hello"), within: WAIT },
+        ],
+    );
+    finish(world);
+    assert_eq!(chat_order(world, client), vec![CHAT]);
 }
 pub fn a_person_s_chats_list_live_then_ended_by_last_activity<F: Front<Test>>(world: &mut World<Test, F>) {
     let client = ready(world);
@@ -157,6 +177,40 @@ pub fn a_person_s_chats_list_live_then_ended_by_last_activity<F: Front<Test>>(wo
         ],
     );
     finish(world);
+}
+/// The newest ending first: `QueryOrder::Ended`.
+pub fn a_person_s_ended_chats_list_the_last_ended_first<F: Front<Test>>(world: &mut World<Test, F>) {
+    let client = ready(world);
+    start_chat(world, client, b"Second chat");
+    for (task, title) in [(CHAT, b"Hello".as_slice()), (2, b"Second chat".as_slice())] {
+        world.person(
+            client,
+            vec![
+                Step::Go { address: Address::Jig(Page::Task { task, section: TaskSection::Activity }) },
+                Step::See { find: Find::text(title), within: WAIT },
+                Step::Press { find: Find::exactly_named(Role::Button, b"Cancel") },
+                Step::Type {
+                    find: Find::named(Role::TextArea, b"Your reason"),
+                    words: b"Done chatting".as_slice().into(),
+                },
+                Step::Press { find: Find::exactly_named(Role::Button, b"Confirm") },
+                Step::See { find: Find::text(b"Ended"), within: WAIT },
+            ],
+        );
+        finish(world);
+    }
+    world.person(
+        client,
+        vec![
+            Step::Go { address: crate::stories::conversation() },
+            Step::See { find: Find::named(Role::Button, b"Read earlier"), within: WAIT },
+            Step::Press { find: Find::named(Role::Button, b"Read earlier") },
+            Step::See { find: Find::named(Role::Link, b"Second chat"), within: WAIT },
+            Step::See { find: Find::named(Role::Link, b"Hello"), within: WAIT },
+        ],
+    );
+    finish(world);
+    assert_eq!(chat_order(world, client), vec![2, CHAT]);
 }
 pub fn an_engine_outside_the_client_s_versions_shows_out_of_date<F: Front<Test>>(world: &mut World<Test, F>) {
     let client = ready(world);

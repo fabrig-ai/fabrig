@@ -1,4 +1,4 @@
-//! Supplied accounts and the playground model (temper/docs/design/draft/playground-reset.md, 6.1 and 6.4).
+//! Supplied accounts and the playground model (temper/docs/design/client/README.md, 3.5 and 4.8).
 use crate::{
     accounts::{
         Bindings, Meaning,
@@ -579,9 +579,7 @@ pub(super) fn outcome(
             } else {
                 words::say(w, W::OpenSignIn, &[])
             };
-            let bytes = u64::try_from(label.len())
-                .expect("word length fits")
-                .saturating_add(u64::try_from(address.len()).expect("address length fits"));
+            let bytes = skein_lib::len_u64(label.len()).saturating_add(skein_lib::len_u64(address.len()));
             if bytes <= u64::from(text_per_node) {
                 b.open(Role::Link);
                 if root.pages().connect_model().is_some() {
@@ -593,14 +591,7 @@ pub(super) fn outcome(
                 b.close();
             } else {
                 b.open(Role::Alert);
-                b.text(
-                    Run::Plain,
-                    &words::say(
-                        w,
-                        W::AddressLong,
-                        &[Hole::Number(u64::try_from(address.len()).expect("address length fits"))],
-                    ),
-                );
+                b.text(Run::Plain, &words::say(w, W::AddressLong, &[Hole::Number(skein_lib::len_u64(address.len()))]));
                 b.close();
             }
         } else {

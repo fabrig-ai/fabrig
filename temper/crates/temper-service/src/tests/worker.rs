@@ -367,11 +367,7 @@ fn start_and_renewal_require_the_declared_form_and_live_generation() {
     use jig_protocol_accounts::table::{Scheme, Table, Value};
     use smith_host_domain as smith;
     let agent = fixtures::worker_agent();
-    let forms = [
-        smith::Form::Credential(smith::Scheme::Bearer),
-        smith::Form::Credential(smith::Scheme::Key),
-        smith::Form::Withdrawn,
-    ];
+    let forms = [smith::Form::Credential(smith::Scheme::Bearer), smith::Form::Credential(smith::Scheme::Key)];
     for (scheme, expected) in [(Scheme::Bearer, forms[0]), (Scheme::Key, forms[1])] {
         let mut table = Table::new(1, 64);
         for generation in [2, 3] {
@@ -920,7 +916,7 @@ fn refusal_note(reason: crate::Refusal) -> crate::Note {
 #[test]
 fn worker_preparation_accepts_large_representable_io_edges() {
     let mut settings = fixtures::worker_settings();
-    settings.jig.limits.io.sockets = 1 << 28_u32;
+    settings.jig.limits.io.sockets = (1 << 24_u32) - 1;
     settings.jig.limits.io.sends = u32::MAX;
     worker_settings::prepare(&settings, &fixtures::worker_agent(), &fixtures::worker_limits()).unwrap();
 }

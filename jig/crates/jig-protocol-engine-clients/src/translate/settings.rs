@@ -38,10 +38,15 @@ pub fn setting(value: &w::Setting) -> s::Setting {
         w::Setting::Template(v) => s::Setting::Template(v.number()),
         w::Setting::Policy(v) => s::Setting::Policy(v.number()),
         w::Setting::Rules => s::Setting::Rules,
+        w::Setting::ProjectPolicy(v) => s::Setting::ProjectPolicy { project: v.project() },
+        w::Setting::Application(v) => s::Setting::Application { kind: v.kind(), scope: v.scope(), number: v.number() },
     }
 }
 pub fn name(value: s::Setting, limits: &w::Limits) -> Result<w::Setting, w::Problem> {
     Ok(match value {
+        jig_domain_people::Setting::ProjectPolicy { project } => {
+            w::Setting::ProjectPolicy(w::ProjectPolicySetting::new(limits, w::ProjectPolicySettingParts { project })?)
+        }
         s::Setting::Charter(number) => {
             w::Setting::Charter(w::SettingNumber::new(limits, w::SettingNumberParts { number })?)
         }
@@ -52,6 +57,10 @@ pub fn name(value: s::Setting, limits: &w::Limits) -> Result<w::Setting, w::Prob
             w::Setting::Policy(w::SettingNumber::new(limits, w::SettingNumberParts { number })?)
         }
         s::Setting::Rules => w::Setting::Rules,
+        s::Setting::Application { kind, scope, number } => w::Setting::Application(w::ApplicationSetting::new(
+            limits,
+            w::ApplicationSettingParts { kind, scope, number },
+        )?),
     })
 }
 pub fn head(value: &s::Head, limits: &w::Limits) -> Result<w::RevisionHead, w::Problem> {
@@ -95,6 +104,10 @@ pub fn document(value: &d::Settings, limits: &w::Limits) -> Result<w::SettingsDo
                         d::Follows::Change => w::SettingFollows::Change,
                     },
                     last: line.last,
+                    application: match &line.application {
+                        Some(v) => Some(application_state(v, limits)?),
+                        None => None,
+                    },
                 },
             )?)
             .expect("settings line count");
@@ -149,9 +162,28 @@ fn charter(value: &core::Charter, limits: &w::Limits) -> Result<w::Charter, w::P
     for row in &policy.alternatives {
         alternatives.push(model(row, limits)?).expect("model count");
     }
+    let mut documents = List::with_capacity(super::count(value.documents.len())?);
+    for item in &value.documents {
+        let mut name = List::with_capacity(super::count(item.name.segments.len())?);
+        for segment in &item.name.segments {
+            name.push(segment.clone()).expect("segment count");
+        }
+        documents
+            .push(w::CharterDocument::new(
+                limits,
+                w::CharterDocumentParts {
+                    connector: item.connector,
+                    name,
+                    path: item.path.clone(),
+                    heading: item.heading.clone(),
+                },
+            )?)
+            .expect("document count");
+    }
     w::Charter::new(
         limits,
         w::CharterParts {
+            documents,
             skein_bools: [policy.resume, policy.inspect, policy.modify, policy.shell, policy.agents],
             number: value.number,
             instructions: policy.instructions.clone(),
@@ -163,12 +195,14 @@ fn charter(value: &core::Charter, limits: &w::Limits) -> Result<w::Charter, w::P
             model: model(&policy.model, limits)?,
             alternatives,
             call_timeout: policy.call_timeout,
+            tools: policy.tools.0,
             hosts: match value.hosts {
                 jig_domain_fleet::Kinds::Workers => w::SettingHosts::Workers,
                 jig_domain_fleet::Kinds::Engine => w::SettingHosts::Engine,
                 jig_domain_fleet::Kinds::Both => w::SettingHosts::Both,
             },
             spend: value.spend,
+            wake: owner::wake(value.wake, limits)?,
         },
     )
 }
@@ -304,6 +338,10 @@ pub fn value(value: &s::Value, models: &[crate::Model], limits: &w::Limits) -> R
         s::Value::Template(v) => w::SettingValue::Template(Box::new(me::template(v, models, limits)?)),
         s::Value::Policy(v) => w::SettingValue::Policy(Box::new(policy(v, models, limits)?)),
         s::Value::Rules(v) => w::SettingValue::Rules(Box::new(rules(v, models, limits)?)),
+        s::Value::Application(bytes) => w::SettingValue::Application(w::ApplicationValue::new(
+            limits,
+            w::ApplicationValueParts { bytes: bytes.clone() },
+        )?),
     })
 }
 pub fn setting_document(
@@ -316,7 +354,18 @@ pub fn setting_document(
         w::SettingDocumentParts {
             setting: name(v.setting, limits)?,
             revision: v.revision,
-            value: value(&v.value, models, limits)?,
+            value: match &v.value {
+                Some(v) => Some(value(v, models, limits)?),
+                None => None,
+            },
+            application: match &v.application {
+                Some(v) => Some(application_state(v, limits)?),
+                None => None,
+            },
+            proposed: match &v.proposed {
+                Some(v) => Some(sized_edit(v, limits)?),
+                None => None,
+            },
         },
     )
 }
@@ -332,7 +381,9 @@ pub fn revision(
             w::RevisionForgottenParts { oldest: *oldest },
         )?),
         reads::RevisionAnswer::Revision { revision, value_bytes } => {
-            let mut pieces = List::with_capacity(super::count(revision.items.len())?);
+            let mut pieces = List::with_capacity(super::count(
+                revision.items.len().checked_add(revision.applications.len()).expect("bounded revision items"),
+            )?);
             for item in &revision.items {
                 let edit = match &item.edit {
                     s::Edit::Set(v) => {
@@ -347,11 +398,35 @@ pub fn revision(
                     s::Edit::Removed => w::RevisionEdit::Removed,
                     s::Edit::Reset => w::RevisionEdit::Reset,
                 };
-                let item =
-                    w::RevisionItem::new(limits, w::RevisionItemParts { setting: name(item.setting, limits)?, edit })?;
+                let item = w::RevisionItem::new(
+                    limits,
+                    w::RevisionItemParts {
+                        setting: name(item.setting, limits)?,
+                        edit,
+                        replaced: replaced(&item.replaced, *value_bytes, models, limits)?,
+                    },
+                )?;
                 let mut out = Writer::new(skein_lib::length::usize_of(item.measure()));
                 item.encode(&mut out).expect("measured item");
                 pieces.push(out.finish()).expect("item count");
+            }
+            for item in &revision.applications {
+                let setting = s::Setting::Application { kind: item.kind, scope: item.scope, number: item.number };
+                let edit = w::RevisionEdit::Application(w::ApplicationEdit::new(
+                    limits,
+                    w::ApplicationEditParts { edit: sized_edit(&item.edit, limits)? },
+                )?);
+                let row = w::RevisionItem::new(
+                    limits,
+                    w::RevisionItemParts {
+                        setting: name(setting, limits)?,
+                        edit,
+                        replaced: application_replaced(&item.replaced, limits)?,
+                    },
+                )?;
+                let mut out = Writer::new(skein_lib::length::usize_of(row.measure()));
+                row.encode(&mut out).expect("measured application item");
+                pieces.push(out.finish()).expect("application item count");
             }
             w::RevisionAnswer::Revision(w::RevisionDocument::new(
                 limits,
@@ -455,6 +530,19 @@ pub(crate) fn review(
                     None => w::SettingOrigin::NotOffered,
                 },
                 would_be: review_value(item.would_be.as_ref(), v.value_bytes, models, limits)?,
+                application: match &item.application {
+                    Some(v) => Some(w::ApplicationReview::new(
+                        limits,
+                        w::ApplicationReviewParts {
+                            edit: sized_edit(&v.edit, limits)?,
+                            now: match &v.now {
+                                Some(v) => Some(application_state(v, limits)?),
+                                None => None,
+                            },
+                        },
+                    )?),
+                    None => None,
+                },
             },
         )?;
         used = used
@@ -473,9 +561,69 @@ pub(crate) fn review(
     w::SettingsReview::new(
         limits,
         w::SettingsReviewParts {
+            key: v.key,
             newest: v.newest,
             items: super::pieces(&pieces, limits.settings_review_items, w::Path::SettingsReviewItems)?,
             cut,
         },
     )
+}
+
+fn application_state(v: &s::application::State, limits: &w::Limits) -> Result<w::ApplicationState, w::Problem> {
+    let follows =
+        match v.follows {
+            s::application::Follows::Default => w::ApplicationFollows::Default,
+            s::application::Follows::Changed { revision } => w::ApplicationFollows::Changed(
+                w::ApplicationRevision::new(limits, w::ApplicationRevisionParts { revision })?,
+            ),
+            s::application::Follows::Removed { revision } => w::ApplicationFollows::Removed(
+                w::ApplicationRevision::new(limits, w::ApplicationRevisionParts { revision })?,
+            ),
+        };
+    let mut charters = List::with_capacity(super::count(v.charters.len())?);
+    for &number in &v.charters {
+        charters.push(number).expect("charter count");
+    }
+    w::ApplicationState::new(limits, w::ApplicationStateParts { follows, size: v.size, charters })
+}
+fn sized_edit(v: &s::application::SizedEdit, limits: &w::Limits) -> Result<w::SizedEdit, w::Problem> {
+    Ok(match v {
+        s::application::SizedEdit::Set { size } => {
+            w::SizedEdit::Set(w::ApplicationSize::new(limits, w::ApplicationSizeParts { size: *size })?)
+        }
+        s::application::SizedEdit::Remove => w::SizedEdit::Remove,
+        s::application::SizedEdit::Reset => w::SizedEdit::Reset,
+    })
+}
+
+fn replaced(
+    v: &s::Replaced,
+    value_bytes: u64,
+    models: &[crate::Model],
+    limits: &w::Limits,
+) -> Result<w::RevisionReplaced, w::Problem> {
+    Ok(match v {
+        s::Replaced::Value(v) => {
+            let value = value(v, models, limits)?;
+            let bytes = u64::from(value.measure());
+            if bytes > value_bytes.min(u64::from(limits.owned_record)) {
+                w::RevisionReplaced::TooLarge(w::Size::new(limits, w::SizeParts { bytes })?)
+            } else {
+                w::RevisionReplaced::Value(w::SettingSet::new(limits, w::SettingSetParts { value })?)
+            }
+        }
+        s::Replaced::Default => w::RevisionReplaced::Default,
+        s::Replaced::Removed => w::RevisionReplaced::Removed,
+        s::Replaced::NotOffered => w::RevisionReplaced::NotOffered,
+    })
+}
+fn application_replaced(v: &s::application::Replaced, limits: &w::Limits) -> Result<w::RevisionReplaced, w::Problem> {
+    Ok(match v {
+        s::application::Replaced::Changed { size } => {
+            w::RevisionReplaced::Application(w::ApplicationSize::new(limits, w::ApplicationSizeParts { size: *size })?)
+        }
+        s::application::Replaced::Default => w::RevisionReplaced::Default,
+        s::application::Replaced::Removed => w::RevisionReplaced::Removed,
+        s::application::Replaced::NotOffered => w::RevisionReplaced::NotOffered,
+    })
 }

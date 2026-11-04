@@ -343,7 +343,7 @@ mod tests {
     use super::*;
     use alloc::vec::Vec;
 
-    /// `body` through the client's encoder, as the Codex route sends it.
+    /// `body` through the client's encoder, as the Responses route sends it.
     fn encoded(body: &[u8]) -> Vec<u8> {
         let mut member = vec![0; skein_http::gzip::bound(body.len()).expect("a bounded body")];
         let length = skein_http::gzip::encode(body, &mut member).expect("room for the member");

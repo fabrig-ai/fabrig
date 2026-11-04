@@ -11,6 +11,7 @@ mod admission;
 #[path = "../support/admission.rs"]
 mod admission_support;
 mod application_documents;
+mod application_settings;
 #[path = "../support/bundle.rs"]
 mod bundle;
 mod charters;
@@ -36,6 +37,7 @@ mod funding;
 mod host_tools;
 mod inbox_selection_memory;
 mod instructions;
+mod jobs;
 mod joint_clock;
 mod memory;
 mod operations;
@@ -44,6 +46,7 @@ mod orders;
 mod parties;
 mod peers;
 mod placed_holds;
+mod procedure_seeds;
 mod procedure_steps;
 mod projections;
 mod projects;
@@ -58,9 +61,11 @@ mod run_positions;
 mod runs;
 mod settings;
 mod settings_memory;
+mod settings_project_policy;
 mod settings_proposal_edges;
 mod settings_proposals;
 mod settings_reads;
+mod settings_restore;
 mod simulation;
 mod start;
 mod start_connectors;
@@ -89,3 +94,5 @@ mod fuzzy {
 
 #[path = "../support/reads.rs"]
 mod read_support;
+
+mod public;

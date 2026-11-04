@@ -75,6 +75,8 @@ pub enum Scope {
     SettingsHistory { first: u32, last: u32, newest: u32, whole: bool },
     /// A task query's live group and its indexed ended group.
     Tasks { query: documents::TaskQuery },
+    /// Source text from a live or retained task, in bounded byte chunks.
+    TaskText { task: u64, field: super::TaskTextField, from: u64 },
     /// One retained task.
     Task { task: u64 },
     /// One immutable proposal and its final routing.
@@ -160,6 +162,12 @@ pub enum Read {
     },
     /// The authenticated party's frame.
     Frame,
+    /// Source words with an explicit continuation byte offset.
+    TaskText {
+        task: u64,
+        field: super::TaskTextField,
+        from: u64,
+    },
     /// A task overview, live or ended.
     Task {
         task: u64,
@@ -421,6 +429,8 @@ pub enum EndedGroup {
 /// Exactly one terminal, held until its preceding decisions are durable.
 #[derive(Clone, PartialEq, Eq, Hash, Debug)]
 pub enum Answer {
+    /// One source text chunk.
+    TaskText(Box<super::TaskText>),
     Setting(Box<SettingDocument>),
     Revision(Box<RevisionAnswer>),
     Revisions(Box<RevisionsPage>),
@@ -599,12 +609,14 @@ pub(crate) fn row_bytes(row: &Row) -> Option<u64> {
     Some(total)
 }
 
-/// Whole newest value, read separately from the inventory.
+/// One setting's value, or an application setting's state and size (jig/docs/design/client/domain/contract.md, 6).
 #[derive(Clone, PartialEq, Eq, Hash, Debug)]
 pub struct SettingDocument {
     pub setting: crate::settings::Setting,
     pub revision: u32,
-    pub value: crate::settings::Value,
+    pub value: Option<crate::settings::Value>,
+    pub application: Option<crate::settings::application::State>,
+    pub proposed: Option<crate::settings::application::SizedEdit>,
 }
 /// Revision values leave through the protocol's single-value byte admission.
 #[derive(Clone, PartialEq, Eq, Hash, Debug)]

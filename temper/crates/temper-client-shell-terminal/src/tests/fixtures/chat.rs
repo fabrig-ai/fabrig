@@ -68,9 +68,9 @@ fn first_run_page(address: client::Address, landed: bool) -> skein_ui::Tree {
     for _ in 0..128 {
         let Some(request) = out.pop() else { break };
         let up = match request {
-            Request::Client {
+            Request::Unlinked {
                 request:
-                    jig_client::Request::Down {
+                    jig_client::UnlinkedRequest::Down {
                         down: jig_client::Down::Open { watch, subject: jig_client::Watchable::Family { record, .. } },
                     },
             } if temper_client_protocol_wire::decode_watching(&record.bytes, &wire_limits())
@@ -87,9 +87,9 @@ fn first_run_page(address: client::Address, landed: bool) -> skein_ui::Tree {
                     },
                 })
             }
-            Request::Client {
+            Request::Unlinked {
                 request:
-                    jig_client::Request::Down {
+                    jig_client::UnlinkedRequest::Down {
                         down: jig_client::Down::Open { watch, subject: jig_client::Watchable::Jig(subject) },
                     },
             } => {
@@ -109,9 +109,9 @@ fn first_run_page(address: client::Address, landed: bool) -> skein_ui::Tree {
                 let Some(delivery) = delivery else { continue };
                 Some(jig_client::Up::Watched { watch, event: c::WatchEvent::Delivered(delivery) })
             }
-            Request::Client {
+            Request::Unlinked {
                 request:
-                    jig_client::Request::Down {
+                    jig_client::UnlinkedRequest::Down {
                         down:
                             jig_client::Down::Read {
                                 read,
@@ -124,9 +124,9 @@ fn first_run_page(address: client::Address, landed: bool) -> skein_ui::Tree {
                     first_run::page(&delegation_activity(landed), before.as_ref(), limits.client.domain.rows),
                 )))),
             }),
-            Request::Client {
+            Request::Unlinked {
                 request:
-                    jig_client::Request::Down {
+                    jig_client::UnlinkedRequest::Down {
                         down: jig_client::Down::Read { read, what: jig_client::Readable::Family { record, .. } },
                     },
             } if landed
@@ -144,6 +144,7 @@ fn first_run_page(address: client::Address, landed: bool) -> skein_ui::Tree {
                 })
             }
             Request::Client { .. }
+            | Request::Unlinked { .. }
             | Request::Show { .. }
             | Request::Leave { .. }
             | Request::SignOut

@@ -129,6 +129,7 @@ impl Words {
     /// Say the executor kind; its connector content belongs in a slot.
     pub fn executor(&self, b: &mut Builder, executor: ChipExecutor) {
         let phrase = match executor {
+            ChipExecutor::Job { kind } => return self.text(b, JigPhrase::Job, &[Hole::Number(u64::from(kind))]),
             ChipExecutor::Agent { .. } => JigPhrase::Agent,
             ChipExecutor::Procedure { .. } => JigPhrase::Procedure,
             ChipExecutor::Party { .. } => JigPhrase::Person,
@@ -139,6 +140,7 @@ impl Words {
     /// Say the complete requested goal executor, with only supplied numbers.
     pub fn goal_executor(&self, b: &mut Builder, executor: Executor) {
         match executor {
+            Executor::Job { kind } => self.text(b, JigPhrase::Job, &[Hole::Number(u64::from(kind))]),
             Executor::Agent { charter: number } => {
                 self.text(b, JigPhrase::Charter, &[Hole::Number(u64::from(number))]);
             }
@@ -269,6 +271,12 @@ impl Words {
     /// Say all durable outcomes, preserving who decided first and when.
     pub fn outcome(&self, b: &mut Builder, outcome: &Outcome) {
         match outcome {
+            Outcome::Restored { proposal, to, left_out } => {
+                self.text(b, JigPhrase::SettingsRestored, &[Hole::Number(*proposal), Hole::Number(u64::from(*to))]);
+                for setting in left_out {
+                    self.setting(b, setting);
+                }
+            }
             Outcome::MovedToNewest(value) => self.text(
                 b,
                 JigPhrase::MovedToNewest,

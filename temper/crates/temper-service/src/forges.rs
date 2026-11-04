@@ -1,4 +1,4 @@
-//! The forges this service serves, kept while it runs (temper/docs/design/draft/playground-reset.md, 3).
+//! The forges this service serves, kept while it runs (temper/docs/design/protocol/forge.md, 2.2).
 use crate::settings::Forge;
 use alloc::boxed::Box;
 use skein_lib::{List, Map};
@@ -6,17 +6,26 @@ use skein_lib::{List, Map};
 #[derive(Debug)]
 pub struct Forges {
     forges: Map<u16, Forge>,
+    // Record bots distinguish a login rewrite from an author change.
+    bots: Map<u16, temper_engine_domain_forge::Bot>,
 }
 
 impl Forges {
     #[must_use]
     pub const fn with_capacity(capacity: u32) -> Self {
-        Self { forges: Map::with_capacity(capacity) }
+        Self { forges: Map::with_capacity(capacity), bots: Map::with_capacity(capacity) }
     }
 
     #[must_use]
     pub fn get(&self, forge: u16) -> Option<&Forge> {
         self.forges.get(&forge)
+    }
+
+    pub(crate) fn bot_login(&self, forge: u16) -> Option<&[u8]> {
+        match self.bots.get(&forge) {
+            Some(bot) => Some(&bot.login),
+            None => None,
+        }
     }
 
     #[must_use]
@@ -68,6 +77,7 @@ impl Forges {
     }
 
     pub fn remove(&mut self, forge: u16) -> Option<Forge> {
+        self.bots.remove(&forge);
         self.forges.remove(&forge)
     }
 }
@@ -87,25 +97,57 @@ impl<'a> Iterator for Iter<'a> {
     }
 }
 
-/// Record-driven runtime membership (temper/docs/design/draft/playground-reset.md, 3).
-#[expect(clippy::disallowed_methods, reason = "the service protocol layer parses the record's API host")]
+/// Record-driven runtime membership (temper/docs/design/protocol/forge.md, 2.2).
 pub(crate) fn record(engine: &mut crate::engine::Engine, record: temper_engine_domain_forge::ForgeRecord) {
     if !engine.store.component.mark_durable() {
         engine.forge_records.pending.push(record);
         return;
     }
     let kept = record.clone();
-    let ip = match core::str::from_utf8(&record.place.api.host) {
-        Ok(host) => host.parse::<core::net::IpAddr>().ok(),
-        Err(_) => None,
+    let login_only = match engine.workers.forges.bots.get(&record.number) {
+        Some(bot) => bot.name == record.bot.name && bot.email == record.bot.email,
+        None => false,
     };
-    let api = match ip {
-        Some(ip) => jig_protocol_config::Address::Addr(skein_io::Addr::Ip(core::net::SocketAddr::new(
-            ip,
-            record.place.api.port,
-        ))),
-        None => jig_protocol_config::Address::Host { name: record.place.api.host, port: record.place.api.port },
-    };
+    let (forge, identity) = record_settings(engine, record);
+    if let Some(held) = engine.workers.forges.get(forge.number)
+        && held.kind == forge.kind
+        && held.mode == forge.mode
+        && held.api == forge.api
+        && held.transport == forge.transport
+        && held.git == forge.git
+        && held.web == forge.web
+        && held.app_read_only == forge.app_read_only
+        && held.git_program == forge.git_program
+        && (engine.values.tokens.same_identity(&identity) || login_only)
+    {
+        if !engine.values.tokens.same_identity(&identity) {
+            engine.values.tokens.keep(&identity, engine.forge.env.limits.installations);
+        }
+        engine.workers.forges.bots.insert(kept.number, kept.bot.clone()).expect("kept forge capacity");
+        if engine.setup.serves(forge.number) {
+            crate::setup::keep(engine, &kept);
+        }
+        return;
+    }
+    // A kept record replaces its previous runtime endpoint.
+    if engine.workers.forges.remove(kept.number).is_some() {
+        engine.forge.down(skein_forge_connection::Request::Remove { forge: kept.number });
+    }
+    if keep(engine, forge) {
+        engine.workers.forges.bots.insert(kept.number, kept.bot.clone()).expect("kept forge capacity");
+        engine.values.tokens.keep(&identity, engine.forge.env.limits.installations);
+        crate::setup::keep(engine, &kept);
+        if engine.forge_records.done() {
+            crate::forge::records::connect(engine, kept.number);
+        }
+    }
+}
+
+fn record_settings(
+    engine: &crate::engine::Engine,
+    record: temper_engine_domain_forge::ForgeRecord,
+) -> (Forge, crate::settings::Identity) {
+    let api = record_address(record.place.api.host, record.place.api.port);
     let (login, author) = match record.kind {
         temper_engine_domain_forge::Kind::Forgejo => {
             (record.bot.login, crate::settings::Author { name: record.bot.name, email: record.bot.email })
@@ -122,6 +164,10 @@ pub(crate) fn record(engine: &mut crate::engine::Engine, record: temper_engine_d
         author,
     };
     let forge = Forge {
+        log_origins: match engine.workers.forges.get(record.number) {
+            Some(forge) => forge.log_origins.clone(),
+            None => None,
+        },
         number: record.number,
         kind: match record.kind {
             temper_engine_domain_forge::Kind::Forgejo => crate::settings::Kind::Forgejo,
@@ -142,41 +188,23 @@ pub(crate) fn record(engine: &mut crate::engine::Engine, record: temper_engine_d
         app_read_only: record.read_only,
         identity: identity.number,
         user: 0,
-        api_token: None,
-        webhook_secret: None,
     };
-    if let Some(held) = engine.workers.forges.get(forge.number)
-        && held.kind == forge.kind
-        && held.mode == forge.mode
-        && held.api == forge.api
-        && held.transport == forge.transport
-        && held.git == forge.git
-        && held.web == forge.web
-        && held.app_read_only == forge.app_read_only
-        && held.git_program == forge.git_program
-        && engine.values.tokens.same_identity(&identity)
-    {
-        if engine.setup.serves(forge.number) {
-            crate::setup::keep(engine, &kept);
-        }
-        return;
-    }
-    // A kept record replaces its previous runtime endpoint.
-    engine.forge.file_access.remove(&record.number);
-    engine.forge.startup_access.remove(&record.number);
-    if engine.workers.forges.remove(record.number).is_some() {
-        engine.forge.down(skein_forge_connection::Request::Remove { forge: record.number });
-    }
-    if keep(engine, forge) {
-        engine.values.tokens.keep(&identity, engine.forge.env.limits.installations);
-        crate::setup::keep(engine, &kept);
-        if engine.forge_records.done() {
-            crate::forge::records::connect(engine, record.number);
-        }
+    (forge, identity)
+}
+
+#[expect(clippy::disallowed_methods, reason = "the service protocol layer parses the record's API host")]
+fn record_address(host: Box<[u8]>, port: u16) -> jig_protocol_config::Address {
+    let ip = match core::str::from_utf8(&host) {
+        Ok(host) => host.parse::<core::net::IpAddr>().ok(),
+        Err(_) => None,
+    };
+    match ip {
+        Some(ip) => jig_protocol_config::Address::Addr(skein_io::Addr::Ip(core::net::SocketAddr::new(ip, port))),
+        None => jig_protocol_config::Address::Host { name: host, port },
     }
 }
 
-/// A kept record admits its endpoint (playground-reset.md, 3).
+/// A kept record admits its endpoint (temper/docs/design/protocol/forge.md, 2.2).
 pub(crate) fn keep(engine: &mut crate::engine::Engine, forge: Forge) -> bool {
     let number = forge.number;
     let host = match &forge.api {
@@ -204,6 +232,7 @@ pub(crate) fn keep(engine: &mut crate::engine::Engine, forge: Forge) -> bool {
     }
     if let skein_io::Addr::Ip(address) = endpoint.address {
         engine.setup.resolved(crate::ForgeRuntime {
+            log_origins: endpoint.log_origins.clone(),
             number,
             address,
             transport: match &endpoint.transport {
@@ -283,8 +312,28 @@ pub(crate) fn endpoint(
         address: skein_io::Addr::Ip(address),
         transport,
         access: None,
-        log_origins: List::with_capacity(0),
+        log_origins: log_origins(engine, forge)?,
     })
+}
+
+fn log_origins(
+    engine: &crate::engine::Engine,
+    forge: &Forge,
+) -> Option<List<skein_forge_connection::settings::LogOrigin>> {
+    let origins = match &forge.log_origins {
+        Some(origins) => origins.clone(),
+        None => match forge.kind {
+            crate::settings::Kind::GitHub => match &engine.forge.github {
+                Some(github) => github.log_origins.clone(),
+                None => List::with_capacity(0),
+            },
+            crate::settings::Kind::Forgejo => List::with_capacity(0),
+        },
+    };
+    if origins.len() > engine.forge.log_origin_limit {
+        return None;
+    }
+    Some(origins)
 }
 
 #[cfg(test)]

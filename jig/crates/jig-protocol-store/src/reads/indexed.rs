@@ -42,7 +42,8 @@ fn owner_number(key: &core::Key) -> Result<u64, Failure> {
 fn selection(scope: &reads::Scope) -> Option<(reads::Group, reads::Filter)> {
     match scope {
         reads::Scope::Inbox { group, filter } => Some((*group, *filter)),
-        reads::Scope::Task { .. }
+        reads::Scope::TaskText { .. }
+        | reads::Scope::Task { .. }
         | reads::Scope::Proposal { .. }
         | reads::Scope::Escalation { .. }
         | reads::Scope::Question { .. }
@@ -66,7 +67,8 @@ fn selection(scope: &reads::Scope) -> Option<(reads::Group, reads::Filter)> {
 fn history_root(scope: &reads::Scope) -> Option<u64> {
     match scope {
         reads::Scope::History { task, subtree: true } => Some(*task),
-        reads::Scope::Task { .. }
+        reads::Scope::TaskText { .. }
+        | reads::Scope::Task { .. }
         | reads::Scope::Proposal { .. }
         | reads::Scope::Escalation { .. }
         | reads::Scope::Question { .. }
@@ -227,31 +229,64 @@ fn joined(
         spent.rows = spent.rows.checked_sub(1).ok_or(Failure::Cut)?;
         return Ok(None);
     };
-    let mut related = None;
-    let mut inbox = None;
     if let Some((_group, filter)) = selection {
-        if filter.project.is_some() && filter.project != Some(owner.project) {
-            spent.rows = spent.rows.checked_sub(1).ok_or(Failure::Cut)?;
-            return Ok(None);
-        }
-        let update = update(&value).ok_or(Failure::Corrupt)?;
-        let (object, at) = match update.object {
-            tasks::UpdateObject::Proposal { .. } => unreachable!("party proposal joined separately"),
-            tasks::UpdateObject::Result => {
-                (documents::InboxObject::Result { position: owner.result_position }, owner.ended_at)
-            }
-            tasks::UpdateObject::Reply { message, activity } => {
-                related = Some(core::Key::Tasks(tasks::Key::Activity { task: number, position: activity.value() }));
-                (documents::InboxObject::Reply { message: message.value() }, Some(update.at))
-            }
-        };
-        inbox = Some(documents::Cursor::Inbox { task: number, object, at });
+        return joined_inbox(store, range, value, &owner, filter, spent);
     }
+    let ended_read = ended_position(store, range, &owner, spent)?;
+    let mut row = joins::row(store, value, Some(&owner), None, spent)?;
+    row.ended_read = ended_read;
+    Ok(Some(row))
+}
+
+fn joined_inbox(
+    store: &mut Store,
+    range: &reads::Range,
+    value: core::Record,
+    owner: &tasks::TaskRecord,
+    filter: reads::Filter,
+    spent: &mut Spent,
+) -> Result<Option<reads::Row>, Failure> {
+    if filter.project.is_some() && filter.project != Some(owner.project) {
+        spent.rows = spent.rows.checked_sub(1).ok_or(Failure::Cut)?;
+        return Ok(None);
+    }
+    let number = owner.number;
+    let update = update(&value).ok_or(Failure::Corrupt)?;
+    let mut related = None;
+    let (object, at) = match update.object {
+        tasks::UpdateObject::Proposal { .. } => unreachable!("party proposal joined separately"),
+        tasks::UpdateObject::Result => {
+            (documents::InboxObject::Result { position: owner.result_position }, owner.ended_at)
+        }
+        tasks::UpdateObject::Reply { message, activity } => {
+            related = Some(core::Key::Tasks(tasks::Key::Activity { task: number, position: activity.value() }));
+            (documents::InboxObject::Reply { message: message.value() }, Some(update.at))
+        }
+    };
+    let ended_read = ended_position(store, range, owner, spent)?;
+    let mut row = joins::inbox_row(store, value, owner, related, spent)?;
+    row.ended_read = ended_read;
+    row.inbox = Some(documents::Cursor::Inbox { task: number, object, at });
+    if let Some(goal) = filter.goal
+        && number != goal
+        && !row.ancestors.contains(&goal)
+    {
+        return Ok(None);
+    }
+    Ok(Some(row))
+}
+
+fn ended_position(
+    store: &mut Store,
+    range: &reads::Range,
+    owner: &tasks::TaskRecord,
+    spent: &mut Spent,
+) -> Result<Option<u64>, Failure> {
     let position_party = match (&range.scope, owner.requester) {
         (reads::Scope::Tasks { .. }, tasks::Party::Person(requester)) => requester,
         _ => range.party,
     };
-    let ended_read = if owner.flags.conversation
+    if owner.flags.conversation
         && let tasks::Phase::Ended(_) = owner.phase
     {
         match joins::get(
@@ -259,23 +294,13 @@ fn joined(
             &core::Key::People(jig_domain_people::Key::EndedRead { task: owner.number, party: position_party }),
             spent,
         )? {
-            Some(core::Record::People(jig_domain_people::Stored::EndedRead { through, .. })) => Some(through),
-            Some(_) => return Err(Failure::Corrupt),
-            None => None,
+            Some(core::Record::People(jig_domain_people::Stored::EndedRead { through, .. })) => Ok(Some(through)),
+            Some(_) => Err(Failure::Corrupt),
+            None => Ok(None),
         }
     } else {
-        None
-    };
-    let mut row = joins::row(store, value, Some(&owner), related, spent)?;
-    row.ended_read = ended_read;
-    row.inbox = inbox;
-    if let Some((_group, reads::Filter { goal: Some(goal), .. })) = selection
-        && number != goal
-        && !row.ancestors.contains(&goal)
-    {
-        return Ok(None);
+        Ok(None)
     }
-    Ok(Some(row))
 }
 
 fn family(

@@ -370,6 +370,7 @@ pub(crate) fn identity(value: &ReadValue) -> Option<ObjectKey> {
         | ReadValue::Settings(_)
         | ReadValue::Setting(_)
         | ReadValue::Revision(_)
+        | ReadValue::TaskText(_)
         | ReadValue::Revisions(_)
         | ReadValue::Deployment(_) => None,
     }
@@ -398,6 +399,7 @@ fn document_project(value: &ReadValue) -> Option<u32> {
         | ReadValue::Settings(_)
         | ReadValue::Setting(_)
         | ReadValue::Revision(_)
+        | ReadValue::TaskText(_)
         | ReadValue::Revisions(_)
         | ReadValue::Deployment(_) => None,
     }

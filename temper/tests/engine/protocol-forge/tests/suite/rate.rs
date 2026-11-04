@@ -81,18 +81,19 @@ impl Scheduler {
                             self.due[index] = true;
                         }
                         other @ (change::Decision::None
+                        | change::Decision::CancelProducer
                         | change::Decision::Delegate(_)
                         | change::Decision::CancelGates { .. }
                         | change::Decision::Effect(_)
                         | change::Decision::Ready
                         | change::Decision::QueueRepair
                         | change::Decision::Finish { .. }
+                        | change::Decision::NoChange
                         | change::Decision::Cancel
-                        | change::Decision::Hold(_)) => {
-                            panic!("kept change must wait or acknowledge its reported head: {other:?}")
-                        }
+                        | change::Decision::Hold(_)) => panic!("kept change must wait: {other:?}"),
                     }
-                } else if let forge::Request::Refused { task } = request {
+                } else if let forge::Request::Refused { task } | forge::Request::ResourceRefused { task, .. } = request
+                {
                     panic!("fixture capacity must admit task {task}");
                 }
             }
@@ -107,9 +108,11 @@ impl Scheduler {
                         self.steps.push((world.wall(), 51 + u64::try_from(index).expect("task")));
                     }
                     world.event(forge::Event::StepChange {
+                        merge_job: false,
                         task: 51 + u64::try_from(index).expect("task index"),
                         entry: self.entry,
                         heard: change::Heard {
+                            start_conflict: None,
                             lacking: None,
                             spend: None,
                             delegate: change::Status::Unknown,
@@ -119,6 +122,7 @@ impl Scheduler {
                         },
                         gates: Box::new([]),
                         queue_repair_active: false,
+                        pending: Box::new([]),
                         kept: self.iterating,
                     });
                     self.entry += 1;
@@ -169,7 +173,7 @@ fn configured(count: usize, latency: u64) -> (Protocol, Scheduler) {
         world.event(forge::Event::Change { row });
         let name = branch_name(&branch);
         world.event(forge::Event::Names { task, resources: Box::new([name.clone(), branch_name(b"main")]) });
-        world.event(forge::Event::Hold { task, resource: name.clone(), from: None });
+        world.event(forge::Event::Hold { entry: 0, task, resource: name.clone(), from: None });
         world.event(forge::Event::Rename {
             task,
             resources: Box::new([
@@ -414,7 +418,7 @@ fn busy(moving: bool) {
             .filter_map(|(at, read, _)| matches!(read, skein_forge::api::Read::Branch { .. }).then_some(*at))
             .collect();
         assert_eq!(offered, issued, "one base-tip read per offered chain at its actual instant");
-        assert_eq!(exact.2, u64::try_from(offered.len()).expect("steps"));
+        assert_eq!(exact.2, skein_lib::len_u64(offered.len()));
         assert_eq!(exact.1 * 6, [36, 72, 162][count - 1]);
         assert_eq!(second.1, exact.1, "no additional cohort within one second");
         for (_, stored) in world.stored() {

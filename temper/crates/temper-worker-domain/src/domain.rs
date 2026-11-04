@@ -19,6 +19,7 @@ use jig_domain_host as host;
 use skein_lib::{Env, Id, Map, Queue, Slab, Time, Token};
 use smith_host_domain as agent;
 use temper_worker_domain_checkout as checkout;
+use temper_worker_domain_tooling as tooling;
 
 use crate::agents::{Bound, Call};
 use crate::boundary::{Event, Request};
@@ -36,6 +37,11 @@ pub struct Domain {
     pub(crate) host: host::Hub,
     pub(crate) checkout: checkout::Domain,
     pub(crate) agent: agent::Domain,
+    pub(crate) tooling: tooling::Domain,
+    /// Decoded job specs by the engine's run and attempt, until answered.
+    pub(crate) job_specs: Map<(Token, Token), crate::jobs::Spec>,
+    /// Owners whose job capability has not yet refused or gone.
+    pub(crate) jobs: Map<Token, Token>,
     /// The agents smith started, by their runs' tokens.
     pub(crate) agents: Map<Token, Bound>,
     /// The runs' calls in flight, by their runs' tokens and smith's callbacks.
@@ -62,6 +68,7 @@ pub struct Domain {
     pub(crate) host_out: Queue<host::Request>,
     pub(crate) checkout_out: Queue<checkout::Request>,
     pub(crate) agent_out: Queue<agent::Output>,
+    pub(crate) tooling_out: Queue<tooling::Request>,
     /// Told to shut down, and not stopped yet.
     pub(crate) stopping: bool,
     /// The channel to the engine has stayed down past the grace since it was
@@ -87,6 +94,7 @@ impl Domain {
             .len()
             .saturating_add(self.checkout_out.len())
             .saturating_add(self.agent_out.len())
+            .saturating_add(self.tooling_out.len())
             .saturating_add(self.pending.len())
     }
 
@@ -99,6 +107,9 @@ impl Domain {
             owners.insert(*owner).expect("one owner per hosted slot");
         }
         for (owner, _) in &self.agents {
+            owners.insert(*owner).expect("one owner per hosted slot");
+        }
+        for (owner, _) in &self.jobs {
             owners.insert(*owner).expect("one owner per hosted slot");
         }
         for pending in &self.pending {
@@ -123,8 +134,22 @@ impl Domain {
             // acknowledgement; answered slots are deliberately not obligations.
             let mut answered = skein_lib::Set::with_capacity(self.host.kept_answers());
             for index in 0..self.host.kept_answers() {
-                let Some(host::LinkUp::Answer { run, attempt, .. }) = self.host.answer_at(index) else {
-                    unreachable!("retained answer position");
+                let (run, attempt) = match self.host.answer_at(index) {
+                    Some(host::LinkUp::Answer { run, attempt, .. } | host::LinkUp::JobAnswer { run, attempt, .. }) => {
+                        (run, attempt)
+                    }
+                    Some(
+                        host::LinkUp::Piece { .. }
+                        | host::LinkUp::Logins { .. }
+                        | host::LinkUp::SignedOut { .. }
+                        | host::LinkUp::Activity { .. }
+                        | host::LinkUp::Unauthorized { .. }
+                        | host::LinkUp::Limited { .. }
+                        | host::LinkUp::AccountRefused { .. }
+                        | host::LinkUp::Turn { .. }
+                        | host::LinkUp::Call { .. },
+                    )
+                    | None => unreachable!("retained answer position"),
                 };
                 answered.insert((run, attempt)).expect("one answer per slot");
             }
@@ -143,15 +168,22 @@ impl Domain {
         runs
     }
 
-    /// A domain with room for `limits`, which [`crate::valid`] accepts.
+    /// A domain with room for `limits`, which [`crate::valid`] accepts, and
+    /// job kinds accepted by the tooling capability (temper/docs/design/domain/worker.md, 4.4).
+    ///
+    /// # Panics
+    /// Panics if the kinds do not fit the job capability's limits.
     #[must_use]
-    pub fn new(limits: &Limits) -> Domain {
+    pub fn new(limits: &Limits, kinds: Box<[tooling::Kind]>) -> Domain {
         let slots = limits.host.slots;
         let agents = limits.agent.agents;
         Domain {
             host: host::Hub::new(&limits.host),
             checkout: checkout::Domain::new(&limits.checkout),
             agent: agent::Domain::new(&limits.agent),
+            tooling: tooling::Domain::new(&limits.tooling, kinds).expect("the root's job kinds fit its limits"),
+            job_specs: Map::with_capacity(slots.saturating_add(1)),
+            jobs: Map::with_capacity(slots),
             agents: Map::with_capacity(agents),
             calls: Map::with_capacity(agents.checked_mul(limits.agent.calls).expect("valid accepted the calls")),
             pending: Queue::uncapped(),
@@ -164,6 +196,7 @@ impl Domain {
             host_out: Queue::uncapped(),
             checkout_out: Queue::uncapped(),
             agent_out: Queue::uncapped(),
+            tooling_out: Queue::uncapped(),
             stopping: false,
             past: false,
             facts_out: 0,
@@ -241,7 +274,11 @@ impl Domain {
 
     /// Shutting down, with no agent, hand-out or workspace left.
     fn settled(&self) -> bool {
-        self.stopping && self.agent.agents() == 0 && self.pending.is_empty() && self.workspaces.is_empty()
+        self.stopping
+            && self.agent.agents() == 0
+            && self.jobs.is_empty()
+            && self.pending.is_empty()
+            && self.workspaces.is_empty()
     }
 
     /// Settled, with no run left and every turn and answer acknowledged.

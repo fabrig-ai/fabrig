@@ -60,6 +60,7 @@ pub const TASKS_LIMITS: jig_domain_tasks::Limits = jig_domain_tasks::Limits {
     saved_resources: 2,
     contract_choices: 2,
     charters: 2,
+    charter_documents: 2,
     revisions: 4,
     versions: 8,
     authority_grants: 2,
@@ -111,6 +112,7 @@ pub const PEOPLE_LIMITS: people::Limits = people::Limits {
 };
 
 pub const CORE_LIMITS: core::Limits = core::Limits {
+    public: jig_domain_core::PublicIndexLimits::OFF,
     routes: 20_783,
     settings: core::settings::Limits {
         revisions: 4,
@@ -286,6 +288,7 @@ pub fn header(commits: u64) -> core::Record {
 #[must_use]
 pub fn live_task(number: u64) -> core::Record {
     core::Record::Tasks(tasks::Stored::Live(Box::new(tasks::TaskRecord {
+        started_from: Box::new([]),
         asked_requester: false,
         placed: None,
         settings: tasks::SettingsRevision { task: 1, run: None },
@@ -335,6 +338,7 @@ pub fn live_task(number: u64) -> core::Record {
         recurring: None,
         tracked: None,
         spec: tasks::Spec {
+            job: None,
             asks: false,
             words: Box::from(b"scripted task".as_slice()),
             parameters: Box::new([]),
@@ -375,6 +379,7 @@ pub fn live_task(number: u64) -> core::Record {
         tries: tasks::Tries { transient: 0, permanent: 0, run: 0, agent: 0, lost: 0, invalid: 0 },
         invalid_result: None,
         refusals: 0,
+        room_wait: None,
         phase: tasks::Phase::Active(tasks::Active::Running { attempt: 1 }),
     })))
 }

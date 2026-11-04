@@ -8,6 +8,9 @@ use skein_ui::phrases::{HoleKind, HoleShape, PhraseId, PhraseShape};
 pub enum JigPhrase {
     TooLinked,
     SettingsChanged,
+    SettingProjectPolicy,
+    SettingsRestored,
+    SettingsForgotten,
     MovedToNewest,
     SettingsStale,
     SettingsFull,
@@ -19,6 +22,8 @@ pub enum JigPhrase {
     SettingTemplate,
     SettingPolicy,
     SettingRules,
+    SettingApplication,
+    SettingFaultJudged,
     SettingFaultShape,
     SettingFaultCount,
     SettingFaultReference,
@@ -37,11 +42,6 @@ pub enum JigPhrase {
     NameDigits,
     EngineLimitProjects,
 
-    OpenProgramModel,
-    OpenProgramUnavailable,
-    OpenProgramChooseModel,
-    OpenProgramSource,
-    OpenProgramNoSwitch,
     RefusedWorkerAt,
     RefusedEngineAt,
     MalformedEndedBy,
@@ -277,6 +277,8 @@ pub enum JigPhrase {
     TasksMissing,
     /// Agent.
     Agent,
+    /// A job and its kind (0), jig/docs/design/client/domain/contract.md, 5.7.
+    Job,
     /// Procedure.
     Procedure,
     /// Person.
@@ -1075,6 +1077,9 @@ impl JigPhrase {
             Self::SettingsChanged => 7900,
             Self::MovedToNewest => 7919,
             Self::SettingsStale => 7901,
+            Self::SettingProjectPolicy => 7927,
+            Self::SettingsRestored => 7928,
+            Self::SettingsForgotten => 7929,
             Self::SettingsFull => 7902,
             Self::SettingsFullTask => 7903,
             Self::SettingsFullMore => 7904,
@@ -1084,6 +1089,8 @@ impl JigPhrase {
             Self::SettingTemplate => 7907,
             Self::SettingPolicy => 7908,
             Self::SettingRules => 7909,
+            Self::SettingApplication => 7925,
+            Self::SettingFaultJudged => 7926,
             Self::SettingFaultShape => 7910,
             Self::SettingFaultCount => 7911,
             Self::SettingFaultReference => 7912,
@@ -1100,11 +1107,6 @@ impl JigPhrase {
             Self::NameSpace => 7834,
             Self::NameDigits => 7835,
             Self::EngineLimitProjects => 7836,
-            Self::OpenProgramModel => 7816,
-            Self::OpenProgramUnavailable => 7817,
-            Self::OpenProgramChooseModel => 7818,
-            Self::OpenProgramSource => 7819,
-            Self::OpenProgramNoSwitch => 7820,
             Self::RefusedWorkerAt => 7821,
             Self::RefusedEngineAt => 7822,
             Self::MalformedEndedBy => 7823,
@@ -1288,6 +1290,7 @@ impl JigPhrase {
             Self::DeadlineMissing => 62,
             Self::TasksMissing => 63,
             Self::Agent => 64,
+            Self::Job => 7924,
             Self::Procedure => 65,
             Self::Person => 66,
             Self::RoleExecutor => 67,
@@ -1736,13 +1739,15 @@ impl JigPhrase {
                 HoleShape { kind: HoleKind::Number, bytes: 0 },
                 HoleShape { kind: HoleKind::Number, bytes: 0 },
             ]),
-            Self::PolicyJudge | Self::PolicyPermission | Self::SpecificationResource | Self::MovedToNewest => {
-                Box::new([
-                    HoleShape { kind: HoleKind::Number, bytes: 0 },
-                    HoleShape { kind: HoleKind::Number, bytes: 0 },
-                    HoleShape { kind: HoleKind::Number, bytes: 0 },
-                ])
-            }
+            Self::PolicyJudge
+            | Self::PolicyPermission
+            | Self::SpecificationResource
+            | Self::MovedToNewest
+            | Self::SettingApplication => Box::new([
+                HoleShape { kind: HoleKind::Number, bytes: 0 },
+                HoleShape { kind: HoleKind::Number, bytes: 0 },
+                HoleShape { kind: HoleKind::Number, bytes: 0 },
+            ]),
             Self::MalformedRunning
             | Self::SettingsUnchanged
             | Self::SettingRules
@@ -1753,10 +1758,7 @@ impl JigPhrase {
             | Self::SettingFaultBudget
             | Self::SettingFaultGrace
             | Self::SettingFaultOwner
-            | Self::OpenProgramModel
-            | Self::OpenProgramUnavailable
-            | Self::OpenProgramChooseModel
-            | Self::OpenProgramNoSwitch
+            | Self::SettingFaultJudged
             | Self::DependencyParked
             | Self::CircleHold
             | Self::CircleLifts
@@ -2175,7 +2177,9 @@ impl JigPhrase {
             | Self::ApprovalState
             | Self::TakenBy
             | Self::StalledOn => Box::new([HoleShape { kind: HoleKind::Name, bytes: text }]),
-            Self::SettingsChanged
+            Self::SettingProjectPolicy
+            | Self::SettingsForgotten
+            | Self::SettingsChanged
             | Self::SettingsStale
             | Self::SettingsFull
             | Self::SettingsFullTask
@@ -2289,6 +2293,7 @@ impl JigPhrase {
             | Self::LoadingDependency
             | Self::DelegateCancel
             | Self::DropDependency
+            | Self::Job
             | Self::Charter
             | Self::Priority
             | Self::Closing
@@ -2304,7 +2309,7 @@ impl JigPhrase {
             | Self::DependencyDone
             | Self::CircleWaitsFor
             | Self::ResultsThrough => Box::new([HoleShape { kind: HoleKind::Number, bytes: 0 }]),
-            Self::OpenProgramSource
+            Self::SettingsRestored
             | Self::PolicyEffect
             | Self::RunRetryFailed
             | Self::SpecificationNumber
@@ -2410,9 +2415,12 @@ impl JigPhrase {
     }
 }
 /// Every jig phrase; loading checks this whole contract.
-pub const ALL: [JigPhrase; 646] = [
+pub const ALL: [JigPhrase; 647] = [
     JigPhrase::TooLinked,
     JigPhrase::SettingsChanged,
+    JigPhrase::SettingProjectPolicy,
+    JigPhrase::SettingsRestored,
+    JigPhrase::SettingsForgotten,
     JigPhrase::MovedToNewest,
     JigPhrase::SettingsStale,
     JigPhrase::SettingsFull,
@@ -2424,6 +2432,8 @@ pub const ALL: [JigPhrase; 646] = [
     JigPhrase::SettingTemplate,
     JigPhrase::SettingPolicy,
     JigPhrase::SettingRules,
+    JigPhrase::SettingApplication,
+    JigPhrase::SettingFaultJudged,
     JigPhrase::SettingFaultShape,
     JigPhrase::SettingFaultCount,
     JigPhrase::SettingFaultReference,
@@ -2440,11 +2450,6 @@ pub const ALL: [JigPhrase; 646] = [
     JigPhrase::NameSpace,
     JigPhrase::NameDigits,
     JigPhrase::EngineLimitProjects,
-    JigPhrase::OpenProgramModel,
-    JigPhrase::OpenProgramUnavailable,
-    JigPhrase::OpenProgramChooseModel,
-    JigPhrase::OpenProgramSource,
-    JigPhrase::OpenProgramNoSwitch,
     JigPhrase::RefusedWorkerAt,
     JigPhrase::RefusedEngineAt,
     JigPhrase::MalformedEndedBy,
@@ -2627,6 +2632,7 @@ pub const ALL: [JigPhrase; 646] = [
     JigPhrase::DeadlineMissing,
     JigPhrase::TasksMissing,
     JigPhrase::Agent,
+    JigPhrase::Job,
     JigPhrase::Procedure,
     JigPhrase::Person,
     JigPhrase::RoleExecutor,

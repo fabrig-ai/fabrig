@@ -5,6 +5,9 @@ use skein_lib::{Duration, bytes};
 
 /// Replace one whole scalar limit. The composed reader checks the resulting profile.
 pub fn apply(limits: &mut Limits, name: &[u8], value: u64) -> Result<(), What> {
+    if crate::names::find(name).is_none() {
+        return Err(What::Override);
+    }
     let Limits { core, hub, link, token, driver, .. } = limits;
     if name == b"accounts.token" {
         *token = count(value)?;
@@ -41,6 +44,9 @@ pub fn apply(limits: &mut Limits, name: &[u8], value: u64) -> Result<(), What> {
         b"core" => set_core(core, field, value),
         b"link" => set_link(link, field, value),
         b"clients" => {
+            if let Some(field) = field.strip_prefix(b"public.") {
+                return set_public(&mut limits.clients.public, field, value);
+            }
             let count = count(value)?;
             if count == 0 {
                 return Err(What::Override);
@@ -55,6 +61,10 @@ pub fn apply(limits: &mut Limits, name: &[u8], value: u64) -> Result<(), What> {
             Ok(())
         }
         b"clients_http" => {
+            if field == b"public_calls" {
+                limits.clients_http.public_calls = count(value)?;
+                return Ok(());
+            }
             let count = count(value)?;
             if count == 0 {
                 return Err(What::Override);
@@ -69,6 +79,20 @@ pub fn apply(limits: &mut Limits, name: &[u8], value: u64) -> Result<(), What> {
         _ => Err(What::Override),
     }
 }
+fn set_public(limits: &mut jig_protocol_engine_clients::PublicLimits, name: &[u8], value: u64) -> Result<(), What> {
+    match name {
+        b"reads" => limits.reads = count(value)?,
+        b"rate" => limits.rate = count(value)?,
+        b"rate_burst" => limits.rate_burst = count(value)?,
+        b"bytes" => limits.bytes = value,
+        b"bytes_burst" => limits.bytes_burst = value,
+        b"answer_bytes" => limits.answer_bytes = count(value)?,
+        b"max_age" => limits.max_age = count(value)?,
+        _ => return Err(What::Override),
+    }
+    Ok(())
+}
+
 fn count(value: u64) -> Result<u32, What> {
     u32::try_from(value).or(Err(What::Override))
 }
@@ -121,6 +145,7 @@ fn set_tasks(limits: &mut jig_domain_tasks::Limits, name: &[u8], value: u64) -> 
         saved_resources,
         contract_choices,
         charters,
+        charter_documents,
         versions: _,
         revisions: _,
         authority_grants,
@@ -178,6 +203,7 @@ fn set_tasks(limits: &mut jig_domain_tasks::Limits, name: &[u8], value: u64) -> 
         b"saved_resources" => *saved_resources = count(value)?,
         b"contract_choices" => *contract_choices = count(value)?,
         b"charters" => *charters = count(value)?,
+        b"charter_documents" => *charter_documents = count(value)?,
         b"authority_grants" => *authority_grants = count(value)?,
         b"authority_segments" => *authority_segments = count(value)?,
         b"authority_bytes" => *authority_bytes = count(value)?,
@@ -503,8 +529,20 @@ fn set_documents(limits: &mut jig_domain_core::documents::DocumentLimits, name: 
 }
 
 fn set_core(limits: &mut jig_domain_core::Limits, name: &[u8], value: u64) -> Result<(), What> {
+    if let Some(field) = name.strip_prefix(b"public.") {
+        let value = u16::try_from(value).or(Err(What::Override))?;
+        match field {
+            b"goals" => limits.public.goals = value,
+            b"ended" => limits.public.ended = value,
+            b"lines" => limits.public.lines = value,
+            b"depth" => limits.public.depth = value,
+            _ => return Err(What::Override),
+        }
+        return Ok(());
+    }
     let jig_domain_core::Limits {
         routes: _,
+        public: _,
         settings,
         templates,
         fill_mark,
@@ -624,7 +662,7 @@ fn set_link(limits: &mut crate::Link, field: &[u8], value: u64) -> Result<(), Wh
 #[must_use]
 #[derive(Debug)]
 pub struct Parsed {
-    /// The named profile with applied overrides; Small if no profile was recognized.
+    /// The named profile with applied overrides; Standard if no profile was recognized.
     /// These limits may be used for further diagnostics, but require no problems for startup.
     pub limits: Limits,
     pub problems: Problems,
@@ -632,7 +670,7 @@ pub struct Parsed {
 
 /// Read the limits member at its path, retaining its limits when checks find problems.
 pub fn parse(document: &Document, at: u32, path: &Path) -> Parsed {
-    let mut limits = profile(Profile::Small);
+    let mut limits = profile(Profile::Standard);
     let mut problems = Problems::empty();
     let mut object = match read::Object::new(document, at) {
         Ok(object) => object,
@@ -644,7 +682,7 @@ pub fn parse(document: &Document, at: u32, path: &Path) -> Parsed {
     if let Some(at) = object.required(document, b"profile", path, &mut problems) {
         match read::text(document, at, 8) {
             Ok(name) => match name.as_ref() {
-                b"small" => {}
+                b"small" => limits = profile(Profile::Small),
                 b"standard" => limits = profile(Profile::Standard),
                 _ => problems.push(path.member(b"profile"), What::Override),
             },
@@ -663,6 +701,12 @@ pub fn parse(document: &Document, at: u32, path: &Path) -> Parsed {
     limits.core.documents.executors = profile::authority_executors(&limits.core.tasks, &limits.core.authority);
     limits.core.documents.implications = limits.core.authority.implications;
     object.finish(document, path, &mut problems);
+    let mut public = Problems::empty();
+    crate::clients::check_public(&limits, &mut public);
+    for problem in &public.problems {
+        let problem = codec_problem(document, overrides_at, path, problem.clone());
+        problems.push(problem.path, problem.what);
+    }
     crate::clients::check_settings(&limits, &mut problems);
     if let Err(what) = crate::domain::check_message(&limits.core) {
         problems.push(path.clone(), what);
@@ -748,10 +792,26 @@ fn members(
         next = read::after(document, value_at)?;
     }
     object.finish(document, path, problems);
+    validate_members(document, at, end, path, limits, problems, stream_overrides)
+}
+
+fn validate_members(
+    document: &Document,
+    at: u32,
+    end: u32,
+    path: &Path,
+    limits: &Limits,
+    problems: &mut Problems,
+    stream_overrides: bool,
+) -> Result<(), What> {
     if !problems.is_empty() {
         return Ok(());
     }
-    next = at.checked_add(1).ok_or(What::Bound)?;
+    if let Some((member, what)) = crate::domain::capacity(&limits.core) {
+        problems.push(path.member(member), what);
+        return Ok(());
+    }
+    let mut next = at.checked_add(1).ok_or(What::Bound)?;
     let mut fits = Fits { hub: None, core: None };
     for _ in at..end {
         if next == end {

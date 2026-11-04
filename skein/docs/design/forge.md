@@ -1,8 +1,8 @@
 # The forge kit
 
 Provisional, 2026-10-20. What skein gives a service that works on a code
-forge. Forgejo's dialect is built, and GitHub's is designed in
-forge-github.md (section 10). The kit is:
+forge, on Forgejo and on GitHub (forge-github.md; section 10). The kit
+is:
 
 - a neutral vocabulary of forge calls, rendered by a dialect;
 - a component that runs those calls and receives the forge's webhooks;
@@ -241,7 +241,7 @@ and no policy. Every type is a plain value.
   its commits onto the base (`Rebase`), which rewrites the branch.
 - **`UpdateRef { branch, to }`** moves a branch to a commit as a
   fast-forward only, refused (`Stale`) when the commit does not
-  descend from the branch's tip; designed, not built, for an owner that
+  descend from the branch's tip, for an owner that
   fast-forwards a branch where the forge merges no pull request so. A
   dialect whose forge has no such route answers `Refused`: Forgejo's
   owner fast-forwards by a merge instead.
@@ -411,7 +411,7 @@ By name; the code holds the fields.
   approvals and whether it dismisses stale approvals; whether a merge
   queue guards it, and whether it requires signatures, linear history
   or code owners' reviews; and `Bypass`, whether the credential may pass
-  it: `Never`, `PullsOnly` or `Always`. Designed, not built: `pulls_required`,
+  it: `Never`, `PullsOnly` or `Always`; `pulls_required`,
   whether a rule requires a pull request, and `pulls_bypass`, the
   credential's bypass of the rules that do (forge-github.md, 4.5). Forgejo's dialect reads signatures
   from `require_signed_commits`, and answers no queue, no linear history,
@@ -442,11 +442,10 @@ body the forge keeps changes (5.3).
 - **Every dialect answers every call.** A call that a dialect cannot
   answer as Forgejo does is named when that dialect is designed (section
   10). GitHub's one is `Status`, which answers `Forbidden` where the
-  App lacks `statuses` write (forge-github.md, section 4.2). Until the
+  App lacks `statuses` write (forge-github.md, section 4.2). The
   Actions calls, `Tree`, `Artifact`, `Commits`, a fast-forward-only
-  merge and an update by rebase are designed for GitHub, its dialect
-  answers each `Refused` at no cost; their GitHub routes are
-  forge-github.md, 4.5, designed, not built.
+  merge and an update by rebase take GitHub's routes of
+  forge-github.md, 4.5.
 - **An answer fits its call.** The client checks each answer against
   its call before it takes it (forge-client.md, section 2.3):
 
@@ -1085,7 +1084,7 @@ call. An absent branch or contents leaf alone keeps the row that answered.
 What the kit writes inside what it creates: keys' markers, and nothing
 else. No record, outcome or page of the owner's is written into the
 forge. Labels are written only by the calls that name them
-(`CreateIssue`'s, `Labels`, `CreateLabel`), designed, not built; the
+(`CreateIssue`'s, `Labels`, `CreateLabel`); the
 kit decides nothing by one, and whether its owner reads them back is
 the owner's.
 

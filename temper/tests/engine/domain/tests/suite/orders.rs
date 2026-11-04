@@ -1,5 +1,5 @@
-//! The root keeps these orders whatever admits work (skein's draft
-//! `dynamic-memory.md`, 4.3): pending callbacks before ordinary entrances,
+//! The root keeps these orders whatever admits work (skein's
+//! `programming-model.md`, 7.2): pending callbacks before ordinary entrances,
 //! store answers in arrival order, older releases before later ones, each
 //! worker channel's records in order, deferred calls fenced by their attempt,
 //! and completion outputs after their commits.
@@ -550,7 +550,7 @@ fn the_root_sends_no_more_commits_than_the_store_takes_in_flight() {
     let mut answered = Vec::new();
     for _ in 0..STEPS {
         if let Some((number, _)) = driver.store.pending.front() {
-            assert_eq!(*number, first + u64::try_from(answered.len()).expect("small burst"));
+            assert_eq!(*number, first + skein_lib::len_u64(answered.len()));
             answered.push(*number);
             commit_one(&mut driver);
         }
@@ -697,6 +697,7 @@ fn assert_releases_durable(driver: &Driver, assignment: &engine::Assignment) {
             | host::LinkDown::Message { .. }
             | host::LinkDown::Relayed { .. }
             | host::LinkDown::Cancel { .. }
+            | host::LinkDown::AssignJob { .. }
             | host::LinkDown::Grant { .. }) => panic!("worker_notices returned an unrelated notice: {other:?}"),
         };
         assert!(

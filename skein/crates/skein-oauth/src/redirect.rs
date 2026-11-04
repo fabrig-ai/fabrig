@@ -82,22 +82,17 @@ pub fn validate_registration(registration: &Registration, limits: &ClientLimits,
     Ok(())
 }
 
-// oauth.md, section 1 permits HTTP only when the issuer address itself is
-// loopback. Names are not resolved by this sans-IO client: a numeric host
-// proves the address, and userinfo or suffixes cannot change the authority.
+// oauth.md, section 1 requires HTTPS to name a host without userinfo, and
+// permits HTTP only when the issuer address itself is loopback. Names are not
+// resolved by this sans-IO client: a numeric host proves the HTTP address.
 #[expect(clippy::disallowed_methods, reason = "the OAuth protocol machine validates bounded numeric URI hosts")]
 pub(crate) fn issuer_endpoint(uri: &[u8]) -> bool {
-    if uri.starts_with(b"https://") {
-        return true;
+    if let Some(rest) = uri.strip_prefix(b"https://") {
+        let authority = endpoint_authority(rest);
+        return !authority.is_empty() && !authority.contains(&b'@') && !authority.starts_with(b":");
     }
     let Some(rest) = uri.strip_prefix(b"http://") else { return false };
-    let mut end = rest.len();
-    for separator in [b"/".as_slice(), b"?"] {
-        if let Some(at) = bytes::find(rest, separator) {
-            end = end.min(at);
-        }
-    }
-    let authority = rest.get(..end).expect("the separator is within the URI");
+    let authority = endpoint_authority(rest);
     if let Some(rest) = authority.strip_prefix(b"[") {
         let Some(end) = bytes::find(rest, b"]") else { return false };
         let host = rest.get(..end).expect("the bracket is within the authority");
@@ -121,6 +116,16 @@ pub(crate) fn issuer_endpoint(uri: &[u8]) -> bool {
             Err(_) => false,
         }
     }
+}
+
+fn endpoint_authority(rest: &[u8]) -> &[u8] {
+    let mut end = rest.len();
+    for separator in [b"/".as_slice(), b"?"] {
+        if let Some(at) = bytes::find(rest, separator) {
+            end = end.min(at);
+        }
+    }
+    rest.get(..end).expect("the separator is within the URI")
 }
 
 fn endpoint_port(suffix: &[u8]) -> bool {

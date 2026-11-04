@@ -1,2 +1,4 @@
+brief: task text 41 --field specification --from 0
+instructions: task text 41 --field instructions --from 0
 2 · words
 read on with: task activity 41 --before 1122

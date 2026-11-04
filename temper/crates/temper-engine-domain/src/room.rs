@@ -1,0 +1,134 @@
+//! A charter's brief room, by its host part's costs
+//! (temper/docs/design/domain/agent.md, 4.3).
+
+use alloc::boxed::Box;
+use jig_domain_core::{RunPolicy, ToolFamilies};
+use skein_lib::{Decimal, Writer};
+
+/// A run's least brief room (temper/docs/design/domain/agent.md, 4.3).
+pub const BRIEF_ROOM: u64 = 2_048;
+
+/// A charter's non-brief host part in smith's bytes, built by temper-engine-smith.
+#[derive(Clone, Copy, PartialEq, Eq, Debug)]
+pub struct HostPart {
+    /// Smith's host part in the receiving profile.
+    pub bound: u64,
+    /// Smith's own text and the largest finish and deliver schemas.
+    pub fixed: u64,
+    /// Host tools declared whatever the charter's tools, at the largest offer.
+    pub declared: u64,
+    /// Settings tools, paid where the charter names their family.
+    pub settings: u64,
+    /// Smith's families, paid where the policy turns them on.
+    pub inspect: u64,
+    pub modify: u64,
+    pub shell: u64,
+    pub agents: u64,
+}
+
+/// A charter that leaves its brief less than [`BRIEF_ROOM`].
+#[derive(Clone, Copy, PartialEq, Eq, Debug)]
+pub struct Short {
+    pub charter: u32,
+    /// Zero where the non-brief part alone passes the bound.
+    pub room: u64,
+    pub bound: u64,
+}
+
+impl HostPart {
+    /// Fixed parts, declarations and policy text, with each enabled family.
+    #[must_use]
+    pub fn non_brief(&self, policy: &RunPolicy) -> u64 {
+        let mut bytes = self.fixed.saturating_add(self.declared);
+        if !policy.instructions.is_empty() {
+            bytes = bytes.saturating_add(skein_lib::len_u64(policy.instructions.len()));
+            // Smith ends literal instructions with a blank line.
+            bytes = bytes.saturating_add(if policy.instructions.ends_with(b"\n") { 1 } else { 2 });
+        }
+        for (enabled, cost) in [
+            (policy.tools.0 & ToolFamilies::JIG.settings != 0, self.settings),
+            (policy.inspect, self.inspect),
+            (policy.modify, self.modify),
+            (policy.shell, self.shell),
+            (policy.agents, self.agents),
+        ] {
+            if enabled {
+                bytes = bytes.saturating_add(cost);
+            }
+        }
+        if policy.agents && !policy.alternatives.is_empty() {
+            // Smith counts the alternative-model offer as host text; the main model and efforts add none.
+            bytes = bytes.saturating_add(skein_lib::len_u64(b"run's main LLM unless you name one of these: ".len()));
+            let mut rest = policy.alternatives.len();
+            for model in &policy.alternatives {
+                bytes = bytes.saturating_add(skein_lib::len_u64(model.name.len())).saturating_add(2);
+                rest = rest.saturating_sub(1);
+                bytes = bytes.saturating_add(match rest {
+                    0 => 0,
+                    1 => 4,
+                    _ => 2,
+                });
+            }
+            bytes = bytes.saturating_add(skein_lib::len_u64(b".\n".len()));
+        }
+        bytes
+    }
+
+    /// The host bound less the non-brief part, zero at or past the bound.
+    #[must_use]
+    pub fn room(&self, policy: &RunPolicy) -> u64 {
+        self.bound.saturating_sub(self.non_brief(policy))
+    }
+
+    /// Refuse a charter whose brief has less than its least room.
+    pub fn check(&self, charter: u32, policy: &RunPolicy) -> Result<(), Short> {
+        let room = self.room(policy);
+        if room < BRIEF_ROOM { Err(Short { charter, room, bound: self.bound }) } else { Ok(()) }
+    }
+}
+
+impl Short {
+    /// Name the charter, its room and bound, with thousands' commas.
+    #[must_use]
+    pub fn words(&self) -> Box<[u8]> {
+        let charter = Decimal::of(u64::from(self.charter));
+        let room = Decimal::of(self.room);
+        let bound = Decimal::of(self.bound);
+        let parts: [&[u8]; 7] = [
+            b"charter ",
+            charter.as_bytes(),
+            b" leaves its brief ",
+            room.as_bytes(),
+            b" bytes of its host part's ",
+            bound.as_bytes(),
+            b"; it needs at least 2,048",
+        ];
+        let mut length = 0_usize;
+        for part in parts {
+            length = length.checked_add(part.len()).expect("bounded refusal text");
+        }
+        for digits in [charter.as_bytes(), room.as_bytes(), bound.as_bytes()] {
+            length = length
+                .checked_add(digits.len().saturating_sub(1).checked_div(3).expect("nonzero divisor"))
+                .expect("bounded comma count");
+        }
+        let mut out = Writer::new(length);
+        for (index, part) in parts.into_iter().enumerate() {
+            if index == 1 || index == 3 || index == 5 {
+                for (offset, digit) in part.iter().enumerate() {
+                    if offset != 0 && part.len().saturating_sub(offset).is_multiple_of(3) {
+                        out.put(b",").expect("measured comma");
+                    }
+                    out.put(core::slice::from_ref(digit)).expect("measured digit");
+                }
+            } else {
+                out.put(part).expect("measured words");
+            }
+        }
+        out.finish()
+    }
+}
+
+#[cfg(test)]
+#[path = "tests/room.rs"]
+mod tests;

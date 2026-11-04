@@ -51,8 +51,7 @@ fn peak() -> u64 {
     assert_eq!(view.tree().len(), LIMITS.nodes);
     let mut text = 0;
     for node in view.tree().nodes() {
-        let bytes = node.name.as_ref().map_or(0, |name| name.len())
-            + node.text.as_slice().iter().map(|run| run.text.len()).sum::<usize>();
+        let bytes = usize::try_from(node.text_bytes()).expect("node text count fits");
         assert_eq!(bytes, usize::try_from(LIMITS.text_per_node).expect("text limit"));
         text += bytes;
     }
@@ -79,8 +78,7 @@ fn a_full_page_fills_its_node_text_and_style_limits() {
     assert_eq!(tree.nodes().len(), usize::try_from(LIMITS.nodes).expect("node count fits"));
     let mut text_bytes = 0;
     for node in tree.nodes() {
-        let text = node.name.as_ref().map_or(0, |name| name.len())
-            + node.text.as_slice().iter().map(|run| run.text.len()).sum::<usize>();
+        let text = usize::try_from(node.text_bytes()).expect("node text count fits");
         assert_eq!(text, usize::try_from(LIMITS.text_per_node).expect("text count fits"));
         text_bytes += text;
         if node.role == Role::Text {

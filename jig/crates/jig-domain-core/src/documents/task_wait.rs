@@ -14,19 +14,9 @@ pub enum TaskRunWait {
 }
 /// A derived explanation, never a durable task state (domain/engine.md, section 8).
 /// Hello keeps the fleet's observed receipt time and cause until admission or restart.
-/// Program is retained with no producer: Open admits program paths (hosts.md, 8.1).
 #[derive(Clone, Copy, PartialEq, Eq, Hash, Debug)]
 pub enum TaskWaitRefused {
     Hello { kind: jig_domain_fleet::HostKind, at: Wall, why: jig_domain_fleet::HelloRefusal },
-    Program(OpenProgram),
-}
-
-/// The incompatible model path or configured account/source of an Open run.
-/// Retained with no producer since Open admits program paths (hosts.md, 8.1).
-#[derive(Clone, Copy, PartialEq, Eq, Hash, Debug)]
-pub enum OpenProgram {
-    Model,
-    Source { account: u32, source: u32 },
 }
 
 #[derive(Clone, Copy, PartialEq, Eq, Hash, Debug)]
@@ -54,7 +44,7 @@ pub enum TaskSourceState {
 
 pub(super) fn waiting(core: &Core, row: &tasks::TaskRecord) -> Option<TaskRunWait> {
     match row.executor {
-        tasks::Executor::Procedure { .. } | tasks::Executor::Person(_) => return None,
+        tasks::Executor::Procedure { .. } | tasks::Executor::Person(_) | tasks::Executor::Job { .. } => return None,
         tasks::Executor::Agent { .. } => {}
     }
     match row.phase {

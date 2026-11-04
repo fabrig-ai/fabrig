@@ -67,7 +67,12 @@ pub fn start_binary(command: &mut skein_io::kernel::Spawn, terminal: bool) -> Re
 
 /// Polls a child handle during observer cleanup, observing or reaping only that child.
 pub fn poll_child(pidfd: Fd, reap: bool) -> Result<Option<Exit>, Error> {
-    system::process::poll_child(pidfd, reap)
+    loop {
+        match system::process::poll_child(pidfd, reap) {
+            Err(Error::Other(libc::EINTR)) => {}
+            result => return result,
+        }
+    }
 }
 
 /// Sends a keeper's signal through its owned child handle, including its group.
@@ -160,8 +165,19 @@ pub fn open_child_pidfd(pid: u32, parent: u32) -> Result<Fd, Error> {
     #[cfg(not(target_os = "linux"))]
     {
         let _unused = (pid, parent);
-        Err(Error::Other(45))
+        Err(unsupported())
     }
+}
+
+#[cfg(any(test, not(target_os = "linux")))]
+fn unsupported() -> Error {
+    Error::Other(libc::ENOTSUP)
+}
+
+#[cfg(test)]
+#[test]
+fn unsupported_answers_the_platforms_own_enotsup() {
+    assert_eq!(unsupported(), Error::Other(libc::ENOTSUP));
 }
 
 /// Opens a cgroup directory for the binary's atomic placement at spawn.

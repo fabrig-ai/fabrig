@@ -1,6 +1,6 @@
 # Tasks
 
-Provisional, 2026-10-07, revised 2026-10-27. The core's tasks: what a
+Provisional, 2026-10-07, revised 2026-11-04. The core's tasks: what a
 task is, how tasks are made, how each moves from asked to ended, the
 resources it holds, what it hears and when it wakes, and how proposals
 and escalations travel the tree. It is the first primitive of core.md
@@ -107,7 +107,10 @@ it is live:
     result-byte limit. The title metadata is boxed to keep inline result
     carriers small. An oversized title is refused before charging its
     attempt. Tasks accounts for both allocations and persistence
-    retains the title; inbox result notices carry the summary words;
+    retains the title; inbox result notices carry the summary words.
+    A change contract also accepts a successful `NoChange` result: an
+    explanation within both word bounds, with no resulting resource. It
+    ends done and its requester receives a distinct no-change result notice;
   - *a choice:* one of the options the spec lists, or an answer in
     words, for a person;
   - *an approval,* for a person, of a state a procedure names: the
@@ -205,7 +208,11 @@ it is live:
     to the deployment's retention horizon, and whole while none is set
     (`../protocol/store.md`, 11.1); or *forgotten once read*, erased once
     its requester, a party, has read it. When and how is people.md,
-    section 6.
+    section 6. Whatever its class, a task of a project being deleted is
+    erased whole once every task of the project has ended, with no
+    horizon waited for, as its retention would erase it at the horizon,
+    its transcript's file with it (people.md, 5.2;
+    `../protocol/store.md`, 8.5 and 11.1).
 
   The label and the flags are what a task is made as: no amendment
   changes them (section 7).
@@ -286,7 +293,15 @@ dependencies among them.
     produce, its spec within its limits, its words and text parameters
     UTF-8 (section 3), the conversation flag on an agent's task only,
     and an LLM choice on an agent's task only, its models configured
-    and its efforts among those its models declare;
+    and its efforts among those its models declare, and each of its
+    models, main and sub-agent, one its charter allows at the newest
+    revision (section 3), as a template's and a move's are checked
+    (`../protocol/configuration.md`, 3.1; engine.md, 17.4). Whoever
+    makes the batch, a party, a run's delegation, a procedure's step,
+    an accepted proposal or a recurrence, the check is the same. The
+    tasks child answers it alone too, for a charter and an authority's
+    models, to a root that checks a choice before the batch that will
+    carry it is asked for (a procedure's parameters naming one);
   - at most one task giving `AsAllowed`;
   - no circle of waits, with the live ones (6.7);
   - within the limits: live tasks in the deployment, tasks in the tree,
@@ -362,7 +377,8 @@ waiting ──► active ──► closing ──► done, failed or cancelled
 - **Done, failed, cancelled:** ended. Its result is a message to its
   requester, and kept. An ended task leaves the engine's working set once
   that message is committed, leaving a stub while live tasks name it;
-  the store keeps it all.
+  the store keeps it all, until its retention class erases it, or its
+  project's deletion does (section 3).
 - **Held:** stopped for a decision, from waiting, active or closing. It
   says why (5.5). A release returns it where it was, the reason it was
   held judged afresh.
@@ -421,11 +437,20 @@ arrives, and whenever what it reads changes, which its owner knows
 dependencies are pending; a step that asks an effect waiting for them,
 or ends the task done, is refused whole (5.7).
 
+A connector's due step may also replace its own task's specification
+words through the optional `words` field on `ProcedureStep` and
+`ProcedureDecision`. The root admits it only for the due task's connector
+and procedure code. Words and byte-valued parameters together must fit
+`Limits::spec_bytes`, as at creation. Parameters, inputs and `asks` stay
+unchanged. This saves with the step's decision; it creates no revision,
+amendment, inbox message, wake or amendment history, and cannot target
+another task or a person, agent or job task.
+
 ### 5.3.1 Job tasks
 
-Designed, not built (core.md, 3.2; hosts.md, 6.9). A job task is made by
-a procedure's step, as its delegate, with the job's kind, its spec, its
-workspace's items and its deadline. It is due once its dependencies are
+A job task (core.md, 3.2; hosts.md, 6.9) is made by a procedure's step,
+as its delegate, with the job's kind, its spec, its workspace's items
+and its deadline. It is due once its dependencies are
 done, claimed by the fleet on a host that runs its kind, active while
 it runs, and ends done with its result; past its tries it is held, as
 any task is (5.5), and its procedure, hearing it, decides what that
@@ -694,7 +719,7 @@ finish, the run's own, keeps its retry policy whoever ends the task.
 
 ### 5.9 Placed holds: owners, modes and scopes
 
-Designed, not built. A placed hold is one a party or a task places by an
+A placed hold is one a party or a task places by an
 act, to stop or pause work: a person pausing a goal, a coordinator
 parking a delegate, a project drained to change its rules. The holds the
 core places itself (5.5: tries, stalls, bounds, drift, effects, budget,
@@ -748,7 +773,7 @@ deadline, circles, a procedure's need) keep their rules.
   - **A project:** every task of the project, those made later
     included, except each conversation a party requested directly, so
     that a person can still talk to their chat.
-- **A drain, in four rules** (o/holds' T8):
+- **A drain, in four rules:**
   - a run parked by a drain ends due, not idle, as a narrowed run does,
     no try spent: held while the drain stands, run again on its release
     with no wake;
@@ -846,6 +871,13 @@ again. Words alone do not release it (people.md, 5.1).
   and repair runs write the resource their procedure's task holds.
 - **Shared resources are not held:** writing into them is ordered by
   their connector's mechanics (a landing queue), not by a hold.
+- **A held resource a queue orders:** a resource may be both held and
+  written through its connector's queue, as a goal's own branch is, held
+  by its goal and landed into by its goal's changes one at a time. The
+  hold says who may write it, the holder's delegates alone; the queue
+  orders their writes, each taking the writer slot as it writes (6.3). A
+  write into it by a task outside the holder's subtree is refused at its
+  batch, naming the holder (connectors.md, 3.3).
 
 ### 6.2 Taking holds
 
@@ -858,6 +890,17 @@ again. Words alone do not release it (people.md, 5.1).
   whether a hold that is taken refuses or waits. A batch whose task needs
   a hold that refuses is refused, naming the holder. A task whose hold
   waits is made, and waits in the resource's queue.
+- **What a task holds is its connector's to name,** asked once the task
+  has its number: from its executor and specification, and from the
+  connectors' symbols its batch member names (authority.md, section 4;
+  `../protocol/configuration.md`, 3.3), each resolved to the name the
+  task holds, and whether the task is tracked. A symbol the connector
+  does not offer that task refuses the batch, naming the symbol.
+- **A taking has its effects,** as a release does (6.5): as the commit
+  that makes a task active takes its write holds, each hold's connector
+  hears of it with an outbox entry of its own, and does what its kind's
+  taking does (connectors.md, 4.7). One that fails for good holds the
+  task, saying why (5.5).
 - **Queues are ordered** by the priority of the goal each task serves
   (core.md, 6.2), then by when it began to wait, and bounded per
   resource. A task waiting past its bound is held (5.5), and its
@@ -876,12 +919,22 @@ again. Words alone do not release it (people.md, 5.1).
 Each write hold has one writer slot: the one run that may write it at a
 time.
 
-- **A run takes the slot** when it is claimed, whether its task holds the
-  resource or writes under a task above it that does, and frees it when
-  its answer is committed, or, when its attempt is settled as lost past
+- **A run takes the slot of each held resource its workspace writes**
+  (engine.md, 7.1) when it is claimed, whether its task holds the
+  resource or writes under a task above it that does, and none of a
+  resource it only reads: a goal's run that inspects its goal's branch
+  takes none of it, while the merges into it take it in turn. It frees
+  each when its answer is committed, or, when its attempt is settled as lost past
   the engine's grace (engine.md, section 8), once the connector has read
   the resource afresh, so that what a lost attempt wrote is known before
   anyone writes again.
+- **The run writer's task and its hold owner stay live** while the slot is
+  taken, including when the hold was handed down. Neither advances to
+  settling its connector effects and releasing resources until the run's
+  answer frees the slot, or, after loss, the connector confirms its fresh
+  read. The confirmation erases the writer and resumes closing in the
+  same decision, so a restart sees no writer without its live task and hold
+  owner.
 - **A claim that finds the slot taken waits,** which is no failure.
 - **A connector's own effects** on a held resource take the slot too,
   while they are in flight, and wait for it like a claim.
@@ -898,7 +951,8 @@ task that finishes the job.
 
 Holds are released as the task closes (5.1), after every other effect of
 the task has settled. What becomes of the resource is its connector's to
-say, per kind and per way the task ended, as effects of its own: an
+say, per kind and per way the task ended, as effects of its own, as its
+taking's are (6.2): an
 environment provisioned for a task that ended is torn down; a branch a
 change landed from is deleted; one a failed change left is kept for a
 person to read until its tree's root closes.
@@ -1067,6 +1121,11 @@ circle, each for another of the set, so that none of them could end.
     the plainest.
   - *Removing* one lifts it: a task that waits on nothing else goes on,
     a waiting one to its queues at its place, a kept one woken.
+  - *Started from:* a dependency its procedure marked started from
+    (connectors.md, 6.1) is never removed: an amendment leaving it out
+    is refused as `Dependencies` naming exactly it in the problem's
+    `blocked_by`, as one out of reach is, whether it is pending or
+    done.
   - *Kept:* each added dependency with when it was added and by whom
     (section 3), and its history as every amendment's.
 - **Tracking and untracking.** A task an amendment tracks is a goal from
@@ -1108,6 +1167,11 @@ circle, each for another of the set, so that none of them could end.
   counts; a task waiting for holds leaves their queues. Each task ends
   once its own closing is done, deepest first, and its requester hears
   that it ended cancelled, with what it had done.
+- **A project deleted** cancels each of its live tasks by the
+  deployment's compound (below), its conversations, their delegates and
+  its other roots composed into compounds as people.md, 5.2 has it, and
+  takes no new task from that decision; once none is live, each of its
+  tasks is erased whole (section 3).
 - **Cancelling with a grace.** A cancel may give a grace, within the
   longest the tasks child allows (section 11), so that a task finishes
   what it can before it is cut off: a conversation closed by its person,
@@ -1137,8 +1201,7 @@ circle, each for another of the set, so that none of them could end.
   it as for a delegate. It becomes the root of a tree of the party's, so
   a move needs their escalations to have a holder, as their batch does
   (section 4).
-- **Moving a task under another task,** designed, not built (temper's
-  draft landing-model.md, J5): whoever may amend both a live task and another
+- **Moving a task under another task:** whoever may amend both a live task and another
   live task may make the second the first's requester. The second must
   not be the first or below it, must be in the same project, and must
   have the depth and delegates' room the move needs; the tree it makes
@@ -1153,7 +1216,7 @@ circle, each for another of the set, so that none of them could end.
   keeps a reference to it, and does not wait for it as for a delegate.
   A party's `Move` and a run's `move` make it (people.md, 5.1;
   engine.md, 7.3).
-- **A successor,** designed, not built (J6): a live task in the same
+- **A successor:** a live task in the same
   project that takes on what an ended task leaves.
   - *Named in the result,* by the ending task: one it references (a
     delegate of its requester it was introduced to, or its own
@@ -1171,7 +1234,7 @@ circle, each for another of the set, so that none of them could end.
     reference to their scope (engine.md, section 10); and, only when
     named in the result, its subscriptions. Its requester still hears
     its result.
-- **Questions outlive their asker,** designed, not built: a task that
+- **Questions outlive their asker:** a task that
   finishes done or failed with person tasks still open that ask in
   words detaches them in its finish's decision, before its closing
   waits for its delegates (5.1), so that they never keep it from
@@ -1188,9 +1251,9 @@ circle, each for another of the set, so that none of them could end.
   decision, each of its live delegates cancelled or moved to its party,
   then itself cancelled with a grace; a project's goals are reordered at
   once; a held task is amended and released. The deployment's compound,
-  a connector's act in its name (people.md, 5.3), only cancels: an
-  operation of another kind, or on a task of another project, refuses
-  it whole.
+  a connector's act in its name (people.md, 5.3) or a project's
+  deletion (people.md, 5.2), only cancels: an operation of another
+  kind, or on a task of another project, refuses it whole.
 
 ## 8. Messages
 
@@ -1281,7 +1344,7 @@ A wake policy is data, from a closed vocabulary:
   *wakes*, *kept* (news, but nothing the task must act on now), or
   *dropped* (not the task's concern after all, and not kept). The task's
   policy may lower a class, never raise it;
-- **markers,** designed, not built: names a connector offers on its
+- **markers:** names a connector offers on its
   news (a forge's commit trailers), numbered by the application across
   its connectors, at most 32, so that a policy holds them as one set
   of bits (`markers: u32`, the policy staying a copied value); the
@@ -1294,6 +1357,14 @@ A wake policy is data, from a closed vocabulary:
   the oldest is older than T, so a watch hearing a storm of alerts wakes
   once. A person's words, a cancel and an amendment are never batched,
   and never wait behind what a batch holds;
+- **a pace,** for the kinds batching allows: wake at most once in a
+  span. Such a message wakes the task at once when its last run
+  started at least the span before, or it has never run; otherwise it
+  waits until the span since that start has passed, and what arrived
+  meanwhile wakes it once. A run started for any other message carries
+  what the pace holds, as every run carries its inbox (8.2); a message
+  the pace holds is not relayed to a live run. A pace is not a delay:
+  the first message after a quiet span wakes at once;
 - **timers:** wake at a time, or every period.
 
 A proposal or an escalation waiting for its decision always wakes a
@@ -1304,12 +1375,25 @@ A message a run refused or left unread (8.2) is judged again when the
 run ends, as if it arrived then: it wakes the task if its kind does, and
 otherwise waits for the next activation.
 
-Each charter brings a default policy, which the task's creator may
-narrow or widen: a chat wakes on its person's words and on its
-delegates' results; a coordinator on questions, failures, the last of its
-delegates done, a person's words and news its connectors class as
-waking; most other agents on nothing, since they finish within one run.
-A procedure's policy is its owner's: it steps on whatever it reads.
+Each charter brings a default policy, named with the charter in
+configuration (`../protocol/configuration.md`, section 3) and kept with
+it in the settings: an agent task made under the charter, by a batch
+entry that names no policy or from a template, which names none
+(`../protocol/configuration.md`, 3.1), takes the charter's default as
+the settings hold it when the task is made, and keeps it as its own;
+its creator narrows or widens it by naming a whole policy in the entry,
+and an amendment changes it as any policy. A chat's default wakes on
+its person's words and on its delegates' results; a coordinator's on
+questions, escalations, failures, each delegate's result, not only the
+last, words from its delegates and its person's words, at once, and on
+news its connectors class as waking at a pace, at most once in a span
+(the reference's coordinator: 30 minutes); most other agents' on
+nothing, since they finish within one run. A procedure's policy is its
+owner's: it steps on whatever it reads.
+
+A pace's span is nonzero. An invalid wake policy in a batch or an amendment
+is refused as `Spec`; an invalid amendment changes nothing of the task
+(decided 2026-11-02).
 
 ### 8.4 Subscriptions
 
@@ -1337,8 +1421,7 @@ connectors offer for goals are the core's to keep, not its executor's
 - **Parties** message the tasks their role lets them see (people.md,
   section 5).
 - **No broadcast.** Who may talk to whom stays visible and bounded.
-- **A conversation's questions,** designed, not built (temper's
-  draft landing-model.md, J7 and J8): a question a delegate asks its
+- **A conversation's questions:** a question a delegate asks its
   requester that is a conversation is the conversation's alone: it
   wakes it, and is no entry of its person's. The conversation answers
   it itself, in the answer form, or asks its own person in its own
@@ -1369,7 +1452,7 @@ proposed, what an action needs, and what an acceptance funds.
   proposes a batch or an amendment: a party makes no effect, and their
   authority is their role's, which the project's owners change
   (people.md, 5.2). Either may propose a change of settings, in the
-  deployment's scope (below), and, designed, not built, a task's
+  deployment's scope (below), and a task's
   release from a placed hold, which waits for the hold's owner alone
   (5.9).
 - **A proposal of settings** (engine.md, 17.6) holds a set of settings
@@ -1551,7 +1634,7 @@ go beyond its task's authority, their proposal accepted and the
 follow-ups run before the result reaches the requester, and another
 whose proposal is rejected, its result delivered at once.
 
-Its stories of placed holds (5.9), designed, not built: a person's stop
+Its stories of placed holds (5.9): a person's stop
 of a goal, its runs and its delegates' runs cancelled, a maintainer's
 release refused for it as the person's, the coordinator above it
 proposing the release, the person accepting it in their inbox, and the
@@ -1565,10 +1648,7 @@ that one task released and ending while the stop stands, and the stop
 lifted with its tasks; a coordinator parking a delegate until a news
 event, the hold lifting itself as the event's commit delivers it, and
 another parked until a time; a restart in the middle of a drain,
-draining on. With moving under a task, successors and a
-conversation's questions (section 7, 8.5), they open the stories of
-temper's reference case acts 4 to 6 (steps 7.2, 7.3, 8.1 to 8.3, 9.1
-and 9.3), which temper's worlds and rung C hold.
+draining on.
 
 Its stories of added dependencies (5.7; 6.7; section 7): the
 reordering, two tasks waiting for one write hold, the first given a

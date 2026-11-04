@@ -324,6 +324,8 @@ fn delegates_read(delegates: &[tasks::DelegateState], bytes: u32) -> BriefRead {
 fn result_label(kind: &tasks::ResultKind) -> &'static [u8] {
     match kind {
         tasks::ResultKind::Approved { .. } => b"approved",
+        tasks::ResultKind::Job => b"job",
+        tasks::ResultKind::NoChange => b"no change",
         tasks::ResultKind::Report => b"report",
         tasks::ResultKind::Verdict { .. } => b"verdict",
         tasks::ResultKind::Change { .. } => b"change",
@@ -342,6 +344,8 @@ fn waited_line(added: &tasks::Added, kind: &tasks::ResultKind) -> Box<[u8]> {
         tasks::ResultKind::Failed => b"failed".as_slice(),
         tasks::ResultKind::Cancelled => b"cancelled".as_slice(),
         tasks::ResultKind::Approved { .. }
+        | tasks::ResultKind::Job
+        | tasks::ResultKind::NoChange
         | tasks::ResultKind::Report
         | tasks::ResultKind::Verdict { .. }
         | tasks::ResultKind::Change { .. } => b"done".as_slice(),
@@ -394,19 +398,12 @@ fn dependency_read(results: &[RetainedResult], added: &[tasks::Added], bytes: u3
             .expect("bounded result words")
             .checked_add(3)
             .expect("result separators");
-        match &result.kind {
-            tasks::ResultKind::Verdict { code, .. } => {
-                total = total
-                    .checked_add(Decimal::of(u64::from(*code)).as_bytes().len())
-                    .expect("bounded verdict code")
-                    .checked_add(1)
-                    .expect("verdict space");
-            }
-            tasks::ResultKind::Approved { .. }
-            | tasks::ResultKind::Report
-            | tasks::ResultKind::Change { .. }
-            | tasks::ResultKind::Failed
-            | tasks::ResultKind::Cancelled => {}
+        if let tasks::ResultKind::Verdict { code, .. } = &result.kind {
+            total = total
+                .checked_add(Decimal::of(u64::from(*code)).as_bytes().len())
+                .expect("bounded verdict code")
+                .checked_add(1)
+                .expect("verdict space");
         }
     }
     let mut writer = Writer::new(total);
@@ -421,16 +418,9 @@ fn dependency_read(results: &[RetainedResult], added: &[tasks::Added], bytes: u3
         writer.put(Decimal::of(result.task).as_bytes()).expect("measured result ID");
         writer.put(b": ").expect("measured result text");
         writer.put(result_label(&result.kind)).expect("measured result kind");
-        match &result.kind {
-            tasks::ResultKind::Verdict { code, .. } => {
-                writer.put(b" ").expect("measured verdict space");
-                writer.put(Decimal::of(u64::from(*code)).as_bytes()).expect("measured verdict code");
-            }
-            tasks::ResultKind::Approved { .. }
-            | tasks::ResultKind::Report
-            | tasks::ResultKind::Change { .. }
-            | tasks::ResultKind::Failed
-            | tasks::ResultKind::Cancelled => {}
+        if let tasks::ResultKind::Verdict { code, .. } = &result.kind {
+            writer.put(b" ").expect("measured verdict space");
+            writer.put(Decimal::of(u64::from(*code)).as_bytes()).expect("measured verdict code");
         }
         writer.put(b"\n").expect("measured result newline");
         writer.put(&result.words).expect("measured result words");
@@ -491,6 +481,11 @@ fn add_text_len(total: &mut usize, fragment: &[u8]) {
 fn contract_text(contract: &tasks::Contract) -> Box<[u8]> {
     let mut room = 0_usize;
     match contract {
+        tasks::Contract::Job { bytes } => {
+            for fragment in [b"[Job: at most ".as_slice(), Decimal::of(u64::from(*bytes)).as_bytes(), b" bytes]\n"] {
+                add_text_len(&mut room, fragment);
+            }
+        }
         tasks::Contract::Approval { .. } => {
             add_text_len(&mut room, b"[Approve connector state]\n");
         }
@@ -530,6 +525,11 @@ fn contract_text(contract: &tasks::Contract) -> Box<[u8]> {
     }
     let mut writer = Writer::new(room);
     match contract {
+        tasks::Contract::Job { bytes } => {
+            writer.put(b"[Job: at most ").expect("contract text room");
+            writer.put(Decimal::of(u64::from(*bytes)).as_bytes()).expect("contract text room");
+            writer.put(b" bytes]\n").expect("contract text room");
+        }
         tasks::Contract::Approval { .. } => {
             writer.put(b"[Approve connector state]\n").expect("contract text room");
         }

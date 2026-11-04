@@ -100,6 +100,7 @@ pub(crate) fn answered_repository(
         | Answer::Runs { .. }
         | Answer::Run(_)
         | Answer::Tree { .. }
+            | Answer::Commits { .. }
         | Answer::Located { .. }
         | Answer::Done => unreachable!("listing answer shape"),
     }
@@ -196,6 +197,7 @@ pub(crate) fn answered_resource(
         | Answer::Runs { .. }
         | Answer::Run(_)
         | Answer::Tree { .. }
+            | Answer::Commits { .. }
         | Answer::Located { .. }
         | Answer::Branches(_)
         | Answer::Statuses { .. }

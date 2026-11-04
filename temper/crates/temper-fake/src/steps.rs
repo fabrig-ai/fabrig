@@ -7,7 +7,7 @@ use temper_forge_setup::{
 };
 
 /// The fake kind's slot: the playground's fakes, bound to a forge by the box
-/// (temper/docs/design/draft/playground-reset.md, 3).
+/// (temper/docs/design/protocol/setup.md, 7.1).
 #[must_use]
 pub fn fake_slot(machine: &FakeMachine, llm: core::net::SocketAddr, flags: &[Box<[u8]>]) -> Group {
     let forge = Some(temper_forge_setup::step::FORGE_ARGUMENT);

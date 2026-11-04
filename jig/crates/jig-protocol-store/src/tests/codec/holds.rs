@@ -184,6 +184,7 @@ impl PeopleItems {
                     match people::Executor::decode(limits, reader).unwrap() {
                         people::Executor::Charter(value) => p::Executor::Charter(value.into_parts().value),
                         people::Executor::Procedure(value) => p::Executor::Procedure(value.into_parts().value),
+                        people::Executor::Job(value) => p::Executor::Job(value.into_parts().kind),
                         people::Executor::Role(value) => p::Executor::Role(value.into_parts().value),
                     }
                 }))

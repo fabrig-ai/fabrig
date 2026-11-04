@@ -83,9 +83,9 @@ pub fn take(root: &mut Domain, env: &Env<d::Limits>, out: &mut Queue<Request>) {
 }
 fn collect(root: &mut Domain, raw: &mut Queue<d::Request>, out: &mut Queue<Request>) {
     while let Some(row) = raw.pop() {
-        if let d::Request::Client {
+        if let d::Request::Unlinked {
             request:
-                jig_client::Request::Down {
+                jig_client::UnlinkedRequest::Down {
                     down: Down::Open { watch, subject: jig_client::Watchable::Jig(jig_client::contract::Subject::Me) },
                 },
         } = &row
@@ -103,7 +103,7 @@ fn collect(root: &mut Domain, raw: &mut Queue<d::Request>, out: &mut Queue<Reque
 }
 fn observed(row: d::Request, watches: &mut alloc::collections::BTreeMap<Token, u16>) -> Request {
     match row {
-        d::Request::Client { request: jig_client::Request::Down { down } } => match down {
+        d::Request::Unlinked { request: jig_client::UnlinkedRequest::Down { down } } => match down {
             Down::Send { attempt, key, request, .. } => Request::Send {
                 attempt,
                 key,
@@ -158,9 +158,11 @@ fn observed(row: d::Request, watches: &mut alloc::collections::BTreeMap<Token, u
         d::Request::Observability(value) => Request::Observability(value),
         d::Request::Show { address, replace } => Request::Show { address, replace },
         d::Request::SignIn { provider } => Request::SignIn { provider },
-        d::Request::SignOut | d::Request::Client { request: jig_client::Request::SignOut } => Request::SignOut,
+        d::Request::SignOut | d::Request::Unlinked { request: jig_client::UnlinkedRequest::SignOut } => {
+            Request::SignOut
+        }
         d::Request::Fact { fact } => Request::Fact { fact },
-        d::Request::Client { .. } => panic!("unlinked fixture"),
+        d::Request::Client { .. } | d::Request::Unlinked { .. } => panic!("unlinked fixture"),
     }
 }
 pub fn answer(attempt: Token, envelope: skein_lib::RequestEnvelope, answer: Option<d::Answered>) -> d::Event {

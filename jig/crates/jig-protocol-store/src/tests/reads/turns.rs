@@ -5,6 +5,21 @@ use super::{
 };
 
 #[test]
+fn a_goal_turn_reads_with_more_delegates_than_the_join_budget() {
+    const SMALL_JOINS: u32 = 4;
+    let (mut store, disk) = party_store();
+    let goal = super::keep_delegated_goal(&mut store, CHILD);
+    store.limits.joins = SMALL_JOINS;
+    let below = waiting_party(&mut store, turn_range());
+    let result = read_disk(&mut store, below, &disk);
+    let row = one_row(&result);
+    assert_eq!(row.value, super::expected_turn());
+    assert_eq!(row.owner, Some(goal));
+    assert!(row.ancestors.is_empty());
+    assert!(row.linked.is_empty());
+}
+
+#[test]
 fn an_unread_turn_is_malformed() {
     let (mut store, mut disk) = party_store();
     corrupt_disk(&mut disk);

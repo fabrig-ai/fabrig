@@ -28,6 +28,7 @@ unused_must_use = "deny"
 
 [lints.clippy]
 pedantic = { level = "warn", priority = -1 }
+missing_errors_doc = "allow"
 missing_panics_doc = "allow"
 wildcard_enum_match_arm = "deny"
 match_wildcard_for_single_variants = "deny"
@@ -36,3 +37,4 @@ allow_attributes = "deny"
 allow_attributes_without_reason = "deny"
 disallowed_types = "deny"
 disallowed_methods = "deny"
+disallowed_macros = "deny"

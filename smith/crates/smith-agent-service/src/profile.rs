@@ -419,7 +419,7 @@ fn channel_limits(
             skip: channel_start_bytes(&bodies)?.max(output_bytes),
             output_bytes,
             output_frames,
-            kinds: u32::try_from(smith_channel::V5.len()).or(Err(derived(Layer::Channel, "kinds")))?,
+            kinds: u32::try_from(smith_channel::V6.len()).or(Err(derived(Layer::Channel, "kinds")))?,
         },
         endpoints: ENDPOINTS,
         calls: domain.run.calls,

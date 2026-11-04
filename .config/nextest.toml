@@ -113,7 +113,7 @@ filter = "(package(/^temper(-|$)/) | package(=git-transcripts)) & (test(/^fuzzy_
 priority = 20
 
 [profile.browser-skein]
-default-filter = "((package(=skein-browser-world) | package(=skein-ui-web-tests) | package(=skein-lab-browser)) & binary(/^browser_/)) & (package(/^skein-/) | package(=forgejo-conformance) | package(=github-conformance))"
+default-filter = "((package(=skein-browser-world) | package(=skein-ui-web-tests)) & binary(/^browser_/)) & (package(/^skein-/) | package(=forgejo-conformance) | package(=github-conformance))"
 global-timeout = "4m"
 slow-timeout = { period = "40s", terminate-after = 3 }
 test-threads = 1
@@ -156,8 +156,11 @@ default-filter = "binary(=process) & (package(/^temper(-|$)/) | package(=git-tra
 global-timeout = "25m"
 test-threads = 1
 
+# The after-landing tier, under --run-ignored only: the owned-forge landing pair on the
+# sign-ins the tier takes as inputs (temper/docs/design/domain/testing.md, 2.7). The owner's
+# scripts ignore this filter and name their own story.
 [profile.live-temper]
-default-filter = "(binary(=live) | binary(=live_github)) & (package(/^temper(-|$)/) | package(=git-transcripts))"
+default-filter = "(binary(=live) & (test(=a_person_asks_chatgpt_to_land_a_change_on_the_owned_forge) | test(=a_person_asks_claude_code_to_land_a_change_on_the_owned_forge))) & (package(/^temper(-|$)/) | package(=git-transcripts))"
 global-timeout = "50m"
 test-threads = 1
 retries = 0

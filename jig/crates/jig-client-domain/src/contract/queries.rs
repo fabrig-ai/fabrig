@@ -21,10 +21,12 @@ pub enum PhaseClass {
 }
 /// The selected executor kind.
 #[derive(Clone, Copy, Debug, PartialEq, Eq, Hash)]
+/// Job tasks: jig/docs/design/client/domain/contract.md, 5.7.
 pub enum ExecutorKind {
     Agent,
     Procedure,
     Person,
+    Job,
 }
 /// A conjunction of fixed keys with an owner-supplied order.
 #[derive(Clone, Copy, Debug, PartialEq, Eq, Hash)]

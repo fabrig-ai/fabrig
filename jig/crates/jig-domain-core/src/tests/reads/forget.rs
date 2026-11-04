@@ -1,6 +1,6 @@
 use crate::{
     reads::forget::{Owner, Reading, forgets},
-    tests::{fixtures, tasks},
+    tests::*,
 };
 
 const TASK: u64 = 1;
@@ -33,6 +33,36 @@ const CASES: [(&str, tasks::Retention, tasks::Party, Reading, Option<u64>); 6] =
     ),
     ("released", tasks::Retention::ForgottenOnceRead, tasks::Party::Person(PARTY), READ, Some(PARTY)),
 ];
+
+#[test]
+fn a_forget_tells_every_connector_the_task_is_erased() {
+    let (mut core, _) = make_tree();
+    let mut row = fixtures::ended_report(TASK, tasks::Party::Person(PARTY));
+    row.flags.retention = tasks::Retention::ForgottenOnceRead;
+    let owner = Owner::of_row(&row).unwrap();
+    for messages in [6, 7] {
+        core.counters.deployment.messages = messages;
+        let mut work = Queue::uncapped();
+        let out = crate::reads::forget::forget(&mut core, &mut work, &owner);
+        let mut erases = List::with_capacity(out.len());
+        let mut unnamed = List::with_capacity(out.len());
+        for request in &out {
+            if let Request::Write(Write::Erase(key)) = request {
+                erases.push(key.clone()).unwrap();
+            }
+            if let Request::Ask { connector, ask: Ask::Effect(connector::Ask::Unname { task }) } = request {
+                unnamed.push((*connector, *task)).unwrap();
+            }
+        }
+        if messages == 7 {
+            assert!(erases.into_boxed().contains(&Key::Tasks(tasks::Key::Ended(TASK))));
+            assert_eq!(unnamed.into_boxed().as_ref(), &[(1, TASK), (2, TASK)]);
+        } else {
+            assert!(out.is_empty());
+            assert!(work.is_empty());
+        }
+    }
+}
 
 #[test]
 fn forgets_names_the_party_only_once_its_reading_releases_the_task() {

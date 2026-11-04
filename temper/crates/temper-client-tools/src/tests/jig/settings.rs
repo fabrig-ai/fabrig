@@ -68,11 +68,265 @@ fn model() -> c::SettingModel {
         effort: Some(words("high")),
     }
 }
+fn documents() -> List<c::CharterDocument> {
+    list([
+        c::CharterDocument {
+            connector: 0,
+            name: list(["forge", "code.example", "team", "rules", "branch", "main"].map(|s| s.as_bytes().into())),
+            path: b"AGENTS.md".as_slice().into(),
+            heading: Some(b"Rules".as_slice().into()),
+        },
+        c::CharterDocument {
+            connector: 0,
+            name: list(
+                ["forge", "code.example", "team", "rules", "branch", "topic", "rules"].map(|s| s.as_bytes().into()),
+            ),
+            path: b"docs/rules.md".as_slice().into(),
+            heading: None,
+        },
+    ])
+}
+fn charter_file(documents: &str) -> Vec<u8> {
+    let (setting, c::SettingValue::Charter(mut value)) = values().remove(0) else { panic!("charter") };
+    value.documents = list([]);
+    let file = file_from_setting(&setting_json(setting, c::SettingValue::Charter(value)));
+    String::from_utf8(file)
+        .expect("file JSON")
+        .replace("\"documents\":[]", &format!("\"documents\":{documents}"))
+        .into_bytes()
+}
+const DOCUMENTS: &str = r#"[{"forge":"code.example","repository":"team/rules","branch":"main","path":"AGENTS.md","heading":"Rules"},{"forge":"code.example","repository":"team/rules","branch":"topic/rules","path":"docs/rules.md"}]"#;
+
+#[test]
+fn a_settings_file_charter_names_documents() {
+    let file = charter_file(DOCUMENTS);
+    let (root, call) = changed(&file, false);
+    let (_, _, jig_client::Ask::Jig(ask)) = root.sends.get(&call).expect("sent") else { panic!("jig ask") };
+    let c::Ask::ChangeSettings(change) = ask.as_ref() else { panic!("settings change") };
+    let (setting, value) = values().remove(0);
+    assert_eq!(
+        change,
+        &c::ChangeSettings {
+            against: 5,
+            items: list([c::SettingItem {
+                setting,
+                edit: c::SettingEdit::Set(c::SettingSet { value: value.clone() })
+            }]),
+            running: c::Running::Moves
+        }
+    );
+    let (root, call) = proposed(&file, true);
+    let (_, _, jig_client::Ask::Jig(ask)) = root.sends.get(&call).expect("sent") else { panic!("jig ask") };
+    let c::Ask::Propose { action: c::ProposeAction::Settings(proposal), .. } = ask.as_ref() else {
+        panic!("settings proposal")
+    };
+    assert_eq!(proposal.items, change.items);
+
+    let form = jig::form_setting_value(&value);
+    let bounds = crate::limits::form();
+    let wire_value = jig_client_protocol_link::translate::settings::wire_setting_value(&value, &bounds.settings)
+        .expect("wire value");
+    let wire = jig_client_protocol_wire::SettingDocument::new(
+        &bounds.settings,
+        jig_client_protocol_wire::SettingDocumentParts {
+            setting: jig_client_protocol_wire::Setting::Charter(
+                jig_client_protocol_wire::SettingNumber::new(
+                    &bounds.settings,
+                    jig_client_protocol_wire::SettingNumberParts { number: 3 },
+                )
+                .expect("number"),
+            ),
+            revision: 5,
+            value: Some(wire_value),
+            application: None,
+            proposed: None,
+        },
+    )
+    .expect("wire document");
+    assert_eq!(settings_form::wire::restore_setting_document(&wire, &bounds).expect("restore").value, Some(form));
+    let neutral = settings_form::view::ChangeSettings {
+        against: 5,
+        items: settings_form::file::decode(&file, &bounds).expect("neutral items"),
+        running: settings_form::view::Running::Moves,
+    };
+    let wire = settings_form::wire::wire_change_settings(&neutral, &bounds.settings).expect("neutral wire");
+    let preset = crate::limits::client().client;
+    let link = jig_client_protocol_link::Limits::new(preset.domain, preset.exchanges).expect("client limits");
+    assert_eq!(
+        jig_client_protocol_link::translate::settings::restore_change_settings(&wire, &link).expect("client ask"),
+        *change
+    );
+}
+#[test]
+fn settings_show_charter_renders_its_documents() {
+    let (setting, value) = values().remove(0);
+    for json in [false, true] {
+        let mut argv = vec!["settings", "show", "charter", "3"];
+        if json {
+            argv.push("--json");
+        }
+        let answer = read(
+            &argv,
+            c::ReadValue::Setting(Box::new(c::SettingDocument {
+                setting,
+                revision: 5,
+                value: Some(value.clone()),
+                application: None,
+                proposed: None,
+            })),
+        );
+        assert_eq!(answer.status, 0);
+        golden(if json { "settings_value_0_json" } else { "settings_value_0" }, &answer.stdout);
+    }
+}
+#[test]
+fn a_document_that_is_no_forge_branch_renders_its_name() {
+    for (connector, name) in [
+        (7, vec!["forge", "code.example", "team", "rules", "branch", "main"]),
+        (0, vec!["other", "resource"]),
+        (0, vec!["forge", "code.example", "team", "rules", "branch"]),
+    ] {
+        let (setting, c::SettingValue::Charter(mut value)) = values().remove(0) else { panic!("charter") };
+        value.documents = list([c::CharterDocument {
+            connector,
+            name: list(name.iter().map(|s| s.as_bytes().into())),
+            path: b"rules.md".as_slice().into(),
+            heading: None,
+        }]);
+        let json = setting_json(setting, c::SettingValue::Charter(value));
+        let text = core::str::from_utf8(&json).expect("JSON");
+        let names = name.iter().map(|s| format!("\"{s}\"")).collect::<Vec<_>>().join(",");
+        assert!(
+            text.contains(&format!(
+                r#""documents":[{{"connector":{connector},"name":[{names}],"path":"rules.md","heading":null}}]"#
+            )),
+            "{text}"
+        );
+        let file = file_from_setting(&json);
+        let error = settings_file::decode(&file, &crate::limits::tools()).expect_err("not a forge branch");
+        let error = core::str::from_utf8(&error).expect("error text");
+        assert!(error.contains("charter.documents[0].name") && error.contains("shape"), "{error}");
+        let (mut root, call) = changed(&file, false);
+        assert!(root.sends.is_empty());
+        assert_eq!(root.answer(call).expect("local refusal").status, 1);
+    }
+}
+#[test]
+fn document_bounds_refuse_each_member_one_past_its_bound() {
+    let file = charter_file(DOCUMENTS);
+    for (name, length, path) in [
+        ("charter_documents", 2, "charter.documents"),
+        ("charter_document_name", 7, "charter.documents[1].branch"),
+        ("charter_document_name_item", 12, "charter.documents[0].forge"),
+        ("charter_document_path", 13, "charter.documents[1].path"),
+        ("charter_document_heading_some", 5, "charter.documents[0].heading"),
+    ] {
+        for (bound, allowed) in [(length, true), (length - 1, false)] {
+            let mut limits = crate::limits::tools();
+            match name {
+                "charter_documents" => limits.settings.charter_documents = bound,
+                "charter_document_name" => limits.settings.charter_document_name = bound,
+                "charter_document_name_item" => limits.settings.charter_document_name_item = bound,
+                "charter_document_path" => limits.settings.charter_document_path = bound,
+                "charter_document_heading_some" => limits.settings.charter_document_heading_some = bound,
+                _ => panic!("fixture bound"),
+            }
+            let result = settings_file::decode(&file, &limits);
+            assert_eq!(result.is_ok(), allowed, "{name}: {result:?}");
+            if let Err(error) = result {
+                let text = core::str::from_utf8(&error).expect("error text");
+                assert!(text.contains("item 1") && text.contains(path), "{text}");
+            }
+        }
+    }
+}
+
+#[test]
+fn document_name_parts_and_fixed_byte_bounds_name_the_refused_member() {
+    let limits = crate::limits::tools();
+    for (member, maximum, base) in [
+        ("forge", limits.settings.charter_document_name_item, "x"),
+        ("repository", limits.settings.charter_document_name_item, "x/repo"),
+        ("repository", limits.settings.charter_document_name_item, "owner/x"),
+        ("branch", limits.settings.charter_document_name_item, "x"),
+        ("path", 256, "x"),
+        ("heading", 80, "x"),
+    ] {
+        for extra in [0, 1] {
+            let count = usize::try_from(maximum + extra).expect("test length");
+            let text = base.replace('x', &"x".repeat(count));
+            let mut fields = [
+                ("forge", "host".to_owned()),
+                ("repository", "owner/repo".to_owned()),
+                ("branch", "main".to_owned()),
+                ("path", "rules.md".to_owned()),
+                ("heading", "Rules".to_owned()),
+            ];
+            fields.iter_mut().find(|(name, _)| *name == member).expect("field").1 = text;
+            let document =
+                fields.iter().map(|(name, value)| format!(r#""{name}":"{value}""#)).collect::<Vec<_>>().join(",");
+            let file = charter_file(&format!("[{{{document}}}]"));
+            let result = settings_file::decode(&file, &limits);
+            assert_eq!(result.is_ok(), extra == 0, "{member} bound {maximum}, extra {extra}: {result:?}");
+            if let Err(error) = result {
+                let error = core::str::from_utf8(&error).expect("error text");
+                assert!(error.contains(&format!("charter.documents[0].{member}")), "{error}");
+            }
+        }
+    }
+}
+#[test]
+fn document_shape_refusals_name_the_member_and_a_heading_is_optional() {
+    for (member, value) in [
+        ("forge", "null"),
+        ("forge", r#""""#),
+        ("repository", r#""owner""#),
+        ("repository", r#""owner/repo/other""#),
+        ("repository", r#""/repo""#),
+        ("repository", r#""owner/""#),
+        ("branch", r#""topic//rules""#),
+        ("path", "false"),
+        ("path", r#""""#),
+        ("heading", "7"),
+        ("heading", r#""""#),
+    ] {
+        let document =
+            r#"[{"forge":"host","repository":"owner/repo","branch":"main","path":"rules.md","heading":null}]"#
+                .to_owned();
+        let original = match member {
+            "forge" => r#""forge":"host""#,
+            "repository" => r#""repository":"owner/repo""#,
+            "branch" => r#""branch":"main""#,
+            "path" => r#""path":"rules.md""#,
+            "heading" => r#""heading":null"#,
+            _ => panic!("fixture field"),
+        };
+        let document = document.replace(original, &format!(r#""{member}":{value}"#));
+        let file = charter_file(&document);
+        let error = settings_file::decode(&file, &crate::limits::tools()).expect_err("invalid document");
+        let error = core::str::from_utf8(&error).expect("error text");
+        assert!(error.contains(&format!("charter.documents[0].{member}")), "{error}");
+    }
+    for heading in ["", r#", "heading":null"#] {
+        let file = charter_file(&format!(
+            r#"[{{"forge":"host","repository":"owner/repo","branch":"main","path":"rules.md"{heading}}}]"#
+        ));
+        let items = settings_file::decode(&file, &crate::limits::tools()).expect("optional heading");
+        let c::SettingEdit::Set(c::SettingSet { value: c::SettingValue::Charter(charter) }) =
+            &items.get(0).expect("charter item").edit
+        else {
+            panic!("charter")
+        };
+        assert!(charter.documents.get(0).expect("document").heading.is_none());
+    }
+}
+
 fn values() -> Vec<(c::Setting, c::SettingValue)> {
     vec![
         (
             c::Setting::Charter(c::SettingNumber { number: 3 }),
             c::SettingValue::Charter(Box::new(c::Charter {
+                documents: documents(),
                 number: 3,
                 instructions: words("keep \"boundaries\"\nwhole"),
                 waiting: Duration::from_secs(1),
@@ -88,13 +342,24 @@ fn values() -> Vec<(c::Setting, c::SettingValue)> {
                 shell: false,
                 agents: false,
                 call_timeout: Duration::from_secs(3),
+                tools: 1536,
                 hosts: c::SettingHosts::Both,
                 spend: 900,
+                wake: c::WakePolicy {
+                    words: c::WakeRule::Immediate,
+                    notices: c::WakeRule::Immediate,
+                    news: c::WakeRule::Immediate,
+                    results: c::ResultsWake::LastOrFailure,
+                    questions: true,
+                    answers: true,
+                    timers: true,
+                },
             })),
         ),
         (
             c::Setting::Template(c::SettingNumber { number: 4 }),
             c::SettingValue::Template(Box::new(c::Template {
+                resources: List::with_capacity(0),
                 number: 4,
                 name: c::DocumentText::complete(words("work")),
                 executor: c::TemplateExecutor::Charter(3),
@@ -170,7 +435,9 @@ fn read(argv: &[&str], value: c::ReadValue) -> jig::Printed {
             c::ReadResult::Value(c::ReadValue::Setting(Box::new(c::SettingDocument {
                 setting: request.setting,
                 revision: 6,
-                value,
+                value: Some(value),
+                application: None,
+                proposed: None,
             }))),
         );
     }
@@ -197,7 +464,13 @@ fn setting_json(setting: c::Setting, value: c::SettingValue) -> Vec<u8> {
     newest_for_setting(&mut root, number);
     root.serve(
         number,
-        c::ReadResult::Value(c::ReadValue::Setting(Box::new(c::SettingDocument { setting, revision: 5, value }))),
+        c::ReadResult::Value(c::ReadValue::Setting(Box::new(c::SettingDocument {
+            setting,
+            revision: 5,
+            value: Some(value),
+            application: None,
+            proposed: None,
+        }))),
     );
     root.answer(number).expect("setting answered").stdout.to_vec()
 }
@@ -248,7 +521,7 @@ fn settings_calls_parse_and_write_back_with_existing_numbers_unchanged() {
         assert_eq!(fixtures::back(&call), fixtures::owned(&argv));
         assert_eq!(fixtures::printed(&call), jig::call::Parsed::Call { call, json: false });
     }
-    assert_eq!((rows::EXPORT_AT, rows::IMPORT_AT, rows::SETTINGS_AT, rows::CHANGE_SETTINGS_AT), (40, 41, 42, 46));
+    assert_eq!((rows::EXPORT_AT, rows::IMPORT_AT, rows::SETTINGS_AT, rows::CHANGE_SETTINGS_AT), (41, 42, 43, 47));
     for argv in [
         vec!["settings", "show", "rules", "--project", "1"],
         vec!["settings", "show", "charter", "3", "--project", "1"],
@@ -325,9 +598,16 @@ fn whole_settings_document_renderings_are_stable() {
                 setting: c::Setting::Charter(c::SettingNumber { number: 3 }),
                 name: Some(c::DocumentText::complete(words("worker"))),
                 follows: c::SettingFollows::Change,
-                last: 5,
+                last: Some(5),
+                application: None,
             },
-            c::SettingLine { setting: c::Setting::Rules, name: None, follows: c::SettingFollows::Default, last: 0 },
+            c::SettingLine {
+                setting: c::Setting::Rules,
+                name: None,
+                follows: c::SettingFollows::Default,
+                last: Some(0),
+                application: None,
+            },
         ]),
         held: list([c::HeldRevision {
             head: head(c::RevisionDecider::Party(c::RevisionParty { number: 2 })),
@@ -339,10 +619,15 @@ fn whole_settings_document_renderings_are_stable() {
         head: head(c::RevisionDecider::Release),
         items: list([
             c::RevisionItem {
+                replaced: c::RevisionReplaced::NotOffered,
                 setting: c::Setting::Charter(c::SettingNumber { number: 3 }),
                 edit: c::RevisionEdit::TooLarge(c::Size { bytes: 1_000_000 }),
             },
-            c::RevisionItem { setting: c::Setting::Rules, edit: c::RevisionEdit::Reset },
+            c::RevisionItem {
+                replaced: c::RevisionReplaced::NotOffered,
+                setting: c::Setting::Rules,
+                edit: c::RevisionEdit::Reset,
+            },
         ]),
     })));
     let revisions = c::ReadValue::Revisions(Box::new(c::RevisionsPage {
@@ -555,11 +840,18 @@ fn setting_text_and_revisions_include_whole_set_values_and_last_page_facts() {
             c::Setting::Charter(_) => vec!["settings", "show", "charter", "3"],
             c::Setting::Template(_) => vec!["settings", "show", "template", "4"],
             c::Setting::Policy(_) => vec!["settings", "show", "policy", "5"],
+            c::Setting::Application { .. } | c::Setting::ProjectPolicy { .. } => continue,
             c::Setting::Rules => vec!["settings", "show", "rules"],
         };
         let answer = read(
             &argv,
-            c::ReadValue::Setting(Box::new(c::SettingDocument { setting, revision: 5, value: value.clone() })),
+            c::ReadValue::Setting(Box::new(c::SettingDocument {
+                setting,
+                revision: 5,
+                value: Some(value.clone()),
+                application: None,
+                proposed: None,
+            })),
         );
         assert_eq!(answer.status, 0);
         golden(&format!("settings_value_{index}"), &answer.stdout);
@@ -573,6 +865,7 @@ fn setting_text_and_revisions_include_whole_set_values_and_last_page_facts() {
                 c::ReadValue::Revision(Box::new(c::RevisionAnswer::Revision(c::RevisionDocument {
                     head: head(c::RevisionDecider::Release),
                     items: list([c::RevisionItem {
+                        replaced: c::RevisionReplaced::NotOffered,
                         setting,
                         edit: c::RevisionEdit::Set(c::SettingSet { value: value.clone() }),
                     }]),
@@ -760,12 +1053,15 @@ fn non_charter_revision_hints_explicitly_read_the_current_value() {
             c::ReadValue::Revision(Box::new(c::RevisionAnswer::Revision(c::RevisionDocument {
                 head: head(c::RevisionDecider::Release),
                 items: list([c::RevisionItem {
+                    replaced: c::RevisionReplaced::NotOffered,
                     setting,
                     edit: c::RevisionEdit::TooLarge(c::Size { bytes: 1_000_000 }),
                 }]),
             }))),
         );
-        let line = format!("  {name}: too large, 1000000 bytes; read current value with settings show {name}\n");
+        let line = format!(
+            "  {name}: too large, 1000000 bytes; read current value with settings show {name}\n    was: not offered\n"
+        );
         assert!(answer.stdout.ends_with(line.as_bytes()), "{}", String::from_utf8_lossy(&answer.stdout));
     }
 }
@@ -786,7 +1082,7 @@ fn settings_proposals_and_decision_choices_parse_round_trip_and_preserve_identit
         }
         assert_eq!(fixtures::from_json(&jig::json::write_call(crate::table::TOOLS, &call).expect("JSON")), call);
     }
-    assert_eq!((rows::PROPOSE_SETTINGS_AT, rows::PROPOSAL_AT), (47, 48));
+    assert_eq!((rows::PROPOSE_SETTINGS_AT, rows::PROPOSAL_AT), (48, 49));
     for argv in [
         vec!["settings", "propose", "FILE", "--against", "5"],
         vec!["settings", "propose", "FILE", "--against", "5", "--running", "moves", "--key", "proposal-5"],
@@ -846,6 +1142,7 @@ fn settings_review_goldens_keep_every_edit_value_origin_and_head_fact() {
     for (index, (setting, value)) in values().into_iter().enumerate() {
         let set = c::ReviewValue::Value(c::SettingSet { value });
         let review = c::SettingsReview {
+            key: None,
             newest: 6,
             cut: true,
             items: list([
@@ -855,6 +1152,7 @@ fn settings_review_goldens_keep_every_edit_value_origin_and_head_fact() {
                     now: set.clone(),
                     origin: c::SettingOrigin::Change(c::OriginRevision { revision: 4 }),
                     would_be: set.clone(),
+                    application: None,
                 },
                 c::ReviewItem {
                     setting,
@@ -862,6 +1160,7 @@ fn settings_review_goldens_keep_every_edit_value_origin_and_head_fact() {
                     now: set.clone(),
                     origin: c::SettingOrigin::Default(c::OriginRevision { revision: 2 }),
                     would_be: c::ReviewValue::None,
+                    application: None,
                 },
                 c::ReviewItem {
                     setting,
@@ -869,6 +1168,7 @@ fn settings_review_goldens_keep_every_edit_value_origin_and_head_fact() {
                     now: c::ReviewValue::None,
                     origin: c::SettingOrigin::NotOffered,
                     would_be: set.clone(),
+                    application: None,
                 },
                 c::ReviewItem {
                     setting,
@@ -876,6 +1176,7 @@ fn settings_review_goldens_keep_every_edit_value_origin_and_head_fact() {
                     now: set.clone(),
                     origin: c::SettingOrigin::Default(c::OriginRevision { revision: 2 }),
                     would_be: set.clone(),
+                    application: None,
                 },
                 c::ReviewItem {
                     setting,
@@ -883,6 +1184,7 @@ fn settings_review_goldens_keep_every_edit_value_origin_and_head_fact() {
                     now: c::ReviewValue::TooLarge(c::Size { bytes: 4096 }),
                     origin: c::SettingOrigin::Change(c::OriginRevision { revision: 3 }),
                     would_be: set.clone(),
+                    application: None,
                 },
                 c::ReviewItem {
                     setting,
@@ -890,6 +1192,7 @@ fn settings_review_goldens_keep_every_edit_value_origin_and_head_fact() {
                     now: set,
                     origin: c::SettingOrigin::Default(c::OriginRevision { revision: 0 }),
                     would_be: c::ReviewValue::TooLarge(c::Size { bytes: 8192 }),
+                    application: None,
                 },
             ]),
         };
@@ -903,7 +1206,7 @@ fn settings_review_goldens_keep_every_edit_value_origin_and_head_fact() {
             golden(&format!("settings_review_{index}_{}", if json { "json" } else { "text" }), &answer.stdout);
         }
     }
-    for review in [None, Some(c::SettingsReview { newest: 5, items: list([]), cut: false })] {
+    for review in [None, Some(c::SettingsReview { key: None, newest: 5, items: list([]), cut: false })] {
         let answer = read(&["proposal", "show", "p73/7"], review_proposal(review));
         assert_eq!(answer.status, 0);
         assert!(!core::str::from_utf8(&answer.stdout).expect("text").contains("cut:"));
@@ -1224,6 +1527,7 @@ fn proposal_review_reads_both_large_values_whole_and_keeps_refusals_in_place() {
             root.serve(
                 call,
                 c::ReadResult::Value(review_proposal(Some(c::SettingsReview {
+                    key: None,
                     newest: 6,
                     cut: false,
                     items: list([c::ReviewItem {
@@ -1232,6 +1536,7 @@ fn proposal_review_reads_both_large_values_whole_and_keeps_refusals_in_place() {
                         now: large.clone(),
                         would_be: large,
                         origin: c::SettingOrigin::Default(c::OriginRevision { revision: 1 }),
+                        application: None,
                     }]),
                 }))),
             );
@@ -1245,7 +1550,9 @@ fn proposal_review_reads_both_large_values_whole_and_keeps_refusals_in_place() {
                 c::ReadResult::Value(c::ReadValue::Setting(Box::new(c::SettingDocument {
                     setting,
                     revision: 6,
-                    value: value.clone(),
+                    value: Some(value.clone()),
+                    application: None,
+                    proposed: None,
                 }))),
             );
             assert_eq!(
@@ -1264,7 +1571,9 @@ fn proposal_review_reads_both_large_values_whole_and_keeps_refusals_in_place() {
                     c::ReadResult::Value(c::ReadValue::Setting(Box::new(c::SettingDocument {
                         setting,
                         revision: 6,
-                        value,
+                        value: Some(value),
+                        application: None,
+                        proposed: None,
                     }))),
                 );
             }
@@ -1382,5 +1691,746 @@ fn repeated_settings_decisions_send_the_given_key_and_print_the_engine_answer() 
                 }
             }
         }
+    }
+}
+
+fn forge_value(kind: u32) -> Box<[u8]> {
+    let json = if kind == 3 {
+        br#"{"items":[{"setting":{"kind":"forge-charter","number":1},"set":6}]}"#.as_slice()
+    } else {
+        br#"{"items":[{"setting":{"kind":"landing-rule","number":1},"set":{"pattern":{"segments":["ff"],"last":{"open":"61"}},"enforce":true,"ci":false,"up_to_date":true,"gates":[{"number":2,"blocking":false,"freshness":"clean"}],"approvals":[{"role":0,"people":1,"freshness":"exact"}]}}]}"#.as_slice()
+    };
+    let items = settings_file::decode(json, &fixtures::limits()).unwrap();
+    let c::SettingEdit::Set(c::SettingSet { value: c::SettingValue::Application(bytes) }) = &items.as_slice()[0].edit
+    else {
+        panic!("forge value")
+    };
+    bytes.clone()
+}
+fn forge_setting_page(value: Option<Box<[u8]>>) -> jig_client::Readout {
+    use temper_client_protocol_wire::{self as wire, v1 as w};
+    jig_client::Readout::Family {
+        family: wire::FORGE,
+        record: Some(wire::setting_answer(
+            &w::SettingAnswer::new(&w::CEILINGS, w::SettingAnswerParts { value }).unwrap(),
+        )),
+    }
+}
+fn forge_query(root: &fixtures::Harness, call: u32) -> temper_client_protocol_wire::v1::Read {
+    use temper_client_protocol_wire::{self as wire, v1 as w};
+    let (_, jig_client::Readable::Family { scope, record, .. }) = root.family_reads.get(&call).expect("forge read")
+    else {
+        panic!("family read")
+    };
+    assert_eq!(*scope, c::Scope::Deployment);
+    assert_eq!((record.family, record.version), (wire::FORGE, wire::CLIENT_VERSION));
+    wire::decode_reading(&record.bytes, &w::CEILINGS).unwrap().into_parts().read
+}
+fn forge_inventory(setting: c::Setting, follows: c::ApplicationFollows) -> c::ReadResult {
+    c::ReadResult::Value(c::ReadValue::Settings(Box::new(c::SettingsDocument {
+        newest: 5,
+        settings: list([c::SettingLine {
+            setting,
+            name: None,
+            follows: if follows == c::ApplicationFollows::Default {
+                c::SettingFollows::Default
+            } else {
+                c::SettingFollows::Change
+            },
+            last: if follows == c::ApplicationFollows::Default { None } else { Some(5) },
+            application: Some(c::ApplicationState { follows, size: 4, charters: list([]) }),
+        }]),
+        held: list([]),
+        pending: list([]),
+    })))
+}
+#[test]
+fn forge_setting_commands_join_inventory_state_and_the_forges_value_in_text_and_json() {
+    use temper_client_protocol_wire::v1 as w;
+    for (argv, kind, scope, label) in [
+        (vec!["settings", "show", "landing-rule", "1"], 1, 0, "landing-rule 1"),
+        (vec!["settings", "show", "landing-rule", "1", "--project", "7"], 2, 7, "landing-rule 1 --project 7"),
+        (
+            vec!["settings", "show", "landing-rule", "1", "--project", "shop"],
+            2,
+            fixtures::PROJECT,
+            "landing-rule 1 --project",
+        ),
+        (vec!["settings", "show", "forge-charter", "1"], 3, 0, "forge-charter 1"),
+    ] {
+        for json in [false, true] {
+            let setting = c::Setting::Application { kind, scope, number: 1 };
+            let mut root = fixtures::signed_in(fixtures::PARTY);
+            let call = root.submit_prepared(fixtures::call(&argv), json, None);
+            assert_eq!(root.reads.get(&call).unwrap().1, c::Read::Settings);
+            root.serve(call, forge_inventory(setting, c::ApplicationFollows::Changed { revision: 5 }));
+            assert!(root.answer(call).is_none());
+            let w::Read::Setting(query) = forge_query(&root, call) else { panic!("setting query") };
+            assert_eq!((query.kind(), query.scope(), query.number()), (kind, scope, 1));
+            root.serve_readout(call, forge_setting_page(Some(forge_value(kind))));
+            let answer = root.answer(call).expect("joined setting");
+            assert_eq!(answer.status, 0);
+            let text = core::str::from_utf8(&answer.stdout).unwrap();
+            if json {
+                assert!(text.contains(if kind == 3 { "\"value\":6" } else { "\"ci\":false" }), "{text}");
+                assert!(text.contains("\"application\":{\"follows\":\"change\",\"revision\":5"), "{text}");
+                assert!(text.contains(if kind == 3 { "forge-charter" } else { "landing-rule" }), "{text}");
+            } else {
+                let canonical = setting_json(setting, c::SettingValue::Application(forge_value(kind)));
+                let canonical = core::str::from_utf8(&canonical).unwrap();
+                let (_, value) = canonical.split_once("\"value\":").unwrap();
+                let value = value.trim_end().strip_suffix('}').unwrap();
+                assert!(text.contains(value), "inline value differs from the shared settings form: {text}");
+                assert!(text.starts_with(label), "{text}");
+                assert!(text.contains("changed at revision 5"), "{text}");
+                assert!(text.contains(if kind == 3 { "\n6\n" } else { "\"ci\":false" }), "{text}");
+            }
+            assert_eq!(root.watches.len(), 1);
+        }
+    }
+}
+#[test]
+fn forge_setting_commands_print_removed_and_unset_values_and_preserve_refusals() {
+    for json in [false, true] {
+        for follows in [c::ApplicationFollows::Default, c::ApplicationFollows::Removed { revision: 5 }] {
+            let mut root = fixtures::signed_in(fixtures::PARTY);
+            let call = root.submit_prepared(fixtures::call(&["settings", "show", "forge-charter", "2"]), json, None);
+            root.serve(call, forge_inventory(c::Setting::Application { kind: 3, scope: 0, number: 2 }, follows));
+            root.serve_readout(call, forge_setting_page(None));
+            let answer = root.answer(call).unwrap();
+            assert_eq!(answer.status, 0);
+            let text = core::str::from_utf8(&answer.stdout).unwrap();
+            assert!(text.contains(if json { "\"value\":null" } else { "\nnone\n" }), "{text}");
+        }
+        for page in [
+            jig_client::Readout::Jig(c::ReadResult::None(c::ReadNone::Unknown)),
+            jig_client::Readout::NotServed { family: Some(1), served: None },
+            jig_client::Readout::Family { family: 1, record: Some(Box::new([0])) },
+        ] {
+            let mut root = fixtures::signed_in(fixtures::PARTY);
+            let call = root.submit_prepared(fixtures::call(&["settings", "show", "landing-rule", "1"]), json, None);
+            root.serve(
+                call,
+                forge_inventory(
+                    c::Setting::Application { kind: 1, scope: 0, number: 1 },
+                    c::ApplicationFollows::Default,
+                ),
+            );
+            root.serve_readout(call, page);
+            assert_ne!(root.answer(call).unwrap().status, 0);
+        }
+    }
+}
+#[test]
+fn forge_settings_inventory_names_the_kinds_with_defaults_changes_and_removals() {
+    let settings = [
+        (1, 0, 1, c::ApplicationFollows::Default),
+        (2, 7, 2, c::ApplicationFollows::Changed { revision: 5 }),
+        (3, 0, 1, c::ApplicationFollows::Removed { revision: 5 }),
+    ];
+    let mut lines = List::with_capacity(3);
+    for (kind, scope, number, follows) in settings {
+        let c::ReadResult::Value(c::ReadValue::Settings(inventory)) =
+            forge_inventory(c::Setting::Application { kind, scope, number }, follows)
+        else {
+            unreachable!()
+        };
+        lines.push(inventory.settings.as_slice()[0].clone()).unwrap();
+    }
+    let document = c::ReadValue::Settings(Box::new(c::SettingsDocument {
+        newest: 5,
+        settings: lines,
+        held: list([]),
+        pending: list([]),
+    }));
+    let answer = read(&["settings", "show"], document);
+    assert_eq!(answer.status, 0);
+    let text = core::str::from_utf8(&answer.stdout).unwrap();
+    for line in [
+        "landing-rule 1: default",
+        "landing-rule 2 --project 7: changed in revision 5",
+        "forge-charter 1: changed in revision 5, removed",
+    ] {
+        assert!(text.contains(line), "{text}");
+    }
+}
+#[test]
+fn forge_proposal_show_reads_the_reviews_key_and_prints_every_temper_edit() {
+    use temper_client_protocol_wire::{self as wire, v1 as w};
+    for json in [false, true] {
+        let mut root = fixtures::signed_in(fixtures::PARTY);
+        let call = root.submit_prepared(fixtures::call(&["proposal", "show", "p73/7"]), json, None);
+        root.serve(
+            call,
+            c::ReadResult::Value(review_proposal(Some(c::SettingsReview {
+                key: Some(u64::MAX),
+                newest: 5,
+                items: list([c::ReviewItem {
+                    setting: c::Setting::Application { kind: 1, scope: 0, number: 1 },
+                    edit: c::RevisionItemEdit::Set,
+                    now: c::ReviewValue::None,
+                    would_be: c::ReviewValue::None,
+                    origin: c::SettingOrigin::Default(c::OriginRevision { revision: 1 }),
+                    application: None,
+                }]),
+                cut: true,
+            }))),
+        );
+        let w::Read::ProposalItems(query) = forge_query(&root, call) else { panic!("proposal items") };
+        assert_eq!(query.key(), u64::MAX, "the review's key, not proposer 73's number 7");
+        let record = w::ProposalItemsAnswer::new(
+            &w::CEILINGS,
+            w::ProposalItemsAnswerParts {
+                items: list([
+                    w::ProposalItem::new(
+                        &w::CEILINGS,
+                        w::ProposalItemParts {
+                            kind: 1,
+                            scope: 0,
+                            number: 1,
+                            edit: w::SettingEdit::Set(
+                                w::SettingValue::new(&w::CEILINGS, w::SettingValueParts { value: forge_value(1) })
+                                    .unwrap(),
+                            ),
+                        },
+                    )
+                    .unwrap(),
+                    w::ProposalItem::new(
+                        &w::CEILINGS,
+                        w::ProposalItemParts { kind: 2, scope: 7, number: 2, edit: w::SettingEdit::Removed },
+                    )
+                    .unwrap(),
+                    w::ProposalItem::new(
+                        &w::CEILINGS,
+                        w::ProposalItemParts { kind: 3, scope: 0, number: 1, edit: w::SettingEdit::Reset },
+                    )
+                    .unwrap(),
+                ]),
+            },
+        )
+        .unwrap();
+        root.serve_readout(
+            call,
+            jig_client::Readout::Family { family: wire::FORGE, record: Some(wire::proposal_items_answer(&record)) },
+        );
+        for (kind, scope, number) in [(1, 0, 1), (2, 7, 2), (3, 0, 1)] {
+            let w::Read::Setting(query) = forge_query(&root, call) else { panic!("current setting") };
+            assert_eq!((query.kind(), query.scope(), query.number()), (kind, scope, number));
+            root.serve_readout(call, forge_setting_page(Some(forge_value(kind))));
+        }
+        let answer = root.answer(call).unwrap();
+        assert_eq!(answer.status, 0);
+        let text = core::str::from_utf8(&answer.stdout).unwrap();
+        for needle in ["landing-rule", "forge-charter", "\"ci\":false", "removed", "reset"] {
+            assert!(text.contains(needle), "{text}");
+        }
+        assert!(!text.contains("too large"), "{text}");
+        if json {
+            assert!(text.contains("\"application_items\":["), "{text}");
+        }
+    }
+}
+
+#[test]
+fn forge_setting_commands_refuse_selectors_outside_their_forms() {
+    for argv in [
+        vec!["settings", "show", "landing-rule", "0"],
+        vec!["settings", "show", "landing-rule", "1", "--revision", "2"],
+        vec!["settings", "show", "forge-charter", "0"],
+        vec!["settings", "show", "forge-charter", "3"],
+        vec!["settings", "show", "forge-charter", "1", "--project", "1"],
+    ] {
+        assert!(fixtures::parse(&argv).is_err(), "{argv:?}");
+    }
+}
+
+fn project_policy() -> c::SettingValue {
+    let (_, value) = values().remove(2);
+    value
+}
+fn project_policy_file() -> Vec<u8> {
+    file_from_setting(&setting_json(c::Setting::ProjectPolicy { project: 1 }, project_policy()))
+}
+#[test]
+fn a_settings_file_with_a_project_policy_sends_its_item() {
+    let file = project_policy_file();
+    let (root, call) = changed(&file, false);
+    let (_, _, jig_client::Ask::Jig(ask)) = root.sends.get(&call).expect("sent change") else { panic!("jig ask") };
+    let c::Ask::ChangeSettings(change) = ask.as_ref() else { panic!("settings change") };
+    assert_eq!(root.sends.len(), 1);
+    assert_eq!(
+        change.items,
+        list([c::SettingItem {
+            setting: c::Setting::ProjectPolicy { project: 1 },
+            edit: c::SettingEdit::Set(c::SettingSet { value: project_policy() }),
+        }])
+    );
+    let (root, call) = proposed(&file, false);
+    let (_, _, jig_client::Ask::Jig(ask)) = root.sends.get(&call).expect("sent proposal") else { panic!("jig ask") };
+    let c::Ask::Propose { action: c::ProposeAction::Settings(proposal), .. } = ask.as_ref() else {
+        panic!("settings proposal")
+    };
+    assert_eq!(root.sends.len(), 1);
+    assert_eq!(proposal.items, change.items);
+}
+fn project_policy_json() -> String {
+    let value = jig::form_setting_value(&project_policy());
+    let bounds = skein_json::writer::Limits { depth: 32, length: 8192 };
+    let mut measure = skein_json::writer::Encoder::measure(&bounds);
+    settings_form::render::encode_value(&value, &mut measure);
+    let mut out = skein_json::writer::Encoder::write(measure.measured().expect("policy JSON fits"), &bounds);
+    settings_form::render::encode_value(&value, &mut out);
+    String::from_utf8(out.finish().into_vec()).expect("policy JSON")
+}
+#[test]
+fn a_project_policy_item_refused_by_the_form_sends_nothing() {
+    let value = project_policy_json();
+    for (items, expected) in [
+        (
+            r#"{"setting":{"kind":"project-policy","project":1},"edit":"removed"}"#.to_owned(),
+            "settings file item 1: edit: a project's policy is set alone",
+        ),
+        (
+            r#"{"setting":{"kind":"project-policy","project":1},"edit":"reset"}"#.to_owned(),
+            "settings file item 1: edit: a project's policy is set alone",
+        ),
+        (
+            format!(
+                r#"{{"setting":{{"kind":"project-policy","project":1}},"set":{value}}},{{"setting":{{"kind":"project-policy","project":2}},"set":{value}}}"#
+            ),
+            "settings file item 2: setting: one project's policy per file",
+        ),
+        (
+            format!(r#"{{"setting":{{"kind":"project-policy","project":0}},"set":{value}}}"#),
+            "settings file item 1: project: from 1",
+        ),
+        (
+            format!(r#"{{"setting":{{"kind":"project-policy"}},"set":{value}}}"#),
+            "settings file item 1: project: missing member",
+        ),
+        (
+            format!(r#"{{"setting":{{"kind":"project-policy","project":1,"number":1}},"set":{value}}}"#),
+            "settings file item 1: number: project-policy has no number",
+        ),
+    ] {
+        let file = format!(r#"{{"items":[{items}]}}"#);
+        let (root, call) = changed(file.as_bytes(), false);
+        project_policy_form_refusal(root, call, expected);
+        let (root, call) = proposed(file.as_bytes(), false);
+        project_policy_form_refusal(root, call, expected);
+    }
+}
+fn project_policy_form_refusal(mut root: fixtures::Harness, call: u32, expected: &str) {
+    let answer = root.answer(call).expect("form refusal");
+    assert_eq!(answer.status, 1);
+    assert!(root.sends.is_empty());
+    assert_eq!(answer.stderr.as_ref(), format!("{expected}\n").as_bytes());
+}
+fn project_policy_review(now: c::ReviewValue, would_be: c::ReviewValue) -> c::ReadValue {
+    let setting = c::Setting::ProjectPolicy { project: 1 };
+    let mut proposal = review_proposal(Some(c::SettingsReview {
+        key: None,
+        newest: 5,
+        items: list([c::ReviewItem {
+            setting,
+            edit: c::RevisionItemEdit::Set,
+            now,
+            origin: c::SettingOrigin::NotOffered,
+            would_be,
+            application: None,
+        }]),
+        cut: false,
+    }));
+    let c::ReadValue::Proposal(p) = &mut proposal else { panic!("proposal") };
+    let c::ProposalAction::Settings(s) = &mut p.action else { panic!("settings proposal") };
+    s.items = list([c::RevisionItemHead { setting, edit: c::RevisionItemEdit::Set }]);
+    proposal
+}
+#[test]
+fn proposal_show_prints_a_project_policy_now_and_as_it_would_be() {
+    let now = project_policy();
+    let c::SettingValue::Policy(mut policy) = now.clone() else { panic!("policy") };
+    policy.period_spend = 3000;
+    let would_be = c::SettingValue::Policy(policy);
+    let review = project_policy_review(
+        c::ReviewValue::Value(c::SettingSet { value: now }),
+        c::ReviewValue::Value(c::SettingSet { value: would_be }),
+    );
+    for (argv, name) in [
+        (vec!["proposal", "show", "p73/7"], "settings_review_project_policy_text"),
+        (vec!["proposal", "show", "p73/7", "--json"], "settings_review_project_policy_json"),
+    ] {
+        let answer = read(&argv, review.clone());
+        assert_eq!(answer.status, 0);
+        golden(name, &answer.stdout);
+    }
+}
+#[test]
+fn a_large_project_policy_review_reads_the_proposed_value_and_keeps_the_current_size() {
+    // The fixture exceeds the review's envelope by carrying its size alone.
+    const POLICY_BYTES: u64 = 8192;
+    let review = project_policy_review(
+        c::ReviewValue::TooLarge(c::Size { bytes: POLICY_BYTES }),
+        c::ReviewValue::TooLarge(c::Size { bytes: POLICY_BYTES }),
+    );
+    let policy = project_policy_json();
+    for (argv, expected) in [
+        (
+            vec!["proposal", "show", "p73/7"],
+            format!("project-policy 1 · set · now too large, 8192 bytes · would be {policy}"),
+        ),
+        (
+            vec!["proposal", "show", "p73/7", "--json"],
+            format!(
+                "{}{}",
+                r#""now":{"too_large":{"bytes":8192}},"origin":"not_offered","would_be":{"value":{"value":{"policy":"#,
+                policy
+            ),
+        ),
+    ] {
+        let (mut root, call) = fixtures::read_call(&argv);
+        root.serve(call, c::ReadResult::Value(review.clone()));
+        let setting = c::Setting::ProjectPolicy { project: 1 };
+        assert_eq!(
+            root.reads.get(&call).expect("proposed policy read").1,
+            c::Read::Setting(c::ReadSetting {
+                setting,
+                revision: 0,
+                proposal: Some(c::ProposalKey { proposer: c::Proposer::Party(73), number: 7 }),
+            })
+        );
+        root.serve(
+            call,
+            c::ReadResult::Value(c::ReadValue::Setting(Box::new(c::SettingDocument {
+                setting,
+                revision: 5,
+                value: Some(project_policy()),
+                application: None,
+                proposed: None,
+            }))),
+        );
+        let answer = root.answer(call).expect("review resolves the proposed policy");
+        assert_eq!(answer.status, 0);
+        assert!(core::str::from_utf8(&answer.stdout).expect("review text or JSON").contains(&expected));
+    }
+}
+#[test]
+fn an_engine_refusal_naming_a_project_policy_prints_its_setting() {
+    for (refusal, expected) in [
+        (
+            c::Refusal::Malformed {
+                at: 0,
+                why: c::Malformed::Settings(c::MalformedSettings {
+                    setting: c::Setting::ProjectPolicy { project: 1 },
+                    fault: c::SettingFault::Rules,
+                }),
+            },
+            "settings apply: out of shape; item 0; project-policy 1: rules\n",
+        ),
+        (c::Refusal::Role { held: None }, "settings apply: The held role does not permit this action\n"),
+    ] {
+        let (mut root, call) = changed(&project_policy_file(), false);
+        root.answered(call, c::Answer::Refused { refusal, at: None });
+        let answer = root.answer(call).expect("engine refusal");
+        assert_eq!(answer.status, 2);
+        assert_eq!(answer.stderr.as_ref(), expected.as_bytes());
+    }
+}
+
+#[test]
+fn a_large_project_policy_revision_prints_no_setting_read_hint() {
+    // The retained value is represented by its byte size past the read's bound.
+    const POLICY_BYTES: u64 = 1_000_000;
+    let answer = read(
+        &["revision", "show", "5"],
+        c::ReadValue::Revision(Box::new(c::RevisionAnswer::Revision(c::RevisionDocument {
+            head: head(c::RevisionDecider::Release),
+            items: list([c::RevisionItem {
+                replaced: c::RevisionReplaced::NotOffered,
+                setting: c::Setting::ProjectPolicy { project: 1 },
+                edit: c::RevisionEdit::TooLarge(c::Size { bytes: POLICY_BYTES }),
+            }]),
+        }))),
+    );
+    assert_eq!(answer.status, 0);
+    assert!(answer.stdout.ends_with(b"  project-policy 1: too large, 1000000 bytes\n    was: not offered\n"));
+    assert!(!core::str::from_utf8(&answer.stdout).expect("revision text").contains("settings show"));
+}
+
+#[test]
+fn revision_show_prints_what_each_item_replaced() {
+    let mut items = Vec::new();
+    for (index, (setting, value)) in values().into_iter().enumerate() {
+        let replaced = match index {
+            0 => c::RevisionReplaced::Value(c::SettingSet { value: value.clone() }),
+            1 => c::RevisionReplaced::Default,
+            2 => c::RevisionReplaced::Removed,
+            3 => c::RevisionReplaced::TooLarge(c::Size { bytes: 1_000_000 }),
+            _ => unreachable!("four fixture kinds"),
+        };
+        items.push(c::RevisionItem {
+            setting,
+            edit: if index == 3 { c::RevisionEdit::Reset } else { c::RevisionEdit::Set(c::SettingSet { value }) },
+            replaced,
+        });
+    }
+    items.push(c::RevisionItem {
+        setting: c::Setting::Application { kind: 2, scope: 3, number: 2 },
+        edit: c::RevisionEdit::Application(c::SizedEdit::Set { size: 24 }),
+        replaced: c::RevisionReplaced::Application { size: 12 },
+    });
+    let (_, policy) = values().remove(2);
+    items.push(c::RevisionItem {
+        setting: c::Setting::ProjectPolicy { project: 3 },
+        edit: c::RevisionEdit::TooLarge(c::Size { bytes: 2_000_000 }),
+        replaced: c::RevisionReplaced::Value(c::SettingSet { value: policy }),
+    });
+    items.push(c::RevisionItem {
+        setting: c::Setting::Charter(c::SettingNumber { number: 9 }),
+        edit: c::RevisionEdit::Removed,
+        replaced: c::RevisionReplaced::NotOffered,
+    });
+    let document = c::ReadValue::Revision(Box::new(c::RevisionAnswer::Revision(c::RevisionDocument {
+        head: head(c::RevisionDecider::Party(c::RevisionParty { number: 1 })),
+        items: list(items),
+    })));
+    for json in [false, true] {
+        let argv = if json { vec!["revision", "show", "5", "--json"] } else { vec!["revision", "show", "5"] };
+        let answer = read(&argv, document.clone());
+        assert_eq!(answer.status, 0);
+        golden(if json { "settings_revision_replaced_json" } else { "settings_revision_replaced" }, &answer.stdout);
+    }
+}
+
+#[test]
+fn a_settings_file_template_sends_its_resources_to_jig() {
+    let file = br#"{"items":[{"setting":{"kind":"template","number":4},"set":{"number":4,"name":{"bytes":"draft","cut":false},"executor":{"charter":1},"contract":{"report":{"words":1024}},"shallower":1,"budget":"given","deadline":"none","tracked":1,"flags":{"conversation":false,"listed":true,"retention":"kept","ended_by":"result"},"label":1,"grace":null,"llm":null,"resources":[{"connector":1,"symbol":1}]}}]}"#;
+    let (root, call) = changed(file, false);
+    let (_, _, jig_client::Ask::Jig(ask)) = root.sends.get(&call).expect("sent") else { panic!("jig ask") };
+    let c::Ask::ChangeSettings(change) = ask.as_ref() else { panic!("settings change") };
+    let c::SettingEdit::Set(set) = &change.items.get(0).unwrap().edit else { panic!("set") };
+    let c::SettingValue::Template(value) = &set.value else { panic!("template") };
+    assert_eq!(value.resources.as_slice(), &[c::Symbol { connector: 1, symbol: 1 }]);
+
+    let bounds = crate::limits::form();
+    let neutral = settings_form::view::ChangeSettings {
+        against: 5,
+        items: settings_form::file::decode(file, &bounds).expect("neutral items"),
+        running: settings_form::view::Running::Moves,
+    };
+    let wire = settings_form::wire::wire_change_settings(&neutral, &bounds.settings).expect("neutral wire");
+    let preset = crate::limits::client().client;
+    let link = jig_client_protocol_link::Limits::new(preset.domain, preset.exchanges).expect("client limits");
+    assert_eq!(
+        jig_client_protocol_link::translate::settings::restore_change_settings(&wire, &link).expect("client ask"),
+        *change
+    );
+}
+#[test]
+fn settings_show_template_resources_apply_again_unchanged() {
+    let (setting, c::SettingValue::Template(mut template)) = values().remove(1) else { panic!("template") };
+    template.resources = list([c::Symbol { connector: 1, symbol: 1 }, c::Symbol { connector: 1, symbol: 2 }]);
+    let value = c::SettingValue::Template(template);
+    let json = setting_json(setting, value.clone());
+    let text = core::str::from_utf8(&json).unwrap();
+    assert!(text.contains(r#""resources":[{"connector":1,"symbol":1},{"connector":1,"symbol":2}]"#), "{text}");
+    let file = file_from_setting(&json);
+    let (root, call) = changed(&file, false);
+    let (_, _, jig_client::Ask::Jig(ask)) = root.sends.get(&call).expect("sent") else { panic!("jig ask") };
+    let c::Ask::ChangeSettings(change) = ask.as_ref() else { panic!("settings change") };
+    assert_eq!(
+        change.items.as_slice(),
+        &[c::SettingItem { setting, edit: c::SettingEdit::Set(c::SettingSet { value: value.clone() }) }]
+    );
+
+    let bounds = crate::limits::form();
+    let wire = jig_client_protocol_link::translate::settings::wire_setting_value(&value, &bounds.settings)
+        .expect("wire template");
+    let wire = jig_client_protocol_wire::SettingDocument::new(
+        &bounds.settings,
+        jig_client_protocol_wire::SettingDocumentParts {
+            setting: jig_client_protocol_wire::Setting::Template(
+                jig_client_protocol_wire::SettingNumber::new(
+                    &bounds.settings,
+                    jig_client_protocol_wire::SettingNumberParts { number: 4 },
+                )
+                .unwrap(),
+            ),
+            revision: 5,
+            value: Some(wire),
+            application: None,
+            proposed: None,
+        },
+    )
+    .unwrap();
+    assert_eq!(
+        settings_form::wire::restore_setting_document(&wire, &bounds).unwrap().value,
+        Some(jig::form_setting_value(&value))
+    );
+}
+#[test]
+fn settings_show_template_resources_are_readable_when_present() {
+    for resources in [list([]), list([c::Symbol { connector: 1, symbol: 1 }, c::Symbol { connector: 2, symbol: 3 }])] {
+        let (setting, c::SettingValue::Template(mut template)) = values().remove(1) else { panic!("template") };
+        template.resources = resources.clone();
+        let printed = read(
+            &["settings", "show", "template", "4"],
+            c::ReadValue::Setting(Box::new(c::SettingDocument {
+                setting,
+                revision: 5,
+                value: Some(c::SettingValue::Template(template)),
+                application: None,
+                proposed: None,
+            })),
+        );
+        assert_eq!(printed.status, 0);
+        let text = core::str::from_utf8(&printed.stdout).unwrap();
+        if resources.is_empty() {
+            assert!(!text.contains("connector "), "{text}");
+        } else {
+            assert!(text.contains("connector 1 symbol 1\nconnector 2 symbol 3\n"), "{text}");
+        }
+    }
+}
+
+#[test]
+fn reference_goal_template_resources_survive_apply_and_show() {
+    let file = include_bytes!("../../../../../docs/examples/reference/settings.json");
+    let items = settings_file::decode(file, &crate::limits::tools()).expect("reference settings");
+    let (root, call) = changed(file, false);
+    let c::Ask::ChangeSettings(change) = fixtures::act_ask(&root, call) else { panic!("settings apply") };
+    assert_eq!(change.items, items);
+    let setting = c::Setting::Template(c::SettingNumber { number: 4 });
+    let item = change.items.iter().find(|item| item.setting == setting).expect("goal template");
+    let c::SettingEdit::Set(c::SettingSet { value: c::SettingValue::Template(template) }) = &item.edit else {
+        panic!("template value")
+    };
+    assert_eq!(template.resources.as_slice(), &[c::Symbol { connector: 1, symbol: 1 }]);
+    assert_eq!(template.tracked, Some(1));
+    goal_template_wire_round_trip(file, change, template);
+    for json in [false, true] {
+        let mut root = fixtures::signed_in(fixtures::PARTY);
+        let call = root.submit_prepared(fixtures::call(&["settings", "show", "template", "4"]), json, None);
+        newest_for_setting(&mut root, call);
+        root.serve(
+            call,
+            c::ReadResult::Value(c::ReadValue::Setting(Box::new(c::SettingDocument {
+                setting,
+                revision: 5,
+                value: Some(c::SettingValue::Template(template.clone())),
+                application: None,
+                proposed: None,
+            }))),
+        );
+        let answer = root.answer(call).expect("settings show");
+        assert_eq!(answer.status, 0);
+        let text = core::str::from_utf8(&answer.stdout).expect("text or JSON");
+        assert!(text.contains(r#""resources":[{"connector":1,"symbol":1}]"#), "{text}");
+        if json {
+            let decoded = settings_file::decode(&file_from_setting(&answer.stdout), &crate::limits::tools())
+                .expect("show JSON applies");
+            assert_eq!(decoded.as_slice(), core::slice::from_ref(item));
+        }
+    }
+}
+
+fn goal_template_wire_round_trip(file: &[u8], change: &c::ChangeSettings, template: &c::Template) {
+    use jig_client_protocol_wire as w;
+    let bounds = crate::limits::form();
+    let neutral = settings_form::view::ChangeSettings {
+        against: 5,
+        items: settings_form::file::decode(file, &bounds).expect("neutral items"),
+        running: settings_form::view::Running::Moves,
+    };
+    let wire = settings_form::wire::wire_change_settings(&neutral, &bounds.settings).expect("neutral wire");
+    let preset = crate::limits::client().client;
+    let link = jig_client_protocol_link::Limits::new(preset.domain, preset.exchanges).expect("client limits");
+    assert_eq!(
+        jig_client_protocol_link::translate::settings::restore_change_settings(&wire, &link).expect("client request"),
+        *change
+    );
+    let value = c::SettingValue::Template(Box::new(template.clone()));
+    let wire_value = jig_client_protocol_link::translate::settings::wire_setting_value(&value, &bounds.settings)
+        .expect("client wire");
+    let wire = w::SettingDocument::new(
+        &bounds.settings,
+        w::SettingDocumentParts {
+            setting: w::Setting::Template(
+                w::SettingNumber::new(&bounds.settings, w::SettingNumberParts { number: 4 }).expect("template number"),
+            ),
+            revision: 5,
+            value: Some(wire_value),
+            application: None,
+            proposed: None,
+        },
+    )
+    .expect("wire document");
+    assert_eq!(
+        settings_form::wire::restore_setting_document(&wire, &bounds).expect("neutral restore").value,
+        Some(jig::form_setting_value(&value))
+    );
+    let mut smaller = bounds.settings;
+    smaller.template_resources = 0;
+    settings_form::wire::wire_change_settings(&neutral, &smaller).expect_err("wire resource bound");
+}
+
+fn template_resource_file(resources: Option<&str>) -> Vec<u8> {
+    let (setting, value) = values().remove(1);
+    let file = String::from_utf8(file_from_setting(&setting_json(setting, value))).expect("template JSON");
+    match resources {
+        Some(resources) => file.replace(r#""resources":[]"#, &format!(r#""resources":{resources}"#)).into_bytes(),
+        None => file.replace(r#""resources":[],"#, "").into_bytes(),
+    }
+}
+
+#[test]
+fn template_resources_are_optional_and_bounded_connector_symbols() {
+    for resources in [None, Some("[]"), Some(r#"[{"connector":65535,"symbol":65535}]"#)] {
+        let file = template_resource_file(resources);
+        let items = settings_file::decode(&file, &crate::limits::tools()).expect("optional symbols");
+        let c::SettingEdit::Set(c::SettingSet { value: c::SettingValue::Template(template) }) =
+            &items.as_slice()[0].edit
+        else {
+            panic!("template")
+        };
+        let expected = if resources.is_some_and(|value| value.contains("65535")) {
+            vec![c::Symbol { connector: u16::MAX, symbol: u16::MAX }]
+        } else {
+            vec![]
+        };
+        assert_eq!(template.resources.as_slice(), expected);
+    }
+    let resources = r#"[{"connector":0,"symbol":1},{"connector":7,"symbol":2}]"#;
+    let file = template_resource_file(Some(resources));
+    let mut limits = crate::limits::tools();
+    limits.settings.template_resources = 2;
+    settings_file::decode(&file, &limits).expect("resource count at bound");
+    limits.settings.template_resources = 1;
+    let why = settings_file::decode(&file, &limits).expect_err("resource count");
+    assert!(core::str::from_utf8(&why).unwrap().contains("template.resources: bound 1"));
+}
+
+#[test]
+fn malformed_template_resources_name_the_member_before_sending() {
+    for (resources, path) in [
+        ("null", "template.resources"),
+        ("{}", "template.resources"),
+        ("[1]", "template.resources"),
+        (r#"[{"symbol":1}]"#, "template.resources.connector"),
+        (r#"[{"connector":0}]"#, "template.resources.symbol"),
+        (r#"[{"connector":65536,"symbol":1}]"#, "template.resources.connector"),
+        (r#"[{"connector":0,"symbol":65536}]"#, "template.resources.symbol"),
+        (r#"[{"connector":-1,"symbol":1}]"#, "template.resources.connector"),
+        (r#"[{"connector":0,"symbol":null}]"#, "template.resources.symbol"),
+        (r#"[{"connector":0,"symbol":1,"extra":0}]"#, "template.resources.extra"),
+        (r#"[{"connector":0,"symbol":1,"symbol":2}]"#, "template.resources.symbol"),
+    ] {
+        let file = template_resource_file(Some(resources));
+        let why = settings_file::decode(&file, &crate::limits::tools()).expect_err("malformed symbols");
+        let why = core::str::from_utf8(&why).expect("refusal text");
+        assert!(why.contains("item 1") && why.contains(path), "{resources}: {why}");
+        let (mut root, call) = changed(&file, false);
+        assert!(root.sends.is_empty());
+        assert_eq!(root.answer(call).expect("local refusal").status, 1);
     }
 }

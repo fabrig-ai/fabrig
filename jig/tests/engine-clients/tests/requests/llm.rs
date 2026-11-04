@@ -26,6 +26,7 @@ fn create(llm: w::LlmChoice) -> w::Ask {
     let task = w::NewTask::new(
         &limits,
         w::NewTaskParts {
+            symbols: List::with_capacity(0),
             deadline: w::NewDeadline::Named,
             executor: w::Executor::Agent(
                 w::ExecutorAgent::new(&limits, w::ExecutorAgentParts { charter: 1 }).expect("agent"),

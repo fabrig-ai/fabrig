@@ -7,13 +7,29 @@ use skein_lib::{List, Queue};
 
 use crate::{Core, Limits, RunPolicy, Settings};
 
-/// One numbered charter offered by the deployment (protocol/configuration.md, 3).
+/// A charter's document (domain/engine.md, 17.9).
+#[derive(Clone, PartialEq, Eq, Hash, Debug)]
+pub struct Document {
+    pub connector: u16,
+    /// The resource name, within the authority's pattern bounds.
+    pub name: jig_domain_authority::Name,
+    /// 1 to `crate::DOCUMENT_PATH_BYTES` bytes.
+    pub path: Box<[u8]>,
+    /// 1 to `crate::DOCUMENT_HEADING_BYTES` bytes when present.
+    pub heading: Option<Box<[u8]>>,
+}
+
+/// One numbered charter offered by the deployment, with its documents
+/// (protocol/configuration.md, 3; domain/engine.md, 17.9).
 #[derive(Clone, PartialEq, Eq, Hash, Debug)]
 pub struct Charter {
     pub number: u32,
     pub policy: RunPolicy,
     pub hosts: fleet::Kinds,
     pub spend: u64,
+    /// Its default wake policy, which a task made under it takes when its batch entry names none (domain/tasks.md, 8.3).
+    pub wake: tasks::WakePolicy,
+    pub documents: Box<[Document]>,
 }
 
 const _: () = assert!(fleet::CATALOGUE_MODELS == tasks::MODELS, "fleet evidence prices the model catalogue");
@@ -66,7 +82,11 @@ fn append_models(current: &super::Current, settings: &Settings, charters: &mut L
     for setting in &current.offered() {
         let number = match setting {
             super::Setting::Charter(number) => *number,
-            super::Setting::Template(_) | super::Setting::Policy(_) | super::Setting::Rules => continue,
+            super::Setting::Template(_)
+            | super::Setting::Policy(_)
+            | super::Setting::Rules
+            | jig_domain_people::Setting::ProjectPolicy { .. } => continue,
+            jig_domain_people::Setting::Application { .. } => unreachable!("an application's setting: apps-core"),
         };
         let charter = current.charter(number).expect("offered charter");
         let (_, origin) = current.lookup(*setting);
@@ -134,26 +154,35 @@ impl Core {
         out.push(crate::Request::Write(crate::Write::Save(crate::Record::Core(crate::CoreRecord::RunProof(
             proof.clone(),
         )))));
+        match self.tasks.task(task).expect("claimed task").executor {
+            tasks::Executor::Job { .. } => {
+                crate::routing::run::jobs::claimed(self, task, attempt, out);
+                return;
+            }
+            tasks::Executor::Agent { .. } => {}
+            tasks::Executor::Procedure { .. } | tasks::Executor::Person(_) => unreachable!("claimed executor"),
+        }
+        let version = self.charter_version(task).expect("agent charter version");
         let kinds = match proof.host {
             fleet::HostKind::Engine => fleet::Kinds::Engine,
             fleet::HostKind::Worker => fleet::Kinds::Workers,
         };
-        let version = self.charter_version(task);
         for &connector in self.connectors.as_ref() {
             out.push(crate::Request::Ask { connector, ask: crate::Ask::ClaimDone { task, attempt, kinds, version } });
         }
     }
 
     /// The value read by this live agent's run, or its task before preparation.
-    pub(crate) fn charter_version(&self, task: u64) -> fleet::Version {
+    pub(crate) fn charter_version(&self, task: u64) -> Option<fleet::Version> {
         let row = self.tasks.task(task).expect("live agent task");
         let charter = match row.executor {
             tasks::Executor::Agent { charter } => charter,
+            tasks::Executor::Job { .. } => return None,
             tasks::Executor::Procedure { .. } | tasks::Executor::Person(_) => unreachable!("agent version"),
         };
         let revision = row.settings.run.unwrap_or(row.settings.task);
         let key = self.held.selected(&self.current, charter, revision).expect("run charter version");
-        fleet::Version { charter: key.charter, revision: key.revision }
+        Some(fleet::Version { charter: key.charter, revision: key.revision })
     }
 
     /// The newest charter, for work about to be made (engine.md, 17.3).
@@ -169,7 +198,7 @@ impl Core {
         let revision = row.settings.run.unwrap_or(row.settings.task);
         let charter = match row.executor {
             tasks::Executor::Agent { charter } => self.charter_at(charter, revision),
-            tasks::Executor::Procedure { .. } | tasks::Executor::Person(_) => None,
+            tasks::Executor::Procedure { .. } | tasks::Executor::Job { .. } | tasks::Executor::Person(_) => None,
         };
         charter.expect("agent task has configured charter")
     }
@@ -190,6 +219,13 @@ impl Core {
                 crate::RunAdmission::Allow(_) | crate::RunAdmission::Hold(_) => true,
                 crate::RunAdmission::Wait(_) => false,
             },
+            tasks::Executor::Job { .. } => {
+                match crate::routing::run::jobs::admission(self, context, self.run_wall, Box::new([])) {
+                    Ok(()) | Err(crate::RunAdmission::Hold(_)) => true,
+                    Err(crate::RunAdmission::Wait(_)) => false,
+                    Err(crate::RunAdmission::Allow(_)) => unreachable!("job admission has no run allowance"),
+                }
+            }
             tasks::Executor::Procedure { .. } => true,
             tasks::Executor::Person(_) => false,
         }

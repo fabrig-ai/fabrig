@@ -94,7 +94,7 @@ fn build(root: &Path, scratch: &Path, chromium: PathBuf) -> Result<Paths, String
     if !status.success() {
         return Err(format!("scripts/bundle.sh failed: {status}"));
     }
-    let target = env::var_os("CARGO_TARGET_DIR").map_or_else(|| root.join("target"), |target| root.join(target));
+    let target = env::var_os("CARGO_TARGET_DIR").map_or_else(|| root.join("../target"), |target| root.join(target));
     Ok(Paths { temper: target.join("debug/temper"), bundle, chromium, scratch: scratch.to_owned() })
 }
 

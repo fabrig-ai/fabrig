@@ -138,7 +138,8 @@ pub fn exchange_events(h: &mut f::Harness, exchange: &github::plans::plan::Excha
                 let cap = match retention {
                     github::plans::plan::Retention::Head { bytes }
                     | github::plans::plan::Retention::Whole { bytes }
-                    | github::plans::plan::Retention::Tail { bytes } => usize::try_from(bytes).unwrap(),
+                    | github::plans::plan::Retention::Tail { bytes }
+                    | github::plans::plan::Retention::FailedStep { bytes } => usize::try_from(bytes).unwrap(),
                 };
                 if bytes.len() > cap {
                     *more = true;

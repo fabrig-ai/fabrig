@@ -1,4 +1,4 @@
-//! Request accounting and retry scheduling (forge-client.md, section 5.4).
+//! Request accounting and retry scheduling (forge-client.md, section 6).
 //!
 //! Calls retain four priority queues, in-flight tokens and rate windows;
 //! they know neither tasks nor provider history. `queue` admits a logical

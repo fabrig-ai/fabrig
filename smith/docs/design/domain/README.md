@@ -1,11 +1,9 @@
 # smith
 
 Provisional, 2026-10-05, revised 2026-10-16. smith is a kit for building flexible LLM
-agents, and a standard agent built from it. Like temper, it is built on
-skein and follows skein's foundation documents. It grew from temper's
-agent, and temper is its first host. Nothing here depends on temper:
-temper is named only as an example, and section 7 says what changed from
-temper's agent.
+agents, and a standard agent built from it. It is built on skein and
+follows skein's foundation documents. Nothing here depends on its hosts:
+jig and temper are named only as examples.
 
 ## 1. In one page
 
@@ -124,7 +122,7 @@ shell needs and hands over to a shell crate.
 smith-domain                  the agent loop: one run, its sessions; the host boundary
 ├── smith-domain-run          one activation: charter, served tools, results, delivery, budget
 └── smith-domain-session      one conversation with an LLM
-    └── smith-domain-tools    read, list, search, write, edit, shell
+    └── smith-domain-tools    read, list, search, write, edit, remove, shell, job
 
 smith-host-domain             an agent capability: one agent process per run, supervised
 smith-inline-agent            an agent capability: one composed smith-domain per run, in the host's process
@@ -186,6 +184,9 @@ as its agent.
 | domain | `smith-domain` and its children | the agent in its worlds, or composed by the inline agent |
 | domain | `smith-host-domain`, `smith-inline-agent` | an agent capability of either kind, as its host's child: agent processes supervised, or runs in its own process (host.md, sections 4 and 9) |
 | protocol | `smith-protocol-channel`, `smith-protocol-llm`, `smith-protocol-machine` | the agent's protocol layer: its half of the channel; calls through skein's LLM client, with tools' schemas and decoding; files and processes. The last two also serve the inline agent in its host's process |
+| protocol | `smith-protocol-program` | a run on a program backend: the program's status, command, settings and stream, and the agent's MCP server with its permission prompt (`protocol/programs.md`) |
+| protocol | `smith-protocol-events` | the event sink: facts and measurements projected into the event stream (`protocol/events.md`) |
+| protocol | `smith-protocol-translate` | the translations between the channel's, the charter's and the transcript's records and the domains' values, shared by the agent's and the host's halves |
 | protocol | `smith-host-protocol` | the host's half of the channel, on the streams its host makes |
 | protocol | `smith-local-protocol` | the local host's protocol layer: the terminal, transcripts in files, signing in, committing in place |
 | protocol | `smith-channel`, `smith-charter`, `smith-transcript`, `smith-events` | codecs: the channel's records; the charter and the result; turns, for a host that keeps or shows them; the event vocabulary, as JSON lines (`protocol/events.md`) |
@@ -203,12 +204,12 @@ rules (programming-model.md, 2.1).
 io is skein's: contained process trees, files, HTTP, pipes. The
 protocol layer's design is in `docs/design/protocol/`.
 
-**What goes to skein.** smith and temper share skein; what both would
-otherwise each keep goes there, as generic kit:
+**What goes to skein.** smith, jig and temper share skein; what each would
+otherwise keep goes there, as generic kit:
 
 - **framed channels:** frames over any stream, an opening that agrees a
   version, bounds sealed by constructors, a channel's state machine; and
-  codecs generated from schemas; smith's and temper's channels keep only
+  codecs generated from schemas; smith's and jig's channels keep only
   their records;
 - **an OAuth client:** sign-in, refresh, tokens kept as secrets, records
   that hold an access token alone, `localhost` redirects, and the io that
@@ -226,8 +227,7 @@ otherwise each keep goes there, as generic kit:
   replacement.
 
 What is about conversations, tools or runs stays in smith; providers'
-APIs are skein's; what is about tasks, authority or connectors stays in
-temper.
+APIs are skein's; what is about tasks, authority or connectors is jig's.
 
 ## 5. How smith stays generic
 
@@ -284,45 +284,12 @@ first (run.md, 5.1); tools compiled in are an open question (section 8).
 - **A host's documents** are named with their project: temper's
   `domain/worker.md`. They are examples, never relied on.
 - **Each document** says in one page what it is, then its parts, what it
-  owes and is owed below the domain, its world, what it keeps from temper,
-  and what is open.
-
-## 7. From temper
-
-What changes from temper's agent:
-
-- **Closed tool sets open.** A run served `finish` and sub-agents, and
-  the design added the engine's tools by name; now a run serves `finish`,
-  `deliver`, `wait` and sub-agents, and relays any host tool its charter
-  declares. temper's grants for the forge and outlets go: both are host
-  tools.
-- **A change is no longer a pull request.** Its title and body are fields
-  temper's contract requires; pushing is temper's delivery; a branch that
-  moved is a stale delivery.
-- **`.temper/pre-pr` and `AGENTS.md` are conventions** temper's charters
-  name; smith's defaults are `.smith/check` and `AGENTS.md`.
-- **Verdict lists fixed in code go;** the contract carries them.
-- **The brief arrives rendered.** Its typed sections and their rendering
-  are temper's.
-- **Budgets are in the host's unit,** with prices; the token split of
-  temper's engine goes.
-- **The agent's protocol layer** is smith's, and its channel smith's own,
-  which temper's worker speaks as a host (host.md, section 3).
-- **One transcript version.** smith's transcripts are the conversation
-  vocabulary's current version, which reads no other
-  (`protocol/transcript.md`, section 6); the first, and the legacy run
-  that opens it, stay with temper until its cutover.
+  owes and is owed below the domain, its world, and what is open.
 
 ## 8. Open questions
 
-- **Moving together:** how smith and temper change in step while
-  temper's migration is under way. Every format is pre-release, one
-  version at a time with no older one read (`protocol/README.md`,
-  section 8), so temper takes each of smith's releases whole; what
-  obligations a format takes on after pre-release is
-  `protocol/README.md`, section 11's.
 - **Tools compiled in:** whether a project may add owned tools at build
   time, as a child domain the run composes, or only through MCP servers.
 - **Workspaces beyond directories:** a remote filesystem, an object
-  store, a sandbox; today a host mounts them as directories, or offers
+  store, a sandbox; a host mounts them as directories, or offers
   them as host tools.

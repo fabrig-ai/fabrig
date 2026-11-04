@@ -1,4 +1,4 @@
-//! Machine and client settings, read strictly (temper/docs/design/draft/playground-reset.md, 3).
+//! Machine and client settings, read strictly (temper/docs/design/protocol/configuration.md, 3).
 mod demo;
 mod landing;
 mod public;
@@ -21,10 +21,9 @@ pub struct Members {
     pub webhooks: Option<Webhooks>,
     pub machine: temper_forge_setup::machine::Machine,
     pub demo: Option<settings::Demo>,
-    pub landing: temper_engine_domain::LandingPolicy,
+    pub landings: skein_lib::Map<u32, temper_engine_domain::ProjectLanding>,
     /// The landing's projects in the document's order, which names a refused one's path.
     pub landing_projects: Box<[u32]>,
-    pub charter: u32,
     pub limits: limits::Limits,
     pub overrides: Box<[(Box<[u8]>, u64)]>,
     pub workers: Box<[Worker]>,
@@ -47,7 +46,8 @@ pub struct Webhooks {
 /// Read a socket listener, and the clients' bundle and public origin when asked.
 #[must_use]
 pub fn clients(document: &Document, at: u32, path: &Path, bundle: bool, problems: &mut Problems) -> Option<Clients> {
-    let mut object = read::object(document, at, path, problems)?;
+    let mut object =
+        read::object(document, at, if bundle { "application-clients" } else { "webhooks" }, path, problems)?;
     let at = read::required(&mut object, document, b"listener", path, problems);
     let mut directory = None;
     if bundle
@@ -122,8 +122,6 @@ pub struct Forge {
     pub git_program: Option<Box<[u8]>>,
     pub web: Option<Box<[u8]>>,
     pub app_read_only: bool,
-    pub api_token: Box<[u8]>,
-    pub webhook_secret: Option<Box<[u8]>>,
     pub user: User,
     pub identity: u32,
 }
@@ -163,7 +161,7 @@ fn configured_limits(
     problems: &mut Problems,
     handed: &mut List<(Box<[u8]>, u64)>,
 ) -> Option<limits::Limits> {
-    let mut object = read::object(document, at, path, problems)?;
+    let mut object = read::object(document, at, "application-limits", path, problems)?;
     let profile = read::text(&mut object, document, b"profile", path, problems);
     let overrides = read::required(&mut object, document, b"overrides", path, problems);
     read::finish(object, document, path, problems);
@@ -175,7 +173,7 @@ fn configured_limits(
     let mut limits = limits::profile(limits::Profile::Small);
     let path = path.member(b"overrides");
     if let Some(at) = overrides
-        && let Some(mut object) = read::object(document, at, &path, problems)
+        && let Some(mut object) = read::overrides(document, at, &path, problems)
     {
         let end = config::read::after(document, at).ok()?;
         for index in at..end {
@@ -200,7 +198,9 @@ fn configured_limits(
                 Err(what) => problems.push(path.member(name), What::Jig(what)),
             }
         }
-        read::finish(object, document, &path, problems);
+        let mut found = config::Problems::empty();
+        object.finish(document, &path, &mut found);
+        problems.append(found, &Path::root());
     }
     // Pass the resolved client capacity once, including the profile default.
     handed
@@ -220,7 +220,7 @@ fn workers(
     if let Some(ats) = ats {
         for (index, at) in ats.iter().enumerate() {
             let path = read::index(&path.member(b"workers"), index);
-            let Some(mut object) = read::object(document, *at, &path, problems) else { continue };
+            let Some(mut object) = read::object(document, *at, "application-worker", &path, problems) else { continue };
             let root = read::text(&mut object, document, b"root", &path, problems);
             let at = read::required(&mut object, document, b"git", &path, problems);
             let mut git = None;
@@ -259,7 +259,7 @@ pub(super) fn worker_alone(
     problems: &mut Problems,
 ) -> Option<(Worker, limits::Limits)> {
     let path = Path::root().member(b"application");
-    let mut object = read::object(document, at, &path, problems)?;
+    let mut object = read::object(document, at, "application", &path, problems)?;
     let ats = read::list(&mut object, document, b"workers", document.len(), &path, problems);
     if match &ats {
         Some(ats) => ats.len() != 1,
@@ -307,7 +307,7 @@ pub fn parse(
     problems: &mut Problems,
 ) -> Option<Members> {
     let path = Path::root().member(b"application");
-    let mut object = read::object(document, at, &path, problems)?;
+    let mut object = read::object(document, at, "application", &path, problems)?;
     let mut overrides = List::with_capacity(document.len());
     let machine_at = read::required(&mut object, document, b"machine", &path, problems);
     let demo_at = read::required(&mut object, document, b"demo", &path, problems);
@@ -318,7 +318,9 @@ pub fn parse(
     };
     let bounds = limits.unwrap_or(limits::profile(limits::Profile::Small));
     let workers_ats = read::list(&mut object, document, b"workers", jig.limits.core.fleet.workers, &path, problems);
-    let charter = read::number(&mut object, document, b"charter", &path, problems);
+    if object.member(document, b"charter").is_some() {
+        problems.push(path.member(b"charter"), What::CharterStored);
+    }
     let clients_at = read::required(&mut object, document, b"clients", &path, problems);
     let clients = match clients_at {
         Some(at) => clients(document, at, &path.member(b"clients"), true, problems),
@@ -326,7 +328,7 @@ pub fn parse(
     };
     let sign_in_at = read::nullable(&mut object, document, b"sign_in", &path, problems);
     let sign_in = sign_in::parse(document, sign_in_at, jig, bounds.sign_in, directories, problems);
-    let landing_at = read::required(&mut object, document, b"landing", &path, problems);
+    let landing_at = object.member(document, b"landing");
     let at = read::required(&mut object, document, b"webhooks", &path, problems);
     let webhooks = webhooks(document, at, &path, problems);
     read::finish(object, document, &path, problems);
@@ -347,25 +349,14 @@ pub fn parse(
     }
     let demo = demo::parse(document, demo_at, directories, problems);
     let workers = workers(document, workers_ats, jig.limits.core.fleet.workers, directories, &path, problems);
-    if let Some(charter) = charter {
-        let mut found = false;
-        for entry in &jig.charters {
-            if entry.number == charter {
-                found = true;
-            }
-        }
-        if !found {
-            problems.push(path.member(b"charter"), What::Jig(config::What::Refers));
-        }
-    }
     let landing = match landing_at {
         Some(at) => landing::parse(document, at, jig, &bounds, problems),
-        None => None,
+        None => Some((skein_lib::Map::with_capacity(0), Box::default())),
     };
     if !problems.is_empty() {
         return None;
     }
-    let (landing, landing_projects) = landing?;
+    let (landings, landing_projects) = landing?;
     Some(Members {
         clients: clients?,
         sign_in,
@@ -373,14 +364,13 @@ pub fn parse(
         machine: machine?,
         demo,
         workers: workers.into_boxed(),
-        charter: charter?,
         limits: limits?,
         overrides: overrides.into_boxed(),
-        landing,
+        landings,
         landing_projects,
     })
 }
-/// The startup files named by the application (playground-reset.md, 3).
+/// The startup files named by the application (temper/docs/design/protocol/configuration.md, 3).
 pub fn files(members: &Members) -> Box<[config::File]> {
     let mut files = List::with_capacity(
         members.limits.forge.forges.checked_mul(4).expect("bounded forge files").checked_add(2).expect("sign-in files"),
@@ -457,11 +447,11 @@ fn transport(document: &Document, at: u32, path: &Path, problems: &mut Problems)
         read::form(value.as_ref() == b"plaintext", path.clone(), problems);
         return Some(Transport::Plaintext);
     }
-    let mut outer = read::object(document, at, path, problems)?;
+    let mut outer = read::object(document, at, "application-transport", path, problems)?;
     let tls = read::required(&mut outer, document, b"tls", path, problems);
     read::finish(outer, document, path, problems);
     let path = path.member(b"tls");
-    let mut object = read::object(document, tls?, &path, problems)?;
+    let mut object = read::object(document, tls?, "application-tls", &path, problems)?;
     let server_name = read::text(&mut object, document, b"server_name", &path, problems);
     let at = read::required(&mut object, document, b"trust", &path, problems);
     let mut trust = None;

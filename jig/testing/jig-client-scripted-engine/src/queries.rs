@@ -1,22 +1,13 @@
 //! The scripted owner's task query, in the same directions as the real owner.
-use jig_client_domain::contract::{self as c, ExecutorKind, Phase, PhaseClass, QueryOrder, Task, TaskLine, TaskQuery};
+use jig_client_domain::contract::{
+    self as c, ExecutorKind, Phase, PhaseClass, PhaseCounts, QueryOrder, Task, TaskLine, TaskQuery,
+};
 use std::cmp::Ordering;
 
 pub(crate) fn selects(query: &TaskQuery, task: &Task) -> bool {
-    let phase = match task.chip.phase {
-        Phase::Waiting => PhaseClass::Waiting,
-        Phase::Held => PhaseClass::Held,
-        Phase::Closing => PhaseClass::Closing,
-        Phase::Ended | Phase::Done | Phase::Failed | Phase::Cancelled => PhaseClass::Ended,
-        Phase::Idle
-        | Phase::Due
-        | Phase::Preparing
-        | Phase::Claimed
-        | Phase::Running
-        | Phase::BackingOff
-        | Phase::Active => PhaseClass::Working,
-    };
+    let phase = task.chip.phase.class();
     let executor = match task.chip.executor {
+        c::ChipExecutor::Job { .. } => ExecutorKind::Job,
         c::ChipExecutor::Agent { .. } => ExecutorKind::Agent,
         c::ChipExecutor::Procedure { .. } => ExecutorKind::Procedure,
         c::ChipExecutor::Party { .. } | c::ChipExecutor::Role { .. } => ExecutorKind::Person,
@@ -35,28 +26,10 @@ pub(crate) fn line<'a>(
     subtree: impl Iterator<Item = &'a Task>,
     conversation: Option<c::ConversationRead>,
 ) -> TaskLine {
-    let mut phases = c::PhaseCounts {
-        waiting: 0,
-        idle: 0,
-        starting: 0,
-        running: 0,
-        backing_off: 0,
-        closing: 0,
-        held: 0,
-        done: 0,
-        failed: 0,
-        cancelled: 0,
-    };
+    let mut phases = PhaseCounts::ZERO;
     for member in subtree {
-        match member.chip.phase {
-            Phase::Waiting => phases.waiting += 1,
-            Phase::Idle => phases.idle += 1,
-            Phase::Due | Phase::Preparing | Phase::Claimed => phases.starting += 1,
-            Phase::Running | Phase::Active => phases.running += 1,
-            Phase::BackingOff => phases.backing_off += 1,
-            Phase::Closing => phases.closing += 1,
-            Phase::Held => phases.held += 1,
-            Phase::Ended | Phase::Done | Phase::Failed | Phase::Cancelled => {}
+        if member.chip.phase.class() != PhaseClass::Ended {
+            count(&mut phases, member.chip.phase);
         }
     }
     TaskLine {
@@ -68,13 +41,26 @@ pub(crate) fn line<'a>(
         flags: task.flags,
         changed: task.changed,
         last_activity: task.last_activity,
-        ended_at: (matches!(task.chip.phase, Phase::Ended | Phase::Done | Phase::Failed | Phase::Cancelled))
-            .then_some(task.changed),
+        ended_at: (task.chip.phase.class() == PhaseClass::Ended).then_some(task.changed),
         budget: task.budget.clone(),
         waits_on: task.waits_on.clone(),
         held_below: phases.held - u32::from(task.chip.phase == Phase::Held),
         phases,
         conversation,
+    }
+}
+pub(crate) fn count(counts: &mut PhaseCounts, phase: Phase) {
+    match phase {
+        Phase::Due | Phase::Preparing | Phase::Claimed => counts.starting += 1,
+        Phase::BackingOff => counts.backing_off += 1,
+        Phase::Idle => counts.idle += 1,
+        Phase::Waiting => counts.waiting += 1,
+        Phase::Running | Phase::Active => counts.running += 1,
+        Phase::Held => counts.held += 1,
+        Phase::Closing => counts.closing += 1,
+        Phase::Done => counts.done += 1,
+        Phase::Failed => counts.failed += 1,
+        Phase::Ended | Phase::Cancelled => counts.cancelled += 1,
     }
 }
 pub(crate) fn order(rows: &mut [TaskLine], order: QueryOrder) {

@@ -26,6 +26,7 @@ pub struct Document {
     models: Box<[Model]>,
     scripts: api::Scripts,
     rules: api::Rules,
+    reply_ms: u32,
 }
 impl Document {
     pub fn decode(bytes: &[u8]) -> Result<Self, Refusal> {
@@ -41,6 +42,7 @@ impl Document {
         let cued_at = read::required(&mut o, &d, b"cued", &p)?;
         let asked_at = read::required(&mut o, &d, b"asked", &p)?;
         let otherwise_at = read::required(&mut o, &d, b"otherwise", &p)?;
+        let reply_ms = read::pace(&mut o, &d, b"reply_ms", &p)?;
         read::finish(o, &d, &p)?;
         let listen = read::listen(&d, listen_at, &p.member(b"listen"))?;
         let control = match control_at {
@@ -77,7 +79,7 @@ impl Document {
         }
         let rules = api::Rules { cued: cued_rules, asked: asked_rules };
         check_inputs(&scripts, &rules, &p.member(b"otherwise"))?;
-        Ok(Self { listen, control, key, added_keys, root, models, scripts, rules })
+        Ok(Self { listen, control, key, added_keys, root, models, scripts, rules, reply_ms })
     }
     pub(crate) fn checked(
         listen: SocketAddr,
@@ -89,7 +91,7 @@ impl Document {
     ) -> Result<Self, Refusal> {
         check_scripts(&scripts, &p.member(b"otherwise"))?;
         let rules = api::Rules { cued: counted_rules(&scripts.cued), asked: counted_rules(&scripts.asked) };
-        Ok(Self { listen, control: None, key, added_keys: Box::new([]), root, models, scripts, rules })
+        Ok(Self { listen, control: None, key, added_keys: Box::new([]), root, models, scripts, rules, reply_ms: 0 })
     }
     #[must_use]
     pub fn listen(&self) -> SocketAddr {
@@ -115,11 +117,17 @@ impl Document {
     pub fn models(&self) -> &[Model] {
         &self.models
     }
-    /// No menu, random failure or latency. Unknown model names receive the same scripts:
+    /// Live-domain limits with the document's fixed reply latency (protocol/setup.md, 8.4).
+    #[must_use]
+    pub fn limits(&self) -> domain::Config {
+        let latency = Duration::from_millis(u64::from(self.reply_ms));
+        domain::Config { latency_min: latency, latency_max: latency, ..LIMITS }
+    }
+    /// No menu or random failure. Unknown model names receive the same scripts:
     /// skein's provider retains no model list and performs no per-model admission.
     #[must_use]
     pub fn domain(&self, seed: u64) -> domain::Domain {
-        domain::Domain::played_by_input(&LIMITS, seed, self.scripts.clone(), empty_menu(), self.rules.clone())
+        domain::Domain::played_by_input(&self.limits(), seed, self.scripts.clone(), empty_menu(), self.rules.clone())
             .expect("checked scripts and rules")
     }
 }
@@ -135,10 +143,11 @@ pub struct Configuration {
     pub added_keys: Box<[skein_lib::Secret]>,
     pub models: Box<[Model]>,
     pub domain: domain::Domain,
+    pub limits: domain::Config,
 }
 /// The public `OpenAI` Responses route; no Codex account id is configured.
 pub const ROUTE: &[u8] = b"/v1/responses";
-/// Builds the played domain without a menu or latency, and its accepted keys.
+/// Builds the played domain with its fixed reply latency, and its accepted keys.
 #[must_use]
 pub fn configuration(document: &Document, key: &[u8], seed: u64) -> Configuration {
     let mut added_keys = List::with_capacity(u32::try_from(document.added_keys.len()).expect("fifteen keys"));
@@ -154,6 +163,7 @@ pub fn configuration(document: &Document, key: &[u8], seed: u64) -> Configuratio
         added_keys: added_keys.into_boxed(),
         models: document.models.clone(),
         domain: document.domain(seed),
+        limits: document.limits(),
     }
 }
 fn empty_menu() -> api::Menu {

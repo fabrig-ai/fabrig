@@ -11,8 +11,8 @@ pub const WATERMARK: u32 = 2_048;
 #[derive(Clone, PartialEq, Eq, Debug)]
 pub struct Limits {
     /// The engine's records wait while the worker's backlog is at or
-    /// past this many entries (skein's draft `dynamic-memory.md`, 4.1
-    /// and 4.4); a pacing limit, not a memory one.
+    /// past this many entries (skein's `programming-model.md`,
+    /// 7.1); a pacing limit, not a memory one.
     pub watermark: u32,
     pub hub: host::Limits,
     pub agent: smith::Limits,

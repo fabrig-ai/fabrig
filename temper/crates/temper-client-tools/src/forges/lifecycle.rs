@@ -1,4 +1,4 @@
-//! Forge removal and playground reset (temper/docs/design/draft/playground-reset.md, 4 and 6.2).
+//! Forge removal and playground reset (temper/docs/design/client/tools.md, 5.5).
 use super::{Forges, PLAYGROUND_END, REMOVE, finish};
 use crate::{
     jig::{
@@ -73,6 +73,7 @@ pub(super) fn told(state: &mut Forges, env: &Env<Limits>, told: &Told, out: &mut
                 w::Request::Adopt(_)
                 | w::Request::SetUp(_)
                 | w::Request::Return(_)
+                | w::Request::Replace(_)
                 | w::Request::Connect(_)
                 | w::Request::Install(_)
                 | w::Request::Reachable(_)

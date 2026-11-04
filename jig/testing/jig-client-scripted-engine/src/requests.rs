@@ -100,9 +100,9 @@ impl<A: crate::Application> Engine<A> {
         ask: &Ask,
         wall: Wall,
     ) -> core::result::Result<(Answer, Vec<crate::Change>), Invalid> {
-        if let Ask::ChangeSettings(_) | Ask::MoveToNewest(_) = ask {
+        if let Ask::ChangeSettings(_) | Ask::MoveToNewest(_) | Ask::Restore { .. } = ask {
             let held = self.truth.frames.get(&party).and_then(|me| me.deployment_role);
-            if held != Some(jig_client_domain::contract::HeldRole::Owner) {
+            if !matches!(ask, Ask::Restore { .. }) && held != Some(jig_client_domain::contract::HeldRole::Owner) {
                 return Ok((Answer::Refused { refusal: Refusal::Role { held }, at: None }, Vec::new()));
             }
             if let Some(rule) = self
@@ -198,6 +198,7 @@ impl<A: crate::Application> Engine<A> {
                         | ReadValue::Settings(_)
                         | ReadValue::Setting(_)
                         | ReadValue::Revision(_)
+                        | ReadValue::TaskText(_)
                         | ReadValue::Revisions(_)
                         | ReadValue::Deployment(_),
                         Moved::Hold { .. }
@@ -236,6 +237,7 @@ impl<A: crate::Application> Engine<A> {
                                     | ReadValue::Settings(_)
                                     | ReadValue::Setting(_)
                                     | ReadValue::Revision(_)
+                                    | ReadValue::TaskText(_)
                                     | ReadValue::Revisions(_)
                                     | ReadValue::Deployment(_) => None,
                                 };
@@ -270,18 +272,22 @@ impl<A: crate::Application> Engine<A> {
                     Vec::new(),
                 ));
             }
-            let waiting = match value {
+            let standing = match value {
                 ReadValue::Proposal(value) => match value.waiting.holder {
-                    jig_client_domain::contract::HistoryHolder::Person(person) => Some(Recipient::Party(person)),
-                    jig_client_domain::contract::HistoryHolder::Task(task) => Some(Recipient::Task(task)),
+                    jig_client_domain::contract::HistoryHolder::Person(person) => {
+                        Some(recipient(&self.truth, party, &Recipient::Party(person)))
+                    }
+                    jig_client_domain::contract::HistoryHolder::Task(task) => {
+                        Some(recipient(&self.truth, party, &Recipient::Task(task)))
+                    }
                     jig_client_domain::contract::HistoryHolder::Policy { .. } => None,
                 },
                 ReadValue::Escalation(value) => value.task.hold.as_ref().and_then(|hold| match hold.escalation {
                     Some(jig_client_domain::contract::HoldEscalation::Waiting { holder, .. }) => Some(match holder {
-                        jig_client_domain::contract::EscalationHolder::Person(person) => Recipient::Party(person),
-                        jig_client_domain::contract::EscalationHolder::Task(task) => Recipient::Task(task),
+                        jig_client_domain::contract::EscalationHolder::Person(person) => person == party,
+                        jig_client_domain::contract::EscalationHolder::Task(_) => false,
                         jig_client_domain::contract::EscalationHolder::Role { project, role } => {
-                            Recipient::Role { project, role }
+                            recipient(&self.truth, party, &Recipient::Role { project, role })
                         }
                     }),
                     _ => None,
@@ -289,6 +295,7 @@ impl<A: crate::Application> Engine<A> {
                 ReadValue::Settings(_)
                 | ReadValue::Setting(_)
                 | ReadValue::Revision(_)
+                | ReadValue::TaskText(_)
                 | ReadValue::Revisions(_)
                 | ReadValue::Tasks(_)
                 | ReadValue::Project(_)
@@ -307,7 +314,7 @@ impl<A: crate::Application> Engine<A> {
                 | ReadValue::Notes(_)
                 | ReadValue::Deployment(_) => None,
             };
-            if waiting.as_ref().is_some_and(|waiting| !recipient(&self.truth, party, waiting)) {
+            if standing == Some(false) {
                 return Ok((
                     Answer::Refused {
                         refusal: Refusal::Moved { now: Revision { value: 0 }, what: Moved::Waiting },
@@ -345,9 +352,11 @@ impl<A: crate::Application> Engine<A> {
             | Ask::AccountChange { .. }
             | Ask::SignOut { .. }
             | Ask::RemoveProject { .. }
+            | Ask::SetVisibility { .. }
             | Ask::Rename { .. }
             | Ask::ChangeSettings(_)
             | Ask::MoveToNewest(_)
+            | Ask::Restore { .. }
             | Ask::MakeProject { .. }
             | Ask::SetPool { .. } => None,
         };
@@ -405,9 +414,11 @@ impl<A: crate::Application> Engine<A> {
                 | Ask::MakeService { .. }
                 | Ask::Withdraw { .. }
                 | Ask::RemoveProject { .. }
+                | Ask::SetVisibility { .. }
                 | Ask::Rename { .. }
                 | Ask::ChangeSettings(_)
                 | Ask::MoveToNewest(_)
+                | Ask::Restore { .. }
                 | Ask::MakeProject { .. }
                 | Ask::SetPool { .. } => Admission::Refused(Refusal::NotOffered),
             },
@@ -495,18 +506,20 @@ impl<A: crate::Application> Engine<A> {
             | Ask::SetRoles { .. }
             | Ask::MakeService { .. }
             | Ask::RemoveProject { .. }
+            | Ask::SetVisibility { .. }
             | Ask::Rename { .. }
             | Ask::ChangeSettings(_)
             | Ask::MoveToNewest(_)
+            | Ask::Restore { .. }
             | Ask::MakeProject { .. }
             | Ask::SetPool { .. } => None,
         };
         if let (Some(key), Some(how)) = (object, how) {
-            if matches!(how, Decision::PassedUp | Decision::LeftHeld { .. }) {
+            if matches!(how, Decision::PassedUp) {
                 return Ok((Answer::Refused { refusal: Refusal::NotOffered, at: None }, Vec::new()));
             }
             let value = self.truth.objects.get(&key).expect("target checked").clone();
-            let Some((value, outcome)) = decided(value, ask, party, wall, &how) else {
+            let Some((value, outcome)) = decided(&self.truth, value, ask, party, wall, &how) else {
                 return Ok((Answer::Refused { refusal: Refusal::NotOffered, at: None }, Vec::new()));
             };
             let change =
@@ -581,6 +594,7 @@ fn offers(value: &ReadValue) -> Option<&List<Offered>> {
         | ReadValue::Settings(_)
         | ReadValue::Setting(_)
         | ReadValue::Revision(_)
+        | ReadValue::TaskText(_)
         | ReadValue::Revisions(_)
         | ReadValue::Deployment(_) => None,
     }
@@ -616,6 +630,7 @@ fn ending(value: &ReadValue) -> Option<Ending> {
         | ReadValue::Settings(_)
         | ReadValue::Setting(_)
         | ReadValue::Revision(_)
+        | ReadValue::TaskText(_)
         | ReadValue::Revisions(_)
         | ReadValue::Deployment(_) => None,
     }
@@ -632,9 +647,11 @@ fn decision_kind(decision: &Decision) -> ActKind {
 type Target = (Option<u32>, Option<ObjectKey>, ActKind, Option<(Revision, Moved)>);
 fn target(ask: &Ask) -> Option<Target> {
     Some(match ask {
-        Ask::Lift { .. }
+        Ask::SetVisibility { .. }
+        | Ask::Lift { .. }
         | Ask::ChangeSettings(_)
         | Ask::MoveToNewest(_)
+        | Ask::Restore { .. }
         | Ask::MakeProject { .. }
         | Ask::SignIn { .. }
         | Ask::SignOut { .. }
@@ -691,7 +708,7 @@ fn target(ask: &Ask) -> Option<Target> {
         Ask::ChangePolicy { project, .. } => (Some(*project), None, ActKind::ChangePolicy, None),
         Ask::SetRoles { project, .. } => (Some(*project), None, ActKind::SetRoles, None),
         Ask::MakeService { project, .. } => (Some(*project), None, ActKind::MakeService, None),
-        Ask::RemoveProject { project } => (Some(*project), None, ActKind::RemoveProject, None),
+        Ask::RemoveProject { project, .. } => (Some(*project), None, ActKind::RemoveProject, None),
         Ask::Rename { project, .. } => (Some(*project), None, ActKind::Rename, None),
         Ask::SetPool { project, .. } => (Some(*project), None, ActKind::SetPool, None),
     })

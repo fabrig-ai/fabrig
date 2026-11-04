@@ -103,7 +103,7 @@ impl Host {
         use jig_client_protocol_http::Heard as H;
         let mut above = Queue::uncapped();
         match heard {
-            Heard::Answered { exchange, status, body } => {
+            Heard::Answered { exchange, status, body, headers: _ } => {
                 if let Some(token) = self.tickets.remove(&exchange) {
                     above.push(jig_client_protocol_http::answered(token, status, body));
                 }
@@ -131,6 +131,10 @@ impl Host {
     }
     // A step's writes are one durability answer: a first successful write
     // cannot release held requests before a later refused write is heard.
+    #[expect(
+        clippy::wildcard_enum_match_arm,
+        reason = "storage results are combined into one durability answer; every other transport report passes unchanged to heard"
+    )]
     pub fn carried(&mut self, reports: Vec<skein_ui_web::transport::Carried>, stored: bool) {
         let mut refused = false;
         for report in reports {
@@ -164,6 +168,8 @@ impl Host {
                         id: self.next,
                         call: jig_client_protocol_http::exchange(&self.mapping, credential.as_ref(), message),
                         bound: 65536,
+                        cache: skein_ui_web::fetch::Cache::Browser,
+                        keep: &[],
                     });
                 }
                 Request::Client { request: jig_client::Request::OpenStream { credential } } => {
@@ -185,7 +191,8 @@ impl Host {
                 | Request::First(_)
                 | Request::Fact { .. }
                 | Request::Show { .. }
-                | Request::Client { .. } => {}
+                | Request::Client { .. }
+                | Request::Unlinked { .. } => {}
             }
         }
         root::take(&mut self.root, &self.env, &mut self.out);

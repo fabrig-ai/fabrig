@@ -11,7 +11,7 @@ pub fn exchange(id: u32, body: &[u8]) -> Asked {
     // Use the mapping's actual call so the header check covers both components.
     let mapping = Mapping::new(b"/jig").expect("mapping");
     let call = mapped(&mapping, None, jig_client_protocol_link::Message::Read(body.into()));
-    Asked::Exchange { id, call, bound: BOUND }
+    Asked::Exchange { id, call, bound: BOUND, cache: skein_ui_web::fetch::Cache::Browser, keep: &[] }
 }
 pub fn stream(piece: u32) -> Asked {
     Asked::OpenStream {
@@ -36,6 +36,12 @@ pub struct Platform {
     pub calls: Vec<&'static str>,
 }
 impl skein_ui_web::platform::Platform for Platform {
+    fn abandon(&mut self, _: u32) {
+        self.calls.push("abandon");
+    }
+    fn read_on(&mut self) {
+        self.calls.push("read_on");
+    }
     fn read_all(&self) -> Vec<skein_ui_web::store::Record> {
         Vec::new()
     }

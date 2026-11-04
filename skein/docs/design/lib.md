@@ -43,8 +43,8 @@ generated codecs, HTTP's client and the event-stream reader (http.md,
 section 2), and skein-ui's tree, view and words (ui.md), and its shell
 hands them what its platform streams. Nothing in them assumes a 64-bit
 `usize`: a conversion that could fail on a 32-bit target is checked.
-skein's gate builds the four for that target, and `skein-ui-web` beside
-them (testing.md, section 6).
+skein's gate checks them for that target with the other portable
+crates (testing.md, section 10).
 
 ## 3. Handles and slabs
 
@@ -155,8 +155,9 @@ where it holds it.
   digest alike, however each was reached. A `Slab` hashes all the slots
   it holds in index order, free ones included.
 - **Not state, so no `Hash`:** `Env<L>`, which a step is handed and does
-  not keep (programming-model.md, section 3), and `stream::Held`, a buffer
-  served as a stream's side below, which the step that makes it reads. A
+  not keep (programming-model.md, section 3), and `stream::Held` and
+  `stream::Slice`, a buffer served as a stream's side below, which the
+  step that makes it reads. A
   service that keeps its layers' envs beside them, as the echo's does,
   digests its domains' state without them: the times are the trace's. A
   state that keeps a `Held` past its step hashes, by hand, what of it is
@@ -252,10 +253,10 @@ and keep no copy of their own.
   hashed, not the state.
 - **The standard's bound,** 2^64 − 1 bits, is asserted: no bounded step
   hashes that much.
-- **The users move onto it.** skein-io's `digest` module keeps its public
+- **Its users.** skein-io's `digest` module keeps its public
   API, `Digest([u64; 4])` and `digest(&[u8])`, as a thin layer over lib's
   (io.md, section 5): its words are the digest's 32 bytes read as four
-  big-endian `u64`s, so no user of skein-io changes. `skein-oauth`'s PKCE
+  big-endian `u64`s. `skein-oauth`'s PKCE
   and `skein-ui-bundle`'s digests use lib's and keep no copy;
   `skein-ui-bundle`, a build tool in ordinary Rust (ui.md, section 2),
   depends on lib for it.
@@ -406,6 +407,12 @@ cap.
   stream, as the HTTP client does a body's, then reads a byte at a time,
   so that it never reads past a delimiter its next bytes complete.
 
+A **complete buffer** is its own side below. `stream::Held` owns one and
+`stream::Slice` borrows one; both answer a demand at once, in the same
+step, as an intake would meet it, and answer `End` once what is left can
+never meet a demand. Neither asks anything of room: the data is read, not
+written. A `Slice` copies only each delivery, never the whole buffer.
+
 ### 7.1 Independent output reservations
 
 A framed connection can need to send while its next read waits for a peer
@@ -490,7 +497,10 @@ cannot manufacture independent room.
   OAuth states and PKCE verifiers, sign-ins' secrets. Each generator is
   made from the seed and a stream number its owner gives (ChaCha20's
   nonce), distinct for every generator of a process, so several drawn from
-  one seed never yield the same bytes.
+  one seed never yield the same bytes. It is neither `Copy` nor `Clone`,
+  since a copy would yield its bytes again: its owner lends it by `&mut`,
+  and a component that keeps a generator of its own is made one, from the
+  seed, on a stream of its own.
 
 ## 9. The environment
 
@@ -705,5 +715,20 @@ traits, takes no closures, and uses no `dyn` (programming-model.md,
 
 ## 13. Not built yet
 
-What of this document is not built is `STATUS.md`'s (its row in section 2,
-and section 3).
+What of this document is not built is in [`lib.status.md`](lib.status.md).
+
+## 14. Open questions
+
+- **A peer's bytes in a carrier's `Debug`:** a record holding a
+  `Secret` prints without it (section 6), and a secret's bytes are
+  their owner's to keep out of `Debug` (io.md, 5.3); but the generic
+  carriers derive `Debug` over the bytes they carry: skein-channel's
+  `Frame` and `Event::Body`, skein-http's `Header`, a server's call and
+  a client's written head, io's stream, pipe and kernel bytes, kv's
+  values. Two carry a credential on a known path: a channel frame,
+  smith's grant refresh with its bearer or key; a header, an
+  `Authorization`, `Cookie` or `Set-Cookie` value. Either a rule here
+  that a record carrying a peer's bytes prints them as their length, and
+  a header its name and its value's length, carried out crate by crate,
+  the channel's frame and HTTP's header first; or the carriers stay as
+  they are, each owner keeping its records out of `Debug`.

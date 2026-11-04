@@ -223,7 +223,11 @@ pub enum Event {
     /// The idle store selected a chat, or refused it without changing its selection.
     ChatSelected { name: Box<[u8]>, result: Result<(), ChatRefusal> },
     /// Terminal for Load, including a possibly empty saved chat.
-    Loaded { state: Option<ChatState>, transcript: Option<agent::Transcript>, deliveries: Box<[DeliveryRecord]> },
+    Loaded {
+        state: Option<ChatState>,
+        transcript: Option<smith_host_domain::Transcript>,
+        deliveries: Box<[DeliveryRecord]>,
+    },
     /// Terminal for `SaveState`; names and activation are now durable.
     StateSaved,
     /// Terminal for `SaveTurn`; the named turn is now durable.

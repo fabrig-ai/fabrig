@@ -12,6 +12,9 @@ pub enum RestoreSet {
     NamedAnswerRows,
     BindingAddressBytes,
     BindingSubjectBytes,
+    SettingGates,
+    SettingApprovals,
+    SettingSegments,
     ChangeTimers,
     ProjectionTimers,
     References,
@@ -62,7 +65,13 @@ impl Domain {
     }
 }
 
-fn room(family: RecordKind, set: RestoreSet, held: u32, limit: u32, replacing: bool) -> Result<(), RestoreFit> {
+pub(super) fn room(
+    family: RecordKind,
+    set: RestoreSet,
+    held: u32,
+    limit: u32,
+    replacing: bool,
+) -> Result<(), RestoreFit> {
     if replacing || held < limit {
         Ok(())
     } else {
@@ -95,6 +104,13 @@ fn answer_rows(answer: &skein_forge::api::Answer) -> u64 {
             let mut largest = count(runs.len());
             for run in runs {
                 largest = largest.max(count(run.jobs.len()));
+            }
+            largest
+        }
+        Answer::Commits { commits, .. } => {
+            let mut largest = count(commits.len());
+            for commit in commits {
+                largest = largest.max(count(commit.parents.len()));
             }
             largest
         }
@@ -169,6 +185,20 @@ pub(super) fn row(d: &Domain, l: &Limits, row: &Stored) -> Result<(), RestoreFit
                 d.landing.rows.contains_key(&row.landing.task),
             )
         }
+        Stored::Tier(row) => room(
+            K::Tier,
+            Rows(K::Tier),
+            d.tiers.len(),
+            d.tiers.capacity(),
+            d.tiers.contains_key(&(row.repository, row.tier.clone())),
+        ),
+        Stored::Verification(row) => room(
+            K::Verification,
+            Rows(K::Verification),
+            d.verifications.len(),
+            d.verifications.capacity(),
+            d.verifications.contains_key(&(row.repository, row.commit)),
+        ),
         Stored::Receipt { key, .. } => room(
             K::Receipt,
             Rows(K::Receipt),
@@ -238,6 +268,29 @@ pub(super) fn row(d: &Domain, l: &Limits, row: &Stored) -> Result<(), RestoreFit
                 d.bindings.len(),
                 d.bindings.capacity(),
                 d.bindings.contains_key(address),
+            )
+        }
+        Stored::Setting(row) => {
+            if let crate::settings::Edit::Set(crate::settings::SizedValue {
+                value: crate::settings::Value::Rule(rule),
+                ..
+            }) = &row.edit
+            {
+                field(K::Setting, RestoreSet::SettingGates, count(rule.gates.len()), u64::from(l.change_policy.gates))?;
+                field(K::Setting, RestoreSet::SettingApprovals, count(rule.approvals.len()), u64::from(l.roles))?;
+                field(
+                    K::Setting,
+                    RestoreSet::SettingSegments,
+                    count(rule.pattern.segments.len()),
+                    u64::from(l.authority_segments),
+                )?;
+            }
+            room(
+                K::Setting,
+                Rows(K::Setting),
+                d.setting_rows.len(),
+                d.setting_rows.capacity(),
+                d.setting_rows.contains_key(&row.key),
             )
         }
         Stored::Flight { task, entry } => room(
@@ -319,6 +372,27 @@ fn derived(d: &Domain, l: &Limits) -> Result<(), RestoreFit> {
                     limit: u64::from(watches.capacity()),
                 });
             }
+        }
+    }
+    for name in &crate::tiers::watched(d) {
+        let Some(resource) = super::to_client(name, l) else {
+            return Err(RestoreFit {
+                family: Some(RecordKind::Tier),
+                set: RestoreSet::NameBytes,
+                held: u64::from(l.name_bytes),
+                additional: 1,
+                limit: u64::from(l.name_bytes),
+            });
+        };
+        let held = watches.len();
+        if watches.insert(resource, ()).is_err() {
+            return Err(RestoreFit {
+                family: Some(RecordKind::Tier),
+                set: RestoreSet::Watches,
+                held: u64::from(held),
+                additional: 1,
+                limit: u64::from(watches.capacity()),
+            });
         }
     }
     // Each member/gate can contribute one rebuilt flight, before any allocation or u16 conversion.

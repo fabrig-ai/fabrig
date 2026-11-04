@@ -5,7 +5,7 @@
   --temper-paper: #fffefd;
   --temper-ink: #34312c;
   --temper-muted: #7a736a;
-  --temper-faint: #a09c93;
+  --temper-faint: #8c867d;
   --temper-line: #e9e4db;
   --temper-accent: #b8664e;
   --temper-accent-dark: #9d5139;
@@ -26,36 +26,34 @@ body { margin: 0; background: var(--temper-canvas); color: var(--temper-ink); fo
 button, input, textarea, select { font: inherit; }
 button { cursor: pointer; }
 a { color: inherit; text-decoration: none; }
-/* .terminal-topbar: one sticky banner in the mockup's order. */
-.temper-banner { position: sticky; top: 0; z-index: 12; min-height: 49px; display: flex; align-items: center; gap: 16px; padding: 0 23px; border-bottom: 1px solid var(--temper-line); background: var(--temper-topbar); }
-.temper-menu > button { min-width: 0; max-width: 18em; overflow: hidden; text-overflow: ellipsis; border: 0; border-radius: 5px; padding: 5px 0; background: transparent; color: #5f5a52; white-space: nowrap; }
-.temper-menu > button[aria-pressed=true] { color: var(--temper-ink); font-weight: 700; }
-.temper-menu > button:hover { color: var(--temper-accent); }
+/* The banner: one quiet line, no fill, nav as plain words. */
+.temper-banner { position: sticky; top: 0; z-index: 12; min-height: 40px; display: flex; align-items: center; gap: 18px; padding: 0 24px; border-bottom: 1px solid #efebe4; background: var(--temper-canvas); }
 /* The mockup's .terminal-project when the project list is empty. */
 .temper-project-empty { margin: 0; color: #5f5a52; white-space: nowrap; }
 .temper-menu > .temper-project-empty { padding: 7px 9px; font-size: 12px; }
 /* .terminal-brand and .terminal-divider: decorative image and rule. */
-.temper-brand { display: flex; align-items: center; gap: 8px; margin: 0; font: 700 16px/1 'DejaVu Sans', ui-sans-serif, system-ui, sans-serif; letter-spacing: -.045em; white-space: nowrap; }
-/* Sign-in repeats the brand inside main; the banner keeps its own sizes. */
-:where(.temper-main) .temper-brand { display: flex; align-items: center; gap: 9.33px; margin: 0; font: 700 18.67px/1 'DejaVu Sans', ui-sans-serif, system-ui, sans-serif; letter-spacing: -.045em; white-space: nowrap; }
-.temper-brand::before { content: ''; width: 19px; height: 19px; flex: none; background: url(files/brand.svg) center / contain no-repeat; }
-:where(.temper-main) .temper-brand::before { content: ''; width: 22.17px; height: 22.17px; flex: none; background: url(files/brand.svg) center / contain no-repeat; }
-.temper-brand::after { content: ''; width: 1px; height: 17px; margin-left: 8px; background: #d9d2c8; flex: none; display: none; }
-:where(.temper-main) .temper-brand::after { content: ''; width: 1px; height: 19.83px; margin-left: 9.33px; background: #d9d2c8; flex: none; display: none; }
+.temper-brand { display: flex; align-items: center; gap: 7px; margin: 0; font: 700 14px/1 'DejaVu Sans', ui-sans-serif, system-ui, sans-serif; letter-spacing: -.045em; white-space: nowrap; }
+.temper-brand::before { content: ''; width: 15px; height: 15px; flex: none; background: url(files/brand.svg) center / contain no-repeat; }
+.temper-brand::after { content: ''; width: 1px; height: 14px; margin-left: 8px; background: #e4ded4; flex: none; display: none; }
+:where(.temper-main) .temper-brand::after { margin-left: 9.33px; }
 /* .terminal-nav and .terminal-count: quiet links and current page. */
 .temper-navigation { align-self: stretch; display: flex; align-items: center; gap: 4px; margin-left: 12px; }
-.temper-navigation a { padding: 5px 10px; border-radius: 5px; font-size: 11px; color: #736c62; white-space: nowrap; }
-.temper-navigation a:hover { background: #eae4d9; color: var(--temper-ink); }
-.temper-navigation a[aria-current=page] { color: var(--temper-ink); background: #e9e3d8; font-weight: 700; }
+.temper-navigation a { padding: 4px 8px; border-radius: 0; font-size: 11px; color: var(--temper-faint); white-space: nowrap; }
+.temper-navigation a:hover { background: none; color: var(--temper-ink); }
+.temper-navigation a[aria-current=page] { color: var(--temper-ink); background: none; font-weight: 600; }
 .temper-navigation strong { color: #a45c43; margin-left: 3px; font-weight: 700; }
 /* .terminal-top-right, .terminal-live and .terminal-user: connection and person. */
-.temper-corner { margin-left: auto; display: flex; gap: 20px; align-items: center; white-space: nowrap; flex: none; }
-.temper-corner > [data-region=temper-link] { display: flex; align-items: center; gap: 8px; white-space: nowrap; color: #767066; font-size: 11px; }
-.temper-corner > [role=status] { max-width: 14em; overflow: hidden; text-overflow: ellipsis; color: #827a6f; font-size: 11px; white-space: nowrap; }
+.temper-corner { margin-left: auto; display: flex; gap: 16px; align-items: center; white-space: nowrap; flex: none; }
+.temper-corner > [data-region=temper-link] { display: flex; align-items: center; gap: 8px; white-space: nowrap; color: var(--temper-faint); font-size: 11px; }
+.temper-corner > [role=status] { max-width: 14em; overflow: hidden; text-overflow: ellipsis; color: var(--temper-faint); font-size: 11px; white-space: nowrap; }
 .temper-corner:has(> [role=alert]) { flex: 0 1 auto; min-width: 0; max-width: 100%; flex-wrap: wrap; }
 .temper-corner > [role=alert] { flex: 1 1 12em; min-width: 0; max-width: 100%; white-space: normal; overflow-wrap: anywhere; color: var(--temper-red); font-size: 11px; }
-.temper-corner > button { min-height: 28px; margin-block: calc((1lh + 6px - 28px) / 2); border: 0; border-radius: 5px; background: transparent; color: #756e65; font-size: 11px; padding: 3px 0; }
+.temper-corner > button { min-height: 28px; margin-block: calc((1lh + 6px - 28px) / 2); border: 0; border-radius: 5px; background: transparent; color: var(--temper-faint); font-size: 11px; padding: 3px 0; }
 .temper-corner > button:hover { color: var(--temper-accent); }
+/* While in the playground: the way out, the banner's one accent. */
+.temper-corner > .temper-leave-playground { display: inline-flex; align-items: center; gap: 6px; padding: 3px 10px; border: 1px solid #dcb6a6; border-radius: 5px; color: var(--temper-accent-dark); font-size: 11px; font-weight: 600; }
+.temper-corner > .temper-leave-playground::after { content: '→'; font-weight: 400; }
+.temper-corner > .temper-leave-playground:hover { border-color: var(--temper-accent); background: var(--temper-accent-pale); }
 /* The mockup's menu panel is also the fallback where closed details cannot be drawn.
    Menu remains the summary's accessible word under our three-bar image. */
 .temper-menu { position: relative; margin-left: auto; }
@@ -65,7 +63,7 @@ a { color: inherit; text-decoration: none; }
 .temper-menu[open] { position: absolute; top: 100%; right: 23px; z-index: 10; display: grid; width: 190px; padding: 7px; background: var(--temper-paper); border: 1px solid var(--temper-line); border-radius: 8px; box-shadow: 0 10px 30px rgba(40,30,20,.12); }
 .temper-menu[open] > summary { position: absolute; right: -1px; bottom: calc(100% + 11px); }
 .temper-menu .temper-navigation, .temper-menu .temper-corner { display: grid; gap: 0; margin-left: 0; align-items: stretch; }
-.temper-menu > button, .temper-menu .temper-navigation a, .temper-menu .temper-corner > button { display: block; width: 100%; max-width: 100%; padding: 7px 9px; font-size: 12px; text-align: left; }
+.temper-menu .temper-navigation a, .temper-menu .temper-corner > button { display: block; width: 100%; max-width: 100%; padding: 7px 9px; font-size: 12px; text-align: left; }
 .temper-menu .temper-corner > button { margin-block: 0; }
 .temper-menu .temper-corner > [data-region=temper-link] { flex-direction: column; align-items: flex-start; }
 .temper-menu .temper-corner > [data-region=temper-link], .temper-menu .temper-corner > [role=status], .temper-menu .temper-corner > [role=alert] { padding: 7px 9px; font-size: 12px; }
@@ -77,7 +75,6 @@ a { color: inherit; text-decoration: none; }
     .temper-menu > summary { display: none; }
     .temper-brand::after { display: block; }
     .temper-brand:has(+ .temper-menu > summary + .temper-corner)::after { display: none; }
-    .temper-menu > button { display: block; width: auto; max-width: 18em; padding: 5px 0; font-size: inherit; text-align: center; }
     .temper-menu > .temper-project-empty { padding: 5px 0; font-size: inherit; }
     .temper-menu .temper-navigation { display: flex; gap: 4px; margin-left: 12px; align-items: center; }
     .temper-menu .temper-navigation a { display: inline; width: auto; max-width: none; padding: 5px 10px; font-size: 11px; text-align: start; }
@@ -91,9 +88,52 @@ a { color: inherit; text-decoration: none; }
     }
   }
 }
+/* The banner's words sit on the wordmark's baseline. */
+.temper-projects > summary, .temper-navigation a, .temper-corner > * { position: relative; top: 1px; }
+/* The switcher: the current one's name; the others behind it. */
+.temper-projects { position: relative; flex: none; }
+.temper-projects > summary { display: flex; align-items: center; gap: 6px; padding: 4px 0; list-style: none; cursor: pointer; color: var(--temper-ink); font-weight: 600; white-space: nowrap; }
+.temper-projects > summary::-webkit-details-marker { display: none; }
+.temper-projects > summary::after { content: ''; width: 5px; height: 5px; margin-top: -3px; border: solid var(--temper-faint); border-width: 0 1.5px 1.5px 0; transform: rotate(45deg); }
+.temper-projects[open] > summary::after { margin-top: 2px; transform: rotate(-135deg); }
+.temper-projects > summary:hover::after { border-color: var(--temper-ink); }
+.temper-projects > button { display: block; width: 100%; padding: 5px 12px; border: 0; border-radius: 0; background: none; color: var(--temper-muted); font-size: 12px; text-align: left; white-space: nowrap; }
+.temper-projects > button:hover { background: #f4f0e9; color: var(--temper-ink); }
+.temper-projects > button[aria-pressed=true] { color: var(--temper-ink); font-weight: 600; }
+.temper-projects > button[aria-pressed=true]::after { content: ' ✓'; color: var(--temper-accent); font-weight: 400; }
+.temper-project-new { display: flex; align-items: center; gap: 6px; margin: 5px 0 0; padding: 7px 8px 2px 12px; border-top: 1px solid var(--temper-line); }
+.temper-project-new input { flex: 1; min-width: 0; padding: 4px 0; border: 0; outline: 0; background: none; color: var(--temper-ink); font-size: 12px; }
+.temper-project-new input::placeholder { color: var(--temper-faint); }
+.temper-project-new:focus-within { border-top-color: #cba893; }
+.temper-project-new button { flex: none; padding: 3px 8px; border: 1px solid #ddd6cb; border-radius: 4px; background: none; color: var(--temper-muted); font-size: 11px; }
+.temper-project-new:has(input:placeholder-shown) button { display: none; }
+.temper-project-new button:hover { border-color: #ba9c89; color: var(--temper-accent-dark); }
+/* The switcher's fields keep their labels for assistive technology alone. */
+.temper-project-new > label, .temper-project-rename-form > label { position: absolute; width: 1px; height: 1px; padding: 0; margin: -1px; overflow: hidden; clip-path: inset(50%); white-space: nowrap; border: 0; }
+/* The open project's row: its name, and Rename at its end; renaming, the row is its name's field. */
+.temper-projects[open]::details-content { display: grid; grid-template-columns: minmax(0, 1fr) auto; align-items: center; }
+.temper-projects > :not(.temper-project-rename):not([aria-pressed=true]) { grid-column: 1 / -1; }
+.temper-projects > button.temper-project-rename { width: auto; padding: 5px 12px 5px 6px; color: var(--temper-faint); font-size: 11px; opacity: 0; }
+.temper-projects > button[aria-pressed=true]:hover + .temper-project-rename, .temper-projects > .temper-project-rename:hover, .temper-projects > .temper-project-rename:focus-visible { opacity: 1; }
+.temper-projects > button.temper-project-rename:hover { background: none; color: var(--temper-accent-dark); text-decoration: underline; }
+.temper-projects > .temper-project-rename-form { display: flex; align-items: center; gap: 6px; padding: 3px 8px 3px 12px; }
+.temper-project-rename-form input { flex: 1; min-width: 0; padding: 2px 6px; margin-left: -7px; border: 1px solid #cba893; border-radius: 4px; outline: 0; background: var(--temper-paper); color: var(--temper-ink); font-size: 12px; font-weight: 600; }
+.temper-project-rename-form button { flex: none; padding: 2px 8px; border: 1px solid #ddd6cb; border-radius: 4px; background: none; color: var(--temper-accent-dark); font-size: 11px; }
+@media (hover: none) { .temper-projects > button.temper-project-rename { opacity: 1; } }
+@supports selector(::details-content) {
+  @media (min-width: 761px) {
+    .temper-projects[open]::details-content { position: absolute; top: calc(100% + 9px); left: -12px; z-index: 13; width: 240px; padding: 5px 0; border: 1px solid var(--temper-line); border-radius: 6px; background: var(--temper-paper); box-shadow: 0 8px 24px rgba(40,30,20,.10); }
+  }
+}
+@media (max-width: 760px) {
+  .temper-projects > summary, .temper-navigation a, .temper-corner > * { top: 0; }
+  .temper-menu .temper-projects > summary { padding: 7px 9px; font-size: 12px; }
+  .temper-menu .temper-projects > button { padding: 6px 9px 6px 21px; }
+  .temper-menu .temper-project-new { padding: 6px 9px 8px 21px; border-bottom: 1px solid var(--temper-line); margin-bottom: 4px; }
+}
 .temper-live, .temper-connecting, .temper-offline { display: inline-flex; align-items: center; gap: 8px; }
 .temper-live::before, .temper-connecting::before, .temper-offline::before { content: ''; width: 7px; height: 7px; border-radius: 50%; flex: none; background: var(--temper-muted); }
-.temper-live::before { background: #6b9a77; box-shadow: 0 0 0 3px #dfe9dc; }
+.temper-live::before { background: #6b9a77; box-shadow: none; width: 6px; height: 6px; }
 .temper-connecting::before { background: var(--temper-amber); }
 .temper-behind { color: var(--temper-amber); }
 /* .page.narrow and .section-heading: the reading width and headings. */
@@ -118,6 +158,16 @@ a { color: inherit; text-decoration: none; }
 .temper-entry button { position: relative; width: 29.17px; height: 32.67px; margin-block: -1.17px -2.33px; flex: none; padding: 1.17px 0 2.33px; border: 0; border-radius: 4.67px / 5.83px 5.83px 7px 7px; background: #ba694e content-box; color: transparent; overflow: hidden; }
 .temper-entry button::before { content: ''; position: absolute; inset: 7px 5.83px 8.17px; background: url(files/send.svg) center / contain no-repeat; }
 .temper-entry button:hover { background-color: var(--temper-accent-dark); }
+/* The prompt: a bare box, its hint and model on the line below. */
+.temper-main:has(> .temper-sidebar) > .temper-entry { position: relative; min-height: 44px; margin-top: 22px; margin-bottom: 0; padding: 9px 9px 9px 14px; border: 1px solid #d6cfc4; border-radius: 6px; box-shadow: none; background: transparent; }
+.temper-main:has(> .temper-sidebar) > .temper-entry:focus-within { border-color: #b9a99a; box-shadow: none; }
+.temper-main:has(> .temper-sidebar) > .temper-entry textarea { font-size: 13px; }
+.temper-main:has(> .temper-sidebar) > .temper-entry textarea::placeholder { color: #aaa49a; }
+.temper-main:has(> .temper-sidebar) > .temper-entry .temper-hint { position: absolute; left: 16px; top: calc(100% + 6px); font-size: 11px; color: var(--temper-faint); }
+.temper-main:has(> .temper-sidebar) > .temper-entry button { background-color: transparent; }
+.temper-main:has(> .temper-sidebar) > .temper-entry button::before { filter: brightness(0) saturate(100%) invert(48%) sepia(35%) saturate(700%) hue-rotate(330deg); }
+.temper-main:has(> .temper-sidebar) > .temper-entry button:hover { background-color: var(--temper-accent-pale); }
+
 /* .entry-hint: the start composer's true keyboard instruction. */
 .temper-hint { align-self: center; color: #aaa399; font-size: 11.67px; white-space: nowrap; margin: 0; }
 /* .chat-list and .chat-preview: one ruled box, title and metadata. */
@@ -184,14 +234,11 @@ section.temper-accounts button:hover { text-decoration: underline; }
 .temper-account-line a:hover { color: var(--temper-accent-dark); }
 /* .terminal-topbar at 1100px: tighter spacing, all words retained. */
 @media (max-width: 1100px) {
-  .temper-banner { gap: 11px; padding-inline: 17px; }
   .temper-menu[open] { right: 17px; }
   .temper-navigation { gap: 0; margin-left: 0; }
-  .temper-navigation a { padding-inline: 8px; }
 }
 /* .terminal-topbar at 760px: brand and Menu alone; the panel holds every choice. */
 @media (max-width: 760px) {
-  .temper-banner { min-height: 45px; }
   .temper-menu[open] > summary { bottom: calc(100% + 9px); }
   .temper-main { width: calc(100% - 32.67px); padding-top: 18.67px; }
   .temper-accounts { width: calc(100% - 28px); margin-top: 16px; }
@@ -379,6 +426,70 @@ dialog button:nth-last-child(2) { margin-left: auto; background: var(--temper-ac
 .temper-main.temper-page > :is(.temper-choice, .temper-entry), .temper-main.temper-page > .temper-rows + button { margin-left: max(28px, calc((100% - 1353.33px) / 2)); margin-right: auto; }
 .temper-main.temper-page > :is(.temper-choice, .temper-entry) { width: min(886.67px, calc(100% - 56px)); }
 .temper-main.temper-page > .temper-rows + button { width: auto; }
+@media (max-width: 850px) {
+  .temper-page > :not(.temper-pagebar):not(dialog) { width: calc(100% - 39.67px); }
+  .temper-main.temper-page > :is(.temper-choice, .temper-entry), .temper-main.temper-page > .temper-rows + button { margin-left: 19.83px; }
+  .temper-main.temper-page > :is(.temper-choice, .temper-entry) { width: min(886.67px, calc(100% - 39.67px)); }
+}
+@media (max-width: 760px) {
+  .temper-main.temper-page { width: 100%; padding: 0 0 67.67px; }
+  .temper-page > :not(.temper-pagebar):not(dialog) { width: calc(100% - 32.67px); }
+  .temper-main.temper-page > :is(.temper-choice, .temper-entry), .temper-main.temper-page > .temper-rows + button { margin-left: 16.33px; }
+  .temper-main.temper-page > :is(.temper-choice, .temper-entry) { width: calc(100% - 32.67px); }
+}
+/* .task-heading: 10.83px after its metadata, 20.58px before the cards. */
+.temper-main.temper-page > .temper-choice { width: min(886.67px, calc(100% - 56px)); margin: 0 auto 7px max(28px, calc((100% - 1353.33px) / 2)); }
+/* .task-heading at 850px: follow the heading's left edge. */
+@media (max-width: 850px) {
+  .temper-main.temper-page > .temper-choice { margin-left: 19.83px; }
+}
+/* .page at 760px: the task heading and cards share the phone inset. */
+@media (max-width: 760px) {
+  .temper-main.temper-page > .temper-choice { width: min(886.67px, calc(100% - 32.67px)); margin-left: 16.33px; }
+}
+
+/* The chats page's pane: a narrow left pane, the prompt the rest. */
+.temper-main:has(> .temper-sidebar) { display: grid; grid-template-columns: 264px minmax(0, 1fr); grid-template-rows: auto 1fr; align-items: start; width: 100%; margin: 0; padding: 0; font-size: 13px; }
+.temper-main:has(> .temper-sidebar) > .temper-sidebar { grid-column: 1; grid-row: 1 / span 2; position: sticky; top: 40px; height: calc(100vh - 41px); overflow-y: auto; padding: 22px 20px 24px 24px; border-right: 1px solid #efebe4; display: flex; flex-direction: column; }
+.temper-main:has(> .temper-sidebar) > :not(.temper-sidebar) { grid-column: 2; width: auto; margin-inline: 32px; }
+
+/* The pane's head: the chat bar and its context, as lines. */
+.temper-sidebar > .temper-chatbar { display: block; height: auto; min-height: 0; padding: 0; border: 0; background: none; font-size: 13px; }
+.temper-sidebar > .temper-chatbar > div { display: flex; flex-wrap: wrap; align-items: baseline; gap: 4px 10px; white-space: normal; }
+.temper-sidebar > .temper-chatbar > div:first-child::before { content: '✻'; color: var(--temper-accent); font-size: 14px; line-height: 1; }
+.temper-sidebar > .temper-chatbar > div:first-child > p { font-size: 13px; color: var(--temper-ink); }
+.temper-sidebar > .temper-chatbar .temper-status-quiet { color: #4c8067; font-size: 12px; }
+.temper-sidebar > .temper-chatbar > div:last-child:not(:first-child) { margin-top: 10px; color: var(--temper-muted); font-size: 12px; }
+.temper-sidebar > .temper-context { display: block; margin: 2px 0 0; padding: 0; color: var(--temper-faint); font-size: 12px; line-height: 1.6; }
+.temper-sidebar > .temper-context p { margin: 0; }
+.temper-sidebar > .temper-context .temper-repository { color: var(--temper-muted); }
+
+/* The pane's chats: a heading, plain-word filters, the list flat. */
+.temper-sidebar > .temper-heading { display: block; margin: 26px 0 0; padding-top: 18px; border-top: 1px solid #efebe4; }
+.temper-sidebar > .temper-heading h1 { flex: none; margin: 0 0 6px; color: var(--temper-faint); font-size: 11px; font-weight: 600; letter-spacing: .04em; text-transform: uppercase; }
+.temper-sidebar > .temper-heading .temper-filters { justify-content: flex-start; gap: 0; margin-left: -6px; }
+.temper-sidebar > .temper-heading .temper-filters button { min-height: 0; padding: 1px 6px; border: 0; border-radius: 0; background: none; color: var(--temper-faint); font-weight: 400; font-size: 12px; }
+.temper-sidebar > .temper-heading .temper-filters button[aria-pressed=true] { color: var(--temper-ink); font-weight: 600; }
+.temper-sidebar > .temper-heading .temper-filters button:hover { color: var(--temper-ink); }
+.temper-sidebar > .temper-empty { margin-top: 10px; padding: 0; border: 0; border-radius: 0; text-align: left; font-size: 12px; color: var(--temper-faint); }
+
+/* The playground's note: right after the chats. */
+.temper-sidebar > .temper-accounts { width: auto; margin: 22px 0 0; padding: 16px 0 0; border: 0; border-top: 1px solid #efebe4; background: none; display: block; }
+.temper-sidebar > .temper-accounts p { font-size: 12px; line-height: 1.6; color: var(--temper-faint); }
+.temper-sidebar > .temper-accounts a { display: inline; min-height: 0; padding: 0; border: 0; background: none; color: var(--temper-accent-dark); font: inherit; text-decoration: underline; text-underline-offset: 2px; }
+.temper-sidebar > .temper-accounts a:hover { color: var(--temper-accent); }
+
+/* Below 1100px the hint gives way to the model line. */
+@media (max-width: 1100px) { .temper-main:has(> .temper-sidebar) > .temper-entry .temper-hint { display: none; } }
+
+/* Narrow: the pane follows the prompt, as a section of its own. */
+@media (max-width: 760px) {
+  .temper-main:has(> .temper-sidebar) { grid-template-columns: minmax(0, 1fr); grid-template-rows: none; }
+  .temper-main:has(> .temper-sidebar) > :not(.temper-sidebar) { grid-column: 1; margin-inline: 16px; }
+  .temper-main:has(> .temper-sidebar) > .temper-entry { margin-top: 16px; }
+  .temper-main:has(> .temper-sidebar) > .temper-sidebar { grid-row: 3; position: static; height: auto; min-height: 0; margin-top: 28px; padding: 18px 16px; border-right: 0; border-top: 1px solid #efebe4; }
+}
+
 /* .empty-state: an empty list's words in a dashed box. */
 .temper-empty { margin: 0; padding: 25.67px; border: 1px dashed #dcd5ca; border-radius: 14px; color: #77756e; font-size: 14px; text-align: center; }
 .temper-heading h2 { flex: none; margin: 0; font-size: 16.33px; }
@@ -453,20 +564,10 @@ dialog button:nth-last-child(2) { margin-left: auto; background: var(--temper-ac
 .temper-page .temper-updates p { color: var(--temper-muted); margin: 4.67px 0 0; }
 .temper-page .temper-updates .temper-meta p { margin: 0; }
 .temper-page .temper-updates .temper-update-time { color: var(--temper-faint); font-size: 11.67px; }
-/* .page at 850px. */
-@media (max-width: 850px) {
-  .temper-page > :not(.temper-pagebar):not(dialog) { width: calc(100% - 39.67px); }
-  .temper-main.temper-page > :is(.temper-choice, .temper-entry), .temper-main.temper-page > .temper-rows + button { margin-left: 19.83px; }
-  .temper-main.temper-page > :is(.temper-choice, .temper-entry) { width: min(886.67px, calc(100% - 39.67px)); }
-}
 /* .topbar, .page and .updates-list at 760px. */
 @media (max-width: 760px) {
-  .temper-main.temper-page { width: 100%; padding: 0 0 67.67px; }
   .temper-pagebar { height: 40.83px; padding: 0 18.67px; }
-  .temper-page > :not(.temper-pagebar):not(dialog) { width: calc(100% - 32.67px); }
   .temper-pagebar + .temper-heading, .temper-pagebar + h2 { margin-top: 18.67px; }
-  .temper-main.temper-page > :is(.temper-choice, .temper-entry), .temper-main.temper-page > .temper-rows + button { margin-left: 16.33px; }
-  .temper-main.temper-page > :is(.temper-choice, .temper-entry) { width: calc(100% - 32.67px); }
   .temper-page .temper-updates { grid-template-columns: 1fr; }
 }
 /* .section-heading at 600px: filters below the heading, all controls retained. */
@@ -599,24 +700,31 @@ dialog button:nth-last-child(2) { margin-left: auto; background: var(--temper-ac
 .temper-choice > p:not(.temper-account-line):last-child, .temper-choice > [role=status]:not(.temper-status-active), .temper-choice > [role=alert] { flex-basis: 100%; }
 /* .terminal-entry-composer: Chats uses the entry's left-aligned width. */
 .temper-main > .temper-choice { width: min(886.67px, 100%); margin: 0 0 9.33px; }
-/* .task-heading: 10.83px after its metadata, 20.58px before the cards. */
-.temper-main.temper-page > .temper-choice { width: min(886.67px, calc(100% - 56px)); margin: -10.5px auto 22.17px max(28px, calc((100% - 1353.33px) / 2)); }
 /* .terminal-composer-area: the entry column, also when Message is unavailable. */
 .temper-chat .temper-composer-area > .temper-choice { width: min(1213.33px, 100%); margin: 0 auto 7px; }
 .temper-chat > .temper-choice { box-sizing: content-box; flex: none; width: min(1213.33px, calc(100% - 53.67px)); margin: 0 auto; padding: 11.67px 26.83px; }
-/* .task-heading at 850px: follow the heading's left edge. */
-@media (max-width: 850px) {
-  .temper-main.temper-page > .temper-choice { margin-left: 19.83px; }
-}
-/* .page at 760px: the task heading and cards share the phone inset. */
-@media (max-width: 760px) {
-  .temper-main.temper-page > .temper-choice { width: min(886.67px, calc(100% - 32.67px)); margin-left: 16.33px; }
-}
 /* .terminal-composer-area at 600px: retain wrapping and 30.33px pills. */
 @media (max-width: 600px) {
   .temper-choice .temper-row { min-width: 0; }
   .temper-chat > .temper-choice { width: min(1213.33px, calc(100% - 23.33px)); padding: 9.33px 11.67px; }
 }
+
+/* The model choice: the prompt's status line, right; its list drops below. */
+.temper-main:has(> .temper-sidebar) > .temper-choice { justify-content: flex-end; gap: 4px 10px; margin-top: 5px; font-size: 11px; color: var(--temper-faint); }
+.temper-main:has(> .temper-sidebar) > .temper-choice > .temper-account-line { width: auto; margin: 0; font-size: 11px; color: var(--temper-faint); }
+.temper-main:has(> .temper-sidebar) > .temper-choice > details > summary { list-style: none; cursor: pointer; color: var(--temper-muted); }
+.temper-main:has(> .temper-sidebar) > .temper-choice > details > summary::-webkit-details-marker { display: none; }
+.temper-main:has(> .temper-sidebar) > .temper-choice > details > summary::before { content: '· '; color: var(--temper-faint); }
+.temper-main:has(> .temper-sidebar) > .temper-choice > details > summary:hover { color: var(--temper-accent-dark); }
+.temper-main:has(> .temper-sidebar) > .temper-choice > details[open] { flex-basis: 100%; display: flex; flex-direction: column; align-items: flex-end; gap: 6px; }
+.temper-main:has(> .temper-sidebar) > .temper-choice > details[open] > .temper-rows { width: min(480px, 100%); margin-top: 2px; padding: 4px 0; border-radius: 6px; }
+.temper-main:has(> .temper-sidebar) > .temper-choice .temper-row { display: flex; align-items: baseline; gap: 8px; padding: 6px 12px; border: 0; border-radius: 0; }
+.temper-main:has(> .temper-sidebar) > .temper-choice .temper-row > button { order: -1; min-height: 0; margin: 0 auto 0 0; padding: 0; border: 0; background: none; color: var(--temper-ink); font: 600 12px/1.6 var(--temper-mono); }
+.temper-main:has(> .temper-sidebar) > .temper-choice .temper-row > button:hover { color: var(--temper-accent-dark); }
+.temper-main:has(> .temper-sidebar) > .temper-choice .temper-row > p.temper-account-line { grid-column: auto; grid-row: auto; width: auto; margin: 0; font-size: 11px; font-weight: 400; color: var(--temper-faint); text-align: left; }
+.temper-main:has(> .temper-sidebar) > .temper-choice .temper-row > p.temper-account-line:first-of-type { color: var(--temper-muted); }
+.temper-main:has(> .temper-sidebar) > .temper-choice > details[open] > button { align-self: flex-end; width: auto; min-height: 0; padding: 0; border: 0; background: none; color: var(--temper-muted); font-size: 11px; }
+.temper-main:has(> .temper-sidebar) > .temper-choice > details[open] > button:hover { color: var(--temper-accent-dark); text-decoration: underline; }
 
 /* accounts.html's page and cards; .welcome keeps adoption's own column. */
 .temper-main.temper-page > :is(.temper-accounts-page, .temper-adoption-page) { width: 100%; margin: 0; color: var(--temper-ink); }
@@ -1052,7 +1160,6 @@ body > noscript, #app:not(:empty):not(:has(*)) { margin-top: 213px; }
 .temper-main > .temper-rows > .temper-row > p:not(:first-of-type):not(.temper-details):not(.temper-time) { margin: 3.5px 0; font-size: 12.83px; color: var(--temper-muted); text-align: left; }
 .temper-main > .temper-rows > .temper-row > :is(.temper-details, .temper-time) { display: inline-block; margin: 4.67px 14px 0 0; padding: 0; border: 0; border-radius: 0; background: none; color: var(--temper-muted); font-size: 12.83px; text-align: left; }
 /* .composer-line stays immediately above the editable field. */
-.temper-main.temper-page > .temper-choice { margin-top: 0; margin-bottom: 7px; }
 .temper-choice .temper-account-line a { margin-left: 0; color: var(--temper-accent-dark); font-weight: 600; text-decoration: none; }
 .temper-entry button:disabled { opacity: .45; cursor: default; }
 .temper-main:not(.temper-chat) > .temper-chatbar + .temper-context { padding-top: 21px; }

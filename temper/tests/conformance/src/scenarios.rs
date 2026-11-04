@@ -234,7 +234,7 @@ impl ScenarioApplication for Temper {
                                     connector: 0,
                                     kind: 4,
                                     pattern,
-                                    judge: people::Judge { connector: 0, requirement: 1, parameters: 0x8000_0000 },
+                                    judge: people::Judge { connector: 0, requirement: 5, parameters: 0 },
                                     guard: people::Guard::Observed { freshness: skein_lib::Duration::ZERO },
                                     must_be_guarded: false,
                                 }]),
@@ -413,6 +413,7 @@ impl ScenarioApplication for Temper {
                                 project: 1,
                                 executor: tasks::Executor::Agent { charter: 1 },
                                 spec: tasks::Spec {
+                                    job: None,
                                     asks: false,
                                     words: b"period work".as_slice().into(),
                                     parameters: Box::new([]),
@@ -687,6 +688,7 @@ pub(crate) fn change(world: &mut World, completion: u32) -> Result<(), Violation
                 batch: Box::new([engine::Delegate {
                     executor: tasks::Executor::Procedure { connector: 0, code: 2 },
                     spec: tasks::Spec {
+                        job: None,
                         asks: false,
                         words: b"Small fix".as_slice().into(),
                         parameters: Box::new([
@@ -722,7 +724,7 @@ pub(crate) fn change(world: &mut World, completion: u32) -> Result<(), Violation
                         },
                     }]),
                     dependencies: Box::new([]),
-                    wake: tasks::WakePolicy::DEFAULT,
+                    wake: Some(tasks::WakePolicy::DEFAULT),
                     ..temper_engine_domain_world::fixtures::report_delegate(b"fixture", Box::new([]))
                 }]),
             },

@@ -16,28 +16,9 @@ fn suggestions_show_only_in_the_playground_project() {
             f::chats_root()
         };
         let view = f::page_view(&root);
-        assert_eq!(
-            f::find(view.tree(), Role::Heading { level: 1 }, b"What shall we change?").is_some(),
-            shown,
-            "{row}"
-        );
         assert_eq!(f::find(view.tree(), Role::List, b"Suggested requests").is_some(), shown, "{row}");
-        assert!(f::find(view.tree(), Role::Heading { level: 2 }, b"Your chats").is_some(), "{row}");
+        assert!(f::find(view.tree(), Role::Heading { level: 1 }, b"Chats").is_some(), "{row}");
         if shown {
-            assert!(
-                f::find(
-                    view.tree(),
-                    Role::Paragraph,
-                    b"Try a request in acme/shop. Follow the task from its branch to a landed change."
-                )
-                .is_some(),
-                "{row}"
-            );
-            assert!(
-                f::find(view.tree(), Role::Paragraph, b"The scripted model plays these requests from its script.")
-                    .is_some(),
-                "{row}"
-            );
             let mut heading = None;
             let mut suggestion = None;
             let mut composer = None;
@@ -52,7 +33,7 @@ fn suggestions_show_only_in_the_playground_project() {
                     composer = Some(index);
                 }
             }
-            assert!(heading.unwrap() < suggestion.unwrap() && suggestion.unwrap() < composer.unwrap(), "{row}");
+            assert!(heading.unwrap() < composer.unwrap() && composer.unwrap() < suggestion.unwrap(), "{row}");
         }
     }
 }
@@ -309,8 +290,15 @@ fn the_playground_account_is_in_its_own_folded_section() {
 }
 
 #[test]
-fn the_accounts_banner_precedes_the_playground_when_both_show() {
-    for address in [Address::Chats { filter: ChatsFilter::All, start: false }, Address::Chat { task: 1 }] {
+fn the_accounts_banner_is_hidden_only_in_the_running_or_leaving_playground_project() {
+    for (address, project, leaving, chats) in [
+        (Address::Chats { filter: ChatsFilter::All, start: false }, f::PROJECT, false, true),
+        (Address::Chat { task: 1 }, f::PROJECT, false, false),
+        (Address::Chats { filter: ChatsFilter::All, start: false }, f::SECOND_PROJECT, false, true),
+        (Address::Chat { task: 1 }, f::SECOND_PROJECT, false, false),
+        (Address::Chats { filter: ChatsFilter::All, start: false }, f::PROJECT, true, true),
+        (Address::Chat { task: 1 }, f::PROJECT, true, false),
+    ] {
         let (mut root, _, _, _, watch) =
             f::root_at_with_playground(address, &f::domain_limits(), b"Shop", Some((f::PROJECT, true)));
         let mut doc = temper_client_domain::pages::accounts::document(root.client()).unwrap().clone();
@@ -328,6 +316,13 @@ fn the_accounts_banner_precedes_the_playground_when_both_show() {
                 },
             },
         );
+        f::root_event(&mut root, Event::Act { action: Action::Pages(Act::Project { project }) });
+        if leaving {
+            f::root_event(
+                &mut root,
+                Event::Act { action: Action::Forge(temper_client_domain::forge::Act::EndPlayground) },
+            );
+        }
         let view = f::page_view(&root);
         let nodes = view.tree().nodes();
         let mut frame = None;
@@ -348,10 +343,21 @@ fn the_accounts_banner_precedes_the_playground_when_both_show() {
                 main = Some(index);
             }
         }
-        assert!(
-            frame.unwrap() < accounts.unwrap()
-                && accounts.unwrap() < playground.unwrap()
-                && playground.unwrap() < main.unwrap()
-        );
+        assert_eq!(accounts.is_some(), project != f::PROJECT);
+        assert!(frame.unwrap() < playground.unwrap());
+        if let Some(accounts) = accounts {
+            assert!(frame.unwrap() < accounts && accounts < main.unwrap());
+        }
+        if chats {
+            let pane = main.unwrap() + 1;
+            assert_eq!(nodes[pane].role, Role::Complementary);
+            assert_eq!(
+                playground.unwrap() + usize::try_from(nodes[playground.unwrap()].size).unwrap(),
+                pane + usize::try_from(nodes[pane].size).unwrap(),
+                "banner ends the pane"
+            );
+        } else {
+            assert!(playground.unwrap() < main.unwrap());
+        }
     }
 }

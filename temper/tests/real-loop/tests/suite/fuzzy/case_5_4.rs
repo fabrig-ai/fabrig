@@ -20,7 +20,7 @@ fn a_new_direction_cancels_x3_under_its_closed_pull_and_bs_landing_news_waits_fo
     // Leaves out x3 past its cap: a running
     // task's deadline never fires (jig's crates/jig-domain-tasks/src/domain.rs:698
     // and crates/jig-domain-core/src/run.rs:121; case_5_3.rs).
-    // Leaves out enforced grants (draft/temper-on-temper.md 6.7): A's grant is
+    // Leaves out enforced grants, which are undesigned: A's grant is
     // its instructions' convention; the footprint detects overlap at landing.
     // Leaves out the hunks (news names commits), B's rebase (its planned h1
     // is cancelled to go again from new main), and the twenty minutes.

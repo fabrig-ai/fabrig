@@ -97,7 +97,7 @@ impl Protocol {
     fn with_limits(seed: u64, joint: Joint, fixture: fixtures::Fixture, limits: &top::Limits) -> Self {
         let mut world = Self {
             top: Self::top(seed, fixture.writer, limits),
-            env: Env { now: joint.env.now, wall: joint.env.wall, limits: *limits },
+            env: joint.env.with(*limits),
             joint,
             fixture,
             top_out: Queue::uncapped(),
@@ -351,7 +351,7 @@ impl Protocol {
     /// Accounts the old process's abandoned calls at their deadlines, without delivering them to the top.
     pub fn finish(&mut self) {
         self.generation += 1;
-        let mut terminal = Env { now: self.joint.env.now, wall: self.joint.env.wall, limits: self.joint.env.limits };
+        let mut terminal = self.joint.env.with(self.joint.env.limits);
         terminal.now = terminal.now.saturating_add(terminal.limits.deadline);
         self.joint.component.fire(&terminal, &mut self.joint.above, &mut self.joint.below);
         while let Some(event) = self.joint.above.pop() {
@@ -520,6 +520,7 @@ impl Protocol {
                 | top::Request::BoxGroup { .. }
                 | top::Request::BoxRemove { .. }
                 | top::Request::Connect { .. }
+                | top::Request::Replace { .. }
                 | top::Request::Manifest { .. }
                 | top::Request::Reachable { .. }
                 | top::Request::Install { .. }
@@ -530,7 +531,9 @@ impl Protocol {
                 | top::Request::Resource { .. }
                 | top::Request::Taken { .. }
                 | top::Request::Refused { .. }
+                | top::Request::ResourceRefused { .. }
                 | top::Request::LostReadFailed { .. }
+                | top::Request::MakeFailed { .. }
                 | top::Request::Outcome { .. }
                 | top::Request::ProjectionOutcome { .. }
                 | top::Request::NotMade { .. }
@@ -540,6 +543,7 @@ impl Protocol {
                 | top::Request::ProjectReleased { .. }
                 | top::Request::Retained { .. }
                 | top::Request::ReleaseFailed { .. }
+                | top::Request::StepDependents { .. }
                 | top::Request::WakeProcedure { .. }
                 | top::Request::ProjectAfter { .. }
                 | top::Request::ProjectionSettled { .. }
@@ -547,6 +551,8 @@ impl Protocol {
                 | top::Request::GoalUntopic { .. }
                 | top::Request::ProjectionFailed { .. }
                 | top::Request::LandingDecision { .. }
+                | top::Request::TierRun { .. }
+                | top::Request::TierDecision { .. }
                 | top::Request::ChangeDecision { .. }
                 | top::Request::News { .. }
                 | top::Request::Read { .. }
@@ -684,6 +690,7 @@ fn key(row: &top::Stored) -> top::Key {
         }),
         top::Stored::Change(row) => top::Key::Change(row.task),
         top::Stored::Issue(row) => top::Key::Issue(row.goal),
+        top::Stored::Setting(row) => top::Key::Setting(row.key),
         top::Stored::Binding { address, .. } => top::Key::Binding(address.clone()),
         top::Stored::Flight { task, entry } => top::Key::Flight { task: *task, entry: *entry },
         top::Stored::Release(row) => top::Key::Release(row.task),
@@ -692,5 +699,7 @@ fn key(row: &top::Stored) -> top::Key {
         top::Stored::Forge(row) => top::Key::Forge(row.number),
         top::Stored::ForgeNumber { .. } => top::Key::ForgeNumber,
         top::Stored::Playground(_) => top::Key::Playground,
+        top::Stored::Tier(row) => top::Key::Tier { repository: row.repository, tier: row.tier.clone() },
+        top::Stored::Verification(row) => top::Key::Verification { repository: row.repository, commit: row.commit },
     }
 }

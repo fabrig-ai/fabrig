@@ -870,7 +870,7 @@ fn whole_inbox_context_distinguishes_unsupplied_from_empty_and_refuses_depth_ove
     assert!(page.inbox_selection.as_ref().unwrap().is_empty());
     limits.tasks.depth = u32::MAX;
     assert_eq!(inbox_selection_bound(16, limits.tasks.depth), None);
-    assert_eq!(document_with_context_bound(&limits), None);
+    assert_eq!(document_with_context_bound(&limits, &core.kinds), None);
     assert_eq!(
         make(&core, &limits, 1, &Subject::Inbox { party: 1 }, &Window { rows: 16, after: None }, Wall::EPOCH),
         Err(Missing::TooLarge)
@@ -900,15 +900,41 @@ fn original_stored_ancestry_fits_at_depth_and_one_under_refuses_the_whole_page()
 
 #[test]
 fn inbox_context_memory_prices_every_reserved_container_and_complete_document_envelope() {
-    // The template envelopes now carry each optional account preference:
-    // 16 document lines × 16 templates × 8 bytes adds 2,048 to 987,136.
-    const TEMPLATE_ENVELOPES: u64 = 989_184;
+    // Each template envelope carries the resource slice: 32 document lines,
+    // eight templates per line, and sixteen bytes per slice carrier.
+    const TEMPLATE_ENVELOPES: u64 = 989_184 + 32 * 8 * 16;
     // A settings inventory document is priced beside every document (engine.md 17.7).
     // Four pending inventory heads add 96 bytes; the two value sets and
     // bounded review/item-head carriers add 115,248 bytes at this fixture.
     // Four older held revision heads, each with its holder count, add 288 bytes.
     // Sixteen retained specification lines carry eight aligned bytes for asks.
-    const SETTINGS_DOCUMENT: u64 = 120_496 + 4 * 72 + 16 * 8;
+    // Two value sets each price charter wake policies and two documents.
+    // Templates retain resource slices and specification lines retain job specs.
+    // Application settings enlarge SettingLine by 8 bytes for each of the 11
+    // defaults and 11 changes, ReviewItem by 24 bytes for 128 items (Setting
+    // and its two optional Values), and RevisionItemHead by 8 bytes for 128 heads.
+    // Optional application states add 40 bytes per inventory and review row;
+    // each of the 128 review rows also prices 255 charter numbers at four bytes.
+    // The settings review carries a 16-byte optional proposal key.
+    // Each of its two value sets also carries one project's whole policy:
+    // 8,192 owned bytes and the 208-byte ConfiguredPolicy carrier.
+    // The two value sets each carry eight bytes for RunPolicy.tools.
+    const SETTINGS_DOCUMENT: u64 = 120_528
+        + 4 * 72
+        + 16 * 8
+        + 2 * 8 * 16
+        + 16 * 8
+        + 2 * 56
+        + 2 * 2 * 440
+        + 2 * 11 * 8
+        + 128 * 24
+        + 128 * 8
+        + 2 * 11 * 40
+        + 128 * 40
+        + 128 * 255 * 4
+        + 16
+        + 2 * (8192 + 208)
+        + 2 * 8;
 
     let (mut core, limits) = fixture();
     waiting(
@@ -931,9 +957,12 @@ fn inbox_context_memory_prices_every_reserved_container_and_complete_document_en
     assert!(held <= bound);
     assert!(roots > u64::try_from(size_of_val(contexts.get(0).unwrap().goals.as_slice())).unwrap());
     assert_eq!(
-        document_with_context_bound(&limits),
+        document_with_context_bound(&limits, &core.kinds),
         Some(document_bound(&limits.documents).unwrap() + bound + TEMPLATE_ENVELOPES + SETTINGS_DOCUMENT)
     );
-    assert!(crate::reads::answer_bound(&limits).unwrap() >= document_with_context_bound(&limits).unwrap());
+    assert!(
+        crate::reads::answer_bound(&limits, &core.kinds).unwrap()
+            >= document_with_context_bound(&limits, &core.kinds).unwrap()
+    );
     assert!(valid(&limits));
 }

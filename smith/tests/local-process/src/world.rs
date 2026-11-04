@@ -468,6 +468,19 @@ impl World {
             Behaviour::default(),
         )
     }
+
+    /// Keep provider reasoning before the opening report's finish call for replay.
+    #[must_use]
+    pub fn reasoning(seed: u64, files: &Files, placement: Placement, answer: &[u8], reasoning: &[u8]) -> Self {
+        let mut world = Self::new(seed, files, placement, answer);
+        let mut scripts = scripts();
+        let mut lines = vec![api::Line::Opaque { bytes: reasoning.into() }];
+        lines.extend_from_slice(&scripts[0].turns[0].lines);
+        scripts[0].turns[0].lines = lines.into();
+        world.scenario.scripts = Some(scripts);
+        world
+    }
+
     /// Three workspace reads followed by an accepted report in the same process.
     #[must_use]
     pub fn reading(seed: u64, files: &Files, placement: Placement) -> Self {
@@ -621,7 +634,7 @@ impl World {
     }
     #[must_use]
     pub fn changed(seed: u64, files: &Files, placement: Placement) -> Self {
-        Self::configured(
+        let mut world = Self::configured(
             seed,
             files,
             placement,
@@ -632,7 +645,30 @@ impl World {
             ],
             Ending::Change { before: format!("{:040x}", 1).into_bytes() },
             Behaviour { change: true, ..Behaviour::default() },
-        )
+        );
+        let local::Event::Loaded { transcript, .. } =
+            load_chat(&world.scenario.launch.state_directory, &process::lower_configuration().channel_endpoints)
+        else {
+            unreachable!("chat codec terminal")
+        };
+        if let Some(history) = transcript {
+            let assistant_messages = history
+                .value()
+                .turns
+                .iter()
+                .flat_map(|turn| turn.messages.iter())
+                .filter(|message| message.role == smith_domain::session::llm::Role::Assistant)
+                .count();
+            let mut scripts = change_scripts();
+            // System-cued scripts count saved assistant messages too
+            // (skein/docs/design/fake-llm.md, 2.4). The skipped prefix keeps
+            // the write as the first answer to this invocation.
+            let mut turns = vec![scripts[0].turns[0].clone(); assistant_messages];
+            turns.extend_from_slice(&scripts[0].turns);
+            scripts[0].turns = turns.into();
+            world.scenario.scripts = Some(scripts);
+        }
+        world
     }
     fn configured(
         seed: u64,
@@ -1055,7 +1091,7 @@ impl World {
         else {
             unreachable!("chat codec terminal")
         };
-        transcript.map_or(0, |history| history.turns.len())
+        transcript.map_or(0, |history| history.value().turns.len())
     }
 }
 impl CheckoutRead for World {
@@ -1092,11 +1128,7 @@ impl Scenario {
     #[must_use]
     pub fn provider(&self) -> crate::llm::Peer {
         if self.launch.lending == Some(Lending::Key) {
-            return self.provider_with(skein_llm::Credential {
-                value: b"key-for-work".as_slice().into(),
-                account_id: Box::new([]),
-                scheme: skein_llm::Scheme::Key,
-            });
+            return self.provider_with(skein_llm::Credential::key(b"key-for-work".as_slice().into()));
         }
         let token = if self.launch.lending.is_some() {
             login_token(false)
@@ -1105,10 +1137,10 @@ impl Scenario {
         } else {
             b"token".as_slice().into()
         };
-        self.provider_with(skein_llm::Credential {
-            value: token,
-            account_id: b"acc".as_slice().into(),
-            scheme: skein_llm::Scheme::Bearer,
+        self.provider_with(if self.launch.lending == Some(Lending::Env) {
+            skein_llm::Credential::key(token)
+        } else {
+            skein_llm::Credential::bearer(token)
         })
     }
 
@@ -1147,7 +1179,7 @@ impl Scenario {
         if self.launch.lending == Some(Lending::Key) {
             return smith_agent_process_world::fake::configured_anthropic(provider_scripts, credential);
         }
-        smith_agent_process_world::fake::configured_transport(
+        smith_agent_process_world::fake::configured_openai(
             provider_scripts,
             credential,
             if self.interrupt_on_query {
@@ -1200,7 +1232,7 @@ pub fn load_chat(path: &Path, endpoints: &smith_protocol_translate::Endpoints) -
 /// Existing report or waiting script, with the product story's synthetic credential.
 #[must_use]
 pub fn headless_provider(wait: bool, credential: skein_llm::Credential) -> crate::llm::Peer {
-    smith_agent_process_world::fake::configured_transport(
+    smith_agent_process_world::fake::configured_openai(
         if wait { waiting_scripts() } else { scripts() },
         credential,
         Duration::ZERO,
@@ -1210,7 +1242,7 @@ pub fn headless_provider(wait: bool, credential: skein_llm::Credential) -> crate
 
 /// The existing checked change script with the product story's synthetic grant.
 pub fn change_provider(credential: skein_llm::Credential) -> crate::llm::Peer {
-    smith_agent_process_world::fake::configured_transport(
+    smith_agent_process_world::fake::configured_openai(
         tool_scripts(),
         credential,
         Duration::ZERO,

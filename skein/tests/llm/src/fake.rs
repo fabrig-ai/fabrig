@@ -59,9 +59,7 @@ pub struct ObservationLimits {
 }
 
 fn credential_bytes(credentials: &[Credential]) -> Option<u64> {
-    credentials.iter().try_fold(0_u64, |total, credential| {
-        total.checked_add(bytes(&credential.value)?)?.checked_add(bytes(&credential.account_id)?)
-    })
+    credentials.iter().try_fold(0_u64, |total, credential| total.checked_add(bytes(&credential.value)?))
 }
 
 fn cells<T>(count: u32) -> Option<u64> {
@@ -258,12 +256,12 @@ impl Exchange {
     /// Validates the actual Client and peer independently; scripts are caller data.
     #[must_use]
     pub fn new(input: Call, bounds: client::Limits, scripts: Box<[api::Script]>) -> Self {
-        Self::new_with_codex_echo(input, bounds, scripts, skein_llm::openai::Echo::NONE)
+        Self::new_with_echo(input, bounds, scripts, skein_llm::openai::Echo::NONE)
     }
 
-    /// Construct one actual exchange with configured Codex metadata echoes.
+    /// Construct one actual exchange with configured Responses metadata echoes.
     #[must_use]
-    pub fn new_with_codex_echo(
+    pub fn new_with_echo(
         input: Call,
         bounds: client::Limits,
         scripts: Box<[api::Script]>,
@@ -286,11 +284,10 @@ impl Exchange {
         options: documents::Options,
     ) -> Self {
         let endpoint = input.endpoint.clone();
-        let credential = input.credential.as_ref().map(|credential| Credential {
-            scheme: credential.scheme,
-            value: credential.value.clone(),
-            account_id: credential.account_id.clone(),
-        });
+        let credential = input
+            .credential
+            .as_ref()
+            .map(|credential| Credential { scheme: credential.scheme, value: credential.value.clone() });
         let machine = client::Client::prepare(input, &bounds).expect("actual shared Client admission");
         Self::prepared_with_options(machine, endpoint, credential, bounds, scripts, options)
     }
@@ -311,12 +308,12 @@ impl Exchange {
         bounds: client::Limits,
         scripts: Box<[api::Script]>,
     ) -> Self {
-        Self::prepared_with_codex_echo(machine, endpoint, credential, bounds, scripts, skein_llm::openai::Echo::NONE)
+        Self::prepared_with_echo(machine, endpoint, credential, bounds, scripts, skein_llm::openai::Echo::NONE)
     }
 
-    /// Adopt the prepared Client with independently configured Codex echoes.
+    /// Adopt the prepared Client with independently configured Responses echoes.
     #[must_use]
-    pub fn prepared_with_codex_echo(
+    pub fn prepared_with_echo(
         machine: client::Client,
         endpoint: Endpoint,
         credential: Option<Credential>,
@@ -345,7 +342,7 @@ impl Exchange {
         options: documents::Options,
     ) -> Self {
         let provider = match endpoint.provider {
-            Provider::OpenAiCodex | Provider::OpenAi => documents::Provider::OpenAi,
+            Provider::OpenAi => documents::Provider::OpenAi,
             Provider::Anthropic => documents::Provider::Anthropic,
         };
         let peer_limits = limits(&bounds);
@@ -405,7 +402,6 @@ impl Exchange {
         let index = u32::try_from(self.credentials.len()).map_err(|_| provider::Error::Limits)?;
         let bytes = credential_bytes(&self.credentials)
             .and_then(|held| held.checked_add(u64::try_from(credential.value.len()).ok()?))
-            .and_then(|held| held.checked_add(u64::try_from(credential.account_id.len()).ok()?))
             .ok_or(provider::Error::Limits)?;
         if index == provider::MAX_CREDENTIALS || bytes > u64::from(self.peer_env.limits.http.head) {
             return Err(provider::Error::Limits);
@@ -454,7 +450,7 @@ impl Exchange {
         self.reserve_observations();
     }
 
-    /// Sets the independent Codex model's output ceiling before any wire progress.
+    /// Sets the independent Responses model's output ceiling before any wire progress.
     pub fn model_ceiling(&mut self, ceiling: u32) {
         assert_eq!(self.ticks, 0, "model configuration precedes progress");
         assert!(ceiling > 0, "the independent model has a nonzero ceiling");
@@ -790,14 +786,13 @@ mod tests {
     fn scripted(provider: Provider, lines: Box<[api::Line]>) -> Exchange {
         let mut input = crate::call(19);
         match provider {
-            Provider::OpenAiCodex => {}
             Provider::OpenAi => {
                 input.endpoint = Endpoint::openai();
                 input.credential = Some(Credential::bearer(b"fake-token".as_slice().into()));
             }
             Provider::Anthropic => {
                 input.endpoint = Endpoint::anthropic();
-                input.credential = Some(Credential::anthropic(b"fake-token".as_slice().into()));
+                input.credential = Some(Credential::key(b"fake-token".as_slice().into()));
                 input.prompt.affinity = None;
             }
         }
@@ -807,7 +802,6 @@ mod tests {
         let credential = Credential {
             scheme: crate::credential_of(&input).scheme,
             value: crate::credential_of(&input).value.clone(),
-            account_id: crate::credential_of(&input).account_id.clone(),
         };
         let bounds = crate::limits();
         let machine = client::Client::prepare(input, &bounds).expect("one actual adopted Client");
@@ -886,7 +880,7 @@ mod tests {
 
     #[test]
     fn a_slow_reader_gets_every_released_piece_in_order_and_one_terminal() {
-        for provider in [Provider::OpenAiCodex, Provider::Anthropic] {
+        for provider in [Provider::OpenAi, Provider::Anthropic] {
             let expected: Vec<Box<[u8]>> =
                 (0..BURST_PIECES).map(|index| format!("{index:04}").into_bytes().into_boxed_slice()).collect();
             let pieces = expected
@@ -963,7 +957,7 @@ mod tests {
 
     #[test]
     fn shared_iteration_time_drives_delayed_actual_completion_and_lower_settlement() {
-        for provider in [Provider::OpenAiCodex, Provider::Anthropic] {
+        for provider in [Provider::OpenAi, Provider::Anthropic] {
             let mut world = delayed(provider);
             awaiting_answer(&mut world);
             let before = Time::from_nanos(10_999_999_999);
@@ -1019,7 +1013,7 @@ mod tests {
 
     #[test]
     fn installing_due_time_leaves_cancel_before_tick_and_late_fake_completion_ordered() {
-        for provider in [Provider::OpenAiCodex, Provider::Anthropic] {
+        for provider in [Provider::OpenAi, Provider::Anthropic] {
             let mut world = delayed(provider);
             awaiting_answer(&mut world);
             world.at(DUE, Wall::EPOCH);

@@ -440,7 +440,7 @@ fn seen_past_retention_erases_and_answers_unknown_once() {
     assert!(c.downs().is_empty());
 }
 #[test]
-fn a_kept_seen_record_restores_without_resaving_then_erases() {
+fn a_kept_seen_record_is_dropped_and_erased_at_start() {
     for first_sent in [None, Some(skein_lib::Wall::EPOCH)] {
         let mut record = record(KEY, NAME, PARTY);
         record.first_sent = first_sent;
@@ -449,18 +449,11 @@ fn a_kept_seen_record_restores_without_resaving_then_erases() {
         kept.push(record).unwrap();
         let mut c = Client::new(fixtures::limits());
         c.step(Event::Start { kept });
-        assert_eq!(
-            c.told().as_ref(),
-            &[Told::Kept { key: KEY, request: fixtures::seen() }, Told::Pending { key: KEY }]
-        );
-        assert!(c.downs().is_empty());
-        c.step(Event::Up { up: me(PARTY, Duration::from_secs(60)) });
-        let (attempt, key) = seen_attempt(&mut c);
-        assert_eq!(key, NAME);
-        c.told();
-        final_seen(&mut c, attempt);
+        assert_eq!(c.told().as_ref(), &[Told::Dropped { count: 1 }]);
         assert_eq!(c.downs().as_ref(), &[Down::Erase { key: NAME }]);
-        assert_eq!(c.told().len(), 1);
+        assert_eq!(c.domain.pending(KEY), None);
+        c.step(Event::Up { up: me(PARTY, Duration::from_secs(60)) });
+        assert!(c.downs().is_empty());
         assert_eq!(c.domain.pending(KEY), None);
     }
 }

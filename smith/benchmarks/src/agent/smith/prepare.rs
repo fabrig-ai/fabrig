@@ -339,7 +339,7 @@ mod tests {
                 shape: face,
                 receiving: Receiving { string: 64, content: 4096, items: 32, encoded_line: 65536 },
             },
-            rendered: json!({"trace":{"capture":"everything"},"invocation":["-C","/scratch/workspace","-m","codex/gpt-6-luna","--effort","low"]}),
+            rendered: json!({"trace":{"capture":"everything"},"invocation":["-C","/scratch/workspace","-m","openai/gpt-6-luna","--effort","low"]}),
             program: "/arm/smith".into(),
             state: "/scratch/state".into(),
             serial: None,
@@ -364,7 +364,7 @@ mod tests {
                 "-C",
                 "/scratch/workspace",
                 "-m",
-                "codex/gpt-6-luna",
+                "openai/gpt-6-luna",
                 "--effort",
                 "low",
                 "--trace",
@@ -384,7 +384,7 @@ mod tests {
             command.arguments.iter().map(|argument| argument.to_str().expect("UTF-8 fixture")).collect();
         assert_eq!(
             arguments,
-            ["exec", "--json", "-C", "/scratch/workspace", "-m", "codex/gpt-6-luna", "--effort", "low", "-"]
+            ["exec", "--json", "-C", "/scratch/workspace", "-m", "openai/gpt-6-luna", "--effort", "low", "-"]
         );
         assert!(prepared.trace.is_none());
         assert!(prepared.rendered["trace"].get("path").is_none());

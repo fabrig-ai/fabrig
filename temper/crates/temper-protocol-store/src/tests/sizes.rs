@@ -2,18 +2,15 @@ use super::fixtures;
 use crate::{Undecodable, application, keys, records};
 use temper_engine_domain_forge as forge;
 
+// TierRow dominates Row with eight goal branches, each holding sixteen 256-byte test ids.
+const APPLICATION_ROW_BYTES: u32 = 178_063;
+
 #[test]
 fn the_application_sizes_are_the_largest_key_and_row() {
-    // Change's eight remarks hold 4096 bytes each; eight failure counts add 100 bytes.
-    // Authority causes add 42 bytes to each of eight holds, drift and released.
-    // Way and landing add ten bytes.
-    // Terminal CI adds a presence byte, a 32-byte head and a one-byte status.
-    // The effect account adds 1 presence + 8 entry + 4 length + 512 words = 525 bytes.
-    // A producer failure adds 1 presence + 4 length + 512 words = 517 bytes.
-    // Result evidence adds four 4096-byte prefixes, cut counts, a head and repair count.
+    // The full tier row reaches its encoded bound, including all goals (tests/tiers.rs).
     assert_eq!(
         application(&fixtures::LIMITS, fixtures::LIMITS.client.op_bytes),
-        Some(jig_protocol_store::sizes::Application { version: 11, key: 511, value: 53_236 })
+        Some(jig_protocol_store::sizes::Application { version: 11, key: 511, value: APPLICATION_ROW_BYTES })
     );
 }
 #[test]
@@ -68,7 +65,7 @@ fn plan_text_uses_the_body_bound_without_changing_the_format() {
     let old_view = crate::v11::GoalView::encoded_bound(&before).expect("old view size");
     let new_view = crate::v11::GoalView::encoded_bound(&after).expect("new view size");
     assert_eq!(new_view - old_view, EXTRA_PLAN_BYTES);
-    // The schema's fixed framing plus the measured view; ChangeRow still dominates Row.
+    // The schema's fixed framing plus the measured view; TierRow dominates Row.
     assert_eq!(old_view, 5238);
     assert_eq!(new_view, 7286);
     assert_eq!(crate::v11::IssueRow::encoded_bound(&before), Some(5657));
@@ -82,10 +79,7 @@ fn plan_text_uses_the_body_bound_without_changing_the_format() {
         let mut writer = skein_lib::Writer::new(usize::try_from(row.measure()).expect("row length"));
         row.encode(&mut writer).expect("measured room");
         let encoded = writer.finish();
-        assert_eq!(
-            Some(u64::try_from(encoded.len()).expect("encoded length")),
-            crate::v11::IssueRow::encoded_bound(&limits)
-        );
+        assert_eq!(Some(skein_lib::len_u64(encoded.len())), crate::v11::IssueRow::encoded_bound(&limits));
         let meter = skein_world::domain::heap::Meter::new();
         meter.start();
         let decoded =
@@ -94,8 +88,8 @@ fn plan_text_uses_the_body_bound_without_changing_the_format() {
         assert!(peak <= ceiling, "{name}: {peak} bytes exceeds {ceiling}");
         assert_eq!(decoded, row);
     }
-    assert_eq!(crate::v11::Row::encoded_bound(&before), Some(53_236));
-    assert_eq!(crate::v11::Row::encoded_bound(&after), Some(53_236));
+    assert_eq!(crate::v11::Row::encoded_bound(&before), Some(u64::from(APPLICATION_ROW_BYTES)));
+    assert_eq!(crate::v11::Row::encoded_bound(&after), Some(u64::from(APPLICATION_ROW_BYTES)));
 }
 
 fn full_issue_row(limits: &crate::v11::Limits) -> crate::v11::IssueRow {
@@ -212,13 +206,12 @@ fn largest_forge_record_fits_the_application_ceiling() {
             playground: true,
             org: bytes(limits.first_intent_org),
             repository: bytes(limits.first_intent_repository),
-            project: forge::SetUpProject::New(bytes(limits.new_first_name)),
             label: bytes(limits.first_intent_label),
         }),
     });
     let encoded = records::encode(&row);
     let forge_bound = w::Forge::encoded_bound(limits).expect("forge bound");
-    assert_eq!(u64::try_from(encoded.len()).expect("row length"), forge_bound + 3);
+    assert_eq!(skein_lib::len_u64(encoded.len()), forge_bound + 3);
     assert!(forge_bound + 3 <= w::Row::encoded_bound(limits).expect("application bound"));
     assert_eq!(records::decode(&encoded, &bounds), Ok(row.clone()));
     let mut payload = 0_u64;
@@ -233,7 +226,6 @@ fn largest_forge_record_fits_the_application_ceiling() {
         limits.bot_email,
         limits.first_intent_org,
         limits.first_intent_repository,
-        limits.new_first_name,
         limits.first_intent_label,
     ] {
         payload += u64::from(length);

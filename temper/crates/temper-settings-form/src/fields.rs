@@ -1,5 +1,6 @@
 //! The settings file's form, a row per shape and member (client/tools.md, 5.3).
 mod jig;
+use temper_client_protocol_wire::v1 as kinds;
 pub mod render;
 #[cfg(test)]
 mod tests;
@@ -11,8 +12,14 @@ pub enum Shape {
     Item,
     Setting,
     Charter,
+    Document,
     Model,
+    Wake,
+    WakeRule,
+    WakeBatch,
     Template,
+    /// A connector and its resource symbol.
+    Symbol,
     Text,
     Executor,
     Contract,
@@ -48,6 +55,12 @@ pub enum Shape {
     Judge,
     Guard,
     Observed,
+    LandingRule,
+    LandingGate,
+    LandingApproval,
+    LandingPattern,
+    LandingLast,
+    ForgeCharter,
 }
 /// A shape's own row.
 #[derive(Debug)]
@@ -60,6 +73,7 @@ pub struct Form {
 #[derive(Debug)]
 pub enum Choice {
     Every,
+    Number,
     One { words: &'static [Word] },
 }
 #[derive(Debug)]
@@ -105,6 +119,12 @@ pub enum Bound {
 pub enum Limit {
     CharterInstructions,
     CharterAlternatives,
+    CharterDocuments,
+    DocumentSegment,
+    DocumentRepository,
+    DocumentBranch,
+    DocumentPath,
+    DocumentHeading,
     SettingModelProgramSome,
     SettingModelName,
     SettingModelEffortsItem,
@@ -117,6 +137,8 @@ pub enum Limit {
     TaskContractDocumentVerdictChoices,
     VerdictChoiceFields,
     FieldRuleName,
+    /// The number of resource symbols in a template.
+    TemplateResources,
     LlmChoiceSubagents,
     ModelEffortModel,
     ModelEffortEffortSome,
@@ -136,6 +158,12 @@ pub enum Limit {
     PatternEndExactValue,
     PatternEndOpenValue,
     DelegationKinds,
+    LandingSegments,
+    LandingSegmentBytes,
+    LandingExact,
+    LandingOpen,
+    LandingGates,
+    LandingApprovals,
 }
 
 pub use jig::{FIELDS, FORMS};
@@ -147,6 +175,17 @@ pub fn most(bound: Bound, limits: &crate::Limits) -> u64 {
         Bound::Limit(limit) => match limit {
             Limit::CharterInstructions => limits.settings.charter_instructions,
             Limit::CharterAlternatives => limits.settings.charter_alternatives,
+            Limit::CharterDocuments => limits.settings.charter_documents,
+            Limit::DocumentSegment => limits.settings.charter_document_name_item,
+            Limit::DocumentRepository => limits.settings.charter_document_name_item.saturating_mul(2).saturating_add(1),
+            Limit::DocumentBranch => limits
+                .settings
+                .charter_document_name
+                .saturating_sub(5)
+                .saturating_mul(limits.settings.charter_document_name_item.saturating_add(1))
+                .saturating_sub(1),
+            Limit::DocumentPath => limits.settings.charter_document_path,
+            Limit::DocumentHeading => limits.settings.charter_document_heading_some,
             Limit::SettingModelProgramSome => limits.settings.setting_model_program_some,
             Limit::SettingModelName => limits.settings.setting_model_name,
             Limit::SettingModelEffortsItem => limits.settings.setting_model_efforts_item,
@@ -159,6 +198,7 @@ pub fn most(bound: Bound, limits: &crate::Limits) -> u64 {
             Limit::TaskContractDocumentVerdictChoices => limits.settings.task_contract_document_verdict_choices,
             Limit::VerdictChoiceFields => limits.settings.verdict_choice_fields,
             Limit::FieldRuleName => limits.settings.field_rule_name,
+            Limit::TemplateResources => limits.settings.template_resources,
             Limit::LlmChoiceSubagents => limits.settings.llm_choice_subagents,
             Limit::ModelEffortModel => limits.settings.model_effort_model,
             Limit::ModelEffortEffortSome => limits.settings.model_effort_effort_some,
@@ -178,8 +218,42 @@ pub fn most(bound: Bound, limits: &crate::Limits) -> u64 {
             Limit::PatternEndExactValue => limits.settings.pattern_end_exact_value,
             Limit::PatternEndOpenValue => limits.settings.pattern_end_open_value,
             Limit::DelegationKinds => limits.settings.delegation_kinds,
+            Limit::LandingSegments
+            | Limit::LandingSegmentBytes
+            | Limit::LandingExact
+            | Limit::LandingOpen
+            | Limit::LandingGates
+            | Limit::LandingApprovals => landing_limit(limit, limits),
         },
     })
+}
+#[expect(clippy::wildcard_enum_match_arm, reason = "the caller selects only landing limits")]
+fn landing_limit(limit: Limit, limits: &crate::Limits) -> u32 {
+    match limit {
+        Limit::LandingSegments => limits
+            .settings
+            .pattern_segments
+            .min(limits.kinds.landing_pattern_segments)
+            .min(kinds::CEILINGS.landing_pattern_segments),
+        Limit::LandingSegmentBytes => limits
+            .settings
+            .pattern_segments_item
+            .min(limits.kinds.landing_pattern_segments_item)
+            .min(kinds::CEILINGS.landing_pattern_segments_item),
+        Limit::LandingExact => limits
+            .settings
+            .pattern_end_exact_value
+            .min(limits.kinds.landing_exact_value)
+            .min(kinds::CEILINGS.landing_exact_value),
+        Limit::LandingOpen => limits
+            .settings
+            .pattern_end_open_value
+            .min(limits.kinds.landing_open_value)
+            .min(kinds::CEILINGS.landing_open_value),
+        Limit::LandingGates => limits.kinds.landing_rule_gates.min(kinds::CEILINGS.landing_rule_gates),
+        Limit::LandingApprovals => limits.kinds.landing_rule_approvals.min(kinds::CEILINGS.landing_rule_approvals),
+        _ => unreachable!("landing limit"),
+    }
 }
 /// A setting's kind word (`charter`, `template`, `policy`, `rules`) to its value's shape.
 #[must_use]
@@ -187,8 +261,10 @@ pub fn shape_of_kind(kind: &[u8]) -> Option<Shape> {
     match kind {
         b"charter" => Some(Shape::Charter),
         b"template" => Some(Shape::Template),
-        b"policy" => Some(Shape::Policy),
+        b"policy" | b"project-policy" => Some(Shape::Policy),
         b"rules" => Some(Shape::Rules),
+        b"landing-rule" => Some(Shape::LandingRule),
+        b"forge-charter" => Some(Shape::ForgeCharter),
         _ => None,
     }
 }
@@ -203,7 +279,7 @@ pub fn form(shape: Shape) -> &'static Form {
 }
 #[must_use]
 pub fn members(shape: Shape) -> &'static [Field] {
-    let mut start = 0;
+    let mut start = FIELDS.len();
     let mut end = FIELDS.len();
     for (index, row) in FIELDS.iter().enumerate() {
         if row.shape == shape {

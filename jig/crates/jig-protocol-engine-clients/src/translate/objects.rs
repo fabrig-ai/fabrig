@@ -144,6 +144,7 @@ pub fn document(
         reads::Answer::Setting(_)
         | reads::Answer::Revision(_)
         | reads::Answer::Revisions(_)
+        | reads::Answer::TaskText(_)
         | reads::Answer::Tasks(_)
         | reads::Answer::Page(_)
         | reads::Answer::None(_) => {

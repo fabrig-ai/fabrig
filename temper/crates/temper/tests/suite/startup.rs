@@ -20,7 +20,7 @@ fn a_stock_policy_past_its_limit_refuses_before_listening() {
     document["engine"]["projects"] = serde_json::json!([]);
     document["engine"]["limits"]["overrides"]["core.policy_bytes"] = 100.into();
     document["application"]["demo"] = serde_json::Value::Null;
-    document["application"]["landing"] = serde_json::json!({"deployment": [], "projects": []});
+    document["application"]["landing"] = serde_json::json!({"projects": []});
     fs::write(&path, serde_json::to_vec(&document).expect("JSON")).expect("deployment");
     let output = std::process::Command::new(skein_scratch::paths::binary("temper"))
         .arg("serve")
@@ -30,7 +30,7 @@ fn a_stock_policy_past_its_limit_refuses_before_listening() {
     assert_eq!(output.status.code(), Some(1));
     assert_eq!(
         String::from_utf8_lossy(&output.stderr),
-        "temper serve: engine.limits.overrides.core.policy_bytes: core.policy_bytes is 100; the stock's policy 1 needs 3250 bytes; raise it in engine.limits.overrides\n",
+        "temper serve: engine.limits.overrides.core.policy_bytes: core.policy_bytes is 100; the stock's policy 1 needs 3282 bytes; raise it in engine.limits.overrides\n",
         "stdout: {}",
         String::from_utf8_lossy(&output.stdout)
     );
@@ -592,7 +592,7 @@ fn serve_checks_the_owned_agents_admission_at_each_bound() {
             "check_timeout",
             60001,
             Some(
-                "charter 1.reserve_time_ms: needs checks within 60000 ms; the agent's profile.policy.check_timeout is 60001 ms\n",
+                "charter 2.reserve_time_ms: needs checks within 60000 ms; the agent's profile.policy.check_timeout is 60001 ms\n",
             ),
         ),
         ("check_timeout", 60000, None),
@@ -600,7 +600,7 @@ fn serve_checks_the_owned_agents_admission_at_each_bound() {
             "check_timeout",
             300_000,
             Some(
-                "charter 1.reserve_time_ms: needs checks within 60000 ms; the agent's profile.policy.check_timeout is 300000 ms\n",
+                "charter 2.reserve_time_ms: needs checks within 60000 ms; the agent's profile.policy.check_timeout is 300000 ms\n",
             ),
         ),
         (
@@ -767,7 +767,7 @@ fn every_command_checks_setup_before_reading_files() {
     ] {
         assert_eq!(refused, format!("temper {command}: {line}"), "{command}");
     }
-    for verb in ["prepare", "reconcile", "run"] {
+    for verb in ["prepare", "run"] {
         support::owned::refused(scratch.path(), verb, format!("temper forge {verb}: forge 1: {line}").as_bytes());
     }
     let runner = support::owned::command(scratch.path(), "runner").output().expect("runner refuses");
@@ -1432,7 +1432,7 @@ fn turn_bound_document(path: &std::path::Path, turn: u32, escaped: bool) {
         assert_eq!(
             before,
             after,
-            "{}: run SKEIN_CODEGEN_WRITE=1 heavy cargo nextest run -p temper --test startup -E 'test(turn_bounds)'",
+            "{}: run SKEIN_CODEGEN_WRITE=1 cargo nextest run -p temper --test startup -E 'test(turn_bounds)'",
             path.display()
         );
         return;
@@ -1525,6 +1525,17 @@ fn the_live_github_configuration_passes_startup_admission_for_both_owners() {
             eprintln!("{owner}/{member}: startup admission passed; operations={operations}");
         }
         scratch.remove();
+    }
+}
+
+#[test]
+fn the_reference_profile_passes_startup_admission() {
+    let scratch = support::Scratch::startup("reference-profile-admission");
+    let profile = support::owned::bounded_reference(scratch.path());
+    let admission = profile.admission();
+    scratch.remove();
+    if let Err(why) = admission {
+        panic!("{}", String::from_utf8_lossy(&temper_service::startup::lines(&why)));
     }
 }
 

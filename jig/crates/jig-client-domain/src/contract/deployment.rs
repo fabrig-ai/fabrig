@@ -240,6 +240,8 @@ pub enum AccountState {
 /// The supplied closed hellorefusal vocabulary.
 #[derive(Clone, Copy, Debug, PartialEq, Eq, Hash)]
 pub enum HelloRefusal {
+    /// Its job kinds are not ascending and distinct.
+    JobKinds,
     Agent {
         why: AgentShortfall,
     },

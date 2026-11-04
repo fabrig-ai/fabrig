@@ -29,6 +29,36 @@ fn done(f: &Frame, code: u8, removed: bool) {
     assert_eq!(f.record_removed, removed);
     f.no_record_leaked();
 }
+/// The live story's import named a DIRECTORY never signed in: DIRECTORY's line, alone.
+#[test]
+fn an_import_into_a_directory_that_fails_prints_the_directorys_line_alone() {
+    for (address_error, token_error, line) in [
+        (Some(Error::NotFound), None, "temper ctl: DIRECTORY is not signed in\n"),
+        (None, Some(Error::Permission), "temper ctl: DIRECTORY could not be read: token: Permission\n"),
+    ] {
+        let mut f = Frame::act(IMPORT);
+        f.link = RECORD;
+        f.address_error = address_error;
+        f.token_error = token_error;
+        f.drain();
+        done(&f, 1, false);
+        assert_eq!(f.requests(), 0);
+        assert_eq!(str::from_utf8(f.stderr()).expect("diagnostic"), line);
+    }
+}
+/// The record file's own failure keeps `record file` and names the error.
+#[test]
+fn an_import_whose_record_cannot_be_read_names_the_record_file_and_the_error() {
+    let mut f = Frame::act(IMPORT);
+    f.linked_leaf = Some(Error::Permission);
+    f.drain();
+    done(&f, 1, false);
+    assert_eq!(f.requests(), 0);
+    assert_eq!(
+        str::from_utf8(f.stderr()).expect("diagnostic"),
+        "temper ctl: record file could not be read: Permission\n"
+    );
+}
 #[test]
 fn an_export_refuses_a_file_already_there_and_sends_nothing() {
     for kind in [Kind::File, Kind::Symlink] {

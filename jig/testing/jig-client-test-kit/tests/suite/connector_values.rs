@@ -120,14 +120,17 @@ fn connector_values_keep_all_eight_whole_variants_and_only_the_actual_object_rev
         assert_eq!(document.clone(), document);
         assert_eq!(document.revision(), if index == 0 { Some(u64::MAX) } else { None });
         assert!(document_fits(&document, &bounds()));
-        assert!(document_bytes(&document).unwrap() <= document_bound(&bounds()).unwrap());
+        assert!(
+            document_bytes(&document).expect("fixture document price fits")
+                <= document_bound(&bounds()).expect("fixture document bound fits")
+        );
     }
 }
 #[test]
 fn connector_values_whole_allocation_admission_has_exact_minus_one_at_and_plus_one_boundaries() {
     for original in variants() {
         let document = carrier(original);
-        let price = document_bytes(&document).unwrap();
+        let price = document_bytes(&document).expect("fixture document price fits");
         let mut bound = bounds();
         for (bytes, admitted) in [(price - 1, false), (price, true), (price + 1, true)] {
             bound.bytes = bytes;
@@ -148,8 +151,8 @@ fn connector_values_price_unused_list_capacity_every_box_and_each_literal_path_b
         document_heap(&document),
         Some(
             size_of::<ClientDocument>() as u64
-                + List::<ClientResource>::price(3).unwrap()
-                + List::<OutboxEntry>::price(2).unwrap()
+                + List::<ClientResource>::price(3).expect("fixture resource list price fits")
+                + List::<OutboxEntry>::price(2).expect("fixture outbox list price fits")
         )
     );
     let path_price = 2 * size_of::<Box<[u8]>>() as u64 + 13 + 2;
@@ -205,7 +208,8 @@ fn connector_values_paths_reject_actual_empty_names_and_preserve_opaque_admitted
     assert_eq!(path.segments()[0].as_ref(), b"literal/slash");
     assert_eq!(path.segments()[1].as_ref(), [0xff, 0]);
     assert!(path.under(&path.clone()));
-    let different = Path::new(list(3, [b"literal".as_slice().into(), b"slash".as_slice().into()]), 16).unwrap();
+    let different = Path::new(list(3, [b"literal".as_slice().into(), b"slash".as_slice().into()]), 16)
+        .expect("admitted distinct fixture path");
     assert_ne!(path, different);
     assert!(!path.under(&different));
 }
@@ -254,7 +258,10 @@ fn connector_values_every_terminal_retains_the_complete_value_and_exact_refusal(
 #[test]
 fn connector_values_the_full_panel_attains_the_priced_structural_bound() {
     let bound = Bounds { rows: 2, paths: 2, segments: 2, segment_bytes: 12, bytes: u64::MAX };
-    let full_path = || Path::new(list(2, [Box::<[u8]>::from([0xff; 12]), Box::<[u8]>::from([0xff; 12])]), 12).unwrap();
+    let full_path = || {
+        Path::new(list(2, [Box::<[u8]>::from([0xff; 12]), Box::<[u8]>::from([0xff; 12])]), 12)
+            .expect("admitted full fixture path")
+    };
     let mut outbox = entry();
     outbox.effect.resources = Box::new([full_path(), full_path()]);
     let mut resource = resource();

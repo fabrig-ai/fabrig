@@ -1,4 +1,4 @@
-//! Kept forges join the setup host and lifecycle (temper/docs/design/draft/playground-reset.md, 3 and 6.4).
+//! Kept forges join the setup host and lifecycle (temper/docs/design/protocol/forge.md, 2.6; temper/docs/design/protocol/setup.md, 6.7).
 use super::{lifecycle, settings};
 use alloc::boxed::Box;
 use skein_forge_setup::host;
@@ -109,7 +109,6 @@ impl Runtime {
                 forge: record.number,
                 directory: Box::new([]),
                 bot: setup::Account { login: record.bot.login.clone(), email: record.bot.email.clone() },
-                orgs: Box::new([]),
                 mode: setup::Mode::Managed { admin_token: None },
                 asked: false,
             },
@@ -188,7 +187,7 @@ impl Runtime {
                 lifecycle::IntentSource::Request
             },
             repositories: match &entry.mode {
-                setup::Mode::Fake(fake) => u64::try_from(fake.repositories.len()).expect("bounded fake repositories"),
+                setup::Mode::Fake(fake) => skein_lib::len_u64(fake.repositories.len()),
                 setup::Mode::Owned(_) | setup::Mode::Managed { .. } => 0,
             },
             pending: true,

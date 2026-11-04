@@ -1,8 +1,8 @@
 //! Starting conversations with delegated work (jig/docs/design/client/domain/testing.md, 4–5).
-use super::b_seed::Facts;
+use super::b_seed::{Facts, inbox_source, install};
 use crate::{Scripted, joint::engine::Driver};
 use jig_client_domain::contract as c;
-use jig_client_scripted_engine::{Change, Rows, Source};
+use jig_client_scripted_engine::Change;
 use skein_lib::{Time, Wall};
 
 pub fn core(driver: &mut Driver, now: Time, wall: Wall, facts: Facts) {
@@ -40,20 +40,6 @@ pub fn core(driver: &mut Driver, now: Time, wall: Wall, facts: Facts) {
     batch[0].contract = jig_domain_people::Contract::Report { words: 32 };
     jig_core_world::fixtures::ask_as(&mut driver.world, sign_in, 80, jig_domain_people::Ask::Create { project, batch });
 }
-fn install(front: &mut Scripted, task: c::Task) {
-    front
-        .engine
-        .act(
-            Time::ZERO,
-            Wall::EPOCH,
-            Change::Object {
-                project: 1,
-                key: c::ObjectKey::Task(task.chip.task),
-                value: c::ReadValue::Task(Box::new(task)),
-            },
-        )
-        .expect("conversation fact fits");
-}
 pub fn scripted(front: &mut Scripted, facts: Facts) {
     let mut chat = crate::stories::conversations::chat(1, b"Hello", Wall::EPOCH);
     chat.requester = c::Requester::Person(1);
@@ -65,47 +51,24 @@ pub fn scripted(front: &mut Scripted, facts: Facts) {
             proposal.reason = c::DocumentText::complete(crate::stories::text(b"Resolve incident"));
             proposal.funding.clear();
             chat.proposals = crate::test::list([proposal.key]);
-            front
-                .engine
-                .act(
-                    Time::ZERO,
-                    Wall::EPOCH,
-                    Change::Object {
-                        project: 1,
-                        key: c::ObjectKey::Proposal(proposal.key),
-                        value: c::ReadValue::Proposal(Box::new(proposal.clone())),
-                    },
-                )
-                .expect("proposal fits");
+            install(front, c::ObjectKey::Proposal(proposal.key), c::ReadValue::Proposal(Box::new(proposal.clone())));
             let mut frame = crate::stories::frame(1);
             frame.needs.proposals = 1;
             frame.needs_total = 1;
             front.engine.act(Time::ZERO, Wall::EPOCH, Change::Me(frame)).expect("frame fits");
-            front
-                .engine
-                .act(
-                    Time::ZERO,
+            inbox_source(
+                front,
+                1,
+                c::InboxReadGroup::Needs,
+                vec![crate::stories::inbox_entry(
+                    c::ObjectKey::Proposal(proposal.key),
+                    1,
+                    c::InboxGroup::Proposals,
+                    1,
                     Wall::EPOCH,
-                    Change::Source(Source {
-                        party: 1,
-                        read: c::Read::Inbox {
-                            group: c::InboxReadGroup::Needs,
-                            project: None,
-                            kind: None,
-                            goal: None,
-                            after: None,
-                        },
-                        rows: Rows::Inbox(vec![crate::stories::inbox_entry(
-                            c::ObjectKey::Proposal(proposal.key),
-                            1,
-                            c::InboxGroup::Proposals,
-                            1,
-                            Wall::EPOCH,
-                            None,
-                        )]),
-                    }),
-                )
-                .expect("inbox fits");
+                    None,
+                )],
+            );
         }
         Facts::Delegates => {
             let mut cancelled = crate::stories::task();
@@ -129,10 +92,12 @@ pub fn scripted(front: &mut Scripted, facts: Facts) {
                 act: c::ActKind::Cancel,
                 admission: c::Admission::Allowed,
             }]);
-            install(front, cancelled);
-            install(front, moved);
+            install(front, c::ObjectKey::Task(cancelled.chip.task), c::ReadValue::Task(Box::new(cancelled)));
+            install(front, c::ObjectKey::Task(moved.chip.task), c::ReadValue::Task(Box::new(moved)));
         }
-        Facts::Goals
+        Facts::OwnChats
+        | Facts::InboxOrder
+        | Facts::Goals
         | Facts::HeldConversation
         | Facts::FamilyResource
         | Facts::NoChatTemplate
@@ -140,5 +105,5 @@ pub fn scripted(front: &mut Scripted, facts: Facts) {
             unreachable!("conversation scenarios")
         }
     }
-    install(front, chat);
+    install(front, c::ObjectKey::Task(chat.chip.task), c::ReadValue::Task(Box::new(chat)));
 }

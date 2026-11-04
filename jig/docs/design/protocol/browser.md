@@ -123,7 +123,7 @@ shell (3.1), copied from a reference, its client host (3.2), its look
 - **`<application>-client-shell-web`,** its own crate, ordinary Rust, as
   shells are (skein's `ui-web.md`, 3.1). Its start, through
   `wasm-bindgen`'s start attribute, which `skein-ui-web` re-exports so
-  its version is skein's pin, makes skein's parts and those of jig's it
+  its version is the workspace's, makes skein's parts and those of jig's it
   takes, with the look (3.3), and starts its client host (section 5);
   its loop is the turn (5.2). It orders the platform's work and decides
   nothing: what to show, send and keep is its client host's; carrying
@@ -268,15 +268,15 @@ and the starter. What is jig's follows.
 ### 4.1 The toolchain
 
 - **skein's** (skein's `ui-web.md`, 4.1): `wasm32-unknown-unknown`,
-  stable Rust, and the glue crates pinned to exact versions in skein's
+  stable Rust, and the glue crates pinned to exact versions in the
   workspace, the only `unsafe` the module runs
   (`programming-model.md`, 2.1); no wasm-pack, no npm, no binaryen.
   `jig-client-shell-web` forbids `unsafe`, as `skein-ui-web` does; an
   application's browser shell writes none of its own (3.5, step 7).
-- **One lock:** jig's workspace builds skein's bundler beside its test
+- **One lock:** the workspace builds skein's bundler beside jig's test
   application's module, so the glue's generator is locked with the
-  macros' version in jig's `Cargo.lock`; an application's workspace does
-  the same in its own.
+  macros' version in its one `Cargo.lock`; an application's workspace
+  does the same in its own.
 - **jig's release profile** is `web`: it inherits `release`, with
   `opt-level = "s"`, `lto = "fat"`, `codegen-units = 1`,
   `panic = "abort"`, `overflow-checks = true` and `strip = true`. An
@@ -585,14 +585,11 @@ data (skein's `ui-web.md`, section 10; 5.1).
   restart part's key is outside the prefix (section 5).
 - **Closing a tab with stored kept requests** asks the platform to warn
   (`beforeunload`), through skein's title and closing part, only while
-  its small store holds those records. The existing predicate over
-  sixteen-byte request keys remains sufficient. A new top-level `Seen`
-  has no stored record, so `Seen` alone does not warn; ordinary or mixed
-  kept acts still do. Legacy stored pending `Seen` can warn until its
-  normal terminal erases it (`client.md`, section 10). Closing, reload
-  or crash silently loses new unanswered `Seen`; the next opening checks
-  and sends the forward-only watermark again. No shell classification
-  API is needed.
+  its small store holds those records, judged by their sixteen-byte
+  request keys. A top-level `Seen` has no stored record, so `Seen` alone
+  does not warn; ordinary or mixed kept acts still do. Closing, reload
+  or crash silently loses an unanswered `Seen`; the next opening checks
+  and sends the forward-only watermark again (`client.md`, section 10).
 
 ## 11. Signing in and out
 
@@ -859,12 +856,16 @@ tested in skein, and in a browser on skein's UI example (skein's
     host and on another host name, makes the signed-in person's browser
     send a request under the prefix; it is refused, and nothing is done,
     which the person's page then shows;
+  - *a rebound Host:* a request under the prefix naming a `Host` off
+    the allow-list is answered `421`, and nothing is done;
   - *a framed page:* such a page frames the application's page; the
     browser shows nothing of it, under the page's policy.
 - **jig's tier** calls skein's panic-at-start story, jig's two reload
-  stories and the three attack stories above; Host admission is covered
-  by the HTTP mapping's tests. It adds: a person opens the printed link and sees their inbox, under
-  the reference policy, with no trouble.
+  stories and three attack stories: the cross-site request from another
+  port and from another host, and the framed page; Host admission is
+  covered by the HTTP mapping's tests. It adds: a person opens the
+  printed link and sees their inbox, under the reference policy, with
+  no trouble.
 - **jig's test application takes skein's bundler's page** (4.3), and
   two of 3.5's steps once each: a root file (step 5); a prefix on the
   reference codec, in one story (step 3). An element override, a

@@ -22,16 +22,16 @@ const RESUMED: &[u8] = b"Observed resumed activation.";
 const LAST: &[u8] = b"Second activation parked.";
 const PERSON: &[u8] = b"host: native wake";
 const WAITED: &[u8] = b"Messages arrived. Read them before continuing.";
-const CODEX_INPUT: &[u8] = br#"{"type":"reasoning","id":"opaque_root","encrypted_content":"encrypted-root","summary":[],"future":{"proof":[1,true,null],"nonce":"root-proof"}}"#;
-// Codex retains its known reasoning fields; the scripted future field is skipped.
-const CODEX_OPAQUE: &[u8] =
+const OPENAI_INPUT: &[u8] = br#"{"type":"reasoning","id":"opaque_root","encrypted_content":"encrypted-root","summary":[],"future":{"proof":[1,true,null],"nonce":"root-proof"}}"#;
+// OpenAI retains its known reasoning fields; the scripted future field is skipped.
+const OPENAI_OPAQUE: &[u8] =
     br#"{"type":"reasoning","id":"opaque_root","encrypted_content":"encrypted-root","summary":[]}"#;
 const ANTHROPIC_OPAQUE: &[u8] = br#"{"type":"thinking","future":{"proof":[1,true,null],"nonce":"root-proof"},"thinking":"Plan for parking","signature":"signed-root"}"#;
-const CODEX_ENVELOPE: &[u8] = b"\x00\x01\x01\x00\x00\x00\x59{\"type\":\"reasoning\",\"id\":\"opaque_root\",\"encrypted_content\":\"encrypted-root\",\"summary\":[]}";
+const OPENAI_ENVELOPE: &[u8] = b"\x00\x01\x03\x00\x00\x00\x59{\"type\":\"reasoning\",\"id\":\"opaque_root\",\"encrypted_content\":\"encrypted-root\",\"summary\":[]}";
 const ANTHROPIC_ENVELOPE: &[u8] = b"\x00\x01\x02\x00\x00\x00\x81{\"type\":\"thinking\",\"future\":{\"proof\":[1,true,null],\"nonce\":\"root-proof\"},\"thinking\":\"Plan for parking\",\"signature\":\"signed-root\"}";
-const CALL_REPLAY: &[u8] = b"\x00\x01\x01\x00\x00\x00\x16{\"item_id\":\"item_1_1\"}";
-const SECOND_TEXT_REPLAY: &[u8] = b"\x00\x01\x01\x00\x00\x00\x28{\"id\":\"item_2_0\",\"phase\":\"final_answer\"}";
-const TEXT_REPLAY: &[u8] = b"\x00\x01\x01\x00\x00\x00\x28{\"id\":\"item_1_0\",\"phase\":\"final_answer\"}";
+const CALL_REPLAY: &[u8] = b"\x00\x01\x03\x00\x00\x00\x16{\"item_id\":\"item_1_1\"}";
+const SECOND_TEXT_REPLAY: &[u8] = b"\x00\x01\x03\x00\x00\x00\x28{\"id\":\"item_2_0\",\"phase\":\"final_answer\"}";
+const TEXT_REPLAY: &[u8] = b"\x00\x01\x03\x00\x00\x00\x28{\"id\":\"item_1_0\",\"phase\":\"final_answer\"}";
 
 struct Fixture {
     input: &'static [u8],
@@ -47,9 +47,9 @@ struct Fixture {
 fn fixtures() -> [Fixture; 2] {
     [
         Fixture {
-            input: CODEX_INPUT,
-            opaque: CODEX_OPAQUE,
-            envelope: CODEX_ENVELOPE,
+            input: OPENAI_INPUT,
+            opaque: OPENAI_OPAQUE,
+            envelope: OPENAI_ENVELOPE,
             call_replay: Some(CALL_REPLAY),
             text_replay: Some(TEXT_REPLAY),
             markers: &[b"opaque_root", b"summary", b"type", b"encrypted-root"],
@@ -191,7 +191,7 @@ fn resumed_prefix(fixture: &Fixture, tail: bool) -> Vec<Message> {
             Role::User,
             vec![Part::ToolOutput {
                 id: b"call_0000000000000002".as_slice().into(),
-                output: b"Continue the saved conversation.".as_slice().into(),
+                output: smith_agent_world::fixture::RESUME.into(),
                 is_error: false,
             }],
         ));
@@ -201,7 +201,7 @@ fn resumed_prefix(fixture: &Fixture, tail: bool) -> Vec<Message> {
 
 fn waking_prompt() -> Vec<u8> {
     let mut text = b"Earlier host answers absent from the saved transcript:\ncall activation=1 completion=2 position=1 tool=wait result: Messages arrived. Read them before continuing.\n\n".to_vec();
-    text.extend_from_slice(b"Continue the saved conversation.");
+    text.extend_from_slice(smith_agent_world::fixture::RESUME);
     text
 }
 
@@ -275,7 +275,7 @@ fn recorded_wait(turn: &smith_domain::Turn, fixture: &Fixture, opaque: bool) -> 
     let wake_matches = if opaque {
         matches!(wake.content.as_ref(), [llm::Block::Text { text, replay: None }] if text.as_ref() == BEGIN)
     } else {
-        matches!(wake.content.as_ref(), [llm::Block::ToolResult { id, result: llm::Returned::Text { text, error: false, replay: None } }] if id.as_ref() == b"call_0000000000000002" && text.as_ref() == b"Continue the saved conversation.")
+        matches!(wake.content.as_ref(), [llm::Block::ToolResult { id, result: llm::Returned::Text { text, error: false, replay: None } }] if id.as_ref() == b"call_0000000000000002" && text.as_ref() == smith_agent_world::fixture::RESUME)
     };
     if wake.role != llm::Role::User || assistant.role != llm::Role::Assistant || !wake_matches {
         return false;

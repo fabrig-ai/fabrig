@@ -461,7 +461,6 @@ fn limit_name(which: host::Limit) -> &'static [u8] {
             host::Cap::Answer => b"answer",
             host::Cap::ErrorBody => b"error_body",
             host::Cap::AccessToken => b"access_token",
-            host::Cap::AccountId => b"account_id",
         },
     }
 }

@@ -50,19 +50,12 @@ pub struct Pages {
     owner: Token,
     address: String,
     peers: Vec<(Box<[u8]>, String)>,
-    verbatim: bool,
 }
 
 impl Pages {
     #[must_use]
     pub fn new(pages: Vec<Page>, now: skein_lib::Time, wall: skein_lib::Wall) -> Pages {
         Self::numbered(pages, now, wall, 0)
-    }
-    /// Pages served as their bytes, no placeholder replaced: the lab's browser serves a directory as it
-    /// is (lab-browser.md, 2.3). `number` gives each origin a token space of its own.
-    #[must_use]
-    pub fn verbatim(pages: Vec<Page>, now: skein_lib::Time, wall: skein_lib::Wall, number: u64) -> Pages {
-        Pages { verbatim: true, ..Self::numbered(pages, now, wall, number) }
     }
     pub(crate) fn numbered(pages: Vec<Page>, now: skein_lib::Time, wall: skein_lib::Wall, number: u64) -> Pages {
         let owner = Token::new(ORIGINS_FIRST + number * 1_000_000);
@@ -83,7 +76,6 @@ impl Pages {
             owner,
             address: String::new(),
             peers: Vec::new(),
-            verbatim: false,
         }
     }
 
@@ -206,13 +198,7 @@ impl Pages {
                         .map_or(if favicon { 204 } else { 404 }, |page| if page.kind.is_empty() { 204 } else { 200 });
                     let body = page.map_or_else(
                         || if favicon { Vec::new() } else { b"not found".to_vec() },
-                        |page| {
-                            if self.verbatim {
-                                page.body.to_vec()
-                            } else {
-                                super::harness::substitute(&page.body, Some(&self.address), &self.peers).into_vec()
-                            }
-                        },
+                        |page| super::harness::substitute(&page.body, Some(&self.address), &self.peers).into_vec(),
                     );
                     let mut headers = Vec::new();
                     if let Some(page) = page {

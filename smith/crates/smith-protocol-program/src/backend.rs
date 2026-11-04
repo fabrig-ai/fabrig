@@ -399,6 +399,7 @@ impl Backend {
                     }
                 }
             }
+            FromDomain::Close { .. } => return,
             FromDomain::Yield { owner } => {
                 if self.pending(owner) {
                     if self.stopping.intent() == stopping::Intent::Ordinary {

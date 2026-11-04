@@ -1,4 +1,5 @@
-//! A producer's no-change explanation is the change's hold account and the chat's news.
+//! Explicit no-change completion and production failures in the engine domain world.
+use super::questions::row as change_row;
 use super::*;
 use jig_domain_core::reads;
 use temper_engine_domain_forge_change::{Hold, State};
@@ -8,6 +9,10 @@ const STEPS: u32 = 200;
 const REASON: &[u8] = b"the repository has no search UI: it is a CSV command-line program; no files changed";
 
 pub(super) fn failed_production(reason: &[u8]) -> (World, engine::Assignment, u64) {
+    production(tasks::TaskResult::Failure { reason: reason.into() })
+}
+
+fn production(result: tasks::TaskResult) -> (World, engine::Assignment, u64) {
     let mut world = World::configured_limits(
         true,
         true,
@@ -34,32 +39,79 @@ pub(super) fn failed_production(reason: &[u8]) -> (World, engine::Assignment, u6
         producer.task,
         producer.attempt,
         5,
-        tasks::End::Finished { result: tasks::TaskResult::Failure { reason: reason.into() }, cancel_delegates: false },
+        tasks::End::Finished { result, cancel_delegates: false },
         engine::Parts::none(),
     );
     world.send(event);
     let change = made[0].task;
     for _ in 0..STEPS {
         world.tick();
-        if matches!(live_task(&world, change).phase, tasks::Phase::Held { .. }) {
+        if world.store.rows.contains_key(&Key::Core(jig_domain_core::Key::Tasks(tasks::Key::Ended(change))))
+            || matches!(live_task(&world, change).phase, tasks::Phase::Held { .. })
+        {
             return (world, chat, change);
         }
     }
-    panic!("failed production did not hold its change");
+    panic!("production did not settle its change");
+}
+
+#[test]
+fn an_inapplicable_change_finishes_without_a_hold() {
+    let (mut world, chat, change) = production(tasks::TaskResult::NoChange { words: REASON.into() });
+    let key = Key::Core(jig_domain_core::Key::Tasks(tasks::Key::Ended(change)));
+    let Some(Record::Core(jig_domain_core::Record::Tasks(tasks::Stored::Ended(row)))) = world.store.rows.get(&key)
+    else {
+        panic!("no-change task ended")
+    };
+    assert!(matches!(&row.phase, tasks::Phase::Ended(tasks::Ending::Done(tasks::TaskResult::NoChange { words }))
+        if words.as_ref() == REASON));
+    assert!(!world.store.rows.values().any(|row| matches!(row,
+        Record::Core(jig_domain_core::Record::Tasks(tasks::Stored::Live(task)))
+        if matches!(task.escalation, tasks::Escalation::Waiting { .. }))));
+    let Some(Record::Forge { row }) = world.store.rows.get(&Key::Forge(forge_top::Key::Change(change))) else {
+        panic!("durable change")
+    };
+    let forge_top::Stored::Change(row) = row.as_ref() else { panic!("durable change") };
+    assert!(row.pull.is_none());
+    assert_eq!(world.merges, 0);
+    let resumed = super::reviews::next_assignment(&mut world, 2);
+    assert_eq!(resumed.task, chat.task);
+    let notice = resumed
+        .messages
+        .iter()
+        .find(|word| {
+            word.from == tasks::Party::Task(change)
+                && word.kind == tasks::MessageKind::Result(tasks::ResultKind::NoChange)
+        })
+        .expect("requester hears the successful no-change result");
+    assert_eq!(notice.words.as_ref(), REASON);
+    let read = resumed.messages.iter().map(|word| word.number).max();
+    let reply = b"No changes were made: the repository has no search UI.";
+    world.send(protocol::turn(CHANNEL, resumed.task, resumed.attempt, 1, 1, read, reply));
+    for _ in 0..STEPS {
+        world.tick();
+    }
+    let reads::Answer::Ended(past) =
+        world.party_read(reads::Read::Turn { task: chat.task, attempt: resumed.attempt, turn: 1 })
+    else {
+        panic!("person reads the reply")
+    };
+    let reads::EndedValue::Turn(turn) = past.value else { panic!("chat turn") };
+    assert_eq!(turn.transcript.as_ref(), reply);
 }
 
 fn account(world: &World, change: u64) -> &[u8] {
     let tasks::Phase::Held { why: tasks::Hold::EffectFailed, source: Some(source), .. } =
         &live_task(world, change).phase
     else {
-        panic!("retained failure hold")
+        panic!("retained failure hold: {:?}", live_task(world, change).phase)
     };
     let tasks::HoldSource::Account { words, .. } = source.as_ref() else { panic!("producer's account") };
     words
 }
 
 #[test]
-fn an_inapplicable_producers_words_reach_its_hold_and_its_chats_reply() {
+fn a_failed_producers_words_reach_its_hold_and_its_chats_reply() {
     let (mut world, chat, change) = failed_production(REASON);
     assert_eq!(account(&world, change), REASON);
     let Some(Record::Forge { row }) = world.store.rows.get(&Key::Forge(forge_top::Key::Change(change))) else {
@@ -111,4 +163,216 @@ fn a_producer_failure_uses_the_hold_account_bound_even_with_a_smaller_message_bo
     assert_eq!(notice.words.len(), usize::try_from(world.env.limits.tasks.message_bytes).expect("message bound"));
     assert!(notice.words.starts_with(REASON));
     assert!(notice.words.ends_with(b"..."));
+}
+
+fn refresh(world: &mut World, task: u64) {
+    let branch = change_row(world, task).branch.clone();
+    world.send(engine::Event::Forge(Box::new(forge_top::Event::Hint {
+        hint: skein_forge::api::Hint {
+            repository: forge_world::REPO,
+            change: skein_forge::api::Change::Branch(branch),
+            key: None,
+        },
+    })));
+}
+
+fn pending_reads(world: &mut World, task: u64) -> Vec<engine::Event> {
+    refresh(world, task);
+    let mut held = Vec::new();
+    for _ in 0..STEPS {
+        while let Some(index) = world.events.iter().position(|event| {
+            matches!(event,
+            engine::Event::Forge(event) if matches!(event.as_ref(),
+                forge_top::Event::Client(skein_forge_client::Event::Answered { .. })))
+        }) {
+            held.push(world.events.remove(index).expect("selected forge read"));
+        }
+        if !held.is_empty()
+            && world.root.quiescent()
+            && world.store.pending.is_empty()
+            && matches!(
+                live_task(world, task).phase,
+                tasks::Phase::Active(tasks::Active::Due) | tasks::Phase::Held { .. }
+            )
+        {
+            return held;
+        }
+        world.tick();
+    }
+    panic!("forge reads did not pause");
+}
+
+fn answer_reads(world: &mut World, reads: Vec<engine::Event>) {
+    for read in reads {
+        world.send(read);
+    }
+}
+
+fn producing_goal() -> (World, engine::Assignment, engine::Assignment, u64) {
+    let mut world = World::configured_limits(
+        true,
+        true,
+        false,
+        1000,
+        Gate::default(),
+        None,
+        StoryLimits { result_bytes: Some(tasks::HOLD_ACCOUNT_BYTES), ..StoryLimits::default() },
+    );
+    world.adopt();
+    world.send(protocol::hello_slots(CHANNEL, 2, Box::new([])));
+    let ask = super::goal_branch::goal_request(&world, true);
+    let goal = assigned_chat(&mut world, 92, ask);
+    let mut call = engine::ChangeCall::words(b"Small fix".as_slice().into(), None);
+    call.producer = Some(2);
+    call.landing = Some(engine::ChangeLanding::Goal);
+    call.llm.producer = Some(tasks::LlmChoice {
+        account: None,
+        main: tasks::ModelEffort { model: 0, effort: None },
+        subagents: Box::new([]),
+    });
+    let engine::CallAnswer::Delegated(made) =
+        world.scripted_call(&goal, 93, engine::Tool::Change { changes: Box::new([call]) })
+    else {
+        panic!("goal's change admitted")
+    };
+    let producer = super::reviews::next_assignment(&mut world, 1);
+    let event = world.protocol.answer(CHANNEL, goal.task, goal.attempt, 1, tasks::End::Parked, engine::Parts::none());
+    world.send(event);
+    world.until(Until::Ready);
+    (world, goal, producer, made[0].task)
+}
+
+fn assert_production_hold(world: &mut World, task: u64, reason: &[u8]) {
+    for _ in 0..STEPS {
+        world.tick();
+        if matches!(live_task(world, task).phase, tasks::Phase::Held { .. }) {
+            assert_eq!(account(world, task), reason);
+            assert!(matches!(&change_row(world, task).change.state,
+                State::Held { was, why: Hold::Failed } if matches!(was.as_ref(), State::Producing { .. })));
+            assert!(change_row(world, task).delegate.is_none());
+            assert!(change_row(world, task).change.last_head.is_none());
+            assert_eq!(world.merges, 0);
+            return;
+        }
+    }
+    panic!("producer failure did not hold: {:?}; phase={:?}", change_row(world, task), live_task(world, task).phase);
+}
+
+fn release_production(world: &mut World, task: u64) {
+    let revision = live_task(world, task).revisions.hold;
+    world.send(engine::Event::Party(engine::PartyInput::Ask {
+        models: Box::new([]),
+        reply_to: ReplyTo::new(Token::new(950)),
+        sign_in: world.signed_in.expect("owner signed in"),
+        key: [95; 16],
+        ask: people::Ask::Release { project: 1, task, revision, again: None },
+    }));
+}
+
+fn replacement_lands(world: &mut World, task: u64, first: &engine::Assignment) {
+    let fresh = world
+        .assigned
+        .iter()
+        .find(|run| run.task != first.task && live_task(world, run.task).requester == tasks::Party::Task(task))
+        .expect("fresh producer")
+        .clone();
+    assert_eq!(fresh.charter, first.charter);
+    assert_eq!(fresh.charter, 2, "the chosen charter survives release");
+    assert_eq!(fresh.run.policy.model, first.run.policy.model);
+    let ended = Key::Core(jig_domain_core::Key::Tasks(tasks::Key::Ended(first.task)));
+    let Some(Record::Core(jig_domain_core::Record::Tasks(tasks::Stored::Ended(prior)))) = world.store.rows.get(&ended)
+    else {
+        panic!("failed producer retained")
+    };
+    assert!(prior.llm.is_some(), "explicit producer LLM choice");
+    assert_eq!(live_task(world, fresh.task).llm, prior.llm);
+    assert_eq!(live_task(world, fresh.task).spec, prior.spec);
+    assert_eq!(live_task(world, task).made, 3, "change and exactly two producers");
+    let branch = change_row(world, task).branch.clone();
+    super::reviews::produce(world, &fresh, &branch);
+    for _ in 0..STEPS {
+        world.tick();
+        if matches!(change_row(world, task).change.state, State::Landed { .. }) {
+            assert_eq!(world.merges, 1);
+            assert_eq!(live_task(world, task).made, 3);
+            return;
+        }
+    }
+    panic!("replacement did not land: {:?}", change_row(world, task));
+}
+
+fn finish_failed_producer(world: &mut World, first: &engine::Assignment, task: u64, reason: &[u8]) {
+    let event = world.protocol.answer(
+        CHANNEL,
+        first.task,
+        first.attempt,
+        5,
+        tasks::End::Finished { result: tasks::TaskResult::Failure { reason: reason.into() }, cancel_delegates: false },
+        engine::Parts::none(),
+    );
+    world.send(event);
+    let ended = Key::Core(jig_domain_core::Key::Tasks(tasks::Key::Ended(first.task)));
+    for _ in 0..STEPS {
+        if world.store.rows.contains_key(&ended) {
+            break;
+        }
+        world.tick();
+    }
+    assert!(world.store.rows.contains_key(&ended), "failed worker releases its writer");
+    // The normalized terminal and an already-started read may overlap.
+    producer_terminal(world, task, first.task, reason);
+}
+
+fn producer_terminal(world: &mut World, task: u64, child: u64, words: &[u8]) {
+    world.send(engine::Event::Forge(Box::new(forge_top::Event::DelegateResult {
+        task,
+        child,
+        status: temper_engine_domain_forge_change::Status::Failed,
+        no_change: false,
+        failed: true,
+        cancelled: false,
+        words: words.into(),
+    })));
+}
+
+fn resume_production(world: &mut World, task: u64, first: u64, reason: &[u8]) {
+    let reads = pending_reads(world, task);
+    release_production(world, task);
+    refresh(world, task);
+    answer_reads(world, reads);
+    for _ in 0..STEPS {
+        world.tick();
+        if change_row(world, task).delegate.is_some() {
+            break;
+        }
+    }
+    assert!(change_row(world, task).delegate.is_some(), "release admits a replacement");
+    let reads = pending_reads(world, task);
+    producer_terminal(world, task, first, reason);
+    refresh(world, task);
+    answer_reads(world, reads);
+    for _ in 0..20 {
+        world.tick();
+    }
+}
+
+#[test]
+fn a_failed_producer_holds_notifies_and_restarts_on_release() {
+    // The finding records these causes, but supplies no model transcript.
+    for reason in [b"out of turns".as_slice(), b"missing cargo".as_slice(), b"".as_slice()] {
+        let words = if reason.is_empty() { b"producer failed for good without an account".as_slice() } else { reason };
+        let (mut world, goal, first, task) = producing_goal();
+        let reads = pending_reads(&mut world, task);
+        finish_failed_producer(&mut world, &first, task, reason);
+        answer_reads(&mut world, reads);
+        assert_production_hold(&mut world, task, words);
+        let resumed = super::reviews::next_assignment(&mut world, 2);
+        assert_eq!(resumed.task, goal.task);
+        assert!(resumed.messages.iter().any(|word| word.from == tasks::Party::Task(task)
+            && word.kind == tasks::MessageKind::Words
+            && word.words.as_ref() == words));
+        resume_production(&mut world, task, first.task, reason);
+        replacement_lands(&mut world, task, &first);
+        world.close();
+    }
 }

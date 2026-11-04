@@ -231,6 +231,7 @@ pub(crate) fn hold_reason_fields(
 
 pub(crate) fn executor(value: &w::Executor) -> c::Executor {
     match value {
+        w::Executor::Job(row) => c::Executor::Job { kind: row.kind() },
         w::Executor::Agent(row) => c::Executor::Agent { charter: row.charter() },
         w::Executor::Procedure(row) => c::Executor::Procedure { connector: row.connector(), code: row.code() },
         w::Executor::Person(row) => c::Executor::Person(person_address(row.value())),
@@ -242,6 +243,7 @@ pub(crate) fn wake_rule(value: &w::WakeRule) -> c::WakeRule {
         w::WakeRule::Never => c::WakeRule::Never,
         w::WakeRule::Immediate => c::WakeRule::Immediate,
         w::WakeRule::Batch(row) => c::WakeRule::Batch { count: row.count(), age: row.age() },
+        w::WakeRule::Paced(row) => c::WakeRule::Paced { span: row.span() },
     }
 }
 
@@ -372,7 +374,13 @@ pub(crate) fn chip_hold(value: &w::ChipHold, limits: &Limits) -> Result<c::ChipH
     Ok(c::ChipHold {
         placed: crate::translate::answers::placed(value.placed().as_ref(), limits)?,
         words: match value.words() {
-            Some(text) => Some(document_text(text, limits)?),
+            Some(text) => Some(c::DocumentText {
+                bytes: match c::Text::new(bytes::copy_of(text.bytes()), crate::limits::HOLD_ACCOUNT_BYTES) {
+                    Ok(bytes) => bytes,
+                    Err(_) => return Err(text_problem()),
+                },
+                cut: text.cut(),
+            }),
             None => None,
         },
         circle: match value.circle() {

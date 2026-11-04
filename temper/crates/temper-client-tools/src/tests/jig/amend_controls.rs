@@ -113,7 +113,7 @@ fn amend_refuses_a_deadline_on_a_cut_authority() {
     refuses(
         DEADLINE_CALL,
         task,
-        b"task 41's authority is cut in this read; amend its deadline from a client with wider bounds\n",
+        b"task 41's authority is cut in this read; amend its deadline or tasks from a client with wider bounds\n",
     );
 }
 fn loaded(argv: &[&str], bytes: &[u8], index: usize, task: c::Task, ask: c::Ask) {
@@ -392,4 +392,50 @@ fn amend_sends_and_answers_a_replacement_when_only_the_old_words_are_cut() {
     root.done(call, c::Outcome::Document(c::DocumentOutcome::Amended { task: f::TASK }));
     let answer = root.answer(call).expect("engine answered the replacement");
     assert_eq!(answer.status, 0);
+}
+
+const TASKS_CALL: &[&str] = &["task", "amend", "41", "--rev", "7", "--tasks", "12", "because"];
+
+#[test]
+fn amend_tasks_preserves_the_rest_of_the_authority_and_combines_with_a_deadline() {
+    let argv = [
+        "task",
+        "amend",
+        "41",
+        "--rev",
+        "7",
+        "--deadline",
+        "2030-01-02T03:04Z",
+        "because",
+        "--tasks",
+        "12",
+        "--key",
+        "more-tasks",
+    ];
+    for argv in [&argv[..10], &argv[..]] {
+        let task = task();
+        let mut authority = task.authority.whole().expect("whole authority");
+        authority.delegation.tasks = 12;
+        authority.deadline = Some(DEADLINE);
+        sends(argv, task, expected(c::Amendment { authority: Some(authority), ..no_change() }, REVISION));
+    }
+}
+
+#[test]
+fn amend_tasks_needs_a_whole_authority_and_the_shown_revision() {
+    let mut cut = task();
+    cut.authority.cut = true;
+    refuses(
+        TASKS_CALL,
+        cut,
+        b"task 41's authority is cut in this read; amend its deadline or tasks from a client with wider bounds\n",
+    );
+    let mut moved = task();
+    moved.spec_revision = c::Revision { value: 9 };
+    refuses(TASKS_CALL, moved, b"task 41 moved: its spec revision is 9, not 7; read again: task show 41\n");
+    assert_eq!(f::parse(&["task", "amend", "41", "--tasks", "12", "because"]), Err(Usage::AmendmentRevision));
+    assert_eq!(
+        f::parse(&["task", "amend", "41", "--rev", "7", "--tasks", "4294967296", "because"]),
+        Err(Usage::Kind { tool: 31, form: 0, argument: 13 })
+    );
 }

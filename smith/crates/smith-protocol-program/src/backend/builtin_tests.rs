@@ -6,7 +6,7 @@
 )]
 use super::*;
 use crate::backend::fixtures::COMPLETION;
-use alloc::{vec, vec::Vec};
+use alloc::{string::ToString, vec, vec::Vec};
 use fixtures::records as active;
 use fixtures::{env, request};
 use smith_domain::tools::{Effect, Grants};
@@ -236,6 +236,68 @@ fn an_init_without_a_granted_built_in_fails() {
     let (backend, up) = init(&["mcp__smith__permission_prompt", "Read", "Glob", "Grep"], true);
     assert!(up.is_empty());
     assert_eq!(backend.startup.phase(), State::Running);
+}
+
+#[test]
+fn a_served_sub_agent_is_listed_inspect_only() {
+    let mut backend = active();
+    let Some(Complete { prompt, outcome, deliver, .. }) = backend.current.request_mut() else { panic!("request") };
+    prompt.served = Box::new([llm::Served::SubAgent]);
+    let direct = protocol::schemas_for_contract(
+        prompt,
+        &backend.settings.adapter.stated,
+        outcome,
+        deliver.as_ref(),
+        backend.settings.contract_bytes,
+    )
+    .expect("direct schemas");
+    let direct = direct.iter().find(|tool| tool.name.as_ref() == b"sub_agent").expect("direct sub_agent");
+    let tools = backend.tools();
+    let [tool] = tools.as_ref() else { panic!("one served sub_agent") };
+    assert_eq!(tool.name.as_ref(), b"sub_agent");
+    let suffix = b" On this backend a sub-agent reads only: its tools are [\"inspect\"]. Several asked in one message run side by side.";
+    assert_eq!(tool.description.as_ref(), mcp::json::join(&[&direct.description, suffix]).as_ref());
+    let schema: serde_json::Value = serde_json::from_slice(&tool.input_schema).expect("schema JSON");
+    assert_eq!(schema["type"], "object");
+    assert_eq!(schema["properties"]["tools"]["items"]["enum"], serde_json::json!(["inspect"]));
+    assert_eq!(schema["required"], serde_json::json!(["brief", "tools"]));
+    for key in ["oneOf", "allOf", "anyOf"] {
+        assert!(schema.get(key).is_none());
+    }
+    let expected = core::str::from_utf8(&direct.schema)
+        .expect("direct schema UTF-8")
+        .replace(r#"["inspect","modify","shell"]"#, r#"["inspect"]"#);
+    assert_eq!(tool.input_schema.as_ref(), expected.as_bytes(), "only the enum changes");
+    let list = mcp::json::tool_list(&tools, backend.settings.mcp.answer_bytes, backend.settings.mcp.schema_bytes)
+        .expect("MCP inventory");
+    let list: serde_json::Value = serde_json::from_slice(&list).expect("MCP list JSON");
+    assert_eq!(list["tools"][0]["name"], "sub_agent");
+    assert_eq!(list["tools"][0]["inputSchema"], schema);
+    assert_eq!(list["tools"][0]["description"].as_str().expect("description").as_bytes(), tool.description.as_ref());
+}
+
+#[test]
+fn an_unserved_sub_agent_is_not_listed() {
+    let backend = active();
+    assert!(backend.tools().iter().all(|tool| tool.name.as_ref() != b"sub_agent"));
+}
+
+#[test]
+fn an_init_listing_a_served_sub_agent_is_admitted() {
+    let init = br#"{"type":"system","subtype":"init","mcp_servers":[{"name":"smith","status":"connected"}],"tools":["mcp__smith__sub_agent"]}"#;
+    for served in [true, false] {
+        let fixtures::Harness { mut backend, mut up, mut below } = fixtures::Harness::new(active());
+        let Some(Complete { prompt, .. }) = backend.current.request_mut() else { panic!("request") };
+        prompt.served = if served { Box::new([llm::Served::SubAgent]) } else { Box::default() };
+        backend.admit_init(&env(0), init, &mut up, &mut below);
+        if served {
+            assert!(up.is_empty());
+            assert_eq!(backend.startup.phase(), State::Running);
+        } else {
+            failed(up.pop(), b"smith: the program started without smith's tools");
+            assert_eq!(backend.startup.phase(), State::Ending);
+        }
+    }
 }
 
 #[test]
@@ -950,4 +1012,83 @@ fn read_record(message: &str, call: &str) -> Vec<u8> {
     record["message"]["id"] = serde_json::json!(message);
     record["message"]["content"][0]["id"] = serde_json::json!(call);
     serde_json::to_vec(&record).expect("JSON")
+}
+
+// Synthetic backend records exercise the permission contract; they are not a live transcript.
+fn read_turn(paths: &[&str]) -> (Backend, Queue<ToDomain>, Queue<Below>) {
+    let mut backend = active();
+    backend.mounts = Box::new([Mount { root: Token::new(40), host: b"/work/repo".as_slice().into(), writable: false }]);
+    let content: Vec<_> = paths.iter().enumerate().map(|(index, path)| {
+        serde_json::json!({"type":"tool_use","id":index.to_string(),"name":"Read","input":{"file_path":path}})
+    }).collect();
+    let record = serde_json::json!({"type":"assistant","message":{"id":"reads","content":content}});
+    let mut up = Queue::with_capacity(32);
+    let mut below = Queue::with_capacity(64);
+    backend.line(&env(0), &serde_json::to_vec(&record).expect("calls"), &mut up, &mut below);
+    completed(up.pop(), COMPLETION);
+    while backend.pop_measure().is_some() {}
+    let mut next = request(&backend);
+    let FromDomain::Complete { prompt, .. } = &mut next else { panic!("Complete") };
+    prompt.tools = Grants { inspect: true, modify: false, shell: false };
+    backend.resume(&env(0), Complete::from_request(next), &mut up, &mut below);
+    fixtures::connect_server(&mut backend);
+    (backend, up, below)
+}
+
+fn read_results(backend: &mut Backend, words: &[&str], error: bool, up: &mut Queue<ToDomain>) {
+    let content: Vec<_> = words.iter().enumerate().map(|(index, text)| {
+        serde_json::json!({"type":"tool_result","tool_use_id":index.to_string(),"content":text,"is_error":error})
+    }).collect();
+    let record = serde_json::json!({"type":"user","message":{"content":content}});
+    backend.line(&env(0), &serde_json::to_vec(&record).expect("results"), up, &mut Queue::with_capacity(64));
+    for (index, word) in words.iter().enumerate() {
+        let Some(ToDomain::BuiltinResult { owner, id, text, error: got }) = up.pop() else { panic!("recorded result") };
+        assert_eq!(owner, COMPLETION);
+        assert_eq!(id.as_ref(), index.to_string().as_bytes());
+        assert_eq!(text.as_ref(), word.as_bytes());
+        assert_eq!(got, error);
+    }
+    assert!(up.is_empty(), "one result for each read");
+}
+
+#[test]
+fn several_native_read_denials_keep_their_permission_reasons_in_results() {
+    let paths = ["/outside/a", "/work/repo/.git/config", "/elsewhere/b", "/work/repo/../c"];
+    let words = [
+        "path is outside the workspace: /outside/a",
+        "git directory is protected",
+        "path is outside the workspace: /elsewhere/b",
+        "path is outside the workspace: /work/repo/../c",
+    ];
+    let (mut backend, mut up, _) = read_turn(&paths);
+    for (index, path) in paths.iter().enumerate() {
+        native_prompt(&mut backend, &index.to_string(), "Read", serde_json::json!({"file_path":path}));
+        let reply = fixtures::server_reply(&mut backend);
+        let verdict: serde_json::Value =
+            serde_json::from_str(reply["result"]["content"][0]["text"].as_str().expect("text")).expect("verdict");
+        assert_eq!(verdict["behavior"], "deny");
+        assert_eq!(verdict["message"], words[index]);
+        assert!(backend.native.is_none(), "a denied read takes no snapshot");
+    }
+    read_results(&mut backend, &words, true, &mut up);
+}
+
+#[test]
+fn several_native_reads_in_one_turn_allow_read_only_reviewer_mounts() {
+    let paths = ["ci.yml", "CONTRIBUTING.md", "changes/2.md", "changes/3.md"];
+    let (mut backend, mut up, _) = read_turn(&paths);
+    for (index, path) in paths.iter().enumerate() {
+        let input = serde_json::json!({"file_path":path});
+        native_prompt(&mut backend, &index.to_string(), "Read", input.clone());
+        assert!(backend.native.is_some(), "whole reads snapshot before allow");
+        backend.native_event(
+            file::Event::Loaded { owner: backend.token(Owner::Native), bytes: b"review text".as_slice().into() },
+            &mut up,
+        );
+        let Some(ToDomain::ReadVersion { owner, place, .. }) = up.pop() else { panic!("version") };
+        assert_eq!(owner, COMPLETION);
+        assert_eq!(place.path.as_ref(), path.as_bytes());
+        allow_native(&mut backend, &input);
+    }
+    read_results(&mut backend, &["ci", "contributing", "change two", "change three"], false, &mut up);
 }

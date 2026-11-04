@@ -178,3 +178,20 @@ fn github_fake_log_origins_are_checked_at_admission() {
     limits.blob_records = 0;
     assert_eq!(Service::new(f::config(), &limits, 5).expect_err("zero record bound"), Problem::Limits);
 }
+
+#[test]
+fn github_job_metadata_keeps_the_first_failed_step_or_none() {
+    use skein_forge::github::document::{Document, Kind};
+    for (failure, expected) in [
+        (a::Failing::Workflow, Some(skein_forge::api::Step { number: 1, name: f::boxed(b"Run ci") })),
+        (a::Failing::NoStep, None),
+    ] {
+        let (mut h, _) = failing();
+        skein_fake_forge_domain::set_failing(&mut h.domain, b"acme/widgets", b"ci", failure);
+        let token = r::token(&mut h);
+        let response = h.ask(Method::Get, b"/repos/acme/widgets/actions/jobs/1", Some(token.expose()), b"");
+        let (_, document) = h.decode(Kind::Job, &response);
+        let Document::Job(job) = document else { panic!("job metadata") };
+        assert_eq!(job.step, expected);
+    }
+}

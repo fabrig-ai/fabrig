@@ -12,9 +12,11 @@ fn step(world: &mut Protocol, entry: u64, delegate: change::Status) -> change::D
     // Public admission recipe: protocol.rs's change_step / opened_change_in.
     world.take_seen();
     world.event(forge::Event::StepChange {
+        merge_job: false,
         task: 51,
         entry,
         heard: change::Heard {
+            start_conflict: None,
             lacking: None,
             spend: None,
             delegate,
@@ -24,6 +26,7 @@ fn step(world: &mut Protocol, entry: u64, delegate: change::Status) -> change::D
         },
         gates: Box::new([]),
         queue_repair_active: false,
+        pending: Box::new([]),
         kept: false,
     });
     world.run_for(1);
@@ -53,7 +56,7 @@ fn branch_name(branch: &[u8]) -> forge::Name {
 fn enroll(world: &mut Protocol) {
     let branch = branch_name(b"temper/51");
     world.event(forge::Event::Names { task: 51, resources: Box::new([branch.clone(), branch_name(b"main")]) });
-    world.event(forge::Event::Hold { task: 51, resource: branch, from: None });
+    world.event(forge::Event::Hold { entry: 0, task: 51, resource: branch, from: None });
     // Let enrollment's fresh resource reads finish before stepping the procedure.
     world.run_for(0);
 }
@@ -162,9 +165,11 @@ fn scheduled_landing(world: &mut Protocol, first_entry: u64, seconds: u64) -> Ve
                     change::Decision::Delegate(delegate) => panic!("unexpected delegate: {delegate:?}"),
                     change::Decision::CancelGates { .. } => panic!("unexpected gate cancellation"),
                     change::Decision::None
+                    | change::Decision::CancelProducer
                     | change::Decision::Effect(_)
                     | change::Decision::Ready
                     | change::Decision::QueueRepair
+                    | change::Decision::NoChange
                     | change::Decision::Cancel => due = true,
                 }
             }
@@ -172,16 +177,16 @@ fn scheduled_landing(world: &mut Protocol, first_entry: u64, seconds: u64) -> Ve
         if !finishes.is_empty() {
             break;
         }
-        if until.is_some_and(|at| world.wall() >= at) {
-            due = true;
-        }
+        due |= until.is_some_and(|at| world.wall() >= at);
         if due {
             due = false;
             until = None;
             world.event(forge::Event::StepChange {
+                merge_job: false,
                 task: 51,
                 entry,
                 heard: change::Heard {
+                    start_conflict: None,
                     lacking: None,
                     spend: None,
                     delegate: change::Status::Unknown,
@@ -191,6 +196,7 @@ fn scheduled_landing(world: &mut Protocol, first_entry: u64, seconds: u64) -> Ve
                 },
                 gates: Box::new([]),
                 queue_repair_active: false,
+                pending: Box::new([]),
                 kept: false,
             });
             entry += 1;
@@ -305,9 +311,11 @@ fn pushed_change_requests_its_pull_once() {
     prepared(&mut world);
     world.take_seen();
     world.event(forge::Event::StepChange {
+        merge_job: false,
         task: 51,
         entry: 1,
         heard: change::Heard {
+            start_conflict: None,
             lacking: None,
             spend: None,
             delegate: change::Status::Passed,
@@ -317,6 +325,7 @@ fn pushed_change_requests_its_pull_once() {
         },
         gates: Box::new([]),
         queue_repair_active: false,
+        pending: Box::new([]),
         kept: false,
     });
     world.run_for(1);
@@ -360,12 +369,14 @@ fn ruleset_refuses_merge_without_landing() {
             }
             change::Decision::Finish { .. } => panic!("QA: protected merge cannot Finish"),
             change::Decision::None
+            | change::Decision::CancelProducer
             | change::Decision::Wait { .. }
             | change::Decision::Delegate(_)
             | change::Decision::CancelGates { .. }
             | change::Decision::Effect(_)
             | change::Decision::Ready
             | change::Decision::QueueRepair
+            | change::Decision::NoChange
             | change::Decision::Cancel => {}
         }
     }

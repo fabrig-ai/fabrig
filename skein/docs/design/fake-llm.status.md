@@ -1,6 +1,12 @@
 # fake-llm: status
 
-2026-10-29. Where skein's code lags or departs from [fake-llm.md](fake-llm.md).
+2026-11-03. Where skein's code lags or departs from [fake-llm.md](fake-llm.md).
 
-- **Built:** 5: fake-domain and cache scenario ceilings without heap sums. 3.1: gzip request inflation.
-- **Not yet:** 2.4, 3: request-cued scripts, fallback answers, record-free peer and exported test root. 2.2: standalone byte peer; 7: provider cache granularity.
+- **Departs:** 4: `skein/docs/foundation/testing-strategy.md`, 4 asks
+  for no shared types, but this section designs a shared codec:
+  `skein-fake-llm-protocol/src/documents.rs` uses `skein-llm`'s
+  `anthropic` and `openai` document types and codecs. No reason is
+  recorded for departing from the foundation; the backfill recommends
+  amending `skein/docs/foundation/testing-strategy.md`, 4, settled when
+  `skein/docs/development/debt/D043-browser-kit-json-and-tables.md` is
+  planned.

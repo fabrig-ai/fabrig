@@ -153,7 +153,7 @@ pub(crate) fn write(path: &Path, address: SocketAddr, clients: SocketAddr, fixtu
         "transport":"plaintext","remote":format!("http://{address}"),"web":format!("http://{address}")});
     // Use the landing world's procedure and capacities, without a landing rule.
     (landing::fixture().configure)(&mut value, &mut agent, address);
-    value["application"]["landing"]["projects"] = json!([]);
+    value["world_settings"]["landing"]["projects"] = json!([]);
     value["application"]["limits"]["overrides"]["forge_component.log_poll_ms"] = 10.into();
     // Adoption must reach the forge for either account, rather than fail authority first.
     let broaden = |grants: &mut Value| {
@@ -279,8 +279,7 @@ pub(crate) struct State {
 }
 impl State {
     pub(crate) fn new(fixture: Fixture) -> (Self, Peer) {
-        let mut config = temper_fake_git_hosted::fixtures::CONFIG;
-        (fixture.configure_domain)(&mut config);
+        let mut config = temper_worker_checkout_world::hosted::CONFIG;
         // These smoke repositories have two small files each. The GitHub
         // layer pads every API response to its admitted wire capacity, so
         // do not inherit the checkout sweep's 256 files of 64 KiB each.
@@ -289,6 +288,7 @@ impl State {
         config.limits.calls = protocol_limits().calls;
         config.limits.title_bytes = 512;
         config.limits.body_bytes = 2048;
+        (fixture.configure_domain)(&mut config);
         assert!(skein_fake_forge_protocol::git::fits(&protocol_limits(), &config.limits), "bounded git trees fit");
         let clock = skein_shell::Clock::new().now();
         config.skew = domain::Skew::Ahead(Duration::from_nanos(
@@ -302,7 +302,7 @@ impl State {
             domain::repository(&mut domain, &config, setup);
         }
         domain::grant(&mut domain, b"acme/app", APP.bot, api::Permission::Admin);
-        let env = skein_lib::Env { now: clock.now, wall: clock.wall, limits: config };
+        let env = clock.with(config);
         (fixture.prepare)(&mut domain, &env);
         let handle = Rc::new(RefCell::new(Forge::new(domain, env.limits)));
         let wire = protocol_limits();

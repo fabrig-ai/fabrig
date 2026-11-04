@@ -413,7 +413,7 @@ fn wait_call() -> Part {
 fn wait_feedback() -> Part {
     Part::ToolOutput {
         id: b"call_0000000000000002".as_slice().into(),
-        output: b"Continue the saved conversation.".as_slice().into(),
+        output: smith_agent_world::fixture::RESUME.into(),
         is_error: false,
     }
 }

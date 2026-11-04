@@ -49,7 +49,8 @@ and says so. A service that works on a forge writes no connection code.
 - **`skein-forge-connection`** depends on lib, io's vocabulary,
   skein-http (client, and server for the listener), skein-tls's client,
   skein-json and `skein-forge`. It knows no service's configuration,
-  files or domain. One component serves every configured forge.
+  files or domain. One component serves every forge its owner hands
+  it, at start or while it runs (3.1).
 - **The owner's protocol layer:**
   - gives io its own tokens for the component's entities, keeping the
     component's token in each, so io's events reach the component that
@@ -69,9 +70,11 @@ and says so. A service that works on a forge writes no connection code.
 Down, from the owner: a **call** (token, forge, repository, `Op`);
 **refused** and **refused hint**, an answer or a hint its domain did not
 take; **returned**, an answer handed back in the domain's drain; an
-**offer**, when the domain has room; a forge's **connect**, with its
-access (3.5); a GitHub forge's **installations**, the ones the owner
-accepted (4.4); and the **close**, its last act.
+**offer**, when the domain has room; a forge **added**, with its values
+(3.1), and a forge **removed**, while the component runs (3.1); a
+forge's **connect**, with its access (3.5); a GitHub forge's
+**installations**, the ones the owner accepted (4.4); and the
+**close**, its last act.
 
 Up, to the owner: **answered**, a call's one terminal with its token,
 cost and result; a **hint**, after its delivery's response is queued
@@ -84,10 +87,10 @@ diagnostic for the owner's log; and **closed**, the last event (8.5).
 
 | Down | Up |
 |---|---|
-| `Request::Connect { forge, access }` | `Event::Connected { forge }` |
-| `Request::Installations { forge, accepted }` | `Event::Stopped { forge, why }` |
-| | `Event::Installation { forge, installation, account, change }` |
-| | `Event::GitToken { forge, installation, account, token, expires }` |
+| `Request::Add(forge)` | `Event::Connected { forge }` |
+| `Request::Remove { forge }` | `Event::Stopped { forge, why }` |
+| `Request::Connect { forge, access }` | `Event::Installation { forge, installation, account, change }` |
+| `Request::Installations { forge, accepted }` | `Event::GitToken { forge, installation, account, token, expires }` |
 | | `Event::Fact { forge, fact }` |
 
 An installation event's `account` is `Some` with its current id and
@@ -142,6 +145,27 @@ The values of forge.md, section 2.2, from no file:
 - **the word** (forge.md, section 6) and **the user agent** of every
   request: temper's are `temper` and `temper/0.0.0`;
 - **the limits** (7.2) and **the shared values** (7.3).
+
+A forge's values are handed at start, or while the component runs, and
+a forge is dropped while it runs, so that a service serves the forges
+it makes and removes without a restart:
+
+- **`Add`** hands one forge's values, as at start. It is checked as
+  start checks each forge (3.2, 7.4), beside the forges held: a number
+  the component holds, a forge past `forges`, or one a check refuses is
+  ignored, since the owner checks its values first as it does for its
+  start. A forge added with its access starts (3.3); one without waits,
+  not connected, for its connect (3.5).
+- **`Remove`** drops one forge whole. Each of its calls still open is
+  answered `Unavailable` at once; its connections are aborted, an
+  exchange in flight among them unheard; its start, its access, its
+  installations, their tokens and its puller go with it; and each of
+  its events the owner has not yet taken, but a call's answer, is
+  dropped. From then on a call to it is answered `Unavailable` at once,
+  a delivery on its path `404` (6.3), and a hint verified for it is
+  never offered. Its rows in the tables go as any do, the one used
+  longest ago first (4.2, 4.3). A number the component does not hold
+  is ignored, and a number removed may be added again, as a new forge.
 
 The component makes each request's `Host` from the address and the
 transport's name (forge.md, section 5.1); the owner hands no `Host`. It
@@ -440,6 +464,10 @@ and port of `Location`, and its target is the path and query.
   within the call's deadline, and is counted in the call. The API's
   connection goes back idle. Its answer streams through the plan as
   the log's body. A redirect answered by a redirect fails `Unavailable`.
+  The exchange carries the plan's retention unchanged: a failed-step suffix
+  stops at the runner's failed-process line while the connection drains
+  cleanup within `body_bytes_in` (forge-github.md, 10). Head and job-tail
+  retention keep their bounds and meaning.
 
 ## 5. Credentials and their renewal
 
@@ -834,6 +862,8 @@ and crosses Answering's deadline and the close with a held hint.
 - **The close is the owner's last act,** after its domain's drain
   (programming-model.md, section 5.2). By then the domain takes no
   answers.
+- **A call after the close is refused at the entrance,** until `closed`:
+  it ends at once `Unavailable`, at no cost.
 - **It ends what is open.** Each call still open ends with its
   connection and has no answer: no terminal is sent for it. It drops
   every answer and hint it holds, and every answer the owner returned,
@@ -898,6 +928,9 @@ of 3.1 and 7.3 with limits that pass 7.4, the log origins' addresses
 resolved, **a decision on `stopped`**, **a decision on `listener lost`**
 and **the close after its domain's drain** (8.5). It owes too:
 
+- **an add** for each forge it makes while the component runs, before
+  that forge's connect, and **a remove** for each forge it drops, after
+  which it calls that forge no more (3.1);
 - **a connect** for each forge it holds access for, at start or when
   setup hands it, with access that setup checked and the owner keeps
   (forge-setup.md, sections 4 and 5); a stopped forge waits, not
@@ -935,7 +968,13 @@ The owner's domain owes:
   again, and a returned one never; the owner's close in every state,
   crossed with a terminal racing it, `closed` once and last, with no
   spin; access handed at runtime, replaced while calls run and wait,
-  and one answering as someone else; for a GitHub forge, on the fake's
+  and one answering as someone else; a forge added while the component
+  runs, a Forgejo and a GitHub one, with their access, and one past
+  `forges` ignored; a forge removed while its calls wait and fly and
+  its events and hints wait for the owner: its calls answered
+  `Unavailable` once, nothing of it said after, the other forges'
+  starts kept, and a connection whose socket io names later aborted;
+  for a GitHub forge, on the fake's
   GitHub layer and clock (fake-forge.md): a renewal due while a call
   waits on it, a mint refused each way of 5.1, a call's token chosen by
   its repository's account, a repository with no row found by trying

@@ -1,12 +1,106 @@
 use super::fixtures;
 use crate::ChatsFilter;
-use crate::pages::{Request, chats::Chats};
+use crate::pages::{
+    Request,
+    chats::{Chats, FIRST_CHAT_WORDS},
+};
 use jig_client::{Event, Readable, Readout, Told, Watchable, contract::*};
 use skein_lib::{List, Queue};
 const FIRST: u64 = 1;
 const OUTPUTS: u32 = 16;
 const CURSOR_BYTES: u32 = 8;
 const SERIAL: u64 = 13;
+const PRESSES: u32 = 2;
+#[test]
+fn the_first_chat_starts_the_stock_chat_while_no_configuring_template_is_offered() {
+    first_chat_uses_template(fixtures::chats::me(), jig_client::shapes::CHAT);
+}
+
+#[test]
+fn the_first_chat_starts_the_configuring_template_once_offered() {
+    let mut me = fixtures::chats::me();
+    let project = me.projects.get_mut(0).expect("project");
+    let stock = project.templates.get(0).expect("stock chat").clone();
+    let mut configuring = stock.clone();
+    configuring.number = 3;
+    project.templates = List::with_capacity(2);
+    project.templates.push(stock).unwrap();
+    project.templates.push(configuring).unwrap();
+    first_chat_uses_template(me, 3);
+}
+
+fn first_chat_uses_template(me: Me, template: u32) {
+    use crate::pages::{self, Act, Pages};
+    let limits = fixtures::limits();
+    let mut root = crate::unlinked(&limits, fixtures::SEED);
+    let watch = fixtures::start(&mut root, List::with_capacity(0));
+    let mut root_out = Queue::uncapped();
+    crate::step(
+        &mut root,
+        &fixtures::env(&limits),
+        crate::Event::Client {
+            event: Event::Up {
+                up: jig_client::Up::Watched { watch, event: WatchEvent::Delivered(Delivery::Me(Box::new(me.clone()))) },
+            },
+        },
+        &mut root_out,
+    );
+    let mut pages = Pages::new();
+    pages::project_changed(&mut pages, root.client());
+    let mut out = Queue::uncapped();
+    pages::step(
+        &mut pages,
+        &fixtures::env(&limits),
+        root.client(),
+        pages::Event::Went { address: crate::Address::Chats { filter: ChatsFilter::All, start: false } },
+        &mut out,
+    );
+    while out.pop().is_some() {}
+    pages::step(
+        &mut pages,
+        &fixtures::env(&limits),
+        root.client(),
+        pages::Event::Act { act: Act::ChatWords { words: Box::from(*b"unfinished draft") } },
+        &mut out,
+    );
+    for _ in 0..PRESSES {
+        pages::step(
+            &mut pages,
+            &fixtures::env(&limits),
+            root.client(),
+            pages::Event::Act { act: Act::FirstChat },
+            &mut out,
+        );
+    }
+    let expected =
+        jig_client::shapes::chat_from(&me, fixtures::PROJECT, template, fixtures::acts::text(FIRST_CHAT_WORDS))
+            .expect("offered template");
+    let chats = pages.chats().expect("chats");
+    assert_eq!(&*chats.words, b"unfinished draft");
+    let key = chats.start.expect("pending start");
+    assert_eq!(key.asker, crate::owner::Owner::Pages.asker());
+    assert_eq!(fixtures::acts::sent(&mut out).as_ref(), [expected]);
+    let mut tasks = List::with_capacity(1);
+    tasks.push(9).unwrap();
+    pages::step(
+        &mut pages,
+        &fixtures::env(&limits),
+        root.client(),
+        pages::Event::Told {
+            told: Told::Answered {
+                key,
+                outcome: jig_client::Outcome::Answered(jig_client::Answered::Jig(Answer::Done(Outcome::Made {
+                    what: Made::Tasks { tasks },
+                }))),
+            },
+        },
+        &mut out,
+    );
+    assert_eq!(out.pop(), Some(Request::Show { address: crate::Address::Chat { task: 9 } }));
+    assert!(out.is_empty());
+    assert!(pages.chats().expect("chats").start.is_none());
+}
+
 #[test]
 fn starting_a_chat_sends_the_chat_template_filled_once() {
     let limits = fixtures::limits();
@@ -355,17 +449,17 @@ fn opened_chats() -> (crate::Domain, skein_lib::Token, skein_lib::Token) {
     let mut watch = None;
     let mut read = None;
     while let Some(request) = out.pop() {
-        if let crate::Request::Client {
+        if let crate::Request::Unlinked {
             request:
-                jig_client::Request::Down {
+                jig_client::UnlinkedRequest::Down {
                     down: jig_client::Down::Open { watch: token, subject: Watchable::Jig(Subject::Tasks { .. }) },
                 },
         } = request
         {
             watch = Some(token);
-        } else if let crate::Request::Client {
+        } else if let crate::Request::Unlinked {
             request:
-                jig_client::Request::Down {
+                jig_client::UnlinkedRequest::Down {
                     down: jig_client::Down::Read { read: token, what: Readable::Jig(Read::Tasks { .. }) },
                 },
         } = request
@@ -423,9 +517,9 @@ fn an_ending_chat_refreshes_the_first_closed_page_and_remains_listed() {
     assert!(root.pages().chats().expect("chats").live(root.client()).expect("live group").rows.is_empty());
     let mut refreshed = None;
     while let Some(request) = out.pop() {
-        if let crate::Request::Client {
+        if let crate::Request::Unlinked {
             request:
-                jig_client::Request::Down {
+                jig_client::UnlinkedRequest::Down {
                     down: jig_client::Down::Read { read, what: Readable::Jig(Read::Tasks { query, live, ended }) },
                 },
         } = request

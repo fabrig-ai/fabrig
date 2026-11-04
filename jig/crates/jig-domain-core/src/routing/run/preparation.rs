@@ -38,6 +38,7 @@ pub(crate) fn brief_assembled(core: &mut Core, work: &mut Queue<Work>, task: u64
     clippy::too_many_lines,
     reason = "one fenced preparation builds the exact allowance, grants and claim together"
 )]
+#[expect(clippy::too_many_arguments, reason = "workspace preparation retains its fenced event fields")]
 pub(crate) fn workspace_prepared(
     core: &mut Core,
     env: &Env<Limits>,
@@ -45,27 +46,21 @@ pub(crate) fn workspace_prepared(
     task: u64,
     attempt: u64,
     writes: Option<Box<[authority::Write]>>,
+    holds: Box<[tasks::Name]>,
     credentials: Box<[u32]>,
+    workspace: Option<Box<[u8]>>,
 ) -> Queue<Request> {
     let mut out = Queue::uncapped();
-    let pending = core.workspace_flight(task);
-    if let Some((token, _)) = pending {
-        drop(core.land_kind(token, crate::routing::flight::Kind::Workspace));
-    }
-    let issued = match pending {
-        Some((_, issued)) => Some(issued),
-        None => None,
-    };
-    if issued != Some(attempt) {
-        out.push(Request::Now(Box::new(Now::RunPreparationFailed { task })));
+    let Some((token, issued)) = core.workspace_flight(task) else { return out };
+    if issued != attempt {
         return out;
     }
+    drop(core.land_kind(token, crate::routing::flight::Kind::Workspace));
     let Some(context) = core.contexts.get(&task).cloned() else {
         out.push(Request::Now(Box::new(Now::RunPreparationFailed { task })));
         return out;
     };
     drop(core.dependency_results.remove(&task));
-    let transcript = core.transcripts.remove(&task).expect("rendered task owns loaded transcript");
     let Some(writes) = writes else {
         work.push(Work::Event(Event::Tasks(tasks::Event::Hold { task, why: tasks::Hold::Effects })));
         out.push(Request::Now(Box::new(Now::RunPreparationFailed { task })));
@@ -82,6 +77,21 @@ pub(crate) fn workspace_prepared(
         drop(core.workspace_credentials.remove(&task));
         return wait_for_account(core, work, current);
     }
+    match context.executor {
+        tasks::Executor::Job { .. } => {
+            if let Some(items) = &workspace
+                && items.len() > skein_lib::length::usize_of(env.limits.run_bytes)
+            {
+                work.push(Work::Event(Event::Tasks(tasks::Event::Hold { task, why: tasks::Hold::Effects })));
+                out.push(Request::Now(Box::new(Now::RunPreparationFailed { task })));
+                return out;
+            }
+            return super::jobs::prepared(core, env, work, context, attempt, writes, holds, workspace);
+        }
+        tasks::Executor::Agent { .. } => {}
+        tasks::Executor::Procedure { .. } | tasks::Executor::Person(_) => unreachable!("workspace executor"),
+    }
+    let transcript = core.transcripts.remove(&task).expect("rendered task owns loaded transcript");
     let allowance = match core.run_admission(&current, env.wall, writes) {
         crate::RunAdmission::Allow(allowance) => allowance,
         crate::RunAdmission::Wait(_) => return wait_for_account(core, work, current),
@@ -239,7 +249,13 @@ fn start_messages(inbox: Box<[tasks::Word]>, most: u32) -> Box<[tasks::Word]> {
     messages.into_boxed()
 }
 
-fn start_proof(_core: &Core, task: u64, attempt: u64, conversation: u64, messages: &[tasks::Word]) -> RunProof {
+pub(crate) fn start_proof(
+    _core: &Core,
+    task: u64,
+    attempt: u64,
+    conversation: u64,
+    messages: &[tasks::Word],
+) -> RunProof {
     let mut offered = None;
     let mut outstanding = List::with_capacity(u32::try_from(messages.len()).expect("bounded start inbox"));
     for word in messages {
@@ -251,8 +267,13 @@ fn start_proof(_core: &Core, task: u64, attempt: u64, conversation: u64, message
     proof
 }
 
-fn wait_for_account(core: &mut Core, work: &mut Queue<Work>, context: Box<tasks::RunContext>) -> Queue<Request> {
+pub(crate) fn wait_for_account(
+    core: &mut Core,
+    work: &mut Queue<Work>,
+    context: Box<tasks::RunContext>,
+) -> Queue<Request> {
     let task = context.task;
+    drop(core.job_workspaces.remove(&task));
     super::results::clear(core, task);
     drop(core.contexts.remove(&task));
     work.push(Work::Event(Event::Tasks(tasks::Event::PreparationWaiting { task })));
@@ -313,6 +334,7 @@ pub(crate) fn start_brief(core: &mut Core, env: &Env<Limits>, work: &mut Queue<W
     out
 }
 
+#[expect(clippy::too_many_lines, reason = "one ordered plan places charter documents after the core's sections")]
 pub(crate) fn plan_brief(
     core: &Core,
     env: &Env<Limits>,
@@ -411,8 +433,33 @@ pub(crate) fn plan_brief(
             })
             .expect("attempt brief room");
     }
+    let charter = core.charter_of(task);
+    let mut documents = List::with_capacity(env.limits.tasks.charter_documents.min(wanted.room()));
+    for (index, document) in charter.documents.iter().enumerate() {
+        if wanted.room() == 0 {
+            break;
+        }
+        let token = Token::new(u64::try_from(index).expect("document index").checked_add(1).expect("document token"));
+        wanted
+            .push(brief::Planned::Connector {
+                connector: document.connector,
+                kind: crate::DOCUMENT_KIND,
+                token,
+                size: 0,
+                limit: env.limits.brief.read_bytes,
+                priority: crate::DOCUMENT_PRIORITY,
+                required: false,
+            })
+            .expect("document section room checked");
+        documents.push(crate::PlannedDocument { token, document: document.clone() }).expect("charter document bound");
+    }
     let parent = brief_parent(context.requester);
-    out.push(Request::Now(Box::new(Now::BriefCorePlanned { task, parent, sections: wanted })));
+    out.push(Request::Now(Box::new(Now::BriefCorePlanned {
+        task,
+        parent,
+        sections: wanted,
+        documents: documents.into_boxed(),
+    })));
     out
 }
 
@@ -458,10 +505,17 @@ pub(crate) fn route_prepared_agent(
     busy: bool,
 ) -> Queue<Request> {
     let mut out = Queue::uncapped();
+    let Some(row) = core.tasks.task(context.task) else { return out };
+    if row.phase != tasks::Phase::Active(tasks::Active::Due) {
+        return out;
+    }
     if busy {
         remember_due(core, context);
     } else {
         let number = context.task;
+        if let Some((token, _)) = core.workspace_flight(number) {
+            drop(core.land_kind(token, crate::routing::flight::Kind::Workspace));
+        }
         let previous_attempt = context.previous_attempt;
         let fresh = context.tries.transient != 0;
         super::results::clear(core, number);
@@ -505,6 +559,14 @@ pub(crate) fn route_activate(
     } else if core.tasks.recurring_template(number).is_none() {
         match context.executor {
             tasks::Executor::Person(_) => {}
+            tasks::Executor::Job { .. } => match super::jobs::admission(core, &context, env.wall, Box::new([])) {
+                Ok(()) => return super::jobs::activate(core, work, context),
+                Err(crate::RunAdmission::Wait(_)) => remember_due(core, context),
+                Err(crate::RunAdmission::Hold(why)) => {
+                    work.push(Work::Event(Event::Tasks(tasks::Event::Hold { task: number, why })));
+                }
+                Err(crate::RunAdmission::Allow(_)) => unreachable!("job admission has no run allowance"),
+            },
             tasks::Executor::Procedure { connector, .. } => {
                 if let Some(step) = context.previous_attempt.checked_add(1) {
                     out.push(Request::Ask { connector, ask: Ask::StartProcedure { context, step } });
@@ -542,6 +604,7 @@ pub(crate) fn route_activate(
 }
 
 pub(crate) fn route_preparation_failed(core: &mut Core, work: &mut Queue<Work>, task: u64) -> Queue<Request> {
+    drop(core.job_workspaces.remove(&task));
     super::results::clear(core, task);
     drop(core.contexts.remove(&task));
     drop(core.dependency_results.remove(&task));
@@ -553,6 +616,7 @@ pub(crate) fn route_preparation_failed(core: &mut Core, work: &mut Queue<Work>, 
 pub(crate) fn route_claim_refused(core: &mut Core, work: &mut Queue<Work>, task: u64) -> Queue<Request> {
     let mut out = Queue::uncapped();
     if core.claiming.remove(&task).is_some() {
+        drop(core.job_workspaces.remove(&task));
         core.restore_replaced_proof(task);
         out.push(Request::Now(Box::new(Now::DropAssignment { task })));
         work.push(Work::Event(Event::Tasks(tasks::Event::PreparationFailed { task })));

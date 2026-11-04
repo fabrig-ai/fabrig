@@ -19,6 +19,7 @@ use super::*;
 const NO_TOOLS: u64 = 0;
 pub(super) fn member(words: &[u8]) -> Member {
     Member {
+        symbols: Box::new([]),
         llm: None,
         deadline: Deadline::Named,
         executor: TaskExecutor::Agent { charter: 1 },
@@ -38,7 +39,7 @@ pub(super) fn member(words: &[u8]) -> Member {
             notes: 0,
             note_resources: Box::new([]),
         },
-        wake: WakePolicy {
+        wake: Some(WakePolicy {
             words: WakeRule::Never,
             notices: WakeRule::Never,
             news: WakeRule::Never,
@@ -46,7 +47,7 @@ pub(super) fn member(words: &[u8]) -> Member {
             questions: false,
             answers: false,
             timers: false,
-        },
+        }),
         dependencies: Box::new([]),
         tracked: None,
         label: 0,

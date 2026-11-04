@@ -91,17 +91,23 @@ impl Domain {
 }
 pub fn step(root: &mut Domain, env: &Env<Limits>, event: Event, out: &mut Queue<Request>) {
     route::event(root, env, event, out);
-    route::picker_progress(root, env, out);
+    route::welcome_progress(root, env, out);
     route::playground_progress(root, env, out);
     crate::authorize::progress(root, env, out);
     welcome(root, out);
 }
 pub fn fire(root: &mut Domain, env: &Env<Limits>, out: &mut Queue<Request>) {
     let mut client = Queue::uncapped();
-    root.client.fire(env.now, env.wall, &mut client);
-    route::route_client(root, env, &mut client, out);
+    if root.unlinked {
+        root.client.fire_unlinked(env.now, env.wall, &mut client);
+        route::route_unlinked(root, env, &mut client, out);
+    } else {
+        let mut client = Queue::uncapped();
+        root.client.fire(env.now, env.wall, &mut client);
+        route::route_client(root, env, &mut client, out);
+    }
     route::fire_pages(root, env, out);
-    route::picker_progress(root, env, out);
+    route::welcome_progress(root, env, out);
     route::playground_progress(root, env, out);
     crate::authorize::progress(root, env, out);
     welcome(root, out);

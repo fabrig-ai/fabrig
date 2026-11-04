@@ -1,4 +1,4 @@
-//! Remove runtime access and durably erase secrets (temper/docs/design/draft/playground-reset.md, 4).
+//! Remove runtime access and durably erase secrets (temper/docs/design/protocol/forge.md, 2.3).
 use crate::engine::Engine;
 use alloc::boxed::Box;
 use jig_protocol_store::{SecretOwner, Secrets};
@@ -32,8 +32,6 @@ pub(crate) fn request(engine: &mut Engine, forge: u16) {
     if let Some(number) = engine.values.tokens.forget(forge) {
         engine.values.identities.forget(number);
     }
-    engine.forge.file_access.remove(&forge);
-    engine.forge.startup_access.remove(&forge);
     engine.forge.endpoints.remove(&forge);
     engine.forge.held.remove(&forge);
     engine.forge.resolving.remove(&forge);

@@ -6,6 +6,7 @@ mod admission;
 mod entrance;
 pub(crate) mod fixtures;
 mod harness;
+mod jobs;
 mod lifecycle;
 mod limits;
 mod live;

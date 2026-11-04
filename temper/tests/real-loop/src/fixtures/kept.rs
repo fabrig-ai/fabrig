@@ -1,4 +1,4 @@
-//! Stored fixture forges (temper/docs/design/draft/playground-reset.md, 3).
+//! Stored fixture forges (temper/docs/design/protocol/forge.md, 2.1).
 use std::{net::SocketAddr, path::Path};
 use temper_engine_domain_forge as forge;
 use temper_protocol_records::{self as records, Item};
@@ -19,7 +19,7 @@ pub(crate) fn seed(path: &Path, address: SocketAddr, github: Option<crate::githu
             &path.join("state"),
             record,
             1,
-            temper_fake_git_hosted::fixtures::TOKEN,
+            temper_worker_checkout_world::hosted::TOKEN,
             crate::forge::HOOK_SECRET,
             None,
         );

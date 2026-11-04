@@ -23,6 +23,9 @@ use smith_domain_session::{self as session, llm as sllm};
 use crate::llm::{self, Block, Decoded, Message, Prompt, Returned, Said, Served};
 use crate::translate::{self, DELIVER, FINISH, FIRST, Offered, SUB_AGENT, WAIT};
 
+/// The run-owned call whose result can be withheld across activations.
+pub(super) const WAIT_NAME: &[u8] = b"wait";
+
 /// A conversation the run opened, and its session's tickets.
 #[derive(Debug)]
 pub(crate) struct Peer {
@@ -83,12 +86,15 @@ impl Peer {
         }
         let capacity = u32::try_from(self.offered.host_tools.len())
             .expect("admitted host tools")
-            .checked_add(2)
-            .expect("room for finish and deliver");
+            .checked_add(3)
+            .expect("room for finish, deliver and wait");
         let mut tickets = List::with_capacity(capacity);
         tickets.push(FINISH).expect("room for finish");
         if self.offered.deliver {
             tickets.push(DELIVER).expect("room for deliver");
+        }
+        if self.offered.wait {
+            tickets.push(WAIT).expect("room for wait");
         }
         for (index, tool) in self.offered.host_tools.iter().enumerate() {
             if tool.reserve {
@@ -193,7 +199,7 @@ impl Peer {
         if name == b"deliver" && self.offered.deliver {
             return Some(DELIVER);
         }
-        if name == b"wait" && self.offered.wait {
+        if name == WAIT_NAME && self.offered.wait {
             return Some(WAIT);
         }
         if name == b"sub_agent" && self.offered.agents {
@@ -395,7 +401,7 @@ impl Peer {
                 let mut names = List::with_capacity(u32::try_from(tickets.len()).expect("bounded choice"));
                 for ticket in tickets {
                     let name = match self.descriptor(ticket) {
-                        Served::Wait => Box::from(b"wait".as_slice()),
+                        Served::Wait => Box::from(WAIT_NAME),
                         Served::Deliver => Box::from(b"deliver".as_slice()),
                         Served::Finish => Box::from(b"finish".as_slice()),
                         Served::SubAgent => Box::from(b"sub_agent".as_slice()),

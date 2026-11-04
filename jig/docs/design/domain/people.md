@@ -1,6 +1,6 @@
 # Parties
 
-Provisional, 2026-10-07, revised 2026-10-27. How people, and the
+Provisional, 2026-10-07, revised 2026-11-03. How people, and the
 services that act like them, take part: who they are and the credentials
 they sign in with, what their role in a project lets them do, the
 operations they ask of the engine and what waits for them, the
@@ -42,9 +42,15 @@ is still open is listed in section 12.
 - **The deployment's acts** are what a connector asks of the core in
   the deployment's name, where no client is there to ask: a person's
   conversation closed, the deployment's key added or account removed,
-  a resource adopted, a project made. No party makes them: a connector
-  the configuration grants each kind, while it names a first owner,
-  keyed as a party's request and answered to it once durable (5.3).
+  a resource adopted, a project made or deleted. No party makes them: a
+  connector the configuration grants each kind, while it names a first
+  owner, keyed as a party's request and answered to it once durable
+  (5.3).
+- **A project can be deleted,** by its owners or by the deployment's
+  act: closed at once, its tasks ended (its conversations first asked
+  to finish within the grace the request gives, as a close asks one)
+  and then erased whole, then its own rows, its adoptions released,
+  each step kept until the deletion is whole (5.2).
 - **A party's inbox** holds what waits for them: questions, proposals,
   escalations, the tasks they carry out, results and the turns of their
   conversations. What is addressed to a role waits for every party in it
@@ -57,6 +63,12 @@ is still open is listed in section 12.
   what waits for a party, and live runs; not the shapes of work built
   from them, which are templates and helpers above it. An application
   adds its own kinds of object.
+- **Anyone may read a public project,** without signing in, as one
+  party fixed in code whose role grants public reads alone: a few typed
+  documents of structure and mechanics, with no text but tasks' titles
+  and the project's name, named by opaque identifiers, within a budget
+  behind every signed-in request. Projects
+  are private until their owners make them public (section 13).
 
 ## 2. Structure
 
@@ -67,6 +79,9 @@ capability. It keeps:
   their sign-ins, each named by its number;
 - **roles:** each live project's roles and who holds them, loaded at
   start and changed by commits;
+- **deletions:** each project being deleted, the step its deletion
+  has reached and the grace it gives its conversations (5.2), until its
+  last;
 - **requests in flight:** each party's pending requests, and each
   connector's pending acts in the deployment's name (5.3), by their
   keys, until answered, a compound request as one;
@@ -286,6 +301,8 @@ Each project has its roles, and its policy says what each may do
   if its policy names one (authority.md, section 6; tasks.md,
   section 9). A party may be the requester of a root only when one of
   the two holds it (5.1).
+- **`public` is no project's role.** It is the public party's, fixed in
+  code, with no number, so no policy can name it (13.1).
 
 ## 5. What a party does
 
@@ -313,21 +330,19 @@ retained-key replay or conflict and pending-key joins or conflicts are
 checked before a new request needs room. An identical pending request
 joins its waiters; a different ask under that key conflicts.
 
-A new top-level `Seen` uses the same keyed transport and pending checks,
+A top-level `Seen` uses the same keyed transport and pending checks,
 but bypasses completed-answer capacity and saves no `Answer`, on success
-or routed refusal. It still needs the existing bounded pending, flight,
-waiter, load, journal and output room. Ordinary admission counts retained
-answers plus only the ordinary flights that reserve answers, excluding
-`Seen`; a bounded scan of pending flights suffices, with no new counter
-or limit. Each admitted ordinary flight thus retains its reserved place
-through saving its answer.
+or routed refusal, so it progresses while the answers' places are full.
+It needs the bounded pending, flight, waiter, load, journal and output
+room. Ordinary admission counts retained answers plus only the ordinary
+flights that reserve answers, excluding `Seen`; a bounded scan of
+pending flights suffices, with no counter or limit of its own. Each
+admitted ordinary flight thus retains its reserved place through saving
+its answer.
 
-After a new `Seen` completes, its key is free. A retry is processed
-against the current subject and authority, and a different ask under the
-freed key is a new request. Legacy retained `Seen` answers still restore,
-replay or conflict until their original expiry, occupying their old
-answer places without early erasure or reclassification. New `Seen`
-requests can progress while those places are full.
+Keeping no answer, a `Seen`'s key is free once it completes. A retry is
+processed against the current subject and authority, and a different
+ask under the freed key is a new request.
 
 The operations as the client sends them are
 `../client/domain/contract.md`, 3.2:
@@ -343,11 +358,11 @@ The operations as the client sends them are
 | `Amend` | the task in their tree, or maintainer, and a change within their authority; the spec's revision they saw, but for a change of priority alone; maintainer, for tracked or priority; dependencies added within their reach, as a batch's | tasks.md, section 7: its spec, instructions, authority, wake policy, a person task's address, whether it is tracked, its priority, its dependencies added or removed; a widened task funded from their pool (authority.md, section 7) |
 | `Cancel`, with or without a grace | the task in their tree, or maintainer; a grace within the tasks child's bound (tasks.md, section 11) | the task and its tree closing (tasks.md, section 7); with a grace, the task first asked to finish, and cancelled when the grace ends unless it ended first |
 | `Release` | the task in their tree, or maintainer; the hold's revision they saw; for an effect held uncertain, whether to make it again; for a task a placed hold holds, that they may lift it (tasks.md, 5.9) | its hold lifted, the task judged again (tasks.md, 5.5); from a placed hold that stands, the task exempt from it |
-| `Stop` | the task in their tree, or maintainer | its run cancelled and its task held for a party's stop; designed, not built: a placed hold of theirs in the stop mode over the task's subtree (tasks.md, 5.9) |
-| `Hold`, designed, not built | a mode, stop or drain; a scope, a task in their tree (or maintainer) for its subtree, or the project for a maintainer; a reason; never in a compound request | a placed hold of theirs (tasks.md, 5.9), its number and revision answered |
-| `Lift`, designed, not built | a placed hold they may lift (tasks.md, 5.9); its revision; whether every task it holds that nothing else holds is released with it; never in a compound request | the hold ended; with the release, those tasks judged afresh |
-| `Move` | they may amend the task; a holder for its escalations (below); designed, not built: or another live task they may amend, as its new requester | the party its requester, funded from their pool (tasks.md, section 7); or the task its requester, funded from its funding |
-| `Succeed`, designed, not built | a task in their tree that ended, or any of the project's for a maintainer, while its handoff record lives; a live task within their reach | the live task its successor, what passes to it admitted whole (tasks.md, section 7) |
+| `Stop` | the task in their tree, or maintainer | a placed hold of theirs in the stop mode over the task's subtree, its live runs cancelled (tasks.md, 5.9) |
+| `Hold` | a mode, stop or drain; a scope, a task in their tree (or maintainer) for its subtree, or the project for a maintainer; a reason; never in a compound request | a placed hold of theirs (tasks.md, 5.9), its number and revision answered |
+| `Lift` | a placed hold they may lift (tasks.md, 5.9); its revision; whether every task it holds that nothing else holds is released with it; never in a compound request | the hold ended; with the release, those tasks judged afresh |
+| `Move` | they may amend the task; a holder for its escalations (below); or another live task they may amend, as its new requester | the party its requester, funded from their pool (tasks.md, section 7); or the task its requester, funded from its funding |
+| `Succeed` | a task in their tree that ended, or any of the project's for a maintainer, while its handoff record lives; a live task within their reach | the live task its successor, what passes to it admitted whole (tasks.md, section 7) |
 | `Decide` | the proposal or escalation waiting for them, as the requester of its tree or in a role the policy names; for an escalation, its hold's revision; for a proposal of settings, whether running work moves | accepted, if their authority covers it, and funded from their pool (authority.md, section 9: a batch's tasks, an effect's price, the task an amendment or a widening changes), or, for a proposal of settings, by an owner of each item it names, funding nothing (engine.md, 17.6); rejected, with a reason; or passed up (tasks.md, section 9) |
 | `Answer` | addressed to them or their role; a person task's revision as they saw it; for a person task, none of its dependencies pending (section 8) | an answer to a question, or a person task's result (section 8) |
 | `Take`, `HandBack` | a person task addressed to a role they hold | held by them, so no other answers it; or back to the role (section 8) |
@@ -357,6 +372,8 @@ The operations as the client sends them are
 | `ChangeSettings`, in the deployment's scope | owner in the deployment for the deployment's items, and owner of each project whose items it names (section 3 and 4); the revision they saw, the newest; the set within the checks and bounds of engine.md, 17.1 and 17.8; every connector judging an item of its kinds accepting it | the settings changed in one decision, the new revision answered; running work staying or moved, as it asks (engine.md, 17.2 and 17.4) |
 | `MoveToNewest`, in the deployment's scope | owner in the deployment; a revision held | every live agent task on it that may move set to the newest, in one decision, those moved and those that could not counted in the answer (engine.md, 17.4) |
 | `MakeProject`, in the deployment's scope | owner in the deployment (section 3); a name in shape that no other project holds (core.md, 6.1); a policy among the settings (engine.md, 17.1); room in the deployment's projects | a project, numbered next, its policy a copy of the configured one, its maker its owner and only party (5.2) |
+| `RemoveProject` | owner of the project; a project that is live, not being deleted; a grace within the tasks child's bound (tasks.md, section 11), or none; never in a compound request | the project closed in the decision that admits it, answered removed then, and deleted whole in the steps that follow (5.2), each of its live conversations asked to finish within the grace |
+| `SetVisibility` | owner of the project, never project 0; a project that is live, not being deleted | the project public or private from that decision, `me` saying so (13.2) |
 | edit or delete a note | the note's scope within their role | the note revised (engine.md, section 10) |
 | set a party's pool | owner | the pool opened or resized in the current period, what was spent and reserved kept |
 | an account request: sign in, sign out, add, replace or remove a key, declare or check a program's login, order, uses, resume, remove an account | the account's holder, not a role: a person for their own, a first owner for the deployment's (authority.md, 8.4) | accounts.md, section 5: the account's sources, states and uses changed; a value never committed |
@@ -414,10 +431,11 @@ The operations as the client sends them are
   Their other operations reach what the table says.
 - **What only parties do,** by design: carry out person tasks (`Take`,
   `HandBack`, and `Answer` with a result), stop runs, move tasks to
-  themselves, mark what they have seen, make and run projects (5.2), and act
-  on the LLM accounts they hold (accounts.md, section 5). Designed, not
-  built: a task places holds on the tasks below it too (tasks.md, 5.9;
-  engine.md, 7.3), and only a party holds a project.
+  themselves, mark what they have seen, make, run and delete projects
+  (5.2), and act
+  on the LLM accounts they hold (accounts.md, section 5). A task places
+  holds on the tasks below it too (tasks.md, 5.9; engine.md, 7.3), and
+  only a party holds a project.
   Procedures decide nothing (tasks.md, section 9).
 - **A decision names what it saw.** A release, an amendment, a decision
   about an escalation and a person task's answer carry the revision the
@@ -519,6 +537,15 @@ templates (authority.md, section 6) reach only what clients create after
 them: a task keeps the values it was made with
 (`../protocol/configuration.md`, 3.1).
 
+Its owners change its policy part by part, or whole as an item of a
+change of settings (engine.md, 17.2), so that one decision sets the
+project up beside the deployment's settings: by one party who owns
+both, where the change names the deployment's items too. Either way
+the policy is the project's own record, applied as above, and is no
+setting: it has no default, follows no revision and is never pinned;
+the revision that set it records it whole and the policy it replaced,
+so that restoring a version can set it back (engine.md, 17.10).
+
 A project made after the first start (`MakeProject`, 5.1) is made in
 the decision that admits the request, in one commit with its answer:
 
@@ -541,15 +568,98 @@ A crash keeps the project and its answer, or neither; a retry under the
 key then makes it once. Two makes naming one name: the first commit
 takes it, and the second is refused as *name taken*.
 
+A project is deleted (`RemoveProject`) by its owners (5.1), or by the
+deployment's act (5.3), whole: its decision closes it and keeps the
+deletion, and the rest follows in kept steps, each in decisions of its
+own, in this order.
+
+Its conversations are closed as a person closes one, with a grace
+(section 7), and the grace is the request's: a span within the tasks
+child's bound (tasks.md, section 11), or none. The engine reads no
+template, so whoever asks gives it: a client the chat template's grace
+as `me` offers it now, as it gives a close's
+(`../client/domain/client.md`, section 19, `shapes::remove_project`),
+and an application deleting by the deployment's act its own chat
+template's (5.3; section 7). A grace past the bound refuses the
+request, a limit, as a cancel's is (5.1), before anything of the
+deletion is made, so that none of the deletion's cancels is ever
+refused for its grace.
+
+- **Closed at once.** In the decision that admits the deletion, which
+  answers it removed, the project takes nothing more: a task, words, an
+  adoption, a change of its settings, policy or roles, a deployment's
+  act on it, or any other request or watch on it is refused unknown, as
+  on a project that never was. It leaves every list and every party's
+  `me`, its roles are erased, and its name is free again from that
+  decision; its number is never given again (core.md, 6.1). A pending
+  proposal of settings naming its policy is withdrawn in that decision,
+  as no longer applying (engine.md, 17.6).
+- **Its tasks ended, then erased.** Each live task of the project is
+  cancelled by the deployment, with no reason, in the deployment's
+  compound (tasks.md, section 7), as many compounds as the operations
+  per request take, each in a decision of its own:
+  - *a live conversation,* a root flagged conversation, as the
+    deployment's `Close` closes one (5.3): each of its live delegates
+    cancelled, then the conversation cancelled with the deletion's
+    grace, which asks it to finish and cancels it if it has not ended
+    when the grace ends (tasks.md, section 7), its message number a
+    fresh one, as a close's is; with no grace, it is cancelled at once.
+    A conversation and its delegates go in one compound, never split
+    across two, as a close fits in one request (5.1, operations per
+    request);
+  - *every other live root,* with its tree, with no grace;
+  - *a root already closing, or finishing under a grace,* a close's or
+    the deletion's own, is not asked again: it ends when its grace does,
+    unless it ended first.
+
+  Once none is live, each of its tasks is erased whole, one at a time
+  and with no horizon waited for, as retention would erase it at the
+  horizon: its record, its rows in every index, its history, activity
+  and terminals, its read positions and its transcript's file
+  (tasks.md, section 3; `../protocol/store.md`, 8.5 and 11.1). The
+  decision that erases each one tells every connector so
+  (`connectors.md`, 3.4).
+- **Then its own rows:** its policy's copy and its overrides of
+  templates; its placed holds (tasks.md, 5.9); its pools in the current
+  period, and its period, closed into the history with their spend
+  (below); its notes (engine.md, section 10); the answers kept under
+  parties' and connectors' keys that named it (5.1, 5.3); and the
+  settings of its scope (engine.md, 17.5).
+- **Its adoptions released:** each connector is asked to release the
+  project, drops what it keeps of the project's adoptions and of its
+  own kinds' settings in the project's scope, and answers once that
+  has committed; the deletion ends when every connector has answered.
+- **What outlives it:** its spend, in the deployment's and its parties'
+  totals for the period, as closed periods and pools keep it, never per
+  task; and an account whose only use was the project keeps that use,
+  so that it pays for no one rather than for every payer (accounts.md,
+  4.2), while an account with other uses drops it. An act's or a
+  request's answer that named the project is erased with it, so that,
+  sent again, it is judged afresh and answered unknown, as one past its
+  retention is. Each party's inbox and read positions drop what named
+  its tasks.
+- **Kept until whole:** the deletion is a row of the people child's,
+  the project, the step it has reached (its tasks, its own rows, its
+  adoptions released) and its grace, saved with each step's decision
+  and erased with the last, at most one per project the deployment has
+  room for. At each start, once the core is ready, each kept deletion
+  goes on from its step with its grace, its project closed from the
+  start as from its decision, so a deletion a restart cut ends whole
+  and no start serves a half-deleted project; a grace past a bound
+  lowered since is given as that bound. Its own answer is kept while it
+  lasts: sent again under its key, the deletion is answered removed
+  until it ends, and unknown after.
+
 ### 5.3 The deployment's acts
 
 An application sometimes acts where no client is there to ask: at the
 end of what a person's conversations were about, at a start that a
-restart cut short. A connector then asks the core for one of a few
-acts in the deployment's name, as the deployment requests the tasks its
-configuration or a connector starts (tasks.md, section 3). An act has
-no party, no sign-in and no role: the configuration's grant and the
-act's own subject are its whole check.
+restart cut short, at the reset of what it made for a person (temper's
+playground: temper's `protocol/setup.md`, 8.4). A connector then asks
+the core for one of a few acts in the deployment's name, as the
+deployment requests the tasks its configuration or a connector starts
+(tasks.md, section 3). An act has no party, no sign-in and no role: the
+configuration's grant and the act's own subject are its whole check.
 
 - **Who may:** a connector the configuration grants that kind of act
   (`../protocol/configuration.md`, section 3), while the configuration
@@ -568,11 +678,13 @@ act's own subject are its whole check.
   | `RemoveAccount` | an account the deployment holds | the account removed (accounts.md, section 5) |
   | `Adopt` | one of the acting connector's own resources, as an owner's adoption names one, into a live project | adopted as an owner's adoption is, the connector asked and answering as it does a party's (connectors.md, section 12), the project's roles seeded from the parties the connector knows there, and no party made its owner |
   | `MakeProject` | as `MakeProject`'s (5.1), and an owner of the deployment, to be its maker | the project made (5.2), that owner its maker and only party |
+  | `RemoveProject` | a live project, not being deleted; a grace within the tasks child's bound, or none | the project deleted as its owners' `RemoveProject` deletes it (5.2), each of its live conversations asked to finish within the grace; answered removed once closed |
 
   A subject outside its act's is refused, naming it: a task that is not
   a live conversation of a person, an account the deployment does not
   hold, another connector's resource, a maker who is no owner of the
-  deployment.
+  deployment; a grace past the tasks child's bound is refused as a
+  cancel's is, a limit.
 - **Keyed as a party's request** (5.1): the connector names a key, in
   its own key space, apart from every party's and every other
   connector's, and its answer is kept beside parties' answers
@@ -603,10 +715,13 @@ act's own subject are its whole check.
   is made then. So a restart between an act's keep and its answer makes
   it once and answers it once. Past the retention it is judged afresh:
   a conversation closed since is refused as ended, an account removed
-  since as unknown, which its connector takes as done.
+  since as unknown, a project deleted since as unknown, once its
+  deletion has ended and its answer with it (5.2), which its connector
+  takes as done.
 - **The deployment, not a party:** an act makes no party, sign-in,
   inbox or role, and is in no `me`. A task it cancels is cancelled by
-  the deployment, with its reason. The value an `AddKey` carries is
+  the deployment, with its reason, and a project it deletes is deleted
+  as its owners' deletion is. The value an `AddKey` carries is
   kept by the application first, as a client's request's is
   (`../protocol/client.md`, section 5), and one the act leaves unused
   is said unused before its answer, for the application to erase. A
@@ -618,10 +733,10 @@ act's own subject are its whole check.
 What waits for a party, across every project they hold a role in, each
 entry naming the task or proposal it is and its project:
 
-- **questions** from tasks they asked for, conversations included;
-  designed, not built: but a question a delegate asks a conversation,
-  which stays with the conversation, which answers it or asks its
-  person itself in its own words (J7, J8);
+- **questions** from tasks they asked for, conversations included,
+  but a question a delegate asks a conversation, which stays with the
+  conversation, which answers it or asks its person itself in its own
+  words (tasks.md, 8.5);
 - **proposals** routed to them, or to a role they hold;
 - **escalations** that reached them: a held task nobody below could
   decide;
@@ -652,10 +767,9 @@ entry naming the task or proposal it is and its project:
   so a conversation never answers for its person; the person's answer
   reaches the asking task as its requester's answer, and the asked task
   hears a notice naming the question answered, with the answer words cut
-  at 256 bytes on a UTF-8 boundary and marked when cut (tasks.md, 5.7). J7 and
-  J8, designed, not built, change which questions wait here: a
-  delegate's question to a conversation becomes the conversation's
-  (tasks.md, 8.5).
+  at 256 bytes on a UTF-8 boundary and marked when cut (tasks.md, 5.7). A
+  delegate's question to a conversation waits with the conversation, not
+  here (tasks.md, 8.5).
 - **A conversation** is a task its creator flagged so (tasks.md,
   section 3), whatever its charter, tracked or not (tasks.md, section
   7): its turns are entries for its requester, while that
@@ -691,8 +805,9 @@ entry naming the task or proposal it is and its project:
     template keeps, so closed conversations stay readable;
   - *forgotten once read:* once it has ended, its requester has read its
     result and, for a conversation, its turns, and no live task names it,
-    its record and its read position are erased in one decision, so no
-    restart sees one without the other, and nothing read comes back
+    its record and its read position are erased in one decision, which
+    tells every connector the task is erased (`connectors.md`, 3.4), so
+    no restart sees one without the other, and nothing read comes back
     unread. The `Seen` after which it is read forgets it, while the
     party's inbox holds it (the bound below), in the `Seen`'s own
     decision: the mark and the erase commit together, so no restart sees
@@ -755,7 +870,7 @@ entry naming the task or proposal it is and its project:
 - **What a chat does:** answers; delegates; hands work to a procedure; or
   proposes a goal, which its requester accepts in the conversation, as a
   proposal in their inbox, and which is theirs once accepted, not the
-  chat's (tasks.md, section 9). Designed, not built: it answers its
+  chat's (tasks.md, section 9). It answers its
   delegates' questions, which stay with it, and asks its person a
   question of its own by a person task addressed to them, in their
   inbox (tasks.md, 8.5).
@@ -780,6 +895,14 @@ entry naming the task or proposal it is and its project:
   keep. The core composes it from the conversation's live delegates in
   the decision that admits it, and the application gives the grace,
   its template's: the engine still reads no template.
+- **Closed with its project:** a project's deletion (5.2) closes each
+  of its live conversations as the deployment's close does, every
+  delegate cancelled, with the grace its `RemoveProject` carries. A
+  client gives the chat template's, as its helper gives a close's
+  (`shapes::remove_project`, `../client/domain/client.md`, section 19),
+  and an application deleting by the deployment's act gives its own
+  chat template's (temper's playground: temper's `protocol/setup.md`,
+  8.4): here too the engine reads no template.
 
 ## 8. Person tasks
 
@@ -894,7 +1017,23 @@ nothing made twice, and one the restart lost is made then; acts are
 refused, nothing made, while the configuration names no first owner,
 of a kind their connector is not granted, and on a subject outside
 their act's: a person's account, a task that is no conversation,
-another connector's resource.
+another connector's resource; an owner deletes a project with a live
+chat and its delegates, with a grace, and a member is refused, as is a
+grace past the bound, nothing deleted; the delegates are cancelled and
+the chat asked to finish, cancelled when the grace ends, then all
+erased whole with their transcripts, its own rows erased and each
+connector asked to release it until it answers, and only its spend
+left in the period's totals; the deleted project refuses every
+request, act and watch as one never made, leaves every `me`, and its
+name is taken again by a new project of a new number; a deletion cut
+by a restart after any of its commits ends the same, with its grace; a
+connector granted it deletes a project, and its act sent again is
+answered removed while the deletion lasts and unknown after.
+
+In jig's conformance world (testing.md, section 5), a project is deleted
+in a case for each family of jig's store, the core's, the tasks', the
+people's, the notes' and the accounts', and for the application's,
+each cut at every commit.
 
 Its referee: every request is answered once, after its commit; a
 compound request is made whole or not at all; no request is acted on
@@ -904,7 +1043,10 @@ act in the deployment's name is made but by a connector granted its
 kind, while a first owner is configured, on its act's subject; what
 waits for a role leaves every inbox once one party acts on it; a
 person's words reach their task, or the task ends; nothing read comes
-back unread, across a restart or a task's end.
+back unread, across a restart or a task's end; a project being deleted
+takes no new task; a deletion a restart cut is resumed; and, once a
+deletion has ended, no row names its project or one of its tasks but
+what outlives it (5.2).
 
 ## 12. Open questions
 
@@ -913,12 +1055,353 @@ back unread, across a restart or a task's end.
   requires it independently. jig holds no provider's credential; an
   application's sign-in may keep one, and its connector would then need
   to know which party gave the approval.
-- **Who may see what** among a project's parties: whether a chat and its
-  transcript are its requester's alone, or their role's, or the
-  project's; what an observer reads. A role in the project lets a party
-  watch and read all of it.
+- **Finer cuts among a project's parties:** whether a chat and its
+  transcript are its requester's alone, or what an observer reads.
+  Default: a role in the project reads all of it (13.4).
 - **Roles that span projects,** as the inbox does.
-- **Guests:** someone with no identity at any provider, invited to one
-  conversation. An application's sign-in may mint an identity for an
-  invitation; which role lets its holder take part in one conversation,
-  and see nothing else, is open.
+- **Who deletes a project:** its owners, and the deployment by its act
+  (5.2, 5.3). The deployment's owners over any project is later.
+  Default: as said.
+- **A deleted project's spend:** kept in the deployment's and its
+  parties' totals for the period, never per task (5.2). Default: as
+  said.
+- **A public board's ended goals across a restart:** a store index of
+  a project's ended goals, newest first, that the public index loads
+  once at start and at publication (13.9). Default: none; the board's
+  ended goals are those ended since.
+- **A human publication capability:** a way for a person to publish
+  another configured name they wrote, that an agent holding their
+  credential could not use, since a credential proves who sent a
+  request and not who wrote it (13.3). Default: none; public documents
+  carry only task titles and the project's name as text.
+- **Project 0 in the checks:** the deployment's roster is kept as
+  project 0's (section 3), and no write makes a project 0, so each read
+  that asks whether a project is open sets it aside first. Whether the
+  deployment takes a value of its own, so that no check can forget it.
+  Default: as said.
+- **People's tokens and the core's flights:** a people request's token
+  and a core flight's handle can share a value, so each crossing between
+  them translates. Whether each takes a type of its own, so that a
+  crossing left untranslated does not compile. Default: as said.
+- **An omitted model:** an authority that omits its models translates
+  to none in authority's terms, and that comes back as a stated none,
+  so the two mappings are not each other's inverse; no decision
+  composes them on an omitted value. Whether authority keeps an
+  omission of its own. Default: as said.
+
+
+## 13. Public reading
+
+Anyone may read a project its owners have made public, without signing
+in: one party, fixed in code, reads for every visitor, a few documents
+only, within a budget of its own behind every signed-in request. The
+documents are public projections: types of their own, which hold only
+what is added to them, and only structure and mechanics, with tasks'
+titles and the project's name their only text. The application adds
+its own beside jig's (13.3). How a public read travels is
+`../protocol/client.md`, section 19, and over HTTP, 17.5.
+
+### 13.1 The public party
+
+- **One party for every visitor,** fixed in code: the public party. It
+  is no row: no identity, provider, credential, sign-in, inbox, pool,
+  `me` or place in a roster. The core names it by a value of its own,
+  which no stored party, sign-in or connector takes, and no record
+  stores.
+- **Its role is fixed:** `public`, which grants one thing, the public
+  reads of a public project (13.3) and of the deployment's public
+  projects. It makes no request, opens no watch and no stream, reads
+  none of jig's other documents and none of an application's other
+  reads or subjects, and is the requester, funder, executor or holder of
+  nothing. Every other exchange without a credential is signed out
+  (`../protocol/client.md`, section 8), answered by the clients'
+  component from the exchange alone, with no engine work.
+- **No policy widens it.** `public` is no role a policy can name: it
+  has no number and is no `Role` (section 4), and policies, rules,
+  permissions and seeds name roles by number alone, so none can map a
+  connector's permission to it, give it authority or a kind of
+  proposal, or give it to a party (5.2). The public party's reads are
+  admitted by the public index (13.9), never by a role's authority.
+- **It writes nothing.** A public read is a read: it commits nothing,
+  keeps no answer under a key, and names no party in any history.
+- **Only the core decides,** as for every party: the clients'
+  component forms a public read from the route alone, and the core
+  admits it on the project's visibility (13.2) and the task's
+  eligibility (13.7), never on anything the visitor sent but the read's
+  own fields.
+- **Its exceptions are its own:** no guard of a signed-in exchange is
+  relaxed for it. A public read is a message of its own, on routes of
+  its own (`../protocol/client.md`, 17.5), and every check of the
+  signed-in routes stands as without public reading.
+
+### 13.2 A project's visibility
+
+- **Private by default.** Every project is seeded and made private
+  (5.2), and no configuration makes one public: a start opens nothing.
+  Project 0, the deployment's roster, is never public. Visibility is a
+  row of its own, kept only while a project is public
+  (`../protocol/store.md`, 4.4), so a store written before it holds
+  none and every project in it reads private: no default makes one
+  public.
+- **Made public by its owners:** `SetVisibility { project, public }`,
+  owner of the project alone; no policy gives it to another role. It is committed and answered once
+  durable, as any request (5.1), and is a record of the project's, kept
+  in the people family's project row (`../protocol/store.md`, 4.4).
+  Making a project public shows its structure, never its name (13.3).
+- **Every party of the project sees it:** the project's entry in `me`
+  carries its public identifier while it is public, and none while it
+  is private (`../client/domain/contract.md`, 5.1), so a client says
+  so wherever it shows the project, and can give its public address.
+- **Made private again,** the decision that commits it refuses every
+  later public read of the project as unknown, and every public read of
+  it still under way is answered unknown (13.10). It waits for none of
+  them. What a caching proxy or a browser already holds lives out the
+  freshness its answer was given (`../protocol/client.md`, 17.5); that
+  bounds later serving, and cannot withdraw a copy already downloaded.
+- **Closed with the project:** a project being deleted answers every
+  public read unknown from the decision that admits its deletion, as
+  one never made (5.2), and its reads under way unknown alike.
+- **Answered alike:** a project that is private, being deleted or never
+  made, and a task that is not public (13.7), are one answer, unknown,
+  reached by the same path and the same work, so a visitor learns
+  nothing of what is not public (13.8).
+
+### 13.3 What it reads
+
+Each public document is a type of its own, made by a projection from
+the public index (13.9); a field reaches it only when it is added
+there. jig's hold structure and mechanics alone: public identifiers,
+states, times, the shape of a tree, kinds, spend, task titles and the
+project's name. Their records, and each field's source, are
+`../client/domain/contract.md`, section 12.
+
+- **The deployment's public projects:** each public project's public
+  identifier (13.8) and name, and the `max-age` the public answers
+  carry, so a page knows how often to read again.
+- **A project's board:** its public identifier and name; its public goals
+  (13.7), live first by priority, then the most recently ended the
+  index holds; each goal's line and its tree's lines below it, within
+  the board's bounds, the lines past them folded into a count of
+  public lines alone (13.9).
+- **A task's card:** the line of one public task, its lineage up to
+  its public goal as public identifiers, and its delegates' lines,
+  folded past the bound.
+- **A public line:** the task's public identifier; its title, the spec's
+  first line cut at 256 bytes on a character boundary, saying whether
+  cut; its parent's identifier, or none for a public goal, whose
+  ancestry is never shown; whether it is
+  a goal, and its priority; its executor's kind alone, never who
+  or which; its phase, and if held, the hold's kind without
+  its reason; when it was made, last changed, last active and ended,
+  each to the second; its spend and its budget; its public delegates'
+  counts by phase.
+- **No text but titles and the project's name.** The task's title and
+  the project's name cross without an author flag or a human
+  publication capability. Nothing else a person or an agent could
+  have written crosses: no spec beyond its first line, instructions,
+  inputs, results, words, questions and answers, turns and transcripts,
+  notes, reason, label's meaning, proposal or escalation; no charter's,
+  procedure's or role's name. No person's or party's name, login or
+  number, no account, no resource's name beyond the links the
+  application's projection adds. A human publication capability for
+  the other configured names is Later (section 12).
+- **No internal number:** a project or a task is named by its public
+  identifier alone (13.8), in every field and every route.
+- **An application's own public documents** are its connectors' (the
+  application's records, `../protocol/client.md`, section 19): a
+  connector declares its public kinds, and is asked for one only once
+  the core has admitted the read: the project public, and the task it
+  names public (13.7). It is handed the project's public tasks and
+  builds its document from them alone, by the same rule: a type of its
+  own, private by default, no text, and every task it names one of
+  those it was handed, named through the read's list of tasks
+  (`../protocol/client.md`, section 19), which the core checks again
+  before it answers (13.10).
+
+### 13.4 Who sees what
+
+Inside a project and outside it, and guests:
+
+- **A party with a role in a project** reads and watches all of it;
+  finer cuts among a project's parties (a chat its requester's
+  alone) would be a role's, and are open (section 12).
+- **Anyone else** reads only a public project's public documents, as the
+  public party, and takes part in nothing.
+- **No guest role.** Someone with no identity anywhere reads as the
+  public party; to take part in a conversation they sign in, through
+  the application's sign-in and a `Mint`, and are given a role (section
+  3). jig keeps no role that sees one conversation and nothing else.
+
+### 13.5 Its admission
+
+The crowd is one party, bounded as jig bounds any party, and behind
+every signed-in one. Every figure below is the deployment's
+(`../protocol/configuration.md`, section 6), zero in every profile:
+
+- **A room of its own:** public reads in flight, within a limit of the
+  clients' component's, apart from the sign-ins' exchanges in flight;
+  no signed-in exchange waits for one, and none of them takes a
+  signed-in party's room (`../protocol/client.md`, section 13).
+- **A rate of reads:** a bucket of reads, refilled at the rate per
+  second by the component's monotonic clock and holding at most its
+  burst; each read admitted takes one.
+- **A rate of bytes, reserved first:** a bucket of answer bytes,
+  refilled likewise and holding at most its burst. Before a read is
+  handed on, the component reserves its kind's largest answer, every
+  kind's bound declared at start (`../protocol/client.md`, section 19);
+  a read the bucket cannot cover is busy. Once answered, the bytes it
+  did not send are given back; a read that ends any other way (unknown,
+  busy at the root, its exchange gone) gives back all of them. The
+  bucket never goes below empty, so a burst of reads at once is bounded
+  by its burst, never by a debt.
+- **A ceiling per answer:** no public answer is larger than the
+  deployment's answer ceiling; every kind's declared bound is within
+  it, and the ceiling within the bytes' burst, or the start is refused.
+- **Behind every signed-in request:** the engine's root admits a public
+  read only while its backlog is under the public watermark, lower than
+  the one that admits every other new work, and only while the core
+  holds fewer public reads than its own limit (root.md, sections 3 and
+  10). Load from signed-in parties refuses public reads first.
+- **Protected capacity:** a public read loads nothing from the store,
+  reading the public index alone (13.9); its work is bounded per read
+  (13.9), so its share of the loop is bounded by its rate; its memory
+  is its reservation and the index's; and over HTTP it holds a calls'
+  room of its own, never a signed-in call's (`../protocol/client.md`,
+  17.5). Engine completions and signed-in reads never wait on one.
+- **Busy first, never queued:** a public read past any of these is
+  answered busy at once, saying nothing more; nothing waits, and the
+  component never offers it again.
+- **Off unless figured:** a rate of zero answers every public read
+  busy, and is every profile's: a deployment that opens sets its
+  figures, and the start checks how they relate
+  (`../protocol/configuration.md`, section 6).
+- **The proxy's own limits:** a reverse proxy before the engine caches
+  the answers within their freshness, limits each address and admits
+  public reads before they take its connections to the engine; jig
+  trusts no address and counts none.
+- **Durable before shown,** as every read's answer is (engine.md, 5.2).
+
+### 13.6 Its world
+
+In the core's world: a project's owner makes it public, and the public
+party reads its board and a delegate's card, with no text but their
+titles and the project's name, and no party's name or internal number,
+in them; a member's `SetVisibility` is refused; a goal made beneath a
+conversation read as a public goal with no parent, the conversation
+never named or counted; a delegate moved out of a goal's
+tree leaving its board, its counts and its card, and one moved in
+joining them; the project made private, and a public read answered
+unknown, as a project never made and a private one are, with the same
+work done before each answer; a conversation's delegate's card,
+unknown; a deleted public project, unknown from its deletion's
+decision; public reads past their rate, their bytes and their room
+answered busy, while signed-in reads at the same moment are all
+answered; the root's backlog past the public watermark, or the core's
+public reads at their limit, refusing a public read and admitting a
+signed-in one; a rate of zero refusing every public read; and every
+exchange without a credential but a public read answered signed out.
+
+Its races, each played both ways round: a project made private, a
+project's deletion admitted, a task moved out of its goal's tree, and
+a goal untracked, each while a public read of it is under way (an
+application's document asked of its connector, an answer held until
+durable), the read answered unknown; and a read whose reservation is
+given back on every way it ends, the bytes' bucket whole after.
+
+Its referee: the public party commits nothing and appears in no
+record; no public document holds a field its type does not, a task
+that is not public, or an internal number; no public read of a project
+is answered after the decision that made the project private, began
+its deletion, or took the task out of its public tree; no public read
+is admitted while the root's backlog is at its public watermark, nor
+holds a signed-in exchange's room; the bytes reserved and refunded sum
+to the bytes answered.
+
+### 13.7 Which tasks are public
+
+One rule, the same for every field, list, count and connector:
+
+- **A public goal** is a goal (core.md, 6.2) of a public project, live
+  or ended, whose parent, if any, is in no goal's tree: a goal made
+  beneath a conversation is one, its parent not. A goal inside another
+  goal's tree is a line of that tree.
+- **A public task** is a public goal or a task below one, in its tree,
+  that the public index holds (13.9). Nothing else is: a conversation
+  and its delegates outside every goal's tree, a recurring task, a task
+  of another project, a task past the index's bounds.
+- **Ancestry stops at the public goal:** its line names no parent, and
+  a card's lineage ends at it.
+- **Every reference passes it:** a parent, a lineage, a delegate, a
+  board's goal, an application's change, landing, member or queue
+  entry. A value made from a set (a count by phase, a folded count, a
+  position, a total) is made from the public members alone, filtered
+  before it is counted or ordered; a value whose meaning would disclose
+  what is not public, such as a place in a queue that holds tasks that
+  are not, is not given at all.
+- **It moves with the decisions:** a task made, moved (5.1), tracked or
+  untracked, ended, or its project made public, private or deleted,
+  changes what is public in the decision that commits it, and the
+  public index follows in the same step.
+
+### 13.8 Public identifiers
+
+- **Opaque:** a public project and a public task are named by public
+  identifiers, never by their numbers, which would show how many
+  projects and tasks were made in between. An identifier is a keyed
+  permutation of the number, 64 bits, apart for projects and tasks,
+  written as 16 lowercase hexadecimal digits.
+- **The key is the clients' component's,** a secret of the deployment's
+  made at its first start and kept in the store's secrets' records as
+  its other secrets are (`../protocol/client.md`, section 19). Only the
+  component maps identifiers to numbers and back; the core and the
+  connectors see numbers alone.
+- **A stranger's identifier is unknown:** one that maps to no project,
+  to a private one, or to a task that is not public takes the same path
+  as an excluded one, a miss in the public index (13.9), and is answered
+  alike.
+
+### 13.9 The public index and the work of a read
+
+- **An index of public data:** the core keeps, for each public project,
+  its public goals and tasks: the live ones as references into its live
+  tasks, and the most recently ended public goals, each with its tree's
+  public lines as they ended, within the index's bounds (goals ended
+  per project, lines per goal, depth). A read examines the index alone,
+  never the live tasks of the deployment and never the store.
+- **Built before it is read:** at start, once the live tasks are
+  restored, and when a project is made public, the core builds the
+  project's entry from its live tasks; until it has, a public read of
+  the project is answered busy. Kept with the decisions (13.7) after.
+- **Ended goals since it was built:** the ended goals the index holds
+  are those that ended while it kept the project, frozen as they ended;
+  the store keeps no index of a project's ended goals to load from
+  (`../protocol/store.md`, 7.4), so a start, or a project made public,
+  begins with none. Loading them is open (section 12).
+- **Bounded per read:** a board examines at most its goals' bound times
+  its lines' bound, a card its lineage's depth and its delegates'
+  bound; each answer's bytes are known from those bounds, which its
+  kind declares, so the whole nested document is priced, not each list.
+- **Truncated by rule:** a list past its bound keeps its first entries
+  in its order (live goals by priority, ended by when they ended, lines
+  in tree order) and folds the rest into a count of public tasks; an
+  ended goal past the index's bound is no longer public, and its card
+  unknown.
+- **Its memory** is its bounds times the deployment's public projects,
+  within the start's fit check (`../protocol/configuration.md`, section
+  6).
+
+### 13.10 A read under way
+
+- **Rechecked before it is answered:** a public read's answer is made
+  in the core's step that completes it, after every asynchronous part
+  (its connector's document, its wait to be durable). In that step the
+  core checks again that the project is public and not being deleted,
+  and that every task the answer names is still public (13.7); if not,
+  it answers unknown.
+- **Never in revocation's way:** making a project private, deleting
+  it, moving or untracking a task commit as they would with no reads
+  under way; the reads they touch end unknown when they complete.
+- **Its freshness is its snapshot's:** an answer carries when the step
+  that made it decided, and the clients' end gives it what remains of
+  the `max-age` from then (`../protocol/client.md`, 17.5), never a
+  fresh `max-age` for a late answer.

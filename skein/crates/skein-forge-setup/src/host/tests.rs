@@ -115,6 +115,35 @@ fn valid_refuses_installation_slots_past_u32() {
 }
 
 #[test]
+fn a_removed_forge_keeps_a_held_done() {
+    let env = Env { now: Time::ZERO, wall: Wall::EPOCH, limits: crate::tests::host::limits() };
+    let mut host = Host::new(&env.limits, crate::tests::host::settings(&[1]), crate::tests::host::crypto())
+        .expect("valid settings");
+    let mut up = Queue::uncapped();
+    let mut io = Queue::uncapped();
+    let token = Token::new(1);
+    host.down(
+        &env,
+        Request::Run { run: token, plan: Plan::Reconcile { forge: 1, adopted: Box::new([]) } },
+        &mut up,
+        &mut io,
+    );
+    up.clear();
+    let run = host.runs.get_mut(&token).expect("admitted run");
+    // Model a terminal machine whose Done is held past drive's pass cap.
+    run.halt(Why::Down, &mut host.plan_out);
+    run.pending = Some(reconcile::Need::Done(reconcile::Outcome::Nothing));
+
+    host.down(&env, Request::Remove { forge: 1 }, &mut up, &mut io);
+    assert_eq!(up.pop(), Some(Event::Done { run: token, outcome: reconcile::Outcome::Nothing }));
+    assert!(up.is_empty(), "the removed run ends once");
+    host.down(&env, Request::Remove { forge: 1 }, &mut up, &mut io);
+    assert!(up.is_empty(), "removing the forge again emits no second end");
+    assert!(io.is_empty());
+    assert_eq!(host.next_deadline(), None);
+}
+
+#[test]
 fn runtime_removal_forgets_only_its_forges_callback_states() {
     use super::states::Purpose;
     use skein_lib::Duration;

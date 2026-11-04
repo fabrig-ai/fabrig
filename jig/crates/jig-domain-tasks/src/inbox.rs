@@ -353,6 +353,14 @@ pub(crate) fn check_message(
             capacity: None,
         }));
     }
+    if crate::batch::matches_job(task.executor) {
+        return Err(Box::new(crate::Problem {
+            task: Some(number),
+            why: Refusal::Executor,
+            blocked_by: None,
+            capacity: None,
+        }));
+    }
     let available = match task.phase {
         Phase::Active(_) | Phase::Waiting | Phase::Held { was: crate::Was::Waiting | crate::Was::Active(_), .. } => {
             true

@@ -1,5 +1,5 @@
 //! Output-pressure controls and observations for the entrance orders
-//! (skein/docs/design/draft/dynamic-memory.md, 4.6). It retains only kernel
+//! (skein/docs/foundation/programming-model.md, 7.2). It retains only kernel
 //! completions and wire records, never the service's domain state.
 
 use super::Proc;

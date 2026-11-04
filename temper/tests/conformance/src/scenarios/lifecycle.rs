@@ -55,12 +55,18 @@ fn delegate(world: &mut World) {
     authority.delegation = tasks::Delegation { kinds: Box::new([]), tasks: 0, depth: 0 };
     let batch = [b"moved delegate".as_slice(), b"cancelled delegate".as_slice()].map(|words| core::Delegate {
         executor: tasks::Executor::Agent { charter: 1 },
-        spec: tasks::Spec { asks: false, words: words.into(), parameters: Box::new([]), inputs: Box::new([]) },
+        spec: tasks::Spec {
+            job: None,
+            asks: false,
+            words: words.into(),
+            parameters: Box::new([]),
+            inputs: Box::new([]),
+        },
         contract: tasks::Contract::Report { words: 128 },
         authority: authority.clone(),
         symbolic_grants: Box::new([]),
         dependencies: Box::new([]),
-        wake: tasks::WakePolicy::DEFAULT,
+        wake: Some(tasks::WakePolicy::DEFAULT),
         ..temper_engine_domain_world::fixtures::report_delegate(b"fixture", Box::new([]))
     });
     crate::link::call(

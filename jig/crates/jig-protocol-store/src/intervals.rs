@@ -58,7 +58,7 @@ pub fn restore(range: &RestoreRange) -> Box<[Range]> {
         RestoreRange::People => {
             return Box::new([
                 Range { start: Box::new([keys::JIG, 2, 0]), end: Some(Box::new([keys::JIG, 2, 7])) },
-                Range { start: Box::new([keys::JIG, 2, 8]), end: Some(Box::new([keys::JIG, 2, 10])) },
+                Range { start: Box::new([keys::JIG, 2, 8]), end: Some(Box::new([keys::JIG, 2, 11])) },
             ]);
         }
         RestoreRange::Tasks => {
@@ -194,10 +194,12 @@ pub fn scope(party: u64, scope: &core::reads::Scope) -> Option<Box<[Range]>> {
                 .expect("held interval");
             ranges.into_boxed()
         }
-        Scope::Task { task } | Scope::PersonTask { task } | Scope::Result { task } => Box::new([
-            point(&core::Key::Tasks(jig_domain_tasks::Key::Live(*task))),
-            point(&core::Key::Tasks(jig_domain_tasks::Key::Ended(*task))),
-        ]),
+        Scope::TaskText { task, .. } | Scope::Task { task } | Scope::PersonTask { task } | Scope::Result { task } => {
+            Box::new([
+                point(&core::Key::Tasks(jig_domain_tasks::Key::Live(*task))),
+                point(&core::Key::Tasks(jig_domain_tasks::Key::Ended(*task))),
+            ])
+        }
         Scope::Reply { task, activity } => {
             Box::new([point(&core::Key::Tasks(jig_domain_tasks::Key::Activity { task: *task, position: *activity }))])
         }

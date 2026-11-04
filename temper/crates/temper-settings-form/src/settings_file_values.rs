@@ -1,8 +1,9 @@
 //! Concrete whole-value decoders; the schema has fixed depth, with no recursive calls.
-use super::{Decoder, Error, error, field, optional};
+use super::{Decoder, Error, bound, error, field, optional};
 use crate::view as c;
+use alloc::boxed::Box;
 use skein_json::Kind;
-use skein_lib::{Duration, List, Wall};
+use skein_lib::{Duration, List, Wall, bytes};
 pub(super) fn charter(d: &Decoder, at: u32) -> Result<c::Charter, Error> {
     let fields = d.object(
         at,
@@ -22,11 +23,15 @@ pub(super) fn charter(d: &Decoder, at: u32) -> Result<c::Charter, Error> {
             b"shell",
             b"agents",
             b"call_timeout",
+            b"tools",
             b"hosts",
             b"spend",
+            b"wake",
+            b"documents",
         ],
     )?;
     Ok(c::Charter {
+        documents: documents(d, field(&fields, b"documents")?)?,
         switches: [
             d.boolean(field(&fields, b"resume")?)?,
             d.boolean(field(&fields, b"inspect")?)?,
@@ -59,14 +64,175 @@ pub(super) fn charter(d: &Decoder, at: u32) -> Result<c::Charter, Error> {
             values
         },
         call_timeout: Duration::from_nanos(d.number(field(&fields, b"call_timeout")?)?),
+        tools: match optional(&fields, b"tools") {
+            Some(at) => d.number(at)?,
+            None => crate::CHARTER_TOOLS_DEFAULT,
+        },
         hosts: setting_hosts(d, field(&fields, b"hosts")?)?,
         spend: d.number(field(&fields, b"spend")?)?,
+        wake: match optional(&fields, b"wake") {
+            Some(at) if d.kind(at)? != Kind::Null => wake_policy(d, at)?,
+            Some(_) | None => c::WakePolicy::DEFAULT,
+        },
     })
+}
+fn wake_policy(d: &Decoder, at: u32) -> Result<c::WakePolicy, Error> {
+    match wake_policy_value(d, at) {
+        Ok(value) => Ok(value),
+        Err(why) => Err(wake_error(b"charter.wake", why)),
+    }
+}
+fn wake_policy_value(d: &Decoder, at: u32) -> Result<c::WakePolicy, Error> {
+    let fields = d.object(at, &[b"words", b"notices", b"news", b"results", b"questions", b"answers", b"timers"])?;
+    Ok(c::WakePolicy {
+        words: wake_rule(d, field(&fields, b"words")?, b"words")?,
+        notices: wake_rule(d, field(&fields, b"notices")?, b"notices")?,
+        news: wake_rule(d, field(&fields, b"news")?, b"news")?,
+        results: match d.string(field(&fields, b"results")?)? {
+            b"never" => c::ResultsWake::Never,
+            b"each" => c::ResultsWake::Each,
+            b"last_or_failure" => c::ResultsWake::LastOrFailure,
+            _ => return Err(error(b"results", b"unknown results rule")),
+        },
+        questions: d.boolean(field(&fields, b"questions")?)?,
+        answers: d.boolean(field(&fields, b"answers")?)?,
+        timers: d.boolean(field(&fields, b"timers")?)?,
+    })
+}
+fn wake_rule(d: &Decoder, at: u32, path: &[u8]) -> Result<c::WakeRule, Error> {
+    match wake_rule_value(d, at) {
+        Ok(value) => Ok(value),
+        Err(why) => Err(wake_error(path, why)),
+    }
+}
+fn wake_rule_value(d: &Decoder, at: u32) -> Result<c::WakeRule, Error> {
+    if d.kind(at)? == Kind::String {
+        return match d.string(at)? {
+            b"never" => Ok(c::WakeRule::Never),
+            b"immediate" => Ok(c::WakeRule::Immediate),
+            _ => Err(error(b"", b"unknown wake rule")),
+        };
+    }
+    let fields = d.object(at, &[b"batch", b"paced"])?;
+    if fields.len() != 1 {
+        return Err(error(b"", b"one wake rule member required"));
+    }
+    if let Some(at) = optional(&fields, b"paced") {
+        return Ok(c::WakeRule::Paced { span: Duration::from_nanos(d.number(at)?) });
+    }
+    match wake_batch(d, field(&fields, b"batch")?) {
+        Ok(value) => Ok(value),
+        Err(why) => Err(wake_error(b"batch", why)),
+    }
+}
+fn wake_batch(d: &Decoder, at: u32) -> Result<c::WakeRule, Error> {
+    let fields = d.object(at, &[b"count", b"age"])?;
+    let count = u32::try_from(d.number(field(&fields, b"count")?)?).or(Err(error(b"count", b"integer bound")))?;
+    Ok(c::WakeRule::Batch { count, age: Duration::from_nanos(d.number(field(&fields, b"age")?)?) })
+}
+fn wake_error(path: &[u8], why: Error) -> Error {
+    why.at(path)
+}
+
+fn documents(d: &Decoder, at: u32) -> Result<List<c::CharterDocument>, Error> {
+    let positions = d.array(at, d.limits.charter_documents, b"charter.documents")?;
+    let mut values = List::with_capacity(positions.len());
+    for (index, at) in positions.iter().enumerate() {
+        match document(d, *at) {
+            Ok(value) => values.push(value).expect("checked list length"),
+            Err(why) => {
+                let mut measured = crate::Text::measure();
+                document_member(index, &why.member, &mut measured);
+                let mut out = crate::Text::writing_exact(measured);
+                document_member(index, &why.member, &mut out);
+                return Err(Error { member: out.finish(), ..why });
+            }
+        }
+    }
+    Ok(values)
+}
+fn document_member(index: usize, member: &[u8], out: &mut crate::Text) {
+    out.put(b"charter.documents[");
+    out.number(u64::try_from(index).expect("document index"));
+    out.put(b"].");
+    out.put(member);
+}
+fn document(d: &Decoder, at: u32) -> Result<c::CharterDocument, Error> {
+    let fields = d.object(at, &[b"forge", b"repository", b"branch", b"path", b"heading", b"connector", b"name"])?;
+    for member in [b"name".as_slice(), b"connector"] {
+        if optional(&fields, member).is_some() {
+            return Err(error(member, b"shape: forge branch required"));
+        }
+    }
+    let forge = d.document_string(field(&fields, b"forge")?, b"forge")?;
+    let repository = d.document_string(field(&fields, b"repository")?, b"repository")?;
+    let branch = d.document_string(field(&fields, b"branch")?, b"branch")?;
+    let slash = bytes::find(repository, b"/").ok_or(error(b"repository", b"OWNER/NAME required"))?;
+    let owner = repository.get(..slash).expect("repository prefix");
+    let repo = repository.get(slash.checked_add(1).expect("slash position")..).expect("repository suffix");
+    let segment_bound = d.limits.charter_document_name_item;
+    document_segment(forge, segment_bound, b"forge")?;
+    document_segment(owner, segment_bound, b"repository")?;
+    document_segment(repo, segment_bound, b"repository")?;
+    document_segment(b"forge", segment_bound, b"forge")?;
+    document_segment(b"branch", segment_bound, b"branch")?;
+    let count = bytes::count(branch, b"/", u32::MAX).saturating_add(6);
+    if count > d.limits.charter_document_name {
+        return Err(bound(b"branch", d.limits.charter_document_name));
+    }
+    let mut name = List::with_capacity(count);
+    for segment in [b"forge".as_slice(), forge, owner, repo, b"branch"] {
+        name.push(Box::from(segment)).expect("measured name");
+    }
+    let mut start = 0;
+    for _ in 5..count {
+        let end = bytes::find_from(branch, b"/", start).unwrap_or(branch.len());
+        let segment = branch.get(start..end).expect("branch segment");
+        document_segment(segment, segment_bound, b"branch")?;
+        name.push(Box::from(segment)).expect("measured name");
+        start = end.checked_add(1).expect("file bound");
+    }
+    let path_at = field(&fields, b"path")?;
+    d.document_string(path_at, b"path")?;
+    let path = d.words(path_at, d.limits.charter_document_path, b"path")?.into_bytes();
+    if path.is_empty() {
+        return Err(error(b"path", b"nonempty text required"));
+    }
+    let heading = match optional(&fields, b"heading") {
+        Some(at) if d.kind(at)? != Kind::Null => {
+            d.document_string(at, b"heading")?;
+            let heading = d.words(at, d.limits.charter_document_heading_some, b"heading")?.into_bytes();
+            if heading.is_empty() {
+                return Err(error(b"heading", b"nonempty text required"));
+            }
+            Some(heading)
+        }
+        Some(_) | None => None,
+    };
+    Ok(c::CharterDocument { connector: 0, name, path, heading })
+}
+impl Decoder {
+    fn document_string(&self, at: u32, member: &[u8]) -> Result<&[u8], Error> {
+        match self.string(at) {
+            Ok(bytes) => Ok(bytes),
+            Err(why) => Err(Error { member: member.into(), ..why }),
+        }
+    }
+}
+fn document_segment(bytes: &[u8], most: u32, member: &[u8]) -> Result<(), Error> {
+    if bytes.len() > usize::try_from(most).expect("segment bound") {
+        return Err(bound(member, most));
+    }
+    if bytes.is_empty() || bytes.contains(&b'/') {
+        return Err(error(member, b"nonempty name segment required"));
+    }
+    Ok(())
 }
 pub(super) fn template(d: &Decoder, at: u32) -> Result<c::Template, Error> {
     let fields = d.object(
         at,
         &[
+            b"resources",
             b"number",
             b"name",
             b"executor",
@@ -82,6 +248,7 @@ pub(super) fn template(d: &Decoder, at: u32) -> Result<c::Template, Error> {
         ],
     )?;
     Ok(c::Template {
+        resources: template_resources(d, optional(&fields, b"resources"))?,
         number: u32::try_from(d.number(field(&fields, b"number")?)?)
             .or(Err(error(b"template_number", b"integer bound")))?,
         name: d.document_text(field(&fields, b"name")?)?,
@@ -113,6 +280,40 @@ pub(super) fn template(d: &Decoder, at: u32) -> Result<c::Template, Error> {
             Some(llm_choice(d, field(&fields, b"llm")?)?)
         },
     })
+}
+fn template_resources(d: &Decoder, at: Option<u32>) -> Result<List<c::Symbol>, Error> {
+    let Some(at) = at else { return Ok(List::with_capacity(0)) };
+    let positions = d.array(at, d.limits.template_resources, b"template.resources")?;
+    let mut values = List::with_capacity(positions.len());
+    for at in &positions {
+        let value = template_symbol(d, *at)?;
+        if values.as_slice().contains(&value) {
+            return Err(error(b"template.resources", b"duplicate pair"));
+        }
+        values.push(value).expect("checked list length");
+    }
+    Ok(values)
+}
+fn template_symbol(d: &Decoder, at: u32) -> Result<c::Symbol, Error> {
+    let fields = match d.object(at, &[b"connector", b"symbol"]) {
+        Ok(fields) => fields,
+        Err(why) => return Err(why.at(b"template.resources")),
+    };
+    Ok(c::Symbol {
+        connector: symbol_number(d, field(&fields, b"connector"), b"connector")?,
+        symbol: symbol_number(d, field(&fields, b"symbol"), b"symbol")?,
+    })
+}
+fn symbol_number(d: &Decoder, at: Result<u32, Error>, member: &[u8]) -> Result<u16, Error> {
+    let number = match at {
+        Ok(at) => d.number(at),
+        Err(why) => return Err(why.at(b"template.resources")),
+    };
+    let number = match number {
+        Ok(number) => number,
+        Err(why) => return Err(why.named(member).at(b"template.resources")),
+    };
+    u16::try_from(number).or(Err(error(member, b"integer bound").at(b"template.resources")))
 }
 pub(super) fn setting_policy(d: &Decoder, at: u32) -> Result<c::SettingPolicy, Error> {
     let fields = d.object(
@@ -324,9 +525,16 @@ fn template_executor(d: &Decoder, at: u32) -> Result<c::TemplateExecutor, Error>
     Err(error(b"template_executor", b"unknown variant"))
 }
 fn task_contract_document(d: &Decoder, at: u32) -> Result<c::TaskContractDocument, Error> {
-    let fields = d.object(at, &[b"approval", b"report", b"verdict", b"change"])?;
+    let fields = d.object(at, &[b"approval", b"report", b"verdict", b"change", b"job"])?;
     if fields.len() != 1 {
         return Err(error(b"task_contract_document", b"one variant required"));
+    }
+    if let Some(at) = optional(&fields, b"job") {
+        let fields = d.object(at, &[b"bytes"])?;
+        return Ok(c::TaskContractDocument::Job {
+            bytes: u32::try_from(d.number(field(&fields, b"bytes")?)?)
+                .or(Err(error(b"task_contract_document_job_bytes", b"integer bound")))?,
+        });
     }
     if let Some(at) = optional(&fields, b"approval") {
         let fields = d.object(at, &[b"state", b"part"])?;
@@ -790,9 +998,14 @@ fn field_rule(d: &Decoder, at: u32) -> Result<c::FieldRule, Error> {
     })
 }
 fn owner_authority_executor(d: &Decoder, at: u32) -> Result<c::AuthorityExecutor, Error> {
-    let fields = d.object(at, &[b"charter", b"procedure", b"role"])?;
+    let fields = d.object(at, &[b"charter", b"procedure", b"role", b"job"])?;
     if fields.len() != 1 {
         return Err(error(b"owner_authority_executor", b"one variant required"));
+    }
+    if let Some(at) = optional(&fields, b"job") {
+        return Ok(c::AuthorityExecutor::Job(
+            u32::try_from(d.number(at)?).or(Err(error(b"owner_authority_executor_job", b"integer bound")))?,
+        ));
     }
     if let Some(at) = optional(&fields, b"charter") {
         return Ok(c::AuthorityExecutor::Charter(

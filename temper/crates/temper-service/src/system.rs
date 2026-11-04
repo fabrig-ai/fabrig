@@ -213,18 +213,23 @@ impl Service {
             clients.configure_google(sign_in, settings.limits.sign_in, seeds, &settings.jig);
         }
         let setup = crate::setup::prepare(&settings, &mut forge_settings, &seeds.crypto, box_line_bytes.is_some())?;
-        let forge = crate::forge::Layer::new(forge_settings, settings.limits.forge_component, &shared, &[])
+        let mut forge = crate::forge::Layer::new(forge_settings, settings.limits.forge_component, &shared, &[])
             .expect("checked forge limits");
+        forge.log_origin_limit = settings.limits.forges.log_origins;
         let notes = Queue::with_capacity(settings.limits.forge.forges);
         let configured = Box::new([]);
         let workers = workers::Workers::configured(&mut settings, seeds.deployment)?;
+        let mut core = jig_protocol_config::core(&settings.jig, seeds.deployment, seeds.seed);
+        core.kinds = crate::stock::kinds(&limits, *core.connectors.first().expect("checked forge connector"));
+        core.jobs = limits::merge_jobs(&settings.jig.limits);
         let config = temper_engine_domain::Config {
+            host_part: settings.host_part,
+            kinds_stock: settings.kinds_stock,
             period_span: crate::stock::PERIOD_SPAN,
-            core: jig_protocol_config::core(&settings.jig, seeds.deployment, seeds.seed),
-            landing: settings.landing,
+            core,
+            landings: settings.landings,
             forge: forge_config,
             identities,
-            forge_charter: settings.charter,
             machine: Some(machine_config(&settings.machine)),
             forges: configured,
             under_box: box_line_bytes.is_some(),
@@ -1089,7 +1094,10 @@ pub(crate) fn playground_config(
     }
 }
 
-/// Machine places passed to the root (temper/docs/design/draft/playground-reset.md, 3).
+/// github.com's remotes' base (temper/docs/design/protocol/configuration.md, 3).
+pub(crate) const GITHUB_REMOTE: &[u8] = b"https://github.com";
+
+/// Machine places passed to the root (temper/docs/design/protocol/configuration.md, 3).
 #[expect(clippy::manual_map, reason = "the configuration boundary uses explicit matches")]
 pub(crate) fn machine_config(machine: &temper_forge_setup::machine::Machine) -> temper_engine_domain_forge::Machine {
     use temper_engine_domain_forge::{Address, Machine, Place};
@@ -1116,7 +1124,7 @@ pub(crate) fn machine_config(machine: &temper_forge_setup::machine::Machine) -> 
                 port: 443,
                 tls: Some(skein_lib::bytes::copy_of(b"api.github.com")),
             },
-            git: skein_lib::bytes::copy_of(b"https://github.com/"),
+            git: skein_lib::bytes::copy_of(GITHUB_REMOTE),
             web: Some(skein_lib::bytes::copy_of(b"https://github.com")),
         },
     };

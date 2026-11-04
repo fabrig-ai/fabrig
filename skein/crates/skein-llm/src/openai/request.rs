@@ -1,7 +1,9 @@
-use crate::openai::{DecodeError, Json, Limits, identity, json};
+use crate::openai::{DecodeError, Json, Limits, json};
 use alloc::boxed::Box;
 use skein_json::{Document, Kind, writer::Encoder};
 use skein_lib::{List, bytes};
+
+pub(crate) const VERBOSITY: &[u8] = b"low";
 
 #[derive(Clone, Copy, PartialEq, Eq, Hash, Debug)]
 pub enum Role {
@@ -138,7 +140,7 @@ fn write_request(out: &mut Encoder, request: &Request, limits: &Limits) {
     out.key(b"text");
     out.object_start();
     out.key(b"verbosity");
-    out.string(identity::VERBOSITY);
+    out.string(VERBOSITY);
     out.object_end();
     out.object_end();
 }

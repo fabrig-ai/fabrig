@@ -3,9 +3,12 @@
 #[global_allocator]
 static HEAP: skein_heap::Counting = skein_heap::Counting;
 
+mod disk;
 mod golden;
 mod memory;
+mod open;
 mod real;
+mod recovery;
 mod store;
 
 mod fuzzy {

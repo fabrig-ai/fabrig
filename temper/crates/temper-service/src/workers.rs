@@ -298,6 +298,7 @@ pub fn owner(event: &io::Event) -> Option<Token> {
 
 fn delivery(now: Time, channel: Token, down: host::LinkDown, values: &Values) -> kit::Event {
     let grants = match &down {
+        host::LinkDown::AssignJob { job } => values.grants(&job.grants, now),
         host::LinkDown::Assign { assignment } => values.grants(&assignment.assignment.grants, now),
         host::LinkDown::Grant { grant, .. } => values.grants(::core::slice::from_ref(grant), now),
         host::LinkDown::Sources { .. }
@@ -382,6 +383,23 @@ impl Workers {
 #[must_use]
 pub fn parts(up: &host::LinkUp, parts: &[Part], limits: &wire::Limits) -> Option<root::Parts> {
     let (work, preparation) = match up {
+        host::LinkUp::JobAnswer { answer, .. } => match answer {
+            host::JobEnding::Finished { work, .. } => (Some(work), None),
+            host::JobEnding::Failed { work, failure, .. } => (
+                Some(work),
+                match failure {
+                    host::JobFailure::Unprepared(host::Preparation::Permanent { resource }) => *resource,
+                    host::JobFailure::Unprepared(host::Preparation::Transient)
+                    | host::JobFailure::Failed
+                    | host::JobFailure::Deadline
+                    | host::JobFailure::Result
+                    | host::JobFailure::Unstarted
+                    | host::JobFailure::Undelivered(_)
+                    | host::JobFailure::Cancelled(_) => None,
+                },
+            ),
+            host::JobEnding::Refused(_) => (None, None),
+        },
         host::LinkUp::Answer { answer, .. } => match &answer.ending {
             host::Ending::Ended { work, .. } | host::Ending::Parked { work } => (Some(work), None),
             host::Ending::Failed { work, failure, .. } => (
@@ -582,6 +600,7 @@ mod tests {
         let mut service = crate::tests::fixtures::started();
         let channel = Token::new(7);
         let hello = host::Hello {
+            jobs: Box::default(),
             slots: 1,
             stop_bound: skein_lib::Duration::from_millis(100),
             workstreams: Box::new([]),

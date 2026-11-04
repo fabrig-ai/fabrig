@@ -38,6 +38,7 @@ mod small;
 mod task_lines;
 pub mod task_query;
 pub(crate) mod task_tree;
+pub(crate) use task_tree::hold as task_hold;
 mod task_wait;
 
 use jig_domain_people::ApplicationScope;
@@ -67,7 +68,7 @@ pub use project_note::{
 };
 pub(crate) use settings::inventory as settings_inventory;
 pub use settings::{Follows, HeldRevision, SettingLine, Settings, SettingsProposal};
-pub use settings_review::{ReviewItem, SettingsReview, settings_heads};
+pub use settings_review::{ApplicationReview, ReviewItem, SettingsReview, settings_heads};
 pub(crate) use small::text as bounded_text;
 pub use task_lines::{ConversationRead, TaskLine, task_line};
 pub use task_query::{Lines, PhaseClass, QueryOrder, TaskQuery, lines};
@@ -76,7 +77,7 @@ pub use task_tree::{
     NoteScope, Parameter, Part, PartKey, PartKind, PatternEnd, PhaseCounts, PlacedLine, PriorPhase, ProposalRef,
     ResourceLine, ResultValue, Task, TaskLink, TaskSettings, Tree, TreeRow, task_from_row,
 };
-pub use task_wait::{OpenProgram, TaskRunWait, TaskSourceState, TaskWaitRefused, TaskWaitWhy};
+pub use task_wait::{TaskRunWait, TaskSourceState, TaskWaitRefused, TaskWaitWhy};
 
 pub use crate::runs::waits::WaitsOn;
 use crate::{Core, Limits};
@@ -252,6 +253,8 @@ pub enum Count {
 /// A task's executor kind; its detail lives on the task document.
 #[derive(Clone, Copy, PartialEq, Eq, Hash, Debug)]
 pub enum ExecutorKind {
+    /// An application job.
+    Job,
     /// An agent with a configured charter.
     Agent,
     /// A connector-owned procedure.
@@ -302,6 +305,8 @@ pub struct FrameProjectRole {
     pub models: jig_domain_authority::Models,
     /// Configured templates with this project's policy overrides applied.
     pub templates: List<crate::Template>,
+    /// Whether the project is public (jig/docs/design/domain/people.md, 13.2).
+    pub public: bool,
 }
 
 /// Party identity, current roles, bounded counts and contract configuration.
@@ -504,9 +509,9 @@ pub fn document_bound(limits: &DocumentLimits) -> Option<u64> {
 
 /// Bound of a document including the inbox's requester selection context.
 #[must_use]
-pub fn document_with_context_bound(limits: &Limits) -> Option<u64> {
+pub fn document_with_context_bound(limits: &Limits, kinds: &[crate::settings::Kind]) -> Option<u64> {
     document_bound(&limits.documents)?
-        .checked_add(settings::document_bound(limits)?)?
+        .checked_add(settings::document_bound(limits, kinds)?)?
         .checked_add(settings_review::document_bound(limits)?)?
         .checked_add(inbox_selection_bound(limits.documents.rows, limits.tasks.depth)?)?
         .checked_add(u64::from(limits.documents.lines).checked_mul(crate::settings::templates::list_bound(limits)?)?)

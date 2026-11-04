@@ -323,6 +323,8 @@ impl Chat {
             let running = match delegation::facts(document).state {
                 delegation::State::Running | delegation::State::Held => true,
                 delegation::State::Landed
+                | delegation::State::Cleared
+                | delegation::State::Uncleared
                 | delegation::State::Done
                 | delegation::State::Failed
                 | delegation::State::Cancelled
@@ -630,14 +632,17 @@ impl Chat {
             Act::Older => ask_activity(&mut self.asking, self.activity, self.thread.older(), out),
             Act::Send => self.send(env, client, Sending::Message, serial, out),
             Act::Stop => self.send(env, client, Sending::Stop, serial, out),
-            Act::Choice(_)
+            Act::Switcher(_)
+            | Act::Choice(_)
             | Act::Accounts(_)
             | Act::ConnectModel(_)
+            | Act::MakeDefault
             | Act::OpenProject { .. }
             | Act::Project { .. }
             | Act::SignOut
             | Act::ChatWords { .. }
             | Act::StartChat
+            | Act::FirstChat
             | Act::RetryPlayground
             | Act::Playground
             | Act::Suggest { .. }

@@ -243,7 +243,9 @@ pub(crate) fn start(
                         && row.attempt.checked_add(1) == Some(step)
                         && match row.executor {
                             tasks::Executor::Procedure { connector, .. } => connector == number,
-                            tasks::Executor::Agent { .. } | tasks::Executor::Person(_) => false,
+                            tasks::Executor::Agent { .. }
+                            | tasks::Executor::Person(_)
+                            | tasks::Executor::Job { .. } => false,
                         }
                 }
                 None => false,
@@ -320,6 +322,10 @@ fn start_flight(core: &mut Core, env: &Env<Limits>, owner: Token, number: u16, o
     };
 }
 
+#[expect(
+    clippy::too_many_lines,
+    reason = "the connector dispatcher handles each effect and settings event exhaustively"
+)]
 pub(crate) fn connector(
     core: &mut Core,
     env: &Env<Limits>,
@@ -328,6 +334,7 @@ pub(crate) fn connector(
 ) -> Queue<Request> {
     let mut out = Queue::uncapped();
     match event {
+        connector::Event::SettingsRestored { owner, judged } => return crate::routing::settings::restore::restored(core, env, work, owner, judged),
         connector::Event::DescribeBusy { owner } => describe_busy(core, env, work, &mut out, owner),
         connector::Event::DescribeRefused { owner } => describe_refused(core, env, work, &mut out, owner),
         connector::Event::Described { owner, description } => described(core, env, work, &mut out, owner, description),
@@ -425,6 +432,10 @@ pub(crate) fn connector(
         | connector::Event::WorkspaceReady { .. }
         // The root maps connector completion to start_done for the phase it is serving.
         | connector::Event::RestartDone { .. } => {}
+        connector::Event::SettingsJudged { owner, judged } => return crate::settings::application::judged(core, env, work, owner, judged),
+        connector::Event::SettingsDefaults { connector, defaults } => {
+            crate::settings::application::defaults(core, connector, defaults);
+        }
     }
     out
 }
@@ -861,7 +872,9 @@ fn origin_current(core: &Core, connector: u16, origin: &EffectOrigin) -> bool {
                     && row.attempt.checked_add(1) == Some(*step)
                     && match row.executor {
                         tasks::Executor::Procedure { connector: number, .. } => number == connector,
-                        tasks::Executor::Agent { .. } | tasks::Executor::Person(_) => false,
+                        tasks::Executor::Agent { .. } | tasks::Executor::Person(_) | tasks::Executor::Job { .. } => {
+                            false
+                        }
                     }
             }
             None => false,
@@ -903,7 +916,9 @@ fn charge(core: &mut Core, work: &mut Queue<Work>, origin: &EffectOrigin, price:
         let funder = match origin {
             EffectOrigin::Projection { .. } => return,
             EffectOrigin::Call { key, .. } => tasks::Funder::Task(key.task),
-            EffectOrigin::Procedure { task, .. } => tasks::Funder::Task(*task),
+            EffectOrigin::Procedure { task, .. } => {
+                core.procedure_effect_funder(*task).unwrap_or(tasks::Funder::Task(*task))
+            }
             EffectOrigin::Accept { proposal, by, .. } => match *by {
                 tasks::Party::Task(task) => tasks::Funder::Task(task),
                 tasks::Party::Person(person) => {
@@ -1405,7 +1420,7 @@ fn settled(
     let procedure = match core.tasks.task(task) {
         Some(row) => match row.executor {
             tasks::Executor::Procedure { .. } => true,
-            tasks::Executor::Agent { .. } | tasks::Executor::Person(_) => false,
+            tasks::Executor::Agent { .. } | tasks::Executor::Person(_) | tasks::Executor::Job { .. } => false,
         },
         None => false,
     };

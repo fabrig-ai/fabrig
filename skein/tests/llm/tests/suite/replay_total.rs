@@ -17,7 +17,7 @@ fn standard_client_preparation_stays_under_the_peak_ceiling() {
         history_items: 1,
     };
     let derived = Limits::derive(&declared).unwrap();
-    for (provider, receiving) in [(Provider::OpenAiCodex, 3_527_212), (Provider::Anthropic, 3_527_206)] {
+    for (provider, receiving) in [(Provider::OpenAi, 3_527_212), (Provider::Anthropic, 3_527_206)] {
         let mut bounds = derived.dialect(provider);
         bounds.http.request = 4096;
         bounds.http.read = 256;
@@ -26,7 +26,7 @@ fn standard_client_preparation_stays_under_the_peak_ceiling() {
         let mut input = call(1);
         if provider == Provider::Anthropic {
             input.endpoint = skein_llm::Endpoint::anthropic();
-            input.credential = Some(skein_llm::Credential::anthropic(b"fixture".as_slice().into()));
+            input.credential = Some(skein_llm::Credential::key(b"fixture".as_slice().into()));
         }
         let span = skein_heap::Span::start();
         let prepared = client::Client::prepare(input, &bounds).expect("standard client prepares");

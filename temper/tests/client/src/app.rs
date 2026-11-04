@@ -173,14 +173,14 @@ impl App for Temper {
     }
     fn duty(request: Request) -> Duty<Self> {
         match request {
-            Request::Client { request: jig_client::Request::Down { down: jig_client::Down::Save { record } } } => {
-                Duty::Store(StoreWrite::Save(record))
-            }
-            Request::Client { request: jig_client::Request::Down { down: jig_client::Down::Erase { key } } } => {
-                Duty::Store(StoreWrite::Erase(key))
-            }
-            Request::Client { request: jig_client::Request::SignOut } | Request::SignOut => Duty::SignOut,
-            Request::Client { .. } => Duty::Wire(request),
+            Request::Unlinked {
+                request: jig_client::UnlinkedRequest::Down { down: jig_client::Down::Save { record } },
+            } => Duty::Store(StoreWrite::Save(record)),
+            Request::Unlinked {
+                request: jig_client::UnlinkedRequest::Down { down: jig_client::Down::Erase { key } },
+            } => Duty::Store(StoreWrite::Erase(key)),
+            Request::Unlinked { request: jig_client::UnlinkedRequest::SignOut } | Request::SignOut => Duty::SignOut,
+            Request::Client { .. } | Request::Unlinked { .. } => Duty::Wire(request),
             Request::Show { address, replace } => Duty::Show { address, replace },
             Request::Leave { .. } | Request::Fact { .. } | Request::Dropped { .. } => Duty::Fact,
         }
@@ -190,18 +190,18 @@ impl App for Temper {
     }
     fn unsent(request: Request) -> Option<Event> {
         let event = match request {
-            Request::Client { request: jig_client::Request::Down { down: jig_client::Down::Send { attempt, .. } } } => {
-                jig_client::Event::Up {
-                    up: jig_client::Up::Answer { attempt, envelope: RequestEnvelope::Lost, answer: None, why: None },
-                }
-            }
+            Request::Unlinked {
+                request: jig_client::UnlinkedRequest::Down { down: jig_client::Down::Send { attempt, .. } },
+            } => jig_client::Event::Up {
+                up: jig_client::Up::Answer { attempt, envelope: RequestEnvelope::Lost, answer: None, why: None },
+            },
             Request::Client { request: jig_client::Request::Exchange { exchange, .. } } => {
                 jig_client::Event::Lost { exchange }
             }
             Request::Client { request: jig_client::Request::OpenStream { .. } } => jig_client::Event::StreamGone,
-            Request::Client {
+            Request::Unlinked {
                 request:
-                    jig_client::Request::Down {
+                    jig_client::UnlinkedRequest::Down {
                         down:
                             jig_client::Down::Open { watch, .. }
                             | jig_client::Down::Close { watch }
@@ -210,19 +210,18 @@ impl App for Temper {
             } => jig_client::Event::Up {
                 up: jig_client::Up::WatchEnded { watch, end: jig_client::contract::WatchEnd::Dropped },
             },
-            Request::Client { request: jig_client::Request::Down { down: jig_client::Down::Read { read, .. } } } => {
-                jig_client::Event::Up { up: jig_client::Up::ReadDone { read, result: jig_client::Readout::Limit } }
-            }
-            Request::Client {
+            Request::Unlinked {
+                request: jig_client::UnlinkedRequest::Down { down: jig_client::Down::Read { read, .. } },
+            } => jig_client::Event::Up { up: jig_client::Up::ReadDone { read, result: jig_client::Readout::Limit } },
+            Request::Client { .. }
+            | Request::Unlinked {
                 request:
-                    jig_client::Request::Authorized(_)
-                    | jig_client::Request::Save { .. }
-                    | jig_client::Request::Erase { .. }
-                    | jig_client::Request::CloseStream
-                    | jig_client::Request::Told { .. }
-                    | jig_client::Request::SignOut
-                    | jig_client::Request::ServiceCredential { .. }
-                    | jig_client::Request::Down { down: jig_client::Down::Save { .. } | jig_client::Down::Erase { .. } },
+                    jig_client::UnlinkedRequest::Authorized(_)
+                    | jig_client::UnlinkedRequest::Told { .. }
+                    | jig_client::UnlinkedRequest::SignOut
+                    | jig_client::UnlinkedRequest::Down {
+                        down: jig_client::Down::Save { .. } | jig_client::Down::Erase { .. },
+                    },
             }
             | Request::Show { .. }
             | Request::Leave { .. }
@@ -294,8 +293,8 @@ impl App for Temper {
         seen
     }
     fn sent(request: &Request) -> Option<Sent> {
-        let Request::Client {
-            request: jig_client::Request::Down { down: jig_client::Down::Send { attempt, key, request, .. } },
+        let Request::Unlinked {
+            request: jig_client::UnlinkedRequest::Down { down: jig_client::Down::Send { attempt, key, request, .. } },
         } = request
         else {
             return None;
@@ -318,11 +317,14 @@ impl App for Temper {
     }
     fn decision(request: &Request) -> Option<&jig_client::contract::Ask> {
         match request {
-            Request::Client {
+            Request::Unlinked {
                 request:
-                    jig_client::Request::Down { down: jig_client::Down::Send { request: jig_client::Ask::Jig(ask), .. } },
+                    jig_client::UnlinkedRequest::Down {
+                        down: jig_client::Down::Send { request: jig_client::Ask::Jig(ask), .. },
+                    },
             } => Some(ask),
             Request::Client { .. }
+            | Request::Unlinked { .. }
             | Request::Show { .. }
             | Request::Leave { .. }
             | Request::SignOut

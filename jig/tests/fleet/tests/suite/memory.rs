@@ -110,6 +110,7 @@ impl Measured {
             worker: u32::try_from(channel.raw()).expect("fixture channel") % LIMITS.configured_workers,
             channel,
             hello: Hello {
+                jobs: Box::default(),
                 bounds,
                 stop_bound: Duration::from_secs(0),
                 slots: limits.slots,
@@ -410,7 +411,14 @@ fn two_standing_refusals_with_no_history_retain_no_additional_heap() {
     let hello = |channel, bounds| Event::Hello {
         channel,
         worker: 0,
-        hello: Hello { bounds, stop_bound: Duration::ZERO, slots: 1, workstreams: Box::new([]), hosting: Box::new([]) },
+        hello: Hello {
+            jobs: Box::default(),
+            bounds,
+            stop_bound: Duration::ZERO,
+            slots: 1,
+            workstreams: Box::new([]),
+            hosting: Box::new([]),
+        },
     };
     // Duplicate endpoints warm the facts and output queues without a standing refusal.
     world.step(hello(

@@ -26,6 +26,7 @@ fn fuzzy_up_decoders_never_panic_and_reencode_what_they_read() {
         check!(&bytes, Turn);
         check!(&bytes, Call);
         check!(&bytes, Answer);
+        check!(&bytes, JobAnswer);
         check!(&bytes, Fact);
         check!(&bytes, Piece);
         check!(&bytes, InputCall);
@@ -44,6 +45,7 @@ fn fuzzy_down_decoders_never_panic_and_reencode_what_they_read() {
     for _ in 0..20_000 {
         let bytes = random_bytes(&mut rng);
         check!(&bytes, Assignment);
+        check!(&bytes, Job);
         check!(&bytes, Inbound);
         check!(&bytes, Relayed);
         check!(&bytes, TurnKept);

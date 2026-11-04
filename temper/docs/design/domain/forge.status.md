@@ -1,26 +1,94 @@
 # forge: status
 
-2026-11-01. Where temper's code lags or departs from [forge.md](forge.md).
+2026-11-04. Where temper's code lags or departs from [forge.md](forge.md).
 
-- **Built:** 5.3, 8.3: an agent's forge-read admission Busy uses the host's
-  bounded backoff instead of a model-visible error. Root-domain review
-  tests cover the full call slab, the foreground share with background
-  work due, cancellation during backoff, terminal errors, and one correct
-  answer per read after capacity progresses. The regression carries B1
-  edition 2's first review, task activity 6, without a model turn.
-
-- **Built:** 5.1, 5.2: a changed pull invalidates an in-flight fresh-read chain before its procedure decides, including CI-only progress at an unchanged head and PR metadata. Root-domain tests cover first discovery, a repair push and coalesced wakes; GitHub protocol tests cover a ninety-second failing CI without delivery hints.
-
-- **Built:** 6, 8.5, 16: changes ignore closed or merged history on reused branch names unless the recorded pull number or pushed head matches. A known pull is read by number; an unknown open pull or one at the pushed head is recovered across restart.
-
-- **Built:** 11: a task reclaims its own stale run/lost writer without holding itself; a superseded reread cannot affect its later attempt. Failed rereads keep their branch, repository, task, run and cause in a resource-unavailable hold; contention keeps the resource and holder in a resource-wait hold. Both use existing hold records, including for agent tasks with no change row.
-
-- **Built:** 4.1: demo forge/repositories end but stay readable. 4.3, 4.4: typed NotInstalled and protection facts. 5, 6: skein forge client and runtime writer. 5.2: bounded settling polls. 8.2, 9: dependency-kept changes leave landing queues; a producer retried on its existing change branch carries the change's landing branch. 7.2, 7.3: a goal's changes are its subtree's, so a delegated goal is woken by a landing over its plan. 8.6: a cancelled change's pull is closed with its reason, posted once. 8.8: watched change panel; a landed or ended change keeps its last exact-head CI with its record, across a restart. 16: disconnected restart reads wait for connection. 6: a stop settles through the client's settle mode. 6: a write in flight is a row of its own. 8.1, 8.3: a change's agents hold the forge's reads on its repository; a review that cannot review fails, is asked again once at the same head, and a second failure holds the change, never a repair. 8.1: a change answers a task's question or words naming its requester, at most `tasks.batch` a step; a party's words are taken. 12: a goal's issue is cut to its bounds, folding its plan and milestones; a failed projection holds itself, never the goal. 8.3: a released change clears its own hold with its task's and asks its gate afresh, its tries counted anew; a cancelled change's panel ends with it. The same clearing covers exhausted repairs, declined approval, and a moved branch. 8.1: a change's words stay whole in its task spec. Its pull uses the producer's explicit title, persisted before opening even when the pushed branch is visible first. Waiting for that title keeps the producing stall deadline. Handed branches accept title parameter 10. Explicit titles and landing names preserve punctuation and fit UTF-8 bounds; the body is fitted whole. A goal's issue title uses its spec's first sentence. 8.4: a step the change's authority no longer covers holds it, naming what it lacks; a bare release holds it again. A change makes up to 6 tasks. 8.3: a change's reviews under the forge's review charter, number 2 of kind 3, fixed at 4 until configuration.md 13.6 step 2. 8.4: a repair's brief carries the failed check whole and its log's end at shipped limits; a head whose CI fails cancels its live reviews before the repair. The owned-Forgejo story of a person's gate, red, repaired, green and landed. 8.2: a landed change's result names the checks at its landed head, its repairs and its reviews' verdicts as it saw them, nothing else; a goal and a chat report it by them. 8.4: a repair's words open with what it repairs (CI's failed contexts, the gate that asked, or the base's break) at its head, so a cut read names it. 8.4: a release at producing, with no head pushed, makes a fresh producer within the change's authority; `--again` on a change is refused as having no run to repeat.
-- **Built:** 11: each writable non-merge repository's saved-work branch uses its own prefix and the running task's number, even when the workstream and delivery branch belong to its parent change. 8.2: a completed change waits for its live delegates' terminals before offering its result; a resumed repair's terminal wakes the waiting landed change.
-- **Built:** 16 (`root.md`, 9.1): a restore begins with `restore_begin`, the start's one time; it loads every row, sweeps expired applications, and links at the core's `Link`, judging none. A link it cannot make is a `MissingLink { kind, key, need }`, its panic naming the record's key, found on the failure path from the retained rows and the client's `live_keys()`.
-- **Not yet:** 8.1, 8.3, 8.5: per-change bounds/gates/charters, person gates, review lens, posted verdict status and retargeting release. 8.7: no-CI adoption choice. 8.7 to 8.9, 16, 18: runtime landing settings. 12 to 14: stored findings, participating objects and upstream contributions beyond existing roles/news. GitHub queue/rules completion unknown. 8.1: the change page's line that a change takes no words.
-- **Built:** 8.3: the assembled brief and journal result bounds of 14,592 bytes; the reviews brief budget of 4,608 bytes. 8.3, 8.4: reviews and repairs share the pull section's identity before its contents; repairs carry gate remarks within the reviews cap, cut from their end and marked. Planning reserves the repair reason before pull contents; gathered sizes and priority fit a brief below both caps.
-
-- **Built:** 8.4: the GitHub gate regression retains the complete
-  `opened 2026-11-01T14:07:25Z` line with a marked log cut at the shipped
-  CI brief budget; a pin from another head remains unread.
+- **Not yet:**
+  - 4.1: a removal without the box, its group's act answered in its
+    decision: an owned or fake forge's removal asks the box link for
+    `remove N` whether or not a pipe is there, and without one waits for
+    an answer that never comes, so it is never whole and the
+    playground's reset stops at its forge
+    (`temper-engine-domain-forge/src/removal.rs`, `begin`, sets
+    `box_removed` by the forge's mode alone;
+    `temper-service/src/route/box_link.rs`, `remove`).
+  - 4.4, 8.3: on GitHub, statuses and dispatches by temper's App for a
+    project that lands by turn, and verdicts posted where an installation
+    grants `statuses: write`; `status` is false there.
+  - 4.4, 9.1, 18: the forge's own merge queue beyond a queued merge kept
+    pending: `Pull.queued` and `dequeued` are not read, a queued change
+    keeps temper's turn, an ejection makes no repair, the panel shows no
+    place in it, and adoption's words leave out the queue, signatures,
+    linear history, code owners and the App's bypass
+    (`temper-service/src/family.rs`).
+  - 7.1, 12: the findings topic and findings (`findings.md`).
+  - 7.3: a hold parked until a landing.
+  - 8.1: a change's own bounds and gates: `change` takes parameters 1
+    to 6, 9 to 12, 14 and 16, its bounds, the questions it takes among
+    them, are the deployment's `change_policy`, and its gates its landing
+    branch's rules' (`temper-engine-domain/src/route/forge_route.rs`,
+    `start_change`); its page's line that a change takes no words.
+  - 8.2: the pull request's body naming its goal's issue.
+  - 8.3: a person's approval as a gate; a review's lens; gates run at once
+    when the change asks; a verdict posted as a commit status.
+  - 8.4: widening exhausted spend with ctl before release: `task amend`'s
+    `--budget` is not implemented (`../client/tools.md`, 5.5). A spend
+    hold offers cancellation or asking afresh instead.
+  - 8.4, 8.5: a goal's landing held past its repairs, then released after
+    a change into its goal branch (`../draft/reference-landing.md`,
+    section 9's second story), is built, but its story is ignored: after
+    the released landing, the restart oracle finds the deployment's
+    `messages` number changed across a restart, its cause not yet found
+    (`tests/engine/domain/tests/suite/forge_routes/goal_landing_held.rs`).
+  - 8.4, 10, 11.1: a goal's landing whose update into main conflicts,
+    settled by the merge job and a resolution on its goal's branch
+    (`../draft/reference-landing.md`, section 9's first story), is built
+    by every change's path, the job writing the branch under the goal's
+    hold as the landing's resolution does
+    (`temper-engine-domain-forge/src/items.rs`, `change_branch_holder`),
+    but no story runs it: the merge job's stories are changes into a
+    goal's branch and into main, none a goal's landing
+    (`tests/engine/domain/tests/suite/forge_routes/merge_job.rs`).
+  - 8.5: a retargeted pull request retargeted back on release; the change
+    is held as a failed effect.
+  - 8.7: the explicit choice to adopt a GitHub repository without CI.
+  - 8.8: the rule and criterion a change waits on, and its charter, on its
+    panel.
+  - 8.10: a change drained.
+  - 8.11: a dependent's landing holding its dependency's pushed head in
+    g's ancestry is unobserved in stories, the fake forge squashing
+    merges (skein's `fake-forge.md`, 2.2).
+  - 8.11: a repair's or a resolution's question, relayed as a producer's
+    is (`temper-engine-domain/src/route/forge_route/relay.rs`,
+    `asking_delegate`), is unobserved in stories: every relay story's
+    asker is the change's producing task
+    (`tests/engine/domain/tests/suite/forge_routes/questions.rs`,
+    `foremen.rs` and `goal_questions.rs`).
+  - 9: a branch a tier follows still pauses its queue on its own CI's
+    red and makes a repair, where its tiers judge it instead
+    (`temper-engine-domain-forge-change/src/domain.rs`, `base_ci`).
+  - 12: the issue's milestones but its lifecycle and revisions: the plan
+    accepted, a change landed or held, a report kept.
+  - 12.1: questions on the forge.
+  - 13: participating objects beyond their news; a landing waiting for
+    someone else's merge where temper may not merge (also 4.4 and 9).
+  - 14: upstream contributions.
+  - 18: the rules as settings (8.9) in the forge's world: `tests/engine/forge`
+    tells none of them. The engine's domain world tells a rule changed
+    between two merges, a rule refused in its change's decision, a
+    change kept on the charters it was made with and one held when its
+    charter is no longer offered, and a restart
+    (`tests/engine/domain/tests/suite/settings/kinds.rs`,
+    `forge_routes/kind_charters.rs`); no world tells a gate a rule adds
+    asked for on a queued change, a gate a rule drops no longer waited
+    on, or a project's rule adding an approval.
+- **Departs:** 8.11: a change taking `foreman` gives its producing, each
+  repair and each resolution half the spend the change may give it,
+  keeping the rest for the foremen of that agent's questions, since a
+  foreman runs while the agent that asked waits
+  (`temper-engine-domain/src/route/forge_route.rs`, `change_delegate`);
+  8.4 and 8.11 make a change's delegates under its own authority and
+  name no such split.
+- **Departs:** 8.11: every answer relayed down is cut from its end to
+  `tasks.message_bytes` and marked with `…`, as a question passed up is.
+  This keeps the message within its admission bound, where the design says
+  the answer's words are whole.

@@ -210,7 +210,8 @@ pub(super) fn notes(store: &mut Store, range: &reads::Range, spent: &mut Spent) 
                 skein_lib::bytes::find(&line.description, query).is_some()
             }
             reads::Scope::ScopedNotes { description: None, .. } | reads::Scope::Notes { .. } => true,
-            reads::Scope::Task { .. }
+            reads::Scope::TaskText { .. }
+            | reads::Scope::Task { .. }
             | reads::Scope::Proposal { .. }
             | reads::Scope::Escalation { .. }
             | reads::Scope::Question { .. }

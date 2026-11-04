@@ -142,6 +142,7 @@ pub(crate) fn chat_me(budget: u64) -> c::Me {
     project
         .templates
         .push(c::Template {
+            resources: List::with_capacity(0),
             number: jig_client::shapes::CHAT,
             name: document_text(b"chat"),
             executor: c::TemplateExecutor::Charter(1),
@@ -273,7 +274,7 @@ pub(crate) fn restored_chat() -> List<skein_lib::RequestRecord<client::Held>> {
     let mut records = restored_message(PARTY);
     let record = records.get_mut(EMPTY).expect("one restored record");
     let c::Ask::Create { project, tasks, .. } =
-        jig_client::shapes::chat(&chat_me(CHAT_BUDGET), PROJECT, call_words(CREATE_CHAT_CALL, 1)).expect("chat shape")
+        jig_client::shapes::chat(&chat_me(CHAT_BUDGET), PROJECT, call_words(CREATE_CHAT_CALL, 2)).expect("chat shape")
     else {
         panic!("chat creates")
     };
@@ -286,7 +287,7 @@ pub(crate) fn restored_chat() -> List<skein_lib::RequestRecord<client::Held>> {
 }
 impl Harness {
     pub(crate) fn tell(&mut self, told: client::Told) {
-        let env = Env { now: self.now, wall: self.wall, limits: self.limits.tools };
+        let env = self.env(self.limits.tools);
         let mut out = root::act_fixture::told(&mut self.root, &env, told);
         for _ in 0..out.len() {
             match out.pop().expect("counted outputs") {

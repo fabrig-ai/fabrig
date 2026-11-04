@@ -39,6 +39,7 @@ pub(super) fn query(value: c::TaskQuery, limits: &w::Limits) -> Result<w::TaskQu
             executor: match value.executor {
                 None => None,
                 Some(v) => Some(match v {
+                    c::ExecutorKind::Job => w::ExecutorKind::Job,
                     c::ExecutorKind::Agent => w::ExecutorKind::Agent,
                     c::ExecutorKind::Procedure => w::ExecutorKind::Procedure,
                     c::ExecutorKind::Person => w::ExecutorKind::Person,

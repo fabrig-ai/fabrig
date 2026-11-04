@@ -116,7 +116,7 @@ pub(super) fn from_row(limits: &Limits, row: &tasks::TaskRecord) -> Result<ChipD
             tasks::Executor::Procedure { connector, code } => {
                 Some(Part { connector, kind: PartKind::Procedure, key: PartKey::Number(u64::from(code)) })
             }
-            tasks::Executor::Agent { .. } | tasks::Executor::Person(_) => None,
+            tasks::Executor::Agent { .. } | tasks::Executor::Person(_) | tasks::Executor::Job { .. } => None,
         },
         live_delegates: u32::try_from(row.delegates.len()).expect("bounded direct delegates"),
         closing_connectors: None,
@@ -217,6 +217,7 @@ pub(super) fn heap_bound(limits: &super::DocumentLimits) -> Option<u64> {
     let path = List::<Box<[u8]>>::price(limits.lines)?.checked_add(lines.checked_mul(text)?)?;
     u64::try_from(size_of::<ChipDetails>())
         .ok()?
+        .checked_add(u64::from(tasks::HOLD_ACCOUNT_BYTES))?
         .checked_add(text.checked_mul(8)?)?
         .checked_add(List::<u64>::price(limits.lines)?)?
         .checked_add(List::<u16>::price(limits.lines)?)?

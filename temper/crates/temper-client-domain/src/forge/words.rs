@@ -582,6 +582,7 @@ pub enum ChangeWord {
     HeldLanded,
     Stalled,
     RepairsSpent,
+    QuestionsSpent,
     ResolutionsSpent,
     UpdatesSpent,
     Moved,
@@ -618,9 +619,19 @@ pub enum ChangeWord {
     PrepareLine,
     HeldReady,
     HeldPreparing,
+    ClearedTag,
+    UnclearedTag,
+    VerifyingLine,
+    RedLine,
+    ClearedLine,
+    UnclearedLine,
+    HeldVerifying,
+    HeldRed,
+    HeldCleared,
+    HeldUncleared,
 }
 pub type ChangeRow = (ChangeWord, &'static [&'static [u8]], &'static [HoleKind]);
-pub const CHANGES: [ChangeRow; 94] = [
+pub const CHANGES: [ChangeRow; 105] = [
     (ChangeWord::Tag, &[b"Change \xc2\xb7 Task ", b""], &[Number]),
     (ChangeWord::Pull, &[b"PR #", b" \xc2\xb7 "], &[Number]),
     (ChangeWord::NoPull, &[b"No pull request yet \xc2\xb7 "], &[]),
@@ -679,6 +690,7 @@ pub const CHANGES: [ChangeRow; 94] = [
     (ChangeWord::HeldLanded, &[b"landed"], &[]),
     (ChangeWord::Stalled, &[b"its wait stalled"], &[]),
     (ChangeWord::RepairsSpent, &[b"its repairs are spent"], &[]),
+    (ChangeWord::QuestionsSpent, &[b"its questions are spent"], &[]),
     (ChangeWord::ResolutionsSpent, &[b"its resolutions are spent"], &[]),
     (ChangeWord::UpdatesSpent, &[b"its updates are spent"], &[]),
     (ChangeWord::Moved, &[b"its branch was moved on the forge"], &[]),
@@ -715,6 +727,16 @@ pub const CHANGES: [ChangeRow; 94] = [
     (ChangeWord::PrepareLine, &[b"Being rebased onto ", b" for its landing."], &[Name]),
     (ChangeWord::HeldReady, &[b"ready"], &[]),
     (ChangeWord::HeldPreparing, &[b"preparing"], &[]),
+    (ChangeWord::ClearedTag, &[b"Cleared"], &[]),
+    (ChangeWord::UnclearedTag, &[b"Landed, uncleared"], &[]),
+    (ChangeWord::VerifyingLine, &[b"Verifying \xc2\xb7 merge commit ", b""], &[Name]),
+    (ChangeWord::RedLine, &[b"Red \xc2\xb7 merge commit ", b""], &[Name]),
+    (ChangeWord::ClearedLine, &[b"Cleared \xc2\xb7 merge commit ", b""], &[Name]),
+    (ChangeWord::UnclearedLine, &[b"Landed, uncleared \xc2\xb7 merge commit ", b""], &[Name]),
+    (ChangeWord::HeldVerifying, &[b"verifying"], &[]),
+    (ChangeWord::HeldRed, &[b"red"], &[]),
+    (ChangeWord::HeldCleared, &[b"cleared"], &[]),
+    (ChangeWord::HeldUncleared, &[b"landed, uncleared"], &[]),
 ];
 impl ChangeWord {
     #[must_use]
@@ -752,7 +774,11 @@ pub fn change_name_bytes(word: ChangeWord, index: usize) -> u32 {
         | ChangeWord::ResolveLine
         | ChangeWord::RepairSemantic => 256,
         ChangeWord::AuthorityHold | ChangeWord::Held => 512,
-        ChangeWord::LandedLine => 7,
+        ChangeWord::LandedLine
+        | ChangeWord::VerifyingLine
+        | ChangeWord::RedLine
+        | ChangeWord::ClearedLine
+        | ChangeWord::UnclearedLine => 7,
         ChangeWord::ReadyLine
         | ChangeWord::ReadyAloneLine
         | ChangeWord::HeldReady
@@ -806,9 +832,16 @@ pub fn change_name_bytes(word: ChangeWord, index: usize) -> u32 {
         | ChangeWord::HeldResolving
         | ChangeWord::HeldRepairing
         | ChangeWord::HeldLanding
+        | ChangeWord::ClearedTag
+        | ChangeWord::UnclearedTag
         | ChangeWord::HeldLanded
+        | ChangeWord::HeldVerifying
+        | ChangeWord::HeldRed
+        | ChangeWord::HeldCleared
+        | ChangeWord::HeldUncleared
         | ChangeWord::Stalled
         | ChangeWord::RepairsSpent
+        | ChangeWord::QuestionsSpent
         | ChangeWord::ResolutionsSpent
         | ChangeWord::UpdatesSpent
         | ChangeWord::Moved
@@ -906,7 +939,6 @@ pub const fn set_up_refusal(why: super::forges::SetUpRefusal) -> &'static [u8] {
         SetUpRefusal::NotOffered => b"not offered",
         SetUpRefusal::NotUnderTheBox => b"not under the box",
         SetUpRefusal::Busy => b"busy",
-        SetUpRefusal::NewProject => b"a new project",
         SetUpRefusal::Invalid => b"invalid: the organization, repository or project name is empty or too long",
     }
 }
@@ -919,24 +951,8 @@ pub const fn set_up_outcome(outcome: super::forges::SetUpOutcome) -> &'static [u
         SetUpOutcome::Unknown => b"unknown",
     }
 }
-/// The manual steps, also printed beside a set-up refusal without the box.
-#[must_use]
-pub fn set_up_commands(number: u16) -> Box<[u8]> {
-    let n = skein_lib::Decimal::of(u64::from(number));
-    let n = n.as_bytes();
-    let parts: &[&[u8]] = &[
-        b"run `temper forge fetch ",
-        n,
-        b"`, `temper forge prepare ",
-        n,
-        b"`, `temper forge run ",
-        n,
-        b" forgejo` and `temper forge run ",
-        n,
-        b" runner`, then restart `temper serve`",
-    ];
-    join_words(parts)
-}
+/// ctl's line after a set up refused "not under the box" (client/tools.md, 5.5).
+pub const UNDER_THE_BOX: &[u8] = b"Start temper with `temper box` to set one up here.";
 fn join_words(parts: &[&[u8]]) -> Box<[u8]> {
     let mut size = 0usize;
     for part in parts {
@@ -997,7 +1013,7 @@ pub fn forge_connection(row: &super::forges::Row) -> Box<[u8]> {
         C::NotConnected => Box::from(b"Not connected".as_slice()),
         C::NotSetUp => {
             if row.offer == Offer::NotUnderTheBox {
-                join_words(&[b"Not set up: ", &set_up_commands(row.number)])
+                Box::from(b"Not set up: start temper with temper box".as_slice())
             } else {
                 Box::from(b"Not set up".as_slice())
             }
@@ -1068,17 +1084,11 @@ pub const fn create_step(step: super::forges::CreateStep) -> &'static [u8] {
 }
 #[must_use]
 pub fn first_repository(first: &super::forges::First) -> Box<[u8]> {
-    use super::forges::{FirstState, SetUpProject};
+    use super::forges::FirstState;
     let name = full_name(&lossy(&first.org), &lossy(&first.repository));
     match first.state {
         FirstState::Making => join_words(&[b"Making ", &name]),
-        FirstState::Made { .. } => {
-            let project = match &first.project {
-                SetUpProject::Existing(number) => Box::from(skein_lib::Decimal::of(u64::from(*number)).as_bytes()),
-                SetUpProject::New(name) => lossy(name),
-            };
-            join_words(&[&name, b" made, in ", &project])
-        }
+        FirstState::Made { .. } => join_words(&[&name, b" made"]),
         FirstState::Failed { step } => join_words(&[b"Making ", &name, b" failed: ", create_step(step)]),
     }
 }
@@ -1109,9 +1119,14 @@ pub fn installation_words(installation: &super::forges::Installation) -> Box<[u8
         if installation.stray { b" \xc2\xb7 not accepted \xc2\xb7 kept" } else { b"" },
     ])
 }
+/// The last connect failure or refused job-log origin, ready to print.
 #[must_use]
 pub fn last_connect(row: &super::forges::Row) -> Option<Box<[u8]>> {
-    Some(join_words(&[b"The last connect stopped: ", &lossy(row.ended.as_ref()?)]))
+    let why = row.ended.as_ref()?;
+    if why.starts_with(b"Job-log origin refused: ") {
+        return Some(lossy(why));
+    }
+    Some(join_words(&[b"The last connect stopped: ", &lossy(why)]))
 }
 #[must_use]
 pub fn app_refusal(why: super::github::Answer, forge: u16) -> Option<Box<[u8]>> {

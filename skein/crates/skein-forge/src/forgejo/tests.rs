@@ -441,6 +441,20 @@ fn raw_file_targets_keep_slashes_and_encode_each_other_byte() {
     assert!(client::decoder(&request, &limits).is_none());
 }
 #[test]
+fn raw_files_seven_components_deep_round_trip_through_routing() {
+    let request = Request::Raw {
+        at: fixtures::repository(),
+        path: Box::from(*b"a/b/c/d/e/f/g.md"),
+        reference: id::read(&[b'0'; 40]).unwrap(),
+    };
+    let limits = fixtures::limits();
+    let encoded = client::encode(&request, &limits).unwrap();
+    match crate::forgejo::server::route(encoded.method, &encoded.target, &limits).unwrap() {
+        crate::forgejo::server::Route::Ready(routed) => assert_eq!(routed, request),
+        crate::forgejo::server::Route::Body(_) => panic!("read route has no body"),
+    }
+}
+#[test]
 fn a_job_link_of_another_shape_names_no_job() {
     let repository = b"http://127.0.0.1:3000/fixture/specimen";
     for (link, expected) in [
@@ -740,3 +754,7 @@ fn an_empty_range_over_an_empty_log_reads_as_empty() {
 }
 
 mod tokens;
+
+pub(crate) mod zip;
+
+mod inflate;

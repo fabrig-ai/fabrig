@@ -28,7 +28,7 @@ pub struct Stage<L, E, R> {
 impl<L, E, R> Stage<L, E, R> {
     /// A stage for a domain whose steps and alarms emit into an uncapped
     /// queue: nothing is reserved, so every event is handed on and every
-    /// alarm runs (draft dynamic-memory 4).
+    /// alarm runs (programming-model.md, 6.1).
     #[must_use]
     pub fn uncapped(limits: L) -> Stage<L, E, R> {
         let env = Env { now: Time::ZERO, wall: Wall::EPOCH, limits };

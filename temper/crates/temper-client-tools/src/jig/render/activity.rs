@@ -8,6 +8,13 @@ use jig_client::{
 };
 pub(super) fn page(page: &c::ActivityPage, call: &Call, limits: &Limits, out: &mut Text) {
     let task = crate::jig::call::number(call, 0).expect("activity task");
+    if call.tool == crate::jig::rows::ACTIVITY_AT {
+        out.put(b"brief: ");
+        super::task_source::call(task, c::TaskTextField::Specification, 0, out);
+        out.put(b"\ninstructions: ");
+        super::task_source::call(task, c::TaskTextField::Instructions, 0, out);
+        out.put(b"\n");
+    }
     let rows = lists::activity_limit(call, limits.rows);
     let first = page.rows.len().saturating_sub(rows);
     for row in page.rows.as_slice().iter().skip(usize::try_from(first).expect("rows fit")) {

@@ -44,6 +44,7 @@ pub struct Config {
     documents: bool,
     client_backed: bool,
     close_grant: bool,
+    close_grace: Option<Duration>,
     scenario: Option<jig_conformance::scenarios::Scenario>,
 }
 
@@ -58,6 +59,7 @@ impl Config {
             documents: false,
             client_backed: false,
             close_grant: true,
+            close_grace: None,
             scenario: None,
         }
     }
@@ -66,6 +68,13 @@ impl Config {
     #[must_use]
     pub fn without_close_grant(mut self) -> Self {
         self.close_grant = false;
+        self
+    }
+
+    /// Set the deployment's grace for closing an environment's chat.
+    #[must_use]
+    pub fn with_close_grace(mut self, grace: Duration) -> Self {
+        self.close_grace = Some(grace);
         self
     }
 
@@ -159,7 +168,7 @@ pub enum Delivery {
 // application_documents::a_remediations_panel_says_restarting_then_waiting_for_healthy
 // and application_documents::an_incidents_subject_follows_an_alert_to_its_resolution.
 // A ceiling, a quarter above, rounded up to two significant digits
-// (skein's dynamic-memory draft, 7.1); it moves by hand only in the commit
+// (skein's testing-strategy.md, 6); it moves by hand only in the commit
 // of a real change that passes it, never on a type's size.
 const OPS_HEAP_CEILING: u64 = 19_000_000;
 
@@ -189,6 +198,9 @@ impl Application for Ops {
         let mut configuration = config::root_for(config.seed, config.story == Story::Environment).0;
         if !config.close_grant {
             configuration.core.grants = Box::new([]);
+        }
+        if let Some(grace) = config.close_grace {
+            configuration.environment_close_grace = grace;
         }
         root::Domain::new(configuration, &config.limits).expect("fixture core configuration")
     }
@@ -1009,6 +1021,7 @@ pub fn night(seed: u64, cut: jig_conformance::Cut) -> jig_conformance::Harness<O
                 executor: tasks::Executor::Procedure { connector: 2, code: 1 },
                 llm: None,
                 spec: tasks::Spec {
+                    job: None,
                     asks: false,
                     words: b"night scale staging".as_slice().into(),
                     parameters: Box::new([

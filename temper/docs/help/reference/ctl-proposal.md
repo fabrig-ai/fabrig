@@ -30,6 +30,8 @@ Read a proposal; for settings, what each item would change
 Prints: `proposal P/K` and its action, its reason, and, for settings, each item's value now and as it would be, whole
 --json: the record proposal.
 Key: none.
+A settings proposal includes landing rules and the forge's charters,
+each set whole, removed or reset.
 A decided proposal prints how it was decided. Decide a live one
 with proposal decide.
 ```

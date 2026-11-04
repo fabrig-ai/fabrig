@@ -1,4 +1,5 @@
 //! Step-local document rendering; no borrowed document survives a step.
+//! Creating bounds follow jig/docs/design/client/domain/contract.md, 5.3.
 mod account_lines;
 mod account_programs;
 mod account_text;
@@ -163,16 +164,7 @@ fn me_text(me: &Me, book: &Phrasebook, limits: &Limits, out: &mut Text) {
         }
         out.put(b"\n");
         if let Some(creating) = &project.creating {
-            out.put(b"    creating within ");
-            acts::create_bounds(&creating.within, out);
-            match &creating.beyond {
-                jig_client::contract::Beyond::Proposed { to } => acts::proposed(to, Some(me), out),
-                jig_client::contract::Beyond::Refused(why) => {
-                    out.put(b"; refused beyond them: ");
-                    acts::refusal(why, book, out);
-                }
-            }
-            out.put(b"\n");
+            creating_text(creating, me, book, out);
         }
     }
     out.put(b"needs: ");
@@ -195,6 +187,19 @@ fn me_text(me: &Me, book: &Phrasebook, limits: &Limits, out: &mut Text) {
     out.put(b" seconds\n");
     offers::text(me, limits, out);
 }
+fn creating_text(creating: &jig_client::contract::Creating, me: &Me, book: &Phrasebook, out: &mut Text) {
+    out.put(b"    creating within ");
+    acts::create_bounds(&creating.within, out);
+    match &creating.beyond {
+        jig_client::contract::Beyond::Proposed { to } => acts::proposed(to, Some(me), out),
+        jig_client::contract::Beyond::Refused(why) => {
+            out.put(b"; refused beyond them: ");
+            acts::refusal(why, book, out);
+        }
+    }
+    out.put(b"\n    creating delegation: tasks = min(role tasks, deployment tree tasks) - 1; depth = role depth - 1");
+    out.put(b"; the root task consumes one task and one depth level\n");
+}
 fn role(role: HeldRole, out: &mut Text) {
     match role {
         HeldRole::Owner => out.put(b"owner"),
@@ -214,6 +219,15 @@ fn task_text(
     vocabulary: &dyn crate::jig::render::Parts,
     out: &mut Text,
 ) {
+    task_with_specification(task, me, book, vocabulary, None, out);
+}
+fn task_heading(
+    task: &Task,
+    me: Option<&Me>,
+    book: &Phrasebook,
+    vocabulary: &dyn crate::jig::render::Parts,
+    out: &mut Text,
+) {
     out.put(b"task ");
     out.number(task.chip.task);
     out.put(b" \xc2\xb7 ");
@@ -221,6 +235,19 @@ fn task_text(
         true => out.put(b"chat"),
         false if task.goal == Some(task.chip.task) => out.put(b"goal"),
         false => match task.result_contract {
+            jig_client::contract::TaskContractDocument::Job { .. } => {
+                out.put(b"job");
+                match task.chip.executor {
+                    jig_client::contract::ChipExecutor::Job { kind } => {
+                        out.put(b" ");
+                        out.number(u64::from(kind));
+                    }
+                    jig_client::contract::ChipExecutor::Agent { .. }
+                    | jig_client::contract::ChipExecutor::Procedure { .. }
+                    | jig_client::contract::ChipExecutor::Party { .. }
+                    | jig_client::contract::ChipExecutor::Role { .. } => {}
+                }
+            }
             jig_client::contract::TaskContractDocument::Approval { .. } => out.put(b"approval"),
             jig_client::contract::TaskContractDocument::Report { .. } => out.put(b"report"),
             jig_client::contract::TaskContractDocument::Verdict { .. } => out.put(b"verdict"),
@@ -239,8 +266,18 @@ fn task_text(
     } else {
         out.put(b" \xc2\xb7 untracked");
     }
+}
+fn task_with_specification(
+    task: &Task,
+    me: Option<&Me>,
+    book: &Phrasebook,
+    vocabulary: &dyn crate::jig::render::Parts,
+    source: Option<&crate::jig::runner::specification::Specification>,
+    out: &mut Text,
+) {
+    task_heading(task, me, book, vocabulary, out);
     out.put(b"\nasked: ");
-    out.words(task.spec.specification.words.bytes());
+    super::task_source::asked(task, source, out);
     out.put(b"\nrequester: ");
     requester(task.requester, me, out);
     out.put(b" \xc2\xb7 spent ");
@@ -258,12 +295,23 @@ fn task_text(
     if let Some(instructions) = &task.instructions {
         instruction_words::text(instructions, out);
     }
+    super::task_source::summary(task, out);
     task_settings::text(task.settings.as_ref(), out);
     dependencies::text(task, me, book, out);
+    llm::text_choice(task.llm.as_ref(), out);
     llm::text_wait(task.run_wait, out);
     out.put(b"\nwaiting on: ");
     waiting(&task.waits_on, me, book, out);
     out.put(b"\n");
+    task_details(task, me, book, vocabulary, out);
+}
+fn task_details(
+    task: &Task,
+    me: Option<&Me>,
+    book: &Phrasebook,
+    vocabulary: &dyn crate::jig::render::Parts,
+    out: &mut Text,
+) {
     if let Some(context) = &task.context {
         out.put(b"plan: ");
         out.number(
@@ -387,7 +435,7 @@ impl Cut {
         out.string(bytes.get(..end).expect("UTF-8 cut"));
     }
 }
-fn hex(bytes: &[u8], out: &mut Encoder) {
+pub(crate) fn hex(bytes: &[u8], out: &mut Encoder) {
     let mut hex = skein_lib::Writer::new(bytes.len().checked_mul(2).expect("document bound fits"));
     for byte in bytes {
         for digit in [byte >> 4u32, byte & 15] {
@@ -427,7 +475,7 @@ fn encode(document: &Document<'_>, limits: &Limits, digest: Option<crate::jig::d
             cut.digest = digest;
             tasks::encode_ended_task(task, result, out, &mut cut);
         }
-        Document::ReadSet(reading, _) => read_sets::encode(reading, limits, out, &mut cut),
+        Document::ReadSet(reading, me) => read_sets::encode(reading, *me, limits, out, &mut cut),
         Document::SizedTurn { task, name, bytes } => {
             out.object_start();
             out.key(b"task");

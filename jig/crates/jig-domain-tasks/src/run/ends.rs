@@ -5,7 +5,7 @@ use crate::{Active, End, Executor, Phase, TaskResult, Was};
 /// Whether an active task may go on, and why not (domain/tasks.md, 5.7).
 #[derive(Clone, Copy, PartialEq, Eq, Debug)]
 pub(crate) struct Kept {
-    /// A dependency an amendment added is pending.
+    /// A dependency is pending.
     pub(crate) dependencies: bool,
     /// Its own unanswered question to its requester, oldest first.
     pub(crate) question: Option<u64>,
@@ -103,7 +103,7 @@ impl Kept {
     /// Whether a wake may make this executor Due; a person or a procedure is never kept from its step.
     pub(crate) fn may_be_due(self, executor: Executor) -> bool {
         match executor {
-            Executor::Agent { .. } => !self.blocks_claims(),
+            Executor::Agent { .. } | Executor::Job { .. } => !self.blocks_claims(),
             Executor::Person(_) | Executor::Procedure { .. } => true,
         }
     }
@@ -150,6 +150,8 @@ fn done(result: &TaskResult) -> bool {
         TaskResult::Approved { .. }
         | TaskResult::Report { .. }
         | TaskResult::Verdict { .. }
+        | TaskResult::Job { .. }
+        | TaskResult::NoChange { .. }
         | TaskResult::Change { .. } => true,
     }
 }

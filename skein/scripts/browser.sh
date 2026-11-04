@@ -1,8 +1,7 @@
 #!/bin/sh
-# The browser tier, outside the gate (agents' docs/design/landing-flow.md,
-# 4): the UI example's bundle and server, then the browser suite
-# (ui-web.md, 14.1). Its arguments go to nextest, so that one test runs
-# alone: scripts/browser.sh -E 'test(=NAME)'.
+# The browser tier, outside the gate: the UI example's bundle and server,
+# then the browser suite (ui-web.md, 14.1). Its arguments go to nextest,
+# so that one test runs alone: scripts/browser.sh -E 'test(=NAME)'.
 set -eu
 
 cd "$(dirname "$0")/.."
@@ -19,4 +18,4 @@ cargo run -p skein-ui-bundle -- \
 cargo build -p skein-ui-example-server
 SKEIN_UI_EXAMPLE_BUNDLE="$(pwd)/target/ui-example-bundle"
 export SKEIN_UI_EXAMPLE_BUNDLE
-cargo nextest run --workspace --profile browser "$@"
+cargo nextest run --workspace --profile browser-skein "$@"

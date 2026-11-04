@@ -35,6 +35,7 @@ pub fn page(
         reads::Read::Tasks { .. }
         | reads::Read::Application { .. }
         | reads::Read::Frame
+        | reads::Read::TaskText { .. }
         | reads::Read::Task { .. }
         | reads::Read::Proposal { .. }
         | reads::Read::Escalation { .. }
@@ -73,6 +74,7 @@ fn check_edges(read: &reads::Read, page: &reads::Page) -> Result<(), w::Problem>
                     }
                     reads::Read::Application { .. }
                     | reads::Read::Frame
+                    | reads::Read::TaskText { .. }
                     | reads::Read::Task { .. }
                     | reads::Read::Proposal { .. }
                     | reads::Read::Escalation { .. }

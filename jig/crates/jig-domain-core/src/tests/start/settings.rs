@@ -38,6 +38,7 @@ fn head(number: u32) -> Record {
                 moved: false,
             },
             items: Box::new([]),
+            applications: Box::default(),
         },
     }
 }
@@ -48,7 +49,7 @@ fn settings_rows(core: &Core) -> List<Record> {
         rows.push(Record::Default { setting, default: default.clone() }).expect("stored defaults");
     }
     rows.push(head(1)).expect("stored head");
-    rows.push(Record::Extent { oldest: 0 }).expect("stored extent");
+    rows.push(Record::Extent { oldest: 0, keys: 1 }).expect("stored extent");
     rows
 }
 
@@ -179,7 +180,7 @@ fn settings_finish_drops_cross_record_revision_rules() {
                     .expect("one stored version"),
                 Rule::ExtentAtHead => {
                     let row = rows.get_mut(rows.len() - 1).expect("extent");
-                    *row = Record::Extent { oldest: 1 };
+                    *row = Record::Extent { oldest: 1, keys: 1 };
                 }
             }
             for row in rows.into_boxed() {

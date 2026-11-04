@@ -82,6 +82,7 @@ pub fn ledger(value: &d::Ledger, limits: &w::Limits) -> Result<w::PoolLedger, w:
 }
 pub fn executor(value: t::Executor, limits: &w::Limits) -> Result<w::Executor, w::Problem> {
     Ok(match value {
+        t::Executor::Job { kind } => w::Executor::Job(w::ExecutorJob::new(limits, w::ExecutorJobParts { kind })?),
         t::Executor::Agent { charter } => {
             w::Executor::Agent(w::ExecutorAgent::new(limits, w::ExecutorAgentParts { charter })?)
         }
@@ -114,6 +115,9 @@ pub fn wake_rule(value: t::WakeRule, limits: &w::Limits) -> Result<w::WakeRule, 
         t::WakeRule::Batch { count, age } => {
             w::WakeRule::Batch(w::WakeRuleBatch::new(limits, w::WakeRuleBatchParts { count, age })?)
         }
+        t::WakeRule::Paced { span } => {
+            w::WakeRule::Paced(w::WakeRulePaced::new(limits, w::WakeRulePacedParts { span })?)
+        }
     })
 }
 pub fn wake(value: t::WakePolicy, limits: &w::Limits) -> Result<w::WakePolicy, w::Problem> {
@@ -137,11 +141,16 @@ pub fn wake(value: t::WakePolicy, limits: &w::Limits) -> Result<w::WakePolicy, w
 fn project(
     value: &d::FrameProjectRole,
     models: &[crate::Model],
+    names: Option<&crate::public::Names>,
     limits: &w::Limits,
 ) -> Result<w::MeProject, w::Problem> {
     w::MeProject::new(
         limits,
         w::MeProjectParts {
+            public: match names {
+                Some(names) if value.public => Some(names.project(value.project)),
+                Some(_) | None => None,
+            },
             project: value.project,
             name: text(&value.name, limits)?,
             role: held_role(value.role, limits)?,
@@ -159,9 +168,18 @@ fn project(
     )
 }
 pub fn frame(value: &d::Frame, models: &[crate::Model], limits: &w::Limits) -> Result<w::Me, w::Problem> {
+    frame_named(value, models, None, limits)
+}
+/// The component supplies its held public key (jig/docs/design/domain/people.md, 13.8).
+pub(crate) fn frame_named(
+    value: &d::Frame,
+    models: &[crate::Model],
+    names: Option<&crate::public::Names>,
+    limits: &w::Limits,
+) -> Result<w::Me, w::Problem> {
     let mut projects = List::with_capacity(value.projects.len());
     for item in &value.projects {
-        projects.push(project(item, models, limits)?).expect("supplied projects");
+        projects.push(project(item, models, names, limits)?).expect("supplied projects");
     }
     let updates = match value.updates {
         d::Count::Known(value) => w::Count::new(limits, w::CountParts { value, limited: false })?,
@@ -319,6 +337,9 @@ pub fn authority(
 
 pub fn authority_executor(value: t::AuthorityExecutor, limits: &w::Limits) -> Result<w::AuthorityExecutor, w::Problem> {
     Ok(match value {
+        t::AuthorityExecutor::Job(value) => {
+            w::AuthorityExecutor::Job(w::AuthorityExecutorJob::new(limits, w::AuthorityExecutorJobParts { value })?)
+        }
         t::AuthorityExecutor::Charter(number) => w::AuthorityExecutor::Charter(w::AuthorityExecutorCharter::new(
             limits,
             w::AuthorityExecutorCharterParts { value: number },
@@ -435,6 +456,10 @@ pub fn subscription(value: t::Subscription, limits: &w::Limits) -> Result<w::Sub
 }
 pub fn contract(value: &d::ContractLine, limits: &w::Limits) -> Result<w::TaskContractDocument, w::Problem> {
     Ok(match value {
+        d::ContractLine::Job { bytes } => w::TaskContractDocument::Job(w::TaskContractDocumentJob::new(
+            limits,
+            w::TaskContractDocumentJobParts { bytes: *bytes },
+        )?),
         d::ContractLine::Approval { state, part: value } => {
             w::TaskContractDocument::Approval(w::TaskContractDocumentApproval::new(
                 limits,

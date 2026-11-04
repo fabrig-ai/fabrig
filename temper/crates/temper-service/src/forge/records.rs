@@ -6,7 +6,7 @@ use skein_lib::List;
 use skein_lib::{Queue, Secret, Token};
 use temper_protocol_records as records;
 pub(crate) const LOAD: Token = Token::new(crate::tokens::FORGE | 1);
-/// Every forge-family row survives until its record chooses the runtime (temper/docs/design/draft/playground-reset.md, 3).
+/// Every forge-family row survives until its record chooses the runtime (temper/docs/design/protocol/forge.md, 2.1).
 #[derive(Debug)]
 pub(crate) struct Rows {
     values: records::Rows,
@@ -151,14 +151,14 @@ pub(crate) fn advance(engine: &mut crate::engine::Engine) {
     }
 }
 
-/// Connect a kept runtime from its loaded records; the shell supplies document access.
+/// Connect a kept runtime from its loaded records.
 pub(crate) fn connect(engine: &mut crate::engine::Engine, number: u16) {
     let Some(forge) = engine.workers.forges.get(number) else { return };
     let kind = match forge.kind {
         crate::settings::Kind::GitHub => skein_forge_connection::settings::Kind::GitHub,
         crate::settings::Kind::Forgejo => skein_forge_connection::settings::Kind::Forgejo,
     };
-    if engine.forge.file_access.contains_key(&number) || engine.setup.records_only(number) {
+    if engine.setup.records_only(number) {
         return;
     }
     let expected = records::origin(kind, &forge.api);

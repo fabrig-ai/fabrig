@@ -575,3 +575,35 @@ fn terminal_start_states_ignore_every_start_answer() {
         }
     }
 }
+
+#[test]
+fn a_failed_step_tail_stops_before_cleanup_across_every_chunk_boundary() {
+    let input = b"earlier\nMissing changes/40.md opened timestamp\n2026-11-02T14:01:45Z ##[error]Process completed with exit code 1.\nPost job cleanup.\n";
+    let expected = input.strip_prefix(b"earlier\n").unwrap().strip_suffix(b"Post job cleanup.\n").unwrap();
+    for chunk in 1..=input.len() {
+        let mut tail = Tail::failed_step(1, u32::try_from(expected.len()).unwrap());
+        for piece in input.chunks(chunk) {
+            tail.write(piece);
+        }
+        assert!(tail.dropped());
+        assert_eq!(tail.finish().as_ref(), expected, "chunk {chunk}");
+    }
+}
+
+#[test]
+fn a_failed_step_tail_falls_back_and_reports_omission_at_tiny_bounds() {
+    for (input, cap, expected, dropped) in [
+        (b"no failure marker\n".as_slice(), 5, b"rker\n".as_slice(), true),
+        (b"whole", 5, b"whole", false),
+        (b"log", 0, b"", true),
+        (b"##[error]Process completed with exit code 1.", 4, b"e 1.", true),
+        (b"##[error]Process completed with exit code 1.\ncleanup", 2, b".\n", true),
+    ] {
+        let mut tail = Tail::failed_step(1, cap);
+        for byte in input {
+            tail.write(core::slice::from_ref(byte));
+        }
+        assert_eq!(tail.dropped(), dropped);
+        assert_eq!(tail.finish().as_ref(), expected);
+    }
+}

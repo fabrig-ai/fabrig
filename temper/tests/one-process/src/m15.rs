@@ -1,4 +1,8 @@
 //! Exact secret-boundary observations on the simulated service (temper/docs/design/domain/testing.md, 2.5).
+use temper_playground::{
+    machine::{Machine, SignalHost},
+    programs,
+};
 pub(crate) mod observer;
 mod pages;
 mod run;
@@ -6,10 +10,9 @@ use crate::{
     ctl::{Caller, Command},
     fixtures,
     lower::github,
-    machine::{Machine, SignalHost},
     referee::{self, Store},
     stories,
-    world::{self, Person, Proc, Story},
+    world::{self, HarnessProcess, OneProcess, Person, Proc, Story},
 };
 pub use observer::Counts;
 pub use run::delivery;
@@ -57,7 +60,7 @@ impl skein_world::Referee<Proc> for Judge {
     fn act(&mut self, _now: Time, procs: &mut [Proc]) {
         let (first, other) = procs.split_at_mut(1);
         let Proc::Service(service) = &mut first[0] else { panic!("service first") };
-        let Proc::Calls(caller) = &mut other[0] else { panic!("native caller second") };
+        let Proc::Other(HarnessProcess::Calls(caller)) = &mut other[0] else { panic!("native caller second") };
         if !self.handed
             && let Some(link) = service.service.links().pop()
         {
@@ -68,7 +71,7 @@ impl skein_world::Referee<Proc> for Judge {
             return;
         }
         if !self.browsing {
-            let Proc::Calls(caller) = &other[0] else { unreachable!() };
+            let Proc::Other(HarnessProcess::Calls(caller)) = &other[0] else { unreachable!() };
             let peer = other
                 .iter()
                 .find_map(|proc| if let Proc::Forge(peer) = proc { Some(peer) } else { None })
@@ -87,20 +90,22 @@ impl skein_world::Referee<Proc> for Judge {
             assert!(caller.answers[4].output == caller.answers[6].output, "good paste replay keeps its run");
             checkpoint(service, &self.store.borrow());
             for proc in other.iter_mut() {
-                if let Proc::Client(person) = proc {
+                if let Proc::Other(HarnessProcess::Client(person)) = proc {
                     person.saved();
                 }
             }
             self.browsing = true;
         }
-        if other.iter().any(|proc| matches!(proc, Proc::Client(person) if person.finished)) && !self.stopping {
+        if other.iter().any(|proc| matches!(proc, Proc::Other(HarnessProcess::Client(person)) if person.finished))
+            && !self.stopping
+        {
             let peer = other
                 .iter()
                 .find_map(|proc| if let Proc::Forge(peer) = proc { Some(peer) } else { None })
                 .expect("GitHub peer");
             assert_eq!(observer::tokens() as u64, peer.github_layer().expect("GitHub").installations().minted());
             checkpoint(service, &self.store.borrow());
-            let Proc::Calls(caller) = &mut other[0] else { unreachable!() };
+            let Proc::Other(HarnessProcess::Calls(caller)) = &mut other[0] else { unreachable!() };
             caller.closed = true;
             self.controls.signal(0, skein_io::kernel::ServiceSignal::Terminate);
             for proc in other {
@@ -143,28 +148,47 @@ pub fn refused_replayed_pastes() -> Counts {
     world::lower_store(Some(store.clone()));
     let (_forge, mut peer) = github::peer();
     let (app, files) = observer::input(&mut peer);
-    let mut disk = crate::machine::fresh();
+    let transport = stories::forge(Story::Adopt);
+    let mut disk = temper_playground::machine::fresh();
     let input = disk.lay(&files);
     disk.close(input);
     let caller = disk.reopen_root(2);
     let native = disk.reopen_root(2);
-    let mut world = skein_world::World::new_controlled(
-        fixtures::SEED,
-        skein_sim::Config::calm(),
-        skein_world::Memory::Unchecked,
-        |controls| Judge { controls, store, app, calls: 0, handed: false, browsing: false, stopping: false },
-    )
-    .with_machine(Machine(disk));
-    world::host_programs(&mut world);
-    world.spawn_restartable(world::service_roots(), world::service);
-    world.spawn_root(skein_sim::Handle::new(caller.raw()), |root| Proc::Calls(Box::new(Caller::scripted(root))));
-    world.spawn(|| Proc::Forge(Box::new(SignalHost::new(peer, None))));
-    world.spawn_root(skein_sim::Handle::new(native.raw()), |root| {
-        Proc::Client(Box::new(SignalHost::new(Person::pages(root, pages::steps()), None)))
+    let machine = Machine::new(disk);
+    let parameters = world::parameters(&machine, transport.clone());
+    let outcome = programs::with(parameters, || {
+        let mut world = skein_world::World::new_controlled(
+            fixtures::SEED,
+            skein_sim::Config::calm(),
+            skein_world::Memory::Unchecked,
+            |controls| Judge { controls, store, app, calls: 0, handed: false, browsing: false, stopping: false },
+        )
+        .with_machine(machine);
+        for (program, roots) in programs::programs::<OneProcess>() {
+            world.host_roots(program, roots);
+        }
+        let limits = temper_client_shell_cli::limits::native();
+        world.host_roots(
+            skein_world::HostedProgram {
+                program: crate::ctl::PROGRAM.into(),
+                make: |spawn, inherited| Proc::Other(HarnessProcess::Ctl(Box::new(crate::ctl::host(spawn, inherited)))),
+                instances: 1,
+                operations: skein_io::operations(&limits.io).expect("ctl operations") * 2 + 5,
+            },
+            crate::ctl::roots,
+        );
+        world.spawn_restartable(programs::service_roots(), programs::service::<OneProcess>);
+        world.spawn_root(skein_sim::Handle::new(caller.raw()), |root| {
+            Proc::Other(HarnessProcess::Calls(Box::new(Caller::scripted(root))))
+        });
+        world.spawn(|| Proc::Forge(Box::new(SignalHost::new(peer, None))));
+        world.spawn_root(skein_sim::Handle::new(native.raw()), |root| {
+            Proc::Other(HarnessProcess::Client(Box::new(SignalHost::new(Person::pages(root, pages::steps()), None))))
+        });
+        world.run()
     });
-    let mut outcome = world.run();
     assert!(outcome.procs.iter().all(Host::is_empty), "M15 processes drain");
-    let counts = observer::finish(&mut outcome.machine.0);
+    let counts = observer::finish(&mut outcome.machine.0.borrow_mut());
     world::lower_store(None);
     github::set_active(false);
     counts

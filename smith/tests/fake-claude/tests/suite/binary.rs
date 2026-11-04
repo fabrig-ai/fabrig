@@ -198,7 +198,7 @@ fn the_binary_connects_to_its_server() {
     let (_scratch, mut child) = print_scripted_child(story, script);
     let mut reader = BufReader::new(child.stdout.take().expect("output"));
     let init = read_message(&mut reader);
-    assert_eq!(init["mcp_servers"][0]["status"], "connected");
+    assert_eq!(init["mcp_servers"], serde_json::json!([{"name":"smith","status":"connected","source":"dynamic"}]));
     assert!(init["tools"].as_array().expect("tools").contains(&serde_json::json!("mcp__smith__finish")));
     assert_eq!(read_message(&mut reader)["subtype"], "status");
     send_user(&mut child);

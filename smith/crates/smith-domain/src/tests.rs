@@ -305,6 +305,7 @@ impl Harness {
                     crate::Lower::Complete { .. }
                     | crate::Lower::Cancel { .. }
                     | crate::Lower::Yield { .. }
+                    | crate::Lower::Close { .. }
                     | crate::Lower::Io { .. }
                     | crate::Lower::Job { .. }
                     | crate::Lower::CancelIo { .. }
@@ -1089,6 +1090,7 @@ fn assert_no_provider_completion(emitted: &[Request]) {
             | Request::Lower(
                 crate::Lower::Cancel { .. }
                 | crate::Lower::Yield { .. }
+                | crate::Lower::Close { .. }
                 | crate::Lower::Io { .. }
                 | crate::Lower::Job { .. }
                 | crate::Lower::CancelIo { .. }
@@ -2408,4 +2410,23 @@ fn invalid_limits_are_refused() {
     };
     assert_eq!(limits::commands(&commands), None);
     assert!(!valid(&commands));
+}
+
+#[test]
+fn finite_final_choice_keeps_wait_only_when_granted() {
+    for wait in [false, true] {
+        let mut h = Harness::new();
+        let mut selected = charter();
+        selected.budget.turns = 2;
+        selected.reserve = run::charter::Reserve { turns: 1, time: Duration::from_secs(60) };
+        selected.grants.wait = wait;
+        let (_, owner, _) = h.admit(7, selected);
+        let emitted = h.says(owner, b"partial");
+        let [Request::Lower(crate::Lower::Complete { prompt, .. })] = emitted.as_ref() else {
+            panic!("finite wind-down prompt: {emitted:?}");
+        };
+        let crate::llm::ToolChoice::Only(tools) = &prompt.choice else { panic!("finite reserve choice") };
+        assert!(tools.contains(&Served::Finish));
+        assert_eq!(tools.contains(&Served::Wait), wait);
+    }
 }

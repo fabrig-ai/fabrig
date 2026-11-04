@@ -1,4 +1,4 @@
-//! A real owned slot driven over the box pipe without serve (temper/docs/design/draft/playground-reset.md, 3 and 4).
+//! A real owned slot driven over the box pipe without serve (temper/docs/design/protocol/setup.md, 7.1).
 use super::support;
 use skein_io::kernel::{Exit, Fd, ServiceSignal};
 use skein_lib::{Duration, Time};

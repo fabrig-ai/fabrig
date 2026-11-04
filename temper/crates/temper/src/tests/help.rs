@@ -89,6 +89,20 @@ fn substitute_placeholders(word: &str) -> String {
 }
 
 #[test]
+fn box_walk_reads_the_conversation_after_waiting_for_a_reply() {
+    let page = temper_docs::find(b"box").expect("box walk");
+    let (_, steps) = page.text.split_once("\n## 6. ").expect("step 6");
+    let (step, _) = steps.split_once("\n## 7. ").expect("step 7");
+    let commands = fenced_lines(step);
+    assert!(
+        commands.windows(2).any(|pair| {
+            pair[0].1 == "temper ctl DIR task show TASK --until replied" && pair[1].1 == "temper ctl DIR chat show TASK"
+        }),
+        "box step 6 must read the conversation immediately after waiting for a reply"
+    );
+}
+
+#[test]
 fn every_command_line_in_the_pages_parses() {
     let mut ctl = 0;
     let mut binary = 0;
@@ -211,6 +225,158 @@ fn help_prints_a_whole_page_and_names_an_unknown_one() {
 }
 
 #[test]
+fn account_and_deployment_help_explain_offering_another_model() {
+    let account = help::answer(&configured(&["help", "account"])).expect("account help");
+    let account = account.split_whitespace().collect::<Vec<_>>().join(" ");
+    assert!(account.contains("temper help deployment"), "{account}");
+    assert!(account.contains("Offering another model"), "{account}");
+    let deployment = help::answer(&configured(&["help", "deployment"])).expect("deployment help");
+    let examples = deployment.split("```json\n").skip(1).collect::<Vec<_>>();
+    assert_eq!(examples.len(), 2, "engine and agent model declarations");
+    for example in examples {
+        let json = example.split("```").next().expect("JSON fence");
+        let model: serde_json::Value = serde_json::from_str(json).expect("model declaration JSON");
+        assert_eq!(model["name"], "gpt-6.1-sol");
+        assert_eq!(model["efforts"], serde_json::json!(["high", "medium", "low"]));
+    }
+    let guidance = deployment
+        .split("## Acting on it\n")
+        .nth(1)
+        .expect("deployment procedure")
+        .split("\n## ")
+        .next()
+        .expect("procedure text")
+        .split_whitespace()
+        .collect::<Vec<_>>()
+        .join(" ");
+    for required in [
+        "Offering another model",
+        "`CONFIG/temper.json`",
+        "`engine.llm.models`",
+        "`engine.llm.providers[].models`",
+        "`CONFIG/agent.json`",
+        "`endpoints[].models`",
+        "gpt-6.1-sol",
+        "efforts",
+        "high",
+        "medium",
+        "low",
+        "window",
+        "output",
+        "reasoning_item",
+        "prices",
+        "same model and endpoint names",
+        "illustrative",
+        "provider specifications",
+        "Preserve",
+        "before the first start",
+        "stop",
+        "restart",
+        "same `CONFIG`, `DATA` and `CACHE`",
+    ] {
+        assert!(guidance.contains(required), "deployment help missing {required}: {guidance}");
+    }
+    for words in [vec!["help", "--search", "gpt-6.1-sol"], vec!["help", "--search", "model", "restart"]] {
+        let hits = help::answer(&configured(&words)).expect("model configuration search");
+        assert!(hits.lines().any(|line| line.starts_with("deployment: Acting on it: ")), "{hits}");
+    }
+}
+
+#[test]
+fn box_and_tier_help_name_the_host_runners_node_prerequisite() {
+    for (page, heading) in [("box", "Before you start"), ("tier", "Acting on it")] {
+        let text = help::answer(&configured(&["help", page])).expect("help page");
+        let section = text
+            .split(&format!("## {heading}\n"))
+            .nth(1)
+            .expect("prerequisite section")
+            .split("\n## ")
+            .next()
+            .expect("section text")
+            .split_whitespace()
+            .collect::<Vec<_>>()
+            .join(" ");
+        for prerequisite in [
+            "`temper-host`",
+            "host",
+            "compatible Node.js",
+            "`node`",
+            "JavaScript `uses:` actions",
+            "`actions/checkout@v4`",
+            "`actions/upload-artifact@v3`",
+            "`application.machine.owned.runner.path`",
+            "`/usr/local/bin:/usr/bin:/bin`",
+            "restart",
+            "interactive shell is insufficient",
+        ] {
+            assert!(section.contains(prerequisite), "{page}: missing {prerequisite}: {section}");
+        }
+    }
+}
+
+#[test]
+fn box_help_names_delivery_checks_path_and_tools() {
+    let text = help::answer(&configured(&["help", "box"])).expect("box help");
+    let prerequisites = text
+        .split("## Before you start\n")
+        .nth(1)
+        .expect("prerequisites")
+        .split("\n## ")
+        .next()
+        .expect("prerequisite section")
+        .split("- **Host delivery checks:**")
+        .nth(1)
+        .expect("host delivery checks prerequisite")
+        .split("\n- ")
+        .next()
+        .expect("delivery checks text")
+        .split_whitespace()
+        .collect::<Vec<_>>()
+        .join(" ");
+    for required in [
+        "`.temper/pre-pr`",
+        "inherit the box process's `PATH` captured at startup",
+        "box unit's `PATH`",
+        "before step 2",
+        "fabrig",
+        "`cargo`",
+        "rustfmt",
+        "`cargo fmt`",
+        "`python3`",
+        "`W/bin:/usr/local/bin:/usr/bin:/bin`",
+        "`PATH=/home/box/.cargo/bin:W/bin:/usr/local/bin:/usr/bin:/bin`",
+        "absolute paths",
+        "restart the box unit after changing its environment",
+        "`application.machine.owned.runner.path` configures the runner alone",
+    ] {
+        assert!(prerequisites.contains(required), "delivery checks missing {required}: {prerequisites}");
+    }
+}
+
+#[test]
+fn box_and_tier_help_explain_shared_capacity_and_existing_boxes() {
+    for page in ["box", "tier"] {
+        let text = help::answer(&configured(&["help", page])).expect("help page");
+        let text = text.split_whitespace().collect::<Vec<_>>().join(" ");
+        for required in [
+            "CI and tiers",
+            "`temper-host`",
+            "`application.machine.owned.runner.capacity`",
+            "defaults to 1",
+            "2 for one single-job tier plus CI, or 3 for two such tiers plus CI",
+            "multi-job workflows",
+            "other repositories",
+            "Ctrl-C or SIGTERM",
+            "`Stopped`",
+            "`CONFIG/temper.json`",
+            "same",
+            "registration and secrets",
+        ] {
+            assert!(text.contains(required), "{page}: missing {required}: {text}");
+        }
+    }
+}
+#[test]
 fn box_and_change_help_locate_temper_review_gates_in_change_show() {
     let box_page = help::answer(&configured(&["help", "box"])).expect("box page");
     let step = box_page
@@ -234,12 +400,97 @@ fn box_and_change_help_locate_temper_review_gates_in_change_show() {
 }
 
 #[test]
+fn tier_help_explains_the_baseline_before_any_landing() {
+    let page = help::answer(&configured(&["help", "tier"])).expect("tier page");
+    let section = page
+        .split("## What it is\n")
+        .nth(1)
+        .expect("what it is")
+        .split("\n## ")
+        .next()
+        .expect("section text")
+        .split_whitespace()
+        .collect::<Vec<_>>()
+        .join(" ");
+    for explanation in [
+        "A newly configured tier first runs at its followed branch's current tip as a baseline, without any landing.",
+        "Baseline failures are blamed on no landing and inherited by the next run.",
+        "Subsequent ranges start after the baseline tip.",
+        "Landings arriving during the baseline wait for the next run to verify them.",
+    ] {
+        assert!(section.contains(explanation), "tier help must explain: {explanation}\n{section}");
+    }
+}
+
+#[test]
 fn help_prints_the_landing_page() {
     assert_eq!(
         help::answer(&configured(&["help", "landing"])).expect("landing page").as_bytes(),
         include_bytes!("../../../../docs/help/landing.md")
     );
 }
+
+#[test]
+fn tier_help_contains_a_complete_landing_configuration_example() {
+    let text = help::answer(&configured(&["help", "tier"])).expect("tier page");
+    let example = fenced_lines(&text).into_iter().map(|(_, line)| line).collect::<Vec<_>>().join("\n");
+    let example: serde_json::Value = serde_json::from_str(&example).expect("tier configuration JSON");
+    let landing = &example["application"]["landing"];
+    assert!(landing.get("deployment").is_none());
+    let projects = landing["projects"].as_array().expect("landing projects");
+    assert_eq!(projects.len(), 1);
+    let project = &projects[0];
+    assert_eq!(project["project"], 1);
+    assert!(project.get("rules").is_none());
+    assert_eq!(project["by"], "queue");
+    assert_eq!(project["tier_retries"], 2);
+    assert_eq!(project["verification_bound_ms"], 7_200_000);
+    let repositories = project["gates"].as_array().expect("project repository entries");
+    assert_eq!(repositories.len(), 1);
+    let repository = &repositories[0];
+    assert_eq!(repository["forge"], 1);
+    assert_eq!(repository["repository"], 7);
+    assert!(repository["gates"].is_array(), "repository workflow gates");
+    let tiers = repository["tiers"].as_array().expect("repository tiers");
+    assert_eq!(tiers.len(), 1);
+    let tier = &tiers[0];
+    assert_eq!(tier["name"], "browser");
+    assert_eq!(tier["workflow"], "browser.yml");
+    assert_eq!(tier["artifact"], "report");
+    assert_eq!(tier["format"], "junit");
+    assert_eq!(tier["ignored"], serde_json::json!(["docs"]));
+}
+
+#[test]
+fn tier_help_explains_report_formats_and_preserving_configuration() {
+    let text = help::answer(&configured(&["help", "tier"])).expect("tier page");
+    let text = text.split_whitespace().collect::<Vec<_>>().join(" ");
+    for instruction in [
+        "CONFIG/temper.json",
+        "application.landing.projects[].gates[].tiers",
+        "`junit` for JUnit reports",
+        "`lines` for one failing test id per line",
+        "project's `gates` array holds repository entries",
+        "repository's `gates` array holds workflow gates",
+        "project, forge and repository numbers",
+        "Preserve the existing configuration",
+        "restart",
+        "`tier_retries` and `verification_bound_ms` beside the project's `by`",
+    ] {
+        assert!(text.contains(instruction), "missing {instruction}: {text}");
+    }
+}
+
+#[test]
+fn tier_configuration_is_reachable_through_help_search() {
+    let search = help::answer(&configured(&["help", "--search", "tiers"])).expect("tier search");
+    assert!(search.lines().any(|line| line.starts_with("tier: Acting on it: ")), "{search}");
+    for name in ["tier", "landing", "deployment"] {
+        let text = help::answer(&configured(&["help", name])).expect("help page");
+        assert_eq!(text, temper_docs::find(name.as_bytes()).expect("compiled page").text);
+    }
+}
+
 #[test]
 fn help_search_names_the_server_section_or_says_nothing_matches() {
     let text = help::answer(&configured(&["help", "--search", "WireGuard"])).expect("WireGuard section");

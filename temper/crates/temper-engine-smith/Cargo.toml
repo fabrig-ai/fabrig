@@ -14,6 +14,7 @@ jig-domain-core.workspace = true
 jig-client-protocol-wire.workspace = true
 jig-protocol-engine-clients.workspace = true
 temper-docs.workspace = true
+temper-client-protocol-wire.workspace = true
 skein-forge.workspace = true
 skein-lib.workspace = true
 skein-json.workspace = true

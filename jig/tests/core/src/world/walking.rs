@@ -166,6 +166,7 @@ impl Walking {
                             budget: jig_domain_people::Budget::Named,
                             executor: tasks::Executor::Procedure { connector: 1, code: 1 },
                             spec: tasks::Spec {
+                                job: None,
                                 asks: false,
                                 words: b"run the check".as_slice().into(),
                                 parameters: Box::new([]),
@@ -176,7 +177,7 @@ impl Walking {
                             llm: None,
                             symbolic_grants: Box::new([]),
                             dependencies: Box::new([]),
-                            wake: tasks::WakePolicy::DEFAULT,
+                            wake: Some(tasks::WakePolicy::DEFAULT),
                         };
                         let batch = match self.scenario {
                             Scenario::Goal => vec![delegate].into_boxed_slice(),
@@ -268,7 +269,8 @@ impl Walking {
             | root::Delivery::Core(
                 core::Held::Delivery { .. } | core::Held::WatchEnded { .. } | core::Held::Grant { .. },
             ) => {}
-            other @ (root::Delivery::Link { .. }
+            other @ (root::Delivery::AssignedJob { .. }
+            | root::Delivery::Link { .. }
             | root::Delivery::ProjectMade { .. }
             | root::Delivery::CallBusy { .. }
             | root::Delivery::CallAnswer { .. }

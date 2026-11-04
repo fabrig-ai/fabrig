@@ -2,6 +2,7 @@
 mod applications;
 mod asks;
 pub(crate) mod calendar;
+mod diagnostics;
 pub(crate) mod escalation;
 pub(crate) mod forge_route;
 pub(crate) mod held;
@@ -9,11 +10,13 @@ pub(crate) mod host_route;
 pub(crate) mod playground;
 pub use host_route::{HostDelivery, HostRequest};
 mod goal;
+mod kinds;
 pub(crate) mod landing;
 mod now;
 mod panels;
 pub(crate) mod policy_translate;
 pub(crate) mod proposals;
+pub(crate) mod public;
 mod tools;
 use crate::archive::take_read;
 use crate::assemble::{brief_outputs, take_payload};
@@ -46,8 +49,8 @@ use temper_engine_domain_forge_issues as forge_issues;
 pub(crate) use tools::relay_payload;
 
 /// Route one admitted input and its synchronous continuations in one decision.
-/// Admission is `try_step`'s; the root never answers busy itself (jig's
-/// `testing/jig-test-domain/src/admission.rs`).
+/// Admission is `try_step`'s, including public reading's immediate busy answer
+/// (jig/docs/design/domain/root.md, 3).
 #[expect(
     clippy::too_many_lines,
     reason = "one exhaustive input match keeps every input before a single decision close"
@@ -94,6 +97,13 @@ pub(crate) fn step_routed(domain: &mut Domain, env: &Env<Limits>, event: Event, 
             })));
         }
         Event::Account(event) => domain.work.push(Work::Core(core::Event::Account(event))),
+        Event::Party(crate::PartyInput::PublicRead { reply, read }) => {
+            let mut decision = Decision::decide(&mut domain.journal, &env.limits.journal);
+            public::start(domain, env, &mut decision, reply, read);
+            route_into(domain, env, &mut decision);
+            close(domain, env, decision, out);
+            return;
+        }
         Event::Party(crate::PartyInput::StartRecurring { project, authority, template }) => {
             domain.work.push(Work::Core(core::Event::StartRecurring { project, authority, template }));
         }
@@ -135,11 +145,45 @@ pub(crate) fn step_routed(domain: &mut Domain, env: &Env<Limits>, event: Event, 
         Event::Party(crate::PartyInput::Whose { reply_to, sign_in }) => {
             domain.work.push(Work::People(people::Event::Whose { reply_to, sign_in }));
         }
-        Event::Party(crate::PartyInput::ProposeSettings { reply_to, sign_in, key, digest, change }) => {
-            domain.work.push(Work::Core(core::Event::ProposeSettings { reply_to, sign_in, key, digest, change }));
+        Event::Party(crate::PartyInput::ProposeSettings { reply_to, sign_in, key, digest, change, kinds }) => {
+            domain.kinds = kinds;
+            match room_refusal(domain.host_part, &change.items) {
+                Some(why) => {
+                    let request = Request::Party(crate::PartyRequest::Deliver(Delivery::WebReply {
+                        to: reply_to,
+                        reply: people::Reply::Refused(why),
+                    }));
+                    assert!(now(domain, request), "settings refusal door reserved");
+                }
+                None => domain.work.push(Work::Core(core::Event::ProposeSettings {
+                    reply_to,
+                    sign_in,
+                    key,
+                    digest,
+                    change,
+                })),
+            }
         }
-        Event::Party(crate::PartyInput::ChangeSettings { reply_to, sign_in, key, digest, change }) => {
-            domain.work.push(Work::Core(core::Event::ChangeSettings { reply_to, sign_in, key, digest, change }));
+        Event::Party(crate::PartyInput::ChangeSettings { reply_to, sign_in, key, digest, change, kinds }) => {
+            domain.kinds = kinds;
+            match room_refusal(domain.host_part, &change.items) {
+                Some(why) => {
+                    let request = Request::Party(crate::PartyRequest::Deliver(Delivery::WebReply {
+                        to: reply_to,
+                        reply: people::Reply::Refused(why),
+                    }));
+                    assert!(now(domain, request), "settings refusal door reserved");
+                }
+                None => {
+                    domain.work.push(Work::Core(core::Event::ChangeSettings {
+                        reply_to,
+                        sign_in,
+                        key,
+                        digest,
+                        change,
+                    }));
+                }
+            }
         }
         Event::Party(crate::PartyInput::SignOut { reply_to, sign_in }) => {
             domain.work.push(Work::People(people::Event::SignOut { reply_to, sign_in }));
@@ -156,6 +200,9 @@ pub(crate) fn step_routed(domain: &mut Domain, env: &Env<Limits>, event: Event, 
         }
         Event::Party(crate::PartyInput::Key { reply_to, sign_in, key, ask, carried }) => {
             domain.work.push(Work::Core(core::Event::Key { reply_to, sign_in, key, ask, carried }));
+        }
+        Event::Party(crate::PartyInput::ForgeRead { reply, sign_in, scope, query }) => {
+            domain.work.push(Work::ForgeRead { reply, sign_in, scope, query });
         }
         Event::Party(crate::PartyInput::Read { reply_to, sign_in, read }) => {
             domain.work.push(Work::Core(core::Event::Read { reply: reply_to, sign_in, read }));
@@ -263,13 +310,14 @@ pub(crate) fn step_routed(domain: &mut Domain, env: &Env<Limits>, event: Event, 
 
 fn keep_produced_title(domain: &mut Domain, record: &core::Record) {
     if let core::Record::Tasks(tasks::Stored::Ended(row)) = record
-        && let tasks::Phase::Ended(tasks::Ending::Done(tasks::TaskResult::Change { title, .. })) = &row.phase
+        && let tasks::Phase::Ended(tasks::Ending::Done(tasks::TaskResult::Change { title, words, .. })) = &row.phase
         && let tasks::Party::Task(task) = row.requester
     {
         domain.work.push(Work::Forge(forge::Event::ProducedTitle {
             task,
             child: row.number,
             title: title.words.clone(),
+            report: words.clone(),
         }));
     }
 }
@@ -312,11 +360,18 @@ pub(crate) fn route_core_requests(
                 domain.release_bytes(replaced, "erased write's turn body was held");
             }
             core::Request::Ask { connector, ask } => asks::ask(domain, env, decision, connector, ask),
-            core::Request::Held(output) => held::held(domain, env, decision, *output),
+            core::Request::Held(output) => {
+                if let core::Held::PublicRead { reply, answer } = *output {
+                    emit(decision, &env.limits, Delivery::Public { reply, answer, admitted: true });
+                } else {
+                    held::held(domain, env, decision, *output);
+                }
+            }
             core::Request::Now(output) => now::now(domain, env, decision, *output),
             core::Request::ProjectMade { project } => emit(decision, &env.limits, Delivery::ProjectMade { project }),
         }
     }
+    crate::assemble::retire_document_titles(domain);
 }
 
 pub(crate) fn route_into(domain: &mut Domain, env: &Env<Limits>, decision: &mut Decision) {
@@ -334,6 +389,12 @@ pub(crate) fn route_into(domain: &mut Domain, env: &Env<Limits>, decision: &mut 
         let Some(work) = domain.work.pop() else { break };
         match work {
             Work::StartDone(phase) => {
+                if phase == core::start::Phase::LoadCore
+                    && let Err(short) = domain.check_room()
+                {
+                    domain.stop_start(crate::StartStop::Room(short));
+                    return;
+                }
                 let mut output = Queue::uncapped();
                 let action = domain.core.start_done(&environment_core(env), phase, &mut output);
                 route_core_requests(domain, env, decision, output);
@@ -344,12 +405,12 @@ pub(crate) fn route_into(domain: &mut Domain, env: &Env<Limits>, decision: &mut 
             }
             Work::Start(action) => start_action(domain, env, decision, action),
             Work::Decoded { to, body } => host_route::decoded(domain, env, decision, to, body),
+            Work::ForgeRead { reply, sign_in, scope, query } => {
+                kinds::read(domain, env, decision, reply, sign_in, scope, query);
+            }
             Work::Core(event) => {
                 if let core::Event::AcceptedTurn { accepted: tasks::Accepted::Already, transcript, .. } = &event {
-                    domain.release_bytes(
-                        u64::try_from(transcript.len()).expect("turn body length fits u64"),
-                        "already accepted turn body was held",
-                    );
+                    domain.release_bytes(skein_lib::len_u64(transcript.len()), "already accepted turn body was held");
                 }
                 let routed = core::step(&mut domain.core, &environment_core(env), event);
                 route_core_requests(domain, env, decision, routed);
@@ -371,6 +432,7 @@ pub(crate) fn route_into(domain: &mut Domain, env: &Env<Limits>, decision: &mut 
                 route_core_requests(domain, env, decision, routed);
             }
             Work::ForgeRestored => {
+                domain.forge.link_names(&domain.core.tasks, &env.limits.forge);
                 if domain.forge.fit_restored(&env.limits.forge).is_err() {
                     refuse_forge_fit(domain);
                     return;
@@ -384,6 +446,7 @@ pub(crate) fn route_into(domain: &mut Domain, env: &Env<Limits>, decision: &mut 
                 );
             }
             Work::Forge(event) => forge_event(domain, env, decision, event),
+            Work::ForgeSettings(mut output) => forge_route::outputs(domain, env, decision, &mut output),
             Work::ProjectGoal(goal) => forge_route::project_goal(domain, env, &goal),
             Work::GoalSubscribe(subscriber) => forge_route::goal_subscribed(domain, env, subscriber),
             Work::AgreedGoal(read) => goal::ready(domain, env, decision, *read),
@@ -501,7 +564,7 @@ pub(crate) fn delegate_call(
         if let Some(&first) = ids.first() {
             let capacity = batch
                 .len()
-                .checked_mul(usize::try_from(env.limits.tasks.inputs).expect("u32 fits usize"))
+                .checked_mul(skein_lib::usize_of(env.limits.tasks.inputs))
                 .expect("bounded batch input count");
             let to = to.into_token();
             let read = InputCheck {
@@ -596,4 +659,26 @@ pub(crate) fn refuse_forge_fit(domain: &mut Domain) -> bool {
     let failure = *domain.forge_fit_failure().expect("forge fit failure");
     domain.stop_start(crate::StartStop::ForgeFit { phase: domain.start_phase(), failure });
     true
+}
+
+/// Only charter values set at an entrance are checked; resets and stored
+/// proposal acceptances retain their admitted values (temper/docs/design/domain/agent.md, 4.3).
+pub(crate) fn room_refusal(
+    host: Option<crate::room::HostPart>,
+    items: &[core::settings::Item],
+) -> Option<people::Refusal> {
+    let host = host?;
+    for (index, item) in items.iter().enumerate() {
+        if let core::settings::Setting::Charter(number) = item.setting
+            && let core::settings::Edit::Set(core::settings::Value::Charter(charter)) = &item.edit
+            && let Err(short) = host.check(number, &charter.policy)
+        {
+            return Some(people::Refusal::Judged {
+                at: u32::try_from(index).expect("bounded settings items"),
+                setting: item.setting,
+                why: short.words(),
+            });
+        }
+    }
+    None
 }

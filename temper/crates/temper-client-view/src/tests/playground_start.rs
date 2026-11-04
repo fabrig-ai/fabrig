@@ -6,7 +6,7 @@ use temper_client_domain::Address;
 use temper_client_domain::ChatsFilter;
 
 #[test]
-fn the_start_draws_the_frame_banner_before_its_chatbar_context_and_invitation() {
+fn the_start_draws_the_pane_before_the_composer_choice_and_suggestions() {
     let root = f::playground_root(Address::Chats { filter: ChatsFilter::All, start: false }, f::PROJECT, true);
     let view = f::page_view(&root);
     let nodes = view.tree().nodes();
@@ -34,25 +34,21 @@ fn the_start_draws_the_frame_banner_before_its_chatbar_context_and_invitation() 
             paragraphs += 1;
         }
     }
-    assert_eq!(paragraphs, 2, "project and sign-in");
+    assert_eq!(paragraphs, 1, "repository alone");
     let mut after = 0;
     for (role, name) in [
         (Role::Banner, b"".as_slice()),
-        (Role::Region, b"Playground"),
         (Role::Main, b""),
+        (Role::Complementary, b"Project"),
         (Role::Paragraph, b"New chat"),
         (Role::Status, b"Ready"),
-        (Role::Paragraph, b"Scripted model"),
-        (Role::Paragraph, "Playground · acme/shop on Playground forge".as_bytes()),
-        (Role::Paragraph, b"Signed in as Pat"),
-        (Role::Heading { level: 1 }, b"What shall we change?"),
-        (Role::Paragraph, b"Try a request in acme/shop. Follow the task from its branch to a landed change."),
-        (Role::List, b"Suggested requests"),
-        (Role::Paragraph, b"The scripted model plays these requests from its script."),
-        (Role::Paragraph, "Using Scripted model · Default".as_bytes()),
-        (Role::TextArea, b"Start a chat"),
-        (Role::Heading { level: 2 }, b"Your chats"),
+        (Role::Paragraph, b"acme/shop"),
+        (Role::Heading { level: 1 }, b"Chats"),
         (Role::Paragraph, b"No chats yet."),
+        (Role::Region, b"Playground"),
+        (Role::TextArea, b"Start a chat"),
+        (Role::Paragraph, "Using Scripted model · Default".as_bytes()),
+        (Role::List, b"Suggested requests"),
     ] {
         let mut found = None;
         for (index, node) in nodes.iter().enumerate() {
@@ -72,7 +68,7 @@ fn the_start_draws_the_frame_banner_before_its_chatbar_context_and_invitation() 
         assert!(at > after, "{name:?} follows the previous part");
         after = at;
     }
-    assert!(f::find(view.tree(), Role::Heading { level: 1 }, b"Chats").is_none());
+    assert!(f::find(view.tree(), Role::Heading { level: 1 }, b"Chats").is_some());
     let ready = f::find(view.tree(), Role::Status, b"Ready").unwrap();
     for node in nodes {
         if node.id == ready {
@@ -82,7 +78,7 @@ fn the_start_draws_the_frame_banner_before_its_chatbar_context_and_invitation() 
 }
 
 #[test]
-fn other_chats_keep_their_heading_and_no_start() {
+fn other_chats_keep_their_pane_and_no_suggestions() {
     for (row, project, model, playground) in
         [("other project", f::SECOND_PROJECT, true, true), ("no answer", f::PROJECT, true, false)]
     {
@@ -93,17 +89,25 @@ fn other_chats_keep_their_heading_and_no_start() {
         };
         let view = f::page_view(&root);
         assert!(f::find(view.tree(), Role::Heading { level: 1 }, b"Chats").is_some(), "{row}");
-        assert!(f::find(view.tree(), Role::Paragraph, b"New chat").is_none(), "{row}");
-        assert!(f::find(view.tree(), Role::Heading { level: 1 }, b"What shall we change?").is_none(), "{row}");
-        for node in view.tree().nodes() {
-            assert!(!node.styles.as_slice().contains(&crate::look::CONTEXT), "{row}");
+        assert!(f::find(view.tree(), Role::Paragraph, b"New chat").is_some(), "{row}");
+        assert!(f::find(view.tree(), Role::List, b"Suggested requests").is_none(), "{row}");
+        for (at, node) in view.tree().nodes().iter().enumerate() {
+            if node.styles.as_slice().contains(&crate::look::CONTEXT) {
+                let end = at + usize::try_from(node.size).unwrap();
+                assert!(
+                    view.tree().nodes()[at..end].iter().any(|child| {
+                        child.role == Role::Paragraph && child.name.as_deref() == Some(b"No repository yet")
+                    }),
+                    "{row}: only the repository context is drawn"
+                );
+            }
         }
     }
 }
 
 #[test]
 fn the_context_names_the_deployment_owner_then_the_project_owner_then_the_person() {
-    let template = f::playground_root(Address::Chats { filter: ChatsFilter::All, start: false }, f::PROJECT, true);
+    let template = f::playground_root(Address::Chat { task: 1 }, f::PROJECT, true);
     for (row, deployment, role, named, expected, project) in [
         (
             "deployment owner",
@@ -111,7 +115,7 @@ fn the_context_names_the_deployment_owner_then_the_project_owner_then_the_person
             c::HeldRole::Owner,
             true,
             "Signed in as the deployment’s owner".as_bytes(),
-            "Playground · acme/shop on Playground forge",
+            "Shop · acme/shop on Playground forge",
         ),
         (
             "project owner",
@@ -119,7 +123,7 @@ fn the_context_names_the_deployment_owner_then_the_project_owner_then_the_person
             c::HeldRole::Owner,
             true,
             "Signed in as the project’s owner".as_bytes(),
-            "Playground · acme/shop on Playground forge",
+            "Shop · acme/shop on Playground forge",
         ),
         (
             "another role",
@@ -127,7 +131,7 @@ fn the_context_names_the_deployment_owner_then_the_project_owner_then_the_person
             c::HeldRole::Policy { role: 1 },
             true,
             b"Signed in as Pat",
-            "Playground · acme/shop on Playground forge",
+            "Shop · acme/shop on Playground forge",
         ),
         (
             "project fallback",
@@ -135,7 +139,7 @@ fn the_context_names_the_deployment_owner_then_the_project_owner_then_the_person
             c::HeldRole::Policy { role: 1 },
             false,
             b"Signed in as Pat",
-            "Playground · acme/shop on Playground forge",
+            "Project 1 · acme/shop on Playground forge",
         ),
     ] {
         let mut me = template.pages().me(template.client()).unwrap().clone();
@@ -146,13 +150,7 @@ fn the_context_names_the_deployment_owner_then_the_project_owner_then_the_person
                 jig_client::contract::Text::new(b"Project 1".as_slice().into(), 64).expect("project name"),
             );
         }
-        let root = f::playground_frame_root(
-            Address::Chats { filter: ChatsFilter::All, start: false },
-            f::PROJECT,
-            true,
-            None,
-            Some(me),
-        );
+        let root = f::playground_frame_root(Address::Chat { task: 1 }, f::PROJECT, true, None, Some(me));
         let view = f::page_view(&root);
         assert!(f::find(view.tree(), Role::Paragraph, expected).is_some(), "{row}");
         let mut found = false;
@@ -221,33 +219,16 @@ fn the_context_repository_has_its_own_node_and_style() {
 }
 
 #[test]
-fn chats_invites_to_the_playground_and_starts_it() {
+fn the_suggestions_slot_holds_only_the_cue_list() {
     let root = f::playground_root(Address::Chats { filter: ChatsFilter::All, start: false }, f::PROJECT, true);
     let view = f::page_view(&root);
-    let tree = view.tree();
-    let region = f::find(tree, Role::Region, b"What shall we change?").expect("named invitation region");
-    let nodes = tree.nodes();
-    let mut at = 0;
-    for (index, node) in nodes.iter().enumerate() {
-        if node.id == region {
-            at = index;
-        }
-    }
-    assert_eq!(nodes[at].styles.as_slice(), [crate::look::INVITATION]);
-    let end = at + usize::try_from(nodes[at].size).unwrap();
-    let mut child = at + 1;
-    for (role, name) in [
-        (Role::Heading { level: 1 }, b"What shall we change?".as_slice()),
-        (Role::Paragraph, b"Try a request in acme/shop. Follow the task from its branch to a landed change."),
-        (Role::List, b"Suggested requests"),
-        (Role::Paragraph, b"The scripted model plays these requests from its script."),
-    ] {
-        assert!(child < end, "part belongs to invitation");
-        assert_eq!(nodes[child].role, role);
-        assert_eq!(nodes[child].name.as_deref(), Some(name));
-        child += usize::try_from(nodes[child].size).unwrap();
-    }
-    assert_eq!(child, end, "all four parts stay inside the region");
+    let nodes = view.tree().nodes();
+    let at = nodes.iter().position(|node| node.styles.as_slice().contains(&crate::look::INVITATION)).unwrap();
+    assert_eq!(nodes[at].role, Role::Slot);
+    assert_eq!(nodes[at + 1].role, Role::List);
+    assert_eq!(nodes[at + 1].name.as_deref(), Some(b"Suggested requests".as_slice()));
+    assert_eq!(nodes[at].size, nodes[at + 1].size + 1);
+    assert!(f::find(view.tree(), Role::Region, b"What shall we change?").is_none());
 }
 
 #[test]
@@ -368,14 +349,14 @@ fn start_root() -> temper_client_domain::Domain {
 }
 
 #[test]
-fn a_starting_row_without_a_project_keeps_its_invitation_and_cues_disabled() {
+fn a_starting_row_without_a_project_keeps_its_pane_and_cues_disabled() {
     use temper_client_protocol_wire::v1 as w;
     let mut root = start_root();
     let attempt = f::playground_start_attempt(&mut root);
     let read = f::playground_start_answer(&mut root, attempt, w::Outcome::Running).expect("playground read");
     f::deliver_playground(&mut root, read, w::PlaygroundState::Starting, f::FORGE, None);
     let mut view = f::page_view(&root);
-    assert!(f::find(view.tree(), Role::Heading { level: 1 }, b"What shall we change?").is_some());
+    assert!(f::find(view.tree(), Role::List, b"Suggested requests").is_some());
     assert!(f::find(view.tree(), Role::Status, b"Starting").is_some());
     let cue = f::find(view.tree(), Role::Button, f::PLAYGROUND_CUE).unwrap();
     assert_eq!(crate::act(&mut view, cue, skein_ui::Act::Press), None);

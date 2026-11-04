@@ -391,7 +391,6 @@ const fn completion_cap(cap: run::Cap) -> channel::Cap {
         run::Cap::Answer => channel::Cap::Answer,
         run::Cap::ErrorBody => channel::Cap::ErrorBody,
         run::Cap::AccessToken => channel::Cap::AccessToken,
-        run::Cap::AccountId => channel::Cap::AccountId,
     }
 }
 

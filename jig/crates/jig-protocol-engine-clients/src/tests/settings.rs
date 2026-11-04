@@ -16,7 +16,8 @@ fn settings() -> d::Settings {
             setting: s::Setting::Template(1),
             name: Some(d::Text { bytes: Box::from(b"chat".as_slice()), cut: false }),
             follows: d::Follows::Default,
-            last: 6,
+            last: Some(6),
+            application: None,
         })
         .unwrap();
     d::Settings { newest: 6, settings, held, pending: List::with_capacity(0) }
@@ -121,7 +122,8 @@ fn the_inventory_at_profile_bounds_fits_one_wire_document() {
                     None
                 },
                 follows: d::Follows::Default,
-                last: 6,
+                last: Some(6),
+                application: None,
             })
             .unwrap();
     }
@@ -154,6 +156,25 @@ fn charter() -> jig_domain_core::Charter {
     use jig_domain_core as core;
     use skein_lib::Duration;
     core::Charter {
+        wake: jig_domain_tasks::WakePolicy::DEFAULT,
+        documents: Box::new([
+            core::Document {
+                connector: 2,
+                name: jig_domain_authority::Name {
+                    segments: Box::new([Box::from(b"resource".as_slice()), Box::from(b"part".as_slice())]),
+                },
+                path: Box::from(b"guide.md".as_slice()),
+                heading: None,
+            },
+            core::Document {
+                connector: 3,
+                name: jig_domain_authority::Name {
+                    segments: Box::new([Box::from(b"another".as_slice()), Box::from(b"part".as_slice())]),
+                },
+                path: Box::from(b"rules.md".as_slice()),
+                heading: Some(Box::from("Rules λ".as_bytes())),
+            },
+        ]),
         number: 1,
         hosts: jig_domain_fleet::Kinds::Both,
         spend: 100,
@@ -186,6 +207,7 @@ fn charter() -> jig_domain_core::Charter {
             shell: true,
             agents: false,
             call_timeout: Duration::from_secs(1),
+            tools: core::RunPolicy::EVERY_FAMILY,
         },
     }
 }
@@ -232,13 +254,19 @@ fn whole_setting_kinds_reach_the_clients_as_their_values() {
     use jig_client_domain::contract as c;
     let names = [s::Setting::Charter(1), s::Setting::Template(1), s::Setting::Policy(1), s::Setting::Rules];
     for (name, value) in names.into_iter().zip(values()) {
-        let document = reads::SettingDocument { setting: name, revision: 6, value };
+        let document = reads::SettingDocument {
+            setting: name,
+            revision: 6,
+            value: Some(value),
+            application: None,
+            proposed: None,
+        };
         let wire = translate::setting_document(&document, &f::models(), &w::CEILINGS).unwrap();
         let restored =
             jig_client_protocol_link::translate::settings::restore_setting_document(&wire, &f::client_limits())
                 .unwrap();
         assert_eq!(restored.revision, 6);
-        match (&document.value, restored.value) {
+        match (document.value.as_ref().unwrap(), restored.value.unwrap()) {
             (s::Value::Charter(source), c::SettingValue::Charter(value)) => {
                 assert_eq!(value.instructions.bytes(), source.policy.instructions.as_ref());
                 assert_eq!(value.model.name.bytes(), source.policy.model.name.as_ref());
@@ -264,11 +292,20 @@ fn revision_values_past_the_single_read_budget_name_their_encoded_size() {
     let source = s::Value::Charter(Box::new(charter()));
     let bytes = u64::from(translate::value(&source, &f::models(), &w::CEILINGS).unwrap().measure());
     let revision = s::Revision {
+        applications: Box::default(),
         head: head(),
         items: Box::new([
-            s::Item { setting: s::Setting::Charter(1), edit: s::Edit::Set(source) },
-            s::Item { setting: s::Setting::Template(2), edit: s::Edit::Removed },
-            s::Item { setting: s::Setting::Policy(3), edit: s::Edit::Reset },
+            s::RevisionItem {
+                setting: s::Setting::Charter(1),
+                edit: s::Edit::Set(source),
+                replaced: s::Replaced::NotOffered,
+            },
+            s::RevisionItem {
+                setting: s::Setting::Template(2),
+                edit: s::Edit::Removed,
+                replaced: s::Replaced::NotOffered,
+            },
+            s::RevisionItem { setting: s::Setting::Policy(3), edit: s::Edit::Reset, replaced: s::Replaced::NotOffered },
         ]),
     };
     for (budget, large) in [(bytes, false), (bytes - 1, true)] {
@@ -287,7 +324,9 @@ fn revision_values_past_the_single_read_budget_name_their_encoded_size() {
                 assert_eq!(value.bytes, bytes);
             }
             c::RevisionEdit::Set(_) => assert!(!large),
-            c::RevisionEdit::Removed | c::RevisionEdit::Reset => panic!("set or size"),
+            c::RevisionEdit::Application(_) | c::RevisionEdit::Removed | c::RevisionEdit::Reset => {
+                panic!("set or size")
+            }
         }
     }
 }
@@ -318,12 +357,14 @@ fn review_values_hold_at_the_document_bound_and_give_the_size_one_past_it() {
             s::Value::Template(value) => s::Setting::Template(value.number),
             s::Value::Policy(_) => s::Setting::Policy(1),
             s::Value::Rules(_) => s::Setting::Rules,
+            s::Value::Application(_) => s::Setting::Application { kind: 1, scope: 0, number: 1 },
         };
         let bytes = u64::from(translate::value(&value, &f::models(), &limits).expect("whole value").measure());
         for (bound, too_large) in [(bytes, false), (bytes - 1, true)] {
             let mut items = List::with_capacity(1);
             items
                 .push(d::ReviewItem {
+                    application: None,
                     setting,
                     edit: reads::RevisionEdit::Set,
                     now: Some(value.clone()),
@@ -331,7 +372,7 @@ fn review_values_hold_at_the_document_bound_and_give_the_size_one_past_it() {
                     would_be: Some(value.clone()),
                 })
                 .expect("review item");
-            let review = d::SettingsReview { newest: 1, items, value_bytes: bound };
+            let review = d::SettingsReview { key: None, newest: 1, items, value_bytes: bound };
             let wire = translate::review(&review, &f::models(), &limits).expect("review");
             let mut input = Reader::new(wire.items());
             let piece = skein_codec::piece::split(&mut input).expect("frame").expect("review item");
@@ -380,4 +421,200 @@ fn settings_decisions_translate_the_revision_and_stale_newest_without_changing_r
         assert_eq!(kind.outcome(), &expected);
         assert_eq!(value.words(), b"review reason");
     }
+}
+
+#[test]
+fn a_clients_charter_change_keeps_its_wake_policy() {
+    use jig_domain_tasks::{ResultsWake, WakePolicy, WakeRule};
+    use skein_lib::Duration;
+    // C7's coordinator wakes for each result and paces news at 30 minutes.
+    let expected = WakePolicy {
+        news: WakeRule::Paced { span: Duration::from_secs(30 * 60) },
+        results: ResultsWake::Each,
+        ..WakePolicy::DEFAULT
+    };
+    let mut source = charter();
+    source.wake = expected;
+    let value = translate::value(&s::Value::Charter(Box::new(source)), &f::models(), &w::CEILINGS).unwrap();
+    let client =
+        jig_client_protocol_link::translate::settings::restore_setting_value(&value, &f::client_limits()).unwrap();
+    let value = jig_client_protocol_link::translate::settings::wire_setting_value(&client, &w::CEILINGS).unwrap();
+    let wire = w::SettingItem::new(
+        &w::CEILINGS,
+        w::SettingItemParts {
+            setting: w::Setting::Charter(
+                w::SettingNumber::new(&w::CEILINGS, w::SettingNumberParts { number: 1 }).unwrap(),
+            ),
+            edit: w::SettingEdit::Set(w::SettingSet::new(&w::CEILINGS, w::SettingSetParts { value }).unwrap()),
+        },
+    )
+    .unwrap();
+    let mut writer = skein_lib::Writer::new(skein_lib::length::usize_of(wire.measure()));
+    wire.encode(&mut writer).unwrap();
+    let items = translate::items(f::pieces(&[writer.finish()]), &f::models(), &w::CEILINGS).unwrap();
+    let s::Edit::Set(s::Value::Charter(charter)) = &items[0].edit else { panic!("charter change") };
+    assert_eq!(charter.wake, expected);
+}
+
+#[test]
+fn charter_documents_round_trip_from_core_through_wire() {
+    let source = s::Value::Charter(Box::new(charter()));
+    let wire = translate::value(&source, &f::models(), &w::CEILINGS).unwrap();
+    let row = w::SettingItem::new(
+        &w::CEILINGS,
+        w::SettingItemParts {
+            setting: translate::name(s::Setting::Charter(1), &w::CEILINGS).unwrap(),
+            edit: w::SettingEdit::Set(w::SettingSet::new(&w::CEILINGS, w::SettingSetParts { value: wire }).unwrap()),
+        },
+    )
+    .unwrap();
+    let mut writer = skein_lib::Writer::new(skein_lib::length::usize_of(row.measure()));
+    row.encode(&mut writer).unwrap();
+    let items = translate::items(f::pieces(&[writer.finish()]), &f::models(), &w::CEILINGS).unwrap();
+    assert_eq!(items.as_ref(), &[s::Item { setting: s::Setting::Charter(1), edit: s::Edit::Set(source) }]);
+}
+
+#[test]
+fn change_settings_keeps_the_charter_documents() {
+    let mut source = jig_client_test_records::settings::settings_change();
+    let charter_item = source.items.get(0).unwrap().clone();
+    source.items = List::with_capacity(1);
+    source.items.push(charter_item).unwrap();
+    let wire = jig_client_protocol_link::translate::settings::wire_change_settings(&source, &w::CEILINGS).unwrap();
+    let change = translate::change(wire, &f::models(), &w::CEILINGS).unwrap();
+    let jig_client_domain::contract::SettingEdit::Set(value) = &source.items.get(0).unwrap().edit else {
+        panic!("charter set");
+    };
+    let expected =
+        jig_client_protocol_link::translate::settings::wire_setting_value(&value.value, &w::CEILINGS).unwrap();
+    let s::Edit::Set(value) = &change.items[0].edit else { panic!("charter set") };
+    assert_eq!(translate::value(value, &f::models(), &w::CEILINGS).unwrap(), expected);
+    let s::Value::Charter(value) = value else { panic!("charter") };
+    assert_eq!(value.documents.len(), 2);
+    assert_eq!(value.documents[0].heading, None);
+    assert_eq!(value.documents[1].heading.as_deref(), Some(b"Rules".as_slice()));
+}
+
+#[test]
+fn application_documents_reads_revisions_and_reviews_carry_metadata_only() {
+    use jig_client_domain::contract as c;
+    use jig_client_protocol_link::translate::{settings as link, settings_proposals as proposals};
+    use s::application::{Follows, RevisionRecorded, SizedEdit, State};
+    let limits = w::CEILINGS;
+    let client_limits = f::client_limits();
+    let mut settings = List::with_capacity(2);
+    for (number, follows, last) in [(1, Follows::Default, None), (2, Follows::Changed { revision: 5 }, Some(5))] {
+        settings
+            .push(d::SettingLine {
+                setting: s::Setting::Application { kind: 7, scope: 0, number },
+                name: None,
+                follows: if last.is_some() { d::Follows::Change } else { d::Follows::Default },
+                last,
+                application: Some(State { follows, size: 23, charters: Box::new([1, 3]) }),
+            })
+            .unwrap();
+    }
+    let source = d::Settings { newest: 6, settings, held: List::with_capacity(0), pending: List::with_capacity(0) };
+    let document = translate::document(&source, &limits).unwrap();
+    let document = link::restore_settings_document(&document, &client_limits).unwrap();
+    for (number, line) in (1..).zip(&document.settings) {
+        assert_eq!(line.setting, c::Setting::Application { kind: 7, scope: 0, number });
+        assert!(line.name.is_none());
+        let state = line.application.as_ref().unwrap();
+        assert_eq!(state.size, 23);
+        assert_eq!(state.charters.as_slice(), &[1, 3]);
+    }
+    let setting = s::Setting::Application { kind: 7, scope: 0, number: 2 };
+    let state = State { follows: Follows::Removed { revision: 6 }, size: 0, charters: Box::new([]) };
+    let read = reads::SettingDocument {
+        setting,
+        revision: 6,
+        value: None,
+        application: Some(state.clone()),
+        proposed: Some(SizedEdit::Reset),
+    };
+    let read = translate::setting_document(&read, &[], &limits).unwrap();
+    let read = link::restore_setting_document(&read, &client_limits).unwrap();
+    assert!(read.value.is_none());
+    assert_eq!(read.application.as_ref().unwrap().follows, c::ApplicationFollows::Removed { revision: 6 });
+    assert_eq!(read.proposed, Some(c::SizedEdit::Reset));
+    for (edit, expected) in [
+        (SizedEdit::Set { size: 97 }, c::SizedEdit::Set { size: 97 }),
+        (SizedEdit::Remove, c::SizedEdit::Remove),
+        (SizedEdit::Reset, c::SizedEdit::Reset),
+    ] {
+        let revision = reads::RevisionAnswer::Revision {
+            revision: s::Revision {
+                head: head(),
+                items: Box::new([]),
+                applications: Box::new([RevisionRecorded {
+                    kind: 7,
+                    scope: 0,
+                    number: 2,
+                    edit: edit.clone(),
+                    replaced: s::application::Replaced::NotOffered,
+                }]),
+            },
+            value_bytes: 0,
+        };
+        let revision = translate::revision(&revision, &[], &limits).unwrap();
+        let c::RevisionAnswer::Revision(revision) = link::restore_revision_answer(&revision, &client_limits).unwrap()
+        else {
+            panic!("revision")
+        };
+        assert_eq!(revision.items.len(), 1);
+        assert_eq!(revision.items.get(0).unwrap().edit, c::RevisionEdit::Application(expected.clone()));
+        let mut items = List::with_capacity(1);
+        items
+            .push(d::ReviewItem {
+                setting,
+                edit: reads::RevisionEdit::Reset,
+                now: None,
+                origin: None,
+                would_be: None,
+                application: Some(d::ApplicationReview { edit, now: Some(state.clone()) }),
+            })
+            .unwrap();
+        let review = translate::review(
+            &d::SettingsReview { key: Some(u64::MAX), newest: 6, items, value_bytes: 0 },
+            &[],
+            &limits,
+        )
+        .unwrap();
+        let review = proposals::restore_settings_review(&review, &client_limits).unwrap();
+        assert_eq!(review.key, Some(u64::MAX));
+        let item = review.items.get(0).unwrap();
+        assert_eq!(item.now, c::ReviewValue::None);
+        assert_eq!(item.would_be, c::ReviewValue::None);
+        let application = item.application.as_ref().unwrap();
+        assert_eq!(application.edit, expected);
+        assert_eq!(application.now.as_ref().unwrap().size, 0);
+    }
+}
+
+#[test]
+fn a_charters_tools_round_trip_from_core_through_wire() {
+    let mut charter = charter();
+    charter.policy.tools = jig_domain_tasks::Tools(1536);
+    let source = s::Value::Charter(Box::new(charter));
+    let wire = translate::value(&source, &f::models(), &w::CEILINGS).unwrap();
+    let w::SettingValue::Charter(value) = &wire else { panic!("charter") };
+    assert_eq!(value.tools(), 1536);
+    let client =
+        jig_client_protocol_link::translate::settings::restore_setting_value(&wire, &f::client_limits()).unwrap();
+    let jig_client_domain::contract::SettingValue::Charter(value) = &client else { panic!("charter") };
+    assert_eq!(value.tools, 1536);
+    let wire = jig_client_protocol_link::translate::settings::wire_setting_value(&client, &w::CEILINGS).unwrap();
+    let row = w::SettingItem::new(
+        &w::CEILINGS,
+        w::SettingItemParts {
+            setting: translate::name(s::Setting::Charter(1), &w::CEILINGS).unwrap(),
+            edit: w::SettingEdit::Set(w::SettingSet::new(&w::CEILINGS, w::SettingSetParts { value: wire }).unwrap()),
+        },
+    )
+    .unwrap();
+    let mut writer = skein_lib::Writer::new(skein_lib::length::usize_of(row.measure()));
+    row.encode(&mut writer).unwrap();
+    let items = translate::items(f::pieces(&[writer.finish()]), &f::models(), &w::CEILINGS).unwrap();
+    assert_eq!(items.as_ref(), &[s::Item { setting: s::Setting::Charter(1), edit: s::Edit::Set(source) }]);
 }

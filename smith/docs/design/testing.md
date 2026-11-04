@@ -1,6 +1,6 @@
 # Testing smith
 
-Provisional, 2026-10-08, revised 2026-10-30. How smith is tested. The
+Provisional, 2026-10-08, revised 2026-11-02. How smith is tested. The
 strategy is skein's `docs/foundation/testing-strategy.md`: the tiers,
 faults, what every fake shares, what every world checks, scenarios and
 the referee, the two suites, and where a failure is fixed. This document
@@ -11,7 +11,8 @@ keeps what is smith's:
 - its scenarios and referee (section 5);
 - what its worlds check beyond the strategy (section 6);
 - its layout (section 7);
-- what is still open (section 8).
+- what is still open (section 8);
+- what is left for later (section 9).
 
 The stories each world tells are in the design of what it tests, in that
 document's "The world" section.
@@ -40,7 +41,9 @@ document's "The world" section.
 - **End to end, smith runs as it ships:** the root package's binaries as
   processes, against fakes in the focused suite, and against the real
   providers, their issuers, Claude Code and a git remote in a live suite
-  run by choice, on smith's own accounts, signed in once (2.3).
+  outside the gate, on smith's own accounts, signed in once: the
+  after-landing tier runs it after every landing, and the owner runs the
+  story on a key (2.3).
 - **Benchmarks are not tests.** Real agents on real models are measured
   in a tier of their own, outside both suites and the gate (2.4).
 - **One scenario, every tier its fakes reach.** The local host's
@@ -130,7 +133,7 @@ patch and drift tests check the generated `encoded_bound` and
   - TLS;
   - signals;
   - a process tree that ends;
-  - once contained trees exist, containment (section 6).
+  - with contained trees, containment (section 6).
 - It runs in the focused suite, and fails, saying why, where `io_uring`,
   git, rg or sh is missing.
 
@@ -235,6 +238,19 @@ patch and drift tests check the generated `encoded_bound` and
     XDG_CONFIG_HOME=$SMITH_LIVE/config smith login claude    # Claude Code's own sign-in
     cargo nextest run --profile live-smith
     ```
+  - **After landing, and the owner's.** After every landing, the
+    after-landing tier runs `live-smith` on the two sign-ins it takes as
+    named inputs: smith's ChatGPT record and Claude Code's login, in a
+    `$SMITH_LIVE` laid out as above. No API key is among the tier's
+    inputs, so the story on a key is the owner's: it is ignored
+    (`#[ignore]`, whose reason says so), the profile's run leaves it
+    out, and the owner runs it alone, with `ANTHROPIC_API_KEY` set in
+    the environment:
+
+    ```sh
+    cargo nextest run --profile live-smith --run-ignored only \
+      -E 'test(=an_anthropic_key_delivers_a_commit_in_place)'
+    ```
   - **A missing setup fails by name,** saying what to run: "no record in
     `$SMITH_LIVE/tokens/chatgpt`: run `XDG_CONFIG_HOME=$SMITH_LIVE/config
     smith login chatgpt`", or "`ANTHROPIC_API_KEY` is not set".
@@ -260,15 +276,36 @@ patch and drift tests check the generated `encoded_bound` and
       which runs `claude -p` with the configuration directory
       `$SMITH_LIVE/programs/claude`; the story also checks what the fake
       program assumes (protocol/programs.md, section 8);
-    - the same outcome on a key: `--account anthropic-key`, smith's own
-      loop on Anthropic's model;
+    - the same outcome on a key, the owner's story (above):
+      `--account anthropic-key`, smith's own loop on Anthropic's model;
     - a second run resumes it (`--chat`);
     - a chat started on ChatGPT, resumed on Claude, then on ChatGPT
       again, each run completing (domain/session.md, 8.2);
-    - a run refreshes its grant at the issuer: the story raises the
-      refresh lead, a policy value a test may set, so its run refreshes
-      at once, and checks that the record's generation rose and the run
-      completed;
+    - a run refreshes its grant when the issuer allows: the story
+      raises the refresh lead, a policy value a test may set, to 400
+      days in the settings' seconds (shell.md, 6.5), past any access
+      token's life, so that only the issuer's earliest refresh time
+      holds a refresh back: none is asked before it, whatever the lead
+      (skein's `oauth.md`, sections 2 and 6.3). OpenAI's issuer sets
+      one on every token it issues, a few minutes before the token
+      expires. The story reads the record's refresh facts before its
+      run, and checks the rule as the record stands:
+      - no earliest refresh time, or one past: the run refreshes at
+        once, the record's generation rose and the run completed;
+      - one more than five minutes ahead, longer than the story's
+        check and exec bounds together: the run completed on the held
+        token, and the generation is unchanged;
+      - one nearer: the story waits until it has passed, then expects
+        the refresh;
+      - a record without a refresh token fails by name, saying to sign
+        in again.
+
+      Pairs follow landings, often minutes apart, and a ChatGPT run
+      refreshes the record once it expires, so the pair's record is
+      usually fresh and its story usually checks the second case. The
+      refresh and rotation at the issuer then show in the first
+      ChatGPT run that meets an expired record, which cannot run
+      without them;
     - with a remote named, the push lands, and the test removes the
       branch afterwards.
   - **Outcomes, not words.** An LLM's words vary, so a story asks for a
@@ -276,6 +313,57 @@ patch and drift tests check the generated `encoded_bound` and
     checks that outcome and the typed events, read through `smith-events`
     and never as text: the answer, its exit code, and where the task
     appears in the prompts.
+  - **Paths as the run tells them.** A story's workspace is one
+    directory, whose name the run's prompt never shows (domain/tools.md,
+    section 2): a story names a file in the working directory, never
+    under the directory's name, which would resolve beneath it.
+  - **What the program run is offered.** The Claude stories check the
+    first prompt's offered tools (events.md, 3.11) as protocol/programs.md,
+    5.3 and 5.5 has them for a run granted inspect, modify and shell: the
+    six built-ins and the permission prompt; never `finish`, since every
+    exec has a result contract and ends through the program's
+    `StructuredOutput`; never a sub-agent. A fake-backed exec on the
+    same arguments runs the same check offline.
+  - **Each run's own records.** Every invocation names a trace of its
+    own. On a `program` account the run's records are the spawned
+    agent's, in that trace with `.agent` appended (protocol/events.md,
+    section 2): the referee takes the run's records from it, and the
+    host's end and exit from the product's stream, as smith-bench reads
+    a program run.
+  - **A failure says why, in typed facts.** A failing story's message,
+    at most 4 KiB, names its leg (the story, the account, which
+    invocation, check or exec), the assertion, and what the referee
+    read: exit, the run's typed end and failure, each session's resume
+    state, a file's relation to the expected bytes, and where a missing
+    file was found instead, a refreshed record's generations, and
+    standard error's counts and only its lines of a fixed form. A notice
+    of a kind `smith-events` does not know is named by its kind, when
+    that is a short identifier. The refresh story also reports the
+    record's refresh facts before and after its run, read through
+    smith's own record reader: whether it holds a refresh token, and its
+    access token's expiry and its earliest refresh time, each in whole
+    seconds from the story's clock, or none, and which of its cases it
+    checked. The host's line for an agent that failed is kept without
+    its detail: its fixed words, the agent's exit and whether it was
+    forced. It never holds standard output, a prompt, a completion, a
+    tool's input or result, a file's bytes or credential bytes.
+  - **A failure report selects fields** (2026-11-04), never a record or
+    process result printed with Debug. It may show the process's exit,
+    forced state, fixed harness error and live-process count; the typed
+    end without detail or setup; a run's resume state, message count,
+    backend, status and turns; its failure's class, attempts, state,
+    exit or end, used and bound, turn, completion class, evidence, phase
+    and status, and smith's own which and reason. It may show a
+    conversation's end, a notice's kind, a tool's verdict and delivery,
+    a check's exit and result, and a session's exit and answered state.
+    Tool names are `finish`, `deliver` or a built-in; other names are
+    unknown. Unknown enum payloads are never printed, except for the
+    short notice kind above. Provider detail, code and `request_id`
+    are left out. Standard error contributes counts and only fixed
+    forms: startup and process-group lines, the chat line, trust and
+    unused-preset notices, numeric turns/spend/time budget lines and
+    smith's credential-state lines, together with the agent-failure
+    form above after its detail is removed.
   - **What they show:** each provider's wire as it is today, refresh and
     rotation at the issuer, Claude Code's stream, prompt tool and login
     as its release has them, and a push to a real forge. A failure is
@@ -496,12 +584,10 @@ Every world checks what the strategy lists (testing-strategy.md, section
   uses `MEMORY_CONTENT_EDGE_RECORDS = 98`, from two parallel tools,
   sixteen completion blocks and four jobs. Its wider fuzzy scenario uses
   `WIDE_CONTENT_EDGE_RECORDS = 105`, from three parallel tools with the
-  same blocks and jobs. The protocol-LLM root memory scenario uses
+  same blocks and jobs. The agent world's restored-memory scenario uses
   `ROOT_MEMORY_CONTENT_EDGE_RECORDS = 283`, from one parallel tool,
-  sixty-four completion blocks and four jobs. Calm fact settings use
-  `CALM_RUN_FACTS = 24` (two observations per eight messages plus eight
-  lifecycle facts) and `CALM_TOOLS_FACTS = 6` (four jobs plus two
-  lifecycle facts). Each constant has an origin comment beside it.
+  sixty-four completion blocks and four jobs. Each constant has an
+  origin comment beside it.
   These settings are independent of any entrance allowance; the domain
   fact queues remain uncapped.
 - **Memory returns when its use ends** (protocol/limits.md, sections 5
@@ -528,7 +614,7 @@ Every world checks what the strategy lists (testing-strategy.md, section
   - the scratch directory changed only where the scenario expects;
   - nothing is left running: the agent finished, and every child was
     reaped, each job's process group included.
-- **Containment, once contained trees exist** (protocol/agent.md, sections
+- **Containment, with contained trees** (protocol/agent.md, sections
   2 and 3; protocol/hosts.md, section 3), in the real loop:
   - **writes stay in the view:** commands that try to write outside the
     writable directories, a git directory included, fail, and the
@@ -554,7 +640,7 @@ The strategy's two suites (testing-strategy.md, section 8) make the gate:
   tests, replay, facts changing nothing and memory under scenario ceilings;
   the real loop; the end-to-end tests against fakes; and the benchmark
   harness's offline tests;
-- **fuzzy tests:** each world's `tests/fuzzy_*.rs`, sweeps over seeds
+- **fuzzy tests:** each world's `tests/suite/fuzzy/`, sweeps over seeds
   under faults; the run's world also draws message timings, budgets and
   shares (domain/run.md, section 13), the session's world its usage,
   appended sizes, rendered sizes and their bytes-to-token ratios
@@ -577,12 +663,13 @@ own command (2.4).
 ## 7. Layout
 
 ```
-Cargo.toml                       the workspace, and the root package smith
+Cargo.toml                       the package smith, a member of the repository's workspace
 src/main.rs                      the binary smith: glue
 src/bin/smith-agent.rs           the binary smith-agent: glue
 crates/*/src/tests.rs            step tests
 crates/smith-*-service           the profile, and its derivation properties
 crates/smith-*-shell             the shells' parsing, settings and refusals
+crates/smith-local-protocol/tests the chat store's real-directory layout cases (2.5)
 tests/codecs                     the codecs: goldens, drift, bounds, fuzzy decoding
 tests/tools                      the tools child domain's world
 tests/session                    the session child domain's world
@@ -597,15 +684,19 @@ tests/agent-process              simulated world: the agent service
 tests/hosts                      simulated world: a sample host and the agent it spawns
 tests/local-process              simulated world: the local host and its peers
 tests/real                       the real loop
-tests/*/tests/*.rs               a world's focused tests
-tests/*/tests/fuzzy_*.rs         its fuzzy tests
-tests/end-to-end/end_to_end.rs   end to end against fakes: a root package target
-tests/end-to-end/live.rs         the live suite: a root package target
+tests/fake-claude                smith-fake-claude: the fake program a program backend runs (section 4)
+tests/transcript-patches         the transcript patches' fixture family (protocol/transcript.md, section 12)
+tests/*/tests/suite/             a world's focused tests: one suite binary per world
+tests/*/tests/suite/fuzzy/       its fuzzy tests
+tests/end-to-end/end_to_end.rs   end to end against fakes: a package target, with its modules beside it
+tests/end-to-end/fake-claude.rs  the fake program's binary, for end to end
+tests/end-to-end/live.rs         the live suite: a package target
+tests/end-to-end/live_configuration.rs  the live configuration's focused checks: a package target
 tests/end-to-end/support/        their shared setup
 benchmarks/                      smith-bench, the benchmark harness (benchmarks.md)
 ```
 
-- **The end-to-end and live tests are the root package's `[[test]]`
+- **The end-to-end and live tests are the package's `[[test]]`
   targets** (shell.md, section 3.1). Cargo gives a package's own tests
   the paths of its binaries, and `tests/end-to-end/` holds no manifest,
   so it is not a package of its own. The real-program probes in
@@ -623,12 +714,19 @@ benchmarks/                      smith-bench, the benchmark harness (benchmarks.
 - **The sample host in the real loop:** whether a second host earns a
   real loop of its own, beside the local host's, now that an end-to-end
   story spawns `smith-agent` from it.
-- **Live tests on a schedule:** a live directory on the CI's machine,
-  signed in once, or keys kept as CI secrets, and how often to spend a
-  subscription's usage on them.
 - **A reacting person in skein:** whether a scripted neighbour that acts
   on what it observes is generic enough for skein's world kit. It moves
   there when a second service needs it.
 - **Both placements within the budgets:** which scenarios run twice once
   the inline agent is the product, and whether the spawned placement's
   share moves to the fuzzy sweeps.
+
+## 9. Later
+
+- **A live red no offline world shows** (testing.status.md, 2.3): its
+  repair starts from the first after-landing log whose failure says why
+  (2.3), in the lowest tier that shows it.
+- **The key's story after landing.** The story on an Anthropic API key
+  is the owner's for now (2.3): no key is among the after-landing tier's
+  inputs. It returns to the after-landing tier when a key becomes one of
+  them, which is the user's to give.

@@ -64,7 +64,7 @@ fn a_retry_starts_the_next_attempt() {
 }
 
 #[test]
-fn a_program_run_withholds_sub_agents() {
+fn a_program_run_withholds_no_family() {
     for program in [false, true] {
         for agents in [false, true] {
             let bounds = limits(1);
@@ -111,10 +111,7 @@ fn a_program_run_withholds_sub_agents() {
             });
             let records = drain_ready(&mut producer.sinks, destination);
             let Event::RunStarted(start) = &records[0].event else { panic!("run start") };
-            assert_eq!(
-                start.tools.withheld.as_slice(),
-                if program && agents { &[smith_events::Family::SubAgents][..] } else { &[] }
-            );
+            assert!(start.tools.withheld.is_empty());
             assert_eq!(start.main.backend, if program { Backend::ClaudeCode } else { Backend::Direct });
         }
     }

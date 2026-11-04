@@ -55,6 +55,7 @@ pub const LIMITS: Limits = Limits {
     saved_resources: 2,
     contract_choices: 4,
     charters: 2,
+    charter_documents: 2,
     versions: 8,
     revisions: 4,
     authority_grants: 4,
@@ -109,7 +110,7 @@ pub fn task(number: u64, dependencies: &[u64]) -> New {
         project: 1,
         executor: Executor::Agent { charter: 1 },
         llm: None,
-        spec: Spec { asks: false, words: Box::new([1]), parameters: Box::new([]), inputs: Box::new([]) },
+        spec: Spec { job: None, asks: false, words: Box::new([1]), parameters: Box::new([]), inputs: Box::new([]) },
         contract: Contract::Report { words: 32 },
         authority: authority(),
         numbers: Numbers { budget: 100, spent: 0, spent_below: 0, reserved: 0 },
@@ -156,6 +157,7 @@ pub struct Frozen {
     pub results: BTreeMap<u64, Ending>,
     ended_topics: Vec<(u64, u64, u16)>,
     deadlines: BTreeMap<u64, (Wall, Time)>,
+    kept_starts: Box<[tasks::KeptStart]>,
     kinds: Vec<tasks::Kind>,
     reports: BTreeMap<tasks::Name, tasks::HoldKind>,
     restoring: bool,
@@ -220,6 +222,7 @@ pub struct World {
     priced: Option<(u64, u64)>,
     restoring: bool,
     deadlines: BTreeMap<u64, (Wall, Time)>,
+    kept_starts: Box<[tasks::KeptStart]>,
     kinds: Vec<tasks::Kind>,
     reports: BTreeMap<tasks::Name, tasks::HoldKind>,
 }
@@ -258,6 +261,7 @@ impl World {
             priced: None,
             restoring: true,
             deadlines: BTreeMap::new(),
+            kept_starts: Box::new([]),
             kinds: Vec::new(),
             reports: BTreeMap::new(),
         };
@@ -284,6 +288,7 @@ impl World {
             results: self.results,
             ended_topics: self.ended_topics,
             deadlines: self.deadlines,
+            kept_starts: self.kept_starts,
             kinds: self.kinds,
             reports: self.reports,
             restoring: self.restoring,
@@ -310,6 +315,12 @@ impl World {
     pub fn open_period(&mut self, period: u64, budget: u64) {
         let reply_to = self.to();
         self.send(Event::OpenPeriod { reply_to, project: 1, period, budget });
+    }
+
+    /// Configure procedures that start kept, including after a restart.
+    pub fn set_kept_starts(&mut self, starts: Box<[tasks::KeptStart]>) {
+        self.domain.set_kept_starts(starts.clone());
+        self.kept_starts = starts;
     }
 
     /// Install connector hold rules, replayed before live rows on restart.
@@ -1311,6 +1322,7 @@ impl World {
         self.deadlines.clear();
         self.accounting_referee.reset(&self.records);
         self.domain = domain(&self.env.limits, self.seed);
+        self.domain.set_kept_starts(self.kept_starts.clone());
         let kinds = self.kinds.clone();
         for configured in kinds {
             self.send(Event::Kinds { connector: configured.connector, kinds: Box::new([configured]) });
@@ -1362,6 +1374,7 @@ fn status(ending: &Ending) -> tasks::Status {
 fn result_notice(ending: Ending) -> (ResultKind, Box<[u8]>) {
     match ending {
         Ending::Done(result) => match result {
+            TaskResult::Job { bytes } => (ResultKind::Job, bytes),
             TaskResult::Approved { state, words } => {
                 let words_present = words.is_some();
                 let words = match words {
@@ -1370,6 +1383,7 @@ fn result_notice(ending: Ending) -> (ResultKind, Box<[u8]>) {
                 };
                 (ResultKind::Approved { state, words_present }, words)
             }
+            TaskResult::NoChange { words } => (ResultKind::NoChange, words),
             TaskResult::Report { words } => (ResultKind::Report, words),
             TaskResult::Verdict { code, words, fields } => (ResultKind::Verdict { code, fields }, words),
             TaskResult::Change { connector, kind, resource, words, .. } => {

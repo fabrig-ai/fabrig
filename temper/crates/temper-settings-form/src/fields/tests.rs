@@ -4,14 +4,19 @@ use alloc::boxed::Box;
 use skein_json::writer::{Encoder, Limits as JsonLimits};
 use skein_lib::List;
 
-// T1 names all 41 decoder shapes, including the alternative-only objects.
-const SHAPES: [Shape; 41] = [
+// T1 names every decoder shape, including the alternative-only objects.
+const SHAPES: [Shape; 52] = [
     Shape::File,
     Shape::Item,
     Shape::Setting,
     Shape::Charter,
+    Shape::Document,
     Shape::Model,
+    Shape::Wake,
+    Shape::WakeRule,
+    Shape::WakeBatch,
     Shape::Template,
+    Shape::Symbol,
     Shape::Text,
     Shape::Executor,
     Shape::Contract,
@@ -47,6 +52,12 @@ const SHAPES: [Shape; 41] = [
     Shape::Judge,
     Shape::Guard,
     Shape::Observed,
+    Shape::LandingRule,
+    Shape::LandingGate,
+    Shape::LandingApproval,
+    Shape::LandingPattern,
+    Shape::LandingLast,
+    Shape::ForgeCharter,
 ];
 fn kinds() -> &'static [Word] {
     for field in members(Shape::Setting) {
@@ -180,6 +191,7 @@ fn omitted(field: &Field, edit: Edit, changed: &mut bool) -> bool {
     }
     false
 }
+#[expect(clippy::too_many_lines, reason = "one schema walk includes the document repository's OWNER/NAME fixture")]
 fn emit(kind: &[u8], edit: Edit, route: &[bool; SHAPES.len()], changed: &mut bool, out: &mut Encoder) {
     // Each pending object contributes at most its members and two closing
     // markers. The decoder's JSON depth bound is 32.
@@ -201,6 +213,10 @@ fn emit(kind: &[u8], edit: Edit, route: &[bool; SHAPES.len()], changed: &mut boo
                 let fields = members(shape);
                 let selected = match form(shape).choice {
                     Choice::Every => None,
+                    Choice::Number => {
+                        out.unsigned(1);
+                        continue;
+                    }
                     Choice::One { words } => {
                         let at = alternative(shape, edit, route);
                         if shape == target(edit) {
@@ -228,11 +244,27 @@ fn emit(kind: &[u8], edit: Edit, route: &[bool; SHAPES.len()], changed: &mut boo
                             Edit::Word(chosen, _) => chosen.shape == Shape::Item && chosen.name == b"edit",
                             Edit::Base | Edit::Alternative(..) | Edit::Null(_) | Edit::Omit(_) => false,
                         };
-                        if field.name == if edit_only { b"set".as_slice() } else { b"edit".as_slice() } {
+                        if field.name
+                            == if edit_only && kind != b"project-policy" {
+                                b"set".as_slice()
+                            } else {
+                                b"edit".as_slice()
+                            }
+                        {
                             continue;
                         }
                     }
-                    if shape == Shape::Setting && field.name == b"number" && kind == b"rules" {
+                    if shape == Shape::Setting
+                        && field.name == b"project"
+                        && kind != b"landing-rule"
+                        && kind != b"project-policy"
+                    {
+                        continue;
+                    }
+                    if shape == Shape::Setting
+                        && field.name == b"number"
+                        && (kind == b"rules" || kind == b"project-policy")
+                    {
                         continue;
                     }
                     stack.push(Action::Field(field)).expect("schema stack bound");
@@ -267,7 +299,11 @@ fn emit(kind: &[u8], edit: Edit, route: &[bool; SHAPES.len()], changed: &mut boo
                     out.array_start();
                     stack.push(Action::EndArray).expect("schema stack bound");
                 }
-                stack.push(Action::Value(&field.value)).expect("schema stack bound");
+                if field.shape == Shape::Document && field.name == b"repository" {
+                    out.string(b"owner/name");
+                } else {
+                    stack.push(Action::Value(&field.value)).expect("schema stack bound");
+                }
             }
             Action::Value(value) => match value {
                 Value::Integer(_) | Value::Nanoseconds | Value::Time => out.unsigned(1),
@@ -352,7 +388,12 @@ fn every_generated_file_decodes() {
 #[test]
 fn a_member_left_out_is_refused_naming_it() {
     for field in &FIELDS {
-        if field.shape == Shape::Item {
+        if field.shape == Shape::Item
+            || (field.shape == Shape::Setting && field.name == b"project")
+            || (field.shape == Shape::Template && field.name == b"resources")
+            || (field.shape == Shape::Charter && [b"wake".as_slice(), b"tools"].contains(&field.name))
+            || (field.shape == Shape::Document && field.name == b"heading")
+        {
             continue;
         }
         if let Choice::One { .. } = form(field.shape).choice {
@@ -377,6 +418,11 @@ fn a_path_resolves_through_its_shapes() {
     for (path, shape, name) in [
         (b"charter.model.name".as_slice(), Shape::Model, b"name".as_slice()),
         (b"model.name", Shape::Model, b"name"),
+        (b"template.resources[].connector", Shape::Symbol, b"connector"),
+        (b"template.resources[].symbol", Shape::Symbol, b"symbol"),
+        (b"landing-rule.pattern.last.exact", Shape::LandingLast, b"exact"),
+        (b"landing-rule.gates[].freshness", Shape::LandingGate, b"freshness"),
+        (b"landing-rule.approvals[].people", Shape::LandingApproval, b"people"),
         (b"policy.roles.authority.spend", Shape::Authority, b"spend"),
         (b"policy.roles[].authority.spend", Shape::Authority, b"spend"),
     ] {
@@ -520,7 +566,7 @@ LINE
 ## model
 
 - `"chosen"`: LINE
-- `set`: list of at most 16, each the setting's kind's value: `charter`, `template`, `policy` or `rules`, or null.
+- `set`: list of at most 16, each the setting's kind's value: `charter`, `template`, `policy`, `rules`, `landing-rule`, `forge-charter` or `project-policy`, or null.
 "#;
     assert_eq!(page.as_ref(), expected);
 }
@@ -580,6 +626,10 @@ fn every_line_is_written_and_within_its_bounds() {
             assert!((b' '..=b'~').contains(byte), "printable ASCII in one paragraph: {line:?}");
         }
         for forbidden in [b"jig".as_slice(), b"smith", b"skein", b".md", b"temper-"] {
+            // The charter's default names jig in settings-wake-clients' required wording.
+            if forbidden == b"jig" && line.bytes == resolve(b"charter.wake").expect("wake field").line {
+                continue;
+            }
             for word in line.bytes.windows(forbidden.len()) {
                 assert!(!word.eq_ignore_ascii_case(forbidden), "forbidden word {forbidden:?}: {line:?}");
             }
@@ -614,5 +664,26 @@ fn line_paths_resolve(line: &[u8]) {
 fn every_path_a_line_names_resolves() {
     for line in &lines() {
         line_paths_resolve(line.bytes);
+    }
+}
+
+#[test]
+fn template_resource_fields_use_the_wire_bound_and_describe_the_goal_branch() {
+    let mut limits = Limits::standard();
+    limits.settings.template_resources = 2;
+    let resources = resolve(b"template.resources").expect("resource field");
+    assert_eq!(resources.list, Some(Bound::Limit(Limit::TemplateResources)));
+    assert_eq!(super::most(resources.list.expect("list"), &limits), 2);
+    let page = super::page(&limits);
+    for needle in [
+        b"`resources`: list of at most 2, each `symbol`".as_slice(),
+        b"Optional; absent means an empty list",
+        b"forge connector 1, symbol 1 is its own goal branch",
+    ] {
+        let mut found = false;
+        for word in page.windows(needle.len()) {
+            found |= word == needle;
+        }
+        assert!(found, "field catalogue describes the resource contract");
     }
 }

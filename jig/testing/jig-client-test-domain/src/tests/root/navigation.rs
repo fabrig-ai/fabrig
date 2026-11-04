@@ -49,6 +49,7 @@ fn chat_project() -> List<MeProject> {
     let mut templates = List::with_capacity(1);
     templates
         .push(Template {
+            resources: List::with_capacity(0),
             llm: None,
             number: jig_client::shapes::CHAT,
             name: DocumentText::complete(Text::new(b"Chat".as_slice().into(), TEXT).unwrap()),
@@ -71,6 +72,7 @@ fn chat_project() -> List<MeProject> {
     let mut projects = List::with_capacity(1);
     projects
         .push(MeProject {
+            public: None,
             models: List::with_capacity(0),
             project: PROJECT,
             name: DocumentText::complete(Text::new(Box::from(*b"Tally"), 32).unwrap()),
@@ -89,14 +91,12 @@ fn render(root: &Domain) -> (Tree, JigBindings) {
         depth: 32,
         text_per_node: 1024,
         text_bytes: 16384,
-        drawing_bytes: 0,
         styles_per_node: 2,
         patches: 1536,
         bindings: 64,
         slots: 8,
         markdown_depth: 3,
-        scene_marks: 0,
-        scene_bytes: 0,
+        ..skein_ui::Limits::EMPTY
     };
     let words = jig_client_view::words::Words::new(jig_client_view::phrases::english::english(TEXT).unwrap(), 0, 0);
     let mut bindings = JigBindings::new(bounds.bindings, TEXT);

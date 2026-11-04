@@ -53,6 +53,11 @@ pub(crate) fn banner(b: &mut Builder, root: &Domain, w: &Words, bindings: &mut B
             | Address::Task { .. }
             | Address::Adopt { .. } => false,
         }
+        || (root.forge().playground_running() || root.forge().leaving())
+            && match root.forge().playground() {
+                Some(playground) => playground.project.is_some() && playground.project == root.pages().project(),
+                None => false,
+            }
         || root.pages().availability(root.client()) != Some(false)
     {
         return;
@@ -82,7 +87,7 @@ pub(crate) fn banner(b: &mut Builder, root: &Domain, w: &Words, bindings: &mut B
     }
     b.close();
 }
-/// Composers use the playground or the supplied real-account readiness (temper/docs/design/draft/playground-reset.md, 6.1).
+/// Composers use the playground or the supplied real-account readiness (temper/docs/design/client/README.md, 4.8).
 pub(crate) fn can_send(root: &Domain) -> bool {
     root.forge().playground().is_some() || temper_client_domain::pages::welcome::model_usable(root) != Some(false)
 }
@@ -97,7 +102,10 @@ pub(crate) fn composer(
     if let Some(task) = task {
         match task.chip.executor {
             c::ChipExecutor::Agent { .. } => {}
-            c::ChipExecutor::Procedure { .. } | c::ChipExecutor::Party { .. } | c::ChipExecutor::Role { .. } => return,
+            c::ChipExecutor::Job { .. }
+            | c::ChipExecutor::Procedure { .. }
+            | c::ChipExecutor::Party { .. }
+            | c::ChipExecutor::Role { .. } => return,
         }
     }
     let draft = root.pages().choice();
@@ -725,16 +733,6 @@ fn sentences(w: &Words, first: Box<[u8]>, next: Box<[u8]>) -> Box<[u8]> {
 }
 fn refused(w: &Words, times: &mut Times, why: c::TaskWaitRefused) -> Box<[u8]> {
     match why {
-        c::TaskWaitRefused::Program(program) => {
-            let (first, last) = match program {
-                c::OpenProgram::Model => (w.say(W::OpenProgramModel, &[]), W::OpenProgramChooseModel),
-                c::OpenProgram::Source { account, source } => (
-                    w.say(W::OpenProgramSource, &[Hole::Number(u64::from(account)), Hole::Number(u64::from(source))]),
-                    W::OpenProgramNoSwitch,
-                ),
-            };
-            sentences(w, sentences(w, first, w.say(W::OpenProgramUnavailable, &[])), w.say(last, &[]))
-        }
         c::TaskWaitRefused::Hello { kind, at, why } => {
             let word = match kind {
                 c::HostKind::Engine => W::RefusedEngineAt,
@@ -747,6 +745,7 @@ fn refused(w: &Words, times: &mut Times, why: c::TaskWaitRefused) -> Box<[u8]> {
 }
 fn hello_refusal(w: &Words, why: c::HelloRefusal) -> Box<[u8]> {
     match why {
+        c::HelloRefusal::JobKinds => w.say(W::HelloJobKinds, &[]),
         c::HelloRefusal::ReservedChannel => w.say(W::HelloReservedChannel, &[]),
         c::HelloRefusal::Position { worker } => w.say(W::HelloPosition, &[Hole::Number(u64::from(worker))]),
         c::HelloRefusal::Workers { limit } => {

@@ -52,6 +52,8 @@ impl Changed {
 /// Typed call feedback; amendment details are joined from the decoded tool.
 #[derive(Clone, PartialEq, Eq, Hash, Debug)]
 pub enum CallAnswer {
+    /// A fresh task read; it never becomes a durable call part.
+    TaskRead(Box<Result<jig_domain_core::reads::run_task::TaskRead, jig_domain_tasks::Refusal>>),
     /// Settings proposal admission failed before mutation.
     SettingsRefused(jig_domain_people::Refusal),
     /// The placed hold owner refused this release, with the facts needed to propose it.
@@ -165,9 +167,10 @@ impl CallAnswer {
                 };
                 jig_domain_core::CallPart::Effect { connector, entry: *entry, deadline: *deadline, outcome }
             }
-            CallAnswer::ForgeEffectRefused(_) | CallAnswer::ForgeRead(_) | CallAnswer::ReadRepositoryRefused { .. } => {
-                jig_domain_core::CallPart::Connector { connector }
-            }
+            CallAnswer::TaskRead(_)
+            | CallAnswer::ForgeEffectRefused(_)
+            | CallAnswer::ForgeRead(_)
+            | CallAnswer::ReadRepositoryRefused { .. } => jig_domain_core::CallPart::Connector { connector },
             CallAnswer::ForgeEffectDenied { answer, findings } => {
                 jig_domain_core::CallPart::EffectDenied { answer: *answer, findings: findings.clone() }
             }
@@ -572,7 +575,7 @@ impl Record {
 /// (domain/root.md, 8).
 #[derive(Clone, PartialEq, Eq, Debug)]
 pub enum Write {
-    /// Whole-task transcript erasure (temper/docs/design/draft/playground-reset.md, 5; jig/docs/design/protocol/store.md, 8.5, 11.1).
+    /// Whole-task transcript erasure (jig/docs/design/domain/people.md, 5.2; temper/docs/design/domain/forge.md, 4.1; jig/docs/design/protocol/store.md, 8.5, 11.1).
     DropTranscript { task: u64 },
     /// Persist the shell-supplied wire versions in the start’s mark.
     Wires,
@@ -621,7 +624,7 @@ pub fn record_bytes(record: &Record) -> Option<u64> {
             jig_domain_core::projection_record_bytes(row)
         }
         Record::Core(jig_domain_core::Record::Core(jig_domain_core::CoreRecord::EscalationDecision(row))) => {
-            decision_bytes(&row.decision)
+            Some(decision_bytes(&row.decision))
         }
         Record::Core(jig_domain_core::Record::Core(jig_domain_core::CoreRecord::Call(row))) => {
             let answer = match CallAnswer::from_core(&row.part) {
@@ -637,7 +640,7 @@ pub fn record_bytes(record: &Record) -> Option<u64> {
             jig_domain_core::CoreRecord::ProposalDecision(_) | jig_domain_core::CoreRecord::Deployment(_),
         )) => Some(0),
         Record::Core(jig_domain_core::Record::Core(jig_domain_core::CoreRecord::Turn(turn))) => {
-            u64::try_from(turn.transcript.len()).ok()
+            Some(skein_lib::len_u64(turn.transcript.len()))
         }
         Record::Core(jig_domain_core::Record::Core(jig_domain_core::CoreRecord::RunProof(row))) => {
             match &row.terminal {
@@ -650,40 +653,36 @@ pub fn record_bytes(record: &Record) -> Option<u64> {
         Record::Core(jig_domain_core::Record::Accounts(row)) => match row {
             jig_domain_accounts::Stored::Next { .. } => Some(0),
             jig_domain_accounts::Stored::Account { subject, display, uses, .. } => {
-                u64::try_from(subject.len()).ok()?.checked_add(u64::try_from(display.len()).ok()?)?.checked_add(
-                    u64::try_from(uses.as_deref().unwrap_or_default().len())
-                        .ok()?
+                skein_lib::len_u64(subject.len()).checked_add(skein_lib::len_u64(display.len()))?.checked_add(
+                    skein_lib::len_u64(uses.as_deref().unwrap_or_default().len())
                         .checked_mul(u64::try_from(size_of::<jig_domain_accounts::Use>()).ok()?)?,
                 )
             }
             jig_domain_accounts::Stored::Issued { name, .. } | jig_domain_accounts::Stored::Source { name, .. } => {
-                u64::try_from(name.len()).ok()
+                Some(skein_lib::len_u64(name.len()))
             }
         },
         Record::Core(jig_domain_core::Record::Notes(row)) => match row {
             jig_domain_notes::Record::Entry(entry) => note_entry_bytes(entry),
             jig_domain_notes::Record::Line(line) => {
-                note_scope_bytes(&line.scope)?.checked_add(u64::try_from(line.description.len()).ok()?)
+                note_scope_bytes(&line.scope)?.checked_add(skein_lib::len_u64(line.description.len()))
             }
         },
         Record::Forge { row, .. } => temper_engine_domain_forge::stored_bytes(row),
         Record::Core(jig_domain_core::Record::People(row)) => match row {
-            jig_domain_people::Stored::Person { identity, .. } => u64::try_from(identity.key.subject.len())
-                .ok()?
-                .checked_add(u64::try_from(identity.login.len()).ok()?)?
-                .checked_add(u64::try_from(identity.name.len()).ok()?),
-            jig_domain_people::Stored::Roles { holdings, .. } => u64::try_from(holdings.len())
-                .ok()?
+            jig_domain_people::Stored::Person { identity, .. } => skein_lib::len_u64(identity.key.subject.len())
+                .checked_add(skein_lib::len_u64(identity.login.len()))?
+                .checked_add(skein_lib::len_u64(identity.name.len())),
+            jig_domain_people::Stored::Roles { holdings, .. } => skein_lib::len_u64(holdings.len())
                 .checked_mul(u64::try_from(size_of::<jig_domain_people::Holding>()).ok()?),
             jig_domain_people::Stored::Answer { ask, models, outcome, .. } => {
                 let payload = match ask.as_ref() {
                     jig_domain_people::Ask::AccountChange { change, .. } => {
                         use jig_domain_people::AccountChange;
                         match change {
-                            AccountChange::DeclareProgram { name, .. } => u64::try_from(name.len()).ok(),
+                            AccountChange::DeclareProgram { name, .. } => Some(skein_lib::len_u64(name.len())),
                             AccountChange::SetUses { uses, .. } => {
-                                u64::try_from(uses.as_deref().unwrap_or_default().len())
-                                    .ok()?
+                                skein_lib::len_u64(uses.as_deref().unwrap_or_default().len())
                                     .checked_mul(u64::try_from(size_of::<jig_domain_people::Use>()).ok()?)
                             }
                             AccountChange::CheckProgram { .. }
@@ -704,28 +703,28 @@ pub fn record_bytes(record: &Record) -> Option<u64> {
                     jig_domain_people::Ask::Create { batch, .. } => people_bytes::batch(batch),
                     jig_domain_people::Ask::Propose {
                         action: jig_domain_people::Action::Batch(batch), reason, ..
-                    } => people_bytes::batch(batch)?.checked_add(u64::try_from(reason.len()).ok()?),
-                    jig_domain_people::Ask::Propose {
+                    } => people_bytes::batch(batch)?.checked_add(skein_lib::len_u64(reason.len())),
+                    jig_domain_people::Ask::Restore { reason, .. }
+                    | jig_domain_people::Ask::Propose {
                         action: jig_domain_people::Action::Settings { .. },
                         reason,
                         ..
-                    } => u64::try_from(reason.len()).ok(),
+                    } => Some(skein_lib::len_u64(reason.len())),
                     jig_domain_people::Ask::Propose {
                         action: jig_domain_people::Action::Amend { amendment, .. },
                         reason,
                         ..
-                    } => jig_domain_people::amendment_bytes(amendment)?.checked_add(u64::try_from(reason.len()).ok()?),
+                    } => jig_domain_people::amendment_bytes(amendment)?.checked_add(skein_lib::len_u64(reason.len())),
                     jig_domain_people::Ask::EditNote { scope, change, .. } => {
                         let scope_bytes = match scope.as_ref() {
                             jig_domain_people::NoteScope::Deployment
                             | jig_domain_people::NoteScope::Project
                             | jig_domain_people::NoteScope::Goal { .. } => 0,
                             jig_domain_people::NoteScope::Resources { pattern, .. } => {
-                                let mut bytes = u64::try_from(pattern.segments.len())
-                                    .ok()?
+                                let mut bytes = skein_lib::len_u64(pattern.segments.len())
                                     .checked_mul(u64::try_from(size_of::<Box<[u8]>>()).ok()?)?;
                                 for segment in &pattern.segments {
-                                    bytes = bytes.checked_add(u64::try_from(segment.len()).ok()?)?;
+                                    bytes = bytes.checked_add(skein_lib::len_u64(segment.len()))?;
                                 }
                                 let last = match &pattern.last {
                                     jig_domain_people::Last::Exact(bytes) | jig_domain_people::Last::Open(bytes) => {
@@ -737,33 +736,32 @@ pub fn record_bytes(record: &Record) -> Option<u64> {
                         };
                         let change_bytes = match change.as_ref() {
                             jig_domain_people::NoteChange::Correct { description, body, references, .. } => {
-                                u64::try_from(description.len())
-                                    .ok()?
-                                    .checked_add(u64::try_from(body.len()).ok()?)?
-                                    .checked_add(u64::try_from(references.len()).ok()?.checked_mul(8)?)?
+                                skein_lib::len_u64(description.len())
+                                    .checked_add(skein_lib::len_u64(body.len()))?
+                                    .checked_add(skein_lib::len_u64(references.len()).checked_mul(8)?)?
                             }
                             jig_domain_people::NoteChange::Delete { .. } => 0,
                         };
                         scope_bytes.checked_add(change_bytes)
                     }
                     jig_domain_people::Ask::MakeProject { name, .. } | jig_domain_people::Ask::Rename { name, .. } => {
-                        u64::try_from(name.len()).ok()
+                        Some(skein_lib::len_u64(name.len()))
                     }
-                    jig_domain_people::Ask::MakeService { name, .. } => u64::try_from(name.len()).ok(),
+                    jig_domain_people::Ask::MakeService { name, .. } => Some(skein_lib::len_u64(name.len())),
                     jig_domain_people::Ask::Adopt { adoption, .. } => adoption_bytes(adoption),
-                    jig_domain_people::Ask::SetRoles { holdings, .. } => u64::try_from(holdings.len())
-                        .ok()?
+                    jig_domain_people::Ask::SetRoles { holdings, .. } => skein_lib::len_u64(holdings.len())
                         .checked_mul(u64::try_from(size_of::<jig_domain_people::Holding>()).ok()?),
                     jig_domain_people::Ask::Amend { amendment, .. } => jig_domain_people::amendment_bytes(amendment),
                     jig_domain_people::Ask::ChangePolicy { change, .. } => {
                         jig_domain_people::policy_change_bytes(change)
                     }
                     jig_domain_people::Ask::Say { words, .. }
-                    | jig_domain_people::Ask::AnswerQuestion { words, .. } => u64::try_from(words.len()).ok(),
+                    | jig_domain_people::Ask::AnswerQuestion { words, .. } => Some(skein_lib::len_u64(words.len())),
                     jig_domain_people::Ask::Move { reason, .. } | jig_domain_people::Ask::Cancel { reason, .. } => {
-                        u64::try_from(reason.len()).ok()
+                        Some(skein_lib::len_u64(reason.len()))
                     }
                     jig_domain_people::Ask::RemoveProject { .. }
+                    | jig_domain_people::Ask::SetVisibility { .. }
                     | jig_domain_people::Ask::ChangeSettings { .. }
                     | jig_domain_people::Ask::MoveToNewest { .. }
                     | jig_domain_people::Ask::Withdraw { .. }
@@ -779,36 +777,40 @@ pub fn record_bytes(record: &Record) -> Option<u64> {
                     | jig_domain_people::Ask::AccountSignOut { .. } => Some(0),
                     jig_domain_people::Ask::AnswerPerson { result, .. } => match result {
                         jig_domain_people::PersonResult::Report { words }
-                        | jig_domain_people::PersonResult::Verdict { words, .. } => u64::try_from(words.len()).ok(),
-                        jig_domain_people::PersonResult::Failure { reason } => u64::try_from(reason.len()).ok(),
-                        jig_domain_people::PersonResult::Approved { state, words } => {
-                            u64::try_from(state.len()).ok()?.checked_add(match words {
-                                Some(words) => u64::try_from(words.len()).ok()?,
-                                None => 0,
-                            })
+                        | jig_domain_people::PersonResult::Verdict { words, .. } => {
+                            Some(skein_lib::len_u64(words.len()))
                         }
+                        jig_domain_people::PersonResult::Failure { reason } => Some(skein_lib::len_u64(reason.len())),
+                        jig_domain_people::PersonResult::Approved { state, words } => skein_lib::len_u64(state.len())
+                            .checked_add(match words {
+                                Some(words) => skein_lib::len_u64(words.len()),
+                                None => 0,
+                            }),
                     },
-                    jig_domain_people::Ask::DecideEscalation { decision, .. } => decision_bytes(decision),
+                    jig_domain_people::Ask::DecideEscalation { decision, .. } => Some(decision_bytes(decision)),
                     jig_domain_people::Ask::DecideProposal { decision, .. } => match decision {
                         jig_domain_people::ProposalDecision::Accept | jig_domain_people::ProposalDecision::Pass => {
                             Some(0)
                         }
-                        jig_domain_people::ProposalDecision::Reject { reason } => u64::try_from(reason.len()).ok(),
+                        jig_domain_people::ProposalDecision::Reject { reason } => {
+                            Some(skein_lib::len_u64(reason.len()))
+                        }
                     },
                 }?;
                 model_context_bytes(models)?.checked_add(payload)?.checked_add(program_answer_bytes(outcome)?)
             }
             jig_domain_people::Stored::Deletion { .. }
+            | jig_domain_people::Stored::Public { .. }
             | jig_domain_people::Stored::SignIn { .. }
             | jig_domain_people::Stored::ReadResults { .. }
             | jig_domain_people::Stored::EndedRead { .. }
             | jig_domain_people::Stored::ReadConversation { .. } => Some(0),
             jig_domain_people::Stored::Policy { name, value, .. } => {
-                jig_domain_people::policy_bytes(value)?.checked_add(u64::try_from(name.len()).ok()?)
+                jig_domain_people::policy_bytes(value)?.checked_add(skein_lib::len_u64(name.len()))
             }
             jig_domain_people::Stored::Acted { act, outcome, .. } => {
                 let payload = match act {
-                    jig_domain_people::Act::Close { reason, .. } => u64::try_from(reason.len()).ok()?,
+                    jig_domain_people::Act::Close { reason, .. } => skein_lib::len_u64(reason.len()),
                     jig_domain_people::Act::AddKey { .. }
                     | jig_domain_people::Act::RemoveAccount { .. }
                     | jig_domain_people::Act::RemoveProject { .. } => 0,
@@ -825,9 +827,9 @@ fn note_scope_bytes(scope: &jig_domain_notes::Scope) -> Option<u64> {
     match scope {
         jig_domain_notes::Scope::Resources { pattern, .. } => {
             let mut bytes =
-                u64::try_from(pattern.segments.len()).ok()?.checked_mul(u64::try_from(size_of::<Box<[u8]>>()).ok()?)?;
+                skein_lib::len_u64(pattern.segments.len()).checked_mul(u64::try_from(size_of::<Box<[u8]>>()).ok()?)?;
             for segment in &pattern.segments {
-                bytes = bytes.checked_add(u64::try_from(segment.len()).ok()?)?;
+                bytes = bytes.checked_add(skein_lib::len_u64(segment.len()))?;
             }
             let last = match &pattern.last {
                 jig_domain_notes::Last::Exact(value) | jig_domain_notes::Last::Open(value) => value.len(),
@@ -842,8 +844,8 @@ fn note_scope_bytes(scope: &jig_domain_notes::Scope) -> Option<u64> {
 
 fn note_entry_bytes(entry: &jig_domain_notes::Entry) -> Option<u64> {
     note_scope_bytes(&entry.scope)?
-        .checked_add(u64::try_from(entry.description.len()).ok()?)?
-        .checked_add(u64::try_from(entry.body.len()).ok()?)?
+        .checked_add(skein_lib::len_u64(entry.description.len()))?
+        .checked_add(skein_lib::len_u64(entry.body.len()))?
         .checked_add(u64::from(entry.references.len()).checked_mul(8)?)
 }
 
@@ -885,15 +887,22 @@ fn terminal_bytes(row: &TerminalRecord) -> Option<u64> {
     jig_domain_tasks::terminal_bytes(&row.end)
 }
 
-fn decision_bytes(decision: &jig_domain_people::EscalationDecision) -> Option<u64> {
+fn decision_bytes(decision: &jig_domain_people::EscalationDecision) -> u64 {
     match decision {
-        jig_domain_people::EscalationDecision::Release | jig_domain_people::EscalationDecision::Pass => Some(0),
-        jig_domain_people::EscalationDecision::Reject { reason } => u64::try_from(reason.len()).ok(),
+        jig_domain_people::EscalationDecision::Release | jig_domain_people::EscalationDecision::Pass => 0,
+        jig_domain_people::EscalationDecision::Reject { reason } => skein_lib::len_u64(reason.len()),
     }
 }
 
 pub(crate) fn call_answer_bytes(answer: &CallAnswer) -> Option<u64> {
     match answer {
+        CallAnswer::TaskRead(result) => {
+            let carrier = u64::try_from(size_of_val(result.as_ref())).ok()?;
+            carrier.checked_add(match result.as_ref() {
+                Ok(read) => jig_domain_core::reads::run_task::owned_bytes(read),
+                Err(_) => 0,
+            })
+        }
         CallAnswer::ForgeRead(result) => match result.as_ref() {
             Ok(answer) => skein_forge::measure::answer(answer),
             Err(_) => Some(0),
@@ -928,21 +937,19 @@ pub(crate) fn call_answer_bytes(answer: &CallAnswer) -> Option<u64> {
         | CallAnswer::NoteRefused(_) => Some(0),
         CallAnswer::ReadRepositoryRefused { named, repositories }
         | CallAnswer::ChangeRefused { named, repositories, .. } => {
-            let mut bytes = u64::try_from(repositories.len())
-                .ok()?
+            let mut bytes = skein_lib::len_u64(repositories.len())
                 .checked_mul(u64::try_from(size_of::<Box<[u8]>>()).ok()?)?
                 .checked_add(u64::try_from(size_of::<jig_domain_tasks::Problem>()).ok()?)?;
             if let Some(named) = named {
-                bytes = bytes.checked_add(u64::try_from(named.len()).ok()?)?;
+                bytes = bytes.checked_add(skein_lib::len_u64(named.len()))?;
             }
             for name in repositories {
-                bytes = bytes.checked_add(u64::try_from(name.len()).ok()?)?;
+                bytes = bytes.checked_add(skein_lib::len_u64(name.len()))?;
             }
             Some(bytes)
         }
         CallAnswer::NoteRecalled { entries, .. } => {
-            let mut bytes = u64::try_from(entries.len())
-                .ok()?
+            let mut bytes = skein_lib::len_u64(entries.len())
                 .checked_mul(u64::try_from(size_of::<jig_domain_notes::Entry>()).ok()?)?;
             for entry in entries {
                 bytes = bytes.checked_add(note_entry_bytes(entry)?)?;
@@ -950,12 +957,11 @@ pub(crate) fn call_answer_bytes(answer: &CallAnswer) -> Option<u64> {
             Some(bytes)
         }
         CallAnswer::Delegated(numbers) => {
-            u64::try_from(numbers.len()).ok()?.checked_mul(u64::try_from(size_of::<jig_domain_core::Made>()).ok()?)
+            skein_lib::len_u64(numbers.len()).checked_mul(u64::try_from(size_of::<jig_domain_core::Made>()).ok()?)
         }
         CallAnswer::DelegationDenied { findings, .. }
         | CallAnswer::ForgeEffectDenied { findings, .. }
-        | CallAnswer::ToolDenied { findings, .. } => u64::try_from(findings.len())
-            .ok()?
+        | CallAnswer::ToolDenied { findings, .. } => skein_lib::len_u64(findings.len())
             .checked_mul(u64::try_from(size_of::<jig_domain_authority::Finding>()).ok()?),
     }
 }
@@ -964,9 +970,9 @@ mod people_bytes;
 mod settings_bytes;
 
 fn model_context_bytes(models: &[Box<[u8]>]) -> Option<u64> {
-    let mut bytes = u64::try_from(models.len()).ok()?.checked_mul(u64::try_from(size_of::<Box<[u8]>>()).ok()?)?;
+    let mut bytes = skein_lib::len_u64(models.len()).checked_mul(u64::try_from(size_of::<Box<[u8]>>()).ok()?)?;
     for name in models {
-        bytes = bytes.checked_add(u64::try_from(name.len()).ok()?)?;
+        bytes = bytes.checked_add(skein_lib::len_u64(name.len()))?;
     }
     Some(bytes)
 }
@@ -975,16 +981,18 @@ fn model_context_bytes(models: &[Box<[u8]>]) -> Option<u64> {
 pub(crate) fn program_answer_bytes(outcome: &jig_domain_people::Outcome) -> Option<u64> {
     use jig_domain_people::Outcome;
     match outcome {
-        Outcome::Refused(jig_domain_people::Refusal::Full { tasks, .. }) => {
-            u64::try_from(tasks.len()).ok()?.checked_mul(u64::try_from(size_of::<u64>()).ok()?)
+        Outcome::Restored { left_out, .. } => {
+            skein_lib::len_u64(left_out.len()).checked_mul(u64::try_from(size_of::<jig_domain_people::Setting>()).ok()?)
         }
-        Outcome::AccountProgramDeclared { name, .. } => u64::try_from(name.len()).ok(),
+        Outcome::Refused(jig_domain_people::Refusal::Full { tasks, .. }) => {
+            skein_lib::len_u64(tasks.len()).checked_mul(u64::try_from(size_of::<u64>()).ok()?)
+        }
+        Outcome::AccountProgramDeclared { name, .. } => Some(skein_lib::len_u64(name.len())),
         Outcome::AccountRemoved { failed_hosts, .. } | Outcome::AccountSignedOut { failed_hosts, .. } => {
-            let mut bytes = u64::try_from(failed_hosts.len())
-                .ok()?
+            let mut bytes = skein_lib::len_u64(failed_hosts.len())
                 .checked_mul(u64::try_from(size_of::<jig_domain_people::AccountHostFailure>()).ok()?)?;
             for host in &**failed_hosts {
-                bytes = bytes.checked_add(u64::try_from(host.name.len()).ok()?)?;
+                bytes = bytes.checked_add(skein_lib::len_u64(host.name.len()))?;
             }
             Some(bytes)
         }
@@ -994,6 +1002,7 @@ pub(crate) fn program_answer_bytes(outcome: &jig_domain_people::Outcome) -> Opti
         | Outcome::CompoundRefused { .. }
         | Outcome::ProjectMade { .. }
         | Outcome::ProjectRemoved { .. }
+        | Outcome::VisibilitySet { .. }
         | Outcome::Renamed { .. }
         | Outcome::Created { .. }
         | Outcome::MarkedSeen { .. }
@@ -1036,10 +1045,10 @@ fn adoption_bytes(adoption: &jig_domain_people::Adoption) -> Option<u64> {
         .ok()?
         .checked_mul(u64::try_from(size_of::<Box<[u8]>>()).ok()?)?;
     for segment in &adoption.resource.path {
-        bytes = bytes.checked_add(u64::try_from(segment.len()).ok()?)?;
+        bytes = bytes.checked_add(skein_lib::len_u64(segment.len()))?;
     }
     for option in &adoption.options {
-        bytes = bytes.checked_add(u64::try_from(option.len()).ok()?)?;
+        bytes = bytes.checked_add(skein_lib::len_u64(option.len()))?;
     }
     Some(bytes)
 }

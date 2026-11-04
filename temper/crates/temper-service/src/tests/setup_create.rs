@@ -230,7 +230,6 @@ impl Forge {
 fn configured(forge: &Forge) -> crate::Service {
     let mut config = local_config(true, false);
     config.setup[0].entry.asked = true;
-    config.setup[0].entry.orgs = Box::new([]);
     config.webhooks =
         Some(skein_forge_connection::hooks::Webhooks { listener: skein_io::Addr::Ip(([127, 0, 0, 1], 7101).into()) });
     let mut store = fixtures::records_store();
@@ -276,7 +275,6 @@ fn ask_copy(service: &mut crate::Service, number: u64, playground: bool) {
             forge: domain::Making::Kept(1),
             org: if playground { b"playground".as_slice().into() } else { b"work".as_slice().into() },
             repository: if playground { b"widget".as_slice().into() } else { b"hello".as_slice().into() },
-            project: domain::SetUpProject::Existing(1),
         },
     })));
     // Drive the root's journal seam, including its child continuations.

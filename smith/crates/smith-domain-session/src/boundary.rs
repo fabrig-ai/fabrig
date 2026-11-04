@@ -16,8 +16,8 @@
 //! [`Event::Failed`] or [`Event::Cancelled`], or by [`Event::BudgetDenied`]
 //! when the root withholds it before any provider lease, or [`Event::UnsentClosed`]
 //! when the run closes before publication; a [`Request::Delegate`], to the
-//! opener, by [`Event::Answered`], [`Event::AnsweredAndYield`],
-//! [`Event::AnswerWithheld`] or [`Event::AnswerCancelled`]; a
+//! opener, by [`Event::Answered`], [`Event::AnswerWithheld`] or
+//! [`Event::AnswerCancelled`]; a
 //! [`Request::Io`], the tools' file and process operations passed on as they
 //! are, by [`Event::Done`]. A request's `owner` is echoed on its terminal
 //! event: the session's token for a call to the LLM, a tool run's own for a
@@ -29,6 +29,15 @@ use skein_lib::{Duration, Time, Token};
 use smith_domain_tools as tools;
 
 use crate::llm::{Completion, Descriptor, Endpoint, Failure, Prompt, Usage};
+
+/// What the session does once a delegated call's answer is in.
+#[derive(Clone, Copy, PartialEq, Eq, Debug)]
+pub enum After {
+    /// Ask for the next completion.
+    Complete,
+    /// Yield to the opener first, once the tool turn settles, so that it can append work.
+    Yield,
+}
 
 /// parent -> session
 #[derive(PartialEq, Eq, Debug)]
@@ -58,15 +67,7 @@ pub enum Event {
         /// Child activation's inclusive cumulative bill, in deployment units;
         /// historical spend is excluded. Only the inclusive parent prefix changes.
         spent: u64,
-    },
-    /// Parent terminal for Delegate that yields after the settled tool turn, so its opener can append work.
-    AnsweredAndYield {
-        owner: Token,
-        /// Complete result bytes within the reserved delegated result cap.
-        text: Box<[u8]>,
-        error: bool,
-        /// Inclusive child activation bill, charged once by the live identity.
-        spent: u64,
+        after: After,
     },
     /// Parent terminal for its own parked wait; records the real call without supplying a result.
     AnswerWithheld { owner: Token },

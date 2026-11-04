@@ -144,12 +144,22 @@ for its idle deadline, so the echo ends without one firing
 | State | Holds | Demand | Deadline |
 |---|---|---|---|
 | Greeting | io's socket | room for an answer | idle |
-| Admitting | socket; whether the peer ended | | |
+| Admitting | socket | | |
+| AdmittingEnded | socket: the peer ended while its `Open` is out | | |
 | Reading | socket, session | a scan to `\n`, at most `line` | idle |
-| Answering | socket, session; whether the peer ended | | |
+| Answering | socket, session | | |
+| AnsweringEnded | socket, session: the peer ended while its line is out | | |
 | Draining | socket, session | room for an answer | idle |
-| Closing | whether io told `Closed`; whether a call is out; the session to tell `Gone` | | |
+| Closing | socket; what the domain still holds | | |
+| Shut | what the domain still holds, once io told `Closed` | | |
 | Closed | | | |
+
+What the domain still holds of a closing connection is one of three,
+each the binding above in its own state: its call out, whose reply is
+awaited; the session to tell `Gone`, from the ready list; or nothing.
+A call out and a `Gone` owed never meet, since the reply comes first.
+The binding below is Closing or Shut, the binding above what it holds,
+and no flag says either (programming-model.md, 5.4).
 
 The demand and the deadline are one function of the state, applied after
 every transition: entering Greeting, Reading or Draining states its demand
@@ -159,21 +169,29 @@ granted is progress (programming-model.md, 7).
 | State | Event | Next, and what it does |
 |---|---|---|
 | Greeting | `Room` | Admitting: `Open` |
-| Admitting | `Admitted` | Reading; or, if the peer ended, Closing: `Close`, `Gone` owed |
-| Admitting | `Busy` | Closing: `busy\n`, `Close` |
+| Admitting | `Admitted` | Reading |
+| AdmittingEnded | `Admitted` | Closing, its session owed `Gone`: `Close` |
+| Admitting, AdmittingEnded | `Busy` | Closing, holding nothing: `busy\n`, `Close` |
 | Reading | `Bytes`, a line | Answering: `Line` |
-| Reading | `Bytes`, no `\n` | Closing: `too long\n`, `Close`, `Gone` |
-| Answering | `Echo` | Draining: the answer sent; or, if the peer ended, Closing: the answer, `Close`, `Gone` owed |
+| Reading | `Bytes`, no `\n` | Closing, holding nothing: `too long\n`, `Close`, `Gone` |
+| Answering | `Echo` | Draining: the answer sent |
+| AnsweringEnded | `Echo` | Closing, its session owed `Gone`: the answer, `Close` |
 | Draining | `Room` | Reading |
-| Admitting, Answering | `End` | the same, the end noted |
-| Greeting, Reading, Draining | `End` | Closing: `Close`, `Gone` if admitted |
-| Greeting, Reading, Draining | the idle deadline | Closing: `Close`, `Gone` if admitted |
-| any open state | `Failed` | Closing: `Close`, and `Gone` if the session is known; in Admitting, once the domain answers |
-| Closing | the reply to its call | `Admitted`: its session owed `Gone`; `Busy`, `Echo`: dropped |
+| Admitting | `End` | AdmittingEnded |
+| Answering | `End` | AnsweringEnded |
+| AdmittingEnded, AnsweringEnded | `End` | the same |
+| Greeting, Reading, Draining | `End` | Closing, holding nothing: `Close`, `Gone` if admitted |
+| Greeting, Reading, Draining | the idle deadline | Closing, holding nothing: `Close`, `Gone` if admitted |
+| Greeting, Reading, Draining | `Failed` | Closing, holding nothing: `Close`, `Gone` if admitted |
+| Admitting, AdmittingEnded | `Failed` | Closing, its call out: `Close` |
+| Answering, AnsweringEnded | `Failed` | Closing, its call out: `Close`, `Gone` |
+| Closing, Shut | the reply to its call | the same: `Admitted`, its session owed `Gone`; `Busy`, `Echo`, holding nothing, the reply dropped |
 | Closing | `Bytes`, `Room`, `End`, `Failed` | ignored: told before io took the close |
-| Closing | `Closed` | retired once no call is out and nothing is owed |
-| Closing | resumed | `Gone` told |
-| any but Closing | `Closed` | impossible: io tells it only after the close |
+| Shut | `Bytes`, `Room`, `End`, `Failed` | ignored |
+| Closing | `Closed` | Shut |
+| Closing, Shut | resumed, its session owed `Gone` | the same, holding nothing: `Gone` told |
+| Shut | holding nothing | retired: Closed |
+| any but Closing | `Closed` | impossible: io tells it once, after the close |
 | any without the demand | `Bytes`, `Room` | impossible: io answers only a demand |
 | any without a call out | a reply | impossible: one reply per call |
 | any without the deadline | the idle deadline | impossible: cancelled on leaving |
@@ -185,9 +203,9 @@ connection goes on the protocol's ready list, and `resume` tells it.
 which is first in, first out: a stream that fails while its line is out
 tells `Gone` at once, behind the line, which the domain answers first. So
 the domain never answers for a session it has retired. A connection
-retires once io told `Closed`, no call is out, and its session was told
-gone: the bindings above and below have both ended (programming-model.md,
-5.2).
+retires once it is Shut holding nothing: io told `Closed`, no call is
+out, and its session was told gone, so the bindings above and below have
+both ended (programming-model.md, 5.2).
 
 **The listener.** The address it listens at is the layer's, from its
 making.
@@ -229,6 +247,29 @@ not; a shortage never counts as one, but Backoff keeps it, and `main`
 says once that the listen is refused and retried, so that a shortage that
 lasts is seen. Retrying is the protocol layer's policy, kept where the
 listener is.
+
+**The layer's stop** is two machines, one per lifecycle
+(programming-model.md, 5.4), each holding nothing but its state: the
+shutdown, told to the domain once from the ready list (Running, Asked,
+Told); and the connections' stop (Serving, Draining, Aborting), which the
+domain's `Stop` drains and a second shutdown aborts (shell.md, 13). A
+shutdown that finds the domain stopped already is that second one: the
+domain has nothing left to be told.
+
+| State | Event | Next, and what it does |
+|---|---|---|
+| Running | a shutdown, the connections Serving | Asked: on the ready list |
+| Running | a shutdown, the connections Draining | Told; the connections Aborting: each aborts |
+| Asked | resumed | Told: `Shutdown` |
+| Asked, Told | a shutdown, the connections Serving or Draining | the same; the connections Aborting: each aborts |
+| Asked, Told | a shutdown, the connections Aborting | ignored |
+| Serving, Draining | `Stop` | Draining: each connection drains |
+| Aborting | `Stop` | the same: each connection aborts |
+| Running | a shutdown, the connections Aborting | impossible: only a shutdown makes them abort, and it leaves Running |
+
+Each connection's drain or abort is its owner transition (shell.md, 13),
+scheduled on the ready list with its idle deadline cancelled; the
+listener's stop is its own machine's, above.
 
 **The session** is active from `Open` admitted to `Gone`, and counts the
 lines it answered. **The domain** admits until `Shutdown`, then answers
@@ -484,8 +525,7 @@ processes, each a host of an `iterate` (a service, or a fake client):
 
 ## 8. Not built yet
 
-What of this document is not built is `STATUS.md`'s (its row in section 2,
-and section 3).
+What of this document is not built is in [`examples.status.md`](examples.status.md).
 
 ## 9. The UI example
 
@@ -672,8 +712,6 @@ a service copies that.
   made, by a person who added it on that page, meeting none.
 
 ## 10. Building a service on skein
-
-This section was the repository's `README.md` until 2026-10-19.
 
 | Part | Written by | Crate |
 |---|---|---|

@@ -1,8 +1,14 @@
-# Browser stories are ordinary Rust, driving one harness loop.
+# The browser story driver is an ordinary Rust world kit (jig/AGENTS.md).
+# It takes the replay bans of jig/tests/clippy.toml instead of the step-code
+# subset in jig/clippy.toml that it would otherwise inherit.
+
 disallowed-types = [
-    { path = "std::collections::HashMap", reason = "ordered maps" },
-    { path = "std::collections::HashSet", reason = "ordered sets" },
+    { path = "std::collections::HashMap", reason = "iteration order depends on a random seed: BTreeMap" },
+    { path = "std::collections::HashSet", reason = "iteration order depends on a random seed: BTreeSet" },
+    { path = "std::time::Instant", reason = "the world's clock is World::now" },
+    { path = "std::time::SystemTime", reason = "the world's clock is World::now" },
 ]
+
 disallowed-methods = [
-    { path = "std::thread::spawn", reason = "one thread, one inbox" },
+    { path = "std::thread::spawn", reason = "one thread, so that a run replays" },
 ]

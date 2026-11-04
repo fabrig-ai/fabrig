@@ -26,6 +26,6 @@ pub use owner::{Connector, FIRST, SECOND};
 /// The numbered dialect every fixture turn of the test application names:
 /// smith's transcript v6 requires one, and the client shows an opaque
 /// block's dialect by it.
-pub const DIALECT: u32 = 1;
+pub const DIALECT: u32 = 3;
 #[cfg(test)]
 mod tests;

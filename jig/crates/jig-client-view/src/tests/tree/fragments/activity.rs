@@ -93,8 +93,8 @@ fn envelope(tree: &Tree, f: Limits) {
     assert!(tree.len() <= f.nodes);
     let mut total = 0_u64;
     for node in tree.nodes() {
-        assert!(crate::tests::text_bytes(node) <= f.text_per_node);
-        total = total.checked_add(u64::from(crate::tests::text_bytes(node))).unwrap();
+        assert!(node.text_bytes() <= f.text_per_node);
+        total = total.checked_add(u64::from(node.text_bytes())).unwrap();
         if let Some(name) = &node.name {
             assert!(name.len() <= usize::try_from(f.text_per_node).unwrap());
             total = total.checked_add(u64::try_from(name.len()).unwrap()).unwrap();

@@ -271,9 +271,9 @@ pub struct Position {
 - **`u32` throughout,** as `Limits::length` is: no position passes the
   document's end, and a `length` below `u32::MAX` (section 3.3) keeps the
   end's column and line, at most `length + 1`, within `u32`.
-- **Three counters, no heap.** The tokenizer counts as it reads, and its
-  `tokenizer_bound` is unchanged. `Token`, `Event` and `Error` are unchanged
-  (section 7).
+- **Three counters, no heap.** The tokenizer counts as it reads, and
+  they add nothing to `tokenizer_bound`. `Token`, `Event` and `Error`
+  carry no position (section 7).
 - **The collector's events and documents carry no positions.** A
   consumer that needs them reads through the tokenizer.
 
@@ -522,6 +522,31 @@ Scratch is bounded by `tokenizer_bound`, two one-entry queues and the
 retained document limits. The driver copies only each demanded delivery,
 never the whole input. Its steps are bounded by the input length.
 
+`tokenizer::Feed` is that driver, for a caller that reads the tokens itself:
+it owns a tokenizer, its two one-entry queues and a `stream::Slice` of the
+input (lib.md, 7).
+
+```rust
+Feed::new(input: &[u8], limits: &tokenizer::Limits) -> Feed<'_>
+feed.answer(request: tokenizer::Request) -> tokenizer::Event
+tokenizer::feed_bound(limits: &tokenizer::Limits) -> Option<u64>
+```
+
+- **One request, one event:** `answer` states the request, then meets each
+  of the tokenizer's demands from the slice until it answers, and returns
+  that event: the tokenizer's, under its table (3.1). A caller may leave a
+  feed at any answer.
+- **Bounded:** the steps of all a feed's answers together are bounded by the
+  input length; past that bound, or on a demand no slice can meet, it answers
+  `Failed(Unexpected)`. `feed_bound` is `tokenizer_bound` and the two queues.
+- **`parse` and `validate` run on it:** `parse` builds a document from
+  `Next`'s tokens; `validate` asks `Skip`, then `Next` for the end.
+- **The three ways to read JSON:** bytes that arrive over several steps stack
+  the tokenizer on their stream (section 2); one whole buffer kept as a
+  document is `parse` and a walk of its `Document`; one whole buffer stepped
+  through a decoder or a collection of the caller's, or left early, is a
+  `Feed`.
+
 ## 6. Testing
 
 - **Step tests** (`crates/skein-json/src/tests.rs`): each demand, each
@@ -635,8 +660,7 @@ never the whole input. Its steps are bounded by the input length.
   disposition, every count's failure, a duplicate, a `Long` and a skip of
   each kind of value fell; and documents with unnamed fields added at
   random, which never change what is collected, only what is skipped.
-  It stands in for the fuzz target until a nightly toolchain is
-  installed.
+  A fuzz target runs beside it, on a nightly toolchain.
 
 ## 7. Decisions
 
@@ -703,8 +727,12 @@ never the whole input. Its steps are bounded by the input length.
 - **Text that is not UTF-8,** such as a command's output going to an LLM,
   is refused by the writer. A caller that must send it replaces what is
   not UTF-8 first; whether the writer should offer that is open.
+- **A `Collector` over one whole buffer** has no driver, since a `Feed`
+  owns a tokenizer: smith's read of a program's status and a test of
+  skein-llm's meet its demands by hand. Whether a collector gets a feed
+  of its own, or such a caller keeps the document from `parse` and walks
+  it, is open.
 
 ## 9. Not built yet
 
-What of this document is not built is `STATUS.md`'s (its row in section 2,
-and section 3).
+What of this document is not built is in [`json.status.md`](json.status.md).

@@ -1,5 +1,5 @@
 //! Checked forge settings (skein/docs/design/forge-setup.md, 6.3).
-//! Runtime membership follows temper/docs/design/draft/playground-reset.md, 3 and 4.
+//! Runtime membership follows skein/docs/design/forge-setup.md, 6.3.
 use super::{Plan, boundary::Dialect};
 use crate::{github, given::Given};
 use alloc::boxed::Box;

@@ -103,6 +103,8 @@ pub enum Row {
         name: Box<[u8]>,
         kind: Option<crate::api::EntryKind>,
     },
+    Artifact(Artifact),
+    CommitMessage(CommitMessage),
     /// Retains every repository so the setup host can filter after counting the page.
     Reachable(Reachable),
     /// Admin search reaches every repository, so each row has push set true.
@@ -569,4 +571,21 @@ pub(crate) fn run() -> Run {
 }
 pub(crate) fn job() -> Job {
     Job { id: 0, run_id: 0, attempt: 0, name: Box::new([]), status: StepStatus::Unknown }
+}
+
+/// A comparison's full commit fields.
+#[derive(Clone, PartialEq, Eq, Hash, Debug)]
+pub struct CommitMessage {
+    pub id: ObjectId,
+    pub parents: Box<[ObjectId]>,
+    pub message: Box<[u8]>,
+}
+
+/// Fields of a named run artifact retained from its listing.
+#[derive(Clone, PartialEq, Eq, Hash, Debug)]
+pub struct Artifact {
+    pub id: u64,
+    pub name: Box<[u8]>,
+    pub run_id: u64,
+    pub size_in_bytes: u64,
 }

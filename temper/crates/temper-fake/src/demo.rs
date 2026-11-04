@@ -1,4 +1,4 @@
-//! The playground's LLM, read before files (temper/docs/design/draft/playground-reset.md, 3).
+//! The playground's LLM, read before files (temper/docs/design/protocol/configuration.md, 3).
 use crate::{Refusal, limits, llm, read};
 use alloc::boxed::Box;
 use core::net::SocketAddr;

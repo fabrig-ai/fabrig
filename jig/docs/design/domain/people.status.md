@@ -1,18 +1,23 @@
 # people: status
 
-2026-11-01. Where jig's code lags or departs from [people.md](people.md).
+2026-11-04. Where jig's code lags or departs from [people.md](people.md).
 
-- **Built:** 1 to 11: operations, keyed deployment acts, runtime projects, rename, account actions and deployment roles. 3, 10: two-clock expiry, held sign-ins and full-pool/busy distinction. 1, 5.1, 6: Seen reprocessed without retained answers; ordinary reservations preserved. 5.1: `MoveToNewest`. 5.1: Stop places a stop hold of the party's over the task's subtree. 5.1, 5.2: `RoleSpend`, a role's spend per period edited alone. 5.1: a request refused for want of a retained answer's place is answered busy, answers full, with the table's size and its oldest answer's expiry. 5.1: Lift; Release's owner rule.
-- **Behind a switch:** 6, 8.1: the person's own answer is enabled by
-  `Core::person_answers()`, off by default and set before the first
-  step. Until the switch is removed, the default route lets the asked
-  task answer and relay. With it enabled, credits for questions to a
-  person-requested task name `Party::Person` as answerer. Credits stored
-  before enabling it, still naming a task answerer, route by the
-  question's current inbox owner without a stored-format migration.
-  Moving a recipient re-points its incoming person-answerer credits to
-  its new person.
-- **Not yet:** 3: service credential reissue/removal. 5.1: widening funded by the amender. 6: retention. 5.1: Hold; a party's Propose of a release.
-- **Built:** 2: `outputs_bound` is reserved by the settings route at the store commit edge.
-
-- **Built:** 6: the asked task hears the person's answer words in its notice, cut at 256 bytes and marked when cut.
+- **Not yet:** 3: a service's credential reissued or removed. 5.1:
+  `Hold`; `Move` under another task; `Succeed`; a party's `Propose` of a
+  release; a widening funded from the amender's pool. 6: retention; a
+  delegate's question to a conversation kept with the conversation. 7:
+  a chat answering its delegates' questions and asking its person by a
+  person task. 5.2: a note entry left without its index line stays in
+  the store for good: a deletion finds entries by their lines, no start
+  scans for one with none, and no read reaches it. A store holds such
+  entries where a deletion erased a project's lines alone.
+- **Departs:** 6, 8: the person's own answer is off by default, behind
+  `Core::person_answers()` (`jig-domain-core/src/inbox.rs`), because
+  each application opts in before the first step, as temper does. With
+  it off, the asked task answers and relays. With it on, the inbox holds
+  unanswered questions to a person's conversations alone, for that person
+  to answer; a question to any other task its person asked for is the
+  task's to answer. Credits stored
+  before it was set, naming a task answerer, route by the question's
+  current inbox owner, and moving a recipient re-points its incoming
+  person-answerer credits to its new person.

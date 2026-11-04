@@ -422,6 +422,10 @@ fn document_bounds(good: limits::Limits) {
     relaxed_depth.json.depth = limits::DEPTH.saturating_add(1);
     assert_eq!(
         decode(Kind::BranchRows, br#"[{"name":"a","unknown":[[[[[[[[[]]]]]]]]]}]"#, 7, &relaxed_depth).1,
+        Ok(Document::Rows)
+    );
+    assert_eq!(
+        decode(Kind::BranchRows, br#"[{"name":"a","unknown":[[[[[[[[[[]]]]]]]]]]}]"#, 7, &relaxed_depth).1,
         Err(Malformed::Json(skein_json::tokenizer::Error::TooDeep))
     );
     // An unknown string longer than the retention limit is checked without being kept.
@@ -524,6 +528,8 @@ fn turn_calls_are_refused_without_a_request() {
         api::Op::Read(api::Read::Runs { workflow: Box::from(*b"ci.yaml"), commit: head, page: 1 }),
         api::Op::Read(api::Read::Run { run: 1 }),
         api::Op::Read(api::Read::Tree { object: head, page: 1 }),
+        api::Op::Read(api::Read::Artifact { run: 1, name: Box::from(*b"report"), max_bytes: 1 }),
+        api::Op::Read(api::Read::Commits { before: head, after: head, page: 1 }),
         api::Op::Write(api::Write::Dispatch {
             workflow: Box::from(*b"ci.yaml"),
             branch: Box::from(*b"main"),

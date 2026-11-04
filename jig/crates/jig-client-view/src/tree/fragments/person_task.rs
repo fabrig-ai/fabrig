@@ -140,7 +140,9 @@ fn controls(
                 crate::tree::cards::common::field(b, client, Purpose::Answer, JigPhrase::AnswerField, words, bindings);
             }
         }
-        TaskContractDocument::Change { .. } => text(b, words, P::ChangeUnavailable, &[]),
+        TaskContractDocument::Job { .. } | TaskContractDocument::Change { .. } => {
+            text(b, words, P::ChangeUnavailable, &[]);
+        }
         TaskContractDocument::Approval { .. } => {}
     }
     if answering {

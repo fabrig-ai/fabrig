@@ -152,10 +152,7 @@ pub(super) struct Endpoint {
     pub(super) name: String,
     pub(super) number: u32,
     pub(super) dialect: u32,
-    /// Withdrawn endpoint account, ignored; accounts-sources removes it.
-    #[serde(default, rename = "account")]
-    pub(super) _account: u32,
-    /// Provider route: openai, anthropic, or the withdrawn codex route.
+    /// Provider route: openai or anthropic.
     pub(super) provider: String,
     pub(super) address: String,
     #[serde(default = "tls_transport")]
@@ -172,8 +169,6 @@ pub(super) struct Endpoint {
     pub(super) trust: Option<TrustDocument>,
     #[serde(default)]
     pub(super) headers: Vec<HeaderField>,
-    #[serde(default)]
-    pub(super) identity: Option<String>,
 }
 
 #[derive(Deserialize)]

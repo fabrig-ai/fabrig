@@ -63,12 +63,17 @@ is still open is listed in section 15.
   routes, then a `Mint`. A credential is a sign-in's number beside
   random bytes; the engine keeps its digest, and hands the domain only
   the number (section 8).
+- **Public reads need no credential.** A public read, one exchange of
+  its own, is served as the public party (`../domain/people.md`,
+  section 13), within its own room and rate, behind every signed-in
+  exchange; over HTTP it is a `GET` a caching proxy may keep (section
+  19; 17.5).
 - **Versions per owner:** the ranges served in the hello, and a version
   not served answered so, typed, naming the owner and the ranges, in an
   envelope every version reads (section 9).
 - **The small store is the client's records,** the request table's and
   its own, per owner, versioned, each kept request's stored before it
-  leaves. New top-level `Seen` stays in memory, and a request carrying a
+  leaves. A top-level `Seen` stays in memory, and a request carrying a
   value is sent once and never stored (section 5). The application keeps
   its own (section 10).
 - **Shells are the application's.** jig ships a native shell,
@@ -129,8 +134,8 @@ the shell: fetch, skein's HTTP client, a socket            skein's HTTP server, 
   - the operations of `../client/domain/contract.md`, 3.2, one record
     each, by their names: `Create`, `Propose`, `Withdraw`, `Message`,
     `Amend`, `Cancel`, `Release`, `Stop`, `Move`, `Decide`, `Answer`,
-    `Take`, `HandBack`, `Seen`, `MakeProject`, `ChangeSettings`,
-    `MoveToNewest`, and the project's own; and
+    `Take`, `HandBack`, `Seen`, `MakeProject`, `RemoveProject`,
+    `ChangeSettings`, `MoveToNewest`, and the project's own; and
     `Compound { project, operations }` (3.4 of it). A change of settings
     carries each value as the configuration's member describes it, field
     for field, a charter's instructions as text and an application's
@@ -170,9 +175,15 @@ the shell: fetch, skein's HTTP client, a socket            skein's HTTP server, 
   against the client's limits before they reach `jig-client-domain`: a
   document past its bytes, rows, a path's segments, an authority's
   entries or texts is refused at decoding, as too large, never cut
-  silently (`../client/domain/client.md`, section 16). An authority
+  silently (`../client/domain/client.md`, section 16), and a chip whose
+  phase lacks what it names, an ended chip's end time or a backing-off
+  chip's notice, is refused as malformed. An authority
   carries no cut mark (`../client/domain/contract.md`, 5.3). The wire's
   generated worst cases price each document at the client's limits.
+  Connector hold accounts retain their independent 512-byte bound
+  (`../client/domain/contract.md`, 5.3), including when the client's general
+  text preview limit is smaller. The wire admits that room for document
+  texts; conversion still checks every other text against the client's limit.
 - **The schemas' ceilings bound the client's limits.** Each bounded
   field has a fixed ceiling in its schema, and the client's limits stay
   within them. A list the client bounds by its rows (a task's
@@ -208,80 +219,71 @@ the shell: fetch, skein's HTTP client, a socket            skein's HTTP server, 
   from its clock and its wall when it makes the document, so a client
   shows it as it shows every other moment.
 
-Authority selectors in client v11 preserve omission, ALL and named sets
-(including empty), at most 64 names of 4,096 UTF-8 bytes each. Both public
-authority forms carry them. Authority documents carry `cut` independently
-from the whole authority payload used for edits (`../client/domain/contract.md`,
-3.2); decoding retains the flag, and `whole()` refuses a cut projection.
+Authority selectors preserve omission, ALL and named sets (including
+empty), at most 64 names of 4,096 UTF-8 bytes each. Both public
+authority forms carry them. Authority documents carry `cut`
+independently from the whole authority payload used for edits
+(`../client/domain/contract.md`, 3.2); decoding retains the flag, and
+`whole()` refuses a cut projection.
 
-Client v11 appends the public provider catalogue and startup key bound to `me`,
-and provider/payer readiness to `accounts`. `Deployment` includes the same
-catalogue and viewer readiness for the reference fragment. Each deployment host's
-`HostRule` is `open`, `person` with a `HostPerson` party number,
-`several`, or `unknown`, recording its current kept-login placement rule.
-The `position`
-hello refusal names a worker position that is unconfigured or held by a live
-channel. Existing tags stay fixed. These are bounded secret-free
-configuration/derived facts
-(`../client/domain/contract.md`, 5.1 and 7.1); people v5 and accounts v1 do not
-change.
+`me` carries the public provider catalogue and the startup key bound,
+and `accounts` the provider and payer readiness. `Deployment` includes
+the same catalogue and viewer readiness for the reference fragment.
+Each deployment host's `HostRule` is `open`, `person` with a
+`HostPerson` party number, `several`, or `unknown`, recording its
+current kept-login placement rule. The `position` hello refusal names a
+worker position that is unconfigured or held by a live channel. These
+are bounded secret-free configuration and derived facts
+(`../client/domain/contract.md`, 5.1 and 7.1).
 
-Client v11 carries added dependencies (`../domain/tasks.md`, 5.7, 6.7 and
-section 7): an `Amend` names a task's dependencies as one whole list; the
-refusals *circle*, naming its tasks in order, cut at its limit, which a
-batch's cycle becomes, *dependency* and *kept*; a task document's
-dependencies, each with its phase, its wall and maker when it was added,
-and whether they keep the task; a kept task's pending dependencies in what
-it waits on; and a hold for a circle of waits, naming it
-(`../client/domain/contract.md`, sections 3 to 5). The owner's activity
-also carries the parked run's kept line, its attempt and pending
-dependencies, and the owner's message kinds the met notice, the dependency
-and whether it was removed (`../domain/tasks.md`, 5.7 and 8.1;
-`../domain/engine.md`, section 7). Existing tags stay fixed.
+The wire carries added dependencies (`../domain/tasks.md`, 5.7, 6.7 and
+section 7): an `Amend` names a task's dependencies as one whole list;
+the refusals *circle*, naming its tasks in order, cut at its limit,
+which a batch's cycle becomes, *dependency* and *kept*; a task
+document's dependencies, each with its phase, its wall and maker when
+it was added, and whether they keep the task; a kept task's pending
+dependencies in what it waits on; and a hold for a circle of waits,
+naming it (`../client/domain/contract.md`, sections 3 to 5). The
+owner's activity also carries the parked run's kept line, its attempt
+and pending dependencies, and the owner's message kinds the met
+notice, the dependency and whether it was removed
+(`../domain/tasks.md`, 5.7 and 8.1; `../domain/engine.md`, section 7).
 
-Client v11 also carries `TaskRunWait.refused`, as either
-`TaskWaitRefused.hello` (`TaskWaitHello`: the existing `HostKind`, wall
-receipt time and `HelloRefusal`) or `TaskWaitRefused.program`
-(`TaskWaitProgram.model` or `.source`, with account and source numbers).
-The Program arm has no producer: an Open task runs on a program source as any task does (`../domain/hosts.md`, 8.1).
-The server and client reuse the deployment's hello-refusal translations;
-shortfall dimensions that already omit charter numbers keep that wire shape.
-The existing `TaskWaitSource { state }` stays unchanged.
-`TaskWaitProgramSource { account, source }` names the Program source pair.
-`TaskWaitRefusedProgram { value: TaskWaitProgram }` and
-`TaskRunWaitRefused { value: TaskWaitRefused }` wrap enum payloads for the
-generator; these unversioned records add no tag or header bytes. Shared admission
-types precede their task-wait consumers in the schema, as the generator
-requires. Existing variant tags, client version 11, worker version 4 and
-all store families stay fixed. Nothing in this data slice changes status
-or person-facing words (`../client/domain/contract.md`, 5.1).
+A task's run wait carries `TaskRunWait.refused`, a hello refusal:
+`TaskWaitHello`, the `HostKind`, the wall receipt time and the
+`HelloRefusal`. The server and client share the deployment's
+hello-refusal translations; shortfall dimensions that omit charter
+numbers keep that wire shape. `TaskWaitSource { state }` names a
+source's state. `TaskRunWaitRefused { value }` wraps the enum payload
+for the generator, an unversioned record that adds no tag or header
+bytes. Shared admission types precede their task-wait consumers in the
+schema, as the generator requires. Status and person-facing words are
+`../client/domain/contract.md`, 5.1's.
 
-Open uses client v12 with worker wire v6, tasks store v7 and people store
-v7; core store remains v4. Its ending authority and refusal status travel
-in these families; the worker's GrantValue retains tags 0 to 2.
+A task's ending authority (`TaskFlags.ended_by`, *result* or
+*requester*) and its refusal status travel in jig's wire and in the
+tasks and people families; the worker's `GrantValue` keeps tags 0 to 2.
 
-Client v12 carries `resolved_default: Option<LlmChoice>` beside each
-effective template's configured LLM intent in `me`
+`me` carries `resolved_default: Option<LlmChoice>` beside each
+effective template's configured LLM intent
 (`../client/domain/contract.md`, 5.1). The schema, generated codecs,
-translations, golden records and served-version declarations move
-with that field (sections 9 and 14). It is a preview of Create's
-once-at-creation resolver, never task intent or a reservation. This
-changes no core or task store version or layout, requires no migration,
-and leaves application-family versions separate. Implementation status
-is in `../STATUS.md`.
+translations, golden records and served-version declarations carry
+that field (sections 9 and 14). It is a preview of Create's
+once-at-creation resolver, never task intent or a reservation; no
+store family carries it, and application families' versions are their
+own.
 
-The account's move (`../domain/accounts.md`, section 6) adds to jig's
-wire, in its current schema: the account changes `move_out { account
-}`, `written { number }` and `move_in { digest }`, the last carrying the
-moved file as the keyed request's value (section 5), whose bound grows
-to 128 KiB; the answer `Made::moving_out { account, number, record }`,
-the record a secret of at most 128 KiB filled for the asking exchange
-alone (section 5), and the outcome `account_moved_in { account,
-renewed }` (*written* is answered `account_changed`); the refusal
-`account_move { why }`, `why` one of `not_signed_in`, `not_ours`,
-`held`, `cancelled` and `moving`; and `moving` in each source state an
-account document or a task's wait shows. Existing tags stay fixed; new
-variants go last.
+The account's move (`../domain/accounts.md`, section 6) is in jig's
+wire: the account changes `move_out { account }`, `written { number }`
+and `move_in { digest }`, the last carrying the moved file as the
+keyed request's value (section 5), whose bound is 128 KiB; the answer
+`Made::moving_out { account, number, record }`, the record a secret of
+at most 128 KiB filled for the asking exchange alone (section 5), and
+the outcome `account_moved_in { account, renewed }` (*written* is
+answered `account_changed`); the refusal `account_move { why }`, `why`
+one of `not_signed_in`, `not_ours`, `held`, `cancelled` and `moving`;
+and `moving` in each source state an account document or a task's wait
+shows.
 
 ## 4. The connection
 
@@ -433,8 +435,10 @@ heard:    Reply { exchange, message } | Lost { exchange } | Streamed { message }
 
 ## 5. Keyed requests
 
-An owner proposal outcome carries its proposal number and the original admitted role (`OutcomeProposed.to`), in the project of the request. Replays retain that original role; the proposal document gives its current recipient. Active client-v19 records change together before first release, without a family/version bump.
-
+An owner proposal outcome carries its proposal number and the role
+first admitted (`OutcomeProposed.to`), in the project of the request.
+Replays retain that role; the proposal document gives its current
+recipient.
 
 - **One exchange per attempt.** The request table's send (its attempt,
   its key, its request) becomes one keyed request: the key, the
@@ -516,14 +520,14 @@ An owner proposal outcome carries its proposal number and the original admitted 
   served) (`../client/domain/contract.md`, section 6). A page's cursor
   is the engine's, opaque bytes the client gives back.
 - **Credential boundaries, on the client,** visibly end pending reads
-  in the domain's existing `Page` forms: jig's `ReadNone::SignedOut` or
+  in the domain's `Page` forms: jig's `ReadNone::SignedOut` or
   a family's `None`, once each, on sign-out and unconditionally on
   successful sign-in, before the first `me` too
   (`../client/domain/client.md`, sections 7 and 12). The link erases
   old exchange names; the domain retains pending token and optional
-  family and fences late completions with its existing token match.
-  This adds no link output, public `Readout` variant or wire record,
-  and never replays a read. Supersession and `Unwatch` remain abandonment.
+  family and fences late completions with its token match. The
+  boundary needs no link output, public `Readout` variant or wire
+  record of its own, and never replays a read. Supersession and `Unwatch` remain abandonment.
 - **A task query's page** carries its two groups, live then ended, each
   with its cursor, and says whether the ended group was cut by a filter
   beyond its index's prefix, or has none for the query's keys
@@ -812,7 +816,7 @@ An owner proposal outcome carries its proposal number and the original admitted 
   name of the client's stream (section 4), under a key of its own, which
   no request's key can be (a request's is 16 bytes); nothing else of the
   client's, and never a credential, an answer, a request carrying a
-  value, or one whose answer carries one (section 5). New top-level `Seen` has no stored record. Each
+  value, or one whose answer carries one (section 5). A top-level `Seen` has no stored record. Each
   kept record is encoded with jig's wire, with its store version.
 - **The stream's name** is saved at each hello, in a write of its own,
   and replaces the last; nothing waits for it, and a write of it not
@@ -850,8 +854,8 @@ An owner proposal outcome carries its proposal number and the original admitted 
   party on the current link. A failed mixed write reports not kept only
   for the ordinary requests whose records it carried; a held `Seen`
   exchange is lost and retried normally. Consuming the save creates no
-  tracked write; store acknowledgements are unchanged. Every terminal
-  still emits `Erase`, including an absent new `Seen` key, with the usual
+  tracked write, and its store acknowledgements are any write's. Every terminal
+  still emits `Erase`, including an absent `Seen` key, with the usual
   acknowledgement.
 - **Read at start,** the records the application's shell loaded handed
   to `jig-client` as it starts, each request's to the request table, and
@@ -862,14 +866,10 @@ An owner proposal outcome carries its proposal number and the original admitted 
   are not among those the application declares is one
   (`../client/domain/client.md`, 11). Pre-release, nothing is
   translated.
-- **Legacy pending `Seen` records** remain readable and restore as
-  `Kept`, are never saved again, and erase at their normal terminal.
-  They are not eagerly dropped or migrated. These client records are
-  separate from the engine's retained completed answers
-  (`../client/domain/contract.md`, 3.1). A new unanswered in-memory
-  `Seen` is silently lost on closing, reload or crash; the next opening
-  checks and sends the watermark again, with no notice from a record of
-  its own (`../client/domain/client.md`, section 11).
+- **An unanswered `Seen` is lost** on closing, reload or crash, since
+  it is in memory alone; the next opening checks and sends the
+  watermark again, with no notice from a record of its own
+  (`../client/domain/client.md`, section 11).
 - **Where** is the shell's: a browser tab's session storage, as text
   skein's small store part encodes (skein's `ui-web.md`, section 10); a
   file a native client writes whole and syncs; a service's file, synced
@@ -944,7 +944,11 @@ An owner proposal outcome carries its proposal number and the original admitted 
   no stream, and in all; a message's bytes, which bound a change of
   settings (`../domain/engine.md`, 17.8), what a stream may have
   queued before nothing more is handed out, the heartbeat's span, mints
-  in flight.
+  in flight; and the public reads' own: in flight, per second and its
+  burst, their answers' bytes per second and its burst, and the answer
+  ceiling (section 19).
+- **The public answers' `max-age`,** the deployment's, at most a bound
+  of jig's (17.5).
 - **The default mapping's,** at each end: its HTTP machines', TLS's, and
   the stream's buffer, at those limits.
 - **Internal hand-offs are uncapped.** The client retains each pending
@@ -968,10 +972,10 @@ Each within jig's suites' budgets.
   `ops`'s wire and jig's test family's) checked for drift against their
   schemas, and jig's wire's decoders run over arbitrary and mutated
   bytes in the fuzzy suite (skein's `codec.md`, section 6).
-- **The template preview** uses the existing client-protocol carriage
-  tests and wire goldens: v12 preserves both configured intent and
-  `resolved_default`, including `None`. The existing shapes tests keep
-  omission, and the reference view tests consume the supplied preview;
+- **The template preview** in the client-protocol carriage tests and
+  wire goldens: both configured intent and `resolved_default`, including
+  `None`, cross whole. The shapes tests keep omission, and the
+  reference view tests consume the supplied preview;
   core charters/templates stories own resolution order and invalidation
   (`../domain/testing.md`, section 4).
 - **The component's world,** `jig-engine-clients-world`: the component
@@ -1110,6 +1114,7 @@ prefix; jig's test application mounts it at `/jig`.
 | `POST <prefix>/v1/sign-in/deployment` | signing in as a service, its credential as the bearer |
 | `POST <prefix>/v1/sign-out` | signing out |
 | `POST <prefix>/v1/authorize` | an OpenID authorization (section 18) |
+| `GET <prefix>/v1/public/<owner>/<version>/<kind>[/<id>[/<id>]]` | a public read (17.5, section 19) |
 
 - **A POST's body** is its message's record, `application/octet-stream`.
   Its answer is `200` with the reply's record and `Cache-Control:
@@ -1118,7 +1123,7 @@ prefix; jig's test application mounts it at `/jig`.
   `application/octet-stream` is `415`, a body that is not a record of
   its route `400`, and one past the route's bound `413`, each with
   nothing done; any other method or path under the prefix is `404`, but
-  a `GET` of the link's route (below). The guards' answers are the
+  a `GET` of the link's route (below) and the public reads' (17.5). The guards' answers are the
   example guards' (`browser.md`, 12.2).
 - **The printed link's URL** is `<prefix>/v1/sign-in/link?secret=…` on
   the loopback address the application's server listens on, which the
@@ -1266,6 +1271,76 @@ prefix; jig's test application mounts it at `/jig`.
   (its content security policy, its frames) is the application's
   page's.
 
+### 17.5 Public reads
+
+- **A `GET`, its read in its path:**
+  `<prefix>/v1/public/<owner>/<version>/<kind>[/<id>[/<id>]]`: the
+  owner's number (0 for jig, and one more than its family's number for
+  an application's), its public records' version and the public kind, each
+  a decimal number with no sign and no leading zero, within its field's
+  type; then the kind's public identifiers (section 19), each exactly 16
+  lowercase hexadecimal digits. No query, no trailing slash, no empty,
+  dot or percent-encoded segment. One document has one address, so a
+  proxy keeps one copy of it. Any other path under
+  `<prefix>/v1/public/`, and any method there but `GET`, a preflight's
+  `OPTIONS` among them, is `404` with `Cache-Control: no-store`.
+- **No credential is read.** The engine end reads no cookie and no
+  bearer on these routes, and hands the component no credential, so the
+  answer is the same for every visitor, signed in or not, and varies on
+  nothing the request carries but its path. The guards that stand are
+  the `Host` allow-list (`browser.md`, 12.2), checked first; a public
+  read changes nothing, as the printed link's `GET` does not
+  (`browser.md`, section 19), so it needs neither the browser header nor
+  a content type. No guard of another route is relaxed.
+- **Its answers,** each with a fixed set of headers and no others:
+  - *the document:* `200`, `application/octet-stream`, its record, and
+    `Cache-Control: public, max-age=<rest>, must-revalidate`, where the
+    rest is the deployment's `max-age` less the whole seconds, rounded
+    up, since the decision that made the answer (`../domain/people.md`,
+    13.10), and never less than zero;
+  - *unknown:* `404`, no body, with the same `Cache-Control`, so a
+    private project and one never made cost a proxy alike;
+  - *busy:* `503`, no body, `Cache-Control: no-store` and `Retry-After`
+    of one second; nothing waits;
+  - *a version not served:* `200` with its record, as every version
+    reads it (section 9), and `Cache-Control: no-store`.
+
+  Every answer, a malformed path's and a guard's among them, carries
+  `X-Content-Type-Options: nosniff`, and none sets a cookie or carries
+  `Vary`, `ETag`, `Last-Modified`, `Age` or any `Access-Control-`
+  header. No answer allows stale serving: no `stale-while-revalidate`,
+  no `stale-if-error`. The engine end gives these and no others; the
+  application's server adds its page's policy to every answer of its
+  origin's, these among them (`browser.md`, 12.1), as it would any
+  other: the same fields on every answer, varying on nothing the
+  request carries, and its `Cross-Origin-Resource-Policy: same-origin`
+  keeps another origin's page from loading the document at all.
+- **A room of its own in the engine end:** public calls in flight,
+  apart from its other calls (17.4) and within the component's public
+  room; a public call that finds none is `503` as busy, the call's
+  head read and nothing more. The application still answers it, as
+  17.4 says, but with the response the engine end gives for its head,
+  a pure answer that sets nothing aside: the `Host` allow-list first,
+  then the busy answer above, so a refused `Host` is refused alike
+  whether the room is full or not. A call to another route with no
+  credential is answered signed out by the component with no engine
+  work (section 19). The application's server bounds its connections,
+  as 17.4 says; a proxy in front holds few of them.
+- **No CORS:** a page of another origin may send it, as any site may
+  send a `GET`, and cannot read the answer; neither end grants any
+  origin, on a document, an error or a preflight.
+- **The `max-age`** is the deployment's, `clients.public.max_age`, a
+  few seconds, at most jig's bound of 60. With `must-revalidate` and no
+  stale serving, a cache that keeps the age it adds (`Age`) serves a
+  copy no longer than the rest it was given, so a project made private
+  stops being served everywhere within the `max-age` of the decision
+  that made the last answer (`../domain/people.md`, 13.2); what was
+  already downloaded is not withdrawn.
+- **The client end** sends it as a `Call` with the method `GET`, no
+  bearer and no body, and takes back the status, the body and the
+  freshness left: the `Cache-Control`'s `max-age` less the `Age` a
+  cache added. A `503` is busy, a `404` unknown.
+
 ## 18. The OpenID provider
 
 The clients' component may be an OpenID Connect provider for the
@@ -1355,3 +1430,77 @@ and their addresses are the application's (17.1: no provider route).
   wrong verifier; signed out, then signed in; a service refused; the
   codes full. skein's issuer world checks the protocol against skein's
   client; the application's process tier, against a real client.
+
+## 19. Public reads
+
+The messages of public reading (`../domain/people.md`, section 13):
+
+- **`PublicRead { owner, version, kind, ids }`,** an exchange with no
+  credential and no stream: an owner, jig or an application's family;
+  the version of the owner's public records, which are versioned apart
+  (`../client/domain/contract.md`, section 12); a kind of that owner's
+  public documents; and at most two public identifiers, which the kind
+  names. jig's kinds: *projects*, with none; *board*, a project; *card*,
+  a project and a task. An application's kinds take a project, then at
+  most a task: never a number of the application's own.
+- **Answered once:** the document, as the owner's record at that
+  version; unknown; busy; or the version not served. Nothing else, and
+  never why: a private project, one never made, a task that is not
+  public, an identifier that names nothing, a kind no owner declared, a
+  connector's failure and a fault decoding or encoding are all unknown,
+  each with the same answer.
+- **Public identifiers** are the component's (`../domain/people.md`,
+  13.8): a keyed permutation of a project's or a task's number, under a
+  key kept in the secrets' store under an owner of its own, made from
+  the component's random source at its first start and read at each
+  start before it answers a public read (until then, busy). Every
+  well-formed read is mapped and handed on alike, whatever its
+  identifiers name; the core's public index decides.
+- **The component admits it** within its public room (in flight), its
+  reads' bucket and its bytes' bucket, reserving the kind's declared
+  largest answer before it hands the read on and giving back what the
+  answer did not use, or all of it on any other end
+  (`../domain/people.md`, 13.5), each apart from the sign-ins' room;
+  past any, it answers busy at once and hands the engine nothing. It
+  hands the engine's root what it admits as the public party's read,
+  and a read the root refuses is answered busy, never offered again.
+- **An application declares its public kinds** to the component at
+  start: owner, kind, the versions it serves, whether it takes a task,
+  and its answer's bound in bytes, within the deployment's answer
+  ceiling; a kind past it refuses the start. A kind no owner declared
+  is unknown before the engine.
+- **The engine's side** admits it on the public index
+  (`../domain/engine.md`, section 11): the project public, then the
+  task. It makes jig's kinds from the index, and asks the connector
+  that declared an application's kind for its document, handing it the
+  project's public tasks; the connector answers with the document and
+  the list of tasks it names, which the core checks again before it
+  answers (`../domain/people.md`, 13.10).
+- **An application's document crosses in jig's envelope:**
+  `PublicApplication { tasks, record }`, the tasks' public identifiers
+  in the order the connector listed them, and its record in its own
+  wire, which names a task only by its place in that list. The
+  component maps the list; a connector never holds the key.
+- **Its freshness:** each answer carries when the decision that made it
+  was taken, by the engine's monotonic clock, from which the clients'
+  end gives the rest of its `max-age` (17.5).
+- **Every other exchange without a credential** is answered signed out
+  (section 8) by the component from the exchange alone: a read, a
+  watch, a stream, a keyed request. The public party opens no stream
+  and no watch; a page reads again by its own timer.
+- **Testing:** the component's world plays public reads with no
+  credential and with a signed-in person's cookie, answered alike; past
+  the room, the rate and the bytes, busy while signed-in exchanges are
+  answered; reservations given back on every end, two reads completing
+  at once and one whose exchange is gone among them, the bytes' bucket
+  whole after; an unknown kind, a private project, an identifier that
+  names nothing and one of a task that is not public, unknown alike,
+  with the same messages to the engine; identifiers mapped both ways,
+  distinct for projects and tasks, and the same after a restart. The
+  mapping's world: each answer's status and exact headers, a late
+  answer's shortened `max-age`, a credential on the route never read,
+  malformed paths (an overflowing number, a leading zero, upper-case or
+  short identifiers, an encoded or dot segment, a query, a trailing
+  slash) `404`, and `OPTIONS`, `HEAD` and `POST` `404` with no
+  `Access-Control-` header. Its fuzzy tests: the public path's parser
+  and the public records' decoders over seeded bytes.

@@ -18,6 +18,7 @@ impl Core {
         None
     }
 
+    #[expect(clippy::too_many_lines, reason = "the start script keeps its ordered phase transitions together")]
     pub fn start_done(&mut self, env: &Env<Limits>, done: Phase, out: &mut Queue<Request>) -> Action {
         self.start_input();
         self.start_collect_failure();
@@ -25,7 +26,7 @@ impl Core {
             return Action::Refused(failure);
         }
         assert!(self.start.phase == Some(done) && self.start.waiting.is_none(), "start phase completed in order");
-        if self.stopping {
+        if self.stopping || (done == Phase::Link && !crate::settings::application::defaults_received(self)) {
             return Action::Idle;
         }
         let next = match done {
@@ -38,7 +39,7 @@ impl Core {
                     return Action::Refused(self.start_failure().expect("named project policy failure"));
                 }
                 self.counters.finish_restore();
-                if self.counters.dirty() {
+                if self.counters.dirty() && self.kinds.is_empty() {
                     super::first::start_seed(self, env, out);
                     self.start_collect_failure();
                     if let Some(failure) = self.start_failure() {
@@ -60,8 +61,11 @@ impl Core {
                 None => Phase::Link,
             },
             Phase::Link => {
-                self.start_projections_link();
                 let before = out.len();
+                if let Some(failure) = self.start_application_seed(env, out) {
+                    return Action::Refused(failure);
+                }
+                self.start_projections_link();
                 self.start_link(env, out);
                 if let Some(failure) = self.start_failure() {
                     return Action::Refused(failure);
@@ -109,6 +113,9 @@ impl Core {
                 None => Phase::Open,
             },
             Phase::Open => {
+                for project in self.projects.to_boxed() {
+                    crate::public::publish(self, env.limits.public, project);
+                }
                 self.opened = true;
                 self.start.phase = None;
                 return Action::Idle;
@@ -133,6 +140,7 @@ impl Core {
                     // The sweep erases only expired rows (jig/docs/design/domain/engine.md, 6).
                     people::Stored::Policy { .. }
                     | people::Stored::EndedRead { .. }
+                    | people::Stored::Public { .. }
                     | people::Stored::Deletion { .. } => return Action::Idle,
                     people::Stored::Acted { .. }
                     | people::Stored::Person { .. }

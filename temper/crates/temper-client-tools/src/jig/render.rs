@@ -6,7 +6,9 @@ pub(crate) mod holds;
 pub(crate) mod lists;
 pub(crate) mod outcome;
 pub mod pending;
+pub(super) mod task_source;
 mod turn;
+pub(super) mod visibility;
 use crate::jig::{Limits, runner::Printed};
 use alloc::boxed::Box;
 use jig_client::{
@@ -36,7 +38,8 @@ impl<'a> Part<'a> {
             ReadValue::Tasks(value) => Some(Self::TaskPage(value)),
             ReadValue::Task(value) => Some(Self::Task(value)),
             ReadValue::Ended(value) => Some(Self::Task(ended_task(value)?.0)),
-            ReadValue::Settings(_)
+            ReadValue::TaskText(_)
+            | ReadValue::Settings(_)
             | ReadValue::Setting(_)
             | ReadValue::Revision(_)
             | ReadValue::Revisions(_)
@@ -171,6 +174,23 @@ pub trait Parts: core::fmt::Debug {
     fn release_again_refusal(&self, _task: &contract::Task) -> Option<&'static [u8]> {
         None
     }
+    /// Resolve the host's setting selector before reading the inventory.
+    fn prepare_setting(&self, call: &mut crate::jig::call::Call, me: Option<&contract::Me>) -> bool;
+    /// Select a host setting; none leaves selection to the kit's forms.
+    fn setting_selector(&self, call: &crate::jig::call::Call) -> Option<contract::Setting>;
+    /// Build the family record and scope for one application read.
+    fn application_read(&self, query: crate::jig::runner::application::Query) -> jig_client::Readable;
+    /// Decode a family answer into settings items and values.
+    /// Returns none for a record outside the query or the application's value form.
+    fn application_answer(
+        &self,
+        query: crate::jig::runner::application::Query,
+        page: &Readout,
+    ) -> Option<crate::jig::runner::application::Answer>;
+    /// Write a known application name, returning false without writing for other kinds.
+    fn setting_name(&self, setting: contract::Setting, out: &mut Text) -> bool;
+    /// Encode a known application value, returning false without writing for other kinds.
+    fn setting_value(&self, kind: u32, bytes: &[u8], out: &mut Encoder) -> bool;
     fn task_next(&self, task: &contract::Task, out: &mut Text);
     fn owner_part(&self, part: &contract::Part, out: &mut Text);
     fn part(&self, part: &contract::ApplicationPart, out: &mut Text);
@@ -302,6 +322,11 @@ pub(crate) fn reads(
                 return failure(b"unknown revision", reading.called.json, 2);
             }
             Readout::Jig(ReadResult::Value(value)) => {
+                if let ReadValue::TaskText(page) = value
+                    && !task_source::fits(page, limits)
+                {
+                    return failure(b"result limit", reading.called.json, 1);
+                }
                 if check_selected(&reading.called.call, *local, value).is_err() {
                     return failure(b"tools' bug; unexpected document; report it as a finding", reading.called.json, 1);
                 }
@@ -365,7 +390,7 @@ pub(crate) fn reads(
             vocabulary,
         );
     }
-    if reading.called.call.tool == 3 && reading.pages.len() == 1 && reading.documents.is_empty() {
+    if plain_task(reading) {
         return read(reading.pages.get(&1).expect("task read"), client, me, reading.called.json, limits, vocabulary);
     }
     document::print(document::Document::ReadSet(reading, party), reading.called.json, limits, vocabulary)
@@ -373,7 +398,8 @@ pub(crate) fn reads(
 
 fn check_selected(call: &crate::jig::call::Call, local: u32, value: &ReadValue) -> Result<(), ()> {
     match (call.tool, local, value) {
-        (1, _, ReadValue::Inbox(_))
+        (crate::jig::rows::TASK_TEXT_AT, 1, ReadValue::TaskText(_))
+        | (1, _, ReadValue::Inbox(_))
         | (crate::jig::rows::PROPOSAL_AT, 1, ReadValue::Proposal(_))
         | (crate::jig::rows::PROJECT_SHOW_AT | crate::jig::rows::PROJECT_FUND_AT, 1, ReadValue::Project(_))
         | (2, 1, ReadValue::Tasks(_))
@@ -436,12 +462,27 @@ pub(crate) fn answers_full(prefix: &[u8], held: u32, room_at: skein_lib::Wall) -
 #[must_use]
 pub fn settings_text(value: &ReadValue, requested: Option<u64>, limits: &Limits) -> Box<[u8]> {
     let mut measure = Text::measure();
-    document::settings::text(value, requested, limits, &mut measure);
+    settings_form::render::text(
+        &crate::jig::settings_adapter::form_read_value(value),
+        requested,
+        &crate::jig::settings_adapter::limits(limits),
+        &mut measure,
+    );
     let structural = measure.structural();
     let mut measure = Text::bounded(limits.text, structural);
-    document::settings::text(value, requested, limits, &mut measure);
+    settings_form::render::text(
+        &crate::jig::settings_adapter::form_read_value(value),
+        requested,
+        &crate::jig::settings_adapter::limits(limits),
+        &mut measure,
+    );
     let mut out = measure.writing(limits.text, structural);
-    document::settings::text(value, requested, limits, &mut out);
+    settings_form::render::text(
+        &crate::jig::settings_adapter::form_read_value(value),
+        requested,
+        &crate::jig::settings_adapter::limits(limits),
+        &mut out,
+    );
     out.finish()
 }
 
@@ -454,4 +495,11 @@ pub fn settings_refusal(why: &contract::Refusal, text: u32) -> Box<[u8]> {
     let mut out = Text::writing_exact(measure);
     acts::refusal(why, &book, &mut out);
     out.finish()
+}
+
+fn plain_task(reading: &crate::jig::runner::reads::Reading) -> bool {
+    reading.called.call.tool == 3
+        && reading.pages.len() == 1
+        && reading.documents.is_empty()
+        && reading.specification.is_none()
 }

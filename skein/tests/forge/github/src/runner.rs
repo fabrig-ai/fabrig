@@ -7,6 +7,7 @@ use crate::{
     mask::Mask,
     wire::{Request, Response},
 };
+use skein_forge::github::plans::plan::Retention;
 use skein_forge::{
     api,
     github::{self, request::Method},
@@ -17,6 +18,7 @@ use skein_forge_conformance::{
     json,
     write::{self, SecretKind, Secrets},
 };
+use skein_forge_connection::grow::Tail;
 use skein_lib::{Duration, Wall};
 use std::{fmt::Write as _, fs, path::Path};
 const WORD: &[u8] = b"conformance";
@@ -758,26 +760,7 @@ impl<'a> Runner<'a> {
                     }
                     events
                 }
-                Step::Redirect { redirect, retention } => {
-                    let host = std::str::from_utf8(&redirect.origin.host)?;
-                    let target = std::str::from_utf8(&redirect.target)?;
-                    let mut request = Request::new(
-                        Method::Get,
-                        if self.fake() { target.into() } else { format!("https://{host}{target}") },
-                        None,
-                        b"",
-                    );
-                    request.blob = true;
-                    let r = self.ask(&request)?;
-                    let github::plans::plan::Retention::Tail { bytes } = retention else {
-                        return Err("unexpected log retention".into());
-                    };
-                    let start = r.body.len().saturating_sub(usize::try_from(bytes)?);
-                    vec![
-                        Heard::Head { status: r.status, head: github::header::Head::new() },
-                        Heard::Done(Body::Raw { bytes: fake::boxed(&r.body[start..]), more: start != 0 }),
-                    ]
-                }
+                Step::Redirect { redirect, retention } => self.job_log_events(&redirect, retention)?,
             };
             let mut next = None;
             for event in events {
@@ -792,6 +775,36 @@ impl<'a> Runner<'a> {
             step = next.ok_or("dialect plan did not advance")?;
         }
         Err("dialect plan progress bound".into())
+    }
+    fn job_log_events(
+        &mut self,
+        redirect: &github::redirect::Redirect,
+        retention: Retention,
+    ) -> Result<Vec<github::plans::Heard>> {
+        use github::plans::{Body, Heard};
+        let host = std::str::from_utf8(&redirect.origin.host)?;
+        let target = std::str::from_utf8(&redirect.target)?;
+        let mut request = Request::new(
+            Method::Get,
+            if self.fake() { target.into() } else { format!("https://{host}{target}") },
+            None,
+            b"",
+        );
+        request.blob = true;
+        let r = self.ask(&request)?;
+        let mut tail = match retention {
+            Retention::Tail { bytes } => Tail::new(bytes, bytes),
+            Retention::FailedStep { bytes } => Tail::failed_step(bytes, bytes),
+            Retention::Head { .. } | Retention::Whole { .. } => {
+                return Err("unexpected log retention".into());
+            }
+        };
+        tail.write(&r.body);
+        let more = tail.dropped();
+        Ok(vec![
+            Heard::Head { status: r.status, head: github::header::Head::new() },
+            Heard::Done(Body::Raw { bytes: tail.finish(), more }),
+        ])
     }
     pub fn remove_rules(&mut self) -> Result<()> {
         for (id, made) in self.journal.pending.clone() {
@@ -1043,37 +1056,23 @@ fn decode(
     kind: github::document::Kind,
 ) -> Result<(Vec<github::document::Row>, github::document::Document)> {
     use skein_json::tokenizer;
-    use skein_lib::{
-        Env, Intake, Queue, Time,
-        stream::{Down, Up},
-    };
     let bounds = fake::bounds();
     let mut decoder = github::decode::decoder(kind, &bounds);
-    let env = Env { now: Time::ZERO, wall: Wall::EPOCH, limits: bounds.json };
-    let mut tokenizer = tokenizer::Tokenizer::new(&bounds.json);
-    let mut above = Queue::with_capacity(1);
-    let mut below = Queue::with_capacity(1);
-    let mut intake = Intake::with_capacity(bounds.writer.length);
-    intake.append(bytes).map_err(|e| format!("dialect intake bound: {e:?}"))?;
+    if bytes.len() > usize::try_from(bounds.writer.length)? {
+        return Err("dialect intake bound".into());
+    }
+    let mut feed = tokenizer::Feed::new(bytes, &bounds.json);
+    let mut request = tokenizer::Request::Next;
     let mut rows = vec![];
-    tokenizer::down(&mut tokenizer, &env, tokenizer::Request::Next, &mut above, &mut below);
-    for _ in 0..bytes.len() * 8 + 64 {
-        if let Some(event) = above.pop() {
-            let (request, step) = decoder.step(event);
-            match step {
-                github::decode::Step::Demand => {}
-                github::decode::Step::Row(row) => rows.push(row),
-                github::decode::Step::Done(document) => return Ok((rows, document)),
-                github::decode::Step::Malformed(_) => return Err("dialect document malformed".into()),
-            }
-            tokenizer::down(&mut tokenizer, &env, request, &mut above, &mut below);
-        } else {
-            let Down::Demand { read, .. } = below.pop().ok_or("JSON demand absent")? else {
-                return Err("JSON demand invalid".into());
-            };
-            let up = intake.meet(read).map_or(Up::End, Up::Bytes);
-            tokenizer::up(&mut tokenizer, &env, up, &mut above, &mut below);
+    for _answer in 0..=bytes.len() {
+        let (next, step) = decoder.step(feed.answer(request));
+        match step {
+            github::decode::Step::Demand => {}
+            github::decode::Step::Row(row) => rows.push(row),
+            github::decode::Step::Done(document) => return Ok((rows, document)),
+            github::decode::Step::Malformed(_) => return Err("dialect document malformed".into()),
         }
+        request = next;
     }
     Err("dialect decoding progress bound".into())
 }

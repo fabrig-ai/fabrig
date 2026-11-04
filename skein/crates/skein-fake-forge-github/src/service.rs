@@ -311,19 +311,25 @@ impl Service {
             }
         }
         let post_capacity = config.deliveries.log_entries;
+        // Draw store seeds apart so their sequences differ while the scenario seed still replays.
+        let mut seeds = Rng::new(seed);
+        let logs_seed = seeds.next_u64();
+        let delivery_seed = seeds.next_u64();
+        let pages_seed = seeds.next_u64();
+        let installations_seed = seeds.next_u64();
         Ok(Self {
             logs: crate::logs::Store::new(
                 config.blob,
                 config.third_origin,
                 config.blob_redirect,
                 limits.blob_records,
-                seed,
+                logs_seed,
             ),
             git_calls: skein_lib::Queue::with_capacity(limits.git_records),
             rate_heads: Map::with_capacity(limits.github.inner),
             rate_quota: config.rate_quota,
             rate_window: config.rate_window,
-            deliveries: crate::delivery::Store::new(config.deliveries, limits.deliveries, seed),
+            deliveries: crate::delivery::Store::new(config.deliveries, limits.deliveries, delivery_seed),
             key_revoked: false,
             verified: app::Verified::empty(),
             posts: skein_lib::Queue::with_capacity(post_capacity),
@@ -341,9 +347,9 @@ impl Service {
             tokens: config.tokens,
             faults: config.faults,
             rng: Rng::new(seed),
-            pages: pages::Store::new(limits.pages, seed),
+            pages: pages::Store::new(limits.pages, pages_seed),
             repositories,
-            installations: Installations::with_life(&limits.installations, seed, config.token_life),
+            installations: Installations::with_life(&limits.installations, installations_seed, config.token_life),
             limits: *limits,
         })
     }

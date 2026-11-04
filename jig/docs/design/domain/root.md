@@ -107,7 +107,7 @@ iterate, after the step:
   to get around the journal.
 - **Every request says what it is.** The core and the connectors mark
   each request as part of the decision, held, or now (engine.md, 4.2).
-  The root keeps the mark: a held output goes to `d.hold`, a now one to
+  The root keeps the mark: a held output goes to `d.push_held`, a now one to
   `journal.now`. The door for outputs that decide nothing and show
   nothing durable is one call, so review finds every use.
 - **Admission is all or nothing,** by a watermark (skein's
@@ -137,6 +137,15 @@ iterate, after the step:
   decision, store answers keep arrival order, and a kept turn precedes
   its terminal acknowledgement (sections 4 and 5;
   programming-model.md, 7.2).
+- **Public reads come behind.** A public read, the public party's
+  (people.md, section 13), is new work admitted only while the backlog
+  is under the public watermark, below the one every other new work
+  meets, and while the core holds fewer public reads than their limit
+  (section 10); handed back, it is answered busy by the clients'
+  component and never offered again, so load from signed-in parties
+  refuses public reads first. A public read loads nothing and its work
+  is bounded (people.md, 13.9), so engine completions and signed-in
+  reads never wait on one.
 - **One decision per event.** Hand-offs complete within the step;
   nothing of a decision is left for a later step but what a child holds
   in its own state, saying so (a brief gathering, a load awaited).
@@ -153,7 +162,7 @@ iterate, after the step:
   root also checks its own work, connectors, fleet, due activations and
   timers at the supplied clocks. A due timer, including one refused
   admission, forbids omission. `quiescent` includes this same finishing
-  derivation and its existing broader idle fences; false does not promise
+  derivation and its broader idle fences; false does not promise
   that finishing can advance (engine.md, 6.1 and 11; people.md, 3).
 - **Released outputs addressed to a child** (the core's resumption after
   a claim commits, a connector's entry to make) are fed back to it as
@@ -180,7 +189,7 @@ It inspects nothing it holds. What jig asks of it:
 - **jig's journal sizes** are `JournalSizes { commits, writes, door, release }`,
   owned by `jig-protocol-config` and `jig-test-domain`. `commits` and
   `writes` supply the store's commit edge; `release` bounds the held
-  outputs released per call. The journal's containers remain uncapped.
+  outputs released per call. The journal's containers are uncapped.
 - **A decision:** a value, `#[must_use]` and not `Clone`, from
   `decide()`, that gathers one decision's writes and held outputs
   (`push_write`, `push_held`). It reserves nothing and cannot fail. The
@@ -200,8 +209,6 @@ It inspects nothing it holds. What jig asks of it:
   and the journal reports stop.
 - **A stop of the root's own** (`stop()`): a root that cannot go on stops
   its journal, and nothing held or at the door leaves again.
-- **The old forms,** `takes(room)`, `JournalRoom` and the capped decision,
-  stay beside these until no root uses them.
 - **The subset:** generic types and lib's own containers, no traits
   defined, no closures (programming-model.md, 10.2).
 
@@ -372,8 +379,8 @@ The root does only the step it is asked for, and the core asks for the
 next only once this one is done, so the order is the core's.
 
 A restart that fails leaves its decision unaccepted, and the root takes
-no decision after it: it once relied on the open reservation to refuse
-them, and with decisions that cannot be refused it says so itself.
+no decision after it: since no decision can be refused, the root itself
+stops taking them.
 
 ## 9. Effects and verdicts, from the root
 
@@ -405,9 +412,15 @@ them, and with decisions that cannot be refused it says so itself.
   door's outputs (`JournalSizes.commits` and `JournalSizes.door`):
   `default_watermark` adds `commits` and `door`. The commits alone bind after
   one decision that holds several outputs, since held outputs count in
-  the backlog (temper's root is at the same formula). It limits pacing, not memory
+  the backlog. It limits pacing, not memory
   (programming-model.md, 7.1); where a person's reads wait behind it, it
   rises.
+- **The public watermark,** a second field of the root's `Limits`,
+  half the watermark: public reads are admitted under it (section 3),
+  so they never fill the backlog signed-in work is admitted to; and
+  **the public reads in the core,** a third, the clients' component's
+  public reads in flight (`../protocol/configuration.md`, section 6).
+  Both follow from the other figures, and neither is configured apart.
 - **No sum along routes,** and no worst case of the root's: the
   per-process estimate goes with the startup fit check
   (programming-model.md, 6.3).

@@ -96,7 +96,7 @@ impl Invocation {
             state,
             pid,
             peer_pid,
-            peer: smith_agent_process_world::fake::peer(),
+            peer: smith_agent_process_world::fake::peer_openai(),
             local,
             input,
             output,
@@ -197,7 +197,7 @@ fn the_shared_library_saves_a_plaintext_turn_and_flushes_terminal_output_before_
     let local::Event::Loaded { transcript: Some(transcript), .. } = invocation.load_chat() else {
         panic!("the shell saved the typed turn");
     };
-    assert_eq!(transcript.turns.len(), 1);
+    assert_eq!(transcript.value().turns.len(), 1);
     invocation.finish();
     assert!(!invocation.seen.is_empty(), "output crossed the inherited terminal descriptor");
 }

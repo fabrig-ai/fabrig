@@ -12,7 +12,6 @@ pub const MAX_UP: u32 = 3;
 pub const MAX_DOWN: u32 = 3;
 
 /// A request from the channel's owner.
-#[derive(Debug)]
 pub enum Request {
     /// The initiator starts with an opaque bounded credential.
     Open { credential: Box<[u8]> },
@@ -30,6 +29,24 @@ pub enum Request {
     Finish,
     /// The owner stops the channel now.
     Close,
+}
+
+// skein/docs/design/lib.md, 6 and skein/docs/design/channel.md, 5: a credential prints as its length.
+impl core::fmt::Debug for Request {
+    fn fmt(&self, f: &mut core::fmt::Formatter<'_>) -> core::fmt::Result {
+        match self {
+            Self::Open { credential } => f.debug_struct("Open").field("credential_len", &credential.len()).finish(),
+            Self::Accept { version } => f.debug_struct("Accept").field("version", version).finish(),
+            Self::Refuse { reason, text } => {
+                f.debug_struct("Refuse").field("reason", reason).field("text", text).finish()
+            }
+            Self::Read => f.write_str("Read"),
+            Self::Send { token, frame } => f.debug_struct("Send").field("token", token).field("frame", frame).finish(),
+            Self::Ping => f.write_str("Ping"),
+            Self::Finish => f.write_str("Finish"),
+            Self::Close => f.write_str("Close"),
+        }
+    }
 }
 
 /// Why one terminal closed the channel.
@@ -72,7 +89,6 @@ pub struct Room {
 }
 
 /// An event delivered to the channel's owner.
-#[derive(Debug)]
 pub enum Event {
     /// The responder heard an opening and asks its owner to choose.
     Opening { credential: Box<[u8]>, lowest: u16, highest: u16 },
@@ -98,6 +114,35 @@ pub enum Event {
     OutputFailed,
     /// The one terminal, after lower rights settle.
     Closed { why: Closed },
+}
+
+// skein/docs/design/lib.md, 6 and skein/docs/design/channel.md, 5: a credential prints as its length.
+impl core::fmt::Debug for Event {
+    fn fmt(&self, f: &mut core::fmt::Formatter<'_>) -> core::fmt::Result {
+        match self {
+            Self::Opening { credential, lowest, highest } => f
+                .debug_struct("Opening")
+                .field("credential_len", &credential.len())
+                .field("lowest", lowest)
+                .field("highest", highest)
+                .finish(),
+            Self::Ready { version, terms } => {
+                f.debug_struct("Ready").field("version", version).field("terms", terms).finish()
+            }
+            Self::Body { kind, body } => f.debug_struct("Body").field("kind", kind).field("body", body).finish(),
+            Self::Ping => f.write_str("Ping"),
+            Self::Unsupported { kind } => f.debug_struct("Unsupported").field("kind", kind).finish(),
+            Self::Refused { reason, text } => {
+                f.debug_struct("Refused").field("reason", reason).field("text", text).finish()
+            }
+            Self::Ended => f.write_str("Ended"),
+            Self::Sent { token } => f.debug_struct("Sent").field("token", token).finish(),
+            Self::Unsent { token, why } => f.debug_struct("Unsent").field("token", token).field("why", why).finish(),
+            Self::Drained => f.write_str("Drained"),
+            Self::OutputFailed => f.write_str("OutputFailed"),
+            Self::Closed { why } => f.debug_struct("Closed").field("why", why).finish(),
+        }
+    }
 }
 
 /// One record to the read or independent write stream.

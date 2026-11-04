@@ -135,11 +135,13 @@ agent    every LLM call: smith's agent shell, over skein's LLM client
   the run may ask again with a corrected input under a new name.
 - **Answered in the routing:** once a decided call's commit is durable,
   the root hands its answer out (`HostDelivery::Render`); the routing
-  renders it with `temper_engine_smith::answer`, as smith's text with
+  renders it with `temper_engine_smith::answer_bounded`, as smith's text with
   whether it is an error, and hands it back as
   `WorkerInput::RenderedHostCall { to, answer }`. An answer that cannot
   be rendered becomes a bounded error, so no decided call is left
-  unanswered.
+  unanswered. A job log's suffix is fitted after its metadata and cut
+  marker, with byte escapes priced, to `core.call_answer_bytes` less the
+  settled tool name; the configured bound is never raised.
 - **Not `jig-protocol-tools`.** temper's root takes its own `Tool`
   vocabulary, not the core's tool events, so `temper-engine-smith` stays
   (section 7).

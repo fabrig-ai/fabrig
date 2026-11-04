@@ -645,12 +645,17 @@ impl Referee<cluster::Root> for Judge {
             // as the clients' endpoint is reserved for the App's setup URL.
             document["engine"]["hosts"]["listener"][0]["socket"] = self.workers.to_string().into();
             let address = self.members.capture("forge", "address").expect("forge address").parse().expect("socket");
-            configure_engine(&mut document, address);
+            configure_engine(&mut document);
+            fs::create_dir_all(&self.client).expect("client directory");
+            super::write_private(
+                &self.client.join("landing-settings.json"),
+                &serde_json::to_vec(&landing_settings(address, "acme", "app")).expect("landing settings"),
+            );
             fs::write(&self.engine, serde_json::to_vec(&document).expect("engine JSON"))
                 .expect("fixed workers listener");
             let directory = self.members.dir("engine");
             super::forgejo::bootstrap(&directory.join("config"), &directory.join("data"), &directory.join("cache"));
-            // temper/docs/design/protocol/setup.md, 17.7; temper/docs/design/draft/playground-reset.md, 3.
+            // temper/docs/design/protocol/setup.md, 17.7; temper/docs/design/protocol/forge.md, 2.1.
             let mut record = temper_real_loop_world::fixtures::forgejo_record(address);
             record.kind = temper_engine_domain_forge::Kind::GitHub;
             record.place.web = Some(format!("http://{address}").into_bytes().into());
@@ -807,19 +812,16 @@ pub(crate) fn configure_llm(path: &Path) {
     value["cued"].as_array_mut().expect("scripts").push(json!({"cue":"Review this change at the named head","turns":[{"lines":[{"call":"finish","arguments":{"form":"verdict","label":"1","text":"Checked","fields":{},"items":[]}}],"finish":"tool_calls","tokens":20}]}));
     super::write_private(path, &serde_json::to_vec(&value).expect("LLM JSON"));
 }
-fn configure_engine(value: &mut Value, forge: SocketAddr) {
-    configure_landing(value, forge, "acme", "app");
-    // Use the stock defaults and init's seed policy reference, with no story-specific
-    // tool grants. Init's placeholders do not occur in the seed projects.
-    let init: Value = serde_json::from_slice(include_bytes!("../../../temper-init/template/temper.json"))
-        .expect("init template JSON");
+fn configure_engine(value: &mut Value) {
+    // This fixture seeds its own project on stock policy 1, with no story-specific tool grants.
     let engine = value["engine"].as_object_mut().expect("engine object");
     for member in ["charters", "templates", "policies", "rules"] {
         engine.remove(member);
     }
-    engine.insert("projects".into(), init["engine"]["projects"].clone());
-    // Four slots hold the stock chat, coding and reviewer charters.
-    value["engine"]["limits"]["overrides"]["tasks.charters"] = 4.into();
+    engine.insert("projects".into(), serde_json::json!([{"number": 1, "policy": 1}]));
+    // Five slots hold the stock charters.
+    value["engine"]["limits"]["overrides"]["tasks.charters"] = 5.into();
+    value["engine"]["limits"]["overrides"]["core.templates"] = 3.into();
     // Keep log polling aligned with the live GitHub story.
     let limits = &mut value["application"]["limits"]["overrides"];
     for (name, millis) in [("poll_ms", 10), ("poll_max_ms", 50), ("slow_ms", 100), ("hinted_ms", 10)] {
@@ -848,7 +850,11 @@ pub(crate) fn landing_reads() -> Vec<ctl::Call> {
     .collect()
 }
 
-pub(crate) fn configure_landing(value: &mut Value, forge: SocketAddr, owner: &str, repository: &str) {
+pub(crate) fn landing_settings(forge: SocketAddr, owner: &str, repository: &str) -> Vec<Value> {
     use serde_json::json;
-    value["application"]["landing"]["projects"] = json!([{"project":1,"rules":[{"connector":1,"kind":4,"pattern":{"segments":["forge",forge.to_string(),owner,repository,"branch"],"last":"exact","value":"main"},"enforce":true,"ci":true,"up_to_date":true,"gates":[{"number":1,"blocking":true,"freshness":"exact"}],"approvals":[]}]}]);
+    let value = json!({"world_settings":{"landing":{"deployment":[{"connector":1,"kind":4,"pattern":{"segments":["forge",forge.to_string(),owner,repository,"branch"],"last":"exact","value":"main"},"enforce":true,"ci":true,"up_to_date":true,"gates":[{"number":1,"blocking":true,"freshness":"exact"}],"approvals":[]}]}}});
+    temper_real_loop_world::settings_items::forge_items(&temper_real_loop_world::settings::forge(&value))
+        .into_iter()
+        .filter(|item| item["setting"]["kind"] == "landing-rule")
+        .collect()
 }

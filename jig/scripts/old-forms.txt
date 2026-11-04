@@ -1,8 +1,8 @@
-# Uses of the old forms (skein's docs/design/draft/dynamic-memory.md, 7): each count may only fall.
-# Lower them with `python3 -I -B scripts/old_forms.py --write`; only the director raises one, recorded in a `# Raised:` line.
+# Uses of the old forms (skein's docs/foundation/programming-model.md, 6.3): each count may only fall.
+# Lower them with `python3 -I -B scripts/old_forms.py --write`; a count rises only with a `# Raised:` line saying who and why.
 max_out 0
 JournalRoom 0
 takes 0
 worst_case 0
-comment:actual 119
+comment:actual 118
 comment:genuine 19

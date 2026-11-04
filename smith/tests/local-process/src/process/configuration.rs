@@ -200,7 +200,7 @@ fn local_policy(lower: &agent::Config, change: bool, tools: bool) -> (local::Con
                 output: 10_000_000,
                 unit: 1_000_000,
             },
-            dialect: 1,
+            dialect: 3,
             account: Some(0),
             endpoint: charter::Endpoint(0),
             model: b"fake".as_slice().into(),
@@ -312,7 +312,6 @@ fn cloned_endpoints(lower: &agent::Config) -> smith_protocol_llm::Endpoints {
                 },
                 connect: options.connect,
                 handshake: options.handshake,
-                identity: options.identity,
                 models: options.models.clone(),
             }
         })
@@ -363,15 +362,14 @@ pub fn agent_document(launch: &Launch) -> serde_json::Value {
         model["efforts"] = serde_json::json!(["low"]);
         models.push(model);
     }
-    let mut endpoint = serde_json::json!({"name":if launch.choices {"main"} else {"fake"},"number":0,"dialect":1,
-        "account":0,"provider":"codex","connect":1000,"handshake":1000,"models":models,
-        "identity":"plain","address":format!("{}:{}", smith_agent_process_world::fake::loopback(), if launch.tls {34_443} else {443}),
+    let mut endpoint = serde_json::json!({"name":if launch.choices {"main"} else {"fake"},"number":0,"dialect":3,
+        "provider":"openai","connect":1000,"handshake":1000,"models":models,
+        "address":format!("{}:{}", smith_agent_process_world::fake::loopback(), if launch.tls {34_443} else {443}),
         "transport":if launch.tls {"tls"} else {"plaintext"},
         "headers":[{"name":"originator","value":"skein-world"}]});
     if launch.lending == Some(crate::world::Lending::Key) {
         endpoint["provider"] = serde_json::json!("anthropic");
         endpoint["dialect"] = serde_json::json!(2);
-        endpoint.as_object_mut().expect("endpoint object").remove("identity");
     }
     if launch.tls {
         endpoint["server_name"] = serde_json::json!("skein.test");
@@ -442,7 +440,6 @@ pub fn prepared_accounts(
                     skein_oauth_accounts::Transport::Plaintext
                 },
             },
-            account_id: b"acc".as_slice().into(),
             interactive: true,
         }
     } else {
@@ -452,10 +449,7 @@ pub fn prepared_accounts(
             .unwrap()
             .expect("fixture access token");
         record.refresh_token = None;
-        service::Source::Env {
-            account: 0,
-            borrowed: smith_local_protocol::Borrowed { record, account_id: b"acc".as_slice().into() },
-        }
+        service::Source::Env { account: 0, borrowed: smith_local_protocol::Borrowed { record } }
     };
     assert!(sources.push(source).is_ok(), "one fixture account");
     smith_local_shell::credentials::Prepared {

@@ -24,6 +24,20 @@ A hold keeps a task from running until someone with the right to lift it says so
   subtree: the task and each of its delegates is held, and each live
   run among them is cancelled at once.
 
+Temporary forge admission pressure waits and retries automatically. This
+includes a departing watch whose read is still in flight; no release is
+needed. A resource hold names the failed operation and its branch or pull
+request. For a working-set limit it gives the exact configuration member
+(such as `forge.client.resources`), configured value and required usage.
+`task show` and `change show`, in text and JSON, include the full retained
+resource-hold explanation, including the action needed before release helps.
+Landed changes keep their watches while tier verification is pending.
+Reduce the named work, or change that member in the deployment configuration
+and restart, then release the task. Release checks admission again; a bound
+still exceeded holds the task again. A failed branch, base or pull read
+names the forge's cause: restore access, connectivity or the missing target
+as directed, then release to read afresh.
+
 ## How it changes
 
 - **Placed:** a party stops a task. The hold's revision is 1.
@@ -76,6 +90,8 @@ A hold keeps a task from running until someone with the right to lift it says so
   `release`, naming the task, the hold and the hold's revision.
 
 ## Limits
+
+For the configuration members that need a restart, read `temper help configuration`.
 
 - Placed holds in the deployment, in a project and per owning party,
   and the tasks one hold exempts, each bounded; one more is refused,

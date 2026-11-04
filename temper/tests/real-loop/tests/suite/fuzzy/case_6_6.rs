@@ -1,15 +1,15 @@
-//! Retained first-edition story (domain/testing.md, 5.3): two landings, with a fresh waiting sibling dependency.
+//! Retained first-edition story (domain/testing.md, 5.3): two landings, with a cross-repository sibling dependency.
 use temper_real_loop_world::{Exit, case, run_cluster_forge};
 
 #[test]
-fn a_kit_change_releases_the_apps_waiting_repin_without_relay_without_the_a3_a4_epilogue() {
+fn a_kit_change_lands_before_the_apps_early_repin_without_relay_without_the_a3_a4_epilogue() {
     // Start with the person's permission. Omit the preceding question/hour
     // (6.5's director-origin gap), A between director and A1, the successor
     // notice (7.1), a3/a4's later landings, and 6.4's red-tip/interim narrative.
     // Kit's final tree is not observed by the shared single-main carrier;
     // exact head, CI, review, merge and result are checked from records.
-    // Repin is initially Waiting, never active-kept: it has no coding,
-    // attempt, delegate or app pull before e1 ends. No Met is expected.
+    // The cross-repository producer starts kept (domain/forge.md, 8.11).
+    // Its scripted write waits for kit to land before filling the pin.
     let ran = run_cluster_forge(
         case::PAUSE_WORKERS,
         &[],

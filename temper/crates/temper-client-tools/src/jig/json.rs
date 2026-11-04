@@ -11,10 +11,7 @@ use skein_json::{
     Document, Kind as JsonKind, tokenizer,
     writer::{self, Encoder},
 };
-use skein_lib::{
-    Env, Intake, List, Queue, Time, Wall, Writer,
-    stream::{Down, Up},
-};
+use skein_lib::{List, Writer};
 /// An encoded record exceeds its bound or contains non-UTF-8 bytes.
 #[derive(Clone, Copy, PartialEq, Eq, Debug)]
 pub enum Refusal {
@@ -23,7 +20,7 @@ pub enum Refusal {
 }
 /// Decode and check one call; stdin may be used only once.
 pub fn call(table: &[&Tool], bytes: &[u8], from: Source, limits: &Limits) -> Result<Call, Usage> {
-    if u64::try_from(bytes.len()).unwrap_or(u64::MAX) > limits.ask_bytes {
+    if skein_lib::len_u64(bytes.len()) > limits.ask_bytes {
         return Err(Usage::Json);
     }
     let doc = document(bytes)?;
@@ -82,47 +79,8 @@ pub(crate) fn document_depth(bytes: &[u8], depth: u32) -> Result<Document, Usage
         return Err(Usage::Json);
     }
     let limits = tokenizer::Limits { depth, string: length, number: 20, chunk: length.max(1), length };
-    let env = Env { now: Time::ZERO, wall: Wall::EPOCH, limits };
-    let mut machine = tokenizer::Tokenizer::new(&limits);
-    let mut intake = Intake::with_capacity(length.max(tokenizer::largest_demand(&limits)));
-    intake.append(bytes).or(Err(Usage::Json))?;
-    let mut above = Queue::with_capacity(1);
-    let mut below = Queue::with_capacity(1);
-    let mut tokens = List::with_capacity(length);
-    let mut demanded = None;
-    let steps = bytes.len().checked_mul(4).ok_or(Usage::Json)?.checked_add(8).ok_or(Usage::Json)?;
-    for _ in 0..steps {
-        match demanded.take() {
-            Some(read) => match intake.meet(read) {
-                Some(bytes) => tokenizer::up(&mut machine, &env, Up::Bytes(bytes), &mut above, &mut below),
-                None => tokenizer::up(&mut machine, &env, Up::End, &mut above, &mut below),
-            },
-            None => tokenizer::down(&mut machine, &env, tokenizer::Request::Next, &mut above, &mut below),
-        }
-        match below.pop() {
-            Some(Down::Demand { read, .. }) => demanded = Some(read),
-            Some(Down::Send(_) | Down::Finish) => return Err(Usage::Json),
-            None => {}
-        }
-        match above.pop() {
-            Some(tokenizer::Event::Token(token)) => tokens.push(token).or(Err(Usage::Json))?,
-            Some(tokenizer::Event::Done) => {
-                return Document::from_tokens(
-                    tokens.as_slice(),
-                    &skein_json::document::Limits { tokens: length, text: length },
-                )
-                .or(Err(Usage::Json));
-            }
-            Some(
-                tokenizer::Event::Failed(_)
-                | tokenizer::Event::Closed
-                | tokenizer::Event::Long(_)
-                | tokenizer::Event::Skipped(_),
-            ) => return Err(Usage::Json),
-            None => {}
-        }
-    }
-    Err(Usage::Json)
+    skein_json::parse(bytes, &limits, &skein_json::document::Limits { tokens: length, text: length })
+        .or(Err(Usage::Json))
 }
 fn require(doc: &Document, at: u32, kind: JsonKind) -> Result<(), Usage> {
     if doc.token(at).ok_or(Usage::Json)?.kind == kind { Ok(()) } else { Err(Usage::Json) }

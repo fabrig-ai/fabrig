@@ -58,7 +58,14 @@ pub fn forge(
 }
 fn durable_panel(panel: &mut temper_engine_domain_forge::Panel) {
     use temper_engine_domain_forge::PanelStep;
-    if !matches!(panel.step, PanelStep::Ended | PanelStep::Landed { .. }) {
+    if !matches!(
+        panel.step,
+        PanelStep::Ended
+            | PanelStep::Landed { .. }
+            | PanelStep::Verifying { .. }
+            | PanelStep::Red { .. }
+            | PanelStep::Cleared { .. }
+    ) {
         panel.ci = temper_engine_domain_forge_change::Status::Unknown;
     }
 }

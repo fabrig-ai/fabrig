@@ -1,4 +1,4 @@
-//! Playground reset across the shipped processes (temper/docs/design/draft/playground-reset.md, 6.2 and 8).
+//! Playground reset across the shipped processes (temper/docs/design/protocol/setup.md, 8.4 and 13.4).
 use super::{Process, ctl};
 use skein_lib::Time;
 use skein_shell::{Clock, Host};
@@ -33,7 +33,7 @@ impl Referee<NativeClient> for Judge {
             }
             Page::Forge
                 if named(client, Role::Heading { level: 1 }, b"Connect a forge")
-                    && named(client, Role::Link, b"Forgejo on this machine") =>
+                    && named(client, Role::Button, b"Run on this machine") =>
             {
                 assert!(!named(client, Role::Button, b"Try the playground"));
                 client.close();
@@ -123,7 +123,7 @@ pub fn end_and_check(config: &Path, data: &Path, client: &Path) {
     check_empty(config, data, client);
 }
 pub fn check_empty(config: &Path, data: &Path, client: &Path) {
-    // Recovery can finish without another end call; the page leaves resetting only once the row is gone (6.2).
+    // Recovery can finish without another end call; the page leaves resetting only once the row is gone (8.4).
     retired_reload(config, client);
     let forges = read(client, &["forge", "list", "--json"]);
     assert_eq!(forges["forges"], serde_json::json!([]), "{forges}");
@@ -131,7 +131,7 @@ pub fn check_empty(config: &Path, data: &Path, client: &Path) {
     assert_eq!(accounts["accounts"]["deployment"], serde_json::json!([]), "{accounts}");
     let me = read(client, &["me", "--json"]);
     let projects = me["projects"].as_array().expect("projects list");
-    assert!(!projects.iter().any(|row| row["name"]["bytes"] == "Playground"), "{me}");
+    assert!(!projects.iter().any(|row| row["name"]["bytes"] == "Demo"), "{me}");
     for name in ["playground-1", "box/groups/1", "box/started/1"] {
         assert!(!data.join(name).exists(), "reset removes {name}");
     }
@@ -184,7 +184,7 @@ pub fn interrupt_reset(binary: &Binary, config: &Path, client: &Path) -> u32 {
                 ctl::Step::Start(call(client, &["playground", "end", "--key", "playground-reset"])),
                 ctl::Step::UntilMatching(
                     call(client, &["me", "--json"]),
-                    temper_real_loop_world::calls::ReadCondition::NoProjectNamed("Playground"),
+                    temper_real_loop_world::calls::ReadCondition::NoProjectNamed("Demo"),
                 ),
                 ctl::Step::Cut,
             ],
@@ -198,7 +198,7 @@ pub fn interrupt_reset(binary: &Binary, config: &Path, client: &Path) -> u32 {
     assert_eq!(reset.exit, Some(skein_io::kernel::Exit::Code(143)), "reset still waits for the box");
     assert!(reset.stdout.is_empty(), "reset has not answered");
     assert!(
-        temper_real_loop_world::calls::ReadCondition::NoProjectNamed("Playground").matches(&me.stdout),
+        temper_real_loop_world::calls::ReadCondition::NoProjectNamed("Demo").matches(&me.stdout),
         "project removal committed"
     );
     reload(config, client, b"private", true);

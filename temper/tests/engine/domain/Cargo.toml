@@ -8,6 +8,7 @@ rust-version.workspace = true
 publish.workspace = true
 
 [dependencies]
+temper-engine-smith.workspace = true
 jig-test-profile.workspace = true
 skein-forge.workspace = true
 jig-test-domain.workspace = true
@@ -33,6 +34,7 @@ jig-domain-notes.workspace = true
 jig-domain-core.workspace = true
 temper-engine-domain-forge.workspace = true
 temper-engine-domain-forge-change.workspace = true
+temper-engine-domain-forge-tiers.workspace = true
 skein-forge-client.workspace = true
 temper-engine-forge-world = { path = "../forge" }
 skein-fake-forge-domain.workspace = true
@@ -42,6 +44,8 @@ smith-domain-session.workspace = true
 smith-domain-tools.workspace = true
 
 [dev-dependencies]
+temper-client-protocol-wire.workspace = true
+temper-client-tools.workspace = true
 jig-engine-clients-world = { path = "../../../../jig/tests/engine-clients" }
 jig-protocol-engine-clients.workspace = true
 jig-client-protocol-wire.workspace = true
@@ -53,7 +57,6 @@ jig-tasks-world.workspace = true
 serde_json.workspace = true
 skein-fake-llm-domain.workspace = true
 smith-agent-world.workspace = true
-temper-engine-smith.workspace = true
 temper-fake-checkout.workspace = true
 temper-fake.workspace = true
 temper-worker-checkout-world.workspace = true

@@ -22,6 +22,32 @@ fn planted(ops: &[skein_kv::Op]) -> Store {
 
 // Format, Layouts, deployment header and installation identifier.
 const OPENED_ROWS: usize = 4;
+const LARGE_RESULT_BYTES: u32 = 2048;
+
+#[test]
+fn a_store_opens_with_result_bytes_above_the_verdict_field_ceiling() {
+    let mut limits = fixtures::store_limits();
+    limits.core.tasks.result_bytes = LARGE_RESULT_BYTES;
+    let mut store = Store::over(&limits, fixtures::APPLICATION, &[], fixtures::stores());
+    assert_opened(&open(&mut store), 0);
+}
+
+#[test]
+fn settings_size_verdict_fields_apart_from_result_byte_bounds() {
+    for (result_bytes, verdict_fields) in [(32, 32), (LARGE_RESULT_BYTES, 512)] {
+        let mut domain = fixtures::CORE_LIMITS;
+        domain.tasks.result_bytes = result_bytes;
+        let settings = codec::limits(&domain).expect("domain fits store families").settings;
+        assert_eq!(settings.verdict_fields, verdict_fields);
+        assert_eq!(settings.field_rule_name, result_bytes);
+        assert_eq!(settings.approval_state, result_bytes);
+    }
+}
+
+#[test]
+fn the_verdict_field_limit_equals_the_settings_schema_ceiling() {
+    assert_eq!(jig_domain_tasks::VERDICT_FIELDS, crate::settings_v1::CEILINGS.verdict_fields);
+}
 
 fn opened_rows() -> [skein_kv::Op; OPENED_ROWS] {
     [

@@ -1,0 +1,367 @@
+use super::*;
+use crate::api::{Artifact, Cue, Job, Report, ReportFormat, Run};
+const REPORT: &[u8] = b"tests";
+fn configured_report(config: Config, format: ReportFormat, fails: &[&[u8]], cue: Option<Cue>) -> Harness {
+    configured_report_jobs(config, format, fails, &[], cue, &[b"tests"])
+}
+fn configured_report_jobs(
+    config: Config,
+    format: ReportFormat,
+    fails: &[&[u8]],
+    flaky: &[&[u8]],
+    cue: Option<Cue>,
+    jobs: &[&[u8]],
+) -> Harness {
+    let mut configured = setup();
+    configured.checks.contexts = Box::new([]);
+    let mut workflow = workflow(jobs);
+    workflow.fails = names(fails);
+    workflow.flaky = names(flaky);
+    workflow.report = Some(Report { artifact: copy_of(REPORT), format, deflate: true });
+    workflow.select = Some(copy_of(b"select"));
+    workflow.cue = cue;
+    configured.workflows = Box::new([workflow]);
+    // The three-failure JUnit document is this fixture's largest report.
+    let content_bytes = u32::try_from(b"<?xml version=\"1.0\" encoding=\"UTF-8\"?><testsuite><testcase name=\"a\"><failure/></testcase><testcase name=\"b\"><failure/></testcase><testcase name=\"c\"><failure/></testcase></testsuite>".len()).unwrap();
+    Harness::with(Config { limits: Limits { content_bytes, ..config.limits }, ..config }, configured)
+}
+fn run_report(h: &mut Harness, selected: Option<&[u8]>) -> Result<Answer, Error> {
+    let inputs: Box<[crate::api::WorkflowInput]> = match selected {
+        Some(ids) => Box::new([(copy_of(b"select"), copy_of(ids))]),
+        None => Box::new([]),
+    };
+    h.ok(ENGINE, write(Write::Dispatch { workflow: copy_of(b"gate.yml"), branch: copy_of(MAIN), inputs }));
+    h.settle();
+    let run = workflow_runs(h)[0].id;
+    h.call(ENGINE, read(Read::Artifact { run, name: copy_of(REPORT) }))
+}
+fn junit(bytes: &[u8]) -> Answer {
+    Answer::Artifact {
+        commit: FIRST,
+        artifact: Artifact {
+            name: copy_of(REPORT),
+            path: copy_of(b"report.xml"),
+            bytes: copy_of(bytes),
+            deflate: true,
+        },
+    }
+}
+#[test]
+fn failed_ids_upload_a_junit_report() {
+    let mut h = configured_report(CALM, ReportFormat::Junit, &[b"b", b"a", b"a"], None);
+    let report = run_report(&mut h, None);
+    assert_eq!(report, Ok(junit(b"<?xml version=\"1.0\" encoding=\"UTF-8\"?><testsuite><testcase name=\"a\"><failure/></testcase><testcase name=\"b\"><failure/></testcase></testsuite>")));
+    assert_eq!(run_jobs(&h, 1)[0].conclusion, Some(crate::api::Conclusion::Failure));
+}
+#[test]
+fn selection_runs_only_its_failed_id() {
+    let mut h = configured_report(CALM, ReportFormat::Junit, &[b"a", b"b"], None);
+    assert_eq!(run_report(&mut h, Some(b"b")), Ok(junit(b"<?xml version=\"1.0\" encoding=\"UTF-8\"?><testsuite><testcase name=\"b\"><failure/></testcase></testsuite>")));
+}
+#[test]
+fn selection_reports_passing_ids_beside_failed_ids() {
+    let mut h = configured_report(CALM, ReportFormat::Junit, &[b"b"], None);
+    assert_eq!(run_report(&mut h, Some(b"b\na\nb\n")), Ok(junit(b"<?xml version=\"1.0\" encoding=\"UTF-8\"?><testsuite><testcase name=\"a\"/><testcase name=\"b\"><failure/></testcase></testsuite>")));
+}
+#[test]
+fn test_cues_read_ids_from_the_run_commit() {
+    let mut h = configured_report(CALM, ReportFormat::Lines, &[], Some(Cue::Tests { path: copy_of(b"ids") }));
+    let commit = h.commit(FIRST, &[(b"ids", b"b\na\nb\n")]);
+    h.push(ENGINE, MAIN, commit).unwrap();
+    assert_eq!(
+        run_report(&mut h, None),
+        Ok(Answer::Artifact {
+            commit,
+            artifact: Artifact {
+                name: copy_of(REPORT),
+                path: copy_of(b"failed.txt"),
+                bytes: copy_of(b"a\nb\n"),
+                deflate: true
+            }
+        })
+    );
+}
+#[test]
+fn a_faulted_run_uploads_no_report() {
+    for config in [Config { lost: 1000, ..CALM }, Config { setup_faults: 1000, ..CALM }] {
+        let mut h = configured_report(config, ReportFormat::Junit, &[b"a", b"b"], None);
+        assert_eq!(run_report(&mut h, None), Err(Error::Missing(What::File)));
+    }
+}
+#[test]
+fn a_passing_run_reports_no_failed_ids() {
+    let mut h = configured_report(CALM, ReportFormat::Junit, &[], None);
+    assert_eq!(
+        run_report(&mut h, None),
+        Ok(junit(b"<?xml version=\"1.0\" encoding=\"UTF-8\"?><testsuite></testsuite>"))
+    );
+    assert_eq!(run_jobs(&h, 1)[0].conclusion, Some(crate::api::Conclusion::Success));
+}
+
+#[test]
+fn faulted_jobs_suppress_reports_until_each_fault_is_rerun() {
+    let mut h = configured_report_jobs(
+        Config { setup_faults: 1000, ..CALM },
+        ReportFormat::Lines,
+        &[b"a"],
+        &[],
+        None,
+        &[b"a", b"b"],
+    );
+    drop(run_report(&mut h, None));
+    h.env.limits.setup_faults = 0;
+    let jobs = run_jobs(&h, 1);
+    h.ok(ENGINE, write(Write::Rerun { job: jobs[0].id }));
+    h.settle();
+    let pending = h.call(ENGINE, read(Read::Artifact { run: 1, name: copy_of(REPORT) }));
+    h.ok(ENGINE, write(Write::Rerun { job: jobs[1].id }));
+    h.settle();
+    let completed = h.call(ENGINE, read(Read::Artifact { run: 1, name: copy_of(REPORT) }));
+    assert_eq!(
+        (pending, completed),
+        (
+            Err(Error::Missing(What::File)),
+            Ok(Answer::Artifact {
+                commit: FIRST,
+                artifact: Artifact {
+                    name: copy_of(REPORT),
+                    path: copy_of(b"failed.txt"),
+                    bytes: copy_of(b"a\n"),
+                    deflate: true
+                }
+            })
+        )
+    );
+}
+
+fn flaky_report(fails: &[&[u8]], flaky: &[&[u8]]) -> Harness {
+    configured_report_jobs(CALM, ReportFormat::Junit, fails, flaky, None, &[b"tests"])
+}
+#[test]
+fn a_flaky_test_fails_in_a_whole_run_and_its_report_names_it() {
+    let mut h = flaky_report(&[b"b"], &[b"c", b"a", b"b", b"a"]);
+    let report = run_report(&mut h, None);
+    assert_eq!(report, Ok(junit(b"<?xml version=\"1.0\" encoding=\"UTF-8\"?><testsuite><testcase name=\"a\"><failure/></testcase><testcase name=\"b\"><failure/></testcase><testcase name=\"c\"><failure/></testcase></testsuite>")));
+    assert_eq!(workflow_runs(&h)[0].conclusion, Some(crate::api::Conclusion::Failure));
+    assert_eq!(run_jobs(&h, 1)[0].conclusion, Some(crate::api::Conclusion::Failure));
+}
+#[test]
+fn a_flaky_test_passes_when_its_selection_lists_it() {
+    let mut h = flaky_report(&[], &[b"a"]);
+    drop(run_report(&mut h, None));
+    let report = run_report(&mut h, Some(b"a"));
+    assert_eq!(
+        report,
+        Ok(junit(b"<?xml version=\"1.0\" encoding=\"UTF-8\"?><testsuite><testcase name=\"a\"/></testsuite>"))
+    );
+    let runs = workflow_runs(&h);
+    assert_eq!((runs[0].commit, runs[1].commit), (FIRST, FIRST));
+    assert_eq!(
+        (runs[1].conclusion, runs[0].conclusion),
+        (Some(crate::api::Conclusion::Failure), Some(crate::api::Conclusion::Success))
+    );
+    assert_eq!(run_jobs(&h, runs[0].id)[0].conclusion, Some(crate::api::Conclusion::Success));
+}
+#[test]
+fn a_selection_of_a_failing_and_a_flaky_test_fails_only_the_failing_one() {
+    let mut h = flaky_report(&[b"b"], &[b"a", b"b"]);
+    let report = run_report(&mut h, Some(b"b\na\nb\n"));
+    assert_eq!(report, Ok(junit(b"<?xml version=\"1.0\" encoding=\"UTF-8\"?><testsuite><testcase name=\"a\"/><testcase name=\"b\"><failure/></testcase></testsuite>")));
+    assert_eq!(workflow_runs(&h)[0].conclusion, Some(crate::api::Conclusion::Failure));
+}
+#[test]
+fn a_whole_run_merges_flaky_ids_with_its_commit_cue() {
+    let mut h = configured_report_jobs(
+        CALM,
+        ReportFormat::Lines,
+        &[b"unused"],
+        &[b"c", b"a", b"b"],
+        Some(Cue::Tests { path: copy_of(b"ids") }),
+        &[b"tests"],
+    );
+    let commit = h.commit(FIRST, &[(b"ids", b"b\n")]);
+    h.push(ENGINE, MAIN, commit).unwrap();
+    assert_eq!(
+        run_report(&mut h, None),
+        Ok(Answer::Artifact {
+            commit,
+            artifact: Artifact {
+                name: copy_of(REPORT),
+                path: copy_of(b"failed.txt"),
+                bytes: copy_of(b"a\nb\nc\n"),
+                deflate: true,
+            },
+        })
+    );
+}
+#[test]
+fn an_empty_selection_runs_no_flaky_ids() {
+    let mut h = flaky_report(&[], &[b"a"]);
+    assert_eq!(
+        run_report(&mut h, Some(b"")),
+        Ok(junit(b"<?xml version=\"1.0\" encoding=\"UTF-8\"?><testsuite></testsuite>"))
+    );
+    assert_eq!(workflow_runs(&h)[0].conclusion, Some(crate::api::Conclusion::Success));
+}
+
+fn bounded_flaky_workflow(flaky: &[u8]) -> Harness {
+    // Each id uses the fixture's content_bytes bound of 32, independently.
+    let configured = Setup {
+        workflows: Box::new([crate::api::Workflow {
+            fails: names(&[b"aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa"]),
+            flaky: names(&[flaky]),
+            ..workflow(&[b"tests"])
+        }]),
+        ..setup()
+    };
+    Harness::with(CALM, configured)
+}
+#[test]
+fn a_whole_run_can_merge_two_id_sets_at_their_bound() {
+    let mut h = bounded_flaky_workflow(b"bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb");
+    let dispatched = h.call(ENGINE, dispatch());
+    h.settle();
+    assert_eq!(dispatched, Ok(Answer::Done));
+    assert_eq!(workflow_runs(&h)[0].conclusion, Some(crate::api::Conclusion::Failure));
+}
+#[test]
+#[should_panic(expected = "flaky ids fit: TooLarge")]
+fn a_flaky_id_past_its_existing_bound_is_refused() {
+    drop(bounded_flaky_workflow(b"bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb"));
+}
+
+fn workflow(jobs: &[&[u8]]) -> crate::api::Workflow {
+    crate::api::Workflow {
+        fails: Box::new([]),
+        flaky: Box::new([]),
+        report: None,
+        select: None,
+        file: copy_of(b"gate.yml"),
+        jobs: names(jobs),
+        latency_min: Duration::from_secs(10),
+        latency_max: Duration::from_secs(10),
+        passes: 1000,
+        silent: 0,
+        cue: None,
+    }
+}
+fn dispatch() -> Op {
+    write(Write::Dispatch {
+        workflow: copy_of(b"gate.yml"),
+        branch: copy_of(MAIN),
+        inputs: Box::new([(copy_of(b"key"), copy_of(b"value"))]),
+    })
+}
+fn workflow_runs(h: &Harness) -> Box<[Run]> {
+    let Answer::Runs(runs) = h
+        .inspect(&Read::Runs { workflow: Some(copy_of(b"gate.yml")), commit: None, number: None, page: 1, limit: 2 })
+        .unwrap()
+    else {
+        unreachable!("runs")
+    };
+    runs
+}
+fn run_jobs(h: &Harness, run: u64) -> Box<[Job]> {
+    let Answer::Jobs(jobs) = h.inspect(&Read::Jobs { run }).unwrap() else { unreachable!("jobs") };
+    jobs
+}
+
+#[test]
+fn an_artifact_appears_once_the_last_job_completes() {
+    let mut h = configured_report(CALM, ReportFormat::Lines, &[b"a"], None);
+    h.ok(ENGINE, dispatch());
+    let run = workflow_runs(&h)[0].id;
+    assert_eq!(h.inspect(&Read::Artifacts { run }), Ok(Answer::Artifacts(Box::new([]))));
+    assert_eq!(h.inspect(&Read::ArtifactById { id: run }), Err(Error::Missing(What::File)));
+    h.settle();
+    assert_eq!(
+        h.inspect(&Read::Artifacts { run }),
+        Ok(Answer::Artifacts(Box::new([crate::api::ArtifactInfo {
+            id: run,
+            name: copy_of(REPORT),
+            size_in_bytes: 2,
+        }])))
+    );
+    assert_eq!(h.inspect(&Read::ArtifactById { id: run }), h.inspect(&Read::Artifact { run, name: copy_of(REPORT) }));
+}
+
+#[test]
+fn junit_escapes_test_ids_and_normalizes_line_endings() {
+    let mut h = configured_report(CALM, ReportFormat::Junit, &[b"a<&\"'"], None);
+    assert_eq!(run_report(&mut h, Some(b"\r\na<&\"'\r\n\n")), Ok(junit(b"<?xml version=\"1.0\" encoding=\"UTF-8\"?><testsuite><testcase name=\"a&lt;&amp;&quot;&apos;\"><failure/></testcase></testsuite>")));
+}
+
+#[test]
+fn an_oversized_report_is_refused_before_a_run_is_created() {
+    let mut configured = setup();
+    configured.checks.contexts = Box::new([]);
+    configured.workflows = Box::new([crate::api::Workflow {
+        report: Some(Report { artifact: copy_of(REPORT), format: ReportFormat::Junit, deflate: false }),
+        ..workflow(&[b"tests"])
+    }]);
+    let mut h = Harness::with(CALM, configured);
+    // Even an empty JUnit document exceeds this fixture's 32 content bytes.
+    assert_eq!(h.call(ENGINE, dispatch()), Err(Error::TooLarge));
+    assert!(workflow_runs(&h).is_empty());
+}
+
+#[test]
+fn test_cues_override_a_context_without_changing_other_contexts() {
+    let mut configured = setup();
+    configured.checks.contexts = names(&[b"tests", b"other"]);
+    configured.checks.cues =
+        Box::new([crate::api::ContextCue { context: copy_of(b"tests"), cue: Cue::Tests { path: copy_of(b"ids") } }]);
+    let mut h = Harness::with(CALM, configured);
+    let mut parent = FIRST;
+    for (ids, expected) in [(b"\r\na\r\n".as_slice(), Check::Failed), (b"\n\r\n".as_slice(), Check::Passed)] {
+        let head = h.commit(parent, &[(b"ids", ids)]);
+        parent = head;
+        h.push(ENGINE, b"work", head).unwrap();
+        h.settle();
+        let Answer::Checks(checks) = h.inspect(&Read::Checks { commit: head }).unwrap() else { panic!("checks") };
+        assert_eq!(checks.len(), 2);
+        for check in checks {
+            assert_eq!(
+                check.status.state,
+                if check.status.context.as_ref() == b"tests" { expected } else { Check::Passed }
+            );
+        }
+    }
+}
+
+#[test]
+fn commit_ranges_exclude_the_old_history_and_keep_both_merge_parents() {
+    let mut h = Harness::new(CALM);
+    let left =
+        crate::commit(&mut h.domain, &h.env.limits, FIRST, files(&[(b"left", b"one")]), b"left\n").unwrap().unwrap();
+    let right =
+        crate::commit(&mut h.domain, &h.env.limits, FIRST, files(&[(b"right", b"two")]), b"right\n").unwrap().unwrap();
+    let merge = crate::merge_commit(
+        &mut h.domain,
+        &h.env.limits,
+        left,
+        right,
+        files(&[(b"left", b"one"), (b"right", b"two")]),
+        b"merge\n\nTrailer: kept\n",
+    )
+    .unwrap();
+    h.push(ENGINE, MAIN, merge).unwrap();
+    assert_eq!(
+        h.inspect(&Read::Commits { before: left, after: merge }),
+        Ok(Answer::Commits {
+            commits: Box::new([
+                crate::api::CommitMessage { id: right, parents: Box::new([FIRST]), message: copy_of(b"right\n") },
+                crate::api::CommitMessage {
+                    id: merge,
+                    parents: Box::new([left, right]),
+                    message: copy_of(b"merge\n\nTrailer: kept\n")
+                },
+            ])
+        })
+    );
+    assert_eq!(
+        h.inspect(&Read::Commits { before: merge, after: merge }),
+        Ok(Answer::Commits { commits: Box::new([]) })
+    );
+    assert_eq!(h.inspect(&Read::Commits { before: FIRST, after: 99 }), Err(Error::Missing(What::Commit)));
+}

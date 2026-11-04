@@ -11,12 +11,12 @@ import unittest
 SCRIPT = Path(__file__).with_name("old_forms.py").resolve()
 FORMS = ("max_out", "JournalRoom", "takes", "worst_case")
 HEADER = (
-    "# Uses of the old forms (skein's docs/design/draft/dynamic-memory.md, 7): each count may only fall.\n"
+    "# Uses of the old forms (skein's docs/foundation/programming-model.md, 6.3): each count may only fall.\n"
     "# Lower them with `python3 -I -B scripts/old_forms.py --write`; "
-    "only the director raises one, recorded in a `# Raised:` line.\n"
+    "a count rises only with a `# Raised:` line saying who and why.\n"
 )
 RULE = (
-    "Uses of the old forms may only fall (skein's docs/design/draft/dynamic-memory.md, 7): "
+    "Uses of the old forms may only fall (skein's docs/foundation/programming-model.md, 6.3): "
     "new code takes the new forms (Queue::uncapped, Journal::uncapped, decide, backlog), "
     "or removes as many old uses as it adds."
 )
@@ -144,9 +144,9 @@ let words = r#"\nJournalRoom \x20JournalRoom \u{20}JournalRoom \nmax_out"#;
                                counts=(0, 0, 0, 2))
         baseline = root / "scripts/old-forms.txt"
         before = baseline.read_text(encoding="utf-8").replace(
-            "max_out 0\n", "# Raised: max_out +1, director's recorded exception\nmax_out 0\n"
+            "max_out 0\n", "# Raised: max_out +1, by the user, for the fixture\nmax_out 0\n"
         ).replace("worst_case 2\n",
-                  "# Raised: worst_case +1, director's recorded exception\nworst_case 2\n")
+                  "# Raised: worst_case +1, by the user, for the fixture\nworst_case 2\n")
         baseline.write_text(before, encoding="utf-8")
         self.run_script(root, "--write")
         self.assertEqual(baseline.read_bytes(),

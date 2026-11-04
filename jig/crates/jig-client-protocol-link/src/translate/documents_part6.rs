@@ -86,6 +86,7 @@ pub(crate) fn agent_shortfall_fields(value: &w::AgentShortfall) -> c::AgentShort
 pub(crate) fn hello_refusal_fields(value: &w::HelloRefusal) -> c::HelloRefusal {
     match value {
         w::HelloRefusal::Agent(row) => c::HelloRefusal::Agent { why: agent_shortfall_fields(row.why()) },
+        w::HelloRefusal::JobKinds => c::HelloRefusal::JobKinds,
         w::HelloRefusal::ReservedChannel => c::HelloRefusal::ReservedChannel,
         w::HelloRefusal::Workers(row) => c::HelloRefusal::Workers { limit: row.limit() },
         w::HelloRefusal::Position(row) => c::HelloRefusal::Position { worker: row.worker() },

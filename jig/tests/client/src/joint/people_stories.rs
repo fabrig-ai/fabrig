@@ -299,8 +299,8 @@ fn a_person_signs_out_and_a_later_request_is_answered_signed_out() {
             client,
             now,
             super::clock(now),
-            jig_client_test_domain::Request::Client {
-                request: jig_client::Request::Down {
+            jig_client_test_domain::Request::Unlinked {
+                request: jig_client::UnlinkedRequest::Down {
                     down: jig_client::Down::Send {
                         attempt,
                         key,

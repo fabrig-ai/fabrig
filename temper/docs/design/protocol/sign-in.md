@@ -1,6 +1,6 @@
 # Signing people in
 
-Provisional, 2026-10-23. How people sign in to a deployment that people
+Provisional, 2026-10-23, revised 2026-11-02. How people sign in to a deployment that people
 reach at a name of its own, over HTTPS behind a TLS proxy: its public
 address, its members, and Google's sign-in on the clients' listener,
 which ends in jig's `Mint` (jig's `protocol/client.md`, section 8). The
@@ -86,8 +86,8 @@ browsers use (`configuration.md`, section 3). With one:
   name, never on one by the listener's address; temper's sign-in cookie
   (4.2) takes the same decision, by jig's `via`.
 - **Every address temper gives out** is the public origin's: Google's
-  return (4.2), and a GitHub App's redirect and setup URLs, were a GitHub
-  forge configured (`../client/forge.md`, 9.1). With none, they are the
+  return (4.2), and a GitHub App's redirect and setup URLs, when a
+  GitHub forge is connected (`../client/forge.md`, 9.1). With none, they are the
   listener's, `http://<listener>/`, as before.
 - **The bundle is the same,** served at every other `GET`
   (`../client/browser.md`, 2.2).
@@ -104,6 +104,102 @@ browsers use (`configuration.md`, section 3). With one:
   as login and name; there must be one, or the start is refused, naming
   `engine.owners`. With `sign_in` `null`, the first owner of the link's
   provider, `owner` and `Owner`, as before.
+
+### 2.4 Public reading
+
+A deployment that opens its public projects to anyone
+(`../draft/first-release.md`, 5.3; jig's `domain/people.md`, section
+13; `../client/browser.md`, section 8):
+
+- **Off until figured:** jig's public limits are zero in every profile,
+  so a deployment opens by setting `clients.public.*`,
+  `clients_http.public_calls`, the root's public figures and the core's
+  public index's in its `limits` (jig's `protocol/configuration.md`,
+  section 6), which the start checks against one another, and its
+  owners make a project public (`project amend --visibility public`,
+  `../client/tools.md`, 5.3). Each figure is the deployment's;
+  dev.fabrig.ai's are the user's (`../draft/first-release.status.md`).
+- **The proxy caches the public reads alone:** `GET /jig/v1/public/…`,
+  a `200` and a `404` as their `Cache-Control` says, never a `503`, and
+  nothing else temper serves, whose answers say `no-store` or
+  `no-cache`. It serves a cached answer to every visitor, so the engine
+  sees one read per document per `max-age`.
+- **Its key:** the deployment, as the upstream the proxy sends to, and
+  the `Host` it validated, then the path exactly as received: never the
+  path alone, so two deployments behind one proxy never share a copy.
+  The `Host` is checked against the deployment's names before the
+  cache is looked in, so a refused `Host` is never answered from it.
+  The path is neither decoded nor normalized; the engine answers any
+  path that is not canonical `404` with `no-store`, which is never
+  kept. Cookies and `Authorization` are no part of the key, and the
+  proxy drops both from a public read before it goes on, as the engine
+  reads neither; a client's own `Forwarded` and `X-Forwarded-` headers
+  are dropped too.
+- **No stale copy:** it obeys `must-revalidate`, serves nothing past
+  its freshness, on an upstream's failure or while it refreshes, and
+  refreshes nothing in the background; it keeps the age a copy has and
+  sends it as `Age`, and never gives a copy freshness of its own. A
+  copy is fresh for the rest the engine gave it from the decision that
+  made it (jig's `protocol/client.md`, 17.5), so a project made private
+  is served nowhere past the `max-age`; what a visitor already holds is
+  theirs.
+- **Public reads before the engine's room:** per client address, public
+  reads per second and in flight, and public reads in flight in all,
+  answering past them itself, before it takes a connection to the
+  engine; its connections to the engine for public reads are a pool
+  apart from the signed-in routes', so a crowd of visitors never holds
+  a signed-in person's. Requests with no credential to the other routes
+  are limited per address likewise. jig counts no address (jig's
+  `domain/people.md`, 13.5).
+- **No CORS:** the proxy adds no `Access-Control-` header to any
+  answer, an error's and a preflight's among them, as the engine adds
+  none.
+- **Nothing else opens:** the printed link's route stays denied from
+  outside (2.3); every other route answers as without public reading,
+  a visitor with no cookie signed out.
+- **Checked against a proxy of the world:** the negative walk (2.5)
+  runs the public reads through a caching proxy that follows these
+  rules; a real proxy's configuration is the operator's, checked
+  against them when a deployment opens.
+
+### 2.5 The negative walk
+
+What a visitor can try against a deployment that has opened, played in
+the one-process world (`../domain/testing.md`, 2.5) through temper's real
+service and a caching proxy of the world that follows 2.4, each answer
+checked against what 2.4, jig's `protocol/client.md`, 17.5 and section
+19, and jig's `domain/people.md`, section 13 allow:
+
+- **Every owner, version and kind:** jig's and the forge's, each
+  version served and one not, a kind no owner declared; identifiers of
+  another project's tasks, of a project that is private, being deleted
+  or never made, of a conversation's delegate and of a change outside
+  every goal's tree, all one unknown, byte for byte.
+- **Malformed paths:** numbers past their type, leading zeros, short,
+  long and upper-case identifiers, encoded, empty and dot segments, a
+  query, a trailing slash: `404`, `no-store`, never kept by the proxy.
+- **No credential anywhere else:** every keyed request, read, watch,
+  stream and sign-out with no credential answered signed out, and the
+  same with a visitor's cookie of another deployment; a signed-in
+  person's cookie and a bearer on a public read changing no byte of it.
+- **No widening:** a project's member's `SetVisibility` refused; the
+  limits' relations broken one at a time, each refusing the start.
+- **A store written before public reading** opened with every project
+  private.
+- **Revocation:** a project made private and one deleted while reads
+  of it are under way and cached, each answered unknown by the engine
+  at once and by the proxy within the `max-age`, never later; the
+  proxy's upstream stopped, its copies served until their freshness
+  ends and never after.
+- **The proxy's key:** two deployments behind one proxy with the same
+  path, each answered its own; a refused `Host` with a copy in the
+  cache, refused.
+- **Load:** public reads past the proxy's and the engine's limits,
+  busy, while a signed-in person's reads and requests at the same
+  moment are all answered within their usual time; reads abandoned
+  midway, the budgets whole after.
+- **No CORS:** no `Access-Control-` header on any answer, a document's,
+  an error's, a refusal's or a preflight's.
 
 ## 3. Who may sign in
 
@@ -412,7 +508,7 @@ the issuer at start, and draws the authorization's page.
   Forgejo's own route that starts a sign-in with the temper source,
   `ROOT/user/oauth2/temper`, in a new tab. ROOT is the forge's browser
   origin: its owned setup's `public` when present, else its `git` URL
-  (`configuration.md`, section 3; `setup.md`, 6.2). Forgejo sends the
+  (`forge.md`, 2.1; `setup.md`, 6.2). Forgejo sends the
   browser to temper's `/oauth/authorize`, temper answers at once, and
   Forgejo opens signed in. No click.
 - **At Forgejo first:** Forgejo's sign-in page offers "Sign in with
@@ -501,7 +597,8 @@ by the client, not by a route:
 - **The page's facts:** temper-service inserts, beside the
   `temper-sign-in` meta (section 7), one `<meta
   name="temper-forge-sign-in" content="NUMBER CLIENT ROOT MODE">` for
-  each forge of `sign_in.forges` (9.7): its number, its client's id, its
+  each entry of `sign_in.forges` that serves (9.7): its forge's number,
+  its client's id, its
   browser origin (9.1) and `owned` or `other`, space-separated,
   attribute-escaped.
   The web shell gives them to the view with the ways; the signed-out
@@ -596,13 +693,20 @@ section 3), and temper's `application.sign_in.forges`:
   logged; jig's start refuses any other. A key replaced is a file
   replaced; its key set's `kid` names it anew.
 - **`sign_in.forges`:** a list, absent for none (`configuration.md`,
-  section 3): each `{"forge", "client"}`, `forge` a Forgejo of `forges`,
-  `client` one of the provider's clients, whose `redirect_uri` is exactly
-  the forge's browser origin's `/user/oauth2/temper/callback`: its owned
-  setup's `public` when present, else its `git` URL (9.1). Server-to-server
-  API calls keep the configured `api` and transport; git uses `git`. Each
-  forge and each client at most once. Otherwise the start is refused at
-  its path.
+  section 3): each `{"forge", "client"}`, `forge` a forge's number, as
+  the Forges page and `temper forge` name it, `client` one of the
+  provider's clients. Each forge and each client at most once, and each
+  client one of the provider's, or the start is refused at its path.
+- **Checked once the forge is known.** A forge is a record in temper's
+  store, made at runtime (`forge.md`, 2.1), so the start cannot check
+  it. Once the forge's records load, and when a forge is made, an entry
+  serves only when its forge is a kept Forgejo whose browser origin's
+  `/user/oauth2/temper/callback` is exactly its client's
+  `redirect_uri`: its owned setup's `public` when present, else its
+  `git` URL (9.1). An entry that does not serve is named once in the
+  log, and its forge has no meta, no "Open Forgejo ↗" and no line on
+  the signed-out page; every other entry serves. Server-to-server API
+  calls keep the record's `api` and transport; git uses `git`.
   With a provider and no `sign_in.forges`, nothing of temper's names
   the provider's clients.
 
@@ -618,7 +722,9 @@ section 3), and temper's `application.sign_in.forges`:
   "to continue to", the signed-out note, and "Open Forgejo ↗" with its
   line. **The client's domain:** the address read as `Authorize`, each
   of jig's answers.
-- **Step tests:** `sign_in.forges`' checks; the metas' bytes;
+- **Step tests:** `sign_in.forges`' checks, at start and once the
+  forge's records load, an entry for a forge not kept, not a Forgejo,
+  or of another origin named and left out; the metas' bytes;
   `temper forge sign-in`'s printed bytes and the files it makes.
 - **One process-tier story** (`../domain/testing.md`, 2.6): an owned
   Forgejo, the temper source added by the printed command, a scripted

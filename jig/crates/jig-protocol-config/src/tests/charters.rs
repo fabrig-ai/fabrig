@@ -16,6 +16,77 @@ fn a_charter_whose_budget_holds_its_reserve_is_read() {
     let engine = fixtures::engine(fixtures::ENGINE_SMALL).expect("valid charter");
     assert_eq!(engine.charters.len(), 1);
     assert_eq!(engine.charters[0].spend, 20);
+    assert!(engine.charters[0].documents.is_empty());
+}
+
+fn with_documents(value: &[u8]) -> Box<[u8]> {
+    let start = b"\"documents\":";
+    let end = b",\"instructions\": \"charters/chat.txt\"";
+    let mut member =
+        skein_lib::Writer::new(start.len().checked_add(value.len()).unwrap().checked_add(end.len()).unwrap());
+    member.put(start).unwrap();
+    member.put(value).unwrap();
+    member.put(end).unwrap();
+    let member = member.finish();
+    fixtures::with(fixtures::ENGINE_SMALL, br#""instructions": "charters/chat.txt""#, &member)
+}
+
+#[test]
+fn a_charters_documents_are_read_whole_in_order() {
+    let bytes = with_documents(
+        br#"[
+        {"connector":1,"name":["project","resource"],"path":"docs/rules.md"},
+        {"connector":1,"name":["other"],"path":"notes.md","heading":"Rules"}
+    ]"#,
+    );
+    let engine = fixtures::engine(&bytes).expect("two charter documents");
+    assert_eq!(
+        engine.charters[0].documents.as_ref(),
+        &[
+            jig_domain_core::Document {
+                connector: 1,
+                name: jig_domain_authority::Name {
+                    segments: Box::new([Box::from(b"project".as_slice()), Box::from(b"resource".as_slice())])
+                },
+                path: Box::from(b"docs/rules.md".as_slice()),
+                heading: None,
+            },
+            jig_domain_core::Document {
+                connector: 1,
+                name: jig_domain_authority::Name { segments: Box::new([Box::from(b"other".as_slice())]) },
+                path: Box::from(b"notes.md".as_slice()),
+                heading: Some(Box::from(b"Rules".as_slice())),
+            },
+        ]
+    );
+}
+
+#[test]
+fn malformed_charter_documents_are_refused_at_their_paths() {
+    let documents = fixtures::path(&[b"charters"]).child(crate::Segment::Index(0)).member(b"documents");
+    let item = documents.child(crate::Segment::Index(0));
+    for (value, path, what) in [
+        (b"{}".as_slice(), documents, What::Kind),
+        (b"[false]", item.clone(), What::Kind),
+        (br#"[{"connector":"1","name":[],"path":"a"}]"#, item.member(b"connector"), What::Kind),
+        (br#"[{"connector":1,"name":"a","path":"a"}]"#, item.member(b"name"), What::Kind),
+        (
+            br#"[{"connector":1,"name":[1],"path":"a"}]"#,
+            item.member(b"name").child(crate::Segment::Index(0)),
+            What::Kind,
+        ),
+        (br#"[{"connector":1,"name":[],"path":false}]"#, item.member(b"path"), What::Kind),
+        (br#"[{"connector":1,"name":[],"path":"a","heading":null}]"#, item.member(b"heading"), What::Kind),
+        (br#"[{"connector":1,"name":[],"path":"a","extra":true}]"#, item.member(b"extra"), What::Unknown),
+        (br#"[{"name":[],"path":"a"}]"#, item.member(b"connector"), What::Missing),
+        (br#"[{"connector":1,"path":"a"}]"#, item.member(b"name"), What::Missing),
+        (br#"[{"connector":1,"name":[]}]"#, item.member(b"path"), What::Missing),
+        (br#"[{"connector":1,"connector":1,"name":[],"path":"a"}]"#, item.member(b"connector"), What::Duplicate),
+    ] {
+        let problems = fixtures::engine(&with_documents(value)).expect_err("malformed document");
+        let problem = problems.problems.get(0).unwrap();
+        assert_eq!((&problem.path, problem.what), (&path, what), "{value:?}");
+    }
 }
 
 fn a_charter_turns_not_above_its_reserve_are_refused() {
@@ -34,7 +105,7 @@ fn a_charter_naming_an_unknown_model_is_refused() {
 fn a_charter_may_name_models_at_two_endpoints() {
     let alternative = br#""models": [{"name":"other", "endpoint":"second", "window":8192,
         "output":1024, "prices":{"input":1,"cached":1,"output":1,"unit":1000}},"#;
-    let endpoint = br#""endpoints": [{"name":"second", "number":2, "dialect":0,
+    let endpoint = br#""endpoints": [{"name":"second", "number":2, "dialect":3,
         "provider":"fake-provider", "address":{"socket":"127.0.0.1:7102"},"transport":"plaintext",
         "headers":[],"connect_ms":10000,"handshake_ms":10000},"#;
     let document = fixtures::with(fixtures::ENGINE_SMALL, br#""models": ["#, alternative);
@@ -70,4 +141,70 @@ fn table<const N: usize>(cases: [Case; N]) {
         }
     }
     assert!(passed, "{failures:?}");
+}
+
+const COORDINATOR_WAKE: &[u8] = br#""wake": {"words":"immediate", "notices":"immediate",
+    "news":{"paced":{"span_ms":1800000}}, "results":"each",
+    "questions":true, "answers":true, "timers":true}, "alternatives": []"#;
+
+#[test]
+fn a_charter_names_its_default_wake_policy() {
+    use jig_domain_tasks::{ResultsWake, WakePolicy, WakeRule};
+    let document = fixtures::with(fixtures::ENGINE_SMALL, br#""alternatives": []"#, COORDINATOR_WAKE);
+    let engine = fixtures::engine(&document).expect("coordinator wake policy");
+    assert_eq!(
+        engine.charters[0].wake,
+        WakePolicy {
+            news: WakeRule::Paced { span: skein_lib::Duration::from_millis(1_800_000) },
+            results: ResultsWake::Each,
+            ..WakePolicy::DEFAULT
+        }
+    );
+}
+
+#[test]
+fn a_charter_without_a_wake_member_takes_the_default() {
+    let engine = fixtures::engine(fixtures::ENGINE_SMALL).expect("charter without wake");
+    assert_eq!(engine.charters[0].wake, jig_domain_tasks::WakePolicy::DEFAULT);
+}
+
+#[test]
+fn a_charter_wake_with_a_zero_span_is_refused_at_its_path() {
+    let document = fixtures::with(fixtures::ENGINE_SMALL, br#""alternatives": []"#, COORDINATOR_WAKE);
+    let document = fixtures::with(&document, b"1800000", b"0");
+    let problems = fixtures::engine(&document).expect_err("zero span");
+    assert_eq!(
+        problems.problems.get(0),
+        Some(&crate::Problem {
+            path: fixtures::path(&[b"charters"]).child(crate::Segment::Index(0)).member(b"wake").member(b"news"),
+            what: What::Bound,
+        })
+    );
+}
+
+#[test]
+fn malformed_charter_wake_members_are_refused() {
+    let document = fixtures::with(fixtures::ENGINE_SMALL, br#""alternatives": []"#, COORDINATOR_WAKE);
+    for (from, to, member) in [
+        (
+            br#""news":{"paced":{"span_ms":1800000}}"#.as_slice(),
+            br#""news":{"batch":{"count":0,"age_ms":1}}"#.as_slice(),
+            b"news".as_slice(),
+        ),
+        (
+            br#""news":{"paced":{"span_ms":1800000}}"#.as_slice(),
+            br#""news":{"batch":{"count":1,"age_ms":0}}"#.as_slice(),
+            b"news".as_slice(),
+        ),
+        (br#""news":{"paced":{"span_ms":1800000}}"#.as_slice(), br#""news":"unknown""#.as_slice(), b"news".as_slice()),
+        (br#""results":"each""#.as_slice(), br#""results":"unknown""#.as_slice(), b"results".as_slice()),
+        (br#""timers":true"#.as_slice(), br#""timers":true,"unknown":true"#.as_slice(), b"unknown".as_slice()),
+    ] {
+        let changed = fixtures::with(&document, from, to);
+        let problems = fixtures::engine(&changed).expect_err("malformed wake policy");
+        assert_eq!(
+            problems.problems.get(0).expect("wake refusal").path,
+            fixtures::path(&[b"charters"]).child(crate::Segment::Index(0)).member(b"wake").member(member)
+        );
+    }
 }

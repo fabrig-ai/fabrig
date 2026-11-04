@@ -26,8 +26,9 @@ records travel through `skein-http` as in `skein-llm`.
 The caller supplies a `Registration` with an authorization URL, token
 endpoint, client id, redirect URI, requested scope, token wire format, and
 optional client secret. The authorization URL and token endpoint are `https`,
-or `http` on loopback for an issuer on the same machine, such as a replaying
-tier's fake (testing-strategy.md, 4.4). It admits one `Client` machine for an
+with a host and no userinfo, or `http` on loopback for an issuer on the same
+machine, such as a replaying tier's fake (testing-strategy.md, 4.4). It admits
+one `Client` machine for an
 exchange. The endpoint binding is kept through the exchange; a redirect cannot
 choose a new token endpoint. A public client requires an already bound
 loopback listener and a redirect URI whose loopback address, port, and path
@@ -326,6 +327,14 @@ it is never replayed by the machine. A retry of a sign-in code exchange is
 permitted only if the prior request was proved unsent. The caller can start
 another sign-in after a failure with a new state and verifier.
 
+A start in any state but Idle is refused in that step and changes nothing:
+the exchange it found goes on, its terminal still to come, and Done still
+waits for its reset. A refused `SignIn` or `Refresh` emits `Failed` with
+`Limit`, a refused `Revoke` emits `Revoked`, unconfirmed. The caller
+dispatches each step's output before the next, so a terminal in a start's
+own output answers that start, and no caller is left waiting on a start the
+client did not take.
+
 An `Http` demand names its method: a POST, or a GET for the issuer's
 metadata and keys, which carries no secret and may be retried as any
 transient failure is. A `Revoke` takes the record whose refresh token it
@@ -562,6 +571,13 @@ never renames or reuses one on its own. An account has:
   rejection of the same generation fails the grant. No refresh is asked
   before the record's earliest refresh time (section 2); a grant asked for
   meanwhile is answered with the token held while it is valid.
+- **Never back to back.** A record the component has just kept from its own
+  sign-in or refresh is not refreshed by its lead before half its remaining
+  lifetime has passed: its next refresh is at the later of its lead before
+  expiry and that half. A refresh lead longer than a token's lifetime thus
+  refreshes a held grant at once, then at each half-life, never in a loop.
+  A record loaded or read, not kept by this exchange, keeps its lead as it
+  is, so that a raised lead refreshes it at once.
 - **A wanted account** is refreshed at its refresh lead before expiry
   whether or not a grant is held, so that an idle account keeps its refresh
   token alive and a run finds a fresh token. With no grant held, the new
@@ -625,15 +641,12 @@ never renames or reuses one on its own. An account has:
 - **The record's form is a schema's.** A kept record is the versioned
   record `SavedToken` of skein-oauth's family, `skein-oauth`, in
   `schema/oauth-v3.schema` beside the crate, its codec generated (codec.md,
-  section 4) in place of today's hand-written one, before the first
-  release and at the version it has, 3 (codec.md, section 5): the
-  version first, then the key, the generation, the expiry, the access
-  token, the refresh token and the metadata, each `option` where today
-  an empty field means none, and the fields version 3 added. The magic
-  goes, since the version leads; a record of the hand-written form, or
-  of version 2, is unreadable, and its account signs in again, as
-  after any change of a record's form (below), once, before the first
-  release. Its ceilings are generous and fixed, since from the baseline
+  section 4), at version 3 (codec.md, section 5): the version first,
+  then the key, the generation, the expiry, the access token, the
+  refresh token and the metadata, each `option` where it may be absent,
+  and the fields version 3 added. A record of another form is
+  unreadable, and its account signs in again, as after any change of a
+  record's form (below). Its ceilings are generous and fixed, since from the baseline
   raising one is a new version: each token and the metadata 65,536
   bytes, the issued client id, the scopes and the subject 4,096, the
   times nanoseconds of wall time. The owner's `Limits` stay its runtime
@@ -893,7 +906,10 @@ and a `locked` that comes later is answered by `unlock` at once, until
 
 The client's own limits are section 5's. `skein_oauth_accounts::valid`
 checks account, exchange and listener capacities, client limits and the
-HTTP, TLS and io edges. The redirects it refuses take no additional
+HTTP, TLS and io edges. `Component::check` checks a list of accounts
+against the limits as making the component does, refusing with the same
+`Unusable`, and makes nothing: it takes no generator, so an owner checks
+an account it will add later without making one (lib.md, section 8). The redirects it refuses take no additional
 connection slot. Trusted roots are shared configuration. Neither the
 accounts component nor its listener requires a sum of heap prices.
 
@@ -964,6 +980,10 @@ accounts component nor its listener requires a sum of heap prices.
   redirect.
 - **Device authorization,** for a person whose browser is on another
   machine, beside the pasted redirect (6.5): whether it joins the client.
+- **A confidential redirect's authority.** Its `https` URI is read by its
+  scheme alone, so `https://` and `https://a@b` are admitted where an
+  endpoint's are refused (section 1), and the issuer matches it against its
+  registration. Default: so; whether it takes an endpoint's reading.
 - **A credential helper,** a program that prints a token, as another source
   of access-only records beside handing them in.
 - **The fake issuer's signing in a simulated world.** ring's RSA signing

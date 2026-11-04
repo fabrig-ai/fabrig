@@ -78,6 +78,9 @@ pub(super) fn decode_resource_scope(
 
 pub(super) fn encode_executor(value: domain::Executor, limits: &wire::Limits) -> Result<wire::Executor, wire::Problem> {
     Ok(match value {
+        domain::Executor::Job(kind) => {
+            wire::Executor::Job(wire::ExecutorJob::new(limits, wire::ExecutorJobParts { kind })?)
+        }
         domain::Executor::Charter(value) => {
             wire::Executor::Charter(wire::ExecutorCharter::new(limits, wire::ExecutorCharterParts { value })?)
         }
@@ -91,6 +94,7 @@ pub(super) fn encode_executor(value: domain::Executor, limits: &wire::Limits) ->
 }
 pub(super) fn decode_executor(value: wire::Executor) -> domain::Executor {
     match value {
+        wire::Executor::Job(value) => domain::Executor::Job(value.into_parts().kind),
         wire::Executor::Charter(value) => {
             let wire::ExecutorCharterParts { value } = value.into_parts();
             domain::Executor::Charter(value)
@@ -572,6 +576,9 @@ pub(super) fn encode_wake_rule(
             limits,
             wire::WakeRuleBatchParts { count: *count, age: age.as_nanos() },
         )?),
+        domain::WakeRule::Paced { span } => {
+            wire::WakeRule::Paced(wire::WakeRulePaced::new(limits, wire::WakeRulePacedParts { span: span.as_nanos() })?)
+        }
     })
 }
 pub(super) fn decode_wake_rule(value: wire::WakeRule) -> domain::WakeRule {
@@ -582,6 +589,7 @@ pub(super) fn decode_wake_rule(value: wire::WakeRule) -> domain::WakeRule {
             let wire::WakeRuleBatchParts { count, age } = value.into_parts();
             domain::WakeRule::Batch { count, age: Duration::from_nanos(age) }
         }
+        wire::WakeRule::Paced(value) => domain::WakeRule::Paced { span: Duration::from_nanos(value.span()) },
     }
 }
 

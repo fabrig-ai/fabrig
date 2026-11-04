@@ -67,6 +67,14 @@ pub fn settings(rows: u32) -> jig_protocol_engine_clients::Settings {
         key_bytes: 7934,
         redirect_bytes: 4096,
         moved_bytes: 70000,
+        public: skein_lib::List::with_capacity(0),
+        public_bounds: jig_client_protocol_wire::PublicIndexBounds {
+            goals: 0,
+            ended: 0,
+            lines: 0,
+            depth: 0,
+            projects: 0,
+        },
     }
 }
 /// The core world's configured models as the client side names them.
@@ -94,6 +102,7 @@ pub const MESSAGE_BYTES: u32 = 65536;
 #[must_use]
 pub fn engine_limits() -> Limits {
     Limits {
+        public: jig_protocol_engine_clients::PublicLimits::OFF,
         streams: 4,
         watches_per_stream: 8,
         queued_bytes: 65536,
@@ -208,6 +217,7 @@ pub fn server() -> jig_test_service::server::Server {
 #[must_use]
 pub fn http_limits() -> jig_protocol_engine_clients_http::Limits {
     jig_protocol_engine_clients_http::Limits {
+        public_calls: 0,
         calls: 16,
         streams: 4,
         body: MESSAGE_BYTES,
@@ -219,7 +229,7 @@ pub fn http_limits() -> jig_protocol_engine_clients_http::Limits {
 #[must_use]
 pub fn mount() -> jig_protocol_engine_clients_http::Mount {
     let mut mount = jig_protocol_engine_clients_http::Mount::new(
-        jig_protocol_engine_clients_http::Settings { prefix: Box::from(b"/jig".as_slice()), public: None },
+        jig_protocol_engine_clients_http::Settings { max_age: 5, prefix: Box::from(b"/jig".as_slice()), public: None },
         &http_limits(),
     );
     let mut hosts = skein_lib::List::with_capacity(1);
@@ -235,7 +245,7 @@ pub fn server_http() -> skein_http::server::Limits {
 
 pub const TURN_BYTES: &[u8] = include_bytes!("../../../crates/jig-protocol-transcript/tests/data/record_turn_full.bin");
 // The short call ID leaves eight bytes for the task's asks carrier,
-// within the unchanged single-row read budget.
+// within the single-row read budget.
 // One source call in addition to the golden's text block.
 // Blocks are numbered from one; the call follows the text.
 pub const TURN_CALL_NUMBER: u64 = 2;
@@ -248,8 +258,11 @@ pub const TURN_TEXT: &[u8] = b"abc";
 // its added-dependency and hold-bound headers add 32 inline bytes.
 // Ending authority adds eight bytes to its aligned task owner.
 // The owner's run proof lists its outstanding read fences, 48 bytes.
+// A job spec's pointer adds eight bytes to the task owner.
+// The started-from dependency slice adds 16 bytes to the task owner.
+// The durable live-room condition adds 16 bytes to the task owner.
 // Its joined activity line remains past this exact single-row budget.
-pub const TURN_OVERLAP_BYTES: u64 = 2512;
+pub const TURN_OVERLAP_BYTES: u64 = 2552;
 #[must_use]
 pub fn turn_overlap_limits() -> jig_test_domain::Limits {
     let mut limits = owner_limits();
@@ -324,4 +337,24 @@ pub fn large_turn() -> Box<[u8]> {
         ))
         .expect("one block");
     turn_with_blocks(blocks)
+}
+
+/// Public reading's figures, used only by the public HTTP story
+/// (jig/docs/design/protocol/client.md, 19).
+#[must_use]
+pub fn public_service_limits() -> jig_test_service::limits::Limits {
+    let mut limits = jig_test_service::limits::profile_limits(jig_protocol_config::Profile::Small);
+    limits.root.core.public = jig_domain_core::PublicIndexLimits { goals: 1, ended: 1, lines: 1, depth: 1 };
+    limits.clients.public = jig_protocol_engine_clients::PublicLimits {
+        reads: 2,
+        rate: 8,
+        rate_burst: 8,
+        bytes: 65536,
+        bytes_burst: 65536,
+        answer_bytes: 16384,
+        max_age: 5,
+    };
+    limits.clients_http.public_calls = 2;
+    limits.root.public_reads = 2;
+    limits
 }

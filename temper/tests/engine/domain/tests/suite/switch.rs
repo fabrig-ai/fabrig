@@ -13,7 +13,7 @@ const MARK_WRITES: usize = 2;
 #[test]
 fn every_start_takes_the_switch_step_and_commits_its_wires() {
     let (mut running, _) = Driver::chat();
-    for (label, mut store) in [(FIRST_START, Store::new()), (RESTART, running.take_store())] {
+    for (label, mut store) in vec![(FIRST_START, Store::new()), (RESTART, running.take_store())].into_boxed_slice() {
         store.crash(9761);
         let pending = store.pending_generation;
         let mut driver = Driver::cold(store, walking::config(91), &walking::limits());

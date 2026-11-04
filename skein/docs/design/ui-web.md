@@ -188,8 +188,9 @@ Steps from the standard, each needing one before it only where it says.
   binary, never linked into a service or a module. It makes the bundle
   from the module (a `.wasm` file cargo built), the application's name,
   the bundle's prefix (4.3), its stylesheets in order, each owner's
-  pictures' directory, and its page and its files where it has them
-  (3.3, steps 4 and 5).
+  pictures' directory, its page and its files where it has them
+  (3.3, steps 4 and 5), and a playground's worker module where it has
+  one (playground.md, 7).
 - **The bundle is a directory, written whole:**
   - `index.html`, the page, the bundler's or the application's (4.3);
   - beside it, one directory **named by the digest of everything in
@@ -202,7 +203,9 @@ Steps from the standard, each needing one before it only where it says.
       file name, in the order given;
     - `pictures/<owner prefix>/`, each owner's pictures, so two owners'
       never clash;
-    - `files/`, the application's files.
+    - `files/`, the application's files;
+    - a worker's starter, glue and module, its snippets in `snippets/`
+      with the page's (playground.md, 7).
 - **The same inputs give the same bundle,** byte for byte; a change to
   any file in the directory gives another digest, and so another
   directory.
@@ -633,9 +636,12 @@ the host tests (section 14).
   bound, enabled node in the dialog naming Escape; with none, it does
   nothing. The page part prevents the dialog's own closing: a dialog
   closes when the tree removes it, and one the browser closes on its own
-  while it is in the tree is shown again. An open menu takes Escape
-  first, to close itself; a component that takes Escape for itself
-  keeps it.
+  while it is in the tree is shown again. Outside every open dialog,
+  the Escape key's `keydown` while the focus is in a `<form>` presses
+  the first bound, enabled node naming Escape in the innermost form
+  holding the focus (`ui.md`, 6.1), its default prevented; with none,
+  it does nothing. An open menu takes Escape first, to close itself; a
+  component that takes Escape for itself keeps it.
 - **Menus and disclosures are the page part's to fold,** with no step. A
   disclosure is `<details>` and `<summary>`. A menu is a button of the
   page part's, named by the menu's name, that opens its items with the
@@ -747,6 +753,14 @@ component instead (6.1).
   the exchange failed. Which headers an exchange sends, what its body
   holds and what its server answers are the application's (a header
   naming its client, a cookie its server set).
+- **An exchange's cache and an answer's headers:** an exchange names its
+  cache, the browser's own by default, or none (fetch's `no-store`, so
+  the browser's cache neither answers it nor keeps its answer), and the
+  answer's headers the application keeps, by name; the platform reports
+  those, each value within the exchange's bound, with the status and
+  the body, and no other header. An application that reads an answer's
+  freshness (its `Cache-Control`, its `Age`) or when to ask again
+  (`Retry-After`) asks for none of the browser's cache and keeps those.
 - **The stream** by fetch, a GET of a path with the headers the
   application gives, with same-origin credentials, its body read a piece
   at a time: each piece, at most the bound the application gives (a
@@ -935,10 +949,6 @@ Each within skein's suites' budgets (testing-strategy.md, section 8).
     Chromium, which a find of that role asks the kit for (a text field:
     `textbox`; `spinbutton` for a number's, `Date` for a date's and
     `InputTime` for a time's; 14.1);
-  - and back, for the lab's hand (lab-browser.md, 8.4): a browser role
-    to the role that lists it first, a text box by whether it takes
-    several lines, beside the mapping and tested against it, so that
-    the role shown finds what it was shown for;
   - names by words in them or exactly (browser.md, section 5), and the
     n-th match in document order where a find asks for one past the
     first, failing when the kit kept fewer than it asks (its
@@ -1244,7 +1254,8 @@ unchanged.
   them alike.
 - **It starts the worker,** from the worker's module in the bundle's
   digest directory, and ends it at a reset, a new story or a failure
-  (playground.md, 7).
+  (playground.md, 7). The page's panic hook stops it, and takes its
+  log, through a handle that borrows nothing the loop holds.
 - **The small store is the page's memory,** not session storage: a
   reload starts a new world, so nothing the client kept may outlive the
   page. Writes succeed within the store's bound, refused past it.
@@ -1274,4 +1285,9 @@ unchanged.
   speeds and pauses, the timer's conversion, the messages' encoding
   (section 14); the page half runs in the application's browser tier
   (playground.md, 8).
+
+The worker's platform keeps the small store's records whole in the
+page's memory. `store::Store` enforces the small store's bound before
+handing a write to the platform; a write handed to this in-memory
+platform succeeds (decided 2026-11-03).
 

@@ -1,5 +1,5 @@
-//! The root keeps these orders whatever admits work (skein's draft
-//! `dynamic-memory.md`, 4.6): store terminals in arrival order, and a kept
+//! The root keeps these orders whatever admits work (skein's
+//! `programming-model.md`, 7.2): store terminals in arrival order, and a kept
 //! turn before its terminal acknowledgement, while admission is under load.
 
 use super::admission_support;

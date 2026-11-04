@@ -80,6 +80,7 @@ pub enum Place {
     /// An authorization query beyond jig's bound.
     AuthorizeMalformed,
     Missing,
+    Public(Public),
 }
 
 /// The page's path (client/browser.md, 2.3): `/`, `/chats`, `/chats/<task>`, `/tasks/<task>`,
@@ -145,6 +146,9 @@ pub fn print(address: &Address) -> Box<[u8]> {
 /// Unreadable query fields are dropped; any other path is `Place::Missing`.
 #[must_use]
 pub fn parse(path: &[u8]) -> Place {
+    if path == b"/public" || path.starts_with(b"/public/") || path.starts_with(b"/public?") {
+        return Place::Public(parse_public(path).unwrap_or(Public::Projects));
+    }
     let query = skein_lib::bytes::find(path, b"?").unwrap_or(path.len());
     let fields = path.get(query..).expect("query in path").strip_prefix(b"?").unwrap_or(b"");
     let route = path.get(..query).expect("query in path");
@@ -485,4 +489,86 @@ fn parse_way(query: &[u8]) -> Option<ModelWay> {
     }
     let kind = kind?;
     Some(ModelWay { provider: provider?, kind, source: if kind == WayKind::SignIn { source } else { None } })
+}
+
+/// A public page, its identifiers public ones (jig/docs/design/domain/people.md, 13.8).
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+pub enum Public {
+    Projects,
+    Board { project: u64 },
+    Task { project: u64, task: u64 },
+    Landings { project: u64 },
+    Landing { project: u64, task: u64 },
+}
+
+/// A public page's canonical path (temper/docs/design/client/browser.md, 8.1).
+#[must_use]
+pub fn print_public(page: &Public) -> Box<[u8]> {
+    let (project, tail, task) = match *page {
+        Public::Projects => return b"/public".as_slice().into(),
+        Public::Board { project } => (project, b"".as_slice(), None),
+        Public::Task { project, task } => (project, b"/tasks/".as_slice(), Some(task)),
+        Public::Landings { project } => (project, b"/landings".as_slice(), None),
+        Public::Landing { project, task } => (project, b"/landings/".as_slice(), Some(task)),
+    };
+    let project = public_digits(project);
+    let task_digits = public_digits(task.unwrap_or(0));
+    let task = if task.is_some() { task_digits.as_slice() } else { b"" };
+    let parts = [b"/public/projects/".as_slice(), project.as_slice(), tail, task];
+    let mut size = 0_usize;
+    for part in parts {
+        size = size.checked_add(part.len()).expect("public path fits");
+    }
+    let mut path = Writer::new(size);
+    for part in parts {
+        path.put(part).expect("measured public path");
+    }
+    path.finish()
+}
+
+fn parse_public(path: &[u8]) -> Option<Public> {
+    if path == b"/public" {
+        return Some(Public::Projects);
+    }
+    let rest = path.strip_prefix(b"/public/projects/")?;
+    let (project, rest) = segment(rest);
+    let project = public_id(project)?;
+    let page = if rest.is_empty() {
+        Public::Board { project }
+    } else {
+        let (kind, rest) = segment(rest);
+        match (kind, rest) {
+            (b"landings", b"") => Public::Landings { project },
+            (b"landings", task) => Public::Landing { project, task: public_id(task)? },
+            (b"tasks", task) => Public::Task { project, task: public_id(task)? },
+            _ => return None,
+        }
+    };
+    if print_public(&page).as_ref() == path { Some(page) } else { None }
+}
+fn public_id(bytes: &[u8]) -> Option<u64> {
+    if bytes.len() != 16 {
+        return None;
+    }
+    let mut id = 0_u64;
+    for byte in bytes {
+        let digit = match byte {
+            b'0'..=b'9' => byte.checked_sub(b'0')?,
+            b'a'..=b'f' => byte.checked_sub(b'a')?.checked_add(10)?,
+            _ => return None,
+        };
+        id = id.checked_mul(16)?.checked_add(u64::from(digit))?;
+    }
+    Some(id)
+}
+
+fn public_digits(id: u64) -> [u8; 16] {
+    const HEX: &[u8] = b"0123456789abcdef";
+    let mut digits = [0; 16];
+    for (byte, pair) in id.to_be_bytes().iter().zip(digits.chunks_exact_mut(2)) {
+        for (digit, nibble) in pair.iter_mut().zip([byte >> 4_u8, byte & 15_u8]) {
+            *digit = *HEX.get(usize::from(nibble)).expect("nibble in hex alphabet");
+        }
+    }
+    digits
 }

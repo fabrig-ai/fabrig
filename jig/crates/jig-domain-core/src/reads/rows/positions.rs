@@ -10,6 +10,7 @@ fn subtree(scope: &Scope) -> bool {
         Scope::History { subtree: true, .. } => true,
         Scope::EndedTasks
         | Scope::TaskRows { .. }
+        | Scope::TaskText { .. }
         | Scope::Task { .. }
         | Scope::Proposal { .. }
         | Scope::Escalation { .. }

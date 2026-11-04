@@ -36,13 +36,15 @@ fn no_two_component_prefixes_meet() {
 #[test]
 fn an_override_sets_the_field_its_dotted_name_names() {
     let mut limits = limits::profile(limits::Profile::Small);
-    assert_eq!((limits.forges.log_origins, limits.forge_component.log_origins), (4, 4));
+    assert_eq!((limits.forges.log_origins, limits.forge_component.log_origins), (20, 20));
     assert_eq!(limits.forge_component.log_poll, Duration::from_secs(5));
     assert_eq!(limits.forge_component.log_catch_up, Duration::from_secs(86_400));
     assert_eq!(limits.forge_component.log_pages, 10);
     assert_eq!(limits.forge_component.delivery_bytes, 1_048_576);
-    let rows: [(&[u8], u64); 14] = [
+    assert_eq!(limits.forge.change_policy.questions, 4);
+    let rows: [(&[u8], u64); 15] = [
         (b"forge.repositories", 3),
+        (b"forge.change_policy.questions", 7),
         (b"forge.client.calls", 5),
         (b"forge.client.settle_ms", 2_000),
         (b"checkout.remote_timeout_ms", 7_000),
@@ -61,6 +63,7 @@ fn an_override_sets_the_field_its_dotted_name_names() {
         assert_eq!(limits::apply(&mut limits, name, value), Ok(()), "{name:?}");
     }
     assert_eq!(limits.forge.repositories, 3);
+    assert_eq!(limits.forge.change_policy.questions, 7);
     assert_eq!(limits.forge.client.calls, 5);
     assert_eq!(limits.forge.client.settle, Duration::from_secs(2));
     assert_eq!(limits.checkout.remote_timeout, Duration::from_millis(7_000));
@@ -72,6 +75,33 @@ fn an_override_sets_the_field_its_dotted_name_names() {
     assert_eq!(limits.forge_component.log_catch_up, Duration::from_nanos(9_321_000_000));
     assert_eq!(limits.forge_component.log_pages, 13);
     assert_eq!(limits.forge_component.delivery_bytes, 12_345);
+}
+
+#[test]
+fn the_change_tasks_override_sets_its_field_and_refuses_values_outside_its_bound() {
+    let mut limits = limits::profile(limits::Profile::Small);
+    assert_eq!(limits.forge.change_policy.tasks, 6);
+    let name = b"forge.change_policy.tasks";
+    for tasks in [8, u32::MAX] {
+        assert_eq!(limits::apply(&mut limits, name, u64::from(tasks)), Ok(()));
+        assert_eq!(limits.forge.change_policy.tasks, tasks);
+    }
+    let before = limits;
+    for tasks in [0, u64::from(u32::MAX) + 1] {
+        assert_eq!(limits::apply(&mut limits, name, tasks), Err(limits::Refused::Range));
+        assert_eq!(limits, before);
+    }
+}
+
+#[test]
+fn a_zero_change_tasks_override_refuses_the_start_naming_the_limit() {
+    let document =
+        fixtures::with(&fixtures::document(), b"application.limits.overrides", br#"{"forge.change_policy.tasks":0}"#);
+    let problems = crate::startup::named(&document, &jig_protocol_config::Directories::working()).unwrap_err();
+    assert_eq!(
+        crate::startup::lines(&problems).as_ref(),
+        b"application.limits.overrides.forge.change_policy.tasks: outside its type\n",
+    );
 }
 
 #[test]
@@ -90,7 +120,8 @@ fn an_unknown_name_or_a_value_past_its_type_is_refused() {
         assert_eq!(limits, before, "{name:?}");
     }
     for (name, maximum) in [
-        (b"forges.log_origins".as_slice(), u64::from(u32::MAX)),
+        (b"forge.change_policy.questions".as_slice(), u64::from(u32::MAX)),
+        (b"forges.log_origins", u64::from(u32::MAX)),
         (b"forge_component.log_origins", u64::from(u32::MAX)),
         (b"forge_component.log_poll_ms", u64::MAX / 1_000_000),
         (b"forge_component.log_catch_up_ms", u64::MAX / 1_000_000),
@@ -113,6 +144,10 @@ fn the_small_profile_passes_each_domains_validity() {
     let jig = jig_protocol_config::profile(jig_protocol_config::Profile::Small);
     let root = limits::engine(&jig, &settings.limits).expect("coherent root profile");
     assert!(temper_engine_domain::valid(&root));
+    assert_eq!(root.public_watermark, root.watermark / 2);
+    let mut jig = jig;
+    jig.clients.public.reads = 8;
+    assert_eq!(limits::engine_candidate(&jig, &settings.limits).public_reads, 8);
 }
 
 #[test]
@@ -149,6 +184,10 @@ fn the_root_limits_take_jigs_children_and_temper_own() {
     let mut settings = fixtures::engine();
     settings.jig.limits.core.authority.segments =
         settings.jig.limits.core.authority.segments.checked_add(1).expect("fixture segment limit can increase");
+    settings.jig.limits.core.authority.roles =
+        settings.jig.limits.core.authority.roles.checked_sub(1).expect("fixture role limit can decrease");
+    settings.jig.limits.core.settings.proposals =
+        settings.jig.limits.core.settings.proposals.checked_add(1).expect("fixture proposal limit can increase");
     let root = limits::engine(&settings.jig.limits, &settings.limits).expect("coherent root limits");
     let jig = settings.jig.limits.core;
     assert_eq!(root.journal, settings.limits.root.journal);
@@ -156,7 +195,13 @@ fn the_root_limits_take_jigs_children_and_temper_own() {
     assert_eq!(root.brief, settings.limits.root.brief);
     assert_eq!(
         root.forge,
-        temper_engine_domain_forge::Limits { authority_segments: jig.authority.segments, ..settings.limits.forge }
+        temper_engine_domain_forge::Limits {
+            authority_segments: jig.authority.segments,
+            roles: jig.authority.roles,
+            setting_proposals: jig.settings.proposals,
+            setting_history: jig.settings.history,
+            ..settings.limits.forge
+        }
     );
     assert_eq!(root.tasks, jig.tasks);
     assert_eq!(root.authority, jig.authority);
@@ -333,7 +378,9 @@ fn log_limits_check_zero_capacity_and_timing_relations() {
     for (origins, capacity, poll, catch_up, expected) in [
         (4, 4, 5000, day, ""),
         (4, 5, 5000, day, ""),
-        (5, 5, 5000, day, "forges.log_origins: must agree with forges.log_origins (at most 4)\n"),
+        (20, 20, 5000, day, ""),
+        (32, 32, 5000, day, ""),
+        (33, 33, 5000, day, "forges.log_origins: must agree with forges.log_origins (at most 32)\n"),
         (2, 2, 5000, day, ""),
         (3, 2, 5000, day, "forges.log_origins: must agree with forge_component.log_origins\n"),
         (4, 4, day, day, ""),
@@ -381,7 +428,6 @@ fn github_component_checks_key_deadline_and_renewal() {
     ] {
         let mut config = fixtures::configured_engine();
         config.forges[0].kind = crate::settings::Kind::GitHub;
-        config.forges[0].api_token = None;
         limits::apply(&mut config.limits, name, value).unwrap();
         if name == b"forge_component.deadline_ms" {
             config.limits.forge.client.lifetime = Duration::from_secs(300);
@@ -464,7 +510,7 @@ fn secrets_schema_fits_the_small_page_ceiling() {
     const KEY_BYTES: u64 = 10;
     let (_, _, profile) = fixtures::store_limits();
     assert_eq!(v1::Stored::encoded_bound(&v1::CEILINGS), Some(APPLICATION_BYTES));
-    assert_eq!(profile.store.page.bytes, 1_590_110);
+    assert_eq!(profile.store.page.bytes, 2_168_979);
     assert!(APPLICATION_BYTES + KEY_BYTES < u64::from(profile.store.page.bytes));
 }
 
@@ -508,4 +554,57 @@ fn server_connections_carry_the_box_streams_and_four_calls() {
     jig.clients_http.streams = 8;
     jig.clients_http.calls = 12;
     assert_eq!(limits::server(&jig).connections, 12);
+}
+
+#[test]
+fn small_holds_two_document_sections_with_their_own_budget_and_override() {
+    let mut limits = limits::profile(limits::Profile::Small);
+    assert_eq!(limits.root.brief.sections, 8);
+    assert_eq!(limits.root.brief.budgets.document, 4096);
+    assert_eq!(limits.forge.brief_sections, limits.root.brief.briefs * limits.root.brief.sections * 2);
+    assert_eq!(limits::apply(&mut limits, b"root.brief.budgets.document", 2048), Ok(()));
+    assert_eq!(limits.root.brief.budgets.document, 2048);
+}
+
+#[test]
+fn every_row_is_a_name_the_parser_takes() {
+    let small = limits::profile(limits::Profile::Small);
+    for (index, row) in limits::NAMES.iter().enumerate() {
+        let mut changed = small;
+        let value = (row.value)(&small);
+        let other = if row.name == "setup.state_life_ms" { value - 1 } else { value + 1 };
+        assert_eq!(limits::find(row.name.as_bytes()).unwrap().name, row.name);
+        assert_eq!(limits::apply(&mut changed, row.name.as_bytes(), other), Ok(()), "{}", row.name);
+        assert_eq!((row.value)(&changed), other, "{}", row.name);
+        assert_eq!(limits::apply(&mut changed, row.name.as_bytes(), value), Ok(()));
+        assert_eq!(changed, small);
+        assert!(!row.line.is_empty() && row.line.len() <= 120, "{}", row.name);
+        assert!(row.line.ends_with('.') && !row.line.contains(['\n', '\r']));
+        assert_eq!(row.line.matches('.').count(), 1);
+        for other in &limits::NAMES[index + 1..] {
+            assert_ne!(row.name, other.name);
+        }
+    }
+}
+
+#[test]
+fn an_unknown_name_is_refused() {
+    let small = limits::profile(limits::Profile::Small);
+    for name in [b"".as_slice(), b"root.absent", b"setup.absent", b"sign_in.members.extra", b"box.restarts"] {
+        let mut changed = small;
+        assert!(limits::find(name).is_none());
+        assert_eq!(limits::apply(&mut changed, name, 1), Err(limits::Refused::Unknown));
+        assert_eq!(changed, small);
+    }
+}
+
+/// Configured public indexes reach the effective core (jig/docs/design/domain/root.md, 10).
+#[test]
+fn configured_public_index_bounds_reach_the_core() {
+    let mut config = fixtures::engine();
+    let default = limits::engine(&config.jig.limits, &config.limits).expect("default engine");
+    assert_eq!(temper_engine_domain::core_limits(&default).public, jig_domain_core::PublicIndexLimits::OFF);
+    config.jig.limits.core.public = jig_domain_core::PublicIndexLimits { goals: 4, ended: 3, lines: 8, depth: 4 };
+    let configured = limits::engine(&config.jig.limits, &config.limits).expect("configured engine");
+    assert_eq!(temper_engine_domain::core_limits(&configured).public, config.jig.limits.core.public);
 }

@@ -184,11 +184,20 @@ pub enum Moved {
 /// A durable request refusal and all facts needed to show it.
 #[derive(Clone, Debug, PartialEq, Eq, Hash)]
 pub enum Refusal {
+    Judged {
+        at: u32,
+        setting: super::Setting,
+        why: super::Text,
+    },
     /// A finish refused while the sign-in may still wait (accounts.md, section 5).
     SignInRedirect {
         why: SignInRedirectWhy,
     },
     Stale(super::RefusalStale),
+    /// The revision left the history (domain/engine.md, 17.10).
+    Forgotten {
+        oldest: u32,
+    },
     Full(super::RefusalFull),
     /// An account move refused (client/domain/contract.md, 4).
     AccountMove {

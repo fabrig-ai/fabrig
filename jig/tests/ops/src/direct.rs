@@ -1,4 +1,4 @@
-//! The real ops root with withheld store commit answers (dynamic-memory.md, 4.6).
+//! The real ops root with withheld store commit answers (skein's programming-model.md, 7.2).
 use jig_domain_accounts as accounts;
 use jig_domain_core as core;
 use jig_domain_host as host;

@@ -569,6 +569,64 @@ pub fn check_run(domain: &Domain, ask: &RunAsk, why: &mut Queue<Finding>) -> cra
     }
 }
 
+/// A job's claim check (jig/docs/design/domain/engine.md, 7.5;
+/// jig/docs/design/domain/authority.md, 8.3): its deadline, credentials and
+/// workspace writes, without an account, budget, reserve or model.
+#[derive(Clone, PartialEq, Eq, Debug)]
+pub struct JobAsk {
+    pub project: u32,
+    pub authority: Authority,
+    pub wall: Wall,
+    /// Whether each application credential its workspace needs is usable now.
+    pub credentials: Box<[bool]>,
+    pub writes: Box<[crate::Write]>,
+}
+
+#[must_use]
+pub fn check_job(domain: &Domain, ask: &JobAsk, why: &mut Queue<Finding>) -> Answer {
+    if !authority_within(&ask.authority, domain.limits())
+        || !within(ask.credentials.len(), domain.limits().accounts)
+        || !within(ask.writes.len(), domain.limits().writes)
+    {
+        return refuse(why, Finding::Oversized);
+    }
+    for write in &ask.writes {
+        if !effect_within(&write.effect, domain.limits()) {
+            return refuse(why, Finding::Oversized);
+        }
+    }
+    let Some(policy) = domain.policy(ask.project) else {
+        return refuse(why, Finding::UnknownProject);
+    };
+    let mut answer = Answer::Allow;
+    if let Some(deadline) = ask.authority.budget.deadline
+        && ask.wall > deadline
+    {
+        find(&mut answer, why, Answer::Wait, Finding::Deadline);
+    }
+    for ceiling in [&policy.ceiling, &domain.rules().ceiling] {
+        if let Some(deadline) = ceiling.budget.deadline
+            && ask.wall > deadline
+        {
+            find(&mut answer, why, Answer::Refuse, Finding::Deadline);
+        }
+    }
+    for usable in &ask.credentials {
+        if !usable {
+            find(&mut answer, why, Answer::Wait, Finding::Account);
+        }
+    }
+    for write in &ask.writes {
+        grants(domain, policy, &ask.authority, &write.effect, &mut answer, why);
+        writable(&write.effect, &mut answer, why);
+        match write.held {
+            Writer::Task | Writer::Ancestor => {}
+            Writer::Pending | Writer::Other => find(&mut answer, why, Answer::Wait, Finding::Writer),
+        }
+    }
+    answer
+}
+
 /// Root's pure tool-call check over one configured family bit, read grant, message standing or note
 /// scope. Returns the strictest answer and appends findings to an uncapped queue.
 /// Makes no external call or state change.
@@ -1036,4 +1094,127 @@ pub fn covers(domain: &Domain, needed: &Authority, holder: &Holder, below: u32) 
         &domain.rules().implies,
     )
     .is_empty()
+}
+
+#[cfg(test)]
+mod job_tests {
+    use super::*;
+    use crate::tests_fixtures::{authority, domain, domain_with, numbers};
+
+    /// A job checks the same writes and deadlines as a run, with no spend or
+    /// account evidence (jig/docs/design/domain/engine.md, 7.5).
+    #[test]
+    #[expect(clippy::too_many_lines, reason = "the check's independent inputs share one comparison fixture")]
+    fn a_jobs_writes_are_checked_as_a_runs_without_an_account_or_budget() {
+        let domain = domain();
+        let mut base = JobAsk {
+            project: 1,
+            authority: authority(),
+            wall: Wall::from_nanos(10),
+            credentials: Box::new([true]),
+            writes: Box::new([crate::Write {
+                effect: Effect {
+                    connector: 1,
+                    kind: 1,
+                    name: crate::Name { segments: Box::new([skein_lib::bytes::copy_of(b"object")]) },
+                    state: [1; 32],
+                    price: None,
+                    access: EffectAccess::Owned,
+                    additional: Box::new([]),
+                    guards: Box::new([]),
+                },
+                held: Writer::Task,
+            }]),
+        };
+        base.authority.budget.spend = 0;
+        let mut why = Queue::uncapped();
+        assert_eq!(check_job(&domain, &base, &mut why), Answer::Allow);
+        assert!(why.is_empty());
+        for writer in [Writer::Task, Writer::Ancestor, Writer::Pending, Writer::Other] {
+            for granted in [true, false] {
+                for usable in [true, false] {
+                    let mut job = base.clone();
+                    job.writes[0].held = writer;
+                    job.credentials[0] = usable;
+                    if !granted {
+                        job.authority.grants = Box::new([]);
+                    }
+                    let mut run_authority = job.authority.clone();
+                    run_authority.budget.spend = 100;
+                    let run = RunAsk {
+                        project: job.project,
+                        authority: run_authority,
+                        wall: job.wall,
+                        credentials: job.credentials.clone(),
+                        writes: job.writes.clone(),
+                        numbers: numbers(100),
+                        budget: 20,
+                        reserve: 0,
+                        main_provider: 1,
+                        accounts: Box::new([crate::AccountCheck {
+                            binding: crate::AccountBinding { provider: 1, account: 2, source: 3 },
+                            usable: true,
+                            host_eligible: true,
+                        }]),
+                    };
+                    let mut job_why = Queue::uncapped();
+                    let mut run_why = Queue::uncapped();
+                    assert_eq!(
+                        check_job(&domain, &job, &mut job_why),
+                        check_run(&domain, &run, &mut run_why).verdict()
+                    );
+                    assert_eq!(job_why.len(), run_why.len());
+                    for _ in 0..job_why.len() {
+                        assert_eq!(job_why.pop(), run_why.pop());
+                    }
+                }
+            }
+        }
+        for (deadline, expected) in [(10, Answer::Allow), (9, Answer::Wait)] {
+            let mut ask = base.clone();
+            ask.authority.budget.deadline = Some(Wall::from_nanos(deadline));
+            let mut why = Queue::uncapped();
+            assert_eq!(check_job(&domain, &ask, &mut why), expected);
+            assert_eq!(why.pop(), if expected == Answer::Wait { Some(Finding::Deadline) } else { None });
+        }
+        for project in [true, false] {
+            let mut ceiling = authority();
+            ceiling.budget.deadline = Some(Wall::from_nanos(9));
+            let narrowed =
+                if project { domain_with(authority(), ceiling) } else { domain_with(ceiling.clone(), ceiling) };
+            let mut why = Queue::uncapped();
+            assert_eq!(check_job(&narrowed, &base, &mut why), Answer::Refuse);
+            assert_eq!(why.pop(), Some(Finding::Deadline));
+        }
+        for access in [EffectAccess::Context, EffectAccess::Unavailable] {
+            let mut ask = base.clone();
+            ask.writes[0].effect.access = access;
+            let mut why = Queue::uncapped();
+            assert_eq!(check_job(&domain, &ask, &mut why), Answer::Refuse);
+        }
+        for cause in 0_u8..4 {
+            let mut ask = base.clone();
+            let expected = match cause {
+                0 => {
+                    ask.project = 99;
+                    Finding::UnknownProject
+                }
+                1 => {
+                    ask.credentials = Box::new([true; 3]);
+                    Finding::Oversized
+                }
+                2 => {
+                    ask.writes = Box::new([ask.writes[0].clone(), ask.writes[0].clone(), ask.writes[0].clone()]);
+                    Finding::Oversized
+                }
+                _ => {
+                    ask.writes[0].effect.name.segments = Box::new([Box::new([0; 9])]);
+                    Finding::Oversized
+                }
+            };
+            let mut why = Queue::uncapped();
+            assert_eq!(check_job(&domain, &ask, &mut why), Answer::Refuse);
+            assert_eq!(why.pop(), Some(expected));
+        }
+    }
 }

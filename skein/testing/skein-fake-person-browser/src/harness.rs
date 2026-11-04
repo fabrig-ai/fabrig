@@ -717,8 +717,7 @@ impl Runtime {
             | Event::Attribute { .. }
             | Event::Address { .. }
             | Event::Snapshot { .. }
-            | Event::Screenshot { .. }
-            | Event::Looked { .. } => {}
+            | Event::Screenshot { .. } => {}
         }
     }
     fn failure_page(&self) -> Token {

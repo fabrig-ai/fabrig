@@ -148,10 +148,6 @@ fn an_open_program_run_replies_parks_and_resumes() {
     assert_eq!(task.last_message, 2);
     assert!(task.inbox.is_empty(), "both committed fences take their messages");
     assert!(!run.run_waits.is_empty(), "the client observed the task's admission");
-    assert!(!run.run_waits.iter().any(|wait| matches!(
-        wait,
-        Some(jig_client::contract::TaskRunWait::Refused(jig_client::contract::TaskWaitRefused::Program(_)))
-    )));
 
     let invocations: Vec<_> = run
         .observations

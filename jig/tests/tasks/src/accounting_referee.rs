@@ -215,7 +215,10 @@ impl Accounting {
             if let Escalation::Waiting { holder, .. } = task.escalation {
                 let reachable = match holder {
                     EscalationHolder::Task(number) => live(rows, number).is_some_and(|holder| {
-                        holder.project == task.project && !matches!(holder.executor, Executor::Procedure { .. })
+                        holder.project == task.project
+                            && (!matches!(holder.executor, Executor::Procedure { .. })
+                                || matches!(task.executor, Executor::Job { .. })
+                                    && task.requester == jig_domain_tasks::Party::Task(holder.number))
                     }),
                     EscalationHolder::Person(number) => number != 0,
                     EscalationHolder::Role { project, role } => project == task.project && role != 0,

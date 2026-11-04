@@ -57,9 +57,9 @@ pub fn full_line(prefix: &str, sign_ins: u32, earliest: Wall, link_until: Wall) 
 /// Largest full diagnostic, including a u32 count and the two UTC moments.
 #[must_use]
 pub fn full_line_bound(prefix: &str) -> Option<u64> {
-    let mut bytes = u64::try_from(prefix.len()).ok()?.checked_add(10)?.checked_add(40)?;
+    let mut bytes = skein_lib::len_u64(prefix.len()).checked_add(10)?.checked_add(40)?;
     for literal in FULL {
-        bytes = bytes.checked_add(u64::try_from(literal.len()).ok()?)?;
+        bytes = bytes.checked_add(skein_lib::len_u64(literal.len()))?;
     }
     Some(bytes)
 }

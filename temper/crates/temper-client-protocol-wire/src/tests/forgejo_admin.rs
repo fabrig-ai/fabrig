@@ -12,9 +12,6 @@ fn first(label: &[u8]) -> Result<v1::FirstAsk, v1::Problem> {
         v1::FirstAskParts {
             org: b"work".as_slice().into(),
             repository: b"hello".as_slice().into(),
-            project: v1::SetUpProject::Existing(
-                v1::ExistingProject::new(&v1::CEILINGS, v1::ExistingProjectParts { project: 7 }).unwrap(),
-            ),
             label: label.into(),
         },
     )
@@ -28,12 +25,10 @@ fn request(first: Option<v1::FirstAsk>) -> v1::Requesting {
     v1::Requesting::new(&limits, v1::RequestingParts { request: v1::Request::Connect(connect) }).unwrap()
 }
 // An untrusted peer's Connect: version 11, Connect tag 3, Kept tag 0, forge 1,
-// ForgejoAdmin tag 2, Some(first), work/hello, Existing project 7.
+// ForgejoAdmin tag 2, Some(first), work/hello.
 fn peer(label: &[u8]) -> Box<[u8]> {
-    const HEAD: &[u8] = &[
-        0, 11, 3, 0, 0, 1, 2, 1, 0, 0, 0, 4, b'w', b'o', b'r', b'k', 0, 0, 0, 5, b'h', b'e', b'l', b'l', b'o', 0, 0, 0,
-        0, 7,
-    ];
+    const HEAD: &[u8] =
+        &[0, 11, 3, 0, 0, 1, 2, 1, 0, 0, 0, 4, b'w', b'o', b'r', b'k', 0, 0, 0, 5, b'h', b'e', b'l', b'l', b'o'];
     let mut writer = Writer::new(HEAD.len().checked_add(4).unwrap().checked_add(label.len()).unwrap());
     writer.put(HEAD).unwrap();
     writer.put(&u32::try_from(label.len()).unwrap().to_be_bytes()).unwrap();
@@ -49,12 +44,21 @@ fn forgejo_admin_without_first_round_trips_its_golden() {
     assert_eq!(crate::decode_requesting(bytes, &fixtures::limits()), Some(record));
 }
 #[test]
-#[expect(clippy::disallowed_macros, reason = "committed wire golden is test input")]
 fn forgejo_admin_with_first_round_trips_its_golden() {
     let record = request(Some(first(b"docker").unwrap()));
-    let bytes = include_bytes!("../../golden/connect_forgejo_admin_with_first.bin");
-    assert_eq!(crate::requesting(&record).as_ref(), bytes);
-    assert_eq!(crate::decode_requesting(bytes, &fixtures::limits()), Some(record));
+    let path = std::path::PathBuf::from(std::env::var_os("CARGO_MANIFEST_DIR").expect("test package"))
+        .join("golden/connect_forgejo_admin_with_first.bin");
+    let encoded = crate::requesting(&record);
+    let write = match std::env::var_os("SKEIN_CODEGEN_WRITE") {
+        Some(value) => value == "1",
+        None => false,
+    };
+    if write {
+        std::fs::write(&path, &encoded).unwrap();
+    }
+    let bytes = std::fs::read(path).unwrap();
+    assert_eq!(encoded.as_ref(), bytes);
+    assert_eq!(crate::decode_requesting(&bytes, &fixtures::limits()), Some(record));
 }
 #[test]
 fn runner_labels_are_accepted_on_both_sides() {

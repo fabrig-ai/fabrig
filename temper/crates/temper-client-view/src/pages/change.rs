@@ -132,6 +132,11 @@ pub(crate) fn start(b: &mut Builder, change: Change<'_>, words: &Words, bindings
     }
     b.close();
     b.close();
+    for line in change.tiers() {
+        b.open(Role::Paragraph);
+        b.text(Run::Plain, line);
+        b.close();
+    }
     if let Some(task) = change.runs() {
         super::task::task_link(b, task, words, bindings);
     }

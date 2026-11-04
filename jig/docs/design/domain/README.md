@@ -61,6 +61,7 @@ an application's engine
 │   └── jig-domain-views        parties' watches
 ├── <connector>…                the application's (connectors.md)
 ├── jig-domain-host             hosted runs on the engine's slots, if it runs agents (hosts.md)
+├── jig-domain-hub-link         the link between the core's fleet and that hub (hosts.md, 6.1)
 ├── smith-inline-agent          their agent, smith's: its domains in this process
 └── …                           the application's own child domains
 

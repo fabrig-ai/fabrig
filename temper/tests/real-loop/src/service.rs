@@ -60,6 +60,7 @@ pub struct ServiceHost {
     hook_wire: hooks::Hooks,
     pub(crate) hooks: Option<SocketAddr>,
     pub(crate) forge_address: Option<SocketAddr>,
+    pub(crate) blob_address: Option<SocketAddr>,
     pub(crate) fixture: Option<crate::forge::Fixture>,
     pub(crate) seen: crate::forge::Seen,
     github: Option<crate::github::Fixture>,
@@ -161,6 +162,7 @@ impl ServiceHost {
             hook_wire: hooks::Hooks::default(),
             hooks: None,
             forge_address: None,
+            blob_address: None,
             fixture,
             github,
             records_seeded: restartable || fixture.is_none() && github.is_none(),
@@ -315,6 +317,7 @@ impl ServiceHost {
     fn ready(&self) -> bool {
         self.cluster.as_ref().is_none_or(crate::cluster::Shape::ready)
             && ((self.fixture.is_none() && self.github.is_none()) || self.forge_address.is_some())
+            && (self.github.is_none() || self.blob_address.is_some())
     }
     fn prepare_service(&self) -> temper_service::Service {
         use std::os::fd::{AsRawFd, IntoRawFd};
@@ -323,6 +326,9 @@ impl ServiceHost {
             &fixtures::given(&self.path),
         )
         .expect("standalone preparation");
+        if let Some(blob) = self.blob_address {
+            configure_job_logs(&mut service, self.forge_address.expect("GitHub API"), blob);
+        }
         if let Some(listener) = &self.clients_listener {
             // Keep the original bound across the bootstrap service's shutdown
             // and the configured App's second start at the same address.
@@ -404,6 +410,33 @@ impl ServiceHost {
     pub(crate) fn delivered(&self) -> bool {
         self.watch.delivered
     }
+}
+
+fn configure_job_logs(service: &mut temper_service::Service, api: SocketAddr, blob: SocketAddr) {
+    let roots = skein_shell::read_trust_roots(
+        &skein_shell::Trust::Machine { ssl_cert_file: None },
+        &skein_shell::RootBounds { bundle_bytes: 1_048_576, certificates: 1024, certificate_bytes: 65_536 },
+    )
+    .expect("machine roots");
+    let roots = skein_tls::Config::from_der(&roots.certificates, &[]).expect("TLS roots").0;
+    let mut log_origins = temper::github_logs::resolve(None, |_| Ok(([127, 0, 0, 1], 443).into()))
+        .expect("production default with fake DNS");
+    // The fake serves plaintext on loopback; keep the production host policy.
+    for at in 0..log_origins.len() {
+        let entry = log_origins.get_mut(at).expect("default origin");
+        entry.origin.tls = false;
+        entry.origin.port = blob.port();
+        entry.address = skein_io::Addr::Ip(blob);
+    }
+    service.configure_forge_runtime(
+        temper_service::ForgeRuntime {
+            number: 0,
+            address: api,
+            transport: skein_forge_connection::settings::Transport::Plaintext { name: None },
+            log_origins,
+        },
+        roots,
+    );
 }
 impl Host for ServiceHost {
     fn drain(&mut self) {

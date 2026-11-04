@@ -3,22 +3,17 @@ use temper_engine_domain_forge as domain;
 use temper_forge_setup::setup::{Account, Entry, Fake, Mode, Repository};
 
 const HANDOVER: &[u8] = b"0123456789abcdef0123456789abcdef01234567";
-const HOOK: &[u8] = b"file-hook-secret";
-fn fake_configured(hooks: bool) -> fixtures::ConfiguredEngine {
+fn fake_configured() -> fixtures::ConfiguredEngine {
     let mut config = fixtures::configured_engine();
     config.forges[0].api = jig_protocol_config::Address::Addr(skein_io::Addr::Ip(([127, 0, 0, 1], 9).into()));
     // A listener alone must not make Adopt draw a secret the connection cannot read.
     config.webhooks =
         Some(skein_forge_connection::hooks::Webhooks { listener: skein_io::Addr::Ip(([127, 0, 0, 1], 7101).into()) });
-    if hooks {
-        config.forges[0].webhook_secret = Some(Secret::new(HOOK.into()));
-    }
     config.setup = Box::new([crate::settings::Setup {
         entry: Entry {
             forge: 1,
             directory: b"/data/forge".as_slice().into(),
             bot: Account { login: b"temper".as_slice().into(), email: b"temper@example.test".as_slice().into() },
-            orgs: Box::new([]),
             asked: false,
             mode: Mode::Fake(Fake {
                 listen: ([127, 0, 0, 1], 9).into(),
@@ -36,11 +31,9 @@ fn fake_configured(hooks: bool) -> fixtures::ConfiguredEngine {
     config
 }
 fn configured(hooks: bool) -> fixtures::ConfiguredEngine {
-    let mut config = fake_configured(false);
-    config.records_only = Box::new([1]);
-    config.forges[0].api_token = None;
+    let mut config = fake_configured();
+    config.without_records = Box::new([1]);
     config.forges[0].user = 0;
-    config.forges[0].webhook_secret = None;
     config.identities[0].token = Secret::new(Box::new([]));
     config.setup[0].handover = None;
     if !hooks {

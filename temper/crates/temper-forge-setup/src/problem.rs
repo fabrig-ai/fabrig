@@ -63,6 +63,7 @@ impl Problems {
                 | config::What::Budget { .. }
                 | config::What::Grace { .. }
                 | config::What::Operations { .. }
+                | config::What::Capacity { .. }
                 | config::What::Message
                 | config::What::Silence
                 | config::What::StopBound

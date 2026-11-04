@@ -85,7 +85,7 @@ fn a_recorded_merged_pull_lands_without_a_matching_pushed_head() {
     let d = producing_with_history(true, false, true);
     assert_eq!(
         d.change(fixtures::CHANGE).expect("known change").change.state,
-        temper_engine_domain_forge_change::State::Landed { merge: fixtures::BASE }
+        temper_engine_domain_forge_change::State::Landed { merge: fixtures::BASE, since: env().wall }
     );
 }
 
@@ -94,7 +94,10 @@ fn a_merged_pull_at_the_pushed_head_is_recovered_after_restart() {
     let d = producing_with_history(false, true, true);
     let row = d.change(fixtures::CHANGE).expect("recovered change");
     assert_eq!(row.pull, Some(1));
-    assert_eq!(row.change.state, temper_engine_domain_forge_change::State::Landed { merge: fixtures::BASE });
+    assert_eq!(
+        row.change.state,
+        temper_engine_domain_forge_change::State::Landed { merge: fixtures::BASE, since: env().wall }
+    );
 }
 
 #[test]
@@ -105,7 +108,7 @@ fn a_pending_prepare_rebase_is_not_branch_drift() {
         let mut d = domain();
         outputs(&mut d, Event::Restore { record: Stored::Repository(adopted()) });
         let name = run_branch(b"51");
-        outputs(&mut d, Event::Hold { task: fixtures::CHANGE, resource: name.clone(), from: None });
+        outputs(&mut d, Event::Hold { entry: 0, task: fixtures::CHANGE, resource: name.clone(), from: None });
         outputs(&mut d, Event::Restored { clock: skein_forge_client::RecoveryClock::Monotonic });
         outputs(&mut d, Event::ReadAfresh);
         outputs(&mut d, Event::SettleOutbox);
@@ -177,9 +180,11 @@ fn start_opening_kept(d: &mut Domain, task: u64, entry: u64, kept: bool) {
     outputs(
         d,
         Event::StepChange {
+            merge_job: false,
             task,
             entry,
             heard: change::Heard {
+                start_conflict: None,
                 lacking: None,
                 spend: None,
                 delegate: change::Status::Passed,
@@ -189,6 +194,7 @@ fn start_opening_kept(d: &mut Domain, task: u64, entry: u64, kept: bool) {
             },
             gates: Box::new([]),
             queue_repair_active: false,
+            pending: Box::new([]),
             kept,
         },
     );
@@ -690,7 +696,7 @@ fn projected_words(explicit_title: &[u8], words: &[u8]) -> skein_forge::api::Wri
     row.body = words.into();
     let registered = outputs(&mut d, Event::Change { row });
     for request in &registered {
-        if let Request::Refused { .. } = request {
+        if let Request::Refused { .. } | Request::ResourceRefused { .. } = request {
             panic!("change registration refused: {request:?}");
         }
     }
@@ -770,6 +776,7 @@ fn oversized_gate_remarks_are_marked_before_they_are_saved() {
             task: fixtures::CHANGE,
             child: 52,
             status: change::Status::Failed,
+            no_change: false,
             failed: false,
             cancelled: false,
             words: words.as_bytes().into(),

@@ -66,7 +66,7 @@ pub(crate) fn route(agent: &mut Domain, env: &Env<Limits>, id: Id<Slot>, out: &m
                 );
                 out.push(Output::Lower { agent: id.token(), request });
             }
-            smith::Request::Lower(Lower::Yield { .. }) => {}
+            smith::Request::Lower(Lower::Yield { .. } | Lower::Close { .. }) => {}
             smith::Request::Lower(Lower::Cancel { owner }) => match slot.completions.get_mut(&owner) {
                 Some(cancelled) => {
                     if !*cancelled {

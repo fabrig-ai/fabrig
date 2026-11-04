@@ -204,6 +204,7 @@ pub fn commit_writes(request: jig_protocol_store::Request) -> Box<[jig_protocol_
 pub fn ended_chat() -> Box<jig_domain_tasks::TaskRecord> {
     use jig_domain_tasks as tasks;
     Box::new(tasks::TaskRecord {
+        started_from: Box::new([]),
         asked_requester: false,
         placed: None,
         settings: tasks::SettingsRevision { task: 1, run: None },
@@ -252,6 +253,7 @@ pub fn ended_chat() -> Box<jig_domain_tasks::TaskRecord> {
         tracked: None,
         recurring: None,
         spec: tasks::Spec {
+            job: None,
             asks: false,
             words: b"chat".as_slice().into(),
             parameters: Box::new([]),
@@ -292,6 +294,7 @@ pub fn ended_chat() -> Box<jig_domain_tasks::TaskRecord> {
         tries: tasks::Tries::NONE,
         invalid_result: None,
         refusals: 0,
+        room_wait: None,
         phase: tasks::Phase::Ended(tasks::Ending::Done(tasks::TaskResult::Report { words: b"done".as_slice().into() })),
     })
 }

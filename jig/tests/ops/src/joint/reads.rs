@@ -77,7 +77,10 @@ fn joined_row(
 
 fn candidate(store: &Store, range: &reads::Range, value: &core::Record) -> Option<reads::Row> {
     match &range.scope {
-        reads::Scope::Task { task } | reads::Scope::Result { task } | reads::Scope::PersonTask { task } => {
+        reads::Scope::TaskText { task, .. }
+        | reads::Scope::Task { task }
+        | reads::Scope::Result { task }
+        | reads::Scope::PersonTask { task } => {
             let core::Record::Tasks(tasks::Stored::Ended(value)) = value else { return None };
             if value.number != *task {
                 return None;
@@ -100,53 +103,11 @@ fn candidate(store: &Store, range: &reads::Range, value: &core::Record) -> Optio
         }
         reads::Scope::Inbox {
             group: reads::Group::Updates | reads::Group::Results | reads::Group::Replies, ..
-        } => {
-            let core::Record::Tasks(tasks::Stored::Update(update)) = value else { return None };
-            if update.party != range.party {
-                return None;
-            }
-            let Some(task) = owner(store, update.task) else {
-                return Some(reads::Row {
-                    value: value.clone(),
-                    owner: None,
-                    ancestors: Box::new([]),
-                    related: None,
-                    unjoined: None,
-                    ended_read: None,
-                    linked: Box::new([]),
-                    inbox: None,
-                });
-            };
-            let mut value = row(store, value, task);
-            let object = match update.object {
-                tasks::UpdateObject::Proposal { .. } => return None,
-                tasks::UpdateObject::Result => documents::InboxObject::Result { position: task.result_position },
-                tasks::UpdateObject::Reply { message, activity } => {
-                    let record = store.rows.get(&root::Key::Core(core::Key::Tasks(tasks::Key::Activity {
-                        task: update.task,
-                        position: activity.value(),
-                    })))?;
-                    let root::Record::Core(line) = record else { return None };
-                    value.related = Some(line.clone());
-                    documents::InboxObject::Reply { message: message.value() }
-                }
-            };
-            value.inbox = Some(documents::Cursor::Inbox { task: task.number, object, at: Some(update.at) });
-            Some(value)
-        }
+        } => candidate_update(store, range, value),
 
         reads::Scope::Notes { .. } | reads::Scope::ScopedNotes { .. } => {
             let core::Record::Notes(jig_domain_notes::Record::Entry(_)) = value else { return None };
-            Some(reads::Row {
-                value: value.clone(),
-                owner: None,
-                ancestors: Box::new([]),
-                related: None,
-                unjoined: None,
-                ended_read: None,
-                linked: Box::new([]),
-                inbox: None,
-            })
+            Some(unowned(value))
         }
         reads::Scope::EndedDelegates { task } => delegates::candidate(store, *task, value),
         reads::Scope::Turn { task, attempt, turn } => {
@@ -213,7 +174,8 @@ fn point(store: &Store, scope: &reads::Scope) -> Option<reads::Row> {
             let hint = task_row.proposal_rows.iter().find(|row| row.proposal == *proposal)?;
             (*task, core::Key::Tasks(tasks::Key::History { task: *task, revision: hint.revision }), None)
         }
-        reads::Scope::Task { .. }
+        reads::Scope::TaskText { .. }
+        | reads::Scope::Task { .. }
         | reads::Scope::Proposal { proposer: documents::Proposer::Party(_), .. }
         | reads::Scope::PersonTask { .. }
         | reads::Scope::Result { .. }
@@ -355,7 +317,8 @@ fn index_bounds(range: &reads::Range) -> Option<(root::Key, root::Key)> {
             ))
         }
         reads::Scope::EndedDelegates { task } => Some(delegates::bounds(task, true)),
-        reads::Scope::Task { .. }
+        reads::Scope::TaskText { .. }
+        | reads::Scope::Task { .. }
         | reads::Scope::Proposal { .. }
         | reads::Scope::Escalation { .. }
         | reads::Scope::Question { .. }
@@ -381,5 +344,44 @@ fn index_bounds(range: &reads::Range) -> Option<(root::Key, root::Key)> {
         | reads::Scope::EndedTasks
         | reads::Scope::TaskRows { .. }
         | reads::Scope::Tasks { .. } => None,
+    }
+}
+
+fn candidate_update(store: &Store, range: &reads::Range, value: &core::Record) -> Option<reads::Row> {
+    let core::Record::Tasks(tasks::Stored::Update(update)) = value else { return None };
+    if update.party != range.party {
+        return None;
+    }
+    let Some(task) = owner(store, update.task) else {
+        return Some(unowned(value));
+    };
+    let mut value = row(store, value, task);
+    let object = match update.object {
+        tasks::UpdateObject::Proposal { .. } => return None,
+        tasks::UpdateObject::Result => documents::InboxObject::Result { position: task.result_position },
+        tasks::UpdateObject::Reply { message, activity } => {
+            let record = store.rows.get(&root::Key::Core(core::Key::Tasks(tasks::Key::Activity {
+                task: update.task,
+                position: activity.value(),
+            })))?;
+            let root::Record::Core(line) = record else { return None };
+            value.related = Some(line.clone());
+            documents::InboxObject::Reply { message: message.value() }
+        }
+    };
+    value.inbox = Some(documents::Cursor::Inbox { task: task.number, object, at: Some(update.at) });
+    Some(value)
+}
+
+fn unowned(value: &core::Record) -> reads::Row {
+    reads::Row {
+        value: value.clone(),
+        owner: None,
+        ancestors: Box::new([]),
+        related: None,
+        unjoined: None,
+        ended_read: None,
+        linked: Box::new([]),
+        inbox: None,
     }
 }

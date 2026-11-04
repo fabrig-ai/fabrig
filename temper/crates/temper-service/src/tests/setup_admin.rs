@@ -18,7 +18,6 @@ fn config() -> fixtures::ConfiguredEngine {
     let entry = &mut config.setup[0];
     entry.entry.mode = temper_forge_setup::setup::Mode::Managed { admin_token: None };
     entry.entry.directory = Box::new([]);
-    entry.entry.orgs = Box::new([]);
     entry.handover = None;
     config.identities[0].login = Box::new([]);
     config
@@ -57,7 +56,7 @@ fn service(forge: &Forge) -> crate::Service {
 fn bundle(item: u16, bytes: &[u8]) -> Secret {
     let value = match item {
         1 => temper_client_domain::forge::forges::pasted_admin_token(bytes),
-        _ => records::encode_pasted(item, bytes).ok(),
+        _ => records::encode_pasted(&[(item, bytes)]).ok(),
     };
     match value {
         Some(value) => value,
@@ -65,12 +64,7 @@ fn bundle(item: u16, bytes: &[u8]) -> Secret {
     }
 }
 fn first(label: &[u8]) -> domain::FirstAsk {
-    domain::FirstAsk {
-        org: b"work".as_slice().into(),
-        repository: b"hello".as_slice().into(),
-        project: domain::SetUpProject::Existing(1),
-        label: label.into(),
-    }
+    domain::FirstAsk { org: b"work".as_slice().into(), repository: b"hello".as_slice().into(), label: label.into() }
 }
 fn ask(service: &mut crate::Service, value: Secret, first: Option<domain::FirstAsk>) {
     let engine = service.engine.as_mut().unwrap();

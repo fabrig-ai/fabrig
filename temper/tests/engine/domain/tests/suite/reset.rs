@@ -1,4 +1,4 @@
-//! Reset crash cuts (temper/docs/design/draft/playground-reset.md, 6.2 and 8).
+//! Reset crash cuts (temper/docs/design/protocol/setup.md, 8.4; temper/docs/design/domain/forge.md, 18).
 use jig_domain_accounts as accounts;
 use jig_domain_core as core;
 use jig_domain_people as people;
@@ -194,6 +194,41 @@ fn replay(step: forge::ResetStep) {
     for seed in [1, 7, 71] {
         assert_eq!(run(step, seed), run(step, seed), "step {step:?}, seed {seed}");
     }
+}
+
+#[test]
+fn the_reset_deletes_the_project_with_the_chat_templates_grace() {
+    // The reset crash-cut walk's bound also reaches the project's saved act.
+    const STEPS: usize = 400;
+    let (mut d, sign_in) = driver(true);
+    start(&mut d, sign_in);
+    let project = row(&d).expect("running playground").project.expect("playground project");
+    application(&mut d, sign_in, 82, forge::Ask::EndPlayground, false);
+    for _ in 0..STEPS {
+        if let Some((_, writes)) = d.store.pending.front() {
+            let grace = writes.iter().find_map(|write| {
+                if let engine::Write::Save(engine::Record::Core(core::Record::People(people::Stored::Acted {
+                    act: people::Act::RemoveProject { project: removed, grace },
+                    ..
+                }))) = write
+                    && *removed == project
+                {
+                    Some(*grace)
+                } else {
+                    None
+                }
+            });
+            let number = d.store.apply();
+            d.send(engine::Event::Store(engine::StoreInput::Committed { number, fill: 0 }));
+            if let Some(grace) = grace {
+                assert_eq!(grace, Some(Duration::from_millis(5000)));
+                return;
+            }
+        } else {
+            d.advance(false);
+        }
+    }
+    panic!("the reset saves the project's removal act");
 }
 
 #[test]

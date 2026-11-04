@@ -1,4 +1,4 @@
-//! Factual direct bounds and the policy holder for supported widening drafts.
+//! Factual direct bounds and the policy holder for supported widening drafts (domain/authority.md, 8).
 use crate::{
     Core, Limits,
     acts::{Admission, Beyond, Bounds, Recipient, standing},
@@ -48,35 +48,11 @@ pub(crate) fn creating(
         .min(policy.ceiling.budget.spend)
         .min(core.authority.rules().ceiling.budget.spend);
     let maximum_deadline = earliest(policy.ceiling.budget.deadline, core.authority.rules().ceiling.budget.deadline);
-    let mut charters = List::with_capacity(limits.documents.lines);
     let canonical_deadline = earliest(role.authority.budget.deadline, maximum_deadline);
-    for setting in &core.current.offered() {
-        let number = match setting {
-            crate::settings::Setting::Charter(number) => *number,
-            crate::settings::Setting::Template(_)
-            | crate::settings::Setting::Policy(_)
-            | crate::settings::Setting::Rules => continue,
-        };
-        let charter = core.charter(number).expect("offered charter");
-        if creating_charter(core, limits, party, project, held, charter.number) && charters.room() > 0 {
-            charters.push(charter.number).expect("bounded offered charters");
-        }
-    }
-    let mut procedures = List::with_capacity(limits.documents.lines);
-    if core.projections.len() < limits.tasks.tasks {
-        for kind in &role.authority.delegation.kinds {
-            let authority::Executor::Procedure(procedure) = kind else { continue };
-            for &connector in &core.connectors {
-                let executor = tasks::Executor::Procedure { connector, code: *procedure };
-                let supported =
-                    create_start(core, project, party, held, executor, 0, canonical_deadline, limits.tasks.tree_tasks)
-                        .is_ok();
-                if supported && procedures.push(super::CreateProcedure { connector, code: *procedure }).is_err() {
-                    return Admission::Refused(people::Refusal::Limit { which: people::LimitKind::Authority });
-                }
-            }
-        }
-    }
+    let (charters, procedures) = match creating_executors(core, limits, party, project, held, canonical_deadline) {
+        Ok(executors) => executors,
+        Err(why) => return Admission::Refused(why),
+    };
     let beyond = match recipient(core, project, authority::ProposalKind::Batch) {
         Some(to) => Beyond::Proposed { to },
         None => Beyond::Refused(unproposable()),
@@ -98,6 +74,50 @@ pub(crate) fn creating(
         },
         beyond,
     }
+}
+
+fn creating_executors(
+    core: &Core,
+    limits: &Limits,
+    party: u64,
+    project: u32,
+    held: people::Role,
+    canonical_deadline: Option<Wall>,
+) -> Result<(List<u32>, List<super::CreateProcedure>), people::Refusal> {
+    let role = core.authority.role(project, held.number()).expect("creating role");
+    let mut charters = List::with_capacity(limits.documents.lines);
+    for setting in &core.current.offered() {
+        let number = match setting {
+            crate::settings::Setting::Charter(number) => *number,
+            crate::settings::Setting::Template(_)
+            | crate::settings::Setting::Policy(_)
+            | crate::settings::Setting::Rules
+            | jig_domain_people::Setting::ProjectPolicy { .. } => continue,
+            jig_domain_people::Setting::Application { .. } => unreachable!("an application's setting: apps-core"),
+        };
+        let charter = core.charter(number).expect("offered charter");
+        if creating_charter(core, limits, party, project, held, charter.number)
+            && charters.push(charter.number).is_err()
+        {
+            return Err(people::Refusal::Limit { which: people::LimitKind::Authority });
+        }
+    }
+    let mut procedures = List::with_capacity(limits.documents.lines);
+    if core.projections.len() < limits.tasks.tasks {
+        for kind in &role.authority.delegation.kinds {
+            let authority::Executor::Procedure(procedure) = kind else { continue };
+            for &connector in &core.connectors {
+                let executor = tasks::Executor::Procedure { connector, code: *procedure };
+                let supported =
+                    create_start(core, project, party, held, executor, 0, canonical_deadline, limits.tasks.tree_tasks)
+                        .is_ok();
+                if supported && procedures.push(super::CreateProcedure { connector, code: *procedure }).is_err() {
+                    return Err(people::Refusal::Limit { which: people::LimitKind::Authority });
+                }
+            }
+        }
+    }
+    Ok((charters, procedures))
 }
 
 pub(super) fn amend_preflight(
@@ -162,7 +182,6 @@ pub(super) fn amend(core: &Core, limits: &Limits, party: u64, task: u64, held: O
     let budget_left = role.authority.budget.spend.min(pool_left).saturating_sub(row.authority.budget.spend);
     let mut given = crate::task_authority(&role.authority);
     given.budget.spend = given.budget.spend.min(pool_left);
-    given.delegation.tasks = given.delegation.tasks.min(core.tasks.delegation(task).expect("task context").tasks_left);
     let policy = core.authority.policy(row.project).expect("role belongs to policy");
     let mut hard = crate::task_authority(&policy.ceiling);
     hard.budget.spend = hard.budget.spend.min(pool_left);
@@ -267,7 +286,7 @@ pub(crate) fn create_start(
             }
             authority::Executor::Charter(charter)
         }
-        tasks::Executor::Person(_) => return Err(people::Refusal::NotOffered),
+        tasks::Executor::Job { .. } | tasks::Executor::Person(_) => return Err(people::Refusal::NotOffered),
         tasks::Executor::Procedure { connector, code } => {
             if code == 0 || !core.connectors.contains(&connector) {
                 return Err(people::Refusal::NotOffered);
@@ -421,7 +440,7 @@ pub(crate) fn amendment_admit_places_in(
         project,
         role: role.number(),
         pool: translate::authority_numbers(numbers),
-        tasks_left: context.tasks_left().ok_or(people::Refusal::Limit { which: people::LimitKind::Arithmetic })?,
+        tasks_left: role_policy.authority.delegation.tasks,
         request: authority::PersonRequest::Amend(after),
     };
     let checked = authority::check_request_with_standing(&core.authority, &ask, standing, &mut findings);

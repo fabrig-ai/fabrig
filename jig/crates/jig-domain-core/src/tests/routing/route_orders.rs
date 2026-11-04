@@ -1,4 +1,4 @@
-//! Carried ownership precedes the whole admission output (dynamic-memory.md, 4.6).
+//! Carried ownership precedes the whole admission output (skein's programming-model.md, 7.2).
 use crate::tests::*;
 
 const REPLY: Token = Token::new(9705);

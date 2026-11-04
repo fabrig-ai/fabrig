@@ -33,7 +33,14 @@ fn bounds_window(window: u32) -> Bounds {
     }
 }
 fn hello(bounds: Bounds) -> Hello {
-    Hello { stop_bound: Duration::from_nanos(1), slots: 2, workstreams: Box::new([]), hosting: Box::new([]), bounds }
+    Hello {
+        jobs: Box::default(),
+        stop_bound: Duration::from_nanos(1),
+        slots: 2,
+        workstreams: Box::new([]),
+        hosting: Box::new([]),
+        bounds,
+    }
 }
 fn rejected(needs: Needs, bounds: Bounds) -> HelloRefusal {
     let expected = crate::shortfall(&needs, &bounds, HostKind::Worker).expect("agent shortfall");

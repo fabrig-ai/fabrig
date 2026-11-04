@@ -47,6 +47,7 @@ pub fn class(event: &Event) -> Class {
                 | host::LinkUp::Limited { .. }
                 | host::LinkUp::AccountRefused { .. }
                 | host::LinkUp::Turn { .. }
+                | host::LinkUp::JobAnswer { .. }
                 | host::LinkUp::Answer { .. } => Class::Admitted,
             },
         },
@@ -89,6 +90,15 @@ pub fn class(event: &Event) -> Class {
 
 fn connector_class(event: &connector::Event) -> Class {
     match event {
+        connector::Event::SettingsDefaults
+        | connector::Event::RestoreSettings { .. }
+        | connector::Event::ForgetReplaced { .. }
+        | connector::Event::JudgeSettings { .. }
+        | connector::Event::KeepSettings { .. }
+        | connector::Event::KeepProposalSettings { .. }
+        | connector::Event::DropProposalSettings { .. }
+        | connector::Event::SaveSettingsDefaults { .. }
+        | connector::Event::ReadSetting { .. } => unreachable!("settings routing: apps-world"),
         connector::Event::System(event) => match event {
             connector::SystemEvent::Fact { origin: connector::Origin::Other, .. } => Class::Mixed,
             connector::SystemEvent::Fact { origin: connector::Origin::Own, .. }
@@ -144,6 +154,14 @@ fn connector_class(event: &connector::Event) -> Class {
 #[expect(clippy::result_large_err, reason = "the admission boundary returns the original owned event")]
 pub fn try_step(domain: &mut Domain, env: &Env<Limits>, event: Event) -> Result<(), Event> {
     match event {
+        Event::Core(core::Event::PublicRead { reply, read }) => {
+            if public_admits(domain, &env.limits) {
+                step(domain, env, Event::Core(core::Event::PublicRead { reply, read }));
+            } else {
+                crate::client_documents::public_busy(domain, reply);
+            }
+            Ok(())
+        }
         event @ (Event::Committed { .. } | Event::Failed { .. }) => {
             step(domain, env, event);
             Ok(())
@@ -154,7 +172,8 @@ pub fn try_step(domain: &mut Domain, env: &Env<Limits>, event: Event) -> Result<
         | Event::StartDone(_)
         | Event::TranscriptLoaded { .. }
         | Event::Core(
-            core::Event::ReadLoaded { .. }
+            core::Event::PublicDurable { .. }
+            | core::Event::ReadLoaded { .. }
             | core::Event::EndedReadLoaded { .. }
             | core::Event::EndedTaskLoaded { .. }
             | core::Event::SeenConversationLoaded { .. }
@@ -301,6 +320,12 @@ pub(crate) fn backlog(domain: &Domain) -> u64 {
 
 /// New external work enters only while the journal runs and the backlog
 /// is under the watermark (the draft's 4.2).
+pub(crate) fn public_admits(domain: &Domain, limits: &Limits) -> bool {
+    !domain.journal.stopped()
+        && backlog(domain) < u64::from(limits.public_watermark)
+        && domain.public_reads < limits.public_reads
+}
+
 pub(crate) fn admits(domain: &Domain, limits: &Limits) -> bool {
     !domain.journal.stopped() && backlog(domain) < u64::from(limits.watermark)
 }

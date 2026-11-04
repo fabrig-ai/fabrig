@@ -280,6 +280,7 @@ impl World {
                 | Request::Lost { .. }
                 | Request::Withdrawn { .. }
                 | Request::Refused { .. }
+                | Request::AssignJob { .. }
                 | Request::Observed { .. } => panic!("unexpected turn-world request: {request:?}"),
             }
         }
@@ -303,6 +304,7 @@ impl World {
         let channel = Token::new(self.channels);
         self.channel = Some(channel);
         let hello = Hello {
+            jobs: Box::default(),
             bounds: crate::fixtures::bounds(),
             stop_bound: self.settings.stop_bound,
             slots: 1,

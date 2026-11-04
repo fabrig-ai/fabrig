@@ -4,9 +4,9 @@
 use crate::{forge::Forge, translate};
 use skein_lib::{Duration, Env, Queue, Time, Token, Wall};
 use temper_fake_checkout::{Checkout, git::Remote};
-use temper_worker_domain_checkout::git::{Done, Fault, Op};
+use temper_worker_domain_checkout::git::{Commit, Done, Fault, Op};
 use temper_worker_domain_checkout::{
-    Domain, Event, Landing, Limits, Message, Outcome, Prepared, Repository, Request, Spec, Start, step,
+    Domain, Event, Failure, Landing, Limits, Message, Outcome, Prepared, Repository, Request, Spec, Start, step,
 };
 
 #[derive(Clone, Copy, Debug)]
@@ -34,6 +34,7 @@ struct World {
     disk: Checkout,
     hold: Option<Token>,
     trace: Vec<String>,
+    commits: Vec<(Commit, Commit, u32, Vec<u8>)>,
     expected: temper_fake_checkout::git::Tree,
     ours: u64,
     base: u64,
@@ -90,6 +91,7 @@ impl World {
             disk: Checkout::new(),
             hold: None,
             trace: Vec::new(),
+            commits: Vec::new(),
             expected,
             ours,
             base,
@@ -135,6 +137,9 @@ impl World {
                 return terminal;
             }
             let (owner, op) = pending.expect("caller waits for one IO operation");
+            if let Op::Commit { parent, merging: Some(second), identity, title, .. } = &op {
+                self.commits.push((*parent, *second, *identity, title.to_vec()));
+            }
             let pushing = matches!(op, Op::Push { .. });
             let mut done = translate::perform(&mut self.forge, &mut self.disk, op);
             if ambiguous && pushing {
@@ -319,4 +324,133 @@ pub fn retry_existing_change(movement: Option<bool>, ambiguous: bool) {
     let hold = world.hold.take().expect("second held");
     world.finish(Event::Release { hold }, false);
     assert_eq!(world.domain.holds(), 0);
+}
+
+fn heads_spec(heads: &[u64]) -> Spec {
+    Spec {
+        key: b"heads".as_slice().into(),
+        repositories: Box::new([Repository {
+            name: b"temper".as_slice().into(),
+            remote: b"forge/temper".as_slice().into(),
+            git: None,
+            start: Start::Merged {
+                branch: b"main".as_slice().into(),
+                heads: heads.iter().copied().map(translate::commit).collect(),
+            },
+            identity: 17,
+            account: None,
+            push: Some(b"early".as_slice().into()),
+            expected: None,
+            landing: None,
+            save: Some(b"saved".as_slice().into()),
+        }]),
+    }
+}
+
+fn prepare_heads(world: &mut World, heads: &[u64]) -> (Token, Vec<u8>) {
+    let Request::Prepared { prepared: Prepared::Ready { workspace, conflicts }, .. } =
+        world.finish(Event::Prepare { client: Token::new(9), spec: heads_spec(heads) }, false)
+    else {
+        panic!("merged heads prepared")
+    };
+    assert!(conflicts.is_empty());
+    let at = translate::path(&temper_worker_domain_checkout::git::Place {
+        workspace,
+        repository: b"temper".as_slice().into(),
+        git: None,
+    });
+    (workspace, at)
+}
+
+fn release_heads(world: &mut World) {
+    let hold = world.hold.take().expect("held until release");
+    assert!(matches!(world.finish(Event::Release { hold }, false), Request::Released { .. }));
+    assert_eq!(world.domain.holds(), 0);
+}
+
+/// Each prepare merge commits locally; delivery creates one branch holding all heads.
+pub fn merged_heads() {
+    let mut world = World::new(73, Case::Clean, 64);
+    let root = world.forge.parent(world.ours).expect("fork point");
+    world.forge.create_branch(b"forge/temper", b"second", root).expect("second head");
+    let second = world.forge.advance(b"forge/temper", b"second", b"second", b"head two\n");
+    world.expected.insert(b"second".to_vec(), b"head two\n".to_vec());
+    world.forge.moves();
+    let heads = [world.ours, second];
+    prepare_heads(&mut world, &heads);
+    assert!(world.forge.moves().is_empty(), "prepare moves no remote branch");
+    assert_eq!(&*world.push(true, false), &[Landing::Unchanged], "merged tree is the save baseline");
+    let pushed = world.push(false, false);
+    let Landing::Landed { commit } = pushed[0] else { panic!("first delivery lands") };
+    let last = translate::fake(commit);
+    let first = world.forge.parent(last).expect("first merge");
+    assert_eq!(world.forge.parent(first), Some(world.base));
+    assert_eq!(world.forge.merge_parent(first), Some(world.ours));
+    assert_eq!(world.forge.merge_parent(last), Some(second));
+    assert_eq!(world.forge.tree(last), world.expected);
+    assert_eq!(world.forge.branch(b"forge/temper", b"early"), Some(last));
+    assert_eq!(world.forge.branch(b"forge/temper", b"saved"), None);
+    // The fake store records full messages and both parents; the operation names its author.
+    let expected_first = expected_merge_message(world.ours);
+    let expected_second = expected_merge_message(second);
+    assert_eq!(world.forge.message(first), expected_first.as_bytes());
+    assert_eq!(world.forge.message(last), expected_second.as_bytes());
+    assert_eq!(
+        world.commits,
+        vec![
+            (translate::commit(world.base), translate::commit(world.ours), 17, expected_first.into_bytes()),
+            (translate::commit(first), translate::commit(second), 17, expected_second.into_bytes()),
+        ]
+    );
+    release_heads(&mut world);
+}
+
+/// A second head conflicts; release and retry discard every partial merge and marker.
+pub fn conflicting_head() {
+    let mut world = World::new(79, Case::Clean, 64);
+    let root = world.forge.parent(world.ours).expect("fork point");
+    world.base = world.forge.advance(b"forge/temper", b"main", b"code", b"base edit\n");
+    world.forge.create_branch(b"forge/temper", b"second", root).expect("second head");
+    let second = world.forge.advance(b"forge/temper", b"second", b"code", b"conflicting edit\n");
+    world.forge.moves();
+    let failed = world.finish(Event::Prepare { client: Token::new(9), spec: heads_spec(&[world.ours, second]) }, false);
+    assert!(matches!(failed, Request::Prepared { prepared: Prepared::Failed {
+        failure: Failure::Conflicted { repository: 0, head },
+    }, .. } if head == translate::commit(second)));
+    assert_eq!(world.domain.holds(), 1);
+    let hold = world.hold.expect("failed hold stays");
+    for event in [
+        Event::Push { hold, message: Message { title: b"push".as_slice().into(), body: Box::new([]) } },
+        Event::Save { hold, message: Message { title: b"save".as_slice().into(), body: Box::new([]) } },
+    ] {
+        assert!(matches!(
+            world.finish(event, false),
+            Request::Pushed { outcome: Outcome::Refused { .. }, .. }
+                | Request::Saved { outcome: Outcome::Refused { .. }, .. }
+        ));
+    }
+    assert!(world.forge.moves().is_empty(), "failed preparation neither pushes nor saves");
+    assert_eq!(world.forge.branch(b"forge/temper", b"early"), None);
+    assert_eq!(world.forge.branch(b"forge/temper", b"saved"), None);
+    release_heads(&mut world);
+    let heads = [world.base];
+    let (_, at) = prepare_heads(&mut world, &heads);
+    let mut expected = world.forge.tree(world.base);
+    expected.insert(b"code".to_vec(), b"base edit\n".to_vec());
+    let mut tree = world.disk.tree(&at);
+    tree.retain(|path, _| !path.starts_with(b".git/"));
+    assert_eq!(tree, expected, "next prepare resets partial merges and markers");
+    assert_eq!(&*world.push(true, false), &[Landing::Unchanged]);
+    assert_eq!(&*world.push(false, false), &[Landing::Unchanged]);
+    assert!(world.forge.moves().is_empty());
+    release_heads(&mut world);
+}
+
+fn expected_merge_message(head: u64) -> String {
+    use std::fmt::Write as _;
+    let mut message = String::from("Merge ");
+    for byte in skein_fake_forge_domain::object_bytes(head) {
+        write!(&mut message, "{byte:02x}").expect("write to string");
+    }
+    message
 }

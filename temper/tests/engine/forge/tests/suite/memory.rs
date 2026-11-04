@@ -39,7 +39,7 @@ fn bounded_connector_tables_and_client_fit_the_declared_heap() {
             domain.reclaim();
 
             meter.start();
-            top::step(&mut domain, &env, top::Event::Hold { task, resource: name, from: None }, &mut out);
+            top::step(&mut domain, &env, top::Event::Hold { entry: 0, task, resource: name, from: None }, &mut out);
             let measured = meter.end();
             drain(&mut out);
             meter.check(measured, CONNECTOR_HEAP_CEILING, &limits);

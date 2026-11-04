@@ -48,7 +48,6 @@ impl Replay {
         let mut out = Writer::new(usize::try_from(total).expect("u32 fits usize"));
         out.put(&VERSION.to_be_bytes()).expect("measured replay header");
         let provider = match self.provider {
-            Provider::OpenAiCodex => 1_u8,
             Provider::OpenAi => 3_u8,
             Provider::Anthropic => 2_u8,
         };
@@ -71,7 +70,6 @@ impl Replay {
             return Err(Error::Unsupported);
         }
         let provider = match input.u8() {
-            Some(1) => Provider::OpenAiCodex,
             Some(3) => Provider::OpenAi,
             Some(2) => Provider::Anthropic,
             Some(_) | None => return Err(Error::Unsupported),
@@ -89,5 +87,30 @@ impl Replay {
             Err(error) => return Err(crate::translate::decode(error)),
         };
         Ok(Replay { provider, value })
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    const LIMITS: DocumentLimits = DocumentLimits { bytes: 2, strings: 2, tokens: 2, depth: 2 };
+
+    #[test]
+    fn unknown_provider_tags_including_one_are_refused() {
+        for tag in [0, 1, 4, 255] {
+            let envelope = [0, 1, tag, 0, 0, 0, 2, b'{', b'}'];
+            assert_eq!(Replay::from_bytes(&envelope, &LIMITS), Err(Error::Unsupported), "tag {tag}");
+        }
+    }
+
+    #[test]
+    fn anthropic_and_openai_keep_their_stored_provider_tags() {
+        for (tag, provider) in [(2, Provider::Anthropic), (3, Provider::OpenAi)] {
+            let envelope = [0, 1, tag, 0, 0, 0, 2, b'{', b'}'];
+            let replay = Replay::from_bytes(&envelope, &LIMITS).expect("known provider");
+            assert_eq!(replay.provider, provider);
+            assert_eq!(replay.to_bytes(&LIMITS).expect("bounded replay").as_ref(), envelope);
+        }
     }
 }

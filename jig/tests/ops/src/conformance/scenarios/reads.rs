@@ -151,6 +151,7 @@ fn page(store: &Store, load: Token, range: &transport::Range) -> root::Event {
             transport::Scope::EndedTasks
             | transport::Scope::TaskRows { .. }
             | transport::Scope::SettingsHistory { .. }
+            | transport::Scope::TaskText { .. }
             | transport::Scope::Task { .. }
             | transport::Scope::Proposal { .. }
             | transport::Scope::Escalation { .. }
@@ -177,11 +178,10 @@ fn page(store: &Store, load: Token, range: &transport::Range) -> root::Event {
                     | tasks::Stored::EndedByProject(tasks::EndedByProject { task, .. }),
                 ),
             ) => *task,
-            (transport::Scope::Task { task }, core::Record::Tasks(tasks::Stored::Ended(row)))
-                if row.number == *task =>
-            {
-                *task
-            }
+            (
+                transport::Scope::TaskText { task, .. } | transport::Scope::Task { task },
+                core::Record::Tasks(tasks::Stored::Ended(row)),
+            ) if row.number == *task => *task,
             _ => continue,
         };
         let owner = store.rows.get(&root::Key::Core(core::Key::Tasks(tasks::Key::Ended(number))));

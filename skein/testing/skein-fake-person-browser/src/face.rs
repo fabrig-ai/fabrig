@@ -476,7 +476,6 @@ impl<'a> BrowserFace<'a> {
             | Event::Missed { .. }
             | Event::Snapshot { .. }
             | Event::Screenshot { .. }
-            | Event::Looked { .. }
             | Event::Closed { .. } => {}
         }
     }

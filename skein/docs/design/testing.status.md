@@ -1,8 +1,39 @@
 # testing: status
 
-2026-10-29. Where skein's code lags or departs from [testing.md](testing.md).
+2026-11-04. Where skein's code lags or departs from [testing.md](testing.md).
 
-- **Built:** 2: uncapped domain stages. 5: kernel-free ring/real-loop mechanics, binary counts at tree settlement, memory modes and peak-only outcomes, shared deadlines and starvation accounting, cgroup removal after emptiness, state-digest plumbing. 4, 6: the fake machine and GitHub's layer in `crates/`. 10: the portable crates checked with clippy for wasm32 (`wasm-portable`).
-- **Not yet:** 3: HTTP example and TLS real loop. 4: full filesystem and contained-tree fixtures. 6: remaining product-fake moves. 9: metering heap handed between services.
-
-- **Built (2026-11-01):** 7: focused step/world rows and fuzzy sweeps; browser and live are the remaining slow tiers.
+- **Not yet:** 4: the fake machine's entry inodes, groups, modes past
+  `0o777`, times and attributes, its subvolume and filesystem answers,
+  and the programs for trees.
+  6, 10: the gate's wasm32 list (`.config/gate/wasm32.txt`) leaves out
+  `skein-tls`, `skein-fake-forge-github` and `skein-fake-peers`, and no
+  listed package reaches them on wasm32, so the gate's wasm32 clippy
+  lints none of them; run outside the gate, their wasm32 clippy passes,
+  warnings denied.
+  7: `live-skein` has no CPU budget or wall hard limit in
+  `tools/tiers/budgets.toml`.
+- **Departs:** 5, 10: `skein/testing/skein-world/src/lib.rs` fences six
+  items `cfg(unix)`, though these sections have the crate native, on
+  Linux and macOS, so off unix it fails to build however it is fenced; no
+  reason is recorded.
+  6: `crates/skein-fail-stop`, `crates/skein-fake-forge-protocol`
+  (a memory suite) and `crates/skein-forge` have a `tests/` directory,
+  where 6 puts what drives a crate from outside under `tests/`; no reason
+  is recorded.
+  6: step tests belong in `src/tests.rs` and `src/tests/`, but
+  `skein-shell/src/listener_calls.rs` loads sibling `listener_tests.rs`
+  through `#[path]`, as other crates load `*_tests.rs`, and
+  `skein-llm/src/translate.rs` and other source files hold inline test
+  modules; no reason is recorded (the code's side is
+  `skein/docs/development/debt/D027-step-test-layouts.md`). 6: shared
+  harnesses belong in `testing/`, but worlds under `tests/` serve as
+  kits: `skein/tests/llm-connection/Cargo.toml` depends on
+  `skein-llm-world` and `skein-tls-world`, and `skein-llm/Cargo.toml`
+  uses `skein-json-world` as a dev-dependency; no reason is recorded
+  (the code's side is
+  `skein/docs/development/debt/D028-worlds-as-kits.md`). 6: `skein-scratch`
+  is the tests' scratch directory, removed when dropped, but
+  `skein/testing/skein-codegen/tests/suite/patch_run.rs` and
+  `patch_generated.rs` make theirs by hand and remove them after their
+  assertions, so a failing test leaves one behind, and a reused pid then
+  fails on it; no reason is recorded.

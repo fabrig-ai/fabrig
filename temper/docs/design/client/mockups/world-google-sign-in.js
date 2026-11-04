@@ -1,4 +1,4 @@
-// A deployment reached at a name of its own (draft sign-in.md): temper
+// A deployment reached at a name of its own (protocol/sign-in.md): temper
 // serve behind a TLS proxy, its people signing in with Google, and its
 // managed Forgejo signing them in through temper. The names are examples.
 // Times are minutes from Friday 23 October, 09:00 UTC.
@@ -12,7 +12,7 @@
       project: 'hello',
       signedIn: false,
 
-      // The configuration's public address (draft sign-in.md, 2.2), and
+      // The configuration's public address (protocol/sign-in.md, 2.2), and
       // who tries to sign in at each ending.
       site: {
         origin: 'https://temper.example.com',
@@ -44,7 +44,7 @@
 
       // Managed: run by its owner as a service, temper set up on it with
       // a site admin's token. `through`: its people sign in through
-      // temper, its OpenID provider (draft sign-in.md, section 5).
+      // temper, its OpenID provider (protocol/sign-in.md, section 9).
       forges: [
         { n: 1, kind: 'Forgejo', name: 'Forgejo at git.example.com', web: 'https://git.example.com', mode: 'managed', state: 'connected', login: 'temper', id: 3, through: true,
           load: { used: 22, rate: 600, window: 'minute', reserve: 60, uses: [['fresh reads', 12], ['writes', 4], ['keeping up', 6], ['the slow pass', 0]], outbox: { waiting: 0, uncertain: 0 }, hooks: [['work/hello', -2]] } },
@@ -108,7 +108,7 @@
 
   MOCKUPS.worlds['google-sign-in'] = {
     name: 'Google sign-in',
-    about: 'a deployment at its own name behind a TLS proxy: people sign in with Google, and its managed Forgejo signs them in through temper (draft sign-in.md); drawn ahead of temper',
+    about: 'a deployment at its own name behind a TLS proxy: people sign in with Google, and its managed Forgejo signs them in through temper (protocol/sign-in.md); drawn ahead of temper',
     HOUR0: Date.UTC(2026, 9, 23, 9, 0),
     initial, steps, upcoming: [], acts: { 1: 'Signing in' },
   };

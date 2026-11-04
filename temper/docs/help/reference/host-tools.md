@@ -195,6 +195,15 @@ A write.
 - `resource`: an object; required. What it writes on: {kind: repository}, {kind: pull, number}, {kind: issue, number} or {kind: branch, segments}.
 - `write`: an object; required. {kind: create_issue, key, title, body}, {kind: post, number, key, body} or {kind: status, commit, context, check}.
 
+## read_task
+
+Read related tasks and retained ended delegates: words, state, dependencies, revisions and hold reason. Continue cut words with from=next.
+
+A read.
+
+- `task`: an integer of at least 1; required.
+- `from`: an integer of at least 0, 0 when absent; optional.
+
 ## settings
 
 Read the deployment's settings: the inventory with no member, or a setting, a revision's record or a page of the history; a long answer goes on from an offset.
@@ -348,7 +357,7 @@ A read.
 
 ## read_job
 
-Read one CI job's log, cut at a byte limit.
+Read one CI job's failed-step end or job tail, cut at a byte limit.
 
 A read.
 

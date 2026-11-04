@@ -5,6 +5,7 @@ extern crate alloc;
 pub mod fields;
 pub mod file;
 mod json;
+mod kinds;
 pub mod page;
 pub mod render;
 mod text;
@@ -14,9 +15,13 @@ pub mod wire;
 use alloc::boxed::Box;
 use skein_json::writer::Encoder;
 pub use text::{Text, text_end};
+
+/// Every jig family but settings: a charter's `tools` when its file leaves it out.
+pub const CHARTER_TOOLS_DEFAULT: u64 = 1023;
 #[derive(Clone, Copy, Debug)]
 pub struct Limits {
     pub settings: jig_client_protocol_wire::Limits,
+    pub kinds: temper_client_protocol_wire::v1::Limits,
     pub ask_bytes: u64,
     pub result_bytes: u64,
     pub text: u32,
@@ -100,6 +105,8 @@ impl Limits {
             32_768_u32.min(jig_client_protocol_wire::CEILINGS.setting_model_effort_some);
         settings.setting_model_efforts_item =
             32_768_u32.min(jig_client_protocol_wire::CEILINGS.setting_model_efforts_item);
+        settings.charter_document_name = settings.pattern_segments;
+        settings.charter_document_name_item = settings.pattern_segments_item;
         settings.charter_alternatives = 32_u32.min(jig_client_protocol_wire::CEILINGS.charter_alternatives);
         settings.setting_model_efforts = 32_u32.min(jig_client_protocol_wire::CEILINGS.setting_model_efforts);
         settings.setting_policy_projections = 32_u32.min(jig_client_protocol_wire::CEILINGS.setting_policy_projections);
@@ -121,11 +128,12 @@ impl Limits {
 
         Self {
             settings,
+            kinds: temper_client_protocol_wire::v1::CEILINGS,
             ask_bytes: 1_048_576,
             result_bytes: 6_292_480,
             text: 32_768,
             rows: 32,
-            authority: 12,
+            authority: 14, // Holds the stock's fourteen forge grants.
             fields: 16,
         }
     }

@@ -15,7 +15,7 @@ pub const FIRST_NAME_BYTES: u32 = 1024;
 /// Capacity of each durable top table and its child.
 #[derive(Clone, Copy, PartialEq, Eq, Debug)]
 pub struct Limits {
-    /// Forges kept at most (temper/docs/design/draft/playground-reset.md, 3).
+    /// Forges kept at most (temper/docs/design/protocol/forge.md, 7).
     pub forges: u32,
     pub repositories: u32,
     pub tasks: u32,
@@ -47,10 +47,19 @@ pub struct Limits {
     pub key_entries: u32,
     pub key_path_bytes: u32,
     pub trees_in_flight: u32,
+    pub tiers: TierLimits,
     /// Project judge tables retained beside committed policy.
     pub judge_projects: u32,
     /// Criteria in each deployment or project judge table.
     pub judge_criteria: u32,
+    /// Rules per scope, configured by `forge.landing_rules` (protocol/configuration.md, 13.2).
+    pub landing_rules: u32,
+    /// Roles supplied from jig's `authority.roles`.
+    pub roles: u32,
+    /// Pending proposals of settings, supplied from jig's `settings.proposals`.
+    pub setting_proposals: u32,
+    /// Revisions whose replaced values are retained, supplied from jig's `settings.history`.
+    pub setting_history: u32,
     /// Connector brief sections gathering concurrently.
     pub brief_sections: u32,
     /// Maximum bytes retained for one gathered brief section.
@@ -61,6 +70,14 @@ pub struct Limits {
     pub client: skein_forge_client::Limits,
 }
 
+/// Per-repository tiers and reported failures (temper/docs/design/domain/after-landing.md, 10).
+#[derive(Clone, Copy, PartialEq, Eq, Debug)]
+pub struct TierLimits {
+    pub tiers: u32,
+    pub failing_tests: u32,
+    pub test_id_bytes: u32,
+}
+
 /// Whether entrance limits are coherent and retained row counts fit their types.
 /// Names and gates fit the panel; client admissions cover the top's rows.
 /// Reconciliation and landing capacities must be representable
@@ -68,7 +85,12 @@ pub struct Limits {
 /// Internal output envelopes and retained heap sums do not constrain admission.
 #[must_use]
 pub fn valid(l: &Limits) -> bool {
-    if l.forges == 0
+    if l.tiers.tiers == 0
+        || l.tiers.failing_tests == 0
+        // The store's failure and flake lists hold at most 1024 test ids.
+        || l.tiers.failing_tests > 1024
+        || l.tiers.test_id_bytes == 0
+        || l.forges == 0
         || l.repositories == 0
         || l.tasks == 0
         || l.holds == 0
@@ -78,11 +100,14 @@ pub fn valid(l: &Limits) -> bool {
         || l.name_bytes == 0
         || l.name_bytes > crate::PANEL_NAME_BYTES
         || l.change_policy.gates > crate::PANEL_GATES
+        || skein_lib::usize_of(l.change_policy.questions) >= temper_engine_domain_forge_change::QUESTIONS_OPEN
+        || l.change_policy.tasks == 0
         || l.queue_window == skein_lib::Duration::ZERO
         || l.adoptions == 0
         || l.applications == 0
         || l.collaborators == 0
         || l.landings == 0
+        || l.landing_rules == 0
         || l.brief_sections == 0
         || l.brief_bytes == 0
         || !skein_forge_client::valid(&l.client)

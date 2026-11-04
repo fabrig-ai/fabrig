@@ -31,7 +31,8 @@ pub(super) fn domain_request(service: &mut Stages, mut frame: Option<&mut Frame>
                 live_step(service, frame.as_deref_mut(), crate::live::Action::Open { owner, retry: name.retry });
             }
             let deltas = service.live.deltas(&prompt, observation.is_some());
-            let outcome = service.outcome.clone().expect("an admitted Start retains its result contract");
+            let outcome = service.opening.outcome().clone();
+            let deliver = outcome.change.clone();
             let request = llm::FromDomain::Complete {
                 owner,
                 grant,
@@ -44,7 +45,7 @@ pub(super) fn domain_request(service: &mut Stages, mut frame: Option<&mut Frame>
                     decoded_call_bytes,
                 },
                 outcome,
-                deliver: service.delivery.clone(),
+                deliver,
                 observation,
                 deltas,
             };
@@ -52,6 +53,9 @@ pub(super) fn domain_request(service: &mut Stages, mut frame: Option<&mut Frame>
         }
         domain::Request::Lower(smith_domain::Lower::Yield { owner }) => {
             program::complete(service, llm::FromDomain::Yield { owner });
+        }
+        domain::Request::Lower(smith_domain::Lower::Close { owner }) => {
+            program::complete(service, llm::FromDomain::Close { owner });
         }
         domain::Request::Lower(smith_domain::Lower::Cancel { owner }) => {
             program::complete(service, llm::FromDomain::Cancel { owner });

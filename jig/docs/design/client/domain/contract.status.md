@@ -1,8 +1,16 @@
 # contract: status
 
-2026-10-29. Where jig's code lags or departs from [contract.md](contract.md).
+2026-11-03. Where jig's code lags or departs from [contract.md](contract.md).
 
-- **Built:** 1 to 10: operation API, whole authorities, queries, spans, account/model offers and preferences, projects, pasted sign-in and moves. 5.1: stable deadlines; Seen current-state reprocessing. 3.2: `MoveToNewest`. 5.1: `Task.settings`. 6: a held revision's charter read; a read's too-linked answer, naming the join bound. 3.2: Stop's placed hold; 5.6: HoldCategory::Placed. 3.2: `PolicyEdit::RoleSpend`. 6: the settings decision in a task's messages. 3.2: Lift; 5.6: the placed hold's document line and whether the reader may lift it; a release proposal's hold.
-- **Not yet:** 5.3: complete creating bounds/executors and UTF-8 result validation. 6: retained-transcript gone answer. 7.4: application streams. 11: distinct over-bound document answer unresolved. 3.2: Hold; 5.6: holds{project}.
-
-- **Built (2026-11-01):** 5.1, 7.2: live-tree folds name the nearest shown ancestor, with overflow merged into the root within the window's row bound; phase and held counts cover every unshown descendant.
+- **Departs:** 4: answers give typed lacking facts, how an object ended,
+  and who decided it and how; the client wire carries these fields, but
+  `jig-protocol-engine-clients/src/translate/refusals.rs`, `lack` and
+  `ending`, always fill `LackingTaskKind.executor`, `LackingDepth.needed`,
+  `LackingTasks.needed`, `LackingDeadline.asked` and `latest`, failed and
+  cancelled endings' `reason`, and a decided ending's `party` and `how`
+  with `None`, so a client always reads them empty. Either the engine
+  fills them or a client wire version drops them; no reason is recorded.
+- **Not yet:** 5.3: `me` represents a refused creating offer by absence,
+  without carrying its refusal reason, including an authority-limit
+  refusal when an executor list exceeds `documents.lines`.
+- **Not yet:** 3.2: `Hold`; `Move` of a live task as its new requester; `Succeed` (neither `contract::Ask` nor the client wire's v19 schema has them). 5.1: `me`'s templates carry no `resolved_default` preview; the accounts document's aggregate `settled` counts only the party's pending sign-ins, not the program checks they asked, and lists no host whose answer is pending (`jig/crates/jig-domain-core/src/documents/accounts.rs`). 5.3: creating's executors list charters and procedures, not persons or roles (`CreateBounds`); a result's texts are not checked as UTF-8 where the tasks child admits a result; a project's document offers `RemoveProject` to no one, its owners included (`jig/crates/jig-domain-core/src/acts/objects.rs`, `admit`, refuses `Act::RemoveProject` not offered; `documents/offers.rs` leaves it out of a project's acts). 5.6: the `holds{project}` read. 6: a turn read past its transcript's horizon: the client reads `Gone`, and no engine path answers it. 7.4: an application's streams.

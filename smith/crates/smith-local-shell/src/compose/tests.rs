@@ -45,7 +45,7 @@ fn configured_local_and_generated_child_traces_are_admitted_before_any_open() {
             layer: settings::Layer::User,
             path: "trace-admission.toml".into(),
             text: format!(
-                "model='codex/gpt-6-luna'\ntrace.path='{}'\n[accounts.codex]\nsource='env'\nvariable='SMITH_FIXTURE_TOKEN'\n[endpoints.codex]\naddress='127.0.0.1:443'\ntrust.system=false\ntrust.der=['{certificate}']\n",
+                "model='openai/gpt-6-luna'\ntrace.path='{}'\n[accounts.openai]\nprovider='openai'\nsource='env'\nvariable='SMITH_FIXTURE_TOKEN'\n[endpoints.openai]\naddress='127.0.0.1:443'\ntrust.system=false\ntrust.der=['{certificate}']\n",
                 path.display()
             ),
         };

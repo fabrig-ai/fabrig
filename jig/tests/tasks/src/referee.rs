@@ -463,8 +463,11 @@ impl Expectations for Tasks {
 
 fn bytes(result: &TaskResult) -> usize {
     match result {
+        TaskResult::Job { bytes } => bytes.len(),
         TaskResult::Change { title, words, .. } => title.words.len().max(words.len()),
-        TaskResult::Report { words } | TaskResult::Verdict { words, .. } => words.len(),
+        TaskResult::NoChange { words } | TaskResult::Report { words } | TaskResult::Verdict { words, .. } => {
+            words.len()
+        }
         TaskResult::Approved { state, words } => state.len() + words.as_ref().map_or(0, |words| words.len()),
         TaskResult::Failure { reason } => reason.len(),
     }
@@ -525,6 +528,7 @@ fn within(task: &TaskRecord, limits: &Limits) -> bool {
     }
     let result_cap = skein_lib::length::usize_of(limits.result_bytes);
     let contract = match &task.contract {
+        Contract::Job { bytes } => *bytes <= limits.result_bytes,
         Contract::Approval { state, .. } => state.len() <= result_cap,
         Contract::Report { words } | Contract::Change { words, .. } => *words <= limits.result_bytes,
         Contract::Verdict { choices } => {

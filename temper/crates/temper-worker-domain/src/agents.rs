@@ -231,7 +231,7 @@ pub(crate) fn decoded(domain: &mut Domain, env: &Env<Limits>, owner: Token, star
             // (`domain/agent.md`, 4.3), after the protocol decodes the start.
             for call in &mut start.answered {
                 if let smith::SavedReply::Host { body, .. } = &call.reply
-                    && body.len() > usize::try_from(env.limits.reply_bytes).expect("u32 fits usize")
+                    && body.len() > skein_lib::usize_of(env.limits.reply_bytes)
                 {
                     call.reply = smith::SavedReply::TooLarge;
                 }

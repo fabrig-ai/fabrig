@@ -9,6 +9,7 @@ use crate::{Core, RetainedResult};
 fn result_notice(ending: tasks::Ending) -> (tasks::ResultKind, Box<[u8]>) {
     match ending {
         tasks::Ending::Done(result) => match result {
+            tasks::TaskResult::Job { .. } => (tasks::ResultKind::Job, Box::new([])),
             tasks::TaskResult::Approved { state, words } => {
                 let words_present = words.is_some();
                 let words = match words {
@@ -17,6 +18,7 @@ fn result_notice(ending: tasks::Ending) -> (tasks::ResultKind, Box<[u8]>) {
                 };
                 (tasks::ResultKind::Approved { state, words_present }, words)
             }
+            tasks::TaskResult::NoChange { words } => (tasks::ResultKind::NoChange, words),
             tasks::TaskResult::Report { words } => (tasks::ResultKind::Report, words),
             tasks::TaskResult::Verdict { code, words, fields } => (tasks::ResultKind::Verdict { code, fields }, words),
             tasks::TaskResult::Change { connector, kind, resource, words, .. } => {

@@ -75,6 +75,12 @@ pub fn limits(sizes: &Sizes) -> Option<v9::Limits> {
         model_bound_name: sizes.model_name,
         bounds_program_endpoints: v9::CEILINGS.bounds_program_endpoints,
         bounds_models: sizes.models,
+        hello_jobs: sizes.models,
+        job_spec: sizes.charter,
+        job_grants: sizes.accounts.checked_add(sizes.credentials)?,
+        job_invalid_start_why: sizes.detail,
+        job_finished_result: sizes.result,
+        job_failed_detail: sizes.detail,
         hello_workstreams: sizes.workstreams,
         hello_hosting: sizes.slots,
         turn_refused: sizes.inbox,
@@ -143,6 +149,8 @@ fn body(limits: &v9::Limits, kind: Kind) -> Option<u32> {
         Kind::SignOut => v9::SignOut::encoded_bound(limits),
         Kind::Logins => v9::Logins::encoded_bound(limits),
         Kind::SignedOut => v9::SignedOut::encoded_bound(limits),
+        Kind::Job => v9::Job::encoded_bound(limits),
+        Kind::JobAnswer => v9::JobAnswer::encoded_bound(limits),
         Kind::Grant => v9::Granted::encoded_bound(limits),
     }?;
     u32::try_from(bytes).ok()

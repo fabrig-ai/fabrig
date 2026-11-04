@@ -241,7 +241,7 @@ pub fn environment(home: &[u8], kind: Option<git::Kind>, identity: Option<&Ident
                 let size = u32::try_from(raw.len()).expect("channel identity length fits u32");
                 let size =
                     base64::encoded_len(base64::Alphabet::Standard, size).expect("bounded identity encoding fits u32");
-                let mut encoded = Writer::new(usize::try_from(size).expect("u32 fits usize"));
+                let mut encoded = Writer::new(skein_lib::usize_of(size));
                 base64::encode(base64::Alphabet::Standard, &raw, &mut encoded).expect("measured encoding fits");
                 let header = joined(&[b"GIT_CONFIG_VALUE_0=Authorization: Basic ", &encoded.finish()]);
                 words(&mut out, &[b"GIT_CONFIG_COUNT=1", b"GIT_CONFIG_KEY_0=http.extraHeader", &header]);

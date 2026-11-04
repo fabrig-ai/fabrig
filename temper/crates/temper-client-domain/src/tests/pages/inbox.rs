@@ -42,8 +42,9 @@ fn rows(object: ObjectKey, group: InboxGroup, project: u32) -> List<contract::In
 fn reads(out: &mut Queue<Request>) -> Box<[Read]> {
     let mut reads = List::with_capacity(out.len());
     while let Some(request) = out.pop() {
-        if let Request::Client {
-            request: jig_client::Request::Down { down: jig_client::Down::Read { what: Readable::Jig(read), .. } },
+        if let Request::Unlinked {
+            request:
+                jig_client::UnlinkedRequest::Down { down: jig_client::Down::Read { what: Readable::Jig(read), .. } },
         } = request
         {
             reads.push(read).expect("bounded reads");
@@ -86,9 +87,9 @@ fn the_inbox_at_a_filtered_path_reads_that_filter() {
     );
     let mut watch = None;
     while let Some(request) = out.pop() {
-        if let Request::Client {
+        if let Request::Unlinked {
             request:
-                jig_client::Request::Down {
+                jig_client::UnlinkedRequest::Down {
                     down:
                         jig_client::Down::Open {
                             watch: token,

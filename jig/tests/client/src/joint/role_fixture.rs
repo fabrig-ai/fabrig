@@ -130,6 +130,10 @@ pub(super) fn seeded(story: crate::harness::seed::RoleStory) -> Joint {
             ]),
             Box::new([Script::Finish { report: b"one accepted goal".as_slice().into() }]),
         ],
+        RoleStory::DelegateHold => vec![Box::new([
+            Script::Call(Call::Delegate { words: b"Held delegate".as_slice().into(), budget: 1 }),
+            Script::Park,
+        ])],
         RoleStory::Choice => vec![Box::new([
             Script::Call(Call::Choose {
                 role: 1,
@@ -141,7 +145,34 @@ pub(super) fn seeded(story: crate::harness::seed::RoleStory) -> Joint {
         ])],
         RoleStory::Goal | RoleStory::Observer => vec![],
     };
-    let mut value = front(8510, scripts, 1, |_, _| {}, &crate::stories::shared::a_roles::limits());
+    let configure: fn(&mut jig_test_domain::Config, &jig_test_domain::Limits) =
+        if matches!(story, RoleStory::DelegateHold) {
+            |configuration, limits| {
+                let mut rules = configuration.core.defaults.rules.clone();
+                rules.maximum_run_spend = 5;
+                configuration.core.defaults.rules = jig_domain_authority::Domain::new(rules, limits.core.authority)
+                    .expect("delegate run allowance")
+                    .rules()
+                    .clone();
+            }
+        } else {
+            |_, _| {}
+        };
+    let mut value = front(8510, scripts, 1, configure, &crate::stories::shared::a_roles::limits());
+    if matches!(story, RoleStory::DelegateHold) {
+        let world = &mut value.session.driver.world;
+        let creating = world.peers.as_ref().expect("role peers").creating.as_ref().expect("role authority");
+        let people::Ask::Create { project, mut batch } =
+            jig_test_profile::fixtures::create_chat(creating, 1, 2, b"Hello".as_slice().into())
+        else {
+            unreachable!("conversation recipe")
+        };
+        batch[0].flags.ended_by = people::EndedBy::Requester;
+        batch[0].authority.spend = 10;
+        batch[0].budget = people::Budget::Named;
+        let sign_in = world.peers.as_ref().expect("role peers").parties[2].sign_in.expect("member sign-in");
+        jig_core_world::fixtures::ask_as(world, sign_in, 80, people::Ask::Create { project, batch });
+    }
     if matches!(story, RoleStory::Proposal | RoleStory::Choice) {
         seed_core(
             &mut value.session.driver,

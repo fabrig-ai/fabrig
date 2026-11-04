@@ -1,11 +1,11 @@
 # The forge connector
 
-Provisional, 2026-10-04, revised 2026-10-30. How temper drives a forge,
+Provisional, 2026-10-04, revised 2026-11-02. How temper drives a forge,
 Forgejo or GitHub: the forge as a connector on jig's contract (jig's
 `domain/connectors.md`), with its resources, effects, topics, procedures,
-requirements and reads; a forge connected or not; adopting repositories,
-and what the picker offers; keeping up; a change's way to landing and
-the requirements its merge meets; landing queues, a forge's own merge
+requirements and reads; a forge connected or not, and removed; adopting
+repositories, and what the picker offers; keeping up; a change's way to
+landing and the requirements its merge meets; landing queues, a forge's own merge
 queue among them; updates and conflicts; issues; and the ways temper
 takes part in what others own. Its protocol layer, the component that
 makes each call to a forge and hears its deliveries, is
@@ -25,7 +25,8 @@ makes each call to a forge and hears its deliveries, is
 - **The change procedure** takes a change from produced to landed:
   produce, open, CI, gates, its turn in its landing branch's queue, an
   update from its base when it lacks the base's tip, and a merge at
-  exactly its head. Agents are woken for what needs judgement: producing,
+  exactly its head; CI and the update only where its landing branch's
+  rules ask them (8.7). Agents are woken for what needs judgement: producing,
   repairs, reviews, conflicts.
 - **Landing rules are requirements.** A project's rules say what a merge
   into a branch needs: CI passed, the head up to date with the branch,
@@ -46,6 +47,11 @@ makes each call to a forge and hears its deliveries, is
   A forge not connected answers every call `NotConnected` at once, and
   adopts nothing. Its writer, given when it connects, is the forge
   client's own record, restored at start (4.1).
+- **A forge can be removed,** whole, by the deployment's owners: ended
+  at once, its live work cancelled, its secrets and records erased, its
+  box group stopped and its directory removed, each act kept until the
+  removal is whole; nothing on the forge is undone but what temper ran
+  (4.1).
 - **Adoption picks from what temper can reach:** a GitHub App's
   installations, what a connected Forgejo's API token can push to, or
   any repository of a managed or owned Forgejo, where adoption first
@@ -76,11 +82,17 @@ makes each call to a forge and hears its deliveries, is
   The host, the owner and the name are those the repository was adopted
   with (section 4).
 - **Holds** (jig's `domain/connectors.md`, 3.3): a branch under temper's
-  prefix takes an exclusive hold, and a hold already taken makes its
-  task wait, never refuses it (jig's `domain/tasks.md`, 6.2). Landing
-  branches, pull requests, issues and the repository itself are shared
-  and take none: merging into a landing branch is ordered by its queue
-  (section 9).
+  prefix takes an exclusive hold, held by the task it is named after: a
+  change, a task's runs, a landing, or a goal for its own branch (11.1).
+  A hold already taken makes its task wait (jig's `domain/tasks.md`,
+  6.2), but a goal's own branch's, which refuses, naming the goal: no
+  two goals share one. Landing branches, pull requests, issues and the
+  repository itself are shared and take none: merging into a landing
+  branch is ordered by its queue (section 9). A goal's own branch is a
+  landing branch too, held and ordered by its queue at once (11.1).
+- **Symbols** (jig's `domain/connectors.md`, 3.1): 1, *its own goal
+  branch*, offered on a tracked task only (11.1); a batch naming it for
+  an untracked task is refused, naming the symbol.
 - **Effects:** open, edit, update, merge, close and reopen a pull
   request; post a review, a comment or a commit status; create, edit,
   close and reopen an issue; set reviewers; create and delete a branch
@@ -142,7 +154,9 @@ temper-engine-domain-forge              the connector's top: resources and holds
 ├── skein-forge-client                  the working set, keeping up, fresh reads, the request budget, effects' keys, write lanes and recovery (skein's forge-client.md)
 ├── skein-forge                         the vocabulary the top and the client share: calls, answers, errors, hints (skein's forge.md, section 3)
 ├── temper-engine-domain-forge-change   the change procedure and the landing queues: decisions over facts
-└── temper-engine-domain-forge-issues   the goals' issues: what each projects, when to write it
+├── temper-engine-domain-forge-landing  the landing by turn: decisions over a landing's state (landing.md)
+├── temper-engine-domain-forge-issues   the goals' issues: what each projects, when to write it
+└── temper-engine-domain-forge-tiers    the tiers' verdicts: decisions over a tier's record, its run's report and receipts (after-landing.md)
 ```
 
 - **The top** keeps the forge's resources as the project knows them
@@ -161,9 +175,10 @@ temper-engine-domain-forge              the connector's top: resources and holds
   `skein-forge`'s vocabulary states it, the working set, the request
   budget, and how a write is made once. Its owner, how it is driven and
   what it never knows are skein's `forge-client.md`, sections 2 and 9.
-- **`change` and `issues` are policy:** given a change's state and the
-  facts, or a goal's state, they say what is due. They keep nothing
-  between calls; their states are the top's, committed in the store.
+- **`change`, `issues` and `tiers` are policy:** given a change's state
+  and the facts, a goal's state, or a tier's record and what its run
+  reported, they say what is due. They keep nothing between calls; their
+  states are the top's, committed in the store.
 
 ## 4. Adopting repositories
 
@@ -193,8 +208,9 @@ temper-engine-domain-forge              the connector's top: resources and holds
 - **The adoption request is the forge's own,** keyed as any party's
   request (`../client/README.md`, 4.4): the root takes it from the protocol
   layer typed, and the connector refuses a forge the deployment does not
-  configure; then locates the repository (`Read::Locate { owner, name }`,
-  answered `Answer::Located { repository }`); then the root makes jig's
+  keep, and an ended one as not connected (4.1); then locates the
+  repository (`Read::Locate { owner, name }`, answered
+  `Answer::Located { repository }`); then the root makes jig's
   adoption request on the person's behalf (jig's `domain/people.md`,
   5.1), in which the connector reads what temper may do there (below)
   before the core commits the adoption (jig's `domain/connectors.md`,
@@ -206,9 +222,10 @@ temper-engine-domain-forge              the connector's top: resources and holds
   ends, to give again when the request is sent again (jig's
   `domain/connectors.md`, 5.5; `../protocol/store.md`, section 2).
 - **The forge's host** in a repository's resource path, and in what a
-  person reads of it, is the forge's as configured: the host of its `git`
-  base, with `:port` when it names one (`../protocol/configuration.md`,
-  section 3). The adoption does not ask a person for it.
+  person reads of it, is the forge's as its record has it: the host of
+  its `git` base, with `:port` when it names one
+  (`../protocol/forge.md`, 2.1). The adoption does not ask a person for
+  it.
 - **What temper may do is read at adoption:** its user's permission on
   the repository; the repository's settings (the merge styles it allows,
   its default branch); the branch protection on the landing branch; and,
@@ -277,7 +294,7 @@ temper-engine-domain-forge              the connector's top: resources and holds
   effect of the connector's (4.2), and so are the labels a project's
   findings use (`findings.md`, section 2).
 
-### 4.1 Connected or not
+### 4.1 Connected or not, ended and removed
 
 - **The root knows each forge's connection** from the routing's events
   (`../protocol/forge.md`, 8.1): not connected; not set up, an owned
@@ -319,18 +336,18 @@ temper-engine-domain-forge              the connector's top: resources and holds
   entry failed `NotConnected` is committed again once the forge
   connects, since it reached no forge. The client shows why on the
   forge's row (`../client/forge.md`, the deployment's page).
-- **The offer to set a forge up,** decided here alone. The host gives
-  the connector, at construction as it gives the configuration, each
-  configured forge's number, kind, mode and setup start, and whether
-  serve runs under the box (`--box`, `../protocol/setup.md`, 7.1). One
-  function gives a forge's offer from those, the box and the forge's
-  connection: *offered* for an owned forge whose setup says `"start":
-  "asked"`, under the box with its pipe open, its connection not set up,
+- **The offer to set a forge up,** decided here alone. The connector
+  keeps each forge's record, its number, kind, mode and setup start
+  among it (`../protocol/forge.md`, 2.1), and the host tells it, at
+  construction, whether serve runs under the box (`--box`,
+  `../protocol/setup.md`, 7.1). One function gives a forge's offer from
+  those, the box and the forge's connection: *offered* for an owned
+  forge whose setup says `"start": "asked"`, under the box with its pipe open, its connection not set up,
   setting up or set up failed (setting up so that its row keeps showing
   the set up under way); *not under the box* for such a forge, in such a
   state, without the box or once its pipe closed; *not offered*
-  otherwise, and for a forge not configured. The row and the answer read
-  the same function, so they never disagree. The same function gives
+  otherwise, and for a forge not kept or ended. The row and the answer
+  read the same function, so they never disagree. The same function gives
   each action's offer from the forge's kind, mode, setup and connection:
   the engine domain decides every action a row offers, including
   "Connect as its admin", which needs a managed setup entry
@@ -351,12 +368,12 @@ temper-engine-domain-forge              the connector's top: resources and holds
   that stopped (`../protocol/forge.md`, 2.8), offered again. `SetUp` is
   a keyed request, admitted by the core first (`../client/README.md`,
   section 8): the connector keeps its answer as its outcome, in memory
-  alone, the latest per configured forge under its request's token and
-  one more for any forge not configured, and answers unknown for a token
+  alone, the latest per kept forge under its request's token and
+  one more for any forge not kept, and answers unknown for a token
   it no longer holds.
 - **The deployment's forges,** the subject `forges`
   (`../client/forge.md`, 5.4): the connector makes its document, one
-  row per configured forge in number order, but an ended one (below),
+  row per kept forge in number order, but an ended one (below),
   each its number, kind, mode, connection as the routing last told it,
   offer, first repository, on GitHub its installations as the routing
   last told each (`Event::Installation`: its id, its account when
@@ -375,40 +392,127 @@ temper-engine-domain-forge              the connector's top: resources and holds
   first read tells only those not accepted or changed (skein's
   `forge-connection.md`, 4.4); the account is filled from the first
   `GitToken` minted for it (5.3 there), and changes follow as before.
-- **The demo's forge, ended** (`../protocol/setup.md`, 8.4): the
-  connector's own state, not the routing's. It holds the demo's `Demo`
-  record as it restores it and writes it, and the demo's forge is ended
-  from a start whose record reads ended, as from the end's decision
-  on. The end is decided here, in the step that takes a connection: the
-  first time the routing tells a configured forge other than the
-  demo's connected, while the record is none or running, the connector
-  saves ended, ends the demo's forge, asks the box link for `stop
-  FORGE` when the demo ran and the pipe is open (`../protocol/forge.md`,
-  2.8), and answers a start held for its acts *not offered*. An ended
-  forge is in no list: no row of `forges`, so that `temper ctl forge
-  list` names it no more, no offer, so that `SetUp` is
-  refused "not offered", nothing in the picker (4.3), and nothing in the
-  setup host's scans, which read the same state; the routing's events
-  for it change nothing (`../protocol/forge.md`, 8.1), so that a read
-  waiting on its connection (16) is never asked again. Its writer stays
-  the forge client's record, and its rows stay, so that what it did
-  reads as before.
+- **A forge ended** is one being removed (below), from its removal's
+  decision on: the connector's own state, kept in its record
+  (`../protocol/forge.md`, 2.1), not the routing's, so a start finds it
+  ended as the decision left it. An ended forge is in no list: no row
+  of `forges`, so that `temper ctl forge list` names it no more, no
+  offer, so that `SetUp` is refused "not offered", nothing in the
+  picker (4.3), and nothing in the setup host's scans, which read the
+  same state. Its connection reads not connected, so every call, read,
+  effect and adoption on it is answered `NotConnected` (above) and no
+  call reaches it; its hints are dropped; and the routing's events for
+  it change nothing (`../protocol/forge.md`, 8.1), so that a read
+  waiting on its connection (16) is never asked again.
+- **Removing a forge,** `RemoveForge { forge }`
+  (`../client/forge.md`, 5.4): a request of the deployment's scope,
+  keyed as any party's (`../client/README.md`, section 8), its owners'
+  alone, refused *role* to any other party; refused *no such forge* for
+  a forge not kept or already ended, and *not taken* for the
+  playground's forge, which the playground's reset removes in a
+  decision of its own, the deployment's removal
+  (`../protocol/setup.md`, 8.4). The deployment removes a forge by that
+  reset alone, the connector's own act, which needs no grant: `engine.acts`
+  grants a connector jig's acts in the deployment's name (jig's
+  `domain/people.md`, 5.3), and a forge's removal is none of them. In
+  one decision the forge is ended; the rest follows as kept acts:
+  - *ended at once,* as above, for any forge: its connection, its first
+    repository's intent, a GitHub forge's installations and its writer
+    are dropped, its reads and watches retired, and its repositories
+    leave their projects (below);
+  - *its live work cancelled:* each live change on its repositories is
+    cancelled by the deployment, as the deployment's compound cancels
+    (jig's `domain/tasks.md`, section 7), so its tasks end as a cancel
+    ends them; each of its outbox's entries is withdrawn, sent or not,
+    and a release on it (8.6) closes no pull request and deletes no
+    branch, its hold erased. A chat that worked on it stays open; its
+    next delegation to the forge is refused as on a forge not connected;
+  - *its box group stopped and removed,* an owned forge's or a fake's:
+    the connector asks `remove N` on the pipe (`../protocol/setup.md`,
+    7.1), and the box stops the group and removes its file, its
+    `started` record and the forge's directory, and keeps the cache,
+    Forgejo's binaries with it. A connected or managed forge has no
+    group to remove, nor has any forge without the box
+    (`../protocol/setup.md`, 7.4): for it the act is answered in the
+    removal's decision;
+  - *its secrets erased at once:* the service drops the forge from the
+    forge component and the setup host, which forget its calls, runs and
+    callbacks (skein's `forge-connection.md`, 3.1; skein's
+    `forge-setup.md`, 6.3), and erases each of its secrets, the admin's
+    token, the bot's tokens, the webhooks' secret and the App's key
+    among them (`../protocol/forge.md`, 2.3);
+  - *its records erased:* its writer and its outbox's entries in its
+    decision; each of its repositories' rows once no kept task names
+    it, live or ended (below), so that a chat that worked on one still
+    reads its name until the chat itself is erased; and its record once
+    both acts below are answered and its repositories' rows are gone,
+    its number never given again;
+  - *on the forge itself,* nothing is undone but what temper ran: an
+    owned Forgejo goes with its directory; a managed Forgejo's bot and
+    hooks stay, and the page says so; a GitHub App stays the person's,
+    and the page links to its settings to delete it
+    (`../client/forge.md`, 5.4). temper's branches and pull requests
+    there stay as they are;
+  - *kept until whole:* the record keeps which of the two acts that
+    follow its decision, the secrets erased and the group removed, has
+    been answered, and each one not yet answered is asked again at each
+    start until it is, so that a removal a restart cut ends whole
+    (section 16).
 - **A repository ended** is one adopted from an ended forge. Nothing
   is stored for it: it ends with its forge. It leaves every list of a
   project's repositories: the project's home, so that the project's
   next adoption may name a home, the one-home check skipping it; the
   context repositories a workspace is given (`items`); and the adopted
-  ids the setup host reconciles. Its row stays, and a lookup by its
-  name or tag answers it, so that its tasks, chats and landings read as
-  before.
+  ids the setup host reconciles. Until its forge's removal erases its
+  row (above), a lookup by its name or tag answers it, so that its
+  tasks, chats and landings read as before.
+- **A task's names, kept until it is erased.** A kept task is one the
+  store keeps: live, or ended and not yet erased (jig's
+  `domain/tasks.md`, section 3). At a task's release (jig's
+  `domain/connectors.md`, 4.6) its watches, holds and subscriptions go,
+  and its `Names` row stays under its key as a kept row: the
+  repositories its names lie in, one repository's name each, in name
+  order (`../protocol/store.md`, section 2). A kept row watches nothing
+  (5.1) and is never named again: `Rename` changes a live task's names
+  alone, and `Names` for a task with a kept row changes nothing. A
+  removed forge's rule (above) reads the kept rows beside the live
+  tasks' names, holds and subscriptions, so that a removed forge's
+  repository's row stays while any kept task names it. jig tells the
+  connector when a task is erased, in the decision that erases it whole
+  (jig's `domain/connectors.md`, 3.4), and the root gives it
+  `Unnamed { task }`: the connector erases the task's kept row, or a row
+  still live with its watches, then each ended forge's repositories'
+  rows that no task names any more, and the forge's record once it is
+  whole.
+- **Their bound:** at most `forge.repositories` kept rows, beside the
+  `forge.tasks` live ones, so that a kept row never takes a live task's
+  room. A release that would keep one past it first erases, of the kept
+  rows and the released task's, the oldest each of whose repositories a
+  task numbered after it, live or kept, names too. There is always one:
+  a row no later one covers is the last to name one of its
+  repositories, and no more rows can be last than there are
+  repositories. So a removed forge's repository's row stays at least
+  while the last task that named it is kept.
+- **A project deleted** (jig's `domain/people.md`, 5.2): when the core
+  asks the connector to release the project, the connector erases the
+  rows of the repositories the project adopted, and the forge client's
+  row of each, by a removed forge's rule (above), at once, since the
+  project's tasks that named them are erased by then; it takes those
+  repositories out of every kept row, erasing a row left with none, so
+  that a kept row names only repositories with rows, and lets go of an
+  ended forge whose last repository went, as `Unnamed` does; a row
+  another project adopted stays. temper's kinds' settings in the
+  project's scope go as `../protocol/configuration.md`, 13.2 says. It
+  answers the core once that has committed, and again, at once, when
+  asked again.
 - **An adoption on a forge not connected** is refused as such, before
   any read, and the client offers Connect; the picker offers none of
   that forge's repositories (4.3). One on a connecting forge waits for
   it, as above.
 - **The writer given at runtime.** The forge client refuses every effect
   on a forge with no writer, `Forbidden` (skein's `forge-client.md`,
-  7.1). The configuration names none (`../protocol/configuration.md`,
-  the forges): the connector gives the client a forge's writer, its
+  7.1). The forge's record names none (`../protocol/forge.md`, 2.1):
+  the connector gives the client a forge's writer, its
   user's id (the Forgejo user, or the GitHub App's bot user), when the
   routing says the forge is connected (`../protocol/forge.md`, 2.2),
   through the client's `writer(d, env, Writer { forge, author }, out)`.
@@ -418,12 +522,12 @@ temper-engine-domain-forge              the connector's top: resources and holds
   echoes already on the forge are the old user's.
 - **The forge client keeps the writer as its own record** (skein's
   `forge-client.md`, 7.1): `Stored::Writer` under `Key::Writer(forge)`,
-  in temper's small store under its tag 16 (`STORE_VERSION` 3), and
+  in temper's small store under its tag 16, and
   restored at start among the forge's rows, in any order: the client
   takes them all before `Restored`, and runs no restored effect before
   it, so a restored effect never meets `Forbidden` (skein's
   `forge-client.md`, section 8; section 16). The connector keeps no
-  copy.
+  copy, and erases it in a removal's decision (above).
 
 ### 4.2 Access at adoption
 
@@ -456,10 +560,9 @@ as any adoption of it is. Each row is a repository's id, its owner's id
 and login, its name and whether it is private.
 
 Every kind is read the same way: the connector asks the root, which has
-the routing run the setup host's plan `Reachable { forge,
-installation?, page }` (skein's `forge-setup.md`, 4.8;
-`../protocol/forge.md`, 2.6; pending in skein's code), pages counted
-from 1, at most `reachable` rows (`picker.page`), ending
+the routing run the setup host's plan `Reachable { forge, installation?,
+page }` (skein's `forge-setup.md`, 4.8; `../protocol/forge.md`, 2.6),
+pages counted from 1, at most `reachable` rows (`picker.page`), ending
 `Done(Reachable { rows, more })`. The plan writes nothing, so it runs
 beside the forge's one writing plan, and no call of the forge client
 reads the picker:
@@ -540,12 +643,11 @@ narrowed, and its changes wait.
   none: `status` is false in the kinds there from adoption on, and
   nothing is held for it. Every adoption on GitHub says that the gates'
   verdicts (8.3) stay temper's own, and that GitHub's rules cannot
-  require them. Designed, not built (`../draft/landing-model.md`, F3):
-  for a project that lands by turn, the App writes statuses and
-  dispatches workflows (`../protocol/setup.md`, 17.1), so that its
-  receipts and verdicts are mirrored (`landing.md`, 10), and adoption
-  says, for each landing branch, whether its bypass is `Always`, which
-  the turn needs (`landing.md`, 8).
+  require them. For a project that lands by turn, the App writes
+  statuses and dispatches workflows (`../protocol/setup.md`, 17.1), so
+  that its receipts and verdicts are mirrored (`landing.md`, 10), and
+  adoption says, for each landing branch, whether its bypass is
+  `Always`, which the turn needs (`landing.md`, 8).
 
 ## 5. What it holds, and keeping up
 
@@ -561,7 +663,9 @@ Held by skein's `forge-client.md`, section 3. temper's part:
 
 - **The live resources, and nothing else** (jig's
   `domain/connectors.md`, 3.4). A resource enters when a live task names
-  it, and leaves when none does. The top names them to the client.
+  it, and leaves when none does. The top names them to the client. A
+  task's names leave the working set at its release: what the
+  connector keeps of them for a kept task watches nothing (4.1).
 - **What temper watches:**
   - per repository: the landing branches' tips, and the CI on each tip;
   - per pull request temper owns that a live task names: its head and
@@ -583,7 +687,34 @@ Held by skein's `forge-client.md`, section 3. temper's part:
   already due cannot leave it waiting on an older CI verdict.
 - **Its capacity:** `forge.client.resources` live resources and
   `forge.client.repositories` repositories. A batch naming resources past
-  it is refused.
+  either bound is refused with the configuration member, its configured
+  value and required usage. Task names, their count and their bytes are
+  checked against `forge.tasks`, `forge.resources_per_task`,
+  `forge.name_bytes` and the client's `forge.client.op_bytes` as well.
+  A refusal carries the failed operation, its resource and its typed cause
+  to the root. The task document carries the complete retained hold account,
+  up to 512 bytes, independently of its general text preview bound. Both ctl
+  output forms show that account. A persistent hold explains the act that resolves it:
+  reduce the named work, or change the named configuration member and
+  restart, then release; an access or backend failure names its own cause.
+  A released change whose initial names were refused asks for them again;
+  while the bound still refuses them it holds again.
+- **The stock resource capacity is 16:** three chats naming one repository
+  each and three changes naming two resources each use at most nine distinct
+  watches. Two followed tier branches and up to four departing reads
+  (`forge.client.pending`) keep the overlap within fifteen slots; shared
+  resources count once. Six participating tasks and their six branch holds
+  fit the stock `forge.tasks` and `forge.holds`, both eight; each change fits
+  `forge.resources_per_task`, two. Landed changes keep their watches until
+  they clear (`after-landing.md`, section 6).
+- **Temporary admission pressure waits:** when recovery is incomplete,
+  or a departing resource's read still occupies capacity, the desired
+  names are saved and the complete watch set is retried after one second.
+  Removing a task removes its desired names; retry never revives it.
+  A restart rebuilds the watch set from those durable names. No person
+  releases this wait. A fresh change read refused as busy keeps its timed
+  procedure wait; other branch, base and pull read failures retain their
+  operation, resource and backend cause in the hold.
 
 ### 5.2 Keeping up
 
@@ -811,14 +942,13 @@ recovery are skein's `forge-client.md`, section 7. temper's effects:
   merged. It names the base too: the pull request is read afresh first,
   and one retargeted since the decision is not merged.
 - **A merge may be queued:** on a base the forge's merge queue guards,
-  the merge answers `Answer::Queued`, final for the call and not for
-  the entry: neither a merge nor a refusal. The entry is the client's
-  until a read finds the pull request merged or out of the queue
-  (skein's `forge.md`, 3.3; `forge-client.md`, 7.7, pending in skein's
-  code): it is never sent
-  again, and it holds its lane, so a comment or a review on that pull
-  request waits until the queue decides. What follows is 9.1's.
-  Forgejo never answers it.
+  the merge answers `Answer::Queued`, final for the call and not for the
+  entry: neither a merge nor a refusal. The entry is the client's until
+  a read finds the pull request merged or out of the queue (skein's
+  `forge.md`, 3.3; `forge-client.md`, 7.7): it is never sent again, and
+  it holds its lane, so a comment or a review on that pull request waits
+  until the queue decides. What follows is 9.1's. Forgejo never answers
+  it.
 - **Failures:** a merge refused for a conflict, an update refused for a
   conflict, a pull request with nothing to merge, a protected branch and
   a forbidden write are each typed, and go to the procedure that asked,
@@ -845,7 +975,7 @@ recovery are skein's `forge-client.md`, section 7. temper's effects:
 | CI on a head | a head's CI, as 5.3 reads it, changes | changes; tasks that subscribe |
 | a pull request's state | opened, closed, merged, its head moved, its mergeability known | changes; tasks that subscribe |
 | comments and reviews on a participating object | another party writes there | the task dealing with it (section 13) |
-| a project's findings, designed, not built | a finding is filed, or its labels change | the project's triager (`findings.md`, section 6) |
+| a project's findings | a finding is filed, or its labels change | the project's triager (`findings.md`, section 6) |
 
 The change child domain reads its facts directly and needs no
 subscription; topics are for tasks whose executors are agents, and for
@@ -879,11 +1009,10 @@ LLM:
 - **no overlap:** kept, for its next run to read;
 - **overlap unknown** (a landing too large to list, a read that failed):
   wakes, since a wasted turn is cheaper than a missed conflict.
-- **A hold parked until a landing** (jig's `domain/tasks.md`, 5.9),
-  designed, not built: subscribed to the landings on a branch, with
-  path prefixes or none; a landing wakes it, and so lifts it, when one
-  of its files lies under a prefix, or with none named, or when the
-  overlap is unknown.
+- **A hold parked until a landing** (jig's `domain/tasks.md`, 5.9):
+  subscribed to the landings on a branch, with path prefixes or none; a
+  landing wakes it, and so lifts it, when one of its files lies under a
+  prefix, or with none named, or when the overlap is unknown.
 
 The files are read from the forge (a pull request's files, or the
 comparison of the branch's old and new tips), cached per head and cut at
@@ -907,9 +1036,21 @@ branch. Its parameters:
 - **the branch,** held by the task: one it is handed, already pushed (a
   chat's small fix, handed over by the chat that made it: jig's
   `domain/tasks.md`, 6.4), or its own, named after its tree
-  (section 11), which a producing task pushes;
-- **what to produce,** when nothing is pushed yet: the spec and charter
-  of its producing task;
+  (section 11), which a producing task pushes; or, held by its
+  requester and not by the task, its requester's held branch, the
+  requester's own goal branch (11.1), which the change lands whole
+  (below);
+- **what to produce,** when nothing is pushed yet: the spec of its
+  producing task, and its producer's charter, which its repairs,
+  resolutions and checks' gates run under too: the one `change` names,
+  or the forge's change charter (8.9); or, for a catch-up, the commit
+  the merge job merges into a branch made at its landing branch's tip
+  (section 10), parameter 16, its producer that job and no agent;
+- **its agents' LLM choices,** by role (jig's `domain/tasks.md`, section
+  3): the producer's, for its producing task, its repairs, its
+  resolutions and its checks' gates; the reviews', for its agents'
+  gates. Each is given as the LLM choice of every delegate of its role;
+  a role without one leaves its delegates to their charter's default;
 - **its gates** (8.3);
 - **`with`,** under its project's turn: the changes it must land with,
   in any repository and of any goal its requester may name
@@ -933,20 +1074,45 @@ branch. Its parameters:
   with “Land ”, fitted to its task bound without sentence extraction.
   A change is never refused or held for the length of its words;
 - **its bounds:** repairs, resolutions, updates, and the stall of each
-  wait.
+  wait;
+- **its questions:** how it takes its agents' questions (8.11): `none`,
+  the default, asking no one; `foreman`, each settled first by a foreman
+  of its own; `up`, each passed straight to its requester; and how many
+  it takes, a bound beside the others.
 
-A chat asks for one with `change`, giving the words alone, and the root
-fills in the rest from the project (`agent.md`, 4.3.1).
+A run asks for one with `change`, giving the words, and the root fills
+in the rest from the project (`agent.md`, 4.3.1). A run whose authority
+holds jig's control family names, too, what a plan decides: the landing
+branch, its own goal branch or a branch of the repository; its
+dependencies, task numbers or changes of the same call; several
+changes in one call, made as one batch; its producer's charter; and its
+agents' LLM choices; and its questions. The landing branch is parameter 2, the
+dependencies are the task's own (jig's `domain/tasks.md`, section 4),
+and a change made with neither is as a chat's. The producer's charter
+and the LLM choices are one text parameter, 11, so that a change stays
+within the deployment's parameters per spec (jig's `tasks.parameters`,
+4 in small): `C;P;R`, `C` the producer's charter's number in decimal,
+`P` and `R` the producer's and the reviews' LLM choices, each part
+empty where the change names none. A choice is spelled as jig keeps
+it, by configured index (jig's `domain/tasks.md`, section 3): its main,
+then each sub-agent, separated by one space, each `M` or `M.E`, the
+model's index and its effort's, in decimal (`6;3.1 0.0 2;3.0`). A
+change without parameter 11, or with an empty part, runs its producer
+under the forge's change charter, or leaves that role to its charter's
+default; a parameter 11 that does not spell them refuses the change's
+start.
 
 Its agents hold the forge's reads (kind 1, section 2) on its
 repository, beside the kinds it makes (`agent.md`, 4.3.1): a reviewer
 reads its own pull request and its files, and a repair a failed job's
 log, through the reads an agent may call, past what its brief carries.
 
-A change asks no one. What to change is agreed before it is asked for,
-by a goal that asks first where its person wants to agree a plan
-(`agent.md`, 8.2), and the procedure delegates its agents without the
-Message family. It takes no questions, answers or words either, and says
+A change made with questions `none` asks no one. What to change is
+agreed before it is asked for, by a goal that asks first where its
+person wants to agree a plan (`agent.md`, 8.2), and the procedure
+delegates its agents without the Message family. One made with
+`foreman` or `up` relays its own agents' questions instead (8.11); what
+follows holds for it but for those. It takes no questions, answers or words either, and says
 so rather than drop one: at its next step, a question in its inbox is
 answered, in the answer form to the question's number, that a change
 takes no questions and that its requester is task R; a task's words are
@@ -960,7 +1126,49 @@ amendments and cancels are its own (8.2, 8.6).
 A goal across repositories is several change tasks, ordered by their
 dependencies: skein's change lands before temper's that bumps its lock.
 
+**A change on its requester's held branch** (`change`'s `"branch":
+"mine"`, `agent.md`, 4.3.1) is how a goal lands its own branch: the
+goal's landing, a change into the base whose branch is the goal's own
+(11.1). It is an ordinary change, but for the branch:
+
+- **No producing step,** as for a branch handed over: it starts at
+  opening, its head the branch's tip as read then. Its pull request is
+  the branch's into its landing branch, its title its words' first line
+  (bytes parameter 10, fitted as a handed branch's title is; an empty
+  first line takes that path's default), its body its words.
+- **Held by its requester, not by the change.** The change takes no
+  hold of the branch and hands none: its requester holds it for its own
+  life (11.1). The change writes it only through its own delegates (its
+  repairs and its resolution) and the updates it asks for, each taking
+  the branch's writer slot under its requester's hold as it writes
+  (jig's `domain/tasks.md`, 6.3), as a change's delegates write its own
+  branch. Its requester's other delegates write it too, a change landing
+  into it among them: each such move is the change's new head (8.5).
+- **One at a time:** a second change on the same held branch, while one
+  lives, is refused at its batch, naming the first.
+- **Closing deletes nothing:** landed, cancelled or failed, the change
+  leaves the branch its requester's, deleted or kept as its requester
+  closes (section 11). Cancelled, its pull request is closed as any
+  (8.6), and its requester may make another.
+
+The question route is number parameter 14: 1 for `foreman`, 2 for `up`;
+absent means `none`. The root writes it only for `foreman` or `up`. Any
+other value refuses the change's start as a malformed parameter
+(2026-11-04).
+
+The red landing a change repairs is carried as bytes parameter 12, its merge
+commit as 40 or 64 lowercase hexadecimal digits. The start keeps it with the
+change; a value outside that text form refuses the start as a malformed
+parameter. Without it the change names no red landing to repair
+(2026-11-04).
+
 ### 8.2 Its way to landing
+
+An explicit successful no-change result from the producer ends the change
+with its explanation, without opening a pull request, merging, holding or
+escalating. It claims nothing landed. The requester receives the successful
+result. Failure words never imply this outcome: production and forge errors
+keep their recovery holds.
 
 Under its project's queue, the default. Under its project's turn, a
 change has no checking step, and once ready its landing prepares,
@@ -979,7 +1187,9 @@ producing ─► opening ─► checking ─► gating ─► queued ─► firs
 
 1. **Producing:** a task for an agent, with the charter the change
    names, whose workspace starts from its landing branch (or its saved
-   work) and pushes the change's branch (`agent.md`, section 6). Its
+   work; or, started early, from its landing branch with its
+   dependencies' pushed heads merged in: 8.11) and pushes the change's
+   branch (`agent.md`, section 6). Its
    result is the head it pushed. An attempt whose answer was lost may
    have pushed all the same: its writer slot is freed for another task only once the
    branch has been read afresh (jig's `domain/tasks.md`, 6.3), and a
@@ -995,25 +1205,42 @@ producing ─► opening ─► checking ─► gating ─► queued ─► firs
    worker fetches the landing tip per hold and verifies an existing
    unlanded head through a guarded push (worker.md, section 5). This does
    not substitute a historical receipt for current ownership or drift checks.
+   A catch-up's producer is the merge job (8.4): its landing branch's
+   tip with the catch-up's commit merged in, pushed as the change's
+   branch; what the job leaves goes to a resolution in a merge in
+   progress of that commit at that tip, which pushes the branch. A
+   catch-up whose commit the landing branch's tip already contains ends
+   at once with no change, its words saying so.
 2. **Opening:** its pull request into its landing branch, keyed by its
    branches, its body naming its goal's issue ("Part of
    `ai/temper#12`").
-3. **Checking:** CI runs on its head. A failure is a repair (8.4): a task
-   given the failing output. A repository without CI is checked by its
-   checks (8.3).
+3. **Checking:** CI runs on its head, where its landing branch's rules
+   ask CI passed (8.7). A failure is a repair (8.4): a task given the
+   failing output. A repository without CI is checked by its checks
+   (8.3). Where they ask no CI, the change goes on to its gates at once,
+   and neither a check nor CI at its head holds it or asks a repair.
 4. **Gating:** each gate without a verdict valid at this head runs: a
    task at the exact head. A blocking review or check that asks for
    changes is a repair, given its remarks; a blocking approval a person
    declines holds the change (8.3).
-5. **Queued:** ready (CI passed and every blocking gate holds, at its
-   head, and its task is not kept by a dependency) and waiting its turn
+5. **Queued:** ready (CI passed where its landing branch's rules ask
+   it, and every blocking gate holds, at its head, and its task is not
+   kept by a dependency) and waiting its turn
    in its landing branch's queue (section 9).
 6. **First:** its turn, which it keeps through what follows unless it
-   leaves the queue (section 9). If its head lacks the base's tip, it is
+   leaves the queue (section 9). If its head lacks the base's tip and
+   its landing branch's rules ask up to date (8.7), it is
    **updated** (section 10): cleanly, and its new head is checked again,
    its gates carried over where they count clean updates (8.3); or in
    conflict, and it leaves the queue to be
-   **resolved**, its new head checked again and its gates asked again.
+   **resolved** (8.4: the merge job, then a resolution for what it
+   leaves), its new head checked again and its gates asked again.
+   Where they ask no update, it is merged as its head is, once the forge
+   finds it mergeable; one the forge finds in conflict, or whose merge it
+   refuses for a conflict, leaves the queue to be resolved the same way,
+   the base merged in being its landing branch's tip as last read; its
+   new head goes on as any head does under those rules, to its gates and
+   its turn, with no check and no update.
    A pull request whose mergeability has not settled (5.2) is neither:
    the change waits for it, until the window's end at most, and the
    stall does not count that wait.
@@ -1030,20 +1257,27 @@ producing ─► opening ─► checking ─► gating ─► queued ─► firs
    where the forge's queue landed it, whose id in hexadecimal is the
    result's words' first line, the pull request with its address the
    second, and the landing said in words the third, `Landed: pull request
-   #7 merged into main as 0123456789ab.`: `root.md`, section 6; then what
-   the landing passed, as facts
+   #7 merged into main as 0123456789ab.`: `root.md`, section 6; then its
+   producer's last report, the words of its producing task's last
+   successful result as that task wrote them, under a line `Report:`
+   (none for a change handed a pushed branch); then what the landing
+   passed, as facts
    the change itself saw: each check at the landed head with its
    conclusion, the repairs with their count and why each was asked (a
-   check that failed, a review's remarks), and each review's verdict,
-   cut to the result's bound from the end and marked; a check or a test
+   check that failed, a review's remarks), and each review's verdict;
+   all that follows the three lines cut to the result's bound, the
+   change's contract's words (the deployment's `tasks.result_bytes`),
+   from the end and marked; a check or a test
    the change never saw is never named, so whoever reports the landing
-   reports only what ran). It then verifies until its landing
+   reports only what ran). The report is kept with the change from its
+   producer's result, as its pull request's title is (8.1), bounded by
+   that result's own bound. It then verifies until its landing
    is cleared (`after-landing.md`, section 6), and closes, its branch
    deleted as its hold is released (section 11).
 
 Lazy, too, for runs: before a repair or a resolution is created, the
-change takes its base if its head lacks the base's tip, so a repair
-starts from current code. It never updates only because its base moved.
+change takes its base if its head lacks the base's tip and its rules ask
+up to date (8.7), so a repair starts from current code. It never updates only because its base moved.
 
 A completed change waits for its live delegates to end before offering
 its result to the core. A landing observed while a resumed repair's
@@ -1106,15 +1340,15 @@ delegate's terminal wakes it to offer the landed result.
   a person amends the change to drop the gate, then releases it, or
   cancels it.
 - **Asked for by the change, the project and the plan.** A change's own
-  gates are its parameters, amended while it is live (a coordinator
-  adds a memory-safety review to one change); the landing rules add
-  theirs to every change into a branch they cover (8.7). A gate added
-  while a change is queued takes it out of the queue until it has its
-  verdict. Designed, not built (8.9): the rules' gates are not copied
-  into a change when it is made, but taken at each step from the rules
-  the forge holds then, every rule covering the branch adding its own,
-  enforced or not; a gate a changed rule drops is no longer waited on,
-  and a review already running for it reports as an advisory one.
+  gates are its parameters, amended while it is live (a coordinator adds
+  a memory-safety review to one change); the landing rules add theirs to
+  every change into a branch they cover (8.7). A gate added while a
+  change is queued takes it out of the queue until it has its verdict.
+  The rules' gates (8.9) are not copied into a change when it is made,
+  but taken at each step from the rules the forge holds then, every rule
+  covering the branch adding its own, enforced or not; a gate a changed
+  rule drops is no longer waited on, and a review already running for it
+  reports as an advisory one.
 - **Valid at a head, and carried over clean updates.** A verdict is given
   at a head. Each gate says which later heads it still counts at
   (`freshness`): *exact*, the head itself; *clean*, every head reached
@@ -1130,11 +1364,11 @@ delegate's terminal wakes it to offer the landed result.
   there (4.4), the post, `Write::Status`, is refused at the connector,
   and nothing waits for it (skein's `forge-github.md`, 4.2). Every
   adoption there says so, and the verdict stays temper's own; the App
-  asks for no more (`../protocol/setup.md`, 17.1). Designed, not built:
-  where an installation grants `statuses: write` (B3, `../protocol/setup.md`,
-  17.1), adoption reads it, `status` is true in that repository's kinds,
-  and statuses are posted there as on Forgejo; an installation that has
-  not accepted the new permission keeps today's refusal.
+  asks for no more (`../protocol/setup.md`, 17.1). Where an installation
+  grants `statuses: write` (`../protocol/setup.md`, 17.1), adoption
+  reads it, `status` is true in that repository's kinds, and statuses
+  are posted there as on Forgejo; an installation that has not accepted
+  the new permission keeps the refusal.
 - **When they run:** once CI passes on the head, by default, so a head
   CI fails costs no review; the change may ask to run them at once.
 
@@ -1165,16 +1399,54 @@ delegate's terminal wakes it to offer the landed result.
   whose id may differ from the check-run id (skein's `forge-github.md`,
   4.4). A log cut keeps its end, including a gate's complete timestamp
   line when it fits, and marks the missing prefix. A pin for another
-  head is never read.
+  head is never read. On GitHub, streaming retention ends at the runner's
+  failed-process line before post-job cleanup (skein's `forge-github.md`,
+  10); without that marker it falls back to the job tail. The `read_job`
+  host answer reserves its rendered metadata and truncation marker within
+  the configured answer allowance, prices escaped bytes, and keeps the
+  log suffix that fits. It does not require a larger raw read allowance.
   Planning reserves the repair reason's allotment (CI's or reviews')
   before sizing the pull section's contents, retaining the core's
   context. When the brief cannot hold both section caps, their gathered
   sizes decide the fit, with the repair reason before the pull section.
+  Repair instructions preserve the requested change and unrelated content
+  already landed on the base, including both independent appended lines
+  and existing blank lines. Lost content is restored from the review's
+  remarks; content is never removed just to make a check pass.
+- **The merge job** comes before a resolution where the change's
+  project names a `merge_job` and the change's authority delegates to
+  the merge kind (`../protocol/configuration.md`, section 3): a job of
+  kind 3 (`worker.md`, 4.4), delegated by the change, which holds the
+  branch it writes. Its workspace is a resolution's, the base merged
+  into the branch's head;
+  the project's merge command settles the conflicts it knows
+  (`../protocol/tooling.md`, 4.1); if none is left, the worker commits
+  the merge and pushes it. On the job's result the change reads its
+  branch afresh: a head that moved is the merge's, and the change goes
+  on from it as from a resolution's push; a head that did not move
+  means the command left conflicts, and the change makes a resolution
+  of the same base, its words carrying the job's result, cut to the
+  resolution's words' room and marked. A job that fails for good holds
+  the change as a resolution that fails does. Without a `merge_job`,
+  without the kind declared (`worker.md`, 4.4) or in its authority, or
+  with the job's spec past the kind's bound, a conflict goes to a
+  resolution at once. A merge job counts as one of the change's
+  resolutions, and the resolution after it as none, so the bound counts
+  each conflict once.
 - **A resolution** is a task for an agent whose workspace starts from a
   merge in progress: the base merged into the branch, the conflicting
   files marked. The agent edits them and runs the checks, with no git
   writes of its own; the worker commits the tree as the merge, with both
-  parents, and pushes it (`worker.md`, section 5).
+  parents, and pushes it (`worker.md`, section 5). Its instructions keep
+  both sides' intended content by the same preservation rule as repairs;
+  the shared coding charter applies it to repairs and resolutions too.
+  The specification reserves its pinned parameters' bytes before its words.
+  Where the full instructions do not fit, a compact instruction keeps both
+  sides and blank lines, with the full rule in the coding charter; where
+  neither fits, the change holds instead of issuing an oversized delegate.
+  Required preservation instructions precede optional merge-job results. A
+  result is appended only with room for its context and any truncation marker;
+  it never displaces the preservation instructions.
 - **A verdict whose post is refused** (8.3) is no repair and no stall:
   the gate counts as temper's verdict says, nothing is held for the
   post, and its `Forbidden` narrows what temper may do in that
@@ -1186,7 +1458,7 @@ delegate's terminal wakes it to offer the landed result.
 - **A step its authority no longer covers holds it too.** A change's
   delegates (its producer, a review, a review asked again, a repair, a
   resolution) are made under the change's own authority, its tasks
-  consumed by each (jig's `authority.md`, section 5). A step whose
+  consumed by each (jig's `domain/authority.md`, section 5). A step whose
   delegate that authority no longer covers (the tasks its subtree may
   make all made, its depth, its spend below a run's reserve) holds the
   change, naming what it lacks and what it had ("its 6 tasks are
@@ -1194,8 +1466,14 @@ delegate's terminal wakes it to offer the landed result.
   run. Released, it asks again: a release after an amendment that gives
   what it lacks (more tasks or budget, a widening its giver funds:
   `../client/tools.md`, area 2's `task amend`) lets it go on, a bare one
-  holds it again, saying so; the hold's way out names that amendment,
-  then the release, and the cancel beside them.
+  holds it again, saying so. The requester and panel's recovery words
+  offer `task cancel TASK REASON`, or asking for the change afresh, and
+  explain that bare release holds again. A task allowance hold also offers
+  `task amend TASK --rev REV --tasks N REASON`, followed by
+  `task release TASK --hold HOLD`, with room for a repair and review in
+  the replacement lifetime allowance. Cancellation comes before these
+  commands so a bounded task summary retains a way out. They advertise
+  only commands the client takes.
 - **Stalls:** each wait on the forge (CI that never reports, a
   mergeability never known, a forge's merge queue that neither lands
   nor ejects it, a gate's task stuck) is bounded by a stall counted from
@@ -1204,11 +1482,12 @@ delegate's terminal wakes it to offer the landed result.
   is never held just for waiting, yet tells the person of a check that
   never reports within the same sitting. A wait for access is not one:
   while its forge is not connected, or its repository not reachable
-  (4.1, 4.3), the stall does not count.
+  (4.1, 4.3), the stall does not count. Nor is a wait for its agent
+  while a question of that agent's is open (8.11): the stall counts
+  again from the step that relays its last answer down.
 - **A release** lifts what it releases: repairs, resolutions and updates
   count again from it, its stall is counted from it, and the change
-  decides afresh. A producer that fails for good, or finds nothing to
-  change (its failure saying so, in its own words), holds the change at
+  decides afresh. A producer that fails for good holds the change at
   producing, the hold carrying its words whole within the hold's bytes,
   so its requester hears why (its notice fitted to the requester's
   message bytes on its own, marked when cut) and its person decides:
@@ -1216,9 +1495,22 @@ delegate's terminal wakes it to offer the landed result.
   decision of its own here. At producing, with no head pushed
   (its producer failed for good), deciding afresh makes a fresh producer, one more of its
   tasks, holding by the rule above when its authority no longer covers
-  one. A change is a procedure, with no run of its own to repeat: a
+  one. A repair that fails for good holds at its attempted count; this
+  is a delegate failure, not repair exhaustion. Released, it asks for a
+  fresh repair with the same reason and current forge facts, under its
+  current authority, counted against the reset repair allowance. The
+  replacement's result supersedes the failed delegate's, including
+  after a restart; a pending replacement is not asked twice.
+  A change is a procedure, with no run of its own to repeat: a
   release asking to run it again is refused saying so, never as
   missing authority.
+
+A catch-up's first merge job is its producer and spends no resolution
+allowance. If it leaves conflicts, its following resolution spends one. This
+differs from a conflict after production, whose merge job spends one and
+whose following resolution spends none. A resolution asked again after
+release is a resolution directly, with no repeated merge job before it
+(2026-11-04).
 
 ### 8.5 Drift
 
@@ -1247,6 +1539,19 @@ the change reads the head afresh once the slot is freed. Otherwise:
   landing. A merged pull request on reused branch names is its own only
   when its recorded number or pushed head matches (section 6); any other
   merged pull request is Missing and cannot land the change.
+
+**On its requester's held branch** (8.1), the branch's writers are its
+requester's delegates, one at a time, the change's own among them.
+While the slot is taken by another of them (a change landing into the
+branch, its merge job, its resolution), the change decides nothing on
+its head, as above. Once the slot is freed it reads the head afresh,
+and a forward move by temper's identity is its new head, never drift:
+taken as after a repair, checked again (8.2, step 3), its gates asked
+again; its repairs, resolutions and updates count on, and its merge is
+never sent at a head it has not checked. Held, it decides nothing until
+released, and the release takes the head as it then is, checked again.
+A move with no writer of its requester's subtree in the slot, by
+another identity, or not forward, is drift, as above.
 
 Nothing is written over: a held change makes no effect until it is
 released. A drift is the change's to judge: what the forge says of a
@@ -1313,14 +1618,13 @@ merge, kind 4, on a pattern of landing branches (jig's
   It is the one thing temper reads of what people write on its pull
   requests (section 13). A project has approvals only if its rules ask
   for them: temper's own default has none (`../README.md`, section 2).
-- **Landing rules** come from the configuration, the deployment's and
-  each project's (`../protocol/configuration.md`, section 3, `landing`),
-  each covering a pattern of landing branches with CI, up to date, its
-  gates and its approvals. Designed, not built: they are settings, the
-  forge's own kinds (8.9). A merge meets every rule that covers its
-  branch: a project's rules add to the deployment's, and never replace
-  them; gates a plan asks for on one change are the change's own (8.3),
-  and add to the rules', never replace them.
+- **Landing rules** are settings, the forge's own kinds (8.9): the
+  deployment's and each project's, each covering a pattern of landing
+  branches with CI, up to date, its gates and its approvals. A merge
+  meets every rule that covers its branch: a project's rules add to the
+  deployment's, and never replace them; gates a plan asks for on one
+  change are the change's own (8.3), and add to the rules', never
+  replace them.
 - **The usual rule** for `main`: CI passed at the head (or the
   repository's checks, without CI), the head up to date with the branch,
   and an agent's review as a gate. A project adds what it wants on every
@@ -1328,23 +1632,37 @@ merge, kind 4, on a pattern of landing branches (jig's
 - **Enforced, and waited for.** A rule marked `enforce` makes each of its
   criteria a requirement the core checks at the merge, whatever any
   task's authority says: the rule. Every change also waits, on its own,
-  for CI, its blocking gates and its base's tip (8.2): the mechanics. A
+  for its blocking gates and for what its landing branch's rules ask of
+  CI and of its base's tip (8.2, below): the mechanics. A
   rule not marked `enforce` leaves its criteria to those waits alone. A
   requirement that waits keeps the change at its turn until it is asked
   again; one that refuses holds the change, saying which, and never
   lands it. Approvals are waited for at the merge alone; for what the
   procedure waits for itself, a refusal at the merge is a bug in the
   procedure, counted (jig's `domain/authority.md`, section 10).
+- **What the procedure asks of the rules:** for a repository's landing
+  branch, `Requires { ci, up_to_date }`, from `temper-engine-domain-forge`'s
+  `requires` (in its `gates.rs`, beside the gates the rules name) over
+  the rules as the forge holds them (8.9): `ci` where some rule covering
+  the branch, the deployment's or its project's, enforcing or not, asks
+  CI passed; `up_to_date` where some such rule asks up to date; both
+  where no rule covers the branch, so a branch without rules keeps the
+  procedure's own waits. It is read at each step of the change, never
+  kept on it, so a rule changed reaches a live change at its next step.
+  A rule asking neither lets a change merge at its head once the forge
+  finds it mergeable, unchecked by CI and never updated (8.2 steps 3
+  and 6; section 10), a conflict going to the merge job and a
+  resolution (8.4): the rule a goal's own branch lands under (11.1).
 - **Force-pushing does not exist.** No kind forces a push or moves a
   branch backwards: a run's push is a fast-forward
   (`../protocol/git.md`, 4.8), an update merges the base in
   (section 10), and a branch found moved backwards is drift (8.5).
 
-- **Designed, not built: two standing requirements** replace the four
-  above as landing rules' attachments (`../protocol/configuration.md`,
-  13.3). temper's stock rules attach both to the merge on every landing
-  branch, and the forge judges each over every enforcing rule covering
-  the merge's branch, as it holds the rules then:
+- **Two standing requirements** replace the four above as landing rules'
+  attachments (`../protocol/configuration.md`, 13.3). temper's stock
+  rules attach both to the merge on every landing branch, and the forge
+  judges each over every enforcing rule covering the merge's branch, as
+  it holds the rules then:
 
   | Requirement | Its parameters | Met | Wait | Refuse | Guarded or observed |
   |---|---|---|---|---|---|
@@ -1367,8 +1685,10 @@ What the connector makes of a change for the client's panel
   request's number; its state, with the step it was held at; the task
   its one delegate runs; its gates and their verdicts, each judged at
   the current head with its freshness (8.3), a gate whose review runs at
-  that head pending until it reports; and its repairs, resolutions and
-  updates used, with their limits from `change_policy`.
+  that head pending until it reports; its repairs, resolutions and
+  updates used, with their limits from `change_policy`; and its
+  questions, its route, those taken of its bound and its open ones
+  (8.11).
 - **CI at its head** is what its last step read (5.3), kept in memory
   beside its record, one verdict per change, while the change is live: a
   restart forgets it, and the panel says unknown until the change's next
@@ -1394,16 +1714,16 @@ What the connector makes of a change for the client's panel
   `../client/forge.md`, 9.2, **Its subject**.
 - **Kept as long as its record:** the record outlives the task's end, so
   a landed or cancelled change still has its panel.
-- **Designed, not built:** what the landing rules wait on at its head,
-  the rule and criterion its last verdict named (8.7), and the forge's
-  charter it was made with (8.9).
+- **Its rules and its charter:** what the landing rules wait on at its
+  head, the rule and criterion its last verdict named (8.7), and the
+  forge's charter it was made with (8.9).
 
 ### 8.9 The landing rules as settings
 
-Designed, not built (`../protocol/configuration.md`, section 13). The
-forge owns three of temper's kinds of settings: the deployment's
-landing rules (kind 1), each project's (kind 2), and the forge's charter
-(kind 3), whose values it keeps in its own family, `Setting`
+As `../protocol/configuration.md`, section 13 has them, the forge owns
+three of temper's kinds of settings: the deployment's landing rules
+(kind 1), each project's (kind 2), and the forge's charter (kind 3),
+whose values it keeps in its own family, `Setting`
 (`../protocol/store.md`, section 2), while jig keeps their states and
 sizes and never reads them (jig's `domain/connectors.md`, section 17).
 
@@ -1423,21 +1743,215 @@ sizes and never reads them (jig's `domain/connectors.md`, section 17).
   gate it now needs leaves its queue until it has its verdict (8.3).
 - **It reads the newest:** every merge is judged by the rules held at
   its decision, whatever revision its change was made in.
-- **A change keeps its charter.** The forge's charter is read when the
-  change is made, and the change's producing, repairs, resolutions and
-  agents' and checks' gates run under it: its procedure's authority
-  grants that charter's delegation alone, and is never rewritten. A
-  change whose charter the newest settings no longer offer is held when
-  it next needs a delegate, saying so; it is cancelled, or made again.
+- **A change keeps its charters and its LLM choices.** Its charters are
+  read when the change is made: its producer's, the one `change` named
+  (8.1) or else the forge's change charter, under which its producing,
+  repairs, resolutions and checks' gates run, and the forge's review
+  charter, under which its agents' gates run. Its procedure's authority
+  grants those charters' delegation alone, and is never rewritten. Its
+  LLM choices, by role, are kept beside them and given to each delegate
+  of the role. A change whose charter of a role the newest settings no
+  longer offer, or whose choice for a role that charter's models at the
+  newest no longer allow (jig's `domain/tasks.md`, section 4), is held
+  when it next needs a delegate of that role, saying so; it is
+  cancelled, or made again.
 
 ### 8.10 Drained
 
-Designed, not built (jig's `domain/connectors.md`, 6.7). A change in a
+A drain is jig's (jig's `domain/connectors.md`, 6.7). A change in a
 draining hold's scope is idle, and held, at its next step unless it is
 landing: under the queue, while its merge is sent and not yet settled;
-under the turn, while its landing has begun its proof and not yet
-landed (`landing.md`, 4.2). Its producing, repair or resolution run finishes
+under the turn, while its landing has begun its proof and not yet landed
+(`landing.md`, 4.2). Its producing, repair or resolution run finishes
 its turn and parks, as every run under a drain does.
+
+### 8.11 Its questions and early starts
+
+#### Its questions
+
+A change made with questions `foreman` or `up` (8.1) relays its agents'
+questions: its producing, its repairs and its resolutions ask it, it
+has each settled by a foreman or passes it to its requester, and it
+answers the asker. It decides nothing itself (jig's `domain/tasks.md`,
+section 9): the foreman and the requester decide, and the change relays
+(`../draft/notes.md`, N1).
+
+- **Its agents may ask.** It delegates its producing, its repairs and
+  its resolutions with the Message family kept, so that each may ask
+  its requester, the change, in the question form, its words carrying
+  its options and its recommendation, after pushing what it has. An
+  agent that asked is kept by its own question (jig's
+  `domain/tasks.md`, 5.7): its run parks, no try spent, until the
+  change answers, and the change's wait for it is no stall (8.4). Its
+  reviews and its foremen are delegated without the Message family, as
+  under `none`.
+- **Taken at its step.** Each step takes the questions its own agents
+  asked (its producing task, and the repair or the resolution it has
+  live), oldest first, as its open questions, kept on its record, and
+  works them one at a time in that order: the next gets its foreman, or
+  is passed up, once the one before is answered. A question from any
+  other task, and every task's words, are answered as 8.1 says for a
+  change that takes none.
+- **Bounded.** It counts the questions it takes, each as its turn comes,
+  from its making or its last release, against its bound,
+  `forge.change_policy.questions` (4 on the stock:
+  `../protocol/configuration.md`, section 7). The one past the bound,
+  when its turn comes, is given no foreman and passed nowhere: the
+  change holds itself, its words naming the bound and the question's
+  asker and number, and the hold escalates to its requester (jig's
+  `domain/tasks.md`, section 9). Released, it passes that question up
+  (below) with no foreman, the first it counts since the release, as
+  its repairs count again from one (8.4).
+- **A foreman per question,** under `foreman`: a delegate under the
+  forge's foreman charter (kind 3's number 3:
+  `../protocol/configuration.md`, 13.2), made under the change's own
+  authority as its other delegates are (8.4), each one of the change's
+  tasks; a foreman that authority no longer covers is not made, and the
+  question is passed up, its reasons saying what the authority lacks. Its brief
+  carries the change's words whole, the question's words whole with its
+  asker and number, and the change's branch and pushed head, where it
+  has one; its workspace is a checkout of the landing branch's tip,
+  inspect only, with the forge's reads on the change's repository, so
+  that it reads the design there and the pushed work through
+  `read_branch` and `read_file`. Its contract is a verdict whose label
+  is one of:
+  - `answer`: the change's words, the design or the draft settle it; its
+    text is the answer;
+  - `finish`: the work done holds, and the rest belongs to the asker's
+    Left list; its text says what to finish with;
+  - `escalate`: neither settles it; its text says why, for the
+    requester.
+
+  On `answer` or `finish` the change answers the asker's question, in
+  the answer form to its number, with the foreman's text, opened for
+  `finish` by the line `Finish: the work done holds; list the rest under
+  Left.` On `escalate`, or a foreman that fails or is cancelled, the
+  change passes the question up, the foreman's text or its failure's
+  words among the reasons.
+- **Passed up,** under `up`, on `escalate`, or released past the bound,
+  one at a time in the order taken: the change asks its requester in
+  the question form, its words the asker's question whole, as its
+  record kept them when it was taken, then,
+  under a line `Foreman:`, the foreman's reasons where one ran, the
+  whole cut from its end to the message bound and marked. The change is
+  kept by its own question while it waits (jig's `domain/tasks.md`,
+  5.7): it steps as ever, and merges nothing, its merge waiting as for
+  a pending dependency (8.2, step 7). A repair's or a resolution's
+  question passed up takes it out of its queue until answered, as a
+  kept change's place is (section 9).
+- **The answer relayed down.** The requester's answer, in the answer
+  form to the change's question, is relayed at the step that takes it:
+  the change answers its asker's question with the answer's words
+  whole, and the asker's next run goes on from where it parked with the
+  answer to read. The requester may first amend the change (its words
+  widened, a Left item accepted: section 7 of jig's `domain/tasks.md`)
+  or make a new change and add it as the change's dependency; its
+  answer then says so.
+- **Held until its dependencies land.** An answer the change takes
+  while its task is kept by a pending dependency is held on its record
+  and relayed at the first step at which none is pending, the
+  dependency having ended done or been amended away; a requester that
+  adds a dependency as it answers so makes the work wait for it.
+- **An asker that ends first** ends its questions: a foreman still
+  running for one is cancelled, and an answer to a question passed up
+  for it is taken and dropped, the change's history naming it. The
+  change's own question stays until its requester answers it or it
+  ends with the change.
+- **On its record and its panel.** Its open questions, in the order
+  taken, each with its asker and number, its words whole and their
+  first line, and where it stands (taken; with foreman task F; asked of the
+  requester; its answer held for dependencies), and the questions
+  taken against its bound, are kept on its record, so that a restart
+  resumes each where it stood (section 16), and shown on its panel
+  (8.8; `../client/forge.md`, 9.2) and by `ctl`'s `change show`
+  (`../client/tools.md`, 5.5, area 6).
+- **Its history** keeps every question and answer: the asked tasks'
+  question positions and the change's own (jig's `domain/tasks.md`,
+  8.2). A ruling that concerns many changes is design: a designer's
+  change into the landing branch, and amendments of the live changes it
+  concerns.
+
+A change keeps at most 16 open questions. Its configured question allowance
+must be less than 16, leaving room for the question past that allowance. A
+question beyond the open-queue ceiling is answered with the refusal used by
+a change that takes no questions; it never enters the relay (2026-11-04).
+
+The foreman's brief fits the deployment's brief bound by cutting the
+change's words from their end and marking truncation before cutting anything
+else; the question's words are never cut. Its three verdict choices, in
+order, are code 1 `answer`, code 2 `finish`, code 3 `escalate`, each
+requiring words and no fields. Its words fit both `tasks.result_bytes` and
+`tasks.message_bytes` less 64 bytes, reserving room for the finish prefix in
+the answer relayed down (2026-11-04).
+
+Every relay input read at a step is retained before any message is sent. A
+question is taken once by its asker and number. Reasons awaiting passing up,
+and answers awaiting passing down, stay on the record even when the step has
+no message room; stored pending reasons have a ceiling of 65,536 bytes.
+Passing up after release does not check the spent allowance again. Only the
+result of the current question's assigned foreman settles it; other foreman
+results are dropped. Ask and answer messages share the step's `tasks.batch`
+with its other replies. Work left solely for lack of message room makes the
+next step due at once (2026-11-04).
+
+#### Early starts
+
+The change procedure starts kept (jig's `domain/connectors.md`, 6.1): a
+change made with a pending dependency is active and kept rather than
+waiting, so its producer may work beside its dependencies while its
+merge waits for them (8.2, step 7; section 9). Its producer starts
+early, by these rules:
+
+- **When.** At producing, with no head of its own pushed, once each
+  pending dependency that is a change into the same repository and
+  landing branch has a pushed head (its branch's head as the forge last
+  read it, 5.2), and none of them is itself kept by a pending dependency.
+  One level only: a dependency kept by its own question alone does not
+  block. A pending dependency that is a change into another repository
+  orders the landings alone (`landing.md`, 4.1): the producer neither
+  waits for its push nor merges it. Any other pending dependency (a task
+  that is no change, a change into another landing branch) has no head
+  to start from, and the producer waits for it to be done. While the
+  change waits so, at producing with no producer, its stall does not
+  count.
+- **From what.** Its producer's workspace starts from the landing
+  branch's tip with those heads merged into it, one by one in the order
+  of the change's dependencies (`worker.md`, section 5). The change
+  keeps each head it started from, with its dependency, and marks those
+  dependencies started from (jig's `domain/connectors.md`, 6.1).
+- **A conflict refuses it.** A head that does not merge cleanly fails
+  the producer's preparation as a conflict naming it (`worker.md`,
+  section 5). The change cancels that producer, its early start spent,
+  and waits for its dependencies to be done; nothing is held or
+  escalated, and its marks stay.
+- **Once.** A change starts its producer early at most once. An early
+  producer that ends failed, for whatever reason, holds nothing: the
+  change waits for its dependencies to be done, then makes its next
+  producer, whose failure for good holds it as 8.4 says.
+- **The next producer merges the landing tip first.** A producer of a
+  change that started early, or of a change into a landing branch whose
+  rules ask no update (a goal's own branch, section 11 and 8.7), whose
+  workspace would start from the change's pushed branch or from saved
+  work, starts instead from a merge in progress: that start, with the landing branch's tip as the
+  base merged into it (`worker.md`, 4.1 and section 5). A conflict is
+  left in its checkout for it to settle; its first push commits the
+  merge. One with nothing pushed or saved starts from the landing
+  branch's tip, which now holds its dependencies' work. So a producer
+  going on after an answer that added a dependency, or after an
+  amendment naming a revision of the design that landed into the
+  branch, works on the branch as it now stands, as one into main is
+  brought up to date by the forge's update (section 10).
+- **Done while kept.** The early producer's result is the change's head,
+  as any producer's: the change opens its pull request, and is checked
+  and gated as its rules ask, but is not ready until its last dependency
+  is done (section 9). Its head carries its dependencies' work as they
+  had pushed it, which their landings contain.
+- **A dependency started from stays.** Removing it would leave its
+  unlanded work in the change's head, so an amendment leaving it out is
+  refused, naming it (jig's `domain/tasks.md`, section 7): its requester
+  cancels the change and makes it again instead. One that fails or is
+  cancelled holds the change, as any failed dependency does (jig's
+  `domain/tasks.md`, 5.5).
 
 ## 9. Landing queues
 
@@ -1449,7 +1963,8 @@ one project (another may read it as context), so its goals' priorities
 are comparable.
 
 - **In the queue:** a change is in the queue once it is ready (CI passed
-  and every blocking gate holds, at its head, and its task is not kept:
+  where its landing branch's rules ask it (8.7), and every blocking gate
+  holds, at its head, and its task is not kept:
   no dependency it was given is pending, jig's `domain/tasks.md`, 5.7).
   It keeps the time it
   first became ready while it stays live, so leaving and coming back
@@ -1475,9 +1990,9 @@ are comparable.
 - **Derived, not kept.** A queue is the ready changes into a branch,
   their priorities and their times; nothing of it is stored beyond the
   changes' own states, so a restart rebuilds it from them.
-- **The branch's own CI,** for a repository with no tier: a repository
-  with tiers is judged by their verdicts instead, and its queue never
-  pauses for them (`after-landing.md`, section 7). A landing temper did
+- **The branch's own CI,** for a branch no tier follows: a branch
+  tiers follow is judged by their verdicts instead, and its queue never
+  pauses for them (`after-landing.md`, sections 2 and 7). A landing temper did
   not make may break the branch. Once CI fails on the branch's tip, the queue pauses and one
   repair is made: a change task into that branch, first in its queue,
   its words, and its producer's, opening with what it repairs, as a
@@ -1521,7 +2036,7 @@ adoption says so, 4.4) lands through that queue. Forgejo keeps none.
   5.1), and found by the client's read of the pull request: the merge's
   entry stays open in the client until that read finds the pull request
   merged or out of the queue (skein's `forge.md`, 3.3;
-  `forge-client.md`, 7.7, pending in skein's code).
+  `forge-client.md`, 7.7).
 - **Landed:** the change is landed (8.2), and its landing's commit is
   the queue's group's (`Pull.merged`), not the head temper saw: the
   forge merged that head onto the queue's base with the changes ahead
@@ -1548,6 +2063,10 @@ instead (`landing.md`, section 5).
 - **Lazy:** a change takes its base when it is first in its queue, or
   about to get a run for another reason (8.2). It never does only
   because its base moved.
+- **By its landing branch's rule:** only where the rules covering its
+  landing branch ask up to date (8.7, `Requires`). Under rules asking
+  none it is never updated, first or before a run, and a conflict with
+  its base holds it (8.2, step 6).
 - **Mechanical:** the update merges the base into the change's branch,
   with no LLM. The forge makes it itself (its pull request's update, by
   a merge), so it is an effect, as a merge is. A merge rather than a
@@ -1560,7 +2079,15 @@ instead (`landing.md`, section 5).
   its recovery finds it (section 6), and the new head is heard as any
   push.
 - **A conflict** makes the forge refuse the update, and the change is
-  resolved (8.4).
+  resolved (8.4): by the merge job, where its project names one, then
+  a resolution for what the job leaves.
+- **A catch-up** takes a base's commit into a branch that no update
+  reaches, a goal's own (11.1): a change into that branch, made by the
+  goal's coordinator naming the commit (`agent.md`, 4.3.1), its producer
+  the merge job, which merges the commit into a branch made at the
+  landing branch's tip (8.2, step 1); its project must name a
+  `merge_job`. It lands as any change into the branch does, and nothing
+  makes one but its requester's call.
 - **A semantic conflict,** a clean update whose CI fails while CI passes
   on the base's tip, is a repair, whose brief names the base merged in
   and what landed in it. While CI fails on the base's tip, the failure is
@@ -1583,6 +2110,8 @@ instead (`landing.md`, section 5).
     own branch, so it starts no CI and moves no pull request;
   - a landing's own branch, for a pin-only member: `temper/<root>/l<task>`,
     the landing's task, held by the landing (`landing.md`, 4.1);
+  - a goal's own branch: `temper/<root>/g<task>`, the goal's number, in
+    its project's home, held by the goal (11.1);
   - an agent's task's own branch, for runs that push outside a change,
     as a chat making a small fix does: `temper/<root>/r<task>`, in each
     repository its runs may write, the project's home among them, which
@@ -1605,16 +2134,32 @@ instead (`landing.md`, section 5).
   another as git refs forbid, and one grant covers a tree's branches;
   a task's own branches are named in its batch symbolically and resolved
   once it has its number (jig's `domain/authority.md`, section 4).
-- **Held by the change** that lands it, and written by its delegates one
+- **Held by the task it is named after,** a change's by the change that
+  lands it, a goal's own by its goal, and written by its delegates one
   at a time (jig's `domain/tasks.md`, 6.3).
 - **Landing branches are never made by a push.** A landing branch must
-  exist when it is adopted or named; a goal's own branch (11.1) is
-  created at its base's tip by the change that lands it, as an effect.
+  exist when it is adopted or named; a goal's own branch (11.1) is made
+  at its base's tip as its goal's hold is taken, as the taking's effect
+  (jig's `domain/connectors.md`, 4.7), and a change into it reads it
+  once it is made.
 - **Deleted as their tasks close,** as the release of their holds (jig's
   `domain/tasks.md`, 6.5): a landed change's branch, a cancelled one's,
   and a task's saved work. A failed change's branch is kept for a person
-  to read, and deleted as its tree's root closes. A release waits for a lost
+  to read, and deleted as its tree's root closes. A goal's own branch is
+  deleted as its goal closes if a change landed it (its tip reachable
+  from that change's landing branch), and otherwise kept for a person to
+  read, until deleted by hand or by the deployment's retention. A change
+  on its requester's held branch (8.1) holds no branch and deletes none
+  as it closes: the goal's landing leaves its goal's branch to the
+  goal's own close. A release waits for a lost
   writer's reread, and fails only if that reread fails.
+
+A goal's release recognises its branch as landed from a change in the same
+repository on that branch, in landed, red, cleared or uncleared state, whose
+landed head equals the branch's last known tip. With no known tip or no
+matching landed change it keeps the branch; a subsequent unlanded move keeps
+it too. This uses the retained change and branch records, with no new
+ancestry read (2026-11-04).
 
 ### 11.1 A branch per goal
 
@@ -1628,10 +2173,33 @@ commit of the base, which no later squash of a goal's branch replaces.
 A goal's own branch suits work likely to be dropped; a goal
 checked whole before it lands (by an end-to-end run, by a review of the
 whole); intermediate states that would break the base; and upstream
-contributions (section 14). Such a branch is short-lived: it is a change
-of its own, landed by the change procedure like any other, and it takes
-the base's landings that touch its area as they come, by an update. A
-project's rule may require or forbid it.
+contributions (section 14). Such a branch is short-lived, and the goal's
+own, never a change's:
+
+- **Named by the goal's template,** or by the batch that makes the goal
+  by hand, as the symbol *its own goal branch* (section 2), offered on a
+  tracked task only, since its goal is the one its changes serve (jig's
+  `domain/core.md`, 6.2). Resolved once the goal has its number to
+  `temper/<root>/g<task>` in the project's home (section 11). A goal
+  cannot take a hold once active (jig's `domain/tasks.md`, 6.2), so the
+  choice is made with the goal.
+- **Held by its goal for its whole life,** an exclusive hold that
+  refuses, and made at the home's default branch's tip as the hold is
+  taken, as the taking's effect. A making that fails for good holds the
+  goal, its words naming the branch and what the forge answered.
+- **Written by change alone:** each of the goal's changes lands into it
+  as its landing branch, its merge ordered by the branch's queue (section
+  9) and taking the branch's writer slot while in flight; the goal's own
+  runs inspect it and take no writer slot (jig's `domain/tasks.md`, 6.3).
+  A change whose landing branch is a goal's own, made by a task that is
+  neither that goal nor one of its subtree, is refused at its batch,
+  naming the goal.
+- **Landed whole** by a change into the base whose branch is the goal's
+  own, made by the goal on its held branch (8.1), and deleted as the goal closes once that change has landed it
+  (section 11); otherwise kept as the goal closes. It takes the base's
+  landings that touch its area as they come, by catch-ups (section 10),
+  which its goal makes as it hears them (7.3). A project's rule may
+  require or forbid it.
 
 ## 12. Issues
 
@@ -1652,15 +2220,8 @@ history they keep if temper is unplugged. Issues are projections (jig's
   which the issue is closed.
 - **Pull requests refer to it** ("Part of `ai/temper#12`"), so the forge
   links each change to its goal, across repositories too.
-- **Findings,** designed, not built, are `findings.md`'s: labelled
-  issues whose labels temper reads back, the one exception to "never
-  read back" here. Until it is built, as follows.
-- **Findings as issues:** a bug found while exploring, a follow-up a
-  review raised, a flaky test, created by an agent's `effect_forge` tool
-  (`agent.md`, 4.3; jig's `domain/connectors.md`, 4.5), keyed. Their
-  state (open, taken up by a goal, dropped) is the store's, shown in the
-  client (`../client/forge.md`, 7.3); taking one up is a goal that
-  names it.
+- **Findings** are `findings.md`'s: labelled issues whose labels temper
+  reads back, the one exception to "never read back" here.
 - **A projection, not a procedure** (jig's `domain/connectors.md`,
   section 8). The `issues` child domain is fed each goal's state, its
   plan and its milestones by the root: it is part of tracking, not work
@@ -1696,8 +2257,7 @@ history they keep if temper is unplugged. Issues are projections (jig's
 
 ### 12.1 Questions on the forge
 
-Designed, not built, and Later's (`../draft/landing-model.md`, 16). Off by
-default: a project's setting turns it on.
+Off by default: a project's setting turns it on.
 
 - **A question to a person on the forge:** a person task asking in
   words (jig's `domain/people.md`, section 8), addressed to a party
@@ -1852,11 +2412,12 @@ higher priority.
 At a restart (jig's `domain/engine.md`, section 6; jig's
 `domain/connectors.md`, section 14) the connector is given its records
 from the store: the projects' repositories and what temper may do there,
-the live tasks' resources and holds, the changes' and issues' states, and
-its outbox's entries with their attempts. The deployment's id is given
-to the client first, as its namespace, before any restored entry or live
-resource; the client restores each forge's writer from its own record
-before any entry too (4.1). The client's part is skein's
+the live tasks' resources and holds, the kept tasks' names, the changes'
+and issues' states, and its outbox's entries with their attempts. The
+deployment's id is given to the client first, as its namespace, before
+any restored entry or live resource; the client restores each forge's
+writer from its own record before any entry too (4.1). The client's
+part is skein's
 `forge-client.md`, section 8: what it reads afresh before anything else
 steps, how it settles an outbox entry as its class says, and where its
 listings start. That fresh read, each adopted repository's, covers what
@@ -1865,14 +2426,19 @@ log's guid is kept across starts (`../protocol/forge.md`, 5.1).
 
 Each forge starts not connected, whatever it was before the restart, and
 is connected as the routing tells the root (`../protocol/forge.md`, 2.1
-and 8.1); the adopted repositories of each managed or owned Forgejo are
-named to the routing for its reconcile (4.2). Until a forge connects, its
-reads and entries answer `NotConnected`, which narrows nothing (4.1), so
-the steps below run on each forge as it connects. Designed, not built:
-before its records, the connector loads its kinds' values from its
-family `Setting`, is given the stock defaults and says which differ
-(8.9), so a restored change is judged by the rules as they are. temper's
-steps:
+and 8.1); an ended forge stays ended, and each act its removal has not
+heard answered, its secrets erased or its group removed, is asked again
+(4.1); the adopted repositories of each managed or owned Forgejo are
+named to the routing for its reconcile (4.2). Each `Names` row of a task
+jig holds live is that task's names, and every other row a kept task's
+(4.1), whatever forges it names; a start with more live rows than
+`forge.tasks`, or more kept ones than `forge.repositories`, is refused
+as any record past the limits (`root.md`, 9.1). Until a forge connects,
+its reads and entries answer `NotConnected`, which narrows nothing
+(4.1), so the steps below run on each forge as it connects. Before its
+records, the connector loads its kinds' values from its family
+`Setting`, is given the stock defaults and says which differ (8.9), so a
+restored change is judged by the rules as they are. temper's steps:
 
 1. it reads afresh each repository's landing branches' tips and each
    live pull request (head, state, mergeability, CI, its place in a
@@ -1897,8 +2463,8 @@ read once.
 ## 18. The world
 
 The connector's world, `tests/engine/forge`, runs its subtree with the
-fake forge below it (`testing.md`, 4.2) and the root scripted above
-it; the tiers that run it through bytes and on a real Forgejo are
+fake forge below it (`testing.md`, 4.2) and the root scripted above it;
+the tiers that run it through bytes and on a real Forgejo are
 `testing.md`, section 2. Its stories: a change produced, opened,
 checked, gated, queued and landed; CI failing, repaired; a gate asking
 for changes, repaired, its verdict given again; a gate added while
@@ -1907,20 +2473,24 @@ review carried over; an approval carried over a clean update and asked
 again after a repair; a change that leaves the queue for a conflict and
 comes back at its place; a low-priority change aging past the window
 ahead of later ones; a conflict resolved from a merge in progress; a
+conflict settled by the merge job alone, and one it leaves to a
+resolution, under rules asking an update and under rules asking none; a
+catch-up into a goal's branch, merged by the merge job, and one already
+contained, ended with no change; a
 semantic conflict repaired; the branch's own CI broken by a landing
 temper did not make, the queue paused and repaired; its pull request
 closed by someone else, held, released and reopened; a landing that
-overlaps a goal's change, and one that does not; a goal's issue
-written, revised and closed; a merge whose answer is lost, found merged
-after a restart; a mergeability unsettled within the window, then
-settled; a forge preloaded with ten times the history, idle at the same
-cost. Designed, not built (8.9): a landing rule changed between two
-merges, the second judged by the new rule; a gate a rule adds asked for
-on a queued change, which leaves the queue, and a gate a rule drops no
-longer waited on; a project's rule adding an approval; a rule refused
-in its change's decision; a change kept on the charter it was made
-with, and one held when that charter is no longer offered; a restart
-that hands the values back before the records.
+overlaps a goal's change, and one that does not; a goal's issue written,
+revised and closed; a merge whose answer is lost, found merged after a
+restart; a mergeability unsettled within the window, then settled; a
+forge preloaded with ten times the history, idle at the same cost. Of
+the rules as settings (8.9): a landing rule changed between two merges,
+the second judged by the new rule; a gate a rule adds asked for on a
+queued change, which leaves the queue, and a gate a rule drops no longer
+waited on; a project's rule adding an approval; a rule refused in its
+change's decision; a change kept on the charter it was made with, and
+one held when that charter is no longer offered; a restart that hands
+the values back before the records.
 
 Its stories of access and of GitHub's ways, the root and routing
 scripted: a forge connected while temper runs, an adoption refused as
@@ -1929,7 +2499,7 @@ restored at the next start; an owned forge set up from the client,
 each state's row and `SetUp`'s answer checked together, with and
 without the box: asked when offered and none sets up, "busy" while
 any sets up, "not offered" connecting, connected, stopped, not owned
-or asked, or not configured, "not under the box" without the box and
+or asked, or not kept, "not under the box" without the box and
 after `BoxClosed`, each state the routing tells kept as told and none
 restored; a forge stopped while a change waits on it,
 nothing narrowed, its entry committed again once it connects; a managed
@@ -1945,6 +2515,16 @@ the head read afresh; no commit status written on GitHub, and nothing
 held for it. The forge below is skein's fake, its GitHub layer
 included: no example calls github.com or uses a real credential.
 
+Its stories of removal: a forge removed with a change on it, its
+watches retired and nothing read of it after. With the root's, in the
+engine's world (`tests/engine/domain`): a removal, and a project's
+deletion (jig's `domain/people.md`, 5.2), each cut by a crash after
+each kept act and resumed at the next start to the same end, a chat
+that worked on the forge reading its repository's name, open or ended,
+until the chat is erased; a removed forge's number never given again;
+and nothing of the forge or the project read afterwards but what 4.1
+and jig's `domain/people.md`, 5.2 keep.
+
 Its referee, beyond jig's for every connector (jig's
 `domain/connectors.md`, section 15): nothing lands without every
 requirement its branch's enforced rules name, guarded ones met at the
@@ -1957,7 +2537,9 @@ temper's own pushes are never taken for drift; the calls made while
 idle are bounded by the limits; nothing is narrowed, and no change held,
 for a forge not connected; a change whose merge was answered queued is
 not merged again until the forge has landed or ejected it, and lands at
-the group's commit.
+the group's commit; nothing is written to, read of or listed for a
+forge once its removal's decision has committed, and a removal ends
+whole.
 
 ## 20. Open questions
 
@@ -1983,9 +2565,10 @@ the group's commit.
   output instead is open.
 - **A failure that is the runner's, not the change's:** a job whose
   set-up step failed, or whose runner was lost, is a repair like any
-  other. Running the job again first, through the API, is
-  `../draft/ci-on-forgejo-17.md`, with the stalls' reasons and the
-  agents' log tools.
+  other under the queue, where landing by turn retries it, never
+  repaired (`landing.md`, 7.4). Running the job again first, through the
+  API, is `../draft/ci-on-forgejo-17.md`, with the stalls' reasons and
+  the agents' log tools.
 - **Two Forgejo behaviours no fact records yet** (`../protocol/forge.md`,
   section 14): that CI after a clean update runs on exactly the head the
   update made (section 10); and where a merge lands when its pull
@@ -2031,8 +2614,8 @@ the group's commit.
   else's merge, said at adoption; signing is later.
 - **Connecting a forge as another user** (4.1): refused, since the keys
   and echoes already on the forge are the old user's. Moving a
-  deployment to another App or user, and disconnecting a forge, are
-  later.
+  deployment to another App or user is later; a forge goes whole, by
+  its removal (4.1).
 - **Which checks are CI on GitHub, without required checks:** temper's
   draft (`../draft/github.md`, section 9) takes the repository's Actions
   workflows' check runs there, so that another App's check run (a

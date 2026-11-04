@@ -1,0 +1,11 @@
+task text TASK [--field specification|instructions] [--from OFFSET]
+  TASK (task): a number; required. The task's number
+  --field specification|instructions: one of specification or instructions; optional. Which source to read; specification when absent
+  --from OFFSET: a number; optional. Byte offset printed by the previous chunk; zero when absent
+Read a chunk of a task's specification or effective instructions
+Prints: The source words, byte offsets and total size; then a continuation call or `no more`
+--json: the record task-text.
+Key: none.
+Each chunk keeps UTF-8 characters whole. Follow the printed call
+until no more. Instructions use the task's override, or its charter
+at the task's recorded settings revision.

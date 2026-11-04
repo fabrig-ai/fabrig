@@ -1,0 +1,11 @@
+change 2 · qa/pilot-20261026 on forge 3 · temper/2-readme into main
+pull request #1 · http://127.0.0.1:3000/qa/pilot-20261026/pulls/1
+step: checking
+head 1111111111111111111111111111111111111111 · CI pending
+gates: none
+repairs 0 of 3 · resolutions 0 of 3 · updates 0 of 5
+questions: foreman · 2 of 4 taken
+  question 1 of task 7 · with foreman 15 · Which branch?
+  question 2 of task 8 · taken · Which check?
+digest: dda99576ae1e867e
+next: temper ctl DIR change show 2 --until landed

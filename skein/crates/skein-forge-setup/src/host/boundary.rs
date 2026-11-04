@@ -107,9 +107,12 @@ pub(super) enum Dialect {
     GitHub,
     Both,
 }
-/// Runtime forge membership (temper/docs/design/draft/playground-reset.md, 3 and 4).
+/// Runtime forge membership (skein/docs/design/forge-setup.md, 6.3).
 #[derive(Clone, Debug)]
-#[expect(clippy::large_enum_variant, reason = "runtime Add takes the forge settings as one owned value")]
+#[cfg_attr(
+    not(target_arch = "wasm32"),
+    expect(clippy::large_enum_variant, reason = "runtime Add takes the forge settings as one owned value")
+)]
 pub enum Request {
     /// Takes a forge while the host runs; invalid settings, held numbers and excess forges are ignored.
     Add(super::settings::Forge),

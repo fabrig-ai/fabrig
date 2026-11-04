@@ -1,4 +1,4 @@
-//! Runtime membership (temper/docs/design/draft/playground-reset.md, 3 and 4).
+//! Runtime membership (skein/docs/design/forge-connection.md, 3.1).
 use super::{fixtures as f, github_start as gh};
 use crate::{Event, Request, Settings, settings::Forge, start::Start};
 use alloc::boxed::Box;
@@ -215,11 +215,14 @@ fn removal_discards_queued_notifications_and_listener_hints() {
 }
 
 #[test]
-#[should_panic(expected = "a forge number is configured once")]
-fn a_duplicate_number_asserts_only_in_tests() {
+fn a_duplicate_number_is_ignored() {
     let mut h = harness();
     let mut added = forge(f::settings());
     added.access = None;
     h.send(Request::Add(added));
     h.send(Request::Add(forge(f::settings())));
+    h.run(Duration::ZERO);
+    assert_eq!(h.start(f::FORGE), Start::Unconnected);
+    assert_eq!(h.connections_opened(), 0);
+    assert!(h.up.is_empty());
 }

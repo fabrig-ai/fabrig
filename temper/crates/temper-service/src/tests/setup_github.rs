@@ -104,6 +104,7 @@ fn pump(service: &mut crate::Service) -> Option<w::Outcome> {
                 | root::Request::Return { .. }
                 | root::Request::SetUp { .. }
                 | root::Request::Connect { .. }
+                | root::Request::Replace { .. }
                 | root::Request::Manifest { .. }
                 | root::Request::Reachable { .. }
                 | root::Request::Accept { .. }
@@ -533,7 +534,7 @@ fn connected(service: &mut crate::Service, accepted_ids: &[u64], listing: &[u8])
 
 fn minted(service: &mut crate::Service, face: &mut Face) {
     let head = b"HTTP/1.1 201 Created\r\nContent-Length: ";
-    let length = skein_lib::Decimal::of(u64::try_from(MINT.len()).unwrap());
+    let length = skein_lib::Decimal::of(skein_lib::len_u64(MINT.len()));
     let mut bytes = skein_lib::Writer::new(
         head.len()
             .checked_add(length.as_bytes().len())

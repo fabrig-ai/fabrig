@@ -70,6 +70,7 @@ fn assignment() -> engine::Assignment {
                 shell: false,
                 agents: false,
                 call_timeout: Duration::from_secs(10),
+                tools: engine::RunPolicy::EVERY_FAMILY,
             },
             contract: tasks::Contract::Report { words: 128 },
             authority: tasks::Authority {
@@ -131,7 +132,11 @@ fn root_charter_becomes_a_smith_start_with_ordered_brief_and_exact_budget() {
 }
 
 fn goal_tools(timeout: Duration) -> Box<[run::HostTool]> {
-    let mut expected = tools(timeout);
+    let mut expected = crate::calls::tools_for(
+        timeout,
+        engine::RunPolicy::EVERY_FAMILY,
+        tasks::Tools(!jig_domain_core::ToolFamilies::JIG.control.0),
+    );
     for tool in &mut expected {
         tool.reserve = tool.name.as_ref() == b"message";
     }
@@ -140,14 +145,22 @@ fn goal_tools(timeout: Duration) -> Box<[run::HostTool]> {
 
 #[test]
 fn settings_tools_are_offered_only_with_the_runs_settings_family() {
-    for allowed in [false, true] {
+    // The registry offers 37 declarations with message and without settings; settings adds two.
+    const WITHOUT_SETTINGS: usize = 37;
+    const WITH_SETTINGS: usize = 39;
+    let settings = jig_domain_core::ToolFamilies::JIG.settings;
+    let authority = 1 | jig_domain_core::ToolFamilies::JIG.message.0;
+    for (charter, authority, allowed, count) in [
+        (0, authority, false, WITHOUT_SETTINGS),
+        (0, authority | settings, false, WITHOUT_SETTINGS),
+        (settings, authority, false, WITHOUT_SETTINGS),
+        (settings, authority | settings, true, WITH_SETTINGS),
+    ] {
         let mut assignment = assignment();
-        assignment.run.authority.tools.0 |= jig_domain_core::ToolFamilies::JIG.message.0;
-        if allowed {
-            assignment.run.authority.tools.0 |= jig_domain_core::ToolFamilies::JIG.settings;
-        }
+        assignment.run.policy.tools = tasks::Tools(charter);
+        assignment.run.authority.tools = tasks::Tools(authority);
         let charter = crate::charter(&assignment);
-        assert_eq!(charter.grants.host_tools.len(), if allowed { 39 } else { 37 });
+        assert_eq!(charter.grants.host_tools.len(), count);
         for name in [b"settings".as_slice(), b"propose_settings"] {
             let mut found = false;
             for tool in &charter.grants.host_tools {
@@ -158,11 +171,30 @@ fn settings_tools_are_offered_only_with_the_runs_settings_family() {
             assert_eq!(found, allowed);
         }
         for tool in goal_tools(Duration::from_secs(10)) {
-            if tool.name.as_ref() != b"settings" && tool.name.as_ref() != b"propose_settings" {
+            if tool.name.as_ref() != b"settings"
+                && tool.name.as_ref() != b"propose_settings"
+                && tool.name.as_ref() != b"read_task"
+            {
                 assert!(charter.grants.host_tools.contains(&tool), "unchanged declaration: {:?}", tool.name);
             }
         }
     }
+}
+
+#[test]
+fn settings_tools_need_the_charters_family_too() {
+    let stock = 1_539;
+    let mut assignment = assignment();
+    assignment.run.policy.tools = tasks::Tools(512);
+    assignment.run.authority.tools = tasks::Tools(stock | 1024);
+    let charter = crate::charter(&assignment);
+    let mut offered = charter.grants.host_tools.iter();
+    for tool in goal_tools(Duration::from_secs(10)) {
+        if tool.name.as_ref() != b"settings" && tool.name.as_ref() != b"propose_settings" {
+            assert_eq!(offered.next(), Some(&tool), "unchanged declaration and order: {:?}", tool.name);
+        }
+    }
+    assert_eq!(offered.next(), None, "no settings or additional tools");
 }
 
 #[test]
@@ -184,13 +216,17 @@ fn message_is_offered_only_with_the_runs_message_family() {
             for tool in &expected {
                 if (!settings && (tool.name.as_ref() == b"settings" || tool.name.as_ref() == b"propose_settings"))
                     || (!message && tool.name.as_ref() == b"message")
+                    || (authority & families.read.0 == 0 && tool.name.as_ref() == b"read_task")
                 {
                     continue;
                 }
                 assert_eq!(offered.next(), Some(tool), "{role}: unchanged declaration and order");
             }
             assert_eq!(offered.next(), None, "{role}: no additional tools");
-            assert_eq!(charter.grants.host_tools.len(), 36 + usize::from(message) + 2 * usize::from(settings));
+            assert_eq!(
+                charter.grants.host_tools.len(),
+                36 + usize::from(message) + 2 * usize::from(settings) + usize::from(authority & families.read.0 != 0)
+            );
         }
     }
 }
@@ -218,9 +254,9 @@ fn a_charters_mode_is_its_tasks_ending() {
 }
 
 #[test]
-fn a_report_run_without_modify_keeps_it_off() {
+fn a_report_run_cannot_modify_without_delivery() {
     let mut assignment = assignment();
-    assignment.run.policy.modify = false;
+    assignment.run.policy.modify = true;
     let charter = crate::charter(&assignment);
     assert_eq!(charter.mode, run::Mode::Finite);
     assert!(charter.grants.deliver.is_none());
@@ -229,11 +265,11 @@ fn a_report_run_without_modify_keeps_it_off() {
 }
 
 #[test]
-fn an_open_run_without_modify_keeps_it_off() {
+fn an_open_run_cannot_modify_even_when_policy_requests_it() {
     let mut assignment = assignment();
     assignment.run.ended_by = tasks::EndedBy::Requester;
     assignment.run.contract = tasks::Contract::Change { connector: 1, kind: 1, words: 128 };
-    assignment.run.policy.modify = false;
+    assignment.run.policy.modify = true;
     assignment.run.policy.shell = true;
     let charter = crate::charter(&assignment);
     assert_eq!(charter.mode, run::Mode::Open);
@@ -370,10 +406,10 @@ fn message_schema_decodes_a_named_question_and_rejects_a_malformed_body() {
     assert_eq!(decided(b"message", br#"{"target":23,,"form":"words","words":"x"}"#), Err(Problem::Malformed));
 }
 
-#[test]
-fn every_declared_tool_decodes_its_minimum_shape_and_rejects_a_wrong_shape() {
-    let cases: &[(&[u8], &[u8], &[u8])] = &[
+fn tool_cases() -> &'static [(&'static [u8], &'static [u8], &'static [u8])] {
+    &[
         (b"settings", br"{}", br#"{"from":-1}"#),
+        (b"read_task", br#"{"task":23}"#, br#"{"task":0}"#),
         (b"propose_settings", br#"{"against":1,"items":[],"reason":"why"}"#, br#"{"against":0,"items":[],"reason":"why"}"#),
         (b"read_items", br#"{"repository":"qa/pilot","since":0,"page":1}"#, br#"{"repository":"qa/pilot","page":0}"#),
         (b"read_item", br#"{"repository":"qa/pilot","number":1,"after":0}"#, br#"{"repository":"qa/pilot","page":0}"#),
@@ -412,7 +448,12 @@ fn every_declared_tool_decodes_its_minimum_shape_and_rejects_a_wrong_shape() {
         (b"note", br#"{"scope":{"kind":"project","project":1},"description":"slow start","body":"warm it first"}"#, br#"{"scope":{"kind":"project"},"description":"slow start","body":"warm it first"}"#),
         (b"read_docs", br#"{"topic":"box"}"#, br#"{"topic":3}"#),
         (b"recall", br#"{"kind":"name","name":1}"#, br#"{"kind":"name","name":0}"#),
-    ];
+    ]
+}
+
+#[test]
+fn every_declared_tool_decodes_its_minimum_shape_and_rejects_a_wrong_shape() {
+    let cases = tool_cases();
     let declared = tools(Duration::from_secs(10));
     assert_eq!(declared.len(), cases.len());
     for tool in &declared {
@@ -430,7 +471,7 @@ fn every_declared_tool_decodes_its_minimum_shape_and_rejects_a_wrong_shape() {
         assert!(found, "tool declared: {name:?}");
         assert!(decoded(name, valid).is_ok(), "valid input for {name:?}");
         assert!(decoded(name, invalid).is_err(), "invalid input for {name:?}");
-        if name.starts_with(b"read_") && *name != b"read_docs" {
+        if name.starts_with(b"read_") && *name != b"read_docs" && *name != b"read_task" {
             let start = skein_lib::bytes::find(valid, b"qa/pilot").unwrap();
             let end = start.checked_add(b"qa/pilot".len()).unwrap();
             let mut input = skein_lib::Writer::new(valid.len().checked_sub(b"qa/pilot".len()).unwrap());
@@ -932,7 +973,7 @@ fn a_job_answer_names_its_failed_step_before_its_log() {
     let step = Some(api::Step { number: 1, name: Box::from(&b"build"[..]) });
     let read = api::Answer::Job { attempt, step, log: Box::from(&b"failing check build 3\n"[..]), truncated: true };
     let rendered = answer(&engine::CallAnswer::ForgeRead(Box::new(Ok(read))));
-    assert_eq!(rendered.text(), b"Job 8 run 7, failed step 1 build:\n[earlier log bytes cut]\nfailing check build 3\n");
+    assert_eq!(rendered.text(), b"Job 8 run 7, failed step 1 build:\n[log bytes cut]\nfailing check build 3\n");
     assert!(!rendered.error(), "A read answer is no error");
 }
 
@@ -1379,10 +1420,420 @@ fn change_decodes_words_and_an_optional_repository() {
         let call = decided(b"change", input).expect("change is declared and decoded");
         assert_eq!(call.completion, 2);
         assert_eq!(call.position, 1);
-        let engine::Tool::Change { words, repository } = call.tool else { panic!("change") };
-        assert_eq!(words.as_ref(), b"edit README");
-        assert_eq!(repository.as_deref(), if input.contains(&b'/') { Some(b"work/hello".as_slice()) } else { None });
+        let engine::Tool::Change { changes } = call.tool else { panic!("change") };
+        let repository = if input.contains(&b'/') { Some(b"work/hello".as_slice().into()) } else { None };
+        assert_eq!(changes.as_ref(), &[engine::ChangeCall::words(b"edit README".as_slice().into(), repository)]);
     }
+}
+
+#[test]
+fn change_decodes_a_plan_member_each() {
+    for (landing, expected) in
+        [("goal", engine::ChangeLanding::Goal), ("main", engine::ChangeLanding::Branch(b"main".as_slice().into()))]
+    {
+        let input = format!(r#"{{"words":"a","name":"x","landing":"{landing}","after":[4,"w"]}}"#);
+        let engine::Tool::Change { changes } = decided(b"change", input.as_bytes()).expect("plan change").tool else {
+            panic!("change")
+        };
+        assert_eq!(
+            changes.as_ref(),
+            &[engine::ChangeCall {
+                words: b"a".as_slice().into(),
+                repository: None,
+                name: Some(b"x".as_slice().into()),
+                landing: Some(expected),
+                branch: None,
+                merge: None,
+                after: Box::new([engine::ChangeAfter::Task(4), engine::ChangeAfter::Name(b"w".as_slice().into())]),
+                producer: None,
+                llm: engine::ChangeLlm::default(),
+                questions: None,
+                repairs: None,
+            }]
+        );
+    }
+    let name = "x".repeat(64);
+    let input = format!(r#"{{"words":"a","name":"{name}","after":[]}}"#);
+    let engine::Tool::Change { changes } = decided(b"change", input.as_bytes()).expect("64-byte name").tool else {
+        panic!("change")
+    };
+    assert_eq!(changes[0].name.as_deref(), Some(name.as_bytes()));
+    assert!(changes[0].after.is_empty());
+}
+
+#[test]
+fn change_decodes_repairs_alone_and_in_changes_at_each_commit_width() {
+    for digits in [40, 64] {
+        let text = "ab".repeat(digits / 2);
+        let mut commit = [0_u8; 32];
+        commit[..digits / 2].fill(0xab);
+        for (input, questions) in [
+            (format!(r#"{{"words":"a","repairs":"{text}"}}"#), None),
+            (format!(r#"{{"changes":[{{"words":"a","repairs":"{text}"}}]}}"#), None),
+            (format!(r#"{{"words":"a","repairs":"{text}","questions":"up"}}"#), Some(engine::ChangeQuestions::Up)),
+            (
+                format!(r#"{{"changes":[{{"words":"a","repairs":"{text}","questions":"foreman"}}]}}"#),
+                Some(engine::ChangeQuestions::Foreman),
+            ),
+        ] {
+            let engine::Tool::Change { changes } = decided(b"change", input.as_bytes()).expect("repair change").tool
+            else {
+                panic!("change")
+            };
+            assert_eq!(
+                changes.as_ref(),
+                &[engine::ChangeCall {
+                    repairs: Some(commit),
+                    questions,
+                    ..engine::ChangeCall::words(b"a".as_slice().into(), None)
+                }]
+            );
+        }
+    }
+}
+
+#[test]
+fn change_refuses_repairs_that_are_not_lowercase_commit_digits() {
+    for text in ["AB".repeat(20), "AB".repeat(32), "a".repeat(39), "a".repeat(41), "a".repeat(63), "g".repeat(64)] {
+        for input in [
+            format!(r#"{{"words":"a","repairs":"{text}"}}"#),
+            format!(r#"{{"changes":[{{"words":"a","repairs":"{text}"}}]}}"#),
+        ] {
+            assert_eq!(decided(b"change", input.as_bytes()), Err(Problem::Range(b"repairs")));
+        }
+    }
+    for input in [br#"{"words":"a","repairs":1}"#.as_slice(), br#"{"changes":[{"words":"a","repairs":null}]}"#] {
+        assert_eq!(decided(b"change", input), Err(Problem::Type(b"repairs")));
+    }
+}
+
+#[test]
+fn change_decodes_branch_mine() {
+    for input in [br#"{"words":"a","branch":"mine"}"#.as_slice(), br#"{"changes":[{"words":"a","branch":"mine"}]}"#] {
+        let engine::Tool::Change { changes } = decided(b"change", input).expect("branch mine").tool else {
+            panic!("change")
+        };
+        assert_eq!(
+            changes.as_ref(),
+            &[engine::ChangeCall {
+                branch: Some(engine::ChangeBranch::Mine),
+                ..engine::ChangeCall::words(b"a".as_slice().into(), None)
+            }]
+        );
+    }
+}
+
+#[test]
+fn change_keeps_branch_repairs_producer_and_llm_together() {
+    let input =
+        br#"{"words":"a","branch":"mine","repairs":"abababababababababababababababababababababababababababababababab","producer":6,"llm":{"producer":{"main":{"model":"sol","effort":"high"}}}}"#;
+    let engine::Tool::Change { changes } = configured_change(input).expect("branch and role choices").tool else {
+        panic!("change")
+    };
+    assert_eq!(changes.len(), 1);
+    assert_eq!(changes[0].branch, Some(engine::ChangeBranch::Mine));
+    assert_eq!(changes[0].producer, Some(6));
+    assert_eq!(changes[0].repairs, Some([0xab; 32]));
+    assert_eq!(
+        changes[0].llm.producer.as_ref().expect("producer choice").main,
+        tasks::ModelEffort { model: 0, effort: Some(1) }
+    );
+}
+
+#[test]
+fn change_refuses_a_branch_other_than_mine() {
+    let cases: &[(&[u8], Problem)] = &[
+        (br#"{"words":"a","branch":"theirs"}"#, Problem::Range(b"branch")),
+        (br#"{"words":"a","branch":""}"#, Problem::Range(b"branch")),
+        (br#"{"words":"a","branch":1}"#, Problem::Type(b"branch")),
+        (br#"{"changes":[{"words":"a","branch":"theirs"}]}"#, Problem::Range(b"branch")),
+        (br#"{"changes":[{"words":"a","branch":""}]}"#, Problem::Range(b"branch")),
+        (br#"{"changes":[{"words":"a","branch":1}]}"#, Problem::Type(b"branch")),
+    ];
+    for (input, expected) in cases {
+        assert_eq!(decided(b"change", input), Err(*expected), "{input:?}");
+    }
+}
+
+#[test]
+fn change_decodes_its_questions() {
+    for (questions, expected) in [
+        ("foreman", engine::ChangeQuestions::Foreman),
+        ("up", engine::ChangeQuestions::Up),
+        ("none", engine::ChangeQuestions::None),
+    ] {
+        let member = format!(r#"{{"words":"a","questions":"{questions}"}}"#);
+        for input in [member.clone(), format!(r#"{{"changes":[{{"words":"first"}},{member}]}}"#)] {
+            let engine::Tool::Change { changes } = decided(b"change", input.as_bytes()).expect("questions").tool else {
+                panic!("change")
+            };
+            assert_eq!(
+                changes.last().expect("change member"),
+                &engine::ChangeCall {
+                    questions: Some(expected.clone()),
+                    ..engine::ChangeCall::words(b"a".as_slice().into(), None)
+                }
+            );
+            if changes.len() == 2 {
+                assert_eq!(changes[0].questions, None);
+            }
+        }
+    }
+}
+
+#[test]
+fn change_refuses_unknown_questions() {
+    for (questions, expected) in [
+        (r#""ask""#, Problem::Range(b"questions")),
+        ("true", Problem::Type(b"questions")),
+        ("0", Problem::Type(b"questions")),
+        ("null", Problem::Type(b"questions")),
+        ("[]", Problem::Type(b"questions")),
+        ("{}", Problem::Type(b"questions")),
+    ] {
+        let member = format!(r#"{{"words":"a","questions":{questions}}}"#);
+        for input in [member.clone(), format!(r#"{{"changes":[{member}]}}"#)] {
+            assert_eq!(decided(b"change", input.as_bytes()), Err(expected), "{input}");
+        }
+    }
+}
+
+#[test]
+fn change_decodes_several_changes_in_order() {
+    let engine::Tool::Change { changes } =
+        decided(b"change", br#"{"changes":[{"words":"a","name":"a"},{"words":"b","after":["a"]}]}"#)
+            .expect("batch change")
+            .tool
+    else {
+        panic!("change")
+    };
+    assert_eq!(
+        changes.as_ref(),
+        &[
+            engine::ChangeCall {
+                name: Some(b"a".as_slice().into()),
+                ..engine::ChangeCall::words(b"a".as_slice().into(), None)
+            },
+            engine::ChangeCall {
+                after: Box::new([engine::ChangeAfter::Name(b"a".as_slice().into())]),
+                ..engine::ChangeCall::words(b"b".as_slice().into(), None)
+            },
+        ]
+    );
+    let engine::Tool::Change { changes } =
+        decided(b"change", br#"{"changes":[{"words":"a","repository":"work/hello","landing":"main","after":[1]}]}"#)
+            .expect("one batch member")
+            .tool
+    else {
+        panic!("change")
+    };
+    assert_eq!(
+        changes.as_ref(),
+        &[engine::ChangeCall {
+            words: b"a".as_slice().into(),
+            repository: Some(b"work/hello".as_slice().into()),
+            name: None,
+            landing: Some(engine::ChangeLanding::Branch(b"main".as_slice().into())),
+            branch: None,
+            merge: None,
+            after: Box::new([engine::ChangeAfter::Task(1)]),
+            producer: None,
+            llm: engine::ChangeLlm::default(),
+            questions: None,
+            repairs: None,
+        }]
+    );
+}
+
+#[test]
+fn change_decodes_a_producer_and_llm_by_role() {
+    let input = r#"{"words":"a","producer":6,"llm":{"producer":{"main":{"model":"sol","effort":"high"},"sub_agents":[{"model":"haiku"}]},"review":{"main":{"model":"sol","effort":"medium"}}}}"#;
+    let expected = engine::ChangeCall {
+        producer: Some(6),
+        llm: engine::ChangeLlm {
+            producer: Some(tasks::LlmChoice {
+                account: None,
+                main: tasks::ModelEffort { model: 0, effort: Some(1) },
+                subagents: Box::new([tasks::ModelEffort { model: 1, effort: None }]),
+            }),
+            review: Some(tasks::LlmChoice {
+                account: None,
+                main: tasks::ModelEffort { model: 0, effort: Some(0) },
+                subagents: Box::new([]),
+            }),
+        },
+        ..engine::ChangeCall::words(b"a".as_slice().into(), None)
+    };
+    let engine::Tool::Change { changes } = configured_change(input.as_bytes()).expect("role choices").tool else {
+        panic!("change")
+    };
+    assert_eq!(changes.as_ref(), core::slice::from_ref(&expected));
+    let input = format!(
+        r#"{{"changes":[{input},{{"words":"b","producer":1,"llm":{{"review":{{"main":{{"model":"haiku"}}}}}}}},{{"words":"c","producer":4294967295,"llm":{{}}}},{{"words":"d","llm":{{"producer":{{"main":{{"model":"sol"}}}}}}}}]}}"#
+    );
+    let engine::Tool::Change { changes } = configured_change(input.as_bytes()).expect("per-change choices").tool else {
+        panic!("change")
+    };
+    assert_eq!(
+        changes.as_ref(),
+        &[
+            expected,
+            engine::ChangeCall {
+                producer: Some(1),
+                llm: engine::ChangeLlm {
+                    producer: None,
+                    review: Some(tasks::LlmChoice {
+                        account: None,
+                        main: tasks::ModelEffort { model: 1, effort: None },
+                        subagents: Box::new([]),
+                    }),
+                },
+                ..engine::ChangeCall::words(b"b".as_slice().into(), None)
+            },
+            engine::ChangeCall { producer: Some(u32::MAX), ..engine::ChangeCall::words(b"c".as_slice().into(), None) },
+            engine::ChangeCall {
+                llm: engine::ChangeLlm {
+                    producer: Some(tasks::LlmChoice {
+                        account: None,
+                        main: tasks::ModelEffort { model: 0, effort: None },
+                        subagents: Box::new([]),
+                    }),
+                    review: None,
+                },
+                ..engine::ChangeCall::words(b"d".as_slice().into(), None)
+            },
+        ]
+    );
+}
+
+fn configured_change(json: &[u8]) -> Result<engine::Call, Problem> {
+    let model = assignment().run.policy.model;
+    let models = [
+        engine::Model {
+            name: b"sol".as_slice().into(),
+            efforts: Box::new([b"medium".as_slice().into(), b"high".as_slice().into()]),
+            ..model.clone()
+        },
+        engine::Model { name: b"haiku".as_slice().into(), efforts: Box::new([]), ..model },
+    ];
+    let input = run::HostInput::attested(json.into()).expect("bounded object exterior");
+    match crate::call_configured(
+        run::CallName { activation: 7, completion: 2, position: 1 },
+        b"change",
+        &input,
+        &models,
+    )? {
+        crate::Decoded::Call(call) => Ok(call),
+        crate::Decoded::Answered(_) => panic!("change answered at decode"),
+    }
+}
+
+#[test]
+#[expect(clippy::disallowed_methods, reason = "the test joins JSON entries at the sub-agent count boundary")]
+fn change_refuses_a_producer_or_llm_out_of_range() {
+    let cases: &[(&str, Problem)] = &[
+        (r#""producer":0"#, Problem::Range(b"producer")),
+        (r#""producer":-1"#, Problem::Range(b"producer")),
+        (r#""producer":"6""#, Problem::Type(b"producer")),
+        (r#""producer":4294967296"#, Problem::Range(b"producer")),
+        (r#""producer":1.5"#, Problem::Range(b"producer")),
+        (r#""llm":{"foreman":{}}"#, Problem::Range(b"llm")),
+        (r#""llm":[]"#, Problem::Type(b"llm")),
+        (r#""llm":{"producer":true}"#, Problem::Type(b"llm")),
+        (r#""llm":{"producer":{"main":{"model":"opus"}}}"#, Problem::Range(b"model")),
+        (r#""llm":{"review":{"main":{"model":"Sol"}}}"#, Problem::Range(b"model")),
+        (r#""llm":{"producer":{"main":{"model":"sol","effort":"max"}}}"#, Problem::Range(b"effort")),
+        (r#""llm":{"review":{"main":{"model":"haiku","effort":"high"}}}"#, Problem::Range(b"effort")),
+        (r#""llm":{"producer":{}}"#, Problem::Missing(b"main")),
+        (r#""llm":{"review":{"main":{}}}"#, Problem::Missing(b"model")),
+        (r#""llm":{"producer":{"main":{"model":0}}}"#, Problem::Type(b"model")),
+        (r#""llm":{"review":{"main":{"model":"sol","effort":0}}}"#, Problem::Type(b"effort")),
+        (r#""llm":{"producer":{"main":{"model":"sol"},"sub_agents":{}}}"#, Problem::Type(b"sub_agents")),
+        (r#""llm":{"review":{"main":{"model":"sol"},"sub_agents":[{"model":"opus"}]}}"#, Problem::Range(b"model")),
+    ];
+    for (member, expected) in cases {
+        for input in [format!(r#"{{"words":"a",{member}}}"#), format!(r#"{{"changes":[{{"words":"a",{member}}}]}}"#)] {
+            assert_eq!(configured_change(input.as_bytes()), Err(*expected), "{input}");
+        }
+    }
+    // Repeated models reach the root's fit check; decode checks the list's bound.
+    for count in [tasks::MODELS, tasks::MODELS + 1] {
+        let items = vec![r#"{"model":"haiku"}"#; usize::try_from(count).unwrap()].join(",");
+        let input =
+            format!(r#"{{"words":"a","llm":{{"producer":{{"main":{{"model":"sol"}},"sub_agents":[{items}]}}}}}}"#);
+        if count > tasks::MODELS {
+            assert_eq!(configured_change(input.as_bytes()), Err(Problem::TooLarge));
+        } else {
+            let engine::Tool::Change { changes } = configured_change(input.as_bytes()).expect("model limit").tool
+            else {
+                panic!("change")
+            };
+            assert_eq!(changes[0].llm.producer.as_ref().unwrap().subagents.len(), usize::try_from(count).unwrap());
+        }
+    }
+}
+
+#[test]
+fn change_refuses_words_with_changes_and_empty_members() {
+    let cases: &[(&[u8], Problem)] = &[
+        (br#"{"words":"a","changes":[{"words":"b"}]}"#, Problem::Range(b"changes")),
+        (br#"{"changes":[]}"#, Problem::Range(b"changes")),
+        (br#"{"changes":{}}"#, Problem::Type(b"changes")),
+        (br#"{"changes":[true]}"#, Problem::Type(b"changes")),
+        (br#"{"changes":[{"words":"a","changes":[{"words":"b"}]}]}"#, Problem::Range(b"changes")),
+        (br#"{"changes":[{}]}"#, Problem::Missing(b"words")),
+        (br#"{"changes":[{"words":""}]}"#, Problem::Range(b"words")),
+        (br#"{"changes":[{"words":"a","repository":"hello"}]}"#, Problem::Range(b"repository")),
+        (br#"{"words":"a","name":""}"#, Problem::Range(b"name")),
+        (br#"{"words":"a","name":1}"#, Problem::Type(b"name")),
+        (br#"{"words":"a","landing":""}"#, Problem::Range(b"landing")),
+        (br#"{"words":"a","landing":true}"#, Problem::Type(b"landing")),
+        (br#"{"words":"a","after":0}"#, Problem::Type(b"after")),
+        (br#"{"words":"a","after":[0]}"#, Problem::Range(b"after")),
+        (br#"{"words":"a","after":[-1]}"#, Problem::Range(b"after")),
+        (br#"{"words":"a","after":[1.5]}"#, Problem::Range(b"after")),
+        (br#"{"words":"a","after":[18446744073709551616]}"#, Problem::Range(b"after")),
+        (br#"{"words":"a","after":[""]}"#, Problem::Range(b"after")),
+        (br#"{"words":"a","after":[true]}"#, Problem::Type(b"after")),
+        (br#"{"words":"a","after":[{}]}"#, Problem::Type(b"after")),
+        (br#"{"words":"a","after":[[]]}"#, Problem::Type(b"after")),
+        (br#"{"words":"a","after":[null]}"#, Problem::Type(b"after")),
+    ];
+    for (input, expected) in cases {
+        assert_eq!(decided(b"change", input), Err(*expected), "{input:?}");
+    }
+    let name = "x".repeat(65);
+    let input = format!(r#"{{"words":"a","name":"{name}"}}"#);
+    assert_eq!(decided(b"change", input.as_bytes()), Err(Problem::Range(b"name")));
+}
+
+#[test]
+fn change_offers_its_plan_members_only_with_control() {
+    let legacy = br#"{"type":"object","properties":{"words":{"type":"string","description":"What to change: the files, and the exact text where it matters. It is all the change's coder reads."},"repository":{"type":"string","description":"The repository, as owner/name; leave it out when the project has one you may write."}},"required":["words"]}"#;
+    let plan = br#"{"type":"object","properties":{"words":{"type":"string","description":"What to change: the files, and the exact text where it matters. It is all the change's coder reads."},"repository":{"type":"string","description":"The repository, as owner/name; leave it out when the project has one you may write."},"name":{"type":"string","description":"Its name in this call, for a later change's after."},"landing":{"type":"string","description":"goal: your own goal branch; or a branch's name; left out, the default branch."},"branch":{"type":"string","enum":["mine"],"description":"mine: your own goal branch, landed whole as it stands, with no coder; left out, a branch of the change's own."},"merge":{"type":"string","description":"A catch-up: the commit to merge into a branch made at the landing branch's tip, as 40 or 64 hexadecimal digits; the merge job, not an agent, produces it."},"after":{"type":"array","description":"What it lands after: your live delegates' task numbers, or names given earlier in this call.","items":{"oneOf":[{"type":"integer","minimum":1},{"type":"string"}]}},"producer":{"type":"integer","minimum":1,"description":"The charter its producer, repairs and resolutions run under; left out, the forge's change charter."},"llm":{"type":"object","description":"LLM choices by role, producer and review: each {main: {model, effort}, sub_agents: [{model, effort}]}, by configured names; a role left out takes its charter's default."},"changes":{"type":"array","description":"Instead of words: several changes as one batch, each with the members above.","items":{"type":"object","properties":{"repairs":{"type":"string","description":"The red landing this change repairs: its merge commit's 40 or 64 hexadecimal digits, as the red's news names it.","pattern":"^([0-9a-f]{40}|[0-9a-f]{64})$"}}}},"repairs":{"type":"string","description":"The red landing this change repairs: its merge commit's 40 or 64 hexadecimal digits, as the red's news names it.","pattern":"^([0-9a-f]{40}|[0-9a-f]{64})$"},"questions":{"type":"string","enum":["none","foreman","up"],"description":"How its producer's questions go: foreman, settled first by a foreman from the words and the design; up, straight to you; none, it asks no one. Left out, the project's setting."}}}"#;
+    let stock = 1_539;
+    for (authority, schema) in [(stock, legacy.as_slice()), (stock | 0b100, plan.as_slice())] {
+        let mut found = false;
+        for tool in
+            crate::calls::tools_for(Duration::from_secs(10), engine::RunPolicy::EVERY_FAMILY, tasks::Tools(authority))
+        {
+            if tool.name.as_ref() == b"change" {
+                found = true;
+                assert_eq!(tool.schema.as_ref(), schema);
+                assert_eq!(tool.description.as_ref(), b"Have one change written on a branch of a repository of this project, opened as a pull request and merged once its checks pass; you hear its result.");
+            }
+        }
+        assert!(found, "change offered");
+    }
+    let mut found = false;
+    for tool in tools(Duration::from_secs(10)) {
+        if tool.name.as_ref() == b"change" {
+            found = true;
+            assert_eq!(tool.schema.as_ref(), plan);
+            crate::json::parse(&tool.schema).expect("plan schema");
+        }
+    }
+    assert!(found, "complete registry includes plan schema");
 }
 
 #[test]
@@ -1463,7 +1914,9 @@ fn change_repository_refusals_render_the_three_choices() {
 
 mod brief_fit;
 mod docs;
+mod json;
 mod reference;
+mod room;
 
 #[test]
 fn flat_forge_reads_decode_the_repository_name_and_name_bad_members() {
@@ -1489,7 +1942,7 @@ fn flat_forge_reads_decode_the_repository_name_and_name_bad_members() {
         (b"read_branch", br#"{"branch":1}"#, Problem::Type(b"branch")),
         (b"read_reviews", br#"{"number":1,"page":4294967296}"#, Problem::Range(b"page")),
         (b"read_reviews", br#"{"number":1,"page":0}"#, Problem::Range(b"page")),
-        (b"read_checks", br#"{"commit":"bad"}"#, Problem::Range(b"commit")),
+        (b"read_checks", br#"{"commit":"bad"}"#, Problem::Range(b"full commit identifier")),
     ] {
         assert_eq!(decided(tool, input), Err(problem));
     }
@@ -1632,6 +2085,7 @@ fn goal_decodes_words_and_optional_advisor_and_agree() {
     assert_eq!(decided(b"goal", br#"{"words":"plan","agree":1}"#), Err(Problem::Type(b"agree")));
 }
 
+mod kinds;
 #[path = "tests/settings.rs"]
 mod settings;
 #[test]
@@ -1726,4 +2180,288 @@ fn a_chats_answer_refusal_names_its_persons_inbox_question() {
         None,
         b"Refused: task 99 your person answers question 42 in their inbox",
     );
+}
+
+#[test]
+fn a_no_change_verdict_preserves_its_explanation_and_cannot_claim_a_resource() {
+    let answer = || {
+        let declared = run::outcome::Declared::Verdict(run::outcome::Verdict {
+            name: b"no_change".as_slice().into(),
+            text: b"No widget UI exists".as_slice().into(),
+            fields: Box::new([]),
+            items: Box::new([]),
+        });
+        run::Answer::Accepted { outcome: declared, spent: spend(3), turns: 1 }
+    };
+    assert_eq!(
+        result(answer(), None),
+        Ok(crate::Terminal {
+            cumulative: 3,
+            turns: 1,
+            end: tasks::End::Finished {
+                result: tasks::TaskResult::NoChange { words: b"No widget UI exists".as_slice().into() },
+                cancel_delegates: false,
+            },
+        })
+    );
+    assert_eq!(
+        result(answer(), Some(ChangeResource { connector: 1, kind: 2, resource: 42 })),
+        Err(Problem::Type(b"no_change"))
+    );
+}
+
+#[test]
+fn job_answers_fit_metadata_and_escaped_log_bytes_within_the_host_bound() {
+    use skein_forge::api;
+    let diagnostic = b"Missing changes/40.md with the line: opened 2026-11-02T14:01:43Z\n";
+    for cap in [128, 1024, 4096] {
+        for byte in [0, b'\t', 255, b'x'] {
+            let mut log = vec![byte; 6000];
+            log.extend_from_slice(diagnostic);
+            let read = api::Answer::Job {
+                attempt: api::JobAttempt { head: [1; 32], run: 7, job: 8, attempt: 2 },
+                step: Some(api::Step { number: 3, name: Box::from(*b"build\t") }),
+                log: log.into_boxed_slice(),
+                truncated: false,
+            };
+            let rendered = crate::answer_bounded(&engine::CallAnswer::ForgeRead(Box::new(Ok(read))), cap);
+            assert!(!rendered.error());
+            assert!(rendered.text().len() <= usize::try_from(cap).unwrap());
+            assert!(rendered.text().ends_with(diagnostic));
+            assert!(skein_lib::bytes::find(rendered.text(), b"[log bytes cut]").is_some());
+        }
+    }
+}
+
+#[test]
+fn job_metadata_refusals_fit_even_a_tiny_host_bound() {
+    use skein_forge::api;
+    for cap in [0, 1, 16, 32] {
+        let read = api::Answer::Job {
+            attempt: api::JobAttempt { head: [1; 32], run: 7, job: 8, attempt: 2 },
+            step: Some(api::Step { number: 3, name: vec![255; 64].into_boxed_slice() }),
+            log: Box::from(*b"diagnostic"),
+            truncated: false,
+        };
+        let rendered = crate::answer_bounded(&engine::CallAnswer::ForgeRead(Box::new(Ok(read))), cap);
+        assert!(rendered.error());
+        assert!(rendered.text().len() <= usize::try_from(cap).unwrap());
+    }
+}
+
+#[test]
+fn document_sections_have_repository_path_and_heading_titles() {
+    for (words, title) in [
+        (b"org/rules docs/rules.md".as_slice(), b"Document org/rules docs/rules.md".as_slice()),
+        (b"org/rules docs/rules.md, \"Safety\"".as_slice(), b"Document org/rules docs/rules.md, \"Safety\"".as_slice()),
+        (b"docs/rules.md".as_slice(), b"Document docs/rules.md".as_slice()),
+    ] {
+        let section = crate::section(&engine::BriefSection {
+            kind: engine::BriefKind::Forge(engine::ForgeBriefKind::Document(words.into())),
+            body: engine::BriefBody::Missing(brief::GatherMissing::Failed),
+        });
+        assert_eq!(section.title.as_ref(), title);
+        assert_eq!(section.text.as_ref(), b"[read failed]");
+    }
+}
+
+/// temper/docs/design/domain/agent.md, 4.3.1: merge accepts both commit widths and pads SHA-1.
+#[test]
+fn a_plan_change_reads_merge_as_a_commit() {
+    for (digits, length) in [("aB".repeat(20), 20), ("aB".repeat(32), 32)] {
+        let input = format!(r#"{{"words":"Catch up","merge":"{digits}"}}"#);
+        let engine::Tool::Change { changes } = decided(b"change", input.as_bytes()).expect("catch-up").tool else {
+            panic!("change")
+        };
+        let mut commit = [0_u8; 32];
+        commit[..length].fill(0xab);
+        assert_eq!(changes[0].merge, Some(commit));
+        assert_eq!(changes[0].landing, None);
+        let input = format!(r#"{{"changes":[{{"words":"Catch up","landing":"goal","merge":"{digits}"}}]}}"#);
+        let engine::Tool::Change { changes } = decided(b"change", input.as_bytes()).expect("catch-up batch").tool
+        else {
+            panic!("change")
+        };
+        assert_eq!(changes[0].merge, Some(commit));
+        assert_eq!(changes[0].landing, Some(engine::ChangeLanding::Goal));
+    }
+}
+
+/// temper/docs/design/domain/agent.md, 4.3.1: a malformed commit names the refused member.
+#[test]
+fn a_malformed_merge_is_refused_naming_it() {
+    for (digit, length) in [("a", 0), ("a", 39), ("a", 41), ("a", 63), ("a", 65), ("g", 40), ("g", 64)] {
+        let digits = digit.repeat(length);
+        let input = format!(r#"{{"words":"Catch up","merge":"{digits}"}}"#);
+        assert_eq!(decided(b"change", input.as_bytes()), Err(Problem::Range(b"merge")));
+    }
+    assert_eq!(decided(b"change", br#"{"words":"Catch up","merge":42}"#), Err(Problem::Type(b"merge")));
+}
+
+#[test]
+fn a_denied_release_names_the_control_family_once() {
+    use jig_domain_authority::{Answer, Finding};
+    let denied = engine::CallAnswer::ToolDenied {
+        answer: Answer::Refuse,
+        findings: Box::new([Finding::Tool, Finding::Tool, Finding::Tool]),
+    };
+    let rendered = crate::answer_for_tool(&denied, b"release", 1024);
+    assert!(rendered.error());
+    assert_eq!(rendered.text(), b"Authority refused: tool family control; ");
+}
+
+#[test]
+fn change_decodes_branch_mine_with_questions() {
+    for input in [
+        br#"{"words":"a","branch":"mine","questions":"none"}"#.as_slice(),
+        br#"{"changes":[{"words":"a","branch":"mine","questions":"none"}]}"#,
+    ] {
+        let engine::Tool::Change { changes } = decided(b"change", input).expect("branch and questions").tool else {
+            panic!("change")
+        };
+        assert_eq!(
+            changes.as_ref(),
+            &[engine::ChangeCall {
+                branch: Some(engine::ChangeBranch::Mine),
+                questions: Some(engine::ChangeQuestions::None),
+                ..engine::ChangeCall::words(b"a".as_slice().into(), None)
+            }]
+        );
+    }
+}
+
+#[test]
+fn commit_reads_refuse_abbreviated_or_non_hexadecimal_identifiers() {
+    for (tool, input) in [
+        (b"read_file".as_slice(), br#"{"head":"f471720","path":"README.md"}"#.as_slice()),
+        (b"read_compare", br#"{"before":"f471720","after":"f471720"}"#),
+        (b"read_checks", br#"{"commit":"ABCDEF0123456789abcdef0123456789abcdef01"}"#),
+    ] {
+        assert_eq!(decoded(tool, input).unwrap_err(), Problem::Range(b"full commit identifier"));
+    }
+    for (_, full) in COMMIT_SPELLINGS {
+        let prefix = br#"{"head":""#;
+        let suffix = br#"","path":"README.md"}"#;
+        let bytes = prefix.len().checked_add(full.len()).unwrap().checked_add(suffix.len()).unwrap();
+        let mut input = skein_lib::Writer::new(bytes);
+        input.put(prefix).unwrap();
+        input.put(full).unwrap();
+        input.put(suffix).unwrap();
+        decoded(b"read_file", &input.finish()).expect("full identifier accepted");
+    }
+}
+
+#[test]
+fn task_reads_declare_read_effect_and_decode_continuations() {
+    for allowed in [false, true] {
+        let authority = if allowed { jig_domain_core::ToolFamilies::JIG.read.0 } else { 0 };
+        let tools =
+            crate::calls::tools_for(Duration::from_secs(10), engine::RunPolicy::EVERY_FAMILY, tasks::Tools(authority));
+        let mut found = false;
+        for declaration in &tools {
+            if declaration.name.as_ref() == b"read_task" {
+                assert_eq!(declaration.effect, run::HostEffect::Read);
+                found = true;
+            }
+        }
+        assert_eq!(found, allowed);
+    }
+    let decoded = decided(b"read_task", br#"{"task":23,"from":17}"#).expect("task read decodes");
+    assert_eq!(decoded.tool, engine::Tool::ReadTask { task: 23, from: 17 });
+    let _zero = decided(b"read_task", br#"{"task":0}"#).expect_err("positive task number");
+    let _negative = decided(b"read_task", br#"{"task":23,"from":-1}"#).expect_err("nonnegative offset");
+}
+
+fn held_task_read() -> jig_domain_core::reads::run_task::TaskRead {
+    jig_domain_core::reads::run_task::TaskRead {
+        task: 23,
+        state: jig_domain_core::reads::run_task::TaskState::Held,
+        spec_revision: 8,
+        dependencies: Box::new([5]),
+        words: jig_domain_core::reads::TaskText {
+            task: 23,
+            field: jig_domain_core::reads::TaskTextField::Specification,
+            from: 0,
+            total: 480,
+            next: None,
+            bytes: Box::new([b'x'; 480]),
+        },
+        hold: Some(jig_domain_core::reads::run_task::TaskHold {
+            revision: 9,
+            reason: tasks::Hold::Dependency(5),
+            words: Some(b"restart vetoed; amend authority and release".as_slice().into()),
+        }),
+    }
+}
+
+#[test]
+fn task_reads_fit_the_host_bound_and_continue_cut_words() {
+    const WORDS: &[u8] = b"Words from 0:\n";
+    const NEXT: &[u8] = b"\nnext: ";
+    let mut read = held_task_read();
+    read.words.total = skein_lib::len_u64(read.words.bytes.len());
+    let answer = engine::CallAnswer::TaskRead(Box::new(Ok(read.clone())));
+    let first = crate::answer_bounded(&answer, 256);
+    assert!(!first.error());
+    assert!(first.text().len() <= 256);
+    let text = first.text();
+    assert!(skein_lib::bytes::find(text, b"spec revision 8").is_some());
+    assert!(skein_lib::bytes::find(text, b"Hold revision 9: dependency 5").is_some());
+    assert!(skein_lib::bytes::find(text, b"restart vetoed; amend authority and release").is_some());
+    let start = skein_lib::bytes::find(text, WORDS).expect("words").checked_add(WORDS.len()).expect("header");
+    let body = text.get(start..).expect("words body");
+    let cut = skein_lib::bytes::find(body, NEXT).expect("continuation");
+    let prefix = body.get(..cut).expect("prefix");
+    let offset = body.get(cut.checked_add(NEXT.len()).expect("next label")..).expect("offset");
+    let next = prefix.len();
+    let number = skein_lib::Decimal::of(u64::try_from(next).expect("source offset"));
+    assert_eq!(offset, number.as_bytes());
+    assert!(next > 0 && next < read.words.bytes.len());
+    read.words.bytes = read.words.bytes.get(next..).expect("continuation offset").into();
+    read.words.from = u64::try_from(next).expect("offset");
+    let answer = engine::CallAnswer::TaskRead(Box::new(Ok(read)));
+    assert!(!crate::answer_bounded(&answer, 1024).error());
+    for maximum in [0, 1, 64] {
+        let answer = crate::answer_bounded(&answer, maximum);
+        assert!(answer.error());
+        assert!(answer.text().len() <= usize::try_from(maximum).expect("u32 fits"));
+    }
+}
+
+#[test]
+fn escalations_name_the_subject_revision_and_task_read_recovery() {
+    let word = tasks::Word {
+        number: 1,
+        from: tasks::Party::Task(23),
+        at: skein_lib::Wall::EPOCH,
+        hits: 1,
+        eligible: true,
+        kind: tasks::MessageKind::Escalation { task: 23, revision: 9 },
+        words: b"Held task needs a decision".as_slice().into(),
+    };
+    let words = engine::inbox_words(1, &word);
+    assert!(skein_lib::bytes::find(&words, b"Held task needs a decision").is_some());
+    assert!(skein_lib::bytes::find(&words, b"Held task 23, hold revision 9").is_some());
+    assert!(skein_lib::bytes::find(&words, b"Use read_task on that task").is_some());
+}
+
+#[test]
+fn task_read_hold_reasons_keep_their_numbers_and_failure_classes() {
+    for (reason, expected) in [
+        (
+            tasks::Hold::Exceeded(tasks::Exceeded { bound: tasks::Bound::Window, value: 1024 }),
+            b"window tokens 1024".as_slice(),
+        ),
+        (tasks::Hold::Failures(tasks::Class::Permanent), b"permanent failures".as_slice()),
+        (tasks::Hold::Placed { hold: 19 }, b"placed hold 19".as_slice()),
+        (tasks::Hold::Uncertain { entry: 12 }, b"uncertain, entry 12".as_slice()),
+        (tasks::Hold::PoolLost { pool: 6 }, b"pool lost 6".as_slice()),
+    ] {
+        let mut read = held_task_read();
+        read.hold.as_mut().expect("held task").reason = reason;
+        let answer = crate::answer_bounded(&engine::CallAnswer::TaskRead(Box::new(Ok(read))), 512);
+        assert!(!answer.error());
+        assert!(answer.text().len() <= 512);
+        assert!(skein_lib::bytes::find(answer.text(), expected).is_some());
+    }
 }

@@ -84,7 +84,7 @@ fn model(value: core::Model) -> Model {
 }
 fn contract(value: tasks::Contract) -> Option<Contract> {
     Some(match value {
-        tasks::Contract::Approval { .. } => return None,
+        tasks::Contract::Approval { .. } | tasks::Contract::Job { .. } => return None,
         tasks::Contract::Report { words } => Contract {
             report: Some(TextRule { max: words.min(CONTRACT_TEXT_MAX), fields: Box::new([]) }),
             failure: Some(TextRule { max: words.min(CONTRACT_TEXT_MAX), fields: Box::new([]) }),
@@ -117,7 +117,12 @@ fn contract(value: tasks::Contract) -> Option<Contract> {
         tasks::Contract::Change { words, .. } => Contract {
             report: None,
             failure: Some(TextRule { max: words.min(CONTRACT_TEXT_MAX), fields: Box::new([]) }),
-            verdicts: Box::new([]),
+            verdicts: Box::new([VerdictRule {
+                name: Box::from(&b"no_change"[..]),
+                text_max: words.min(CONTRACT_TEXT_MAX),
+                fields: Box::new([]),
+                items: Items { min: 0, max: 0, kinds: Box::new([]) },
+            }]),
             change: Some(ChangeRule {
                 checks_must_pass: CONTRACT_CHECKS_MUST_PASS,
                 fields: Box::new([

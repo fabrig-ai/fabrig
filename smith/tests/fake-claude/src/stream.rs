@@ -15,13 +15,13 @@ pub(crate) fn line(mut value: Value, session: &str) -> Vec<u8> {
 pub(crate) fn init(init: &Init, tools: &[String], server: &str, model: &str) -> Value {
     let mut tools = tools.to_vec();
     tools.extend(init.extra_tools.clone());
-    let mut servers = vec![json!({"name": server, "status": "pending"})];
+    let mut servers = vec![json!({"name": server, "status": "pending", "source": "dynamic"})];
     servers.extend(init.extra_servers.iter().map(|name| json!({"name": name, "status": "connected"})));
     json!({"type":"system", "subtype":"init", "tools":tools, "mcp_servers":servers,
         "model":model, "permissionMode":"default", "apiKeySource":"none",
         "capabilities":init.capabilities,
         "additional_directories":[], "agents":[], "analytics_disabled":false,
-        "claude_code_version":"2.1.311", "cwd":"", "original_cwd":"",
+        "claude_code_version":"2.1.312", "cwd":"", "original_cwd":"",
         "fast_mode_disabled_reason":null, "fast_mode_state":"off", "memory_paths":[],
         "messaging_socket_path":null, "output_style":"default", "per_turn_effort_active":false,
         "plugins":[], "product_feedback_disabled":false, "skills":[], "slash_commands":[],
@@ -93,6 +93,8 @@ pub(crate) fn message(mut assistant: Value, thinking: Option<u64>, partial: bool
                         "estimated_tokens_delta":first}),
                         event(json!({"type":"content_block_delta","index":index,
                         "delta":{"type":"thinking_delta","thinking":"","estimated_tokens":first}})),
+                        event(json!({"type":"content_block_delta","index":index,
+                        "delta":{"type":"thinking_delta","thinking":"","estimated_tokens":null}})),
                         json!({"type":"system","subtype":"thinking_tokens","estimated_tokens":estimated,
                         "estimated_tokens_delta":estimated.checked_sub(first).expect("estimate grows")}),
                         event(json!({"type":"content_block_delta","index":index,

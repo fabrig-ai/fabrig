@@ -337,6 +337,7 @@ impl Component {
             | host::LinkUp::Limited { .. }
             | host::LinkUp::AccountRefused { .. }
             | host::LinkUp::Turn { .. }
+            | host::LinkUp::JobAnswer { .. }
             | host::LinkUp::Answer { .. }) => up,
         };
         match self.phase {
@@ -561,6 +562,7 @@ impl Component {
                     host::LinkDown::Sources { .. }
                     | host::LinkDown::Check { .. }
                     | host::LinkDown::SignOut { .. }
+                    | host::LinkDown::AssignJob { .. }
                     | host::LinkDown::Assign { .. }
                     | host::LinkDown::Message { .. }
                     | host::LinkDown::Cancel { .. }

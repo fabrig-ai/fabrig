@@ -11,6 +11,8 @@ use skein_ui::{
 mod components;
 #[cfg(any(test, target_arch = "wasm32"))]
 mod fold;
+#[cfg(any(test, target_arch = "wasm32"))]
+mod measure;
 #[cfg(target_arch = "wasm32")]
 pub mod web;
 
@@ -743,6 +745,9 @@ impl Page<'_> {
         if modifier == Modifier::Plain && self.menu_key(&key, ops) {
             return None;
         }
+        if modifier == Modifier::Plain && key.as_ref() == b"Escape" {
+            return self.form_escape();
+        }
         if in_field && modifier == Modifier::Plain {
             return None;
         }
@@ -758,6 +763,27 @@ impl Page<'_> {
             }
         }
         None
+    }
+
+    fn form_escape(&self) -> Option<(NodeId, Act)> {
+        let mut ancestor = self.focused?;
+        let mut form = None;
+        while ancestor != NodeId(0) {
+            let held = self.held(ancestor);
+            if held.made.attribute.role == Role::Dialog {
+                return None;
+            }
+            if form.is_none() && held.made.attribute.role == Role::Form {
+                form = Some(ancestor);
+            }
+            ancestor = held.parent;
+        }
+        let mut order = Vec::new();
+        self.preorder(form?, &mut order);
+        order.into_iter().find_map(|node| {
+            let a = &self.held(node).made.attribute;
+            (enabled(a) && a.bound && a.shortcut == Some(skein_ui::Shortcut::ESCAPE)).then_some((node, Act::Press))
+        })
     }
 
     fn menu_items(&self, node: NodeId) -> Vec<NodeId> {

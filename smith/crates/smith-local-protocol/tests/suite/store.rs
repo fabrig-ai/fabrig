@@ -278,7 +278,7 @@ mod tests {
             panic!("current marked turn reload");
         };
         assert_eq!(loaded.read, Some(skein_lib::Token::new(1)));
-        assert_eq!(transcript.turns.as_ref(), &[turn]);
+        assert_eq!(transcript.value().turns.as_ref(), &[turn]);
         assert!(deliveries.is_empty());
         assert_eq!(before, snapshot(disk.path()));
         assert!(disk.requests().iter().all(|kind| matches!(kind, Kind::Load | Kind::Scan)));

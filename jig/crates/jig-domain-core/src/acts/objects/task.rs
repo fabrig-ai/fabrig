@@ -147,7 +147,9 @@ pub(crate) fn write_in(
     }
     match row.executor {
         tasks::Executor::Agent { .. } => {}
-        tasks::Executor::Procedure { .. } | tasks::Executor::Person(_) => return Err(people::Refusal::NotOffered),
+        tasks::Executor::Procedure { .. } | tasks::Executor::Person(_) | tasks::Executor::Job { .. } => {
+            return Err(people::Refusal::NotOffered);
+        }
     }
     super::mutable_phase(&row.phase)?;
     match row.phase {
@@ -177,7 +179,7 @@ pub(crate) fn person(
                     None => false,
                 }
         }
-        tasks::Executor::Agent { .. } | tasks::Executor::Procedure { .. } => false,
+        tasks::Executor::Agent { .. } | tasks::Executor::Procedure { .. } | tasks::Executor::Job { .. } => false,
     };
     if !addressed {
         return Err(people::Refusal::Unknown);
@@ -227,7 +229,10 @@ pub(crate) fn person(
                 tasks::Executor::Person(tasks::PersonAddress::Role(_)) if row.taken_by != Some(party) => {
                     return Err(people::Refusal::NotWaiting);
                 }
-                tasks::Executor::Person(_) | tasks::Executor::Agent { .. } | tasks::Executor::Procedure { .. } => {}
+                tasks::Executor::Person(_)
+                | tasks::Executor::Agent { .. }
+                | tasks::Executor::Procedure { .. }
+                | tasks::Executor::Job { .. } => {}
             }
             if row.delegates.is_empty() {
                 Ok(())

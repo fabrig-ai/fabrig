@@ -1,4 +1,4 @@
-//! Setup limits (temper/docs/design/draft/playground-reset.md, 3).
+//! Setup limits (temper/docs/design/protocol/configuration.md, 7).
 use crate::{
     given, limits,
     problem::{Problems, What},
@@ -26,14 +26,18 @@ pub(crate) fn joined(parts: &[&[u8]]) -> Box<[u8]> {
     }
     w.finish()
 }
-/// Applies the machine's setup limits (temper/docs/design/draft/playground-reset.md, 3).
+/// Applies the machine's setup limits (temper/docs/design/protocol/configuration.md, 7).
 pub fn limits(overrides: &[(Box<[u8]>, u64)]) -> Result<(Limits, u64), Problems> {
     let mut ps = Problems::empty();
     let mut limits = limits::small();
     let mut fetch_bytes = limits::FETCH_BYTES;
     let lp = Path::root().member(b"application").member(b"limits").member(b"overrides");
     for (name, value) in overrides {
-        let result = if name.as_ref() == b"setup.fetch_bytes" {
+        let mut fetch_name = false;
+        for row in &limits::FETCH_NAMES {
+            fetch_name |= row.name.as_bytes() == name.as_ref();
+        }
+        let result = if fetch_name {
             match limits::fetch_bytes(*value) {
                 Ok(value) => {
                     fetch_bytes = value;

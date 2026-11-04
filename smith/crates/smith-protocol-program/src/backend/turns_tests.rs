@@ -133,10 +133,14 @@ fn ignored_thinking_still_fills_its_started_block() {
 // Owner's live thinking turn: empty deltas, signed thinking, then a separate
 // block record under the same ID; final usage supersedes both initial copies.
 fn thinking_turn(turns: &mut Turns, block: Value) {
+    thinking_turn_with_delta(turns, block, json!({"type":"thinking_delta","thinking":"","estimated_tokens":100_u32}));
+}
+
+fn thinking_turn_with_delta(turns: &mut Turns, block: Value, delta: Value) {
     let records = [
         partial("message_start"),
         json!({"type":"stream_event","event":{"type":"content_block_start","index":0_u32,"content_block":{"type":"thinking","thinking":"","signature":""}}}),
-        json!({"type":"stream_event","event":{"type":"content_block_delta","index":0_u32,"delta":{"type":"thinking_delta","thinking":"","estimated_tokens":100_u32}}}),
+        json!({"type":"stream_event","event":{"type":"content_block_delta","index":0_u32,"delta":delta}}),
         json!({"type":"stream_event","event":{"type":"content_block_delta","index":0_u32,"delta":{"type":"signature_delta","signature":"opaque"}}}),
         assistant(json!([{"type":"thinking","thinking":"","signature":"opaque"}])),
         partial("content_block_stop"),
@@ -161,12 +165,11 @@ fn thinking_usage() -> smith_domain::llm::Usage {
     }
 }
 
-#[test]
-fn thinking_and_a_call_are_one_completion_with_final_usage() {
+fn thinking_call_with_delta(delta: Value) {
     let mut turns = turns();
     let mut tool = call();
     tool["caller"] = json!({"type":"direct"});
-    thinking_turn(&mut turns, tool);
+    thinking_turn_with_delta(&mut turns, tool, delta);
     let completion = turns.ready.pop().expect("one completion");
     match completion.content.as_ref() {
         [smith_domain::llm::Said::ToolCall { name, .. }] => assert_eq!(name.as_ref(), b"finish"),
@@ -175,6 +178,16 @@ fn thinking_and_a_call_are_one_completion_with_final_usage() {
     assert_eq!(completion.usage, thinking_usage());
     assert!(turns.ready.is_empty());
     assert_eq!(turns.closed, 1);
+}
+
+#[test]
+fn thinking_and_a_call_are_one_completion_with_final_usage() {
+    thinking_call_with_delta(json!({"type":"thinking_delta","thinking":"","estimated_tokens":100_u32}));
+}
+
+#[test]
+fn a_coalesced_thinking_delta_without_an_estimate_is_ignored() {
+    thinking_call_with_delta(json!({"type":"thinking_delta","thinking":"private reasoning","estimated_tokens":null}));
 }
 
 #[test]

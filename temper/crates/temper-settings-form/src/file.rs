@@ -6,12 +6,34 @@ use crate::view as c;
 use alloc::boxed::Box;
 use skein_json::{Document, Kind};
 use skein_lib::{List, Writer};
-type Fields = List<(Box<[u8]>, u32)>;
+pub(super) type Fields = List<(Box<[u8]>, u32)>;
 
 pub(super) struct Error {
     member: Box<[u8]>,
     rule: &'static [u8],
     bound: Option<u64>,
+}
+impl Error {
+    pub(super) fn named(mut self, member: &[u8]) -> Self {
+        self.member = member.into();
+        self
+    }
+    pub(super) fn at(mut self, path: &[u8]) -> Self {
+        let nested = !self.member.is_empty() && self.member.as_ref() != b"JSON";
+        let length = if nested {
+            path.len().checked_add(self.member.len()).expect("bounded path").checked_add(1).expect("separator")
+        } else {
+            path.len()
+        };
+        let mut member = Writer::new(length);
+        member.put(path).expect("path room");
+        if nested {
+            member.put(b".").expect("separator room");
+            member.put(&self.member).expect("member room");
+        }
+        self.member = member.finish();
+        self
+    }
 }
 pub(super) fn error(member: &[u8], rule: &'static [u8]) -> Error {
     Error { member: member.into(), rule, bound: None }
@@ -44,6 +66,7 @@ fn describe(item: Option<u32>, why: &Error, out: &mut crate::Text) {
 pub(super) struct Decoder {
     pub doc: Document,
     pub limits: jig_client_protocol_wire::Limits,
+    pub kinds: temper_client_protocol_wire::v1::Limits,
 }
 impl Decoder {
     pub fn kind(&self, at: u32) -> Result<Kind, Error> {
@@ -225,8 +248,24 @@ pub(super) fn field(fields: &Fields, name: &[u8]) -> Result<u32, Error> {
 }
 
 fn setting(d: &Decoder, at: u32) -> Result<c::Setting, Error> {
-    let fields = d.object(at, &[b"kind", b"number"])?;
+    let fields = d.object(at, &[b"kind", b"number", b"project"])?;
     let kind = d.string(field(&fields, b"kind")?)?;
+    if kind == b"landing-rule" || kind == b"forge-charter" {
+        return crate::kinds::setting(d, &fields, kind);
+    }
+    if kind == b"project-policy" {
+        if optional(&fields, b"number").is_some() {
+            return Err(error(b"number", b"project-policy has no number"));
+        }
+        let project = u32::try_from(d.number(field(&fields, b"project")?)?).or(Err(error(b"project", b"u32 bound")))?;
+        if project == 0 {
+            return Err(error(b"project", b"from 1"));
+        }
+        return Ok(c::Setting::ProjectPolicy { project });
+    }
+    if optional(&fields, b"project").is_some() {
+        return Err(error(b"project", b"unknown member"));
+    }
     if kind == b"rules" {
         if fields.len() != 1 {
             return Err(error(b"number", b"rules has no number"));
@@ -251,16 +290,24 @@ fn item(d: &Decoder, at: u32) -> Result<c::SettingItem, Error> {
             let value = match setting {
                 c::Setting::Charter(_) => c::SettingValue::Charter(Box::new(values::charter(d, at)?)),
                 c::Setting::Template(_) => c::SettingValue::Template(Box::new(values::template(d, at)?)),
-                c::Setting::Policy(_) => c::SettingValue::Policy(Box::new(values::setting_policy(d, at)?)),
+                c::Setting::Policy(_) | c::Setting::ProjectPolicy { .. } => {
+                    c::SettingValue::Policy(Box::new(values::setting_policy(d, at)?))
+                }
+                c::Setting::Application { kind, .. } => c::SettingValue::Application(crate::kinds::value(d, at, kind)?),
                 c::Setting::Rules => c::SettingValue::Rules(Box::new(values::rules(d, at)?)),
             };
             c::SettingEdit::Set(c::SettingSet { value })
         }
-        (None, Some(at)) => match d.string(at)? {
-            b"removed" => c::SettingEdit::Removed,
-            b"reset" => c::SettingEdit::Reset,
-            _ => return Err(error(b"edit", b"removed or reset required")),
-        },
+        (None, Some(at)) => {
+            if let c::Setting::ProjectPolicy { .. } = setting {
+                return Err(error(b"edit", b"a project's policy is set alone"));
+            }
+            match d.string(at)? {
+                b"removed" => c::SettingEdit::Removed,
+                b"reset" => c::SettingEdit::Reset,
+                _ => return Err(error(b"edit", b"removed or reset required")),
+            }
+        }
         _ => return Err(error(b"item", b"exactly one of set or edit required")),
     };
     Ok(c::SettingItem { setting, edit })
@@ -269,17 +316,39 @@ fn item(d: &Decoder, at: u32) -> Result<c::SettingItem, Error> {
 pub fn decode(bytes: &[u8], limits: &Limits) -> Result<List<c::SettingItem>, Box<[u8]>> {
     decode_root(bytes, limits, false)
 }
+/// Decode a host read's setting through the settings file's kind decoder.
+pub fn read_setting(bytes: &[u8], limits: &Limits) -> Result<c::Setting, Box<[u8]>> {
+    if skein_lib::len_u64(bytes.len()) > limits.ask_bytes {
+        return Err(message(None, bound(b"file bytes", u32::try_from(limits.ask_bytes).unwrap_or(u32::MAX))));
+    }
+    let doc = crate::json::document_depth(bytes, 32)
+        .or(Err(message(None, error(b"JSON", b"invalid JSON or depth bound 32"))))?;
+    let d = Decoder { doc, limits: limits.settings, kinds: limits.kinds };
+    let fields = d.object(0, &[b"setting", b"revision", b"history", b"from"]);
+    let fields = match fields {
+        Ok(fields) => fields,
+        Err(why) => return Err(message(None, why)),
+    };
+    let at = match field(&fields, b"setting") {
+        Ok(at) => at,
+        Err(why) => return Err(message(None, why)),
+    };
+    match setting(&d, at) {
+        Ok(setting) => Ok(setting),
+        Err(why) => Err(message(None, why)),
+    }
+}
 /// Decode a host proposal's items in the settings file form.
 pub fn proposal_items(bytes: &[u8], limits: &Limits) -> Result<List<c::SettingItem>, Box<[u8]>> {
     decode_root(bytes, limits, true)
 }
 fn decode_root(bytes: &[u8], limits: &Limits, proposal: bool) -> Result<List<c::SettingItem>, Box<[u8]>> {
-    if u64::try_from(bytes.len()).unwrap_or(u64::MAX) > limits.ask_bytes {
+    if skein_lib::len_u64(bytes.len()) > limits.ask_bytes {
         return Err(message(None, bound(b"file bytes", u32::try_from(limits.ask_bytes).unwrap_or(u32::MAX))));
     }
     let doc = crate::json::document_depth(bytes, 32)
         .or(Err(message(None, error(b"JSON", b"invalid JSON or depth bound 32"))))?;
-    let d = Decoder { doc, limits: limits.settings };
+    let d = Decoder { doc, limits: limits.settings, kinds: limits.kinds };
     let fields = match d.object(0, if proposal { &[b"items", b"against", b"reason"] } else { &[b"items"] }) {
         Ok(fields) => fields,
         Err(why) => return Err(message(None, why)),
@@ -303,6 +372,11 @@ fn decode_root(bytes: &[u8], limits: &Limits, proposal: bool) -> Result<List<c::
             Err(why) => return Err(message(Some(index), why)),
         };
         for previous in &items {
+            if let (c::Setting::ProjectPolicy { .. }, c::Setting::ProjectPolicy { .. }) =
+                (previous.setting, next.setting)
+            {
+                return Err(message(Some(index), error(b"setting", b"one project's policy per file")));
+            }
             if previous.setting == next.setting {
                 return Err(message(Some(index), error(b"setting", b"duplicate setting")));
             }
@@ -442,3 +516,7 @@ mod tests {
         assert_eq!(message(None, wire_error(problem, &limits)).as_ref(), b"settings file: value: wire value bound");
     }
 }
+
+#[cfg(test)]
+#[path = "settings_file_tests.rs"]
+mod wake_tests;

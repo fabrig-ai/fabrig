@@ -1,6 +1,21 @@
 # README: status
 
-2026-10-29. Where temper's code lags or departs from [README.md](README.md).
+2026-11-04. Where temper's code lags or departs from [README.md](README.md).
 
-- **Built:** 2: providers-only configuration, runtime accounts, chat-to-change paths and restart on owned Forgejo and fake GitHub.
-- **Not yet:** Other overview detail unknown.
+The first milestone (section 2), including the stock chat's instructions to
+delegate repository changes, stands in the code, and section 9 names the crates
+there are.
+
+- **Departs:** 4: skein's `lib.md`, 6 has `len_u64` and `usize_of` widen a
+  length and a `u32` count, so that no step writes `try_from` for either,
+  and the user's request of 11-04 asked that temper's hand-written code
+  holds no such form. Six stay. Two steps write
+  `usize::try_from(..).expect("a u32 fits usize")`:
+  `temper/crates/temper-worker-domain/src/jobs.rs`, `refuse`, and
+  `temper/crates/temper-worker-domain/src/translate.rs`, `failure`. Four
+  tests write `u64::try_from(..len())`:
+  `temper/crates/temper-playground/src/tests/stories.rs`, twice,
+  `temper/tests/client-browser/tests/browser_all/browser_playground.rs`, and
+  `temper/tests/one-process/src/public/load.rs`, the last over a sum, no
+  length of a value, and so left as it is. No reason is recorded for the
+  other five, and no debt item holds any of the six.

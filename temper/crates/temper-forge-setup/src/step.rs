@@ -127,10 +127,10 @@ fn serve(flags: &[Box<[u8]>], listeners: Box<[core::net::SocketAddr]>) -> Step {
     Step::new(bytes::copy_of(b"serve"), arguments.into_boxed(), Kind::Long).listening(listeners)
 }
 
-/// The argument a slot names its forge by; the box puts the bound number in its place (temper/docs/design/draft/playground-reset.md, 3).
+/// The argument a slot names its forge by; the box puts the bound number in its place (temper/docs/design/protocol/setup.md, 7.1).
 pub const FORGE_ARGUMENT: &[u8] = b"$forge";
 
-/// The owned kind's slot and serve (temper/docs/design/draft/playground-reset.md, 3 and 4).
+/// The owned kind's slot and serve (temper/docs/design/protocol/setup.md, 7.1).
 #[must_use]
 pub fn kinds(
     machine: &Machine,

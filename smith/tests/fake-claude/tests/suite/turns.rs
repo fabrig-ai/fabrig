@@ -28,7 +28,7 @@ fn a_print_run_starts_with_its_init() {
     assert_eq!(init["tools"], json!(["Read", "Bash", "ungranted"]));
     assert_eq!(
         init["mcp_servers"],
-        json!([{"name":"smith", "status":"connected"}, {"name":"other", "status":"connected"}])
+        json!([{"name":"smith", "status":"connected", "source":"dynamic"}, {"name":"other", "status":"connected"}])
     );
     assert_eq!(init["capabilities"], json!(["stream"]));
     assert_eq!(init["model"], "test-model");
@@ -435,6 +435,36 @@ fn together_calls_share_one_assistant_message() {
     assert_eq!(users.len(), 2);
     assert_eq!(users[0]["message"]["content"][0]["tool_use_id"], assistants[0]["message"]["content"][0]["id"]);
     assert_eq!(users[1]["message"]["content"][0]["tool_use_id"], assistants[0]["message"]["content"][1]["id"]);
+}
+
+#[test]
+fn together_checks_each_calls_reply() {
+    let run = print::with_server(
+        story(
+            vec![Step::Together(vec![
+                Step::CallChecked { tool: "lookup".into(), input: json!({"q":"one"}), contains: "found".into() },
+                Step::CallChecked { tool: "lookup".into(), input: json!({"q":"two"}), contains: "missing".into() },
+            ])],
+            End::default(),
+        ),
+        print::invocation(1),
+        smith_fake_claude::ServerScript {
+            tools: vec![smith_fake_claude::Tool {
+                name: "lookup".into(),
+                answer: smith_fake_claude::Answer::Text("found".into()),
+            }],
+            ..Default::default()
+        },
+    );
+    let calls: Vec<_> = seen(run.observations.as_ref().expect("observations"))
+        .into_iter()
+        .filter(|record| matches!(record, Seen::Called { .. }))
+        .collect();
+    assert_eq!(
+        calls,
+        [Seen::Called { tool: "lookup".into(), error: false }, Seen::Called { tool: "lookup".into(), error: true }]
+    );
+    assert_eq!(run.records[0].exit, Some(Exit::Code(0)));
 }
 
 #[test]

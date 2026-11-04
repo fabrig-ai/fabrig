@@ -82,10 +82,13 @@ pub fn listener_at(fd: Fd) -> Result<SocketAddr, ListenersRefusal> {
 /// returned descriptor; a failed setup closes the fresh descriptor.
 pub fn open_listener(addr: SocketAddr, backlog: u32) -> Result<(Fd, SocketAddr), Error> {
     let family = Family::of(&addr);
-    let fd = system::socket(family).map_err(|errno| crate::calls::error(&Op::Socket { family }, errno, false))?;
+    let fd = system::retry(|| system::socket(family))
+        .map_err(|errno| crate::calls::error(&Op::Socket { family }, errno, false))?;
     let result = configure(fd, family).and_then(|()| {
-        system::bind(fd, &addr).map_err(|errno| crate::calls::error(&Op::Bind { fd, addr }, errno, false))?;
-        system::listen(fd, backlog).map_err(|errno| crate::calls::error(&Op::Listen { fd, backlog }, errno, false))?;
+        system::retry(|| system::bind(fd, &addr))
+            .map_err(|errno| crate::calls::error(&Op::Bind { fd, addr }, errno, false))?;
+        system::retry(|| system::listen(fd, backlog))
+            .map_err(|errno| crate::calls::error(&Op::Listen { fd, backlog }, errno, false))?;
         system::bound_addr(fd).map_err(Error::Other)
     });
     match result {

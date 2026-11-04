@@ -1,4 +1,4 @@
-//! Codex event projections (llm.md, section 4.4): known items keep their
+//! Responses event projections (llm.md, section 4.4): known items keep their
 //! decoder's fields; unknown items keep bounded native replay. Response
 //! output, request echoes and usage attribution are never retained.
 use crate::filter::{INPUT, REASONING, STRINGS, each, field};

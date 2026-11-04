@@ -28,10 +28,9 @@ Three layers bound it, each within the one above:
 
 A numbered policy, the setting `policy N`, is what a project made from
 it starts with. The project keeps a copy, its own policy, which is not a
-setting. `temper init`'s project 1 is made from policy 1 at the
-deployment's first start, as a project made later is. A seeded
-project names its policy by number; one written out in the
-configuration is refused.
+setting. `temper init` seeds no project: each is made from policy 1
+when it is made. A project a configuration seeds names its policy by
+number; one written out in the configuration is refused.
 
 A requirement is what one kind of effect needs on some resources,
 whatever any authority says: a connector's criterion, judged by that
@@ -48,8 +47,8 @@ Each member, with its type and bound, is in
   A widening never widens an existing task.
 - A change of a numbered policy reaches the projects made from it after
   the change, never an existing project's own policy.
-- A project's own policy is changed by the project's owners, within the
-  rules.
+- A project's own policy is changed by its owners, within the rules,
+  with `project fund` for its spends or whole as a settings file's item.
 
 ## What temper guarantees
 
@@ -74,11 +73,14 @@ Each member, with its type and bound, is in
 - A run reads them with the host tool `settings`.
 - A project's own policy: `project show PROJECT` reads its spends, its
   open period and its pools; `project fund PROJECT AMOUNT` raises its
-  period spend, and with `--role ROLE` a role's.
+  period spend, and with `--role ROLE` a role's; its owners set the whole
+  policy with a settings file's `project-policy` item (temper help configure).
 - A task's authority is in `task show`'s result; a proposal asks a
   holder for more than a task has (`temper help proposal`).
 
 ## Limits
+
+For the configuration members that need a restart, read `temper help configuration`.
 
 - temper may spend, for a project, its period spend a week: each week
   a new period opens, full, at the spend its policy holds then
@@ -89,10 +91,8 @@ Each member, with its type and bound, is in
   When it is spent, nothing more in the project is funded until the next
   week, or until it is raised. A project made after a change of
   `policy 1` starts with the new period spend.
-- temper does not change a project's own policy through settings; ctl
-  changes its spends alone (`project fund`).
 - temper does not check, when settings change, that a grant's kind, a
   requirement's criterion or a procedure's number is one the forge
   defines.
-- The landing rules become requirements of the rules at each start, from
-  the configuration: `temper help landing-rule`.
+- Landing rules are settings of kinds 1 and 2, enforced by the rules'
+  standing requirements 5 and 6: `temper help landing-rule`.

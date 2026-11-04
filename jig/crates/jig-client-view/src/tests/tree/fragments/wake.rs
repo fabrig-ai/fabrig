@@ -16,14 +16,7 @@ fn builder(nodes: u32, book: &Phrasebook) -> Builder {
         depth: 4,
         text_per_node: bytes,
         text_bytes: nodes.checked_add(1).unwrap().checked_mul(bytes).unwrap(),
-        drawing_bytes: 0,
-        styles_per_node: 0,
-        patches: 0,
-        bindings: 0,
-        slots: 0,
-        markdown_depth: 0,
-        scene_marks: 0,
-        scene_bytes: 0,
+        ..skein_ui::Limits::EMPTY
     })
 }
 
@@ -108,7 +101,7 @@ fn owner_wake_renderer_uses_checked_selected_language_with_reordered_holes() {
     let book = Phrasebook::load(
         owner_wake_words::shapes(),
         Box::new([english, second]),
-        &PhraseLimits { languages: 2, phrases: 27, holes: 2, segments: 200, text_bytes: 4000, hole_bytes: 0 },
+        &PhraseLimits { languages: 2, phrases: 28, holes: 2, segments: 200, text_bytes: 4000, hole_bytes: 0 },
     )
     .unwrap();
     let value = WakePolicy {
@@ -137,9 +130,35 @@ fn owner_wake_renderer_uses_checked_selected_language_with_reordered_holes() {
         Phrasebook::load(
             owner_wake_words::shapes(),
             Box::new([absent]),
-            &PhraseLimits { languages: 1, phrases: 27, holes: 2, segments: 100, text_bytes: 2000, hole_bytes: 0 }
+            &PhraseLimits { languages: 1, phrases: 28, holes: 2, segments: 100, text_bytes: 2000, hole_bytes: 0 }
         )
         .unwrap_err(),
         skein_ui::phrases::Invalid::Missing { id: WakePhrase::Policy.id() }
+    );
+}
+
+#[test]
+fn a_paced_rule_shows_its_span_with_a_checked_number_hole() {
+    use skein_ui::phrases::Hole;
+    let book = owner_wake_words::english().unwrap();
+    let value = WakePolicy {
+        words: WakeRule::Never,
+        notices: WakeRule::Immediate,
+        news: WakeRule::Paced { span: Duration::from_nanos(u64::MAX) },
+        results: ResultsWake::Each,
+        questions: true,
+        answers: false,
+        timers: true,
+    };
+    let mut b = builder(owner_wake::policy_nodes(), &book);
+    b.open(Role::Page);
+    owner_wake::policy(&mut b, &value, &book, 0);
+    b.close();
+    let tree = b.finish();
+    assert!(crate::tests::kit::contains(&tree, b"Wakes at most once in 18446744073709551615 ns"));
+    assert_eq!(tree.len(), owner_wake::policy_nodes() + 1);
+    assert_eq!(
+        book.say(0, WakePhrase::Paced.id(), &[Hole::Name(b"1000".as_slice().into())]).unwrap_err(),
+        skein_ui::phrases::Invalid::Values { id: WakePhrase::Paced.id() }
     );
 }

@@ -25,6 +25,7 @@ pub enum HostDelivery {
     Settings {
         to: ReplyTo,
         answer: Box<jig_domain_core::SettingsAnswer>,
+        application: Option<temper_engine_domain_forge::settings::SizedValue>,
         from: u32,
         requested: Option<u64>,
     },
@@ -59,15 +60,16 @@ pub(crate) struct Flight {
 #[derive(Debug)]
 pub(crate) enum FlightRender {
     Plain,
+    TaskRead,
     Settings { from: u32, requested: Option<u64> },
     Amended(crate::Changed),
     Change(Box<ChangeChoice>),
 }
 
 impl FlightRender {
-    fn is_settings_read(&self) -> bool {
+    fn is_core_read(&self) -> bool {
         match self {
-            Self::Settings { .. } => true,
+            Self::TaskRead | Self::Settings { .. } => true,
             Self::Plain | Self::Amended(_) | Self::Change(_) => false,
         }
     }
@@ -112,30 +114,10 @@ pub(crate) fn decoded(domain: &mut Domain, env: &Env<Limits>, decision: &mut Dec
     let body = super::checked_call(body, &env.limits);
     let key =
         CallKey { task: flight.task, attempt: flight.attempt, completion: body.completion, position: body.position };
-    // A call no retry can make valid is answered as an error; one that waits
-    // for room is answered busy, and its run asks it again after a backoff
-    // (jig's `domain/engine.md`, 5.1).
-    let invalid = body.completion == 0 || !super::current_proof(domain, key.task, key.attempt);
-    let reading = crate::translate::is_settings_read(&body.tool);
-    let busy = !reading
-        && (!domain.core.call_room(key)
-            || (super::call_needs_input(&body.tool) && domain.archive_reads.len() >= domain.archive_reads.capacity()));
-    if invalid || busy {
-        let flight = domain.call_renders.remove(&right).expect("current typed flight");
-        let answer = if invalid {
-            Payload::SettledCall(SettledCall {
-                serial: 0,
-                tool: flight.tool,
-                answer: SettledAnswer::Host { error: true, body: Box::from(&b"invalid call"[..]) },
-            })
-        } else {
-            Payload::Busy
-        };
-        let id = domain.hub_link.retain(answer);
-        domain.work.push(Work::Fleet(fleet::Event::Relayed { to, answer: id }));
-        return;
-    }
-    let render = if let crate::Tool::Settings { from, read } = &body.tool {
+    let Some(to) = admit(domain, to, key, &body.tool) else { return };
+    let render = if let crate::Tool::ReadTask { .. } = &body.tool {
+        FlightRender::TaskRead
+    } else if let crate::Tool::Settings { from, read } = &body.tool {
         let requested = match read {
             jig_domain_core::SettingsRead::Revision { number } => Some(u64::from(*number)),
             jig_domain_core::SettingsRead::Inventory
@@ -143,11 +125,15 @@ pub(crate) fn decoded(domain: &mut Domain, env: &Env<Limits>, decision: &mut Dec
             | jig_domain_core::SettingsRead::Revisions { .. } => None,
         };
         FlightRender::Settings { from: *from, requested }
-    } else if let crate::Tool::Change { repository, .. } = &body.tool {
+    } else if let crate::Tool::Change { changes } = &body.tool {
         match domain.core.tasks.delegation(key.task) {
-            Some(context) => {
-                FlightRender::Change(Box::new(ChangeChoice { named: repository.clone(), project: context.project }))
-            }
+            Some(context) => FlightRender::Change(Box::new(ChangeChoice {
+                named: match changes.first() {
+                    Some(change) => change.repository.clone(),
+                    None => None,
+                },
+                project: context.project,
+            })),
             None => FlightRender::Plain,
         }
     } else if let crate::Tool::Amend { amendment, .. } = &body.tool {
@@ -161,13 +147,58 @@ pub(crate) fn decoded(domain: &mut Domain, env: &Env<Limits>, decision: &mut Dec
     relay_payload(domain, env, decision, to, key, body);
 }
 
+fn admit(domain: &mut Domain, to: ReplyTo, key: CallKey, tool: &crate::Tool) -> Option<ReplyTo> {
+    let refusal = if key.completion == 0 {
+        Some(("call-proof", "completion is zero", true))
+    } else if !super::current_proof(domain, key.task, key.attempt) {
+        Some(("call-proof", "task attempt is not current", true))
+    } else if crate::translate::is_core_read(tool) {
+        None
+    } else if !domain.core.call_room(key) {
+        let reason =
+            if domain.core.pending_calls.contains_key(&key) { "named call pending" } else { "call record room full" };
+        Some(("core-call-room", reason, false))
+    } else if super::call_needs_input(tool) && domain.archive_reads.len() >= domain.archive_reads.capacity() {
+        Some(("archive-read-room", "archive read room full", false))
+    } else {
+        None
+    };
+    let Some((layer, reason, invalid)) = refusal else {
+        return Some(to);
+    };
+    let right = to.into_token();
+    let flight = domain.call_renders.remove(&right).expect("current typed flight");
+    super::diagnostics::emit(
+        domain,
+        crate::Fact::CallAdmissionRefused {
+            task: key.task,
+            attempt: key.attempt,
+            tool: flight.tool.clone(),
+            layer,
+            reason,
+        },
+    );
+    let answer = if invalid {
+        Payload::SettledCall(SettledCall {
+            serial: 0,
+            tool: flight.tool,
+            answer: SettledAnswer::Host { error: true, body: Box::from(&b"invalid call"[..]) },
+        })
+    } else {
+        Payload::Busy
+    };
+    let id = domain.hub_link.retain(answer);
+    domain.work.push(Work::Fleet(fleet::Event::Relayed { to: ReplyTo::new(right), answer: id }));
+    None
+}
+
 pub(crate) fn render(domain: &mut Domain, limits: &Limits, decision: &mut Decision, to: ReplyTo, answer: CallAnswer) {
     let right = to.into_token();
     let to = ReplyTo::new(right);
     // A flight dropped with its call has no host left to answer.
     let Some(flight) = domain.call_renders.get(&right) else { return };
     let key = flight.key.expect("decoded typed call");
-    if !flight.render.is_settings_read()
+    if !flight.render.is_core_read()
         && let Some(call) = domain.core.call_settled.get(&key).cloned()
     {
         drop(domain.call_renders.remove(&right));
@@ -196,7 +227,7 @@ pub(crate) fn render(domain: &mut Domain, limits: &Limits, decision: &mut Decisi
                 answer
             }
         }
-        FlightRender::Plain | FlightRender::Settings { .. } => answer,
+        FlightRender::Plain | FlightRender::TaskRead | FlightRender::Settings { .. } => answer,
     };
     emit(
         decision,
@@ -220,7 +251,7 @@ pub(crate) fn rendered(domain: &mut Domain, to: ReplyTo, answer: SettledAnswer) 
         return;
     };
     let mut call = SettledCall { serial: 0, tool: flight.tool, answer };
-    let reading = flight.render.is_settings_read();
+    let reading = flight.render.is_core_read();
     let recorded = !reading && domain.core.call_parts.contains_key(&key);
     let answer_bytes = if reading {
         Some(0)
@@ -319,6 +350,10 @@ pub(crate) fn relayed(
 pub(crate) fn read(domain: &mut Domain, to: ReplyTo, answer: CallAnswer) {
     let right = to.into_token();
     let to = ReplyTo::new(right);
+    let key = domain.call_renders.get(&right).expect("a read answers its decoded flight").key.expect("decoded read");
+    if let CallAnswer::ReadRepositoryRefused { .. } = &answer {
+        super::diagnostics::read(domain, key, "forge-route", "repository name unresolved", None, Box::new([]));
+    }
     let flight = domain.call_renders.get(&right).expect("a read answers its decoded flight");
     let request = crate::boundary::delivery_output(Delivery::Host(Box::new(HostDelivery::Render {
         to,
@@ -338,6 +373,7 @@ pub(crate) fn settings(domain: &mut Domain, to: ReplyTo, answer: Box<jig_domain_
     let FlightRender::Settings { from, requested } = flight.render else { unreachable!("settings rendering context") };
     let request = crate::boundary::delivery_output(Delivery::Host(Box::new(HostDelivery::Settings {
         to,
+        application: super::tools::settings_value(domain, &answer),
         answer,
         from,
         requested,

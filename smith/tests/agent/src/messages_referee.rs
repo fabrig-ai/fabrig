@@ -129,11 +129,8 @@ impl Meeting {
             }
         });
         let recorded = last;
-        let last = if self.opening_brief.take() == Some(true) {
-            last.map(|text| text.strip_prefix(b"Begin the work your brief describes.\n\n").unwrap_or(text))
-        } else {
-            last
-        };
+        let brief = self.opening_brief.take() == Some(true);
+        let last = last.map(|text| offered_words(text, brief));
         if !self.queued.is_empty() {
             let mut joined = Vec::new();
             let mut count = 0;
@@ -225,6 +222,12 @@ impl Meeting {
             }
         }
     }
+}
+
+fn offered_words(text: &[u8], brief: bool) -> &[u8] {
+    let text =
+        if brief { text.strip_prefix(b"Begin the work your brief describes.\n\n").unwrap_or(text) } else { text };
+    text.strip_prefix(crate::fixture::RESUME).and_then(|rest| rest.strip_prefix(b"\n\n")).unwrap_or(text)
 }
 
 impl Expectations for Meeting {

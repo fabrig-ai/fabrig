@@ -28,6 +28,7 @@ temper-client-shell-terminal.workspace = true
 temper-client-tools.workspace = true
 temper-service.workspace = true
 temper-fake-git-hosted.workspace = true
+temper-worker-checkout-world.workspace = true
 temper-fake-git.workspace = true
 temper-github-app.workspace = true
 skein-fake-forge-github.workspace = true
@@ -58,6 +59,7 @@ jig-channel-world.workspace = true
 jig-client-protocol-wire.workspace = true
 skein-lib.workspace = true
 skein-shell.workspace = true
+skein-tls.workspace = true
 
 [dev-dependencies]
 skein-ui.workspace = true

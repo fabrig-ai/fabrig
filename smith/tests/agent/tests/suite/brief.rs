@@ -701,8 +701,8 @@ fn a_parked_open_run_resumes_on_the_delegate_result_without_a_new_begin() {
         matches!(&request.messages[saved_messages.len()..],
         [Message { role: Role::User, parts }] if matches!(parts.as_ref(),
             [Part::ToolOutput { id, output, is_error: false }]
-            if *id == wait_id && output.as_ref() == b"2: Result from task 2:\n4acedd81")),
-        "the only new payload is exactly the delegate result: {:?}",
+            if *id == wait_id && output.strip_prefix(smith_agent_world::fixture::RESUME) == Some(b"\n\n2: Result from task 2:\n4acedd81".as_slice()))),
+        "the waking instruction precedes the exact delegate result: {:?}",
         &request.messages[saved_messages.len()..]
     );
     assert!(contains(&request.system, REPLYING));

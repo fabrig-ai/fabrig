@@ -5,6 +5,7 @@ use smith_agent_process_world::{
     program_world::{self, Case},
 };
 use smith_channel::RunResult;
+use smith_events::Event;
 use smith_fake_claude::{Resume, Seen, Step, Story, Turn};
 
 fn charter() -> Box<[u8]> {
@@ -57,6 +58,16 @@ fn a_conversation_is_carried_over_from_the_direct_backend() {
         run.answer(),
         String::from_utf8_lossy(&run.errors)
     );
+    let starts: Vec<_> = run
+        .events
+        .iter()
+        .filter_map(|record| match &record.event {
+            Event::RunStarted(start) => Some(start),
+            _ => None,
+        })
+        .collect();
+    assert_eq!(starts.len(), 1, "one RunStarted for the carried-over program run");
+    assert!(starts[0].resumed, "a carried-over program run opens from a transcript");
     let print: Vec<_> = run.invocations.iter().filter(|invocation| invocation.arguments[0] == "-p").collect();
     assert_eq!(print.len(), 2, "summary then ordinary window");
     assert!(!print[0].arguments.contains(&"--mcp-config".into()));

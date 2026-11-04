@@ -194,7 +194,7 @@ fn final_turns_ignore_ordinary_nudges_and_fail_once_only_after_the_last() {
     let crate::CompletionPermit::Final { note: Some(note) } = first else {
         panic!("first final permit");
     };
-    assert_eq!(note.as_ref(), b"The ordinary budget is spent. Finish now with what you have. You have at most 2 final completions and 10 seconds to finish. Use only finish, or deliver when offered.");
+    assert_eq!(note.as_ref(), b"The ordinary budget is spent. Finish now with what you have. You have at most 2 final completions and 10 seconds to finish. Use only finish, or deliver when offered, or wait when offered to park until another message.");
     for (owner, expected) in [
         (Token::new(500), Request::Say { peer: PEER, text: crate::prompt::finish_now() }),
         (Token::new(501), Request::Close { peer: PEER }),

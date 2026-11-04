@@ -670,7 +670,6 @@ fn grant_forms_keep_their_policy_at_start_and_refresh() {
     for (form, renewable, admitted) in [
         (host::Form::Credential(host::Scheme::Key), false, true),
         (host::Form::Credential(host::Scheme::Bearer), true, true),
-        (host::Form::Withdrawn, true, true),
         (host::Form::Program(host::SourceName::new(b"claude-code").expect("source name")), true, false),
     ] {
         let mut source = start();

@@ -59,6 +59,7 @@ fn init_has_the_recorded_keys_and_thirteen_capabilities() {
             "mcp_call_result_not_for_model_v1"
         ])
     );
+    assert_eq!(init["claude_code_version"], "2.1.312");
     assert_eq!(init["tools"], json!(["Read", "Bash"]));
 }
 
@@ -171,6 +172,7 @@ fn a_thinking_call_uses_the_recorded_block_sequence() {
             ("stream_event", "content_block_start"),
             ("system", "thinking_tokens"),
             ("stream_event", "content_block_delta"),
+            ("stream_event", "content_block_delta"),
             ("system", "thinking_tokens"),
             ("stream_event", "content_block_delta"),
             ("assistant", "thinking"),
@@ -191,6 +193,18 @@ fn a_thinking_call_uses_the_recorded_block_sequence() {
             ("stream_event", "message_delta"),
             ("stream_event", "message_stop"),
             ("result", "success"),
+        ]
+    );
+    let thinking_deltas: Vec<_> = records
+        .iter()
+        .filter(|record| record["type"] == "stream_event" && record["event"]["delta"]["type"] == "thinking_delta")
+        .map(|record| &record["event"]["delta"])
+        .collect();
+    assert_eq!(
+        thinking_deltas,
+        [
+            &json!({"type":"thinking_delta","thinking":"","estimated_tokens":THINKING_TOKENS / 2}),
+            &json!({"type":"thinking_delta","thinking":"","estimated_tokens":null}),
         ]
     );
     let assistants: Vec<_> = records.iter().filter(|record| record["type"] == "assistant").collect();

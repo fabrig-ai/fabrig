@@ -466,6 +466,7 @@ fn owner_answer_missing(
         }
         jig_client::contract::TaskContractDocument::Report { .. } => Missing::Words { field: Purpose::Answer },
         jig_client::contract::TaskContractDocument::Approval { .. }
+        | jig_client::contract::TaskContractDocument::Job { .. }
         | jig_client::contract::TaskContractDocument::Change { .. } => Missing::Refused { why: Refusal::NotOffered },
     })
 }

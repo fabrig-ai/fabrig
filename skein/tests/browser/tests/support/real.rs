@@ -4,8 +4,6 @@
 mod dialogs;
 #[path = "real/downloads.rs"]
 mod downloads;
-#[path = "real/look.rs"]
-mod look;
 #[path = "real/scope.rs"]
 mod scope;
 use skein_fake_person_browser::{
@@ -74,19 +72,6 @@ pub fn chromium() -> PathBuf {
         }
     }
     panic!("Chromium is required for the browser suite: set SKEIN_TEST_CHROMIUM or put chromium on PATH");
-}
-
-pub fn fonts() -> PathBuf {
-    let fallback = PathBuf::from("/usr/share/fonts/truetype/dejavu");
-    let configured = std::env::var_os("SKEIN_TEST_FONTS").map(PathBuf::from);
-    let directory = configured.as_ref().unwrap_or(&fallback);
-    assert!(
-        directory.join("DejaVuSans.ttf").is_file(),
-        "the browser suite needs DejaVuSans.ttf in SKEIN_TEST_FONTS ({configured:?}) or, unset, in {} \
-         (Debian's fonts-dejavu-core)",
-        fallback.display()
-    );
-    directory.clone()
 }
 
 fn spawn(chromium: &Path, profile: &Path) -> (Spawn, kernel::Fd) {
@@ -168,7 +153,6 @@ pub enum Scenario {
     Dates,
     Reduction,
     ScopeReload,
-    Look,
     Attribute { selector: &'static [u8], name: &'static [u8], expected: Option<&'static [u8]> },
     Leave,
     Confirm,
@@ -195,7 +179,6 @@ impl Scenario {
             | Scenario::Select
             | Scenario::Dates
             | Scenario::Reduction
-            | Scenario::Look
             | Scenario::ScopeReload
             | Scenario::Attribute { .. } => "/facts",
         }
@@ -231,7 +214,6 @@ pub struct Rig {
     pub version: Box<[u8]>,
     stderr: Vec<u8>,
     pub snapshot: Box<[u8]>,
-    pub tree: Option<skein_lib::List<skein_browser::boundary::Entry>>,
     dialog: dialogs::State,
     scope: Option<u64>,
     choice: Option<BrowserFace<'static>>,
@@ -240,7 +222,6 @@ pub struct Rig {
     pub downloaded: Option<(Box<[u8]>, PathBuf)>,
     pub download_trouble: bool,
     form_node: u64,
-    look: look::State,
 }
 
 impl Rig {
@@ -285,7 +266,6 @@ impl Rig {
             downloaded: None,
             download_trouble: false,
             form_node: 0,
-            look: look::State::default(),
             context_ready: false,
             exception_seen: false,
             csp_log_seen: false,
@@ -293,13 +273,7 @@ impl Rig {
             version: Box::default(),
             stderr: Vec::new(),
             snapshot: Box::default(),
-            tree: None,
         }
-    }
-
-    /// Read the accessibility tree as well as the flat snapshot, to check subtree order.
-    pub fn capture_tree(&mut self) {
-        self.tree = Some(skein_lib::List::with_capacity(0));
     }
 
     pub fn run(&mut self) {
@@ -572,11 +546,7 @@ impl Rig {
         }
         let Some(addr) = self.pages.addr else { return };
         self.stage = Stage::Opening;
-        let url = if matches!(self.scenario, Scenario::Look) {
-            "about:blank".into()
-        } else {
-            format!("http://{addr}{}", self.scenario.path())
-        };
+        let url = format!("http://{addr}{}", self.scenario.path());
         self.ask(Request::Page { person: PERSON, page: PAGE, url: url.into_bytes().into_boxed_slice() });
     }
 
@@ -618,14 +588,6 @@ impl Rig {
         }
         let event = if matches!(self.scenario, Scenario::Download { .. } | Scenario::Letter) {
             match self.download_event(event) {
-                Ok(()) => return,
-                Err(event) => event,
-            }
-        } else {
-            event
-        };
-        let event = if matches!(self.scenario, Scenario::Look) {
-            match self.look_event(event) {
                 Ok(()) => return,
                 Err(event) => event,
             }
@@ -691,7 +653,6 @@ impl Rig {
                 match self.scenario {
                     Scenario::Download { .. }
                     | Scenario::Letter
-                    | Scenario::Look
                     | Scenario::Leave
                     | Scenario::Confirm
                     | Scenario::ScopeReload
@@ -796,7 +757,6 @@ impl Rig {
                 match self.scenario {
                     Scenario::Download { .. }
                     | Scenario::Letter
-                    | Scenario::Look
                     | Scenario::Leave
                     | Scenario::Confirm
                     | Scenario::ScopeReload
@@ -911,7 +871,6 @@ impl Rig {
                         | Scenario::Reduction
                         | Scenario::Download { .. }
                         | Scenario::Letter
-                        | Scenario::Look
                         | Scenario::ScopeReload
                         | Scenario::Attribute { .. } => {
                             panic!("no action should complete for {:?}", self.scenario)
@@ -960,14 +919,6 @@ impl Rig {
                     assert!(text.windows(b"Hello Ada".len()).any(|part| part == b"Hello Ada"));
                 }
                 self.snapshot = text;
-                if self.tree.is_some() {
-                    self.ask(Request::Look { page: PAGE, op: SNAPSHOT, look: skein_browser::boundary::Look::Tree });
-                } else {
-                    self.close_browser();
-                }
-            }
-            Event::Looked { op: SNAPSHOT, looked: skein_browser::boundary::Looked::Tree(entries) } => {
-                self.tree = Some(entries);
                 self.close_browser();
             }
             Event::Closed { owner: BROWSER } => {

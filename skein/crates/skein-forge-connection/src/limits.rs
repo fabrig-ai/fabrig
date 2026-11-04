@@ -65,7 +65,7 @@ pub struct Limits {
 }
 
 /// What the component is given of its neighbours' limits
-/// (forge-connection.md, 12, "Shared limits").
+/// (forge-connection.md, 7.3).
 #[derive(Clone, Copy, PartialEq, Eq, Hash, Debug)]
 pub struct Shared {
     /// The forge client's: `calls`, `rows`, `answer_bytes`, `op_bytes`, `lifetime`.

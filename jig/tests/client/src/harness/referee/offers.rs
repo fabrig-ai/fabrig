@@ -72,6 +72,7 @@ impl Offers {
             | ReadValue::Settings(_)
             | ReadValue::Setting(_)
             | ReadValue::Revision(_)
+            | ReadValue::TaskText(_)
             | ReadValue::Revisions(_)
             | ReadValue::Deployment(_) => {}
         }
@@ -154,10 +155,12 @@ impl Offers {
             | Ask::SetRoles { .. }
             | Ask::MakeService { .. }
             | Ask::RemoveProject { .. }
+            | Ask::SetVisibility { .. }
             | Ask::Rename { .. }
             | Ask::Lift { .. }
             | Ask::ChangeSettings(_)
             | Ask::MoveToNewest(_)
+            | Ask::Restore { .. }
             | Ask::MakeProject { .. }
             | Ask::SetPool { .. } => return None,
         };

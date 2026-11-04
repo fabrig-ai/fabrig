@@ -154,7 +154,12 @@ impl Thread {
         };
         let message = match answer {
             Answer::Done(Outcome::Document(value)) => number(value, self.task, place),
-            Answer::Done(Outcome::Made { .. } | Outcome::SettingsChanged(_) | Outcome::MovedToNewest(_))
+            Answer::Done(
+                Outcome::Made { .. }
+                | Outcome::SettingsChanged(_)
+                | Outcome::MovedToNewest(_)
+                | Outcome::Restored { .. },
+            )
             | Answer::Refused { .. } => None,
         };
         match message {
@@ -261,6 +266,7 @@ fn number(value: &DocumentOutcome, task: u64, place: u32) -> Option<u64> {
         | DocumentOutcome::AccountSignInStarted { .. }
         | DocumentOutcome::AccountSignedOut { .. }
         | DocumentOutcome::ProjectRemoved { .. }
+        | DocumentOutcome::VisibilitySet { .. }
         | DocumentOutcome::Renamed { .. }
         | DocumentOutcome::ProjectMade { .. }
         | DocumentOutcome::PoolSet { .. }

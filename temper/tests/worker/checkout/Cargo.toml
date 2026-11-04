@@ -12,6 +12,11 @@ test = false
 doctest = false
 
 [dependencies]
+temper-fake-git.workspace = true
+skein-io.workspace = true
+skein-fake-peers.workspace = true
+skein-fake-forge-protocol.workspace = true
+temper-worker-protocol-git.workspace = true
 skein-world.workspace = true
 skein-lib.workspace = true
 temper-worker-domain-checkout.workspace = true

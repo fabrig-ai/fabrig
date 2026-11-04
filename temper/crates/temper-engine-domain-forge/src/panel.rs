@@ -1,4 +1,4 @@
-//! The connector's whole change document (domain/forge.md, 8.8).
+//! The connector's whole change document (domain/forge.md, 8.8; client/forge.md, 2.1).
 use crate::{ChangeRow, Domain, Limits};
 use alloc::boxed::Box;
 use jig_domain_people::ApplicationScope;
@@ -32,6 +32,9 @@ pub enum PanelStep {
     Repairing(change::Repair),
     Landing,
     Landed { merge: [u8; 32] },
+    Verifying { merge: [u8; 32], tiers: Box<[Box<[u8]>]> },
+    Red { merge: [u8; 32], tiers: Box<[Box<[u8]>]> },
+    Cleared { merge: [u8; 32], tiers: Box<[Box<[u8]>]>, uncleared: bool },
 }
 #[derive(Clone, Copy, PartialEq, Eq, Debug)]
 pub struct PanelGate {
@@ -44,6 +47,27 @@ pub struct PanelGate {
 pub struct PanelUsed {
     pub used: u32,
     pub limit: u32,
+}
+/// A change's questions (domain/forge.md, 8.11; client/README.md, 4.6).
+#[derive(Clone, PartialEq, Eq, Debug)]
+pub struct PanelQuestions {
+    pub route: change::Route,
+    pub taken: PanelUsed,
+    pub open: Box<[PanelQuestion]>,
+}
+#[derive(Clone, PartialEq, Eq, Debug)]
+pub struct PanelQuestion {
+    pub asker: u64,
+    pub number: u64,
+    pub line: Box<[u8]>,
+    pub stands: PanelStands,
+}
+#[derive(Clone, Copy, PartialEq, Eq, Debug)]
+pub enum PanelStands {
+    Taken,
+    Foreman(Option<u64>),
+    Asked,
+    Held,
 }
 #[derive(Clone, PartialEq, Eq, Debug)]
 pub struct Panel {
@@ -65,20 +89,24 @@ pub struct Panel {
     pub repairs: PanelUsed,
     pub resolutions: PanelUsed,
     pub updates: PanelUsed,
+    pub questions: PanelQuestions,
 }
 impl Panel {
     #[must_use]
     pub fn within(&self) -> bool {
-        let names = usize::try_from(PANEL_NAME_BYTES).expect("u32 fits usize");
+        let names = skein_lib::usize_of(PANEL_NAME_BYTES);
         self.owner.len() <= names
             && self.name.len() <= names
             && self.branch.len() <= names
             && self.landing.len() <= names
-            && self.gates.len() <= usize::try_from(PANEL_GATES).expect("u32 fits usize")
+            && self.gates.len() <= skein_lib::usize_of(PANEL_GATES)
+            && self.questions.open.len() <= 8
+            && question_lines_within(&self.questions.open)
             && match &self.step {
-                PanelStep::Queued { place, ahead } => {
-                    *place > 0 && ahead.len() <= usize::try_from(PANEL_AHEAD).expect("u32 fits usize")
-                }
+                PanelStep::Queued { place, ahead } => *place > 0 && ahead.len() <= skein_lib::usize_of(PANEL_AHEAD),
+                PanelStep::Verifying { tiers, .. }
+                | PanelStep::Red { tiers, .. }
+                | PanelStep::Cleared { tiers, .. } => tiers.len() <= 32 && tier_lines_within(tiers),
                 PanelStep::Ready { .. }
                 | PanelStep::Preparing { .. }
                 | PanelStep::Producing
@@ -99,9 +127,51 @@ impl Panel {
 }
 
 impl Domain {
+    fn panel_tiers(&self, verification: &crate::Verification) -> Box<[Box<[u8]>]> {
+        let mut lines = List::with_capacity(u32::try_from(verification.tiers.len()).expect("admitted tiers"));
+        for tier in &verification.tiers {
+            let mut run = None;
+            let mut suffix = Box::from(b"".as_slice());
+            if let Some(repair) = tier.repaired {
+                run = Some(repair.run);
+            } else if let Some(verdict) = &tier.verdict {
+                run = Some(verdict.run);
+                suffix = tier_blame(&verdict.blame);
+            } else {
+                for ((repository, name), row) in &self.tiers {
+                    if *repository == verification.repository
+                        && *name == tier.tier
+                        && let Some(flight) = &row.record.run
+                    {
+                        for landing in &flight.landings {
+                            if landing.commit == verification.commit {
+                                run = Some(flight.number);
+                            }
+                        }
+                    }
+                }
+                suffix = Box::from(if run.is_some() { b" running".as_slice() } else { b" waiting".as_slice() });
+            }
+            let number = skein_lib::Decimal::of(run.unwrap_or(0));
+            let mut line = List::uncapped();
+            for part in [
+                tier.tier.as_ref(),
+                if run.is_some() { b" run " } else { b"" },
+                if run.is_some() { number.as_bytes() } else { b"" },
+                &suffix,
+            ] {
+                for byte in part {
+                    line.push(*byte).expect("tier words");
+                }
+            }
+            lines.push(line.into_boxed()).expect("admitted tiers");
+        }
+        lines.into_boxed()
+    }
     /// Purely read a retained change in the project that holds its repository.
     #[must_use]
     #[expect(clippy::manual_map, reason = "the strict subset uses explicit matches")]
+    #[expect(clippy::too_many_lines, reason = "the panel reads every retained step and its facts together")]
     pub fn panel(&self, task: u64, scope: ApplicationScope, now: Wall, limits: &Limits) -> Option<Panel> {
         let ApplicationScope::Project(project) = scope else { return None };
         let row = self.changes.get(&task)?;
@@ -116,7 +186,7 @@ impl Domain {
             state = was;
         }
         let step = match state {
-            change::State::Ended => PanelStep::Ended,
+            change::State::NoChange { .. } | change::State::Ended => PanelStep::Ended,
             change::State::Producing { .. } => PanelStep::Producing,
             change::State::Opening { .. } => PanelStep::Opening,
             change::State::Recreating { .. } => PanelStep::Recreating,
@@ -134,7 +204,25 @@ impl Domain {
             change::State::Resolving { .. } => PanelStep::Resolving,
             change::State::Repairing { why, .. } => PanelStep::Repairing(*why),
             change::State::Landing { .. } => PanelStep::Landing,
-            change::State::Landed { merge } => PanelStep::Landed { merge: *merge },
+            change::State::Landed { merge, .. } => match self.verifications.get(&(row.repository, *merge)) {
+                Some(verification) => PanelStep::Verifying { merge: *merge, tiers: self.panel_tiers(verification) },
+                None => PanelStep::Landed { merge: *merge },
+            },
+            change::State::Red { merge, .. } => PanelStep::Red {
+                merge: *merge,
+                tiers: match self.verifications.get(&(row.repository, *merge)) {
+                    Some(v) => self.panel_tiers(v),
+                    None => Box::new([]),
+                },
+            },
+            change::State::Cleared { merge } | change::State::Uncleared { merge } => PanelStep::Cleared {
+                merge: *merge,
+                tiers: match self.verifications.get(&(row.repository, *merge)) {
+                    Some(v) => self.panel_tiers(v),
+                    None => Box::new([]),
+                },
+                uncleared: *state == change::State::Uncleared { merge: *merge },
+            },
             change::State::Held { .. } => unreachable!("held steps unwrapped"),
         };
         let head = row.change.last_head;
@@ -166,6 +254,24 @@ impl Domain {
             Some(read) if Some(read.head) == head => read.status,
             Some(_) | None => change::Status::Unknown,
         };
+        let mut open = List::with_capacity(8);
+        for question in &row.questions.open {
+            if open.room() == 0 {
+                break;
+            }
+            open.push(PanelQuestion {
+                asker: question.asker,
+                number: question.number,
+                line: question.line.clone(),
+                stands: match &question.stands {
+                    change::Stands::Taken => PanelStands::Taken,
+                    change::Stands::Foreman { task } => PanelStands::Foreman(*task),
+                    change::Stands::Asked => PanelStands::Asked,
+                    change::Stands::Held { .. } => PanelStands::Held,
+                },
+            })
+            .expect("first eight questions fit");
+        }
         let panel = Panel {
             way: row.change.way,
             in_landing: row.change.landing,
@@ -188,6 +294,11 @@ impl Domain {
             repairs: PanelUsed { used: row.change.repairs, limit: limits.change_policy.repairs },
             resolutions: PanelUsed { used: row.change.resolutions, limit: limits.change_policy.resolutions },
             updates: PanelUsed { used: row.change.updates, limit: limits.change_policy.updates },
+            questions: PanelQuestions {
+                route: row.questions.route,
+                taken: PanelUsed { used: row.questions.taken, limit: limits.change_policy.questions },
+                open: open.into_boxed(),
+            },
         };
         assert!(panel.within(), "admitted change fits the panel");
         Some(panel)
@@ -268,4 +379,63 @@ pub(crate) fn queue_before(
         return false;
     }
     change::Ready::before(a, b, limits.queue_window, now)
+}
+
+fn tier_lines_within(lines: &[Box<[u8]>]) -> bool {
+    for line in lines {
+        if line.len() > 8192 {
+            return false;
+        }
+    }
+    true
+}
+
+fn question_lines_within(questions: &[PanelQuestion]) -> bool {
+    for question in questions {
+        if question.line.len() > change::QUESTION_LINE {
+            return false;
+        }
+    }
+    true
+}
+
+fn tier_blame(blame: &temper_engine_domain_forge_tiers::Blame) -> Box<[u8]> {
+    use temper_engine_domain_forge_tiers::{Blame, Failures};
+    let (kind, failures) = match blame {
+        Blame::Cleared => return Box::new([]),
+        Blame::Owns(failures) => (b" owns ".as_slice(), failures),
+        Blame::Suspect(failures) => (b" suspected of ".as_slice(), failures),
+    };
+    let mut line = List::uncapped();
+    for part in [b" \xc2\xb7".as_slice(), kind] {
+        for byte in part {
+            line.push(*byte).expect("tier words");
+        }
+    }
+    match failures {
+        Failures::Many => {
+            for byte in b"many tests" {
+                line.push(*byte).expect("tier words");
+            }
+        }
+        Failures::Tests(tests) => {
+            let count = skein_lib::Decimal::of(skein_lib::len_u64(tests.len()));
+            for part in [count.as_bytes(), if tests.len() == 1 { b" test: " } else { b" tests: " }] {
+                for byte in part {
+                    line.push(*byte).expect("tier words");
+                }
+            }
+            for (at, test) in tests.iter().enumerate() {
+                if at > 0 {
+                    for byte in b", " {
+                        line.push(*byte).expect("tier words");
+                    }
+                }
+                for byte in test {
+                    line.push(*byte).expect("tier words");
+                }
+            }
+        }
+    }
+    line.into_boxed()
 }

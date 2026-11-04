@@ -23,7 +23,6 @@ pub(in crate::credentials) fn run(
     account: &Account,
     file: &Path,
     settings: &Settings,
-    codex: bool,
     operation: Operation,
     clock: &Clock,
     environment: &Environment,
@@ -44,7 +43,7 @@ pub(in crate::credentials) fn run(
         };
         registration::configured(account, &host, &settings.workspace)
     } else {
-        registration(account, codex, &settings.workspace)
+        registration(account, &settings.workspace)
     }
     .map_err(|why| why.line())?;
     let first_plan =

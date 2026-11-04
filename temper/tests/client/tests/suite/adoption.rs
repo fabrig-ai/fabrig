@@ -106,3 +106,49 @@ fn a_reload_with_an_adoption_pending_sends_it_once() {
     assert_eq!(world.front().applications_admitted(), 1);
     assert!(world.kept(person).is_empty(), "the retried adoption's record retired");
 }
+
+#[test]
+fn the_first_repository_is_adopted_from_default_with_nothing_typed() {
+    use jig_client_world::harness::App;
+    use temper_client_domain::{self as d, Address};
+    use temper_client_world::{app::Temper, front::account_acts as accounts};
+    use temper_engine_domain_forge as forge;
+    let (mut front, mut root, mut now) = super::connect_forge::owned_welcome();
+    super::connect_forge::accept_owned(&mut front, &mut root, &mut now);
+    for event in [
+        forge::Event::Connection {
+            forge: 1,
+            state: forge::Connection::Connected { id: 1, login: b"temper".as_slice().into() },
+        },
+        forge::Event::FirstMade { forge: 1, id: 42 },
+    ] {
+        front.engine.send(temper_engine_domain::Event::Forge(Box::new(event)));
+    }
+    front.engine.settle();
+    accounts::settle(&mut front, &mut root);
+    accounts::event(&mut front, &mut root, Temper::went(Address::Welcome { step: d::Step::Ready }));
+    press_adoption(&mut front, &mut root, Role::Button, b"Open Default");
+    assert_eq!(root.person().pages().address(), &fixtures::chats_page());
+    let chats = super::connect_forge::view(&root);
+    super::connect_forge::node(&chats, Role::Paragraph, b"No repository yet");
+    press_adoption(&mut front, &mut root, Role::Link, b"Adopt a repository");
+    press_adoption(&mut front, &mut root, Role::Button, b"Adopt");
+    assert!(front.engine_adopted(1, 42), "the engine holds work/hello as owned");
+    let outcome = super::connect_forge::view(&root);
+    super::connect_forge::node(&outcome, Role::Status, b"Adopted work/hello on forge 1 as owned.");
+    accounts::event(&mut front, &mut root, Temper::went(fixtures::chats_page()));
+    let chats = super::connect_forge::view(&root);
+    assert!(!chats.tree().nodes().iter().any(|node| node.name.as_deref() == Some(b"No repository yet")));
+}
+
+fn press_adoption(
+    front: &mut temper_client_world::front::Joint,
+    root: &mut temper_client_world::app::Root,
+    role: Role,
+    name: &[u8],
+) {
+    let mut view = super::connect_forge::view(root);
+    let node = super::connect_forge::node(&view, role, name);
+    let action = temper_client_view::act(&mut view, node, skein_ui::Act::Press).expect("bound act");
+    temper_client_world::front::account_acts::event(front, root, temper_client_domain::Event::Act { action }.into());
+}

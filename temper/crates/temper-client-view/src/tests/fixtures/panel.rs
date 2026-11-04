@@ -47,6 +47,15 @@ pub fn panel(task: u64, step: w::Step) -> w::ChangePanel {
             repairs: w::Used::new(&limits, w::UsedParts { used: 1, limit: 2 }).expect("repairs"),
             resolutions: w::Used::new(&limits, w::UsedParts { used: 3, limit: 4 }).expect("resolutions"),
             updates: w::Used::new(&limits, w::UsedParts { used: 5, limit: 6 }).expect("updates"),
+            questions: w::Questions::new(
+                &limits,
+                w::QuestionsParts {
+                    route: w::Route::None,
+                    taken: w::Used::new(&limits, w::UsedParts { used: 0, limit: 4 }).expect("question limit"),
+                    open: List::with_capacity(0),
+                },
+            )
+            .expect("no questions"),
         },
     )
     .expect("panel")

@@ -68,11 +68,11 @@ fn a_second_anthropic_tail_marker_is_rejected() {
 }
 
 #[test]
-fn codex_history_and_escaped_marker_words_stay_literal() {
-    let codex = NativeRequest::from_http(&http(
+fn openai_history_and_escaped_marker_words_stay_literal() {
+    let openai = NativeRequest::from_http(&http(
         r#"{"instructions":"fixed","tools":[],"input":[{"type":"message","cache_control":{"type":"ephemeral"}}]}"#,
     ));
-    assert_eq!(codex.history[0], r#"{"type":"message","cache_control":{"type":"ephemeral"}}"#);
+    assert_eq!(openai.history[0], r#"{"type":"message","cache_control":{"type":"ephemeral"}}"#);
     let quoted = NativeRequest::from_http(&http(
         r#"{"system":[],"tools":[],"messages":[{"role":"user","content":[{"type":"text","text":"literal ,\"cache_control\":{\"type\":\"ephemeral\"}","cache_control":{"type":"ephemeral"}}]}]}"#,
     ));
@@ -109,7 +109,7 @@ fn a_marker_on_thinking_is_rejected() {
 #[test]
 fn changed_native_affinity_is_rejected() {
     let mut changed = request();
-    changed.affinity = Some(["key".into(), "session".into(), "thread".into()]);
+    changed.affinity = Some("key".into());
     reject(changed, "native affinity stays fixed within a window");
 }
 

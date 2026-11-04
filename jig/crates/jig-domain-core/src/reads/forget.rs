@@ -1,4 +1,5 @@
 //! Reading releases tasks of the forgotten-once-read retention class (people.md, 6).
+//! Its erasure tells every connector (jig/docs/design/domain/connectors.md, 3.4).
 use crate::{Core, routing::Work};
 use jig_domain_people as people;
 use jig_domain_tasks as tasks;
@@ -97,6 +98,12 @@ pub(crate) fn forget(core: &mut Core, work: &mut Queue<Work>, owner: &Owner) -> 
         })));
         for key in record_keys(owner).into_boxed() {
             out.push(crate::Request::Write(crate::Write::Erase(crate::Key::Tasks(key))));
+        }
+        for &connector in core.connectors.as_ref() {
+            out.push(crate::Request::Ask {
+                connector,
+                ask: crate::Ask::Effect(crate::effects::connector::Ask::Unname { task: owner.task }),
+            });
         }
     }
     out

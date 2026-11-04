@@ -49,13 +49,9 @@ pub fn run() {
         Process::Sample(Box::new(HostService::new(launch, at.now, at.wall, 4096, None)))
     });
     world.spawn(|| {
-        Process::Script(Proc::Peer(Box::new(smith_agent_process_world::fake::configured_transport(
+        Process::Script(Proc::Peer(Box::new(smith_agent_process_world::fake::configured_openai(
             Box::new([peer_script()]),
-            skein_llm::Credential {
-                value: b"token".as_slice().into(),
-                account_id: b"acc".as_slice().into(),
-                scheme: skein_llm::Scheme::Bearer,
-            },
+            skein_llm::Credential::bearer(b"token".as_slice().into()),
             Duration::ZERO,
             skein_fake_peers::Transport::Tls,
         ))))

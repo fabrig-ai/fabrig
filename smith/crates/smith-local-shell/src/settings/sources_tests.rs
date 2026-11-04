@@ -7,19 +7,19 @@ mod resolution;
 mod validation;
 
 fn run(extra: &str) -> String {
-    format!("model='codex/gpt-6-luna'\n{extra}\n[accounts.codex]\nsource='key'\n")
+    format!("model='openai/gpt-6-luna'\n{extra}\n[accounts.openai]\nprovider='openai'\nsource='key'\n")
 }
 
 #[test]
 fn selected_accounts_are_numbered_by_name_not_order() {
-    for model in ["codex/gpt-6-luna", "anthropic/claude-haiku-5-5"] {
+    for model in ["openai/gpt-6-luna", "anthropic/claude-haiku-5-5"] {
         let selected = selection(&format!(
-            "model='{model}'\nsub_agents=true\n[accounts.codex]\nsource='key'\n[accounts.anthropic]\nsource='key'\n"
+            "model='{model}'\nsub_agents=true\n[accounts.openai]\nprovider='openai'\nsource='key'\n[accounts.anthropic]\nsource='key'\n"
         ))
         .expect("selection");
         for account in selected.accounts {
             let expected = match account.name.as_str() {
-                "codex" => 1_474_186_484,
+                "openai" => 2_100_401_399,
                 "anthropic" => 3_339_635_307,
                 _ => panic!("fixture account"),
             };
@@ -29,7 +29,7 @@ fn selected_accounts_are_numbered_by_name_not_order() {
 }
 
 fn collision(source: &str, selected: bool) -> super::Refusal {
-    let extra = if selected { "[endpoints.codex]\naccount='acct-78235'\n" } else { "" };
+    let extra = if selected { "[endpoints.openai]\naccount='acct-78235'\n" } else { "" };
     selection(&run(&format!("{extra}[accounts.acct-78235]\nsource='key'\n[accounts.acct-124172]\nsource='{source}'\n")))
         .expect_err("collision")
 }
@@ -58,10 +58,10 @@ fn a_none_account_takes_part_in_the_collision_check() {
 
 #[test]
 fn a_program_account_on_an_endpoint_without_a_program_is_refused() {
-    let refusal =
-        selection("model='codex/gpt-6-luna'\n[accounts.codex]\nsource='program'\n").expect_err("no endpoint program");
-    assert_eq!(refusal.key, "accounts.codex.source", "source key");
-    for text in ["accounts.codex", "endpoints.codex.program"] {
+    let refusal = selection("model='openai/gpt-6-luna'\n[accounts.openai]\nprovider='openai'\nsource='program'\n")
+        .expect_err("no endpoint program");
+    assert_eq!(refusal.key, "accounts.openai.source", "source key");
+    for text in ["accounts.openai", "endpoints.openai.program"] {
         assert!(refusal.line().contains(text), "binding names {text}");
     }
 }
@@ -69,7 +69,7 @@ fn a_program_account_on_an_endpoint_without_a_program_is_refused() {
 #[test]
 fn a_program_account_on_a_program_endpoint_resolves() {
     let selected = selection(
-        "model='codex/gpt-6-luna'\n[accounts.codex]\nsource='program'\n[endpoints.codex]\nprogram='claude_code'\n",
+        "model='openai/gpt-6-luna'\n[accounts.openai]\nprovider='openai'\nsource='program'\n[endpoints.openai]\nprogram='claude_code'\n",
     )
     .expect("program selection");
     assert_eq!(selected.accounts[0].source(), resolve::AccountSource::Program, "selected source");
@@ -81,16 +81,20 @@ fn sub_agents_leave_out_the_models_of_a_program_account() {
         "sub_agents=true\n[accounts.anthropic]\nsource='program'\n[endpoints.anthropic]\nprogram='claude_code'\n",
     ))
     .expect("selection");
-    assert!(selected.models.iter().all(|name| name.starts_with("codex/")), "program models excluded");
+    assert!(selected.models.iter().all(|name| name.starts_with("openai/")), "program models excluded");
 }
 
 #[test]
 fn the_main_endpoint_keeps_its_models_on_a_program_account() {
     let selected = selection(
-        "model='codex/gpt-6-luna'\n[accounts.codex]\nsource='program'\n[endpoints.codex]\nprogram='claude_code'\n",
+        "model='openai/gpt-6-luna'\n[accounts.openai]\nprovider='openai'\nsource='program'\n[endpoints.openai]\nprogram='claude_code'\n",
     )
     .expect("selection");
-    assert_eq!(selected.models, ["codex/gpt-6-luna", "codex/gpt-6-astra", "codex/gpt-6.1-sol"], "main endpoint models");
+    assert_eq!(
+        selected.models,
+        ["openai/gpt-6-luna", "openai/gpt-6-astra", "openai/gpt-6.1-sol"],
+        "main endpoint models"
+    );
 }
 
 #[test]

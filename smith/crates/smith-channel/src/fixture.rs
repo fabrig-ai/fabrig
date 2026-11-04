@@ -1,5 +1,5 @@
 //! Small codec entrances (skein/docs/foundation/testing-strategy.md, section 1).
-use crate::v5::Limits;
+use crate::v6::Limits;
 
 /// Two bytes or items at each independently bounded codec entrance.
 pub const SMALL: Limits = Limits {
@@ -10,8 +10,6 @@ pub const SMALL: Limits = Limits {
     workspace_directories: 2,
     credential_value_bytes: 2,
     program_value_name: 2,
-    withdrawn_value_id: 2,
-    withdrawn_value_bearer: 2,
     receipt_text: 2,
     delivered_receipts: 2,
     marker_path: 2,

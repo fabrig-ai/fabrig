@@ -55,6 +55,7 @@ pub fn kind(seed: u8, local: u16) -> u16 {
 #[must_use]
 pub fn config(seed: u8) -> Config {
     Config {
+        settings: None,
         deployment: (u128::from(seed) + 1).to_be_bytes(),
         prefix: path(seed, 0),
         resources: Box::from([

@@ -14,13 +14,25 @@ fn read(
     repository: skein_forge::api::Repository,
     read: Read,
 ) -> Result<Answer, Error> {
+    match read_answer(world, run, number, repository, read) {
+        engine::CallAnswer::ForgeRead(result) => *result,
+        answer => panic!("forge answer: {answer:?}"),
+    }
+}
+
+fn read_answer(
+    world: &mut World,
+    run: &engine::Assignment,
+    number: u32,
+    repository: skein_forge::api::Repository,
+    read: Read,
+) -> engine::CallAnswer {
     let before = world.answers.len();
     ask_read(world, run, number, repository, read);
     for _ in 0..MAX_TICKS {
         world.tick();
         if let Some(answer) = world.answers.get(before) {
-            let engine::CallAnswer::ForgeRead(result) = answer else { panic!("forge answer: {answer:?}") };
-            return *result.clone();
+            return answer.clone();
         }
     }
     panic!("forge read was not answered");
@@ -36,7 +48,7 @@ pub(super) fn next_assignment(world: &mut World, index: usize) -> engine::Assign
     panic!("delegate {index} was not assigned: {:?}", world.answers);
 }
 
-fn produce(world: &mut World, producer: &engine::Assignment, branch: &[u8]) -> [u8; 32] {
+pub(super) fn produce(world: &mut World, producer: &engine::Assignment, branch: &[u8]) -> [u8; 32] {
     world.external(2, raw::Op::Git(raw::Git::Create { branch: branch.into(), commit: 1 }));
     let head = fake::advance(&mut world.fake, &world.fake_env, b"org/repo", branch, FILE, CONTENT, 1)
         .expect("producer pushed review head");
@@ -252,6 +264,14 @@ fn reviewer_reads_back_off_when_forge_admission_is_busy() {
     }
     assert_eq!(world.answers.len(), before, "admission Busy is not a model-visible forge error");
     assert_eq!(world.busy_calls, busy + 2, "both calls use the host's backoff path");
+    let facts: Vec<_> = std::iter::from_fn(|| world.root.pop_fact()).collect();
+    assert!(
+        facts.iter().any(|fact| matches!(fact,
+            engine::Fact::ReadRefused { task, attempt, tool, layer: "forge-client", error: Some(Error::Busy), .. }
+            if *task == reviewer.task && *attempt == reviewer.attempt && tool.as_ref() == b"engine"
+        )),
+        "forge admission pressure names its layer: {facts:?}"
+    );
     assert!(world.call_errors.is_empty());
     for event in completions {
         world.send(event);
@@ -395,8 +415,7 @@ fn a_changes_producer_reads_the_forge() {
     assert_eq!(head, translate::commit(1));
 }
 
-#[test]
-fn a_changes_grants_name_its_repository_alone() {
+fn repository_scoped_reviewer() -> (World, engine::Assignment, skein_forge::api::Commit) {
     let mut world = World::configured_policy(true, true, false, 1000, Gate { agent: true, ..Gate::default() }, None);
     world.adopt();
     world.send(protocol::hello_slots(CHANNEL, 2, Box::new([])));
@@ -435,6 +454,12 @@ fn a_changes_grants_name_its_repository_alone() {
     for (task, authority) in authorities {
         assert_repository_grants(task, &authority);
     }
+    (world, reviewer, head)
+}
+
+#[test]
+fn a_changes_grants_name_its_repository_alone() {
+    let (mut world, reviewer, head) = repository_scoped_reviewer();
     assert!(
         matches!(
             read(&mut world, &reviewer, 10, forge_world::REPO, Read::PullFiles { number: 1, head, page: 1 }),
@@ -444,6 +469,31 @@ fn a_changes_grants_name_its_repository_alone() {
     );
     // A second adopted repository in the same project makes this an authority refusal,
     // rather than a missing-repository or cross-project refusal.
+    restore_sibling_repository(&mut world);
+    let answer = read_answer(
+        &mut world,
+        &reviewer,
+        11,
+        skein_forge::api::Repository { repository: 3, ..forge_world::REPO },
+        Read::File { head, path: b"ci.yml".as_slice().into(), max_bytes: 1024 },
+    );
+    assert!(
+        matches!(&answer, engine::CallAnswer::ToolDenied { findings, .. }
+            if findings.contains(&authority::Finding::Grant { source: authority::Source::Task })),
+        "review read must retain the refusing authority layer: {answer:?}"
+    );
+    let facts: Vec<_> = std::iter::from_fn(|| world.root.pop_fact()).collect();
+    assert!(
+        facts.iter().any(|fact| matches!(fact,
+            engine::Fact::ReadRefused { task, attempt, tool, layer: "authority", findings, .. }
+            if *task == reviewer.task && *attempt == reviewer.attempt && tool.as_ref() == b"engine"
+            && findings.contains(&authority::Finding::Grant { source: authority::Source::Task })
+        )),
+        "the operator diagnostic retains the finding and the reviewer correlation: {facts:?}"
+    );
+}
+
+fn restore_sibling_repository(world: &mut World) {
     let mut other = world
         .store
         .rows
@@ -464,16 +514,6 @@ fn a_changes_grants_name_its_repository_alone() {
     world.send(engine::Event::Forge(Box::new(forge_top::Event::Restore {
         record: forge_top::Stored::Repository(other),
     })));
-    assert_eq!(
-        read(
-            &mut world,
-            &reviewer,
-            11,
-            skein_forge::api::Repository { repository: 3, ..forge_world::REPO },
-            Read::Pull { number: 1 }
-        ),
-        Err(Error::Forbidden)
-    );
 }
 
 fn pattern(value: &tasks::Pattern) -> authority::Pattern {
@@ -1089,14 +1129,13 @@ fn assert_authority_hold(
         matches!(live_task(world, task).phase, tasks::Phase::Held { why, .. } if why == expected),
         "never left due"
     );
+    let way = format!("; cancel: task cancel {task} REASON");
     let parent = requester(world, task);
     assert!(
-        live_task(world, parent)
-            .inbox
-            .iter()
-            .any(|word| word.from == tasks::Party::Task(task)
-                && word.words.windows(words.len()).any(|part| part == words)),
-        "requester heard the precise cause"
+        live_task(world, parent).inbox.iter().any(|word| word.from == tasks::Party::Task(task)
+            && word.words.windows(words.len()).any(|part| part == words)
+            && word.words.windows(way.len()).any(|part| part == way.as_bytes())),
+        "requester heard the precise cause and actionable recovery"
     );
     let live = live_task(world, task);
     assert_eq!(cause.recovery.task, task);
@@ -1104,11 +1143,14 @@ fn assert_authority_hold(
     assert_eq!(cause.recovery.hold, live.revisions.hold);
     let needed = u64::from(live.made);
     assert_eq!(cause.recovery.tasks, needed);
-    let way = format!(
-        "release it: task release {task} --hold {} (it holds again unless it has more); or cancel it: task cancel {task} REASON",
-        live.revisions.hold,
-    );
-    assert!(temper_engine_domain_forge_change::authority_words(cause).ends_with(way.as_bytes()));
+    let printed = temper_engine_domain_forge_change::authority_words(cause);
+    assert!(printed.ends_with(b"; or ask afresh; bare release holds again"));
+    if lack == temper_engine_domain_forge_change::AuthorityLack::Tasks {
+        let amendment = format!("task amend {task} --rev {} --tasks {} REASON; then ", live.revisions.spec, needed + 2);
+        assert!(printed.windows(amendment.len()).any(|part| part == amendment.as_bytes()));
+        let release = format!("task release {task} --hold {}", live.revisions.hold);
+        assert!(printed.windows(release.len()).any(|part| part == release.as_bytes()));
+    }
 }
 
 #[test]
@@ -1500,7 +1542,7 @@ fn a_review_without_spend_holds_for_budget_before_delegating() {
     let task = read_change_task(&mut world, change);
     assert_eq!(task.hold.as_ref().map(|hold| hold.reason), Some(tasks::Hold::Budget));
     let words = task.hold.as_ref().expect("budget hold").words.as_ref().expect("spend account").bytes.as_ref();
-    for expected in [b"spend".as_slice(), b"task release"] {
+    for expected in [b"spend".as_slice(), b"task cancel", b"ask afresh", b"bare release holds again"] {
         assert!(words.windows(expected.len()).any(|part| part == expected));
     }
     assert_eq!(world.merges, 0);
@@ -1580,6 +1622,7 @@ fn producer_for(world: &mut World, change: u64) -> engine::Assignment {
             if let Some(Record::Core(jig_domain_core::Record::Tasks(tasks::Stored::Live(row)))) =
                 world.store.rows.get(&Key::Core(jig_domain_core::Key::Tasks(tasks::Key::Live(run.task))))
                 && row.requester == tasks::Party::Task(change)
+                && change_row(world, change).delegate.is_some_and(|(child, _)| child == run.task)
             {
                 return run.clone();
             }
@@ -1654,7 +1697,7 @@ fn independent_alpha_and_beta_start_while_a_large_change_is_pending() {
 }
 
 #[test]
-fn beta_at_the_stock_task_limit_is_due_after_a_live_capacity_refusal() {
+fn beta_at_the_stock_task_limit_waits_for_room_then_starts_its_producer() {
     let cap = temper_engine_domain_world::forge_routes::box_limits().tasks.tasks;
     assert_eq!(cap, 8, "the reproduction uses the shipped box's task limit");
     let (mut world, large, alpha, beta) = pending_large_with_alpha_and_beta(cap);
@@ -1670,7 +1713,8 @@ fn beta_at_the_stock_task_limit_is_due_after_a_live_capacity_refusal() {
         .expect("beta's refused producer admission reaches the root");
     assert_eq!(problem.why, tasks::Refusal::Live);
     let row = live_task(&world, beta);
-    assert_eq!(row.phase, tasks::Phase::Active(tasks::Active::Due));
+    assert_eq!(row.phase, tasks::Phase::Active(tasks::Active::Idle));
+    assert_eq!(row.room_wait.map(|wait| wait.room), Some(tasks::LiveRoom::Deployment));
     assert!(row.delegates.is_empty());
     assert_eq!(row.numbers.spent + row.numbers.spent_below + row.numbers.reserved, 0);
     assert!(row.authority.budget.spend > 0, "beta has untouched spend authority");
@@ -1682,18 +1726,12 @@ fn beta_at_the_stock_task_limit_is_due_after_a_live_capacity_refusal() {
         &review,
         tasks::TaskResult::Verdict { code: 1, fields: Box::new([]), words: b"approved".as_slice().into() },
     );
-    for _ in 0..MAX_TICKS {
-        world.tick();
-    }
-    let live = world
-        .store
-        .rows
-        .values()
-        .filter(|record| matches!(record, Record::Core(jig_domain_core::Record::Tasks(tasks::Stored::Live(_)))))
-        .count();
-    assert!(live < cap as usize, "capacity is available: {live}/{cap}");
-    assert_eq!(live_task(&world, beta).phase, tasks::Phase::Active(tasks::Active::Due));
-    assert!(live_task(&world, beta).delegates.is_empty());
+    let producer = producer_for(&mut world, beta);
+    assert_eq!(live_task(&world, producer.task).requester, tasks::Party::Task(beta));
+    let row = live_task(&world, beta);
+    assert_eq!(row.phase, tasks::Phase::Active(tasks::Active::Idle));
+    assert_eq!(row.room_wait, None);
+    assert_eq!(row.delegates.as_ref(), &[producer.task]);
 }
 
 #[test]
@@ -1797,3 +1835,133 @@ fn a_gate_repairs_with_its_named_pull_before_its_whole_remarks() {
 
 #[path = "reviews/retier.rs"]
 mod retier;
+
+#[test]
+fn lost_read_diagnostics_change_no_reviewer_grant_or_answer() {
+    let (mut world, reviewer, head) = repository_scoped_reviewer();
+    restore_sibling_repository(&mut world);
+    for number in 0..=engine::FACTS {
+        let answer = read_answer(
+            &mut world,
+            &reviewer,
+            number + 20,
+            skein_forge::api::Repository { repository: 3, ..forge_world::REPO },
+            Read::File { head, path: b"ci.yml".as_slice().into(), max_bytes: 1024 },
+        );
+        assert!(matches!(answer, engine::CallAnswer::ToolDenied { .. }));
+    }
+    assert_eq!(world.root.facts_lost(), 1);
+    assert!(matches!(
+        read(&mut world, &reviewer, 100, forge_world::REPO, Read::PullFiles { number: 1, head, page: 1 }),
+        Ok(Answer::PullFiles { .. })
+    ));
+    assert_eq!(
+        std::iter::from_fn(|| world.root.pop_fact()).count(),
+        usize::try_from(engine::FACTS).expect("fact capacity fits usize")
+    );
+}
+
+const THIRD_APPEND: &[u8] = b"README\n\nTier walk: third.\n";
+const BOTH_APPENDS: &[u8] = b"README\n\nBREAK the slow check\nTier walk: third.\n";
+
+// The engine domain world is lowest: it assembles the briefs and admits each delegate.
+#[test]
+fn a_third_append_preserves_base_content_after_conflict_and_review_repairs() {
+    let (mut world, change, branch) = third_append_conflict();
+    let resolver = next_assignment(&mut world, 3);
+    assert_preserving_assignment(&world, &resolver, b"What landed in the base");
+    resolve_append(&mut world, &resolver, &branch, THIRD_APPEND);
+    let review = next_assignment(&mut world, 4);
+    reject_lost_content(&mut world, &review, b"Restore BREAK the slow check");
+    let repair = next_assignment(&mut world, 5);
+    assert_preserving_assignment(&world, &repair, b"Restore BREAK the slow check");
+    push_append(&mut world, &repair, &branch, b"README\nBREAK the slow check\nTier walk: third.\n");
+    let review = next_assignment(&mut world, 6);
+    reject_lost_content(&mut world, &review, b"Restore the existing blank line after README");
+    wait_held(&mut world, change);
+    assert_authority_hold(
+        &world,
+        change,
+        temper_engine_domain_forge_change::AuthorityLack::Tasks,
+        b"its 6 tasks are made",
+        false,
+    );
+    assert_eq!(world.assigned.len(), 7);
+    let made = live_task(&world, change).made;
+    change_authority(&mut world, change, Some(9), None, Some(60));
+    release(&mut world, change);
+    let repair = next_assignment(&mut world, 7);
+    assert_preserving_assignment(&world, &repair, b"Restore the existing blank line after README");
+    push_append(&mut world, &repair, &branch, BOTH_APPENDS);
+    let review = next_assignment(&mut world, 8);
+    assert_eq!(live_task(&world, change).made, made + 2, "release preserves lifetime counts");
+    approve(&mut world, &review);
+    assert_lands(&mut world, change);
+    let head = world.fake.branch(b"org/repo", b"main").expect("landed main");
+    assert_eq!(
+        world.external(1, raw::Op::Read(raw::Read::File { commit: head, path: FILE.into() })),
+        raw::Answer::File(BOTH_APPENDS.into())
+    );
+}
+
+fn third_append_conflict() -> (World, u64, Box<[u8]>) {
+    let (mut world, _, producer, branch) = change_world_with_gate(false, 1000, None, true);
+    let base = fake::advance(&mut world.fake, &world.fake_env, b"org/repo", b"main", FILE, b"README\n\n", 1)
+        .expect("original blank line");
+    world.external(2, raw::Op::Git(raw::Git::Create { branch: branch.clone(), commit: base }));
+    push_append(&mut world, &producer, &branch, THIRD_APPEND);
+    let review = next_assignment(&mut world, 2);
+    let change = requester(&world, review.task);
+    fake::advance(&mut world.fake, &world.fake_env, b"org/repo", b"main", FILE, b"README\n\nBREAK the slow check\n", 1)
+        .expect("earlier landing");
+    approve(&mut world, &review);
+    (world, change, branch)
+}
+
+fn assert_preserving_assignment(world: &World, run: &engine::Assignment, context: &[u8]) {
+    let words = &live_task(world, run.task).spec.words;
+    for expected in [
+        b"Preserve the requested change".as_slice(),
+        b"independent appended lines and existing blank lines",
+        b"do not remove content to make a check pass",
+    ] {
+        let words = core::str::from_utf8(words).expect("task words").to_ascii_lowercase();
+        let expected = core::str::from_utf8(expected).expect("expected words").to_ascii_lowercase();
+        assert!(words.contains(&expected), "{words}");
+    }
+    assert!(
+        run.sections.iter().any(|section| matches!(&section.body,
+        engine::BriefBody::Text(words) if words.windows(context.len()).any(|part| part == context))),
+        "assignment carries change or review context: {:?}",
+        run.sections
+    );
+}
+
+fn reject_lost_content(world: &mut World, run: &engine::Assignment, words: &[u8]) {
+    finish_review(world, run, tasks::TaskResult::Verdict { code: 2, fields: Box::new([]), words: words.into() });
+}
+
+fn push_append(world: &mut World, run: &engine::Assignment, branch: &[u8], content: &[u8]) {
+    fake::advance(&mut world.fake, &world.fake_env, b"org/repo", branch, FILE, content, 1)
+        .expect("scripted worker push");
+    super::delegates::fixtures::answer_producer(world, run);
+}
+
+fn resolve_append(world: &mut World, run: &engine::Assignment, branch: &[u8], content: &[u8]) {
+    let old = world.fake.branch(b"org/repo", branch).expect("branch head");
+    let base = world.fake.branch(b"org/repo", b"main").expect("base head");
+    let merge = fake::merge_commit(
+        &mut world.fake,
+        &world.fake_env.limits,
+        old,
+        base,
+        Box::new([raw::File { path: FILE.into(), content: content.into() }]),
+        b"Resolve conflict",
+    )
+    .expect("scripted resolution");
+    assert_eq!(
+        world.external(1, raw::Op::Git(raw::Git::Push { branch: branch.into(), commit: merge, expected: Some(old) })),
+        raw::Answer::Pushed(raw::Pushed::Pushed)
+    );
+    super::delegates::fixtures::answer_producer(world, run);
+}

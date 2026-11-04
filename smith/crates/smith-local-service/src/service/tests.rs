@@ -21,10 +21,7 @@ fn a_lent_value_sets_its_credential_events_form() {
     let mut service = Service::new(crate::tests::config(), 7).expect("bounded service");
     for (value, form) in [
         (GrantValue::Bearer(Box::from(b"token".as_slice())), Form::Credential(Scheme::Bearer)),
-        (
-            GrantValue::Withdrawn { account_id: Box::from(b"acc".as_slice()), bearer: Box::from(b"token".as_slice()) },
-            Form::Withdrawn,
-        ),
+        (GrantValue::Key(Box::from(b"key".as_slice())), Form::Credential(Scheme::Key)),
     ] {
         service.credential(grant(), value);
         let Some(local::Event::Credential { grant: lent, form: lent_form }) = service.local_events.pop() else {
@@ -107,4 +104,26 @@ fn the_shell_writer_requests_wait_only_on_io_credit() {
         }
     }
     assert_eq!(rooms.as_slice(), writers.as_slice(), "every writer request reaches IO in the order handed in");
+}
+
+#[test]
+fn the_account_driver_lends_an_env_value_as_a_nonrenewable_key() {
+    let mut service = Service::new(crate::tests::config(), 7).expect("bounded service");
+    let mut sources = skein_lib::List::with_capacity(1);
+    assert!(sources.push(crate::credentials::tests::source()).is_ok());
+    service.handed_accounts(sources, crate::credentials::tests::limits(), [7; 32]).expect("env account");
+    assert!(service.accounts.as_mut().unwrap().request(7));
+    for _ in 0..32_u32 {
+        service.accounts_pass(skein_lib::Time::ZERO, skein_lib::Wall::from_nanos(100_000_000_000));
+        if service.values.contains_key(&7) {
+            break;
+        }
+    }
+    let Some(GrantValue::Key(value)) = service.values.get(&7) else { panic!("env key value") };
+    assert_eq!(value.as_ref(), b"header.eyJleHAiOjEyMH0.signature");
+    let Some(local::Event::Credential { grant, form }) = service.local_events.pop() else {
+        panic!("env credential terminal");
+    };
+    assert_eq!(form, Form::Credential(Scheme::Key));
+    assert!(!grant.renewable);
 }

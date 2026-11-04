@@ -154,7 +154,7 @@ impl Front<Ops> for Scripted {
         self.shell.push((client, Event::Client { event: jig_client::Event::Up { up: jig_client::Up::SignedIn } }));
     }
     fn wire(&mut self, client: ClientId, now: Time, wall: Wall, request: Request) {
-        let Request::Client { request: jig_client::Request::Down { down } } = request else {
+        let Request::Unlinked { request: jig_client::UnlinkedRequest::Down { down } } = request else {
             panic!("unlinked client transport")
         };
         let party = self.parties[&client];
@@ -517,6 +517,7 @@ fn change_facts(change: &engine::Change, commit: u64, out: &mut Vec<Observed>) {
                 | ReadValue::Settings(_)
                 | ReadValue::Setting(_)
                 | ReadValue::Revision(_)
+                | ReadValue::TaskText(_)
                 | ReadValue::Revisions(_) => false,
             };
             if terminal {
@@ -547,6 +548,7 @@ fn change_facts(change: &engine::Change, commit: u64, out: &mut Vec<Observed>) {
                 | ReadValue::Settings(_)
                 | ReadValue::Setting(_)
                 | ReadValue::Revision(_)
+                | ReadValue::TaskText(_)
                 | ReadValue::Revisions(_) => {}
             }
         }
@@ -590,6 +592,7 @@ impl Scripted {
             | Read::Settings
             | Read::Setting(_)
             | Read::Revision(_)
+            | Read::TaskText { .. }
             | Read::Revisions(_)
             | Read::Deployment => self.last_object,
         }

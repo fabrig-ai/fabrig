@@ -126,7 +126,7 @@ pub const PLAYGROUND_WHY_BYTES: u32 =
 pub const OWNED_PASSWORD_BYTES: u32 =
     temper_client_protocol_wire::v1::CEILINGS.owned_forge_password.checked_mul(3).expect("password path text fits");
 
-/// The playground as the client reads it (temper/docs/design/draft/playground-reset.md, 6.1).
+/// The playground as the client reads it (temper/docs/design/client/README.md, 4.8).
 #[derive(Clone, Debug, PartialEq, Eq)]
 pub struct Playground {
     pub state: PlaygroundState,

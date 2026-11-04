@@ -16,16 +16,16 @@ pub struct Registered {
 }
 
 /// Read and validate an explicitly configured public client before driving it.
-pub fn registration(account: &Account, codex: bool, workspace: &std::path::Path) -> Result<Registered, Refusal> {
+pub fn registration(account: &Account, workspace: &std::path::Path) -> Result<Registered, Refusal> {
     if account.provider() == Some(crate::settings::resolve::Provider::OpenAi) {
         return super::registration::configured(account, "", workspace);
     }
-    let registration = configured(account, codex)?;
+    let registration = configured(account)?;
     let endpoint = destination(account, text(account, "token_url")?, workspace)?;
     Ok(Registered { registration, endpoint })
 }
 
-fn configured(account: &Account, codex: bool) -> Result<oauth::Registration, Refusal> {
+fn configured(account: &Account) -> Result<oauth::Registration, Refusal> {
     let registration = oauth::Registration {
         terms: None,
         client_id: text(account, "client_id")?.as_bytes().into(),
@@ -40,7 +40,7 @@ fn configured(account: &Account, codex: bool) -> Result<oauth::Registration, Ref
         },
         client_secret: None,
         pkce_for_confidential: false,
-        metadata_claim: codex.then(super::codex_selector),
+        metadata_claim: None,
     };
     issuer(text(account, "authorization_url")?).map_err(|why| refuse(account, "authorization_url", why))?;
     issuer(text(account, "token_url")?).map_err(|why| refuse(account, "token_url", why))?;
@@ -175,6 +175,32 @@ impl RecordFailure {
     }
 }
 
+/// A saved sign-in record's refresh facts, without its tokens (shell.md, 7.3).
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+pub struct RefreshFacts {
+    pub generation: u64,
+    /// Whether the record holds a refresh token.
+    pub refreshable: bool,
+    /// When its access token expires.
+    pub expires_at: skein_lib::Wall,
+    /// The issuer's earliest refresh time, when it set one.
+    pub earliest_refresh_at: Option<skein_lib::Wall>,
+}
+
+/// Read a saved record's refresh facts; `None` when there is no record.
+pub fn refresh_facts(file: &std::path::Path) -> Result<Option<RefreshFacts>, String> {
+    record(file)
+        .map(|record| {
+            record.map(|record| RefreshFacts {
+                generation: record.generation,
+                refreshable: record.refresh_token.is_some(),
+                expires_at: record.expires_at,
+                earliest_refresh_at: record.earliest_refresh_at,
+            })
+        })
+        .map_err(RecordFailure::line)
+}
+
 pub(super) fn record(file: &std::path::Path) -> Result<Option<oauth::SavedToken>, RecordFailure> {
     match skein_shell::read_private_file(file, document_limits().record_bytes, skein_shell::effective_user()) {
         Ok(bytes) => {
@@ -234,7 +260,6 @@ pub(super) fn private_source(
         file: file.file_name().ok_or("private record has no name")?.as_encoded_bytes().into(),
         registration: registered.registration,
         endpoint: registered.endpoint,
-        account_id: Box::new([]),
         interactive,
     })
 }
@@ -243,6 +268,60 @@ pub(super) fn private_source(
 mod tests {
     use super::*;
     use crate::settings::{Layer, Sourced};
+
+    #[test]
+    fn refresh_facts_read_no_token() {
+        use skein_lib::Wall;
+        use std::io::Write;
+        use std::os::unix::fs::OpenOptionsExt;
+
+        let scratch = skein_scratch::Scratch::new("smith-refresh-facts");
+        let expires_at = Wall::from_nanos(60_000_000_000);
+        let earliest = Wall::from_nanos(30_000_000_000);
+        for refreshable in [true, false] {
+            let mut saved =
+                super::super::env_record(b"synthetic-access", Wall::EPOCH).expect("synthetic record").record;
+            saved.generation = 7;
+            saved.expires_at = expires_at;
+            saved.refresh_token = refreshable.then(|| b"synthetic-refresh".as_slice().into());
+            saved.earliest_refresh_at = refreshable.then_some(earliest);
+            let bytes = oauth::encode_record(&saved, &document_limits()).expect("bounded record");
+            let path = scratch.path().join(if refreshable { "refreshable" } else { "access-only" });
+            let mut file = std::fs::OpenOptions::new()
+                .write(true)
+                .create_new(true)
+                .mode(0o600)
+                .open(&path)
+                .expect("private record");
+            file.write_all(&bytes).expect("write synthetic record");
+            assert_eq!(
+                refresh_facts(&path),
+                Ok(Some(RefreshFacts {
+                    generation: 7,
+                    refreshable,
+                    expires_at,
+                    earliest_refresh_at: refreshable.then_some(earliest),
+                })),
+                "only refresh facts leave the record reader"
+            );
+        }
+        let absent = scratch.path().join("absent");
+        assert_eq!(refresh_facts(&absent), Ok(None), "an absent record has no facts");
+        let malformed = scratch.path().join("malformed");
+        let mut file = std::fs::OpenOptions::new()
+            .write(true)
+            .create_new(true)
+            .mode(0o600)
+            .open(&malformed)
+            .expect("private malformed record");
+        file.write_all(b"malformed record").expect("write malformed record");
+        assert_eq!(
+            refresh_facts(&malformed),
+            Err("unreadable sign-in record".into()),
+            "malformed records have the fixed record failure"
+        );
+    }
+
     fn account() -> Account {
         let fields = [
             ("source", "sign_in"),
@@ -271,14 +350,14 @@ mod tests {
         for key in ["client_id", "authorization_url", "token_url", "redirect_uri", "scope", "token_format"] {
             let mut account = account();
             account.fields.remove(key);
-            let refusal = registration(&account, false, std::path::Path::new("/unused")).err().expect("missing key");
+            let refusal = registration(&account, std::path::Path::new("/unused")).err().expect("missing key");
             assert_eq!(refusal.key, format!("accounts.fixture.{key}"));
             assert!(refusal.line().contains("fixture.toml:8"));
         }
     }
     #[test]
     fn a_public_registration_retains_the_exact_localhost_redirect_and_has_no_secret() {
-        let registered = registration(&account(), false, std::path::Path::new("/unused")).expect("public fixture");
+        let registered = registration(&account(), std::path::Path::new("/unused")).expect("public fixture");
         assert_eq!(registered.registration.redirect_uri.as_ref(), b"http://localhost:2345/callback");
         assert!(registered.registration.client_secret.is_none());
         assert!(matches!(registered.endpoint.transport, accounts::Transport::Plaintext));
@@ -289,7 +368,7 @@ mod tests {
         account.fields.get_mut("authorization_url").expect("fixture").value =
             toml::Value::String("http://203.0.113.1/authorize".into());
         assert_eq!(
-            registration(&account, false, std::path::Path::new("/unused")).err().expect("remote http").key,
+            registration(&account, std::path::Path::new("/unused")).err().expect("remote http").key,
             "accounts.fixture.authorization_url"
         );
     }

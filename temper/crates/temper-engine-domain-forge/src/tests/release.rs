@@ -1,4 +1,4 @@
-//! Project adoption release (temper/docs/design/draft/playground-reset.md, 5).
+//! Project adoption release (jig/docs/design/domain/people.md, 5.2; temper/docs/design/domain/forge.md, 4.1).
 use super::*;
 
 fn release(d: &mut Domain, project: u32) -> Box<[Request]> {

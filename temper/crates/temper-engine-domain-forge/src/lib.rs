@@ -8,10 +8,14 @@
 //! parent's decision. `Committed` is the only way a newly enqueued effect
 //! reaches the client. `resume` and `fire` drive the client after earlier
 //! saves have crossed that barrier. The top never knows tasks beyond numbers,
-//! authorization grants or protocol wire formats.
+//! authorization grants. Its public projections encode the visitor records
+//! (temper/docs/design/client/forge.md, 11).
 #![cfg_attr(not(test), no_std)]
 #![forbid(unsafe_code)]
 extern crate alloc;
+
+/// The merge job (temper/docs/design/domain/worker.md, 4.4).
+pub const MERGE_KIND: u32 = 3;
 use alloc::boxed::Box;
 mod address;
 pub use address::{PULL_ADDRESS_BYTES, pull_address};
@@ -19,6 +23,7 @@ mod adoption;
 pub mod boundary;
 mod brief;
 mod brief_ci;
+mod brief_document;
 mod capabilities;
 mod ci;
 mod commit;
@@ -30,34 +35,56 @@ mod gates;
 mod held;
 pub mod items;
 mod judge;
+mod kinds;
 mod landing;
 mod limits;
 mod panel;
+mod public;
+pub use public::{PublicAsk, PublicMade, PublicTask};
+
 mod playground;
 pub mod purpose;
+mod red;
+pub use red::{JobLog, RedNews, RedOn};
 mod result;
 pub use result::{ChangeResult, ResultText};
 mod reconcile;
+mod refusal;
 mod removal;
+pub use refusal::RefusalCause;
 pub mod runs;
 mod views;
 pub use reconcile::{MissingLink, Need, RecordKind};
 pub mod resources;
+pub mod settings;
+pub use settings::ForgeCharters;
+#[cfg(test)]
+#[path = "tests/public.rs"]
+mod public_tests;
 mod settle;
+mod standing;
 #[cfg(test)]
 mod tests;
 pub mod text;
+mod tiers;
 mod topics;
+mod verification;
 pub use boundary::*;
 pub use brief::{HOME_SECTION_BYTES, hex, home_access_reason};
 pub use commit::commit_text;
 pub use domain::{Domain, RestoreFit, RestoreSet, fire, resume, step, tag, untag, writer};
-pub use gates::{GateCandidate, GateLast, GatePattern, GatePolicy, GateTemplate};
-pub use judge::{Criterion, Freshness as JudgeFreshness, Judges, Reviewer, Verdict as JudgeVerdict};
-pub use limits::{BOT_LOGIN_SUFFIX, CONNECT_WHY_BYTES, FIRST_NAME_BYTES, Limits, STOPPED_TEXT_BYTES, valid};
-pub use panel::{MARKED, PANEL_AHEAD, PANEL_GATES, PANEL_NAME_BYTES, Panel, PanelGate, PanelStep, PanelUsed};
+pub use gates::{GateCandidate, GateLast, GatePattern, Requires};
+pub use judge::{Criterion, Freshness as JudgeFreshness, Reviewer, Verdict as JudgeVerdict};
+pub use limits::{
+    BOT_LOGIN_SUFFIX, CONNECT_WHY_BYTES, FIRST_NAME_BYTES, Limits, STOPPED_TEXT_BYTES, TierLimits, valid,
+};
+pub use panel::{
+    MARKED, PANEL_AHEAD, PANEL_GATES, PANEL_NAME_BYTES, Panel, PanelGate, PanelQuestion, PanelQuestions, PanelStands,
+    PanelStep, PanelUsed,
+};
 pub use temper_engine_domain_forge_landing::{CHECK_NAME_BYTES, WORKFLOW_BYTES};
 pub use temper_engine_domain_forge_landing::{Hold as LandingHold, Phase as LandingPhase};
+pub use verification::LandingRed;
 pub use views::{
     Document, GateProof, LandingGate, LandingLine, LandingMember, LandingView, LandingsView, landings_subject,
 };
@@ -224,6 +251,8 @@ pub fn stored_key(row: &Stored) -> Key {
         Stored::Forge(row) => Key::Forge(row.number),
         Stored::ForgeNumber { .. } => Key::ForgeNumber,
         Stored::Playground(_) => Key::Playground,
+        Stored::Tier(row) => Key::Tier { repository: row.repository, tier: row.tier.clone() },
+        Stored::Verification(row) => Key::Verification { repository: row.repository, commit: row.commit },
         Stored::Landing(row) => Key::Landing(row.landing.task),
         Stored::Receipt { key, .. } => Key::Receipt(key.clone()),
         Stored::Call { key, .. } => Key::Call(*key),
@@ -249,6 +278,7 @@ pub fn stored_key(row: &Stored) -> Key {
         Stored::Release(row) => Key::Release(row.task),
         Stored::Application { token, .. } => Key::Application(*token),
         Stored::Writer(row) => Key::Writer(row.forge),
+        Stored::Setting(row) => Key::Setting(row.key),
         Stored::Binding { address, .. } => Key::Binding(address.clone()),
         Stored::Flight { task, entry } => Key::Flight { task: *task, entry: *entry },
     }
@@ -260,13 +290,13 @@ pub fn stored_bytes(record: &Stored) -> Option<u64> {
     use alloc::boxed::Box;
     use core::mem::size_of;
     use temper_engine_domain_forge_change as change;
-    fn bytes(value: &[u8]) -> Option<u64> {
-        u64::try_from(value.len()).ok()
+    fn bytes(value: &[u8]) -> u64 {
+        skein_lib::len_u64(value.len())
     }
     fn remark_bytes(remarks: &[GateRemark]) -> Option<u64> {
         let mut total = 0_u64;
         for remark in remarks {
-            total = total.checked_add(bytes(&remark.words)?)?;
+            total = total.checked_add(bytes(&remark.words))?;
         }
         Some(total)
     }
@@ -274,78 +304,71 @@ pub fn stored_bytes(record: &Stored) -> Option<u64> {
         match &value.what {
             What::Branch(parts) => {
                 let mut held =
-                    u64::try_from(parts.len()).ok()?.checked_mul(u64::try_from(size_of::<Box<[u8]>>()).ok()?)?;
+                    skein_lib::len_u64(parts.len()).checked_mul(u64::try_from(size_of::<Box<[u8]>>()).ok()?)?;
                 for part in parts {
-                    held = held.checked_add(bytes(part)?)?;
+                    held = held.checked_add(bytes(part))?;
                 }
                 Some(held)
             }
             What::Repository | What::Pull(_) | What::Issue(_) => Some(0),
         }
     }
-    fn topic(value: &Topic) -> Option<u64> {
+    fn topic(value: &Topic) -> u64 {
         match value {
             Topic::Landings { branch, .. } => bytes(branch),
-            Topic::Ci { .. } | Topic::Pull { .. } | Topic::Participation { .. } => Some(0),
-        }
-    }
-    fn state(value: &change::State, depth: u32) -> Option<u64> {
-        if depth > 16 {
-            return None;
-        }
-        match value {
-            change::State::Gating { asked, .. } => {
-                u64::try_from(asked.len()).ok()?.checked_mul(u64::try_from(size_of::<u64>()).ok()?)
-            }
-            change::State::Held { was, .. } => {
-                u64::try_from(size_of::<change::State>()).ok()?.checked_add(state(was, depth.checked_add(1)?)?)
-            }
-            change::State::Producing { .. }
-            | change::State::Opening { .. }
-            | change::State::Recreating { .. }
-            | change::State::Reopening { .. }
-            | change::State::Checking { .. }
-            | change::State::CancellingGates { .. }
-            | change::State::Queued { .. }
-            | change::State::First { .. }
-            | change::State::Ready { .. }
-            | change::State::Preparing { .. }
-            | change::State::Updating { .. }
-            | change::State::Resolving { .. }
-            | change::State::Repairing { .. }
-            | change::State::Landing { .. }
-            | change::State::Ended
-            | change::State::Landed { .. } => Some(0),
+            Topic::Ci { .. } | Topic::Pull { .. } | Topic::Participation { .. } => 0,
         }
     }
     match record {
         Stored::Forge(row) => {
-            let mut held = bytes(&row.place.api.host)?
-                .checked_add(bytes(&row.place.git)?)?
-                .checked_add(bytes(&row.bot.login)?)?
-                .checked_add(bytes(&row.bot.name)?)?
-                .checked_add(bytes(&row.bot.email)?)?;
+            let mut held = bytes(&row.place.api.host)
+                .checked_add(bytes(&row.place.git))?
+                .checked_add(bytes(&row.bot.login))?
+                .checked_add(bytes(&row.bot.name))?
+                .checked_add(bytes(&row.bot.email))?;
             if let Some(program) = &row.git_program {
-                held = held.checked_add(bytes(program)?)?;
+                held = held.checked_add(bytes(program))?;
             }
             if let Some(tls) = &row.place.api.tls {
-                held = held.checked_add(bytes(tls)?)?;
+                held = held.checked_add(bytes(tls))?;
             }
             if let Some(web) = &row.place.web {
-                held = held.checked_add(bytes(web)?)?;
+                held = held.checked_add(bytes(web))?;
             }
             if let Some(first) = &row.first {
                 held = held
-                    .checked_add(bytes(&first.org)?)?
-                    .checked_add(bytes(&first.repository)?)?
-                    .checked_add(bytes(&first.label)?)?;
-                match &first.project {
-                    SetUpProject::Existing(_) => {}
-                    SetUpProject::New(name) => held = held.checked_add(bytes(name)?)?,
-                }
+                    .checked_add(bytes(&first.org))?
+                    .checked_add(bytes(&first.repository))?
+                    .checked_add(bytes(&first.label))?;
             }
             Some(held)
         }
+        Stored::Setting(row) => match &row.edit {
+            settings::Edit::Set(settings::SizedValue { value: settings::Value::Rule(rule), .. }) => {
+                let mut held = skein_lib::len_u64(rule.pattern.segments.len())
+                    .checked_mul(u64::try_from(size_of::<Box<[u8]>>()).ok()?)?;
+                for segment in &rule.pattern.segments {
+                    held = held.checked_add(bytes(segment))?;
+                }
+                let last = match &rule.pattern.last {
+                    GateLast::Exact(last) | GateLast::Open(last) => last,
+                };
+                held.checked_add(bytes(last))?
+                    .checked_add(
+                        skein_lib::len_u64(rule.gates.len())
+                            .checked_mul(u64::try_from(size_of::<settings::RuleGate>()).ok()?)?,
+                    )?
+                    .checked_add(
+                        skein_lib::len_u64(rule.approvals.len())
+                            .checked_mul(u64::try_from(size_of::<settings::RuleApproval>()).ok()?)?,
+                    )
+            }
+            settings::Edit::Set(settings::SizedValue { value: settings::Value::Charter(_), .. })
+            | settings::Edit::Remove
+            | settings::Edit::Reset => Some(0),
+        },
+        Stored::Tier(row) => tiers::row_bytes(row),
+        Stored::Verification(row) => verification::row_bytes(row),
         Stored::Landing(row) => landing::row_bytes(row),
         Stored::Receipt { key, receipt } => landing::receipt_bytes(key, receipt),
         Stored::Call { answer, .. } => match answer {
@@ -356,20 +379,19 @@ pub fn stored_bytes(record: &Stored) -> Option<u64> {
             },
         },
         Stored::Repository(row) => {
-            let mut held = bytes(&row.host)?
-                .checked_add(bytes(&row.owner)?)?
-                .checked_add(bytes(&row.name)?)?
-                .checked_add(bytes(&row.prefix)?)?
-                .checked_add(bytes(&row.settings.default_branch)?)?;
+            let mut held = bytes(&row.host)
+                .checked_add(bytes(&row.owner))?
+                .checked_add(bytes(&row.name))?
+                .checked_add(bytes(&row.prefix))?
+                .checked_add(bytes(&row.settings.default_branch))?;
             match &row.protection {
                 Protection::Rule(rule) => {
-                    held = held.checked_add(bytes(&rule.branch)?)?.checked_add(
-                        u64::try_from(rule.contexts.len())
-                            .ok()?
+                    held = held.checked_add(bytes(&rule.branch))?.checked_add(
+                        skein_lib::len_u64(rule.contexts.len())
                             .checked_mul(u64::try_from(size_of::<Box<[u8]>>()).ok()?)?,
                     )?;
                     for context in &rule.contexts {
-                        held = held.checked_add(bytes(context)?)?;
+                        held = held.checked_add(bytes(context))?;
                     }
                 }
                 Protection::Unknown | Protection::Absent => {}
@@ -379,17 +401,16 @@ pub fn stored_bytes(record: &Stored) -> Option<u64> {
         Stored::Application { outcome, .. } => match outcome {
             ApplicationOutcome::CoreRefused(_) | ApplicationOutcome::ForgeRefused(_) => Some(0),
             ApplicationOutcome::Adopted(row) => {
-                let mut held = bytes(&row.owner)?.checked_add(bytes(&row.name)?)?;
+                let mut held = bytes(&row.owner).checked_add(bytes(&row.name))?;
                 match &row.protection {
                     Protection::Unknown | Protection::Absent => {}
                     Protection::Rule(rule) => {
-                        held = held.checked_add(bytes(&rule.branch)?)?.checked_add(
-                            u64::try_from(rule.contexts.len())
-                                .ok()?
+                        held = held.checked_add(bytes(&rule.branch))?.checked_add(
+                            skein_lib::len_u64(rule.contexts.len())
                                 .checked_mul(u64::try_from(size_of::<Box<[u8]>>()).ok()?)?,
                         )?;
                         for context in &rule.contexts {
-                            held = held.checked_add(bytes(context)?)?;
+                            held = held.checked_add(bytes(context))?;
                         }
                     }
                 }
@@ -402,8 +423,8 @@ pub fn stored_bytes(record: &Stored) -> Option<u64> {
                 match &drift.change {
                     DriftChange::Retargeted { before, after, .. } => {
                         bytes = bytes
-                            .checked_add(u64::try_from(before.len()).ok()?)?
-                            .checked_add(u64::try_from(after.len()).ok()?)?;
+                            .checked_add(skein_lib::len_u64(before.len()))?
+                            .checked_add(skein_lib::len_u64(after.len()))?;
                     }
                     DriftChange::Branch { .. } | DriftChange::PullClosed { .. } => {}
                 }
@@ -411,7 +432,7 @@ pub fn stored_bytes(record: &Stored) -> Option<u64> {
             Some(bytes)
         }
         Stored::Names { resources, .. } => {
-            let mut held = u64::try_from(resources.len()).ok()?.checked_mul(u64::try_from(size_of::<Name>()).ok()?)?;
+            let mut held = skein_lib::len_u64(resources.len()).checked_mul(u64::try_from(size_of::<Name>()).ok()?)?;
             for resource in resources {
                 held = held.checked_add(name(resource)?)?;
             }
@@ -419,18 +440,18 @@ pub fn stored_bytes(record: &Stored) -> Option<u64> {
         }
         Stored::Subscription(row) => {
             let tasks = match &row.goal_tasks {
-                Some(tasks) => u64::try_from(tasks.len()).ok()?.checked_mul(8)?,
+                Some(tasks) => skein_lib::len_u64(tasks.len()).checked_mul(8)?,
                 None => 0,
             };
-            let mut held = topic(&row.topic)?.checked_add(tasks)?.checked_add(
-                u64::try_from(row.paths.len()).ok()?.checked_mul(u64::try_from(size_of::<Box<[u8]>>()).ok()?)?,
+            let mut held = topic(&row.topic).checked_add(tasks)?.checked_add(
+                skein_lib::len_u64(row.paths.len()).checked_mul(u64::try_from(size_of::<Box<[u8]>>()).ok()?)?,
             )?;
             for path in &row.paths {
-                held = held.checked_add(bytes(path)?)?;
+                held = held.checked_add(bytes(path))?;
             }
             Some(held)
         }
-        Stored::Binding { address, subject } => bytes(address)?.checked_add(bytes(subject)?),
+        Stored::Binding { address, subject } => bytes(address).checked_add(bytes(subject)),
         Stored::BranchHead(row) => name(&row.name),
         Stored::PullState(row) => name(&row.name),
         Stored::ForgeNumber { .. }
@@ -444,7 +465,7 @@ pub fn stored_bytes(record: &Stored) -> Option<u64> {
                 What::Branch(branch) => {
                     let mut total = 0_u64;
                     for segment in branch {
-                        total = total.checked_add(bytes(segment)?)?;
+                        total = total.checked_add(bytes(segment))?;
                     }
                     total
                 }
@@ -454,45 +475,41 @@ pub fn stored_bytes(record: &Stored) -> Option<u64> {
         }
         Stored::Entry { entry, .. } => skein_forge_client::measure::effect(&entry.effect),
         Stored::Client(row) => skein_forge_client::measure::stored(row),
-        Stored::Change(row) => bytes(&row.branch)?
-            .checked_add(bytes(&row.base)?)?
-            .checked_add(bytes(&row.title)?)?
-            .checked_add(bytes(&row.body)?)?
+        Stored::Change(row) => bytes(&row.branch)
+            .checked_add(bytes(&row.base))?
+            .checked_add(bytes(&row.title))?
+            .checked_add(bytes(&row.body))?
+            .checked_add(bytes(&row.report))?
             .checked_add(
-                u64::try_from(row.change.gates.len())
-                    .ok()?
+                skein_lib::len_u64(row.change.gates.len())
                     .checked_mul(u64::try_from(size_of::<change::Gate>()).ok()?)?,
             )?
-            .checked_add(u64::try_from(row.change.clean.len()).ok()?.checked_mul(32)?)?
+            .checked_add(skein_lib::len_u64(row.change.clean.len()).checked_mul(32)?)?
             .checked_add(
-                u64::try_from(row.change.gate_failures.len())
-                    .ok()?
+                skein_lib::len_u64(row.change.gate_failures.len())
                     .checked_mul(u64::try_from(size_of::<change::GateFailure>()).ok()?)?,
             )?
             .checked_add(
-                u64::try_from(row.verdicts.len())
-                    .ok()?
+                skein_lib::len_u64(row.verdicts.len())
                     .checked_mul(u64::try_from(size_of::<change::GateReport>()).ok()?)?,
             )?
             .checked_add(
-                u64::try_from(row.gate_remarks.len())
-                    .ok()?
-                    .checked_mul(u64::try_from(size_of::<GateRemark>()).ok()?)?,
+                skein_lib::len_u64(row.gate_remarks.len()).checked_mul(u64::try_from(size_of::<GateRemark>()).ok()?)?,
             )?
             .checked_add(remark_bytes(&row.gate_remarks)?)?
-            .checked_add(bytes(&row.result.checks.bytes)?)?
-            .checked_add(bytes(&row.result.failed.bytes)?)?
-            .checked_add(bytes(&row.result.repairs.bytes)?)?
-            .checked_add(bytes(&row.result.reviews.bytes)?)?
+            .checked_add(bytes(&row.result.checks.bytes))?
+            .checked_add(bytes(&row.result.failed.bytes))?
+            .checked_add(bytes(&row.result.repairs.bytes))?
+            .checked_add(bytes(&row.result.reviews.bytes))?
             .checked_add(match &row.effect_account {
-                Some(account) => bytes(&account.words)?,
+                Some(account) => bytes(&account.words),
                 None => 0,
             })?
             .checked_add(match &row.producer_failure {
-                Some(words) => bytes(words)?,
+                Some(words) => bytes(words),
                 None => 0,
             })?
-            .checked_add(state(&row.change.state, 0)?),
+            .checked_add(change_state_bytes(&row.change.state, 0)?),
         Stored::Issue(row) => {
             let before = match &row.before {
                 Some(before) => before.milestones.len(),
@@ -503,29 +520,29 @@ pub fn stored_bytes(record: &Stored) -> Option<u64> {
                 .checked_mul(u64::try_from(size_of::<temper_engine_domain_forge_issues::MilestoneKey>()).ok()?)?;
             if let Some(view) = &row.desired {
                 held =
-                    held.checked_add(bytes(view.title.as_bytes())?)?
-                        .checked_add(bytes(view.goal_text.as_bytes())?)?
-                        .checked_add(u64::try_from(view.plan.len()).ok()?.checked_mul(
+                    held.checked_add(bytes(view.title.as_bytes()))?
+                        .checked_add(bytes(view.goal_text.as_bytes()))?
+                        .checked_add(skein_lib::len_u64(view.plan.len()).checked_mul(
                             u64::try_from(size_of::<temper_engine_domain_forge_issues::PlanItem>()).ok()?,
                         )?)?
-                        .checked_add(u64::try_from(view.milestones.len()).ok()?.checked_mul(
+                        .checked_add(skein_lib::len_u64(view.milestones.len()).checked_mul(
                             u64::try_from(size_of::<temper_engine_domain_forge_issues::Milestone>()).ok()?,
                         )?)?;
                 for item in &view.plan {
-                    held = held.checked_add(bytes(item.text.as_bytes())?)?;
+                    held = held.checked_add(bytes(item.text.as_bytes()))?;
                 }
                 for milestone in &view.milestones {
-                    held = held.checked_add(bytes(milestone.text.as_bytes())?)?;
+                    held = held.checked_add(bytes(milestone.text.as_bytes()))?;
                 }
                 if let Some(finished) = &view.finished {
-                    held = held.checked_add(bytes(finished.as_bytes())?)?;
+                    held = held.checked_add(bytes(finished.as_bytes()))?;
                 }
             }
             Some(held)
         }
         Stored::Release(row) => {
             let comment = match &row.comment {
-                Some(comment) => bytes(comment)?,
+                Some(comment) => bytes(comment),
                 None => 0,
             };
             let pending = match &row.pending {
@@ -599,4 +616,40 @@ pub fn binding_address(address: &[u8]) -> bool {
         }
     }
     at
+}
+
+fn change_state_bytes(value: &temper_engine_domain_forge_change::State, depth: u32) -> Option<u64> {
+    use core::mem::size_of;
+    use temper_engine_domain_forge_change as change;
+    if depth > 16 {
+        return None;
+    }
+    match value {
+        change::State::NoChange { words } => Some(skein_lib::len_u64(words.len())),
+        change::State::Gating { asked, .. } => {
+            skein_lib::len_u64(asked.len()).checked_mul(u64::try_from(size_of::<u64>()).ok()?)
+        }
+        change::State::Held { was, .. } => {
+            u64::try_from(size_of::<change::State>()).ok()?.checked_add(change_state_bytes(was, depth.checked_add(1)?)?)
+        }
+        change::State::Producing { .. }
+        | change::State::Opening { .. }
+        | change::State::Recreating { .. }
+        | change::State::Reopening { .. }
+        | change::State::Checking { .. }
+        | change::State::CancellingGates { .. }
+        | change::State::Queued { .. }
+        | change::State::First { .. }
+        | change::State::Ready { .. }
+        | change::State::Preparing { .. }
+        | change::State::Updating { .. }
+        | change::State::Resolving { .. }
+        | change::State::Repairing { .. }
+        | change::State::Landing { .. }
+        | change::State::Ended
+        | change::State::Landed { .. }
+        | change::State::Red { .. }
+        | change::State::Cleared { .. }
+        | change::State::Uncleared { .. } => Some(0),
+    }
 }

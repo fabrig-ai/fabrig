@@ -225,6 +225,40 @@ pub(crate) fn settled(domain: &mut Domain, env: &Env<Limits>, number: u64, out: 
     }
 }
 
+fn ready_waiter(domain: &mut Domain, env: &Env<Limits>, number: u64, out: &mut Queue<Request>) -> bool {
+    let task = record(domain, number).expect("waiting task live");
+    if !domain.dependencies_ready(task) {
+        return false;
+    }
+    if !task.holdings.is_empty() {
+        crate::holds::wait(domain, env, number, out);
+        return false;
+    }
+    crate::holds::take(domain, number, out);
+    task_mut(domain, number).expect("waiting task live").record.phase = Phase::Active(Active::Due);
+    publish(domain, env, number, out);
+    activate(domain, number, out);
+    true
+}
+
+fn begin_effects(domain: &mut Domain, env: &Env<Limits>, number: u64, out: &mut Queue<Request>) -> bool {
+    let task = record(domain, number).expect("closing task live");
+    if !task.delegates.is_empty()
+        || task.result_proposal
+        || crate::funders::funded_live(domain, number)
+        || crate::writers::closing_blocked(domain, number)
+    {
+        return false;
+    }
+    let Phase::Closing(closing) = &task.phase else { unreachable!("closing task") };
+    let ending = closing.ending.clone();
+    let task = task_mut(domain, number).expect("closing task live");
+    task.record.phase = Phase::Closing(Closing { stage: Stage::Effects, ending: ending.clone() });
+    publish(domain, env, number, out);
+    out.push(Request::Close { task: number, ending });
+    true
+}
+
 pub(crate) fn progress(domain: &mut Domain, env: &Env<Limits>, out: &mut Queue<Request>) {
     // Every pass must advance a phase or end a task to need another pass;
     // bounded live waits and delegation depth bound the cascade.
@@ -237,41 +271,13 @@ pub(crate) fn progress(domain: &mut Domain, env: &Env<Limits>, out: &mut Queue<R
             };
             match &task.phase {
                 Phase::Waiting => {
-                    let mut ready = true;
-                    for dependency in &task.waiting_on {
-                        if domain.names.contains_key(dependency) {
-                            ready = false;
-                        } else {
-                            unreachable!("unfinished dependency must remain live");
-                        }
-                    }
-                    if ready {
-                        if task.holdings.is_empty() {
-                            crate::holds::take(domain, number, out);
-                            task_mut(domain, number).expect("waiting task live").record.phase =
-                                Phase::Active(Active::Due);
-                            publish(domain, env, number, out);
-                            activate(domain, number, out);
-                            changed = true;
-                        } else {
-                            crate::holds::wait(domain, env, number, out);
-                        }
-                    }
+                    changed |= ready_waiter(domain, env, number, out);
                 }
                 Phase::Closing(closing) => match closing.stage {
-                    Stage::Delegates
-                        if task.delegates.is_empty()
-                            && !task.result_proposal
-                            && !crate::funders::funded_live(domain, number) =>
-                    {
-                        let ending = closing.ending.clone();
-                        let task = task_mut(domain, number).expect("closing task live");
-                        task.record.phase = Phase::Closing(Closing { stage: Stage::Effects, ending: ending.clone() });
-                        publish(domain, env, number, out);
-                        out.push(Request::Close { task: number, ending });
-                        changed = true;
+                    Stage::Delegates => {
+                        changed |= begin_effects(domain, env, number, out);
                     }
-                    Stage::Run { .. } | Stage::Effects | Stage::Releases | Stage::Delegates => {}
+                    Stage::Run { .. } | Stage::Effects | Stage::Releases => {}
                     Stage::Settled => {
                         let requester = task.requester;
                         end_task(domain, env, number, out);
@@ -325,6 +331,7 @@ fn end_task(domain: &mut Domain, env: &Env<Limits>, number: u64, out: &mut Queue
     let placed = task.placed;
     let mut ended = task.clone();
     ended.placed = None;
+    ended.room_wait = None;
     crate::placed::ended(domain, env, number, out);
     crate::settings::release(domain, &ended);
     ended.settings.run = None;
@@ -350,7 +357,7 @@ fn end_task(domain: &mut Domain, env: &Env<Limits>, number: u64, out: &mut Queue
     crate::holds::release(domain, number);
     match ended.executor {
         Executor::Agent { .. } => domain.live_agents = domain.live_agents.checked_sub(1).expect("live agent removed"),
-        Executor::Person(_) | Executor::Procedure { .. } => {}
+        Executor::Person(_) | Executor::Procedure { .. } | Executor::Job { .. } => {}
     }
     domain.tasks.retire(id);
     if let Some(hold) = placed {
@@ -379,13 +386,16 @@ fn end_task(domain: &mut Domain, env: &Env<Limits>, number: u64, out: &mut Queue
             }),
         });
     }
+    let ended_project = ended.project;
     out.push(Request::Save { record: Stored::Ended(Box::new(ended)) });
     let dependents = snapshot(domain, env.limits.tasks);
     for dependent in dependents.into_boxed() {
-        let task = task_mut(domain, dependent).expect("dependent snapshot is live");
-        if !crate::batch::contains(&task.record.waiting_on, number) {
+        let task = record(domain, dependent).expect("dependent snapshot is live");
+        if !crate::batch::contains(&task.waiting_on, number) {
             continue;
         }
+        let was_queued = crate::holds::queued(domain, task);
+        let task = task_mut(domain, dependent).expect("dependent snapshot is live");
         let was_kept = crate::run::ends::for_record(&task.record).blocks_claims();
         let mut remaining = List::with_capacity(env.limits.dependencies);
         for &waiting in &task.record.waiting_on {
@@ -399,7 +409,7 @@ fn end_task(domain: &mut Domain, env: &Env<Limits>, number: u64, out: &mut Queue
                 task.record.revisions.person =
                     task.record.revisions.person.checked_add(1).expect("person input revision room");
             }
-            Executor::Agent { .. } | Executor::Procedure { .. } => {}
+            Executor::Agent { .. } | Executor::Procedure { .. } | Executor::Job { .. } => {}
         }
         match status {
             Status::Done => {
@@ -419,8 +429,8 @@ fn end_task(domain: &mut Domain, env: &Env<Limits>, number: u64, out: &mut Queue
                 }
             },
         }
-        let task = task_mut(domain, dependent).expect("dependent remains live");
-        if crate::holds::queued(&task.record) {
+        let task = record(domain, dependent).expect("dependent remains live");
+        if !was_queued && crate::holds::queued(domain, task) {
             crate::holds::back(domain, env, dependent, out);
         } else {
             publish(domain, env, dependent, out);
@@ -449,14 +459,26 @@ fn end_task(domain: &mut Domain, env: &Env<Limits>, number: u64, out: &mut Queue
         out.push(Request::Save { record: Stored::Stub(stub) });
     }
     prune_stubs(domain, env, out);
+    crate::room::freed(domain, env, ended_project, out);
     let state = match status {
         Status::Done => crate::NoticeState::Done,
         Status::Failed => crate::NoticeState::Failed,
         Status::Cancelled => crate::NoticeState::Cancelled,
     };
-    let words = match &ending {
+    let words = ending_words(&ending);
+    crate::subscriptions::notify_state(domain, number, state, words, out);
+    out.push(Request::Ended { task: number, requester, ending });
+    fact(domain, Fact::Ended { task: number, status });
+}
+
+fn ending_words(ending: &Ending) -> &[u8] {
+    match ending {
+        Ending::Done(TaskResult::Job { .. }) => &[],
         Ending::Done(
-            TaskResult::Report { words } | TaskResult::Verdict { words, .. } | TaskResult::Change { words, .. },
+            TaskResult::NoChange { words }
+            | TaskResult::Report { words }
+            | TaskResult::Verdict { words, .. }
+            | TaskResult::Change { words, .. },
         ) => words.as_ref(),
         Ending::Done(TaskResult::Approved { words, .. }) => match words {
             Some(words) => words.as_ref(),
@@ -465,10 +487,7 @@ fn end_task(domain: &mut Domain, env: &Env<Limits>, number: u64, out: &mut Queue
         Ending::Done(TaskResult::Failure { reason }) | Ending::Failed { reason } | Ending::Cancelled { reason, .. } => {
             reason.as_ref()
         }
-    };
-    crate::subscriptions::notify_state(domain, number, state, words, out);
-    out.push(Request::Ended { task: number, requester, ending });
-    fact(domain, Fact::Ended { task: number, status });
+    }
 }
 
 fn end_milestone(ended: &mut crate::TaskRecord, at: skein_lib::Wall, out: &mut Queue<Request>) {

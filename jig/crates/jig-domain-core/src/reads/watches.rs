@@ -108,6 +108,7 @@ fn from_store(
         Answer::Setting(_)
         | Answer::Revision(_)
         | Answer::Revisions(_)
+        | Answer::TaskText(_)
         | Answer::Tasks(_)
         | Answer::Document(_)
         | Answer::Page(_)

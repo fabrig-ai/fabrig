@@ -1,8 +1,40 @@
 # forge: status
 
-2026-10-29. Where temper's code lags or departs from [forge.md](forge.md).
+2026-11-03. Where temper's code lags or departs from [forge.md](forge.md).
 
-- **Built:** 5.1: adoption. 5.4, 9.1: Forges/ConnectForge, owned setup fields/first repository, admin-connected remote Forgejo, pasted App and manifest connection, installations and connect result; the welcome's Choose without the admin card. 2.1, 2.2, 9.2: watched change panel, steps/gates/bounds and merge result. 9.2: a Forgejo pull request's address on its `git` base. 9.2: a fake forge gives no address.
-- **Not yet:** 2.5, 3 to 7, 9: remaining subjects/reads, changes/queues, approvals, health/settings, forge-word holds, goal issues/news/findings and queue position. 5.4: new-project continuation, Ready's GitHub picker, richer forge rows, missing-git warning, Access/Runs actions and Replace/Forget. 5.1: no-CI explicit choice. 10: the welcome's fixed choices.
-
-- **Built:** 5.4: every unaccepted installation reads "not accepted · kept".
+- **Not yet:** 2.1, 3: the `Changes` page, its queues and a queued
+  change's place (no `Changes` address in `temper-client-domain`). 2.3:
+  amending a change's gates from its panel. 4: approvals, a person
+  task's card at a head and the forge's reviews counted in the panel.
+  5.1: "Land without CI" for a repository with no CI. 5.2: health. 5.3:
+  the forge's part of a project's settings. 5.4: a row's summary by its
+  name and host and its repositories' line, where the view says "forge N
+  · KIND" (`temper-client-view`'s `forge/forges.rs`); its load, the
+  App's setup URL and the `Lacking` line on the row; Forget,
+  with no request on the wire; the warning of no git on the
+  machine. 5.4: Forgejo on this machine's Details for a forge to make,
+  their words and notes, where the view draws "Show how", a link to the
+  deployment's help, and the fields alone (`forge/connect.rs` `body`,
+  `Choice::Owned`). 5.4, Elsewhere: the dot leaving out the playground's
+  forge, which `temper-client-domain`'s `forge/listed.rs` `rows` counts.
+  6.2: a drift hold's card, what changed, by whom and when.
+  7: a goal's issue, landings as news, findings on a project's page. 9:
+  the reads of the forge's other parts.
+- **Departs:** 5.4: `ConnectForge`'s `?forge=elsewhere` draws A Forgejo
+  elsewhere's Details, the configuration's entries for a forge and a
+  restart (`forge/connect.rs` `elsewhere`); Your Forgejo's card has the
+  muted line "Needs a change to temper’s configuration and a restart"
+  (`words.rs` `ForgeElsewhereTime`); and Setting up says "You may leave
+  this page: the steps go on, and the banner says where they are."
+  (`words.rs` `ForgeLeave`), where no banner says it: words for a forge
+  added to the configuration by hand, and for a banner's set up under
+  way, which the store's records and the playground's one line leave
+  without a place. 5.4, A managed Forgejo: a stop empties the admin's
+  token whatever connect it ends: with no admin connect sent, any
+  stopped managed Forgejo's row empties it, and while the sent
+  connect's forge stays stopped, each delivery of the forges watch
+  empties a token pasted again (`temper-client-domain`'s
+  `forge/admin.rs` `stopped`), where the bot's tokens are emptied by
+  their own connect's new stop alone (`forge/tokens.rs` `stopped`); the
+  code records no reason, and a code task gives the admin's form the
+  tokens' rule.

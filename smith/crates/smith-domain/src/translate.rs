@@ -85,7 +85,6 @@ pub(crate) fn spec(
         activation: _,
         transcript: _,
     } = opening;
-    let families = Families { agents: families.agents && program.is_none(), ..families };
     let authority = authority(workspace, tools)?;
     let offered =
         Offered { main: ordinal == 0, host_tools: host_tools.clone(), finish, deliver, agents: families.agents, wait };
@@ -406,7 +405,6 @@ const fn completion_cap(cap: llm::Cap) -> run::Cap {
         llm::Cap::Answer => run::Cap::Answer,
         llm::Cap::ErrorBody => run::Cap::ErrorBody,
         llm::Cap::AccessToken => run::Cap::AccessToken,
-        llm::Cap::AccountId => run::Cap::AccountId,
     }
 }
 

@@ -1,4 +1,4 @@
-//! Runtime forge membership (temper/docs/design/draft/playground-reset.md, 3 and 4).
+//! Runtime forge membership (skein/docs/design/forge-connection.md, 3.1).
 use super::{Component, Event, Limits, Start, initial};
 use crate::settings::{Forge, Kind};
 use alloc::boxed::Box;
@@ -9,8 +9,6 @@ impl Component {
     pub(super) fn add(&mut self, env: &Env<Limits>, forge: Forge) {
         for configured in &self.settings.forges {
             if configured.number == forge.number {
-                #[cfg(test)]
-                unique(configured.number, forge.number);
                 return;
             }
         }
@@ -114,10 +112,4 @@ impl Component {
             }
         }
     }
-}
-
-#[cfg(test)]
-#[expect(clippy::disallowed_macros, reason = "the runtime membership contract asserts duplicate numbers only in tests")]
-fn unique(configured: u16, number: u16) {
-    debug_assert_ne!(configured, number, "a forge number is configured once");
 }

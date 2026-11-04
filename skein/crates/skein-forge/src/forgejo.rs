@@ -18,3 +18,6 @@ pub mod time;
 pub mod failure;
 
 pub mod plans;
+
+mod inflate;
+pub mod zip;

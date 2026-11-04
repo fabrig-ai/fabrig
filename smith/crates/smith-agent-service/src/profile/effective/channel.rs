@@ -88,8 +88,6 @@ pub(super) fn bodies(inventory: &mut Inventory, limits: &smith_channel::Limits) 
         workspace_directories,
         credential_value_bytes,
         program_value_name,
-        withdrawn_value_id,
-        withdrawn_value_bearer,
         account_refused_code,
         account_refused_reason,
         completion_fault_code,
@@ -131,8 +129,6 @@ pub(super) fn bodies(inventory: &mut Inventory, limits: &smith_channel::Limits) 
     inventory.value("workspace_directories", Value::Count(u64::from(workspace_directories)))?;
     inventory.value("credential_value_bytes", Value::Bytes(u64::from(credential_value_bytes)))?;
     inventory.value("program_value_name", Value::Bytes(u64::from(program_value_name)))?;
-    inventory.value("withdrawn_value_id", Value::Bytes(u64::from(withdrawn_value_id)))?;
-    inventory.value("withdrawn_value_bearer", Value::Bytes(u64::from(withdrawn_value_bearer)))?;
     inventory.value("account_refused_code", Value::Bytes(u64::from(account_refused_code)))?;
     inventory.value("account_refused_reason", Value::Bytes(u64::from(account_refused_reason)))?;
     inventory.value("completion_fault_code", Value::Bytes(u64::from(completion_fault_code)))?;

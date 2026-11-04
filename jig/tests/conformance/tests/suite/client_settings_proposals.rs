@@ -213,6 +213,7 @@ fn engine_proposal() -> jig_domain_core::documents::Proposal {
     use jig_domain_core::{documents as d, reads, settings as s};
     use jig_domain_tasks as t;
     let template = jig_domain_core::Template {
+        resources: Box::new([]),
         number: 1,
         name: b"chat".as_slice().into(),
         executor: jig_domain_people::TemplateExecutor::Chosen,
@@ -236,6 +237,7 @@ fn engine_proposal() -> jig_domain_core::documents::Proposal {
             now: Some(s::Value::Template(Box::new(template))),
             origin: Some((false, 1)),
             would_be: Some(s::Value::Template(Box::new(next))),
+            application: None,
         })
         .expect("item");
     let mut heads = skein_lib::List::with_capacity(1);
@@ -250,7 +252,7 @@ fn engine_proposal() -> jig_domain_core::documents::Proposal {
         action: d::ProposalAction::Settings {
             against: 1,
             items: heads,
-            review: Some(Box::new(d::SettingsReview { newest: 1, items, value_bytes: 65_536 })),
+            review: Some(Box::new(d::SettingsReview { key: None, newest: 1, items, value_bytes: 65_536 })),
             made: None,
         },
         as_holder: false,

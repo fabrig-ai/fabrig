@@ -10,7 +10,7 @@ use crate::{
 fn source() -> Charter {
     let model = Model {
         prices: Prices { input: 2, cached: 1, cache_write: Some(4), output: 3, unit: 1000 },
-        dialect: 4,
+        dialect: 3,
         endpoint: 7,
         name: Box::from(&b"small"[..]),
         window: 4096,
@@ -57,7 +57,7 @@ fn core_charter_encodes_with_the_same_sections_tools_contract_and_model() {
     let sections = Box::new([Section { title: Box::from(&b"Task"[..]), text: Box::from(&b"Do it"[..]) }]);
     source.brief = sections;
     let charter = charter(source).expect("bounded charter");
-    let names = [EndpointName { number: 7, dialect: 4, name: Box::from(&b"primary"[..]) }];
+    let names = [EndpointName { number: 7, dialect: 3, name: Box::from(&b"primary"[..]) }];
     let bytes = encode(charter, &names, &wire::CEILINGS).expect("bounded encoding");
     let decoded = wire::Charter::decode(&wire::CEILINGS, &mut Reader::new(&bytes)).expect("Smith codec accepts it");
     assert_eq!(decoded.instructions(), b"help");
@@ -259,7 +259,7 @@ fn two_conversations_of_a_task_have_two_identities() {
 
 #[test]
 fn selected_source_grants_are_independent_of_endpoint_resolution() {
-    let names = [EndpointName { number: 7, dialect: 4, name: b"primary".as_slice().into() }];
+    let names = [EndpointName { number: 7, dialect: 3, name: b"primary".as_slice().into() }];
     for main in [Some(5), Some(19), None] {
         let mut source = source();
         source.model.grant = main;
@@ -278,8 +278,8 @@ fn selected_source_grants_are_independent_of_endpoint_resolution() {
 
 #[test]
 fn endpoint_resolution_still_refuses_wrong_dialects_and_unknown_numbers() {
-    let names = [EndpointName { number: 7, dialect: 4, name: b"primary".as_slice().into() }];
-    for (number, dialect) in [(8, 4), (7, 3)] {
+    let names = [EndpointName { number: 7, dialect: 3, name: b"primary".as_slice().into() }];
+    for (number, dialect) in [(8, 3), (7, 2)] {
         let mut source = source();
         source.model.model.endpoint = number;
         source.model.model.dialect = dialect;
@@ -309,7 +309,7 @@ fn encoded_mode(mode: smith_domain_run::Mode) -> wire::Charter {
     value.mode = mode;
     value.contract.change = Some(crate::ChangeRule { checks_must_pass: false, fields: Box::new([]) });
     let value = charter(value).unwrap();
-    let names = [EndpointName { number: 7, dialect: 4, name: b"primary".as_slice().into() }];
+    let names = [EndpointName { number: 7, dialect: 3, name: b"primary".as_slice().into() }];
     let bytes = encode(value, &names, &crate::limits()).expect("bounded encoding");
     wire::Charter::decode(&wire::CEILINGS, &mut Reader::new(&bytes)).expect("Smith codec accepts it")
 }
@@ -338,7 +338,7 @@ fn assignment_fixture(instructions: &[u8], words: u32, spend: u64, turns: u32) -
             reserve_time: Duration::from_secs(10),
             model: core::Model {
                 program: None,
-                dialect: 1,
+                dialect: 3,
                 endpoint: 1,
                 name: b"scripted".as_slice().into(),
                 window: 8192,
@@ -357,6 +357,7 @@ fn assignment_fixture(instructions: &[u8], words: u32, spend: u64, turns: u32) -
             shell: false,
             agents: false,
             call_timeout: Duration::from_secs(10),
+            tools: core::RunPolicy::EVERY_FAMILY,
         },
         contract: tasks::Contract::Report { words },
         authority: tasks::Authority {
@@ -398,7 +399,7 @@ fn report_fixture_charter(instructions: &[u8], words: u32, spend: u64, turns: u3
             grant: Some(1),
             model: Model {
                 prices: Prices { input: 1, cached: 1, cache_write: None, output: 1, unit: 1000 },
-                dialect: 1,
+                dialect: 3,
                 endpoint: 1,
                 name: b"scripted".as_slice().into(),
                 window: 8192,
@@ -469,10 +470,38 @@ fn workspace_tools_follow_every_combination_of_run_policy() {
                 assert_eq!(assembled.workspace, crate::WorkspaceTools { inspect, modify, shell });
                 let translated = charter(assembled).expect("bounded charter");
                 assert_eq!(translated.grants.tools.inspect, inspect);
-                assert_eq!(translated.grants.tools.modify, modify);
+                assert!(!translated.grants.tools.modify);
                 assert_eq!(translated.grants.tools.shell, shell);
             }
         }
+    }
+}
+
+#[test]
+fn modify_needs_a_delivery() {
+    use jig_domain_tasks as tasks;
+    // The task fixture's contract text bound.
+    const WORDS: u32 = 64;
+    let fixture = assignment_fixture(b"Modify", WORDS, 20, 4);
+    let change = tasks::Contract::Change { connector: 1, kind: 1, words: WORDS };
+    let verdict = tasks::Contract::Verdict {
+        choices: Box::new([tasks::Verdict { code: 1, followups: 0, words: WORDS, fields: Box::new([]) }]),
+    };
+    for (row, contract, ended_by, modify, expected) in [
+        ("Report / Result / modify", fixture.contract.clone(), tasks::EndedBy::Result, true, false),
+        ("Verdict / Result / modify", verdict, tasks::EndedBy::Result, true, false),
+        ("Change / Result / modify", change.clone(), tasks::EndedBy::Result, true, true),
+        ("Change / Requester / modify", change.clone(), tasks::EndedBy::Requester, true, false),
+        ("Change / Result / no modify", change, tasks::EndedBy::Result, false, false),
+    ] {
+        let mut value = fixture.clone();
+        value.contract = contract;
+        value.ended_by = ended_by;
+        value.policy.modify = modify;
+        let assembled = crate::assignment(value, Box::new([]), Box::new([]), false).expect("agent charter");
+        assert_eq!(assembled.workspace.modify, modify, "{row}: policy rights");
+        let translated = charter(assembled).expect("bounded charter");
+        assert_eq!(translated.grants.tools.modify, expected, "{row}");
     }
 }
 
@@ -486,6 +515,11 @@ fn contract_text_is_bounded_and_change_checks_are_required() {
         value.contract = tasks::Contract::Change { connector: 1, kind: 1, words };
         let change = crate::assignment(value, Box::new([]), Box::new([]), false).expect("change");
         assert_eq!(change.contract.failure.expect("failure text").max, words.min(crate::CONTRACT_TEXT_MAX));
+        let no_change = &change.contract.verdicts[0];
+        assert_eq!(no_change.name.as_ref(), b"no_change");
+        assert_eq!(no_change.text_max, words.min(crate::CONTRACT_TEXT_MAX));
+        assert!(no_change.fields.is_empty());
+        assert_eq!((no_change.items.min, no_change.items.max), (0, 0));
         let rule = change.contract.change.expect("change rule");
         assert!(rule.checks_must_pass);
         assert_eq!(rule.checks_must_pass, crate::CONTRACT_CHECKS_MUST_PASS);

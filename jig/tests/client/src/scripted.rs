@@ -330,7 +330,7 @@ impl Scripted {
         }
     }
     fn routed(&mut self, client: ClientId, request: Request) -> Request {
-        let Request::Client { request: jig_client::Request::Down { down } } = request else { return request };
+        let Request::Unlinked { request: jig_client::UnlinkedRequest::Down { down } } = request else { return request };
         let down = match down {
             Down::Send { attempt, key, request, value } => {
                 let first = matches!(&request, Ask::Family { .. });
@@ -358,7 +358,7 @@ impl Scripted {
             }
             Down::Save { .. } | Down::Erase { .. } => unreachable!("store writes belong to the shell"),
         };
-        Request::Client { request: jig_client::Request::Down { down } }
+        Request::Unlinked { request: jig_client::UnlinkedRequest::Down { down } }
     }
 }
 
@@ -423,7 +423,7 @@ impl Front<Test> for Scripted {
     fn wire(&mut self, client: ClientId, now: Time, wall: Wall, request: Request) {
         let party = self.parties[&client];
         let request = self.routed(client, request);
-        let Request::Client { request: jig_client::Request::Down { down } } = request else {
+        let Request::Unlinked { request: jig_client::UnlinkedRequest::Down { down } } = request else {
             unreachable!("shell classified a wire request")
         };
         match down {
@@ -471,6 +471,7 @@ impl Front<Test> for Scripted {
                     | Read::Settings
                     | Read::Setting(_)
                     | Read::Revision(_)
+                    | Read::TaskText { .. }
                     | Read::Revisions(_)
                     | Read::Deployment => self.last_object,
                 };
@@ -712,6 +713,7 @@ fn observe_change(change: &engine::Change, commit: u64, seen: &mut Vec<Observed>
                 | ReadValue::Settings(_)
                 | ReadValue::Setting(_)
                 | ReadValue::Revision(_)
+                | ReadValue::TaskText(_)
                 | ReadValue::Revisions(_)
                 | ReadValue::Deployment(_) => false,
             };
@@ -740,6 +742,7 @@ fn observe_change(change: &engine::Change, commit: u64, seen: &mut Vec<Observed>
                 | ReadValue::Settings(_)
                 | ReadValue::Setting(_)
                 | ReadValue::Revision(_)
+                | ReadValue::TaskText(_)
                 | ReadValue::Revisions(_)
                 | ReadValue::Deployment(_) => {}
             }

@@ -1,7 +1,12 @@
 # limits: status
 
-2026-10-30. Where smith's code lags or departs from [limits.md](limits.md).
+2026-11-04. Where smith's code lags or departs from [limits.md](limits.md).
 
-- **Built:** 2 to 7: derived edge limits, jobs, task role, prompt guard, account notices and bounded live text; memory returned when use ends. 3.6, 3.8: host-channel edge credit, agent and local watermarks, uncapped internal stages, hand-offs and sent-message timestamps, stated dispatch orders and shipped pacing; turn measurements and lossy live pieces capped at their edges. 5: edge validity without a process heap sum or startup memory fit check; declared memory parsed and handed on. 11: measured scenario ceilings.
-- **Built:** 9: `domain.content_edge_records` caps optional captured records at the root, with overflow dropped and counted; internal lifecycle facts have no configured allowance.
-- **Not yet:** —
+- **Departs:** 4: limits are refused before the loop starts, but
+  `smith-local-service/src/host_io.rs`'s `native_io_valid` and
+  `smith-agent-service/src/service.rs`'s `io_valid` rebuild
+  `skein_io::valid` by hand, without its ceiling on the operation table
+  (skein's `io.md`, 5): from 2^24 sockets they pass, `Io::new` panics, and
+  `native_io_valid`'s test pins `u32::MAX / 8` as valid; no reason is
+  recorded (the code's side is
+  `smith/docs/development/debt/D003-host-io-route-table.md`).

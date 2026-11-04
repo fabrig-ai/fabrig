@@ -91,15 +91,19 @@ impl Domain {
         }
     }
     /// Restores decoded records from the small store (client/domain/client.md, 11).
-    pub fn restore_record(&mut self, env: &Env<Limits>, kept: List<RequestRecord<Held>>, out: &mut Queue<Request>) {
+    pub fn restore_record(&mut self, env: &Env<Limits>, records: List<RequestRecord<Held>>, out: &mut Queue<Request>) {
         let mut dropped = 0_u32;
-        for record in kept.into_boxed() {
+        for record in records.into_boxed() {
             let key = record.request.key;
             let request = record.request.request.clone();
             let pending = pending(record.scope, &request);
+            let memory_only = !kept(&request);
+            if memory_only {
+                down(out, Down::Erase { key: record.key });
+            }
             let invalid = match &request {
                 Ask::Family { record, .. } => !self.declared(record),
-                Ask::Jig(_) => false,
+                Ask::Jig(_) => memory_only,
             };
             let admission = if invalid || self.requests.contains_key(&key) || self.carried.contains_key(&key) {
                 None
@@ -250,6 +254,7 @@ fn kept(request: &Ask) -> bool {
             contract::Ask::Seen { .. } => false,
             contract::Ask::ChangeSettings(_)
             | contract::Ask::MoveToNewest(_)
+            | contract::Ask::Restore { .. }
             | contract::Ask::Create { .. }
             | contract::Ask::Propose { .. }
             | contract::Ask::Withdraw { .. }
@@ -272,6 +277,7 @@ fn kept(request: &Ask) -> bool {
             | contract::Ask::MakeService { .. }
             | contract::Ask::SetPool { .. }
             | contract::Ask::RemoveProject { .. }
+            | contract::Ask::SetVisibility { .. }
             | contract::Ask::Rename { .. }
             | contract::Ask::MakeProject { .. }
             | contract::Ask::SignIn { .. }

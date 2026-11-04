@@ -612,6 +612,13 @@ Files are a machine of their own beside io's: `FileIo`
 service holds both, submits the records of each to the one kernel, and
 hands each completion back to the machine whose operation it was.
 
+The operation's token says whose: `file_layer::owns(op)`. `FileIo` mints
+its tokens with `file_layer::LANE`, bit 59, set. `Io`'s never have it: a
+flight's token holds its slot in its top 32 bits, and `valid` refuses an
+operation table past 2^27 slots. The bit sits below a token's top four
+(lib.md, 4), so a service that tags its children's tokens still can. A
+service that runs two `Io`s, or two `FileIo`s, tells them apart itself.
+
 ```rust
 // skein_io::file
 pub enum Request {
@@ -681,6 +688,13 @@ pub enum Request {
     within `max` entries and `max_bytes` of names, and counts those left
     out;
   - `Store` replaces a file, conditionally and atomically (below).
+- **A file's contents print as their length.** The `Debug` of a request
+  or an event shows the contents it carries, `Store`'s and `WriteAt`'s
+  bytes, `Loaded`'s and `Read`'s, as their length, never a byte of
+  them; every other field prints as derived. So does `FileIo`'s own
+  `Debug`, for the contents it holds while a store, a read or a load is
+  in flight. A trace of a stored record, a credential's among them,
+  shows none of it (5.3).
 - **Open files** stay open across requests, behind tokens, up to the
   number the driver is made with. `ReadAt` and `WriteAt` work at an
   offset, and io continues a short transfer until the request is met or
@@ -1373,7 +1387,9 @@ A service at a terminal also blocks `SIGWINCH` at startup (shell.md,
 which the owner asks for the size: `Window { owner, stream }`, naming the
 stream that reads the terminal, answered `Window { owner, size }`, or
 `Gone` if the terminal has hung up, with rows
-and columns, its one terminal (kernel.md, 6.3).
+and columns, its one terminal (kernel.md, 6.3). A `Window` naming a stream
+gone or closing reaches no kernel: its owner, who waits on that terminal,
+is told `Gone` on the next pass up, where section 3.1 would drop it.
 
 ## 8. Testing
 
@@ -1499,8 +1515,7 @@ simulator's machine seam (testing.md, 4).
 
 ## 9. Remaining work
 
-What of this document is not built is `STATUS.md`'s (its row in section 2,
-and section 3).
+What of this document is not built is in [`io.status.md`](io.status.md).
 
 ## 10. Open questions
 

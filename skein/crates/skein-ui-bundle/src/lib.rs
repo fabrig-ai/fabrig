@@ -39,6 +39,16 @@ pub struct Glue {
     pub snippets: Vec<(String, Vec<u8>)>,
 }
 
+/// A worker module, bundled beside the page's (playground.md, 7).
+#[derive(Clone, Debug, PartialEq, Eq)]
+pub struct Worker {
+    pub name: String,
+    pub glue: Glue,
+}
+
+/// The worker's starter, beside the page's `boot.js` (playground.md, 7).
+pub const WORKER_STARTER: &str = "boot-worker.js";
+
 /// An input that could not be bundled.
 #[derive(Clone, Debug, PartialEq, Eq)]
 pub enum Refusal {
@@ -56,6 +66,11 @@ fn io<T>(path: &Path, result: std::io::Result<T>) -> Result<T, Refusal> {
 
 /// Replace `out` with the complete bundle, returning its directory's digest.
 pub fn bundle(inputs: &Inputs, glue: &Glue, out: &Path) -> Result<Digest, Refusal> {
+    bundle_with(inputs, glue, None, out)
+}
+
+/// `bundle` with a worker module (playground.md, 7).
+pub fn bundle_with(inputs: &Inputs, glue: &Glue, worker: Option<&Worker>, out: &Path) -> Result<Digest, Refusal> {
     let mut files = BTreeMap::new();
     files.insert("boot.js".into(), page::starter(&inputs.name));
     files.insert("skein-ui.css".into(), STYLESHEET.to_vec());
@@ -63,6 +78,20 @@ pub fn bundle(inputs: &Inputs, glue: &Glue, out: &Path) -> Result<Digest, Refusa
     insert(&mut files, format!("{}_bg.wasm", inputs.name), glue.wasm.clone(), Path::new(&inputs.name))?;
     for (path, bytes) in &glue.snippets {
         insert(&mut files, format!("snippets/{path}"), bytes.clone(), Path::new(path))?;
+    }
+    if let Some(worker) = worker {
+        let js = format!("{}.js", worker.name);
+        let wasm = format!("{}_bg.wasm", worker.name);
+        insert(&mut files, WORKER_STARTER.into(), page::starter(&worker.name), Path::new(WORKER_STARTER))?;
+        insert(&mut files, js.clone(), worker.glue.js.clone(), Path::new(&js))?;
+        insert(&mut files, wasm.clone(), worker.glue.wasm.clone(), Path::new(&wasm))?;
+        for (path, bytes) in &worker.glue.snippets {
+            let name = format!("snippets/{path}");
+            if files.get(&name) == Some(bytes) {
+                continue;
+            }
+            insert(&mut files, name, bytes.clone(), Path::new(path))?;
+        }
     }
     for path in &inputs.stylesheets {
         let name = path.file_name().and_then(|name| name.to_str()).ok_or_else(|| Refusal::Io { path: path.clone() })?;

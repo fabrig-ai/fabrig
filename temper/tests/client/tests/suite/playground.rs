@@ -1,4 +1,4 @@
-//! Playground journeys (temper/docs/design/draft/playground-reset.md, 8).
+//! Playground journeys (temper/docs/design/client/README.md, 10).
 use jig_client_world::harness::{App, ClientId, Duty, Front};
 use skein_lib::{Duration, Env, Queue, Time, Wall};
 use skein_ui::Role;

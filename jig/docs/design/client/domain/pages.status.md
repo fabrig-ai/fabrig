@@ -1,8 +1,5 @@
 # pages: status
 
-2026-10-29. Where jig's code lags or departs from [pages.md](pages.md).
+2026-11-02. Where jig's code lags or departs from [pages.md](pages.md).
 
-- **Built:** 1 to 4, 6, 8, 9, 12: public-client reference pages and compound actions. 5.2: dependency cards. 7: deployment account/source facts.
-- **Not yet:** 6.5: template policy overrides. 7: connector budgets. 11: personal accounts page unresolved.
-
-- **Built (2026-11-01):** 5.2: live-tree folds retain their shown parent and whole phase/held counts; overflow joins the root within the row bound.
+- **Not yet:** 6.5: the policy section shows no template overrides. 7: connectors' request budgets. 12.1: `pages::owed` is no function of its own: `after_page` builds the owed cards inline (`jig/crates/jig-client-view/src/tree/pages.rs`), so an application cannot place them apart.

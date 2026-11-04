@@ -66,7 +66,7 @@ pub(crate) fn read_in(
 pub(crate) fn merge(shared: &Shared, workspace: PathBuf, sources: &[Source]) -> Result<Settings, Refusal> {
     let mut settings = Settings { paths: super::Paths::default(), workspace, values: BTreeMap::new() };
     document(&mut settings, BUILT_IN, &Origin::BuiltIn)?;
-    for preset in [crate::presets::Preset::OpenAi, crate::presets::Preset::Codex, crate::presets::Preset::Anthropic] {
+    for preset in [crate::presets::Preset::OpenAi, crate::presets::Preset::Anthropic] {
         document(&mut settings, crate::presets::built_in(preset), &Origin::BuiltIn)?;
     }
     for source in sources {
@@ -90,6 +90,7 @@ pub(crate) fn merge(shared: &Shared, workspace: PathBuf, sources: &[Source]) -> 
         if let Some(value) = value {
             let value = Value::String(value.clone());
             let origin = Origin::Flag { flag: flag.into() };
+            refuse_withdrawn(&[key.into()], &value, &origin)?;
             schema::check(&value, schema::kind(&[key.into()]).expect("named flag")).map_err(|problem| Refusal {
                 origin: origin.clone(),
                 key: key.into(),
@@ -153,6 +154,8 @@ fn leaves(
         path.push(key.get_ref().to_string());
         let named = path.iter().map(|part| super::name(part)).collect::<Vec<_>>().join(".");
         let location = at(origin, text, key.span().start);
+        let value = decoded.get(key.get_ref().as_ref()).expect("same parsed table");
+        refuse_withdrawn(path, value, &location)?;
         if let Origin::File { layer: Layer::Repository, .. } = &location
             && schema::authority(path)
         {
@@ -163,7 +166,6 @@ fn leaves(
             key: named.clone(),
             problem: Problem::UnknownKey,
         })?;
-        let value = decoded.get(key.get_ref().as_ref()).expect("same parsed table");
         schema::check(value, kind).map_err(|problem| Refusal {
             origin: location.clone(),
             key: named.clone(),
@@ -244,4 +246,21 @@ fn refusal(origin: Origin, key: &str, problem: &str) -> Refusal {
 
 fn number(value: &Value) -> Option<f64> {
     value.as_float().or_else(|| value.as_integer().and_then(|n| n.to_string().parse().ok()))
+}
+
+// Settings are refused at their own layer, before inheritance or overrides.
+fn refuse_withdrawn(path: &[String], value: &Value, origin: &Origin) -> Result<(), Refusal> {
+    let parts: Vec<_> = path.iter().map(String::as_str).collect();
+    let withdrawn = match parts.as_slice() {
+        ["endpoints", "codex"] | ["endpoints", _, "identity"] => true,
+        ["endpoints", _, "dialect" | "preset"] => value.as_str() == Some("codex"),
+        ["model"] => value.as_str().is_some_and(|model| model.starts_with("codex/")),
+        ["models", model] => model.starts_with("codex/"),
+        _ => false,
+    };
+    if withdrawn {
+        let key = path.iter().map(|part| super::name(part)).collect::<Vec<_>>().join(".");
+        return Err(refusal(origin.clone(), &key, "use `openai/<model>`"));
+    }
+    Ok(())
 }

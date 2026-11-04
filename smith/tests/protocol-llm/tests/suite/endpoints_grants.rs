@@ -14,7 +14,6 @@ fn destination(name: u32, provider: shared::Provider) -> ConfiguredEndpoint {
         .expect("fixture TLS root");
     let llm = match provider {
         shared::Provider::OpenAi => shared::Endpoint::openai(),
-        shared::Provider::OpenAiCodex => shared::Endpoint::codex(),
         shared::Provider::Anthropic => shared::Endpoint::anthropic(),
     };
     ConfiguredEndpoint {
@@ -23,7 +22,7 @@ fn destination(name: u32, provider: shared::Provider) -> ConfiguredEndpoint {
         name: llm::Endpoint(name),
         destination: skein_llm_connection::Endpoint {
             limits: skein_llm_world::limits(),
-            credential: skein_llm::client::CredentialLimits { value: 64, account_id: 64 },
+            credential: skein_llm::client::CredentialLimits { value: 64 },
             address: SocketAddr::from(([127, 0, 0, 1], 443)),
             transport: skein_llm_connection::Transport::Tls {
                 server_name: skein_tls::Name::new("example.test").expect("server name"),
@@ -31,7 +30,6 @@ fn destination(name: u32, provider: shared::Provider) -> ConfiguredEndpoint {
             },
             llm,
         },
-        identity: smith_protocol_llm::IdentityProfile::Plain,
         models: Box::new([]),
     }
 }
@@ -39,13 +37,13 @@ fn destination(name: u32, provider: shared::Provider) -> ConfiguredEndpoint {
 #[test]
 fn numeric_names_resolve_the_complete_destination_and_options() {
     let endpoints = Endpoints::new(
-        Box::new([destination(42, shared::Provider::OpenAiCodex), destination(7, shared::Provider::Anthropic)]),
+        Box::new([destination(42, shared::Provider::OpenAi), destination(7, shared::Provider::Anthropic)]),
         2,
     )
     .expect("two named endpoints");
-    let codex = endpoints.resolve(llm::Endpoint(42)).expect("configured name");
-    assert_eq!(codex.index, 0);
-    assert_eq!(codex.provider, shared::Provider::OpenAiCodex);
+    let openai = endpoints.resolve(llm::Endpoint(42)).expect("configured name");
+    assert_eq!(openai.index, 0);
+    assert_eq!(openai.provider, shared::Provider::OpenAi);
     assert_eq!(endpoints.resolve(llm::Endpoint(7)).expect("second name").index, 1);
     assert!(endpoints.resolve(llm::Endpoint(3)).is_none());
     let (destinations, options) = endpoints.into_parts();
@@ -58,7 +56,7 @@ fn numeric_names_resolve_the_complete_destination_and_options() {
 fn duplicate_names_fail_at_startup() {
     assert!(matches!(
         Endpoints::new(
-            Box::new([destination(9, shared::Provider::Anthropic), destination(9, shared::Provider::OpenAiCodex),]),
+            Box::new([destination(9, shared::Provider::Anthropic), destination(9, shared::Provider::OpenAi),]),
             2
         ),
         Err(EndpointError::Duplicate)
@@ -69,8 +67,8 @@ fn duplicate_names_fail_at_startup() {
     ));
 }
 
-fn credential(value: &[u8], account_id: &[u8]) -> Credential {
-    Credential { value: value.into(), account_id: account_id.into(), scheme: skein_llm::Scheme::Bearer }
+fn credential(value: &[u8]) -> Credential {
+    Credential::bearer(value.into())
 }
 
 #[test]
@@ -79,52 +77,24 @@ fn a_refresh_preserves_the_first_call_then_evicts_the_oldest_generation() {
     let first = GrantName { account: 0, generation: 1 };
     let second = GrantName { account: 0, generation: 2 };
     let third = GrantName { account: 0, generation: 3 };
-    grants.grant(first, credential(b"first", b"account-id"), Time::from_nanos(100)).expect("first grant");
+    grants.grant(first, credential(b"first"), Time::from_nanos(100)).expect("first grant");
     let started = grants.read(first, Time::from_nanos(10)).expect("call reads its starting value");
-    grants.grant(second, credential(b"second", b"account-id"), Time::from_nanos(200)).expect("refresh");
+    grants.grant(second, credential(b"second"), Time::from_nanos(200)).expect("refresh");
     assert!(started.value.as_ref() == b"first");
     assert!(grants.read(second, Time::from_nanos(20)).expect("next call").value.as_ref() == b"second");
     assert!(grants.read(first, Time::from_nanos(20)).expect("overlapping first").value.as_ref() == b"first");
-    grants.grant(third, credential(b"third", b"account-id"), Time::from_nanos(300)).expect("next refresh");
+    grants.grant(third, credential(b"third"), Time::from_nanos(300)).expect("next refresh");
     assert!(matches!(grants.read(first, Time::from_nanos(20)), Err(GrantError::Missing)));
     assert!(matches!(grants.read(second, Time::from_nanos(201)), Err(GrantError::Lapsed)));
     assert!(grants.read(third, Time::from_nanos(201)).expect("new value").value.as_ref() == b"third");
-    assert!(matches!(grants.grant(second, credential(b"stale", b""), Time::from_nanos(400)), Err(GrantError::Stale)));
+    assert!(matches!(grants.grant(second, credential(b"stale"), Time::from_nanos(400)), Err(GrantError::Stale)));
     assert!(!format!("{grants:?}").contains("third"), "debug hides bearer values");
-}
-
-#[test]
-fn configured_claude_identity_precedes_domain_instructions_only_for_anthropic() {
-    let mut anthropic = destination(8, shared::Provider::Anthropic);
-    anthropic.identity = smith_protocol_llm::IdentityProfile::ClaudeCode;
-    let _endpoints = Endpoints::new(Box::new([anthropic]), 1).expect("provider supports identity");
-    let mut peer = smith_protocol_llm_world::pool_peer::Peer::for_identity(
-        1,
-        1,
-        shared::Provider::Anthropic,
-        smith_protocol_llm::IdentityProfile::ClaudeCode,
-    );
-    peer.start_observed(8, 60, 60, 300);
-    let system = peer
-        .measures
-        .iter()
-        .find_map(|measure| match measure {
-            smith_protocol_llm::Measure::Prompt { prompt, .. } => prompt.system.as_ref(),
-            _ => None,
-        })
-        .expect("production component records translated instructions");
-    assert!(system.starts_with(shared::anthropic::identity::CLAUDE_CODE_SYSTEM_IDENTITY));
-    assert!(system.ends_with(b"timed reasoning"));
-    peer.cancel(8);
-    let mut codex = destination(9, shared::Provider::OpenAiCodex);
-    codex.identity = smith_protocol_llm::IdentityProfile::ClaudeCode;
-    assert!(matches!(Endpoints::new(Box::new([codex]), 1), Err(EndpointError::Identity)));
 }
 
 #[test]
 fn reasoning_drop_is_selected_per_declared_model() {
     use smith_protocol_llm::{ConfiguredModel, OversizedReasoning};
-    let mut endpoint = destination(1, shared::Provider::OpenAiCodex);
+    let mut endpoint = destination(1, shared::Provider::OpenAi);
     endpoint.models = Box::new([
         ConfiguredModel { name: b"strict".as_slice().into(), oversized_reasoning: OversizedReasoning::Fail },
         ConfiguredModel { name: b"optional".as_slice().into(), oversized_reasoning: OversizedReasoning::Drop },
@@ -135,18 +105,6 @@ fn reasoning_drop_is_selected_per_declared_model() {
     assert!(options.drop_reasoning(b"optional"));
     assert!(!options.drop_reasoning(b"undeclared"));
     assert!(!options.drop_reasoning(b"strict"));
-}
-
-#[test]
-fn a_withdrawn_pair_keeps_the_bearer_in_value() {
-    let mut grants = Grants::new(1, 64).expect("bounded table");
-    let name = GrantName { account: 0, generation: 1 };
-    let input = Credential::codex(b"bearer-bytes".as_slice().into(), b"account-id".as_slice().into());
-    grants.grant(name, input, Time::from_nanos(100)).expect("grant");
-    let output = grants.read(name, Time::ZERO).expect("read grant");
-    assert!(output.value.as_ref() == b"bearer-bytes");
-    assert!(output.account_id.as_ref() == b"account-id");
-    assert_eq!(output.scheme, shared::Scheme::Bearer);
 }
 
 // profile::ACCOUNTS admits four distinct names, independent of their numeric value.
@@ -161,7 +119,8 @@ fn a_sparse_account_number_is_granted_and_used() {
     grants.grant(name, Credential::key(b"key".as_slice().into()), Time::from_nanos(100)).expect("sparse grant");
     let installed = grants.read(name, Time::ZERO).expect("sparse name resolves");
     assert_eq!(installed.scheme, shared::Scheme::Key);
-    assert!(installed.account_id.is_empty());
+    shared::client::check_credential(&installed, &shared::client::CredentialLimits { value: GRANT_BYTES })
+        .expect("installed credential fits its value bound");
 }
 
 #[test]
@@ -169,15 +128,11 @@ fn a_fifth_distinct_account_is_refused() {
     let mut grants = Grants::new(ACCOUNT_COUNT, GRANT_BYTES).expect("bounded table");
     for account in 0..ACCOUNT_COUNT {
         grants
-            .grant(GrantName { account, generation: 1 }, credential(b"value", b""), Time::from_nanos(100))
+            .grant(GrantName { account, generation: 1 }, credential(b"value"), Time::from_nanos(100))
             .expect("four accounts fit");
     }
     assert_eq!(
-        grants.grant(
-            GrantName { account: SPARSE_ACCOUNT, generation: 1 },
-            credential(b"value", b""),
-            Time::from_nanos(100)
-        ),
+        grants.grant(GrantName { account: SPARSE_ACCOUNT, generation: 1 }, credential(b"value"), Time::from_nanos(100)),
         Err(GrantError::Full)
     );
 }

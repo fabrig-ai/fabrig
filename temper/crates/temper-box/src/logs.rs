@@ -1,5 +1,5 @@
 //! Private bounded diagnostic logs (protocol/setup.md, 7.2). One owned kernel
-//! Bound step names follow temper/docs/design/draft/playground-reset.md, 3.
+//! Bound step names follow temper/docs/design/protocol/setup.md, 7.1.
 //! operation at a time; a retained piece gates further diagnostic reads.
 use crate::{layout::Placed, lines::joined};
 use alloc::boxed::Box;

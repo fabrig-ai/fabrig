@@ -157,7 +157,7 @@ fn a_make_retried_under_its_key_after_a_reload_is_answered_once() {
 #[test]
 fn an_owner_removes_a_project_and_reads_its_answer_once() {
     let (mut world, client) = ready(true);
-    let key = send(&mut world, client, 91, c::Ask::RemoveProject { project: PROJECT });
+    let key = send(&mut world, client, 91, c::Ask::RemoveProject { project: PROJECT, grace: None });
     settle(&mut world);
     assert_eq!(
         answer(&mut world),
@@ -173,7 +173,7 @@ fn an_owner_removes_a_project_and_reads_its_answer_once() {
 fn a_remove_project_kept_across_a_restart_is_answered_once() {
     let (mut world, client) = ready(true);
     world.fault(FrontFault::NoAnswer);
-    let key = send(&mut world, client, 91, c::Ask::RemoveProject { project: PROJECT });
+    let key = send(&mut world, client, 91, c::Ask::RemoveProject { project: PROJECT, grace: None });
     assert!(world.root(client).client().pending(key).is_some());
     assert!(
         world

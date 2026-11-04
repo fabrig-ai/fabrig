@@ -10,7 +10,7 @@ fn task_list_filters_do_not_alias_person_task_and_deployment_requesters_with_equ
             let mut row = task();
             row.requester = requester;
             setup.truth.objects.insert(ObjectKey::Task(8), ReadValue::Task(Box::new(row)));
-            let mut engine = Engine::new(setup, 5).unwrap();
+            let mut engine = Engine::new(setup, 5).expect("valid script");
             engine
                 .open(
                     Time::ZERO,
@@ -21,7 +21,7 @@ fn task_list_filters_do_not_alias_person_task_and_deployment_requesters_with_equ
                         window: 2,
                     },
                 )
-                .unwrap();
+                .expect("typed watch fits");
             let up = engine.poll(Time::ZERO);
             let deliveries: Vec<_> = up
                 .iter()
@@ -42,8 +42,8 @@ fn task_list_filters_do_not_alias_person_task_and_deployment_requesters_with_equ
                 assert!(rows.is_empty());
             } else {
                 assert_eq!(rows.len(), 1);
-                assert_eq!(rows.get(0).unwrap().requester, requester);
-                assert_eq!(rows.get(0).unwrap().requester == Requester::Person(1), asked_by_person);
+                assert_eq!(rows.get(0).expect("delivered task row").requester, requester);
+                assert_eq!(rows.get(0).expect("delivered task row").requester == Requester::Person(1), asked_by_person);
             }
         }
     }

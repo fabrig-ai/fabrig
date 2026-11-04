@@ -82,6 +82,7 @@ fn member(role: bool, authority: w::Authority, expected: p::Authority) -> (w::Ne
     let task = w::NewTask::new(
         &l,
         w::NewTaskParts {
+            symbols: List::with_capacity(0),
             llm: if role { None } else { Some(careful_and_quick(&l)) },
             deadline: w::NewDeadline::Named,
             executor,
@@ -116,6 +117,7 @@ fn member(role: bool, authority: w::Authority, expected: p::Authority) -> (w::Ne
 }
 fn expected_member(role: bool, expected: p::Authority) -> p::Member {
     p::Member {
+        symbols: Box::new([]),
         deadline: jig_domain_people::Deadline::Named,
         executor: if role {
             p::TaskExecutor::Person(p::PersonAddress::Role(ROLE))
@@ -135,15 +137,7 @@ fn expected_member(role: bool, expected: p::Authority) -> p::Member {
         },
         authority: expected.clone(),
         budget: p::Budget::AsAllowed { cap: Some(42) },
-        wake: p::WakePolicy {
-            words: p::WakeRule::Immediate,
-            notices: p::WakeRule::Immediate,
-            news: p::WakeRule::Immediate,
-            results: p::ResultsWake::LastOrFailure,
-            questions: true,
-            answers: true,
-            timers: true,
-        },
+        wake: None,
         dependencies: Box::new([p::Dependency::Batch(1), p::Dependency::Existing(u64::MAX)]),
         named: expected.grants,
         tracked: Some(14),

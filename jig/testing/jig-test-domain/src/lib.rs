@@ -68,6 +68,9 @@ pub enum Write {
 /// What the journal releases after its commit, or through its read door.
 #[derive(Debug)]
 pub enum Delivery {
+    /// A job and its opaque workspace items, held behind the assignment's commit.
+    AssignedJob { channel: Token, job: jig_domain_host::JobAssignment, items: Option<Box<[u8]>> },
+
     /// The root heard this project made after its commit.
     ProjectMade { project: u32 },
     /// A typed hub record for a worker channel.
@@ -273,9 +276,12 @@ pub struct Limits {
     /// Journal release pacing and capacities used for conservative pricing.
     pub journal: JournalSizes,
     /// New external work waits while the backlog is at or past this many
-    /// entries (skein's draft `dynamic-memory.md`, 4.4); a pacing limit,
+    /// entries (skein's `programming-model.md`, 7.1); a pacing limit,
     /// not a memory one.
     pub watermark: u32,
+    /// Public admission bounds (jig/docs/design/domain/root.md, 10).
+    pub public_watermark: u32,
+    pub public_reads: u32,
     /// At most this many synchronous child continuations per decision.
     pub routes: u32,
 }
@@ -317,6 +323,7 @@ fn remember_outbox(domain: &mut Domain, number: u16, row: &connector::OutboxEntr
 #[derive(Debug)]
 pub struct Domain {
     scripted_project_releases: Option<Queue<(u16, u32)>>,
+    scripted_workspaces: Option<Queue<core::Event>>,
     hub_link: jig_domain_hub_link::Link,
     core: core::Core,
     first: connector::Domain,
@@ -327,6 +334,9 @@ pub struct Domain {
     busy: Queue<Box<Event>>,
     workspace_writes: Map<u64, Box<[tasks::Name]>>,
     effects: Map<Token, connector::Effect>,
+    settings_judges: Map<Token, Token>,
+    settings_connectors: Box<[u16]>,
+    public_reads: u32,
     decision_wrote: bool,
     stopped_reported: bool,
     start_opened: bool,
@@ -334,6 +344,16 @@ pub struct Domain {
 }
 
 impl Domain {
+    /// Hold workspace completions for deterministic preparation interleavings.
+    pub fn script_workspaces(&mut self) {
+        self.scripted_workspaces = Some(Queue::uncapped());
+    }
+
+    /// Take one held completion; the world delivers it through the root's entrance.
+    pub fn take_workspace(&mut self) -> Option<core::Event> {
+        self.scripted_workspaces.as_mut()?.pop()
+    }
+
     /// The composed core, including its child timer queries.
     #[must_use]
     pub const fn core(&self) -> &core::Core {
@@ -361,6 +381,31 @@ impl Domain {
     #[must_use]
     pub fn settings(&self) -> &core::settings::Current {
         &self.core.current
+    }
+
+    /// Read the newest value through its owning connector (connectors.md, 17).
+    pub fn setting(
+        &mut self,
+        env: &Env<Limits>,
+        connector: u16,
+        kind: u32,
+        scope: u32,
+        number: u32,
+    ) -> Option<Box<[u8]>> {
+        let token = Token::new(0);
+        let mut out = Queue::uncapped();
+        connector::step(
+            numbered(self, connector),
+            &env.with(env.limits.connector),
+            connector::Event::ReadSetting { token, kind, scope, number },
+            &mut out,
+        );
+        let Some(connector::Request::SettingValue { token: answered, value }) = out.pop() else {
+            unreachable!("a setting read returns its value synchronously")
+        };
+        assert_eq!(answered, token, "the connector answers this read");
+        assert!(out.is_empty(), "a setting read has one answer");
+        value
     }
 
     /// The fixture's journal, for numbered writes made outside a root decision.
@@ -429,8 +474,14 @@ impl Domain {
     #[must_use]
     pub fn new(config: Config, limits: &Limits) -> Domain {
         assert!(limits.routes > 0, "synchronous route bound is positive");
+        let mut settings_connectors =
+            List::with_capacity(u32::try_from(config.core.kinds.len()).expect("configured kinds"));
+        for kind in &config.core.kinds {
+            settings_connectors.push(kind.connector).expect("one owner per kind");
+        }
         Domain {
             scripted_project_releases: None,
+            scripted_workspaces: None,
             hub_link: jig_domain_hub_link::Link::new(
                 jig_domain_hub_link::Limits {
                     assignments: limits.core.tasks.tasks,
@@ -439,6 +490,7 @@ impl Domain {
                 },
                 skein_lib::Rng::new(config.core.seed ^ 0x5455_524e_4255_5359),
             ),
+            settings_connectors: settings_connectors.into_boxed(),
             core: core::Core::new(config.core, &limits.core).expect("fixture core configuration"),
             first: connector::Domain::new(config.first, &limits.connector),
             second: connector::Domain::new(config.second, &limits.connector),
@@ -450,6 +502,8 @@ impl Domain {
             effects: Map::with_capacity(
                 limits.core.call_records.checked_add(limits.core.tasks.tasks).expect("effect room"),
             ),
+            settings_judges: Map::with_capacity(2),
+            public_reads: 0,
             decision_wrote: false,
             stopped_reported: false,
             start_opened: false,
@@ -607,6 +661,20 @@ fn decide(domain: &mut Domain, env: &Env<Limits>, first: Work) {
                 Some(_) | None => unreachable!("connector completion belongs to SettleOutbox"),
             },
             Work::Start(input) => {
+                if let StartInput::Done(phase @ core::start::Phase::RestoreConnector { connector: number }) = input
+                    && domain.settings_connectors.contains(&number)
+                {
+                    let mut out = Queue::uncapped();
+                    connector::step(
+                        numbered(domain, number),
+                        &env.with(env.limits.connector),
+                        connector::Event::SettingsDefaults,
+                        &mut out,
+                    );
+                    route_connector(domain, env, &mut decision, number, &mut out, &mut work);
+                    work.push(Work::Start(StartInput::DefaultsReported(phase)));
+                    continue;
+                }
                 let mut out = Queue::uncapped();
                 let core_env = env.with(env.limits.core);
                 let action = match input {
@@ -614,7 +682,9 @@ fn decide(domain: &mut Domain, env: &Env<Limits>, first: Work) {
                     StartInput::Done(core::start::Phase::Sweep) => {
                         domain.core.start_sweep(&core_env, core::start::SweepInput::Finished, &mut out)
                     }
-                    StartInput::Done(phase) => domain.core.start_done(&core_env, phase, &mut out),
+                    StartInput::Done(phase) | StartInput::DefaultsReported(phase) => {
+                        domain.core.start_done(&core_env, phase, &mut out)
+                    }
                     StartInput::Resume(continuation) => domain.core.start_resume(&core_env, continuation, &mut out),
                     StartInput::Sweep => domain.core.start_sweep(&core_env, core::start::SweepInput::Next, &mut out),
                 };
@@ -695,6 +765,9 @@ fn decide(domain: &mut Domain, env: &Env<Limits>, first: Work) {
                 let answer = payload(domain, Payload::SettledCall(call));
                 work.push(Work::Core(core::Event::Fleet(fleet::Event::Relayed { to, answer })));
             }
+            Work::Core(core::Event::PublicRead { reply, read }) => {
+                client_documents::public_start(domain, env, &mut decision, reply, read, &mut work);
+            }
             Work::Core(event) => {
                 let requests = core::step(&mut domain.core, &env.with(env.limits.core), event);
                 route_core(domain, env, &mut decision, requests, &mut work);
@@ -757,6 +830,7 @@ fn decide(domain: &mut Domain, env: &Env<Limits>, first: Work) {
 enum StartInput {
     Begin { pending: bool },
     Done(core::start::Phase),
+    DefaultsReported(core::start::Phase),
     Resume(core::start::Continuation),
     Sweep,
 }
@@ -866,6 +940,13 @@ pub fn release(domain: &mut Domain, env: &Env<Limits>, out: &mut Queue<Request>)
         let delivery = ready.pop().expect("release count");
         match delivery {
             Delivery::Start(continuation) => decide(domain, env, Work::Start(StartInput::Resume(continuation))),
+            Delivery::Core(core::Held::PublicWait { read }) => {
+                step(domain, env, Event::Core(core::Event::PublicDurable { read }));
+            }
+            Delivery::Core(held @ core::Held::PublicRead { .. }) => {
+                domain.public_reads = domain.public_reads.checked_sub(1).expect("one answer per admitted read");
+                out.push(Request::Deliver(Delivery::Core(held)));
+            }
             Delivery::Core(core::Held::MakeEffect { connector, entry }) => {
                 step(domain, env, Event::Connector { number: connector, event: connector::Event::Make { entry } });
             }
@@ -906,6 +987,7 @@ pub fn release(domain: &mut Domain, env: &Env<Limits>, out: &mut Queue<Request>)
                 step(domain, env, event);
             }
             other @ (Delivery::ApplicationDocument { .. }
+            | Delivery::AssignedJob { .. }
             | Delivery::Link { .. }
             | Delivery::ApplicationRead { .. }
             | Delivery::Application { .. }
@@ -1110,7 +1192,11 @@ fn restore_connector(domain: &mut Domain, env: &Env<Limits>, number: u16, record
                 return false;
             }
         }
-        connector::Record::ApplicationObject { .. }
+        connector::Record::SettingDefault { .. }
+        | connector::Record::SettingChange { .. }
+        | connector::Record::SettingReplaced { .. }
+        | connector::Record::SettingProposal { .. }
+        | connector::Record::ApplicationObject { .. }
         | connector::Record::ApplicationAnswer { .. }
         | connector::Record::Proposal { .. }
         | connector::Record::Procedure(_)
@@ -1131,6 +1217,15 @@ fn restore_connector(domain: &mut Domain, env: &Env<Limits>, number: u16, record
     );
     for _ in 0..out.len() {
         match out.pop().expect("restored connector output count") {
+            connector::Request::RestoreRefused { kind, scope, number } => {
+                refuse_settings_restore(kind, scope, number);
+            }
+            connector::Request::SettingsRestored { .. }
+            | connector::Request::SettingsJudged { .. }
+            | connector::Request::SettingsDefaults { .. }
+            | connector::Request::SettingValue { .. } => {
+                unreachable!("restoring a row only reports resources or a refusal")
+            }
             connector::Request::Resource { project, resource } => {
                 let role = match resource.role {
                     connector::ResourceRole::Owned => core::effects::connector::ResourceRole::Owned,
@@ -1228,6 +1323,7 @@ pub fn initial_settings(defaults: &core::settings::Defaults) -> Box<[core::Recor
     rows.push(core::Record::Core(core::CoreRecord::Settings(s::Record::Revision {
         history: false,
         revision: s::Revision {
+            applications: Box::default(),
             head: s::Head {
                 number: 1,
                 against: 0,
@@ -1240,7 +1336,7 @@ pub fn initial_settings(defaults: &core::settings::Defaults) -> Box<[core::Recor
         },
     })))
     .expect("fixture settings count");
-    rows.push(core::Record::Core(core::CoreRecord::Settings(s::Record::Extent { oldest: 0 })))
+    rows.push(core::Record::Core(core::CoreRecord::Settings(s::Record::Extent { oldest: 0, keys: 1 })))
         .expect("fixture settings count");
     rows.into_boxed()
 }
@@ -1264,6 +1360,7 @@ pub fn initial_settings_current(current: &core::settings::Current) -> Box<[core:
     rows.push(core::Record::Core(core::CoreRecord::Settings(s::Record::Revision {
         history: false,
         revision: s::Revision {
+            applications: Box::default(),
             head: s::Head {
                 number: 1,
                 against: 0,
@@ -1276,7 +1373,13 @@ pub fn initial_settings_current(current: &core::settings::Current) -> Box<[core:
         },
     })))
     .expect("fixture settings count");
-    rows.push(core::Record::Core(core::CoreRecord::Settings(s::Record::Extent { oldest: 0 })))
+    rows.push(core::Record::Core(core::CoreRecord::Settings(s::Record::Extent { oldest: 0, keys: 1 })))
         .expect("fixture settings count");
     rows.into_boxed()
+}
+
+/// The testing root has no connector-owned start failure (connectors.md, 17).
+#[expect(clippy::panic, reason = "a connector restore refusal stops the test start and names the setting")]
+fn refuse_settings_restore(kind: u32, scope: u32, number: u32) -> ! {
+    panic!("connector settings restore refused: kind {kind}, scope {scope}, number {number}");
 }

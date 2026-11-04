@@ -82,20 +82,7 @@ const ROWS: &[Row] = &[
     Row { role: Role::TextField, entry: Some(EntryKind::Time), name: "case-entry_time" },
     Row { role: Role::TextField, entry: Some(EntryKind::Secret), name: "case-entry_secret" },
 ];
-const LIMITS: Limits = Limits {
-    nodes: 4,
-    depth: 4,
-    text_per_node: 128,
-    text_bytes: 512,
-    drawing_bytes: 0,
-    styles_per_node: 0,
-    patches: 8,
-    bindings: 0,
-    slots: 0,
-    markdown_depth: 0,
-    scene_marks: 0,
-    scene_bytes: 0,
-};
+const LIMITS: Limits = Limits { nodes: 4, depth: 4, text_per_node: 128, text_bytes: 512, patches: 8, ..Limits::EMPTY };
 
 fn no_drawing(_: skein_ui::DrawingKind, _: &[u8], _: u16, _: u16, _: &mut skein_ui::scene::Scene) -> bool {
     false
@@ -263,34 +250,4 @@ fn completed_and_placeholder() -> Element {
     page.append(list);
     page.append(mapped(tree.get(0).expect("text area"), 3));
     page
-}
-
-#[test]
-fn chromium_reads_completion_and_keeps_a_placeholders_field_name() {
-    let chromium = chromium();
-    let profile = Profile::fresh();
-    let mut rig = Rig::new(&chromium, &profile.0, Scenario::Facts);
-    rig.fixed_page(fixed_page());
-    rig.capture_tree();
-    rig.run();
-    let tree = rig.tree.expect("accessibility tree requested");
-    let field = tree
-        .iter()
-        .find(|entry| entry.role.as_ref() == b"textbox" && entry.name.as_ref() == b"Message")
-        .expect("the placeholder leaves the field named exactly Message");
-    assert!(field.multiline);
-    let entries = tree.as_slice();
-    let item = entries
-        .iter()
-        .position(|entry| entry.role.as_ref() == b"listitem" && entry.name.is_empty())
-        .expect("the completed list item");
-    let depth = entries[item].depth;
-    let words: Vec<_> = entries
-        .iter()
-        .skip(item + 1)
-        .take_while(|entry| entry.depth > depth)
-        .filter(|entry| entry.role.as_ref() == b"StaticText")
-        .map(|entry| entry.name.as_ref())
-        .collect();
-    assert_eq!(words, [b"Branch pushed".as_slice(), b"completed"], "only non-ignored words are read in item order");
 }

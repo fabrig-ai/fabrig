@@ -202,7 +202,10 @@ fn take_cursor(r: &mut skein_lib::Reader<'_>) -> Option<reads::Cursor> {
 }
 fn put_scope(w: &mut Writer, value: &reads::Scope) -> Option<()> {
     match value {
-        reads::Scope::EndedTasks | reads::Scope::TaskRows { .. } | reads::Scope::SettingsHistory { .. } => return None,
+        reads::Scope::TaskText { .. }
+        | reads::Scope::EndedTasks
+        | reads::Scope::TaskRows { .. }
+        | reads::Scope::SettingsHistory { .. } => return None,
         reads::Scope::Task { task } => {
             w.byte(0)?;
             w.u64(*task)?;
@@ -583,6 +586,7 @@ fn put_query(w: &mut Writer, query: &documents::TaskQuery) -> Option<()> {
             E::Agent => 0,
             E::Procedure => 1,
             E::Person => 2,
+            E::Job => 3,
         }),
         None => None,
     })?;
@@ -627,6 +631,7 @@ fn take_query(r: &mut skein_lib::Reader<'_>) -> Option<documents::TaskQuery> {
             Some(0) => Some(E::Agent),
             Some(1) => Some(E::Procedure),
             Some(2) => Some(E::Person),
+            Some(3) => Some(E::Job),
             Some(_) => return None,
         },
         tracked: match optional_u32(r)? {

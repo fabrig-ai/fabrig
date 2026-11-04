@@ -17,8 +17,8 @@
       person: 'Sam',
       // The project `temper init` seeds, unnamed, so "Project 1"
       // (setup.md, 8.3); with none until the playground's start or the
-      // first repository makes one (draft first-run.md, 2.4), its place
-      // reads "No project yet", under View → Future.
+      // first repository makes one (draft archive/first-run.md, 2.4), its
+      // place reads "No project yet", under View → Future.
       project: 'Project 1',
       seeded: 'Project 1',
 

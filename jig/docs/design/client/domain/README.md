@@ -109,8 +109,9 @@ jig-client-world, jig-client-protocol-world, jig-client-wire-world   the client'
 - **Code cites a section** at module or type level, as
   `client/domain/client.md`, 8.2.
 - **skein's and smith's documents** are named with their project's name:
-  skein's `lib.md`, smith's `transcript.md`. skein's foundation documents
-  by their own names: `programming-model.md`, `testing-strategy.md`.
+  skein's `lib.md`, smith's `protocol/transcript.md`. skein's foundation
+  documents by their own names: `programming-model.md`,
+  `testing-strategy.md`.
 - **An application** appears only as an example, and says so: `ops` most
   often, jig's test application where a second example helps.
 - **A party** is whoever uses a client: a person, or a service
@@ -144,7 +145,7 @@ jig-client-world, jig-client-protocol-world, jig-client-wire-world   the client'
 | request table | skein-lib's container of keyed requests, held by the client: its only way out for them (client.md, section 6) |
 | link | whether the client reaches the engine: signed out, starting, live, offline, or out of date (client.md, 8.2) |
 | behind | a handle whose document may be old: its watch dropped and opening again, or changed (client.md, 8.1) |
-| small store | what a client keeps across its own restart: its kept requests not yet answered, excluding new `Seen` and requests carrying a value; each child of its root keeps its own records beside them (client.md, section 11) |
+| small store | what a client keeps across its own restart: its kept requests not yet answered, excluding `Seen` and requests carrying a value; each child of its root keeps its own records beside them (client.md, section 11) |
 | kept work | the requests a client restored from its small store, told to the application as kept (client.md, section 11) |
 | credential | what a sign-in leaves, which jig mints, verifies, expires and revokes; held by the client, or carried by the transport unseen (client.md, section 12) |
 | transport | the application's carrier of jig's messages between the client and the clients' component: jig's default HTTP mapping, a socket, or in-process (client.md, section 16) |
@@ -222,7 +223,7 @@ where each is answered.
   so nothing arrives for a handle that has moved on (client.md, 8.1).
 - **The key is the application's name for a request;** the engine knows
   it by the table's drawn or caller-supplied key. A kept request's record
-  stores both keys; new `Seen` keeps them in memory (client.md, section 6).
+  stores both keys; `Seen` keeps them in memory (client.md, section 6).
 - **Kept requests before sent, by the client.** A kept request's first
   exchange leaves only once the transport says its record is stored
   (client.md, section 11).
@@ -230,7 +231,7 @@ where each is answered.
   the application's, leaves through skein-lib's request table, which
   the client holds: ordinary requests kept before sending, top-level
   `Seen` in memory only, both retried under their keys within the
-  engine's retention and only for their party. New `Seen` retains no
+  engine's retention and only for their party. `Seen` retains no
   completed engine answer and retries against current state; unanswered
   marks are silently lost on closing, reload or crash (client.md,
   sections 6 and 11; contract.md, 3.1).
@@ -429,4 +430,5 @@ Each document lists its own; the ones that reach across:
 - **notifications beyond the client,** which are an application's
   connectors (`../../domain/people.md`, section 9).
 
-What waits, and for what, is `../../STATUS.md`'s, section 3.
+What is designed and not yet built is in each document's status file
+beside it, `<name>.status.md`.

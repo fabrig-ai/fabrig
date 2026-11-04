@@ -76,9 +76,16 @@ pub struct TaskFlags {
     pub retention: Retention,
     pub ended_by: EndedBy,
 }
+/// A connector's resource named after the task (protocol/configuration.md, 3.3).
+#[derive(Clone, Copy, Debug, PartialEq, Eq, Hash)]
+pub struct Symbol {
+    pub connector: u16,
+    pub symbol: u16,
+}
 /// A batch member, including grants named after it.
 #[derive(Clone, Debug, PartialEq, Eq, Hash)]
 pub struct NewTask {
+    pub symbols: skein_lib::List<Symbol>,
     pub executor: super::Executor,
     pub spec: super::Specification,
     pub contract: NewContract,

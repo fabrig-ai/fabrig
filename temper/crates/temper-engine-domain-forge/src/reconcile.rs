@@ -25,9 +25,12 @@ pub enum RecordKind {
     Application,
     Writer,
     Binding,
+    Setting,
     Flight,
     Landing,
     Receipt,
+    Tier,
+    Verification,
 }
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 pub enum Need {
@@ -59,7 +62,7 @@ pub(crate) fn capacity(l: &Limits) -> Option<u32> {
         .checked_add(l.tasks.checked_mul(2)?)? // ProposedEffect: repository and task.
         .checked_add(l.repositories)? // Repository: forge.
         .checked_add(l.holds.checked_mul(3)?)? // Hold: name, task, writer task.
-        .checked_add(l.tasks.checked_mul(l.resources_per_task.checked_add(1)?)?)? // Names.
+        .checked_add(l.tasks.checked_add(l.repositories)?.checked_mul(l.resources_per_task)?)? // Names.
         .checked_add(l.subscriptions.checked_mul(2)?)? // Subscription: repository and owner.
         .checked_add(l.client.resources.checked_mul(3)?)? // BranchHead, PullState, Client::Live.
         .checked_add(l.subscriptions)? // Ci: repository.
@@ -70,20 +73,10 @@ pub(crate) fn capacity(l: &Limits) -> Option<u32> {
         .checked_add(l.tasks.checked_mul(3)?)? // Release: task, root, pending name.
         .checked_add(l.applications)? // Application: adopted repository, if any.
         .checked_add(l.client.repositories)? // Writer: configured forge.
+        .checked_add(l.repositories.checked_mul(l.tiers.tiers)?.checked_mul(2)?)?
+        .checked_add(l.changes)?
         .checked_add(l.landings.checked_mul(l.landing_members)?)?
-        .checked_add(l.repositories.checked_mul(l.gates)?.checked_mul(l.receipts_per_gate)?)
-}
-pub(super) fn names_forge(resources: &[Name]) -> Option<u16> {
-    let mut retired = None;
-    if let Some(name) = resources.first() {
-        retired = Some(name.forge);
-    }
-    for name in resources {
-        if retired != Some(name.forge) {
-            retired = None;
-        }
-    }
-    retired
+        .checked_add(l.repositories.checked_mul(l.gates.checked_add(l.tiers.tiers)?)?.checked_mul(l.receipts_per_gate)?)
 }
 impl Need {
     pub(super) fn repository(self, repository: Repository) -> bool {
@@ -154,6 +147,14 @@ impl Reconciliation {
                 }
                 Ok(())
             }
+            Stored::Tier(row) => {
+                self.repository(RecordKind::Tier, row.repository)?;
+                if let Some(task) = row.task {
+                    self.task(RecordKind::Tier, task, Some(row.repository.forge))?;
+                }
+                Ok(())
+            }
+            Stored::Verification(row) => self.repository(RecordKind::Verification, row.repository),
             Stored::Receipt { key, .. } => self.repository(RecordKind::Receipt, key.repository),
             Stored::Call { key, .. } => self.task(RecordKind::Call, key.task, None),
             Stored::ProposedEffect(row) => self.entry(RecordKind::ProposedEffect, &row.entry),
@@ -166,9 +167,7 @@ impl Reconciliation {
                 }
                 Ok(())
             }
-            Stored::Names { task, resources } => {
-                let retired = names_forge(resources);
-                self.task(RecordKind::Names, *task, retired)?;
+            Stored::Names { resources, .. } => {
                 for name in resources {
                     self.name(RecordKind::Names, name)?;
                 }
@@ -236,6 +235,7 @@ impl Reconciliation {
             | Stored::ForgeNumber { .. }
             | Stored::Playground(_)
             | Stored::Landed { .. }
+            | Stored::Setting(_)
             | Stored::Binding { .. } => Ok(()),
             Stored::Flight { task, entry } => self.need(RecordKind::Flight, Need::Entry { task: *task, entry: *entry }),
         }
@@ -313,7 +313,7 @@ impl Domain {
     }
 
     // History survives removal without retaining its repository's row
-    // (temper/docs/design/draft/playground-reset.md, 4 and 9).
+    // (temper/docs/design/domain/forge.md, 4.1).
     const fn historical_repository(kind: RecordKind) -> bool {
         match kind {
             RecordKind::BranchHead
@@ -323,7 +323,9 @@ impl Domain {
             | RecordKind::Issue
             | RecordKind::Application
             | RecordKind::Landing
-            | RecordKind::Receipt => true,
+            | RecordKind::Receipt
+            | RecordKind::Tier
+            | RecordKind::Verification => true,
             RecordKind::Forge
             | RecordKind::Call
             | RecordKind::ProposedEffect
@@ -337,6 +339,7 @@ impl Domain {
             | RecordKind::Release
             | RecordKind::Writer
             | RecordKind::Binding
+            | RecordKind::Setting
             | RecordKind::Flight => false,
         }
     }

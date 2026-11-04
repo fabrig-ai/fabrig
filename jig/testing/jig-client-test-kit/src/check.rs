@@ -93,6 +93,7 @@ impl Check {
                 | ReadValue::Settings(_)
                 | ReadValue::Setting(_)
                 | ReadValue::Revision(_)
+                | ReadValue::TaskText(_)
                 | ReadValue::Revisions(_)
                 | ReadValue::Deployment(_) => {}
             },
@@ -215,9 +216,11 @@ pub fn named(ask: &Ask) -> Vec<(Object, Revision)> {
         | Ask::AccountChange { .. }
         | Ask::SignOut { .. }
         | Ask::RemoveProject { .. }
+        | Ask::SetVisibility { .. }
         | Ask::Rename { .. }
         | Ask::ChangeSettings(_)
         | Ask::MoveToNewest(_)
+        | Ask::Restore { .. }
         | Ask::MakeProject { .. }
         | Ask::SetPool { .. } => Vec::new(),
     }

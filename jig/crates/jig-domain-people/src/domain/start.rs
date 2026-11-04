@@ -1,4 +1,4 @@
-//! The start: load, then link, and a borrowed second expiry walk (jig/docs/design/domain/engine.md, 6).
+//! The start: load, then link, and a borrowed second sweep (jig/docs/design/domain/engine.md, 6).
 mod fit;
 use super::{Answered, Domain, SignIn, Start, answer_expiry, deadline};
 use crate::{
@@ -80,7 +80,8 @@ impl Domain {
                     // Only successful roster asks retain their members as required references.
                     link_roster(self, source, &answer.ask);
                 }
-                Outcome::Again(_)
+                Outcome::Restored { .. }
+                | Outcome::Again(_)
                 | Outcome::SignedOut
                 | Outcome::Compound { .. }
                 | Outcome::CompoundRefused { .. }
@@ -92,6 +93,7 @@ impl Domain {
                 | Outcome::Renamed { .. }
                 | Outcome::ProjectMade { .. }
                 | Outcome::ProjectRemoved { .. }
+                | Outcome::VisibilitySet { .. }
                 | Outcome::SettingsChanged { .. }
                 | Outcome::MovedToNewest { .. }
                 | Outcome::PoolSet { .. }
@@ -142,10 +144,10 @@ impl Domain {
         self.start = Start::Sweeping;
     }
 
-    /// Erase only borrowed rows expired at the captured start time, retaining no row or key.
+    /// Erase borrowed rows not retained at start, retaining no row or key.
     pub fn start_sweep_row(&mut self, env: &Env<Limits>, record: &Stored, out: &mut Queue<Request>) {
         assert!(self.start == Start::Sweeping, "people sweep row requires sweep");
-        if expired(self, &env.limits, record) {
+        if discarded(self, &env.limits, record) {
             out.push(Request::Erase { key: record.key() });
         }
     }
@@ -153,7 +155,7 @@ impl Domain {
     /// Open after sweep EOF and durable release, projecting live deadlines without erasure.
     pub fn start_complete(&mut self, env: &Env<Limits>) -> bool {
         assert!(self.start == Start::Sweeping, "people completion follows sweep");
-        // Snapshot only bounded live keys; no expired row survives its first-walk call.
+        // Snapshot only bounded live keys; no discarded row survives its first-walk call.
         let mut sign_ins = skein_lib::List::with_capacity(self.sign_ins.len());
         for (key, _) in &self.sign_ins {
             sign_ins.push(*key).expect("bounded live sign-ins");
@@ -189,12 +191,16 @@ fn link(domain: &Domain, source: Key, person: u64) {
     assert!(domain.people.contains_key(&person), "{source:?} links missing person {person}");
 }
 
-fn expired(domain: &Domain, limits: &Limits, record: &Stored) -> bool {
+fn discarded(domain: &Domain, limits: &Limits, record: &Stored) -> bool {
     let at = domain.start_at.expect("start captured its wall");
     match record {
         Stored::SignIn { expires, .. } => *expires <= at,
-        Stored::Answer { at: saved, .. } | Stored::Acted { at: saved, .. } => answer_expiry(*saved, limits) <= at,
+        Stored::Answer { ask, at: saved, .. } => {
+            !super::requests::reserves_answer(ask) || answer_expiry(*saved, limits) <= at
+        }
+        Stored::Acted { at: saved, .. } => answer_expiry(*saved, limits) <= at,
         Stored::Deletion { .. }
+        | Stored::Public { .. }
         | Stored::Person { .. }
         | Stored::Roles { .. }
         | Stored::ReadResults { .. }
@@ -212,8 +218,8 @@ pub(super) fn load(domain: &mut Domain, env: &Env<Limits>, record: Stored, out: 
     if domain.start == Start::Failed {
         return;
     }
-    // Expired decoded rows leave with their page, before any live fit or judgment.
-    if expired(domain, &env.limits, &record) {
+    // Discarded decoded rows leave with their page, before any live fit or judgment.
+    if discarded(domain, &env.limits, &record) {
         return;
     }
     let key = record.key();
@@ -225,8 +231,9 @@ pub(super) fn load(domain: &mut Domain, env: &Env<Limits>, record: Stored, out: 
         return restore_failed(domain, key, Refusal::Limit { which: LimitKind::Restore }, out);
     }
     match record {
-        Stored::Deletion { project, step } => {
-            domain.deletions.insert(project, step).expect("deletion fit checked");
+        Stored::Public { .. } => {}
+        Stored::Deletion { project, step, grace } => {
+            domain.deletions.insert(project, crate::KeptDeletion { step, grace }).expect("deletion fit checked");
         }
         Stored::Person { number, identity } => {
             domain.identities.insert(identity.key.clone(), number).expect("identity fit checked");
@@ -263,7 +270,8 @@ fn link_roster(domain: &Domain, source: Key, ask: &crate::Ask) {
                 link(domain, source, holding.person);
             }
         }
-        crate::Ask::Compound { .. }
+        crate::Ask::Restore { .. }
+        | crate::Ask::Compound { .. }
         | crate::Ask::MarkSeen { .. }
         | crate::Ask::Application { .. }
         | crate::Ask::EditNote { .. }
@@ -271,6 +279,7 @@ fn link_roster(domain: &Domain, source: Key, ask: &crate::Ask) {
         | crate::Ask::Adopt { .. }
         | crate::Ask::ChangePolicy { .. }
         | crate::Ask::RemoveProject { .. }
+        | crate::Ask::SetVisibility { .. }
         | crate::Ask::Rename { .. }
         | crate::Ask::MakeProject { .. }
         | crate::Ask::ChangeSettings { .. }
@@ -301,6 +310,7 @@ fn link_roster(domain: &Domain, source: Key, ask: &crate::Ask) {
 fn fits(domain: &Domain, env: &Env<Limits>, record: &Stored) -> Result<(), crate::RestoreCause> {
     let key = record.key();
     match record {
+        Stored::Public { .. } => Ok(()),
         Stored::Deletion { project, .. } => {
             assert!(!domain.deletions.contains_key(project), "duplicate {key:?}");
             fit::occupancy(&key, RestoreBound::Roles, domain.deletions.len(), 0, env.limits.projects)

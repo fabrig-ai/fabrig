@@ -83,7 +83,7 @@ fn anthropic_seeded_fragmentation_and_grants_preserve_completion() {
     for seed in 1..=128 {
         let mut input = call(seed);
         input.endpoint = skein_llm::Endpoint::anthropic();
-        input.credential = Some(skein_llm::Credential::anthropic(b"synthetic-oauth-token".to_vec().into()));
+        input.credential = Some(skein_llm::Credential::key(b"synthetic-oauth-token".to_vec().into()));
         input.prompt.affinity = None;
         input.prompt.max_output_tokens = Some(1024);
         let wire = skein_llm_world::response(
@@ -197,14 +197,14 @@ fn randomized_receiving_limits_name_the_cap_and_the_bound_that_was_passed() {
 
 #[test]
 fn selective_known_events_ignore_seeded_extensions_and_field_order() {
-    for provider in [skein_llm::Provider::OpenAiCodex, skein_llm::Provider::Anthropic] {
+    for provider in [skein_llm::Provider::OpenAi, skein_llm::Provider::Anthropic] {
         for seed in 1_u64..=256 {
             let mut rng = skein_lib::Rng::new(seed);
             let noise =
                 "x".repeat(usize::try_from(rng.next_u64() % 2048).expect("seeded value fits the configured bound"));
             let extra = format!(r#""extension_{seed}":{{"future":[null,1,{{"wire":"{noise}"}}]}}"#);
             let documents = match provider {
-                skein_llm::Provider::OpenAiCodex | skein_llm::Provider::OpenAi => {
+                skein_llm::Provider::OpenAi => {
                     let item = if seed % 2 == 0 {
                         format!(
                             r#"{{{extra},"id":"m","content":[{{{extra},"text":"hello","type":"output_text"}}],"type":"message"}}"#
@@ -255,7 +255,7 @@ fn selective_known_events_ignore_seeded_extensions_and_field_order() {
             let mut input = call(seed);
             if provider == skein_llm::Provider::Anthropic {
                 input.endpoint = skein_llm::Endpoint::anthropic();
-                input.credential = Some(skein_llm::Credential::anthropic(b"test-oauth".to_vec().into()));
+                input.credential = Some(skein_llm::Credential::key(b"test-oauth".to_vec().into()));
                 input.prompt.affinity = None;
             }
             let mut world = World::new(input, bounds, wire, seed);

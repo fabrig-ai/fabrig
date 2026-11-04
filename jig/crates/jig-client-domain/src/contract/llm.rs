@@ -85,20 +85,11 @@ pub enum TaskRunWait {
     Refused(TaskWaitRefused),
 }
 /// The engine's current refusal explanation (client/domain/contract.md, 5.1).
-/// Hello is an observed volatile fleet fact; Program names a task-specific path.
-/// Neither changes task phase. Kept only as part of the current document.
+/// Hello is an observed volatile fleet fact, kept only in the current document.
+/// It does not change task phase.
 #[derive(Clone, Copy, PartialEq, Eq, Hash, Debug)]
 pub enum TaskWaitRefused {
     Hello { kind: super::HostKind, at: skein_lib::Wall, why: super::HelloRefusal },
-    Program(OpenProgram),
-}
-
-/// Which configured path cannot serve Open, derived by the core's
-/// `documents/task_wait.rs::waiting` for the current task document.
-#[derive(Clone, Copy, PartialEq, Eq, Hash, Debug)]
-pub enum OpenProgram {
-    Model,
-    Source { account: u32, source: u32 },
 }
 
 #[derive(Clone, Copy, PartialEq, Eq, Hash, Debug)]

@@ -53,7 +53,14 @@ fn until_pending(driver: &mut Driver) {
 
 /// A worker's hello with its own slots, stop bound and hosted runs.
 fn hello_with(channel: Token, slots: u32, stop_bound: Duration, hosting: Box<[host::Hosting]>) -> engine::Event {
-    let hello = host::Hello { slots, stop_bound, workstreams: Box::new([]), hosting, bounds: protocol::bounds() };
+    let hello = host::Hello {
+        jobs: Box::default(),
+        slots,
+        stop_bound,
+        workstreams: Box::new([]),
+        hosting,
+        bounds: protocol::bounds(),
+    };
     engine::Event::Worker(engine::WorkerInput::Link { channel, link: engine::Link::Hello { worker: 0, hello } })
 }
 
@@ -105,6 +112,7 @@ fn messages_to(driver: &Driver, run: &engine::Assignment) -> Vec<(u64, Box<[u8]>
             | host::LinkDown::TurnKept { .. }
             | host::LinkDown::Acknowledge { .. }
             | host::LinkDown::Cancel { .. }
+            | host::LinkDown::AssignJob { .. }
             | host::LinkDown::Grant { .. } => None,
         })
         .collect()
@@ -1116,29 +1124,51 @@ fn static_authority_waits_are_durable_holds_and_do_not_spin_the_ready_pass() {
     }
 }
 
+fn person(number: u64, subject: u64, name: &[u8]) -> Record {
+    Record::Core(jig_domain_core::Record::People(people::Stored::Person {
+        number,
+        identity: people::Identity {
+            key: people::IdentityKey { provider: 0, subject: subject.to_be_bytes().into() },
+            login: b"same".as_slice().into(),
+            name: name.into(),
+        },
+    }))
+}
+
 #[test]
-#[ignore = "start: duplicate people identity panics at Person(2) instead of refusing the page"]
 fn invalid_nonfinal_people_restore_page_stops_before_issuing_its_continuation() {
+    let mut bounds = limits();
+    bounds.people.people = 12;
+    let oversized = vec![b'x'; skein_lib::usize_of(bounds.people.identity_bytes) + 1];
+    let mut store_bounds = temper_engine_domain_world::store::widest();
+    store_bounds.people.identity_bytes = 64;
+    let mut store = Store::with_limits(&store_bounds);
+    for number in 1..=12 {
+        let name: &[u8] = if number == 2 { &oversized } else { b"Same" };
+        store.seed(Box::new([person(number, number, name)]), Box::new([]));
+    }
+    let mut driver = Driver::configured(store, [config(91), config(91)], &bounds);
+    for _ in 0..30 {
+        driver.advance(true);
+    }
+    driver.broken("oversized identity deliberately refuses startup");
+    assert!(driver.stopped, "oversized identity in a middle page is a terminal startup failure");
+    assert!(!driver.root.ready());
+    assert!(!driver.root.quiescent());
+    assert!(driver.events.is_empty(), "failed page did not issue another continuation");
+}
+
+#[test]
+#[should_panic(expected = "identity index collision at Person(2)")]
+fn a_duplicate_person_identity_panics_at_its_link_naming_its_row() {
     let mut store = Store::new();
     for number in 1..=3 {
-        let record = Record::Core(jig_domain_core::Record::People(people::Stored::Person {
-            number,
-            identity: people::Identity {
-                key: people::IdentityKey { provider: 0, subject: 7_u64.to_be_bytes().into() },
-                login: b"same".as_slice().into(),
-                name: b"Same".as_slice().into(),
-            },
-        }));
-        store.seed(Box::new([record]), Box::new([]));
+        store.seed(Box::new([person(number, 7, b"Same")]), Box::new([]));
     }
     let mut driver = Driver::new(store);
     for _ in 0..30 {
         driver.advance(true);
     }
-    assert!(driver.stopped, "duplicate identity in middle page is a terminal startup failure");
-    assert!(!driver.root.ready());
-    assert!(!driver.root.quiescent());
-    assert!(driver.events.is_empty(), "failed page did not issue another continuation");
 }
 
 #[test]
@@ -1664,6 +1694,14 @@ fn a_pending_note_reserves_its_named_answer_until_the_store_returns() {
         host::LinkDown::Relayed { call, answer: host::Relayed::Busy, .. } if call.as_ref() == 3121_u64.to_be_bytes()
     )));
     assert_eq!(driver.answered(3121), None);
+    let facts: Vec<_> = std::iter::from_fn(|| driver.root.pop_fact()).collect();
+    assert!(
+        facts.iter().any(|fact| matches!(fact,
+            engine::Fact::CallAdmissionRefused { task, attempt, tool, layer: "core-call-room", .. }
+            if *task == assignment.task && *attempt == assignment.attempt && tool.as_ref() == b"engine"
+        )),
+        "call room pressure retains its layer: {facts:?}"
+    );
     // The recall's decision and its settled answer each take a call number (D15).
     assert_eq!(driver.store.header().calls, 2);
     assert!(matches!(driver.answered(3120),
@@ -1883,7 +1921,13 @@ fn a_proposal_routed_past_a_procedure_to_a_person_is_accepted() {
 }
 
 fn period_specification() -> tasks::Spec {
-    tasks::Spec { asks: false, words: b"period work".as_slice().into(), parameters: Box::new([]), inputs: Box::new([]) }
+    tasks::Spec {
+        job: None,
+        asks: false,
+        words: b"period work".as_slice().into(),
+        parameters: Box::new([]),
+        inputs: Box::new([]),
+    }
 }
 
 #[test]
@@ -2477,7 +2521,13 @@ fn finish_task(driver: &mut Driver, assignment: &engine::Assignment, result: tas
 fn plain_delegate(words: &[u8]) -> engine::Delegate {
     engine::Delegate {
         executor: tasks::Executor::Agent { charter: 1 },
-        spec: tasks::Spec { asks: false, words: words.into(), parameters: Box::new([]), inputs: Box::new([]) },
+        spec: tasks::Spec {
+            job: None,
+            asks: false,
+            words: words.into(),
+            parameters: Box::new([]),
+            inputs: Box::new([]),
+        },
         contract: tasks::Contract::Report { words: 128 },
         authority: tasks::Authority {
             tools: tasks::Tools(0),
@@ -2490,7 +2540,7 @@ fn plain_delegate(words: &[u8]) -> engine::Delegate {
         },
         symbolic_grants: Box::new([]),
         dependencies: Box::new([]),
-        wake: tasks::WakePolicy::DEFAULT,
+        wake: Some(tasks::WakePolicy::DEFAULT),
         ..temper_engine_domain_world::fixtures::report_delegate(b"fixture", Box::new([]))
     }
 }

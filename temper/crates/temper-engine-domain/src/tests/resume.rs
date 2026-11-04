@@ -183,7 +183,7 @@ fn finishing_frees_retained_text_without_any_watcher() {
     let mut out = Queue::with_capacity(1);
     jig_domain_views::step(
         &mut domain.core.views,
-        &Env { now: env.now, wall: env.wall, limits: crate::VIEWS },
+        &env.with(crate::VIEWS),
         jig_domain_views::Event::Text {
             run,
             turn: jig_domain_views::TurnName { attempt: 1, turn: 1, retry: 0 },
@@ -225,12 +225,12 @@ fn watch_root((mut domain, env): (Domain, Env<Limits>)) -> (Domain, Env<Limits>)
     ] {
         people::step(
             &mut domain.core.people,
-            &Env { now: env.now, wall: env.wall, limits: env.limits.people },
+            &env.with(env.limits.people),
             people::Event::Restore { record },
             &mut out,
         );
     }
-    let people_env = Env { now: env.now, wall: env.wall, limits: env.limits.people };
+    let people_env = env.with(env.limits.people);
     assert!(domain.core.people.start_link(&people_env));
     domain.core.people.start_sweep();
     assert!(domain.core.people.start_complete(&people_env));
@@ -279,6 +279,7 @@ fn a_projection_feed_then_committed_resume_delivers_the_watch() {
                 executor: tasks::Executor::Agent { charter: 1 },
                 llm: None,
                 spec: tasks::Spec {
+                    job: None,
                     asks: false,
                     words: b"goal".as_slice().into(),
                     parameters: Box::new([]),
@@ -399,6 +400,7 @@ fn stopping_continues_projection_deferred_finishing_without_new_commits() {
                 executor: tasks::Executor::Agent { charter: 1 },
                 llm: None,
                 spec: tasks::Spec {
+                    job: None,
                     asks: false,
                     words: b"queued goal before Stop".as_slice().into(),
                     parameters: Box::new([]),
@@ -460,6 +462,7 @@ fn stopping_continues_projection_deferred_finishing_without_new_commits() {
                 | Request::ResetAct { .. }
                 | Request::BoxRemove { .. }
                 | Request::Connect { .. }
+                | Request::Replace { .. }
                 | Request::Manifest { .. }
                 | Request::Reachable { .. }
                 | Request::Install { .. }
@@ -701,8 +704,17 @@ fn at_switch(pending: bool) -> (Domain, Env<Limits>) {
 }
 
 pub(super) fn at_phase(pending: bool, target: jig_domain_core::start::Phase) -> (Domain, Env<Limits>) {
+    at_phase_with_limits(pending, target, &super::resume_fixture::limits())
+}
+
+pub(super) fn at_phase_with_limits(
+    pending: bool,
+    target: jig_domain_core::start::Phase,
+    limits: &Limits,
+) -> (Domain, Env<Limits>) {
     use jig_domain_core::start::{Action, Phase, SweepInput};
-    let (mut domain, env) = cold();
+    let mut domain = Domain::new(super::resume_fixture::config(7), limits).unwrap();
+    let env = Env { now: Time::ZERO, wall: Wall::EPOCH, limits: *limits };
     domain.start_wall = Some(env.wall);
     domain.start_pending = pending;
     domain.core_header_loaded = true;
