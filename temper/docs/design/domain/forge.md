@@ -1648,6 +1648,22 @@ merge, kind 4, on a pattern of landing branches (jig's
   It is the one thing temper reads of what people write on its pull
   requests (section 13). A project has approvals only if its rules ask
   for them: temper's own default has none (`../README.md`, section 2).
+- **The panel's approval evidence** is the last judged review set per
+  change, kept only in the forge domain's working set, bounded like
+  `change_due` and removed when the change ends. Both procedure and
+  landing merge waits supply its head, whether the read is complete,
+  the verified reviewers and the reviews from unmapped forge accounts.
+  No row, event or restore carries it. The panel selects requirements
+  from the live enforcing rules, as the merge judgement does, and shares
+  its reviewer count: role, freshness, distinct people and conflicting
+  verdicts have one meaning. Each requirement shows its scope and rule,
+  role, freshness, required count, counted people and review heads, and
+  remaining count. No evidence at the current head says reviews not
+  read yet, including after restart; an incomplete read says incomplete;
+  a complete read with none qualifying says zero counted. Evidence at
+  another head is unread for this head. An unmapped review names its
+  forge account and head, without inferring a person from a display
+  name. Removing a rule removes its panel line at once.
 - **Landing rules** are settings, the forge's own kinds (8.9): the
   deployment's and each project's, each covering a pattern of landing
   branches with CI, up to date, its gates and its approvals. A merge

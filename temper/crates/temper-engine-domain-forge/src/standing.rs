@@ -151,3 +151,66 @@ impl Domain {
         Some(result)
     }
 }
+
+impl Domain {
+    pub(crate) fn panel_approvals(&self, row: &crate::ChangeRow) -> Box<[crate::PanelApproval]> {
+        let mut approvals = List::uncapped();
+        let Some(repository) = self.repositories.get(&row.repository) else { return approvals.into_boxed() };
+        let Some(name) = branch_resource_name(repository, &row.base) else { return approvals.into_boxed() };
+        let (deployment, project) = self.landing_rules(repository.project);
+        for rules in [deployment, project] {
+            for held in rules {
+                if !held.rule.enforce || !gates::covers(&held.rule.pattern, &name) {
+                    continue;
+                }
+                for approval in &held.rule.approvals {
+                    let mut line = self.panel_approval(row, *approval);
+                    line.scope = held.scope;
+                    line.rule = held.number;
+                    approvals.push(line).expect("admitted rules");
+                }
+            }
+        }
+        approvals.into_boxed()
+    }
+
+    fn panel_approval(&self, row: &crate::ChangeRow, rule: settings::RuleApproval) -> crate::PanelApproval {
+        let mut line = crate::PanelApproval {
+            scope: 0,
+            rule: 0,
+            role: rule.role,
+            freshness: rule.freshness,
+            required: rule.people,
+            read: crate::ReviewRead::Unread,
+            counted: Box::new([]),
+            remaining: None,
+            refused: false,
+        };
+        if row.terminal() {
+            return line;
+        }
+        let Some(facts) = self.review_facts.get(&row.task) else { return line };
+        let Some(head) = row.change.last_head else { return line };
+        if facts.head != Some(head) {
+            return line;
+        }
+        line.read = if facts.reviews_complete { crate::ReviewRead::Complete } else { crate::ReviewRead::Incomplete };
+        let (counted, refused) =
+            judge::approval_count(rule.role, rule.freshness, head, &row.change.clean, &facts.reviewers);
+        let have = u32::try_from(counted.len()).expect("admitted reviewers");
+        line.remaining = Some(rule.people.saturating_sub(have));
+        line.counted = counted;
+        line.refused = refused;
+        line
+    }
+
+    pub(crate) fn panel_unmapped(&self, row: &crate::ChangeRow) -> Box<[crate::UnmappedReview]> {
+        if let Some(facts) = self.review_facts.get(&row.task)
+            && facts.head == row.change.last_head
+            && !row.terminal()
+        {
+            return facts.unmapped.clone();
+        }
+        Box::new([])
+    }
+}
