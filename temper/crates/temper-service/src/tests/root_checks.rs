@@ -300,3 +300,99 @@ fn judge_projects_past_the_wires_dismissals_name_both() {
         assert_eq!(lines(&found).as_ref(), expected);
     }
 }
+
+/// The same typed worker limits that startup checks before allocating a service.
+fn worker_limits() -> temper_worker_domain::Limits {
+    crate::worker_settings::root_limits(
+        &fixtures::worker_settings(),
+        &fixtures::startup_agent(),
+        &crate::limits::profile(crate::limits::Profile::Small),
+    )
+}
+
+#[test]
+fn payload_event_refusals_name_the_configured_and_required_bytes() {
+    for (configured, expected) in [
+        (4096, "4096 bytes, short of agent.json profile.declared.tool_payload less the 2-byte separator, 8192 bytes"),
+        (8193, "8193 bytes, past agent.json profile.declared.tool_payload less the 2-byte separator of 8192"),
+    ] {
+        let mut limits = worker_limits();
+        limits.agent.message_bytes = 8194;
+        limits.bounds.message_bytes = 8192;
+        limits.host.event_bytes = configured;
+        let mut found = Problems::empty();
+        checks::worker(&limits, &mut found);
+        let expected = format!("workers[0].limits.overrides.hub.event_bytes: {expected}\n");
+        assert_eq!(lines(&found).as_ref(), expected.as_bytes());
+    }
+}
+
+#[test]
+fn payload_checkout_refusals_name_the_configured_and_required_bytes() {
+    let mut limits = worker_limits();
+    limits.agent.call_bytes = 8194;
+    limits.checkout.message_bytes = 4098;
+    let mut found = Problems::empty();
+    checks::worker(&limits, &mut found);
+    assert_eq!(lines(&found).as_ref(), b"application.limits.overrides.checkout.message_bytes: 4098 bytes, short of the agent's call_bytes (agent.json profile.declared.tool_payload), 8194 bytes\n");
+}
+
+#[test]
+fn payload_turn_queue_refusals_name_the_configured_and_required_bytes() {
+    let mut limits = worker_limits();
+    limits.agent.turns = 2;
+    limits.host.turns = 2;
+    limits.host.turn_bytes = 100;
+    limits.host.turn_queue_bytes = 199;
+    let mut found = Problems::empty();
+    checks::worker(&limits, &mut found);
+    assert_eq!(lines(&found).as_ref(), b"workers[0].limits.overrides.hub.turn_queue_bytes: 199 bytes, short of the agent's turns * workers[0].limits.overrides.hub.turn_bytes, 200 bytes\n");
+}
+
+#[test]
+fn shipped_payload_profiles_pass_complete_startup_checks() {
+    let generated = super::stock::generated();
+    let reference = include_bytes!("../../../../docs/examples/reference/limits.json");
+    let limits = fixtures::value(reference, b"engine.limits.overrides");
+    let parsed = jig_protocol_config::document(
+        &limits,
+        &jig_protocol_config::DocumentLimits { bytes: 1024, tokens: 64, depth: 8 },
+    )
+    .unwrap();
+    let at = jig_protocol_config::read::Object::new(&parsed, 0).unwrap().member(&parsed, b"tasks.tree_tasks").unwrap();
+    let tree_tasks = jig_protocol_config::read::integer(&parsed, at, u64::MAX).unwrap();
+    let overlay = super::stock::limited(&generated, b"tasks.tree_tasks", tree_tasks);
+    let agent = fixtures::parsed_agent(fixtures::stock_configuration(10_662, 8192).expect("stock agent"));
+    for document in [&generated, &overlay] {
+        let named = crate::named(document, &jig_protocol_config::Directories::working()).unwrap();
+        let mut entries = skein_lib::List::with_capacity(u32::try_from(named.files.len()).unwrap());
+        for file in named.files {
+            entries.push((file.path, skein_lib::Secret::new(vec![b'0'; 64].into()))).unwrap();
+        }
+        let found = crate::startup::check(
+            document,
+            &jig_protocol_config::Directories::working(),
+            &crate::settings::Files { entries },
+            &agent,
+            &fixtures::seeds(),
+            None,
+            skein_lib::List::with_capacity(0),
+            None,
+        );
+        if let Err(problems) = found {
+            panic!("{}", String::from_utf8_lossy(&lines(&problems)));
+        }
+    }
+}
+
+#[test]
+fn a_16386_byte_payload_requires_a_larger_model_answer() {
+    let Err(refused) = fixtures::stock_configuration(16_386, 8192) else {
+        panic!("the input must fit the model answer");
+    };
+    assert!(refused.contains("input-answer"), "{refused}");
+    assert!(refused.contains("llm.input[endpoint=1]=99876"), "{refused}");
+    assert!(refused.contains("llm.answer[endpoint=1]=65536"), "{refused}");
+    let raised = fixtures::stock_configuration(16_386, 16_384).expect("a supported larger output admits the payload");
+    assert_eq!(raised.profile.declared.tool_payload, 16_386);
+}

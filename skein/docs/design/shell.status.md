@@ -4,8 +4,10 @@
 
 - **Not yet:** 6: the configured peer names resolved at startup (step 5).
   6.4: the helper's dispatch, and the service's own cgroup opened at
-  startup. 9: no macOS runner checks the members that reach rustls or
-  runs Darwin's code.
+  startup. 9: the macOS workflow
+  (`temper/docs/design/domain/testing.md`, 2.8) compiles the members that
+  reach rustls and runs temper's one story, neither yet seen green, and
+  no macOS runner runs skein's suites.
 - **Departs:** 7.5: the system parts have no design for the keeper's
   `poll_child`, `close_keeper_fd`, `abandon_binary` or `wait_readable`,
   but `skein-shell/src/process.rs`, `linux.rs` and `darwin.rs` expose

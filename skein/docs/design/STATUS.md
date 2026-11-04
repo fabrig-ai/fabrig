@@ -8,9 +8,10 @@ simulation, faults and fake machine (`kernel.md`, `io.md`,
 `simulator.md`, `shell.md`, `testing.md`). The forge kit lacks the calls
 no dialect has yet (the labels, `UpdateRef`) and GitHub's Actions
 routes, `Artifact` and `Commits` among them (`forge.md`,
-`forge-github.md`); the fake GitHub refuses no push as `GH013`, and
-names bare media types on its peer's connections (`fake-forge.md`).
-json, tls and http's collector have no fuzz target
+`forge-github.md`); seven of its artifact facts are unchecked at the
+pinned Forgejo (`forge.md`); the fake GitHub refuses no push as `GH013`,
+and names bare media types on its peer's connections (`fake-forge.md`).
+No macOS runner runs skein's suites (`shell.md`). json, tls and http's collector have no fuzz target
 (`json.md`, `tls.md`, `http.md`). A few items lag in `lib.md`,
 `examples.md`, `forge-setup.md`, `kv.md` and `ui.md`, and the LLM live
 suite's logins have no design (`skein-live`), five of its provider
