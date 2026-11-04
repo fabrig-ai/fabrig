@@ -271,8 +271,7 @@ setup.md's (section 9). What is open is listed in section 8.
   paste it again".
   It lives until its run ends. The codec's own form, not a layout of
   temper's own bytes, so that the bundle has a schema's bounds, goldens
-  and version check, its items the records' own (the director's answer
-  of 2026-11-03, `forgejo-connect`).
+  and version check, its items the records' own (decided 2026-11-03).
 - **The core** keeps the number and the digest in the connect's own
   record, no secret, and checks the person's role, the forge's kind and
   mode, and that no run holds the forge. Refused, it answers so, and
