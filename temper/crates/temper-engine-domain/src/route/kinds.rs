@@ -3,7 +3,7 @@
 //! temper/docs/design/protocol/configuration.md, 13.2).
 use alloc::boxed::Box;
 use jig_domain_core::{Event, effects::connector, settings::application};
-use skein_lib::{Env, List, Queue};
+use skein_lib::{Decimal, Env, List, Queue};
 use temper_engine_domain_forge::settings;
 
 use crate::{Domain, Limits, Work};
@@ -19,23 +19,7 @@ pub(super) fn ask(domain: &mut Domain, env: &Env<Limits>, number: u16, ask: conn
             let bounds = bounds(&env.limits);
             let mut judged = List::uncapped();
             for item in &items {
-                let answer = match typed(domain, proposal, item) {
-                    Some(asked) => {
-                        let answers = domain.forge.judge_settings(&bounds, core::slice::from_ref(&asked));
-                        match *answers.first().expect("one forge judgement per item") {
-                            settings::Judged::Accept { size, charter } => connector::Judged::Accept {
-                                size,
-                                charters: match charter {
-                                    Some(charter) => Box::new([charter]),
-                                    None => Box::default(),
-                                },
-                            },
-                            settings::Judged::Same => connector::Judged::Same,
-                            settings::Judged::Refuse(why) => connector::Judged::Refuse { why: why.words().into() },
-                        }
-                    }
-                    None => connector::Judged::Refuse { why: settings::Refusal::Value.words().into() },
-                };
+                let answer = judge(domain, &bounds, proposal, item);
                 judged.push(answer).expect("one judgement per asked item");
             }
             domain.work.push(Work::Core(Event::EffectConnector(connector::Event::SettingsJudged {
@@ -55,17 +39,7 @@ pub(super) fn ask(domain: &mut Domain, env: &Env<Limits>, number: u16, ask: conn
             let answers = domain.forge.restore_settings(&bounds(&env.limits), proposal, &items, &mut out);
             let mut judged = List::uncapped();
             for answer in answers {
-                let answer = match answer {
-                    settings::Judged::Accept { size, charter } => connector::Judged::Accept {
-                        size,
-                        charters: match charter {
-                            Some(charter) => Box::new([charter]),
-                            None => Box::default(),
-                        },
-                    },
-                    settings::Judged::Refuse(why) => connector::Judged::Refuse { why: why.words().into() },
-                    settings::Judged::Same => unreachable!("a restore judges the kind's bounds alone"),
-                };
+                let answer = judgement(answer);
                 judged.push(answer).expect("one judgement per restored item");
             }
             domain.work.push(Work::Core(Event::EffectConnector(connector::Event::SettingsRestored {
@@ -81,6 +55,125 @@ pub(super) fn ask(domain: &mut Domain, env: &Env<Limits>, number: u16, ask: conn
     if !out.is_empty() {
         domain.work.push(Work::ForgeSettings(out));
     }
+}
+
+fn judgement(answer: settings::Judged) -> connector::Judged {
+    match answer {
+        settings::Judged::Accept { size, charter } => connector::Judged::Accept {
+            size,
+            charters: match charter {
+                Some(charter) => Box::new([charter]),
+                None => Box::default(),
+            },
+        },
+        settings::Judged::Same => connector::Judged::Same,
+        settings::Judged::Refuse(why) => connector::Judged::Refuse { why: why.words().into() },
+    }
+}
+
+fn judge(
+    domain: &Domain,
+    bounds: &settings::Bounds,
+    proposal: Option<u64>,
+    item: &application::Item,
+) -> connector::Judged {
+    let Some(asked) = typed(domain, proposal, item) else {
+        return connector::Judged::Refuse { why: settings::Refusal::Value.words().into() };
+    };
+    let answers = domain.forge.judge_settings(bounds, core::slice::from_ref(&asked));
+    let answer = *answers.first().expect("one forge judgement per item");
+    match answer {
+        settings::Judged::Refuse(_) => judgement(answer),
+        settings::Judged::Accept { .. } | settings::Judged::Same => match approval_refusal(domain, &asked) {
+            Some(why) => connector::Judged::Refuse { why },
+            None => judgement(answer),
+        },
+    }
+}
+
+// temper/docs/design/domain/forge.md, 8.9: eligibility joins the forge's rule with the core's people.
+fn approval_refusal(domain: &Domain, asked: &settings::Asked) -> Option<Box<[u8]>> {
+    let value = match &asked.edit {
+        settings::Edit::Set(value) => &value.value,
+        settings::Edit::Remove | settings::Edit::Reset => return None,
+    };
+    let rule = match value {
+        settings::Value::Rule(rule) => rule,
+        settings::Value::Charter(_) => return None,
+    };
+    if !rule.enforce || rule.approvals.is_empty() {
+        return None;
+    }
+    for &project in &domain.core.projects {
+        if (asked.scope != 0 && asked.scope != project) || !covers_project(domain, rule, project) {
+            continue;
+        }
+        for approval in &rule.approvals {
+            let count = eligible_people(domain, project, approval.role);
+            if count < approval.people {
+                return Some(approval_words(project, approval, count));
+            }
+        }
+    }
+    None
+}
+
+fn covers_project(domain: &Domain, rule: &settings::LandingRule, project: u32) -> bool {
+    use jig_domain_authority::{Last, Pattern, pattern_at_most};
+    use temper_engine_domain_forge::GateLast;
+    let pattern = Pattern {
+        segments: rule.pattern.segments.clone(),
+        last: match &rule.pattern.last {
+            GateLast::Exact(last) => Last::Exact(last.clone()),
+            GateLast::Open(last) => Last::Open(last.clone()),
+        },
+    };
+    for repository in domain.forge.writable_repositories(project) {
+        let branches = Pattern {
+            segments: Box::new([
+                Box::from(b"forge".as_slice()),
+                repository.host.clone(),
+                repository.owner.clone(),
+                repository.name.clone(),
+                Box::from(b"branch".as_slice()),
+            ]),
+            last: Last::Open(Box::new([])),
+        };
+        if pattern_at_most(&pattern, &branches) || pattern_at_most(&branches, &pattern) {
+            return true;
+        }
+    }
+    false
+}
+
+fn eligible_people(domain: &Domain, project: u32, role: u32) -> u32 {
+    let mut count = 0_u32;
+    let Some(members) = domain.core.people.project_members(project) else { return count };
+    for member in members {
+        let Some(identity) = domain.core.people.identity(member.person) else { continue };
+        if member.role.number() == role && identity.key.provider == 0 && identity.key.subject.len() == 8 {
+            count = count.saturating_add(1);
+        }
+    }
+    count
+}
+
+fn approval_words(project: u32, approval: &settings::RuleApproval, count: u32) -> Box<[u8]> {
+    let project = Decimal::of(u64::from(project));
+    let role = Decimal::of(u64::from(approval.role));
+    let required = Decimal::of(u64::from(approval.people));
+    let count = Decimal::of(u64::from(count));
+    let mut words = List::uncapped();
+    for part in [
+        b"project ".as_slice(), project.as_bytes(), b" role ", role.as_bytes(), b" requires ",
+        required.as_bytes(), b" distinct known forge people; currently ", count.as_bytes(),
+        b" eligible. Before accepting, add known forge people to that project with this role, or remove the approval requirement.",
+    ] {
+        for &byte in part {
+            words.push(byte).expect("measured approval refusal");
+        }
+    }
+    words.into_boxed()
 }
 
 fn bounds(limits: &Limits) -> settings::Bounds {
