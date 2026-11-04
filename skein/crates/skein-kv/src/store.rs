@@ -307,17 +307,17 @@ impl Store {
         dir.at(Phase::Writing { log, batch })
     }
 
-    fn recover(&mut self, mut dir: Dir, below: &mut Queue<file::Request>, limits: &Limits) -> State {
+    fn recover(&mut self, mut dir: Dir, step: &mut Step<'_>) -> State {
         self.last = 0;
-        self.map = KvMap::new(limits);
+        self.map = KvMap::new(&step.env.limits);
         dir.segments.clear();
         dir.compaction = Compaction::Idle;
         dir.log_bytes = 0;
-        below.push(file::Request::List { owner: IO_OWNER, root: dir.root });
+        step.below.push(file::Request::List { owner: IO_OWNER, root: dir.root });
         dir.at(Phase::Listing)
     }
 
-    fn finish_recovery(&mut self, mut dir: Dir, below: &mut Queue<file::Request>) -> State {
+    fn finish_recovery(&mut self, mut dir: Dir, step: &mut Step<'_>) -> State {
         let next = self.last.checked_add(1).expect("commit number did not overflow");
         match self.repair {
             Repair::Clean => {}
@@ -326,7 +326,7 @@ impl Store {
         let name = segment_name(next);
         for entry in &dir.segments {
             if entry.as_ref() == name.as_ref() {
-                below.push(file::Request::Remove {
+                step.below.push(file::Request::Remove {
                     owner: IO_OWNER,
                     root: dir.root,
                     name: name.clone(),
@@ -335,29 +335,33 @@ impl Store {
                 return dir.at(Phase::RemovingTail { name });
             }
         }
-        create_segment(dir, name, below)
+        create_segment(dir, name, step.below)
     }
 
-    fn next_log(&mut self, mut dir: Dir, next: usize, below: &mut Queue<file::Request>, limits: &Limits) -> State {
+    fn next_log(&mut self, mut dir: Dir, next: usize, step: &mut Step<'_>) -> State {
         let Some(name) = dir.segments.get(next).cloned() else {
-            if dir.log_bytes >= limits.snapshot_bound(self.map.live()) {
+            if dir.log_bytes >= step.env.limits.snapshot_bound(self.map.live()) {
                 // Recovery creates the snapshot's starting segment without another rollover.
                 dir.compaction =
                     Compaction::Due { start: self.last.checked_add(1).expect("commit number did not overflow") };
             }
-            return self.finish_recovery(dir, below);
+            return self.finish_recovery(dir, step);
         };
         let next = next.checked_add(1).expect("segment index fits");
-        below.push(file::Request::OpenRead { owner: IO_OWNER, root: dir.root, name: name.clone() });
+        step.below.push(file::Request::OpenRead { owner: IO_OWNER, root: dir.root, name: name.clone() });
         dir.at(Phase::OpeningLog { name, next })
     }
 
-    fn start_recovery(&mut self, dir: Dir, snapshot: bool, below: &mut Queue<file::Request>, limits: &Limits) -> State {
+    fn start_recovery(&mut self, dir: Dir, snapshot: bool, step: &mut Step<'_>) -> State {
         if snapshot {
-            below.push(file::Request::OpenRead { owner: IO_OWNER, root: dir.root, name: Box::from(&b"snapshot"[..]) });
+            step.below.push(file::Request::OpenRead {
+                owner: IO_OWNER,
+                root: dir.root,
+                name: Box::from(&b"snapshot"[..]),
+            });
             dir.at(Phase::OpeningSnapshot)
         } else {
-            self.next_log(dir, 0, below, limits)
+            self.next_log(dir, 0, step)
         }
     }
 
@@ -481,7 +485,7 @@ pub fn down(
     let mut step = Step { env, above, below };
     store.state = match request {
         Request::Open { owner, root } => match state {
-            State::Closed | State::Memory => store.recover(Dir::new(root, owner), step.below, &env.limits),
+            State::Closed | State::Memory => store.recover(Dir::new(root, owner), &mut step),
             state @ State::Open { .. } => {
                 step.above.push(Event::Refused { owner, refusal: Refusal::Unavailable });
                 state
@@ -732,123 +736,89 @@ pub fn up(
             Phase::Listing => match event {
                 Done::Listed { entries } => listed(store, dir, entries, &mut step),
                 Done::Failed { .. } => open_failed(dir, Failure::Io, &mut step),
-                Done::Opened { .. } | Done::Read { .. } | Done::Finished => {
-                    unreachable!("the file answer must match this phase's request")
-                }
+                Done::Opened { .. } | Done::Read { .. } | Done::Finished => wrong_answer(),
             },
             Phase::RemovingTempOnOpen { snapshot } => match event {
-                Done::Finished => temp_removed(store, dir, snapshot, &mut step),
+                Done::Finished => store.start_recovery(dir, snapshot, &mut step),
                 Done::Failed { .. } => open_failed(dir, Failure::Io, &mut step),
-                Done::Listed { .. } | Done::Opened { .. } | Done::Read { .. } => {
-                    unreachable!("the file answer must match this phase's request")
-                }
+                Done::Listed { .. } | Done::Opened { .. } | Done::Read { .. } => wrong_answer(),
             },
             Phase::OpeningSnapshot => match event {
                 Done::Opened { file, len } => snapshot_opened(dir, file, len, &mut step),
                 Done::Failed { .. } => open_failed(dir, Failure::Io, &mut step),
-                Done::Listed { .. } | Done::Read { .. } | Done::Finished => {
-                    unreachable!("the file answer must match this phase's request")
-                }
+                Done::Listed { .. } | Done::Read { .. } | Done::Finished => wrong_answer(),
             },
             Phase::ReadingSnapshot { file, len, at, reader } => match event {
                 Done::Read { bytes } => snapshot_read(store, dir, ReadAt { file, len, at }, reader, bytes, &mut step),
                 Done::Failed { .. } => open_failed_file(dir, file, Failure::Io, step.below),
-                Done::Listed { .. } | Done::Opened { .. } | Done::Finished => {
-                    unreachable!("the file answer must match this phase's request")
-                }
+                Done::Listed { .. } | Done::Opened { .. } | Done::Finished => wrong_answer(),
             },
             Phase::ClosingSnapshot { next } | Phase::ClosingRecovered { next } => match event {
-                Done::Finished => recovered_file_closed(store, dir, next, &mut step),
+                Done::Finished => store.next_log(dir, next, &mut step),
                 Done::Failed { .. } => open_failed(dir, Failure::Io, &mut step),
-                Done::Listed { .. } | Done::Opened { .. } | Done::Read { .. } => {
-                    unreachable!("the file answer must match this phase's request")
-                }
+                Done::Listed { .. } | Done::Opened { .. } | Done::Read { .. } => wrong_answer(),
             },
             Phase::OpeningLog { name, next } => match event {
                 Done::Opened { file, len } => {
                     log_opened(store, dir, name, next, ReadAt { file, len, at: 0 }, &mut step)
                 }
                 Done::Failed { .. } => open_failed(dir, Failure::Io, &mut step),
-                Done::Listed { .. } | Done::Read { .. } | Done::Finished => {
-                    unreachable!("the file answer must match this phase's request")
-                }
+                Done::Listed { .. } | Done::Read { .. } | Done::Finished => wrong_answer(),
             },
             Phase::ReadingLog { file, len, at, bytes, next } => match event {
                 Done::Read { bytes: read } => {
                     log_read(store, dir, ReadAt { file, len, at }, bytes, next, read, &mut step)
                 }
                 Done::Failed { .. } => open_failed_file(dir, file, Failure::Io, step.below),
-                Done::Listed { .. } | Done::Opened { .. } | Done::Finished => {
-                    unreachable!("the file answer must match this phase's request")
-                }
+                Done::Listed { .. } | Done::Opened { .. } | Done::Finished => wrong_answer(),
             },
             Phase::RemovingTail { name } => match event {
-                Done::Finished => tail_removed(dir, name, step.below),
+                Done::Finished => create_segment(dir, name, step.below),
                 Done::Failed { .. } => open_failed(dir, Failure::Io, &mut step),
-                Done::Listed { .. } | Done::Opened { .. } | Done::Read { .. } => {
-                    unreachable!("the file answer must match this phase's request")
-                }
+                Done::Listed { .. } | Done::Opened { .. } | Done::Read { .. } => wrong_answer(),
             },
             Phase::Creating { name } => match event {
                 Done::Opened { file, .. } => segment_created(dir, name, file, step.below),
                 Done::Failed { .. } => open_failed(dir, Failure::Io, &mut step),
-                Done::Listed { .. } | Done::Read { .. } | Done::Finished => {
-                    unreachable!("the file answer must match this phase's request")
-                }
+                Done::Listed { .. } | Done::Read { .. } | Done::Finished => wrong_answer(),
             },
             Phase::Announcing { file } => match event {
                 Done::Finished => segment_announced(store, dir, file, &mut step),
                 Done::Failed { .. } => open_failed_file(dir, file, Failure::Io, step.below),
-                Done::Listed { .. } | Done::Opened { .. } | Done::Read { .. } => {
-                    unreachable!("the file answer must match this phase's request")
-                }
+                Done::Listed { .. } | Done::Opened { .. } | Done::Read { .. } => wrong_answer(),
             },
             Phase::Writing { log, batch } => match event {
                 Done::Finished => batch_written(dir, log, batch, step.below),
                 Done::Failed { .. } => commits_failed(store, dir, Some(log.file), batch, &mut step),
-                Done::Listed { .. } | Done::Opened { .. } | Done::Read { .. } => {
-                    unreachable!("the file answer must match this phase's request")
-                }
+                Done::Listed { .. } | Done::Opened { .. } | Done::Read { .. } => wrong_answer(),
             },
             Phase::Syncing { log, batch } => match event {
                 Done::Finished => batch_synced(store, dir, log, batch, &mut step),
                 Done::Failed { .. } => commits_failed(store, dir, Some(log.file), batch, &mut step),
-                Done::Listed { .. } | Done::Opened { .. } | Done::Read { .. } => {
-                    unreachable!("the file answer must match this phase's request")
-                }
+                Done::Listed { .. } | Done::Opened { .. } | Done::Read { .. } => wrong_answer(),
             },
             Phase::Closing => match event {
                 Done::Finished | Done::Failed { .. } => closed(dir, step.above),
-                Done::Listed { .. } | Done::Opened { .. } | Done::Read { .. } => {
-                    unreachable!("the file answer must match this phase's request")
-                }
+                Done::Listed { .. } | Done::Opened { .. } | Done::Read { .. } => wrong_answer(),
             },
             Phase::RecoveryClosing => match event {
                 Done::Finished | Done::Failed { .. } => recovery_closed(store, dir, &mut step),
-                Done::Listed { .. } | Done::Opened { .. } | Done::Read { .. } => {
-                    unreachable!("the file answer must match this phase's request")
-                }
+                Done::Listed { .. } | Done::Opened { .. } | Done::Read { .. } => wrong_answer(),
             },
             Phase::RolloverClosing => match event {
                 Done::Finished => rollover_closed(store, dir, &mut step),
                 Done::Failed { .. } => commits_failed(store, dir, None, Queue::with_capacity(0), &mut step),
-                Done::Listed { .. } | Done::Opened { .. } | Done::Read { .. } => {
-                    unreachable!("the file answer must match this phase's request")
-                }
+                Done::Listed { .. } | Done::Opened { .. } | Done::Read { .. } => wrong_answer(),
             },
             Phase::SnapshotFailureClosing { log } => match event {
                 Done::Finished | Done::Failed { .. } => {
                     commits_failed(store, dir, Some(log.file), Queue::with_capacity(0), &mut step)
                 }
-                Done::Listed { .. } | Done::Opened { .. } | Done::Read { .. } => {
-                    unreachable!("the file answer must match this phase's request")
-                }
+                Done::Listed { .. } | Done::Opened { .. } | Done::Read { .. } => wrong_answer(),
             },
             Phase::OpenFailureClosing { failure } => match event {
                 Done::Finished | Done::Failed { .. } => open_failed(dir, failure, &mut step),
-                Done::Listed { .. } | Done::Opened { .. } | Done::Read { .. } => {
-                    unreachable!("the file answer must match this phase's request")
-                }
+                Done::Listed { .. } | Done::Opened { .. } | Done::Read { .. } => wrong_answer(),
             },
             Phase::Ready { .. } => unreachable!("no file request is outstanding"),
             Phase::SnapIo { log } => match event {
@@ -861,6 +831,11 @@ pub fn up(
             },
         },
     };
+}
+
+/// A file answer `up` has no cell for: at most one request is outstanding, so the phase knows it.
+fn wrong_answer() -> ! {
+    unreachable!("the file answer must match this phase's request")
 }
 
 fn listed(store: &mut Store, mut dir: Dir, entries: Box<[file::Entry]>, step: &mut Step<'_>) -> State {
@@ -888,12 +863,8 @@ fn listed(store: &mut Store, mut dir: Dir, entries: Box<[file::Entry]>, step: &m
         });
         dir.at(Phase::RemovingTempOnOpen { snapshot })
     } else {
-        store.start_recovery(dir, snapshot, step.below, &step.env.limits)
+        store.start_recovery(dir, snapshot, step)
     }
-}
-
-fn temp_removed(store: &mut Store, dir: Dir, snapshot: bool, step: &mut Step<'_>) -> State {
-    store.start_recovery(dir, snapshot, step.below, &step.env.limits)
 }
 
 struct ReadAt {
@@ -966,10 +937,6 @@ fn snapshot_read(
         step.below.push(file::Request::Close { owner: IO_OWNER, file });
         dir.at(Phase::ClosingSnapshot { next })
     }
-}
-
-fn recovered_file_closed(store: &mut Store, dir: Dir, next: usize, step: &mut Step<'_>) -> State {
-    store.next_log(dir, next, step.below, &step.env.limits)
 }
 
 #[expect(
@@ -1056,10 +1023,6 @@ fn log_damaged(store: &mut Store, dir: Dir, file: Token, below: &mut Queue<file:
     dir.at(Phase::ClosingRecovered { next })
 }
 
-fn tail_removed(dir: Dir, name: Box<[u8]>, below: &mut Queue<file::Request>) -> State {
-    create_segment(dir, name, below)
-}
-
 fn create_segment(dir: Dir, name: Box<[u8]>, below: &mut Queue<file::Request>) -> State {
     below.push(file::Request::Create { owner: IO_OWNER, root: dir.root, name: name.clone(), mode: 0o600 });
     dir.at(Phase::Creating { name })
@@ -1131,7 +1094,7 @@ fn recovery_closed(store: &mut Store, mut dir: Dir, step: &mut Step<'_>) -> Stat
             step.below.push(file::Request::Close { owner: IO_OWNER, file });
             dir.at(Phase::RecoveryClosing)
         }
-        None => store.recover(dir, step.below, &step.env.limits),
+        None => store.recover(dir, step),
     }
 }
 
