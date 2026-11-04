@@ -720,7 +720,7 @@ ${events.length ? `\n${events.map(esc).join('\n')}\n` : ''}<span class="cursor">
     const prev = WIZ[Math.max(0, WIZ.indexOf(at) - 1)];
     const foot = `<nav class="setup-foot"><a class="link" href="welcome.html?at=${prev}">‹ Back</a>${f ? '' : '<button type="button" class="link plain" data-playground>Try the playground instead</button>'}</nav>`;
     const head = (h, l) => `<header class="setup-head"><h1 class="headline">${h}</h1>${l ? `<p class="lede">${l}</p>` : ''}</header>`;
-    const choice = (title, text, meta, acts, cls = '') => `<section class="choice${cls}"><div><h2>${title}</h2><p>${text}</p><p class="meta">${meta}</p></div><div class="acts">${acts}</div></section>`;
+    const choice = (title, text, meta, acts, cls = '') => `<section class="choice${cls}"><div><h2>${title}</h2><p>${text}</p>${meta ? `<p class="meta">${meta}</p>` : ''}</div><div class="acts">${acts}</div></section>`;
     let body;
     if (at === 'welcome') {
       body = `<header class="setup-head"><p class="kicker">Reliable, scalable and flexible software factory.</p><h1 class="headline">Welcome to temper</h1><p class="lede">You describe <strong>what</strong> you want and <strong>how</strong> you want it done, and it happens.</p></header>
@@ -745,9 +745,9 @@ ${events.length ? `\n${events.map(esc).join('\n')}\n` : ''}<span class="cursor">
       const way = params.get('way');
       const status = f ? forgeStatus(f) : '';
       if (m && m.state === 'away') {
-        body = `${status}${head('What your agents run on')}<div class="away-note"><span class="spin" aria-hidden="true"></span><div><p><b>ChatGPT’s sign-in, in this tab</b></p><p class="muted">You sign in and approve temper; ChatGPT sends this tab back to temper’s listener on this machine, and on to Ready.</p><p class="mock-inline">Mockup: ChatGPT’s own pages are skipped; back in a moment.</p></div></div>`;
+        body = `${status}${head('Connect a model')}<div class="away-note"><span class="spin" aria-hidden="true"></span><div><p><b>ChatGPT’s sign-in, in this tab</b></p><p class="muted">You sign in and approve temper; ChatGPT sends this tab back to temper’s listener on this machine, and on to Ready.</p><p class="mock-inline">Mockup: ChatGPT’s own pages are skipped; back in a moment.</p></div></div>`;
       } else if (m && ['finishing', 'checking'].includes(m.state)) {
-        body = `${status}${head('What your agents run on')}<div class="away-note"><span class="spin" aria-hidden="true"></span><div><p><b>${m.state === 'finishing' ? 'Finishing your sign-in…' : 'Checking Claude Code’s sign-in on this machine…'}</b></p></div></div>`;
+        body = `${status}${head('Connect a model')}<div class="away-note"><span class="spin" aria-hidden="true"></span><div><p><b>${m.state === 'finishing' ? 'Finishing your sign-in…' : 'Checking Claude Code’s sign-in on this machine…'}</b></p></div></div>`;
       } else if (way === 'paste') {
         body = `${status}${head('Signing in to ChatGPT from another computer')}
           <section class="panel">
@@ -772,13 +772,12 @@ ${events.length ? `\n${events.map(esc).join('\n')}\n` : ''}<span class="cursor">
             <div class="acts"><button type="button" class="btn primary" data-claude-check>I’ve signed in</button><a class="btn quiet" href="welcome.html?at=model">All ways</a></div>
           </section>${foot}`;
       } else if (m?.ready) {
-        body = `${status}${head('What your agents run on')}<div class="forge-status done"><p><span class="ok">✓</span><b>${esc(m.name)}</b><span class="sep">·</span><span class="muted">${esc(m.who)}</span></p></div><div class="acts"><a class="btn primary" href="welcome.html?at=ready">Continue</a></div>${foot}`;
+        body = `${status}${head('Connect a model')}<div class="forge-status done"><p><span class="ok">✓</span><b>${esc(m.name)}</b><span class="sep">·</span><span class="muted">${esc(m.who)}</span></p></div><div class="acts"><a class="btn primary" href="welcome.html?at=ready">Continue</a></div>${foot}`;
       } else {
-        body = `${status}${head('What your agents run on', 'A plan you sign in to, or a key. Add others later, and choose per project.')}
-          <div class="choices-list">
-            ${choice('ChatGPT', 'Your ChatGPT plan: temper’s agents use its included usage.', 'Sign in, in a browser on temper’s machine · about a minute', `<button type="button" class="btn primary" data-chatgpt>Continue with ChatGPT</button><a class="link small" href="welcome.html?at=model&amp;way=paste">This browser isn’t on temper’s computer ›</a>`)}
-            ${choice('Claude', 'Your Claude subscription, through Claude Code signed in on each machine agents run on.', 'A command in a terminal there · about two minutes', '<a class="btn" href="welcome.html?at=model&amp;way=claude">Use your Claude subscription</a>')}
-            ${choice('An OpenAI API key', 'A key from OpenAI’s platform, billed to its organization.', 'Pasted here · at once', '<a class="btn" href="welcome.html?at=model&amp;way=key">Use an API key</a>')}
+        body = `${status}${head('Connect a model', 'temper’s agents run on it: on a plan you sign in to, or on a key.')}
+          <div class="choices-grid">
+            ${choice('ChatGPT', 'Your ChatGPT plan: sign in, and temper’s agents use its included usage.', 'Or paste a key from OpenAI’s platform, billed to its organization.', '<button type="button" class="btn primary" data-chatgpt>Continue with ChatGPT</button><a class="link" href="welcome.html?at=model&amp;way=key">Use an OpenAI API key</a>')}
+            ${choice('Claude', 'Your Claude subscription, through Claude Code on each host temper’s agents run on.', '', '<a class="btn" href="welcome.html?at=model&amp;way=claude">Use your Claude subscription</a>')}
           </div>${foot}`;
       }
     } else {
