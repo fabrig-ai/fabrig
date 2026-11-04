@@ -5,11 +5,6 @@
 - **Not yet:** 4: the fake machine's entry inodes, groups, modes past
   `0o777`, times and attributes, its subvolume and filesystem answers,
   and the programs for trees.
-  6, 10: the gate's wasm32 list (`.config/gate/wasm32.txt`) leaves out
-  `skein-tls`, `skein-fake-forge-github` and `skein-fake-peers`, and no
-  listed package reaches them on wasm32, so the gate's wasm32 clippy
-  lints none of them; run outside the gate, their wasm32 clippy passes,
-  warnings denied.
   7: `live-skein` has no CPU budget or wall hard limit in
   `tools/tiers/budgets.toml`.
 - **Departs:** 5, 10: `skein/testing/skein-world/src/lib.rs` fences six

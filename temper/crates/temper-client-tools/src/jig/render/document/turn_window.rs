@@ -12,6 +12,7 @@ pub(super) struct Window {
     selected: Option<u64>,
     from: u64,
     limit: usize,
+    conversation: bool,
 }
 impl Window {
     pub fn reset(&mut self, name: c::TurnName) {
@@ -26,10 +27,22 @@ impl Window {
             selected: if call.tool == 6 { number(call, 2) } else { None },
             from: if call.tool == 6 { number(call, 3).unwrap_or(0) } else { 0 },
             limit: usize::try_from(limit).expect("part bound fits"),
+            conversation: call.tool == crate::jig::rows::CHAT_AT,
         }
     }
 }
 impl super::Cut {
+    /// Keep archived part positions while leaving conversation payloads for task turn.
+    pub(super) fn payload(&mut self, bytes: &[u8], out: &mut Encoder) {
+        if let Some(window) = &mut self.turn
+            && window.conversation
+        {
+            window.part = window.part.checked_add(1).expect("bounded turn parts");
+            out.null();
+            return;
+        }
+        self.part(bytes, out);
+    }
     pub(super) fn part(&mut self, bytes: &[u8], out: &mut Encoder) {
         let Some(window) = &mut self.turn else {
             self.words(bytes, out);

@@ -15,13 +15,18 @@ fn ask() -> w::Ask {
         .expect("settings fixture"),
     )
 }
-#[test]
-fn all_four_whole_values_translate_and_the_component_passes_the_exact_asks_digest() {
+fn whole_settings_exchange() -> Exchange {
     let mut env = f::env();
     env.limits.message_bytes = 8192;
     env.limits.wire.keyed_request = 8192;
     let mut exchange = Exchange::with_env(env);
     exchange.component.settings.models[0].name = Box::from(b"model".as_slice());
+    exchange.component.settings.models[1].name = Box::from(b"other".as_slice());
+    exchange
+}
+#[test]
+fn all_four_whole_values_translate_and_the_component_passes_the_exact_asks_digest() {
+    let mut exchange = whole_settings_exchange();
     let wire = ask();
     let encoded = f::encode_ask(&wire);
     let expected_digest = crate::sign_in::digest(&encoded).expose().try_into().expect("settings fixture");
@@ -174,6 +179,9 @@ fn settings_answers_and_each_fault_keep_their_facts() {
 
 fn proposal_ask() -> w::Ask {
     let w::Ask::ChangeSettings(value) = ask() else { panic!("settings fixture") };
+    proposed_settings(value)
+}
+fn proposed_settings(value: w::ChangeSettings) -> w::Ask {
     let value = value.into_parts();
     let limits = f::wire();
     w::Ask::Propose(
@@ -194,14 +202,97 @@ fn proposal_ask() -> w::Ask {
         .expect("proposal ask"),
     )
 }
+fn template_choice(model: &[u8], effort: &[u8]) -> jig_client_domain::contract::ModelEffort {
+    use jig_client_domain::contract as c;
+    c::ModelEffort {
+        model: c::Text::new(model.into(), f::wire().model_effort_model).unwrap(),
+        effort: Some(c::Text::new(effort.into(), f::wire().model_effort_effort_some).unwrap()),
+    }
+}
+fn template_requests(
+    main: jig_client_domain::contract::ModelEffort,
+    subagents: List<jig_client_domain::contract::ModelEffort>,
+) -> [w::Ask; 2] {
+    use jig_client_domain::contract as c;
+    let mut item = jig_client_test_records::settings::settings_change()
+        .items
+        .into_boxed()
+        .into_iter()
+        .nth(1)
+        .expect("template item");
+    item.setting = c::Setting::Template(c::SettingNumber { number: 4 });
+    let c::SettingEdit::Set(set) = &mut item.edit else { panic!("set") };
+    let c::SettingValue::Template(template) = &mut set.value else { panic!("template") };
+    template.number = 4;
+    template.llm = Some(c::LlmChoice { account: None, main, subagents });
+    let change =
+        c::ChangeSettings { against: 5, running: c::Running::Stays, items: List::from_boxed(Box::new([item])) };
+    let change = jig_client_protocol_link::translate::settings::wire_change_settings(&change, &f::wire()).unwrap();
+    [w::Ask::ChangeSettings(change.clone()), proposed_settings(change)]
+}
+fn send_template(ask: &w::Ask) -> (Exchange, skein_lib::Token) {
+    let mut settings = f::settings();
+    settings.models[0].efforts =
+        Box::new([Box::from(b"high".as_slice()), Box::from(b"medium".as_slice()), Box::from(b"low".as_slice())]);
+    let mut exchange = Exchange::configured(f::env(), settings);
+    let owner = exchange.send(crate::Message::Request(f::keyed(w::Owner::Jig, 19, f::encode_ask(ask))));
+    exchange.authenticate();
+    (exchange, owner)
+}
+fn admitted_items(event: core::Event) -> Box<[s::Item]> {
+    let core::Event::ChangeSettings { change, .. } = event else {
+        let core::Event::ProposeSettings { change, .. } = event else { panic!("settings entrance: {event:?}") };
+        return change.items;
+    };
+    change.items
+}
+#[test]
+fn unsupported_template_efforts_receive_a_final_refusal() {
+    for (main, subagents, model, why) in [
+        (template_choice(b"careful", b"xhigh"), List::with_capacity(0), b"careful".as_slice(), w::LlmWhy::Effort),
+        (
+            template_choice(b"careful", b"high"),
+            List::from_boxed(Box::new([template_choice(b"careful", b"xhigh")])),
+            b"careful".as_slice(),
+            w::LlmWhy::Effort,
+        ),
+        (template_choice(b"absent", b"high"), List::with_capacity(0), b"absent".as_slice(), w::LlmWhy::Unconfigured),
+    ] {
+        for ask in template_requests(main, subagents) {
+            let (exchange, owner) = send_template(&ask);
+            assert!(exchange.out.is_empty(), "invalid settings reached the core: {ask:?}");
+            let w::Final::Refused(value) = exchange.final_answer(owner) else { panic!("final refusal: {ask:?}") };
+            let w::Refusal::Llm(refusal) = value.refusal() else { panic!("named LLM refusal: {ask:?}") };
+            assert_eq!(refusal.model(), model);
+            assert_eq!(*refusal.why(), why);
+            assert_eq!(*value.at(), None);
+        }
+    }
+}
+#[test]
+fn supported_template_efforts_reach_the_core() {
+    let expected = jig_domain_tasks::ModelEffort { model: 0, effort: Some(0) };
+    for ask in template_requests(
+        template_choice(b"careful", b"high"),
+        List::from_boxed(Box::new([template_choice(b"careful", b"high")])),
+    ) {
+        let (mut exchange, _owner) = send_template(&ask);
+        let Some(Request::Core(event)) = exchange.out.pop() else { panic!("core entrance: {ask:?}") };
+        let items = admitted_items(*event);
+        let [s::Item { setting: s::Setting::Template(4), edit: s::Edit::Set(s::Value::Template(template)) }] =
+            items.as_ref()
+        else {
+            panic!("only template 4")
+        };
+        let llm = template.llm.as_ref().expect("template choice");
+        assert_eq!(llm.main, expected);
+        assert_eq!(llm.subagents.as_ref(), &[expected]);
+        assert!(exchange.out.is_empty());
+    }
+}
 #[test]
 fn settings_proposals_reach_the_core_with_the_whole_set_and_exact_digest() {
-    let mut env = f::env();
-    env.limits.message_bytes = 8192;
-    env.limits.wire.keyed_request = 8192;
-    let mut exchange = Exchange::with_env(env);
-    exchange.component.settings.models[0].name = b"model".as_slice().into();
-    exchange.component.settings.models[1].name = b"other".as_slice().into();
+    let mut exchange = whole_settings_exchange();
     let ask = proposal_ask();
     let bytes = f::encode_ask(&ask);
     let digest: [u8; 32] = crate::sign_in::digest(&bytes).expose().try_into().expect("digest");

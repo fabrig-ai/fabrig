@@ -132,7 +132,7 @@ impl Workers {
                 events.push(root::Event::Worker(root::WorkerInput::Link {
                     channel,
                     link: root::Link::Hello { worker, hello },
-                }))
+                }));
             }
             kit::host::Output::Up { channel, up, parts } => self.received(channel, up, &parts, events),
             kit::host::Output::Lost { channel } => {

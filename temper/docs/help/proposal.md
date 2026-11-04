@@ -23,7 +23,20 @@ its name.
 
 A proposal of settings carries its items, the revision it was made
 against, and its reason. Its review shows, for each item, the value now
-and the value it would be, each whole.
+and the value it would be, each whole. It groups changes under "temper
+enforces" and "your agents follow": instructions and documents are for
+agents to follow; other charter fields and rules are enforced. A charter
+changing both appears in both groups, with its whole values below.
+
+The review counts live tasks by the revisions they hold. New work takes
+accepted settings; accepting restarts nothing. With `--running stays`
+(the default), tasks keep their charter revision; `--running moves`
+moves compatible tasks at their next run. Conversations move at their
+next run with either choice. A task whose charter is removed or whose
+model is no longer allowed retains its revision. A live run continues
+until it ends. Authority, including current rules and project policy,
+stays current even when a task keeps its charter revision. The review
+explains these conditions; it does not count which tasks could move.
 
 ## How it changes
 

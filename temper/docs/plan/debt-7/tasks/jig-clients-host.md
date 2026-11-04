@@ -39,8 +39,8 @@ Acceptance:
   keeps its name and module. `jig/docs/design/domain/root.md`, 5 names `ending_commit_durable`: the shipped `Endings` keeps
   a private method of that name.
 - `jig/docs/design/protocol/service.status.md` no longer lists the clients' side.
-- **Size cap:** the branch's net lines are at most +80, tests included: about 325 lines ship and `J/clients.rs` falls by about
-  290. `temper-clients-host` then falls by about 245. Measure it, and stop and ask if it's passed.
+- **Size cap:** the branch's net lines are at most +100, tests included: about 390 lines ship and `J/clients.rs` and `public.rs`
+  fall by about 290. `temper-clients-host` then falls by about 245. Measure it, and stop and ask if it's passed.
 
 ## Inputs
 
@@ -232,3 +232,63 @@ From `notes/service-parts.md` and the survey. Every line keeps each service's be
 ## Report
 
 The common note's items, with the test's break, and net lines against the cap.
+
+## Answers
+
+2026-11-04. Q: the branch measures net +139 against a cap of +80: take +139, or revise the outer layer to fit +80?
+
+Neither. The cap becomes **+100** (20 lines, 25%, the most the plan owner's answer of 2026-11-04 lets an answer call
+raise), and the branch compacts to meet it; +139 isn't accepted. Why +80 can't hold: what's left is what the design
+needs. `Bridge::answer`, `secret_request`, `kept`, `ending` and `settings` are exhaustive matches and one literal, with no
+`if let` or `_` arm (`skein/docs/foundation/programming-model.md`, on matches), so they move at their size; the estimate
+counted about 325 shipped lines where the compacted branch ships 388.
+
+Keep commit `62e319090e` and add a commit on the branch. A trial of the edits below, formatted by `rustfmt`, measures
+417 added and 319 removed against `158b027a6e`: **+98**. The trial couldn't be built where it ran, so step 9 proves it. The
+surface, `next`'s name (`jig/docs/design/protocol/service.md`, 11.6 uses it), the assertions and every behaviour stay.
+
+- `printed_link`, after `let host`: only `skein_lib::bytes::concat(&[b"http://", &host, path])`, which already does what the
+  body writes by hand.
+- `served`: only
+
+  ```rust
+  use jig_client_protocol_wire::VERSION;
+  List::from_boxed(Box::new([kit::Served { family: None, first: VERSION, last: VERSION }, application]))
+  ```
+
+- `Bridge::answer`: drop `fn carry`, with its `expect` and `unreachable!` texts in the arm:
+
+  ```rust
+  Event::Carried { owner, number } => match self.owners.remove(&owner).expect("secret carry owner") {
+      Asked::Carry(exchange) => kit::SecretsAnswer::Carried { exchange, number: Some(number) },
+      Asked::Owner(_) => unreachable!("the store answers Carried only to a carry"),
+  },
+  ```
+
+  and `Event::Secret`'s arm, the owner still taken first:
+
+  ```rust
+  let owner = self.owner(owner);
+  let Some(value) = value else { return kit::SecretsAnswer::Got { owner, value: None } };
+  let Some(value) = kept(value) else { return kit::SecretsAnswer::Failed };
+  kit::SecretsAnswer::Got { owner, value: Some(value) }
+  ```
+
+- `address_text`: drop `use ::core;`, write `::core::net::IpAddr` in the arms, and for the `V6` arm:
+
+  ```rust
+  ::core::net::IpAddr::V6(ip) if ip.is_loopback() => text.append(b"[::1]").ok()?,
+  ::core::net::IpAddr::V6(_) => return None,
+  ```
+
+- `waiting`'s loop body: `let left = ending.numbers.len().checked_sub(ending.next).expect("ending index");`, then
+  `count = count.checked_add(left).expect("bounded sign-in endings");`.
+- `Asked`'s and `place`'s docs, one line each:
+  `/// What a request in flight was for: a kept value's owner, or the exchange whose carried value the store numbers.` and
+  `/// Where the store keeps an owner's value; a carried one is the application's, under the store's number (store.md, 9).`
+- `host/tests.rs`: the added test's `const COMMITS` goes, `Endings::new(2)`. The moved test stays as it is.
+- `J/clients.rs`: `use jig_client_test_protocol_wire::VERSION;` with the crate's other `use`s, and in `new`
+  `served: kit::host::served(kit::Served { family: Some(1), first: VERSION, last: VERSION }),`.
+
+Then step 9 whole, each count checked. `ending_commit_durable` doesn't change, so the reported break stands. The report
+gives the net lines against +100, measured from `158b027a6e8eaf2e2c97e84c932a265bb6a49dbb`.

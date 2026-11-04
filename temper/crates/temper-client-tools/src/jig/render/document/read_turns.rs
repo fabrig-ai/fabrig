@@ -32,7 +32,7 @@ pub(super) fn encode_block(value: &jig_client::contract::Block, out: &mut Encode
             out.key(b"call");
             out.unsigned(*(call));
             out.key(b"summary");
-            budget.part((summary).bytes(), out);
+            budget.payload((summary).bytes(), out);
             out.key(b"failed");
             out.boolean(*(failed));
             out.object_end();
@@ -48,11 +48,11 @@ pub(super) fn encode_call(value: &jig_client::contract::Call, out: &mut Encoder,
     out.key(b"tool");
     out.string(value.tool.bytes());
     out.key(b"input");
-    budget.part(value.input.bytes(), out);
+    budget.payload(value.input.bytes(), out);
     out.key(b"outcome");
     match &value.outcome {
         Some(item_1) => {
-            budget.part((item_1).bytes(), out);
+            budget.payload((item_1).bytes(), out);
         }
         None => out.null(),
     }

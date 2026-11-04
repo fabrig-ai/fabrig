@@ -148,6 +148,8 @@ pub struct SetupStep {
 /// Operator diagnostics taken by the shell (protocol/forge.md, 2.3).
 #[derive(PartialEq, Eq, Debug)]
 pub enum Note {
+    /// A failed answer accepted by the hub, for stderr only (domain/worker.md, 4.3).
+    RunFailed(temper_engine_domain::RunDiagnostic),
     /// A forge read refusal with its task, tool, layer and authority findings.
     ReadRefused {
         task: u64,

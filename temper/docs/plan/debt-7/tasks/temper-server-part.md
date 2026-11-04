@@ -96,3 +96,46 @@ The shipped server is temper's form. The two lines where it isn't:
 
 The common note's items, the measure by file, the browser tier's counts, and net lines against the cap. No test is added;
 the one that moves needs no break.
+
+## Answers
+
+2026-11-04. Does the -340 cap read against the base with the needs merged (-397), or against the integration base the
+run started from (-186)? **Against the base with the needs merged: -397 meets the cap, nothing to cut.** The cap was
+set for this task's own lines; the +211 between the two figures is `jig-server-part`'s and `temper-workers-host`'s
+work, counted against their caps. `notes/common.md` now says so. The figure is `git diff --shortstat 85e80b7286
+fcfee88275`: 42 insertions, 439 deletions, and `fcfee88275` is the only commit of the branch that isn't a merge.
+
+Keep the pushed work at `fcfee88275` and finish what the stop left, on this branch: confirm `git status` shows
+`debt-7/temper-server-part` at that commit first, since the last run's slot was switched under it, and leave out
+anything in `jig/crates/jig-domain-tasks/src/control.rs`, which isn't this task's. Then `cargo fmt` and the old-forms
+check on this branch, which last ran on the switched checkout; step 5's clippy, which also checks the `expect` on
+`Page::Service`; the full `temper-service` nextest; `temper`'s and the direct dependents' checks; step 6's browser
+tier; and the citations check.
+
+### 2026-11-04: Run the remaining checks on the supplied merge HEAD 9fdba1c656 (recommended), or have fab restore the slot to fcfee88275 first? The task's answer requires confirming HEAD at fcfee88275 before continuing, but this slot starts at a later merge. (debt-7/temper-server-part-2, foreman debt-7/temper-server-part/foreman-2)
+
+Have fab restore the slot to fcfee88275 before continuing the remaining checks.
+The task’s Answers section requires: “confirm `git status` shows `debt-7/temper-server-part` at that commit first”.
+The reported merge HEAD 9fdba1c656 does not meet that explicit precondition, even though the five task paths are unchanged.
+The next run confirms the branch and commit, preserves the pushed implementation, and completes the checks listed in Answers.
+Leave `jig/crates/jig-domain-tasks/src/control.rs` outside this task.
+
+### 2026-11-04: Have fab restore this slot to fcfee88275 before resuming (recommended, as already answered), or explicitly amend the required HEAD precondition to permit 175cd8b355? (debt-7/temper-server-part-3, foreman debt-7/temper-server-part/foreman-3)
+
+Have fab restore the slot to fcfee88275 before continuing the remaining checks.
+The task’s Answers explicitly say: “Have fab restore the slot to fcfee88275 before continuing the remaining checks.”
+They require: “confirm `git status` shows `debt-7/temper-server-part` at that commit first”.
+The reported HEAD 175cd8b355 does not meet that precondition.
+The next run confirms the branch and commit, preserves the pushed implementation, and completes the remaining checks and measurements.
+Leave `jig/crates/jig-domain-tasks/src/control.rs` outside this task.
+
+### 2026-11-04: Have fab restore slot 4 to fcfee88275 before resuming (recommended, as already answered), or explicitly amend the required HEAD precondition to permit d138fc2c7d? (debt-7/temper-server-part-4, foreman debt-7/temper-server-part/foreman-4)
+
+Have fab restore the slot to fcfee88275 before continuing the remaining checks.
+The task’s Answers explicitly say: “Have fab restore the slot to fcfee88275 before continuing the remaining checks.”
+They require: “confirm `git status` shows `debt-7/temper-server-part` at that commit first”.
+The reported HEAD d138fc2c7d does not meet that precondition.
+The next run confirms the branch and commit, preserves the pushed implementation, and completes the remaining checks and measurements.
+Leave `jig/crates/jig-domain-tasks/src/control.rs` outside this task.
+
+2026-11-04 (agents/loop, for fabrig/debt). The earlier answer's exact-HEAD precondition can't hold: fab merges the trunk into the branch at each run's start, so HEAD is never fcfee88275 itself. **Drop it: accept a merge whose first parent is fcfee88275, and carry on with the remaining checks.** The size figure stands: -397 against the cap of -340, from `git diff --shortstat 85e80b7286 fcfee88275`.

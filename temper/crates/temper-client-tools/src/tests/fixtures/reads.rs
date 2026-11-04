@@ -24,6 +24,85 @@ pub(crate) const ACTIVITY_CALL: &[&str] = &["task", "activity", TASK_CALL[2]];
 pub(crate) const CHAT_CALL: &[&str] = &["chat", "show", TASK_CALL[2]];
 /// Two distinct kept turns make losing either conversation entry observable.
 pub(crate) const KEPT_TURNS: &[&[u8]] = &[b"First kept turn", b"Second kept turn"];
+/// The known question fragment, fixture answer and proposal, and recorded acceptance.
+pub(crate) const CONVERSATION_WORDS: &[&[u8]] = &[
+    b"that is the other person if",
+    b"Use the project's default.",
+    b"Proposal 2 is ready for review.",
+    b"Proposal 2 was accepted and made revision 2.",
+];
+/// Three runs surround a question, a person's answer, a proposal and its acceptance.
+pub(crate) fn settings_conversation(payloads: bool) -> c::ReadResult {
+    let mut rows = List::with_capacity(10);
+    for (attempt, number, start, position, end, words) in [
+        (1, 1, 1, 2, 3, CONVERSATION_WORDS[0]),
+        (2, 9, 25, 26, 27, CONVERSATION_WORDS[2]),
+        (3, 1, 28, 29, 30, CONVERSATION_WORDS[3]),
+    ] {
+        if attempt == 2 {
+            rows.push(crate::tests::documents::line(
+                24,
+                Wall::EPOCH,
+                c::Activity::Words {
+                    message: 24,
+                    by: c::Requester::Person(PARTY),
+                    kind: c::MessageKind::Answer { question: 1 },
+                    words: turn_words(CONVERSATION_WORDS[1]),
+                },
+            ))
+            .expect("one person's answer");
+        }
+        rows.push(crate::tests::documents::line(
+            start,
+            Wall::EPOCH,
+            c::Activity::RunBegan { attempt, why: c::RunWhy::Ready, resumed: false },
+        ))
+        .expect("run start");
+        rows.push(crate::tests::documents::turn(
+            position,
+            Wall::EPOCH,
+            c::TurnName { attempt, number },
+            settings_reply(words, payloads),
+        ))
+        .expect("conversation turn");
+        rows.push(crate::tests::documents::line(
+            end,
+            Wall::EPOCH,
+            c::Activity::RunEnded { attempt, end: c::RunEnd::Parked, spent: 0 },
+        ))
+        .expect("run end");
+    }
+    c::ReadResult::Value(c::ReadValue::Activity(Box::new(c::ActivityPage {
+        cut: false,
+        rows,
+        before: None,
+        after: None,
+    })))
+}
+fn settings_reply(words: &[u8], payloads: bool) -> c::TurnRead {
+    let mut blocks = List::with_capacity(3);
+    if payloads {
+        blocks
+            .push(c::Block::Call(c::Call {
+                number: 1,
+                tool: turn_words(b"settings_read"),
+                input: text(crate::limits::PART),
+                outcome: Some(text(crate::limits::PART - 16)),
+                failed: false,
+                objects: List::with_capacity(EMPTY),
+                parts: List::with_capacity(EMPTY),
+            }))
+            .expect("settings read call");
+        blocks
+            .push(c::Block::Result { call: 1, summary: turn_words(b"read"), failed: false })
+            .expect("settings read result");
+    }
+    blocks.push(c::Block::Text(turn_words(words))).expect("reply after tool payloads");
+    let c::ReadResult::Value(c::ReadValue::Turn(turn)) = turn_blocks(blocks) else {
+        unreachable!("decoded turn fixture")
+    };
+    turn.turn
+}
 pub(crate) fn kept_conversation() -> c::ReadResult {
     let mut rows = List::with_capacity(u32::try_from(KEPT_TURNS.len()).expect("two turns"));
     for (index, words) in KEPT_TURNS.iter().enumerate() {
