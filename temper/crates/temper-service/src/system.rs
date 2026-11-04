@@ -272,7 +272,7 @@ impl Service {
             links: Queue::with_capacity(own.sign_in.pending),
         })
     }
-    // The stock small profile's Prepared::room on main 8cd49c3d47:
+    // The stock small profile's Prepared::room:
     // twice its worker root output bound of 5,099. These kernel-facing
     // process queues retain that capacity independently of the watermark.
     const WORKER_ALONE_QUEUE: u32 = 10_198;

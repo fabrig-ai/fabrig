@@ -87,8 +87,8 @@ pub struct Referee {
     assignments: Vec<u64>,
     claims: BTreeSet<u64>,
     unplaced_claims: BTreeSet<u64>,
-    /// Scripted winners in decision order. Passing keeps the hold's revision
-    /// (jig 00de0b8c), so the order, not the revision, names a decision.
+    /// Scripted winners in decision order. Passing keeps the hold's revision,
+    /// so the order, not the revision, names a decision.
     offers: BTreeMap<u64, (u64, people::EscalationDecision)>,
     /// Archived decisions in the same order; a later one at the same revision
     /// replaces the earlier row in the store.
@@ -724,7 +724,7 @@ impl Referee {
         let record = task(rows, number).ok_or("missing final task")?;
         let expected_funder =
             tasks::Funder::Pool { project: 1, person: self.people[0].ok_or("no requester identity")?, period: 1 };
-        // A chat's budget comes from its role's policy (jig a2616181).
+        // A chat's budget comes from its role's policy.
         if record.funder != expected_funder || record.numbers.budget != 500 {
             return Err("final task changed its authentic funding source or budget");
         }

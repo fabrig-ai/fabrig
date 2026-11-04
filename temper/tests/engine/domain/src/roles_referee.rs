@@ -423,7 +423,7 @@ impl Referee {
                     return Err("role terminal before exact durable keyed answer");
                 }
             }
-            // An expired sign-in is answered signed out, saving nothing (jig b7bdd9e8).
+            // An expired sign-in is answered signed out, saving nothing.
             people::Reply::Refused(_) | people::Reply::SignedOut => {
                 if rows.get(&answer_key) != self.rows.get(&answer_key) {
                     return Err("role entrance refusal changed durable key");
