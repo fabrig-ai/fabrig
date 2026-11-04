@@ -180,6 +180,13 @@ pub(super) struct HeaderField {
 
 #[derive(Deserialize)]
 #[serde(deny_unknown_fields)]
+#[cfg_attr(
+    not(unix),
+    expect(
+        dead_code,
+        reason = "only the cfg(unix) trust loading reads these; decoding keeps one document on every target"
+    )
+)]
 pub(super) struct TrustDocument {
     #[serde(default = "system_trust")]
     pub(super) system: bool,

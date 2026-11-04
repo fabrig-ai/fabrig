@@ -24,7 +24,13 @@ const ROOT_FILE: u64 = 1 << 63;
 
 /// One account source handed to the local service before its loop.
 #[expect(missing_debug_implementations, reason = "environment records contain credentials")]
-#[expect(clippy::large_enum_variant, reason = "source registrations move once through the account adoption boundary")]
+#[cfg_attr(
+    not(target_arch = "wasm32"),
+    expect(
+        clippy::large_enum_variant,
+        reason = "source registrations move once through the account adoption boundary"
+    )
+)]
 pub enum Source {
     /// A key read once by the shell from a variable.
     Env { account: u32, borrowed: Borrowed },

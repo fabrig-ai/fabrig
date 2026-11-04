@@ -114,7 +114,10 @@ impl FileStep {
     }
 }
 #[derive(Debug)]
-#[expect(clippy::large_enum_variant, reason = "local state lives inline in the bounded forge map")]
+#[cfg_attr(
+    not(target_arch = "wasm32"),
+    expect(clippy::large_enum_variant, reason = "local state lives inline in the bounded forge map")
+)]
 pub(super) enum Reconcile {
     GitHub,
     Local(Local),

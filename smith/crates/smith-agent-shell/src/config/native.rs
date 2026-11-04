@@ -7,6 +7,7 @@ use super::{
     endpoints::{EndpointTransport, PreparedEndpoint},
 };
 use skein_llm_connection as connection;
+#[cfg(unix)]
 use skein_tls as tls;
 use smith_protocol_llm as llm;
 use std::io::Write;
@@ -28,6 +29,7 @@ pub(super) fn resolve(address: &str) -> Result<SocketAddr, ConfigurationRefusal>
 pub(super) fn endpoints(
     endpoints: Box<[PreparedEndpoint]>,
     limits: &connection::Limits,
+    #[cfg_attr(not(unix), expect(unused_variables, reason = "only the cfg(unix) trust loading writes diagnostics"))]
     errors: &mut dyn Write,
 ) -> Result<Box<[llm::ConfiguredEndpoint]>, ConfigurationRefusal> {
     let mut configured = Vec::with_capacity(endpoints.len());
@@ -71,6 +73,7 @@ pub(super) fn endpoints(
 /// Bound on startup trust material and decoded configuration, in bytes.
 pub const TRUST_BYTES: u64 = 16_777_216;
 
+#[cfg(unix)]
 const CERTIFICATES: u32 = 512;
 
 /// Load the bounded startup trust roots used by agent and local endpoints.
