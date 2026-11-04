@@ -260,6 +260,7 @@ fn fetch(
         &jig_protocol_config::profile(jig_protocol_config::Profile::Small).io,
         &skein_shell::Trust::Machine { ssl_cert_file },
         machine,
+        &mut std::io::stdout(),
     )
     .map(|()| 0)
     .map_err(|why| why.words())

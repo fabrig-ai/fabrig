@@ -9,6 +9,7 @@ mod change;
 #[path = "tests/brief.rs"]
 mod ci_brief;
 mod connect;
+mod dismissed;
 mod early;
 mod fixtures;
 mod flight;
@@ -1352,6 +1353,128 @@ fn routing_connection_states_are_volatile_and_connected_gives_the_writer_once() 
     );
     assert_eq!(restarted.connection(1), Connection::NotConnected, "restored writer is no connection claim");
 }
+
+fn fetching_domain() -> Domain {
+    let mut d = setup_domain(&configured(), true);
+    outputs(&mut d, Event::Connection { forge: 1, state: Connection::SettingUp { step: Some(SetUpStep::Fetch) } });
+    outputs(&mut d, Event::Connection { forge: 2, state: Connection::NotSetUp });
+    d
+}
+
+#[test]
+fn a_fetched_line_is_on_the_row_while_the_step_is_fetch() {
+    let mut d = fetching_domain();
+    let connection = Connection::SettingUp { step: Some(SetUpStep::Fetch) };
+    for fetched in [
+        SetUpFetched { binary: SetUpBinary::Forgejo, done: 10, total: Some(100) },
+        SetUpFetched { binary: SetUpBinary::Forgejo, done: 20, total: Some(100) },
+        SetUpFetched { binary: SetUpBinary::Runner, done: 30, total: None },
+    ] {
+        assert_eq!(outputs(&mut d, Event::Fetched { forge: 1, fetched }).as_ref(), [Request::MarkedForges]);
+        let expected = Forges {
+            rows: Box::new([
+                Row { fetched: Some(fetched), ..setup_row(1, Kind::Forgejo, connection.clone(), Offer::Offered) },
+                setup_row(2, Kind::GitHub, Connection::NotSetUp, Offer::Offered),
+            ]),
+        };
+        assert_eq!(d.forges(), expected);
+        outputs(&mut d, Event::Connection { forge: 2, state: Connection::NotSetUp });
+        assert_eq!(d.forges(), expected, "another forge's connection keeps this line");
+    }
+    let restarted = setup_domain(&configured(), true);
+    for row in &restarted.forges().rows {
+        assert_eq!(row.fetched, None);
+    }
+}
+
+#[test]
+fn a_fetched_line_at_another_step_changes_nothing() {
+    let fetched = SetUpFetched { binary: SetUpBinary::Forgejo, done: 10, total: Some(100) };
+    let mut d = setup_domain(&configured(), true);
+    assert!(outputs(&mut d, Event::Fetched { forge: 1, fetched }).is_empty());
+    for state in [
+        Connection::NotConnected,
+        Connection::NotSetUp,
+        Connection::SettingUp { step: None },
+        Connection::SettingUp { step: Some(SetUpStep::Prepare) },
+        Connection::SettingUp { step: Some(SetUpStep::Run) },
+        Connection::SetUpFailed { why: b"failed".as_slice().into() },
+        Connection::Connecting,
+        Connection::Connected { id: 7, login: b"writer".as_slice().into() },
+        Connection::Stopped { reason: b"stopped".as_slice().into() },
+    ] {
+        outputs(&mut d, Event::Connection { forge: 1, state });
+        let before = d.forges();
+        assert!(outputs(&mut d, Event::Fetched { forge: 1, fetched }).is_empty());
+        assert_eq!(d.forges(), before);
+    }
+    outputs(&mut d, Event::Connection { forge: 1, state: Connection::SettingUp { step: Some(SetUpStep::Fetch) } });
+    let mut ended = removal::record(1, Mode::Owned);
+    ended.state = ForgeState::Ended { secrets_erased: false, box_removed: false };
+    d.records.insert(1, ended).unwrap();
+    let before = d.forges();
+    assert!(outputs(&mut d, Event::Fetched { forge: 1, fetched }).is_empty(), "an ended forge ignores fetch lines");
+    assert_eq!(d.forges(), before);
+}
+
+#[test]
+fn the_next_step_a_failure_and_connecting_each_drop_it() {
+    for state in [
+        Connection::SettingUp { step: Some(SetUpStep::Prepare) },
+        Connection::SettingUp { step: Some(SetUpStep::Run) },
+        Connection::SetUpFailed { why: b"failed".as_slice().into() },
+        Connection::Connecting,
+        Connection::SettingUp { step: Some(SetUpStep::Fetch) },
+        Connection::SettingUp { step: None },
+        Connection::NotConnected,
+        Connection::NotSetUp,
+        Connection::Connected { id: 7, login: b"writer".as_slice().into() },
+        Connection::Stopped { reason: b"stopped".as_slice().into() },
+    ] {
+        let mut d = fetching_domain();
+        let fetch = Connection::SettingUp { step: Some(SetUpStep::Fetch) };
+        let fetched = SetUpFetched { binary: SetUpBinary::Runner, done: 10, total: None };
+        outputs(&mut d, Event::Fetched { forge: 1, fetched });
+        assert_eq!(
+            outputs(&mut d, Event::Connection { forge: 1, state: state.clone() }).as_ref(),
+            [Request::MarkedForges]
+        );
+        let row = d.forges().rows.first().unwrap().clone();
+        assert_eq!(row.connection, state);
+        assert_eq!(row.fetched, None);
+        outputs(&mut d, Event::Connection { forge: 1, state: fetch });
+        assert_eq!(d.forges().rows.first().unwrap().fetched, None, "a new fetch cannot revive the old line");
+    }
+}
+
+#[test]
+fn a_closed_pipe_drops_it() {
+    let mut d = fetching_domain();
+    let fetch = Connection::SettingUp { step: Some(SetUpStep::Fetch) };
+    let fetched = SetUpFetched { binary: SetUpBinary::Forgejo, done: 10, total: Some(100) };
+    outputs(&mut d, Event::Fetched { forge: 1, fetched });
+    assert_eq!(outputs(&mut d, Event::BoxClosed).as_ref(), [Request::MarkedForges]);
+    assert_eq!(d.fetched, None);
+    assert_eq!(
+        d.forges().rows.as_ref(),
+        [
+            Row {
+                failed: Some(FailedStep::Fetch),
+                ..setup_row(
+                    1,
+                    Kind::Forgejo,
+                    Connection::SetUpFailed { why: b"the box closed the pipe".as_slice().into() },
+                    Offer::NotUnderTheBox,
+                )
+            },
+            setup_row(2, Kind::GitHub, Connection::NotSetUp, Offer::NotUnderTheBox),
+        ]
+    );
+    assert!(outputs(&mut d, Event::Fetched { forge: 1, fetched }).is_empty());
+    outputs(&mut d, Event::Connection { forge: 1, state: fetch });
+    assert_eq!(d.forges().rows.first().unwrap().fetched, None);
+}
+
 fn configured() -> [Configured; 2] {
     [
         Configured {
@@ -1428,6 +1551,7 @@ fn setup_row(number: u16, kind: Kind, connection: Connection, offer: Offer) -> R
         mode: Mode::Owned,
         connection,
         failed: None,
+        fetched: None,
         offer,
         first: None,
         installations: Box::new([]),

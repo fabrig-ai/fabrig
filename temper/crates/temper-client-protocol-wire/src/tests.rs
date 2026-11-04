@@ -88,6 +88,7 @@ fn limits_take_each_bound_from_its_source_field() {
             git_hub_manifest_back_some: 512,
             link_address: crate::ADDRESS_BYTES,
             forges_forges: crate::FORGES,
+            dismissals_dismissed: crate::DISMISSED,
             return_path: 512,
             set_up_failed_why: crate::SET_UP_WHY_BYTES,
             group_failed_why: crate::SET_UP_WHY_BYTES,
@@ -376,10 +377,35 @@ fn each_forge_connection_round_trips_at_its_bounds() {
         assert_eq!(crate::decode_forges(&fixtures::trailing(&bytes), &limits), None);
     }
     for step in [None, Some(v1::SetUpStep::Fetch), Some(v1::SetUpStep::Prepare), Some(v1::SetUpStep::Run)] {
-        let connection =
-            v1::Connection::SettingUp(v1::SettingUp::new(&limits, v1::SettingUpParts { step }).expect("setup step"));
+        let connection = v1::Connection::SettingUp(
+            v1::SettingUp::new(&limits, v1::SettingUpParts { step, fetched: None }).expect("setup step"),
+        );
         let record = forges_rows(&[1], &connection);
         assert_eq!(crate::decode_forges(&crate::forges(&record), &limits), Some(record));
+    }
+}
+
+#[test]
+fn a_setting_up_carries_its_fetch() {
+    let limits = fixtures::limits();
+    for binary in [v1::SetUpBinary::Forgejo, v1::SetUpBinary::Runner] {
+        for total in [Some(122_057_320), None] {
+            let fetched = v1::SetUpFetched::new(
+                &limits,
+                v1::SetUpFetchedParts { binary: binary.clone(), done: 1_048_576, total },
+            )
+            .expect("fetched bytes");
+            let connection = v1::Connection::SettingUp(
+                v1::SettingUp::new(
+                    &limits,
+                    v1::SettingUpParts { step: Some(v1::SetUpStep::Fetch), fetched: Some(fetched) },
+                )
+                .expect("fetching"),
+            );
+            let record = forges_rows(&[1], &connection);
+            let bytes = crate::forges(&record);
+            assert_eq!(crate::decode_forges(&bytes, &limits), Some(record), "{binary:?}, total {total:?}");
+        }
     }
 }
 
@@ -1242,4 +1268,41 @@ fn settings_reads_and_answers_require_one_complete_bounded_record() {
     trailing.put(&[0]).unwrap();
     let trailing = trailing.finish();
     assert!(wire::decode_proposal_items_answer(&trailing, &w::CEILINGS).is_none());
+}
+
+#[test]
+fn dismiss_and_dismissals_round_trip() {
+    let limits = fixtures::limits();
+    let what = v1::Dismissal::ToBegin(v1::ToBegin::new(&limits, v1::ToBeginParts { project: u32::MAX }).unwrap());
+    let dismiss = v1::Dismiss::new(&limits, v1::DismissParts { what: what.clone() }).unwrap();
+    let request = v1::Requesting::new(&limits, v1::RequestingParts { request: v1::Request::Dismiss(dismiss) }).unwrap();
+    assert_eq!(crate::decode_requesting(&crate::requesting(&request), &limits), Some(request));
+    let watch = v1::Watching::new(&limits, v1::WatchingParts { watch: v1::Watch::Dismissed }).unwrap();
+    assert_eq!(crate::decode_watching(&crate::watching(&watch), &limits), Some(watch));
+    let answer = v1::Answer::new(&limits, v1::AnswerParts { outcome: v1::Outcome::Dismissed }).unwrap();
+    assert_eq!(v1::Answer::decode(&limits, &mut Reader::new(&crate::answer(&answer))), Ok(answer));
+    for count in [0, crate::DISMISSED, crate::DISMISSED + 1] {
+        let mut dismissed = List::with_capacity(count);
+        let mut writer = skein_lib::Writer::new(6 + usize::try_from(count).unwrap() * 5);
+        writer.put(&u16::try_from(crate::CLIENT_VERSION).unwrap().to_be_bytes()).unwrap();
+        writer.put(&count.to_be_bytes()).unwrap();
+        for _ in 0..count {
+            dismissed.push(what.clone()).unwrap();
+            what.encode(&mut writer).unwrap();
+        }
+        let bytes = writer.finish();
+        let made = v1::Dismissals::new(&limits, v1::DismissalsParts { dismissed });
+        if count > crate::DISMISSED {
+            assert_eq!(
+                made.unwrap_err(),
+                v1::Problem { path: v1::Path::DismissalsDismissed, reason: skein_codec::Reason::Bound }
+            );
+            assert_eq!(crate::decode_dismissals(&bytes, &limits), None);
+        } else {
+            let record = made.unwrap();
+            assert_eq!(crate::dismissals(&record), bytes);
+            assert_eq!(crate::decode_dismissals(&bytes, &limits), Some(record));
+            assert_eq!(crate::decode_dismissals(&fixtures::trailing(&bytes), &limits), None);
+        }
+    }
 }

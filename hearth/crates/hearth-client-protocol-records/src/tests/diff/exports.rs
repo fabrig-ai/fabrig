@@ -2,11 +2,11 @@ use crate::{form::Form, tests::fixtures};
 type Row = (Option<&'static [u8]>, Option<&'static [u8]>, &'static str);
 const TEXT: &[Row] = &[
     (
-        Some(b"194.164.162.157"),
-        Some(b"194.164.162.158"),
+        Some(b"203.0.113.157"),
+        Some(b"203.0.113.158"),
         concat!(
             "ion-prod                                            nothing to build\n",
-            "  exports  ~ vpn.endpoint   \"194.164.162.157\" → \"194.164.162.158\"\n"
+            "  exports  ~ vpn.endpoint   \"203.0.113.157\" → \"203.0.113.158\"\n"
         ),
     ),
     (

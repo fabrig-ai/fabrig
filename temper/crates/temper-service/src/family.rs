@@ -167,6 +167,7 @@ pub fn to_root(
                         | w::Request::Adopt(_)
                         | w::Request::SetUp(_)
                         | w::Request::Return(_)
+                        | w::Request::Dismiss(_)
                         | w::Request::RemoveForge(_)
                         | w::Request::StartPlayground
                         | w::Request::EndPlayground => {
@@ -230,6 +231,20 @@ pub fn to_root(
                             installation: value.installation,
                             page: value.page,
                         }),
+                    }));
+                }
+                w::Request::Dismiss(value) => {
+                    let what = match value.into_parts().what {
+                        w::Dismissal::ToBegin(value) => forge::Dismissal::ToBegin { project: value.project() },
+                    };
+                    return Ok(root::Event::Party(root::PartyInput::Application {
+                        scope,
+                        reply_to,
+                        sign_in,
+                        key,
+                        digest,
+                        carried,
+                        request: root::Application::Dismiss { what },
                     }));
                 }
                 w::Request::Adopt(value) => value,
@@ -317,6 +332,11 @@ pub fn to_root(
                         scope,
                         connector: wire::FORGE,
                         subject: Token::new(forge::landings_subject(subject.project(), subject.ended())),
+                    },
+                    w::Watch::Dismissed => jig_domain_core::documents::Watched::Application {
+                        scope: jig_domain_people::ApplicationScope::Own,
+                        connector: wire::FORGE,
+                        subject: Token::new(forge::DISMISSED_SUBJECT),
                     },
                     w::Watch::Change(_) | w::Watch::Landing(_) => {
                         return Err(Box::new(kit::Event::WatchRefused {
@@ -667,6 +687,10 @@ pub fn answer(
             w::Outcome::Page(w::Page::new(limits, w::PageParts { rows, more: page.more }).ok()?)
         }
         Some(root::ApplicationAnswer::Returning) => w::Outcome::Returning,
+        Some(root::ApplicationAnswer::Dismiss(forge::DismissAnswer::Dismissed)) => w::Outcome::Dismissed,
+        Some(root::ApplicationAnswer::Dismiss(forge::DismissAnswer::TooLarge)) => w::Outcome::ForgeRefused(
+            w::ForgeRefused::new(limits, w::ForgeRefusedParts { reason: w::ForgeReason::TooLarge }).ok()?,
+        ),
         Some(temper_engine_domain::ApplicationAnswer::Adopt(forge::ApplicationOutcome::Adopted(a))) => {
             w::Outcome::Adopted(
                 w::Adopted::new(
@@ -858,7 +882,7 @@ fn forge_row(row: forge::Row, limits: &w::Limits) -> Option<w::ForgeRow> {
             read_only: row.read_only,
             kind: forge_kind(row.kind),
             mode: forge_mode(row.mode),
-            connection: connection(row.connection, row.failed, limits)?,
+            connection: connection(row.connection, row.failed, row.fetched, limits)?,
             offer: match row.offer {
                 forge::Offer::NotOffered => w::Offer::NotOffered,
                 forge::Offer::NotUnderTheBox => w::Offer::NotUnderTheBox,
@@ -949,6 +973,7 @@ fn forge_mode(mode: forge::Mode) -> w::Mode {
 fn connection(
     value: forge::Connection,
     failed: Option<forge::FailedStep>,
+    fetched: Option<forge::SetUpFetched>,
     limits: &w::Limits,
 ) -> Option<w::Connection> {
     Some(match value {
@@ -958,6 +983,23 @@ fn connection(
             w::SettingUp::new(
                 limits,
                 w::SettingUpParts {
+                    fetched: match fetched {
+                        None => None,
+                        Some(fetched) => Some(
+                            w::SetUpFetched::new(
+                                limits,
+                                w::SetUpFetchedParts {
+                                    binary: match fetched.binary {
+                                        forge::SetUpBinary::Forgejo => w::SetUpBinary::Forgejo,
+                                        forge::SetUpBinary::Runner => w::SetUpBinary::Runner,
+                                    },
+                                    done: fetched.done,
+                                    total: fetched.total,
+                                },
+                            )
+                            .ok()?,
+                        ),
+                    },
                     step: match step {
                         None => None,
                         Some(forge::SetUpStep::Fetch) => Some(w::SetUpStep::Fetch),
@@ -1074,11 +1116,24 @@ fn admin_stop(stop: forge::AdminStop, limits: &w::Limits) -> Option<w::AdminStop
     })
 }
 
-/// Encode a whole landing document, with deployment addresses at this boundary.
+/// Encode a whole forge document, with deployment addresses at this boundary.
 #[must_use]
 pub fn document(value: forge::Document, forges: &crate::forges::Forges, limits: &w::Limits) -> Option<Box<[u8]>> {
     match value {
         forge::Document::Change(value) => panel(value, forges, limits),
+        forge::Document::Dismissals(rows) => {
+            let mut dismissed = List::with_capacity(u32::try_from(rows.len()).ok()?);
+            for row in rows {
+                let value = match row {
+                    forge::Dismissal::ToBegin { project } => {
+                        w::Dismissal::ToBegin(w::ToBegin::new(limits, w::ToBeginParts { project }).ok()?)
+                    }
+                };
+                dismissed.push(value).ok()?;
+            }
+            let document = w::Dismissals::new(limits, w::DismissalsParts { dismissed }).ok()?;
+            Some(wire::dismissals(&document))
+        }
         forge::Document::Landing(value) => {
             let mut members = List::with_capacity(u32::try_from(value.members.len()).ok()?);
             for member in value.members {

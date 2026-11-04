@@ -1,4 +1,4 @@
-//! The in-process client's shell (client/README.md, 3.5).
+//! The in-process client's shell (hearth/docs/design/client/README.md, 3.5).
 use hearth::{
     Client, argv,
     records::{

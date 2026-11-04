@@ -1,4 +1,4 @@
-//! Configured limits (domain/render.md, 2.3 and 5; domain/store.md, 6.1).
+//! Configured limits (hearth/docs/design/domain/render.md, 2.3 and 5; hearth/docs/design/domain/store.md, 6.1).
 #[derive(Clone, Copy, Debug, PartialEq, Eq, Hash)]
 pub struct Limits {
     pub path: u32,

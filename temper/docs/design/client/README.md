@@ -992,6 +992,14 @@ keeps (`../protocol/configuration.md`, section 2).
     the first repository is being made, a textless, indeterminate progress
     node named by CONNECTION follows the paragraph before "Each step",
     styled `temper-flow-busy`; GitHub's installation waits have none.
+    While the row says how far its fetch has gone, that node is the
+    fetch's, styled `temper-flow-meter`: named "Fetching Forgejo" or
+    "Fetching its runner", its text the percentage or the bytes as the
+    connection says them (`forge.md`, 5.4), and with a size its fraction,
+    the bytes written of the size, so that its bar fills (`browser.md`, 2.5).
+    Its muted detail then names the binary alone, "Setting up: fetching
+    Forgejo", the figure being the bar's, and the paragraph's name says
+    both, as CONNECTION does everywhere else.
     The terminal has no bar and says the line in that order. Done or
     failed, there is no bar. The browser's stacked line has no dot or
     tick in the text: the stylesheet draws a quiet ring, or a green
@@ -1659,6 +1667,7 @@ for its kind, its user's login and its installations. Its nodes:
   `Request`, as `Reading` names a read: `adopt`, `Adopt`, `set_up`,
   `SetUp`, `connect`, `Connect`, `install`, `Install`, `reachable`,
   `Reachable`, `accept`, `Accept`, `remove_forge`, `RemoveForge`,
+  `dismiss`, `Dismiss`,
   `start_playground` and `end_playground`, the last two with no fields
   (below), or `return`, `Return`, answered `returning` (section 8). Each is answered by the family's one record,
   `Answer`, whose outcome is one of either request's (below); the client
@@ -1746,6 +1755,17 @@ for its kind, its user's login and its installations. Its nodes:
   `role`, `no such forge` (none kept, or one ended already), or `not
   taken`, the playground's forge, which only its reset removes; or
   *unknown*.
+- **`Dismiss`:** of the project it names, from any party with a role
+  there (`../domain/forge.md`, 5.5): `what`, `Dismissal`, what the party
+  has done with: `to_begin`, `ToBegin`, the project (u32), "Skip" on
+  that project's "To begin", the one kind for now. The root names the
+  project as the request's scope, whatever scope the record came under.
+  Its outcome: *dismissed*, `dismissed`, no fields, once the row has
+  committed, and the same for a second, under any key, from any device;
+  *forge refused*, `too large`, the family's bound reached (the forge
+  reason of 4.7); or *unknown*, its outcome no longer held (section 8),
+  as `SetUp`'s, which a client answers from the subject `dismissed`
+  below. A refusal at admission is jig's answer, as for `Adopt`.
 - **`Connect`:** of the deployment's scope (section 8): the forge,
   `Making`, a kept forge or a new GitHub, managed or connected Forgejo,
   and how it connects, `How`: `github_app`, `GitHubApp`,
@@ -1808,7 +1828,7 @@ for its kind, its user's login and its installations. Its nodes:
   kept request, its request encoded by this crate as the family's bytes
   at `CLIENT_VERSION` (jig's `protocol/client.md`, section 10).
 - **The FORGE requests and their outcomes:** `Connect`, `Install`, `Accept`,
-  `Replace`, `Forget`, `SetUp`, `Reachable`, `RemoveForge`,
+  `Replace`, `Forget`, `SetUp`, `Reachable`, `RemoveForge`, `Dismiss`,
   `StartPlayground` and `EndPlayground`, beside `Adopt` (section 8).
 - **The playground's read, `playground`:** of the deployment's scope,
   with no fields, and no subject: what it answers changes with the
@@ -1886,7 +1906,12 @@ for its kind, its user's login and its installations. Its nodes:
   identity adoption uses); its kind (Forgejo or GitHub); its mode
   (connected, managed, owned or fake); and its connection: not
   connected; not set up; setting up, with its step when the box has
-  named one (fetch, prepare or run); set up failed, with its optional step (fetch, prepare, run or connect)
+  named one (fetch, prepare or run), and while it fetches and the box
+  has said how far, `fetched`: the binary (Forgejo or its runner), the
+  bytes written (u64) and the size (u64), if known
+  (`../protocol/setup.md`, 6.6), which a client reads as none where the
+  size is zero or the bytes pass it, and which changes in place, no
+  version kept for an older side; set up failed, with its optional step (fetch, prepare, run or connect)
   and why (text of
   at most 256 bytes, the box's line bound); connecting; connected, with
   the user's id (u64) and login (a byte string bounded as `Adopt`'s);
@@ -1937,6 +1962,21 @@ for its kind, its user's login and its installations. Its nodes:
   until the next sign-in. Its rows feed the Forges page,
   `ConnectForge`, the welcome and its store's state (3.5), and the
   Forges entry's dot.
+- **A person's dismissals, the subject `dismissed`:** of the party's own
+  scope (jig's `client/domain/contract.md`, 7.5), with no fields, its
+  window unused; on the wire `Watching`'s `dismissed`. One subject for
+  the deployment: the core names each watcher's party, and each
+  watcher gets its own party's document (`../domain/forge.md`, 5.5). Its
+  document, `Dismissals`: `dismissed`, the party's rows in their key's
+  order, at most `DISMISSED` (1024), each a `Dismissal`; a start whose
+  `forge.judge_projects` is past that bound is refused, a party holding at most
+  one row a project (`../protocol/configuration.md`, section 7). A
+  dismissal reaches the watch of every client of the party's once it
+  commits. *The client's forge side watches it once,* for the session, as
+  it does `forges`, from when `me` is first delivered while the link
+  is live, for every party: a watch refused or ended is kept as such,
+  with no rows, and not opened again until the next sign-in. Its rows are
+  the forge side's facts, which no page reads (section 11).
 - **The forge's documents' records:** its other reads, subjects and
   documents, and its other requests, beside `Adopt` and `SetUp`
   (`forge.md`, section 9).
@@ -4059,7 +4099,8 @@ does for the client:
   record's bytes, and the adoption, or another of the FORGE requests
   (below) with the number and digest of the value it carried.
 - **The FORGE requests** beside `Adopt` (`forge.md`, 5.1 and 5.4), each
-  keyed, each naming the deployment as its scope (jig's
+  keyed, each naming the deployment as its scope, `Dismiss` alone
+  naming a project (jig's
   `protocol/client.md`, section 11). `forge` in a `Connect` or a
   `SetUp` is `Making` (4.6): a kept forge's number, or a forge to make,
   which the request's decision makes as a record of the forge
@@ -4078,6 +4119,7 @@ does for the client:
   | `Forget { forge }` | none | the admin's token erased; a managed forge becomes connected (`../protocol/credentials.md`) | forgotten |
   | `SetUp { forge }` | none | an owned forge, new, or kept and not set up, or whose set up failed, whose setup says `"start": "asked"`: the routing asks the box for the forge's group, `start FORGE` on its pipe (`../protocol/setup.md`, 7.1), refused "not under the box" without a pipe and "busy" while a group starts; at the box's `started`, its handover taken, then reconciled and connected (`../protocol/forge.md`, 2.2) | setting up |
   | `RemoveForge { forge }` | none | the forge ended in the request's decision, then removed whole by the kept acts that follow it: its live work cancelled, its box group stopped and its directory removed, its records erased (`../domain/forge.md`, 4.1); refused for the playground's forge, whose reset removes it | removed; remove refused, `ForgeRefusal` |
+  | `Dismiss { what }` | none | the party's `Dismissed` row saved in the request's decision, and the subject `dismissed` marked, a row held already writing nothing (`../domain/forge.md`, 5.5) | dismissed; forge refused, too large |
   | `StartPlayground` | the scripted model's key, which the routing reads from its file at each start and carries as a pasted value | the playground's start (`../protocol/setup.md`, 8.4): the `Playground` row written starting when none, its fake forge's record made and the box asked for its group, then the scripted model's account added and its repository adopted into its project, each unless done; refused "not offered" while a real forge is kept | running, once all are done; start failed, naming why |
   | `EndPlayground` | none | the playground's reset (`../protocol/setup.md`, 8.4): the `Playground` row resetting in one decision, then its kept acts in order, the project deleted, the fake forge removed, the scripted account removed, the row erased | reset, once the row is erased; end refused, not offered, with no playground |
   | `Reachable { forge, installation?, page }` | none | on every kind, the setup's host's `Reachable { forge, installation?, page }` plan (skein's `forge-setup.md`, 4.8; `../domain/forge.md`, what the picker offers): on GitHub one accepted installation's repositories, `GET /installation/repositories` paged by number on a token minted for the page; on a connected Forgejo what the API token can push to; on a managed or owned Forgejo every repository the site admin can see by id ascending, read on the admin's token, which stays the setup's host's (`../protocol/forge.md`, the setup's host) | a page, `{ rows, more }`: at most `picker.page` rows on every forge, clipped to the forge's own page cap, each the repository's id, its owner's id and login, its name and whether it is private; `more` set when the page is full |
@@ -4670,10 +4712,16 @@ own tests:
   machine's goes so at once. Later: a client relaying the redirect
   (jig's `protocol/llm.md`, section 10). Default: undetected, the
   person's choice.
+- **"Skip" on Home** (*Home,* 3.5; `../draft/to-begin.md`, sections 2
+  and 5): the store, the request and the read are designed (4.6), and
+  the card and its "Skip" are the look requests'
+  `project-home-everyday` and `project-home-onboarding` (`journeys.md`,
+  7). Default: Home offers no "Skip": no act sends `Dismiss`, and no
+  page reads the subject `dismissed`.
 - **The first use of a plan,** in the terminal: a card in the
-  conversation, or a card that waits to be dismissed, which needs a
-  dismissal kept by the engine, as jig's seen is. Default: a card in
-  the conversation (5.5), with nothing to dismiss.
+  conversation, or a card that waits to be dismissed, another kind of
+  `Dismissed`, keyed by its account (`../draft/to-begin.md`, section 5).
+  Default: a card in the conversation (5.5), with nothing to dismiss.
 - **A key typed in the terminal** is echoed by its line editing (6.5).
   Default: accepted on one person's machine; `temper ctl account
   add-key` reads one from a file.
@@ -4896,12 +4944,6 @@ own tests:
   plan's line names the provider's verified email, a fact beside the
   account's display (`jig/docs/design/draft/account-facts.md`, 1 and
   6). Default: the display, as its holder gave it.
-- **How far the forge's fetch has gone** (3.5, The welcome;
-  `forge.md`, 5.4): the line naming the binary, the percentage or the
-  bytes in the progress node, as its text and value, and "Each step"'s
-  first step (`../draft/fetch-progress.md`, 5). Default: the line says
-  the step alone, and the browser's node is textless, named by the
-  connection.
 - **A taken name at Ready** (3.5, The welcome;
   `../draft/first-run-projects.md`, 9): a person who made a project of
   the name Ready's field holds, the offered one unless they wrote

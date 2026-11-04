@@ -122,7 +122,7 @@ fn check_output(golden: &golden::Golden, variant: &str, stdout: &str, code: Opti
     assert!(verdict.is_clean(), "{}: {}", golden.name, verdict.report());
 }
 
-/// domain/render.md 7.2's repository-caused kinds plus the two builder-world kinds.
+/// hearth/docs/design/domain/render.md 7.2's repository-caused kinds plus the two builder-world kinds.
 pub const ERROR_KINDS: &[&str] = &[
     "collision",
     "composition",
@@ -145,7 +145,7 @@ pub fn resolution_golden() -> golden::Golden {
     golden::load_from("resolution", &files)
 }
 
-/// Whole digests from client JSON-lines spec records (client/README.md, 3.2).
+/// Whole digests from client JSON-lines spec records (hearth/docs/design/client/README.md, 3.2).
 #[must_use]
 pub fn digests_of(text: &str) -> Vec<(String, String)> {
     let mut digests = Vec::new();

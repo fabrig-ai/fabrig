@@ -8,28 +8,44 @@ use std::net::SocketAddr;
 use std::{mem, ptr};
 
 use super::{bound_addr, last_errno, retry};
-use crate::ListenersRefusal;
+use crate::{ListenerCheck, ListenersRefusal};
 use skein_io::kernel::Fd;
 
 pub(crate) fn listener_at(fd: Fd) -> Result<SocketAddr, ListenersRefusal> {
-    inspect(fd).map_err(|errno| {
-        if errno == libc::EBADF {
-            ListenersRefusal::NotOpen { fd }
-        } else if errno == libc::EAFNOSUPPORT {
-            ListenersRefusal::NotIp { fd }
-        } else {
-            ListenersRefusal::Kernel { fd, errno }
-        }
-    })?
+    inspect(fd).map_err(|(check, errno)| refused(fd, check, errno))?
 }
 
-fn inspect(fd: Fd) -> Result<Result<SocketAddr, ListenersRefusal>, i32> {
+fn refused(fd: Fd, check: ListenerCheck, errno: i32) -> ListenersRefusal {
+    if errno == libc::EBADF {
+        ListenersRefusal::NotOpen { fd }
+    } else if errno == libc::EAFNOSUPPORT {
+        ListenersRefusal::NotIp { fd }
+    } else {
+        ListenersRefusal::Check { fd, check, errno }
+    }
+}
+
+/// XNU's getsockopt has no case for `SO_ACCEPTCONN` (`bsd/kern/uipc_socket.c`,
+/// sogetoptlock), so it answers `ENOPROTOOPT` for every socket; there a stream
+/// socket passes (shell.md, 6.6).
+const NO_ACCEPTCONN: bool = cfg!(target_os = "macos");
+
+fn listening(answer: Result<i32, i32>, no_option: bool) -> Result<bool, i32> {
+    match answer {
+        Ok(value) => Ok(value != 0),
+        Err(errno) if errno == libc::ENOPROTOOPT && no_option => Ok(true),
+        Err(errno) => Err(errno),
+    }
+}
+
+fn inspect(fd: Fd) -> Result<Result<SocketAddr, ListenersRefusal>, (ListenerCheck, i32)> {
     // SAFETY: stat is a plain C record whose integer fields are valid at zero.
     let mut stat: libc::stat = unsafe { mem::zeroed() };
     retry(|| {
         // SAFETY: stat is exclusively writable for one stat until fstat returns.
         status(unsafe { libc::fstat(fd.raw(), ptr::from_mut(&mut stat)) })
-    })?;
+    })
+    .map_err(|errno| (ListenerCheck::Stat, errno))?;
     if stat.st_mode & libc::S_IFMT != libc::S_IFSOCK {
         #[cfg_attr(
             target_os = "linux",
@@ -41,14 +57,14 @@ fn inspect(fd: Fd) -> Result<Result<SocketAddr, ListenersRefusal>, i32> {
         let mode = u32::from(stat.st_mode);
         return Ok(Err(ListenersRefusal::NotSocket { fd, mode }));
     }
-    let kind = option(fd, libc::SO_TYPE)?;
+    let kind = option(fd, libc::SO_TYPE).map_err(|errno| (ListenerCheck::Kind, errno))?;
     if kind != libc::SOCK_STREAM {
         return Ok(Err(ListenersRefusal::NotStream { fd, kind }));
     }
-    if option(fd, libc::SO_ACCEPTCONN)? == 0 {
+    if !listening(option(fd, libc::SO_ACCEPTCONN), NO_ACCEPTCONN).map_err(|errno| (ListenerCheck::Listening, errno))? {
         return Ok(Err(ListenersRefusal::NotListening { fd }));
     }
-    bound_addr(fd).map(Ok)
+    bound_addr(fd).map(Ok).map_err(|errno| (ListenerCheck::Address, errno))
 }
 
 fn option(fd: Fd, name: i32) -> Result<i32, i32> {

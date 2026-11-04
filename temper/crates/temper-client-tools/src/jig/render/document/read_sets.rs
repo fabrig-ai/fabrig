@@ -12,6 +12,9 @@ pub(super) fn text(
     vocabulary: &dyn crate::jig::render::Parts,
     out: &mut Text,
 ) {
+    if let Some(person) = &reading.person {
+        super::person_text(person, me, book, out);
+    }
     let call = &reading.called.call;
     if call.tool == 1 {
         super::super::lists::inboxes(reading, limits, book, out);
@@ -50,11 +53,7 @@ pub(super) fn text(
                 super::proposal::history_text(value, out);
             }
             Readout::Jig(c::ReadResult::Value(c::ReadValue::Ended(value))) => {
-                let (task, result) = super::super::ended_task(value).expect("validated ended task");
-                super::task_with_specification(task, me, book, vocabulary, reading.specification.as_ref(), out);
-                super::result_text(result, vocabulary, out);
-                vocabulary.task_next(task, out);
-                super::subjects::text_digest(b"task", &super::super::Part::Task(task), limits, out);
+                ended_text(value, reading, me, book, limits, vocabulary, out);
             }
             Readout::Jig(c::ReadResult::Value(c::ReadValue::Tasks(page))) => {
                 super::super::lists::tasks(page, call, limits, book, out);
@@ -106,6 +105,21 @@ pub(super) fn text(
         }
     }
 }
+fn ended_text(
+    value: &c::Ended,
+    reading: &Reading,
+    me: Option<&c::Me>,
+    book: &Phrasebook,
+    limits: &Limits,
+    vocabulary: &dyn crate::jig::render::Parts,
+    out: &mut Text,
+) {
+    let (task, result) = super::super::ended_task(value).expect("validated ended task");
+    super::task_with_specification(task, me, book, vocabulary, reading.specification.as_ref(), out);
+    super::result_text(result, vocabulary, out);
+    vocabulary.task_next(task, out);
+    super::subjects::text_digest(b"task", &super::super::Part::Task(task), limits, out);
+}
 pub(super) fn encode(reading: &Reading, me: Option<&c::Me>, limits: &Limits, out: &mut Encoder, budget: &mut Cut) {
     let call = &reading.called.call;
     if call.tool == 1 && super::subjects::inbox_eligible(call) {
@@ -115,6 +129,10 @@ pub(super) fn encode(reading: &Reading, me: Option<&c::Me>, limits: &Limits, out
     let compound = reading.called.call.tool == 1 || reading.called.call.tool == 3 || reading.called.call.tool == 4;
     if compound {
         out.object_start();
+    }
+    if let Some(person) = &reading.person {
+        out.key(b"person_task");
+        super::encode_person_task(person, out, budget);
     }
     for (local, page) in reading.pages.range(..crate::jig::runner::proposal::FIRST) {
         if reading.called.call.tool == 1 && *local == 5 && !super::super::lists::updates_fit(reading, limits.rows) {
@@ -152,12 +170,7 @@ pub(super) fn encode(reading: &Reading, me: Option<&c::Me>, limits: &Limits, out
                 super::proposal::encode_history(value, out, budget);
             }
             Readout::Jig(c::ReadResult::Value(c::ReadValue::Ended(value))) => {
-                let (task, result) = super::super::ended_task(value).expect("validated ended task");
-                if compound {
-                    out.key(b"task");
-                }
-                budget.digest = Some(crate::jig::digest::part(&super::super::Part::Task(task), limits));
-                super::tasks::encode_ended_task(task, result, out, budget);
+                encode_ended(value, compound, limits, out, budget);
             }
             Readout::Jig(c::ReadResult::Value(c::ReadValue::Tasks(page))) => {
                 encode_tasks(reading, page, limits, out, budget);
@@ -263,4 +276,13 @@ fn encode_turn(reading: &Reading, turn: &c::ArchivedTurn, limits: &Limits, out: 
     budget.turn = Some(super::turn_window::Window::new(&reading.called.call, turn.task, turn.name, limits.part));
     super::encode_archived_turn(turn, out, budget);
     budget.turn = None;
+}
+
+fn encode_ended(value: &c::Ended, compound: bool, limits: &Limits, out: &mut Encoder, budget: &mut Cut) {
+    let (task, result) = super::super::ended_task(value).expect("validated ended task");
+    if compound {
+        out.key(b"task");
+    }
+    budget.digest = Some(crate::jig::digest::part(&super::super::Part::Task(task), limits));
+    super::tasks::encode_ended_task(task, result, out, budget);
 }

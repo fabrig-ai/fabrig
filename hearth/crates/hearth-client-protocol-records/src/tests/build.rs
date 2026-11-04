@@ -38,5 +38,5 @@ fn an_unavailable_build_ends_with_69() {
         form::print(Form::JsonLines, &record, Some(Type::Failed), &limits::SHIPPED).as_deref(),
         Ok(b"{\"record\":\"outcome\",\"outcome\":\"unavailable\",\"left_out\":0}\n".as_slice())
     );
-    assert_eq!(outcome::code(Outcome::Unavailable), 69, "client/README.md, 3.3: unavailable");
+    assert_eq!(outcome::code(Outcome::Unavailable), 69, "hearth/docs/design/client/README.md, 3.3: unavailable");
 }

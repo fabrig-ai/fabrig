@@ -88,12 +88,9 @@ fn opened(owner: bool, step: Step) -> (Domain, Token, Token, Option<Token>) {
     go(&mut root, step);
     let mut forges = None;
     while let Some(request) = out.pop() {
-        if let Request::Unlinked {
-            request:
-                jig_client::UnlinkedRequest::Down {
-                    down: Down::Open { watch, subject: jig_client::Watchable::Family { .. } },
-                },
-        } = request
+        if let Request::Unlinked { request: jig_client::UnlinkedRequest::Down { down: Down::Open { watch, subject } } } =
+            request
+            && subject == forge::forges::watch(&f::limits().forge).unwrap()
         {
             forges = Some(watch);
         }

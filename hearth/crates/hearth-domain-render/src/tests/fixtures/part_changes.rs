@@ -13,7 +13,7 @@ pub fn changed_download() -> (software::Software, software::Software) {
 pub fn changed_secrets() -> (secrets::Secrets, secrets::Secrets) {
     let before = secrets::Secrets {
         files: Box::new([super::secret_file(b"key", b"/etc/key", 0o600, b"root", b"root")]),
-        passwords: Box::new([secrets::Password { user: copy_of(b"free"), secret: copy_of(b"users/free.passwd") }]),
+        passwords: Box::new([secrets::Password { user: copy_of(b"alice"), secret: copy_of(b"users/alice.passwd") }]),
         identity: Box::new([secrets::Identity {
             name: copy_of(b"ssh"),
             kind: secrets::IdentityKind::SshHostKey { algorithm: secrets::Algorithm::Ed25519 },
@@ -27,7 +27,7 @@ pub fn changed_secrets() -> (secrets::Secrets, secrets::Secrets) {
     let mut after = before.clone();
     super::only_mut(&mut after.identity).public_path = Some(copy_of(b"/etc/ssh/key.pub"));
     super::only_mut(&mut after.files).mode = 0o640;
-    super::only_mut(&mut after.passwords).secret = copy_of(b"users/free2.passwd");
+    super::only_mut(&mut after.passwords).secret = copy_of(b"users/alice2.passwd");
     (before, after)
 }
 pub fn changed_live() -> (live::Live, live::Live) {

@@ -84,13 +84,23 @@ impl Core {
     pub fn commit_header(&mut self) -> Write {
         self.counters.commit_header()
     }
+
+    /// The deployment row this decision writes, if any (engine.md, 5.4).
+    #[must_use]
+    pub fn decision_header(&mut self, wrote: bool) -> Option<Record> {
+        if wrote || self.counters.dirty() { Some(self.counters.commit_record()) } else { None }
+    }
 }
 
 impl Counters {
     /// Number a writing decision and construct its deployment row (engine.md, 5.4).
     #[must_use]
     pub fn commit_header(&mut self) -> Write {
-        Write::Save(Record::Core(CoreRecord::Deployment(self.next_commit())))
+        Write::Save(self.commit_record())
+    }
+
+    fn commit_record(&mut self) -> Record {
+        Record::Core(CoreRecord::Deployment(self.next_commit()))
     }
 }
 

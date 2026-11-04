@@ -42,6 +42,7 @@ impl Frame {
                 .expect("valid setup fixture"),
             ),
             f::Request::Adopt(_)
+            | f::Request::Dismiss(_)
             | f::Request::Return(_)
             | f::Request::RemoveForge(_)
             | f::Request::StartPlayground
@@ -97,8 +98,11 @@ impl Frame {
                             )
                         } else {
                             f::Connection::SettingUp(
-                                f::SettingUp::new(&f::CEILINGS, f::SettingUpParts { step: Some(f::SetUpStep::Run) })
-                                    .expect("valid setup fixture"),
+                                f::SettingUp::new(
+                                    &f::CEILINGS,
+                                    f::SettingUpParts { step: Some(f::SetUpStep::Run), fetched: None },
+                                )
+                                .expect("valid setup fixture"),
                             )
                         },
                         offer: f::Offer::NotOffered,

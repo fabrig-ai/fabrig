@@ -983,6 +983,7 @@ fn forge_row(
         mode,
         connection,
         failed: None,
+        fetched: None,
         offer,
         first: None,
         installations: Box::new([]),
@@ -1006,6 +1007,7 @@ fn configured_forge_rows() -> forge::Forges {
                 mode: forge::Mode::Owned,
                 connection: forge::Connection::SettingUp { step: Some(forge::SetUpStep::Prepare) },
                 failed: None,
+                fetched: None,
                 offer: forge::Offer::Offered,
                 first: None,
                 installations: Box::new([]),
@@ -1047,6 +1049,37 @@ fn configured_forge_rows() -> forge::Forges {
     }
 }
 #[test]
+fn a_row_s_fetched_reaches_the_wire() {
+    const OWNED: u16 = 1;
+    for (binary, expected_binary, total) in [
+        (forge::SetUpBinary::Forgejo, w::SetUpBinary::Forgejo, Some(100)),
+        (forge::SetUpBinary::Runner, w::SetUpBinary::Runner, None),
+        (forge::SetUpBinary::Forgejo, w::SetUpBinary::Forgejo, None),
+        (forge::SetUpBinary::Runner, w::SetUpBinary::Runner, Some(100)),
+    ] {
+        let mut row = forge_row(
+            OWNED,
+            forge::Kind::Forgejo,
+            forge::Mode::Owned,
+            forge::Connection::SettingUp { step: Some(forge::SetUpStep::Fetch) },
+            forge::Offer::Offered,
+        );
+        row.fetched = Some(forge::SetUpFetched { binary, done: 10, total });
+        let bytes = family::forges(forge::Forges { rows: Box::new([row]) }, &w::CEILINGS).unwrap();
+        let rows = wire::decode_forges(&bytes, &w::CEILINGS).unwrap();
+        let w::Connection::SettingUp(setup) = rows.forges().get(0).unwrap().connection() else { panic!("setting up") };
+        assert_eq!(setup.step(), &Some(w::SetUpStep::Fetch));
+        assert_eq!(
+            setup.fetched(),
+            &Some(
+                w::SetUpFetched::new(&w::CEILINGS, w::SetUpFetchedParts { binary: expected_binary, done: 10, total })
+                    .unwrap()
+            )
+        );
+    }
+}
+
+#[test]
 fn forges_encode_the_domains_rows_without_settings() {
     let value = configured_forge_rows();
     for (failed, expected) in [
@@ -1073,7 +1106,8 @@ fn forges_encode_the_domains_rows_without_settings() {
             w::Kind::Forgejo,
             w::Mode::Owned,
             w::Connection::SettingUp(
-                w::SettingUp::new(&w::CEILINGS, w::SettingUpParts { step: Some(w::SetUpStep::Prepare) }).unwrap(),
+                w::SettingUp::new(&w::CEILINGS, w::SettingUpParts { step: Some(w::SetUpStep::Prepare), fetched: None })
+                    .unwrap(),
             ),
             w::Offer::Offered,
         ),
@@ -1395,6 +1429,7 @@ fn return_install_and_manifest_paths_are_bounded_visible_paths_on_this_listener(
                             assert_eq!(source, 7, "{name}");
                             path
                         }
+                        root::Application::Dismiss { .. } => panic!("return or install"),
                         root::Application::Forge(ask) => {
                             let (forge::Ask::Install { forge, back: Some(back) }
                             | forge::Ask::Connect {
@@ -1461,6 +1496,7 @@ fn installations_and_the_last_connect_end_encode_unchanged() {
                 mode: forge::Mode::Connected,
                 connection: forge::Connection::NotConnected,
                 failed: None,
+                fetched: None,
                 offer: forge::Offer::NotOffered,
                 first: None,
                 installations: Box::new([
@@ -1535,6 +1571,7 @@ fn owned_details_fit_their_bounds_and_an_overlong_field_drops_only_the_details()
                 mode: forge::Mode::Owned,
                 connection: forge::Connection::Connecting,
                 failed: None,
+                fetched: None,
                 offer: forge::Offer::NotOffered,
                 first: None,
                 installations: Box::new([]),
@@ -1838,11 +1875,25 @@ fn the_landings_subject_names_no_task() {
 fn forge_removal_and_playground_requests_keep_their_envelopes() {
     for (request, expected) in [
         (
-            w::Request::RemoveForge(w::RemoveForge::new(&w::CEILINGS, w::RemoveForgeParts { forge: 9 }).unwrap()),
-            forge::Ask::RemoveForge { forge: 9 },
+            w::Request::Dismiss(
+                w::Dismiss::new(
+                    &w::CEILINGS,
+                    w::DismissParts {
+                        what: w::Dismissal::ToBegin(
+                            w::ToBegin::new(&w::CEILINGS, w::ToBeginParts { project: 2 }).unwrap(),
+                        ),
+                    },
+                )
+                .unwrap(),
+            ),
+            root::Application::Dismiss { what: forge::Dismissal::ToBegin { project: 2 } },
         ),
-        (w::Request::StartPlayground, forge::Ask::StartPlayground),
-        (w::Request::EndPlayground, forge::Ask::EndPlayground),
+        (
+            w::Request::RemoveForge(w::RemoveForge::new(&w::CEILINGS, w::RemoveForgeParts { forge: 9 }).unwrap()),
+            root::Application::Forge(forge::Ask::RemoveForge { forge: 9 }),
+        ),
+        (w::Request::StartPlayground, root::Application::Forge(forge::Ask::StartPlayground)),
+        (w::Request::EndPlayground, root::Application::Forge(forge::Ask::EndPlayground)),
     ] {
         let record = w::Requesting::new(&w::CEILINGS, w::RequestingParts { request }).unwrap();
         let event = family::to_root(
@@ -1865,7 +1916,7 @@ fn forge_removal_and_playground_requests_keep_their_envelopes() {
             (reply_to, sign_in, key, digest, scope),
             (REPLY, 3, REQUEST_KEY, [7; 32], people::ApplicationScope::Project(7))
         );
-        assert_eq!(request, root::Application::Forge(expected));
+        assert_eq!(request, expected);
     }
 }
 #[test]
@@ -1968,6 +2019,13 @@ fn new_forge_places_reach_both_setup_and_connect_whole() {
 fn removal_and_playground_answers_use_their_own_outcomes() {
     let jig = jig_protocol_config::profile(jig_protocol_config::Profile::Small).clients.wire;
     for (answer, expected) in [
+        (root::ApplicationAnswer::Dismiss(forge::DismissAnswer::Dismissed), w::Outcome::Dismissed),
+        (
+            root::ApplicationAnswer::Dismiss(forge::DismissAnswer::TooLarge),
+            w::Outcome::ForgeRefused(
+                w::ForgeRefused::new(&w::CEILINGS, w::ForgeRefusedParts { reason: w::ForgeReason::TooLarge }).unwrap(),
+            ),
+        ),
         (root::ApplicationAnswer::RemoveForge(forge::RemoveAnswer::Removed), w::Outcome::Removed),
         (
             root::ApplicationAnswer::RemoveForge(forge::RemoveAnswer::Refused(forge::ForgeRefusal::Role)),
@@ -2357,5 +2415,55 @@ fn playground_config_needs_the_welcome() {
             assert_eq!(config.provider, demo.unwrap().provider);
             assert_eq!(config.deadline, deadline);
         }
+    }
+}
+
+#[test]
+fn dismissed_watches_name_the_partys_own_subject() {
+    let watching = w::Watching::new(&w::CEILINGS, w::WatchingParts { watch: w::Watch::Dismissed }).unwrap();
+    let event = family::to_root(
+        &jig_protocol_config::Directories::working(),
+        watch_exchange(wire::FORGE, wire::CLIENT_VERSION, wire::watching(&watching)),
+        &fixtures::forge_table(&[]),
+        None,
+        family::Deployment { welcome: false, owned: false },
+        None,
+        &w::CEILINGS,
+    )
+    .unwrap();
+    let root::Event::Party(root::PartyInput::Watch { watcher, subject, .. }) = event else { panic!("dismissed watch") };
+    assert_eq!(
+        (watcher, subject),
+        (
+            WATCHER,
+            jig_domain_core::documents::Watched::Application {
+                scope: people::ApplicationScope::Own,
+                connector: wire::FORGE,
+                subject: Token::new(forge::DISMISSED_SUBJECT),
+            }
+        )
+    );
+}
+
+#[test]
+fn dismissals_encode_the_partys_rows() {
+    for projects in [[].as_slice(), [3, 7].as_slice()] {
+        let mut rows = List::with_capacity(2);
+        for project in projects {
+            rows.push(forge::Dismissal::ToBegin { project: *project }).unwrap();
+        }
+        let rows = rows.into_boxed();
+        let bytes =
+            family::document(forge::Document::Dismissals(rows), &fixtures::forge_table(&[]), &w::CEILINGS).unwrap();
+        let got = wire::decode_dismissals(&bytes, &w::CEILINGS).unwrap();
+        let mut expected = List::with_capacity(wire::DISMISSED);
+        for project in projects {
+            expected
+                .push(w::Dismissal::ToBegin(
+                    w::ToBegin::new(&w::CEILINGS, w::ToBeginParts { project: *project }).unwrap(),
+                ))
+                .unwrap();
+        }
+        assert_eq!(got, w::Dismissals::new(&w::CEILINGS, w::DismissalsParts { dismissed: expected }).unwrap());
     }
 }

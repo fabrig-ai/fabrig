@@ -97,7 +97,8 @@ decide, propose, subscribe and recall families, which the
 reference's profile does not grant and configuring's stage 1 follows
 (`draft/reference-code-production.md`); `draft/serve-without-box.md`'s
 status holds a departure the user has not answered, the deployment's
-read's `owned`; the others record what the
+read's `owned`, and `draft/to-begin.md`'s another, a dismissal erased
+with its project alone; the others record what the
 design carries of them and where it lags or departs.
 `domain/README.md`, `protocol/llm.md` and `client/journeys.md` have
 no gap.

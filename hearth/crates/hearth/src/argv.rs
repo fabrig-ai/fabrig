@@ -1,4 +1,4 @@
-//! In-process render, diff and build arguments and startup paths (client/README.md, 3.5).
+//! In-process render, diff and build arguments and startup paths (hearth/docs/design/client/README.md, 3.5).
 use crate::{
     Call, Form, Invocation,
     records::startup::{Misuse, Opened, Startup},

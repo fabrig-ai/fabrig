@@ -15,7 +15,8 @@ A party's inbox is what waits on it, questions, proposals, escalations and perso
     as `t41/3 · proposal` (temper help proposal);
   - an escalation, a held task waiting for you to decide its hold,
     `TASK · escalation`;
-  - a person task, a task whose executor is you, `TASK · person task`.
+  - a person task, a task whose executor is you, `TASK · person task`, followed by `read: task show TASK` for its
+    contract, revision and offered acts.
 - **Updates** are news your party has not read: a result,
   `TASK · result`, and a reply in a conversation, `TASK · task`.
 - **Its order:** every need, then the updates, in pages of at most 32
@@ -51,7 +52,12 @@ A party's inbox is what waits on it, questions, proposals, escalations and perso
   or one goal's tree; `me` counts it. Act on each line through its
   subject: `task show` on a task lists its acts, among them `task
   answer` for a question and `task decide` for an escalation; `proposal
-  show` and `proposal decide` for a proposal.
+  show` and `proposal decide` for a proposal. A person task has a separate
+  revisioned answer: take role-addressed work with `task take TASK`,
+  then answer its shown choice with `task answer TASK --rev REV CHOICE
+  TEXT`, or its words with `task answer TASK --rev REV TEXT`.
+  `task hand-back TASK` returns a claim to the role. Read `help task
+  answer` for approval and cannot-do forms.
 - **temper's runs** have no inbox: what waits on a run reaches it at
   its turns, as its rules for waking say (temper help task).
 

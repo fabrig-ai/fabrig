@@ -239,6 +239,7 @@ pub enum Answered {
     Install(InstallAnswer),
     Accept(AcceptAnswer),
     Reachable(ReachableAnswer),
+    Dismiss(crate::DismissAnswer),
 }
 /// Public forge admission refusals (client/README.md, 8).
 #[derive(Clone, Copy, PartialEq, Eq, Debug)]
@@ -553,6 +554,7 @@ pub struct Row {
     pub mode: Mode,
     pub connection: Connection,
     pub failed: Option<FailedStep>,
+    pub fetched: Option<SetUpFetched>,
     pub offer: Offer,
     pub first: Option<First>,
     pub installations: Box<[(u64, Installation)]>,
@@ -1109,6 +1111,11 @@ pub enum Stored {
     Playground(Playground),
     Tier(TierRow),
     Verification(Verification),
+    /// A person's dismissals (temper/docs/design/domain/forge.md, 5.5).
+    Dismissed {
+        party: u64,
+        what: crate::Dismissal,
+    },
 }
 /// A bounded connector payload awaiting an authority holder's decision.
 #[derive(Clone, PartialEq, Eq, Hash, Debug)]
@@ -1149,6 +1156,7 @@ pub enum Key {
     Playground,
     Tier { repository: skein_forge::api::Repository, tier: Box<[u8]> },
     Verification { repository: skein_forge::api::Repository, commit: skein_forge::api::Commit },
+    Dismissed { party: u64, what: crate::Dismissal },
 }
 /// A completed phase of the connector's restart contract.
 #[derive(Clone, Copy, PartialEq, Eq, Debug)]
@@ -1189,6 +1197,19 @@ pub enum SetUpStep {
     Fetch,
     Prepare,
     Run,
+}
+/// The binary named by the box's fetch line (protocol/forge.md, 2.8).
+#[derive(Clone, Copy, PartialEq, Eq, Debug)]
+pub enum SetUpBinary {
+    Forgejo,
+    Runner,
+}
+/// The latest fetch line, kept in memory alone (protocol/forge.md, 2.8).
+#[derive(Clone, Copy, PartialEq, Eq, Debug)]
+pub struct SetUpFetched {
+    pub binary: SetUpBinary,
+    pub done: u64,
+    pub total: Option<u64>,
 }
 /// The held connection's step when setup failed (domain/forge.md, 4.1).
 #[derive(Clone, Copy, PartialEq, Eq, Debug)]
@@ -1357,6 +1378,10 @@ pub enum Event {
         forge: u16,
         state: Connection,
     },
+    Fetched {
+        forge: u16,
+        fetched: SetUpFetched,
+    },
     Installation {
         forge: u16,
         installation: u64,
@@ -1370,6 +1395,13 @@ pub enum Event {
         ask: Ask,
         role: Option<jig_domain_people::Role>,
         carried: Option<jig_domain_core::Carried>,
+    },
+    /// A core-admitted dismissal (temper/docs/design/domain/forge.md, 5.5).
+    Dismiss {
+        request: Token,
+        token: Token,
+        party: u64,
+        what: crate::Dismissal,
     },
     /// The core's answer to the application's adoption part.
     ApplicationAnswered {
