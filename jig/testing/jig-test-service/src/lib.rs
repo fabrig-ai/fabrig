@@ -95,8 +95,8 @@ impl Service {
         let accounts = engine.accounts.as_ref()?;
         let (driver_made, restores_waiting, wants_waiting) = accounts.component().startup(source);
         Some(AccountStartup {
-            pending_mark: engine.store.component.pending_mark(),
-            durable: engine.store.component.mark_durable(),
+            pending_mark: engine.store.host.component.pending_mark(),
+            durable: engine.store.host.component.mark_durable(),
             driver_made,
             restores_waiting,
             wants_waiting,

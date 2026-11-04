@@ -616,14 +616,14 @@ impl Clients {
 impl Clients {
     pub(super) fn secrets_step(&mut self, store: &mut crate::store::Store) {
         // Answer retained requests before creating the next correlations.
-        for _ in 0..store.secrets.len() {
-            let answer = store.secrets.pop().expect("secrets terminals");
+        for _ in 0..store.host.secrets.len() {
+            let answer = store.host.secrets.pop().expect("secrets terminals");
             self.secret_answer(answer);
         }
         self.advance_secrets(store);
     }
     fn advance_secrets(&mut self, store: &mut crate::store::Store) {
-        if self.public_names.is_some() && store.component.mark_durable() {
+        if self.public_names.is_some() && store.host.component.mark_durable() {
             self.public_names = None;
             self.secrets.push(kit::SecretsRequest::Get { owner: kit::SecretOwner::PublicNames });
         }
@@ -633,7 +633,7 @@ impl Clients {
             let token = crate::tokens::token(crate::tokens::CLIENTS, self.next_secret);
             self.next_secret = self.next_secret.checked_add(1).expect("secret routing sequence");
             self.secret_owners.insert(token, owner).expect("secret request correlation");
-            if let Some(answer) = store.secrets(token, request) {
+            if let Some(answer) = store.host.secrets(token, request) {
                 self.secret_answer(answer);
             }
         }
