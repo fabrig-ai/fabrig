@@ -193,5 +193,5 @@ fn accepted_owned_setup_keeps_its_target_on_model_before_box_status_arrives() {
         }),
         "{shown}"
     );
-    assert!(shown.contains("work/hello, into the new project Default"), "{shown}");
+    assert!(shown.contains("work/hello, into the new project Hello"), "{shown}");
 }

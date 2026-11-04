@@ -74,12 +74,32 @@ pub fn forge_connected(row: &forges::Row) -> bool {
     };
     row.mode != forges::Mode::Fake && connected && (row.kind != forges::Kind::GitHub || forges::accepted(row))
 }
-/// Ready's first project: its name as written, "Default" until the
-/// person writes another, its request and its last ending, which survive
-/// navigation (3.5).
+/// What Ready adopts (temper/docs/design/client/README.md, 3.5): a first repository made and adopted nowhere.
+#[derive(Clone, Debug, PartialEq, Eq)]
+pub struct First {
+    pub forge: u16,
+    pub org: Box<[u8]>,
+    pub name: Box<[u8]>,
+}
+/// The offered name (temper/docs/design/client/README.md, 3.5).
+#[must_use]
+pub fn offered(first: Option<&First>) -> Box<[u8]> {
+    let Some(first) = first else { return OFFERED_NAME.into() };
+    if first.name.is_empty() || first.name.len() > usize::try_from(NAME_BYTES).expect("name bound fits") {
+        return OFFERED_NAME.into();
+    }
+    let mut name = first.name.clone();
+    if let Some(byte) = name.first_mut() {
+        byte.make_ascii_uppercase();
+    }
+    name
+}
+/// Ready's first project: its written name, request and last ending,
+/// which survive navigation (3.5).
 #[derive(Debug)]
 pub struct DefaultProject {
-    pub name: Box<[u8]>,
+    /// What the person wrote in the field; none until they write.
+    pub written: Option<Box<[u8]>>,
     /// Create was pressed with no name written.
     pub unnamed: bool,
     pub making: Option<jig_client::Key>,
@@ -89,16 +109,24 @@ pub struct DefaultProject {
 }
 impl DefaultProject {
     pub(crate) fn new() -> Self {
-        Self { name: DEFAULT_NAME.into(), unnamed: false, making: None, attempt: 0, ended: None, project: None }
+        Self { written: None, unnamed: false, making: None, attempt: 0, ended: None, project: None }
     }
-    /// The name as written, without its outer blanks: what Create asks for.
+    /// The field's value: what was written, else the offered name.
     #[must_use]
-    pub fn asked(&self) -> &[u8] {
-        self.name.trim_ascii()
+    pub fn shown<'a>(&'a self, offered: &'a [u8]) -> &'a [u8] {
+        match &self.written {
+            Some(written) => written,
+            None => offered,
+        }
+    }
+    /// What Create asks for: `shown` without its outer blanks.
+    #[must_use]
+    pub fn asked<'a>(&'a self, offered: &'a [u8]) -> &'a [u8] {
+        self.shown(offered).trim_ascii()
     }
 }
 /// The first project's name until the person writes another (3.5).
-pub const DEFAULT_NAME: &[u8] = b"Default";
+pub const OFFERED_NAME: &[u8] = b"My project";
 /// jig's project name bound (jig-domain-people's `NAME_BYTES`).
 pub(crate) const NAME_BYTES: u32 = 64;
 #[derive(Debug, PartialEq, Eq)]

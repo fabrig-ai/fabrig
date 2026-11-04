@@ -2,9 +2,8 @@
 
 2026-11-04. Where temper's code lags or departs from [README.md](README.md).
 
-- **Not yet:** 3.5, The welcome, and 5.6: Ready's offered name, its
-  lead naming the repository and its adoption; the code offers "Default"
-  and adopts nothing. 3.5: `Home { project }` and `Settings { project }`,
+- **Not yet:** 3.5, The welcome, and 5.6: Ready's lead naming the
+  repository and its adoption; the code adopts nothing. 3.5: `Home { project }` and `Settings { project }`,
   and the frame they stand in (5.1, 5.3). 3.4, 5.5: the composer's
   supplied default, jig's
   `resolved_default`, which neither jig's `Me` nor temper carries. 3.5:
