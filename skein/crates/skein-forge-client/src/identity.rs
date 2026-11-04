@@ -57,7 +57,7 @@ pub(crate) fn valid(config: &Config, l: &Limits) -> bool {
     {
         return false;
     }
-    let bytes = config.writers.len().checked_mul(size_of::<Writer>());
+    let bytes = config.writers.len().checked_mul(crate::measure::WRITER_BYTES);
     let bytes = match bytes {
         Some(bytes) => bytes.checked_add(config.namespace.len()),
         None => None,
