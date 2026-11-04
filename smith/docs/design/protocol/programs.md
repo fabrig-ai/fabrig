@@ -378,11 +378,16 @@ open is section 9.
   program's, naming the program, with its detail, and no notice.
 - **A program that exits** before its `result`, or whose stream does not
   decode, fails the run the same way, with its exit and its standard
-  error's tail. A rejected stream record also names its recognized record
-  kind and the failed grammar, assembly, correlation or receiving condition.
-  Unknown kinds are named as unknown, without copying their value or any
-  message contents. This bounded reason distinguishes a full completion
-  backlog from an invalid record.
+  error's tail.
+- **A decoded record that is refused** names its record category and
+  the failed operation in bounded operator detail. Malformed fields,
+  unsupported records, incomplete message boundaries, receiving limits,
+  retained-reply exhaustion and completion backlog remain distinct. A
+  limit names the measured value and the configured bound in its own
+  unit; neither record payloads nor private names are included. The
+  completion backlog is an invalid completion; the other stream
+  rejections fail as the program's. The owning service keeps this detail
+  on its operator path, without adding it to a review's reason sentence.
 
 ### 5.7 The budget, the clock and a cancel
 
