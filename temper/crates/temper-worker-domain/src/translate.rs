@@ -91,12 +91,12 @@ pub(crate) fn failure(failure: checkout::Failure, tags: &[u64]) -> wire::Prepara
         }
         checkout::Failure::Transient => wire::Preparation::Transient,
         checkout::Failure::Missing { repository, missing } => {
-            let place = usize::try_from(repository).expect("u32 fits usize");
+            let place = skein_lib::usize_of(repository);
             let tag = *tags.get(place).expect("every failed repository has a tag");
             wire::Preparation::Missing { tag, missing: self::missing(missing) }
         }
         checkout::Failure::Refused { repository } => {
-            let place = usize::try_from(repository).expect("u32 fits usize");
+            let place = skein_lib::usize_of(repository);
             let tag = *tags.get(place).expect("every failed repository has a tag");
             wire::Preparation::Refused { tag }
         }

@@ -1,6 +1,7 @@
 //! Owned facts, identities and bounded text shared within the client vocabulary.
 //! No engine or application type crosses here. Text is checked before ownership
 //! moves in; list owners choose capacities from limits. See client/domain/contract.md, 5.
+use super::PhaseClass;
 use alloc::boxed::Box;
 use skein_lib::{List, Wall};
 /// Owned UTF-8 text, checked by its owner before it is kept.
@@ -191,6 +192,26 @@ pub enum Phase {
     Failed,
     /// Cancelled.
     Cancelled,
+}
+
+impl Phase {
+    /// The class a task query selects by.
+    #[must_use]
+    pub const fn class(self) -> PhaseClass {
+        match self {
+            Self::Waiting => PhaseClass::Waiting,
+            Self::Held => PhaseClass::Held,
+            Self::Closing => PhaseClass::Closing,
+            Self::Ended | Self::Done | Self::Failed | Self::Cancelled => PhaseClass::Ended,
+            Self::Idle
+            | Self::Due
+            | Self::Preparing
+            | Self::Claimed
+            | Self::Running
+            | Self::BackingOff
+            | Self::Active => PhaseClass::Working,
+        }
+    }
 }
 
 /// An application value named without carrying its type.

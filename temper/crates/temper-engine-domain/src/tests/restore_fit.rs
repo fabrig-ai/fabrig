@@ -76,7 +76,7 @@ fn derived_fit_refuses_before_missing_links_at_the_restore_terminal() {
     let (source, _, task) = super::projection_settled::live_goal(None);
     jig_domain_tasks::step(
         &mut d.core.tasks,
-        &Env { now: env.now, wall: env.wall, limits: env.limits.tasks },
+        &env.with(env.limits.tasks),
         jig_domain_tasks::Event::Restore {
             record: jig_domain_tasks::Stored::Live(Box::new(source.tasks().task(task).unwrap().clone())),
         },

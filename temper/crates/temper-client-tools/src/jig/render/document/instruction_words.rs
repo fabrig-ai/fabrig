@@ -23,7 +23,7 @@ pub(super) fn text(instructions: &DocumentText, out: &mut Text) {
             out.put(b"\xe2\x80\xa6");
         }
         out.put(b" (");
-        out.number(u64::try_from(bytes.len()).expect("document byte count fits"));
+        out.number(skein_lib::len_u64(bytes.len()));
         out.put(if instructions.cut {
             b" bytes held, cut; --json prints what is held)"
         } else {

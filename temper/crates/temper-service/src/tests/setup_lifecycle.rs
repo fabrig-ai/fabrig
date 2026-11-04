@@ -535,7 +535,7 @@ fn a_real_reconcile_prunes_accepted_after_kept_and_never_connects_or_writes_orig
     assert!(service.engine.as_ref().expect("engine").forge.accepted.get(0).unwrap().1.is_empty());
 }
 fn connection_reply(service: &mut crate::Service, face: &mut Face, body: &[u8]) {
-    let length = skein_lib::Decimal::of(u64::try_from(body.len()).unwrap());
+    let length = skein_lib::Decimal::of(skein_lib::len_u64(body.len()));
     let head = b"HTTP/1.1 200 OK\r\nContent-Length: ";
     let mut writer = skein_lib::Writer::new(
         head.len()

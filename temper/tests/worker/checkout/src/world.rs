@@ -655,7 +655,7 @@ impl World {
                 self.disk.write(&[dir.as_slice(), format!("/notes/{serial}").as_bytes()].concat(), &content);
                 continue;
             }
-            let count = u64::try_from(files.len()).expect("small");
+            let count = skein_lib::len_u64(files.len());
             let path = &files[usize::try_from(self.rng.below(count)).expect("small")];
             let at = [dir.as_slice(), b"/", path].concat();
             if pick == 1 || files.len() == 1 {
@@ -1250,7 +1250,7 @@ fn draw_repositories(rng: &mut Rng, settings: &Settings) -> Vec<usize> {
     let most = settings.checkout.repositories.min(settings.repositories);
     let count = rng.between(1, u64::from(most));
     let mut places: Vec<usize> = Vec::new();
-    while u64::try_from(places.len()).expect("small") < count {
+    while skein_lib::len_u64(places.len()) < count {
         let place = usize::try_from(rng.below(u64::from(settings.repositories))).expect("small");
         if !places.contains(&place) {
             places.push(place);

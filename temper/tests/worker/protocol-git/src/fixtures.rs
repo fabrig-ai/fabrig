@@ -246,7 +246,7 @@ pub fn sweep() -> Scenario {
 #[must_use]
 pub fn drawn(seed: u64) -> Scenario {
     let mut choices = operations();
-    let index = usize::try_from(seed % u64::try_from(choices.len()).expect("cases")).expect("index");
+    let index = usize::try_from(seed % skein_lib::len_u64(choices.len())).expect("index");
     let mut scenario = choices.remove(index).1;
     scenario.script.exit_first = seed & 1 != 0;
     let count = u32::try_from(scenario.script.invocations.len()).expect("sequence");

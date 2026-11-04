@@ -13,16 +13,11 @@
   first chunk; `real.rs`'s `commit_and_recover` checks the reopened number,
   without reading the value; no reason is recorded.
 - **Departs:**
-  - 2, 3, 4: for the store's requests, recovery and commits,
-    `skein/docs/foundation/programming-model.md`, 5.4 asks for one explicit
-    state enum per lifecycle, each state holding exactly its data, no
-    lifecycle in flags or `Option`s beside it, exhaustive matches and one
-    handler per cell; `skein-kv/src/store.rs`'s `Store` keeps recovery and
-    snapshot flags and `Option`s beside `phase`, its reading phases keep a
-    failure found part way as data (`failure`, `replayed`), it matches
-    phase and event tuples with catch-all arms, and it has five
-    module-wide subset exceptions; no reason is recorded (the code's side
-    is `skein/docs/development/debt/D017-kv-store-states.md`).
+  - 4: a failed create or directory sync on a rollover ends the store as a
+    failed start does: `skein-kv/src/store.rs`'s `Creating` and `Announcing`
+    close it with no event, and leave its queued commits unanswered, where
+    this section answers them `Failed` and recovers from the disk; no reason
+    is recorded.
   - 3, 7, 9: a restart's transient heap does not grow with a file's
     length, but it is more than the read and the frame or snapshot chunk
     these sections say, and than the chunk plus a frame the user's

@@ -785,10 +785,7 @@ impl<'a> Plan<'a> {
                     Role::Paragraph,
                     &words.say(
                         if ended_rows.more { Word::PlanMoreCounts } else { Word::PlanCounts },
-                        &[
-                            Hole::Number(u64::from(live)),
-                            Hole::Number(u64::try_from(ended_rows.lines.len()).expect("page fits")),
-                        ],
+                        &[Hole::Number(u64::from(live)), Hole::Number(skein_lib::len_u64(ended_rows.lines.len()))],
                     ),
                 );
             }

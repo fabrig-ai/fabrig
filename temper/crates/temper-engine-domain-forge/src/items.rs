@@ -164,9 +164,9 @@ impl Domain {
         let name = repository.name.clone();
         let mut bytes = u64::try_from(size_of::<Item>())
             .ok()?
-            .checked_add(u64::try_from(name.len()).ok()?)?
-            .checked_add(u64::try_from(repository.host.len()).ok()?)?
-            .checked_add(u64::try_from(repository.owner.len()).ok()?)?;
+            .checked_add(skein_lib::len_u64(name.len()))?
+            .checked_add(skein_lib::len_u64(repository.host.len()))?
+            .checked_add(skein_lib::len_u64(repository.owner.len()))?;
         let branch = match &start {
             Start::Base(branch)
             | Start::Branch(branch)
@@ -174,17 +174,17 @@ impl Domain {
             | Start::Merge { branch, .. }
             | Start::Merged { branch, .. } => branch,
         };
-        bytes = bytes.checked_add(u64::try_from(branch.len()).ok()?)?;
+        bytes = bytes.checked_add(skein_lib::len_u64(branch.len()))?;
         if let Start::Merged { heads, .. } = &start {
             bytes = bytes.checked_add(
-                u64::try_from(heads.len()).ok()?.checked_mul(u64::try_from(size_of::<api::Commit>()).ok()?)?,
+                skein_lib::len_u64(heads.len()).checked_mul(u64::try_from(size_of::<api::Commit>()).ok()?)?,
             )?;
         }
         if let Some(push) = &push {
-            bytes = bytes.checked_add(u64::try_from(push.len()).ok()?)?;
+            bytes = bytes.checked_add(skein_lib::len_u64(push.len()))?;
         }
         if let Some(landing) = &landing {
-            bytes = bytes.checked_add(u64::try_from(landing.len()).ok()?)?;
+            bytes = bytes.checked_add(skein_lib::len_u64(landing.len()))?;
         }
         Some(Item {
             provider: repository.provider,

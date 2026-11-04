@@ -222,7 +222,7 @@ pub(super) fn start_landing(domain: &mut Domain, env: &Env<Limits>, task: u64) {
     }
     let mut words = List::with_capacity(env.limits.tasks.spec_bytes.saturating_sub(32));
     append(&mut words, b"Land ");
-    let room = usize::try_from(words.capacity().saturating_sub(words.len())).expect("u32 fits usize");
+    let room = skein_lib::usize_of(words.capacity().saturating_sub(words.len()));
     let title = temper_engine_domain_forge_issues::text::fit(&change.title, room, "…".as_bytes());
     append(&mut words, &title);
     let mut members = List::with_capacity(env.limits.forge.landing_members);

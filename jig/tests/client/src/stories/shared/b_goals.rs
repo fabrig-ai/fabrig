@@ -40,6 +40,37 @@ pub fn moving_a_goal_up_reorders_the_board<F: Front<Test>>(world: &mut World<Tes
     finish(world);
     assert_eq!(goal_order(world, client), vec![2, 1]);
 }
+/// The last changed first: `QueryOrder::Changed`, on the project's tasks section.
+pub fn a_project_s_tasks_section_lists_the_last_changed_first<F: Front<Test>>(world: &mut World<Test, F>) {
+    let client = ready(world, ProjectSection::Goals);
+    world.person(
+        client,
+        vec![
+            Step::Press { find: Find::exactly_named(Role::Button, b"Move up") },
+            Step::Press { find: Find::exactly_named(Role::Button, b"Confirm") },
+        ],
+    );
+    finish(world);
+    assert_eq!(goal_order(world, client), vec![2, 1]);
+    world.person(
+        client,
+        vec![
+            Step::Go { address: Address::Jig(Page::Project { project: 1, section: ProjectSection::Tasks }) },
+            Step::See { find: Find::named(Role::Link, b"First goal"), within: WAIT },
+            Step::See { find: Find::named(Role::Link, b"Second goal"), within: WAIT },
+        ],
+    );
+    finish(world);
+    let titles: Vec<_> = world
+        .tree(client)
+        .nodes()
+        .iter()
+        .filter(|node| node.role == Role::Link)
+        .filter_map(|node| node.name.as_deref())
+        .filter(|name| name.ends_with(b"goal"))
+        .collect();
+    assert_eq!(titles, vec![b"Task 1: First goal".as_slice(), b"Task 2: Second goal".as_slice()]);
+}
 pub fn the_project_overview_shows_the_board_s_first_goals<F: Front<Test>>(world: &mut World<Test, F>) {
     let client = ready(world, ProjectSection::Overview);
     world.person(client, vec![Step::See { find: Find::text(b"First goal"), within: WAIT }]);

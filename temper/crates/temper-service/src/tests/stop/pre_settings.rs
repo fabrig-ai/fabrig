@@ -13,7 +13,7 @@ use skein_io::{
     file_layer::{self, FileIo},
     kernel::Complete,
 };
-use skein_lib::{Duration, Env, Queue, Token};
+use skein_lib::{Duration, Queue, Token};
 use skein_shell::{Clock, Config, Kernel, Wait};
 use skein_world::{Deadline, Expired};
 use std::{
@@ -46,7 +46,7 @@ fn plant(directory: &Path, ops: Box<[skein_kv::Op]>) {
     requests.push(skein_kv::Request::Close { owner: Token::new(3) });
     for request in requests {
         let now = clock.now();
-        let env = Env { now: now.now, wall: now.wall, limits };
+        let env = now.with(limits);
         skein_kv::down(&mut kv, &env, request, &mut above, &mut below);
         let deadline = Deadline::arm("the planted store request", Duration::from_secs(5));
         loop {
@@ -84,11 +84,11 @@ fn plant(directory: &Path, ops: Box<[skein_kv::Op]>) {
             }
             while let Some(event) = events.pop() {
                 let now = clock.now();
-                skein_kv::up(&mut kv, &Env { now: now.now, wall: now.wall, limits }, event, &mut above, &mut below);
+                skein_kv::up(&mut kv, &now.with(limits), event, &mut above, &mut below);
             }
             if below.is_empty() && skein_kv::is_ready(&kv, &limits) {
                 let now = clock.now();
-                skein_kv::fire(&mut kv, &Env { now: now.now, wall: now.wall, limits }, &mut above, &mut below);
+                skein_kv::fire(&mut kv, &now.with(limits), &mut above, &mut below);
             }
         }
     }

@@ -4,11 +4,7 @@ use jig_client::{self as client, contract as c};
 // Queue the last delivery and its terminal before routing either notification,
 // as the native client can do when it drains several wire events together.
 fn retained_delivery(root: &mut fixtures::Harness, subject: client::Watchable, delivery: c::Delivery) {
-    let env = skein_lib::Env {
-        now: root.now,
-        wall: root.wall,
-        limits: super::Limits::new(root.limits.domain, root.limits.tools),
-    };
+    let env = root.env(super::Limits::new(root.limits.domain, root.limits.tools));
     let watch = root.watch_token(&subject);
     let mut pending = skein_lib::Queue::with_capacity(fixtures::OUTPUTS);
     for up in [
@@ -163,11 +159,7 @@ fn queued_owner_outputs(
 ) -> skein_lib::Queue<super::Request> {
     let (read, _) = root.reads.remove(&follow_on).expect("follow-on read pending");
     let (attempt, _, _) = root.sends.get(&previous).expect("previous act sent");
-    let env = skein_lib::Env {
-        now: root.now,
-        wall: root.wall,
-        limits: super::Limits::new(root.limits.domain, root.limits.tools),
-    };
+    let env = root.env(super::Limits::new(root.limits.domain, root.limits.tools));
     let mut client = skein_lib::Queue::uncapped();
     let mut child = skein_lib::Queue::uncapped();
     let mut out = skein_lib::Queue::uncapped();

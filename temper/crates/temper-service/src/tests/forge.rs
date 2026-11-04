@@ -114,7 +114,7 @@ fn a_stopped_forge_is_named_and_only_its_calls_are_not_connected() {
 }
 fn forge_ok(body: &[u8]) -> Box<[u8]> {
     const HEAD: &[u8] = b"HTTP/1.1 200 OK\r\nContent-Length: ";
-    let length = skein_lib::Decimal::of(u64::try_from(body.len()).unwrap());
+    let length = skein_lib::Decimal::of(skein_lib::len_u64(body.len()));
     let size = HEAD
         .len()
         .checked_add(length.as_bytes().len())

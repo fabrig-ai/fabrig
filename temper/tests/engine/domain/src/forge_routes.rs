@@ -1189,7 +1189,7 @@ impl World {
         let mut config = self.fake_env.limits;
         config.latency_min = Duration::ZERO;
         config.latency_max = Duration::ZERO;
-        let env = Env { now: self.env.now, wall: self.env.wall, limits: config };
+        let env = self.env.with(config);
         fake::step(
             &mut self.fake,
             &env,
@@ -1361,7 +1361,7 @@ impl World {
                         limits.latency_min = delay;
                         limits.latency_max = delay;
                     }
-                    let fake_env = Env { now: self.fake_env.now, wall: self.fake_env.wall, limits };
+                    let fake_env = self.fake_env.with(limits);
                     fake::step(
                         &mut self.fake,
                         &fake_env,

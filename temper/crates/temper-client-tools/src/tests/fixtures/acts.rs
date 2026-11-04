@@ -287,7 +287,7 @@ pub(crate) fn restored_chat() -> List<skein_lib::RequestRecord<client::Held>> {
 }
 impl Harness {
     pub(crate) fn tell(&mut self, told: client::Told) {
-        let env = Env { now: self.now, wall: self.wall, limits: self.limits.tools };
+        let env = self.env(self.limits.tools);
         let mut out = root::act_fixture::told(&mut self.root, &env, told);
         for _ in 0..out.len() {
             match out.pop().expect("counted outputs") {

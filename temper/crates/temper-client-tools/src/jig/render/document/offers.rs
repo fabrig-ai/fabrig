@@ -123,8 +123,7 @@ pub(super) fn whole(bytes: &[u8], out: &mut Encoder, cut: &mut Cut, window: &mut
     if bytes.len() <= cut.room {
         cut.words(bytes, out);
     } else {
-        cut.left =
-            cut.left.checked_add(u64::try_from(bytes.len()).expect("bounded identifier")).expect("bounded document");
+        cut.left = cut.left.checked_add(skein_lib::len_u64(bytes.len())).expect("bounded document");
         window.cut = true;
         out.null();
     }

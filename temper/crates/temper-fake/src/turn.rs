@@ -27,7 +27,7 @@ impl Turn {
         let token = d.token(at).ok_or(read::why(p, b"missing"))?;
         if token.kind == Kind::String {
             let text = read::text(d, at, crate::ANSWER_BYTES, p)?;
-            let tokens = u64::try_from(text.len()).expect("bounded text").div_ceil(4);
+            let tokens = skein_lib::len_u64(text.len()).div_ceil(4);
             let value = api::Turn { lines: Box::new([Line::Text { text }]), finish: Finish::Stop, tokens };
             check_answer(&value, p)?;
             return Ok(Self { value });

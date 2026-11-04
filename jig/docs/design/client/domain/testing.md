@@ -125,6 +125,7 @@ its own, wherever a presentation builds on skein's UI kit.
   time; a run's text written out over time. It holds the truth the
   referee compares with: what it committed, and when.
   It encodes what it serves with jig's wire codec and hands it to the client through the link's decoding, so the link's bounds are the one admission rule for both fronts.
+  It decides as little of the core's as it can: a task's phase class is the contract's (`Phase::class`), its inbox rows come in the order a story seeds them, and what it still decides, a task page's order and the requester a record names, a shared story holds on both fronts (section 5).
 - **The transport, played by the world:** it carries the client's
   exchanges and its stream to the scripted engine, and its records to
   the small store, with section 7's faults between.

@@ -216,7 +216,7 @@ impl Referee {
     }
 
     fn next_stage(&self) -> u64 {
-        u64::try_from(self.archives.len()).expect("few decisions") + 1
+        skein_lib::len_u64(self.archives.len()) + 1
     }
 
     /// Check one sign-in's durable identity and session before retaining its name.

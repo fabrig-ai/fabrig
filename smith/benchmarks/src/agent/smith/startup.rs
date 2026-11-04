@@ -4,21 +4,14 @@
 use crate::agent::smith::events;
 use crate::{End, EventCheck, Exit, Forced, OutcomeCheck, Task};
 
-pub(super) fn finish(process: &mut crate::process::ProcessResult) -> Result<(), String> {
-    if let Some(crate::agent::Observing::Smith(observing)) = process.observing.as_deref_mut() {
-        observing.observer.finish().map_err(|error| error.what)?;
+impl super::Observing {
+    pub(crate) fn finish(&mut self) -> Result<(), String> {
+        self.observer.finish().map_err(|error| error.what)
     }
-    Ok(())
-}
 
-pub(super) fn classify(process: &crate::process::ProcessResult, task: &Task) -> Option<End> {
-    if process.error.is_some() {
-        return None;
+    pub(crate) fn refused(&self, task: &Task, exit: Exit, forced: Forced, stderr: &[u8]) -> Option<End> {
+        refused(task, &self.observer, exit, forced, stderr)
     }
-    let crate::agent::Observing::Smith(observing) = process.observing.as_deref()? else {
-        return None;
-    };
-    refused(task, &observing.observer, process.exit, process.forced, &process.stderr)
 }
 
 fn refused(task: &Task, observer: &events::Observer, exit: Exit, forced: Forced, stderr: &[u8]) -> Option<End> {
