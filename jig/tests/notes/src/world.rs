@@ -141,7 +141,8 @@ impl World {
             }
             if !writes.is_empty() {
                 if let Intent::DropProject { .. } = intent {
-                    assert!(writes.len() <= skein_lib::length::usize_of(self.limits.load_rows));
+                    let erases = self.limits.load_rows.checked_mul(2).expect("one line and entry per loaded row");
+                    assert!(writes.len() <= skein_lib::length::usize_of(erases));
                 }
                 self.referee.before_commit(&self.store, &writes, &intent);
                 for write in writes {
