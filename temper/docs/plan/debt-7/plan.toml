@@ -38,3 +38,16 @@ walk = false
 id = "wrong-secret-kind"
 text = """A restored secret of the wrong kind differs between the services. jig stops the engine, pinned by a_restored_sources_wrong_kind_stops_the_engine. In temper, by reading and not by a run, the Corrupt event finds no owner, the accounts child is aborted and the engine runs on; a_restored_sources_other_kind_fails_the_read pins only the event. Which holds? (a) recommended, what this plan builds by default: the shipped host reports the fact and each service acts as it does today, since the request keeps behaviour unchanged. A later small task decides temper's. (b) temper stops too, as jig does: a behaviour change for temper, which needs its own task and a test. Nothing waits on the answer."""
 parts = ["service-accounts"]
+
+[[part]]
+id = "fake-github"
+title = "skein D029: every test that serves the fake GitHub over HTTP drives its server, and the fixture is built once, in the fake"
+mode = "direct"
+needs = []
+design = "skein/docs/design/fake-forge.md, 10.6"
+
+[[slice]]
+id = 3
+story = "the forge component's harness and its machine, joint and protocol worlds meet the fake's own Server, with their stories' outcomes unchanged and the faces gone"
+parts = ["fake-github"]
+walk = false
