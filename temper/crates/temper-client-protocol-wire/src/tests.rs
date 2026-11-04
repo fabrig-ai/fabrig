@@ -1015,6 +1015,40 @@ fn remove_and_playground_requests_round_trip() {
     assert_eq!(crate::decode_reading(&crate::reading(&read), &limits), Some(read));
 }
 #[test]
+fn revision_setting_read_appends_after_the_deployment_tag() {
+    let limits = fixtures::limits();
+    let revision = v1::Read::RevisionSetting(
+        v1::RevisionSettingRead::new(
+            &limits,
+            v1::RevisionSettingReadParts { kind: 1, scope: 2, number: 3, revision: 4 },
+        )
+        .unwrap(),
+    );
+    for (read, bytes) in [
+        (v1::Read::Deployment, &[0, 12, 3][..]),
+        (revision, &[0, 12, 4, 0, 0, 0, 1, 0, 0, 0, 2, 0, 0, 0, 3, 0, 0, 0, 4][..]),
+    ] {
+        let record = v1::Reading::new(&limits, v1::ReadingParts { read }).unwrap();
+        assert_eq!(crate::reading(&record).as_ref(), bytes);
+        assert_eq!(crate::decode_reading(bytes, &limits), Some(record));
+    }
+}
+
+#[test]
+fn deployment_read_and_answer_round_trip() {
+    let limits = fixtures::limits();
+    let read = v1::Reading::new(&limits, v1::ReadingParts { read: v1::Read::Deployment }).unwrap();
+    let bytes = crate::reading(&read);
+    assert_eq!(crate::decode_reading(&bytes, &limits), Some(read));
+    for (welcome, owned) in [(false, false), (false, true), (true, false), (true, true)] {
+        let answer = v1::DeploymentAnswer::new(&limits, v1::DeploymentAnswerParts { welcome, owned }).unwrap();
+        let bytes = crate::deployment_answer(&answer);
+        assert_eq!(crate::decode_deployment_answer(&bytes, &limits), Some(answer));
+        assert_eq!(crate::decode_deployment_answer(&fixtures::trailing(&bytes), &limits), None);
+    }
+}
+
+#[test]
 fn playground_answer_round_trips_at_its_bounds() {
     let limits = fixtures::limits();
     for state in [v1::PlaygroundState::Starting, v1::PlaygroundState::Running, v1::PlaygroundState::Resetting] {

@@ -138,6 +138,16 @@ fn welcome(root: &mut Domain, out: &mut Queue<Request>) {
     if root.authorization.is_some() {
         return;
     }
+    if let crate::Address::Welcome { .. } = root.pages.address()
+        && let Some(deployment) = root.forge.deployment()
+        && !deployment.welcome
+    {
+        out.push(Request::Show {
+            address: crate::Address::Inbox { filter: crate::address::Filter::ALL },
+            replace: true,
+        });
+        return;
+    }
     if *root.pages.address() != (crate::Address::Welcome { step: crate::Step::Welcome }) {
         return;
     }

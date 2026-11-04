@@ -665,7 +665,7 @@ pub fn root(
         host_part: engine.host_part,
         kinds_stock: engine.kinds_stock.clone(),
         period_span: crate::stock::PERIOD_SPAN,
-        playground: crate::system::playground_config(engine.demo.as_ref(), engine.limits.setup.deadline),
+        playground: crate::system::playground_config(engine.demo.as_ref(), true, engine.limits.setup.deadline),
         core,
         landings,
         forge,

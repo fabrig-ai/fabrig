@@ -90,7 +90,7 @@ fn a_fresh_box_holds_serves_clients_port() {
 #[test]
 fn a_later_box_refuses_a_taken_port_naming_the_port_and_document() {
     let root = scratch("taken");
-    let output = command(&root, "init").output().expect("init");
+    let output = command(&root, "init").arg("--box").output().expect("init");
     assert!(output.status.success(), "{}", String::from_utf8_lossy(&output.stderr));
     let file = root.join("config/temper.json");
     let bytes = fs::read(&file).expect("document");

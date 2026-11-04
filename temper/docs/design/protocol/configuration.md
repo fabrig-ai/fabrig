@@ -33,8 +33,9 @@ document says what temper adds. What is open is listed in section 11.
   writes no parser of its own for them, and adds only the checks its
   shapes need (section 2).
 - **temper's members,** under `application`: `machine`, `landing`,
-  `charter`, `clients`, `sign_in`, `webhooks`, `demo` and `limits` for
-  the engine (section 3), and `workers`, one entry per worker (section 4).
+  `charter`, `clients`, `sign_in`, `webhooks`, `demo`, `welcome` and
+  `limits` for the engine (section 3), and `workers`, one entry per
+  worker (section 4).
   `webhooks` is the forge component's webhooks' listener, on loopback
   (forge.md, section 5).
 - **No forge is configured.** A forge is a record of the forge
@@ -44,8 +45,8 @@ document says what temper adds. What is open is listed in section 11.
   names no forge.
 - **The document keeps the machine's** (section 3): the clients' and
   webhooks' listeners; `machine`, the places a box's owned Forgejo and
-  its fake forge bind, which `temper init` chooses and the box holds
-  from its start (setup.md, 7.1), and GitHub's, github.com's unless it
+  its fake forge bind, which `temper init --box` chooses and the box
+  holds from its start (setup.md, 7.1), and GitHub's, github.com's unless it
   names a fake; `demo`'s fake LLM's port; and the limits, the forges
   kept among them as a count (section 7). A forge set up or connected
   takes its place from `machine`, or from what the person gives.
@@ -53,6 +54,8 @@ document says what temper adds. What is open is listed in section 11.
   LLM the box runs, its port, its LLM provider, its key and its
   scripts; null for none. `temper serve` reads its key alone, at the
   playground's start.
+- **`welcome`, whether the document shows the welcome** (section 3),
+  whoever wrote it: `true` from `temper init --box`, absent otherwise.
 - **Not configuration:** forges, which people set up or connect at
   runtime; repositories, which people adopt at runtime; the branch
   namespace, which the root derives from the deployment's id; the forge
@@ -233,8 +236,8 @@ document says what temper adds. What is open is listed in section 11.
 ## 3. temper's members for the engine
 
 **`machine`:** the machine's places, never a forge: where a box's owned
-Forgejo and the playground's fake forge listen, which `temper init`
-chooses (setup.md, 8.2) and the box holds from its start (setup.md,
+Forgejo and the playground's fake forge listen, which `temper init
+--box` chooses (setup.md, 8.2) and the box holds from its start (setup.md,
 7.1), and where GitHub is. A forge set up or connected takes its place
 from here (forge.md, 2.2). Each:
 
@@ -465,6 +468,18 @@ Its artifact name is non-empty, at most 32 bytes, and contains no `/`. The
 repository's tier count remains bounded by `forge.tiers.tiers` (2026-11-04).
 
 ## 4. temper's members for a worker
+
+**`welcome`:** a boolean, or absent: `true` shows the welcome
+(`../client/README.md`, 3.5) and lets the deployment offer the
+playground (setup.md, 8.4); `false` or absent, none.
+
+- **The document alone says:** a start reads the member whoever wrote
+  the document. `temper init --box` writes `true`, `temper init` alone
+  nothing (setup.md, 8.2), and no flag of any command changes it,
+  `temper internal serve`'s `--box` among them (setup.md, 7.4).
+- **Its readers:** the client, from the deployment's read
+  (`../client/README.md`, 4.6), and `StartPlayground`'s offer (setup.md,
+  8.4).
 
 **`application.workers`:** a list with one entry per entry of the
 top-level `workers`, in the same order; standalone and a worker alone
@@ -1069,8 +1084,8 @@ reduce task record capacities; that ceiling has no scalar override.
   (section 5).
 - **`temper forge prepare|run [DIRECTORIES] FORGE`** and **`temper box
   [DIRECTORIES]`** read the same document as `temper serve` (section 8;
-  setup.md, sections 6 and 7); **`temper init [DIRECTORIES]`** writes
-  it (setup.md, 8.2). Reconcile is no command: the
+  setup.md, sections 6 and 7); **`temper init [DIRECTORIES] [--box]`**
+  writes it (setup.md, 8.2). Reconcile is no command: the
   engine's setup host runs it, at each start and at a connect (setup.md,
   the setup host in the engine).
 
@@ -1336,7 +1351,7 @@ variable, else its default.
   always: no command takes a document's path. A command that finds none
   there is refused, naming the path, and `temper init`, which writes one
   (setup.md, 8.2); `temper box` alone, on an empty configuration
-  directory, runs `temper init` first (setup.md, 7.1).
+  directory, runs `temper init --box` first (setup.md, 7.1).
 - **Resolved once, at start,** before the document is read: each
   directory, from its flag, variable or default, is made absolute
   against the working directory, by joining names, and every parser is

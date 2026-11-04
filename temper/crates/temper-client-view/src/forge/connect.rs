@@ -85,7 +85,7 @@ pub(crate) fn main(
             None => Shown::Choose,
         }
     } else {
-        connect::step(choice, root.forges(), connect::playground(root.forge()))
+        connect::step(choice, root.forges(), connect::playground(root.forge()), owned(root))
     };
     let connecting = match choice {
         Some(Choice::GitHub | Choice::Owned | Choice::Managed | Choice::Elsewhere) => true,
@@ -147,8 +147,8 @@ pub(crate) fn body(
     place: Place,
 ) {
     let shown = match place {
-        Place::Connect => connect::step(choice, root.forges(), connect::playground(root.forge())),
-        Place::Welcome => connect::welcome_step(choice, root.forges(), connect::playground(root.forge())),
+        Place::Connect => connect::step(choice, root.forges(), connect::playground(root.forge()), owned(root)),
+        Place::Welcome => connect::welcome_step(choice, root.forges(), connect::playground(root.forge()), owned(root)),
     };
     match shown {
         Shown::Choose => choose(b, root, w, bindings, forge, place),
@@ -227,7 +227,12 @@ pub(crate) fn welcome(
     }
     if let Some(row) = personal(root) {
         if row.admin {
-            match connect::step(Some(Choice::Forge(row.number)), root.forges(), connect::playground(root.forge())) {
+            match connect::step(
+                Some(Choice::Forge(row.number)),
+                root.forges(),
+                connect::playground(root.forge()),
+                owned(root),
+            ) {
                 Shown::Details(_) => admin_details(b, root, w, forge, row),
                 Shown::Ready(_) => {
                     status(b, root, w, row);
@@ -256,10 +261,17 @@ pub(crate) fn welcome(
         body(b, root, w, bindings, forge, choice, Place::Welcome);
     }
 }
+fn owned(root: &Domain) -> bool {
+    match root.forge().deployment() {
+        Some(answer) => answer.owned,
+        None => false,
+    }
+}
+
 fn choose(b: &mut Builder, root: &Domain, w: &Words, bindings: &mut Bindings, forge: &mut ForgeBindings, place: Place) {
     b.open(Role::Slot);
     b.style(look::FLOW_CHOICES);
-    let kinds = connect::choices(connect::records(root.forges()), connect::playground(root.forge()), true);
+    let kinds = connect::choices(connect::records(root.forges()), connect::playground(root.forge()), owned(root));
     if let Place::Welcome = place {
         welcome_choices(b, root, w, bindings, forge, &kinds);
         b.close();

@@ -41,6 +41,7 @@ pub fn initialize(paths: &[PathBuf; 3]) {
     }
     let initialized = std::process::Command::new(skein_scratch::paths::binary("temper"))
         .arg("init")
+        .arg("--box")
         .args(
             ["--config", "--data", "--cache"]
                 .into_iter()

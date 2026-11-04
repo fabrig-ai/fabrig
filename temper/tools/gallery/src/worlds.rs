@@ -201,11 +201,18 @@ pub(super) fn world(w: World, address: Address, then: Then) -> (Domain, Option<T
                         answer(&mut root, read, value, &mut out);
                     }
                 }
-                jig_client::Down::Read { read, what: jig_client::Readable::Family { .. } } => {
-                    // A resetting sample leaves the next read pending.
-                    if w != (FirstRun { step: 10 }) || !playground_read {
-                        playground(&mut root, w, read, &mut out);
-                        playground_read = true;
+                jig_client::Down::Read { read, what: jig_client::Readable::Family { record, .. } } => {
+                    use temper_client_protocol_wire::{self as wire, v1};
+                    match wire::decode_reading(&record.bytes, &v1::CEILINGS).expect("gallery forge read").read() {
+                        v1::Read::Deployment => deployment_read(&mut root, read, &mut out),
+                        v1::Read::Playground => {
+                            // A resetting sample leaves the next read pending.
+                            if w != (FirstRun { step: 10 }) || !playground_read {
+                                playground(&mut root, w, read, &mut out);
+                                playground_read = true;
+                            }
+                        }
+                        v1::Read::Setting(_) | v1::Read::RevisionSetting(_) | v1::Read::ProposalItems(_) => {}
                     }
                 }
                 jig_client::Down::Open { watch, subject: jig_client::Watchable::Family { record, .. } }
@@ -536,6 +543,26 @@ fn change_panel(w: World, task: u64) -> Option<temper_client_protocol_wire::v1::
         )
         .expect("change panel"),
     )
+}
+fn deployment_read(root: &mut Domain, read: Token, out: &mut Queue<Request>) {
+    use temper_client_protocol_wire::{self as wire, v1};
+    let answer = v1::DeploymentAnswer::new(&v1::CEILINGS, v1::DeploymentAnswerParts { welcome: true, owned: true })
+        .expect("deployment answer");
+    step(
+        root,
+        Event::Client {
+            event: jig_client::Event::Up {
+                up: jig_client::Up::ReadDone {
+                    read,
+                    result: jig_client::Readout::Family {
+                        family: wire::FORGE,
+                        record: Some(wire::deployment_answer(&answer)),
+                    },
+                },
+            },
+        },
+        out,
+    );
 }
 fn playground(root: &mut Domain, w: World, read: Token, out: &mut Queue<Request>) {
     use temper_client_protocol_wire::{self as wire, v1};

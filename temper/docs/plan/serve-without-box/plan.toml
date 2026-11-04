@@ -1,0 +1,48 @@
+draft = "serve-without-box"
+repo = "fabrig"
+sources = ["temper/docs/plan/serve-without-box/inputs/serve-without-box.md", "temper/docs/design/draft/serve-without-box.md", "AGENTS.md"]
+
+# The welcome is the box's (inputs/serve-without-box.md). Released in batches: the document's
+# member and the wire's surface first, then init's flag, the fact served and read, then the pages.
+
+[buffer]
+low = 1.0
+high = 2.0
+
+[[part]]
+id = "document"
+title = "the welcome's member, init's bare document and the box's parts behind --box"
+mode = "direct"
+needs = []
+design = "temper/docs/design/protocol/setup.md, 8.2"
+
+[[part]]
+id = "fact"
+title = "whether the document shows the welcome, on the wire and read by the domain"
+mode = "direct"
+needs = []
+design = "temper/docs/design/client/README.md, 4.6"
+
+[[slice]]
+id = 1
+story = "a start reads application.welcome, and the wire carries the deployment's read"
+parts = ["document", "fact"]
+walk = false
+
+[[question]]
+id = "forge-offer"
+text = """The draft (4) offers Forgejo on this machine from the forges' rows, 'with no owned forge among them, none'. A first run's store keeps no forge, so no row exists until SetUp: read literally, every fresh box would lose the card, against the draft's own 'nothing changes under the box' (1) and against section 3's 'only where the document has one'. Default taken, and nothing waits on the answer: the deployment's read carries a second fact, owned, true where the document has application.machine.owned and the engine runs under the box; a kept owned row's offer still decides once one exists. So temper serve on a box's document draws no card its SetUp would refuse. Recorded as Design departs in the draft's status. Options: (a, recommended) keep it; (b) owned means the document alone, and temper serve on a box's document keeps a card refused 'not under the box'; (c) the engine lists an offered owned row from the machine at a first run: this changes forges() and what a first run's store reads as."""
+parts = ["fact", "pages"]
+
+[[part]]
+id = "pages"
+title = "with no welcome: the inbox on signing in, the chats page with no project, the Forge choices"
+mode = "direct"
+needs = ["fact"]
+design = "temper/docs/design/client/README.md, 3.5"
+
+[[slice]]
+id = 2
+story = "a person signs in on a deployment with no welcome and finds the inbox; with no project the chats page says so, and Forgejo on this machine is offered only where the document has one"
+parts = ["pages"]
+walk = false

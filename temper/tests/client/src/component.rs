@@ -195,18 +195,11 @@ impl Composition {
                     .expect("forge panel"),
                 }))
             }
-            root::PartyRequest::Deliver(root::Delivery::Application { mut to, outcome }) => {
-                transport.take_reply(reply_token(&mut to));
-                Some(Event::Application(clients::FromApplication::Answered {
-                    to,
-                    family: temper_client_protocol_wire::FORGE,
-                    record: temper_service::family::answer(
-                        outcome,
-                        &temper_client_protocol_wire::v1::CEILINGS,
-                        &self.env.limits.wire,
-                    )
-                    .expect("forge answer"),
-                }))
+            root::PartyRequest::Deliver(root::Delivery::Application { to, outcome }) => {
+                Some(self.application_answer(transport, to, outcome))
+            }
+            root::PartyRequest::Deliver(root::Delivery::ForgeRead { reply, answer }) => {
+                Some(Self::forge_answer(transport, reply, answer))
             }
             root::PartyRequest::Deliver(root::Delivery::Read { mut reply, answer }) => {
                 transport.take_reply(reply_token(&mut reply));
@@ -220,6 +213,33 @@ impl Composition {
         if let Some(event) = event {
             self.event(event);
         }
+    }
+
+    fn application_answer(
+        &self,
+        transport: &mut Transport,
+        mut to: skein_lib::ReplyTo,
+        outcome: Option<root::ApplicationAnswer>,
+    ) -> Event {
+        transport.take_reply(reply_token(&mut to));
+        Event::Application(clients::FromApplication::Answered {
+            to,
+            family: temper_client_protocol_wire::FORGE,
+            record: temper_service::family::answer(
+                outcome,
+                &temper_client_protocol_wire::v1::CEILINGS,
+                &self.env.limits.wire,
+            )
+            .expect("forge answer"),
+        })
+    }
+    fn forge_answer(transport: &mut Transport, mut reply: skein_lib::ReplyTo, answer: root::ForgeReadAnswer) -> Event {
+        transport.take_reply(reply_token(&mut reply));
+        Event::Application(clients::FromApplication::Read {
+            reply,
+            family: temper_client_protocol_wire::FORGE,
+            record: temper_service::family::forge_read(answer, &temper_client_protocol_wire::v1::CEILINGS),
+        })
     }
 
     pub fn drop_watches(&mut self) {
@@ -398,11 +418,16 @@ impl Composition {
             request,
             &crate::fixtures::forge_settings(),
             None,
+            temper_service::family::Deployment { welcome: true, owned: true },
             None,
             &temper_client_protocol_wire::v1::CEILINGS,
         ) {
             Ok(mut event) => {
-                if let root::Event::Party(root::PartyInput::Application { reply_to, .. }) = &mut event {
+                if let root::Event::Party(
+                    root::PartyInput::Application { reply_to, .. }
+                    | root::PartyInput::ForgeRead { reply: reply_to, .. },
+                ) = &mut event
+                {
                     transport.route_reply(
                         reply_token(reply_to),
                         self.pending_reply.take().expect("family request correlation"),

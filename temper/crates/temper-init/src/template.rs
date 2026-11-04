@@ -5,7 +5,7 @@
 //! Embedding these fixed templates is init's job (setup.md, 8.2); they are not runtime inputs.
 #![expect(clippy::disallowed_macros, reason = "init embeds its default documents, as setup.md 8.2 requires")]
 
-use crate::{Directories, Facts, path};
+use crate::{Bare, Directories, Facts, path};
 use alloc::boxed::Box;
 use skein_json::writer::{Encoder, Limits};
 use skein_lib::{Decimal, List, Writer, bytes};
@@ -13,9 +13,20 @@ use skein_lib::{Decimal, List, Writer, bytes};
 pub(crate) const TEMPER: &[u8] = include_bytes!("../template/temper.json");
 pub(crate) const AGENT: &[u8] = include_bytes!("../template/agent.json");
 
+pub(crate) const BARE: &[u8] = include_bytes!("../template/bare.json");
+pub(crate) const BARE_AGENT: &[u8] = include_bytes!("../template/bare-agent.json");
+
 pub(crate) fn documents(facts: &Facts<'_>, directories: &Directories<'_>, login: &[u8]) -> (Box<[u8]>, Box<[u8]>) {
-    let agent = path::join(directories.config, b"agent.json");
-    let programs = path::join(directories.data, b"programs");
+    let common = common_values(
+        &Bare {
+            binary: facts.binary,
+            git: facts.git,
+            claude: facts.claude,
+            clients: facts.ports.clients,
+            webhooks: facts.ports.webhooks,
+        },
+        directories,
+    );
     let forge = listener(facts.ports.forge);
     let mut forge_git = Writer::new(7_usize.checked_add(forge.len()).expect("an HTTP base fits"));
     forge_git.put(b"http://").expect("the scheme was counted");
@@ -31,13 +42,8 @@ pub(crate) fn documents(facts: &Facts<'_>, directories: &Directories<'_>, login:
     email.put(b"@localhost").expect("the domain was counted");
     let email = email.finish();
     let llm = listener(facts.ports.llm);
-    let webhooks = listener(facts.ports.webhooks);
-    let listener = listener(facts.ports.clients);
+
     let values = [
-        (b"binary".as_slice(), json(Value::Text(Some(facts.binary)))),
-        (b"agent".as_slice(), json(Value::Text(Some(&agent)))),
-        (b"git".as_slice(), json(Value::Text(facts.git))),
-        (b"listener".as_slice(), json(Value::Text(Some(&listener)))),
         (b"forge".as_slice(), json(Value::Text(Some(&forge)))),
         (b"forge_git".as_slice(), json(Value::Text(Some(&forge_git)))),
         (b"owned".as_slice(), json(Value::Text(Some(&owned)))),
@@ -45,10 +51,28 @@ pub(crate) fn documents(facts: &Facts<'_>, directories: &Directories<'_>, login:
         (b"login".as_slice(), json(Value::Text(Some(login)))),
         (b"email".as_slice(), json(Value::Text(Some(&email)))),
         (b"llm".as_slice(), json(Value::Text(Some(&llm)))),
-        (b"webhooks".as_slice(), json(Value::Text(Some(&webhooks)))),
-        (b"programs".as_slice(), json(Value::Programs { claude: facts.claude, directory: &programs })),
     ];
-    (fill(TEMPER, &values), fill(AGENT, &values))
+    (fill(TEMPER, &values, &common), fill(AGENT, &values, &common))
+}
+
+pub(crate) fn bare_documents(facts: &Bare<'_>, directories: &Directories<'_>) -> (Box<[u8]>, Box<[u8]>) {
+    let values = common_values(facts, directories);
+    (fill(BARE, &values, &[]), fill(BARE_AGENT, &values, &[]))
+}
+
+fn common_values(facts: &Bare<'_>, directories: &Directories<'_>) -> [(&'static [u8], Box<[u8]>); 6] {
+    let agent = path::join(directories.config, b"agent.json");
+    let programs = path::join(directories.data, b"programs");
+    let clients = listener(facts.clients);
+    let webhooks = listener(facts.webhooks);
+    [
+        (b"binary", json(Value::Text(Some(facts.binary)))),
+        (b"agent", json(Value::Text(Some(&agent)))),
+        (b"git", json(Value::Text(facts.git))),
+        (b"listener", json(Value::Text(Some(&clients)))),
+        (b"webhooks", json(Value::Text(Some(&webhooks)))),
+        (b"programs", json(Value::Programs { claude: facts.claude, directory: &programs })),
+    ]
 }
 
 fn listener(port: core::num::NonZeroU16) -> Box<[u8]> {
@@ -97,7 +121,7 @@ fn json(value: Value<'_>) -> Box<[u8]> {
     writer.finish()
 }
 
-fn fill(source: &[u8], values: &[(&[u8], Box<[u8]>)]) -> Box<[u8]> {
+fn fill(source: &[u8], values: &[(&[u8], Box<[u8]>)], common: &[(&[u8], Box<[u8]>)]) -> Box<[u8]> {
     let count = bytes::count(source, b"\"$", u32::MAX);
     let capacity =
         count.checked_mul(2).expect("two pieces per placeholder fit").checked_add(1).expect("one final piece fits");
@@ -110,7 +134,7 @@ fn fill(source: &[u8], values: &[(&[u8], Box<[u8]>)]) -> Box<[u8]> {
         let name_len = bytes::find(tail, b"\"").expect("each placeholder is a whole JSON string");
         let name = tail.get(..name_len).expect("the closing quote was found");
         pieces.push(source.get(cursor..start).expect("placeholders are disjoint")).expect("two pieces per placeholder");
-        pieces.push(replacement(name, values)).expect("two pieces per placeholder");
+        pieces.push(replacement(name, values, common)).expect("two pieces per placeholder");
         cursor = name_start
             .checked_add(name_len)
             .expect("the name ends within the template")
@@ -129,10 +153,12 @@ fn fill(source: &[u8], values: &[(&[u8], Box<[u8]>)]) -> Box<[u8]> {
     writer.finish()
 }
 
-fn replacement<'a>(name: &[u8], values: &'a [(&[u8], Box<[u8]>)]) -> &'a [u8] {
-    for (known, value) in values {
-        if name == *known {
-            return value;
+fn replacement<'a>(name: &[u8], values: &'a [(&[u8], Box<[u8]>)], common: &'a [(&[u8], Box<[u8]>)]) -> &'a [u8] {
+    for replacements in [values, common] {
+        for (known, value) in replacements {
+            if name == *known {
+                return value;
+            }
         }
     }
     unreachable!("the template's placeholders are all known, checked by the crate's tests")

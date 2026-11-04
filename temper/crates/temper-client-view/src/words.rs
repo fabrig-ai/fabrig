@@ -52,6 +52,7 @@ pub enum Word {
     NewProjectPlaceholder,
     CreateProject,
     NoProjectYet,
+    NoProjectLine,
     TokensTitle,
     TokensDescription,
     TokensApi,
@@ -752,10 +753,11 @@ pub(crate) const SCRIPTED_MODEL: &[u8] = b"demo";
 // The welcome's Forgejo sheet adds twelve literal phrases and segments (3.5).
 // Ready's first project adds four literal phrases and one of a hole; its
 // checklist's forge status and model account phrases are gone (3.5).
+// The chats page with no welcome and no project adds one literal phrase (3.5).
 // Model’s connected login and first repository are separate detail phrases (3.5).
-const PHRASES: u32 = 1266;
-const SEGMENTS: u32 = 2163;
-const ALL: [Word; 671] = [
+const PHRASES: u32 = 1267;
+const SEGMENTS: u32 = 2164;
+const ALL: [Word; 672] = [
     Word::PlaygroundBanner,
     Word::PlaygroundSetUp,
     Word::BannerSetUp,
@@ -796,6 +798,7 @@ const ALL: [Word; 671] = [
     Word::NewProjectPlaceholder,
     Word::CreateProject,
     Word::NoProjectYet,
+    Word::NoProjectLine,
     Word::TokensTitle,
     Word::TokensDescription,
     Word::TokensApi,
@@ -1470,6 +1473,7 @@ impl Word {
             Self::NewProjectPlaceholder => 2188,
             Self::CreateProject => 2189,
             Self::NoProjectYet => 1949,
+            Self::NoProjectLine => 2197,
             Self::ModelKeyDescription => 2100,
             Self::ModelKeyField => 2101,
             Self::ModelAddKey => 2102,
@@ -2430,6 +2434,7 @@ fn english(word: Word, shell: Shell) -> (&'static [&'static [u8]], &'static [Hol
         Word::NewProjectPlaceholder => (&[b"+ New project"], &[]),
         Word::CreateProject => (&[b"Create"], &[]),
         Word::NoProjectYet => (&[b"No project yet"], &[]),
+        Word::NoProjectLine => (&[b"Make one from the project switcher."], &[]),
         Word::ModelKeyDescription => (&[b"From ", b"\xe2\x80\x99s platform, under API keys. What temper\xe2\x80\x99s agents use is billed to the key\xe2\x80\x99s organization."], &[Name]),
         Word::ModelKeyField => (&[b"Key (pasted once)"], &[]),
         Word::ModelAddKey => (&[b"Add key"], &[]),
