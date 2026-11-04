@@ -4,8 +4,7 @@
 
 - **Not yet:** 6: the configured peer names resolved at startup (step 5).
   6.4: the helper's dispatch, and the service's own cgroup opened at
-  startup. 6.6: `ListenersRefusal::Check` and `ListenerCheck`, and macOS's
-  `ENOPROTOOPT` for `SO_ACCEPTCONN` passing as listening. 9: the macOS workflow
+  startup. 9: the macOS workflow
   (`temper/docs/design/domain/testing.md`, 2.8) compiles the members that
   reach rustls and runs temper's one story, neither yet seen green, and
   no macOS runner runs skein's suites.
