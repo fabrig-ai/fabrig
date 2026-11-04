@@ -338,10 +338,8 @@ pub enum Now {
     RefusedPayload { request: Token, problem: tasks::Problem },
     /// Ask the root for its current readiness before a due activation route.
     Activate { context: Box<tasks::RunContext> },
-    /// Reserve the root's transcript read slot for an admitted agent run.
-    PrepareAgent { context: Box<tasks::RunContext>, load_transcript: bool },
     /// Load the current transcript window in key order from its first turn.
-    StartPreparation { task: u64, transcript_waiter: Option<Token>, from: Option<(u64, u32)> },
+    StartPreparation { task: u64, from: (u64, u32) },
     /// Load one proposal decision that has left live task memory.
     SeenConversation { request: Token, task: u64 },
     /// Load the durable position of one ended conversation for its mark.
@@ -645,10 +643,8 @@ pub enum Event {
     },
     /// Root-translated host payload for a refused task request.
     RefusedPayload { request: Token, problem: tasks::Problem, payload: Option<PayloadRefusal> },
-    /// An activation with the root's current journal and connector readiness.
-    Activate { context: Box<tasks::RunContext>, ready: bool },
-    /// The root's transcript slot reservation for an admitted agent run.
-    PreparedAgent { context: Box<tasks::RunContext>, transcript_waiter: Option<Token>, busy: bool },
+    /// An activation with the root's readiness; `busy` when it has no room to read a transcript.
+    Activate { context: Box<tasks::RunContext>, ready: bool, busy: bool },
     /// Return the ended owner header for an authenticated conversation mark.
     SeenConversationLoaded { request: Token, row: Option<Box<tasks::TaskRecord>>, busy: bool },
     /// The ended position loaded for an authenticated mark, zero if absent.
@@ -967,7 +963,6 @@ impl Event {
             | Self::AcceptedTurn { .. }
             | Self::RefusedPayload { .. }
             | Self::Activate { .. }
-            | Self::PreparedAgent { .. }
             | Self::SeenConversationLoaded { .. }
             | Self::EndedReadLoaded { .. }
             | Self::DecidedProposal { .. }
