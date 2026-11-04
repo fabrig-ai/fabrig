@@ -147,45 +147,39 @@ impl HostIo {
     }
 
     pub(super) fn plain_action(&mut self, action: local_protocol::PlainAction, events: &mut Queue<local::Event>) {
-        match action {
-            local_protocol::PlainAction::File { request, deadline } => self.file_requests.push((request, deadline)),
-            local_protocol::PlainAction::Done => {
-                let state = mem::replace(&mut self.delivery.inspection, Inspection::Idle);
-                match state {
-                    Inspection::Capturing { mut capture, directory, scan } => {
-                        let snapshot = scan.finish();
-                        self.delivery.snapshots.insert(directory, Some(snapshot)).expect("bounded snapshots");
-                        capture.next = capture.next.checked_add(1).expect("bounded directory position");
-                        self.next_capture(capture);
-                    }
-                    Inspection::Comparing { owner, directory, scan } => {
-                        let snapshot = scan.finish();
-                        let before = self
-                            .delivery
-                            .snapshots
-                            .get(&directory)
-                            .expect("capture precedes compare")
-                            .as_ref()
-                            .expect("unknown capture answers without a scan");
-                        events.push(local::Event::PlainStatus { owner, changed: *before != snapshot });
-                    }
-                    Inspection::Idle | Inspection::Markers { .. } => unreachable!("active plain scan"),
-                }
+        let finished = match action {
+            local_protocol::PlainAction::File { request, deadline } => {
+                self.file_requests.push((request, deadline));
+                return;
             }
-            local_protocol::PlainAction::Failed => {
-                let state = mem::replace(&mut self.delivery.inspection, Inspection::Idle);
-                match state {
-                    Inspection::Capturing { mut capture, directory, scan: _ } => {
-                        self.delivery.snapshots.insert(directory, None).expect("bounded snapshots");
-                        capture.next = capture.next.checked_add(1).expect("bounded directory position");
-                        self.next_capture(capture);
-                    }
-                    Inspection::Comparing { owner, .. } => {
-                        events.push(local::Event::PlainStatus { owner, changed: true });
-                    }
-                    Inspection::Idle | Inspection::Markers { .. } => unreachable!("active plain scan"),
-                }
+            local_protocol::PlainAction::Done => true,
+            local_protocol::PlainAction::Failed => false,
+        };
+        let state = mem::replace(&mut self.delivery.inspection, Inspection::Idle);
+        match state {
+            Inspection::Capturing { mut capture, directory, scan } => {
+                let snapshot = if finished { Some(scan.finish()) } else { None };
+                self.delivery.snapshots.insert(directory, snapshot).expect("bounded snapshots");
+                capture.next = capture.next.checked_add(1).expect("bounded directory position");
+                self.next_capture(capture);
             }
+            Inspection::Comparing { owner, directory, scan } => {
+                let changed = if finished {
+                    let snapshot = scan.finish();
+                    let before = self
+                        .delivery
+                        .snapshots
+                        .get(&directory)
+                        .expect("capture precedes compare")
+                        .as_ref()
+                        .expect("unknown capture answers without a scan");
+                    *before != snapshot
+                } else {
+                    true
+                };
+                events.push(local::Event::PlainStatus { owner, changed });
+            }
+            Inspection::Idle | Inspection::Markers { .. } => unreachable!("active plain scan"),
         }
     }
 
@@ -297,7 +291,7 @@ impl HostIo {
                 );
                 continue;
             }
-            if self.close.root_answered(event.owner()) {
+            if self.close.settle_root(event.owner()) {
                 continue;
             }
             match &mut self.delivery.inspection {
@@ -310,7 +304,7 @@ impl HostIo {
                     let action = markers.from_file(event);
                     self.marker_action(owner, action, local_events);
                 }
-                Inspection::Idle => unreachable!("file terminal belongs to marker inspection"),
+                Inspection::Idle => unreachable!("every other file terminal belongs to the one inspection"),
             }
         }
     }
