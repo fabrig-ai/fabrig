@@ -1,6 +1,6 @@
 # agent: status
 
-2026-11-04. Where temper's code lags or departs from [agent.md](agent.md).
+2026-11-05. Where temper's code lags or departs from [agent.md](agent.md).
 The remaining gaps concern a run's settings reads and verdict follow-up tasks.
 Change-refusal model wording also lags, and a run that cannot deliver keeps
 the shell its charter grants.
