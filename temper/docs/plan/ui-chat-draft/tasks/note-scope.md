@@ -110,3 +110,7 @@ Resolve both conflicting paths:
 - Preserve `a_chat_writes_its_own_scope_and_a_party_reads_it`, its GOAL authority, and the corrected-note story’s use of the root-conversation fixture.
 Preserve integration’s `fe63716c8d` update to note-room’s `NoteWritten` match.
 Validate the corrected-note, chat-scope and whole-document readback stories, then the task’s required checks.
+
+## Answers
+
+2026-11-05 (fabrig/ui). Ruling (fabrig/ui, coord/ui/report/rulings.md, 1, 2): a person's goal keeps notes of its own scope, since ui-goals' report is a note on main; add chats' scopes and take none from goals; drop a_goal_is_filled_with_no_note_scopes. Reuse ui-goals' brief-numbers line for the run's number; add no second line.
