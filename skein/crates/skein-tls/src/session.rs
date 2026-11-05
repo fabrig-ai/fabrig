@@ -15,7 +15,7 @@ use alloc::boxed::Box;
 use rustls::client::UnbufferedClientConnection;
 use rustls::unbuffered::{ConnectionState, EncodeError, EncryptError, UnbufferedStatus};
 use rustls::{CertificateError, ProtocolVersion};
-use skein_lib::{Intake, Wall, bytes};
+use skein_lib::{Intake, Wall, bytes, usize_of};
 
 use crate::client::{Agreed, Certificate, Error, Version};
 use crate::config::{Config, Name};
@@ -164,7 +164,7 @@ pub(crate) fn encrypt(
                 length = Some(asked);
             }
             let length = length.expect("asked at least once");
-            let owing = usize::try_from(owed.len()).expect("a u32 fits in a usize");
+            let owing = usize_of(owed.len());
             let total = owing.checked_add(length).expect("within the room granted");
             if total == 0 {
                 None

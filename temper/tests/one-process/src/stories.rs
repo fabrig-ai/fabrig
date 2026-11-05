@@ -58,15 +58,10 @@ pub(crate) fn person() -> Vec<Step<temper_client_domain::Address>> {
         press(Role::Check, b"Make it the project's home"),
         press(Role::Button, b"Adopt"),
         see(Find::text(b"Adopted acme/app on forge 1 as owned.")),
-        Step::Go {
-            address: temper_client_domain::Address::Chats {
-                filter: temper_client_domain::ChatsFilter::All,
-                start: false,
-            },
-        },
-        see(Find::named(Role::TextArea, b"Start a chat")),
-        ty(Role::TextArea, b"Start a chat", b"@plan Fix the adopted repository"),
-        press(Role::Button, b"Start"),
+        Step::Go { address: temper_client_domain::Address::NewChat },
+        see(Find::named(Role::TextArea, b"What do you want done?")),
+        ty(Role::TextArea, b"What do you want done?", b"@plan Fix the adopted repository"),
+        press(Role::Button, b"Send"),
     ];
     steps.push(see(Find::text(b"@plan Fix the adopted repository")));
     steps

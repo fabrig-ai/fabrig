@@ -4,7 +4,7 @@ use crate::{
     github::{plans::reading, request::Request},
     measure,
 };
-use skein_lib::{List, Time};
+use skein_lib::{List, Time, len_u64};
 
 // The answer width also covers the pending-job slot allocated beside each status.
 const _: () = assert!(
@@ -109,9 +109,7 @@ impl Plan {
             .checked_add(u64::try_from(measure::STATUS_BYTES).ok().ok_or(api::Error::TooLarge)?)
             .ok_or(api::Error::TooLarge)?;
         for bytes in [&status.context, &status.description, &status.url] {
-            total = total
-                .checked_add(u64::try_from(bytes.len()).ok().ok_or(api::Error::TooLarge)?)
-                .ok_or(api::Error::TooLarge)?;
+            total = total.checked_add(len_u64(bytes.len())).ok_or(api::Error::TooLarge)?;
         }
         if total > u64::from(bounds.answer_bytes) {
             return Err(api::Error::TooLarge);

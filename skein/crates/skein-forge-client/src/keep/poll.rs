@@ -159,7 +159,7 @@ pub(crate) fn pushed(d: &mut Domain, env: &Env<Limits>, key: &Resource, commit: 
 pub(crate) fn hint(d: &mut Domain, env: &Env<Limits>, hint: api::Hint) {
     let valid = match &hint.change {
         Change::Branch(name) | Change::BranchMoved { branch: name, .. } => {
-            name.len() <= usize::try_from(env.limits.op_bytes).expect("u32 fits usize")
+            name.len() <= skein_lib::usize_of(env.limits.op_bytes)
         }
         Change::Item(_) | Change::Commit(_) => true,
     };
@@ -168,7 +168,7 @@ pub(crate) fn hint(d: &mut Domain, env: &Env<Limits>, hint: api::Hint) {
         return;
     }
     match &hint.key {
-        Some(key) if key.len() > usize::try_from(env.limits.op_bytes).expect("u32 fits usize") => {
+        Some(key) if key.len() > skein_lib::usize_of(env.limits.op_bytes) => {
             d.fact(Fact::Refused);
             return;
         }

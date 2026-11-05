@@ -57,3 +57,19 @@ pub fn connector(part: &ApplicationPart) -> u16 {
         | ApplicationPart::Deployment { connector } => *connector,
     }
 }
+
+pub(crate) fn part_fits(part: &ApplicationPart, segments: u32, text: u32) -> bool {
+    match part {
+        ApplicationPart::Resource { path, .. } => jig_client::contract::resource_path_fits(path, segments, text),
+        ApplicationPart::Connector { .. }
+        | ApplicationPart::Kind { .. }
+        | ApplicationPart::Panel { .. }
+        | ApplicationPart::Result { .. }
+        | ApplicationPart::OwnerEffect { .. }
+        | ApplicationPart::Effect { .. }
+        | ApplicationPart::Outbox { .. }
+        | ApplicationPart::Hold { .. }
+        | ApplicationPart::Project { .. }
+        | ApplicationPart::Deployment { .. } => true,
+    }
+}

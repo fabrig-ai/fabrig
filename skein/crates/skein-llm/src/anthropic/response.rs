@@ -2,7 +2,7 @@ use crate::anthropic::{DecodeError, Failure, Json, Limits, ProviderError, RateLi
 use crate::wire::{clipped as clip_detail, json};
 use alloc::boxed::Box;
 use skein_json::{Document, Kind};
-use skein_lib::{List, Queue, Wall, bytes};
+use skein_lib::{List, Queue, Wall, bytes, usize_of};
 
 #[derive(Clone, PartialEq, Eq, Hash, Debug)]
 pub enum BlockStart {
@@ -358,7 +358,7 @@ impl StreamDecoder {
                 Ok(Active::Text { text: value })
             }
             BlockStart::ToolCall { id, name, input } => {
-                let string_limit = usize::try_from(limits.strings).expect("u32 fits usize");
+                let string_limit = usize_of(limits.strings);
                 if id.is_empty() || name.is_empty() {
                     return Err(DecodeError::Malformed);
                 }
@@ -367,7 +367,7 @@ impl StreamDecoder {
                 }
                 self.reserve_received(id.len().saturating_add(name.len()), limits)?;
                 let mut value = List::with_capacity(limits.input);
-                let too_large = input.len() > usize::try_from(value.room()).expect("u32 fits usize");
+                let too_large = input.len() > usize_of(value.room());
                 if !too_large {
                     append(&mut value, &input, crate::Cap::Strings)?;
                 }
@@ -383,7 +383,7 @@ impl StreamDecoder {
             BlockStart::Thinking { text, signature, head } => {
                 let head = thinking_head(&head, &text, &signature, limits)?;
                 let serialized = head.to_bytes(&limits.document())?;
-                if serialized.len() > usize::try_from(limits.reasoning).expect("u32 fits usize") {
+                if serialized.len() > usize_of(limits.reasoning) {
                     return Err(DecodeError::limit(crate::Cap::Reasoning, limits.reasoning));
                 }
                 let mut value = List::with_capacity(limits.reasoning);
@@ -395,7 +395,7 @@ impl StreamDecoder {
             BlockStart::Redacted { value } => {
                 validate_redacted(value.view())?;
                 let data = value.to_bytes(&limits.document())?;
-                if data.len() > usize::try_from(limits.reasoning).expect("u32 fits usize") {
+                if data.len() > usize_of(limits.reasoning) {
                     return Err(DecodeError::limit(crate::Cap::Reasoning, limits.reasoning));
                 }
                 Ok(Active::Opaque { bytes: data })
@@ -404,7 +404,7 @@ impl StreamDecoder {
                 let value = Json::from_view(value.view(), &limits.document())?;
                 validate_opaque(value.view())?;
                 let data = value.to_bytes(&limits.document())?;
-                if data.len() > usize::try_from(limits.reasoning).expect("u32 fits usize") {
+                if data.len() > usize_of(limits.reasoning) {
                     return Err(DecodeError::limit(crate::Cap::Reasoning, limits.reasoning));
                 }
                 self.reserve_received(data.len(), limits)?;
@@ -451,7 +451,7 @@ impl StreamDecoder {
                     };
                     *bytes = bytes.checked_add(length).ok_or(DecodeError::Malformed)?;
                     if !*too_large {
-                        if long.is_some() || fragment.len() > usize::try_from(input.room()).expect("u32 fits usize") {
+                        if long.is_some() || fragment.len() > usize_of(input.room()) {
                             *too_large = true;
                             input.clear();
                         } else {
@@ -527,13 +527,13 @@ pub(super) fn thinking_head(head: &Json, text: &[u8], signature: &[u8], limits: 
     if text_ref(tokens, b"thinking")? != text || optional_text(tokens, b"signature")?.as_ref() != signature {
         return Err(DecodeError::Malformed);
     }
-    if head.to_bytes(&limits.document())?.len() > usize::try_from(limits.reasoning).expect("u32 fits usize") {
+    if head.to_bytes(&limits.document())?.len() > usize_of(limits.reasoning) {
         return Err(DecodeError::limit(crate::Cap::Reasoning, limits.reasoning));
     }
     Ok(head)
 }
 fn append(out: &mut List<u8>, data: &[u8], cap: crate::Cap) -> Result<(), DecodeError> {
-    if data.len() > usize::try_from(out.room()).expect("u32 fits usize") {
+    if data.len() > usize_of(out.room()) {
         return Err(DecodeError::limit(cap, out.capacity()));
     }
     for &byte in data {

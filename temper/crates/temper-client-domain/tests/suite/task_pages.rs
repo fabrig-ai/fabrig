@@ -361,7 +361,7 @@ mod tests {
         let moved = went(&mut root, domain::Address::Task { task: TASK, filter: domain::PlanFilter::Live });
         assert!(moved.is_empty(), "same task keeps its reads");
         assert_eq!(root.pages().task().expect("goal").filter, domain::PlanFilter::Live);
-        drop(went(&mut root, domain::Address::Chats { filter: domain::ChatsFilter::All, start: false }));
+        drop(went(&mut root, domain::Address::Chats { filter: domain::ChatsFilter::All }));
         let requests = went(&mut root, domain::Address::Task { task: TASK, filter: domain::PlanFilter::All });
         let page = root.pages().task().expect("reopened task");
         assert_eq!(page.filter, domain::address::PlanFilter::All);
@@ -399,7 +399,7 @@ mod tests {
             })
             .expect("live run watch");
         drop(up(&mut root, jig_client::Up::Watched { watch: run, event: c::WatchEvent::Opened }));
-        let left = went(&mut root, domain::Address::Chats { filter: domain::ChatsFilter::All, start: false });
+        let left = went(&mut root, domain::Address::Chats { filter: domain::ChatsFilter::All });
         assert!(left.contains(&jig_client::Down::Close { watch: run }), "navigation closes run: {left:?}");
         drop(answer(&mut root, activity, empty_activity()));
         assert!(root.pages().task().is_none(), "late activity cannot resurrect page");

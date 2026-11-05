@@ -1,6 +1,7 @@
 //! Checked branch-list admission and the running allocation measure.
 use super::{Bounds, api};
 use crate::{github::pin, measure};
+use skein_lib::len_u64;
 
 pub(super) fn capacity(bounds: Bounds, width: usize) -> Result<u32, api::Error> {
     let Ok(width) = u32::try_from(width) else {
@@ -17,9 +18,7 @@ pub(super) fn page_size(bounds: Bounds, capacity: u32) -> Result<u32, api::Error
     Ok(limit)
 }
 pub(super) fn add(size: u64, name: &[u8], bounds: Bounds) -> Result<u64, api::Error> {
-    let Ok(length) = u64::try_from(name.len()) else {
-        return Err(api::Error::TooLarge);
-    };
+    let length = len_u64(name.len());
     let Ok(width) = u64::try_from(measure::STRING_BYTES) else {
         return Err(api::Error::TooLarge);
     };

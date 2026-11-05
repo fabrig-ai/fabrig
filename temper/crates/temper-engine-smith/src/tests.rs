@@ -2440,35 +2440,44 @@ fn oversized_file_and_pull_feedback() {
         more: true,
     };
     for (tool, value, size) in [(b"read_file".as_slice(), file, 12_962), (b"read_pull_files", files, 18_076)] {
-        let recorded = engine::CallAnswer::ForgeRead(Box::new(Ok(value)));
-        let whole = answer(&recorded);
-        assert_eq!(whole.text().len(), size);
-        let feedback = crate::answer_for_tool(&recorded, tool, 10_240);
-        assert!(feedback.text().len() <= 10_240, "rendered answer bypassed the host bound");
-        assert!(feedback.error());
-        let words = feedback.text();
-        let size_text = skein_lib::Decimal::of(u64::try_from(size).expect("fixture size"));
-        assert!(skein_lib::bytes::find(words, size_text.as_bytes()).is_some());
-        for required in ["10240", "read_file", "max_bytes", "overhead"] {
-            assert!(skein_lib::bytes::find(words, required.as_bytes()).is_some(), "missing {required}: {words:?}");
-        }
-        if tool == b"read_pull_files" {
-            for required in [
-                "docs/design/formats.md",
-                "close-out.md",
-                "[omitted]",
-                "[absent]",
-                "More files",
-                "page",
-                "Advancing page alone cannot recover",
-                "base commit",
-                "11111111",
-            ] {
-                assert!(
-                    skein_lib::bytes::find(words, required.as_bytes()).is_some(),
-                    "pull #11 page 2: missing {required}: {words:?}"
-                );
-            }
+        oversized_file_feedback(tool, value, size);
+    }
+}
+
+fn oversized_file_feedback(tool: &[u8], value: skein_forge::api::Answer, size: usize) {
+    let recorded = engine::CallAnswer::ForgeRead(Box::new(Ok(value)));
+    let whole = answer(&recorded);
+    assert_eq!(whole.text().len(), size);
+    let feedback = crate::answer_for_tool(&recorded, tool, 10_240);
+    assert!(feedback.text().len() <= 10_240, "rendered answer bypassed the host bound");
+    if tool == b"read_file" {
+        assert!(!feedback.error());
+        assert!(feedback.text().ends_with(b"[file truncated]"));
+        return;
+    }
+    assert!(feedback.error());
+    let words = feedback.text();
+    let size_text = skein_lib::Decimal::of(u64::try_from(size).expect("fixture size"));
+    assert!(skein_lib::bytes::find(words, size_text.as_bytes()).is_some());
+    for required in ["10240", "read_file", "max_bytes", "overhead"] {
+        assert!(skein_lib::bytes::find(words, required.as_bytes()).is_some(), "missing {required}: {words:?}");
+    }
+    if tool == b"read_pull_files" {
+        for required in [
+            "docs/design/formats.md",
+            "close-out.md",
+            "[omitted]",
+            "[absent]",
+            "More files",
+            "page",
+            "Advancing page alone cannot recover",
+            "base commit",
+            "11111111",
+        ] {
+            assert!(
+                skein_lib::bytes::find(words, required.as_bytes()).is_some(),
+                "pull #11 page 2: missing {required}: {words:?}"
+            );
         }
     }
 }
@@ -2536,7 +2545,7 @@ fn file_and_pull_rendering_boundaries() {
             let whole = answer(&recorded);
             let size = u32::try_from(whole.text().len()).unwrap();
             assert_eq!(crate::answer_bounded(&recorded, size).text(), whole.text());
-            for cap in [0, 1, 32, size.checked_sub(1).expect("nonempty rendering")] {
+            for cap in [0, 1, 32] {
                 let bounded = crate::answer_bounded(&recorded, cap);
                 assert!(bounded.error(), "metadata and escaping count toward the bound");
                 assert!(bounded.text().len() <= usize::try_from(cap).unwrap());
@@ -2595,8 +2604,8 @@ fn pull_inventory_limits() {
         truncated: false,
     })));
     let feedback = crate::answer_bounded(&file, 1024);
-    assert!(feedback.error());
-    assert!(skein_lib::bytes::find(feedback.text(), b"400071 bytes").is_some());
+    assert!(!feedback.error());
+    assert!(feedback.text().ends_with(b"[file truncated]"));
 }
 
 #[test]
@@ -2876,4 +2885,44 @@ fn verdict_reads_keep_the_code_when_reason_words_continue() {
     let offset = body.get(cut + b"\nnext: ".len()..).expect("next offset");
     let expected = skein_lib::Decimal::of(17 + u64::try_from(cut).expect("bounded reason"));
     assert_eq!(offset, expected.as_bytes(), "metadata never advances the reason offset");
+}
+
+#[test]
+fn file_prefixes_fit_escaping_metadata_and_report_every_cut() {
+    use skein_forge::api;
+    for bytes in [vec![0; 600], vec![255; 600], vec![b'"'; 600], "λ".repeat(300).into_bytes()] {
+        let recorded = engine::CallAnswer::ForgeRead(Box::new(Ok(api::Answer::File {
+            head: [1; 32],
+            path: b"f".as_slice().into(),
+            bytes: bytes.into(),
+            truncated: false,
+        })));
+        let whole = answer(&recorded);
+        let size = u32::try_from(whole.text().len()).unwrap();
+        for cap in [0, 1, 80, 100, 128, size - 1, size, size + 1] {
+            let bounded = crate::answer_bounded(&recorded, cap);
+            assert!(bounded.text().len() <= usize::try_from(cap).unwrap());
+            if cap >= size {
+                assert_eq!(bounded.text(), whole.text());
+            } else if cap >= 100 {
+                assert!(!bounded.error(), "a file prefix fits");
+                assert!(bounded.text().starts_with(b"f at "));
+                assert!(bounded.text().ends_with(b"\n[file truncated]"));
+                assert!(bounded.text().len() > b"f at ".len() + 64 + 2 + 17);
+            } else {
+                assert!(bounded.error(), "metadata leaves no content room");
+            }
+        }
+    }
+    let recorded = engine::CallAnswer::ForgeRead(Box::new(Ok(api::Answer::File {
+        head: [1; 32],
+        path: vec![b'p'; 2048].into(),
+        bytes: b"body".as_slice().into(),
+        truncated: false,
+    })));
+    let bounded = crate::answer_bounded(&recorded, 512);
+    assert!(bounded.error());
+    for required in [b"metadata".as_slice(), b"core.call_answer_bytes", b"lowering max_bytes cannot fit"] {
+        assert!(skein_lib::bytes::find(bounded.text(), required).is_some());
+    }
 }

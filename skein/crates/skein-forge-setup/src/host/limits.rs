@@ -228,9 +228,9 @@ pub(super) fn check_forge(l: &Limits, forge: &settings::Forge, user_agent: &[u8]
         }
     };
     let head = u64::from(l.target_bytes)
-        .saturating_add(u64::try_from(host.len()).expect("host length fits"))
+        .saturating_add(skein_lib::len_u64(host.len()))
         .saturating_add(credential)
-        .saturating_add(u64::try_from(user_agent.len()).expect("agent length fits"))
+        .saturating_add(skein_lib::len_u64(user_agent.len()))
         .saturating_add(framing);
     if !header_value(user_agent) || head > u64::from(h.request) {
         return Err(Unusable::Request { forge: number });

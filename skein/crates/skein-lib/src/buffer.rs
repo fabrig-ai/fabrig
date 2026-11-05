@@ -21,7 +21,7 @@ impl Buffer {
     /// Allocates `capacity` bytes once; nothing later reallocates.
     #[must_use]
     pub fn with_capacity(capacity: u32) -> Buffer {
-        let size = usize::try_from(capacity).expect("a u32 fits in a usize");
+        let size = crate::usize_of(capacity);
         Buffer { bytes: Vec::with_capacity(size), capacity }
     }
 
@@ -54,7 +54,7 @@ impl Buffer {
 
     /// Appends `bytes`, or refuses them whole past the capacity, writing nothing.
     pub fn put(&mut self, bytes: &[u8]) -> Result<(), Overflow> {
-        if bytes.len() > usize::try_from(self.room()).expect("a u32 fits in a usize") {
+        if bytes.len() > crate::usize_of(self.room()) {
             return Err(Overflow);
         }
         self.bytes.extend_from_slice(bytes);
@@ -69,8 +69,8 @@ impl Buffer {
     /// Asserts the range: a back-patch writes over bytes already put.
     pub fn set_u32(&mut self, at: u32, value: u32) {
         let end = at.checked_add(4).expect("a back-patch writes over bytes already put");
-        let start = usize::try_from(at).expect("a u32 fits in a usize");
-        let end = usize::try_from(end).expect("a u32 fits in a usize");
+        let start = crate::usize_of(at);
+        let end = crate::usize_of(end);
         let bytes = self.bytes.get_mut(start..end).expect("a back-patch writes over bytes already put");
         for (byte, value) in bytes.iter_mut().zip(value.to_be_bytes()) {
             *byte = value;
@@ -84,7 +84,7 @@ impl Buffer {
 
     /// Keeps the first `len` bytes; a longer `len` changes nothing.
     pub fn truncate(&mut self, len: u32) {
-        self.bytes.truncate(usize::try_from(len).expect("a u32 fits in a usize"));
+        self.bytes.truncate(crate::usize_of(len));
     }
 
     /// Empties the buffer, keeping its capacity.

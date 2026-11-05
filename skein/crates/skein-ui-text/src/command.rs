@@ -1,6 +1,6 @@
 //! Last-print numbers interpreted against the current tree (ui-text.md, 6).
 use alloc::boxed::Box;
-use skein_lib::{Decimal, Writer, bytes};
+use skein_lib::{Decimal, Writer, bytes, usize_of};
 use skein_ui::Act;
 use skein_ui::{NodeId, Role, State, Tree};
 /// What one typed line asks the host to do.
@@ -34,7 +34,7 @@ pub enum Refusal {
 #[must_use]
 pub fn command(line: &[u8], numbers: Option<&[NodeId]>, tree: &Tree, longest: u32) -> Command {
     let line = trim(line);
-    if line.len() > usize::try_from(longest).expect("line bound fits memory") {
+    if line.len() > usize_of(longest) {
         return refused(Refusal::TooLong, 0);
     }
     match line {

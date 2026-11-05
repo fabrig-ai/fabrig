@@ -2,7 +2,7 @@
 use crate::{Place, places, records};
 mod events;
 use alloc::boxed::Box;
-use skein_lib::{List, Queue, Reader, Time, Wall, Writer};
+use skein_lib::{List, Queue, Reader, Time, Wall, Writer, usize_of};
 use skein_ui::{Act, Binding, BoundAct, Patch, View};
 
 #[derive(Debug)]
@@ -433,7 +433,7 @@ fn add_key(key: u64) -> Box<[u8]> {
     out.finish()
 }
 fn add_exchange(id: u32, add: &records::Add) -> Exchange {
-    let mut writer = Writer::new(usize::try_from(add.measure()).expect("record fits"));
+    let mut writer = Writer::new(usize_of(add.measure()));
     add.encode(&mut writer).expect("measured record fits");
     Exchange {
         id,

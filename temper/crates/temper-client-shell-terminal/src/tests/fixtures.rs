@@ -905,14 +905,6 @@ pub fn chats_page() -> skein_ui::Tree {
     b.open(Role::Heading { level: 1 });
     b.text(Run::Plain, b"Chats");
     b.close();
-    b.open(Role::TextArea);
-    b.name(b"Start a chat");
-    b.bind(binding());
-    b.close();
-    b.open(Role::Button);
-    b.name(b"Start chat");
-    b.bind(binding());
-    b.close();
     b.open(Role::Heading { level: 2 });
     b.text(Run::Plain, b"Your chats");
     b.close();

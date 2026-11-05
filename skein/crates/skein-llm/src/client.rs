@@ -14,7 +14,7 @@ use core::mem;
 use skein_http::{Header, Method, client as http, header, sse};
 use skein_json::{Document, collector, tokenizer};
 use skein_lib::stream::{Down, Read, Up};
-use skein_lib::{Decimal, Env, List, Queue, Token, Writer, bytes};
+use skein_lib::{Decimal, Env, List, Queue, Token, Writer, bytes, usize_of};
 
 use crate::{
     Block, Call, Completion, Credential, Delta, Encoding, Endpoint, Error, Failure, Prompt, Provider, Report, Scheme,
@@ -101,7 +101,7 @@ pub struct CredentialLimits {
 
 /// Check credential bytes before constructing the bounded request head.
 pub fn check_credential(credential: &Credential, limits: &CredentialLimits) -> Result<(), Error> {
-    if credential.value.len() > usize::try_from(limits.value).expect("u32 fits usize") {
+    if credential.value.len() > usize_of(limits.value) {
         return Err(Error::limit(crate::Cap::Value, limits.value));
     }
     Ok(())
@@ -148,12 +148,12 @@ pub fn request_head(endpoint: &Endpoint, credential: &CredentialLimits, limits: 
             count = count.checked_add(1).ok_or(Error::limit(crate::Cap::ResponseFields, limits.http.headers))?;
         }
     }
-    if count > usize::try_from(limits.http.headers).expect("u32 fits usize") {
+    if count > usize_of(limits.http.headers) {
         return Err(Error::limit(crate::Cap::ResponseFields, limits.http.headers));
     }
     let measured = head_length(
         endpoint,
-        usize::try_from(credential.value).expect("u32 fits usize"),
+        usize_of(credential.value),
         // A compressed body's length stays below the request bound and a
         // body sent as rendered within it, so the bound fixes the digits.
         endpoint.encoding,
@@ -386,7 +386,7 @@ pub fn largest_reservation(limits: &Limits) -> Option<u64> {
 fn compressed(endpoint: &Endpoint, body: u32, limits: &Limits) -> u32 {
     let room = match endpoint.encoding {
         Encoding::Identity => return 0,
-        Encoding::Gzip => match skein_http::gzip::bound(usize::try_from(body).expect("u32 fits usize")) {
+        Encoding::Gzip => match skein_http::gzip::bound(usize_of(body)) {
             Some(room) => u64::try_from(room).expect("usize fits u64"),
             None => return 0,
         },
@@ -488,7 +488,7 @@ impl Client {
                 (rendered, end)
             }
             Encoding::Gzip => {
-                let mut room = bytes::zeroed(usize::try_from(compressed).expect("u32 fits usize"));
+                let mut room = bytes::zeroed(usize_of(compressed));
                 let end = skein_http::gzip::encode(&rendered, &mut room).expect("the room holds the body's bound");
                 drop(rendered);
                 (room, end)
@@ -830,7 +830,7 @@ fn http_down(client: &mut Client, env: &Env<Limits>, request: http::Request, bel
 
 fn sent_evidence(client: &mut Client, below: &Queue<Down>, before: u32) {
     if client.evidence == Evidence::Unsent {
-        for down in below.iter().skip(usize::try_from(before).expect("u32 fits usize")) {
+        for down in below.iter().skip(usize_of(before)) {
             match down {
                 Down::Send(_) => client.evidence = Evidence::Unknown,
                 Down::Demand { .. } | Down::Finish => {}
@@ -862,10 +862,7 @@ fn http_event(
         http::Event::Response(response) => response_head(client, response, env, above, below),
         http::Event::Upload(Up::Room) => {
             if let Some(body) = &client.upload {
-                let end = client
-                    .upload_offset
-                    .saturating_add(usize::try_from(env.limits.http.send).expect("u32 fits usize"))
-                    .min(client.upload_end);
+                let end = client.upload_offset.saturating_add(usize_of(env.limits.http.send)).min(client.upload_end);
                 let piece =
                     body.get(client.upload_offset..end).expect("the upload offset stays within the measured body");
                 client.requests.push(http::Request::Upload(Down::Send(bytes::copy_of(piece))));
@@ -1041,7 +1038,7 @@ fn body_event(client: &mut Client, event: Up, env: &Env<Limits>, above: &mut Que
         }
         State::ErrorBody => match event {
             Up::Bytes(data) => {
-                let room = usize::try_from(client.error.room()).expect("u32 fits usize");
+                let room = usize_of(client.error.room());
                 for &byte in data.iter().take(room) {
                     client.error.push(byte).expect("error bytes are within their cap");
                 }
@@ -1087,7 +1084,7 @@ fn sse_event(
             event_data(client, event, env, above, below);
         }
         sse::Event::Dispatched(dispatch) => {
-            let before = usize::try_from(client.outputs.len()).expect("the output count fits usize");
+            let before = usize_of(client.outputs.len());
             let data = mem::replace(&mut client.event_data, EventData::Idle);
             let decoder = client.decoder.as_mut().expect("the streaming state has its decoder");
             let parsed = match data {
@@ -1205,7 +1202,7 @@ fn event_data(client: &mut Client, event: Up, env: &Env<Limits>, above: &mut Que
             Up::Bytes(bytes) => {
                 let mut at = at;
                 for &byte in &bytes {
-                    if b"[DONE]".get(usize::try_from(at).expect("sentinel offset")) != Some(&byte) {
+                    if b"[DONE]".get(usize_of(at)) != Some(&byte) {
                         fail(client, Failure::Protocol, bytes::copy_of(b"invalid provider sentinel"), above);
                         closing(client, env, above, below);
                         return;
@@ -1434,7 +1431,7 @@ fn error_cut(client: &mut Client, env: &Env<Limits>, above: &mut Queue<Event>) {
         .len()
         .checked_add(client.error.as_slice().len())
         .expect("marker and u32-bounded body fit usize")
-        .min(usize::try_from(env.limits.detail_bytes).expect("u32 fits usize"));
+        .min(usize_of(env.limits.detail_bytes));
     let mut detail = Writer::new(maximum);
     let label = marker.get(..marker.len().min(maximum)).expect("bounded marker prefix");
     detail.put(label).expect("marker within measured detail");
@@ -1572,7 +1569,7 @@ fn measure_headers(
                 fixed_count.checked_add(1).ok_or(Error::limit(crate::Cap::ResponseFields, limits.http.headers))?;
         }
     }
-    if total > usize::try_from(limits.http.request).expect("u32 fits usize") {
+    if total > usize_of(limits.http.request) {
         return Err(Error::limit(crate::Cap::RequestHead, limits.http.request));
     }
     if endpoint
@@ -1580,7 +1577,7 @@ fn measure_headers(
         .len()
         .checked_add(fixed_count)
         .ok_or(Error::limit(crate::Cap::ResponseFields, limits.http.headers))?
-        > usize::try_from(limits.http.headers).expect("u32 fits usize")
+        > usize_of(limits.http.headers)
     {
         return Err(Error::limit(crate::Cap::ResponseFields, limits.http.headers));
     }

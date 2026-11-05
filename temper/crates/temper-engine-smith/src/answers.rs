@@ -81,7 +81,7 @@ impl Text {
 }
 
 /// Render file, pull-file and job reads within the host body bound, counting
-/// metadata and escaping. Oversized files name recovery; cut logs keep the end.
+/// metadata and escaping. Files keep a marked prefix; cut logs keep the end.
 #[must_use]
 pub fn answer_bounded(answer: &CallAnswer, max_bytes: u32) -> HostAnswer {
     bounded(answer, &[], max_bytes, None)
@@ -167,10 +167,53 @@ fn file_read_bounded(value: &api::Answer, cap: usize) -> HostAnswer {
             return answer;
         }
     }
+    if let api::Answer::File { head, path, bytes, .. } = value {
+        let mut text = Text::new();
+        if file_prefix(&mut text, head, path, bytes, cap).is_ok() {
+            return text.finish(false).expect("file prefix fits");
+        }
+        let mut text = Text::new();
+        text.add(b"File metadata leaves no room for content at the host answer limit. Use a shorter path or increase core.call_answer_bytes; lowering max_bytes cannot fit metadata.").expect("fixed feedback");
+        return clipped_refusal(text, cap);
+    }
     if let api::Answer::PullFiles { head, files, more } = value {
         return pull_inventory(head, files, *more, count.len, cap);
     }
     file_read_refusal(b"read_file", Some(count.len), cap)
+}
+
+fn file_heading(text: &mut Text, head: &api::Commit, path: &[u8]) -> Result<(), Problem> {
+    text.add(path)?;
+    text.add(b" at ")?;
+    text.commit(head)?;
+    text.add(b":\n")
+}
+
+fn file_prefix(text: &mut Text, head: &api::Commit, path: &[u8], bytes: &[u8], cap: usize) -> Result<(), Problem> {
+    const CUT: &[u8] = b"\n[file truncated]";
+    file_heading(text, head, path)?;
+    let room =
+        cap.checked_sub(text.len).ok_or(Problem::TooLarge)?.checked_sub(escaped_len(CUT)).ok_or(Problem::TooLarge)?;
+    let prefix = fitting_prefix(bytes, room);
+    if prefix.is_empty() && !bytes.is_empty() {
+        return Err(Problem::TooLarge);
+    }
+    text.add(prefix)?;
+    text.add(CUT)
+}
+
+fn fitting_prefix(bytes: &[u8], room: usize) -> &[u8] {
+    let mut used = 0_usize;
+    let mut count = 0_usize;
+    for byte in bytes {
+        let size = escaped_len(core::slice::from_ref(byte));
+        if used.saturating_add(size) > room {
+            break;
+        }
+        used = used.saturating_add(size);
+        count = count.saturating_add(1);
+    }
+    bytes::utf8_prefix(bytes, count)
 }
 
 fn read_size(text: &mut Text, tool: &[u8], measured: Option<usize>, cap: usize) -> Result<(), Problem> {
@@ -1192,10 +1235,7 @@ fn forge_answer(text: &mut Text, answer: &api::Answer) -> Result<(), Problem> {
             directory_text(text, head, path, entries, *truncated)?;
         }
         api::Answer::File { head, path, bytes, truncated } => {
-            text.add(path)?;
-            text.add(b" at ")?;
-            text.commit(head)?;
-            text.add(b":\n")?;
+            file_heading(text, head, path)?;
             text.add(bytes)?;
             if *truncated {
                 text.add(b"\n[file truncated]")?;
@@ -1562,17 +1602,7 @@ fn task_read_words(text: &mut Text, words: &jig_domain_core::reads::TaskText, ma
     }
     let room =
         maximum.checked_sub(text.len).ok_or(Problem::TooLarge)?.checked_sub(CONTINUATION).ok_or(Problem::TooLarge)?;
-    let mut used = 0_usize;
-    let mut count = 0_usize;
-    for byte in &words.bytes {
-        let size = escaped_len(core::slice::from_ref(byte));
-        if used.saturating_add(size) > room {
-            break;
-        }
-        used = used.saturating_add(size);
-        count = count.saturating_add(1);
-    }
-    let prefix = bytes::utf8_prefix(&words.bytes, count);
+    let prefix = fitting_prefix(&words.bytes, room);
     if prefix.is_empty() && !words.bytes.is_empty() {
         return Err(Problem::TooLarge);
     }
