@@ -199,7 +199,7 @@ mod tests {
 
     const ATTEMPT: Token = Token::new(7);
     const REQUEST_KEY: [u8; 16] = [3; 16];
-        
+
     fn encoded<T>(value: &T, measure: fn(&T) -> u32, encode: fn(&T, &mut Writer) -> Result<(), Overflow>) -> Box<[u8]> {
         let mut writer = Writer::new(skein_lib::length::usize_of(measure(value)));
         encode(value, &mut writer).expect("measured wire fixture");
@@ -226,7 +226,8 @@ mod tests {
 
     #[test]
     fn encoded_top_level_seen_has_no_retained_answer_observation() {
-        for through in [c::SeenThrough::Results { through: 1 }, c::SeenThrough::Conversation { task: WIRE_TASK, through: 1 }]
+        for through in
+            [c::SeenThrough::Results { through: 1 }, c::SeenThrough::Conversation { task: WIRE_TASK, through: 1 }]
         {
             assert!(client_sent(&jig_request(&c::Ask::Seen { through })).is_none(), "{through:?}");
         }

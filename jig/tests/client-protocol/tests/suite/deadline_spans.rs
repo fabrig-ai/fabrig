@@ -1,5 +1,8 @@
 use jig_client::{Answered, Ask, Asker, Key, Outcome, contract as c, shapes};
-use jig_client_protocol_world::{client::Story, fixtures::{self, PROJECT}};
+use jig_client_protocol_world::{
+    client::Story,
+    fixtures::{self, PROJECT},
+};
 use skein_lib::{Duration, RequestKey, Time, Wall};
 // Five seconds exceeds the finite first bound while remaining inside the policy ceiling.
 const SPAN: Duration = Duration::from_secs(5);

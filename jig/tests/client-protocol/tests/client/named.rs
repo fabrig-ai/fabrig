@@ -1,8 +1,8 @@
 //! A send under a name, in front of the engine (client/domain/client.md, 6; contract.md, 3.1).
 
 use super::{
-    FAMILY_OBJECT, HELD_WAIT, PROJECT_NUMBER, PROOF_WAIT, SECOND_STOP, STOP, Story, STOP_TASK, assert_one_refusal, fixtures,
-    stop,
+    FAMILY_OBJECT, HELD_WAIT, PROJECT_NUMBER, PROOF_WAIT, SECOND_STOP, STOP, STOP_TASK, Story, assert_one_refusal,
+    fixtures, stop,
 };
 use jig_client::{Answered, Ask, Outcome, contract};
 use jig_client_test_domain::first;

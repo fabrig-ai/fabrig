@@ -1,5 +1,8 @@
 use jig_client::{Ask, Asker, Handle, Key, Readable, Readout, Watchable, contract as c};
-use jig_client_protocol_world::{client::Story, fixtures::{self, PROJECT}};
+use jig_client_protocol_world::{
+    client::Story,
+    fixtures::{self, PROJECT},
+};
 use skein_lib::Duration;
 // These handles belong to this story's single read, activity page and task watch.
 const TURN: Handle = Handle { asker: Asker::JIG, number: 31 };
