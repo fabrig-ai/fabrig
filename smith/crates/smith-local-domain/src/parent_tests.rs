@@ -823,9 +823,7 @@ fn the_host_answer_clock_precedes_teardown_and_durable_saves() {
     assert!(out.is_empty());
     crate::step(&mut domain, &env, Event::StateSaved, &mut out);
     assert_eq!(domain.answer_wall(), answered_at);
-    let Some(Request::Notice { notice: Notice::Turn { .. } | Notice::Answer(_) }) = out.pop() else {
-        panic!("settled answer is shown")
-    };
+    let Some(Request::Notice { notice: Notice::Answer(_) }) = out.pop() else { panic!("settled answer is shown") };
     let Some(Request::Answered { .. }) = out.pop() else { panic!("settled answer reaches the shell") };
 }
 
@@ -965,9 +963,7 @@ fn an_unknown_delivery_settles_at_the_next_load_of_the_same_invocation() {
         &mut out,
     );
     parent_request(&mut domain, &env, crate::fixture::gone(host::End::Settled, Box::default()), &mut out);
-    let Some(Request::Notice { notice: Notice::Turn { .. } | Notice::Answer(_) }) = out.pop() else {
-        panic!("show answer")
-    };
+    let Some(Request::Notice { notice: Notice::Answer(_) }) = out.pop() else { panic!("show answer") };
     let Some(Request::Answered { .. }) = out.pop() else { panic!("answer reaches shell") };
     let Some(Request::Load) = out.pop() else { panic!("reload same chat") };
     assert!(out.is_empty());

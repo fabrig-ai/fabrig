@@ -312,6 +312,14 @@ mod tests {
                 TurnLine::Ended(ToolVerdict::Finished),
             ]
         );
+        assert_eq!(
+            turn_lines(&turn, 4).as_ref(),
+            &[
+                TurnLine::Text(b"Work".as_slice().into()),
+                TurnLine::Tool { name: b"insp".as_slice().into() },
+                TurnLine::Ended(ToolVerdict::Finished),
+            ]
+        );
     }
 }
 
