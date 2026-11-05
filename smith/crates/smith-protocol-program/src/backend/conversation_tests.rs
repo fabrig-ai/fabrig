@@ -393,6 +393,75 @@ fn advisor_request(backend: &Backend, owner: u64) -> Complete {
     complete
 }
 
+#[test]
+fn unknown_top_level_records_preserve_the_active_turn() {
+    let mut harness = fixtures::Harness::new(active());
+    let first = advisor_request(&harness.backend, COMPLETION.raw());
+    harness.backend.current.retain(first, &mut harness.up);
+    unknown_notices(&mut harness);
+    harness.backend.line(&env(0), TOOL_RECORD, &mut harness.up, &mut harness.below);
+    let Some(ToDomain::Completed { owner, completion }) = harness.up.pop() else { panic!("tool completion") };
+    assert_eq!(owner, COMPLETION);
+    let [llm::Said::ToolCall { id, name, call: llm::Decoded::Builtin { .. }, .. }] = completion.content.as_ref() else {
+        panic!("built-in call")
+    };
+    assert_eq!(id.as_ref(), b"t");
+    assert_eq!(name.as_ref(), b"Read");
+    unknown_notices(&mut harness);
+    harness.backend.line(
+        &env(0),
+        br#"{"type":"user","message":{"content":[{"type":"tool_result","tool_use_id":"t","content":"file text"}]}}"#,
+        &mut harness.up,
+        &mut harness.below,
+    );
+    let Some(ToDomain::BuiltinResult { owner, id, text, error }) = harness.up.pop() else {
+        panic!("paired built-in result")
+    };
+    assert_eq!(owner, COMPLETION);
+    assert_eq!(id.as_ref(), b"t");
+    assert_eq!(text.as_ref(), b"file text");
+    assert!(!error);
+    assert!(harness.up.is_empty());
+    while harness.backend.pop_measure().is_some() {}
+    let next = advisor_request(&harness.backend, OUTCOME_OWNER);
+    harness.backend.resume(&env(0), next, &mut harness.up, &mut harness.below);
+    harness.backend.line(&env(0), OUTCOME_MESSAGE, &mut harness.up, &mut harness.below);
+    harness.backend.line(&env(0), OUTCOME_RESULT, &mut harness.up, &mut harness.below);
+    advisor_finish(&harness.up);
+    assert_eq!(harness.backend.startup.phase(), State::Running);
+    assert!(harness.backend.turns.result);
+    assert!(harness.backend.turns.ready.is_empty());
+    assert!(harness.backend.turns.message.is_none());
+    assert!(harness.below.is_empty(), "no interrupt, restart or extra input");
+}
+
+fn unknown_notices(harness: &mut fixtures::Harness) {
+    // Synthetic future kinds: the live rejected record is unknown.
+    for notice in [
+        br#"{"type":"future_notice"}"#.as_slice(),
+        br#"{"type":"future_progress","message":{"content":[]},"usage":{"output_tokens":999}}"#,
+    ] {
+        let owner = harness.backend.current.owner();
+        let closed = harness.backend.turns.closed;
+        let calls = harness.backend.ledger.len();
+        let measures = harness.backend.measures.len();
+        harness.backend.line(&env(0), notice, &mut harness.up, &mut harness.below);
+        assert!(harness.up.is_empty(), "unknown notice emitted {:?}", harness.up.pop());
+        assert!(harness.below.is_empty(), "unknown notice changed the process");
+        assert_eq!(harness.backend.measures.len(), measures);
+        assert_eq!(harness.backend.startup.phase(), State::Running);
+        assert_eq!(harness.backend.current.owner(), owner);
+        assert_eq!(harness.backend.turns.closed, closed);
+        assert_eq!(harness.backend.ledger.len(), calls);
+    }
+}
+
+// The advisor fixture's completion after its two tool messages.
+const OUTCOME_OWNER: u64 = 82;
+const OUTCOME_MESSAGE: &[u8] = br#"{"type":"assistant","message":{"id":"outcome","content":[{"type":"text","text":"before"},{"type":"tool_use","id":"s","name":"StructuredOutput","input":{}},{"type":"text","text":"after"}],"usage":{"input_tokens":17,"output_tokens":3}}}"#;
+const OUTCOME_RESULT: &[u8] =
+    br#"{"type":"result","structured_output":{"outcome":{"form":"report","text":"done","fields":{}}}}"#;
+
 fn advisor_tools(harness: &mut fixtures::Harness, assistant: &[u8], results: &[u8], owner: u64, calls: usize) {
     harness.backend.line(&env(0), assistant, &mut harness.up, &mut harness.below);
     let Some(ToDomain::Completed { owner: got, completion }) = harness.up.pop() else { panic!("tool completion") };
@@ -429,19 +498,14 @@ fn advisor_two_reads(framed: bool) {
         br#"{"type":"assistant","message":{"id":"two","content":[{"type":"tool_use","id":"d","name":"Read","input":{"file_path":"CONTRIBUTING.md"}},{"type":"tool_use","id":"e","name":"Read","input":{"file_path":"README.md"}}]}}"#,
         br#"{"type":"user","message":{"content":[{"type":"tool_result","tool_use_id":"d","content":"contributing"},{"type":"tool_result","tool_use_id":"e","content":"readme"}]}}"#, 81, 2);
     for record in [
-        br#"{"type":"assistant","message":{"id":"outcome","content":[{"type":"text","text":"before"},{"type":"tool_use","id":"s","name":"StructuredOutput","input":{}},{"type":"text","text":"after"}],"usage":{"input_tokens":17,"output_tokens":3}}}"#.as_slice(),
+        OUTCOME_MESSAGE,
         br#"{"type":"user","message":{"content":[{"type":"tool_result","tool_use_id":"s","content":"accepted"}]}}"#,
     ] {
         harness.backend.line(&env(0), record, &mut harness.up, &mut harness.below);
         assert!(harness.up.is_empty(), "held outcome, got {:?}", harness.up.pop());
     }
     advisor_tail(&mut harness, framed);
-    harness.backend.line(
-        &env(0),
-        br#"{"type":"result","structured_output":{"outcome":{"form":"report","text":"done","fields":{}}}}"#,
-        &mut harness.up,
-        &mut harness.below,
-    );
+    harness.backend.line(&env(0), OUTCOME_RESULT, &mut harness.up, &mut harness.below);
     advisor_finish(&harness.up);
     assert_eq!(harness.backend.turns.closed, 4);
     assert_eq!(harness.backend.turns.ready.len(), 1);
@@ -476,7 +540,7 @@ fn advisor_finish(up: &Queue<ToDomain>) {
     for event in up {
         match event {
             ToDomain::Completed { owner, .. } => {
-                assert_eq!(*owner, Token::new(82));
+                assert_eq!(*owner, Token::new(OUTCOME_OWNER));
                 completions = completions.checked_add(1).unwrap();
             }
             ToDomain::Text { .. } => {}
@@ -493,7 +557,9 @@ fn advisor_finish(up: &Queue<ToDomain>) {
 fn rejected_records_name_the_kind_and_condition_without_payloads() {
     let cases: &[(&[u8], &[u8])] = &[
         (br#"{"private":"never repeat this"}"#, b"record: decode fields: malformed record"),
-        (br#"{"type":"never repeat this"}"#, b"record: dispatch: unsupported record"),
+        (br#"{"type":null,"private":"never repeat this"}"#, b"record: decode fields: malformed record"),
+        (br#"{"type":42,"private":"never repeat this"}"#, b"record: decode fields: malformed record"),
+        (br#"{"type":{},"private":"never repeat this"}"#, b"record: decode fields: malformed record"),
         (br#"{"type":"system","private":"never repeat this"}"#, b"system: decode fields: malformed record"),
         (
             br#"{"type":"stream_event","event":{"type":"never repeat this"}}"#,
@@ -627,8 +693,8 @@ fn program_failures_name_the_rejected_record_and_bound() {
     builtin_text_diagnostics();
     result_diagnostics();
     framed_block_diagnostics();
-    let detail = rejected_record(active(), br#"{"type":"private-payload"}"#);
-    assert_eq!(detail.as_ref(), b"smith: program record: dispatch: unsupported record");
+    let detail = rejected_record(active(), br#"{"type":"stream_event","event":{"type":"private-payload"}}"#);
+    assert_eq!(detail.as_ref(), b"smith: program stream_event: dispatch: unsupported record");
 }
 
 const TEXT_RECORD: &[u8] =
