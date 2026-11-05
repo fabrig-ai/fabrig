@@ -1,6 +1,6 @@
 //! The building blocks every step crate shares (programming-model.md, 10.2):
 //! typed handles and the slabs that issue them, capped and uncapped queues, lists, maps,
-//! sets and stacks, the per-layer deadline table, the stream vocabulary and
+//! sets and stacks, least-recently-used tables, the per-layer deadline table, the stream vocabulary and
 //! the intake that meets its demands, a held buffer serving a stream,
 //! a reader and a writer for sized bytes, a reusable bounded byte buffer,
 //! and the decimal and hex digits to write and read with them, monotonic and
@@ -33,6 +33,7 @@ pub mod length;
 mod lifecycle;
 mod list;
 mod lossy;
+mod lru;
 mod map;
 mod name;
 mod queue;
@@ -65,6 +66,7 @@ pub use length::{len_u64, usize_of};
 pub use lifecycle::Lifecycle;
 pub use list::List;
 pub use lossy::Lossy;
+pub use lru::Lru;
 pub use map::Map;
 pub use name::{Grammar, Name};
 pub use queue::Queue;
