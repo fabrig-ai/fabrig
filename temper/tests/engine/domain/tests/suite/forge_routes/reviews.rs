@@ -273,8 +273,8 @@ fn render_read(
         "fake read {number} using {}: {answer:?}",
         String::from_utf8_lossy(tool)
     );
-    let (body, error) =
-        temper_engine_smith::answer_for_tool(answer, tool, world.env.limits.call_answer_bytes).into_parts();
+    // Leave rendering room so the root's independent settlement bounds are reached.
+    let (body, error) = temper_engine_smith::answer_for_tool(answer, tool, READ_ROOM).into_parts();
     assert!(!error, "renderer produced a full answer");
     // The scripted worker identifies successful relays by their rendered body.
     world.protocol.answers.push((body.clone(), answer.clone()));
