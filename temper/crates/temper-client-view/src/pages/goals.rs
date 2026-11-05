@@ -177,6 +177,7 @@ fn text(b: &mut Builder, role: Role, style: skein_ui::Style, value: &[u8]) {
 /// A project's named way of carrying out a goal (client/README.md, 3.5).
 #[derive(Debug)]
 pub struct Way {
+    pub number: u32,
     pub name: Box<[u8]>,
     pub line: Option<Box<[u8]>>,
 }
@@ -203,14 +204,16 @@ pub fn ways(me: &c::Me, project: u32, words: &Words) -> List<Way> {
             let template = member.templates.get(*index).expect("ordered template");
             let way = match template.name.bytes() {
                 b"goal" => Way {
+                    number: template.number,
                     name: words.say(Word::GoalTaskByTask, &[]),
                     line: Some(words.say(Word::GoalTaskByTaskLine, &[])),
                 },
                 b"goal for a draft" => Way {
+                    number: template.number,
                     name: words.say(Word::GoalLandWhole, &[]),
                     line: Some(words.say(Word::GoalLandWholeLine, &[])),
                 },
-                name => Way { name: name.into(), line: None },
+                name => Way { number: template.number, name: name.into(), line: None },
             };
             result.push(way).expect("ways grow with templates");
         }
