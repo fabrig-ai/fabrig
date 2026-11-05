@@ -161,6 +161,6 @@ pub(super) fn answer(domain: &Domain, token: Token) -> Option<ApplicationAnswer>
         Some(forge::Answered::Accept(answer)) => Some(ApplicationAnswer::Accept(answer)),
         Some(forge::Answered::Install(answer)) => Some(ApplicationAnswer::Install(answer)),
         Some(forge::Answered::Dismiss(answer)) => Some(ApplicationAnswer::Dismiss(answer)),
-        None => None,
+        Some(forge::Answered::Looked(_)) | None => None,
     }
 }

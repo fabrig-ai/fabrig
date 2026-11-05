@@ -1743,3 +1743,45 @@ fn landing_logs_round_trip_and_refuse_each_configured_bound() {
     }
     assert_eq!(records::decode(&records::encode(&row), &bounds), Ok(row));
 }
+
+#[test]
+fn status_rows_round_trip_all_options_and_field_bounds() {
+    use skein_lib::Wall;
+    let bounds = crate::bounds(&fixtures::LIMITS, fixtures::LIMITS.client.op_bytes).unwrap();
+    for (party, project, count) in [(0, 0, 0), (7, 3, 2), (u64::MAX, u32::MAX, u64::MAX)] {
+        for present in [false, true] {
+            let brief = present.then_some(forge::Brief {
+                sentence: Box::from([b's'; forge::BRIEF_SENTENCE_BYTES]),
+                lede: Box::from([b'l'; forge::BRIEF_LEDE_BYTES]),
+                at: Wall::from_nanos(count),
+                landed: count,
+            });
+            for running in [
+                None,
+                Some(forge::StatusRunning { task: None, landed: count, since: Wall::from_nanos(count) }),
+                Some(forge::StatusRunning { task: Some(u64::MAX), landed: count, since: Wall::from_nanos(count) }),
+            ] {
+                let facts = forge::Stored::ProjectFacts(forge::ProjectFacts {
+                    project,
+                    landed: count,
+                    last_landed: Wall::from_nanos(count),
+                    brief: brief.clone(),
+                    running,
+                });
+                let looked = forge::Stored::Looked(forge::Looked {
+                    party,
+                    project,
+                    previous: present.then_some(Wall::from_nanos(count)),
+                    latest: Wall::from_nanos(count),
+                    seen: count,
+                    next_seen: count,
+                });
+                for row in [facts, looked] {
+                    let bytes = records::encode(&row);
+                    let key = crate::keys::encode(&forge::stored_key(&row), u32::MAX).unwrap();
+                    assert_eq!(records::row(&key, &bytes, &bounds), Ok(row));
+                }
+            }
+        }
+    }
+}
