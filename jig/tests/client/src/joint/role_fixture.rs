@@ -1,7 +1,7 @@
 //! Role fixtures at the engine boundary (jig/docs/design/client/domain/testing.md, 5).
 use super::{Joint, engine::Driver, fixture::clock, session::Session};
 use jig_client_domain::contract as client;
-use jig_core_world::peers::Peers;
+use jig_core_kit::peers::Peers;
 use jig_domain_people as people;
 use jig_fake_parties::{Act, Party, Role as PartyRole};
 use jig_fake_workers::{Script, Worker};
@@ -14,7 +14,7 @@ pub(super) fn front(
     configure: fn(&mut jig_test_domain::Config, &jig_test_domain::Limits),
     receiving: &jig_client_test_domain::Limits,
 ) -> Joint {
-    let (mut configuration, mut owner) = jig_core_world::peers::fixture(seed, 0);
+    let (mut configuration, mut owner) = jig_core_kit::peers::fixture(seed, 0);
     configuration.core.owners = Box::new([]);
     owner.core.fleet.slots = slots;
     // Four adoption identities and their four later public client sign-ins.
@@ -43,7 +43,7 @@ pub(super) fn front(
     .clone();
     configuration.core.seed_projects[0].policy.policy = policy;
     configure(&mut configuration, &owner);
-    jig_core_world::peers::journal(&mut owner);
+    jig_core_kit::peers::journal(&mut owner);
     let roles = [PartyRole::Owner, PartyRole::Maintainer, PartyRole::Member, PartyRole::Observer];
     let parties = roles
         .iter()
@@ -171,7 +171,7 @@ pub(super) fn seeded(story: crate::harness::seed::RoleStory) -> Joint {
         batch[0].authority.spend = 10;
         batch[0].budget = people::Budget::Named;
         let sign_in = world.peers.as_ref().expect("role peers").parties[2].sign_in.expect("member sign-in");
-        jig_core_world::fixtures::ask_as(world, sign_in, 80, people::Ask::Create { project, batch });
+        jig_core_kit::fixtures::ask_as(world, sign_in, 80, people::Ask::Create { project, batch });
     }
     if matches!(story, RoleStory::Proposal | RoleStory::Choice) {
         seed_core(

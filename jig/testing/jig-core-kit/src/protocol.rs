@@ -164,7 +164,8 @@ impl crate::world::World {
         Token::new(u64::from(completion))
     }
 
-    pub(crate) fn relay_call(&mut self, name: &[u8], tool: &[u8], input: &[u8], writes: bool) {
+    /// Relay an encoded host call through the tool protocol.
+    pub fn relay_call(&mut self, name: &[u8], tool: &[u8], input: &[u8], writes: bool) {
         let assignment = self.assigned.as_ref().expect("assigned chat");
         self.send(root::Event::Core(core::Event::Fleet(fleet::Event::Relay {
             channel: Token::new(7),

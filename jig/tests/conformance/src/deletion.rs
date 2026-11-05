@@ -98,7 +98,7 @@ fn proposal_rows(world: &mut World) {
         to: ReplyTo::new(Token::new(9802)),
         key: core::CallKey { task, attempt, completion: 1, position: 0 },
         number: 1,
-        effect: jig_core_world::world::World::effect(),
+        effect: jig_core_kit::world::World::effect(),
         deadline: skein_lib::Wall::from_nanos(world.clock().now + 1_000_000_000),
         proposal: Some(b"ask the owner".as_slice().into()),
     });
@@ -371,7 +371,7 @@ pub fn remove(world: &mut World) {
         world.peers.start_phases
     );
     for (key, record) in &world.store.rows {
-        if let Some(name) = jig_core_world::conformance::naming::naming(key, record) {
+        if let Some(name) = jig_core_kit::conformance::naming::naming(key, record) {
             assert!(
                 (name.project != Some(1) && !name.task.is_some_and(|task| tasks.contains(&task)))
                     || name.outlives.is_some(),

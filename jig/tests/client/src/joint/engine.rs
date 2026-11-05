@@ -3,10 +3,10 @@
 //! deliveries. Request durability and every business decision stay in the root.
 use super::transport::Transport;
 use jig_client_domain::contract::VersionRange;
-use jig_core_world::client_peer::ClientPeer;
-use jig_core_world::peers::Peers;
-use jig_core_world::world::Setup;
-use jig_core_world::world::World;
+use jig_core_kit::client_peer::ClientPeer;
+use jig_core_kit::peers::Peers;
+use jig_core_kit::world::Setup;
+use jig_core_kit::world::World;
 use jig_domain_core as core;
 use jig_protocol_engine_clients::{self as clients, Event};
 use jig_test_domain as root;
@@ -49,7 +49,7 @@ impl Driver {
             ..Setup::default()
         });
         world.client_peer = Some(ClientPeer::routed());
-        world.store_peer = Some(jig_core_world::store_peer::StorePeer::after(world.store.applied));
+        world.store_peer = Some(jig_core_kit::store_peer::StorePeer::after(world.store.applied));
         Self {
             world,
             limits,
@@ -167,7 +167,7 @@ impl Driver {
     /// Transfer the external store peer's complete applied transactions once.
     /// Their clock and application index come from the store boundary, before
     /// any protocol projection or acknowledgement.
-    pub fn snapshots(&mut self) -> Vec<jig_core_world::store_peer::DurableSnapshot> {
+    pub fn snapshots(&mut self) -> Vec<jig_core_kit::store_peer::DurableSnapshot> {
         self.world.store_peer.as_mut().expect("actual durable store peer").take()
     }
 
@@ -295,7 +295,7 @@ mod tests {
                 name: Box::new([]),
             },
         );
-        driver.world.cut = Some(jig_core_world::world::Cut::Submitted(driver.world.store.applied + 1));
+        driver.world.cut = Some(jig_core_kit::world::Cut::Submitted(driver.world.store.applied + 1));
         let event = driver.transport.start_sign_in(ClientId(0));
         driver.send(now, wall, root::Event::Core(event));
         assert!(driver.world.reached_cut.is_some());
@@ -320,7 +320,7 @@ mod tests {
         };
         driver.transport.bind(ClientId(0), 1, supplied.clone());
         assert_eq!(driver.transport.hello(), jig_client::Up::Served { served: true, versions: None });
-        driver.world.cut = Some(jig_core_world::world::Cut::Submitted(driver.world.store.applied + 1));
+        driver.world.cut = Some(jig_core_kit::world::Cut::Submitted(driver.world.store.applied + 1));
         let event = driver.transport.start_sign_in(ClientId(0));
         let core::Event::SignIn { identity, .. } = &event else { panic!("real sign-in") };
         assert_eq!(identity, &supplied);
@@ -370,7 +370,7 @@ mod tests {
             },
         );
         let expected = driver.world.store.applied + 1;
-        driver.world.cut = Some(jig_core_world::world::Cut::Durable(expected));
+        driver.world.cut = Some(jig_core_kit::world::Cut::Durable(expected));
         let event = driver.transport.start_sign_in(ClientId(0));
         driver.send(now, wall, root::Event::Core(event));
         assert!(driver.poll(now, wall).is_empty(), "the durable cut still withholds the owner answer");
@@ -405,7 +405,7 @@ mod tests {
 
         let now = Time::from_nanos(17);
         let wall = Wall::from_nanos(1_000_000_000_000);
-        let (configuration, limits) = jig_core_world::peers::fixture(1212, 0);
+        let (configuration, limits) = jig_core_kit::peers::fixture(1212, 0);
         let mut driver = Driver::new(configuration, limits, Peers::new(Vec::new(), Vec::new()), now, wall);
         let subject: Box<[u8]> = b"same identity".as_slice().into();
         driver.transport.bind(

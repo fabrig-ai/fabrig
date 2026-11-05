@@ -294,7 +294,7 @@ impl Story {
         seed: u64,
         limits: &jig_test_domain::Limits,
         config: jig_test_domain::Config,
-        peers: jig_core_world::peers::Peers,
+        peers: jig_core_kit::peers::Peers,
     ) -> Self {
         let mut story = Self {
             front: Front::new(seed),

@@ -2,7 +2,7 @@
 use super::{engine::Driver, fixture::clock, session::Session};
 use crate::harness::ClientId;
 use jig_client::{self as client, contract as c};
-use jig_core_world::peers::Peers;
+use jig_core_kit::peers::Peers;
 use jig_domain_people as people;
 use jig_test_domain as root;
 use skein_lib::{Duration, List, Queue, Secret, Time};
@@ -32,7 +32,7 @@ impl Story {
         let mut owner_limits = jig_test_profile::limits();
         owner_limits.core.accounts.accounts = 2;
         owner_limits.core.accounts.move_deadline = MOVE_DEADLINE;
-        jig_core_world::peers::journal(&mut owner_limits);
+        jig_core_kit::peers::journal(&mut owner_limits);
         let now = Time::ZERO;
         let driver = Driver::new(configuration(), owner_limits, Peers::new(Vec::new(), Vec::new()), now, clock(now));
         let mut limits = crate::test::limits();

@@ -50,7 +50,7 @@ pub(crate) fn party_ask(peers: &crate::Neighbours, key: u8, ask: people::Ask) ->
 
 fn effect(world: &mut World, completion: u32, proposal: bool) {
     let (task, attempt) = parent(world);
-    let mut effect = jig_core_world::world::World::effect();
+    let mut effect = jig_core_kit::world::World::effect();
     if world.peers.scenario == Some(Scenario::OtherHand) {
         effect.condition = Some(0);
     }

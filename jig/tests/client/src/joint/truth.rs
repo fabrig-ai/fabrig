@@ -3,7 +3,7 @@
 //! (client/domain/testing.md, sections 5–6).
 use crate::harness::{CardKey, Observed};
 use jig_client_domain::contract::{ObjectKey, ProposalKey, Proposer};
-use jig_core_world::store_peer::DurableSnapshot;
+use jig_core_kit::store_peer::DurableSnapshot;
 use jig_domain_core as core;
 use jig_domain_tasks as tasks;
 use jig_test_domain as root;

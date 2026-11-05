@@ -323,6 +323,7 @@ pub fn chat_for(world: &crate::world::World, project: u32, role: u32, words: Box
     people::Ask::Create { project, batch }
 }
 
+#[path = "../../../tests/core/src/fixtures/deadlines.rs"]
 pub mod deadlines;
 
 /// A lower-world story supplies the exact durable source it will grant later.

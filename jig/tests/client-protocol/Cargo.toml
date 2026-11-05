@@ -44,7 +44,7 @@ jig-fake-workers.workspace = true
 jig-fake-parties.workspace = true
 jig-client-shell-native = { path = "../../crates/jig-client-shell-native" }
 jig-client-world = { path = "../client" }
-jig-core-world = { path = "../core" }
+jig-core-kit.workspace = true
 
 [lints.rust] # harness: tools/lints/design.md, 2.2
 unsafe_code = "forbid"

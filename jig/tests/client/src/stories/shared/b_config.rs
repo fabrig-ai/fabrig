@@ -7,7 +7,7 @@ pub fn setup(
     seed: u64,
     facts: &Facts,
     mut limits: jig_test_domain::Limits,
-) -> (jig_test_domain::Config, jig_test_domain::Limits, jig_core_world::peers::Peers) {
+) -> (jig_test_domain::Config, jig_test_domain::Limits, jig_core_kit::peers::Peers) {
     let mut configuration = jig_test_profile::config(seed);
     if matches!(facts, Facts::ProposedGoal | Facts::Delegates | Facts::InboxOrder) {
         configuration.core.seed_projects[0].policy.policy.roles[0].authority.delegation.tasks = 3;
@@ -80,7 +80,7 @@ pub fn setup(
         }
         Facts::Goals | Facts::HeldConversation | Facts::FamilyResource | Facts::ProposedGoal | Facts::Delegates => {}
     }
-    let peers = jig_core_world::peers::Peers::new(vec![Worker::new(1, 1, scripts(facts))], Vec::new());
+    let peers = jig_core_kit::peers::Peers::new(vec![Worker::new(1, 1, scripts(facts))], Vec::new());
     (configuration, limits, peers)
 }
 

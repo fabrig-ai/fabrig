@@ -181,7 +181,7 @@ impl Story {
         limits.core.accounts.holder_accounts = 2;
         limits.core.people.requests = 8;
         let mut story =
-            Self::configured_peers(seed, &limits, config, jig_core_world::peers::Peers::new(Vec::new(), Vec::new()));
+            Self::configured_peers(seed, &limits, config, jig_core_kit::peers::Peers::new(Vec::new(), Vec::new()));
         story.sign_in();
         assert!(story.run_until(|s| s.client.link().state == client::Link::Live, Duration::from_secs(1)));
         story

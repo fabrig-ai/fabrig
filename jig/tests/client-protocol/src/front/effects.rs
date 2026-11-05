@@ -10,7 +10,7 @@ const DELEGATE_BUDGET: u64 = 10;
 impl Protocol {
     #[must_use]
     pub fn two_run_slots(seed: u64) -> Self {
-        let peers = jig_core_world::peers::Peers::new(
+        let peers = jig_core_kit::peers::Peers::new(
             vec![jig_fake_workers::Worker::new(
                 1,
                 2,

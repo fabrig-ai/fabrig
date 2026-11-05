@@ -1,7 +1,7 @@
 //! A task's LLM choice on the wire reaches the core by configuration's indices, and a refused
 //! model comes back by its name (contract.md, 3.2 and 4; domain/tasks.md, 3).
 use super::{amendment_setup, final_answer, keyed, member_setup, owner_authority, route_real_core, w};
-use jig_core_world::fixtures::live_row;
+use jig_core_kit::fixtures::live_row;
 use jig_domain_tasks as tasks;
 use jig_engine_clients_world::fixtures;
 use skein_lib::{List, Writer};

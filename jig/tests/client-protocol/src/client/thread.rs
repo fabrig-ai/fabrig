@@ -24,7 +24,7 @@ impl Story {
             Script::Turn { body, cost: 1, read: Some(READ_MESSAGE) },
             Script::Wait,
         ]);
-        let peers = jig_core_world::peers::Peers::new(vec![Worker::new(WORKER, 1, vec![script])], Vec::new());
+        let peers = jig_core_kit::peers::Peers::new(vec![Worker::new(WORKER, 1, vec![script])], Vec::new());
         let mut story = Self {
             front: Front::with_limits(seed, client),
             second: None,
@@ -62,7 +62,7 @@ impl Story {
         use jig_domain_core::{self as core, reads};
         use jig_domain_tasks as tasks;
         let world = &self.engine.driver.world;
-        let owner = jig_core_world::fixtures::live_row(world, archive.task).clone();
+        let owner = jig_core_kit::fixtures::live_row(world, archive.task).clone();
         let turn = core::Record::Core(core::CoreRecord::Turn(core::TurnRecord {
             opens_window: true,
             task: archive.task,

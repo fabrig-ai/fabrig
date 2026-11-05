@@ -334,6 +334,7 @@ fn client_world_joins_only_the_client_and_test_roles() {
                 "jig-domain-views",
                 "jig-domain-notes",
                 "jig-test-profile",
+                "jig-core-kit",
                 // Scripted parties remain beside the real joint protocol peer.
                 "jig-fake-parties",
                 "jig-fake-workers",
