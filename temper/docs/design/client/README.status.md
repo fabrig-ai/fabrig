@@ -2,7 +2,7 @@
 
 2026-11-05. Where temper's code lags or departs from [README.md](README.md).
 
-- **Not yet:** 4.7: the read-only line on an adopted repository, and `temper ctl`'s line on a no access: `temper-client-tools/src/forge.rs`, `answer_text`; the form draws neither read-only line (`temper-client-view/src/forge/page.rs`).
+- **Not yet:** 4.7: the form draws no read-only line on an adopted repository (`temper-client-view/src/forge/page.rs`).
 - **Not yet:** 3.5, *Home on any project*: the stock owner pool may
   reserve the whole project period, leaving no funding for the status
   agent (`temper-service`'s `stock.rs`, `project_policy`;
