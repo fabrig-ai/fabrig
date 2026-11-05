@@ -19,6 +19,9 @@ files = [
   "temper/docs/design/protocol/forge.status.md",
   "temper/docs/design/domain/forge.status.md",
   "temper/docs/design/client/README.status.md",
+  "skein/crates/skein-fake-forge-forgejo/src/setup/collaborators.rs",
+  "skein/crates/skein-fake-forge-forgejo/src/tests/setup_reads.rs",
+  "skein/docs/design/fake-forge.md",
 ]
 effort = "high"
 minutes = 170
@@ -156,3 +159,39 @@ heavy cargo nextest run -p temper --test process --profile process-temper -E 'te
 ## Report
 
 As your text says. Also: the story's failure at the base and its wall before and after; each rule you broke by hand and the failure seen; whether the restart's reconcile needed a fix; and that a repository adopted read-only before this lands keeps its stored kinds until it is adopted again, since a restart repairs the forge, not the row.
+
+## Answers
+
+**2026-11-05. Seven one-process readers stop with `NoAccess`: seed the fixture admin's grant in `stories.rs`, or repair skein's fake?** Repair the fake; add no grant to `temper/tests/one-process/src/stories.rs`, and change no other one-process file for this.
+
+The fake is what is wrong (`AGENTS.md`, 5: a skein fault seen downstream is fixed in skein). A Forgejo site admin reads any repository by its path: this task's own story does so on a real Forgejo, at `other/closed`. The fake answers that read from the domain, by the caller's domain grant, so it refuses a site admin with `403`, though its by-id read and its permission read let them through. A grant in the fixture would hide this for one fixture and leave the next to meet it.
+
+The repair widens this task by three files, now in `files`:
+
+- `skein-fake-forge-forgejo/src/setup/collaborators.rs`, `answer_with_domain`, beside the `RepositoryById` arm:
+
+  ```rust
+  if let Request::Repository { at } = request
+      && let Some(caller) = self.user(user)
+      && caller.is_admin
+      && let Some(id) = repository(config, at)
+  {
+      return Some(self.repository_by_id(u64::from(id), &caller, config, limits, Some(hosted)));
+  }
+  ```
+
+  A path the configuration lacks, and every caller who isn't a site admin, go on to the domain as now. Non-admins' answers on a public repository are not this repair's.
+- `skein-fake-forge-forgejo/src/tests/setup_reads.rs`, written first and seen failing: a site admin with no domain grant reads another owner's private repository by its path, with the by-id test's document and `h.calls == 0`; a non-admin's path read still reaches the domain (`h.calls == 1`); a site admin's read of a path the configuration lacks still reaches the domain.
+- `skein/docs/design/fake-forge.md`, *The setup's routes*: after "A repository read by id answers the domain's settings when the host lends the domain.", add "A site admin's read of a configured repository by its path is answered the same way, with no domain call, as Forgejo shows a site admin every repository."
+
+Then, in files this task owns, remove `git::grant(&mut forge.git, b"other/closed", admin, ..)` from `temper-service/src/tests/setup_admin.rs` and any such seed in `setup_adoption.rs` that only served this read, so those tests pin the repaired fake.
+
+Run, each once and through heavy, before step 6's readers, whose runs must observe the seven reader tests and leave none excluded:
+
+```
+heavy cargo nextest run -p skein-fake-forge-forgejo --lib
+heavy cargo nextest run -p skein-forge-setup-world
+heavy cargo clippy -p skein-fake-forge-forgejo --all-targets -- -D warnings
+```
+
+If a reader still fails after this for another reason, report it with its log; don't seed around it.
