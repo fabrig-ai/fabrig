@@ -2,6 +2,15 @@
 
 2026-11-05. Where temper's code lags or departs from [browser.md](browser.md).
 
+- **Departs:** 7.2: the gallery's comparison pages do not hold one copy of
+  the greenfield scenario. `home-morning` is Hello with no goals or Away
+  switch, `home-with-goals` has the Solo world's goals, and `home-away`
+  has four decisions still open to Overturn, where the mock's first is
+  already landed. `needs-one` has no goal templates; `goals-reference`
+  adds the large goal; chats and settings use the Reference and Solo
+  worlds' parties, accounts and templates. Their counts, words, available
+  tabs and resulting page lengths differ because the gallery draws those
+  domains (`tools/gallery/src/samples.rs`), not the mock's stored state.
 - **Not yet:** 7.2: `goal-sending` has one pending message and "Being sent",
   but no earlier accepted message or next words in the composer.
   `goal-toast` answers Pause without delivering a paused task document, so
