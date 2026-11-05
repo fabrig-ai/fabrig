@@ -90,3 +90,16 @@ Options, each pre-approved:
 ## Report
 
 As `notes/common.md`, *Your report*.
+
+## Rebase (2026-11-05, step merge, foreman ui-chats/session-layout/foreman-1)
+
+rebase session-layout onto integration, preserving Changes additions and regenerating combined goldens
+The merge conflicts with integration commit fcc47a6c5c (“Merge main Changes work while preserving Chats and NewChat”), merged by 8f55ab276d.
+Resolve these four paths:
+- `temper/crates/temper-client-view/src/words.rs`: retain integration’s Changes vocabulary, phrase IDs, ALL entries and byte allowances; retain this task’s “Reply to T” placeholder. Combine the segment changes: SEGMENTS becomes 2438, PHRASES stays 1402, ALL stays 806.
+- `temper/tools/gallery/src/samples.rs`: retain integration’s four Changes samples and supporting behavior plus this task’s `chat-solo-T1`; N becomes 122. Preserve both additions in `temper/tools/gallery/names.txt` in sample order.
+- `temper/crates/temper-client-shell-terminal/src/tests/golden/chat_delegation_running.txt`
+- `temper/crates/temper-client-shell-terminal/src/tests/golden/chat_delegation_landed.txt`
+Regenerate both goldens from the combined code using `SKEIN_CODEGEN_WRITE=1` and terminal test `tests::render::each_fixture_page_prints_as_its_golden_file`. They must include the Changes rail link alongside the session bar, nested conversation and shared composer; link numbers consequently shift.
+Review the automatic merges in CSS, look tokens, choice, gallery tests and README.status.md to preserve both features.
+Through heavy, with TEMPER_BUNDLE=none, run the vocabulary declaration test, gallery `names_are_the_promised_ones`, affected chat tests and terminal golden test. Inspect and report regenerated artifacts.
