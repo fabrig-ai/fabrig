@@ -389,7 +389,7 @@ fn ending(value: wire::Ending, parts: &mut Parts) -> host::Ending {
                                 cause: match record.cause {
                                     wire::StartCause::Other => host::StartCause::Other,
                                     wire::StartCause::Grants => host::StartCause::Grants,
-                        wire::StartCause::Transcript => host::StartCause::Transcript,
+                                    wire::StartCause::Transcript => host::StartCause::Transcript,
                                 },
                             }
                         }

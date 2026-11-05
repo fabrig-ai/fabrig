@@ -239,18 +239,16 @@ fn decoded(domain: &mut Domain, env: &Env<Limits>, owner: Token, start: Result<B
         Err(invalid) => {
             let cause = match invalid {
                 host::Undecoded::Transcript => host::StartCause::Transcript,
-                host::Undecoded::Charter | host::Undecoded::Evidence | host::Undecoded::CallName => host::StartCause::Other,
+                host::Undecoded::Charter | host::Undecoded::Evidence | host::Undecoded::CallName => {
+                    host::StartCause::Other
+                }
             };
             let why: &[u8] = match invalid {
                 host::Undecoded::Charter | host::Undecoded::Evidence => b"charter",
                 host::Undecoded::Transcript => b"transcript",
                 host::Undecoded::CallName => b"call name",
             };
-            hub(
-                domain,
-                env,
-                HubEvent::Agent(FromAgent::StartRefused { owner, why: Box::from(why), cause }),
-            );
+            hub(domain, env, HubEvent::Agent(FromAgent::StartRefused { owner, why: Box::from(why), cause }));
         }
     }
 }
@@ -595,14 +593,13 @@ fn ended(domain: &mut Domain, env: &Env<Limits>, owner: Token, end: smith::End, 
     if let Some(why) = translate::unstarted(end) {
         let cause = match end {
             smith::End::Invalid(smith::Invalid::Transcript) => host::StartCause::Transcript,
-            smith::End::Busy | smith::End::Invalid(_) | smith::End::Unspawned
-            | smith::End::Exited { .. } | smith::End::Settled => host::StartCause::Other,
+            smith::End::Busy
+            | smith::End::Invalid(_)
+            | smith::End::Unspawned
+            | smith::End::Exited { .. }
+            | smith::End::Settled => host::StartCause::Other,
         };
-        hub(
-            domain,
-            env,
-            HubEvent::Agent(FromAgent::StartRefused { owner, why: Box::from(why), cause }),
-        );
+        hub(domain, env, HubEvent::Agent(FromAgent::StartRefused { owner, why: Box::from(why), cause }));
     } else if hand_out_pending(domain, owner) {
         drop(domain.gone.insert(owner, detail).expect("one deferred gone per run"));
     } else {

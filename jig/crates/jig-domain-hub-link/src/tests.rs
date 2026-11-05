@@ -522,7 +522,8 @@ fn unusable_transcripts_are_transient_at_admission_and_at_the_terminal() {
         host::Invalid::Transcript,
         host::Invalid::Start { cause: host::StartCause::Transcript, why: b"saved history".as_slice().into() },
     ];
-    let mut endings = refusals.into_iter().map(|why| host::Ending::Refused(host::Refusal::Invalid(why))).collect::<Vec<_>>();
+    let mut endings =
+        refusals.into_iter().map(|why| host::Ending::Refused(host::Refusal::Invalid(why))).collect::<Vec<_>>();
     endings.push(host::Ending::Failed {
         failure: host::Failure::Run(host::RunFailure::Transcript),
         detail: Box::new([]),
@@ -531,12 +532,22 @@ fn unusable_transcripts_are_transient_at_admission_and_at_the_terminal() {
     for ending in endings {
         assert_eq!(payload::ending(&ending), tasks::End::Failed(tasks::Class::Transient));
         let mut link = link();
-        let event = up(&mut link, CHANNEL, host::LinkUp::Answer {
-            run: RUN, attempt: ATTEMPT,
-            answer: host::RunAnswer { turns: 0, spent: 0, read: None, refused: Box::new([]), ending },
-        }).expect("terminal reaches fleet");
-        assert!(matches!(event, core::Event::Fleet(fleet::Event::Answer {
-            answer: fleet::Answer::Failed { turned: None }, ..
-        })), "the fleet must retain a retryable terminal instead of rejecting the claim");
+        let event = up(
+            &mut link,
+            CHANNEL,
+            host::LinkUp::Answer {
+                run: RUN,
+                attempt: ATTEMPT,
+                answer: host::RunAnswer { turns: 0, spent: 0, read: None, refused: Box::new([]), ending },
+            },
+        )
+        .expect("terminal reaches fleet");
+        assert!(
+            matches!(
+                event,
+                core::Event::Fleet(fleet::Event::Answer { answer: fleet::Answer::Failed { turned: None }, .. })
+            ),
+            "the fleet must retain a retryable terminal instead of rejecting the claim"
+        );
     }
 }
