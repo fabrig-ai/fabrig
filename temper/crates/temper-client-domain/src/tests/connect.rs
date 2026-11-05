@@ -949,31 +949,81 @@ fn the_sheets_run_sets_up_owned_with_an_empty_repository_as_written() {
         ),
         (b"mine".as_slice(), b"first".as_slice(), false)
     );
-    assert!(!root.forge().setup_form().not_yet);
+    assert!(root.forge().setup_form().copies_refused.is_none());
 }
 #[test]
-fn the_sheets_copies_and_nothing_are_not_made_yet() {
+fn the_sheets_copies_and_nothing_send_their_intent_and_move_on_after_acceptance() {
     for start in [forges::Start::Copies, forges::Start::Nothing] {
         let (mut root, _, _) = opened(true);
+        event(
+            &mut root,
+            Event::Went {
+                place: Place::Address(Address::Welcome { step: Step::Forge { forge: Some(Choice::Owned) } }),
+            },
+        );
         assert!(f::form_act(&mut root, forge::Act::Forges(forges::Act::Start(start))).is_empty());
         assert!(
-            f::form_act(&mut root, forge::Act::CopiesWrite { text: b"github.com/a/b".as_slice().into() }).is_empty()
+            f::form_act(
+                &mut root,
+                forge::Act::CopiesWrite { text: b"http://source.invalid/team/one.git\n acme/two/".as_slice().into() }
+            )
+            .is_empty()
         );
-        let draft = root.forge().setup_form();
-        assert_eq!((draft.start, &*draft.copies, draft.copies_written), (start, b"github.com/a/b".as_slice(), 1));
-        assert!(f::form_act(&mut root, forge::Act::Forges(forges::Act::RunOwned)).is_empty());
-        assert!(root.forge().set_up().is_none());
-        assert!(root.forge().setup_form().not_yet);
-        assert!(f::form_act(&mut root, forge::Act::Forges(forges::Act::Start(forges::Start::Empty))).is_empty());
-        assert!(!root.forge().setup_form().not_yet);
-        let (_, _, request) = sent(f::form_act(&mut root, forge::Act::Forges(forges::Act::RunOwned)));
+        let (attempt, _, request) = sent(f::form_act(&mut root, forge::Act::Forges(forges::Act::RunOwned)));
         let w::Request::SetUp(request) = request else { panic!("set up") };
+        let w::Making::New(new) = request.forge() else { panic!("new owned forge") };
+        assert_eq!(*new.forge(), w::ForgeAsk::Owned);
+        match start {
+            forges::Start::Copies => {
+                let w::SetUpFirst::Copies(copies) = request.first() else { panic!("copies") };
+                assert_eq!(
+                    copies.addresses().as_slice(),
+                    [
+                        Box::from(b"https://source.invalid/team/one".as_slice()),
+                        Box::from(b"https://github.com/acme/two".as_slice())
+                    ]
+                );
+            }
+            forges::Start::Nothing => assert_eq!(request.first(), &w::SetUpFirst::Nothing),
+            forges::Start::Empty => unreachable!(),
+        }
+        let mut out = reply(&mut root, attempt, w::Outcome::SettingUp);
         assert_eq!(
-            (empty_setup(request.first()).org(), empty_setup(request.first()).repository()),
-            (b"work".as_slice(), b"hello".as_slice())
+            out.pop(),
+            Some(Request::Show { address: Address::Welcome { step: Step::Model { way: None } }, replace: false })
         );
     }
 }
+
+#[test]
+fn the_sheet_refuses_blank_names_and_bad_copies_before_sending() {
+    use forge::making::CopiesRefused as R;
+    for field in [forges::SetupField::Organization, forges::SetupField::Repository] {
+        let (mut root, _, _) = opened(true);
+        write_setup(&mut root, field, b"   ");
+        assert!(f::form_act(&mut root, forge::Act::Forges(forges::Act::RunOwned)).is_empty());
+        assert!(root.forge().setup_form().blank);
+        assert!(root.forge().set_up().is_none());
+        write_setup(&mut root, field, b"filled");
+        assert!(!root.forge().setup_form().blank);
+    }
+    let seventeen = skein_lib::bytes::concat(&[b"a/b\n".as_slice(); 17]);
+    for (text, refused) in [
+        (b" \n ".as_slice(), R::NoAddress),
+        (b" bad ".as_slice(), R::NotAnAddress(b"bad".as_slice().into())),
+        (seventeen.as_ref(), R::TooMany),
+    ] {
+        let (mut root, _, _) = opened(true);
+        f::form_act(&mut root, forge::Act::Forges(forges::Act::Start(forges::Start::Copies)));
+        f::form_act(&mut root, forge::Act::CopiesWrite { text: text.into() });
+        assert!(f::form_act(&mut root, forge::Act::Forges(forges::Act::RunOwned)).is_empty());
+        assert_eq!(root.forge().setup_form().copies_refused, Some(refused));
+        assert!(root.forge().set_up().is_none());
+        f::form_act(&mut root, forge::Act::CopiesWrite { text: b"a/b".as_slice().into() });
+        assert!(root.forge().setup_form().copies_refused.is_none());
+    }
+}
+
 #[test]
 fn the_sheets_addresses_are_bounded_as_a_field() {
     let (mut root, _, _) = opened(true);

@@ -892,7 +892,10 @@ pub enum Word {
     WelcomeForgejoAddressHint,
     WelcomeForgejoNothing,
     WelcomeForgejoNothingDetail,
-    WelcomeForgejoNotYet,
+    WelcomeCopiesNotAnAddress,
+    WelcomeCopiesNone,
+    WelcomeCopiesTooMany,
+    WelcomeSheetBlank,
     WelcomeForgejoName,
     WelcomeReadyLead,
     WelcomeReadyRepositoryLead,
@@ -969,7 +972,8 @@ pub(crate) const SCRIPTED_MODEL: &[u8] = b"demo";
 // Claude’s welcome panel and check add six literals (client/README.md, 3.5).
 // Ready adds its setup note and program/key details (client/README.md, 3.5).
 // Goal rows, ways and page add thirty-five phrases (client/README.md, 3.5).
-const PHRASES: u32 = 1460;
+// The sheet replaces its placeholder with four refusal phrases (3.5).
+const PHRASES: u32 = 1463;
 // Ready's empty-name line has two literals and a Name hole, two more segments (3.5).
 // Ready's repository lead adds one phrase and three segments (3.5).
 // Four literals and the counted entry's two literals and Number hole add seven segments.
@@ -988,8 +992,9 @@ const PHRASES: u32 = 1460;
 // Claude’s six literals add six segments (client/README.md, 3.5).
 // Ready adds four literal segments and one program-name hole (3.5).
 // Goal rows, ways and page add sixty-three segments (3.5).
-const SEGMENTS: u32 = 2525;
-const ALL: [Word; 864] = [
+// The sheet adds five segments after removing its placeholder (3.5).
+const SEGMENTS: u32 = 2530;
+const ALL: [Word; 867] = [
     Word::GoalsWaySeparator,
     Word::GoalsWayEnd,
     Word::GoalsKicker,
@@ -1846,7 +1851,10 @@ const ALL: [Word; 864] = [
     Word::WelcomeForgejoAddressHint,
     Word::WelcomeForgejoNothing,
     Word::WelcomeForgejoNothingDetail,
-    Word::WelcomeForgejoNotYet,
+    Word::WelcomeCopiesNotAnAddress,
+    Word::WelcomeCopiesNone,
+    Word::WelcomeCopiesTooMany,
+    Word::WelcomeSheetBlank,
     Word::WelcomeForgejoName,
     Word::WelcomeReadyLead,
     Word::WelcomeReadyRepositoryLead,
@@ -2717,7 +2725,10 @@ impl Word {
             Self::WelcomeForgejoAddressHint => 3039,
             Self::WelcomeForgejoNothing => 3040,
             Self::WelcomeForgejoNothingDetail => 3041,
-            Self::WelcomeForgejoNotYet => 3042,
+            Self::WelcomeCopiesNotAnAddress => 3304,
+            Self::WelcomeCopiesNone => 3305,
+            Self::WelcomeCopiesTooMany => 3306,
+            Self::WelcomeSheetBlank => 3307,
             Self::WelcomeForgejoName => 3043,
             Self::WelcomeReadyLead => 3044,
             Self::WelcomeReadyRepositoryLead => 3060,
@@ -2964,7 +2975,8 @@ impl Words {
             // Claude’s six phrases add 468 literal bytes (client/README.md, 3.5).
             // Ready’s note and account details add 122 literal bytes (3.5).
             // Goal rows, ways and page add 669 literal bytes (3.5).
-            text_bytes: 669 + 122 + 32768 + 288 + 149 + 401 + 11 + 76 + 476 + 659 + 367 + 468,
+            // Sheet refusal literals add 84 bytes (client/README.md, 3.5).
+            text_bytes: 84 + 669 + 122 + 32768 + 288 + 149 + 401 + 11 + 76 + 476 + 659 + 367 + 468,
             // Whole playground requests keep their supplied bound.
             hole_bytes: joined
                 .max(switcher_repository_bytes(joined)?)
@@ -3286,7 +3298,10 @@ fn english(word: Word, shell: Shell) -> (&'static [&'static [u8]], &'static [Hol
         Word::WelcomeForgejoAddressHint => (&[b"github.com/owner/name"], &[]),
         Word::WelcomeForgejoNothing => (&[b"Nothing for now"], &[]),
         Word::WelcomeForgejoNothingDetail => (&[b"Your first project opens with no repository. Make or copy one later from temper\xe2\x80\x99s UI, or adopt one you push yourself."], &[]),
-        Word::WelcomeForgejoNotYet => (&[b"Not available yet: for now, Forgejo starts with an empty repository."], &[]),
+        Word::WelcomeCopiesNotAnAddress => (&[b"Not an address: ", b". Write it as github.com/owner/name."], &[Name]),
+        Word::WelcomeCopiesNone => (&[b"At least one address, as github.com/owner/name."], &[]),
+        Word::WelcomeCopiesTooMany => (&[b"At most 16 addresses."], &[]),
+        Word::WelcomeSheetBlank => (&[b"Both an organization and a name."], &[]),
         Word::WelcomeForgejoName => (&[b"Name"], &[]),
         Word::WelcomeReadyRepositoryLead => (&[b"Everything is connected. Create your first project, with ", b" in it, and start working."], &[Name]),
         Word::WelcomeReadyLead => (&[b"Everything is connected. Create your first project and start working."], &[]),

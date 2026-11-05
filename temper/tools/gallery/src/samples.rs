@@ -61,7 +61,7 @@ pub struct Sample {
     pub address: Address,
     pub then: Then,
 }
-pub const N: usize = 135;
+pub const N: usize = 138;
 const CHATS: Address = Address::Chats { filter: ChatsFilter::All, start: false };
 use World::{Bare, FirstRun, Reference, Solo};
 #[must_use]
@@ -283,6 +283,18 @@ pub fn samples() -> [Sample; N] {
             "welcome-forge-details",
             temper_client_domain::Step::Forge { forge: Some(temper_client_domain::Choice::Owned) },
         ),
+        welcome_sample(
+            "welcome-sheet-copies",
+            temper_client_domain::Step::Forge { forge: Some(temper_client_domain::Choice::Owned) },
+        ),
+        welcome_sample(
+            "welcome-sheet-copies-refused",
+            temper_client_domain::Step::Forge { forge: Some(temper_client_domain::Choice::Owned) },
+        ),
+        welcome_sample(
+            "welcome-sheet-nothing",
+            temper_client_domain::Step::Forge { forge: Some(temper_client_domain::Choice::Owned) },
+        ),
         forge_status_sample("welcome-forge-under-way", 6, Some(temper_client_domain::Choice::Forge(3))),
         forge_status_sample("welcome-forge-connected", 7, None),
         forge_status_sample("welcome-forge-github", 21, None),
@@ -483,7 +495,9 @@ fn special_mockup(name: &str) -> Option<String> {
             return Some("welcome.html?at=forge".to_owned());
         }
         "welcome-forge-choose" => return Some("welcome.html?world=first-run&step=0&at=forge&bare".to_owned()),
-        "welcome-forge-details" => return Some("welcome.html?world=first-run&step=0&at=forge&forge=3&bare".to_owned()),
+        "welcome-sheet-copies" | "welcome-sheet-copies-refused" | "welcome-sheet-nothing" | "welcome-forge-details" => {
+            return Some("welcome.html?world=first-run&step=0&at=forge&forge=3&bare".to_owned());
+        }
         "welcome-model-choose" => return Some("welcome.html?world=first-run&step=0&at=model&bare".to_owned()),
         "welcome-ready-none" | "welcome-ready-signing" => return Some("welcome.html?at=ready".to_owned()),
         "welcome-ready-under-way" => return Some("welcome.html?world=first-run-real&step=3&at=ready&bare".to_owned()),
@@ -628,6 +642,25 @@ pub fn domain(sample: &Sample) -> Domain {
     }
     let (mut root, accounts_watch) = crate::worlds::world(sample.world, sample.address.clone(), sample.then);
     let mut out = Queue::uncapped();
+    if sample.name.starts_with("welcome-sheet-") {
+        use temper_client_domain::forge::{
+            Act as F,
+            forges::{Act as A, Start},
+        };
+        let start = if sample.name == "welcome-sheet-nothing" { Start::Nothing } else { Start::Copies };
+        step(&mut root, Event::Act { action: Action::Forge(F::Forges(A::Start(start))) }, &mut out);
+        if sample.name != "welcome-sheet-nothing" {
+            let text = if sample.name == "welcome-sheet-copies-refused" {
+                b"not an address".as_slice()
+            } else {
+                b"github.com/acme/widget\nsource.invalid/team/tool".as_slice()
+            };
+            step(&mut root, Event::Act { action: Action::Forge(F::CopiesWrite { text: text.into() }) }, &mut out);
+        }
+        if sample.name == "welcome-sheet-copies-refused" {
+            step(&mut root, Event::Act { action: Action::Forge(F::Forges(A::RunOwned)) }, &mut out);
+        }
+    }
     if sample.name == "welcome-ready-none" || sample.name == "welcome-ready-signing" {
         let mut doc = temper_client_domain::pages::accounts::document(root.client()).expect("Ready accounts").clone();
         doc.usable = false;

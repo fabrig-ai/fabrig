@@ -286,10 +286,7 @@ fn the_sheets_copies_take_addresses_and_are_not_made_yet() {
         nodes.iter().find(|n| n.role == Role::TextArea).unwrap().value.as_ref().unwrap().text.as_ref(),
         b"github.com/a/b"
     );
-    assert_eq!(
-        named(nodes, Role::Alert),
-        [b"Not available yet: for now, Forgejo starts with an empty repository.".as_slice()]
-    );
+    assert!(named(nodes, Role::Alert).is_empty());
     start(&mut root, d::forge::forges::Start::Nothing);
     let view = f::page_view(&root);
     let nodes = sheet(view.tree());
@@ -2539,6 +2536,63 @@ fn ready_setup_note_follows_the_form_only_while_underway() {
                 assert_eq!(forge::parent(tree, note), forge::parent(tree, form));
                 assert!(note > form);
             }
+        }
+    }
+}
+
+#[test]
+fn welcome_sheet_alerts_are_above_the_foot_in_both_shells() {
+    use d::forge::{
+        Act as A,
+        forges::{Act as F, SetupField, Start},
+    };
+    let seventeen = b"a/b\n".repeat(17);
+    let long = b"?".repeat(256);
+    for (choice, action, message) in [
+        (
+            Start::Empty,
+            A::SetupWrite { field: SetupField::Organization, text: b"".as_slice().into() },
+            "Both an organization and a name.".to_owned(),
+        ),
+        (
+            Start::Empty,
+            A::SetupWrite { field: SetupField::Repository, text: b"".as_slice().into() },
+            "Both an organization and a name.".to_owned(),
+        ),
+        (
+            Start::Copies,
+            A::CopiesWrite { text: b" \n".as_slice().into() },
+            "At least one address, as github.com/owner/name.".to_owned(),
+        ),
+        (
+            Start::Copies,
+            A::CopiesWrite { text: b" bad/address/extra/part ".as_slice().into() },
+            "Not an address: bad/address/extra/part. Write it as github.com/owner/name.".to_owned(),
+        ),
+        (Start::Copies, A::CopiesWrite { text: seventeen.into() }, "At most 16 addresses.".to_owned()),
+        (
+            Start::Copies,
+            A::CopiesWrite { text: long.into() },
+            [
+                "Not an address: ",
+                &"?".repeat(usize::try_from(f::words().name_bytes).unwrap()),
+                ". Write it as github.com/owner/name.",
+            ]
+            .concat(),
+        ),
+    ] {
+        let mut root = sheet_root();
+        start(&mut root, choice);
+        for action in [action, A::Forges(F::RunOwned)] {
+            f::root_event(&mut root, d::Event::Act { action: d::Action::Forge(action) });
+        }
+        for view in [f::page_view(&root), f::browser_page_view(&root)] {
+            let nodes = sheet(view.tree());
+            assert_eq!(named(nodes, Role::Alert), [message.as_bytes()]);
+            let alert = nodes.iter().position(|n| n.role == Role::Alert).unwrap();
+            let cancel = nodes.iter().position(|n| n.name.as_deref() == Some(b"Cancel")).unwrap();
+            assert!(alert < cancel);
+            assert!(terminal_print(&view).contains(&message));
         }
     }
 }
