@@ -3550,8 +3550,11 @@ fn repair_words(
     let tail = u32::try_from(previous.len().checked_add(REPAIR_PRESERVATION.len())?.checked_add(1)?).ok()?;
     let mut identity = List::with_capacity(room.checked_sub(tail)?);
     let opening = repair_opening(row, why)?;
-    // Keep the opening and head whole even under a small task spec bound.
-    if usize::try_from(identity.room()).ok()? < opening.len().checked_add(14)? {
+    let unnamed_ci =
+        why == forge_change::Repair::Ci && (row.result.head != Some(head) || row.result.failed.bytes.is_empty());
+    let name_bytes = if unnamed_ci { b"no failed check named".len() } else { 1 };
+    // Keep the opening, head and an explicit name even under a small task spec bound.
+    if usize::try_from(identity.room()).ok()? < opening.len().checked_add(14)?.checked_add(name_bytes)? {
         return None;
     }
     append(&mut identity, &opening);
@@ -3559,8 +3562,10 @@ fn repair_words(
     append(&mut identity, b": ");
     match why {
         forge_change::Repair::Ci => {
-            if row.result.head == Some(head) {
+            if row.result.head == Some(head) && !row.result.failed.bytes.is_empty() {
                 append(&mut identity, &row.result.failed.bytes);
+            } else {
+                append(&mut identity, b"no failed check named");
             }
         }
         forge_change::Repair::Semantic => append(&mut identity, &row.base),
@@ -3859,25 +3864,47 @@ fn authority_hold_message(
     Some(jig_domain_core::StepMessage { target, kind: tasks::MessageKind::Words, words: words.into_boxed() })
 }
 
-fn producer_failure_words(domain: &Domain, task: u64) -> Option<Box<[u8]>> {
+fn producer_failure_words(domain: &Domain, task: u64) -> Option<(tasks::Hold, Box<[u8]>)> {
     let row = domain.forge.change(task)?;
     let forge_change::State::Held { was, .. } = &row.change.state else { return None };
-    let forge_change::State::Producing { .. } = was.as_ref() else { return None };
+    let category = match was.as_ref() {
+        forge_change::State::Producing { .. } => tasks::Hold::EffectFailed,
+        forge_change::State::Repairing { .. } | forge_change::State::Resolving { .. } => tasks::Hold::Procedure,
+        forge_change::State::Opening { .. }
+        | forge_change::State::Recreating { .. }
+        | forge_change::State::Reopening { .. }
+        | forge_change::State::Checking { .. }
+        | forge_change::State::Gating { .. }
+        | forge_change::State::Ready { .. }
+        | forge_change::State::Preparing { .. }
+        | forge_change::State::CancellingGates { .. }
+        | forge_change::State::Queued { .. }
+        | forge_change::State::First { .. }
+        | forge_change::State::Updating { .. }
+        | forge_change::State::Landing { .. }
+        | forge_change::State::Landed { .. }
+        | forge_change::State::NoChange { .. }
+        | forge_change::State::Ended
+        | forge_change::State::Held { .. }
+        | forge_change::State::Red { .. }
+        | forge_change::State::Cleared { .. }
+        | forge_change::State::Uncleared { .. } => return None,
+    };
     match &row.producer_failure {
-        Some(words) => Some(words.clone()),
-        None if row.delegate_status == forge_change::Status::Failed => {
-            Some(Box::from(b"producer failed for good without an account".as_slice()))
+        Some(words) => Some((category, words.clone())),
+        None if category == tasks::Hold::EffectFailed && row.delegate_status == forge_change::Status::Failed => {
+            Some((category, Box::from(b"producer failed for good without an account".as_slice())))
         }
         None => None,
     }
 }
 
 fn hold_change_decision(domain: &Domain, env: &Env<Limits>, task: u64, why: forge_change::Hold) -> ProcedureStep {
-    // The hold keeps the producer's account whole; its inbox notice has its own bound.
+    // The hold keeps the delegate's account whole; its inbox notice has its own bound.
     if why == forge_change::Hold::Failed
-        && let Some(words) = producer_failure_words(domain, task)
+        && let Some((category, words)) = producer_failure_words(domain, task)
     {
-        return holds::decision_as(domain, env, task, tasks::Hold::EffectFailed, words);
+        return holds::decision_as(domain, env, task, category, words);
     }
     let account = if why == forge_change::Hold::Questions {
         let bound = skein_lib::Decimal::of(u64::from(env.limits.forge.change_policy.questions));

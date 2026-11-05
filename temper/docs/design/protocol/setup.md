@@ -2109,8 +2109,13 @@ runs it (section 7).
   13.4) with the overrides configuration.md, section 7 asks so that the
   engine's documents fit temper's client, those its agent sets, and the
   machine's concurrency the box keeps, and no other:
-  - `documents.rows` 2 and `documents.text_bytes` 128: temper's client's
-    rows and text;
+  - `documents.rows` 2, temper's client's rows, and
+    `documents.text_bytes` 512, the most document text its web and
+    terminal clients receive: their wire takes the larger of their
+    `text`, 512, and a hold's account, 512 (jig's
+    `client/domain/contract.md`, 5.3), and refuses a longer one. It is
+    also the piece a task's text reads in (jig's
+    `client/domain/contract.md`, 6), so it is as large as they take;
   - `tasks.message_bytes` and `tasks.result_bytes`, the agent's
     advertised message bytes (above): the fleet holds the agent to the
     engine's message bound at its hello (jig's
@@ -3695,6 +3700,11 @@ it checks of this document:
 
 Each is intended; what it needs is named with it.
 
+- **A start holding the engine's documents to temper's clients** (8.1):
+  no start compares `documents.text_bytes` with what the web and terminal
+  clients receive, so a deployment past 512 starts, and those clients
+  refuse a document whose text is longer. A test holds `temper init`'s
+  documents to them; a deployment's own override is held by nothing.
 - **The deployment's own UX:** what `temper init` alone writes and says
   beyond 8.2, and how a server is set up. For now it is the cheapest
   bare deployment.

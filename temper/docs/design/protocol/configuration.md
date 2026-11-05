@@ -1928,7 +1928,7 @@ init`'s document carries none of them (`setup.md`, 8.3).
   place for these figures, before the first release (jig's
   `protocol/store.md`, 5.1 and 5.3). The document's overrides say only
   what differs from the profiles: temper's client's documents
-  (`documents.rows` 2, `documents.text_bytes` 128), the agent's carriers
+  (`documents.rows` 2, `documents.text_bytes` 512; `setup.md`, 8.1), the agent's carriers
   (13.8; `setup.md`, 8.1) with the bounds that follow its message
   (`setup.md`, 8.1), the forge's repositories and output (`setup.md`,
   8.3), and the machine's
