@@ -169,11 +169,17 @@ fn check_set(
                 if registered { charter_fault(charter, settings, limits) } else { Some(Fault::Shape) }
             }
             Value::Template(template) => {
-                template_fault(current, defaults, items, template, template.executor, settings, connectors, limits)
+                if let Some(fault) = contract_fault(&template.contract, connectors) {
+                    return Err(Failure { setting, fault });
+                }
+                template_fault(current, defaults, items, template, template.executor, settings, limits)
             }
-            Value::Policy(policy) => {
-                policy_fault(current, defaults, items, policy, rules, settings, connectors, limits)
-            }
+            Value::Policy(policy) => match authority::policy_refusal(rules, &limits.authority, &policy.policy) {
+                Some(authority::PolicyRefusal::AboveRules) => Some(Fault::Rules),
+                Some(authority::PolicyRefusal::Oversized | authority::PolicyRefusal::InvalidRole) => Some(Fault::Shape),
+                Some(authority::PolicyRefusal::Full) => Some(Fault::Count),
+                None => policy_fault(current, defaults, items, policy, settings, connectors, limits),
+            },
             Value::Rules(_) | Value::Application(_) => None,
         };
         if let Some(fault) = fault {
@@ -407,21 +413,8 @@ fn charter_fault(charter: &crate::Charter, settings: &Settings, limits: &Limits)
     }
     None
 }
-#[expect(
-    clippy::too_many_arguments,
-    reason = "the checker borrows current values and their overlay without a stored reference or copied set"
-)]
-fn template_fault(
-    current: &Current,
-    defaults: bool,
-    items: &[Item],
-    template: &crate::Template,
-    executor: people::TemplateExecutor,
-    settings: &Settings,
-    connectors: &[u16],
-    limits: &Limits,
-) -> Option<Fault> {
-    match &template.contract {
+fn contract_fault(contract: &tasks::Contract, connectors: &[u16]) -> Option<Fault> {
+    match contract {
         tasks::Contract::Job { .. } => return Some(Fault::Reference),
         tasks::Contract::Change { connector, .. } => {
             if !connectors.contains(connector) {
@@ -435,6 +428,17 @@ fn template_fault(
         }
         tasks::Contract::Report { .. } | tasks::Contract::Verdict { .. } => {}
     }
+    None
+}
+fn template_fault(
+    current: &Current,
+    defaults: bool,
+    items: &[Item],
+    template: &crate::Template,
+    executor: people::TemplateExecutor,
+    settings: &Settings,
+    limits: &Limits,
+) -> Option<Fault> {
     if let Some(grace) = template.grace
         && grace > limits.tasks.grace
     {
@@ -497,28 +501,16 @@ fn choice_valid(models: &[crate::Model], choice: &tasks::LlmChoice) -> bool {
     }
     true
 }
-#[expect(
-    clippy::too_many_arguments,
-    reason = "the checker borrows current values and their overlay without a stored reference or copied set"
-)]
 fn policy_fault(
     current: &Current,
     defaults: bool,
     items: &[Item],
     configured: &crate::ConfiguredPolicy,
-    rules: &authority::Rules,
     settings: &Settings,
     connectors: &[u16],
     limits: &Limits,
 ) -> Option<Fault> {
     let policy = &configured.policy;
-    if let Some(reason) = authority::policy_refusal(rules, &limits.authority, policy) {
-        return Some(match reason {
-            authority::PolicyRefusal::AboveRules => Fault::Rules,
-            authority::PolicyRefusal::Oversized | authority::PolicyRefusal::InvalidRole => Fault::Shape,
-            authority::PolicyRefusal::Full => Fault::Count,
-        });
-    }
     let mut owner = false;
     for role in &policy.roles {
         if role.number == people::Role::Owner.number() {
@@ -575,8 +567,10 @@ fn policy_fault(
         };
         let Some(template) = template else { return Some(Fault::Reference) };
         let executor = entry.executor.unwrap_or(template.executor);
-        if let Some(fault) = template_fault(current, defaults, items, template, executor, settings, connectors, limits)
-        {
+        if let Some(fault) = contract_fault(&template.contract, connectors) {
+            return Some(fault);
+        }
+        if let Some(fault) = template_fault(current, defaults, items, template, executor, settings, limits) {
             return Some(fault);
         }
     }

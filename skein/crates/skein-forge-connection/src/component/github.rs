@@ -567,7 +567,7 @@ impl Common {
                     return false;
                 };
                 let authorization = github::credential::bearer(&secret).expect("bounded bearer");
-                c.hold(env.now.saturating_add(env.limits.deadline));
+                c.rest(Some(env.now.saturating_add(env.limits.deadline)));
                 if gh.exchange.start(c, env, forge, &self.owner.user_agent, exchange, Some(authorization)).is_err() {
                     Self::github_wait(base, gh, env);
                     return false;
@@ -844,7 +844,7 @@ impl Common {
         let log = Self::github_log_active(gh);
         let c = self.connection_slab.get_mut(id).expect("own connection");
         let unsent = match c.phase() {
-            Phase::Sending { written } => !written && !c.written,
+            Phase::Sending { written } => !written,
             Phase::Connecting | Phase::Handshaking | Phase::Closed | Phase::Reading | Phase::Idle => false,
         };
         if !log && unsent && gh.state.selected.is_some() && !gh.state.selected_valid() {
@@ -915,10 +915,10 @@ impl Common {
             let id = *self.connections.get(&token).expect("own connection");
             let c = self.connection_slab.get_mut(id).expect("own connection");
             if self.lifecycle != Lifecycle::Live || !active {
-                if c.deadline.is_none() && c.phase() == Phase::Idle {
+                if c.deadline().is_none() && c.phase() == Phase::Idle {
                     c.rest(Some(env.now.saturating_add(env.limits.idle)));
                 }
-                if self.lifecycle != Lifecycle::Live || c.phase() != Phase::Idle || c.deadline <= Some(env.now) {
+                if self.lifecycle != Lifecycle::Live || c.phase() != Phase::Idle || c.deadline() <= Some(env.now) {
                     c.close(env, c.in_flight(), io);
                 }
                 break;
@@ -927,7 +927,7 @@ impl Common {
                 break;
             }
             if c.phase() != Phase::Idle
-                && let Some(deadline) = c.deadline
+                && let Some(deadline) = c.deadline()
                 && deadline <= env.now
             {
                 c.timeout();

@@ -426,11 +426,13 @@ pub(super) fn resume(store: &mut Store, env: &Env<Limits>, above: &mut Queue<Eve
         );
     };
     if done {
-        let before = walking.pending.found;
-        let header = walking.header;
-        let number = walking.next;
-        let counts = walking.before;
-        return seal(store, env, header, number, before, counts, above, below);
+        let sealing = Sealing {
+            before: walking.pending.found,
+            header: walking.header,
+            number: walking.next,
+            counts: walking.before,
+        };
+        return seal(store, env, sealing, above, below);
     }
     match walking.waiting {
         Waiting::Ready if !walking.ops.is_empty() => {
@@ -466,17 +468,14 @@ pub(super) fn resume(store: &mut Store, env: &Env<Limits>, above: &mut Queue<Eve
         Waiting::Ready | Waiting::Site(_) | Waiting::Commit { .. } => state(store, Patching::Walking(walking)),
     }
 }
-#[expect(clippy::too_many_arguments, reason = "the seal carries the levels and counts into the check")]
-fn seal(
-    store: &mut Store,
-    env: &Env<Limits>,
-    mut header: Deployment,
+struct Sealing {
+    header: Deployment,
     number: u64,
     before: crate::patching::plan::Levels,
     counts: List<crate::patching::check::Counted>,
-    above: &mut Queue<Event>,
-    below: &mut Below,
-) {
+}
+fn seal(store: &mut Store, env: &Env<Limits>, sealing: Sealing, above: &mut Queue<Event>, below: &mut Below) {
+    let Sealing { mut header, number, before, counts } = sealing;
     header.commits = number;
     let Some(format_key) = keys::encode_own(&keys::Own::Format, store.limits.store.key) else {
         return refuse(store, above);
