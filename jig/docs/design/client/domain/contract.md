@@ -656,7 +656,10 @@ served is held, kept and unsent, for its owner's version (client.md,
     and flags; when it last changed, its last activity, and when it
     ended, if it has; its deadline; what it waits on; its budget spent
     and left; its live subtree counted by phase class, with how many are
-    held below; and, for a task with a conversation, its requester's
+    held below; its direct delegates counted, those done and all of them,
+    cancelled ones left out, true however many they are and whichever
+    page shows them (`../../domain/tasks.md`, section 3); and, for a task
+    with a conversation, its requester's
     read position over its turns and their unread count;
   - *a chip:* a task's number, title, executor's kind, phase; a closing
     phase says what the task waits for: its delegates still closing,

@@ -2,6 +2,7 @@
 
 //! Sealed record and enum values for codec.md, section 4.
 
+use crate::emit_functions::{self, Method, Statement};
 use crate::{Declaration, Enumeration, Field, Record, Type, analysis::Context, emit_limits};
 
 pub(crate) fn rust_type(ty: &Type) -> String {
@@ -63,81 +64,83 @@ pub(crate) fn bool_index(record: &Record, name: &str) -> Option<usize> {
     record.fields.iter().filter(|field| matches!(field.ty, Type::Bool)).position(|field| field.name == name)
 }
 
-fn emit_check(
-    schema: &Context<'_>,
-    ty: &Type,
-    value: &str,
-    bound_name: &str,
-    path: &str,
-    depth: usize,
-    out: &mut String,
-) {
+struct Guard {
+    condition: String,
+    action: String,
+}
+
+impl Guard {
+    fn text(&self) -> String {
+        if self.condition.is_empty() {
+            self.action.clone()
+        } else {
+            format!("        if {} {{ {} }}\n", self.condition, self.action)
+        }
+    }
+}
+
+fn guards(schema: &Context<'_>, ty: &Type, value: &str, bound_name: &str, path: &str, depth: usize) -> Vec<Guard> {
     let problem = format!("Problem {{ path: Path::{path}, reason: skein_codec::Reason::Bound }}");
+    let mut out = Vec::new();
+    let next = depth.checked_add(1).expect("schema nesting fits usize");
     match ty {
         Type::Bytes(_) | Type::Secret(_) | Type::Text(_) => {
-            out.push_str(&format!("        if {value}.len() > usize::try_from(limits.{bound_name}.min(CEILINGS.{bound_name})).expect(\"u32 fits usize\") {{ return Err({problem}); }}\n"));
+            out.push(Guard { condition: format!("{value}.len() > usize::try_from(limits.{bound_name}.min(CEILINGS.{bound_name})).expect(\"u32 fits usize\")"), action: format!("return Err({problem});") });
             if let Type::Text(_) = ty {
-                out.push_str(&format!("        if !skein_codec::text_is_valid({value}.as_ref()) {{ return Err(Problem {{ path: Path::{path}, reason: skein_codec::Reason::Utf8 }}); }}\n"));
+                out.push(Guard {
+                    condition: format!("!skein_codec::text_is_valid({value}.as_ref())"),
+                    action: format!("return Err(Problem {{ path: Path::{path}, reason: skein_codec::Reason::Utf8 }});"),
+                });
             }
         }
-        Type::List(_, item) => {
-            out.push_str(&format!("        if {value}.capacity() > limits.{bound_name}.min(CEILINGS.{bound_name}) {{ return Err({problem}); }}\n"));
-            if schema.has_bounds(item) {
-                let item_name = format!("item_{depth}");
-                out.push_str(&format!("        for {item_name} in {value}.as_slice() {{\n"));
-                emit_check(
-                    schema,
-                    item,
-                    &item_name,
-                    &format!("{bound_name}_item"),
-                    path,
-                    depth.checked_add(1).expect("schema nesting fits usize"),
-                    out,
-                );
-                out.push_str("        }\n");
+        Type::List(_, item) | Type::Option(item) => {
+            let optional = matches!(ty, Type::Option(_));
+            if !optional {
+                out.push(Guard {
+                    condition: format!("{value}.capacity() > limits.{bound_name}.min(CEILINGS.{bound_name})"),
+                    action: format!("return Err({problem});"),
+                });
             }
-        }
-        Type::Option(item) => {
-            let item_name = format!("some_{depth}");
-            if matches!(
-                **item,
-                Type::U8 | Type::U16 | Type::U32 | Type::U64 | Type::Bool | Type::Duration | Type::Fixed(_)
-            ) {
-                return;
+            if !schema.has_bounds(item) {
+                return out;
             }
-            let mut inner = String::new();
-            emit_check(
-                schema,
-                item,
-                &item_name,
-                &format!("{bound_name}_some"),
-                path,
-                depth.checked_add(1).expect("schema nesting fits usize"),
-                &mut inner,
-            );
-            if inner.is_empty() {
-                return;
-            }
-            if inner.lines().count() == 1 && inner.starts_with("        if ") {
-                out.push_str(&format!(
-                    "        if let Some({item_name}) = {value}.as_ref() && {}",
-                    inner.trim_start().strip_prefix("if ").expect("one condition")
-                ));
+            let suffix = if optional { "some" } else { "item" };
+            let item_name = format!("{suffix}_{depth}");
+            let mut inner = guards(schema, item, &item_name, &format!("{bound_name}_{suffix}"), path, next);
+            if optional && inner.len() == 1 && inner.first().is_some_and(|guard| !guard.condition.is_empty()) {
+                let guard = inner.first_mut().expect("one guard");
+                guard.condition = format!("let Some({item_name}) = {value}.as_ref() && {}", guard.condition);
+                out.extend(inner);
             } else {
-                out.push_str(&format!("        if let Some({item_name}) = {value}.as_ref() {{\n{inner}        }}\n"));
+                let inner = inner.iter().map(Guard::text).collect::<String>();
+                let head = if optional {
+                    format!("if let Some({item_name}) = {value}.as_ref()")
+                } else {
+                    format!("for {item_name} in {value}.as_slice()")
+                };
+                out.push(Guard { condition: String::new(), action: format!("        {head} {{\n{inner}        }}\n") });
             }
         }
         Type::Named(_) => {
             if schema.has_bounds(ty) {
-                out.push_str(&format!("        {value}.check(limits)?;\n"));
+                out.push(Guard { condition: String::new(), action: format!("        {value}.check(limits)?;\n") });
             }
         }
         Type::U8 | Type::U16 | Type::U32 | Type::U64 | Type::Bool | Type::Duration | Type::Fixed(_) => {}
     }
+    out
+}
+
+fn emit_check(schema: &Context<'_>, record: &Record, field: &Field, out: &mut Vec<Statement>) {
+    let bound = format!("{}_{}", emit_limits::snake(&record.name), field.name);
+    let path = format!("{}{}", record.name, emit_limits::pascal(&field.name));
+    let value = format!("self.{}", field.name);
+    out.extend(
+        guards(schema, &field.ty, &value, &bound, &path, 0).iter().map(|guard| Statement::new(guard.text(), true)),
+    );
 }
 
 fn emit_record(schema: &Context<'_>, record: &Record, out: &mut String) {
-    let start = out.len();
     let grouped = grouped_bools(record);
     let bool_count = record.fields.iter().filter(|field| matches!(field.ty, Type::Bool)).count();
     out.push_str(&format!(
@@ -203,19 +206,17 @@ fn emit_record(schema: &Context<'_>, record: &Record, out: &mut String) {
     }
     let moved = names.iter().map(|name| format!("{name}: self.{name}")).collect::<Vec<_>>().join(", ");
     out.push_str(&format!("    /// Moves the fields out without copying.\n    #[must_use]\n    pub fn into_parts(self) -> {}Parts {{ {}Parts {{ {moved} }} }}\n\n", record.name, record.name));
+    let mut helpers = String::new();
     if has_bounds {
-        out.push_str("    fn check(&self, limits: &Limits) -> Result<(), Problem> {\n");
+        let mut method =
+            Method::new("check", "    fn check(&self, limits: &Limits) -> Result<(), Problem> {\n", "        Ok(())\n");
         for field in &record.fields {
-            let bound_name = format!("{}_{}", emit_limits::snake(&record.name), field.name);
-            let path = format!("{}{}", record.name, emit_limits::pascal(&field.name));
-            emit_check(schema, &field.ty, &format!("self.{}", field.name), &bound_name, &path, 0, out);
+            emit_check(schema, record, field, &mut method.body);
         }
-        out.push_str("        Ok(())\n    }\n");
+        emit_functions::render(record, &method, out, &mut helpers);
     }
     out.push_str("}\n\n");
-    let split = crate::emit_functions::split_record_functions(record, out.get(start..).expect("record source"));
-    out.truncate(start);
-    out.push_str(&split);
+    out.push_str(&helpers);
 }
 
 fn emit_enum(schema: &Context<'_>, enumeration: &Enumeration, out: &mut String) {

@@ -96,6 +96,14 @@
     `forge_routes/kind_charters.rs`); no world tells a gate a rule adds
     asked for on a queued change, a gate a rule drops no longer waited
     on.
+- **Departs:** 9: the first keeps its turn only until the next ready change
+  steps: `queue_first` (`temper-engine-domain-forge/src/domain.rs`) chooses
+  among `queue_ready`'s changes, which leave out one at `Updating`, `Checking`,
+  `Gating` or `Landing`, so a queued change stepped while the first is there
+  takes `First` too. Nothing wakes the queue at the first's update or merge, so
+  it wants a step of that change's own. `changes_document_keeps_the_first_while_it_updates`
+  pins the choice and the document's two owning rows; no story runs it, and no
+  reason is recorded.
 - **Departs:** 4.5: no step writes `Made`: a run's end goes to
   `Adopting` in one decision, or erases a row with no `into`
   (`temper-engine-domain-forge/src/making.rs`, `made`), so the variant is

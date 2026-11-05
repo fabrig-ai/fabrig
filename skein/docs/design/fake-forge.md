@@ -542,6 +542,12 @@ and what the two layers share (section 12), and holds no clock of its own.
   Collaborator lists contain explicit grants only: site administration
   and organization ownership grant access without adding membership.
   Pagination counts the listed collaborators after excluding implicit access.
+- **What the setup world turns and reads** (forge-setup.md, 7).
+  `Service::refuse` answers one decoded route `403`, and
+  `Server::take_request` gives the decoded requests in the order they
+  came, refused ones among them. The setup store's `seed_repository_hook`
+  and `delete_repository_hook` put a repository's hook in place, or take
+  it away, with no exchange.
 - **A copy is the domain's too** (2.6). `Config.sources` is the
   catalogue, each `Source { address, repository, private, fill }`: an
   address, the domain's repository it stands for, whether it is private,

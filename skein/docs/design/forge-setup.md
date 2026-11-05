@@ -1014,7 +1014,11 @@ The tiers and budgets are testing-strategy.md's and skein's `testing.md`.
   search, a full page with `more`, a short last page, and a non-admin
   refused; connected's listing on the API token, its rows lacking `push`
   dropped and `more` read before the drop; an installation given to a
-  Forgejo, or none to GitHub, stopped sending nothing. For GitHub: the
+  Forgejo, or none to GitHub, stopped sending nothing. The hook's secret
+  asked once, drawn only when missing, and neither asked nor drawn for a
+  listener off loopback, since a plan alone shows a draw, a host's `Need`
+  being `Read` or `Write` (6.3); a plan's sends and replies with no secret
+  in their `Debug`. For GitHub: the
   manifest's contents, field by field, for each target; the conversion's
   writes before `Done`; a key of another form refused; an id other than
   the kept one refused; each permission or event lacking named; a stray

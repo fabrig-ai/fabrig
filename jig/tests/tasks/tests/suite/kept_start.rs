@@ -1,6 +1,6 @@
 use jig_domain_tasks::{
-    self as tasks, Active, Control, Ending, Event, Executor, Hold, HoldKind, Holding, KeptStart, Kind, MessageKind,
-    Name, Party, Phase, ProcedureDecision, ProcedureEnd, Refusal, Taken, TaskResult,
+    self as tasks, Active, Ending, Event, Executor, Hold, HoldKind, Holding, KeptStart, Kind, MessageKind, Name, Party,
+    Phase, ProcedureDecision, ProcedureEnd, Refusal, Release, Taken, TaskResult,
 };
 use jig_tasks_world::{LIMITS, Reply, World, task};
 use skein_lib::ReplyTo;
@@ -67,11 +67,10 @@ fn a_kept_start_procedure_made_with_a_pending_dependency_is_active_and_kept() {
     assert_eq!(step(&mut world, ProcedureDecision::new(ProcedureEnd::Hold(Hold::Drift))), Reply::Done);
     assert!(matches!(world.record(PROCEDURE).phase, Phase::Held { .. }));
     assert_eq!(
-        response(&mut world, |reply_to| Event::Control {
+        response(&mut world, |reply_to| Event::Release {
             reply_to,
             by: REQUESTER,
-            task: PROCEDURE,
-            control: Control::Release { again: None, message: None },
+            operation: Release { task: PROCEDURE, again: None, message: None }
         }),
         Reply::Done
     );

@@ -20,7 +20,7 @@ use ending::{Ending, State as EndState};
 use smith_domain as agent;
 use smith_host_domain as host;
 use smith_local_domain as local;
-use smith_local_protocol as protocol;
+use smith_local_protocol::{self as protocol, Entered, PROMPT, REFUSED_COMMAND};
 
 use crate::host_io::{HostIo, Launch, ProcessLimits};
 
@@ -912,14 +912,9 @@ impl Service {
         self.io.store_request(protocol::StoreRequest::SaveTurn { number, read, opens_window, turn });
     }
 
-    #[cfg(test)]
-    pub(crate) fn render_notice(&mut self, notice: local::Notice) {
-        self.notice(Time::ZERO, notice);
-    }
-
     fn notice(&mut self, now: Time, notice: local::Notice) {
         if self.line_mode == Some(false) && notice == local::Notice::Waiting {
-            self.terminal.show(b"> ".as_slice().into(), &mut self.terminal_events);
+            self.terminal.show(PROMPT.into(), &mut self.terminal_events);
             return;
         }
         let handed = match &notice {
@@ -995,14 +990,12 @@ impl Service {
             match event {
                 protocol::TerminalEvent::Domain(event) => match *event {
                     local::Event::Line { text } if self.line_mode.is_some() => match protocol::entered(text) {
-                        protocol::Entered::Message(text) => self.local_events.push(local::Event::Line { text }),
-                        protocol::Entered::Slash(choice) => match choices::resolve(self, choice) {
+                        Entered::Message(text) => self.local_events.push(local::Event::Line { text }),
+                        Entered::Slash(choice) => match choices::resolve(self, choice) {
                             Ok(choice) => self.local_events.push(local::Event::Slash(choice)),
                             Err(text) => self.terminal.show(text, &mut self.terminal_events),
                         },
-                        protocol::Entered::Refused => self
-                            .terminal
-                            .show(b"Unknown or incomplete command".as_slice().into(), &mut self.terminal_events),
+                        Entered::Refused => self.terminal.show(REFUSED_COMMAND.into(), &mut self.terminal_events),
                     },
                     event @ (local::Event::Line { .. }
                     | local::Event::Slash(_)

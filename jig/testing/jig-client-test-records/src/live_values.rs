@@ -140,6 +140,8 @@ pub fn task_line_record() -> w::TaskLine {
             budget: live_budget_record(),
             waits_on: w::WaitsOn::Nothing,
             phases: phases_record(),
+            delegates_done: 9,
+            delegates_total: 11,
             held_below: 0,
             conversation: None,
             requester: w::Requester::Person(

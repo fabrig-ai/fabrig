@@ -10,15 +10,17 @@ fn say(world: &mut World, number: u64) {
     world.send(Event::Message {
         reply_to,
         project: 1,
-        task: 1,
-        word: Word {
-            number,
-            from: Party::Person(9),
-            kind: jig_domain_tasks::MessageKind::Words,
-            words: Box::from([u8::try_from(number).expect("small message")]),
-            at: Wall::EPOCH,
-            hits: 1,
-            eligible: false,
+        operation: jig_domain_tasks::Message {
+            task: 1,
+            word: Word {
+                number,
+                from: Party::Person(9),
+                kind: jig_domain_tasks::MessageKind::Words,
+                words: Box::from([u8::try_from(number).expect("small message")]),
+                at: Wall::EPOCH,
+                hits: 1,
+                eligible: false,
+            },
         },
     });
 }
@@ -109,15 +111,17 @@ fn task_words(world: &mut World, source: u64, target: u64, number: u64, kind: Me
     world.send(Event::Message {
         reply_to: ReplyTo::new(Token::new(key)),
         project: 1,
-        task: target,
-        word: Word {
-            number,
-            from: Party::Task(source),
-            kind,
-            words: Box::new([1]),
-            at: Wall::EPOCH,
-            hits: 1,
-            eligible: false,
+        operation: jig_domain_tasks::Message {
+            task: target,
+            word: Word {
+                number,
+                from: Party::Task(source),
+                kind,
+                words: Box::new([1]),
+                at: Wall::EPOCH,
+                hits: 1,
+                eligible: false,
+            },
         },
     });
     world.replies[&key].clone()
@@ -156,15 +160,17 @@ fn a_person_answers_one_numbered_question_in_their_active_task() {
     world.send(Event::Message {
         reply_to: ReplyTo::new(Token::new(key)),
         project: 1,
-        task: 1,
-        word: Word {
-            number: 2,
-            from: Party::Person(9),
-            kind: MessageKind::Answer { question: 1 },
-            words: Box::from(&b"yes"[..]),
-            at: Wall::EPOCH,
-            hits: 1,
-            eligible: false,
+        operation: jig_domain_tasks::Message {
+            task: 1,
+            word: Word {
+                number: 2,
+                from: Party::Person(9),
+                kind: MessageKind::Answer { question: 1 },
+                words: Box::from(&b"yes"[..]),
+                at: Wall::EPOCH,
+                hits: 1,
+                eligible: false,
+            },
         },
     });
     assert_eq!(world.replies[&key], Reply::Done);
@@ -174,15 +180,17 @@ fn a_person_answers_one_numbered_question_in_their_active_task() {
     world.send(Event::Message {
         reply_to: ReplyTo::new(Token::new(key)),
         project: 1,
-        task: 1,
-        word: Word {
-            number: 3,
-            from: Party::Person(9),
-            kind: MessageKind::Answer { question: 1 },
-            words: Box::from(&b"twice"[..]),
-            at: Wall::EPOCH,
-            hits: 1,
-            eligible: false,
+        operation: jig_domain_tasks::Message {
+            task: 1,
+            word: Word {
+                number: 3,
+                from: Party::Person(9),
+                kind: MessageKind::Answer { question: 1 },
+                words: Box::from(&b"twice"[..]),
+                at: Wall::EPOCH,
+                hits: 1,
+                eligible: false,
+            },
         },
     });
     assert!(matches!(&world.replies[&key], Reply::Refused(problem) if problem.why == Refusal::Reference));

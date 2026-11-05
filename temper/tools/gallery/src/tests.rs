@@ -69,6 +69,7 @@ enum Part {
     NoRole { role: Role },
     Value { role: Role, name: &'static str, value: &'static str },
     Chats { live: u32, closed: u32 },
+    Goals { rows: &'static [&'static str] },
     Plan { live: u32, title: &'static str },
     PlanWithEnded { live: u32, ended: u32, before: &'static str, after: &'static str },
 }
@@ -159,6 +160,16 @@ const HOLDS: [Holds; samples::N] = [
         parts: &[
             Part::Text { text: "work/hello is in Hello" },
             Part::Named { role: Role::Heading { level: 2 }, name: "To begin" },
+        ],
+    },
+    Holds {
+        name: "home-with-goals",
+        heading: "One thing needs you.",
+        parts: &[
+            Part::Named { role: Role::Link, name: "Goals" },
+            Part::Named { role: Role::Link, name: "Needs you 1" },
+            Part::Named { role: Role::Button, name: "Reply" },
+            Part::Absent { role: Role::Heading { level: 2 }, name: "To begin" },
         ],
     },
     Holds {
@@ -280,6 +291,104 @@ const HOLDS: [Holds; samples::N] = [
             Part::Named { role: Role::Link, name: "New chat" },
             Part::Absent { role: Role::Button, name: "Start" },
             Part::Absent { role: Role::Button, name: "Adopt" },
+        ],
+    },
+    Holds {
+        name: "goals-solo",
+        heading: "8 goals, 5 under way.",
+        parts: &[Part::Goals {
+            rows: &[
+                "CSV import · 1 / 3 · needs funds",
+                "JSON output for tally report · 0 / 2 · needs you",
+                "Make tally sum stream its input · 1 / 2 · running",
+                "CSV export · planning",
+                "Profile tally sum on a 2 GB file · 0 / 1 · paused by you",
+                "CSV import: the quoted-field parser · 2 / 2 · landed ",
+                "The process documents, read aloud · 0 / 1 · stopped",
+                "CSV import: errors with line and column · 0 / 1 · failed",
+            ],
+        }],
+    },
+    Holds {
+        name: "goals-reference",
+        heading: "6 goals, 4 under way.",
+        parts: &[
+            Part::Goals {
+                rows: &[
+                    "first-run-projects · 6 / 9 · needs funds",
+                    "welcome-stall · 1 / 3 · needs you",
+                    "forge-cards · 0 / 4 · needs you",
+                    "A hundred tasks · 96 / 112 · running",
+                    "pane-chat-line · 2 / 2 · landed ",
+                    "welcome-model-cards · 3 / 3 · landed Mon 18:40",
+                ],
+            },
+            Part::Text { text: "Six of nine tasks landed; the store task is split in two after two size failures." },
+            Part::Text { text: "96 of 112 tasks landed." },
+        ],
+    },
+    Holds {
+        name: "goals-none",
+        heading: "No goals yet.",
+        parts: &[Part::Goals { rows: &[] }, Part::Text { text: "None." }],
+    },
+    Holds {
+        name: "goals-needs",
+        heading: "8 goals, 5 under way.",
+        parts: &[Part::Goals {
+            rows: &["CSV import · 1 / 3 · needs funds", "JSON output for tally report · 0 / 2 · needs you"],
+        }],
+    },
+    Holds {
+        name: "goals-under-way",
+        heading: "8 goals, 5 under way.",
+        parts: &[
+            Part::Goals {
+                rows: &[
+                    "Make tally sum stream its input · 1 / 2 · running",
+                    "CSV export · planning",
+                    "Profile tally sum on a 2 GB file · 0 / 1 · paused by you",
+                ],
+            },
+            Part::Text { text: "Planning from the draft." },
+            Part::Text { text: "0 of 1 tasks landed." },
+        ],
+    },
+    Holds {
+        name: "goals-ended",
+        heading: "8 goals, 5 under way.",
+        parts: &[
+            Part::Goals {
+                rows: &[
+                    "CSV import: the quoted-field parser · 2 / 2 · landed ",
+                    "The process documents, read aloud · 0 / 1 · stopped",
+                    "CSV import: errors with line and column · 0 / 1 · failed",
+                ],
+            },
+            Part::Text { text: "Stopped by you." },
+            Part::Text { text: "Failed." },
+        ],
+    },
+    Holds {
+        name: "goals-filter-empty",
+        heading: "3 goals, 0 under way.",
+        parts: &[Part::Goals { rows: &[] }, Part::Text { text: "None." }],
+    },
+    Holds {
+        name: "goals-more",
+        heading: "More than 6 goals, 5 under way.",
+        parts: &[
+            Part::Goals {
+                rows: &[
+                    "CSV import · 1 / 3 · needs funds",
+                    "JSON output for tally report · 0 / 2 · needs you",
+                    "Make tally sum stream its input · 1 / 2 · running",
+                    "CSV export · planning",
+                    "Profile tally sum on a 2 GB file · 0 / 1 · paused by you",
+                    "CSV import: the quoted-field parser · 2 / 2 · landed ",
+                ],
+            },
+            Part::Named { role: Role::Button, name: "More goals" },
         ],
     },
     Holds {
@@ -1190,6 +1299,18 @@ fn each_state_holds_what_its_name_says() {
                         .unwrap_or_else(|| panic!("{}: missing {role:?} {name:?}", sample.name));
                     assert_eq!(node.description.as_deref(), Some(description.as_bytes()), "{}", sample.name);
                 }
+                Part::Goals { rows } => {
+                    let actual: Vec<_> = tree
+                        .nodes()
+                        .iter()
+                        .filter(|node| node.styles.as_slice().contains(&temper_client_view::look::GOALS_ROW))
+                        .map(|node| String::from_utf8_lossy(node.name.as_deref().expect("goal link name")))
+                        .collect();
+                    assert_eq!(actual.len(), rows.len(), "{}: goal rows", sample.name);
+                    for (actual, expected) in actual.iter().zip(*rows) {
+                        assert!(actual.starts_with(expected), "{}: expected {expected:?}, got {actual:?}", sample.name);
+                    }
+                }
                 Part::Chats { live, closed } => {
                     let available = (*live).min(driver::limits().client.domain.rows)
                         + (*closed).min(driver::limits().client.domain.rows);
@@ -1506,4 +1627,67 @@ fn new_chat_focuses_the_composer_in_its_print() {
     assert_eq!(entry.focus, Some(0));
     let page = page(&sample, &skein_ui_bundle::Digest(*b"0123456789abcdef"));
     assert!(page.contains(&format!("data-node=\"{}\" autofocus", entry.id.0)));
+}
+
+#[test]
+fn goal_and_chat_queries_keep_live_and_ended_rows_separate() {
+    use samples::{Then, World};
+    use temper_client_domain::{Address, ChatsFilter, GoalsFilter};
+    for world in [World::Solo, World::Reference] {
+        let (chats, _) = worlds::world(world, Address::Chats { filter: ChatsFilter::All }, Then::Shown);
+        let page = chats.pages().chats().expect("chats page");
+        let live = &page.live(chats.client()).expect("live chats").rows;
+        let jig_client::contract::EndedGroup::Rows { rows: ended, .. } =
+            &page.page.as_ref().expect("closed chats").ended
+        else {
+            panic!("ended chat rows")
+        };
+        assert!(!live.is_empty() && !ended.is_empty(), "both chat sources have rows");
+        for row in live.iter().chain(ended) {
+            assert!(row.flags.conversation && row.tracked.is_none(), "{world:?}: chats contain only conversations");
+        }
+        let (goals, _) = worlds::world(world, Address::Goals { project: 1, filter: GoalsFilter::All }, Then::Shown);
+        let page = goals.pages().goals().expect("goals page");
+        let live = &page.live(goals.client()).expect("live goals").rows;
+        assert!(!live.is_empty() && !page.ended().is_empty(), "both goal sources have rows");
+        for row in live.iter().chain(page.ended()) {
+            assert!(!row.flags.conversation && row.tracked.is_some(), "{world:?}: goals contain only tracked tasks");
+        }
+    }
+}
+
+#[test]
+fn reference_lede_names_the_worlds_templates_in_number_order() {
+    let sample =
+        samples::samples().into_iter().find(|sample| sample.name == "goals-reference").expect("reference goals");
+    let root = samples::domain(&sample);
+    let me = root.pages().me(root.client()).expect("reference me");
+    let templates = &me.projects.get(0).expect("reference project").templates;
+    let goals: Vec<_> = templates
+        .iter()
+        .filter(|template| template.tracked.is_some())
+        .map(|template| (template.number, template.name.bytes()))
+        .collect();
+    assert_eq!(
+        goals,
+        vec![
+            (2, b"goal".as_slice()),
+            (4, b"goal for a draft".as_slice()),
+            (5, b"Plan, then wait for me".as_slice()),
+            (6, b"One agent, one branch".as_slice()),
+        ]
+    );
+    let view = view(&sample);
+    let nodes = view.tree().nodes();
+    let start = nodes
+        .iter()
+        .position(|node| node.styles.as_slice().contains(&temper_client_view::look::GOALS_LEDE))
+        .expect("goals lede");
+    let end = start + usize::try_from(nodes[start].size).expect("lede size");
+    let text: Vec<_> =
+        nodes[start..end].iter().flat_map(|node| node.text.iter()).flat_map(|run| run.text.iter().copied()).collect();
+    assert_eq!(
+        String::from_utf8(text).expect("lede UTF-8"),
+        "A goal turns a draft into landed work, its own way: task by task, plan, tasks, land whole, plan, then wait for me, one agent, one branch."
+    );
 }

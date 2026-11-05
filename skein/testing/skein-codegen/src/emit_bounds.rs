@@ -2,24 +2,7 @@
 
 //! Checked wire and heap bounds for codec.md, section 4.
 
-use crate::{Declaration, Enumeration, Record, Type, analysis::Context, emit_limits};
-
-fn rust_type(ty: &Type) -> String {
-    match ty {
-        Type::U8 => "u8".into(),
-        Type::U16 => "u16".into(),
-        Type::U32 => "u32".into(),
-        Type::U64 => "u64".into(),
-        Type::Bool => "bool".into(),
-        Type::Duration => "skein_lib::Duration".into(),
-        Type::Fixed(bound) => format!("[u8; {}]", emit_limits::literal(*bound)),
-        Type::Secret(_) => "skein_lib::Secret".into(),
-        Type::Bytes(_) | Type::Text(_) => "Box<[u8]>".into(),
-        Type::List(_, item) => format!("List<{}>", rust_type(item)),
-        Type::Option(item) => format!("Option<{}>", rust_type(item)),
-        Type::Named(name) => name.clone(),
-    }
-}
+use crate::{Declaration, Enumeration, Record, Type, analysis::Context, emit_limits, emit_types::rust_type};
 
 fn bytes_expr(ty: &Type, bound: &str) -> String {
     match ty {
@@ -58,26 +41,16 @@ fn heap_expr(ty: &Type, bound: &str) -> String {
 }
 
 fn emit_record(record: &Record, out: &mut String) {
-    let limits_name = if record.fields.iter().any(|field| bytes_expr(&field.ty, "").contains("limits")) {
-        "limits"
-    } else {
-        "_limits"
-    };
+    let limits_name =
+        if record.fields.iter().any(|field| crate::emit_codec::uses_limits(&field.ty)) { "limits" } else { "_limits" };
     let size_mut = if record.fields.is_empty() { "" } else { "mut " };
     out.push_str(&format!("impl {} {{\n    /// Maximum encoded bytes under these limits.\n    #[must_use]\n    pub fn encoded_bound(limits: &Limits) -> Option<u64> {{\n        if check_limits(limits).is_err() {{ return None; }}\n        Self::encoded_bound_within(limits)\n    }}\n\n    pub(crate) fn encoded_bound_within({limits_name}: &Limits) -> Option<u64> {{\n        let {size_mut}size = {}_u64;\n", record.name, if record.versioned { 2_u64 } else { 0_u64 }));
-    let mut bytes = Vec::new();
-    for field in &record.fields {
-        let bound = format!("{}_{}", emit_limits::snake(&record.name), field.name);
-        bytes.push(bytes_expr(&field.ty, &bound));
-    }
+    let prefix = emit_limits::snake(&record.name);
+    let bound = |field: &crate::Field| format!("{prefix}_{}", field.name);
+    let bytes = record.fields.iter().map(|field| bytes_expr(&field.ty, &bound(field))).collect::<Vec<_>>();
     emit_fold(&bytes, "size", "checked_add", "?", out);
-    let heap_mut = if record.fields.is_empty() { "" } else { "mut " };
-    out.push_str(&format!("        size.checked_add(0)\n    }}\n\n    /// Maximum heap held by one decoded value under these limits.\n    #[must_use]\n    pub fn decoded_bound(limits: &Limits) -> Option<u64> {{\n        if check_limits(limits).is_err() {{ return None; }}\n        Self::decoded_bound_within(limits)\n    }}\n\n    pub(crate) fn decoded_bound_within({limits_name}: &Limits) -> Option<u64> {{\n        let {heap_mut}heap = 0_u64;\n"));
-    let mut heaps = Vec::new();
-    for field in &record.fields {
-        let bound = format!("{}_{}", emit_limits::snake(&record.name), field.name);
-        heaps.push(heap_expr(&field.ty, &bound));
-    }
+    out.push_str(&format!("        size.checked_add(0)\n    }}\n\n    /// Maximum heap held by one decoded value under these limits.\n    #[must_use]\n    pub fn decoded_bound(limits: &Limits) -> Option<u64> {{\n        if check_limits(limits).is_err() {{ return None; }}\n        Self::decoded_bound_within(limits)\n    }}\n\n    pub(crate) fn decoded_bound_within({limits_name}: &Limits) -> Option<u64> {{\n        let {size_mut}heap = 0_u64;\n"));
+    let heaps = record.fields.iter().map(|field| heap_expr(&field.ty, &bound(field))).collect::<Vec<_>>();
     emit_fold(&heaps, "heap", "checked_add", "?", out);
     out.push_str("        heap.checked_add(0)\n    }\n");
     out.push_str("}\n\n");
@@ -132,21 +105,27 @@ pub(crate) fn emit(schema: &Context<'_>, out: &mut String) {
         }
     }
     let biggest_mut = if schema.declarations.is_empty() { "" } else { "mut " };
-    out.push_str(&format!("/// Maximum wire bytes among this family's top-level types.\n#[must_use]\npub fn encoded_bound(limits: &Limits) -> Option<u64> {{\n    if check_limits(limits).is_err() {{ return None; }}\n    let {biggest_mut}biggest = 0_u64;\n"));
-    for declaration in schema.declarations {
-        let name = match declaration {
-            Declaration::Record(record) => &record.name,
-            Declaration::Enum(enumeration) => &enumeration.name,
-        };
-        out.push_str(&format!("    biggest = biggest.max({name}::encoded_bound_within(limits)?);\n"));
+    for (name, doc) in [
+        ("encoded_bound", "Maximum wire bytes among this family's top-level types."),
+        ("decoded_bound", "Maximum heap held by one decoded top-level value."),
+    ] {
+        let signature = format!(
+            "/// {doc}\n#[must_use]\npub fn {name}(limits: &Limits) -> Option<u64> {{\n    if check_limits(limits).is_err() {{ return None; }}\n    let {biggest_mut}biggest = 0_u64;\n"
+        );
+        let statements = schema
+            .declarations
+            .iter()
+            .map(|declaration| {
+                let ty = match declaration {
+                    Declaration::Record(record) => &record.name,
+                    Declaration::Enum(enumeration) => &enumeration.name,
+                };
+                format!("    biggest = biggest.max({ty}::{name}_within(limits)?);\n")
+            })
+            .collect::<Vec<_>>();
+        if name == "decoded_bound" {
+            out.push('\n');
+        }
+        crate::emit_functions::fold(&signature, name, "biggest", &statements, "    Some(biggest)\n}\n", out);
     }
-    out.push_str(&format!("    Some(biggest)\n}}\n\n/// Maximum heap held by one decoded top-level value.\n#[must_use]\npub fn decoded_bound(limits: &Limits) -> Option<u64> {{\n    if check_limits(limits).is_err() {{ return None; }}\n    let {biggest_mut}biggest = 0_u64;\n"));
-    for declaration in schema.declarations {
-        let name = match declaration {
-            Declaration::Record(record) => &record.name,
-            Declaration::Enum(enumeration) => &enumeration.name,
-        };
-        out.push_str(&format!("    biggest = biggest.max({name}::decoded_bound_within(limits)?);\n"));
-    }
-    out.push_str("    Some(biggest)\n}\n");
 }

@@ -59,14 +59,16 @@ fn amendment(dependencies: &[u64]) -> tasks::Amendment {
 fn amend(world: &mut World, dependencies: &[u64]) -> Reply {
     let message = world.record(PROCEDURE).last_message + 1;
     response(world, |reply_to| Event::Amend {
+        operation: tasks::Amend {
+            task: PROCEDURE,
+            message,
+            stop_run: false,
+            amendment: Box::new(amendment(dependencies)),
+        },
         reply_to,
         by: REQUESTER,
-        task: PROCEDURE,
-        message,
         places: Box::new([]),
-        stop_run: false,
         funder: None,
-        amendment: amendment(dependencies),
     })
 }
 
@@ -112,7 +114,7 @@ fn a_mark_naming_no_dependency_refuses_the_step_whole() {
             ProcedureDecision {
                 started_from: Box::new([DEPENDENCY, OTHER]),
                 batch: Box::new([task(4, &[])]),
-                messages: Box::new([tasks::ProcedureMessage {
+                messages: Box::new([tasks::Message {
                     task: DEPENDENCY,
                     word: tasks::Word {
                         number: 1,
@@ -177,11 +179,11 @@ fn a_procedure_amendment_cannot_drop_a_delegates_marked_dependency() {
             step: 1,
             read,
             decision: ProcedureDecision {
-                amendments: Box::new([tasks::ProcedureAmendment {
+                amendments: Box::new([tasks::Amend {
                     task: PROCEDURE,
                     message: 1,
                     stop_run: false,
-                    amendment: amendment(&[]),
+                    amendment: Box::new(amendment(&[])),
                 }]),
                 ..ProcedureDecision::new(ProcedureEnd::Wait)
             },

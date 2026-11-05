@@ -155,25 +155,27 @@ pub(super) fn amend_at(
 ) {
     let message = core.tasks.task(task).unwrap().last_message.checked_add(100).unwrap();
     let event = tasks::Event::Amend {
+        operation: tasks::Amend {
+            task,
+            message,
+            stop_run: false,
+            amendment: Box::new(tasks::Amendment {
+                tracked: tracking,
+                spec,
+                addressed: None,
+                instructions: None,
+                release: None,
+                wake: None,
+                dependencies: None,
+                authority: None,
+                llm: None,
+                reason: Box::new([]),
+            }),
+        },
         places: Box::new([]),
         reply_to: reply(),
         by: tasks::Party::Person(1),
-        task,
-        message,
-        stop_run: false,
         funder: None,
-        amendment: tasks::Amendment {
-            tracked: tracking,
-            spec,
-            addressed: None,
-            instructions: None,
-            release: None,
-            wake: None,
-            dependencies: None,
-            authority: None,
-            llm: None,
-            reason: Box::new([]),
-        },
     };
     let mut env = environment(limits);
     env.wall = wall;
@@ -185,11 +187,10 @@ pub(super) fn end(core: &mut Core, limits: &Limits, task: u64) {
     send(
         core,
         limits,
-        tasks::Event::Control {
+        tasks::Event::Cancel {
             reply_to: reply(),
             by: tasks::Party::Person(1),
-            task,
-            control: tasks::Control::Cancel { reason: Box::new([]), grace: None, message: None },
+            operation: tasks::Cancel { task, reason: Box::new([]), grace: None, message: None },
         },
     );
     send(core, limits, tasks::Event::EffectsSettled { task });

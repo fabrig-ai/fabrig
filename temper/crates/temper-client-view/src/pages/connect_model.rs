@@ -303,6 +303,7 @@ fn welcome(root: &Domain) -> bool {
         | Address::Home { .. }
         | Address::Changes { .. }
         | Address::Settings { .. }
+        | Address::Goals { .. }
         | Address::Configure { .. }
         | Address::Adopt { .. } => false,
     }
