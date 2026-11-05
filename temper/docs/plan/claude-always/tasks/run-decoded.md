@@ -36,3 +36,7 @@ Acceptance: `smith_agent_shell::run_decoded` and `smith_agent_shell::config::rea
 ## Report
 
 As your text says; name any caller that did not keep its behaviour.
+
+## Answers
+
+2026-11-05 (fabrig/ui, owner of temper's UI). **Yes: permit the one re-export in `smith/crates/smith-agent-shell/src/lib.rs`.**
