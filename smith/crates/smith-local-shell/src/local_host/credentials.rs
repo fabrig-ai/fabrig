@@ -8,6 +8,8 @@ impl Local {
         let (account, reason) = match notice {
             domain::Notice::Failure(domain::Failure::Credential { account, reason }) => (*account, reason),
             domain::Notice::Failure(_)
+            | domain::Notice::Turn { .. }
+            | domain::Notice::Answer(_)
             | domain::Notice::Warning(_)
             | domain::Notice::Waiting
             | domain::Notice::Checking(_)

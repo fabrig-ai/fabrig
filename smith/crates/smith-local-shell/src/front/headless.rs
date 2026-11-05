@@ -107,7 +107,9 @@ impl Headless {
                         drop(write!(
                             errors,
                             "smith: {}",
-                            String::from_utf8_lossy(smith_local_domain::Domain::tool_verdict(result))
+                            String::from_utf8_lossy(smith_local_protocol::tool_verdict_text(
+                                smith_local_domain::Domain::tool_verdict(result)
+                            ))
                         ));
                     }
                     Block::Opaque { .. } => {}
@@ -122,7 +124,7 @@ impl Headless {
         use smith_host_domain::RunResult;
         match &answer.result {
             RunResult::Accepted { .. } => Ending {
-                text: smith_local_domain::Domain::result_text(answer),
+                text: smith_local_protocol::said_text(&smith_local_domain::Domain::said(answer)),
                 line: Some(
                     format!(
                         "accepted in {} turns, {} notional, {} ms\n",

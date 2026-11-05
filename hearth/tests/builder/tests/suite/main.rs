@@ -1,6 +1,7 @@
 #[global_allocator]
 static HEAP: skein_heap::Counting = skein_heap::Counting;
 
+mod bounds;
 mod budgets;
 mod domain;
 mod files;

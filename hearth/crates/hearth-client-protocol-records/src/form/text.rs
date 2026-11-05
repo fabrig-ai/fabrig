@@ -4,7 +4,7 @@ use crate::{
     records::{Record, Type},
 };
 use alloc::boxed::Box;
-use skein_lib::Writer;
+use skein_lib::{Writer, bytes};
 #[derive(Debug)]
 pub(crate) struct Lines {
     sink: Sink,
@@ -43,7 +43,7 @@ impl Lines {
     }
     pub(crate) fn hex12(&mut self, digest: &[u8; 32]) {
         for byte in digest.iter().take(6) {
-            self.put(&[hex(byte >> 4), hex(byte & 15)]);
+            self.put(&[bytes::hex_digit(byte >> 4), bytes::hex_digit(*byte)]);
         }
     }
     pub(crate) fn quote(&mut self, bytes: &[u8]) {
@@ -53,7 +53,7 @@ impl Lines {
                 b'"' => self.put(b"\\\""),
                 b'\\' => self.put(b"\\\\"),
                 b'\n' => self.put(b"\\n"),
-                0..=31 | 127 => self.put(&[b'\\', b'x', hex(byte >> 4), hex(byte & 15)]),
+                0..=31 | 127 => self.put(&[b'\\', b'x', bytes::hex_digit(byte >> 4), bytes::hex_digit(*byte)]),
                 32..=126 | 128..=255 => self.put(&[*byte]),
             }
         }
@@ -63,14 +63,17 @@ impl Lines {
         self.put(skein_lib::Decimal::of(number).as_bytes());
     }
     pub(crate) fn mode(&mut self, mode: u16) {
-        for shift in [9_u32, 6, 3, 0] {
-            self.put(&[b'0'.saturating_add(u8::try_from((mode >> shift) & 7).expect("octal digit"))]);
-        }
+        self.put(&octal(mode));
     }
 }
-fn hex(n: u8) -> u8 {
-    if n < 10 { b'0'.saturating_add(n) } else { b'a'.saturating_add(n.saturating_sub(10)) }
+pub(crate) fn octal(mode: u16) -> [u8; 4] {
+    let mut digits = [b'0'; 4];
+    for (digit, shift) in digits.iter_mut().zip([9_u32, 6, 3, 0]) {
+        *digit = b'0'.saturating_add(u8::try_from((mode >> shift) & 7).expect("octal digit"));
+    }
+    digits
 }
+
 pub(crate) fn print(record: &Record, after: Option<Type>, most: u32) -> Result<Box<[u8]>, Refusal> {
     let mut lines = Lines::measure();
     render(&mut lines, record, after);

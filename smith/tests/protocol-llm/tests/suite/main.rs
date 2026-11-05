@@ -23,8 +23,12 @@ mod prefix;
 mod referee;
 mod render;
 mod replay;
+mod startup_receiving;
 mod tools;
+mod turn_codec;
+mod window_room;
 mod workspace;
+mod world_fakes;
 
 mod fuzzy {
     mod pool;

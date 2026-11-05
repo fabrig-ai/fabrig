@@ -4,9 +4,7 @@ use hearth_lib::encode::Digest;
 use skein_io::kernel::{Done, Exit};
 use skein_sim::{Event, Summary, Text};
 
-#[path = "../../src/fixtures/bounds.rs"]
-#[expect(clippy::duplicate_mod, reason = "the order and memory tests each use the task's shared bounds fixture")]
-mod bounds;
+use super::bounds;
 
 // The task's smallest, intermediate and roomy service queues.
 const QUEUES: [u32; 3] = [bounds::QUEUE, 32, 4_096];

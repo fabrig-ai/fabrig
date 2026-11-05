@@ -1,7 +1,7 @@
 # D001: The service and its machines pace work by room checks and `MAX_OUT`
 
 - **Kind:** complexity
-- **Where:** `hearth-service-builder/src/lib.rs`, `hearth-protocol-builder/src/lib.rs`, `hearth-protocol-mmdebstrap`, `hearth-protocol-config/src/json.rs`, `hearth-client-protocol-records/src/printer.rs`, `hearth-domain-builder/src/lib.rs`, `hearth-domain-render/src/lib.rs`, `hearth-domain-store/src/lib.rs`, `hearth-domain-tree/src/lib.rs`, `hearth-domain-build/src/lib.rs`, `tests/builder/src/fixtures/bounds.rs`
+- **Where:** `hearth-service-builder/src/lib.rs`, `hearth-protocol-builder/src/lib.rs`, `hearth-protocol-mmdebstrap`, `hearth-protocol-config/src/json.rs`, `hearth-client-protocol-records/src/printer.rs`, `hearth-domain-builder/src/lib.rs`, `hearth-domain-render/src/lib.rs`, `hearth-domain-store/src/lib.rs`, `hearth-domain-tree/src/lib.rs`, `hearth-domain-build/src/lib.rs`, `tests/builder/tests/suite/bounds.rs`
 - **Seen:** 2026-11-04 at `66968a30ef`, in the request of plan hearth-workspace (its port table, and its rule that adopting the newer model in full is out of scope)
 - **Seen:** 2026-11-04 at `66968a30ef`, in `hearth/scripts/old-forms.txt` (`max_out`)
 - **Checked:** 2026-11-05 at `efd6a36487`
@@ -9,7 +9,7 @@
 - **Size:** L
 - **Status:** open
 - **Paid when:** no hearth step crate defines a `MaxOut` or a `MAX_OUT` constant, `iterate` asks no queue for room but the kernel's edge, the queues between a service's own layers are uncapped, and the orders the room checks kept are named predicates with world tests.
-- **Measure:** `grep '^max_out ' hearth/scripts/old-forms.txt`: `max_out 78`
+- **Measure:** `grep '^max_out ' hearth/scripts/old-forms.txt`: `max_out 70`
 
 ## What
 
@@ -27,12 +27,11 @@ hearth still holds the old form:
   `io_room` or `protocol_room`; after it, `within` asserts the constant.
   23 lines of that file hold the form;
 - `Service::new` refuses `limits.queue` under 3, "queues holding every
-  MAX_OUT", and `tests/builder/src/fixtures/bounds.rs` sizes a world on
+  MAX_OUT", and `tests/builder/tests/suite/bounds.rs` sizes a world on
   that figure;
 - 25 `.room()` calls remain in non-test step code.
 
-Eight of the 78 are `io::MAX_OUT_*`, the kernel's edge, which skein keeps
-and the other trees exempt (D011).
+The count leaves out the eight `io::MAX_OUT_*` uses, the kernel's edge.
 
 ## Why it matters
 

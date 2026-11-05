@@ -24,11 +24,8 @@ fn check(located: &Located<'_>) -> Result<(Download, Fetch), (Name, Schema)> {
     for (byte, pair) in bytes.iter_mut().zip(sha.chunks_exact(2)) {
         let mut value = 0_u8;
         for digit in pair {
-            value = value.saturating_mul(16).saturating_add(if digit.is_ascii_digit() {
-                digit.saturating_sub(b'0')
-            } else {
-                digit.saturating_sub(b'a').saturating_add(10)
-            });
+            value =
+                value.saturating_mul(16).saturating_add(skein_lib::bytes::hex_value(*digit).expect("a checked digit"));
         }
         *byte = value;
     }

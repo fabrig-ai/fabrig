@@ -113,6 +113,9 @@ impl Person {
             Shown::Turn => Trigger::Turn,
             Shown::Answer => Trigger::Answer,
             Shown::Notice(notice) => Trigger::Notice(match notice {
+                Notice::Turn { .. } | Notice::Answer(_) => {
+                    unreachable!("turn and answer notices do not cue the person")
+                }
                 Notice::Waiting => Kind::Waiting,
                 Notice::Checking(_) => Kind::Checking,
                 Notice::NotDelivered { .. } => Kind::NotDelivered,

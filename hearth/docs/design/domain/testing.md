@@ -188,6 +188,7 @@ testing/hearth-client-fake-<tool>   a fake of a tool only the client runs: incus
 testing/recordings/<tool>/<version> recordings of real runs (4.5)
 testing/repos                       the test IaC repositories, cue tasks included (8.2)
 testing/mirror                      the local mirror's pin, its extras, its fetch script (6.2)
+testing/hearth-test-fixtures        what more than one test crate reads: the goldens as corpora, a hex literal
 tests/<name>                        hearth-<name>-world: one subject's domain and machine worlds (2.4)
 tests/system                        hearth-system-world: the system worlds (2.3)
 tests/client, tests/dev             the client's worlds, hearth-client-world and hearth-client-dev-world [M3, M3b]

@@ -7,7 +7,7 @@ use crate::{
 };
 use alloc::boxed::Box;
 use skein_json::writer::{Encoder, Limits, Refusal as JsonRefusal};
-use skein_lib::{List, Writer};
+use skein_lib::{List, Writer, bytes};
 pub(crate) const DEPTH: u32 = 64;
 pub(crate) fn print(record: &Record, after: Option<Type>, most: u32) -> Result<Box<[u8]>, Refusal> {
     let limits = Limits { depth: DEPTH, length: most };
@@ -147,9 +147,8 @@ pub(crate) fn digest(json: &mut Encoder, value: &[u8; 32]) {
 pub(crate) fn digest_hex(value: &[u8; 32]) -> [u8; 64] {
     let mut digits = [0_u8; 64];
     for (pair, byte) in digits.chunks_exact_mut(2).zip(value) {
-        for (digit, nibble) in pair.iter_mut().zip([byte >> 4_u32, byte & 15]) {
-            *digit =
-                if nibble < 10 { b'0'.saturating_add(nibble) } else { b'a'.saturating_add(nibble.saturating_sub(10)) };
+        for (digit, nibble) in pair.iter_mut().zip([byte >> 4_u32, *byte]) {
+            *digit = bytes::hex_digit(nibble);
         }
     }
     digits
