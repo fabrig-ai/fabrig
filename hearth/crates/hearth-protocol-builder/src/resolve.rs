@@ -1,14 +1,11 @@
 //! One mmdebstrap run, its pipe readers, deadlines and scratch reclamation (hearth/docs/design/domain/render.md, 5.2).
 use crate::{Asked, Roots, Told, builder::vocabulary::Event, limits::Limits, render, translate, walk::Walker};
+use crate::{held::Held, indices::Indices};
 use alloc::boxed::Box;
-use hearth_protocol_mmdebstrap::{
-    output::{self, Reader, Seen},
-    tail, vector,
-};
-use render::{
-    errors::{Command, Ended, Limit, Tool},
-    vocabulary::{Class, Event as RenderEvent, Failure, Request},
-};
+use hearth_protocol_mmdebstrap::output::{self, Reader, Seen};
+use hearth_protocol_mmdebstrap::{tail, vector};
+use render::errors::{Command, Ended, Limit, Tool};
+use render::vocabulary::{Class, Event as RenderEvent, Failure, Request};
 use skein_io::{
     self as io, file,
     kernel::{Exit, Pipe, Spawn, Way},
@@ -17,14 +14,13 @@ use skein_lib::{Env, Queue, Time, Token, Writer, bytes, stream::Up};
 pub(super) const OWNER: Token = Token::new(21);
 #[derive(Debug)]
 struct PipeReader {
-    token: Option<Token>,
+    held: Held,
     reader: Reader,
     ended: bool,
-    closing: bool,
 }
 impl PipeReader {
     fn new(limits: &hearth_protocol_mmdebstrap::limits::Limits) -> Self {
-        Self { token: None, reader: Reader::new(limits), ended: false, closing: false }
+        Self { held: Held::Awaited, reader: Reader::new(limits), ended: false }
     }
 }
 #[derive(Debug)]
@@ -35,13 +31,11 @@ pub(super) struct Resolve {
     lines: Box<[vector::Line]>,
     architecture: vector::Name,
     file_read: u32,
-    indices: Option<crate::indices::Indices>,
+    stage: Stage,
     output: PipeReader,
     error: PipeReader,
-    process: Option<Token>,
-    closing: bool,
+    process: Held,
     exit: Option<Exit>,
-    terminal: Option<RenderEvent>,
     pending: Queue<Asked>,
     deadline: Time,
     idle: Time,
@@ -49,7 +43,6 @@ pub(super) struct Resolve {
     fetched: u64,
     count: u32,
     scratch: Scratch,
-    walker: Option<Walker>,
 }
 impl Resolve {
     pub fn new(
@@ -78,12 +71,9 @@ impl Resolve {
         let lines = vector::lines(&simulate.sources).expect("validated sources");
         let invocation = vector::simulate(&simulate, &scratch.finish(), proxy, &env.limits.mmdebstrap)
             .expect("bounded scratch and request");
-        below.push(Asked::File(file::Request::MakeDirectory {
-            owner: OWNER,
-            root: roots.staging.token,
-            path: name.clone(),
-            mode: 0o700,
-        }));
+        let root = roots.staging.token;
+        let path = name.clone();
+        below.push(Asked::File(file::Request::MakeDirectory { owner: OWNER, root, path, mode: 0o700 }));
         Self {
             request,
             name,
@@ -91,13 +81,11 @@ impl Resolve {
             lines,
             architecture: simulate.sources.architecture,
             file_read,
-            indices: None,
+            stage: Stage::Running,
             output: PipeReader::new(&env.limits.mmdebstrap),
             error: PipeReader::new(&env.limits.mmdebstrap),
-            process: None,
-            closing: false,
+            process: Held::Awaited,
             exit: None,
-            terminal: None,
             pending: Queue::uncapped(),
             deadline,
             idle: env.now.saturating_add(env.limits.mmdebstrap.idle),
@@ -105,11 +93,10 @@ impl Resolve {
             fetched: 0,
             count: 0,
             scratch: Scratch::Absent,
-            walker: None,
         }
     }
     pub fn next_deadline(&self) -> Option<Time> {
-        if self.terminal.is_some() { None } else { Some(self.deadline.min(self.idle)) }
+        if self.stage.ending() { None } else { Some(self.deadline.min(self.idle)) }
     }
     pub fn fire(&mut self, env: &Env<Limits>) {
         if match self.next_deadline() {
@@ -120,20 +107,28 @@ impl Resolve {
         }
     }
     fn fail(&mut self, ended: Ended, cause: Option<render::resolution::Cause>) {
-        if self.terminal.is_some() {
-            return;
+        if !self.stage.ending() {
+            self.end(self.failure(ended, cause));
         }
-        let class = match &cause {
-            Some(cause) => cause.class(),
-            None => Class::Operational,
-        };
+    }
+    fn failure(&self, ended: Ended, cause: Option<render::resolution::Cause>) -> RenderEvent {
         let failure = tail::failure(&self.error.reader, &self.output.reader);
-        self.terminal = Some(RenderEvent::Failed {
+        RenderEvent::Failed {
             request: self.request,
-            class,
+            class: match &cause {
+                Some(cause) => cause.class(),
+                None => Class::Operational,
+            },
             at: None,
             failure: Failure::Run { tool: Tool { command: Command::Mmdebstrap, ended, tail: failure.tail }, cause },
-        });
+        }
+    }
+    fn end(&mut self, terminal: RenderEvent) {
+        self.stage = match core::mem::replace(&mut self.stage, Stage::Spent) {
+            Stage::Running => Stage::Ending(terminal),
+            Stage::Indices(indices) => Stage::Stopping { indices, terminal },
+            stage @ (Stage::Stopping { .. } | Stage::Ending(_) | Stage::Spent) => stage,
+        };
     }
     pub fn up(
         &mut self,
@@ -144,30 +139,25 @@ impl Resolve {
         below: &mut Queue<Asked>,
     ) {
         match event {
-            Told::File(event) => {
-                if let Some(indices) = &mut self.indices {
+            Told::File(event) => match &mut self.stage {
+                Stage::Indices(indices) | Stage::Stopping { indices, .. } => {
                     self.idle = env.now.saturating_add(env.limits.mmdebstrap.idle);
                     indices.up(event, env);
-                } else {
-                    self.file_up(event, roots, env, below);
                 }
-            }
+                Stage::Running | Stage::Ending(_) | Stage::Spent => self.file_up(event, roots, env, below),
+            },
             Told::Io(event) => match event {
                 io::Event::Spawned { child, pipes, .. } => {
-                    self.process = Some(child);
+                    self.process = Held::Open(child);
                     let mut pipes = pipes.into_iter();
-                    self.output.token = Some(pipes.next().expect("stdout"));
-                    self.error.token = Some(pipes.next().expect("stderr"));
+                    let env = Env { now: env.now, wall: env.wall, limits: env.limits.mmdebstrap };
                     for pipe in [&mut self.output, &mut self.error] {
+                        let stream = pipes.next().expect("resolve pipe");
+                        pipe.held = Held::Open(stream);
                         let mut requests = Queue::uncapped();
-                        output::open(
-                            &mut pipe.reader,
-                            &Env { now: env.now, wall: env.wall, limits: env.limits.mmdebstrap },
-                            &mut requests,
-                        );
+                        output::open(&mut pipe.reader, &env, &mut requests);
                         if let Some(down) = requests.pop() {
-                            self.pending
-                                .push(Asked::Io(io::Request::Stream { stream: pipe.token.expect("pipe"), down }));
+                            self.pending.push(Asked::Io(io::Request::Stream { stream, down }));
                         }
                     }
                 }
@@ -176,11 +166,11 @@ impl Resolve {
                 io::Event::Failed { .. } => self.fail(Ended::Start, None),
                 io::Event::Closed { owner } => {
                     if owner == OWNER {
-                        self.process = None;
+                        self.process = Held::Closed;
                     }
                     for pipe in [&mut self.output, &mut self.error] {
-                        if pipe.token == Some(owner) {
-                            pipe.token = None;
+                        if pipe.held.token() == Some(owner) {
+                            pipe.held = Held::Closed;
                         }
                     }
                 }
@@ -197,18 +187,17 @@ impl Resolve {
         }
     }
     fn file_up(&mut self, event: file::Event, roots: Roots, env: &Env<Limits>, below: &mut Queue<Asked>) {
-        if let Some(walker) = &mut self.walker {
-            if walker.up(event, env.limits.walk, below).is_some() {
-                self.walker = None;
-                self.scratch = Scratch::Removing;
-                below.push(Asked::File(file::Request::Remove {
-                    owner: OWNER,
-                    root: roots.staging.fd,
-                    name: self.name.clone(),
-                    directory: true,
-                }));
+        match &mut self.scratch {
+            Scratch::Walking(walker) => {
+                if walker.up(event, env.limits.walk, below).is_some() {
+                    self.scratch = Scratch::Removing;
+                    let root = roots.staging.fd;
+                    let name = self.name.clone();
+                    below.push(Asked::File(file::Request::Remove { owner: OWNER, root, name, directory: true }));
+                }
+                return;
             }
-            return;
+            Scratch::Absent | Scratch::Made | Scratch::Removing | Scratch::Cleaned => {}
         }
         match event {
             file::Event::Made { .. } => {
@@ -244,7 +233,7 @@ impl Resolve {
             | file::Event::Conflict { .. }
             | file::Event::Failed { .. }
             | file::Event::Cancelled { .. } => {
-                if self.terminal.is_some() {
+                if self.stage.ending() {
                     self.scratch = Scratch::Cleaned;
                 } else {
                     self.fail(Ended::Start, None);
@@ -267,23 +256,18 @@ impl Resolve {
         }
     }
     fn stream(&mut self, owner: Token, up: Up, env: &Env<Limits>, above: &mut Queue<Event>) {
-        if self.terminal.is_some() {
+        if self.stage.ending() {
             return;
         }
         if let Up::Bytes(_) = &up {
             self.idle = env.now.saturating_add(env.limits.mmdebstrap.idle);
         }
-        let pipe = if self.output.token == Some(owner) { &mut self.output } else { &mut self.error };
-        assert_eq!(pipe.token, Some(owner), "current resolve pipe");
+        let pipe = if self.output.held.token() == Some(owner) { &mut self.output } else { &mut self.error };
+        assert_eq!(pipe.held.token(), Some(owner), "current resolve pipe");
         let mut seen = Queue::uncapped();
         let mut requests = Queue::uncapped();
-        output::up(
-            &mut pipe.reader,
-            &Env { now: env.now, wall: env.wall, limits: env.limits.mmdebstrap },
-            up,
-            &mut seen,
-            &mut requests,
-        );
+        let reader_env = Env { now: env.now, wall: env.wall, limits: env.limits.mmdebstrap };
+        output::up(&mut pipe.reader, &reader_env, up, &mut seen, &mut requests);
         if let Some(down) = requests.pop() {
             self.pending.push(Asked::Io(io::Request::Stream { stream: owner, down }));
         }
@@ -310,7 +294,7 @@ impl Resolve {
         }
     }
     fn too_many(&mut self, env: &Env<Limits>) {
-        self.terminal = Some(RenderEvent::Failed {
+        self.end(RenderEvent::Failed {
             request: self.request,
             class: Class::Configuration,
             at: None,
@@ -318,32 +302,36 @@ impl Resolve {
         });
     }
     pub fn index(&self) -> Option<(Token, Box<[u8]>)> {
-        self.indices.as_ref()?.arrival()
+        match &self.stage {
+            Stage::Indices(indices) | Stage::Stopping { indices, .. } => indices.arrival(),
+            Stage::Running | Stage::Ending(_) | Stage::Spent => None,
+        }
     }
     pub fn index_settled(&mut self) {
-        if let Some(indices) = &mut self.indices {
-            indices.settled();
+        match &mut self.stage {
+            Stage::Indices(indices) | Stage::Stopping { indices, .. } => indices.settled(),
+            Stage::Running | Stage::Ending(_) | Stage::Spent => {}
         }
     }
     pub fn ready(&self) -> bool {
-        if let Some(indices) = &self.indices {
-            return indices.ready();
-        }
-        !self.pending.is_empty()
-            || (self.exit.is_some()
-                && self.output.ended
-                && self.error.ended
-                && self.terminal.is_none()
-                && self.indices.is_none())
-            || (self.terminal.is_some()
-                && ((!self.closing && self.process.is_some())
-                    || (self.output.token.is_some() && !self.output.closing)
-                    || (self.error.token.is_some() && !self.error.closing)
-                    || (self.process.is_none()
-                        && self.output.token.is_none()
-                        && self.error.token.is_none()
-                        && self.walker.is_none()
-                        && self.scratch != Scratch::Removing)))
+        let ready = match &self.stage {
+            Stage::Indices(indices) | Stage::Stopping { indices, .. } => return indices.ready(),
+            Stage::Running => self.exit.is_some() && self.output.ended && self.error.ended,
+            Stage::Ending(_) => {
+                self.process.is_open()
+                    || self.output.held.is_open()
+                    || self.error.held.is_open()
+                    || (self.process.token().is_none()
+                        && self.output.held.token().is_none()
+                        && self.error.held.token().is_none()
+                        && match self.scratch {
+                            Scratch::Walking(_) | Scratch::Removing => false,
+                            Scratch::Absent | Scratch::Made | Scratch::Cleaned => true,
+                        })
+            }
+            Stage::Spent => false,
+        };
+        !self.pending.is_empty() || ready
     }
     pub fn resume(
         &mut self,
@@ -356,39 +344,10 @@ impl Resolve {
             below.push(request);
             return false;
         }
-        if let Some(indices) = &mut self.indices {
-            if self.terminal.is_some() {
-                indices.stop();
-            }
-            match indices.resume(env, above, below) {
-                Some(true) => {
-                    let lines = indices.lines();
-                    self.terminal = Some(RenderEvent::Resolved {
-                        request: self.request,
-                        lines,
-                        tools: render::resolution::Tools { apt: Box::new([]), mmdebstrap: Box::new([]) },
-                        costs: render::resolution::Costs {
-                            fetched: self.fetched,
-                            took: env.now.saturating_since(self.started),
-                        },
-                    });
-                    self.indices = None;
-                }
-                Some(false) => {
-                    self.indices = None;
-                    self.fail(Ended::Output, None);
-                }
-                None => return false,
-            }
-        }
-        if self.terminal.is_none()
-            && self.output.ended
-            && self.error.ended
-            && let Some(exit) = self.exit
-        {
-            match exit {
-                Exit::Code(0) => {
-                    self.indices = Some(crate::indices::Indices::new(
+        self.stage = match core::mem::replace(&mut self.stage, Stage::Spent) {
+            Stage::Running => match self.exit {
+                Some(exit) if self.output.ended && self.error.ended => match exit {
+                    Exit::Code(0) => Stage::Indices(Indices::new(
                         self.request,
                         roots.staging.fd,
                         &self.name,
@@ -396,57 +355,94 @@ impl Resolve {
                         &self.architecture,
                         self.file_read,
                         env,
-                    ));
-                    return false;
+                    )),
+                    Exit::Code(code) => {
+                        let failure = tail::failure(&self.error.reader, &self.output.reader);
+                        let cause = translate::resolution::cause(failure.cause, &self.lines, &failure.tail);
+                        Stage::Ending(self.failure(Ended::Exit(code), Some(cause)))
+                    }
+                    Exit::Signal(signal) => Stage::Ending(self.failure(Ended::Signal(signal), None)),
+                },
+                Some(Exit::Code(_) | Exit::Signal(_)) | None => Stage::Running,
+            },
+            Stage::Indices(mut indices) => match indices.resume(env, above, below) {
+                Some(true) => Stage::Ending(RenderEvent::Resolved {
+                    request: self.request,
+                    lines: indices.lines(),
+                    tools: render::resolution::Tools { apt: Box::new([]), mmdebstrap: Box::new([]) },
+                    costs: render::resolution::Costs {
+                        fetched: self.fetched,
+                        took: env.now.saturating_since(self.started),
+                    },
+                }),
+                Some(false) => Stage::Ending(self.failure(Ended::Output, None)),
+                None => Stage::Indices(indices),
+            },
+            Stage::Stopping { mut indices, terminal } => {
+                indices.stop();
+                match indices.resume(env, above, below) {
+                    Some(true) => unreachable!("stopped indices fail"),
+                    Some(false) => Stage::Ending(terminal),
+                    None => Stage::Stopping { indices, terminal },
                 }
-                Exit::Code(code) => {
-                    let failure = tail::failure(&self.error.reader, &self.output.reader);
-                    let cause = translate::resolution::cause(failure.cause, &self.lines, &failure.tail);
-                    self.fail(Ended::Exit(code), Some(cause));
-                }
-                Exit::Signal(signal) => self.fail(Ended::Signal(signal), None),
             }
-        }
-        if self.terminal.is_none() {
-            return false;
+            stage @ (Stage::Ending(_) | Stage::Spent) => stage,
+        };
+        match self.stage {
+            Stage::Ending(_) => {}
+            Stage::Running | Stage::Indices(_) | Stage::Stopping { .. } | Stage::Spent => return false,
         }
         for pipe in [&mut self.output, &mut self.error] {
-            if let Some(entity) = pipe.token
-                && !pipe.closing
-            {
-                pipe.closing = true;
+            if let Some(entity) = pipe.held.request_close() {
                 below.push(Asked::Io(io::Request::Close { entity }));
                 return false;
             }
         }
-        if let Some(entity) = self.process {
-            if !self.closing {
-                self.closing = true;
-                below.push(Asked::Io(io::Request::Close { entity }));
+        if let Some(entity) = self.process.request_close() {
+            below.push(Asked::Io(io::Request::Close { entity }));
+        }
+        if self.process.token().is_some() || self.output.held.token().is_some() || self.error.held.token().is_some() {
+            return false;
+        }
+        match self.scratch {
+            Scratch::Made => {
+                self.scratch =
+                    Scratch::Walking(Walker::at(env.limits.walk, roots.staging.fd, &self.name, OWNER, below));
+                return false;
             }
-            return false;
+            Scratch::Walking(_) | Scratch::Removing => return false,
+            Scratch::Absent | Scratch::Cleaned => {}
         }
-        if self.output.token.is_some() || self.error.token.is_some() {
-            return false;
+        match core::mem::replace(&mut self.stage, Stage::Spent) {
+            Stage::Ending(terminal) => above.push(Event::Render(terminal)),
+            Stage::Running | Stage::Indices(_) | Stage::Stopping { .. } | Stage::Spent => unreachable!("ending stage"),
         }
-        if self.scratch == Scratch::Removing {
-            return false;
-        }
-        if self.scratch == Scratch::Made {
-            if self.walker.is_none() {
-                self.walker = Some(Walker::at(env.limits.walk, roots.staging.fd, &self.name, OWNER, below));
-            }
-            return false;
-        }
-        above.push(Event::Render(self.terminal.take().expect("resolved terminal")));
         true
     }
 }
 
-#[derive(Debug, PartialEq, Eq)]
+#[derive(Debug)]
+#[expect(clippy::large_enum_variant, reason = "indices and their terminal stay inline without another allocation")]
+enum Stage {
+    Running,
+    Indices(Indices),
+    Stopping { indices: Indices, terminal: RenderEvent },
+    Ending(RenderEvent),
+    Spent,
+}
+impl Stage {
+    fn ending(&self) -> bool {
+        match self {
+            Self::Running | Self::Indices(_) => false,
+            Self::Stopping { .. } | Self::Ending(_) | Self::Spent => true,
+        }
+    }
+}
+#[derive(Debug)]
 enum Scratch {
     Absent,
     Made,
+    Walking(Walker),
     Removing,
     Cleaned,
 }
