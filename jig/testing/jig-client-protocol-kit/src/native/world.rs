@@ -1,6 +1,6 @@
 //! One actual reference service and native client, joined by simulated sockets.
 use super::{NativeClient, Script};
-use crate::fixtures;
+use crate::fixtures::{self, PROJECT};
 use jig_client_kit::App;
 use skein_io::kernel::{Complete, Submit};
 use skein_lib::{Duration, Queue, Secret, Time, Wall};
@@ -67,7 +67,6 @@ struct PeriodSource {
 }
 impl PeriodSource {
     fn step(&mut self, service: &mut jig_test_service::Service, client: &NativeClient) {
-        const PROJECT: u32 = 1;
         const FIRST_PERIOD: u64 = 1;
         const PERIOD_BUDGET: u64 = 100;
         if !self.supplied && client.signed_in > 0 {

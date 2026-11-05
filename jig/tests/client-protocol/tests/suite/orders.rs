@@ -3,7 +3,7 @@
 use jig_client_domain::{Ask, Asker, Held, Key, Readable, contract};
 use jig_client_protocol_link::{Event, Link, Message, Record, Request, Saved};
 use jig_client_protocol_wire::v19 as w;
-use jig_client_protocol_world::fixtures;
+use jig_client_protocol_world::fixtures::{self, PROJECT};
 use skein_lib::{Duration, Queue, Reader, RequestKey, RequestRecord, Time, Token, Writer};
 use std::collections::BTreeMap;
 
@@ -11,7 +11,6 @@ use std::collections::BTreeMap;
 // within the parent fixture's four-request table, including the replacement.
 const EXCHANGES: u32 = 4;
 const BLOCKER: Token = Token::new(100);
-const PROJECT: u32 = 1;
 const FIRST: u8 = 2;
 const CANCELLED: u8 = 3;
 const LAST: u8 = 4;

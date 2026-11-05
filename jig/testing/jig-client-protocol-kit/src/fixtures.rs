@@ -3,6 +3,8 @@ use crate::Protocol;
 use jig_client_kit::{Settings, Test, World};
 use jig_protocol_engine_clients::{Limits, Served};
 use skein_lib::{Duration, List, Secret, Time, Wall};
+pub const PROJECT: u32 = 1;
+pub const WIRE_TASK: u64 = 8;
 pub const SEED: u64 = 8510;
 pub const FIRST_OWNER: u64 = 1;
 pub const HOST: &str = "127.0.0.1:8080";
