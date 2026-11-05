@@ -214,7 +214,7 @@ pub fn render(tree: &Tree, name: &[u8], status: Option<Region>, print: &mut Prin
 fn node(tree: &Tree, at: u32, indent: u32, print: &mut Print) -> Option<u32> {
     let n = tree.get(at).expect("preorder node exists");
     match n.role {
-        Role::Page | Role::Table | Role::Slot => Some(indent),
+        Role::Page | Role::Table | Role::Group | Role::Slot => Some(indent),
         Role::Banner
         | Role::Navigation
         | Role::Main

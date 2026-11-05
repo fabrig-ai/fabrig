@@ -38,6 +38,8 @@ pub enum Role {
 
     /// A region node.
     Region,
+    /// An ordinary group of related nodes.
+    Group,
     /// A heading at a semantic level.
     Heading { level: u8 },
     /// A paragraph node.

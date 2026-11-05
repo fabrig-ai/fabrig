@@ -37,7 +37,7 @@ pub(crate) fn main(
     times: &mut Times,
 ) {
     b.open(Role::Main);
-    b.style(look::MAIN);
+    b.style(super::document::mode(root.pages().chat()));
     let configuring = configuring(root);
     b.style(look::SESSION);
     if let Some(chat) = root.pages().chat()
@@ -62,6 +62,7 @@ pub(crate) fn main(
         } else {
             crate::choice::byline(b, root, Some(task), words, bindings);
         }
+        super::document::seg(b, chat, words, bindings);
         bar_status(b, root, task, words, times);
         bar_actions(b, task, words, bindings);
         b.close();
@@ -87,6 +88,7 @@ pub(crate) fn main(
         }
         session_composer(b, root, chat, task, words, bindings);
         b.close();
+        super::document::pane(b, root, chat, task, words, times);
     }
     crate::confirm::main(b, root, words, bindings, rows);
     b.close();

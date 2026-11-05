@@ -896,6 +896,19 @@ pub const NAMES: Names<'static> = Names {
         b"temper-by-delegate",
         b"temper-turn-tool",
         b"temper-tool-file",
+        b"temper-mode-chat",
+        b"temper-mode-split",
+        b"temper-mode-draft",
+        b"temper-doc",
+        b"temper-doc-inner",
+        b"temper-doc-path",
+        b"temper-doc-sec",
+        b"temper-doc-changed",
+        b"temper-doc-note",
+        b"temper-doc-muted",
+        b"temper-seg",
+        b"temper-seg-split",
+        b"temper-rail-unfold",
     ],
     regions: &[b"temper-link"],
 };
@@ -959,3 +972,30 @@ pub const NEEDS_HOME: Style = Style { owner: owner(), token: 319 };
 
 /// Done’s intro (temper/docs/design/client/README.md, 3.5).
 pub const NEEDS_INTRO: Style = Style { owner: owner(), token: 320 };
+
+/// A chat's document (temper/docs/design/client/README.md, 3.5).
+pub const MODE_CHAT: Style = Style { owner: owner(), token: 326 };
+/// A chat's document (temper/docs/design/client/README.md, 3.5).
+pub const MODE_SPLIT: Style = Style { owner: owner(), token: 327 };
+/// A chat's document (temper/docs/design/client/README.md, 3.5).
+pub const MODE_DRAFT: Style = Style { owner: owner(), token: 328 };
+/// A chat's document (temper/docs/design/client/README.md, 3.5).
+pub const DOC: Style = Style { owner: owner(), token: 329 };
+/// A chat's document (temper/docs/design/client/README.md, 3.5).
+pub const DOC_INNER: Style = Style { owner: owner(), token: 330 };
+/// A chat's document (temper/docs/design/client/README.md, 3.5).
+pub const DOC_PATH: Style = Style { owner: owner(), token: 331 };
+/// A chat's document (temper/docs/design/client/README.md, 3.5).
+pub const DOC_SEC: Style = Style { owner: owner(), token: 332 };
+/// A chat's document (temper/docs/design/client/README.md, 3.5).
+pub const DOC_CHANGED: Style = Style { owner: owner(), token: 333 };
+/// A chat's document (temper/docs/design/client/README.md, 3.5).
+pub const DOC_NOTE: Style = Style { owner: owner(), token: 334 };
+/// A chat's document (temper/docs/design/client/README.md, 3.5).
+pub const DOC_MUTED: Style = Style { owner: owner(), token: 335 };
+/// A chat's document (temper/docs/design/client/README.md, 3.5).
+pub const SEG: Style = Style { owner: owner(), token: 336 };
+/// A chat's document (temper/docs/design/client/README.md, 3.5).
+pub const SEG_SPLIT: Style = Style { owner: owner(), token: 337 };
+/// A chat's document (temper/docs/design/client/README.md, 3.5).
+pub const RAIL_UNFOLD: Style = Style { owner: owner(), token: 338 };

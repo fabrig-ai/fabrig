@@ -503,6 +503,13 @@ pub(crate) fn rail(
     b.style(crate::look::BRAND);
     w.text(b, Word::Brand, &[]);
     b.close();
+    if w.shell == Shell::Browser && root.pages().chat().is_some() {
+        b.open(Role::Disclosure);
+        b.name(&w.say(Word::RailUnfold, &[]));
+        b.state(skein_ui::State::FoldsAway);
+        b.style(crate::look::RAIL_UNFOLD);
+        b.close();
+    }
     switcher(b, root, w, bindings, Some(project), Place::Rail);
     b.open(Role::Slot);
     b.style(crate::look::RAIL_NAV);

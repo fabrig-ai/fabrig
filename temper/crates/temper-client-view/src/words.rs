@@ -11,6 +11,16 @@ use skein_ui::{
 };
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 pub enum Word {
+    DraftGroup,
+    DraftChat,
+    DraftSplit,
+    DraftDraft,
+    DraftPath,
+    DraftEdited,
+    DraftAdded,
+    DraftChanged,
+    RailUnfold,
+
     GoalsWaySeparator,
     GoalsWayEnd,
     GoalsKicker,
@@ -992,7 +1002,8 @@ pub(crate) const SCRIPTED_MODEL: &[u8] = b"demo";
 // Needs count, toast, page and kinds add thirty-two phrases (3.5).
 // The chat working indicator adds one phrase and one segment (client/README.md, 3.5).
 // Delegation lines add seven literal phrases (client/README.md, 5.7).
-const PHRASES: u32 = 1483;
+// The document’s mode controls, path, attribution and rail add nine phrases (3.5).
+const PHRASES: u32 = 1492;
 // Ready's empty-name line has two literals and a Name hole, two more segments (3.5).
 // Ready's repository lead adds one phrase and three segments (3.5).
 // Four literals and the counted entry's two literals and Number hole add seven segments.
@@ -1011,8 +1022,18 @@ const PHRASES: u32 = 1483;
 // Byline forms add twenty-eight segments (client/README.md, 5.5).
 // Needs count, toast, page and kinds add sixty-two segments (3.5).
 // Delegation lines add seven literal segments (client/README.md, 5.7).
-const SEGMENTS: u32 = 2601;
-const ALL: [Word; 887] = [
+// The document adds twenty-one literal and hole segments (3.5).
+const SEGMENTS: u32 = 2622;
+const ALL: [Word; 896] = [
+    Word::DraftGroup,
+    Word::DraftChat,
+    Word::DraftSplit,
+    Word::DraftDraft,
+    Word::DraftPath,
+    Word::DraftEdited,
+    Word::DraftAdded,
+    Word::DraftChanged,
+    Word::RailUnfold,
     Word::GoalsWaySeparator,
     Word::GoalsWayEnd,
     Word::GoalsKicker,
@@ -2513,6 +2534,15 @@ impl Word {
             Self::DelegateMove => 156,
             Self::ToolCalls => 1040,
             Self::ToolSeparator => 1041,
+            Self::DraftGroup => 3400,
+            Self::DraftChat => 3401,
+            Self::DraftSplit => 3402,
+            Self::DraftDraft => 3403,
+            Self::DraftPath => 3404,
+            Self::DraftEdited => 3405,
+            Self::DraftAdded => 3406,
+            Self::DraftChanged => 3407,
+            Self::RailUnfold => 3408,
             Self::ToolRepeated => 1042,
             Self::ChatEnded => 1043,
             Self::ChatEndedReport => 1044,
@@ -3055,7 +3085,25 @@ impl Words {
             // New chat adds 157 and the configuring opening 476 literal bytes (client/README.md, 3.5).
             // Changes adds 367 literal bytes (client/README.md, 3.5).
             // Chats adds 141 net literal bytes (client/README.md, 3.5).
-            text_bytes: 32768 + 288 + 149 + 401 + 11 + 367 + 476 + 157 + 141 + 419 + 250 + 5 + 87 + 225 + 15 + 54 + 53,
+            // The document adds 88 literal bytes (client/README.md, 3.5).
+            text_bytes: 32768
+                + 288
+                + 149
+                + 401
+                + 11
+                + 367
+                + 476
+                + 157
+                + 141
+                + 419
+                + 250
+                + 5
+                + 87
+                + 225
+                + 15
+                + 54
+                + 53
+                + 88,
             // Whole playground requests keep their supplied bound.
             hole_bytes: joined
                 .max(byline_bytes(joined)?)
@@ -3700,6 +3748,15 @@ fn english(word: Word, shell: Shell) -> (&'static [&'static [u8]], &'static [Hol
         Word::Milestone => (&[b"Milestone ", b""], &[Number]),
         Word::ToolCalls => (&[b"", b" tool calls"], &[Number]),
         Word::ToolSeparator => (&[b" \xc2\xb7 "], &[]),
+        Word::DraftGroup => (&[b"The draft"], &[]),
+        Word::DraftChat => (&[b"Chat"], &[]),
+        Word::DraftSplit => (&[b"Split"], &[]),
+        Word::DraftDraft => (&[b"Draft"], &[]),
+        Word::DraftPath => (&[b"docs/design/draft/", b".md"], &[Name]),
+        Word::DraftEdited => (&[b"edited ", b""], &[Name]),
+        Word::DraftAdded => (&[b"Added by T", b" ", b""], &[Number, Name]),
+        Word::DraftChanged => (&[b"Changed by T", b" ", b""], &[Number, Name]),
+        Word::RailUnfold => (&[b"Show the rail"], &[]),
         Word::ToolRepeated => (&[b"", b" \xc3\x97", b""], &[Name, Number]),
         Word::TimeClosed => (&[b"Closed ", b""], &[Name]),
         Word::ChatClosed | Word::ClosedChats => (&[b"Closed"], &[]),

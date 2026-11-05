@@ -321,6 +321,7 @@ fn base(role: Role, id: u32) -> Element {
         | Role::MenuItem
         | Role::Disclosure
         | Role::Figure
+        | Role::Group
         | Role::Slot
         | Role::Drawing => {}
     }
@@ -410,6 +411,7 @@ pub const fn accessible(role: Role) -> &'static [&'static [u8]] {
         Role::Form => &[b"form"],
         Role::Search => &[b"search"],
         Role::Region => &[b"region"],
+        Role::Group => &[b"group"],
         Role::Heading { .. } => &[b"heading"],
         Role::Paragraph => &[b"paragraph"],
         Role::Text => &[b"StaticText"],
@@ -514,6 +516,7 @@ fn name(e: &mut Element, made: &Made) {
             | Role::Separator
             | Role::Menu
             | Role::Figure
+            | Role::Group
             | Role::Slot
             | Role::Drawing => e.set("aria-label", &words(name)),
         }
@@ -599,6 +602,7 @@ fn value(e: &mut Element, made: &Made) {
             | Role::Disclosure
             | Role::Image
             | Role::Figure
+            | Role::Group
             | Role::Slot
             | Role::Drawing => e.set("value", &words(&value.text)),
         }
@@ -608,6 +612,7 @@ fn value(e: &mut Element, made: &Made) {
 fn tag(role: Role) -> (&'static str, Option<&'static str>) {
     match role {
         Role::Page | Role::Slot => ("div", None),
+        Role::Group => ("div", Some("group")),
         Role::Banner => ("header", None),
         Role::Navigation => ("nav", None),
         Role::Main => ("main", None),

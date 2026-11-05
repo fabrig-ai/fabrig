@@ -94,6 +94,7 @@ const BINDING_ROLES: &[(Role, bool)] = &[
     (Role::Form, false),
     (Role::Search, false),
     (Role::Region, false),
+    (Role::Group, false),
     (Role::Heading { level: 1 }, false),
     (Role::Paragraph, false),
     (Role::Text, false),
