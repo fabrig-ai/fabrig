@@ -610,6 +610,9 @@ pub(crate) fn answer(engine: &mut Engine) {
             jig_protocol_store::Event::Corrupt { owner } if crate::forge::gone::owns(owner) => {
                 stop::unavailable(engine, b"forge secrets erase");
             }
+            jig_protocol_store::Event::Corrupt { owner } if owner == crate::accounts::WRONG_KIND => {
+                stop::unavailable(engine, b"accounts secrets");
+            }
             event @ (jig_protocol_store::Event::SecretsNotReady { owner }
             | jig_protocol_store::Event::Kept { owner }
             | jig_protocol_store::Event::Stale { owner }

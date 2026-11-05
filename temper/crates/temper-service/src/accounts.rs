@@ -10,6 +10,9 @@ use temper_engine_domain as root;
 
 const PREFIX: u64 = crate::tokens::ACCOUNTS;
 
+/// The owner of a secret of the wrong kind, above every exchange the accounts' host issues.
+pub(crate) const WRONG_KIND: Token = Token::new(PREFIX | (1_u64 << 59));
+
 /// One pass of the host: each output is routed before the next is asked for.
 pub(crate) fn iterate(
     accounts: &mut Accounts,
@@ -33,7 +36,7 @@ pub(crate) fn iterate(
                     accounts.answer(event);
                 }
             }
-            Some(Output::InvalidSecret) => store.host.above.push(store::Event::Corrupt { owner: Token::new(0) }),
+            Some(Output::InvalidSecret) => store.host.above.push(store::Event::Corrupt { owner: WRONG_KIND }),
             None => (),
         }
     }
