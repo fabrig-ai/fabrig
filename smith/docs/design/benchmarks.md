@@ -940,6 +940,9 @@ Each runs in milliseconds, within the focused and fuzzy budgets.
   usage a provider sends with its failure is told as null (8.2, a
   retried failure). Whether a failure should carry it is skein's
   `llm.md`'s question.
+- **A failure's kind in a summary:** a harness failure has a kind, and only
+  its words reach a result: `HarnessError` and `Refused` hold text (8.3).
+  Default: so; a summary that counts by kind changes the result's format.
 
 ## 16. Parity with Codex
 

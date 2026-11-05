@@ -732,20 +732,19 @@ fn agent_shortfall(w: &Words, why: c::AgentShortfall) -> Box<[u8]> {
         S::Spend => W::AgentSpend,
         S::Time => W::AgentTime,
         S::Waiting => W::AgentWaiting,
-        S::Checks => W::AgentChecks,
+        S::Checks { .. } => W::AgentChecks,
         S::Message => W::AgentMessage,
         S::Inbox => W::AgentInbox,
         S::Unacknowledged => W::AgentUnacknowledged,
     };
     match why {
+        S::Checks { charter } => w.say(word, &[Hole::Number(u64::from(charter))]),
         S::Model { charter, model } | S::Window { charter, model } | S::Output { charter, model } => sentences(
             w,
             w.say(word, &[Hole::Number(u64::from(charter))]),
             w.say(W::AgentModelPosition, &[Hole::Number(u64::from(model))]),
         ),
-        S::Turns | S::Spend | S::Time | S::Waiting | S::Checks | S::Message | S::Inbox | S::Unacknowledged => {
-            w.say(word, &[])
-        }
+        S::Turns | S::Spend | S::Time | S::Waiting | S::Message | S::Inbox | S::Unacknowledged => w.say(word, &[]),
     }
 }
 fn account_wait(

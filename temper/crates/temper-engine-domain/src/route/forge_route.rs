@@ -2589,7 +2589,6 @@ pub(crate) enum ChangeRefused {
 
 /// Build a plan's changes together; jig admits all of them in one delegation.
 /// Plan members require the control family (domain/agent.md, 4.3.1).
-#[expect(clippy::too_many_lines, reason = "the batch resolves plan members before admitting delegates together")]
 pub(crate) fn change_batch(
     domain: &Domain,
     env: &Env<Limits>,
@@ -2597,6 +2596,103 @@ pub(crate) fn change_batch(
     context: &tasks::DelegationContext,
     changes: &[crate::ChangeCall],
 ) -> Result<Box<[super::Delegate]>, ChangeRefused> {
+    change_plan_authority(domain, task, context, changes)?;
+    let Ok(count) = u32::try_from(changes.len()) else {
+        return Err(ChangeRefused::Refusal(tasks::Refusal::Batch));
+    };
+    if count == 0 {
+        return Err(ChangeRefused::Refusal(tasks::Refusal::Batch));
+    }
+    let spend = change_batch_spend(context, count)?;
+    let rooms = change_task_rooms(env, context.tasks_left, changes, count)?;
+    let mut batch = List::with_capacity(count);
+    for (index, change) in changes.iter().enumerate() {
+        let earlier = changes.get(..index).expect("earlier changes in this batch");
+        let dependencies = change_dependencies(change, earlier)?;
+        let mut member_context = context.clone();
+        if count > 1 {
+            member_context.tasks_left = rooms.get(index).expect("one room per member").saturating_add(1);
+        }
+        let mut member = change_member(domain, env, task, &member_context, change, batch.as_slice(), spend)?;
+        member.dependencies = dependencies;
+        batch.push(member).expect("bounded change batch");
+    }
+    Ok(batch.into_boxed())
+}
+
+/// Share descendants equally, redistributing room beyond a member's policy cap.
+fn change_task_rooms(
+    env: &Env<Limits>,
+    available: u32,
+    changes: &[crate::ChangeCall],
+    count: u32,
+) -> Result<Box<[u32]>, ChangeRefused> {
+    if count == 1 && available == 0 {
+        return Ok(Box::new([0]));
+    }
+    if u64::from(available) < u64::from(count).saturating_mul(2) {
+        return Err(change_task_refusal(available, count));
+    }
+    let mut rooms = List::with_capacity(count);
+    for _change in changes {
+        rooms.push(0_u32).expect("one room per change");
+    }
+    let mut rooms = rooms.into_boxed();
+    let mut left = available.saturating_sub(count);
+    let mut active = count;
+    // Each pass fills a share or reaches a policy cap; a final pass assigns the remainder.
+    for _round in 0..count.saturating_add(1) {
+        if left == 0 || active == 0 {
+            break;
+        }
+        let share = left.checked_div(active).expect("nonempty share").max(1);
+        active = 0;
+        for (room, change) in rooms.iter_mut().zip(changes) {
+            let cap = change_task_limit(env, change);
+            let take = cap.saturating_sub(*room).min(share).min(left);
+            *room = room.saturating_add(take);
+            left = left.saturating_sub(take);
+            if *room < cap {
+                active = active.saturating_add(1);
+            }
+        }
+    }
+    Ok(rooms)
+}
+
+fn change_task_limit(env: &Env<Limits>, change: &crate::ChangeCall) -> u32 {
+    let policy = env.limits.forge.change_policy;
+    if change.questions == Some(crate::ChangeQuestions::Foreman) {
+        policy.tasks.saturating_add(policy.questions)
+    } else {
+        policy.tasks
+    }
+}
+
+fn change_task_refusal(available: u32, count: u32) -> ChangeRefused {
+    let mut words = List::with_capacity(384);
+    append(&mut words, b"change batch: task tree limit; available ");
+    append(&mut words, &decimal(u64::from(available)));
+    append(&mut words, b" tasks, required ");
+    append(&mut words, &decimal(u64::from(count).saturating_mul(2)));
+    append(&mut words, b" (one change task and at least one descendant per member). ");
+    if available >= 2 {
+        append(&mut words, b"Fewer changes per call can fit; ended tasks still count against lifetime authority.");
+    } else {
+        append(
+            &mut words,
+            b"Fewer changes per call cannot help: even one change needs two tasks of lifetime authority.",
+        );
+    }
+    ChangeRefused::Words(words.into_boxed())
+}
+
+fn change_plan_authority(
+    domain: &Domain,
+    task: u64,
+    context: &tasks::DelegationContext,
+    changes: &[crate::ChangeCall],
+) -> Result<(), ChangeRefused> {
     let plan = match changes {
         [change] => {
             change.name.is_some()
@@ -2627,12 +2723,10 @@ pub(crate) fn change_batch(
     if let Some(words) = super::goal::change_refusal(domain, task) {
         return Err(ChangeRefused::Words(words));
     }
-    let Ok(count) = u32::try_from(changes.len()) else {
-        return Err(ChangeRefused::Refusal(tasks::Refusal::Batch));
-    };
-    if count == 0 {
-        return Err(ChangeRefused::Refusal(tasks::Refusal::Batch));
-    }
+    Ok(())
+}
+
+fn change_batch_spend(context: &tasks::DelegationContext, count: u32) -> Result<u64, ChangeRefused> {
     let available = context
         .numbers
         .budget
@@ -2643,99 +2737,113 @@ pub(crate) fn change_batch(
         .checked_sub(context.numbers.reserved)
         .ok_or(ChangeRefused::Refusal(tasks::Refusal::Funding))?;
     let spend = (available / 2).checked_div(u64::from(count)).ok_or(ChangeRefused::Refusal(tasks::Refusal::Batch))?;
-    let mut remaining = context.clone();
-    let mut batch = List::with_capacity(count);
-    for (index, change) in changes.iter().enumerate() {
-        if plan && remaining.tasks_left <= 1 {
-            return Err(ChangeRefused::Refusal(tasks::Refusal::Tree));
+    Ok(spend)
+}
+
+fn change_dependencies(
+    change: &crate::ChangeCall,
+    earlier: &[crate::ChangeCall],
+) -> Result<Box<[jig_domain_core::Dependency]>, ChangeRefused> {
+    for prior in earlier {
+        if change.name.is_some() && change.name == prior.name {
+            return Err(ChangeRefused::Refusal(tasks::Refusal::Duplicate));
         }
-        let earlier = changes.get(..index).expect("earlier changes in this batch");
-        for prior in earlier {
-            if change.name.is_some() && change.name == prior.name {
-                return Err(ChangeRefused::Refusal(tasks::Refusal::Duplicate));
-            }
-        }
-        let Ok(dependency_count) = u32::try_from(change.after.len()) else {
-            return Err(ChangeRefused::Refusal(tasks::Refusal::Dependencies));
-        };
-        let mut dependencies = List::with_capacity(dependency_count);
-        for after in &change.after {
-            let dependency = match after {
-                crate::ChangeAfter::Task(number) => jig_domain_core::Dependency::Existing(*number),
-                crate::ChangeAfter::Name(name) => {
-                    let mut found = None;
-                    for (at, prior) in earlier.iter().enumerate() {
-                        if prior.name.as_deref() == Some(name.as_ref()) {
-                            found = Some(u32::try_from(at).expect("bounded change batch"));
-                            break;
-                        }
-                    }
-                    jig_domain_core::Dependency::Batch(
-                        found.ok_or(ChangeRefused::Refusal(tasks::Refusal::Dependencies))?,
-                    )
-                }
-            };
-            dependencies.push(dependency).expect("bounded change dependencies");
-        }
-        let repository = match change_repository(domain, context.project, change.repository.as_deref()) {
-            Ok(repository) => repository,
-            Err(why) => return Err(ChangeRefused::Refusal(why)),
-        };
-        let branch = change_branch(domain, env, task, &repository, change, batch.as_slice())?;
-        if change.merge.is_some() {
-            if domain.forge.merge_job(context.project).is_none() {
-                return Err(ChangeRefused::Words(Box::from(
-                    b"change's merge: the project names no merge_job.".as_slice(),
-                )));
-            }
-            if !context.authority.delegation.kinds.contains(&tasks::AuthorityExecutor::Job(forge::MERGE_KIND)) {
-                return Err(ChangeRefused::Words(Box::from(
-                    b"change's merge: its authority does not delegate to the merge job.".as_slice(),
-                )));
-            }
-        }
-        let base = change_landing(domain, env, task, &repository, change.landing.as_ref())?;
-        if let Some(commit) = change.repairs {
-            let red = domain.forge.landing_red(repository.provider, &commit, &base);
-            if red != forge::LandingRed::Red {
-                let name = repository_name(&repository);
-                // Fixed refusal words, commit digits, and the two bounded branch names.
-                let capacity = 128_u32
-                    .checked_add(u32::try_from(name.len()).expect("repository name fits u32"))
-                    .expect("bounded repository name")
-                    .checked_add(env.limits.forge.name_bytes.saturating_mul(2))
-                    .expect("bounded repairs refusal");
-                let mut words = List::with_capacity(capacity);
-                append(&mut words, b"repairs: ");
-                append(&mut words, &commit_text(&commit));
-                match red {
-                    forge::LandingRed::Unknown => {
-                        append(&mut words, b" is no live landing of temper's in ");
-                        append(&mut words, &name);
-                        append(&mut words, b".");
-                    }
-                    forge::LandingRed::Elsewhere { branch } => {
-                        append(&mut words, b" landed into ");
-                        append(&mut words, &branch);
-                        append(&mut words, b", not ");
-                        append(&mut words, &base);
-                        append(&mut words, b".");
-                    }
-                    forge::LandingRed::NotRed => append(&mut words, b" is red in no tier."),
-                    forge::LandingRed::Red => unreachable!("red landings admit repairs"),
-                }
-                return Err(ChangeRefused::Words(words.into_boxed()));
-            }
-        }
-        let mut member = match chat_change(domain, env, &remaining, change, &repository, base, branch, spend) {
-            Ok(member) => member,
-            Err(why) => return Err(ChangeRefused::Refusal(why)),
-        };
-        member.dependencies = dependencies.into_boxed();
-        remaining.tasks_left = remaining.tasks_left.saturating_sub(1).saturating_sub(member.authority.delegation.tasks);
-        batch.push(member).expect("bounded change batch");
     }
-    Ok(batch.into_boxed())
+    let Ok(dependency_count) = u32::try_from(change.after.len()) else {
+        return Err(ChangeRefused::Refusal(tasks::Refusal::Dependencies));
+    };
+    let mut dependencies = List::with_capacity(dependency_count);
+    for after in &change.after {
+        let dependency = match after {
+            crate::ChangeAfter::Task(number) => jig_domain_core::Dependency::Existing(*number),
+            crate::ChangeAfter::Name(name) => {
+                let mut found = None;
+                for (at, prior) in earlier.iter().enumerate() {
+                    if prior.name.as_deref() == Some(name.as_ref()) {
+                        found = Some(u32::try_from(at).expect("bounded change batch"));
+                        break;
+                    }
+                }
+                jig_domain_core::Dependency::Batch(found.ok_or(ChangeRefused::Refusal(tasks::Refusal::Dependencies))?)
+            }
+        };
+        dependencies.push(dependency).expect("bounded change dependencies");
+    }
+    Ok(dependencies.into_boxed())
+}
+
+fn change_member(
+    domain: &Domain,
+    env: &Env<Limits>,
+    task: u64,
+    context: &tasks::DelegationContext,
+    change: &crate::ChangeCall,
+    earlier: &[super::Delegate],
+    spend: u64,
+) -> Result<super::Delegate, ChangeRefused> {
+    let repository = match change_repository(domain, context.project, change.repository.as_deref()) {
+        Ok(repository) => repository,
+        Err(why) => return Err(ChangeRefused::Refusal(why)),
+    };
+    let branch = change_branch(domain, env, task, &repository, change, earlier)?;
+    if change.merge.is_some() {
+        if domain.forge.merge_job(context.project).is_none() {
+            return Err(ChangeRefused::Words(Box::from(b"change's merge: the project names no merge_job.".as_slice())));
+        }
+        if !context.authority.delegation.kinds.contains(&tasks::AuthorityExecutor::Job(forge::MERGE_KIND)) {
+            return Err(ChangeRefused::Words(Box::from(
+                b"change's merge: its authority does not delegate to the merge job.".as_slice(),
+            )));
+        }
+    }
+    let base = change_landing(domain, env, task, &repository, change.landing.as_ref())?;
+    change_repairs(domain, env, change, &repository, &base)?;
+    match chat_change(domain, env, context, change, &repository, base, branch, spend) {
+        Ok(member) => Ok(member),
+        Err(why) => Err(ChangeRefused::Refusal(why)),
+    }
+}
+
+fn change_repairs(
+    domain: &Domain,
+    env: &Env<Limits>,
+    change: &crate::ChangeCall,
+    repository: &forge::Repository,
+    base: &[u8],
+) -> Result<(), ChangeRefused> {
+    if let Some(commit) = change.repairs {
+        let red = domain.forge.landing_red(repository.provider, &commit, base);
+        if red != forge::LandingRed::Red {
+            let name = repository_name(repository);
+            // Fixed refusal words, commit digits, and the two bounded branch names.
+            let capacity = 128_u32
+                .checked_add(u32::try_from(name.len()).expect("repository name fits u32"))
+                .expect("bounded repository name")
+                .checked_add(env.limits.forge.name_bytes.saturating_mul(2))
+                .expect("bounded repairs refusal");
+            let mut words = List::with_capacity(capacity);
+            append(&mut words, b"repairs: ");
+            append(&mut words, &commit_text(&commit));
+            match red {
+                forge::LandingRed::Unknown => {
+                    append(&mut words, b" is no live landing of temper's in ");
+                    append(&mut words, &name);
+                    append(&mut words, b".");
+                }
+                forge::LandingRed::Elsewhere { branch } => {
+                    append(&mut words, b" landed into ");
+                    append(&mut words, &branch);
+                    append(&mut words, b", not ");
+                    append(&mut words, base);
+                    append(&mut words, b".");
+                }
+                forge::LandingRed::NotRed => append(&mut words, b" is red in no tier."),
+                forge::LandingRed::Red => unreachable!("red landings admit repairs"),
+            }
+            return Err(ChangeRefused::Words(words.into_boxed()));
+        }
+    }
+    Ok(())
 }
 
 fn change_repository(domain: &Domain, project: u32, named: Option<&[u8]>) -> Result<forge::Repository, tasks::Refusal> {
@@ -2938,12 +3046,7 @@ fn chat_change(
         kinds.push(tasks::AuthorityExecutor::Job(forge::MERGE_KIND)).expect("merge kind");
     }
     authority.delegation.kinds = kinds.into_boxed();
-    let tasks = if foreman {
-        env.limits.forge.change_policy.tasks.saturating_add(env.limits.forge.change_policy.questions)
-    } else {
-        env.limits.forge.change_policy.tasks
-    };
-    authority.delegation.tasks = tasks.min(context.tasks_left.saturating_sub(1));
+    authority.delegation.tasks = change_task_limit(env, change).min(context.tasks_left.saturating_sub(1));
     authority.delegation.depth = 2.min(authority.delegation.depth.saturating_sub(1));
     authority.budget.spend = spend;
     authority.notes = tasks::Scopes(0);

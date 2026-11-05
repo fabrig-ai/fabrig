@@ -951,6 +951,11 @@ unless marked:
   token holds `api.responses.write`. How the owner runs them, and whether
   a sign-in of the user's that holds the scope returns the public route's
   stories to the automatic suite, are decided later.
+- **Anthropic's decoded bound.** `anthropic::decoded_bound` is OpenAI's with
+  Anthropic's added (4), so it counts OpenAI's request items, which Anthropic
+  never holds. Dropping them changes what a public function returns. Its one
+  reader outside the crate, `skein-fake-llm-protocol`, asks only whether it
+  is `Some`, so it can shrink when a consumer wants the room.
 
 ## 7. Open questions
 
