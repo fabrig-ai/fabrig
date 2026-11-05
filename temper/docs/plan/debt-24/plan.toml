@@ -1,0 +1,22 @@
+draft = "debt-24"
+repo = "fabrig"
+sources = ["temper/docs/plan/debt-24/inputs/request.md", "temper/docs/plan/debt-24/inputs/debt22-review.md", "skein/docs/development/debt/D028-worlds-as-kits.md", "skein/docs/development/debt/D030-forge-connection-harness-tests.md", "jig/docs/development/debt/D029-protocol-front-one-identity.md", "jig/docs/development/debt/D031-worlds-as-kits.md", "jig/docs/development/debt/D035-bare-numbers-in-worlds.md"]
+
+# plan.md says what was decided and why.
+
+[buffer]
+low = 1.0
+high = 2.0
+
+[[part]]
+id = "spot-review"
+title = "debt-22's spot review: one row walk, Forgejo's shared helpers and small Writing, the sign-in's fields in its grant, AccountEntry answers for itself, and tables keep what can fail"
+mode = "direct"
+needs = []
+design = "skein/docs/design/forge.md, 3.7"
+
+[[slice]]
+id = 1
+story = "every finding but the second is done or skipped with a reason, has_work agrees with fire, and net lines fall"
+parts = ["spot-review"]
+walk = false
