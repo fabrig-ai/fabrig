@@ -87,3 +87,111 @@ id = 2
 story = "the fake model writes and changes a chat's document, proved through temper ctl; a client can read it whole"
 parts = ["person-words", "notes-list", "chat-stock", "person-facts", "fake-document"]
 walk = false
+
+[[part]]
+id = "chat-state"
+title = "temper: a chat's document in the domain, read live"
+mode = "direct"
+needs = ["chat-stock", "person-words"]
+design = "temper/docs/design/client/README.md, 3.5"
+
+[[part]]
+id = "chats-base"
+title = "what ui-chats has by now, on this trunk"
+mode = "direct"
+needs = ["chat-state"]
+design = "temper/docs/design/client/README.md, 3.5"
+
+[[slice]]
+id = 3
+story = "the client's domain holds a chat's document, and the draw starts from ui-chats' page"
+parts = ["chat-state", "chats-base"]
+walk = false
+
+[[part]]
+id = "document-pane"
+title = "configure-chat-draft's pane, group and strip, on a configuring chat"
+mode = "direct"
+needs = ["chats-base", "skein-keys"]
+design = "temper/docs/design/client/README.md, 3.5"
+
+[[part]]
+id = "start-over"
+title = "Start over, and a configuring chat's line"
+mode = "direct"
+needs = ["document-pane"]
+design = "temper/docs/design/client/README.md, 3.5"
+
+[[part]]
+id = "chat-bar"
+title = "every chat's group, tool line and Show"
+mode = "direct"
+needs = ["start-over"]
+design = "temper/docs/design/client/README.md, 3.5"
+
+[[part]]
+id = "add-draft"
+title = "+ Draft, on a chat and at NewChat { draft }"
+mode = "direct"
+needs = ["chat-bar"]
+design = "temper/docs/design/client/README.md, 3.5"
+
+[[slice]]
+id = 4
+story = "a chat writes a document beside its conversation, in Chat, Split and Draft"
+parts = ["document-pane", "start-over", "chat-bar", "add-draft"]
+walk = false
+
+[[part]]
+id = "goal-sheet-state"
+title = "Start goal, in the domain"
+mode = "direct"
+needs = ["add-draft", "person-facts", "person-words"]
+design = "temper/docs/design/client/README.md, 3.5"
+
+[[part]]
+id = "goal-sheet"
+title = "the sheet, Start goal… and Goal TITLE →"
+mode = "direct"
+needs = ["goal-sheet-state"]
+design = "temper/docs/design/client/README.md, 3.5"
+
+[[part]]
+id = "chats-drafts"
+title = "the Chats page under Drafts"
+mode = "direct"
+needs = ["goal-sheet", "notes-list"]
+design = "temper/docs/design/client/README.md, 3.5"
+
+[[part]]
+id = "rail-menu"
+title = "new-menu, landed with its account"
+mode = "direct"
+needs = ["chats-drafts"]
+design = "temper/docs/design/client/README.md, 5.3"
+
+[[slice]]
+id = 5
+story = "a goal starts from a chat's document, Chats says who writes what, and the rail offers the ways to start work"
+parts = ["goal-sheet-state", "goal-sheet", "chats-drafts", "rail-menu"]
+walk = false
+
+[[part]]
+id = "chat-draft-journey"
+title = "the journey chat-draft, recorded"
+mode = "direct"
+needs = ["rail-menu", "fake-document"]
+design = "temper/docs/design/client/journeys.md, 9"
+
+[[part]]
+id = "draft-proof"
+title = "the renders beside the mock, configure-chat-draft's account, the status"
+mode = "direct"
+needs = ["chat-draft-journey"]
+design = "temper/docs/design/client/browser.md, 2.5"
+
+[[slice]]
+id = 6
+story = "the whole look proved beside the mock and the requests, with its recording and its account"
+parts = ["chat-draft-journey", "draft-proof"]
+walk = false

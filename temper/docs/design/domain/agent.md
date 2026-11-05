@@ -838,6 +838,8 @@ agents must do stays text its runs read.
   and proposes; only an owner's decision changes settings (jig's
   `domain/engine.md`, 17.6). A member's configuring chat proposes as
   an owner's does, and its proposal waits for an owner.
+- **It writes down how it understood the person** as the chat's document, "How
+  PROJECT works", kept current as the conversation changes it (8.3).
 - **Started from ctl** with `chat start --project PROJECT --template 3
   TEXT` (`../client/tools.md`, 5.3), and from the client's `Configure`,
   which "Tell temper how you work" opens (`../client/README.md`, 3.5).

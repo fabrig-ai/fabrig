@@ -920,8 +920,8 @@ pass.
 What is true of a person, kept by the engine so that it holds on every
 device and across restarts, each a `PersonFact`: `ToBegin { project }`, "Skip"
 on that project's "To begin" (`../draft/to-begin.md`, section 5); and `GoalFrom
-{ project, chat, goal }`, that the person started goal `goal` from chat `chat`'s
-document (`../client/README.md`, 3.5). It owes nothing to the forge: the
+{ project, chat, goal, at }`, that the person started goal `goal` from chat `chat`'s
+document, at the client's clock's `at` (`../client/README.md`, 3.5). It owes nothing to the forge: the
 connector keeps it because `Stored` holds every family of temper's, as it does
 `Binding` (`../protocol/store.md`, section 2).
 

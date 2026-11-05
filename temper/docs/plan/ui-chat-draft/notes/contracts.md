@@ -118,3 +118,92 @@ Wire and store: `enum PersonFact { to_begin: ToBegin, goal_from: GoalFrom }`, `r
 `DISMISSED`. `erase_project` matches both kinds. A key is written `party`, the kind's tag, then its fields in order.
 
 The client's forge side: `dismissed(fact: PersonFact) -> bool` as it is, and `goals_from(project, chat) -> impl Iterator<Item = u64>`, its rows in key order. A `GoalFrom`'s refusal or answer changes no page: its `ask` keeps Home's `skip_refused` for `ToBegin` alone.
+
+Revision 1, for the task `goal-sheet-state`, which makes it: `GoalFrom { project: u32, chat: u64, goal: u64, at: u64 }`, `at` the client's wall clock as it sends, so that the chat can place its line
+among its turns: no task document on this base says when a task was made.
+
+## The chat page's state
+
+```rust
+// temper-client-domain/src/pages/chat/document.rs
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+pub enum Mode { Chat, Split, Draft }
+
+/// A chat's document as last read (client/README.md, 3.5).
+#[derive(Clone, Debug, PartialEq, Eq)]
+pub struct Document { pub note: u64, pub revision: u32, pub title: Box<[u8]>, pub body: Box<[u8]>, pub changed: Option<Wall> }
+
+/// What a `note` call's answer says.
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+pub enum NoteChange { First { lines: u32 }, Later { added: u32, removed: u32, first: u32 } }
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+pub struct NoteWrite { pub note: u64, pub revision: u32, pub change: NoteChange }
+pub fn note_write(outcome: &[u8]) -> Option<NoteWrite>;
+
+/// The mock's slug of a title, 28 characters, "untitled" when empty.
+pub fn slug(title: &[u8]) -> Box<[u8]>;
+/// One section: its 1-based first line, its heading's bytes, and its bytes.
+pub struct Section<'a> { pub line: u32, pub heading: &'a [u8], pub bytes: &'a [u8] }
+/// The body split at each `#` and `##` line, a fenced block's lines not counting.
+pub fn sections(body: &[u8]) -> impl Iterator<Item = Section<'_>>;
+/// The index of the section holding a line, the last if it's past the end.
+pub fn section_holding(body: &[u8], line: u32) -> usize;
+
+// temper-client-domain/src/pages.rs, re-exported at `pages::drafts_offered`
+/// True while `me` lists a template of the project with `tracked` and no conversation flag.
+pub fn drafts_offered(me: &Me, project: u32) -> bool;
+```
+
+```rust
+// temper-client-domain/src/pages/chat.rs: Chat gains
+pub mode: Mode,                         // Chat on open, per page; `Chat::new` takes it for `NewChat { draft }`'s start
+pub draft: Option<Document>,            // the request's `document`: `Chat.document` is the task's watch handle
+pub writing: bool,                      // "+ Draft" pressed, or a draft's start: the empty pane
+pub wanted: bool,                       // a read wanted while one is out
+pub shown: Option<u32>,                 // `Act::ShowSection`'s line; the view's focus and flash
+pub shown_count: u64,                   // moved on each show, `b.focus`'s count
+draft_read: Handle,                     // `first + 2`; `next` moves to `first + 3`
+draft_asking: Asking,                   // as `asking`'s retries; `fire`, `next_deadline` and `leave` hold both
+notes_seen: u64,                        // the newest `note` call's number the page has answered with a read
+// pages.rs: Act gains Mode { mode: Mode }, ShowSection { line: u32 }, then AddDraft, StartOver and the sheet's, each in its task
+```
+
+The newest `note` call in the window, whose answer parses, is `Chat::newest_write(&self) -> Option<NoteWrite>`, by walking blocks backwards as `Chat::delegations` does. `document.rs` is the one place that reads a `note` call's words.
+
+## The look
+
+| Token (`look.rs`) | Class | Rule copied from |
+|---|---|---|
+| `MODE_CHAT`, `MODE_SPLIT`, `MODE_DRAFT` | `temper-mode-chat`, `-split`, `-draft` | the overlay's |
+| `DOC`, `DOC_INNER`, `DOC_PATH` | `temper-doc`, `temper-doc-inner`, `temper-doc-path` | the overlay's |
+| `DOC_SEC`, `DOC_CHANGED`, `DOC_NOTE`, `DOC_FLASH`, `DOC_MUTED`, `DOC_EMPTY` | `temper-doc-sec`, `-changed`, `-note`, `-flash`, `-muted`, `-empty` | the overlay's; the last three the mock's `.doc-sec.flash`, `@keyframes flash`, `.doc-muted`, `.doc-empty` |
+| `SEG`, `SEG_SPLIT` | `temper-seg`, `temper-seg-split` | the overlay's |
+| `RAIL_UNFOLD` | `temper-rail-unfold` | the overlay's |
+| `START_OVER` | `temper-start-over` | the overlay's |
+| `SHEET`, `OPTION`, `FIELD`, `TEXT`, `SHEET_FOOT`, `SHEET_ERROR` | `temper-sheet`, `-option`, `-field`, `-text`, `-sheet-foot`, `-sheet-error` | the mock's `dialog.sheet`, `.option`, `.field`, `.text`, `.foot` |
+| `RAIL_NEW` stays; `RAIL_NEW_ALL` | `temper-rail-new`, `temper-rail-new-all` | `new-menu`'s |
+
+The overlay's selectors under `#app > .temper-session` are kept as they are. A node carries two tokens: a session's main takes `SESSION` and its mode's, `MAIN`'s rules moving to `.temper-session` if they're needed. The icons `chat.svg`, `split.svg` and `doc.svg` go in `temper-client-shell-web/files/`, each the mock's `ICON` drawn in the look's ink, as `send.svg` is, since a `url()` takes no `currentColor`; `pen.svg` is `ui-chats`' `tool-lines'`.
+
+The rail's strip button is a disclosure, `Role::Disclosure` named "Show the rail", `State::FoldsAway`, `RAIL_UNFOLD`, its body empty, drawn in the browser only, so that no state is held and a press outside it or Escape folds it (skein's `ui-web.md`, 7). The rule that opens the rail over the page reads `:has(> .temper-rail-unfold[open])`.
+
+## In the terminal
+
+In Chat, the conversation alone. In Split or Draft, the document after the conversation, as a region named its title. `Mode` is chosen with `Act::Mode` as a press of "Chat", "Split" or "Draft", which print as any button. A phone isn't a shell: the look shows Split as Draft.
+
+## A chat's sheet
+
+```rust
+// temper-client-domain/src/pages/chat/sheet.rs
+pub struct Sheet { pub name: Box<[u8]>, pub way: usize, pub budget: Box<[u8]>, pub out: Option<Key>, pub refusal: Option<Refused> }
+pub enum Refused { Jig(Box<[u8]>), NotOffered(jig_client::shapes::NotOffered), TooLong }
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+pub enum WayKind { LandWhole, TaskByTask, Agreed }
+pub struct Way { pub template: u32, pub kind: WayKind }
+/// In the sheet's order: each offered tracked non-conversation template with a symbolic resource; template 2; template 2 agreed.
+pub fn ways(me: &Me, project: u32) -> List<Way>;
+// pages.rs: Act gains SheetOpen, SheetName { name }, SheetWay { way: usize }, SheetBudget { budget }, SheetCancel, SheetStart
+// pages/chat.rs: Chat gains `pub sheet: Option<Sheet>`
+```
+
+"+ Draft" sends `pub const WRITE_THIS_UP: &[u8] = b"Write this up as a draft beside us.";`, in `pages/chat/document.rs`.
