@@ -933,7 +933,7 @@ ${events.length ? `\n${events.map(esc).join('\n')}\n` : ''}<span class="cursor">
     const here = `${location.pathname.split('/').pop()}${location.search}`;
     const everyday = '<a href="home.html">Home</a><a href="needs.html">Needs you</a><a href="goals.html">Goals</a><a href="goal.html?g=first-run-projects">A goal</a><a href="chat.html?id=T4">Draft session</a><a href="chats.html">Chats</a><a href="changes.html">Changes</a><a href="settings.html">Settings</a>';
     const first = `<a href="box.html">Terminal</a><a href="welcome.html?at=welcome">Welcome</a><a href="welcome.html?at=forge">Forge</a><a href="welcome.html?at=model">Model</a><a href="welcome.html?at=ready">Ready</a>${S.setup.made ? '<a href="home.html">Home</a><a href="chats.html">Chats</a><a href="settings.html">Settings</a>' : ''}`;
-    return `<button type="button" class="mock-fab" data-mock aria-expanded="false">Mockup</button>
+    return `<button type="button" class="mock-toggle" data-mock aria-expanded="false">Mockup</button>
       <div class="mock-panel" id="mock-panel">
         <h3>Scenario</h3>
         <label><input type="radio" name="mode" value="everyday"${FIRST ? '' : ' checked'}> Everyday: fabrig and hello</label>

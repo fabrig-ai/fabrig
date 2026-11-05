@@ -416,7 +416,7 @@ button.plain { padding: 0; border: 0; background: none; font: inherit; color: in
 .toast { position: fixed; left: 50%; bottom: 28px; z-index: 50; display: flex; align-items: center; gap: 16px; max-width: calc(100% - 32px); padding: 10px 14px 10px 18px; border-radius: 10px; background: var(--ink); color: #fff; font-size: 14px; opacity: 0; pointer-events: none; transform: translate(-50%, 16px); transition: opacity .2s, transform .2s; }
 .toast.show { opacity: 1; pointer-events: auto; transform: translate(-50%, 0); }
 .toast button, .toast a { padding: 0; border: 0; background: none; color: #fff; text-decoration: underline; font-size: 14px; }
-.mock-fab { position: fixed; right: 16px; bottom: 16px; z-index: 60; padding: 5px 12px; border: 1px solid #cfd8e1; border-radius: 16px; background: #e8edf2; color: #2b3a48; font: 12px var(--mono); }
+.mock-toggle { position: fixed; right: 16px; bottom: 16px; z-index: 60; padding: 5px 12px; border: 1px solid #cfd8e1; border-radius: 16px; background: #e8edf2; color: #2b3a48; font: 12px var(--mono); }
 .mock-panel { position: fixed; right: 16px; bottom: 54px; z-index: 60; display: none; width: 280px; padding: 14px 16px; border: 1px solid #cfd8e1; border-radius: 12px; background: #f3f6f9; color: #26313c; font-size: 13px; line-height: 1.5; box-shadow: 0 12px 32px rgba(20, 30, 40, .16); }
 .mock-panel.open { display: flex; flex-direction: column; gap: 12px; }
 .mock-panel h3 { margin: 0; font-size: 11px; letter-spacing: .06em; text-transform: uppercase; color: #52616f; }
@@ -424,7 +424,7 @@ button.plain { padding: 0; border: 0; background: none; font: inherit; color: in
 .mock-panel a { color: #2f5d86; }
 .mock-panel .pages { display: flex; flex-wrap: wrap; gap: 4px 12px; }
 .mock-panel button.reset { align-self: flex-start; padding: 4px 10px; border: 1px solid #cfd8e1; border-radius: 6px; background: #fff; color: #26313c; font-size: 12.5px; }
-html.framed .mock-fab, html.framed .mock-panel { display: none !important; }
+html.framed .mock-toggle, html.framed .mock-panel { display: none !important; }
 
 /* Narrow: the phone. */
 @media (max-width: 760px) {
@@ -461,7 +461,7 @@ html.framed .mock-fab, html.framed .mock-panel { display: none !important; }
   .decision .late { max-width: 8em; }
   .setting { grid-template-columns: minmax(0, 1fr); }
   .toast { bottom: 88px; }
-  .mock-fab { bottom: 84px; }
+  .mock-toggle { bottom: 84px; }
   .mock-panel { bottom: 122px; }
   .flow-q { font-size: 23px; }
   .session-top { padding: 10px 12px; gap: 8px; }
@@ -470,7 +470,7 @@ html.framed .mock-fab, html.framed .mock-panel { display: none !important; }
   .seg .split { display: none; }
   .session[data-mode=split] { grid-template-columns: minmax(0, 1fr); }
   .session[data-mode=split] .doc { display: none; }
-  .session-top .right .byline, .session-app ~ .mock-fab, .session-app ~ .mock-panel { display: none; }
+  .session-top .right .byline, .session-app ~ .mock-toggle, .session-app ~ .mock-panel { display: none; }
   .thread { padding: 20px 16px; }
   .convo-foot { padding: 8px 12px 14px; }
   .doc { padding: 24px 20px 60px; border-left: 0; }
