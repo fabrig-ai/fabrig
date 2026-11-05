@@ -32,6 +32,7 @@ pub fn table(full: &[u8], protected: Option<&[u8]>) -> skein_fake_forge_protocol
         repositories,
         max_response_items: 8,
         default_paging_num: 30,
+        sources: Box::new([]),
         hooks: None,
         faults: skein_fake_forge_protocol::Faults { reset: 0, drop: 0, server_error: 0 },
     }

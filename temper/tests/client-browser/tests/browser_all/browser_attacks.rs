@@ -28,6 +28,8 @@ fn cross_origin_requests_and_framing_cannot_act_as_the_person() {
         Step::Person(PersonStep::Gone { find: live.clone(), within: ABSENT }),
         Step::Person(PersonStep::Go { address: target.page.into() }),
         see(Find::exactly_named(Role::Heading { level: 1 }, b"Chats")),
+        see(tier.states().live),
+        temper_client_browser_world::connected(),
         Step::Person(PersonStep::Press { find: Find::exactly_named(Role::Link, b"Settings") }),
         see(live.clone()),
     ];
@@ -37,6 +39,8 @@ fn cross_origin_requests_and_framing_cannot_act_as_the_person() {
             see(Find::exactly_named(Role::Heading { level: 1 }, b"Forged requests completed")),
             Step::Person(PersonStep::Go { address: target.page.into() }),
             see(Find::exactly_named(Role::Heading { level: 1 }, b"Chats")),
+            see(tier.states().live),
+            temper_client_browser_world::connected(),
             Step::Person(PersonStep::Gone { find: target.done.clone(), within: ABSENT }),
             Step::Person(PersonStep::Press { find: Find::exactly_named(Role::Link, b"Settings") }),
             see(live.clone()),

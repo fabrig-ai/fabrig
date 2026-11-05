@@ -73,6 +73,7 @@ fn form(given: &Given, target: &Target) -> (Box<[u8]>, Box<[u8]>) {
         | Need::Done(
             Outcome::Nothing
             | Outcome::Created { .. }
+            | Outcome::Copied { .. }
             | Outcome::Identity { .. }
             | Outcome::Reachable { .. }
             | Outcome::Lacking { .. }

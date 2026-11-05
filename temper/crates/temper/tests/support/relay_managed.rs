@@ -19,7 +19,10 @@ use std::{
     time::Duration,
 };
 
-const REPO: &str = "/repos/freeekanayaka/temper-probe-2";
+/// The sitting's repository: fixed names, never inputs, so no run can point the guard at another
+/// account. The fake run is the live sitting's dry run, and shares them.
+pub const OWNER: &str = "fabrig-ai";
+pub const NAME: &str = "temper-probe-2";
 fn invalid() -> io::Error {
     io::Error::other("managed relay invalid request or response")
 }
@@ -73,6 +76,9 @@ struct Shared {
     fake: bool,
     transport: Transport,
     guard: Guard,
+    /// The login that makes the App: Connect makes it under the person's own account
+    /// (protocol/setup.md, 17.2), so a conversion's owner is a User, never the guard's owner.
+    person: String,
     state: Mutex<State>,
     journal: Mutex<File>,
     evidence: Mutex<File>,
@@ -132,15 +138,15 @@ impl State {
             .or_else(|| authorization.strip_prefix("token "))
             .is_some_and(|token| self.tokens.iter().any(|known| known == token))
     }
-    fn learn_repositories(&mut self, value: &Value) -> Result<(), Refusal> {
+    fn learn_repositories(&mut self, value: &Value, guard: &Guard) -> Result<(), Refusal> {
         self.checked = false;
         let rows =
             value["repositories"].as_array().ok_or_else(|| Refusal::label("learn:installation-repositories-array"))?;
         if value["total_count"] != 1
             || rows.len() != 1
-            || rows[0]["owner"]["login"] != "freeekanayaka"
-            || rows[0]["name"] != "temper-probe-2"
-            || rows[0].get("full_name").is_some_and(|name| name != "freeekanayaka/temper-probe-2")
+            || rows[0]["owner"]["login"] != guard.owner
+            || rows[0]["name"] != guard.repository
+            || rows[0].get("full_name").is_some_and(|name| name != &format!("{}/{}", guard.owner, guard.repository))
         {
             return Err(Refusal {
                 reason: "learn:installation-repositories-not-exactly-probe-2",
@@ -161,6 +167,12 @@ fn installation(path: &str) -> Option<u64> {
     positive(path.strip_prefix("/app/installations/")?)
 }
 impl Shared {
+    fn repo(&self) -> String {
+        format!("/repos/{}", self.full_name())
+    }
+    fn full_name(&self) -> String {
+        format!("{}/{}", self.guard.owner, self.guard.repository)
+    }
     fn git_allowed(&self, state: &State, method: &str, target: &str, body: &[u8], auth: &str) -> bool {
         let path = target.split('?').next().unwrap_or("");
         if !state.checked || !state.token(auth, true) {
@@ -173,13 +185,13 @@ impl Shared {
             };
             let known = |name: &str| value[name].as_u64().is_some_and(|id| state.commits.contains(&id));
             return match path {
-                "/.fake/git/clone" => value == json!({"repository":"freeekanayaka/temper-probe-2"}),
+                "/.fake/git/clone" => value == json!({"repository":self.full_name()}),
                 "/.fake/git/objects" => value["commits"].as_array().is_some_and(|ids| {
                     !ids.is_empty() && ids.iter().all(|id| id.as_u64().is_some_and(|id| state.commits.contains(&id)))
                 }),
                 "/.fake/git/commit" => known("parent") && value["tree"].is_array() && value["message"].is_string(),
                 "/.fake/git/create" | "/.fake/git/push" => {
-                    value["repository"] == "freeekanayaka/temper-probe-2"
+                    value["repository"] == self.full_name()
                         && value["branch"] == format!("{}managed", self.guard.prefix)
                         && known("commit")
                 }
@@ -271,22 +283,23 @@ impl Shared {
         {
             return Ok(true);
         }
-        if method == "GET" && (path == REPO || path.starts_with(&format!("{REPO}/"))) {
+        let repo = self.repo();
+        if method == "GET" && (path == repo || path.starts_with(&format!("{repo}/"))) {
             return Ok(true);
         }
         let value = serde_json::from_slice::<Value>(&body).unwrap_or(Value::Null);
-        if method == "POST" && path == format!("{REPO}/pulls") {
+        if method == "POST" && path == format!("{repo}/pulls") {
             return Ok(value["head"] == format!("{}managed", self.guard.prefix) && value["base"] == "main");
         }
         if method == "PATCH"
             && let Some(number) = path
-                .strip_prefix(&format!("{REPO}/pulls/"))
-                .or_else(|| path.strip_prefix(&format!("{REPO}/issues/")))
+                .strip_prefix(&format!("{repo}/pulls/"))
+                .or_else(|| path.strip_prefix(&format!("{repo}/issues/")))
                 .and_then(positive)
         {
             return Ok(state.pulls.contains(&number) && value == json!({"state":"closed"}));
         }
-        Ok(method == "DELETE" && path == format!("{REPO}/git/refs/heads/{}managed", self.guard.prefix))
+        Ok(method == "DELETE" && path == format!("{repo}/git/refs/heads/{}managed", self.guard.prefix))
     }
     fn learn(&self, request: &Request, answer: &Answer) -> Result<(), Refusal> {
         let (method, target) = request.route().map_err(|_| Refusal::label("learn:request-route"))?;
@@ -328,7 +341,7 @@ impl Shared {
                     }
                 }
             }
-            if value["owner"]["login"] != "freeekanayaka" {
+            if value["owner"]["login"] != self.person {
                 return Err(Refusal::label("learn:conversion-owner"));
             }
             state.app = Some(value["id"].as_u64().ok_or_else(|| Refusal::label("learn:conversion-app-id"))?);
@@ -341,7 +354,7 @@ impl Shared {
         }
         if method == "GET"
             && installation(path).is_some()
-            && value["account"]["login"] == "freeekanayaka"
+            && value["account"]["login"] == self.guard.owner
             && (value.get("app_id").is_none() || value["app_id"].as_u64() == state.app)
         {
             state.installations.insert(value["id"].as_u64().ok_or_else(|| Refusal::label("learn:installation-id"))?);
@@ -352,15 +365,16 @@ impl Shared {
             state.tokens.push(token.into());
         }
         if method == "GET" && path == "/installation/repositories" {
-            state.learn_repositories(&value)?;
+            state.learn_repositories(&value, &self.guard)?;
         }
+        let repo = self.repo();
         if method == "GET"
-            && path == format!("{REPO}/pulls")
+            && path == format!("{repo}/pulls")
             && let Some(rows) = value.as_array()
         {
             for row in rows {
                 if row["head"]["ref"] == format!("{}managed", self.guard.prefix)
-                    && (row["head"]["repo"]["full_name"] == "freeekanayaka/temper-probe-2"
+                    && (row["head"]["repo"]["full_name"] == self.full_name()
                         || self.fake && row["head"].get("repo").is_none())
                 {
                     state
@@ -369,7 +383,7 @@ impl Shared {
                 }
             }
         }
-        if method == "POST" && path == format!("{REPO}/pulls") {
+        if method == "POST" && path == format!("{repo}/pulls") {
             state.pulls.insert(value["number"].as_u64().ok_or_else(|| Refusal::label("learn:created-pull-number"))?);
         }
         Ok(())
@@ -490,6 +504,10 @@ pub fn run() -> io::Result<()> {
     let directory = PathBuf::from(std::env::var_os("TEMPER_MANAGED_SCRATCH").ok_or_else(invalid)?);
     let prefix = std::env::var("TEMPER_MANAGED_PREFIX").map_err(|_| invalid())?;
     let mode = std::env::var("TEMPER_MANAGED_MODE").map_err(|_| invalid())?;
+    let person = std::env::var("TEMPER_MANAGED_PERSON").map_err(|_| invalid())?;
+    if person.is_empty() {
+        return Err(invalid());
+    }
     let fake = match mode.as_str() {
         "fake" => Some(
             std::env::var("TEMPER_MANAGED_UPSTREAM")
@@ -504,7 +522,8 @@ pub fn run() -> io::Result<()> {
     let shared = Arc::new(Shared {
         fake: fake.is_some(),
         transport: Transport::new(fake)?,
-        guard: Guard { owner: "freeekanayaka".into(), repository: "temper-probe-2".into(), installation: 0, prefix },
+        guard: Guard { owner: OWNER.into(), repository: NAME.into(), installation: 0, prefix },
+        person,
         state: Mutex::new(State::default()),
         journal: Mutex::new(
             OpenOptions::new()
@@ -567,6 +586,53 @@ pub fn run() -> io::Result<()> {
     Ok(())
 }
 
+#[cfg(test)]
+const REPO: &str = "/repos/acme/temper-probe-2";
+
+#[cfg(test)]
+fn policy_shared() -> Shared {
+    Shared {
+        fake: true,
+        transport: Transport::new(Some("127.0.0.1:9".parse().expect("loopback"))).expect("plain transport"),
+        guard: Guard {
+            owner: "acme".into(),
+            repository: "temper-probe-2".into(),
+            installation: 0,
+            prefix: "temper/live-test/".into(),
+        },
+        person: "alice".into(),
+        state: Mutex::new(State::default()),
+        journal: Mutex::new(OpenOptions::new().write(true).open("/dev/null").expect("discard test journal")),
+        evidence: Mutex::new(OpenOptions::new().write(true).open("/dev/null").expect("discard evidence")),
+    }
+}
+
+#[test]
+fn a_conversion_is_admitted_from_the_person_alone() {
+    let request = Request::from_bytes(b"POST /app-manifests/code/conversions HTTP/1.1\r\nHost: local\r\n\r\n")
+        .expect("conversion request");
+    for (login, reason, app) in [
+        ("acme", Some("learn:conversion-owner"), None),
+        ("other", Some("learn:conversion-owner"), None),
+        ("alice", None, Some(42)),
+    ] {
+        let mut shared = policy_shared();
+        let path =
+            skein_scratch::paths::target_tmp().join(format!("managed-conversion-{}-{login}.json", std::process::id()));
+        std::fs::create_dir_all(path.parent().expect("test directory")).expect("test directory");
+        shared.evidence = Mutex::new(
+            OpenOptions::new().create_new(true).write(true).mode(0o600).open(&path).expect("conversion evidence"),
+        );
+        let body = json!({"id":42,"slug":"temper","owner":{"login":login,"type":"User"}}).to_string();
+        let wire = format!("HTTP/1.1 201 Created\r\nContent-Length: {}\r\n\r\n{body}", body.len());
+        let answer = Answer::from_bytes(wire.as_bytes()).expect("conversion answer");
+        assert_eq!(shared.learn(&request, &answer).err().map(|refusal| refusal.reason), reason, "{login}");
+        assert_eq!(shared.state.lock().expect("state").app, app, "{login}");
+        drop(shared);
+        std::fs::remove_file(path).expect("remove conversion evidence");
+    }
+}
+
 #[test]
 #[expect(
     clippy::disallowed_methods,
@@ -582,11 +648,12 @@ fn journal_distinguishes_learn_redirect_guard_and_upstream_refusals() {
         fake: true,
         transport: Transport::new(Some(upstream.local_addr().expect("upstream address"))).expect("transport"),
         guard: Guard {
-            owner: "freeekanayaka".into(),
+            owner: "acme".into(),
             repository: "temper-probe-2".into(),
             installation: 0,
             prefix: "temper/live-test/".into(),
         },
+        person: "alice".into(),
         state: Mutex::new(State { tokens: vec!["private-token".into()], ..State::default() }),
         journal: Mutex::new(
             OpenOptions::new().create_new(true).read(true).write(true).mode(0o600).open(&path).expect("journal"),
@@ -671,11 +738,12 @@ fn delivery_polls_have_their_own_cap_and_leave_the_git_budget_available() {
         fake: true,
         transport: Transport::new(Some("127.0.0.1:9".parse().expect("loopback"))).expect("plain transport"),
         guard: Guard {
-            owner: "freeekanayaka".into(),
+            owner: "acme".into(),
             repository: "temper-probe-2".into(),
             installation: 0,
             prefix: "temper/live-test/".into(),
         },
+        person: "alice".into(),
         state: Mutex::new(State {
             app: Some(42),
             checked: true,
@@ -697,7 +765,7 @@ fn delivery_polls_have_their_own_cap_and_leave_the_git_budget_available() {
         assert!(shared.allows(&list, false).expect("list poll"));
         assert!(shared.allows(&detail, false).expect("detail poll"));
     }
-    let git = Request::from_bytes(b"POST /.fake/git/clone HTTP/1.1\r\nHost: local\r\nAuthorization: Basic eC1hY2Nlc3MtdG9rZW46ZmFrZS1taW50ZWQ=\r\nContent-Length: 45\r\n\r\n{\"repository\":\"freeekanayaka/temper-probe-2\"}")
+    let git = Request::from_bytes(b"POST /.fake/git/clone HTTP/1.1\r\nHost: local\r\nAuthorization: Basic eC1hY2Nlc3MtdG9rZW46ZmFrZS1taW50ZWQ=\r\nContent-Length: 36\r\n\r\n{\"repository\":\"acme/temper-probe-2\"}")
         .expect("git framing");
     assert!(shared.allows(&git, true).expect("git after 1000 polls"));
     assert_eq!(shared.state.lock().expect("state").count, 1);
@@ -754,13 +822,13 @@ fn secret_scan_finds_a_planted_journal_secret() {
 fn conversion_evidence_keeps_only_the_owners_allowlisted_values() {
     let value = json!({"id":42,"slug":"temper","pem":"private PEM","client_id":"oauth-id",
         "client_secret":"oauth-secret","webhook_secret":"hook-secret",
-        "owner":{"login":"freeekanayaka","type":"User","id":123,"nested":{"secret":false}},
+        "owner":{"login":"alice","type":"User","id":123,"nested":{"secret":false}},
         "permissions":{"contents":"write"},"events":["push"],"unknown":[{"key":"secret"},true,null,42]});
     let result = redact(&value, "");
     assert_eq!(result["id"], json!({"type":"number","value":42}));
     assert_eq!(result["pem"], json!({"type":"string"}));
     assert_eq!(result["client_id"], json!({"type":"string"}));
-    assert_eq!(result["owner"]["login"]["value"], "freeekanayaka");
+    assert_eq!(result["owner"]["login"]["value"], "alice");
     assert_eq!(result["owner"]["id"], json!({"type":"number"}));
     assert_eq!(result["permissions"]["contents"]["value"], "write");
     assert_eq!(result["events"][0]["value"], "push");
@@ -784,19 +852,7 @@ fn guard_binds_conversion_credentials_repository_and_run_writes() {
         wire.extend(body);
         Request::from_bytes(&wire).expect("test framing")
     }
-    let shared = Shared {
-        fake: true,
-        transport: Transport::new(Some("127.0.0.1:9".parse().expect("loopback"))).expect("plain transport"),
-        guard: Guard {
-            owner: "freeekanayaka".into(),
-            repository: "temper-probe-2".into(),
-            installation: 0,
-            prefix: "temper/live-test/".into(),
-        },
-        state: Mutex::new(State::default()),
-        journal: Mutex::new(OpenOptions::new().write(true).open("/dev/null").expect("discard test journal")),
-        evidence: Mutex::new(OpenOptions::new().write(true).open("/dev/null").expect("discard evidence")),
-    };
+    let shared = policy_shared();
     let allowed = |method: &str, path: &str, auth: &str, body: Value, git: bool| {
         shared.allows(&request(method, path, auth, &body), git).expect("guard")
     };
@@ -813,14 +869,8 @@ fn guard_binds_conversion_credentials_repository_and_run_writes() {
     assert!(allowed("GET", "/installation/repositories", "Bearer fake-minted", json!({}), false));
     shared.state.lock().expect("state").checked = true;
     assert!(allowed("GET", REPO, "Bearer fake-minted", json!({}), false));
-    assert!(!allowed("GET", "/repos/freeekanayaka/temper-probe", "Bearer fake-minted", json!({}), false));
-    assert!(!allowed(
-        "GET",
-        "/repos/freeekanayaka/temper-probe-2/%2e%2e/other",
-        "Bearer fake-minted",
-        json!({}),
-        false
-    ));
+    assert!(!allowed("GET", "/repos/acme/temper-probe", "Bearer fake-minted", json!({}), false));
+    assert!(!allowed("GET", "/repos/acme/temper-probe-2/%2e%2e/other", "Bearer fake-minted", json!({}), false));
     assert!(!allowed("GET", "/repositories/2", "Bearer fake-minted", json!({}), false));
     assert!(allowed(
         "POST",
@@ -843,21 +893,21 @@ fn guard_binds_conversion_credentials_repository_and_run_writes() {
         "POST",
         "/.fake/git/create",
         basic,
-        json!({"repository":"freeekanayaka/temper-probe-2","branch":"temper/live-test/managed","commit":1}),
+        json!({"repository":"acme/temper-probe-2","branch":"temper/live-test/managed","commit":1}),
         true
     ));
     assert!(!allowed(
         "POST",
         "/.fake/git/create",
         basic,
-        json!({"repository":"freeekanayaka/temper-probe-2","branch":"main","commit":1}),
+        json!({"repository":"acme/temper-probe-2","branch":"main","commit":1}),
         true
     ));
     assert!(!allowed(
         "POST",
         "/.fake/git/create",
         basic,
-        json!({"repository":"freeekanayaka/temper-probe","branch":"temper/live-test/managed","commit":1}),
+        json!({"repository":"acme/temper-probe","branch":"temper/live-test/managed","commit":1}),
         true
     ));
 }

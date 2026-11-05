@@ -31,6 +31,7 @@ pub enum RecordKind {
     Receipt,
     Tier,
     Verification,
+    Making,
     Dismissed,
 }
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
@@ -226,7 +227,10 @@ impl Reconciliation {
             }
             Stored::Application { outcome, .. } => match outcome {
                 crate::ApplicationOutcome::Adopted(row) => self.repository(RecordKind::Application, row.repository),
-                crate::ApplicationOutcome::CoreRefused(_) | crate::ApplicationOutcome::ForgeRefused(_) => Ok(()),
+                crate::ApplicationOutcome::CoreRefused(_)
+                | crate::ApplicationOutcome::ForgeRefused(_)
+                | crate::ApplicationOutcome::MakeKept
+                | crate::ApplicationOutcome::MakeRefused(_) => Ok(()),
             },
             Stored::Writer(row) => self.need(RecordKind::Writer, Need::Forge(row.forge)),
             // Landing history outlives tasks (domain/forge.md, 7.2).
@@ -238,6 +242,7 @@ impl Reconciliation {
             | Stored::Landed { .. }
             | Stored::Setting(_)
             | Stored::Binding { .. }
+            | Stored::Making(_)
             | Stored::Dismissed { .. } => Ok(()),
             Stored::Flight { task, entry } => self.need(RecordKind::Flight, Need::Entry { task: *task, entry: *entry }),
         }
@@ -340,6 +345,7 @@ impl Domain {
             | RecordKind::Client
             | RecordKind::Release
             | RecordKind::Writer
+            | RecordKind::Making
             | RecordKind::Binding
             | RecordKind::Dismissed
             | RecordKind::Setting

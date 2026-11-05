@@ -532,6 +532,7 @@ pub enum Application {
 /// The family's terminal answer; root returns are volatile, like forge setup answers.
 #[derive(Clone, Debug, PartialEq, Eq)]
 pub enum ApplicationAnswer {
+    Make(forge::MakeAnswer),
     Adopt(forge::ApplicationOutcome),
     SetUp(forge::SetUpAnswer),
     RemoveForge(forge::RemoveAnswer),
@@ -713,6 +714,10 @@ pub enum PartyInput {
 /// and 4). Every output crosses the journal door in its peer's vocabulary.
 #[derive(PartialEq, Eq, Debug)]
 pub enum Request {
+    /// A making's copy mark has crossed the root (temper/docs/design/domain/forge.md, 4.5).
+    MakingCopied {
+        key: forge::MakingKey,
+    },
     /// Playground routing (temper/docs/design/protocol/setup.md, 8.4).
     PlaygroundActs {
         request: Token,

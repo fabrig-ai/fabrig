@@ -1,13 +1,15 @@
 //! Requests counted at their HTTP entrance (fake-forge.md, section 4).
 use skein_lib::Map;
-// 73 HTTP routes and the ten git routes.
-pub(crate) const ROUTES: u32 = 83;
+// 75 HTTP routes and the ten git routes.
+pub(crate) const ROUTES: u32 = 85;
 use skein_forge::forgejo::request::Request;
 #[derive(Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Hash, Debug)]
 pub enum Route {
     Org,
     CreateOrg,
     CreateRepository,
+    Migrate,
+    DeleteRepository,
     CreateFile,
     Teams,
     CreateTeam,
@@ -94,6 +96,8 @@ impl Route {
             Self::Git(_) => true,
             Self::Org
             | Self::CreateFile
+            | Self::Migrate
+            | Self::DeleteRepository
             | Self::CreateRepository
             | Self::CreateOrg
             | Self::Teams
@@ -177,6 +181,8 @@ pub fn route(request: &Request) -> Route {
         Request::Org { .. } => Route::Org,
         Request::CreateFile { .. } => Route::CreateFile,
         Request::CreateRepository { .. } => Route::CreateRepository,
+        Request::Migrate { .. } => Route::Migrate,
+        Request::DeleteRepository { .. } => Route::DeleteRepository,
         Request::CreateOrg { .. } => Route::CreateOrg,
         Request::Teams { .. } => Route::Teams,
         Request::CreateTeam { .. } => Route::CreateTeam,

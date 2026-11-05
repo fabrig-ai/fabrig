@@ -2,7 +2,9 @@
 use alloc::boxed::Box;
 use jig_domain_core as core;
 use jig_domain_fleet as fleet;
+use jig_domain_host::Assignment;
 use jig_domain_tasks as tasks;
+use jig_protocol_charter::{self as charter, EndpointName};
 use jig_protocol_tools as kit;
 use jig_test_domain as root;
 use skein_lib::{Map, ReplyTo, Token};
@@ -153,81 +155,12 @@ pub(super) fn number(bytes: &[u8]) -> Option<u32> {
     }
     Some(value)
 }
-
-pub(super) fn charter(
-    value: root::Assignment,
-    names: &[jig_protocol_charter::EndpointName],
-    deployment: &[u8; 16],
-) -> Option<jig_domain_host::Assignment> {
-    use jig_domain_host as host;
-    use jig_protocol_charter as charter;
-    use skein_lib::List;
-    let mut sections = List::with_capacity(u32::try_from(value.brief.len()).ok()?);
-    for placed in value.brief {
-        let section = match placed {
-            jig_domain_brief::GatherPlaced::Core { kind, text } => charter::Section { title: title(kind).into(), text },
-            jig_domain_brief::GatherPlaced::CoreMissing { kind, .. } => {
-                charter::Section { title: title(kind).into(), text: b"[missing]".as_slice().into() }
-            }
-            jig_domain_brief::GatherPlaced::Missing { .. } => {
-                charter::Section { title: b"Context".as_slice().into(), text: b"[missing]".as_slice().into() }
-            }
-            jig_domain_brief::GatherPlaced::Connector { .. } => return None,
-        };
-        sections.push(section).ok()?;
-    }
+pub(super) fn charter(value: root::Assignment, names: &[EndpointName], deployment: &[u8; 16]) -> Option<Assignment> {
     let tools = declarations(value.run.policy.call_timeout, value.run.authority.tools.0)?;
-    let translated =
-        charter::charter(charter::assignment(*value.run, sections.into_boxed(), tools, !value.transcript.is_empty())?)?;
-    let encoded = charter::encode(translated, names, &charter::limits())?;
-    let mut messages = List::with_capacity(u32::try_from(value.messages.len()).ok()?);
-    for word in value.messages {
-        messages
-            .push(host::StartMessage {
-                name: Token::new(word.number),
-                sender: charter::sender(word.from),
-                finish_requested: word.finish_requested(),
-                words: jig_protocol_tools::words(&word),
-            })
-            .ok()?;
-    }
-    let mut answered = List::with_capacity(u32::try_from(value.answered.len()).ok()?);
-    for call in value.answered {
-        answered.push(replay(call)).ok()?;
-    }
-    Some(host::Assignment {
-        assignment: host::RunAssignment {
-            run: Token::new(value.task),
-            attempt: Token::new(value.attempt),
-            identity: charter::run_identity(deployment, value.task, value.conversation),
-            workspace: None,
-            save: false,
-            live: host::LiveAsk { text: value.live.text, reasoning: value.live.reasoning, input: value.live.input },
-            charter: encoded,
-            grants: value.grants,
-        },
-        turns: value.transcript,
-        answered: answered.into_boxed(),
-        messages: messages.into_boxed(),
-    })
-}
-fn replay(value: core::Settled) -> jig_domain_host::AnsweredCall {
-    use jig_domain_host as host;
-    let core::Settled { key, call } = value;
-    host::AnsweredCall {
-        name: jig_protocol_charter::call_name(&jig_protocol_charter::CallKey {
-            activation: key.attempt,
-            completion: key.completion,
-            position: key.position,
-        }),
-        tool: call.tool,
-        answer: match call.answer {
-            core::SettledAnswer::Host { error, body } => host::SettledAnswer::Host { error, body },
-            core::SettledAnswer::Delivery { outcome, evidence } => {
-                host::SettledAnswer::Delivery { outcome: delivery(outcome), evidence }
-            }
-        },
-    }
+    let answered = u32::try_from(value.answered.len()).ok()?;
+    let messages = u32::try_from(value.messages.len()).ok()?;
+    let given = charter::Given { tools, endpoints: names, deployment, limits: &charter::limits(), answered, messages };
+    charter::hosted(&value, given)
 }
 fn declarations(timeout: skein_lib::Duration, families: u64) -> Option<Box<[jig_protocol_charter::Tool]>> {
     let mut tools = skein_lib::List::with_capacity(u32::try_from(kit::declarations().len()).ok()?);
@@ -251,29 +184,6 @@ fn declarations(timeout: skein_lib::Duration, families: u64) -> Option<Box<[jig_
     }
     Some(tools.into_boxed())
 }
-const fn delivery(value: core::DeliveryOutcome) -> jig_domain_host::DeliveryOutcome {
-    match value {
-        core::DeliveryOutcome::Delivered => jig_domain_host::DeliveryOutcome::Delivered,
-        core::DeliveryOutcome::Nothing => jig_domain_host::DeliveryOutcome::Nothing,
-        core::DeliveryOutcome::Stale => jig_domain_host::DeliveryOutcome::Stale,
-        core::DeliveryOutcome::Refused | core::DeliveryOutcome::Invalid => jig_domain_host::DeliveryOutcome::Refused,
-        core::DeliveryOutcome::Failed => jig_domain_host::DeliveryOutcome::Failed,
-    }
-}
-const fn title(kind: jig_domain_brief::Core) -> &'static [u8] {
-    match kind {
-        jig_domain_brief::Core::Task => b"Task",
-        jig_domain_brief::Core::Lineage => b"Requesters",
-        jig_domain_brief::Core::Results => b"Results",
-        jig_domain_brief::Core::Plan => b"Plan",
-        jig_domain_brief::Core::Attempts => b"Attempts",
-        jig_domain_brief::Core::Calls => b"Calls",
-        jig_domain_brief::Core::Waiting => b"Waiting",
-        jig_domain_brief::Core::NotesIndex => b"Notes",
-        jig_domain_brief::Core::TranscriptTail => b"Conversation",
-    }
-}
-
 fn family(name: &[u8]) -> u64 {
     let jig = core::ToolFamilies::JIG;
     match name {

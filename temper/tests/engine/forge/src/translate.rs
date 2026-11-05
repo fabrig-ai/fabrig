@@ -389,7 +389,8 @@ pub fn answer_as(
                 })
                 .collect(),
         },
-        forge::Answer::Comment { .. }
+        forge::Answer::Copied { .. }
+        | forge::Answer::Comment { .. }
         | forge::Answer::Dependencies(_)
         | forge::Answer::Labels(_)
         | forge::Answer::Artifacts(_)

@@ -123,6 +123,14 @@ fn target(request: &Request, out: &mut Target) -> Method {
             out.segment(name);
             Method::Get
         }
+        Request::Migrate { .. } => {
+            out.put(b"/api/v1/repos/migrate");
+            Method::Post
+        }
+        Request::DeleteRepository { at } => {
+            out.repo(at);
+            Method::Delete
+        }
         Request::CreateRepository { org, .. } => {
             org_target(out, org, b"/repos");
             Method::Post
@@ -246,9 +254,37 @@ fn body(json: &mut Encoder, request: &Request) {
             super::hooks::specification(json, hook, false);
         }
         Request::RepoHooks { .. }
+        | Request::DeleteRepository { .. }
         | Request::DeleteRepoHook { .. }
         | Request::OrgHooks { .. }
         | Request::DeleteOrgHook { .. } => unreachable!("hook has no body"),
+        Request::Migrate { at, from } => {
+            json.object_start();
+            json.key(b"clone_addr");
+            json.string(from);
+            json.key(b"repo_owner");
+            json.string(&at.owner);
+            json.key(b"repo_name");
+            json.string(&at.name);
+            json.key(b"service");
+            json.string(b"git");
+            json.key(b"private");
+            json.boolean(true);
+            for key in [
+                b"mirror".as_slice(),
+                b"issues",
+                b"labels",
+                b"milestones",
+                b"pull_requests",
+                b"releases",
+                b"wiki",
+                b"lfs",
+            ] {
+                json.key(key);
+                json.boolean(false);
+            }
+            json.object_end();
+        }
         Request::CreateRepository { name, private, .. } => {
             json.object_start();
             json.key(b"name");

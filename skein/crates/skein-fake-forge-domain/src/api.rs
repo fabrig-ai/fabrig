@@ -215,6 +215,14 @@ pub enum Read {
 /// The writes, each answered by [`Answer::Done`] unless it says otherwise.
 #[derive(Clone, PartialEq, Eq, Hash, Debug)]
 pub enum Write {
+    /// Copies this source into a private repository (fake-forge.md, 2.6).
+    Copy {
+        owner: Box<[u8]>,
+        name: Box<[u8]>,
+        fill: Fill,
+    },
+    /// Frees this repository's name, retaining its gone slot. Requires admin.
+    DeleteRepository,
     /// Replaces the repository's branch protection. Requires admin permission.
     /// The rule and its arrays must fit the repository's configured bounds.
     SetProtection {
@@ -424,9 +432,21 @@ pub enum Want {
     Default,
 }
 
+/// When a copy fills its empty destination (fake-forge.md, 2.6).
+#[derive(Clone, Copy, PartialEq, Eq, Hash, Debug)]
+pub enum Fill {
+    Whole,
+    Slow(Duration),
+    Cut,
+}
+
 /// The answer to a call that succeeded.
 #[derive(Clone, PartialEq, Eq, Hash, Debug)]
 pub enum Answer {
+    Copied {
+        repository: u32,
+        default_branch: Box<[u8]>,
+    },
     Artifacts(Box<[ArtifactInfo]>),
     Artifact {
         commit: u64,

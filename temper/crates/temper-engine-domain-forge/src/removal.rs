@@ -47,6 +47,7 @@ pub(crate) fn begin(d: &mut Domain, forge: u16, out: &mut Queue<Request>) -> boo
     }
     d.connections.remove(&forge);
     d.first.remove(&forge);
+    crate::making::remove(d, forge, out);
     d.apps.remove(&forge);
     let mut installations = List::with_capacity(d.installations.capacity());
     for (key, _) in &d.installations {

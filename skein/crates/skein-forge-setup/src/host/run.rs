@@ -7,6 +7,7 @@ use crate::{
     adopt::{self, Adopt},
     call::{Auth, Call},
     check::{self, Check},
+    copy::{self, Copy},
     create::{self, Create},
     github::{
         accept::{self, Accept},
@@ -53,6 +54,9 @@ fn forgejo_machine(forge: &Forge, given: &Given, plan: Plan, bounds: &Bounds) ->
             };
             Machine::TakeOver(TakeOver::new(given, taken).expect("host checks the given"))
         }
+        Plan::Copy { org, repository, from, files, .. } => Machine::Copy(Box::new(
+            Copy::new(given, org, repository, from, files).expect("the owner checks the copy plan"),
+        )),
         Plan::Create { org, repository, files, .. } => Machine::Create(Box::new(
             Create::new(given, org, repository, files).expect("the owner checks the creation plan"),
         )),
@@ -78,6 +82,7 @@ pub(crate) enum Machine {
     TakeOver(TakeOver),
     Adopt(Adopt),
     Create(Box<Create>),
+    Copy(Box<Copy>),
     Reachable(Reachable),
 }
 impl Machine {
@@ -94,6 +99,7 @@ impl Machine {
             Self::TakeOver(machine) => take_over::step(machine, event, out),
             Self::Adopt(machine) => adopt::step(machine, event, out),
             Self::Create(machine) => create::step(machine, event, out),
+            Self::Copy(machine) => copy::step(machine, event, out),
             Self::Reachable(machine) => reachable::step(machine, event, out),
         }
     }
@@ -102,6 +108,7 @@ impl Machine {
         match self {
             Self::Reconcile(machine) => reconcile::halt(machine, why, out),
             Self::Create(machine) => create::halt(machine, why, out),
+            Self::Copy(machine) => copy::halt(machine, why, out),
             Self::Convert(machine) => convert::halt(machine, why, out),
             Self::Paste(machine) => paste::halt(machine, why, out),
             Self::GitHubReconcile(machine) => github_reconcile::halt(machine, why, out),
@@ -163,6 +170,7 @@ pub(super) struct Run {
     pub writes: bool,
     pub machine: Machine,
     pub deadline: Time,
+    pub deadline_why: Why,
     pub pending: Option<reconcile::Need>,
     pub owner: Option<Owner>,
     pub send: Option<Send>,
@@ -185,6 +193,8 @@ impl Run {
     ) -> Result<Self, Failure> {
         let now = env.now;
         let writes = plan.writes();
+        let deadline = deadline(forge, &plan, now);
+        let deadline_why = deadline_why(&plan);
         let mut issued_state = None;
         let machine = match &forge.kind {
             Kind::Forgejo(given) => forgejo_machine(forge, given, plan, &bounds)?,
@@ -246,7 +256,11 @@ impl Run {
                         github_reconcile::Reconcile::new(given, env.wall).expect("host checks the given"),
                     ))
                 }
-                Plan::Check { .. } | Plan::TakeOver { .. } | Plan::Adopt { .. } | Plan::Create { .. } => {
+                Plan::Check { .. }
+                | Plan::TakeOver { .. }
+                | Plan::Adopt { .. }
+                | Plan::Create { .. }
+                | Plan::Copy { .. } => {
                     return Err(super::about(forge, &plan, Why::Unexpected));
                 }
             },
@@ -258,7 +272,8 @@ impl Run {
             forge: forge.number(),
             writes,
             machine,
-            deadline: now.saturating_add(times.deadline),
+            deadline,
+            deadline_why,
             pending: None,
             owner: None,
             send: None,
@@ -345,6 +360,44 @@ impl Run {
         });
         need
     }
+}
+
+/// Selects the whole-run cut before the plan moves into its machine (4.4 and 4.10).
+pub(crate) fn deadline_why(plan: &Plan) -> Why {
+    match plan {
+        Plan::Copy { .. } => Why::TimedOut,
+        Plan::Manifest { .. }
+        | Plan::Convert { .. }
+        | Plan::Paste { .. }
+        | Plan::Install { .. }
+        | Plan::Accept { .. }
+        | Plan::Reconcile { .. }
+        | Plan::Check { .. }
+        | Plan::TakeOver { .. }
+        | Plan::Adopt { .. }
+        | Plan::Create { .. }
+        | Plan::Reachable { .. } => Why::Down,
+    }
+}
+
+/// Selects the whole-run deadline before the plan moves into its machine (4.4 and 4.10).
+pub(crate) fn deadline(forge: &Forge, plan: &Plan, now: Time) -> Time {
+    let times = forge.times();
+    let duration = match plan {
+        Plan::Copy { .. } => times.copy_deadline,
+        Plan::Manifest { .. }
+        | Plan::Convert { .. }
+        | Plan::Paste { .. }
+        | Plan::Install { .. }
+        | Plan::Accept { .. }
+        | Plan::Reconcile { .. }
+        | Plan::Check { .. }
+        | Plan::TakeOver { .. }
+        | Plan::Adopt { .. }
+        | Plan::Create { .. }
+        | Plan::Reachable { .. } => times.deadline,
+    };
+    now.saturating_add(duration)
 }
 
 fn issue_state(

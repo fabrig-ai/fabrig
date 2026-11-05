@@ -8,7 +8,7 @@ use crate::forgejo::{
     document,
     limits::Limits,
     path,
-    request::{Method, Request},
+    request::{Method, Repo, Request},
 };
 use alloc::boxed::Box;
 use skein_json::writer::Encoder;
@@ -22,6 +22,11 @@ pub(super) fn route(method: Method, bytes: &[u8], limits: &Limits) -> Result<Rou
         return Err(Unrouted::NotFound);
     }
     let (required, kind, request) = match tail {
+        [repos, migrate] if &**repos == b"repos" && &**migrate == b"migrate" => (
+            Method::Post,
+            Some(WriteKind::Migration),
+            Request::Migrate { at: Repo { owner: Box::from([]), name: Box::from([]) }, from: Box::from([]) },
+        ),
         [orgs, name] if &**orgs == b"orgs" => (Method::Get, None, Request::Org { name: name.clone() }),
         [admin, users, person, orgs] if &**admin == b"admin" && &**users == b"users" && &**orgs == b"orgs" => {
             (Method::Post, Some(WriteKind::NewOrg), Request::CreateOrg { person: person.clone(), name: Box::from([]) })

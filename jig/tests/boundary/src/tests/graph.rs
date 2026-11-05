@@ -79,7 +79,7 @@ fn hosts_and_translation_use_only_their_core_vocabularies_even_when_empty() {
                     CORE_FAMILY.contains(&name.as_str())
                         // jig/docs/design/domain/hosts.md, 8: assignment translates the run charter and task contract.
                         && !(manifest.name.as_deref() == Some("jig-protocol-charter")
-                            && ["jig-domain-core", "jig-domain-tasks"].contains(&name.as_str()))
+                            && ["jig-domain-core", "jig-domain-tasks", "jig-domain-brief"].contains(&name.as_str()))
                 })
                 .map(|name| format!("{}: {name}", manifest.path.display()))
                 .collect::<Vec<_>>()

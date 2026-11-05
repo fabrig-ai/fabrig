@@ -1,6 +1,6 @@
 {
   "engine": {
-    "acts": [{"connector": 1, "may": ["remove_project", "remove_account"]}],
+    "acts": [{"connector": 1, "may": ["remove_project", "remove_account", "adopt"]}],
     "limits": {
       "profile": "standard",
       "overrides": {

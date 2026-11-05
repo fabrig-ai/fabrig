@@ -53,6 +53,7 @@ fn expected_given() -> skein_forge_setup::given::Given {
             reachable: 8,
             repositories: crate::limits::small().repositories,
             deadline: Duration::from_secs(120),
+            copy_deadline: Duration::from_secs(1800),
             backoff: Duration::from_millis(100),
             backoff_max: Duration::from_secs(5),
         },

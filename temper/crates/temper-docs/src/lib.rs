@@ -397,7 +397,7 @@ pub static PAGES: [Page; 59] = [
         name: "ctl-repository",
         kind: Kind::Reference,
         title: "temper ctl repository",
-        summary: "Repositories: adopt one into a project.",
+        summary: "Repositories: make, copy or adopt one into a project.",
         text: include_str!("../../../docs/help/reference/ctl-repository.md"),
     },
     Page {

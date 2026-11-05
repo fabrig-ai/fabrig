@@ -79,7 +79,7 @@ pub const TASK: Tool = Tool {
 pub const CHAT: Tool = Tool {
     name: b"chat show",
     line: b"Read a chat's conversation from its end",
-    prints: b"The conversation, oldest line first: each turn's words, each run's start and end, then `read on with: chat show TASK --before CURSOR` or `no more`",
+    prints: b"The conversation, oldest line first: each turn's words including the brief supplied to the run, each run's start and end, then `read on with: chat show TASK --before CURSOR` or `no more`",
     result: b"chat",
     forms: &[&[
         positional(b"task", b"TASK", Kind::Number, Required, b"The chat's task number"),
@@ -87,7 +87,7 @@ pub const CHAT: Tool = Tool {
     ]],
     keyed: Keyed::Never,
     area: 1,
-    notes: b"Each page is older than the one before it. A run still writing\nadds its words so far.\nTool inputs, outcomes and result summaries are read with task turn TASK TURN;\nthey consume no conversation words budget. JSON leaves those payload fields null.\n",
+    notes: b"Each page is older than the one before it. A run still writing\nadds its words so far. Archived turn text includes the brief supplied to the run,\nwith charter document sections and their recorded commits.\nRead task activity TASK to find its attempt and turn as A.T, then\ntask turn TASK A.T for its parts and printed continuations.\nTool inputs, outcomes and result summaries are read with task turn TASK TURN;\nthey consume no conversation words budget. JSON leaves those payload fields null.\n",
 };
 pub const ACTIVITY: Tool = Tool {
     name: b"task activity",
@@ -106,7 +106,7 @@ pub const ACTIVITY: Tool = Tool {
 pub const TURN: Tool = Tool {
     name: b"task turn",
     line: b"Read one turn of a task's run, part by part",
-    prints: b"A turn's header, then its words, calls and results in order; a cut part ends with `N bytes left; read on with: task turn TASK TURN --part PART --from OFFSET`",
+    prints: b"A turn's header, then its words including the brief supplied to the run, calls and results in order; a cut part ends with `N bytes left; read on with: task turn TASK TURN --part PART --from OFFSET`",
     result: b"turn",
     forms: &[&[
         positional(b"task", b"TASK", Kind::Number, Required, b"The task's number"),
@@ -116,7 +116,7 @@ pub const TURN: Tool = Tool {
     ]],
     keyed: Keyed::Never,
     area: 1,
-    notes: b"A part prints at most 16384 bytes at a time. A turn past ctl's\nbound prints its size and `past the limit; report it`, and one it\ncannot decode `unreadable; report it`, both with exit 0: report\neither as a finding.\n",
+    notes: b"Read task activity TASK to find the attempt and turn as A.T, then\ntask turn TASK A.T. Archived turn text includes the brief supplied to the run,\nwith charter document sections and their recorded commits.\nA part prints at most 16384 bytes at a time. A turn past ctl's\nbound prints its size and `past the limit; report it`, and one it\ncannot decode `unreadable; report it`, both with exit 0: report\neither as a finding.\n",
 };
 pub const RUN: Tool = Tool {
     name: b"task run",
@@ -1028,9 +1028,9 @@ pub const PROJECT_AMEND: Tool = Tool {
 };
 
 /// Appended host position for claiming role-addressed person work.
-pub const TAKE_AT: u8 = 65;
+pub const TAKE_AT: u8 = 67;
 /// Appended host position for returning person work to its role.
-pub const HAND_BACK_AT: u8 = 66;
+pub const HAND_BACK_AT: u8 = 68;
 /// Claim a role-addressed person task before answering its contract.
 pub const TAKE: Tool = Tool {
     name: b"task take",

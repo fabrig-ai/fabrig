@@ -122,6 +122,7 @@ fn row(number: u16) -> w::ForgeRowParts {
         admin: false,
         read_only: false,
         ended_stop: None,
+        makings: List::with_capacity(EMPTY),
     }
 }
 fn first() -> First {

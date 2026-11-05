@@ -660,6 +660,8 @@ fn pending_reconcile_wakes_the_loop_only_when_a_run_slot_is_available() {
         .insert(
             token,
             Run {
+                making: None,
+                words: None,
                 first: None,
                 forge: 2,
                 kind: Kind::Install,
@@ -1515,8 +1517,15 @@ fn a_setup_visit_held_past_the_states_life_is_ended() {
 // The forge's one run, as the engine's own reconcile (internal) or a run a person asked.
 fn running(service: &mut crate::Service, internal: bool) -> Token {
     let token = Token::new(99);
-    let run =
-        Run { first: None, forge: 1, kind: Kind::Reconcile, internal, previous: domain::Connection::NotConnected };
+    let run = Run {
+        making: None,
+        words: None,
+        first: None,
+        forge: 1,
+        kind: Kind::Reconcile,
+        internal,
+        previous: domain::Connection::NotConnected,
+    };
     service.engine.as_mut().unwrap().setup.runs.insert(token, run).unwrap();
     token
 }

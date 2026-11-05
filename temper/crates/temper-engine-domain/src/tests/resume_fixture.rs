@@ -474,6 +474,7 @@ const FORGE_LIMITS: forge::Limits = forge::Limits {
     output: 80,
     facts: 16,
     adoptions: 2,
+    makings: 2,
     applications: 4,
     bindings: 4,
     collaborators: 8,
@@ -747,6 +748,7 @@ impl StartStore {
                     | engine::Request::PlaygroundActs { .. }
                     | engine::Request::ResetAct { .. }
                     | engine::Request::Return { .. }
+                    | engine::Request::MakingCopied { .. }
                     | engine::Request::SetUp { .. }
                     | engine::Request::Connect { .. }
                     | engine::Request::Replace { .. }

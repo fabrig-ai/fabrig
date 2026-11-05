@@ -5,7 +5,7 @@ umask 077
 cd "$(dirname "$0")/.."
 # TEMPER_WRAPPER, when set and not empty, names one command that runs each build
 # command below; unset, cargo runs plainly.
-case ${1:-} in freeekanayaka|fabrig-ai) owner=$1 ;; *) printf '%s\n' 'usage: proof-live-github.sh {freeekanayaka|fabrig-ai} [FIXTURES]' >&2; exit 2 ;; esac
+case ${1:-} in fabrig-ai) owner=$1 ;; *) printf '%s\n' 'usage: proof-live-github.sh {fabrig-ai} [FIXTURES]' >&2; exit 2 ;; esac
 [ "$#" -le 2 ] || exit 2
 fixtures=$(readlink -f "${2:-$HOME/src/rust/tmp/github-conformance}")
 [ -d "$fixtures" ] && [ "$(stat -c %a "$fixtures")" = 700 ] || {

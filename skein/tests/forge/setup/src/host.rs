@@ -1,5 +1,7 @@
-//! The host over HTTP bytes, a fake Forgejo and io played by hand.
+//! The host over HTTP bytes, a fake Forgejo and io played by hand
+//! (skein/docs/design/forge-setup.md, 6.3).
 use crate::{fixtures, tls::Carrier, world::seeded_config};
+use skein_fake_forge_domain as domain;
 use skein_fake_forge_protocol::{self as fake, Service};
 use skein_forge_machine_world::github::{self, Fake};
 use skein_forge_setup::{
@@ -56,11 +58,19 @@ struct Peer {
 mod closing;
 #[path = "memory.rs"]
 pub mod memory;
+type CopyKey = (u16, Box<[u8]>, Box<[u8]>);
+
 pub struct HostWorld {
     host: memory::Metered,
     tls_addresses: Vec<skein_io::Addr>,
     env: Env<Limits>,
     service: Service,
+    domain: Option<domain::Domain>,
+    domain_env: Env<domain::Config>,
+    domain_out: Queue<domain::Request>,
+    copies: BTreeMap<CopyKey, Secret>,
+    copy_runs: BTreeMap<Token, CopyKey>,
+    said: Vec<(Token, Box<[u8]>, usize)>,
     github: Option<Fake>,
     wall_base: Option<Wall>,
     fake_env: Env<fake::Limits>,
@@ -216,6 +226,16 @@ impl HostWorld {
             tls_addresses,
             env: Env { now: Time::ZERO, wall: Wall::EPOCH, limits },
             service,
+            domain: None,
+            domain_env: Env {
+                now: Time::ZERO,
+                wall: Wall::EPOCH,
+                limits: skein_forge_machine_world::fixtures::fake_config(),
+            },
+            domain_out: Queue::uncapped(),
+            copies: BTreeMap::new(),
+            copy_runs: BTreeMap::new(),
+            said: Vec::new(),
             github: None,
             wall_base: None,
             fake_env: Env { now: Time::ZERO, wall: Wall::EPOCH, limits: fake_limits },
@@ -240,6 +260,38 @@ impl HostWorld {
             github_requests: Vec::new(),
         }
     }
+    /// Attaches the repository domain used by the fake's HTTP routes.
+    pub fn with_domain(&mut self, domain: domain::Domain, config: domain::Config) {
+        self.domain = Some(domain);
+        self.domain_env.limits = config;
+    }
+    #[must_use]
+    pub fn domain(&self) -> &domain::Domain {
+        self.domain.as_ref().expect("repository domain")
+    }
+    /// Reopens the fake router with changed scenario tables, retaining its setup store and git domain.
+    pub fn restart_forge(&mut self, config: fake::Config) {
+        assert!(self.peers.is_empty(), "restart only between exchanges");
+        let mut service = Service::new(config, &self.fake_env.limits, self.seed).expect("scenario config");
+        core::mem::swap(service.setup_mut(), self.service.setup_mut());
+        self.service = service;
+    }
+    #[must_use]
+    pub fn copying(&self, forge: u16, org: &[u8], repository: &[u8]) -> Option<&Secret> {
+        self.copies.get(&(forge, org.into(), repository.into()))
+    }
+    /// Forge words and the number of terminal events already heard when each arrived.
+    #[must_use]
+    pub fn said(&self) -> &[(Token, Box<[u8]>, usize)] {
+        &self.said
+    }
+    fn keep_item(&mut self, run: Token, item: Item, bytes: Secret) {
+        if item == Item::Copying {
+            self.copies.insert(self.copy_runs.get(&run).expect("copy's item").clone(), bytes);
+        } else {
+            self.put(item, bytes);
+        }
+    }
     #[must_use]
     pub fn connection_addresses(&self) -> &[skein_io::Addr] {
         &self.connection_addresses
@@ -251,6 +303,9 @@ impl HostWorld {
         self.run_plan(run, Plan::Reconcile { forge: 1, adopted: adopted.into() });
     }
     pub fn run_plan(&mut self, run: u64, plan: Plan) {
+        if let Plan::Copy { forge, org, repository, .. } = &plan {
+            self.copy_runs.insert(Token::new(run), (*forge, org.clone(), repository.clone()));
+        }
         self.action(Request::Run { run: Token::new(run), plan });
     }
     #[must_use]
@@ -287,8 +342,14 @@ impl HostWorld {
     pub fn paste(&mut self, pem: Secret) {
         self.pasted = Some(pem);
     }
-    fn read_item(&mut self, item: Item) -> Option<Secret> {
-        if item == Item::Pasted { self.pasted.take() } else { self.file(item).cloned() }
+    fn read_item(&mut self, run: Token, item: Item) -> Option<Secret> {
+        if item == Item::Copying {
+            self.copies.get(self.copy_runs.get(&run).expect("copy's item")).cloned()
+        } else if item == Item::Pasted {
+            self.pasted.take()
+        } else {
+            self.file(item).cloned()
+        }
     }
     pub fn pause_reads(&mut self) {
         self.pause_reads = true;
@@ -302,13 +363,13 @@ impl HostWorld {
         let run = Token::new(run);
         let at = self.pending_reads.iter().position(|(token, _)| *token == run).expect("held read");
         let (_, item) = self.pending_reads.remove(at);
-        let value = self.read_item(item);
+        let value = self.read_item(run, item);
         self.action(Request::Answer { run, answer: Answer::Read(value) });
     }
     pub fn resume_reads(&mut self) {
         self.pause_reads = false;
         for (run, item) in core::mem::take(&mut self.pending_reads) {
-            let value = self.read_item(item);
+            let value = self.read_item(run, item);
             self.action(Request::Answer { run, answer: Answer::Read(value) });
         }
     }
@@ -318,7 +379,7 @@ impl HostWorld {
     /// Keeps each item whole before answering Written, as the owner must.
     pub fn write_pending(&mut self) {
         for (run, item, bytes) in core::mem::take(&mut self.pending_writes) {
-            self.put(item, bytes);
+            self.keep_item(run, item, bytes);
             self.action(Request::Answer { run, answer: Answer::Written });
         }
     }
@@ -394,6 +455,8 @@ impl HostWorld {
         self.env.now = now;
         self.env.wall =
             self.wall_base.map_or(Wall::EPOCH, |base| Wall::from_nanos(base.as_nanos().saturating_add(now.as_nanos())));
+        self.domain_env.now = now;
+        self.domain_env.wall = self.env.wall;
         self.fake_env.now = now;
         self.fake_env.wall = self.env.wall;
     }
@@ -402,8 +465,13 @@ impl HostWorld {
             .values()
             .filter_map(|p| p.closing.as_ref().and_then(closing::Closing::deadline))
             .chain(self.host.next_deadline())
+            .chain(self.domain.as_ref().and_then(domain::Domain::next_deadline))
             .min()
     }
+    #[expect(
+        clippy::too_many_lines,
+        reason = "one iteration drives the host, HTTP peers and their optional repository domain"
+    )]
     fn tick(&mut self) {
         let mut closed = Vec::new();
         for (owner, peer) in &mut self.peers {
@@ -426,7 +494,18 @@ impl HostWorld {
         for owner in owners {
             let peer = self.peers.get_mut(&owner).expect("peer");
             if let Some(server) = &mut peer.server {
-                fake::resume(server, &mut self.service, &self.fake_env, &mut peer.above, &mut peer.below);
+                if let Some(domain) = &mut self.domain {
+                    fake::resume_with_domain(
+                        server,
+                        &mut self.service,
+                        fake::Hosted { domain, config: &self.domain_env.limits },
+                        &self.fake_env,
+                        &mut peer.above,
+                        &mut peer.below,
+                    );
+                } else {
+                    fake::resume(server, &mut self.service, &self.fake_env, &mut peer.above, &mut peer.below);
+                }
                 drop(server.take_head());
             }
             while let Some(down) = peer.below.pop() {
@@ -434,7 +513,19 @@ impl HostWorld {
             }
             if let Some(event) = peer.pipe.server_up() {
                 if let Some(server) = &mut peer.server {
-                    fake::up(server, &mut self.service, &self.fake_env, event, &mut peer.above, &mut peer.below);
+                    if let Some(domain) = &mut self.domain {
+                        fake::up_with_domain(
+                            server,
+                            &mut self.service,
+                            fake::Hosted { domain, config: &self.domain_env.limits },
+                            &self.fake_env,
+                            event,
+                            &mut peer.above,
+                            &mut peer.below,
+                        );
+                    } else {
+                        fake::up(server, &mut self.service, &self.fake_env, event, &mut peer.above, &mut peer.below);
+                    }
                     drop(server.take_head());
                 } else if peer.github {
                     github_answer(
@@ -454,7 +545,12 @@ impl HostWorld {
             let peer = self.peers.get_mut(&owner).expect("peer");
             while let Some(event) = peer.above.pop() {
                 match event {
-                    fake::Event::Domain(_) => panic!("setup has no repository domain requests"),
+                    fake::Event::Domain(event) => domain::step(
+                        self.domain.as_mut().expect("repository domain"),
+                        &self.domain_env,
+                        event,
+                        &mut self.domain_out,
+                    ),
                     fake::Event::Close => {
                         fake::closed(
                             peer.server.as_mut().expect("fake server"),
@@ -470,6 +566,24 @@ impl HostWorld {
         }
         if self.host.next_deadline().is_some_and(|at| at <= self.env.now) {
             self.host.fire(&self.env, &mut self.above, &mut self.below);
+        }
+        if let Some(domain) = &mut self.domain {
+            domain::fire(domain, &self.domain_env, &mut self.domain_out);
+            domain.reclaim();
+        }
+        while let Some(reply) = self.domain_out.pop() {
+            if let Ok((owner, reply)) = self.service.target(reply)
+                && let Some(peer) = self.peers.get_mut(&owner)
+            {
+                fake::down(
+                    peer.server.as_mut().expect("domain's HTTP peer"),
+                    &mut self.service,
+                    &self.fake_env,
+                    reply,
+                    &mut peer.above,
+                    &mut peer.below,
+                );
+            }
         }
         self.service.reclaim();
     }
@@ -487,21 +601,29 @@ impl HostWorld {
                                 self.pending_reads.push((run, item));
                                 continue;
                             }
-                            Answer::Read(self.read_item(item))
+                            Answer::Read(self.read_item(run, item))
                         }
                         Need::Write { item, bytes } => {
                             if self.pause_writes {
                                 self.pending_writes.push((run, item, bytes));
                                 continue;
                             }
-                            self.put(item, bytes);
+                            self.keep_item(run, item, bytes);
                             Answer::Written
                         }
                     };
                     self.action(Request::Answer { run, answer });
                 }
                 Event::Done { run, outcome } => self.heard.push(Heard::Done { run, outcome, at }),
-                Event::Stop { run, failure } => self.heard.push(Heard::Stop { run, failure, at }),
+                Event::Stop { run, failure } => {
+                    if failure.why == skein_forge_setup::reconcile::Why::Taken
+                        && let Some(key) = self.copy_runs.get(&run)
+                    {
+                        self.copies.remove(key);
+                    }
+                    self.heard.push(Heard::Stop { run, failure, at });
+                }
+                Event::Said { run, words } => self.said.push((run, words, self.heard.len())),
                 Event::Closed => self.heard.push(Heard::Closed { at }),
             }
         }

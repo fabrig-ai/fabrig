@@ -1099,6 +1099,7 @@ fn home_forges(name: &str, in_project: bool) -> skein_lib::List<temper_client_pr
                 admin: false,
                 read_only: false,
                 ended_stop: None,
+                makings: List::with_capacity(0),
             },
         )
         .expect("Home row"),

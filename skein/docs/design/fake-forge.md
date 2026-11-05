@@ -288,6 +288,35 @@ Their `line()` is `promise/<promise>/<subject>`: names and keys are
 percent-encoded byte by byte, numbers decimal. The judge does no parsing,
 printing or network work.
 
+### 2.6 A copy, and deleting
+
+What Forgejo's migration fetches from a public host, the fake finds in
+a catalogue its protocol layer holds (section 4): the domain copies one
+of its repositories into another, and reaches no network.
+
+- **`Write::Copy { owner, name, fill }`,** called on the source: the
+  source is a repository of the domain's, seeded as any, and the copy's
+  owner and name go with the call, so that the call has a repository
+  and takes the domain's faults as any write does. Its `fill` is
+  `Whole`, `Slow(duration)` or `Cut`.
+- **From its arrival the copy is there and empty,** private, owned by
+  `owner`, no branch, as a Forgejo migration under way reads. A name
+  taken is `Exists`, and nothing is made.
+- **At the call's end it is filled:** every branch of the source and
+  its default branch, its commits the source's own, sharing the store
+  (section 3), after the call's drawn latency, and `duration` more for
+  `Slow`. So a copy is the one write that is not done when it arrives
+  (2.1), a call state beside a late landing's.
+- **`Cut`,** or a fault of the call's (2.3): the call fails as timed out
+  and the copy stays there and empty.
+- **Not a mirror:** nothing moves between a source and its copy after
+  the call, and the source hears nothing of it: no head moves, no hook
+  and no observation names it.
+- **`Write::DeleteRepository`** frees the repository's name. Its slot
+  stays, marked gone, so that what holds its id reads nothing; nothing
+  walks a gone repository. A copy's call still running on it ends as
+  the conformance records of Forgejo (section 7).
+
 ## 3. Its git, and the remote boundary
 
 What a fake of a service's git component may rely on. That fake is the
@@ -510,6 +539,25 @@ domain, and holds no clock of its own.
   Collaborator lists contain explicit grants only: site administration
   and organization ownership grant access without adding membership.
   Pagination counts the listed collaborators after excluding implicit access.
+- **A copy is the domain's too** (2.6). `Config.sources` is the
+  catalogue, each `Source { address, repository, private, fill }`: an
+  address, the domain's repository it stands for, whether it is private,
+  and a `Fill`. Its repository has no row among `repositories`, so no
+  route reads it, its git included. An address's host must end
+  `.invalid` (RFC 2606): `valid` refuses any other, so no scenario can
+  name a host that exists.
+  - `Migrate` in an org the setup store keeps finds `from` in the
+    catalogue, reserves the copy's row at the entrance, as a late
+    write's must be read, and makes the domain's `Write::Copy` on the
+    source: answered `CreatedRepository`, with the source's default
+    branch and a new id, `409` for a name taken. A source the catalogue
+    has not, or a private one, is refused with no repository made, each
+    with Forgejo's status and message (section 7's facts).
+  - `DeleteRepository` drops the repository's row, its collaborators
+    and hooks and is the domain's `Write::DeleteRepository`, `204`, or
+    `404` for a name it has not. An id is never given twice.
+  - Each takes `write:repository`, as the admin-scope table has it
+    (forge-setup.md, section 8).
 - **A setup grant reaches the domain.** A collaborator grant made through
   the setup routes is kept in the setup store, and the domain grants the
   account's user number (section 5) the same permission on the
@@ -637,7 +685,9 @@ need a real one. It never meets an existing Forgejo.
   `/tmp`. The environment is cleared, with a home in the scratch, a fixed
   `PATH` and `TZ`, and no system or user git configuration.
   `Settings::small()` pages at 2, enables Actions and bounds an answer at
-  16 MiB.
+  16 MiB. `Settings::local_migrations`, off in `small()`, writes
+  `[migrations] ALLOW_LOCALNETWORKS = true`, for the conformance's copies
+  alone (section 7).
 - **Attaching.** `Instance::attach(child, port, scratch, admin_token,
   &Settings)` takes a Forgejo its caller started and keeps, such as a
   service's owned forge. It waits for the API and reads the admin's login
@@ -654,7 +704,11 @@ need a real one. It never meets an existing Forgejo.
   holds no credential: `token MASKED` or `Basic MASKED`. `secrets()` lists
   every secret the instance made, for a leak scan.
 - **`stop`** removes the instance and its scratch; a start that fails cleans
-  up. The conformance starts the runner (section 7), not the throwaway.
+  up. `kill` ends the process at once and keeps the scratch, and
+  `restart` starts it again on that scratch and port. `exchange_patient`
+  is `exchange` with the caller's own time for the answer, for a
+  migration's one long request. The conformance starts the runner
+  (section 7), not the throwaway.
 
 ## 7. The conformance
 
@@ -683,9 +737,20 @@ relies on (forge.md, section 9). It makes its own admin user and tokens.
   token's value and its eight-digit tail, and every password. It scans each
   response body before masking and every output before writing. A leak stops
   the run naming the case and the kind of secret, never its value.
+- **A second instance,** for the `setup-migrate-` facts
+  (forge-setup.md, section 8), run by the focused mode `--migrate`,
+  which writes its own transcripts and facts alone: the source, a
+  throwaway of its own on loopback, started beside the first, whose
+  `[migrations] ALLOW_LOCALNETWORKS` is on in the first alone
+  (`Settings::local_migrations`, section 6, which no other caller sets).
+  The default's refusal is recorded on the second, which keeps
+  Forgejo's default. A loopback proxy of the tool's own stands between
+  them and stalls a source's bytes on demand, so a migration is cut
+  short at a known point: by killing the first, or by the client going
+  away.
 - **The groups:** the dialect's cases; the setup (accounts, tokens,
   organizations, repositories' collaborators and hooks, the admin's
-  repository search, under the least admin scopes); `cli-` facts
+  repository search, under the least admin scopes, a copy's migration); `cli-` facts
   (Forgejo's command line, outcomes only); `runner-` facts
   (registration, the runner's connection, a workflow that clones a
   private repository with the job's token); and the Actions facts, which

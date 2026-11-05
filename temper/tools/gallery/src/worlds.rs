@@ -309,6 +309,7 @@ fn forges(world: World) -> Box<[u8]> {
             w::ForgeRow::new(
                 &limits,
                 w::ForgeRowParts {
+                    makings: List::with_capacity(0),
                     host: b"git.example:3000".as_slice().into(),
                     number: FORGE,
                     kind: w::Kind::Forgejo,
@@ -349,6 +350,7 @@ fn forges(world: World) -> Box<[u8]> {
             w::ForgeRow::new(
                 &limits,
                 w::ForgeRowParts {
+                    makings: List::with_capacity(0),
                     host: b"git.example:3000".as_slice().into(),
                     number: 2,
                     kind: w::Kind::Github,
@@ -439,6 +441,7 @@ fn forges(world: World) -> Box<[u8]> {
             w::ForgeRow::new(
                 &limits,
                 w::ForgeRowParts {
+                    makings: List::with_capacity(0),
                     host: b"git.example:3000".as_slice().into(),
                     number: 3,
                     kind: w::Kind::Forgejo,

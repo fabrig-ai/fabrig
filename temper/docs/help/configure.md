@@ -73,9 +73,8 @@ temper ctl DIR settings show charter 1 --json | jq '{items: [{setting: .setting,
 ```
 
 Expect: no output; `FILE` holds charter 1's whole value with new instructions
-in `items`. If empty, read stderr and retry. At most 1024 items, one per setting.
-Replace `set`
-with `"edit": "removed"` or `"edit": "reset"` to remove or reset one.
+in `items` (at most 1024, one per setting). If empty, read stderr and retry.
+To remove or reset, replace `set` with `"edit": "removed"` or `"edit": "reset"`.
 
 Other settings:
 
@@ -85,8 +84,7 @@ temper ctl DIR settings show landing-rule 1 --project PROJECT --json
 temper ctl DIR settings show forge-charter 1 --json
 ```
 
-Keep other fields as read. This selects charter 2 while preserving stock
-landing requirements:
+Keep other fields. This selects charter 2, retaining stock landing requirements:
 
 ```json
 {"items":[
@@ -178,22 +176,21 @@ Instead, amend or allot their authority explicitly, or start anew.
 
 ## 3. Apply it, or propose it
 
-Deployment owners decide deployment items; project owners decide their
-policy and landing rules. A file touching both needs one owner of both.
-Apply against the newest revision read:
+Deployment owners decide deployment items; project owners, their policy and
+landing rules. Both scopes need one owner of both. Apply against the newest revision:
 
 ```
 temper ctl DIR settings apply FILE --against NEWEST --key KEY
 ```
 
-Other parties propose with reason `TEXT`:
+Others propose with reason `TEXT`:
 
 ```
 temper ctl DIR settings propose FILE TEXT --against NEWEST --key KEY
 temper ctl DIR proposal show PROPOSAL
 ```
 
-An owner of both scopes decides:
+An owner of both decides:
 
 ```
 temper ctl DIR inbox
@@ -233,13 +230,17 @@ temper ctl DIR revision show NEWEST
 ```
 
 Expect: `newest revision NEWEST`, `charter 1: changed in revision NEWEST`,
-and the revision's decider, items and whole values. If charter 1 still
-follows its default, read `inbox`: the proposal may await an owner.
+the decider, items and whole values. If charter 1 is still default,
+read `inbox` for a proposal awaiting an owner.
+
+`temper ctl DIR chat show TASK` reads a run's brief, charter document sections
+and recorded commits; follow `--before CURSOR` for older pages. `task text` reads
+specification or instructions, not received document content (temper help charter).
 
 ## 5. Move running work to it
 
-Tasks retain their creation revision: `task show TASK` prints
-`settings: revision R · newest NEWEST`. `settings show` lists held revisions
+Tasks keep their creation revision (`task show TASK`'s
+`settings: revision R · newest NEWEST`). `settings show` lists held revisions
 and live tasks. Move `REVISION` at their next run:
 
 ```
@@ -250,13 +251,13 @@ temper ctl DIR task show TASK
 Expect: `moved 1 task to revision NEWEST` (the moved count), and
 `task show`'s `settings: revision NEWEST`.
 
-If not: a task whose charter or models are no longer offered stays on
-its revision and is counted as unable to move. A chat moves at its next
-run. Use `--running moves` in step 3 to move tasks as you apply.
+If not: an unoffered charter or model keeps the task on its revision,
+counted as unable to move. A chat moves at its next run.
+Use `--running moves` in step 3 to move tasks as you apply.
 
 ## 6. Restore what was there
 
-To its default, reset the setting:
+Reset to its default:
 
 ```
 printf '{"items": [{"setting": {"kind": "charter", "number": 1}, "edit": "reset"}]}' > FILE
@@ -267,8 +268,8 @@ Expect: `revision` and the new revision's number. After a reset,
 `settings show` lists `charter 1: default, last changed in revision
 NEWEST`.
 
-To restore an earlier revision, find it newest first in the paged history.
-The last line reads on: `revision list --before REVISION`.
+Find an earlier revision newest first; continue with
+`revision list --before REVISION`.
 
 ```
 temper ctl DIR revision list
@@ -278,7 +279,7 @@ temper ctl DIR proposal show PROPOSAL
 temper ctl DIR proposal decide PROPOSAL accept --running stays --key KEY
 ```
 
-Use a new KEY for each act.
+Use a new KEY per act.
 
 Expect: `proposed restoring revision REVISION as proposal PROPOSAL to role K`;
 `left out: SETTING` names omitted deleted-project items. Inspect before
