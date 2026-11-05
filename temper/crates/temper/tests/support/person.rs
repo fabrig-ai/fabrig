@@ -648,6 +648,11 @@ impl Person {
             && self.project == ProjectSelection::Selected
             && !self.finished
             && self.failed.is_none()
+            // Finish opening exchanges before a scripted one-shot account paste.
+            && (client.pending().admission.attempts == 0
+                || !client.tree().nodes().iter().any(|node| {
+                    node.role == skein_ui::Role::Button && node.name.as_deref() == Some(b"Add key")
+                }))
         {
             let before = self.actor.at();
             match self.actor.next(&mut ReplyFace::new(client.tree()), now) {

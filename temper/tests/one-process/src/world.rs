@@ -541,6 +541,11 @@ fn prepare_account(
         *selected = true;
     }
     let Some(actor) = provision else { return false };
+    // Finish the session's opening exchanges before the one-shot account setup.
+    if client.pending().admission.attempts != 0 {
+        *wake = None;
+        return true;
+    }
     match actor.next(&mut TreeFace::new(client.tree()), now) {
         Next::Do(Doing::Act { node, act }) => assert!(client.act(node, act), "offered account setup act"),
         Next::Do(Doing::Go { address }) => client.go(address),

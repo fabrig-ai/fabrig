@@ -257,7 +257,13 @@ fn world_in_layout(w: World, address: Address, then: Then, configuring_chat: boo
                         }
                         c::Subject::Tree { task, window } => Some(plan_tree(w, task, window, then)),
                         c::Subject::Deployment => Some(c::Delivery::Deployment(Box::new(deployment(w)))),
-                        c::Subject::Settings | c::Subject::Chips { .. } | c::Subject::Run { .. } => None,
+                        c::Subject::Settings => Some(c::Delivery::Settings(Box::new(c::SettingsDocument {
+                            newest: 0,
+                            settings: List::with_capacity(0),
+                            held: List::with_capacity(0),
+                            pending: List::with_capacity(0),
+                        }))),
+                        c::Subject::Chips { .. } | c::Subject::Run { .. } => None,
                     };
                     if let Some(document) = document {
                         deliver(&mut root, watch, document, &mut out);
@@ -279,7 +285,26 @@ fn world_in_layout(w: World, address: Address, then: Then, configuring_chat: boo
                                 playground_read = true;
                             }
                         }
-                        v1::Read::Setting(_) | v1::Read::RevisionSetting(_) | v1::Read::ProposalItems(_) => {}
+                        v1::Read::Setting(_) => {
+                            let value = v1::SettingAnswer::new(&v1::CEILINGS, v1::SettingAnswerParts { value: None })
+                                .expect("stock setting");
+                            step(
+                                &mut root,
+                                Event::Client {
+                                    event: jig_client::Event::Up {
+                                        up: jig_client::Up::ReadDone {
+                                            read,
+                                            result: jig_client::Readout::Family {
+                                                family: FORGE,
+                                                record: Some(wire::setting_answer(&value)),
+                                            },
+                                        },
+                                    },
+                                },
+                                &mut out,
+                            );
+                        }
+                        v1::Read::RevisionSetting(_) | v1::Read::ProposalItems(_) => {}
                     }
                 }
                 jig_client::Down::Open { watch, subject: jig_client::Watchable::Family { record, .. } }
@@ -2782,6 +2807,27 @@ pub(super) fn changes_world(name: &str) -> Domain {
                     forges_watched(&mut root, Reference, watch, &mut out);
                 }
             }
+            Down::Open { watch, subject: Watchable::Jig(c::Subject::Settings) } => {
+                deliver(
+                    &mut root,
+                    watch,
+                    c::Delivery::Settings(Box::new(c::SettingsDocument {
+                        newest: 0,
+                        settings: List::with_capacity(0),
+                        held: List::with_capacity(0),
+                        pending: List::with_capacity(0),
+                    })),
+                    &mut out,
+                );
+            }
+            Down::Read { read, what: Readable::Family { record, .. } } => {
+                if let v::Read::Setting(setting) =
+                    wire::decode_reading(&record.bytes, &v::CEILINGS).expect("gallery setting read").read()
+                {
+                    assert_eq!(setting.kind(), 7);
+                    changes_ways(&mut root, read, name != "changes-landed-only", &mut out);
+                }
+            }
             Down::Read { read, what: Readable::Jig(c::Read::Task { task }) } => {
                 let mut document = base_task(task, "Change");
                 document.project = PROJECT;
@@ -2815,6 +2861,29 @@ pub(super) fn changes_world(name: &str) -> Domain {
     assert!(limits.client.domain.reads >= 7, "the sample's shown rows fit");
     root
 }
+fn changes_ways(root: &mut Domain, read: Token, changes: bool, out: &mut Queue<Request>) {
+    use temper_client_protocol_wire::{self as wire, v1 as v};
+    let ways =
+        v::ProjectWays::new(&v::CEILINGS, v::ProjectWaysParts { skein_bools: [false, false, changes, false], way: 0 })
+            .expect("gallery project ways");
+    let mut writer = skein_lib::Writer::new(usize::try_from(ways.measure()).expect("ways fit"));
+    ways.encode(&mut writer).expect("measured ways");
+    let value = v::SettingAnswer::new(&v::CEILINGS, v::SettingAnswerParts { value: Some(writer.finish()) })
+        .expect("gallery setting answer");
+    step(
+        root,
+        Event::Client {
+            event: jig_client::Event::Up {
+                up: jig_client::Up::ReadDone {
+                    read,
+                    result: jig_client::Readout::Family { family: FORGE, record: Some(wire::setting_answer(&value)) },
+                },
+            },
+        },
+        out,
+    );
+}
+
 fn changes_panel(name: &str) -> temper_client_protocol_wire::v1::ChangesPanel {
     use temper_client_protocol_wire::v1 as v;
     let mut queues = List::with_capacity(1);

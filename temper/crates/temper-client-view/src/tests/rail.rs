@@ -223,6 +223,7 @@ fn the_frame_requires_me_and_a_project_and_yields_to_welcome_and_sign_in() {
 fn rail_and_tabbar_keep_the_order_addresses_current_states_and_count() {
     let addresses = [
         Address::Home { project: f::PROJECT },
+        Address::Changes { project: f::PROJECT },
         Address::Inbox { filter: d::address::Filter::ALL },
         Address::Chats { filter: ChatsFilter::All, start: false },
         Address::Chat { task: 9 },
@@ -291,8 +292,10 @@ fn rail_and_tabbar_keep_the_order_addresses_current_states_and_count() {
                     let links = children(styled(view.tree(), style));
                     let expected = if style == look::TABBAR {
                         vec![b"Home".as_slice(), needs, b"Chats", b"Settings"]
-                    } else {
+                    } else if address == (Address::Changes { project: f::PROJECT }) {
                         vec![b"Home".as_slice(), needs, b"Chats", b"Changes"]
+                    } else {
+                        vec![b"Home".as_slice(), needs, b"Chats"]
                     };
                     assert_eq!(links.iter().map(|n| n.name.as_deref().unwrap()).collect::<Vec<_>>(), expected);
                     let ids = links
@@ -478,8 +481,7 @@ fn the_terminal_numbers_the_rail_and_keeps_the_first_line() {
     skein_ui_text::render(view.tree(), b"temper", Some(crate::frame::link_region()), &mut print);
     let text = String::from_utf8_lossy(print.text.as_slice());
     assert_eq!(text.lines().next(), Some("== Inbox == Offline; Behind"));
-    for line in ["[7] Home", "[8] Needs you (current)", "[9] Chats", "[10] Changes", "[11] + New chat", "[12] Settings"]
-    {
+    for line in ["[7] Home", "[8] Needs you (current)", "[9] Chats", "[10] + New chat", "[11] Settings"] {
         assert!(text.lines().any(|s| s.trim() == line), "{line}: {text}");
     }
     assert!(!text.contains("Sections:"));
@@ -538,5 +540,108 @@ fn settings_is_current_on_every_page_of_settings() {
                 assert!(links[0].states.as_slice().contains(&State::Current), "{address:?}");
             }
         }
+    }
+}
+
+#[test]
+fn the_rail_shows_what_kind_seven_shows() {
+    use d::forge::ways::Ways;
+    for ways in [
+        Ways::STOCK,
+        Ways { drafts: true, ..Ways::STOCK },
+        Ways { goals: true, ..Ways::STOCK },
+        Ways { changes: true, ..Ways::STOCK },
+        Ways { away: true, ..Ways::STOCK },
+    ] {
+        let root = f::root_with_ways(Address::Home { project: f::PROJECT }, Some(ways));
+        assert_eq!(root.forge().ways(f::PROJECT), Some(ways));
+        for view in [f::page_view(&root), f::browser_page_view(&root)] {
+            let names = children(styled(view.tree(), look::RAIL_NAV))
+                .iter()
+                .map(|n| n.name.as_deref().unwrap())
+                .collect::<Vec<_>>();
+            let mut expected = vec![b"Home".as_slice(), b"Needs you", b"Chats"];
+            if ways.changes {
+                expected.push(b"Changes");
+            }
+            assert_eq!(names, expected);
+            for name in [b"Goals".as_slice(), b"Away"] {
+                assert!(f::find(view.tree(), Role::Link, name).is_none());
+            }
+        }
+    }
+}
+#[test]
+fn until_read_the_optional_entries_are_hidden() {
+    for refused in [false, true] {
+        let address = Address::Home { project: f::PROJECT };
+        let root = if refused { f::root_with_refused_ways(address) } else { f::root_with_ways(address, None) };
+        assert_eq!(root.forge().ways(f::PROJECT), None);
+        for view in [f::page_view(&root), f::browser_page_view(&root)] {
+            for name in [b"Goals".as_slice(), b"Changes", b"Away"] {
+                assert!(f::find(view.tree(), Role::Link, name).is_none());
+            }
+            assert!(f::find(view.tree(), Role::Link, b"Settings").is_some());
+        }
+    }
+}
+#[test]
+fn a_page_keeps_its_entry_while_on_it() {
+    use d::forge::ways::Ways;
+    let address = Address::Changes { project: f::PROJECT };
+    for (ways, refused) in [(None, false), (None, true), (Some(Ways::STOCK), false)] {
+        let root =
+            if refused { f::root_with_refused_ways(address.clone()) } else { f::root_with_ways(address.clone(), ways) };
+        for mut view in [f::page_view(&root), f::browser_page_view(&root)] {
+            let links = children(styled(view.tree(), look::RAIL_NAV));
+            let link = links.iter().find(|n| n.name.as_deref() == Some(b"Changes")).unwrap();
+            assert!(link.states.as_slice().contains(&State::Current));
+            let id = link.id;
+            assert_eq!(crate::href(&mut view, id).as_deref(), Some(b"/projects/1/changes".as_slice()));
+        }
+    }
+}
+#[test]
+fn a_hidden_page_keeps_its_address() {
+    use d::forge::ways::Ways;
+    let mut root = f::root_with_ways(Address::Home { project: f::PROJECT }, Some(Ways::STOCK));
+    assert!(f::find(f::page_view(&root).tree(), Role::Link, b"Changes").is_none());
+    let address = Address::Changes { project: f::PROJECT };
+    f::root_event(&mut root, Event::Went { place: d::Place::Address(address.clone()) });
+    assert_eq!(root.pages().address(), &address);
+    assert!(root.pages().changes().is_some());
+    assert!(f::find(f::browser_page_view(&root).tree(), Role::Link, b"Changes").is_some());
+}
+#[test]
+fn the_tab_bar_by_goals() {
+    use d::forge::ways::Ways;
+    for ways in [None, Some(Ways::STOCK), Some(Ways { goals: true, changes: true, ..Ways::STOCK })] {
+        let root = f::root_with_ways(Address::Home { project: f::PROJECT }, ways);
+        let mut view = f::browser_page_view(&root);
+        let tabs = children(styled(view.tree(), look::TABBAR));
+        assert_eq!(
+            tabs.iter().map(|n| n.name.as_deref().unwrap()).collect::<Vec<_>>(),
+            [b"Home".as_slice(), b"Needs you", b"Chats", b"Settings"]
+        );
+        let settings = tabs.last().unwrap().id;
+        assert_eq!(crate::href(&mut view, settings).as_deref(), Some(b"/projects/1/settings".as_slice()));
+        assert!(f::find(view.tree(), Role::Link, b"Settings for Shop").is_some());
+        let terminal = f::page_view(&root);
+        assert!(!terminal.tree().nodes().iter().any(|n| n.styles.as_slice().contains(&look::TABBAR)));
+    }
+}
+#[test]
+fn drafts_offered_reads_drafts() {
+    const OTHER_PROJECT: u32 = 17;
+    use d::forge::ways::Ways;
+    for (ways, offered) in [
+        (None, false),
+        (Some(Ways::STOCK), false),
+        (Some(Ways { drafts: true, ..Ways::STOCK }), true),
+        (Some(Ways { goals: true, ..Ways::STOCK }), false),
+    ] {
+        let root = f::root_with_ways(Address::Chats { filter: ChatsFilter::All, start: false }, ways);
+        assert_eq!(crate::pages::chats::drafts_offered(&root, f::PROJECT), offered);
+        assert!(!crate::pages::chats::drafts_offered(&root, OTHER_PROJECT));
     }
 }

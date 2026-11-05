@@ -1,9 +1,9 @@
-//! Home's facts and settings watch (temper/docs/design/client/README.md, 3.5, Home).
+//! Home's facts from the session's settings watch (temper/docs/design/client/README.md, 3.5, Home).
 use super::{Request, welcome};
 use crate::{Domain, forge, owner::Owner};
 use alloc::boxed::Box;
 use forge::dismissed::{self, Dismissal};
-use jig_client::{Client, Handle, Key, Latest, Told, Watchable, contract as c};
+use jig_client::{Client, Handle, Key, Latest, Told, contract as c};
 use skein_lib::Queue;
 
 #[derive(Debug)]
@@ -15,21 +15,8 @@ pub struct Home {
     skip_refused: bool,
 }
 impl Home {
-    pub(super) fn new(number: u64, out: &mut Queue<Request>) -> Self {
-        let home = Self {
-            settings: Handle { asker: Owner::Pages.asker(), number },
-            skip: None,
-            skipped: false,
-            skip_refused: false,
-        };
-        out.push(Request::Client(jig_client::Event::Watch {
-            handle: home.settings,
-            subject: Watchable::Jig(c::Subject::Settings),
-        }));
-        home
-    }
-    pub(super) fn leave(&self, out: &mut Queue<Request>) {
-        out.push(Request::Client(jig_client::Event::Unwatch { handle: self.settings }));
+    pub(super) fn new() -> Self {
+        Self { settings: forge::ways::handle(), skip: None, skipped: false, skip_refused: false }
     }
     pub(super) fn skip(&mut self, project: u32, limits: forge::Limits, serial: &mut u64, out: &mut Queue<Request>) {
         if self.skip.is_some() {
@@ -164,7 +151,7 @@ pub fn facts(root: &Domain, project: u32) -> Facts {
             forge::forges::State::Rows(_) | forge::forges::State::Ended => true,
         }
         && match home {
-            Some(home) => delivered(root.client(), home.settings),
+            Some(home) => forge::ways::ended(root.forge()) || delivered(root.client(), home.settings),
             None => false,
         }
         && match root.pages().chats() {

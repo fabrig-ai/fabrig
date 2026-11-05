@@ -10,10 +10,9 @@ demo:
   [6] Home
   [7] Needs you
   [8] Chats (current)
-  [9] Changes
-  [10] + New chat
-  [11] Set up temper
-  [12] Settings
+  [9] + New chat
+  [10] Set up temper
+  [11] Settings
   * Pat
 T1 · Add CSV export to widget:
   * waiting on your words
@@ -38,7 +37,7 @@ Conversation:
       - Pull request opened (completed)
       - CI passed (completed)
       - Landed (completed)
-    [13] Task 2 ↗
+    [12] Task 2 ↗
   1 tool call: wait
     wait
   Temper
@@ -47,6 +46,6 @@ Conversation:
   1 tool call: wait
     wait
 Using Scripted model · Default
-[14] Message: (empty) (enter sends)
+[13] Message: (empty) (enter sends)
 Enter to send · Shift+Enter for newline
-[15] Send
+[14] Send
