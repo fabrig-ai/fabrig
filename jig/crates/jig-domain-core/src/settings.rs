@@ -546,7 +546,7 @@ pub(crate) struct Restoration {
 #[derive(Debug)]
 pub(crate) enum RestoreEdit {
     Core(Edit),
-    Application(application::RestoredEdit),
+    Application(application::Restored),
 }
 #[derive(Debug)]
 pub(crate) struct RestoreGroup {
