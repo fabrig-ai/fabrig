@@ -149,6 +149,7 @@ pub fn task_with_hold() -> d::Task {
         label: 0,
         flags: t::Flags::PLAIN,
         last_activity: Wall::EPOCH,
+        made: Wall::from_nanos(7),
         chip: chip(),
         acts: List::with_capacity(0),
         project: 7,

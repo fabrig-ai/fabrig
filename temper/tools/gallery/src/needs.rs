@@ -184,12 +184,7 @@ fn actions(root: &mut Domain, name: &str, out: &mut Queue<Request>) {
 }
 
 fn escalation(name: &str) -> c::Escalation {
-    let source = worlds::world(
-        World::Solo,
-        Address::Task { task: 3, filter: temper_client_domain::PlanFilter::All },
-        Then::Held,
-    )
-    .0;
+    let source = worlds::world(World::Solo, Address::Task { task: 3 }, Then::Held).0;
     let mut task = source.pages().task().expect("task page").document(source.client()).expect("task").clone();
     task.chip.task = 1;
     task.chip.title = text("first-run-projects");

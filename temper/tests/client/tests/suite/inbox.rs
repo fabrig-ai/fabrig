@@ -72,7 +72,7 @@ fn a_delegates_question_answered_in_the_inbox_reaches_the_delegate() {
         person,
         vec![
             Step::See {
-                find: Find::exactly_named(Role::Paragraph, format!("Task {delegate}").as_bytes()),
+                find: Find::exactly_named(Role::Heading { level: 1 }, b"Planning: reading what was asked."),
                 within: fixtures::WITHIN,
             },
             Step::See { find: Find::text(b"Ask the person"), within: fixtures::WITHIN },

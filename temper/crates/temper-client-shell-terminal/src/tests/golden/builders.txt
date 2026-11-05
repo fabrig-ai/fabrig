@@ -10,18 +10,17 @@ First:
   [6] Home
   [7] Needs you
   [8] Chats
-  [9] Changes
-  [10] + New chat
-  [11] Settings (current)
+  [9] + New chat
+  [10] Settings (current)
   * Pat
 First · settings
 The machines temper’s agents run on, each with its slots and how many are in use.
 Settings:
-  [12] How work runs
-  [13] Repositories
-  [14] Forges
-  [15] Accounts
-  [16] Builders (current)
+  [11] How work runs
+  [12] Repositories
+  [13] Forges
+  [14] Accounts
+  [15] Builders (current)
 ## Builders · 2
 No builder is connected.
 worker

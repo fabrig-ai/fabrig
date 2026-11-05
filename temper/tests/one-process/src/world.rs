@@ -542,6 +542,11 @@ fn prepare_account(
         *selected = true;
     }
     let Some(actor) = provision else { return false };
+    // Finish the session's opening exchanges before the one-shot account setup.
+    if client.pending().admission.attempts != 0 {
+        *wake = None;
+        return true;
+    }
     // The goal fact adds a Watch and Read during sign-in; let them finish before carrying the key.
     if actor.at() == 5 {
         let pending = client.pending();

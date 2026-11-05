@@ -2384,3 +2384,9 @@ hearth/docs/design/domain/artifacts.md (7.3) cite it.
   or its `ConfigurationDirectory=` could name its consumers without a
   `live` entry (5.14); it depends on how many entries the fleet's tasks
   need once written.
+- **A bash fleet's container name in 3.5:** whether "The same environment
+  only" keeps the name of the container that becomes `chat-prod`, or is
+  written around the target alone; the user's to decide. The id base that
+  target's file sets (3.5; hearth/docs/design/domain/slots.md, 12.1) stays
+  either way: it is the first id past the builder's range
+  (hearth/docs/design/domain/store.md, 9.2) and says nothing of a deployment.

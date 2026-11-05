@@ -1,6 +1,6 @@
 # Tools: temper for agents
 
-Provisional, 2026-10-17, revised 2026-10-30. How agents drive temper:
+Provisional, 2026-10-17, revised 2026-11-05. How agents drive temper:
 they read what it holds, act through jig's operations and wait for what
 changes, with `temper ctl`, a command line. It serves any agent working
 with temper for a person, which reaches the systems temper works with,
@@ -806,6 +806,18 @@ The table grows area by area, each with its stories (section 11).
    A stale revision reaches the engine and is refused; a retained keyed
    answer reaches it for replay even after the task ends. The numbered
    question form of 5.3 keeps its separate question read and answer.
+
+   An answer past what its contract asks, a report's words or the
+   reason of the choice it names, reaches the engine and is refused as
+   past its contract (exit 2). The act's read gave the contract, so the
+   refusal names the bound: `task answer: Limit reached: task 44's reason
+   for choice 1 is at most 128 bytes`, or `task 44's words are at most 128
+   bytes`, and JSON's `bound` beside the refusal. The same refusal for any
+   other cause (a choice the contract lacks, an answer of another form, a
+   `--cannot` or an `--approve` past the deployment's result bound) has no
+   bound the task asks for, and prints as it is; so does a restored
+   request, which read nothing. TEXT's bound in the tool's line is the most
+   any call takes: the tool's notes say a person task may ask for less.
 
 4. **jig's plumbing whole:** `create`, `propose`, `compound --project
    PROJECT FILE`, a batch, a proposal or a compound request as JSON

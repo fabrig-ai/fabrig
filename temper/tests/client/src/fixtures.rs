@@ -65,10 +65,10 @@ pub fn domain_limits() -> Limits {
                 }],
                 requests,
                 ask_bytes: requests.bytes / u64::from(requests.requests),
-                // Page handles, the project-needs watch and the goals fact.
-                handles: 12,
-                // Closing chat watches overlap the task watches and both session watches.
-                watches: 11,
+                // Page handles, session settings, project-needs and the goals watch/read.
+                handles: 13,
+                // Closing page watches overlap the session watches.
+                watches: 12,
                 turn_bytes: 65536,
                 backoff: jig_client::Backoff { first: Duration::from_millis(10), most: Duration::from_millis(80) },
                 authority: 12,
@@ -828,7 +828,7 @@ fn make_goal_named(
 }
 #[must_use]
 pub fn task_page(task: u64) -> temper_client_domain::Address {
-    temper_client_domain::Address::Task { task, filter: temper_client_domain::PlanFilter::All }
+    temper_client_domain::Address::Task { task }
 }
 #[must_use]
 pub fn plan_item(task: u64, status: &[u8]) -> skein_fake_person::Find {
@@ -1350,6 +1350,13 @@ pub fn configuring_world(seed: u64, member: bool) -> World<Temper, Joint> {
 pub(crate) fn configuring_configuration(seed: u64, member: bool) -> engine::Config {
     use jig_domain_authority as authority;
     let mut config = temper_engine_domain_world::walking::config(seed);
+    config.core.kinds =
+        temper_service::stock::kinds(&temper_engine_domain_world::walking::limits(), config.core.connectors[0])
+            .into_vec()
+            .into_iter()
+            .filter(|kind| kind.number == 6 || kind.number == 7)
+            .collect();
+    config.kinds_stock = Box::new([]);
     let llm = jig_protocol_config::Llm {
         endpoints: Box::new([]),
         models: config.core.settings.models.clone(),

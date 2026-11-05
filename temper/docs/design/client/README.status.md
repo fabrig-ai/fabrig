@@ -3,16 +3,38 @@
 2026-11-05. Where temper's code lags or departs from [README.md](README.md).
 
 - **Not yet:** 4.7: the read-only line on an adopted repository, and `temper ctl`'s line on a no access: `temper-client-tools/src/forge.rs`, `answer_text`; the form draws neither read-only line (`temper-client-view/src/forge/page.rs`).
-  3.4, 5.5: the composer's
+- **Not yet:** 10: a browser walk from a draft's sheet through planning, a live
+  report and delegate tasks, Pause, Resume, a message and Stop. The fake box's
+  model (`temper-fake/src/backends.rs`, `model_document`) writes a report only
+  for the first chat's goal, task 2, then finishes it without delegates. The
+  browser can open that ended goal and its report, but cannot exercise those
+  live states with this script.
+- **Departs:** 3.5, 5.14: Goals' "Start one from a draft" goes to Chats with
+  the Drafts filter, rather than opening a sheet with a Draft field;
+  `temper-client-domain`'s `pages/start_goal.rs` ignores `OpenStart` without
+  a supplied draft. The sheet with a supplied draft remains. This is the
+  route accepted by `ui-goal-page`'s `goal-browser` answer of 2026-11-05;
+  `ui-chat-draft` owns its draft-to-goal continuation. On the fake box's
+  stock project, Chats offers no Drafts filter or draft-start control.
+- **Not yet:** 3.4, 5.5: the composer's
   supplied default, jig's
   `resolved_default`, which neither jig's `Me` nor temper carries. 3.5:
   `Board { project }` with its reordering: no
-  address in `temper-client-domain`'s `address.rs`. 3.5, 5.13, 10:
-  `Proposal { proposal }` and the fuller page's sections, with a review's
-  "Change something"; ctl supplies the review groups and running-work effect
-  (`tools.md`, 5.2). 3.5, 5.3, 5.13: How work runs' controls and its
-  session's watch and reads, the rail and tab bar by kind 7, `drafts_offered`,
-  and a proposal of settings' card in a chat.
+  address in `temper-client-domain`'s `address.rs`.
+  5.3, 5.13: the Away switch in the rail and phone's top bar, and
+  "While you're away, agents may decide", await Away's `SetAway`.
+  5.13: a person with a project's role alone can read kinds 6 and 7,
+  but cannot change them on the tab: jig's settings inventory requires
+  a deployment role (`jig-domain-core`'s `documents/settings.rs`, `make`),
+  so `temper-client-domain`'s `forge/ways.rs`, `act`, has no newest
+  revision and sends nothing. The controls appear enabled and give no
+  refusal. A project-scoped settings inventory needs a contract in jig
+  before the tab can use it.
+  5.13: `pages/chats.rs`'s `drafts_offered` reads kind 7, but the chat's
+  draft offer has no view calling it yet. A goal's start preselecting the
+  stored way awaits a goal-start page; `pages/goals.rs` draws the list alone.
+  3.5, 5.13, 10: `Proposal { proposal }` and the fuller page's sections, with a review's
+  "Change something"; ctl supplies the review groups and running-work effect (`tools.md`, 5.2).
   5.3: the banner's "Changes", on a page that is no project's:
   the request of 2026-11-05 asked for the rail, and its mock has no banner.
   3.5, *Goals*: a project whose `me` lists no goal template opens no watch
@@ -99,6 +121,11 @@
   `forges` watch refused, ended or not delivered yet, where the section has
   nothing said. The request of 2026-11-05 gives that line two cases and no
   words for not knowing; no test holds it and no reason is recorded.
+  3.5, *The rows*: an account's sources are a list under their level-3
+  heading, each with its state and acts, and a sign-in under way a paragraph
+  (`temper-client-view`'s `pages/accounts/rows.rs`, `draw`), where the section
+  has a row's facts as `.setting` rows, because the rows keep their sources,
+  observations and forms in document order.
 - **Design departs:** 3.5, *A chat's conversation*, its cards, from the request
   `ui-chats` of 2026-11-05, which names a proposal, a held task and a question's
   answer as cards in the conversation: a chat's page holds proposals alone
@@ -125,6 +152,14 @@
   And " · later" shows on *Needs you*'s mono line as on Home's, where the request
   and the mock have it on Home's card alone: the one function draws both, and no
   reason is recorded.
+- **Design departs:** 3.5, *The flows' paths* and *Builders*, from the request
+  `ui-settings-tabs` of 2026-11-05, decided by its plan's cut. The terminal
+  draws no path, where the request has each flow add one: the same request
+  keeps the terminal's prints' meaning, a path would shift every number on the
+  flows, and the terminal's rail holds "Settings". With hosts kept and none
+  connected, `.empty` stands above their "Not connected" lines, where the
+  request gives none connected `.empty` and no words for that case, so that no
+  state is dropped.
 - **Design departs:** 3.5, *Goals*, from the request of 2026-11-05: "6 / 9" is
   on the task line (jig's `client/domain/contract.md`, 5.1), where the request
   offered the goal's document or the tree's read, and a row reads its report

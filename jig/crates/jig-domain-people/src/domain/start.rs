@@ -13,8 +13,13 @@ impl Domain {
         self.restore_failure.clone()
     }
 
+    /// An event's projection lands on a whole census: from the link on
+    /// (jig/docs/design/domain/engine.md, 17.7), never while loading.
     pub(super) fn assert_projection_event(&self) {
-        assert!(self.ready(), "people projections require start_project before open");
+        assert!(
+            self.ready() || self.start == Start::Linked,
+            "people projections require start_project before the link"
+        );
     }
 
     /// Rebuild a bounded volatile census projection while loading, without clocks or effects.
@@ -307,13 +312,13 @@ mod tests {
 
     #[test]
     fn readiness_and_lookup_follow_the_start_in_every_state() {
-        for (start, ready, lookup) in [
-            (Start::NotStarted, true, false),
-            (Start::Loading, false, true),
-            (Start::Linked, false, true),
-            (Start::Sweeping, false, true),
-            (Start::Open, true, false),
-            (Start::Failed, false, false),
+        for (start, ready, lookup, projects) in [
+            (Start::NotStarted, true, false, true),
+            (Start::Loading, false, true, false),
+            (Start::Linked, false, true, true),
+            (Start::Sweeping, false, true, false),
+            (Start::Open, true, false, true),
+            (Start::Failed, false, false, false),
         ] {
             let mut domain = Domain::new(&crate::tests::LIMITS, Box::new([]), 1, Box::new([]));
             domain.start = start;
@@ -322,7 +327,7 @@ mod tests {
             let projection = std::panic::catch_unwind(core::panic::AssertUnwindSafe(|| {
                 domain.assert_projection_event();
             }));
-            assert_eq!(projection.is_ok(), ready, "{start:?}");
+            assert_eq!(projection.is_ok(), projects, "{start:?}");
         }
     }
 }
