@@ -61,7 +61,7 @@ pub struct Sample {
     pub address: Address,
     pub then: Then,
 }
-pub const N: usize = 138;
+pub const N: usize = 139;
 const CHATS: Address = Address::Chats { filter: ChatsFilter::All, start: false };
 use World::{Bare, FirstRun, Reference, Solo};
 #[must_use]
@@ -335,6 +335,7 @@ pub fn samples() -> [Sample; N] {
         owned_sample("forge-setting-up-middle", 6, false),
         owned_sample("forge-setup-failed", 9, false),
         owned_sample("welcome-setup-failed", 9, true),
+        owned_sample("welcome-ready-copies", 7, true),
         welcome_sample("welcome-ready-none", temper_client_domain::Step::Ready),
         welcome_sample("welcome-ready-signing", temper_client_domain::Step::Ready),
         owned_sample("welcome-ready-under-way", 6, true),
@@ -499,7 +500,9 @@ fn special_mockup(name: &str) -> Option<String> {
             return Some("welcome.html?world=first-run&step=0&at=forge&forge=3&bare".to_owned());
         }
         "welcome-model-choose" => return Some("welcome.html?world=first-run&step=0&at=model&bare".to_owned()),
-        "welcome-ready-none" | "welcome-ready-signing" => return Some("welcome.html?at=ready".to_owned()),
+        "welcome-ready-copies" | "welcome-ready-none" | "welcome-ready-signing" => {
+            return Some("welcome.html?at=ready".to_owned());
+        }
         "welcome-ready-under-way" => return Some("welcome.html?world=first-run-real&step=3&at=ready&bare".to_owned()),
         "welcome-ready-adopted" => return Some("welcome.html?world=first-run-real&step=4&at=ready&bare".to_owned()),
         _ => {}
@@ -628,6 +631,9 @@ pub fn mockup(sample: &Sample) -> Option<String> {
 #[must_use]
 #[expect(clippy::too_many_lines, reason = "one dispatch builds each gallery state's domain")]
 pub fn domain(sample: &Sample) -> Domain {
+    if sample.name == "welcome-ready-copies" {
+        return crate::worlds::copies_world(sample.address.clone(), sample.then);
+    }
     if sample.name.starts_with("changes") {
         return crate::worlds::changes_world(sample.name);
     }

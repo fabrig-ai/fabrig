@@ -899,6 +899,7 @@ pub enum Word {
     WelcomeForgejoName,
     WelcomeReadyLead,
     WelcomeReadyRepositoryLead,
+    WelcomeReadyCopiesLead,
     WelcomeCreateProject,
     WelcomeRenameLater,
     WelcomeDefaultUnnamed,
@@ -973,7 +974,8 @@ pub(crate) const SCRIPTED_MODEL: &[u8] = b"demo";
 // Ready adds its setup note and program/key details (client/README.md, 3.5).
 // Goal rows, ways and page add thirty-five phrases (client/README.md, 3.5).
 // The sheet replaces its placeholder with four refusal phrases (3.5).
-const PHRASES: u32 = 1463;
+// Ready’s counted copy lead adds one phrase (client/README.md, 3.5).
+const PHRASES: u32 = 1464;
 // Ready's empty-name line has two literals and a Name hole, two more segments (3.5).
 // Ready's repository lead adds one phrase and three segments (3.5).
 // Four literals and the counted entry's two literals and Number hole add seven segments.
@@ -993,8 +995,9 @@ const PHRASES: u32 = 1463;
 // Ready adds four literal segments and one program-name hole (3.5).
 // Goal rows, ways and page add sixty-three segments (3.5).
 // The sheet adds five segments after removing its placeholder (3.5).
-const SEGMENTS: u32 = 2530;
-const ALL: [Word; 867] = [
+// Ready’s counted copy lead adds two literals and a Number hole (3.5).
+const SEGMENTS: u32 = 2533;
+const ALL: [Word; 868] = [
     Word::GoalsWaySeparator,
     Word::GoalsWayEnd,
     Word::GoalsKicker,
@@ -1858,6 +1861,7 @@ const ALL: [Word; 867] = [
     Word::WelcomeForgejoName,
     Word::WelcomeReadyLead,
     Word::WelcomeReadyRepositoryLead,
+    Word::WelcomeReadyCopiesLead,
     Word::WelcomeCreateProject,
     Word::WelcomeRenameLater,
     Word::WelcomeDefaultUnnamed,
@@ -2732,6 +2736,7 @@ impl Word {
             Self::WelcomeForgejoName => 3043,
             Self::WelcomeReadyLead => 3044,
             Self::WelcomeReadyRepositoryLead => 3060,
+            Self::WelcomeReadyCopiesLead => 3308,
             Self::WelcomeCreateProject => 3045,
             Self::WelcomeRenameLater => 3046,
             Self::WelcomeDefaultUnnamed => 3047,
@@ -2976,7 +2981,8 @@ impl Words {
             // Ready’s note and account details add 122 literal bytes (3.5).
             // Goal rows, ways and page add 669 literal bytes (3.5).
             // Sheet refusal literals add 84 bytes (client/README.md, 3.5).
-            text_bytes: 84 + 669 + 122 + 32768 + 288 + 149 + 401 + 11 + 76 + 476 + 659 + 367 + 468,
+            // Ready’s counted copy lead adds 96 literal bytes (3.5).
+            text_bytes: 96 + 84 + 669 + 122 + 32768 + 288 + 149 + 401 + 11 + 76 + 476 + 659 + 367 + 468,
             // Whole playground requests keep their supplied bound.
             hole_bytes: joined
                 .max(switcher_repository_bytes(joined)?)
@@ -3303,6 +3309,7 @@ fn english(word: Word, shell: Shell) -> (&'static [&'static [u8]], &'static [Hol
         Word::WelcomeCopiesTooMany => (&[b"At most 16 addresses."], &[]),
         Word::WelcomeSheetBlank => (&[b"Both an organization and a name."], &[]),
         Word::WelcomeForgejoName => (&[b"Name"], &[]),
+        Word::WelcomeReadyCopiesLead => (&[b"Everything is connected. Create your first project, with ", b" repositories in it, and start working."], &[Number]),
         Word::WelcomeReadyRepositoryLead => (&[b"Everything is connected. Create your first project, with ", b" in it, and start working."], &[Name]),
         Word::WelcomeReadyLead => (&[b"Everything is connected. Create your first project and start working."], &[]),
         Word::WelcomeCreateProject => (&[b"Create your project"], &[]),

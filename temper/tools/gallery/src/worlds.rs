@@ -231,13 +231,16 @@ fn configure_frame(me: &mut c::Me) {
 }
 
 pub(super) fn world(w: World, address: Address, then: Then) -> (Domain, Option<Token>) {
-    world_in_layout(w, address, then, false, None)
+    world_in_layout(w, address, then, false, None, false)
+}
+pub(super) fn copies_world(address: Address, then: Then) -> Domain {
+    world_in_layout(FirstRun { step: 7 }, address, then, false, None, true).0
 }
 pub(super) fn configuring_world(w: World, address: Address, then: Then) -> (Domain, Option<Token>) {
-    world_in_layout(w, address, then, true, None)
+    world_in_layout(w, address, then, true, None, false)
 }
 pub(super) fn goals_world(w: World, address: Address, name: &str) -> Domain {
-    world_in_layout(w, address, Then::Shown, false, Some(name)).0
+    world_in_layout(w, address, Then::Shown, false, Some(name), false).0
 }
 #[expect(clippy::too_many_lines, reason = "one ordered dispatch answers the gallery page’s document reads")]
 fn world_in_layout(
@@ -246,6 +249,7 @@ fn world_in_layout(
     then: Then,
     configuring_chat: bool,
     goals: Option<&str>,
+    copies: bool,
 ) -> (Domain, Option<Token>) {
     let configuring = configuring_chat || matches!(address, Address::Configure { .. });
     let connecting = matches!(
@@ -329,7 +333,11 @@ fn world_in_layout(
                     let subject = match watching.watch() {
                         w::Watch::Forges => {
                             forge_watch = Some(watch);
-                            forges_watched(&mut root, w, watch, &mut out);
+                            if copies {
+                                copies_watched(&mut root, watch, &mut out);
+                            } else {
+                                forges_watched(&mut root, w, watch, &mut out);
+                            }
                             continue;
                         }
                         w::Watch::Change(subject) => subject,
@@ -394,6 +402,33 @@ fn first_run_ready(root: &mut Domain, w: World, forge_watch: Option<Token>, out:
 fn forges_watched(root: &mut Domain, world: World, watch: Token, out: &mut Queue<Request>) {
     use temper_client_protocol_wire as wire;
     let record = jig_client::Family { family: wire::FORGE, version: wire::CLIENT_VERSION, bytes: forges(world) };
+    step(
+        root,
+        Event::Client { event: jig_client::Event::Up { up: jig_client::Up::FamilyDelivered { watch, record } } },
+        out,
+    );
+}
+fn copies_watched(root: &mut Domain, watch: Token, out: &mut Queue<Request>) {
+    use temper_client_protocol_wire::{self as wire, v1 as w};
+    let mut rows =
+        wire::decode_forges(&forges(FirstRun { step: 7 }), &w::CEILINGS).expect("Ready forges").into_parts().forges;
+    let row = rows.get_mut(0).expect("Ready forge");
+    let mut parts = row.clone().into_parts();
+    parts.first = None;
+    parts.repositories.clear();
+    let mut addresses = List::with_capacity(2);
+    for address in [b"https://github.com/acme/widget".as_slice(), b"https://source.invalid/team/tool".as_slice()] {
+        addresses.push(address.into()).expect("two copies");
+    }
+    parts.starts_with = w::StartsWith::Copies(
+        w::CopyAddresses::new(&w::CEILINGS, w::CopyAddressesParts { addresses }).expect("Ready copies"),
+    );
+    *row = w::ForgeRow::new(&w::CEILINGS, parts).expect("Ready forge");
+    let record = jig_client::Family {
+        family: wire::FORGE,
+        version: wire::CLIENT_VERSION,
+        bytes: wire::forges(&w::Forges::new(&w::CEILINGS, w::ForgesParts { forges: rows }).expect("Ready rows")),
+    };
     step(
         root,
         Event::Client { event: jig_client::Event::Up { up: jig_client::Up::FamilyDelivered { watch, record } } },
