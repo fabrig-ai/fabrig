@@ -56,7 +56,7 @@ pub use position::Position;
 use core::mem;
 
 use skein_lib::stream::{Delimiter, Down, Fault, Read, Up};
-use skein_lib::{Env, List, Queue, Stack};
+use skein_lib::{Env, List, Queue, Stack, usize_of};
 
 use crate::Token;
 use crate::number::{After, Number};
@@ -128,7 +128,7 @@ pub fn validation_bound(limits: &Limits) -> Option<u64> {
 /// Checks one borrowed value through `Skip`, including trailing whitespace.
 /// Strings and keys are checked but never retained; no token count is imposed.
 pub fn validate(input: &[u8], limits: &Limits) -> Result<(), Error> {
-    if input.len() > usize::try_from(limits.length).expect("u32 fits usize") {
+    if input.len() > usize_of(limits.length) {
         return Err(Error::TooLong);
     }
     let bounded = Limits { string: 0, ..*limits };
@@ -754,7 +754,7 @@ fn delivered(document: &mut Document, limits: &Limits, reading: Reading, bytes: 
             Step::Token(literal.token(), Held::Nothing)
         }
         Reading::String { key, text } => {
-            let chunk = usize::try_from(limits.chunk).expect("a u32 fits a usize");
+            let chunk = usize_of(limits.chunk);
             assert!(
                 bytes.len() <= chunk && (bytes.last() == Some(&b'"') || bytes.len() == chunk),
                 "a scan delivers through its quote or its maximum"

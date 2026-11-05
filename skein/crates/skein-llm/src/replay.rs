@@ -3,7 +3,7 @@
 
 use crate::{DocumentLimits, Error, Json, Provider, Replay};
 use alloc::boxed::Box;
-use skein_lib::{Reader, Writer};
+use skein_lib::{Reader, Writer, usize_of};
 
 const VERSION: u16 = 1;
 /// Fixed version, provider tag and length overhead, beyond the raw opaque cap.
@@ -45,7 +45,7 @@ impl Replay {
         if length > limits.bytes {
             return Err(Error::limit(crate::Cap::Retained, limits.bytes));
         }
-        let mut out = Writer::new(usize::try_from(total).expect("u32 fits usize"));
+        let mut out = Writer::new(usize_of(total));
         out.put(&VERSION.to_be_bytes()).expect("measured replay header");
         let provider = match self.provider {
             Provider::OpenAi => 3_u8,
@@ -62,7 +62,7 @@ impl Replay {
     /// compatibility when the replay is used in a prompt.
     pub fn from_bytes(data: &[u8], limits: &DocumentLimits) -> Result<Replay, Error> {
         let maximum = replay_bytes(limits).ok_or(Error::limit(crate::Cap::Retained, limits.bytes))?;
-        if data.len() > usize::try_from(maximum).expect("u32 fits usize") {
+        if data.len() > usize_of(maximum) {
             return Err(Error::limit(crate::Cap::Retained, limits.bytes));
         }
         let mut input = Reader::new(data);

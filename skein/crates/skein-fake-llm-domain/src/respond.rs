@@ -29,7 +29,7 @@
 use alloc::boxed::Box;
 
 use skein_lib::bytes::copy_of;
-use skein_lib::{Duration, List, Rng, Time};
+use skein_lib::{Duration, List, Rng, Time, usize_of};
 
 use crate::api::{Answer, Error, Failure, Finish, Line, Message, Part, Query, Role, Rule, Rules, Script, Turn, Usage};
 use crate::domain::{Config, Played};
@@ -380,7 +380,7 @@ fn input_turn(group: &[Box<[Rule]>], script: usize, messages: &[Message]) -> Opt
     let fresh = messages.get(start..).expect("fresh input is a conversation suffix");
     for rule in rules {
         if rule.cue.is_empty() {
-            return Some(usize::try_from(rule.turn).expect("admitted turn index"));
+            return Some(usize_of(rule.turn));
         }
         for message in fresh {
             for part in &message.parts {
@@ -390,7 +390,7 @@ fn input_turn(group: &[Box<[Rule]>], script: usize, messages: &[Message]) -> Opt
                     Part::Opaque { .. } | Part::ToolCall { .. } => continue,
                 };
                 if skein_lib::bytes::find(text, &rule.cue).is_some() {
-                    return Some(usize::try_from(rule.turn).expect("admitted turn index"));
+                    return Some(usize_of(rule.turn));
                 }
             }
         }

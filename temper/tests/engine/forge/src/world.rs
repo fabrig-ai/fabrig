@@ -458,6 +458,20 @@ impl World {
     pub fn writerless(seed: u64) -> World {
         Self::configured(seed, LIMITS.facts, false, None, None, false, 4, false, None)
     }
+    /// Restore a durable tier snapshot through the connector's restart.
+    pub fn restore_tier(&mut self, row: top::TierRow) {
+        self.stored
+            .insert(top::Key::Tier { repository: row.repository, tier: row.tier.clone() }, top::Stored::Tier(row))
+            .expect("fixture tier room");
+        self.restart();
+    }
+
+    /// Bound tier news and client answers independently.
+    pub fn tier_log_room(&mut self, brief_bytes: u32, answer_bytes: u32) {
+        self.env.limits.brief_bytes = brief_bytes;
+        self.env.limits.client.answer_bytes = answer_bytes;
+    }
+
     pub fn tier_failures(&mut self, failing_tests: u32) {
         self.env.limits.tiers.failing_tests = failing_tests;
     }

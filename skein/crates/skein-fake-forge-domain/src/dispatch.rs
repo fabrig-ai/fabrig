@@ -12,6 +12,7 @@ use alloc::boxed::Box;
 use skein_lib::{
     Env, Id, List,
     bytes::{copy_of, find},
+    usize_of,
 };
 
 pub(crate) fn fits(
@@ -22,7 +23,7 @@ pub(crate) fn fits(
 ) -> Result<(), Error> {
     crate::store::fits(workflow, limits.name_bytes)?;
     crate::store::fits(branch, limits.name_bytes)?;
-    if inputs.len() > usize::try_from(limits.contexts).expect("context bound fits") {
+    if inputs.len() > usize_of(limits.contexts) {
         return Err(Error::TooLarge);
     }
     for (key, value) in inputs {

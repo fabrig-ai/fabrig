@@ -12,7 +12,7 @@ use crate::Limits;
 use crate::{Act, Binding, BoundAct};
 use crate::{Builder, Node, NodeId, Patch, Tree, diff};
 
-use skein_lib::{List, Queue};
+use skein_lib::{List, Queue, usize_of};
 
 /// A visible tree, its spare allocation, shown count and never-reused node ids.
 #[derive(Debug)]
@@ -84,7 +84,7 @@ impl View {
     pub fn act(&self, node: NodeId, act: Act) -> Option<BoundAct> {
         match &act {
             Act::Drawing { data } => {
-                if data.len() > usize::try_from(self.limits.drawing_bytes).expect("drawing limit fits usize") {
+                if data.len() > usize_of(self.limits.drawing_bytes) {
                     return None;
                 }
             }

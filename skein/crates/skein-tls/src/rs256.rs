@@ -5,7 +5,7 @@ use alloc::boxed::Box;
 use rustls::pki_types::PrivateKeyDer;
 use rustls::sign::SigningKey;
 use rustls::{SignatureScheme, crypto::ring};
-use skein_lib::Writer;
+use skein_lib::{Writer, usize_of};
 
 /// The largest PKCS#1 `RSAPrivateKey` DER of a 2048-bit RSA key that ring
 /// signs with: a 4-byte sequence header; version 0 (3 bytes); `n` and `d`,
@@ -184,7 +184,7 @@ fn length_bytes(len: usize) -> usize {
         return 0;
     }
     let bits = usize::BITS.checked_sub(len.leading_zeros()).expect("bit count");
-    usize::try_from(bits.div_ceil(8)).expect("usize's byte count")
+    usize_of(bits.div_ceil(8))
 }
 
 fn element_len(len: usize) -> Option<usize> {

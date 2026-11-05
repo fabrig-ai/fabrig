@@ -144,10 +144,13 @@ impl World {
         Self::new(config())
     }
     pub fn new(config: engine::Config) -> Self {
-        let limits = limits();
+        Self::with_limits(config, &limits())
+    }
+    /// Stock setup with story-specific entrance bounds.
+    pub fn with_limits(config: engine::Config, limits: &engine::Limits) -> Self {
         let templates = config.core.defaults.templates.clone();
         let period_budget = config.core.defaults.rules.period_spend;
-        let mut driver = Driver::cold(Store::with_limits(&limits), config, &limits);
+        let mut driver = Driver::cold(Store::with_limits(limits), config, limits);
         driver.period_sent = true;
         driver.settle();
         driver.sign_in();
@@ -478,7 +481,7 @@ pub(super) fn propose(
     assert!(!error, "{}", String::from_utf8_lossy(&body));
     std::str::from_utf8(&body)
         .expect("proposal answer")
-        .strip_prefix("proposed as proposal ")
+        .strip_prefix(&format!("proposed as t{}/", run.task))
         .expect("proposal")
         .strip_suffix(" to the deployment's owners")
         .expect("deployment owners")

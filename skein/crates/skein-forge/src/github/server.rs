@@ -7,7 +7,7 @@ use super::{
 use crate::time;
 use alloc::boxed::Box;
 use skein_json::writer::{self, Encoder};
-use skein_lib::{Decimal, List, Overflow, Writer, bytes};
+use skein_lib::{Decimal, List, Overflow, Writer, bytes, usize_of};
 mod app;
 mod queries;
 pub use queries::{Graphql, graphql_body};
@@ -30,7 +30,7 @@ pub use writes::{done, id, number, write_body};
 /// Reads a request target into the request whose canonical spelling it carries.
 #[must_use]
 pub fn route(method: Method, target: &[u8], limits: &Limits) -> Option<Request> {
-    if target.len() > usize::try_from(limits.target_bytes).expect("u32 fits usize") || target.contains(&b'#') {
+    if target.len() > usize_of(limits.target_bytes) || target.contains(&b'#') {
         return None;
     }
     let (path, query) = split(target, b'?');

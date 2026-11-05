@@ -1,4 +1,5 @@
 //! Bounded exchanges and kept answer headers (skein/docs/design/ui-web.md, 10).
+use skein_lib::usize_of;
 use std::collections::BTreeMap;
 #[cfg(target_arch = "wasm32")]
 pub mod web;
@@ -49,12 +50,7 @@ pub struct Fetch {
 impl Fetch {
     #[must_use]
     pub fn new(capacity: u32) -> Self {
-        Self {
-            flights: BTreeMap::new(),
-            capacity: usize::try_from(capacity).expect("capacity fits"),
-            serial: 0,
-            stream: None,
-        }
+        Self { flights: BTreeMap::new(), capacity: usize_of(capacity), serial: 0, stream: None }
     }
     /// A ticket remains unique after the application abandons and reuses an id.
     pub fn begin(&mut self, id: u32, bound: u32, keep: &[&str]) -> Option<u64> {
@@ -70,7 +66,7 @@ impl Fetch {
     }
     pub fn piece(&mut self, ticket: u64, piece: &[u8]) -> Option<Report> {
         let flight = self.flights.get_mut(&ticket)?;
-        if piece.len() > usize::try_from(flight.bound).expect("bound fits").saturating_sub(flight.body.len()) {
+        if piece.len() > usize_of(flight.bound).saturating_sub(flight.body.len()) {
             return self.fail(ticket);
         }
         flight.body.extend_from_slice(piece);
@@ -86,7 +82,7 @@ impl Fetch {
         let mut kept = Vec::new();
         for name in flight.keep {
             if let Some((_, value)) = headers.iter().find(|(key, _)| key.eq_ignore_ascii_case(&name)) {
-                if value.len() > usize::try_from(flight.bound).expect("bound fits") {
+                if value.len() > usize_of(flight.bound) {
                     return Some(Report::Failed { exchange: flight.id });
                 }
                 kept.push((name, value.clone()));
@@ -105,12 +101,7 @@ impl Fetch {
     pub fn open_stream(&mut self, bound: u32) -> u64 {
         assert!(bound > 0, "a stream piece holds a byte");
         self.serial = self.serial.checked_add(1).expect("stream tickets fit");
-        self.stream = Some(Stream {
-            ticket: self.serial,
-            bound: usize::try_from(bound).expect("bound fits"),
-            held: Box::from([]),
-            at: 0,
-        });
+        self.stream = Some(Stream { ticket: self.serial, bound: usize_of(bound), held: Box::from([]), at: 0 });
         self.serial
     }
     #[must_use]

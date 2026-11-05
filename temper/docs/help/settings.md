@@ -40,6 +40,10 @@ A setting's value is whole: a JSON value, as `settings show` prints
 it in JSON. Its members, with their types and bounds, are in
 `temper help settings-fields`.
 
+The configuring chat's `settings` pages fill the host answer allowance;
+`next: OFFSET` continues at that byte offset. File replies also fit that
+allowance: `[file truncated]` marks a cut, including cuts for metadata room.
+
 ## How it changes
 
 A change is a set of items, at most one per setting. Each item does one

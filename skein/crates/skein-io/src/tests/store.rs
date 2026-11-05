@@ -2,11 +2,12 @@
 
 use alloc::boxed::Box;
 
-use skein_lib::{Duration, Queue, Time, Token};
+use skein_lib::{Env, Queue, Time, Token};
 
+use super::file::file_env;
 use crate::digest::digest;
 use crate::file::{Event, Expect, Request};
-use crate::file_layer::{self, FileIo};
+use crate::file_layer::{self, FileIo, step};
 use crate::kernel::{Complete, Done, Error, Fd, Kind, Op, OpenHow, Stat, Submit};
 
 const OWNER: Token = Token::new(11);
@@ -17,6 +18,7 @@ const CHECK: Fd = Fd::new(53);
 
 struct Rig {
     io: FileIo,
+    env: Env<file_layer::Limits>,
     events: Queue<Event>,
     subs: Queue<Submit>,
     root: Token,
@@ -24,16 +26,17 @@ struct Rig {
 
 impl Rig {
     fn new() -> Rig {
-        let mut io = FileIo::with_whole_limit(4, 2, 4, 16, Duration::from_secs(1));
+        let env = Env { limits: file_layer::Limits { files: 4, read: 2, ..file_env().limits }, ..file_env() };
+        let mut io = FileIo::with_limits(&env.limits);
         io.seed_randomness(123);
         let root = io.adopt_root(ROOT).expect("room for root");
-        Rig { io, events: Queue::with_capacity(2), subs: Queue::with_capacity(2), root }
+        Rig { io, env, events: Queue::with_capacity(2), subs: Queue::with_capacity(2), root }
     }
 
     fn store(&mut self, expected: Expect) {
-        file_layer::down(
+        step::down(
             &mut self.io,
-            Time::ZERO,
+            &self.env,
             Request::Store {
                 owner: OWNER,
                 root: self.root,
@@ -52,8 +55,9 @@ impl Rig {
     }
 
     fn complete(&mut self, submit: Submit, result: Result<Done, Error>) {
-        file_layer::up(
+        step::up(
             &mut self.io,
+            &self.env,
             Complete { op: submit.op, kind: submit.kind, result },
             &mut self.events,
             &mut self.subs,
@@ -66,8 +70,9 @@ impl Rig {
             *slot = *byte;
         }
         let count = u32::try_from(bytes.len()).expect("small test data");
-        file_layer::up(
+        step::up(
             &mut self.io,
+            &self.env,
             Complete { op: submit.op, kind: Op::Read { fd, buf, at }, result: Ok(Done::Count(count)) },
             &mut self.events,
             &mut self.subs,
@@ -196,10 +201,7 @@ fn a_link_in_a_parent_path_is_refused_before_any_write() {
     let Op::Open { how, .. } = &parent.kind else { panic!("parent open") };
     assert_eq!(*how, OpenHow::DirectoryNoFollow);
     rig.complete(parent, Err(Error::TooManyLinks));
-    assert_eq!(
-        rig.events.pop(),
-        Some(Event::Failed { owner: OWNER, error: Error::TooManyLinks, committed: false, residue: None })
-    );
+    assert_eq!(rig.events.pop(), Some(Event::failed(OWNER, Error::TooManyLinks)));
     assert!(rig.subs.is_empty());
 }
 
@@ -266,10 +268,7 @@ fn a_taken_temporary_name_draws_another_suffix() {
     let close = rig.take();
     assert_eq!(close.kind, Op::Close { fd: PARENT });
     rig.complete(close, Ok(Done::Nothing));
-    assert_eq!(
-        rig.events.pop(),
-        Some(Event::Failed { owner: OWNER, error: Error::Permission, committed: false, residue: None })
-    );
+    assert_eq!(rig.events.pop(), Some(Event::failed(OWNER, Error::Permission)));
     assert!(rig.events.is_empty() && rig.subs.is_empty());
 }
 
@@ -283,7 +282,7 @@ fn a_rename_settled_at_the_deadline_does_not_remove_the_new_file() {
     rig.complete(check, Err(Error::NotFound));
     let rename = rig.take();
     let Op::Rename { .. } = &rename.kind else { panic!("ready to rename") };
-    file_layer::expire(&mut rig.io, Time::from_nanos(1_000_000_000), &mut rig.subs);
+    step::expire(&mut rig.io, &Env { now: Time::from_nanos(1_000_000_000), ..rig.env }, &mut rig.subs);
     assert!(rig.subs.is_empty());
     rig.complete(rename, Ok(Done::Nothing));
     let close = rig.take();
@@ -423,10 +422,7 @@ fn every_step_failed_before_or_at_rename_cleans_up_before_one_terminal() {
             }
         }
         assert!(failed && opened.is_empty() && !temp, "step {failed_at}: cleanup precedes the terminal");
-        assert_eq!(
-            rig.events.pop(),
-            Some(Event::Failed { owner: OWNER, error: Error::Other(5), committed: false, residue: None })
-        );
+        assert_eq!(rig.events.pop(), Some(Event::failed(OWNER, Error::Other(5))));
         assert!(rig.events.is_empty() && rig.subs.is_empty() && rig.io.takes());
         assert_eq!(rig.io.open_files(), 1, "only the inherited root remains");
         assert_eq!(rig.io.next_deadline(), None);
@@ -441,7 +437,7 @@ fn an_unsubmitted_store_cancel_is_retried_while_the_stalled_write_remains_owned(
     let create = rig.take();
     rig.complete(create, Ok(Done::Fd(TEMP)));
     let write = rig.take();
-    file_layer::expire(&mut rig.io, Time::from_nanos(1_000_000_000), &mut rig.subs);
+    step::expire(&mut rig.io, &Env { now: Time::from_nanos(1_000_000_000), ..rig.env }, &mut rig.subs);
     let cancel = rig.take();
     assert_eq!(cancel.kind, Op::Cancel { target: write.op });
     rig.complete(cancel, Err(Error::Other(12)));
@@ -461,10 +457,7 @@ fn an_unsubmitted_store_cancel_is_retried_while_the_stalled_write_remains_owned(
     let close = rig.take();
     assert_eq!(close.kind, Op::Close { fd: PARENT });
     rig.complete(close, Ok(Done::Nothing));
-    assert_eq!(
-        rig.events.pop(),
-        Some(Event::Failed { owner: OWNER, error: Error::TimedOut, committed: false, residue: None })
-    );
+    assert_eq!(rig.events.pop(), Some(Event::failed(OWNER, Error::TimedOut)));
     assert!(rig.events.is_empty() && rig.subs.is_empty() && rig.io.takes());
 }
 
@@ -476,7 +469,7 @@ fn a_late_unsubmitted_store_cancel_never_cancels_the_cleanup_close() {
     let create = rig.take();
     rig.complete(create, Ok(Done::Fd(TEMP)));
     let write = rig.take();
-    file_layer::expire(&mut rig.io, Time::from_nanos(1_000_000_000), &mut rig.subs);
+    step::expire(&mut rig.io, &Env { now: Time::from_nanos(1_000_000_000), ..rig.env }, &mut rig.subs);
     let cancel = rig.take();
     rig.complete(write, Err(Error::Cancelled));
     let close = rig.take();
@@ -488,10 +481,7 @@ fn a_late_unsubmitted_store_cancel_never_cancels_the_cleanup_close() {
     rig.complete(remove, Ok(Done::Nothing));
     let close = rig.take();
     rig.complete(close, Ok(Done::Nothing));
-    assert_eq!(
-        rig.events.pop(),
-        Some(Event::Failed { owner: OWNER, error: Error::TimedOut, committed: false, residue: None })
-    );
+    assert_eq!(rig.events.pop(), Some(Event::failed(OWNER, Error::TimedOut)));
     assert!(rig.events.is_empty() && rig.subs.is_empty() && rig.io.takes());
 }
 
@@ -531,7 +521,7 @@ fn failed_directory_sync_reports_a_committed_replace_after_parent_close() {
 fn a_hung_directory_sync_reports_a_committed_deadline_after_settlement() {
     let mut rig = Rig::new();
     let sync = renamed(&mut rig);
-    file_layer::expire(&mut rig.io, Time::from_nanos(1_000_000_000), &mut rig.subs);
+    step::expire(&mut rig.io, &Env { now: Time::from_nanos(1_000_000_000), ..rig.env }, &mut rig.subs);
     let cancel = rig.take();
     assert_eq!(cancel.kind, Op::Cancel { target: sync.op });
     rig.complete(cancel, Ok(Done::Nothing));
@@ -588,7 +578,7 @@ fn each_cancellable_pre_rename_phase_settles_at_the_owners_deadline() {
         let (Op::Open { .. } | Op::Write { .. } | Op::Read { .. } | Op::Sync { .. }) = &stalled.kind else {
             panic!("cancellable store phase");
         };
-        file_layer::expire(&mut rig.io, Time::from_nanos(1_000_000_000), &mut rig.subs);
+        step::expire(&mut rig.io, &Env { now: Time::from_nanos(1_000_000_000), ..rig.env }, &mut rig.subs);
         let cancel = rig.take();
         assert_eq!(cancel.kind, Op::Cancel { target: stalled.op });
         rig.complete(cancel, Ok(Done::Nothing));
@@ -597,10 +587,7 @@ fn each_cancellable_pre_rename_phase_settles_at_the_owners_deadline() {
             let submit = rig.take();
             old_file_step(&mut rig, submit, &mut opened, &mut temp);
         }
-        assert_eq!(
-            rig.events.pop(),
-            Some(Event::Failed { owner: OWNER, error: Error::TimedOut, committed: false, residue: None })
-        );
+        assert_eq!(rig.events.pop(), Some(Event::failed(OWNER, Error::TimedOut)));
         assert!(opened.is_empty() && !temp && rig.events.is_empty() && rig.io.takes());
         assert_eq!(rig.io.open_files(), 1);
     }
@@ -677,10 +664,7 @@ fn a_temporary_already_removed_by_another_owner_has_no_residue() {
     rig.complete(remove, Err(Error::NotFound));
     let close = rig.take();
     rig.complete(close, Ok(Done::Nothing));
-    assert_eq!(
-        rig.events.pop(),
-        Some(Event::Failed { owner: OWNER, error: Error::Other(5), committed: false, residue: None })
-    );
+    assert_eq!(rig.events.pop(), Some(Event::failed(OWNER, Error::Other(5))));
     assert!(rig.events.is_empty() && rig.subs.is_empty() && rig.io.takes());
 }
 
@@ -703,9 +687,9 @@ fn a_long_targets_temporary_keeps_its_first_230_bytes() {
         "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaathis-part-is-left-out"
     )
     .as_bytes();
-    file_layer::down(
+    step::down(
         &mut rig.io,
-        Time::ZERO,
+        &rig.env,
         Request::Store {
             owner: OWNER,
             root: rig.root,
@@ -739,9 +723,9 @@ fn a_long_targets_temporary_keeps_its_first_230_bytes() {
 fn debug_of_file_io_hides_a_store_in_flight() {
     const CANARY: &[u8] = b"canary-7f3a9c";
     let mut rig = Rig::new();
-    file_layer::down(
+    step::down(
         &mut rig.io,
-        Time::ZERO,
+        &rig.env,
         Request::Store {
             owner: OWNER,
             root: rig.root,

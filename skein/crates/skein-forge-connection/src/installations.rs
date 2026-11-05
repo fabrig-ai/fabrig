@@ -5,7 +5,7 @@ use skein_forge::{
     api,
     github::{document, request::Scope},
 };
-use skein_lib::{Duration, Map, Secret, Set, Time, Wall, earliest};
+use skein_lib::{Duration, Map, Secret, Set, Time, Wall, earliest, usize_of};
 
 #[derive(Debug)]
 pub(crate) struct Row {
@@ -196,7 +196,7 @@ impl Reading {
         name_bytes: u32,
     ) -> Result<(), api::Error> {
         for row in rows {
-            if row.login.len() > usize::try_from(name_bytes).expect("name bound") {
+            if row.login.len() > usize_of(name_bytes) {
                 return Err(api::Error::TooLarge);
             }
             if old.contains_key(&row.id) {

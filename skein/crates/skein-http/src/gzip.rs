@@ -130,7 +130,7 @@ pub fn encode(body: &[u8], out: &mut [u8]) -> Option<usize> {
     }
     align(out, &mut encoder.bits)?;
     let at = copy(out, encoder.bits.at, &crc(body)?.to_le_bytes())?;
-    let [a, b, c, d, ..] = u64::try_from(body.len()).ok()?.to_le_bytes();
+    let [a, b, c, d, ..] = skein_lib::len_u64(body.len()).to_le_bytes();
     copy(out, at, &[a, b, c, d])
 }
 

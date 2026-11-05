@@ -621,6 +621,14 @@ operation table past 2^27 slots. The bit sits below a token's top four
 (lib.md, 4), so a service that tags its children's tokens still can. A
 service that runs two `Io`s, or two `FileIo`s, tells them apart itself.
 
+`FileIo` takes its bounds as `Io` does (programming-model.md, 6.3): a
+`file_layer::Limits`, which `file_layer::valid` checks and
+`FileIo::with_limits` is made from, in the `Env<Limits>` that
+`file_layer::step`'s entry points (`down`, `down_until`, `up`, `expire`)
+take. `FileIo::new` and `FileIo::with_whole_limit`, with `file_layer`'s own
+`down`, `down_until`, `up` and `expire`, are thin forms over them, for a
+reader that keeps no `Env`.
+
 ```rust
 // skein_io::file
 pub enum Request {

@@ -249,3 +249,350 @@ fn job_spec_and_result_heap_bytes_include_their_allocations() {
     let end = End::Finished { result: TaskResult::Job { bytes: Box::new([0xff; 11]) }, cancel_delegates: false };
     assert_eq!(terminal_bytes(&end), Some(11));
 }
+
+mod classifiers {
+    use super::revisions::{Harness, task};
+    use crate::{
+        Hint, Hold, MessageFamily, MessageKind, NewsClass, NoticeState, Party, Phase, ResultKind, Slot, Spoken, Stored,
+        Word,
+    };
+    use skein_lib::{Queue, Wall};
+
+    const TASK: u64 = 1;
+    const SOURCE: u64 = 2;
+    const MESSAGE: u64 = 11;
+    const SUBSCRIPTION: u64 = 7;
+    const HOLD: u64 = 13;
+    const QUESTION: u64 = 17;
+
+    fn message_word(kind: MessageKind) -> Word {
+        Word {
+            number: MESSAGE,
+            from: Party::Task(SOURCE),
+            kind,
+            words: Box::new([1]),
+            at: Wall::EPOCH,
+            hits: 1,
+            eligible: false,
+        }
+    }
+
+    #[test]
+    #[expect(clippy::too_many_lines, reason = "one table pins every message family and its existing caller behaviour")]
+    fn message_families_keep_their_inbox_and_activity_behaviour() {
+        use MessageKind as M;
+        let mut h = Harness::new();
+        h.make([task(TASK, &[])].into());
+        let base = h.domain.task(TASK).expect("fixture task").clone();
+        // Spoken activity, separate slot, subscription hint, finish request,
+        // and membership in the news batch, read from the callers' lists.
+        for (kind, family, spoken, separate, hint, finish, news_batch) in [
+            (M::Escalation { task: SOURCE, revision: 3 }, MessageFamily::Virtual, false, false, false, false, false),
+            (
+                M::Proposal { proposer: SOURCE, proposal: 5, kind: crate::ProposalKind::Batch },
+                MessageFamily::Virtual,
+                false,
+                false,
+                false,
+                false,
+                false,
+            ),
+            (
+                M::PersonStalled { task: SOURCE },
+                MessageFamily::Slot(Slot::PersonStalled),
+                false,
+                false,
+                false,
+                false,
+                true,
+            ),
+            (
+                M::ProposalDecision { proposal: 5, accepted: true },
+                MessageFamily::Slot(Slot::ProposalDecision),
+                false,
+                false,
+                false,
+                false,
+                false,
+            ),
+            (
+                M::SettingsDecision { proposal: 5, outcome: crate::SettingsOutcome::Rejected },
+                MessageFamily::Slot(Slot::SettingsDecision),
+                false,
+                false,
+                false,
+                false,
+                false,
+            ),
+            (M::Words, MessageFamily::Spoken(Spoken::Words), true, false, false, false, false),
+            (
+                M::EffectNotMade { entry: 3 },
+                MessageFamily::Slot(Slot::EffectNotMade),
+                false,
+                false,
+                false,
+                false,
+                false,
+            ),
+            (M::Amendment { revision: 3 }, MessageFamily::Slot(Slot::Amendment), false, true, false, false, false),
+            (
+                M::FinishRequested { revision: 3 },
+                MessageFamily::Slot(Slot::FinishRequested),
+                false,
+                true,
+                false,
+                true,
+                false,
+            ),
+            (M::Question, MessageFamily::Spoken(Spoken::Question), true, false, false, false, false),
+            (
+                M::Answer { question: QUESTION },
+                MessageFamily::Spoken(Spoken::Answer { question: QUESTION }),
+                true,
+                false,
+                false,
+                false,
+                false,
+            ),
+            (
+                M::Notice { subscription: SUBSCRIPTION, target: SOURCE, state: NoticeState::Held { revision: 3 } },
+                MessageFamily::Hint(Hint::Notice {
+                    subscription: SUBSCRIPTION,
+                    target: SOURCE,
+                    state: NoticeState::Held { revision: 3 },
+                }),
+                false,
+                false,
+                true,
+                false,
+                false,
+            ),
+            (
+                M::Notice { subscription: SUBSCRIPTION, target: SOURCE, state: NoticeState::Done },
+                MessageFamily::Hint(Hint::Notice {
+                    subscription: SUBSCRIPTION,
+                    target: SOURCE,
+                    state: NoticeState::Done,
+                }),
+                false,
+                false,
+                true,
+                false,
+                false,
+            ),
+            (
+                M::Notice { subscription: SUBSCRIPTION, target: SOURCE, state: NoticeState::Failed },
+                MessageFamily::Hint(Hint::Notice {
+                    subscription: SUBSCRIPTION,
+                    target: SOURCE,
+                    state: NoticeState::Failed,
+                }),
+                false,
+                false,
+                true,
+                false,
+                false,
+            ),
+            (
+                M::Notice { subscription: SUBSCRIPTION, target: SOURCE, state: NoticeState::Cancelled },
+                MessageFamily::Hint(Hint::Notice {
+                    subscription: SUBSCRIPTION,
+                    target: SOURCE,
+                    state: NoticeState::Cancelled,
+                }),
+                false,
+                false,
+                true,
+                false,
+                false,
+            ),
+            (
+                M::Timer { subscription: SUBSCRIPTION },
+                MessageFamily::Hint(Hint::Timer { subscription: SUBSCRIPTION }),
+                false,
+                false,
+                true,
+                false,
+                false,
+            ),
+            (
+                M::News { subscription: SUBSCRIPTION, class: NewsClass::Wakes },
+                MessageFamily::Hint(Hint::News { subscription: SUBSCRIPTION, class: NewsClass::Wakes }),
+                false,
+                false,
+                true,
+                false,
+                true,
+            ),
+            (
+                M::News { subscription: SUBSCRIPTION, class: NewsClass::Kept },
+                MessageFamily::Hint(Hint::News { subscription: SUBSCRIPTION, class: NewsClass::Kept }),
+                false,
+                false,
+                true,
+                false,
+                true,
+            ),
+            (
+                M::News { subscription: SUBSCRIPTION, class: NewsClass::Dropped },
+                MessageFamily::Hint(Hint::News { subscription: SUBSCRIPTION, class: NewsClass::Dropped }),
+                false,
+                false,
+                true,
+                false,
+                true,
+            ),
+            (M::Result(ResultKind::Report), MessageFamily::Result, false, false, false, false, false),
+            (
+                M::Met { dependency: SOURCE, removed: true },
+                MessageFamily::Slot(Slot::Met),
+                false,
+                true,
+                false,
+                false,
+                false,
+            ),
+            (
+                M::QuestionEnded { question: QUESTION },
+                MessageFamily::Slot(Slot::QuestionEnded),
+                false,
+                false,
+                false,
+                false,
+                false,
+            ),
+            (
+                M::QuestionAnswered { question: QUESTION },
+                MessageFamily::Slot(Slot::QuestionAnswered),
+                false,
+                false,
+                false,
+                false,
+                false,
+            ),
+            (M::QuestionOwed, MessageFamily::Slot(Slot::QuestionOwed), false, false, false, false, false),
+            (M::NothingAwaited, MessageFamily::Slot(Slot::NothingAwaited), false, true, false, false, false),
+        ] {
+            assert_eq!(kind.family(), family, "{kind:?}: family");
+            assert_eq!(kind.result().is_some(), family == MessageFamily::Result, "{kind:?}: result");
+            let word = message_word(kind);
+            let mut row = base.clone();
+            let mut out = Queue::uncapped();
+            crate::activity::message(&mut row, &word, h.env.limits.inbox_messages, &mut out);
+            let expected_line = if spoken {
+                crate::Line::Words {
+                    message: MESSAGE,
+                    by: word.from,
+                    kind: word.kind.clone(),
+                    words: word.words.clone(),
+                }
+            } else {
+                crate::Line::Heard(word.clone())
+            };
+            assert_eq!(
+                out.pop(),
+                Some(crate::Request::Save {
+                    record: Stored::Activity(crate::ActivityLine {
+                        task: TASK,
+                        position: base.activity + 1,
+                        at: word.at,
+                        line: expected_line,
+                    })
+                }),
+                "{:?}: activity",
+                word.kind
+            );
+            assert_eq!(word.finish_requested(), finish, "{:?}: finish", word.kind);
+
+            row.inbox = Box::new([word.clone()]);
+            row.subscriptions = Box::new([crate::Subscription {
+                number: SUBSCRIPTION,
+                kind: crate::SubscriptionKind::Topic { connector: 1, topic: 1 },
+            }]);
+            let credits = match crate::subscriptions::credit(&row, &h.env.limits) {
+                Some((count, _)) => Some(count),
+                None => None,
+            };
+            assert_eq!(credits, Some(usize::from(!hint)), "{:?}: hint credit", word.kind);
+            row.subscriptions = Box::new([]);
+            crate::domain::task_mut(&mut h.domain, TASK).expect("fixture task").record = row;
+            let limits = crate::Limits { inbox_messages: 0, ..h.env.limits };
+            assert_eq!(crate::inbox::room(&h.domain, &limits, TASK, 0, 0), separate, "{:?}: separate slot", word.kind);
+
+            let batch = message_word(M::News { subscription: SUBSCRIPTION + 1, class: NewsClass::Wakes });
+            let row = &mut crate::domain::task_mut(&mut h.domain, TASK).expect("fixture task").record;
+            row.inbox = Box::new([word.clone(), batch.clone()]);
+            // Two single-hit messages reach the threshold only in the same category.
+            row.wake.news = crate::WakeRule::Batch { count: 2, age: skein_lib::Duration::from_secs(1) };
+            crate::wake::after_message(&mut h.domain, &h.env, TASK, None, batch, &mut out);
+            assert_eq!(
+                h.domain.task(TASK).expect("fixture task").inbox.first().expect("first word").eligible,
+                news_batch,
+                "{:?}: news batch",
+                word.kind
+            );
+        }
+    }
+
+    #[test]
+    fn result_shapes_keep_payload_and_owned_byte_accounting() {
+        let fields = Box::new([crate::ResultField { name: Box::new([1]), value: Box::new([2]) }]);
+        let field_storage = u64::try_from(size_of::<crate::ResultField>()).expect("field size fits");
+        for (result, payload, owned) in [
+            (None, Some(1), Some(1)),
+            (Some(ResultKind::Job), Some(1), Some(1)),
+            (Some(ResultKind::Approved { state: Box::new([2, 3, 4]), words_present: true }), Some(4), Some(4)),
+            (Some(ResultKind::Approved { state: Box::new([]), words_present: false }), None, None),
+            (Some(ResultKind::NoChange), Some(1), Some(1)),
+            (Some(ResultKind::Report), Some(1), Some(1)),
+            (Some(ResultKind::Verdict { code: 1, fields }), Some(3), Some(3 + field_storage)),
+            (Some(ResultKind::Change { connector: 1, kind: 2, resource: 3 }), Some(1), Some(1)),
+            (Some(ResultKind::Failed), Some(1), Some(1)),
+            (Some(ResultKind::Cancelled), Some(1), Some(1)),
+        ] {
+            let kind = match &result {
+                Some(result) => MessageKind::Result(result.clone()),
+                None => MessageKind::Words,
+            };
+            let word = message_word(kind);
+            assert_eq!(word.kind.result(), result.as_ref(), "{:?}: result", word.kind);
+            assert_eq!(word.payload_bytes(), payload, "{:?}: payload", word.kind);
+            let record = Stored::Activity(crate::ActivityLine {
+                task: TASK,
+                position: 1,
+                at: word.at,
+                line: crate::Line::Heard(word.clone()),
+            });
+            assert_eq!(crate::stored_bytes(&record), owned, "{:?}: owned", word.kind);
+        }
+    }
+
+    #[test]
+    fn placed_holds_keep_their_identity() {
+        for (why, placed) in [
+            (Hold::Exceeded(crate::Exceeded { bound: crate::Bound::Answer, value: 1 }), None),
+            (Hold::Failures(crate::Class::Run), None),
+            (Hold::Stalled, None),
+            (Hold::Dependency(SOURCE), None),
+            (Hold::Stopped, None),
+            (Hold::Placed { hold: HOLD }, Some(HOLD)),
+            (Hold::Drift, None),
+            (Hold::Effects, None),
+            (Hold::EffectFailed, None),
+            (Hold::Uncertain { entry: 3 }, None),
+            (Hold::Budget, None),
+            (Hold::Deadline, None),
+            (Hold::HoldsWaited, None),
+            (Hold::ResourceUnavailable, None),
+            (Hold::ResourceAccess, None),
+            (Hold::PoolLost { pool: 3 }, None),
+            (Hold::Procedure, None),
+            (Hold::Circle, None),
+        ] {
+            assert_eq!(why.placed(), placed, "{why:?}: placed identity");
+            let phase = Phase::Held { was: crate::Was::Waiting, why, source: None };
+            assert_eq!(crate::placed::placed_reason(&phase), placed, "{why:?}: identity");
+            assert_eq!(crate::placed::is_placed(why), placed.is_some(), "{why:?}: placed");
+        }
+    }
+}

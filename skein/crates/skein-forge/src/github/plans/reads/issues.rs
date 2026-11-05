@@ -4,7 +4,7 @@ use crate::{
     github::{plans::reading, request::Request},
     measure,
 };
-use skein_lib::{List, Time};
+use skein_lib::{List, Time, len_u64};
 
 #[derive(Debug)]
 pub(super) struct State {
@@ -111,7 +111,7 @@ impl Plan {
                     None => 0,
                 };
                 let key = u64::try_from(key).ok().ok_or(api::Error::TooLarge)?;
-                let body = u64::try_from(comment.body.len()).ok().ok_or(api::Error::TooLarge)?;
+                let body = len_u64(comment.body.len());
                 let total = self
                     .size
                     .checked_add(width)

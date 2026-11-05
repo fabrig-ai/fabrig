@@ -4,7 +4,7 @@ use crate::{
 };
 use alloc::boxed::Box;
 use skein_json::{Document, Kind, collector, tokenizer};
-use skein_lib::{Queue, Wall, bytes};
+use skein_lib::{Queue, Wall, bytes, usize_of};
 
 #[derive(Debug)]
 pub(crate) enum Decoder {
@@ -159,7 +159,7 @@ pub(crate) fn error_report(provider: Provider, error: &openai::ProviderError) ->
 }
 
 pub(crate) fn report_value(value: &[u8]) -> Box<[u8]> {
-    if value.len() > usize::try_from(client::REPORT_BYTES).expect("u32 fits usize") {
+    if value.len() > usize_of(client::REPORT_BYTES) {
         return Box::new([]);
     }
     bytes::copy_of(value)

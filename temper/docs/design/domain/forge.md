@@ -784,6 +784,14 @@ Held by skein's `forge-client.md`, section 3. temper's part:
   releases this wait. A fresh change read refused as busy keeps its timed
   procedure wait; other branch, base and pull read failures retain their
   operation, resource and backend cause in the hold.
+- **Landing subscriptions own watches too:** every live subscription
+  contributes its repository and branch, independently of task names and
+  followed tiers. The complete union counts each resource once. Accepting,
+  replacing or removing a landing subscription rebuilds that union; a shared
+  watch remains until its final owner leaves. Admission checks the branch
+  and the union's resource and repository bounds before retaining the
+  subscription. Restart reconstruction, task-name changes and forge removal
+  use the same union, excluding ended forges.
 
 ### 5.2 Keeping up
 

@@ -1,6 +1,6 @@
 //! Client-side answer admission (forge-client.md, 2.3).
 use skein_forge::api::{Answer, Commit, Kind, Op, Pull, Read, Write};
-use skein_lib::Time;
+use skein_lib::{Time, len_u64, usize_of};
 
 #[derive(Clone, Copy, PartialEq, Eq, Hash, Debug)]
 enum Shape {
@@ -168,9 +168,7 @@ fn read_accepts(read: &Read, answer: &Answer) -> bool {
         Read::Locate { .. } => skein_forge::locate::accepts(answer),
         Read::Items { kind, .. } => items_ordered(answer, *kind),
         Read::Job { attempt, max_bytes } => match answer {
-            Answer::Job { attempt: received, log, .. } => {
-                received == attempt && log.len() <= usize::try_from(*max_bytes).expect("u32 fits usize")
-            }
+            Answer::Job { attempt: received, log, .. } => received == attempt && log.len() <= usize_of(*max_bytes),
             Answer::Items { .. }
             | Answer::Runs { .. }
             | Answer::Run(_)
@@ -531,7 +529,7 @@ fn file_matches(answer: &Answer, head: Commit, path: &[u8], max_bytes: u32) -> b
     match answer {
         Answer::Directory { head: received, path: received_path, .. } => {
             let Some(size) = skein_forge::measure::answer(answer) else { return false };
-            let Ok(path_bytes) = u64::try_from(path.len()) else { return false };
+            let path_bytes = len_u64(path.len());
             let Some(payload) = size.checked_sub(path_bytes) else { return false };
             *received == head && received_path.as_ref() == path && payload <= u64::from(max_bytes)
         }
@@ -539,7 +537,7 @@ fn file_matches(answer: &Answer, head: Commit, path: &[u8], max_bytes: u32) -> b
             !path.is_empty()
                 && *received == head
                 && received_path.as_ref() == path
-                && bytes.len() <= usize::try_from(max_bytes).expect("u32 fits usize")
+                && bytes.len() <= usize_of(max_bytes)
         }
         Answer::Items { .. }
         | Answer::Runs { .. }
@@ -581,7 +579,7 @@ fn tree_suffix(kind: skein_forge::api::TreeEntryKind) -> &'static [u8] {
 
 fn artifact_fits(answer: &Answer, max_bytes: u32) -> bool {
     match answer {
-        Answer::File { bytes, .. } => bytes.len() <= usize::try_from(max_bytes).expect("u32 fits"),
+        Answer::File { bytes, .. } => bytes.len() <= usize_of(max_bytes),
         Answer::Directory { .. }
         | Answer::Located { .. }
         | Answer::Items { .. }

@@ -363,12 +363,13 @@ fn forge_rows(engine: &Engine, forges: temper_engine_domain_forge::Forges) -> Op
 fn host_delivery(engine: &mut Engine, delivery: root::HostDelivery) {
     match delivery {
         root::HostDelivery::Settings { to, answer, application, from, requested } => {
-            let (body, error) = temper_engine_smith::settings_answer(
+            let (body, error) = temper_engine_smith::settings_answer_bounded(
                 &answer,
                 from,
                 requested,
                 engine.domain.models(),
                 application.as_ref(),
+                engine.env.limits.call_answer_bytes.saturating_sub(8),
             )
             .into_parts();
             engine.events.push(root::Event::Worker(root::WorkerInput::RenderedHostCall {

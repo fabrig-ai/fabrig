@@ -8,7 +8,7 @@ use super::DecodeError;
 use crate::DocumentLimits as Limits;
 use alloc::boxed::Box;
 use skein_json::{Compact, Document, Kind, ParseError, document, tokenizer, writer};
-use skein_lib::{List, Stack, bytes};
+use skein_lib::{List, Stack, bytes, usize_of};
 
 /// A neutral admitted value, owned by a prompt, replay or native codec.
 #[derive(Clone, PartialEq, Eq, Hash, Debug)]
@@ -33,7 +33,7 @@ enum Frame {
 impl Json {
     /// Parses and admits a complete bounded value (skein/docs/design/json.md, 5.3).
     pub fn from_bytes(input: &[u8], limits: &Limits) -> Result<Json, DecodeError> {
-        if input.len() > usize::try_from(limits.bytes).expect("u32 fits usize") {
+        if input.len() > usize_of(limits.bytes) {
             return Err(DecodeError::limit(crate::Cap::Retained, limits.bytes));
         }
         let retained = document::Limits { tokens: limits.tokens, text: limits.bytes };

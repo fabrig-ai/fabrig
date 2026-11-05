@@ -7,6 +7,7 @@ use skein_io::{
 use skein_lib::{
     Duration, Env, List, Queue, Time, Token, Wall, Writer,
     stream::{Down, Read, Up},
+    usize_of,
 };
 use skein_ui::{Region, Tree};
 /// This terminal's namespace among its service's operations (lib.md, 4).
@@ -169,10 +170,7 @@ impl Terminal {
     /// Queue an application line within its room.
     pub fn say(&mut self, line: &[u8]) {
         assert!(self.room() > 0, "application line needs room");
-        assert!(
-            line.len() <= usize::try_from(self.settings.line_bytes).expect("a u32 fits in a usize"),
-            "application line within its bytes"
-        );
+        assert!(line.len() <= usize_of(self.settings.line_bytes), "application line within its bytes");
         self.line(line, true);
     }
     fn line(&mut self, line: &[u8], application: bool) {
@@ -327,7 +325,7 @@ impl Terminal {
         self.request(now, Request::Stream { stream, down });
     }
     fn write(&mut self, now: Time, bytes: Box<[u8]>) {
-        let cap = usize::try_from(self.limits.output).expect("output fits memory");
+        let cap = usize_of(self.limits.output);
         let bytes = if bytes.len() > cap {
             self.pending = Some(skein_lib::bytes::copy_of(bytes.get(cap..).expect("remaining line")));
             skein_lib::bytes::copy_of(bytes.get(..cap).expect("first chunk"))
@@ -339,8 +337,7 @@ impl Terminal {
     }
     fn write_print(&mut self, now: Time, offset: u32) {
         let end = offset.saturating_add(self.limits.output).min(self.print.text.len());
-        let range = usize::try_from(offset).expect("Print offset fits memory")
-            ..usize::try_from(end).expect("Print end fits memory");
+        let range = usize_of(offset)..usize_of(end);
         let bytes = skein_lib::bytes::copy_of(self.print.text.as_slice().get(range).expect("Print piece exists"));
         self.print_offset = (end < self.print.text.len()).then_some(end);
         self.write(now, bytes);
