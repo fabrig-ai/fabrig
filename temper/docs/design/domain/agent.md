@@ -1,6 +1,6 @@
 # The agent
 
-Provisional, 2026-10-05, revised 2026-10-30. temper's agent is smith's:
+Provisional, 2026-10-05, revised 2026-11-05. temper's agent is smith's:
 the standard agent built from smith, the kit for LLM agents, on skein
 like temper. smith's design is its own (smith's `domain/run.md`,
 `domain/session.md`, `domain/tools.md`, `domain/host.md`), and how a
@@ -179,15 +179,17 @@ a chat that names none, runs with no workspace (worker.md, 4.1).
   joins it.
 - **The brief fits the room its charter leaves.** smith counts a run's
   brief in its host part, beside the charter's offered tools, its
-  instructions and the finish and deliver schemas. At start, temper's
-  worker service fits it after the workspace is prepared and before
-  encoding the start, using the receiving run's limits and measured
-  schema costs, including the prepared workspace's conflict paths.
-  `temper-engine-smith` owns the fitter; its typed start takes explicit
-  receiving limits and fits the brief too. A brief already within the
-  room is kept whole. The stock charters and authorised brief fit
-  whole at `temper init`'s models; fitting is the fallback for a charter
-  that leaves less room. Otherwise, fitting cuts bodies from the last
+  instructions and the finish and deliver schemas. Before sending an
+  assignment, the engine fits gathered sections to the configured
+  `hub.charter_bytes` envelope for both the encoded charter, including
+  framing, and its decoded ownership. Instructions, tools, contracts,
+  models and run identity stay whole. The worker service also fits the
+  brief after the workspace is prepared and before encoding the start,
+  using the receiving run's limits and measured schema costs, including
+  the prepared workspace's conflict paths. `temper-engine-smith` owns
+  the fitter; its typed start takes explicit receiving limits and fits
+  the brief too. A brief already within each entrance's room is kept
+  whole. Otherwise, fitting cuts bodies from the last
   section in the core's order, at UTF-8 boundaries, keeping each cut
   section's title and ending its body with its own line:
   `[cut N bytes; whole: READ]`. `N` counts original body bytes removed,

@@ -537,7 +537,10 @@ have one, an engine alone none. Each:
   the agent may run as a backend, by its adapter, with the program's
   absolute path and its programs directory, which holds a configuration
   directory for each program source, `<directory>/NAME`
-  (credentials.md, section 3). Its paths are smith's, absolute; the
+  (credentials.md, section 3). Its paths are smith's, absolute, but for
+  Claude Code's `path` `"fetched"`, temper's pinned build, which temper
+  turns into its launcher's absolute path before smith reads the
+  document (setup.md, 6.6); the
   programs directory `temper init` writes is `programs` in the data
   directory (section 12). The owned example's agent configures
   Claude Code's (setup.md, 8.1). A programs directory need not exist
@@ -1532,13 +1535,17 @@ ordinary command with its configured fake adapter, not an automatic login.
 The fake program way uses the pinned `fake-claude` executable provisioned
 beside `temper`, resolved to that exact absolute sibling path, and its
 private adapter directory D'/programs. Preparation supplies that path as
-init's program fact; source import checks an existing adapter's bounded
-absolute shape without looking for Claude on PATH. The pure rewrite writes
-the exact sibling and private directory even when the source has no adapter.
-Init ships no Claude provider, so the rewrite adds an ordinary Anthropic
-provider, number 2, whose one source is that adapter and whose one model,
-`fake-claude`, the fake model serves through an Anthropic-dialect endpoint
-in both effective documents. It keeps the configured `documents.lines`
+init's program fact; source import takes an existing adapter's `"fetched"`
+(setup.md, 8.2) or its bounded absolute shape, without looking for Claude on
+PATH. The pure rewrite writes the exact sibling and private directory
+whichever the source names.
+Init writes Anthropic's provider, number 2 (setup.md, 8.3), so the rewrite
+finds it written and swaps in its own: the provider's one model, the model
+and the endpoint, each found by Anthropic's name and replaced where it stands,
+not doubled, so that one model, `fake-claude`, the fake model serves through
+an Anthropic-dialect endpoint in both effective documents, ahead of the
+scripted model as init's stands. An init-shaped document without them is
+refused by name. It keeps the configured `documents.lines`
 capacity, raising it to at least 3 so that the Model step offers OpenAI,
 demo and Anthropic without shrinking creating's executor lists. If the override
 is absent, it retains the named profile's capacity, raised to at least 3,

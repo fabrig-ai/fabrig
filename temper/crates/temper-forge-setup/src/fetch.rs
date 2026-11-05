@@ -7,10 +7,16 @@ use alloc::boxed::Box;
 use skein_forge::forgejo::pin::{self, Binary, Form, Platform};
 use skein_lib::{Decimal, List, Queue, Writer, sha256::Sha256};
 
+/// A pinned binary's progress name (protocol/setup.md, 6.6).
+#[derive(Clone, Copy, PartialEq, Eq, Debug)]
+pub enum Named {
+    Forge(Binary),
+    ClaudeCode,
+}
 /// The fetch's progress on stdout (protocol/setup.md, 6.6).
 #[derive(Clone, Copy, PartialEq, Eq, Debug)]
 pub struct Fetched {
-    pub binary: Binary,
+    pub binary: Named,
     pub done: u64,
     pub total: Option<u64>,
 }
@@ -32,12 +38,13 @@ impl Fetched {
             None => joined(&[b"fetched ", self.word(), b" ", done.as_bytes(), b" bytes\n"]),
         }
     }
-    /// `forgejo` or `runner`, in this line and on the pipe.
+    /// The binary name in this line.
     #[must_use]
     pub fn word(&self) -> &'static [u8] {
         match self.binary {
-            Binary::Forgejo => b"forgejo",
-            Binary::Runner => b"runner",
+            Named::Forge(Binary::Forgejo) => b"forgejo",
+            Named::Forge(Binary::Runner) => b"runner",
+            Named::ClaudeCode => b"claude-code",
         }
     }
     /// Reads a progress line with an optional line feed, refusing invalid totals.
@@ -65,14 +72,14 @@ impl Fetched {
             }
             None => (skein_lib::bytes::decimal(numbers)?, None),
         };
-        Some(Self { binary, done, total })
+        Some(Self { binary: Named::Forge(binary), done, total })
     }
 }
 
 /// One pinned release at its resolved cache path.
 #[derive(Clone, PartialEq, Eq, Debug)]
 pub struct Pin {
-    pub binary: Binary,
+    pub binary: Named,
     pub origin: Origin,
     pub path: Box<[u8]>,
     pub digest: [u8; 32],
@@ -96,6 +103,7 @@ pub enum Failure {
     Gone { url: Box<[u8]>, status: u16 },
     Extraction { url: Box<[u8]> },
     Bytes { url: Box<[u8]> },
+    ClaudeBytes { url: Box<[u8]> },
     Size { url: Box<[u8]> },
     Digest { url: Box<[u8]>, pinned: [u8; 32], got: [u8; 32] },
 }
@@ -118,6 +126,7 @@ impl Failure {
             ]),
             Self::Extraction { url } => joined(&[url, b": extraction failed"]),
             Self::Size { url } => joined(&[url, b": body past its Content-Length"]),
+            Self::ClaudeBytes { url } => joined(&[url, b": body past the pinned size"]),
             Self::Bytes { url } => joined(&[url, b": body past setup.fetch_bytes"]),
             Self::Digest { url, pinned, got } => {
                 joined(&[url, b": digest differs: pinned ", &hex(pinned), b", got ", &hex(got)])
@@ -233,7 +242,7 @@ pub fn pins(owned: &Owned, platform: Platform, machine: &str) -> Result<Box<[Pin
             }
         };
         pins.push(Pin {
-            binary,
+            binary: Named::Forge(binary),
             origin,
             path,
             digest: digest(binary, platform, arch, Form::Binary),
@@ -362,6 +371,12 @@ impl Fetch {
         self.phase = Phase::Remove;
         Request::Remove { part: self.download() }
     }
+    fn bytes_failure(&self) -> Failure {
+        match self.pin().binary {
+            Named::Forge(Binary::Forgejo | Binary::Runner) => Failure::Bytes { url: self.url() },
+            Named::ClaudeCode => Failure::ClaudeBytes { url: self.url() },
+        }
+    }
     fn head(&mut self, status: u16, length: Option<u64>, location: Option<Box<[u8]>>) -> Request {
         if self.pin().bottle.is_some() && [301, 302, 303, 307, 308].contains(&status) && location.is_some() {
             if !self.redirected
@@ -383,7 +398,7 @@ impl Fetch {
             Some(length) => length > self.bound,
             None => false,
         } {
-            self.end(Err(Failure::Bytes { url: self.url() }))
+            self.end(Err(self.bytes_failure()))
         } else {
             self.length = match length {
                 Some(0) | None => None,
@@ -398,7 +413,7 @@ impl Fetch {
             Event::Chunk(bytes) => {
                 let length = skein_lib::len_u64(bytes.len());
                 if length > self.bound.saturating_sub(self.total) {
-                    self.remove(Failure::Bytes { url: self.url() })
+                    self.remove(self.bytes_failure())
                 } else if match self.length {
                     Some(total) => length > total.saturating_sub(self.total),
                     None => false,

@@ -43,7 +43,7 @@ Run a whole deployment on one machine, on loopback, from its configuration to a 
 - **Directories:** `CONFIG`, `DATA`, `CACHE`: absolute, empty, private
   (0700), no links, for this box. `DIR`: private.
 - **A model account:** real: private login export, API key, browser
-  sign-in, or Claude Code (`claude` on `PATH`); sign in at step 5 or in `CONFIG`.
+  sign-in, or Claude Code; sign in at step 5 or in `CONFIG`.
 - `BUNDLE`: fake backends' loopback bundle directory.
 - `REQUEST`: change request file.
 - `CHANGE`: the change task's number (step 6).
@@ -68,34 +68,15 @@ refuses it.
 
 Expect: `init: wrote DATA/worker.secret`; last line: step 2's real command.
 
-**Claude Code:** replace OpenAI with Anthropic below.
-`MODEL`: Claude Code model (`sonnet` or `opus`).
-`PROGRAMS`: private login directory (`DATA/programs`) or existing login's
-parent (step 5). `DIR`: scratch copies.
+**Claude Code:** init writes Anthropic's provider, endpoint and model beside
+OpenAI's. A `claude` on `PATH` when init runs names that program; otherwise
+temper fetches its pinned build when first needed. Its login directory is
+`DATA/programs`, apart from your own Claude Code configuration.
+`PROGRAMS`: that directory, or an existing login's parent, set as
+`programs.claude_code.directory` in `CONFIG/agent.json` (step 5).
 
-```
-jq --arg model MODEL '.engine.llm |= (
-  (.endpoints[] | select(.name == "openai")) as $openai
-  | (.models[] | select(.endpoint == "openai")) as $first
-  | .providers = [{name: "anthropic", number: 2, signed_in_plan: false,
-      manage_usage: "https://claude.ai/settings/usage", models: [$model],
-      sources: {programs: ["claude_code"]}}] + [.providers[] | select(.name != "openai")]
-  | .endpoints = [$openai + {name: "claude", number: 2, dialect: 2, provider: "anthropic",
-      program: "claude_code", address: {host: "api.anthropic.com", port: 443},
-      server_name: "api.anthropic.com"}] + [.endpoints[] | select(.name != "openai")]
-  | .models = [$first + {name: $model, endpoint: "claude"}] + [.models[] | select(.endpoint != "openai")])' \
-  CONFIG/temper.json > DIR/temper.json && cat DIR/temper.json > CONFIG/temper.json
-jq --arg model MODEL --arg claude "$(command -v claude)" --arg programs PROGRAMS '
-  (.endpoints[] | select(.name == "openai")) as $openai
-  | .endpoints = [$openai + {name: "claude", number: 2, dialect: 2, provider: "anthropic",
-      program: "claude_code", address: "api.anthropic.com:443", server_name: "api.anthropic.com",
-      models: [$openai.models[0] + {name: $model}]}] + [.endpoints[] | select(.name != "openai")]
-  | .programs.claude_code = {path: $claude, directory: $programs}' \
-  CONFIG/agent.json > DIR/agent.json && cat DIR/agent.json > CONFIG/agent.json
-```
-
-Expect: no output; `me` lists provider 2, Anthropic, `claude_code`.
-Keep demo within init's limits.
+Expect: `me` lists provider 2, Anthropic, `claude_code`.
+Use it in step 5; keep the demo model within init's limits.
 
 If not: `temper init: CONFIG/temper.json: already exists` (exit 1):
 use empty directories.
