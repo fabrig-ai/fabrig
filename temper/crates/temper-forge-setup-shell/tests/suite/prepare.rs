@@ -18,7 +18,7 @@ case "$*" in
   --version) echo 'forgejo version 17.0.1';;
   *'admin user create'*) echo "generated random password is 'private-password'";;
   *'generate-access-token'*) echo 'private-token';;
-  *'actions register'*) echo 'kept-runner';;
+  *'actions register'*) printf '%s\n' "$*" > "$(dirname "$0")/row"; echo 'kept-runner';;
 esac
 "#,
     );
@@ -47,6 +47,34 @@ fn with_runner(scratch: &support::Scratch) -> Owned {
 fn run(scratch: &support::Scratch, owned: &Owned) {
     prepare::run(&support::io(), &scratch.place(), Prepare::new(owned.clone(), scratch.place(), None))
         .expect("prepared");
+}
+#[test]
+fn a_later_preparation_leaves_the_row_a_runner_declared() {
+    let scratch = support::Scratch::new("runner_row");
+    let mut owned = with_runner(&scratch);
+    let row = scratch.path().join("row");
+    let configuration = scratch.path().join("runner/config.yaml");
+    run(&scratch, &owned);
+    assert!(
+        String::from_utf8(fs::read(&row).expect("registered row")).expect("arguments").contains("temper-host:host")
+    );
+    fs::write(&row, b"temper-host").expect("runner declares its labels");
+    run(&scratch, &owned);
+    assert_eq!(fs::read(&row).expect("declared row"), b"temper-host", "later preparation keeps declared labels");
+    owned.runner.as_mut().expect("runner").capacity = 2;
+    run(&scratch, &owned);
+    assert_eq!(fs::read(&row).expect("declared row"), b"temper-host");
+    let text = String::from_utf8(fs::read(&configuration).expect("configuration")).expect("YAML");
+    assert!(text.starts_with("runner:\n  capacity: 2\n"));
+    assert!(text.contains("\n      uuid: \"kept-runner\"\n"));
+    fs::remove_file(&configuration).expect("remove configuration");
+    run(&scratch, &owned);
+    assert!(
+        String::from_utf8(fs::read(&row).expect("registered row")).expect("arguments").contains("temper-host:host")
+    );
+    let text = String::from_utf8(fs::read(&configuration).expect("configuration")).expect("YAML");
+    assert!(text.contains("\n      uuid: \"kept-runner\"\n"));
+    scratch.remove();
 }
 #[test]
 fn person_headers_are_whole_private_and_each_missing_header_is_remade_alone() {

@@ -29,11 +29,12 @@ pub enum Exit {
 /// Files discovered by the host while it holds Forgejo's lock.
 #[derive(Clone, PartialEq, Eq, Debug)]
 pub struct Found {
-    pub state: Option<Secret>,     // Whole record, absent on a fresh preparation.
-    pub admin_token: bool,         // Whether the token file exists.
-    pub person_headers: [bool; 2], // Whether each person's header file exists.
-    pub runner_secret: bool,       // Whether an added runner can keep its secret.
-    pub files: bool,               // Whether Forgejo's files exist.
+    pub state: Option<Secret>,                // Whole record, absent on a fresh preparation.
+    pub admin_token: bool,                    // Whether the token file exists.
+    pub person_headers: [bool; 2],            // Whether each person's header file exists.
+    pub runner_secret: bool,                  // Whether an added runner can keep its secret.
+    pub runner_configuration: Option<Secret>, // Whole runner configuration, absent if it has none.
+    pub files: bool,                          // Whether Forgejo's files exist.
 }
 /// A command's bounded output, kept private until masked for a failure.
 #[derive(Clone, PartialEq, Eq, Debug)]
@@ -159,6 +160,7 @@ pub struct Prepare {
     backup: Box<[u8]>,
     name: Box<[u8]>,
     runner_secret: Option<Secret>,
+    runner_uuid: Option<Secret>,
     token: Option<Secret>,
     password: Option<Secret>,
 }
@@ -194,6 +196,7 @@ impl Prepare {
             backup: Box::new([]),
             name: Box::new([]),
             runner_secret: None,
+            runner_uuid: None,
             token: None,
             password: None,
         }
@@ -245,6 +248,9 @@ impl Prepare {
             };
             if self.state.prepared {
                 self.first = false;
+                if let Some(configuration) = found.runner_configuration {
+                    self.runner_uuid = runner::registered(configuration.expose());
+                }
                 self.forgejo = upgrade::course(&self.state.forgejo, VERSION.as_bytes());
                 if let Some(why) = Self::refusal(Which::Forgejo, self.forgejo, &self.state.forgejo) {
                     return self.end(Err(why));
@@ -306,6 +312,8 @@ impl Prepare {
         if self.owned.runner.is_some() {
             if self.runner == RunnerCourse::Added && self.runner_secret.is_some() {
                 self.request(Phase::Draw(4), Request::Draw)
+            } else if let Some(uuid) = self.runner_uuid.take() {
+                self.runner_configuration(&uuid)
             } else {
                 self.run(Command::Register)
             }
@@ -314,6 +322,15 @@ impl Prepare {
         } else {
             self.later_token()
         }
+    }
+    fn runner_configuration(&mut self, uuid: &Secret) -> Request {
+        let text = runner::configuration(
+            self.owned.runner.as_ref().expect("runner configured"),
+            &self.owned,
+            &self.place,
+            uuid.expose(),
+        );
+        self.write(File::RunnerConfiguration, Secret::new(text), Phase::RunnerConfiguration)
     }
     fn later_token(&mut self) -> Request {
         if self.admin_token { self.person_headers() } else { self.request(Phase::Draw(3), Request::Draw) }
@@ -429,13 +446,7 @@ impl Prepare {
                 let Some(uuid) = first_line(&ran.stdout) else {
                     return self.end(Err(Failure::Unread { command }));
                 };
-                let text = runner::configuration(
-                    self.owned.runner.as_ref().expect("runner configured"),
-                    &self.owned,
-                    &self.place,
-                    uuid.expose(),
-                );
-                self.write(File::RunnerConfiguration, Secret::new(text), Phase::RunnerConfiguration)
+                self.runner_configuration(&uuid)
             }
             Command::Web | Command::Daemon => unreachable!("preparation never runs a daemon"),
         }
