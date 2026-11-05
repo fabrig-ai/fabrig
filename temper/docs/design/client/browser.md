@@ -231,6 +231,7 @@ skein's (skein's `ui-web.md`), and how a client of jig's does is jig's
   | `Inbox { filter }` | `/`, and its filter's query |
   | `Home { project }` | `/projects/<project>` |
   | `Settings { project }` | `/projects/<project>/settings` |
+  | `Repositories { project }` | `/projects/<project>/settings/repositories` |
   | `Configure { project }` | `/projects/<project>/settings/configure` |
   | `Chats { filter, start }` | `/chats`, and its filter's and start's query |
   | `Accounts` | `/accounts` |
@@ -516,6 +517,16 @@ skein's (skein's `ui-web.md`), and how a client of jig's does is jig's
   mockup's side card, its terms and descriptions as its key and value
   rows. `scripts/bundle.sh` passes the three to `skein-ui-bundle` in
   that order.
+- **Settings' look** is the greenfield mock's `settings.html`, its
+  `mock.css` rules taken exactly, values and all (`.col`, `.intro`, `.kicker`,
+  `.headline`, `.lede`, `.tabs`, `.settings`, `.setting`, `.checks`, `.switch`,
+  `.toggle-row`, `.section`, `.section-head`, `.lines`, `.when`, `.band`,
+  `.quiet-band`, `.facts`, `.btn.small`, and their rules at 760 px and under),
+  in `temper.css`, scoped under the project's frame with its `--gf-*` variables,
+  as Home's are, on tokens of its own, `temper-settings*`. A disabled select is
+  faint on no fill. A proposal of settings' card takes the conversation's
+  `.proposal`, with `.proposal.superseded` at `opacity: .5` and `.proposal-state.ok`.
+  The mock's `.proposal-split` is the review page's (`README.md`, 5.13).
 - **The project's frame** is the greenfield mock's `home.html`, in
   the welcome's paper, ink and IBM Plex from temper's files
   (`temper.css`, The project's frame): the rail a 232 px column at the
@@ -1142,6 +1153,15 @@ from the engine's own answers, is where the look is tuned.
 | `configure-sending` | the configuring start out; starters and Send disabled, words kept |
 | `configure-refused` | the start refused; jig's words below the composer, the words kept |
 | `configure-chat` | the solo world’s T10 as a configuring chat, conversation and proposal in the Settings layout |
+| `settings` | hand-made settings deliveries: How work runs with every part of kind 7 shown |
+| `settings-all-hidden` | hand-made settings deliveries: kind 7's stock, the mock's `settings.html?project=hello` |
+| `settings-goals` | hand-made settings deliveries: Goals shown, its ways of working with one the default |
+| `settings-chat-open` | hand-made settings deliveries: a configuring chat open, "Go on" |
+| `settings-refused` | a switch pressed and refused, jig's words under its row, the switch back at its value |
+| `repositories` | the Repositories tab with rows |
+| `repositories-none` | the Repositories tab's quiet band |
+| `forges-in-settings` | `Forges` inside Settings' frame |
+| `accounts-in-settings` | `Accounts` inside Settings' frame, "Sign out" at its foot |
 | `configure-chats-tag` | the solo world’s chats with T10 tagged Configuring beside ordinary chats |
 | `chats-solo` | the solo world's chats |
 | `chat-solo-T10` | the solo world's chat T10, its proposal in place |
