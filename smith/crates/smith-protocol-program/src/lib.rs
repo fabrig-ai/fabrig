@@ -21,6 +21,7 @@ mod status;
 #[cfg(test)]
 mod tests;
 
+pub use backend::Given;
 pub use command::{Command, Ended, Launch};
 pub use source::{
     ENVIRONMENT_BYTES, ENVIRONMENT_ENTRIES, Error, Programs, configuration_directory, environment, keeps,

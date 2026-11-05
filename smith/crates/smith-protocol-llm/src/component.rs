@@ -163,6 +163,16 @@ pub fn component_valid(limits: &ComponentLimits, endpoints: &Endpoints) -> bool 
 }
 
 impl Component {
+    /// Keeps rendered bodies for the owner (smith/docs/design/protocol/agent.status.md).
+    pub fn keep_bodies(&mut self) {
+        self.connection.keep_bodies();
+    }
+
+    /// Takes the next prepared request body.
+    pub fn pop_body(&mut self) -> Option<connection::Body> {
+        self.connection.pop_body()
+    }
+
     /// Validate the configured endpoint and pool bounds before the loop.
     pub fn new(limits: &ComponentLimits, endpoints: Endpoints) -> Result<Component, ComponentError> {
         if !clients_valid(limits, &endpoints) {

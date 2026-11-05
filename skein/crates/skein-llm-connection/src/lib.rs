@@ -21,7 +21,7 @@ mod limits;
 #[cfg(test)]
 mod tests;
 
-pub use boundary::{Deadlines, Event, Lower, LowerEvent, Measures, Refusal, Request};
+pub use boundary::{Body, Deadlines, Event, Lower, LowerEvent, Measures, Refusal, Request};
 pub use component::Component;
 pub use endpoint::{Endpoint, EndpointError, Transport};
 pub use limits::{Limits, valid};
