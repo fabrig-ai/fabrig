@@ -18,7 +18,7 @@ pub(crate) fn agent_shortfall_fields(value: &w::AgentShortfall) -> c::AgentShort
         w::AgentShortfall::Spend => c::AgentShortfall::Spend,
         w::AgentShortfall::Time => c::AgentShortfall::Time,
         w::AgentShortfall::Waiting => c::AgentShortfall::Waiting,
-        w::AgentShortfall::Checks => c::AgentShortfall::Checks,
+        w::AgentShortfall::Checks(row) => c::AgentShortfall::Checks { charter: row.charter() },
         w::AgentShortfall::Message => c::AgentShortfall::Message,
         w::AgentShortfall::Inbox => c::AgentShortfall::Inbox,
         w::AgentShortfall::Unacknowledged => c::AgentShortfall::Unacknowledged,

@@ -252,9 +252,10 @@ notice, the dependency and whether it was removed
 A task's run wait carries `TaskRunWait.refused`, a hello refusal:
 `TaskWaitHello`, the `HostKind`, the wall receipt time and the
 `HelloRefusal`. The server and client share the deployment's
-hello-refusal translations; shortfall dimensions that omit charter
-numbers keep that wire shape. `TaskWaitSource { state }` names a
-source's state. `TaskRunWaitRefused { value }` wraps the enum payload
+hello-refusal translations. A checks shortfall carries the failing
+charter number as `AgentShortfallChecks { charter }`, identifying its
+`reserve_time` member. Turns, time and waiting omit charter numbers.
+`TaskWaitSource { state }` names a source's state. `TaskRunWaitRefused { value }` wraps the enum payload
 for the generator, an unversioned record that adds no tag or header
 bytes. Shared admission types precede their task-wait consumers in the
 schema, as the generator requires. Status and person-facing words are

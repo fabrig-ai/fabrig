@@ -216,7 +216,7 @@ pub enum Reuse {
 }
 
 /// A request's head, as the client sent it.
-#[derive(Clone, PartialEq, Eq, Hash, Debug)]
+#[derive(Clone, PartialEq, Eq, Hash)]
 pub struct Call {
     pub method: Method,
     /// The request target, as it came: visible ASCII, at least one byte, in
@@ -230,6 +230,19 @@ pub struct Call {
     pub headers: Box<[Header]>,
     /// How the request body is framed.
     pub body: Body,
+}
+
+// skein/docs/design/http.md, 2: a call prints its target's length and its fields so.
+impl core::fmt::Debug for Call {
+    fn fmt(&self, f: &mut core::fmt::Formatter<'_>) -> core::fmt::Result {
+        f.debug_struct("Call")
+            .field("method", &self.method)
+            .field("target_len", &self.target.len())
+            .field("version", &self.version)
+            .field("headers", &self.headers)
+            .field("body", &self.body)
+            .finish()
+    }
 }
 
 impl Call {
