@@ -927,6 +927,67 @@ fn debug_of_an_opening_shows_the_credentials_length_never_its_bytes() {
 }
 
 #[test]
+#[expect(clippy::disallowed_macros, reason = "Debug regression tests format made-up body canaries")]
+fn debug_of_a_frame_and_a_body_shows_lengths_never_bytes() {
+    const CANARY: &[u8; 16] = b"canary-body-7c42";
+    let canary_bytes = alloc::format!("{CANARY:?}");
+    let canary_numbers = canary_bytes.trim_matches(['[', ']']);
+    let mut writer = frame_writer(256, 16).expect("measured frame");
+    writer.put(CANARY).expect("body fits");
+    let frame = writer.finish().expect("frame");
+    let frame_debug = alloc::format!("{frame:?}");
+    let frame_pretty = alloc::format!("{frame:#?}");
+    let send = Request::Send { token: Token::new(7), frame };
+    let body = Event::Body { kind: 256, body: Box::from(*CANARY) };
+    for (debug, pretty, expected) in [
+        (frame_debug, frame_pretty, "Frame { kind: 256, body_len: 16 }"),
+        (
+            alloc::format!("{send:?}"),
+            alloc::format!("{send:#?}"),
+            "Send { token: Token(7), frame: Frame { kind: 256, body_len: 16 } }",
+        ),
+        (alloc::format!("{body:?}"), alloc::format!("{body:#?}"), "Body { kind: 256, body_len: 16 }"),
+    ] {
+        assert!(!debug.contains("canary-body-7c42"));
+        assert!(!debug.contains(canary_numbers), "body bytes reached Debug: {debug}");
+        assert_eq!(debug, expected);
+        assert!(!pretty.contains("canary-body-7c42"));
+        assert!(!pretty.replace([' ', '\n'], "").contains(&canary_numbers.replace(' ', "")));
+        assert!(pretty.contains("body_len: 16"));
+    }
+
+    let mut writer = frame_writer(256, 1).expect("measured frame");
+    writer.put(b"x").expect("body fits");
+    let frame = writer.finish().expect("frame");
+    assert_eq!(alloc::format!("{frame:?}"), "Frame { kind: 256, body_len: 1 }");
+    let send = Request::Send { token: Token::new(7), frame };
+    assert_eq!(alloc::format!("{send:?}"), "Send { token: Token(7), frame: Frame { kind: 256, body_len: 1 } }");
+    let body = Event::Body { kind: 256, body: Box::from(*b"x") };
+    assert_eq!(alloc::format!("{body:?}"), "Body { kind: 256, body_len: 1 }");
+
+    let (mut initiator, mut responder) = ready_pair();
+    let mut writer = frame_writer(257, 17).expect("measured frame");
+    writer.put(CANARY).expect("first chunk fits");
+    writer.put(b"x").expect("last byte fits");
+    let frame = writer.finish().expect("frame");
+    initiator.input.extend(frame.bytes().get(..24).expect("header and first body chunk").iter().copied());
+    initiator.down(Request::Read);
+    for _ in 0_u32..3_u32 {
+        initiator.step(&mut responder);
+    }
+    let debug = alloc::format!("{:?}", initiator.machine);
+    let pretty = alloc::format!("{:#?}", initiator.machine);
+    assert!(!debug.contains("canary-body-7c42"));
+    assert!(!debug.contains(canary_numbers), "partial body bytes reached Debug: {debug}");
+    assert!(debug.contains("read: Body { header: Header { kind: 257, body_len: 17 }, body_len: 17, filled: 16 }"));
+    assert!(!pretty.contains("canary-body-7c42"));
+    let compact = pretty.replace([' ', '\n'], "");
+    assert!(!compact.contains(&canary_numbers.replace(' ', "")));
+    assert!(compact.contains("read:Body{header:Header{kind:257,body_len:17,},body_len:17,filled:16,}"));
+    assert!(initiator.events.is_empty(), "partial body has not been delivered");
+}
+
+#[test]
 #[expect(clippy::disallowed_macros, reason = "Debug regression tests preserve derived record formatting")]
 fn debug_of_records_without_a_credential_is_the_derived_form() {
     let request = Request::Refuse { reason: 1, text: Box::from(*b"busy") };
@@ -934,10 +995,6 @@ fn debug_of_records_without_a_credential_is_the_derived_form() {
     terms.push(Term { kind: 256, largest: 32 }).expect("one term fits");
     let event = Event::Ready { version: 2, terms };
     let control = Control::Accept { version: 2, features: 0 };
-    let mut writer = frame_writer(256, 1).expect("measured frame");
-    writer.put(b"x").expect("body fits");
-    let send = Request::Send { token: Token::new(7), frame: writer.finish().expect("frame") };
-    let body = Event::Body { kind: 256, body: Box::from(*b"x") };
     for (debug, expected) in [
         (alloc::format!("{request:?}"), "Refuse { reason: 1, text: [98, 117, 115, 121] }"),
         (
@@ -945,11 +1002,6 @@ fn debug_of_records_without_a_credential_is_the_derived_form() {
             "Ready { version: 2, terms: List { items: [Term { kind: 256, largest: 32 }], capacity: 1 } }",
         ),
         (alloc::format!("{control:?}"), "Accept { version: 2, features: 0 }"),
-        (
-            alloc::format!("{send:?}"),
-            "Send { token: Token(7), frame: Frame { kind: 256, body_len: 1, bytes: [1, 0, 0, 0, 0, 0, 0, 1, 120] } }",
-        ),
-        (alloc::format!("{body:?}"), "Body { kind: 256, body: [120] }"),
     ] {
         assert_eq!(debug, expected);
     }
