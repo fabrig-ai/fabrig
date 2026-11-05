@@ -98,3 +98,15 @@ Resolve only the overlapping status entries:
 - `jig/docs/design/domain/engine.status.md`: remove both “10: a chat’s own scope” (this task) and the written-note answer’s `lines`, `added`, `removed`, `first` gap (note-answer). Retain the body-bound gap and unrelated entries.
 Preserve the automatically merged additions in `jig/tests/core/tests/suite/stories.rs`; that path was not reported as conflicting.
 These conflicts require combining the independent deletions, with no design or implementation change.
+
+## Rebase (2026-11-05, step merge, foreman ui-chat-draft/note-scope/foreman-2)
+
+rebase and combine note-room’s fixture extraction and status deletion with note-scope’s changes
+The merge conflicts with `c45b5791ce` (“Hold whole document notes through engine reads and recall”).
+Resolve both conflicting paths:
+- `jig/docs/design/domain/engine.status.md`: remove both section 10 gaps: the chat’s own scope and the body’s byte bounds. Preserve unrelated entries. This supersedes the earlier instruction to retain the body-bound gap.
+- `jig/tests/core/tests/suite/stories.rs`: preserve note-room’s module declaration and `note_setup(seed) -> Setup`, which `stories/note_room.rs` imports to customize limits before constructing its world.
+- Combine that setup extraction with this task’s configurable note scopes and `note_world` root-conversation initialization. Factor shared setup as needed; retain `note_setup(seed)` with PROJECT authority for note-room.
+- Preserve `a_chat_writes_its_own_scope_and_a_party_reads_it`, its GOAL authority, and the corrected-note story’s use of the root-conversation fixture.
+Preserve integration’s `fe63716c8d` update to note-room’s `NoteWritten` match.
+Validate the corrected-note, chat-scope and whole-document readback stories, then the task’s required checks.
