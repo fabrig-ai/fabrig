@@ -2,26 +2,10 @@
 
 use skein_codec::schema::{DeclIx, FieldIx, Schema, Shape, Span, Type, TypeIx};
 use skein_codec::value::{Node, Part, Path, Value};
+use skein_codegen::{pascal, snake};
 
 fn spelling(schema: &Schema, span: Span) -> &str {
     core::str::from_utf8(schema.spelled(span)).expect("schema identifier")
-}
-
-// emit_limits::pascal: an underscore makes the next character uppercase.
-fn pascal(name: &str) -> String {
-    let mut out = String::new();
-    let mut upper = true;
-    for character in name.chars() {
-        if character == '_' {
-            upper = true;
-        } else if upper {
-            out.push(character.to_ascii_uppercase());
-            upper = false;
-        } else {
-            out.push(character);
-        }
-    }
-    out
 }
 
 #[must_use]
@@ -99,17 +83,6 @@ fn render_type(schema: &Schema, value: &Value, node: Node, ty: TypeIx) -> String
             None => "None".into(),
         },
     }
-}
-
-fn snake(name: &str) -> String {
-    let mut out = String::new();
-    for (at, character) in name.chars().enumerate() {
-        if character.is_ascii_uppercase() && at > 0 {
-            out.push('_');
-        }
-        out.push(character.to_ascii_lowercase());
-    }
-    out
 }
 
 #[must_use]

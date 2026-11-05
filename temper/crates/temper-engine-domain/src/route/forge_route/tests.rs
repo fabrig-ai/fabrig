@@ -2107,11 +2107,10 @@ fn an_uncleared_cancelled_change_names_cancellation() {
     drop(jig_domain_core::step(
         &mut domain.core,
         &crate::limits::environment_core(&env),
-        jig_domain_core::Event::Tasks(tasks::Event::Control {
+        jig_domain_core::Event::Tasks(tasks::Event::Cancel {
             reply_to: skein_lib::ReplyTo::new(skein_lib::Token::new(123)),
             by: tasks::Party::Deployment { project: 1 },
-            task,
-            control: tasks::Control::Cancel { reason: Box::new([]), grace: None, message: None },
+            operation: tasks::Cancel { task, reason: Box::new([]), grace: None, message: None },
         }),
     ));
     assert_eq!(
@@ -2321,11 +2320,10 @@ fn release_held_tier(domain: &mut super::Domain, env: &skein_lib::Env<super::Lim
     let release = jig_domain_core::step(
         &mut domain.core,
         &crate::limits::environment_core(env),
-        jig_domain_core::Event::Tasks(tasks::Event::Control {
+        jig_domain_core::Event::Tasks(tasks::Event::Release {
             reply_to: skein_lib::ReplyTo::new(skein_lib::Token::new(123)),
             by: tasks::Party::Person(1),
-            task,
-            control: tasks::Control::Release { again: None, message: None },
+            operation: tasks::Release { task, again: None, message: None },
         }),
     );
     assert_eq!(domain.core.tasks.task(task).unwrap().due_reason, tasks::Why::Released, "{release:?}");

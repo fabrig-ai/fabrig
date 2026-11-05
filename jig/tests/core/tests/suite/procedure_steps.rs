@@ -594,14 +594,16 @@ fn a_party_amendment_dropping_a_started_from_dependency_is_refused_naming_it() {
         world.domain.core_mut(),
         &env,
         core::Event::Tasks(tasks::Event::Amend {
+            operation: tasks::Amend {
+                task: procedure,
+                message: before.last_message + 1,
+                stop_run: false,
+                amendment: Box::new(amendment.clone()),
+            },
             reply_to: ReplyTo::new(Token::new(9900)),
             by: tasks::Party::Person(1),
-            task: procedure,
-            message: before.last_message + 1,
             places: Box::new([]),
-            stop_run: false,
             funder: None,
-            amendment: amendment.clone(),
         }),
     );
     let problem = tasks::Problem::naming(Some(procedure), tasks::Refusal::Dependencies, &[dependency]);

@@ -36,15 +36,17 @@ fn write(world: &mut World, number: u64, words: &[u8]) {
     world.send(Event::Message {
         reply_to,
         project: 1,
-        task: 1,
-        word: Word {
-            number,
-            from: Party::Person(9),
-            kind: MessageKind::Words,
-            words: words.into(),
-            at: world.env.wall,
-            hits: 1,
-            eligible: true,
+        operation: jig_domain_tasks::Message {
+            task: 1,
+            word: Word {
+                number,
+                from: Party::Person(9),
+                kind: MessageKind::Words,
+                words: words.into(),
+                at: world.env.wall,
+                hits: 1,
+                eligible: true,
+            },
         },
     });
 }

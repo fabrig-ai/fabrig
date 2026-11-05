@@ -2,7 +2,8 @@
 //! It keeps the last told text and answer's counters; credentials and event
 //! records are never known here. Failure words remain the shared notice renderer's.
 use skein_lib::Duration;
-use smith_local_domain::ExitStatus;
+use smith_local_domain::{self as local, ExitStatus};
+use smith_local_protocol as protocol;
 use std::io::Write;
 
 mod input;
@@ -101,16 +102,11 @@ impl Headless {
                         }
                     }
                     Block::ToolCall(smith_domain::session::llm::ToolCall { name, .. }) => {
-                        drop(writeln!(errors, "smith: tool {}", String::from_utf8_lossy(smith_events::clip(name))));
+                        let name = String::from_utf8_lossy(smith_events::clip(name));
+                        drop(errors.write_all(&protocol::told_tool_line(name.as_bytes())));
                     }
                     Block::ToolResult { result, .. } => {
-                        drop(write!(
-                            errors,
-                            "smith: {}",
-                            String::from_utf8_lossy(smith_local_protocol::tool_verdict_text(
-                                smith_local_domain::Domain::tool_verdict(result)
-                            ))
-                        ));
+                        drop(errors.write_all(&protocol::told_verdict_line(local::tool_verdict(result))));
                     }
                     Block::Opaque { .. } => {}
                 }
@@ -124,25 +120,12 @@ impl Headless {
         use smith_host_domain::RunResult;
         match &answer.result {
             RunResult::Accepted { .. } => Ending {
-                text: smith_local_protocol::said_text(&smith_local_domain::Domain::said(answer)),
-                line: Some(
-                    format!(
-                        "accepted in {} turns, {} notional, {} ms\n",
-                        answer.turns,
-                        answer.spent,
-                        elapsed.as_millis()
-                    )
-                    .into_bytes()
-                    .into(),
-                ),
+                text: protocol::said_text(&local::said(answer)).into(),
+                line: Some(protocol::accepted_line(answer.turns, answer.spent, elapsed.as_millis())),
             },
             RunResult::Parked => Ending {
                 text: self.text.as_slice().into(),
-                line: Some(
-                    format!("needs input: answer with `smith exec --chat {}`\n", String::from_utf8_lossy(chat))
-                        .into_bytes()
-                        .into(),
-                ),
+                line: Some(protocol::needs_input_line(String::from_utf8_lossy(chat).as_bytes())),
             },
             RunResult::Failed { .. } | RunResult::Refused { .. } => Ending { text: Box::new([]), line: None },
         }

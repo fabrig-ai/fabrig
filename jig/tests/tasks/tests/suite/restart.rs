@@ -1,4 +1,4 @@
-use jig_domain_tasks::{Active, End, Event, Key, Party, Phase, Refusal, Stored, TaskResult};
+use jig_domain_tasks::{self as tasks, Active, Cancel, End, Event, Key, Party, Phase, Refusal, Stored, TaskResult};
 use jig_tasks_world::{LIMITS, Reply, World, task};
 use skein_lib::Wall;
 
@@ -35,7 +35,7 @@ fn writer_with_hold(writer: u64, holder: u64) -> (World, jig_domain_tasks::Name)
 
 #[test]
 fn a_cancelled_lost_writer_survives_two_restarts() {
-    use jig_domain_tasks::{Class, Control};
+    use jig_domain_tasks::Class;
     // A run can write its own hold, an ancestor's, or one handed to a delegate.
     for (writer, holder) in [(1, 1), (2, 1), (1, 2)] {
         let (mut w, resource) = writer_with_hold(writer, holder);
@@ -43,11 +43,10 @@ fn a_cancelled_lost_writer_survives_two_restarts() {
         w.restart();
         assert_eq!(w.runs.get(&writer), Some(&1));
         let reply_to = w.to();
-        w.send(Event::Control {
+        w.send(Event::Cancel {
             reply_to,
             by: Party::Person(1),
-            task: writer,
-            control: Control::Cancel { reason: b"stop".as_slice().into(), grace: None, message: None },
+            operation: Cancel { task: writer, reason: b"stop".as_slice().into(), grace: None, message: None },
         });
         w.terminal(writer, End::Failed(Class::Lost));
         // Drive every obligation offered before the connector confirms its read.
@@ -798,25 +797,27 @@ fn a_completed_dependency_loaded_for_amendment_restores_without_an_optional_stub
     let reply_to = source.to();
     let call = reply_to.into_token().raw();
     source.send(Event::Amend {
+        operation: tasks::Amend {
+            task: 2,
+            message: 1,
+            stop_run: false,
+            amendment: Box::new(jig_domain_tasks::Amendment {
+                tracked: None,
+                addressed: None,
+                instructions: None,
+                release: None,
+                spec: None,
+                wake: None,
+                dependencies: Some(Box::new([1])),
+                authority: None,
+                llm: None,
+                reason: Box::new([]),
+            }),
+        },
         reply_to: skein_lib::ReplyTo::new(skein_lib::Token::new(call)),
         places: Box::new([place]),
         by: Party::Person(1),
-        task: 2,
-        message: 1,
-        stop_run: false,
         funder: None,
-        amendment: jig_domain_tasks::Amendment {
-            tracked: None,
-            addressed: None,
-            instructions: None,
-            release: None,
-            spec: None,
-            wake: None,
-            dependencies: Some(Box::new([1])),
-            authority: None,
-            llm: None,
-            reason: Box::new([]),
-        },
     });
     assert_eq!(source.replies[&call], Reply::Done);
     assert_eq!(source.record(2).dependencies.as_ref(), [1]);

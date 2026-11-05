@@ -1,6 +1,7 @@
 use jig_domain_tasks::{
-    Active, Cause, Class, Contract, End, Ending, Event, Funder, Hold, Key, Party, Phase, Proposal, ProposalAction,
-    ProposalDecision, ProposalHolder, ProposalState, Refusal, ResultFollowups, Stage, TaskResult, Was,
+    Active, Cancel, Cause, Class, Contract, End, Ending, Event, Funder, Hold, Key, Party, Phase, Proposal,
+    ProposalAction, ProposalDecision, ProposalHolder, ProposalState, Refusal, Release, ResultFollowups, Stage,
+    TaskResult, Was,
 };
 use jig_tasks_world::{LIMITS, Reply, World, task};
 
@@ -122,11 +123,10 @@ fn cancelling_a_closing_result_withdraws_its_pending_followup_proposal() {
     let mut w = World::new(206, LIMITS);
     start_result_followup(&mut w);
     let to = w.to();
-    w.send(Event::Control {
+    w.send(Event::Cancel {
         reply_to: to,
         by: Party::Person(1),
-        task: 1,
-        control: jig_domain_tasks::Control::Cancel { reason: Box::new([9]), grace: None, message: None },
+        operation: Cancel { task: 1, reason: Box::new([9]), grace: None, message: None },
     });
     assert!(w.record(1).proposal.is_none());
     assert!(!w.record(1).result_proposal);
@@ -482,11 +482,10 @@ fn a_delegate_failing_past_its_tries_is_held_and_released_finishes() {
     w.restart();
     let reply_to = w.to();
     let call = reply_to.into_token().raw();
-    w.send(Event::Control {
+    w.send(Event::Release {
         reply_to: skein_lib::ReplyTo::new(skein_lib::Token::new(call)),
         by: Party::Task(1),
-        task: 2,
-        control: jig_domain_tasks::Control::Release { again: None, message: None },
+        operation: Release { task: 2, again: None, message: None },
     });
     assert_eq!(w.replies[&call], Reply::Done);
     assert_eq!(w.record(2).tries, jig_domain_tasks::Tries::NONE);
@@ -538,11 +537,11 @@ fn hold_reasons_survive_restart_and_release_without_losing_task_state() {
         assert_eq!(w.record(1).phase, Phase::Held { was: Was::Active(Active::Due), why: reason, source: None });
         let reply_to = w.to();
         let call = reply_to.into_token().raw();
-        w.send(Event::Control {
+        w.send(Event::Release {
             reply_to: skein_lib::ReplyTo::new(skein_lib::Token::new(call)),
             by: Party::Person(1),
-            task: 1,
-            control: jig_domain_tasks::Control::Release {
+            operation: Release {
+                task: 1,
                 again: if matches!(reason, Hold::Uncertain { .. }) { Some(true) } else { None },
                 message: None,
             },
@@ -563,11 +562,10 @@ fn releasing_a_held_closing_task_retries_its_unsettled_effects() {
     w.restart();
     let reply_to = w.to();
     let call = reply_to.into_token().raw();
-    w.send(Event::Control {
+    w.send(Event::Release {
         reply_to: skein_lib::ReplyTo::new(skein_lib::Token::new(call)),
         by: Party::Person(1),
-        task: 1,
-        control: jig_domain_tasks::Control::Release { again: None, message: None },
+        operation: Release { task: 1, again: None, message: None },
     });
     assert_eq!(w.replies[&call], Reply::Done);
     assert!(matches!(w.record(1).phase, Phase::Closing(jig_domain_tasks::Closing { stage: Stage::Effects, .. })));
@@ -780,11 +778,10 @@ fn lifecycle_history_has_independent_positions_and_restore_does_not_repeat_a_pha
     world.restart();
     assert_eq!(world.record(1).milestone, held, "restoration keeps the immutable history position");
     let reply_to = world.to();
-    world.send(Event::Control {
+    world.send(Event::Release {
         reply_to,
         by: Party::Person(1),
-        task: 1,
-        control: jig_domain_tasks::Control::Release { again: None, message: None },
+        operation: Release { task: 1, again: None, message: None },
     });
     assert_eq!(world.record(1).milestone, held + 1);
     assert_eq!(world.record(1).revision, revision + 1, "release also has its semantic history row");
@@ -883,11 +880,10 @@ fn open_park_keeps_saved_charge_and_delegates_then_cancel_wins() {
     assert_eq!(w.record(1).numbers.spent, 3);
     assert_eq!(w.record(1).delegates.as_ref(), [2]);
     let reply_to = w.to();
-    w.send(Event::Control {
+    w.send(Event::Cancel {
         reply_to,
         by: Party::Person(1),
-        task: 1,
-        control: jig_domain_tasks::Control::Cancel { reason: Box::new([4]), grace: None, message: None },
+        operation: Cancel { task: 1, reason: Box::new([4]), grace: None, message: None },
     });
     w.complete_cancel();
     assert!(matches!(w.results.get(&1), Some(Ending::Cancelled { .. })));

@@ -8,13 +8,13 @@ pub(crate) fn control(
     work: &mut Queue<Work>,
     to: ReplyTo,
     key: CallKey,
-    target: u64,
-    mut control: tasks::Control,
+    mut cancel: tasks::Cancel,
 ) -> Queue<Request> {
     let mut out = Queue::uncapped();
-    if let tasks::Control::Cancel { grace: Some(_), message, .. } = &mut control {
-        *message = crate::fresh(&mut core.counters, crate::Family::Message);
-        if message.is_none() {
+    let target = cancel.task;
+    if cancel.grace.is_some() {
+        cancel.message = crate::fresh(&mut core.counters, crate::Family::Message);
+        if cancel.message.is_none() {
             super::calls::call_decision(
                 core,
                 &mut out,
@@ -33,11 +33,10 @@ pub(crate) fn control(
     let token = to.into_token();
     assert!(core.pending_calls.insert(key, true).is_ok(), "call record room reserved");
     let token = core.fly_call(token, RoutedCall::Control { key, target, revised: false });
-    work.push(Work::Event(Event::Tasks(tasks::Event::Control {
+    work.push(Work::Event(Event::Tasks(tasks::Event::Cancel {
         reply_to: ReplyTo::new(token),
         by: tasks::Party::Task(key.task),
-        task: target,
-        control,
+        operation: cancel,
     })));
     out
 }
