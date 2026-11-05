@@ -11,6 +11,20 @@ use skein_ui::{
 };
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 pub enum Word {
+    SettingsBuildersTab,
+    SettingsBuildersHeading,
+    SettingsBuildersLede,
+    BuildersCount,
+    BuildersSlot,
+    BuildersSlots,
+    BuilderUnnamed,
+    BuilderConnected,
+    BuilderDraining,
+    BuilderNotConnected,
+    BuildersFacts,
+    BuildersNone,
+    BuildersNoRole,
+    BuildersCut,
     SettingsKicker,
     SettingsHowHeading,
     SettingsHowLede,
@@ -989,7 +1003,7 @@ pub(crate) const SCRIPTED_MODEL: &[u8] = b"demo";
 // The configuring opening replaces one phrase with nineteen (client/README.md, 3.5).
 // Settings adds seventeen phrases and thirty-three literal/hole segments (3.5).
 // Needs count, toast, page and kinds add thirty-two phrases (3.5).
-const PHRASES: u32 = 1485;
+const PHRASES: u32 = 1499;
 // Ready's empty-name line has two literals and a Name hole, two more segments (3.5).
 // Ready's repository lead adds one phrase and three segments (3.5).
 // Four literals and the counted entry's two literals and Number hole add seven segments.
@@ -1004,8 +1018,22 @@ const PHRASES: u32 = 1485;
 // Goal rows and ways add twenty-eight literal and hole segments; the page adds thirty-four (3.5).
 // The configuring opening adds twenty literal and hole segments (3.5).
 // Needs count, toast, page and kinds add sixty-two segments (3.5).
-const SEGMENTS: u32 = 2582;
-const ALL: [Word; 888] = [
+const SEGMENTS: u32 = 2608;
+const ALL: [Word; 902] = [
+    Word::SettingsBuildersTab,
+    Word::SettingsBuildersHeading,
+    Word::SettingsBuildersLede,
+    Word::BuildersCount,
+    Word::BuildersSlot,
+    Word::BuildersSlots,
+    Word::BuilderUnnamed,
+    Word::BuilderConnected,
+    Word::BuilderDraining,
+    Word::BuilderNotConnected,
+    Word::BuildersFacts,
+    Word::BuildersNone,
+    Word::BuildersNoRole,
+    Word::BuildersCut,
     Word::SettingsKicker,
     Word::SettingsHowHeading,
     Word::SettingsHowLede,
@@ -1899,6 +1927,20 @@ impl Word {
     #[expect(clippy::too_many_lines, reason = "one exhaustive table keeps the frame phrase IDs stable")]
     fn id(self, connector: u16) -> PhraseId {
         let number = match self {
+            Self::SettingsBuildersTab => 3362,
+            Self::SettingsBuildersHeading => 3363,
+            Self::SettingsBuildersLede => 3364,
+            Self::BuildersCount => 3365,
+            Self::BuildersSlot => 3366,
+            Self::BuildersSlots => 3367,
+            Self::BuilderUnnamed => 3368,
+            Self::BuilderConnected => 3369,
+            Self::BuilderDraining => 3370,
+            Self::BuilderNotConnected => 3371,
+            Self::BuildersFacts => 3372,
+            Self::BuildersNone => 3373,
+            Self::BuildersNoRole => 3374,
+            Self::BuildersCut => 3375,
             Self::SettingsKicker => 3343,
             Self::SettingsHowHeading => 3344,
             Self::SettingsHowLede => 3345,
@@ -3030,8 +3072,8 @@ impl Words {
             // Everyday Home adds 288 bytes; More accounts 149; Configure 401 and its tag 11 literal bytes (3.5).
             // Goal rows and ways add 419 literal bytes; the page adds 250 (3.5).
             // The configuring opening adds 476 literal bytes (client/README.md, 3.5).
-            // Settings adds 771 literal bytes (3.5).
-            text_bytes: 32768 + 288 + 149 + 401 + 11 + 367 + 419 + 250 + 476 + 87 + 225 + 15 + 54 + 771,
+            // Settings adds 771 literal bytes; Builders adds 383 (3.5).
+            text_bytes: 32768 + 288 + 149 + 401 + 11 + 367 + 419 + 250 + 476 + 87 + 225 + 15 + 54 + 771 + 383,
             // Whole playground requests keep their supplied bound.
             hole_bytes: joined
                 .max(switcher_repository_bytes(joined)?)
@@ -3754,6 +3796,20 @@ fn english(word: Word, shell: Shell) -> (&'static [&'static [u8]], &'static [Hol
         Word::Stop => (&[b"Stop"], &[]),
         Word::Older => (&[b"Older"], &[]),
         Word::StartChat => (&[b"Start a chat"], &[]),
+        Word::SettingsBuildersTab => (&[b"Builders"], &[]),
+        Word::SettingsBuildersHeading => (&[b"Where agents work."], &[]),
+        Word::SettingsBuildersLede => (&[b"The machines temper\xe2\x80\x99s agents run on, each with its slots and how many are in use."], &[]),
+        Word::BuildersCount => (&[b"Builders \xc2\xb7 ", b""], &[Number]),
+        Word::BuildersSlot => (&[b"", b" slot \xc2\xb7 ", b" in use"], &[Number, Number]),
+        Word::BuildersSlots => (&[b"", b" slots \xc2\xb7 ", b" in use"], &[Number, Number]),
+        Word::BuilderUnnamed => (&[b"Builder ", b""], &[Number]),
+        Word::BuilderConnected => (&[b"Connected"], &[]),
+        Word::BuilderDraining => (&[b"Draining"], &[]),
+        Word::BuilderNotConnected => (&[b"Not connected"], &[]),
+        Word::BuildersFacts => (&[b"Each agent\xe2\x80\x99s role names which builders it runs on. Tell Configure temper to change it."], &[]),
+        Word::BuildersNone => (&[b"No builder is connected."], &[]),
+        Word::BuildersNoRole => (&[b"Builders are seen by the deployment\xe2\x80\x99s owners."], &[]),
+        Word::BuildersCut => (&[b"Some builder facts were omitted."], &[]),
         Word::SettingsKicker => (&[b"", b" \xc2\xb7 settings"], &[Name]),
         Word::SettingsHowHeading => (&[b"How work runs in ", b"."], &[Name]),
         Word::SettingsHowLede => (&[b"Everything the other pages do for this project comes from here, so each project, and each person, can work its own way."], &[]),

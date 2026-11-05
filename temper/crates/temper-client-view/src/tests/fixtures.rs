@@ -354,6 +354,7 @@ pub(super) fn root_at_with_dismissals_and_needs(
         | temper_client_domain::Address::Home { .. }
         | temper_client_domain::Address::Changes { .. }
         | temper_client_domain::Address::Settings { .. }
+        | temper_client_domain::Address::Builders { .. }
         | temper_client_domain::Address::Repositories { .. }
         | temper_client_domain::Address::Goals { .. }
         | temper_client_domain::Address::Configure { .. }

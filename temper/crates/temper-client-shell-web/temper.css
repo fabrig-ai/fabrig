@@ -1725,6 +1725,9 @@ body > noscript, #app:not(:empty):not(:has(*)) { margin-top: 213px; }
 .temper-settings-section-head { display: flex; align-items: baseline; justify-content: space-between; gap: 12px; }
 .temper-settings .temper-settings-section-title { margin: 0; font: 600 13px/1.6 var(--gf-sans); letter-spacing: .06em; text-transform: uppercase; color: var(--gf-muted); }
 .temper-settings-section-head a { font-size: 13px; }
+.temper-settings .temper-settings-empty { color: var(--gf-muted); padding: 4px 0; }
+.temper-settings .temper-settings-facts { font-size: 13.5px; color: var(--gf-muted); }
+.temper-settings-lines > div > div > .temper-settings-detail { display: block; margin-top: 2px; font-size: 13.5px; color: var(--gf-muted); }
 .temper-settings-lines { display: flex; flex-direction: column; border-top: 1px solid var(--gf-line); }
 .temper-settings-lines > div { display: flex; justify-content: space-between; align-items: baseline; gap: 16px; padding: 14px 4px; border-bottom: 1px solid var(--gf-line); text-decoration: none; }
 .temper-settings-lines .temper-settings-when { flex: none; font-size: 13px; color: var(--gf-faint); }

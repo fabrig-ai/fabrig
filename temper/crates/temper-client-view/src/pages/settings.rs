@@ -18,6 +18,7 @@ pub(crate) enum Tab {
     Repositories,
     Forges,
     Accounts,
+    Builders,
 }
 
 /// A flow's return tab (temper/docs/design/client/README.md, 3.5, The flows' paths).
@@ -86,15 +87,16 @@ pub(crate) fn open(b: &mut Builder, root: &Domain, w: &Words, bindings: &mut Bin
         Tab::Repositories => (Word::SettingsRepositoriesHeading, Word::SettingsRepositoriesLede),
         Tab::Forges => (Word::SettingsForgesHeading, Word::SettingsForgesLede),
         Tab::Accounts => (Word::SettingsAccountsHeading, Word::SettingsAccountsLede),
+        Tab::Builders => (Word::SettingsBuildersHeading, Word::SettingsBuildersLede),
     };
     let title = match tab {
         Tab::HowWorkRuns | Tab::Repositories => w.say(heading, &[Hole::Name(name.clone())]),
-        Tab::Forges | Tab::Accounts => w.say(heading, &[]),
+        Tab::Forges | Tab::Accounts | Tab::Builders => w.say(heading, &[]),
     };
     text(b, Role::Heading { level: 1 }, &title, look::SETTINGS_HEADLINE);
     let lede = match tab {
         Tab::Repositories => w.say(lede, &[Hole::Name(name)]),
-        Tab::HowWorkRuns | Tab::Forges | Tab::Accounts => w.say(lede, &[]),
+        Tab::HowWorkRuns | Tab::Forges | Tab::Accounts | Tab::Builders => w.say(lede, &[]),
     };
     text(b, Role::Paragraph, &lede, look::SETTINGS_LEDE);
     b.close();
@@ -106,6 +108,7 @@ pub(crate) fn open(b: &mut Builder, root: &Domain, w: &Words, bindings: &mut Bin
         (Tab::Repositories, Word::SettingsRepositoriesTab, Address::Repositories { project }),
         (Tab::Forges, Word::ForgesTitle, Address::Forges),
         (Tab::Accounts, Word::SettingsAccountsTab, Address::Accounts),
+        (Tab::Builders, Word::SettingsBuildersTab, Address::Builders { project }),
     ] {
         let name = w.say(word, &[]);
         crate::link(b, &name, bindings.insert(Act::Go { address }));
@@ -116,7 +119,7 @@ pub(crate) fn open(b: &mut Builder, root: &Domain, w: &Words, bindings: &mut Bin
         match item {
             Tab::Forges => crate::frame::forge_mark(b, root, w, false),
             Tab::Accounts => crate::frame::account_mark(b, root, w, false),
-            Tab::HowWorkRuns | Tab::Repositories => {}
+            Tab::HowWorkRuns | Tab::Repositories | Tab::Builders => {}
         }
         b.close();
     }
@@ -169,12 +172,12 @@ fn project_name(root: &Domain, w: &Words, project: u32) -> Box<[u8]> {
         None => w.say(Word::Project, &[Hole::Number(u64::from(project))]),
     }
 }
-fn main(b: &mut Builder) {
+pub(super) fn main(b: &mut Builder) {
     b.open(Role::Main);
     b.style(look::MAIN);
     b.style(look::SETTINGS);
 }
-fn missing(b: &mut Builder, root: &Domain, w: &Words, bindings: &mut Bindings, project: u32) -> bool {
+pub(super) fn missing(b: &mut Builder, root: &Domain, w: &Words, bindings: &mut Bindings, project: u32) -> bool {
     if root.pages().me(root.client()).is_some()
         && crate::pages::project_name(root.pages().me(root.client()), project).is_none()
     {

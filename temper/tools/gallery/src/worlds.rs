@@ -263,7 +263,13 @@ fn world_in_layout(
             match down {
                 jig_client::Down::Open { watch, subject: jig_client::Watchable::Jig(subject) } => {
                     let document = match subject {
-                        c::Subject::Me => Some(c::Delivery::Me(Box::new(frame(w, connecting, configuring)))),
+                        c::Subject::Me => {
+                            let mut me = frame(w, connecting, configuring);
+                            if let Then::Hosts { role: false, .. } = then {
+                                me.deployment_role = None;
+                            }
+                            Some(c::Delivery::Me(Box::new(me)))
+                        }
                         c::Subject::Accounts => {
                             accounts_watch = Some(watch);
                             Some(c::Delivery::Accounts(Box::new(accounts(w, then))))
@@ -290,7 +296,13 @@ fn world_in_layout(
                             Some(c::Delivery::Task(Box::new(task)))
                         }
                         c::Subject::Tree { task, window } => Some(plan_tree(w, task, window, then)),
-                        c::Subject::Deployment => Some(c::Delivery::Deployment(Box::new(deployment(w)))),
+                        c::Subject::Deployment => {
+                            let mut doc = deployment(w);
+                            if let Then::Hosts { connected: true, .. } = then {
+                                doc.hosts = builders();
+                            }
+                            Some(c::Delivery::Deployment(Box::new(doc)))
+                        }
                         c::Subject::Settings | c::Subject::Chips { .. } | c::Subject::Run { .. } => None,
                     };
                     if let Some(document) = document {
@@ -2561,7 +2573,8 @@ fn accounts(w: World, then: Then) -> c::Accounts {
                 source: 43,
                 end: c::AccountEnd::Refused { refusal: c::AccountRefusal::Held { provider: 18 } },
             }),
-            Then::Shown
+            Then::Hosts { .. }
+            | Then::Shown
             | Then::Filled
             | Then::Refused
             | Then::SignedOut
@@ -3268,4 +3281,32 @@ fn changes_panel(name: &str) -> temper_client_protocol_wire::v1::ChangesPanel {
         },
     )
     .expect("changes panel")
+}
+
+/// The Builders sample's three supplied connection states (client/browser.md, 7.2).
+fn builders() -> List<c::Host> {
+    let mut rows = List::with_capacity(3);
+    for (channel, name, connected, draining) in
+        [(7, "Workshop", true, false), (8, "Finishing", true, true), (9, "Away", false, false)]
+    {
+        rows.push(c::Host {
+            name: Some(name.as_bytes().into()),
+            channel,
+            kind: c::HostKind::Worker,
+            slots: 2,
+            used: 1,
+            free: 1,
+            draining,
+            connected,
+            awaiting_logins: false,
+            rule: c::HostRule::Open,
+            programs: List::with_capacity(0),
+            grace_until: None,
+            grace_remaining: None,
+            runs: List::with_capacity(0),
+            cut: false,
+        })
+        .expect("three builders");
+    }
+    rows
 }

@@ -12,8 +12,6 @@
   (`tools.md`, 5.2). 3.5, 5.3, 5.13: How work runs' controls and its
   session's watch and reads, the rail and tab bar by kind 7, `drafts_offered`,
   and a proposal of settings' card in a chat.
-  3.5, *Builders*: no `Builders { project }` in `temper-client-domain`'s
-  `address.rs`, and no such tab.
   5.3: the banner's "Changes", on a page that is no project's:
   the request of 2026-11-05 asked for the rail, and its mock has no banner.
   3.5, *Goals*: a project whose `me` lists no goal template opens no watch

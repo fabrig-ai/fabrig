@@ -66,6 +66,12 @@ fn every_tab_draws_its_head_and_tabs_in_order() {
             "The LLM accounts temper’s agents run on for you. A task keeps its account: while the account is limited, the task waits for it.",
             3,
         ),
+        (
+            Address::Builders { project: f::PROJECT },
+            "Where agents work.",
+            "The machines temper’s agents run on, each with its slots and how many are in use.",
+            4,
+        ),
     ] {
         let root = root(address);
         for mut view in [f::page_view(&root), f::browser_page_view(&root)] {
@@ -84,7 +90,7 @@ fn every_tab_draws_its_head_and_tabs_in_order() {
             let links: Vec<_> = nav.iter().filter(|n| n.role == Role::Link).collect();
             assert_eq!(
                 links.iter().map(|n| n.name.as_deref().unwrap()).collect::<Vec<_>>(),
-                [b"How work runs".as_slice(), b"Repositories", b"Forges", b"Accounts"]
+                [b"How work runs".as_slice(), b"Repositories", b"Forges", b"Accounts", b"Builders"]
             );
             let ids: Vec<_> = links
                 .iter()
@@ -99,6 +105,7 @@ fn every_tab_draws_its_head_and_tabs_in_order() {
                 repositories(),
                 Address::Forges,
                 Address::Accounts,
+                Address::Builders { project: f::PROJECT },
             ]) {
                 assert_eq!(crate::href(&mut view, id), Some(d::address::print(&address)));
                 assert_eq!(crate::act(&mut view, id, Act::Press), Some(d::Action::Pages(pages::Act::Go { address })));

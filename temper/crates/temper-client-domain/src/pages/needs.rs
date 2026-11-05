@@ -223,6 +223,7 @@ impl Session {
             | Address::Chat { .. }
             | Address::Task { .. }
             | Address::Home { .. }
+            | Address::Builders { .. }
             | Address::Repositories { .. }
             | Address::Settings { .. }
             | Address::Configure { .. }
@@ -562,6 +563,7 @@ pub(super) fn act(pages: &mut Pages, env: &Env<Limits>, act: Act, out: &mut Queu
                 | Address::Welcome { .. }
                 | Address::Chat { .. }
                 | Address::Task { .. }
+                | Address::Builders { .. }
                 | Address::Repositories { .. }
                 | Address::Settings { .. }
                 | Address::Configure { .. }
