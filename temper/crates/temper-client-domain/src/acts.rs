@@ -155,6 +155,8 @@ pub(super) fn step(pages: &mut Pages, env: &Env<Limits>, act: Act, out: &mut Que
         | Act::ConnectModel(_)
         | Act::MakeDefault
         | Act::AdoptFirst
+        | Act::CopyAgain { .. }
+        | Act::CopyOffered
         | Act::DefaultName { .. }
         | Act::OpenProject { .. }
         | Act::Project { .. }

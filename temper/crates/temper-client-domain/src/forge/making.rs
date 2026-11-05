@@ -102,6 +102,35 @@ pub struct Making {
     pub state: w::MakingState,
 }
 
+/// A Ready copy keeps both its source address and its source's destination name.
+#[must_use]
+pub fn is_target(making: &Making, address: &[u8]) -> bool {
+    let Some((org, name)) = target(address) else { return false };
+    if making.org != org || making.name != name {
+        return false;
+    }
+    match &making.from {
+        w::MakeFrom::Copy(copy) => copy.address() == address,
+        w::MakeFrom::Empty => false,
+    }
+}
+/// A copy already asked or held anywhere on this forge (client/README.md, 3.5, Home).
+#[must_use]
+pub fn asked(row: &super::forges::Row, address: &[u8]) -> bool {
+    for making in &row.makings {
+        if is_target(making, address) {
+            return true;
+        }
+    }
+    let Some((org, name)) = target(address) else { return false };
+    for repository in &row.repositories {
+        if repository.owner == org && repository.name == name {
+            return true;
+        }
+    }
+    false
+}
+
 /// The part of a making request the client cannot accept.
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 pub enum Refused {

@@ -1993,3 +1993,157 @@ fn home_funds_and_proposal_keep_decisions_confirmation_and_short_lines() {
         );
     }
 }
+
+const COPY_ADDRESSES: [&[u8]; 2] = [b"https://github.com/acme/widget", b"https://github.com/acme/other"];
+fn copy_forges(states: &[Option<w::MakingState>], unasked: bool) -> List<w::ForgeRow> {
+    let rows = forge_rows(false);
+    let mut row = rows.get(0).unwrap().clone().into_parts();
+    row.first = None;
+    let mut addresses = List::with_capacity(2);
+    for address in COPY_ADDRESSES.iter().take(states.len()) {
+        addresses.push((*address).into()).unwrap();
+    }
+    row.starts_with =
+        w::StartsWith::Copies(w::CopyAddresses::new(&w::CEILINGS, w::CopyAddressesParts { addresses }).unwrap());
+    row.makings = List::with_capacity(2);
+    row.repositories = List::with_capacity(2);
+    for (address, state) in COPY_ADDRESSES.iter().zip(states) {
+        let (org, name) = d::forge::making::target(address).unwrap();
+        if let Some(state) = state {
+            row.makings
+                .push(
+                    w::RepositoryMaking::new(
+                        &w::CEILINGS,
+                        w::RepositoryMakingParts {
+                            org,
+                            name,
+                            state: state.clone(),
+                            from: w::MakeFrom::Copy(
+                                w::MakeCopy::new(&w::CEILINGS, w::MakeCopyParts { address: (*address).into() })
+                                    .unwrap(),
+                            ),
+                            into: Some(
+                                w::MakeInto::new(
+                                    &w::CEILINGS,
+                                    w::MakeIntoParts { project: f::PROJECT, home: *address == COPY_ADDRESSES[0] },
+                                )
+                                .unwrap(),
+                            ),
+                        },
+                    )
+                    .unwrap(),
+                )
+                .unwrap();
+        } else if !unasked {
+            row.repositories
+                .push(
+                    w::Adoption::new(&w::CEILINGS, w::AdoptionParts { owner: org, name, project: f::PROJECT }).unwrap(),
+                )
+                .unwrap();
+        }
+    }
+    List::from_boxed(Box::new([w::ForgeRow::new(&w::CEILINGS, row).unwrap()]))
+}
+#[test]
+fn home_copy_lines_keep_order_completion_and_retry_in_browser_and_terminal() {
+    let failed = w::MakingState::Failed(
+        w::MakingFailed::new(
+            &w::CEILINGS,
+            w::MakingFailedParts {
+                step: w::MakeStep::Repository,
+                reason: w::MakeFailure::Taken,
+                words: b"name taken".as_slice().into(),
+            },
+        )
+        .unwrap(),
+    );
+    let made =
+        w::MakingMade::new(&w::CEILINGS, w::MakingMadeParts { id: 1, branch: b"main".as_slice().into() }).unwrap();
+    for (states, expected, done, retry) in [
+        (
+            [Some(w::MakingState::Making), Some(w::MakingState::Waiting)],
+            ["Copying acme/widget from github.com…", "Waiting to copy"],
+            false,
+            false,
+        ),
+        ([None, Some(failed)], ["acme/widget is in Shop", "acme/other failed at repository: name taken"], true, true),
+        (
+            [Some(w::MakingState::Made(made.clone())), Some(w::MakingState::Adopting(made))],
+            ["Adopting acme/widget into Shop…", "Adopting acme/other into Shop…"],
+            false,
+            false,
+        ),
+    ] {
+        let (root, _) = home_root(copy_forges(&states, false), false, false);
+        for (mut view, browser) in [(f::page_view(&root), false), (f::browser_page_view(&root), true)] {
+            let text = f::main_text(view.tree());
+            let first = skein_lib::bytes::find(&text, expected[0].as_bytes()).expect("first copy's words");
+            let second = skein_lib::bytes::find(&text, expected[1].as_bytes()).expect("second copy's words");
+            assert!(first < second);
+            let line = styled(view.tree(), crate::look::HOME_COPY);
+            assert_eq!(line.styles.as_slice().contains(&crate::look::HOME_DONE), done);
+            assert_eq!(crate::look::NAMES.style(crate::look::HOME_COPY), Some(b"temper-home-copy".as_slice()));
+            if retry {
+                assert_action(
+                    &mut view,
+                    Role::Button,
+                    b"Copy again",
+                    d::pages::Act::CopyAgain { org: b"acme".as_slice().into(), name: b"other".as_slice().into() },
+                );
+            } else {
+                absent(&text, "Copy again");
+            }
+            if !browser {
+                let text = printed(&view);
+                contains(&text, expected[0]);
+                contains(&text, expected[1]);
+                if done {
+                    contains(&text, "Done. acme/widget is in Shop");
+                }
+            }
+        }
+    }
+}
+#[test]
+fn home_completed_copies_name_the_sources_and_explain_where_chats_write_in_both_shells() {
+    for (count, title, detail) in [
+        (
+            1,
+            "acme/widget is in Shop",
+            "Chats can change its code now, on your Forgejo; nothing goes back where it was copied from.",
+        ),
+        (
+            2,
+            "acme/widget, acme/other are in Shop",
+            "Chats can change their code now, on your Forgejo; nothing goes back where they were copied from.",
+        ),
+    ] {
+        let (root, _) = home_root(copy_forges(&[None, None][..count], false), false, false);
+        for (view, browser) in [(f::page_view(&root), false), (f::browser_page_view(&root), true)] {
+            let text = f::main_text(view.tree());
+            contains(&text, title);
+            main_find(view.tree(), Role::Paragraph, detail.as_bytes());
+            absent(&text, "temper can change its code now;");
+            let step = styled(view.tree(), crate::look::HOME_DONE);
+            assert_eq!(step.role, Role::Item);
+            assert_eq!(step.styles.as_slice(), &[crate::look::HOME_STEP, crate::look::HOME_DONE]);
+            if !browser {
+                let heading = skein_lib::bytes::concat(&[b"2. Done. ", title.as_bytes()]);
+                assert!(skein_lib::bytes::find(&printed(&view), &heading).is_some());
+            }
+        }
+    }
+}
+#[test]
+fn home_unasked_copies_offer_the_filled_addresses_and_one_copy_act_in_both_shells() {
+    let (root, _) = home_root(copy_forges(&[None, None], true), false, false);
+    for mut view in [f::page_view(&root), f::browser_page_view(&root)] {
+        contains(&f::main_text(view.tree()), "Copy https://github.com/acme/widget");
+        main_find(view.tree(), Role::Paragraph, b"https://github.com/acme/other");
+        assert_action(&mut view, Role::Button, b"Copy", d::pages::Act::CopyOffered);
+        let button = main_find(view.tree(), Role::Button, b"Copy");
+        assert!(subtree(view.tree(), button)[0].styles.as_slice().contains(&crate::look::HOME_PRIMARY));
+    }
+    contains(&printed(&f::page_view(&root)), "Copy https://github.com/acme/widget");
+    contains(&printed(&f::page_view(&root)), "https://github.com/acme/other");
+}
