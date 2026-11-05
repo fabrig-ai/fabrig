@@ -7,6 +7,7 @@ mod chats;
 mod choice;
 mod connect_model;
 mod delegation;
+mod goal;
 mod goals;
 mod home;
 mod inbox;

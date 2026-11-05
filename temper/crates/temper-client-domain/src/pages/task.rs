@@ -301,6 +301,7 @@ pub struct Task {
     pub activity: Handle,
     pub run: Option<Handle>,
     pub ended: Option<Ended>,
+    pub goal: Option<super::goal::Goal>,
     pub filter: PlanFilter,
     pub shape: Shape,
     pub latest: Option<Box<c::ActivityPage>>,
@@ -340,6 +341,7 @@ impl Task {
             activity,
             run: None,
             ended: None,
+            goal: None,
             filter: PlanFilter::All,
             shape: Shape::Unknown,
             latest: None,
@@ -647,6 +649,9 @@ impl Task {
         for card in &self.cards {
             unwatch(card.handle, out);
         }
+        if let Some(goal) = &self.goal {
+            goal.leave(out);
+        }
         self.next
     }
     fn answered(&mut self, key: Key, outcome: jig_client::Outcome) {
@@ -685,6 +690,11 @@ impl Task {
         self.pending = kept;
     }
     pub(crate) fn told(&mut self, now: Time, client: &Client, told: Told, out: &mut Queue<Request>) -> bool {
+        if let Some(goal) = &mut self.goal
+            && goal.told(&told, out)
+        {
+            return true;
+        }
         if let Told::Page { handle, page: Readout::Jig(c::ReadResult::Value(value)) } = &told {
             for index in 0..self.cards.len() {
                 let card = self.cards.get_mut(index).expect("bounded held card");
@@ -849,7 +859,7 @@ impl Task {
         }
     }
     pub(crate) fn held(&mut self, chip: &c::Chip, out: &mut Queue<Request>) {
-        if chip.phase != c::Phase::Held {
+        if self.shape == Shape::Tracked || chip.phase != c::Phase::Held {
             return;
         }
         let object = c::ObjectKey::Task(chip.task);
@@ -952,6 +962,19 @@ impl Task {
             | c::ChipExecutor::Party { .. }
             | c::ChipExecutor::Role { .. } => Shape::HeaderAndPlan,
         };
+        if self.shape == Shape::Tracked {
+            for card in &self.cards {
+                unwatch(card.handle, out);
+            }
+            self.cards.clear();
+            if let Some(goal) = &mut self.goal {
+                goal.changed(task, out);
+            } else {
+                self.goal = Some(super::goal::Goal::new(task, &mut self.next, out));
+            }
+        } else if let Some(goal) = self.goal.take() {
+            goal.leave(out);
+        }
         if self.shape == Shape::Agent {
             if let Some(page) = self.latest.take()
                 && let Some(reading) = self.thread.page(*page)
