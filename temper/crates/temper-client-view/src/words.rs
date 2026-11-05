@@ -765,6 +765,22 @@ pub enum Word {
     WelcomeBoxServer,
     WelcomeModelSignInTime,
     WelcomeModelProgramTime,
+    WelcomeKeyTitle,
+    WelcomeKeyBody,
+    WelcomeKeyField,
+    WelcomeKeyFacts,
+    WelcomePasteTitle,
+    WelcomePasteOpen,
+    WelcomePasteOpenRest,
+    WelcomePasteCopy,
+    WelcomePasteHere,
+    WelcomePasteField,
+    WelcomePasteFinish,
+    WelcomeAllWays,
+    WelcomeAwayTitle,
+    WelcomeAwayBody,
+    WelcomeFinishing,
+
     WelcomeForgeDoneDetail,
     WelcomeForgeDoneRepository,
     WelcomeForgejoLead,
@@ -849,7 +865,8 @@ pub(crate) const SCRIPTED_MODEL: &[u8] = b"demo";
 // The configuring chat tag adds one literal phrase (3.5).
 // Welcome's resumed setup adds one literal phrase (client/README.md, 3.5).
 // Forge status adds two phrases and removes View (client/README.md, 3.5).
-const PHRASES: u32 = 1348;
+// Model’s panels and notes add fifteen phrases (client/README.md, 3.5).
+const PHRASES: u32 = 1363;
 // Ready's empty-name line has two literals and a Name hole, two more segments (3.5).
 // Ready's repository lead adds one phrase and three segments (3.5).
 // Four literals and the counted entry's two literals and Number hole add seven segments.
@@ -863,8 +880,9 @@ const PHRASES: u32 = 1348;
 // The configuring chat tag adds one literal segment (3.5).
 // Welcome's resumed setup adds one literal segment (client/README.md, 3.5).
 // Forge status adds four segments and removes View (3.5).
-const SEGMENTS: u32 = 2329;
-const ALL: [Word; 752] = [
+// Five plan-name holes add ten segments to fifteen Model phrases (3.5).
+const SEGMENTS: u32 = 2354;
+const ALL: [Word; 767] = [
     Word::ConfigureAgent,
     Word::ConfigureWays,
     Word::ConfigureAlone,
@@ -1597,6 +1615,21 @@ const ALL: [Word; 752] = [
     Word::WelcomeBoxServer,
     Word::WelcomeModelSignInTime,
     Word::WelcomeModelProgramTime,
+    Word::WelcomeKeyTitle,
+    Word::WelcomeKeyBody,
+    Word::WelcomeKeyField,
+    Word::WelcomeKeyFacts,
+    Word::WelcomePasteTitle,
+    Word::WelcomePasteOpen,
+    Word::WelcomePasteOpenRest,
+    Word::WelcomePasteCopy,
+    Word::WelcomePasteHere,
+    Word::WelcomePasteField,
+    Word::WelcomePasteFinish,
+    Word::WelcomeAllWays,
+    Word::WelcomeAwayTitle,
+    Word::WelcomeAwayBody,
+    Word::WelcomeFinishing,
     Word::WelcomeForgeDoneDetail,
     Word::WelcomeForgeDoneRepository,
     Word::WelcomeForgejoLead,
@@ -2354,6 +2387,22 @@ impl Word {
             Self::WelcomeBoxServer => 3028,
             Self::WelcomeModelSignInTime => 3029,
             Self::WelcomeModelProgramTime => 3030,
+            Self::WelcomeKeyTitle => 3191,
+            Self::WelcomeKeyBody => 3192,
+            Self::WelcomeKeyField => 3193,
+            Self::WelcomeKeyFacts => 3194,
+            Self::WelcomePasteTitle => 3195,
+            Self::WelcomePasteOpen => 3196,
+            Self::WelcomePasteOpenRest => 3197,
+            Self::WelcomePasteCopy => 3198,
+            Self::WelcomePasteHere => 3199,
+            Self::WelcomePasteField => 3200,
+            Self::WelcomePasteFinish => 3201,
+            Self::WelcomeAllWays => 3202,
+            Self::WelcomeAwayTitle => 3203,
+            Self::WelcomeAwayBody => 3204,
+            Self::WelcomeFinishing => 3205,
+
             Self::WelcomeForgeDoneDetail => 3031,
             Self::WelcomeForgeDoneRepository => 3049,
             Self::WelcomeForgejoLead => 3032,
@@ -2593,7 +2642,8 @@ impl Words {
             segments: SEGMENTS,
             // Everyday Home adds 288 bytes; More accounts 149; Configure 401 and its tag 11 literal bytes (3.5).
             // Forge status adds 76 literal bytes after removing View (3.5).
-            text_bytes: 32768 + 288 + 149 + 401 + 11 + 76,
+            // Model’s fifteen panel and note phrases add 659 literal bytes (3.5).
+            text_bytes: 32768 + 288 + 149 + 401 + 11 + 76 + 659,
             // Whole playground requests keep their supplied bound.
             hole_bytes: joined
                 .max(switcher_repository_bytes(joined)?)
@@ -2668,6 +2718,21 @@ fn english(word: Word, shell: Shell) -> (&'static [&'static [u8]], &'static [Hol
         Word::WelcomeBoxLine => (&[b" \xc2\xb7 on this machine, to try it \xc2\xb7 more later, from Settings \xc2\xb7 "], &[]),
         Word::WelcomeBoxServer => (&[b"Run temper on a server \xe2\x86\x97"], &[]),
         Word::WelcomeModelSignInTime => (&[b"Sign in, in this tab \xc2\xb7 about a minute"], &[]),
+        Word::WelcomeKeyTitle => (&[b"An OpenAI API key"], &[]),
+        Word::WelcomeKeyBody => (&[b"From OpenAI\xe2\x80\x99s platform, under API keys. What temper\xe2\x80\x99s agents use is billed to the key\xe2\x80\x99s organization."], &[]),
+        Word::WelcomeKeyField => (&[b"Key, pasted once"], &[]),
+        Word::WelcomeKeyFacts => (&[b"Nothing checks a key when it is added: a wrong one shows once OpenAI refuses a run."], &[]),
+        Word::WelcomePasteTitle => (&[b"Signing in to ", b" from another computer"], &[Name]),
+        Word::WelcomePasteOpen => (&[b"Open ", b"\xe2\x80\x99s sign-in \xe2\x80\xba"], &[Name]),
+        Word::WelcomePasteOpenRest => (&[b" and approve temper."], &[]),
+        Word::WelcomePasteCopy => (&[b"When ", b" is done, its tab shows a page that can\xe2\x80\x99t be reached. Copy that page\xe2\x80\x99s whole address from the address bar."], &[Name]),
+        Word::WelcomePasteHere => (&[b"Paste it here."], &[]),
+        Word::WelcomePasteField => (&[b"Address of the page that couldn\xe2\x80\x99t be reached"], &[]),
+        Word::WelcomePasteFinish => (&[b"Finish connecting"], &[]),
+        Word::WelcomeAllWays => (&[b"All ways"], &[]),
+        Word::WelcomeAwayTitle => (&[b"", b"\xe2\x80\x99s sign-in, in this tab"], &[Name]),
+        Word::WelcomeAwayBody => (&[b"You sign in and approve temper; ", b" sends this tab back to temper\xe2\x80\x99s listener on this machine, and on to Ready."], &[Name]),
+        Word::WelcomeFinishing => (&[b"Finishing your sign-in\xe2\x80\xa6"], &[]),
         Word::WelcomeModelProgramTime => (&[b"One command in a terminal, on this machine"], &[]),
         Word::WelcomeForgeDoneDetail => (&[b"connected as ", b""], &[Name]),
         Word::WelcomeForgeDoneRepository => (&[b"", b" made"], &[Name]),
