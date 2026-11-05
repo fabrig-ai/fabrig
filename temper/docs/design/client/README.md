@@ -2745,14 +2745,16 @@ page (5.1): a navigation named by the open project, in this order:
   there (*What the client keeps,* 3.5), omitted when zero; "Goals", to the project's `Goals`
   with the filter All, shown only where the project has a goal or the
   page is `Goals`, so that a fresh project keeps the rail the mock's
-  Default project does; and "Chats", to `Chats`; current on `Home`, on
+  Default project does; "Chats", to `Chats`; and "Changes", to
+  `Changes { project }`, shown for every project and in no tab bar;
+  current on `Home`, on
   `Inbox`, on `Goals`, on a goal (a tracked agent's `Task`) and on a
-  task whose document names a goal, and on `Chats` and `Chat`, but a
+  task whose document names a goal, and on `Changes`, on `Chats` and
+  `Chat`, but a
   configuring chat's, whose current entry is "Settings". Whether a
   project has a goal is `Domain::has_goals(project)`, a fact the domain
   keeps whatever the rail does, from a live watch and one ended read of
-  the goals' query with window 1, per open project. "Changes", to `Changes { project }`, follows "Chats", shown for every
-  project and in no tab bar, current on `Changes`;
+  the goals' query with window 1, per open project;
 - "+ New chat", named "New chat", to the chats' start
   (`/chats?at=start`);
 - at its foot: while the playground runs and is not leaving (4.8),

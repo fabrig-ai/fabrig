@@ -50,7 +50,7 @@ them (`protocol/configuration.md`), and the walk that request ends
 with has not passed (`protocol/setup.md`). Much of a change's own
 bounds and gates, the forge's merge queue and a goal's issue lag, and
 the queue's first can lose its turn to a change stepped during it
-(`domain/forge.md`); so do the client's Goals, Changes, Board and How work
+(`domain/forge.md`); so do the client's Goals and How work
 runs pages and many of ctl's tools (`client/README.md`,
 `client/forge.md`, `client/tools.md`), the playground in the
 browser, whose story A walks in the browser tier but not yet by hand
