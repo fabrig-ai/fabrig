@@ -3,8 +3,8 @@
   "settings": {
     "timezone": {
       "type": { "object": {
-        "area": { "type": "string", "doc": "tzdata's area, such as Europe." },
-        "zone": { "type": "string", "doc": "The zone in the area, such as Lisbon." }
+        "area": { "type": "string", "doc": "tzdata's area, such as Etc." },
+        "zone": { "type": "string", "doc": "The zone in the area, such as UTC." }
       } },
       "doc": "The system's timezone."
     },
