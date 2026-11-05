@@ -1,9 +1,8 @@
 # agent: status
 
 2026-11-05. Where temper's code lags or departs from [agent.md](agent.md).
-The remaining gaps concern a run's settings reads and verdict follow-up tasks.
-Change-refusal model wording also lags, and a run that cannot deliver keeps
-the shell its charter grants.
+The remaining gaps concern settings reads, verdict follow-up tasks,
+change-refusal model wording and shell authority for runs that cannot deliver.
 
 - **Not yet:** 4.3.2, 8.3: a goal's report: no charter asks for it, and a
   goal's authority holds no notes: plan `ui-goals`.

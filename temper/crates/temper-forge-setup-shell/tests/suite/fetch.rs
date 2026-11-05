@@ -189,6 +189,9 @@ fn check_outcome(expected: &str, result: Result<(), Failed>, name: &str, url: &s
         "bytes" => {
             assert_eq!(result.expect_err("fetch refused").words(), format!("{url}: body past setup.fetch_bytes"));
         }
+        "claude-bytes" => {
+            assert_eq!(result.expect_err("fetch refused").words(), format!("{url}: body past the pinned size"));
+        }
         "tls" => {
             let words = result.expect_err("fetch refused").words();
             assert!(words.starts_with(&format!("{url}: TLS:")), "{words}");
@@ -514,4 +517,117 @@ fn a_writer_that_refuses_fails_no_fetch() {
     let mut out = &mut [][..];
     fetch_to_writer("fetch-progress-refusing", false, &mut out);
     assert!(out.is_empty());
+}
+
+#[test]
+fn claude_fetches_once_and_refuses_a_wrong_digest_or_existing_size() {
+    for (name, initial, body, expected) in [
+        ("missing", None, b"abc".as_slice(), "ok"),
+        ("digest", None, b"xyz".as_slice(), "digest"),
+        ("bound", None, b"abcd".as_slice(), "claude-bytes"),
+        ("size", Some(b"other size".as_slice()), b"abc".as_slice(), "present"),
+    ] {
+        let scratch = support::Scratch::new(&format!("claude-fetch-{name}"));
+        let file = scratch.path().join("cache/claude");
+        let roots = scratch.path().join("root.pem");
+        fs::write(&roots, pem(pki::ROOT)).unwrap();
+        if let Some(initial) = initial {
+            fs::create_dir_all(file.parent().unwrap()).unwrap();
+            fs::write(&file, initial).unwrap();
+        }
+        let listener = TcpListener::bind("127.0.0.1:0").unwrap();
+        let port = listener.local_addr().unwrap().port();
+        let observer = listener.try_clone().unwrap();
+        let peer = initial.is_none().then(|| server(listener, body_response(body, false)));
+        let pin = Pin {
+            binary: temper_forge_setup::fetch::Named::ClaudeCode,
+            origin: Origin { host: b"127.0.0.1".as_slice().into(), port },
+            path: b"/binary".as_slice().into(),
+            digest: sha(b"abc"),
+            file: file.as_os_str().as_bytes().into(),
+            bottle: None,
+        };
+        let trust = skein_shell::Trust::Machine { ssl_cert_file: Some(roots) };
+        let mut out = Vec::new();
+        let result = fetch::claude_code(&support::io(), &trust, &file, pin.clone(), 3, &mut out);
+        if let Some(peer) = peer {
+            assert!(peer.join().unwrap().unwrap_or_else(|starved| starved.pass()).starts_with(b"GET /binary "));
+        }
+        check_outcome(expected, result, name, &format!("https://127.0.0.1:{port}/binary"), &file);
+        if expected == "ok" {
+            assert_eq!(fs::read(&file).unwrap(), b"abc");
+            assert_eq!(
+                out,
+                b"fetching Claude Code\nfetched claude-code 0 of 3 bytes\nfetched claude-code 3 of 3 bytes\n"
+            );
+            out.clear();
+            // No roots are needed on a cache hit, and no lock is opened.
+            fs::remove_file(file.with_extension("lock")).unwrap();
+            fs::create_dir(file.with_extension("lock")).unwrap();
+            fetch::claude_code(&support::io(), &trust, &file, pin, 3, &mut out).unwrap();
+            assert!(out.is_empty());
+        } else if let Some(initial) = initial {
+            assert_eq!(fs::read(&file).unwrap(), initial);
+            assert!(out.is_empty());
+        } else {
+            assert!(!file.exists());
+        }
+        assert!(!file.with_extension("part").exists());
+        observer.set_nonblocking(true).unwrap();
+        assert_eq!(observer.accept().unwrap_err().kind(), std::io::ErrorKind::WouldBlock);
+        scratch.remove();
+    }
+}
+
+#[test]
+#[expect(clippy::disallowed_methods, reason = "two concurrent launcher commands must serialize one local TLS fetch")]
+fn concurrent_claude_commands_make_one_request() {
+    let scratch = support::Scratch::new("claude-concurrent");
+    let file = scratch.path().join("cache/claude");
+    let roots = scratch.path().join("root.pem");
+    fs::write(&roots, pem(pki::ROOT)).unwrap();
+    let listener = TcpListener::bind("127.0.0.1:0").unwrap();
+    let port = listener.local_addr().unwrap().port();
+    let observer = listener.try_clone().unwrap();
+    let peer = server(listener, body_response(b"abc", false));
+    let barrier = std::sync::Arc::new(std::sync::Barrier::new(2));
+    let commands: Vec<_> = (0..2)
+        .map(|_| {
+            let (file, roots, barrier) = (file.clone(), roots.clone(), barrier.clone());
+            thread::spawn(move || {
+                let pin = Pin {
+                    binary: temper_forge_setup::fetch::Named::ClaudeCode,
+                    origin: Origin { host: b"127.0.0.1".as_slice().into(), port },
+                    path: b"/binary".as_slice().into(),
+                    digest: sha(b"abc"),
+                    file: file.as_os_str().as_bytes().into(),
+                    bottle: None,
+                };
+                barrier.wait();
+                let mut out = Vec::new();
+                let result = fetch::claude_code(
+                    &support::io(),
+                    &skein_shell::Trust::Machine { ssl_cert_file: Some(roots) },
+                    &file,
+                    pin,
+                    3,
+                    &mut out,
+                );
+                (result, out)
+            })
+        })
+        .collect();
+    let results: Vec<_> = commands.into_iter().map(|command| command.join().unwrap()).collect();
+    let head = peer.join().unwrap().unwrap_or_else(|starved| starved.pass());
+    assert!(head.starts_with(b"GET /binary "));
+    for (result, _) in &results {
+        assert!(result.is_ok(), "{result:?}");
+    }
+    assert_eq!(results.iter().filter(|(_, out)| out.starts_with(b"fetching Claude Code\n")).count(), 1);
+    assert_eq!(results.iter().filter(|(_, out)| out.is_empty()).count(), 1);
+    observer.set_nonblocking(true).unwrap();
+    assert_eq!(observer.accept().unwrap_err().kind(), std::io::ErrorKind::WouldBlock);
+    assert_eq!(fs::read(&file).unwrap(), b"abc");
+    assert!(!file.with_extension("part").exists());
+    scratch.remove();
 }

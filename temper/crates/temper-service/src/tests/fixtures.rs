@@ -753,6 +753,7 @@ pub fn encoding(settings: &settings::Engine) -> crate::assignment::Encoding {
         limits: wire_limits(),
         endpoints: smith_protocol_channel::Endpoints::new(entries),
         deployment: [7; 16],
+        charter_bytes: settings.jig.limits.hub.charter_bytes,
     }
 }
 pub fn answer(ending: jig_domain_host::Ending) -> jig_domain_host::LinkUp {
@@ -764,17 +765,22 @@ pub fn answer(ending: jig_domain_host::Ending) -> jig_domain_host::LinkUp {
 }
 
 pub const WORKER_DIGEST: &[u8] = b"0000000000000000000000000000000000000000000000000000000000000000";
-pub fn workers() -> crate::workers::Workers {
-    let settings = engine();
-    let mut entries = skein_lib::List::with_capacity(2);
+/// Inert digest contents for the workers named by these settings.
+pub fn worker_digests(settings: &settings::Engine) -> settings::Files {
+    let mut entries = skein_lib::List::with_capacity(u32::try_from(settings.jig.hosts.workers.len()).unwrap());
     for worker in &settings.jig.hosts.workers {
         entries.push((worker.digest.clone(), Secret::new(WORKER_DIGEST.into()))).unwrap();
     }
+    settings::Files { entries }
+}
+
+pub fn workers() -> crate::workers::Workers {
+    let settings = engine();
     let encoding = encoding(&settings);
     let limits = crate::workers::limits(&settings).unwrap();
     crate::workers::Workers::new(
         &settings.jig,
-        &settings::Files { entries },
+        &worker_digests(&settings),
         encoding,
         forges(),
         settings.limits.forge.forges,
@@ -1659,7 +1665,9 @@ pub fn stock_configuration(payload: u32, output: u32) -> Result<smith_agent_shel
         .replace("\"tool_payload\": 10662", &format!("\"tool_payload\": {payload}"))
         .replace("\"output\": 8192", &format!("\"output\": {output}"))
         .replace("$llm", "127.0.0.1:8370")
-        .replace("\"$programs\"", "{}")
+        .replace("\"$programs\"", r#"{"claude_code":{"path":"/fixture/claude","directory":"/fixture/programs"}}"#)
+        .replace("api.anthropic.com:443", "127.0.0.1:8373")
+        .replace("\"server_name\": \"api.anthropic.com\",", "")
         .replace("api.openai.com:443", "127.0.0.1:8372")
         .replace("\"transport\": \"tls\"", "\"transport\": \"plaintext\"")
         .replace("\"server_name\": \"api.openai.com\",", "");
@@ -1669,6 +1677,7 @@ pub fn stock_configuration(payload: u32, output: u32) -> Result<smith_agent_shel
 /// The startup agent derived from the shell configuration, including its hello.
 #[expect(clippy::disallowed_methods, reason = "ordinary fixture code traverses the parsed model declarations")]
 pub fn parsed_agent(config: smith_agent_shell::config::Configuration) -> settings::Agent {
+    use std::os::unix::ffi::OsStrExt;
     let limits = config.service.limits;
     let host_limits = smith_local_service::profile::host_limits(&config.profile, &limits).unwrap();
     let mut protocol = smith_host_protocol::Limits {
@@ -1684,7 +1693,15 @@ pub fn parsed_agent(config: smith_agent_shell::config::Configuration) -> setting
     settings::Agent {
         run_limits: limits.domain.run,
         tool_payload: config.profile.declared.tool_payload,
-        programs: Box::default(),
+        programs: config
+            .program
+            .into_iter()
+            .map(|program| settings::Program {
+                adapter: settings::Adapter::ClaudeCode,
+                path: program.path.as_os_str().as_bytes().into(),
+                directory: program.directory.as_os_str().as_bytes().into(),
+            })
+            .collect(),
         endpoints: config.service.channel_endpoints,
         limits: protocol,
         host_limits,
@@ -1700,7 +1717,7 @@ pub fn parsed_agent(config: smith_agent_shell::config::Configuration) -> setting
                     output: model.output,
                 })
                 .collect(),
-            program_endpoints: Box::default(),
+            program_endpoints: config.program_endpoints.into_iter().collect(),
             turns: config.profile.policy.max_turns,
             spend: config.profile.policy.max_spend,
             time: config.profile.policy.max_time,

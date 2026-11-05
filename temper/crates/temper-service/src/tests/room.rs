@@ -13,7 +13,12 @@ const ENOUGH: u64 = 2_048;
 fn agent() -> crate::settings::Agent {
     let bytes = include_str!("../../../temper-init/template/agent.json")
         .replace("$llm", "127.0.0.1:8370")
-        .replace("\"$programs\"", "{}");
+        .replace("\"$programs\"", r#"{"claude_code":{"path":"/fixture/claude","directory":"/fixture/programs"}}"#)
+        .replace("api.anthropic.com:443", "127.0.0.1:8373")
+        .replace("\"server_name\": \"api.anthropic.com\",", "")
+        .replace("api.openai.com:443", "127.0.0.1:8372")
+        .replace("\"server_name\": \"api.openai.com\",", "")
+        .replace("\"transport\": \"tls\"", "\"transport\": \"plaintext\"");
     let parsed = smith_agent_shell::config::parse(bytes.as_bytes()).unwrap();
     let mut agent = fixtures::startup_agent();
     agent.run_limits = parsed.service.limits.domain.run;

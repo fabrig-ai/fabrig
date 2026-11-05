@@ -255,7 +255,7 @@ const ROWS: &[(Word, &[u8])] = &[
     (Word::StartChat, "Start a chat".as_bytes()),
     (Word::ProgramRun, "Run this on each host temper’s agents run on, in a terminal there:".as_bytes()),
     (Word::KeyRuns, "temper’s agents now run on it.".as_bytes()),
-    (Word::ProgramNote, "Claude Code asks you to sign in. temper never reads its login.".as_bytes()),
+    (Word::ProgramNote, "If this machine has no Claude Code, this fetches it first. Claude Code asks you to sign in. temper never reads its login.".as_bytes()),
     (Word::ProgramDescription, "temper runs Claude Code, signed in to your Claude subscription on each host its agents run on. Name the login, then sign in on each host, in a terminal there.".as_bytes()),
     (Word::Pasted, "Pasted here · at once".as_bytes()),
     (Word::BrowserMinute, "In a browser on the engine’s machine · about a minute".as_bytes()),
