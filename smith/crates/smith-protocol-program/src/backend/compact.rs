@@ -114,5 +114,4 @@ pub(super) fn checked_init(bytes: &[u8], depth: u32, tokens: u32) -> Option<()> 
 }
 
 #[cfg(test)]
-#[path = "compact_tests.rs"]
 mod compact_tests;

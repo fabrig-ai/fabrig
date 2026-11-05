@@ -1,30 +1,12 @@
 use super::*;
 use skein_lib::List;
 
-#[path = "reads_part0.rs"]
-mod part0;
-pub use part0::*;
-#[path = "reads_part1.rs"]
-mod part1;
-pub use part1::*;
-#[path = "reads_part2.rs"]
-mod part2;
-pub use part2::*;
-#[path = "reads_part3.rs"]
-mod part3;
-pub use part3::*;
-#[path = "reads_part4.rs"]
-mod part4;
-pub use part4::*;
-#[path = "reads_part5.rs"]
-mod part5;
-pub use part5::*;
-#[path = "reads_part6.rs"]
-mod part6;
-pub use part6::*;
-#[path = "reads_part7.rs"]
-mod part7;
-pub use part7::*;
+#[path = "reads_wire.rs"]
+mod wire;
+pub use wire::*;
+#[path = "reads_values.rs"]
+mod values;
+pub use values::*;
 
 pub fn raw_cursor(value: &[u8]) -> c::Cursor {
     c::Cursor::new(Box::from(value), 256).unwrap()

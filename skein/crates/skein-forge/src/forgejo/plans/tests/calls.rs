@@ -450,6 +450,82 @@ fn kept_body_revision_has_big_endian_golden() {
     assert_eq!(super::super::reading::revision(&body, None), 0xba78_16bf_8f01_cfea);
 }
 
+// Reconstructed from walk-103's measured shape: two commits, three paths, six rows.
+// The walk record does not contain the complete Forgejo response body.
+const REPEATED_COMPARE: &[u8] = br#"{"total_commits":2,"commits":[{"sha":"0200000000000000000000000000000000000000"},{"sha":"0100000000000000000000000000000000000000"}],"files":[{"filename":"a","status":"added"},{"filename":"a","status":"modified"},{"filename":"b","status":"renamed","previous_filename":"old"},{"filename":"b","status":"modified"},{"filename":"c","status":"deleted"},{"filename":"c","status":"modified"}]}"#;
+const COMPARE_SENDS: [&str; 8] = [
+    "GET /api/v1/repos/fixture/specimen/compare/0300000000000000000000000000000000000000...0100000000000000000000000000000000000000?verification=false",
+    "GET /api/v1/repos/fixture/specimen/compare/0100000000000000000000000000000000000000...0300000000000000000000000000000000000000?files=false&verification=false",
+    "GET /api/v1/repos/fixture/specimen/raw/a?ref=0300000000000000000000000000000000000000",
+    "GET /api/v1/repos/fixture/specimen/raw/a?ref=0100000000000000000000000000000000000000",
+    "GET /api/v1/repos/fixture/specimen/raw/b?ref=0300000000000000000000000000000000000000",
+    "GET /api/v1/repos/fixture/specimen/raw/b?ref=0100000000000000000000000000000000000000",
+    "GET /api/v1/repos/fixture/specimen/raw/c?ref=0300000000000000000000000000000000000000",
+    "GET /api/v1/repos/fixture/specimen/raw/c?ref=0100000000000000000000000000000000000000",
+];
+// Two 32-byte commits and three files, each 64 bytes plus a path and two one-byte sides.
+const COMPARE_BYTES: u32 = 265;
+const COMPARE_PATHS: u32 = 3;
+const COMPARE_COMMIT: api::Commit = {
+    let mut commit = [0; 32];
+    commit[0] = 2;
+    commit
+};
+const COMPARE_SIDES: [&[u8]; 6] = [b"a", b"A", b"b", b"B", b"c", b"C"];
+
+fn repeated_compare(bounds: crate::forgejo::plans::plan::Bounds) -> Step {
+    let mut limits = fixtures::limits();
+    limits.json.length = u32::try_from(REPEATED_COMPARE.len()).unwrap();
+    let mut run = Run::with_limits(limits, bounds, Op::Read(Read::Compare { before: BASE, after: HEAD }));
+    run.begin();
+    let step = run.answer(200, REPEATED_COMPARE);
+    if let Step::Done(_) = step {
+        return step;
+    }
+    run.answer(200, EMPTY_COMPARE);
+    for (index, body) in COMPARE_SIDES.into_iter().enumerate() {
+        run.assert_sent(&COMPARE_SENDS[..=index.saturating_add(2)]);
+        let step = run.answer(200, body);
+        if let Step::Done(_) = step {
+            return step;
+        }
+    }
+    panic!("comparison did not end after reading each endpoint once")
+}
+
+#[test]
+fn compare_repeated_paths_reads_each_file_once() {
+    for bounds in
+        [BOUNDS, crate::forgejo::plans::plan::Bounds { rows: COMPARE_PATHS, answer_bytes: COMPARE_BYTES, ..BOUNDS }]
+    {
+        let files = Box::new([
+            api::File { path: Box::from(*b"a"), before: Some(Box::from(*b"a")), after: Some(Box::from(*b"A")) },
+            api::File { path: Box::from(*b"b"), before: Some(Box::from(*b"b")), after: Some(Box::from(*b"B")) },
+            api::File { path: Box::from(*b"c"), before: Some(Box::from(*b"c")), after: Some(Box::from(*b"C")) },
+        ]);
+        assert_eq!(
+            repeated_compare(bounds),
+            Step::Done(Ok(Answer::Compare {
+                before: BASE,
+                after: HEAD,
+                contains_before: true,
+                commits: Box::new([COMPARE_COMMIT, HEAD]),
+                files,
+            }))
+        );
+    }
+}
+
+#[test]
+fn compare_distinct_files_still_obey_answer_bounds() {
+    for bounds in [
+        crate::forgejo::plans::plan::Bounds { rows: COMPARE_PATHS - 1, ..BOUNDS },
+        crate::forgejo::plans::plan::Bounds { answer_bytes: COMPARE_BYTES - 1, ..BOUNDS },
+    ] {
+        assert_eq!(repeated_compare(bounds), Step::Done(Err(Error::TooLarge)));
+    }
+}
+
 fn remarks(ids: &[u64]) -> Box<[api::Remark]> {
     let mut rows = skein_lib::List::with_capacity(ROWS);
     for id in ids {

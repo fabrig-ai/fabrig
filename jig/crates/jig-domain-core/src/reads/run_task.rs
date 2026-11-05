@@ -39,6 +39,8 @@ pub struct TaskRead {
     /// Durable unanswered credits, bounded by `tasks.inbox_messages`.
     pub questions: Box<[tasks::QuestionCredit]>,
     pub words: TaskText,
+    /// Verdict selected by a result read; offsets still count only reason bytes.
+    pub verdict_code: Option<u32>,
     pub hold: Option<TaskHold>,
 }
 
@@ -135,8 +137,26 @@ fn value(
         dependencies: row.dependencies.clone(),
         questions: row.questions.clone(),
         words,
+        verdict_code: verdict_code(row, field),
         hold,
     })
+}
+
+fn verdict_code(row: &tasks::TaskRecord, field: TaskTextField) -> Option<u32> {
+    if field != TaskTextField::Result {
+        return None;
+    }
+    match &row.phase {
+        tasks::Phase::Ended(
+            tasks::Ending::Done(tasks::TaskResult::Verdict { code, .. })
+            | tasks::Ending::Cancelled { result: Some(tasks::TaskResult::Verdict { code, .. }), .. },
+        ) => Some(*code),
+        tasks::Phase::Ended(_)
+        | tasks::Phase::Waiting
+        | tasks::Phase::Active(_)
+        | tasks::Phase::Closing(_)
+        | tasks::Phase::Held { .. } => None,
+    }
 }
 
 fn task_state(row: &tasks::TaskRecord) -> TaskState {
@@ -291,6 +311,45 @@ pub fn answer_bound(limits: &Limits) -> Option<u64> {
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    #[test]
+    fn result_reads_keep_verdict_codes_outside_reason_offsets() {
+        let (core, mut limits) = crate::tests::make_tree();
+        limits.documents.text_bytes = 5; // The UTF-8 reason is two five-byte windows.
+        let mut row = core.tasks.task(2).expect("delegate").clone();
+        row.phase = tasks::Phase::Ended(tasks::Ending::Done(tasks::TaskResult::Verdict {
+            code: 2,
+            fields: Box::new([]),
+            words: b"caf\xc3\xa9 bold".as_slice().into(),
+        }));
+        for (from, bytes, next) in [(0, b"caf\xc3\xa9".as_slice(), Some(5)), (5, b" bold".as_slice(), None)] {
+            let read = value(&core, &limits, 1, &row, TaskTextField::Result, from, &[]).expect("requester result");
+            assert_eq!(read.verdict_code, Some(2));
+            assert_eq!(read.words.bytes.as_ref(), bytes);
+            assert_eq!(read.words.next, next);
+            assert_eq!(read.words.total, 10);
+        }
+        row.phase = tasks::Phase::Ended(tasks::Ending::Cancelled {
+            by: tasks::Party::Task(1),
+            at: skein_lib::Wall::EPOCH,
+            reason: b"stopped".as_slice().into(),
+            result: Some(tasks::TaskResult::Verdict {
+                code: 2,
+                fields: Box::new([]),
+                words: b"bold".as_slice().into(),
+            }),
+        });
+        assert_eq!(
+            value(&core, &limits, 1, &row, TaskTextField::Result, 0, &[]).expect("kept verdict").verdict_code,
+            Some(2)
+        );
+        let spec = value(&core, &limits, 1, &row, TaskTextField::Specification, 0, &[]).expect("requester spec");
+        assert_eq!(spec.verdict_code, None);
+        assert_eq!(value(&core, &limits, 3, &row, TaskTextField::Result, 0, &[]), Err(tasks::Refusal::Reference));
+        row.phase =
+            tasks::Phase::Ended(tasks::Ending::Done(tasks::TaskResult::Report { words: b"bold".as_slice().into() }));
+        assert_eq!(value(&core, &limits, 1, &row, TaskTextField::Result, 0, &[]).expect("report").verdict_code, None);
+    }
 
     #[test]
     fn task_reads_keep_question_credits_after_delivery_is_consumed() {

@@ -17,8 +17,6 @@ pub struct Limits {
     pub workers: u32,
     /// Owned charter/model requirements retained for admission and placement.
     pub needs_bytes: u64,
-    /// Charter versions held besides the newest (engine.md, 17.8).
-    pub versions: u32,
     /// Slots hosted inside the engine; zero in applications using only workers.
     pub engine_slots: u32,
     /// The most runs a worker hosts at once: slots a hello says beyond them
@@ -60,17 +58,17 @@ pub struct Limits {
 
 /// Representability of the child limits (programming-model.md, 6.3).
 #[must_use]
-pub fn valid(limits: &Limits) -> bool {
+pub fn valid(limits: &Limits, versions: u32) -> bool {
     if limits.worker_name_bytes > crate::WORKER_NAME {
         return false;
     }
-    valid_counts(limits).is_some()
+    valid_counts(limits, versions).is_some()
 }
 
-fn valid_counts(limits: &Limits) -> Option<()> {
+fn valid_counts(limits: &Limits, versions: u32) -> Option<()> {
     limits.workers.checked_add(u32::from(limits.engine_slots > 0))?.checked_add(limits.history)?;
     tracked(limits)?;
-    needs_bytes(limits)?;
+    needs_bytes(limits, versions)?;
     Some(())
 }
 
@@ -82,11 +80,11 @@ pub(crate) fn tracked(limits: &Limits) -> Option<u32> {
 
 /// Newest's byte budget plus each retained version's header, model headers and
 /// names. A main model may also occur among the catalogue-sized alternatives.
-pub(crate) fn needs_bytes(limits: &Limits) -> Option<u64> {
+pub(crate) fn needs_bytes(limits: &Limits, versions: u32) -> Option<u64> {
     let model =
         u64::try_from(size_of::<crate::ModelNeed>()).ok()?.checked_add(u64::from(crate::CATALOGUE_NAME_BYTES))?;
     let version = u64::try_from(size_of::<crate::CharterNeeds>())
         .ok()?
         .checked_add(u64::from(crate::CATALOGUE_MODELS).checked_add(1)?.checked_mul(model)?)?;
-    limits.needs_bytes.checked_add(u64::from(limits.versions).checked_mul(version)?)
+    limits.needs_bytes.checked_add(u64::from(versions).checked_mul(version)?)
 }

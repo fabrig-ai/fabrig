@@ -1,4 +1,4 @@
-//! Fixed attempt admission and receiving bounds (protocol/client.md, 13).
+//! Fixed attempt admission and receiving bounds (protocol/client.md, 13; client/domain/client.md, 14).
 use jig_client_protocol_wire::v19 as w;
 use skein_lib::Duration;
 /// Retained connector accounts have their own bound (client/domain/contract.md, 5.3).
@@ -92,247 +92,137 @@ impl Limits {
             && w::AuthorizeAnswer::encoded_bound(&self.wire).is_some()
     }
 }
-#[expect(clippy::too_many_lines, reason = "the generated field bounds are assigned together at construction")]
+/// One class of the wire's bounds, sized by one knob. A member the schema bounds below its class keeps its ceiling.
+fn narrow(knob: u32, members: &mut [&mut u32]) {
+    for member in members.iter_mut() {
+        **member = knob.min(**member);
+    }
+}
 fn wire(client: &jig_client_domain::Limits) -> Option<w::Limits> {
+    if client.rows > w::CEILINGS.circle_tasks
+        || client.text > w::CEILINGS.task_text_words
+        || client.segments > w::CEILINGS.pattern_segments
+        || client.authority > w::CEILINGS.delegation_kinds
+        || client.document_bytes > u64::from(w::CEILINGS.owned_record)
+    {
+        return None;
+    }
     let mut wire = w::CEILINGS;
     let document_bytes = u32::try_from(client.document_bytes).ok()?;
     let ask_bytes = u32::try_from(client.ask_bytes).ok()?;
     wire.owned_record = document_bytes;
-    // Note text keeps DocumentText's schema ceiling; goal words have their own.
+    // Retained connector accounts fit beside text previews (client/domain/contract.md, 5.3).
     wire.document_text_bytes = client.long_text.clamp(HOLD_ACCOUNT_BYTES, w::CEILINGS.document_text_bytes);
-    wire.task_text_words = client.text;
-    wire.placed_line_reason = client.text;
-    wire.me_providers = wire.owned_record;
-    wire.accounts_readiness = wire.owned_record;
-    wire.deployment_providers = wire.owned_record;
-    wire.deployment_readiness = wire.owned_record;
-    wire.provider_offer_programs = client.rows;
-    wire.model_set_names_names_item = client.text.min(w::CEILINGS.model_set_names_names_item);
-    wire.chip_phase_waiting_dependencies = client.rows;
-    wire.chip_details_fields_dependencies = client.rows;
-    wire.task_dependency_facts = client.rows;
-    wire.circle_tasks = client.rows;
-    wire.refusal_circle_tasks = client.rows;
-    wire.refusal_kept_pending = client.rows;
-    wire.activity_kept_pending = client.rows;
-    wire.waits_on_dependencies_pending = client.rows;
-
-    wire.call_identity_id = client.text;
-    wire.run_work_tool_tool = client.text;
-    wire.recipient_roles_roles = client.rows;
-    wire.taken_by_name_some = client.text;
-    wire.party_name = client.text;
-    wire.decision_rejected_reason = client.text;
-    wire.decision_left_held_reason = client.text;
-    wire.attempt_failure_reason = client.text;
-    wire.part_key_path_value = client.segments;
-    wire.part_key_path_value_item = client.text;
-    wire.result_field_name = client.text;
-    wire.result_field_value = client.text;
-    wire.closing_fields_connectors_some = client.rows;
-    wire.ending_failed_fields_reason_some = client.text;
-    wire.ending_cancelled_fields_reason_some = client.text;
-    wire.ending_withdrawn_fields_reason = client.text;
-    wire.hold_reason_tries_fields_failures = client.rows;
-    wire.hold_reason_stalled_fields_waiting = client.text;
-    wire.chip_details_fields_resources = document_bytes;
-    wire.chip_details_fields_closing_connectors_some = client.rows;
-    wire.result_value_owner_verdict_fields_fields = client.rows;
-    wire.result_value_verdict_fields_fields = client.rows;
-    wire.result_value_verdict_fields_tasks = client.rows;
-    wire.result_value_approved_fields_state = client.text;
-    wire.chip_rows = document_bytes;
-    wire.chip_phase_facts_rows = document_bytes;
-    wire.closing_rows = document_bytes;
-    wire.ending_rows = document_bytes;
-    wire.held_runtime_rows = document_bytes;
-    wire.hold_reason_rows = document_bytes;
-    wire.chip_details_rows = document_bytes;
-    wire.chip_ending_rows = document_bytes;
-    wire.result_value_rows = document_bytes;
-    wire.person_answer_choice_reason = client.text;
-    wire.person_answer_approved_words_some = client.text;
-    wire.person_answer_words_value = client.text;
-    wire.person_answer_cannot_reason = client.text;
-    wire.parameter_bytes_value = client.text;
-    wire.create_tasks = document_bytes.min(w::CEILINGS.create_tasks);
-    wire.new_task_named = document_bytes;
-    wire.new_task_dependencies = client.rows;
-    wire.contract_verdict_choices = client.rows;
-    wire.specification_words = client.long_text;
-    wire.specification_parameters = client.rows;
-    wire.specification_inputs = client.rows;
-    wire.pattern_end_exact_value = client.text;
-    wire.pattern_end_open_value = client.text;
-    wire.pattern_segments = client.segments;
-    wire.pattern_segments_item = client.text;
-    wire.delegation_kinds = client.authority;
-    wire.authority_grants = document_bytes;
-    wire.authority_note_resources = document_bytes;
-    wire.amendment_dependencies_some = client.rows;
-    wire.amendment_instructions_some = client.text;
-    wire.policy_edit_requirements_requirements = document_bytes;
-    wire.policy_edit_projections_grants = document_bytes;
-    wire.policy_edit_permissions_mappings = client.rows;
-    wire.policy_edit_templates_overrides = client.rows.min(w::CEILINGS.policy_edit_templates_overrides);
-    wire.message_words = client.text;
-    wire.answer_question_words = client.text;
-    wire.amend_reason = client.text;
-    wire.cancel_reason = client.text;
-    wire.move_reason = client.text;
-    wire.edit_note_description = client.text;
-    wire.edit_note_body = client.long_text.min(w::CEILINGS.edit_note_body);
-    wire.edit_note_references = client.rows;
-    wire.set_roles_holdings = client.rows;
-    wire.make_service_name = client.text;
-    wire.made_tasks_tasks = client.rows;
-    wire.read_notes_description_some = client.text;
-    wire.spend_page_rows = client.rows;
-    wire.word_result_approved_state = client.text;
-    wire.word_result_verdict_fields = client.rows;
-    wire.word_words = client.text;
-    wire.activity_words_words = client.text;
-    wire.field_rule_name = client.text;
-    wire.verdict_choice_fields = client.rows;
-    wire.task_contract_document_approval_state = client.text;
-    wire.task_contract_document_verdict_choices = document_bytes;
-    wire.result_details_delegates = document_bytes;
-    wire.result_details_followups_some = document_bytes;
-    wire.bounds_create_charters = client.rows;
-    wire.bounds_create_procedures = client.rows;
-    wire.bounds_amend_grants = document_bytes;
-    wire.bounds_amend_implications = client.authority;
-    wire.result_document_acts = document_bytes;
-    wire.activity_page_rows = document_bytes;
-    wire.hold_spend = client.rows;
-    wire.document_specification_parameters = client.rows;
-    wire.document_specification_inputs = client.rows;
-    wire.proposed_task_dependencies = client.rows;
-    wire.proposed_task_resources = document_bytes;
-    wire.retained_amendment_dependencies_some = client.rows;
-    wire.retained_action_batch_value = document_bytes;
-    wire.amendment_state_dependencies = client.rows;
-    wire.history_page_rows = document_bytes;
-    wire.runtime_running_tool_some = client.text;
-    wire.runtime_backing_off_reason = client.text;
-    wire.note_tasks = client.rows;
-    wire.note_acts = document_bytes;
-    wire.note_page_rows = document_bytes;
-    wire.object_page_rows = document_bytes;
-    wire.ended_page_rows = document_bytes;
-    // A selection is a handful of numbers, all received whatever the client's rows
-    // (client/domain/pages.md, 3).
-    wire.inbox_selection_goals = w::CEILINGS.inbox_selection_goals;
-    wire.inbox_page_selection_some = document_bytes;
-    wire.inbox_page_rows = document_bytes;
-    wire.subject_chips_tasks = client.rows;
-    wire.propose_settings_items = ask_bytes.min(w::CEILINGS.propose_settings_items);
-    wire.settings_review_items = document_bytes;
-    wire.proposal_action_settings_items = w::CEILINGS.proposal_action_settings_items;
-    wire.retained_action_settings_items = w::CEILINGS.retained_action_settings_items;
-    // Settings share the receiving text, rows and message envelopes.
-    wire.charter_instructions = document_bytes.min(w::CEILINGS.charter_instructions);
-    wire.change_settings_items = ask_bytes.min(w::CEILINGS.change_settings_items);
-    wire.revision_document_items = document_bytes;
-    wire.setting_model_name = client.text.min(w::CEILINGS.setting_model_name);
-    wire.setting_model_program_some = client.text.min(w::CEILINGS.setting_model_program_some);
-    wire.setting_model_effort_some = client.text.min(w::CEILINGS.setting_model_effort_some);
-    wire.setting_model_efforts_item = client.text.min(w::CEILINGS.setting_model_efforts_item);
-    wire.charter_documents = client.rows.min(w::CEILINGS.charter_documents);
-    wire.charter_document_name = client.segments;
-    wire.charter_document_name_item = client.text;
-    wire.charter_alternatives = client.rows.min(w::CEILINGS.charter_alternatives);
-    wire.setting_model_efforts = client.rows.min(w::CEILINGS.setting_model_efforts);
-    wire.setting_policy_projections = client.rows;
-    wire.setting_policy_roles = client.rows;
-    wire.setting_policy_requirements = client.rows;
-    wire.setting_policy_permissions = client.rows;
-    wire.setting_policy_templates = client.rows.min(w::CEILINGS.setting_policy_templates);
-    wire.rules_implies = client.rows;
-    wire.rules_requirements = client.rows;
-    // Settings are a whole inventory, independent of a page's row limit.
-    wire.settings_document_settings = document_bytes.min(w::CEILINGS.settings_document_settings);
-    wire.settings_document_held = client.rows;
-    wire.settings_document_pending = client.rows;
-    wire.revision_row_items = client.rows;
-    wire.revisions_page_rows = client.rows;
-    wire.refusal_full_tasks = client.rows;
+    narrow(client.long_text, &mut [&mut wire.specification_words, &mut wire.edit_note_body]);
+    #[rustfmt::skip]
+    narrow(client.text, &mut [
+        &mut wire.task_text_words, &mut wire.placed_line_reason, &mut wire.model_set_names_names_item,
+        &mut wire.call_identity_id, &mut wire.run_work_tool_tool, &mut wire.taken_by_name_some,
+        &mut wire.party_name, &mut wire.decision_rejected_reason, &mut wire.decision_left_held_reason,
+        &mut wire.attempt_failure_reason, &mut wire.part_key_path_value_item, &mut wire.result_field_name,
+        &mut wire.result_field_value, &mut wire.ending_failed_fields_reason_some,
+        &mut wire.ending_cancelled_fields_reason_some, &mut wire.ending_withdrawn_fields_reason,
+        &mut wire.hold_reason_stalled_fields_waiting, &mut wire.result_value_approved_fields_state,
+        &mut wire.person_answer_choice_reason, &mut wire.person_answer_approved_words_some,
+        &mut wire.person_answer_words_value, &mut wire.person_answer_cannot_reason,
+        &mut wire.parameter_bytes_value, &mut wire.pattern_end_exact_value,
+        &mut wire.pattern_end_open_value, &mut wire.pattern_segments_item, &mut wire.amendment_instructions_some,
+        &mut wire.message_words, &mut wire.answer_question_words, &mut wire.amend_reason, &mut wire.cancel_reason,
+        &mut wire.move_reason, &mut wire.edit_note_description,
+        &mut wire.make_service_name, &mut wire.read_notes_description_some, &mut wire.word_result_approved_state,
+        &mut wire.word_words, &mut wire.activity_words_words, &mut wire.field_rule_name,
+        &mut wire.task_contract_document_approval_state, &mut wire.runtime_running_tool_some,
+        &mut wire.runtime_backing_off_reason, &mut wire.setting_model_name, &mut wire.setting_model_program_some,
+        &mut wire.setting_model_effort_some, &mut wire.setting_model_efforts_item,
+        &mut wire.charter_document_name_item,
+    ]);
+    #[rustfmt::skip]
+    narrow(document_bytes, &mut [
+        &mut wire.me_providers, &mut wire.accounts_readiness, &mut wire.deployment_providers,
+        &mut wire.deployment_readiness, &mut wire.chip_details_fields_resources, &mut wire.chip_rows,
+        &mut wire.chip_phase_facts_rows, &mut wire.closing_rows, &mut wire.ending_rows,
+        &mut wire.held_runtime_rows, &mut wire.hold_reason_rows, &mut wire.chip_details_rows,
+        &mut wire.chip_ending_rows, &mut wire.result_value_rows, &mut wire.create_tasks, &mut wire.new_task_named,
+        &mut wire.authority_grants, &mut wire.authority_note_resources,
+        &mut wire.policy_edit_requirements_requirements, &mut wire.policy_edit_projections_grants,
+        &mut wire.task_contract_document_verdict_choices, &mut wire.result_details_delegates,
+        &mut wire.result_details_followups_some, &mut wire.bounds_amend_grants, &mut wire.result_document_acts,
+        &mut wire.activity_page_rows, &mut wire.proposed_task_resources, &mut wire.retained_action_batch_value,
+        &mut wire.history_page_rows, &mut wire.note_acts, &mut wire.note_page_rows, &mut wire.object_page_rows,
+        &mut wire.ended_page_rows, &mut wire.inbox_page_selection_some, &mut wire.inbox_page_rows,
+        &mut wire.settings_review_items, &mut wire.charter_instructions, &mut wire.revision_document_items,
+        &mut wire.settings_document_settings,
+    ]);
+    #[rustfmt::skip]
+    narrow(client.rows, &mut [
+        &mut wire.provider_offer_programs, &mut wire.chip_phase_waiting_dependencies,
+        &mut wire.chip_details_fields_dependencies, &mut wire.task_dependency_facts, &mut wire.circle_tasks,
+        &mut wire.refusal_circle_tasks, &mut wire.refusal_kept_pending, &mut wire.activity_kept_pending,
+        &mut wire.waits_on_dependencies_pending, &mut wire.recipient_roles_roles,
+        &mut wire.closing_fields_connectors_some, &mut wire.hold_reason_tries_fields_failures,
+        &mut wire.chip_details_fields_closing_connectors_some, &mut wire.result_value_owner_verdict_fields_fields,
+        &mut wire.result_value_verdict_fields_fields, &mut wire.result_value_verdict_fields_tasks,
+        &mut wire.new_task_dependencies, &mut wire.contract_verdict_choices, &mut wire.specification_parameters,
+        &mut wire.specification_inputs, &mut wire.amendment_dependencies_some,
+        &mut wire.policy_edit_permissions_mappings, &mut wire.policy_edit_templates_overrides,
+        &mut wire.edit_note_references, &mut wire.set_roles_holdings, &mut wire.made_tasks_tasks,
+        &mut wire.spend_page_rows, &mut wire.word_result_verdict_fields, &mut wire.verdict_choice_fields,
+        &mut wire.bounds_create_charters, &mut wire.bounds_create_procedures, &mut wire.hold_spend,
+        &mut wire.document_specification_parameters, &mut wire.document_specification_inputs,
+        &mut wire.proposed_task_dependencies, &mut wire.retained_amendment_dependencies_some,
+        &mut wire.amendment_state_dependencies, &mut wire.note_tasks, &mut wire.subject_chips_tasks,
+        &mut wire.charter_documents, &mut wire.charter_alternatives, &mut wire.setting_model_efforts,
+        &mut wire.setting_policy_projections, &mut wire.setting_policy_roles,
+        &mut wire.setting_policy_requirements, &mut wire.setting_policy_permissions,
+        &mut wire.setting_policy_templates, &mut wire.rules_implies, &mut wire.rules_requirements,
+        &mut wire.settings_document_held, &mut wire.settings_document_pending, &mut wire.revision_row_items,
+        &mut wire.revisions_page_rows, &mut wire.refusal_full_tasks,
+    ]);
+    narrow(
+        client.segments,
+        &mut [&mut wire.part_key_path_value, &mut wire.pattern_segments, &mut wire.charter_document_name],
+    );
+    narrow(client.authority, &mut [&mut wire.delegation_kinds, &mut wire.bounds_amend_implications]);
+    narrow(ask_bytes, &mut [&mut wire.propose_settings_items, &mut wire.change_settings_items]);
     w::check_limits(&wire).ok()?;
     Some(wire)
 }
 // Receiving records share the client's text, row, path and document bounds.
 fn receiving(mut wire: w::Limits, client: &jig_client_domain::Limits) -> Option<w::Limits> {
-    wire.call_tool = client.text;
-    wire.call_input = client.text;
-    wire.call_outcome_some = client.text;
-    wire.call_objects = client.rows;
-    wire.call_parts = wire.owned_record;
-    wire.current_call_tool = client.text;
-    wire.current_call_input = client.text;
-    wire.chip_work_tool_call = client.text;
-    wire.chip_work_tool_tool = client.text;
-    wire.deployment_hosts = wire.owned_record;
-    wire.deployment_attempts = wire.owned_record;
-    wire.deployment_accounts = wire.owned_record;
-    wire.accounts_accounts = wire.owned_record;
-    wire.accounts_signing = wire.owned_record;
-    wire.account_line_sources = wire.owned_record;
-    wire.account_sources = wire.owned_record;
-    wire.account_line_uses_some = w::CEILINGS.account_line_uses_some;
-    wire.account_uses_some = w::CEILINGS.account_uses_some;
-    wire.deployment_projects = client.rows;
-    wire.deployment_hello_refusals = client.rows;
-    wire.deployment_person_room_refusals = client.rows;
-    wire.deployment_task_room_refusals = client.rows;
-    wire.deployment_connectors = client.rows;
-    wire.project_acts = wire.owned_record;
-    wire.project_resources = wire.owned_record;
-    wire.project_members = client.rows;
-    wire.project_pools = client.rows;
-    wire.project_configured_pools = client.rows;
-    wire.project_spend = wire.owned_record;
-    wire.project_recurring = wire.owned_record;
-    wire.project_policy_projections = wire.owned_record;
-    wire.project_policy_roles = wire.owned_record;
-    wire.project_policy_requirements = wire.owned_record;
-    wire.project_policy_permissions_some = client.rows;
-    wire.run_text_text = client.text;
-    wire.subscriptions_entries = client.rows;
-    wire.task_lineage_chips = wire.owned_record;
-    wire.task_inputs = wire.owned_record;
-    wire.task_lineage = client.rows;
-    wire.task_dependencies = wire.owned_record;
-    wire.task_references = wire.owned_record;
-    wire.task_resources = wire.owned_record;
-    wire.task_proposals = client.rows;
-    wire.task_acts = wire.owned_record;
-    wire.task_delegates = wire.owned_record;
-    wire.task_context_parts = wire.owned_record;
-    wire.task_context_spend = client.rows;
-    wire.task_context_writer_slots = wire.owned_record;
-    wire.tasks_rows = wire.owned_record;
-    wire.task_page_live = wire.owned_record;
-    wire.ended_rows_rows = wire.owned_record;
-    wire.escalation_acts = wire.owned_record;
-    wire.escalation_decision_reject_reason = client.text;
-    wire.person_proposal_goal_dependencies = client.rows;
-    wire.person_proposal_goal_holdings = wire.owned_record;
-    wire.person_proposal_state_rejected_reason = client.text;
-    wire.person_task_results = wire.owned_record;
-    wire.person_task_acts = wire.owned_record;
-    wire.proposal_funding = client.rows;
-    wire.proposal_acts = wire.owned_record;
-    wire.proposal_action_batch_value = wire.owned_record;
-    wire.person_contract_choice_options = wire.owned_record;
-    wire.question_acts = wire.owned_record;
-    wire.chips_rows = wire.owned_record;
-    wire.tree_rows = wire.owned_record;
-    wire.tree_folded = client.rows;
-    wire.tree_row_proposals = client.rows;
-    wire.tree_row_dependencies = wire.owned_record;
-    wire.inbox_needs = wire.owned_record;
-    wire.inbox_updates = wire.owned_record;
-    wire.inbox_selection_some = wire.owned_record;
+    let document_bytes = wire.owned_record;
+    #[rustfmt::skip]
+    narrow(client.text, &mut [
+        &mut wire.call_tool, &mut wire.call_input, &mut wire.call_outcome_some, &mut wire.current_call_tool,
+        &mut wire.current_call_input, &mut wire.chip_work_tool_call, &mut wire.chip_work_tool_tool,
+        &mut wire.run_text_text, &mut wire.escalation_decision_reject_reason,
+        &mut wire.person_proposal_state_rejected_reason,
+    ]);
+    #[rustfmt::skip]
+    narrow(client.rows, &mut [
+        &mut wire.call_objects, &mut wire.deployment_projects, &mut wire.deployment_hello_refusals,
+        &mut wire.deployment_person_room_refusals, &mut wire.deployment_task_room_refusals,
+        &mut wire.deployment_connectors, &mut wire.project_members, &mut wire.project_pools,
+        &mut wire.project_configured_pools, &mut wire.project_policy_permissions_some,
+        &mut wire.subscriptions_entries, &mut wire.task_lineage, &mut wire.task_proposals,
+        &mut wire.task_context_spend, &mut wire.person_proposal_goal_dependencies, &mut wire.proposal_funding,
+        &mut wire.tree_folded, &mut wire.tree_row_proposals,
+    ]);
+    #[rustfmt::skip]
+    narrow(document_bytes, &mut [
+        &mut wire.call_parts, &mut wire.deployment_hosts, &mut wire.deployment_attempts,
+        &mut wire.deployment_accounts, &mut wire.accounts_accounts, &mut wire.accounts_signing,
+        &mut wire.account_line_sources, &mut wire.account_sources, &mut wire.project_acts,
+        &mut wire.project_resources, &mut wire.project_spend, &mut wire.project_recurring,
+        &mut wire.project_policy_projections, &mut wire.project_policy_roles,
+        &mut wire.project_policy_requirements, &mut wire.task_lineage_chips, &mut wire.task_inputs,
+        &mut wire.task_dependencies, &mut wire.task_references, &mut wire.task_resources, &mut wire.task_acts,
+        &mut wire.task_delegates, &mut wire.task_context_parts, &mut wire.task_context_writer_slots,
+        &mut wire.tasks_rows, &mut wire.task_page_live, &mut wire.ended_rows_rows, &mut wire.escalation_acts,
+        &mut wire.person_proposal_goal_holdings, &mut wire.person_task_results, &mut wire.person_task_acts,
+        &mut wire.proposal_acts, &mut wire.proposal_action_batch_value, &mut wire.person_contract_choice_options,
+        &mut wire.question_acts, &mut wire.chips_rows, &mut wire.tree_rows, &mut wire.tree_row_dependencies,
+        &mut wire.inbox_needs, &mut wire.inbox_updates, &mut wire.inbox_selection_some,
+    ]);
     w::check_limits(&wire).ok()?;
     Some(wire)
 }

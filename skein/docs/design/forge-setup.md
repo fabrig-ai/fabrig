@@ -180,6 +180,14 @@ GitHub's, has this shape.
 
 - **The first event is `Begin`.** An event a step did not ask for ends
   the plan with `Unexpected`; a machine that has ended ignores events.
+- **A plan reads its own dialect's reply.** The words every plan shares
+  (`Need`, `Event`, `Reply`, `Failure`, `Stage`, `Why`) belong to no dialect.
+  The host hands a plan one `Reply`, and a gate of the plan's dialect turns
+  it into that dialect's before the plan looks: Forgejo's has its `Document`
+  and `Rows`, `Empty`, `Status` and `Down`; GitHub's has its own `Document`
+  and `Rows`, the same three, and `Unsigned`. The gate ends the plan on what
+  the dialect never receives: `Unsigned` to a Forgejo plan as `KeyForm`,
+  another dialect's body as `Unexpected`.
 - **A request carries no credential.** Its `auth` travels beside it, and
   the host puts it in the header: `Token(secret)`, a Forgejo token sent
   as `token <value>`; `App { id, key }`, an App's JWT, which the host

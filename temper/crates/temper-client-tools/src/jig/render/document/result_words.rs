@@ -63,11 +63,14 @@ fn value_words(value: &c::ResultValue, vocabulary: &dyn Parts, out: &mut Text) {
 fn value_text(value: &c::ResultValue, vocabulary: &dyn Parts, out: &mut Text) {
     match value {
         c::ResultValue::Report(words)
-        | c::ResultValue::OwnerVerdict { words, .. }
-        | c::ResultValue::Verdict { words, .. }
         | c::ResultValue::Change { words, .. }
         | c::ResultValue::Failure(words)
         | c::ResultValue::Words(words) => out.put(words.bytes()),
+        c::ResultValue::OwnerVerdict { verdict, words, .. } | c::ResultValue::Verdict { verdict, words, .. } => {
+            out.put(b"verdict ");
+            out.number(u64::from(*verdict));
+            separated(words.bytes(), true, out);
+        }
         c::ResultValue::Approved { state, words } => {
             out.put(state);
             if let Some(words) = words {

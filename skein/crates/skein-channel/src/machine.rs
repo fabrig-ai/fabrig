@@ -134,7 +134,7 @@ enum OutputFate {
     Keep,
 }
 
-#[derive(Debug, PartialEq, Eq)]
+#[derive(PartialEq, Eq)]
 enum ReadState {
     Header { first: Option<u8> },
     Body { header: Header, body: Box<[u8]>, filled: u32 },
@@ -142,6 +142,27 @@ enum ReadState {
     Skipped { kind: u16 },
     Ended,
     Idle,
+}
+
+// skein/docs/design/channel.md, 3 and 6: a body being read prints its length and progress.
+impl core::fmt::Debug for ReadState {
+    fn fmt(&self, f: &mut core::fmt::Formatter<'_>) -> core::fmt::Result {
+        match self {
+            Self::Header { first } => f.debug_struct("Header").field("first", first).finish(),
+            Self::Body { header, body, filled } => f
+                .debug_struct("Body")
+                .field("header", header)
+                .field("body_len", &body.len())
+                .field("filled", filled)
+                .finish(),
+            Self::Skip { kind, remaining } => {
+                f.debug_struct("Skip").field("kind", kind).field("remaining", remaining).finish()
+            }
+            Self::Skipped { kind } => f.debug_struct("Skipped").field("kind", kind).finish(),
+            Self::Ended => f.write_str("Ended"),
+            Self::Idle => f.write_str("Idle"),
+        }
+    }
 }
 
 #[derive(Debug)]

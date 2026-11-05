@@ -8,6 +8,7 @@ use std::{
     path::{Path, PathBuf},
 };
 mod driver;
+mod needs;
 pub mod samples;
 #[cfg(test)]
 mod tests;
@@ -145,6 +146,11 @@ pub fn page(sample: &Sample, digest: &skein_ui_bundle::Digest) -> String {
             html = html.replacen(&attribute, &format!("{attribute} autofocus"), 1);
         }
     }
+    let html = if sample.name == "needs-saw-open" {
+        html.replace("class=\"temper-ask-saw\"", "open class=\"temper-ask-saw\"")
+    } else {
+        html
+    };
     let mut styles = String::new();
     for file in ["skein-ui.css", "temper.css", "task-pages.css"] {
         write!(styles, "<link rel=\"stylesheet\" href=\"bundle/{digest}/{file}\">").expect("write string");

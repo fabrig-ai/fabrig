@@ -39,6 +39,10 @@ pub(crate) fn main(
     rows: u32,
     times: &mut Times,
 ) {
+    if words.shell == crate::words::Shell::Browser {
+        super::needs::main(b, root, words, bindings, rows, times);
+        return;
+    }
     b.open(Role::Main);
     b.style(look::MAIN);
     b.style(look::PAGE);

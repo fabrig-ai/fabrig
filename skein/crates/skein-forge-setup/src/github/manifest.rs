@@ -1,9 +1,6 @@
 //! The bounded manifest form and its draw (forge-setup.md, 5.1 and 5.5).
-use super::{
-    app,
-    given::{self, Given, Place, Refused},
-};
-use crate::reconcile::{Event, Need, Outcome, Stage, Why};
+use super::given::{self, Given, Place, Refused};
+use crate::plan::{self, Event, Need, Outcome, Stage, Why};
 use alloc::boxed::Box;
 use skein_forge::github as dialect;
 use skein_lib::{Queue, Writer, bytes::hex_digit};
@@ -107,28 +104,28 @@ fn form(given: &Given, target: &Target, state: &[u8], random: &[u8]) -> Option<F
     Some(Form { target, manifest: json })
 }
 fn stop(forge: u16) -> Need {
-    app::stop(forge, Stage::App, b"manifest", Why::Unexpected)
+    plan::stop(forge, Stage::App, b"manifest", Why::Unexpected)
 }
 /// Consumes one event, emitting its next need.
 /// Terminal machines ignore every later event.
 pub fn step(machine: &mut Manifest, event: Event, out: &mut Queue<Need>) {
     let phase = core::mem::replace(&mut machine.phase, Phase::Ended);
     let need = match phase {
-        Phase::Begin(inputs) => match event {
-            Event::Begin => {
+        Phase::Begin(inputs) => match event.begin() {
+            Ok(()) => {
                 machine.phase = Phase::Draw(inputs);
                 Need::Draw(3)
             }
-            Event::Read(_) | Event::Reply(_) | Event::Written | Event::Drawn(_) => stop(inputs.given.forge),
+            Err(_) => stop(inputs.given.forge),
         },
-        Phase::Draw(inputs) => match event {
-            Event::Drawn(random) => match form(&inputs.given, &inputs.target, &inputs.state, random.expose()) {
+        Phase::Draw(inputs) => match event.drawn() {
+            Ok(random) => match form(&inputs.given, &inputs.target, &inputs.state, random.expose()) {
                 Some(Form { target, manifest }) => {
                     Need::Done(Outcome::Manifest { state: inputs.state, target, manifest })
                 }
                 None => stop(inputs.given.forge),
             },
-            Event::Begin | Event::Read(_) | Event::Reply(_) | Event::Written => stop(inputs.given.forge),
+            Err(_) => stop(inputs.given.forge),
         },
         Phase::Ended => return,
     };

@@ -22,6 +22,7 @@ pub(crate) enum EngineHello {
 /// The fleet's state.
 #[derive(Debug)]
 pub struct Domain {
+    pub(crate) versions: u32,
     pub(crate) program_sources: Box<[crate::SourceName]>,
     pub(crate) cleanup_programs: Box<[crate::SourceName]>,
     pub(crate) worker_names: crate::Membership,
@@ -122,10 +123,10 @@ impl Domain {
     }
     /// A domain with room for `limits`.
     #[must_use]
-    pub fn new(limits: &Limits, needs: crate::Needs, catalogue: Box<[Box<[u8]>]>) -> Domain {
+    pub fn new(limits: &Limits, versions: u32, needs: crate::Needs, catalogue: Box<[Box<[u8]>]>) -> Domain {
         assert!(
             match crate::needs::owned_bytes(&needs) {
-                Some(bytes) => bytes <= limits::needs_bytes(limits).expect("needs bound"),
+                Some(bytes) => bytes <= limits::needs_bytes(limits, versions).expect("needs bound"),
                 None => false,
             },
             "configured agent needs fit their byte bound"
@@ -160,6 +161,7 @@ impl Domain {
             tokens.insert(Token::new(0), id).expect("engine token reserved");
         }
         Domain {
+            versions,
             program_sources: Box::new([]),
             worker_names: crate::Membership::empty(),
             cleanup_programs: Box::new([]),
