@@ -134,6 +134,8 @@ pub enum Act {
     Stop,
     /// Close the page's task: a chat's close, or a task page's cancel (client/README.md, 5.11).
     Close,
+    /// Close this configuring chat and return to a fresh Configure (client/README.md, 3.5).
+    StartOver,
     DelegateFate {
         task: u64,
         fate: jig_client::shapes::Fate,
@@ -543,6 +545,7 @@ pub fn step(pages: &mut Pages, env: &Env<Limits>, client: &Client, event: Event,
         Event::Act {
             act:
                 act @ (Act::Close
+                | Act::StartOver
                 | Act::Stop
                 | Act::DelegateFate { .. }
                 | Act::Decide { .. }
@@ -1036,6 +1039,15 @@ fn page_told(pages: &mut Pages, env: &Env<Limits>, client: &Client, told: Told, 
         if !chat.told(env.now, client, told, out) {
             return false;
         }
+        if chat.restarting && chat.outcome_kind == Some(chat::Sending::Close) {
+            if let Some(outcome) = &chat.outcome
+                && seen_answered(outcome)
+                && let Some(task) = chat.task(client)
+            {
+                out.push(Request::Show { address: Address::Configure { project: task.project } });
+            }
+            chat.restarting = false;
+        }
         // Pages owns the shared key sequence, including automatic conversation reads.
         if moved {
             chat.see(&mut pages.serial, out);
@@ -1058,6 +1070,7 @@ fn page_told(pages: &mut Pages, env: &Env<Limits>, client: &Client, told: Told, 
     true
 }
 
+#[expect(clippy::too_many_lines, reason = "one dispatcher routes chat, task and card confirmations")]
 fn confirmation(pages: &mut Pages, env: &Env<Limits>, client: &Client, act: Act, out: &mut Queue<Request>) {
     if let Act::Confirm = act
         && let Some(page) = &mut pages.task
@@ -1080,10 +1093,21 @@ fn confirmation(pages: &mut Pages, env: &Env<Limits>, client: &Client, act: Act,
             pages.chat.as_mut().expect("open chat").act(env, client, Act::Stop, &mut pages.serial, out);
         }
         Act::Stop => task_confirmation(pages, client, jig_client::contract::ActKind::Stop),
-        Act::Close => {
+        Act::Close | Act::StartOver => {
+            let restarting = act == Act::StartOver;
             if let Some(chat) = &mut pages.chat {
+                if restarting {
+                    let Some(task) = chat.task(client) else { return };
+                    let Some(document) = client.document(me_handle()) else { return };
+                    let Some(me) = document.latest else { return };
+                    let Latest::Jig(Delivery::Me(me)) = me else { return };
+                    if chat.draft.is_none() || !chats::configuring(me, task.project, &task.chip.executor) {
+                        return;
+                    }
+                }
                 chat.prepare_close(client);
                 if chat.closing.is_some() {
+                    chat.restarting = restarting;
                     pages.confirm = Some(crate::acts::Confirm {
                         object: jig_client::contract::ObjectKey::Task(chat.task),
                         revision: None,
@@ -1091,7 +1115,7 @@ fn confirmation(pages: &mut Pages, env: &Env<Limits>, client: &Client, act: Act,
                         again: None,
                     });
                 }
-            } else {
+            } else if !restarting {
                 task_confirmation(pages, client, jig_client::contract::ActKind::Cancel);
             }
         }
@@ -1110,6 +1134,7 @@ fn confirmation(pages: &mut Pages, env: &Env<Limits>, client: &Client, act: Act,
             pages.confirm = None;
             if let Some(chat) = &mut pages.chat {
                 chat.closing = None;
+                chat.restarting = false;
             }
         }
         act @ (Act::Decide { .. } | Act::CardWords { .. } | Act::Again { .. } | Act::Confirm) => {

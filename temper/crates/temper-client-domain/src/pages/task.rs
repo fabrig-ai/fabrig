@@ -429,6 +429,7 @@ impl Task {
             | Act::Suggest { .. }
             | Act::Stop
             | Act::Close
+            | Act::StartOver
             | Act::DelegateFate { .. }
             | Act::ClosedChats
             | Act::MoreGoals
@@ -448,6 +449,7 @@ impl Task {
         }
     }
     /// The task page's amendment acts (client/README.md, 5.11).
+    #[expect(clippy::too_many_lines, reason = "exhaustive routing lists the acts owned by other pages")]
     pub(crate) fn amend(
         &mut self,
         env: &Env<Limits>,
@@ -538,6 +540,7 @@ impl Task {
             | Act::Send
             | Act::Stop
             | Act::Close
+            | Act::StartOver
             | Act::DelegateFate { .. }
             | Act::Older
             | Act::ClosedChats

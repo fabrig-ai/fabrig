@@ -944,6 +944,7 @@ const HOLDS: [Holds; samples::N] = [
         name: "configure-chat-document",
         heading: "T10 · Configure temper",
         parts: &[
+            Part::Named { role: Role::Button, name: "Start over" },
             Part::Named { role: Role::Button, name: "Chat" },
             Part::Named { role: Role::Button, name: "Split" },
             Part::Named { role: Role::Button, name: "Draft" },
@@ -954,6 +955,7 @@ const HOLDS: [Holds; samples::N] = [
         name: "configure-chat-document-split",
         heading: "T10 · Configure temper",
         parts: &[
+            Part::Named { role: Role::Button, name: "Start over" },
             Part::Named { role: Role::Button, name: "Chat" },
             Part::Named { role: Role::Button, name: "Split" },
             Part::Named { role: Role::Button, name: "Draft" },

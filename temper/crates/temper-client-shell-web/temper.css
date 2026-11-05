@@ -1562,8 +1562,8 @@ body > noscript, #app:not(:empty):not(:has(*)) { margin-top: 213px; }
 #app > .temper-session .temper-session-right > p:not(.temper-byline) { display: none; }
 #app > .temper-session .temper-session-right > [role=status] { padding: 0; border: 0; border-radius: 0; background: transparent; font-size: 12px; font-weight: 400; color: var(--gf-faint); text-transform: lowercase; }
 #app > .temper-session .temper-session-right > .temper-state-needs { color: var(--gf-signal); }
-#app > .temper-session .temper-session-right > button { display: inline-flex; align-items: center; gap: 8px; min-height: 34px; padding: 5px 12px; border: 1px solid transparent; border-radius: 8px; background: none; color: var(--gf-muted); font: 13.5px/1.6 var(--gf-sans); text-align: left; }
-#app > .temper-session .temper-session-right > button:hover { background: var(--gf-hover); color: var(--gf-ink); }
+#app > .temper-session .temper-session-right > button:not(.temper-start-over) { display: inline-flex; align-items: center; gap: 8px; min-height: 34px; padding: 5px 12px; border: 1px solid transparent; border-radius: 8px; background: none; color: var(--gf-muted); font: 13.5px/1.6 var(--gf-sans); text-align: left; }
+#app > .temper-session .temper-session-right > button:not(.temper-start-over):hover { background: var(--gf-hover); color: var(--gf-ink); }
 #app > .temper-session :is(.temper-thread, .temper-thread-inner) > .temper-meta-line.temper-context { padding: 0; border: 0; background: none; }
 #app > .temper-session :is(.temper-thread, .temper-thread-inner) > .temper-meta-line.temper-context > p { margin: 0; }
 #app > .temper-session .temper-meta-line .temper-repository { font-weight: 400; }
@@ -1638,6 +1638,8 @@ body > noscript, #app:not(:empty):not(:has(*)) { margin-top: 213px; }
   #app > .temper-session .temper-starter:not(:has(> .temper-starter-ways)) { margin-top: 4vh; }
 }
 
+#app > .temper-session .temper-start-over { padding: 4px 10px; border: 1px solid var(--gf-line); border-radius: 8px; background: none; color: var(--gf-muted); font: 400 13px/1.5 var(--gf-sans); white-space: nowrap; }
+#app > .temper-session .temper-start-over:hover { border-color: var(--gf-line-2); color: var(--gf-ink); }
 #app > .temper-session .temper-seg { display: inline-flex; gap: 2px; padding: 3px; border-radius: 9px; background: var(--gf-hover); }
 #app > .temper-session .temper-seg > button { padding: 4px 11px; border: 0; border-radius: 7px; background: none; color: var(--gf-muted); font: 400 13px/1.5 var(--gf-sans); }
 #app > .temper-session .temper-seg > button:hover { color: var(--gf-ink); }
