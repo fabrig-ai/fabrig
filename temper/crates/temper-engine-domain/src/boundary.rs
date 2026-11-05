@@ -528,6 +528,7 @@ pub enum Application {
     Forge(forge::Ask),
     Return { source: u32, path: Box<[u8]> },
     Dismiss { what: forge::PersonFact },
+    Looked { project: u32 },
 }
 /// The family's terminal answer; root returns are volatile, like forge setup answers.
 #[derive(Clone, Debug, PartialEq, Eq)]
@@ -544,6 +545,7 @@ pub enum ApplicationAnswer {
     Reachable(forge::ReachableAnswer),
     Returning,
     Dismiss(forge::DismissAnswer),
+    Looked(forge::LookedAnswer),
 }
 /// Forge-owned settings reads (temper/docs/design/client/forge.md, 9).
 #[derive(Clone, Copy, PartialEq, Eq, Debug)]

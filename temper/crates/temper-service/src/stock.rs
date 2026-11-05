@@ -65,6 +65,7 @@ const CODING_TOOLS: jig_domain_tasks::Tools = jig_domain_tasks::Tools(514);
 const CONFIGURING_TOOLS: jig_domain_tasks::Tools = jig_domain_tasks::Tools(1920);
 const REVIEWING_TOOLS: jig_domain_tasks::Tools = jig_domain_tasks::Tools(512);
 const FOREMAN_TOOLS: jig_domain_tasks::Tools = jig_domain_tasks::Tools(512);
+const STATUS_TOOLS: jig_domain_tasks::Tools = jig_domain_tasks::Tools(0);
 
 /// One stock value past a limit the document set (protocol/configuration.md, 13.4).
 /// `limit` is its override name under `engine.limits`; `setting` needs `needed`.
@@ -176,6 +177,7 @@ pub(crate) fn checked(llm: &jig_protocol_config::Llm, result_bytes: u32) -> Opti
         configuring_charter(llm),
         reviewer(llm),
         foreman(llm),
+        status(llm),
     ]);
     // jig prices the costliest completion; one reserve turn plus one is 2C.
     // Its existing admission helper keeps the stock on that same rounding rule.
@@ -291,6 +293,7 @@ fn charter(number: u32, turns: u32, time: Duration, instructions: &[u8], llm: &j
                 3 => CONFIGURING_TOOLS,
                 4 => REVIEWING_TOOLS,
                 6 => FOREMAN_TOOLS,
+                9 => STATUS_TOOLS,
                 _ => unreachable!("stock charter number"),
             },
         },
@@ -310,6 +313,13 @@ fn reviewer(llm: &jig_protocol_config::Llm) -> Charter {
 }
 fn foreman(llm: &jig_protocol_config::Llm) -> Charter {
     let mut value = charter(6, WORK_TURNS, WORK_TIME, include_bytes!("stock/foreman.txt"), llm);
+    value.policy.modify = false;
+    value.policy.agents = false;
+    value
+}
+fn status(llm: &jig_protocol_config::Llm) -> Charter {
+    let mut value = charter(9, 4, Duration::from_secs(300), include_bytes!("stock/status.txt"), llm);
+    value.policy.inspect = false;
     value.policy.modify = false;
     value.policy.agents = false;
     value
@@ -342,6 +352,7 @@ fn ceiling(ceiling_spend: u64) -> authority::Authority {
                 authority::Executor::Charter(3),
                 authority::Executor::Charter(4),
                 authority::Executor::Charter(6),
+                authority::Executor::Charter(9),
                 authority::Executor::Procedure(2),
                 authority::Executor::Procedure(3),
                 authority::Executor::Procedure(4),

@@ -356,10 +356,10 @@ fn stock_document(value: &mut serde_json::Value) {
         ("core.policy_bytes", 8192),
         ("core.run_bytes", 8192),
         ("authority.grants", 16),
-        ("authority.executors", 8),
-        ("tasks.executor_kinds", 8),
+        ("authority.executors", 9),
+        ("tasks.executor_kinds", 9),
         ("notes.scopes", 32),
-        ("tasks.charters", 5),
+        ("tasks.charters", 6),
         ("core.templates", 3),
     ] {
         let held = value["engine"]["limits"]["overrides"][name].as_u64().unwrap_or(0);
@@ -433,7 +433,7 @@ pub fn setup_items(directory: &Path) -> Option<serde_json::Value> {
 pub fn own_policy(value: &mut serde_json::Value) {
     value["world_settings"]["own_policy"] = true.into();
 }
-/// Build defaults after endpoint rebinding, from the deployment's actual models and seeds.
+/// Build defaults after endpoint rebinding, from the deployment's models and seeds.
 #[must_use]
 pub fn given(directory: &Path) -> temper_service::stock::Given {
     let deployment: serde_json::Value =

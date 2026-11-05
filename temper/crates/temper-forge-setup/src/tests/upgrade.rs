@@ -1,7 +1,7 @@
 use super::fixtures::{self, Drive};
 use crate::{
     place::File,
-    prepare::{Event, Exit, Failure, Request},
+    prepare::{Event, Exit, Failure, Found, Request},
     spec::{Command, Which},
     state,
     upgrade::{self, Course},
@@ -21,7 +21,6 @@ fn the_upgrade_dumps_an_older_forgejo_before_it_migrates() {
     );
     let Request::Write { file: File::AppIni, .. } = drive.send(Event::Done) else { panic!("settings after dump") };
     assert_eq!(drive.send(Event::Done), fixtures::run_command(Command::Migrate));
-    assert_eq!(drive.send(fixtures::ran_ok()), fixtures::run_command(Command::Register));
     let Request::Write { file: File::RunnerConfiguration, .. } = drive.send(fixtures::ran_ok()) else {
         panic!("connection")
     };
@@ -62,20 +61,21 @@ fn the_upgrade_prepares_an_older_runner_again_without_a_dump() {
     assert_eq!(drive.reach(fixtures::older(None, Some(b"13.1.0"))), Request::Lock(File::RunnerLock));
     assert_eq!(drive.send(Event::Done), Request::Layout);
     let Request::Write { file: File::AppIni, .. } = drive.send(Event::Done) else { panic!("settings") };
-    assert_eq!(drive.send(Event::Done), fixtures::run_command(Command::Register));
-    let Request::Write { file: File::RunnerConfiguration, .. } = drive.send(fixtures::ran_ok()) else {
-        panic!("connection")
-    };
+    let Request::Write { file: File::RunnerConfiguration, .. } = drive.send(Event::Done) else { panic!("connection") };
     let Request::Write { file: File::State, contents } = drive.send(Event::Done) else { panic!("recorded last") };
     assert_eq!(state::decode(contents.expose()).unwrap().runner.as_deref(), Some(RUNNER_VERSION.as_bytes()));
     assert_eq!(drive.send(Event::Done), Request::End(Ok(())));
 }
-#[test]
-fn a_runner_added_is_registered_under_its_lock() {
+fn adding_runner(found: Found) -> Drive {
     let mut drive = Drive::new(fixtures::owned());
-    assert_eq!(drive.reach(fixtures::runner_added()), Request::Lock(File::RunnerLock));
+    assert_eq!(drive.reach(found), Request::Lock(File::RunnerLock));
     assert_eq!(drive.send(Event::Done), Request::Layout);
     let Request::Write { file: File::AppIni, .. } = drive.send(Event::Done) else { panic!("settings") };
+    drive
+}
+#[test]
+fn a_runner_added_is_registered_under_its_lock() {
+    let mut drive = adding_runner(fixtures::runner_added());
     assert_eq!(drive.send(Event::Done), Request::Draw);
     assert_eq!(
         drive.send(Event::Drew(fixtures::draw(4))),
@@ -95,11 +95,37 @@ fn a_runner_added_is_registered_under_its_lock() {
 fn a_runner_added_keeps_its_existing_secret() {
     let mut found = fixtures::runner_added();
     found.runner_secret = true;
-    let mut drive = Drive::new(fixtures::owned());
-    assert_eq!(drive.reach(found), Request::Lock(File::RunnerLock));
-    assert_eq!(drive.send(Event::Done), Request::Layout);
-    let Request::Write { file: File::AppIni, .. } = drive.send(Event::Done) else { panic!("settings") };
+    let mut drive = adding_runner(found);
     assert_eq!(drive.send(Event::Done), fixtures::run_command(Command::Register));
+}
+#[test]
+fn a_runner_added_again_keeps_its_registration_with_its_secret() {
+    let mut found = fixtures::runner_added();
+    found.runner_secret = true;
+    found.runner_configuration = fixtures::later().runner_configuration;
+    let mut drive = adding_runner(found);
+    assert_eq!(
+        drive.send(Event::Done),
+        Request::Write { file: File::RunnerConfiguration, contents: fixtures::runner_configuration(b"kept-uuid") }
+    );
+}
+#[test]
+fn a_runner_added_with_a_drawn_secret_registers_over_a_stale_configuration() {
+    let mut found = fixtures::runner_added();
+    found.runner_configuration = fixtures::later().runner_configuration;
+    let mut drive = adding_runner(found);
+    assert_eq!(drive.send(Event::Done), Request::Draw);
+    let Request::Write { file: File::RunnerSecret, .. } = drive.send(Event::Drew(fixtures::draw(4))) else {
+        panic!("drawn secret")
+    };
+    assert_eq!(drive.send(Event::Done), fixtures::run_command(Command::Register));
+    assert_eq!(
+        drive.send(fixtures::ran(b"replacement-uuid\n")),
+        Request::Write {
+            file: File::RunnerConfiguration,
+            contents: fixtures::runner_configuration(b"replacement-uuid"),
+        }
+    );
 }
 #[test]
 fn a_runner_removed_writes_no_runner_file_and_records_none() {
@@ -227,7 +253,8 @@ fn the_upgrade_stops_where_migrate_failed_and_repeats_next_time() {
 
 #[test]
 fn the_upgrade_stops_where_register_failed_and_repeats_next_time() {
-    let found = fixtures::older(None, Some(b"13.1.0"));
+    let mut found = fixtures::older(None, Some(b"13.1.0"));
+    found.runner_configuration = None;
     let mut drive = Drive::new(fixtures::owned());
     assert_eq!(drive.reach(found.clone()), Request::Lock(File::RunnerLock));
     drive.send(Event::Done);

@@ -8,14 +8,14 @@ use crate::{
 use alloc::boxed::Box;
 use skein_ui::{Builder, Role, Run, Shortcut, State, phrases::Hole};
 use temper_client_domain::{
-    Address, ChatsFilter, Domain,
+    Address, ChatsFilter, Domain, GoalsFilter,
     forge::{
         self,
         forges::{Connection, Kind, Mode, Start},
     },
     pages::{
         Act,
-        home::{AddField, AddRefused, AddSheet, CopyLine, CopyState, Facts, Needs, Repository},
+        home::{AddField, AddRefused, AddSheet, CopyLine, CopyState, Facts, Needs, Repository, Status},
         needs::{self, ANSWERED_ON_HOME},
     },
 };
@@ -47,27 +47,28 @@ pub(crate) fn main(
         to_begin(b, w, bindings, project, name, &facts);
     }
     needs(b, root, w, bindings, project, &facts, times, rows);
-    chats(b, root, w, bindings, facts.to_begin(), times);
+    if !facts.to_begin() && root.has_goals(project) {
+        goals(b, root, w, bindings, project, times);
+    } else {
+        chats(b, root, w, bindings, project, facts.to_begin(), times);
+    }
+    foot(b, w, bindings, project, &facts, times);
     crate::confirm::main(b, root, w, bindings, rows);
     add_sheet(b, root, w, bindings, name);
     b.close();
 }
 
-fn intro(
-    b: &mut Builder,
-    root: &Domain,
-    w: &Words,
-    bindings: &mut Bindings,
-    name: &[u8],
-    facts: &Facts,
-    times: &mut Times,
-) {
-    b.open(Role::Slot);
-    b.style(look::HOME_INTRO);
+struct Intro {
+    kicker: Box<[u8]>,
+    headline: Box<[u8]>,
+    lede: Option<Box<[u8]>>,
+    byline: Option<Box<[u8]>>,
+}
+fn intro_words(w: &Words, name: &[u8], facts: &Facts, times: &mut Times) -> Intro {
     // The kicker is this Home's day and time, not a project's creation time.
-    let day = times.say(w, TimeForm::Day, times.now);
+    let day = times.say(w, TimeForm::Weekday, times.now);
     let clock = times.say(w, TimeForm::Clock, times.now);
-    let kicker = w.say(Word::HomeDayTime, &[Hole::Name(day), Hole::Name(clock)]);
+    let mut kicker = w.say(Word::HomeDayTime, &[Hole::Name(day), Hole::Name(clock)]);
     let minute = skein_lib::Duration::from_secs(60);
     let tick = times.now.as_nanos().checked_div(minute.as_nanos()).expect("minute is nonzero");
     let next = match tick.checked_add(1) {
@@ -78,8 +79,14 @@ fn intro(
         None => None,
     };
     times.next = [times.next, next].into_iter().flatten().min();
-    text(b, Role::Paragraph, &kicker, Some(look::HOME_KICKER));
-    let headline = if facts.to_begin() {
+    if let Status::Shown(status) = &facts.status
+        && let Some(previous) = status.previous()
+        && times.now.as_nanos().saturating_sub(*previous) > minute.as_nanos()
+    {
+        let span = times.say(w, TimeForm::Looked, skein_lib::Wall::from_nanos(*previous));
+        kicker = w.say(Word::HomeLooked, &[Hole::Name(kicker), Hole::Name(span)]);
+    }
+    let needs = if facts.to_begin() {
         w.say(Word::HomeProjectReady, &[Hole::Name(name.into())])
     } else {
         match facts.needs {
@@ -96,12 +103,81 @@ fn intro(
             }
         }
     };
-    text(b, Role::Heading { level: 1 }, &headline, None);
-    if !facts.to_begin() {
+    let landed = if facts.to_begin() { 0 } else { facts.landed_since() };
+    let brief = facts.brief();
+    let sentence = match brief {
+        Some(brief) => brief.sentence().into(),
+        None => match landed {
+            0 => Box::default(),
+            1 => w.say(Word::HomeLandedOne, &[]),
+            2..=u64::MAX => w.say(Word::HomeLandedMany, &[Hole::Number(landed)]),
+        },
+    };
+    let headline = if sentence.is_empty() { needs } else { crate::accounts::words::join(&[&sentence, b" ", &needs]) };
+    let (lede, byline) = match brief {
+        Some(brief) => {
+            let lede = if brief.lede().is_empty() { None } else { Some(brief.lede().into()) };
+            let at = times.say(w, TimeForm::Clock, skein_lib::Wall::from_nanos(brief.at()));
+            (lede, Some(w.say(Word::HomeByline, &[Hole::Name(at)])))
+        }
+        None => (None, None),
+    };
+    Intro { kicker, headline, lede, byline }
+}
+fn intro(
+    b: &mut Builder,
+    root: &Domain,
+    w: &Words,
+    bindings: &mut Bindings,
+    name: &[u8],
+    facts: &Facts,
+    times: &mut Times,
+) {
+    b.open(Role::Slot);
+    b.style(look::HOME_INTRO);
+    let mut intro = intro_words(w, name, facts, times);
+    if facts.to_begin() {
+        intro.lede = begin_lede(root, w);
+    }
+    if w.shell == Shell::Terminal && !facts.to_begin() {
+        // The shell uses the heading as its title; the intro also reads whole in its body.
+        text(b, Role::Heading { level: 1 }, &intro.headline, None);
+        b.open(Role::Paragraph);
+        text(b, Role::Text, &intro.kicker, Some(look::HOME_KICKER));
+        b.text(Run::Plain, b" ");
+        b.text(Run::Plain, &intro.headline);
+        if let Some(lede) = &intro.lede {
+            b.text(Run::Plain, b" ");
+            text(b, Role::Text, lede, Some(look::HOME_LEDE));
+        }
+        b.close();
+        if let Some(byline) = &intro.byline {
+            text(b, Role::Paragraph, byline, Some(look::HOME_BYLINE));
+        }
         b.close();
         return;
     }
-    let (key, more) = super::accounts::home_accounts(root);
+    text(b, Role::Paragraph, &intro.kicker, Some(look::HOME_KICKER));
+    text(b, Role::Heading { level: 1 }, &intro.headline, None);
+    if facts.to_begin() {
+        b.open(Role::Slot);
+        b.style(look::HOME_LEDES);
+    }
+    if let Some(lede) = intro.lede {
+        text(b, Role::Paragraph, &lede, Some(look::HOME_LEDE));
+    }
+    if facts.to_begin() {
+        let (_, more) = super::accounts::home_accounts(root);
+        go(b, bindings, &w.say(more, &[]), Address::Accounts, None);
+        b.close();
+    }
+    if let Some(byline) = intro.byline {
+        text(b, Role::Paragraph, &byline, Some(look::HOME_BYLINE));
+    }
+    b.close();
+}
+fn begin_lede(root: &Domain, w: &Words) -> Option<Box<[u8]>> {
+    let (key, _) = super::accounts::home_accounts(root);
     let mut lede = Box::default();
     if let Some(account) = super::accounts::first_usable_kind(root, w) {
         lede = if key { w.say(Word::HomeAgentsKey, &[]) } else { w.say(Word::HomeAgentsOn, &[Hole::Name(account)]) };
@@ -131,15 +207,7 @@ fn intro(
             | Connection::Stopped { .. } => {}
         }
     }
-    b.open(Role::Slot);
-    b.style(look::HOME_LEDES);
-    if !lede.is_empty() {
-        let lede = crate::accounts::words::join(&[&lede, b"."]);
-        text(b, Role::Paragraph, &lede, Some(look::HOME_LEDE));
-    }
-    go(b, bindings, &w.say(more, &[]), Address::Accounts, None);
-    b.close();
-    b.close();
+    if lede.is_empty() { None } else { Some(crate::accounts::words::join(&[&lede, b"."])) }
 }
 fn number_word(count: u32) -> Option<Word> {
     match count {
@@ -299,7 +367,46 @@ fn row_words(b: &mut Builder, w: &Words, title: &[u8], when: &[u8]) {
     b.run(Run::Plain, when);
     b.close();
 }
-fn chats(b: &mut Builder, root: &Domain, w: &Words, bindings: &mut Bindings, beginning: bool, times: &mut Times) {
+fn goals(b: &mut Builder, root: &Domain, w: &Words, bindings: &mut Bindings, project: u32, times: &mut Times) {
+    let Some(goals) = root.pages().goals() else { return };
+    b.open(Role::Region);
+    b.style(look::GOALS_SECTION);
+    b.name(&w.say(Word::Goals, &[]));
+    b.open(Role::Slot);
+    b.style(look::HOME_HEAD);
+    text(b, Role::Heading { level: 2 }, &w.say(Word::Goals, &[]), None);
+    let label = w.say(Word::HomeAllChats, &[Hole::Number(u64::from(goals.count(root.client())))]);
+    go(b, bindings, &label, Address::Goals { project, filter: GoalsFilter::All }, None);
+    b.close();
+    let live = match goals.live(root.client()) {
+        Some(live) => live.rows.as_slice(),
+        None => &[],
+    };
+    b.open(Role::Slot);
+    b.style(look::GOALS_ROWS);
+    for line in live.iter().chain(goals.ended()).take(ROWS.max(live.len())) {
+        let report = goals.report(line.chip.task);
+        let state = temper_client_domain::pages::goals::state(
+            &line.chip,
+            goals.needs_person(line.chip.task),
+            report.is_some(),
+            line.delegates_total,
+        );
+        super::goals::row(b, w, bindings, times, line, state, report);
+    }
+    b.close();
+    b.close();
+}
+
+fn chats(
+    b: &mut Builder,
+    root: &Domain,
+    w: &Words,
+    bindings: &mut Bindings,
+    project: u32,
+    beginning: bool,
+    times: &mut Times,
+) {
     use jig_client::contract::EndedGroup;
     let chats = root.pages().chats();
     let (live, page) = match chats {
@@ -361,6 +468,35 @@ fn chats(b: &mut Builder, root: &Domain, w: &Words, bindings: &mut Bindings, beg
         }
         b.close();
     }
+    if live.is_some() && page.is_some() && !root.has_goals(project) {
+        text(b, Role::Paragraph, &w.say(Word::HomeChatsSentence, &[]), Some(look::HOME_FACTS));
+    }
+    b.close();
+}
+
+fn foot(b: &mut Builder, w: &Words, bindings: &mut Bindings, project: u32, facts: &Facts, times: &mut Times) {
+    if facts.to_begin() {
+        return;
+    }
+    let Status::Shown(status) = &facts.status else { return };
+    let branch = status.branch();
+    let branch = if branch.is_empty() { None } else { Some(branch) };
+    let red = [branch.unwrap_or(b"")];
+    let landing = super::changes::LandingFacts {
+        queued: u64::from(status.queued()),
+        last: match status.last_landed() {
+            Some(at) => Some(skein_lib::Wall::from_nanos(*at)),
+            None => None,
+        },
+        branch,
+        red: if status.red() { &red } else { &[] },
+    };
+    b.open(Role::Paragraph);
+    b.style(look::HOME_FACTS);
+    b.text(Run::Plain, &w.say(Word::HomeLanding, &[]));
+    super::changes::landing_parts(b, &super::changes::landing_line(&landing, w, times), w);
+    b.text(Run::Plain, &w.say(Word::ToolSeparator, &[]));
+    go(b, bindings, &w.say(Word::Changes, &[]), Address::Changes { project }, None);
     b.close();
 }
 

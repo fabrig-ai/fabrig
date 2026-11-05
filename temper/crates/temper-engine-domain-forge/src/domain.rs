@@ -148,6 +148,8 @@ pub struct Domain {
     bindings: Map<Box<[u8]>, Box<[u8]>>,
     pub(crate) making_acts: Set<crate::MakingKey>,
     pub(crate) repository_makings: Map<crate::MakingKey, crate::RepositoryMaking>,
+    pub(crate) project_facts: Map<u32, crate::ProjectFacts>,
+    pub(crate) looked: Map<(u64, u32), crate::Looked>,
     pub(crate) dismissed: Map<(u64, crate::PersonFact), ()>,
     pub(crate) connections: Map<u16, ConnectionState>,
     /// One setup runs at a time (temper/docs/design/protocol/forge.md, 2.8).
@@ -623,6 +625,8 @@ impl Domain {
             bindings: Map::with_capacity(l.bindings),
             repository_makings: Map::with_capacity(l.makings),
             making_acts: Set::with_capacity(l.makings),
+            project_facts: Map::with_capacity(l.judge_projects),
+            looked: Map::with_capacity(l.bindings.saturating_mul(l.judge_projects)),
             dismissed: Map::with_capacity(l.dismissed()),
             connections: Map::with_capacity(l.forges),
             fetched: None,
@@ -1173,6 +1177,9 @@ pub fn step(d: &mut Domain, env: &Env<Limits>, event: Event, out: &mut Queue<Req
     }
     match event {
         Event::TierWords { task, words } => crate::tiers::words::projected(d, task, &words, out),
+        Event::StatusTask { project, task } => crate::status::task(d, project, Some(task), out),
+        Event::StatusRefused { project } => crate::status::task(d, project, None, out),
+        Event::StatusHeard { task, report } => crate::status::heard(d, env.wall, task, report, out),
         Event::TierTask { repository, tier, number, task } => {
             crate::tiers::task(d, repository, tier, number, Some(task), out);
         }
@@ -1354,6 +1361,9 @@ pub fn step(d: &mut Domain, env: &Env<Limits>, event: Event, out: &mut Queue<Req
         Event::MakingActed { key, outcome } => crate::making::acted(d, key, outcome, out),
         Event::MakingAgain { key } => {
             d.making_acts.remove(&key);
+        }
+        Event::Looked { request, token, party, project } => {
+            crate::status::looked(d, env, request, token, party, project, out);
         }
         Event::Dismiss { request, token, party, what } => {
             crate::dismissed::dismiss(d, request, token, party, what, out);
@@ -5775,6 +5785,12 @@ fn restore(d: &mut Domain, env: &Env<Limits>, record: Stored) {
         Stored::Setting(row) => {
             d.setting_rows.insert(row.key, row.edit).expect("restored setting within limits");
         }
+        Stored::ProjectFacts(row) => {
+            d.project_facts.insert(row.project, row).expect("restored project facts room checked");
+        }
+        Stored::Looked(row) => {
+            d.looked.insert((row.party, row.project), row).expect("restored looked room checked");
+        }
         Stored::Dismissed { party, what } => {
             d.dismissed.insert((party, what), ()).expect("restored dismissal room checked");
         }
@@ -6111,7 +6127,9 @@ pub(crate) fn save_change(d: &mut Domain, out: &mut Queue<Request>, mut row: Cha
     if (row.change.owns_turn || row.base_repair)
         && let Some(subject) = crate::views::changes_mark(d, row.repository)
     {
-        tasks.push(subject).expect("project changes subject");
+        for subject in subject {
+            tasks.push(subject).expect("project changes and status subjects");
+        }
     }
     let tasks = tasks.into_boxed();
     emit(out, Request::Save { read_afresh: None, release: None, record: Stored::Change(row) });
@@ -6156,7 +6174,9 @@ fn save_queue_change(
         tasks.push(landing).expect("member landing subject");
     }
     if let Some(subject) = crate::views::changes_mark(d, row.repository) {
-        tasks.push(subject).expect("project changes subject");
+        for subject in subject {
+            tasks.push(subject).expect("project changes and status subjects");
+        }
     }
     let mut previous = None;
     while tasks.room() > 0 {
@@ -6455,6 +6475,8 @@ impl Domain {
             | RecordKind::Binding
             | RecordKind::Setting
             | RecordKind::Making
+            | RecordKind::ProjectFacts
+            | RecordKind::Looked
             | RecordKind::Dismissed => {
                 unreachable!("row has no links")
             }

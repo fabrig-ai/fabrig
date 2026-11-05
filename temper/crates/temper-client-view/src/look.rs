@@ -1107,6 +1107,8 @@ pub const NAMES: Names<'static> = Names {
         b"temper-doc-flash",
         b"temper-doc-empty",
         b"temper-add-draft",
+        b"temper-home-facts",
+        b"temper-home-byline",
     ],
     regions: &[b"temper-link"],
 };
@@ -1248,3 +1250,18 @@ pub const DOC_FLASH: Style = Style { owner: owner(), token: 431 };
 pub const DOC_EMPTY: Style = Style { owner: owner(), token: 432 };
 /// The bar's draft action (client/README.md, 3.5).
 pub const ADD_DRAFT: Style = Style { owner: owner(), token: 433 };
+
+/// Home status (temper/docs/design/client/README.md, 3.5).
+pub const HOME_FACTS: Style = Style { owner: owner(), token: 434 };
+/// Home brief attribution (temper/docs/design/client/README.md, 3.5).
+pub const HOME_BYLINE: Style = Style { owner: owner(), token: 435 };
+
+#[cfg(test)]
+mod tests {
+    #[test]
+    fn homes_facts_and_byline_keep_their_own_style_names() {
+        use super::{HOME_BYLINE, HOME_FACTS, NAMES};
+        assert_eq!(NAMES.style(HOME_FACTS), Some(b"temper-home-facts".as_slice()));
+        assert_eq!(NAMES.style(HOME_BYLINE), Some(b"temper-home-byline".as_slice()));
+    }
+}
