@@ -38,7 +38,7 @@ pub(crate) fn main(
     }
     let fallback = w.say(Word::Project, &[Hole::Number(u64::from(project))]);
     let name = name.as_deref().unwrap_or(&fallback);
-    let facts = temper_client_domain::pages::home::facts(root, project);
+    let facts = temper_client_domain::pages::home::facts(root, project, times.now);
     b.open(Role::Main);
     b.style(look::MAIN);
     b.style(look::HOME);

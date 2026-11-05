@@ -172,7 +172,7 @@ impl Story {
     fn facts(&self) -> Facts {
         let root = self.probes[CLIENT.0].root.person();
         assert_eq!(root.pages().address(), &Address::Home { project: PROJECT });
-        home::facts(root, PROJECT)
+        home::facts(root, PROJECT, skein_lib::Wall::EPOCH)
     }
 
     fn shown(&self) -> w::ProjectStatus {

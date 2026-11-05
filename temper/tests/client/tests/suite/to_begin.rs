@@ -72,7 +72,7 @@ fn settle(world: &mut Clients) {
 fn facts(world: &Clients, who: ClientId, project: u32) -> Facts {
     let root = world.root(who).person();
     assert_eq!(root.pages().address(), &Address::Home { project });
-    home::facts(root, project)
+    home::facts(root, project, skein_lib::Wall::EPOCH)
 }
 
 fn showing(world: &Clients, who: ClientId, project: u32) {

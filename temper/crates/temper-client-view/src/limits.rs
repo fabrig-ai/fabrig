@@ -197,7 +197,7 @@ fn card_nodes(receiving: &jig_client::DomainLimits, markdown: u32) -> Option<u32
         .checked_add(32)?;
     // Conversation controls share one slot.
     let card = proposed.checked_mul(receiving.rows)?.checked_add(129)?;
-    let cards = card.checked_mul(receiving.reads.checked_add(1)?)?;
+    let cards = card.checked_mul(temper_client_domain::pages::inbox::card_capacity(receiving.reads).checked_add(1)?)?;
     Some(cards)
 }
 // A disclosure joins admitted tool names, count, separators and repetition
