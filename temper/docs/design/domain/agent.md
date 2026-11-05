@@ -1070,20 +1070,27 @@ the same mechanism.
   of `chat.txt`: when the person asks for a draft, or says "write this up", keep
   one document, with `note`, scope goal, the project and its own task number,
   description its title, its body Markdown beginning with `# TITLE` and a muted
-  line "Draft, DATE, with the user.", whole each time, naming the note and the
-  revision it read, one `##` section per topic, open questions under "## Open
-  questions". It says in a sentence what changed and doesn't repeat it. Mermaid
+  line "Draft, DATE, with the user.", one `##` section per topic, open questions
+  under "## Open questions". It writes a first version whole, then changes it by
+  lines (jig's `domain/engine.md`, section 10), naming the note and the revision
+  it read; it never rewrites it whole past a few KB, and builds a long document
+  in parts. It says in a sentence what changed and doesn't repeat it. Mermaid
   isn't drawn, so it doesn't draw.
 - **The configuring agent's,** `configuring.txt` (8.1): the same, its title "How
   PROJECT works", written once the person's way is understood, kept current as
   the conversation changes it.
 - **The tool's answer** gives the client what its line says (`../client/README.md`,
   3.5): `Note N revision R written · 64 lines` for a first write, `Note N revision
-  R written · +18 −6 · line 31` for a later one, from jig's `lines`, `added`,
-  `removed` and `first` (jig's `domain/engine.md`, section 10).
+  R written · +18 −6 · line 31 · 64 lines` for a later one, from jig's `lines`,
+  `added`, `removed` and `first` (jig's `domain/engine.md`, section 10). The
+  lines close each so that an append's `first` needs no counting. A refused call
+  says what to do next: `Note refused: revision moved, now 7`, `Note refused:
+  range past the end, 64 lines`, `Note refused: body past its bound, 70000 bytes
+  of 65536`.
 - **Its stories:** a scripted turn of the fake model that writes a document
   (`testing.md`, 2.4), proved through ctl and walked in the journey `chat-draft`
-  (`../client/journeys.md`, 9).
+  (`../client/journeys.md`, 9); and a walk's own script, which builds a 30 KB note
+  in calls of under 10 KB each.
 
 #### A goal's report
 

@@ -65,6 +65,7 @@ pub(crate) const EVERY_TOOL: &[&[&str]] = &[
     &["task", "answer", "41", "--rev", "7", "--cannot", "no access"],
     &["task", "take", "41"],
     &["task", "hand-back", "41"],
+    &["task", "notes", "41", "--project", "shop"],
     &["project", "amend", "shop", "--visibility", "public", "--key", "visibility"],
     &[
         "goal",
@@ -659,6 +660,7 @@ impl Harness {
                 | crate::jig::rows::REVISIONS_AT
                 | crate::jig::rows::PROPOSAL_AT
                 | crate::jig::rows::TASK_TEXT_AT
+                | crate::jig::rows::TASK_NOTES_AT
                 | crate::jig::rows::PROJECT_SHOW_AT => SINGLE_READ,
                 3 => {
                     if crate::jig::call::number(&call, 2).is_some() {
@@ -817,7 +819,7 @@ pub(crate) const UNKNOWN_ASKER: client::Asker = client::Asker(999);
 /// A stable stored request's engine key, unrelated to its client call prefix.
 const KEPT_KEY: skein_lib::RequestKey = [9; 16];
 /// One slot per row and form; fewer omits decide's second form.
-pub(super) const TOOL_FORMS: u32 = 84;
+pub(super) const TOOL_FORMS: u32 = 85;
 /// Exactly one example exercises each row and form; zero misses it entirely.
 pub(super) const EXAMPLES_PER_FORM: u32 = 1;
 /// One missing byte exercises the first refused destination; zero would fit.

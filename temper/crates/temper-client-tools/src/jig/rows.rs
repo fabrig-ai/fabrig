@@ -924,6 +924,23 @@ pub const TASK_TEXT: Tool = Tool {
     notes: b"Each chunk keeps UTF-8 characters whole. Follow the printed call\nuntil no more. Instructions use the task's override, or its charter\nat the task's recorded settings revision. Result reads the kept terminal\nreport; unavailable reports are unknown.\n",
 };
 
+/// Whole notes of a task's scope (client/tools.md, 5.2).
+pub const TASK_NOTES_AT: u8 = 69;
+pub const TASK_NOTES: Tool = Tool {
+    name: b"task notes",
+    line: b"Read a task's notes, each body whole",
+    prints: b"Each note's number, revision, description and whole body; `body cut; report it` when supplied cut, `read on with: task notes TASK --project PROJECT --after CURSOR` for a further page, or `no notes`",
+    result: b"notes",
+    forms: &[&[
+        positional(b"task", b"TASK", Kind::Number, Required, b"The task's number"),
+        flag(b"project", b"PROJECT", Kind::Project { empty: false }, Required, b"The task's project"),
+        flag(b"after", b"CURSOR", Kind::Cursor, Optional, b"The cursor a page printed, to read on"),
+    ]],
+    keyed: Keyed::Never,
+    area: 1,
+    notes: b"Reads the task's own note scope, as a chat's document pane does.\nBodies print whole, including those longer than a turn's part.\nAn unknown task or an empty scope answers `no notes`.\n",
+};
+
 /// The goal creation tool's durable position.
 pub const GOAL_START_AT: u8 = 62;
 /// Fill a project's offered goal template and submit a keyed request.

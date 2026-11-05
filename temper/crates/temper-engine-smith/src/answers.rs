@@ -694,15 +694,32 @@ fn rendered(answer: &CallAnswer, tool: &[u8], task: Option<u64>) -> Result<HostA
         }
         CallAnswer::NoteRefused(why) => {
             text.add(b"Note refused: ")?;
-            text.add(match why {
+            let ending: &[u8] = match why {
                 jig_domain_notes::Refusal::Busy => b"busy",
                 jig_domain_notes::Refusal::Oversized => b"oversized",
                 jig_domain_notes::Refusal::Full => b"full",
                 jig_domain_notes::Refusal::Exists => b"already exists",
                 jig_domain_notes::Refusal::Missing => b"missing",
-                jig_domain_notes::Refusal::Moved { .. } => b"revision moved",
+                jig_domain_notes::Refusal::Moved { revision } => {
+                    text.add(b"revision moved, now ")?;
+                    text.number(u64::from(*revision))?;
+                    b""
+                }
+                jig_domain_notes::Refusal::PastEnd { lines } => {
+                    text.add(b"range past the end, ")?;
+                    text.number(u64::from(*lines))?;
+                    b" lines"
+                }
+                jig_domain_notes::Refusal::PastBound { bytes, bound } => {
+                    text.add(b"body past its bound, ")?;
+                    text.number(u64::from(*bytes))?;
+                    text.add(b" bytes of ")?;
+                    text.number(u64::from(*bound))?;
+                    b""
+                }
                 jig_domain_notes::Refusal::RevisionExhausted => b"revision exhausted",
-            })?;
+            };
+            text.add(ending)?;
             true
         }
         CallAnswer::Unavailable => {
@@ -735,6 +752,9 @@ fn note_written(
         text.number(u64::from(change.removed))?;
         text.literal(" · line ".as_bytes())?;
         text.number(u64::from(change.first))?;
+        text.literal(" · ".as_bytes())?;
+        text.number(u64::from(change.lines))?;
+        text.add(b" lines")?;
     }
     Ok(())
 }
@@ -1769,12 +1789,27 @@ mod tests {
     #[test]
     fn note_answers_give_later_writes_changes_and_first_line() {
         for (added, removed, first, expected) in [
-            (18, 6, 31, "Note 12 revision 3 written · +18 −6 · line 31"),
-            (0, 0, 1, "Note 12 revision 3 written · +0 −0 · line 1"),
+            (18, 6, 31, "Note 12 revision 3 written · +18 −6 · line 31 · 64 lines"),
+            (0, 0, 1, "Note 12 revision 3 written · +0 −0 · line 1 · 64 lines"),
         ] {
             let rendered = answer(&CallAnswer::NoteWritten { name: 12, revision: 3, lines: 64, added, removed, first });
             assert_eq!(rendered.text(), expected.as_bytes());
             assert!(!rendered.error());
+        }
+    }
+    #[test]
+    fn note_refusals_say_what_to_do_next() {
+        for (why, expected) in [
+            (jig_domain_notes::Refusal::Moved { revision: 7 }, "Note refused: revision moved, now 7"),
+            (jig_domain_notes::Refusal::PastEnd { lines: 64 }, "Note refused: range past the end, 64 lines"),
+            (
+                jig_domain_notes::Refusal::PastBound { bytes: 70000, bound: 65536 },
+                "Note refused: body past its bound, 70000 bytes of 65536",
+            ),
+        ] {
+            let rendered = answer(&CallAnswer::NoteRefused(why));
+            assert_eq!(rendered.text(), expected.as_bytes());
+            assert!(rendered.error());
         }
     }
 }

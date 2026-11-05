@@ -471,3 +471,29 @@ fn hold_accounts_decode_whole_past_the_text_preview_bound() {
         }
     }
 }
+
+#[test]
+fn long_text_bounds_survive_wire_narrowing_and_document_translation() {
+    let base = fixtures::limits();
+    let client = jig_client_domain::Limits { long_text: 1024, ..*base.client() };
+    let limits = Limits::new(client, base.exchanges()).unwrap();
+    assert_eq!(limits.wire().document_text_bytes, 1024);
+    assert_eq!(limits.wire().specification_words, 1024);
+    assert_eq!(limits.wire().edit_note_body, 1024);
+    let cases: [(Box<[u8]>, bool); 2] = [(Box::new([b'x'; 1024]), true), (Box::new([b'x'; 1025]), false)];
+    for (bytes, accepted) in cases {
+        let record = w::DocumentText::new(&w::CEILINGS, w::DocumentTextParts { bytes, cut: false }).unwrap();
+        let mut frame = fixtures::frame_record().into_parts();
+        let mut party = frame.party.into_parts();
+        party.login = record.clone();
+        frame.party = w::MeParty::new(&w::CEILINGS, party).unwrap();
+        let decoded = documents::frame(w::Me::new(&w::CEILINGS, frame).unwrap(), &limits);
+        if accepted {
+            let decoded = decoded.unwrap();
+            assert_eq!(decoded.party.login.bytes.bytes(), record.bytes());
+            assert!(!decoded.party.login.cut);
+        } else {
+            assert_eq!(decoded, Err(Undecodable::TooLarge));
+        }
+    }
+}

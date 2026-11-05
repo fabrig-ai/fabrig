@@ -140,7 +140,7 @@ fn a_decided_answer_is_rendered_as_smiths_text() {
         answer,
         core::SettledAnswer::Host {
             error: false,
-            body: "Note 4 revision 2 written · +2 −1 · line 2".as_bytes().into()
+            body: "Note 4 revision 2 written · +2 −1 · line 2 · 3 lines".as_bytes().into()
         }
     );
 }

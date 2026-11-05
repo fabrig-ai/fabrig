@@ -959,7 +959,7 @@ the core checks inherited authority and the prospective financial payer.
 | `introduce` | two tasks it references, each given a reference to the other, within their limits (tasks.md, 8.5) | done; no reference; refused, and why |
 | `subscribe`, `unsubscribe` | a topic a connector offers to agents (connectors.md, 5.3), under a read grant on the resources the connector says it concerns (authority.md, 8.5); a referenced task's state; a timer (tasks.md, 8.4) | done; refused, and why |
 | `effect` | one of a connector's kinds of effect offered to agents (connectors.md, 4.5) | made, with what it made; committed and pending, past the call's deadline; waiting for a verdict; failed; refused, naming them, for a kind that waits for dependencies while its task is kept (tasks.md, 5.7) |
-| `note`, `recall` | writes a note in a scope; reads entries by name or by a search (section 10) | written; the entries |
+| `note`, `recall` | writes a note in a scope, whole or by a line range; reads entries by name or by a search (section 10) | written; the entries |
 | a connector's reads | reads its system (connectors.md, section 9) | the answer, within the read's budget |
 
 **A run's reads are not recorded.** A connector's read, `read_task`, and the
@@ -1393,6 +1393,25 @@ prefers. The notes child domain knows scopes, entries and indexes:
   (authority.md, section 3), and committed like any decision. A revision
   names the revision its run recalled, and is refused as moved if the
   entry changed since.
+- **Whole, or by a line range.** A call writes a body whole, or, naming an
+  entry and the revision it read, replaces a range of that body's lines:
+  `first`, 1-based, and `remove`, a count of lines, 0 to insert, its body the
+  text that takes their place. An append is `first` the body's lines + 1 and
+  `remove` 0. Lines count as the answer's do, below. A newline is added only
+  where two lines would otherwise join, and nothing else of the body or the text
+  changes, so a body with no final newline keeps none unless a line follows it.
+  With `join: true`, the replacement continues the line before `first` without
+  a newline: that line's ending newline, if present, is removed, and none is
+  added before the replacement. This lets a run build one long line in parts,
+  under the same revision and body bounds.
+  There is this one form and no named section, since a body needn't be Markdown.
+  It writes the description it names, and keeps the entry's references unless it
+  names some.
+- **Stored whole.** A revision stores the resulting body, so that a reader, a
+  client and `recall` see no parts, and a revision is a body as any other.
+- **Refusals say what to do next,** and each leaves the note as it was: moved
+  says the entry's revision; a range past the end says the body's lines; a
+  result past `notes.body_bytes` says its bytes and the bound.
 - **Its answer says what changed.** A write answered carries, beside the
   note's name and revision, `lines`, the new body's lines, and, from the
   body before it and the body written with their common leading and
@@ -1403,7 +1422,9 @@ prefers. The notes child domain knows scopes, entries and indexes:
   has 0 lines. A write that removes only trailing lines, or changes nothing,
   has `first` the new body's last line (1 when it has none). It is a pure
   function of the two bodies, bounded by `notes.body_bytes`, and no shortest
-  edit: a person's reader wants a count and a place, not a diff.
+  edit: a person's reader wants a count and a place, not a diff. A range's
+  answer is the same function of the same two bodies, so its `first` is where
+  they first differ, which the range's own `first` may precede.
 - **Read in two steps.** A brief carries the index of the notes in its
   scope, a line per entry, saying how many more there are when they do
   not all fit; a run asks for the entries it wants with `recall`, by name
@@ -1415,10 +1436,11 @@ prefers. The notes child domain knows scopes, entries and indexes:
   holds one whole: a tool call's input and a host's event, twice the bound and
   4,096 for its JSON's escapes (`core.call_answer_bytes`, `hub.event_bytes`), a
   load (`core.load_bytes`), and a client's read, cut at `notes.body_bytes` rather
-  than `documents.text_bytes`. A model's output bounds a call's payload all the
-  same (smith's `protocol/limits.md`, 13): a box's model writes what its output
-  holds, a document's room waiting for a larger one. A party's correction is
-  bounded by `people.amendment_bytes`.
+  than `documents.text_bytes`. A model's output bounds one call's payload all the
+  same (smith's `protocol/limits.md`, 13), and not a body: a body past what one
+  call holds is built in parts, by line ranges, up to the bound, and a run reads
+  it back whole with `recall`, which costs input, not output. A party's
+  correction is bounded by `people.amendment_bytes`.
 - **Knowledge that belongs to a system** belongs there, such as a
   repository's guide: a note that matures may be proposed as an effect
   on it.
@@ -1991,6 +2013,9 @@ section 5).
 
 ## 16. Open questions
 
+- **A line range on `recall`:** `recall` returns a note's whole body, which costs
+  input, not output. A range joins it only if a walk shows it's needed
+  (section 10; the user's idea, 2026-11-05).
 - **A record whose link cannot be made,** at a start (section 6): left
   out of the live state with what links through it, kept in the store,
   named in the start's notes to a party with a role in the deployment,

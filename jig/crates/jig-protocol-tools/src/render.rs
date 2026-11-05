@@ -62,12 +62,15 @@ pub fn render(part: &CallPart) -> Rendered {
         CallPart::Sent { message } => text(&[b"Sent message ", Decimal::of(*message).as_bytes()], false),
         CallPart::Subscribed { subscription } => text(&[b"Subscribed ", Decimal::of(*subscription).as_bytes()], false),
         CallPart::Delegated(numbers) => delegated(numbers),
-        CallPart::NoteWritten { name, revision, .. } => text(
+        CallPart::NoteWritten { name, revision, lines, .. } => text(
             &[
                 b"Wrote note ",
                 Decimal::of(*name).as_bytes(),
                 b" revision ",
                 Decimal::of(u64::from(*revision)).as_bytes(),
+                b", ",
+                Decimal::of(u64::from(*lines)).as_bytes(),
+                b" lines",
             ],
             false,
         ),
@@ -86,18 +89,7 @@ pub fn render(part: &CallPart) -> Rendered {
         | CallPart::SubscriptionRefused(problem)
         | CallPart::DelegationRefused(problem) => task_problem(problem),
         CallPart::NoteRecalled { entries, more } => Rendered { error: false, text: notes(entries, *more) },
-        CallPart::NoteRefused(why) => {
-            let why: &[u8] = match why {
-                jig_domain_notes::Refusal::Busy => b"busy",
-                jig_domain_notes::Refusal::Oversized => b"too large",
-                jig_domain_notes::Refusal::Full => b"scope full",
-                jig_domain_notes::Refusal::Exists => b"name exists",
-                jig_domain_notes::Refusal::Missing => b"missing",
-                jig_domain_notes::Refusal::Moved { .. } => b"revision changed",
-                jig_domain_notes::Refusal::RevisionExhausted => b"revision exhausted",
-            };
-            text(&[b"Note refused: ", why], true)
-        }
+        CallPart::NoteRefused(why) => note_refused(why),
         CallPart::Revised { task, revision } => text(
             &[
                 b"Done: task ",
@@ -622,6 +614,38 @@ fn settings_refused(why: &jig_domain_people::Refusal) -> Rendered {
         b"refused"
     };
     text(&[b"Settings refused: ", words], true)
+}
+
+fn note_refused(why: &jig_domain_notes::Refusal) -> Rendered {
+    let why: &[u8] = match why {
+        jig_domain_notes::Refusal::Busy => b"busy",
+        jig_domain_notes::Refusal::Oversized => b"too large",
+        jig_domain_notes::Refusal::Full => b"scope full",
+        jig_domain_notes::Refusal::Exists => b"name exists",
+        jig_domain_notes::Refusal::Missing => b"missing",
+        jig_domain_notes::Refusal::Moved { revision } => {
+            return text(&[b"Note refused: revision moved, now ", Decimal::of(u64::from(*revision)).as_bytes()], true);
+        }
+        jig_domain_notes::Refusal::PastEnd { lines } => {
+            return text(
+                &[b"Note refused: range past the end, ", Decimal::of(u64::from(*lines)).as_bytes(), b" lines"],
+                true,
+            );
+        }
+        jig_domain_notes::Refusal::PastBound { bytes, bound } => {
+            return text(
+                &[
+                    b"Note refused: body past its bound, ",
+                    Decimal::of(u64::from(*bytes)).as_bytes(),
+                    b" bytes of ",
+                    Decimal::of(u64::from(*bound)).as_bytes(),
+                ],
+                true,
+            );
+        }
+        jig_domain_notes::Refusal::RevisionExhausted => b"revision exhausted",
+    };
+    text(&[b"Note refused: ", why], true)
 }
 
 /// A short protocol-stand summary; applications render the complete documents.

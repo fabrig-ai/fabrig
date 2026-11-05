@@ -165,9 +165,15 @@ pub(crate) fn environment_forge(env: &Env<Limits>) -> Env<forge::Limits> {
 }
 
 pub(crate) fn checked_call(mut body: Call, limits: &Limits) -> Call {
-    let note_valid = match &body.tool {
-        Tool::Note { entry, .. } => notes::valid_new(entry, &limits.notes),
-        Tool::Recall { by, .. } => notes::valid_recall(by, &limits.notes),
+    let note_refusal = match &body.tool {
+        Tool::Note { entry, .. } | Tool::NoteLines { entry, .. } => {
+            if notes::valid_new(entry, &limits.notes) {
+                None
+            } else {
+                Some(notes::new_refusal(entry, &limits.notes))
+            }
+        }
+        Tool::Recall { by, .. } => (!notes::valid_recall(by, &limits.notes)).then_some(notes::Refusal::Oversized),
         Tool::Decided(_)
         | Tool::Goal { .. }
         | Tool::ReadTask { .. }
@@ -196,10 +202,10 @@ pub(crate) fn checked_call(mut body: Call, limits: &Limits) -> Call {
         | Tool::RejectedMessage(_)
         | Tool::RejectedControl(_)
         | Tool::RejectedProposal(_)
-        | Tool::RejectedNote(_) => true,
+        | Tool::RejectedNote(_) => None,
     };
-    if !note_valid {
-        body.tool = Tool::RejectedNote(notes::Refusal::Oversized);
+    if let Some(why) = note_refusal {
+        body.tool = Tool::RejectedNote(why);
     }
     if let Some(why) = call_shape(&body.tool, &limits.tasks) {
         body.tool = match body.tool {
@@ -208,7 +214,9 @@ pub(crate) fn checked_call(mut body: Call, limits: &Limits) -> Call {
                 Tool::RejectedControl(why)
             }
             Tool::Propose { .. } | Tool::Decide { .. } | Tool::Withdraw { .. } => Tool::RejectedProposal(why),
-            Tool::Note { .. } | Tool::Recall { .. } => Tool::RejectedNote(jig_domain_notes::Refusal::Oversized),
+            Tool::Note { .. } | Tool::NoteLines { .. } | Tool::Recall { .. } => {
+                Tool::RejectedNote(jig_domain_notes::Refusal::Oversized)
+            }
             Tool::Decided(_)
             | Tool::Goal { .. }
             | Tool::ReadTask { .. }
@@ -260,6 +268,7 @@ pub(crate) fn call_needs_input(tool: &Tool) -> bool {
         | Tool::RejectedProposal(_)
         | Tool::RejectedNote(_)
         | Tool::Note { .. }
+        | Tool::NoteLines { .. }
         | Tool::Recall { .. }
         | Tool::Message { .. }
         | Tool::Introduce { .. }
@@ -361,6 +370,7 @@ pub(crate) fn call_shape(tool: &Tool, limits: &tasks::Limits) -> Option<tasks::R
         | Tool::RejectedProposal(_)
         | Tool::RejectedNote(_)
         | Tool::Note { .. }
+        | Tool::NoteLines { .. }
         | Tool::Recall { .. }
         | Tool::Introduce { .. }
         | Tool::Subscribe { .. }
@@ -450,7 +460,9 @@ pub(crate) fn tool_kind(tool: &Tool) -> Option<jig_domain_core::ToolKind> {
         | Tool::SubscribeNamedForge { .. }
         | Tool::Unsubscribe { .. } => jig_domain_core::ToolKind::Subscribe,
         Tool::EffectForge { .. } => jig_domain_core::ToolKind::Effect,
-        Tool::Note { entry, .. } => jig_domain_core::ToolKind::Note { scope: entry.scope.clone() },
+        Tool::Note { entry, .. } | Tool::NoteLines { entry, .. } => {
+            jig_domain_core::ToolKind::Note { scope: entry.scope.clone() }
+        }
         Tool::Recall { by, .. } => jig_domain_core::ToolKind::Recall { by: by.clone() },
         Tool::ReadTask { .. } | Tool::ReadNamed { .. } | Tool::ReadForge { .. } => jig_domain_core::ToolKind::Read,
         Tool::Unavailable
@@ -549,6 +561,7 @@ pub(crate) fn is_core_read(tool: &Tool) -> bool {
         | Tool::Decided(_)
         | Tool::Goal { .. }
         | Tool::Note { .. }
+        | Tool::NoteLines { .. }
         | Tool::Recall { .. }
         | Tool::EffectForge { .. }
         | Tool::ReadNamed { .. }

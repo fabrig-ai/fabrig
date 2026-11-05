@@ -877,6 +877,12 @@ pub enum NamedAction {
         entry: notes::New,
         recalled: Option<u32>,
     },
+    /// Replace a range of a note's body lines under a revision seen by the run.
+    NoteLines {
+        entry: notes::New,
+        recalled: u32,
+        range: notes::LineRange,
+    },
     /// Recall one page of notes by name or description search.
     Recall {
         by: notes::Recall,
@@ -1213,6 +1219,7 @@ fn notes_new_work(event: &notes::Event) -> bool {
         notes::Event::Index { .. }
         | notes::Event::Recall { .. }
         | notes::Event::Write { .. }
+        | notes::Event::WriteLines { .. }
         | notes::Event::Edit { .. } => true,
         notes::Event::DropProject { .. } | notes::Event::LoadFailed { .. } | notes::Event::Loaded { .. } => false,
     }
