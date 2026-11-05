@@ -48,13 +48,24 @@ pub(super) fn linked() -> Host {
         .requests()
         .into_iter()
         .find_map(|request| {
-            let Asked::Exchange { call, .. } = request else { return None };
+            let Asked::Exchange { id, call, .. } = request else { return None };
             if call.path.as_ref() != b"/jig/v1/watch" {
                 return None;
             }
             let open = w::Open::decode(&w::CEILINGS, &mut Reader::new(&call.body)).expect("watch envelope");
             let subject = w::Subject::decode(&w::CEILINGS, &mut Reader::new(open.subject().record())).expect("subject");
-            matches!(subject, w::Subject::Me).then_some(open.watch())
+            if matches!(subject, w::Subject::Me) {
+                let answer = w::OpenAnswer::Admitted;
+                host.heard(Heard::Answered {
+                    exchange: id,
+                    status: 200,
+                    body: encoded(answer.measure(), |writer| answer.encode(writer)),
+                    headers: Vec::new(),
+                });
+                Some(open.watch())
+            } else {
+                None
+            }
         })
         .expect("me watch");
     host.client(jig_client::Event::Stored);

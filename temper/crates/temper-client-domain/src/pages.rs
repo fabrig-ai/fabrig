@@ -9,6 +9,7 @@ use jig_client::{
 use skein_lib::{Env, Queue, Time};
 pub mod accounts;
 mod activity;
+pub mod away;
 pub mod builders;
 pub mod changes;
 pub mod chat;
@@ -37,6 +38,8 @@ pub(crate) enum PlaygroundChoice {
 #[expect(clippy::partial_pub_fields, reason = "Home is public page state; navigation bookkeeping stays private")]
 pub struct Pages {
     needs: needs::Session,
+    away: Option<away::Pending>,
+    away_focus: bool,
     address: Address,
     project: Option<u32>,
     watching: bool,
@@ -127,6 +130,7 @@ pub enum Act {
     },
     Choice(choice::Act),
     Needs(needs::Act),
+    Away(away::Act),
     Switcher(switcher::Act),
     SignOut,
     Playground,
@@ -237,6 +241,8 @@ impl Pages {
     pub fn new() -> Self {
         Self {
             needs: needs::Session::default(),
+            away: None,
+            away_focus: false,
             address: Address::Inbox { filter: crate::address::Filter::ALL },
             project: None,
             watching: false,
@@ -447,7 +453,7 @@ pub fn me_handle() -> Handle {
 pub fn step(pages: &mut Pages, env: &Env<Limits>, client: &Client, event: Event, out: &mut Queue<Request>) {
     match event {
         Event::Act { act: Act::OpenStart { draft, chat } } => start_goal::open(pages, client, draft, chat),
-        Event::Act { act: Act::StartDraft { .. } } => {}
+        Event::Act { act: Act::StartDraft { .. } | Act::Away(_) } => {}
         Event::Act { act: Act::StartName { words } } => {
             if let Some(start) = &mut pages.start {
                 start.name(words);
@@ -820,6 +826,9 @@ pub fn step(pages: &mut Pages, env: &Env<Limits>, client: &Client, event: Event,
     pages.shown = pages.shown.checked_add(1).expect("pages shown count fits");
 }
 fn told(pages: &mut Pages, env: &Env<Limits>, client: &Client, told: Told, out: &mut Queue<Request>) -> bool {
+    if away::told(pages, env, client, &told) {
+        return true;
+    }
     if start_goal::told(pages, env, client, &told, out) {
         return true;
     }
@@ -1381,6 +1390,7 @@ fn confirmation(pages: &mut Pages, env: &Env<Limits>, client: &Client, act: Act,
         | Act::SendAmendment
         | Act::AmendAgain
         | Act::Switcher(_)
+        | Act::Away(_)
         | Act::Needs(_)
         | Act::Choice(_)
         | Act::MakeDefault

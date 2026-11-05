@@ -72,6 +72,24 @@ impl Domain {
         self.zone_minutes = zone_minutes;
     }
 
+    /// The row at the wall (temper/docs/design/client/README.md, 3.5, Away).
+    #[must_use]
+    pub fn away_on(&self, project: u32, wall: skein_lib::Wall) -> bool {
+        match self.forge.away(project) {
+            Some(row) => row.on_at(wall),
+            None => false,
+        }
+    }
+    /// A goal, an on row, or Ways shows Away (temper/docs/design/client/README.md, 3.5).
+    #[must_use]
+    pub fn away_shown(&self, project: u32, wall: skein_lib::Wall) -> bool {
+        self.has_goals(project)
+            || self.away_on(project, wall)
+            || match self.forge.ways(project) {
+                Some(ways) => ways.away,
+                None => false,
+            }
+    }
     /// The open project's live or ended goals (temper/docs/design/client/README.md, 5.3).
     #[must_use]
     pub fn has_goals(&self, project: u32) -> bool {
