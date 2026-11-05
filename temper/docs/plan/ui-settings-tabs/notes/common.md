@@ -7,6 +7,7 @@ temper's client is to look and work exactly like the greenfield mock (`temper/do
 - **Decide, don't ask.** The user is asleep and takes the plan's judgement. A stored format, a protocol or a public interface may change freely: no compatibility, no `Question:`; say it in your report. A small edit you need just outside your file list (a re-export, a `mod` line, a design line, a golden) is made and named in the report, not parked. A `Question:` is only for what truly blocks the task.
 - **Design text:** the cut wrote the design. A task may edit only the `docs/design/` files its `Owns and may change` lists: the status entries it closes, and a line the code taught, named in the report.
 - **Generated files** your change makes stale (terminal goldens, gallery names, counted baselines) are yours to regenerate in the same task, by their own tool.
+- **Journeys:** `temper-client-journeys` is in the gate's always-run list, and its tests fail a stale journey: a page or a stylesheet you change can stale one. Run `heavy cargo nextest run -p temper-client-journeys`; if stale, reprint with `heavy cargo run -p temper-client-journeys` and commit what it rewrites (its pages and stylesheets are generated). A recording, a README and an overlay are sources: a journey that no longer replays is not reprinted by hand, and goes under your report's `## Left`, by name.
 - **No `Look-request:` trailer:** this plan lands no look request.
 
 ## The look
