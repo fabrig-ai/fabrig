@@ -1,19 +1,20 @@
+use super::SixLayers;
 use crate::compose::Settings;
-pub fn target_with(placement: &str, values: [Option<&str>; 6]) -> (crate::revision::Documents, crate::compose::Target) {
+pub fn target_with(placement: &str, values: SixLayers<'_>) -> (crate::revision::Documents, crate::compose::Target) {
     use super::{
         bytes,
         composition::{at, int, map, null},
     };
     use crate::revision::{self, Oid, Task};
-    let (mut documents, target) = super::debian_layers([None; 6]);
-    let [fleet, base, member, environment, host, host_member] = values;
+    let (mut documents, target) = super::debian_layers(SixLayers::NONE);
+    let SixLayers { fleet, base, member, environment, base_env, base_env_member } = values;
     for (path, value, member) in [
         (b"fleet.json".as_slice(), fleet, false),
         (b"hosts/stoa/stoa.json", base, false),
         (b"hosts/stoa/stoa.json", member, true),
         (b"envs/lab.json", environment, false),
-        (b"hosts/stoa/stoa-lab.json", host, false),
-        (b"hosts/stoa/stoa-lab.json", host_member, true),
+        (b"hosts/stoa/stoa-lab.json", base_env, false),
+        (b"hosts/stoa/stoa-lab.json", base_env_member, true),
     ] {
         let index = documents.find(path).expect("layer");
         let mut document = documents.get(index).expect("document").clone();
@@ -85,7 +86,7 @@ pub fn hearth_fault(rule: crate::errors::Rule) -> crate::errors::Kind {
     crate::errors::Kind::Reserved(crate::errors::Reserved { rule, what: Box::from(b"hearth".as_slice()) })
 }
 pub fn target_without_hearth(placement: &str) -> (crate::revision::Documents, crate::compose::Target) {
-    let (documents, target) = target_with(placement, [None; 6]);
+    let (documents, target) = target_with(placement, SixLayers::NONE);
     let mut entries = skein_lib::List::with_capacity(u32::try_from(documents.entries().len()).expect("document count"));
     for entry in documents.entries() {
         if entry.path.as_ref() != b"tasks/hearth/task.json" {

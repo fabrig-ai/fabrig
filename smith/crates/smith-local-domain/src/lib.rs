@@ -17,16 +17,16 @@
 //! Idle      Line                         Starting   SaveState, Credential
 //! Starting  StateSaved + all grants      Running    agent Start
 //! Running   Line                         Running    SaveState, then Message
-//! Running   agent Turn                   Running    SaveTurn, Show
+//! Running   agent Turn                   Running    SaveTurn, Turn
 //! Running   agent Deliver                Running    survey, save intent, commit, save answer
 //! Running   uncertain commit             Running    inspect saved delivery trailer
 //! Running   unknown inspection           Running    fail unknown, retain intent
 //! Loading   unavailable inspection       Done       Exit failed, retain intent
 //! Running   TurnSaved                    Running    release held answer
 //! Running   Interrupt                    Ending     agent Cancel
-//! Running   agent Answer                 Loading    Show after saves, Load
+//! Running   agent Answer                 Loading    Answer or failure after saves, Load
 //! Idle      Interrupt or Closed          Done       Exit
-//! any       StoreFailed                  Done       Show, Exit after child settles
+//! any       StoreFailed                  Done       failure notice, Exit after child settles
 //! ```
 
 #![cfg_attr(not(test), no_std)]
@@ -62,7 +62,7 @@ mod agent_tests;
 pub use boundary::{
     AccountFailure, AgentFailure, ChatRefusal, ChatState, Checks, CredentialFailure, DeliveryIntent, DeliveryRecord,
     DeliveryState, Event, ExitStatus, Failure, GitOp, GitResult, IntentDirectory, Notice, Older, Reading, Request,
-    StoreFailure, StoreFamily, Undelivered, Warning,
+    Said, StoreFailure, StoreFamily, ToolVerdict, TurnLine, Undelivered, Warning,
 };
 pub use choices::{ChoiceNotice, Slash};
 pub use config::{Config, Contract, Invalid, Mode, PushTarget, charter};

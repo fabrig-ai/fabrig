@@ -396,9 +396,11 @@ the inline agent it is the `smith` product:
   person. Each kind has its own words, matched exhaustively, so a new
   kind has none until it is given some, and none is shown as a fixed
   "run failed". These lines are the operator's, and never enter turns or
-  prompts. A forced exit after the run answered, whatever its answer, is
-  shown as a warning beside the answer's words, which it leaves as they
-  are.
+  prompts. The local domain holds none of the person's words: it emits
+  typed notices, a turn's lines, a tool's verdict and what an answer said
+  among them, and the local protocol's terminal renders every one. A
+  forced exit after the run answered, whatever its answer, is shown as
+  a warning beside the answer's words, which it leaves as they are.
 - **Charters from configuration:** instructions, models, prices, a
   budget, conventions, and a result contract (a report, by default, or a
   change), with the shell's presets as defaults (`docs/design/shell.md`).

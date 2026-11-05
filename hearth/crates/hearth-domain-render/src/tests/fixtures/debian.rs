@@ -9,8 +9,22 @@ use crate::{
 pub fn written_debian() -> revision::Value {
     map(at(1, 1), &super::forms::debian_fields())
 }
-pub fn debian_layers(values: [Option<&str>; 6]) -> (revision::Documents, Target) {
-    let [fleet, base, member, environment, base_env, base_env_member] = values;
+/// What each of hearth/docs/design/protocol/format.md, 3.2's six layers holds; a row says the ones it sets.
+#[derive(Clone, Copy)]
+pub struct SixLayers<'a> {
+    pub fleet: Option<&'a str>,
+    pub base: Option<&'a str>,
+    pub member: Option<&'a str>,
+    pub environment: Option<&'a str>,
+    pub base_env: Option<&'a str>,
+    pub base_env_member: Option<&'a str>,
+}
+impl SixLayers<'_> {
+    pub const NONE: Self =
+        Self { fleet: None, base: None, member: None, environment: None, base_env: None, base_env_member: None };
+}
+pub fn debian_layers(values: SixLayers<'_>) -> (revision::Documents, Target) {
+    let SixLayers { fleet, base, member, environment, base_env, base_env_member } = values;
     let documents = super::member_layers([None; 5]);
     let empty = revision::Document {
         at: at(1, 1),

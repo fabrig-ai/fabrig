@@ -51,12 +51,15 @@ enum Unread<'a> {
     Map(core::slice::Iter<'a, Entry>, bool),
 }
 fn refuse_list_null(entries: &[Entry]) -> Result<(), Error> {
+    /// Steps of the walk: the decoder's length is a u32, each node takes a byte of it, and each is read once and
+    /// closed once.
+    const WALK_STEPS: u64 = 1 << 33;
+
     let mut pending = List::with_capacity(1);
     pending.push(Unread::Map(entries.iter(), false)).expect("root fits");
     let mut first: Option<Position> = None;
-    // Each iteration reads a node or closes its container; decoder limits bound both.
-    while !pending.is_empty() {
-        let index = pending.len().checked_sub(1).expect("nonempty stack");
+    for _ in 0..WALK_STEPS {
+        let Some(index) = pending.len().checked_sub(1) else { break };
         let (value, inside) = match pending.get_mut(index).expect("top frame") {
             Unread::List(values) => {
                 let Some(value) = values.next() else {

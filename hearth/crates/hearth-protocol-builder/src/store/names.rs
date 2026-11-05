@@ -3,7 +3,7 @@ use crate::builder::store::vocabulary::{Directory, Removal, Shape};
 use crate::render::vocabulary::Digest;
 use alloc::boxed::Box;
 use skein_io::kernel::Kind;
-use skein_lib::Writer;
+use skein_lib::{Writer, bytes};
 #[must_use]
 pub fn shape(directory: Directory, name: &[u8], kind: Kind) -> Shape {
     if directory == Directory::Top {
@@ -73,12 +73,9 @@ fn temporary(name: &[u8], prefix: &[u8]) -> bool {
     }
     true
 }
+/// A digit of a name the store wrote: lower-case, so another name is not read as the store's.
 fn digit(byte: u8) -> Option<u8> {
-    match byte {
-        b'0'..=b'9' => Some(byte.saturating_sub(b'0')),
-        b'a'..=b'f' => Some(byte.saturating_sub(b'a').saturating_add(10)),
-        _ => None,
-    }
+    if byte.is_ascii_uppercase() { None } else { bytes::hex_value(byte) }
 }
 fn digest(name: &[u8]) -> Option<Digest> {
     if name.len() != 64 {
@@ -111,15 +108,7 @@ pub(super) fn removal(name: Removal) -> Box<[u8]> {
     };
     let mut writer = Writer::new(64_usize.checked_add(suffix.len()).expect("digest and suffix"));
     for byte in digest.0 {
-        for digit in [byte >> 4_u8, byte & 15] {
-            writer
-                .put(&[if digit < 10 {
-                    b'0'.saturating_add(digit)
-                } else {
-                    b'a'.saturating_add(digit.saturating_sub(10))
-                }])
-                .expect("hex room");
-        }
+        crate::cache::hex_pair(&mut writer, byte);
     }
     writer.put(suffix).expect("suffix room");
     writer.finish()
