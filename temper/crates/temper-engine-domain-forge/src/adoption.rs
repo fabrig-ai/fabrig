@@ -4,6 +4,7 @@ use crate::{
     Adopted, AdoptedRepository, Adoption, AdoptionRefusal, ApplicationOutcome, Domain, Key, Kinds, Limits, Protection,
     Repository, Request, Role, Stored, reason,
 };
+use alloc::boxed::Box;
 use jig_domain_people as people;
 use skein_forge::api;
 use skein_lib::{Duration, Env, List, Map, Queue, Token, Wall};
@@ -494,7 +495,8 @@ fn finish_adoption(d: &mut Domain, owner: Token, pending: PendingAdoption, out: 
     }
     // The forges row lists its adoptions (client/forge.md, 5.4).
     emit(out, Request::MarkedForges);
-    adopted(d, out, owner, Ok(Adopted { repository: row, collaborators: pending.collaborators.into_boxed() }));
+    let collaborators = human_collaborators(d, row.provider.forge, pending.collaborators);
+    adopted(d, out, owner, Ok(Adopted { repository: row, collaborators }));
 }
 
 fn invalid_fields(request: &Adoption, limits: &Limits) -> bool {
@@ -621,4 +623,22 @@ pub(crate) fn room(d: &mut Domain, env: &Env<Limits>, request: Token, out: &mut 
         return false;
     }
     true
+}
+
+impl Domain {
+    /// Whether this account is temper's retained writer on the forge, including while disconnected.
+    #[must_use]
+    pub fn is_writer(&self, forge: u16, account: u64) -> bool {
+        self.writers.get(&forge) == Some(&account)
+    }
+}
+
+fn human_collaborators(d: &Domain, forge: u16, collaborators: List<api::Collaborator>) -> Box<[api::Collaborator]> {
+    let mut humans = List::with_capacity(collaborators.len());
+    for collaborator in &collaborators {
+        if !d.is_writer(forge, collaborator.user) {
+            humans.push(collaborator.clone()).expect("bounded adoption collaborators");
+        }
+    }
+    humans.into_boxed()
 }

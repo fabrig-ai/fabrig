@@ -1,6 +1,6 @@
 //! Software records and their fetch hints (hearth/docs/design/domain/render.md, 4.2).
 pub use super::config::Script;
-use crate::form::text::Lines;
+use crate::form::text::{Lines, octal};
 use alloc::boxed::Box;
 #[derive(Clone, PartialEq, Eq, Hash, Debug)]
 pub struct Software {
@@ -87,7 +87,7 @@ impl Download {
         match self.how {
             How::File { mode } => {
                 lines.put(b"file ");
-                lines.put(&super::config::octal(mode));
+                lines.put(&octal(mode));
             }
             How::Tar { strip } => {
                 lines.put(b"tar ");
@@ -107,7 +107,7 @@ impl Download {
         json.string(&self.group);
         if let How::File { mode } = self.how {
             json.key(b"mode");
-            json.string(&super::config::octal(mode));
+            json.string(&octal(mode));
         }
         json.key(b"owner");
         json.string(&self.owner);

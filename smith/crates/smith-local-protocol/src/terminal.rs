@@ -145,6 +145,24 @@ pub fn notice_text(
 ) -> Box<[u8]> {
     let mut text = Shown { bytes: List::with_capacity(cap), cut: false };
     match notice {
+        local::Notice::Turn { lines } => {
+            for line in lines {
+                match line {
+                    local::TurnLine::Text(bytes) => append_text(&mut text.bytes, bytes),
+                    local::TurnLine::Tool { name } => {
+                        append_text(&mut text.bytes, b"\nTool: ");
+                        append_text(&mut text.bytes, name);
+                        append_text(&mut text.bytes, b"\n");
+                    }
+                    local::TurnLine::Ended(verdict) => append_text(&mut text.bytes, tool_verdict_text(*verdict)),
+                }
+            }
+            return text.bytes.into_boxed();
+        }
+        local::Notice::Answer(said) => {
+            append_text(&mut text.bytes, &said_text(said));
+            return text.bytes.into_boxed();
+        }
         local::Notice::Choice(choice) => return choice_text(choice, chat, cap),
         local::Notice::ChatRefused { name, reason } => chat_refused(&mut text, name, *reason),
         local::Notice::Waiting => append(&mut text, b"Waiting for a message"),
@@ -186,6 +204,7 @@ pub fn notice_text(
             local::Failure::Run { failure, detail } => {
                 failure::run(&mut text, failure, detail, models, None, None, None);
             }
+            local::Failure::EffortRefused(choice) => return choice_text(choice, chat, cap),
             local::Failure::Refused(refusal) => failure::refused(&mut text, *refusal),
             local::Failure::Unstarted(end) => failure::end(&mut text, *end),
             local::Failure::Credential { account, reason } => {
@@ -221,6 +240,69 @@ pub fn notice_text(
     }
     newline(&mut text);
     text.bytes.into_boxed()
+}
+
+/// A tool verdict's line, with its newline.
+#[must_use]
+pub fn tool_verdict_text(verdict: local::ToolVerdict) -> &'static [u8] {
+    match verdict {
+        local::ToolVerdict::Finished => b"Tool finished\n",
+        local::ToolVerdict::Failed => b"Tool failed\n",
+    }
+}
+
+/// What an answer said, whole.
+#[must_use]
+pub fn said_text(said: &local::Said) -> Box<[u8]> {
+    match said {
+        local::Said::Text(text) => text.clone(),
+        local::Said::Change => b"Change delivered".as_slice().into(),
+        local::Said::Parked => b"Chat parked".as_slice().into(),
+    }
+}
+
+fn append_text(shown: &mut List<u8>, text: &[u8]) {
+    let mut skip = 0_u8;
+    for (index, byte) in text.iter().enumerate() {
+        if skip > 0 {
+            skip = skip.checked_sub(1).expect("continuation count is positive");
+            continue;
+        }
+        let width = if *byte < 0x80 {
+            1_usize
+        } else if *byte < 0xe0 {
+            2_usize
+        } else if *byte < 0xf0 {
+            3_usize
+        } else {
+            4_usize
+        };
+        let Some(bytes) = text.get(index..index.saturating_add(width)) else { return };
+        if shown.room() < u32::try_from(width).expect("UTF-8 character width fits u32") {
+            return;
+        }
+        for value in bytes {
+            shown.push(*value).expect("character room checked before writing");
+        }
+        skip = u8::try_from(width.saturating_sub(1)).expect("UTF-8 character width fits u8");
+    }
+}
+
+fn older_words(why: local::Older) -> [&'static str; 2] {
+    match why {
+        local::Older::Unrecorded => [
+            "Chat `",
+            "` was kept by an older build of smith, from before chats recorded their layouts, and this start has changed nothing in its directory. Before the first release a chat is not translated, so every start refuses this one until it is moved. To start afresh, stop each smith using it, move its directory under smith's state directory aside, whole, and start again: nothing is deleted, and the next start makes a new, empty chat, without this chat's history or its deliveries' answers.",
+        ],
+        local::Older::Layout(local::StoreFamily::Store) => [
+            "Chat `",
+            "` was kept by an older build of smith, whose records' layout differs from this build's, and this start has changed nothing in its directory. Before the first release a chat is not translated, so every start refuses this one until it is moved. To start afresh, stop each smith using it, move its directory under smith's state directory aside, whole, and start again: nothing is deleted, and the next start makes a new, empty chat, without this chat's history or its deliveries' answers.",
+        ],
+        local::Older::Layout(local::StoreFamily::Transcript) => [
+            "Chat `",
+            "` was kept by an older build of smith, whose turns' layout differs from this build's, and this start has changed nothing in its directory. Before the first release a chat is not translated, so every start refuses this one until it is moved. To start afresh, stop each smith using it, move its directory under smith's state directory aside, whole, and start again: nothing is deleted, and the next start makes a new, empty chat, without this chat's history or its deliveries' answers.",
+        ],
+    }
 }
 
 /// Render local choice feedback under the same display bound as domain text.
@@ -276,7 +358,7 @@ pub fn run_failure_text(
 fn store_failure(text: &mut Shown, chat: &[u8], turn: Option<u32>, reason: local::StoreFailure) {
     match reason {
         local::StoreFailure::OlderBuild { why } => {
-            let words = why.words();
+            let words = older_words(why);
             append(text, words.first().expect("older prefix").as_bytes());
             append(text, chat);
             append(text, words.get(1).expect("older suffix").as_bytes());
@@ -356,6 +438,48 @@ fn decimal(text: &mut Shown, number: u64) {
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    #[test]
+    fn a_turn_shows_the_tool_name_and_its_terminal() {
+        let notice = local::Notice::Turn {
+            lines: Box::new([
+                local::TurnLine::Text(b"Working".as_slice().into()),
+                local::TurnLine::Tool { name: b"inspect".as_slice().into() },
+                local::TurnLine::Ended(local::ToolVerdict::Finished),
+            ]),
+        };
+        assert_eq!(notice_text(&notice, b"main", &[], 128).as_ref(), b"Working\nTool: inspect\nTool finished\n");
+    }
+
+    #[test]
+    fn turn_caps_keep_whole_characters_and_allow_later_segments() {
+        let rows = [
+            (Box::<[_]>::from([local::TurnLine::Text("aé".as_bytes().into())]), 2, b"a".as_slice()),
+            (
+                Box::<[_]>::from([
+                    local::TurnLine::Text("aé".as_bytes().into()),
+                    local::TurnLine::Text(b"b".as_slice().into()),
+                ]),
+                2,
+                b"ab".as_slice(),
+            ),
+            (Box::<[_]>::from([local::TurnLine::Tool { name: b"inspect".as_slice().into() }]), 4, b"\nToo".as_slice()),
+        ];
+        for (lines, cap, expected) in rows {
+            let notice = local::Notice::Turn { lines };
+            assert_eq!(notice_text(&notice, b"main", &[], cap).as_ref(), expected);
+        }
+    }
+
+    #[test]
+    fn tool_terminals_keep_their_verdict_words() {
+        for (verdict, expected) in [
+            (local::ToolVerdict::Finished, b"Tool finished\n".as_slice()),
+            (local::ToolVerdict::Failed, b"Tool failed\n".as_slice()),
+        ] {
+            assert_eq!(tool_verdict_text(verdict), expected);
+        }
+    }
 
     #[test]
     fn local_choice_words_keep_their_terminal_byte_contract() {
@@ -820,10 +944,30 @@ fn chat_refused(text: &mut Shown, name: &[u8], reason: local::ChatRefusal) {
 #[expect(
     clippy::disallowed_macros,
     clippy::disallowed_methods,
+    clippy::disallowed_types,
     reason = "verbatim operator-word tests are ordinary Rust (programming-model.md, section 10.2)"
 )]
 mod older_tests {
     use super::*;
+
+    #[test]
+    fn older_store_words_match_all_three_shell_contract_blockquotes_verbatim() {
+        let documented = include_str!("../../../docs/design/shell.md");
+        let quotes: Vec<_> = documented
+            .lines()
+            .filter_map(|line| line.strip_prefix("> Chat "))
+            .map(|line| format!("Chat {line}"))
+            .collect();
+        let reasons = [
+            local::Older::Unrecorded,
+            local::Older::Layout(local::StoreFamily::Store),
+            local::Older::Layout(local::StoreFamily::Transcript),
+        ];
+        assert_eq!(quotes.len(), reasons.len());
+        for (why, quoted) in reasons.iter().zip(quotes) {
+            assert_eq!(older_words(*why).join("<chat>"), quoted);
+        }
+    }
 
     #[test]
     fn seen_store_failure_rendering_keeps_older_words_even_without_a_turn() {
@@ -838,7 +982,7 @@ mod older_tests {
                     reason: local::StoreFailure::OlderBuild { why },
                 });
                 let text = notice_text(&notice, b"older", &[], 2048);
-                assert_eq!(text.as_ref(), format!("{}\n", why.words().join("older")).as_bytes());
+                assert_eq!(text.as_ref(), format!("{}\n", older_words(why).join("older")).as_bytes());
             }
         }
     }

@@ -34,6 +34,7 @@ pub(super) fn panel(step: w::Step) -> w::ChangePanel {
             step,
             hold: None,
             runs: None,
+            ci_required: true,
             ci: w::Ci::Pending,
             approvals: List::with_capacity(0),
             unmapped_reviews: List::with_capacity(0),
@@ -257,7 +258,7 @@ fn checking_text_and_json_name_pull_head_gates_bounds_and_same_digest() {
     let call = root.submit(&["change", "show", "2", "--project", "1", "--json"]);
     deliver(&mut root, panel(w::Step::Checking));
     let json = root.answer(call).unwrap();
-    let expected = br#"{"task":2,"forge":3,"owner":"qa","name":"pilot-20261026","branch":"temper/2-readme","landing":"main","head":"1111111111111111111111111111111111111111","pull":{"number":1,"address":"http://127.0.0.1:3000/qa/pilot-20261026/pulls/1"},"step":"checking","merge":null,"queue":null,"repair":null,"hold":null,"runs":null,"ci":"pending","gates":[],"approvals":[],"unmapped_reviews":[],"repairs":{"used":0,"limit":3},"resolutions":{"used":0,"limit":3},"updates":{"used":0,"limit":5},"questions":{"route":"none","taken":0,"limit":4,"open":[]}"#;
+    let expected = br#"{"task":2,"forge":3,"owner":"qa","name":"pilot-20261026","branch":"temper/2-readme","landing":"main","head":"1111111111111111111111111111111111111111","pull":{"number":1,"address":"http://127.0.0.1:3000/qa/pilot-20261026/pulls/1"},"step":"checking","merge":null,"queue":null,"repair":null,"hold":null,"runs":null,"ci_required":true,"ci":"pending","gates":[],"approvals":[],"unmapped_reviews":[],"repairs":{"used":0,"limit":3},"resolutions":{"used":0,"limit":3},"updates":{"used":0,"limit":5},"questions":{"route":"none","taken":0,"limit":4,"open":[]}"#;
     assert!(json.stdout.starts_with(expected));
     let mut document = skein_lib::Writer::new(expected.len() + 1);
     document.put(expected).unwrap();
@@ -1135,4 +1136,16 @@ fn satisfied_approval_parts() -> w::ChangePanelParts {
         .unwrap();
     *parts.approvals.get_mut(0).unwrap() = w::Approval::new(&w::CEILINGS, approval).unwrap();
     parts
+}
+
+#[test]
+fn no_ci_rule_prints_not_required_and_preserves_the_observation_in_json() {
+    let mut parts = panel(landed()).into_parts();
+    parts.ci_required = false;
+    let panel = w::ChangePanel::new(&w::CEILINGS, parts).unwrap();
+    let limits = f::limits_root();
+    let text = change::print(Some(&panel), false, None, b"", &limits, &change::Holds::new());
+    contains(&text.stdout, b"CI not required");
+    let json = change::print(Some(&panel), true, None, b"", &limits, &change::Holds::new());
+    contains(&json.stdout, br#""ci_required":false,"ci":"pending""#);
 }

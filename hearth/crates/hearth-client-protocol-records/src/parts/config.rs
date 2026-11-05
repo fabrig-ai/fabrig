@@ -1,5 +1,5 @@
 //! The config part's file tree (hearth/docs/design/domain/render.md, 4.2).
-use crate::form::text::Lines;
+use crate::form::text::{Lines, octal};
 use alloc::boxed::Box;
 #[derive(Clone, PartialEq, Eq, Hash, Debug)]
 pub struct Config {
@@ -123,14 +123,6 @@ impl Node {
         }
         json.object_end();
     }
-}
-
-pub(crate) fn octal(mode: u16) -> [u8; 4] {
-    let mut digits = [b'0'; 4];
-    for (digit, shift) in digits.iter_mut().zip([9_u32, 6, 3, 0]) {
-        *digit = b'0'.saturating_add(u8::try_from((mode >> shift) & 7).expect("octal digit"));
-    }
-    digits
 }
 
 mod accounts;

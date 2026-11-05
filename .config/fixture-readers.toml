@@ -856,7 +856,6 @@ filter = "binary(=suite)"
 [[fixture]]
 paths = [
     "hearth/tests/render/src/fixtures/*.rs",
-    "hearth/tests/render/src/fixtures/decoders/*.rs",
 ]
 [[fixture.reader]]
 pair = "default"

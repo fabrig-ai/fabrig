@@ -406,6 +406,7 @@ name = "hearth-config-world"
 version = "0.0.0"
 dependencies = [
  "hearth-protocol-config",
+ "hearth-test-fixtures",
  "skein-heap",
  "skein-json",
  "skein-lib",
@@ -453,6 +454,7 @@ name = "hearth-domain-render"
 version = "0.0.0"
 dependencies = [
  "hearth-lib",
+ "hearth-test-fixtures",
  "skein-lib",
 ]
 
@@ -513,6 +515,7 @@ dependencies = [
 name = "hearth-lib"
 version = "0.0.0"
 dependencies = [
+ "hearth-test-fixtures",
  "skein-lib",
 ]
 
@@ -587,6 +590,7 @@ name = "hearth-protocol-tree"
 version = "0.0.0"
 dependencies = [
  "hearth-lib",
+ "hearth-test-fixtures",
  "skein-lib",
 ]
 
@@ -629,7 +633,16 @@ name = "hearth-template-world"
 version = "0.0.0"
 dependencies = [
  "hearth-protocol-template",
+ "hearth-test-fixtures",
  "skein-heap",
+ "skein-lib",
+ "skein-scratch",
+]
+
+[[package]]
+name = "hearth-test-fixtures"
+version = "0.0.0"
+dependencies = [
  "skein-lib",
  "skein-scratch",
 ]
@@ -4130,6 +4143,7 @@ dependencies = [
 name = "smith-machine-world"
 version = "0.0.0"
 dependencies = [
+ "skein-fake-checkout",
  "skein-fake-machine",
  "skein-io",
  "skein-lib",
@@ -4139,6 +4153,7 @@ dependencies = [
  "skein-world",
  "smith-domain",
  "smith-protocol-machine",
+ "smith-tools-world",
 ]
 
 [[package]]
@@ -4299,18 +4314,15 @@ version = "0.0.0"
 dependencies = [
  "skein-fake-checkout",
  "skein-fake-llm-domain",
+ "skein-json",
  "skein-lib",
  "skein-llm",
  "skein-llm-world",
  "skein-world",
- "smith-agent-service",
  "smith-domain",
  "smith-domain-session",
  "smith-domain-tools",
- "smith-protocol-llm",
- "smith-protocol-translate",
  "smith-tools-world",
- "smith-transcript",
 ]
 
 [[package]]
@@ -4318,12 +4330,9 @@ name = "smith-tools-world"
 version = "0.0.0"
 dependencies = [
  "skein-fake-checkout",
- "skein-io",
  "skein-lib",
  "skein-world",
  "smith-domain-tools",
- "smith-machine-world",
- "smith-protocol-machine",
 ]
 
 [[package]]

@@ -441,7 +441,9 @@ impl Local {
                             drop(write!(self.errors, "smith: {}", String::from_utf8_lossy(&text)));
                         }
                         domain::Notice::Failure(_) => self.operator_line(text),
-                        domain::Notice::Waiting
+                        domain::Notice::Turn { .. }
+                        | domain::Notice::Answer(_)
+                        | domain::Notice::Waiting
                         | domain::Notice::Checking(_)
                         | domain::Notice::NotDelivered { .. }
                         | domain::Notice::Choice(_)
@@ -456,7 +458,6 @@ impl Local {
                 | domain::Request::SaveTurn { .. }
                 | domain::Request::SaveDelivery { .. }
                 | domain::Request::Unanswered { .. }
-                | domain::Request::Show { .. }
                 | domain::Request::Git { .. }
                 | domain::Request::PlainStatus { .. }
                 | domain::Request::Lower { .. }

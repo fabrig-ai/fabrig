@@ -549,6 +549,7 @@ fn change_panel(w: World, task: u64) -> Option<temper_client_protocol_wire::v1::
                 step,
                 hold: None,
                 runs: None,
+                ci_required: true,
                 ci: w::Ci::Passed,
                 approvals: List::with_capacity(0),
                 unmapped_reviews: List::with_capacity(0),

@@ -5,7 +5,7 @@
 
 use skein_fake_checkout as fake;
 use skein_lib::Token;
-use smith_domain_tools::{Done, Exit, Expect, Fault, Hit, Name, Op, Part, Path, Place, Version};
+use smith_domain_tools::{Depth, Done, Entry, Exit, Expect, Fault, Hit, Kind, Name, Op, Part, Path, Place, Version};
 
 /// The path the LLM wrote, split at its slashes, as the protocol layer does.
 #[must_use]
@@ -128,18 +128,7 @@ pub fn perform(checkout: &mut fake::Checkout, op: Op) -> Done {
         Op::List { at, depth, glob, max, max_bytes } => {
             let command = listing_command(at.root, &at.path, glob.as_deref());
             match checkout.spawn(root(at.root), &at.path, &command, &[], &[]) {
-                Ok(process) => {
-                    let line = u32::try_from(process.program.output.len()).expect("finite fixture output");
-                    let mut listing = smith_protocol_machine::Listing::new(max, max_bytes, depth, line);
-                    for byte in process.program.output {
-                        listing.push(byte);
-                    }
-                    let exit = match process.program.exit {
-                        fake::Exit::Code(code) => skein_io::kernel::Exit::Code(code),
-                        fake::Exit::Signal(signal) => skein_io::kernel::Exit::Signal(u32::from(signal)),
-                    };
-                    listing.finish(Some(exit), false)
-                }
+                Ok(process) => listed(&process.program.output, process.program.exit, depth, max, max_bytes),
                 Err(failure) => done(failure),
             }
         }
@@ -181,6 +170,48 @@ pub fn perform(checkout: &mut fake::Checkout, op: Op) -> Done {
         }
         Op::Spawn { .. } => panic!("a spawn is started, not run"),
     }
+}
+
+/// What the machine makes of a listing command's `output`: the name-ordered prefix that fits `max`
+/// entries and `max_bytes`, with its ancestors, to `depth`. A failed command is `Failed`, whatever it printed.
+#[must_use]
+pub fn listed(output: &[u8], exit: fake::Exit, depth: Depth, max: u32, max_bytes: u64) -> Done {
+    if !matches!(exit, fake::Exit::Code(0 | 1)) {
+        return Done::Failed { fault: Fault::Other };
+    }
+    let levels = match depth {
+        Depth::Whole => u32::MAX,
+        Depth::Levels(levels) => levels,
+    };
+    let mut names = std::collections::BTreeMap::new();
+    for path in output.split(|byte| *byte == 0).filter(|path| !path.is_empty()) {
+        let path = path.strip_prefix(b"./").unwrap_or(path);
+        let mut level = 1;
+        for (index, byte) in path.iter().enumerate() {
+            if *byte == b'/' {
+                if level <= levels {
+                    names.insert(&path[..index], Kind::Directory);
+                }
+                level += 1;
+            }
+        }
+        if level <= levels {
+            names.insert(path, Kind::File);
+        }
+    }
+    let total = names.len();
+    let mut used = 0;
+    let entries: Box<[_]> = names
+        .into_iter()
+        .take(usize::try_from(max).expect("finite cap"))
+        .take_while(|(name, _)| {
+            used += skein_lib::len_u64(std::mem::size_of::<Entry>() + name.len());
+            used <= max_bytes
+        })
+        .map(|(name, kind)| Entry { name: name.into(), kind })
+        .collect();
+    let more = skein_lib::len_u64(total - entries.len());
+    Done::Listed { entries, more }
 }
 
 /// What a search that would have ended in `done` had found when it was
