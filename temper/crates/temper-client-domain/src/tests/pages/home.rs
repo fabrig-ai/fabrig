@@ -69,11 +69,13 @@ fn fixture_with_me(frame: c::Me) -> Fixture {
     let out = deliver(&mut root, me, c::Delivery::Me(Box::new(frame)));
     let dismissed = opened(&out, &forge::dismissed::watch(&f::limits().forge).unwrap()).unwrap();
     let forges = opened(&out, &forge::forges::watch(&f::limits().forge).unwrap()).unwrap();
+    let standing = opened(&out, &Watchable::Jig(c::Subject::Inbox { window: f::limits().client.domain.rows }));
     let out = go(&mut root, f::PROJECT);
     let settings = opened(&out, &Watchable::Jig(c::Subject::Settings)).unwrap();
     let status = opened(&out, &forge::status::watch(f::PROJECT, &f::limits().forge).unwrap()).unwrap();
-    let inbox =
-        opened(&out, &Watchable::Jig(c::Subject::Inbox { window: root.pages().inbox().unwrap().window })).unwrap();
+    let inbox = opened(&out, &Watchable::Jig(c::Subject::Inbox { window: root.pages().inbox().unwrap().window }))
+        .or(standing)
+        .unwrap();
     let mut live = None;
     let mut closed = None;
     for request in &out {
@@ -570,7 +572,8 @@ fn home_reads_its_projects_needs_and_releases_them() {
                 closed |= *watch == f.inbox;
             }
         }
-        assert!(closed, "the inbox watch closes");
+        assert!(!closed, "the standing count keeps the shared inbox watch open");
+        assert!(f.root.client().document(pages::needs::handle()).is_some());
         go(&mut f.root, f::PROJECT);
         assert!(f.root.pages().home().unwrap().settings.number > last, "no handle is reused");
     }
@@ -1308,4 +1311,36 @@ fn a_status_document_must_name_this_project() {
     assert_eq!(home::facts(&f.root, f::PROJECT).status, home::Status::Unknown);
     status_document(&mut f, &document);
     assert_eq!(home::facts(&f.root, f::PROJECT).status, home::Status::Shown(Box::new(document)));
+}
+#[test]
+fn needs_count_falls_when_answered_and_keeps_later_cards() {
+    let mut f = fixture();
+    let out = f::inbox_entries(&mut f.root, f.inbox, List::with_capacity(EMPTY));
+    let reads = inbox_reads(&out);
+    let mut rows = List::with_capacity(ONE);
+    rows.push(f::inbox_entry(f::acts::QUESTION, c::InboxGroup::Questions, f::PROJECT, 0)).unwrap();
+    let cards = inbox_page(&mut f.root, reads[0].0, rows, false);
+    inbox_page(&mut f.root, reads[1].0, List::with_capacity(EMPTY), false);
+    let cards = inbox_reads(&cards);
+    up(&mut f.root, Up::ReadDone { read: cards[0].0, result: Readout::Jig(c::ReadResult::Value(f::acts::question())) });
+    event(
+        &mut f.root,
+        Event::Act { action: Action::Pages(Act::Needs(pages::needs::Act::Later { object: f::acts::QUESTION })) },
+    );
+    assert_eq!(home::facts(&f.root, f::PROJECT).needs, Needs::Count { count: ONE, cut: false });
+    event(
+        &mut f.root,
+        Event::Act {
+            action: Action::Pages(Act::Needs(pages::needs::Act::Choose {
+                object: f::acts::QUESTION,
+                words: Box::from(*b"Yes"),
+            })),
+        },
+    );
+    assert_eq!(home::facts(&f.root, f::PROJECT).needs, Needs::Count { count: EMPTY, cut: false });
+    event(
+        &mut f.root,
+        Event::Act { action: Action::Pages(Act::Needs(pages::needs::Act::Undo { object: f::acts::QUESTION })) },
+    );
+    assert_eq!(home::facts(&f.root, f::PROJECT).needs, Needs::Count { count: ONE, cut: false });
 }

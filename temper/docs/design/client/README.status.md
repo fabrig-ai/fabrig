@@ -5,9 +5,13 @@
 - **Not yet:** 3.5: *Home on any project*'s lede, byline and Goals: plan `ui-home-status`. 3.4, 5.5: the composer's
   supplied default, jig's
   `resolved_default`, which neither jig's `Me` nor temper carries.
-  5.3: the banner's "Board" and "Changes", on a page that is no project's:
+  5.3: the banner's "Changes", on a page that is no project's:
   the request of 2026-11-05 asked for the rail, and its mock has no banner.
-  3.5: *Goals*, *A goal's report*: plan `ui-goals`. 3.5, 5.13, 10:
+  3.5, *Goals*: a project whose `me` lists no goal template opens no watch
+  (`temper-client-domain`'s `pages/goals.rs`, `query`), so its page draws the
+  kicker and the lede alone, with no heading and no filters, where the section
+  says "No goals yet."; a project with no tracked template has a lede that
+  stops at "landed work.", which the section has no words for. 3.5, 5.13, 10:
   `HowWorkRuns`, `Proposal { proposal }` and a proposal's card in a chat,
   with their tests, and with them How work runs' "Configure temper" entry and
   a review's "Change something"; ctl supplies the review groups and running-work effect
@@ -70,3 +74,14 @@
   step erases a closed change's row (`../domain/after-landing.status.md`), so
   once a forge's removal erases a repository with a closed change, no project
   has the document; seen by reading, no test holds it and no reason is recorded.
+  3.5, *Goals*: `goals::row` is `pub(crate)` (`temper-client-view`'s
+  `pages/goals.rs`), where this section has it public, because its `Bindings`
+  is the view's own and Home, its next reader, is in the same crate.
+- **Design departs:** 3.5, *Goals*, from the request of 2026-11-05: "6 / 9" is
+  on the task line (jig's `client/domain/contract.md`, 5.1), where the request
+  offered the goal's document or the tree's read, and a row reads its report
+  alone, not also its tasks by `parent`: each place needed the same stored
+  counter, and the line needs no read per row. The lede's ways run in template
+  number order, as the request's words have it, so the reference's read "task
+  by task, plan, tasks, land whole", where its mock, the target, draws them the
+  other way round: number order is what a project's settings decide.
