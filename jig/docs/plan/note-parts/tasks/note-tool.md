@@ -100,3 +100,7 @@ Options, each pre-approved:
 ## Report
 
 As `notes/common.md`, Your report. Say what a later write's words now print, and every reader of them you changed.
+
+## Answers
+
+2026-11-05 (fabrig/ui). Addition (fabrig/qa, finding-330; inputs/request.md): add join: true beside first/remove: the text continues the line before first, with no newline, under the same refusals, since a JSON string can't span lines and a settings value's line can exceed a call. If note-range landed without it, add it to jig's machine, core and tests here too; jig's files are yours for this. Schema words and stock instructions say when to use it.
