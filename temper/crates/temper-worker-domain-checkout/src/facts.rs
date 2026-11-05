@@ -74,6 +74,10 @@ pub enum Cached {
     /// The least recently used workspace no client held, another
     /// workstream's: it is made again, empty, for this one.
     Evicted,
+    /// The least recently used workspace no client held, another workstream's,
+    /// holding exactly the spec's repositories: it keeps them, and is fetched and
+    /// checked out afresh.
+    Kept,
 }
 
 /// Where a push went.

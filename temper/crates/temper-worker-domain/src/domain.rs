@@ -219,6 +219,11 @@ impl Domain {
         &self.checkout
     }
 
+    /// Keep matching clones when an idle checkout workspace is evicted.
+    pub fn reuse_workspaces(&mut self) {
+        self.checkout.reuse_workspaces();
+    }
+
     /// The agent child domain, for a world to look at.
     #[must_use]
     pub const fn agent(&self) -> &agent::Domain {

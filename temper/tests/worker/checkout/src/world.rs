@@ -38,6 +38,8 @@ pub struct Settings {
     /// Seeds the world.
     pub seed: u64,
     pub checkout: Limits,
+    /// Keep matching clones when another workstream evicts a workspace.
+    pub reuse: bool,
     /// Repositories on the forge.
     pub repositories: u32,
     /// Workstreams, each with repositories of its own among the forge's.
@@ -92,6 +94,7 @@ impl Settings {
         Settings {
             seed,
             checkout: LIMITS,
+            reuse: false,
             repositories: 4,
             workstreams: 4,
             local: Span::millis(1, 50),
@@ -180,6 +183,9 @@ pub struct Told {
     pub rebuilt: u32,
     pub new: u32,
     pub evicted: u32,
+    pub kept: u32,
+    pub makes: u32,
+    pub clones: u32,
     pub started: u32,
     pub ended: u32,
     pub aborting: u32,
@@ -279,6 +285,7 @@ pub struct World {
     workspaces: BTreeSet<Token>,
     /// The commit each hold checked each repository out at.
     checked_out: BTreeMap<(Token, Vec<u8>), u64>,
+    touched: BTreeMap<(u64, Vec<u8>), BTreeSet<Vec<u8>>>,
     /// The pushes of each hold's push or save under way, by remote.
     attempts: BTreeMap<(Token, Vec<u8>), Attempt>,
     ops: Ledger<Token, Pending>,
@@ -317,11 +324,15 @@ impl World {
                 disk.write(&[dir.as_slice(), b"/r0/half-written"].concat(), b"stale");
             }
         }
+        let mut domain = Domain::new(&settings.checkout);
+        if settings.reuse {
+            domain.reuse_workspaces();
+        }
         World {
             now: Time::ZERO,
             rng,
             settings,
-            domain: Domain::new(&settings.checkout),
+            domain,
             stage: Stage::uncapped(settings.checkout),
             wire: Schedule::new(),
             disk,
@@ -333,6 +344,7 @@ impl World {
             held_by: BTreeMap::new(),
             workspaces: BTreeSet::new(),
             checked_out: BTreeMap::new(),
+            touched: BTreeMap::new(),
             attempts: BTreeMap::new(),
             ops: Ledger::new("operation"),
             cancel_lost: BTreeSet::new(),
@@ -380,6 +392,18 @@ impl World {
     #[must_use]
     pub fn workstream(&self, place: u32) -> &[usize] {
         &self.workstreams[usize::try_from(place).expect("a small world")]
+    }
+
+    /// Another party advances `branch` of the repository at `place`, at `at`.
+    pub fn advance_at(&mut self, at: Time, place: usize, branch: &[u8]) {
+        let repository = self.repositories[place].remote.clone();
+        self.schedule(at, Delivery::Advance { repository, branch: branch.to_vec() });
+    }
+
+    /// Paths outside git directories whose content this client's check-outs changed.
+    #[must_use]
+    pub fn touched(&self, client: u64, repository: &[u8]) -> BTreeSet<Vec<u8>> {
+        self.touched.get(&(client, repository.to_vec())).cloned().unwrap_or_default()
     }
 
     /// Has a client carry out `plan`, sending its prepare at `at`. Returns
@@ -1089,9 +1113,12 @@ impl World {
             self.forge.set_reachable(name, reachable);
             self.forge.set_refusing(name, refusing);
         }
-        match &op {
+        let before = match &op {
             Op::CheckOut { at, commit, .. } => {
                 self.checked_out.insert((owner, at.repository.to_vec()), translate::fake(*commit));
+                let path = translate::path(at);
+                let tree = self.disk.tree(&path);
+                Some((at.repository.to_vec(), path, tree))
             }
             Op::Make { .. }
             | Op::Clone { .. }
@@ -1100,11 +1127,21 @@ impl World {
             | Op::Commit { .. }
             | Op::Push { .. }
             | Op::IsAncestor { .. }
-            | Op::Merge { .. } => {}
-        }
+            | Op::Merge { .. } => None,
+        };
         let creates = op.kind() == Kind::Create;
         self.forge.at(self.now);
         let done = translate::perform(&mut self.forge, &mut self.disk, op);
+        if let Some((repository, path, before)) = before {
+            let after = self.disk.tree(&path);
+            let client = *self.holds.get(&owner).expect("a hold's client");
+            let touched = self.touched.entry((client, repository)).or_default();
+            for path in before.keys().chain(after.keys()) {
+                if !in_git(path) && before.get(path) != after.get(path) {
+                    touched.insert(path.clone());
+                }
+            }
+        }
         if let Some(name) = &on_forge {
             self.forge.set_reachable(name, true);
             self.forge.set_refusing(name, false);
@@ -1166,7 +1203,21 @@ impl World {
             Fact::Held { cached: Cached::Rebuilt, .. } => &mut told.rebuilt,
             Fact::Held { cached: Cached::New, .. } => &mut told.new,
             Fact::Held { cached: Cached::Evicted, .. } => &mut told.evicted,
-            Fact::Started { .. } => &mut told.started,
+            Fact::Held { cached: Cached::Kept, .. } => &mut told.kept,
+            Fact::Started { op, .. } => {
+                match op {
+                    Kind::Make => told.makes += 1,
+                    Kind::Clone => told.clones += 1,
+                    Kind::Fetch
+                    | Kind::Create
+                    | Kind::CheckOut
+                    | Kind::Commit
+                    | Kind::Push
+                    | Kind::IsAncestor
+                    | Kind::Merge => {}
+                }
+                &mut told.started
+            }
             Fact::Ended { .. } => &mut told.ended,
             Fact::Aborting { .. } => &mut told.aborting,
             Fact::Prepared { .. } => &mut told.prepared,
@@ -1183,7 +1234,7 @@ impl World {
         let refused = stats.busy + stats.full + stats.invalid;
         let admitted = stats.prepares - refused;
         assert_eq!(told.refused, refused + stats.busy_pushes, "a fact for every refusal");
-        let held = told.reused + told.rebuilt + told.new + told.evicted;
+        let held = told.reused + told.rebuilt + told.new + told.evicted + told.kept;
         assert_eq!((held, told.prepared), (admitted, admitted), "a fact for every hold and its prepare's end");
         assert_eq!((told.started, told.ended), (stats.ops, stats.ops), "a fact for every operation and its end");
         assert_eq!(told.aborting, stats.cancels, "a fact for every cancel");
