@@ -156,13 +156,13 @@ fn authority(workspace: Option<Workspace>, tools: Tools) -> Option<Authority> {
     let mut repos = List::with_capacity(count);
     for Directory { name, host, root, writable, git: _, conflicts: _ } in mounted {
         let name = Name::new(name)?;
-        let repo = ToolDirectory { host: host_names(&host)?, mount: Box::new([name]), root, writable };
+        let repo = ToolDirectory { host: host_names(&host)?, mount: name, root, writable };
         repos.push(repo).expect("room for every repository");
     }
     let repos = repos.into_boxed();
     let cwd = match repos.first() {
-        Some(first) => first.mount.clone(),
-        None => Box::default(),
+        Some(first) => Some(first.mount.clone()),
+        None => None,
     };
     let Tools { inspect, modify, shell } = tools;
     Some(Authority { cwd, repos, grants: Grants { inspect, modify, shell } })

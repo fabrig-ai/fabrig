@@ -941,5 +941,5 @@ pub fn repo(checkout: &mut Checkout, host: &[u8], writable: bool) -> Directory {
 /// the commands' configured environment.
 #[must_use]
 pub fn authority(cwd: &[u8], repos: Vec<Directory>, grants: Grants) -> Authority {
-    Authority { cwd: translate::names(cwd), repos: repos.into(), grants }
+    Authority { cwd: translate::names(cwd).into_vec().pop(), repos: repos.into(), grants }
 }

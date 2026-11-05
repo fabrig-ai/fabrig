@@ -168,7 +168,12 @@ fn push(parts: &mut List<Part>, part: &[u8]) {
 
 /// The names of an absolute path.
 fn repo(mount: &[u8], root: u64, writable: bool) -> Directory {
-    Directory { host: names(b"/host"), mount: names(mount), root: Token::new(root), writable }
+    Directory {
+        host: names(b"/host"),
+        mount: Name::new(bytes(mount.strip_prefix(b"/").expect("absolute mount"))).expect("mount name"),
+        root: Token::new(root),
+        writable,
+    }
 }
 
 fn names(text: &[u8]) -> Box<[Name]> {
@@ -188,7 +193,7 @@ fn names(text: &[u8]) -> Box<[Name]> {
 /// read-only library and docs.
 fn authority(grants: Grants) -> Authority {
     Authority {
-        cwd: names(b"/temper"),
+        cwd: Some(Name::new(bytes(b"temper")).expect("working name")),
         repos: Box::new([repo(b"/temper", 1, true), repo(b"/lib", 2, false), repo(b"/docs", 3, false)]),
         grants,
     }
@@ -393,11 +398,13 @@ fn authorities_beyond_the_limits_are_refused_as_invalid() {
     invalid(LIMITS, shared);
     // The temper mount is six bytes; an empty cwd isolates its bound.
     let mut long_mount = authority(ALL);
-    long_mount.cwd = names(b"/");
+    long_mount.cwd = None;
     invalid(Limits { path_bytes: 5, ..LIMITS }, long_mount);
     let mut deep = authority(ALL);
-    deep.cwd = names(b"/aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa");
-    deep.repos[0].mount = deep.cwd.clone();
+    deep.cwd = Some(
+        Name::new(bytes(b"aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa")).expect("working name"),
+    );
+    deep.repos[0].mount = deep.cwd.clone().expect("working name");
     invalid(LIMITS, deep);
 }
 
@@ -1275,7 +1282,7 @@ fn commands_need_the_shell_grant_and_a_working_directory_in_the_checkout() {
         Outcome::NotGranted
     );
     let mut outside = authority(ALL);
-    outside.cwd = names(b"/");
+    outside.cwd = None;
     let outside = h.open(2, outside);
     assert_eq!(
         h.call(
@@ -1568,7 +1575,7 @@ fn file_calls_on_the_directory_itself_answer_without_io() {
 #[test]
 fn list_slash_answers_sorted_authority_names_without_io_and_obeys_both_caps() {
     let named = Authority {
-        cwd: names(b"/zeta"),
+        cwd: Some(Name::new(bytes(b"zeta")).expect("working name")),
         repos: Box::new([repo(b"/zeta", 1, true), repo(b"/alpha", 2, false), repo(b"/beta", 3, false)]),
         grants: ALL,
     };
@@ -1620,7 +1627,11 @@ fn failed_paths_are_normalized_and_stay_at_the_admitted_path_bound() {
     let mut h = Harness::new(LIMITS);
     let kit = h.open(
         77,
-        Authority { cwd: names(b"/w"), repos: Box::new([repo(b"/w", 1, true), repo(b"/d", 2, false)]), grants: ALL },
+        Authority {
+            cwd: Some(Name::new(bytes(b"w")).expect("working name")),
+            repos: Box::new([repo(b"/w", 1, true), repo(b"/d", 2, false)]),
+            grants: ALL,
+        },
     );
     let file = [b'x'; 62];
     let (owner, _) = h.start(kit, 1, read(&file));
@@ -1652,11 +1663,26 @@ fn failed_paths_are_normalized_and_stay_at_the_admitted_path_bound() {
 #[test]
 fn host_aliases_choose_whole_names_and_keep_the_namespace_root_pure() {
     let mounted = Authority {
-        cwd: names(b"/w"),
+        cwd: Some(Name::new(bytes(b"w")).expect("working name")),
         repos: Box::new([
-            Directory { host: names(b"/tmp/work"), mount: names(b"/w"), root: Token::new(1), writable: true },
-            Directory { host: names(b"/tmp/work/vendor"), mount: names(b"/d"), root: Token::new(2), writable: false },
-            Directory { host: names(b"/elsewhere"), mount: names(b"/tmp"), root: Token::new(3), writable: true },
+            Directory {
+                host: names(b"/tmp/work"),
+                mount: Name::new(bytes(b"w")).expect("mount name"),
+                root: Token::new(1),
+                writable: true,
+            },
+            Directory {
+                host: names(b"/tmp/work/vendor"),
+                mount: Name::new(bytes(b"d")).expect("mount name"),
+                root: Token::new(2),
+                writable: false,
+            },
+            Directory {
+                host: names(b"/elsewhere"),
+                mount: Name::new(bytes(b"tmp")).expect("mount name"),
+                root: Token::new(3),
+                writable: true,
+            },
         ]),
         grants: ALL,
     };

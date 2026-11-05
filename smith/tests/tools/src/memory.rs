@@ -34,7 +34,7 @@ pub fn name(bytes: &[u8]) -> Name {
 #[must_use]
 pub fn authority(limits: &Limits) -> Authority {
     let len = usize::try_from(limits.path_bytes).expect("a small limit");
-    let cwd = Box::new([name(b"a")]);
+    let cwd = name(b"a");
     let mut repos = vec![Directory {
         host: Box::new([name(&vec![b'h'; usize::try_from(limits.host_path_bytes).expect("bounded host path")])]),
         mount: cwd.clone(),
@@ -45,12 +45,12 @@ pub fn authority(limits: &Limits) -> Authority {
         let mount = format!("{repo:0>len$}");
         repos.push(Directory {
             host: Box::new([name(&vec![b'h'; usize::try_from(limits.host_path_bytes).expect("bounded host path")])]),
-            mount: Box::new([name(mount.as_bytes())]),
+            mount: name(mount.as_bytes()),
             root: Token::new(repo.into()),
             writable: false,
         });
     }
-    Authority { cwd, repos: repos.into(), grants: GRANTS }
+    Authority { cwd: Some(cwd), repos: repos.into(), grants: GRANTS }
 }
 
 /// The path of a file whose absolute path is exactly `path_bytes` long,

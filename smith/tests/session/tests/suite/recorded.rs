@@ -399,12 +399,12 @@ fn owned_io_cancellation_keeps_terminal_results_in_the_turn() {
         let mut spec = opening(None, 100);
         let name = || Name::new(bytes(b"repo")).expect("a repository mount");
         spec.spec.authority = Authority {
-            cwd: Box::new([name()]),
+            cwd: Some(name()),
             repos: Box::new([Directory {
                 host: Box::new([
                     smith_domain_tools::Name::new(Box::from(b"host".as_slice())).expect("fixture host name")
                 ]),
-                mount: Box::new([name()]),
+                mount: name(),
                 root: Token::new(7),
                 writable: false,
             }]),
@@ -757,12 +757,12 @@ fn fullest_history_keeps_maximum_owned_read_list_search_and_shell_after_cancel()
         let mut spec = opening(None, u64::MAX);
         let mount = || Name::new(bytes(b"repo")).expect("mount");
         spec.spec.authority = Authority {
-            cwd: Box::new([mount()]),
+            cwd: Some(mount()),
             repos: Box::new([Directory {
                 host: Box::new([
                     smith_domain_tools::Name::new(Box::from(b"host".as_slice())).expect("fixture host name")
                 ]),
-                mount: Box::new([mount()]),
+                mount: mount(),
                 root: Token::new(7),
                 writable: true,
             }]),
@@ -997,10 +997,10 @@ fn a_write_refused_as_too_large_is_made_in_pieces_and_accepted() {
     let mut spec = opening(None, 100);
     let name = || Name::new(bytes(b"repo")).expect("repository mount");
     spec.spec.authority = Authority {
-        cwd: Box::new([name()]),
+        cwd: Some(name()),
         repos: Box::new([Directory {
             host: Box::new([smith_domain_tools::Name::new(Box::from(b"host".as_slice())).expect("fixture host name")]),
-            mount: Box::new([name()]),
+            mount: name(),
             root: Token::new(7),
             writable: true,
         }]),

@@ -13,10 +13,10 @@ use smith_tools_world::translate as io;
 fn opening(transcript: Option<record::Transcript>) -> record::Opening {
     let mut opening = recorded::opening(transcript, 100);
     opening.spec.authority.grants = tools::Grants { inspect: true, modify: true, shell: true };
-    opening.spec.authority.cwd = io::names(b"/repo");
+    opening.spec.authority.cwd = io::names(b"/repo").into_vec().pop();
     opening.spec.authority.repos = Box::new([tools::Directory {
         host: Box::default(),
-        mount: io::names(b"/repo"),
+        mount: io::names(b"/repo").into_vec().pop().expect("mount name"),
         root: Token::new(7),
         writable: true,
     }]);
