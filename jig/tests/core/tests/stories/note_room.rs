@@ -39,7 +39,8 @@ fn a_documents_whole_body_reads_back() {
                 recalled: None,
             },
         );
-        let core::CallPart::NoteWritten { name, revision: 1 } = world.answers.last().expect("written answer").2 else {
+        let core::CallPart::NoteWritten { name, revision: 1, .. } = world.answers.last().expect("written answer").2
+        else {
             panic!("document write was not admitted");
         };
         ask(
