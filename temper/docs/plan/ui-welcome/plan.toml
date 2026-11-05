@@ -83,3 +83,63 @@ id = 4
 story = "Forgejo, then Claude, reach Ready and Create on the welcome: the happy path's first walk"
 parts = ["model-step", "claude-way", "ready-step"]
 walk = false
+
+[[part]]
+id = "sheet-choices"
+title = "Forgejo's sheet sends copies and nothing; not_yet goes"
+mode = "direct"
+needs = ["ready-step", "setup-intent"]
+design = "temper/docs/design/client/README.md, 3.5"
+
+[[part]]
+id = "ready-copies"
+title = "Ready names the first copy and asks every copy at its act"
+mode = "direct"
+needs = ["sheet-choices"]
+design = "temper/docs/design/client/README.md, 3.5"
+
+[[slice]]
+id = 5
+story = "a set up with copies reaches Ready, which makes the project and asks them"
+parts = ["sheet-choices", "ready-copies"]
+walk = false
+
+[[part]]
+id = "home-copies"
+title = "Home's second step says each copy, and offers what a restart left"
+mode = "direct"
+needs = ["ready-copies"]
+design = "temper/docs/design/client/README.md, 3.5"
+
+[[part]]
+id = "home-add"
+title = "Home's second step: Add a repository, and its sheet"
+mode = "direct"
+needs = ["home-copies"]
+design = "temper/docs/design/client/README.md, 3.5"
+
+[[slice]]
+id = 6
+story = "Home says where a project's repositories are, and adds one where the forge has none"
+parts = ["home-copies", "home-add"]
+walk = false
+
+[[part]]
+id = "journey-landing"
+title = "project-landing recorded on Home; the gallery's states whole"
+mode = "direct"
+needs = ["home-add", "box-terminal"]
+design = "temper/docs/design/client/journeys.md, 9"
+
+[[part]]
+id = "first-run-walks"
+title = "the first run walked three times, the copies' act, and the renders beside the mock"
+mode = "direct"
+needs = ["journey-landing"]
+design = "temper/docs/design/client/README.md, 3.5"
+
+[[slice]]
+id = 7
+story = "the first run, whole, walked in a browser on fresh boxes"
+parts = ["journey-landing", "first-run-walks"]
+walk = false

@@ -3,9 +3,9 @@
 From `inputs/request.md`: the first run, whole, as the greenfield mock draws it. States and acts, no
 restyling of what matches. The design is cut ahead of the tasks: `client/README.md` 3.5 and 4.6, `client/browser.md`
 2.3 and 2.5, `client/forge.md` 5.4, `protocol/setup.md` 6.7, 7.2 and 7.3, `protocol/forge.md` 2.1 and
-`protocol/store.md`, section 2, with their status files and the drafts'. The rest comes in the next batch.
+`protocol/store.md`, section 2, with their status files and the drafts'.
 
-## Parts and tasks, so far
+## Parts and tasks
 
 | # | Task | Request | Needs | Effort, minutes | What it lands |
 |---|---|---|---|---|---|
@@ -16,11 +16,20 @@ restyling of what matches. The design is cut ahead of the tasks: `client/README.
 | 5 | `model-step` | 4 | 4 | high, 170 | the Model step's states and ways |
 | 6 | `claude-way` | 5 | 5 | high, 150 | "I've signed in" declares and checks |
 | 7 | `ready-step` | 6 | 6 | high, 110 | Ready's lines, note and foot |
+| 8 | `sheet-choices` | 7, sheet | 3, 7 | high, 110 | copies and nothing sent; `not_yet` goes |
+| 9 | `ready-copies` | 7, Ready | 8 | high, 120 | the first copy's name, the lead, the act |
+| 10 | `home-copies` | 7, 8 | 9 | high, 130 | a line per copy, copies in, the offer after a restart |
+| 11 | `home-add` | 8 | 10 | high, 120 | "Add a repository" and its sheet |
+| 12 | `journey-landing` | 10 | 2, 11 | high, 100 | `project-landing` recorded; the gallery's states whole |
+| 13 | `first-run-walks` | proof | 12 | high, 150 | three box walks, the copies' process walk, renders beside the mock |
 
-## Critical path, as it stands
+Each gallery state of the request's section 10 lands with the task that draws it; `journey-landing` checks the list is whole.
 
-`frame`, `forge-step`, `model-step`, `claude-way`, `ready-step`, then the sheet, Ready's copies, Home and the
-journey and proof, in the next batch.
+## Critical path
+
+`frame`, `forge-step`, `model-step`, `claude-way`, `ready-step`, `sheet-choices`, `ready-copies`, `home-copies`, `home-add`,
+`journey-landing`, `first-run-walks`: 1,260 implementer-minutes. `setup-intent` joins at `sheet-choices` and `box-terminal` at
+`journey-landing`; neither is on the path.
 
 ## What I decided
 
@@ -35,6 +44,14 @@ journey and proof, in the next batch.
   "At most 16 addresses." `setup-intent` lowers it if a bound at that size fails.
 - **`MakeRepository`'s address is bound by 512 bytes at admission:** today's `name_bytes` refuses a long address the
   wire takes.
+- **Home's offer after a restart reuses Ready's keys,** `welcome-copy-N`, so a copy already asked isn't asked twice.
+- **"Copies in" reads the row's intent:** an adopted copy's making row is erased, so a copy the Home sheet made later reads
+  as any repository in the project.
+- **The copies' act is proved in a process walk on a connected fake forge,** as the request says: the walk sends the act's requests in
+  its order. Ready's sending them from the rows is proved by the client's world (`ready-copies`). A real box's copy from a
+  public host stays unproved; `first-run-walks` says so.
+- **A way with no sign-in asked** keeps its card, in the panel: it is how the paste is reached on the welcome, the request
+  drawing no other way there.
 
 ## Overlaps with other drafts
 

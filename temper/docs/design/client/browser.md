@@ -452,12 +452,18 @@ skein's (skein's `ui-web.md`), and how a client of jig's does is jig's
   small neutral act and its existing program-name input, labeled "Name".
   The welcome's Model ways sit directly under its lead, without the
   standalone page's holder choice or outer Choose card. Inside a way,
-  its single Back returns to Model Choose. The API key details keep the
+  the foot's Back and a quiet "All ways" return to Model Choose. On the
+  welcome a way is one panel, its field the panel's width; standalone, the
+  API key details keep the
   full-width card with contents limited to 420 px; failure reasons in flow details are red.
 - **The welcome's title,** "Welcome · first run · temper" on every step,
   whatever its level-1 heading, as Home's is "Home · temper"; the shell's
   turn, the journeys' print and the gallery's take it from the same rule,
   `main` styled `temper-welcome`.
+- **The welcome's states' parts,** under `temper.css`'s marker for the
+  welcome, take the greenfield mock's rules at the welcome's tokens: its
+  `.forge-status`, `.spin`, `.acts`, `.panel`, `.away-note`, `.numbered`,
+  `.field-v`, `.cmd` and `.checklist .current .mark`.
 - **The welcome's look** (the user's greenfield pass, 2026-11-04;
   `README.md`, 3.5 and 5.6), at its own scale, in `temper.css`'s last
   block, every rule scoped to the welcome's frame
