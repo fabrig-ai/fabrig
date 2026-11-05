@@ -1,0 +1,3 @@
+draft = "request-dump"
+repo = "fabrig"
+sources = ["temper/docs/plan/request-dump/inputs/request.md", "temper/docs/design/draft/dogfood-hacks.md", "AGENTS.md", "DESIGN.md"]
