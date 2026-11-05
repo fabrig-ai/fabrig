@@ -10,7 +10,7 @@ impl World {
                 Operation::Cancel(Cancel { message: Some(number), .. })
                 | Operation::Release(Release { message: Some(number), .. })
                 | Operation::Amend(tasks::Amend { message: number, .. }) => self.message = self.message.max(*number),
-                Operation::Message { word, .. } => self.message = self.message.max(word.number),
+                Operation::Message(tasks::Message { word, .. }) => self.message = self.message.max(word.number),
                 Operation::Stop { .. }
                 | Operation::Cancel(Cancel { message: None, .. })
                 | Operation::Release(Release { message: None, .. }) => {}

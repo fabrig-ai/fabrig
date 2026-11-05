@@ -152,15 +152,17 @@ fn a_delegates_question_marks_a_query_listing_its_parent() {
         tasks::Event::Message {
             reply_to: ReplyTo::new(Token::new(REPLY)),
             project: 1,
-            task: CHILD,
-            word: tasks::Word {
-                number: QUESTION,
-                from: tasks::Party::Task(FIRST),
-                kind: tasks::MessageKind::Question,
-                words: Box::from(&b"what next?"[..]),
-                at: Wall::EPOCH,
-                hits: 1,
-                eligible: true,
+            operation: tasks::Message {
+                task: CHILD,
+                word: tasks::Word {
+                    number: QUESTION,
+                    from: tasks::Party::Task(FIRST),
+                    kind: tasks::MessageKind::Question,
+                    words: Box::from(&b"what next?"[..]),
+                    at: Wall::EPOCH,
+                    hits: 1,
+                    eligible: true,
+                },
             },
         },
     );

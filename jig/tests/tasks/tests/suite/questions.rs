@@ -23,15 +23,17 @@ fn message(world: &mut World, source: Party, target: u64, number: u64, kind: Mes
     response(world, |reply_to| Event::Message {
         reply_to,
         project: 1,
-        task: target,
-        word: Word {
-            number,
-            from: source,
-            kind,
-            words: b"proceed?".as_slice().into(),
-            at: Wall::EPOCH,
-            hits: 1,
-            eligible: false,
+        operation: tasks::Message {
+            task: target,
+            word: Word {
+                number,
+                from: source,
+                kind,
+                words: b"proceed?".as_slice().into(),
+                at: Wall::EPOCH,
+                hits: 1,
+                eligible: false,
+            },
         },
     })
 }

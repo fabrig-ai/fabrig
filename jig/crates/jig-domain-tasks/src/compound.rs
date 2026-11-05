@@ -1,6 +1,6 @@
 //! Ordered admission and whole application of a party's task operations (people.md, 5.1).
 mod staged;
-use crate::{Domain, Funder, Limits, Numbers, Party, Problem, Refusal, Request, Word};
+use crate::{Domain, Funder, Limits, Numbers, Party, Problem, Refusal, Request};
 use alloc::boxed::Box;
 use skein_lib::{Env, List, Queue, ReplyTo};
 pub use staged::CompoundTask;
@@ -12,7 +12,7 @@ pub enum Operation {
     Move(crate::Move),
     Amend(crate::Amend),
     Release(crate::Release),
-    Message { task: u64, word: Word },
+    Message(crate::Message),
     Stop { task: u64, hold: u64 },
 }
 impl Operation {
@@ -22,7 +22,7 @@ impl Operation {
             | Self::Release(crate::Release { task, .. })
             | Self::Move(crate::Move { task, .. })
             | Self::Amend(crate::Amend { task, .. })
-            | Self::Message { task, .. }
+            | Self::Message(crate::Message { task, .. })
             | Self::Stop { task, .. } => *task,
         }
     }
@@ -319,7 +319,7 @@ fn maker_allowed(by: Party, project: u32, operation: &Operation, domain: &Domain
                 Operation::Move(_)
                 | Operation::Amend(_)
                 | Operation::Release(_)
-                | Operation::Message { .. }
+                | Operation::Message(_)
                 | Operation::Stop { .. } => false,
             }
         }
@@ -356,15 +356,17 @@ fn check(
                 Err(why) => Err(Box::new(crate::control::release_problem(domain, staged, &env.limits, task, by, why))),
             }
         }
-        Operation::Message { task, word } => {
-            if word.from != by {
-                return Err(Box::new(Problem::new(Some(task), Refusal::Reference)));
+        Operation::Message(operation) => {
+            if operation.word.from != by {
+                return Err(Box::new(Problem::new(Some(operation.task), Refusal::Reference)));
             }
             Ok(Plan::Message(Box::new(crate::inbox::check_message(
                 domain,
                 staged,
                 env,
-                crate::inbox::Message { project: request.project, number: task, word, authorized: true },
+                request.project,
+                operation,
+                true,
             )?)))
         }
         Operation::Stop { task, hold } => {

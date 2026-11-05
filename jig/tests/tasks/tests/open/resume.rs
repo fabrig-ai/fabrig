@@ -334,7 +334,7 @@ fn staged_amendment_release(w: &mut World) {
                 stop_run: false,
                 amendment: Box::new(amendment(&[], release)),
             }),
-            Operation::Message {
+            Operation::Message(tasks::Message {
                 task: CHAT,
                 word: Word {
                     number: message + 1,
@@ -345,7 +345,7 @@ fn staged_amendment_release(w: &mut World) {
                     hits: 1,
                     eligible: true,
                 },
-            },
+            }),
         ],
     );
 }

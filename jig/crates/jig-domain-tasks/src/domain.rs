@@ -712,13 +712,13 @@ pub fn step(domain: &mut Domain, env: &Env<Limits>, event: Event, out: &mut Queu
         Event::MakeResultFollowups { reply_to, proposer, proposal, batch } => {
             make_result_followups(domain, env, reply_to, proposer, proposal, batch, out);
         }
-        Event::Message { reply_to, project, task, word, .. } => {
-            crate::inbox::message(domain, env, reply_to, project, task, word, false, out);
+        Event::Message { reply_to, project, operation } => {
+            crate::inbox::message(domain, env, reply_to, project, operation, false, out);
         }
         event @ Event::PersonQuestion { .. } => crate::questions::person_question(domain, env, event, out),
         event @ Event::PersonQuestionAnswer { .. } => crate::questions::person_answer(domain, env, event, out),
-        Event::AuthorizedMessage { reply_to, project, task, word } => {
-            crate::inbox::message(domain, env, reply_to, project, task, word, true, out);
+        Event::AuthorizedMessage { reply_to, project, operation } => {
+            crate::inbox::message(domain, env, reply_to, project, operation, true, out);
         }
         Event::DelegateResult { task, word } => {
             crate::inbox::delegate_result(domain, env, task, word, out);

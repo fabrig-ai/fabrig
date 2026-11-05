@@ -176,12 +176,7 @@ fn check_parts(
         if part.word.from != Party::Task(number) {
             return Err(problem(part.task, Refusal::Reference));
         }
-        let plan = match crate::inbox::check_message(
-            domain,
-            staged,
-            env,
-            crate::inbox::Message { project, number: part.task, word: part.word.clone(), authorized: false },
-        ) {
+        let plan = match crate::inbox::check_message(domain, staged, env, project, part.clone(), false) {
             Ok(plan) => crate::compound::Plan::Message(Box::new(plan)),
             Err(problem) => return Err(*problem),
         };

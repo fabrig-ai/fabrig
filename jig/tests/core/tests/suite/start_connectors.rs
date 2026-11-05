@@ -458,7 +458,11 @@ fn restored_access_controls_workspace_writers_during_start() {
             tasks::step(
                 &mut h.core.tasks,
                 &env,
-                tasks::Event::Message { reply_to: ReplyTo::new(Token::new(1)), project: 1, task: h.task, word },
+                tasks::Event::Message {
+                    reply_to: ReplyTo::new(Token::new(1)),
+                    project: 1,
+                    operation: tasks::Message { task: h.task, word },
+                },
                 &mut Queue::uncapped(),
             );
             assert_eq!(

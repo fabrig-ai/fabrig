@@ -707,7 +707,11 @@ fn a_restored_met_and_amendment_leave_all_ordinary_sender_room_available() {
             eligible: true,
         };
         assert_eq!(
-            response(&mut world, |reply_to| Event::Message { reply_to, project: 1, task: 1, word: message }),
+            response(&mut world, |reply_to| Event::Message {
+                reply_to,
+                project: 1,
+                operation: tasks::Message { task: 1, word: message }
+            }),
             Reply::Done
         );
     }

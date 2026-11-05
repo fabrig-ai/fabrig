@@ -232,7 +232,11 @@ fn a_live_met_leaves_all_ordinary_sender_room_available() {
             eligible: false,
         };
         assert_eq!(
-            response(&mut world, |reply_to| Event::Message { reply_to, project: 1, task: KEPT, word: message }),
+            response(&mut world, |reply_to| Event::Message {
+                reply_to,
+                project: 1,
+                operation: tasks::Message { task: KEPT, word: message }
+            }),
             Reply::Done
         );
     }

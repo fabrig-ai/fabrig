@@ -1447,15 +1447,17 @@ fn question_document(words: &[u8], bound: u32) -> Question {
         tasks::Event::Message {
             reply_to: ReplyTo::new(Token::new(60)),
             project: 1,
-            task: 1,
-            word: tasks::Word {
-                number: 60,
-                from: tasks::Party::Task(2),
-                kind: tasks::MessageKind::Question,
-                words: words.into(),
-                at: Wall::from_nanos(9),
-                hits: 1,
-                eligible: true,
+            operation: tasks::Message {
+                task: 1,
+                word: tasks::Word {
+                    number: 60,
+                    from: tasks::Party::Task(2),
+                    kind: tasks::MessageKind::Question,
+                    words: words.into(),
+                    at: Wall::from_nanos(9),
+                    hits: 1,
+                    eligible: true,
+                },
             },
         },
     );
@@ -1499,15 +1501,17 @@ fn documents_question_words_are_bounded_and_answered_questions_end() {
         tasks::Event::Message {
             reply_to: ReplyTo::new(Token::new(60)),
             project: 1,
-            task: 1,
-            word: tasks::Word {
-                number: 60,
-                from: tasks::Party::Task(2),
-                kind: tasks::MessageKind::Question,
-                words: Box::from(&b"Whole question?"[..]),
-                at: Wall::from_nanos(9),
-                hits: 1,
-                eligible: true,
+            operation: tasks::Message {
+                task: 1,
+                word: tasks::Word {
+                    number: 60,
+                    from: tasks::Party::Task(2),
+                    kind: tasks::MessageKind::Question,
+                    words: Box::from(&b"Whole question?"[..]),
+                    at: Wall::from_nanos(9),
+                    hits: 1,
+                    eligible: true,
+                },
             },
         },
     );
@@ -1570,15 +1574,17 @@ fn documents_question_words_are_bounded_and_answered_questions_end() {
         tasks::Event::Message {
             reply_to: ReplyTo::new(Token::new(61)),
             project: 1,
-            task: 1,
-            word: tasks::Word {
-                number: 61,
-                from: tasks::Party::Person(1),
-                kind: tasks::MessageKind::Answer { question: 60 },
-                words: Box::from(&b"Yes"[..]),
-                at: Wall::from_nanos(10),
-                hits: 1,
-                eligible: true,
+            operation: tasks::Message {
+                task: 1,
+                word: tasks::Word {
+                    number: 61,
+                    from: tasks::Party::Person(1),
+                    kind: tasks::MessageKind::Answer { question: 60 },
+                    words: Box::from(&b"Yes"[..]),
+                    at: Wall::from_nanos(10),
+                    hits: 1,
+                    eligible: true,
+                },
             },
         },
     );

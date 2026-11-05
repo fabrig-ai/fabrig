@@ -218,7 +218,7 @@ fn words_questions_and_amendments_to_a_job_are_refused_as_its_executor() {
     let before = world.record(JOB).clone();
     for kind in [MessageKind::Words, MessageKind::Question, MessageKind::Answer { question: 1 }] {
         let decision = ProcedureDecision {
-            messages: Box::new([tasks::ProcedureMessage {
+            messages: Box::new([tasks::Message {
                 task: JOB,
                 word: Word {
                     number: 10,
@@ -262,15 +262,17 @@ fn words_questions_and_amendments_to_a_job_are_refused_as_its_executor() {
     world.send(Event::Message {
         reply_to: ReplyTo::new(skein_lib::Token::new(key)),
         project: 1,
-        task: JOB,
-        word: Word {
-            number: 10,
-            from: Party::Person(99),
-            kind: MessageKind::Words,
-            words: b"hello".as_slice().into(),
-            at: Wall::EPOCH,
-            hits: 1,
-            eligible: true,
+        operation: tasks::Message {
+            task: JOB,
+            word: Word {
+                number: 10,
+                from: Party::Person(99),
+                kind: MessageKind::Words,
+                words: b"hello".as_slice().into(),
+                at: Wall::EPOCH,
+                hits: 1,
+                eligible: true,
+            },
         },
     });
     refused(world.replies[&key].clone(), Refusal::State);
