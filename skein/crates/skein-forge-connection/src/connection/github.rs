@@ -251,6 +251,12 @@ fn raw_request(request: &github::request::Request) -> bool {
 
 #[cfg(test)]
 impl Exchange {
+    pub(crate) fn test_fresh(&self) -> bool {
+        self.request.is_none() && self.decoder.is_none() && self.done.is_none() && self.heard.is_empty()
+    }
+    pub(crate) fn test_hold_heard(&mut self) {
+        self.heard.push(Heard::Done(Body::Empty));
+    }
     pub(crate) fn test_github_handoff(&self) -> bool {
         match &self.request {
             Some(exchange) => {
@@ -262,5 +268,4 @@ impl Exchange {
 }
 
 #[cfg(test)]
-#[path = "tests.rs"]
 mod tests;

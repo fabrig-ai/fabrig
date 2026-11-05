@@ -41,3 +41,10 @@ fn a_deployment_cancels_a_task_of_its_project_and_no_other() {
         }
     }
 }
+
+#[test]
+fn party_sender_labels() {
+    assert_eq!(Party::Task(123).sender().as_ref(), b"123");
+    assert_eq!(Party::Person(456).sender().as_ref(), b"456");
+    assert_eq!(Party::Deployment { project: 7 }.sender().as_ref(), b"deployment");
+}

@@ -1037,13 +1037,13 @@ fn timers_due(domain: &Domain, env: &Env<Limits>) -> bool {
     }
     for (_, due) in domain.connector_deadlines() {
         if let Some(due) = due
-            && env.wall_due(due)
+            && due <= env.wall
         {
             return true;
         }
     }
     match domain.effect_deadline() {
-        Some(due) => env.wall_due(due),
+        Some(due) => due <= env.wall,
         None => false,
     }
 }

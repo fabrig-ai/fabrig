@@ -670,6 +670,17 @@ pub enum ToJob {
     Stop { owner: Token },
 }
 
+impl ToJob {
+    /// What a root without a job capability answers (domain/hosts.md, 6.9).
+    #[must_use]
+    pub fn refused(self) -> FromJob {
+        match self {
+            Self::Run { owner, .. } => FromJob::StartRefused { owner, why: Box::from(&b"no job capability"[..]) },
+            Self::Stop { owner } => FromJob::Gone { owner, detail: Box::new([]) },
+        }
+    }
+}
+
 /// parent -> host, inside `Event::Job(FromJob)`.
 #[derive(PartialEq, Eq, Debug)]
 pub enum FromJob {

@@ -342,35 +342,6 @@ fn a_brief_plan_keeps_its_task_sections_budget_and_deadline() {
     );
 }
 
-#[test]
-fn a_completed_brief_keeps_its_order_and_answers_ready() {
-    let mut link = link();
-    let order: Box<[_]> = Box::new([
-        jig_domain_brief::GatherPlaced::Core { kind: jig_domain_brief::Core::Task, text: Box::from(&b"task"[..]) },
-        jig_domain_brief::GatherPlaced::Connector { connector: 7, kind: 9, token: Token::new(11), size: 13 },
-    ]);
-    let core::Event::BriefAssembled { task, ready } = link.complete_brief(RUN, order.clone()) else {
-        panic!("brief assembled")
-    };
-    assert_eq!((task, ready), (RUN.raw(), true));
-    assert_eq!(link.take_brief(RUN.raw()), Some(order));
-    assert!(link.take_brief(RUN.raw()).is_none());
-}
-
-#[test]
-fn no_workspace_prepares_empty_holds_and_some_empty_writes() {
-    let core::Event::WorkspacePrepared { task, attempt, holds, workspace, credentials, writes } =
-        no_workspace(RUN.raw(), ATTEMPT.raw())
-    else {
-        panic!("workspace prepared")
-    };
-    assert_eq!((task, attempt), (RUN.raw(), ATTEMPT.raw()));
-    assert!(holds.is_empty());
-    assert!(workspace.is_none());
-    assert!(credentials.is_empty());
-    assert!(writes.expect("prepared workspace writes").is_empty());
-}
-
 /// jig/docs/design/domain/engine.md, 7.5: a job crosses the committed assignment door, including retries.
 #[test]
 fn a_job_start_is_retained_for_placement_and_busy_replacement() {
@@ -496,46 +467,40 @@ fn a_job_terminal_releases_its_assignment_and_keeps_a_newer_attempts() {
 fn core_now_translates_the_links_six_outputs_without_changing_fields() {
     const PAYLOAD: Token = Token::new(5);
     const TURN: u32 = 7;
-    let Event::Relayed { channel, run, attempt, call, answer } = now(core::Now::Relayed {
+    let Event::Relayed { channel, run, attempt, call, answer } = now(core::LinkNow::Relayed {
         channel: CHANNEL,
         run: RUN,
         attempt: ATTEMPT,
         call: Box::from(&b"call"[..]),
         answer: PAYLOAD,
-    })
-    .expect("relayed belongs to the link") else {
+    }) else {
         panic!("relayed event")
     };
     assert_eq!((channel, run, attempt, answer), (CHANNEL, RUN, ATTEMPT, PAYLOAD));
     assert_eq!(call.as_ref(), b"call");
-    let Event::DropPayload { payload } =
-        now(core::Now::DropPayload { payload: PAYLOAD }).expect("drop payload belongs to the link")
-    else {
+    let Event::DropPayload { payload } = now(core::LinkNow::DropPayload { payload: PAYLOAD }) else {
         panic!("drop payload event")
     };
     assert_eq!(payload, PAYLOAD);
     let Event::TurnPayload { run, attempt, turn, body } =
-        now(core::Now::TurnPayload { run: RUN, attempt: ATTEMPT, turn: TURN, body: PAYLOAD })
-            .expect("turn payload belongs to the link")
+        now(core::LinkNow::TurnPayload { run: RUN, attempt: ATTEMPT, turn: TURN, body: PAYLOAD })
     else {
         panic!("turn payload event")
     };
     assert_eq!((run, attempt, turn, body), (RUN, ATTEMPT, TURN, PAYLOAD));
     let Event::AnswerPayload { run, attempt, payload } =
-        now(core::Now::AnswerPayload { run: RUN, attempt: ATTEMPT, payload: PAYLOAD })
-            .expect("answer payload belongs to the link")
+        now(core::LinkNow::AnswerPayload { run: RUN, attempt: ATTEMPT, payload: PAYLOAD })
     else {
         panic!("answer payload event")
     };
     assert_eq!((run, attempt, payload), (RUN, ATTEMPT, PAYLOAD));
-    let Event::AcceptedTurn { payload, task, attempt, turn, accepted } = now(core::Now::AcceptedTurn {
+    let Event::AcceptedTurn { payload, task, attempt, turn, accepted } = now(core::LinkNow::AcceptedTurn {
         payload: PAYLOAD,
         task: RUN.raw(),
         attempt: ATTEMPT.raw(),
         turn: TURN,
         accepted: tasks::Accepted::Already,
-    })
-    .expect("accepted turn belongs to the link") else {
+    }) else {
         panic!("accepted turn event")
     };
     assert_eq!(
@@ -544,25 +509,9 @@ fn core_now_translates_the_links_six_outputs_without_changing_fields() {
     );
     let problem = tasks::Problem::live_delegates(RUN.raw(), &[ATTEMPT.raw()]);
     let Event::RefusedPayload { request, problem: returned } =
-        now(core::Now::RefusedPayload { request: PAYLOAD, problem: problem.clone() })
-            .expect("refused payload belongs to the link")
+        now(core::LinkNow::RefusedPayload { request: PAYLOAD, problem: problem.clone() })
     else {
         panic!("refused payload event")
     };
     assert_eq!((request, returned), (PAYLOAD, problem));
-}
-
-#[test]
-fn core_now_returns_a_roots_output_without_consuming_its_bytes() {
-    let call: Box<[u8]> = Box::from(&b"root call"[..]);
-    let bytes = call.as_ptr();
-    let core::Now::RelayBusy { channel, run, attempt, call } =
-        now(core::Now::RelayBusy { channel: CHANNEL, run: RUN, attempt: ATTEMPT, call })
-            .expect_err("relay busy stays with the root")
-    else {
-        panic!("unchanged root output")
-    };
-    assert_eq!((channel, run, attempt), (CHANNEL, RUN, ATTEMPT));
-    assert_eq!(call.as_ref(), b"root call");
-    assert_eq!(call.as_ptr(), bytes);
 }

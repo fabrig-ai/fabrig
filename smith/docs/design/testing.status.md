@@ -1,6 +1,6 @@
 # testing: status
 
-2026-11-04. Where smith's code lags or departs from [testing.md](testing.md).
+2026-11-05. Where smith's code lags or departs from [testing.md](testing.md).
 
 - **Not yet:**
   - 2.1: only the local-process world sweeps the simulator's faults
@@ -22,6 +22,10 @@
     with contained trees, containment (2.2).
 - **Departs:**
   - 2: domain worlds use domains and fakes only, never protocol crates,
-    but `tests/agent/src/backend.rs` uses `smith-protocol-llm`, and
-    `tests/run/tests/suite/checks.rs` runs `smith-machine-world`. No
-    reason is recorded.
+    but `tests/agent/src/backend.rs` uses `smith-protocol-llm`,
+    `tests/agent/tests/suite/memory_returns.rs` derives its limits
+    through `smith-agent-service`'s profile,
+    `tests/run/tests/suite/checks.rs` runs `smith-machine-world`, and
+    `tests/host/src/inline.rs` runs `smith-machine-world` with
+    `smith-protocol-machine`'s types. No reason is recorded, and no debt
+    item names them (section 9).

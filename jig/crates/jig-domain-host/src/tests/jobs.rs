@@ -9,6 +9,19 @@ const RUN: Token = Token::new(7);
 const ATTEMPT: Token = Token::new(70);
 const SPACE: Token = Token::new(700);
 
+#[test]
+fn job_refused_answers_a_run_and_a_stop() {
+    for (job, answer) in [
+        (
+            ToJob::Run { owner: RUN, kind: KIND, spec: Box::new([]), deadline: Duration::ZERO, workspace: None },
+            FromJob::StartRefused { owner: RUN, why: Box::from(&b"no job capability"[..]) },
+        ),
+        (ToJob::Stop { owner: ATTEMPT }, FromJob::Gone { owner: ATTEMPT, detail: Box::new([]) }),
+    ] {
+        assert_eq!(job.refused(), answer);
+    }
+}
+
 fn job() -> JobAssignment {
     JobAssignment {
         run: RUN,

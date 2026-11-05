@@ -608,7 +608,7 @@ fn a_party_amendment_dropping_a_started_from_dependency_is_refused_naming_it() {
     let mut named = false;
     while let Some(output) = outputs.pop() {
         if let core::Request::Now(now) = output
-            && let core::Now::RefusedPayload { problem: refused, .. } = *now
+            && let core::Now::Link(core::LinkNow::RefusedPayload { problem: refused, .. }) = *now
         {
             assert_eq!(refused, problem);
             named = true;

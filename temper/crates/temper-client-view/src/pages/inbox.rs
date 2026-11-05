@@ -357,7 +357,7 @@ fn open_task_name(words: &Words, task: u64) -> Box<[u8]> {
     let task = words.say(Word::TaskWho, &[Hole::Number(task)]);
     words.say(Word::SetupOpen, &[Hole::Name(crate::accounts::words::join(&[&task, " ↗".as_bytes()]))])
 }
-fn task_title(page: &ReadValue) -> Option<&[u8]> {
+pub(crate) fn task_title(page: &ReadValue) -> Option<&[u8]> {
     if let ReadValue::Question(question) = page {
         return Some(question.task.title.bytes());
     }
@@ -374,7 +374,7 @@ fn task_title(page: &ReadValue) -> Option<&[u8]> {
     }
     None
 }
-fn source_task(object: ObjectKey) -> Option<u64> {
+pub(crate) fn source_task(object: ObjectKey) -> Option<u64> {
     match object {
         ObjectKey::Task(task)
         | ObjectKey::Escalation(task)
@@ -446,10 +446,41 @@ fn title(b: &mut Builder, value: &[u8]) {
     b.text(Run::Plain, value);
     b.close();
 }
+/// The card's prose without its controls or decision facts (client/README.md, 3.5).
+pub(crate) fn card_words(page: &ReadValue) -> Box<[u8]> {
+    let (title, spec) = match page {
+        ReadValue::Question(question) => return question.words.bytes().into(),
+        ReadValue::Escalation(held) => (held.task.chip.title.bytes(), &held.task.spec),
+        ReadValue::PersonTask(task) => (task.task.title.bytes(), &task.spec),
+        ReadValue::Task(task) => (task.chip.title.bytes(), &task.spec),
+        ReadValue::Ended(_)
+        | ReadValue::Result(_)
+        | ReadValue::Proposal(_)
+        | ReadValue::Settings(_)
+        | ReadValue::Setting(_)
+        | ReadValue::Revision(_)
+        | ReadValue::TaskText(_)
+        | ReadValue::Revisions(_)
+        | ReadValue::Tasks(_)
+        | ReadValue::Project(_)
+        | ReadValue::Me(_)
+        | ReadValue::EndedPage(_)
+        | ReadValue::History(_)
+        | ReadValue::Turn(_)
+        | ReadValue::Activity(_)
+        | ReadValue::Inbox(_)
+        | ReadValue::Spend(_)
+        | ReadValue::Notes(_)
+        | ReadValue::Deployment(_) => return Box::default(),
+    };
+    let words = spec.specification.words.bytes();
+    crate::accounts::words::join(&[title, if title.is_empty() || words.is_empty() { b"" } else { b" " }, words])
+}
+
 fn body(b: &mut Builder, page: &ReadValue, words: &Words) {
     match page {
         ReadValue::Question(question) => {
-            text(b, Role::Paragraph, question.words.bytes());
+            text(b, Role::Paragraph, &card_words(page));
             if question.words.cut {
                 crate::cards::status(b, words, crate::cards::P::Cut, &[]);
             }
@@ -506,7 +537,7 @@ pub(crate) fn card_key(object: ObjectKey) -> skein_ui::Key {
     skein_ui::Key { owner: crate::frame::owner(), kind, a, b }
 }
 
-/// Only the inbox and chat call this; task-page decision facts carry no wait.
+/// The card's wait; task-page decision facts carry no wait.
 pub(crate) fn waiting_since(page: &ReadValue) -> Option<skein_lib::Wall> {
     match page {
         ReadValue::Proposal(proposal) => Some(proposal.waiting.since),

@@ -21,7 +21,7 @@ pub(crate) fn route_answer_payload(
 ) -> Queue<Request> {
     if !core.current_proof(run.raw(), attempt.raw()) {
         let mut out = Queue::uncapped();
-        out.push(Request::Now(Box::new(crate::Now::DropPayload { payload })));
+        out.push(Request::Now(Box::new(crate::Now::Link(crate::LinkNow::DropPayload { payload }))));
         return out;
     }
     let (cumulative, end, saved) = match core.committed_terminal(run.raw(), attempt.raw()) {
@@ -138,7 +138,7 @@ pub(crate) fn route_turn_payload(
     };
     if read < last_read || read > last_read && !proof.outstanding.contains(&read.expect("new read is present")) {
         let mut out = Queue::uncapped();
-        out.push(Request::Now(Box::new(crate::Now::RefusedPayload {
+        out.push(Request::Now(Box::new(crate::Now::Link(crate::LinkNow::RefusedPayload {
             request: body,
             problem: tasks::Problem {
                 task: Some(run.raw()),
@@ -146,7 +146,7 @@ pub(crate) fn route_turn_payload(
                 blocked_by: None,
                 capacity: None,
             },
-        })));
+        }))));
         return out;
     }
     // The parent retains the original fence with the accepted-turn payload.

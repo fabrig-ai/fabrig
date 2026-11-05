@@ -328,7 +328,7 @@ A read.
 
 ## read_compare
 
-Compare two commits.
+Compare commits whole; no pages. Files and commits each fit forge.client.rows, decoded bytes fit forge.client.answer_bytes. Use read_pull_files or read_file.
 
 A read.
 

@@ -16,15 +16,12 @@ use skein_lib::Queue;
 #[expect(clippy::too_many_lines, reason = "one exhaustive dispatcher routes the core's immediate vocabulary")]
 pub(crate) fn now(domain: &mut Domain, env: &Env<Limits>, decision: &mut Decision, now: core::Now) {
     match now {
+        core::Now::Link(value) => link_now(domain, value),
         core::Now::RelayBusy { channel, run, attempt, call } => {
             let delivery = super::host_route::busy(channel, run, attempt, call);
             assert!(super::now(domain, crate::boundary::delivery_output(delivery)), "busy answer door reserved");
         }
         core::Now::CallBusy { to } => crate::stopping::call(domain, to),
-        core::Now::Relayed { channel, run, attempt, call, answer } => {
-            let delivery = super::host_route::relayed(domain, channel, run, attempt, call, answer);
-            assert!(super::now(domain, crate::boundary::delivery_output(delivery)), "read answer door reserved");
-        }
         core::Now::Call { to, run, attempt, call } => {
             if domain.settling.active() {
                 crate::stopping::call(domain, to);
@@ -51,34 +48,6 @@ pub(crate) fn now(domain: &mut Domain, env: &Env<Limits>, decision: &mut Decisio
             let request =
                 Request::Party(crate::PartyRequest::RunText { watcher, turn, from, to, text, cut, call, writing });
             let _sent = super::now(domain, request);
-        }
-        core::Now::DropPayload { payload } => {
-            if let Some(payload) = take_payload(domain, payload) {
-                domain.release_bytes(crate::budget::payload_bytes(&payload), "dropped turn payload was held");
-            }
-        }
-        core::Now::TurnPayload { run, attempt, turn, body } => {
-            crate::link::route(domain, jig_domain_hub_link::Event::TurnPayload { run, attempt, turn, body });
-        }
-        core::Now::AnswerPayload { run, attempt, payload } => crate::link::answer(domain, run, attempt, payload),
-        core::Now::AcceptedTurn { payload, task, attempt, turn, accepted } => {
-            crate::link::route(
-                domain,
-                jig_domain_hub_link::Event::AcceptedTurn { payload, task, attempt, turn, accepted },
-            );
-        }
-        core::Now::RefusedPayload { request, problem } => {
-            if let Some(value) = domain.hub_link.payload(request) {
-                let bytes = crate::budget::payload_bytes(value);
-                let answer =
-                    if let Payload::Answer { task, attempt, .. } = value { Some((*task, *attempt)) } else { None };
-                domain.release_bytes(bytes, "refused turn payload was held");
-                if let Some(key) = answer {
-                    domain.forge_left.remove(&key);
-                }
-            }
-            domain.answer_parts.remove(&request);
-            crate::link::route(domain, jig_domain_hub_link::Event::RefusedPayload { request, problem });
         }
         core::Now::Activate { context } => {
             let ready = domain.ready() && crate::domain::within_budget(domain, &env.limits);
@@ -189,6 +158,43 @@ pub(crate) fn now(domain: &mut Domain, env: &Env<Limits>, decision: &mut Decisio
         }
         core::Now::NotesIndexed { .. } | core::Now::NotesRecalled { .. } | core::Now::NotesRefused { .. } => {
             unreachable!("the current application has no immediate notes route")
+        }
+    }
+}
+
+fn link_now(domain: &mut Domain, value: core::LinkNow) {
+    match value {
+        core::LinkNow::Relayed { channel, run, attempt, call, answer } => {
+            let delivery = super::host_route::relayed(domain, channel, run, attempt, call, answer);
+            assert!(super::now(domain, crate::boundary::delivery_output(delivery)), "read answer door reserved");
+        }
+        core::LinkNow::DropPayload { payload } => {
+            if let Some(payload) = take_payload(domain, payload) {
+                domain.release_bytes(crate::budget::payload_bytes(&payload), "dropped turn payload was held");
+            }
+        }
+        core::LinkNow::TurnPayload { run, attempt, turn, body } => {
+            crate::link::route(domain, jig_domain_hub_link::Event::TurnPayload { run, attempt, turn, body });
+        }
+        core::LinkNow::AnswerPayload { run, attempt, payload } => crate::link::answer(domain, run, attempt, payload),
+        core::LinkNow::AcceptedTurn { payload, task, attempt, turn, accepted } => {
+            crate::link::route(
+                domain,
+                jig_domain_hub_link::Event::AcceptedTurn { payload, task, attempt, turn, accepted },
+            );
+        }
+        core::LinkNow::RefusedPayload { request, problem } => {
+            if let Some(value) = domain.hub_link.payload(request) {
+                let bytes = crate::budget::payload_bytes(value);
+                let answer =
+                    if let Payload::Answer { task, attempt, .. } = value { Some((*task, *attempt)) } else { None };
+                domain.release_bytes(bytes, "refused turn payload was held");
+                if let Some(key) = answer {
+                    domain.forge_left.remove(&key);
+                }
+            }
+            domain.answer_parts.remove(&request);
+            crate::link::route(domain, jig_domain_hub_link::Event::RefusedPayload { request, problem });
         }
     }
 }
