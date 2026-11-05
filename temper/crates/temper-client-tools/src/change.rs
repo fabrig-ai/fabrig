@@ -1010,6 +1010,28 @@ fn encode(panel: &w::ChangePanel, digest: Option<Digest>, holds: &Holds, out: &m
         }
         None => out.null(),
     }
+    encode_progress(panel, out);
+    out.key(b"ci_required");
+    out.boolean(panel.ci_required());
+    out.key(b"ci");
+    out.string(ci(panel.ci()));
+    encode_gates(panel, out);
+    encode_approvals(panel, out);
+    for (key, used) in
+        [(b"repairs".as_slice(), panel.repairs()), (b"resolutions", panel.resolutions()), (b"updates", panel.updates())]
+    {
+        out.key(key);
+        used_json(used, out);
+    }
+    encode_questions(panel.questions(), out);
+    encode_holds(holds, out);
+    if let Some(digest) = digest {
+        out.key(b"digest");
+        out.string(&digest.hex());
+    }
+    out.object_end();
+}
+fn encode_progress(panel: &w::ChangePanel, out: &mut Encoder) {
     out.key(b"step");
     out.string(step(panel.step()));
     out.key(b"merge");
@@ -1056,24 +1078,8 @@ fn encode(panel: &w::ChangePanel, digest: Option<Digest>, holds: &Holds, out: &m
         Some(task) => out.unsigned(*task),
         None => out.null(),
     }
-    out.key(b"ci");
-    out.string(ci(panel.ci()));
-    encode_gates(panel, out);
-    encode_approvals(panel, out);
-    for (key, used) in
-        [(b"repairs".as_slice(), panel.repairs()), (b"resolutions", panel.resolutions()), (b"updates", panel.updates())]
-    {
-        out.key(key);
-        used_json(used, out);
-    }
-    encode_questions(panel.questions(), out);
-    encode_holds(holds, out);
-    if let Some(digest) = digest {
-        out.key(b"digest");
-        out.string(&digest.hex());
-    }
-    out.object_end();
 }
+
 fn encode_gates(panel: &w::ChangePanel, out: &mut Encoder) {
     out.key(b"gates");
     out.array_start();
@@ -1447,7 +1453,7 @@ fn text_checks(panel: &w::ChangePanel, out: &mut Text) {
         None => out.put(b"unknown"),
     }
     out.put(b" \xc2\xb7 CI ");
-    out.put(ci(panel.ci()));
+    out.put(if panel.ci_required() { ci(panel.ci()) } else { b"not required" });
     out.put(b"\n");
     if panel.gates().is_empty() {
         out.put(b"gates: none\n");
