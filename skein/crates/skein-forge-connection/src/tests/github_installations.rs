@@ -88,12 +88,12 @@ fn installation_page_limits_are_not_table_overflow() {
     component.test_paged(Box::from([suspended]), false, &env, &mut up);
     component.test_local_step(&env, &mut up);
     let mut changes = List::with_capacity(1);
-    let mut facts = 0;
+    let mut facts = 0_u32;
     while let Some(event) = up.pop() {
         if let Event::Installation { installation, account, change, .. } = event {
             changes.push((installation, account, change)).expect("one change");
         } else if let Event::Fact { .. } = event {
-            facts += 1;
+            facts = facts.checked_add(1).expect("fixture fact count");
         }
     }
     assert_eq!(changes.as_slice(), [(1, Some(account()), Change::Suspended)]);

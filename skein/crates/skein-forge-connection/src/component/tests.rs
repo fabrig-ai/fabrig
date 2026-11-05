@@ -90,10 +90,10 @@ impl StepFixture {
         self.local();
     }
     fn tokens(&mut self) -> u32 {
-        let mut count = 0;
+        let mut count = 0_u32;
         while let Some(event) = self.up.pop() {
             if let Event::GitToken { .. } = event {
-                count += 1;
+                count = count.checked_add(1).expect("fixture token count");
             }
         }
         count
@@ -301,13 +301,13 @@ fn renewal_local_signing_refusal_stops_invalid_key() {
     h.component.drive(&h.env, &mut h.up, &mut h.io);
     h.connected();
     let mut stopped = None;
-    let mut connected = 0;
+    let mut connected = 0_u32;
     while let Some(event) = h.up.pop() {
         if let Event::Stopped { forge, why } = event {
             stopped = Some((forge, why));
         }
         if let Event::Connected { .. } = event {
-            connected += 1;
+            connected = connected.checked_add(1).expect("fixture connection count");
         }
     }
     assert_eq!(stopped, Some((fixtures::FORGE, crate::Stopped::Invalid { value: crate::Value::Key })));
@@ -328,7 +328,7 @@ fn an_unheld_failure_does_not_wake_a_closing_connection() {
     h.component.drive_calls(&h.env, &mut h.up, &mut h.io);
     let id = *h.component.common.calls.get(&Token::new(1)).expect("call");
     h.component.common.finish(Token::new(1), id, Ok(api::Answer::Commit(fixtures::BRANCH_HEAD)), &mut h.up);
-    assert!(if let Some(Event::Answered(_)) = h.up.pop() { true } else { false });
+    let Some(Event::Answered(_)) = h.up.pop() else { panic!("terminal answer") };
     let owner = *h.component.common.connections.iter().next_back().expect("idle call connection").0;
     assert!(!h.component.common.holders.contains_key(&owner));
     h.component.up(&h.env, skein_io::Event::Failed { owner, error: skein_io::Error::Reset }, &mut h.up, &mut h.io);
