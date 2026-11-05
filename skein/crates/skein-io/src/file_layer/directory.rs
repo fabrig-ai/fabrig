@@ -3,7 +3,7 @@ use super::{
     Complete, Done, Entry, Error, Event, Fd, FileIo, Limits, Op, Pending, Queue, Submit, Token, Vec, Work, issue, vec,
 };
 use alloc::boxed::Box;
-use skein_lib::Env;
+use skein_lib::{Env, usize_of};
 
 impl FileIo {
     fn list_at_most(&mut self, pending: Pending, fd: Fd, most: u32, subs: &mut Queue<Submit>) -> Work {
@@ -12,8 +12,7 @@ impl FileIo {
             pending,
             Op::List {
                 fd,
-                entries: vec![crate::kernel::Entry::BLANK; usize::try_from(most.min(32)).expect("u32 fits usize")]
-                    .into_boxed_slice(),
+                entries: vec![crate::kernel::Entry::BLANK; usize_of(most.min(32))].into_boxed_slice(),
                 names: vec![0_u8; 8192].into_boxed_slice(),
             },
             subs,
@@ -36,12 +35,7 @@ pub(super) fn page(
     if max == 0 || max > env.limits.entries {
         return super::terminal_failure(events, owner, Error::InvalidArgument);
     }
-    io.list_at_most(
-        Pending::Page { owner, fd, max, entries: Vec::with_capacity(usize::try_from(max).expect("u32 fits usize")) },
-        fd,
-        max,
-        subs,
-    )
+    io.list_at_most(Pending::Page { owner, fd, max, entries: Vec::with_capacity(usize_of(max)) }, fd, max, subs)
 }
 
 pub(super) fn answered(
@@ -61,7 +55,7 @@ pub(super) fn answered(
         Ok(_) => unreachable!("a list answers a count"),
     };
     let Op::List { entries: records, names, .. } = complete.kind else { unreachable!("a page lists") };
-    for record in records.get(..usize::try_from(count).expect("u32 fits usize")).expect("count within list") {
+    for record in records.get(..usize_of(count)).expect("count within list") {
         let name = record.name(&names).expect("a listed name is within its buffer");
         entries.push(Entry { name: Box::from(name), kind: record.kind });
     }

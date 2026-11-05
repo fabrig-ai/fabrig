@@ -9,7 +9,7 @@
 use alloc::boxed::Box;
 use alloc::vec::Vec;
 
-use skein_lib::{Env, Queue, Token};
+use skein_lib::{Env, Queue, Token, usize_of};
 
 use super::{Contents, FileIo, Limits, Pending, Work};
 use crate::digest::{Digest, digest};
@@ -178,11 +178,7 @@ pub(super) fn start(
         events.push(Event::failed(owner, Error::NotFound));
         return Work::Idle;
     };
-    if io.random.is_none()
-        || bytes.len() > usize::try_from(env.limits.whole).expect("u32 fits usize")
-        || path.len() >= 4096
-        || path.contains(&0)
-    {
+    if io.random.is_none() || bytes.len() > usize_of(env.limits.whole) || path.len() >= 4096 || path.contains(&0) {
         events.push(Event::failed(owner, Error::InvalidArgument));
         return Work::Idle;
     }
@@ -304,7 +300,7 @@ fn rename(io: &mut FileIo, mut store: Store, subs: &mut Queue<Submit>) -> Work {
 }
 
 fn read_check(io: &mut FileIo, env: &Env<Limits>, mut store: Store, subs: &mut Queue<Submit>) -> Work {
-    let buffer = alloc::vec![0_u8; usize::try_from(env.limits.read).expect("u32 fits usize")].into_boxed_slice();
+    let buffer = alloc::vec![0_u8; usize_of(env.limits.read)].into_boxed_slice();
     let fd = store.check.expect("the checked file is open");
     store.phase = Phase::CheckReading;
     let op = Op::read(fd, buffer, store.seen_bytes).expect("positive bounded read");
@@ -819,7 +815,7 @@ fn success(
                 return fail(io, store, Failure::Kernel(Error::Other(5)), events, subs);
             }
             let next = from.checked_add(count).expect("write count fits");
-            if usize::try_from(next).expect("u32 fits usize") == bytes.len() {
+            if usize_of(next) == bytes.len() {
                 store.phase = Phase::TempSyncing;
                 return issue(io, store, Op::Sync { fd }, subs);
             }
@@ -866,7 +862,7 @@ fn success(
         Phase::CheckReading => {
             let count = done_count(done);
             let buf = read_buffer(kind);
-            let n = usize::try_from(count).expect("u32 fits usize");
+            let n = usize_of(count);
             store.seen_digest.update(buf.get(..n).expect("read count within buffer"));
             store.seen_bytes = store.seen_bytes.checked_add(u64::from(count)).expect("file length fits u64");
             if count == 0 {
