@@ -88,7 +88,7 @@ pub fn tree_limits() -> skein_ui::Limits {
         drawing_bytes: 16,
         scene_marks: 0,
         scene_bytes: 0,
-        styles_per_node: 2,
+        styles_per_node: 3,
         patches: 1280,
         bindings: 256,
         slots: 64,

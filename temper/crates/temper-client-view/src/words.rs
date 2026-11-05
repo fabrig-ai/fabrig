@@ -11,6 +11,12 @@ use skein_ui::{
 };
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 pub enum Word {
+    GoalPause,
+    GoalResume,
+    ToastPaused,
+    ToastResumed,
+    GoalStopTitle,
+    GoalStopStays,
     GoalSideTasks,
     GoalLandingTitle,
     GoalHowTitle,
@@ -993,7 +999,7 @@ pub(crate) const SCRIPTED_MODEL: &[u8] = b"demo";
 // Needs count, toast, page and kinds add thirty-two phrases (3.5).
 // The configuring opening replaces one phrase with nineteen (client/README.md, 3.5).
 // The goal header and report use eighteen phrases; its side uses thirty-two (client/README.md, 5.8).
-const PHRASES: u32 = 1486;
+const PHRASES: u32 = 1492;
 // Ready's empty-name line has two literals and a Name hole, two more segments (3.5).
 // Ready's repository lead adds one phrase and three segments (3.5).
 // Four literals and the counted entry's two literals and Number hole add seven segments.
@@ -1009,8 +1015,14 @@ const PHRASES: u32 = 1486;
 // Needs count, toast, page and kinds add sixty-two segments (3.5).
 // The configuring opening adds twenty literal and hole segments (3.5).
 // The goal header and report use forty literal and hole segments; its side uses fifty-two (5.8).
-const SEGMENTS: u32 = 2583;
-const ALL: [Word; 890] = [
+const SEGMENTS: u32 = 2591;
+const ALL: [Word; 896] = [
+    Word::GoalPause,
+    Word::GoalResume,
+    Word::ToastPaused,
+    Word::ToastResumed,
+    Word::GoalStopTitle,
+    Word::GoalStopStays,
     Word::GoalSideTasks,
     Word::GoalLandingTitle,
     Word::GoalHowTitle,
@@ -1906,6 +1918,12 @@ impl Word {
     #[expect(clippy::too_many_lines, reason = "one exhaustive table keeps the frame phrase IDs stable")]
     fn id(self, connector: u16) -> PhraseId {
         let number = match self {
+            Self::GoalPause => 3432,
+            Self::GoalResume => 3433,
+            Self::ToastPaused => 3434,
+            Self::ToastResumed => 3435,
+            Self::GoalStopTitle => 3436,
+            Self::GoalStopStays => 3437,
             Self::GoalSideTasks => 3400,
             Self::GoalLandingTitle => 3401,
             Self::GoalHowTitle => 3402,
@@ -3109,6 +3127,12 @@ impl Words {
 fn english(word: Word, shell: Shell) -> (&'static [&'static [u8]], &'static [HoleKind]) {
     use HoleKind::{Name, Number};
     match word {
+        Word::GoalPause => (&[b"Pause"], &[]),
+        Word::GoalResume => (&[b"Resume"], &[]),
+        Word::ToastPaused => (&[b"Paused: running tasks stop, nothing new starts."], &[]),
+        Word::ToastResumed => (&[b"Resumed."], &[]),
+        Word::GoalStopTitle => (&[b"Stop ", b"?"], &[Name]),
+        Word::GoalStopStays => (&[b"What landed on its branch stays there."], &[]),
         Word::GoalSideTasks => (&[b"Tasks"], &[]),
         Word::GoalLandingTitle => (&[b"Landing"], &[]),
         Word::GoalHowTitle => (&[b"How it runs"], &[]),

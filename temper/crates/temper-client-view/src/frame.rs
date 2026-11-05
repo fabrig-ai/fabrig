@@ -935,10 +935,29 @@ pub(crate) fn toast(b: &mut Builder, root: &Domain, w: &crate::words::Words, bin
             (w.say(Word::ToastAnswered, &[skein_ui::phrases::Hole::Name(label)]), Some(*object))
         }
         Toasted::Later => (w.say(Word::ToastLater, &[]), None),
+        Toasted::Paused => (w.say(Word::ToastPaused, &[]), None),
+        Toasted::Resumed => (w.say(Word::ToastResumed, &[]), None),
+        Toasted::Proposed { .. } | Toasted::Refused { .. } => (Box::default(), None),
     };
     b.open(Role::Status);
     b.style(crate::look::TOAST);
-    b.text(Run::Plain, &said);
+    match toast {
+        Toasted::Proposed { to } => {
+            w.card_text(b, crate::cards::P::ProposeInstead, &[]);
+            crate::cards::recipient(b, w, to);
+        }
+        Toasted::Refused { outcome } => {
+            crate::confirm::outcome_words(b, w, outcome);
+            if let jig_client::Outcome::Answered(jig_client::Answered::Jig(jig_client::contract::Answer::Refused {
+                refusal: jig_client::contract::Refusal::Moved { .. },
+                ..
+            })) = outcome
+            {
+                action(b, Role::Button, &w.say(Word::LookAgain, &[]), Act::Needs(needs::Act::Dismiss), false, bindings);
+            }
+        }
+        Toasted::Answered { .. } | Toasted::Later | Toasted::Paused | Toasted::Resumed => b.text(Run::Plain, &said),
+    }
     if let Some(object) = undo
         && session.held(object)
     {

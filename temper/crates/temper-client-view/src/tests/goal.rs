@@ -384,31 +384,7 @@ fn needs_funds_word_and_token() {
 }
 #[test]
 fn paused_word_and_token() {
-    let mut task = document();
-    f::phase(&mut task, c::ChipPhase::Held { reason: c::HoldCategory::Stopped, revision: 1 });
-    task.chip.details.details.hold = Some(c::ChipHold {
-        placed: Some(c::PlacedHold {
-            number: 1,
-            owner: c::HoldOwner::Party { person: 73 },
-            mode: c::HoldMode::Stop,
-            scope: c::HoldScope::Subtree { task: TASK },
-            reason: Box::default(),
-            placed_at: MADE,
-            revision: c::Revision { value: 1 },
-            lifted: false,
-            may_lift: true,
-        }),
-        words: None,
-        circle: None,
-        account: None,
-        source: None,
-        reason: c::HoldCategory::Stopped,
-        revision: 1,
-        before: c::PriorPhase::Active(c::RunStage::Idle),
-        escalation: None,
-        tries: c::FailureTries { transient: 0, permanent: 0, run: 0, agent: 0, lost: 0, invalid: 0 },
-        hold_wait_since: None,
-    });
+    let task = paused_document();
     assert_state(task, TOTAL, false, b"paused by you", look::GOALS_STATE_PAUSED);
 }
 #[test]
@@ -1387,4 +1363,243 @@ fn a_need_makes_the_state_needs() {
         styled_text(&draw(&root, &fixtures::browser_words()).0, look::GOALS_STATE_NEEDS).as_ref(),
         b"needs funds"
     );
+}
+
+fn paused_document() -> c::Task {
+    let mut task = document();
+    f::phase(&mut task, c::ChipPhase::Held { reason: c::HoldCategory::Stopped, revision: 1 });
+    task.chip.details.details.hold = Some(c::ChipHold {
+        placed: Some(c::PlacedHold {
+            number: 1,
+            owner: c::HoldOwner::Party { person: 73 },
+            mode: c::HoldMode::Stop,
+            scope: c::HoldScope::Subtree { task: TASK },
+            reason: Box::default(),
+            placed_at: MADE,
+            revision: c::Revision { value: 1 },
+            lifted: false,
+            may_lift: true,
+        }),
+        words: None,
+        circle: None,
+        account: None,
+        source: None,
+        reason: c::HoldCategory::Stopped,
+        revision: 1,
+        before: c::PriorPhase::Active(c::RunStage::Idle),
+        escalation: None,
+        tries: c::FailureTries { transient: 0, permanent: 0, run: 0, agent: 0, lost: 0, invalid: 0 },
+        hold_wait_since: None,
+    });
+    task
+}
+
+fn acts_names(tree: &Tree) -> Box<[&[u8]]> {
+    let mut names = List::uncapped();
+    for node in band_nodes(tree, styled(tree, look::GOAL_ACTS)) {
+        if node.role == Role::Button || node.role == Role::Link {
+            names.push(node.name.as_deref().unwrap()).unwrap();
+        }
+    }
+    names.into_boxed()
+}
+fn named_index(tree: &Tree, role: Role, name: &[u8]) -> usize {
+    for (index, node) in tree.nodes().iter().enumerate() {
+        if node.role == role && node.name.as_deref() == Some(name) {
+            return index;
+        }
+    }
+    panic!("missing {role:?} {name:?}")
+}
+
+fn press(root: &mut Domain, act: Act) -> Queue<Request> {
+    let mut out = Queue::uncapped();
+    temper_client_domain::step(
+        root,
+        &Env { now: Time::ZERO, wall: NOW, limits: fixtures::domain_limits() },
+        Event::Act { action: temper_client_domain::Action::Pages(act) },
+        &mut out,
+    );
+    out
+}
+#[test]
+fn the_acts_in_order_by_offer() {
+    let mut task = document();
+    task.requester = c::Requester::Task(2);
+    task.acts = offers(&[c::ActKind::Amend, c::ActKind::Stop, c::ActKind::Cancel]);
+    let root = root(task, DONE, TOTAL, None, false);
+    for words in [fixtures::browser_words(), fixtures::words()] {
+        let (tree, bindings, _) = draw(&root, &words);
+        assert_eq!(acts_names(&tree).as_ref(), [b"Draft".as_slice(), b"Chat T2", b"Amend", b"Pause", b"Stop"]);
+        for (name, act) in [(b"Amend".as_slice(), Act::Amend), (b"Pause", Act::Pause), (b"Stop", Act::Close)] {
+            let node = tree.nodes().get(named_index(&tree, Role::Button, name)).unwrap();
+            assert!(node.styles.as_slice().contains(&look::GOAL_BTN));
+            assert!(node.styles.as_slice().contains(&look::GOAL_SMALL));
+            assert_eq!(node.styles.as_slice().contains(&look::GOAL_QUIET), name == b"Stop");
+            assert_eq!(
+                bindings.decode(node.binding.unwrap().token, skein_ui::Act::Press),
+                Some(temper_client_domain::Action::Pages(act))
+            );
+        }
+    }
+}
+#[test]
+fn not_offered_not_drawn() {
+    let mut task = document();
+    task.acts = offers(&[]);
+    let tree = draw(&root(task, DONE, TOTAL, None, false), &fixtures::browser_words()).0;
+    assert_eq!(acts_names(&tree).as_ref(), [b"Draft".as_slice()]);
+    for admission in
+        [c::Admission::Proposed { to: c::Recipient::Party(73) }, c::Admission::Refused(c::Refusal::NotOffered)]
+    {
+        let mut task = document();
+        task.acts = offers(&[c::ActKind::Amend, c::ActKind::Stop, c::ActKind::Cancel]);
+        for index in 0..task.acts.len() {
+            task.acts.get_mut(index).unwrap().admission = admission.clone();
+        }
+        let tree = draw(&root(task, DONE, TOTAL, None, false), &fixtures::browser_words()).0;
+        assert_eq!(acts_names(&tree).as_ref(), [b"Draft".as_slice()]);
+        let said = fixtures::text(&tree);
+        let expected = match &admission {
+            c::Admission::Proposed { .. } => b"This needs a proposal to".as_slice(),
+            c::Admission::Refused(_) => b"This act is not offered",
+            c::Admission::Allowed | c::Admission::Bounded { .. } => unreachable!(),
+        };
+        assert!(skein_lib::bytes::find(&said, expected).is_some());
+    }
+}
+#[test]
+fn ended_has_none() {
+    for ending in [
+        c::ChipEnding::Done(c::ResultValue::Report(text(b"Done"))),
+        c::ChipEnding::Failed(text(b"Failed")),
+        c::ChipEnding::Cancelled { reason: text(b"Stopped"), result: None, by: c::Requester::Person(73), at: NOW },
+    ] {
+        let mut task = document();
+        task.acts = offers(&[c::ActKind::Amend, c::ActKind::Stop, c::ActKind::Cancel]);
+        end(&mut task, ending);
+        let tree = draw(&root(task, DONE, TOTAL, None, false), &fixtures::browser_words()).0;
+        assert_eq!(acts_names(&tree).as_ref(), [b"Draft".as_slice()]);
+    }
+}
+#[test]
+fn paused_says_resume() {
+    let mut task = paused_document();
+    task.acts = offers(&[c::ActKind::Amend, c::ActKind::Release, c::ActKind::Stop, c::ActKind::Cancel]);
+    let tree = draw(&root(task, DONE, TOTAL, None, false), &fixtures::browser_words()).0;
+    assert_eq!(acts_names(&tree).as_ref(), [b"Draft".as_slice(), b"Amend", b"Resume", b"Stop"]);
+}
+#[test]
+fn held_otherwise_has_no_resume() {
+    let mut task = paused_document();
+    task.chip.details.details.hold.as_mut().unwrap().placed.as_mut().unwrap().scope =
+        c::HoldScope::Subtree { task: 99 };
+    task.acts = offers(&[c::ActKind::Release]);
+    let tree = draw(&root(task, DONE, TOTAL, None, false), &fixtures::browser_words()).0;
+    assert_eq!(acts_names(&tree).as_ref(), [b"Draft".as_slice()]);
+}
+#[test]
+fn the_stop_dialogs_words() {
+    let mut task = document();
+    task.acts = offers(&[c::ActKind::Cancel]);
+    task.acts.get_mut(0).unwrap().effect = Some(c::Effect::Cancel(c::Impact {
+        tasks: c::ImpactCounts {
+            waiting: 1,
+            running: 2,
+            held: 3,
+            closing: 4,
+            ended: 5,
+            done: 6,
+            failed: 7,
+            cancelled: 8,
+        },
+        live_runs: 9,
+        proposals: 10,
+    }));
+    let mut root = root(task, DONE, TOTAL, None, false);
+    press(&mut root, Act::Close);
+    let tree = draw(&root, &fixtures::browser_words()).0;
+    let dialog = named_index(&tree, Role::Dialog, b"Stop Away mode?");
+    assert_eq!(tree.nodes()[dialog].name.as_deref(), Some(b"Stop Away mode?".as_slice()));
+    assert_eq!(fixtures::node_text(&tree, dialog).as_ref(), b"Stop Away mode?What landed on its branch stays there.");
+    for label in [b"Confirm".as_slice(), b"Cancel"] {
+        assert!(fixtures::find(&tree, Role::Button, label).is_some());
+    }
+    assert_eq!(acts_names(&tree).as_ref(), [b"Draft".as_slice(), b"Stop"]);
+}
+#[test]
+fn the_editor_sits_between_header_and_bands() {
+    let mut task = document();
+    task.acts = offers(&[c::ActKind::Amend]);
+    let mut root = root(task, DONE, TOTAL, None, true);
+    press(&mut root, Act::Amend);
+    let tree = draw(&root, &fixtures::browser_words()).0;
+    let editor = styled(&tree, look::GOAL_FIELD);
+    let header = styled(&tree, look::GOAL_HEAD);
+    assert!(node_end(&tree, header) <= editor);
+    assert!(editor < styled(&tree, look::GOAL_BAND));
+    for (role, name) in [
+        (Role::TextArea, b"Specification".as_slice()),
+        (Role::Check, b"Tracked"),
+        (Role::TextField, b"Priority"),
+        (Role::Button, b"Send amendment"),
+        (Role::Button, b"Discard"),
+    ] {
+        let node = tree.nodes().get(named_index(&tree, role, name)).unwrap();
+        if role == Role::TextArea || role == Role::TextField {
+            assert!(node.styles.as_slice().contains(&look::GOAL_TEXT));
+        }
+        if role == Role::Button {
+            assert!(node.styles.as_slice().contains(&look::GOAL_BTN));
+        }
+    }
+    for node in tree.nodes() {
+        assert!(!node.styles.as_slice().contains(&look::TASK_AMEND));
+    }
+}
+#[test]
+fn an_agents_stop_still_confirms_as_before() {
+    let mut task = f::delegate();
+    task.acts = offers(&[c::ActKind::Stop]);
+    let mut root = f::agent_root(task, Some(f::tree()), true);
+    press(&mut root, Act::Stop);
+    let tree = fixtures::browser_page_view(&root);
+    assert!(fixtures::find(tree.tree(), Role::Dialog, b"Stop").is_some());
+    assert!(
+        skein_lib::bytes::find(
+            &fixtures::text(tree.tree()),
+            b"Its run stops, and the task is held until it is released."
+        )
+        .is_some()
+    );
+    for name in [b"Confirm".as_slice(), b"Cancel"] {
+        assert!(fixtures::find(tree.tree(), Role::Button, name).is_some());
+    }
+}
+pub(super) fn with_goal_answer(act: Act, answer: c::Answer) -> Domain {
+    let mut task = if act == Act::Resume { paused_document() } else { document() };
+    task.acts = offers(&[c::ActKind::Stop, c::ActKind::Release]);
+    let mut root = root(task, DONE, TOTAL, None, false);
+    let mut out = press(&mut root, act);
+    let mut attempt = None;
+    while let Some(request) = out.pop() {
+        if let Request::Unlinked { request: UnlinkedRequest::Down { down: Down::Send { attempt: sent, .. } } } = request
+        {
+            attempt = Some(sent);
+        }
+    }
+    fixtures::root_event(
+        &mut root,
+        Event::Client {
+            event: ClientEvent::Up {
+                up: Up::Answer {
+                    attempt: attempt.unwrap(),
+                    envelope: skein_lib::RequestEnvelope::Final,
+                    answer: Some(jig_client::Answered::Jig(answer)),
+                    why: None,
+                },
+            },
+        },
+    );
+    root
 }

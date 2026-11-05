@@ -61,7 +61,7 @@ pub struct Sample {
     pub address: Address,
     pub then: Then,
 }
-pub const N: usize = 148;
+pub const N: usize = 151;
 const CHATS: Address = Address::Chats { filter: ChatsFilter::All, start: false };
 use World::{Bare, FirstRun, Reference, Solo};
 #[must_use]
@@ -328,6 +328,9 @@ pub fn samples() -> [Sample; N] {
             address: Address::Inbox { filter: Filter { project: Some(1), ..Filter::ALL } },
             then: Shown,
         },
+        Sample { name: "goal-amending", world: Reference, address: task(108), then: Shown },
+        Sample { name: "goal-stop-dialog", world: Reference, address: task(108), then: Shown },
+        Sample { name: "goal-toast", world: Reference, address: task(108), then: Shown },
         Sample { name: "goal-running", world: Reference, address: task(108), then: Shown },
         Sample { name: "goal-needs-funds", world: Reference, address: task(108), then: Shown },
         Sample { name: "goal-needs-question", world: Reference, address: task(118), then: Shown },
@@ -671,6 +674,44 @@ pub fn mockup(sample: &Sample) -> Option<String> {
     };
     Some(format!("{page}.html?world={world}{task}{forge}{way}&bare"))
 }
+fn goal_domain(sample: &Sample) -> Domain {
+    let base = match sample.name {
+        "goal-amending" | "goal-stop-dialog" | "goal-toast" => "goal-running",
+        name => name,
+    };
+    let mut root = crate::worlds::goals_world(sample.world, sample.address.clone(), base);
+    let act = match sample.name {
+        "goal-amending" => Act::Amend,
+        "goal-stop-dialog" => Act::Close,
+        "goal-toast" => Act::Pause,
+        _ => return root,
+    };
+    let mut out = Queue::uncapped();
+    step(&mut root, Event::Act { action: Action::Pages(act) }, &mut out);
+    if sample.name == "goal-toast" {
+        while let Some(request) = out.pop() {
+            if let Some(jig_client::Down::Send { attempt, .. }) = crate::driver::down(request) {
+                step(
+                    &mut root,
+                    Event::Client {
+                        event: jig_client::Event::Up {
+                            up: jig_client::Up::Answer {
+                                attempt,
+                                envelope: skein_lib::RequestEnvelope::Final,
+                                answer: Some(jig_client::Answered::Jig(c::Answer::Done(c::Outcome::Document(
+                                    c::DocumentOutcome::Stopped { task: 108 },
+                                )))),
+                                why: None,
+                            },
+                        },
+                    },
+                    &mut Queue::uncapped(),
+                );
+            }
+        }
+    }
+    root
+}
 #[must_use]
 pub fn domain(sample: &Sample) -> Domain {
     if sample.name.starts_with("needs-") {
@@ -686,7 +727,7 @@ pub fn domain(sample: &Sample) -> Domain {
         return home_domain(sample.name);
     }
     if sample.name.starts_with("goals-") || sample.name.starts_with("goal-") {
-        return crate::worlds::goals_world(sample.world, sample.address.clone(), sample.name);
+        return goal_domain(sample);
     }
     let (mut root, accounts_watch) = crate::worlds::world(sample.world, sample.address.clone(), sample.then);
     let mut out = Queue::uncapped();

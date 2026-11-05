@@ -125,6 +125,8 @@ pub enum Act {
     SendAmendment,
     /// Reread the task after a moved refusal (client/README.md, 5.11).
     AmendAgain,
+    Pause,
+    Resume,
     Stop,
     /// Close the page's task: a chat's close, or a task page's cancel (client/README.md, 5.11).
     Close,
@@ -530,6 +532,24 @@ pub fn step(pages: &mut Pages, env: &Env<Limits>, client: &Client, event: Event,
                 && let Some(task) = &mut pages.task
             {
                 task.amend(env, client, act, &mut pages.serial, out);
+            }
+        }
+        Event::Act { act: act @ (Act::Pause | Act::Resume) } => {
+            if act == Act::Resume
+                && let Some(inbox) = &pages.inbox
+            {
+                for card in &pages.needs.open(inbox) {
+                    if card.group != jig_client::contract::InboxGroup::Questions || card.page.is_some() {
+                        return;
+                    }
+                }
+            }
+            if pages.confirm.is_none()
+                && let Some(page) = &mut pages.task
+                && page.shape == task::Shape::Tracked
+            {
+                let kind = if act == Act::Pause { task::Sending::Stop } else { task::Sending::Resume };
+                page.send(env, client, kind, &mut pages.serial, out);
             }
         }
         Event::Act { act: Act::OpenResult { task, through } } => {
@@ -1011,6 +1031,9 @@ fn page_told(pages: &mut Pages, env: &Env<Limits>, client: &Client, told: Told, 
         return true;
     }
     if let Some(task) = &mut pages.task {
+        if let Some(toasted) = task.toasted(&told) {
+            pages.needs.say(toasted, env.now);
+        }
         return task_told(task, &mut pages.inbox, env, client, told, out);
     }
     if let Some(chat) = &mut pages.chat {
@@ -1146,7 +1169,9 @@ fn confirmation(pages: &mut Pages, env: &Env<Limits>, client: &Client, act: Act,
         act @ (Act::Decide { .. } | Act::CardWords { .. } | Act::Again { .. } | Act::Confirm) => {
             crate::acts::step(pages, env, act, out);
         }
-        Act::Amend
+        Act::Pause
+        | Act::Resume
+        | Act::Amend
         | Act::AmendWords { .. }
         | Act::AmendTracked
         | Act::AmendPriority { .. }
@@ -1187,6 +1212,7 @@ fn confirmation(pages: &mut Pages, env: &Env<Limits>, client: &Client, act: Act,
 
 fn task_confirmation(pages: &mut Pages, client: &Client, act: jig_client::contract::ActKind) {
     if let Some(page) = &pages.task
+        && (act != jig_client::contract::ActKind::Stop || page.shape == task::Shape::Agent)
         && let Some(task) = page.document(client)
         && chat::allowed(task, act)
     {

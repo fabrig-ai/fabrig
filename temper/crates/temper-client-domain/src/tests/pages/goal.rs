@@ -551,3 +551,170 @@ fn landing_in_each_state() {
     }
     assert_eq!(goal::landing(State::Landed, &task, None, COUNTS), Landing::Landed(None));
 }
+
+fn with_offer(kind: c::ActKind) -> c::Task {
+    let mut task = tracked();
+    task.acts = List::from_boxed(Box::new([c::Offered { act: kind, admission: c::Admission::Allowed, effect: None }]));
+    task
+}
+fn paused_task() -> c::Task {
+    let mut task = with_offer(c::ActKind::Release);
+    f::phase(&mut task, c::ChipPhase::Held { reason: c::HoldCategory::Stopped, revision: 17 });
+    task.chip.details.details.hold = Some(c::ChipHold {
+        placed: Some(c::PlacedHold {
+            number: 1,
+            owner: c::HoldOwner::Party { person: fixtures::PARTY },
+            mode: c::HoldMode::Stop,
+            scope: c::HoldScope::Subtree { task: f::TASK },
+            reason: Box::default(),
+            placed_at: LATER,
+            revision: c::Revision { value: 11 },
+            lifted: false,
+            may_lift: true,
+        }),
+        words: None,
+        circle: None,
+        account: None,
+        source: None,
+        reason: c::HoldCategory::Stopped,
+        revision: 17,
+        before: c::PriorPhase::Active(c::RunStage::Idle),
+        escalation: None,
+        tries: c::FailureTries { transient: 0, permanent: 0, run: 0, agent: 0, lost: 0, invalid: 0 },
+        hold_wait_since: None,
+    });
+    task
+}
+fn page_act(h: &mut Harness, act: Act) -> Box<[c::Ask]> {
+    h.event(Event::Act { act });
+    acts::sent(&mut h.out)
+}
+#[test]
+fn pause_sends_stop_at_once() {
+    let mut h = Harness::new(with_offer(c::ActKind::Stop));
+    assert_eq!(page_act(&mut h, Act::Pause).as_ref(), [c::Ask::Stop { project: fixtures::PROJECT, task: f::TASK }]);
+    assert!(h.pages.confirmation().is_none());
+    assert!(h.pages.needs().toast().is_none());
+}
+#[test]
+fn resume_names_the_holds_revision() {
+    let mut h = Harness::new(paused_task());
+    assert_eq!(
+        page_act(&mut h, Act::Resume).as_ref(),
+        [c::Ask::Release {
+            project: fixtures::PROJECT,
+            task: f::TASK,
+            revision: c::Revision { value: 17 },
+            again: None,
+        }]
+    );
+    assert!(h.pages.confirmation().is_none());
+}
+#[test]
+fn a_double_press_joins_the_pending_request() {
+    for (task, act) in [(with_offer(c::ActKind::Stop), Act::Pause), (paused_task(), Act::Resume)] {
+        let mut h = Harness::new(task);
+        assert_eq!(page_act(&mut h, act.clone()).len(), 1);
+        let pending = h.pages.task().unwrap().pending.clone();
+        assert!(page_act(&mut h, act).is_empty());
+        assert_eq!(h.pages.task().unwrap().pending, pending);
+    }
+}
+#[test]
+fn a_done_pause_toasts_on_its_answer_not_before() {
+    for (task, act, toasted) in [
+        (with_offer(c::ActKind::Stop), Act::Pause, pages::needs::Toasted::Paused),
+        (paused_task(), Act::Resume, pages::needs::Toasted::Resumed),
+    ] {
+        let mut h = Harness::new(task);
+        page_act(&mut h, act.clone());
+        let key = h.pages.task().unwrap().pending.get(0).unwrap().0;
+        h.event(Event::Told { told: Told::Pending { key } });
+        assert!(h.pages.needs().toast().is_none());
+        h.event(Event::Told {
+            told: Told::Answered {
+                key,
+                outcome: jig_client::Outcome::Answered(jig_client::Answered::Jig(c::Answer::Done(
+                    c::Outcome::Document(if act == Act::Pause {
+                        c::DocumentOutcome::Stopped { task: f::TASK }
+                    } else {
+                        c::DocumentOutcome::Released { task: f::TASK }
+                    }),
+                ))),
+            },
+        });
+        assert_eq!(h.pages.needs().toast(), Some(&toasted));
+        assert!(h.pages.task().unwrap().outcome.is_none());
+        assert!(h.pages.task().unwrap().pending.is_empty());
+        let mut env = fixtures::env(&fixtures::limits());
+        env.now = Time::ZERO.saturating_add(pages::needs::TOAST);
+        pages::fire(&mut h.pages, &env, &h.fixture.client, &mut h.out);
+        assert!(h.pages.needs().toast().is_none());
+    }
+}
+#[test]
+fn a_refused_stop_toasts_jigs_words() {
+    for outcome in [
+        jig_client::Outcome::Unknown,
+        jig_client::Outcome::Answered(jig_client::Answered::Jig(c::Answer::Refused {
+            refusal: c::Refusal::Moved { now: c::Revision { value: 18 }, what: c::Moved::Spec },
+            at: None,
+        })),
+    ] {
+        let mut h = Harness::new(with_offer(c::ActKind::Cancel));
+        page_act(&mut h, Act::Close);
+        page_act(&mut h, Act::Confirm);
+        let key = h.pages.task().unwrap().pending.get(0).unwrap().0;
+        assert!(h.pages.needs().toast().is_none());
+        h.event(Event::Told { told: Told::Answered { key, outcome: outcome.clone() } });
+        assert_eq!(h.pages.needs().toast(), Some(&pages::needs::Toasted::Refused { outcome }));
+        assert!(h.pages.task().unwrap().outcome.is_none());
+        page_act(&mut h, Act::Needs(pages::needs::Act::Dismiss));
+        assert!(h.pages.needs().toast().is_none());
+    }
+}
+#[test]
+fn stop_opens_its_confirmation_and_sends_its_reason() {
+    let mut h = Harness::new(with_offer(c::ActKind::Cancel));
+    assert!(page_act(&mut h, Act::Close).is_empty());
+    assert_eq!(h.pages.confirmation().unwrap().act, c::ActKind::Cancel);
+    assert_eq!(
+        page_act(&mut h, Act::Confirm).as_ref(),
+        [c::Ask::Cancel {
+            project: fixtures::PROJECT,
+            task: f::TASK,
+            reason: acts::text(b"Stopped from its page"),
+            grace: None,
+        }]
+    );
+}
+#[test]
+fn resume_is_refused_unless_paused() {
+    let mut held = paused_task();
+    held.chip.details.details.hold.as_mut().unwrap().placed.as_mut().unwrap().lifted = true;
+    for task in [with_offer(c::ActKind::Release), held] {
+        let mut h = Harness::new(task);
+        assert!(page_act(&mut h, Act::Resume).is_empty());
+        assert!(h.pages.task().unwrap().pending.is_empty());
+    }
+    let mut h = Harness::new(paused_task());
+    h.pages
+        .inbox
+        .as_mut()
+        .unwrap()
+        .cards
+        .push(pages::inbox::Card {
+            object: c::ObjectKey::Proposal(acts::PROPOSAL),
+            group: c::InboxGroup::Proposals,
+            project: Some(fixtures::PROJECT),
+            position: None,
+            unread: None,
+            handle: Handle { asker: crate::owner::Owner::Pages.asker(), number: 700 },
+            page: None,
+            words: None,
+            key: None,
+            outcome: None,
+        })
+        .unwrap();
+    assert!(page_act(&mut h, Act::Resume).is_empty(), "an open band makes the goal needs, not paused");
+}

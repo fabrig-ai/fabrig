@@ -88,6 +88,27 @@ enum Part {
 }
 const HOLDS: [Holds; samples::N] = [
     Holds {
+        name: "goal-amending",
+        heading: "Six of nine tasks landed. The store task is split in two after two size failures, and needs about 8 more to finish.",
+        parts: &[
+            Part::Named { role: Role::Region, name: "Amend task 108" },
+            Part::Named { role: Role::TextArea, name: "Specification" },
+        ],
+    },
+    Holds {
+        name: "goal-stop-dialog",
+        heading: "Six of nine tasks landed. The store task is split in two after two size failures, and needs about 8 more to finish.",
+        parts: &[
+            Part::Named { role: Role::Dialog, name: "Stop first-run-projects?" },
+            Part::Text { text: "What landed on its branch stays there." },
+        ],
+    },
+    Holds {
+        name: "goal-toast",
+        heading: "Six of nine tasks landed. The store task is split in two after two size failures, and needs about 8 more to finish.",
+        parts: &[Part::Text { text: "Paused: running tasks stop, nothing new starts." }],
+    },
+    Holds {
         name: "goal-running",
         heading: "Six of nine tasks landed. The store task is split in two after two size failures, and needs about 8 more to finish.",
         parts: &[
@@ -1869,4 +1890,24 @@ fn reference_lede_names_the_worlds_templates_in_number_order() {
         String::from_utf8(text).expect("lede UTF-8"),
         "A goal turns a draft into landed work, its own way: task by task, plan, tasks, land whole, plan, then wait for me, one agent, one branch."
     );
+}
+
+#[test]
+fn goal_acts_samples_reach_the_editor_dialog_and_answered_toast() {
+    for (name, role, label) in [
+        ("goal-amending", Role::Region, "Amend task 108"),
+        ("goal-stop-dialog", Role::Dialog, "Stop first-run-projects?"),
+        ("goal-toast", Role::Status, ""),
+    ] {
+        let sample = samples::samples().into_iter().find(|sample| sample.name == name).unwrap();
+        let root = samples::domain(&sample);
+        let view = view(&sample);
+        if name == "goal-toast" {
+            assert_eq!(root.pages().needs().toast(), Some(&temper_client_domain::pages::needs::Toasted::Paused));
+            assert!(root.pages().task().unwrap().pending.is_empty());
+            assert!(view.tree().nodes().iter().any(|node| node.role == role));
+        } else {
+            find(view.tree(), role, label, name);
+        }
+    }
 }
