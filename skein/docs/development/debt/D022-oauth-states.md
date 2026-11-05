@@ -30,5 +30,4 @@ comparisons are where the review found `SignIn`, `Refresh` and
 ## What pays it back
 
 The client's exchange inside its phase; one `AccountEntry` per account;
-record states as variants. One crate per task. D009 (credentials as
-`Secret`) can go first or alongside.
+record states as variants. One crate per task.
