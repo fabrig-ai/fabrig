@@ -142,6 +142,8 @@ pub fn page(sample: &Sample, digest: &skein_ui_bundle::Digest) -> String {
     let html = page.html().replacen("<div", "<div id=\"app\"", 1).replace("<dialog ", "<dialog open ");
     let html = if sample.name == "needs-saw-open" {
         html.replace("class=\"temper-ask-saw\"", "open class=\"temper-ask-saw\"")
+    } else if sample.name == "goal-landed-open" {
+        html.replace("class=\"temper-goal-landed-fold\"", "open class=\"temper-goal-landed-fold\"")
     } else {
         html
     };
