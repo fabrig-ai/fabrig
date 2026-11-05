@@ -193,7 +193,7 @@ fn file_recovery(text: &mut Text) -> Result<(), Problem> {
 }
 
 fn pull_recovery(text: &mut Text) -> Result<(), Problem> {
-    text.add(b"Contents [omitted]. Use read_file for selected paths at the head commit (after) and the comparison's base commit (before; resolve separately), with max_bytes leaving room for metadata and escaping overhead. Advancing page alone cannot recover this oversized page; later pages only list other files.\n")
+    text.add(b"Contents [omitted]. Use read_file for selected paths at the head commit (after) and the comparison's base commit (before; resolve separately), with max_bytes leaving room for metadata and escaping overhead. If paths are omitted, list directories there with read_file. Advancing page alone cannot recover this oversized page; later pages only list other files.\n")
 }
 
 fn clipped_refusal(text: Text, cap: usize) -> HostAnswer {
@@ -227,6 +227,8 @@ fn inventory_row(text: &mut Text, file: &api::File) -> Result<(), Problem> {
 
 fn pull_inventory(head: &api::Commit, files: &[api::File], more: bool, size: usize, cap: usize) -> HostAnswer {
     const CUT_ROOM: usize = 48;
+    // Six row parts and three for the omitted-path count.
+    const ROW_AND_CUT_PARTS: u32 = 9;
     let mut text = Text::new();
     read_size(&mut text, b"read_pull_files", Some(size), cap).expect("fixed size guidance");
     pull_recovery(&mut text).expect("fixed pull recovery");
@@ -238,7 +240,7 @@ fn pull_inventory(head: &api::Commit, files: &[api::File], more: bool, size: usi
     for file in files {
         let mut count = Text::counter();
         inventory_row(&mut count, file).expect("counting inventory");
-        if text.len.saturating_add(count.len).saturating_add(CUT_ROOM) > cap {
+        if text.parts.room() < ROW_AND_CUT_PARTS || text.len.saturating_add(count.len).saturating_add(CUT_ROOM) > cap {
             break;
         }
         inventory_row(&mut text, file).expect("measured inventory fits");

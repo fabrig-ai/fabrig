@@ -281,7 +281,8 @@ a chat that names none, runs with no workspace (worker.md, 4.1).
   no offset. A fitting read retains its truncation marker. An oversized
   pull-file page retains a changed-path inventory as room permits, marks
   content omitted separately from absent sides, marks omitted paths, and
-  keeps whether more pages follow. It directs selected `read_file` calls
+  keeps whether more pages follow. Omitted paths are recovered through
+  directory reads at both commits. It directs selected `read_file` calls
   at the head for after and the comparison's base commit for before;
   the base commit must be resolved separately. Advancing pages alone cannot
   recover the oversized page. A forge size refusal, whose measured size
