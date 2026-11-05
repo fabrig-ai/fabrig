@@ -162,9 +162,9 @@ pub const PROJECTS_REPO: Style = Style { owner: owner(), token: 192 };
 /// The additional repository count.
 pub const PROJECTS_MORE: Style = Style { owner: owner(), token: 193 };
 /// Home's foot and Chats' explanation (client/README.md, 3.5).
-pub const HOME_FACTS: Style = Style { owner: owner(), token: 339 };
+pub const HOME_FACTS: Style = Style { owner: owner(), token: 365 };
 /// Home's status attribution (client/README.md, 3.5).
-pub const HOME_BYLINE: Style = Style { owner: owner(), token: 340 };
+pub const HOME_BYLINE: Style = Style { owner: owner(), token: 366 };
 /// Home's home (client/README.md, 3.5).
 pub const HOME: Style = Style { owner: owner(), token: 200 };
 /// Home's intro (client/README.md, 3.5).
