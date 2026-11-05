@@ -20,6 +20,12 @@ pub enum Word {
     DraftAdded,
     DraftChanged,
     RailUnfold,
+    StartOver,
+    StartOverQuestion,
+    DraftNotProposed,
+    DraftWaits,
+    DraftAccepted,
+    DraftDecided,
 
     GoalsWaySeparator,
     GoalsWayEnd,
@@ -1003,7 +1009,8 @@ pub(crate) const SCRIPTED_MODEL: &[u8] = b"demo";
 // The chat working indicator adds one phrase and one segment (client/README.md, 3.5).
 // Delegation lines add seven literal phrases (client/README.md, 5.7).
 // The document’s mode controls, path, attribution and rail add nine phrases (3.5).
-const PHRASES: u32 = 1492;
+// Start over and the proposal line add six phrases (3.5).
+const PHRASES: u32 = 1498;
 // Ready's empty-name line has two literals and a Name hole, two more segments (3.5).
 // Ready's repository lead adds one phrase and three segments (3.5).
 // Four literals and the counted entry's two literals and Number hole add seven segments.
@@ -1023,8 +1030,9 @@ const PHRASES: u32 = 1492;
 // Needs count, toast, page and kinds add sixty-two segments (3.5).
 // Delegation lines add seven literal segments (client/README.md, 5.7).
 // The document adds twenty-one literal and hole segments (3.5).
-const SEGMENTS: u32 = 2622;
-const ALL: [Word; 896] = [
+// Start over and the proposal line add fourteen segments (3.5).
+const SEGMENTS: u32 = 2636;
+const ALL: [Word; 902] = [
     Word::DraftGroup,
     Word::DraftChat,
     Word::DraftSplit,
@@ -1034,6 +1042,12 @@ const ALL: [Word; 896] = [
     Word::DraftAdded,
     Word::DraftChanged,
     Word::RailUnfold,
+    Word::StartOver,
+    Word::StartOverQuestion,
+    Word::DraftNotProposed,
+    Word::DraftWaits,
+    Word::DraftAccepted,
+    Word::DraftDecided,
     Word::GoalsWaySeparator,
     Word::GoalsWayEnd,
     Word::GoalsKicker,
@@ -2543,6 +2557,12 @@ impl Word {
             Self::DraftAdded => 3406,
             Self::DraftChanged => 3407,
             Self::RailUnfold => 3408,
+            Self::StartOver => 3409,
+            Self::StartOverQuestion => 3410,
+            Self::DraftNotProposed => 3411,
+            Self::DraftWaits => 3412,
+            Self::DraftAccepted => 3413,
+            Self::DraftDecided => 3414,
             Self::ToolRepeated => 1042,
             Self::ChatEnded => 1043,
             Self::ChatEndedReport => 1044,
@@ -3086,6 +3106,7 @@ impl Words {
             // Changes adds 367 literal bytes (client/README.md, 3.5).
             // Chats adds 141 net literal bytes (client/README.md, 3.5).
             // The document adds 88 literal bytes (client/README.md, 3.5).
+            // Start over and the proposal line add 148 literal bytes (3.5).
             text_bytes: 32768
                 + 288
                 + 149
@@ -3103,7 +3124,8 @@ impl Words {
                 + 15
                 + 54
                 + 53
-                + 88,
+                + 88
+                + 148,
             // Whole playground requests keep their supplied bound.
             hole_bytes: joined
                 .max(byline_bytes(joined)?)
@@ -3752,6 +3774,12 @@ fn english(word: Word, shell: Shell) -> (&'static [&'static [u8]], &'static [Hol
         Word::DraftChat => (&[b"Chat"], &[]),
         Word::DraftSplit => (&[b"Split"], &[]),
         Word::DraftDraft => (&[b"Draft"], &[]),
+        Word::StartOver => (&[b"Start over"], &[]),
+        Word::StartOverQuestion => (&[b"Start a new configuring chat? This one stays in Chats."], &[]),
+        Word::DraftNotProposed => (&[b"T", b" \xc2\xb7 not proposed yet"], &[Number]),
+        Word::DraftWaits => (&[b"Proposal ", b" \xc2\xb7 waits for an owner"], &[Number]),
+        Word::DraftAccepted => (&[b"Accepted at ", b""], &[Name]),
+        Word::DraftDecided => (&[b"Proposal ", b" \xc2\xb7 decided"], &[Number]),
         Word::DraftPath => (&[b"docs/design/draft/", b".md"], &[Name]),
         Word::DraftEdited => (&[b"edited ", b""], &[Name]),
         Word::DraftAdded => (&[b"Added by T", b" ", b""], &[Number, Name]),

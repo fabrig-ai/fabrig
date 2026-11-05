@@ -1364,6 +1364,7 @@ pub(crate) fn configuring_configuration(seed: u64, member: bool) -> engine::Conf
     templates.push(template);
     config.core.defaults.templates = templates.into_boxed_slice();
     config.core.defaults.rules.ceiling.tools.0 |= jig_domain_core::ToolFamilies::JIG.settings;
+    config.core.defaults.rules.ceiling.notes = authority::Scopes::GOAL;
     config.core.defaults.rules.ceiling.delegation.kinds =
         Box::new([authority::Executor::Charter(1), authority::Executor::Charter(3)]);
     for project in &mut config.core.seed_projects {
@@ -1371,6 +1372,7 @@ pub(crate) fn configuring_configuration(seed: u64, member: bool) -> engine::Conf
         policy.ceiling = config.core.defaults.rules.ceiling.clone();
         let owner = &mut policy.roles[0];
         owner.authority.tools.0 |= jig_domain_core::ToolFamilies::JIG.settings;
+        owner.authority.notes = authority::Scopes::GOAL;
         owner.authority.delegation.kinds.clone_from(&policy.ceiling.delegation.kinds);
         let mut member = owner.clone();
         member.number = jig_domain_people::Role::Member.number();

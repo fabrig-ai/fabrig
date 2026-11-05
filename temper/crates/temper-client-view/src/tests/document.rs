@@ -68,9 +68,26 @@ fn activity(outcomes: &[&str]) -> c::ActivityPage {
     }
     c::ActivityPage { rows, before: None, after: None, cut: false }
 }
+#[derive(Clone, Copy, PartialEq, Eq)]
+enum ProposalState {
+    Ordinary,
+    NotProposed,
+    Waiting,
+    Accepted,
+    Unknown,
+}
 fn root(body: Option<&[u8]>, mode: Mode, outcomes: &[&str]) -> d::Domain {
+    document_root(body, mode, outcomes, ProposalState::Ordinary)
+}
+const PROPOSAL: c::ProposalKey = c::ProposalKey { proposer: c::Proposer::Task(TASK), number: 12 };
+const ACCEPTED_AT: Wall = Wall::from_nanos(50_580_000_000_000);
+#[expect(
+    clippy::too_many_lines,
+    reason = "the fixture pumps the task, document and departed proposal through their public events"
+)]
+fn document_root(body: Option<&[u8]>, mode: Mode, outcomes: &[&str], state: ProposalState) -> d::Domain {
     let limits = limits();
-    let (mut root, _, watch, _, _) = f::root_at_with_activity(
+    let (mut root, me_watch, watch, _, _) = f::root_at_with_activity(
         d::Address::Chat { task: TASK },
         &limits,
         b"Shop",
@@ -79,9 +96,32 @@ fn root(body: Option<&[u8]>, mode: Mode, outcomes: &[&str]) -> d::Domain {
         None,
     );
     let source = f::chat::messaging_root();
-    let task = source.pages().chat().unwrap().task(source.client()).unwrap().clone();
+    let mut task = source.pages().chat().unwrap().task(source.client()).unwrap().clone();
     let env = Env { now: Time::ZERO, wall: Wall::EPOCH, limits };
     let mut out = Queue::uncapped();
+    if state != ProposalState::Ordinary {
+        let me = configuring_me(&source);
+        d::step(
+            &mut root,
+            &env,
+            d::Event::Client {
+                event: jig_client::Event::Up {
+                    up: jig_client::Up::Watched {
+                        watch: me_watch,
+                        event: c::WatchEvent::Delivered(c::Delivery::Me(Box::new(me))),
+                    },
+                },
+            },
+            &mut out,
+        );
+        task.chip.executor = c::ChipExecutor::Agent { charter: 1 };
+    }
+    if state == ProposalState::Waiting || state == ProposalState::Accepted || state == ProposalState::Unknown {
+        task.proposals = List::with_capacity(1);
+        task.proposals.push(PROPOSAL).unwrap();
+    }
+    let mut without_proposal = task.clone();
+    without_proposal.proposals.clear();
     d::step(
         &mut root,
         &env,
@@ -95,8 +135,47 @@ fn root(body: Option<&[u8]>, mode: Mode, outcomes: &[&str]) -> d::Domain {
         },
         &mut out,
     );
+    let mut departed = false;
     for _ in 0_u32..64 {
-        let Some(request) = out.pop() else { break };
+        let Some(request) = out.pop() else {
+            if !departed && (state == ProposalState::Accepted || state == ProposalState::Unknown) {
+                departed = true;
+                d::step(
+                    &mut root,
+                    &env,
+                    d::Event::Client {
+                        event: jig_client::Event::Up {
+                            up: jig_client::Up::Watched {
+                                watch: watch.unwrap(),
+                                event: c::WatchEvent::Delivered(c::Delivery::Task(Box::new(without_proposal.clone()))),
+                            },
+                        },
+                    },
+                    &mut out,
+                );
+                continue;
+            }
+            break;
+        };
+        if let d::Request::Unlinked {
+            request:
+                jig_client::UnlinkedRequest::Down {
+                    down: jig_client::Down::Read { read, what: jig_client::Readable::Jig(c::Read::Proposal { .. }) },
+                },
+        } = &request
+        {
+            let result = proposal_answer(state, departed);
+            d::step(
+                &mut root,
+                &env,
+                d::Event::Client {
+                    event: jig_client::Event::Up {
+                        up: jig_client::Up::ReadDone { read: *read, result: jig_client::Readout::Jig(result) },
+                    },
+                },
+                &mut out,
+            );
+        }
         if let d::Request::Unlinked {
             request:
                 jig_client::UnlinkedRequest::Down {
@@ -140,6 +219,49 @@ fn root(body: Option<&[u8]>, mode: Mode, outcomes: &[&str]) -> d::Domain {
     assert_eq!(root.pages().chat().unwrap().draft.is_some(), body.is_some());
     d::step(&mut root, &env, d::Event::Act { action: d::Action::Pages(Act::Mode { mode }) }, &mut out);
     root
+}
+fn configuring_me(source: &d::Domain) -> c::Me {
+    let mut me = source.pages().me(source.client()).unwrap().clone();
+    let member = me.projects.get_mut(0).unwrap();
+    let mut template = member.templates.get(0).unwrap().clone();
+    template.number = 3;
+    let mut templates = List::with_capacity(2);
+    templates.push(member.templates.get(0).unwrap().clone()).unwrap();
+    templates.push(template).unwrap();
+    member.templates = templates;
+
+    me
+}
+fn proposal_answer(state: ProposalState, departed: bool) -> c::ReadResult {
+    if departed {
+        if state == ProposalState::Unknown {
+            c::ReadResult::None(c::ReadNone::Unknown)
+        } else {
+            c::ReadResult::Value(c::ReadValue::Ended(Box::new(c::Ended {
+                key: c::ObjectKey::Proposal(PROPOSAL),
+                value: c::EndedValue::Proposal(c::ProposalHistory {
+                    action: c::RetainedAction::Batch(List::with_capacity(0)),
+                    number: PROPOSAL.number,
+                    proposer: TASK,
+                    as_holder: true,
+                    state: c::ProposalHistoryState::Accepted { by: c::Requester::Person(f::chat::PARTY) },
+                }),
+                at: Some(ACCEPTED_AT),
+                by: None,
+            })))
+        }
+    } else {
+        c::ReadResult::Value(c::ReadValue::Proposal(Box::new(c::Proposal {
+            key: PROPOSAL,
+            project: 1,
+            reason: c::DocumentText::complete(c::Text::new(Box::from(b"Work this way".as_slice()), 512).unwrap()),
+            action: c::ProposalAction::Batch(List::with_capacity(0)),
+            as_holder: true,
+            waiting: c::ProposalWaiting { holder: c::HistoryHolder::Person(f::chat::PARTY), since: Wall::EPOCH },
+            funding: List::with_capacity(0),
+            acts: List::with_capacity(0),
+        })))
+    }
 }
 fn view(root: &d::Domain, shell: Shell) -> crate::View {
     let words = crate::words::Words::english(f::FORGE, 512, shell).unwrap();
@@ -298,5 +420,51 @@ fn a_full_document_fits_the_views_limits() {
         assert!(styled(view.tree(), look::DOC).len() == 1);
         let count: usize = view.tree().nodes().iter().flat_map(|node| node.text.iter()).map(|run| run.text.len()).sum();
         assert!(count >= body.iter().filter(|b| **b == b'x' || **b == b'h').count());
+    }
+}
+
+#[test]
+fn the_line_says_not_proposed_yet() {
+    let root = document_root(Some(BODY), Mode::Split, &[], ProposalState::NotProposed);
+    let view = view(&root, Shell::Browser);
+    let line = String::from_utf8(section_words(view.tree(), look::DOC_PATH)).unwrap();
+    assert_eq!(line, "T9 · not proposed yetedited just now");
+}
+#[test]
+fn the_line_says_it_waits() {
+    let root = document_root(Some(BODY), Mode::Split, &[], ProposalState::Waiting);
+    let view = view(&root, Shell::Browser);
+    let line = String::from_utf8(section_words(view.tree(), look::DOC_PATH)).unwrap();
+    assert_eq!(line, "Proposal 12 · waits for an owneredited just now");
+}
+#[test]
+fn the_line_says_accepted() {
+    let root = document_root(Some(BODY), Mode::Split, &[], ProposalState::Accepted);
+    let view = view(&root, Shell::Browser);
+    let line = String::from_utf8(section_words(view.tree(), look::DOC_PATH)).unwrap();
+    assert_eq!(line, "Accepted at 14:03edited just now");
+}
+#[test]
+fn an_unknown_decision_says_decided_without_a_time() {
+    let root = document_root(Some(BODY), Mode::Split, &[], ProposalState::Unknown);
+    let view = view(&root, Shell::Browser);
+    let line = String::from_utf8(section_words(view.tree(), look::DOC_PATH)).unwrap();
+    assert_eq!(line, "Proposal 12 · decidededited just now");
+}
+#[test]
+fn start_over_has_its_own_dialog_words() {
+    for shell in [Shell::Browser, Shell::Terminal] {
+        let mut root = document_root(Some(BODY), Mode::Split, &[], ProposalState::NotProposed);
+        let before = view(&root, shell);
+        let button = f::find(before.tree(), Role::Button, b"Start over").unwrap();
+        assert_eq!(styled(before.tree(), look::START_OVER).len(), 1);
+        let event = crate::event(&before, button, skein_ui::Act::Press).unwrap();
+        f::root_event(&mut root, event);
+        let after = view(&root, shell);
+        assert!(f::find(after.tree(), Role::Dialog, b"Start over").is_some());
+        assert!(
+            String::from_utf8_lossy(&f::text(after.tree()))
+                .contains("Start a new configuring chat? This one stays in Chats.")
+        );
     }
 }
