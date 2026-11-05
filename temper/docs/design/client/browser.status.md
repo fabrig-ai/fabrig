@@ -11,8 +11,8 @@
   `forge_choice`), words for a forge added to the configuration by hand,
   which names none (`forge.status.md`). 7.2: `google-sign-in`,
   `forge-details`, `forge-setting-up-middle`, `welcome-setup-failed`,
-  `welcome-ready-under-way`, `welcome-ready-adopted`,
-  `settings-drafts-off`,
+  `configure-chat-proposal`, `configure-chat-accepted`,
+  `configure-chat-replaced`, `settings-drafts-off`,
   `settings-goals-off`, `settings-changes-off` and `settings-away-off` are states the gallery
   holds (`tools/gallery/names.txt`, `tools/gallery/src/samples.rs`) that
   the table does not list.
