@@ -91,6 +91,7 @@ impl Switcher {
             let stays_here = match address {
                 Address::Home { project } => self.renaming == Some(*project),
                 Address::Settings { .. }
+                | Address::Configure { .. }
                 | Address::Chats { .. }
                 | Address::Chat { .. }
                 | Address::Task { .. }
@@ -115,6 +116,7 @@ impl Switcher {
             | Address::Inbox { .. } => self.close(),
             Address::Home { .. }
             | Address::Settings { .. }
+            | Address::Configure { .. }
             | Address::Chats { .. }
             | Address::Chat { .. }
             | Address::Task { .. }

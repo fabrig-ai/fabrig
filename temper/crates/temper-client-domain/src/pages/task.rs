@@ -422,6 +422,7 @@ impl Task {
             | Act::ChatWords { .. }
             | Act::StartChat
             | Act::FirstChat
+            | Act::Starter { .. }
             | Act::SkipToBegin
             | Act::RetryPlayground
             | Act::Playground
@@ -524,6 +525,7 @@ impl Task {
             | Act::ChatWords { .. }
             | Act::StartChat
             | Act::FirstChat
+            | Act::Starter { .. }
             | Act::SkipToBegin
             | Act::RetryPlayground
             | Act::Playground

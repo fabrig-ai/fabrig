@@ -87,6 +87,10 @@ pub enum Act {
     },
     StartChat,
     FirstChat,
+    /// A starter of Configure (temper/docs/design/client/README.md, 3.5).
+    Starter {
+        words: Box<[u8]>,
+    },
     Suggest {
         cue: u8,
     },
@@ -434,6 +438,14 @@ pub fn step(pages: &mut Pages, env: &Env<Limits>, client: &Client, event: Event,
             }
         }
         Event::Act { act: Act::StartChat } => start_chat(pages, env, client, out),
+        Event::Act { act: Act::Starter { words } } => {
+            if let Address::Configure { project } = pages.address {
+                let me = pages.me(client);
+                if let Some(chats) = &mut pages.chats {
+                    chats.configure_chat(env, me, Some(project), words, &mut pages.serial, out);
+                }
+            }
+        }
         Event::Act { act: Act::FirstChat } => {
             let me = pages.me(client);
             let project = conversation_project(pages);
@@ -516,6 +528,7 @@ pub fn step(pages: &mut Pages, env: &Env<Limits>, client: &Client, event: Event,
             match &pages.address {
                 Address::Home { .. } => out.push(Request::Show { address: Address::Home { project } }),
                 Address::Settings { .. } => out.push(Request::Show { address: Address::Settings { project } }),
+                Address::Configure { .. } => out.push(Request::Show { address: Address::Configure { project } }),
                 Address::Inbox { .. }
                 | Address::Chats { .. }
                 | Address::Accounts
@@ -661,7 +674,7 @@ fn plan_filter(pages: &Pages, filter: PlanFilter, out: &mut Queue<Request>) {
 }
 
 fn conversation_project(pages: &Pages) -> Option<u32> {
-    if let Address::Home { project } = pages.address { Some(project) } else { pages.project }
+    address_project(&pages.address).or(pages.project)
 }
 
 fn contains(me: &Me, project: Option<u32>) -> bool {
@@ -753,6 +766,9 @@ fn went(pages: &mut Pages, env: &Env<Limits>, address: Address, out: &mut Queue<
                 out,
             ));
         }
+        if let Address::Configure { .. } = address {
+            pages.chats = Some(chats::Chats::new(pages.next));
+        }
         if let Address::Chats { filter, .. } = address {
             let mut page = chats::Chats::new(pages.next);
             page.filter = filter;
@@ -783,6 +799,7 @@ fn went(pages: &mut Pages, env: &Env<Limits>, address: Address, out: &mut Queue<
             | Address::Task { .. }
             | Address::Home { .. }
             | Address::Settings { .. }
+            | Address::Configure { .. }
             | Address::Adopt { .. } => None,
         };
         page.request.return_from(source);
@@ -985,6 +1002,7 @@ fn confirmation(pages: &mut Pages, env: &Env<Limits>, client: &Client, act: Act,
         | Act::ChatWords { .. }
         | Act::StartChat
         | Act::FirstChat
+        | Act::Starter { .. }
         | Act::SkipToBegin
         | Act::Playground
         | Act::RetryPlayground
@@ -1017,7 +1035,7 @@ fn task_confirmation(pages: &mut Pages, client: &Client, act: jig_client::contra
 
 fn address_project(address: &Address) -> Option<u32> {
     match address {
-        Address::Home { project } | Address::Settings { project } => Some(*project),
+        Address::Home { project } | Address::Settings { project } | Address::Configure { project } => Some(*project),
         Address::Inbox { .. }
         | Address::Chats { .. }
         | Address::Accounts
@@ -1185,7 +1203,11 @@ fn link_changed(pages: &mut Pages, link: Link, out: &mut Queue<Request>) {
 fn start_chat(pages: &mut Pages, env: &Env<Limits>, client: &Client, out: &mut Queue<Request>) {
     let me = pages.me(client);
     if let Some(chats) = &mut pages.chats {
-        chats.start(env, me, pages.project, &pages.choice, &mut pages.serial, out);
+        if let Address::Configure { project } = pages.address {
+            chats.configure_chat(env, me, Some(project), chats.words.clone(), &mut pages.serial, out);
+        } else {
+            chats.start(env, me, pages.project, &pages.choice, &mut pages.serial, out);
+        }
     }
 }
 
@@ -1212,6 +1234,7 @@ fn returned(pages: &mut Pages, client: &Client, out: &mut Queue<Request>) {
         | Address::Task { .. }
         | Address::Home { .. }
         | Address::Settings { .. }
+        | Address::Configure { .. }
         | Address::Adopt { .. } => return,
     }
     page.request.return_from(None);
