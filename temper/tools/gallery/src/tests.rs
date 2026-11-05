@@ -87,6 +87,25 @@ enum Part {
     Plan { live: u32, title: &'static str },
 }
 const HOLDS: [Holds; samples::N] = [
+    Holds { name: "start-goal", heading: "Chats", parts: &[Part::NoRole { role: Role::Dialog }] },
+    Holds {
+        name: "start-goal-draft",
+        heading: "T1 · Director",
+        parts: &[
+            Part::Named { role: Role::Dialog, name: "Start a goal from first-run-projects.md" },
+            Part::Value { role: Role::TextField, name: "Name", value: "first-run-projects" },
+            Part::Named { role: Role::ChoiceGroup, name: "How it runs" },
+            Part::Named { role: Role::Button, name: "Start goal" },
+        ],
+    },
+    Holds {
+        name: "start-goal-refused",
+        heading: "T1 · Director",
+        parts: &[
+            Part::Named { role: Role::Dialog, name: "Start a goal from first-run-projects.md" },
+            Part::Text { text: "This act is not offered" },
+        ],
+    },
     Holds {
         name: "goal-sending",
         heading: "Six of nine tasks landed. The store task is split in two after two size failures, and needs about 8 more to finish.",

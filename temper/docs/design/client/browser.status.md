@@ -2,7 +2,7 @@
 
 2026-11-05. Where temper's code lags or departs from [browser.md](browser.md).
 
-- **Not yet:** 2.3: `?state=live` on a task's address still reads. 2.5: *A goal's look*. 7.2: `goal-amending`, `goal-stop-dialog`, `goal-toast`, `goal-sending` and the `start-goal*` states: plan `ui-goal-page`.
+- **Not yet:** 2.3: `?state=live` on a task's address still reads.
 - **Not yet:** 7.1: a `home-*` state's title is its headline, then
   "temper", where the shell's is "Home · temper" (`README.md`, 5.1):
   `tools/gallery/src/lib.rs`, `heading`, reads the level-1 heading, not

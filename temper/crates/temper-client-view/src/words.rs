@@ -11,6 +11,15 @@ use skein_ui::{
 };
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 pub enum Word {
+    StartGoalTitle,
+    StartGoalFrom,
+    StartGoalLead,
+    StartGoalName,
+    StartGoalDefault,
+    StartGoalWays,
+    StartGoalRun,
+    GoalsStartDraft,
+
     GoalTell,
     GoalHint,
     GoalPause,
@@ -1003,7 +1012,8 @@ pub(crate) const SCRIPTED_MODEL: &[u8] = b"demo";
 // Needs count, toast, page and kinds add thirty-two phrases (3.5).
 // The configuring opening replaces one phrase with nineteen (client/README.md, 3.5).
 // The goal header and report use eighteen phrases; its side uses thirty-two (client/README.md, 5.8).
-const PHRASES: u32 = 1496;
+// The start sheet uses eight phrases (client/README.md, 5.14).
+const PHRASES: u32 = 1504;
 // Ready's empty-name line has two literals and a Name hole, two more segments (3.5).
 // Ready's repository lead adds one phrase and three segments (3.5).
 // Four literals and the counted entry's two literals and Number hole add seven segments.
@@ -1019,8 +1029,17 @@ const PHRASES: u32 = 1496;
 // Needs count, toast, page and kinds add sixty-two segments (3.5).
 // The configuring opening adds twenty literal and hole segments (3.5).
 // The goal header and report use forty literal and hole segments; its side uses fifty-two (5.8).
-const SEGMENTS: u32 = 2599;
-const ALL: [Word; 900] = [
+// The start sheet uses twelve literal and hole segments (5.14).
+const SEGMENTS: u32 = 2611;
+const ALL: [Word; 908] = [
+    Word::StartGoalTitle,
+    Word::StartGoalFrom,
+    Word::StartGoalLead,
+    Word::StartGoalName,
+    Word::StartGoalDefault,
+    Word::StartGoalWays,
+    Word::StartGoalRun,
+    Word::GoalsStartDraft,
     Word::GoalTell,
     Word::GoalHint,
     Word::GoalPause,
@@ -1926,6 +1945,14 @@ impl Word {
     #[expect(clippy::too_many_lines, reason = "one exhaustive table keeps the frame phrase IDs stable")]
     fn id(self, connector: u16) -> PhraseId {
         let number = match self {
+            Self::StartGoalTitle => 3450,
+            Self::StartGoalFrom => 3451,
+            Self::StartGoalLead => 3452,
+            Self::StartGoalName => 3453,
+            Self::StartGoalDefault => 3454,
+            Self::StartGoalWays => 3455,
+            Self::StartGoalRun => 3456,
+            Self::GoalsStartDraft => 3457,
             Self::GoalTell => 3440,
             Self::GoalHint => 3441,
             Self::GoalPause => 3432,
@@ -3156,6 +3183,14 @@ impl Words {
 fn english(word: Word, shell: Shell) -> (&'static [&'static [u8]], &'static [HoleKind]) {
     use HoleKind::{Name, Number};
     match word {
+        Word::StartGoalTitle => (&[b"Start a goal"], &[]),
+        Word::StartGoalFrom => (&[b"Start a goal from ", b""], &[Name]),
+        Word::StartGoalLead => (&[b"The goal takes the draft as it is now. Later edits reach it through Amend."], &[]),
+        Word::StartGoalName => (&[b"Name"], &[]),
+        Word::StartGoalDefault => (&[b" ", b"\xe2\x80\x99s default."], &[Name]),
+        Word::StartGoalWays => (&[b"The project\xe2\x80\x99s ways of working"], &[]),
+        Word::StartGoalRun => (&[b"Start goal"], &[]),
+        Word::GoalsStartDraft => (&[b"Start one from a draft"], &[]),
         Word::GoalTell => (&[b"Tell ", b" something"], &[Name]),
         Word::GoalHint => (&[b"Its agent reads it at once. A change of plan becomes an amendment it shows you first."], &[]),
         Word::GoalPause => (&[b"Pause"], &[]),

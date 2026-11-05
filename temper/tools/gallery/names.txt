@@ -67,6 +67,9 @@ goal-landed-open
 goal-stopped
 goal-failed
 goal-no-report
+start-goal
+start-goal-draft
+start-goal-refused
 settings
 task-solo-T3
 accounts-solo

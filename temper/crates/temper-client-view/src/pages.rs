@@ -15,6 +15,7 @@ pub mod goals;
 pub mod home;
 pub(crate) mod inbox;
 pub(crate) mod needs;
+pub(crate) mod start_goal;
 pub(crate) mod task;
 pub(crate) mod welcome;
 
