@@ -48,6 +48,7 @@ pub struct Domain {
     pub(crate) question_ends: Map<u64, List<u64>>,
     pub(crate) live_agents: u32,
     pub(crate) newest: u32,
+    pub(crate) kept: crate::Kept,
     pub(crate) holders: Map<u32, u32>,
     pub(crate) stubs: Map<u64, crate::Stub>,
     pub(crate) alarms: Deadlines<u64>,
@@ -216,7 +217,7 @@ impl Domain {
         rows.into_boxed()
     }
     /// Create restoring state from validated `limits`, deterministic `seed`, unique configured
-    /// charter versions bounded by `limits.charters + limits.versions`, and `efforts`, each
+    /// charter versions bounded by `limits.charters * 2 + kept.versions`, and `efforts`, each
     /// configured model's count of declared efforts in configuration's order, at most
     /// `MODELS` (domain/tasks.md, section 3). Panics on invalid/unrepresentable limits or
     /// malformed charter configuration; no task becomes active until `Restore`/`Check`/`Restored`
@@ -224,13 +225,14 @@ impl Domain {
     #[must_use]
     pub fn new(
         limits: &Limits,
+        kept: crate::Kept,
         seed: u64,
         newest: u32,
         charters: Box<[crate::CharterModels]>,
         efforts: Box<[u8]>,
     ) -> Domain {
-        assert!(crate::valid(limits), "task limits are valid");
-        validate_charters(limits, &charters, &efforts);
+        assert!(crate::valid(limits, kept), "task limits are valid");
+        validate_charters(limits, kept, &charters, &efforts);
         Domain {
             startup: Startup::Restoring,
             restore_failure: None,
@@ -242,7 +244,8 @@ impl Domain {
             question_ends: Map::uncapped(),
             live_agents: 0,
             newest,
-            holders: Map::with_capacity(limits.revisions.checked_add(1).expect("revision bound")),
+            kept,
+            holders: Map::with_capacity(kept.revisions.checked_add(1).expect("revision bound")),
             stubs: Map::with_capacity(crate::limits::stub_capacity(limits).expect("valid stub bound")),
             alarms: Deadlines::with_capacity(limits.tasks),
             grace_alarms: Deadlines::with_capacity(limits.tasks),
@@ -581,7 +584,7 @@ pub fn step(domain: &mut Domain, env: &Env<Limits>, event: Event, out: &mut Queu
         Event::CloseProject { project } => crate::close_project::close_project(domain, project, out),
         Event::MoveToNewest { from } => crate::settings_moves::move_tasks(domain, env, from, out),
         Event::Charters { newest, charters, efforts } => {
-            validate_charters(&env.limits, &charters, &efforts);
+            validate_charters(&env.limits, domain.kept, &charters, &efforts);
             domain.newest = newest;
             domain.charters = charters;
             domain.efforts = efforts;
@@ -1533,17 +1536,10 @@ fn append(capacity: u32, old: &[u64], batch: &[New]) -> Box<[u64]> {
     numbers.into_boxed()
 }
 
-fn validate_charters(limits: &Limits, charters: &[crate::CharterModels], efforts: &[u8]) {
+fn validate_charters(limits: &Limits, kept: crate::Kept, charters: &[crate::CharterModels], efforts: &[u8]) {
     assert!(
         charters.len()
-            <= skein_lib::length::usize_of(
-                limits
-                    .charters
-                    .checked_mul(2)
-                    .expect("newest charter states")
-                    .checked_add(limits.versions)
-                    .expect("version bound")
-            ),
+            <= skein_lib::length::usize_of(crate::limits::charter_capacity(limits, kept).expect("version bound")),
         "charter versions fit"
     );
     let models = skein_lib::length::usize_of(crate::MODELS);

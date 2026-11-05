@@ -26,7 +26,8 @@ const ATTEMPT: u64 = 7;
 
 fn cold(source: &Harness) -> Harness {
     let mut cold = Harness::new();
-    cold.domain = Domain::new(&LIMITS, 91, source.domain.newest(), super::charters(), Box::new([0]));
+    cold.domain =
+        Domain::new(&LIMITS, crate::tests::KEPT, 91, source.domain.newest(), super::charters(), Box::new([0]));
     cold.stored.clear();
     for (key, hold) in &source.domain.hold_kinds {
         cold.send(Event::Kinds {
