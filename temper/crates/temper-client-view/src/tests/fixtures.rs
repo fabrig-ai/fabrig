@@ -1008,11 +1008,23 @@ pub mod chat {
         activity: Option<c::ActivityPage>,
         document: Option<c::ReadValue>,
     ) -> temper_client_domain::Domain {
+        proposal_in_layout(activity, document, false, false)
+    }
+    #[expect(
+        clippy::too_many_lines,
+        reason = "one fixture delivers the task, delegate and proposal through their requests"
+    )]
+    pub fn proposal_in_layout(
+        activity: Option<c::ActivityPage>,
+        document: Option<c::ReadValue>,
+        configuring: bool,
+        delegate: bool,
+    ) -> temper_client_domain::Domain {
         use temper_client_domain::Event;
         let mut limits = fixtures::domain_limits();
         limits.client.domain.rows = 4;
         limits.client.domain.turn_text = 512;
-        let (mut root, _, watch, _, _) = fixtures::root_at_with_activity(
+        let (mut root, me_watch, watch, _, _) = fixtures::root_at_with_activity(
             temper_client_domain::Address::Chat { task: TASK },
             &limits,
             b"Shop",
@@ -1022,6 +1034,18 @@ pub mod chat {
         );
         let mut task = fixtures::task::document();
         task.chip.task = TASK;
+        if configuring {
+            let source = messaging_root();
+            let me = fixtures::configuring_me(source.pages().me(source.client()).expect("me").clone());
+            fixtures::deliver_me(&mut root, me_watch, me);
+            task.chip.executor = c::ChipExecutor::Agent { charter: 37 };
+            task.project = fixtures::PROJECT;
+        }
+        if delegate {
+            task.project = fixtures::PROJECT;
+            task.delegates = List::with_capacity(1);
+            task.delegates.push(c::LiveDelegate { chip: delegated_task().chip, takeover_budget: 0 }).unwrap();
+        }
         task.proposals = List::with_capacity(SINGLE_TEMPLATE);
         task.proposals.push(PROPOSAL).expect("one proposal");
         let mut out = skein_lib::Queue::with_capacity(PROPOSAL_OUTPUTS);
@@ -1056,7 +1080,31 @@ pub mod chat {
             })),
         };
         let mut answered = false;
+        let mut page = Some(page);
         while let Some(request) = out.pop() {
+            if let temper_client_domain::Request::Unlinked {
+                request:
+                    jig_client::UnlinkedRequest::Down {
+                        down:
+                            jig_client::Down::Open {
+                                watch,
+                                subject: jig_client::Watchable::Jig(c::Subject::Task { task: OTHER_DELEGATE }),
+                            },
+                    },
+            } = &request
+            {
+                fixtures::root_event(
+                    &mut root,
+                    Event::Client {
+                        event: jig_client::Event::Up {
+                            up: jig_client::Up::Watched {
+                                watch: *watch,
+                                event: c::WatchEvent::Delivered(c::Delivery::Task(Box::new(delegated_task()))),
+                            },
+                        },
+                    },
+                );
+            }
             if let temper_client_domain::Request::Unlinked {
                 request:
                     jig_client::UnlinkedRequest::Down {
@@ -1074,17 +1122,26 @@ pub mod chat {
                         event: jig_client::Event::Up {
                             up: jig_client::Up::ReadDone {
                                 read,
-                                result: jig_client::Readout::Jig(c::ReadResult::Value(page)),
+                                result: jig_client::Readout::Jig(c::ReadResult::Value(
+                                    page.take().expect("one proposal read"),
+                                )),
                             },
                         },
                     },
                 );
                 answered = true;
-                break;
             }
         }
         assert!(answered, "proposal read emitted");
         root
+    }
+    fn delegated_task() -> c::Task {
+        let mut task = fixtures::task::document();
+        task.chip.task = OTHER_DELEGATE;
+        task.chip.title = c::DocumentText::complete(fixtures::first_run::text(b"Delegated work"));
+        task.project = fixtures::PROJECT;
+        task.requester = c::Requester::Task(TASK);
+        task
     }
     pub fn rejecting_chat() -> temper_client_domain::Domain {
         use temper_client_domain::{Action, Event, pages::Act};
@@ -1741,4 +1798,18 @@ pub fn deliver_me(root: &mut temper_client_domain::Domain, watch: Token, me: c::
             },
         },
     );
+}
+
+/// Template 3's charter deliberately differs from its number and its name is editable.
+pub fn configuring_me(mut me: c::Me) -> c::Me {
+    let project = me.projects.get_mut(0).expect("project");
+    let stock = project.templates.get(0).expect("chat template").clone();
+    let mut configuring = stock.clone();
+    configuring.number = 3;
+    configuring.name = c::DocumentText::complete(first_run::text(b"A renamed role"));
+    configuring.executor = c::TemplateExecutor::Charter(37);
+    project.templates = List::with_capacity(2);
+    project.templates.push(stock).expect("stock");
+    project.templates.push(configuring).expect("configuring");
+    me
 }

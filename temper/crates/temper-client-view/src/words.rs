@@ -18,6 +18,7 @@ pub enum Word {
     ConfigureUnsure,
     ConfigureWords,
     ConfigureWhere,
+    Configuring,
 
     HomeOpen,
     HomeNeedsNone,
@@ -843,7 +844,8 @@ pub(crate) const SCRIPTED_MODEL: &[u8] = b"demo";
 // More accounts adds six phrases (client/README.md, 3.5).
 // Removing Connected removes seven phrases (client/README.md, 3.5).
 // Configure adds seven literal phrases (client/README.md, 3.5).
-const PHRASES: u32 = 1344;
+// The configuring chat tag adds one literal phrase (3.5).
+const PHRASES: u32 = 1345;
 // Ready's empty-name line has two literals and a Name hole, two more segments (3.5).
 // Ready's repository lead adds one phrase and three segments (3.5).
 // Four literals and the counted entry's two literals and Number hole add seven segments.
@@ -854,8 +856,9 @@ const PHRASES: u32 = 1344;
 // More accounts adds eight literal and hole segments (3.5).
 // Removing Connected removes twenty-three literal and hole segments (3.5).
 // Configure adds seven literal segments (client/README.md, 3.5).
-const SEGMENTS: u32 = 2323;
-const ALL: [Word; 749] = [
+// The configuring chat tag adds one literal segment (3.5).
+const SEGMENTS: u32 = 2324;
+const ALL: [Word; 750] = [
     Word::ConfigureAgent,
     Word::ConfigureWays,
     Word::ConfigureAlone,
@@ -863,6 +866,7 @@ const ALL: [Word; 749] = [
     Word::ConfigureUnsure,
     Word::ConfigureWords,
     Word::ConfigureWhere,
+    Word::Configuring,
     Word::HomeOpen,
     Word::HomeNeedsNone,
     Word::HomeNeedsOne,
@@ -1617,6 +1621,7 @@ impl Word {
             Self::ConfigureUnsure => 3185,
             Self::ConfigureWords => 3186,
             Self::ConfigureWhere => 3187,
+            Self::Configuring => 3188,
             Self::HomeOpen => 3165,
             Self::HomeNeedsNone => 3145,
             Self::HomeNeedsOne => 3146,
@@ -2576,8 +2581,8 @@ impl Words {
             holes: 4,
             // Setup fields and first repository need 28 more segments; the playground's start 15.
             segments: SEGMENTS,
-            // Everyday Home adds 288 bytes; More accounts 149; Configure 401 literal bytes (3.5).
-            text_bytes: 32768 + 288 + 149 + 401,
+            // Everyday Home adds 288 bytes; More accounts 149; Configure 401 and its tag 11 literal bytes (3.5).
+            text_bytes: 32768 + 288 + 149 + 401 + 11,
             // Whole playground requests keep their supplied bound.
             hole_bytes: joined
                 .max(switcher_repository_bytes(joined)?)
@@ -3204,6 +3209,7 @@ fn english(word: Word, shell: Shell) -> (&'static [&'static [u8]], &'static [Hol
         Word::ConfigureDesign => (&[b"I write a design draft first; agents plan its tasks and land them together once checked."], &[]),
         Word::ConfigureUnsure => (&[b"Not sure yet. What can temper do?"], &[]),
         Word::ConfigureWords => (&[b"How do you work?"], &[]),
+        Word::Configuring => (&[b"Configuring"], &[]),
         Word::ConfigureWhere => (&[b"Where"], &[]),
         Word::FirstChat => (&[b"Tell temper how you work"], &[]),
         Word::Start => (&[b"Start chat"], &[]),
