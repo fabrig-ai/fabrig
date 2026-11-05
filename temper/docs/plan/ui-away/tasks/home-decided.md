@@ -79,3 +79,20 @@ Run through heavy, one command at a time:
 Then verify the regenerated recording:
 `TEMPER_BUNDLE=none heavy cargo nextest run -p temper-playground-world --test suite -E 'test(=walk::story_a_kept_log_replays_natively)'`
 This generated fixture is the task’s responsibility under `temper/docs/design/playground.md`, section 9. Include it in the merge resolution and report its regeneration.
+
+## Rebase (2026-11-05, step merge, foreman ui-away/home-decided/foreman-2)
+
+merge the landing trunk while preserving distinct Home watch handles and both sides’ tests
+The content conflict is in `temper/crates/temper-client-domain/src/tests/pages/home.rs`.
+Trunk commit `15c76c5a7f` changed Home’s handle allocation and session Settings assertions; task commit `67586abc10` added decided watches and wall-aware facts.
+Preserve the task’s decision tests and every `home::facts(..., Wall)` argument.
+Retain the trunk’s assertions that Settings survives Home, never reopens on reentry, and cannot send a second look.
+In `a_watch_opens_with_the_page_and_closes_with_it`, construct the status handle with `Owner::Pages.asker()` explicitly; do not inherit the chats handle’s asker.
+Check the automatically merged allocation code: trunk puts status at `number`, which collides with this branch’s decided handle.
+In `temper/crates/temper-client-domain/src/pages/home.rs`, retain decided at `number` and status at `number + 1`.
+In `temper/crates/temper-client-domain/src/pages.rs`, preserve the existing two-handle reservation before chats (`checked_add(2)`); trunk’s `checked_add(1)` would collide with status.
+With that allocation, the status test’s number remains `chats.live.number - 1`.
+Preserve the automatically merged view fixtures and wall-aware callers.
+Validate through heavy, one command at a time:
+`TEMPER_BUNDLE=none heavy cargo nextest run -p temper-client-domain --lib -E 'test(pages::home::)'`
+Check that tests were selected and both status and decided lifecycle tests pass.
