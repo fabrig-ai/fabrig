@@ -532,7 +532,9 @@ fn repository_row(b: &mut Builder, owner: &[u8], name: &[u8], forge: &[u8]) {
 }
 pub(crate) fn sign_out(b: &mut Builder, root: &Domain, w: &Words, bindings: &mut Bindings) {
     let Some(me) = root.pages().me(root.client()) else { return };
-    b.open(Role::Slot);
+    // A distinct form keeps its element when account sections arrive beside it.
+    b.open(Role::Form);
+    b.name(&w.say(Word::SignOut, &[]));
     b.style(look::SETTINGS_SETTING);
     b.open(Role::Slot);
     crate::cards::text(b, Role::Text, &w.say(Word::SettingsSignedIn, &[Hole::Name(me.party.name.bytes().into())]));

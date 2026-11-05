@@ -959,7 +959,7 @@ pub static NAMES: [Name; 166] = [
     Name {
         name: "checkout.workspaces",
         unit: Unit::Count,
-        line: "Bounds workspaces cached on the worker's disk and held at once; preparation is refused when all are held.",
+        line: "Bounds workspaces cached on disk and held at once; at least the slots; preparation refuses when all are held.",
         value: |limits| u64::from(limits.checkout.workspaces),
     },
     Name {
@@ -1013,7 +1013,7 @@ pub static NAMES: [Name; 166] = [
     Name {
         name: "git_component.operations",
         unit: Unit::Count,
-        line: "Bounds simultaneous git component operations.",
+        line: "Bounds simultaneous git component operations; at least the workspaces.",
         value: |limits| u64::from(limits.git_component.operations),
     },
     Name {

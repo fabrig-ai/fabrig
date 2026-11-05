@@ -2118,8 +2118,7 @@ part of that start its Musts read, and no more. Its fixture is the
 case's, with the director on its own charter (4.1's row), and what the
 row names. It runs on the real loop's cluster, as 4.3's and 4.6's
 stories do, one slot per worker (../protocol/README.md, 15.7), a worker
-for each run the step keeps at once: a standalone worker's slots are its
-agent host's, one. Act 2's scripts, acts and oracle steps
+for each run the step keeps at once. Act 2's scripts, acts and oracle steps
 (`oracle::step_5_1` to `step_5_6`) sit beside act 1's in the library's
 files, over the one `Observed`, which grows only by fields, and each
 oracle step has unit tests that a mutated observation fails. The

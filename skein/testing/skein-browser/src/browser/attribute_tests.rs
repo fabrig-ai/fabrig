@@ -114,7 +114,7 @@ fn an_element_replaced_past_the_deadline_is_gone() {
     peer.selected();
     peer.env.now = peer.env.now.saturating_add(peer.env.limits.answer);
     peer.reply(b"DOM.getAttributes", br#"{"nodeId":7}"#, b"error", MISSING);
-    let Some(Event::Refused { op: READ, why: Refusal::Gone }) = peer.browser.events.pop_front() else {
+    let Some(Event::Refused { op: READ, why: Refusal::Gone, .. }) = peer.browser.events.pop_front() else {
         panic!("the read's refusal")
     };
     assert!(peer.browser.op(READ).is_none());

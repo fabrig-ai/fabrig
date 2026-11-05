@@ -201,6 +201,13 @@ skein's (skein's `ui-web.md`), and how a client of jig's does is jig's
 - **jig's example guards, as they are** (`README.md`, section 8): the
   Host allow-list holding the listener's own address; a cookie without
   jig's browser header refused.
+- **Ordinary calls wait for jig's mapping's room** (jig's
+  `protocol/client.md`, 17.4). Each waiting head stays under the listener's
+  connection bound and stall deadline, with no body read until admitted;
+  a closed connection drops its head. The small profile's four calls,
+  streams included, therefore serve one page's concurrent requests in
+  turn. Public reads retain their separate busy response (jig's
+  `protocol/client.md`, 17.5); stopping refuses waiting ordinary calls.
 - **The bundle** is skein's bundler's output (skein's `ui-web.md`,
   section 4): the shell's module, skein's stylesheet and temper's
   (2.5). temper's build embeds it in the binary (2.6);

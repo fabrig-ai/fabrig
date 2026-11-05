@@ -120,7 +120,7 @@ fn a_worker_name_past_the_profiles_bound_is_refused() {
     refuses(b"worker-a", b"012345678901234567890123456789012", fixtures::path(&[b"name"]), What::Bound);
 }
 fn more_slots_than_the_hub_can_host_are_refused() {
-    refuses(br#""slots": 2"#, br#""slots": 3"#, fixtures::path(&[b"slots"]), What::Bound);
+    refuses(br#""slots": 2"#, br#""slots": 3"#, fixtures::path(&[b"slots"]), What::SlotsPastHub);
 }
 fn a_worker_with_no_profile_adds_no_bound_of_small() {
     let bytes = fixtures::with(fixtures::WORKER_SMALL, br#""slots": 2"#, br#""slots": 3"#);

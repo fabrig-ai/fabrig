@@ -3,7 +3,7 @@ use crate::BrowserFace;
 use crate::tests::{face, found, seen};
 use skein_browser::boundary::{Event, Refusal, Request};
 use skein_fake_person::{Doing, Face, Find, Found};
-use skein_lib::Token;
+use skein_lib::{Time, Token};
 use skein_ui::{Act, NodeId, Role};
 
 fn pressing() -> (BrowserFace<'static>, Token) {
@@ -20,9 +20,10 @@ fn pressing() -> (BrowserFace<'static>, Token) {
 #[test]
 fn a_press_finds_a_replaced_control_again_before_sending_input() {
     let (mut face, op) = pressing();
-    face.event(&Event::Refused { op, why: Refusal::Gone });
+    face.event(&Event::Refused { op, why: Refusal::Gone, detail: Box::default() });
     assert!(face.pending(), "the semantic press still waits for its control");
     assert!(face.failure().is_none());
+    face.tick(Time::ZERO.saturating_add(skein_browser::Limits::default().poll));
     let Request::Find { op: find_op, query, .. } = face.requests().next().expect("fresh find") else {
         panic!("find request")
     };
@@ -45,10 +46,15 @@ fn a_press_finds_a_replaced_control_again_before_sending_input() {
 }
 
 #[test]
-fn a_press_stops_after_three_replacements() {
+fn a_press_keeps_its_deadline_across_repeated_replacements() {
+    // Four poll intervals fit within the original answer deadline
+    // (skein/docs/design/browser.md, 6).
+    const REPLACEMENTS: u64 = 4;
     let (mut face, mut op) = pressing();
-    for _ in 0..3 {
-        face.event(&Event::Refused { op, why: Refusal::Gone });
+    let limits = skein_browser::Limits::default();
+    for replacement in 1..=REPLACEMENTS {
+        face.event(&Event::Refused { op, why: Refusal::Gone, detail: Box::default() });
+        face.tick(Time::ZERO.saturating_add(limits.poll.saturating_mul(replacement)));
         assert!(face.pending());
         found(&mut face, Some(seen(b"")));
         let Request::Press { op: next, .. } = face.requests().next().expect("retry press") else {
@@ -56,10 +62,11 @@ fn a_press_stops_after_three_replacements() {
         };
         op = next;
     }
-    face.event(&Event::Refused { op, why: Refusal::Gone });
+    face.event(&Event::Refused { op, why: Refusal::Gone, detail: Box::default() });
+    face.tick(Time::ZERO.saturating_add(limits.answer));
     assert!(!face.pending());
     assert_eq!(face.refusal(), Some(Refusal::Gone));
-    assert!(face.failure().expect("failure").contains("Gone"));
+    assert_eq!(face.failure().as_deref(), Some("browser refused act: Gone (press deadline passed)"));
     assert!(face.requests().next().is_none());
 }
 
@@ -67,23 +74,27 @@ fn a_press_stops_after_three_replacements() {
 fn a_press_keeps_other_refusals_and_a_missing_replacement() {
     for why in [Refusal::Protocol, Refusal::Covered, Refusal::Hidden, Refusal::Disabled, Refusal::Crashed] {
         let (mut face, op) = pressing();
-        face.event(&Event::Refused { op, why });
+        face.event(&Event::Refused { op, why, detail: Box::default() });
         assert!(!face.pending());
         assert_eq!(face.refusal(), Some(why));
         assert!(face.failure().is_some());
         assert!(face.requests().next().is_none());
     }
     let (mut face, op) = pressing();
-    face.event(&Event::Refused { op, why: Refusal::Gone });
+    face.event(&Event::Refused { op, why: Refusal::Gone, detail: Box::default() });
+    face.tick(Time::ZERO.saturating_add(skein_browser::Limits::default().poll));
     found(&mut face, None);
+    assert!(face.pending(), "a missing replacement waits until the original deadline");
+    face.tick(Time::ZERO.saturating_add(skein_browser::Limits::default().answer));
     assert!(!face.pending());
     assert_eq!(face.refusal(), Some(Refusal::Gone));
     assert!(face.failure().expect("missing control").contains("Gone"));
     assert!(face.requests().next().is_none());
     let (mut face, op) = pressing();
-    face.event(&Event::Refused { op, why: Refusal::Gone });
+    face.event(&Event::Refused { op, why: Refusal::Gone, detail: Box::default() });
+    face.tick(Time::ZERO.saturating_add(skein_browser::Limits::default().poll));
     let Request::Find { op, .. } = face.requests().next().expect("retry query") else { panic!("find") };
-    face.event(&Event::Refused { op, why: Refusal::Protocol });
+    face.event(&Event::Refused { op, why: Refusal::Protocol, detail: Box::default() });
     assert!(!face.pending());
     assert_eq!(face.refusal(), Some(Refusal::Protocol));
     assert!(face.failure().expect("query failed").contains("Protocol"));
@@ -106,7 +117,8 @@ fn a_replacement_search_keeps_the_scope_and_match_number() {
     face.perform(Doing::Act { node, act: Act::Press }).expect("press");
     let Request::Press { op, node, .. } = face.requests().next().expect("press") else { panic!("press") };
     assert_eq!(node, 11);
-    face.event(&Event::Refused { op, why: Refusal::Gone });
+    face.event(&Event::Refused { op, why: Refusal::Gone, detail: Box::default() });
+    face.tick(Time::ZERO.saturating_add(skein_browser::Limits::default().poll));
     let Request::Find { op, query, .. } = face.requests().next().expect("new scope") else { panic!("find") };
     assert_eq!(query.name.as_ref(), b"Accounts");
     assert_eq!(query.within, None);
