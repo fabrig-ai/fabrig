@@ -284,7 +284,6 @@ fn raw_request(request: &request::Request) -> bool {
 }
 
 #[cfg(test)]
-#[path = "tests/forgejo.rs"]
 mod tests;
 
 #[cfg(test)]
