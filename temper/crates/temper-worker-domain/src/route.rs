@@ -242,8 +242,7 @@ fn from_host(domain: &mut Domain, env: &Env<Limits>, request: host::Request, out
         host::Request::SourceFault => out.push(Request::SourceFault),
         host::Request::Up(host::LinkUp::Answer { run, attempt, answer }) => answered(domain, run, attempt, answer, out),
         host::Request::Up(host::LinkUp::JobAnswer { run, attempt, answer }) => {
-            jobs::answered(domain, run, attempt, &answer);
-            out.push(Request::Link(host::LinkUp::JobAnswer { run, attempt, answer }));
+            jobs::answered(domain, run, attempt, answer, out);
         }
         host::Request::Up(up) => out.push(Request::Link(up)),
         host::Request::Hello { hello } => {
@@ -258,8 +257,10 @@ fn from_host(domain: &mut Domain, env: &Env<Limits>, request: host::Request, out
                 if let Some(up) = domain.host.answer_at(index) {
                     match up {
                         host::LinkUp::Answer { run, attempt, answer } => answered(domain, run, attempt, answer, out),
-                        up @ (host::LinkUp::JobAnswer { .. }
-                        | host::LinkUp::Piece { .. }
+                        host::LinkUp::JobAnswer { run, attempt, answer } => {
+                            jobs::answered(domain, run, attempt, answer, out);
+                        }
+                        up @ (host::LinkUp::Piece { .. }
                         | host::LinkUp::Logins { .. }
                         | host::LinkUp::SignedOut { .. }
                         | host::LinkUp::Activity { .. }

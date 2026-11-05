@@ -253,7 +253,8 @@ connected  the forge component       ◄── its access, built from the record
   again overwrites them (credentials.md, the records).
 - **Nothing passes between the layers** in an argument or the
   environment but the directories' flags and the forge's number; the
-  commands read the forge's setup from its group's file (7.1).
+  commands read the forge's setup from its group's file (7.1), and with
+  none as 7.4 says.
 
 ## 4. Connected
 
@@ -1057,14 +1058,19 @@ its own for any other host.
 
 ### 6.7 The first repository
 
-- **Asked with the set up, with no project.** `SetUp` carries an
-  organization (default `work`) and a repository (default `hello`),
-  and names no project: the repository is made unadopted, and its
+- **Asked with the set up, with no project.** `SetUp`'s `first` is one
+  of `Empty { org, name }`, an organization (default `work`) and a
+  repository (default `hello`); `Copies { addresses }`, at most 16, each
+  as `../draft/repository-copies.md`, 5.4, has it; or `Nothing`. It
+  names no project: `Empty`'s repository is made unadopted, and its
   adoption is a later act's, into a project the person has
-  (`../draft/first-run-projects.md`, 4). The forge domain keeps
-  them in the forge's record (forge.md, 2.1), the set up's intent: one
-  per forge, written in the decision that admits `SetUp`, and replaced
-  by the next `SetUp` it admits.
+  (`../draft/first-run-projects.md`, 4). `Copies` and `Nothing` make no
+  repository at set up: the forge connects with no `Create`, and the
+  copies wait for a project to go into (`../client/README.md`, 3.5). The
+  forge domain keeps it in the forge's record (forge.md, 2.1), the set
+  up's intent: one per forge, written in the decision that admits
+  `SetUp`, and replaced by the next `SetUp` it admits. `temper ctl forge
+  setup` and a managed connect's `first` ask `Empty` alone.
 - **Asked at a managed connect.** `ForgejoAdmin.first` carries the same
   organization and repository, with no project, and the person's runner label
   (default `docker` in the client and ctl), kept in the forge's record
@@ -1127,9 +1133,10 @@ its own for any other host.
   `widget` unless the call names one. A set up asked again takes its own request's fields, with
   the flag or without: a first repository already made stays, and the
   new one is made beside it.
-- **The row says it,** the forge's first repository beside its
-  connection (`../client/forge.md`, 5.4; `../client/README.md`, 4.6):
-  none; making `ORG/NAME` from the `SetUp`'s admission; made
+- **The row says it,** the intent, `starts_with`, and the forge's first
+  repository beside its connection (`../client/forge.md`, 5.4;
+  `../client/README.md`, 4.6): with `Copies` or `Nothing` the first
+  repository is none; else none; making `ORG/NAME` from the `SetUp`'s admission; made
   `ORG/NAME`, unadopted, once `Create` is done; or failed
   `ORG/NAME`, at the step that stopped (the admin, the org, the
   repository with its access, or the file). A `Create` that stops
@@ -1510,8 +1517,9 @@ temper box
     `<label>: stopped` as the pipe says them; its `step` lines are the
     client's row's alone; each start of an owned forge, an asked
     group's `started` or the box's own start of one that starts with it,
-    is followed by its hands (`../client/tools.md`, 11.5): `<label>: api
-    http://ADDRESS/api/v1` and `<label>: person LOGIN, read header PATH,
+    writes its hands (`../client/tools.md`, 11.5) to its Forgejo step's
+    log, `forgejo-N.log`, never the terminal: `Forgejo: api
+    http://ADDRESS/api/v1` and `Forgejo: person LOGIN, read header PATH,
     write header PATH`, the files' paths and never their contents;
   - a long step's exit, `<WHY>; restarting in <n> s`, and the box's give
     up, `<WHY>; giving up`, `<WHY>` in `failed`'s words (7.1);
@@ -1665,8 +1673,9 @@ temper box
   `remover` is the once step its removal runs (7.1); and its `started`
   writes the box's record. `label: Box<[u8]>` is the words the terminal
   names it by (7.2), owned opaque bytes passed from the setup/fake
-  constructor into the box's layout and written verbatim: `Playground`
-  for the fake kind's, `Forgejo` for the owned kind's. The box never
+  constructor into the box's layout and written verbatim but for its
+  `FORGE_ARGUMENT`, as a step's name is: `Playground` for the fake kind's,
+  `Forge N (Forgejo)` for the owned kind's, N the forge's number. The box never
   infers a label from arguments; it adds no label field to a wire reply
   or stored record. `before` is its place in the order:
   the index in `always` it runs just before (its length puts it last).
@@ -1733,7 +1742,7 @@ asks.
   connect on a store started afresh, where the forge is numbered 1
   again;
 - **the process tier** (section 13.4), which runs the commands itself,
-  writing a group's file as serve does under the box;
+  with no group's file, as a host's own units do;
 - **a container image** whose entry point is `temper box`, every process
   of its tree ending with the container.
 
@@ -3530,9 +3539,9 @@ it checks of this document:
   directories' flags, each a scratch directory of the test's own; the
   owned example is copied as a configuration directory (8.1). No test
   resolves a default under `$HOME`.
-- **Owned in place of the test's support:** the test writes the
-  forge's group's file as serve does under the box (7.1), runs `temper
-  forge prepare`, `run forgejo` and `run runner` itself, then `temper serve`,
+- **Owned in place of the test's support:** the test runs `temper forge
+  prepare`, `run forgejo` and `run runner` itself, with no group's file
+  (7.4), then `temper serve`,
   whose setup host takes the handover and reconciles (6.5), with the
   binaries `TEMPER_FORGEJO` and `TEMPER_FORGEJO_RUNNER` name, and
   webhooks on. Its repository runs Actions, so its landing rule asks for
@@ -3649,10 +3658,6 @@ Each is intended; what it needs is named with it.
   bare deployment.
 - **Flags of their own** (`--welcome`, `--playground`), when a
   deployment wants some of the box's parts and not others (8.2).
-- **The welcome's copies** (6.7; `../draft/repository-copies.md`,
-  section 7): `SetUp`'s first repository as one of `Empty`, `Copies` or
-  `Nothing`, and Ready asking `MakeRepository` (6.9) for each address,
-  the first the project's home.
 - **After the first repository** (6.7): "New repository" on a connected owned or managed card is the general
   form of the same flow, with the same fields and `Create`, a managed
   forge's org needing an owner, and like it adopting nothing. The
@@ -3729,6 +3734,14 @@ Each is intended; what it needs is named with it.
   OAuth peer's count; `fake github`, `fake forgejo` and `fake model` turn
   theirs away silently, and skein's forge and LLM peers count none. Each
   takes the same count and line when a walk meets its cap.
+- **A Forgejo's own links at its `web`** (7.4; `sign-in.md`, 9.7): a
+  Forgejo connected with a `web` apart from its `git`, as a host's own
+  units' is, takes its browser origin from it for sign-in alone. Its pull
+  links, the public page's repository address and a brief's `Address:`
+  are made from `git` (`../client/forge.md`, 9.2), so on that walk they
+  name its loopback address. Taking `web` when it has one changes those
+  three and that section, whose "its `web` is always null" goes with
+  them; the request of 2026-11-05 left `docs/design/client/` alone.
 
 ## 16. Open questions
 

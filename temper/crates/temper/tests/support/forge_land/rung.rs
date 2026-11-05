@@ -873,11 +873,17 @@ fn setup_tools(driver: &mut Driver) -> Result<(), String> {
 }
 
 fn setup_observer(driver: &mut Driver, paths: &[PathBuf; 3], output: &str) -> Result<Value, String> {
-    driver.api = output
+    require(
+        output.lines().any(|line| line.ends_with(&format!("Forge {} (Forgejo): started", driver.forge))),
+        "box reported the forge started",
+    )?;
+    let log = std::fs::read_to_string(paths[1].join(format!("box/logs/forgejo-{}.log", driver.forge)))
+        .map_err(|e| e.to_string())?;
+    driver.api = log
         .lines()
         .find_map(|line| line.split_once("Forgejo: api ").map(|(_, api)| api.trim().to_owned()))
-        .ok_or("box did not print person's forge API")?;
-    require(output.lines().any(|line| line.contains("Forgejo: person ")), "box printed the person's login")?;
+        .ok_or("Forgejo step log has no person's forge API")?;
+    require(log.lines().any(|line| line.contains("Forgejo: person ")), "Forgejo step logged the person's login")?;
     driver.header = paths[1].join(format!("forge-{}/person_read.header", driver.forge));
     super::super::live::notice(
         "SETUP sol high output=32000; engine memory=derived-before-start worker memory=4300000000000; rules/policy ceiling=8302080 period=449696 role authority=103776 period=415104",
