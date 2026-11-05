@@ -22,7 +22,7 @@ fn roomy() -> (Component, Env<Limits>) {
     let mut profile = limits();
     profile.accounts = ROOMY_ACCOUNTS;
     let mut configured = List::with_capacity(1);
-    assert!(configured.push(Account::HandedIn).is_ok());
+    configured.push(Account::HandedIn).expect("configured account room");
     (
         Component::new(configured, &profile, crypto(1)).expect("roomy component"),
         Env { now: Time::ZERO, wall: Wall::EPOCH, limits: profile },
@@ -74,7 +74,7 @@ fn bad_record() -> Account {
     let mut configuration = refresh_account(ADDED, ADDRESS);
     if let Account::SignIn { keeper, .. } = &mut configuration {
         let mut record = tests_record(0);
-        record.access_token = bytes::copy_of(b"");
+        record.access_token = skein_lib::Secret::new(bytes::copy_of(b""));
         *keeper = Keeper::Owner { kept: Some(record) };
     }
     configuration
@@ -344,7 +344,7 @@ fn wanted_private() -> Owner {
     owner.ask(Request::Want { account: 0, wanted: true });
     let load = owner.opened();
     let mut record = tests_record(0);
-    record.refresh_token = Some(bytes::copy_of(b"refresh"));
+    record.refresh_token = Some(skein_lib::Secret::new(bytes::copy_of(b"refresh")));
     owner.terminal(file::Event::Loaded {
         owner: load,
         bytes: skein_oauth::encode_record(&record, &owner.env.limits.client.document).expect("kept record"),

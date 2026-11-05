@@ -3,10 +3,6 @@ use crate::{
     git::{self, Case, Kind},
     run::{self, Run},
 };
-use hearth_git_world::{
-    expect::{Expected, Failure},
-    world::Blob,
-};
 use hearth_protocol_git::{
     invocation::{self, Command, Exit},
     listing::{Entry, Mode},
@@ -14,6 +10,10 @@ use hearth_protocol_git::{
     rev_parse::Resolved,
 };
 use hearth_recordings::Mask;
+use hearth_test_git::{
+    expect::{Expected, Failure},
+    world::Blob,
+};
 use skein_scratch::paths;
 use std::{path::PathBuf, sync::OnceLock};
 const MISSING: &[u8] = b"0000000000000000000000000000000000000000";
@@ -247,7 +247,7 @@ impl Scenario {
         let args: Vec<_> = invocation::arguments(command).iter().map(|b| b.to_vec()).collect();
         let mut run = run::git(&args, &self.store, stdin.as_deref(), &[]);
         run.captured.version = self.version.clone();
-        run.captured.expect = Some(hearth_git_world::expect::encode(&self.expected(case)));
+        run.captured.expect = Some(hearth_test_git::expect::encode(&self.expected(case)));
         Mask::new(self.scratch.path()).recording(&mut run.captured);
         run
     }

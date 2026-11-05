@@ -1280,6 +1280,10 @@ pin (forge.md, section 4.3), and named by the fact's name.
   (6.3). Default: so, the owner having checked first; whether the
   crate's check of one forge is the owner's to call, or the host answers
   the `Add`.
+- **A path `Adopt` is given** (4.5) has no check of `given`'s, as a
+  `Create`'s and a `Copy`'s names have (6.3), and no `Place`: the
+  request's encoding bounds it. Default: so, the owner holding what a
+  person typed to its own bounds first.
 - **A fine-grained token as a connected GitHub.** Default: later; a
   connected GitHub is an App the person made (5.8).
 - **What a refused copy leaves.** Forgejo keeps an empty repository at

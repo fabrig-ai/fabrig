@@ -4,10 +4,11 @@ use super::{
     Request,
 };
 use super::{Grant, SignInValues, admit};
+use crate::record::secret_ref;
 use crate::redirect::{authorization_url, has_openid, sign_in_values, validate_registration};
 use crate::{Check, keys, pkce};
 use alloc::boxed::Box;
-use skein_lib::{Duration, Queue, Time, Writer, usize_of};
+use skein_lib::{Duration, Queue, Secret, Time, Writer, usize_of};
 
 pub(super) enum Fetch {
     Metadata { endpoint: Box<[u8]> },
@@ -42,13 +43,13 @@ impl Client {
         let SignInValues { key, generation, state, verifier, nonce, port, issued_client_id, id_token, subject, now } =
             values;
         validate_registration(&registration, &self.limits, true)?;
-        sign_in_values(&mut registration, nonce.as_deref(), port, &self.limits)?;
+        sign_in_values(&mut registration, secret_ref(nonce.as_ref()), port, &self.limits)?;
         if state.len() < 16 || state.len() > usize_of(self.limits.state_bytes) {
             return Err(Failure::Limit);
         }
         let pkce_required = registration.client_secret.is_none() || registration.pkce_for_confidential;
         let challenge = match (&verifier, pkce_required) {
-            (Some(value), true) => Some(match pkce::challenge(value) {
+            (Some(value), true) => Some(match pkce::challenge(value.expose()) {
                 Ok(challenge) => challenge,
                 Err(error) => return Err(admit(error)),
             }),
@@ -57,10 +58,10 @@ impl Client {
         };
         let url = authorization_url(
             &registration,
-            &state,
+            state.expose(),
             challenge.as_deref(),
-            nonce.as_deref(),
-            [issued_client_id.as_deref(), id_token.as_deref(), subject.as_deref()],
+            secret_ref(nonce.as_ref()),
+            [issued_client_id.as_deref(), secret_ref(id_token.as_ref()), subject.as_deref()],
             &self.limits,
         )?;
         let deadline = now.checked_add(self.limits.sign_in_time).ok_or(Failure::Limit)?;
@@ -174,7 +175,7 @@ impl Client {
 
 pub(super) struct Identity {
     pub(super) subject: Option<Box<[u8]>>,
-    pub(super) token: Option<Box<[u8]>>,
+    pub(super) token: Option<Secret>,
 }
 impl Client {
     pub(super) fn identity(
@@ -186,13 +187,13 @@ impl Client {
         if !has_openid(&exchange.registration) {
             return Ok(Identity { subject: None, token: None });
         }
-        let token = response.id_token.as_deref().ok_or(Check::Missing)?;
+        let token = response.id_token.as_ref().ok_or(Check::Missing)?.expose();
         let terms = exchange.registration.terms.as_ref().ok_or(Check::Issuer)?;
         let openid = terms.openid.as_ref().ok_or(Check::Issuer)?;
         let expected = crate::jwt::Expected {
             issuer: &openid.issuer,
             client_id: &exchange.registration.client_id,
-            nonce: exchange.nonce.as_deref().ok_or(Check::Nonce)?,
+            nonce: secret_ref(exchange.nonce.as_ref()).ok_or(Check::Nonce)?,
         };
         let subject = crate::jwt::verify_id_token(
             token,
@@ -202,6 +203,6 @@ impl Client {
             self.limits.skew,
             &self.limits.document,
         )?;
-        Ok(Identity { subject: Some(subject), token: Some(skein_lib::bytes::copy_of(token)) })
+        Ok(Identity { subject: Some(subject), token: Some(Secret::new(skein_lib::bytes::copy_of(token))) })
     }
 }

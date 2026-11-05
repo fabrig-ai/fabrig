@@ -391,8 +391,8 @@ impl Client {
         let mut record = Some(oauth::SavedToken {
             key: 0,
             generation: 0,
-            access_token: bytes::copy_of(b"old"),
-            refresh_token: (self.story != Story::HandedIn).then(|| bytes::copy_of(b"seed")),
+            access_token: skein_lib::Secret::new(bytes::copy_of(b"old")),
+            refresh_token: (self.story != Story::HandedIn).then(|| bytes::copy_of(b"seed")).map(skein_lib::Secret::new),
             metadata: None,
             expires_at: Wall::from_nanos(
                 env.wall.as_nanos().checked_add(Duration::from_secs(seconds).as_nanos()).expect("wall lifetime"),
@@ -507,7 +507,7 @@ impl Client {
                 accounts::Event::Granted { generation, token, valid, .. } => {
                     self.contracts.granted(generation);
                     assert!(valid > Duration::ZERO);
-                    assert_eq!(token.as_ref(), if generation == 0 { b"old" } else { b"new" });
+                    assert_eq!(token.expose(), if generation == 0 { b"old" } else { b"new" });
                     self.facts.push(Fact::Granted(generation));
                     if generation == 0 && matches!(self.story, Story::Rejected | Story::Repeated) && !self.rejected {
                         self.rejected = true;
@@ -526,7 +526,7 @@ impl Client {
                     self.contracts.keep(record.generation);
                     self.facts.push(Fact::Keep(record.generation));
                     assert_eq!(
-                        record.refresh_token.as_deref(),
+                        record.refresh_token.as_ref().map(skein_lib::Secret::expose),
                         Some(if self.story == Story::Omit { b"seed".as_slice() } else { b"next".as_slice() })
                     );
                     let kept = self.story != Story::NotKept;
@@ -573,7 +573,7 @@ impl Client {
                     self.contracts.kept.push(1);
                     let mut record = self.records.pop().expect("handed-in access-only record");
                     record.generation = 1;
-                    record.access_token = bytes::copy_of(b"new");
+                    record.access_token = skein_lib::Secret::new(bytes::copy_of(b"new"));
                     record.expires_at = Wall::from_nanos(
                         env.wall.as_nanos().checked_add(Duration::from_secs(30).as_nanos()).expect("wall lifetime"),
                     );
@@ -952,7 +952,11 @@ pub(crate) fn issuer_with_terms(
             client_id: bytes::copy_of(b"client"),
             client_secret: None,
             redirect_uri: bytes::copy_of(REDIRECT),
-            refresh_token: bytes::copy_of(if story == Story::SignInAgain { b"revoked" } else { b"seed" }),
+            refresh_token: skein_lib::Secret::new(bytes::copy_of(if story == Story::SignInAgain {
+                b"revoked"
+            } else {
+                b"seed"
+            })),
             terms,
         },
         issuer_limits,
@@ -978,8 +982,8 @@ pub(crate) fn issuer_with_terms(
     peer.queue(fake::Plan {
         status,
         body: fake::Body::Token(oauth::TokenResponse {
-            access_token: bytes::copy_of(b"new"),
-            refresh_token: (story != Story::Omit).then(|| bytes::copy_of(b"next")),
+            access_token: skein_lib::Secret::new(bytes::copy_of(b"new")),
+            refresh_token: (story != Story::Omit).then(|| bytes::copy_of(b"next")).map(skein_lib::Secret::new),
             expires_in: 30,
             scope: None,
             id_token: None,
@@ -1092,7 +1096,7 @@ fn protocol_connection(seed: u64, mut client: Client, room: bool) -> (Client, Ve
             client_id: registration.client_id.clone(),
             client_secret: None,
             redirect_uri: registration.redirect_uri.clone(),
-            refresh_token: bytes::copy_of(b"seed"),
+            refresh_token: skein_lib::Secret::new(bytes::copy_of(b"seed")),
             terms: sign_out.map(crate::sign_out::issuer_terms),
         },
         issuer_limits,
@@ -1102,8 +1106,8 @@ fn protocol_connection(seed: u64, mut client: Client, room: bool) -> (Client, Ve
         .queue(fake::Plan {
             status: sign_out.map_or(200, crate::sign_out::status),
             body: fake::Body::Token(oauth::TokenResponse {
-                access_token: bytes::copy_of(b"new"),
-                refresh_token: (story != Story::Omit).then(|| bytes::copy_of(b"next")),
+                access_token: skein_lib::Secret::new(bytes::copy_of(b"new")),
+                refresh_token: (story != Story::Omit).then(|| bytes::copy_of(b"next")).map(skein_lib::Secret::new),
                 expires_in: 30,
                 scope: None,
                 id_token: None,

@@ -3,7 +3,7 @@
 //! machine sees query values; state authentication remains the machine's.
 
 use alloc::boxed::Box;
-use skein_lib::{Decimal, List, Writer, bytes};
+use skein_lib::{Decimal, List, Secret, Writer, bytes};
 use skein_oauth::{ClientLimits, Redirect};
 
 pub(crate) fn parse(uri: &[u8], registered: &[u8], limits: &ClientLimits) -> Option<Redirect> {
@@ -40,8 +40,8 @@ pub(crate) fn parse(uri: &[u8], registered: &[u8], limits: &ClientLimits) -> Opt
 }
 
 struct Fields {
-    state: Option<Box<[u8]>>,
-    code: Option<Box<[u8]>>,
+    state: Option<Secret>,
+    code: Option<Secret>,
     error: Option<Box<[u8]>>,
     client_id: Option<Box<[u8]>>,
 }
@@ -55,13 +55,13 @@ fn field(pair: &[u8], limits: &ClientLimits, fields: &mut Fields) -> Option<()> 
             if fields.state.is_some() {
                 return None;
             }
-            fields.state = Some(decode(value, limits.state_bytes)?);
+            fields.state = Some(Secret::new(decode(value, limits.state_bytes)?));
         }
         b"code" => {
             if fields.code.is_some() {
                 return None;
             }
-            fields.code = Some(decode(value, limits.code_bytes)?);
+            fields.code = Some(Secret::new(decode(value, limits.code_bytes)?));
         }
         b"client_id" => {
             if fields.client_id.is_some() {

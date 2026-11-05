@@ -236,28 +236,27 @@ fn finish_creation(core: &mut Core, env: &Env<Limits>, routed: &mut Routed, requ
                 &mut routed.work,
                 super::propose::Proposal { request, person, reason, to, batch: creating.members, stubs },
             );
-            return;
         }
-        CreationKind::Batch { .. } => {}
-    }
-    let CreationKind::Batch { person, .. } = creating.kind else { unreachable!("proposal handled above") };
-    {
-        let first = creating.members.first().expect("nonempty batch").number;
-        let (period, pool) = core.open_person_pool(creating.members.first().expect("nonempty batch").project, person);
-        if let Some(event) = period {
-            routed.work.push(Work::Event(Event::Tasks(event)));
+        CreationKind::Batch { person, given, stubs } => {
+            let first = creating.members.first().expect("nonempty batch").number;
+            let (period, pool) =
+                core.open_person_pool(creating.members.first().expect("nonempty batch").project, person);
+            if let Some(event) = period {
+                routed.work.push(Work::Event(Event::Tasks(event)));
+            }
+            if let Some(event) = pool {
+                routed.work.push(Work::Event(Event::Tasks(event)));
+            }
+            let request = core.fly(crate::routing::flight::Flight::Made {
+                request,
+                route: crate::routing::Made { first, given, stubs },
+            });
+            routed.work.push(Work::Event(Event::Tasks(tasks::Event::Make {
+                reply_to: ReplyTo::new(request),
+                creator: tasks::Party::Person(person),
+                batch: creating.members,
+            })));
         }
-        if let Some(event) = pool {
-            routed.work.push(Work::Event(Event::Tasks(event)));
-        }
-        let CreationKind::Batch { given, stubs, .. } = creating.kind else { unreachable!("batch creation") };
-        let request = core
-            .fly(crate::routing::flight::Flight::Made { request, route: crate::routing::Made { first, given, stubs } });
-        routed.work.push(Work::Event(Event::Tasks(tasks::Event::Make {
-            reply_to: ReplyTo::new(request),
-            creator: tasks::Party::Person(person),
-            batch: creating.members,
-        })));
     }
 }
 

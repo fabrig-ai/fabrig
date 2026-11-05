@@ -153,7 +153,7 @@ fn issuer(story: Story) -> oauth::Peer {
     let mut plans = fixtures::issuer_plans(AccountStory::AccountSignInVaryingPort);
     if story == Story::Restart {
         let skein_fake_oauth::Body::Token(token) = &mut plans[0].body else { panic!("code grant") };
-        token.access_token = fixtures::TOKEN_FIRST.into();
+        token.access_token = skein_lib::Secret::new(fixtures::TOKEN_FIRST.into());
         plans.insert(1, fixtures::rotate());
     }
     let profile = fixtures::limits();
@@ -186,7 +186,7 @@ fn issuer(story: Story) -> oauth::Peer {
             client_id: b"client".as_slice().into(),
             client_secret: None,
             redirect_uri: fixtures::PARTY_REDIRECT.into(),
-            refresh_token: b"seed".as_slice().into(),
+            refresh_token: skein_lib::Secret::new(b"seed".as_slice().into()),
         },
         limits,
         skein_http::server::Limits { response, ..profile.server },
