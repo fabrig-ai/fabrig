@@ -751,6 +751,13 @@ for; and that nothing is live once it settles.
   considers only the least recently used, and after a restart only the one a
   first hold takes, since nothing says which workstream held which. So a
   clone another workstream wanted can be made again, wasteful and never wrong.
+- **A worker past what no document raises.** A standalone start counts its
+  slots and git operations against the process's sockets, a constant
+  (`../protocol/configuration.md`, section 7), and the link's caps are `u32`s
+  that grow with the slots, so past them a start's refusal names a limit no
+  one can raise, or none. A refusal saying what to lower, a key for the
+  sockets or wider caps would close it. Default: as they stand, until a
+  deployment asks for more than they hold. The user's to decide.
 - **jig's:** saving periodically, and a worker's failed dials before its
   first channel (jig's `domain/hosts.md`, section 12).
 - **A hold naming its run's last failure.** A task held `out of tries:

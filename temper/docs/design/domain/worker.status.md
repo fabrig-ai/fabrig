@@ -16,6 +16,17 @@ Section 4.3's failed and refused answer diagnostics reach serve's stderr and the
   (`temper-worker-domain-checkout/src/hold.rs`, `PrepareStep::Create`).
   5, 9: git's invocations in contained process trees;
   `temper-worker-protocol-git` runs them as plain child processes.
+  6: a standalone start past the process's `limits::SOCKETS`, 256, by reading
+  21 slots on the owned example with workspaces and operations as many, is
+  refused `engine.limits.io.sockets: 258 bytes, past its bound of 256`, naming a
+  limit no document raises (`checks::process_io` sets it), and a worker alone
+  past the link's `u32` caps, by reading about 31 slots at that example's hub
+  (`jig-protocol-worker-wire/src/sizes.rs`, `worker_cap`), is refused
+  `workers[0].limits: past its bound`, naming none. The `worker-many-slots`
+  request of 2026-11-05 has each start's refusal name what to raise; it asked
+  for 8 and 10, which fit, so this is section 12's question. No test runs 8
+  slots past `temper::prepare_in`: that request takes the next deployment at 8
+  and 10 as its proof, with no walk, and no record shows one.
 - **Departs:** 5, 9: with `TEMPER_WORKSPACE_REUSE` in the worker's
   environment at its start, a workspace stays as it is between workstreams and
   across a restart; unset, which is the default and the only shipped form,

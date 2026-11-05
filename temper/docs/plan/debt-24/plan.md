@@ -25,12 +25,12 @@ Two independent parts (`inputs/request.md`): the spot review of debt-22, and the
 | D028 | `skein-kits` | `path-fixtures` | `forge-kit` | medium | 35 | four `#[path]`s go |
 | D028 | `skein-kits` | `skein-world-readers` | `llm-kit`, `tls-kit`, `forge-kit`, `world-exemptions` | medium | 30 | smith, temper and jig read the kits |
 | D028 | `skein-kits` | `world-gate` | the eight above | medium | 25 | `skein_worlds.rs`; the item goes |
-| D030 | `connection-worlds` | `hand-face` | | high | 40 | `Harness` lifted to `hand`; a baseline; `free_rate` |
-| D030 | `connection-worlds` | `hand-forgejo` | `hand-face` | medium | 35 | about 88 Forgejo tests move |
+| D030 | `connection-worlds` | `hand-face` | | high | 40 | `Harness` lifted to `hand`; a baseline; `abort` and one `free_rate` test |
+| D030 | `connection-worlds` | `hand-forgejo` | `hand-face` | medium | 35 | about 83 Forgejo tests move |
 | D030 | `connection-worlds` | `hand-github` | `hand-face` | medium | 25 | about 73 public GitHub tests move |
 | D030 | `connection-worlds` | `connection-seam` | `hand-github`, `hand-forgejo` | high | 35 | the `seam` feature |
 | D030 | `connection-worlds` | `hand-rows` | `connection-seam` | medium | 30 | about 137 tests that read private rows move |
-| D030 | `connection-worlds` | `hand-seeded` | `hand-rows` | high | 40 | about 106 tests that seed move; the crate's fake goes |
+| D030 | `connection-worlds` | `hand-seeded` | `hand-rows` | high | 40 | about 119 tests that seed move; the crate's fake goes |
 | D030 | `connection-worlds` | `connection-residue` | `hand-seeded` | high | 30 | `Harness` leaves the crate |
 | D030 | `connection-worlds` | `forge-sockets` | `forge-kit`, `connection-residue` | high | 70 | `Sockets`; each world's arms go; seeds replay |
 | D030 | `connection-worlds` | `connection-close` | `forge-sockets` | high | 30 | duplicates and fixture copies go; the item goes |

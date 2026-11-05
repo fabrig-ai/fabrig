@@ -7,6 +7,12 @@ license.workspace = true
 rust-version.workspace = true
 publish.workspace = true
 
+[dependencies]
+skein-heap.workspace = true
+skein-lib.workspace = true
+skein-tls.workspace = true
+rustls = { workspace = true, features = ["std"] }
+
 [lib]
 test = false
 doctest = false

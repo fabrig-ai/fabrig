@@ -12,6 +12,8 @@ mod effects;
 mod faults;
 pub mod observe;
 pub(crate) mod persistence;
+#[cfg(test)]
+mod tests;
 pub(super) struct Side {
     party: u64,
     wire: crate::native::wire::Wire,

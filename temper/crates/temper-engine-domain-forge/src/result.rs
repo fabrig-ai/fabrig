@@ -139,6 +139,14 @@ impl ChangeResult {
             }
         }
     }
+    /// A CI repair ended by a green head (domain/forge.md, 8.4). Nothing to say where none was asked.
+    pub(crate) fn ci_passed(&mut self, head: &Commit, bound: u32) {
+        if self.repair_count == 0 {
+            return;
+        }
+        self.repairs.add(b", then CI passed at ", bound);
+        self.repairs.add(&crate::commit_text(head), bound);
+    }
     pub(crate) fn reviewed(&mut self, head: &Commit, verdict: &[u8], bound: u32) {
         if !self.reviews.bytes.is_empty() || self.reviews.cut != 0 {
             self.reviews.add(b"; ", bound);

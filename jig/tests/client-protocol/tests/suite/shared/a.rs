@@ -117,3 +117,9 @@ fn roles_an_observer_sees_why_creation_is_unavailable() {
     let mut world = jig_client_protocol_world::fixtures::world(8510);
     jig_client_world::stories::shared::a_roles::an_observer_sees_why_creation_is_unavailable(&mut world);
 }
+
+#[test]
+fn roles_a_delegate_s_escalation_record_names_the_person_who_asked() {
+    let mut world = jig_client_protocol_world::fixtures::world(8510);
+    jig_client_world::stories::shared::a_roles::a_delegate_s_escalation_record_names_the_person_who_asked(&mut world);
+}

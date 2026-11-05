@@ -2,6 +2,20 @@
 
 2026-11-05. Where temper's code lags or departs from [README.md](README.md).
 
+- **Design departs:** 3.5, 5.3, 5.8, 5.13, from the greenfield target:
+  the switcher keeps its inline new-project form; a chat keeps its status,
+  Stop and Close, and offers Change model only with supplied choices;
+  a goal uses supplied budget units, not dollars, and offers neither the
+  mock's budget field nor its earlier reports. Settings adds Configure
+  temper and keeps unsupported status, funds and notification controls
+  disabled with their explanation. The welcome's Claude card says
+  "a config of its own" rather than the mock's "an environment of its
+  own" (3.5). Home and Changes omit the mock's "main green at" time:
+  their landing panel supplies a red flag, not that timestamp. These
+  sections retain the client's
+  available acts and supplied values rather than the mock's local-only
+  operations. Their extra rows and controls change the pages' lengths at
+  laptop and phone widths; they are not stylesheet differences.
 - **Not yet:** 4.7: the form draws no read-only line on an adopted repository (`temper-client-view/src/forge/page.rs`).
 - **Not yet:** 3.5, *Home on any project*: on the stock policy the status agent
   is left no funding. Its roles' pools are as large as the project's period
@@ -37,13 +51,40 @@
   box's model (`temper-fake/src/backends.rs`, `model_document`) writes a report
   only for the first chat's goal, task 2, then finishes it without delegates, so
   it can show none of those live states.
+- **Not yet:** 3.5, *Away*, 4.6: with the `away` watch refused, ended or not
+  delivered yet the switch draws off, but its act is still offered, where 4.6
+  has it not offered: `temper-client-view`'s `frame.rs`, `away`, and
+  `pages/settings.rs`, `away_settings`, draw their controls enabled, and
+  `temper-client-domain`'s `pages/away.rs`, `act`, then sends nothing and says
+  nothing, so a press does nothing. Seen by reading; no test holds it and no
+  reason is recorded.
+- **Not yet:** 10: the renders the request `ui-away` of 2026-11-05 asks,
+  `home.html`'s away state beside the client's at 1440, 1000 and 420 wide, the
+  switch on and off at each and toasts open. They are saved on a builder, outside
+  the repository, so what they show is unknown here; the gallery holds their
+  states (`browser.md`, 7.2).
+- **Departs:** 3.5, *Away*, its *Overturn*: an `Overturn` whose outcome is no
+  answer, unknown after a restart or its link lost, toasts "That was overturned
+  already." and sends no message (`temper-client-domain`'s `forge/decided.rs`,
+  `overturned`), where the section has those words for a refusal: if it
+  committed, the row stands marked and its task has heard nothing. A message that
+  fails for any reason, a lost link's too, toasts "It has ended; a new goal can
+  undo it." (`pages/away.rs`, `overturn_told`), where the section has them for a
+  task that ended: a live task then hears nothing, and its marked row says
+  "Overturned: it asks you again" and offers no second Overturn. Seen by reading;
+  no test holds either and no reason is recorded. The message's question is cut
+  at a character boundary to fit 512 bytes (`forge/decided.rs`, `overturn_words`),
+  where the section has it whole, because the smallest deployed composer admits
+  that (5.4).
 - **Departs:** 3.5, *Goals*, 5.14: no page opens Start goal's sheet, so no page
   starts a goal; a chat's agent's `goal` call still does. Goals' "Start one from
   a draft" is a link to `Chats { filter: All }`, `/chats`
   (`temper-client-view`'s `pages/goals.rs`), where those sections have it open
   the sheet with its Draft field, and nothing the view draws sends
   `Act::OpenStart`: the sheet, including its "When it needs you" choice, shows
-  in the gallery and the tests alone.
+  in the gallery and the tests alone, so no page starts a goal that always
+  asks, where the rulings of 2026-11-05 on the request `ui-away` have this sheet
+  do it: only words holding the line `Asks: always` make one.
   `temper-client-domain`'s `pages/start_goal.rs`, `open`, ignores one without
   both a draft and a chat, so "Start a goal" and the Draft field are drawn by
   nothing. The rulings of 2026-11-05 on that request (the answers to its tasks
@@ -178,6 +219,36 @@
   (`temper-client-view`'s `pages/accounts/rows.rs`, `draw`), where the section
   has a row's facts as `.setting` rows, because the rows keep their sources,
   observations and forms in document order.
+- **Design departs:** 3.5, *Away*, 5.8, 5.12 and 5.13, from the request `ui-away`
+  of 2026-11-05, each decided by its plan's cut, for the user to see:
+  - 5.12: every clock in the browser reads in the person's zone, where the request
+    asks it of Away's 08:00, because `TimeForm::Clock` is one form and read
+    universal it would say "Away until 06:00". The offset is read once, at start,
+    so a change of daylight saving shows at the next load, and
+    `forge::away::next_eight` takes that one offset, so the night the clocks change
+    its 08:00 can be an hour off. The terminal stays universal (section 11).
+  - 3.5: the chip is a second button in the rail, the phone's top bar, where the
+    request has it in the banner: a project's page has no banner (5.3). The
+    terminal's is the rail's button, where the request has its `navigation`, which
+    a project's page does not draw.
+  - 3.5: "Limits" focuses the section's heading, by a count in `Pages`, and a
+    browser brings it into view. `#away` is no anchor: `Address` holds none, so no
+    address reaches the section.
+  - 3.5: the toast names the project, where the request's words have "fabrig’s".
+    "Away: agents decide within PROJECT’s limits.", "Away didn’t change. Try
+    again." and "That was overturned already." are words the request does not name.
+  - 3.5: a row whose task has ended says "landed…" or "ended…", overturned or not,
+    its took still struck, where the request's list has "Overturned: it asks you
+    again" first: a refused message leaves the row marked, and its task won't ask.
+  - 3.5: Home's away form is not drawn while To begin shows, where the request has
+    it with any row showing.
+  - 5.8: "follows the away switch" stands on every goal whose words hold no line
+    `Asks: always`, where the request has it where its requester has a switch: no
+    read says that, and a requester with none has its goal told to ask
+    (`../domain/forge.md`, 5.9) under those words.
+  - 5.13: the tab's "Away switch" row says "Hidden" with kind 7's `away` false, and
+    a project with a goal, or the party's row on, shows the switch all the same,
+    since the request has any of the three show it.
 - **Design departs:** 3.5, *A chat's conversation*, its cards, from the request
   `ui-chats` of 2026-11-05, which names a proposal, a held task and a question's
   answer as cards in the conversation: a chat's page holds proposals alone

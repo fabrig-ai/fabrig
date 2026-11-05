@@ -1,6 +1,6 @@
 //! Sign-out revokes once, then forgets the record (oauth.md, sections 2.3 and 6.3).
 
-use super::{Component, Lending, State, failed, held, names::number, set_held};
+use super::{Component, Lending, State, failed, held, set_held};
 use crate::accounts::{Source, copy_registration};
 use crate::exchange::{Exchange, Purpose, Stage};
 use crate::keeper::{Operation, Store};
@@ -14,10 +14,11 @@ impl Component {
         if self.refused(account, Asked::SignOut, up) {
             return;
         }
-        let why = match &self.entries.get(account).expect("account entry").source {
+        let entry = self.entries.get_mut(account).expect("account entry");
+        let why = match &entry.source {
             Source::HandedIn => Some(Refusal::Source),
             Source::SignIn { .. } => {
-                if self.entries.get(account).expect("account entry").binding.is_some() {
+                if entry.binding.is_some() {
                     Some(Refusal::Busy)
                 } else if self.exchanges.is_full() {
                     Some(Refusal::Full { bound: env.limits.exchanges })
@@ -27,14 +28,14 @@ impl Component {
             }
         };
         if let Some(why) = why {
-            up.push(Event::Refused { account: number(&self.entries, account), asked: Asked::SignOut, why });
+            up.push(Event::Refused { account: entry.name.number(), asked: Asked::SignOut, why });
             return;
         }
-        let empty = match &self.entries.get(account).expect("account entry").state {
+        let empty = match &entry.state {
             State::Empty => true,
             State::Record { .. } | State::Loaded { .. } => false,
         };
-        let loading = match &mut self.entries.get_mut(account).expect("account entry").store {
+        let loading = match &mut entry.store {
             Store::Private(keeper) if empty => {
                 keeper.reload();
                 true
@@ -42,11 +43,7 @@ impl Component {
             Store::Private(_) | Store::Owner => false,
         };
         if empty && !loading {
-            up.push(Event::Refused {
-                account: number(&self.entries, account),
-                asked: Asked::SignOut,
-                why: Refusal::NoRecord,
-            });
+            up.push(Event::Refused { account: entry.name.number(), asked: Asked::SignOut, why: Refusal::NoRecord });
             return;
         }
         let mut limits = env.limits.client;
@@ -55,7 +52,8 @@ impl Component {
         exchange.purpose = Purpose::SignOut;
         exchange.stage = Stage::Loading;
         let id = self.insert_exchange(exchange);
-        self.entries.get_mut(account).expect("account entry").binding = Some(id);
+        let entry = self.entries.get_mut(account).expect("account entry");
+        entry.binding = Some(id);
         if !loading {
             self.begin_sign_out(env, account, up, io);
         }
@@ -70,9 +68,8 @@ impl Component {
     ) {
         let entry = self.entries.get_mut(account).expect("account entry");
         let id = entry.binding.expect("sign-out exchange");
-        let slot = &mut entry.state;
-        if held(slot) {
-            set_held(slot, Lending::Free);
+        if held(&entry.state) {
+            set_held(&mut entry.state, Lending::Free);
             failed(entry.name.number(), Failure::Expired, up);
         }
         if self.lock_write(env, id, up) {
@@ -110,10 +107,10 @@ impl Component {
         io: &mut Queue<Lower>,
     ) {
         let exchange = self.exchanges.get_mut(id).expect("bound exchange");
-        let account = exchange.account;
         assert!(exchange.signing_out(), "revocation belongs to sign-out");
         exchange.stage = Stage::Forgetting { revoked };
-        match &mut self.entries.get_mut(account).expect("account entry").store {
+        let entry = self.entries.get_mut(exchange.account).expect("account entry");
+        match &mut entry.store {
             Store::Owner => self.finish_sign_out(env, id, revoked, true, up, io),
             Store::Private(keeper) => {
                 keeper.next = Some(Operation::Remove);
@@ -130,7 +127,8 @@ impl Component {
         up: &mut Queue<Event>,
         io: &mut Queue<Lower>,
     ) {
-        let id = self.entries.get(account).expect("account entry").binding.expect("removal exchange");
+        let entry = self.entries.get_mut(account).expect("account entry");
+        let id = entry.binding.expect("removal exchange");
         let exchange = self.exchanges.get_mut(id).expect("bound exchange");
         exchange.file_active = false;
         let revoked = match exchange.stage {
@@ -167,7 +165,7 @@ impl Component {
             | file::Event::Listed { .. } => false,
         };
         if removed {
-            match &mut self.entries.get_mut(account).expect("account entry").store {
+            match &mut entry.store {
                 Store::Private(keeper) => keeper.expected = file::Expect::Absent,
                 Store::Owner => unreachable!("private removal"),
             }
@@ -186,9 +184,9 @@ impl Component {
         io: &mut Queue<Lower>,
     ) {
         let exchange = self.exchanges.get_mut(id).expect("bound exchange");
-        let account = exchange.account;
-        self.entries.get_mut(account).expect("account entry").state = State::Empty;
-        let account = number(&self.entries, account);
+        let entry = self.entries.get_mut(exchange.account).expect("account entry");
+        entry.state = State::Empty;
+        let account = entry.name.number();
         if removed {
             up.push(Event::SignedOut { account, revoked });
         } else {

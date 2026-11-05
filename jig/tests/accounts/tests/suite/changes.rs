@@ -1,14 +1,13 @@
 //! A holder's LLM keys and account changes, decided in the child.
-use jig_accounts_world::{World, account, provider, providers, source};
+use jig_accounts_world::{HOLDER, PROVIDER, World, account, held, provider, providers, source};
 use jig_domain_accounts::{
     Answer, Bound, Change, Event, FromComponent, Holder, KEY_VALID, Key, KeyFailure, Kind, Refusal, Request, Signing,
     State, Stored, ToComponent, USES, Use,
 };
 use skein_lib::{Duration, Token};
-const HOLDER: Holder = Holder::Party(7);
 const OTHER: Holder = Holder::Party(8);
 const REQUEST: Token = Token::new(50);
-const PROVIDER: u32 = 1;
+const HELD_ACCOUNT: u32 = 10;
 const CARRIED: u64 = 1 << 63;
 
 fn fresh() -> World {
@@ -207,9 +206,9 @@ fn removing_a_key_erases_its_rows_and_forgets_its_value() {
 fn removing_an_account_answers_when_each_sign_out_has() {
     let mut world = World::with_start(jig_accounts_world::LIMITS, providers(vec![provider(PROVIDER, true, true)]), &[]);
     world.restore(vec![
-        account(10, PROVIDER, HOLDER, b"subject"),
-        source(10, 11, 0, Kind::SignIn),
-        source(10, 12, 1, Kind::Key),
+        held(HELD_ACCOUNT, b"subject"),
+        source(HELD_ACCOUNT, 11, 0, Kind::SignIn),
+        source(HELD_ACCOUNT, 12, 1, Kind::Key),
     ]);
     world.step(Event::Want);
     let outputs = change(&mut world, Change::Remove { account: 10 });
@@ -309,9 +308,9 @@ fn a_restart_names_each_party_source_before_wanting_it() {
         &[account(1, PROVIDER, Holder::Deployment, b""), source(1, 2, 0, Kind::Key)],
     );
     world.restore(vec![
-        account(10, PROVIDER, HOLDER, b"subject"),
-        source(10, 12, 1, Kind::Key),
-        source(10, 11, 0, Kind::SignIn),
+        held(HELD_ACCOUNT, b"subject"),
+        source(HELD_ACCOUNT, 12, 1, Kind::Key),
+        source(HELD_ACCOUNT, 11, 0, Kind::SignIn),
     ]);
     let outputs = world.step(Event::Want);
     let names: Vec<_> = outputs.iter().filter(|r| matches!(r, Request::Signing(_))).cloned().collect();

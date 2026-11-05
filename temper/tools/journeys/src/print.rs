@@ -51,7 +51,7 @@ pub fn pages(marks: &[Mark]) -> Vec<Printed> {
         };
         let title = escape(&skein_ui_web::title::text(heading, b"temper"));
         let mut document = format!(
-            "<!doctype html>\n<html lang=\"en\"><head><meta charset=\"utf-8\"><meta name=\"viewport\" content=\"width=device-width, initial-scale=1\"><title>{title}</title>"
+            "<!doctype html>\n<html lang=\"en\"><head><meta charset=\"utf-8\"><meta name=\"viewport\" content=\"width=device-width, initial-scale=1, viewport-fit=cover\"><title>{title}</title>"
         );
         for stylesheet in [
             "../skein-ui.css",

@@ -1,11 +1,9 @@
 //! Configured terms classify sources; records hold no duplicate terms facts.
-use jig_accounts_world::{World, account, provider, providers, source};
-use jig_domain_accounts::{End, Event, Holder, Kind, Request, Signing, Stored};
+use jig_accounts_world::{HOLDER, PROVIDER, World, held, issued, provider, providers, source};
+use jig_domain_accounts::{End, Event, Kind, Request, Signing, Stored};
 use skein_lib::Token;
-const PROVIDER: u32 = 1;
 const PARTY: u64 = 7;
 const REQUEST: Token = Token::new(7);
-const HOLDER: Holder = Holder::Party(PARTY);
 const ACCOUNT: u32 = 20;
 const SIGNED: u32 = 21;
 const KEY: u32 = 22;
@@ -19,26 +17,10 @@ fn world(plan: bool, records: Vec<Stored>) -> World {
     world
 }
 fn mixed(program: bool) -> Vec<Stored> {
-    let mut records = vec![
-        account(ACCOUNT, PROVIDER, HOLDER, b"subject"),
-        source(ACCOUNT, SIGNED, 0, Kind::SignIn),
-        source(ACCOUNT, KEY, 1, Kind::Key),
-    ];
+    let mut records =
+        vec![held(ACCOUNT, b"subject"), source(ACCOUNT, SIGNED, 0, Kind::SignIn), source(ACCOUNT, KEY, 1, Kind::Key)];
     if program {
-        records.push(Stored::Issued {
-            number: PROGRAM,
-            holder: HOLDER,
-            name: b"helper".as_slice().into(),
-            signed_out: false,
-        });
-        records.push(Stored::Source {
-            account: ACCOUNT,
-            number: PROGRAM,
-            place: 2,
-            kind: Kind::Program,
-            name: b"helper".as_slice().into(),
-            held: None,
-        });
+        records.extend([issued(PROGRAM, b"helper"), jig_accounts_world::program(ACCOUNT, PROGRAM, 2, b"helper")]);
     }
     records
 }
@@ -112,7 +94,7 @@ fn renewing_a_mixed_account_uses_the_configured_signed_in_terms() {
 #[test]
 fn a_signed_in_source_joins_a_retained_key_account_under_its_terms() {
     for flag in [false, true] {
-        let records = vec![account(ACCOUNT, PROVIDER, HOLDER, b"subject"), source(ACCOUNT, KEY, 0, Kind::Key)];
+        let records = vec![held(ACCOUNT, b"subject"), source(ACCOUNT, KEY, 0, Kind::Key)];
         let mut world = world(flag, records);
         let source = begin(&mut world);
         finish(&mut world, source);

@@ -83,9 +83,29 @@ pub fn confirm_two_parties<F: Front<Test>>(world: &mut World<Test, F>, owner: Cl
     }
     finish(world);
     for party in [owner, maintainer] {
-        decide(world, party, 1);
+        world.person(
+            party,
+            vec![
+                Step::Press { find: Find::exactly_named(Role::Button, b"Confirm") },
+                Step::See { find: Find::text(b"Accepted"), within: WITHIN },
+                Step::See { find: Find::text(b"Decided by person: "), within: WITHIN },
+            ],
+        );
     }
     finish(world);
+    let [owner_by, maintainer_by] = [owner, maintainer].map(|party| {
+        [b"Decided by person: 1", b"Decided by person: 2"].map(|by| {
+            world
+                .tree(party)
+                .nodes()
+                .iter()
+                .flat_map(|node| &node.text)
+                .any(|run| run.text.windows(by.len()).any(|part| part == by))
+        })
+    });
+    let [first, second] = owner_by;
+    assert_ne!(first, second, "exactly one party won");
+    assert_eq!(owner_by, maintainer_by, "both parties see the same winner");
 }
 
 /// The member's open conversation changes when its owner accepts in the inbox.

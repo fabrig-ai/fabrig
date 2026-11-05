@@ -12,11 +12,11 @@ minutes = 40
 
 ## Goal
 
-Skein D030's seed batch: `github_calls`, `github_unknown_repository`, `github_logs`, `github_files`, `github_writes_heap`, and `free_rate`'s last, about 106 tests. A seed helper sets installation rows without a start, on purpose, to skip startup's RSA work, and stays what it is: through the seam, not a real start, since a real start would change `connections_opened` and each test's cost. By `temper/docs/plan/debt-24/notes/hand.md`.
+Skein D030's seed batch: `github_calls`, `github_unknown_repository`, `github_logs`, `github_files`, `github_writes_heap`, and `free_rate`'s other 13, about 119 tests. A seed helper sets installation rows without a start, on purpose, to skip startup's RSA work, and stays what it is: through the seam, not a real start, since a real start would change `connections_opened` and each test's cost. By `temper/docs/plan/debt-24/notes/hand.md`.
 
 Acceptance:
 
-- Their `Harness` tests are in `tests/suite/hand/`. What isn't on `Harness` stays in the crate.
+- Their `Harness` tests are in `tests/suite/hand/`, `free_rate`'s joining `hand/forgejo/free_rate.rs`. What isn't on `Harness` stays in the crate.
 - `github_files/fake.rs` is gone: its `Fake` merges into the machine world's `github::Fake`, or `github_files`' seven tests run on that one. If the two can't meet without changing what a test asserts, keep its answers beside the seven as a small local helper on `Inline`, with no HTTP of its own, and say why.
 - Each test's asserts read as they did; `github_writes_heap`'s ceilings hold, or the common note's rule on a pin applies.
 - `heavy cargo nextest run -p skein-forge-connection --lib` and `-p skein-forge-machine-world` pass; the world gains what the crate loses.

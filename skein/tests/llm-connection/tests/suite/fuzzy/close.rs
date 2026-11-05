@@ -12,10 +12,10 @@ fn close_and_abort_cross_racing_call_terminals_without_spin_or_repeated_events()
         let abort = rng.chance(500);
         let per_endpoint = u32::try_from(rng.between(1, 3)).expect("draw fits");
         let run = |seed| {
-            let mut input = skein_llm_world::call(7);
+            let mut input = skein_llm_kit::call(7);
             input.endpoint = skein_llm::Endpoint::openai();
             input.prompt.instructions = b"close-world".as_slice().into();
-            let mut bounds = skein_llm_world::limits();
+            let mut bounds = skein_llm_kit::limits();
             bounds.http.request = skein_llm::client::request_head(
                 &input.endpoint,
                 &skein_llm::client::CredentialLimits { value: 2048 },
@@ -24,7 +24,7 @@ fn close_and_abort_cross_racing_call_terminals_without_spin_or_repeated_events()
             .unwrap();
             let measured = skein_llm::client::measure(
                 &input.prompt,
-                Some(skein_llm_world::credential_of(&input)),
+                Some(skein_llm_kit::credential_of(&input)),
                 &input.endpoint,
                 &bounds,
             )
