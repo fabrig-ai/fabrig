@@ -244,6 +244,7 @@ fn person_and_task_escalations_choose_their_own_terminal() {
         task: 4,
         revision: 2,
         decision: people::EscalationDecision::Release,
+        notice: None,
     }));
     let out = outputs(
         &mut core,

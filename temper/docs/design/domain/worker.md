@@ -732,3 +732,14 @@ for; and that nothing is live once it settles.
   one after another.
 - **jig's:** saving periodically, and a worker's failed dials before its
   first channel (jig's `domain/hosts.md`, section 12).
+- **A hold naming its run's last failure.** A task held `out of tries:
+  run failures` names no failure: the reason is 4.3's operator line
+  alone. The ending reaches the hub as its class
+  (`jig-domain-hub-link/src/payload.rs`) and every durable record holds
+  the class (jig's `tasks_v9` and `core_v6`), so naming it stores the
+  last failure's bounded text with the hold. No LLM is shown this detail,
+  while a hold's words reach the LLM's task read
+  (`temper-engine-smith/src/answers.rs`), so it takes a field of its own
+  or a path to clients alone. Default: the line alone, which `temper help
+  server` says how to read, until that proves too little. The user's to
+  decide.
