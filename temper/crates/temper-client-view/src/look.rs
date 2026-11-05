@@ -1,6 +1,17 @@
 //! temper's style tokens and their names (client/browser.md, 2.5), as jig's `jig-client-shell-web` `look.rs`.
 use crate::frame::owner;
 use skein_ui::{Style, look::Names};
+/// Changes page parts (temper/docs/design/client/README.md, 3.5).
+pub const CHANGES: Style = Style { owner: owner(), token: 180 };
+/// Changes page parts (temper/docs/design/client/README.md, 3.5).
+pub const CHANGES_MORE: Style = Style { owner: owner(), token: 181 };
+/// Changes page parts (temper/docs/design/client/README.md, 3.5).
+pub const CHANGES_MONO: Style = Style { owner: owner(), token: 182 };
+/// Changes page parts (temper/docs/design/client/README.md, 3.5).
+pub const CHANGES_RUNNING: Style = Style { owner: owner(), token: 183 };
+/// Changes page parts (temper/docs/design/client/README.md, 3.5).
+pub const CHANGES_RED: Style = Style { owner: owner(), token: 184 };
+
 /// A configuring chat's status, spend and controls (client/README.md, 3.5).
 pub const SESSION_ACTIONS: Style = Style { owner: owner(), token: 246 };
 /// A configuring chat's tag in Chats (client/README.md, 3.5).
@@ -29,6 +40,16 @@ pub const BYLINE: Style = Style { owner: owner(), token: 243 };
 pub const STARTER: Style = Style { owner: owner(), token: 244 };
 /// The configuring session’s suggested first messages. (client/README.md, 3.5).
 pub const STARTERS: Style = Style { owner: owner(), token: 245 };
+/// The configuring opening’s lede (client/README.md, 3.5).
+pub const STARTER_LEDE: Style = Style { owner: owner(), token: 248 };
+/// The configuring opening’s sets (client/README.md, 3.5).
+pub const STARTER_SETS: Style = Style { owner: owner(), token: 249 };
+/// The configuring opening’s note (client/README.md, 3.5).
+pub const STARTER_NOTE: Style = Style { owner: owner(), token: 250 };
+/// The configuring opening’s ways (client/README.md, 3.5).
+pub const STARTER_WAYS: Style = Style { owner: owner(), token: 251 };
+/// The configuring opening’s unsure (client/README.md, 3.5).
+pub const STARTER_UNSURE: Style = Style { owner: owner(), token: 252 };
 /// A folded account.
 pub const ACCOUNT_ROW: Style = Style { owner: owner(), token: 124 };
 /// The rail switcher's panel.
@@ -659,11 +680,11 @@ pub const NAMES: Names<'static> = Names {
         b"temper-rail-new",
         b"temper-rail-foot",
         b"temper-tabbar",
-        b"temper-reserved-180",
-        b"temper-reserved-181",
-        b"temper-reserved-182",
-        b"temper-reserved-183",
-        b"temper-reserved-184",
+        b"temper-changes",
+        b"temper-changes-more",
+        b"temper-changes-mono",
+        b"temper-changes-running",
+        b"temper-changes-red",
         b"temper-reserved-185",
         b"temper-reserved-186",
         b"temper-reserved-187",
@@ -727,6 +748,11 @@ pub const NAMES: Names<'static> = Names {
         b"temper-starters",
         b"temper-session-actions",
         b"temper-configuring-tag",
+        b"temper-starter-lede",
+        b"temper-starter-sets",
+        b"temper-starter-note",
+        b"temper-starter-ways",
+        b"temper-starter-unsure",
     ],
     regions: &[b"temper-link"],
 };

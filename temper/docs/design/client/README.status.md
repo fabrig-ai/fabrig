@@ -5,8 +5,8 @@
 - **Not yet:** 3.4, 5.5: the composer's
   supplied default, jig's
   `resolved_default`, which neither jig's `Me` nor temper carries. 3.5:
-  `Board { project }` with its reordering, and `Changes { project }`: no
-  address in `temper-client-domain`'s `address.rs`. 3.5, 5.13, 10:
+  `Board { project }` with its reordering, no address in
+  `temper-client-domain`'s `address.rs`. 5.3: the banner's "Board" and "Changes". 3.5, 5.13, 10:
   `HowWorkRuns`, `Proposal { proposal }` and a proposal's card in a chat,
   with their tests, and with them How work runs' offer of `Configure` and
   a review's "Change something"; ctl supplies the review groups and running-work effect

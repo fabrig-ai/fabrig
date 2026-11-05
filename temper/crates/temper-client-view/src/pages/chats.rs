@@ -6,6 +6,7 @@ use crate::{
 use alloc::boxed::Box;
 use jig_client::contract::{EndedGroup, TaskLine};
 use skein_ui::{Builder, Role, Run, State, phrases::Hole};
+pub(crate) use temper_client_domain::pages::chats::ended;
 use temper_client_domain::{Address, ChatsFilter, Domain, pages::Act};
 fn text(b: &mut Builder, role: Role, value: &[u8]) {
     b.open(role);
@@ -315,17 +316,6 @@ fn context(b: &mut Builder, root: &Domain, words: &Words) {
     b.close();
     b.close();
     b.close();
-}
-
-pub(crate) fn ended(chip: &jig_client::contract::Chip) -> bool {
-    use jig_client::contract::{ChipPhase, ChipPhaseFacts, Phase};
-    if let Phase::Done | Phase::Ended | Phase::Failed | Phase::Cancelled = chip.phase {
-        return true;
-    }
-    if let ChipPhaseFacts { phase: ChipPhase::Ended, .. } = chip.details.as_ref() {
-        return true;
-    }
-    false
 }
 
 pub(crate) fn row(

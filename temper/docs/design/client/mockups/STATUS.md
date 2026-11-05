@@ -110,7 +110,7 @@ Where the client does otherwise:
 
   | Page | Where the client does otherwise, or what is left |
   |---|---|
-  | The configuring chat's page (`chat.html?id=new&configure=1`) | In the project's frame, with Settings current, at `/projects/<project>/settings/configure` (`../browser.md`, 2.3); a configuring chat keeps that layout at `/chats/<task>` (`../README.md`, 3.5). The rail stays on a wide page; on a phone it and the tabs go so the composer keeps the foot. The page has the path, agent's words, three starters and focused composer; typing, sending, refusal and reopening keep their words and controls. Chats tags it "Configuring". |
+  | The configuring chat's page (`chat.html?id=new&configure=1`) | In the project's frame, with Settings current, at `/projects/<project>/settings/configure` (`../browser.md`, 2.3); a configuring chat keeps that layout at `/chats/<task>` (`../README.md`, 3.5). The rail stays on a wide page; on a phone it and the tabs go so the composer keeps the foot. The page is named "Configure temper": its opening is a page in a column at most 720 px wide, the project's question, lede, what it sets, three starter cards and the fourth starter as a link, above the focused composer. The opening, turns and composer share their edges, with both scrollbar gutters on a wide page and 16 px in on a phone. Typing, sending, refusal and reopening keep their words and controls. Settings' first link, "Configure temper", opens the newest configuring chat not closed in its delivered rows, or this opening. Chats tags it "Configuring"; its offer and To begin keep "Tell temper how you work". |
 
   The model line names the first usable account's kind and the first
   model `me` serves for the project (`../README.md`, 3.5), rather than
@@ -118,13 +118,17 @@ Where the client does otherwise:
   be its charter's default, which the client is not given. The gallery
   draws `gpt-6-luna` where its facts serve it. Opening focus is built
   in both shells; the static gallery omits focus by its contract
-  (`../browser.md`, 7.1). Settings itself keeps the heading and links
-  of `../README.md`, 3.5, *Settings*, until that page is designed
+  (`../browser.md`, 7.1). Settings' first link is "Configure temper",
+  ahead of Forges, Accounts and Adopt a repository (`../README.md`,
+  3.5, *Settings*). Before its rows arrive, or when the configuring chat
+  is past the watch's window, the link opens the page before its first
+  words. Settings' forge and model lines await that page's design
   (`../README.md`, 11).
-  How work runs' configuring offer and a proposal review's "Change
+  How work runs' "Configure temper" entry and a proposal review's "Change
   something" await the client settings and proposal views
   (`../README.status.md`, 3.5 and 5.13). Docking the configuring chat
-  beside How work runs is `../README.md`, 11. No draft act or model chooser is drawn on this page.
+  beside How work runs is `../README.md`, 11. No draft act or model
+  chooser is drawn on this page.
   The mockups are not edited.
 - **The welcome's greenfield pass** (the client README's 3.5 and 5.6;
   `../browser.md`, 2.5, The welcome's look; the user, 2026-11-04): the
@@ -281,7 +285,7 @@ What is not built here, though the main drawings show it:
 - A proposal's template and charter names (`me` has no charter names,
   and a proposed task names no template); a card's lineage beyond
   its own task (the inbox's `Card` carries no ancestry).
-- **Board and Changes** in the navigation are not built.
+- **Board** in the navigation is not built.
 
 Other facts the comparison found absent:
 

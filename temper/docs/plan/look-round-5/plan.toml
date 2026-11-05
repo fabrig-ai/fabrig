@@ -1,0 +1,31 @@
+draft = "look-round-5"
+repo = "fabrig"
+sources = ["temper/docs/plan/look-round-5/inputs/request.md", "temper/docs/design/draft/look-requests.md", "temper/docs/design/client/greenfield/README.md", "temper/docs/design/client/greenfield/mock.css", "AGENTS.md", "DESIGN.md"]
+# Plan options, written by fab call cut --set; keep them
+priority = true
+
+# One request, two tasks in a chain: temper-client-view takes one writer at a time. See plan.md.
+
+[buffer]
+low = 1.0
+high = 2.0
+
+[[part]]
+id = "configure-opening"
+title = "\"Configure temper\": its opening as a page, its cards and its shared column"
+mode = "direct"
+needs = []
+design = "temper/docs/design/client/README.md, 3.5"
+
+[[part]]
+id = "configure-entry"
+title = "Settings' \"Configure temper\", the render check and the account"
+mode = "direct"
+needs = ["configure-opening"]
+design = "temper/docs/design/client/README.md, 3.5"
+
+[[slice]]
+id = 1
+story = "The configuring page reads as a page, under its name, and Settings opens it or the chat it began"
+parts = ["configure-opening", "configure-entry"]
+walk = false
