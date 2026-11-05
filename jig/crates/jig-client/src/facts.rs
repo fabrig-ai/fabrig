@@ -59,7 +59,7 @@ pub fn chat_status(
 
 fn active(stage: RunStage, details: &ChipDetails) -> ChatStatus {
     match stage {
-        RunStage::BackingOff { until } => ChatStatus::Retrying { until, notice: details.retry },
+        RunStage::BackingOff { until } => ChatStatus::Retrying { until, notice: details.retry.clone() },
         RunStage::Idle => ChatStatus::Parked,
         RunStage::Due | RunStage::Preparing => ChatStatus::Starting,
         RunStage::Claimed { .. } | RunStage::Running { .. } => match &details.observation {

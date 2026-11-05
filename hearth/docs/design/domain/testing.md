@@ -186,8 +186,10 @@ testing/hearth-fake-<tool>          a tool's fake: its domain and its face (sect
 testing/hearth-fake-engine          the engine's fake [M4] (4.6)
 testing/hearth-client-fake-<tool>   a fake of a tool only the client runs: incus [M3b]
 testing/recordings/<tool>/<version> recordings of real runs (4.5)
+testing/hearth-recordings           the recordings' reader (4.5)
 testing/repos                       the test IaC repositories, cue tasks included (8.2)
 testing/mirror                      the local mirror's pin, its extras, its fetch script (6.2)
+testing/hearth-test-mirror          the local mirror as the tiers read it, and its proxy (6.2)
 testing/hearth-test-fixtures        what more than one test crate reads: the goldens as corpora, a hex literal, the hostile mutations
 testing/hearth-test-render          the render goldens' readers, the generated repositories, the scripted parent
 testing/hearth-test-repository      a scratch repository of the test IaC and a run of the built binary

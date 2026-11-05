@@ -83,9 +83,9 @@ record ChipPhaseClosing { value: ClosingStage }
 record ChipPhaseHeld { reason: HoldCategory revision: u64 }
 enum ChipPhase { waiting: ChipPhaseWaiting, active: ChipPhaseActive, person: ChipPhasePerson, closing: ChipPhaseClosing, held: ChipPhaseHeld, ended }
 enum FailureClass { host_lost, temporary, permanent, stall }
-record RetryNoticeOwnerFailed { class: HoldFailure count: u32 allowance: u32 }
-record RetryNoticeFailed { class: FailureClass count: u32 allowance: u32 }
-record RetryNoticeRefused { count: u32 }
+record RetryNoticeOwnerFailed { class: HoldFailure count: u32 allowance: u32 reason: option bytes 128 }
+record RetryNoticeFailed { class: FailureClass count: u32 allowance: u32 reason: option bytes 128 }
+record RetryNoticeRefused { count: u32 reason: option bytes 128 }
 enum RetryNotice { owner_failed: RetryNoticeOwnerFailed, failed: RetryNoticeFailed, refused: RetryNoticeRefused }
 record CallIdentity { owner: u64 sequence: u32 retry: u32 id: text 65536 }
 record RunWorkTool { call: CallIdentity tool: text 65536 }

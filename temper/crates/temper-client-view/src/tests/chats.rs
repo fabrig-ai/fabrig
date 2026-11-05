@@ -263,7 +263,8 @@ pub(super) fn status_rows() -> [(TaskLine, skein_ui::Style); 11] {
     for (index, (line, _)) in rows.iter_mut().enumerate() {
         let ChipPhaseFacts { phase, details } = line.chip.details.as_mut();
         details.ended_at = Some(Wall::EPOCH);
-        details.retry = Some(RetryNotice::OwnerFailed { class: HoldFailure::Lost, count: 2, allowance: 3 });
+        details.retry =
+            Some(RetryNotice::OwnerFailed { class: HoldFailure::Lost, count: 2, allowance: 3, reason: None });
         *phase = match index {
             1 => ChipPhase::Held { reason: HoldCategory::Stopped, revision: 1 },
             2 => ChipPhase::Active(RunStage::BackingOff { until: Wall::EPOCH }),
