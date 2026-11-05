@@ -5679,12 +5679,6 @@ own tests:
   "temper can change its code now; checked changes land on main through
   temper's merge queue.". Supplying a creation age or a first CI result
   needs its own protocol decision.
-- **A goal's own page, and its report whole** (3.5, *Goals*; the request of
-  2026-11-05 leaves them to the plan `ui-goal-page`): Goals' "Start one from a
-  draft" with its sheet, which reads `goals::ways`, and a goal's page drawn from
-  the greenfield mock's `goal.html`, reading `goals::state` and the rest of what
-  `report::parse` gives. Default: no such link, 5.8's page, and the report's
-  headline the only part of it a page draws.
 - **A project's only goal ending while Home is open** (3.5, 5.3): kind 7
   decides the rail and the tab bar; Home reads `Domain::has_goals` to choose
   Goals or Chats. The fact reads the ended group once, so once the live watch
@@ -5945,9 +5939,19 @@ own tests:
   - no drain: Pause is jig's Stop, so its toast says running tasks stop, where the
     mock's say they finish. jig's Drain and a party's `Hold` are not built;
   - "Stop" is `Ask::Cancel`, and no new word replaces it.
-- **Start goal's places** (5.14): the chat's "Start goal…" and Chats' Drafts filter
-  wait for the Chats area's drafts; "When it needs you" and "follows the away switch"
-  wait for the away switch.
+- **A goal's own line** (5.8): no key selects one task, so a goal's counts follow
+  `Read::Tasks` by its project, requester, label and tracked for at most 8 pages,
+  and a party with more goals than that sees what the page holds. Default: so,
+  since the request `ui-goal-page` keeps jig's part to `made`; a key selecting one
+  task is the candidate (a jig change).
+- **Start goal's places** (5.14): the chat's "Start goal…", which opens the sheet
+  with its draft and its chat, and Chats' Drafts filter, where Goals' link then
+  goes, as the mock's, wait for the Chats area's drafts (*The draft beside a
+  chat,* above). So do the walk from a chat's draft to a goal's page, and any
+  "Started goal X" that area draws from `draft_of`. "When it needs you", the
+  `Asks: always` line it adds to the goal's words, the goal's paragraph in
+  `stock/chat.txt` that reads that line, and "follows the away switch" wait for
+  the away switch.
   Each is drawn when what stands behind it is; until then the sheet opens with no
   draft from Goals, and a goal always asks you.
 - **An agent's task's page against its mockup** (5.9), each a default

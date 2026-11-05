@@ -79,7 +79,7 @@ The aim that excuses all of it, the user's: match what the pipeline we develop w
 
 ### 2.8 An owned forge that registers no one through temper
 
-- **What:** `TEMPER_FORGE_NO_REGISTRATION`, read where `temper forge prepare` and `temper forge sign-in` run, unset by default; an empty value counts as unset. Set, a forge `application.sign_in.forges` names gets `[oauth2_client] ENABLE_AUTO_REGISTRATION = false` in its `app.ini`, with `USERNAME` and `ACCOUNT_LINKING = login` as ever, and no `[service] ALLOW_ONLY_EXTERNAL_REGISTRATION = true`. With `DISABLE_REGISTRATION`, Forgejo's link page keeps an empty signup form wrapper with no registration fields; both `/user/link_account_signup` and `/user/sign_up` refuse a registration POST with 403 and make no account. `temper forge sign-in` prints the same settings. Unset, both give the bytes of `../protocol/setup.md`, 6.2 and 6.8.
+- **What:** `TEMPER_FORGE_NO_REGISTRATION`, read where `temper forge prepare` and `temper forge sign-in` run, unset by default; an empty value counts as unset and any other, `0` too, as set. Set, a forge `application.sign_in.forges` names gets `[oauth2_client] ENABLE_AUTO_REGISTRATION = false` in its `app.ini`, with `USERNAME` and `ACCOUNT_LINKING = login` as ever, and no `[service] ALLOW_ONLY_EXTERNAL_REGISTRATION = true`; a forge it doesn't name gets what it gets unset. An account already linked keeps signing in, one that a first sign-in made before the switch among them. With `DISABLE_REGISTRATION`, Forgejo's link page keeps an empty signup form wrapper with no registration fields; both `/user/link_account_signup` and `/user/sign_up` refuse a registration POST with 403 and make no account. `temper forge sign-in` prints the same settings. Unset, both give the bytes of `../protocol/setup.md`, 6.2 and 6.8.
 - **Why:** the user wants registration off on the deployment's forge (2026-11-05). `DISABLE_REGISTRATION` is already true, but a member's first sign-in through temper makes their account (`../protocol/sign-in.md`, 9.4). temper mints for a member alone, so a stranger makes none today (`../protocol/sign-in.md`, section 3); making one stays the default, since a deployment's other people need it.
 - **Cost and risk:**
   - a member with no account gets no further on the forge than its link page until the forge's admin makes one, and then needs its password once, to link it;
@@ -113,3 +113,4 @@ For the user to weigh; each can become an entry.
 
 - Which machine runs the worker (2.4)?
 - Does any entry become a real feature before the switch, rather than after v0.1.0?
+- Does `ENABLE_INTERNAL_SIGNIN = false` leave the link page's password form (2.8), so that internal sign-in can go off once every account is linked? Nothing has run it.

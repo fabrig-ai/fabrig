@@ -663,8 +663,8 @@ binaries; and decides by
    person's two header files made again, each alone, when missing, as
    on a forge prepared before they were (a person who revokes a token
    deletes its file, and the next start mints a new one). A configured
-   runner is registered again with its existing secret, keeping the same
-   registration, and its configuration is rendered from the current setup.
+   runner keeps its row (below), and its configuration is rendered from
+   the current setup, with the `uuid` its present configuration names.
    If the configuration is identical, its file is left untouched and no
    runner lock is needed, so a box can restart Forgejo while the runner
    runs. A changed or missing configuration is written whole under the
@@ -685,13 +685,31 @@ binaries; and decides by
    whether there is one, and `app.ini`'s `[actions]` follows the setup
    (6.2). A runner added is prepared under the runner's lock too, as a
    first preparation prepares it: its secret drawn into `runner/secret`
-   when that file is missing, and kept otherwise; registered; its
-   connection written. A runner removed is recorded as none, and its
-   files and its registration are left, unused, so that a runner added
-   again registers as the same one. A runner's recorded version is
-   compared with its pin only while the setup has one. Either may come
-   with an upgrade, in one preparation.
+   when that file is missing, and kept otherwise; registered, unless it
+   keeps its row (below); its connection written. A runner removed is
+   recorded as none, and its files and its registration are left, unused,
+   so that a runner added again is the same one. A runner's recorded
+   version is compared with its pin only while the setup has one. Either
+   may come with an upgrade, in one preparation.
 
+- **The runner's row is the runner's once it is made.** `forgejo-cli
+  actions register` writes the row over: its labels as given, raw
+  (`NAME:host`; `runner-register-again-keeps-one-global-runner`), and no
+  version. The runner declares over it at its start, and only then: its
+  labels' names and its version, which a job's `runs-on: NAME` matches
+  (`runner-connection-alone-takes-the-jobs`). So a preparation writing
+  the row under a runner that has declared, here or on another host (no
+  lock of this one sees that), leaves its jobs waiting with no error
+  until it starts again. A preparation registers only where the row may
+  not exist: a first one, one that draws a secret, and one whose
+  `runner/config.yaml` is missing or names no `uuid`, since that file is
+  written only after `register` has answered. Otherwise, at the same
+  versions, for an upgrade of either binary and for a runner added again,
+  it runs no `register`: changed labels reach the row when the runner
+  starts on its new configuration. Forgejo's command line cannot read the
+  row, so a row a person removed in the site administration is not
+  noticed: removing `runner/config.yaml` before a start registers it
+  again.
 - **Forgejo's command line only,** on the work path, never its web: under
   the lock no Forgejo runs, so nothing writes its database beside the
   preparation.
@@ -3314,7 +3332,10 @@ relies on.
   files with no `state` refused; a later preparation taking Forgejo's
   lock alone when the runner configuration is unchanged; a changed
   capacity at the same versions rewrites the runner's YAML while keeping
-  its registration and secrets. The shell checks that a live runner's
+  its registration and secrets; `register` run only where the row may
+  not exist (6.3), so that what a runner declared stays over a later
+  preparation, an upgrade and a runner added again. The shell checks
+  that a live runner's
   lock permits identical YAML to remain and refuses changed YAML until
   the runner stops.
 - **The specs:** each command's arguments and environment, and no secret
@@ -3545,7 +3566,11 @@ the preparation relies on stays here:
     `runner-token-is-the-secret`), which a file may hold (`token_url:
     file:`; `runner-connection-with-a-token-file-comes-online`); a runner
     started on that connection alone takes the instance's jobs
-    (`runner-connection-alone-takes-the-jobs`).
+    (`runner-connection-alone-takes-the-jobs`), a job's `runs-on: kit-host`
+    over a row registered raw as `kit-host:host`, since it declares at its
+    start. `register` run again writes the row's labels over
+    (`runner-register-again-keeps-one-global-runner`), which is why a
+    later preparation does not run it.
 
 ### 13.4 The process tier
 
