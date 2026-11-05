@@ -13,7 +13,7 @@ pub(crate) fn main(b: &mut Builder, root: &Domain, w: &Words, bindings: &mut Bin
         && super::project_name(root.pages().me(root.client()), project).is_none()
     {
         let mut times = crate::words::Times::new(skein_lib::Wall::EPOCH);
-        super::home::main(b, root, w, bindings, project, &mut times);
+        super::home::main(b, root, w, bindings, project, &mut times, 0);
         return;
     }
     b.open(Role::Main);
