@@ -3,7 +3,7 @@
 use crate::{fixtures, host::plans::seeded_config, tls::Carrier};
 use skein_fake_forge_domain as domain;
 use skein_fake_forge_forgejo::{self as fake, Service};
-use skein_forge_kit::github::{self, Fake};
+use skein_forge_kit::{github::{self, Fake}, sockets::Sockets};
 use skein_forge_setup::{
     host::{Answer, Event, Host, Limits, Need, Plan, Request, Settings},
     item::Item,
@@ -42,6 +42,7 @@ enum PeerEnd {
 }
 struct Peer {
     pipe: Carrier,
+    connected: bool,
     server: Option<fake::Server>,
     github: bool,
     api: Api,
@@ -84,7 +85,7 @@ pub struct HostWorld {
     fake_env: Env<fake::Limits>,
     above: Queue<Event>,
     below: Queue<skein_io::Request>,
-    peers: BTreeMap<Token, Peer>,
+    peers: Sockets<Peer>,
     script: VecDeque<Connect>,
     files: Vec<(Item, Secret)>,
     heard: Vec<Heard>,
@@ -259,7 +260,7 @@ impl HostWorld {
             fake_env: Env { now: Time::ZERO, wall: Wall::EPOCH, limits: fake_limits },
             above: Queue::with_capacity(16),
             below: Queue::with_capacity(16),
-            peers: BTreeMap::new(),
+            peers: Sockets::default(),
             script: script.iter().copied().collect(),
             files: vec![(Item::AdminToken, fixtures::secret(fixtures::ADMIN))],
             heard: Vec::new(),
@@ -495,7 +496,7 @@ impl HostWorld {
     )]
     fn tick(&mut self) {
         let mut closed = Vec::new();
-        for (owner, peer) in &mut self.peers {
+        for (owner, peer) in self.peers.iter_mut() {
             if let Some(closing) = &mut peer.closing
                 && closing.advance(self.env.now)
             {
@@ -696,17 +697,31 @@ impl HostWorld {
     }
     fn io(&mut self, request: skein_io::Request) {
         match request {
-            skein_io::Request::Connect { owner, addr } => {
+            skein_io::Request::Abort { entity } => {
+                self.aborts += 1;
+                self.end(entity);
+            }
+            skein_io::Request::Close { entity } => {
+                if let Some(peer) = self.peers.get_mut(&entity)
+                    && matches!(peer.end, PeerEnd::Open)
+                {
+                    peer.closing = Some(closing::Closing::new(self.env.limits.io, entity, self.env.now));
+                } else {
+                    self.end(entity);
+                }
+            }
+            request => {
+                let owner = if let skein_io::Request::Connect { owner, .. } = request { owner } else { Token::new(0) };
+                let mut events = Queue::with_capacity(3);
+                let _ = self.peers.request(request, |addr| {
                 self.connection_addresses.push(addr);
                 self.connects.push(self.env.now.saturating_since(Time::ZERO));
                 let connect = self.script.pop_front().unwrap_or(Connect::Made);
-                self.up(skein_io::Event::Connecting { owner, socket: owner });
                 if matches!(connect, Connect::Refused) {
-                    self.up(skein_io::Event::Failed { owner, error: skein_io::Error::Refused });
-                    self.up(skein_io::Event::Closed { owner });
-                    return;
+                    return None;
                 }
                 let mut peer = Peer {
+                    connected: !matches!(connect, Connect::Silent),
                     pipe: Carrier::new(self.seed ^ owner.raw(), self.tls_addresses.contains(&addr)),
                     server: None,
                     api: if self.github.is_some() && addr == fixtures::github_forge().address {
@@ -739,46 +754,21 @@ impl HostWorld {
                 } else if peer.answer.is_some() {
                     peer.below.push(Down::Demand { read: Read::Arrived { max: 4096 }, room: 0 });
                 }
-                assert!(self.peers.insert(owner, peer).is_none());
-                if !matches!(connect, Connect::Silent) {
-                    self.up(skein_io::Event::Connected { owner });
-                }
+                    Some(peer)
+                }, &mut events);
+                while let Some(event) = events.pop() { self.up(event); }
             }
-            skein_io::Request::Stream { stream, down } => {
-                if let Some(peer) = self.peers.get_mut(&stream) {
-                    peer.pipe.client_down(down);
-                }
-            }
-            skein_io::Request::Abort { entity } => {
-                self.aborts += 1;
-                self.end(entity);
-            }
-            skein_io::Request::Close { entity } => {
-                if let Some(peer) = self.peers.get_mut(&entity)
-                    && matches!(peer.end, PeerEnd::Open)
-                {
-                    peer.closing = Some(closing::Closing::new(self.env.limits.io, entity, self.env.now));
-                } else {
-                    self.end(entity);
-                }
-            }
-            skein_io::Request::Listen { .. }
-            | skein_io::Request::Bind { .. }
-            | skein_io::Request::Reject { .. }
-            | skein_io::Request::Output { .. }
-            | skein_io::Request::Spawn { .. }
-            | skein_io::Request::Signal { .. }
-            | skein_io::Request::Usage { .. }
-            | skein_io::Request::Window { .. } => panic!("unexpected io request"),
         }
     }
     fn end(&mut self, owner: Token) {
-        if let Some(mut peer) = self.peers.remove(&owner)
+        let mut events = Queue::with_capacity(1);
+        if let Some(mut peer) = self.peers.close(owner, &mut events)
             && let Some(server) = &mut peer.server
         {
             fake::closed(server, &mut self.service, &self.fake_env, &mut peer.above, &mut peer.below);
         }
-        self.up(skein_io::Event::Closed { owner });
+        if events.is_empty() { events.push(skein_io::Event::Closed { owner }); }
+        while let Some(event) = events.pop() { self.up(event); }
     }
 }
 fn answer(peer: &mut Peer, event: Up, records: &mut Vec<GitHubRequest>) {
@@ -950,4 +940,10 @@ mod tests {
             assert!(matches!(world.heard().last(), Some(Heard::Closed { .. })));
         }
     }
+}
+
+impl skein_forge_kit::sockets::Peer for Peer {
+    fn take(&mut self, down: Down) { self.pipe.client_down(down); }
+    fn answer(&mut self) -> Option<Up> { self.pipe.client_up() }
+    fn connected(&self) -> bool { self.connected }
 }
