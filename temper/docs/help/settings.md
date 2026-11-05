@@ -40,9 +40,8 @@ The stock has five charters (1, 2, 3, 4 and 6) and three templates:
 1 for a chat, 2 for a goal, 3 for the configuring chat. Its rules offer
 those five charter executors and procedures 2, 3 and 4.
 
-A setting's whole value is JSON, as printed by `settings show`.
-Its members, types and bounds are in
-`temper help settings-fields`.
+`settings show` prints a setting's whole JSON value;
+`temper help settings-fields` gives its members, types and bounds.
 
 The configuring chat's `settings` pages fill the host answer allowance;
 `next: OFFSET` continues at that byte offset. File replies also fit that
@@ -60,10 +59,9 @@ The rules are set or reset, never removed.
 
 A change names the newest revision its maker read. It makes one revision
 (`temper help revision`), or is refused whole, changing nothing.
-The deployment's items need its owners; a project's policy needs that
-project's owners; a change of both needs one person who owns both. A
-party with a role in the deployment or in a project proposes one
-instead, for those owners to decide
+Deployment items need its owners; a project's policy needs its owners;
+changing both needs one person who owns both. A party with a deployment
+or project role proposes a change for those owners to decide
 (`temper help proposal`).
 
 A start with a new default for a setting following its default makes
@@ -145,8 +143,6 @@ refusal:
    its revision (`temper help revision`).
 
 The worker is admitted on a later hello once all applicable versions fit.
-Changing the current reserve alone does not release an incompatible held
-version.
 
 ## Limits
 
@@ -157,10 +153,9 @@ For configuration needing a restart, read `temper help configuration`.
 - A value's bound in `temper help settings-fields` is what ctl sends;
   the deployment may refuse a value within it, past one of its own
   limits.
-- The providers, models, listeners, workers and limits are not
-  settings: they are the configuration document's, read at a start, and
-  a change to them needs a restart. Its limits must hold the stock's
-  settings: a start refuses one that does not, and another model or a
-  release with new stock can move what they need.
+- Providers, models, listeners, workers and limits belong to the
+  configuration document, read at start; changing them needs a restart.
+  Limits must hold the stock settings or start refuses; another model or
+  release with new stock can change the limits needed.
 - Stock floors are five charters, three templates and eight executor
   kinds (five charters, three procedures); your settings may need more.
