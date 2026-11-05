@@ -747,7 +747,7 @@ impl ConnectionHarness {
                 | skein_io::Request::Abort { .. } => unreachable!("one connection emits stream requests"),
             }
         }
-        if !*written && self.connection.phase == crate::connection::Phase::Reading {
+        if !*written && self.connection.phase() == crate::connection::Phase::Reading {
             wire.write(response);
             *written = true;
         }

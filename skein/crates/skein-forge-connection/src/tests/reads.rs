@@ -712,7 +712,7 @@ fn json_body_demands_are_batched_across_bounded_pumps() {
     h.start_forgejo(request::Request::User, None).expect("user request");
     let heard = h.buffered_answer(&response, response.len(), false);
     user_decoded(&heard);
-    assert_eq!(h.connection.phase, Phase::Idle);
+    assert_eq!(h.connection.phase(), Phase::Idle);
     assert!(!h.ready(), "no ready work after the terminal");
     assert!(h.local_pumps > 1, "buffered work survives a pump boundary");
     assert_eq!(h.body_demands, 1, "one buffered body batch");
@@ -764,11 +764,11 @@ fn json_body_batches_cross_intake_boundaries_and_reuse_cleanly() {
     let capacity = usize::try_from(h.env.limits.chunk).expect("chunk fits");
     assert_eq!(usize::try_from(h.body_demands).expect("count fits"), body.len().div_ceil(capacity));
     assert!(h.local_pumps > 2, "local work survives repeated 64-movement caps");
-    assert_eq!(h.connection.phase, crate::connection::Phase::Idle);
+    assert_eq!(h.connection.phase(), crate::connection::Phase::Idle);
     // A second exchange has no held bytes, end or demand from the first.
     user_request(&mut h);
     user_decoded(&h.buffered_answer(&fixtures::user_ok(), 7, false));
-    assert_eq!(h.connection.phase, crate::connection::Phase::Idle);
+    assert_eq!(h.connection.phase(), crate::connection::Phase::Idle);
 }
 
 #[test]

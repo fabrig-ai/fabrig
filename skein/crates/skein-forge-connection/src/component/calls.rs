@@ -87,7 +87,7 @@ impl Common {
             if c.role == connection::Use::Reserved {
                 continue;
             }
-            if c.phase == Phase::Idle && !c.closing && !self.holders.contains_key(owner) {
+            if c.phase() == Phase::Idle && !c.closing() && !self.holders.contains_key(owner) {
                 if c.forge == forge && c.origin == origin {
                     token = Some(*owner);
                     break;
@@ -165,7 +165,7 @@ impl Common {
         let connection = *self.connections.get(&token).expect("indexed connection");
         for _ in 0..64_u32 {
             let c = self.connection_slab.get_mut(connection).expect("holding connection");
-            if c.phase == Phase::Idle {
+            if c.phase() == Phase::Idle {
                 let waiting = self.waiting.get_mut(id).expect("indexed call");
                 if waiting.revoked {
                     c.deadline = Some(env.now.saturating_add(env.limits.idle));
@@ -229,7 +229,7 @@ impl Common {
                 }
                 continue;
             }
-            if c.phase == Phase::Closed {
+            if c.phase() == Phase::Closed {
                 c.close(env, true, io);
             }
             if !forgejo.exchange.ready(c) {
@@ -256,7 +256,7 @@ impl Common {
         match step {
             Step::Send(exchange) => {
                 forgejo.plan.set_pending(exchange);
-                if c.phase == Phase::Closed {
+                if c.phase() == Phase::Closed {
                     c.close(env, false, io);
                     let _holder = self.holders.remove(&token);
                     self.waiting.get_mut(id).expect("call").connection = None;
@@ -266,7 +266,7 @@ impl Common {
                 false
             }
             Step::Done(result) => {
-                if c.phase == Phase::Closed {
+                if c.phase() == Phase::Closed {
                     c.close(env, false, io);
                 } else {
                     c.deadline = Some(env.now.saturating_add(env.limits.idle));
@@ -435,8 +435,8 @@ impl Component {
                 self.common.wake = Some(env.now);
             }
             if self.common.lifecycle != Lifecycle::Live
-                || (c.phase == Phase::Idle && c.deadline <= Some(env.now))
-                || c.phase == Phase::Closed
+                || (c.phase() == Phase::Idle && c.deadline <= Some(env.now))
+                || c.phase() == Phase::Closed
             {
                 c.close(env, c.in_flight(), io);
                 if c.link.has_work() {
