@@ -46,6 +46,7 @@ chat-start-goal
 chat-start-goal-refused
 chat-working
 chats-closed
+chats-drafts
 chats-empty
 chats-first-run-1
 chats-first-run-5

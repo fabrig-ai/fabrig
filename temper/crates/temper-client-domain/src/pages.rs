@@ -840,6 +840,11 @@ pub fn step(pages: &mut Pages, env: &Env<Limits>, client: &Client, event: Event,
     let project = conversation_project(pages);
     if let Some(chats) = &mut pages.chats {
         chats.configure(me, project, &env.limits, out);
+        if let Address::Chats { .. } = pages.address
+            && let Some(project) = project
+        {
+            chats.open_documents(project, env.limits.client.domain.rows, out);
+        }
     }
     if let Address::Goals { project, .. } | Address::Home { project } = pages.address
         && let Some(goals) = &mut pages.goals
@@ -922,6 +927,9 @@ pub fn fire(pages: &mut Pages, env: &Env<Limits>, _client: &Client, out: &mut Qu
     if needs::fire(pages, env, out) {
         pages.shown = pages.shown.checked_add(1).expect("pages shown fits");
     }
+    if let Some(chats) = &mut pages.chats {
+        chats.fire(env.now, out);
+    }
     if let Some(chat) = &mut pages.chat {
         chat.fire(env.now, out);
     }
@@ -939,7 +947,11 @@ pub fn next_deadline(pages: &Pages) -> Option<Time> {
         Some(chat) => chat.next_deadline(),
         None => None,
     };
-    activity::earliest(activity::earliest(task, chat), pages.needs.next_deadline())
+    let chats = match &pages.chats {
+        Some(chats) => chats.next_deadline(),
+        None => None,
+    };
+    activity::earliest(activity::earliest(task, chat), activity::earliest(chats, pages.needs.next_deadline()))
 }
 #[must_use]
 pub const fn shown(pages: &Pages) -> u64 {
@@ -992,6 +1004,9 @@ fn went(pages: &mut Pages, env: &Env<Limits>, address: Address, out: &mut Queue<
     {
         if let Address::Chats { filter } = address {
             page.filter = filter;
+        }
+        if let Address::NewChat { .. } = address {
+            page.close_documents(out);
         }
         pages.address = address;
         return;
@@ -1298,7 +1313,7 @@ fn page_told(pages: &mut Pages, env: &Env<Limits>, client: &Client, told: Told, 
         return true;
     }
     if let Some(chats) = &mut pages.chats {
-        if !chats.told(told.clone(), &pages.address, out) {
+        if !chats.notes_told(env.now, client, &told, out) && !chats.told(told.clone(), &pages.address, out) {
             return match &mut pages.inbox {
                 Some(inbox) => inbox.told(client, told, out),
                 None => false,

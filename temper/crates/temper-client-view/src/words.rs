@@ -11,6 +11,10 @@ use skein_ui::{
 };
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 pub enum Word {
+    DraftsChats,
+    ChatsDraftLede,
+    ChatRowWrites,
+    ChatRowGoal,
     ChatStartGoal,
     ChatGoalLink,
     PlusDraft,
@@ -1215,7 +1219,7 @@ pub(crate) const SCRIPTED_MODEL: &[u8] = b"demo";
 // Forge status adds two phrases and removes View (client/README.md, 3.5).
 // The configuring opening replaces one phrase with nineteen (client/README.md, 3.5).
 // Settings, Needs you and the chat document include their literal phrases (client/README.md, 3.5, 5.13).
-const PHRASES: u32 = 1706;
+const PHRASES: u32 = 1710;
 // Ready's empty-name line has two literals and a Name hole, two more segments (3.5).
 // Ready's repository lead adds one phrase and three segments (3.5).
 // Four literals and the counted entry's two literals and Number hole add seven segments.
@@ -1232,8 +1236,12 @@ const PHRASES: u32 = 1706;
 // The configuring opening adds twenty literal and hole segments (3.5).
 // Settings, Needs you and the chat document include their literal segments (client/README.md, 3.5, 5.13).
 // The agent check refusal names its charter, adding two segments.
-const SEGMENTS: u32 = 2974;
-const ALL: [Word; 1107] = [
+const SEGMENTS: u32 = 2980;
+const ALL: [Word; 1111] = [
+    Word::DraftsChats,
+    Word::ChatsDraftLede,
+    Word::ChatRowWrites,
+    Word::ChatRowGoal,
     Word::ChatStartGoal,
     Word::ChatGoalLink,
     Word::PlusDraft,
@@ -2346,6 +2354,10 @@ impl Word {
     #[expect(clippy::too_many_lines, reason = "one exhaustive table keeps the frame phrase IDs stable")]
     fn id(self, connector: u16) -> PhraseId {
         let number = match self {
+            Self::DraftsChats => 3628,
+            Self::ChatsDraftLede => 3629,
+            Self::ChatRowWrites => 3630,
+            Self::ChatRowGoal => 3631,
             Self::ChatStartGoal => 3558,
             Self::ChatGoalLink => 3559,
             Self::StartGoalTitle => 3550,
@@ -3797,6 +3809,10 @@ impl Words {
 fn english(word: Word, shell: Shell) -> (&'static [&'static [u8]], &'static [HoleKind]) {
     use HoleKind::{Name, Number};
     match word {
+        Word::DraftsChats => (&[b"Drafts"], &[]),
+        Word::ChatsDraftLede => (&[b"A chat answers a question or changes the code, and can write a draft beside it. A draft becomes a goal for bigger work."], &[]),
+        Word::ChatRowWrites => (&[b"writes ", b".md"], &[Name]),
+        Word::ChatRowGoal => (&[b"started goal "], &[]),
         Word::ChatStartGoal => (&[b"Start goal\xe2\x80\xa6"], &[]),
         Word::ChatGoalLink => (&[b"Goal ", b" \xe2\x86\x92"], &[Name]),
         Word::StartGoalTitle => (&[b"Start a goal"], &[]),

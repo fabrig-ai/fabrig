@@ -1338,9 +1338,10 @@ body > noscript, #app:not(:empty):not(:has(*)) { margin-top: 213px; }
 #app > .temper-chats-page .temper-chats-row { position: relative; display: flex; flex-direction: column; gap: 4px; padding: 18px 0; border-bottom: 1px solid var(--gf-line); }
 #app > .temper-chats-page .temper-chats-top { display: flex; justify-content: space-between; gap: 12px; font-family: var(--gf-mono); font-size: 12px; color: var(--gf-faint); }
 #app > .temper-chats-page .temper-chats-top a { color: inherit; text-decoration: none; }
-#app > .temper-chats-page .temper-chats-top a::after { content: ''; position: absolute; inset: 0; }
-#app > .temper-chats-page .temper-chats-top a:focus-visible { outline: none; }
-#app > .temper-chats-page .temper-chats-top a:focus-visible::after { outline: 2px solid var(--gf-ink); outline-offset: 2px; }
+#app > .temper-chats-page .temper-chats-top > :first-child > :first-child::after { content: ''; position: absolute; inset: 0; }
+#app > .temper-chats-page .temper-chats-top > :first-child > a:not(:first-child) { position: relative; z-index: 1; }
+#app > .temper-chats-page .temper-chats-top > :first-child > :first-child:focus-visible { outline: none; }
+#app > .temper-chats-page .temper-chats-top > :first-child > :first-child:focus-visible::after { outline: 2px solid var(--gf-ink); outline-offset: 2px; }
 #app > .temper-chats-page .temper-chats-top [role=status] { display: inline; margin: 0; padding: 0; border: 0; border-radius: 0; background: none; font: inherit; color: inherit; text-transform: lowercase; }
 #app > .temper-chats-page .temper-chats-top .temper-state-needs { color: var(--gf-signal); }
 #app > .temper-chats-page .temper-chats-top .temper-time { font: inherit; color: inherit; }

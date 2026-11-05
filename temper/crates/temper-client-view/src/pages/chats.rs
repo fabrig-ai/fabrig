@@ -84,7 +84,7 @@ fn intro(b: &mut Builder, root: &Domain, words: &Words) {
     text(b, Role::Heading { level: 1 }, &headline);
     b.open(Role::Paragraph);
     b.style(crate::look::CHATS_LEDE);
-    let lede = words.say(Word::ChatsLede, &[]);
+    let lede = words.say(if offers_drafts(root) { Word::ChatsDraftLede } else { Word::ChatsLede }, &[]);
     b.name(&lede);
     b.text(Run::Plain, &lede);
     b.close();
@@ -119,6 +119,16 @@ fn repository_context(b: &mut Builder, root: &Domain, words: &Words, bindings: &
     }
 }
 
+fn offers_drafts(root: &Domain) -> bool {
+    match root.pages().project() {
+        Some(project) => temper_client_domain::pages::drafts_offered(root, project),
+        None => false,
+    }
+}
+#[expect(
+    clippy::too_many_lines,
+    reason = "the list filters and merges two borrowed row windows without scratch storage"
+)]
 fn list(b: &mut Builder, root: &Domain, words: &Words, bindings: &mut Bindings, times: &mut Times) {
     let Some(chats) = root.pages().chats() else { return };
     b.open(Role::Slot);
@@ -130,11 +140,17 @@ fn list(b: &mut Builder, root: &Domain, words: &Words, bindings: &mut Bindings, 
     for (filter, word) in [
         (ChatsFilter::All, Word::AllChats),
         (ChatsFilter::Live, Word::LiveChats),
+        (ChatsFilter::Drafts, Word::DraftsChats),
         (ChatsFilter::Closed, Word::ClosedChats),
     ] {
+        if filter == ChatsFilter::Drafts && !offers_drafts(root) {
+            continue;
+        }
         b.open(Role::Button);
         b.name(&words.say(word, &[]));
-        if chats.filter == filter {
+        if (if chats.filter == ChatsFilter::Drafts && !offers_drafts(root) { ChatsFilter::All } else { chats.filter })
+            == filter
+        {
             b.state(State::Pressed);
         }
         b.bind(bindings.insert(Act::ChatFilter { filter }));
@@ -161,14 +177,14 @@ fn list(b: &mut Builder, root: &Domain, words: &Words, bindings: &mut Bindings, 
         },
         _ => (&[][..], false),
     };
-    if live.is_empty() && closed.is_empty() {
-        let empty = words.say(Word::ChatsNone, &[]);
-        b.open(Role::Paragraph);
-        b.name(&empty);
-        b.style(crate::look::EMPTY);
-        b.text(Run::Plain, &empty);
-        b.close();
-    } else {
+    let only_drafts = chats.filter == ChatsFilter::Drafts && offers_drafts(root);
+    let mut any = false;
+    for rows in [live, closed] {
+        for line in rows {
+            any |= !only_drafts || chats.documents.contains_key(&line.chip.task);
+        }
+    }
+    if any {
         b.open(Role::List);
         b.name(&words.say(Word::YourChats, &[]));
         b.style(crate::look::CHATS_ROWS);
@@ -179,6 +195,9 @@ fn list(b: &mut Builder, root: &Domain, words: &Words, bindings: &mut Bindings, 
             let mut next: Option<&TaskLine> = None;
             for rows in [live, closed] {
                 for line in rows {
+                    if only_drafts && !chats.documents.contains_key(&line.chip.task) {
+                        continue;
+                    }
                     let key = (line.ended_at.unwrap_or(line.last_activity), line.chip.task);
                     if let Some(previous) = previous
                         && !before(previous, key)
@@ -197,6 +216,13 @@ fn list(b: &mut Builder, root: &Domain, words: &Words, bindings: &mut Bindings, 
             row(b, root, chosen, words, bindings, times);
             previous = Some((chosen.ended_at.unwrap_or(chosen.last_activity), chosen.chip.task));
         }
+        b.close();
+    } else {
+        let empty = words.say(Word::ChatsNone, &[]);
+        b.open(Role::Paragraph);
+        b.name(&empty);
+        b.style(crate::look::EMPTY);
+        b.text(Run::Plain, &empty);
         b.close();
     }
     if more {
@@ -246,6 +272,26 @@ pub(crate) fn row(
     if configuring && words.shell == crate::words::Shell::Browser {
         words.text(b, Word::ToolSeparator, &[]);
         words.text(b, Word::Configuring, &[]);
+    }
+    if let Some(chats) = root.pages().chats() {
+        if let Some(title) = chats.documents.get(&line.chip.task) {
+            words.text(b, Word::ToolSeparator, &[]);
+            words.text(
+                b,
+                Word::ChatRowWrites,
+                &[Hole::Name(temper_client_domain::pages::chat::document::slug(title.bytes()))],
+            );
+        }
+        if let Some(goal) =
+            temper_client_domain::pages::chats::Chats::goal_from(root.forge(), line.project, line.chip.task)
+            && let Some(chip) = chats.goal_chip(root.client(), goal)
+        {
+            words.text(b, Word::ToolSeparator, &[]);
+            words.text(b, Word::ChatRowGoal, &[]);
+            crate::link(b, chip.title.bytes(), bindings.insert(Act::Go { address: Address::Task { task: goal } }));
+            b.text(Run::Plain, chip.title.bytes());
+            b.close();
+        }
     }
     b.close();
     b.open(match words.shell {

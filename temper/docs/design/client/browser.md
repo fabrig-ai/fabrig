@@ -273,8 +273,8 @@ skein's (skein's `ui-web.md`), and how a client of jig's does is jig's
   replaced with `/chats/7`.
 - **The chats list's filter is its query,**
   as the inbox's (the user's pick, 10-23): none for "All", so that
-  `/chats` is the list whole; `?state=live` for "Live" and
-  `?state=closed` for "Closed". A `state` that
+  `/chats` is the list whole; `?state=live` for "Live",
+  `?state=drafts` for "Drafts" and `?state=closed` for "Closed". A `state` that
   doesn't read as one of the page's, or a field of another name, is dropped,
   and the address replaced with the printed one. `/tasks/9?state=live` reads as
   `/tasks/9`. A filter chosen is a move (below).

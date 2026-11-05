@@ -75,7 +75,7 @@ impl Sample {
         if self.name == "chat-byline-open" { Some(b"Change model") } else { None }
     }
 }
-pub const N: usize = 239;
+pub const N: usize = 240;
 const CHATS: Address = Address::Chats { filter: ChatsFilter::All };
 use World::{Bare, FirstRun, Reference, Solo};
 #[must_use]
@@ -436,6 +436,12 @@ pub fn samples() -> [Sample; N] {
             then: Shown,
         },
         Sample { name: "chats-no-repository", world: FirstRun { step: 7 }, address: CHATS, then: Shown },
+        Sample {
+            name: "chats-drafts",
+            world: Reference,
+            address: Address::Chats { filter: ChatsFilter::Drafts },
+            then: Shown,
+        },
         Sample { name: "chats-live", world: Solo, address: Address::Chats { filter: ChatsFilter::Live }, then: Shown },
         Sample {
             name: "chats-closed",
@@ -1073,6 +1079,9 @@ fn start_domain(sample: &Sample) -> Domain {
 #[must_use]
 #[expect(clippy::too_many_lines, reason = "one dispatch keeps each gallery state with its domain setup")]
 pub fn domain(sample: &Sample) -> Domain {
+    if sample.name == "chats-drafts" {
+        return crate::worlds::drafts_world();
+    }
     if sample.name == "settings" || sample.name.starts_with("settings-") {
         return crate::worlds::settings_world(sample.name);
     }

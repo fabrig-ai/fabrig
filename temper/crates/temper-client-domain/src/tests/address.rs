@@ -502,3 +502,10 @@ fn the_address_round_trips() {
     }
     assert_eq!(parse(b"/chats/new?x=1&draft=1&y=2"), Place::Address(Address::NewChat { draft: true }));
 }
+
+#[test]
+fn the_filter_round_trips() {
+    let address = Address::Chats { filter: ChatsFilter::Drafts };
+    assert_eq!(print(&address).as_ref(), b"/chats?state=drafts");
+    assert_eq!(parse(&print(&address)), Place::Address(address));
+}
