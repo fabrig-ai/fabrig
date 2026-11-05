@@ -287,6 +287,27 @@ impl Chats {
         }
         counts
     }
+    /// The person's newest configuring chat in the project, not closed
+    /// (temper/docs/design/client/README.md, 3.5, Settings).
+    #[must_use]
+    pub fn open_configuring(&self, client: &Client, me: Option<&Me>, project: u32) -> Option<u64> {
+        let query = self.query?;
+        if query.project != Some(project) {
+            return None;
+        }
+        let me = me?;
+        let mut newest = None;
+        if let Some(document) = client.document(self.live)
+            && document.state != jig_client::State::Ended
+            && let Some(Latest::Jig(Delivery::Tasks(live))) = document.latest
+        {
+            newest_configuring(&live.rows, me, project, &mut newest);
+        }
+        if let Some(page) = &self.page {
+            newest_configuring(&page.live, me, project, &mut newest);
+        }
+        newest
+    }
     #[must_use]
     pub fn live<'a>(&self, client: &'a Client) -> Option<&'a c::Tasks> {
         if let Some(Latest::Jig(Delivery::Tasks(tasks))) = client.document(self.live)?.latest {
@@ -333,4 +354,32 @@ fn configuring_template(me: Option<&Me>, project: Option<u32>) -> u32 {
     } else {
         jig_client::shapes::CHAT
     }
+}
+
+fn newest_configuring(rows: &skein_lib::List<c::TaskLine>, me: &Me, project: u32, newest: &mut Option<u64>) {
+    for row in rows {
+        if row.project == project
+            && configuring(me, project, &row.chip.executor)
+            && row.ended_at.is_none()
+            && !ended(&row.chip)
+        {
+            *newest = Some(match *newest {
+                Some(task) => task.max(row.chip.task),
+                None => row.chip.task,
+            });
+        }
+    }
+}
+
+/// A chat whose phase or phase facts have ended (temper/docs/design/client/README.md, 3.5).
+#[must_use]
+pub fn ended(chip: &c::Chip) -> bool {
+    use c::{ChipPhase, ChipPhaseFacts, Phase};
+    if let Phase::Done | Phase::Ended | Phase::Failed | Phase::Cancelled = chip.phase {
+        return true;
+    }
+    if let ChipPhaseFacts { phase: ChipPhase::Ended, .. } = chip.details.as_ref() {
+        return true;
+    }
+    false
 }

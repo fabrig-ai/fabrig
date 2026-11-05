@@ -11,7 +11,7 @@
 use alloc::boxed::Box;
 use core::mem;
 
-use skein_http::{Header, Method, client as http, sse};
+use skein_http::{Header, Method, client as http, header, sse};
 use skein_json::{Document, collector, tokenizer};
 use skein_lib::stream::{Down, Read, Up};
 use skein_lib::{Decimal, Env, List, Queue, Token, Writer, bytes};
@@ -695,7 +695,7 @@ pub fn up(client: &mut Client, env: &Env<Limits>, event: Up, above: &mut Queue<E
         Up::Failed(_) => true,
         Up::Bytes(_) | Up::End | Up::Room => false,
     };
-    let child = Env { now: env.now, wall: env.wall, limits: env.limits.http };
+    let child = env.with(env.limits.http);
     let before = below.len();
     http::up(&mut client.http, &child, event, &mut client.http_events, below);
     sent_evidence(client, below, before);
@@ -822,7 +822,7 @@ fn check_env(client: &Client, env: &Env<Limits>) {
 }
 
 fn http_down(client: &mut Client, env: &Env<Limits>, request: http::Request, below: &mut Queue<Down>) {
-    let child = Env { now: env.now, wall: env.wall, limits: env.limits.http };
+    let child = env.with(env.limits.http);
     let before = below.len();
     http::down(&mut client.http, &child, request, &mut client.http_events, below);
     sent_evidence(client, below, before);
@@ -840,7 +840,7 @@ fn sent_evidence(client: &mut Client, below: &Queue<Down>, before: u32) {
 }
 
 fn sse_down(client: &mut Client, env: &Env<Limits>, request: sse::Request) {
-    let child = Env { now: env.now, wall: env.wall, limits: event_stream(&env.limits) };
+    let child = env.with(event_stream(&env.limits));
     sse::down(&mut client.sse, &child, request, &mut client.sse_events, &mut client.sse_below);
     route_sse_down(client);
 }
@@ -1035,7 +1035,7 @@ fn request_id(provider: Provider, headers: &[Header]) -> Box<[u8]> {
 fn body_event(client: &mut Client, event: Up, env: &Env<Limits>, above: &mut Queue<Event>, below: &mut Queue<Down>) {
     match client.state {
         State::Streaming => {
-            let child = Env { now: env.now, wall: env.wall, limits: event_stream(&env.limits) };
+            let child = env.with(event_stream(&env.limits));
             sse::up(&mut client.sse, &child, event, &mut client.sse_events, &mut client.sse_below);
             route_sse_down(client);
         }
@@ -1169,7 +1169,7 @@ fn event_data(client: &mut Client, event: Up, env: &Env<Limits>, above: &mut Que
                     if client.collector.waiting() == collector::Waiting::Close {
                         client.collector.restart();
                     }
-                    let child = Env { now: env.now, wall: env.wall, limits: filter::collector(&env.limits) };
+                    let child = env.with(filter::collector(&env.limits));
                     collector::down(
                         &mut client.collector,
                         &child,
@@ -1238,7 +1238,7 @@ fn collected_data(
     above: &mut Queue<Event>,
     below: &mut Queue<Down>,
 ) {
-    let child = Env { now: env.now, wall: env.wall, limits: filter::collector(&env.limits) };
+    let child = env.with(filter::collector(&env.limits));
     collector::up(&mut client.collector, &child, event, &mut client.collector_events, &mut client.collector_below);
     match client.collector_events.pop() {
         Some(collector::Event::Collected(document)) => client.event_data = EventData::Collected(document),
@@ -1454,7 +1454,7 @@ fn close_sse(client: &mut Client, env: &Env<Limits>) {
     }
     client.sse_events.clear();
     client.requests.clear();
-    let child = Env { now: env.now, wall: env.wall, limits: filter::collector(&env.limits) };
+    let child = env.with(filter::collector(&env.limits));
     drop(client.collector_below.pop());
     drop(client.collector_events.pop());
     collector::down(
@@ -1661,10 +1661,10 @@ fn head_length(
             return Err(Error::Invalid);
         }
     }
-    let mut total = endpoint.authority.len().checked_add(endpoint.target.len()).ok_or(Error::Invalid)?;
+    let mut total = header::field_len(b"Host".len(), endpoint.authority.len()).ok_or(Error::Invalid)?;
     total = total.checked_add(value_bytes).ok_or(Error::Invalid)?;
     for (index, header) in endpoint.headers.iter().enumerate() {
-        if reserved(&header.name) || !header_name(&header.name) || !header_value(&header.value) {
+        if reserved(&header.name) || !header::is_token(&header.name) || !header_value(&header.value) {
             return Err(Error::Invalid);
         }
         for previous in endpoint.headers.get(..index).ok_or(Error::Invalid)? {
@@ -1672,43 +1672,37 @@ fn head_length(
                 return Err(Error::Invalid);
             }
         }
-        total = total.checked_add(header.name.len()).ok_or(Error::Invalid)?;
-        total = total.checked_add(header.value.len()).ok_or(Error::Invalid)?;
-        total = total.checked_add(4).ok_or(Error::Invalid)?;
+        let len = header::field_len(header.name.len(), header.value.len()).ok_or(Error::Invalid)?;
+        total = total.checked_add(len).ok_or(Error::Invalid)?;
     }
-    // Exact wire length: the measured body fixes the Content-Length digits,
-    // or for a compressed body its bound fixes their most.
-    // Check it before allocating any request head or credential copy.
-    for fixed in [
-        b"POST ".as_slice(),
-        b" HTTP/1.1\r\n",
-        b"Host: \r\n",
-        b"Content-Type: application/json\r\n",
-        b"Accept: text/event-stream\r\n",
-        b"Accept-Encoding: identity\r\n",
-        b"Content-Length: \r\n",
-        b"\r\n",
+    // Check the wire length before allocating a request head or credential copy.
+    for (name, value) in [
+        (b"Content-Type".as_slice(), b"application/json".as_slice()),
+        (b"Accept", b"text/event-stream"),
+        (b"Accept-Encoding", b"identity"),
     ] {
-        total = total.checked_add(fixed.len()).ok_or(Error::Invalid)?;
+        let len = header::field_len(name.len(), value.len()).ok_or(Error::Invalid)?;
+        total = total.checked_add(len).ok_or(Error::Invalid)?;
     }
     if coding == Encoding::Gzip {
-        total = total.checked_add(b"Content-Encoding: gzip\r\n".len()).ok_or(Error::Invalid)?;
+        let len = header::field_len(b"Content-Encoding".len(), b"gzip".len()).ok_or(Error::Invalid)?;
+        total = total.checked_add(len).ok_or(Error::Invalid)?;
     }
     let credential_field = match (endpoint.provider, scheme) {
         (Provider::Anthropic, Some(Scheme::Bearer)) => return Err(Error::Invalid),
-        (Provider::OpenAi, Some(Scheme::Key | Scheme::Bearer)) => b"Authorization: Bearer \r\n".as_slice(),
-        (Provider::Anthropic, Some(Scheme::Key)) => b"x-api-key: \r\n".as_slice(),
-        (Provider::OpenAi | Provider::Anthropic, None) => b"".as_slice(),
+        (Provider::OpenAi, Some(Scheme::Key | Scheme::Bearer)) => {
+            header::field_len(b"Authorization".len(), b"Bearer ".len())
+        }
+        (Provider::Anthropic, Some(Scheme::Key)) => header::field_len(b"x-api-key".len(), 0),
+        (Provider::OpenAi | Provider::Anthropic, None) => Some(0),
     };
-    total = total.checked_add(credential_field.len()).ok_or(Error::Invalid)?;
+    total = total.checked_add(credential_field.ok_or(Error::Invalid)?).ok_or(Error::Invalid)?;
     for (name, value) in fields.iter().flatten() {
-        total = total.checked_add(name.len()).ok_or(Error::Invalid)?;
-        total = total.checked_add(value.len()).ok_or(Error::Invalid)?;
-        total = total.checked_add(4).ok_or(Error::Invalid)?;
+        let len = header::field_len(name.len(), value.len()).ok_or(Error::Invalid)?;
+        total = total.checked_add(len).ok_or(Error::Invalid)?;
     }
-    let length = Decimal::of(content_length);
-    total = total.checked_add(length.as_bytes().len()).ok_or(Error::Invalid)?;
-    Ok(total)
+    http::request_head_len(Method::Post, endpoint.target.len(), total, http::Body::Length(content_length), false)
+        .ok_or(Error::Invalid)
 }
 
 fn provider_headers(endpoint: &Endpoint) -> [Option<(&'static [u8], &'static [u8])>; 1] {
@@ -1739,25 +1733,9 @@ fn valid_authority(value: &[u8]) -> bool {
     true
 }
 
-fn header_name(name: &[u8]) -> bool {
-    if name.is_empty() {
-        return false;
-    }
-    for &byte in name {
-        if !byte.is_ascii_alphanumeric() && !b"!#$%&'*+-.^_`|~".contains(&byte) {
-            return false;
-        }
-    }
-    true
-}
-
+#[expect(clippy::disallowed_methods, reason = "the strict ASCII field predicate is one reading over HTTP's predicate")]
 fn header_value(value: &[u8]) -> bool {
-    for &byte in value {
-        if !(0x20..=0x7e).contains(&byte) && byte != b'\t' {
-            return false;
-        }
-    }
-    true
+    value.iter().all(|&byte| byte.is_ascii() && header::is_field_byte(byte))
 }
 
 fn reserved(name: &[u8]) -> bool {
@@ -1787,7 +1765,7 @@ fn identity_encoding(headers: &[Header]) -> bool {
     let mut seen = false;
     for header in headers {
         if header.is(b"content-encoding") {
-            if seen || !trim(&header.value).eq_ignore_ascii_case(b"identity") {
+            if seen || !header::trim(&header.value).eq_ignore_ascii_case(b"identity") {
                 return false;
             }
             seen = true;
@@ -1807,7 +1785,7 @@ fn media_type(headers: &[Header]) -> Result<Option<&[u8]>, ()> {
                 Some(end) => end,
                 None => header.value.len(),
             };
-            found = Some(trim(header.value.get(..end).expect("the delimiter is within the value")));
+            found = Some(header::trim(header.value.get(..end).expect("the delimiter is within the value")));
         }
     }
     Ok(found)
@@ -1824,7 +1802,7 @@ fn stream_type_detail(media: Result<Option<&[u8]>, ()>) -> Box<[u8]> {
             } else if let Some(slash) = bytes::find(value, b"/") {
                 let kind = value.get(..slash).expect("the slash is within the media type");
                 let subtype = value.get(slash.saturating_add(1)..).expect("the slash is within the media type");
-                if header_name(kind) && header_name(subtype) { value } else { b"invalid" }
+                if header::is_token(kind) && header::is_token(subtype) { value } else { b"invalid" }
             } else {
                 b"invalid"
             }
@@ -1839,24 +1817,6 @@ fn stream_type_detail(media: Result<Option<&[u8]>, ()>) -> Box<[u8]> {
     out.put(value).expect("measured media type");
     out.put(b")").expect("measured detail suffix");
     out.finish()
-}
-
-fn trim(mut value: &[u8]) -> &[u8] {
-    for _byte in 0..value.len() {
-        if value.first() == Some(&b' ') || value.first() == Some(&b'\t') {
-            value = value.get(1..).expect("a nonempty slice loses one byte");
-        } else {
-            break;
-        }
-    }
-    for _byte in 0..value.len() {
-        if value.last() == Some(&b' ') || value.last() == Some(&b'\t') {
-            value = value.get(..value.len().saturating_sub(1)).expect("a nonempty slice loses one byte");
-        } else {
-            break;
-        }
-    }
-    value
 }
 
 fn block_size(block: &Block) -> u64 {

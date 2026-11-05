@@ -1,30 +1,7 @@
 //! RFC 3339 and HTTP dates (skein/docs/design/forge.md, 4.4).
-use skein_lib::Wall;
-pub const RFC3339_BYTES: u32 = 20;
+use skein_lib::{Civil, Wall};
 fn number(text: &[u8], start: usize, end: usize) -> Option<u64> {
     skein_lib::bytes::decimal(text.get(start..end)?)
-}
-fn leap(year: u64) -> bool {
-    year.is_multiple_of(4) && (!year.is_multiple_of(100) || year.is_multiple_of(400))
-}
-fn month_days(year: u64, month: u64) -> Option<u64> {
-    match month {
-        1 | 3 | 5 | 7 | 8 | 10 | 12 => Some(31),
-        4 | 6 | 9 | 11 => Some(30),
-        2 => Some(if leap(year) { 29 } else { 28 }),
-        _ => None,
-    }
-}
-fn before(year: u64) -> Option<i64> {
-    let previous = year.checked_sub(1)?;
-    i64::try_from(
-        previous
-            .checked_mul(365)?
-            .checked_add(previous / 4)?
-            .checked_sub(previous / 100)?
-            .checked_add(previous / 400)?,
-    )
-    .ok()
 }
 #[must_use]
 pub fn read(text: &[u8]) -> Option<Wall> {
@@ -33,13 +10,16 @@ pub fn read(text: &[u8]) -> Option<Wall> {
             return None;
         }
     }
-    let year = number(text, 0, 4)?;
-    let month = number(text, 5, 7)?;
-    let day = number(text, 8, 10)?;
+    let days = Civil {
+        year: u32::try_from(number(text, 0, 4)?).ok()?,
+        month: u8::try_from(number(text, 5, 7)?).ok()?,
+        day: u8::try_from(number(text, 8, 10)?).ok()?,
+    }
+    .days()?;
     let hour = number(text, 11, 13)?;
     let minute = number(text, 14, 16)?;
     let second = number(text, 17, 19)?;
-    if day == 0 || day > month_days(year, month)? || hour > 23 || minute > 59 || second > 59 {
+    if hour > 23 || minute > 59 || second > 59 {
         return None;
     }
     let mut at = 19usize;
@@ -72,11 +52,6 @@ pub fn read(text: &[u8]) -> Option<Wall> {
         }
         _ => return None,
     };
-    let mut days = before(year)?.checked_sub(before(1970)?)?;
-    for m in 1..month {
-        days = days.checked_add(i64::try_from(month_days(year, m)?).ok()?)?;
-    }
-    days = days.checked_add(i64::try_from(day.checked_sub(1)?).ok()?)?;
     let daytime = hour.checked_mul(3600)?.checked_add(minute.checked_mul(60)?)?.checked_add(second)?;
     let seconds = days.checked_mul(86400)?.checked_add(i64::try_from(daytime).ok()?)?.checked_sub(offset)?;
     Some(Wall::from_nanos(u64::try_from(seconds).ok()?.checked_mul(1_000_000_000)?))
@@ -84,30 +59,12 @@ pub fn read(text: &[u8]) -> Option<Wall> {
 #[must_use]
 pub fn write(wall: Wall) -> [u8; 20] {
     let seconds = wall.as_secs();
-    let mut days = seconds / 86400;
-    let mut year = 1970;
-    for y in 1970..=2554 {
-        let count = if leap(y) { 366 } else { 365 };
-        if days < count {
-            year = y;
-            break;
-        }
-        days = days.saturating_sub(count);
-    }
-    let mut month = 1;
-    for m in 1..=12 {
-        let count = month_days(year, m).expect("a calendar month");
-        if days < count {
-            month = m;
-            break;
-        }
-        days = days.saturating_sub(count);
-    }
+    let date = wall.civil();
     let mut output = *b"0000-00-00T00:00:00Z";
     for (start, width, mut value) in [
-        (0usize, 4usize, year),
-        (5, 2, month),
-        (8, 2, days.saturating_add(1)),
+        (0usize, 4usize, u64::from(date.year)),
+        (5, 2, u64::from(date.month)),
+        (8, 2, u64::from(date.day)),
         (11, 2, seconds / 3600 % 24),
         (14, 2, seconds / 60 % 60),
         (17, 2, seconds % 60),
@@ -136,21 +93,15 @@ pub fn http_date(text: &[u8]) -> Option<Wall> {
         b"Mon" | b"Tue" | b"Wed" | b"Thu" | b"Fri" | b"Sat" | b"Sun" => {}
         _ => return None,
     }
-    let month = match text.get(8..11)? {
-        b"Jan" => b"01",
-        b"Feb" => b"02",
-        b"Mar" => b"03",
-        b"Apr" => b"04",
-        b"May" => b"05",
-        b"Jun" => b"06",
-        b"Jul" => b"07",
-        b"Aug" => b"08",
-        b"Sep" => b"09",
-        b"Oct" => b"10",
-        b"Nov" => b"11",
-        b"Dec" => b"12",
-        _ => return None,
-    };
+    let name = text.get(8..11)?;
+    let mut month = None;
+    for value in 1..=12 {
+        if Civil::month_name(value) == Some(name) {
+            month = Some(value);
+            break;
+        }
+    }
+    let month = month?;
     let mut date = *b"0000-00-00T00:00:00Z";
     for (from, to, width) in [(12usize, 0usize, 4usize), (5, 8, 2), (17, 11, 8)] {
         for (input, output) in
@@ -159,8 +110,7 @@ pub fn http_date(text: &[u8]) -> Option<Wall> {
             *output = *input;
         }
     }
-    for (output, input) in date.get_mut(5..7)?.iter_mut().zip(month.iter()) {
-        *output = *input;
-    }
+    *date.get_mut(5)? = b'0'.checked_add(month.checked_div(10)?)?;
+    *date.get_mut(6)? = b'0'.checked_add(month.checked_rem(10)?)?;
     read(&date)
 }

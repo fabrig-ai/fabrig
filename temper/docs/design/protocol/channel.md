@@ -142,8 +142,9 @@ record Writable    { push: bytes  expected: option fixed 32  landing: option byt
   `run.policy.resume`, including the first attempt before a transcript
   exists, and carries each repository's destination in its `save`
   option. The worker enables saving only when jig requests it and at
-  least one writable repository has a destination. A workspace with any
-  merge start saves nothing; read-only repositories save nothing
+  least one writable repository has a destination. Merge starts keep their
+  destinations: saving commits both merge parents and refuses unresolved
+  conflict markers. Read-only repositories save nothing
   (`../domain/worker.md`, 4.2). `Items` carries only repositories in
   `worker-wire-v1.schema`; the schema family and `PAYLOAD_VERSION` stay
   at 4 under section 3's pre-release rule.
