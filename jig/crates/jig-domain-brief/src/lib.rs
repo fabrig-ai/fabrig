@@ -20,7 +20,8 @@ mod planned;
 
 pub use limits::Limits;
 pub use orchestrated::{
-    Domain as GatherDomain, Event as GatherEvent, Missing as GatherMissing, Placed as GatherPlaced,
-    Request as GatherRequest, fire as gather_fire, step as gather_step, valid,
+    Domain as GatherDomain, Event as GatherEvent, Failure as GatherFailure, Fate as GatherFate,
+    Missing as GatherMissing, Placed as GatherPlaced, Request as GatherRequest, fire as gather_fire,
+    step as gather_step, valid,
 };
-pub use planned::{ConnectorAction, Core, Placement, Plan, Planned, plan};
+pub use planned::{ConnectorAction, Core, Placement, Plan, Planned, core_name, plan};

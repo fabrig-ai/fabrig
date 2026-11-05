@@ -1,6 +1,6 @@
 //! The brief's section inventory and byte plan (domain/engine.md, section 9).
 //! Core sections arrive as text. A connector's section is only its
-//! number, kind, token and reported size; its bytes stay with the connector.
+//! number, kind, fixed name, token and reported size; its bytes stay with the connector.
 //! The plan gives required sections first claim on the budget, then visits
 //! optional sections by priority. A connector cuts its own content to the
 //! size requested here and reports the resulting size before completion.
@@ -32,13 +32,38 @@ pub enum Core {
     TranscriptTail,
 }
 
+/// The fixed name of a core section in a failure (domain/engine.md, 9.1).
+#[must_use]
+pub fn core_name(kind: Core) -> &'static [u8] {
+    match kind {
+        Core::Task => b"task",
+        Core::Lineage => b"lineage",
+        Core::Results => b"results",
+        Core::Plan => b"plan",
+        Core::Attempts => b"attempts",
+        Core::Calls => b"calls",
+        Core::Waiting => b"waiting",
+        Core::NotesIndex => b"notes",
+        Core::TranscriptTail => b"transcript",
+    }
+}
+
 /// One requested section. A lower `priority` is kept before a higher one.
 #[derive(Clone, PartialEq, Eq, Hash, Debug)]
 pub enum Planned {
     /// Text the core owns and may cut by this kind's rules.
     Core { kind: Core, text: Box<[u8]>, limit: u32, priority: u16, required: bool },
     /// Opaque content retained by a numbered connector.
-    Connector { connector: u16, kind: u16, token: Token, size: u32, limit: u32, priority: u16, required: bool },
+    Connector {
+        connector: u16,
+        kind: u16,
+        name: &'static [u8],
+        token: Token,
+        size: u32,
+        limit: u32,
+        priority: u16,
+        required: bool,
+    },
 }
 
 impl Planned {
@@ -179,6 +204,7 @@ mod tests {
     fn required_sections_claim_budget_before_optional_sections() {
         let sections = [
             Planned::Connector {
+                name: b"section",
                 connector: 3,
                 kind: 7,
                 token: Token::new(1),
@@ -189,6 +215,7 @@ mod tests {
             },
             Planned::Core { kind: Core::Task, text: Box::from(&b"task"[..]), limit: 30, priority: 9, required: true },
             Planned::Connector {
+                name: b"section",
                 connector: 4,
                 kind: 2,
                 token: Token::new(2),
@@ -215,6 +242,7 @@ mod tests {
         let sections = [
             Planned::Core { kind: Core::Task, text: Box::from(&b"task"[..]), limit: 4, priority: 0, required: true },
             Planned::Connector {
+                name: b"section",
                 connector: 2,
                 kind: 9,
                 token: Token::new(5),
@@ -232,8 +260,16 @@ mod tests {
     #[test]
     fn a_kind_limit_cuts_a_connector_with_room_left_in_the_brief() {
         let token = Token::new(6);
-        let sections =
-            [Planned::Connector { connector: 2, kind: 4, token, size: 80, limit: 40, priority: 0, required: true }];
+        let sections = [Planned::Connector {
+            name: b"section",
+            connector: 2,
+            kind: 4,
+            token,
+            size: 80,
+            limit: 40,
+            priority: 0,
+            required: true,
+        }];
         let planned = plan(&sections, 200).expect("one bounded section");
         assert_eq!(planned.size, 40);
         assert_eq!(planned.order.as_ref(), [Placement { index: 0, size: 40 }]);

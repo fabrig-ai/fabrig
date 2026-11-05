@@ -46,6 +46,7 @@ fn plan(documents: &[PlannedDocument], capacity: u32) -> List<brief::Planned> {
     for planned in documents {
         wanted
             .push(brief::Planned::Connector {
+                name: b"document",
                 connector: planned.document.connector,
                 kind: jig_domain_core::DOCUMENT_KIND,
                 token: planned.token,
@@ -170,7 +171,7 @@ fn a_name_that_is_no_forge_branch_is_missing_without_asking_the_forge() {
     let mut requests = Queue::uncapped();
     requests.push(brief::GatherRequest::Gather { connector: 0, section: token, budget: 4096 });
     outputs(&mut domain, &env, &mut requests);
-    let Some(Work::Brief(brief::GatherEvent::Missing { brief, section })) = domain.work.pop() else {
+    let Some(Work::Brief(brief::GatherEvent::Missing { brief, section, .. })) = domain.work.pop() else {
         panic!("missing document")
     };
     assert_eq!((brief, section), (Token::new(8), token));
