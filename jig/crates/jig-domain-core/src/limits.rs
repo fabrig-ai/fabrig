@@ -203,9 +203,6 @@ fn checked_valid(limits: &Limits) -> Option<()> {
         || limits.accounts.program_hosts < limits.fleet.configured_workers.checked_add(1)?
         || limits.people.operations > limits.tasks.tasks
         || limits.accounts.program_names > limits.fleet.program_sources
-        || limits.tasks.revisions != limits.settings.revisions
-        || limits.tasks.versions != limits.settings.versions
-        || limits.fleet.versions != limits.settings.versions
         || limits.documents.roles < limits.authority.roles
         || limits.settings.revisions == 0
         || limits.settings.versions == 0
@@ -226,9 +223,11 @@ fn checked_valid(limits: &Limits) -> Option<()> {
     {
         return None;
     }
-    if !tasks::valid(&limits.tasks)
-        || !people::valid(&limits.people)
-        || !fleet::valid(&limits.fleet)
+    if !tasks::valid(
+        &limits.tasks,
+        tasks::Kept { revisions: limits.settings.revisions, versions: limits.settings.versions },
+    ) || !people::valid(&limits.people)
+        || !fleet::valid(&limits.fleet, limits.settings.versions)
         || !brief::valid(&limits.brief)
         || !accounts::valid(&limits.accounts)
         || !notes::valid(&limits.notes)
@@ -238,6 +237,8 @@ fn checked_valid(limits: &Limits) -> Option<()> {
     {
         return None;
     }
+    limits.settings.revisions.checked_add(1)?;
+    limits.settings.versions.checked_add(1)?;
     // Constructor counts must fit independently of the inbox and settings subtotals.
     crate::inbox::question_capacity(limits)?;
     limits.people.people.checked_mul(limits.people.inbox_entries)?.checked_add(1)?;

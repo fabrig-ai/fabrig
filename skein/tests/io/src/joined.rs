@@ -291,35 +291,16 @@ pub fn either(seed: u64, plans: [crate::owner::Plan; 2]) -> [Seen; 2] {
         let labels = [served.name, dialer.name];
         let listener = Serve { name: "either", addr, answers: vec![Some(served)], close: ServeClose::Answered(END) };
         let owner = Owner::new(seed, vec![listener], vec![dial("either", dialer)]);
-        let mut proc = crate::world::Proc::new(skein_io::Limits { intake: 7, ..limits(3) }, owner);
-        let mut sim = skein_sim::Sim::new(seed, Config::calm());
-        let pid = sim.spawn_process();
-        let mut directory = crate::owner::Directory::new();
-        for step in 0..200_000 {
-            assert!(step < 199_999, "either pair settles: {:?}", proc.log);
-            let now = sim.now();
-            assert!(now < END, "either pair ends within its deadline");
-            sim.reap(pid, &mut proc.completions);
-            proc.iterate(now, sim.wall(), &mut directory);
-            sim.submit(pid, &mut proc.subs);
-            if proc.owner.done() && proc.io.is_empty() && sim.in_flight(pid) == 0 {
-                break;
-            }
-            if proc.busy(now) || sim.deferred(pid) || sim.ready(pid) > 0 {
-                continue;
-            }
-            let next = [sim.next_due(), proc.io.next_deadline(), proc.owner.next_deadline(now)]
-                .into_iter()
-                .flatten()
-                .min()
-                .expect("the unsettled pair has work due");
-            sim.advance_to(next);
-        }
+        let mut world = skein_world::World::new(seed, Config::calm(), EitherJudge(0), skein_world::Memory::Unchecked);
+        world.spawn(|| crate::world::Hosted {
+            proc: crate::world::Proc::new(skein_io::Limits { intake: 7, ..limits(3) }, owner),
+            directory: std::rc::Rc::new(std::cell::RefCell::new(crate::owner::Directory::new())),
+        });
+        let outcome = world.run();
+        let proc = &outcome.procs[0].proc;
         proc.ledger.settled();
-        sim.assert_quiescent(pid);
-        sim.assert_no_open_fds(pid);
         if addr == name(b"either") {
-            assert!(sim.trace().is_empty(), "joined pairs submit no kernel records");
+            assert!(outcome.trace.is_empty(), "joined pairs submit no kernel records");
         }
         let conns = labels.map(|label| proc.owner.conn(label).expect("both ends connected"));
         assert!(conns.iter().all(|conn| conn.error.is_none()), "both connects succeeded");
@@ -329,4 +310,23 @@ pub fn either(seed: u64, plans: [crate::owner::Plan; 2]) -> [Seen; 2] {
             failed: conns.map(|conn| conn.failed),
         }
     })
+}
+
+/// The pair has no expectation wakeups; its time bound is observed (io.md, 8).
+struct EitherJudge(u32);
+
+impl skein_world::Referee<crate::world::Hosted> for EitherJudge {
+    fn act(&mut self, _now: Time, procs: &mut [crate::world::Hosted]) {
+        assert!(self.0 < 199_999, "either pair settles: {:?}", procs[0].proc.log);
+        self.0 += 1;
+    }
+    fn observe(&mut self, now: Time, _procs: &[crate::world::Hosted]) {
+        assert!(now < END, "either pair ends within its deadline");
+    }
+    fn passed(&self) -> bool {
+        true
+    }
+    fn last_word(&self) -> skein_world::LastWord {
+        skein_world::LastWord::After(END)
+    }
 }

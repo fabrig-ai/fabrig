@@ -189,7 +189,9 @@ impl<P: Host, R: Referee<P>, M: Machine> World<P, R, M> {
             if self.inner.busy() || !self.controls.signals.borrow().is_empty() {
                 continue;
             }
-            if self.inner.settled() && self.referee.passed() {
+            let settled = self.inner.settled();
+            self.referee.idle(now, self.inner.processes(), settled);
+            if settled && self.referee.passed() {
                 break;
             }
             if let Some(why) = self.referee.overdue(now) {

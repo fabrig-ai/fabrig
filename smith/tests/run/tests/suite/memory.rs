@@ -2,7 +2,6 @@
 //! a counting allocator: the run child domain with every run holding a charter
 //! of exactly its byte limit, and every conversation started and spending.
 
-#[path = "memory/jobs.rs"]
 mod jobs;
 
 use std::mem::size_of;

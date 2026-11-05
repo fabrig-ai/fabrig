@@ -56,7 +56,14 @@ fn selected_starts_keep_drawn_choices_and_name_the_first_removed_effort() {
 
         let mut efforts = EFFORTS;
         efforts[0] = 0;
-        let mut restored = Domain::new(&LIMITS, seed, 1, charters(), Box::new(efforts));
+        let mut restored = Domain::new(
+            &LIMITS,
+            jig_domain_tasks::Kept { revisions: 4, versions: 8 },
+            seed,
+            1,
+            charters(),
+            Box::new(efforts),
+        );
         let mut out = Queue::uncapped();
         for record in world.records.values().filter(|row| row.key().live()) {
             tasks::step(&mut restored, &world.env, Event::Restore { record: record.clone() }, &mut out);

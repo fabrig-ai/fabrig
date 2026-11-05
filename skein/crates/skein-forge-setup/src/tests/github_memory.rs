@@ -1,6 +1,7 @@
 //! Pure plans and the private state table; no fake, signing or HTTP stack.
 use super::{Purpose, States};
 use crate::{
+    github::reachable::Reachable,
     github::{
         accept::Accept,
         convert::Convert,
@@ -12,7 +13,6 @@ use crate::{
     },
     host::run::Machine,
     item,
-    reachable::Reachable,
     reconcile::{Event, Need, Reply, Stage, Why},
     tests::{fixtures::secret, github_fixtures as fixtures},
 };
@@ -81,7 +81,7 @@ fn app() -> App {
     App { id: APP, slug: repeated(NAME, b'k'), permissions: Box::new([]), events: Box::new([]) }
 }
 fn document(value: Document) -> Event {
-    Event::Reply(Reply::GithubDocument(value))
+    Event::Reply(Reply::GitHubDocument(value))
 }
 fn rows(page: u32) -> Event {
     let mut rows = List::with_capacity(PAGE_CAP);
@@ -101,7 +101,7 @@ fn rows(page: u32) -> Event {
         }))
         .expect("page capacity");
     }
-    Event::Reply(Reply::GithubRows(rows.into_boxed()))
+    Event::Reply(Reply::GitHubRows(rows.into_boxed()))
 }
 struct Counted {
     _target: Target,
@@ -147,7 +147,7 @@ impl Counted {
                 7 => Machine::Paste(Box::new(
                     Paste::new(given, core::num::NonZeroU64::new(APP).expect("id")).expect("paste"),
                 )),
-                5 => Machine::Reachable(Reachable::github(given, 1, 1).expect("reachable")),
+                5 => Machine::GitHubReachable(Reachable::new(given, 1, 1).expect("reachable")),
                 _ => panic!("named phase"),
             };
             machines.push(machine).expect("runs capacity");
@@ -263,7 +263,7 @@ fn script(phase: u8) -> List<Event> {
                     add(&mut events, Event::Reply(Reply::Empty));
                 }
             } else {
-                add(&mut events, Event::Reply(Reply::GithubRows(Box::new([]))));
+                add(&mut events, Event::Reply(Reply::GitHubRows(Box::new([]))));
                 add(&mut events, Event::Written);
                 for _ in (ACCEPTED - 1)..PAGE_CAP * 2 {
                     add(&mut events, Event::Reply(Reply::Empty));
@@ -293,7 +293,7 @@ fn script(phase: u8) -> List<Event> {
                 }))
                 .expect("page capacity");
             }
-            add(&mut events, Event::Reply(Reply::GithubRows(rows.into_boxed())));
+            add(&mut events, Event::Reply(Reply::GitHubRows(rows.into_boxed())));
         }
         _ => panic!("named phase"),
     }

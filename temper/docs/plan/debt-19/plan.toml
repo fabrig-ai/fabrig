@@ -1,0 +1,100 @@
+draft = "debt-19"
+repo = "fabrig"
+sources = ["temper/docs/plan/debt-19/inputs/request.md", "skein/docs/development/debt/D012-anthropic-on-openai.md", "skein/docs/development/debt/D014-forge-setup-vocabulary.md", "skein/docs/development/debt/D032-world-harness-copies.md", "jig/docs/development/debt/D008-link-translate-split-by-number.md", "jig/docs/development/debt/D009-limits-mapped-by-hand.md", "smith/docs/development/debt/D011-bench-string-errors.md", "smith/docs/development/debt/D015-path-modules.md"]
+
+# plan.md says what was decided and why.
+
+[buffer]
+low = 1.0
+high = 2.0
+
+[[part]]
+id = "smith-paths"
+title = "smith's code has one owner per file, and its modules an ordinary layout (smith D015)"
+mode = "direct"
+needs = []
+design = "smith/docs/design/testing.md, 7"
+
+[[slice]]
+id = 1
+story = "no production target includes a test's file, and only generated code keeps a #[path], with its reason"
+parts = ["smith-paths"]
+walk = false
+
+[[part]]
+id = "bench-fault"
+title = "the benchmark harness carries one typed fault (smith D011)"
+mode = "direct"
+needs = []
+design = "smith/docs/design/benchmarks.md, 8.3"
+
+[[slice]]
+id = 2
+story = "the harness's failures name their kind, and every result and summary stays the same to the byte"
+parts = ["bench-fault"]
+walk = false
+
+[[part]]
+id = "llm-dialects"
+title = "Anthropic's dialect stands on a neutral wire module, with one vocabulary (skein D012)"
+mode = "direct"
+needs = []
+design = "skein/docs/design/llm.md, 2"
+
+[[slice]]
+id = 3
+story = "the same requests and the same tests, with Anthropic naming nothing of openai and each shared word defined once"
+parts = ["llm-dialects"]
+walk = false
+
+[[part]]
+id = "setup-vocabulary"
+title = "forge-setup's words have a module of their own, each dialect reads its own reply, and the admin step and stop are written once (skein D014)"
+mode = "direct"
+needs = []
+design = "skein/docs/design/forge-setup.md, 4.2"
+
+[[slice]]
+id = 4
+story = "a plan matches only its own dialect's reply, and a wrong dialect's still ends it as it did"
+parts = ["setup-vocabulary"]
+walk = false
+
+[[part]]
+id = "io-worlds"
+title = "tests/io's worlds run on skein_world and the stage a service runs on (skein D032)"
+mode = "direct"
+needs = []
+design = "skein/docs/design/io.md, 8"
+
+[[slice]]
+id = 5
+story = "every io world's schedule holds, to a per-seed digest, on the loop and the stage everything else runs on"
+parts = ["io-worlds"]
+walk = false
+
+[[part]]
+id = "limits-once"
+title = "each bound is declared once: the core owns the settings' bounds, and the link derives its wire limits by class (jig D009)"
+mode = "direct"
+needs = []
+design = "jig/docs/design/client/domain/client.md, 14"
+
+[[slice]]
+id = 6
+story = "no copy of a bound must agree by hand, and every configuration gets the wire limits it gets today"
+parts = ["limits-once"]
+walk = false
+
+[[part]]
+id = "link-translate"
+title = "the link's translation is grouped by record family, its piece loops read one helper, and its test encoders leave production (jig D008)"
+mode = "direct"
+needs = []
+design = "skein/docs/design/codec.md, 3"
+
+[[slice]]
+id = 7
+story = "no numbered file, one place where a piece's bound is checked, and about 800 fewer production lines, with every answer the same"
+parts = ["link-translate"]
+walk = false

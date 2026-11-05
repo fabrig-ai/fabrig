@@ -484,16 +484,6 @@ What of this document is not built is in [`testing.status.md`](testing.status.md
   other, would need the hand-off counted.
 - **The real loop in CI and sanitizers on the ring adapter** are the
   shell's (shell.md, 10).
-- **tests/io's worlds on the stage** (testing.status.md, 6). A service
-  runs on io's stage, and these three worlds hold its machines to loops of
-  their own. The loops alone can move onto `skein_world`, once a
-  `Referee::idle` can change the referee at idle. The stage can't keep
-  their schedules: they fire deadlines with completions waiting, where it
-  returns first, and it has no place for the per-call `MAX_OUT` check or
-  the ledger's `request`, `Request` not being `Clone`. That takes a witness
-  in `skein_io::stage`, a step crate, or a panic path in shipped code: a
-  decision, not a refactor
-  (`skein/docs/development/debt/D032-world-harness-copies.md`).
 
 ## 10. The portable target
 
