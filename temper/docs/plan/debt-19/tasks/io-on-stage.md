@@ -3,7 +3,7 @@ id = "io-on-stage"
 part = "io-worlds"
 kind = "feature"
 needs = ["io-output-loop"]
-files = ["skein/crates/skein-io/src/stage.rs", "skein/tests/io/src/world.rs", "skein/tests/io/src/output.rs", "skein/tests/io/src/owner.rs", "skein/tests/io/src/ledger.rs", "skein/tests/io/src/lib.rs", "skein/docs/design/io.status.md", "skein/docs/development/debt/D032-world-harness-copies.md"]
+files = ["skein/crates/skein-io/src/stage.rs", "skein/tests/io/src/world.rs", "skein/tests/io/src/output.rs", "skein/tests/io/src/owner.rs", "skein/tests/io/src/ledger.rs", "skein/tests/io/src/lib.rs", "skein/tests/io/tests/suite/stage.rs", "skein/docs/design/io.status.md", "skein/docs/design/testing.md", "skein/docs/design/testing.status.md", "skein/scripts/old-forms.txt", "skein/docs/development/debt/D032-world-harness-copies.md"]
 effort = "high"
 minutes = 70
 +++
@@ -63,3 +63,14 @@ Acceptance:
 ## Report
 
 The common note's items, the digests' line count and that they're equal, what you broke and what failed, and the production and test lines apart.
+
+## Answers
+
+2026-11-05. **May this task remove the paid D032 paragraph and status gap from `skein/docs/design/testing.md` and `testing.status.md`?** Yes, and it must: the request has each part update "any citation that breaks", and `tools/citations/citations.py --all` can't read 0 otherwise. Both files are now in `files`, for these two removals only:
+
+- `testing.md`, 9: delete the whole bullet **tests/io's worlds on the stage**. The question is settled and `skein/docs/design/io.md`, 2 and 8 already say the answer. Section 9 keeps its number and its other bullets.
+- `testing.status.md`: delete the one sentence from "6: `tests/io`'s socket, output and either worlds" to its D032 citation. The entry's earlier text, ending "no reason is recorded.", stays.
+
+Change nothing else in either file, and leave the rest of the pushed branch as it is. `skein/scripts/old-forms.txt` is in `files` too: the run's lowered count stands, as `common.md` requires.
+
+2026-11-05. **The by-hand `MAX_OUT_UP` line (the run's report: the worlds' tests pass at 1; only a deleted probe reached the assert).** That probe doesn't meet the acceptance, which asks for a tests/io test: nothing kept in the tree reaches the assert. Keep the probe as a focused test in `skein/tests/io/tests/suite/stage.rs`, which this answer lets change for that one addition (one `up` with a full intake, a short send completion and a pending read, so it continues the send and re-arms the receive). It passes at 2. Rerun the break and report that it goes red on the stage's assert. Compact it; if it stops test lines falling, report the measured size and go on: production's cap is untouched. Rerun the task's nextest and citations checks.
