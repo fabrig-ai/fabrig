@@ -2,6 +2,36 @@ use crate::support;
 use std::{fs, os::unix::fs::PermissionsExt, process::Command};
 use temper_forge_setup_shell::process;
 #[test]
+fn prepare_uses_the_owned_machine_without_a_group_file() {
+    let scratch = support::Scratch::new("forge_prepare_no_group");
+    let _programs = support::owned::scripted(scratch.path());
+    fs::remove_dir_all(scratch.path().join("box")).expect("no box files");
+    let output = support::owned::prepare(scratch.path(), 1);
+    assert_eq!(output.status.code(), Some(0), "{}", String::from_utf8_lossy(&output.stderr));
+    assert!(output.stdout.is_empty());
+    assert!(output.stderr.is_empty());
+    assert!(scratch.path().join("forge-1/forgejo/app.ini").is_file());
+    assert!(!scratch.path().join("box").exists());
+    scratch.remove();
+}
+
+#[test]
+fn run_uses_the_owned_machine_without_a_group_file() {
+    let scratch = support::Scratch::new("forge_run_no_group");
+    let programs = support::owned::scripted(scratch.path());
+    support::owned::finished(scratch.path());
+    fs::remove_dir_all(scratch.path().join("box")).expect("no box files");
+    for program in ["forgejo", "runner"] {
+        let mut run = support::owned::command(scratch.path(), program).spawn().expect("run starts");
+        let marker = programs.marker(program, &mut run, support::WITHIN);
+        run.kill().and_then(|()| run.wait()).expect("stopped");
+        assert_eq!(marker.pid, run.id());
+        assert!(!scratch.path().join("box").exists());
+    }
+    scratch.remove();
+}
+
+#[test]
 fn a_second_preparation_is_refused_while_the_first_holds_the_lock() {
     let scratch = support::Scratch::new("forge_prepare_held");
     let _programs = support::owned::scripted(scratch.path());
@@ -381,7 +411,7 @@ fn fake_configuration(directory: &std::path::Path) {
 fn forge_fetch_command() {
     use skein_lib::sha256::Sha256;
     use support::{configuration, owned};
-    for row in ["fake", "paths", "digest", "present", "missing-roots", "usage"] {
+    for row in ["fake", "paths", "digest", "present", "present-no-group", "missing-roots", "usage"] {
         let scratch = support::Scratch::new(&format!("forge-fetch-{row}"));
         owned::configuration(
             scratch.path(),
@@ -397,6 +427,9 @@ fn forge_fetch_command() {
         let mut document: serde_json::Value =
             serde_json::from_slice(&fs::read(&path).expect("document")).expect("JSON");
         fs::rename(scratch.path().join("box/groups/1"), scratch.path().join("box/groups/3")).expect("numbered group");
+        if row == "present-no-group" {
+            fs::remove_dir_all(scratch.path().join("box")).expect("no box files");
+        }
         let mut server = None;
         let root = scratch.path().join("root.pem");
         let file = scratch.path().join("forgejo/17.0.1/forgejo");
@@ -405,7 +438,7 @@ fn forge_fetch_command() {
                 configuration::fake_entry(&mut document["application"]["machine"]["fake"], "127.0.0.1:3001");
                 support::write_private(&scratch.path().join("box/groups/3"), b"fake\n");
             }
-            "digest" | "present" | "missing-roots" => {
+            "digest" | "present" | "present-no-group" | "missing-roots" => {
                 document["application"]["machine"]["owned"]["forgejo"] = "fetched".into();
                 if row == "digest" {
                     let peer = support::fetch::server();
@@ -414,7 +447,7 @@ fn forge_fetch_command() {
                         serde_json::json!({"forgejo":origin,"runner":origin});
                     server = Some(peer);
                 }
-                if row == "present" {
+                if row == "present" || row == "present-no-group" {
                     fs::create_dir_all(file.parent().expect("cache parent")).expect("parents");
                     fs::write(&file, b"mine").expect("person's file");
                 }
@@ -469,7 +502,9 @@ fn forge_fetch_command() {
                     String::from_utf8_lossy(&temper_forge_setup::fetch::hex(&hash.finish()))
                 )
             }
-            "present" => format!("temper forge fetch: forge 3: {}: does not match the pinned digest\n", file.display()),
+            "present" | "present-no-group" => {
+                format!("temper forge fetch: forge 3: {}: does not match the pinned digest\n", file.display())
+            }
             "missing-roots" => format!("temper forge fetch: forge 3: {}: roots: Absent\n", root.display()),
             "usage" => "temper forge fetch: invalid arguments\nusage: temper forge fetch [DIRECTORIES] FORGE\n".into(),
             _ => unreachable!(),
@@ -478,7 +513,10 @@ fn forge_fetch_command() {
         assert_eq!(result.stdout, expected_stdout.as_bytes(), "{row}");
         assert_eq!(String::from_utf8_lossy(&result.stderr), expected, "{row}");
         assert!(!file.with_file_name("forgejo.part").exists(), "{row}");
-        if row == "present" {
+        if row == "present-no-group" {
+            assert!(!scratch.path().join("box").exists());
+        }
+        if row == "present" || row == "present-no-group" {
             assert_eq!(fs::read(&file).expect("person's file kept"), b"mine");
         } else {
             assert!(!file.exists(), "{row}");

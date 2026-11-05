@@ -460,7 +460,7 @@ fn goals_drops_unread_state_and_prints_the_canonical_address() {
         (b"/projects/3/goals?state=closed", b"/projects/3/goals"),
         (b"/projects/3/goals?state=Live", b"/projects/3/goals"),
         (b"/projects/3/goals?state=live=ended", b"/projects/3/goals"),
-        (b"/projects/3/goals?state&at=start", b"/projects/3/goals"),
+        (b"/projects/3/goals?state&unknown=value", b"/projects/3/goals"),
         (b"/projects/3/goals?state=nope&state=needs&state=ended", b"/projects/3/goals?state=needs"),
         (b"/projects/3/goals/?unknown=x&state=live", b"/projects/3/goals?state=live"),
     ] {

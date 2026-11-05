@@ -40,8 +40,8 @@ pub fn readers(own: bool) -> Readers {
     for (path, exporter) in [
         (b"hosts/carbon/carbon-lab.json".as_slice(), own),
         (b"hosts/carbon/carbon-prod.json", own),
-        (b"hosts/ion/ion-lab.json", true),
-        (b"hosts/ion/ion-prod.json", true),
+        (b"hosts/west/west-lab.json", true),
+        (b"hosts/west/west-prod.json", true),
     ] {
         let mut document = containers::document(Some(containers::placement(None)));
         let mut tasks = List::with_capacity(2);
@@ -115,7 +115,7 @@ impl Readers {
         cache.root(self.target(name), declaration, &self.fleet())
     }
     pub fn setting_fault(&mut self) {
-        let path = b"hosts/ion/ion-prod.json";
+        let path = b"hosts/west/west-prod.json";
         let index = self.documents.find(path).expect("exporter document");
         let mut document = self.documents.get(index).expect("document").clone();
         for task in &mut document.layer.tasks {

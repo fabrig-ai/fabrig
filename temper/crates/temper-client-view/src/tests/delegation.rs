@@ -343,13 +343,18 @@ fn last_turn(view: &crate::View) -> &[skein_ui::Node] {
             continue;
         }
         let end = index.checked_add(usize::try_from(node.size).expect("log size")).expect("log end");
-        let mut child = index.checked_add(1).expect("first child");
-        let mut last = child;
+        let inner = index.checked_add(1).expect("inner column");
+        assert_eq!(nodes[inner].styles.as_slice(), [look::THREAD_INNER]);
+        let mut child = inner.checked_add(1).expect("first child");
+        let mut last = None;
         while child < end {
-            assert_eq!(nodes[child].role, Role::Region);
-            last = child;
-            child = child.checked_add(usize::try_from(nodes[child].size).expect("turn size")).expect("next turn");
+            if nodes[child].styles.as_slice().contains(&look::TURN) {
+                last = Some(child);
+            }
+            child = child.checked_add(usize::try_from(nodes[child].size).expect("child size")).expect("next child");
         }
+        let last = last.expect("last turn");
+        let end = last.checked_add(usize::try_from(nodes[last].size).expect("turn size")).expect("turn end");
         return &nodes[last..end];
     }
     panic!("conversation log absent");
@@ -948,4 +953,58 @@ fn cleared_and_uncleared_cards_keep_their_verification_words() {
         }
         steps(&view, true);
     }
+}
+
+#[test]
+fn delegation_links_keep_their_name_and_choose_the_shells_words() {
+    let root = root(&[change()], &[CHANGE], false);
+    for (words, link_text, browser) in
+        [(fixtures::words(), "Task 2 ↗".as_bytes(), false), (fixtures::browser_words(), b"Open".as_slice(), true)]
+    {
+        let mut view =
+            crate::View::new(&crate::Limits { tree: fixtures::tree_limits() }, &limits(), words, fixtures::FORGE);
+        fixtures::build(&mut view, &root);
+        let mut links = 0_u32;
+        let mut link = None;
+        for (at, node) in view.tree().nodes().iter().enumerate() {
+            if node.role == Role::Link && node.name.as_deref() == Some(b"Task 2") {
+                links = links.checked_add(1).expect("link count");
+                link = Some(at);
+            }
+        }
+        assert_eq!(links, 1);
+        assert!(find(&view, Find::exactly_named(Role::Link, b"Task 2")).is_some());
+        let at = link.expect("link index");
+        assert_eq!(fixtures::node_text(view.tree(), at).as_ref(), link_text);
+        assert_eq!(find(&view, Find::exactly_named(Role::Paragraph, b"Change")).is_some(), browser);
+    }
+}
+#[test]
+fn tracked_delegations_say_started_goal_in_the_browser_alone() {
+    let mut task = change();
+    task.priority = Some(1);
+    task.chip.executor = c::ChipExecutor::Agent { charter: 1 };
+    let root = root(&[task], &[CHANGE], false);
+    for (words, browser) in [(fixtures::words(), false), (fixtures::browser_words(), true)] {
+        let mut view =
+            crate::View::new(&crate::Limits { tree: fixtures::tree_limits() }, &limits(), words, fixtures::FORGE);
+        fixtures::build(&mut view, &root);
+        assert_eq!(find(&view, Find::text(b"Started goal")).is_some(), browser);
+        let title = find(&view, Find::exactly_named(Role::Heading { level: 3 }, TITLE)).expect("title");
+        assert!(view.tree().find(title).expect("title").styles.as_slice().contains(&look::TOOL_FILE));
+    }
+}
+#[test]
+fn a_browser_held_delegation_keeps_the_held_token() {
+    let mut task = change();
+    task.chip.phase = c::Phase::Held;
+    let root = root(&[task], &[CHANGE], false);
+    let mut view = crate::View::new(
+        &crate::Limits { tree: fixtures::tree_limits() },
+        &limits(),
+        fixtures::browser_words(),
+        fixtures::FORGE,
+    );
+    fixtures::build(&mut view, &root);
+    status(&view, b"Held", look::STATUS_HELD);
 }

@@ -56,14 +56,15 @@ fn a_key_that_is_no_task_name_is_refused_at_the_key() {
 
 #[test]
 fn a_vm_s_placement_decodes_its_kind_firmware_and_hardware() {
-    let doc = document(br#"{ "placement": { "kind": "vm", "firmware": "bios", "hardware": "ionos" } }"#).expect("VM");
+    let doc =
+        document(br#"{ "placement": { "kind": "vm", "firmware": "bios", "hardware": "provider-b" } }"#).expect("VM");
     assert_eq!(
         doc.layer.placement,
         Some(Placement {
             at: Position { offset: 15, line: 1, column: 16 },
             kind: Runs::Vm,
             firmware: Some(Firmware::Bios),
-            hardware: Some(b"ionos".as_slice().into()),
+            hardware: Some(b"provider-b".as_slice().into()),
             on: None,
             mutable: false,
         })
@@ -71,7 +72,7 @@ fn a_vm_s_placement_decodes_its_kind_firmware_and_hardware() {
 }
 #[test]
 fn a_container_s_placement_names_its_host_where_it_is_written() {
-    let doc = document(br#"{ "placement": { "kind": "container", "on": "rhi-prod" } }"#).expect("container");
+    let doc = document(br#"{ "placement": { "kind": "container", "on": "east-prod" } }"#).expect("container");
     assert_eq!(
         doc.layer.placement,
         Some(Placement {
@@ -80,7 +81,7 @@ fn a_container_s_placement_names_its_host_where_it_is_written() {
             firmware: None,
             hardware: None,
             mutable: false,
-            on: Some(On { at: Position { offset: 44, line: 1, column: 45 }, target: b"rhi-prod".as_slice().into() }),
+            on: Some(On { at: Position { offset: 44, line: 1, column: 45 }, target: b"east-prod".as_slice().into() }),
         })
     );
 }
@@ -88,8 +89,8 @@ fn a_container_s_placement_names_its_host_where_it_is_written() {
 fn mutable_is_false_unless_a_placement_sets_it_true() {
     const CASES: &[(&[u8], bool)] = &[
         (br#"{"placement":{"kind":"metal","firmware":"efi","hardware":"7th-gen"}}"#, false),
-        (br#"{"placement":{"kind":"vm","firmware":"bios","hardware":"ionos","mutable":false}}"#, false),
-        (br#"{"placement":{"kind":"vm","firmware":"bios","hardware":"ionos","mutable":true}}"#, true),
+        (br#"{"placement":{"kind":"vm","firmware":"bios","hardware":"provider-b","mutable":false}}"#, false),
+        (br#"{"placement":{"kind":"vm","firmware":"bios","hardware":"provider-b","mutable":true}}"#, true),
         (br#"{"placement":{"kind":"metal","firmware":"efi","hardware":"7th-gen","mutable":true}}"#, true),
     ];
     for &(input, expected) in CASES {
@@ -125,7 +126,7 @@ const FIRMWARE_OR_HARDWARE_ON_A_CONTAINER_IS_REFUSED_AT_ITS_KEY: &[(&[u8], Fault
         Fault::Shape(Shape::Misplaced { field: Field::Firmware }),
     ),
     (
-        br#"{"placement":{"hardware":"ionos","kind":"container","on":"x"}}"#,
+        br#"{"placement":{"hardware":"provider-b","kind":"container","on":"x"}}"#,
         Fault::Shape(Shape::Misplaced { field: Field::Hardware }),
     ),
     (
@@ -148,7 +149,7 @@ fn firmware_or_hardware_on_a_container_is_refused_at_its_key() {
 #[test]
 fn on_for_anything_but_a_container_is_refused_at_its_key() {
     const CASES: &[&[u8]] = &[
-        br#"{"placement":{"on":"x","kind":"vm","firmware":"bios","hardware":"ionos"}}"#,
+        br#"{"placement":{"on":"x","kind":"vm","firmware":"bios","hardware":"provider-b"}}"#,
         br#"{"placement":{"on":null,"kind":"metal","firmware":"efi","hardware":"7th-gen"}}"#,
     ];
     for input in CASES {
@@ -169,7 +170,7 @@ const A_KIND_OR_FIRMWARE_NOT_LISTED_IS_REFUSED_AT_ITS_VALUE: &[(&[u8], Fault, Po
         Position { offset: 21, line: 1, column: 22 },
     ),
     (
-        br#"{"placement":{"firmware":"uefi","kind":"vm","hardware":"ionos"}}"#,
+        br#"{"placement":{"firmware":"uefi","kind":"vm","hardware":"provider-b"}}"#,
         Fault::Shape(Shape::Wrong { field: Field::Firmware }),
         Position { offset: 25, line: 1, column: 26 },
     ),
@@ -210,7 +211,7 @@ const A_PLACEMENT_FIELD_OF_THE_WRONG_TYPE_IS_REFUSED_AT_ITS_VALUE: &[(&[u8], Fau
         Position { offset: 21, line: 1, column: 22 },
     ),
     (
-        br#"{"placement":{"firmware":null,"kind":"vm","hardware":"ionos"}}"#,
+        br#"{"placement":{"firmware":null,"kind":"vm","hardware":"provider-b"}}"#,
         Fault::Shape(Shape::Wrong { field: Field::Firmware }),
         Position { offset: 25, line: 1, column: 26 },
     ),
@@ -225,7 +226,7 @@ const A_PLACEMENT_FIELD_OF_THE_WRONG_TYPE_IS_REFUSED_AT_ITS_VALUE: &[(&[u8], Fau
         Position { offset: 19, line: 1, column: 20 },
     ),
     (
-        br#"{"placement":{"mutable":0,"kind":"vm","firmware":"bios","hardware":"ionos"}}"#,
+        br#"{"placement":{"mutable":0,"kind":"vm","firmware":"bios","hardware":"provider-b"}}"#,
         Fault::Shape(Shape::Wrong { field: Field::Mutable }),
         Position { offset: 24, line: 1, column: 25 },
     ),
@@ -240,7 +241,10 @@ fn a_placement_field_of_the_wrong_type_is_refused_at_its_value() {
 }
 const A_PLACEMENT_MISSING_WHAT_ITS_KIND_NEEDS_IS_REFUSED_AT_ITS_BRACE: &[(&[u8], Fault)] = &[
     (br#"{"placement":{}}"#, Fault::Shape(Shape::Missing { field: Field::Kind })),
-    (br#"{"placement":{"kind":"vm","hardware":"ionos"}}"#, Fault::Shape(Shape::Missing { field: Field::Firmware })),
+    (
+        br#"{"placement":{"kind":"vm","hardware":"provider-b"}}"#,
+        Fault::Shape(Shape::Missing { field: Field::Firmware }),
+    ),
     (br#"{"placement":{"kind":"metal","firmware":"efi"}}"#, Fault::Shape(Shape::Missing { field: Field::Hardware })),
     (br#"{"placement":{"kind":"vm","firmware":"bios"}}"#, Fault::Shape(Shape::Missing { field: Field::Hardware })),
     (
@@ -352,7 +356,7 @@ fn members_that_are_not_an_object_are_refused_at_the_value() {
 }
 #[test]
 fn a_member_s_layer_holds_its_placement() {
-    let members = document(br#"{"members":{"1":{"placement":{"kind":"container","on":"rhi-prod"}}}}"#)
+    let members = document(br#"{"members":{"1":{"placement":{"kind":"container","on":"east-prod"}}}}"#)
         .expect("members")
         .members
         .expect("present");
@@ -365,7 +369,7 @@ fn a_member_s_layer_holds_its_placement() {
             firmware: None,
             hardware: None,
             mutable: false,
-            on: Some(On { at: Position { offset: 54, line: 1, column: 55 }, target: b"rhi-prod".as_slice().into() }),
+            on: Some(On { at: Position { offset: 54, line: 1, column: 55 }, target: b"east-prod".as_slice().into() }),
         })
     );
 }

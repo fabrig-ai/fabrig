@@ -39,7 +39,7 @@ pub fn exported_error(cause: render::errors::Cause) -> render::errors::Error {
     render::errors::Error {
         side: None,
         kind: render::errors::Kind::Exported(render::errors::Exported {
-            exporter: copy_of(b"ion-prod"),
+            exporter: copy_of(b"west-prod"),
             task: copy_of(b"vpn"),
             cause,
         }),

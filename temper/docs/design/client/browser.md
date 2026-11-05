@@ -1095,8 +1095,9 @@ from the engine's own answers, is where the look is tuned.
 - **An index,** `OUT/index.html`: each state's name, in the gallery's
   order, linking its page, with its mockup's address beside it where a
   mockup draws it.
-- **Static:** no script runs, so focus, caret, scroll and a run's live
-  text are not shown.
+- **Static:** no script runs. The opening focus is an `autofocus`
+  attribute, and a named sample may hold one disclosure open; caret,
+  scroll-following and live updates are not replayed.
 
 ### 7.2 Its states
 
@@ -1186,7 +1187,7 @@ from the engine's own answers, is where the look is tuned.
 | `chat-change-running` | a chat with a delegated change running: its one line |
 | `chat-change-landed` | a chat with a delegated change landed: its one line with its result's words |
 | `chat-goal` | a chat with a goal it started: its one line |
-| `chat-byline-open` | a chat with its byline pressed: the chooser's panel |
+| `chat-byline-open` | a new chat with its byline pressed: the chooser's panel |
 | `chat-draft-chat` | a chat with a document, in Chat: its group and tool line |
 | `chat-draft-split` | the same chat in Split: the strip, the pane and a tinted section |
 | `chat-draft-draft` | the same chat in Draft: the composer at the foot on white |
@@ -1253,7 +1254,7 @@ from the engine's own answers, is where the look is tuned.
 | `chat-first-run-3-T1` | the first run's chat T1 at step 3, its change landed |
 | `chat-first-run-4-T4` | the first run's chat T4 at step 4, waiting at rest for the person’s words |
 | `playground-resetting` | the first run's Chats while the playground resets: "Leaving the playground…", and no playground's start |
-| `chats-first-run-5` | Chats after the first plan connects, its ChatGPT composer |
+| `chats-first-run-5` | Chats after the first plan connects |
 | `inbox-reference` | the reference world's *Needs you* |
 | `accounts-reference` | the reference world's accounts |
 | `accounts-first-run-1` | the first run's accounts at step 1: the playground's account |

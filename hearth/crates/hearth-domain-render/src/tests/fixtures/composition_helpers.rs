@@ -14,7 +14,7 @@ pub fn host_cases() -> [(&'static [u8], crate::errors::Host); 3] {
     use crate::errors::Host;
     [
         (b"absent-lab", Host::Unknown),
-        (b"rhi-prod", Host::Elsewhere { environment: Box::from(b"prod".as_slice()) }),
+        (b"east-prod", Host::Elsewhere { environment: Box::from(b"prod".as_slice()) }),
         (b"chat-lab", Host::Container),
     ]
 }

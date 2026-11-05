@@ -42,7 +42,14 @@ fn banner(usable: Option<bool>) -> (d::Domain, Token) {
     (root, watch)
 }
 fn text(root: &d::Domain) -> String {
-    String::from_utf8(fixtures::text(fixtures::page_view(root).tree()).into_vec()).unwrap()
+    let view = fixtures::page_view(root);
+    let mut text = String::from_utf8(fixtures::text(view.tree()).into_vec()).unwrap();
+    for node in view.tree().nodes() {
+        if let Some(description) = &node.description {
+            text.push_str(core::str::from_utf8(description).unwrap());
+        }
+    }
+    text
 }
 #[test]
 fn the_accounts_banner_precedes_main() {
@@ -226,11 +233,11 @@ fn line_fixture(
 }
 #[test]
 fn a_requested_model_is_labelled_for_the_next_run() {
-    assert!(text(&task_root()).contains("Using chosen"));
+    assert_eq!(using_text(&task_root()), "chosen");
 }
 #[test]
 fn an_unknown_readiness_keeps_the_model_only() {
-    assert!(text(&task_root()).contains("Using chosen"));
+    assert_eq!(using_text(&task_root()), "chosen");
 }
 fn wait(why: c::TaskWaitWhy) -> skein_ui::Tree {
     let mut b = Builder::new(&fixtures::tree_limits());
@@ -361,8 +368,8 @@ fn catalogue_view(root: &d::Domain) -> crate::View {
 }
 fn shows_requested(view: &crate::View, label: &[u8]) {
     assert!(fixtures::find(view.tree(), Role::Button, label).is_some());
-    let requested = [b"Using ".as_slice(), label].concat();
-    assert!(fixtures::find(view.tree(), Role::Paragraph, &requested).is_some());
+    let byline = fixtures::find(view.tree(), Role::Disclosure, b"Change model").unwrap();
+    assert_eq!(view.tree().nodes().iter().find(|n| n.id == byline).unwrap().description.as_deref(), Some(label));
 }
 fn marked_prefix() -> Vec<u8> {
     [vec![b'm'; prefix_bytes()], CUT_MARK.to_vec()].concat()
@@ -504,20 +511,17 @@ fn the_accounts_banner_is_a_named_region() {
     assert_eq!(node.name.as_deref(), Some(b"LLM account".as_slice()));
 }
 #[test]
-fn the_account_line_stays_in_the_choice_above_the_session_composer() {
+fn the_byline_and_chooser_are_in_the_session_bar() {
     let view = fixtures::page_view(&task_root());
     let nodes = view.tree().nodes();
-    let area = nodes.iter().position(|n| n.styles.as_slice().contains(&crate::look::CHOICE)).unwrap();
-    let line = nodes
-        .iter()
-        .enumerate()
-        .skip(area)
-        .find(|(_, n)| n.styles.as_slice().contains(&crate::look::ACCOUNT_LINE))
-        .unwrap()
-        .0;
+    let bar = nodes.iter().position(|n| n.styles.as_slice().contains(&crate::look::SESSION_TOP)).unwrap();
+    let line = nodes.iter().position(|n| n.styles.as_slice().contains(&crate::look::BYLINE)).unwrap();
     let entry = nodes.iter().position(|n| n.styles.as_slice().contains(&crate::look::SESSION_COMPOSER)).unwrap();
-    assert_eq!(nodes[line].role, Role::Paragraph);
-    assert!(area < line && line < entry && line < area + usize::try_from(nodes[area].size).unwrap());
+    assert_eq!(nodes[line].role, Role::Disclosure);
+    assert_eq!(nodes[line].name.as_deref(), Some(b"Change model".as_slice()));
+    assert_eq!(nodes[line].description.as_deref(), Some("T9 · chosen".as_bytes()));
+    assert!(nodes[line].states.as_slice().contains(&skein_ui::State::FoldsAway));
+    assert!(bar < line && line < bar + usize::try_from(nodes[bar].size).unwrap() && line < entry);
 }
 
 fn edit(root: &mut d::Domain, act: d::pages::choice::Act) {
@@ -529,9 +533,8 @@ fn an_unapplied_model_has_a_separate_draft_label() {
     let mut root = task_root();
     edit(&mut root, d::pages::choice::Act::Model { index: 1 });
     let shown = text(&root);
-    assert!(shown.contains("Using chosen"));
     assert!(shown.contains("Next run if applied: second"));
-    assert!(!shown.contains("Using second"));
+    assert_eq!(using_text(&root), "chosen");
 }
 fn named_account() -> d::Domain {
     one_account(3, false)
@@ -558,12 +561,12 @@ fn one_account(number: u32, plan: bool) -> d::Domain {
 
 #[test]
 fn an_unread_readiness_withholds_the_accounts_words() {
-    assert!(text(&one_account(7, true)).contains("Using chosen"));
+    assert_eq!(using_text(&one_account(7, true)), "chosen");
 }
 #[test]
 fn a_requested_account_waits_for_readiness() {
     let root = named_account();
-    assert!(text(&root).contains("Using chosen"));
+    assert_eq!(using_text(&root), "chosen");
 }
 #[test]
 fn a_waiting_account_shows_its_display() {
@@ -743,10 +746,14 @@ fn accounts(rows: &[c::AccountLine]) -> List<c::AccountLine> {
     }
     accounts
 }
-fn using_text(root: &d::Domain) -> String {
+pub(super) fn using_text(root: &d::Domain) -> String {
     let view = fixtures::page_view(root);
-    let at = view.tree().nodes().iter().position(|n| n.styles.as_slice().contains(&crate::look::ACCOUNT_LINE)).unwrap();
-    String::from_utf8(fixtures::node_text(view.tree(), at).into_vec()).unwrap()
+    let node = view.tree().nodes().iter().find(|n| n.styles.as_slice().contains(&crate::look::BYLINE)).unwrap();
+    let text = node.description.as_deref().or(node.name.as_deref()).unwrap();
+    let text = core::str::from_utf8(text).unwrap();
+    let prefix =
+        root.pages().chat().and_then(|chat| chat.task(root.client())).map(|task| format!("T{} · ", task.chip.task));
+    text.strip_prefix(prefix.as_deref().unwrap_or("")).unwrap_or(text).to_owned()
 }
 #[test]
 fn a_keys_line_uses_the_configured_provider_name_and_appends_effort() {
@@ -758,7 +765,7 @@ fn a_keys_line_uses_the_configured_provider_name_and_appends_effort() {
         Some(b"high"),
         true,
     );
-    assert_eq!(using_text(&root), "Using your Supplied Provider API key · chosen · high");
+    assert_eq!(using_text(&root), "Supplied Provider API key · chosen · high");
 }
 #[test]
 fn a_plan_has_a_manage_usage_link_only_for_a_safe_address() {
@@ -784,14 +791,7 @@ fn a_plan_has_a_manage_usage_link_only_for_a_safe_address() {
         if let Some(link) = link {
             assert_eq!(link.external.as_deref(), address);
         }
-        assert_eq!(
-            using_text(&root),
-            if safe {
-                "Using Supplied Provider plan · chosen · Manage usage"
-            } else {
-                "Using Supplied Provider plan · chosen"
-            }
-        );
+        assert_eq!(using_text(&root), "Supplied Provider plan · chosen");
     }
 }
 #[test]
@@ -817,7 +817,7 @@ fn a_program_line_uses_its_first_usable_sources_name() {
     task.llm.as_mut().unwrap().main.model = c::Text::new(Box::from(b"Opus".as_slice()), 32).unwrap();
     delivered(&mut root, me_watch, c::Delivery::Me(Box::new(me)));
     delivered(&mut root, task_watch.unwrap(), c::Delivery::Task(Box::new(task)));
-    assert_eq!(using_text(&root), "Using your Claude subscription, through Claude Code · Opus · high");
+    assert_eq!(using_text(&root), "your Claude subscription, through Claude Code · Opus · high");
     let rendered = text(&root);
     assert!(!rendered.contains("Last claimed account") && !rendered.contains("Requested for next run"));
 }
@@ -830,9 +830,9 @@ fn preference_then_kept_then_the_first_usable_account_decides_the_line() {
         account(3, c::AccountKind::Key, None),
     ]);
     for (preference, kept, expected) in [
-        (Some(3), Some(7), "Using your Supplied Provider API key · chosen"),
-        (None, Some(7), "Using Supplied Provider plan · chosen"),
-        (None, None, "Using your Supplied Provider API key · chosen"),
+        (Some(3), Some(7), "Supplied Provider API key · chosen"),
+        (None, Some(7), "Supplied Provider plan · chosen"),
+        (None, None, "Supplied Provider API key · chosen"),
     ] {
         let root = line_facts(Some(readiness(c::Readiness::Usable)), rows.clone(), preference, kept, None, true);
         assert_eq!(using_text(&root), expected);
@@ -848,18 +848,18 @@ fn automatic_accounts_skip_other_providers_payers_and_unusable_sources() {
     unusable.sources.get_mut(1).unwrap().usable = false;
     let rows = accounts(&[other_provider, other_payer, unusable, account(4, c::AccountKind::Key, None)]);
     let root = line_facts(Some(readiness(c::Readiness::Usable)), rows, None, None, None, true);
-    assert_eq!(using_text(&root), "Using your Supplied Provider API key · chosen");
+    assert_eq!(using_text(&root), "Supplied Provider API key · chosen");
 }
 #[test]
 fn a_new_chats_default_is_the_first_model_usable_for_its_payer() {
     let mut ready = readiness(c::Readiness::Usable);
     ready.payer = c::AccountUse::Party(73);
     let root = line_facts(Some(ready), accounts(&[account(3, c::AccountKind::Key, None)]), None, None, None, false);
-    assert_eq!(using_text(&root), "Using your OpenAI API key · gpt-6-luna");
+    assert_eq!(using_text(&root), "OpenAI API key · gpt-6-luna");
 }
 #[test]
 fn the_three_unsettled_lines_name_only_known_facts() {
-    assert_eq!(using_text(&task_root()), "Using chosen");
+    assert_eq!(using_text(&task_root()), "chosen");
     assert_eq!(using_text(&banner(None).0), "Using the default model");
     assert_eq!(using_text(&account_readiness(Some(readiness(c::Readiness::Unavailable)))), "chosen · needs an account");
 }
@@ -901,9 +901,9 @@ fn a_live_chat_without_message_keeps_the_line_and_chooser() {
     delivered(&mut root, watch.unwrap(), c::Delivery::Task(Box::new(task)));
     let view = fixtures::page_view(&root);
     assert!(fixtures::find(view.tree(), Role::TextArea, b"Message").is_none());
-    assert_eq!(using_text(&root), "Using chosen");
+    assert_eq!(using_text(&root), "chosen");
     assert!(fixtures::find(view.tree(), Role::Disclosure, b"Change model").is_some());
-    assert!(view.tree().nodes().iter().any(|n| n.styles.as_slice().contains(&crate::look::ACCOUNT_LINE)));
+    assert!(view.tree().nodes().iter().any(|n| n.styles.as_slice().contains(&crate::look::BYLINE)));
 }
 
 #[test]
@@ -926,6 +926,7 @@ fn pending_choice_outcome_and_wait_are_siblings_after_the_chooser() {
     );
     let pending = fixtures::page_view(&root);
     assert!(fixtures::find(pending.tree(), Role::Disclosure, b"Change model").is_none());
+    assert!(fixtures::find(pending.tree(), Role::Paragraph, "T9 · chosen".as_bytes()).is_some());
     let nodes = pending.tree().nodes();
     let status = nodes.iter().position(|n| n.name.as_deref() == Some(b"Next-run choice request in progress")).unwrap();
     let wait = nodes.iter().position(|n| n.name.as_deref() == Some(b"Waiting for a credential")).unwrap();
@@ -971,14 +972,15 @@ fn pending_choice_outcome_and_wait_are_siblings_after_the_chooser() {
     let end = chooser + usize::try_from(nodes[chooser].size).unwrap();
     let outcome = nodes.iter().position(|n| n.role == Role::Status && n.name.as_deref() == Some(b"Applied")).unwrap();
     let wait = nodes.iter().position(|n| n.name.as_deref() == Some(b"Waiting for a credential")).unwrap();
-    assert!(end <= outcome && outcome < wait);
+    let composer = nodes.iter().position(|n| n.styles.as_slice().contains(&crate::look::SESSION_COMPOSER)).unwrap();
+    assert!(end <= outcome && outcome < wait && wait < composer);
 }
 
 #[test]
 fn own_key_and_plan_of_openai_follow_place_order() {
     for (first, second, expected) in [
-        (c::AccountKind::Key, c::AccountKind::SignIn, "Using your OpenAI API key · chosen"),
-        (c::AccountKind::SignIn, c::AccountKind::Key, "Using ChatGPT plan · chosen"),
+        (c::AccountKind::Key, c::AccountKind::SignIn, "OpenAI API key · chosen"),
+        (c::AccountKind::SignIn, c::AccountKind::Key, "ChatGPT plan · chosen"),
     ] {
         let mut rows = accounts(&[account(9, first, None), account(3, second, None)]);
         rows.get_mut(0).unwrap().place = 1;
@@ -1017,7 +1019,7 @@ fn another_members_chat_and_project_work_never_name_the_viewers_plan() {
         delivered(&mut root, task_watch.unwrap(), c::Delivery::Task(Box::new(task)));
         delivered(&mut root, accounts_watch, c::Delivery::Accounts(Box::new(doc)));
         let line = using_text(&root);
-        assert_eq!(line, "Using chosen");
+        assert_eq!(line, "chosen");
         assert!(!line.contains("plan") && !line.contains("API key"));
     }
 }
@@ -1041,8 +1043,7 @@ fn a_held_pin_stays_pinned_while_fresh_selection_passes_to_the_next_account() {
             assert!(held.sources.get(1).unwrap().usable);
         }
         let rows = accounts(&[held, account(7, c::AccountKind::Key, None)]);
-        for (pin, expected) in
-            [(Some(3), "chosen · needs an account"), (None, "Using your Supplied Provider API key · chosen")]
+        for (pin, expected) in [(Some(3), "chosen · needs an account"), (None, "Supplied Provider API key · chosen")]
         {
             let root = line_facts(Some(readiness(c::Readiness::Usable)), rows.clone(), pin, None, None, true);
             assert_eq!(using_text(&root), expected);
@@ -1055,9 +1056,7 @@ fn a_moving_source_is_held_even_if_supplied_as_usable() {
     moving.sources.get_mut(1).unwrap().state = c::AccountState::Moving;
     assert!(moving.sources.get(1).unwrap().usable);
     let rows = accounts(&[moving, account(7, c::AccountKind::Key, None)]);
-    for (pin, expected) in
-        [(Some(3), "chosen · needs an account"), (None, "Using your Supplied Provider API key · chosen")]
-    {
+    for (pin, expected) in [(Some(3), "chosen · needs an account"), (None, "Supplied Provider API key · chosen")] {
         let root = line_facts(Some(readiness(c::Readiness::Usable)), rows.clone(), pin, None, None, true);
         assert_eq!(using_text(&root), expected);
     }
@@ -1067,7 +1066,7 @@ fn a_waiting_direct_source_does_not_jump_to_a_later_direct_source() {
     let mut waiting = account(3, c::AccountKind::Key, None);
     waiting.sources.get_mut(0).unwrap().kind = c::AccountKind::SignIn;
     let rows = accounts(&[waiting, account(7, c::AccountKind::SignIn, None)]);
-    for (pin, expected) in [(Some(3), "chosen · needs an account"), (None, "Using Supplied Provider plan · chosen")] {
+    for (pin, expected) in [(Some(3), "chosen · needs an account"), (None, "Supplied Provider plan · chosen")] {
         let root = line_facts(Some(readiness(c::Readiness::Usable)), rows.clone(), pin, None, None, true);
         assert_eq!(using_text(&root), expected);
     }
@@ -1084,7 +1083,7 @@ fn ineligible_preference_passes_to_the_kept_account() {
         None,
         true,
     );
-    assert_eq!(using_text(&root), "Using Supplied Provider plan · chosen");
+    assert_eq!(using_text(&root), "Supplied Provider plan · chosen");
 }
 #[test]
 fn truncated_documents_and_accounts_name_only_the_model() {
@@ -1104,7 +1103,7 @@ fn truncated_documents_and_accounts_name_only_the_model() {
             doc.accounts.get_mut(0).unwrap().cut = true;
         }
         delivered(&mut root, watch, c::Delivery::Accounts(Box::new(doc)));
-        assert_eq!(using_text(&root), "Using chosen");
+        assert_eq!(using_text(&root), "chosen");
     }
 }
 #[test]
@@ -1118,7 +1117,7 @@ fn readiness_cross_checks_the_translated_account_across_expiry() {
             None,
             true,
         );
-        assert_eq!(using_text(&root), "Using chosen");
+        assert_eq!(using_text(&root), "chosen");
     }
 }
 
@@ -1139,7 +1138,7 @@ fn mixed_or_cut_program_offers_do_not_guess_a_models_endpoint() {
         offer.programs.push(c::Text::new(Box::from(b"claude_code".as_slice()), 32).unwrap()).unwrap();
         offer.programs_cut = cut;
         delivered(&mut root, me_watch, c::Delivery::Me(Box::new(me)));
-        assert_eq!(using_text(&root), "Using chosen");
+        assert_eq!(using_text(&root), "chosen");
     }
 }
 
@@ -1161,7 +1160,7 @@ fn a_usable_later_source_names_no_account() {
         delivered(&mut root, me_watch, c::Delivery::Me(Box::new(me)));
         assert_eq!(
             using_text(&root),
-            if ready == c::Readiness::Unavailable { "chosen · needs an account" } else { "Using chosen" }
+            if ready == c::Readiness::Unavailable { "chosen · needs an account" } else { "chosen" }
         );
     }
 }
@@ -1190,9 +1189,9 @@ fn an_unusable_later_program_source_names_no_account_when_a_program_source_after
         delivered(&mut root, me_watch, c::Delivery::Me(Box::new(me)));
         let expected = match (after_usable, ready) {
             (true, c::Readiness::Unavailable) => "chosen · needs an account",
-            (true, _) => "Using chosen",
+            (true, _) => "chosen",
             // Both of jig's states wait on this account, so the next one is chosen.
-            (false, _) => "Using your Claude subscription, through Claude Code · chosen",
+            (false, _) => "your Claude subscription, through Claude Code · chosen",
         };
         assert_eq!(using_text(&root), expected, "ready {ready:?}, pin {pin:?}");
     }
@@ -1332,18 +1331,18 @@ pub(super) fn no_model_root(task_page: bool) -> d::Domain {
     root
 }
 #[test]
-fn configured_provider_words_name_the_whole_composer_line() {
+fn configured_provider_words_name_the_whole_byline() {
     for (provider, kind, address, expected) in [
-        (b"openai".as_slice(), c::AccountKind::Key, None, "Using your OpenAI API key · chosen"),
-        (b"openai", c::AccountKind::SignIn, None, "Using ChatGPT plan · chosen"),
+        (b"openai".as_slice(), c::AccountKind::Key, None, "OpenAI API key · chosen"),
+        (b"openai", c::AccountKind::SignIn, None, "ChatGPT plan · chosen"),
         (
             b"openai",
             c::AccountKind::SignIn,
             Some(b"https://provider.example/usage".as_slice()),
-            "Using ChatGPT plan · chosen · Manage usage",
+            "ChatGPT plan · chosen",
         ),
-        (b"anthropic", c::AccountKind::Program, None, "Using your Claude subscription, through Claude Code · chosen"),
-        (b"local", c::AccountKind::Key, None, "Using your local API key · chosen"),
+        (b"anthropic", c::AccountKind::Program, None, "your Claude subscription, through Claude Code · chosen"),
+        (b"local", c::AccountKind::Key, None, "local API key · chosen"),
     ] {
         let mut row = account(3, kind, address);
         row.sources.clear();
@@ -1407,4 +1406,83 @@ fn the_no_model_composer_offers_connect_a_model_as_a_terminal_command() {
             Some(d::Action::Pages(d::pages::Act::Go { address: Address::ConnectModel { way: None } }))
         );
     }
+}
+
+#[test]
+fn a_byline_without_an_offer_is_the_same_line_without_a_panel() {
+    for no_models in [true, false] {
+        let (mut root, me_watch, task_watch, _) = line_fixture(None, List::with_capacity(0), Some(3), None, None, true);
+        if no_models {
+            let mut me = d::pages::accounts::current_me(root.client()).unwrap().clone();
+            me.projects.get_mut(0).unwrap().models.clear();
+            delivered(&mut root, me_watch, c::Delivery::Me(Box::new(me)));
+        } else {
+            let mut task = root.pages().chat().unwrap().task(root.client()).unwrap().clone();
+            task.acts.clear();
+            delivered(&mut root, task_watch.unwrap(), c::Delivery::Task(Box::new(task)));
+        }
+        let view = fixtures::page_view(&root);
+        let node = view.tree().nodes().iter().find(|n| n.styles.as_slice().contains(&crate::look::BYLINE)).unwrap();
+        assert_eq!(node.role, Role::Paragraph);
+        assert_eq!(node.name.as_deref(), Some("T9 · chosen".as_bytes()));
+        assert_eq!(node.size, 2);
+        assert!(fixtures::find(view.tree(), Role::Disclosure, b"Change model").is_none());
+    }
+}
+
+#[test]
+fn manage_usage_is_the_panels_last_control_and_never_in_the_byline() {
+    let root = line_facts(
+        Some(readiness(c::Readiness::Usable)),
+        accounts(&[account(3, c::AccountKind::SignIn, Some(b"https://provider.example/usage"))]),
+        Some(3),
+        None,
+        None,
+        true,
+    );
+    let view = fixtures::page_view(&root);
+    let nodes = view.tree().nodes();
+    let at = nodes.iter().position(|n| n.styles.as_slice().contains(&crate::look::BYLINE)).unwrap();
+    assert_eq!(nodes[at].description.as_deref(), Some("T9 · Supplied Provider plan · chosen".as_bytes()));
+    let end = at + usize::try_from(nodes[at].size).unwrap();
+    let controls: Vec<_> = nodes[at..end].iter().filter(|n| [Role::Button, Role::Link].contains(&n.role)).collect();
+    let last = controls.last().unwrap();
+    assert_eq!(last.name.as_deref(), Some(b"Manage usage".as_slice()));
+    assert_eq!(last.external.as_deref(), Some(b"https://provider.example/usage".as_slice()));
+}
+
+#[test]
+fn the_agent_composers_using_words_stay_whole() {
+    let root = line_facts(
+        Some(readiness(c::Readiness::Usable)),
+        accounts(&[account(3, c::AccountKind::SignIn, Some(b"https://provider.example/usage"))]),
+        Some(3),
+        None,
+        None,
+        true,
+    );
+    let mut b = Builder::new(&fixtures::tree_limits());
+    crate::choice::using(&mut b, &root, root.pages().chat().unwrap().task(root.client()), &fixtures::words());
+    assert_eq!(
+        core::str::from_utf8(&fixtures::text(&b.finish())).unwrap(),
+        "Using Supplied Provider plan · chosen · Manage usage"
+    );
+}
+
+#[test]
+fn a_tasks_byline_keeps_the_whole_bounded_model_and_effort() {
+    let (mut root, _, task_watch, _) = line_fixture(None, List::with_capacity(0), None, None, None, true);
+    let mut task = root.pages().chat().unwrap().task(root.client()).unwrap().clone();
+    let name = vec![b'm'; shown_bytes()];
+    let effort = vec![b'e'; usize::try_from(EFFORT_BYTES).unwrap()];
+    let choice = task.llm.as_mut().unwrap();
+    choice.main.model = c::Text::new(name.clone().into_boxed_slice(), NAME_BYTES).unwrap();
+    choice.main.effort = Some(c::Text::new(effort.clone().into_boxed_slice(), EFFORT_BYTES).unwrap());
+    delivered(&mut root, task_watch.unwrap(), c::Delivery::Task(Box::new(task)));
+    let view = catalogue_view(&root);
+    let byline = view.tree().nodes().iter().find(|n| n.styles.as_slice().contains(&crate::look::BYLINE)).unwrap();
+    assert_eq!(
+        byline.description.as_deref(),
+        Some(["T9 · ".as_bytes(), &name, " · ".as_bytes(), &effort].concat().as_slice())
+    );
 }
