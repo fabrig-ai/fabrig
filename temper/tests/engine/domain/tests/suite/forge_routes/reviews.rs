@@ -204,6 +204,209 @@ fn a_changes_reviewer_reads_its_own_pull() {
     assert!(items.iter().any(|item| item.number == pull.number && item.title.as_ref() == b"Small fix"));
 }
 
+// The fake and renderer carry a 60 KiB generated file without a model or service.
+const GENERATED_BYTES: usize = 60 * 1024;
+const READ_BOUND: u32 = 32_768;
+const READ_ROOM: u32 = 262_144;
+
+fn rendered_review_world(
+    bound: u32,
+    journal: u32,
+    content: &[u8],
+) -> (World, engine::Assignment, engine::Assignment, [u8; 32]) {
+    let mut world = World::configured_policy(true, true, false, 1000, Gate { agent: true, ..Gate::default() }, None);
+    world.env.limits.call_answer_bytes = bound;
+    world.env.limits.journal.transcript_bytes = journal;
+    let mut client = world.env.limits.forge.client;
+    client.answer_bytes = journal.min(READ_ROOM);
+    let world = world.with_forge_client(client);
+    let (mut world, goal, producer, branch) = change_world_in(world, Change { tracked: true, ..Change::default() });
+    world.fake_env.limits.limits.content_bytes = READ_ROOM;
+    world.external(2, raw::Op::Git(raw::Git::Create { branch: branch.clone(), commit: 1 }));
+    fake::advance(&mut world.fake, &world.fake_env, b"org/repo", &branch, b"generated", content, 1)
+        .expect("generated file pushed");
+    let review_index = world.assigned.len();
+    let head = produce(&mut world, &producer, &branch);
+    let reviewer = next_assignment(&mut world, review_index);
+    world.protocol.defer_render = true;
+    (world, goal, reviewer, head)
+}
+
+fn render_read(
+    world: &mut World,
+    run: &engine::Assignment,
+    number: u32,
+    tool: &[u8],
+    input: &[u8],
+) -> (ReplyTo, jig_domain_core::SettledAnswer) {
+    let input = smith_domain_run::HostInput::attested(input.into()).expect("bounded input");
+    let temper_engine_smith::Decoded::Call(body) = temper_engine_smith::call_configured(
+        smith_domain_run::CallName { activation: run.attempt, completion: number, position: 0 },
+        tool,
+        &input,
+        world.root.models(),
+    )
+    .expect("smith decodes forge read") else {
+        panic!("forge read decoded")
+    };
+    let mut event = world.protocol.call(CHANNEL, run.task, run.attempt, u64::from(number), body);
+    let engine::Event::Worker(engine::WorkerInput::Link {
+        link: engine::Link::Up { up: host::LinkUp::Call { tool: declared, .. }, .. },
+        ..
+    }) = &mut event
+    else {
+        panic!("worker call")
+    };
+    *declared = tool.into();
+    world.send(event);
+    for _ in 0..MAX_TICKS {
+        world.tick();
+        if !world.protocol.pending_renders.is_empty() {
+            break;
+        }
+    }
+    let (to, name) = world.protocol.pending_renders.pop().expect("read reached rendering");
+    assert_eq!(name.as_ref(), u64::from(number).to_be_bytes().as_slice(), "render of requested call");
+    let answer = &world.protocol.answers.last().expect("typed read").1;
+    assert!(
+        matches!(answer, engine::CallAnswer::ForgeRead(result) if result.is_ok()),
+        "fake read {number} using {}: {answer:?}",
+        String::from_utf8_lossy(tool)
+    );
+    let (body, error) =
+        temper_engine_smith::answer_for_tool(answer, tool, world.env.limits.call_answer_bytes).into_parts();
+    assert!(!error, "renderer produced a full answer");
+    // The scripted worker identifies successful relays by their rendered body.
+    world.protocol.answers.push((body.clone(), answer.clone()));
+    (to, jig_domain_core::SettledAnswer::Host { error, body })
+}
+
+fn pull_files_input(world: &World, reviewer: &engine::Assignment, head: [u8; 32]) -> String {
+    let number = change_row(world, requester(world, reviewer.task)).pull.expect("gated pull");
+    let digits = String::from_utf8(engine::commit_text(&head).to_vec()).expect("head");
+    format!(r#"{{"number":{number},"head":"{digits}","page":1}}"#)
+}
+
+fn settle_read(world: &mut World, to: ReplyTo, answer: jig_domain_core::SettledAnswer) {
+    world.send(engine::Event::Worker(engine::WorkerInput::RenderedHostCall { to, answer }));
+    world.until(Until::Ready);
+}
+
+fn assert_render_refusal(world: &mut World, run: &engine::Assignment, tool: &[u8], limit: &str, measured: usize) {
+    let error = world.call_errors.last().expect("oversized read refused");
+    let text = core::str::from_utf8(&error.text).expect("refusal text");
+    for expected in [limit, &measured.to_string(), "read_file", "both endpoints", "max_bytes"] {
+        assert!(text.contains(expected), "read refusal must name {expected}: {text}");
+    }
+    if tool == b"read_compare" {
+        for expected in ["read_pull", "head", "read_pull_files", "page"] {
+            assert!(text.contains(expected), "compare fallback {expected}: {text}");
+        }
+    }
+    let bound = if limit == "core.call_answer_bytes" {
+        world.env.limits.call_answer_bytes
+    } else {
+        world.env.limits.journal.transcript_bytes
+    };
+    assert!(text.contains(&format!("limit {bound} bytes")), "configured bound: {text}");
+    let bound = world.env.limits.call_answer_bytes.min(world.env.limits.journal.transcript_bytes);
+    assert!(error.text.len() + tool.len() <= usize::try_from(bound).expect("bound"));
+    let facts: Vec<_> = std::iter::from_fn(|| world.root.pop_fact()).collect();
+    assert!(
+        facts.iter().any(|fact| matches!(fact,
+            engine::Fact::ReadRefused { task, attempt, tool: declared, layer: "host-render", reason, .. }
+            if *task == run.task && *attempt == run.attempt && declared.as_ref() == tool && reason.contains(limit)
+        )),
+        "render refusal keeps its original tool and bound: {facts:?}"
+    );
+}
+
+#[test]
+fn oversized_forge_reads_name_the_bound_and_emit_a_refusal() {
+    let (mut world, goal, reviewer, head) = rendered_review_world(READ_BOUND, READ_ROOM, &vec![b'x'; GENERATED_BYTES]);
+    let input = pull_files_input(&world, &reviewer, head);
+    let (to, answer) = render_read(&mut world, &reviewer, 11, b"read_pull_files", input.as_bytes());
+    let measured = answer_size(&answer) + b"read_pull_files".len();
+    settle_read(&mut world, to, answer);
+    assert_render_refusal(&mut world, &reviewer, b"read_pull_files", "core.call_answer_bytes", measured);
+    world.until(Until::Ready);
+    world.external(2, raw::Op::Git(raw::Git::Create { branch: b"read-ends".as_slice().into(), commit: 1 }));
+    let mut heads = vec![head];
+    for bytes in [b'y', b'z'] {
+        let next = fake::advance(
+            &mut world.fake,
+            &world.fake_env,
+            b"org/repo",
+            b"read-ends",
+            b"generated",
+            &vec![bytes; GENERATED_BYTES],
+            1,
+        )
+        .expect("distinct endpoint");
+        heads.push(translate::commit(next));
+    }
+    for (index, after) in heads.iter().enumerate() {
+        for repeat in 0..2 {
+            let after = String::from_utf8(engine::commit_text(after).to_vec()).expect("after");
+            let before = String::from_utf8(engine::commit_text(&translate::commit(1)).to_vec()).expect("before");
+            let input = format!(r#"{{"before":"{before}","after":"{after}"}}"#);
+            let number = 20 + u32::try_from(index).expect("three pairs") * 2 + repeat;
+            let (to, answer) = render_read(&mut world, &goal, number, b"read_compare", input.as_bytes());
+            let measured = answer_size(&answer) + b"read_compare".len();
+            let errors = world.call_errors.len();
+            settle_read(&mut world, to, answer);
+            assert_eq!(world.call_errors.len(), errors + 1, "compare {number}, measured {measured}");
+            assert_render_refusal(&mut world, &goal, b"read_compare", "core.call_answer_bytes", measured);
+        }
+    }
+    rendered_read_edges();
+    rendered_read_journal();
+}
+
+fn answer_size(answer: &jig_domain_core::SettledAnswer) -> usize {
+    let jig_domain_core::SettledAnswer::Host { body, .. } = answer else { panic!("host read") };
+    body.len()
+}
+
+fn rendered_read_edges() {
+    // Both added files have absent before-sides; the renderer's framing counts too.
+    let overhead =
+        b"generated\n[absent]\n->\n\nfile\n[absent]\n->\nreview this diff\n".len() + b"read_pull_files".len();
+    for extra in [-1_i32, 0, 1] {
+        let bytes =
+            usize::try_from(i64::from(READ_BOUND) - i64::try_from(overhead).expect("framing") + i64::from(extra))
+                .expect("positive file size");
+        let (mut world, _, reviewer, head) = rendered_review_world(READ_BOUND, READ_ROOM, &vec![b'x'; bytes]);
+        let input = pull_files_input(&world, &reviewer, head);
+        let (to, answer) = render_read(&mut world, &reviewer, 11, b"read_pull_files", input.as_bytes());
+        let measured = answer_size(&answer) + b"read_pull_files".len();
+        assert_eq!(i64::try_from(measured).expect("answer size"), i64::from(READ_BOUND) + i64::from(extra));
+        let answered = world.answers.len();
+        settle_read(&mut world, to, answer);
+        if extra > 0 {
+            assert_render_refusal(&mut world, &reviewer, b"read_pull_files", "core.call_answer_bytes", measured);
+        } else {
+            assert!(world.call_errors.is_empty(), "answer at or below bound fits");
+            assert_eq!(world.answers.len(), answered + 1, "fitting answer reaches its host");
+            assert!(
+                std::iter::from_fn(|| world.root.pop_fact())
+                    .all(|fact| !matches!(fact, engine::Fact::ReadRefused { layer: "host-render", .. }))
+            );
+        }
+    }
+}
+
+fn rendered_read_journal() {
+    // Escaping makes the rendered body exceed the journal while its typed answer fits admission.
+    let (mut world, _, reviewer, head) =
+        rendered_review_world(READ_ROOM, READ_BOUND, &vec![b'\t'; GENERATED_BYTES / 6]);
+    let input = pull_files_input(&world, &reviewer, head);
+    let (to, answer) = render_read(&mut world, &reviewer, 11, b"read_pull_files", input.as_bytes());
+    let measured = answer_size(&answer) + b"read_pull_files".len();
+    settle_read(&mut world, to, answer);
+    assert_render_refusal(&mut world, &reviewer, b"read_pull_files", "root.journal.transcript_bytes", measured);
+}
+
 fn ask_read(
     world: &mut World,
     run: &engine::Assignment,

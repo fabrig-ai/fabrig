@@ -764,6 +764,14 @@ changes no admission or grant. These bounded diagnostics are not store rows
 or client wire fields, and overflow drops a fact and increments the root's
 lost-fact count. Claude built-in Read refusals instead retain the permission
 message in the recorded tool result (smith's `protocol/programs.md`, 5.4).
+A forge read whose rendered answer exceeds `core.call_answer_bytes` or
+`root.journal.transcript_bytes` returns a bounded error naming the exceeded
+limit and measured bytes, including the tool name. Its refusal fact names
+`host-render` and that limit. An oversized comparison points to `read_pull`
+for the head and `read_pull_files` pages; an oversized pull-file page points
+to directory and selected-file `read_file` calls at both endpoints with
+`max_bytes`. Forge-client admission busy still uses the host's bounded
+backoff.
 A reviewer fails when it cannot judge the change.
 
 
