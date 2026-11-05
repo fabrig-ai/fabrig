@@ -1,0 +1,22 @@
+draft = "debt-22"
+repo = "fabrig"
+sources = ["temper/docs/plan/debt-22/inputs/request.md", "temper/docs/plan/debt-22/inputs/debt20-review.md", "skein/docs/development/debt/D021-forgejo-plan-states.md", "skein/docs/development/debt/D022-oauth-states.md"]
+
+# plan.md says what was decided and why.
+
+[buffer]
+low = 1.0
+high = 2.0
+
+[[part]]
+id = "spot-review"
+title = "debt-20's spot review: tests that can fail, tables cut to what bites, Write::Copy specified and tested"
+mode = "direct"
+needs = []
+design = "jig/docs/design/protocol/store.md, 6"
+
+[[slice]]
+id = 1
+story = "each test named by the review goes red when its rule breaks, or has gone, and net lines fall"
+parts = ["spot-review"]
+walk = false
