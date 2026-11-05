@@ -97,3 +97,20 @@ Pre-approved:
 ## Report
 
 As the implementer's text says, with each "if on the trunk" as you found it, and the fixtures' default for kind 7.
+
+## Rebase (2026-11-05, step merge, foreman ui-settings/ways-session/foreman-1)
+
+rebase by combining Changes support with session settings, then regenerate story A’s recording.
+The merge refused four content conflicts; this is the branch’s red.
+Upstream Changes work comes from `d0fe151eed` (domain) and `5e9c187b7b` (view), incorporated through `96752e47c7`.
+
+- `temper/crates/temper-client-domain/src/pages.rs`: retain Changes state, dispatch and teardown. Keep this branch’s `Home::new()` and `pages.home = None`; do not restore Home’s separate settings watch or handle allocation.
+- `temper/crates/temper-client-view/src/frame.rs`: retain Changes navigation and exhaustive address handling. Extend this branch’s single `shown(root, project)` calculation so Changes appears when kind 7 enables `ways.changes` or the current address is Changes. Keep Changes out of the phone tab bar and keep Settings accessible.
+- `temper/crates/temper-client-shell-terminal/src/tests/fixtures.rs`: retain both upstream’s family Changes-watch response and this branch’s family Setting-read response in `populate_page`; combine their scoped lint expectation.
+- `temper/tests/playground/tests/fixtures/story-a.log`: regenerate from the combined code; do not splice recorded hashes. Upstream `68bad859e7` and branch `5458294a79` both refreshed this recording. Preserve the branch’s startup-settling changes.
+
+Update `temper-client-view/src/tests/rail.rs`: its assertion that Changes never exists is now obsolete. Cover enabled, disabled, unread and refused kind 7, plus keeping Changes visible while on its page and retaining a hidden page’s address.
+Give Changes gallery samples explicit kind 7 values where their rails require Changes; regenerate affected goldens and prints.
+
+Regenerate story A with `SKEIN_CODEGEN_WRITE=1` through heavy, selecting `story_a_walks_from_the_welcome_to_the_csv_change_landed` in `temper-playground-world`’s `suite` binary; then verify `story_a_kept_log_replays_natively`.
+Run the affected domain, view, terminal, gallery and client-world checks, plus the spec’s browser-world check, through heavy with `TEMPER_BUNDLE=none`.

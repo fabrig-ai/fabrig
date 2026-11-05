@@ -189,7 +189,7 @@ impl NativeClient {
         if matches!(self.phase, Phase::Closing { .. }) {
             return false;
         }
-        let Some(event) = view::event(&self.view, node, act) else {
+        let Some(event) = view::act_event(&mut self.view, node, act) else {
             return false;
         };
         self.event(event);
