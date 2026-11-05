@@ -450,6 +450,10 @@ pub fn stored_bytes(record: &Stored) -> Option<u64> {
         Stored::Landing(row) => landing::row_bytes(row),
         Stored::Receipt { key, receipt } => landing::receipt_bytes(key, receipt),
         Stored::Call { answer, .. } => match answer {
+            CallPayload::Decided { took } => Some(match took {
+                Some(words) => skein_lib::len_u64(words.len()),
+                None => 0,
+            }),
             CallPayload::Effect { .. } | CallPayload::Refused(_) => Some(0),
             CallPayload::Read(answer) => match answer.as_ref() {
                 Ok(answer) => skein_forge::measure::answer(answer),

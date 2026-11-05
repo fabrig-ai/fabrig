@@ -139,6 +139,8 @@ pub struct KindValue {
 /// (domain/root.md, sections 3 and 5.2). Later routes extend this vocabulary.
 #[derive(Clone, PartialEq, Eq, Debug)]
 pub enum Tool {
+    /// Ask whether a goal may decide while its person is away (domain/forge.md, 5.9).
+    Decided(forge::DecidedCall),
     /// Read related task specifications or proven descendant reports.
     ReadTask { task: u64, field: jig_domain_core::reads::TaskTextField, from: u64 },
     /// Read settings without retaining a named-call record.

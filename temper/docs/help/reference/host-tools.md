@@ -4,6 +4,18 @@ Kind: reference
 
 Every tool temper adds to its runs' own: what it does, as a run reads it, whether it reads or writes, and the members of its input.
 
+## decided
+
+Ask whether your goal may decide while its person is away. Carry on only if decided; otherwise ask with message, as a question.
+
+A write.
+
+- `question`: text; required. The question, at most 400 bytes.
+- `options`: a list; required. Two to six options, each at most 120 bytes.
+- `took`: an integer from 0 to 5; required. The chosen option's index, starting at zero.
+- `why`: text; required. Why you chose it, at most 400 bytes.
+- `kind`: one of `implementation`, `retry`, `wording`, `dependency` or `other`; required.
+
 ## goal
 
 Have one goal in your words tracked and reported; it may plan, ask you and call change. With advisor set, it reads and reports and changes nothing.

@@ -3,7 +3,7 @@
 2026-11-05. Where temper's code lags or departs from [forge.md](forge.md).
 
 - **Not yet:**
-  - 5.8 and 5.9: the root and service routes for Away and Overturn, and the decided tool and its named call answer.
+  - 5.8 and 5.9: the root and service routes for Away and Overturn.
   - 4.1: a removal without the box, its group's act answered in its
     decision: an owned or fake forge's removal asks the box link for
     `remove N` whether or not a pipe is there, and without one waits for

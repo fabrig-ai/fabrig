@@ -518,6 +518,9 @@ pub fn named_call(answer: top::CallPayload) -> top::Stored {
 pub fn payloads() -> List<top::CallPayload> {
     use skein_forge_client::{Made, Outcome};
     let mut rows = List::with_capacity(80);
+    for took in [None, Some(Box::from(b"chosen".as_slice()))] {
+        rows.push(top::CallPayload::Decided { took }).expect("fixture room");
+    }
     for made in [
         Made::Created(1),
         Made::Commented(2),
