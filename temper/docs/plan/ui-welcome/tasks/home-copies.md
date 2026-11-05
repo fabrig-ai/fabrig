@@ -105,3 +105,18 @@ Not this task's: "Add a repository", its sheet (`home-add`); "Copies running" on
 ## Report
 
 The states as a table of what each reads; goldens moved; the builder and directory.
+
+## Rebase (2026-11-05, step merge, foreman ui-welcome/home-copies/foreman-1)
+
+Rebase Home copies onto the landing trunk, preserving shared Needs behavior and assigning unused word/style identifiers.
+The merge refused six conflicting paths; resolve each by retaining both features.
+Main’s `02a1b9f057` adds shared-session Home needs; landing commit `654f060f07` reconciles Needs with Ready copies.
+- `temper/crates/temper-client-domain/src/tests/pages/home.rs`: retain the standing inbox watch fixture and `needs_count_falls_when_answered_and_keeps_later_cards`; append all copy-state and request tests.
+- `temper/crates/temper-client-view/src/pages/home.rs`: combine `CopyLine`/`CopyState` imports with `needs::{self, ANSWERED_ON_HOME}`. Retain the newer `rows` parameter, shared-session needs rendering and confirmation rendering; keep the copy repository arms and helpers.
+- `temper/crates/temper-client-view/src/tests/home.rs`: retain `home_limits()`, standing-needs delivery and newer Needs assertions; keep all browser and terminal copy tests using that combined fixture.
+- `temper/crates/temper-client-view/src/look.rs`: preserve existing token assignments. `HOME_COPY`’s branch token 289 now belongs to `GOALS_TOP`; assign an unused token (310 in the inspected trunk) and append its matching `NAMES` entry.
+- `temper/crates/temper-client-view/src/words.rs`: preserve trunk IDs, including `WelcomeReadyCopiesLead = 3338`. Move the nine Home copy words from conflicting IDs 3309–3317 to unused IDs (3339–3347 in the inspected trunk).
+Combine both word lists, English phrases and hole-bound logic. Add the copy deltas to trunk’s derived totals: nine phrases, twenty-five segments, nine words and 254 literal bytes; retain Needs’ bounds and literal allowance.
+- `temper/tools/gallery/src/samples.rs`: retain Needs/Home samples and dispatch, plus all five copy samples and their fixture changes. Recalculate `N` from the combined list; do not duplicate `welcome-ready-copies`.
+Check auto-merged gallery names, tests, worlds, CSS and browser state rows retain both sides. Regenerate affected prints/goldens with their tools rather than hand-merging generated output.
+Through heavy, run the focused Home domain/view tests and gallery checks, then the task’s client-world checks and journey reprint; report changed generated files.
