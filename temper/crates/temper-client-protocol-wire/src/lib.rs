@@ -69,7 +69,7 @@ pub const CLIENT_VERSION: u32 = 14;
 /// The deployment's maximum number of forges (client/README.md, 4.6).
 pub const FORGES: u32 = 16;
 /// A party's dismissals on the wire (client/README.md, 4.6).
-pub const DISMISSED: u32 = 1024;
+pub const DISMISSED: u32 = 8192;
 /// The maximum installations per GitHub forge (client/README.md, 4.6).
 pub const INSTALLATIONS: u32 = 64;
 /// The maximum repository makings per forge (temper/docs/design/client/README.md, 4.6).
