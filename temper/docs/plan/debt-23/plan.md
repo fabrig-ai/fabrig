@@ -24,8 +24,18 @@ Two independent parts (`inputs/request.md`): the spot review of debt-21, and the
 | jig D016 | `payloads` | `args-store` | | medium | 20 | `manifest`, `seal` |
 | jig D016 | `payloads` | `args-ops` | | medium | 25 | ops' three |
 | jig D016 | `payloads` | `args-close` | the ten above | medium | 10 | the item goes |
+| skein D023 | `llm-states` | `llm-connection-phase` | | high | 40 | `Phase` holds the call; `idle_at` goes |
+| skein D023 | `llm-states` | `llm-client-states` | | high | 120 | `Client`'s states hold their data; a pin first |
+| skein D023 | `llm-states` | `llm-states-close` | the two above | medium | 15 | the item goes; statuses keep what's left |
+| hearth D006 | `builder-lifecycles` | `builder-child` | | high | 60 | `git::Child`; `Held` |
+| hearth D006 | `builder-lifecycles` | `builder-resolve` | `builder-child` | high | 75 | `Resolve`'s stage; a pin first |
+| hearth D006 | `builder-lifecycles` | `builder-read` | `builder-child` | high | 75 | a read's current work and feed |
+| hearth D006 | `builder-lifecycles` | `builder-client` | | high | 45 | a client's output and stream |
+| hearth D006 | `builder-lifecycles` | `builder-current` | `builder-child`, `builder-resolve`, `builder-read` | high | 105 | `Protocol` holds one current call |
+| hearth D006 | `builder-lifecycles` | `store-states` | | high | 90 | `Store`'s phase, standing, flight; a pin first |
+| hearth D006 | `builder-lifecycles` | `lifecycles-close` | the six above | medium | 15 | the item goes |
 
-Skein D023 and hearth D006 follow in later pushes. No debt item closes in `spot-review`, by the request.
+1360 implementer-minutes in all: 240 in `spot-review`, 480 in `payloads`, 175 in `llm-states`, 465 in `builder-lifecycles`. No debt item closes in `spot-review`, by the request.
 
 ## What was decided
 
@@ -45,13 +55,32 @@ Skein D023 and hearth D006 follow in later pushes. No debt item closes in `spot-
 - **D016's item was stale in its crates.** It lists no accounts, authority, host, store or worker-agents, which hold ten of the 71; 71 is today's count, not its 68.
 - **These folds add lines,** about +200 in all, as a struct costs its fields. The request asks net lines to fall only of the spot review.
 
+- **D023's "call" is `Connection`'s `Phase`.** `call.rs` has no `Call`, and both statuses say so. `Phase` takes the token; `idle_at` is write-only and goes, and `waiting` and `reservation` stay, for the reasons the status now gives.
+- **D023's "then follow" has one site, not two.** `call.rs` has `sync_deadlines`, which stays. `Client` mirrors nothing: `resume` derives its read demand from the state on each entry, so it has no `follow`, and a function with nothing to do would be noise. This is the cut's reading of the item's words, recorded so fabrig/debt can differ. The acceptance is the item's **Measure**, and no comparison decides a transition.
+- **`Client`'s machines stay on the struct.** `close_sse` closes them from any state, and `has_work` spends one route on the `Closed` it leaves. `llm.md`, 3's table has the SSE reader under Streaming, so the status keeps that as a departure, with this reason.
+- **One pin for D023, none of its transitions.** A rejected head reporting its request id is the one path a split loses silently that no test holds. The rest have tests already, and the survey's traps are in the spec.
+- **D006 goes ahead of D001.** The item says no plan should take it first, and D001 is open at `max_out 53`. But the request names D006, and the overlap is adjacent lines, not shared logic: `MaxOut`, `up`'s `!above.is_empty()`, the store's `MAX_OUT` and `client.rs`'s two queue declarations stay untouched, and `git.rs`, `resolve.rs` and `read.rs` have no capped queues left. Neither `hearth-service-builder/src/lib.rs` nor any `MAX_OUT` form is needed, so fabrig/debt isn't asked.
+- **D006's item is wrong in four small ways.** Its "about 24 `self.` sites" are 22 plus 28 `protocol.` lines. `failed`, `refused` and `ended` are facts read after a lifecycle, so they stay, and **Paid when** doesn't ask otherwise. Its **Where** omits `events.rs`, `keep.rs`, the protocol's `store.rs` and five of the store's modules, all of which change. Its **What** is silent on `read.rs`, which has the pattern whole, so it gets a task.
+- **`ran` may stay a field.** Nothing proves `Run` excludes other work. `builder-current` asserts it by hand first, and if they coexist, `ran` isn't an `Option` that holds in turn, so **Paid when** still holds. That's pre-approved.
+- **Two pins for D006:** a deadline during `Resolve`'s indices, and a failed entry's later finds answering `Unusable { List }`. Both paths would change silently, and no test holds them.
+- **`lifecycles-close` can't be a Measure.** The item has none, so its searches stand in for the reviewer, with a read of the six types by eye.
+
+## Seen, left
+
+- **Possible hearth bug, read and not run, for fabrig/debt.** If standard error breaks and closes during a lock wait, and the store then answers `Unopened`, `progress.stop()` queues `Down::Finish`, and `resume` then hits `self.output.expect("bound output")` with no output. Behaviour stays unchanged here, so no task fixes it.
+- `hearth-protocol-builder`'s `work_pending` is effectively unpinned, as D001 records. `builder-current` reviews it by hand; a test of it is D001's.
+- `read.rs`'s `take_answer` `Cached` arm looks unreachable. `builder-read` keeps it.
+- `State::Waiting` in fleet could hold `Claiming`. `args-fleet-host` takes it only if shorter.
+
 ## Overlaps
 
 - The spot review's tasks meet no other draft's files. `temper-fake` and `temper-service` are other drafts' too (`ui-away`, `ui-chat-draft`), in other files: `oauth-secret-fields` changes `temper-fake`'s `oauth` tests and `temper-service`'s `clients/google.rs` and its `sign_in` and `accounts_host` tests.
 - `routing/run/calls.rs` (`note-parts/note-range`), `effects.rs` (`ui-chat-draft/note-answer`), `routing/mod.rs` and `routing/run/preparation.rs` (`ui-chat-draft/note-scope`) couldn't be avoided: D016's sites are there. `args-core-calls` goes last of core so its two files come latest, and `Call` and `Proposing` live in `routing/run.rs`, which no draft holds. `jig-domain-people`'s `batch.rs` and `limits.rs` (`ui-chat-draft/person-words`) are named off limits to `args-people-views`.
+- D023 and D006 meet no listed draft. D006 is the one most likely to meet fabrig/hearth's memory migration, which isn't a listed draft: `builder-client` keeps `client.rs`'s queue declarations as they are for that, and `builder-current`, `store-states` keep `MaxOut` and `MAX_OUT`. `skein/docs/design/link.md` is touched by `llm-states-close` alone.
+- Inside this plan: `builder-child` and `builder-current` hold `hearth-protocol-builder/src/lib.rs` in order. `builder-resolve` and `builder-current` hold `resolve.rs` in order, the second in its tail. `builder-read` and `builder-child` hold `read.rs` in order. `builder-client` and `store-states` run beside anything. `llm-connection-phase` and `llm-client-states` share no file, and the second only uses the first's public API.
 - Inside this plan: `routing/mod.rs` is the one caller of 14 core sites, so `args-core-party`, `args-core-turns` and `args-core-calls` run in order. `args-core-checks` shares nothing with them. `settings-name` and `args-core-party` both touch `settings/application.rs`, one call in the second; `settings-name` and `args-tasks` touch `jig-domain-tasks`, in `closing.rs` and elsewhere.
 - Inside this plan: `connect-close`, `connection-deadline` and `connection-states` hold `connection.rs` in order. `hook-slack` holds `hooks/connection.rs` alone, beside them. `oauth-secret-fields` and `oauth-noise` hold `skein-fake-oauth/src/lib.rs` in order.
 
 ## Critical path
 
-So far: `args-core-party`, `args-core-turns`, `args-core-calls`, `args-close`, 190 minutes.
+`builder-child`, `builder-resolve` or `builder-read`, `builder-current`, `lifecycles-close`: 255 minutes. Then `args-core-party`, `args-core-turns`, `args-core-calls`, `args-close`: 190 minutes. No part waits for another.
