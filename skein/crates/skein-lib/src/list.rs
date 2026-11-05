@@ -103,6 +103,15 @@ impl<T> List<T> {
         self.items.get_mut(usize::try_from(index).ok()?)
     }
 
+    /// Takes the item at `index` out, the last item taking its place. `None` past the end.
+    pub fn swap_remove(&mut self, index: u32) -> Option<T> {
+        let index = usize::try_from(index).ok()?;
+        if index >= self.items.len() {
+            return None;
+        }
+        Some(self.items.swap_remove(index))
+    }
+
     #[must_use]
     pub fn last(&self) -> Option<&T> {
         self.items.last()
@@ -127,6 +136,12 @@ impl<T> List<T> {
 
     pub fn iter(&self) -> slice::Iter<'_, T> {
         self.items.iter()
+    }
+
+    /// Each item, to change in place.
+    #[expect(clippy::iter_without_into_iter, reason = "List exposes mutable traversal through iter_mut")]
+    pub fn iter_mut(&mut self) -> slice::IterMut<'_, T> {
+        self.items.iter_mut()
     }
 
     /// The items, moved into a box of exactly their number.

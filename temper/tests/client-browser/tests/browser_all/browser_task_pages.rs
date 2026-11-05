@@ -15,21 +15,20 @@ fn a_procedures_plan_reaches_its_agent_and_back_by_address() {
     let press = |find| Step::Person(PersonStep::Press { find });
     let heading = |level, name: &[u8]| Find::exactly_named(Role::Heading { level }, name);
     let task = |number: &[u8]| Find::exactly_named(Role::Link, number);
-    let behind = || Find::exactly_named(Role::Status, b"Behind");
-    let chat = || Find::exactly_named(Role::Link, FIRST_CHAT);
     let change = b"Export widget's table as CSV";
     let agent = "T3 · Export widget's table as CSV".as_bytes();
     let plan_agent = || {
         task(b"Task 3")
             .within(Box::new([Target::ExactRole { role: Role::TreeItem, name: b"Task 3".as_slice().into() }]))
     };
-    let mut story = Script::new(Box::new([
+    let mut steps = vec![
         see(Find::exactly_named(Role::Button, b"Try the playground")),
         press(Find::exactly_named(Role::Button, b"Try the playground")),
         // The box starts the demo's group only when asked: wait for its start to be answered.
         see(Find::exactly_named(Role::Status, b"Ready")),
         Step::Person(PersonStep::Gone { find: Find::exactly_named(Role::Status, b"Starting"), within: WITHIN }),
         see(tier.states().live),
+        temper_client_browser_world::connected(),
         see(heading(1, b"Chats")),
         see(Find::exactly_named(Role::Button, b"Add CSV export to widget")),
         press(Find::exactly_named(Role::Button, b"Add CSV export to widget")),
@@ -65,19 +64,31 @@ fn a_procedures_plan_reaches_its_agent_and_back_by_address() {
         see(heading(1, agent)),
         see(Find::exactly_named(Role::Region, b"Task brief")),
         Step::Address(b"/tasks/3".as_slice().into()),
+    ];
+    steps.extend(reload_chats(&tier));
+    let mut story = Script::new(steps.into_boxed_slice());
+    assert_eq!(Harness::new(tier.setup()).run(&mut [&mut story]), Outcome::Done);
+}
+
+fn reload_chats(tier: &Tier) -> Vec<Step> {
+    let see = |find| Step::Person(PersonStep::See { find, within: WITHIN });
+    let heading = |level, name: &[u8]| Find::exactly_named(Role::Heading { level }, name);
+    let behind = || Find::exactly_named(Role::Status, b"Behind");
+    let chat = || Find::exactly_named(Role::Link, FIRST_CHAT);
+    vec![
         // 6: the playground's project made, the link stays up across a reload: the page's own
         // client bounds receive the box's Me (temper/docs/design/client/README.md, 2).
         Step::Person(PersonStep::Go { address: b"/chats".as_slice().into() }),
         see(heading(1, b"Chats")),
         see(tier.states().live),
+        temper_client_browser_world::connected(),
         Step::Person(PersonStep::Gone { find: behind(), within: ABSENT }),
         see(chat()),
         Step::Person(PersonStep::Reload),
         see(heading(1, b"Chats")),
         see(tier.states().live),
+        temper_client_browser_world::connected(),
         Step::Person(PersonStep::Gone { find: behind(), within: ABSENT }),
         see(chat()),
-    ]));
-    let mut harness = Harness::new(tier.setup());
-    assert_eq!(harness.run(&mut [&mut story]), Outcome::Done);
+    ]
 }

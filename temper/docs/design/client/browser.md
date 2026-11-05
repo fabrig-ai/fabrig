@@ -481,6 +481,11 @@ skein's (skein's `ui-web.md`), and how a client of jig's does is jig's
   and "Each step" is gone. Under way, the repository precedes the status,
   with a 3 px hairline track under it, a 35% ink segment sliding across
   every 1.4 s; reduced motion makes it a faint full track with no animation.
+  While the fetch says how far it is, `temper-flow-meter` draws a 4 px
+  bar in its place, ink over the hairline colour, with the figure at its
+  end, muted, in tabular figures: filled to `--skein-ui-progress` with a
+  size, and with none, its `[role="progressbar"]` having no
+  `data-progress`, the same sliding segment and the bytes at its end.
   Done, failed and GitHub's installation waits have no bar. Forgejo's sheet is a native modal dialog, 620 px
   wide, white, 14 px corners, over a dimmed page: its heading 19 px,
   its line 14 px muted; "Start it with" its fieldset's legend; each
@@ -1036,13 +1041,6 @@ Not in the tier, each in the lowest world that shows it:
 - **The kit's stylesheet without a bundle:** the gallery takes
   `skein-ui.css` by running skein's bundler with no module (7.1).
   Default: so, until skein's bundler offers the stylesheet alone.
-- **A bar that fills** (2.5, The welcome's look;
-  `../draft/fetch-progress.md`, 5 and 6): `temper-flow-meter` is a 4 px
-  bar with the figure at its end, muted, in tabular figures, filled to
-  `--temper-flow-meter-fill`, 0% unless given. The figure waits on the
-  forge's row, and the fill on a value on skein's progress node, a
-  draft of skein's not yet written. Default: the moving bar, and no
-  node takes the token.
 
 ## 7. The gallery
 
@@ -1142,6 +1140,8 @@ from the engine's own answers, is where the look is tuned.
 | `github-adopted` | the adopted GitHub repository and its primary Open act |
 | `welcome-model-choose` | the welcome's Model choices, with ChatGPT sign-in and an API key |
 | `welcome-model-forge-under-way` | Model at first run step 6, Forgejo setting up, its Forge pane and Each step |
+| `welcome-model-forge-fetching` | Model at first run step 6, Forgejo fetching at 42%, its bar filled and the figure at its end |
+| `welcome-model-forge-fetching-bytes` | Model at first run step 6, Forgejo fetching with no size, its moving bar and 41 MB at its end |
 | `welcome-model-forge-done` | Model at first run step 7, Forgejo connected, its marked Forge pane without Each step |
 | `welcome-model-forge-failed` | Model at first run step 9, Forgejo failed, its Forge pane and Each step |
 | `welcome-model-key-details` | the welcome's API key form, without an unsupported display-name field |

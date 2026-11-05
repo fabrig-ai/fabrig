@@ -9,7 +9,8 @@
 
 use crate::Limits;
 use crate::{
-    Drawing, EntryKind, Node, NodeId, Region, Role, Shortcut, Sort, Source, Spans, State, Style, TextRun, Tree, Value,
+    Drawing, EntryKind, Fraction, Node, NodeId, Region, Role, Shortcut, Sort, Source, Spans, State, Style, TextRun,
+    Tree, Value,
 };
 use alloc::boxed::Box;
 use skein_lib::{List, Queue, Stack};
@@ -32,6 +33,7 @@ pub struct Attribute {
     pub position: Option<u32>,
     pub spans: Option<Spans>,
     pub sort: Option<Sort>,
+    pub fraction: Option<Fraction>,
     /// The shell asks the view root for this node's address when this is set.
     pub linked: bool,
     pub external: Option<Box<[u8]>>,
@@ -57,6 +59,7 @@ impl Attribute {
             position: node.position,
             spans: node.spans,
             sort: node.sort,
+            fraction: node.fraction,
             linked: node.link.is_some(),
             external: node.external.clone(),
             bound: node.binding.is_some() || node.link.is_some(),
@@ -285,6 +288,7 @@ fn attributes(old: &Node, new: &Node, out: &mut Queue<Patch>) {
         || old.position != new.position
         || old.spans != new.spans
         || old.sort != new.sort
+        || old.fraction != new.fraction
         || old.link != new.link
         || old.external != new.external
         || was_bound != bound

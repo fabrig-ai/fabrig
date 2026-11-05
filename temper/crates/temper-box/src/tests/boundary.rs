@@ -24,7 +24,21 @@ fn allowed(path: &str) -> bool {
     let (path, names): (&str, &[&str]) = if let Some(path) = path.strip_prefix("machine::") {
         (path, &["BoxKind", "group_file", "parse_group_file", "group_path", ""])
     } else {
-        (path, &["Steps", "Group", "Stage", "Kind", "Step", "steps", "FORGE_ARGUMENT", "machine::BoxKind", ""])
+        (
+            path,
+            &[
+                "Steps",
+                "Group",
+                "Stage",
+                "Kind",
+                "Step",
+                "steps",
+                "FORGE_ARGUMENT",
+                "machine::BoxKind",
+                "fetch::Fetched",
+                "",
+            ],
+        )
     };
     if let Some(group) = path.strip_prefix('{') {
         let Some(end) = group.find('}') else {
@@ -59,13 +73,13 @@ fn check_source(source: &str) {
         let after = position.checked_add("temper_forge_setup".len()).expect("source position");
         assert!(
             allowed(&source[after..]),
-            "the box names only steps, kinds and group files: {}",
+            "the box names only steps, kinds, group files and fetch progress: {}",
             source[position..].lines().next().unwrap()
         );
     }
 }
 #[test]
-fn the_box_names_only_steps_and_step_of_the_setup() {
+fn the_box_names_only_its_setup_contract() {
     let mut pending = List::with_capacity(128);
     pending.push(std::path::PathBuf::from("src")).expect("source directory");
     for index in 0..128 {

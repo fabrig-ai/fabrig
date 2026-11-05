@@ -82,6 +82,7 @@ pub fn start_chat(words: &[u8]) -> Vec<Step> {
         see(Find::exactly_named(Role::Heading { level: 1 }, b"Connect a forge")),
         Step::Person(PersonStep::Press { find: Find::exactly_named(Role::Link, b"temper chats") }),
         see(live()),
+        connected(),
         see(composer()),
         Step::Person(PersonStep::Type { find: composer(), words: Box::from(words) }),
         Step::Person(PersonStep::Press { find: Find::exactly_named(Role::Button, b"Start chat") }),
@@ -105,7 +106,17 @@ pub fn start_playground_chat(words: &[u8]) -> Vec<Step> {
     steps
 }
 fn live() -> Find {
-    Find::exactly_named(Role::Status, b"Live")
+    Find::exactly_named(Role::Status, b"Owner")
+}
+/// Read the positive Live DOM marker, which the project rail hides from accessibility
+/// (temper/docs/design/client/README.md, 5.3), after the page's readiness observation.
+#[must_use]
+pub fn connected() -> Step {
+    Step::Keep {
+        selector: b"[data-region='temper-link'] > [role='status'].temper-live".as_slice().into(),
+        attribute: Some(b"class".as_slice().into()),
+        name: b"live-link".as_slice().into(),
+    }
 }
 
 /// A scratch deployment for one story's `temper serve` or `temper box`.
@@ -270,7 +281,8 @@ impl Tier {
             origins: vec![],
         }
     }
-    /// The banner's status node names the link's state; signed out, the page says how to sign in.
+    /// Owner observes the signed-in document; `connected` checks Live even when hidden.
+    /// Offline and signed-out states remain visible.
     #[must_use]
     pub fn states(&self) -> jig_client_fake_person_browser::States {
         jig_client_fake_person_browser::States {

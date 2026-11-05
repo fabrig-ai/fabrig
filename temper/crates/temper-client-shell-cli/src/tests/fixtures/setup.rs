@@ -98,8 +98,11 @@ impl Frame {
                             )
                         } else {
                             f::Connection::SettingUp(
-                                f::SettingUp::new(&f::CEILINGS, f::SettingUpParts { step: Some(f::SetUpStep::Run) })
-                                    .expect("valid setup fixture"),
+                                f::SettingUp::new(
+                                    &f::CEILINGS,
+                                    f::SettingUpParts { step: Some(f::SetUpStep::Run), fetched: None },
+                                )
+                                .expect("valid setup fixture"),
                             )
                         },
                         offer: f::Offer::NotOffered,

@@ -14,7 +14,7 @@ fn secrets_print_as_choices_7_shows() {
             "spec         9a0c5e1f2b3d\n",
             "secrets      part 000000000000\n",
             "  secret     tls/key /etc/key 0640 root:ops\n",
-            "  password   free users/free.passwd\n",
+            "  password   alice users/alice.passwd\n",
             "  identity   ssh ssh-host-key ed25519 /etc/ssh/key /etc/ssh/key.pub 0600 root:root\n"
         )
         .as_bytes()
@@ -28,6 +28,6 @@ fn json_nests_the_record_under_secrets() {
     let part = json.get(start..).expect("part suffix");
     assert_eq!(
         part,
-        concat!(r#"{"record":"part","target":"x1-prod","name":"secrets","digest":"0000000000000000000000000000000000000000000000000000000000000000","secrets":{"files":{"tls/key":{"group":"ops","mode":"0640","owner":"root","path":"/etc/key"}},"identity":{"ssh":{"algorithm":"ed25519","group":"root","kind":"ssh-host-key","mode":"0600","owner":"root","path":"/etc/ssh/key","public_path":"/etc/ssh/key.pub"}},"passwords":{"free":"users/free.passwd"}}}"#, "\n").as_bytes()
+        concat!(r#"{"record":"part","target":"x1-prod","name":"secrets","digest":"0000000000000000000000000000000000000000000000000000000000000000","secrets":{"files":{"tls/key":{"group":"ops","mode":"0640","owner":"root","path":"/etc/key"}},"identity":{"ssh":{"algorithm":"ed25519","group":"root","kind":"ssh-host-key","mode":"0600","owner":"root","path":"/etc/ssh/key","public_path":"/etc/ssh/key.pub"}},"passwords":{"alice":"users/alice.passwd"}}}"#, "\n").as_bytes()
     );
 }

@@ -1,4 +1,4 @@
-//! A build's records: each layer, and the step that ended it (client/README.md, 3.1 and 3.2).
+//! A build's records: each layer, and the step that ended it (hearth/docs/design/client/README.md, 3.1 and 3.2).
 use crate::form::{
     json::{digest, field},
     text::Lines,
@@ -30,7 +30,7 @@ pub struct Failed {
     pub step: Step,
     pub why: Why,
 }
-/// A layer's steps, by their names in a layer's costs (domain/build.md, 5 to 7).
+/// A layer's steps, by their names in a layer's costs (hearth/docs/design/domain/build.md, 5 to 7).
 #[derive(Clone, Copy, PartialEq, Eq, Hash, Debug)]
 pub enum Step {
     Fetch,

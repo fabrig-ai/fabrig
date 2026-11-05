@@ -136,7 +136,11 @@ iterate, after the step:
   No route reserves room. Synchronous hand-offs finish within their
   decision, store answers keep arrival order, and a kept turn precedes
   its terminal acknowledgement (sections 4 and 5;
-  programming-model.md, 7.2).
+  programming-model.md, 7.2). Every root sorts its events into the same
+  three classes, `jig-domain-link`'s `Class` (`Admitted`, `New` and
+  `Mixed`); `Class::of` reads a child's `new_work`, and `LinkUp` answers
+  `new_work` as the core and the host do. What is left in a root's
+  `class` is its own connectors' vocabulary.
 - **Public reads come behind.** A public read, the public party's
   (people.md, section 13), is new work admitted only while the backlog
   is under the public watermark, below the one every other new work
@@ -303,7 +307,10 @@ It inspects nothing it holds. What jig asks of it:
 - **To the hub inside the engine:** the core's assignments, relays and
   cancels for runs placed on the engine's own slots go to the hub, and
   what it says goes back to the core as a worker's would (hosts.md,
-  6.1).
+  6.1). `jig-domain-hub-link` holds what every root would otherwise spell
+  on this way: the job's assignment, a settled call's relay, a brief's
+  plan and completion, and which of the core's `Now`s are the link's. A
+  root sends the rest to its own child or its door.
 - **Between the hub and its agent capability:** `smith-inline-agent`, in
   the engine. The root translates between them as a worker's root does
   between its hub and either of smith's agent capabilities, with the
@@ -474,9 +481,13 @@ commented as such. Its crate has one module per part of this document:
 ├── store.rs        Key, Record, Write, Range: the children's wrapped
 ├── domain.rs       Domain, step, fire, release: the one shape (section 3)
 ├── route.rs        which child each event and each hand-off goes to (section 5)
+├── admission.rs    its events' classes, try_step and the watermark (section 3)
+├── link.rs         the hub's link and its host, by the journal (section 5)
 ├── translate.rs    the small total functions (section 6)
 ├── assemble.rs     outputs put together from their owners' parts (section 7)
+├── client_documents.rs  a party's documents, by the connector that makes them (section 5)
 ├── restart.rs      the script's steps, as the core asks (section 8)
+├── steps.rs        a procedure's step outcomes, to the connector it names (section 5)
 ├── limits.rs       the children's limits, and their sum (section 10)
 └── tests.rs
 ```
@@ -510,5 +521,6 @@ application's.
   `Now::WorkspaceRequest`, are fixed, and the values stay, since temper's
   do real work there (engine.md, 7.1, 9 and 17.9; section 7). Taking
   those steps from the roots would need a new hand-off for connectors'
-  sections and a gather timeout in the core. Default: the answers stay
-  until `ops` and the test root share their wiring.
+  sections and a gather timeout in the core. Default: the steps stay in
+  the roots, and `jig-domain-hub-link`'s `brief_plan`, which takes the
+  deadline, and `no_workspace` spell them once.

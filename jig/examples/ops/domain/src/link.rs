@@ -7,6 +7,14 @@ use jig_domain_host as host;
 use jig_domain_hub_link as link;
 use skein_lib::{Decision, Env, Queue, Token};
 
+// The engine's hub connects directly to the fleet at construction and is never lost
+// (jig/docs/design/domain/hosts.md, 6.1), so every hand-off uses this one channel.
+const ENGINE: Token = Token::new(0);
+
+fn permanent(channel: Token) {
+    assert!(channel == ENGINE, "ops engine's permanent link");
+}
+
 pub(crate) fn route(
     domain: &mut Domain,
     env: &Env<Limits>,
@@ -40,55 +48,33 @@ fn outputs(
                 continue;
             }
             link::Request::Down { channel, value } => {
-                assert!(channel == Token::new(0), "ops engine's permanent link");
+                permanent(channel);
                 Released::Host(host::Event::Down(value))
             }
             link::Request::Assigned { channel, assignment } => {
-                assert!(channel == Token::new(0), "ops engine's permanent link");
+                permanent(channel);
                 let assignment = crate::assemble::assignment(domain, env, &assignment).expect("validated charter");
                 Released::Host(host::Event::Down(host::LinkDown::Assign { assignment }))
             }
             link::Request::AssignedJob { channel, job } => {
-                assert!(channel == Token::new(0), "ops engine's permanent link");
-                Released::Host(host::Event::Down(host::LinkDown::AssignJob {
-                    job: host::JobAssignment {
-                        run: Token::new(job.task),
-                        attempt: Token::new(job.attempt),
-                        kind: job.kind,
-                        spec: job.spec,
-                        deadline: job.deadline,
-                        workspace: match job.workspace {
-                            Some(_) => {
-                                Some(host::Workspace { workstream: job.workstream, items: Token::new(job.task) })
-                            }
-                            None => None,
-                        },
-                        grants: job.grants,
-                    },
-                }))
+                permanent(channel);
+                Released::Host(host::Event::Down(host::LinkDown::AssignJob { job: link::job_assignment(job) }))
             }
             link::Request::ReadResult { payload, outcome } => {
                 now(domain, Output::ReadResult { payload, outcome });
                 continue;
             }
             link::Request::Relayed { channel, run, attempt, call, answer } => {
-                assert!(channel == Token::new(0), "ops engine's permanent link");
+                permanent(channel);
                 let answer = match answer {
-                    Some(call) => crate::assemble::host_answer(call.answer),
+                    Some(call) => link::settled_answer(call.answer).expect("engine charter has no delivery tool"),
                     None => host::Relayed::Busy,
                 };
                 Released::Host(host::Event::Down(host::LinkDown::Relayed { run, attempt, call, answer }))
             }
             link::Request::Message { channel, run, attempt, word } => {
-                assert!(channel == Token::new(0), "ops engine's permanent link");
-                Released::Host(host::Event::Down(host::LinkDown::Message {
-                    run,
-                    attempt,
-                    name: Token::new(word.number),
-                    sender: jig_protocol_charter::sender(word.from),
-                    finish_requested: word.finish_requested(),
-                    words: jig_protocol_tools::words(&word),
-                }))
+                permanent(channel);
+                Released::Host(host::Event::Down(jig_protocol_charter::message(run, attempt, &word)))
             }
             link::Request::ConnectorCall { to, run, attempt, call } => {
                 now(domain, Output::Now(jig_domain_core::Now::Call { to, run, attempt, call }));
@@ -97,7 +83,7 @@ fn outputs(
             link::Request::TurnCopy { run, attempt, turn } => {
                 if let Some(turn) = domain.host.turn(run, attempt, turn)
                     && let Some(event) =
-                        link::up(&mut domain.hub_link, Token::new(0), host::LinkUp::Turn { run, attempt, turn })
+                        link::up(&mut domain.hub_link, ENGINE, host::LinkUp::Turn { run, attempt, turn })
                 {
                     work.push(Work::Core(event));
                 }
@@ -147,7 +133,7 @@ pub(crate) fn host_out(
             })),
             host::Request::Agent(request) => crate::domain::held(decision, Output::Agent(request)),
             host::Request::Up(value) => {
-                route(domain, env, decision, link::Event::Up { channel: Token::new(0), value }, false, work);
+                route(domain, env, decision, link::Event::Up { channel: ENGINE, value }, false, work);
             }
             host::Request::CancelRelay { run, attempt, call } => {
                 domain.hub_link.forget_call(&call);
@@ -170,7 +156,7 @@ pub(crate) fn host_out(
     }
     for _ in 0..env.limits.host.told {
         let Some(value) = domain.host.pop_activity() else { break };
-        route(domain, env, decision, link::Event::Up { channel: Token::new(0), value }, false, work);
+        route(domain, env, decision, link::Event::Up { channel: ENGINE, value }, false, work);
     }
 }
 
@@ -189,52 +175,14 @@ pub(crate) fn agent_content(
             // The stream adapter splits at the receiving views' byte bound.
             let bound = skein_lib::length::usize_of(env.limits.core.views.text_bytes);
             if text.is_empty() {
-                route(
-                    domain,
-                    env,
-                    decision,
-                    link::Event::Up {
-                        channel: Token::new(0),
-                        value: host::LinkUp::Piece {
-                            run: hosting.run,
-                            attempt: hosting.attempt,
-                            piece: host::Piece {
-                                turn,
-                                retry,
-                                offset: u64::from(offset),
-                                kind: host::LiveKind::Text,
-                                bytes: text,
-                            },
-                        },
-                    },
-                    false,
-                    work,
-                );
+                let event = piece(hosting, turn, retry, offset, text);
+                route(domain, env, decision, event, false, work);
             } else {
-                for piece in text.chunks(bound) {
-                    route(
-                        domain,
-                        env,
-                        decision,
-                        link::Event::Up {
-                            channel: Token::new(0),
-                            value: host::LinkUp::Piece {
-                                run: hosting.run,
-                                attempt: hosting.attempt,
-                                piece: host::Piece {
-                                    turn,
-                                    retry,
-                                    offset: u64::from(offset),
-                                    kind: host::LiveKind::Text,
-                                    bytes: skein_lib::bytes::copy_of(piece),
-                                },
-                            },
-                        },
-                        false,
-                        work,
-                    );
+                for chunk in text.chunks(bound) {
+                    let event = piece(hosting, turn, retry, offset, skein_lib::bytes::copy_of(chunk));
+                    route(domain, env, decision, event, false, work);
                     offset = offset
-                        .checked_add(u32::try_from(piece.len()).expect("stream piece byte limit"))
+                        .checked_add(u32::try_from(chunk.len()).expect("stream piece byte limit"))
                         .expect("supplied text position");
                 }
             }
@@ -242,5 +190,16 @@ pub(crate) fn agent_content(
         crate::AgentContent::Call(call) => {
             work.push(Work::Core(jig_domain_core::Event::RunCall { run: hosting.run, attempt: hosting.attempt, call }));
         }
+    }
+}
+
+fn piece(hosting: host::Hosting, turn: u32, retry: u32, offset: u32, bytes: Box<[u8]>) -> link::Event {
+    link::Event::Up {
+        channel: ENGINE,
+        value: host::LinkUp::Piece {
+            run: hosting.run,
+            attempt: hosting.attempt,
+            piece: host::Piece { turn, retry, offset: u64::from(offset), kind: host::LiveKind::Text, bytes },
+        },
     }
 }

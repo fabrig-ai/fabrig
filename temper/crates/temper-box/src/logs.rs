@@ -21,6 +21,7 @@ pub(crate) struct Piece {
     pub step: usize,
     pub bytes: Box<[u8]>,
     pub wall: Wall,
+    pub log_only: bool,
 }
 impl Piece {
     pub fn echo(&self, name: &[u8]) -> Box<[u8]> {
@@ -185,6 +186,12 @@ impl Logs {
         match &self.piece {
             Some(piece) => Some(piece.step),
             None => None,
+        }
+    }
+    pub fn log_only(&self) -> bool {
+        match &self.piece {
+            Some(piece) => piece.log_only,
+            None => false,
         }
     }
     pub fn completed(&self) -> bool {

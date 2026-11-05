@@ -10,11 +10,11 @@ fn hearth_render_lists_groups_users_and_members() {
         concat!(
             "  groups     mail package\n",
             "  groups     ops 1500\n",
+            "  users      alice 1000 alice /home/alice /bin/bash\n",
             "  users      ci - ci / /usr/sbin/nologin\n",
-            "  users      free 1000 free /home/free /bin/bash\n",
             "  users      postfix package\n",
-            "  members    free ops\n",
-            "  members    free sudo\n"
+            "  members    alice ops\n",
+            "  members    alice sudo\n"
         )
     );
 }
@@ -24,9 +24,9 @@ fn hearth_diff_names_each_account_group_and_member_moved() {
         fixtures::lines_starting(&accounts::diff_accounts().stdout, &["  config "]),
         concat!(
             "  config   - groups ops                             1500\n",
-            "  config   ~ users free                             1001 free /home/free /bin/bash\n",
-            "  config   - members free ops\n",
-            "  config   + members free video\n"
+            "  config   ~ users alice                            1001 alice /home/alice /bin/bash\n",
+            "  config   - members alice ops\n",
+            "  config   + members alice video\n"
         )
     );
 }

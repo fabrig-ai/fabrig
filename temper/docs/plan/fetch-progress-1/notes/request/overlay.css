@@ -1,0 +1,30 @@
+/* The forge's state beside the Model step: a pane at the right of the
+   column when the window has room, under the choices when it has not,
+   so that the step's heading and choices sit where the Forge step's do. */
+#app > .temper-welcome { position: relative; }
+#app > .temper-welcome .temper-welcome-status { margin: 0 0 28px; padding: 16px 0 0; border: 0; border-top: 1px solid var(--gf-line); border-radius: 0; background: none; }
+#app > .temper-welcome .temper-welcome-status > p { display: grid; grid-template-columns: 18px minmax(0, 1fr); gap: 2px 6px; margin: 0; font-size: 14.5px; line-height: 1.55; color: var(--gf-ink); }
+#app > .temper-welcome .temper-welcome-status > p::before { content: '◌' / ''; grid-row: 1; color: var(--gf-faint); }
+#app > .temper-welcome .temper-welcome-status > p.temper-flow-done::before { content: '✓' / ''; color: var(--gf-good); }
+#app > .temper-welcome .temper-welcome-status > p > span:not(.temper-flow-muted) { grid-column: 2; color: var(--gf-ink); font-weight: 400; }
+#app > .temper-welcome .temper-welcome-status > p > span.temper-flow-muted { display: block; grid-column: 2; padding: 0; color: var(--gf-muted); font-size: 13.5px; }
+#app > .temper-welcome .temper-welcome-status strong { font-weight: 500; }
+#app > .temper-welcome .temper-welcome-status > details { margin: 10px 0 0 24px; font-size: 13.5px; color: var(--gf-muted); }
+#app > .temper-welcome .temper-welcome-status > details > summary { cursor: pointer; }
+#app > .temper-welcome .temper-welcome-status .temper-flow-progress { margin: 10px 0 0; gap: 6px; font-size: 13.5px; line-height: 1.45; }
+@media (min-width: 1280px) {
+  #app > .temper-welcome .temper-welcome-status { position: absolute; top: 44px; left: calc(100% + 8px); width: 272px; margin: 0; padding: 0 0 0 20px; border-top: 0; border-left: 1px solid var(--gf-line); }
+}
+/* Under way, a bar under the forge's line that keeps moving while the
+   set up runs: indeterminate, since no step says how far it is. */
+#app > .temper-welcome .temper-welcome-status > .temper-flow-busy { position: relative; height: 3px; margin: 8px 0 2px 24px; overflow: hidden; border-radius: 2px; background: var(--gf-line); }
+#app > .temper-welcome .temper-welcome-status > .temper-flow-busy::before { content: ''; position: absolute; top: 0; bottom: 0; left: 0; width: 35%; border-radius: 2px; background: var(--gf-ink-2); animation: temper-welcome-busy 1.4s ease-in-out infinite; }
+@keyframes temper-welcome-busy { from { transform: translateX(-100%); } to { transform: translateX(290%); } }
+@media (prefers-reduced-motion: reduce) {
+  #app > .temper-welcome .temper-welcome-status > .temper-flow-busy::before { width: 100%; opacity: .3; animation: none; }
+}
+/* While the fetch says how far it is: the bar filled to its percentage,
+   the percentage at its end. The 42% here is a dummy; the fill's width
+   is the progress node's value once skein's carries one. */
+#app > .temper-welcome .temper-welcome-status > .temper-flow-meter { display: grid; grid-template-columns: minmax(0, 1fr) auto; align-items: center; gap: 10px; margin: 6px 0 0 24px; font-size: 13px; line-height: 1.4; color: var(--gf-muted); font-variant-numeric: tabular-nums; }
+#app > .temper-welcome .temper-welcome-status > .temper-flow-meter::before { content: ''; height: 4px; border-radius: 2px; background: linear-gradient(to right, var(--gf-ink-2) 0 42%, var(--gf-line) 42% 100%); }

@@ -1,4 +1,4 @@
-//! Render answers become the client's typed records (domain/render.md, 8.1).
+//! Render answers become the client's typed records (hearth/docs/design/domain/render.md, 8.1).
 use crate::{
     records::{outcome as target, parts::meta, records},
     render::{parts as source, revision, vocabulary::Outcome},
@@ -73,7 +73,7 @@ fn resolved(resolution: Option<Box<crate::render::keys::Resolution>>) -> Option<
     })
 }
 
-/// A build's layer, by kind, key and state (client/README.md, 3.1).
+/// A build's layer, by kind, key and state (hearth/docs/design/client/README.md, 3.1).
 #[must_use]
 pub fn layer(
     layer: crate::builder::build::Layer,
@@ -98,7 +98,7 @@ fn kind(layer: crate::builder::build::Layer) -> crate::records::build::Kind {
         Layer::Config => Kind::Config,
     }
 }
-/// The step a build ended on, named with its layer (domain/build.md, 3).
+/// The step a build ended on, named with its layer (hearth/docs/design/domain/build.md, 3).
 #[must_use]
 pub fn failed(
     step: crate::builder::build::Step,
@@ -124,12 +124,12 @@ pub fn failed(
         layer: kind(layer),
         step,
         why: match why {
-            // The records name one reason until the client grows more (client/README.md, 3.3).
+            // The records name one reason until the client grows more (hearth/docs/design/client/README.md, 3.3).
             Why::Unavailable | Why::Failed | Why::Stage | Why::Seal => build::Why::Unavailable,
         },
     }
 }
-/// The store full at a limit, as an operational error of kind store (domain/store.md, 8.1).
+/// The store full at a limit, as an operational error of kind store (hearth/docs/design/domain/store.md, 8.1).
 #[must_use]
 pub fn full(limit: crate::builder::store::vocabulary::Limit, most: u32, store: &[u8]) -> crate::records::errors::Error {
     use crate::{

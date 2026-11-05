@@ -523,10 +523,26 @@ pub fn specimen() -> skein_forge::forgejo::plans::tables::Repository {
     }
 }
 
+/// A component-selected request and its complete Authorization value.
+#[derive(Debug)]
+pub enum Exchange {
+    Forgejo {
+        request: skein_forge::forgejo::request::Request,
+        range: Option<skein_forge::forgejo::plans::plan::Range>,
+        authorization: Secret,
+    },
+    GitHub {
+        exchange: skein_forge::github::plans::plan::Exchange,
+        authorization: Option<Secret>,
+    },
+}
+
 /// One connection's scripted stream, shared by its step tests.
 #[derive(Debug)]
 pub struct ConnectionHarness {
     pub connection: crate::connection::Connection,
+    pub forgejo: crate::connection::forgejo::Exchange,
+    pub github: crate::connection::github::Exchange,
     pub env: Env<Limits>,
     pub forge: Forge,
     pub io: Queue<skein_io::Request>,
@@ -534,7 +550,24 @@ pub struct ConnectionHarness {
     pub body_demands: u32,
     pub local_pumps: u32,
 }
+#[derive(Debug)]
+enum FixtureHeard {
+    Forgejo(skein_forge::forgejo::plans::Heard),
+    GitHub(skein_forge::github::plans::Heard),
+}
 impl ConnectionHarness {
+    fn heard(&mut self) -> Option<FixtureHeard> {
+        match self.forge.kind {
+            Kind::Forgejo => {
+                let event = self.forgejo.heard(&mut self.connection)?;
+                Some(FixtureHeard::Forgejo(event))
+            }
+            Kind::GitHub => {
+                let event = self.github.heard(&mut self.connection)?;
+                Some(FixtureHeard::GitHub(event))
+            }
+        }
+    }
     pub fn new() -> Self {
         let forge = settings().forges.into_boxed().into_iter().next().expect("one forge");
         Self::with_forge(forge, shared())
@@ -565,6 +598,8 @@ impl ConnectionHarness {
         connection.connect(&env);
         Self {
             connection,
+            forgejo: crate::connection::forgejo::Exchange::new(),
+            github: crate::connection::github::Exchange::new(),
             env,
             forge,
             io: Queue::with_capacity(32),
@@ -574,20 +609,64 @@ impl ConnectionHarness {
         }
     }
     pub fn pump(&mut self) {
-        self.connection.pump(&self.env, &mut self.io);
+        match self.forge.kind {
+            Kind::Forgejo => self.forgejo.pump(&mut self.connection, &self.env, &mut self.io),
+            Kind::GitHub => self.github.pump(&mut self.connection, &self.env, &mut self.io),
+        }
+    }
+    pub fn start(&mut self, exchange: Exchange) -> Result<(), &'static str> {
+        match exchange {
+            Exchange::Forgejo { request, range, authorization } => {
+                match self.forgejo.start(
+                    &mut self.connection,
+                    &self.env,
+                    &self.forge,
+                    USER_AGENT,
+                    skein_forge::forgejo::plans::plan::Exchange { request, range },
+                    authorization,
+                ) {
+                    Ok(()) => Ok(()),
+                    Err(_) => Err("Forgejo refused"),
+                }
+            }
+            Exchange::GitHub { exchange, authorization } => {
+                match self.github.start(
+                    &mut self.connection,
+                    &self.env,
+                    &self.forge,
+                    USER_AGENT,
+                    exchange,
+                    authorization,
+                ) {
+                    Ok(()) => Ok(()),
+                    Err(_) => Err("GitHub refused"),
+                }
+            }
+        }
+    }
+    pub fn ready(&self) -> bool {
+        match self.forge.kind {
+            Kind::Forgejo => self.forgejo.ready(&self.connection),
+            Kind::GitHub => self.github.ready(&self.connection),
+        }
     }
     pub fn answer(&mut self, response: &[u8]) -> List<skein_forge::forgejo::plans::Heard> {
         let mut heard = List::with_capacity(16);
         for event in self.answer_dialect(response).into_boxed() {
             match event {
-                crate::connection::Heard::Forgejo(event) => heard.push(event).expect("fixture events fit"),
-                crate::connection::Heard::GitHub(_) => unreachable!("Forgejo harness answer"),
+                FixtureHeard::Forgejo(event) => heard.push(event).expect("fixture events fit"),
+                FixtureHeard::GitHub(_) => unreachable!("Forgejo harness answer"),
             }
         }
         heard
     }
     /// The existing connection fixture with a buffered or fragmented peer body.
-    pub fn buffered_answer(&mut self, response: &[u8], fragment: usize, eof: bool) -> List<crate::connection::Heard> {
+    pub fn buffered_answer(
+        &mut self,
+        response: &[u8],
+        fragment: usize,
+        eof: bool,
+    ) -> List<skein_forge::forgejo::plans::Heard> {
         use skein_lib::stream::{Down, Read, Up};
         let mut intake = skein_lib::Intake::with_capacity(shared().io.intake);
         let mut at = 0_usize;
@@ -595,7 +674,7 @@ impl ConnectionHarness {
         let mut ended = false;
         let mut heard = List::with_capacity(16);
         for _ in 0_u32..1024 {
-            if self.connection.ready() && self.io.is_empty() {
+            if self.ready() && self.io.is_empty() {
                 self.local_pumps = self.local_pumps.saturating_add(1);
             }
             self.pump();
@@ -653,10 +732,10 @@ impl ConnectionHarness {
                 self.connection.stream(&self.env, Up::End);
             }
             for _ in 0_u32..16 {
-                let Some(event) = self.connection.heard() else { break };
+                let Some(event) = self.forgejo.heard(&mut self.connection) else { break };
                 heard.push(event).expect("fixture events fit");
             }
-            if !self.connection.ready() && pending.is_none() && at == response.len() {
+            if !self.ready() && pending.is_none() && at == response.len() {
                 break;
             }
         }
@@ -666,13 +745,13 @@ impl ConnectionHarness {
         let mut heard = List::with_capacity(16);
         for event in self.answer_dialect(response).into_boxed() {
             match event {
-                crate::connection::Heard::GitHub(event) => heard.push(event).expect("fixture events fit"),
-                crate::connection::Heard::Forgejo(_) => unreachable!("GitHub harness answer"),
+                FixtureHeard::GitHub(event) => heard.push(event).expect("fixture events fit"),
+                FixtureHeard::Forgejo(_) => unreachable!("GitHub harness answer"),
             }
         }
         heard
     }
-    fn answer_dialect(&mut self, response: &[u8]) -> List<crate::connection::Heard> {
+    fn answer_dialect(&mut self, response: &[u8]) -> List<FixtureHeard> {
         let mut wire = skein_world::stream::Wire::new(1);
         let mut written = false;
         let mut heard = List::with_capacity(16);
@@ -702,7 +781,7 @@ impl ConnectionHarness {
             if let Some(event) = wire.answer() {
                 self.connection.stream(&self.env, event);
             }
-            if let Some(event) = self.connection.heard() {
+            if let Some(event) = self.heard() {
                 heard.push(event).expect("fixture events fit");
             }
         }
@@ -714,10 +793,10 @@ impl ConnectionHarness {
 pub fn forgejo_exchange(
     request: skein_forge::forgejo::request::Request,
     range: Option<skein_forge::forgejo::plans::plan::Range>,
-) -> crate::connection::Exchange {
+) -> Exchange {
     let credential = skein_forge::credential::Credential::Token(Secret::new(Box::from(TOKEN)));
     let authorization = skein_forge::forgejo::credential::authorization(&credential).expect("fixture token");
-    crate::connection::Exchange::Forgejo { request, range, authorization }
+    Exchange::Forgejo { request, range, authorization }
 }
 pub fn known() -> Harness {
     let mut h = Harness::ready();
@@ -759,16 +838,23 @@ pub fn trust() -> skein_tls::Config {
 }
 
 /// Exercise request construction and HTTP serialization on a scripted carrier.
-/// The supplied forge still supplies its transport name to `Connection::start`.
+/// The supplied forge supplies its transport name to the exchange.
 pub fn request_bytes(settings: Settings) -> Box<[u8]> {
     let mut h = ConnectionHarness::new();
     h.forge = settings.forges.into_boxed().into_iter().next().expect("one configured forge");
-    h.connection
+    let Exchange::Forgejo { request, range, authorization } =
+        forgejo_exchange(skein_forge::forgejo::request::Request::User, None)
+    else {
+        unreachable!("Forgejo fixture")
+    };
+    h.forgejo
         .start(
+            &mut h.connection,
             &h.env,
             &h.forge,
             &settings.user_agent,
-            forgejo_exchange(skein_forge::forgejo::request::Request::User, None),
+            skein_forge::forgejo::plans::plan::Exchange { request, range },
+            authorization,
         )
         .expect("valid request");
     h.answer(&user_ok());
@@ -846,7 +932,8 @@ pub fn hook_head(body: &[u8], event: Option<&[u8]>, signature: &[u8]) -> Box<[u8
 #[derive(Debug)]
 pub struct HookHarness {
     connection: crate::hooks::connection::Hooked,
-    settings: Settings,
+    forges: List<crate::component::entry::ForgeEntry>,
+    word: Box<[u8]>,
     env: Env<Limits>,
     wire: skein_world::stream::Wire,
     closed: bool,
@@ -855,9 +942,15 @@ pub struct HookHarness {
 }
 pub fn hook() -> HookHarness {
     let env = Env { now: Time::ZERO, wall: Wall::EPOCH, limits: limits() };
+    let settings = hook_settings();
+    let mut forges = List::with_capacity(env.limits.forges);
+    for forge in settings.forges.into_boxed() {
+        forges.push(crate::component::entry::ForgeEntry::new(forge, &env.limits)).expect("fixture forges");
+    }
     HookHarness {
         connection: crate::hooks::connection::Hooked::new(skein_lib::Token::new(100), &env),
-        settings: hook_settings(),
+        forges,
+        word: settings.word,
         env,
         wire: skein_world::stream::Wire::new(1),
         closed: false,
@@ -892,7 +985,7 @@ impl HookHarness {
         let mut up = Queue::with_capacity(16);
         let mut io = Queue::with_capacity(16);
         for _ in 0_u32..1024 {
-            self.connection.pump(skein_lib::Token::new(1), &self.env, &self.settings, &mut up, &mut io);
+            self.connection.pump(skein_lib::Token::new(1), &self.env, &self.forges, &self.word, &mut up, &mut io);
             for _ in 0..io.len() {
                 match io.pop().expect("queued request") {
                     skein_io::Request::Stream { down, .. } => {
