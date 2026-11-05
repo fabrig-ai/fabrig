@@ -164,9 +164,11 @@ pub struct Limits {
     pub bot_login: u32,
     pub bot_name: u32,
     pub bot_email: u32,
-    pub first_intent_org: u32,
-    pub first_intent_repository: u32,
-    pub first_intent_label: u32,
+    pub empty_intent_org: u32,
+    pub empty_intent_repository: u32,
+    pub empty_intent_label: u32,
+    pub copy_intent_addresses: u32,
+    pub copy_intent_addresses_item: u32,
     pub forge_git_program_some: u32,
     pub rule_pattern_segments: u32,
     pub landing_rule_gates: u32,
@@ -337,9 +339,11 @@ pub const CEILINGS: Limits = Limits {
     bot_login: 255,
     bot_name: 255,
     bot_email: 255,
-    first_intent_org: 4_096,
-    first_intent_repository: 4_096,
-    first_intent_label: 64,
+    empty_intent_org: 4_096,
+    empty_intent_repository: 4_096,
+    empty_intent_label: 64,
+    copy_intent_addresses: 16,
+    copy_intent_addresses_item: 512,
     forge_git_program_some: 4_096,
     rule_pattern_segments: 65_536,
     landing_rule_gates: 64,
@@ -2157,16 +2161,22 @@ pub enum Path {
     BotEmail,
     /// Bytes after `Bot`.
     BotTail,
-    /// The `playground` field of `FirstIntent`.
-    FirstIntentPlayground,
-    /// The `org` field of `FirstIntent`.
-    FirstIntentOrg,
-    /// The `repository` field of `FirstIntent`.
-    FirstIntentRepository,
-    /// The `label` field of `FirstIntent`.
-    FirstIntentLabel,
-    /// Bytes after `FirstIntent`.
-    FirstIntentTail,
+    /// The `playground` field of `EmptyIntent`.
+    EmptyIntentPlayground,
+    /// The `org` field of `EmptyIntent`.
+    EmptyIntentOrg,
+    /// The `repository` field of `EmptyIntent`.
+    EmptyIntentRepository,
+    /// The `label` field of `EmptyIntent`.
+    EmptyIntentLabel,
+    /// Bytes after `EmptyIntent`.
+    EmptyIntentTail,
+    /// The `addresses` field of `CopyIntent`.
+    CopyIntentAddresses,
+    /// Bytes after `CopyIntent`.
+    CopyIntentTail,
+    /// The tag of `FirstIntent`.
+    FirstIntentTag,
     /// The `secrets_erased` field of `EndedForge`.
     EndedForgeSecretsErased,
     /// The `box_removed` field of `EndedForge`.
@@ -2508,9 +2518,11 @@ fn check_limits_1(limits: &Limits) -> Result<(), Problem> {
     if limits.bot_login > CEILINGS.bot_login { return Err(Problem { path: Path::BotLogin, reason: skein_codec::Reason::Bound }); }
     if limits.bot_name > CEILINGS.bot_name { return Err(Problem { path: Path::BotName, reason: skein_codec::Reason::Bound }); }
     if limits.bot_email > CEILINGS.bot_email { return Err(Problem { path: Path::BotEmail, reason: skein_codec::Reason::Bound }); }
-    if limits.first_intent_org > CEILINGS.first_intent_org { return Err(Problem { path: Path::FirstIntentOrg, reason: skein_codec::Reason::Bound }); }
-    if limits.first_intent_repository > CEILINGS.first_intent_repository { return Err(Problem { path: Path::FirstIntentRepository, reason: skein_codec::Reason::Bound }); }
-    if limits.first_intent_label > CEILINGS.first_intent_label { return Err(Problem { path: Path::FirstIntentLabel, reason: skein_codec::Reason::Bound }); }
+    if limits.empty_intent_org > CEILINGS.empty_intent_org { return Err(Problem { path: Path::EmptyIntentOrg, reason: skein_codec::Reason::Bound }); }
+    if limits.empty_intent_repository > CEILINGS.empty_intent_repository { return Err(Problem { path: Path::EmptyIntentRepository, reason: skein_codec::Reason::Bound }); }
+    if limits.empty_intent_label > CEILINGS.empty_intent_label { return Err(Problem { path: Path::EmptyIntentLabel, reason: skein_codec::Reason::Bound }); }
+    if limits.copy_intent_addresses > CEILINGS.copy_intent_addresses { return Err(Problem { path: Path::CopyIntentAddresses, reason: skein_codec::Reason::Bound }); }
+    if limits.copy_intent_addresses_item > CEILINGS.copy_intent_addresses_item { return Err(Problem { path: Path::CopyIntentAddresses, reason: skein_codec::Reason::Bound }); }
     if limits.forge_git_program_some > CEILINGS.forge_git_program_some { return Err(Problem { path: Path::ForgeGitProgram, reason: skein_codec::Reason::Bound }); }
     if limits.rule_pattern_segments > CEILINGS.rule_pattern_segments { return Err(Problem { path: Path::RulePatternSegments, reason: skein_codec::Reason::Bound }); }
     if limits.landing_rule_gates > CEILINGS.landing_rule_gates { return Err(Problem { path: Path::LandingRuleGates, reason: skein_codec::Reason::Bound }); }
@@ -14146,9 +14158,9 @@ impl Bot {
     }
 }
 
-/// Movable fields of `FirstIntent`.
+/// Movable fields of `EmptyIntent`.
 #[derive(Clone, Debug, PartialEq, Eq, Hash)]
-pub struct FirstIntentParts {
+pub struct EmptyIntentParts {
     /// The `playground` field.
     pub playground: bool,
     /// The `org` field.
@@ -14159,19 +14171,19 @@ pub struct FirstIntentParts {
     pub label: Box<[u8]>,
 }
 
-/// `FirstIntent` in this codec family.
+/// `EmptyIntent` in this codec family.
 #[derive(Clone, Debug, PartialEq, Eq, Hash)]
-pub struct FirstIntent {
+pub struct EmptyIntent {
     playground: bool,
     org: Box<[u8]>,
     repository: Box<[u8]>,
     label: Box<[u8]>,
 }
 
-impl FirstIntent {
+impl EmptyIntent {
     /// Makes a value within the given limits.
-    pub fn new(limits: &Limits, parts: FirstIntentParts) -> Result<Self, Problem> {
-        let FirstIntentParts { playground, org, repository, label } = parts;
+    pub fn new(limits: &Limits, parts: EmptyIntentParts) -> Result<Self, Problem> {
+        let EmptyIntentParts { playground, org, repository, label } = parts;
         let value = Self { playground, org, repository, label };
         value.check(limits)?;
         Ok(value)
@@ -14195,12 +14207,79 @@ impl FirstIntent {
 
     /// Moves the fields out without copying.
     #[must_use]
-    pub fn into_parts(self) -> FirstIntentParts { FirstIntentParts { playground: self.playground, org: self.org, repository: self.repository, label: self.label } }
+    pub fn into_parts(self) -> EmptyIntentParts { EmptyIntentParts { playground: self.playground, org: self.org, repository: self.repository, label: self.label } }
 
     fn check(&self, limits: &Limits) -> Result<(), Problem> {
-        if self.org.len() > usize::try_from(limits.first_intent_org.min(CEILINGS.first_intent_org)).expect("u32 fits usize") { return Err(Problem { path: Path::FirstIntentOrg, reason: skein_codec::Reason::Bound }); }
-        if self.repository.len() > usize::try_from(limits.first_intent_repository.min(CEILINGS.first_intent_repository)).expect("u32 fits usize") { return Err(Problem { path: Path::FirstIntentRepository, reason: skein_codec::Reason::Bound }); }
-        if self.label.len() > usize::try_from(limits.first_intent_label.min(CEILINGS.first_intent_label)).expect("u32 fits usize") { return Err(Problem { path: Path::FirstIntentLabel, reason: skein_codec::Reason::Bound }); }
+        if self.org.len() > usize::try_from(limits.empty_intent_org.min(CEILINGS.empty_intent_org)).expect("u32 fits usize") { return Err(Problem { path: Path::EmptyIntentOrg, reason: skein_codec::Reason::Bound }); }
+        if self.repository.len() > usize::try_from(limits.empty_intent_repository.min(CEILINGS.empty_intent_repository)).expect("u32 fits usize") { return Err(Problem { path: Path::EmptyIntentRepository, reason: skein_codec::Reason::Bound }); }
+        if self.label.len() > usize::try_from(limits.empty_intent_label.min(CEILINGS.empty_intent_label)).expect("u32 fits usize") { return Err(Problem { path: Path::EmptyIntentLabel, reason: skein_codec::Reason::Bound }); }
+        Ok(())
+    }
+}
+
+/// Movable fields of `CopyIntent`.
+#[derive(Clone, Debug, PartialEq, Eq, Hash)]
+pub struct CopyIntentParts {
+    /// The `addresses` field.
+    pub addresses: List<Box<[u8]>>,
+}
+
+/// `CopyIntent` in this codec family.
+#[derive(Clone, Debug, PartialEq, Eq, Hash)]
+pub struct CopyIntent {
+    addresses: List<Box<[u8]>>,
+}
+
+impl CopyIntent {
+    /// Makes a value within the given limits.
+    pub fn new(limits: &Limits, parts: CopyIntentParts) -> Result<Self, Problem> {
+        let CopyIntentParts { addresses } = parts;
+        let value = Self { addresses };
+        value.check(limits)?;
+        Ok(value)
+    }
+
+    /// Reads the `addresses` field.
+    #[must_use]
+    pub fn addresses(&self) -> &List<Box<[u8]>> { &self.addresses }
+
+    /// Moves the fields out without copying.
+    #[must_use]
+    pub fn into_parts(self) -> CopyIntentParts { CopyIntentParts { addresses: self.addresses } }
+
+    fn check(&self, limits: &Limits) -> Result<(), Problem> {
+        if self.addresses.capacity() > limits.copy_intent_addresses.min(CEILINGS.copy_intent_addresses) { return Err(Problem { path: Path::CopyIntentAddresses, reason: skein_codec::Reason::Bound }); }
+        for item_0 in self.addresses.as_slice() {
+        if item_0.len() > usize::try_from(limits.copy_intent_addresses_item.min(CEILINGS.copy_intent_addresses_item)).expect("u32 fits usize") { return Err(Problem { path: Path::CopyIntentAddresses, reason: skein_codec::Reason::Bound }); }
+        }
+        Ok(())
+    }
+}
+
+/// `FirstIntent` in this codec family.
+#[derive(Clone, Debug, PartialEq, Eq, Hash)]
+pub enum FirstIntent {
+    /// `empty` carrying `EmptyIntent`.
+    Empty(EmptyIntent),
+    /// `copies` carrying `CopyIntent`.
+    Copies(CopyIntent),
+    /// `nothing` without a payload.
+    Nothing,
+}
+
+impl FirstIntent {
+    /// Checks the payload against the given limits.
+    pub fn new(limits: &Limits, value: Self) -> Result<Self, Problem> {
+        value.check(limits)?;
+        Ok(value)
+    }
+
+    fn check(&self, limits: &Limits) -> Result<(), Problem> {
+        match self {
+            Self::Empty(record) => EmptyIntent::check(record, limits),
+            Self::Copies(record) => CopyIntent::check(record, limits),
+            Self::Nothing => Ok(()),
+        }?;
         Ok(())
     }
 }
@@ -27329,7 +27408,7 @@ impl Bot {
     }
 }
 
-impl FirstIntent {
+impl EmptyIntent {
     /// Measures this record's wire encoding.
     #[must_use]
     pub fn measure(&self) -> u32 {
@@ -27366,16 +27445,94 @@ impl FirstIntent {
     /// Reads a whole record and refuses trailing bytes.
     pub fn decode(limits: &Limits, reader: &mut skein_lib::Reader<'_>) -> Result<Self, Problem> {
         let value = Self::decode_from(limits, reader)?;
-        if !reader.is_empty() { return Err(Problem { path: Path::FirstIntentTail, reason: skein_codec::Reason::Trailing }); }
+        if !reader.is_empty() { return Err(Problem { path: Path::EmptyIntentTail, reason: skein_codec::Reason::Trailing }); }
         Ok(value)
     }
 
     fn decode_from(limits: &Limits, reader: &mut skein_lib::Reader<'_>) -> Result<Self, Problem> {
-        let decoded_playground = match reader.u8().ok_or(Problem { path: Path::FirstIntentPlayground, reason: skein_codec::Reason::Short })? { 0 => false, 1 => true, _ => return Err(Problem { path: Path::FirstIntentPlayground, reason: skein_codec::Reason::Bool }) };
-        let decoded_org = { let length = match skein_codec::read_len(reader, limits.first_intent_org.min(CEILINGS.first_intent_org)) { Ok(length) => length, Err(reason) => return Err(Problem { path: Path::FirstIntentOrg, reason }), }; Box::from(reader.bytes(length).ok_or(Problem { path: Path::FirstIntentOrg, reason: skein_codec::Reason::Short })?) };
-        let decoded_repository = { let length = match skein_codec::read_len(reader, limits.first_intent_repository.min(CEILINGS.first_intent_repository)) { Ok(length) => length, Err(reason) => return Err(Problem { path: Path::FirstIntentRepository, reason }), }; Box::from(reader.bytes(length).ok_or(Problem { path: Path::FirstIntentRepository, reason: skein_codec::Reason::Short })?) };
-        let decoded_label = { let length = match skein_codec::read_len(reader, limits.first_intent_label.min(CEILINGS.first_intent_label)) { Ok(length) => length, Err(reason) => return Err(Problem { path: Path::FirstIntentLabel, reason }), }; Box::from(reader.bytes(length).ok_or(Problem { path: Path::FirstIntentLabel, reason: skein_codec::Reason::Short })?) };
+        let decoded_playground = match reader.u8().ok_or(Problem { path: Path::EmptyIntentPlayground, reason: skein_codec::Reason::Short })? { 0 => false, 1 => true, _ => return Err(Problem { path: Path::EmptyIntentPlayground, reason: skein_codec::Reason::Bool }) };
+        let decoded_org = { let length = match skein_codec::read_len(reader, limits.empty_intent_org.min(CEILINGS.empty_intent_org)) { Ok(length) => length, Err(reason) => return Err(Problem { path: Path::EmptyIntentOrg, reason }), }; Box::from(reader.bytes(length).ok_or(Problem { path: Path::EmptyIntentOrg, reason: skein_codec::Reason::Short })?) };
+        let decoded_repository = { let length = match skein_codec::read_len(reader, limits.empty_intent_repository.min(CEILINGS.empty_intent_repository)) { Ok(length) => length, Err(reason) => return Err(Problem { path: Path::EmptyIntentRepository, reason }), }; Box::from(reader.bytes(length).ok_or(Problem { path: Path::EmptyIntentRepository, reason: skein_codec::Reason::Short })?) };
+        let decoded_label = { let length = match skein_codec::read_len(reader, limits.empty_intent_label.min(CEILINGS.empty_intent_label)) { Ok(length) => length, Err(reason) => return Err(Problem { path: Path::EmptyIntentLabel, reason }), }; Box::from(reader.bytes(length).ok_or(Problem { path: Path::EmptyIntentLabel, reason: skein_codec::Reason::Short })?) };
         Ok(Self { playground: decoded_playground, org: decoded_org, repository: decoded_repository, label: decoded_label })
+    }
+}
+
+impl CopyIntent {
+    /// Measures this record's wire encoding.
+    #[must_use]
+    pub fn measure(&self) -> u32 {
+        let mut size = 0_u32;
+        let field_addresses = &self.addresses;
+        size = size.checked_add(4).expect("schema ceilings fit u32");
+        for item_0 in field_addresses.as_slice() {
+        size = size.checked_add(4).expect("schema ceilings fit u32");
+        size = size.checked_add(u32::try_from(item_0.len()).expect("field ceiling fits u32")).expect("schema ceilings fit u32");
+        }
+        size
+    }
+
+    /// Writes into a writer with room for the measured bytes.
+    pub fn encode(&self, writer: &mut skein_lib::Writer) -> Result<(), skein_lib::Overflow> {
+        let field_addresses = &self.addresses;
+        writer.put(&field_addresses.len().to_be_bytes())?;
+        for item_0 in field_addresses.as_slice() {
+        writer.put(&u32::try_from(item_0.len()).expect("field ceiling fits u32").to_be_bytes())?;
+        writer.put(item_0.as_ref())?;
+        }
+        Ok(())
+    }
+
+    /// Reads a whole record and refuses trailing bytes.
+    pub fn decode(limits: &Limits, reader: &mut skein_lib::Reader<'_>) -> Result<Self, Problem> {
+        let value = Self::decode_from(limits, reader)?;
+        if !reader.is_empty() { return Err(Problem { path: Path::CopyIntentTail, reason: skein_codec::Reason::Trailing }); }
+        Ok(value)
+    }
+
+    fn decode_from(limits: &Limits, reader: &mut skein_lib::Reader<'_>) -> Result<Self, Problem> {
+        let decoded_addresses = { let count = match skein_codec::read_count(reader, limits.copy_intent_addresses.min(CEILINGS.copy_intent_addresses)) { Ok(count) => count, Err(reason) => return Err(Problem { path: Path::CopyIntentAddresses, reason }), }; if count > reader.remaining() / 4 { return Err(Problem { path: Path::CopyIntentAddresses, reason: skein_codec::Reason::Short }); } let mut items_0 = List::with_capacity(count); for _index in 0_u32..count { let item = { let length = match skein_codec::read_len(reader, limits.copy_intent_addresses_item.min(CEILINGS.copy_intent_addresses_item)) { Ok(length) => length, Err(reason) => return Err(Problem { path: Path::CopyIntentAddresses, reason }), }; Box::from(reader.bytes(length).ok_or(Problem { path: Path::CopyIntentAddresses, reason: skein_codec::Reason::Short })?) }; items_0.push(item).expect("count within capacity"); } items_0 };
+        Ok(Self { addresses: decoded_addresses })
+    }
+}
+
+impl FirstIntent {
+    /// Measures this variant's wire encoding.
+    #[must_use]
+    pub fn measure(&self) -> u32 {
+        match self {
+            Self::Empty(record) => 1_u32.checked_add(EmptyIntent::measure(record)).expect("schema ceilings fit u32"),
+            Self::Copies(record) => 1_u32.checked_add(CopyIntent::measure(record)).expect("schema ceilings fit u32"),
+            Self::Nothing => 1,
+        }
+    }
+
+    /// Writes this variant's tag and payload.
+    pub fn encode(&self, writer: &mut skein_lib::Writer) -> Result<(), skein_lib::Overflow> {
+        match self {
+            Self::Empty(record) => { writer.put(&[0_u8])?; record.encode(writer)?; }
+            Self::Copies(record) => { writer.put(&[1_u8])?; record.encode(writer)?; }
+            Self::Nothing => writer.put(&[2_u8])?,
+        }
+        Ok(())
+    }
+
+    /// Reads a whole variant and refuses trailing bytes.
+    pub fn decode(limits: &Limits, reader: &mut skein_lib::Reader<'_>) -> Result<Self, Problem> {
+        let value = Self::decode_from(limits, reader)?;
+        if !reader.is_empty() { return Err(Problem { path: Path::FirstIntentTag, reason: skein_codec::Reason::Trailing }); }
+        Ok(value)
+    }
+
+    fn decode_from(limits: &Limits, reader: &mut skein_lib::Reader<'_>) -> Result<Self, Problem> {
+        let tag = reader.u8().ok_or(Problem { path: Path::FirstIntentTag, reason: skein_codec::Reason::Short })?;
+        let value = match tag {
+            0 => Self::Empty(EmptyIntent::decode_from(limits, reader)?),
+            1 => Self::Copies(CopyIntent::decode_from(limits, reader)?),
+            2 => Self::Nothing,
+            _ => return Err(Problem { path: Path::FirstIntentTag, reason: skein_codec::Reason::Tag }),
+        };
+        Ok(value)
     }
 }
 
@@ -36233,7 +36390,7 @@ impl Bot {
     }
 }
 
-impl FirstIntent {
+impl EmptyIntent {
     /// Maximum encoded bytes under these limits.
     #[must_use]
     pub fn encoded_bound(limits: &Limits) -> Option<u64> {
@@ -36243,8 +36400,8 @@ impl FirstIntent {
 
     pub(crate) fn encoded_bound_within(limits: &Limits) -> Option<u64> {
         let mut size = 0_u64;
-        size = size.checked_add(1_u64)?.checked_add(4_u64.checked_add(u64::from(limits.first_intent_org))?)?;
-        size = size.checked_add(4_u64.checked_add(u64::from(limits.first_intent_repository))?)?.checked_add(4_u64.checked_add(u64::from(limits.first_intent_label))?)?;
+        size = size.checked_add(1_u64)?.checked_add(4_u64.checked_add(u64::from(limits.empty_intent_org))?)?;
+        size = size.checked_add(4_u64.checked_add(u64::from(limits.empty_intent_repository))?)?.checked_add(4_u64.checked_add(u64::from(limits.empty_intent_label))?)?;
         size.checked_add(0)
     }
 
@@ -36257,9 +36414,65 @@ impl FirstIntent {
 
     pub(crate) fn decoded_bound_within(limits: &Limits) -> Option<u64> {
         let mut heap = 0_u64;
-        heap = heap.checked_add(0_u64)?.checked_add(u64::from(limits.first_intent_org))?;
-        heap = heap.checked_add(u64::from(limits.first_intent_repository))?.checked_add(u64::from(limits.first_intent_label))?;
+        heap = heap.checked_add(0_u64)?.checked_add(u64::from(limits.empty_intent_org))?;
+        heap = heap.checked_add(u64::from(limits.empty_intent_repository))?.checked_add(u64::from(limits.empty_intent_label))?;
         heap.checked_add(0)
+    }
+}
+
+impl CopyIntent {
+    /// Maximum encoded bytes under these limits.
+    #[must_use]
+    pub fn encoded_bound(limits: &Limits) -> Option<u64> {
+        if check_limits(limits).is_err() { return None; }
+        Self::encoded_bound_within(limits)
+    }
+
+    pub(crate) fn encoded_bound_within(limits: &Limits) -> Option<u64> {
+        let mut size = 0_u64;
+        size = size.checked_add(4_u64.checked_add(u64::from(limits.copy_intent_addresses).checked_mul(4_u64.checked_add(u64::from(limits.copy_intent_addresses_item))?)?)?)?;
+        size.checked_add(0)
+    }
+
+    /// Maximum heap held by one decoded value under these limits.
+    #[must_use]
+    pub fn decoded_bound(limits: &Limits) -> Option<u64> {
+        if check_limits(limits).is_err() { return None; }
+        Self::decoded_bound_within(limits)
+    }
+
+    pub(crate) fn decoded_bound_within(limits: &Limits) -> Option<u64> {
+        let mut heap = 0_u64;
+        heap = heap.checked_add(List::<Box<[u8]>>::price(limits.copy_intent_addresses)?.checked_add(u64::from(limits.copy_intent_addresses).checked_mul(u64::from(limits.copy_intent_addresses_item))?)?)?;
+        heap.checked_add(0)
+    }
+}
+
+impl FirstIntent {
+    /// Maximum encoded bytes among variants.
+    #[must_use]
+    pub fn encoded_bound(limits: &Limits) -> Option<u64> {
+        if check_limits(limits).is_err() { return None; }
+        Self::encoded_bound_within(limits)
+    }
+
+    pub(crate) fn encoded_bound_within(limits: &Limits) -> Option<u64> {
+        let mut biggest = 0_u64;
+        biggest = biggest.max(EmptyIntent::encoded_bound_within(limits)?).max(CopyIntent::encoded_bound_within(limits)?);
+        1_u64.checked_add(biggest)
+    }
+
+    /// Maximum heap held by any decoded variant.
+    #[must_use]
+    pub fn decoded_bound(limits: &Limits) -> Option<u64> {
+        if check_limits(limits).is_err() { return None; }
+        Self::decoded_bound_within(limits)
+    }
+
+    pub(crate) fn decoded_bound_within(limits: &Limits) -> Option<u64> {
+        let mut biggest = 0_u64;
+        biggest = biggest.max(EmptyIntent::decoded_bound_within(limits)?).max(CopyIntent::decoded_bound_within(limits)?);
+        biggest.checked_add(0)
     }
 }
 
@@ -37352,6 +37565,8 @@ fn encoded_bound_2(limits: &Limits, mut biggest: u64) -> Option<u64> {
     biggest = biggest.max(Address::encoded_bound_within(limits)?);
     biggest = biggest.max(Place::encoded_bound_within(limits)?);
     biggest = biggest.max(Bot::encoded_bound_within(limits)?);
+    biggest = biggest.max(EmptyIntent::encoded_bound_within(limits)?);
+    biggest = biggest.max(CopyIntent::encoded_bound_within(limits)?);
     biggest = biggest.max(FirstIntent::encoded_bound_within(limits)?);
     biggest = biggest.max(EndedForge::encoded_bound_within(limits)?);
     biggest = biggest.max(ForgeState::encoded_bound_within(limits)?);
@@ -37360,12 +37575,12 @@ fn encoded_bound_2(limits: &Limits, mut biggest: u64) -> Option<u64> {
     biggest = biggest.max(ResetStep::encoded_bound_within(limits)?);
     biggest = biggest.max(Resetting::encoded_bound_within(limits)?);
     biggest = biggest.max(PlaygroundState::encoded_bound_within(limits)?);
-    biggest = biggest.max(Playground::encoded_bound_within(limits)?);
-    biggest = biggest.max(PatternLast::encoded_bound_within(limits)?);
     Some(biggest)
 }
 
 fn encoded_bound_3(limits: &Limits, mut biggest: u64) -> Option<u64> {
+    biggest = biggest.max(Playground::encoded_bound_within(limits)?);
+    biggest = biggest.max(PatternLast::encoded_bound_within(limits)?);
     biggest = biggest.max(RulePattern::encoded_bound_within(limits)?);
     biggest = biggest.max(RuleGate::encoded_bound_within(limits)?);
     biggest = biggest.max(RuleApproval::encoded_bound_within(limits)?);
@@ -37668,6 +37883,8 @@ fn decoded_bound_2(limits: &Limits, mut biggest: u64) -> Option<u64> {
     biggest = biggest.max(Address::decoded_bound_within(limits)?);
     biggest = biggest.max(Place::decoded_bound_within(limits)?);
     biggest = biggest.max(Bot::decoded_bound_within(limits)?);
+    biggest = biggest.max(EmptyIntent::decoded_bound_within(limits)?);
+    biggest = biggest.max(CopyIntent::decoded_bound_within(limits)?);
     biggest = biggest.max(FirstIntent::decoded_bound_within(limits)?);
     biggest = biggest.max(EndedForge::decoded_bound_within(limits)?);
     biggest = biggest.max(ForgeState::decoded_bound_within(limits)?);
@@ -37676,12 +37893,12 @@ fn decoded_bound_2(limits: &Limits, mut biggest: u64) -> Option<u64> {
     biggest = biggest.max(ResetStep::decoded_bound_within(limits)?);
     biggest = biggest.max(Resetting::decoded_bound_within(limits)?);
     biggest = biggest.max(PlaygroundState::decoded_bound_within(limits)?);
-    biggest = biggest.max(Playground::decoded_bound_within(limits)?);
-    biggest = biggest.max(PatternLast::decoded_bound_within(limits)?);
     Some(biggest)
 }
 
 fn decoded_bound_3(limits: &Limits, mut biggest: u64) -> Option<u64> {
+    biggest = biggest.max(Playground::decoded_bound_within(limits)?);
+    biggest = biggest.max(PatternLast::decoded_bound_within(limits)?);
     biggest = biggest.max(RulePattern::decoded_bound_within(limits)?);
     biggest = biggest.max(RuleGate::decoded_bound_within(limits)?);
     biggest = biggest.max(RuleApproval::decoded_bound_within(limits)?);
@@ -37705,7 +37922,7 @@ fn decoded_bound_3(limits: &Limits, mut biggest: u64) -> Option<u64> {
 
 #[cfg(test)]
 mod golden_tests {
-    use super::{CEILINGS, Repository, RepositoryParts, Number, NumberParts, Commit, CommitParts, Segment, SegmentParts, AnswerName, AnswerNameParts, Segments, SegmentsParts, What, Name, NameParts, ItemState, Ci, Bypass, Protection, ProtectionParts, Settings, SettingsParts, Role, Kinds, KindsParts, RepositoryProtection, Adopted, AdoptedParts, RunWriter, RunWriterParts, Writer, BranchDrift, BranchDriftParts, Retargeted, RetargetedParts, DriftChange, Drift, DriftParts, Hold, HoldParts, Names, NamesParts, LandingsTopic, LandingsTopicParts, CiTopic, CiTopicParts, NumberTopic, NumberTopicParts, Topic, Subscriber, SubscriberParts, BranchHead, BranchHeadParts, PullState, PullStateParts, CiState, CiStateParts, Landed, LandedParts, ReleaseEnding, PendingRelease, PendingReleaseParts, ReleaseRow, ReleaseRowParts, Verdict, Check, CreateIssue, CreateIssueParts, OpenPull, OpenPullParts, Post, PostParts, PostReview, PostReviewParts, Edit, EditParts, SetReviewers, SetReviewersParts, JobAttempt, JobAttemptParts, MergeHow, UpdateStyle, MergeWrite, MergeWriteParts, UpdateWrite, UpdateWriteParts, DispatchInput, DispatchInputParts, DispatchWrite, DispatchWriteParts, SetStatus, SetStatusParts, CreateBranch, CreateBranchParts, DeleteBranch, DeleteBranchParts, Write, MergeCondition, MergeConditionParts, UpdateCondition, UpdateConditionParts, Condition, Effect, EffectParts, Position, PositionParts, Attempt, AttemptParts, Entry, EntryParts, EntryRow, EntryRowParts, ProposedEffect, ProposedEffectParts, RateLimited, RateLimitedParts, Error, ErrorValue, ErrorValueParts, Made, OutcomeMade, OutcomeMadeParts, OutcomeRaced, OutcomeRacedParts, Outcome, Permission, BranchCreation, Pull, PullParts, Step, StepParts, JobAnswer, JobAnswerParts, FileAnswer, FileAnswerParts, DirectoryKind, DirectoryEntry, DirectoryEntryParts, DirectoryAnswer, DirectoryAnswerParts, BranchesAnswer, BranchesAnswerParts, ProtectionAnswer, ProtectionAnswerParts, PermissionValue, PermissionValueParts, BranchCreationValue, BranchCreationValueParts, Kind, Provenance, Summary, SummaryParts, Comment, CommentParts, Review, ReviewParts, ItemsAnswer, ItemsAnswerParts, ItemAnswer, ItemAnswerParts, ReviewsAnswer, ReviewsAnswerParts, Status, StatusParts, Remark, RemarkParts, File, FileParts, Collaborator, CollaboratorParts, StatusesAnswer, StatusesAnswerParts, RemarksAnswer, RemarksAnswerParts, PullFilesAnswer, PullFilesAnswerParts, CompareAnswer, CompareAnswerParts, ChecksAnswer, ChecksAnswerParts, CollaboratorsAnswer, CollaboratorsAnswerParts, Located, LocatedParts, Answer, AnswerValue, AnswerValueParts, ReadResult, CallRead, CallReadParts, CallEffect, CallEffectParts, CallPayload, NamedCall, NamedCallParts, Call, CallParts, LiveBranch, LiveBranchParts, LiveWhat, LiveResource, LiveResourceParts, Watch, WatchParts, Delivery, DeliveryParts, Echo, Cached, CachedParts, LiveRecord, LiveRecordParts, RepositoryRecord, RepositoryRecordParts, ClientValue, ClientRow, ClientRowParts, ChangeStatus, Freshness, GateKind, AuthorityLack, AuthorityHold, AuthorityHoldParts, ChangeHold, EffectResult, LandingRepair, LandingRepairParts, Repair, RepairValue, RepairValueParts, DelegateGate, DelegateGateParts, MergeDelegate, MergeDelegateParts, Delegate, DelegateRef, DelegateRefParts, Producing, ProducingParts, ChangeHead, ChangeHeadParts, Reopening, ReopeningParts, Gating, GatingParts, ReadyHead, ReadyHeadParts, Updating, UpdatingParts, Resolving, ResolvingParts, Repairing, RepairingParts, MergeChange, MergeChangeParts, LandedChange, LandedChangeParts, NoChange, NoChangeParts, Preparing, PreparingParts, ChangeLive, ChangeState, ChangeStateParts, Gate, GateParts, GateReport, GateReportParts, GateFailure, GateFailureParts, GateRemark, GateRemarkParts, Way, StartedFrom, StartedFromParts, EarlyHeads, EarlyHeadsParts, Early, Change, ChangeParts, ChangeCi, ChangeCiParts, EffectAccount, EffectAccountParts, ResultText, ResultTextParts, ChangeResult, ChangeResultParts, ModelEffort, ModelEffortParts, LlmChoice, LlmChoiceParts, Route, Foreman, ForemanParts, Held, HeldParts, Stands, Open, OpenParts, Questions, QuestionsParts, ChangeRow, ChangeRowParts, Phase, PlanItem, PlanItemParts, Lifecycle, LifecycleParts, TaskRevision, TaskRevisionParts, MilestoneKey, Milestone, MilestoneParts, GoalView, GoalViewParts, Projected, ProjectedParts, IssueRow, IssueRowParts, ApplicationAdopted, ApplicationAdoptedParts, CoreRefused, CoreRefusedParts, ForgeReason, ForgeRefused, ForgeRefusedParts, MakingKey, MakingKeyParts, CopyFrom, CopyFromParts, MakeFrom, MakeInto, MakeIntoParts, MakeStep, MakeStatus, MakeStatusParts, MakeFailure, MakingFailed, MakingFailedParts, MakingMade, MakingMadeParts, MakingState, RepositoryMaking, RepositoryMakingParts, MakeRefusal, MakeRefused, MakeRefusedParts, ApplicationOutcome, Application, ApplicationParts, ForgeWriter, ForgeWriterParts, Binding, BindingParts, Flight, FlightParts, LandingAt, LandingAtParts, LandingPlace, LandingFaults, LandingFaultsParts, LandingPhase, LandingPhaseParts, GateKey, GateKeyParts, DispatchedKey, DispatchedKeyParts, GateProofState, GatePosted, GateProof, GateProofParts, LandingMember, LandingMemberParts, LandingState, LandingStateParts, LandingPrepare, LandingPrepareParts, LandingRepairAsk, LandingRepairAskParts, LandingAsk, LandingAskSlot, LandingAskSlotParts, LandingOperation, LandingEntry, LandingEntryParts, LandingRow, LandingRowParts, ReceiptName, ReceiptNameParts, ReceiptCheck, ReceiptKey, ReceiptKeyParts, ReceiptRun, ReceiptRunParts, FailingTest, FailingTestParts, FailedTests, FailedTestsParts, Failures, BlamedFailures, BlamedFailuresParts, Blame, TierVerdict, TierVerdictParts, TierRepair, TierRepairParts, TierVerification, TierVerificationParts, Verification, VerificationParts, TierJudged, TierJudgedParts, TierFlake, TierFlakeParts, TierLanding, TierLandingParts, TierTests, TierTestsParts, TierSelection, TierFinding, TierFindingParts, TierProbe, TierProbeParts, TierPart, TierRun, TierRunParts, TierRecord, TierRecordParts, TierPending, TierPendingParts, TierBranchEntry, TierBranchEntryParts, TierBranch, TierFault, TierProbeBranch, TierProbeBranchParts, TierFlight, TierFlightParts, Receipt, ReceiptParts, TierGoal, TierGoalParts, TierRow, TierRowParts, ReceiptRow, ReceiptRowParts, ForgeKind, ForgeMode, Address, AddressParts, Place, PlaceParts, Bot, BotParts, FirstIntent, FirstIntentParts, EndedForge, EndedForgeParts, ForgeState, Forge, ForgeParts, ForgeNumber, ForgeNumberParts, ResetStep, Resetting, ResettingParts, PlaygroundState, Playground, PlaygroundParts, PatternLast, RulePattern, RulePatternParts, RuleGate, RuleGateParts, RuleApproval, RuleApprovalParts, LandingRule, LandingRuleParts, CharterValue, CharterValueParts, SettingValue, SizedValue, SizedValueParts, SettingEdit, SettingSlot, SettingRow, SettingRowParts, ToBegin, ToBeginParts, Dismissal, Dismissed, DismissedParts, LoggedChange, LoggedChangeParts, LoggedLanding, LoggedLandingParts, LandingLog, LandingLogParts, Value, Row, RowParts, Path};
+    use super::{CEILINGS, Repository, RepositoryParts, Number, NumberParts, Commit, CommitParts, Segment, SegmentParts, AnswerName, AnswerNameParts, Segments, SegmentsParts, What, Name, NameParts, ItemState, Ci, Bypass, Protection, ProtectionParts, Settings, SettingsParts, Role, Kinds, KindsParts, RepositoryProtection, Adopted, AdoptedParts, RunWriter, RunWriterParts, Writer, BranchDrift, BranchDriftParts, Retargeted, RetargetedParts, DriftChange, Drift, DriftParts, Hold, HoldParts, Names, NamesParts, LandingsTopic, LandingsTopicParts, CiTopic, CiTopicParts, NumberTopic, NumberTopicParts, Topic, Subscriber, SubscriberParts, BranchHead, BranchHeadParts, PullState, PullStateParts, CiState, CiStateParts, Landed, LandedParts, ReleaseEnding, PendingRelease, PendingReleaseParts, ReleaseRow, ReleaseRowParts, Verdict, Check, CreateIssue, CreateIssueParts, OpenPull, OpenPullParts, Post, PostParts, PostReview, PostReviewParts, Edit, EditParts, SetReviewers, SetReviewersParts, JobAttempt, JobAttemptParts, MergeHow, UpdateStyle, MergeWrite, MergeWriteParts, UpdateWrite, UpdateWriteParts, DispatchInput, DispatchInputParts, DispatchWrite, DispatchWriteParts, SetStatus, SetStatusParts, CreateBranch, CreateBranchParts, DeleteBranch, DeleteBranchParts, Write, MergeCondition, MergeConditionParts, UpdateCondition, UpdateConditionParts, Condition, Effect, EffectParts, Position, PositionParts, Attempt, AttemptParts, Entry, EntryParts, EntryRow, EntryRowParts, ProposedEffect, ProposedEffectParts, RateLimited, RateLimitedParts, Error, ErrorValue, ErrorValueParts, Made, OutcomeMade, OutcomeMadeParts, OutcomeRaced, OutcomeRacedParts, Outcome, Permission, BranchCreation, Pull, PullParts, Step, StepParts, JobAnswer, JobAnswerParts, FileAnswer, FileAnswerParts, DirectoryKind, DirectoryEntry, DirectoryEntryParts, DirectoryAnswer, DirectoryAnswerParts, BranchesAnswer, BranchesAnswerParts, ProtectionAnswer, ProtectionAnswerParts, PermissionValue, PermissionValueParts, BranchCreationValue, BranchCreationValueParts, Kind, Provenance, Summary, SummaryParts, Comment, CommentParts, Review, ReviewParts, ItemsAnswer, ItemsAnswerParts, ItemAnswer, ItemAnswerParts, ReviewsAnswer, ReviewsAnswerParts, Status, StatusParts, Remark, RemarkParts, File, FileParts, Collaborator, CollaboratorParts, StatusesAnswer, StatusesAnswerParts, RemarksAnswer, RemarksAnswerParts, PullFilesAnswer, PullFilesAnswerParts, CompareAnswer, CompareAnswerParts, ChecksAnswer, ChecksAnswerParts, CollaboratorsAnswer, CollaboratorsAnswerParts, Located, LocatedParts, Answer, AnswerValue, AnswerValueParts, ReadResult, CallRead, CallReadParts, CallEffect, CallEffectParts, CallPayload, NamedCall, NamedCallParts, Call, CallParts, LiveBranch, LiveBranchParts, LiveWhat, LiveResource, LiveResourceParts, Watch, WatchParts, Delivery, DeliveryParts, Echo, Cached, CachedParts, LiveRecord, LiveRecordParts, RepositoryRecord, RepositoryRecordParts, ClientValue, ClientRow, ClientRowParts, ChangeStatus, Freshness, GateKind, AuthorityLack, AuthorityHold, AuthorityHoldParts, ChangeHold, EffectResult, LandingRepair, LandingRepairParts, Repair, RepairValue, RepairValueParts, DelegateGate, DelegateGateParts, MergeDelegate, MergeDelegateParts, Delegate, DelegateRef, DelegateRefParts, Producing, ProducingParts, ChangeHead, ChangeHeadParts, Reopening, ReopeningParts, Gating, GatingParts, ReadyHead, ReadyHeadParts, Updating, UpdatingParts, Resolving, ResolvingParts, Repairing, RepairingParts, MergeChange, MergeChangeParts, LandedChange, LandedChangeParts, NoChange, NoChangeParts, Preparing, PreparingParts, ChangeLive, ChangeState, ChangeStateParts, Gate, GateParts, GateReport, GateReportParts, GateFailure, GateFailureParts, GateRemark, GateRemarkParts, Way, StartedFrom, StartedFromParts, EarlyHeads, EarlyHeadsParts, Early, Change, ChangeParts, ChangeCi, ChangeCiParts, EffectAccount, EffectAccountParts, ResultText, ResultTextParts, ChangeResult, ChangeResultParts, ModelEffort, ModelEffortParts, LlmChoice, LlmChoiceParts, Route, Foreman, ForemanParts, Held, HeldParts, Stands, Open, OpenParts, Questions, QuestionsParts, ChangeRow, ChangeRowParts, Phase, PlanItem, PlanItemParts, Lifecycle, LifecycleParts, TaskRevision, TaskRevisionParts, MilestoneKey, Milestone, MilestoneParts, GoalView, GoalViewParts, Projected, ProjectedParts, IssueRow, IssueRowParts, ApplicationAdopted, ApplicationAdoptedParts, CoreRefused, CoreRefusedParts, ForgeReason, ForgeRefused, ForgeRefusedParts, MakingKey, MakingKeyParts, CopyFrom, CopyFromParts, MakeFrom, MakeInto, MakeIntoParts, MakeStep, MakeStatus, MakeStatusParts, MakeFailure, MakingFailed, MakingFailedParts, MakingMade, MakingMadeParts, MakingState, RepositoryMaking, RepositoryMakingParts, MakeRefusal, MakeRefused, MakeRefusedParts, ApplicationOutcome, Application, ApplicationParts, ForgeWriter, ForgeWriterParts, Binding, BindingParts, Flight, FlightParts, LandingAt, LandingAtParts, LandingPlace, LandingFaults, LandingFaultsParts, LandingPhase, LandingPhaseParts, GateKey, GateKeyParts, DispatchedKey, DispatchedKeyParts, GateProofState, GatePosted, GateProof, GateProofParts, LandingMember, LandingMemberParts, LandingState, LandingStateParts, LandingPrepare, LandingPrepareParts, LandingRepairAsk, LandingRepairAskParts, LandingAsk, LandingAskSlot, LandingAskSlotParts, LandingOperation, LandingEntry, LandingEntryParts, LandingRow, LandingRowParts, ReceiptName, ReceiptNameParts, ReceiptCheck, ReceiptKey, ReceiptKeyParts, ReceiptRun, ReceiptRunParts, FailingTest, FailingTestParts, FailedTests, FailedTestsParts, Failures, BlamedFailures, BlamedFailuresParts, Blame, TierVerdict, TierVerdictParts, TierRepair, TierRepairParts, TierVerification, TierVerificationParts, Verification, VerificationParts, TierJudged, TierJudgedParts, TierFlake, TierFlakeParts, TierLanding, TierLandingParts, TierTests, TierTestsParts, TierSelection, TierFinding, TierFindingParts, TierProbe, TierProbeParts, TierPart, TierRun, TierRunParts, TierRecord, TierRecordParts, TierPending, TierPendingParts, TierBranchEntry, TierBranchEntryParts, TierBranch, TierFault, TierProbeBranch, TierProbeBranchParts, TierFlight, TierFlightParts, Receipt, ReceiptParts, TierGoal, TierGoalParts, TierRow, TierRowParts, ReceiptRow, ReceiptRowParts, ForgeKind, ForgeMode, Address, AddressParts, Place, PlaceParts, Bot, BotParts, EmptyIntent, EmptyIntentParts, CopyIntent, CopyIntentParts, FirstIntent, EndedForge, EndedForgeParts, ForgeState, Forge, ForgeParts, ForgeNumber, ForgeNumberParts, ResetStep, Resetting, ResettingParts, PlaygroundState, Playground, PlaygroundParts, PatternLast, RulePattern, RulePatternParts, RuleGate, RuleGateParts, RuleApproval, RuleApprovalParts, LandingRule, LandingRuleParts, CharterValue, CharterValueParts, SettingValue, SizedValue, SizedValueParts, SettingEdit, SettingSlot, SettingRow, SettingRowParts, ToBegin, ToBeginParts, Dismissal, Dismissed, DismissedParts, LoggedChange, LoggedChangeParts, LoggedLanding, LoggedLandingParts, LandingLog, LandingLogParts, Value, Row, RowParts, Path};
     use super::Limits;
 
     use alloc::boxed::Box;
@@ -38790,7 +39007,7 @@ mod golden_tests {
         table(&GOLDEN_0);
     }
 
-    static GOLDEN_1: [Case; 150] = [
+    static GOLDEN_1: [Case; 158] = [
         ("enum_forge_mode_managed_smallest", || { let value = ForgeMode::Managed; let bytes: &[u8] = &[1]; let mut writer = skein_lib::Writer::new(usize::try_from(value.measure()).expect("size fits usize")); let encoded = match value.encode(&mut writer) { Ok(()) => Ok(writer.finish()), Err(problem) => Err(problem) }; golden(value, bytes, encoded, ForgeMode::decode(&CEILINGS, &mut skein_lib::Reader::new(bytes))) }),
         ("enum_forge_mode_managed_full", || { let value = ForgeMode::Managed; let bytes: &[u8] = &[1]; let mut writer = skein_lib::Writer::new(usize::try_from(value.measure()).expect("size fits usize")); let encoded = match value.encode(&mut writer) { Ok(()) => Ok(writer.finish()), Err(problem) => Err(problem) }; golden(value, bytes, encoded, ForgeMode::decode(&CEILINGS, &mut skein_lib::Reader::new(bytes))) }),
         ("enum_forge_mode_owned_smallest", || { let value = ForgeMode::Owned; let bytes: &[u8] = &[2]; let mut writer = skein_lib::Writer::new(usize::try_from(value.measure()).expect("size fits usize")); let encoded = match value.encode(&mut writer) { Ok(()) => Ok(writer.finish()), Err(problem) => Err(problem) }; golden(value, bytes, encoded, ForgeMode::decode(&CEILINGS, &mut skein_lib::Reader::new(bytes))) }),
@@ -38803,8 +39020,16 @@ mod golden_tests {
         ("record_place_full", || { let value = Place::new(&CEILINGS, PlaceParts { api: Address::new(&CEILINGS, AddressParts { host: Box::from([0_u8, 127_u8, 255_u8].as_slice()), port: u16::MAX, tls: Some(Box::from([0_u8, 127_u8, 255_u8].as_slice())) }).expect("golden within ceilings"), git: Box::from([0_u8, 127_u8, 255_u8].as_slice()), web: Some(Box::from([0_u8, 127_u8, 255_u8].as_slice())) }).expect("golden within ceilings"); let bytes: &[u8] = &[0, 0, 0, 3, 0, 127, 255, 255, 255, 1, 0, 0, 0, 3, 0, 127, 255, 0, 0, 0, 3, 0, 127, 255, 1, 0, 0, 0, 3, 0, 127, 255]; let mut writer = skein_lib::Writer::new(usize::try_from(value.measure()).expect("size fits usize")); let encoded = match value.encode(&mut writer) { Ok(()) => Ok(writer.finish()), Err(problem) => Err(problem) }; golden(value, bytes, encoded, Place::decode(&CEILINGS, &mut skein_lib::Reader::new(bytes))) }),
         ("record_bot_smallest", || { let value = Bot::new(&CEILINGS, BotParts { login: Box::from([].as_slice()), name: Box::from([].as_slice()), email: Box::from([].as_slice()) }).expect("golden within ceilings"); let bytes: &[u8] = &[0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0]; let mut writer = skein_lib::Writer::new(usize::try_from(value.measure()).expect("size fits usize")); let encoded = match value.encode(&mut writer) { Ok(()) => Ok(writer.finish()), Err(problem) => Err(problem) }; golden(value, bytes, encoded, Bot::decode(&CEILINGS, &mut skein_lib::Reader::new(bytes))) }),
         ("record_bot_full", || { let value = Bot::new(&CEILINGS, BotParts { login: Box::from([0_u8, 127_u8, 255_u8].as_slice()), name: Box::from([0_u8, 127_u8, 255_u8].as_slice()), email: Box::from([0_u8, 127_u8, 255_u8].as_slice()) }).expect("golden within ceilings"); let bytes: &[u8] = &[0, 0, 0, 3, 0, 127, 255, 0, 0, 0, 3, 0, 127, 255, 0, 0, 0, 3, 0, 127, 255]; let mut writer = skein_lib::Writer::new(usize::try_from(value.measure()).expect("size fits usize")); let encoded = match value.encode(&mut writer) { Ok(()) => Ok(writer.finish()), Err(problem) => Err(problem) }; golden(value, bytes, encoded, Bot::decode(&CEILINGS, &mut skein_lib::Reader::new(bytes))) }),
-        ("record_first_intent_smallest", || { let value = FirstIntent::new(&CEILINGS, FirstIntentParts { playground: false, org: Box::from([].as_slice()), repository: Box::from([].as_slice()), label: Box::from([].as_slice()) }).expect("golden within ceilings"); let bytes: &[u8] = &[0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0]; let mut writer = skein_lib::Writer::new(usize::try_from(value.measure()).expect("size fits usize")); let encoded = match value.encode(&mut writer) { Ok(()) => Ok(writer.finish()), Err(problem) => Err(problem) }; golden(value, bytes, encoded, FirstIntent::decode(&CEILINGS, &mut skein_lib::Reader::new(bytes))) }),
-        ("record_first_intent_full", || { let value = FirstIntent::new(&CEILINGS, FirstIntentParts { playground: true, org: Box::from([0_u8, 127_u8, 255_u8].as_slice()), repository: Box::from([0_u8, 127_u8, 255_u8].as_slice()), label: Box::from([0_u8, 127_u8, 255_u8].as_slice()) }).expect("golden within ceilings"); let bytes: &[u8] = &[1, 0, 0, 0, 3, 0, 127, 255, 0, 0, 0, 3, 0, 127, 255, 0, 0, 0, 3, 0, 127, 255]; let mut writer = skein_lib::Writer::new(usize::try_from(value.measure()).expect("size fits usize")); let encoded = match value.encode(&mut writer) { Ok(()) => Ok(writer.finish()), Err(problem) => Err(problem) }; golden(value, bytes, encoded, FirstIntent::decode(&CEILINGS, &mut skein_lib::Reader::new(bytes))) }),
+        ("record_empty_intent_smallest", || { let value = EmptyIntent::new(&CEILINGS, EmptyIntentParts { playground: false, org: Box::from([].as_slice()), repository: Box::from([].as_slice()), label: Box::from([].as_slice()) }).expect("golden within ceilings"); let bytes: &[u8] = &[0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0]; let mut writer = skein_lib::Writer::new(usize::try_from(value.measure()).expect("size fits usize")); let encoded = match value.encode(&mut writer) { Ok(()) => Ok(writer.finish()), Err(problem) => Err(problem) }; golden(value, bytes, encoded, EmptyIntent::decode(&CEILINGS, &mut skein_lib::Reader::new(bytes))) }),
+        ("record_empty_intent_full", || { let value = EmptyIntent::new(&CEILINGS, EmptyIntentParts { playground: true, org: Box::from([0_u8, 127_u8, 255_u8].as_slice()), repository: Box::from([0_u8, 127_u8, 255_u8].as_slice()), label: Box::from([0_u8, 127_u8, 255_u8].as_slice()) }).expect("golden within ceilings"); let bytes: &[u8] = &[1, 0, 0, 0, 3, 0, 127, 255, 0, 0, 0, 3, 0, 127, 255, 0, 0, 0, 3, 0, 127, 255]; let mut writer = skein_lib::Writer::new(usize::try_from(value.measure()).expect("size fits usize")); let encoded = match value.encode(&mut writer) { Ok(()) => Ok(writer.finish()), Err(problem) => Err(problem) }; golden(value, bytes, encoded, EmptyIntent::decode(&CEILINGS, &mut skein_lib::Reader::new(bytes))) }),
+        ("record_copy_intent_smallest", || { let value = CopyIntent::new(&CEILINGS, CopyIntentParts { addresses: skein_lib::List::with_capacity(0) }).expect("golden within ceilings"); let bytes: &[u8] = &[0, 0, 0, 0]; let mut writer = skein_lib::Writer::new(usize::try_from(value.measure()).expect("size fits usize")); let encoded = match value.encode(&mut writer) { Ok(()) => Ok(writer.finish()), Err(problem) => Err(problem) }; golden(value, bytes, encoded, CopyIntent::decode(&CEILINGS, &mut skein_lib::Reader::new(bytes))) }),
+        ("record_copy_intent_full", || { let value = CopyIntent::new(&CEILINGS, CopyIntentParts { addresses: { let mut items = skein_lib::List::with_capacity(1); items.push(Box::from([0_u8, 127_u8, 255_u8].as_slice())).expect("one slot"); items } }).expect("golden within ceilings"); let bytes: &[u8] = &[0, 0, 0, 1, 0, 0, 0, 3, 0, 127, 255]; let mut writer = skein_lib::Writer::new(usize::try_from(value.measure()).expect("size fits usize")); let encoded = match value.encode(&mut writer) { Ok(()) => Ok(writer.finish()), Err(problem) => Err(problem) }; golden(value, bytes, encoded, CopyIntent::decode(&CEILINGS, &mut skein_lib::Reader::new(bytes))) }),
+        ("enum_first_intent_empty_smallest", || { let value = FirstIntent::Empty(EmptyIntent::new(&CEILINGS, EmptyIntentParts { playground: false, org: Box::from([].as_slice()), repository: Box::from([].as_slice()), label: Box::from([].as_slice()) }).expect("golden within ceilings")); let bytes: &[u8] = &[0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0]; let mut writer = skein_lib::Writer::new(usize::try_from(value.measure()).expect("size fits usize")); let encoded = match value.encode(&mut writer) { Ok(()) => Ok(writer.finish()), Err(problem) => Err(problem) }; golden(value, bytes, encoded, FirstIntent::decode(&CEILINGS, &mut skein_lib::Reader::new(bytes))) }),
+        ("enum_first_intent_empty_full", || { let value = FirstIntent::Empty(EmptyIntent::new(&CEILINGS, EmptyIntentParts { playground: true, org: Box::from([0_u8, 127_u8, 255_u8].as_slice()), repository: Box::from([0_u8, 127_u8, 255_u8].as_slice()), label: Box::from([0_u8, 127_u8, 255_u8].as_slice()) }).expect("golden within ceilings")); let bytes: &[u8] = &[0, 1, 0, 0, 0, 3, 0, 127, 255, 0, 0, 0, 3, 0, 127, 255, 0, 0, 0, 3, 0, 127, 255]; let mut writer = skein_lib::Writer::new(usize::try_from(value.measure()).expect("size fits usize")); let encoded = match value.encode(&mut writer) { Ok(()) => Ok(writer.finish()), Err(problem) => Err(problem) }; golden(value, bytes, encoded, FirstIntent::decode(&CEILINGS, &mut skein_lib::Reader::new(bytes))) }),
+        ("enum_first_intent_copies_smallest", || { let value = FirstIntent::Copies(CopyIntent::new(&CEILINGS, CopyIntentParts { addresses: skein_lib::List::with_capacity(0) }).expect("golden within ceilings")); let bytes: &[u8] = &[1, 0, 0, 0, 0]; let mut writer = skein_lib::Writer::new(usize::try_from(value.measure()).expect("size fits usize")); let encoded = match value.encode(&mut writer) { Ok(()) => Ok(writer.finish()), Err(problem) => Err(problem) }; golden(value, bytes, encoded, FirstIntent::decode(&CEILINGS, &mut skein_lib::Reader::new(bytes))) }),
+        ("enum_first_intent_copies_full", || { let value = FirstIntent::Copies(CopyIntent::new(&CEILINGS, CopyIntentParts { addresses: { let mut items = skein_lib::List::with_capacity(1); items.push(Box::from([0_u8, 127_u8, 255_u8].as_slice())).expect("one slot"); items } }).expect("golden within ceilings")); let bytes: &[u8] = &[1, 0, 0, 0, 1, 0, 0, 0, 3, 0, 127, 255]; let mut writer = skein_lib::Writer::new(usize::try_from(value.measure()).expect("size fits usize")); let encoded = match value.encode(&mut writer) { Ok(()) => Ok(writer.finish()), Err(problem) => Err(problem) }; golden(value, bytes, encoded, FirstIntent::decode(&CEILINGS, &mut skein_lib::Reader::new(bytes))) }),
+        ("enum_first_intent_nothing_smallest", || { let value = FirstIntent::Nothing; let bytes: &[u8] = &[2]; let mut writer = skein_lib::Writer::new(usize::try_from(value.measure()).expect("size fits usize")); let encoded = match value.encode(&mut writer) { Ok(()) => Ok(writer.finish()), Err(problem) => Err(problem) }; golden(value, bytes, encoded, FirstIntent::decode(&CEILINGS, &mut skein_lib::Reader::new(bytes))) }),
+        ("enum_first_intent_nothing_full", || { let value = FirstIntent::Nothing; let bytes: &[u8] = &[2]; let mut writer = skein_lib::Writer::new(usize::try_from(value.measure()).expect("size fits usize")); let encoded = match value.encode(&mut writer) { Ok(()) => Ok(writer.finish()), Err(problem) => Err(problem) }; golden(value, bytes, encoded, FirstIntent::decode(&CEILINGS, &mut skein_lib::Reader::new(bytes))) }),
         ("record_ended_forge_smallest", || { let value = EndedForge::new(&CEILINGS, EndedForgeParts { secrets_erased: false, box_removed: false }).expect("golden within ceilings"); let bytes: &[u8] = &[0, 0]; let mut writer = skein_lib::Writer::new(usize::try_from(value.measure()).expect("size fits usize")); let encoded = match value.encode(&mut writer) { Ok(()) => Ok(writer.finish()), Err(problem) => Err(problem) }; golden(value, bytes, encoded, EndedForge::decode(&CEILINGS, &mut skein_lib::Reader::new(bytes))) }),
         ("record_ended_forge_full", || { let value = EndedForge::new(&CEILINGS, EndedForgeParts { secrets_erased: true, box_removed: true }).expect("golden within ceilings"); let bytes: &[u8] = &[1, 1]; let mut writer = skein_lib::Writer::new(usize::try_from(value.measure()).expect("size fits usize")); let encoded = match value.encode(&mut writer) { Ok(()) => Ok(writer.finish()), Err(problem) => Err(problem) }; golden(value, bytes, encoded, EndedForge::decode(&CEILINGS, &mut skein_lib::Reader::new(bytes))) }),
         ("enum_forge_state_kept_smallest", || { let value = ForgeState::Kept; let bytes: &[u8] = &[0]; let mut writer = skein_lib::Writer::new(usize::try_from(value.measure()).expect("size fits usize")); let encoded = match value.encode(&mut writer) { Ok(()) => Ok(writer.finish()), Err(problem) => Err(problem) }; golden(value, bytes, encoded, ForgeState::decode(&CEILINGS, &mut skein_lib::Reader::new(bytes))) }),
@@ -38812,7 +39037,7 @@ mod golden_tests {
         ("enum_forge_state_ended_smallest", || { let value = ForgeState::Ended(EndedForge::new(&CEILINGS, EndedForgeParts { secrets_erased: false, box_removed: false }).expect("golden within ceilings")); let bytes: &[u8] = &[1, 0, 0]; let mut writer = skein_lib::Writer::new(usize::try_from(value.measure()).expect("size fits usize")); let encoded = match value.encode(&mut writer) { Ok(()) => Ok(writer.finish()), Err(problem) => Err(problem) }; golden(value, bytes, encoded, ForgeState::decode(&CEILINGS, &mut skein_lib::Reader::new(bytes))) }),
         ("enum_forge_state_ended_full", || { let value = ForgeState::Ended(EndedForge::new(&CEILINGS, EndedForgeParts { secrets_erased: true, box_removed: true }).expect("golden within ceilings")); let bytes: &[u8] = &[1, 1, 1]; let mut writer = skein_lib::Writer::new(usize::try_from(value.measure()).expect("size fits usize")); let encoded = match value.encode(&mut writer) { Ok(()) => Ok(writer.finish()), Err(problem) => Err(problem) }; golden(value, bytes, encoded, ForgeState::decode(&CEILINGS, &mut skein_lib::Reader::new(bytes))) }),
         ("record_forge_smallest", || { let value = Forge::new(&CEILINGS, ForgeParts { number: 0_u16, kind: ForgeKind::Forgejo, mode: ForgeMode::Connected, state: ForgeState::Kept, place: Place::new(&CEILINGS, PlaceParts { api: Address::new(&CEILINGS, AddressParts { host: Box::from([].as_slice()), port: 0_u16, tls: None }).expect("golden within ceilings"), git: Box::from([].as_slice()), web: None }).expect("golden within ceilings"), git_program: None, read_only: false, bot: Bot::new(&CEILINGS, BotParts { login: Box::from([].as_slice()), name: Box::from([].as_slice()), email: Box::from([].as_slice()) }).expect("golden within ceilings"), asked: false, first: None }).expect("golden within ceilings"); let bytes: &[u8] = &[0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0]; let mut writer = skein_lib::Writer::new(usize::try_from(value.measure()).expect("size fits usize")); let encoded = match value.encode(&mut writer) { Ok(()) => Ok(writer.finish()), Err(problem) => Err(problem) }; golden(value, bytes, encoded, Forge::decode(&CEILINGS, &mut skein_lib::Reader::new(bytes))) }),
-        ("record_forge_full", || { let value = Forge::new(&CEILINGS, ForgeParts { number: u16::MAX, kind: ForgeKind::Forgejo, mode: ForgeMode::Connected, state: ForgeState::Kept, place: Place::new(&CEILINGS, PlaceParts { api: Address::new(&CEILINGS, AddressParts { host: Box::from([0_u8, 127_u8, 255_u8].as_slice()), port: u16::MAX, tls: Some(Box::from([0_u8, 127_u8, 255_u8].as_slice())) }).expect("golden within ceilings"), git: Box::from([0_u8, 127_u8, 255_u8].as_slice()), web: Some(Box::from([0_u8, 127_u8, 255_u8].as_slice())) }).expect("golden within ceilings"), git_program: Some(Box::from([0_u8, 127_u8, 255_u8].as_slice())), read_only: true, bot: Bot::new(&CEILINGS, BotParts { login: Box::from([0_u8, 127_u8, 255_u8].as_slice()), name: Box::from([0_u8, 127_u8, 255_u8].as_slice()), email: Box::from([0_u8, 127_u8, 255_u8].as_slice()) }).expect("golden within ceilings"), asked: true, first: Some(FirstIntent::new(&CEILINGS, FirstIntentParts { playground: true, org: Box::from([0_u8, 127_u8, 255_u8].as_slice()), repository: Box::from([0_u8, 127_u8, 255_u8].as_slice()), label: Box::from([0_u8, 127_u8, 255_u8].as_slice()) }).expect("golden within ceilings")) }).expect("golden within ceilings"); let bytes: &[u8] = &[255, 255, 0, 0, 0, 0, 0, 0, 3, 0, 127, 255, 255, 255, 1, 0, 0, 0, 3, 0, 127, 255, 0, 0, 0, 3, 0, 127, 255, 1, 0, 0, 0, 3, 0, 127, 255, 1, 0, 0, 0, 3, 0, 127, 255, 1, 0, 0, 0, 3, 0, 127, 255, 0, 0, 0, 3, 0, 127, 255, 0, 0, 0, 3, 0, 127, 255, 1, 1, 1, 0, 0, 0, 3, 0, 127, 255, 0, 0, 0, 3, 0, 127, 255, 0, 0, 0, 3, 0, 127, 255]; let mut writer = skein_lib::Writer::new(usize::try_from(value.measure()).expect("size fits usize")); let encoded = match value.encode(&mut writer) { Ok(()) => Ok(writer.finish()), Err(problem) => Err(problem) }; golden(value, bytes, encoded, Forge::decode(&CEILINGS, &mut skein_lib::Reader::new(bytes))) }),
+        ("record_forge_full", || { let value = Forge::new(&CEILINGS, ForgeParts { number: u16::MAX, kind: ForgeKind::Forgejo, mode: ForgeMode::Connected, state: ForgeState::Kept, place: Place::new(&CEILINGS, PlaceParts { api: Address::new(&CEILINGS, AddressParts { host: Box::from([0_u8, 127_u8, 255_u8].as_slice()), port: u16::MAX, tls: Some(Box::from([0_u8, 127_u8, 255_u8].as_slice())) }).expect("golden within ceilings"), git: Box::from([0_u8, 127_u8, 255_u8].as_slice()), web: Some(Box::from([0_u8, 127_u8, 255_u8].as_slice())) }).expect("golden within ceilings"), git_program: Some(Box::from([0_u8, 127_u8, 255_u8].as_slice())), read_only: true, bot: Bot::new(&CEILINGS, BotParts { login: Box::from([0_u8, 127_u8, 255_u8].as_slice()), name: Box::from([0_u8, 127_u8, 255_u8].as_slice()), email: Box::from([0_u8, 127_u8, 255_u8].as_slice()) }).expect("golden within ceilings"), asked: true, first: Some(FirstIntent::Empty(EmptyIntent::new(&CEILINGS, EmptyIntentParts { playground: true, org: Box::from([0_u8, 127_u8, 255_u8].as_slice()), repository: Box::from([0_u8, 127_u8, 255_u8].as_slice()), label: Box::from([0_u8, 127_u8, 255_u8].as_slice()) }).expect("golden within ceilings"))) }).expect("golden within ceilings"); let bytes: &[u8] = &[255, 255, 0, 0, 0, 0, 0, 0, 3, 0, 127, 255, 255, 255, 1, 0, 0, 0, 3, 0, 127, 255, 0, 0, 0, 3, 0, 127, 255, 1, 0, 0, 0, 3, 0, 127, 255, 1, 0, 0, 0, 3, 0, 127, 255, 1, 0, 0, 0, 3, 0, 127, 255, 0, 0, 0, 3, 0, 127, 255, 0, 0, 0, 3, 0, 127, 255, 1, 1, 0, 1, 0, 0, 0, 3, 0, 127, 255, 0, 0, 0, 3, 0, 127, 255, 0, 0, 0, 3, 0, 127, 255]; let mut writer = skein_lib::Writer::new(usize::try_from(value.measure()).expect("size fits usize")); let encoded = match value.encode(&mut writer) { Ok(()) => Ok(writer.finish()), Err(problem) => Err(problem) }; golden(value, bytes, encoded, Forge::decode(&CEILINGS, &mut skein_lib::Reader::new(bytes))) }),
         ("record_forge_number_smallest", || { let value = ForgeNumber::new(&CEILINGS, ForgeNumberParts { last: 0_u16 }).expect("golden within ceilings"); let bytes: &[u8] = &[0, 0]; let mut writer = skein_lib::Writer::new(usize::try_from(value.measure()).expect("size fits usize")); let encoded = match value.encode(&mut writer) { Ok(()) => Ok(writer.finish()), Err(problem) => Err(problem) }; golden(value, bytes, encoded, ForgeNumber::decode(&CEILINGS, &mut skein_lib::Reader::new(bytes))) }),
         ("record_forge_number_full", || { let value = ForgeNumber::new(&CEILINGS, ForgeNumberParts { last: u16::MAX }).expect("golden within ceilings"); let bytes: &[u8] = &[255, 255]; let mut writer = skein_lib::Writer::new(usize::try_from(value.measure()).expect("size fits usize")); let encoded = match value.encode(&mut writer) { Ok(()) => Ok(writer.finish()), Err(problem) => Err(problem) }; golden(value, bytes, encoded, ForgeNumber::decode(&CEILINGS, &mut skein_lib::Reader::new(bytes))) }),
         ("enum_reset_step_project_smallest", || { let value = ResetStep::Project; let bytes: &[u8] = &[0]; let mut writer = skein_lib::Writer::new(usize::try_from(value.measure()).expect("size fits usize")); let encoded = match value.encode(&mut writer) { Ok(()) => Ok(writer.finish()), Err(problem) => Err(problem) }; golden(value, bytes, encoded, ResetStep::decode(&CEILINGS, &mut skein_lib::Reader::new(bytes))) }),
@@ -38922,7 +39147,7 @@ mod golden_tests {
         ("enum_value_receipt_smallest", || { let value = Value::Receipt(ReceiptRow::new(&CEILINGS, ReceiptRowParts { key: ReceiptKey::new(&CEILINGS, ReceiptKeyParts { project: 0_u32, repository: Repository::new(&CEILINGS, RepositoryParts { forge: 0_u16, repository: 0_u32 }).expect("golden within ceilings"), check_name: ReceiptCheck::Gate(ReceiptName::new(&CEILINGS, ReceiptNameParts { name: Box::from([].as_slice()) }).expect("golden within ceilings")), key: [0_u8; 32] }).expect("golden within ceilings"), receipt: Receipt::new(&CEILINGS, ReceiptParts { failures: None, passed: false, run: ReceiptRun::new(&CEILINGS, ReceiptRunParts { id: 0_u64, number: 0_u64, url: Box::from([].as_slice()) }).expect("golden within ceilings"), candidate: [0_u8; 32], ended: 0_u64 }).expect("golden within ceilings") }).expect("golden within ceilings")); let bytes: &[u8] = &[20, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0]; let mut writer = skein_lib::Writer::new(usize::try_from(value.measure()).expect("size fits usize")); let encoded = match value.encode(&mut writer) { Ok(()) => Ok(writer.finish()), Err(problem) => Err(problem) }; golden(value, bytes, encoded, Value::decode(&CEILINGS, &mut skein_lib::Reader::new(bytes))) }),
         ("enum_value_receipt_full", || { let value = Value::Receipt(ReceiptRow::new(&CEILINGS, ReceiptRowParts { key: ReceiptKey::new(&CEILINGS, ReceiptKeyParts { project: u32::MAX, repository: Repository::new(&CEILINGS, RepositoryParts { forge: u16::MAX, repository: u32::MAX }).expect("golden within ceilings"), check_name: ReceiptCheck::Gate(ReceiptName::new(&CEILINGS, ReceiptNameParts { name: Box::from([0_u8, 127_u8, 255_u8].as_slice()) }).expect("golden within ceilings")), key: [165_u8; 32] }).expect("golden within ceilings"), receipt: Receipt::new(&CEILINGS, ReceiptParts { failures: Some(Failures::Tests(FailedTests::new(&CEILINGS, FailedTestsParts { tests: { let mut items = skein_lib::List::with_capacity(1); items.push(FailingTest::new(&CEILINGS, FailingTestParts { test_id: Box::from([0_u8, 127_u8, 255_u8].as_slice()) }).expect("golden within ceilings")).expect("one slot"); items } }).expect("golden within ceilings"))), passed: true, run: ReceiptRun::new(&CEILINGS, ReceiptRunParts { id: u64::MAX, number: u64::MAX, url: Box::from([0_u8, 127_u8, 255_u8].as_slice()) }).expect("golden within ceilings"), candidate: [165_u8; 32], ended: u64::MAX }).expect("golden within ceilings") }).expect("golden within ceilings")); let bytes: &[u8] = &[20, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 0, 0, 0, 0, 3, 0, 127, 255, 165, 165, 165, 165, 165, 165, 165, 165, 165, 165, 165, 165, 165, 165, 165, 165, 165, 165, 165, 165, 165, 165, 165, 165, 165, 165, 165, 165, 165, 165, 165, 165, 1, 0, 0, 0, 0, 1, 0, 0, 0, 3, 0, 127, 255, 1, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 0, 0, 0, 3, 0, 127, 255, 165, 165, 165, 165, 165, 165, 165, 165, 165, 165, 165, 165, 165, 165, 165, 165, 165, 165, 165, 165, 165, 165, 165, 165, 165, 165, 165, 165, 165, 165, 165, 165, 255, 255, 255, 255, 255, 255, 255, 255]; let mut writer = skein_lib::Writer::new(usize::try_from(value.measure()).expect("size fits usize")); let encoded = match value.encode(&mut writer) { Ok(()) => Ok(writer.finish()), Err(problem) => Err(problem) }; golden(value, bytes, encoded, Value::decode(&CEILINGS, &mut skein_lib::Reader::new(bytes))) }),
         ("enum_value_forge_smallest", || { let value = Value::Forge(Forge::new(&CEILINGS, ForgeParts { number: 0_u16, kind: ForgeKind::Forgejo, mode: ForgeMode::Connected, state: ForgeState::Kept, place: Place::new(&CEILINGS, PlaceParts { api: Address::new(&CEILINGS, AddressParts { host: Box::from([].as_slice()), port: 0_u16, tls: None }).expect("golden within ceilings"), git: Box::from([].as_slice()), web: None }).expect("golden within ceilings"), git_program: None, read_only: false, bot: Bot::new(&CEILINGS, BotParts { login: Box::from([].as_slice()), name: Box::from([].as_slice()), email: Box::from([].as_slice()) }).expect("golden within ceilings"), asked: false, first: None }).expect("golden within ceilings")); let bytes: &[u8] = &[21, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0]; let mut writer = skein_lib::Writer::new(usize::try_from(value.measure()).expect("size fits usize")); let encoded = match value.encode(&mut writer) { Ok(()) => Ok(writer.finish()), Err(problem) => Err(problem) }; golden(value, bytes, encoded, Value::decode(&CEILINGS, &mut skein_lib::Reader::new(bytes))) }),
-        ("enum_value_forge_full", || { let value = Value::Forge(Forge::new(&CEILINGS, ForgeParts { number: u16::MAX, kind: ForgeKind::Forgejo, mode: ForgeMode::Connected, state: ForgeState::Kept, place: Place::new(&CEILINGS, PlaceParts { api: Address::new(&CEILINGS, AddressParts { host: Box::from([0_u8, 127_u8, 255_u8].as_slice()), port: u16::MAX, tls: Some(Box::from([0_u8, 127_u8, 255_u8].as_slice())) }).expect("golden within ceilings"), git: Box::from([0_u8, 127_u8, 255_u8].as_slice()), web: Some(Box::from([0_u8, 127_u8, 255_u8].as_slice())) }).expect("golden within ceilings"), git_program: Some(Box::from([0_u8, 127_u8, 255_u8].as_slice())), read_only: true, bot: Bot::new(&CEILINGS, BotParts { login: Box::from([0_u8, 127_u8, 255_u8].as_slice()), name: Box::from([0_u8, 127_u8, 255_u8].as_slice()), email: Box::from([0_u8, 127_u8, 255_u8].as_slice()) }).expect("golden within ceilings"), asked: true, first: Some(FirstIntent::new(&CEILINGS, FirstIntentParts { playground: true, org: Box::from([0_u8, 127_u8, 255_u8].as_slice()), repository: Box::from([0_u8, 127_u8, 255_u8].as_slice()), label: Box::from([0_u8, 127_u8, 255_u8].as_slice()) }).expect("golden within ceilings")) }).expect("golden within ceilings")); let bytes: &[u8] = &[21, 255, 255, 0, 0, 0, 0, 0, 0, 3, 0, 127, 255, 255, 255, 1, 0, 0, 0, 3, 0, 127, 255, 0, 0, 0, 3, 0, 127, 255, 1, 0, 0, 0, 3, 0, 127, 255, 1, 0, 0, 0, 3, 0, 127, 255, 1, 0, 0, 0, 3, 0, 127, 255, 0, 0, 0, 3, 0, 127, 255, 0, 0, 0, 3, 0, 127, 255, 1, 1, 1, 0, 0, 0, 3, 0, 127, 255, 0, 0, 0, 3, 0, 127, 255, 0, 0, 0, 3, 0, 127, 255]; let mut writer = skein_lib::Writer::new(usize::try_from(value.measure()).expect("size fits usize")); let encoded = match value.encode(&mut writer) { Ok(()) => Ok(writer.finish()), Err(problem) => Err(problem) }; golden(value, bytes, encoded, Value::decode(&CEILINGS, &mut skein_lib::Reader::new(bytes))) }),
+        ("enum_value_forge_full", || { let value = Value::Forge(Forge::new(&CEILINGS, ForgeParts { number: u16::MAX, kind: ForgeKind::Forgejo, mode: ForgeMode::Connected, state: ForgeState::Kept, place: Place::new(&CEILINGS, PlaceParts { api: Address::new(&CEILINGS, AddressParts { host: Box::from([0_u8, 127_u8, 255_u8].as_slice()), port: u16::MAX, tls: Some(Box::from([0_u8, 127_u8, 255_u8].as_slice())) }).expect("golden within ceilings"), git: Box::from([0_u8, 127_u8, 255_u8].as_slice()), web: Some(Box::from([0_u8, 127_u8, 255_u8].as_slice())) }).expect("golden within ceilings"), git_program: Some(Box::from([0_u8, 127_u8, 255_u8].as_slice())), read_only: true, bot: Bot::new(&CEILINGS, BotParts { login: Box::from([0_u8, 127_u8, 255_u8].as_slice()), name: Box::from([0_u8, 127_u8, 255_u8].as_slice()), email: Box::from([0_u8, 127_u8, 255_u8].as_slice()) }).expect("golden within ceilings"), asked: true, first: Some(FirstIntent::Empty(EmptyIntent::new(&CEILINGS, EmptyIntentParts { playground: true, org: Box::from([0_u8, 127_u8, 255_u8].as_slice()), repository: Box::from([0_u8, 127_u8, 255_u8].as_slice()), label: Box::from([0_u8, 127_u8, 255_u8].as_slice()) }).expect("golden within ceilings"))) }).expect("golden within ceilings")); let bytes: &[u8] = &[21, 255, 255, 0, 0, 0, 0, 0, 0, 3, 0, 127, 255, 255, 255, 1, 0, 0, 0, 3, 0, 127, 255, 0, 0, 0, 3, 0, 127, 255, 1, 0, 0, 0, 3, 0, 127, 255, 1, 0, 0, 0, 3, 0, 127, 255, 1, 0, 0, 0, 3, 0, 127, 255, 0, 0, 0, 3, 0, 127, 255, 0, 0, 0, 3, 0, 127, 255, 1, 1, 0, 1, 0, 0, 0, 3, 0, 127, 255, 0, 0, 0, 3, 0, 127, 255, 0, 0, 0, 3, 0, 127, 255]; let mut writer = skein_lib::Writer::new(usize::try_from(value.measure()).expect("size fits usize")); let encoded = match value.encode(&mut writer) { Ok(()) => Ok(writer.finish()), Err(problem) => Err(problem) }; golden(value, bytes, encoded, Value::decode(&CEILINGS, &mut skein_lib::Reader::new(bytes))) }),
         ("enum_value_forge_number_smallest", || { let value = Value::ForgeNumber(ForgeNumber::new(&CEILINGS, ForgeNumberParts { last: 0_u16 }).expect("golden within ceilings")); let bytes: &[u8] = &[22, 0, 0]; let mut writer = skein_lib::Writer::new(usize::try_from(value.measure()).expect("size fits usize")); let encoded = match value.encode(&mut writer) { Ok(()) => Ok(writer.finish()), Err(problem) => Err(problem) }; golden(value, bytes, encoded, Value::decode(&CEILINGS, &mut skein_lib::Reader::new(bytes))) }),
         ("enum_value_forge_number_full", || { let value = Value::ForgeNumber(ForgeNumber::new(&CEILINGS, ForgeNumberParts { last: u16::MAX }).expect("golden within ceilings")); let bytes: &[u8] = &[22, 255, 255]; let mut writer = skein_lib::Writer::new(usize::try_from(value.measure()).expect("size fits usize")); let encoded = match value.encode(&mut writer) { Ok(()) => Ok(writer.finish()), Err(problem) => Err(problem) }; golden(value, bytes, encoded, Value::decode(&CEILINGS, &mut skein_lib::Reader::new(bytes))) }),
         ("enum_value_playground_smallest", || { let value = Value::Playground(Playground::new(&CEILINGS, PlaygroundParts { state: PlaygroundState::Starting, forge: 0_u16, project: None, account: None }).expect("golden within ceilings")); let bytes: &[u8] = &[23, 0, 0, 0, 0, 0]; let mut writer = skein_lib::Writer::new(usize::try_from(value.measure()).expect("size fits usize")); let encoded = match value.encode(&mut writer) { Ok(()) => Ok(writer.finish()), Err(problem) => Err(problem) }; golden(value, bytes, encoded, Value::decode(&CEILINGS, &mut skein_lib::Reader::new(bytes))) }),
@@ -39092,7 +39317,7 @@ mod golden_tests {
         table(&BOUNDS_1);
     }
 
-    static BOUNDS_2: [Case; 41] = [
+    static BOUNDS_2: [Case; 43] = [
         ("bound_landing_member_gates", || bound((Path::LandingMemberGates, skein_codec::Reason::Bound), &Limits { landing_member_gates: 3, ..CEILINGS }, &[0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 3, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0], &[0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 4, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0], |limits, bytes| match LandingMember::decode(limits, &mut skein_lib::Reader::new(bytes)) { Ok(value) => Ok(value), Err(problem) => Err((problem.path, problem.reason)) })),
         ("bound_landing_state_members", || bound((Path::LandingStateMembers, skein_codec::Reason::Bound), &Limits { landing_state_members: 3, ..CEILINGS }, &[0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 3, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0], &[0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 4, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0], |limits, bytes| match LandingState::decode(limits, &mut skein_lib::Reader::new(bytes)) { Ok(value) => Ok(value), Err(problem) => Err((problem.path, problem.reason)) })),
         ("bound_landing_row_asks", || bound((Path::LandingRowAsks, skein_codec::Reason::Bound), &Limits { landing_row_asks: 3, ..CEILINGS }, &[0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 3, 0, 0, 0, 0, 0, 0, 0], &[0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 4, 0, 0, 0, 0, 0, 0, 0, 0], |limits, bytes| match LandingRow::decode(limits, &mut skein_lib::Reader::new(bytes)) { Ok(value) => Ok(value), Err(problem) => Err((problem.path, problem.reason)) })),
@@ -39123,9 +39348,11 @@ mod golden_tests {
         ("bound_bot_login", || bound((Path::BotLogin, skein_codec::Reason::Bound), &Limits { bot_login: 3, ..CEILINGS }, &[0, 0, 0, 3, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0], &[0, 0, 0, 4, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0], |limits, bytes| match Bot::decode(limits, &mut skein_lib::Reader::new(bytes)) { Ok(value) => Ok(value), Err(problem) => Err((problem.path, problem.reason)) })),
         ("bound_bot_name", || bound((Path::BotName, skein_codec::Reason::Bound), &Limits { bot_name: 3, ..CEILINGS }, &[0, 0, 0, 0, 0, 0, 0, 3, 0, 0, 0, 0, 0, 0, 0], &[0, 0, 0, 0, 0, 0, 0, 4, 0, 0, 0, 0, 0, 0, 0, 0], |limits, bytes| match Bot::decode(limits, &mut skein_lib::Reader::new(bytes)) { Ok(value) => Ok(value), Err(problem) => Err((problem.path, problem.reason)) })),
         ("bound_bot_email", || bound((Path::BotEmail, skein_codec::Reason::Bound), &Limits { bot_email: 3, ..CEILINGS }, &[0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 3, 0, 0, 0], &[0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 4, 0, 0, 0, 0], |limits, bytes| match Bot::decode(limits, &mut skein_lib::Reader::new(bytes)) { Ok(value) => Ok(value), Err(problem) => Err((problem.path, problem.reason)) })),
-        ("bound_first_intent_org", || bound((Path::FirstIntentOrg, skein_codec::Reason::Bound), &Limits { first_intent_org: 3, ..CEILINGS }, &[0, 0, 0, 0, 3, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0], &[0, 0, 0, 0, 4, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0], |limits, bytes| match FirstIntent::decode(limits, &mut skein_lib::Reader::new(bytes)) { Ok(value) => Ok(value), Err(problem) => Err((problem.path, problem.reason)) })),
-        ("bound_first_intent_repository", || bound((Path::FirstIntentRepository, skein_codec::Reason::Bound), &Limits { first_intent_repository: 3, ..CEILINGS }, &[0, 0, 0, 0, 0, 0, 0, 0, 3, 0, 0, 0, 0, 0, 0, 0], &[0, 0, 0, 0, 0, 0, 0, 0, 4, 0, 0, 0, 0, 0, 0, 0, 0], |limits, bytes| match FirstIntent::decode(limits, &mut skein_lib::Reader::new(bytes)) { Ok(value) => Ok(value), Err(problem) => Err((problem.path, problem.reason)) })),
-        ("bound_first_intent_label", || bound((Path::FirstIntentLabel, skein_codec::Reason::Bound), &Limits { first_intent_label: 3, ..CEILINGS }, &[0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 3, 0, 0, 0], &[0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 4, 0, 0, 0, 0], |limits, bytes| match FirstIntent::decode(limits, &mut skein_lib::Reader::new(bytes)) { Ok(value) => Ok(value), Err(problem) => Err((problem.path, problem.reason)) })),
+        ("bound_empty_intent_org", || bound((Path::EmptyIntentOrg, skein_codec::Reason::Bound), &Limits { empty_intent_org: 3, ..CEILINGS }, &[0, 0, 0, 0, 3, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0], &[0, 0, 0, 0, 4, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0], |limits, bytes| match EmptyIntent::decode(limits, &mut skein_lib::Reader::new(bytes)) { Ok(value) => Ok(value), Err(problem) => Err((problem.path, problem.reason)) })),
+        ("bound_empty_intent_repository", || bound((Path::EmptyIntentRepository, skein_codec::Reason::Bound), &Limits { empty_intent_repository: 3, ..CEILINGS }, &[0, 0, 0, 0, 0, 0, 0, 0, 3, 0, 0, 0, 0, 0, 0, 0], &[0, 0, 0, 0, 0, 0, 0, 0, 4, 0, 0, 0, 0, 0, 0, 0, 0], |limits, bytes| match EmptyIntent::decode(limits, &mut skein_lib::Reader::new(bytes)) { Ok(value) => Ok(value), Err(problem) => Err((problem.path, problem.reason)) })),
+        ("bound_empty_intent_label", || bound((Path::EmptyIntentLabel, skein_codec::Reason::Bound), &Limits { empty_intent_label: 3, ..CEILINGS }, &[0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 3, 0, 0, 0], &[0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 4, 0, 0, 0, 0], |limits, bytes| match EmptyIntent::decode(limits, &mut skein_lib::Reader::new(bytes)) { Ok(value) => Ok(value), Err(problem) => Err((problem.path, problem.reason)) })),
+        ("bound_copy_intent_addresses", || bound((Path::CopyIntentAddresses, skein_codec::Reason::Bound), &Limits { copy_intent_addresses: 3, ..CEILINGS }, &[0, 0, 0, 3, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0], &[0, 0, 0, 4, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0], |limits, bytes| match CopyIntent::decode(limits, &mut skein_lib::Reader::new(bytes)) { Ok(value) => Ok(value), Err(problem) => Err((problem.path, problem.reason)) })),
+        ("bound_copy_intent_addresses_item", || bound((Path::CopyIntentAddresses, skein_codec::Reason::Bound), &Limits { copy_intent_addresses_item: 3, ..CEILINGS }, &[0, 0, 0, 1, 0, 0, 0, 3, 0, 0, 0], &[0, 0, 0, 1, 0, 0, 0, 4, 0, 0, 0, 0], |limits, bytes| match CopyIntent::decode(limits, &mut skein_lib::Reader::new(bytes)) { Ok(value) => Ok(value), Err(problem) => Err((problem.path, problem.reason)) })),
         ("bound_forge_git_program_some", || bound((Path::ForgeGitProgram, skein_codec::Reason::Bound), &Limits { forge_git_program_some: 3, ..CEILINGS }, &[0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1, 0, 0, 0, 3, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0], &[0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1, 0, 0, 0, 4, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0], |limits, bytes| match Forge::decode(limits, &mut skein_lib::Reader::new(bytes)) { Ok(value) => Ok(value), Err(problem) => Err((problem.path, problem.reason)) })),
         ("bound_rule_pattern_segments", || bound((Path::RulePatternSegments, skein_codec::Reason::Bound), &Limits { rule_pattern_segments: 3, ..CEILINGS }, &[0, 0, 0, 3, 0, 0, 0, 0, 0, 0, 0, 0], &[0, 0, 0, 4, 0, 0, 0, 0, 0, 0, 0, 0, 0], |limits, bytes| match RulePattern::decode(limits, &mut skein_lib::Reader::new(bytes)) { Ok(value) => Ok(value), Err(problem) => Err((problem.path, problem.reason)) })),
         ("bound_landing_rule_gates", || bound((Path::LandingRuleGates, skein_codec::Reason::Bound), &Limits { landing_rule_gates: 3, ..CEILINGS }, &[0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 3, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0], &[0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 4, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0], |limits, bytes| match LandingRule::decode(limits, &mut skein_lib::Reader::new(bytes)) { Ok(value) => Ok(value), Err(problem) => Err((problem.path, problem.reason)) })),

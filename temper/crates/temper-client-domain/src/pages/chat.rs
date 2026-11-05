@@ -645,6 +645,13 @@ impl Chat {
             | Act::ConnectModel(_)
             | Act::MakeDefault
             | Act::AdoptFirst
+            | Act::CopyAgain { .. }
+            | Act::AddOpen { .. }
+            | Act::AddChoose { .. }
+            | Act::AddWrite { .. }
+            | Act::AddClose
+            | Act::AddSubmit
+            | Act::CopyOffered
             | Act::DefaultName { .. }
             | Act::OpenProject { .. }
             | Act::Project { .. }
