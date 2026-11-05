@@ -364,6 +364,8 @@ pub(super) fn told(state: &mut Forges, env: &Env<Limits>, told: &Told, out: &mut
                 | w::Request::EndPlayground
                 | w::Request::StartPlayground
                 | w::Request::Reachable(_)
+                | w::Request::SetAway(_)
+                | w::Request::Overturn(_)
                 | w::Request::Looked(_)
                 | w::Request::Dismiss(_)
                 | w::Request::Return(_)
@@ -468,6 +470,9 @@ fn answer(value: &Answered, limits: &Limits) -> Option<Answer> {
         | w::Outcome::Removed
         | w::Outcome::RemoveRefused(_)
         | w::Outcome::Reset
+        | w::Outcome::Away
+        | w::Outcome::Overturned
+        | w::Outcome::OverturnRefused(_)
         | w::Outcome::Looked
         | w::Outcome::Dismissed
         | w::Outcome::EndRefused(_) => None,
