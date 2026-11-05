@@ -1,6 +1,4 @@
-use crate::{
-    openai::{Input, Tool},
-};
+use crate::openai::{Input, Tool};
 use skein_json::{Compact, collector, document, tokenizer, writer};
 use skein_lib::List;
 

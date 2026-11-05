@@ -4,8 +4,8 @@
 //! step and retain no references in machine state. Provider meaning stays in
 //! the native codecs. `from_bytes` collects a complete value; `from_document`
 //! admits a producer's owned document; the writer emits the document whole.
-use crate::DocumentLimits as Limits;
 use super::DecodeError;
+use crate::DocumentLimits as Limits;
 use alloc::boxed::Box;
 use skein_json::{Compact, Document, Kind, ParseError, document, tokenizer, writer};
 use skein_lib::{List, Stack, bytes};

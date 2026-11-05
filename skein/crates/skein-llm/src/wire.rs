@@ -5,8 +5,8 @@ pub(crate) mod json;
 mod limits;
 pub(crate) mod reasoning;
 
-pub use limits::{Limits, encoder_bound};
-pub use json::Json;
 pub(crate) use detail::{append, clipped, limit_detail, measured};
-pub use failure::{DecodeError, ProviderError, RateLimit, classify, decode_error};
 pub(crate) use failure::read_error;
+pub use failure::{DecodeError, ProviderError, RateLimit, classify, decode_error};
+pub use json::Json;
+pub use limits::{Limits, encoder_bound};

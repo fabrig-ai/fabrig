@@ -19,4 +19,3 @@ mod tests;
 
 #[cfg(test)]
 mod request_tests;
-

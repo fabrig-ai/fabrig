@@ -68,4 +68,3 @@ pub fn encoder_bound(limits: &Limits) -> Option<u64> {
         .checked_add(u64::try_from(size_of::<writer::Encoder>()).ok()?.checked_mul(2)?)?
         .checked_add(u64::try_from(size_of::<tokenizer::Tokenizer>()).ok()?)
 }
-
