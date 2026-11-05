@@ -79,3 +79,50 @@ a machine's second output panicked on them. They kept a capacity, one event
 and one demand for each entry, and what the machine's states keep behind
 them is in `hearth/docs/design/domain/render.md`, 8.5, with its tests in
 `hearth/tests/git`.
+
+### The service
+
+All in `hearth-service-builder/src/lib.rs`.
+
+| Where | Check | Keeps |
+|---|---|---|
+| `iterate` | `submissions.room() == 0` | A capacity, the kernel's edge. It stays. Io's submissions going before the file layer's is pop order, not room. |
+| `io_up`, `io_down` | `io_room`, four times | A capacity, the kernel's edge, through `io_submissions`. `is_ready` and `completions.is_empty()` beside it hold the order. |
+| `io_up`, `io_down` | `file_told.room() < 1`, twice | A capacity between the root's own children. It never binds: the file layer takes one request at a time, so the queue holds at most one event. |
+| `io_up`, `io_down` | `file_submissions.room() < 2`, three times | A capacity, the kernel's edge, through the file layer's queue: an operation and its cancel. The one before `expire` reserves 2 for one cancel. |
+| `protocol_up` | `protocol_room`, before `protocol::fire` | Nothing: `fire` touches neither queue. |
+| `protocol_up`, `protocol_down` | `protocol_room`, three times | A capacity between the root's own children: `calls` and `asked`. |
+| `domain_stage` | `answers.room()`, three times | A capacity between the root's own children, with a real sink behind it, the client's output. This one does the work: it stops render outrunning a stuck client, at about 2 queued records at `queue` 3 and about 30 at 32. |
+| `io_within`, `protocol_within`, `within` | their calls | One entry point's outputs against its constant, which is a capacity, and they keep no queue. They aren't called around `fire`, the file layer, or the `file_told` pass. They go with the constants. |
+| `Service::new` | `limits.queue >= 3` | A capacity: the reservations fit. The largest `MAX_OUT` is 2, and nothing found explains 3. |
+
+Room stops no order here: a queue is first in, first out, so a check only
+delays. These are the orders beside the checks, which
+`hearth/docs/design/domain/render.md`, 8.5 states, and what keeps each:
+
+| Order | Kept by | Its test, in `hearth/tests/builder` |
+|---|---|---|
+| Resumed work goes before the next event | `work_pending` | `what_a_call_prints_and_stores_does_not_depend_on_its_queues` |
+| One record at a time | `takes` | the same |
+| An answer follows its resources' close | the machine's state | the same |
+| A build's report comes whole | `holds`, `reporting` | `a_build_prints_its_layers_then_its_failure_then_its_reply` |
+| The domain takes a store step's answer before the store's next step | no predicate: the queue's order and the indices' `waiting` | `what_a_call_prints_and_stores_does_not_depend_on_its_queues` |
+
+`file_told` is drained before `told`, by the order of the loops. Nothing
+found depends on that, so it isn't stated as an order.
+
+### What the service round must finish
+
+- **`answers`:** uncapped, it can hold a copy of every target's spec, so it
+  needs a watermark (`skein/docs/foundation/programming-model.md`, 7.1), or a
+  stop on `takes`.
+- **The loop bounds:** `0..calls.capacity()`, `answers.capacity()`,
+  `asked.capacity()` and `file_told.capacity()` become `u32::MAX` once
+  those queues are uncapped, so one pass could run a whole render. They
+  pace, and need a decision.
+- **A named predicate for the store step:** `hearth-protocol-builder`'s `up`
+  reads `!above.is_empty()` of all of `calls`, and means "this entry
+  emitted". A length before and after says so.
+- **`domain_stage`'s step loop** doesn't check `work_pending` between events.
+  Nothing depends on that while every step ends `Unavailable`. A build step
+  that streams events could open the gap, so read it again then.
