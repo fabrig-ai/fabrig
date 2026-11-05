@@ -6,7 +6,7 @@
 
 use crate::{
     Core, Limits, Request,
-    documents::{self, Proposer, Subject},
+    documents::{self, Proposer, Subject, Touch},
     routing::Work,
 };
 use jig_domain_people as people;
@@ -24,126 +24,24 @@ impl Core {
     /// Gather this party's frame, inbox and conversations after owned facts change.
     pub fn touch_party(&mut self, party: u64) {
         self.start_input();
-        for (_, flight) in &self.flights {
-            let crate::routing::flight::Flight::Watch { binding, .. } = flight else { continue };
-            let subject = &self.view_names.get(binding.subject).expect("bound subject").subject;
-            let touched = match subject {
-                Subject::Frame { party: owner } | Subject::Inbox { party: owner } => *owner == party,
-                Subject::Accounts { .. }
-                | Subject::Task { .. }
-                | Subject::Tree { .. }
-                | Subject::Chips { .. }
-                | Subject::Query { .. }
-                | Subject::Run { .. }
-                | Subject::Settings
-                | Subject::Deployment
-                | Subject::Proposal { .. }
-                | Subject::Escalation { .. }
-                | Subject::Question { .. }
-                | Subject::PersonTask { .. }
-                | Subject::Result { .. }
-                | Subject::Project { .. }
-                | Subject::Note { .. }
-                | Subject::Application { .. } => false,
-            };
-            if touched {
-                let _new = self.changed_views.insert(binding.subject).expect("bounded watched marks");
-            }
-        }
+        self.touch_views(Touch::Party(party));
     }
 
     /// The configured creation period governs every project's current pool join.
     pub(crate) fn touch_frames(&mut self) {
-        for (_, flight) in &self.flights {
-            let crate::routing::flight::Flight::Watch { binding, .. } = flight else { continue };
-            let subject = &self.view_names.get(binding.subject).expect("bound subject").subject;
-            let touched = match subject {
-                Subject::Frame { .. } => true,
-                Subject::Settings
-                | Subject::Deployment
-                | Subject::Task { .. }
-                | Subject::Tree { .. }
-                | Subject::Chips { .. }
-                | Subject::Inbox { .. }
-                | Subject::Accounts { .. }
-                | Subject::Query { .. }
-                | Subject::Run { .. }
-                | Subject::Proposal { .. }
-                | Subject::Escalation { .. }
-                | Subject::Question { .. }
-                | Subject::PersonTask { .. }
-                | Subject::Result { .. }
-                | Subject::Project { .. }
-                | Subject::Note { .. }
-                | Subject::Application { .. } => false,
-            };
-            if touched {
-                let _new = self.changed_views.insert(binding.subject).expect("bounded watched marks");
-            }
-        }
+        self.touch_views(Touch::Frames);
     }
 
     /// Gather every settings watch after the inventory or its holders changes.
     pub fn touch_settings(&mut self) {
         self.start_input();
-        for (_, flight) in &self.flights {
-            let crate::routing::flight::Flight::Watch { binding, .. } = flight else { continue };
-            let subject = &self.view_names.get(binding.subject).expect("bound subject").subject;
-            match subject {
-                Subject::Settings => {
-                    self.changed_views.insert(binding.subject).expect("bounded watched marks");
-                }
-                Subject::Application { .. }
-                | Subject::Frame { .. }
-                | Subject::Task { .. }
-                | Subject::Tree { .. }
-                | Subject::Chips { .. }
-                | Subject::Inbox { .. }
-                | Subject::Accounts { .. }
-                | Subject::Query { .. }
-                | Subject::Run { .. }
-                | Subject::Deployment
-                | Subject::Proposal { .. }
-                | Subject::Escalation { .. }
-                | Subject::Question { .. }
-                | Subject::PersonTask { .. }
-                | Subject::Result { .. }
-                | Subject::Project { .. }
-                | Subject::Note { .. } => {}
-            }
-        }
+        self.touch_views(Touch::Settings);
     }
 
     /// Gather deployment facts after host, account or capacity changes.
     pub fn touch_deployment(&mut self) {
         self.start_input();
-        for (_, flight) in &self.flights {
-            let crate::routing::flight::Flight::Watch { binding, .. } = flight else { continue };
-            let subject = &self.view_names.get(binding.subject).expect("bound subject").subject;
-            let touched = match subject {
-                Subject::Deployment => true,
-                Subject::Settings
-                | Subject::Frame { .. }
-                | Subject::Task { .. }
-                | Subject::Tree { .. }
-                | Subject::Chips { .. }
-                | Subject::Inbox { .. }
-                | Subject::Accounts { .. }
-                | Subject::Query { .. }
-                | Subject::Run { .. }
-                | Subject::Proposal { .. }
-                | Subject::Escalation { .. }
-                | Subject::Question { .. }
-                | Subject::PersonTask { .. }
-                | Subject::Result { .. }
-                | Subject::Project { .. }
-                | Subject::Note { .. }
-                | Subject::Application { .. } => false,
-            };
-            if touched {
-                let _new = self.changed_views.insert(binding.subject).expect("bounded watched marks");
-            }
-        }
+        self.touch_views(Touch::Deployment);
     }
 
     /// Host or account changes can replace a due agent's next-run wait.
@@ -164,30 +62,14 @@ impl Core {
 
     /// An asker's own sign-in, or shared source state that can serve every party.
     pub(crate) fn touch_accounts(&mut self, party: Option<u64>) {
+        self.touch_views(Touch::Accounts(party));
+    }
+
+    fn touch_views(&mut self, touch: Touch) {
         for (_, flight) in &self.flights {
             let crate::routing::flight::Flight::Watch { binding, .. } = flight else { continue };
             let subject = &self.view_names.get(binding.subject).expect("bound subject").subject;
-            let touched = match subject {
-                Subject::Accounts { party: owner } => party.is_none() || party == Some(*owner),
-                Subject::Application { .. }
-                | Subject::Frame { .. }
-                | Subject::Task { .. }
-                | Subject::Tree { .. }
-                | Subject::Chips { .. }
-                | Subject::Inbox { .. }
-                | Subject::Query { .. }
-                | Subject::Run { .. }
-                | Subject::Settings
-                | Subject::Deployment
-                | Subject::Proposal { .. }
-                | Subject::Escalation { .. }
-                | Subject::Question { .. }
-                | Subject::PersonTask { .. }
-                | Subject::Result { .. }
-                | Subject::Project { .. }
-                | Subject::Note { .. } => false,
-            };
-            if touched {
+            if subject.touched_by(touch) {
                 let _new = self.changed_views.insert(binding.subject).expect("bounded watched marks");
             }
         }
