@@ -1667,7 +1667,6 @@ dependencies = [
  "jig-domain-core",
  "jig-domain-fleet",
  "jig-domain-host",
- "jig-domain-hub-link",
  "jig-domain-tasks",
  "jig-protocol-tools",
  "skein-lib",
