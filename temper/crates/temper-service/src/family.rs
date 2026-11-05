@@ -284,6 +284,7 @@ pub fn to_root(
                             project: value.project(),
                             chat: value.chat(),
                             goal: value.goal(),
+                            at: value.at(),
                         },
                     };
                     return Ok(root::Event::Party(root::PartyInput::Application {
@@ -1319,8 +1320,8 @@ pub fn document(value: forge::Document, forges: &crate::forges::Forges, limits: 
                     forge::PersonFact::ToBegin { project } => {
                         w::PersonFact::ToBegin(w::ToBegin::new(limits, w::ToBeginParts { project }).ok()?)
                     }
-                    forge::PersonFact::GoalFrom { project, chat, goal } => w::PersonFact::GoalFrom(
-                        w::GoalFrom::new(limits, w::GoalFromParts { project, chat, goal }).ok()?,
+                    forge::PersonFact::GoalFrom { project, chat, goal, at } => w::PersonFact::GoalFrom(
+                        w::GoalFrom::new(limits, w::GoalFromParts { project, chat, goal, at }).ok()?,
                     ),
                 };
                 dismissed.push(value).ok()?;

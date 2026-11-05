@@ -5,6 +5,7 @@ mod builders;
 mod changes;
 mod chat;
 mod chat_document;
+mod chat_sheet;
 mod chats;
 mod choice;
 mod connect_model;

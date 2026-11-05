@@ -1171,7 +1171,7 @@ fn take_draft_reads(f: &mut f::Fixture) -> usize {
 fn draft_answer(f: &mut f::Fixture, page: jig_client::Readout) {
     f.chat.told(Time::ZERO, &f.client, Told::Page { handle: draft_handle(&f.chat), page }, &mut f.out);
 }
-fn notes_page(notes: &[c::Note]) -> jig_client::Readout {
+pub(super) fn notes_page(notes: &[c::Note]) -> jig_client::Readout {
     let mut rows = skein_lib::List::with_capacity(u32::try_from(notes.len()).unwrap());
     for note in notes {
         rows.push(note.clone()).unwrap();
@@ -1183,7 +1183,7 @@ fn notes_page(notes: &[c::Note]) -> jig_client::Readout {
         cut: false,
     }))))
 }
-fn draft_note(number: u64, revision: u64, body: &[u8]) -> c::Note {
+pub(super) fn draft_note(number: u64, revision: u64, body: &[u8]) -> c::Note {
     c::Note {
         number,
         revision: c::Revision { value: revision },
@@ -1208,12 +1208,14 @@ fn note_call(f: &mut f::Fixture, number: u64, position: u64) {
 }
 #[test]
 fn reads_once_the_task_arrives() {
+    // Task, activity, draft read and goal chip reserve four handles; the live run uses one.
+    const RESERVED_AND_RUN: u64 = 5;
     let mut f = f::opened();
     assert_eq!(take_draft_reads(&mut f), 1);
     f.chat.told(Time::ZERO, &f.client, Told::Changed { handle: f.chat.document }, &mut f.out);
     assert_eq!(take_draft_reads(&mut f), 0);
     assert!(!f.chat.wanted, "the same task delivery does not request another read");
-    assert_eq!(f.chat.next, f::FIRST + 4, "three reserved handles and the live run");
+    assert_eq!(f.chat.next, f::FIRST.checked_add(RESERVED_AND_RUN).unwrap());
     // The final task's read is the other first-arrival path.
     let limits = fixtures::limits();
     let mut out = Queue::uncapped();

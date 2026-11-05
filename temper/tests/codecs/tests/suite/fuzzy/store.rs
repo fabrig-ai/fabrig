@@ -64,6 +64,7 @@ fn person_fact(rng: &mut Rng) -> forge::PersonFact {
             project: u32::try_from(rng.below(4_294_967_296)).expect("u32"),
             chat: rng.next_u64(),
             goal: rng.next_u64(),
+            at: rng.next_u64(),
         }
     }
 }

@@ -81,7 +81,7 @@ pub(crate) fn pages(root: &mut Domain, env: &Env<Limits>, event: crate::pages::E
         | crate::pages::Event::Told { .. }
         | crate::pages::Event::Link { .. } => false,
     };
-    crate::pages::step(&mut root.pages, env, &root.client, event, &mut child);
+    crate::pages::chat::sheet::step(root, env, event, &mut child);
     route_pages(root, env, &mut child, out);
     let subject = match root.pages.task() {
         Some(task) => task.panel(&root.client, root.forge_number()),
@@ -404,6 +404,12 @@ fn forge_forges(root: &mut Domain, env: &Env<Limits>, told: &jig_client::Told, o
         });
     }
     route_forge(root, env, &mut child, out);
+    if consumed
+        && let jig_client::Told::Changed { handle } | jig_client::Told::Ended { handle, .. } = told
+        && *handle == forge::dismissed::handle()
+    {
+        pages(root, env, crate::pages::Event::Told { told: told.clone() }, out);
+    }
     consumed
 }
 

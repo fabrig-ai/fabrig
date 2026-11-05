@@ -56,8 +56,7 @@ pub(crate) fn main(
     crate::choice::byline(b, root, None, w, bindings);
     if !draft
         && let Some(project) = project
-        && let Some(me) = root.pages().me(root.client())
-        && temper_client_domain::pages::drafts_offered(me, project)
+        && temper_client_domain::pages::drafts_offered(root, project)
     {
         super::document::add(b, w, bindings, Act::Go { address: Address::NewChat { draft: true } });
     }

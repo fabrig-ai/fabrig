@@ -67,8 +67,7 @@ pub(crate) fn main(
             && !chat.writing
             && task.result.is_none()
             && !super::chats::ended(&task.chip)
-            && let Some(me) = root.pages().me(root.client())
-            && temper_client_domain::pages::drafts_offered(me, task.project)
+            && temper_client_domain::pages::drafts_offered(root, task.project)
         {
             super::document::add(b, words, bindings, Act::AddDraft);
         }

@@ -236,8 +236,8 @@ pub fn encode(key: &forge::Key, limit: u32) -> Option<Box<[u8]>> {
                 forge::PersonFact::ToBegin { project } => {
                     writer.tag(0).u64(u64::from(*project));
                 }
-                forge::PersonFact::GoalFrom { project, chat, goal } => {
-                    writer.tag(1).u64(u64::from(*project)).u64(*chat).u64(*goal);
+                forge::PersonFact::GoalFrom { project, chat, goal, at } => {
+                    writer.tag(1).u64(u64::from(*project)).u64(*chat).u64(*goal).u64(*at);
                 }
             }
         }
@@ -335,6 +335,7 @@ pub fn decode(bytes: &[u8], limits: &forge::Limits) -> Option<forge::Key> {
                     project: u32::try_from(reader.u64()?).ok()?,
                     chat: reader.u64()?,
                     goal: reader.u64()?,
+                    at: reader.u64()?,
                 },
                 _ => return None,
             };

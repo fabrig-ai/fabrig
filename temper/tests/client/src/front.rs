@@ -394,13 +394,32 @@ impl Joint {
     pub fn with_chat_draft(seed: u64, limits: client::Limits) -> Self {
         let configs = std::array::from_fn(|_| {
             let mut config = walking::config(seed);
+            config.core.connectors = Box::new([fixtures::FORGE]);
+            for permission in &mut config.core.seed_projects[0].policy.permissions {
+                permission.connector = fixtures::FORGE;
+            }
             config.core.defaults.rules.ceiling.notes = jig_domain_authority::Scopes(1);
             let policy = &mut config.core.seed_projects[0].policy.policy;
             policy.ceiling.notes = jig_domain_authority::Scopes(1);
             policy.roles[0].authority.notes = jig_domain_authority::Scopes(1);
+            for template in &mut config.core.defaults.templates {
+                if template.tracked.is_some() {
+                    template.deadline = jig_domain_people::TemplateDeadline::None;
+                }
+            }
             config
         });
-        Self::with_engine(seed, &limits, Store::new(), configs, &engine_limits(), 1)
+        // The chat snapshot includes its instructions, goal line and provenance.
+        let mut engine_limits = engine_limits();
+        // One slot for the chat and one for its goal.
+        engine_limits.fleet.slots = 2;
+        engine_limits.tasks.spec_bytes = 1024;
+        engine_limits.people.words = 1024;
+        engine_limits.tasks.message_bytes = engine_limits.people.words;
+        engine_limits.tasks.inbox_bytes = engine_limits.people.words;
+        engine_limits.journal.result_bytes = engine_limits.journal.result_bytes.max(engine_limits.people.words);
+        engine_limits.watermark = engine::default_watermark(&engine_limits.journal);
+        Self::with_engine(seed, &limits, Store::new(), configs, &engine_limits, 2)
     }
     /// Temper's stock kinds through the joined client and engine roots.
     #[must_use]
