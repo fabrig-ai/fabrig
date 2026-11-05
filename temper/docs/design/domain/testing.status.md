@@ -1,6 +1,6 @@
 # testing: status
 
-2026-11-04. Where temper's code lags or departs from [testing.md](testing.md).
+2026-11-05. Where temper's code lags or departs from [testing.md](testing.md).
 
 - **Not yet:** 2.4: GitHub's real-loop stories 3, 4, 5, 7 and 8; 1, 2 and 6
   run (`tests/real-loop/tests/suite/github_land.rs`, `github.rs`). 2.4:
@@ -19,6 +19,15 @@
   2.7: the ladder's live stories but B0's: `scripts/proof-live.sh` takes
   `rung-b0` alone, on ChatGPT with an owned Forgejo, and
   `crates/temper/tests/live.rs` holds no other rung.
+  2.7: neither GitHub proof has shown it holds on `fabrig-ai` alone:
+  `scripts/proof-live-github.sh` and `proof-live-github-managed.sh live`
+  stay for the next live walk, the second with `TEMPER_MANAGED_PERSON`
+  set. That sitting's relay admits GraphQL's `VIEWER` alone
+  (`crates/temper/tests/support/relay_managed.rs`) where the story's
+  admits `PULL` on the probe too (`crates/temper/tests/support/relay.rs`),
+  and an open pull on an organization's repository reads through `PULL`
+  (`skein/crates/skein-forge/src/github/plans/reads/pulls.rs`); whether
+  a live sitting's engine reads the pull it opens is unknown.
   2.7: a live
   story ending at its task's first terminal failure. 2.7: the live GitHub
   story connects the probe App without `--read-only`, so its record's
@@ -73,3 +82,19 @@
   matches the `~/` form alone, so these pass it. They stay because the
   scripts' behaviour held but for their build wrapper, and no step of
   that request moves them.
+  2.7: `proof-live-github-managed.py`'s `ssh -L` mark names a machine
+  alias of whoever runs fabrig's development, and the outward check
+  matches that name only with digits after it. The same request left it
+  in place.
+  2.7: the managed sitting's `fake` and `fake-wide` runs and `startup.rs`'s
+  `the_live_github_configuration_passes_startup_admission` keep
+  `fabrig-ai`, where the user's request of 11-04 gives tests on the fake
+  forge a neutral owner, because the first are the live sitting's dry
+  run, whose owner is a fixed name and never an input, and the second's
+  shaper renders the template's `acme` to the owner, so `acme` would
+  prove nothing. The relay's own tests take `acme` and `alice`.
+  2.7: Offline startup admission: no shared helper clears goal projection
+  grants. `crates/temper/tests/support/live_github.rs`'s
+  `configure_engine` clears none, and `github_land.rs`'s, a separate
+  function, removes the charters, templates, policies and rules for
+  stock policy 1. No reason is recorded.
