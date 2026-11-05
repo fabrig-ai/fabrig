@@ -17,6 +17,14 @@ pub struct Family {
 
 pub const FAMILIES: &[Family] = &[
     Family {
+        name: "engine cursor",
+        root: "crates/jig-protocol-engine-clients",
+        schemas: &["schema/cursor-v1.schema"],
+        generated: &["src/generated/cursor_v1.rs"],
+        golden: "golden",
+        fixtures: &[],
+    },
+    Family {
         name: "client",
         root: "crates/jig-client-protocol-wire",
         schemas: &["schema/client-v19.schema", "schema/client-v19-part1.schema"],

@@ -1332,6 +1332,7 @@ dependencies = [
  "skein-io",
  "skein-lib",
  "skein-oauth-issuer",
+ "skein-scratch",
  "skein-tls",
  "skein-world",
  "tempfile",
