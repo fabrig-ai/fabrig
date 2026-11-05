@@ -7,6 +7,8 @@
 mod agent_shell;
 
 pub mod config;
+#[cfg(unix)]
+pub mod dump;
 #[cfg(any(test, feature = "fixture"))]
 pub mod fixture;
 #[cfg(unix)]
@@ -18,4 +20,4 @@ pub mod trace;
 pub use agent_shell::{Agent, ProgramResources, Resources, given_up_line, identity};
 
 #[cfg(unix)]
-pub use agent_shell::{run, run_decoded};
+pub use agent_shell::{run, run_decoded, run_dumping};

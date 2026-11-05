@@ -26,8 +26,9 @@ world tells none of their stories (`domain/forge.md`,
 but for the held landing's story, ignored for a restart fault
 (`domain/forge.md`). A change relays its agents' questions through a
 foreman of its own or straight up, within its bound, but no story
-asks from a repair or a resolution and a step short of message room
-loses a foreman's verdict (`domain/forge.md`), and the foremen's
+asks from a repair or a resolution, or has its words refused, and a
+step short of message room loses a foreman's verdict
+(`domain/forge.md`), and the foremen's
 charter is not a setting. A
 project's policy in a change of settings and a revision restored are
 built through ctl, but the restore's stories in the domain world and
@@ -56,8 +57,12 @@ with has not passed (`protocol/setup.md`). `temper init`'s documents hold
 reads in pieces of it (`protocol/setup.md`). A repair goes on at a head CI has
 since passed, and a release there makes a fresh one, where that request reads
 the design otherwise, which the user has not answered, and `change show`'s
-`held:` line calls a cancelled delegate failed (`domain/forge.md`). No test runs
-real git on a dirty workspace (`protocol/git.md`). Much of a change's own
+`held:` line calls a cancelled delegate failed (`domain/forge.md`). A repair
+whose brief can't be read ends held naming why on the fake forge alone: the walk
+on a real Forgejo the `brief-failure` request of 2026-11-05 ends with has not
+passed, no test shows a gate's repair standing on its pull, and a forge not
+connected pauses a repair with no bound, by that plan's cut (`domain/forge.md`).
+No test runs real git on a dirty workspace (`protocol/git.md`). Much of a change's own
 bounds and gates, the forge's merge queue and a goal's issue lag, and
 the queue's first can lose its turn to a change stepped during it
 (`domain/forge.md`); so do Start goal's sheet, which no page opens, a live
@@ -104,6 +109,8 @@ is the user's to decide (`domain/worker.md`); with
 `TEMPER_WORKSPACE_REUSE` set, never a shipped default, a worker's
 workspaces stay as they are between workstreams and across a restart,
 for one trusted person alone (`domain/worker.md`, `protocol/git.md`);
+with `TEMPER_DUMP_LLM` set, never a shipped default, an agent's
+environment holds that directory (`domain/worker.md`);
 a kept GitHub forge whose base ends
 in `/` keeps remotes with two after the host, and a clients'
 listener off loopback is refused in every engine shape, where the

@@ -2282,9 +2282,9 @@ section 9): the foreman and the requester decide, and the change relays
   a call in the words form to the change from its producing task, or
   the repair or the resolution it has live, answers with an error
   saying `Your report goes in finish; this change takes no words. To
-  ask: message target=this change, form=question.` Anything but a
-  question from such an agent found in the change's inbox at a step
-  receives those same words as words, in place of the fallback feedback.
+  ask: message target=this change, form=question.` Words or an answer
+  from such an agent found in the change's inbox at a step receive those
+  same words, as words, in place of the fallback feedback.
   A question of theirs past the open-queue ceiling keeps the fallback
   feedback (below). The stock coding charter tells its run the same
   (`../protocol/configuration.md`, 13.4).
@@ -2378,8 +2378,8 @@ section 9): the foreman and the requester decide, and the change relays
   change into the landing branch, and amendments of the live changes it
   concerns.
 
-A change keeps at most 16 open questions. Its configured question allowance
-must be less than 16, leaving room for the question past that allowance. A
+A change keeps at most 128 open questions. Its configured question allowance
+must be less than 128, leaving room for the question past that allowance. A
 question beyond the open-queue ceiling is answered with fallback feedback
 describing the enabled route and answer form; it never enters the relay (2026-11-04).
 
@@ -3099,6 +3099,14 @@ whole.
   go on, reading 8.4 so, and no repair task made for a green head. Whether
   that reaches a gate's and a base's reasons is part of the answer. Default: as
   built. The user's to choose, with no answer yet.
+- **A repair held for its brief** (8.4): the repair's task is held, naming
+  its reason, while the change stays `Repairing` and its panel shows no hold:
+  a person reads why on the task, and releases it there. Default: so; whether
+  the panel says it too stays open.
+- **A forge out of reach or not connected** (8.4): `Unavailable` counts as
+  transient, so a long outage holds each repair preparing through it, naming
+  why; `NotConnected` pauses with no bound and no hold, its notice naming why.
+  Default: so; the allowance is the user's.
 - **A failing check's repair brief:** a check gate that says no is
   repaired as a review that says no is, and its repair's brief carries
   the pull request's reviews section (8.4). A check's verdict is not a
@@ -3168,3 +3176,8 @@ whole.
   08:00, and a hand. Quiet hours and notifications are the client's
   later parts (`../client/README.md`, section 11); neither is the
   switch's.
+- **A refused `message` keeps no record** (8.11): the call's refusal of an
+  agent's own words is rendered and kept with no call's record, as the
+  `goal` tool's refusal is, where a decided call's answer is kept
+  (`root.md`, 5.2). So a call asked again decides again, from the change as
+  it then stands. Default: so.

@@ -122,6 +122,23 @@ The aim that excuses all of it, the user's: match what the pipeline we develop w
 - **The pipeline:** its runs keep their own session records on the machine that ran them.
 - **A real design:** a question: what a deployment's operators may read of a run's prompts.
 
+### 2.13 Each model request kept in a file
+
+- **What:** `TEMPER_DUMP_LLM=DIR` on the worker, unset by default; an empty value counts as unset. It's read once, at the worker's start, and goes to each agent as the one variable in the environment the worker gives it; nothing reaches an agent's commands or its program. Set, a run writes files to `DIR`, each whole by rename and mode 0600, in a directory made 0700; a directory open to others, or another's, is refused.
+  - **Names:** `<identity>-a<activation>-<number>-<what>`: the run's 16-byte identity in hex, its activation and a number counting this agent's files, both six digits. An agent knows no task or engine run: the identity is what names the run, and the text it was sent says what it was working on.
+  - **The API, with an OpenAI-style account or Anthropic's:** `openai.json` or `anthropic.json`, one per request before it's sent: the body as the client rendered it for the provider, those very bytes, before any gzip. Its encoder takes the prompt and limits alone, never a credential or an endpoint, so no header, token or URL reaches it.
+  - **Claude Code, a subscription's included: a gap.** The program makes its own calls, so temper never sees a request of its. What temper gives it is kept instead: `claude-code-argv.txt` (model and effort among them), `claude-code-instructions` (Markdown), `claude-code-tools.json` (the MCP tools it's offered), `claude-code-stdin.json` (each line on its input) and `claude-code-init.json` (its `system/init`, naming the model it took and its tools). Not kept: the program's own system prompt and built-in tools' descriptions, its later requests' messages, effort as it sends it, tool answers (they go over MCP), its environment, and `mcp.json`, which holds the MCP secret.
+  - **One start file a run,** `start.txt`: mode, budget, reserve, waiting, main's and sub-agents' models with effort, tools granted, host tools by name, the brief's titles.
+  - **Bounded:** before each file, an agent sums the sizes in `DIR`; past 4 GiB it stops, with one line. A failed write takes one line too, and the run goes on. A line goes to the agent's standard error and to `DIR/dump.log`, since a worker shows that error only as a failed run's tail.
+- **Why:** dogfooding compares temper with the pipeline, and prompts, models and effort must match exactly. Nobody could read what a run was sent: the rendered prompt wasn't kept, and a Claude run's effort couldn't be read.
+- **Cost and risk:**
+  - the files hold whatever the run was sent: repository text and anything an agent read. They stay on the worker's disk, and nothing removes them;
+  - unset, one branch at each request. Set, a second copy of each body until it's written, and a write and a scan of `DIR` that block the agent's loop;
+  - the bound counts what's already in `DIR`, so a full directory stops every later run's files until a person empties it; agents writing at once can pass it by one request each;
+  - no test runs the variable from a worker through a real agent process to a file: the worlds cover each half, and the next comparison's run is the proof.
+- **The pipeline:** keeps each call's rendered brief as a plain file beside its report. What a CLI then sends on the wire isn't kept there.
+- **A real design:** a question: what a deployment's operators may read of a run's prompts.
+
 ## 3. Left out, with its gap
 
 For the user to weigh; each can become an entry.

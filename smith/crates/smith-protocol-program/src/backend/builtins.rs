@@ -38,6 +38,9 @@ impl Backend {
         up: &mut Queue<ToDomain>,
         below: &mut Queue<Below>,
     ) {
+        if let Some(given) = &mut self.given {
+            given.push(super::Given::Init(skein_lib::bytes::concat(&[bytes, b"\n"])));
+        }
         if let Some(detail) = self.init_problem(bytes) {
             self.fail(env, llm::Failure::Program { exit: None }, &detail, up, below);
             return;
@@ -56,6 +59,9 @@ impl Backend {
         up: &mut Queue<ToDomain>,
         below: &mut Queue<Below>,
     ) {
+        if let Some(given) = &mut self.given {
+            given.push(super::Given::Init(skein_lib::bytes::concat(&[bytes, b"\n"])));
+        }
         if let Some(detail) = self.init_problem(bytes) {
             self.fail(env, llm::Failure::Program { exit: None }, &detail, up, below);
         }
