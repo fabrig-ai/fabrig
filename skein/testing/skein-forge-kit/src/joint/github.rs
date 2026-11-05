@@ -1,5 +1,5 @@
 //! GitHub HTTP peers sharing the joint's domain and cutting pipes (skein/docs/design/fake-forge.md, 10.6).
-use super::{Joint, StartCounts};
+use super::{Joint, StartCounts, Peer};
 use crate::{pipe::{Cut, Pipe, RequestCounts}, sockets::Sockets};
 use skein_fake_forge_forgejo::{Route, Tally};
 use skein_fake_forge_github::{
@@ -16,19 +16,11 @@ use std::collections::VecDeque;
 // More heads than a tick can receive through the fixture's bounded read.
 const HEADS: u32 = 64;
 
-struct Peer {
-    pipe: Pipe,
-    server: Server,
-    above: Queue<Event>,
-    below: Queue<Down>,
-    heads: VecDeque<bool>,
-    line_indices: Vec<usize>,
-}
 pub(super) struct Github {
     service: Service,
     app: skein_fake_forge_github::app::App,
     verified: skein_fake_forge_github::app::Verified,
-    peers: Sockets<Peer>,
+    peers: Sockets<Peer<Server, Event>>,
     pub tally: Tally,
 }
 impl Github {
@@ -126,40 +118,14 @@ impl Github {
                             )
                         )
                     });
-                    for _ in 0..written {
-                        peer.heads.push_back(startup);
-                        world.starts.written += u64::from(startup);
-                    }
-                    // Earlier lines are complete; only the last observed line can gain bytes.
-                    let mut first = peer.line_indices.len();
-                    if peer.line_indices.last().is_some_and(|index| !world.lines[*index].ends_with(b"\r\n")) {
-                        first -= 1;
-                    }
-                    for (at, line) in peer.pipe.request_lines().iter().enumerate().skip(first) {
-                        if let Some(index) = peer.line_indices.get(at) {
-                            let saved = &mut world.lines[*index];
-                            saved.extend_from_slice(&line[saved.len()..]);
-                        } else {
-                            peer.line_indices.push(world.lines.len());
-                            world.lines.push(line.clone());
-                        }
-                    }
+                    peer.observe(written, startup, &mut world.starts, &mut world.lines);
         }
         while let Some(event) = events.pop() { world.up(event); }
     }
     pub fn end(&mut self, world: &mut Joint, owner: Token) {
         let mut events = Queue::with_capacity(1);
         if let Some(mut peer) = self.peers.close(owner, &mut events) {
-            peer.pipe.freeze();
-            let counts = peer.pipe.request_counts();
-            world.closed_counts.written += counts.written;
-            world.closed_counts.cut_in_head += counts.cut_in_head;
-            if counts.cut_in_head > 0 {
-                assert_eq!(counts.cut_in_head, 1, "one head in flight per pipe");
-                if peer.heads.pop_front().expect("cut follows first byte") {
-                    world.starts.cut_in_head += 1;
-                }
-            }
+            peer.freeze(&mut world.starts, &mut world.closed_counts);
             while let Some(event) = events.pop() { world.up(event); }
         }
     }
@@ -258,7 +224,3 @@ fn route(call: &http::Call) -> Option<Route> {
     })
 }
 
-impl crate::sockets::Peer for Peer {
-    fn take(&mut self, down: Down) { self.pipe.client_down(down); }
-    fn answer(&mut self) -> Option<skein_lib::stream::Up> { self.pipe.client_up() }
-}

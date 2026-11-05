@@ -22,12 +22,12 @@ pub struct StartCounts {
 }
 
 pub const REPO: api::Repository = api::Repository { forge: 1, repository: 2 };
-struct Peer {
+struct Peer<S, E> {
     heads: std::collections::VecDeque<bool>,
     line_indices: Vec<usize>,
     pipe: Pipe,
-    server: Server,
-    above: Queue<protocol::Event>,
+    server: S,
+    above: Queue<E>,
     below: Queue<skein_lib::stream::Down>,
 }
 pub struct Joint {
@@ -35,7 +35,7 @@ pub struct Joint {
     pub env: Env<Limits>,
     pub above: Queue<Event>,
     pub below: Queue<skein_io::Request>,
-    peers: Sockets<Peer>,
+    peers: Sockets<Peer<Server, protocol::Event>>,
     service: Option<Service>,
     github: Option<github::Github>,
     hook_listener: Option<Token>,
@@ -455,20 +455,7 @@ impl Joint {
                             )
                         )
                     });
-                    for _ in 0..written {
-                        peer.heads.push_back(startup);
-                        if startup {
-                            self.starts.written += 1;
-                        }
-                    }
-                    for (at, line) in peer.pipe.request_lines().iter().enumerate() {
-                        if let Some(index) = peer.line_indices.get(at) {
-                            self.lines[*index].clone_from(line);
-                        } else {
-                            peer.line_indices.push(self.lines.len());
-                            self.lines.push(line.clone());
-                        }
-                    }
+                    peer.observe(written, startup, &mut self.starts, &mut self.lines);
                 }
             }
             skein_io::Request::Close { entity } | skein_io::Request::Abort { entity } => self.end(entity),
@@ -523,16 +510,7 @@ impl Joint {
         }
         let mut events = Queue::with_capacity(1);
         if let Some(mut peer) = self.peers.close(owner, &mut events) {
-            peer.pipe.freeze();
-            let counts = peer.pipe.request_counts();
-            self.closed_counts.written += counts.written;
-            self.closed_counts.cut_in_head += counts.cut_in_head;
-            if counts.cut_in_head > 0 {
-                assert_eq!(counts.cut_in_head, 1, "one head in flight per pipe");
-                if peer.heads.pop_front().expect("cut follows first byte") {
-                    self.starts.cut_in_head += 1;
-                }
-            }
+            peer.freeze(&mut self.starts, &mut self.closed_counts);
             protocol::closed(
                 &mut peer.server,
                 self.service.as_mut().expect("Forgejo service"),
@@ -704,7 +682,38 @@ pub fn checks(passes: u32) -> raw::Checks {
     }
 }
 
-impl crate::sockets::Peer for Peer {
+impl<S, E> crate::sockets::Peer for Peer<S, E> {
     fn take(&mut self, down: skein_lib::stream::Down) { self.pipe.client_down(down); }
     fn answer(&mut self) -> Option<skein_lib::stream::Up> { self.pipe.client_up() }
+}
+
+impl<S, E> Peer<S, E> {
+    fn observe(&mut self, written: u64, startup: bool, starts: &mut StartCounts, lines: &mut Vec<Vec<u8>>) {
+        for _ in 0..written {
+            self.heads.push_back(startup);
+            starts.written += u64::from(startup);
+        }
+        // Earlier lines are complete; only the last observed line can gain bytes.
+        let mut first = self.line_indices.len();
+        if self.line_indices.last().is_some_and(|index| !lines[*index].ends_with(b"\r\n")) { first -= 1; }
+        for (at, line) in self.pipe.request_lines().iter().enumerate().skip(first) {
+            if let Some(index) = self.line_indices.get(at) {
+                let saved = &mut lines[*index];
+                saved.extend_from_slice(&line[saved.len()..]);
+            } else {
+                self.line_indices.push(lines.len());
+                lines.push(line.clone());
+            }
+        }
+    }
+    fn freeze(&mut self, starts: &mut StartCounts, closed: &mut RequestCounts) {
+        self.pipe.freeze();
+        let counts = self.pipe.request_counts();
+        closed.written += counts.written;
+        closed.cut_in_head += counts.cut_in_head;
+        if counts.cut_in_head > 0 {
+            assert_eq!(counts.cut_in_head, 1, "one head in flight per pipe");
+            if self.heads.pop_front().expect("cut follows first byte") { starts.cut_in_head += 1; }
+        }
+    }
 }
