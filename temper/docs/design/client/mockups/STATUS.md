@@ -54,9 +54,24 @@ Where the client does otherwise:
   user's greenfield mock's `home.html`, which `chats.html`, `chat.html`,
   `inbox.html`, `accounts.html`, `forges.html` and the first run's pages
   do not draw, under their top bar; the project's first page is Home.
-  While a step is left, Home's To begin has numbered steps, ticks when
-  done, and a headline counting what is left. With every step done,
-  Home's headline counts the project's needs, its first need is a card
+  Once the project's facts and the person's dismissals are delivered,
+  with a step left and no skip, Home says "PROJECT is ready." above
+  To begin, a card headed "To begin" beside "Optional", with "Skip"
+  at the right. Its note counts the steps left and says whether their
+  acts stay in Settings, Chats, or both. Its three rows keep their
+  order: "Tell temper how you work", the repository, and "Start a
+  chat", with each act at the right while left. Done, a number becomes
+  a green tick and the act goes; the first and third keep their title
+  alone, the repository keeps its merge-queue line. An adoption out
+  names the repository and project with no act; refused, its words
+  precede "Adopt" again. The terminal keeps the heading and says the
+  numbers and "Done.". Empty Needs you and Chats, Connected and the
+  landing's line are left out while To begin shows; a need or chat
+  appears under it once present. Skip hides the card at once and is
+  kept per person and project across devices; refused or lost, the
+  card returns with "temper couldn't keep that. Try Skip again."
+  below the note. Skipped or with every step done, Home's headline
+  counts the project's needs, its first need is a card
   and the others are rows, and Chats has at most five rows with each
   chat's state and age. "All N" reads "All N+" where the read is cut;
   empty sections say "Nothing needs you. Work carries on, and this
@@ -70,19 +85,31 @@ Where the client does otherwise:
   headline, the lede and byline wait on `../README.md`, 11, *What
   changed since the person last looked*. Context, choices,
   "recommended", "Later", the answer's green line and "Undo" wait on
-  section 11's *A question answered on Home*; Goals and "No goals
-  yet…" on *Goals on Home*; "Landing: …" on *The landing's line on
-  Home*. A chat's "landed" waits on a read per row
-  (`../README.status.md`, 3.5). Connected stays below Chats. An adopted
-  repository's To begin line describes checked changes landing through
+  `../README.md`, 11, *A question answered on Home*; Goals and "No
+  goals yet…" on *Goals on Home* there; "Landing: …", including
+  "Landing: nothing has landed yet" after Skip, on *The landing's
+  line on Home* there (the question `home-landing-line` in
+  `temper/docs/plan/look-round-4/plan.toml`). A chat's "landed" waits
+  on a read per row
+  (`../README.status.md`, 3.5). Connected stays below Chats once
+  To begin is gone, until the `home-drops-connected` request lands
+  (`../README.status.md`, 3.5). An adopted repository's To begin line describes checked changes landing through
   the merge queue, without claiming a creation age or first CI result
-  (`../README.md`, 11). The switcher shows repository names and
-  counts, the first listed standing in for the home; "3 repositories"
+  (`../README.md`, 11). Landing-by-turn wording waits on that
+  section's *How a project lands, on To begin's second step*: the
+  client has no project's `by`, so every project keeps the queue's
+  words (the question `to-begin-landing-by` in
+  `temper/docs/plan/look-round-4/plan.toml`). The switcher shows
+  repository names and counts, the first listed standing in for the home; "3 repositories"
   without that stand-in is unreached (`../README.md`, 5.3). Home's
   GitHub picker and reached count and the model account's email wait
   as `../README.status.md`, 3.5 and 4.4, records. The gallery draws
-  Home's states; the recorded project landing still prints Welcome
-  while the fake sign-in leaves Ready with no usable model
+  Home's states. The model lede keeps the shared account-kind words,
+  "your Claude subscription" and "your OpenAI API key"; its shorter
+  wording and Accounts link belong to `more-accounts`
+  (`temper/docs/plan/look-round-4/tasks/more-accounts.md`;
+  `../README.status.md`, 3.5). The recorded project landing still prints Welcome
+  until `record-landing` walks it again and records Home
   (`../journeys.status.md`, 9).
   The mockups are not edited.
 - **The welcome's greenfield pass** (the client README's 3.5 and 5.6;
