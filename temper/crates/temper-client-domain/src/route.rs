@@ -264,6 +264,7 @@ pub(crate) fn told(root: &mut Domain, env: &Env<Limits>, told: jig_client::Told,
         Told::Link { link } => {
             pages(root, env, crate::pages::Event::Link { link: *link }, out);
             forge_served(root, env, out);
+            forge_ways(root, env, &told, out);
             forge_playground(root, env, &told, out);
             forge_me(root, env, &told, out);
             return;
@@ -280,7 +281,7 @@ pub(crate) fn told(root: &mut Domain, env: &Env<Limits>, told: jig_client::Told,
     match Owner::of(asker) {
         Some(Owner::Pages) => pages(root, env, crate::pages::Event::Told { told }, out),
         Some(Owner::Forge) => {
-            if forge_playground(root, env, &told, out) {
+            if forge_ways(root, env, &told, out) || forge_playground(root, env, &told, out) {
                 return;
             }
             if forge_forges(root, env, &told, out) {
@@ -312,6 +313,7 @@ fn forge_me(root: &mut Domain, env: &Env<Limits>, told: &jig_client::Told, out: 
     let mut child = Queue::uncapped();
     let consumed = forge::me::told(&mut root.forge, &root.client, told, &mut child);
     if consumed {
+        forge::ways::configure(&mut root.forge, &mut child);
         forge::forges::configure(&mut root.forge, env.limits.forge, &mut child);
         forge::dismissed::configure(&mut root.forge, env.limits.forge, &mut child);
     }
@@ -440,4 +442,39 @@ pub(crate) fn welcome_progress(root: &mut Domain, _env: &Env<Limits>, out: &mut 
             }
         }
     }
+}
+
+/// Reconcile the session's reads with the open project and How work runs tab.
+pub(crate) fn ways_progress(root: &mut Domain, env: &Env<Limits>, out: &mut Queue<Request>) {
+    let mut child = Queue::uncapped();
+    let on_tab = match root.pages.address() {
+        Address::Settings { .. } => true,
+        Address::Home { .. }
+        | Address::Inbox { .. }
+        | Address::Chats { .. }
+        | Address::Chat { .. }
+        | Address::Task { .. }
+        | Address::Accounts
+        | Address::ConnectModel { .. }
+        | Address::Forges
+        | Address::ConnectForge { .. }
+        | Address::Adopt { .. }
+        | Address::Repositories { .. }
+        | Address::Configure { .. }
+        | Address::Welcome { .. } => false,
+    };
+    forge::ways::progress(&mut root.forge, root.pages.project(), on_tab, env.limits.forge, &mut child);
+    route_forge(root, env, &mut child, out);
+}
+fn forge_ways(root: &mut Domain, env: &Env<Limits>, told: &jig_client::Told, out: &mut Queue<Request>) -> bool {
+    let mut child = Queue::uncapped();
+    let consumed = forge::ways::told(&mut root.forge, &root.client, told, env.limits.forge, &mut child);
+    route_forge(root, env, &mut child, out);
+    if consumed
+        && let jig_client::Told::Changed { handle } | jig_client::Told::Ended { handle, .. } = told
+        && *handle == root.forge.settings_handle()
+    {
+        pages(root, env, crate::pages::Event::Told { told: told.clone() }, out);
+    }
+    consumed
 }

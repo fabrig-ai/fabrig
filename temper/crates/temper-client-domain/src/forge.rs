@@ -20,6 +20,7 @@ pub mod replace;
 pub mod start;
 pub mod tokens;
 mod vocabulary;
+pub mod ways;
 pub mod words;
 pub use form::{Act, Broken, Check, Field, Form, Marks, Text, Typed, adoption, broken, form, write};
 pub use vocabulary::*;
@@ -58,6 +59,7 @@ pub enum Request {
 #[derive(Debug)]
 #[expect(clippy::struct_excessive_bools, reason = "each session watch keeps whether its own handle is open")]
 pub struct Side {
+    ways: ways::State,
     playground: playground::State,
     deployment: deployment::State,
     forges: forges::State,
@@ -88,6 +90,7 @@ impl Side {
     #[must_use]
     pub fn new(_limits: &Limits, seed: u64) -> Side {
         Side {
+            ways: ways::State::new(),
             playground: playground::State::new(),
             deployment: deployment::State::new(),
             forges: forges::State::Unknown,
@@ -307,6 +310,7 @@ pub fn step(side: &mut Side, env: &Env<Limits>, event: Event, out: &mut Queue<Re
 }
 fn act_on(side: &mut Side, limits: Limits, act: Act, out: &mut Queue<Request>) {
     match act {
+        Act::Ways(act) => ways::act(side, limits, act, out),
         Act::Forges(act) => forges::act(side, limits, act, out),
         Act::Go { address } => out.push(Request::Show { address }),
         Act::AdminWrite { field, text } => admin::write(side, limits, field, text),

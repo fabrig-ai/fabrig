@@ -412,9 +412,7 @@ pub fn step(pages: &mut Pages, env: &Env<Limits>, client: &Client, event: Event,
             if let Some(inbox) = pages.inbox.take() {
                 pages.next = pages.next.max(inbox.leave(out));
             }
-            if let Some(home) = pages.home.take() {
-                home.leave(out);
-            }
+            pages.home = None;
             if let Some(chats) = pages.chats.take() {
                 pages.next = pages.next.max(chats.leave(out));
             }
@@ -729,9 +727,7 @@ fn went(pages: &mut Pages, env: &Env<Limits>, address: Address, out: &mut Queue<
         if let Address::Welcome { .. } = address {
             pages.welcome = Some(welcome::Welcome::new());
         }
-        if let Some(home) = pages.home.take() {
-            home.leave(out);
-        }
+        pages.home = None;
         if let Some(inbox) = pages.inbox.take() {
             pages.next = pages.next.max(inbox.leave(out));
         }
@@ -748,8 +744,7 @@ fn went(pages: &mut Pages, env: &Env<Limits>, address: Address, out: &mut Queue<
             pages.chat = Some(chat::Chat::new(task, pages.next, &env.limits, out));
         }
         if let Address::Home { project } = address {
-            pages.home = Some(home::Home::new(pages.next, out));
-            pages.next = pages.next.checked_add(1).expect("page handles fit");
+            pages.home = Some(home::Home::new());
             pages.chats = Some(chats::Chats::new(pages.next));
             pages.next = pages.next.checked_add(2).expect("page handles fit");
             pages.inbox = Some(inbox::Inbox::new(
