@@ -943,6 +943,14 @@ const HOLDS: [Holds; samples::N] = [
         ],
     },
     Holds {
+        name: "chat-byline-open",
+        heading: "New chat",
+        parts: &[
+            Part::Described { role: Role::Disclosure, name: "Change model", description: "ChatGPT plan · gpt-6-luna" },
+            Part::Named { role: Role::Button, name: "Reset choice" },
+        ],
+    },
+    Holds {
         name: "chat-solo-T6",
         heading: "T6 · Why is tally sum slow on big files?",
         parts: &[Part::Named { role: Role::Paragraph, name: "T7 found it" }],
@@ -1690,4 +1698,19 @@ fn reference_lede_names_the_worlds_templates_in_number_order() {
         String::from_utf8(text).expect("lede UTF-8"),
         "A goal turns a draft into landed work, its own way: task by task, plan, tasks, land whole, plan, then wait for me, one agent, one branch."
     );
+}
+
+#[test]
+fn the_byline_sample_opens_only_the_model_disclosure() {
+    let sample = samples::samples().into_iter().find(|s| s.name == "chat-byline-open").unwrap();
+    let view = view(&sample);
+    let node = view
+        .tree()
+        .nodes()
+        .iter()
+        .find(|n| n.role == Role::Disclosure && n.name.as_deref() == Some(b"Change model"))
+        .unwrap();
+    let html = page(&sample, &skein_ui_bundle::Digest(*b"0123456789abcdef"));
+    assert!(html.contains(&format!("data-node=\"{}\" open", node.id.0)));
+    assert_eq!(html.matches(" open").count(), 1);
 }
