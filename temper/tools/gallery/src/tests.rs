@@ -15,6 +15,21 @@ fn names_are_the_promised_ones() {
 }
 
 #[test]
+fn retired_chat_style_slots_stay_reserved() {
+    let names = &temper_client_view::look::NAMES;
+    for (token, expected) in [
+        (62, b"temper-reserved-62".as_slice()),
+        (295, b"temper-reserved-295"),
+        (296, b"temper-reserved-296"),
+        (297, b"temper-reserved-297"),
+        (298, b"temper-reserved-298"),
+        (299, b"temper-reserved-299"),
+    ] {
+        assert_eq!(names.style(skein_ui::Style { owner: names.owner, token }), Some(expected));
+    }
+}
+
+#[test]
 fn navigation_links_have_addresses_and_install_action_links_keep_their_binding() {
     for sample in samples::samples() {
         let mut view = view(&sample);

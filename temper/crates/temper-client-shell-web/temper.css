@@ -159,29 +159,10 @@ a { color: inherit; text-decoration: none; }
 .temper-entry button::before { content: ''; position: absolute; inset: 7px 5.83px 8.17px; background: url(files/send.svg) center / contain no-repeat; }
 .temper-entry button:hover { background-color: var(--temper-accent-dark); }
 
-/* .entry-hint: the start composer's true keyboard instruction. */
+/* The agent composer's keyboard instruction. */
 .temper-hint { align-self: center; color: #aaa399; font-size: 11.67px; white-space: nowrap; margin: 0; }
-/* .chat-list and .chat-preview: one ruled box, title and metadata. */
-.temper-rows { display: grid; grid-template-columns: 1fr; gap: 0; list-style: none; padding: 0; margin: 0; border: 1px solid var(--temper-line); border-radius: 5.83px; background: var(--temper-paper); }
-.temper-row { position: relative; min-width: 0; border-bottom: 1px solid var(--temper-line); padding: 14px 18.67px; display: grid; grid-template-columns: auto minmax(0, 1fr) auto auto; grid-template-rows: auto auto; column-gap: 14px; row-gap: 0; }
-.temper-row:last-child { border-bottom: 0; }
-.temper-row:first-child { border-radius: 5.83px 5.83px 0 0; }
-.temper-row:last-child { border-radius: 0 0 5.83px 5.83px; }
-.temper-row:hover { background: #faf7f2; }
-.temper-row > a { grid-column: 2; grid-row: 1; align-self: center; color: var(--temper-muted); font-size: 12.83px; }
-.temper-row > a::after { content: ''; position: absolute; inset: 0; border-radius: 4.67px; }
-.temper-row > a:focus-visible { outline: none; }
-.temper-row > a:focus-visible::after { outline: 2.33px solid var(--temper-accent); outline-offset: 2.33px; }
-.temper-row > p { margin: 0; }
-.temper-row > p:first-of-type { grid-column: 1 / 3; grid-row: 2; margin: 7px 0 3.5px; font-size: 14px; font-weight: 700; line-height: 1.35; letter-spacing: -.025em; overflow-wrap: anywhere; }
-.temper-row > p:nth-of-type(2), .temper-row > p:nth-of-type(3) { text-align: right; color: var(--temper-muted); font-size: 12.83px; align-self: center; }
-.temper-row > p:nth-of-type(2) { grid-column: 3; grid-row: 1; }
-.temper-row > p:nth-of-type(3) { grid-column: 4; grid-row: 1; }
-.temper-time { grid-column: 3 / -1; grid-row: 2; align-self: center; color: var(--temper-muted); font-size: 12.83px; text-align: right; }
-.temper-row > p.temper-time { grid-column: 3 / -1; grid-row: 2; }
-.temper-row > p:nth-of-type(2):has(+ p.temper-time) { grid-column: 3 / -1; }
+.temper-time { color: var(--temper-muted); font-size: 12.83px; text-align: right; }
 /* .tag: status words with their five meaning colours. */
-.temper-row > [role=status] { grid-column: 1; grid-row: 1; justify-self: start; }
 .temper-status-yours, .temper-status-held, .temper-status-retrying, .temper-status-active, .temper-status-quiet { display: inline-flex; align-items: center; width: fit-content; padding: 2.33px 7px; border-radius: 3.5px; font-size: 11.67px; font-weight: 600; white-space: nowrap; }
 .temper-status-yours { color: var(--temper-accent-dark); background: var(--temper-accent-pale); }
 .temper-status-held { color: var(--temper-red); background: var(--temper-red-pale); }
@@ -191,19 +172,7 @@ a { color: inherit; text-decoration: none; }
 .temper-status-waiting { display: inline-flex; align-items: center; width: fit-content; padding: 2.33px 7px; border-radius: 3.5px; font-size: 11.67px; font-weight: 600; white-space: nowrap; color: var(--temper-amber); background: var(--temper-amber-pale); }
 /* .first-run-context: the project and signed-in role. */
 .temper-context { display: flex; align-items: center; justify-content: space-between; flex-wrap: wrap; gap: 14px; color: var(--temper-muted); font-size: 12.83px; margin: 0 0 21px; }
-/* .first-run-empty: one invitation and a wrapping row of paper suggestions. */
-.temper-invitation { margin: 0; padding: 35px 0 39.67px; }
-.temper-invitation > h1 { margin: 0 0 9.33px; font: 700 clamp(24.5px, 2.63vw, 30.33px)/1.25 var(--temper-mono); letter-spacing: -.025em; }
-.temper-invitation > p { margin: 9.33px 0 0; color: var(--temper-muted); font-size: 14px; }
-.temper-invitation > ul { display: flex; flex-wrap: wrap; align-items: center; gap: 9.33px; list-style: none; padding: 0; margin: 18.67px 0 0; border: 0; }
-.temper-invitation > ul > li { min-width: 0; max-width: 100%; padding: 0; border: 0; }
-.temper-invitation button { display: inline-flex; align-items: center; max-width: 100%; min-height: 35px; padding: 5.83px 11.67px; border: 1px solid #ddd6cb; border-radius: 5.83px; background: var(--temper-paper); color: #6a6258; font: 600 12.83px/1.35 var(--temper-mono); overflow-wrap: anywhere; }
-.temper-invitation button:hover { border-color: #ba9c89; color: var(--temper-accent-dark); }
-.temper-invitation button:disabled { opacity: .55; cursor: default; }
-.temper-invitation > p:last-child { margin-top: 16.33px; font-size: 14px; }
-/* .filter: the real closed-page action. */
-.temper-main > .temper-rows + button { margin-top: 10.5px; border: 1px solid var(--temper-line); background: #f7f5f0; color: var(--temper-muted); border-radius: 4.67px; min-height: 32.67px; padding: 5.83px 10.5px; font: 600 12.83px/1.35 var(--temper-mono); }
-/* .card and .composer: existing chat-page tokens. */
+/* The shared card and the agent page's composer. */
 .temper-card { background: var(--temper-paper); border: 1px solid var(--temper-line); border-radius: 5.83px; padding: 14px 18.67px; }
 .temper-turn { white-space: pre-wrap; }
 .temper-composer:not(.temper-entry textarea) { field-sizing: content; min-height: 1lh; max-height: 140px; resize: none; overflow-y: auto; }
@@ -234,17 +203,6 @@ section.temper-accounts button:hover { text-decoration: underline; }
   .temper-main { width: calc(100% - 32.67px); padding-top: 18.67px; }
   .temper-accounts { width: calc(100% - 28px); margin-top: 16px; }
   .temper-hint { display: none; }
-}
-/* .chat-preview at 600px: metadata below the title. */
-@media (max-width: 600px) {
-  .temper-row { display: flex; flex-wrap: wrap; column-gap: 16.33px; }
-  .temper-row > a { order: 1; flex: 1; }
-  .temper-row > p:first-of-type { order: 2; flex: 0 0 100%; }
-  .temper-row > p:nth-of-type(2), .temper-row > p:nth-of-type(3) { text-align: left; margin-top: 7px; }
-  .temper-row > p:nth-of-type(2) { order: 3; }
-  .temper-row > p:nth-of-type(3) { order: 4; }
-  .temper-time { order: 5; flex: 0 0 100%; text-align: left; }
-  .temper-row > p.temper-time { order: 5; margin-top: 0; }
 }
 /* .terminal-shell: the log owns scrolling and the frame owns the viewport. */
 #app:has(> .temper-agent-page) { height: 100vh; height: 100dvh; min-height: 0; display: flex; flex-direction: column; overflow: hidden; }
@@ -342,9 +300,9 @@ section.temper-accounts button:hover { text-decoration: underline; }
 .temper-steps { display: grid; grid-template-columns: repeat(4,1fr); gap: 3.5px; margin: 25.67px 0; list-style: none; padding: 0; }
 .temper-step { border-top: 3.5px solid var(--temper-line); padding-top: 10.5px; font-size: 12.83px; color: var(--temper-muted); }
 .temper-step-done { border-color: var(--temper-green); color: var(--temper-green); }
-/* .terminal-composer-area and .terminal-composer: reuse the Chats entry. */
+/* The agent composer's area and entry. */
 .temper-agent-page .temper-composer-area { flex: none; border-top: 1px solid var(--temper-line); background: #f9f7f3; padding: 11.67px 26.83px; }
-/* Chat and demo-start entries: :has selects a main with its own bar; :where preserves specificity. */
+/* The agent page's entry follows its task bar. */
 .temper-main:where(:has(> .temper-taskbar)) .temper-entry { width: min(1213.33px, 100%); margin: 0 auto; min-height: 46.67px; border-radius: 8.17px; padding: 9.33px 9.33px 9.33px 14px; box-shadow: 0 2.33px 9.33px rgba(55,42,27,.035); }
 .temper-main:where(:has(> .temper-taskbar)) .temper-entry textarea { font-size: 15.17px; line-height: 24.5px; }
 .temper-main:where(:has(> .temper-taskbar)) .temper-entry button { border-radius: 5.83px / 7px 7px 8.17px 8.17px; background-color: var(--temper-accent); }
@@ -409,34 +367,15 @@ dialog button:nth-last-child(2) { margin-left: auto; background: var(--temper-ac
 .temper-pagebar { height: 43.17px; padding: 0 29.17px; background: #fcfbf8; border-bottom: 1px solid var(--temper-line); display: flex; align-items: center; }
 .temper-pagebar h1 { margin: 0; font: 700 12.83px/1.58 var(--temper-mono); letter-spacing: -.015em; }
 /* .section-heading and .filter-row: groups wrap together and retain their words. */
-.temper-page .temper-heading, .temper-main:has(> .temper-taskbar) > .temper-heading { display: flex; align-items: center; justify-content: space-between; gap: 21px; margin-top: 24.5px; margin-bottom: 10.5px; }
+.temper-page .temper-heading { display: flex; align-items: center; justify-content: space-between; gap: 21px; margin-top: 24.5px; margin-bottom: 10.5px; }
 .temper-pagebar + .temper-heading, .temper-pagebar + h2 { margin-top: 25.67px; }
-.temper-entry + .temper-heading { margin-top: 26.83px; }
 .temper-heading > .temper-subtle-count { margin: 0 auto 0 -10.5px; color: var(--temper-faint); font: 500 12.83px/1.58 var(--temper-mono); white-space: nowrap; }
-/* The chats page: its composer keeps the welcome's 823.33px and More its own width, at the column's left. */
-.temper-main.temper-page > :is(.temper-choice, .temper-entry), .temper-main.temper-page > .temper-rows + button { margin-left: max(28px, calc((100% - 1353.33px) / 2)); margin-right: auto; }
-.temper-main.temper-page > :is(.temper-choice, .temper-entry) { width: min(886.67px, calc(100% - 56px)); }
-.temper-main.temper-page > .temper-rows + button { width: auto; }
 @media (max-width: 850px) {
   .temper-page > :not(.temper-pagebar):not(dialog) { width: calc(100% - 39.67px); }
-  .temper-main.temper-page > :is(.temper-choice, .temper-entry), .temper-main.temper-page > .temper-rows + button { margin-left: 19.83px; }
-  .temper-main.temper-page > :is(.temper-choice, .temper-entry) { width: min(886.67px, calc(100% - 39.67px)); }
 }
 @media (max-width: 760px) {
   .temper-main.temper-page { width: 100%; padding: 0 0 67.67px; }
   .temper-page > :not(.temper-pagebar):not(dialog) { width: calc(100% - 32.67px); }
-  .temper-main.temper-page > :is(.temper-choice, .temper-entry), .temper-main.temper-page > .temper-rows + button { margin-left: 16.33px; }
-  .temper-main.temper-page > :is(.temper-choice, .temper-entry) { width: calc(100% - 32.67px); }
-}
-/* .task-heading: 10.83px after its metadata, 20.58px before the cards. */
-.temper-main.temper-page > .temper-choice { width: min(886.67px, calc(100% - 56px)); margin: 0 auto 7px max(28px, calc((100% - 1353.33px) / 2)); }
-/* .task-heading at 850px: follow the heading's left edge. */
-@media (max-width: 850px) {
-  .temper-main.temper-page > .temper-choice { margin-left: 19.83px; }
-}
-/* .page at 760px: the task heading and cards share the phone inset. */
-@media (max-width: 760px) {
-  .temper-main.temper-page > .temper-choice { width: min(886.67px, calc(100% - 32.67px)); margin-left: 16.33px; }
 }
 
 /* .empty-state: an empty list's words in a dashed box. */
@@ -521,7 +460,7 @@ dialog button:nth-last-child(2) { margin-left: auto; background: var(--temper-ac
 }
 /* .section-heading at 600px: filters below the heading, all controls retained. */
 @media (max-width: 600px) {
-  .temper-page .temper-heading, .temper-main:has(> .temper-taskbar) > .temper-heading { flex-wrap: wrap; row-gap: 0; }
+  .temper-page .temper-heading { flex-wrap: wrap; row-gap: 0; }
   .temper-heading .temper-filters { flex: 0 0 100%; margin-top: 9.33px; justify-content: flex-start; }
   .temper-kind-menu > div { justify-content: flex-start; }
   .temper-page .temper-card textarea { width: 100%; }
@@ -632,8 +571,8 @@ dialog button:nth-last-child(2) { margin-left: auto; background: var(--temper-ac
 .temper-choice a:hover { color: var(--temper-accent-dark); }
 .temper-choice .temper-account-line a { margin-left: 7px; }
 /* .filter-row: the catalogue wraps as inline provider/model/effort groups. */
-.temper-choice > .temper-rows { flex-basis: 100%; display: flex; flex-wrap: wrap; gap: 7px 16.33px; margin: 0; padding: 0; border: 0; border-radius: 0; background: transparent; }
-.temper-choice .temper-row { display: inline-flex; flex-wrap: wrap; align-items: center; gap: 7px; max-width: 100%; padding: 0; border: 0; border-radius: 0; background: transparent; }
+.temper-choice > .temper-rows { flex-basis: 100%; display: flex; flex-wrap: wrap; gap: 7px 16.33px; list-style: none; margin: 0; padding: 0; border: 0; border-radius: 0; background: transparent; }
+.temper-choice .temper-row { min-width: 0; display: inline-flex; flex-wrap: wrap; align-items: center; gap: 7px; max-width: 100%; padding: 0; border: 0; border-radius: 0; background: transparent; }
 .temper-choice .temper-row > p:nth-of-type(n) { flex: initial; order: 0; width: auto; margin: 0; color: var(--temper-muted); font: 11.67px/1.58 var(--temper-mono); letter-spacing: inherit; text-align: left; }
 /* .filter and .filter.active: Selected buttons retain their ARIA state. */
 .temper-choice .temper-row > button { max-width: 100%; min-width: 0; min-height: 32.67px; padding: 5.83px 10.5px; border: 1px solid var(--temper-line); border-radius: 4.67px; background: #f7f5f0; color: var(--temper-muted); font: 600 12.83px/1.35 var(--temper-mono); white-space: normal; overflow-wrap: anywhere; }
@@ -647,8 +586,6 @@ dialog button:nth-last-child(2) { margin-left: auto; background: var(--temper-ac
 /* Pending and outcomes take a full row; status tokens keep their own colours. */
 .temper-choice:not(:has(> .temper-rows)) > .temper-account-line:last-child,
 .temper-choice > p:not(.temper-account-line):last-child, .temper-choice > [role=status]:not(.temper-status-active), .temper-choice > [role=alert] { flex-basis: 100%; }
-/* .terminal-entry-composer: Chats uses the entry's left-aligned width. */
-.temper-main > .temper-choice { width: min(886.67px, 100%); margin: 0 0 9.33px; }
 /* .terminal-composer-area: the entry column, also when Message is unavailable. */
 .temper-agent-page .temper-composer-area > .temper-choice { width: min(1213.33px, 100%); margin: 0 auto 7px; }
 .temper-agent-page > .temper-choice { box-sizing: content-box; flex: none; width: min(1213.33px, calc(100% - 53.67px)); margin: 0 auto; padding: 11.67px 26.83px; }
@@ -752,32 +689,11 @@ body > noscript, #app:not(:empty):not(:has(*)) { margin-top: 213px; }
   .temper-unavailable { width: calc(100% - 32.67px); }
 }
 
-/* The playground strip spans the frame, above every work page and its chatbar. */
+/* The playground strip spans the frame above every work page. */
 #app > section.temper-accounts { width: 100%; margin: 0; padding: 4px 25px; border: 0; border-bottom: 1px solid var(--temper-line); gap: 4px 18px; }
 #app > section.temper-accounts p { flex: 0 1 auto; }
 @media (max-width: 600px) {
   #app > section.temper-accounts { padding: 6px 16px; }
-}
-/* The demo start uses the Chats list column; its entry follows the invitation at the left edge. */
-/* The demo start is the Chats page's type, 14px at -.015em (terminal-pages.css), its entry with it. */
-.temper-main:not(.temper-agent-page):has(> .temper-taskbar) { width: 100%; margin: 0; padding: 0 0 67.67px; font-size: 14px; letter-spacing: -.015em; }
-.temper-main:not(.temper-agent-page):has(> .temper-taskbar) .temper-entry textarea { font-size: 14px; }
-.temper-main:not(.temper-agent-page):has(> .temper-taskbar) > :not(.temper-taskbar) { width: min(1353.33px, calc(100% - 56px)); margin-inline: auto; }
-.temper-main:not(.temper-agent-page):has(> .temper-taskbar) > .temper-context > p { margin: 0; }
-.temper-main:not(.temper-agent-page):has(> .temper-taskbar) > :is(.temper-choice, .temper-entry) { width: min(886.67px, calc(100% - 56px)); margin-left: max(28px, calc((100% - 1353.33px) / 2)); margin-right: auto; }
-.temper-main:not(.temper-agent-page):has(> .temper-taskbar) > .temper-entry { margin-bottom: 24.5px; }
-.temper-main:not(.temper-agent-page) > .temper-taskbar .temper-status-quiet { color: #4c8067; }
-.temper-main:not(.temper-agent-page) > .temper-taskbar [role=status]::before { content: none; }
-@media (max-width: 850px) {
-  .temper-main:not(.temper-agent-page):has(> .temper-taskbar) > :not(.temper-taskbar) { width: calc(100% - 39.67px); }
-  .temper-main:not(.temper-agent-page):has(> .temper-taskbar) > :is(.temper-choice, .temper-entry) { width: min(886.67px, calc(100% - 39.67px)); margin-left: 19.83px; }
-}
-@media (max-width: 760px) {
-  .temper-main:not(.temper-agent-page):has(> .temper-taskbar) > :not(.temper-taskbar) { width: calc(100% - 32.67px); }
-  .temper-main:not(.temper-agent-page):has(> .temper-taskbar) > :is(.temper-choice, .temper-entry) { width: min(886.67px, calc(100% - 32.67px)); margin-left: 16.33px; }
-}
-@media (max-width: 430px) {
-  .temper-main:not(.temper-agent-page):has(> .temper-taskbar) > .temper-invitation { padding: 23.33px 0 28px; }
 }
 
 /* chat.html: the identity's three text nodes retain the whole accessible heading. */
@@ -1076,25 +992,9 @@ body > noscript, #app:not(:empty):not(:has(*)) { margin-top: 213px; }
 .temper-main h2:has(+ .temper-flow-subtitle) { margin-bottom: 0; }
 .temper-main p.temper-flow-subtitle { margin: 0 0 12.83px; color: var(--temper-muted); font-size: 12.83px; line-height: 1.6; }
 
-/* Chats share the mockup's ruled block rows: metadata, title, then spend and age. */
-.temper-main > .temper-rows:has(> .temper-row > .temper-meta) { border-radius: 0; }
-.temper-main > .temper-rows > .temper-row:has(> .temper-meta) { display: block; border-radius: 0; padding: 14px 18.67px; }
-.temper-main > .temper-rows > .temper-row > .temper-meta { display: flex; flex-wrap: wrap; gap: 7px 14px; align-items: center; padding: 0; margin: 0; font-size: 12.83px; font-weight: 400; }
-.temper-row > .temper-meta > p { margin: 0; }
-.temper-row > .temper-meta a { margin: 0; }
-.temper-row > .temper-meta a::before { content: none; }
-/* The chat link covers its row; independent controls stay above the hit area. */
-.temper-row > .temper-meta > p:first-of-type > a:first-of-type::after { content: ''; position: absolute; inset: 0; border-radius: 4.67px; }
-.temper-row > .temper-meta > p:first-of-type > a:first-of-type:focus-visible { outline: none; }
-.temper-row > .temper-meta > p:first-of-type > a:first-of-type:focus-visible::after { outline: 2.33px solid var(--temper-accent); outline-offset: 2.33px; }
-.temper-row:has(> .temper-meta) :is(a, button, input, select, textarea, summary):not(.temper-meta > p:first-of-type > a:first-of-type) { position: relative; z-index: 1; }
-.temper-main > .temper-rows > .temper-row > p:first-of-type { margin: 7px 0 3.5px; font-size: 14px; font-weight: 700; text-align: left; }
-.temper-main > .temper-rows > .temper-row > p:not(:first-of-type):not(.temper-details):not(.temper-time) { margin: 3.5px 0; font-size: 12.83px; color: var(--temper-muted); text-align: left; }
-.temper-main > .temper-rows > .temper-row > :is(.temper-details, .temper-time) { display: inline-block; margin: 4.67px 14px 0 0; padding: 0; border: 0; border-radius: 0; background: none; color: var(--temper-muted); font-size: 12.83px; text-align: left; }
 /* .composer-line stays immediately above the editable field. */
 .temper-choice .temper-account-line a { margin-left: 0; color: var(--temper-accent-dark); font-weight: 600; text-decoration: none; }
 .temper-entry button:disabled { opacity: .45; cursor: default; }
-.temper-main:not(.temper-agent-page) > .temper-taskbar + .temper-context { padding-top: 21px; }
 /* The proposal's edge follows its turn's content column. */
 .temper-agent-page .temper-turn > .temper-kind-proposal { margin-left: 127.17px; }
 .temper-kind-proposal > button, .temper-kind-proposal > details { vertical-align: top; }
@@ -1103,9 +1003,6 @@ body > noscript, #app:not(:empty):not(:has(*)) { margin-top: 213px; }
 .temper-agent-page .temper-kind-proposal > a:hover { color: #9d5139; text-decoration: underline; }
 @media (max-width: 760px) { .temper-agent-page .temper-turn > .temper-kind-proposal { margin-left: 81.67px; } }
 @media (max-width: 430px) {
-  .temper-main:not(.temper-agent-page) > .temper-taskbar { height: 43.17px; padding: 0 18.67px; }
-  .temper-main:not(.temper-agent-page) > .temper-taskbar [role=status],
-  .temper-main:not(.temper-agent-page) > .temper-taskbar > div:last-child { display: none; }
   .temper-agent-page .temper-turn > .temper-kind-proposal { margin-left: 0; }
 }
 
@@ -1161,19 +1058,6 @@ body > noscript, #app:not(:empty):not(:has(*)) { margin-top: 213px; }
 
 .temper-account-row:not(:has(> .temper-heading)) > summary { color: var(--temper-muted); font-size: 12.83px; font-weight: 400; }
 
-/* The mockup's wide rows put spend and activity beside the title. */
-@media (min-width: 761px) {
-  .temper-main > .temper-rows > .temper-row:has(> .temper-meta) { display: grid; grid-template-columns: minmax(0, 1fr) auto; column-gap: 28px; }
-  .temper-main > .temper-rows > .temper-row > .temper-meta { grid-column: 1; grid-row: 1; }
-  .temper-main > .temper-rows > .temper-row > p:first-of-type { grid-column: 1; grid-row: 2; }
-  .temper-main > .temper-rows > .temper-row > p:not(:first-of-type):not(.temper-details):not(.temper-time) { grid-column: 1; grid-row: 3; }
-  .temper-main > .temper-rows > .temper-row > .temper-details { grid-column: 2; grid-row: 2; justify-self: end; margin-right: 0; }
-  .temper-main > .temper-rows > .temper-row > .temper-time { grid-column: 2; grid-row: 3; justify-self: end; margin-right: 0; }
-}
-@media (max-width: 430px) {
-  .temper-main.temper-page > h2:has(+ .temper-choice + .temper-entry) { display: none; }
-  .temper-main.temper-page > .temper-choice:has(+ .temper-entry) { margin-top: 42px; }
-}
 .temper-kind-proposal > a { display: inline-flex; align-items: center; min-height: 35px; vertical-align: top; }
 
 /* Command containers retain the paragraphs' browser layout (client/README.md, 6.5). */
@@ -1521,6 +1405,11 @@ body > noscript, #app:not(:empty):not(:has(*)) { margin-top: 213px; }
 
 /* ==== ui: chats ==== */
 
+/* The keyboard hint has no paragraph margin below the mock's composer. */
+#app > .temper-session .temper-session-foot > .temper-session-hint { margin-bottom: 0; }
+/* Unanchored cards share the turns' column and spacing. */
+#app > .temper-session .temper-thread-inner > .temper-cards { display: flex; flex-direction: column; gap: 20px; list-style: none; margin: 0; padding: 0; }
+
 /* Calls and delegations share the conversation's pen line. */
 #app > .temper-session :is(.temper-turn-tool, .temper-task-card) { display: flex; flex-wrap: wrap; align-items: center; gap: 6px 10px; margin: -8px 0 0; padding: 0; border: 0; border-radius: 0; background: none; box-shadow: none; font-size: 13px; color: var(--gf-muted); }
 #app > .temper-session :is(.temper-task-card, .temper-turn-tool > summary)::before { content: ''; flex: none; display: inline-block; width: 14px; height: 14px; background: var(--gf-faint); mask: url(files/pen.svg) center / contain no-repeat; }
@@ -1550,7 +1439,7 @@ body > noscript, #app:not(:empty):not(:has(*)) { margin-top: 213px; }
 #app > .temper-session .temper-thread-inner .temper-card:not(.temper-task-card) ul { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; gap: 12px; }
 #app > .temper-session .temper-thread-inner .temper-card:not(.temper-task-card) li { display: flex; flex-direction: column; gap: 2px; }
 #app > .temper-session .temper-thread-inner .temper-card:not(.temper-task-card) li small { font: 12px var(--gf-mono); color: var(--gf-faint); }
-#app > .temper-session .temper-thread-inner .temper-card:not(.temper-task-card) > [role=status] { padding: 0; border: 0; background: none; font-size: 13.5px; color: var(--gf-faint); }
+#app > .temper-session .temper-thread-inner .temper-card:not(.temper-task-card) > :is([role=status], .temper-meta) { padding: 0; border: 0; background: none; font-size: 13.5px; color: var(--gf-faint); }
 #app > .temper-session .temper-thread-inner .temper-card:not(.temper-task-card) :is(button, details > summary) { display: inline-flex; align-items: center; gap: 8px; align-self: flex-start; min-height: 34px; margin: 0; padding: 5px 12px; border: 1px solid transparent; border-radius: 8px; background: none; color: var(--gf-muted); font: 400 13.5px/1.6 var(--gf-sans); text-decoration: none; text-align: left; }
 #app > .temper-session .temper-thread-inner .temper-card:not(.temper-task-card) :is(button, details > summary):hover { background: var(--gf-hover); color: var(--gf-ink); }
 #app > .temper-session .temper-thread-inner .temper-card:not(.temper-task-card) button.temper-recommended { border-color: var(--gf-ink); background: var(--gf-ink); color: #fff; font-weight: 500; }
@@ -1615,7 +1504,7 @@ body > noscript, #app:not(:empty):not(:has(*)) { margin-top: 213px; }
 }
 :root:has(#app > :is(.temper-session, .temper-chats-page)) body { background: var(--gf-paper); color: var(--gf-ink); font: 15px/1.6 var(--gf-sans); letter-spacing: normal; -webkit-font-smoothing: antialiased; }
 
-/* configure-chat-in-settings: "Tell temper how you work" opens a chat page of its own under Settings, as the greenfield mockup's chat.html?id=new&configure=1 draws it, in the project's frame: the rail, a top bar with the path back and the model, the configuring agent's line and three starters, the composer at the foot. */
+/* The session keeps the project's frame, path, conversation and composer. */
 #app > .temper-session { width: auto; height: 100vh; height: 100dvh; margin: 0; padding: 0; display: flex; flex-direction: column; font-size: 15px; letter-spacing: normal; }
 #app > .temper-session > .temper-session-top { flex: none; display: flex; flex-wrap: wrap; align-items: center; gap: 10px 18px; padding: 12px 24px; border-bottom: 1px solid var(--gf-line); }
 #app > .temper-session .temper-crumbs { display: flex; align-items: center; gap: 8px; min-width: 0; font-size: 14px; color: var(--gf-muted); }
@@ -1648,6 +1537,18 @@ body > noscript, #app:not(:empty):not(:has(*)) { margin-top: 213px; }
 #app > .temper-session details.temper-byline > summary:hover { color: var(--gf-ink); }
 #app > .temper-session details.temper-byline > .temper-choice { position: absolute; top: calc(100% + 6px); right: 24px; z-index: 30; display: flex; flex-direction: column; align-items: stretch; gap: 10px; width: 320px; max-width: calc(100vw - 24px); max-height: calc(100dvh - 100px); overflow: auto; padding: 12px; border: 1px solid var(--gf-line); border-radius: 10px; background: var(--gf-surface); box-shadow: 0 12px 32px rgba(24, 24, 27, .12); white-space: normal; color: var(--gf-muted); }
 #app > .temper-session details.temper-byline > .temper-choice > .temper-rows { flex-direction: column; flex-basis: auto; }
+#app > .temper-session .temper-choice { color: var(--gf-muted); font: 13px/1.6 var(--gf-sans); }
+#app > .temper-session .temper-choice :is(p, .temper-account-line) { font-size: inherit; color: inherit; }
+#app > .temper-session .temper-choice .temper-row > p { font: 12px/1.6 var(--gf-sans); color: var(--gf-faint); }
+#app > .temper-session .temper-choice .temper-row > button { min-height: 34px; padding: 5px 12px; border: 1px solid var(--gf-line-2); border-radius: 8px; background: var(--gf-surface); color: var(--gf-ink); font: 400 13.5px/1.6 var(--gf-sans); }
+#app > .temper-session .temper-choice .temper-row > button[aria-pressed=true] { border-color: var(--gf-hover); background: var(--gf-hover); font-weight: 500; }
+#app > .temper-session .temper-choice > button { min-height: 34px; padding: 5px 12px; border: 1px solid transparent; border-radius: 8px; background: none; color: var(--gf-muted); font: 400 13.5px/1.6 var(--gf-sans); }
+#app > .temper-session .temper-choice > button:hover { background: var(--gf-hover); color: var(--gf-ink); text-decoration: none; }
+#app > .temper-session .temper-choice > button + button { border-color: var(--gf-ink); background: var(--gf-ink); color: #fff; font-weight: 500; }
+#app > .temper-session .temper-choice > button + button:hover { background: #000; }
+#app > .temper-session .temper-choice a { color: var(--gf-muted); font-weight: 400; text-decoration: underline; text-decoration-color: var(--gf-line-2); text-underline-offset: 3px; }
+#app > .temper-session .temper-choice a:hover { color: var(--gf-ink); text-decoration-color: var(--gf-ink); }
+
 @media (max-width: 760px) {
   #app > .temper-session details.temper-byline > summary { display: inline-flex; align-items: center; gap: 8px; min-height: 34px; padding: 5px 12px; border: 1px solid transparent; border-radius: 8px; background: none; color: var(--gf-muted); font: 13.5px/1.6 var(--gf-sans); text-align: left; }
   #app > .temper-session details.temper-byline > summary:hover { background: var(--gf-hover); color: var(--gf-ink); }
@@ -1727,6 +1628,14 @@ body > noscript, #app:not(:empty):not(:has(*)) { margin-top: 213px; }
 @keyframes chat-typing { 0%, 100% { opacity: .3; } 50% { opacity: 1; } }
 @media (max-width: 760px) {
   #app > .temper-session .temper-thread > [role=log] { padding: 20px 16px; scrollbar-gutter: auto; scrollbar-width: none; }
+}
+
+/* Playground suggestions keep the centred new-chat opening beside configuring's cards. */
+#app > .temper-session .temper-starter:not(:has(> .temper-starter-ways)) { margin: 12vh auto 0; align-items: center; gap: 16px; }
+#app > .temper-session .temper-starter > .temper-starters { width: min(520px, 100%); display: flex; flex-direction: column; gap: 8px; }
+#app > .temper-session .temper-starter > .temper-starters button { min-height: 34px; flex-direction: row; align-items: center; padding: 5px 12px; border-color: var(--gf-line-2); border-radius: 8px; font: 400 13.5px/1.6 var(--gf-sans); box-shadow: none; }
+@media (max-width: 760px) {
+  #app > .temper-session .temper-starter:not(:has(> .temper-starter-ways)) { margin-top: 4vh; }
 }
 
 /* ==== ui: needs ==== */
@@ -1945,15 +1854,3 @@ body > noscript, #app:not(:empty):not(:has(*)) { margin-top: 213px; }
 
 
 /* ==== ui: phone ==== */
-
-
-
-
-
-/* Playground suggestions keep the centred new-chat opening beside configuring's cards. */
-#app > .temper-session .temper-starter:not(:has(> .temper-starter-ways)) { margin: 12vh auto 0; align-items: center; gap: 16px; }
-#app > .temper-session .temper-starter > .temper-starters { width: min(520px, 100%); display: flex; flex-direction: column; gap: 8px; }
-#app > .temper-session .temper-starter > .temper-starters button { min-height: 34px; flex-direction: row; align-items: center; padding: 5px 12px; border-color: var(--gf-line-2); border-radius: 8px; font: 400 13.5px/1.6 var(--gf-sans); box-shadow: none; }
-@media (max-width: 760px) {
-  #app > .temper-session .temper-starter:not(:has(> .temper-starter-ways)) { margin-top: 4vh; }
-}

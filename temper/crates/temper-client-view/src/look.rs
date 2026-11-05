@@ -319,8 +319,6 @@ pub const CHOICE: Style = Style { owner: owner(), token: 59 };
 pub const ACCOUNTS_PAGE: Style = Style { owner: owner(), token: 60 };
 /// The repository adoption page body.
 pub const ADOPTION_PAGE: Style = Style { owner: owner(), token: 61 };
-/// The playground heading, request, suggestions and script note.
-pub const INVITATION: Style = Style { owner: owner(), token: 62 };
 /// A supplied refusal, still announced as a status.
 pub const REFUSAL: Style = Style { owner: owner(), token: 63 };
 /// A change's steps on its delegation card.
@@ -634,7 +632,7 @@ pub const NAMES: Names<'static> = Names {
         b"temper-choice",
         b"temper-accounts-page",
         b"temper-adoption-page",
-        b"temper-invitation",
+        b"temper-reserved-62",
         b"temper-refusal",
         b"temper-steps",
         b"temper-step",
@@ -867,11 +865,11 @@ pub const NAMES: Names<'static> = Names {
         b"temper-goals-state-paused",
         b"temper-goals-state-landed",
         b"temper-goals-state-stopped",
-        b"temper-chat",
-        b"temper-chatbar",
-        b"temper-sidebar",
-        b"temper-session-actions",
-        b"temper-configuring-tag",
+        b"temper-reserved-295",
+        b"temper-reserved-296",
+        b"temper-reserved-297",
+        b"temper-reserved-298",
+        b"temper-reserved-299",
         b"temper-toast",
         b"temper-needs",
         b"temper-flow-head",
