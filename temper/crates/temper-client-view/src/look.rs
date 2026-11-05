@@ -26,6 +26,8 @@ pub const SETTINGS_END: Style = Style { owner: owner(), token: 319 };
 pub const SETTINGS_ROW: Style = Style { owner: owner(), token: 320 };
 pub const SETTINGS_PATH: Style = Style { owner: owner(), token: 321 };
 pub const SETTINGS_TEXT: Style = Style { owner: owner(), token: 322 };
+pub const SETTINGS_EMPTY: Style = Style { owner: owner(), token: 323 };
+pub const SETTINGS_FACTS: Style = Style { owner: owner(), token: 324 };
 /// The session toast (client/README.md, 3.5).
 pub const TOAST: Style = Style { owner: owner(), token: 248 };
 /// The Goals column (client/README.md, 3.5).
@@ -894,6 +896,8 @@ pub const NAMES: Names<'static> = Names {
         b"temper-settings-row",
         b"temper-settings-path",
         b"temper-settings-text",
+        b"temper-settings-empty",
+        b"temper-settings-facts",
     ],
     regions: &[b"temper-link"],
 };

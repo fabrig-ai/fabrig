@@ -22,6 +22,7 @@ Settings:
   [14] Repositories
   [15] Forges
   [16] Accounts
+  [17] Builders
 Configure temper
 Tell it how you work, in your own words or by pointing at a document. It proposes the settings; nothing changes until you accept.
-[17] Start
+[18] Start

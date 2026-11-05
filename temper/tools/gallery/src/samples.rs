@@ -20,6 +20,7 @@ pub enum World {
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 pub enum Then {
     Shown,
+    Hosts { role: bool, connected: bool },
     Filled,
     Refused,
     SignedOut,
@@ -61,7 +62,7 @@ pub struct Sample {
     pub address: Address,
     pub then: Then,
 }
-pub const N: usize = 155;
+pub const N: usize = 158;
 const CHATS: Address = Address::Chats { filter: ChatsFilter::All, start: false };
 use World::{Bare, FirstRun, Reference, Solo};
 #[must_use]
@@ -73,6 +74,24 @@ fn task(task: u64) -> Address {
 #[expect(clippy::too_many_lines, reason = "one table keeps every named gallery state in its promised order")]
 pub fn samples() -> [Sample; N] {
     let mut samples = [
+        Sample {
+            name: "builders",
+            world: Solo,
+            address: Address::Builders { project: 1 },
+            then: Then::Hosts { role: true, connected: true },
+        },
+        Sample {
+            name: "builders-none",
+            world: Solo,
+            address: Address::Builders { project: 1 },
+            then: Then::Hosts { role: true, connected: false },
+        },
+        Sample {
+            name: "builders-not-owner",
+            world: Solo,
+            address: Address::Builders { project: 1 },
+            then: Then::Hosts { role: false, connected: false },
+        },
         Sample { name: "changes", world: Reference, address: Address::Changes { project: 1 }, then: Shown },
         Sample { name: "changes-empty", world: Reference, address: Address::Changes { project: 1 }, then: Shown },
         Sample { name: "changes-one", world: Reference, address: Address::Changes { project: 1 }, then: Shown },
@@ -582,7 +601,8 @@ pub fn mockup(sample: &Sample) -> Option<String> {
             Then::Declined => "#other-states-declined",
             Then::Renewed => "#other-states-renewed",
             Then::SignInRefused => "#other-states-refused",
-            Then::Shown
+            Then::Hosts { .. }
+            | Then::Shown
             | Then::Filled
             | Then::Refused
             | Then::SignedOut
@@ -619,6 +639,7 @@ pub fn mockup(sample: &Sample) -> Option<String> {
         | Address::Home { .. }
         | Address::Changes { .. }
         | Address::Settings { .. }
+        | Address::Builders { .. }
         | Address::Repositories { .. }
         | Address::Configure { .. }
         | Address::Adopt { .. } => {
@@ -654,6 +675,7 @@ pub fn mockup(sample: &Sample) -> Option<String> {
         | Address::Home { .. }
         | Address::Changes { .. }
         | Address::Settings { .. }
+        | Address::Builders { .. }
         | Address::Repositories { .. }
         | Address::Goals { .. }
         | Address::Configure { .. }
@@ -690,7 +712,7 @@ pub fn domain(sample: &Sample) -> Domain {
     let (mut root, accounts_watch) = crate::worlds::world(sample.world, sample.address.clone(), sample.then);
     let mut out = Queue::uncapped();
     match sample.then {
-        Then::Shown | Then::Held => {}
+        Then::Shown | Then::Hosts { .. } | Then::Held => {}
         Then::Filled | Then::Refused => adoption(&mut root, sample.then == Then::Refused, &mut out),
         Then::SignedOut | Then::GoogleSignIn => step(&mut root, Event::SignedOut, &mut out),
         Then::OutOfDate => step(
