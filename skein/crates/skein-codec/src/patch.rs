@@ -4,6 +4,7 @@ use crate::schema::{self, DeclIx, FieldIx, Schema, SchemaError, Span, VariantIx}
 use skein_lib::List;
 
 mod plan;
+pub use plan::{Change, Comparison, Matching, RenameRefused, changes};
 mod run;
 pub use run::{Build, Halt, Old, Step};
 mod text;
