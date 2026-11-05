@@ -58,3 +58,18 @@ trailer: `temper/crates/temper-client-shell-web/temper.css` and
 ## Report
 
 The table, the render check's result, the directory and the builder.
+
+## Answers
+
+### 2026-11-05
+
+- **Who repairs `temper/crates/temper-client-domain/src/forge/dismissed.rs`'s missing outcome arms,
+  this task (A) or the file's owner (B)?** Neither has to: the answer call that settled this added
+  `w::Outcome::MakeKept` and `w::Outcome::MakeRefused(_)` to the file's `answered`, among the
+  arms that come to `Answer::Refused`, so the compile error is gone from the trunk you run on. They
+  came from the merge of main, `cd1a51b161`, which brought the wire's making outcomes to a file only
+  this plan has; `to-begin-facts`, its owner, is done, and a render check can't wait for the trunk's
+  end check. Rerun from the render check. If the build stops on another such match, with the same
+  cause, you may add its arms as these were added, under this request's trailer, and say so in your
+  report; anything else stops the run with a `Question:`. That answer call could not build (its
+  machine builds nothing), so your first build is that fix's first check.
