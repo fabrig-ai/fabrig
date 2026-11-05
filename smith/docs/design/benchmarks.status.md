@@ -1,6 +1,6 @@
 # benchmarks: status
 
-2026-11-04. Where smith's code lags or departs from [benchmarks.md](benchmarks.md).
+2026-11-05. Where smith's code lags or departs from [benchmarks.md](benchmarks.md).
 
 - **Not yet:**
   - 3.1, 5.2, 11.5: calibrations. The probes `budget`, `cache-reuse`,
@@ -14,9 +14,29 @@
   - 6: the Claude Code arm: `benchmarks/src/agent/mod.rs` refuses it.
   - 7: no `anthropic` arm (`agents/models.toml`'s `[working.anthropic]`
     is empty), and no suite runs `smith-claude-code`.
+  - 9, 16.4: `shell-cwd` is at version 3, its first grade having
+    changed (5.2), and both `benchmarks/baselines/parity-*.json` and
+    every committed summary hold it at version 2. So a run's drift says
+    "baseline inputs changed; retake baseline"
+    (`benchmarks/src/summary.rs`, `drift`), and parity has not been
+    shown on version 3.
   - 11.1: the `mid-work` and `build-environment` probes.
   - 11.3: the `affinity`, `cache-lifetime`, `delegation` and
     `edit-format` experiments; only `compaction` has a suite.
+  - 11.4: `shell-cwd` at version 3 has not been seen on its bundle.
+    Only `smith-bench validate repository/shell-cwd` on a machine
+    holding it shows that the first grade finds the frozen workspace's
+    two lines (section 15), that the grade keeps its 80 s, and that the
+    seed fails and the reference passes. That run also settles
+    `benchmarks/tasks/repository/shell-cwd/grader/src/lib.rs`, line 40:
+    it calls `tools::valid`, and the frozen
+    `crates/smith-domain-tools/src/limits.rs`, the blob
+    `reference/solution.patch` names, has `worst_case` and no `valid`.
+    The frozen crate's `lib.rs` is not in the repository and no
+    committed summary is newer than that line, so whether the oracle
+    compiles is unknown; if it does not, every attempt fails that
+    grade, the reference included. The user has not said whether the
+    line goes back to `worst_case`.
   - 16.6: a projection on this change's ratio alone:
     `benchmarks/src/parity/change.rs`'s `project_report` still multiplies
     in the ratios of the changes landed before it (`--landed`).

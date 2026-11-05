@@ -551,13 +551,15 @@ domain, and holds no clock of its own.
     write's must be read, and makes the domain's `Write::Copy` on the
     source: answered `CreatedRepository`, with the source's default
     branch and a new id, `409` for a name taken. A source the catalogue
-    has not, or a private one, is refused with no repository made, each
-    with Forgejo's status and message (section 7's facts).
+    has not, or a private one, is refused with Forgejo's status and
+    message, and leaves the empty repository Forgejo leaves
+    (forge-setup.md, section 8).
   - `DeleteRepository` drops the repository's row, its collaborators
     and hooks and is the domain's `Write::DeleteRepository`, `204`, or
     `404` for a name it has not. An id is never given twice.
-  - Each takes `write:repository`, as the admin-scope table has it
-    (forge-setup.md, section 8).
+  - `Migrate` takes `write:repository` and `DeleteRepository`
+    `write:organization`, as the admin-scope table has it (forge-setup.md,
+    section 8).
 - **A setup grant reaches the domain.** A collaborator grant made through
   the setup routes is kept in the setup store, and the domain grants the
   account's user number (section 5) the same permission on the
@@ -744,7 +746,11 @@ relies on (forge.md, section 9). It makes its own admin user and tokens.
   `[migrations] ALLOW_LOCALNETWORKS` is on in the first alone
   (`Settings::local_migrations`, section 6, which no other caller sets).
   The default's refusal is recorded on the second, which keeps
-  Forgejo's default. A loopback proxy of the tool's own stands between
+  Forgejo's default. A loopback source speaks plain `http`, so the mode
+  records Forgejo's refusal of it, then writes `[migrations]
+  ALLOW_UNENCRYPTED = true` into these two instances' `app.ini` alone. The
+  fact of which workflow directory Actions reads takes `--runner`, and is
+  `unchecked` without it. A loopback proxy of the tool's own stands between
   them and stalls a source's bytes on demand, so a migration is cut
   short at a known point: by killing the first, or by the client going
   away.

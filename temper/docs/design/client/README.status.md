@@ -28,12 +28,6 @@
   tag in `Chats`.
   3.5, 4.8, 5.1, 5.6: the playground's line shows on every page while
   it runs (`temper-client-view`'s `root.rs`).
-  3.5, 11: a project's creation age and its repository's first CI run
-  are not supplied to Home. Its kicker uses the current day and time,
-  and its repository step describes checked changes landing through
-  the merge queue, per the user's answer to `home-age-and-ci` in
-  `temper/docs/plan/look-round-3/plan.toml`; neither claims the missing
-  fact (README.md, 11).
   4.4: Home's GitHub step's repository picker and reached count, and
   the picker, which the adoption page does not draw
   (`temper-client-view`'s `forge/page.rs`).
@@ -70,5 +64,5 @@
   `frame.rs`, `switcher`), where 5.3 ends the switcher's list with that
   form and 3.5 leaves the first project to the playground's start or
   the welcome's Ready. The code records no reason; it lets a person make
-  "Default" before Ready, the case of the draft's open question
+  the project Ready would offer before Ready, the case of the draft's open question
   (`../draft/first-run-projects.status.md`).
