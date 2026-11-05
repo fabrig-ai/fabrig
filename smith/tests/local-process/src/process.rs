@@ -843,7 +843,7 @@ fn lending_accounts(
                 .iter()
                 .find_map(|entry| entry.strip_prefix(b"SMITH_FIXTURE_TOKEN="))
                 .expect("the launch's named fixture variable");
-            let borrowed = smith_local_shell::credentials::env_record(value, skein_tls_world::pki::VALID)
+            let borrowed = smith_local_shell::credentials::env_record(value, skein_tls_kit::pki::VALID)
                 .expect("synthetic variable value");
             (service::Source::Env { account: 0, borrowed }, Source::Env { variable: variable.into() })
         }

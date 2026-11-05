@@ -2,7 +2,7 @@
 use super::*;
 use skein_fake_forge_domain as git;
 use skein_fake_forge_forgejo as fake;
-use skein_forge_machine_world::{
+use skein_forge_kit::{
     fixtures as forge_fixtures,
     pipe::{Cut, Pipe},
 };

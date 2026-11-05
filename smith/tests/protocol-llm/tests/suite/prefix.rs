@@ -212,7 +212,7 @@ fn observe_prefix_and_usage(
 #[test]
 fn five_native_completions_keep_the_wire_prefix_and_replay_each_previous_answer() {
     for dialect in smith_protocol_llm_world::fixture::Dialect::ALL {
-        let mut bounds = smith_protocol_llm::fixture::small(skein_llm_world::limits(), codec::stated());
+        let mut bounds = smith_protocol_llm::fixture::small(skein_llm_kit::limits(), codec::stated());
         bounds.client.http.request = 16384;
         bounds.client.request = 16384;
         let mut settings = Settings {
@@ -292,7 +292,7 @@ fn anthropic_breakpoints_account_for_thinking_and_a_large_tool_batch() {
         conversations: 1,
     };
     let mut client = skein_llm::Limits::derive(&declared).expect("native batch bounds").anthropic;
-    let pieces = skein_llm_world::limits();
+    let pieces = skein_llm_kit::limits();
     client.http.request = pieces.http.request;
     client.http.read = pieces.http.read;
     client.http.send = pieces.http.send;
@@ -393,7 +393,7 @@ fn affinity_scripts() -> Box<[Script]> {
 #[test]
 fn identityless_resume_keeps_the_recorded_run_key_for_main_and_a_new_child() {
     for dialect in smith_protocol_llm_world::fixture::Dialect::ALL {
-        let mut bounds = smith_protocol_llm::fixture::small(skein_llm_world::limits(), codec::stated());
+        let mut bounds = smith_protocol_llm::fixture::small(skein_llm_kit::limits(), codec::stated());
         bounds.client.http.request = 16384;
         bounds.client.request = 16384;
         let mut settings = Settings {

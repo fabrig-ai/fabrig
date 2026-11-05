@@ -772,7 +772,7 @@ pub(super) fn access_host(owned: bool) -> (crate::Service, Forge) {
     use skein_fake_forge_domain as git;
     use skein_fake_forge_forgejo as fake;
     let mut forge = Forge::new(false);
-    let limits = skein_forge_machine_world::fixtures::fake_limits();
+    let limits = skein_forge_kit::fixtures::fake_limits();
     let mut repositories = List::with_capacity(1);
     repositories.push(fake::Repository { id: 1, full: b"other/closed".as_slice().into(), protected: None }).unwrap();
     forge.service = fake::Service::new(

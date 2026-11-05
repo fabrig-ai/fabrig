@@ -508,9 +508,9 @@ impl skein_world::Machine for Machine {
 /// subsequent requests accept the native compaction and resumed run.
 pub(crate) fn window_provider(scripts: Box<[skein_fake_llm_domain::api::Script]>) -> skein_fake_peers::llm::Peer {
     use skein_fake_llm_protocol::{documents, provider};
-    let mut config = skein_llm_world::fake::config();
+    let mut config = skein_llm_kit::fake::config();
     config.too_long = 200;
-    let mut protocol = skein_llm_world::fake::limits(&skein_llm_world::limits());
+    let mut protocol = skein_llm_kit::fake::limits(&skein_llm_kit::limits());
     // This story checks resumed windows; tiny HTTP pieces only repeat the loop.
     protocol.http.send = 4096;
     protocol.http.read = 4096;

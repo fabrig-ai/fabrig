@@ -9,7 +9,7 @@
 use skein_fake_llm_domain::api::{Line, Part, Query, Script};
 use skein_lib::{Duration, Time, Token, Wall};
 use skein_llm::{self as shared, client};
-use skein_llm_world::{World as RawWorld, events, response, text_response};
+use skein_llm_kit::{World as RawWorld, events, response, text_response};
 use skein_world::domain::Span;
 use smith_domain::{Event, llm, run, session::llm as recorded, tools};
 use smith_protocol_llm_world::codec::{self as codec, Context, Input, Limits, Receiving};
@@ -246,7 +246,7 @@ fn history(completion: llm::Completion) -> Box<[llm::Message]> {
 
 /// The first request's body with its endpoint's content coding decoded.
 fn native_body(peer: &RawWorld) -> Vec<u8> {
-    let sent = skein_llm_world::identity(&peer.sent);
+    let sent = skein_llm_kit::identity(&peer.sent);
     let at = sent.windows(4).position(|bytes| bytes == b"\r\n\r\n").expect("observed HTTP request") + 4;
     sent[at..].to_vec()
 }
