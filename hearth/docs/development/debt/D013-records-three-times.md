@@ -3,10 +3,10 @@
 - **Kind:** duplication
 - **Where:** `hearth-protocol-config`, `hearth-domain-render/src/parts`, `hearth-domain-render/src/errors.rs`, `hearth-client-protocol-records/src/parts`, `hearth-client-protocol-records/src/errors.rs`, `hearth-protocol-builder/src/translate`, `hearth-protocol-builder/src/tests/fixtures`
 - **Seen:** 2026-11-04 at `66968a30ef`, new, from a search for repeated blocks; the layering it comes from is `hearth/docs/design/README.md`, 4.2
-- **Checked:** 2026-11-04 at `66968a30ef`
+- **Checked:** 2026-11-05 at `13fb737baf`
 - **Value:** low (a field added once, if the layering allows)
 - **Size:** L
-- **Status:** open
+- **Status:** kept (the layers' own vocabularies)
 - **Paid when:** a reviewer sees either fewer hand translations, or this item `kept` with its reason.
 - **Measure:** `git ls-files hearth/crates/hearth-protocol-builder/src/translate | xargs cat | wc -l`: 2869
 
