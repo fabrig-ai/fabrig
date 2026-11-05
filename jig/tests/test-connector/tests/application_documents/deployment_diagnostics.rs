@@ -50,14 +50,7 @@ fn deployment_source_keeps_every_outbox_phase_and_true_capacities_with_explicit_
             number: u64::MAX,
             task: 4,
             key: world.key(4, 7),
-            effect: connector::Effect {
-                kind: kind(86, 1),
-                resources: Box::new([path(86, 1)]),
-                purpose: 7,
-                condition: Some(0),
-                target: 5,
-                state: 5,
-            },
+            effect: connector::Effect { condition: Some(0), ..effect(world.seed, 7, 5) },
             attempt: Some(connector::Attempt {
                 number: u32::MAX,
                 sent: Wall::EPOCH,
