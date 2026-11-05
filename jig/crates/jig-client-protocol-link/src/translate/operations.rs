@@ -302,7 +302,7 @@ pub(super) fn restore_create(value: &w::Create, limits: &crate::Limits) -> Resul
 fn restore_batch(bytes: &[u8], limits: &crate::Limits) -> Result<List<c::NewTask>, w::Problem> {
     let mut reader = skein_lib::Reader::new(bytes);
     let mut tasks = List::with_capacity(limits.client().rows);
-    while let Some(bytes) = create_piece(&mut reader)? {
+    while let Some(bytes) = super::piece(&mut reader)? {
         if tasks.len() == tasks.capacity() {
             return Err(super::too_large());
         }
@@ -369,12 +369,6 @@ fn restore_task(v: &w::NewTask, limits: &crate::Limits) -> Result<c::NewTask, w:
     })
 }
 
-fn create_piece(reader: &mut skein_lib::Reader<'_>) -> Result<Option<Box<[u8]>>, w::Problem> {
-    match skein_codec::piece::split(reader) {
-        Ok(value) => Ok(value),
-        Err(reason) => Err(super::piece_problem(reason)),
-    }
-}
 
 pub(super) fn propose(
     project: u32,
