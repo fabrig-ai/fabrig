@@ -1,3 +1,22 @@
 draft = "forge-no-registration"
 repo = "fabrig"
 sources = ["temper/docs/plan/forge-no-registration/inputs/request.md", "temper/docs/design/draft/dogfood-hacks.md", "temper/docs/design/draft/dogfood-hacks.status.md", "AGENTS.md", "DESIGN.md"]
+
+# plan.md says what was decided and why.
+
+[buffer]
+low = 1.0
+high = 2.0
+
+[[part]]
+id = "no-registration"
+title = "TEMPER_FORGE_NO_REGISTRATION closes account-making on an owned Forgejo signing in through temper, shown at 17.0.1"
+mode = "direct"
+needs = []
+design = "temper/docs/design/draft/dogfood-hacks.md, 2.8"
+
+[[slice]]
+id = 1
+story = "with the variable set, a member with no account gets none on a real Forgejo, a linked one keeps signing in, and an existing one links once by its password with no way to register"
+parts = ["no-registration"]
+walk = false
