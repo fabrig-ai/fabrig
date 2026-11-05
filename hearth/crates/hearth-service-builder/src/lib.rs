@@ -18,6 +18,12 @@ use skein_io::{
     kernel::{Complete, Fd, Submit},
 };
 use skein_lib::{Env, Queue, Time, Wall};
+/// Whether these limits are representable: every edge bound they size is
+/// finite (skein/docs/foundation/programming-model.md, 6.3).
+#[must_use]
+pub fn valid(limits: &Limits) -> bool {
+    protocol::limits::valid(&limits.protocol) && domain::valid(&limits.domain)
+}
 #[derive(Clone, PartialEq, Eq, Hash, Debug)]
 pub struct Configuration {
     pub proxy: Option<Box<[u8]>>,
@@ -62,6 +68,7 @@ impl Service {
     pub fn new(configuration: &Configuration, roots: Roots, call: Call, form: protocol::Form, seed: u64) -> Self {
         let limits = &configuration.limits;
         assert!(limits.io.is_usable() && limits.queue >= 3, "usable io and queues holding every MAX_OUT");
+        assert!(valid(limits), "representable limits");
         let mut files = FileIo::with_whole_limit(
             limits.files.files,
             limits.files.read,

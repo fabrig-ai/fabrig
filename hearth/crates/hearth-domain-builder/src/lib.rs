@@ -22,6 +22,12 @@ pub struct Limits {
     pub store: store::limits::Limits,
     pub build: build::limits::Limits,
 }
+/// Whether these limits are representable: every edge bound they size is
+/// finite (skein/docs/foundation/programming-model.md, 6.3).
+#[must_use]
+pub fn valid(limits: &Limits) -> bool {
+    render::limits::valid(&limits.render)
+}
 #[derive(Debug, Hash)]
 pub struct Builder {
     render: render::Render,

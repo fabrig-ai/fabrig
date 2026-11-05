@@ -17,12 +17,10 @@ pub struct MaxOut {
     pub below: u32,
 }
 
+/// Whether a printer can make progress (skein/docs/foundation/programming-model.md, 6.3).
 #[must_use]
-pub fn worst_case(limits: &Limits) -> Option<u64> {
-    if limits.chunk == 0 {
-        return None;
-    }
-    Some(u64::from(limits.record))
+pub fn valid(limits: &Limits) -> bool {
+    limits.chunk != 0
 }
 
 pub const UP_MAX_OUT: MaxOut = MaxOut { above: 1, below: 2 };
