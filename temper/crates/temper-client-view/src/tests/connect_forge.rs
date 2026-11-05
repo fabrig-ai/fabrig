@@ -461,7 +461,7 @@ fn the_forge_pages_have_navigation_and_the_playground_banner() {
         assert!(root.forge().playground().is_some());
         let view = f::page_view(&root);
         node(view.tree(), Role::Navigation, b"Shop");
-        assert!(f::find(view.tree(), Role::Region, b"Playground").is_some());
+        assert!(f::find(view.tree(), Role::Region, b"Playground").is_none());
     }
 }
 

@@ -9,8 +9,6 @@ use jig_client::contract::{
 use jig_client::{Client, Handle, Key, Latest, Readable, Readout, Told, Watchable};
 use skein_lib::{Env, Queue};
 
-/// The person's first message of the first chat (temper/docs/design/client/README.md, 3.5).
-pub const FIRST_CHAT_WORDS: &[u8] = b"Help me tell temper how I work.";
 /// The configuring agent's stock template (temper/docs/design/protocol/configuration.md, 13.4).
 const CONFIGURING_TEMPLATE: u32 = 3;
 
@@ -27,6 +25,7 @@ pub struct Chats {
     pub outcome: Option<jig_client::Outcome>,
     query: Option<TaskQuery>,
     first: bool,
+    page_delivered: bool,
 }
 impl Chats {
     pub(crate) fn new(first: u64) -> Self {
@@ -41,6 +40,7 @@ impl Chats {
             outcome: None,
             query: None,
             first: true,
+            page_delivered: false,
         }
     }
     pub(crate) fn leave(&self, out: &mut Queue<Request>) -> u64 {
@@ -76,6 +76,7 @@ impl Chats {
             self.leave(out);
         }
         self.page = None;
+        self.page_delivered = false;
         self.first = true;
         self.query = Some(query);
         out.push(Request::Client(jig_client::Event::Watch {
@@ -118,7 +119,7 @@ impl Chats {
         serial: &mut u64,
         out: &mut Queue<Request>,
     ) {
-        self.send(env, me, project, jig_client::shapes::CHAT, self.words.clone(), choice, serial, out);
+        self.send(env, me, project, jig_client::shapes::CHAT, self.words.clone(), Some(choice), serial, out);
     }
     #[expect(
         clippy::too_many_arguments,
@@ -134,24 +135,25 @@ impl Chats {
         serial: &mut u64,
         out: &mut Queue<Request>,
     ) {
-        self.send(env, me, project, jig_client::shapes::CHAT, words.into(), choice, serial, out);
+        self.send(env, me, project, jig_client::shapes::CHAT, words.into(), Some(choice), serial, out);
     }
-    pub(crate) fn first_chat(
+    pub(crate) fn configure_chat(
         &mut self,
         env: &Env<Limits>,
         me: Option<&Me>,
         project: Option<u32>,
-        choice: &super::choice::Draft,
+        words: Box<[u8]>,
         serial: &mut u64,
         out: &mut Queue<Request>,
     ) {
-        let template = match (me, project) {
-            (Some(me), Some(project)) if jig_client::shapes::template(me, project, CONFIGURING_TEMPLATE).is_some() => {
-                CONFIGURING_TEMPLATE
-            }
-            _ => jig_client::shapes::CHAT,
-        };
-        self.send(env, me, project, template, FIRST_CHAT_WORDS.into(), choice, serial, out);
+        if self.start.is_some()
+            || words.len() > usize::try_from(temper_client_protocol_wire::CUE_BYTES).expect("text bound fits")
+        {
+            return;
+        }
+        self.words = words;
+        let template = configuring_template(me, project);
+        self.send(env, me, project, template, self.words.clone(), None, serial, out);
     }
     #[expect(
         clippy::too_many_arguments,
@@ -164,7 +166,7 @@ impl Chats {
         project: Option<u32>,
         template: u32,
         words: Box<[u8]>,
-        choice: &super::choice::Draft,
+        choice: Option<&super::choice::Draft>,
         serial: &mut u64,
         out: &mut Queue<Request>,
     ) {
@@ -172,7 +174,9 @@ impl Chats {
             return;
         }
         let (Some(me), Some(project)) = (me, project) else { return };
-        if !choice.valid(me) {
+        if let Some(choice) = choice
+            && !choice.valid(me)
+        {
             return;
         }
         let Ok(words) = Text::new(words, temper_client_protocol_wire::CUE_BYTES) else { return };
@@ -185,6 +189,7 @@ impl Chats {
             Ok(mut ask) => {
                 if let c::Ask::Create { tasks, .. } = &mut ask
                     && let Some(task) = tasks.get_mut(0)
+                    && let Some(choice) = choice
                     && choice.context.is_some()
                 {
                     task.llm.clone_from(&choice.requested);
@@ -216,9 +221,16 @@ impl Chats {
             Told::Page { handle, page: Readout::Jig(ReadResult::Value(ReadValue::Tasks(page))) }
                 if handle == self.closed =>
             {
+                self.page_delivered = true;
                 self.page = Some(*page);
                 true
             }
+            Told::Page { handle, .. } if handle == self.closed => {
+                self.page_delivered = true;
+                self.page = None;
+                true
+            }
+            Told::Ended { handle, .. } if handle == self.live => true,
             Told::Pending { key } if Some(key) == self.start => true,
             Told::Answered { key, outcome } if Some(key) == self.start => {
                 if let jig_client::Outcome::Answered(jig_client::Answered::Jig(c::Answer::Done(value))) = &outcome {
@@ -245,25 +257,35 @@ impl Chats {
             | Told::Page { .. } => false,
         }
     }
-    pub(super) fn asked(&self, client: &Client, project: u32) -> bool {
+    pub(super) fn delivered(&self, client: &Client, project: u32) -> bool {
         let Some(query) = self.query else { return false };
+        query.project == Some(project) && self.page_delivered && super::home::delivered(client, self.live)
+    }
+    pub(super) fn chat_counts(&self, client: &Client, me: Option<&Me>, project: u32) -> (bool, bool) {
+        let Some(query) = self.query else { return (false, false) };
         if query.project != Some(project) {
-            return false;
+            return (false, false);
         }
-        if let Some(live) = self.live(client)
-            && (!live.rows.is_empty() || live.more)
+        let mut counts = (false, false);
+        if let Some(document) = client.document(self.live)
+            && document.state != jig_client::State::Ended
+            && let Some(Latest::Jig(Delivery::Tasks(live))) = document.latest
         {
-            return true;
+            count_rows(&live.rows, me, project, &mut counts);
+            counts.1 |= live.more;
         }
         if let Some(page) = &self.page {
-            if !page.live.is_empty() || page.live_after.is_some() {
-                return true;
-            }
-            if let EndedGroup::Rows { rows, after, .. } = &page.ended {
-                return !rows.is_empty() || after.is_some();
+            count_rows(&page.live, me, project, &mut counts);
+            counts.1 |= page.live_after.is_some();
+            match &page.ended {
+                EndedGroup::Rows { rows, after, .. } => {
+                    count_rows(rows, me, project, &mut counts);
+                    counts.1 |= after.is_some();
+                }
+                EndedGroup::None => {}
             }
         }
-        false
+        counts
     }
     #[must_use]
     pub fn live<'a>(&self, client: &'a Client) -> Option<&'a c::Tasks> {
@@ -277,4 +299,38 @@ impl Chats {
 
 fn handle(number: u64) -> Handle {
     Handle { asker: Owner::Pages.asker(), number }
+}
+
+/// A chat of template 3's charter (temper/docs/design/client/README.md, 3.5, To begin).
+#[must_use]
+pub fn configuring(me: &Me, project: u32, executor: &c::ChipExecutor) -> bool {
+    let Some(template) = jig_client::shapes::template(me, project, CONFIGURING_TEMPLATE) else { return false };
+    match template.executor {
+        c::TemplateExecutor::Charter(charter) => *executor == c::ChipExecutor::Agent { charter },
+        c::TemplateExecutor::Chosen => false,
+    }
+}
+
+fn count_rows(rows: &skein_lib::List<c::TaskLine>, me: Option<&Me>, project: u32, counts: &mut (bool, bool)) {
+    for row in rows {
+        if row.project == project {
+            let configuring = match me {
+                Some(me) => configuring(me, project, &row.chip.executor),
+                None => false,
+            };
+            counts.0 |= configuring;
+            counts.1 |= !configuring;
+        }
+    }
+}
+
+fn configuring_template(me: Option<&Me>, project: Option<u32>) -> u32 {
+    if let Some(me) = me
+        && let Some(project) = project
+        && jig_client::shapes::template(me, project, CONFIGURING_TEMPLATE).is_some()
+    {
+        CONFIGURING_TEMPLATE
+    } else {
+        jig_client::shapes::CHAT
+    }
 }

@@ -156,6 +156,7 @@ pub fn build(view: &mut View, root: &Domain, wall: Wall, out: &mut Queue<Patch>)
         | temper_client_domain::Address::ConnectForge { .. }
         | temper_client_domain::Address::Home { .. }
         | temper_client_domain::Address::Settings { .. }
+        | temper_client_domain::Address::Configure { .. }
         | temper_client_domain::Address::Adopt { .. } => {
             crate::choice::banner(&mut builder, root, &view.forge_words, &mut view.pages);
         }
@@ -172,8 +173,14 @@ pub fn build(view: &mut View, root: &Domain, wall: Wall, out: &mut Queue<Patch>)
         | temper_client_domain::Address::ConnectForge { .. }
         | temper_client_domain::Address::Home { .. }
         | temper_client_domain::Address::Settings { .. }
+        | temper_client_domain::Address::Configure { .. }
         | temper_client_domain::Address::Adopt { .. } => {
-            crate::frame::playground_banner(&mut builder, root, &view.forge_words, &mut view.forge);
+            // Outside the chats pane the line shows only while the
+            // playground is leaving; while it runs, the frame's "Set up
+            // temper" is the way out (temper/docs/design/client/README.md, 5.1).
+            if root.forge().leaving() {
+                crate::frame::playground_banner(&mut builder, root, &view.forge_words, &mut view.forge);
+            }
         }
     }
     if let Some(page) = root.authorization() {
@@ -228,14 +235,15 @@ pub fn build(view: &mut View, root: &Domain, wall: Wall, out: &mut Queue<Patch>)
             &mut times,
         );
     } else if let temper_client_domain::Address::Home { project } = root.pages().address() {
-        crate::pages::home::main(
+        crate::pages::home::main(&mut builder, root, &view.forge_words, &mut view.pages, *project, &mut times);
+    } else if let temper_client_domain::Address::Configure { project } = root.pages().address() {
+        crate::pages::configure::main(
             &mut builder,
             root,
             &view.forge_words,
             &mut view.pages,
             *project,
-            &view.forge_sign_in,
-            &mut times,
+            view.limits.tree.text_per_node,
         );
     } else if let temper_client_domain::Address::Settings { project } = root.pages().address() {
         crate::pages::home::settings(&mut builder, root, &view.forge_words, &mut view.pages, *project);
