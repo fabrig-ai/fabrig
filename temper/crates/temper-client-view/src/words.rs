@@ -834,6 +834,12 @@ pub enum Word {
     WelcomeAwayTitle,
     WelcomeAwayBody,
     WelcomeFinishing,
+    WelcomeClaudeTitle,
+    WelcomeClaudeBody,
+    WelcomeClaudeNote,
+    WelcomeClaudeSignedIn,
+    WelcomeClaudeChecking,
+    WelcomeClaudeNotYet,
 
     WelcomeForgeDoneDetail,
     WelcomeForgeDoneRepository,
@@ -921,7 +927,8 @@ pub(crate) const SCRIPTED_MODEL: &[u8] = b"demo";
 // Forge status adds two phrases and removes View (client/README.md, 3.5).
 // The configuring opening replaces one phrase with nineteen (client/README.md, 3.5).
 // Model’s panels and notes add fifteen phrases (client/README.md, 3.5).
-const PHRASES: u32 = 1416;
+// Claude’s welcome panel and check add six literals (client/README.md, 3.5).
+const PHRASES: u32 = 1422;
 // Ready's empty-name line has two literals and a Name hole, two more segments (3.5).
 // Ready's repository lead adds one phrase and three segments (3.5).
 // Four literals and the counted entry's two literals and Number hole add seven segments.
@@ -937,8 +944,9 @@ const PHRASES: u32 = 1416;
 // Forge status adds four segments and removes View (3.5).
 // The configuring opening adds twenty literal and hole segments (3.5).
 // Five plan-name holes add ten segments to fifteen Model phrases (3.5).
-const SEGMENTS: u32 = 2451;
-const ALL: [Word; 820] = [
+// Claude’s six literals add six segments (client/README.md, 3.5).
+const SEGMENTS: u32 = 2457;
+const ALL: [Word; 826] = [
     Word::Changes,
     Word::ChangesKicker,
     Word::ChangesNone,
@@ -1739,6 +1747,12 @@ const ALL: [Word; 820] = [
     Word::WelcomeAwayTitle,
     Word::WelcomeAwayBody,
     Word::WelcomeFinishing,
+    Word::WelcomeClaudeTitle,
+    Word::WelcomeClaudeBody,
+    Word::WelcomeClaudeNote,
+    Word::WelcomeClaudeSignedIn,
+    Word::WelcomeClaudeChecking,
+    Word::WelcomeClaudeNotYet,
     Word::WelcomeForgeDoneDetail,
     Word::WelcomeForgeDoneRepository,
     Word::WelcomeForgejoLead,
@@ -2565,6 +2579,12 @@ impl Word {
             Self::WelcomeAwayTitle => 3257,
             Self::WelcomeAwayBody => 3258,
             Self::WelcomeFinishing => 3259,
+            Self::WelcomeClaudeTitle => 3260,
+            Self::WelcomeClaudeBody => 3261,
+            Self::WelcomeClaudeNote => 3262,
+            Self::WelcomeClaudeSignedIn => 3263,
+            Self::WelcomeClaudeChecking => 3264,
+            Self::WelcomeClaudeNotYet => 3265,
 
             Self::WelcomeForgeDoneDetail => 3031,
             Self::WelcomeForgeDoneRepository => 3049,
@@ -2822,7 +2842,8 @@ impl Words {
             // Forge status adds 76 literal bytes after removing View (3.5).
             // The configuring opening adds 476 literal bytes (client/README.md, 3.5).
             // Model’s fifteen panel and note phrases add 659 literal bytes (3.5).
-            text_bytes: 32768 + 288 + 149 + 401 + 11 + 76 + 476 + 659 + 367,
+            // Claude’s six phrases add 468 literal bytes (client/README.md, 3.5).
+            text_bytes: 32768 + 288 + 149 + 401 + 11 + 76 + 476 + 659 + 367 + 468,
             // Whole playground requests keep their supplied bound.
             hole_bytes: joined
                 .max(switcher_repository_bytes(joined)?)
@@ -2947,6 +2968,12 @@ fn english(word: Word, shell: Shell) -> (&'static [&'static [u8]], &'static [Hol
         Word::WelcomeAllWays => (&[b"All ways"], &[]),
         Word::WelcomeAwayTitle => (&[b"", b"\xe2\x80\x99s sign-in, in this tab"], &[Name]),
         Word::WelcomeAwayBody => (&[b"You sign in and approve temper; ", b" sends this tab back to temper\xe2\x80\x99s listener on this machine, and on to Ready."], &[Name]),
+        Word::WelcomeClaudeTitle => (&[b"Your Claude subscription"], &[]),
+        Word::WelcomeClaudeBody => (&[b"temper sets Claude Code up on this machine in an environment of its own: its settings, sessions and sign-in stay apart from your own Claude Code. In a terminal here:"], &[]),
+        Word::WelcomeClaudeNote => (&[b"It makes that environment, then Claude Code asks you to sign in to your subscription there. temper never reads its login."], &[]),
+        Word::WelcomeClaudeSignedIn => (&[b"I\xe2\x80\x99ve signed in"], &[]),
+        Word::WelcomeClaudeChecking => (&[b"Checking Claude Code\xe2\x80\x99s sign-in on this machine\xe2\x80\xa6"], &[]),
+        Word::WelcomeClaudeNotYet => (&[b"Claude Code isn\xe2\x80\x99t signed in here yet. Run the command above, then press I\xe2\x80\x99ve signed in."], &[]),
         Word::WelcomeFinishing => (&[b"Finishing your sign-in\xe2\x80\xa6"], &[]),
         Word::WelcomeModelProgramTime => (&[b"One command in a terminal, on this machine"], &[]),
         Word::WelcomeForgeDoneDetail => (&[b"connected as ", b""], &[Name]),

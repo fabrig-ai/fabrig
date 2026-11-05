@@ -2239,3 +2239,134 @@ fn model_paste_refusals_and_endings_keep_their_words_inside_the_panel() {
         }
     }
 }
+
+#[test]
+#[expect(clippy::too_many_lines, reason = "one sequence checks Claude’s four frames and standalone in both shells")]
+fn welcome_claude_states_keep_the_command_and_check_in_both_shells() {
+    use jig_client::contract as c;
+    use pages::{accounts::Way, connect_model::Act as A};
+    for frame in 0_u8..4 {
+        let (mut root, watch) = model_with_forge(d::WayKind::Program);
+        let mut doc = pages::accounts::document(root.client()).unwrap().clone();
+        doc.usable = false;
+        doc.settled = false;
+        f::root_event(
+            &mut root,
+            d::Event::Client {
+                event: jig_client::Event::Up {
+                    up: jig_client::Up::Watched {
+                        watch,
+                        event: c::WatchEvent::Delivered(c::Delivery::Accounts(Box::new(doc.clone()))),
+                    },
+                },
+            },
+        );
+        if frame > 0 {
+            let attempt = super::connect_model::sent(
+                &mut root,
+                A::SignedIn { name: [1; 16], way: Way::Program { provider: 17 } },
+            );
+            if frame > 1 {
+                let limits = f::limits();
+                let mut out = skein_lib::Queue::uncapped();
+                d::step(
+                    &mut root,
+                    &skein_lib::Env { now: skein_lib::Time::ZERO, wall: f::NOW, limits },
+                    d::Event::Client {
+                        event: jig_client::Event::Up {
+                            up: jig_client::Up::Answer {
+                                attempt,
+                                envelope: skein_lib::RequestEnvelope::Final,
+                                why: None,
+                                answer: Some(jig_client::Answered::Jig(c::Answer::Done(c::Outcome::Document(
+                                    c::DocumentOutcome::AccountProgramDeclared {
+                                        source: 43,
+                                        name: b"claude-pat".as_slice().into(),
+                                    },
+                                )))),
+                            },
+                        },
+                    },
+                    &mut out,
+                );
+                if frame == 3 {
+                    d::step(
+                        &mut root,
+                        &skein_lib::Env { now: skein_lib::Time::ZERO, wall: f::NOW, limits },
+                        d::Event::Client { event: jig_client::Event::Stored },
+                        &mut out,
+                    );
+                    let attempt = out
+                        .iter()
+                        .find_map(|request| match request {
+                            d::Request::Unlinked {
+                                request:
+                                    jig_client::UnlinkedRequest::Down { down: jig_client::Down::Send { attempt, .. } },
+                            } => Some(*attempt),
+                            d::Request::Client { .. }
+                            | d::Request::Unlinked { .. }
+                            | d::Request::Show { .. }
+                            | d::Request::Leave { .. }
+                            | d::Request::SignOut
+                            | d::Request::Dropped { .. }
+                            | d::Request::Fact { .. } => None,
+                        })
+                        .expect("chained check sent");
+                    super::connect_model::answer(&mut root, attempt, c::DocumentOutcome::AccountChanged);
+                    doc.settled = true;
+                    f::root_event(
+                        &mut root,
+                        d::Event::Client {
+                            event: jig_client::Event::Up {
+                                up: jig_client::Up::Watched {
+                                    watch,
+                                    event: c::WatchEvent::Delivered(c::Delivery::Accounts(Box::new(doc))),
+                                },
+                            },
+                        },
+                    );
+                }
+            }
+        }
+        for view in [f::page_view(&root), f::browser_page_view(&root)] {
+            let tree = view.tree();
+            node(tree, Role::Heading { level: 1 }, "Your Claude subscription");
+            assert!(f::find(tree, Role::TextField, b"Name").is_none(), "the default has no field");
+            if frame == 1 || frame == 2 {
+                node(tree, Role::Status, "Checking Claude Code’s sign-in on this machine…");
+                assert!(f::find(tree, Role::Button, "I’ve signed in".as_bytes()).is_none());
+                assert!(!has_style(tree, crate::look::WELCOME_PANEL));
+                assert!(has_style(tree, crate::look::WELCOME_AWAY));
+            } else {
+                assert!(String::from_utf8_lossy(&f::text(tree)).contains("temper program-login claude-pat"));
+                assert!(has_style(tree, crate::look::WELCOME_CMD));
+                node(tree, Role::Button, "I’ve signed in");
+                node(tree, Role::Link, "All ways");
+                if frame == 3 {
+                    node(
+                        tree,
+                        Role::Alert,
+                        "Claude Code isn’t signed in here yet. Run the command above, then press I’ve signed in.",
+                    );
+                }
+            }
+        }
+        let browser = f::browser_page_view(&root);
+        assert_eq!(has_style(browser.tree(), crate::look::WELCOME_SPIN), frame == 1 || frame == 2);
+        let terminal = f::page_view(&root);
+        assert!(!has_style(terminal.tree(), crate::look::WELCOME_SPIN));
+        if frame == 2 {
+            f::root_event(
+                &mut root,
+                d::Event::Went {
+                    place: d::Place::Address(Address::ConnectModel {
+                        way: Some(pages::connect_model::model_way(Way::Program { provider: 17 })),
+                    }),
+                },
+            );
+            let standalone = f::page_view(&root);
+            node(standalone.tree(), Role::TextField, "Name");
+            assert!(!String::from_utf8_lossy(&f::text(standalone.tree())).contains("Declared your Claude"));
+        }
+    }
+}

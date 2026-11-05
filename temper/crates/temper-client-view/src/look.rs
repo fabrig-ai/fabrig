@@ -507,6 +507,8 @@ pub const WELCOME_AWAY: Style = Style { owner: owner(), token: 259 };
 pub const WELCOME_NUMBERED: Style = Style { owner: owner(), token: 260 };
 /// A Model panel’s full-width secret field (client/README.md, 3.5).
 pub const WELCOME_FIELD: Style = Style { owner: owner(), token: 261 };
+/// The welcome’s terminal command (client/README.md, 3.5).
+pub const WELCOME_CMD: Style = Style { owner: owner(), token: 262 };
 /// The forge's spinning status marker.
 pub const WELCOME_SPIN: Style = Style { owner: owner(), token: 249 };
 /// The welcome's primary continuation.
@@ -783,6 +785,7 @@ pub const NAMES: Names<'static> = Names {
         b"temper-welcome-away",
         b"temper-welcome-numbered",
         b"temper-welcome-field",
+        b"temper-welcome-cmd",
     ],
     regions: &[b"temper-link"],
 };

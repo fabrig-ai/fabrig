@@ -12,7 +12,7 @@ use temper_client_domain::{
     Address, Domain, Step,
     pages::{
         accounts::{self as domain_accounts, SignInState, Way},
-        connect_model::Act,
+        connect_model::{Act, ProgramCheck},
         welcome::{self, ModelStep},
     },
 };
@@ -233,28 +233,55 @@ fn sign_in(b: &mut Builder, root: &Domain, w: &Words, bindings: &mut Bindings, w
 }
 fn program(b: &mut Builder, root: &Domain, w: &Words, bindings: &mut Bindings, way: Way, text_per_node: u32) {
     let Some(page) = root.pages().connect_model() else { return };
-    let Some(me) = domain_accounts::current_me(root.client()) else { return };
-    let (_, plan) = model::names(me, way);
-    crate::cards::text(
-        b,
-        Role::Heading { level: 1 },
-        &w.say(Word::ModelProgramTitle, &[Hole::Name(crate::choice::shown(plan, w))]),
-    );
-    panel(b);
-    if model::ready(root, way) {
-        let ways = domain_accounts::ways(&me.providers, root.forge().playground_provider(), page.holder);
-        model::ready_body(b, root, w, bindings, way, &ways);
-    } else {
-        model::program_body(b, root, w, bindings, way, page.request.busy(root.client()));
-        if model::request_for_way(page, way) {
-            accounts::outcome(b, root, w, bindings, &page.request, text_per_node);
+    text(b, root, w, Role::Heading { level: 1 }, Word::WelcomeClaudeTitle);
+    let checking = match page.check {
+        ProgramCheck::Declaring | ProgramCheck::Checking { .. } => true,
+        ProgramCheck::Idle | ProgramCheck::NotYet => false,
+    };
+    if checking {
+        b.open(Role::Slot);
+        b.style(look::WELCOME_AWAY);
+        if w.shell == Shell::Browser {
+            b.open(Role::Slot);
+            b.style(look::WELCOME_SPIN);
+            b.close();
         }
+        let checking = w.say(Word::WelcomeClaudeChecking, &[]);
+        b.open(Role::Status);
+        b.name(&checking);
+        b.open(Role::Text);
+        b.run(Run::Strong, &checking);
+        b.close();
+        b.close();
+        b.close();
+        return;
+    }
+    panel(b);
+    text(b, root, w, Role::Paragraph, Word::WelcomeClaudeBody);
+    model::command(b, w, &page.program_name(root.client()), true);
+    b.open(Role::Paragraph);
+    b.style(look::FLOW_MUTED);
+    w.text(b, Word::WelcomeClaudeNote, &[]);
+    b.close();
+    if page.check == ProgramCheck::NotYet {
+        text(b, root, w, Role::Alert, Word::WelcomeClaudeNotYet);
+    } else {
+        accounts::outcome(b, root, w, bindings, &page.request, text_per_node);
     }
     acts(b);
+    model::button(
+        b,
+        bindings,
+        &w.say(Word::WelcomeClaudeSignedIn, &[]),
+        Act::SignedIn { name: root.pages().account_name(), way },
+        page.request.busy(root.client()),
+        true,
+    );
     all_ways(b, w, bindings);
     b.close();
     b.close();
 }
+
 pub(super) fn step(b: &mut Builder, root: &Domain, w: &Words, bindings: &mut Bindings, text_per_node: u32) {
     let Some(state) = welcome::model_step(root) else { return };
     let Some(page) = root.pages().connect_model() else { return };
