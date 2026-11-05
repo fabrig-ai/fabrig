@@ -3,7 +3,7 @@ id = "large-render"
 part = "large"
 kind = "feature"
 needs = []
-files = ["hearth/tests/builder/src/fixtures/large.rs", "hearth/tests/builder/src/fixtures.rs", "hearth/tests/builder/src/simulated.rs", "hearth/tests/builder/src/hosted.rs", "hearth/tests/builder/src/hosted/**", "hearth/tests/builder/tests/suite/memory.rs"]
+files = ["hearth/tests/builder/src/fixtures/large.rs", "hearth/tests/builder/src/fixtures.rs", "hearth/tests/builder/tests/suite/main.rs", "hearth/tests/builder/tests/suite/memory.rs", "hearth/tests/builder/tests/suite/fuzzy/memory.rs"]
 effort = "high"
 minutes = 60
 +++
@@ -17,11 +17,11 @@ render through the builder at the shipped limits, its peak under a ceiling set f
 
 Acceptance:
 
-- `a_large_render_holds_no_more_than_its_ceiling` is in `hearth/tests/builder/tests/suite/memory.rs`, and passes in the focused suite.
+- `a_large_render_holds_no_more_than_its_ceiling` is in `hearth/tests/builder/tests/suite/fuzzy/memory.rs`, and passes in the fuzzy suite.
 - It runs `fixtures::large::scenario()` of `notes/contracts.md`, 4 at `hearth::limits()`.
 - Its test asserts what makes the scenario large: the targets printed, and the entries and the documents the fake git served.
 - Its ceiling follows `notes/common.md`, "A ceiling", and bites.
-- It costs at most 1.5 CPU s, by nextest's time.
+- Its CPU seconds, by nextest's time, are in the report.
 - **The commit says what "large" means here:** entries, documents and targets, with the peak and the ceiling.
 
 ## Inputs
@@ -35,11 +35,10 @@ Acceptance:
 ## Owns and may change
 
 - **Owns:** the files under `files`.
-- **`hearth/tests/builder/src/fixtures.rs`:** the `pub mod large;` line, and a fix `## Answers` allows.
-- **`hearth/tests/builder/src/simulated.rs`, `hearth/tests/builder/src/hosted.rs`, `hearth/tests/builder/src/hosted/**`:** only a fix `## Answers` allows.
-- **`hearth/tests/builder/tests/suite/memory.rs`:** only the new test. The four scenarios there keep their ceilings.
+- **`hearth/tests/builder/src/fixtures.rs`:** only the `pub mod large;` line.
+- **`hearth/tests/builder/tests/suite/main.rs`:** only `mod memory;` in `mod fuzzy`.
+- **`hearth/tests/builder/tests/suite/memory.rs`:** only taking out the new test. The four scenarios there keep their ceilings.
 - **Options, each pre-approved:**
-  - If the scenario costs over 1.5 CPU s, follow `## Answers`, in its order, and give the figures in the report.
   - If a shipped limit refuses the scenario, shrink the scenario rather than change the limit, and say so.
   - If its rendering shows a bug in hearth, stop and ask: the scenario isn't to change what hearth does.
 
@@ -71,7 +70,7 @@ Acceptance:
    }
    ```
 3. Measure the peak, and name the ceiling by `notes/common.md`, "A ceiling".
-4. `cargo fmt`, clippy on `hearth-builder-world`, and focused tests of `hearth-builder-world`.
+4. `cargo fmt`, clippy on `hearth-builder-world`, focused tests of `hearth-builder-world`, and the new test under `--profile fuzzy`.
 5. Commit, with what "large" means, and push.
 
 ## Report
@@ -83,26 +82,9 @@ The first line, the scenario's figures, its peak and ceiling, what bit, its CPU 
 2026-11-05. **Asked:** at 2,048 entries, 256 documents and 64 targets the test costs 6.3 CPU s against 1.5, and another exact halving leaves too few
 documents for 64 hosts: may entries fall further with a document floor, or may the work look outside the three files?
 
-**Answer: find the cause first, then a floor on what shrinks. The 1.5 CPU s and the 64 targets stay.** Shrinking alone won't do it. In the run's own
-table, halving entries and documents took 15.5 to 12.3 CPU s, static sizes moved nothing, and fewer tasks per target with shared configurations took
-12.3 to 6.3. So the cost follows the work per target, not the listing; the first two rows' slope, on today's fixture, leaves about 3 CPU s at no entries at all: a rough line, but over
-1.5. `737159af7e` on `hearth-memory-1/large-render` stays: continue from it, and its figures are the "before".
+2026-11-05 (fabrig/hearth, the plan's owner, through agents/loop). **Don't shrink the scenario.** At 2,048 entries it stopped being large, and at 4,096 it costs 15 CPU s. Keep the plan's 4,096 entries, 512 documents and 64 targets; drop the 1.5 s cap; run it as a test under the suite's `fuzzy` module, so the fuzzy profile selects it: hearth's fuzzy suite is at about 68 of 120 CPU s, and the focused budget doesn't pay for it. It stays one fixed scenario under its ceiling, and the counting allocator is the same suite's.
 
-In this order, stopping as soon as the test is within 1.5 CPU s:
-
-1. **Isolate the cause, and name it in the report.** Reading and timing anywhere in the repository is allowed; timing code is throwaway. Split the run:
-   building the scenario and `Shared`, the render in the client, the hosted git and mmdebstrap processes, and the checks of `outcome`. Compare
-   `Memory::Within` with `Memory::Unchecked`, which `simulated::run` gives without the checked allocator's bookkeeping. Compare a run of 8 targets, to
-   see which of targets, documents and rendered templates the cost grows with, and whether it grows faster than linearly: dev builds leave hearth's
-   crates unoptimised.
-2. **Fix a cost in the test's own side:** the fixture, `large::served`, or the harness files under `Owns`. A harness fix changes no other test's
-   assertions, goldens or trace, and its commit gives the before and after.
-3. **Shrink per-target work.** Each target keeps at least two tasks: "several" in Steps, 1 means that. A target may render fewer templates.
-4. **Shrink entries and documents, no longer together,** to at most these floors: **1,024 entries, of which 192 documents.** 192 is the 131 that 64
-   hosts, fleet, environment and hearth need, and 61 task declarations and templates. Below that it's no longer the repository Steps, 1 describes.
-
-Don't touch `hearth/crates/**`, `hearth/testing/**` or `skein/`: that's another writer's or a question. **If it's over 1.5 CPU s at the floors, or the
-cause is in hearth's crates, skein or the fake git, stop and report `Question:`,** with the split from 1, the figures at the floors, and the fix you'd
-make. The cost in a hearth crate may be `focused-budget`'s to fix, and a raise of 1.5 CPU s is the user's, never a run's. Keep the commit's measured
-peak and ceiling true for whatever scenario you end on, and re-show the bite for it. `close` carries the final figures into the design, as
-`notes/contracts.md`, 4 says.
+**What that means here.** The owner's answer is the task's, in place of any shrinking and of the 1.5 CPU s. Continue from `737159af7e` on `hearth-memory-1/large-render`:
+bring its fixture back to the plan's 4,096 entries, 512 documents and 64 targets, and move its test to `fuzzy/memory.rs`, a place this spec sets over
+`notes/contracts.md`, 4's. Keep the commit's measured peak and ceiling true for that scenario, and re-show the bite for it. Don't touch
+`hearth/crates/**`, `hearth/testing/**` or `skein/`. No run has isolated the cost: the run's table had it following the work per target, not the listing.
