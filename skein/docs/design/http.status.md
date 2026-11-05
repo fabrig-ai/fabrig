@@ -4,4 +4,3 @@
 
 - **Not yet:** 6: skein-json's selective collector on the protocol worlds'
   event data, their memory under scenario ceilings, and the fuzz targets.
-- **Not yet:** 2: `header` is private, each machine reads a head's fields by itself, and skein-llm and skein-fake-llm-protocol keep their own predicates and head measure.
