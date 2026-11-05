@@ -1,5 +1,5 @@
 //! The shell adapter observes requests and trees, never a domain's decisions.
-use jig_client_world::{
+use jig_client_kit::{
     harness::{App, CardKey, Duty, Receipt, Seen, Sent, StoreWrite},
     observe,
 };
@@ -271,13 +271,13 @@ impl App for Temper {
             }
         }
         if adoption_page(tree) {
-            let mut state = jig_client_world::harness::CardSeen::Waiting;
+            let mut state = jig_client_kit::harness::CardSeen::Waiting;
             for node in tree.nodes() {
                 if node.role == skein_ui::Role::Button
                     && node.name.as_deref() == Some(b"Adopt")
                     && node.states.as_slice().contains(&skein_ui::State::Disabled)
                 {
-                    state = jig_client_world::harness::CardSeen::Deciding;
+                    state = jig_client_kit::harness::CardSeen::Deciding;
                 }
                 if node.role == skein_ui::Role::Alert
                     || node.role == skein_ui::Role::Status
@@ -285,7 +285,7 @@ impl App for Temper {
                             name.starts_with(b"Adopted ") || name.starts_with(b"It is not known whether ")
                         })
                 {
-                    state = jig_client_world::harness::CardSeen::Done;
+                    state = jig_client_kit::harness::CardSeen::Done;
                 }
             }
             seen.push(Seen::Card { key: adoption_card(), state, revision: None });

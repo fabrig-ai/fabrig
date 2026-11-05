@@ -30,7 +30,7 @@ temper-fixtures.workspace = true
 jig-client-test-records.workspace = true
 skein-scratch.workspace = true
 skein-sim = { path = "../../../skein/crates/skein-sim" }
-jig-client-world.workspace = true
+jig-client-kit.workspace = true
 
 [lints.rust] # binary: tools/lints/design.md, 2.2
 unsafe_code = "forbid"

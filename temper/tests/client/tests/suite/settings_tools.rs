@@ -1,6 +1,6 @@
 //! Settings files through the joined roots (temper/docs/design/client/tools.md, 5.3 and 11.2).
 use jig_client::contract as c;
-use jig_client_world::harness::{ClientId, Settings, World};
+use jig_client_kit::harness::{ClientId, Settings, World};
 use jig_domain_core::settings;
 use jig_domain_people as people;
 use temper_client_world::{app::Temper, fixtures, front::Joint};

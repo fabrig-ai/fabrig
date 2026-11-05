@@ -1,4 +1,4 @@
-use jig_client_world::harness::{ClientId, World};
+use jig_client_kit::harness::{ClientId, World};
 use temper_client_world::{app::Temper, fixtures, front::Joint};
 
 fn large_chat() -> (World<Temper, Joint>, u64, (u64, u32)) {

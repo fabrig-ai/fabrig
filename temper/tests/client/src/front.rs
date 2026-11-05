@@ -6,7 +6,7 @@ mod dismissed;
 mod status;
 use crate::app::Event;
 use crate::{app::Temper, fixtures, translate};
-use jig_client_world::{
+use jig_client_kit::{
     harness::{ClientId, Front, FrontFault, Observed},
     joint::transport::Transport,
 };
@@ -78,7 +78,7 @@ pub struct Joint {
     now: Time,
     last_commit: u64,
     sign_outs: BTreeMap<ClientId, VecDeque<Option<u64>>>,
-    truth: jig_client_world::joint::truth::Truth,
+    truth: jig_client_kit::joint::truth::Truth,
 }
 /// Typed replies observed by a scripted run (temper/docs/design/domain/testing.md, 6.3).
 #[derive(Debug)]
@@ -267,7 +267,7 @@ impl Joint {
         account_acts::event(
             &mut front,
             &mut root,
-            <Temper as jig_client_world::harness::App>::start(
+            <Temper as jig_client_kit::harness::App>::start(
                 client::Address::ConnectForge { forge: Some(client::Choice::Forge(1)) },
                 Vec::new(),
                 0,
@@ -493,7 +493,7 @@ impl Joint {
         joint.engine.send(hello);
         joint.engine.settle();
         joint.last_commit = joint.engine.store.header().commits;
-        joint.truth = jig_client_world::joint::truth::Truth::after(core_rows(&joint.engine));
+        joint.truth = jig_client_kit::joint::truth::Truth::after(core_rows(&joint.engine));
         joint.engine.delivered.clear();
         joint.engine.immediate.clear();
         joint
@@ -770,8 +770,8 @@ impl Joint {
     /// Whether the client's change panel still has its application route.
     #[must_use]
     pub fn watching_change(&self, client: ClientId, task: u64) -> bool {
+        use jig_client_kit::joint::transport::Watched;
         use jig_client_test_domain::family::Kind;
-        use jig_client_world::joint::transport::Watched;
         self.transport.watches().into_iter().any(|watcher| {
             let route = self.transport.watch(watcher).expect("live watch");
             route.client == client
@@ -1041,7 +1041,7 @@ impl Joint {
         engine.send(hello);
         engine.settle();
         let last_commit = engine.store.header().commits;
-        let truth = jig_client_world::joint::truth::Truth::after(core_rows(&engine));
+        let truth = jig_client_kit::joint::truth::Truth::after(core_rows(&engine));
         engine.delivered.clear();
         engine.immediate.clear();
         Joint {
@@ -1548,8 +1548,8 @@ impl Joint {
         }
     }
     fn publish_playground_forges(&mut self) {
+        use jig_client_kit::joint::transport::Watched;
         use jig_client_test_domain::family::{Kind, Scope, Subject};
-        use jig_client_world::joint::transport::Watched;
         for watcher in self.transport.watches() {
             if matches!(
                 self.transport.watch(watcher).map(|route| &route.subject),
@@ -1719,7 +1719,7 @@ impl Joint {
         self.settle();
         let commit = self.engine.store.header().commits;
         if commit != self.last_commit {
-            self.observed.extend(self.truth.applied(jig_core_world::store_peer::DurableSnapshot {
+            self.observed.extend(self.truth.applied(jig_core_kit::store_peer::DurableSnapshot {
                 commit,
                 at: self.now,
                 rows: core_rows(&self.engine),

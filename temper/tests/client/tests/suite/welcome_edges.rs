@@ -1,6 +1,6 @@
 //! Welcome scenarios from client/README.md, 3.5, 4.8, 5.1, 5.6,
 //! and client/browser.md, 2.3–2.4. Only the world's public surface is used.
-use jig_client_world::harness::{ClientId, Until, World};
+use jig_client_kit::harness::{ClientId, Until, World};
 use skein_fake_person::{Find, Step as PersonStep};
 use skein_ui::Role;
 use skein_world::domain::Verdict;

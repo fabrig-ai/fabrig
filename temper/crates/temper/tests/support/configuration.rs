@@ -28,7 +28,7 @@ pub fn documents(directory: &Path, program: &str) -> (Vec<u8>, Vec<u8>) {
             "models":[{"name":"fake","prices":{"input":1,"cached":1,"output":1,"unit":1_000_000},"window":1_048_576,"output":2048,"reasoning_item":64,"head":60000,"idle":30000}]}],
         "environment":[]});
     let mut value: serde_json::Value =
-        serde_json::from_slice(&jig_channel_world::fixtures::engine_document()).expect("engine JSON");
+        serde_json::from_slice(&jig_channel_kit::fixtures::engine_document()).expect("engine JSON");
     value.as_object_mut().expect("whole object").remove("service");
     use_stock(&mut value);
     for project in value["engine"]["projects"].as_array_mut().expect("seed projects") {
@@ -38,7 +38,7 @@ pub fn documents(directory: &Path, program: &str) -> (Vec<u8>, Vec<u8>) {
     // A Create member owns stock's fourteen grants and nine executors, plus its words.
     value["engine"]["limits"]["overrides"]["people.amendment_bytes"] = 2048.into();
     let worker: serde_json::Value =
-        serde_json::from_slice(jig_channel_world::fixtures::WORKER_DOCUMENT).expect("worker JSON");
+        serde_json::from_slice(jig_channel_kit::fixtures::WORKER_DOCUMENT).expect("worker JSON");
     value["workers"] = worker["workers"].clone();
     value["workers"][0]["engine"] = serde_json::json!({"in_process":"workers"});
     value["workers"][0]["agent"]["program"] = program.into();

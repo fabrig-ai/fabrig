@@ -4673,7 +4673,7 @@ dependencies = [
 name = "temper"
 version = "0.0.0"
 dependencies = [
- "jig-channel-world",
+ "jig-channel-kit",
  "jig-client",
  "jig-client-protocol-link",
  "jig-client-protocol-wire",
@@ -4771,7 +4771,7 @@ dependencies = [
 name = "temper-client-browser-world"
 version = "0.0.0"
 dependencies = [
- "jig-channel-world",
+ "jig-channel-kit",
  "jig-client",
  "jig-client-fake-person-browser",
  "jig-client-protocol-link",
@@ -4898,12 +4898,12 @@ name = "temper-client-shell-terminal"
 version = "0.0.0"
 dependencies = [
  "jig-client",
+ "jig-client-kit",
  "jig-client-protocol-http",
  "jig-client-protocol-link",
  "jig-client-protocol-wire",
  "jig-client-shell-native",
  "jig-client-test-records",
- "jig-client-world",
  "skein-http",
  "skein-io",
  "skein-lib",
@@ -4990,12 +4990,12 @@ version = "0.0.0"
 dependencies = [
  "jig-boundary",
  "jig-client",
+ "jig-client-kit",
  "jig-client-protocol-link",
  "jig-client-protocol-wire",
  "jig-client-test-domain",
  "jig-client-test-kit",
- "jig-client-world",
- "jig-core-world",
+ "jig-core-kit",
  "jig-domain-accounts",
  "jig-domain-authority",
  "jig-domain-core",
@@ -5179,9 +5179,9 @@ name = "temper-engine-domain-world"
 version = "0.0.0"
 dependencies = [
  "jig-client",
+ "jig-client-kit",
  "jig-client-protocol-link",
  "jig-client-protocol-wire",
- "jig-client-world",
  "jig-conformance",
  "jig-domain-accounts",
  "jig-domain-authority",
@@ -5193,7 +5193,7 @@ dependencies = [
  "jig-domain-people",
  "jig-domain-tasks",
  "jig-domain-views",
- "jig-engine-clients-world",
+ "jig-engine-clients-kit",
  "jig-people-world",
  "jig-protocol-config",
  "jig-protocol-engine-clients",
@@ -5463,7 +5463,7 @@ dependencies = [
 name = "temper-one-process-world"
 version = "0.0.0"
 dependencies = [
- "jig-channel-world",
+ "jig-channel-kit",
  "jig-client",
  "jig-client-protocol-link",
  "jig-client-protocol-wire",
@@ -5518,7 +5518,7 @@ dependencies = [
 name = "temper-playground"
 version = "0.0.0"
 dependencies = [
- "jig-channel-world",
+ "jig-channel-kit",
  "jig-domain-authority",
  "jig-domain-core",
  "jig-domain-fleet",
@@ -5645,7 +5645,7 @@ dependencies = [
 name = "temper-real-loop-world"
 version = "0.0.0"
 dependencies = [
- "jig-channel-world",
+ "jig-channel-kit",
  "jig-client-protocol-wire",
  "jig-domain-authority",
  "jig-domain-core",
