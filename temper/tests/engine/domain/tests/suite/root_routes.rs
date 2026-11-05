@@ -1488,6 +1488,86 @@ fn new_note(description: &[u8], body: &[u8], author: notes::Author) -> engine::T
     }
 }
 
+fn note_lines(name: u64, recalled: u32, range: notes::LineRange, body: &[u8]) -> engine::Tool {
+    let engine::Tool::Note { mut entry, .. } = new_note(b"draft", body, notes::Author::Task { task: 0, attempt: 0 })
+    else {
+        panic!("note fixture")
+    };
+    entry.name = name;
+    engine::Tool::NoteLines { entry, recalled, range }
+}
+
+fn stored_note(driver: &Driver, name: u64) -> &notes::Entry {
+    let Some(Record::Core(jig_domain_core::Record::Notes(notes::Record::Entry(entry)))) =
+        driver.store.rows.get(&Key::Core(jig_domain_core::Key::Notes(notes::Key::Entry { name })))
+    else {
+        panic!("stored note")
+    };
+    entry
+}
+
+fn written_note_fixture(body: &[u8]) -> (Driver, engine::Assignment, u64) {
+    let (mut driver, assignment) = note_fixture();
+    tool_call(&mut driver, &assignment, 3101, new_note(b"draft", body, notes::Author::Task { task: 0, attempt: 0 }));
+    let name = written_note_name(&driver, 3101);
+    (driver, assignment, name)
+}
+
+#[test]
+fn a_runs_line_range_writes_the_whole_body() {
+    for (range, body, expected) in [
+        (notes::LineRange { first: 2, remove: 1, join: false }, b"x".as_slice(), b"a\nx\nc".as_slice()),
+        (notes::LineRange { first: 4, remove: 0, join: true }, b"d", b"a\nb\ncd"),
+    ] {
+        let (mut driver, assignment, name) = written_note_fixture(b"a\nb\nc");
+        tool_call(&mut driver, &assignment, 3102, note_lines(name, 1, range, body));
+        assert_eq!(stored_note(&driver, name).body.as_ref(), expected);
+        assert_eq!(stored_note(&driver, name).revision, 2);
+        assert_eq!(
+            stored_note(&driver, name).author,
+            notes::Author::Task { task: assignment.task, attempt: assignment.attempt }
+        );
+    }
+}
+
+#[test]
+fn a_runs_stale_line_range_is_answered_with_the_revision() {
+    let (mut driver, assignment, name) = written_note_fixture(b"a\nb");
+    let before = stored_note(&driver, name).clone();
+    tool_call(
+        &mut driver,
+        &assignment,
+        3102,
+        note_lines(name, 0, notes::LineRange { first: 3, remove: 0, join: true }, b"c"),
+    );
+    assert_eq!(driver.answered(3102), Some(&engine::CallAnswer::NoteRefused(notes::Refusal::Moved { revision: 1 })));
+    assert_eq!(stored_note(&driver, name), &before);
+}
+
+#[test]
+fn a_body_past_its_bound_is_rejected_saying_so() {
+    // walking::limits gives a note body 256 bytes.
+    const BODY_BYTES: usize = 256;
+    for (range, body) in [
+        (None, [b'b'; BODY_BYTES + 1].as_slice()),
+        (Some(notes::LineRange { first: 2, remove: 0, join: true }), [b'b'; BODY_BYTES + 1].as_slice()),
+        (Some(notes::LineRange { first: 2, remove: 0, join: true }), b"b".as_slice()),
+    ] {
+        let (mut driver, assignment, name) = written_note_fixture(&[b'a'; BODY_BYTES]);
+        let before = stored_note(&driver, name).clone();
+        let tool = match range {
+            Some(range) => note_lines(name, 1, range, body),
+            None => new_note(b"draft", body, notes::Author::Task { task: 0, attempt: 0 }),
+        };
+        tool_call(&mut driver, &assignment, 3102, tool);
+        assert_eq!(
+            driver.answered(3102),
+            Some(&engine::CallAnswer::NoteRefused(notes::Refusal::PastBound { bytes: 257, bound: 256 }))
+        );
+        assert_eq!(stored_note(&driver, name), &before);
+    }
+}
+
 #[test]
 fn a_new_runs_brief_carries_the_durable_note_index() {
     let mut driver = Driver::configured(Store::new(), [note_config(), note_config()], &limits());
