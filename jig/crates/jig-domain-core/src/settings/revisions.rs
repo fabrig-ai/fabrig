@@ -10,7 +10,10 @@ use jig_domain_tasks as tasks;
 #[must_use]
 pub fn history_copy(number: u32) -> (crate::Key, crate::Key) {
     use crate::{CoreKey, Key, settings};
-    (Key::Core(CoreKey::Settings(settings::Key::Held(number))), Key::Core(CoreKey::Settings(settings::Key::History(number))))
+    (
+        Key::Core(CoreKey::Settings(settings::Key::Held(number))),
+        Key::Core(CoreKey::Settings(settings::Key::History(number))),
+    )
 }
 
 impl Core {
