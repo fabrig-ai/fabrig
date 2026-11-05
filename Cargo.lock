@@ -3125,6 +3125,9 @@ dependencies = [
 [[package]]
 name = "skein-http-kit"
 version = "0.0.0"
+dependencies = [
+ "skein-http",
+]
 
 [[package]]
 name = "skein-http-world"
@@ -3132,6 +3135,7 @@ version = "0.0.0"
 dependencies = [
  "skein-heap",
  "skein-http",
+ "skein-http-kit",
  "skein-json",
  "skein-json-world",
  "skein-lib",
@@ -3294,7 +3298,7 @@ dependencies = [
  "skein-fake-llm-protocol",
  "skein-heap",
  "skein-http",
- "skein-http-world",
+ "skein-http-kit",
  "skein-json",
  "skein-lib",
  "skein-llm",

@@ -12,6 +12,7 @@ test = false
 doctest = false
 
 [dependencies]
+skein-http-kit.workspace = true
 skein-protocol-kit.workspace = true
 skein-scratch.workspace = true
 skein-lib.workspace = true
