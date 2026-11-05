@@ -6,6 +6,7 @@ pub mod away;
 pub mod change;
 pub mod changes;
 pub mod connect;
+pub mod decided;
 pub mod deployment;
 pub mod dismissed;
 pub mod family;
