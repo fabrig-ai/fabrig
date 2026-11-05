@@ -316,10 +316,9 @@ impl World {
                             self.rng.next_u64(),
                             &self.repositories,
                             &self.given.bot_login,
-                            self.domain.as_mut().map(|domain| skein_fake_forge_forgejo::Hosted {
-                                domain,
-                                config: &self.domain_config,
-                            }),
+                            self.domain
+                                .as_mut()
+                                .map(|domain| skein_fake_forge_forgejo::Hosted { domain, config: &self.domain_config }),
                         )
                     };
                     if let Reply::Document(Document::Token(token)) = &reply

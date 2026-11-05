@@ -1,13 +1,13 @@
 //! GitHub HTTP peers sharing the joint's domain and cutting pipes (skein/docs/design/fake-forge.md, 10.6).
 use super::{Joint, StartCounts};
 use crate::pipe::{Cut, Pipe, RequestCounts};
+use skein_fake_forge_forgejo::{Route, Tally};
 use skein_fake_forge_github::{
     fixture,
     inline::{self, Lent},
     server::{self, Event, Server},
     service::{Limits, Service},
 };
-use skein_fake_forge_forgejo::{Route, Tally};
 use skein_forge::github::request::Method;
 use skein_http::server as http;
 use skein_lib::{Env, Queue, Token, stream::Down};
