@@ -16,9 +16,6 @@ Section 4.3's failed and refused answer diagnostics reach serve's stderr and the
   (`temper-worker-domain-checkout/src/hold.rs`, `PrepareStep::Create`).
   5, 9: git's invocations in contained process trees;
   `temper-worker-protocol-git` runs them as plain child processes.
-  6: the host's agents are smith's `runs`, one, so `unfit` refuses a worker
-  of more slots; a start doesn't refuse slots past `fleet.slots`, and its
-  refusal past `hub.slots` doesn't name it.
 - **Departs:** 5, 9: with `TEMPER_WORKSPACE_REUSE` in the worker's
   environment at its start, a workspace stays as it is between workstreams and
   across a restart; unset, which is the default and the only shipped form,

@@ -25,6 +25,7 @@ mod worker_git;
 #[path = "tests/worker_job_answers.rs"]
 mod worker_jobs;
 mod worker_orders;
+mod worker_slots;
 
 mod box_link;
 mod checks;
