@@ -234,7 +234,7 @@ pub const fn shown(side: &Side) -> u64 {
 pub fn step(side: &mut Side, env: &Env<jig_client::DomainLimits>, event: Event, out: &mut Queue<Request>) {
     match event {
         Event::Show { part, scope } => {
-            if !part_fits(&part, env.limits.segments, env.limits.text) {
+            if !crate::parts::part_fits(&part, env.limits.segments, env.limits.text) {
                 full(out);
                 return;
             }
@@ -721,22 +721,6 @@ fn progress_changed(side: &mut Side, request: Token, progress: RequestProgress, 
                 acquire(side, subject, out);
             }
         }
-    }
-}
-
-fn part_fits(part: &ApplicationPart, segments: u32, text: u32) -> bool {
-    match part {
-        ApplicationPart::Resource { path, .. } => jig_client::contract::resource_path_fits(path, segments, text),
-        ApplicationPart::Connector { .. }
-        | ApplicationPart::Kind { .. }
-        | ApplicationPart::Panel { .. }
-        | ApplicationPart::Result { .. }
-        | ApplicationPart::OwnerEffect { .. }
-        | ApplicationPart::Effect { .. }
-        | ApplicationPart::Outbox { .. }
-        | ApplicationPart::Hold { .. }
-        | ApplicationPart::Project { .. }
-        | ApplicationPart::Deployment { .. } => true,
     }
 }
 
