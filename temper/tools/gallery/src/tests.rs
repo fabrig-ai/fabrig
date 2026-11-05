@@ -950,6 +950,7 @@ const HOLDS: [Holds; samples::N] = [
             Part::Named { role: Role::Button, name: "Reset choice" },
         ],
     },
+    Holds { name: "chat-working", heading: "T6", parts: &[Part::Named { role: Role::Slot, name: "Writing" }] },
     Holds {
         name: "chat-solo-T6",
         heading: "T6 · Why is tally sum slow on big files?",
@@ -1164,12 +1165,13 @@ const HOLDS: [Holds; samples::N] = [
         ],
     },
 ];
-const SPENDS: [(&str, Role, &str); 12] = [
+const SPENDS: [(&str, Role, &str); 13] = [
     ("chat-first-run-7-T1", Role::Paragraph, "0 spent · of 20"),
     ("chat-solo-T10", Role::Paragraph, "0 spent · of 40"),
     ("chat-reference-T1", Role::Paragraph, "6 spent · of 100"),
     ("chat-solo-T1", Role::Paragraph, "1 spent · of 40"),
     ("chat-solo-T6", Role::Paragraph, "1 spent · of 40"),
+    ("chat-working", Role::Paragraph, "1 spent · of 40"),
     ("chat-first-run-2-T1", Role::Paragraph, "0 spent · of 20"),
     ("chat-first-run-3-T1", Role::Paragraph, "0 spent · of 20"),
     ("chat-first-run-4-T4", Role::Paragraph, "0 spent · of 20"),
@@ -1713,4 +1715,50 @@ fn the_byline_sample_opens_only_the_model_disclosure() {
     let html = page(&sample, &skein_ui_bundle::Digest(*b"0123456789abcdef"));
     assert!(html.contains(&format!("data-node=\"{}\" open", node.id.0)));
     assert_eq!(html.matches(" open").count(), 1);
+}
+
+#[test]
+fn the_chat_log_follows_its_end_until_the_person_scrolls_away() {
+    use skein_ui_web::page::{Event as PageEvent, Op};
+    use temper_client_domain::{Action, Event, pages::Act};
+    let sample = samples::samples().into_iter().find(|s| s.name == "chat-solo-T6").expect("chat sample");
+    let mut root = samples::domain(&sample);
+    let (mut view, bounds, patches) = built(&sample);
+    let log = find(view.tree(), Role::Log, "Conversation", sample.name);
+    let mut page = Page::new(
+        Look {
+            names: &[temper_client_view::look::NAMES],
+            pictures: &[],
+            components: &[],
+            elements: temper_client_view::look::ELEMENTS,
+            draw,
+        },
+        &bounds.tree,
+        b"temper",
+        Primary::Control,
+    );
+    let mut ops = Vec::new();
+    page.apply(&patches, &mut ops);
+    assert!(ops.iter().any(|op| matches!(op, Op::ScrollEnd { node } if *node == log)), "initial chat follows its end");
+    for (top, follow, words) in
+        [(800, true, b"At the end".as_slice()), (100, false, b"Reading earlier turns"), (800, true, b"Back at the end")]
+    {
+        ops.clear();
+        assert!(page.act(PageEvent::Scrolled { node: log, top, height: 1000, viewport: 200 }, &mut ops).is_none());
+        let mut out = Queue::uncapped();
+        driver::step(
+            &mut root,
+            Event::Act { action: Action::Pages(Act::MessageWords { words: words.into() }) },
+            &mut out,
+        );
+        if words == b"At the end" {
+            driver::step(&mut root, Event::Act { action: Action::Pages(Act::Send) }, &mut out);
+        }
+        let mut patches = Queue::with_capacity(bounds.tree.patches);
+        temper_client_view::build(&mut view, &root, worlds::sample_now(sample.world, sample.name), &mut patches);
+        let patches: Vec<_> = (0..patches.len()).map(|_| patches.pop().expect("queued patch")).collect();
+        assert!(!patches.is_empty(), "the chat changes");
+        page.apply(&patches, &mut ops);
+        assert_eq!(ops.iter().any(|op| matches!(op, Op::ScrollEnd { node } if *node == log)), follow);
+    }
 }

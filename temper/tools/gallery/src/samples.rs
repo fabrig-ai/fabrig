@@ -20,6 +20,7 @@ pub enum World {
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 pub enum Then {
     Shown,
+    Working,
     Filled,
     Refused,
     SignedOut,
@@ -68,7 +69,7 @@ impl Sample {
         if self.name == "chat-byline-open" { Some(b"Change model") } else { None }
     }
 }
-pub const N: usize = 132;
+pub const N: usize = 133;
 const CHATS: Address = Address::Chats { filter: ChatsFilter::All };
 use World::{Bare, FirstRun, Reference, Solo};
 #[must_use]
@@ -336,6 +337,7 @@ pub fn samples() -> [Sample; N] {
         Sample { name: "chat-reference-T1", world: Reference, address: Address::Chat { task: 1 }, then: Shown },
         Sample { name: "chat-solo-T1", world: Solo, address: Address::Chat { task: 1 }, then: Shown },
         Sample { name: "chat-byline-open", world: FirstRun { step: 7 }, address: Address::NewChat, then: Shown },
+        Sample { name: "chat-working", world: Solo, address: Address::Chat { task: 6 }, then: Then::Working },
         Sample { name: "chat-solo-T6", world: Solo, address: Address::Chat { task: 6 }, then: Shown },
         first_chat("chat-first-run-2-T1", 2, 1),
         first_chat("chat-first-run-3-T1", 3, 1),
@@ -515,6 +517,7 @@ pub fn mockup(sample: &Sample) -> Option<String> {
             Then::Renewed => "#other-states-renewed",
             Then::SignInRefused => "#other-states-refused",
             Then::Shown
+            | Then::Working
             | Then::Filled
             | Then::Refused
             | Then::SignedOut
@@ -637,7 +640,7 @@ pub fn domain(sample: &Sample) -> Domain {
     let (mut root, accounts_watch) = crate::worlds::world(sample.world, sample.address.clone(), sample.then);
     let mut out = Queue::uncapped();
     match sample.then {
-        Then::Shown | Then::Held => {}
+        Then::Shown | Then::Working | Then::Held => {}
         Then::Filled | Then::Refused => adoption(&mut root, sample.then == Then::Refused, &mut out),
         Then::SignedOut | Then::GoogleSignIn => step(&mut root, Event::SignedOut, &mut out),
         Then::OutOfDate => step(

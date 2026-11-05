@@ -81,6 +81,10 @@ pub const CHATS_LINE: Style = Style { owner: owner(), token: 268 };
 pub const STATE_NEEDS: Style = Style { owner: owner(), token: 269 };
 /// A session's byline, status, spend and controls (client/README.md, 3.5).
 pub const SESSION_RIGHT: Style = Style { owner: owner(), token: 246 };
+/// A chat's scrolling column and working indicator (client/README.md, 3.5).
+pub const THREAD_INNER: Style = Style { owner: owner(), token: 295 };
+pub const TYPING: Style = Style { owner: owner(), token: 296 };
+pub const BY_DELEGATE: Style = Style { owner: owner(), token: 297 };
 /// A new chat's centred repository context (client/README.md, 3.5).
 pub const META_LINE: Style = Style { owner: owner(), token: 253 };
 /// A session’s main. (client/README.md, 3.5).
@@ -860,6 +864,9 @@ pub const NAMES: Names<'static> = Names {
         b"temper-goals-state-paused",
         b"temper-goals-state-landed",
         b"temper-goals-state-stopped",
+        b"temper-thread-inner",
+        b"temper-typing",
+        b"temper-by-delegate",
     ],
     regions: &[b"temper-link"],
 };

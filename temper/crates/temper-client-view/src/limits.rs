@@ -142,6 +142,8 @@ impl Limits {
             // Chats adds its intro (seven nodes), section head and repository tag
             // above the filters and empty words; rows retain borrowed lines and scalar keys.
             .checked_add(16)?
+            // A chat log holds its inner column and the working indicator with three dots.
+            .checked_add(5)?
             // Start a chat heading and its text outside the playground start (2), and
             // a failed playground start's alert, its text leaf and Try again (3).
             .checked_add(5)?

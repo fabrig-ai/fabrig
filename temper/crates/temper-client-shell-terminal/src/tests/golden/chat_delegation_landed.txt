@@ -23,9 +23,9 @@ T1 · Scripted model · Default
 * waiting on your words
 0 spent · of 1
 Conversation:
-  demo · playground/widget on Playground forge
-  Signed in as the deployment’s owner
   Conversation:
+    demo · playground/widget on Playground forge
+    Signed in as the deployment’s owner
     Today · Thursday 1 January
     You
     00:00

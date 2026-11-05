@@ -71,10 +71,6 @@ pub(crate) fn main(
         b.style(look::CONVO);
         b.open(Role::Slot);
         b.style(look::THREAD);
-        context(b, root, task.project, words);
-        if chat.offers_older() {
-            control(b, bindings, Role::Button, &words.say(Word::Older, &[]), Act::Older);
-        }
         let person = speakers(task, root.pages().me(root.client()));
         conversation_with_times(
             b,
@@ -85,36 +81,6 @@ pub(crate) fn main(
             (Drawn::ChatPage { request: Some(&task.spec), root }, Some(times)),
             bindings,
         );
-        let mut unanchored = false;
-        for card in &chat.cards {
-            if proposal_anchor(chat, card.object, rows).is_none() {
-                unanchored = true;
-            }
-        }
-        if unanchored || !chat.departures().is_empty() {
-            b.open(Role::List);
-            b.style(look::CARDS);
-        }
-        for card in &chat.cards {
-            if proposal_anchor(chat, card.object, rows).is_none() {
-                proposal_card(b, root, card, words, bindings, (rows, Some(times)), Role::Item);
-            }
-        }
-        for object in chat.departures() {
-            b.open(Role::Item);
-            b.style(look::CARD);
-            b.key(super::inbox::card_key(*object));
-            words.status(b, P::CardLeft, &[]);
-            b.close();
-        }
-        if unanchored || !chat.departures().is_empty() {
-            b.close();
-        }
-        if let Some(result) = &task.result {
-            let clock = end_clock(task, words, times);
-            result_text(b, result, task.requester, words, clock.as_deref());
-        }
-        act_status(b, root, chat, words);
         b.close();
         if task.result.is_none() && !super::chats::ended(&task.chip) && !configuring {
             crate::choice::above_composer(b, root, Some(task), words, bindings, times);
@@ -124,6 +90,59 @@ pub(crate) fn main(
     }
     crate::confirm::main(b, root, words, bindings, rows);
     b.close();
+}
+fn conversation_head(b: &mut Builder, root: &Domain, words: &Words, bindings: &mut Bindings) {
+    let chat = root.pages().chat().expect("chat page");
+    let task = chat.task(root.client()).expect("chat task");
+    context(b, root, task.project, words);
+    if chat.offers_older() {
+        b.open(Role::Button);
+        b.style(look::CHATS_MORE);
+        b.name(&words.say(Word::Older, &[]));
+        b.bind(bindings.insert(Act::Older));
+        b.close();
+    }
+}
+fn conversation_tail(
+    b: &mut Builder,
+    root: &Domain,
+    words: &Words,
+    bindings: &mut Bindings,
+    rows: u32,
+    times: &mut Times,
+) {
+    let chat = root.pages().chat().expect("chat page");
+    let task = chat.task(root.client()).expect("chat task");
+    let mut unanchored = false;
+    for card in &chat.cards {
+        if proposal_anchor(chat, card.object, rows).is_none() {
+            unanchored = true;
+        }
+    }
+    if unanchored || !chat.departures().is_empty() {
+        b.open(Role::List);
+        b.style(look::CARDS);
+    }
+    for card in &chat.cards {
+        if proposal_anchor(chat, card.object, rows).is_none() {
+            proposal_card(b, root, card, words, bindings, (rows, Some(times)), Role::Item);
+        }
+    }
+    for object in chat.departures() {
+        b.open(Role::Item);
+        b.style(look::CARD);
+        b.key(super::inbox::card_key(*object));
+        words.status(b, P::CardLeft, &[]);
+        b.close();
+    }
+    if unanchored || !chat.departures().is_empty() {
+        b.close();
+    }
+    if let Some(result) = &task.result {
+        let clock = end_clock(task, words, times);
+        result_text(b, result, task.requester, words, clock.as_deref());
+    }
+    act_status(b, root, chat, words);
 }
 /// The delivered chat's chip decides its path and current navigation entry (client/README.md, 3.5).
 pub(crate) fn configuring(root: &Domain) -> bool {
@@ -535,6 +554,11 @@ pub(crate) fn conversation_with_times(
     let mut shown = List::with_capacity(bound);
     b.open(Role::Log);
     b.name(&words.say_card(P::ConversationLog, &[]));
+    if let Some(root) = proposals {
+        b.open(Role::Slot);
+        b.style(look::THREAD_INNER);
+        conversation_head(b, root, words, bindings);
+    }
     let lines = thread.lines().into_boxed();
     let mut day = None;
     // A chat started with no words opens on its first words line (3.5).
@@ -606,6 +630,20 @@ pub(crate) fn conversation_with_times(
     }
     // The live delegates anchor follows the window's last line (client/README.md, 5.7).
     live_delegates(b, &mut tasks, delegations, &mut shown, words, bindings);
+    if let Some(root) = proposals {
+        conversation_tail(b, root, words, bindings, rows, times.expect("chat page times"));
+        if words.shell == crate::words::Shell::Browser && super::chats::working(root, words, thread) {
+            b.open(Role::Slot);
+            b.style(look::TYPING);
+            b.name(&words.say(Word::ChatWorking, &[]));
+            for _ in 0_u32..3 {
+                b.open(Role::Slot);
+                b.close();
+            }
+            b.close();
+        }
+        b.close();
+    }
     b.close();
 }
 fn undecoded(b: &mut Builder, why: c::TurnProblem, words: &Words, clock: Option<&[u8]>) {
@@ -747,7 +785,10 @@ fn owner_line(
                 if Some(*by) == person { words.say_card(P::You, &[]) } else { words.say_card(P::Person, &[]) },
                 look::BY_PERSON,
             ),
-            c::Requester::Task(task) => (words.say(Word::TaskWho, &[Hole::Number(*task)]), look::BY_AGENT),
+            c::Requester::Task(task) => (
+                words.say(Word::TaskWho, &[Hole::Number(*task)]),
+                if projected { look::BY_DELEGATE } else { look::BY_AGENT },
+            ),
             c::Requester::Deployment { .. } => {
                 super::task::owner_activity(b, line, words);
                 return;
