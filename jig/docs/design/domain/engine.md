@@ -969,10 +969,11 @@ a shared root or an unproved ancestor number alone grants nothing. The store's
 task range supplies the linked records without restoring ended tasks. Loading
 grants no message, amendment or subscription authority. Authorization and the
 current attempt are checked again after a stored read. `field` accepts only
-`specification` (the default) or `result`; an unavailable terminal report is
-unknown. Both fields use bounded UTF-8 chunks and reject offsets inside a
-character or past the source. Continue with the same field and the printed
-`next` offset. Every chunk names the current spec revision; restart specification
+`specification` (the default) or `result`. Report, NoChange, Change and Verdict
+results serve their kept words, including reports kept with cancellation; an
+unavailable terminal report is unknown. Both fields use bounded UTF-8 chunks
+and reject offsets inside a character or past the source. Continue with the same
+field and the printed `next` offset. Every chunk names the current spec revision; restart specification
 reads at zero if it changes between chunks.
 
 **Calls are named, and decided once.** Every call names its task's

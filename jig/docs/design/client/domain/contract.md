@@ -1071,9 +1071,9 @@ party reads is therefore never lost by a crash.
 - **Task source text** is read independently of its overview. `field` selects
   specification words, effective instructions or result words. Instructions are
   an agent's override, otherwise its charter at the task's recorded settings
-  revision. Result words are a terminal Report or NoChange's stored words,
-  including a report kept with cancellation, from a live terminal or retained
-  owner row; other results and tasks without a report are unknown. The overview
+  revision. Result words are a terminal Report, NoChange, Change or Verdict's
+  stored words, including a report kept with cancellation, from a live terminal
+  or retained owner row; other results and tasks without a report are unknown. The overview
   keeps its bounded preview and typed result metadata. Each answer gives `task`,
   `field`, `from`, `total`, `text` and `next`, byte offsets into that source.
   The chunk is at most `documents.text_bytes`, ends at a UTF-8 boundary and
