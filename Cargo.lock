@@ -146,6 +146,7 @@ dependencies = [
 name = "fabrig-boundary"
 version = "0.0.0"
 dependencies = [
+ "serde_json",
  "skein-scratch",
 ]
 
@@ -4461,6 +4462,7 @@ dependencies = [
  "jig-protocol-config",
  "serde_json",
  "skein-browser",
+ "skein-fail-stop",
  "skein-fake-forge-domain",
  "skein-fake-forge-github",
  "skein-fake-oauth",
@@ -5478,6 +5480,7 @@ version = "0.0.0"
 dependencies = [
  "serde",
  "serde_json",
+ "skein-fail-stop",
  "skein-scratch",
  "temper-settings-form",
 ]
