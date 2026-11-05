@@ -7,9 +7,6 @@ Unlisted sections have no known gap.
   capacity cause from its role cause: jig's `me` carries absence alone
   (`jig/docs/design/client/domain/contract.md`, 5.3). Its diagnostic names
   the role and `documents.lines` as checks, without asserting either cause.
-- **Not yet:** 5.5: `task answer`'s refusal past a person task's contract
-  prints `Limit reached` alone, with no `bound` in JSON, and the tool's
-  notes do not say a person task may ask for less.
 - **Not yet:** 5.1: the groups `finding`, `qa`, `party` and
   `deployment`, absent from `temper-client-tools`' `table.rs` `GROUPS`.
   5.2: `repository receipts`, `finding list`, `finding show`, `qa marks`,
