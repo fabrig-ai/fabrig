@@ -1,0 +1,3 @@
+draft = "debt-20"
+repo = "fabrig"
+sources = ["temper/docs/plan/debt-20/inputs/request.md", "skein/docs/development/debt/D002-index-and-length-widening.md", "skein/docs/development/debt/D018-io-pipe-and-file-states.md", "jig/docs/development/debt/D015-exhaustive-lists.md", "jig/docs/development/debt/D025-store-codec-domain-rules.md", "smith/docs/development/debt/D003-host-io-route-table.md", "smith/docs/development/debt/D007-tools-namespace.md", "hearth/docs/development/debt/D007-two-process-fakes.md"]
