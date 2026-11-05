@@ -3084,6 +3084,7 @@ fn adopt_owned_sample(root: &mut Domain, watch: Token, out: &mut Queue<Request>)
 /// Changes samples use the mock's landed clocks and relative ages (client/browser.md, 7.2).
 pub(super) fn sample_now(world: World, name: &str) -> Wall {
     match name {
+        "home-morning" => Wall::from_nanos(1_792_483_440_000_000_000),
         "changes" | "changes-one" | "changes-empty" => offset(Reference, -173),
         "changes-landed-only" => offset(Reference, 2),
         _ => now(world),
