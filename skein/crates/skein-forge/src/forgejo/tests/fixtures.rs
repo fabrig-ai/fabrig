@@ -9,9 +9,8 @@ use skein_lib::{List, Wall};
 pub fn bot() -> User {
     User { id: 1, login: Box::from(*b"fixture"), is_admin: true, full_name: Box::from(*b"kit:bot") }
 }
-#[expect(dead_code, reason = "the shared limits also serve integration document tests")]
 mod admitted;
-pub use admitted::{SMALL_BODY_BYTES, limits, small, user};
+pub use admitted::{SMALL_BODY_BYTES, limits, profile_limits, small, user};
 // Both preserved comment stories use thread three in the fixture/specimen repository.
 pub const COMMENT_THREAD: u64 = 3;
 pub fn repository() -> crate::forgejo::request::Repo {

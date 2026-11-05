@@ -766,3 +766,5 @@ mod tokens;
 pub(crate) mod zip;
 
 mod inflate;
+
+mod removed_files;
