@@ -1,7 +1,7 @@
 //! The connector's panel follows the core's watch admission and commit barrier.
 use jig_domain_core::documents::{Watched, Window};
 use jig_domain_people::ApplicationScope;
-use skein_lib::{ReplyTo, Token};
+use skein_lib::{ReplyTo, Token, Wall};
 use temper_engine_domain as root;
 use temper_engine_domain_forge as forge;
 use temper_engine_domain_world::{direct::Driver, fixtures};
@@ -237,4 +237,157 @@ fn a_changes_watch_without_a_project_role_is_refused() {
     watch(&mut driver, 2, forge::changes_subject(2));
     driver.settle();
     assert!(driver.immediate.iter().any(|request| matches!(request, root::Request::Party(root::PartyRequest::WatchRefused { watcher, why: jig_domain_core::WatchRefusal::NotAllowed }) if *watcher == WATCHER)));
+}
+
+// The two parties have different sittings in the same project (domain/forge.md, 5.6).
+const OWN_PREVIOUS: Wall = Wall::from_nanos(11);
+const OWN_LATEST: Wall = Wall::from_nanos(22);
+const OTHER_PREVIOUS: Wall = Wall::from_nanos(33);
+const LANDED: u64 = 6;
+const OWN_SEEN: u64 = 2;
+const OWN_NEXT_SEEN: u64 = 3;
+const OTHER_SEEN: u64 = 4;
+
+fn status_driver() -> Driver {
+    let mut driver = driver();
+    let party = driver
+        .delivered
+        .iter()
+        .find_map(|delivery| {
+            if let root::Delivery::WebReply { reply: jig_domain_people::Reply::SignedIn { person, .. }, .. } = delivery
+            {
+                Some(*person)
+            } else {
+                None
+            }
+        })
+        .expect("the signed-in watcher has a party");
+    let other_party = party.checked_add(1).expect("a second fixture party fits");
+    let rows = [
+        forge::Stored::ProjectFacts(forge::ProjectFacts {
+            project: 1,
+            landed: LANDED,
+            last_landed: OWN_LATEST,
+            brief: None,
+            running: None,
+        }),
+        forge::Stored::Looked(forge::Looked {
+            party,
+            project: 1,
+            previous: Some(OWN_PREVIOUS),
+            latest: OWN_LATEST,
+            seen: OWN_SEEN,
+            next_seen: OWN_NEXT_SEEN,
+        }),
+        forge::Stored::Looked(forge::Looked {
+            party: other_party,
+            project: 1,
+            previous: Some(OTHER_PREVIOUS),
+            latest: OWN_LATEST,
+            seen: OTHER_SEEN,
+            next_seen: OTHER_SEEN,
+        }),
+    ];
+    driver.store.seed(rows.map(|row| root::Record::Forge { row: Box::new(row) }).into(), Box::new([]));
+    let limits = driver.env.limits;
+    let store = driver.take_store();
+    let now =
+        Wall::from_nanos(OWN_LATEST.as_nanos().checked_add(forge::SITTING.as_nanos()).expect("the next sitting fits"));
+    let mut driver = Driver::from_store_at(store, temper_engine_domain_world::walking::config(71), &limits, now);
+    driver.settle();
+    driver.sign_in();
+    driver.settle();
+    driver
+}
+fn statuses(driver: &Driver) -> Vec<&forge::StatusView> {
+    driver
+        .delivered
+        .iter()
+        .filter_map(|delivery| {
+            if let root::Delivery::ForgeDocument { watcher, document } = delivery
+                && let forge::Document::Status(view) = document.as_ref()
+            {
+                assert_eq!(*watcher, WATCHER);
+                Some(view)
+            } else {
+                None
+            }
+        })
+        .collect()
+}
+#[test]
+fn a_status_document_is_the_watchers_own() {
+    let mut driver = status_driver();
+    watch(&mut driver, 1, forge::status_subject(1));
+    driver.settle();
+    let got = statuses(&driver);
+    assert_eq!(got.len(), 1);
+    assert_eq!(
+        got[0],
+        &forge::StatusView {
+            project: 1,
+            landed: LANDED,
+            last_landed: Some(OWN_LATEST),
+            brief: None,
+            previous: Some(OWN_PREVIOUS),
+            seen: OWN_SEEN,
+            queued: 0,
+            red: false,
+            branch: b"main".as_slice().into(),
+        }
+    );
+}
+#[test]
+fn a_status_subject_for_another_project_is_gone() {
+    let mut driver = driver();
+    watch(&mut driver, 1, forge::status_subject(2));
+    driver.settle();
+    assert!(statuses(&driver).is_empty());
+    assert!(driver.delivered.iter().any(|delivery| matches!(delivery,
+        root::Delivery::WatchEnded { watcher, why: jig_domain_views::End::Gone } if *watcher == WATCHER)));
+}
+#[test]
+fn a_status_watch_without_a_project_role_is_refused() {
+    let mut driver = driver();
+    watch(&mut driver, 2, forge::status_subject(2));
+    driver.settle();
+    assert!(statuses(&driver).is_empty());
+    assert!(driver.immediate.iter().any(|request| matches!(request,
+        root::Request::Party(root::PartyRequest::WatchRefused {
+            watcher, why: jig_domain_core::WatchRefusal::NotAllowed,
+        }) if *watcher == WATCHER)));
+}
+#[test]
+fn a_look_remakes_the_document() {
+    let mut driver = status_driver();
+    watch(&mut driver, 1, forge::status_subject(1));
+    driver.settle();
+    driver.send(root::Event::Party(root::PartyInput::Delivered { watcher: WATCHER }));
+    driver.settle();
+    driver.send(root::Event::Party(root::PartyInput::Application {
+        scope: ApplicationScope::Own,
+        reply_to: ReplyTo::new(Token::new(96)),
+        sign_in: driver.session(),
+        key: [96; 16],
+        digest: [6; 32],
+        carried: None,
+        request: root::Application::Looked { project: 1 },
+    }));
+    // The look's answer and remade document both wait for its saved row.
+    for _ in 0..8 {
+        driver.advance(false);
+    }
+    assert_eq!(statuses(&driver).len(), 1);
+    assert!(!driver.delivered.iter().any(|delivery| matches!(
+        delivery,
+        root::Delivery::Application { outcome: Some(root::ApplicationAnswer::Looked(_)), .. }
+    )));
+    driver.settle();
+    let got = statuses(&driver);
+    assert_eq!(got.len(), 2);
+    assert_eq!((got[1].previous, got[1].seen), (Some(OWN_LATEST), OWN_NEXT_SEEN));
+    assert!(driver.delivered.iter().any(|delivery| matches!(
+        delivery,
+        root::Delivery::Application { outcome: Some(root::ApplicationAnswer::Looked(forge::LookedAnswer::Looked)), .. }
+    )));
 }
