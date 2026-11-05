@@ -8,6 +8,11 @@ home-ready
 home-adopting
 home-refused
 home-no-repository
+home-after-skip
+home-skip-refused
+home-needs-under-begin
+home-begin-settings-left
+home-begin-one-chats
 home-github
 chats-solo
 chat-solo-T10

@@ -34,7 +34,7 @@ fn main_find(tree: &skein_ui::Tree, role: Role, name: &[u8]) -> skein_ui::NodeId
 #[test]
 fn project_pages_draw_their_heading_in_both_shells() {
     for (address, heading) in [
-        (Address::Home { project: f::PROJECT }, b"You\xe2\x80\x99re set up. Nothing has run yet.".as_slice()),
+        (Address::Home { project: f::PROJECT }, b"Shop".as_slice()),
         (Address::Settings { project: f::PROJECT }, b"Settings for Shop".as_slice()),
     ] {
         let (root, _, _) = f::root_at(address, &f::domain_limits());
@@ -249,10 +249,6 @@ struct ChatFixture {
     live: c::Tasks,
     ended: c::TaskPage,
 }
-#[expect(
-    clippy::disallowed_methods,
-    reason = "test fixtures and assertions inspect semantic nodes and public event deliveries"
-)]
 fn home_documents(
     rows: List<w::ForgeRow>,
     configured: bool,
@@ -260,13 +256,26 @@ fn home_documents(
     needs: Option<NeedsFixture<'_>>,
     chats: Option<ChatFixture>,
 ) -> (d::Domain, Token) {
-    let (mut root, me_watch, _, _, accounts, _) = f::root_at_with_forges(
+    home_documents_with_reads(rows, configured, chat, needs, chats, Some(&[]), true)
+}
+#[expect(clippy::disallowed_methods, reason = "test fixtures deliver Home documents through public events")]
+fn home_documents_with_reads(
+    rows: List<w::ForgeRow>,
+    configured: bool,
+    chat: bool,
+    needs: Option<NeedsFixture<'_>>,
+    chats: Option<ChatFixture>,
+    dismissed: Option<&[u32]>,
+    settings_delivered: bool,
+) -> (d::Domain, Token) {
+    let (mut root, me_watch, _, _, accounts, _) = f::root_at_with_dismissals(
         Address::Settings { project: f::PROJECT },
         &f::domain_limits(),
         b"Shop",
         None,
         None,
         Some(rows),
+        dismissed,
     );
     let template_root = f::chat::messaging_root();
     let template_me = template_root.pages().me(template_root.client()).unwrap();
@@ -323,16 +332,18 @@ fn home_documents(
             application: None,
         })
         .unwrap();
-    deliver(
-        &mut root,
-        settings.expect("Home settings"),
-        c::Delivery::Settings(Box::new(c::SettingsDocument {
-            newest: 0,
-            settings: lines,
-            held: List::with_capacity(0),
-            pending: List::with_capacity(0),
-        })),
-    );
+    if settings_delivered {
+        deliver(
+            &mut root,
+            settings.expect("Home settings"),
+            c::Delivery::Settings(Box::new(c::SettingsDocument {
+                newest: 0,
+                settings: lines,
+                held: List::with_capacity(0),
+                pending: List::with_capacity(0),
+            })),
+        );
+    }
     let mut rows = List::with_capacity(1);
     if chat {
         rows.push(super::chats::line()).unwrap();
@@ -559,20 +570,14 @@ fn assert_action(view: &mut crate::View, role: Role, name: &[u8], act: d::pages:
 
 #[test]
 #[expect(clippy::disallowed_methods, reason = "test assertions inspect semantic nodes and their event bindings")]
-fn home_counts_steps_and_removes_done_acts_in_both_shells() {
+fn home_ready_headline_and_done_steps_hold_in_both_shells() {
     for configured in [false, true] {
         for repository in [false, true] {
             for chat in [false, true] {
                 let (root, _) =
                     home_root(if repository { forge_rows(true) } else { List::with_capacity(0) }, configured, chat);
                 let left = u8::from(!configured) + u8::from(!repository) + u8::from(!chat);
-                let headline = match left {
-                    3 => "You’re set up. Nothing has run yet.",
-                    2 => "Two things left to begin with.",
-                    1 => "One thing left to begin with.",
-                    0 => "Shop",
-                    _ => unreachable!(),
-                };
+                let headline = if left > 0 { "Shop is ready." } else { "Shop" };
                 for view in [f::page_view(&root), f::browser_page_view(&root)] {
                     main_find(view.tree(), Role::Heading { level: 1 }, headline.as_bytes());
                     assert_eq!(
@@ -594,11 +599,18 @@ fn home_counts_steps_and_removes_done_acts_in_both_shells() {
                     }
                     let main = f::main_text(view.tree());
                     if left > 0 {
-                        contains(
-                            &main,
-                            "In your own words: how you plan, review and land work. temper proposes how it will run that, and nothing changes until you accept.",
+                        assert_eq!(
+                            skein_lib::bytes::find(
+                                &main,
+                                b"temper runs its default way of working until you change it."
+                            )
+                            .is_some(),
+                            !configured
                         );
-                        contains(&main, "Ask a question or ask for a change.");
+                        assert_eq!(
+                            skein_lib::bytes::find(&main, b"Ask a question or ask for a change.").is_some(),
+                            !chat
+                        );
                         if repository {
                             contains(&main, "work/hello is in Shop");
                             contains(
@@ -610,7 +622,7 @@ fn home_counts_steps_and_removes_done_acts_in_both_shells() {
                 }
                 let terminal = printed(&f::page_view(&root));
                 assert!(terminal.strip_prefix(b"== ").unwrap().starts_with(headline.as_bytes()));
-                contains(&terminal, "Connected");
+                assert_eq!(skein_lib::bytes::find(&terminal, b"Connected").is_some(), left == 0);
                 for words in ["To begin", "1. ", "2. ", "3. "] {
                     if left > 0 {
                         contains(&terminal, words);
@@ -719,23 +731,14 @@ fn home_repository_states_keep_their_words_and_events() {
         }
         for mut view in [f::page_view(&root), f::browser_page_view(&root)] {
             let words = f::main_text(view.tree());
-            contains(&words, "Shop has no repository yet.");
+            absent(&words, "Shop has no repository yet.");
             if state == "adopting" {
                 contains(&words, "Adopting work/hello into Shop");
                 contains(&words, "Chats can change its code once it is in.");
-                assert!(!main_nodes(view.tree()).iter().any(|node| node.name.as_deref() == Some(b"Adopt work/hello")));
+                assert!(!main_nodes(view.tree()).iter().any(|node| node.name.as_deref() == Some(b"Adopt")));
             } else if state == "offered" || state == "refused" {
-                contains(
-                    &words,
-                    "work/hello, made on your Forgejo at set up, is in no project yet. Until one is in, chats talk and plan but change no code.",
-                );
-                assert_action(&mut view, Role::Button, b"Adopt work/hello", d::pages::Act::AdoptFirst);
-                assert_action(
-                    &mut view,
-                    Role::Link,
-                    "Adopt another…".as_bytes(),
-                    d::pages::Act::Go { address: Address::Adopt { project: f::PROJECT } },
-                );
+                contains(&words, "work/hello, made on your Forgejo at set up, is in no project yet.");
+                assert_action(&mut view, Role::Button, b"Adopt", d::pages::Act::AdoptFirst);
                 if state == "refused" {
                     let mut b = skein_ui::Builder::new(&f::tree_limits());
                     crate::forge::page::outcome(
@@ -749,20 +752,20 @@ fn home_repository_states_keep_their_words_and_events() {
                     assert!(skein_lib::bytes::find(&words, &expected).is_some());
                 }
             } else {
-                contains(&words, "Until one is in, chats talk and plan but change no code.");
-                if state == "github" {
-                    contains(&words, "temper’s App reaches its repositories on octo.");
-                }
+                contains(
+                    &words,
+                    if state == "github" {
+                        "temper’s App reaches its repositories on octo."
+                    } else {
+                        "Until one is in, chats talk and plan but change no code."
+                    },
+                );
                 assert_action(
                     &mut view,
                     Role::Link,
                     b"Adopt",
                     d::pages::Act::Go { address: Address::Adopt { project: f::PROJECT } },
                 );
-            }
-            contains(&words, "Project Shop · no repository yet");
-            if state != "none" {
-                assert_action(&mut view, Role::Link, b"Forges", d::pages::Act::Go { address: Address::Forges });
             }
             assert_action(&mut view, Role::Button, b"Start", d::pages::Act::FirstChat);
             assert_action(
@@ -821,15 +824,12 @@ fn home_outline_matches_the_requested_main_and_terminal_lines_join() {
     f::build(&mut view, &root);
     let tree = view.tree();
     let main = main_nodes(tree);
-    contains(&f::main_text(tree), "ChatGPT plan · gpt-6-luna");
     assert_eq!(main[0].styles.as_slice(), &[crate::look::MAIN, crate::look::HOME]);
     let top = children(main);
-    assert_eq!(top.len(), 3);
-    for (node, (style, role)) in top.iter().zip([
-        (crate::look::HOME_INTRO, Role::Slot),
-        (crate::look::HOME_BEGIN, Role::Region),
-        (crate::look::HOME_CONNECTED, Role::Region),
-    ]) {
+    assert_eq!(top.len(), 2);
+    for (node, (style, role)) in
+        top.iter().zip([(crate::look::HOME_INTRO, Role::Slot), (crate::look::HOME_BEGIN, Role::Region)])
+    {
         assert_eq!(node.styles.as_slice(), &[style]);
         assert_eq!(node.role, role);
     }
@@ -845,11 +845,20 @@ fn home_outline_matches_the_requested_main_and_terminal_lines_join() {
         "Your agents run on your ChatGPT plan. Forgejo runs on this machine.",
     );
     let begin = children(subtree(tree, top[1].id));
-    assert_eq!(begin.len(), 2);
-    assert_eq!(begin[0].role, Role::Heading { level: 2 });
-    assert_eq!(begin[1].role, Role::List);
-    assert_eq!(begin[1].styles.as_slice(), &[crate::look::HOME_STEPS]);
-    let steps = children(subtree(tree, begin[1].id));
+    assert_eq!(begin.len(), 3);
+    assert_eq!(begin[0].styles.as_slice(), &[crate::look::HOME_HEAD]);
+    let head = children(subtree(tree, begin[0].id));
+    assert_eq!(head.len(), 3);
+    assert_eq!((head[0].role, head[0].name.as_deref()), (Role::Heading { level: 2 }, Some(b"To begin".as_slice())));
+    assert_eq!(head[1].role, Role::Text);
+    assert_eq!(f::nodes_text(subtree(tree, head[1].id)).as_ref(), b"Optional");
+    assert_eq!(head[1].styles.as_slice(), &[crate::look::HOME_TAG]);
+    assert_eq!((head[2].role, head[2].name.as_deref()), (Role::Button, Some(b"Skip".as_slice())));
+    assert_eq!(head[2].styles.as_slice(), &[crate::look::HOME_SKIP]);
+    assert_eq!(begin[1].styles.as_slice(), &[crate::look::HOME_NOTE]);
+    assert_eq!(begin[2].role, Role::List);
+    assert_eq!(begin[2].styles.as_slice(), &[crate::look::HOME_STEPS]);
+    let steps = children(subtree(tree, begin[2].id));
     assert_eq!(steps.len(), 3);
     for (step, done) in steps.iter().zip([false, true, false]) {
         assert_eq!(step.role, Role::Item);
@@ -863,43 +872,34 @@ fn home_outline_matches_the_requested_main_and_terminal_lines_join() {
             assert_eq!(parts[2].styles.as_slice(), &[crate::look::HOME_ACTS]);
         }
     }
-    let connected = children(subtree(tree, top[2].id));
-    assert_eq!(connected[1].styles.as_slice(), &[crate::look::HOME_LINES]);
-    let lines = children(subtree(tree, connected[1].id));
-    assert_eq!(lines.len(), 3);
-    for line in &lines {
-        let parts = children(subtree(tree, line.id));
-        assert_eq!(parts[0].role, Role::Paragraph);
-        assert_eq!(parts.len(), 2);
-        let muted = subtree(tree, parts[0].id)
+    assert_action(&mut view, Role::Button, b"Skip", d::pages::Act::SkipToBegin);
+    assert!(
+        main_nodes(view.tree())
             .iter()
-            .find(|node| node.styles.as_slice().contains(&crate::look::HOME_MUTED))
-            .unwrap();
-        assert_eq!(muted.role, Role::Text);
-        assert_eq!(muted.size, 1);
-        assert_eq!(muted.text.len(), 1);
-    }
-    let open = main_find(tree, Role::Link, "Open Forgejo ↗".as_bytes());
-    assert_eq!(
-        tree.nodes().iter().find(|node| node.id == open).unwrap().external.as_ref().unwrap().as_ref(),
-        b"http://forge.example:3000/user/oauth2/temper"
+            .find(|node| node.role == Role::Link && node.name.as_deref() == Some(b"New chat"))
+            .unwrap()
+            .styles
+            .is_empty()
     );
-    assert_action(&mut view, Role::Link, b"Accounts", d::pages::Act::Go { address: Address::Accounts });
     let mut terminal = f::view();
     let mut sign_in = crate::forge_sign_in::Forges::new();
     sign_in.read("3 forgejo http://forge.example:3000 owned");
     terminal.forge_sign_in(sign_in);
     f::build(&mut terminal, &root);
     let printed = printed(&terminal);
-    contains(&printed, "Forgejo on this machine · connected as temper · work/hello, in Shop\n");
-    contains(&printed, "Project Shop · work/hello\n");
+    contains(&printed, "To begin");
+    contains(&printed, "Optional Skip\n");
+    contains(&printed, "1. Tell temper how you work");
+    contains(&printed, "2. Done. work/hello is in Shop");
+    contains(&printed, "3. Start a chat");
+    absent(&printed, "Connected");
     absent(&printed, "Change model");
 }
 
 #[test]
 #[expect(clippy::disallowed_methods, reason = "test assertions inspect semantic nodes and their event bindings")]
 fn home_rename_stays_in_connected_and_is_only_offered_to_owners() {
-    let (mut root, _) = home_root(forge_rows(true), false, false);
+    let (mut root, _) = home_root(forge_rows(true), true, true);
     let mut view = f::browser_page_view(&root);
     assert_action(&mut view, Role::Button, b"Rename", d::pages::Act::Switcher(d::pages::switcher::Act::RenameHere));
     drive(
@@ -981,17 +981,11 @@ fn home_unknown_and_ended_forges_draw_only_known_facts() {
             event: jig_client::Event::Up { up: jig_client::Up::WatchEnded { watch, end: c::WatchEnd::NotAllowed } },
         },
     );
-    for mut view in [f::page_view(&root), f::browser_page_view(&root)] {
+    for view in [f::page_view(&root), f::browser_page_view(&root)] {
         let text = f::main_text(view.tree());
-        contains(&text, "Until one is in, chats talk and plan but change no code.");
+        absent(&text, "Until one is in, chats talk and plan but change no code.");
         absent(&text, "Shop has no repository yet.");
         absent(&text, "connected as");
-        assert_action(
-            &mut view,
-            Role::Link,
-            b"Adopt",
-            d::pages::Act::Go { address: Address::Adopt { project: f::PROJECT } },
-        );
     }
     let mut root = d::unlinked(&f::domain_limits(), f::SEED);
     drive(
@@ -1010,7 +1004,7 @@ fn home_unknown_and_ended_forges_draw_only_known_facts() {
         absent(&text, "Adopt a repository");
         absent(&text, "Until one is in");
         absent(&text, "has no repository yet");
-        contains(&text, "Nothing has run yet.");
+        absent(&text, "To begin");
     }
 }
 
@@ -1091,13 +1085,7 @@ fn first_need_keeps_card_order_navigation_and_terminal_words() {
             let tree = view.tree();
             let top = section_styles(tree);
             let expected: &[skein_ui::Style] = if beginning {
-                &[
-                    crate::look::HOME_INTRO,
-                    crate::look::HOME_BEGIN,
-                    crate::look::HOME_NEEDS,
-                    crate::look::HOME_CHATS,
-                    crate::look::HOME_CONNECTED,
-                ]
+                &[crate::look::HOME_INTRO, crate::look::HOME_BEGIN, crate::look::HOME_NEEDS, crate::look::HOME_CHATS]
             } else {
                 &[
                     crate::look::HOME_INTRO,
@@ -1381,17 +1369,17 @@ fn chat_rows_stop_at_five_without_changing_the_total() {
 )]
 fn empty_sections_are_hidden_only_while_to_begin_shows() {
     for shown in [false, true] {
-        let root = if shown {
-            home_chats(chat_fixture(0, 0, true, false))
-        } else {
-            home_with_needs(forge_rows(true), false, false, Some(NeedsFixture { objects: &[], cut: false, read: true }))
-                .0
-        };
+        let mut root =
+            home_with_needs(forge_rows(true), true, false, Some(NeedsFixture { objects: &[], cut: false, read: true }))
+                .0;
+        if !shown {
+            drive(&mut root, d::Event::Act { action: d::Action::Pages(d::pages::Act::SkipToBegin) });
+        }
         for view in [f::page_view(&root), f::browser_page_view(&root)] {
             let styles = section_styles(view.tree());
-            assert_eq!(styles.contains(&crate::look::HOME_NEEDS), shown);
-            assert_eq!(styles.contains(&crate::look::HOME_CHATS), shown);
-            if shown {
+            assert_eq!(styles.contains(&crate::look::HOME_NEEDS), !shown);
+            assert_eq!(styles.contains(&crate::look::HOME_CHATS), !shown);
+            if !shown {
                 main_find(view.tree(), Role::Paragraph, b"No chats yet.");
                 assert!(!main_nodes(view.tree()).iter().any(|node| node.role == Role::Link
                     && node.name.as_deref().is_some_and(|name| name.starts_with(b"All "))));
@@ -1430,4 +1418,111 @@ fn phone_answer_name_holds_the_joined_title_and_words() {
     let name = w.say(crate::words::Word::HomeAnswerName, &[skein_ui::phrases::Hole::Name(line)]);
     assert_eq!(name.len(), ANSWER_NAME);
     assert!(name.ends_with(b" Answer"));
+}
+
+#[test]
+fn home_notes_name_where_the_remaining_steps_stay() {
+    for (configured, repository, chat, note) in [
+        (false, false, false, "Three steps left. Skip them if you like; they stay in Settings and Chats."),
+        (false, true, false, "Two steps left. Skip them if you like; they stay in Settings and Chats."),
+        (false, false, true, "Two steps left. Skip them if you like; they stay in Settings."),
+        (false, true, true, "One step left. Skip it if you like; it stays in Settings."),
+        (true, false, true, "One step left. Skip it if you like; it stays in Settings."),
+        (true, true, false, "One step left. Skip it if you like; it stays in Chats."),
+    ] {
+        let (root, _) = home_root(forge_rows(repository), configured, chat);
+        for view in [f::page_view(&root), f::browser_page_view(&root)] {
+            let node = styled(view.tree(), crate::look::HOME_NOTE);
+            assert_eq!(node.role, Role::Paragraph);
+            assert_eq!(node.name.as_deref(), Some(note.as_bytes()));
+        }
+    }
+}
+
+#[test]
+fn home_waits_for_settings_and_dismissals_before_the_card() {
+    for (dismissed, settings) in [(None, true), (Some(&[][..]), false)] {
+        let (root, _) = home_documents_with_reads(forge_rows(true), false, false, None, None, dismissed, settings);
+        for view in [f::page_view(&root), f::browser_page_view(&root)] {
+            let text = f::main_text(view.tree());
+            absent(&text, "To begin");
+            absent(&text, "Shop is ready.");
+        }
+    }
+}
+
+#[test]
+fn home_skipped_project_draws_the_everyday_intro() {
+    let (root, _) = home_documents_with_reads(
+        forge_rows(true),
+        false,
+        false,
+        Some(NeedsFixture { objects: &[], cut: false, read: true }),
+        None,
+        Some(&[f::PROJECT]),
+        true,
+    );
+    for view in [f::page_view(&root), f::browser_page_view(&root)] {
+        let text = f::main_text(view.tree());
+        absent(&text, "To begin");
+        absent(&text, "Shop is ready.");
+        main_find(view.tree(), Role::Heading { level: 1 }, b"Nothing needs you.");
+        main_find(view.tree(), Role::Heading { level: 2 }, b"Connected");
+    }
+}
+
+#[test]
+#[expect(clippy::disallowed_methods, reason = "test assertions inspect semantic nodes and request attempts")]
+fn home_skip_hides_the_card_and_refusal_offers_retry() {
+    let (mut root, _) = home_root(forge_rows(true), false, false);
+    for mut view in [f::page_view(&root), f::browser_page_view(&root)] {
+        assert_action(&mut view, Role::Button, b"Skip", d::pages::Act::SkipToBegin);
+    }
+    let mut out = drive(&mut root, d::Event::Act { action: d::Action::Pages(d::pages::Act::SkipToBegin) });
+    for view in [f::page_view(&root), f::browser_page_view(&root)] {
+        absent(&f::main_text(view.tree()), "To begin");
+    }
+    let mut stored = drive(&mut root, d::Event::Client { event: jig_client::Event::Stored });
+    while let Some(request) = stored.pop() {
+        out.push(request);
+    }
+    let attempt = out
+        .iter()
+        .find_map(|request| match request {
+            d::Request::Unlinked {
+                request: jig_client::UnlinkedRequest::Down { down: jig_client::Down::Send { attempt, .. } },
+            } => Some(*attempt),
+            d::Request::Client { .. }
+            | d::Request::Unlinked { .. }
+            | d::Request::Show { .. }
+            | d::Request::Leave { .. }
+            | d::Request::SignOut
+            | d::Request::Dropped { .. }
+            | d::Request::Fact { .. } => None,
+        })
+        .expect("Skip request");
+    drive(
+        &mut root,
+        d::Event::Client {
+            event: jig_client::Event::Up {
+                up: jig_client::Up::Answer {
+                    attempt,
+                    envelope: skein_lib::RequestEnvelope::Final,
+                    answer: Some(jig_client::Answered::Jig(c::Answer::Refused {
+                        refusal: c::Refusal::NotOffered,
+                        at: None,
+                    })),
+                    why: None,
+                },
+            },
+        },
+    );
+    for mut view in [f::page_view(&root), f::browser_page_view(&root)] {
+        let begin = styled(view.tree(), crate::look::HOME_BEGIN);
+        let parts = children(subtree(view.tree(), begin.id));
+        assert_eq!(parts[1].styles.as_slice(), &[crate::look::HOME_NOTE]);
+        assert_eq!(parts[2].role, Role::Alert);
+        assert_eq!(parts[2].name.as_deref(), Some(b"temper couldn't keep that. Try Skip again.".as_slice()));
+        assert_action(&mut view, Role::Button, b"Skip", d::pages::Act::SkipToBegin);
+    }
 }

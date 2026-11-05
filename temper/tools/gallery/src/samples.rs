@@ -61,7 +61,7 @@ pub struct Sample {
     pub address: Address,
     pub then: Then,
 }
-pub const N: usize = 97;
+pub const N: usize = 102;
 const CHATS: Address = Address::Chats { filter: ChatsFilter::All, start: false };
 use World::{Bare, FirstRun, Reference, Solo};
 #[must_use]
@@ -124,6 +124,36 @@ pub fn samples() -> [Sample; N] {
         },
         Sample {
             name: "home-no-repository",
+            world: FirstRun { step: 7 },
+            address: Address::Home { project: 1 },
+            then: Shown,
+        },
+        Sample {
+            name: "home-after-skip",
+            world: FirstRun { step: 7 },
+            address: Address::Home { project: 1 },
+            then: Shown,
+        },
+        Sample {
+            name: "home-skip-refused",
+            world: FirstRun { step: 7 },
+            address: Address::Home { project: 1 },
+            then: Shown,
+        },
+        Sample {
+            name: "home-needs-under-begin",
+            world: FirstRun { step: 7 },
+            address: Address::Home { project: 1 },
+            then: Shown,
+        },
+        Sample {
+            name: "home-begin-settings-left",
+            world: FirstRun { step: 7 },
+            address: Address::Home { project: 1 },
+            then: Shown,
+        },
+        Sample {
+            name: "home-begin-one-chats",
             world: FirstRun { step: 7 },
             address: Address::Home { project: 1 },
             then: Shown,
@@ -741,7 +771,7 @@ fn home_domain(name: &str) -> Domain {
     projects.push(me.projects.get(0).expect("Hello project").clone()).expect("one project");
     me.projects = projects;
     me.needs_total = match name {
-        "home-at-work" => 1,
+        "home-at-work" | "home-needs-under-begin" => 1,
         "home-needs-several" => 3,
         _ => 0,
     };
@@ -768,7 +798,17 @@ fn home_domain(name: &str) -> Domain {
         step(&mut root, Event::Client { event }, &mut out);
     }
     let everyday = matches!(name, "home-at-work" | "home-needs-several" | "home-nothing-needs");
-    let in_project = everyday || matches!(name, "home-two-left" | "home-one-left" | "home-ready");
+    let in_project = everyday
+        || matches!(
+            name,
+            "home-two-left"
+                | "home-one-left"
+                | "home-ready"
+                | "home-after-skip"
+                | "home-skip-refused"
+                | "home-needs-under-begin"
+                | "home-begin-one-chats"
+        );
     for _ in 0..256 {
         let Some(request) = out.pop() else { break };
         let Some(request) = down(request) else { continue };
@@ -783,7 +823,9 @@ fn home_domain(name: &str) -> Domain {
                             .push(c::SettingLine {
                                 setting: c::Setting::Rules,
                                 name: None,
-                                follows: if everyday || matches!(name, "home-one-left" | "home-ready") {
+                                follows: if everyday
+                                    || matches!(name, "home-one-left" | "home-ready" | "home-begin-one-chats")
+                                {
                                     c::SettingFollows::Change
                                 } else {
                                     c::SettingFollows::Default
@@ -801,7 +843,7 @@ fn home_domain(name: &str) -> Domain {
                     }
                     c::Subject::Tasks { .. } => {
                         let mut rows = List::with_capacity(1);
-                        if name == "home-ready" {
+                        if matches!(name, "home-ready" | "home-begin-settings-left" | "home-needs-under-begin") {
                             let mut row = chat_rows.rows.get(0).expect("sample chat").clone();
                             row.project = 1;
                             rows.push(row).expect("one chat");
@@ -822,8 +864,28 @@ fn home_domain(name: &str) -> Domain {
                 };
                 deliver(&mut root, watch, value, &mut out);
             }
-            Down::Open { watch, subject: Watchable::Family { .. } } => {
+            Down::Open { watch, subject: Watchable::Family { record, .. } } => {
                 let rows = home_forges(name, in_project);
+                let bytes = match wire::decode_watching(&record.bytes, &w::CEILINGS).expect("Home watch").watch() {
+                    w::Watch::Dismissed => {
+                        let mut dismissed = List::with_capacity(1);
+                        if name == "home-after-skip" {
+                            dismissed
+                                .push(w::Dismissal::ToBegin(
+                                    w::ToBegin::new(&w::CEILINGS, w::ToBeginParts { project: 1 }).expect("Home skip"),
+                                ))
+                                .expect("one skip");
+                        }
+                        wire::dismissals(
+                            &w::Dismissals::new(&w::CEILINGS, w::DismissalsParts { dismissed })
+                                .expect("Home dismissals"),
+                        )
+                    }
+                    w::Watch::Forges => wire::forges(
+                        &w::Forges::new(&w::CEILINGS, w::ForgesParts { forges: rows }).expect("Home forges"),
+                    ),
+                    w::Watch::Change(_) | w::Watch::Landing(_) | w::Watch::Landings(_) => continue,
+                };
                 step(
                     &mut root,
                     Event::Client {
@@ -833,10 +895,7 @@ fn home_domain(name: &str) -> Domain {
                                 record: jig_client::Family {
                                     family: wire::FORGE,
                                     version: wire::CLIENT_VERSION,
-                                    bytes: wire::forges(
-                                        &w::Forges::new(&w::CEILINGS, w::ForgesParts { forges: rows })
-                                            .expect("Home forges"),
-                                    ),
+                                    bytes,
                                 },
                             },
                         },
@@ -866,7 +925,7 @@ fn home_domain(name: &str) -> Domain {
                 let mut rows = List::with_capacity(3);
                 if group == c::InboxReadGroup::Needs {
                     let tasks: &[u64] = match name {
-                        "home-at-work" => &[3],
+                        "home-at-work" | "home-needs-under-begin" => &[3],
                         "home-needs-several" => &[3, 2, 1],
                         _ => &[],
                     };
@@ -970,6 +1029,28 @@ fn home_domain(name: &str) -> Domain {
                 &mut out,
             );
         }
+    }
+    if name == "home-skip-refused" {
+        step(&mut root, Event::Act { action: Action::Pages(Act::SkipToBegin) }, &mut out);
+        step(&mut root, Event::Client { event: jig_client::Event::Stored }, &mut out);
+        let attempt = sent_attempt(&mut out);
+        step(
+            &mut root,
+            Event::Client {
+                event: jig_client::Event::Up {
+                    up: Up::Answer {
+                        attempt,
+                        envelope: skein_lib::RequestEnvelope::Final,
+                        answer: Some(jig_client::Answered::Jig(c::Answer::Refused {
+                            refusal: c::Refusal::NotOffered,
+                            at: None,
+                        })),
+                        why: None,
+                    },
+                },
+            },
+            &mut out,
+        );
     }
     root
 }

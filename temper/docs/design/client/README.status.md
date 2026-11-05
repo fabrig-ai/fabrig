@@ -15,9 +15,8 @@
   email for a ChatGPT sign-in, whose account's display is empty, since
   the engine keeps no email: it waits on
   `jig/docs/design/draft/account-facts.md`, 6, its second step.
-  3.5, Home: To begin is numbered steps, with no card, "Optional" tag or
-  "Skip", no delivery or skip rule for when it shows, and no link to
-  `Accounts` after the lede; Connected and its rename are still drawn.
+  3.5, Home: no link to `Accounts` after the lede; Connected and its
+  rename are still drawn once To begin is gone.
   3.5, Home: "landed" on a chat's line waits on the client's Home
   chat-row reader: the list gives the chat's state, not what its
   delegates landed. It needs one read per row; Home uses the supplied

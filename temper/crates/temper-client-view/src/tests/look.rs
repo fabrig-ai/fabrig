@@ -40,7 +40,10 @@ const FLOW_NAMES: [(skein_ui::Style, &[u8]); 25] = [
     (MODEL_FACT, b"temper-model-fact"),
     (MODEL_SIGN_IN, b"temper-model-sign-in"),
 ];
-const HOME_NAMES: [(skein_ui::Style, &[u8]); 15] = [
+const HOME_NAMES: [(skein_ui::Style, &[u8]); 18] = [
+    (HOME_TAG, b"temper-home-tag"),
+    (HOME_SKIP, b"temper-home-skip"),
+    (HOME_NOTE, b"temper-home-note"),
     (HOME_NEEDS, b"temper-home-needs"),
     (HOME_HEAD, b"temper-home-head"),
     (HOME_SIGNAL, b"temper-home-signal"),

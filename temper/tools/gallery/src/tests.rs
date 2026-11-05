@@ -75,29 +75,29 @@ enum Part {
 const HOLDS: [Holds; samples::N] = [
     Holds {
         name: "home-three-left",
-        heading: "You’re set up. Nothing has run yet.",
+        heading: "Hello is ready.",
         parts: &[
-            Part::Named { role: Role::Button, name: "Adopt work/hello" },
+            Part::Named { role: Role::Button, name: "Adopt" },
             Part::Named { role: Role::Heading { level: 2 }, name: "To begin" },
-            Part::Named { role: Role::Heading { level: 2 }, name: "Connected" },
+            Part::Absent { role: Role::Heading { level: 2 }, name: "Connected" },
         ],
     },
     Holds {
         name: "home-two-left",
-        heading: "Two things left to begin with.",
+        heading: "Hello is ready.",
         parts: &[
             Part::Text { text: "work/hello is in Hello" },
             Part::Named { role: Role::Heading { level: 2 }, name: "To begin" },
-            Part::Named { role: Role::Heading { level: 2 }, name: "Connected" },
+            Part::Absent { role: Role::Heading { level: 2 }, name: "Connected" },
         ],
     },
     Holds {
         name: "home-one-left",
-        heading: "One thing left to begin with.",
+        heading: "Hello is ready.",
         parts: &[
             Part::Text { text: "work/hello is in Hello" },
             Part::Named { role: Role::Heading { level: 2 }, name: "To begin" },
-            Part::Named { role: Role::Heading { level: 2 }, name: "Connected" },
+            Part::Absent { role: Role::Heading { level: 2 }, name: "Connected" },
         ],
     },
     Holds {
@@ -151,40 +151,92 @@ const HOLDS: [Holds; samples::N] = [
     },
     Holds {
         name: "home-adopting",
-        heading: "You’re set up. Nothing has run yet.",
+        heading: "Hello is ready.",
         parts: &[
-            Part::Text { text: "Adopting work/hello into Hello" },
+            Part::Text { text: "Adopting work/hello into Hello…" },
             Part::Named { role: Role::Heading { level: 2 }, name: "To begin" },
-            Part::Named { role: Role::Heading { level: 2 }, name: "Connected" },
+            Part::Absent { role: Role::Heading { level: 2 }, name: "Connected" },
         ],
     },
     Holds {
         name: "home-refused",
-        heading: "You’re set up. Nothing has run yet.",
+        heading: "Hello is ready.",
         parts: &[
-            Part::Named { role: Role::Button, name: "Adopt work/hello" },
+            Part::Named { role: Role::Button, name: "Adopt" },
             Part::Named { role: Role::Heading { level: 2 }, name: "To begin" },
-            Part::Named { role: Role::Heading { level: 2 }, name: "Connected" },
+            Part::Absent { role: Role::Heading { level: 2 }, name: "Connected" },
         ],
     },
     Holds {
         name: "home-no-repository",
-        heading: "You’re set up. Nothing has run yet.",
+        heading: "Hello is ready.",
         parts: &[
-            Part::Text { text: "Your agents run on your ChatGPT plan. Hello has no repository yet." },
+            Part::Text { text: "Your agents run on your ChatGPT plan." },
             Part::Named { role: Role::Heading { level: 2 }, name: "To begin" },
+            Part::Absent { role: Role::Heading { level: 2 }, name: "Connected" },
+        ],
+    },
+    Holds {
+        name: "home-after-skip",
+        heading: "Nothing needs you.",
+        parts: &[
+            Part::Absent { role: Role::Heading { level: 2 }, name: "To begin" },
+            Part::Named { role: Role::Heading { level: 2 }, name: "Needs you" },
+            Part::Named { role: Role::Heading { level: 2 }, name: "Chats" },
+            Part::Named { role: Role::Paragraph, name: "No chats yet." },
             Part::Named { role: Role::Heading { level: 2 }, name: "Connected" },
         ],
     },
     Holds {
-        name: "home-github",
-        heading: "You’re set up. Nothing has run yet.",
+        name: "home-skip-refused",
+        heading: "Hello is ready.",
         parts: &[
-            Part::Text {
-                text: "temper’s App reaches its repositories on sam. Until one is in, chats talk and plan but change no code.",
-            },
+            Part::Named { role: Role::Alert, name: "temper couldn't keep that. Try Skip again." },
+            Part::Named { role: Role::Button, name: "Skip" },
             Part::Named { role: Role::Heading { level: 2 }, name: "To begin" },
-            Part::Named { role: Role::Heading { level: 2 }, name: "Connected" },
+        ],
+    },
+    Holds {
+        name: "home-needs-under-begin",
+        heading: "Hello is ready.",
+        parts: &[
+            Part::Named { role: Role::Heading { level: 2 }, name: "To begin" },
+            Part::Named { role: Role::Heading { level: 2 }, name: "Needs you · 1" },
+            Part::Named { role: Role::Paragraph, name: "The repository has no license. Name one in the README?" },
+            Part::Named { role: Role::Link, name: "All 1 chats" },
+            Part::Absent { role: Role::Heading { level: 2 }, name: "Connected" },
+        ],
+    },
+    Holds {
+        name: "home-begin-settings-left",
+        heading: "Hello is ready.",
+        parts: &[
+            Part::Named {
+                role: Role::Paragraph,
+                name: "Two steps left. Skip them if you like; they stay in Settings.",
+            },
+            Part::Named { role: Role::Button, name: "Start" },
+            Part::Named { role: Role::Button, name: "Adopt" },
+            Part::Absent { role: Role::Link, name: "New chat" },
+        ],
+    },
+    Holds {
+        name: "home-begin-one-chats",
+        heading: "Hello is ready.",
+        parts: &[
+            Part::Named { role: Role::Paragraph, name: "One step left. Skip it if you like; it stays in Chats." },
+            Part::Named { role: Role::Link, name: "New chat" },
+            Part::Absent { role: Role::Button, name: "Start" },
+            Part::Absent { role: Role::Button, name: "Adopt" },
+        ],
+    },
+    Holds {
+        name: "home-github",
+        heading: "Hello is ready.",
+        parts: &[
+            Part::Text { text: "temper’s App reaches its repositories on sam." },
+            Part::Named { role: Role::Heading { level: 2 }, name: "To begin" },
+            Part::Absent { role: Role::Heading { level: 2 }, name: "Connected" },
         ],
     },
     Holds {
