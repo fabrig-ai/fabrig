@@ -41,6 +41,7 @@ and state. Token POSTs retain the domain's registration, PKCE, spent-code and
 refresh-rotation checks. HTTP head limits must fit the maximum redirect.
 The world registers endpoints with the address it chooses; the peer's io
 address and the URL metadata are separate explicit inputs.
+`rejected()` counts connections turned away at the connection cap, including without records, but excludes refusals while stopping.
 
 Constructors validate semantic limits, derived capacities and the bounds of
 adjacent streams. Each Host reports its maximum operations. Fixed memory
