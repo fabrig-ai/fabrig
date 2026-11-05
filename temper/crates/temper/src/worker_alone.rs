@@ -27,6 +27,9 @@ pub(super) fn prepare(
     if crate::workspace_reuse() {
         service.reuse_workspaces();
     }
+    if let Some(directory) = crate::dump_llm() {
+        service.dump_llm(directory.as_os_str().as_bytes());
+    }
     if let Some(program) = agent.programs.first() {
         if crate::agent::launcher(crate::path(&program.directory)).as_deref() == Some(crate::path(&program.path)) {
             crate::claude_code::place(
