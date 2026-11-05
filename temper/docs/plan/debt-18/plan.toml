@@ -1,0 +1,22 @@
+draft = "debt-18"
+repo = "fabrig"
+sources = ["temper/docs/plan/debt-18/inputs/request.md", "temper/docs/plan/debt-18/inputs/smith-debt14-review.md", "skein/docs/development/debt/D031-forge-setup-two-worlds.md", "skein/docs/development/debt/D032-world-harness-copies.md", "skein/docs/development/debt/D035-codegen-diff-and-emit.md", "jig/docs/development/debt/D012-tasks-operation-vocabulary.md"]
+
+# plan.md says what was decided and why.
+
+[buffer]
+low = 1.0
+high = 2.0
+
+[[part]]
+id = "smith-review"
+title = "the spot review of debt-14's smith part, findings 1 to 6"
+mode = "direct"
+needs = []
+design = "smith/docs/design/testing.md, 2"
+
+[[slice]]
+id = 1
+story = "the effort rule has a test that can fail, the fakes refuse what they don't model, and terminal.rs holds the service's and headless front's words"
+parts = ["smith-review"]
+walk = false
