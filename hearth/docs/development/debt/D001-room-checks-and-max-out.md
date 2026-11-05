@@ -69,15 +69,17 @@ first, and each order's test is named beside it.
 | `hearth-domain-render/src/schema/references.rs`, `condition` | `faults.room() == 0` | Nothing, the same. |
 | `hearth-protocol-config/src/document.rs` | `pending.room() == 0` | Nothing, the same: a stack whose depth the decoder's limits bound. |
 | `hearth-protocol-config/src/json.rs` | `values.room() == 0` | Nothing, the same. |
+| `hearth-protocol-config/src/json.rs`, `Decoder`'s `events` | capacity 1 | Nothing: the tokenizer answers one `Next` with one event, and `drive` takes it before it asks the next. |
+| `hearth-protocol-builder/src/read.rs`, `Decode`'s `below` | capacity 1 | An order: one read out at a time, which the tokenizer's state keeps. `a_decoder_has_one_read_out_whatever_the_cuts`, in `hearth/tests/config`. |
+| `hearth-protocol-builder/src/read.rs`, `Decode`'s `above` | capacity 1 | An order: a delivery gives one event, the one `resume` takes, and the outcome comes once, `Closed` last, once. `drive`'s returns and `Waiting` keep them. `a_delivery_gives_a_decoder_s_caller_at_most_one_event` and `a_decoder_s_outcome_comes_once_and_closed_last`, in `hearth/tests/config`. |
 
 The queues beside git's machines and mmdebstrap's, these last in
 `hearth-protocol-builder/src/resolve.rs` and `indices.rs`, are uncapped.
 The machines' states keep the orders in
 `hearth/docs/design/domain/render.md`, 8.5, and their tests stand in
 `hearth/tests/git` and `hearth/tests/mmdebstrap`. The queues beside the
-config and records machines, `Decode`'s in `read.rs` and `Client`'s in
-`client.rs`, stay capped with no row yet: each gets one, and its order's
-test, in its machine's round.
+records machine, `Client`'s in `client.rs`, stay capped with no row yet:
+each gets one, and its order's test, in that machine's round.
 
 ### The service
 
