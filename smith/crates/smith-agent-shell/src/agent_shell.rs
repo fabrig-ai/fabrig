@@ -526,6 +526,12 @@ fn diagnostic(errors: &mut dyn Write, line: &str) {
 #[cfg(unix)]
 pub fn run(path: &Path, mut errors: Box<dyn Write>) -> Result<Exit, String> {
     let decoded = config::read_decoded(path).inspect_err(|why| diagnostic(errors.as_mut(), why))?;
+    run_decoded(decoded, errors)
+}
+
+/// Run a decoded agent configuration with its kernel, clock and startup resources.
+#[cfg(unix)]
+pub fn run_decoded(decoded: config::Decoded, mut errors: Box<dyn Write>) -> Result<Exit, String> {
     let signals = skein_shell::open_termination_signals()
         .map_err(|errno| format!("termination signals cannot open (errno {errno})"))
         .inspect_err(|why| diagnostic(errors.as_mut(), why))?;

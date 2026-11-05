@@ -977,6 +977,73 @@ its own for any other host.
   archive at the same `/v2/homebrew/core/…/blobs/sha256:DIGEST` path,
   under the same digests and the same one redirect, and is sent no
   token.
+- **Claude Code,** a `programs.claude_code.path` of `"fetched"` (8.2):
+  temper's pinned build, by this section's machine and host, in what
+  follows only where it differs from Forgejo's binaries. No step of the
+  box and no `temper forge fetch` runs it: the first command of its
+  source that needs it does (`../draft/claude-provider.md`, 3), its
+  sign-in, its status or a run, so a machine that never chooses Claude
+  never downloads it.
+
+  | Binary | From | Into |
+  |---|---|---|
+  | Claude Code | `https://downloads.claude.ai/claude-code-releases/VERSION/PLATFORM/claude` | `<cache>/claude-code/VERSION/claude` |
+
+  - **The pin:** `VERSION` `2.1.311`, Anthropic's stable channel on
+    2026-11-05, and for each `PLATFORM` a SHA-256 and a size, from that
+    release's `manifest.json`, in `temper-forge-setup`'s `claude_code`
+    module; a new pin is temper's release:
+
+    | `PLATFORM` | SHA-256 | Bytes |
+    |---|---|---|
+    | `linux-x64` | `86dc1fcc69498159eaf15f446613e847010f9036bfbbdffd4c49350be8489ada` | 293,776,752 |
+    | `linux-arm64` | `2e2496c9a8065df93acb0fca2d341f59a6b8777649b2e025ab8c9bcd5eef61f3` | 293,658,808 |
+    | `linux-x64-musl` | `cd40dd327145ee47aa0deacd571801c1d782388f709d71242eee6b91de8ed11f` | 287,442,392 |
+    | `linux-arm64-musl` | `172150e3f9ea07e8e2e2e29862d7d9a25f5c234d8e909e4063df237665bf09b9` | 285,822,152 |
+    | `darwin-arm64` | `85d8c08707fcfd1e78ffa0204eefbc6ec9e4fe22f375fb2767ef85d957ed3161` | 276,185,504 |
+    | `darwin-x64` | `d34e1cb82015b050471a97574aa6ea6f698ecf3a97a61c980961f43ad9f838f5` | 287,420,928 |
+
+    The binary says its platform, as its shell was built for: its
+    system, its architecture and, on Linux, whether it was built for
+    musl. Another machine refuses, naming its architecture; a `claude`
+    on `PATH` answers it, at the next `temper init`.
+  - **One form everywhere:** the same URL shape on Linux and macOS, one
+    request and one answer, no bottle and no mirror: a machine that
+    cannot reach it uses its own `claude`.
+  - **Its bound is the pin's size,** not `setup.fetch_bytes`: no
+    document is at hand, and the size is known. A body past it removes
+    the part file and refuses, naming the URL.
+  - **Its launcher:** smith takes an absolute program path, and the
+    worker's agent runs with neither temper's directories nor an
+    environment. So every read of `agent.json` hands smith, in place of
+    `"fetched"`, the launcher's path, `claude-code/claude` beside the
+    programs directory (`<data>/claude-code/claude` as init writes it),
+    a symbolic link to the running `temper`, and smith, jig and the
+    agent never meet the word. A `temper` run by the name `claude`, as
+    the playground's git is (8.4), is the launcher: it takes the cache
+    from `cache` beside it, a symbolic link to the cache directory,
+    fetches the build if it is missing, and replaces itself with it,
+    its arguments unchanged. `temper serve`, a worker alone and `temper
+    program-login` each write both links at their start, when the path
+    is `"fetched"`, so a person's own command never fetches by a stale
+    name.
+  - **Found by its size:** every command of the source passes through
+    the launcher, so it hashes nothing it finds. A file at the pin's
+    size runs; one of any other size is refused, naming its path, and
+    never overwritten. The digest is checked when the build is fetched,
+    byte for byte; a wrong one removes the part file, refuses, and
+    leaves nothing under the binary's name.
+  - **At most once at a time:** the launcher waits on an exclusive lock,
+    `<cache>/claude-code/VERSION/claude.lock`, then looks again, so of
+    two commands at once one fetches and the other finds it. A command
+    killed at its own deadline, a status's or a run's, leaves its part
+    file to the next, which writes it again from its start.
+  - **It says so on stderr,** stdout being the command's own: `fetching
+    Claude Code`, then this section's lines, `BINARY` being
+    `claude-code`. `temper program-login`'s terminal shows them.
+  - **Its own updates off:** the launcher sets `DISABLE_AUTOUPDATER=1`
+    in the build's environment, so the pin stays the pin. A `claude`
+    found on `PATH` is the person's, and keeps its own.
 
 ### 6.7 The first repository
 
@@ -2098,7 +2165,7 @@ playground and no Forgejo on this machine.
   | `worker.digest` | data | 0o600 | the SHA-256 of the secret's digits without its newline, as 64 lowercase hexadecimal digits and a newline, as the walk `box` (`temper help box`) makes it |
   | `demo/llm.key` | data | 0o600 | the scripted model's key (8.4): 32 bytes from the kernel's random source, as 64 lowercase hexadecimal digits and a newline |
   | `demo/bin/git` | data | a link | the playground's git, `temper fake git` (8.4): a symbolic link to the binary |
-  | `agent.json` | configuration | 0o644 | smith's agent configuration (configuration.md, section 5): the owned example's endpoints, models and profile (8.1), and, with `--box`, the scripted provider's endpoint and model (8.3); Claude Code's program at the `claude` found on `PATH`, and its programs directory, `programs` in the data directory; with no `claude` on `PATH`, no program, and Anthropic's models by key alone |
+  | `agent.json` | configuration | 0o644 | smith's agent configuration (configuration.md, section 5): the owned example's endpoints, models and profile (8.1), and, with `--box`, the scripted provider's endpoint and model (8.3); Claude Code's program, its `path` the `claude` found on `PATH` or, with none, `"fetched"` (6.6), and its programs directory, `programs` in the data directory; and its endpoint and model (8.3), whether or not `claude` is on `PATH` |
   | `temper.json` | configuration | 0o644 | the default document (8.3) |
 
 - **What it finds,** each written absolute:
@@ -2112,6 +2179,11 @@ playground and no Forgejo on this machine.
     3). With `--box`, the playground's link, `<data>/demo/bin/git`, is
     the machine's `fake.git` (section 8), so that the playground's git
     is `temper fake git` (8.4) whatever git the machine has, or none;
+  - *Claude Code,* the `claude` found on `PATH`: the `path` of the
+    agent's configuration's program; with none, `"fetched"`, temper's
+    pinned build, fetched when a command of its source first needs it
+    (6.6), written without a word, since Claude is offered either way
+    (`../client/README.md`, 3.5);
   - *the person,* with `--box`, the machine's owned Forgejo's (8.3): its `login` the
     name of the effective uid's entry in `/etc/passwd` (`geteuid`, then
     that file; on macOS, whose users are not in it, what `/usr/bin/id
@@ -2173,7 +2245,7 @@ playground and no Forgejo on this machine.
   `../client/forge.md`), and the playground's forge, account, project
   and repository its start's (8.4).
 - **Its code:** `temper-init`, step code (section 11): given the facts
-  above, git's path or none among them, the box's parts' or none, those
+  above, git's and `claude`'s paths or none among them, the box's parts' or none, those
   being the person's login, the machine's ports and the scripted key's
   32 bytes, the three directories and the secret's 32 bytes, it answers
   the files, each with its directory, its name, its bytes and whether it
@@ -2188,7 +2260,9 @@ playground and no Forgejo on this machine.
   crate tests, on scratch directories, check that each document init writes
   passes configuration.md, section 8, as `temper serve` checks it, with
   the agent's configuration it writes, at the fixed ports and at kernel's
-  ports, always distinct, with and without `claude` and git;
+  ports, always distinct, with and without `claude` and git, the
+  Anthropic provider, its program, endpoint and model in both documents
+  either way, the program's `path` the `claude` found or `"fetched"`;
   a second init while the first holds its five listeners, on separate
   directories, writes disjoint ports and matching listener, remote
   and scripted LLM addresses in both documents; `clients.bundle` always
@@ -2197,7 +2271,8 @@ playground and no Forgejo on this machine.
   among those tests, reaches `temper serve`'s sign-in link with no forge
   and every group dormant: no `forge-N` directory, no group's file and
   nothing in the cache. The process
-  tier starts a box on empty directories (13.4).
+  tier starts a box on empty directories (13.4), and reads its welcome's
+  Model step, ChatGPT's and Claude's cards, with no `claude` on `PATH`.
 
 ### 8.3 The default document
 
@@ -2212,8 +2287,8 @@ override.
   provider in `engine.llm` and in the agent's configuration, and the
   reset's grant in `engine.acts`. A document without them is the same
   document less those members: the machine part `github` null alone,
-  `application.demo` null, `engine.llm` the owned example's and no
-  `engine.acts`.
+  `application.demo` null, `engine.llm` the owned example's with
+  Anthropic's provider (below), and no `engine.acts`.
 - **No forge** (section 8): a first run's store holds none, and the
   person makes each from the client, none needing a restart: the
   playground's fake one by trying it (8.4), an owned Forgejo by setting
@@ -2247,8 +2322,20 @@ override.
   repository's hook; the fake's start-time adoption hooks its seeded
   repositories (8.4). GitHub's hints come from its App's delivery log.
 - **Its LLM providers:** the owned example's `engine.llm`, whole (8.1),
-  with no account; and 3, `demo`, the scripted provider, the
-  playground's (8.4): one endpoint,
+  with no account; 2, `anthropic`, on every document, whatever is on
+  `PATH`, so that the Model step offers ChatGPT and Claude
+  (`../client/README.md`, 3.5): `signed_in_plan` false, `manage_usage`
+  `https://claude.ai/settings/usage`, its one model `claude-opus-5-5`,
+  through Claude Code's `--model` (smith's `protocol/programs.md`, 5.1),
+  and its one source Claude Code's program, `claude_code`; one
+  endpoint, `anthropic`, naming that program, Anthropic's dialect, 2, at
+  `api.anthropic.com:443` on TLS, with OpenAI's bounds; the model's
+  window 1,048,576 and output 8,192, as the shipped model's, and 1 per
+  1,000,000 for input, cached and output, figures a subscription bills
+  to nobody; the agent's configuration declares them too (8.2), and the
+  `standard` profile's `documents.lines`, 16, holds the offer's three
+  lines, so that no override is written; and 3, `demo`, the scripted
+  provider, the playground's (8.4): one endpoint,
   `demo`, at `127.0.0.1:<the fake LLM's port>`, plaintext, OpenAI's
   dialect on its public route; one model, `demo`, priced as the owned
   example's model is, 1 per 1,000,000 for input, cached and output (jig
