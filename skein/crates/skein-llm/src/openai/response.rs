@@ -601,7 +601,9 @@ impl StreamDecoder {
         self.opened.clear();
         let detail = match failure {
             Failure::Limit { which, bound } => common::limit_detail(which, bound),
-            Failure::Protocol
+            Failure::Cancelled
+            | Failure::TimedOut { .. }
+            | Failure::Protocol
             | Failure::Unauthorized
             | Failure::Refused
             | Failure::Unsupported

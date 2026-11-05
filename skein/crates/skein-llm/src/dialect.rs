@@ -145,7 +145,7 @@ fn provider_error(
     out: &mut Queue<Output>,
 ) {
     out.push(Output::Failed {
-        failure: translate::failure(openai::classify(provider, status, Some(&error), rate, wall)),
+        failure: openai::classify(provider, status, Some(&error), rate, wall),
         report: error_report(provider, &error),
         detail: error.message,
     });
@@ -185,12 +185,8 @@ fn responses_outputs(
             openai::Output::ReasoningDelta { index, summary_index, text } => {
                 Output::ReasoningDelta { index, summary_index, text }
             }
-            openai::Output::Completed { stop, usage } => {
-                Output::Completed { stop: translate::stop(stop), usage: translate::usage(usage) }
-            }
-            openai::Output::Failed { failure, detail } => {
-                Output::Failed { failure: translate::failure(failure), report: Report::none(), detail }
-            }
+            openai::Output::Completed { stop, usage } => Output::Completed { stop, usage },
+            openai::Output::Failed { failure, detail } => Output::Failed { failure, report: Report::none(), detail },
             openai::Output::Progress => Output::Progress,
         };
         out.push(event);
@@ -211,12 +207,8 @@ fn anthropic_outputs(raw: &mut Queue<anthropic::Output>, limits: &openai::Limits
             anthropic::Output::ReasoningDelta { index, summary_index, text } => {
                 Output::ReasoningDelta { index, summary_index, text }
             }
-            anthropic::Output::Completed { stop, usage } => {
-                Output::Completed { stop: translate::stop(stop), usage: translate::usage(usage) }
-            }
-            anthropic::Output::Failed { failure, detail } => {
-                Output::Failed { failure: translate::failure(failure), report: Report::none(), detail }
-            }
+            anthropic::Output::Completed { stop, usage } => Output::Completed { stop, usage },
+            anthropic::Output::Failed { failure, detail } => Output::Failed { failure, report: Report::none(), detail },
             anthropic::Output::Progress => Output::Progress,
         };
         out.push(event);

@@ -510,7 +510,9 @@ impl StreamDecoder {
         self.over = true;
         let detail = match failure {
             Failure::Limit { which, bound } => crate::openai::limit_detail(which, bound),
-            Failure::Protocol
+            Failure::Cancelled
+            | Failure::TimedOut { .. }
+            | Failure::Protocol
             | Failure::Unauthorized
             | Failure::Refused
             | Failure::Unsupported

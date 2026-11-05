@@ -1,5 +1,5 @@
 use crate::{
-    Provider,
+    Failure, Provider,
     openai::{Input, Tool},
 };
 use alloc::boxed::Box;
@@ -143,54 +143,6 @@ impl DecodeError {
     }
 }
 
-#[derive(Clone, Copy, PartialEq, Eq, Hash, Debug)]
-pub enum Stop {
-    EndTurn,
-    ToolUse,
-    MaxTokens,
-    Refusal,
-}
-/// Optional native token reports; absent accounting never becomes a report of zero.
-#[derive(Clone, Copy, PartialEq, Eq, Hash, Debug)]
-pub struct Usage {
-    pub input: Option<u64>,
-    pub cache_read: Option<u64>,
-    pub cache_write: Option<u64>,
-    /// Completion tokens, including reasoning.
-    pub output: Option<u64>,
-    /// The part of output spent on reasoning, never added to output.
-    pub reasoning: Option<u64>,
-}
-impl Usage {
-    /// All counts are unreported until the provider supplies them.
-    pub const NONE: Usage = Usage { input: None, cache_read: None, cache_write: None, output: None, reasoning: None };
-}
-
-#[derive(Clone, Copy, PartialEq, Eq, Hash, Debug)]
-pub enum Failure {
-    /// Provider bytes violate the dialect or end before its terminal event.
-    Protocol,
-    /// A caller-configured local resource limit was exceeded.
-    Limit {
-        which: crate::Cap,
-        bound: u64,
-    },
-    Unauthorized,
-    /// The provider refused the call.
-    Refused,
-    /// The provider does not support the requested capability.
-    Unsupported,
-    Exhausted {
-        retry_after: Option<Duration>,
-    },
-    RateLimited {
-        retry_after: Duration,
-    },
-    Overloaded,
-    Unavailable,
-    ContextTooLong,
-    Invalid,
-}
 #[derive(Clone, PartialEq, Eq, Hash, Debug)]
 pub struct ProviderError {
     pub param: Box<[u8]>,
