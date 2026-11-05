@@ -66,3 +66,16 @@ Options, each pre-approved:
 ## Report
 
 As `notes/common.md`, Your report.
+
+## Rebase (2026-11-05, step merge, foreman ui-away/away-route/foreman-1)
+
+combine Away’s narrowed status with the landing target’s removal of the completed timezone gap
+Rebase `31db682713` onto the landing target.
+Resolve the conflict in `temper/docs/design/client/README.status.md` by preserving both changes:
+- Keep this task’s replacement: `3.5, *Away*: its client domain and view.`
+- Keep `0a4db1a83b` (“Read client calendar times in the browser's zone”): remove `5.12: the zone, which every form reads as universal time.`
+
+The combined line should begin:
+`- **Not yet:** 3.5, *Away*: its client domain and view. 3.5, *Home on any project*:`
+
+Preserve the target’s other status entries, including its Goals and Settings updates. Keep the task’s root/service implementation and `domain/forge.status.md` reduction. The refusal reports only this documentation conflict; no code repair is indicated.
