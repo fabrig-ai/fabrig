@@ -86,7 +86,9 @@ at a start, which the user's request counts a bug
 which waits on jig's account-facts draft, and draws no words for a
 sign-in made with no model usable, which has none yet, or for an
 ending with no ChatGPT sign-in offered; Goals draws neither heading
-nor filters for a project with no goal template; and under a kind or
+nor filters for a project with no goal template; `NewChat` draws its
+layout with no project, and says a project has no repository while
+the forges' rows are unknown; and under a kind or
 goal filter Needs you's answered lines and head count what the filter
 leaves out (`client/README.md`). The
 case library's purpose is retired, the fake
