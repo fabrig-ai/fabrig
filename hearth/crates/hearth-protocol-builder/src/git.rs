@@ -1,5 +1,5 @@
 //! One git child, held until its exit and all its resources close (hearth/docs/design/domain/render.md, 2.2).
-use crate::{Asked, git_machine::invocation};
+use crate::{Asked, git_machine::invocation, held::Held};
 use alloc::boxed::Box;
 use skein_io::{
     self as io,
@@ -9,28 +9,23 @@ use skein_lib::{Queue, Token, bytes, stream::Down};
 #[derive(Debug)]
 pub(crate) struct Child {
     pub owner: Token,
-    pub process: Option<Token>,
-    pub output: Option<Token>,
-    pub error: Option<Token>,
-    pub roles: Box<[u8]>,
+    pub process: Held,
+    pub output: Held,
+    pub error: Held,
     pub tail: crate::git_machine::tail::Tail,
     pub output_state: Intake,
     pub error_state: Intake,
     pub command: crate::render::errors::Command,
     pub fault: Option<crate::render::errors::Ended>,
-    pub input: Option<Token>,
+    pub input: Held,
     pub exit: Option<invocation::Exit>,
     pub failed: bool,
-    pub closing: bool,
-    pub closed: bool,
-    pub closing_resources: Closing,
+    pub stage: Stage,
 }
-#[derive(Debug)]
-pub(crate) struct Closing {
-    pub output: bool,
-    pub error: Option<()>,
-    pub input: bool,
-    pub process: bool,
+#[derive(Clone, Copy, PartialEq, Eq, Debug)]
+pub(crate) enum Stage {
+    Live,
+    Closing,
 }
 impl Child {
     pub fn spawn(
@@ -53,12 +48,6 @@ impl Child {
                 Pipe { child: 2, way: Way::Out, parent: None },
             ]),
         };
-        let roles: Box<[u8]> = match command {
-            invocation::Command::CatFile { .. } => Box::new([1, 0, 2]),
-            invocation::Command::RevParse { .. }
-            | invocation::Command::LsTree { .. }
-            | invocation::Command::Diff { .. } => Box::new([1, 2]),
-        };
         let named = match command {
             invocation::Command::RevParse { .. } => crate::render::errors::Command::RevParse,
             invocation::Command::LsTree { .. } => crate::render::errors::Command::LsTree,
@@ -78,32 +67,31 @@ impl Child {
         }));
         Self {
             owner,
-            process: None,
-            output: None,
-            error: None,
-            roles,
+            process: Held::Awaited,
+            output: Held::Awaited,
+            error: Held::Awaited,
             tail: crate::git_machine::tail::Tail::new(limits),
             output_state: Intake::Waiting,
             error_state: Intake::Demand,
             command: named,
             fault: None,
-            input: None,
+            input: Held::Awaited,
             exit: None,
             failed: false,
-            closing: false,
-            closed: false,
-            closing_resources: Closing { output: false, error: None, input: false, process: false },
+            stage: Stage::Live,
         }
     }
     pub fn spawned(&mut self, child: Token, pipes: &[Token]) {
-        self.process = Some(child);
-        for (role, &pipe) in self.roles.iter().zip(pipes) {
-            match role {
-                0 => self.input = Some(pipe),
-                1 => self.output = Some(pipe),
-                2 => self.error = Some(pipe),
-                _ => unreachable!("git pipes"),
-            }
+        self.process = Held::Open(child);
+        let resources: &mut [&mut Held] = match self.command {
+            crate::render::errors::Command::CatFile => &mut [&mut self.output, &mut self.input, &mut self.error],
+            crate::render::errors::Command::RevParse
+            | crate::render::errors::Command::LsTree
+            | crate::render::errors::Command::Diff => &mut [&mut self.output, &mut self.error],
+            crate::render::errors::Command::Mmdebstrap => unreachable!("git command"),
+        };
+        for (held, &pipe) in resources.iter_mut().zip(pipes) {
+            **held = Held::Open(pipe);
         }
     }
     pub fn refused(&mut self) {
@@ -119,21 +107,23 @@ impl Child {
     }
     pub fn closed(&mut self, owner: Token) {
         if owner == self.owner {
-            self.closed = true;
-            self.process = None;
+            self.process = Held::Closed;
         }
-        if self.output == Some(owner) {
-            self.output = None;
+        if self.output.token() == Some(owner) {
+            self.output = Held::Closed;
         }
-        if self.error == Some(owner) {
-            self.error = None;
+        if self.error.token() == Some(owner) {
+            self.error = Held::Closed;
         }
-        if self.input == Some(owner) {
-            self.input = None;
+        if self.input.token() == Some(owner) {
+            self.input = Held::Closed;
         }
     }
     pub fn done(&self) -> bool {
-        self.closed && self.output.is_none() && self.input.is_none() && self.error.is_none()
+        self.process == Held::Closed
+            && self.output.token().is_none()
+            && self.input.token().is_none()
+            && self.error.token().is_none()
     }
     pub fn stream(&mut self, down: Down, below: &mut Queue<Asked>) {
         if let Down::Demand { read, .. } = &down
@@ -143,39 +133,23 @@ impl Child {
             self.output_state =
                 if *read == skein_lib::stream::Read::Nothing { Intake::Waiting } else { Intake::Reading };
         }
-        below.push(Asked::Io(io::Request::Stream { stream: self.output.expect("spawned stdout"), down }));
+        below.push(Asked::Io(io::Request::Stream { stream: self.output.token().expect("spawned stdout"), down }));
     }
     pub fn resume(&mut self, below: &mut Queue<Asked>) -> bool {
-        if !self.closing {
+        if self.stage != Stage::Closing {
             return false;
         }
-        let entity = if self.output.is_some() && !self.closing_resources.output {
-            self.closing_resources.output = true;
-            self.output
-        } else if self.error.is_some() && self.closing_resources.error.is_none() {
-            self.closing_resources.error = Some(());
-            self.error
-        } else if self.input.is_some() && !self.closing_resources.input {
-            self.closing_resources.input = true;
-            self.input
-        } else if self.process.is_some() && !self.closing_resources.process {
-            self.closing_resources.process = true;
-            self.process
-        } else {
-            None
-        };
-        if let Some(entity) = entity {
-            below.push(Asked::Io(io::Request::Close { entity }));
-            return true;
+        for held in [&mut self.output, &mut self.error, &mut self.input, &mut self.process] {
+            if let Some(entity) = held.request_close() {
+                below.push(Asked::Io(io::Request::Close { entity }));
+                return true;
+            }
         }
         false
     }
     pub fn work_pending(&self) -> bool {
-        self.closing
-            && ((self.output.is_some() && !self.closing_resources.output)
-                || (self.error.is_some() && self.closing_resources.error.is_none())
-                || (self.input.is_some() && !self.closing_resources.input)
-                || (self.process.is_some() && !self.closing_resources.process))
+        self.stage == Stage::Closing
+            && (self.output.is_open() || self.error.is_open() || self.input.is_open() || self.process.is_open())
     }
 }
 
