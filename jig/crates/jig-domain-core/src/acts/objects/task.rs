@@ -2,18 +2,20 @@
 use crate::{
     Core, Limits,
     acts::{Act, Admission, allowed, bounds, objects::mutable, standing},
+    admission::compound::PartyTask,
+    routing::party::dispatch::Control,
 };
 use jig_domain_authority as authority;
 use jig_domain_people as people;
 use jig_domain_tasks as tasks;
 
-#[expect(clippy::too_many_lines, reason = "one exhaustive object judgment preserves standing before task phase facts")]
 pub(super) fn admit(core: &Core, limits: &Limits, party: u64, act: Act, number: u64) -> Admission {
     let Some(row) = core.tasks.task(number) else { return Admission::Refused(people::Refusal::Unknown) };
     let held = core.people.role(party, row.project);
     if let Err(why) = standing::role(core, row.project, held, act) {
         return Admission::Refused(why);
     }
+    let who = PartyTask { person: party, project: row.project, role: held, task: number };
     match act {
         Act::Reorder => allowed(core.reorder_allowed(row.project, held)),
         Act::Message => allowed(write(core, limits, party, number)),
@@ -28,68 +30,11 @@ pub(super) fn admit(core: &Core, limits: &Limits, party: u64, act: Act, number: 
 
             admission
         }
-        Act::Stop | Act::Cancel | Act::Release => {
-            let control = match act {
-                Act::Stop => crate::routing::party::dispatch::Control::Stop,
-                Act::Cancel => crate::routing::party::dispatch::Control::Cancel { reason_len: 0, grace: None },
-                Act::Release => crate::routing::party::dispatch::Control::Release { again: None },
-                Act::Message
-                | Act::Answer
-                | Act::Take
-                | Act::HandBack
-                | Act::Withdraw
-                | Act::Accept
-                | Act::Reject
-                | Act::PassUp
-                | Act::LeaveHeld
-                | Act::Amend
-                | Act::Move
-                | Act::Reorder
-                | Act::Seen
-                | Act::EditNote
-                | Act::DeleteNote
-                | Act::Adopt
-                | Act::RemoveProject
-                | Act::Rename
-                | Act::ChangePolicy
-                | Act::SetRoles
-                | Act::MakeService
-                | Act::SetPool => unreachable!("control act selected"),
-            };
-            if let Err(why) = core.control_admit(
-                crate::admission::compound::PartyTask { person: party, project: row.project, role: held, task: number },
-                control,
-                &limits.tasks,
-                &tasks::CompoundAdmission::new(&core.tasks, 0),
-            ) {
-                return Admission::Refused(why);
-            }
-            if act == Act::Stop
-                && let Err(why) = mutable(row)
-            {
-                return Admission::Refused(why);
-            }
-            if act == Act::Release
-                && let tasks::Phase::Closing(closing) = &row.phase
-            {
-                return Admission::Refused(crate::routing::refusals::ended(&closing.ending));
-            }
-            if let tasks::Phase::Ended(ending) = &row.phase {
-                return Admission::Refused(crate::routing::refusals::ended(ending));
-            }
-            if act == Act::Release {
-                match row.phase {
-                    tasks::Phase::Held { .. } => {}
-                    tasks::Phase::Waiting
-                    | tasks::Phase::Active(_)
-                    | tasks::Phase::Closing(_)
-                    | tasks::Phase::Ended(_) => return Admission::Refused(people::Refusal::NotWaiting),
-                }
-            }
-            Admission::Allowed
-        }
+        Act::Stop => allowed(control(core, limits, who, Control::Stop)),
+        Act::Cancel => allowed(control(core, limits, who, Control::Cancel { reason_len: 0, grace: None })),
+        Act::Release => allowed(control(core, limits, who, Control::Release { again: None })),
         Act::Move => allowed(core.move_admit(
-            crate::admission::compound::PartyTask { person: party, role: held, project: row.project, task: number },
+            who,
             limits.tasks.tree_tasks,
             limits.tasks.depth,
             &tasks::CompoundAdmission::new(&core.tasks, 0),
@@ -118,6 +63,24 @@ pub(super) fn admit(core: &Core, limits: &Limits, party: u64, act: Act, number: 
         | Act::SetRoles
         | Act::MakeService
         | Act::SetPool => Admission::Refused(people::Refusal::NotOffered),
+    }
+}
+
+fn control(core: &Core, limits: &Limits, who: PartyTask, control: Control) -> Result<(), people::Refusal> {
+    core.control_admit(who, control, &limits.tasks, &tasks::CompoundAdmission::new(&core.tasks, 0))?;
+    let row = core.tasks.task(who.task).expect("admitted task control");
+    match control {
+        Control::Stop => mutable(row),
+        Control::Cancel { .. } => match &row.phase {
+            tasks::Phase::Ended(ending) => Err(crate::routing::refusals::ended(ending)),
+            tasks::Phase::Waiting | tasks::Phase::Active(_) | tasks::Phase::Closing(_) | tasks::Phase::Held { .. } => Ok(()),
+        },
+        Control::Release { .. } => match &row.phase {
+            tasks::Phase::Held { .. } => Ok(()),
+            tasks::Phase::Closing(closing) => Err(crate::routing::refusals::ended(&closing.ending)),
+            tasks::Phase::Ended(ending) => Err(crate::routing::refusals::ended(ending)),
+            tasks::Phase::Waiting | tasks::Phase::Active(_) => Err(people::Refusal::NotWaiting),
+        },
     }
 }
 
