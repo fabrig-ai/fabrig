@@ -96,7 +96,7 @@ impl Json {
         let bounded = limits.writer_limits();
         let mut measure = writer::Encoder::measure(&bounded);
         self.write(&mut measure);
-        let len = crate::openai::measured(measure, bounded, crate::Cap::Retained)?;
+        let len = super::measured(measure, bounded, crate::Cap::Retained)?;
         let mut write = writer::Encoder::write(len, &bounded);
         self.write(&mut write);
         Ok(write.finish())
