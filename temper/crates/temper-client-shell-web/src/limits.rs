@@ -17,6 +17,8 @@ pub const BODY_BYTES: u32 = 33_554_432;
 pub const PIECE: u32 = 4096;
 /// Field text and provisional conversation text (client/README.md, 5.4).
 pub const CONVERSATION_TEXT: u32 = 512;
+/// Whole document bodies and goal words (client/README.md, 5.4).
+pub const LONG_TEXT: u32 = 131_072;
 /// Shared text of one committed turn, including its calls (client/README.md, 5.4).
 pub const TURN_TEXT: u32 = 2048;
 /// The root's bounds: `temper-client-shell-terminal`'s `native().client`.
@@ -55,6 +57,7 @@ pub fn client() -> client::Limits {
             kept: 16,
             projects: 2,
             text: CONVERSATION_TEXT,
+            long_text: LONG_TEXT,
             turn_text: TURN_TEXT,
             rows: 16, // Entries in a document's short lists.
             fields: 16,

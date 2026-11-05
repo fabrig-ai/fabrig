@@ -61,6 +61,7 @@ impl Party {
         limits.domain.rows = 32;
         limits.domain.projects = 64;
         limits.domain.text = 4096;
+        limits.domain.long_text = 4096;
         limits.domain.turn_text = 4096;
         limits.domain.turn_bytes = 4096;
         limits.domain.document_bytes = 1_048_576;

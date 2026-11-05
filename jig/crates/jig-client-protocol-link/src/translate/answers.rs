@@ -662,6 +662,7 @@ fn original_nonzero_recipient_survives_wire_decoding_and_contract_translation() 
             kept: 4,
             projects: 2,
             text: 32,
+            long_text: 32,
             turn_text: 32,
             rows: 2,
             segments: 4,

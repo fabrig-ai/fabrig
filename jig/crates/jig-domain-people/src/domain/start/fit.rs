@@ -68,7 +68,7 @@ fn choice(key: &Key, value: Option<&crate::LlmChoice>) -> Result<(), RestoreCaus
 fn batch(key: &Key, limits: &Limits, members: &[crate::Member]) -> Result<(), RestoreCause> {
     within(key, RestoreBound::Batch, members.len(), limits.batch)?;
     for member in members {
-        within(key, RestoreBound::Words, member.words.len(), limits.words)?;
+        within(key, RestoreBound::Words, member.words.len(), limits.spec_bytes)?;
         choice(key, member.llm.as_ref())?;
         bytes(
             key,

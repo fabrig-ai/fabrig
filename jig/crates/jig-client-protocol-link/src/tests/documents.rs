@@ -355,6 +355,7 @@ fn receiving_inventory_bounds_keep_their_schema_ceilings() {
     let client = jig_client_domain::Limits {
         rows: 32,
         text: 8192,
+        long_text: 8192,
         turn_text: 8192,
         turn_bytes: 8192,
         document_bytes: u64::from(w::CEILINGS.owned_record),

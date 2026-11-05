@@ -37,6 +37,7 @@ impl Story {
         let driver = Driver::new(configuration(), owner_limits, Peers::new(Vec::new(), Vec::new()), now, clock(now));
         let mut limits = crate::test::limits();
         limits.client.domain.text = 4096;
+        limits.client.domain.long_text = 4096;
         limits.client.domain.turn_text = 4096;
         limits.client.domain.turn_bytes = 4096;
         limits.client.domain.rows = 32;
