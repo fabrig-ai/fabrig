@@ -1,8 +1,9 @@
-//! One bounded HTTP connection over Forgejo documents and the fake's calls.
+//! One bounded HTTP connection over Forgejo documents and the fake's calls (skein/docs/design/fake-forge.md, 4 and 12).
 mod git;
 use crate::{Error, Hosted, Limits, Service, errors, response, routes, service::Call};
 use alloc::boxed::Box;
 use skein_fake_forge_domain::{self as domain, api};
+use skein_fake_forge_http::connection::{self, State, Turn};
 use skein_forge::forgejo::{
     document,
     failure::Refusal,
@@ -11,19 +12,8 @@ use skein_forge::forgejo::{
 };
 use skein_http::{Header, Method, server as http};
 use skein_json::tokenizer::{self as json, Tokenizer};
-use skein_lib::stream::{Down, Read, Up};
+use skein_lib::stream::{Down, Up};
 use skein_lib::{Env, Id, List, Queue, ReplyTo, Token, bytes};
-#[derive(Clone, Copy, PartialEq, Eq, Debug)]
-enum State {
-    New,
-    Reading,
-    Receiving,
-    Body,
-    Waiting,
-    Streaming,
-    Closing,
-    Closed,
-}
 #[derive(PartialEq, Eq, Debug)]
 pub enum Event {
     Domain(domain::Event),
@@ -41,10 +31,7 @@ struct Scopes {
 #[expect(missing_debug_implementations, reason = "HTTP queues temporarily hold authorization headers")]
 pub struct Server {
     owner: Token,
-    state: State,
-    http: http::Server,
-    events: Queue<http::Event>,
-    requests: Queue<http::Request>,
+    connection: connection::Connection,
     json: Tokenizer,
     json_started: bool,
     json_events: Queue<json::Event>,
@@ -60,10 +47,6 @@ pub struct Server {
     call: Option<Id<Call>>,
     followed: bool,
     listing: Option<crate::setup::repos::Listing>,
-    head: Option<http::Call>,
-    reply: Option<Box<[u8]>>,
-    offset: usize,
-    send: u32,
 }
 impl Server {
     pub fn new(owner: Token, limits: &Limits) -> Result<Self, Error> {
@@ -79,10 +62,7 @@ impl Server {
         }
         Ok(Self {
             owner,
-            state: State::New,
-            http: http::Server::new(&limits.http),
-            events: Queue::uncapped(),
-            requests: Queue::uncapped(),
+            connection: connection::Connection::new(&limits.http),
             json: Tokenizer::new(&limits.documents.json),
             json_started: false,
             json_events: Queue::uncapped(),
@@ -98,30 +78,20 @@ impl Server {
             call: None,
             followed: false,
             listing: None,
-            head: None,
-            reply: None,
-            offset: 0,
-            send: limits.http.send,
         })
-    }
-    fn head_pending(&self) -> bool {
-        self.head.is_some()
     }
     /// Takes the sanitized head captured at the last request entrance.
     pub fn take_head(&mut self) -> Option<http::Call> {
-        self.head.take()
+        self.connection.take_head()
     }
     /// Whether no accepted request remains to be answered on this connection.
     #[must_use]
     pub fn is_settled(&self) -> bool {
-        self.state == State::Reading
+        self.connection.is_settled()
     }
     #[must_use]
     pub fn has_work(&self) -> bool {
-        !self.events.is_empty()
-            || !self.requests.is_empty()
-            || !self.json_events.is_empty()
-            || !self.json_down.is_empty()
+        self.connection.has_work() || !self.json_events.is_empty() || !self.json_down.is_empty()
     }
 }
 pub fn start(
@@ -131,7 +101,7 @@ pub fn start(
     above: &mut Queue<Event>,
     below: &mut Queue<Down>,
 ) {
-    if server.state != State::New {
+    if server.connection.state != State::New {
         return;
     }
     next(server, service, env, above, below);
@@ -168,22 +138,14 @@ fn up_on(
     above: &mut Queue<Event>,
     below: &mut Queue<Down>,
 ) {
-    match server.state {
-        State::New | State::Closing | State::Closed => return,
-        State::Reading | State::Receiving | State::Body | State::Waiting | State::Streaming => {}
-    }
-    if server.state == State::Reading
-        && let Up::Bytes(_) = &event
-    {
-        server.state = State::Receiving;
-    }
-    http::up(
-        &mut server.http,
+    if !connection::up(
+        &mut server.connection,
         &Env { now: env.now, wall: env.wall, limits: env.limits.http },
         event,
-        &mut server.events,
         below,
-    );
+    ) {
+        return;
+    }
     resume_on(server, service, domain, env, above, below);
 }
 pub fn down(
@@ -199,7 +161,7 @@ pub fn down(
         domain::Request::Hook { .. } => return,
     };
     let id = Id::<Call>::from_token(to.into_token());
-    if server.state != State::Waiting || server.call != Some(id) {
+    if server.connection.state != State::Waiting || server.call != Some(id) {
         return;
     }
     let Some(call) = service.calls.get(id) else {
@@ -284,7 +246,7 @@ pub fn down(
     };
     retire(server, service);
     match reply {
-        Ok(reply) => respond(server, reply),
+        Ok(reply) => respond(server, &env.limits, reply),
         Err(error) => error_reply(server, env, error),
     }
     resume(server, service, env, above, below);
@@ -317,10 +279,11 @@ fn resume_on(
     above: &mut Queue<Event>,
     below: &mut Queue<Down>,
 ) {
+    let http_env = Env { now: env.now, wall: env.wall, limits: env.limits.http };
     for _ in 0..8u32 {
-        if let Some(event) = server.events.pop() {
-            http_event(server, service, domain.as_mut(), env, event, above, below);
-            if server.head_pending() {
+        if let Some(turn) = connection::turn(&mut server.connection, &env.limits.http) {
+            http_event(server, service, domain.as_mut(), env, turn, above, below);
+            if server.connection.head_pending() {
                 break;
             }
         } else if let Some(event) = server.json_events.pop() {
@@ -353,10 +316,8 @@ fn resume_on(
                 }
             }
         } else if let Some(down) = server.json_down.pop() {
-            http_down(server, env, http::Request::Body(down), below);
-        } else if let Some(request) = server.requests.pop() {
-            http_down(server, env, request, below);
-        } else {
+            connection::down(&mut server.connection, &http_env, http::Request::Body(down), below);
+        } else if !connection::request(&mut server.connection, &http_env, below) {
             break;
         }
     }
@@ -368,24 +329,20 @@ pub fn close(
     above: &mut Queue<Event>,
     below: &mut Queue<Down>,
 ) {
-    if server.state == State::Closing || server.state == State::Closed {
+    if server.connection.state == State::Closing || server.connection.state == State::Closed {
         return;
     }
     retire(server, service);
     server.listing = None;
     server.request = None;
-    server.reply = None;
     server.decoder = None;
     server.git_decoder = None;
-    server.events.clear();
-    server.requests.clear();
     server.json_events.clear();
     server.json_down.clear();
     json_down(server, env, json::Request::Close);
     server.json_events.clear();
     server.json_down.clear();
-    http_down(server, env, http::Request::Close, below);
-    server.state = State::Closing;
+    connection::close(&mut server.connection, &Env { now: env.now, wall: env.wall, limits: env.limits.http }, below);
     above.push(Event::Close);
 }
 pub fn closed(
@@ -395,13 +352,13 @@ pub fn closed(
     above: &mut Queue<Event>,
     below: &mut Queue<Down>,
 ) {
-    if server.state == State::Closed {
+    if server.connection.state == State::Closed {
         return;
     }
-    if server.state != State::Closing {
+    if server.connection.state != State::Closing {
         close(server, service, env, above, below);
     }
-    server.state = State::Closed;
+    server.connection.state = State::Closed;
     above.push(Event::Closed);
 }
 fn retire(server: &mut Server, service: &mut Service) {
@@ -422,18 +379,8 @@ fn next(
     if service.rng.chance(service.config.faults.reset) {
         close(server, service, env, above, below);
     } else {
-        server.state = State::Reading;
-        server.requests.push(http::Request::Next);
+        connection::read_next(&mut server.connection);
     }
-}
-fn http_down(server: &mut Server, env: &Env<Limits>, request: http::Request, below: &mut Queue<Down>) {
-    http::down(
-        &mut server.http,
-        &Env { now: env.now, wall: env.wall, limits: env.limits.http },
-        request,
-        &mut server.events,
-        below,
-    );
 }
 fn json_down(server: &mut Server, env: &Env<Limits>, request: json::Request) {
     let limits = git::json_limits(server, &env.limits);
@@ -450,14 +397,14 @@ fn http_event(
     service: &mut Service,
     domain: Option<&mut Hosted<'_>>,
     env: &Env<Limits>,
-    event: http::Event,
+    turn: Turn,
     above: &mut Queue<Event>,
     below: &mut Queue<Down>,
 ) {
-    match event {
-        http::Event::Call(call) => entrance(server, service, domain, env, call, above),
-        http::Event::Body(up) => {
-            if server.state == State::Body {
+    match turn {
+        Turn::Call(call) => entrance(server, service, domain, env, call, above),
+        Turn::Body(up) => {
+            if server.connection.state == State::Body {
                 let limits = git::json_limits(server, &env.limits);
                 json::up(
                     &mut server.json,
@@ -468,25 +415,8 @@ fn http_event(
                 );
             }
         }
-        http::Event::Reply(Up::Room) => {
-            let reply = server.reply.as_ref().expect("reply body");
-            let end =
-                server.offset.saturating_add(usize::try_from(env.limits.http.send).expect("u32 fits")).min(reply.len());
-            let chunk = bytes::copy_of(reply.get(server.offset..end).expect("reply slice"));
-            server.offset = end;
-            server.requests.push(http::Request::Reply(Down::Send(chunk)));
-            if end == reply.len() {
-                server.reply = None;
-                server.requests.push(http::Request::Reply(Down::Finish));
-            } else {
-                room(server, &env.limits);
-            }
-        }
-        http::Event::Reply(Up::Bytes(_) | Up::End | Up::Failed(_))
-        | http::Event::Refused(_)
-        | http::Event::Failed(_)
-        | http::Event::Ended => close(server, service, env, above, below),
-        http::Event::Done(reuse) => {
+        Turn::Failed => close(server, service, env, above, below),
+        Turn::Done(reuse) => {
             server.git = None;
             server.git_decoder = None;
             server.listing = None;
@@ -497,7 +427,7 @@ fn http_event(
                 http::Reuse::Close => close(server, service, env, above, below),
             }
         }
-        http::Event::Closed => {}
+        Turn::Handled => {}
     }
 }
 fn entrance(
@@ -508,14 +438,6 @@ fn entrance(
     call: http::Call,
     above: &mut Queue<Event>,
 ) {
-    assert!(server.head.is_none(), "the owner drains each captured head before reuse");
-    let mut snapshot = call.clone();
-    for header in &mut snapshot.headers {
-        if header.is(b"authorization") {
-            header.value = Box::new([]);
-        }
-    }
-    server.head = Some(snapshot);
     if let Some(name) = crate::git::name(&call.target) {
         git::entrance(server, service, env, &call, name);
         return;
@@ -524,7 +446,7 @@ fn entrance(
     service.tally.count(None, user);
     server.range = response::range(call.header(b"range"));
     let Some(user) = user else {
-        server.requests.push(http::Request::Discard);
+        server.connection.requests.push(http::Request::Discard);
         fail(server, &env.limits, 401);
         return;
     };
@@ -543,18 +465,18 @@ fn entrance(
         Method::Patch => request::Method::Patch,
         Method::Delete => request::Method::Delete,
         Method::Head | Method::Options => {
-            server.requests.push(http::Request::Discard);
+            server.connection.requests.push(http::Request::Discard);
             fail(server, &env.limits, 405);
             return;
         }
     };
     match documents::route(method, &call.target, &env.limits.documents) {
         Ok(documents::Route::Ready(request)) => {
-            server.requests.push(http::Request::Discard);
+            server.connection.requests.push(http::Request::Discard);
             decoded(server, service, domain, env, request, above);
         }
         Ok(documents::Route::Body(decoder)) => {
-            server.state = State::Body;
+            server.connection.state = State::Body;
             if server.json_started {
                 server.json.restart();
             }
@@ -564,7 +486,7 @@ fn entrance(
             json_down(server, env, first);
         }
         Err(error) => {
-            server.requests.push(http::Request::Discard);
+            server.connection.requests.push(http::Request::Discard);
             fail(
                 server,
                 &env.limits,
@@ -594,20 +516,24 @@ fn decoded(
         && *style != document::MergeStyle::Squash
         && *style != document::MergeStyle::FastForwardOnly
     {
-        respond(server, response::failure(&env.limits, errors::refusal(Refusal::MergeStyle)));
+        respond(server, &env.limits, response::failure(&env.limits, errors::refusal(Refusal::MergeStyle)));
         return;
     }
     if let Some(message) = missing_scope(&request, &server.scopes) {
-        respond(server, response::failure(&env.limits, errors::Failure { status: 403, message, retry_after: None }));
+        respond(
+            server,
+            &env.limits,
+            response::failure(&env.limits, errors::Failure { status: 403, message, retry_after: None }),
+        );
         return;
     }
     if let Some(reply) = service.setup.answer_with_domain(&request, server.user, &mut service.config, env, domain) {
-        respond(server, reply);
+        respond(server, &env.limits, reply);
         return;
     }
     if let Some(answer) = table(service, &request, server.user) {
         match documents::encode(&answer, &env.limits.documents) {
-            Ok(body) => respond(server, response::Reply { status: 200, headers: Box::from([]), body }),
+            Ok(body) => respond(server, &env.limits, response::Reply { status: 200, headers: Box::from([]), body }),
             Err(_) => fail(server, &env.limits, 413),
         }
         return;
@@ -620,7 +546,7 @@ fn decoded(
         server.call = Some(id);
         server.listing = Some(crate::setup::repos::Listing::new(*page, &service.config));
         server.request = Some(request);
-        server.state = State::Waiting;
+        server.connection.state = State::Waiting;
         user_repos_next(server, service, env, above);
         return;
     }
@@ -639,7 +565,7 @@ fn decoded(
             };
             server.call = Some(id);
             server.select = select;
-            server.state = State::Waiting;
+            server.connection.state = State::Waiting;
             above.push(Event::Domain(domain::Event::Call {
                 reply_to: ReplyTo::new(id.token()),
                 user: server.user,
@@ -833,13 +759,13 @@ fn table(service: &Service, request: &Request, user: u64) -> Option<documents::A
     }
 }
 fn fail(server: &mut Server, limits: &Limits, status: u16) {
-    respond(server, response::failure(limits, errors::Failure { status, message: b"", retry_after: None }));
+    respond(server, limits, response::failure(limits, errors::Failure { status, message: b"", retry_after: None }));
 }
 fn error_reply(server: &mut Server, env: &Env<Limits>, error: api::Error) {
     let request = server.request.as_ref().expect("decoded request");
-    respond(server, response::failure(&env.limits, errors::for_request(error, request, env.now)));
+    respond(server, &env.limits, response::failure(&env.limits, errors::for_request(error, request, env.now)));
 }
-fn respond(server: &mut Server, reply: response::Reply) {
+fn respond(server: &mut Server, limits: &Limits, reply: response::Reply) {
     let mut headers =
         List::with_capacity(u32::try_from(reply.headers.len()).expect("bounded headers").saturating_add(1));
     let mut content_type = false;
@@ -863,31 +789,16 @@ fn respond(server: &mut Server, reply: response::Reply) {
             })
             .expect("content type");
     }
-    server.state = State::Streaming;
-    server.offset = 0;
-    let length = skein_lib::len_u64(reply.body.len());
-    server.reply = if length == 0 { None } else { Some(reply.body) };
-    server.requests.push(http::Request::Respond(http::Response {
-        status: reply.status,
-        headers: headers.into_boxed(),
-        body: if reply.status == 204 { http::Body::None } else { http::Body::Length(length) },
-        close: false,
-    }));
-    if length == 0 && reply.status != 204 {
-        server.requests.push(http::Request::Reply(Down::Finish));
-    } else if length > 0 {
-        server.requests.push(http::Request::Reply(Down::Demand {
-            read: Read::Nothing,
-            room: u32::try_from(length).unwrap_or(u32::MAX).min(server.send),
-        }));
-    }
-}
-fn room(server: &mut Server, limits: &Limits) {
-    let remaining = server.reply.as_ref().expect("reply").len().saturating_sub(server.offset);
-    server.requests.push(http::Request::Reply(Down::Demand {
-        read: Read::Nothing,
-        room: u32::try_from(remaining).unwrap_or(u32::MAX).min(limits.http.send),
-    }));
+    connection::respond(
+        &mut server.connection,
+        &limits.http,
+        connection::Reply {
+            status: reply.status,
+            headers: headers.into_boxed(),
+            body: reply.body,
+            bodyless: reply.status == 204,
+        },
+    );
 }
 
 fn user_repos_next(server: &mut Server, service: &mut Service, env: &Env<Limits>, above: &mut Queue<Event>) {
@@ -909,7 +820,7 @@ fn user_repos_next(server: &mut Server, service: &mut Service, env: &Env<Limits>
         let reply = listing.reply(&env.limits);
         server.listing = None;
         retire(server, service);
-        respond(server, reply);
+        respond(server, &env.limits, reply);
     }
 }
 
@@ -917,6 +828,6 @@ fn malformed(server: &mut Server, env: &Env<Limits>) {
     json_down(server, env, json::Request::Close);
     server.json = Tokenizer::new(&env.limits.documents.json);
     server.json_started = false;
-    server.requests.push(http::Request::Discard);
+    server.connection.requests.push(http::Request::Discard);
     fail(server, &env.limits, 422);
 }

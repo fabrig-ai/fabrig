@@ -22,7 +22,7 @@ pub(super) fn entrance(
         Ok(name) => name,
         Err(git::Unrouted::NotFound) => {
             service.tally.count_store(None);
-            server.requests.push(http::Request::Discard);
+            server.connection.requests.push(http::Request::Discard);
             fail(server, &env.limits, 404);
             return;
         }
@@ -39,26 +39,26 @@ pub(super) fn entrance(
         service.tally.count_store(Some(Route::Git(name)));
     }
     if call.method != Method::Post {
-        server.requests.push(http::Request::Discard);
+        server.connection.requests.push(http::Request::Discard);
         fail(server, &env.limits, 405);
         return;
     }
     if name.repository() {
         match credential {
             None => {
-                server.requests.push(http::Request::Discard);
+                server.connection.requests.push(http::Request::Discard);
                 fail(server, &env.limits, 401);
                 return;
             }
             Some((_, false)) => {
-                server.requests.push(http::Request::Discard);
+                server.connection.requests.push(http::Request::Discard);
                 fail(server, &env.limits, 403);
                 return;
             }
             Some((user, true)) => server.user = user,
         }
     }
-    server.state = State::Body;
+    server.connection.state = State::Body;
     // A git body uses its wire bound as well as the tokenizer's grammar caps.
     server.json = json::Tokenizer::new(&json_limits(server, &env.limits));
     server.json_started = true;
@@ -120,7 +120,7 @@ pub(super) fn decoded(
                 return;
             }
             match result {
-                Ok(body) => respond(server, response::Reply { status: 200, headers: Box::new([]), body }),
+                Ok(body) => respond(server, &env.limits, response::Reply { status: 200, headers: Box::new([]), body }),
                 Err(error) => error_reply(server, env, error),
             }
             return;
@@ -131,7 +131,7 @@ pub(super) fn decoded(
         return;
     };
     server.call = Some(id);
-    server.state = State::Waiting;
+    server.connection.state = State::Waiting;
     above.push(Event::Domain(domain::Event::Call {
         reply_to: ReplyTo::new(id.token()),
         user: server.user,
@@ -219,7 +219,7 @@ pub(super) fn down(
     };
     match result {
         Ok(answer) => match git::server::encode(&answer, &env.limits.git()) {
-            Ok(body) => respond(server, response::Reply { status: 200, headers: Box::new([]), body }),
+            Ok(body) => respond(server, &env.limits, response::Reply { status: 200, headers: Box::new([]), body }),
             Err(_) => fail(server, &env.limits, 413),
         },
         Err(error) => error_reply(server, env, error),
@@ -238,7 +238,11 @@ pub(super) fn error_reply(server: &mut Server, env: &Env<Limits>, error: api::Er
             .expect("one header");
     }
     match git::server::error(error, &env.limits.git()) {
-        Ok(body) => respond(server, response::Reply { status: failure.status, headers: headers.into_boxed(), body }),
+        Ok(body) => respond(
+            server,
+            &env.limits,
+            response::Reply { status: failure.status, headers: headers.into_boxed(), body },
+        ),
         Err(_) => fail(server, &env.limits, 413),
     }
 }
