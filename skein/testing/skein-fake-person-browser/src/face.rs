@@ -449,9 +449,11 @@ impl<'a> BrowserFace<'a> {
                     }
                 }
             }
-            Event::Refused { op, why } => {
+            Event::Refused { op, why, detail } => {
+                let detail =
+                    if detail.is_empty() { String::new() } else { format!(" ({})", String::from_utf8_lossy(detail)) };
                 if self.keep.as_ref().map(|keep| keep.op) == Some(*op) {
-                    self.keep_failed(&format!("browser refused read: {why:?}"));
+                    self.keep_failed(&format!("browser refused read: {why:?}{detail}"));
                 }
                 if self.search.as_ref().map(|s| s.op) == Some(*op) {
                     self.search = None;
@@ -462,7 +464,7 @@ impl<'a> BrowserFace<'a> {
                     self.choice = None;
                     self.input = None;
                     self.refusal = Some(*why);
-                    self.failure = Some(format!("browser refused act: {why:?}"));
+                    self.failure = Some(format!("browser refused act: {why:?}{detail}"));
                 }
             }
             Event::Trouble { page, text, .. } => {

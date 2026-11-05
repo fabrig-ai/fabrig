@@ -4,6 +4,7 @@ use crate::boundary::{Event, Trouble};
 use crate::limits::Limits;
 use crate::params::Params;
 use crate::wire::decode::Value;
+use alloc::boxed::Box;
 use alloc::vec::Vec;
 use skein_lib::{Env, Token};
 
@@ -99,7 +100,7 @@ impl Browser {
             || guid.len() > limit
             || self.downloads.len() >= usize::try_from(env.limits.downloads).expect("u32 fits usize")
         {
-            self.trouble(page, Trouble::Download, name, env.limits.text);
+            self.trouble(page, Trouble::Download, name, Box::default(), env.limits.text);
             if !self.cancel_download(env, person, &guid, PendingKind::Release) {
                 self.crash();
             }
@@ -128,7 +129,7 @@ impl Browser {
         }
         let Some(directory) = &person.downloads else { return };
         if state.as_ref() == b"canceled" {
-            self.trouble(download.page, Trouble::Download, download.name, env.limits.text);
+            self.trouble(download.page, Trouble::Download, download.name, Box::default(), env.limits.text);
             return;
         }
         let separator = usize::from(!directory.ends_with(b"/"));
@@ -141,7 +142,7 @@ impl Browser {
             None => true,
         };
         if too_long {
-            self.trouble(download.page, Trouble::Download, download.name, env.limits.text);
+            self.trouble(download.page, Trouble::Download, download.name, Box::default(), env.limits.text);
             return;
         }
         let mut path = Vec::with_capacity(length.expect("bounded path"));
