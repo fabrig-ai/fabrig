@@ -65,8 +65,10 @@ Where the client does otherwise:
   alone, the repository keeps its merge-queue line. An adoption out
   names the repository and project with no act; refused, its words
   precede "Adopt" again. The terminal keeps the heading and says the
-  numbers and "Done.". Empty Needs you and Chats, Connected and the
-  landing's line are left out while To begin shows; a need or chat
+  numbers and "Done.". Connected is absent on every Home; rename stays
+  in the switcher, Forges and Accounts in Settings, and the model line
+  awaits Settings' design. The empty Needs you and Chats sections and
+  the landing's line are left out while To begin shows; a need or chat
   appears under it once present. Skip hides the card at once and is
   kept per person and project across devices; refused or lost, the
   card returns with "temper couldn't keep that. Try Skip again."

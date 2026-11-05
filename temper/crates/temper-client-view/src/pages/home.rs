@@ -26,7 +26,6 @@ pub(crate) fn main(
     w: &Words,
     bindings: &mut Bindings,
     project: u32,
-    sign_in: &crate::forge_sign_in::Forges,
     times: &mut Times,
 ) {
     let me = root.pages().me(root.client());
@@ -47,9 +46,6 @@ pub(crate) fn main(
     }
     needs(b, root, w, bindings, project, &facts, times);
     chats(b, root, w, bindings, facts.to_begin(), times);
-    if !facts.to_begin() {
-        connected(b, root, w, bindings, project, name, sign_in);
-    }
     b.close();
 }
 
@@ -375,13 +371,6 @@ fn text(b: &mut Builder, role: Role, words: &[u8], style: Option<skein_ui::Style
     b.text(Run::Plain, words);
     b.close();
 }
-fn section(b: &mut Builder, w: &Words, word: Word, style: skein_ui::Style) {
-    let name = w.say(word, &[]);
-    b.open(Role::Region);
-    b.style(style);
-    b.name(&name);
-    text(b, Role::Heading { level: 2 }, &name, None);
-}
 fn step(b: &mut Builder, w: &Words, number: u64, done: bool, heading: &[u8], detail: &[u8]) {
     b.open(Role::Item);
     b.style(look::HOME_STEP);
@@ -601,120 +590,6 @@ fn repository_step(
     }
     b.close();
 }
-fn line(b: &mut Builder, label: &[u8], detail: &[u8]) {
-    b.open(Role::Item);
-    b.open(Role::Paragraph);
-    b.name(&crate::accounts::words::join(&[label, detail]));
-    b.text(Run::Plain, label);
-    if !detail.is_empty() {
-        b.open(Role::Text);
-        b.style(look::HOME_MUTED);
-        b.run(Run::Plain, detail);
-        b.close();
-    }
-    b.close();
-}
-fn connected(
-    b: &mut Builder,
-    root: &Domain,
-    w: &Words,
-    bindings: &mut Bindings,
-    project: u32,
-    name: &[u8],
-    sign_in: &crate::forge_sign_in::Forges,
-) {
-    section(b, w, Word::HomeConnected, look::HOME_CONNECTED);
-    b.open(Role::List);
-    b.style(look::HOME_LINES);
-    for row in &forge::listed::rows(root.forges(), forge::connect::playground(root.forge())) {
-        if row.mode == Mode::Fake {
-            continue;
-        }
-        let mut detail = Box::default();
-        match &row.connection {
-            Connection::Connected { login, .. } => {
-                detail = w.say(Word::HomeLogin, &[Hole::Name(login.clone())]);
-            }
-            Connection::NotConnected
-            | Connection::NotSetUp
-            | Connection::SettingUp { .. }
-            | Connection::SetUpFailed { .. }
-            | Connection::Connecting
-            | Connection::Stopped { .. } => {}
-        }
-        for repo in &row.repositories {
-            if repo.project == project {
-                detail = crate::accounts::words::join(&[
-                    &detail,
-                    &w.say(
-                        Word::HomeRepository,
-                        &[Hole::Name(repo.owner.clone()), Hole::Name(repo.name.clone()), Hole::Name(name.into())],
-                    ),
-                ]);
-                break;
-            }
-        }
-        line(b, &crate::forge::connect::name(w, row, root), &detail);
-        if !crate::forge::forges::open_link(b, w, row, sign_in, None) {
-            go(b, bindings, &w.say(Word::ForgesTitle, &[]), Address::Forges, None);
-        }
-        b.close();
-    }
-    if let Some(account) = super::accounts::first_usable_kind(root, w) {
-        let mut model = None;
-        if let Some(me) = root.pages().me(root.client()) {
-            for row in &me.projects {
-                if row.project == project {
-                    model = row.models.get(0);
-                    break;
-                }
-            }
-        }
-        let detail = match model {
-            Some(model) => w.say(Word::HomeModel, &[Hole::Name(model.name.bytes().into())]),
-            None => Box::default(),
-        };
-        line(b, &account, &detail);
-        go(
-            b,
-            bindings,
-            &crate::accounts::words::say(w, crate::accounts::words::Word::Accounts, &[]),
-            Address::Accounts,
-            None,
-        );
-        b.close();
-    }
-    let detail = match forge::listed::held(root.forges(), root.forge().playground(), project) {
-        forge::listed::Held::One { owner, name } | forge::listed::Held::Several { owner, name, .. } => {
-            w.say(Word::HomeProjectRepository, &[Hole::Name(owner.into()), Hole::Name(name.into())])
-        }
-        forge::listed::Held::None => w.say(Word::HomeProjectNone, &[]),
-        forge::listed::Held::Unknown => Box::default(),
-    };
-    line(b, &w.say(Word::HomeProject, &[Hole::Name(name.into())]), &detail);
-    if let Some(me) = root.pages().me(root.client()) {
-        for row in &me.projects {
-            if row.project == project && row.role == jig_client::contract::HeldRole::Owner {
-                if root.pages().switcher().renaming_here() && root.pages().switcher().renaming() == Some(project) {
-                    crate::frame::rename_form(b, root, w, name, bindings);
-                } else {
-                    button(
-                        b,
-                        bindings,
-                        &w.say(Word::Rename, &[]),
-                        Act::Switcher(temper_client_domain::pages::switcher::Act::RenameHere),
-                        look::PROJECT_RENAME,
-                        false,
-                    );
-                }
-            }
-        }
-    }
-    b.close();
-    b.close();
-    b.close();
-}
-
 /// A project's settings (temper/docs/design/client/README.md, 3.5).
 pub(crate) fn settings(b: &mut Builder, root: &Domain, w: &Words, bindings: &mut Bindings, project: u32) {
     page(b, root, w, bindings, project, true);

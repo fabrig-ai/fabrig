@@ -622,7 +622,7 @@ fn home_ready_headline_and_done_steps_hold_in_both_shells() {
                 }
                 let terminal = printed(&f::page_view(&root));
                 assert!(terminal.strip_prefix(b"== ").unwrap().starts_with(headline.as_bytes()));
-                assert_eq!(skein_lib::bytes::find(&terminal, b"Connected").is_some(), left == 0);
+                absent(&terminal, "Connected");
                 for words in ["To begin", "1. ", "2. ", "3. "] {
                     if left > 0 {
                         contains(&terminal, words);
@@ -897,66 +897,6 @@ fn home_outline_matches_the_requested_main_and_terminal_lines_join() {
 }
 
 #[test]
-#[expect(clippy::disallowed_methods, reason = "test assertions inspect semantic nodes and their event bindings")]
-fn home_rename_stays_in_connected_and_is_only_offered_to_owners() {
-    let (mut root, _) = home_root(forge_rows(true), true, true);
-    let mut view = f::browser_page_view(&root);
-    assert_action(&mut view, Role::Button, b"Rename", d::pages::Act::Switcher(d::pages::switcher::Act::RenameHere));
-    drive(
-        &mut root,
-        d::Event::Act { action: d::Action::Pages(d::pages::Act::Switcher(d::pages::switcher::Act::RenameHere)) },
-    );
-    assert!(root.pages().switcher().renaming_here());
-    for mut view in [f::page_view(&root), f::browser_page_view(&root)] {
-        let field = main_find(view.tree(), Role::TextField, b"Rename");
-        assert!(
-            subtree(view.tree(), styled(view.tree(), crate::look::HOME_CONNECTED).id)
-                .iter()
-                .any(|node| node.id == field)
-        );
-        assert_eq!(
-            view.tree()
-                .nodes()
-                .iter()
-                .filter(|node| node.role == Role::TextField && node.name.as_deref() == Some(b"Rename"))
-                .count(),
-            1
-        );
-        let Some(d::Event::Act { action }) =
-            crate::event(&view, field, Act::Input { value: b"Renamed".as_slice().into() })
-        else {
-            panic!("rename input event")
-        };
-        assert_eq!(
-            action,
-            d::Action::Pages(d::pages::Act::Switcher(d::pages::switcher::Act::RenameWords {
-                words: b"Renamed".as_slice().into()
-            }))
-        );
-        assert_action(&mut view, Role::Button, b"Save", d::pages::Act::Switcher(d::pages::switcher::Act::Save));
-        assert_action(&mut view, Role::Button, b"Cancel", d::pages::Act::Switcher(d::pages::switcher::Act::Cancel));
-    }
-    drive(&mut root, d::Event::Went { place: d::Place::Address(Address::Settings { project: f::PROJECT }) });
-    assert!(!root.pages().switcher().renaming_here());
-    assert_eq!(root.pages().switcher().renaming(), None);
-    let (mut other, me_watch, _) = f::root_at(Address::Home { project: f::PROJECT }, &f::domain_limits());
-    let mut me = other.pages().me(other.client()).unwrap().clone();
-    me.projects.get_mut(0).unwrap().role = c::HeldRole::Member;
-    f::deliver_me(&mut other, me_watch, me);
-    drive(
-        &mut other,
-        d::Event::Act { action: d::Action::Pages(d::pages::Act::Switcher(d::pages::switcher::Act::RenameHere)) },
-    );
-    assert!(!other.pages().switcher().renaming_here());
-    assert_eq!(other.pages().switcher().renaming(), None);
-    for view in [f::page_view(&other), f::browser_page_view(&other)] {
-        assert!(
-            !main_nodes(view.tree()).iter().any(|node| node.styles.as_slice().contains(&crate::look::PROJECT_RENAME))
-        );
-    }
-}
-
-#[test]
 fn home_kicker_tracks_the_current_day_and_minute() {
     let (root, _) = home_root(List::with_capacity(0), false, false);
     let mut view = f::browser_page_view(&root);
@@ -1051,12 +991,7 @@ fn everyday_headlines_count_known_needs_and_mark_cut_reads() {
             main_find(view.tree(), Role::Heading { level: 1 }, headline.as_bytes());
             assert_eq!(
                 section_styles(view.tree()).as_ref(),
-                [
-                    crate::look::HOME_INTRO,
-                    crate::look::HOME_NEEDS,
-                    crate::look::HOME_CHATS,
-                    crate::look::HOME_CONNECTED
-                ]
+                [crate::look::HOME_INTRO, crate::look::HOME_NEEDS, crate::look::HOME_CHATS]
             );
             assert!(
                 !main_nodes(view.tree()).iter().any(|node| node.styles.as_slice().contains(&crate::look::HOME_LEDE))
@@ -1087,12 +1022,7 @@ fn first_need_keeps_card_order_navigation_and_terminal_words() {
             let expected: &[skein_ui::Style] = if beginning {
                 &[crate::look::HOME_INTRO, crate::look::HOME_BEGIN, crate::look::HOME_NEEDS, crate::look::HOME_CHATS]
             } else {
-                &[
-                    crate::look::HOME_INTRO,
-                    crate::look::HOME_NEEDS,
-                    crate::look::HOME_CHATS,
-                    crate::look::HOME_CONNECTED,
-                ]
+                &[crate::look::HOME_INTRO, crate::look::HOME_NEEDS, crate::look::HOME_CHATS]
             };
             assert_eq!(top.as_ref(), expected);
             let region = styled(tree, crate::look::HOME_NEEDS);
@@ -1467,7 +1397,7 @@ fn home_skipped_project_draws_the_everyday_intro() {
         absent(&text, "To begin");
         absent(&text, "Shop is ready.");
         main_find(view.tree(), Role::Heading { level: 1 }, b"Nothing needs you.");
-        main_find(view.tree(), Role::Heading { level: 2 }, b"Connected");
+        absent(&text, "Connected");
     }
 }
 

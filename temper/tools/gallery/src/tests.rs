@@ -79,7 +79,6 @@ const HOLDS: [Holds; samples::N] = [
         parts: &[
             Part::Named { role: Role::Button, name: "Adopt" },
             Part::Named { role: Role::Heading { level: 2 }, name: "To begin" },
-            Part::Absent { role: Role::Heading { level: 2 }, name: "Connected" },
         ],
     },
     Holds {
@@ -88,7 +87,6 @@ const HOLDS: [Holds; samples::N] = [
         parts: &[
             Part::Text { text: "work/hello is in Hello" },
             Part::Named { role: Role::Heading { level: 2 }, name: "To begin" },
-            Part::Absent { role: Role::Heading { level: 2 }, name: "Connected" },
         ],
     },
     Holds {
@@ -130,7 +128,6 @@ const HOLDS: [Holds; samples::N] = [
         parts: &[
             Part::Text { text: "work/hello is in Hello" },
             Part::Named { role: Role::Heading { level: 2 }, name: "To begin" },
-            Part::Absent { role: Role::Heading { level: 2 }, name: "Connected" },
         ],
     },
     Holds {
@@ -176,11 +173,7 @@ const HOLDS: [Holds; samples::N] = [
     Holds {
         name: "home-ready",
         heading: "Nothing needs you.",
-        parts: &[
-            Part::Named { role: Role::Paragraph, name: "Project Hello · work/hello" },
-            Part::Absent { role: Role::Heading { level: 2 }, name: "To begin" },
-            Part::Named { role: Role::Heading { level: 2 }, name: "Connected" },
-        ],
+        parts: &[Part::Absent { role: Role::Heading { level: 2 }, name: "To begin" }],
     },
     Holds {
         name: "home-adopting",
@@ -188,7 +181,6 @@ const HOLDS: [Holds; samples::N] = [
         parts: &[
             Part::Text { text: "Adopting work/hello into Hello…" },
             Part::Named { role: Role::Heading { level: 2 }, name: "To begin" },
-            Part::Absent { role: Role::Heading { level: 2 }, name: "Connected" },
         ],
     },
     Holds {
@@ -197,7 +189,6 @@ const HOLDS: [Holds; samples::N] = [
         parts: &[
             Part::Named { role: Role::Button, name: "Adopt" },
             Part::Named { role: Role::Heading { level: 2 }, name: "To begin" },
-            Part::Absent { role: Role::Heading { level: 2 }, name: "Connected" },
         ],
     },
     Holds {
@@ -206,7 +197,6 @@ const HOLDS: [Holds; samples::N] = [
         parts: &[
             Part::Text { text: "Your agents run on your ChatGPT plan." },
             Part::Named { role: Role::Heading { level: 2 }, name: "To begin" },
-            Part::Absent { role: Role::Heading { level: 2 }, name: "Connected" },
         ],
     },
     Holds {
@@ -217,7 +207,6 @@ const HOLDS: [Holds; samples::N] = [
             Part::Named { role: Role::Heading { level: 2 }, name: "Needs you" },
             Part::Named { role: Role::Heading { level: 2 }, name: "Chats" },
             Part::Named { role: Role::Paragraph, name: "No chats yet." },
-            Part::Named { role: Role::Heading { level: 2 }, name: "Connected" },
         ],
     },
     Holds {
@@ -237,7 +226,6 @@ const HOLDS: [Holds; samples::N] = [
             Part::Named { role: Role::Heading { level: 2 }, name: "Needs you · 1" },
             Part::Named { role: Role::Paragraph, name: "The repository has no license. Name one in the README?" },
             Part::Named { role: Role::Link, name: "All 1 chats" },
-            Part::Absent { role: Role::Heading { level: 2 }, name: "Connected" },
         ],
     },
     Holds {
@@ -269,7 +257,6 @@ const HOLDS: [Holds; samples::N] = [
         parts: &[
             Part::Text { text: "temper’s App reaches its repositories on sam." },
             Part::Named { role: Role::Heading { level: 2 }, name: "To begin" },
-            Part::Absent { role: Role::Heading { level: 2 }, name: "Connected" },
         ],
     },
     Holds {
