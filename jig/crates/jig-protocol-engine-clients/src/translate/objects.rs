@@ -25,29 +25,28 @@ pub fn ended(value: &reads::Ended, models: &[crate::Model], limits: &w::Limits) 
             limits,
             w::EndedValueProposalParts { value: ended::proposal_history(models, value, limits)? },
         )?),
-        reads::EndedValue::PersonProposal { proposal, .. }
-            if match proposal.action {
-                jig_domain_tasks::PersonAction::Settings { .. } => true,
-                jig_domain_tasks::PersonAction::Batch(_) | jig_domain_tasks::PersonAction::Amend { .. } => false,
-            } =>
-        {
-            w::EndedValue::Proposal(w::EndedValueProposal::new(
-                limits,
-                w::EndedValueProposalParts { value: ended::settings_history(models, proposal, limits)? },
-            )?)
-        }
-        reads::EndedValue::PersonProposal { proposal, decision } => {
-            w::EndedValue::PersonProposal(w::EndedValuePersonProposal::new(
-                limits,
-                w::EndedValuePersonProposalParts {
-                    proposal: ended::person_proposal(models, proposal, limits)?,
-                    decision: match *decision {
-                        Some(item) => Some(ended::proposal_decision(item, limits)?),
-                        None => None,
+        reads::EndedValue::PersonProposal { proposal, decision } => match &proposal.action {
+            jig_domain_tasks::PersonAction::Settings { against, items } => {
+                w::EndedValue::Proposal(w::EndedValueProposal::new(
+                    limits,
+                    w::EndedValueProposalParts {
+                        value: ended::settings_history(models, proposal, *against, items, limits)?,
                     },
-                },
-            )?)
-        }
+                )?)
+            }
+            jig_domain_tasks::PersonAction::Batch(_) | jig_domain_tasks::PersonAction::Amend { .. } => {
+                w::EndedValue::PersonProposal(w::EndedValuePersonProposal::new(
+                    limits,
+                    w::EndedValuePersonProposalParts {
+                        proposal: ended::person_proposal(models, proposal, limits)?,
+                        decision: match *decision {
+                            Some(item) => Some(ended::proposal_decision(item, limits)?),
+                            None => None,
+                        },
+                    },
+                )?)
+            }
+        },
         reads::EndedValue::Escalation { task: document, decision, hold } => {
             w::EndedValue::Escalation(w::EndedValueEscalation::new(
                 limits,
