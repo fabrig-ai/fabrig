@@ -3736,6 +3736,7 @@ dependencies = [
  "skein-shell",
  "skein-tls",
  "smith-agent-service",
+ "smith-agent-shell",
  "smith-channel",
  "smith-charter",
  "smith-domain",

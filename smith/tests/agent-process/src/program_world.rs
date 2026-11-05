@@ -11,10 +11,8 @@ use smith_fake_claude::{Fake, Story};
 
 use crate::world::{Parent, ParentOptions, Setup};
 
-#[path = "program/waiting.rs"]
 mod waiting;
 
-#[path = "program/carry.rs"]
 mod carry;
 pub use carry::{children_chat, from_frames, resume_children, start_with_window};
 pub(crate) use waiting::message;

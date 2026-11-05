@@ -2,13 +2,16 @@
 use std::os::unix::fs::PermissionsExt;
 
 /// One live probe's private home and unique program session, removed on drop.
-pub(super) struct Probe {
-    pub(super) home: skein_scratch::Scratch,
-    pub(super) session: String,
+pub struct Probe {
+    pub home: skein_scratch::Scratch,
+    pub session: String,
 }
 
+#[expect(clippy::new_without_default, reason = "A probe explicitly allocates a private home and unique session.")]
 impl Probe {
-    pub(super) fn new() -> Self {
+    /// Allocate private scratch state and a unique program session for one probe.
+    #[must_use]
+    pub fn new() -> Self {
         static NEXT: std::sync::atomic::AtomicU64 = std::sync::atomic::AtomicU64::new(0);
         let number = NEXT.fetch_add(1, std::sync::atomic::Ordering::Relaxed);
         assert!(number <= 0xffff_ffff_ffff, "probe sequence fits the session UUID");

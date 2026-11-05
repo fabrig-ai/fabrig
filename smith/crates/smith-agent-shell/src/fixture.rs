@@ -1,5 +1,7 @@
 //! The standard product quantities shared by fixed and drawn startup stories.
 
+/// The standard product startup document for fixed and drawn configuration stories.
+#[must_use]
 pub fn product_document() -> serde_json::Value {
     serde_json::json!({
       "profile":{"name":"standard"},
