@@ -219,6 +219,7 @@ pub(in crate::codec) fn wire_task(value: &c::Task, limits: &w::Limits) -> Result
             label: value.label,
             flags: wire_task_flags(&value.flags, limits)?,
             last_activity: value.last_activity.as_nanos(),
+            made: value.made.as_nanos(),
             waits_on: wire_waits_on(&value.waits_on, limits)?,
             chip: facts::chip(&value.chip, limits)?,
             goal: value.goal.as_ref().map(|item| Ok::<_, w::Problem>(*(item))).transpose()?,

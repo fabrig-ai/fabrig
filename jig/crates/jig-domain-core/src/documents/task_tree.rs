@@ -231,6 +231,8 @@ pub struct Task {
     pub label: u32,
     pub flags: tasks::Flags,
     pub last_activity: Wall,
+    /// When the task was made: its record's `created_at` (jig/docs/design/client/domain/contract.md, 5.1).
+    pub made: Wall,
     pub chip: Chip,
     pub acts: List<crate::acts::Offered>,
     pub project: u32,
@@ -911,6 +913,7 @@ fn task_with_lineage(
         label: row.label,
         flags: row.flags,
         last_activity: row.last_activity,
+        made: row.created_at,
         acts,
         chip: super::small::chip_with_core(core, limits, party, row)?,
         project: row.project,

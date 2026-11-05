@@ -2727,6 +2727,7 @@ fn base_task(number: u64, title: &str) -> c::Task {
         label: CHAT_LABEL,
         flags: CHAT_FLAGS,
         last_activity: Wall::EPOCH,
+        made: Wall::EPOCH,
         waits_on: c::WaitsOn::Nothing,
         goal: None,
         priority: None,
