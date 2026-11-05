@@ -51,3 +51,7 @@ Options, each pre-approved:
 ## Report
 
 As `notes/common.md`, Your report: the run's minutes, and any state the script can't show.
+
+## Answers
+
+2026-11-05 (fabrig/ui). Replace it: this task's browser acceptance goes to Goals, Start one from a draft, Chats' Drafts filter; and the sheet in the gallery or a world's state. The full chat-draft-to-goal walk is ui-chat-draft's draft-proof, which I'll add. The rulings are coord/ui/report/rulings.md on hel8, not in the repository. Finish without it.
