@@ -1,0 +1,29 @@
+draft = "debt-16"
+repo = "fabrig"
+sources = ["temper/docs/plan/debt-16/inputs/request.md", "temper/docs/plan/debt-16/inputs/debt13-review.md", "jig/docs/development/debt/D004-ops-root-jig-wiring.md"]
+
+# plan.md says what was decided and why.
+
+[buffer]
+low = 1.0
+high = 2.0
+
+[[part]]
+id = "wall-due"
+title = "Env::wall_due goes for a plain comparison"
+mode = "direct"
+needs = []
+design = "skein/docs/design/lib.md, 9"
+
+[[part]]
+id = "core-small"
+title = "two unused Core headers and a mid-file test module go"
+mode = "direct"
+needs = []
+design = "jig/docs/design/domain/engine.md, 5.4"
+
+[[slice]]
+id = 1
+story = "the review's small independent findings land"
+parts = ["wall-due", "core-small"]
+walk = false
