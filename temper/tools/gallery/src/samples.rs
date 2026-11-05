@@ -61,7 +61,7 @@ pub struct Sample {
     pub address: Address,
     pub then: Then,
 }
-pub const N: usize = 119;
+pub const N: usize = 123;
 const CHATS: Address = Address::Chats { filter: ChatsFilter::All, start: false };
 use World::{Bare, FirstRun, Reference, Solo};
 #[must_use]
@@ -215,6 +215,10 @@ pub fn samples() -> [Sample; N] {
         Sample { name: "forges-in-settings", world: Solo, address: Address::Forges, then: Shown },
         Sample { name: "accounts-in-settings", world: Solo, address: Address::Accounts, then: Shown },
         Sample { name: "settings", world: Solo, address: Address::Settings { project: 1 }, then: Shown },
+        Sample { name: "settings-all-hidden", world: Solo, address: Address::Settings { project: 1 }, then: Shown },
+        Sample { name: "settings-goals", world: Solo, address: Address::Settings { project: 1 }, then: Shown },
+        Sample { name: "settings-chat-open", world: Solo, address: Address::Settings { project: 1 }, then: Shown },
+        Sample { name: "settings-refused", world: Solo, address: Address::Settings { project: 1 }, then: Shown },
         Sample { name: "task-solo-T3", world: Solo, address: task(3), then: Shown },
         Sample { name: "accounts-solo", world: Solo, address: Address::Accounts, then: Shown },
         welcome_sample("welcome-first-run-0", temper_client_domain::Step::Welcome),
@@ -529,6 +533,9 @@ pub fn mockup(sample: &Sample) -> Option<String> {
 }
 #[must_use]
 pub fn domain(sample: &Sample) -> Domain {
+    if sample.name == "settings" || sample.name.starts_with("settings-") {
+        return crate::worlds::settings_world(sample.name);
+    }
     if sample.name.starts_with("changes") {
         return crate::worlds::changes_world(sample.name);
     }

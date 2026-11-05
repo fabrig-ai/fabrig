@@ -209,13 +209,19 @@ fn configure_frame(me: &mut c::Me) {
 }
 
 pub(super) fn world(w: World, address: Address, then: Then) -> (Domain, Option<Token>) {
-    world_in_layout(w, address, then, false)
+    world_in_layout(w, address, then, false, None)
 }
 pub(super) fn configuring_world(w: World, address: Address, then: Then) -> (Domain, Option<Token>) {
-    world_in_layout(w, address, then, true)
+    world_in_layout(w, address, then, true, None)
 }
 #[expect(clippy::too_many_lines, reason = "one ordered dispatch answers the gallery page’s document reads")]
-fn world_in_layout(w: World, address: Address, then: Then, configuring_chat: bool) -> (Domain, Option<Token>) {
+fn world_in_layout(
+    w: World,
+    address: Address,
+    then: Then,
+    configuring_chat: bool,
+    settings: Option<&str>,
+) -> (Domain, Option<Token>) {
     let configuring = configuring_chat || matches!(address, Address::Configure { .. });
     let connecting = matches!(
         address,
@@ -233,7 +239,13 @@ fn world_in_layout(w: World, address: Address, then: Then, configuring_chat: boo
             match down {
                 jig_client::Down::Open { watch, subject: jig_client::Watchable::Jig(subject) } => {
                     let document = match subject {
-                        c::Subject::Me => Some(c::Delivery::Me(Box::new(frame(w, connecting, configuring)))),
+                        c::Subject::Me => {
+                            let mut me = frame(w, connecting, configuring);
+                            if settings.is_some() {
+                                settings_frame(&mut me);
+                            }
+                            Some(c::Delivery::Me(Box::new(me)))
+                        }
                         c::Subject::Accounts => {
                             accounts_watch = Some(watch);
                             Some(c::Delivery::Accounts(Box::new(accounts(w, then))))
@@ -285,8 +297,9 @@ fn world_in_layout(w: World, address: Address, then: Then, configuring_chat: boo
                                 playground_read = true;
                             }
                         }
-                        v1::Read::Setting(_) => {
-                            let value = v1::SettingAnswer::new(&v1::CEILINGS, v1::SettingAnswerParts { value: None })
+                        v1::Read::Setting(setting) => {
+                            let bytes = settings.map(|name| settings_bytes(name, setting.kind()));
+                            let value = v1::SettingAnswer::new(&v1::CEILINGS, v1::SettingAnswerParts { value: bytes })
                                 .expect("stock setting");
                             step(
                                 &mut root,
@@ -2974,4 +2987,97 @@ fn changes_panel(name: &str) -> temper_client_protocol_wire::v1::ChangesPanel {
         },
     )
     .expect("changes panel")
+}
+
+/// Settings' delivered templates and kinds 6 and 7 (client/browser.md, 7.2).
+fn settings_frame(me: &mut c::Me) {
+    let member = me.projects.get_mut(0).expect("settings project");
+    let template = member.templates.get(0).expect("chat template").clone();
+    let mut templates = List::with_capacity(6);
+    for old in &member.templates {
+        templates.push(old.clone()).expect("existing templates");
+    }
+    member.templates = templates;
+    for (number, name) in [(4, "whole"), (5, "each"), (6, "review"), (7, "one")] {
+        let mut way = template.clone();
+        way.number = number;
+        way.name = doc(name);
+        way.tracked = Some(1);
+        member.templates.push(way).expect("shipped templates fit");
+    }
+}
+fn settings_bytes(name: &str, kind: u32) -> Box<[u8]> {
+    use temper_client_protocol_wire::v1 as v;
+    if kind == 7 {
+        let shown = name != "settings-all-hidden";
+        let all = shown && name != "settings-goals";
+        let ways = v::ProjectWays::new(
+            &v::CEILINGS,
+            v::ProjectWaysParts { skein_bools: [all, shown, all, all], way: if shown { 4 } else { 0 } },
+        )
+        .expect("settings ways");
+        let mut writer = skein_lib::Writer::new(usize::try_from(ways.measure()).expect("ways bytes"));
+        ways.encode(&mut writer).expect("measured ways");
+        writer.finish()
+    } else {
+        assert_eq!(kind, 6);
+        let route = if name == "settings-all-hidden" { v::QuestionsRoute::None } else { v::QuestionsRoute::Foreman };
+        let questions =
+            v::ProjectQuestions::new(&v::CEILINGS, v::ProjectQuestionsParts { route }).expect("settings questions");
+        let mut writer = skein_lib::Writer::new(usize::try_from(questions.measure()).expect("questions bytes"));
+        questions.encode(&mut writer).expect("measured questions");
+        writer.finish()
+    }
+}
+pub(super) fn settings_world(name: &str) -> Domain {
+    use temper_client_domain::forge::{
+        self,
+        ways::{Act, Asked, Ways},
+    };
+    let (mut root, _) = world_in_layout(
+        Solo,
+        Address::Settings { project: PROJECT },
+        Then::Shown,
+        name == "settings-chat-open",
+        Some(name),
+    );
+    if name == "settings-refused" {
+        let mut out = Queue::uncapped();
+        let shown = root.forge().ways(PROJECT).expect("delivered ways");
+        step(
+            &mut root,
+            Event::Act {
+                action: temper_client_domain::Action::Forge(forge::Act::Ways(Act::Set {
+                    project: PROJECT,
+                    asked: Asked::Ways(Ways { drafts: false, ..shown }),
+                })),
+            },
+            &mut out,
+        );
+        step(&mut root, Event::Client { event: jig_client::Event::Stored }, &mut out);
+        for _ in 0..64 {
+            let Some(request) = out.pop() else { break };
+            if let Some(jig_client::Down::Send { attempt, .. }) = crate::driver::down(request) {
+                step(
+                    &mut root,
+                    Event::Client {
+                        event: jig_client::Event::Up {
+                            up: jig_client::Up::Answer {
+                                attempt,
+                                envelope: skein_lib::RequestEnvelope::Final,
+                                answer: Some(jig_client::Answered::Jig(c::Answer::Refused {
+                                    refusal: c::Refusal::NotOffered,
+                                    at: None,
+                                })),
+                                why: None,
+                            },
+                        },
+                    },
+                    &mut out,
+                );
+            }
+        }
+        assert!(root.forge().ways_refused(forge::ways::Control::Ways).is_some());
+    }
+    root
 }

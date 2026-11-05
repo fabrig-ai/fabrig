@@ -79,6 +79,10 @@ playground-resetting
 repositories
 repositories-none
 settings
+settings-all-hidden
+settings-chat-open
+settings-goals
+settings-refused
 signed-out
 task-held
 task-reference-T12
