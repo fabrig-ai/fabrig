@@ -299,11 +299,8 @@ fn a_repository_row_is_no_link() {
     }
 }
 #[test]
-fn forges_and_accounts_are_in_the_frame_with_a_project_and_as_they_were_without() {
-    for (address, heading, style) in [
-        (Address::Forges, b"Forges".as_slice(), look::FORGES),
-        (Address::Accounts, b"Accounts".as_slice(), look::ACCOUNTS_PAGE),
-    ] {
+fn accounts_are_in_the_frame_with_a_project_and_as_they_were_without() {
+    for (address, heading, style) in [(Address::Accounts, b"Accounts".as_slice(), look::ACCOUNTS_PAGE)] {
         let (mut root, watch, _) = f::root_at(address, &f::domain_limits());
         for view in [f::page_view(&root), f::browser_page_view(&root)] {
             assert!(main(view.tree()).iter().any(|n| n.styles.as_slice().contains(&look::SETTINGS_COL)));
@@ -321,10 +318,7 @@ fn forges_and_accounts_are_in_the_frame_with_a_project_and_as_they_were_without(
         for view in [f::page_view(&root), f::browser_page_view(&root)] {
             find(view.tree(), Role::Heading { level: 1 }, heading);
             assert!(!main(view.tree()).iter().any(|n| n.styles.as_slice().contains(&look::SETTINGS_COL)));
-            assert_eq!(
-                main(view.tree())[0].styles.as_slice(),
-                &[look::MAIN, if style == look::FORGES { look::FORGES } else { look::PAGE }]
-            );
+            assert_eq!(main(view.tree())[0].styles.as_slice(), &[look::MAIN, look::PAGE]);
         }
     }
 }
@@ -371,5 +365,37 @@ fn sign_out_lost_moves_with_it() {
                 .any(|n| n.role == Role::Alert && n.name.as_deref() == Some(b"Sign out did not reach the engine."))
         );
         assert!(styled(view.tree(), look::RAIL_FOOT).iter().any(|n| n.role == Role::Alert));
+    }
+}
+
+#[test]
+fn alone_it_keeps_its_heading_and_lede_with_no_tabs() {
+    let (mut root, watch, _) = f::root_at(Address::Forges, &f::domain_limits());
+    for project in [true, false] {
+        if !project {
+            let mut me = root.pages().me(root.client()).unwrap().clone();
+            me.projects.clear();
+            f::deliver_me(&mut root, watch, me);
+        }
+        for view in [f::page_view(&root), f::browser_page_view(&root)] {
+            assert_eq!(main(view.tree())[0].styles.as_slice(), &[look::MAIN, look::SETTINGS]);
+            let col = styled(view.tree(), look::SETTINGS_COL);
+            let intro = styled(view.tree(), look::SETTINGS_INTRO);
+            assert!(col.len() > intro.len());
+            find(view.tree(), Role::Heading { level: 1 }, if project { b"Where your code lives." } else { b"Forges" });
+            assert_eq!(
+                intro.iter().filter(|n| n.styles.as_slice().contains(&look::SETTINGS_KICKER)).count(),
+                usize::from(project)
+            );
+            assert_eq!(
+                main(view.tree()).iter().filter(|n| n.styles.as_slice().contains(&look::SETTINGS_TABS)).count(),
+                usize::from(project)
+            );
+            find(
+                view.tree(),
+                Role::Paragraph,
+                b"Each forge temper is connected to, or setting up. Add one to bring its repositories to temper.",
+            );
+        }
     }
 }

@@ -938,7 +938,7 @@ pub(crate) fn ready_card(
         );
         progress_in(b, Some(root), w, row);
     }
-    app_line(b, w, row);
+    app_line(b, w, row, false);
     adopt(b, root, w, bindings);
     super::forges::open_link(b, w, row, sign_in, Some(look::FLOW_QUIET));
     b.open(Role::Slot);
@@ -1108,9 +1108,12 @@ pub(crate) fn first_line(b: &mut Builder, root: &Domain, w: &Words, row: &Row) {
         flow::subtitle(b, &w.say(Word::SetupInto, &[Hole::Name(forge::words::full_name(org, repository))]));
     }
 }
-pub(crate) fn app_line(b: &mut Builder, w: &Words, row: &Row) {
+pub(crate) fn app_line(b: &mut Builder, w: &Words, row: &Row, setting: bool) {
     if let Some(slug) = forge::forges::slug(row) {
         b.open(Role::Slot);
+        if setting {
+            b.style(look::SETTINGS_SETTING);
+        }
         text(b, w, Role::Term, Word::ForgeAppLabel);
         b.open(Role::Description);
         crate::cards::text(b, Role::Slot, &forge::words::app_head(slug, row.installations.is_empty()));

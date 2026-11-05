@@ -1378,7 +1378,7 @@ keeps (`../protocol/configuration.md`, section 2).
     no code until a repository is in.", and "Adopt a repository".
   - *The rows,* on `Forges` and `Accounts`, are the greenfield mock's language
     applied to what the client has, since its tabs draw neither: every fact,
-    act, form and state of `forge.md`, 5.4, 4.8 and 5.5 stays, and only its
+    act, form and state of `forge.md`, 5.4, and `README.md`, 4.8 and 5.5 stays, and only its
     look is this. Each is a folded disclosure in `.lines`' place: a hairline
     under it, 14 px 4 px, no card and no shadow. Its summary is its name in
     ink, 15 px, its second line in `small`, 13.5 px, muted, and "⌄" at the far

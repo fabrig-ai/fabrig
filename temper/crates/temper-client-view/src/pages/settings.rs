@@ -5,7 +5,7 @@ use crate::{
     words::{Word, Words},
 };
 use alloc::boxed::Box;
-use skein_ui::{Builder, Role, Run, State, Style, phrases::Hole};
+use skein_ui::{Binding, Builder, Role, Run, State, Style, phrases::Hole};
 use temper_client_domain::{
     Address, ChatsFilter, Domain,
     forge::{self, listed},
@@ -67,6 +67,46 @@ pub(crate) fn open(b: &mut Builder, root: &Domain, w: &Words, bindings: &mut Bin
         }
         b.close();
     }
+    b.close();
+}
+/// Opens the column without a project's kicker or tabs (README.md, 3.5, Settings).
+pub(crate) fn open_alone(b: &mut Builder, heading: &[u8], lede: &[u8]) {
+    b.open(Role::Slot);
+    b.style(look::SETTINGS_COL);
+    b.open(Role::Slot);
+    b.style(look::SETTINGS_INTRO);
+    text(b, Role::Heading { level: 1 }, heading, look::SETTINGS_HEADLINE);
+    text(b, Role::Paragraph, lede, look::SETTINGS_LEDE);
+    b.close();
+}
+/// Opens the section and its head; the caller adds the act and closes both.
+pub(crate) fn section_head(b: &mut Builder, title: &[u8]) {
+    b.open(Role::Slot);
+    b.style(look::SETTINGS_SECTION);
+    b.open(Role::Slot);
+    b.style(look::SETTINGS_SECTION_HEAD);
+    text(b, Role::Heading { level: 2 }, title, look::SETTINGS_SECTION_TITLE);
+}
+/// Opens a quiet band; the caller adds its act and closes it.
+pub(crate) fn quiet_band(b: &mut Builder, tag: &[u8], words: &[u8]) {
+    b.open(Role::Slot);
+    b.style(look::SETTINGS_BAND);
+    b.style(look::SETTINGS_QUIET_BAND);
+    b.open(Role::Paragraph);
+    text(b, Role::Text, tag, look::SETTINGS_TAG);
+    b.text(Run::Plain, words);
+    b.close();
+}
+/// A link in the settings button's look, primary or small.
+pub(crate) fn button_to(b: &mut Builder, name: &[u8], to: Binding, primary: bool) {
+    crate::link(b, name, to);
+    if primary {
+        b.style(look::SETTINGS_PRIMARY);
+    } else {
+        b.style(look::SETTINGS_BTN);
+        b.style(look::SETTINGS_SMALL);
+    }
+    b.text(Run::Plain, name);
     b.close();
 }
 fn project_name(root: &Domain, w: &Words, project: u32) -> Box<[u8]> {
@@ -155,26 +195,20 @@ fn repository_section(b: &mut Builder, root: &Domain, w: &Words, bindings: &mut 
             }
         }
     }
-    b.open(Role::Slot);
-    b.style(look::SETTINGS_SECTION);
-    b.open(Role::Slot);
-    b.style(look::SETTINGS_SECTION_HEAD);
     let title = if known {
         w.say(Word::SettingsRepositoriesCount, &[Hole::Number(count)])
     } else {
         w.say(Word::SettingsRepositoriesTab, &[])
     };
-    text(b, Role::Heading { level: 2 }, &title, look::SETTINGS_SECTION_TITLE);
+    section_head(b, &title);
     link(b, w, bindings, Word::Adoption, Address::Adopt { project });
     b.close();
     if known && count == 0 {
-        b.open(Role::Slot);
-        b.style(look::SETTINGS_BAND);
-        b.style(look::SETTINGS_QUIET_BAND);
-        b.open(Role::Paragraph);
-        text(b, Role::Text, &w.say(Word::SettingsNoneTag, &[]), look::SETTINGS_TAG);
-        w.text(b, Word::SettingsNoneBody, &[Hole::Name(project_name(root, w, project))]);
-        b.close();
+        quiet_band(
+            b,
+            &w.say(Word::SettingsNoneTag, &[]),
+            &w.say(Word::SettingsNoneBody, &[Hole::Name(project_name(root, w, project))]),
+        );
         button_link(b, w, bindings, Word::Adoption, Address::Adopt { project }, false);
         b.close();
     } else if known {
@@ -250,8 +284,8 @@ fn link(b: &mut Builder, w: &Words, bindings: &mut Bindings, word: Word, address
 fn button_link(b: &mut Builder, w: &Words, bindings: &mut Bindings, word: Word, address: Address, primary: bool) {
     let name = w.say(word, &[]);
     crate::link(b, &name, bindings.insert(Act::Go { address }));
-    b.style(look::SETTINGS_BTN);
-    b.style(if primary { look::SETTINGS_PRIMARY } else { look::SETTINGS_SMALL });
+    b.style(if primary { look::SETTINGS_PRIMARY } else { look::SETTINGS_BTN });
+    b.style(look::SETTINGS_SMALL);
     b.text(Run::Plain, &name);
     b.close();
 }

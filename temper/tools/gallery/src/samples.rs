@@ -61,7 +61,7 @@ pub struct Sample {
     pub address: Address,
     pub then: Then,
 }
-pub const N: usize = 119;
+pub const N: usize = 126;
 const CHATS: Address = Address::Chats { filter: ChatsFilter::All, start: false };
 use World::{Bare, FirstRun, Reference, Solo};
 #[must_use]
@@ -212,6 +212,13 @@ pub fn samples() -> [Sample; N] {
         Sample { name: "inbox-solo", world: Solo, address: Address::Inbox { filter: Filter::ALL }, then: Shown },
         Sample { name: "repositories", world: Solo, address: Address::Repositories { project: 1 }, then: Shown },
         Sample { name: "repositories-none", world: Bare, address: Address::Repositories { project: 1 }, then: Shown },
+        Sample { name: "forges-empty", world: Bare, address: Address::Forges, then: Shown },
+        Sample { name: "forges-setting-up", world: FirstRun { step: 6 }, address: Address::Forges, then: Shown },
+        Sample { name: "forges-fetching", world: FirstRun { step: 24 }, address: Address::Forges, then: Shown },
+        Sample { name: "forges-fetching-bytes", world: FirstRun { step: 25 }, address: Address::Forges, then: Shown },
+        Sample { name: "forges-failed", world: FirstRun { step: 9 }, address: Address::Forges, then: Shown },
+        Sample { name: "forges-replacing", world: Solo, address: Address::Forges, then: Shown },
+        Sample { name: "forges-removing", world: FirstRun { step: 7 }, address: Address::Forges, then: Shown },
         Sample { name: "forges-in-settings", world: Solo, address: Address::Forges, then: Shown },
         Sample { name: "accounts-in-settings", world: Solo, address: Address::Accounts, then: Shown },
         Sample { name: "settings", world: Solo, address: Address::Settings { project: 1 }, then: Shown },
@@ -582,6 +589,15 @@ pub fn domain(sample: &Sample) -> Domain {
         | Then::Declined
         | Then::Renewed
         | Then::SignInRefused => account(&mut root, sample.then, &mut out),
+    }
+    if matches!(sample.name, "forges-replacing" | "forges-removing") {
+        use temper_client_domain::forge::{self, forges};
+        let act = if sample.name == "forges-replacing" {
+            forges::Act::OpenReplace { forge: 2 }
+        } else {
+            forges::Act::Remove { forge: 3 }
+        };
+        step(&mut root, Event::Act { action: Action::Forge(forge::Act::Forges(act)) }, &mut out);
     }
     if sample.then == Then::Paste(PasteFrame::Expired) {
         let mut doc = temper_client_domain::pages::accounts::document(root.client()).expect("sample accounts").clone();
