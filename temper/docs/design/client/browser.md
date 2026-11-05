@@ -1178,6 +1178,7 @@ from the engine's own answers, is where the look is tuned.
 | `chat-working` | a live chat at work: its three dots |
 | `chat-change-running` | a chat with a delegated change running: its one line |
 | `chat-change-landed` | a chat with a delegated change landed: its one line with its result's words |
+| `chat-change-held` | the first run's chat T1 at step 2, its change held: its one line says so |
 | `chat-goal` | a chat with a goal it started: its one line |
 | `chat-byline-open` | a new chat with its byline pressed: the chooser's panel |
 | `chat-solo-T10` | the solo world's chat T10, its proposal in place |
@@ -1229,7 +1230,9 @@ from the engine's own answers, is where the look is tuned.
 | `adoption-refused` | the adoption form after a refusal, its alert |
 | `chats-reference` | the reference world's chats |
 | `chat-reference-T1` | the reference world's chat T1 |
+| `chat-solo-T1` | the solo world's chat T1, closed: no composer and no chooser |
 | `chat-solo-T6` | the solo world's chat T6 |
+| `chat-held-task` | the solo world's chat T10, its proposal's reason saying a task is held |
 | `chat-first-run-2-T1` | the first run's chat T1 at step 2, its change running |
 | `chat-first-run-3-T1` | the first run's chat T1 at step 3, its change landed |
 | `chat-first-run-4-T4` | the first run's chat T4 at step 4, waiting at rest for the person’s words |
