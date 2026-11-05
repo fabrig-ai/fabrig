@@ -21,7 +21,7 @@ No macOS runner runs skein's suites (`shell.md`). json, tls and http's collector
 suite's logins have no design (`skein-live`), five of its provider
 stories being manual, run by the owner (`llm.md`). Most carriers still
 print the bytes they hold, credentials among them on known paths
-(`lib.md`), as does a server's written head (`http.md`). The code departs
+(`lib.md`, `oauth.md`), as does a server's written head (`http.md`). The code departs
 in `skein-playground`'s manifest (`playground.md`).
 `README.md`, `codec.md`, `world.md`, `fake-checkout.md`,
 `forge-client.md`, `oauth-issuer.md`, `ui-text.md`, `ui-web.md` and

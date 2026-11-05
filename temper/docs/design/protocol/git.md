@@ -710,6 +710,10 @@ checks this document's contract:
 - **Another git's messages.** Default: classified against 2.47's, from
   2.41 on; a version that words a failure otherwise reads `Broken` until
   its transcripts are captured.
+- **A dirty checkout's transcripts.** 4.5's clearing of staged files and a
+  merge's state rests on one run by hand, and no transcript records it, since
+  capturing again takes a pinned Forgejo and rewrites every case. Default: so,
+  until an invocation changes or git moves (section 9).
 - **A clone that outlives its workstream.** Section 3 turns off automatic
   garbage collection and maintenance, which costs little while a new
   workstream makes its workspace again. A clone kept past one

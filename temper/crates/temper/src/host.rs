@@ -301,6 +301,22 @@ pub(crate) fn note_line(note: temper_service::Note) -> String {
                 String::from_utf8_lossy(&tool)
             )
         }
+        temper_service::Note::BriefReadRefused { task, section, stage, error } => {
+            let error = match error {
+                Some(error) => format!("{error:?}"),
+                None => "None".into(),
+            };
+            format!(
+                "temper serve: brief read refused task={task} section={} stage={stage} error={error}\n",
+                String::from_utf8_lossy(section)
+            )
+        }
+        temper_service::Note::BriefFailed { task, counts, reason } => {
+            format!(
+                "temper serve: brief failed task={task} counts={counts} reason={}\n",
+                String::from_utf8_lossy(&reason)
+            )
+        }
         temper_service::Note::CallAdmissionRefused { task, attempt, tool, layer, reason } => {
             format!(
                 "temper serve: call admission refused task={task} attempt={attempt} tool={} layer={layer} reason={reason}\n",
@@ -966,6 +982,35 @@ fn refusal_lines_name_the_task_attempt_tool_layer_and_reason() {
     });
     assert!(line.contains("task=7 attempt=2 tool=read_file layer=authority reason=connector read denied"));
     assert!(line.contains("findings=[]"));
+}
+
+#[test]
+fn brief_read_refusal_line_names_the_task_section_stage_and_error() {
+    assert_eq!(
+        note_line(temper_service::Note::BriefReadRefused {
+            task: 7,
+            section: b"pull",
+            stage: "item",
+            error: Some(skein_forge::api::Error::InvalidAnswer),
+        }),
+        "temper serve: brief read refused task=7 section=pull stage=item error=InvalidAnswer\n"
+    );
+    assert_eq!(
+        note_line(temper_service::Note::BriefReadRefused { task: 7, section: b"ci", stage: "checks", error: None }),
+        "temper serve: brief read refused task=7 section=ci stage=checks error=None\n"
+    );
+}
+
+#[test]
+fn brief_failure_line_names_how_it_counts_and_why() {
+    assert_eq!(
+        note_line(temper_service::Note::BriefFailed {
+            task: 7,
+            counts: "permanent",
+            reason: b"pull: the forge's answer did not match its read".as_slice().into(),
+        }),
+        "temper serve: brief failed task=7 counts=permanent reason=pull: the forge's answer did not match its read\n"
+    );
 }
 
 #[test]

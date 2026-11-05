@@ -53,27 +53,35 @@ pub(in crate::codec) fn wire_retry_notice(
     limits: &w::Limits,
 ) -> Result<w::RetryNotice, w::Problem> {
     Ok::<_, w::Problem>(match value {
-        c::RetryNotice::OwnerFailed { class, count, allowance } => {
+        c::RetryNotice::OwnerFailed { class, count, allowance, reason } => {
             w::RetryNotice::OwnerFailed(w::RetryNoticeOwnerFailed::new(
                 limits,
                 w::RetryNoticeOwnerFailedParts {
                     class: wire_hold_failure(class, limits)?,
                     count: *(count),
                     allowance: *(allowance),
+                    reason: reason.as_ref().map(|value| bytes::copy_of(value.bytes())),
                 },
             )?)
         }
-        c::RetryNotice::Failed { class, count, allowance } => w::RetryNotice::Failed(w::RetryNoticeFailed::new(
+        c::RetryNotice::Failed { class, count, allowance, reason } => {
+            w::RetryNotice::Failed(w::RetryNoticeFailed::new(
+                limits,
+                w::RetryNoticeFailedParts {
+                    class: wire_failure_class(class, limits)?,
+                    count: *(count),
+                    allowance: *(allowance),
+                    reason: reason.as_ref().map(|value| bytes::copy_of(value.bytes())),
+                },
+            )?)
+        }
+        c::RetryNotice::Refused { count, reason } => w::RetryNotice::Refused(w::RetryNoticeRefused::new(
             limits,
-            w::RetryNoticeFailedParts {
-                class: wire_failure_class(class, limits)?,
+            w::RetryNoticeRefusedParts {
                 count: *(count),
-                allowance: *(allowance),
+                reason: reason.as_ref().map(|value| bytes::copy_of(value.bytes())),
             },
         )?),
-        c::RetryNotice::Refused { count } => {
-            w::RetryNotice::Refused(w::RetryNoticeRefused::new(limits, w::RetryNoticeRefusedParts { count: *(count) })?)
-        }
     })
 }
 
