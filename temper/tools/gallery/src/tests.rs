@@ -61,7 +61,7 @@ fn navigation_links_have_addresses_and_install_action_links_keep_their_binding()
                 temper_client_domain::pages::needs::Act::Open { object },
             ))) = temper_client_view::act(&mut view, node, skein_ui::Act::Press)
             {
-                assert!(sample.name.starts_with("home-"));
+                assert!(sample.name.starts_with("home-") || sample.name == "rail-away-on");
                 assert!(
                     samples::domain(&sample)
                         .pages()
@@ -102,6 +102,15 @@ enum Part {
     Plan { live: u32, title: &'static str },
 }
 const HOLDS: [Holds; samples::N] = [
+    Holds {
+        name: "rail-away-on",
+        heading: "41 changes landed overnight. Three things need you.",
+        parts: &[
+            Part::Named { role: Role::Button, name: "Away until 08:00" },
+            Part::Text { text: "Away until 08:00: agents decide within Hello’s limits." },
+            Part::Named { role: Role::Button, name: "Limits" },
+        ],
+    },
     Holds { name: "start-goal", heading: "Talk to an agent", parts: &[Part::NoRole { role: Role::Dialog }] },
     Holds {
         name: "start-goal-draft",

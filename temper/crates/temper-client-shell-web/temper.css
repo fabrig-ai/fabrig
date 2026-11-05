@@ -1134,7 +1134,7 @@ body > noscript, #app:not(:empty):not(:has(*)) { margin-top: 213px; }
 @media (max-width: 760px) {
   #app:has(> .temper-rail) { grid-template-columns: minmax(0, 1fr); }
   #app > .temper-rail { z-index: 20; height: auto; flex-direction: row; align-items: center; justify-content: space-between; gap: 12px; padding: 14px 16px 10px 20px; border-right: 0; background: var(--gf-paper); overflow: visible; }
-  #app > .temper-rail > :not(.temper-projects) { display: none; }
+  #app > .temper-rail > :not(.temper-projects, .temper-away-chip) { display: none; }
   #app > .temper-rail .temper-projects > summary { justify-content: flex-start; padding: 6px 0; border: 0; background: none; font-size: 17px; font-weight: 600; }
   #app > .temper-rail .temper-projects > summary::before { content: '✦'; margin-right: 8px; color: var(--gf-signal); font-weight: 400; }
   #app > .temper-rail .temper-projects-menu { right: auto; min-width: 220px; }
@@ -1955,6 +1955,19 @@ body > noscript, #app:not(:empty):not(:has(*)) { margin-top: 213px; }
 
 
 
+
+/* ==== ui: away ==== */
+#app > .temper-rail > .temper-rail-foot > .temper-away { display: flex; justify-content: space-between; align-items: center; gap: 8px; width: 100%; margin-bottom: 8px; padding: 8px 10px; border: 1px solid var(--gf-line); border-radius: 8px; background: var(--gf-surface); font: 400 13.5px/1.6 var(--gf-sans); color: var(--gf-muted); text-align: left; }
+.temper-away-track { position: relative; flex: none; width: 30px; height: 18px; border-radius: 9px; background: var(--gf-line-2); transition: background .15s; }
+.temper-away-track::after { content: ''; position: absolute; top: 2px; left: 2px; width: 14px; height: 14px; border-radius: 50%; background: #fff; transition: left .15s; }
+#app > .temper-rail > .temper-rail-foot > .temper-away[aria-pressed=true] { background: var(--gf-ink); border-color: var(--gf-ink); color: #fff; }
+.temper-away[aria-pressed=true] > .temper-away-track { background: #52525b; }
+.temper-away[aria-pressed=true] > .temper-away-track::after { left: 14px; }
+#app > .temper-rail > .temper-away-chip { display: none; }
+@media (max-width: 760px) {
+  #app > .temper-rail > .temper-away-chip { display: block; flex: none; min-height: 36px; padding: 4px 14px; border: 1px solid var(--gf-line-2); border-radius: 18px; background: var(--gf-surface); color: var(--gf-muted); font: 400 13px/1.6 var(--gf-sans); }
+  #app > .temper-rail > .temper-away-chip[aria-pressed=true] { border-color: var(--gf-ink); background: var(--gf-ink); color: #fff; }
+}
 
 /* ==== ui: welcome ==== */
 

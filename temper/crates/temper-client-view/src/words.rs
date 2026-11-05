@@ -696,6 +696,14 @@ pub enum Word {
     TimeDays,
     TimeAgo,
     TimeAt,
+    Away,
+    AwayChipOff,
+    AwayUntil,
+    ToastAwayOnUntil,
+    ToastAwayOn,
+    ToastAwayOff,
+    ToastAwayRefused,
+    AwayLimits,
     TimeClock,
     TimePair,
     TimeDate,
@@ -1184,7 +1192,7 @@ pub(crate) const SCRIPTED_MODEL: &[u8] = b"demo";
 // Forge status adds two phrases and removes View (client/README.md, 3.5).
 // The configuring opening replaces one phrase with nineteen (client/README.md, 3.5).
 // Settings and Needs you include their literal phrases (client/README.md, 3.5, 5.13).
-const PHRASES: u32 = 1674;
+const PHRASES: u32 = 1682;
 // Ready's empty-name line has two literals and a Name hole, two more segments (3.5).
 // Ready's repository lead adds one phrase and three segments (3.5).
 // Four literals and the counted entry's two literals and Number hole add seven segments.
@@ -1201,8 +1209,8 @@ const PHRASES: u32 = 1674;
 // The configuring opening adds twenty literal and hole segments (3.5).
 // Settings and Needs you include their literal segments (client/README.md, 3.5, 5.13).
 // The agent check refusal names its charter, adding two segments.
-const SEGMENTS: u32 = 2906;
-const ALL: [Word; 1077] = [
+const SEGMENTS: u32 = 2922;
+const ALL: [Word; 1085] = [
     Word::SettingsProposalTitle,
     Word::SettingsProposalDrafts,
     Word::SettingsProposalGoals,
@@ -1870,6 +1878,14 @@ const ALL: [Word; 1077] = [
     Word::TimeDays,
     Word::TimeAgo,
     Word::TimeAt,
+    Word::Away,
+    Word::AwayChipOff,
+    Word::AwayUntil,
+    Word::ToastAwayOnUntil,
+    Word::ToastAwayOn,
+    Word::ToastAwayOff,
+    Word::ToastAwayRefused,
+    Word::AwayLimits,
     Word::TimeClock,
     Word::TimePair,
     Word::TimeDate,
@@ -2960,6 +2976,14 @@ impl Word {
             Self::TimeDays => 1205,
             Self::TimeAgo => 1206,
             Self::TimeAt => 1207,
+            Self::Away => 3633,
+            Self::AwayChipOff => 3634,
+            Self::AwayUntil => 3635,
+            Self::ToastAwayOnUntil => 3636,
+            Self::ToastAwayOn => 3637,
+            Self::ToastAwayOff => 3638,
+            Self::ToastAwayRefused => 3639,
+            Self::AwayLimits => 3640,
             Self::TimeClock => 1208,
             Self::TimePair => 1209,
             Self::TimeDate => 1210,
@@ -4441,6 +4465,14 @@ fn english(word: Word, shell: Shell) -> (&'static [&'static [u8]], &'static [Hol
         Word::TimeDays => (&[b"", b" d"], &[Number]),
         Word::TimeAgo => (&[b"", b" ago"], &[Name]),
         Word::TimeAt => (&[b"at ", b""], &[Name]),
+        Word::Away => (&[b"Away"], &[]),
+        Word::AwayChipOff => (&[b"Away: off"], &[]),
+        Word::AwayUntil => (&[b"Away until ", b""], &[Name]),
+        Word::ToastAwayOnUntil => (&[b"Away until ", b": agents decide within ", b"\xe2\x80\x99s limits."], &[Name, Name]),
+        Word::ToastAwayOn => (&[b"Away: agents decide within ", b"\xe2\x80\x99s limits."], &[Name]),
+        Word::ToastAwayOff => (&[b"Away is off: questions wait for you again."], &[]),
+        Word::ToastAwayRefused => (&[b"Away didn\xe2\x80\x99t change. Try again."], &[]),
+        Word::AwayLimits => (&[b"Limits"], &[]),
         Word::TimeClock => (&[b"", b":", b""], &[Name, Name]),
         Word::TimeDate => (&[b"", b" ", b""], &[Number, Name]),
         Word::TimeDateYear => (&[b"", b" ", b""], &[Name, Number]),
