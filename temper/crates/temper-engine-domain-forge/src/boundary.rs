@@ -1148,6 +1148,7 @@ pub enum Stored {
     Playground(Playground),
     Tier(TierRow),
     Verification(Verification),
+    LandingLog(LandingLog),
     Making(crate::RepositoryMaking),
     /// A person's dismissals (temper/docs/design/domain/forge.md, 5.5).
     Dismissed {
@@ -1194,6 +1195,7 @@ pub enum Key {
     Playground,
     Tier { repository: skein_forge::api::Repository, tier: Box<[u8]> },
     Verification { repository: skein_forge::api::Repository, commit: skein_forge::api::Commit },
+    LandingLog { repository: skein_forge::api::Repository },
     Dismissed { party: u64, what: crate::Dismissal },
     Making(crate::MakingKey),
 }
@@ -2219,4 +2221,24 @@ pub struct TierRepair {
     pub run: u64,
     pub tip: skein_forge::api::Commit,
     pub by: Option<skein_forge::api::Commit>,
+}
+
+/// Family 30's ring, oldest first (temper/docs/design/domain/after-landing.md, 10).
+#[derive(Clone, PartialEq, Eq, Hash, Debug)]
+pub struct LandingLog {
+    pub repository: skein_forge::api::Repository,
+    pub landings: Box<[LoggedLanding]>,
+}
+#[derive(Clone, PartialEq, Eq, Hash, Debug)]
+pub struct LoggedLanding {
+    pub commit: skein_forge::api::Commit,
+    pub branch: Box<[u8]>,
+    pub at: skein_lib::Wall,
+    pub changes: Box<[LoggedChange]>,
+}
+#[derive(Clone, PartialEq, Eq, Hash, Debug)]
+pub struct LoggedChange {
+    pub task: u64,
+    pub pull: Option<u64>,
+    pub title: Box<[u8]>,
 }
