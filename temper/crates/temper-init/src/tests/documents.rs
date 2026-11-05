@@ -157,6 +157,7 @@ fn the_default_is_the_owned_example_so_edited() {
                 "/engine/llm/providers",
                 json!([
                     owned["engine"]["llm"]["providers"][0],
+                    anthropic("providers"),
                     {"name": "demo", "number": 3_u64, "signed_in_plan": false,
                      "models": ["demo"], "sources": {"keys": true}}
                 ]),
@@ -165,12 +166,13 @@ fn the_default_is_the_owned_example_so_edited() {
                 "/engine/llm/endpoints",
                 json!([
                     owned["engine"]["llm"]["endpoints"][0],
+                    anthropic("endpoints"),
                     {"name": "demo", "number": 3_u64, "dialect": 3_u64, "provider": "demo",
                      "address": {"socket": format!("127.0.0.1:{}", facts.ports.llm)},
                      "transport": "plaintext", "headers": parse(b"[]"), "connect_ms": 10_000_u64, "handshake_ms": 10_000_u64}
                 ]),
             ),
-            ("/engine/llm/models", json!([owned["engine"]["llm"]["models"][0], demo_model()])),
+            ("/engine/llm/models", json!([owned["engine"]["llm"]["models"][0], anthropic("models"), demo_model()])),
             (
                 "/application/machine",
                 json!({
@@ -374,10 +376,14 @@ fn the_agent_configuration_is_the_owned_examples_but_its_programs() {
         let mut expected = owned.clone();
         let programs = match facts.claude {
             Some(claude) => json!({"claude_code": {"path": text(claude), "directory": "/d/temper/programs"}}),
-            None => json!({}),
+            None => json!({"claude_code": {"path": "fetched", "directory": "/d/temper/programs"}}),
         };
         set(&mut expected, "/programs", programs);
-        set(&mut expected, "/endpoints", json!([owned["endpoints"][0], demo_agent(facts.ports.llm.get())]));
+        set(
+            &mut expected,
+            "/endpoints",
+            json!([owned["endpoints"][0], anthropic_agent(), demo_agent(facts.ports.llm.get())]),
+        );
         expected["endpoints"][0]["models"][0]["prices"]["unit"] = json!(1000_u64);
         assert_eq!(parse(content(&answered, b"agent.json")), expected, "{row}");
     }
@@ -402,8 +408,8 @@ fn facts_are_written_as_json_text() {
         let document = content(&answered, b"temper.json");
         assert!(bytes::find(document, escaped).is_some(), "{row}: JSON escaped the path");
         let parsed = parse(document);
-        assert_eq!(parsed["engine"]["llm"]["endpoints"][1]["address"], json!({"socket": "127.0.0.1:8370"}), "{row}");
-        assert_eq!(parse(content(&answered, b"agent.json"))["endpoints"][1], demo_agent(8370), "{row}");
+        assert_eq!(parsed["engine"]["llm"]["endpoints"][2]["address"], json!({"socket": "127.0.0.1:8370"}), "{row}");
+        assert_eq!(parse(content(&answered, b"agent.json"))["endpoints"][2], demo_agent(8370), "{row}");
         assert_eq!(
             parsed
                 .pointer("/workers/0/agent/program")
@@ -558,4 +564,59 @@ fn the_bare_document_is_the_box_less_its_parts() {
             }
         }
     }
+}
+
+fn anthropic(member: &str) -> Value {
+    match member {
+        "providers" => {
+            parse(br#"{"name":"anthropic","number":2,"signed_in_plan":false,"manage_usage":"https://claude.ai/settings/usage","models":["claude-opus-5-5"],"sources":{"programs":["claude_code"]}}"#)
+        }
+        "endpoints" => {
+            parse(br#"{"name":"anthropic","number":2,"dialect":2,"provider":"anthropic","program":"claude_code","address":{"host":"api.anthropic.com","port":443},"transport":"tls","headers":[],"connect_ms":10000,"handshake_ms":10000,"server_name":"api.anthropic.com"}"#)
+        }
+        "models" => {
+            parse(br#"{"name":"claude-opus-5-5","endpoint":"anthropic","window":1048576,"output":8192,"prices":{"input":1,"cached":1,"output":1,"unit":1000000}}"#)
+        }
+        _ => panic!("known LLM member"),
+    }
+}
+fn anthropic_agent() -> Value {
+    parse(br#"{"name":"anthropic","number":2,"dialect":2,"provider":"anthropic","program":"claude_code","address":"api.anthropic.com:443","transport":"tls","server_name":"api.anthropic.com","connect":10000,"handshake":10000,"headers":[],"models":[{"name":"claude-opus-5-5","prices":{"input":1,"cached":1,"output":1,"unit":1000000},"window":1048576,"output":8192,"reasoning_item":65536,"head":60000,"idle":30000}]}"#)
+}
+#[test]
+fn every_deployment_offers_claude_found_or_fetched() {
+    // setup.md, 8.3: OpenAI, Anthropic and demo fit in one offer.
+    const PROVIDERS: u32 = 3;
+    for (row, facts) in cases() {
+        let boxed = files(&facts, &DIRECTORIES, &[0; 32], &[0xab; 32]).unwrap();
+        let bare = crate::bare(&fixtures::bare_facts(&facts), &DIRECTORIES, &[0; 32]).unwrap();
+        for files in [boxed.files.as_ref(), bare.as_ref()] {
+            let document = parse(file_bytes(files, b"temper.json"));
+            let agent = parse(file_bytes(files, b"agent.json"));
+            for member in ["providers", "endpoints", "models"] {
+                assert_eq!(document["engine"]["llm"][member][1], anthropic(member), "{row}: {member}");
+            }
+            assert_eq!(agent["endpoints"][1], anthropic_agent(), "{row}");
+            assert_eq!(
+                agent["programs"]["claude_code"],
+                json!({"path": text(facts.claude.unwrap_or(crate::FETCHED)), "directory": "/d/temper/programs"}),
+                "{row}"
+            );
+            assert_eq!(agent["environment"], parse(b"[]"), "{row}");
+            let bytes = serde_json::to_vec(&document["engine"]["limits"]).unwrap();
+            let parsed = jig_protocol_config::document(
+                &bytes,
+                &jig_protocol_config::DocumentLimits { bytes: 65_536, tokens: 4096, depth: 16 },
+            )
+            .unwrap();
+            let parsed = jig_protocol_config::overrides::parse(&parsed, 0, &jig_protocol_config::Path::root());
+            assert!(parsed.problems.is_empty(), "{row}: {:?}", parsed.problems);
+            assert!(parsed.limits.core.documents.lines >= PROVIDERS, "{row}");
+        }
+    }
+}
+
+fn file_bytes<'a>(files: &'a [crate::File], name: &[u8]) -> &'a [u8] {
+    let crate::Content::Bytes { bytes, .. } = &fixtures::file(files, name).content else { panic!("document bytes") };
+    bytes
 }

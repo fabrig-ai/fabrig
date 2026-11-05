@@ -12,6 +12,18 @@ fn forbidden_at(path: &Path, source: &str) -> bool {
         // Terminal sign-in execs smith's command (protocol/credentials.md, 3).
         // Other process types and every lock operation retain the same guard.
         source.replace("std::process::Command", "TerminalCommand").replace("process::CommandExt", "TerminalExec")
+    } else if path.ends_with("temper-forge-setup-shell/src/fetch.rs") {
+        // Claude Code's missing build is fetched under an exclusive file lock
+        // (protocol/setup.md, 6.6); process operations stay in process.rs.
+        source.replace(".lock()", ".fetch_lock()")
+    } else if path.ends_with("temper/src/claude_code.rs") {
+        // The launcher execs the pinned build and links the running executable;
+        // its process id names concurrent link replacements (protocol/setup.md, 6.6).
+        source
+            .replace("std::process::Command", "LauncherCommand")
+            .replace("process::CommandExt", "LauncherExec")
+            .replace("std::process::current_exe", "LauncherExecutable")
+            .replace("std::process::id", "LauncherId")
     } else if path.ends_with("temper/src/restart_fault.rs") {
         // The process tier's exact-listener fault aborts its own serve only.
         // Process creation, exec and every lock still belong to their boundaries.
@@ -61,6 +73,17 @@ fn the_scan_catches_each_form_and_passes_other_process_modules() {
         ("temper/src/program_login.rs", "std::process::Child", true),
         ("temper/src/program_login.rs", "std::process::exit(1)", true),
         ("temper/src/program_login.rs", "try_lock", true),
+        ("temper-forge-setup-shell/src/fetch.rs", "file.lock()", false),
+        ("temper-forge-setup-shell/src/fetch.rs", "try_lock", true),
+        ("temper-forge-setup-shell/src/fetch.rs", "std::process::Command", true),
+        ("temper/src/claude_code.rs", "std::process::Command", false),
+        ("temper/src/claude_code.rs", "use std::os::unix::process::CommandExt;", false),
+        ("temper/src/claude_code.rs", "std::process::current_exe()", false),
+        ("temper/src/claude_code.rs", "std::process::id()", false),
+        ("temper/src/claude_code.rs", "std::process::Child", true),
+        ("temper/src/claude_code.rs", "std::process::exit(1)", true),
+        ("temper/src/claude_code.rs", "file.lock()", true),
+        ("other.rs", "file.lock()", true),
         ("temper/src/host.rs", "std::process::abort()", true),
         ("temper/src/restart_fault.rs", "std::process::abort()", false),
         ("temper/src/restart_fault.rs", "std::process::Command", true),

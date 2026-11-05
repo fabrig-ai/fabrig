@@ -618,6 +618,8 @@ fn local_agent(directory: &Path, relative: &str, address: SocketAddr) {
 // Reuse the shell's conversion without making a second public configuration API.
 #[path = "../../src/agent.rs"]
 mod agent;
+#[path = "../../src/fake_backends/json.rs"]
+pub mod json;
 
 /// The strings the service counts, at checked bounds; these paths are never opened.
 pub struct Bounded {

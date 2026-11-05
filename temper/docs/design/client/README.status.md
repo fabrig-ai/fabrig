@@ -11,23 +11,18 @@
   `Board { project }` with its reordering, and `Changes { project }`: no
   address in `temper-client-domain`'s `address.rs`. 3.5, 5.13, 10:
   `HowWorkRuns`, `Proposal { proposal }` and a proposal's card in a chat,
-  with their tests; ctl supplies the review groups and running-work effect
+  with their tests, and with them How work runs' offer of `Configure` and
+  a review's "Change something"; ctl supplies the review groups and running-work effect
   (`tools.md`, 5.2). 3.5, 4.6, 8: Forget, on the Forges page and as the FORGE
   request `Forget`: no `forget` in `temper-client-protocol-wire`'s schema
   or in `temper-service`'s routing. 3.5: Ready's model line names no
   email for a ChatGPT sign-in, whose account's display is empty, since
   the engine keeps no email: it waits on
   `jig/docs/design/draft/account-facts.md`, 6, its second step.
-  3.5, Settings: the forge and account lines await Settings' design;
-  "Open Forgejo ↗" is reached through Forges, one step beyond Settings,
-  and the model line has no other place yet.
-  3.5, Home: "landed" on a chat's line waits on the client's Home
-  chat-row reader: the list gives the chat's state, not what its
-  delegates landed. It needs one read per row; Home uses the supplied
-  chat state, including "closed", until that reader is built.
-  4.4: Home's GitHub step's repository picker and reached count, and
-  the picker, which the adoption page does not draw
-  (`temper-client-view`'s `forge/page.rs`).
+  4.4: the picker, which the adoption page does not draw
+  (`temper-client-view`'s `forge/page.rs`), so Home's GitHub step's
+  "Adopt" opens the form with no picker, and its line counts no
+  repositories, where the mock's does.
   5.5: a plan's first use, its card in the conversation. 3.5, 3.6, 10:
   Delete on a project's settings, confirmed by its name, and jig's
   `RemoveProject` by `shapes::remove_project`, with the chat

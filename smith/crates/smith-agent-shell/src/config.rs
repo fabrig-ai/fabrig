@@ -70,8 +70,14 @@ pub struct Decoded {
 /// invalid transport settings before any channel byte is read.
 #[cfg(unix)]
 pub fn read_decoded(path: &Path) -> Result<Decoded, String> {
-    let bytes = skein_shell::read_file(path, u32::try_from(CONFIG_BYTES).expect("configuration bound fits u32"))
-        .map_err(|why| match why {
+    decode(&read_bytes(path)?)
+}
+
+/// Read one bounded configuration file without decoding its bytes.
+#[cfg(unix)]
+pub fn read_bytes(path: &Path) -> Result<Box<[u8]>, String> {
+    skein_shell::read_file(path, u32::try_from(CONFIG_BYTES).expect("configuration bound fits u32")).map_err(|why| {
+        match why {
             skein_shell::Unread::Absent => format!("configuration metadata: {}: file absent", path.display()),
             skein_shell::Unread::NotAFile => format!("configuration {}: not a regular file", path.display()),
             skein_shell::Unread::TooLarge { max } => {
@@ -79,8 +85,8 @@ pub fn read_decoded(path: &Path) -> Result<Decoded, String> {
             }
             skein_shell::Unread::Unsafe(reason) => format!("configuration read {}: {reason:?}", path.display()),
             skein_shell::Unread::Kernel(error) => format!("configuration read {}: {error:?}", path.display()),
-        })?;
-    decode(&bytes)
+        }
+    })
 }
 
 /// Read and resolve one native configuration, reporting trust diagnostics to stderr.

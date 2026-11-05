@@ -25,8 +25,8 @@ Claude Code beside the ChatGPT plan, whether or not `claude` is on
   the person's (smith's `protocol/programs.md`, 4.2), whichever
   `claude` it is. The welcome's Claude card says so (a look request of
   2026-11-04).
-- **Opus by default;** choosing the model and its effort is separate
-  work, as it is for ChatGPT (section 4).
+- **Opus by default,** `claude-opus-5-5`; choosing the model and its
+  effort is separate work, as it is for ChatGPT (section 4).
 - **No compatibility:** until v0.1.0 there is no supported deployment;
   a box made before this draft is made again to offer Claude (the user,
   2026-11-04).
@@ -63,16 +63,26 @@ Claude Code beside the ChatGPT plan, whether or not `claude` is on
   part file and renamed, within the fetch's bounds, at most once at a
   time; into the cache, kept across boxes, never in the forge's or the
   programs' directories (`../protocol/setup.md`, 6.6).
+- **From Anthropic's native builds:** the file Anthropic's own installer
+  fetches, `https://downloads.claude.ai/claude-code-releases/VERSION/PLATFORM/claude`,
+  at version `2.1.311`, the stable channel on 2026-11-05, its digests
+  and sizes from that release's `manifest.json` (the user, through
+  `claude-always`'s request, 2026-11-05).
 - **Its own updates off:** the fetched build is temper's pin, so Claude
-  Code's own updater does not replace it; a new pin is temper's
-  release.
+  Code's own updater does not replace it, `DISABLE_AUTOUPDATER=1` in
+  the program's environment; a new pin is temper's release.
 - **What the person sees:** the Claude way's first step says it is
   fetching Claude Code, then goes on as it does today.
 
 ## 4. The model
 
-- **Opus,** the model the welcome's mockup names, through Claude
-  Code's `--model` (smith's `protocol/programs.md`, 5.1).
+- **Opus,** the model the welcome's mockup names, by its dated id
+  `claude-opus-5-5`, through Claude Code's `--model` (smith's
+  `protocol/programs.md`, 5.1). Its window, output and prices are those
+  `temper-fake`'s program model declares, window 1,048,576, output
+  8,192 and 1 per 1,000,000: figures that matter little here, since a
+  subscription bills them to nobody (the user, through `claude-always`'s
+  request, 2026-11-05).
 - **Choosing a model and effort** is the separate work the user asked
   for (2026-11-04), for ChatGPT and Claude alike; this draft fixes only
   the default.
@@ -94,12 +104,3 @@ Claude Code beside the ChatGPT plan, whether or not `claude` is on
 - **The person's `claude` installed after init:** taken in place of the
   fetched build, or not; today init's choice holds until the box is
   made again.
-
-## 7. Open questions
-
-- **The model's name and figures:** Claude Code's alias `opus`, which
-  follows Anthropic's newest Opus, or a dated model id pinned with its
-  window, output and prices; and where those figures come from for a
-  subscription, whose calls carry no price.
-- **Where the pinned build comes from:** the address of Claude Code's
-  native builds and its manifest of digests, which the pin follows.
