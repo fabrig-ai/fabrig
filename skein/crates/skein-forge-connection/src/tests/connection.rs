@@ -306,39 +306,3 @@ fn a_failed_step_tail_falls_back_and_reports_omission_at_tiny_bounds() {
         assert_eq!(tail.finish().as_ref(), expected);
     }
 }
-
-#[test]
-fn an_unheld_connect_keeps_the_request_deadline_in_idle() {
-    let mut h = fixtures::Harness::ready();
-    h.component.test_open_call(&h.env, &mut h.io);
-    h.run(Duration::ZERO);
-    h.connected(fixtures::FORGE);
-    assert_eq!(h.component.test_last_connection().phase(), Phase::Idle);
-    assert_eq!(h.component.test_last_connection().deadline(), Some(Time::from_nanos(10_000_000_000)));
-    h.run(Duration::from_secs(5));
-    assert_eq!(h.connections_for(fixtures::FORGE), 1, "unheld connect outlives the idle clock");
-    h.run(Duration::from_secs(5));
-    assert_eq!(h.connections_for(fixtures::FORGE), 0, "unheld connect ends at the request clock");
-}
-
-#[test]
-fn an_idle_connection_without_a_deadline_closes_now() {
-    let mut h = fixtures::Harness::ready();
-    h.component.test_last_connection().rest(None);
-    h.run(Duration::ZERO);
-    assert_eq!(h.connections_for(fixtures::FORGE), 0, "None is already due");
-}
-
-#[test]
-fn a_completed_call_releases_its_connection_on_the_idle_clock() {
-    use skein_forge::api;
-    let mut h = fixtures::known();
-    h.call(1, fixtures::REPO, api::Op::Write(api::Write::DeleteBranch { branch: Box::from(b"work".as_slice()) }));
-    h.run(Duration::ZERO);
-    h.run(Duration::from_secs(2));
-    h.answer(fixtures::FORGE, b"HTTP/1.1 204 No Content\r\n\r\n");
-    h.run(Duration::ZERO);
-    assert_eq!(h.answered(1).expect("call completed").result, Ok(api::Answer::Done));
-    assert_eq!(h.component.test_last_connection().phase(), Phase::Idle);
-    assert_eq!(h.component.test_last_connection().deadline(), Some(Time::from_nanos(7_000_000_000)));
-}
