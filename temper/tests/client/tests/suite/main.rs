@@ -10,6 +10,7 @@ mod amend_tools;
 mod b2;
 mod change_panel;
 mod chat;
+mod chat_draft;
 mod choice;
 mod clearing;
 mod configuring_chat;
