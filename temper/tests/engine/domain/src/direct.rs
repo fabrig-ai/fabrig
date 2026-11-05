@@ -232,6 +232,11 @@ impl Driver {
                         &self.env.limits.forge.client,
                     );
                 }
+                engine::Request::AdoptAccess { forge, request, .. } => {
+                    self.events.push_back(engine::Event::Forge(Box::new(
+                        temper_engine_domain_forge::Event::AccessAnswered { forge, request, answer: Ok(()) },
+                    )));
+                }
                 engine::Request::Stop => self.stopped = true,
                 engine::Request::Worker(engine::WorkerRequest::Host(request)) => self.host_requests.push(request),
                 other @ (engine::Request::Party(_)
@@ -247,7 +252,6 @@ impl Driver {
                 | engine::Request::Connect { .. }
                 | engine::Request::Replace { .. }
                 | engine::Request::Manifest { .. }
-                | engine::Request::AdoptAccess { .. }
                 | engine::Request::Reachable { .. }
                 | engine::Request::Install { .. }
                 | engine::Request::Accept { .. }

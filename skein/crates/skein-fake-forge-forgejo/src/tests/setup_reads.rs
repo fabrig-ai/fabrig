@@ -164,9 +164,7 @@ fn non_admin_repository_path_read_reaches_the_domain() {
 #[test]
 fn admin_unknown_repository_path_read_reaches_the_domain() {
     let mut h = harness();
-    h.send(&Request::Repository {
-        at: skein_forge::forgejo::request::Repo { owner: boxed(b"missing"), ..repo() },
-    });
+    h.send(&Request::Repository { at: skein_forge::forgejo::request::Repo { owner: boxed(b"missing"), ..repo() } });
     assert_eq!(h.status(), 404);
     assert_eq!(h.calls, 1);
 }
