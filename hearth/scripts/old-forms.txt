@@ -5,7 +5,7 @@ worst_case 132
 # The component kit's counts (skein/docs/design/draft/component-kit.md, 4).
 io_resume 1
 earliest_helper 1
-hex_decimal_fn 15
+hex_decimal_fn 8
 host_forwarder 1
 path_attribute 3
 domain_while 0

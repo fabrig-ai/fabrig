@@ -2,7 +2,7 @@
 use crate::{MaxOut, limits::Limits, vector::Name};
 use alloc::boxed::Box;
 use skein_lib::{
-    Env, List, Queue,
+    Env, List, Queue, bytes,
     stream::{Delimiter, Down, Fault, Read, Up},
 };
 /// The six fields used to match and fetch a resolved package.
@@ -277,7 +277,7 @@ fn emit(stanzas: &mut Stanzas, limits: &Limits, above: &mut Queue<Found>) -> Res
     if !relative(&filename) {
         return Err(StanzaError::Value(Field::Filename));
     }
-    let size = decimal(&size).ok_or(StanzaError::Value(Field::Size))?;
+    let size = bytes::decimal(&size).ok_or(StanzaError::Value(Field::Size))?;
     let sha256 = digest(&sha256).ok_or(StanzaError::Value(Field::Sha256))?;
     above.push(Found::Stanza(Stanza { package, version, architecture, filename, size, sha256 }));
     stanzas.preceding = false;
@@ -312,19 +312,6 @@ fn bound(field: Field, limits: &Limits) -> u32 {
         Field::Sha256 => 64,
     }
 }
-fn decimal(value: &[u8]) -> Option<u64> {
-    if value.is_empty() {
-        return None;
-    }
-    let mut number = 0_u64;
-    for b in value {
-        if !b.is_ascii_digit() {
-            return None;
-        }
-        number = number.checked_mul(10)?.checked_add(u64::from(b.checked_sub(b'0')?))?;
-    }
-    Some(number)
-}
 fn digest(value: &[u8]) -> Option<[u8; 32]> {
     if value.len() != 64 {
         return None;
@@ -332,12 +319,7 @@ fn digest(value: &[u8]) -> Option<[u8; 32]> {
     let mut out = [0_u8; 32];
     for (pair, byte) in value.chunks_exact(2).zip(&mut out) {
         for b in pair {
-            let digit = match b {
-                b'0'..=b'9' => b.checked_sub(b'0')?,
-                b'a'..=b'f' => b.checked_sub(b'a')?.checked_add(10)?,
-                b'A'..=b'F' => b.checked_sub(b'A')?.checked_add(10)?,
-                _ => return None,
-            };
+            let digit = bytes::hex_value(*b)?;
             *byte = byte.checked_mul(16)?.checked_add(digit)?;
         }
     }
