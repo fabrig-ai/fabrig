@@ -84,3 +84,17 @@ Options, each with its default:
 ## Report
 
 As the implementer's text asks, and each difference from the mock, with its reason.
+
+## Rebase (2026-11-05, step merge, foreman ui-needs/needs-kinds/foreman-1)
+
+reconcile words.rs vocabulary and phrase IDs with the updated landing target
+The merge conflicts only in `temper/crates/temper-client-view/src/words.rs`.
+Integration commit `546abddf4d` incorporated main’s Configure opening (`70e66541af`) and moved existing Needs phrase IDs to 3216–3231.
+Preserve that Configure vocabulary and the relocated Needs IDs.
+Retain this branch’s `NeedsFundsUsed`, `NeedsRelease`, and dollar-free funds wording.
+Assign the two new words unused phrase IDs: their current 3216/3217 collide with relocated `NeedsLaterMeta`/`NeedsYourReply`. Check the full target vocabulary before choosing IDs.
+Combine both sides’ phrase, segment and text-byte capacity changes; keep each word once in `ALL`.
+Regenerate declarations through `tests::accounts::english_phrase_declarations_match_the_vocabulary` with `SKEIN_CODEGEN_WRITE=1`, through heavy.
+Against integration `93a71c091a`, combined declarations should be PHRASES=1387, SEGMENTS=2396, ALL length=791; text_bytes retains Configure’s +476 and this branch’s +15.
+If the landing target has advanced, recompute from its combined vocabulary.
+Run the spec’s view, gallery and client-world checks through heavy after resolving the merge.
