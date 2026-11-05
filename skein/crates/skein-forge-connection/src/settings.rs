@@ -16,6 +16,14 @@ pub struct Settings {
     pub user_agent: Box<[u8]>,
 }
 
+/// The deployment's inputs shared by its forges (forge-connection.md, 7.1).
+#[derive(Debug)]
+pub(crate) struct Owner {
+    pub webhooks: Option<crate::hooks::Webhooks>,
+    pub word: Box<[u8]>,
+    pub user_agent: Box<[u8]>,
+}
+
 /// One forge; Host derives from its address and transport name.
 #[derive(Debug)]
 pub struct Forge {

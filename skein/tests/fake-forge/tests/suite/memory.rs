@@ -342,7 +342,8 @@ fn outcome(result: Result<Answer, Error>) -> Result<Option<u64>, Error> {
         | Answer::Reviewed(number)
         | Answer::Merged(number)
         | Answer::Revision(number) => Ok(Some(number)),
-        Answer::Located { .. }
+        Answer::Copied { .. }
+        | Answer::Located { .. }
         | Answer::Items { .. }
         | Answer::Item { .. }
         | Answer::Pull(_)

@@ -29,10 +29,10 @@
   Claude Code one on `claude-haiku-5-5` included; the pair's `#[ignore]`
   reasons still say "a person's sitting" and "owner-run only"
   (`crates/temper/tests/live.rs`). 2.8: the one story has not run green
-  on macOS yet, so that every target compiles for Darwin, that the
-  bottles' binaries run alone and that their first lines name the pins
-  stand unproved: no builder runs macOS, and the workflow's runs show
-  them. 4.3: the shell subset;
+  on macOS yet: no recorded run has passed the box's check of its held
+  listeners (`skein/docs/design/shell.md`, 6.6), and that the bottles'
+  first lines name the pins stands unproved. No builder runs macOS, and
+  the workflow's runs show them. 4.3: the shell subset;
   skein's fake machine runs no `sh` and no `rg`. 6.4: of
   temper's kinds' stories, the forge's world's (`forge.md`'s status,
   18); the domain world's project's rule refused to another project's

@@ -12,6 +12,7 @@ use temper_client_domain::forge::{
 use temper_client_protocol_wire::{self as wire, v1 as w};
 pub(super) fn row(connection: C) -> Row {
     Row {
+        makings: Box::new([]),
         host: b"git.example:3000".as_slice().into(),
         number: 3,
         kind: Kind::Forgejo,
@@ -42,6 +43,7 @@ fn record_first(connection: w::Connection, first: Option<w::FirstRepository>) ->
             w::ForgeRow::new(
                 &limits,
                 w::ForgeRowParts {
+                    makings: List::with_capacity(0),
                     host: b"git.example:3000".as_slice().into(),
                     number: 3,
                     kind: w::Kind::Forgejo,
@@ -165,7 +167,7 @@ fn every_state_renders_as_text_and_structured_json() {
         let document = concat(&[
             br#"{"forges":[{"number":3,"host":"git.example:3000","kind":"forgejo","read_only":false,"mode":"owned","offer":"offered","#,
             fields,
-            br#","installations":[],"ended":null,"first":null}]}"#,
+            br#","installations":[],"ended":null,"first":null,"makings":[]}]}"#,
         ]);
         let digest = jig::digest::Digest::of(&document).hex();
         let expected = concat(&[
@@ -836,6 +838,7 @@ fn settled_wait_with_installations(count: u32) {
             w::ForgeRow::new(
                 &limits,
                 w::ForgeRowParts {
+                    makings: List::with_capacity(0),
                     host: b"git.example:3000".as_slice().into(),
                     number: 3,
                     kind: w::Kind::Github,
@@ -989,6 +992,7 @@ fn human_forges_bounds_the_wire_maximum_installations_with_longest_logins() {
             w::ForgeRow::new(
                 &bounds,
                 w::ForgeRowParts {
+                    makings: List::with_capacity(0),
                     host: b"git.example:3000".as_slice().into(),
                     number: 3,
                     kind: w::Kind::Github,
@@ -1346,6 +1350,7 @@ fn lifecycle_answers(words: &[&str], answers: &[(w::Outcome, &[u8], &[u8], u8)])
                 | w::Request::Install(_)
                 | w::Request::Reachable(_)
                 | w::Request::Accept(_)
+                | w::Request::MakeRepository(_)
                 | w::Request::Dismiss(_)
                 | w::Request::StartPlayground) => panic!("unexpected {other:?}"),
             }

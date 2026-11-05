@@ -21,7 +21,7 @@ use skein_forge::{
         request::Method,
     },
 };
-use skein_forge_connection::grow::Tail;
+use skein_forge_connection::grow::LogTail;
 use skein_io::kernel::{Complete, Done, Family, Fd, Op, Submit};
 use skein_json::tokenizer;
 use skein_lib::{List, Queue, ReplyTo, Secret, Time, Token, Wall, bytes};
@@ -395,8 +395,8 @@ impl World {
         let response = self.fetch_blob(&redirect.target, false);
         assert_eq!(response.status, 200);
         let mut tail = match retention {
-            Retention::Tail { bytes } => Tail::new(bytes, bytes),
-            Retention::FailedStep { bytes } => Tail::failed_step(bytes, bytes),
+            Retention::Tail { bytes } => LogTail::new(bytes),
+            Retention::FailedStep { bytes } => LogTail::failed_step(bytes),
             Retention::Head { .. } | Retention::Whole { .. } => panic!("job log retains a suffix"),
         };
         tail.write(&response.body);

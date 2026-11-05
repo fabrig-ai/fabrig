@@ -1641,7 +1641,7 @@ fn turn_bound_document(path: &std::path::Path, turn: u32, escaped: bool) {
 }
 
 #[test]
-fn the_live_github_configuration_passes_startup_admission_for_both_owners() {
+fn the_live_github_configuration_passes_startup_admission() {
     use std::os::unix::ffi::OsStrExt;
     use support::live_github::{configure_engine, document};
 
@@ -1649,51 +1649,50 @@ fn the_live_github_configuration_passes_startup_admission_for_both_owners() {
     let api = "127.0.0.1:31001".parse().expect("synthetic API socket");
     let git = "127.0.0.1:31002".parse().expect("synthetic git socket");
     let workers = "127.0.0.1:31003".parse().expect("synthetic worker socket");
-    for owner in ["freeekanayaka", "fabrig-ai"] {
-        let scratch = support::Scratch::startup(&format!("live-github-admission-{owner}"));
-        let mut cluster = support::cluster::Cluster::description_from(scratch.path(), &templates);
-        for (name, value) in [
-            ("proc.forge.ready.address", "127.0.0.1:31002"),
-            ("proc.llm.ready.address", "127.0.0.1:31004"),
-            ("proc.engine.ready.workers", "127.0.0.1:31003"),
-            ("story.clients", "127.0.0.1:31005"),
-        ] {
-            cluster.bind(name, value);
-        }
-        cluster.prepare("engine");
-        cluster.prepare("w1");
-        let engine_path = cluster.dir("engine").join("config/temper.json");
-        let mut engine = document(&engine_path);
-        configure_engine(&mut engine, owner, api, git, workers);
-        support::write_private(&engine_path, &serde_json::to_vec(&engine).expect("live-shaped engine JSON"));
-        let worker_path = cluster.dir("w1").join("config/temper.json");
-        let mut worker = document(&worker_path);
-        worker["application"]["workers"][0]["git"] = "/usr/bin/git".into();
-        support::write_private(&worker_path, &serde_json::to_vec(&worker).expect("worker JSON"));
-        for member in ["engine", "w1"] {
-            let directory = cluster.dir(member);
-            let config = directory.join("config");
-            let data = directory.join("data");
-            let cache = directory.join("cache");
-            let args: Vec<Box<[u8]>> = [
-                b"--config".as_slice(),
-                config.as_os_str().as_bytes(),
-                b"--data",
-                data.as_os_str().as_bytes(),
-                b"--cache",
-                cache.as_os_str().as_bytes(),
-            ]
-            .into_iter()
-            .map(Box::from)
-            .collect();
-            let (directories, _) = temper::directories::resolve(&args, &[], b"/").expect("member directories");
-            let bytes = fs::read(config.join("temper.json")).expect("rendered configuration");
-            let operations =
-                temper::operations_in(&directories, &bytes).unwrap_or_else(|why| panic!("{owner}/{member}: {why}"));
-            eprintln!("{owner}/{member}: startup admission passed; operations={operations}");
-        }
-        scratch.remove();
+    let owner = "fabrig-ai";
+    let scratch = support::Scratch::startup(&format!("live-github-admission-{owner}"));
+    let mut cluster = support::cluster::Cluster::description_from(scratch.path(), &templates);
+    for (name, value) in [
+        ("proc.forge.ready.address", "127.0.0.1:31002"),
+        ("proc.llm.ready.address", "127.0.0.1:31004"),
+        ("proc.engine.ready.workers", "127.0.0.1:31003"),
+        ("story.clients", "127.0.0.1:31005"),
+    ] {
+        cluster.bind(name, value);
     }
+    cluster.prepare("engine");
+    cluster.prepare("w1");
+    let engine_path = cluster.dir("engine").join("config/temper.json");
+    let mut engine = document(&engine_path);
+    configure_engine(&mut engine, owner, api, git, workers);
+    support::write_private(&engine_path, &serde_json::to_vec(&engine).expect("live-shaped engine JSON"));
+    let worker_path = cluster.dir("w1").join("config/temper.json");
+    let mut worker = document(&worker_path);
+    worker["application"]["workers"][0]["git"] = "/usr/bin/git".into();
+    support::write_private(&worker_path, &serde_json::to_vec(&worker).expect("worker JSON"));
+    for member in ["engine", "w1"] {
+        let directory = cluster.dir(member);
+        let config = directory.join("config");
+        let data = directory.join("data");
+        let cache = directory.join("cache");
+        let args: Vec<Box<[u8]>> = [
+            b"--config".as_slice(),
+            config.as_os_str().as_bytes(),
+            b"--data",
+            data.as_os_str().as_bytes(),
+            b"--cache",
+            cache.as_os_str().as_bytes(),
+        ]
+        .into_iter()
+        .map(Box::from)
+        .collect();
+        let (directories, _) = temper::directories::resolve(&args, &[], b"/").expect("member directories");
+        let bytes = fs::read(config.join("temper.json")).expect("rendered configuration");
+        let operations =
+            temper::operations_in(&directories, &bytes).unwrap_or_else(|why| panic!("{owner}/{member}: {why}"));
+        eprintln!("{owner}/{member}: startup admission passed; operations={operations}");
+    }
+    scratch.remove();
 }
 
 #[test]

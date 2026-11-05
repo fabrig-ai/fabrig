@@ -18,7 +18,7 @@ use skein_forge_conformance::{
     json,
     write::{self, SecretKind, Secrets},
 };
-use skein_forge_connection::grow::Tail;
+use skein_forge_connection::grow::LogTail;
 use skein_lib::{Duration, Wall};
 use std::{fmt::Write as _, fs, path::Path};
 const WORD: &[u8] = b"conformance";
@@ -793,8 +793,8 @@ impl<'a> Runner<'a> {
         request.blob = true;
         let r = self.ask(&request)?;
         let mut tail = match retention {
-            Retention::Tail { bytes } => Tail::new(bytes, bytes),
-            Retention::FailedStep { bytes } => Tail::failed_step(bytes, bytes),
+            Retention::Tail { bytes } => LogTail::new(bytes),
+            Retention::FailedStep { bytes } => LogTail::failed_step(bytes),
             Retention::Head { .. } | Retention::Whole { .. } => {
                 return Err("unexpected log retention".into());
             }

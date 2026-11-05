@@ -310,3 +310,28 @@ holds actions-artifacts-name-selects-only-that-artifact
 holds actions-artifacts-absent-name-is-empty
 holds actions-artifact-zip-is-direct
 holds actions-artifact-zip-keeps-one-failed-id-file
+holds setup-migrate-loopback-http-needs-allow-unencrypted
+holds setup-migrate-answers-201-whole-and-private
+holds setup-migrate-keeps-the-sources-default-branch
+holds setup-migrate-brings-nothing-but-git
+holds setup-migrate-of-a-name-taken-is-409
+fails setup-migrate-of-a-missing-source-says-why-and-leaves-nothing: HTTP 422 message=Some("Authentication failed: Clone: exit status 128 - fatal: could not read Username for 'http://127.0.0.1:3001': terminal prompts disabled\n."), default_branch=None, empty=None; HTTP 200 message=None, default_branch=Some("main"), empty=Some(true)
+holds setup-migrate-of-a-source-with-no-commit-is-201-with-no-branch
+holds setup-migrate-of-a-local-address-is-refused-by-default
+holds setup-migrate-runs-with-offline-mode
+holds setup-repository-delete-is-204-then-404
+holds setup-org-of-a-users-name-reads-404-and-making-it-is-refused
+holds setup-scope-migrate-is-write-repository
+fails setup-scope-delete-repository-is-write-repository: HTTP 403 message=Some("token does not have at least one of required scope(s): [write:organization]"), default_branch=None, empty=None
+holds setup-scope-migrate-without-write-repository-is-refused
+fails setup-scope-delete-repository-without-write-repository-is-refused: HTTP 403 message=Some("token does not have at least one of required scope(s): [write:organization]"), default_branch=None, empty=None
+holds setup-scope-migrate-admin-is-admitted
+holds setup-scope-delete-repository-admin-is-admitted
+holds setup-scope-delete-repository-is-write-organization
+holds setup-scope-delete-repository-read-organization-is-refused
+holds setup-migrate-cut-short-leaves-a-repository-with-no-branch
+holds setup-migrate-cut-short-deletes-and-copies-again
+holds setup-migrate-goes-on-when-its-client-goes
+holds setup-migrate-deleted-while-it-runs
+# setup-migrate-deleted-while-it-runs: DELETE returned 204; after releasing the live migration, repository and branch stayed 404 for 5 seconds; copying the same name again returned 201 with its branch
+unchecked setup-actions-reads-forgejo-workflows-alone-when-both-are-there: --runner absent; source contains both workflow directories

@@ -152,11 +152,14 @@ a chat that names none, runs with no workspace (worker.md, 4.1).
   lacked, and the run may `propose` it instead. A refused tool family
   is named from the call's tool, and repeated findings for that family
   print once; the refusal grants no additional authority.
-- **A coordinator's task reads.** `read_task {task, from?}` returns a related
-  task's current specification, state, dependencies and spec revision, and its
-  hold revision, reason and connector-supplied account. It also reads retained
-  ended direct delegates. A cut specification prints `next: OFFSET`; pass that
-  byte offset as `from`, and restart at zero if the spec revision changes.
+- **A coordinator's task reads.** `read_task {task, field?, from?}` returns a
+  related task's specification by default, state, dependencies and spec revision,
+  and its hold revision, reason and connector-supplied account. Retained ended
+  direct delegates remain readable. `field=result` reads kept terminal reports,
+  including descendants reached through a proven same-project requester chain
+  of live or retained intermediate tasks (jig's `domain/engine.md`, 7.3).
+  A cut answer prints `next: OFFSET`; pass that byte offset as `from` with the
+  same field, and restart specification reads at zero if the spec revision changes.
   Task reads decide nothing and keep no named-call record. Escalations name
   their task and hold revision and give this recovery call. Read access does
   not grant messages or amendments to ended tasks, or the subscribe family.
@@ -546,9 +549,12 @@ by it (8.2); a goal is where the work is planned, so an advisor asked
 for elsewhere leaves the work to be planned in a chat's reply. So one
 fact of the calling run, whether the root built it as a goal, decides
 both. For a tracked goal whose spec marks the work to be agreed (8.2),
-the root first refuses `goal` with `agree` or without `advisor` with
-"this work is to be agreed: ask your requester your plan with message,
-as a question, and wait". An advisor without `agree` remains admitted.
+while it has not asked its requester or a requester question remains
+unanswered, the root first refuses `goal` with `agree` or without
+`advisor` with "this work is to be agreed: ask your requester your plan
+with message, as a question, and wait". Once the requester has answered and no requester
+question remains pending, the ordinary refusal below points to `change`.
+An advisor without `agree` remains admitted.
 Otherwise the root refuses a goal's `goal` without `advisor` (a goal starts
 an advisor alone: set `advisor`, or make the change with `change`), and
 any other run's `goal` with `advisor` set (to change a repository, call

@@ -47,14 +47,23 @@ fn a_repository_creation_race_reads_the_winning_repository_again() {
 fn an_empty_file_list_finishes_after_access_with_the_repository_id() {
     let mut machine = machine();
     at_org(&mut machine);
-    go(&mut machine, fixtures::repository(1, b"first", b"starter"));
+    let Event::Reply(Reply::Document(Document::Repository(mut repository))) =
+        fixtures::repository(1, b"first", b"starter")
+    else {
+        panic!("repository fixture")
+    };
+    repository.default_branch = b"trunk".as_slice().into();
+    go(&mut machine, Event::Reply(Reply::Document(Document::Repository(repository))));
     let permission = skein_forge::forgejo::document::CollaboratorPermission {
         permission: skein_forge::forgejo::document::Permission::Write,
         user: fixtures::person(b"kit", b"kit:bot"),
     };
     assert_eq!(
         go(&mut machine, Event::Reply(Reply::Document(Document::Permission(permission)))),
-        Need::Done(Outcome::Created { id: core::num::NonZeroU64::new(1).expect("id") })
+        Need::Done(Outcome::Created {
+            id: core::num::NonZeroU64::new(1).expect("id"),
+            branch: b"trunk".as_slice().into()
+        })
     );
 }
 #[test]

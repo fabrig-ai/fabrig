@@ -83,8 +83,105 @@ pub enum LinkUp {
     },
 }
 
+impl LinkUp {
+    /// Calls start new work; other reports settle hosted work (domain/hosts.md, 6).
+    #[must_use]
+    pub const fn new_work(&self) -> bool {
+        match self {
+            Self::Call { .. } => true,
+            Self::JobAnswer { .. }
+            | Self::Piece { .. }
+            | Self::Logins { .. }
+            | Self::SignedOut { .. }
+            | Self::Activity { .. }
+            | Self::Unauthorized { .. }
+            | Self::Limited { .. }
+            | Self::AccountRefused { .. }
+            | Self::Turn { .. }
+            | Self::Answer { .. } => false,
+        }
+    }
+}
+
 #[derive(PartialEq, Eq, Hash, Debug)]
 pub enum Relayed {
     Answer { error: bool, text: Box<[u8]> },
     Busy,
+}
+
+#[cfg(test)]
+mod tests {
+    use super::LinkUp;
+    use crate::{
+        AgentActivity, Ending, JobEnding, LiveKind, Phase, Piece, RunAnswer, SignOutResult, SourceName, Turn, Work,
+    };
+    use alloc::boxed::Box;
+    use skein_lib::{Duration, Token};
+
+    #[test]
+    fn only_calls_start_new_work() {
+        let run = Token::new(1);
+        let attempt = Token::new(2);
+        for writes in [false, true] {
+            assert!(
+                LinkUp::Call {
+                    run,
+                    attempt,
+                    call: Box::new([]),
+                    tool: Box::new([]),
+                    writes,
+                    input: Box::new([]),
+                    deadline: Duration::ZERO,
+                }
+                .new_work()
+            );
+        }
+        let work = Work { left: None, saved: None };
+        for record in [
+            LinkUp::JobAnswer {
+                run,
+                attempt,
+                answer: JobEnding::Finished { result: Box::new([]), work: work.clone() },
+            },
+            LinkUp::Piece {
+                run,
+                attempt,
+                piece: Piece { turn: 1, retry: 0, kind: LiveKind::Text, offset: 0, bytes: Box::new([]) },
+            },
+            LinkUp::Logins { logins: Box::new([]) },
+            LinkUp::SignedOut {
+                name: SourceName::new(b"source").expect("source name"),
+                result: SignOutResult::SignedOut,
+            },
+            LinkUp::Activity { run, attempt, activity: AgentActivity::Phase(Phase::Active) },
+            LinkUp::Unauthorized { run, attempt, account: 1, generation: 1 },
+            LinkUp::Limited { run, attempt, account: 1, reset: None },
+            LinkUp::AccountRefused { run, attempt, account: 1, code: Box::new([]), reason: Box::new([]) },
+            LinkUp::Turn {
+                run,
+                attempt,
+                turn: Turn {
+                    opens_window: true,
+                    refused: Box::new([]),
+                    turn: 1,
+                    spent: 0,
+                    read: None,
+                    body: Box::new([]),
+                },
+            },
+            LinkUp::Answer {
+                run,
+                attempt,
+                answer: RunAnswer {
+                    read: None,
+                    refused: Box::new([]),
+                    turns: 1,
+                    spent: 0,
+                    ending: Ending::Parked { work },
+                },
+            },
+        ] {
+            assert!(!record.new_work(), "hosted work is admitted: {record:?}");
+        }
+    }
 }

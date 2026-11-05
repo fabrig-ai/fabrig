@@ -192,6 +192,7 @@ impl Heap for api::Read {
 impl Heap for api::Write {
     fn heap(&self) -> Option<u64> {
         match self {
+            Self::Copy { owner, name, .. } => sum(&[owner.heap(), name.heap()]),
             Self::SetProtection { protection } => protection.heap(),
             Self::CreateIssue { title, body, labels } => sum(&[title.heap(), body.heap(), labels.heap()]),
             Self::Comment { body, .. } | Self::EditComment { body, .. } | Self::Review { body, .. } => body.heap(),
@@ -211,7 +212,8 @@ impl Heap for api::Write {
             Self::Status { context, description, link, .. } => sum(&[context.heap(), description.heap(), link.heap()]),
             Self::Dispatch { workflow, branch, inputs } => sum(&[workflow.heap(), branch.heap(), inputs.heap()]),
             Self::PutPage { name, content } => sum(&[name.heap(), content.heap()]),
-            Self::Rerun { .. }
+            Self::DeleteRepository
+            | Self::Rerun { .. }
             | Self::DeleteComment { .. }
             | Self::Submit { .. }
             | Self::Enqueue { .. }
@@ -235,6 +237,7 @@ impl Heap for api::Git {
 impl Heap for api::Answer {
     fn heap(&self) -> Option<u64> {
         match self {
+            Self::Copied { default_branch, .. } => default_branch.heap(),
             Self::Artifacts(values) => values.heap(),
             Self::Artifact { artifact, .. } => {
                 sum(&[artifact.name.heap(), artifact.path.heap(), artifact.bytes.heap()])

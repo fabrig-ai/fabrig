@@ -1,4 +1,4 @@
-//! Makes a first repository by filling only what is absent (forge-setup.md, 4.9).
+//! Makes or copies a repository, sharing org, access and file steps (skein/docs/design/forge-setup.md, 4.9 and 4.10).
 use crate::{
     access::{Access, Fail, Move, Shared},
     call::Auth,
@@ -24,15 +24,26 @@ enum State {
     MakeOrg,
     Repository,
     MakeRepository,
+    CopyMark,
+    Mark,
+    Migrate,
+    CopyBranch { restart: bool },
+    Delete,
     Access,
     Branch,
     Raw,
     File,
     Ended,
 }
-/// One creation, holding its administrator only until the run ends.
+#[derive(Debug)]
+enum Source {
+    Empty,
+    Copy { from: Box<[u8]> },
+}
+/// One creation or copy, holding its administrator only until the run ends.
 #[derive(Debug)]
 pub struct Create {
+    source: Source,
     forge: u16,
     admin_name: Box<[u8]>,
     admin: Option<Secret>,
@@ -61,6 +72,7 @@ impl Create {
         subject.put(b"/").expect("slash capacity");
         subject.put(&repository).expect("name capacity");
         Ok(Self {
+            source: Source::Empty,
             forge: given.forge,
             admin_name: given.admin_name.clone(),
             admin: None,
@@ -85,11 +97,34 @@ impl Create {
             state: State::Begin,
         })
     }
+    pub(crate) fn copying(
+        given: &Given,
+        org: Box<[u8]>,
+        repository: Box<[u8]>,
+        from: Box<[u8]>,
+        files: Box<[File]>,
+    ) -> Result<Self, Refused> {
+        let plan = crate::host::Plan::Copy { forge: given.forge, org, repository, from, files };
+        given::check_copy(&given.limits, u32::MAX, &plan)?;
+        let crate::host::Plan::Copy { org, repository, from, files, .. } = plan else {
+            unreachable!("copy plan constructed above")
+        };
+        let mut machine = Self::new(given, org, repository, files)?;
+        machine.source = Source::Copy { from };
+        Ok(machine)
+    }
     fn stage(&self) -> Stage {
         match self.state {
             State::Begin | State::AdminFile | State::Admin => Stage::Admin,
             State::Org | State::MakeOrg => Stage::Org,
-            State::Repository | State::MakeRepository | State::Access => Stage::Repository,
+            State::Repository
+            | State::MakeRepository
+            | State::CopyMark
+            | State::Mark
+            | State::Migrate
+            | State::CopyBranch { .. }
+            | State::Delete
+            | State::Access => Stage::Repository,
             State::Branch | State::Raw | State::File => Stage::File,
             State::Ended => unreachable!("ended creation has no outstanding need"),
         }
@@ -117,15 +152,18 @@ impl Create {
         self.state = State::Repository;
         self.send(Request::Repository { at: self.at.clone() })
     }
-    fn access(&mut self, id: u64, branch: Box<[u8]>) -> Result<Need, Why> {
+    fn remember(&mut self, id: u64, branch: Box<[u8]>) -> Result<(), Why> {
         self.id = Some(NonZeroU64::new(id).ok_or(Why::Unexpected)?);
         if branch.is_empty() {
             return Err(Why::Unexpected);
         }
         self.branch = branch;
+        Ok(())
+    }
+    fn access(&mut self) -> Need {
         self.state = State::Access;
         let request = self.access.known(self.at.clone());
-        Ok(self.send(request))
+        self.send(request)
     }
     fn file(&self) -> &File {
         self.files.get(self.next).expect("current file")
@@ -135,7 +173,12 @@ impl Create {
             self.state = State::Ended;
             self.admin = None;
             self.shared.secret = None;
-            Need::Done(Outcome::Created { id: self.id.expect("repository read or made") })
+            let id = self.id.expect("repository read or made");
+            let branch = self.branch.clone();
+            Need::Done(match self.source {
+                Source::Empty => Outcome::Created { id, branch },
+                Source::Copy { .. } => Outcome::Copied { id, branch },
+            })
         } else {
             self.state = State::Branch;
             self.send(Request::Branch { at: self.at.clone(), name: self.branch.clone() })
@@ -188,6 +231,22 @@ impl Create {
                 self.state = State::Org;
                 Ok(self.send(Request::Org { name: self.at.owner.clone() }))
             }
+            State::CopyMark => match event {
+                Event::Read(Some(_)) => Ok(self.copy_branch(true)),
+                Event::Read(None) => Err(Why::Taken),
+                Event::Begin | Event::Reply(_) | Event::Written | Event::Drawn(_) => Err(Why::Unexpected),
+            },
+            State::Mark => match event {
+                Event::Written => {
+                    let from = match &self.source {
+                        Source::Copy { from } => from.clone(),
+                        Source::Empty => unreachable!("only a copy writes its mark"),
+                    };
+                    self.state = State::Migrate;
+                    Ok(self.send(Request::Migrate { at: self.at.clone(), from }))
+                }
+                Event::Begin | Event::Read(_) | Event::Reply(_) | Event::Drawn(_) => Err(Why::Unexpected),
+            },
             State::Access => match self.access.event(&mut self.shared, event) {
                 Ok(Move::Send(request)) => Ok(self.send(request)),
                 Ok(Move::Read(item)) => Ok(Need::Read(item)),
@@ -201,6 +260,9 @@ impl Create {
             | State::MakeOrg
             | State::Repository
             | State::MakeRepository
+            | State::Migrate
+            | State::CopyBranch { .. }
+            | State::Delete
             | State::Branch
             | State::Raw
             | State::File => self.answer(reply(event)?),
@@ -241,16 +303,26 @@ impl Create {
             },
             State::Repository => match answer {
                 Reply::Document(Document::Repository(repository)) => {
-                    self.access(repository.id, repository.default_branch)
+                    self.remember(repository.id, repository.default_branch)?;
+                    Ok(match self.source {
+                        Source::Empty => self.access(),
+                        Source::Copy { .. } => {
+                            self.state = State::CopyMark;
+                            Need::Read(Item::Copying)
+                        }
+                    })
                 }
-                Reply::Status(404) => {
-                    self.state = State::MakeRepository;
-                    Ok(self.send(Request::CreateRepository {
-                        org: self.at.owner.clone(),
-                        name: self.at.name.clone(),
-                        private: true,
-                    }))
-                }
+                Reply::Status(404) => Ok(match self.source {
+                    Source::Empty => {
+                        self.state = State::MakeRepository;
+                        self.send(Request::CreateRepository {
+                            org: self.at.owner.clone(),
+                            name: self.at.name.clone(),
+                            private: true,
+                        })
+                    }
+                    Source::Copy { .. } => self.mark(),
+                }),
                 other @ (Reply::Document(_)
                 | Reply::Rows(_)
                 | Reply::Empty
@@ -262,7 +334,8 @@ impl Create {
             },
             State::MakeRepository => match answer {
                 Reply::Document(Document::CreatedRepository(repository)) => {
-                    self.access(repository.id, repository.default_branch)
+                    self.remember(repository.id, repository.default_branch)?;
+                    Ok(self.access())
                 }
                 Reply::Status(409) => Ok(self.repository()),
                 other @ (Reply::Document(_)
@@ -274,10 +347,87 @@ impl Create {
                 | Reply::GithubRows(_)
                 | Reply::Unsigned) => Err(unexpected(other)),
             },
+            State::Migrate | State::CopyBranch { .. } | State::Delete => self.copy_answer(answer),
             State::Branch | State::Raw | State::File => self.file_answer(answer),
-            State::Begin | State::AdminFile | State::Admin | State::Access | State::Ended => {
+            State::Begin
+            | State::AdminFile
+            | State::Admin
+            | State::CopyMark
+            | State::Mark
+            | State::Access
+            | State::Ended => {
                 unreachable!("creation reply phases")
             }
+        }
+    }
+    fn mark(&mut self) -> Need {
+        self.state = State::Mark;
+        Need::Write { item: Item::Copying, bytes: Secret::new(Box::new([1])) }
+    }
+    fn copy_branch(&mut self, restart: bool) -> Need {
+        self.state = State::CopyBranch { restart };
+        self.send(Request::Branch { at: self.at.clone(), name: self.branch.clone() })
+    }
+    fn copy_answer(&mut self, answer: Reply) -> Result<Need, Why> {
+        match self.state {
+            State::Migrate => match answer {
+                Reply::Document(Document::CreatedRepository(repository)) => {
+                    self.remember(repository.id, repository.default_branch)?;
+                    Ok(self.copy_branch(false))
+                }
+                Reply::Status(409) => Err(Why::Taken),
+                other @ (Reply::Document(_)
+                | Reply::Rows(_)
+                | Reply::Empty
+                | Reply::Status(_)
+                | Reply::Down
+                | Reply::GithubDocument(_)
+                | Reply::GithubRows(_)
+                | Reply::Unsigned) => Err(unexpected(other)),
+            },
+            State::CopyBranch { restart } => match answer {
+                Reply::Document(Document::Branch(_)) => Ok(self.access()),
+                Reply::Status(404) => {
+                    if restart {
+                        self.state = State::Delete;
+                        Ok(self.send(Request::DeleteRepository { at: self.at.clone() }))
+                    } else {
+                        Err(Why::Empty)
+                    }
+                }
+                other @ (Reply::Document(_)
+                | Reply::Rows(_)
+                | Reply::Empty
+                | Reply::Status(_)
+                | Reply::Down
+                | Reply::GithubDocument(_)
+                | Reply::GithubRows(_)
+                | Reply::Unsigned) => Err(unexpected(other)),
+            },
+            State::Delete => match answer {
+                Reply::Empty | Reply::Status(404) => Ok(self.mark()),
+                other @ (Reply::Document(_)
+                | Reply::Rows(_)
+                | Reply::Status(_)
+                | Reply::Down
+                | Reply::GithubDocument(_)
+                | Reply::GithubRows(_)
+                | Reply::Unsigned) => Err(unexpected(other)),
+            },
+            State::Begin
+            | State::AdminFile
+            | State::Admin
+            | State::Org
+            | State::MakeOrg
+            | State::Repository
+            | State::MakeRepository
+            | State::CopyMark
+            | State::Mark
+            | State::Access
+            | State::Branch
+            | State::Raw
+            | State::File
+            | State::Ended => unreachable!("copy reply phases"),
         }
     }
     fn file_answer(&mut self, answer: Reply) -> Result<Need, Why> {
@@ -329,6 +479,11 @@ impl Create {
             | State::MakeOrg
             | State::Repository
             | State::MakeRepository
+            | State::CopyMark
+            | State::Mark
+            | State::Migrate
+            | State::CopyBranch { .. }
+            | State::Delete
             | State::Access
             | State::Ended => unreachable!("file reply phases"),
         }

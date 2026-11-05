@@ -81,6 +81,33 @@ fn due_selects_the_first_due_child_before_an_earlier_alarm() {
 }
 
 #[test]
+fn decision_header_numbers_writing_or_dirty_decisions_once() {
+    for (dirty, wrote, commit) in
+        [(false, false, None), (false, true, Some(1)), (true, false, Some(1)), (true, true, Some(1))]
+    {
+        let limits = limits();
+        let mut core = Core::new(config(41), &limits).expect("fixture core configuration");
+        if !dirty {
+            core.counters = Counters::new(core.counters.deployment());
+        }
+        let mut expected = core.counters.deployment();
+        assert_eq!(expected.commits, 0);
+        let header = match commit {
+            Some(number) => {
+                expected.commits = number;
+                Some(Record::Core(CoreRecord::Deployment(expected)))
+            }
+            None => None,
+        };
+        assert_eq!(core.decision_header(wrote), header, "dirty={dirty}, wrote={wrote}");
+        assert_eq!(core.counters.deployment(), expected);
+        assert!(!core.counters.dirty());
+        assert_eq!(core.decision_header(false), None);
+        assert_eq!(core.counters.deployment(), expected);
+    }
+}
+
+#[test]
 fn cold_header_is_taken_once_and_never_before_the_load() {
     let limits = limits();
     let mut core = Core::new(config(41), &limits).expect("fixture core configuration");

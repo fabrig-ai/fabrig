@@ -359,7 +359,8 @@ pub(super) fn told(state: &mut Forges, env: &Env<Limits>, told: &Told, out: &mut
                     w::How::GithubManifest(_) => (super::making_number(value.forge()), false, None, true),
                     w::How::GithubApp(_) | w::How::ForgejoAdmin(_) | w::How::ForgejoTokens(_) => return false,
                 },
-                w::Request::RemoveForge(_)
+                w::Request::MakeRepository(_)
+                | w::Request::RemoveForge(_)
                 | w::Request::EndPlayground
                 | w::Request::StartPlayground
                 | w::Request::Reachable(_)
@@ -454,6 +455,8 @@ fn answer(value: &Answered, limits: &Limits) -> Option<Answer> {
         w::Outcome::Unknown => Some(Answer::Unknown),
         w::Outcome::Page(_)
         | w::Outcome::Returning
+        | w::Outcome::MakeKept
+        | w::Outcome::MakeRefused(_)
         | w::Outcome::Adopted(_)
         | w::Outcome::CoreRefused(_)
         | w::Outcome::SettingUp

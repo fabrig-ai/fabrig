@@ -28,6 +28,7 @@ pub fn given(owned: bool) -> Given {
             files: 1,
             file_bytes: 4096,
             deadline: Duration::from_secs(120),
+            copy_deadline: Duration::from_secs(1800),
             backoff: Duration::from_millis(100),
             backoff_max: Duration::from_secs(5),
         },
@@ -47,6 +48,7 @@ pub fn config_with_cap(cap: u32) -> Config {
         repositories: List::with_capacity(0),
         max_response_items: cap,
         default_paging_num: 30,
+        sources: Box::new([]),
         faults: Faults { reset: 0, drop: 0, server_error: 0 },
     }
 }
@@ -686,5 +688,80 @@ pub mod github_stories {
     }
     pub fn expire(world: &mut HostWorld) {
         world.advance_to(Time::from_nanos(github_given().limits.state_life.as_nanos()));
+    }
+}
+
+/// Copy-plan scenarios (skein/docs/design/forge-setup.md, 4.10).
+pub mod copy_stories {
+    use super::{Duration, config, host_settings};
+    use skein_fake_forge_domain::{self as domain, api};
+    use skein_fake_forge_protocol::{Config, Source};
+    use skein_forge_setup::host::{Kind, Settings};
+
+    pub const ADDRESS: &[u8] = b"https://source.invalid/upstream/starter";
+    pub const SOURCE: &[u8] = b"upstream/starter";
+    pub const BRANCH: &[u8] = b"trunk";
+    pub const README: &[u8] = b"# Source starter\n";
+    pub const PATH: &[u8] = b".forgejo/workflows/ci.yaml";
+    pub const CONTENT: &[u8] = b"name: ci\n";
+    // One seeded source commit; the copy adds the starter as commit two.
+    pub const SOURCE_ID: u32 = 2;
+    pub const SOURCE_COMMIT: u64 = 1;
+    pub const STARTER_COMMIT: u64 = 2;
+
+    #[must_use]
+    pub fn source(fill: api::Fill) -> Source {
+        Source { address: ADDRESS.into(), repository: SOURCE.into(), private: false, fill }
+    }
+    #[must_use]
+    pub fn catalogue(fill: api::Fill) -> Config {
+        let mut config = config();
+        config.sources = Box::new([source(fill)]);
+        config
+    }
+    #[must_use]
+    pub fn copy_deadline(deadline: Duration) -> Settings {
+        let mut settings = host_settings();
+        let Kind::Forgejo(given) = &mut settings.forges.get_mut(0).expect("Forgejo fixture").kind else {
+            panic!("Forgejo fixture");
+        };
+        given.limits.copy_deadline = deadline;
+        settings
+    }
+    #[must_use]
+    pub fn repository_domain() -> (domain::Domain, domain::Config) {
+        let mut config = skein_forge_machine_world::fixtures::fake_config();
+        config.latency_min = Duration::ZERO;
+        config.latency_max = Duration::ZERO;
+        config.limits.repositories = 4;
+        config.limits.name_bytes = 512;
+        config.limits.content_bytes = 4096;
+        let mut domain = domain::Domain::new(&config, 7);
+        domain::repository(
+            &mut domain,
+            &config,
+            api::Setup {
+                id: SOURCE_ID,
+                name: SOURCE.into(),
+                default: BRANCH.into(),
+                tree: Box::new([api::File { path: b"README.md".as_slice().into(), content: README.into() }]),
+                labels: Box::new([]),
+                checks: api::Checks {
+                    cues: Box::new([]),
+                    contexts: Box::new([]),
+                    latency_min: Duration::ZERO,
+                    latency_max: Duration::ZERO,
+                    silent: 0,
+                    passes: 0,
+                    reruns: 0,
+                    cue: None,
+                },
+                workflows: Box::new([]),
+                protection: None,
+                hooked: false,
+            },
+        );
+        domain::grant(&mut domain, SOURCE, 1, api::Permission::Read);
+        (domain, config)
     }
 }

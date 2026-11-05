@@ -512,7 +512,7 @@ over skein's harness.
 |---|---|---|
 | `welcome-set-up` | on a fresh `temper box --fake-backends` (3.5): the printed sign-in link opened, the welcome drawn, "Set up temper" pressed, then Forgejo's "Run on this machine" pressed on the Forge step, which opens Forgejo's sheet, then the sheet's "Run on this machine", an empty repository chosen, which makes the forge and sets it up (`README.md`, 3.5) | `01.html` and `02.html`, the welcome, the second as it was when "Set up temper" was pressed, which leads to `03.html` and `04.html`, the Forge step's choices, the second as it was when "Run on this machine" was pressed, which leads to `05.html` and `06.html`, Forgejo's sheet, the second as it was when its "Run on this machine" was pressed, which leads to `07.html` and `08.html`, the Model step, the set up running on, the second as it was when the recording ended; its `README.md` says so |
 | `welcome-playground` | on a fresh `temper box --fake-backends` (3.5): the printed sign-in link opened, the welcome drawn, "Try the playground" pressed | `01.html`, the welcome as it was when "Try the playground" was pressed, which leads to `02.html`, the chats page in the Demo project, the playground started, its banner's one line at its pane's foot, as it was when the recording ended; its `README.md` says so |
-| `project-landing` | intended on a fresh `temper box --fake-backends` (3.5): Forgejo run on this machine with an empty `work/hello`, the ChatGPT plan signed in, Ready's offered "Hello" created and its repository adopted, then Home reloaded at `/projects/1`; the fresh walk stops at Ready after the fake sign-in returns with "Model none yet" and "Create your project" disabled | `01.html`, the welcome from the kept recording at `/welcome`, which holds no act; no Home recording replaces it while the fresh walk is blocked; its `README.md` says so |
+| `project-landing` | intended on a fresh `temper box --fake-backends` (3.5): Forgejo run on this machine with an empty `work/hello`, the ChatGPT plan signed in, Ready's offered "Hello" created and its repository adopted, then Home reloaded at `/projects/1`; the fresh walk stops at Ready after the fake sign-in returns with "Model none yet", "Try later" and "Create your project" disabled; retrying also exposes a sign-in registration refusal | `01.html`, the welcome from the kept recording at `/welcome`, which holds no act; no Home recording replaces it while the fresh walk is blocked; its `README.md` says so |
 
 ## 10. Open questions
 
@@ -523,7 +523,11 @@ over skein's harness.
   moves to a journey once the fake box reaches it, its answers then the
   engine's own (`browser.md`, section 7). Model's forge done and failed
   and Ready wait on a fake box whose Forgejo set up finishes, so that
-  fewer states are hand-made (`../draft/look-requests.md`, 8).
+  fewer states are hand-made (`../draft/look-requests.md`, 8). The two
+  fetching states wait on a still page at the fetch: `welcome-set-up`'s
+  recording holds the fetch's rows, but they keep the page moving, so
+  its pages 07 and 08 fall at preparing (8.1;
+  `../protocol/setup.md`, section 15).
 - **A render-check command:** in `temper-client-journeys`, taking a
   request's name. Default: each landing's own script
   (`../draft/look-requests.md`, 4 and 8).

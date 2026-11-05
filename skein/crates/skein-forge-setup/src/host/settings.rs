@@ -57,11 +57,13 @@ impl Forge {
         match &self.kind {
             Kind::Forgejo(given) => Times {
                 deadline: given.limits.deadline,
+                copy_deadline: given.limits.copy_deadline,
                 backoff: given.limits.backoff,
                 backoff_max: given.limits.backoff_max,
             },
             Kind::GitHub(given) => Times {
                 deadline: given.limits.deadline,
+                copy_deadline: given.limits.deadline,
                 backoff: given.limits.backoff,
                 backoff_max: given.limits.backoff_max,
             },
@@ -71,6 +73,7 @@ impl Forge {
 #[derive(Clone, Copy)]
 pub(super) struct Times {
     pub deadline: Duration,
+    pub copy_deadline: Duration,
     pub backoff: Duration,
     pub backoff_max: Duration,
 }
