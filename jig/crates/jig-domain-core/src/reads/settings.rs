@@ -79,7 +79,15 @@ fn refused(to: ReplyTo, key: crate::CallKey, part: crate::CallPart) -> Queue<Req
 
 pub(super) fn answer(destination: super::Destination, value: Answer) -> Queue<Request> {
     let super::Destination::Settings { to, key } = destination else {
-        let super::Destination::Read(reply) = destination else { unreachable!("settings read destination") };
+        let reply = match destination {
+            super::Destination::Read(reply) | super::Destination::RevisionMetadata { reply, .. } => reply,
+            super::Destination::Watch(_)
+            | super::Destination::Erase
+            | super::Destination::Restore
+            | super::Destination::Settings { .. }
+            | super::Destination::RunTask { .. }
+            | super::Destination::Done => unreachable!("settings read destination"),
+        };
         return terminal(reply, value);
     };
     let value = match value {
@@ -345,6 +353,82 @@ pub(super) fn revision(
     }
     revision_read(core, env, Recipient { destination: super::Destination::Read(reply), sign_in, party }, number)
 }
+
+/// A project's member may load its application revision metadata for the application's own reads.
+/// Core values and other scopes' items stay private (jig/docs/design/domain/engine.md, 17.5 and 17.7).
+pub fn revision_metadata(
+    core: &mut Core,
+    env: &Env<Limits>,
+    reply: ReplyTo,
+    sign_in: u64,
+    project: u32,
+    number: u32,
+) -> Queue<Request> {
+    let Some(party) = core.people.person(sign_in, env.now, env.wall) else {
+        return terminal(reply, Answer::None(if core.people.ready() { Why::SignedOut } else { Why::Unknown }));
+    };
+    if !metadata_allowed(core, party, project) {
+        return terminal(reply, Answer::None(Why::Unknown));
+    }
+    revision_read(
+        core,
+        env,
+        Recipient { destination: super::Destination::RevisionMetadata { reply, project }, sign_in, party },
+        number,
+    )
+}
+
+fn metadata_allowed(core: &Core, party: u64, project: u32) -> bool {
+    project != people::DEPLOYMENT && core.open_project(project) && core.people.role(party, project).is_some()
+}
+
+pub(super) fn metadata_loaded(
+    core: &mut Core,
+    env: &Env<Limits>,
+    name: skein_lib::Id<super::Pending>,
+    result: super::Loaded,
+) -> Queue<Request> {
+    let pending = core.reads.get(name).expect("pending revision metadata load");
+    let super::Destination::RevisionMetadata { project, .. } = pending.destination else {
+        unreachable!("revision metadata destination")
+    };
+    let value = if core.people.person(pending.sign_in, env.now, env.wall) != Some(pending.party) {
+        Answer::None(Why::SignedOut)
+    } else if !metadata_allowed(core, pending.party, project) {
+        Answer::None(Why::Unknown)
+    } else {
+        match result {
+            super::Loaded::TooLinked { .. } | super::Loaded::Busy => Answer::None(Why::Busy),
+            super::Loaded::Gone => Answer::None(Why::Gone),
+            super::Loaded::TurnProblem { .. } => Answer::None(Why::Unknown),
+            super::Loaded::Page { rows, next } => {
+                metadata(from_store(core, &env.limits, &pending.range, rows, next), project)
+            }
+        }
+    };
+    let reply = core.reads.get_mut(name).expect("pending revision metadata load").take_reply();
+    core.reads.retire(name);
+    terminal(reply, value)
+}
+
+fn metadata(answer: Answer, project: u32) -> Answer {
+    let Answer::Revision(mut answer) = answer else { return answer };
+    match answer.as_mut() {
+        RevisionAnswer::Revision { revision, .. } => {
+            revision.items = Box::new([]);
+            let mut applications = List::uncapped();
+            for item in &revision.applications {
+                if item.scope == project {
+                    applications.push(item.clone()).expect("subset of loaded revision items");
+                }
+            }
+            revision.applications = applications.into_boxed();
+        }
+        RevisionAnswer::Unknown | RevisionAnswer::Forgotten { .. } => {}
+    }
+    Answer::Revision(answer)
+}
+
 fn revision_read(core: &mut Core, env: &Env<Limits>, recipient: Recipient, number: u32) -> Queue<Request> {
     if core.held(number) {
         return load(core, env, recipient, number, number, true);
@@ -713,6 +797,134 @@ pub(super) fn restore_loaded(
 #[cfg(test)]
 mod tests {
     use super::*;
+    const PROJECT: u32 = 1;
+    const SIGN_IN: u64 = 10;
+    const REPLY: ReplyTo = ReplyTo::new(skein_lib::Token::new(90));
+    const REVISION: u32 = 2;
+    // The application fixture declares an opaque value of eight bytes.
+    const APPLICATION_BYTES: u32 = 8;
+
+    fn metadata_core(role: Option<people::Role>) -> (Core, Env<Limits>) {
+        let (mut core, limits) = crate::tests::core();
+        core.current.head.number = REVISION;
+        let identity = core.people.identity(1).unwrap().clone();
+        core.people = people::Domain::new(&limits.people, Box::new([]), 1, Box::new([]));
+        core.people.start_restore(skein_lib::Wall::EPOCH);
+        let env = Env { now: skein_lib::Time::ZERO, wall: skein_lib::Wall::EPOCH, limits };
+        let people_env = env.with(limits.people);
+        for record in [
+            people::Stored::Person { number: 1, identity },
+            people::Stored::SignIn { number: SIGN_IN, person: 1, expires: skein_lib::Wall::from_nanos(100) },
+            people::Stored::Roles {
+                project: PROJECT,
+                holdings: match role {
+                    Some(role) => Box::new([people::Holding { person: 1, role }]),
+                    None => Box::new([]),
+                },
+            },
+        ] {
+            people::step(&mut core.people, &people_env, people::Event::Restore { record }, &mut Queue::uncapped());
+        }
+        assert!(core.people.start_link(&people_env));
+        core.people.start_sweep();
+        assert!(core.people.start_complete(&people_env));
+        (core, env)
+    }
+
+    fn metadata_load(core: &mut Core, env: &Env<Limits>) -> skein_lib::Token {
+        let mut out = revision_metadata(core, env, REPLY, SIGN_IN, PROJECT, REVISION);
+        let Some(Request::Held(held)) = out.pop() else { panic!("metadata load") };
+        let crate::Held::ReadLoad { load, .. } = *held else { panic!("metadata load") };
+        assert!(out.is_empty());
+        load
+    }
+
+    fn read_answer(mut out: Queue<Request>) -> Answer {
+        let Some(Request::Held(held)) = out.pop() else { panic!("metadata answer") };
+        let crate::Held::Read { reply, answer } = *held else { panic!("metadata answer") };
+        assert_eq!(reply, REPLY);
+        assert!(out.is_empty());
+        answer
+    }
+
+    fn application_item(scope: u32) -> settings::application::RevisionRecorded {
+        settings::application::RevisionRecorded {
+            kind: 7,
+            scope,
+            number: 1,
+            edit: settings::application::SizedEdit::Set { size: APPLICATION_BYTES },
+            replaced: settings::application::Replaced::NotOffered,
+        }
+    }
+
+    #[test]
+    fn project_revision_metadata_keeps_only_its_application_items() {
+        let (mut core, env) = metadata_core(Some(people::Role::Member));
+        let load = metadata_load(&mut core, &env);
+        let revision = settings::Revision {
+            head: core.current.head.clone(),
+            items: Box::new([settings::RevisionItem {
+                setting: settings::Setting::Rules,
+                edit: settings::Edit::Reset,
+                replaced: settings::Replaced::NotOffered,
+            }]),
+            applications: Box::new([application_item(0), application_item(PROJECT), application_item(PROJECT + 1)]),
+        };
+        let rows = Box::new([crate::tests::stored_row(
+            Record::Core(CoreRecord::Settings(settings::Record::Revision { history: false, revision })),
+            None,
+        )]);
+        let out = crate::reads::loaded(
+            &mut core,
+            &env,
+            &mut Queue::uncapped(),
+            load,
+            crate::reads::Loaded::Page { rows, next: None },
+        );
+        let Answer::Revision(answer) = read_answer(out) else { panic!("revision metadata") };
+        let RevisionAnswer::Revision { revision, .. } = *answer else { panic!("revision metadata") };
+        assert!(revision.items.is_empty(), "core values stay private");
+        assert_eq!(revision.applications.as_ref(), &[application_item(PROJECT)]);
+    }
+
+    #[test]
+    fn project_revision_metadata_rechecks_membership_and_sign_in() {
+        for (role, wall, why) in [
+            (None, skein_lib::Wall::EPOCH, Why::Unknown),
+            (Some(people::Role::Member), skein_lib::Wall::from_nanos(100), Why::SignedOut),
+        ] {
+            let (mut core, mut env) = metadata_core(Some(people::Role::Member));
+            let load = metadata_load(&mut core, &env);
+            let (replacement, _) = metadata_core(role);
+            core.people = replacement.people;
+            env.wall = wall;
+            let out = crate::reads::loaded(&mut core, &env, &mut Queue::uncapped(), load, crate::reads::Loaded::Busy);
+            assert_eq!(read_answer(out), Answer::None(why));
+        }
+    }
+
+    #[test]
+    fn project_revision_metadata_admits_only_a_signed_in_projects_member() {
+        for (role, sign_in, project, why) in [
+            (None, SIGN_IN, PROJECT, Why::Unknown),
+            (Some(people::Role::Member), SIGN_IN + 1, PROJECT, Why::SignedOut),
+            (Some(people::Role::Member), SIGN_IN, PROJECT + 1, Why::Unknown),
+            (Some(people::Role::Member), SIGN_IN, people::DEPLOYMENT, Why::Unknown),
+        ] {
+            let (mut core, env) = metadata_core(role);
+            let out = revision_metadata(&mut core, &env, REPLY, sign_in, project, REVISION);
+            assert_eq!(read_answer(out), Answer::None(why), "project {project}, sign in {sign_in}");
+        }
+    }
+
+    #[test]
+    fn ordinary_revision_reads_still_require_a_deployment_role() {
+        let (mut core, env) = metadata_core(Some(people::Role::Member));
+        let out =
+            crate::reads::start(&mut core, &env, REPLY, SIGN_IN, crate::reads::Read::Revision { number: REVISION });
+        assert_eq!(read_answer(out), Answer::None(Why::Unknown));
+    }
+
     #[test]
     fn a_lowered_history_bound_hides_rows_the_commit_could_not_erase() {
         let (mut core, mut limits) = crate::tests::core();

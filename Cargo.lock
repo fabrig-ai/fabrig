@@ -5032,6 +5032,7 @@ dependencies = [
  "temper-docs",
  "temper-engine-domain",
  "temper-engine-domain-forge",
+ "temper-engine-domain-forge-change",
  "temper-settings-form",
 ]
 
