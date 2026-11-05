@@ -841,6 +841,9 @@ pub enum Word {
     WelcomeClaudeChecking,
     WelcomeClaudeNotYet,
 
+    WelcomeForgeStillSettingUp,
+    WelcomeProgramAccount,
+    WelcomeKeyAccount,
     WelcomeForgeDoneDetail,
     WelcomeForgeDoneRepository,
     WelcomeForgejoLead,
@@ -928,7 +931,8 @@ pub(crate) const SCRIPTED_MODEL: &[u8] = b"demo";
 // The configuring opening replaces one phrase with nineteen (client/README.md, 3.5).
 // Model’s panels and notes add fifteen phrases (client/README.md, 3.5).
 // Claude’s welcome panel and check add six literals (client/README.md, 3.5).
-const PHRASES: u32 = 1422;
+// Ready adds its setup note and program/key details (client/README.md, 3.5).
+const PHRASES: u32 = 1425;
 // Ready's empty-name line has two literals and a Name hole, two more segments (3.5).
 // Ready's repository lead adds one phrase and three segments (3.5).
 // Four literals and the counted entry's two literals and Number hole add seven segments.
@@ -945,8 +949,9 @@ const PHRASES: u32 = 1422;
 // The configuring opening adds twenty literal and hole segments (3.5).
 // Five plan-name holes add ten segments to fifteen Model phrases (3.5).
 // Claude’s six literals add six segments (client/README.md, 3.5).
-const SEGMENTS: u32 = 2457;
-const ALL: [Word; 826] = [
+// Ready adds four literal segments and one program-name hole (3.5).
+const SEGMENTS: u32 = 2462;
+const ALL: [Word; 829] = [
     Word::Changes,
     Word::ChangesKicker,
     Word::ChangesNone,
@@ -1753,6 +1758,9 @@ const ALL: [Word; 826] = [
     Word::WelcomeClaudeSignedIn,
     Word::WelcomeClaudeChecking,
     Word::WelcomeClaudeNotYet,
+    Word::WelcomeForgeStillSettingUp,
+    Word::WelcomeProgramAccount,
+    Word::WelcomeKeyAccount,
     Word::WelcomeForgeDoneDetail,
     Word::WelcomeForgeDoneRepository,
     Word::WelcomeForgejoLead,
@@ -2585,6 +2593,9 @@ impl Word {
             Self::WelcomeClaudeSignedIn => 3263,
             Self::WelcomeClaudeChecking => 3264,
             Self::WelcomeClaudeNotYet => 3265,
+            Self::WelcomeForgeStillSettingUp => 3266,
+            Self::WelcomeProgramAccount => 3267,
+            Self::WelcomeKeyAccount => 3268,
 
             Self::WelcomeForgeDoneDetail => 3031,
             Self::WelcomeForgeDoneRepository => 3049,
@@ -2843,7 +2854,8 @@ impl Words {
             // The configuring opening adds 476 literal bytes (client/README.md, 3.5).
             // Model’s fifteen panel and note phrases add 659 literal bytes (3.5).
             // Claude’s six phrases add 468 literal bytes (client/README.md, 3.5).
-            text_bytes: 32768 + 288 + 149 + 401 + 11 + 76 + 476 + 659 + 367 + 468,
+            // Ready’s note and account details add 122 literal bytes (3.5).
+            text_bytes: 122 + 32768 + 288 + 149 + 401 + 11 + 76 + 476 + 659 + 367 + 468,
             // Whole playground requests keep their supplied bound.
             hole_bytes: joined
                 .max(switcher_repository_bytes(joined)?)
@@ -2976,6 +2988,9 @@ fn english(word: Word, shell: Shell) -> (&'static [&'static [u8]], &'static [Hol
         Word::WelcomeClaudeNotYet => (&[b"Claude Code isn\xe2\x80\x99t signed in here yet. Run the command above, then press I\xe2\x80\x99ve signed in."], &[]),
         Word::WelcomeFinishing => (&[b"Finishing your sign-in\xe2\x80\xa6"], &[]),
         Word::WelcomeModelProgramTime => (&[b"One command in a terminal, on this machine"], &[]),
+        Word::WelcomeForgeStillSettingUp => (&[b"Forgejo is still setting up; this page moves on by itself."], &[]),
+        Word::WelcomeProgramAccount => (&[b"", b", signed in on this machine"], &[Name]),
+        Word::WelcomeKeyAccount => (&[b"billed to the key\xe2\x80\x99s organization"], &[]),
         Word::WelcomeForgeDoneDetail => (&[b"connected as ", b""], &[Name]),
         Word::WelcomeForgeDoneRepository => (&[b"", b" made"], &[Name]),
         Word::PublicTitleCut => (&[b"\xe2\x80\xa6"], &[]),
@@ -3236,7 +3251,7 @@ fn english(word: Word, shell: Shell) -> (&'static [&'static [u8]], &'static [Hol
         Word::ForgeStatus => (&[b"", b" \xc2\xb7 ", b""], &[Name, Name]),
         Word::WelcomeForgeConnected => (&[b"", b" \xc2\xb7 connected as ", b""], &[Name, Name]),
         Word::WelcomeForgeLine => (&[b"", b" \xc2\xb7 ", b" \xc2\xb7 ", b""], &[Name, Name, Name]),
-        Word::WelcomeModelSigningIn => (&[b"", b" \xc2\xb7 signing in"], &[Name]),
+        Word::WelcomeModelSigningIn => (&[b"", b" \xc2\xb7 signing in\xe2\x80\xa6"], &[Name]),
         Word::ForgeConfigCode => (&[b"{\n  \"number\": ", b",\n  \"kind\": \"forgejo\",\n  \"api\": {\"host\": \"forge.example\", \"port\": 443},\n  \"transport\": {\"tls\": {\n    \"server_name\": \"forge.example\", \"trust\": null\n  }},\n  \"git\": \"https://forge.example\",\n  \"web\": null,\n  \"log_origins\": null\n}"], &[Number]),
         Word::ForgeIdentityCode => (&[b"{\n  \"number\": ", b", \"forge\": ", b", \"login\": null,\n  \"author\": {\n    \"name\": \"temper\",\n    \"email\": \"temper-bot@forge.example\"\n  }\n}"], &[Number, Number]),
         Word::ForgeSetupCode => (&[b"{\n  \"forge\": ", b",\n  \"bot\": {\"login\": \"temper\", \"email\": \"temper-bot@forge.example\"},\n  \"mode\": \"managed\"\n}"], &[Number]),

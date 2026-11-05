@@ -1196,6 +1196,10 @@ from the engine's own answers, is where the look is tuned.
 | `welcome-paste-sending`, `welcome-paste-finishing` | the finish request in flight, then accepted |
 | `welcome-paste-too-many`, `welcome-paste-ended`, `welcome-paste-expired` | the restart endings, with no paste field |
 | `welcome-paste-lost`, `welcome-paste-unsent` | the address cleared after a lost or unsent finish request |
+| `welcome-ready-none` | Ready with neither forge nor model, their inline connect links and the offered playground |
+| `welcome-ready-signing` | Ready while ChatGPT signs in, its current checklist ring |
+| `welcome-ready-under-way` | Ready while Forgejo sets up, Forge before Model, Each step and the note below the form |
+| `welcome-ready-adopted` | Ready with Forge and Model connected, the project form and Back to Model |
 | `forge-setup-failed` | the failed setup's reason and neutral retry act |
 | `forges-github-install` | GitHub's Forges row before installation, with its primary Install act |
 | `forge-admin-details` | a managed Forgejo's admin Details, with its first-repository fieldset and legend |

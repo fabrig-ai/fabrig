@@ -81,6 +81,8 @@ forge-details
 forge-setting-up-middle
 forge-setup-failed
 welcome-setup-failed
+welcome-ready-none
+welcome-ready-signing
 welcome-ready-under-way
 welcome-ready-adopted
 adoption

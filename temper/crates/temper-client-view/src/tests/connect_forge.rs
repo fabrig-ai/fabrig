@@ -439,7 +439,7 @@ fn the_welcomes_ready_names_the_forge_and_the_model() {
 fn ready_without_a_forge_or_model_offers_the_two_steps() {
     let root = f::welcome_root(Step::Ready, false);
     let view = f::page_view(&root);
-    node(view.tree(), Role::Paragraph, b"Forge none yet");
+    node(view.tree(), Role::Slot, b"Forge none yet");
     node(view.tree(), Role::Slot, b"Model none yet");
     node(view.tree(), Role::Link, b"Connect a forge");
     node(view.tree(), Role::Link, b"Connect a model");
