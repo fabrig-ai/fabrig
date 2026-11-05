@@ -1,5 +1,5 @@
 use crate::{exchange, fixtures};
-use skein_fake_forge_protocol::{Service, Tally, setup::Store};
+use skein_fake_forge_forgejo::{Service, Tally, setup::Store};
 use skein_forge::forgejo::{document::Document, request::Request};
 use skein_forge_setup::item::Item;
 use skein_forge_setup::{
@@ -19,15 +19,15 @@ pub struct World {
     domain: Option<skein_fake_forge_domain::Domain>,
     domain_config: skein_fake_forge_domain::Config,
     service: Service,
-    env: Env<skein_fake_forge_protocol::Limits>,
+    env: Env<skein_fake_forge_forgejo::Limits>,
     files: Vec<(Item, Secret)>,
-    repositories: Vec<skein_fake_forge_protocol::Repository>,
+    repositories: Vec<skein_fake_forge_forgejo::Repository>,
     rng: Rng,
     trace: Vec<String>,
     requests: Vec<Request>,
     secrets: Vec<Secret>,
     outcome: Option<Outcome>,
-    refused: Option<skein_fake_forge_protocol::Route>,
+    refused: Option<skein_fake_forge_forgejo::Route>,
 }
 impl World {
     #[must_use]
@@ -52,7 +52,7 @@ impl World {
     }
     /// A scenario whose repository identities are fixed before the fake starts.
     #[must_use]
-    pub fn with_config(seed: u64, owned: bool, config: skein_fake_forge_protocol::Config) -> Self {
+    pub fn with_config(seed: u64, owned: bool, config: skein_fake_forge_forgejo::Config) -> Self {
         let repositories = config.repositories.iter().cloned().collect();
         let (service, limits) = seeded_config(seed, owned, config);
         Self {
@@ -108,7 +108,7 @@ impl World {
     pub fn forge_number(&mut self, forge: u16) {
         self.given.forge = forge;
     }
-    pub fn refuse(&mut self, route: skein_fake_forge_protocol::Route) {
+    pub fn refuse(&mut self, route: skein_fake_forge_forgejo::Route) {
         self.refused = Some(route);
     }
     pub fn listening(&mut self, address: SocketAddr) {
@@ -188,7 +188,7 @@ impl World {
         self.files.retain(|(item, _)| *item == Item::AdminToken);
     }
     #[must_use]
-    pub fn repository_hooks(&self, repository: u32) -> Vec<&skein_fake_forge_protocol::setup::RepositoryHook> {
+    pub fn repository_hooks(&self, repository: u32) -> Vec<&skein_fake_forge_forgejo::setup::RepositoryHook> {
         self.store().repository_hooks(repository).collect()
     }
     fn repository_path(&mut self, repository: u32) -> skein_forge::forgejo::request::Repo {
@@ -292,7 +292,7 @@ impl World {
                         self.secrets.push(password.clone());
                     }
                     self.requests.push(forgejo.clone());
-                    let reply = if self.refused == Some(skein_fake_forge_protocol::route(forgejo)) {
+                    let reply = if self.refused == Some(skein_fake_forge_forgejo::route(forgejo)) {
                         Reply::Status(403)
                     } else {
                         exchange::send_on(
@@ -303,7 +303,7 @@ impl World {
                             self.rng.next_u64(),
                             &self.repositories,
                             &self.given.bot_login,
-                            self.domain.as_mut().map(|domain| skein_fake_forge_protocol::Hosted {
+                            self.domain.as_mut().map(|domain| skein_fake_forge_forgejo::Hosted {
                                 domain,
                                 config: &self.domain_config,
                             }),
@@ -344,8 +344,8 @@ impl World {
 pub(crate) fn seeded_config(
     seed: u64,
     owned: bool,
-    config: skein_fake_forge_protocol::Config,
-) -> (Service, skein_fake_forge_protocol::Limits) {
+    config: skein_fake_forge_forgejo::Config,
+) -> (Service, skein_fake_forge_forgejo::Limits) {
     let limits = skein_forge_machine_world::fixtures::fake_limits();
     let mut service = Service::new(config, &limits, seed).expect("world service");
     let admin = service.setup_mut().account(b"kit-admin", true, b"");

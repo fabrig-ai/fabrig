@@ -7,7 +7,7 @@ use skein_fake_forge_github::{
     server::{self, Event, Server},
     service::{Limits, Service},
 };
-use skein_fake_forge_protocol::{Route, Tally};
+use skein_fake_forge_forgejo::{Route, Tally};
 use skein_forge::github::request::Method;
 use skein_http::server as http;
 use skein_lib::{Env, Queue, Token, stream::Down};

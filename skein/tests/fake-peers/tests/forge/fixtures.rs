@@ -1,5 +1,5 @@
 use skein_fake_forge_domain::{self as domain, api};
-use skein_fake_forge_protocol::{Config, Faults, Repository};
+use skein_fake_forge_forgejo::{Config, Faults, Repository};
 use skein_fake_peers::{
     Limits,
     forge::{self, Forge, Peer},
@@ -72,8 +72,8 @@ pub fn config() -> Config {
         faults: Faults { reset: 0, drop: 0, server_error: 0 },
     }
 }
-pub fn protocol_limits() -> skein_fake_forge_protocol::Limits {
-    skein_fake_forge_protocol::Limits {
+pub fn protocol_limits() -> skein_fake_forge_forgejo::Limits {
+    skein_fake_forge_forgejo::Limits {
         calls: 4,
         connections: 4,
         raw_bytes: 4096,
@@ -450,7 +450,7 @@ pub struct Refusal {
     pub name: &'static str,
     pub address: SocketAddr,
     pub limits: Limits,
-    pub protocol: skein_fake_forge_protocol::Limits,
+    pub protocol: skein_fake_forge_forgejo::Limits,
     pub config: Config,
     pub shared: Rc<RefCell<Forge>>,
 }
@@ -483,7 +483,7 @@ pub fn refusals() -> [Refusal; 9] {
         Refusal { address: (Ipv4Addr::new(192, 0, 2, 1), 80).into(), ..Refusal::new("non-loopback") },
         Refusal { limits: Limits { queue: SHORT_QUEUE, ..limits() }, ..Refusal::new("short queue") },
         Refusal {
-            protocol: skein_fake_forge_protocol::Limits { calls: 0, ..protocol_limits() },
+            protocol: skein_fake_forge_forgejo::Limits { calls: 0, ..protocol_limits() },
             ..Refusal::new("no protocol bound")
         },
         Refusal { limits: Limits { connections: TOO_MANY_CONNECTIONS, ..limits() }, ..Refusal::new("connections") },
@@ -496,7 +496,7 @@ pub fn refusals() -> [Refusal; 9] {
         Refusal { shared: domain, ..Refusal::new("domain") },
         Refusal {
             // The configured base fits; a kernel-selected five-digit port needs one more byte.
-            protocol: skein_fake_forge_protocol::Limits {
+            protocol: skein_fake_forge_forgejo::Limits {
                 documents: skein_forge::forgejo::limits::Limits {
                     target_bytes: u32::try_from(b"http://127.0.0.1:65535".len()).expect("literal origin") - 1,
                     ..protocol_limits().documents
@@ -522,8 +522,8 @@ const RECEIVER_BACKLOG: u32 = 2;
 const RECEIVE_BYTES: usize = 1024;
 const RECEIVER_OP: u64 = 1;
 
-pub fn endpoint(host: &[u8], secret: &[u8]) -> skein_fake_forge_protocol::delivery::Endpoint {
-    skein_fake_forge_protocol::delivery::Endpoint { forge: 1, host: boxed(host), secret: Secret::new(boxed(secret)) }
+pub fn endpoint(host: &[u8], secret: &[u8]) -> skein_fake_forge_forgejo::delivery::Endpoint {
+    skein_fake_forge_forgejo::delivery::Endpoint { forge: 1, host: boxed(host), secret: Secret::new(boxed(secret)) }
 }
 
 struct Receiver {
@@ -741,12 +741,12 @@ pub fn unusable_endpoints() -> [UnusableEndpoint; 6] {
 }
 pub fn refused_endpoint_updates_preserve_ownership() {
     let mut service =
-        skein_fake_forge_protocol::Service::new(config(), &protocol_limits(), SEED).expect("fixture service");
+        skein_fake_forge_forgejo::Service::new(config(), &protocol_limits(), SEED).expect("fixture service");
     for (host, secret) in [(b"".as_slice(), SECRET), (b"127.0.0.1:7200".as_slice(), b"".as_slice())] {
         service.set_hooks(Some(endpoint(b"127.0.0.1:7200", SECRET))).expect("valid endpoint");
         assert_eq!(
             service.set_hooks(Some(endpoint(host, secret))).err(),
-            Some(skein_fake_forge_protocol::Error::Limits)
+            Some(skein_fake_forge_forgejo::Error::Limits)
         );
         let retained = service.set_hooks(None).expect("clear endpoint").expect("previous endpoint retained");
         assert_eq!(&*retained.host, b"127.0.0.1:7200");

@@ -1,6 +1,6 @@
 //! The host over HTTP bytes, a fake Forgejo and io played by hand.
 use crate::{fixtures, tls::Carrier, world::seeded_config};
-use skein_fake_forge_protocol::{self as fake, Service};
+use skein_fake_forge_forgejo::{self as fake, Service};
 use skein_forge_machine_world::github::{self, Fake};
 use skein_forge_setup::{
     host::{Answer, Event, Host, Limits, Need, Plan, Request, Settings},

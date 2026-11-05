@@ -749,7 +749,7 @@ fn constants_fit() {
     assert_eq!(issued.user, admin.id);
     assert_eq!(issued.secret.expose(), &token);
     assert_eq!(issued.scopes.as_ref(), &[Box::<[u8]>::from(b"all".as_slice())]);
-    assert!(skein_fake_forge_protocol::git::fits(&crate::wire::forge_limits().git(), &forge::LIMITS.limits));
+    assert!(skein_fake_forge_forgejo::git::fits(&crate::wire::forge_limits().git(), &forge::LIMITS.limits));
     assert!(plain.observations().is_empty());
     assert!(peer.observations().is_empty());
 }

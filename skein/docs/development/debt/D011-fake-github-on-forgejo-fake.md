@@ -1,7 +1,7 @@
 # D011: The fake GitHub stands on the fake Forgejo, which is named as the neutral fake
 
 - **Kind:** coupling
-- **Where:** `skein-fake-forge-github`, `skein-fake-forge-protocol`
+- **Where:** `skein-fake-forge-github`, `skein-fake-forge-forgejo`
 - **Seen:** 2026-10-31 at `4a6683c72`, in `reviews/2026-10-31-skein.md` (themes T2 and T8, the fake forge rows) and `reviews/2026-10-31-skein-areas.md` (A5)
 - **Seen:** 2026-10-31 at `337102750`, in `reviews/2026-10-31-skein-first.md` (theme 3)
 - **Checked:** 2026-11-03 at `41d63da8c3`
@@ -17,9 +17,9 @@
 - The git route is neutral in purpose but typed by Forgejo's protocol
   `Limits`, so GitHub's fake (and temper) fill in Forgejo limits they do
   not use.
-- `skein-fake-forge-protocol` is the Forgejo fake, but its name reads as
+- `skein-fake-forge-forgejo` is the Forgejo fake, but its name reads as
   the fakes' shared protocol layer.
-- The two fake servers (`skein-fake-forge-protocol/src/server.rs`, 926
+- The two fake servers (`skein-fake-forge-forgejo/src/server.rs`, 926
   lines, and `skein-fake-forge-github/src/server.rs`, 792 lines) each
   keep a data-less `State` and their own connection machinery; the
   review put the shared part at about 200 lines.

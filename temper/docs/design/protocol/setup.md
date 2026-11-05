@@ -2913,7 +2913,7 @@ them as it does any Forgejo.
   and seeds, from the deployment's document or from one of their own;
   the fake kind's group, its slot among the box's steps. It names no host. Its dependencies:
   `temper-forge-setup`, `skein-fake-forge-domain`,
-  `skein-fake-forge-protocol`, `skein-fake-llm-domain`,
+  `skein-fake-forge-forgejo`, `skein-fake-llm-domain`,
   `skein-fake-llm-protocol`, `skein-llm`, `skein-http`, `skein-forge`,
   `skein-fake-peers`, `jig-protocol-config`, `skein-lib` and
   `skein-json`; and for the check, `temper-protocol-store` and
@@ -3071,11 +3071,11 @@ temper-fake                  step code: the playground's member, application.dem
 │                              checks; the fakes' configurations and seeds; the fake kind's group (8.4).
 │                              Names no host
 ├── temper-forge-setup
-├── skein-fake-forge-domain, skein-fake-forge-protocol, skein-fake-llm-domain, skein-fake-peers
+├── skein-fake-forge-domain, skein-fake-forge-forgejo, skein-fake-llm-domain, skein-fake-peers
 └── jig-protocol-config, skein-lib, skein-json
 temper-fake-git              ordinary Rust: the fake git program's core, temper fake git, its replay and
 │                              its two remotes (../domain/testing.md, 4.3)
-├── skein-fake-checkout, skein-fake-forge-domain, skein-fake-forge-protocol, skein-fake-peers
+├── skein-fake-checkout, skein-fake-forge-domain, skein-fake-forge-forgejo, skein-fake-peers
 └── skein-lib, skein-io, skein-http, skein-json
 temper                       the binary: temper forge fetch|prepare|run|remove, temper box, temper init,
                                temper fake llm|forge|git
@@ -3099,7 +3099,7 @@ temper                       the binary: temper forge fetch|prepare|run|remove, 
   machines are written on skein, under the subset, and the process tier
   provisions its Forgejo with them (13.4).
 - **The fake forge serves the setup's documents** too
-  (`skein-fake-forge-protocol`, skein's `fake-forge.md`, section 4),
+  (`skein-fake-forge-forgejo`, skein's `fake-forge.md`, section 4),
   from the server's side of `skein-forge`, as it serves the engine's.
 - **The fakes are product,** `crates/skein-fake-*` (skein's
   `fake-forge.md`, section 1), since `temper fake`

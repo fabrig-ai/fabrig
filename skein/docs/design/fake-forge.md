@@ -16,7 +16,7 @@ The dialect is forge.md's; the parts under test are the kit's others.
   reads. It is reached through a typed transport: a shared handle within a
   process, and a private git route from another one.
   Git's own protocol is never served (section 3).
-- **The protocol layer** (`crates/skein-fake-forge-protocol`) serves
+- **The protocol layer** (`crates/skein-fake-forge-forgejo`) serves
   Forgejo's API over the domain on skein's HTTP server, with its quirks, the
   setup's routes, signed deliveries and byte faults (section 4).
 - **The forge peer** (in `crates/skein-fake-peers`, beside the LLM and OAuth

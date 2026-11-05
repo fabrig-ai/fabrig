@@ -1,5 +1,5 @@
 [package]
-name = "skein-fake-forge-protocol"
+name = "skein-fake-forge-forgejo"
 description = "Forgejo HTTP over the fake forge's domain"
 version.workspace = true
 edition.workspace = true

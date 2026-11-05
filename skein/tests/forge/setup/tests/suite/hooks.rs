@@ -1,4 +1,4 @@
-use skein_fake_forge_protocol::Route;
+use skein_fake_forge_forgejo::Route;
 use skein_forge::forgejo::{
     delivery::SUBSCRIBED,
     request::{Page, Request},

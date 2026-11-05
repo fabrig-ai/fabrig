@@ -11,7 +11,7 @@ pub const GIT_TOKEN: &[u8] = b"0000000000000000000000000000000000000003";
 const TOKENS: u32 = 5;
 /// The managed forge's table.
 #[must_use]
-pub fn table() -> skein_fake_forge_protocol::Config {
+pub fn table() -> skein_fake_forge_forgejo::Config {
     let mut table = documents::hosted_git::table(b"acme/app", None);
     table.users.get_mut(0).expect("bot user").1 = b"temper".as_slice().into();
     let mut tokens = skein_lib::List::with_capacity(TOKENS);
@@ -57,7 +57,7 @@ pub fn forge_peer(forge: &temper_fake_git::Typed, seed: u64) -> skein_fake_peers
 }
 /// The composition's forge API table.
 #[must_use]
-pub fn forge_table() -> skein_fake_forge_protocol::Config {
+pub fn forge_table() -> skein_fake_forge_forgejo::Config {
     table()
 }
 /// The forge's peer limits.
@@ -87,8 +87,8 @@ pub fn peer_limits() -> skein_fake_peers::Limits {
 }
 /// The forge's HTTP and document limits.
 #[must_use]
-pub fn forge_limits() -> skein_fake_forge_protocol::Limits {
-    skein_fake_forge_protocol::Limits {
+pub fn forge_limits() -> skein_fake_forge_forgejo::Limits {
+    skein_fake_forge_forgejo::Limits {
         calls: 4,
         connections: 4,
         raw_bytes: 4096,

@@ -150,7 +150,7 @@ impl Harness for OneProcess {
         };
         observer::complete(role, complete);
     }
-    fn git_limits() -> skein_fake_forge_protocol::git::Limits {
+    fn git_limits() -> skein_fake_forge_forgejo::git::Limits {
         crate::lower::github::protocol().git()
     }
     fn seeds(_one: u64) -> temper_service::settings::Seeds {

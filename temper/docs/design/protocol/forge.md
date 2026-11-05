@@ -1094,7 +1094,7 @@ temper-fake-git's counted ids use skein's `fake-forge.md`, section 3's
 shared 20-byte form: `mix(count)` big-endian (the SplitMix64 finalizer),
 the count big-endian, then four zero bytes, written as forty lowercase
 hex digits. Its encoder is `skein-fake-forge-domain::object_bytes`; its
-count reader uses `skein-fake-forge-protocol::routes::commit`, which
+count reader uses `skein-fake-forge-forgejo::routes::commit`, which
 validates the whole form. An absent previous head in a fetch keeps git's
 all-zero marker; count zero has its own mixed id. Stored little-endian
 counts are not ids.
