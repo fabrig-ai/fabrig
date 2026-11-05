@@ -1112,6 +1112,7 @@ fn the_banner_is_one_line_with_its_set_up_link() {
         Address::Welcome { step: Step::Welcome },
         Address::Chats { filter: ChatsFilter::All, start: false },
     ] {
+        let chats = address == Address::Chats { filter: ChatsFilter::All, start: false };
         let mut root = f::playground_root(Address::Chats { filter: ChatsFilter::All, start: false }, f::PROJECT, true);
         f::root_event(
             &mut root,
@@ -1123,6 +1124,11 @@ fn the_banner_is_one_line_with_its_set_up_link() {
             if node.role == Role::Region && node.name.as_deref() == Some(b"Playground") {
                 region = Some(index);
             }
+        }
+        // While it runs the line ends the chats pane alone (client/README.md, 5.1).
+        if !chats {
+            assert!(region.is_none());
+            continue;
         }
         let region = region.expect("playground banner");
         let end = region.checked_add(usize::try_from(view.tree().nodes().get(region).unwrap().size).unwrap()).unwrap();
@@ -1149,7 +1155,7 @@ fn the_banner_is_one_line_with_its_set_up_link() {
 fn the_link_sends_end_playground_and_shows_leaving() {
     use super::fixtures as f;
     use temper_client_domain::{Address, Event, forge};
-    let mut root = f::playground_root(Address::Forges, f::PROJECT, true);
+    let mut root = f::playground_root(Address::Chats { filter: ChatsFilter::All, start: false }, f::PROJECT, true);
     let mut view = f::page_view(&root);
     let link = f::find(view.tree(), Role::Link, b"set up temper").unwrap();
     let action = crate::act(&mut view, link, Act::Press).unwrap();
@@ -1159,6 +1165,10 @@ fn the_link_sends_end_playground_and_shows_leaving() {
     assert!(root.forge().leaving());
     assert!(skein_lib::bytes::find(&f::text(view.tree()), "Leaving the playground…".as_bytes()).is_some());
     assert!(f::find(view.tree(), Role::Link, b"set up temper").is_none());
+    // While it is leaving, the line shows on every page (client/README.md, 5.1).
+    f::root_event(&mut root, Event::Went { place: temper_client_domain::Place::Address(Address::Forges) });
+    let view = f::page_view(&root);
+    assert!(skein_lib::bytes::find(&f::text(view.tree()), "Leaving the playground…".as_bytes()).is_some());
 }
 
 fn switcher_act(root: &mut temper_client_domain::Domain, act: pages::switcher::Act) {

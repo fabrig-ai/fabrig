@@ -74,10 +74,9 @@ pub(crate) fn main(
         if offers_first_chat(root) {
             b.open(Role::Button);
             b.name(&words.say(Word::FirstChat, &[]));
-            if !ready_to_start(root) {
-                b.state(State::Disabled);
+            if let Some(project) = root.pages().project() {
+                b.bind(bindings.insert(Act::Go { address: Address::Configure { project } }));
             }
-            b.bind(bindings.insert(Act::FirstChat));
             b.close();
         }
         let ready = ready_to_start(root);
@@ -344,6 +343,13 @@ pub(crate) fn row(
     b.style(crate::look::META);
     if let Some(me) = root.pages().me(root.client()) {
         status(b, &line.chip, (&line.waits_on, None, None), (line.project, line.requester), None, me, words);
+        if temper_client_domain::pages::chats::configuring(me, line.project, &line.chip.executor) {
+            b.open(Role::Paragraph);
+            b.style(crate::look::CONFIGURING_TAG);
+            b.name(&words.say(Word::Configuring, &[]));
+            words.text(b, Word::Configuring, &[]);
+            b.close();
+        }
     }
     // Keep the number's link in a container: a paragraph is flattened to text
     // by the terminal, hiding the command promised by client/README.md, 3.5.
@@ -422,11 +428,42 @@ pub(crate) fn status(
     me: &jig_client::contract::Me,
     words: &Words,
 ) {
+    let (token, name) = status_words(chip, (waits_on, delegates, run_wait), (project, requester), wake, me, words);
+    b.open(Role::Status);
+    b.style(token);
+    b.name(&name);
+    b.text(Run::Plain, &name);
+    b.close();
+}
+
+pub(crate) fn status_name(line: &TaskLine, me: &jig_client::contract::Me, words: &Words) -> Box<[u8]> {
+    if line.ended_at.is_some() || ended(&line.chip) {
+        return words.say(Word::HomeClosed, &[]);
+    }
+    if let jig_client::facts::ChatStatus::WaitingForYou { .. } =
+        jig_client::facts::chat_status(&line.chip, &line.waits_on, None, line.project, me)
+    {
+        return words.say(Word::HomeWaiting, &[]);
+    }
+    status_words(&line.chip, (&line.waits_on, None, None), (line.project, line.requester), None, me, words).1
+}
+
+fn status_words(
+    chip: &jig_client::contract::Chip,
+    (waits_on, delegates, run_wait): (
+        &jig_client::contract::WaitsOn,
+        Option<u32>,
+        Option<&jig_client::contract::TaskRunWait>,
+    ),
+    (project, requester): (u32, jig_client::contract::Requester),
+    wake: Option<&jig_client::contract::WakePolicy>,
+    me: &jig_client::contract::Me,
+    words: &Words,
+) -> (skein_ui::Style, Box<[u8]>) {
     use jig_client::contract::{ChipPhaseFacts, HoldCategory, Requester, WaitsOn, WakeRule};
     use jig_client::facts::ChatStatus;
     if ended(chip) {
-        closed_status(b, words);
-        return;
+        return (crate::look::STATUS_QUIET, words.say(Word::ChatClosed, &[]));
     }
     let live = delegates.unwrap_or({
         let ChipPhaseFacts { details, .. } = chip.details.as_ref();
@@ -452,12 +489,7 @@ pub(crate) fn status(
         None
     };
     if let Some(name) = narrowed {
-        b.open(Role::Status);
-        b.style(crate::look::STATUS_WAITING);
-        b.name(&name);
-        b.text(Run::Plain, &name);
-        b.close();
-        return;
+        return (crate::look::STATUS_WAITING, name);
     }
     let status = jig_client::facts::chat_status(chip, waits_on, run_wait, project, me);
     let holes = match &status {
@@ -484,8 +516,6 @@ pub(crate) fn status(
         ChatStatus::WaitingFor(_) => crate::look::STATUS_WAITING,
         ChatStatus::Parked | ChatStatus::Closing | ChatStatus::Ended { .. } => crate::look::STATUS_QUIET,
     };
-    b.open(Role::Status);
-    b.style(token);
     let name = match status {
         ChatStatus::Held(ref reason @ HoldCategory::Exceeded(_)) => crate::cards::hold_phrase(chip.task, reason, words),
         ChatStatus::WaitingForYou { .. } => words.say(Word::WaitingForYou, &[]),
@@ -501,18 +531,7 @@ pub(crate) fn status(
         | ChatStatus::Held(_)
         | ChatStatus::Closing => words.say_word(jig_client::words::Word::status(&status), holes.as_slice()),
     };
-    b.name(&name);
-    b.text(Run::Plain, &name);
-    b.close();
-}
-
-fn closed_status(b: &mut Builder, words: &Words) {
-    b.open(Role::Status);
-    b.style(crate::look::STATUS_QUIET);
-    let name = words.say(Word::ChatClosed, &[]);
-    b.name(&name);
-    b.text(Run::Plain, &name);
-    b.close();
+    (token, name)
 }
 
 /// The playground whose start the Chats page shows (temper/docs/design/client/README.md, 4.8).

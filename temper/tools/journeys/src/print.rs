@@ -97,8 +97,8 @@ pub const SCRIPT: &str = include_str!("../journey.js");
 #[cfg(test)]
 mod home_tests {
     #[test]
-    fn home_title_keeps_the_page_name_when_the_headline_counts_steps() {
-        for heading in ["Two things left to begin with.", "Hello is ready for work."] {
+    fn home_title_keeps_the_page_name_with_a_ready_headline() {
+        for heading in ["Hello is ready.", "Nothing needs you."] {
             let mark = super::Mark {
                 html: "<div><main class=\"temper-main temper-home\"><h1>Headline</h1></main></div>".to_owned(),
                 heading: heading.as_bytes().to_vec(),

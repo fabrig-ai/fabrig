@@ -20,6 +20,7 @@ use temper_engine_domain_world::{direct::Driver, store::Store, walking};
 pub struct Joint {
     pub engine: Driver,
     pub sign_ins: u32,
+    dismissal_sends: usize,
     /// The ctl caller in this world; existing stories use person 1.
     pub caller: u64,
     pub leaves: Vec<Box<[u8]>>,
@@ -908,6 +909,7 @@ impl Joint {
         Joint {
             engine,
             sign_ins: 0,
+            dismissal_sends: 0,
             caller: fixtures::PARTY,
             leaves: Vec::new(),
             refuse_return: false,
@@ -1706,6 +1708,11 @@ impl Front<Temper> for Joint {
     fn bind(&mut self, who: ClientId, party: u64) {
         self.client_limits.insert(who, self.next_limits.take().unwrap_or(self.limits));
         self.component.receiving(who, self.client_limits[&who].client.domain);
+        // A story can establish the person's membership before opening its Home.
+        if self.transport.clients().contains(&who) {
+            assert_eq!(self.transport.party(who), party, "the fixture-bound person");
+            return;
+        }
         assert_eq!(party, self.caller, "the configured caller");
         self.transport.bind(
             who,
@@ -1734,6 +1741,7 @@ impl Front<Temper> for Joint {
     }
     fn wire(&mut self, who: ClientId, now: Time, _wall: Wall, request: Request) {
         self.advance(now);
+        self.count_dismissal(&request);
         self.request(who, request);
     }
     fn poll(&mut self, now: Time, _wall: Wall) -> Vec<(ClientId, Event)> {

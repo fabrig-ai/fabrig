@@ -14,8 +14,6 @@ demo:
   [10] Set up temper
   [11] Settings
   * Pat
-Playground:
-  This is the playground: a scripted model and in-memory forge. Use the wizard to set up temper
 T1 · Add CSV export to widget:
   * waiting on your words
   0 spent · of 1
