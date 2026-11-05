@@ -149,13 +149,12 @@ fn a_question_through_a_person_task_keeps_nothing() {
 fn moved() -> World {
     let mut world = parked();
     response(&mut world, |reply_to| Event::Move {
+        operation: tasks::Move { task: ASKER, reason: Box::new([]) },
         reply_to,
-        task: ASKER,
         person: PERSON,
         period: 0,
         pool_budget: 1_000,
         period_budget: 10_000,
-        reason: Box::new([]),
     });
     world.restart();
     world
@@ -285,13 +284,12 @@ fn moving_full_credit_lists_publishes_each_affected_task_once() {
             &mut domain,
             &env,
             Event::Move {
+                operation: tasks::Move { task: asker, reason: Box::new([]) },
                 reply_to: ReplyTo::new(Token::new(1)),
-                task: asker,
                 person: PERSON,
                 period: 0,
                 pool_budget: 10_000,
                 period_budget: 100_000,
-                reason: Box::new([]),
             },
         );
         let row = domain.task(asker).expect("moved asker");
@@ -524,13 +522,12 @@ fn the_current_person_answers_after_the_asked_task_moves() {
     const NEXT_PERSON: u64 = PERSON + 1;
     let mut world = person_asked();
     response(&mut world, |reply_to| Event::Move {
+        operation: tasks::Move { task: REQUESTER, reason: Box::new([]) },
         reply_to,
-        task: REQUESTER,
         person: NEXT_PERSON,
         period: 0,
         pool_budget: 1_000,
         period_budget: 10_000,
-        reason: Box::new([]),
     });
     assert_eq!(world.record(ASKER).questions[0].answerer, Party::Person(NEXT_PERSON));
     person_reply(&mut world, PERSON);
@@ -637,14 +634,11 @@ fn asks_cannot_be_amended() {
             reason: Box::new([]),
         };
         let reply = response(&mut world, |reply_to| Event::Amend {
+            operation: tasks::Amend { task: ASKER, stop_run: false, amendment: Box::new(amendment), message: ANSWER },
             reply_to,
             by: Party::Task(REQUESTER),
-            task: ASKER,
             places: Box::new([]),
             funder: None,
-            stop_run: false,
-            amendment,
-            message: ANSWER,
         });
         assert!(matches!(reply, Reply::Refused(problem) if problem.why == Refusal::Spec));
         assert_eq!(world.record(ASKER).spec.asks, old);

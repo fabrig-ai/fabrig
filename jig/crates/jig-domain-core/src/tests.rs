@@ -1270,14 +1270,11 @@ fn person_address_proposals_keep_the_named_revision_and_actual_beforefacts() {
         &mut core,
         &limits,
         tasks::Event::Amend {
+            operation: tasks::Amend { task: 2, message: 21, stop_run: false, amendment: Box::new(moved) },
             places: Box::new([]),
             funder: None,
             reply_to: ReplyTo::new(Token::new(5)),
             by: tasks::Party::Person(1),
-            task: 2,
-            message: 21,
-            stop_run: false,
-            amendment: moved,
         },
     );
     let current = core.tasks.task(2).unwrap();
@@ -3777,14 +3774,11 @@ fn projection_readiness_shares_generation_restore_and_pending_connector_rules() 
         &mut core,
         &limits,
         tasks::Event::Amend {
+            operation: tasks::Amend { task: 1, message: 21, stop_run: false, amendment: Box::new(amendment) },
             places: Box::new([]),
             funder: None,
             reply_to: ReplyTo::new(Token::new(5)),
             by: tasks::Party::Person(1),
-            task: 1,
-            message: 21,
-            stop_run: false,
-            amendment,
         },
     );
     assert!(core.tasks.task(1).unwrap().tracked.is_none());

@@ -1,6 +1,6 @@
 //! Open resumes as Finite; only the next finish differs (domain/tasks.md, 5.5–5.8, 6.7 and 7–9).
 use super::*;
-use jig_domain_tasks::{Class, EscalationDecision, EscalationHolder, Operation, Release, ReplyHint};
+use jig_domain_tasks::{self as tasks, Class, EscalationDecision, EscalationHolder, Operation, Release, ReplyHint};
 use skein_lib::{List, ReplyTo};
 
 const CHAT: u64 = 1;
@@ -231,13 +231,10 @@ fn amend(w: &mut World, task: u64, dependencies: &[u64]) {
     let call = reply_to.into_token();
     let message = w.record(task).last_message + 1;
     w.send(Event::Amend {
+        operation: tasks::Amend { task, message, stop_run: false, amendment: Box::new(amendment(dependencies, None)) },
         places: Box::new([]),
         reply_to: ReplyTo::new(call),
         by: Party::Person(PERSON),
-        task,
-        message,
-        stop_run: false,
-        amendment: amendment(dependencies, None),
         funder: None,
     });
     assert_eq!(w.replies[&call.raw()], Reply::Done);
@@ -313,7 +310,12 @@ fn staged_release(w: &mut World) {
         w,
         vec![
             Operation::Release(Release { task: CHAT, again: None, message: None }),
-            Operation::Amend { task: CHAT, message, stop_run: false, amendment: Box::new(amendment(&[], None)) },
+            Operation::Amend(tasks::Amend {
+                task: CHAT,
+                message,
+                stop_run: false,
+                amendment: Box::new(amendment(&[], None)),
+            }),
         ],
     );
 }
@@ -326,7 +328,12 @@ fn staged_amendment_release(w: &mut World) {
     compound(
         w,
         vec![
-            Operation::Amend { task: CHAT, message, stop_run: false, amendment: Box::new(amendment(&[], release)) },
+            Operation::Amend(tasks::Amend {
+                task: CHAT,
+                message,
+                stop_run: false,
+                amendment: Box::new(amendment(&[], release)),
+            }),
             Operation::Message {
                 task: CHAT,
                 word: Word {

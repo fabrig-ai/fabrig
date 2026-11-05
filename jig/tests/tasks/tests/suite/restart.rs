@@ -1,4 +1,4 @@
-use jig_domain_tasks::{Active, Cancel, End, Event, Key, Party, Phase, Refusal, Stored, TaskResult};
+use jig_domain_tasks::{self as tasks, Active, Cancel, End, Event, Key, Party, Phase, Refusal, Stored, TaskResult};
 use jig_tasks_world::{LIMITS, Reply, World, task};
 use skein_lib::Wall;
 
@@ -797,25 +797,27 @@ fn a_completed_dependency_loaded_for_amendment_restores_without_an_optional_stub
     let reply_to = source.to();
     let call = reply_to.into_token().raw();
     source.send(Event::Amend {
+        operation: tasks::Amend {
+            task: 2,
+            message: 1,
+            stop_run: false,
+            amendment: Box::new(jig_domain_tasks::Amendment {
+                tracked: None,
+                addressed: None,
+                instructions: None,
+                release: None,
+                spec: None,
+                wake: None,
+                dependencies: Some(Box::new([1])),
+                authority: None,
+                llm: None,
+                reason: Box::new([]),
+            }),
+        },
         reply_to: skein_lib::ReplyTo::new(skein_lib::Token::new(call)),
         places: Box::new([place]),
         by: Party::Person(1),
-        task: 2,
-        message: 1,
-        stop_run: false,
         funder: None,
-        amendment: jig_domain_tasks::Amendment {
-            tracked: None,
-            addressed: None,
-            instructions: None,
-            release: None,
-            spec: None,
-            wake: None,
-            dependencies: Some(Box::new([1])),
-            authority: None,
-            llm: None,
-            reason: Box::new([]),
-        },
     });
     assert_eq!(source.replies[&call], Reply::Done);
     assert_eq!(source.record(2).dependencies.as_ref(), [1]);

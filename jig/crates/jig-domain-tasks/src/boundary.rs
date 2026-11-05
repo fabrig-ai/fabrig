@@ -378,21 +378,13 @@ pub struct ProcedureDecision {
     /// Replace this procedure task's specification words, within the specification byte bound.
     pub words: Option<Box<[u8]>>,
     pub batch: Box<[New]>,
-    pub amendments: Box<[ProcedureAmendment]>,
+    pub amendments: Box<[crate::Amend]>,
     pub cancels: Box<[crate::Cancel]>,
     pub messages: Box<[ProcedureMessage]>,
     pub proposals: Box<[crate::Proposal]>,
     /// Dependencies the procedure's work started from (domain/connectors.md, 6.1).
     pub started_from: Box<[u64]>,
     pub end: ProcedureEnd,
-}
-
-#[derive(Clone, PartialEq, Eq, Debug)]
-pub struct ProcedureAmendment {
-    pub task: u64,
-    pub message: u64,
-    pub stop_run: bool,
-    pub amendment: crate::Amendment,
 }
 
 #[derive(Clone, PartialEq, Eq, Debug)]
@@ -1480,6 +1472,7 @@ pub enum Accepted {
 /// Root-issued semantic task/finance inputs after authorization and transport fencing;
 /// notifications have no reply destination and may be ignored if stale. (domain/tasks.md, sections 4–5).
 #[derive(PartialEq, Eq, Debug)]
+#[expect(clippy::large_enum_variant, reason = "proposed operations stay inline and are priced by size_of")]
 pub enum Event {
     /// Close project rows (jig/docs/design/domain/tasks.md, 7).
     CloseProject { project: u32 },
@@ -1583,23 +1576,12 @@ pub enum Event {
         places: Box<[crate::DependencyPlace]>,
         reply_to: ReplyTo,
         by: Party,
-        task: u64,
-        message: u64,
-        stop_run: bool,
-        amendment: crate::Amendment,
+        operation: crate::Amend,
         /// The accepter's source; a direct amendment keeps its present funding.
         funder: Option<Funder>,
     },
     /// Root-authorized person adoption of one live task, with its reservation moved to that person's pool.
-    Move {
-        reply_to: ReplyTo,
-        task: u64,
-        person: u64,
-        period: u64,
-        pool_budget: u64,
-        period_budget: u64,
-        reason: Box<[u8]>,
-    },
+    Move { reply_to: ReplyTo, person: u64, period: u64, pool_budget: u64, period_budget: u64, operation: crate::Move },
     /// Install one root-numbered standing interest for a current task.
     Subscribe { reply_to: ReplyTo, task: u64, subscription: Subscription },
     /// Root-authorized connector topic interest with the same durable task subscription.

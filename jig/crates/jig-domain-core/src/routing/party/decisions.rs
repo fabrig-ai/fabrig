@@ -86,14 +86,11 @@ pub(crate) fn goal_decide(
                         return;
                     };
                     tasks::Event::Amend {
+                        operation: tasks::Amend { task, message, stop_run, amendment },
                         places: Box::new([]),
                         reply_to: ReplyTo::new(request),
                         by: tasks::Party::Person(proposer),
                         funder: Some(source),
-                        task,
-                        message,
-                        stop_run,
-                        amendment: *amendment,
                     }
                 }
             };
@@ -341,14 +338,11 @@ pub(crate) fn person_proposal_accept(
             let before = crate::translate::tasks_authority(&current.authority);
             let stop_run = !authority::at_most(&before, &after, &core.authority.rules().implies);
             tasks::Event::Amend {
+                operation: tasks::Amend { task, message: amend_message, stop_run, amendment: Box::new(amendment) },
                 places: Box::new([]),
                 funder: Some(source),
                 reply_to: ReplyTo::new(request),
                 by: tasks::Party::Person(person),
-                task,
-                message: amend_message,
-                stop_run,
-                amendment,
             }
         }
         tasks::ProposalAction::Widen { task, authority } => {
@@ -357,25 +351,27 @@ pub(crate) fn person_proposal_accept(
                 return;
             };
             tasks::Event::Amend {
+                operation: tasks::Amend {
+                    task,
+                    message: amend_message,
+                    stop_run: false,
+                    amendment: Box::new(tasks::Amendment {
+                        tracked: None,
+                        addressed: None,
+                        release: None,
+                        instructions: None,
+                        spec: None,
+                        wake: None,
+                        dependencies: None,
+                        authority: Some(authority),
+                        llm: None,
+                        reason: proposal.reason,
+                    }),
+                },
                 places: Box::new([]),
                 funder: Some(source),
                 reply_to: ReplyTo::new(request),
                 by: tasks::Party::Person(person),
-                task,
-                message: amend_message,
-                stop_run: false,
-                amendment: tasks::Amendment {
-                    tracked: None,
-                    addressed: None,
-                    release: None,
-                    instructions: None,
-                    spec: None,
-                    wake: None,
-                    dependencies: None,
-                    authority: Some(authority),
-                    llm: None,
-                    reason: proposal.reason,
-                },
             }
         }
         tasks::ProposalAction::ReleasePlaced { task, .. } | tasks::ProposalAction::Release { task } => {

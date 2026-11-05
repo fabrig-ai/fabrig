@@ -171,14 +171,11 @@ impl Harness {
     pub(super) fn amend(&mut self, number: u64, amendment: Amendment) {
         let message = self.domain.task(number).unwrap().last_message.checked_add(1).expect("test message room");
         let out = self.send(Event::Amend {
+            operation: crate::Amend { task: number, message, stop_run: false, amendment: Box::new(amendment) },
             places: Box::new([]),
             funder: None,
             reply_to: to(),
             by: Party::Person(9),
-            task: number,
-            message,
-            stop_run: false,
-            amendment,
         });
         assert!(
             out.iter().any(|request| match request {
@@ -650,14 +647,11 @@ fn words_release_a_stop_before_its_cancelled_run_answers() {
     authority.budget.spend = 90;
     change.authority = Some(authority);
     test.send(Event::Amend {
+        operation: crate::Amend { task: 1, message: 2, stop_run: true, amendment: Box::new(change) },
         places: Box::new([]),
         funder: None,
         reply_to: to(),
         by: Party::Person(9),
-        task: 1,
-        message: 2,
-        stop_run: true,
-        amendment: change,
     });
     assert!(test.domain.task(1).unwrap().narrowing);
     assert_eq!(test.domain.task(1).unwrap().due_reason, crate::Why::Narrowed);
@@ -700,14 +694,16 @@ fn an_amendment_releases_only_the_named_hold_and_preflights_both_changes() {
     bad.dependencies = Some(Box::new([99]));
     let before = h.domain.task(1).unwrap().clone();
     h.send(Event::Amend {
+        operation: crate::Amend {
+            task: 1,
+            message: before.last_message + 1,
+            stop_run: false,
+            amendment: Box::new(bad),
+        },
         places: Box::new([]),
         funder: None,
         reply_to: to(),
         by: Party::Person(9),
-        task: 1,
-        message: before.last_message + 1,
-        stop_run: false,
-        amendment: bad,
     });
     assert_eq!(h.domain.task(1), Some(&before));
     crate::domain::task_mut(&mut h.domain, 1).unwrap().record.revision = u64::MAX - 1;
@@ -715,14 +711,16 @@ fn an_amendment_releases_only_the_named_hold_and_preflights_both_changes() {
     let mut change = amendment();
     change.release = Some(held);
     h.send(Event::Amend {
+        operation: crate::Amend {
+            task: 1,
+            message: before.last_message + 1,
+            stop_run: false,
+            amendment: Box::new(change),
+        },
         places: Box::new([]),
         funder: None,
         reply_to: to(),
         by: Party::Person(9),
-        task: 1,
-        message: before.last_message + 1,
-        stop_run: false,
-        amendment: change,
     });
     assert_eq!(h.domain.task(1), Some(&before));
 }
@@ -1095,14 +1093,16 @@ fn settings_amend(test: &mut Harness, number: u64, model: u8) -> Vec<Request> {
     let mut change = amendment();
     change.llm = Some(settings_choice(model));
     test.send(Event::Amend {
+        operation: crate::Amend {
+            task: number,
+            message: test.domain.task(number).unwrap().last_message.checked_add(1).unwrap(),
+            stop_run: false,
+            amendment: Box::new(change),
+        },
         places: Box::new([]),
         funder: None,
         reply_to: to(),
         by: Party::Person(9),
-        task: number,
-        message: test.domain.task(number).unwrap().last_message.checked_add(1).unwrap(),
-        stop_run: false,
-        amendment: change,
     })
 }
 

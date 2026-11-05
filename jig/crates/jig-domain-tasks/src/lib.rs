@@ -133,18 +133,18 @@ pub use boundary::{
     Accepted, Active, Added, Bound, Cause, ChangeTitle, Circle, Closing, Contract, Deadline, DelegateState,
     DelegationContext, End, Ending, Event, Exceeded, Executor, FieldRule, Hold, HoldKind, HoldSource, Holding,
     InvalidResult, JobSpec, KeptStart, Key, Kind, MessageKind, Name, New, NewsClass, NoticeState, Parameter, Party,
-    PersonAddress, PersonAnswer, PersonStallNotice, PersonWait, Phase, PoolSlots, Problem, ProcedureAmendment,
-    ProcedureDecision, ProcedureEnd, ProcedureInput, ProcedureMessage, QuestionCredit, QuestionNotice,
-    RecurringOverlap, RecurringState, RecurringTemplate, Refusal, ReplyHint, Request, ResourceAccess, ResultField,
-    ResultFollowups, ResultKind, ResultsWake, Revisions, RunContext, SavedResource, SettingsRevision, Spec, Stage,
-    Status, Stored, Stub, Subscription, SubscriptionKind, Taken, TaskRecord, TaskResult, Verdict, WakePolicy, WakeRule,
-    Was, Word, Writer, WriterSlot,
+    PersonAddress, PersonAnswer, PersonStallNotice, PersonWait, Phase, PoolSlots, Problem, ProcedureDecision,
+    ProcedureEnd, ProcedureInput, ProcedureMessage, QuestionCredit, QuestionNotice, RecurringOverlap, RecurringState,
+    RecurringTemplate, Refusal, ReplyHint, Request, ResourceAccess, ResultField, ResultFollowups, ResultKind,
+    ResultsWake, Revisions, RunContext, SavedResource, SettingsRevision, Spec, Stage, Status, Stored, Stub,
+    Subscription, SubscriptionKind, Taken, TaskRecord, TaskResult, Verdict, WakePolicy, WakeRule, Was, Word, Writer,
+    WriterSlot,
 };
 pub use capacity::{Capacity, CapacityAction, CapacityCause, CapacityRefusal};
 
 pub use control::{
-    AddressChange, Amendment, AmendmentHistory, Cancel, Change, DependencyPlace, History, Milestone, Release, Settings,
-    Tracking, address_admit, instruction_admit,
+    AddressChange, Amend, Amendment, AmendmentHistory, Cancel, Change, DependencyPlace, History, Milestone, Release,
+    Settings, Tracking, address_admit, instruction_admit,
 };
 pub use domain::{Domain, ViewTask, fire, step, view_phase};
 pub use escalation::{Escalation, EscalationContext, EscalationDecision, EscalationHolder, EscalationOutcome};
@@ -155,6 +155,7 @@ pub use grace::Grace;
 pub use holds::valid_name;
 pub use limits::{Limits, VERDICT_FIELDS, valid};
 pub use llm::{AccountWhy, CharterModels, LlmChoice, LlmFault, MODELS, ModelEffort};
+pub use moving::Move;
 pub use owned::{batch_bytes, phase_bytes, stored_bytes, task_bytes, terminal_bytes};
 pub use parts::{Part, PartKey, PartKind};
 pub use periods::PeriodTimes;

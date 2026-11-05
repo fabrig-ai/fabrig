@@ -73,8 +73,18 @@ fn a_compound_makes_its_operations_in_order_in_one_step() {
     compound(
         &mut test,
         vec![
-            Operation::Amend { task: FIRST, message: FIRST_MESSAGE, stop_run: false, amendment: Box::new(first) },
-            Operation::Amend { task: FIRST, message: SECOND_MESSAGE, stop_run: false, amendment: Box::new(second) },
+            Operation::Amend(crate::Amend {
+                task: FIRST,
+                message: FIRST_MESSAGE,
+                stop_run: false,
+                amendment: Box::new(first),
+            }),
+            Operation::Amend(crate::Amend {
+                task: FIRST,
+                message: SECOND_MESSAGE,
+                stop_run: false,
+                amendment: Box::new(second),
+            }),
         ],
         1_000,
     );
@@ -101,8 +111,8 @@ fn moves_count_one_pool_across_the_request() {
     let out = compound(
         &mut test,
         vec![
-            Operation::Move { task: FIRST, reason: Box::new([]) },
-            Operation::Move { task: SECOND, reason: Box::new([]) },
+            Operation::Move(crate::Move { task: FIRST, reason: Box::new([]) }),
+            Operation::Move(crate::Move { task: SECOND, reason: Box::new([]) }),
         ],
         150,
     );
@@ -127,7 +137,12 @@ fn an_amendment_then_a_release_of_one_held_task_are_made_together() {
     compound(
         &mut test,
         vec![
-            Operation::Amend { task: FIRST, message: FIRST_MESSAGE, stop_run: false, amendment: Box::new(change) },
+            Operation::Amend(crate::Amend {
+                task: FIRST,
+                message: FIRST_MESSAGE,
+                stop_run: false,
+                amendment: Box::new(change),
+            }),
             Operation::Release(Release { task: FIRST, again: None, message: None }),
         ],
         1_000,
@@ -231,7 +246,10 @@ fn a_stop_after_a_move_uses_the_moved_tree() {
     let mut test = chat::cohort();
     let out = compound(
         &mut test,
-        vec![Operation::Move { task: FIRST, reason: Box::new([]) }, Operation::Stop { task: ROOT, hold: 91 }],
+        vec![
+            Operation::Move(crate::Move { task: FIRST, reason: Box::new([]) }),
+            Operation::Stop { task: ROOT, hold: 91 },
+        ],
         1_000,
     );
     assert!(out.iter().any(|request| match request {
@@ -249,7 +267,10 @@ fn moving_a_held_delegate_cannot_escape_a_standing_scope() {
     let before = test.stored.clone();
     let out = compound(
         &mut test,
-        vec![Operation::Stop { task: ROOT, hold: 91 }, Operation::Move { task: FIRST, reason: Box::new([]) }],
+        vec![
+            Operation::Stop { task: ROOT, hold: 91 },
+            Operation::Move(crate::Move { task: FIRST, reason: Box::new([]) }),
+        ],
         1_000,
     );
     refused(out, 1, FIRST, Refusal::Placed { hold: 91 });
@@ -261,7 +282,10 @@ fn moving_a_stopped_scope_root_preserves_its_hold() {
     let mut test = chat::cohort();
     let out = compound(
         &mut test,
-        vec![Operation::Stop { task: FIRST, hold: 91 }, Operation::Move { task: FIRST, reason: Box::new([]) }],
+        vec![
+            Operation::Stop { task: FIRST, hold: 91 },
+            Operation::Move(crate::Move { task: FIRST, reason: Box::new([]) }),
+        ],
         1_000,
     );
     assert!(out.iter().any(|request| match request {

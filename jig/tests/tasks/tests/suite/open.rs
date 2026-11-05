@@ -1,7 +1,7 @@
 //! Open and finite runs after the same committed turn (domain/tasks.md, 5.8).
 use jig_domain_tasks::{
-    Accepted, Active, Amendment, Cancel, Closing, End, EndKind, EndedBy, Ending, Event, Executor, Flags, Hold,
-    InvalidResult, Key, Line, MessageKind, Models, New, Operation, Party, PersonAddress, Phase, Problem, Refusal,
+    self as tasks, Accepted, Active, Amendment, Cancel, Closing, End, EndKind, EndedBy, Ending, Event, Executor, Flags,
+    Hold, InvalidResult, Key, Line, MessageKind, Models, New, Operation, Party, PersonAddress, Phase, Problem, Refusal,
     Release, Stage, Stored, TaskResult, Tries, Was, Word,
 };
 use jig_tasks_world::{LIMITS, Reply, World, task};
@@ -262,25 +262,27 @@ fn an_open_raw_finish_while_narrowing_goes_due() {
     let reply_to = w.to();
     let call = reply_to.into_token().raw();
     w.send(Event::Amend {
+        operation: tasks::Amend {
+            task: CHAT,
+            message: 1,
+            stop_run: true,
+            amendment: Box::new(Amendment {
+                tracked: None,
+                addressed: None,
+                instructions: None,
+                release: None,
+                spec: None,
+                wake: None,
+                dependencies: None,
+                authority: Some(authority),
+                llm: None,
+                reason: b"narrow".as_slice().into(),
+            }),
+        },
         places: Box::new([]),
         reply_to: skein_lib::ReplyTo::new(skein_lib::Token::new(call)),
         funder: None,
         by: Party::Person(1),
-        task: CHAT,
-        message: 1,
-        stop_run: true,
-        amendment: Amendment {
-            tracked: None,
-            addressed: None,
-            instructions: None,
-            release: None,
-            spec: None,
-            wake: None,
-            dependencies: None,
-            authority: Some(authority),
-            llm: None,
-            reason: b"narrow".as_slice().into(),
-        },
     });
     assert_eq!(w.replies[&call], Reply::Done);
     assert!(w.record(CHAT).narrowing);
