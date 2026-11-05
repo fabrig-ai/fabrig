@@ -38,6 +38,7 @@ pub enum Fact {
 /// their boundary receiver and are never copied into the facts queue.
 #[derive(Clone, Copy, PartialEq, Eq, Hash, Debug)]
 pub enum Ending {
+    Looked { holds: bool },
     IsAncestor { contains: bool },
     Succeeded,
     Fetched { commit: Commit },
@@ -69,6 +70,10 @@ pub enum Cached {
     /// not known after an operation that broke, ran out of time or was
     /// cancelled: it is made again, empty.
     Rebuilt,
+    /// A new one, with reuse on and no repository starting saved: what its
+    /// directory holds, perhaps from before a restart, is looked at first. It
+    /// is made again, empty, unless it holds the spec's repositories.
+    Looking,
     /// A new one: the cache had room.
     New,
     /// The least recently used workspace no client held, another

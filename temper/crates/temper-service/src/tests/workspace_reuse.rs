@@ -4,8 +4,10 @@ use super::fixtures;
 fn workspace_reuse_is_off_until_requested() {
     let mut stand = fixtures::system::one_process();
     assert!(!stand.service.worker_domain().expect("one worker").checkout().reuses_workspaces());
+    assert!(!stand.service.worker.as_ref().expect("one worker").git.component.keeps_workspaces());
     stand.service.reuse_workspaces();
     assert!(stand.service.worker_domain().expect("one worker").checkout().reuses_workspaces());
+    assert!(stand.service.worker.as_ref().expect("one worker").git.component.keeps_workspaces());
 }
 
 #[test]

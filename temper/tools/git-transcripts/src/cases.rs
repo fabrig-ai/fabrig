@@ -178,6 +178,7 @@ pub(crate) fn record(forgejo: &Forgejo, instance: Instance, c: &mut Capture) -> 
     push(c, &f, "create-protected", &f.remote("guarded"), &f.topic, "blocked", Some(""))?;
     let commit = locals(&f, c)?;
     pushes(&f, c, &commit)?;
+    looks(&f, c)?;
     api(&f.instance, "PATCH", "/api/v1/repos/fixture/specimen", &json!({"name":"renamed"}))?;
     fetch(c, Some("fetch-renamed"), &f.repo, &url, "refs/heads/main", identity)?;
     let exit = fs::read(c.out.join("transcripts/fetch-renamed/exit"))?;
@@ -188,7 +189,7 @@ pub(crate) fn record(forgejo: &Forgejo, instance: Instance, c: &mut Capture) -> 
     let declined =
         protected.lines().any(|s| s.starts_with('!') && s.contains("[remote rejected]") && s.ends_with("declined)"));
     let facts = format!(
-        "# forgejo {} sha256 {}\n# {}\n{} git-follows-a-renamed-repository-redirect{}\n{} protected-push-is-remote-rejected-declined{}\n",
+        "# forgejo {} sha256 {}\n# {}\n{} git-follows-a-renamed-repository-redirect{}\n{} protected-push-is-remote-rejected-declined{}\nholds clone-writes-the-url-as-given\n",
         forgejo.version(),
         forgejo.sha256(),
         printed.trim(),
@@ -353,4 +354,49 @@ pub(crate) fn followed(exit: &[u8], stderr: &[u8]) -> bool {
         && stderr.split(|byte| *byte == b'\n').any(|line| {
             line.starts_with(b"warning: redirecting to ") && line.windows(16).any(|part| part == b"/fixture/renamed")
         })
+}
+
+fn looks(f: &Fixture, c: &mut Capture) -> Result<()> {
+    let worker = f.workspace.parent().and_then(Path::parent).ok_or("worker directory missing")?;
+    let output = c.execute(
+        Some("origin-matches"),
+        worker,
+        &["--git-dir=workspaces/1/specimen/.git", "config", "--local", "--get", "remote.origin.url"],
+        None,
+        false,
+        b"",
+    )?;
+    if output.stdout != format!("{}\n", f.remote("specimen")).as_bytes() || !output.status.success() {
+        return Err("clone did not write its given URL".into());
+    }
+    c.execute(
+        Some("origin-no-repository"),
+        worker,
+        &["--git-dir=workspaces/1/absent/.git", "config", "--local", "--get", "remote.origin.url"],
+        None,
+        false,
+        b"",
+    )?;
+    success(&c.execute(None, &f.workspace, &["init", "bare"], None, false, b"")?)?;
+    c.execute(
+        Some("origin-no-remote"),
+        worker,
+        &["--git-dir=workspaces/1/bare/.git", "config", "--local", "--get", "remote.origin.url"],
+        None,
+        false,
+        b"",
+    )?;
+    let lock = f.repo.join(".git/index.lock");
+    fs::write(&lock, b"")?;
+    let result = c.execute(
+        Some("checkout-index-locked"),
+        &f.repo,
+        &["checkout", "--force", "--detach", &f.base],
+        None,
+        false,
+        b"",
+    );
+    fs::remove_file(lock)?;
+    result?;
+    Ok(())
 }

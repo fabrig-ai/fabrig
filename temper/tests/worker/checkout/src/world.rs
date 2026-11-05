@@ -182,6 +182,7 @@ pub struct Told {
     pub reused: u32,
     pub rebuilt: u32,
     pub new: u32,
+    pub looking: u32,
     pub evicted: u32,
     pub kept: u32,
     pub makes: u32,
@@ -292,6 +293,7 @@ pub struct World {
     cancel_lost: BTreeSet<Token>,
     stats: Stats,
     told: Told,
+    lost: u64,
     trace: Trace,
 }
 
@@ -350,8 +352,30 @@ impl World {
             cancel_lost: BTreeSet::new(),
             stats: Stats::default(),
             told: Told::default(),
+            lost: 0,
             trace: Trace::default(),
         }
+    }
+
+    /// Restart over the same disk and forge once every client has released.
+    pub fn restart(&mut self) {
+        self.assert_settled();
+        assert!(self.clients.values().all(|client| client.release == Release::Done), "no client holds anything");
+        self.lost = self.lost.saturating_add(self.domain.facts_lost());
+        self.domain = Domain::new(&self.settings.checkout);
+        if self.settings.reuse {
+            self.domain.reuse_workspaces();
+        } else {
+            self.disk.remove(b"ws");
+        }
+        self.stage = Stage::uncapped(self.settings.checkout);
+        self.holds.clear();
+        self.workspaces.clear();
+        self.checked_out.clear();
+    }
+
+    pub fn write_disk(&mut self, path: &[u8], content: &[u8]) {
+        self.disk.write(path, content);
     }
 
     #[must_use]
@@ -367,7 +391,7 @@ impl World {
     /// The facts the domain told, and how many it dropped for want of room.
     #[must_use]
     pub fn told(&self) -> (Told, u64) {
-        (self.told, self.domain.facts_lost())
+        (self.told, self.lost.saturating_add(self.domain.facts_lost()))
     }
 
     /// What crossed between the domain and the world, in order, with times.
@@ -1024,6 +1048,7 @@ impl World {
             | Op::Clone { .. }
             | Op::Create { .. }
             | Op::CheckOut { .. }
+            | Op::Look { .. }
             | Op::IsAncestor { .. }
             | Op::Merge { .. } => {
                 panic!("a push or a save commits, pushes and verifies, nothing else: {op:?}")
@@ -1083,6 +1108,7 @@ impl World {
                 | Done::Rejected
                 | Done::Failed { .. }
                 | Done::FailedWithOutput { .. }
+                | Done::Looked { .. }
                 | Done::IsAncestor { .. }
                 | Done::Merged
                 | Done::Conflicted { .. } => Verified::Failed,
@@ -1126,6 +1152,7 @@ impl World {
             | Op::Create { .. }
             | Op::Commit { .. }
             | Op::Push { .. }
+            | Op::Look { .. }
             | Op::IsAncestor { .. }
             | Op::Merge { .. } => None,
         };
@@ -1169,6 +1196,7 @@ impl World {
             | Done::Rejected
             | Done::Failed { .. }
             | Done::FailedWithOutput { .. }
+            | Done::Looked { .. }
             | Done::IsAncestor { .. }
             | Done::Merged
             | Done::Conflicted { .. } => {}
@@ -1202,6 +1230,7 @@ impl World {
             Fact::Held { cached: Cached::Reused, .. } => &mut told.reused,
             Fact::Held { cached: Cached::Rebuilt, .. } => &mut told.rebuilt,
             Fact::Held { cached: Cached::New, .. } => &mut told.new,
+            Fact::Held { cached: Cached::Looking, .. } => &mut told.looking,
             Fact::Held { cached: Cached::Evicted, .. } => &mut told.evicted,
             Fact::Held { cached: Cached::Kept, .. } => &mut told.kept,
             Fact::Started { op, .. } => {
@@ -1213,6 +1242,7 @@ impl World {
                     | Kind::CheckOut
                     | Kind::Commit
                     | Kind::Push
+                    | Kind::Look
                     | Kind::IsAncestor
                     | Kind::Merge => {}
                 }
@@ -1234,7 +1264,7 @@ impl World {
         let refused = stats.busy + stats.full + stats.invalid;
         let admitted = stats.prepares - refused;
         assert_eq!(told.refused, refused + stats.busy_pushes, "a fact for every refusal");
-        let held = told.reused + told.rebuilt + told.new + told.evicted + told.kept;
+        let held = told.reused + told.rebuilt + told.new + told.looking + told.evicted + told.kept;
         assert_eq!((held, told.prepared), (admitted, admitted), "a fact for every hold and its prepare's end");
         assert_eq!((told.started, told.ended), (stats.ops, stats.ops), "a fact for every operation and its end");
         assert_eq!(told.aborting, stats.cancels, "a fact for every cancel");
@@ -1262,7 +1292,7 @@ impl World {
                 );
             }
         }
-        if self.domain.facts_lost() == 0 {
+        if self.told().1 == 0 {
             self.assert_told();
         }
     }

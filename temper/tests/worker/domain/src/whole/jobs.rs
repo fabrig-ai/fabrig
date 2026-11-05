@@ -146,6 +146,7 @@ impl World {
                     | git::Op::Fetch { .. }
                     | git::Op::Create { .. }
                     | git::Op::CheckOut { .. }
+                    | git::Op::Look { .. }
                     | git::Op::IsAncestor { .. }
                     | git::Op::Merge { .. } => {}
                 }
