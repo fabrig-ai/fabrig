@@ -33,8 +33,17 @@ box the deployment login can be separate from the person's forge account;
 adoption may return only temper as a collaborator. Such an owner cannot
 satisfy a person's approval requirement until the forge identity and project
 role are known. Acceptance refuses an unsatisfiable rule, naming the project,
-role, required count and current eligible count. Add the known forge people
-and their project roles, or leave approvals out and use agent review alone.
+role, required count and current eligible count. Add the human collaborator on
+the forge, configure the existing project's project-policy permissions where
+needed, re-adopt with `repository adopt`, and verify the required role with
+`project show`. Then submit a fresh proposal against the newest revision.
+The commands and policy setup are in temper help configure, Human approvals.
+Stock maps admin to maintainer (1), write to member (2), read to observer (3);
+use the mapped human role in the rule. Owner (0) is reserved for the project
+owner; never map all permissions to owner. Changing policy 1 affects future
+projects; re-adoption does not replace existing project roles. temper's own
+forge writer never counts, even with an existing role. Or leave approvals
+out and use agent review alone.
 Membership can change later; only known people with the role at the merge
 count.
 

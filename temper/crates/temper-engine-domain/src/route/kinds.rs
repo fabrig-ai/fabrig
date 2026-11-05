@@ -151,7 +151,7 @@ fn eligible_people(domain: &Domain, project: u32, role: u32) -> u32 {
     let Some(members) = domain.core.people.project_members(project) else { return count };
     for member in members {
         let Some(identity) = domain.core.people.identity(member.person) else { continue };
-        if member.role.number() == role && identity.key.provider == 0 && identity.key.subject.len() == 8 {
+        if member.role.number() == role && super::forge_route::human_forge_identity(domain, project, &identity.key) {
             count = count.saturating_add(1);
         }
     }
@@ -167,7 +167,9 @@ fn approval_words(project: u32, approval: &settings::RuleApproval, count: u32) -
     for part in [
         b"project ".as_slice(), project.as_bytes(), b" role ", role.as_bytes(), b" requires ",
         required.as_bytes(), b" distinct known forge people; currently ", count.as_bytes(),
-        b" eligible. Before accepting, add known forge people to that project with this role, or remove the approval requirement.",
+        b" eligible. Before accepting, add the human collaborator on the forge; configure this project's project-policy permissions if needed; ",
+        b"re-adopt with repository adopt, verify the required role with project show, then submit a fresh proposal against the newest revision. ",
+        b"See temper help configure for the approval setup route, or remove the approval requirement.",
     ] {
         for &byte in part {
             words.push(byte).expect("measured approval refusal");

@@ -570,6 +570,10 @@ own trees' branches.
 by a record kept outside this repository; stating where the figures come
 from in this repository's own words is left for later.
 
+`budgets()` validates `[gate.<tree>.<profile>]` and nothing here reads it
+beyond that (7.3): what measures a tree's share of a gate suite and records
+a run over it is left for later.
+
 ## 9. Fixture readers
 
 `.config/fixture-readers.toml` declares the readers and generators of tracked
