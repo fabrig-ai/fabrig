@@ -34,6 +34,10 @@ The user is asleep and takes the plan's judgement. A stored format, a protocol o
 
 None new but what a fix needs. The sweep is the check (`notes/sweep.md`). Run the focused tests of what you changed: for a stylesheet, `heavy cargo nextest run -p temper-client-gallery`, and `-p temper-client-view` if you touched the view.
 
+## Recording flakes
+
+If a change stales a journey, record it again (`temper/docs/design/client/journeys.md`, 8.1) in that task. A re-record that stops on "a key mark caught a moving page" is retried up to three times, each on a fresh fake box; if all fail, widen the mark's wait in the recording driver and say so.
+
 ## Render proofs
 
 Chromium 147's new headless won't go below 500 px by `--window-size`: use CDP's `Emulation.setDeviceMetricsOverride`, or the media queries lie. Handle `Page.javascriptDialogOpening`, or a pending request's `onbeforeunload` hangs a CDP driver. The mock's Google Fonts link needs the network; the client's own fonts are what's compared, and a difference that is only the fallback font isn't one. Screenshots go in `~/src/fabrig/ui-phone/` on your builder, outside any worktree, never committed; your report names the builder.
