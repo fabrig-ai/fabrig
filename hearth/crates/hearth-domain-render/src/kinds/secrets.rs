@@ -25,16 +25,9 @@ pub(crate) fn mode(entry: &Concrete) -> Result<u16, Schema> {
 pub(crate) fn mode_with_default(entry: &Concrete, default: &[u8]) -> Result<u16, Schema> {
     let value = entry.text(Name::Mode).unwrap_or(default);
     formed(value, Format::Mode)?;
-    let mut mode = 0_u16;
-    for byte in value {
-        mode = mode
-            .checked_mul(8)
-            .expect("four octal digits")
-            .checked_add(u16::from(byte.saturating_sub(b'0')))
-            .expect("octal mode");
-    }
-    Ok(mode)
+    Ok(forms::octal(value))
 }
+
 pub(crate) fn fault(located: &Located<'_>, name: Option<Name>, schema: Schema) -> Error {
     let mut at = located.entry.at;
     for field in &located.entry.fields {

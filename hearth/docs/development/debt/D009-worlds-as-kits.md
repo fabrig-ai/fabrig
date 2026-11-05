@@ -15,8 +15,7 @@
 Four manifest edges point at worlds: `hearth` on `hearth-builder-world`,
 for its end-to-end tests; `hearth-builder-world` on `hearth-render-world`,
 for the goldens; `hearth-render-world` on `hearth-config-world`; and
-`hearth-conformance-world` on `hearth-git-world`. The goldens' readers also
-cross by `#[path]` (D008).
+`hearth-conformance-world` on `hearth-git-world`.
 
 ## Why it matters
 

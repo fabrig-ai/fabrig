@@ -16,8 +16,7 @@ main holding it (`testing.md`), the `--account` flag (`shell.md`,
 `testing.md`), and the benchmarks' calibrations and arms, `shell-cwd`
 at version 3, unseen on its bundle and a version past its baselines,
 with four departures (`benchmarks.md`). Two domain worlds call
-protocol crates (`testing.md`), and the local domain composes person-facing text,
-which the designer is to decide on (`domain/host.md`). Two step
+protocol crates (`testing.md`). Two step
 crates drive skein's JSON tokenizer over a whole buffer by hand
 (`domain/tools.md`, `protocol/events.md`), and two hand copies of
 skein's io check lack its operation table's ceiling

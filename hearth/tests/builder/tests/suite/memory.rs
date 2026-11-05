@@ -1,6 +1,5 @@
+use super::bounds;
 use hearth_builder_world::{fixtures, simulated};
-#[path = "../../src/fixtures/bounds.rs"]
-mod bounds;
 
 #[test]
 fn the_builder_holds_no_more_than_its_ceiling_at_every_iteration() {

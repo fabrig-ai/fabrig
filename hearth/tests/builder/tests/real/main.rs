@@ -635,7 +635,6 @@ fn a_secret_without_a_path_exits_with_configuration_failure() {
     assert_eq!(fixtures::render(&repository, &[], Form::Text).exit, Exit::Code(2));
 }
 
-#[path = "real/files.rs"]
 mod files;
 #[test]
 fn a_target_prints_its_packages_part_from_debian_and_its_tasks() {
@@ -702,38 +701,24 @@ fn hearth_render_lists_each_path_with_its_consumers() {
         )
     );
 }
-#[path = "real/boot.rs"]
 mod boot;
 
-#[path = "real/accounts.rs"]
 mod accounts;
-#[path = "real/exports.rs"]
 mod exports;
-#[path = "real/package_changes.rs"]
 mod package_changes;
 
-#[path = "real/diff.rs"]
 mod diff;
 
-#[path = "real/additions.rs"]
 mod additions;
-#[path = "real/data.rs"]
 mod data;
-#[path = "real/scripts.rs"]
 mod scripts;
 
-#[path = "real/diff_resolution.rs"]
 mod diff_resolution;
-#[path = "real/software.rs"]
 mod software;
 
-#[path = "real/collisions.rs"]
 mod collisions;
-#[path = "real/ids.rs"]
 mod ids;
 
-#[path = "real/part_changes.rs"]
 mod part_changes;
 
-#[path = "real/reserved.rs"]
 mod reserved;

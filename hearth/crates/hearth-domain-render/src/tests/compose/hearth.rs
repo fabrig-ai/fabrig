@@ -1,13 +1,13 @@
 use crate::{
     errors::{Kind, Rule},
-    tests::fixtures::{self, only},
+    tests::fixtures::{self, SixLayers, only},
 };
 type PresenceCase = (&'static str, &'static [(&'static [u8], bool)]);
 const PRESENCE: &[PresenceCase] = &[("metal", &[(b"hearth", true)]), ("container", &[])];
 #[test]
 fn hearth_is_present_except_on_a_container() {
     for (row, &(placement, expected)) in PRESENCE.iter().enumerate() {
-        let (documents, target) = fixtures::target_with(placement, [None; 6]);
+        let (documents, target) = fixtures::target_with(placement, SixLayers::NONE);
         assert_eq!(
             fixtures::hearth_task_names(&fixtures::hearth_settings(&documents, &target)).as_ref(),
             expected,
@@ -15,8 +15,10 @@ fn hearth_is_present_except_on_a_container() {
         );
     }
 }
-const SETTINGS: &[[Option<&str>; 6]] =
-    &[[Some("settings"), None, None, None, None, None], [None, None, None, Some("settings"), None, None]];
+const SETTINGS: &[SixLayers<'_>] = &[
+    SixLayers { fleet: Some("settings"), ..SixLayers::NONE },
+    SixLayers { environment: Some("settings"), ..SixLayers::NONE },
+];
 #[test]
 fn fleet_and_environment_reach_hearth_as_settings() {
     for (row, &layers) in SETTINGS.iter().enumerate() {
@@ -34,15 +36,15 @@ fn container_settings_keys_are_dropped_silently() {
         assert_eq!(fixtures::hearth_errors(&documents, &target).as_ref(), [], "row {row}");
     }
 }
-const CONTAINER_LAYERS: &[[Option<&str>; 6]] = &[
-    [None, Some("{}"), None, None, None, None],
-    [None, Some("null"), None, None, None, None],
-    [None, None, Some("{}"), None, None, None],
-    [None, None, Some("null"), None, None, None],
-    [None, None, None, None, Some("{}"), None],
-    [None, None, None, None, Some("null"), None],
-    [None, None, None, None, None, Some("{}")],
-    [None, None, None, None, None, Some("null")],
+const CONTAINER_LAYERS: &[SixLayers<'_>] = &[
+    SixLayers { base: Some("{}"), ..SixLayers::NONE },
+    SixLayers { base: Some("null"), ..SixLayers::NONE },
+    SixLayers { member: Some("{}"), ..SixLayers::NONE },
+    SixLayers { member: Some("null"), ..SixLayers::NONE },
+    SixLayers { base_env: Some("{}"), ..SixLayers::NONE },
+    SixLayers { base_env: Some("null"), ..SixLayers::NONE },
+    SixLayers { base_env_member: Some("{}"), ..SixLayers::NONE },
+    SixLayers { base_env_member: Some("null"), ..SixLayers::NONE },
 ];
 #[test]
 fn a_container_refuses_hearth_in_each_presence_layer() {
@@ -53,13 +55,13 @@ fn a_container_refuses_hearth_in_each_presence_layer() {
         assert_eq!(only(&errors).task.as_deref(), Some(b"hearth".as_slice()), "row {row}");
     }
 }
-const NULLS: &[[Option<&str>; 6]] = &[
-    [Some("null"), None, None, None, None, None],
-    [None, Some("null"), None, None, None, None],
-    [None, None, Some("null"), None, None, None],
-    [None, None, None, Some("null"), None, None],
-    [None, None, None, None, Some("null"), None],
-    [None, None, None, None, None, Some("null")],
+const NULLS: &[SixLayers<'_>] = &[
+    SixLayers { fleet: Some("null"), ..SixLayers::NONE },
+    SixLayers { base: Some("null"), ..SixLayers::NONE },
+    SixLayers { member: Some("null"), ..SixLayers::NONE },
+    SixLayers { environment: Some("null"), ..SixLayers::NONE },
+    SixLayers { base_env: Some("null"), ..SixLayers::NONE },
+    SixLayers { base_env_member: Some("null"), ..SixLayers::NONE },
 ];
 #[test]
 fn null_hearth_is_reserved_alone_in_every_layer() {
@@ -74,7 +76,7 @@ fn null_hearth_is_reserved_alone_in_every_layer() {
 }
 #[test]
 fn named_hearth_is_one_task_and_is_explicit() {
-    let (documents, target) = fixtures::target_with("metal", [None, Some("{}"), None, None, None, None]);
+    let (documents, target) = fixtures::target_with("metal", SixLayers { base: Some("{}"), ..SixLayers::NONE });
     assert_eq!(
         fixtures::hearth_task_names(&fixtures::hearth_settings(&documents, &target)).as_ref(),
         [(b"hearth".as_slice(), false)]
