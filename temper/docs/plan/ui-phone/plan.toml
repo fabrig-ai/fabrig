@@ -1,0 +1,22 @@
+draft = "ui-phone"
+repo = "fabrig"
+sources = ["temper/docs/plan/ui-phone/inputs/request.md", "temper/crates/temper-client-view/src/frame.rs", "temper/docs/design/client/greenfield/README.md", "AGENTS.md", "DESIGN.md"]
+# Plan options, written by fab call cut --set; keep them
+priority = true
+
+[buffer]
+low = 1.0
+high = 2.0
+
+[[part]]
+id = "viewport-bundle"
+title = "skein: the bundler's page covers the display"
+mode = "direct"
+needs = []
+design = "skein/docs/design/ui-web.md, 4.3"
+
+[[slice]]
+id = 1
+story = "A phone's home bar no longer covers the tab bar: temper's served page prints viewport-fit=cover"
+parts = ["viewport-bundle"]
+walk = false
