@@ -46,4 +46,3 @@ fn round_trip(turn: &record::Turn) -> record::Turn {
     smith_protocol_translate::decode_turn(&bytes, turn.sequence, &smith_transcript::CEILINGS, &endpoints)
         .expect("decode turn")
 }
-

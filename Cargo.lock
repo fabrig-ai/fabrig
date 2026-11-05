@@ -4098,6 +4098,7 @@ dependencies = [
 name = "smith-machine-world"
 version = "0.0.0"
 dependencies = [
+ "skein-fake-checkout",
  "skein-fake-machine",
  "skein-io",
  "skein-lib",

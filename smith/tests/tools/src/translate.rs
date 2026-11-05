@@ -128,9 +128,7 @@ pub fn perform(checkout: &mut fake::Checkout, op: Op) -> Done {
         Op::List { at, depth, glob, max, max_bytes } => {
             let command = listing_command(at.root, &at.path, glob.as_deref());
             match checkout.spawn(root(at.root), &at.path, &command, &[], &[]) {
-                Ok(process) => {
-                    listed(&process.program.output, process.program.exit, depth, max, max_bytes)
-                }
+                Ok(process) => listed(&process.program.output, process.program.exit, depth, max, max_bytes),
                 Err(failure) => done(failure),
             }
         }
@@ -203,10 +201,15 @@ pub fn listed(output: &[u8], exit: fake::Exit, depth: Depth, max: u32, max_bytes
     }
     let total = names.len();
     let mut used = 0;
-    let entries: Box<[_]> = names.into_iter().take(usize::try_from(max).expect("finite cap")).take_while(|(name, _)| {
-        used += skein_lib::len_u64(std::mem::size_of::<Entry>() + name.len());
-        used <= max_bytes
-    }).map(|(name, kind)| Entry { name: name.into(), kind }).collect();
+    let entries: Box<[_]> = names
+        .into_iter()
+        .take(usize::try_from(max).expect("finite cap"))
+        .take_while(|(name, _)| {
+            used += skein_lib::len_u64(std::mem::size_of::<Entry>() + name.len());
+            used <= max_bytes
+        })
+        .map(|(name, kind)| Entry { name: name.into(), kind })
+        .collect();
     let more = skein_lib::len_u64(total - entries.len());
     Done::Listed { entries, more }
 }

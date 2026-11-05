@@ -230,13 +230,16 @@ fn call(name: &[u8], arguments: &[u8]) -> Result<Call, agent::Problem> {
     let limits = skein_llm::DocumentLimits { bytes, strings: bytes, tokens: bytes, depth: client.depth };
     let json = skein_llm::Json::from_bytes(arguments, &limits).map_err(|error| match error {
         skein_llm::DocumentError::TooLarge { .. } => Problem::TooLarge,
-        skein_llm::DocumentError::Malformed | skein_llm::DocumentError::Missing | skein_llm::DocumentError::WrongType => Problem::NotAnObject,
+        skein_llm::DocumentError::Malformed
+        | skein_llm::DocumentError::Missing
+        | skein_llm::DocumentError::WrongType => Problem::NotAnObject,
     })?;
     let document = json.document();
     if document.token(0).map(|token| token.kind) != Some(Kind::ObjectStart) {
         return Err(Problem::NotAnObject);
     }
-    let member = |start, field: &[u8]| document.member(start, field).ok_or_else(|| Problem::Missing { field: field.into() });
+    let member =
+        |start, field: &[u8]| document.member(start, field).ok_or_else(|| Problem::Missing { field: field.into() });
     let string = |start, field: &[u8]| {
         let token = document.token(member(start, field)?).expect("admitted member");
         if token.kind != Kind::String {
@@ -249,7 +252,8 @@ fn call(name: &[u8], arguments: &[u8]) -> Result<Call, agent::Problem> {
         b"list" => calls::list(string(0, b"path")?),
         b"search" => calls::search(
             if document.member(0, b"path").is_some() { string(0, b"path")? } else { b"." },
-            string(0, b"pattern")?, None,
+            string(0, b"pattern")?,
+            None,
         ),
         b"write" => calls::write(string(0, b"path")?, string(0, b"content")?),
         b"shell" => calls::shell(string(0, b"command")?, None),
@@ -260,7 +264,10 @@ fn call(name: &[u8], arguments: &[u8]) -> Result<Call, agent::Problem> {
             let end = document.value_end(start).expect("admitted array");
             for index in start + 1..end - 1 {
                 if document.token(index).expect("admitted token").kind == Kind::ObjectStart {
-                    let all = document.member(index, b"all").and_then(|at| document.token(at)).is_some_and(|token| token.kind == Kind::True);
+                    let all = document
+                        .member(index, b"all")
+                        .and_then(|at| document.token(at))
+                        .is_some_and(|token| token.kind == Kind::True);
                     edits.push((string(index, b"old")?, string(index, b"new")?, all));
                 }
             }

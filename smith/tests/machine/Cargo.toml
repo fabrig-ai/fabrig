@@ -19,6 +19,7 @@ smith-domain.workspace = true
 smith-protocol-machine = { workspace = true, features = ["fixture"] }
 
 [dev-dependencies]
+skein-fake-checkout.workspace = true
 smith-tools-world.workspace = true
 
 [lints.rust]

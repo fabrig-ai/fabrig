@@ -2,6 +2,7 @@
 
 use skein_fake_machine::Item;
 use skein_lib::{Time, Token};
+use smith_domain::tools::Outcome;
 use smith_domain::{run, tools};
 use smith_machine_world::World;
 use smith_protocol_machine::{FromDomain, ToDomain};
@@ -518,10 +519,10 @@ const ALL: tools::Grants = tools::Grants { inspect: true, modify: true, shell: t
 
 #[test]
 fn a_command_whose_child_outlives_it_ends_with_its_group_at_the_deadline() {
-    use skein_lib::{Duration, Env, Queue, Token, Wall};
-    use smith_tools_world::{Settings, calls::shell, fixture::Fixture};
     use self::ALL;
+    use skein_lib::{Duration, Env, Queue, Token, Wall};
     use smith_protocol_machine::{FromDomain, ToDomain};
+    use smith_tools_world::{Settings, calls::shell, fixture::Fixture};
     let calm = Settings::calm(101);
     let limits = tools::Limits {
         shell_output: 8,
@@ -577,8 +578,8 @@ fn a_command_whose_child_outlives_it_ends_with_its_group_at_the_deadline() {
     assert_eq!((domain.kits(), domain.flights()), (0, 0));
 }
 
-fn exited(exit: tools::Exit, head: &[u8], tail: &[u8], dropped: u64) -> tools::Outcome {
-    tools::Outcome::Exited {
+fn exited(exit: tools::Exit, head: &[u8], tail: &[u8], dropped: u64) -> Outcome {
+    Outcome::Exited {
         exit,
         head: head.into(),
         tail: tail.into(),
@@ -587,4 +588,3 @@ fn exited(exit: tools::Exit, head: &[u8], tail: &[u8], dropped: u64) -> tools::O
         output: tools::BytesClamp::Within,
     }
 }
-
