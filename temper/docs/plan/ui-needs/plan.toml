@@ -27,3 +27,16 @@ id = 1
 story = "A goal's question says its options in its words, and the client can read them"
 parts = ["question-words", "stock-words"]
 walk = false
+
+[[part]]
+id = "needs-state"
+title = "What the client keeps: later, answered, at, the held send, the toast"
+mode = "direct"
+needs = []
+design = "temper/docs/design/client/README.md, 3.5"
+
+[[slice]]
+id = 2
+story = "An answer is held for five seconds, and Undo takes it back, with no page drawing it yet"
+parts = ["needs-state"]
+walk = false

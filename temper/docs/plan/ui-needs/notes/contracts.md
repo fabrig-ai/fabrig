@@ -36,3 +36,93 @@ impl Parsed {
 #[must_use]
 pub fn parse(words: &[u8], cut: bool) -> Parsed;
 ```
+
+## What the client keeps
+
+`temper-client-domain`'s module `pages::needs` (created by `needs-session`), by
+`temper/docs/design/client/README.md`, 3.5, *What the client keeps*. `Pages` gets a field `needs:
+needs::Session` and `pub const fn needs(&self) -> &needs::Session`. The view reads these, and binds
+`Act::Needs(..)`; nothing else crosses.
+
+```rust
+pub const HOLD: Duration;            // 5 s
+pub const TOAST: Duration;           // 4.5 s
+pub const ANSWERED_ON_NEEDS: Duration; // 10 min
+pub const ANSWERED_ON_HOME: Duration;  // 2 min
+
+/// A variant of `pages::Act`: `Act::Needs(needs::Act)`.
+#[derive(Clone, Debug, PartialEq, Eq)]
+pub enum Act {
+    /// A choice's button: `words` are `question::Choice::words`.
+    Choose { object: ObjectKey, words: Box<[u8]> },
+    /// "Reply…", or Home's "Reply": opens the form under the card.
+    OpenReply { object: ObjectKey },
+    /// The form's "Cancel".
+    CancelReply,
+    /// "Send reply": answers with the card's words (`pages::Act::CardWords`).
+    SendReply { object: ObjectKey },
+    /// "Later".
+    Later { object: ObjectKey },
+    /// "Undo", on an answered line or the toast.
+    Undo { object: ObjectKey },
+    /// A Home line: opens Needs you at this card, filtered by Home's project.
+    Open { object: ObjectKey },
+}
+
+/// What an answered line and the toast say; the view words it.
+#[derive(Clone, Debug, PartialEq, Eq)]
+pub enum Label {
+    Choice(Box<[u8]>),
+    /// Already cut: 57 characters plus "…" past 60. The view wraps it in `Replied: “…”`.
+    Reply(Box<[u8]>),
+}
+
+#[derive(Clone, Debug, PartialEq, Eq)]
+pub struct Answered {
+    pub object: ObjectKey,
+    pub project: u32,
+    /// The task's title; may be empty, and the view then says "Task N".
+    pub title: Box<[u8]>,
+    pub label: Label,
+    pub at: Wall,
+    // private beside these: the held answer, its deadline and its key
+}
+
+#[derive(Clone, Debug, PartialEq, Eq)]
+pub enum Toasted {
+    /// "Answered: LABEL", with "Undo" while `Session::held(object)`.
+    Answered { object: ObjectKey, label: Label },
+    /// "Later: it stays in Needs you, after the others."
+    Later,
+}
+
+impl Session {
+    /// The open cards: `inbox.needs()` less the answered, in order, those marked later last.
+    #[must_use]
+    pub fn open<'a>(&self, inbox: &'a Inbox) -> Box<[&'a Card]>;
+    /// The card shown on Needs you: `at`'s where it is open, else the first open.
+    #[must_use]
+    pub fn shown<'a>(&self, inbox: &'a Inbox) -> Option<&'a Card>;
+    #[must_use]
+    pub fn later(&self, object: ObjectKey) -> bool;
+    /// The form is open under this card.
+    #[must_use]
+    pub fn replying(&self, object: ObjectKey) -> bool;
+    /// Its answer is held: its line and the toast offer "Undo".
+    #[must_use]
+    pub fn held(&self, object: ObjectKey) -> bool;
+    /// What came back for an answer that did not go through: the card is open again.
+    #[must_use]
+    pub fn refused(&self, object: ObjectKey) -> Option<&jig_client::Outcome>;
+    /// The lines answered within `window` of `now`, in `project` (None: every project), oldest first.
+    #[must_use]
+    pub fn answered(&self, now: Wall, window: Duration, project: Option<u32>) -> Box<[&Answered]>;
+    #[must_use]
+    pub fn toast(&self) -> Option<&Toasted>;
+}
+```
+
+- **The view's clock:** `Session::answered` takes the view's `times.now`; the view sets `times.next`
+  to when the oldest shown line goes, as Home's kicker does for its minute.
+- **The domain's clock:** `HOLD` and `TOAST` are deadlines on `env.now`, through `pages::fire` and
+  `pages::next_deadline`; `Answered::at` is `env.wall`.
