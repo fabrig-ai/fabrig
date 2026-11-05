@@ -767,8 +767,9 @@ pub enum PayloadRefusal {
 /// Connector-free work a named host call asks the core to route.
 #[derive(Debug)]
 pub enum NamedAction {
-    /// Read a related live task or a retained direct delegate without deciding a call.
+    /// Read related task specifications or proven descendant reports without deciding a call.
     ReadTask {
+        field: crate::reads::TaskTextField,
         task: u64,
         from: u64,
     },

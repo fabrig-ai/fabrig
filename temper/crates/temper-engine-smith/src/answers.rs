@@ -1315,7 +1315,11 @@ fn task_read(
         }
     };
     task_read_metadata(&mut text, read)?;
-    text.add(b"\nWords from ")?;
+    text.add(match read.words.field {
+        jig_domain_core::reads::TaskTextField::Specification => b"\nWords from ",
+        jig_domain_core::reads::TaskTextField::Result => b"\nResult from ",
+        jig_domain_core::reads::TaskTextField::Instructions => b"\nInstructions from ",
+    })?;
     text.number(read.words.from)?;
     text.add(b":\n")?;
     task_read_words(&mut text, &read.words, maximum)?;

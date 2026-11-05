@@ -175,8 +175,8 @@ pub(crate) const SPECS: [Spec; 40] = [
     Spec { name: b"effect_forge", description: b"Make one write on an adopted repository through the forge's connector: an issue, a comment or a status, among the forge's writes.", schema: br#"{"type":"object","properties":{"repository":{"type":"object","description":"The repository, as {forge, repository}: the forge's number and the repository's."},"resource":{"type":"object","description":"What it writes on: {kind: repository}, {kind: pull, number}, {kind: issue, number} or {kind: branch, segments}."},"write":{"type":"object","description":"{kind: create_issue, key, title, body}, {kind: post, number, key, body} or {kind: status, commit, context, check}."}},"required":["repository","resource","write"]}"#, effect: run::HostEffect::Write },
     Spec {
         name: b"read_task",
-        description: b"Read related tasks and retained ended delegates: words, state, dependencies, revisions and hold reason. Continue cut words with from=next.",
-        schema: br#"{"type":"object","additionalProperties":false,"properties":{"task":{"type":"integer","minimum":1},"from":{"type":"integer","minimum":0,"default":0}},"required":["task"]}"#,
+        description: b"Read related task specs or retained descendant reports (field=result); from=next continues.",
+        schema: br#"{"type":"object","additionalProperties":false,"properties":{"task":{"type":"integer","minimum":1},"field":{"enum":["specification","result"]},"from":{"type":"integer","minimum":0,"default":0}},"required":["task"]}"#,
         effect: run::HostEffect::Read,
     },
     Spec {
@@ -276,13 +276,7 @@ pub fn call_configured(
     }
     let value = crate::json::parse(input.bytes())?;
     let tool = match tool {
-        b"read_task" => engine::Tool::ReadTask {
-            task: positive(&value, b"task")?,
-            from: match value.field(b"from")? {
-                Some(from) => from.number(b"from")?,
-                None => 0,
-            },
-        },
+        b"read_task" => task_read(&value)?,
         b"settings" => crate::settings::read(&value, input.bytes())?,
         b"read_docs" => {
             let answer = match docs::read(&value)? {
@@ -754,4 +748,27 @@ fn amend(value: &Value) -> Result<engine::Tool, Problem> {
         None => return Err(Problem::Missing(b"revision")),
     };
     Ok(engine::Tool::Amend { keep_parameters, target: positive(value, b"target")?, revision, amendment })
+}
+
+fn task_read_field(value: &Value) -> Result<jig_domain_core::reads::TaskTextField, Problem> {
+    use jig_domain_core::reads::TaskTextField;
+    match value.field(b"field")? {
+        None => Ok(TaskTextField::Specification),
+        Some(field) => match field.text(b"field")?.as_ref() {
+            b"specification" => Ok(TaskTextField::Specification),
+            b"result" => Ok(TaskTextField::Result),
+            _ => Err(Problem::Range(b"field")),
+        },
+    }
+}
+
+fn task_read(value: &Value) -> Result<engine::Tool, Problem> {
+    Ok(engine::Tool::ReadTask {
+        field: task_read_field(value)?,
+        task: positive(value, b"task")?,
+        from: match value.field(b"from")? {
+            Some(from) => from.number(b"from")?,
+            None => 0,
+        },
+    })
 }
