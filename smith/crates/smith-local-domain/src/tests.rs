@@ -405,7 +405,7 @@ fn spawned_agent_receives_saved_start_message_and_durable_turn_ack() {
     let outputs = drain_requests(&mut out);
     assert!(
         !outputs.iter().any(|request| match request {
-            Request::Show { text } if text.as_ref() == b"Chat parked" => true,
+            Request::Notice { notice: crate::Notice::Answer(crate::Said::Parked) } => true,
             _ => false,
         }),
         "answer waits for process exit and empty tree"
@@ -426,7 +426,7 @@ fn spawned_agent_receives_saved_start_message_and_durable_turn_ack() {
     crate::step(&mut domain, &env, Event::Process(process::Event::Reaped { owner, detail: Box::default() }), &mut out);
     let outputs = drain_requests(&mut out);
     assert!(outputs.iter().any(|request| match request {
-        Request::Show { text } if text.as_ref() == b"Chat parked" => true,
+        Request::Notice { notice: crate::Notice::Answer(crate::Said::Parked) } => true,
         _ => false,
     }));
     assert!(outputs.iter().any(|request| match request {

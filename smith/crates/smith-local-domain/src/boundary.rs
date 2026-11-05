@@ -134,27 +134,6 @@ pub enum Older {
     Layout(StoreFamily),
 }
 
-impl Older {
-    /// Static operator pieces, with the chat name inserted between them (shell.md, 5.3).
-    #[must_use]
-    pub fn words(&self) -> &'static [&'static str] {
-        match self {
-            Self::Unrecorded => &[
-                "Chat `",
-                "` was kept by an older build of smith, from before chats recorded their layouts, and this start has changed nothing in its directory. Before the first release a chat is not translated, so every start refuses this one until it is moved. To start afresh, stop each smith using it, move its directory under smith's state directory aside, whole, and start again: nothing is deleted, and the next start makes a new, empty chat, without this chat's history or its deliveries' answers.",
-            ],
-            Self::Layout(StoreFamily::Store) => &[
-                "Chat `",
-                "` was kept by an older build of smith, whose records' layout differs from this build's, and this start has changed nothing in its directory. Before the first release a chat is not translated, so every start refuses this one until it is moved. To start afresh, stop each smith using it, move its directory under smith's state directory aside, whole, and start again: nothing is deleted, and the next start makes a new, empty chat, without this chat's history or its deliveries' answers.",
-            ],
-            Self::Layout(StoreFamily::Transcript) => &[
-                "Chat `",
-                "` was kept by an older build of smith, whose turns' layout differs from this build's, and this start has changed nothing in its directory. Before the first release a chat is not translated, so every start refuses this one until it is moved. To start afresh, stop each smith using it, move its directory under smith's state directory aside, whole, and start again: nothing is deleted, and the next start makes a new, empty chat, without this chat's history or its deliveries' answers.",
-            ],
-        }
-    }
-}
-
 /// Why the store could not keep or load this chat.
 #[derive(Clone, Copy, PartialEq, Eq, Debug)]
 pub enum StoreFailure {
@@ -281,6 +260,10 @@ pub enum Reading {
 /// A local host notice rendered by the terminal (protocol/hosts.md, section 5.1).
 #[derive(Clone, PartialEq, Eq, Debug)]
 pub enum Notice {
+    /// What the person reads of an accepted turn, in block order.
+    Turn { lines: Box<[TurnLine]> },
+    /// What the run's answer said.
+    Answer(Said),
     /// Feedback for a local choice, rendered without entering the agent.
     Choice(crate::ChoiceNotice),
     /// A local chat selection was refused, without sending a message to the run.
@@ -295,6 +278,37 @@ pub enum Notice {
     Failure(Failure),
     /// The kit forced an answered agent to exit; its answer still stands.
     Warning(Warning),
+}
+
+/// One line of a turn, as the terminal words it.
+#[derive(Clone, Debug, PartialEq, Eq)]
+pub enum TurnLine {
+    /// Assistant text retained for the terminal.
+    Text(Box<[u8]>),
+    /// An invoked tool's name.
+    Tool { name: Box<[u8]> },
+    /// A told tool result's verdict.
+    Ended(ToolVerdict),
+}
+
+/// How a told tool result ended.
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+pub enum ToolVerdict {
+    /// The tool completed successfully.
+    Finished,
+    /// The tool did not complete successfully.
+    Failed,
+}
+
+/// What an answer said, whole: a headless run writes it uncapped.
+#[derive(Clone, Debug, PartialEq, Eq)]
+pub enum Said {
+    /// The answer's owned text.
+    Text(Box<[u8]>),
+    /// The run delivered its change.
+    Change,
+    /// The run parked for input.
+    Parked,
 }
 
 /// The run reports a checking span to the person.
@@ -330,6 +344,8 @@ pub enum Failure {
     Run { failure: smith_host_domain::RunFailure, detail: Box<[u8]> },
     /// The run refused its start, naming the refusal.
     Refused(smith_host_domain::Refusal),
+    /// The run refused the sent charter's effort.
+    EffortRefused(crate::ChoiceNotice),
     /// The kit refused before an agent existed.
     Unstarted(smith_host_domain::End),
     /// The agent failed before answering, carrying its settled exit and diagnostic.
@@ -376,8 +392,6 @@ pub enum Warning {
 pub enum Request {
     /// Open or hold the terminal input demand.
     Input { reading: Reading },
-    /// Bounded text shown to the person.
-    Show { text: Box<[u8]> },
     /// A typed local host notice for the terminal to render.
     Notice { notice: Notice },
     /// Load this configured chat's metadata and concrete history.

@@ -182,18 +182,12 @@ fn split(input: &[u8], delimiter: u8) -> Option<(&[u8], &[u8])> {
     Some((input.get(..at)?, input.get(at.checked_add(1)?..)?))
 }
 pub(crate) fn number(input: &[u8]) -> Option<u64> {
-    if input.is_empty() || (input.len() > 1 && input.starts_with(b"0")) {
+    if input.len() > 1 && input.starts_with(b"0") {
         return None;
     }
-    let mut value = 0_u64;
-    for byte in input {
-        if !byte.is_ascii_digit() {
-            return None;
-        }
-        value = value.checked_mul(10)?.checked_add(u64::from(byte.checked_sub(b'0')?))?;
-    }
-    Some(value)
+    bytes::decimal(input)
 }
+
 fn fields(first: u8, header: &[u8]) -> Option<(Mode, Oid, u64)> {
     if first != b'1' {
         return None;

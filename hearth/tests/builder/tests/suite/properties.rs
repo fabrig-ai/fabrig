@@ -25,34 +25,23 @@ fn a_production_edit_leaves_the_lab_specs_through_real_git() {
     }
 }
 
-#[test]
-fn generated_repositories_have_the_render_worlds_digests_through_cut_pipes() {
-    fixtures::properties::cut_pipe_digests(0);
+/// One test per batch, so that the batches run apart.
+macro_rules! cut_pipe_batches {
+    ($($name:ident = $batch:literal,)*) => {
+        $(#[test]
+        fn $name() {
+            fixtures::properties::cut_pipe_digests($batch);
+        })*
+    };
 }
 
-#[test]
-fn generated_repositories_have_the_render_worlds_digests_through_cut_pipes_1() {
-    fixtures::properties::cut_pipe_digests(1);
-}
-
-#[test]
-fn generated_repositories_have_the_render_worlds_digests_through_cut_pipes_2() {
-    fixtures::properties::cut_pipe_digests(2);
-}
-
-#[test]
-fn generated_repositories_have_the_render_worlds_digests_through_cut_pipes_3() {
-    fixtures::properties::cut_pipe_digests(3);
-}
-
-#[test]
-fn generated_repositories_have_the_render_worlds_digests_through_cut_pipes_4() {
-    fixtures::properties::cut_pipe_digests(4);
-}
-
-#[test]
-fn generated_repositories_have_the_render_worlds_digests_through_cut_pipes_5() {
-    fixtures::properties::cut_pipe_digests(5);
+cut_pipe_batches! {
+    generated_repositories_have_the_render_worlds_digests_through_cut_pipes = 0,
+    generated_repositories_have_the_render_worlds_digests_through_cut_pipes_1 = 1,
+    generated_repositories_have_the_render_worlds_digests_through_cut_pipes_2 = 2,
+    generated_repositories_have_the_render_worlds_digests_through_cut_pipes_3 = 3,
+    generated_repositories_have_the_render_worlds_digests_through_cut_pipes_4 = 4,
+    generated_repositories_have_the_render_worlds_digests_through_cut_pipes_5 = 5,
 }
 
 #[test]
