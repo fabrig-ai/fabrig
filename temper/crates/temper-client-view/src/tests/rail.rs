@@ -227,6 +227,7 @@ fn the_frame_requires_me_and_a_project_and_yields_to_welcome_and_sign_in() {
 fn rail_and_tabbar_keep_the_order_addresses_current_states_and_count() {
     let addresses = [
         Address::Home { project: f::PROJECT },
+        Address::Changes { project: f::PROJECT },
         Address::Inbox { filter: d::address::Filter::ALL },
         Address::Chats { filter: ChatsFilter::All, start: false },
         Address::Chat { task: 9 },
@@ -276,6 +277,7 @@ fn rail_and_tabbar_keep_the_order_addresses_current_states_and_count() {
                     Address::Home { .. } => Some(b"Home".as_slice()),
                     Address::Inbox { .. } => Some(needs),
                     Address::Chats { .. } | Address::Chat { .. } => Some(b"Chats".as_slice()),
+                    Address::Changes { .. } => Some(b"Changes".as_slice()),
                     Address::Settings { .. } | Address::Configure { .. } => Some(b"Settings".as_slice()),
                     Address::Task { .. }
                     | Address::Accounts
@@ -301,7 +303,7 @@ fn rail_and_tabbar_keep_the_order_addresses_current_states_and_count() {
                     let expected = if style == look::TABBAR {
                         vec![b"Home".as_slice(), needs, b"Chats", b"Settings"]
                     } else {
-                        vec![b"Home".as_slice(), needs, b"Chats"]
+                        vec![b"Home".as_slice(), needs, b"Chats", b"Changes"]
                     };
                     assert_eq!(links.iter().map(|n| n.name.as_deref().unwrap()).collect::<Vec<_>>(), expected);
                     let count_nodes = styled(view.tree(), style)
@@ -323,7 +325,7 @@ fn rail_and_tabbar_keep_the_order_addresses_current_states_and_count() {
                         b"/projects/1".as_slice(),
                         b"/?project=1",
                         b"/chats",
-                        b"/projects/1/settings",
+                        if style == look::TABBAR { b"/projects/1/settings" } else { b"/projects/1/changes" },
                     ]) {
                         assert_eq!(marked, name.as_deref() == current && current.is_some());
                         assert_eq!(crate::href(&mut view, id).as_deref(), Some(href));
@@ -505,7 +507,8 @@ fn the_terminal_numbers_the_rail_and_keeps_the_first_line() {
     skein_ui_text::render(view.tree(), b"temper", Some(crate::frame::link_region()), &mut print);
     let text = String::from_utf8_lossy(print.text.as_slice());
     assert_eq!(text.lines().next(), Some("== Inbox == Offline; Behind"));
-    for line in ["[7] Home", "[8] Needs you (current)", "[9] Chats", "[10] + New chat", "[11] Settings"] {
+    for line in ["[7] Home", "[8] Needs you (current)", "[9] Chats", "[10] Changes", "[11] + New chat", "[12] Settings"]
+    {
         assert!(text.lines().any(|s| s.trim() == line), "{line}: {text}");
     }
     assert!(!text.contains("Sections:"));

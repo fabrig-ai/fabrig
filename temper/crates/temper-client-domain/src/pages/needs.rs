@@ -213,6 +213,7 @@ impl Session {
         match after {
             Address::Inbox { .. } => {}
             Address::Chats { .. }
+            | Address::Changes { .. }
             | Address::Accounts
             | Address::Forges
             | Address::ConnectForge { .. }
@@ -550,6 +551,7 @@ pub(super) fn act(pages: &mut Pages, env: &Env<Limits>, act: Act, out: &mut Queu
                 Address::Home { project } => Some(project),
                 Address::Inbox { .. }
                 | Address::Chats { .. }
+                | Address::Changes { .. }
                 | Address::Accounts
                 | Address::Forges
                 | Address::ConnectForge { .. }

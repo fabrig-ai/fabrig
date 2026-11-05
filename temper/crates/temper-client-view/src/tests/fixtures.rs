@@ -69,9 +69,8 @@ fn english(shell: crate::words::Shell) -> crate::words::Words {
 
 pub fn tree_limits() -> skein_ui::Limits {
     skein_ui::Limits {
-        // Two time nodes for each of the six inbox cards, and a goal's page
-        // with nine plan rows, live and ended (181 nodes).
-        nodes: 192,
+        // The largest goal plan and its frame, including Changes' link and text.
+        nodes: 194,
         depth: 32,
         text_per_node: 512,
         text_bytes: 98304,
@@ -353,6 +352,7 @@ pub(super) fn root_at_with_dismissals_and_needs(
         | temper_client_domain::Address::Accounts
         | temper_client_domain::Address::Inbox { .. }
         | temper_client_domain::Address::Home { .. }
+        | temper_client_domain::Address::Changes { .. }
         | temper_client_domain::Address::Settings { .. }
         | temper_client_domain::Address::Configure { .. }
         | temper_client_domain::Address::Adopt { .. }

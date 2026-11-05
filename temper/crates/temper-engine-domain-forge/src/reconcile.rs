@@ -31,6 +31,7 @@ pub enum RecordKind {
     Receipt,
     Tier,
     Verification,
+    LandingLog,
     Making,
     Dismissed,
 }
@@ -76,7 +77,8 @@ pub(crate) fn capacity(l: &Limits) -> Option<u32> {
         .checked_add(l.applications)? // Application: adopted repository, if any.
         .checked_add(l.client.repositories)? // Writer: configured forge.
         .checked_add(l.repositories.checked_mul(l.tiers.tiers)?.checked_mul(2)?)?
-        .checked_add(l.changes)?
+        .checked_add(l.changes)? // Verification: repository.
+        .checked_add(l.repositories)? // LandingLog: repository.
         .checked_add(l.landings.checked_mul(l.landing_members)?)?
         .checked_add(l.repositories.checked_mul(l.gates.checked_add(l.tiers.tiers)?)?.checked_mul(l.receipts_per_gate)?)
 }
@@ -138,6 +140,7 @@ impl Reconciliation {
         }
         Ok(())
     }
+    #[expect(clippy::too_many_lines, reason = "one exhaustive reference map for the connector durable rows")]
     fn restore_references(&mut self, row: &Stored) -> Result<(), crate::RestoreFit> {
         match row {
             Stored::Landing(row) => {
@@ -157,6 +160,7 @@ impl Reconciliation {
                 Ok(())
             }
             Stored::Verification(row) => self.repository(RecordKind::Verification, row.repository),
+            Stored::LandingLog(row) => self.repository(RecordKind::LandingLog, row.repository),
             Stored::Receipt { key, .. } => self.repository(RecordKind::Receipt, key.repository),
             Stored::Call { key, .. } => self.task(RecordKind::Call, key.task, None),
             Stored::ProposedEffect(row) => self.entry(RecordKind::ProposedEffect, &row.entry),
@@ -332,7 +336,8 @@ impl Domain {
             | RecordKind::Landing
             | RecordKind::Receipt
             | RecordKind::Tier
-            | RecordKind::Verification => true,
+            | RecordKind::Verification
+            | RecordKind::LandingLog => true,
             RecordKind::Forge
             | RecordKind::Call
             | RecordKind::ProposedEffect

@@ -164,6 +164,37 @@ const HOLDS: [Holds; samples::N] = [
         ],
     },
     Holds {
+        name: "changes",
+        heading: "Three changes are on the way to main.",
+        parts: &[
+            Part::Text { text: "3 queued" },
+            Part::Text { text: "last landed 6 min ago" },
+            Part::Text { text: "first-run-projects" },
+            Part::Text { text: "queued 2nd" },
+            Part::Named { role: Role::Heading { level: 2 }, name: "Landed recently" },
+        ],
+    },
+    Holds {
+        name: "changes-empty",
+        heading: "Nothing is on the way to main.",
+        parts: &[Part::Text { text: "nothing has landed yet" }, Part::Text { text: "Empty." }],
+    },
+    Holds {
+        name: "changes-one",
+        heading: "One change is on the way to main.",
+        parts: &[Part::Text { text: "1 queued" }, Part::Text { text: "checking" }],
+    },
+    Holds {
+        name: "changes-landed-only",
+        heading: "Nothing is on the way to main.",
+        parts: &[
+            Part::Text { text: "main last moved 1 h ago" },
+            Part::Text { text: "nothing queued" },
+            Part::Text { text: "Hello in Rust" },
+            Part::Text { text: "07:02" },
+        ],
+    },
+    Holds {
         name: "home-three-left",
         heading: "Hello is ready.",
         parts: &[

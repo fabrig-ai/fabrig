@@ -6,7 +6,7 @@ milestone stands in the code (`README.md`). After landing is built
 for a repository's tiers, a goal branch's own tier, their verdicts,
 a red's news to its goal, a repair naming its red and a change
 living to cleared; a red of no goal's, trailers, what the forge
-shows and the landing log are not (`domain/after-landing.md`,
+shows and the landing log's trailers and verdicts are not (`domain/after-landing.md`,
 `protocol/store.md`), and a red range's probes walk its landings in
 order rather than bisect them (`domain/after-landing.md`); nor are
 findings, whole (`domain/findings.md`, with their families in

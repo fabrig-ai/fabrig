@@ -288,3 +288,16 @@ fn dismissed_key_decoder_refuses_unknown_kind_width_and_trailing_bytes() {
         assert_eq!(keys::decode(&bytes.finish().expect("fixed key fits"), &fixtures::LIMITS), None, "{name}");
     }
 }
+
+#[test]
+fn landing_log_keys_use_family_thirty_and_repository_order() {
+    let repository = skein_forge::api::Repository { forge: 1, repository: 2 };
+    let key = Key::LandingLog { repository };
+    let bytes = keys::encode(&key, u32::MAX).unwrap();
+    let mut expected = skein_kv::KeyWriter::new(u32::MAX);
+    expected.tag(30).u64(1).u64(2);
+    assert_eq!(bytes, expected.finish().unwrap());
+    assert_eq!(keys::decode(&bytes, &fixtures::LIMITS), Some(key.clone()));
+    assert!(Key::Verification { repository, commit: [255; 32] } < key);
+    assert!(key < Key::Dismissed { party: 0, what: temper_engine_domain_forge::Dismissal::ToBegin { project: 0 } });
+}

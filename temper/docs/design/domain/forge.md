@@ -2175,6 +2175,9 @@ are comparable.
   first time. A kept change keeps its head, its checks and its gates'
   verdicts: once its last dependency is met, it is ready again at once
   if they still hold. A resolution never holds the queue.
+- **Shown whole,** to the client's subject `changes`
+  (`../client/README.md`, 4.6): the change that owns the queue first, at
+  whichever step of its turn, then the ready changes in this order.
 - **Derived, not kept.** A queue is the ready changes into a branch,
   their priorities and their times; nothing of it is stored beyond the
   changes' own states, so a restart rebuilds it from them.
