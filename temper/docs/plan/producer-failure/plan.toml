@@ -1,0 +1,3 @@
+draft = "producer-failure"
+repo = "fabrig"
+sources = ["temper/docs/plan/producer-failure/inputs/request.md", "AGENTS.md", "DESIGN.md"]
