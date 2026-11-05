@@ -64,13 +64,6 @@ pub enum Word {
     HomeChat,
     HomeChatDetail,
     HomeNewChat,
-    HomeConnected,
-    HomeLogin,
-    HomeRepository,
-    HomeModel,
-    HomeProject,
-    HomeProjectRepository,
-    HomeProjectNone,
     HomeAdoptLink,
     HomeDayTime,
     HomeDone,
@@ -840,7 +833,8 @@ pub(crate) const SCRIPTED_MODEL: &[u8] = b"demo";
 // Everyday Home adds twenty-one phrases (3.5).
 // To begin replaces seven phrases with nine for the card, notes and Skip (3.5).
 // More accounts adds six phrases (client/README.md, 3.5).
-const PHRASES: u32 = 1344;
+// Removing Connected removes seven phrases (client/README.md, 3.5).
+const PHRASES: u32 = 1337;
 // Ready's empty-name line has two literals and a Name hole, two more segments (3.5).
 // Ready's repository lead adds one phrase and three segments (3.5).
 // Four literals and the counted entry's two literals and Number hole add seven segments.
@@ -849,8 +843,9 @@ const PHRASES: u32 = 1344;
 // Everyday Home adds forty-five literal and hole segments (3.5).
 // To begin removes four segments with its shorter words and new card phrases (3.5).
 // More accounts adds eight literal and hole segments (3.5).
-const SEGMENTS: u32 = 2339;
-const ALL: [Word; 749] = [
+// Removing Connected removes twenty-three literal and hole segments (3.5).
+const SEGMENTS: u32 = 2316;
+const ALL: [Word; 742] = [
     Word::HomeOpen,
     Word::HomeNeedsNone,
     Word::HomeNeedsOne,
@@ -904,13 +899,6 @@ const ALL: [Word; 749] = [
     Word::HomeChat,
     Word::HomeChatDetail,
     Word::HomeNewChat,
-    Word::HomeConnected,
-    Word::HomeLogin,
-    Word::HomeRepository,
-    Word::HomeModel,
-    Word::HomeProject,
-    Word::HomeProjectRepository,
-    Word::HomeProjectNone,
     Word::HomeAdoptLink,
     Word::HomeDayTime,
     Word::HomeDone,
@@ -1658,13 +1646,6 @@ impl Word {
             Self::HomeChat => 3131,
             Self::HomeChatDetail => 3132,
             Self::HomeNewChat => 3133,
-            Self::HomeConnected => 3134,
-            Self::HomeLogin => 3135,
-            Self::HomeRepository => 3136,
-            Self::HomeModel => 3137,
-            Self::HomeProject => 3138,
-            Self::HomeProjectRepository => 3139,
-            Self::HomeProjectNone => 3140,
             Self::HomeAdoptLink => 3141,
             Self::HomeDayTime => 3142,
             Self::HomeDone => 3143,
@@ -2713,13 +2694,6 @@ fn english(word: Word, shell: Shell) -> (&'static [&'static [u8]], &'static [Hol
         Word::HomeChat => (&[b"Start a chat"], &[]),
         Word::HomeChatDetail => (&[b"Ask a question or ask for a change."], &[]),
         Word::HomeNewChat => (&[b"New chat"], &[]),
-        Word::HomeConnected => (&[b"Connected"], &[]),
-        Word::HomeLogin => (&[b" \xc2\xb7 connected as ", b""], &[Name]),
-        Word::HomeRepository => (&[b" \xc2\xb7 ", b"/", b", in ", b""], &[Name, Name, Name]),
-        Word::HomeModel => (&[b" \xc2\xb7 ", b""], &[Name]),
-        Word::HomeProject => (&[b"Project ", b""], &[Name]),
-        Word::HomeProjectRepository => (&[b" \xc2\xb7 ", b"/", b""], &[Name, Name]),
-        Word::HomeProjectNone => (&[b" \xc2\xb7 no repository yet"], &[]),
         Word::HomeAdoptLink => (&[b"Adopt"], &[]),
         Word::HomeDayTime => (&[b"", b" \xc2\xb7 ", b""], &[Name, Name]),
         Word::HomeDone => (&[b"Done. "], &[]),
