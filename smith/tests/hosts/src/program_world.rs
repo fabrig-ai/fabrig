@@ -88,14 +88,7 @@ impl Host for Parent {
                 self.completions.push(complete);
             }
         }
-        io::stage::up(
-            &mut self.io,
-            &self.env,
-            &mut self.completions,
-            &mut self.events,
-            &mut self.submissions,
-            now,
-        );
+        io::stage::up(&mut self.io, &self.env, &mut self.completions, &mut self.events, &mut self.submissions, now);
         while let Some(event) = self.events.pop() {
             let source = self.source.as_mut().expect("source issued before I/O");
             let owner = match &event {

@@ -470,14 +470,7 @@ impl Host for Fake {
                 self.completions.push(complete);
             }
         }
-        skein_io::stage::up(
-            &mut self.io,
-            &env,
-            &mut self.completions,
-            &mut self.io_events,
-            &mut self.submissions,
-            now,
-        );
+        skein_io::stage::up(&mut self.io, &env, &mut self.completions, &mut self.io_events, &mut self.submissions, now);
         if self.files.is_due(now) {
             file_layer::expire(&mut self.files, now, &mut self.file_submissions);
         }

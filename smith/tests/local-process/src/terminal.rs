@@ -443,14 +443,7 @@ impl Host for Terminal {
                 self.completions.push(complete);
             }
         }
-        io::stage::up(
-            &mut self.io,
-            &self.env,
-            &mut self.completions,
-            &mut self.events,
-            &mut self.submissions,
-            now,
-        );
+        io::stage::up(&mut self.io, &self.env, &mut self.completions, &mut self.events, &mut self.submissions, now);
         while let Some(event) = self.events.pop() {
             self.event(event);
         }
