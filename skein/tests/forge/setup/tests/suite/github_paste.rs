@@ -1,6 +1,6 @@
 use core::num::NonZeroU64;
 use skein_fake_forge_github::{keys, service::AppFacts};
-use skein_forge_machine_world::github::app_key;
+use skein_forge_kit::github::app_key;
 use skein_forge_setup::{
     github::Lacking,
     host::{Need, Plan},

@@ -865,8 +865,13 @@ impl Machine {
 /// Loads an untouched recorded HTTP response, including its headers and framing.
 #[must_use]
 pub fn case_bytes(case: &str) -> Vec<u8> {
-    fs::read(Path::new(env!("CARGO_MANIFEST_DIR")).join("../conformance/transcripts").join(case).join("response"))
-        .expect("recorded response")
+    fs::read(
+        Path::new(env!("CARGO_MANIFEST_DIR"))
+            .join("../../tests/forge/conformance/transcripts")
+            .join(case)
+            .join("response"),
+    )
+    .expect("recorded response")
 }
 
 impl Cut {

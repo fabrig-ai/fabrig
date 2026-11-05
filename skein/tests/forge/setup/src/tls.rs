@@ -1,5 +1,5 @@
 //! In-memory TLS beneath the setup world's HTTP peers.
-use skein_forge_machine_world::pipe::{Cut, Pipe};
+use skein_forge_kit::pipe::{Cut, Pipe};
 use skein_lib::{
     Intake,
     stream::{Down, Read, Up},

@@ -1,5 +1,5 @@
 use core::num::NonZeroU32;
-use skein_forge_machine_world::github::app_key;
+use skein_forge_kit::github::app_key;
 use skein_forge_setup::{
     host::{Need, Plan},
     item::{self, Item},

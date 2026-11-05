@@ -6,7 +6,7 @@ use skein_fake_forge_github::{
 };
 use skein_forge::credential::Credential;
 use skein_forge_connection::{Access, Settings, settings::Kind as Dialect};
-use skein_forge_machine_world::fixtures;
+use skein_forge_kit::fixtures;
 use skein_lib::{Duration, Secret, Wall};
 
 pub(crate) fn limits(log_poll: Duration) -> skein_forge_connection::Limits {
