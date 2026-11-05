@@ -5,10 +5,11 @@ use super::{
     key,
     write::Write,
 };
+use crate::github::{Reply, reply, unexpected};
 use crate::{
     call::Auth,
     item,
-    plan::{self, Event, Need, Outcome, Reply, Stage, Why, reply, unexpected},
+    plan::{self, Event, Need, Outcome, Stage, Why},
 };
 use alloc::boxed::Box;
 use core::num::NonZeroU64;
@@ -109,8 +110,8 @@ impl Convert {
         let subject = self.subject();
         let state = core::mem::replace(&mut self.state, State::Ended);
         match state {
-            State::Begin => match event {
-                Event::Begin => {
+            State::Begin => match event.begin() {
+                Ok(()) => {
                     let code = self.code.take().expect("begin holds admitted code");
                     self.state = State::Conversion;
                     Need::Send {
@@ -118,26 +119,22 @@ impl Convert {
                         auth: Auth::None,
                     }
                 }
-                Event::Read(_) | Event::Reply(_) | Event::Written | Event::Drawn(_) => {
-                    self.stop(&subject, Why::Unexpected)
-                }
+                Err(why) => self.stop(&subject, why),
             },
             State::Conversion => match reply(event) {
-                Ok(Reply::GithubDocument(Document::Conversion(conversion))) => self.converted(conversion),
+                Ok(Reply::Document(Document::Conversion(conversion))) => self.converted(conversion),
                 Ok(
-                    reply @ (Reply::Document(_)
-                    | Reply::Rows(_)
-                    | Reply::Empty
+                    reply @ (Reply::Empty
                     | Reply::Status(_)
                     | Reply::Down
-                    | Reply::GithubDocument(_)
-                    | Reply::GithubRows(_)
+                    | Reply::Document(_)
+                    | Reply::Rows(_)
                     | Reply::Unsigned),
                 ) => self.stop(&subject, unsigned_unexpected(reply)),
                 Err(why) => self.stop(&subject, why),
             },
             State::App => match reply(event) {
-                Ok(Reply::GithubDocument(Document::App(app))) => {
+                Ok(Reply::Document(Document::App(app))) => {
                     if app.id != self.id {
                         return self.stop(&subject, Why::OtherApp);
                     }
@@ -148,15 +145,9 @@ impl Convert {
                     Need::Send { request: Request::BotUser { slug: self.slug.clone() }.into(), auth: Auth::None }
                 }
                 Ok(Reply::Unsigned) => self.stop(b"key", Why::KeyForm),
-                Ok(
-                    reply @ (Reply::Document(_)
-                    | Reply::Rows(_)
-                    | Reply::Empty
-                    | Reply::Status(_)
-                    | Reply::Down
-                    | Reply::GithubDocument(_)
-                    | Reply::GithubRows(_)),
-                ) => self.stop(&subject, unsigned_unexpected(reply)),
+                Ok(reply @ (Reply::Empty | Reply::Status(_) | Reply::Down | Reply::Document(_) | Reply::Rows(_))) => {
+                    self.stop(&subject, unsigned_unexpected(reply))
+                }
                 Err(why) => self.stop(&subject, why),
             },
             State::Bot => match app::bot(event) {
@@ -175,13 +166,9 @@ impl Convert {
 fn unsigned_unexpected(reply: Reply) -> Why {
     match reply {
         Reply::Unsigned => Why::Unexpected,
-        other @ (Reply::Status(_)
-        | Reply::Down
-        | Reply::Document(_)
-        | Reply::Rows(_)
-        | Reply::Empty
-        | Reply::GithubDocument(_)
-        | Reply::GithubRows(_)) => unexpected(other),
+        other @ (Reply::Status(_) | Reply::Down | Reply::Empty | Reply::Document(_) | Reply::Rows(_)) => {
+            unexpected(other)
+        }
     }
 }
 /// Consumes one event, emitting its next need; ended

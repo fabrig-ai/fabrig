@@ -1,10 +1,11 @@
 //! Takes over an owned Forgejo's handed admin token (forge-setup.md, 4.7).
+use crate::forgejo::{Reply, reply, unexpected};
 use crate::{
     call::Auth,
     given::{self, Given, Refused},
     item::Item,
-    plan::{self, Event, Need, Outcome, Reply, Stage, Why},
-    reconcile::{self, reply, unexpected},
+    plan::{self, Event, Need, Outcome, Stage, Why},
+    reconcile,
 };
 use alloc::boxed::Box;
 use skein_forge::forgejo::{
@@ -80,17 +81,15 @@ impl TakeOver {
 
     fn advance(&mut self, state: State, event: Event) -> Need {
         match state {
-            State::Begin => match event {
-                Event::Begin => {
+            State::Begin => match event.begin() {
+                Ok(()) => {
                     if self.token().is_empty() {
                         return self.stop(Stage::Admin, Why::Missing);
                     }
                     self.state = State::Admin;
                     self.send(Request::User)
                 }
-                Event::Read(_) | Event::Reply(_) | Event::Written | Event::Drawn(_) => {
-                    self.stop(Stage::Admin, Why::Unexpected)
-                }
+                Err(why) => self.stop(Stage::Admin, why),
             },
             State::Admin => match reconcile::account(event) {
                 Ok(user) => {
@@ -103,14 +102,12 @@ impl TakeOver {
                 }
                 Err(why) => self.stop(Stage::Admin, why),
             },
-            State::Written => match event {
-                Event::Written => {
+            State::Written => match event.written() {
+                Ok(()) => {
                     self.state = State::Settings;
                     self.send(Request::ApiSettings)
                 }
-                Event::Begin | Event::Read(_) | Event::Reply(_) | Event::Drawn(_) => {
-                    self.stop(Stage::Admin, Why::Unexpected)
-                }
+                Err(why) => self.stop(Stage::Admin, why),
             },
             State::Settings | State::Listing | State::Delete => match self.tokens(state, event) {
                 Ok(need) => need,
@@ -127,25 +124,16 @@ impl TakeOver {
                     self.cap = Some(settings.max_response_items);
                     Ok(self.listing())
                 }
-                other @ (Reply::Document(_)
-                | Reply::Rows(_)
-                | Reply::Empty
-                | Reply::Status(_)
-                | Reply::Down
-                | Reply::GithubDocument(_)
-                | Reply::GithubRows(_)
-                | Reply::Unsigned) => Err(unexpected(other)),
+                other @ (Reply::Document(_) | Reply::Rows(_) | Reply::Empty | Reply::Status(_) | Reply::Down) => {
+                    Err(unexpected(other))
+                }
             },
             State::Listing => self.rows(reply(event)?),
             State::Delete => match reply(event)? {
                 Reply::Empty | Reply::Status(404) => Ok(self.listing()),
-                other @ (Reply::Document(_)
-                | Reply::Rows(_)
-                | Reply::Status(_)
-                | Reply::Down
-                | Reply::GithubDocument(_)
-                | Reply::GithubRows(_)
-                | Reply::Unsigned) => Err(unexpected(other)),
+                other @ (Reply::Document(_) | Reply::Rows(_) | Reply::Status(_) | Reply::Down) => {
+                    Err(unexpected(other))
+                }
             },
             State::Begin | State::Admin | State::Written | State::Ended => unreachable!("token phases only"),
         }
@@ -154,13 +142,7 @@ impl TakeOver {
     fn rows(&mut self, answer: Reply) -> Result<Need, Why> {
         let rows = match answer {
             Reply::Rows(rows) => rows,
-            other @ (Reply::Document(_)
-            | Reply::Empty
-            | Reply::Status(_)
-            | Reply::Down
-            | Reply::GithubDocument(_)
-            | Reply::GithubRows(_)
-            | Reply::Unsigned) => {
+            other @ (Reply::Document(_) | Reply::Empty | Reply::Status(_) | Reply::Down) => {
                 return Err(unexpected(other));
             }
         };

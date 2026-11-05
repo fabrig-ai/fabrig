@@ -31,13 +31,13 @@ fn conversion(slug: &[u8], pem: Secret) -> Conversion {
     }
 }
 fn converted(row: Conversion) -> Event {
-    Event::Reply(Reply::GithubDocument(Document::Conversion(row)))
+    Event::Reply(Reply::GitHubDocument(Document::Conversion(row)))
 }
 fn converted_key(pem: Secret) -> Event {
     converted(conversion(SLUG, pem))
 }
 fn app(id: u64, slug: &[u8]) -> Event {
-    Event::Reply(Reply::GithubDocument(Document::App(App {
+    Event::Reply(Reply::GitHubDocument(Document::App(App {
         id,
         slug: slug.into(),
         permissions: Box::new([]),
@@ -45,7 +45,7 @@ fn app(id: u64, slug: &[u8]) -> Event {
     })))
 }
 fn bot(id: u64) -> Event {
-    Event::Reply(Reply::GithubDocument(Document::BotUser(id)))
+    Event::Reply(Reply::GitHubDocument(Document::BotUser(id)))
 }
 fn go(machine: &mut Convert, event: Event) -> Need {
     let mut out = Queue::uncapped();
@@ -290,10 +290,10 @@ fn a_conversion_names_status_down_and_wrong_document_at_its_step() {
             (Reply::Status(403), Why::Refused(403)),
             (Reply::Status(500), Why::Refused(500)),
             (Reply::Down, Why::Down),
-            (Reply::GithubDocument(Document::Done), Why::Unexpected),
+            (Reply::GitHubDocument(Document::Done), Why::Unexpected),
             (Reply::Empty, Why::Unexpected),
             (Reply::Rows(Box::new([])), Why::Unexpected),
-            (Reply::GithubRows(Box::new([])), Why::Unexpected),
+            (Reply::GitHubRows(Box::new([])), Why::Unexpected),
             (Reply::Document(skein_forge::forgejo::document::Document::RepoSearch { ok: true }), Why::Unexpected),
         ] {
             let mut machine = at(phase);

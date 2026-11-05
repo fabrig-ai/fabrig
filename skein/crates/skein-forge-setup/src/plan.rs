@@ -1,5 +1,4 @@
 //! The events, needs and outcomes shared by setup plans (skein/docs/design/forge-setup.md, 4.2).
-pub(crate) use crate::reconcile::{reply, unexpected};
 use crate::{
     call::{Auth, Call},
     item::Item,
@@ -66,8 +65,8 @@ pub enum Reply {
     Empty,
     Status(u16),
     Down,
-    GithubDocument(skein_forge::github::document::Document),
-    GithubRows(Box<[skein_forge::github::document::Row]>),
+    GitHubDocument(skein_forge::github::document::Document),
+    GitHubRows(Box<[skein_forge::github::document::Row]>),
     /// The host could not sign the App's JWT: the request was not sent.
     Unsigned,
 }
@@ -124,4 +123,38 @@ pub enum Why {
 /// A plan's stop, naming its stage and subject without credentials.
 pub(crate) fn stop(forge: u16, step: Stage, subject: &[u8], why: Why) -> Need {
     Need::Stop(Failure { forge, step, subject: bytes::copy_of(subject), why })
+}
+
+impl Event {
+    pub(crate) fn begin(self) -> Result<(), Why> {
+        match self {
+            Self::Begin => Ok(()),
+            Self::Read(_) | Self::Reply(_) | Self::Written | Self::Drawn(_) => Err(Why::Unexpected),
+        }
+    }
+    pub(crate) fn read(self) -> Result<Option<Secret>, Why> {
+        match self {
+            Self::Read(value) => Ok(value),
+            Self::Begin | Self::Reply(_) | Self::Written | Self::Drawn(_) => Err(Why::Unexpected),
+        }
+    }
+    pub(crate) fn written(self) -> Result<(), Why> {
+        match self {
+            Self::Written => Ok(()),
+            Self::Begin | Self::Read(_) | Self::Reply(_) | Self::Drawn(_) => Err(Why::Unexpected),
+        }
+    }
+    pub(crate) fn drawn(self) -> Result<Secret, Why> {
+        match self {
+            Self::Drawn(value) => Ok(value),
+            Self::Begin | Self::Read(_) | Self::Reply(_) | Self::Written => Err(Why::Unexpected),
+        }
+    }
+}
+/// An empty secret read is no secret: `Read(Some(empty))` is `Read(None)`.
+pub(crate) fn normal(event: Event) -> Event {
+    match event {
+        Event::Read(Some(value)) if value.is_empty() => Event::Read(None),
+        other @ (Event::Begin | Event::Read(_) | Event::Reply(_) | Event::Written | Event::Drawn(_)) => other,
+    }
 }
