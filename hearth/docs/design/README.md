@@ -392,7 +392,7 @@ hearth-client-dev-world       the development loop's world, under tests/dev (dom
 - **Code cites a section** at module or type level, as
   `hearth/docs/design/domain/slots.md, 5.2`, never on every field.
 - **Examples** use the fleet's targets (`x1-prod`, `mail-prod`,
-  `rhi-prod`) and the factory's (`mail-lab`, `stoa-1-lab`).
+  `east-prod`) and the factory's (`mail-lab`, `stoa-1-lab`).
 
 ## 7. Decisions this design takes
 
@@ -727,7 +727,7 @@ Each document lists its own. The ones that reach across:
 - the checks' format, and what a check may do on a production machine
   (hearth/docs/design/domain/operating.md);
 - signing kernels for Secure Boot (hearth/docs/design/domain/machine.md);
-- firmware that discards its variables, as Vultr's does (hearth/docs/design/domain/machine.md);
+- firmware that discards its variables, as provider C's does (hearth/docs/design/domain/machine.md);
 - whether the activator hashes every output it places again, or trusts
   the builder's records where the builder runs only landed code
   (hearth/docs/design/domain/activator.md);
@@ -749,17 +749,4 @@ Each document lists its own. The ones that reach across:
   it holds itself (hearth/docs/design/domain/activator.md);
 - the fake machine's final home (hearth/docs/design/domain/testing.md);
 - the local mirror for the real tier: which packages, pinned how,
-  fetched by whom (hearth/docs/design/domain/testing.md);
-- which names that look private stay in hearth's files, beyond the
-  domain, addresses and account that reserved names replaced: which
-  provider runs which production machine and what each serves, with
-  the `hardware` values and firmware that name them
-  (hearth/docs/design/domain/machine.md, 2.3, 2.4, 2.7 and 7.2); the
-  fleet's targets beyond section 6's, as `ion-prod`, `carbon-prod` and
-  `chat-prod`; the key fragment of the VPN example
-  (hearth/docs/design/protocol/format.md, 8.6;
-  hearth/docs/design/domain/render.md, 6.3; the records tests' fixtures);
-  the digest of a pinned release
-  (hearth/docs/design/domain/artifacts.md, 7.4); the organization path
-  `ai/`, the project name `stoa` and the name `os`. They are the user's
-  to name.
+  fetched by whom (hearth/docs/design/domain/testing.md).

@@ -18,10 +18,10 @@ fn a_changed_file_prints_its_hunks_as_render_md_shows() {
         "hearth/docs/design/domain/render.md, 6.3, three lines of context"
     );
 }
-const NOTHING: &str = "ion-prod                                            nothing to build\n";
+const NOTHING: &str = "west-prod                                           nothing to build\n";
 #[test]
 fn nothing_to_build_prints_at_the_rebuild_column() {
-    let record = change(b"ion-prod", TargetChange::Changed { parts: Box::new([]), rebuild: Rebuild::Nothing });
+    let record = change(b"west-prod", TargetChange::Changed { parts: Box::new([]), rebuild: Rebuild::Nothing });
     assert_eq!(text(&record).as_deref(), Ok(NOTHING.as_bytes()));
 }
 const SAME: &[u8] = b"";
@@ -56,7 +56,7 @@ fn a_binary_file_prints_no_hunk_line() {
     assert_eq!(text(&Record::Change(value)).as_deref(), Ok(NO_HUNKS.as_bytes()));
 }
 const JSON_CHANGE: &str = concat!(
-    r#"{"record":"change","target":"carbon-prod","kind":"changed","changed":{"parts":[{"kind":"config","groups":[],"users":[],"members":[],"presets":[],"tmpfiles":[],"tree":[{"after":{"content_digest":"2222222222222222222222222222222222222222222222222222222222222222","group":"root","kind":"file","mode":"0644","owner":"root"},"before":{"content_digest":"1111111111111111111111111111111111111111111111111111111111111111","group":"root","kind":"file","mode":"0644","owner":"root"},"hunks":{"binary":false,"left_out":0,"lines":[{"kind":"header","text":"@@ -9,5 +9,5 @@ ListenPort=51820"},{"kind":"context","text":"[WireGuardPeer]"},{"kind":"context","text":"PublicKey=m3NY8…="},{"kind":"context","text":"AllowedIPs=10.0.0.1/32"},{"kind":"removed","text":"Endpoint=203.0.113.157:51820"},{"kind":"added","text":"Endpoint=203.0.113.158:51820"},{"kind":"context","text":"PersistentKeepalive=25"}]},"kind":"changed","path":"/etc/systemd/network/wg0.netdev","sizes":{"after":268,"before":268}}]}],"rebuild":{"kind":"from_config"}}}"#,
+    r#"{"record":"change","target":"carbon-prod","kind":"changed","changed":{"parts":[{"kind":"config","groups":[],"users":[],"members":[],"presets":[],"tmpfiles":[],"tree":[{"after":{"content_digest":"2222222222222222222222222222222222222222222222222222222222222222","group":"root","kind":"file","mode":"0644","owner":"root"},"before":{"content_digest":"1111111111111111111111111111111111111111111111111111111111111111","group":"root","kind":"file","mode":"0644","owner":"root"},"hunks":{"binary":false,"left_out":0,"lines":[{"kind":"header","text":"@@ -9,5 +9,5 @@ ListenPort=51820"},{"kind":"context","text":"[WireGuardPeer]"},{"kind":"context","text":"PublicKey=AAAA…="},{"kind":"context","text":"AllowedIPs=10.0.0.1/32"},{"kind":"removed","text":"Endpoint=203.0.113.157:51820"},{"kind":"added","text":"Endpoint=203.0.113.158:51820"},{"kind":"context","text":"PersistentKeepalive=25"}]},"kind":"changed","path":"/etc/systemd/network/wg0.netdev","sizes":{"after":268,"before":268}}]}],"rebuild":{"kind":"from_config"}}}"#,
     "\n",
 );
 #[test]
@@ -171,14 +171,14 @@ fn a_line_without_a_final_newline_prints_as_text_and_as_no_newline_json() {
 }
 
 const META_TEXT: &[&str] = &[
-    "ion-prod                                            nothing to build\n  meta     ~ base  x1 → x2\n  meta     ~ member  none → a\n  meta     ~ environment  prod → lab\n  meta     ~ placement  metal efi → container on host-prod\n",
-    "ion-prod                                            nothing to build\n  meta     ~ member  a → none\n",
+    "west-prod                                           nothing to build\n  meta     ~ base  x1 → x2\n  meta     ~ member  none → a\n  meta     ~ environment  prod → lab\n  meta     ~ placement  metal efi → container on host-prod\n",
+    "west-prod                                           nothing to build\n  meta     ~ member  a → none\n",
 ];
 #[test]
 fn a_meta_change_prints_each_moved_field_before_and_after() {
     for (row, (meta, expected)) in fixtures::meta_changes().into_iter().zip(META_TEXT).enumerate() {
         let record = change(
-            b"ion-prod",
+            b"west-prod",
             TargetChange::Changed { parts: Box::new([PartChange::Meta(meta)]), rebuild: Rebuild::Nothing },
         );
         assert_eq!(text(&record).as_deref(), Ok(expected.as_bytes()), "row {row}: meta text");
@@ -186,11 +186,11 @@ fn a_meta_change_prints_each_moved_field_before_and_after() {
 }
 const META_JSON: &[&str] = &[
     concat!(
-        r#"{"record":"change","target":"ion-prod","kind":"changed","changed":{"parts":[{"kind":"meta","base":{"before":"x1","after":"x2"},"member":{"before":null,"after":"a"},"environment":{"before":"prod","after":"lab"},"placement":{"before":{"firmware":"efi","kind":"metal"},"after":{"kind":"container","on":"host-prod"}}}],"rebuild":{"kind":"nothing"}}}"#,
+        r#"{"record":"change","target":"west-prod","kind":"changed","changed":{"parts":[{"kind":"meta","base":{"before":"x1","after":"x2"},"member":{"before":null,"after":"a"},"environment":{"before":"prod","after":"lab"},"placement":{"before":{"firmware":"efi","kind":"metal"},"after":{"kind":"container","on":"host-prod"}}}],"rebuild":{"kind":"nothing"}}}"#,
         "\n"
     ),
     concat!(
-        r#"{"record":"change","target":"ion-prod","kind":"changed","changed":{"parts":[{"kind":"meta","member":{"before":"a","after":null}}],"rebuild":{"kind":"nothing"}}}"#,
+        r#"{"record":"change","target":"west-prod","kind":"changed","changed":{"parts":[{"kind":"meta","member":{"before":"a","after":null}}],"rebuild":{"kind":"nothing"}}}"#,
         "\n"
     ),
 ];
@@ -198,7 +198,7 @@ const META_JSON: &[&str] = &[
 fn meta_json_keeps_each_before_and_after_and_omits_unchanged_fields() {
     for (row, (meta, expected)) in fixtures::meta_changes().into_iter().zip(META_JSON).enumerate() {
         let record = change(
-            b"ion-prod",
+            b"west-prod",
             TargetChange::Changed { parts: Box::new([PartChange::Meta(meta)]), rebuild: Rebuild::Nothing },
         );
         assert_eq!(
