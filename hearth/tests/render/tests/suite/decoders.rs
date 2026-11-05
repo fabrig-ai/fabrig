@@ -57,7 +57,9 @@ const ROWS: &[Row] = &[
     Row { decoder: "store names", world: "builder", file: "inputs.rs", corpus: None, session: "30.6" },
     Row { decoder: "argument form and invocation", world: "builder", file: "inputs.rs", corpus: None, session: "30.6" },
 ];
-const DOMAIN_REFERENCES: &[(&str, &str)] = &[("builder", "protocol.rs"), ("builder", "simulation.rs")];
+// The builder's heap ceiling and whole-world scenarios exercise render, not a decoder.
+const DOMAIN_REFERENCES: &[(&str, &str)] =
+    &[("builder", "memory.rs"), ("builder", "protocol.rs"), ("builder", "simulation.rs")];
 #[test]
 fn every_decoder_has_a_seeded_sweep_that_exists() {
     for row in ROWS {
