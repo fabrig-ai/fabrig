@@ -8,3 +8,19 @@ pub(crate) mod payloads;
 pub(crate) mod preparation;
 pub(crate) mod results;
 pub(crate) mod turns;
+
+use crate::CallKey;
+use alloc::boxed::Box;
+use skein_lib::ReplyTo;
+
+pub(crate) struct Call {
+    pub(crate) to: ReplyTo,
+    pub(crate) key: CallKey,
+}
+
+pub(crate) struct Proposing {
+    pub(crate) to: ReplyTo,
+    pub(crate) key: CallKey,
+    pub(crate) reason: Box<[u8]>,
+    pub(crate) as_holder: bool,
+}
