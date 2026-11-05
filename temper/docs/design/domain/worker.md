@@ -253,9 +253,11 @@ A hosted run's lifecycle is the hub's, in nine steps (jig's
   to each repository's own saved-work destination, where one is named,
   so a later run on any worker starts from it.
   A run that ended with a landed change has nothing left to save, and
-  nor has one whose agent never started, nor one that started from a
-  merge in progress, whose next attempt prepares the merge again; one
-  that landed mid-run, then parked, failed or was cancelled still saves.
+  nor has one whose agent never started. A run that started from a merge
+  in progress saves it as a merge commit once its conflicts are resolved;
+  unresolved conflict markers refuse the save. One that delivered mid-run,
+  then parked, failed or was cancelled saves its completed work, so its
+  next attempt retains that delivery's history.
 - **Step 8, release** the workspace to the cache (section 5).
 - **Step 9, answer:** jig's answer, with temper's parts beside it: what
   the run left on the forge (the last commit landed in each repository,
@@ -518,7 +520,10 @@ runs as contained processes and whose output it parses.
   ended ambiguously (out of time, broken, the forge lost on the way) is
   verified against the forge, by fetching its branch.
 - **Saved work** is ordinary commits on the saved-work branch, pushed the
-  same way. A run that resumes from saved work starts where the last one
+  same way. A merge start keeps its saved-work destination; saving commits
+  that merge with both parents, refusing unresolved conflict markers,
+  and uses its committed head after a delivery.
+  A run that resumes from saved work starts where the last one
   stopped: prepare rebuilds the cached workspace from an empty directory,
   clones the repositories again and checks out the saved commit's tree,
   leaving no cached tracked edits or untracked files. The saved commit
