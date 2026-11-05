@@ -259,7 +259,7 @@ impl Google {
             redirect_uri: redirect,
             scope: bytes::copy_of(b"openid email profile"),
             wire: oauth::WireFormat::Form,
-            client_secret: Some(bytes::copy_of(self.settings.secret.expose())),
+            client_secret: Some(Secret::new(bytes::copy_of(self.settings.secret.expose()))),
             pkce_for_confidential: true,
             metadata_claim: None,
             terms: Some(oauth::Terms {
@@ -420,8 +420,11 @@ impl Clients {
                         pending.client.as_mut().expect("visiting OAuth client").step(
                             oauth::Event::Redirected {
                                 uri: pending.redirect.clone(),
-                                state: query(parameters, b"state").unwrap_or_default(),
-                                code: query(parameters, b"code"),
+                                state: Secret::new(query(parameters, b"state").unwrap_or_default()),
+                                code: match query(parameters, b"code") {
+                                    Some(code) => Some(Secret::new(code)),
+                                    None => None,
+                                },
                                 error: None,
                                 client_id: None,
                                 now: self.env.now,
@@ -479,9 +482,9 @@ impl Clients {
                         registration,
                         key: 1,
                         generation: 1,
-                        state,
-                        verifier: Some(verifier),
-                        nonce: Some(nonce),
+                        state: Secret::new(state),
+                        verifier: Some(Secret::new(verifier)),
+                        nonce: Some(Secret::new(nonce)),
                         port: None,
                         issued_client_id: None,
                         id_token: None,
@@ -692,7 +695,7 @@ impl Clients {
             }
             oauth::Request::Tokens { record, missing: _ } => {
                 let claims = match &record.id_token {
-                    Some(token) => claims_from(token, &limits::client(google.limits).document),
+                    Some(token) => claims_from(token.expose(), &limits::client(google.limits).document),
                     None => None,
                 };
                 let Some(call) = pending.call else { return };

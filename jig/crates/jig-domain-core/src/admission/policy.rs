@@ -230,23 +230,9 @@ impl Core {
             if overrides.len() > skein_lib::length::usize_of(limits.templates) {
                 return Err(people::Refusal::Limit { which: people::LimitKind::Policy });
             }
+            let offered = self.current.offered_templates();
             for (index, entry) in overrides.iter().enumerate() {
-                let mut known = false;
-                for setting in &self.current.offered() {
-                    let number = match setting {
-                        crate::settings::Setting::Template(number) => *number,
-                        crate::settings::Setting::Charter(_)
-                        | crate::settings::Setting::Policy(_)
-                        | crate::settings::Setting::Rules
-                        | crate::settings::Setting::ProjectPolicy { .. } => continue,
-                        jig_domain_people::Setting::Application { .. } => {
-                            unreachable!("an application's setting: apps-core")
-                        }
-                    };
-                    let template = self.current.template(number).expect("offered template");
-                    known |= template.number == entry.template;
-                }
-                if !known {
+                if !offered.contains(&entry.template) {
                     return Err(people::Refusal::Unknown);
                 }
                 for previous in overrides.iter().take(index) {

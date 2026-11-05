@@ -245,7 +245,7 @@ pub fn mutate(rng: &mut Rng, generated: &Generated) -> Generated {
     let base = &generated.model.targets[index].base;
     let path = format!("hosts/{base}/{base}.json");
     let leaf = mutated.leaves.iter_mut().find(|leaf| leaf.path == path.as_bytes()).expect("base document");
-    leaf.bytes = hearth_config_world::generate::mutate(rng, &leaf.bytes);
+    leaf.bytes = hearth_test_fixtures::hostile::mutate(rng, &leaf.bytes);
     // A mutator can retain the original; a trailing non-JSON byte guarantees a broken file.
     leaf.bytes.push(b'!');
     mutated.model.broken_base = Some(base.clone());

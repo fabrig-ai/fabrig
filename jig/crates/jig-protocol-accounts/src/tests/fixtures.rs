@@ -22,7 +22,7 @@ pub fn sign_in_engine() -> jig_protocol_config::Engine {
     config::engine(&document, 0, &config::Directories::working(), config::Defaults::Passed).unwrap()
 }
 pub fn granted(account: u32, token: &[u8], generation: u64, valid: Duration) -> driver::Event {
-    driver::Event::Granted { account, token: bytes::copy_of(token), generation, valid }
+    driver::Event::Granted { account, token: Secret::new(bytes::copy_of(token)), generation, valid }
 }
 
 pub fn value(token: &[u8]) -> crate::table::Value {
@@ -102,8 +102,8 @@ pub fn record(account: u32, token: &[u8], generation: u64) -> skein_oauth::Saved
     skein_oauth::SavedToken {
         key: account,
         generation,
-        access_token: bytes::copy_of(token),
-        refresh_token: Some(bytes::copy_of(b"refresh-token")),
+        access_token: Secret::new(bytes::copy_of(token)),
+        refresh_token: Some(Secret::new(bytes::copy_of(b"refresh-token"))),
         metadata: None,
         expires_at: skein_lib::Wall::from_nanos(Duration::from_secs(60).as_nanos()),
         issued_client_id: None,

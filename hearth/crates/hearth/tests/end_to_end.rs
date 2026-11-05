@@ -1,4 +1,4 @@
-use hearth_builder_world::fixtures::{self, Repository};
+use hearth_test_repository::{self as fixtures, Repository};
 use skein_io::kernel::Exit;
 use std::{fs, os::unix::fs::PermissionsExt};
 
