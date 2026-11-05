@@ -24,7 +24,7 @@ skein-json.workspace = true
 skein-heap.workspace = true
 # The JSON reference parser, which the stacked test checks each event's
 # document against.
-skein-json-world = { path = "../json" }
+skein-json-kit.workspace = true
 
 [lints.rust] # harness: tools/lints/design.md, 2.2
 unsafe_code = "forbid"
