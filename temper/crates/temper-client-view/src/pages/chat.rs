@@ -226,7 +226,7 @@ fn session_composer(
     }
     b.bind(bindings.insert(Act::Send));
     b.close();
-    super::session::hint(b, words);
+    super::session::hint(b, words, chat.draft.is_some());
     if chat.outcome_kind == Some(temper_client_domain::pages::chat::Sending::Message)
         && let Some(outcome) = &chat.outcome
         && !super::chats::accepted(outcome)
@@ -1001,12 +1001,22 @@ fn committed(
             }
             for block in blocks {
                 if let c::Block::Call(call) = block {
+                    super::document::tool_line(
+                        b,
+                        call,
+                        match delegations {
+                            Some((chat, _)) => Some(chat),
+                            None => None,
+                        },
+                        words,
+                        bindings,
+                    );
                     tasks.clear();
                     delegation::delegated(call, tasks);
                     cards(b, tasks, delegations, shown, words, bindings);
                 }
             }
-            folded_calls(b, blocks, tasks, delegations, words);
+            folded_calls(b, blocks, tasks, delegations, words, true);
             for (block_at, block) in blocks.iter().enumerate() {
                 if let c::Block::Call(call) = block
                     && let Some((root, name)) = proposals
@@ -1034,9 +1044,49 @@ fn committed(
             }
         }
     }
-    if turn.cut {
+    if turn.cut && !note_only(turn, rows) {
         words.status(b, P::TurnCut, &[]);
     }
+}
+
+// A full structural prefix or any other content can have its own cut.
+// Turn::cut carries no provenance, so those turns keep the omission words.
+fn note_only(turn: &c::Turn, rows: u32) -> bool {
+    if turn.messages.len() >= rows {
+        return false;
+    }
+    let mut wrote = false;
+    for message in &turn.messages {
+        if message.blocks.len() >= rows {
+            return false;
+        }
+        for block in &message.blocks {
+            match block {
+                c::Block::Call(call) if super::document::write(call).is_some() => wrote = true,
+                c::Block::Result { call, failed: false, .. } => {
+                    let mut found = false;
+                    for message in &turn.messages {
+                        for block in &message.blocks {
+                            if let c::Block::Call(source) = block
+                                && source.number == *call
+                                && super::document::write(source).is_some()
+                            {
+                                found = true;
+                            }
+                        }
+                    }
+                    if !found {
+                        return false;
+                    }
+                }
+                c::Block::Text(text) if text.bytes().is_empty() => {}
+                c::Block::Text(_) | c::Block::Call(_) | c::Block::Result { .. } | c::Block::Opaque { .. } => {
+                    return false;
+                }
+            }
+        }
+    }
+    wrote
 }
 fn committed_lines(
     b: &mut Builder,
@@ -1121,7 +1171,7 @@ fn committed_lines(
                 }
             }
         }
-        folded_calls(b, blocks, tasks, delegations, words);
+        folded_calls(b, blocks, tasks, delegations, words, false);
         b.close();
         b.close();
     }
@@ -1141,8 +1191,16 @@ fn call_line(b: &mut Builder, call: &c::Call) {
     b.close();
 }
 
-fn other_call(block: &c::Block, tasks: &mut List<u64>, delegations: Option<(&Chat, &jig_client::Client)>) -> bool {
+fn other_call(
+    block: &c::Block,
+    tasks: &mut List<u64>,
+    delegations: Option<(&Chat, &jig_client::Client)>,
+    notes: bool,
+) -> bool {
     let c::Block::Call(call) = block else { return false };
+    if notes && super::document::write(call).is_some() {
+        return false;
+    }
     if let Some((chat, _)) = delegations {
         for card in &chat.cards {
             if call.objects.as_slice().contains(&card.object) {
@@ -1160,10 +1218,11 @@ fn folded_calls(
     tasks: &mut List<u64>,
     delegations: Option<(&Chat, &jig_client::Client)>,
     words: &Words,
+    notes: bool,
 ) {
     let mut count = 0_u64;
     for block in blocks {
-        if other_call(block, tasks, delegations) {
+        if other_call(block, tasks, delegations, notes) {
             count = count.checked_add(1).expect("bounded call count");
         }
     }
@@ -1176,7 +1235,7 @@ fn folded_calls(
     let mut length = 0_usize;
     for (at, block) in blocks.iter().enumerate() {
         let c::Block::Call(call) = block else { continue };
-        if !other_call(block, tasks, delegations) {
+        if !other_call(block, tasks, delegations, notes) {
             continue;
         }
         let mut repeated = 0_u64;
@@ -1184,7 +1243,7 @@ fn folded_calls(
         for (index, candidate) in blocks.iter().enumerate() {
             if let c::Block::Call(other) = candidate
                 && other.tool == call.tool
-                && other_call(candidate, tasks, delegations)
+                && other_call(candidate, tasks, delegations, notes)
             {
                 repeated = repeated.checked_add(1).expect("bounded repeated calls");
                 if index < at {
@@ -1219,7 +1278,7 @@ fn folded_calls(
     b.name(&count);
     b.description(&description.finish());
     for block in blocks {
-        if other_call(block, tasks, delegations)
+        if other_call(block, tasks, delegations, notes)
             && let c::Block::Call(call) = block
         {
             call_line(b, call);
