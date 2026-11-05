@@ -258,7 +258,11 @@ fn home_documents(
 ) -> (d::Domain, Token) {
     home_documents_with_reads(rows, configured, chat, needs, chats, Some(&[]), true)
 }
-#[expect(clippy::disallowed_methods, reason = "test fixtures deliver Home documents through public events")]
+#[expect(
+    clippy::disallowed_methods,
+    clippy::too_many_lines,
+    reason = "one fixture delivers Home and its standing inbox through public events"
+)]
 fn home_documents_with_reads(
     rows: List<w::ForgeRow>,
     configured: bool,
@@ -268,7 +272,7 @@ fn home_documents_with_reads(
     dismissed: Option<&[u32]>,
     settings_delivered: bool,
 ) -> (d::Domain, Token) {
-    let (mut root, me_watch, _, _, accounts, _) = f::root_at_with_dismissals(
+    let (mut root, me_watch, _, _, accounts, _, needs_watch) = f::root_at_with_dismissals_and_needs(
         Address::Settings { project: f::PROJECT },
         &f::domain_limits(),
         b"Shop",
@@ -298,6 +302,26 @@ fn home_documents_with_reads(
         .unwrap();
     f::deliver_me(&mut root, me_watch, me);
     let mut out = drive(&mut root, d::Event::Went { place: d::Place::Address(Address::Home { project: f::PROJECT }) });
+    let mut delivered = drive(
+        &mut root,
+        d::Event::Client {
+            event: jig_client::Event::Up {
+                up: jig_client::Up::Watched {
+                    watch: needs_watch.unwrap(),
+                    event: c::WatchEvent::Delivered(c::Delivery::Inbox(Box::new(super::documents::inbox(
+                        List::with_capacity(0),
+                        0,
+                        c::Count { value: 0, limited: false },
+                        0,
+                        false,
+                    )))),
+                },
+            },
+        },
+    );
+    while let Some(request) = delivered.pop() {
+        out.push(request);
+    }
     let mut settings = None;
     let mut live = None;
     for request in &out {

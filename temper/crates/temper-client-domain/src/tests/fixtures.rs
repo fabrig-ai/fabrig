@@ -27,8 +27,9 @@ pub fn limits() -> Limits {
                 }],
                 requests,
                 ask_bytes: requests.bytes / u64::from(requests.requests),
-                handles: 9,
-                watches: 9,
+                // The page handles plus the standing project-needs watch.
+                handles: 10,
+                watches: 10,
                 turn_bytes: 65536,
                 backoff: jig_client::Backoff { first: Duration::from_millis(10), most: Duration::from_millis(80) },
                 authority: 12,

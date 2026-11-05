@@ -1,6 +1,8 @@
 //! temper's style tokens and their names (client/browser.md, 2.5), as jig's `jig-client-shell-web` `look.rs`.
 use crate::frame::owner;
 use skein_ui::{Style, look::Names};
+/// The session toast (client/README.md, 3.5).
+pub const TOAST: Style = Style { owner: owner(), token: 248 };
 /// A configuring chat's status, spend and controls (client/README.md, 3.5).
 pub const SESSION_ACTIONS: Style = Style { owner: owner(), token: 246 };
 /// A configuring chat's tag in Chats (client/README.md, 3.5).
@@ -727,6 +729,7 @@ pub const NAMES: Names<'static> = Names {
         b"temper-starters",
         b"temper-session-actions",
         b"temper-configuring-tag",
+        b"temper-toast",
     ],
     regions: &[b"temper-link"],
 };
