@@ -266,6 +266,8 @@ pub struct Server {
     writer_events: Queue<sse::Event>,
     requests: Queue<http::Request>,
     body: List<u8>,
+    keep_body: bool,
+    kept_body: Option<Box<[u8]>>,
     // A gzip body's inflated bytes, swapped into `body` once read back.
     inflated: List<u8>,
     // Whether the request's body came with `Content-Encoding: gzip`.
@@ -286,6 +288,16 @@ pub struct Server {
 }
 
 impl Server {
+    /// Keeps bodies as read, inflated before capture.
+    pub fn keep_body(&mut self) {
+        self.keep_body = true;
+    }
+
+    /// Takes the last captured request body, once.
+    pub fn take_kept_body(&mut self) -> Option<Box<[u8]>> {
+        self.kept_body.take()
+    }
+
     /// Constructs empty bounded state under the supplied immutable limits; no IO or clocks are consulted.
     ///
     /// Contract: docs/design/fake-llm.md, sections 2–5; programming-model.md, section 4.4.
@@ -303,6 +315,8 @@ impl Server {
             writer_events: Queue::uncapped(),
             requests: Queue::uncapped(),
             body: List::with_capacity(request),
+            keep_body: false,
+            kept_body: None,
             inflated: List::with_capacity(request),
             gzip: false,
             remaining_body: None,
@@ -761,6 +775,9 @@ fn requested(server: &mut Server, service: &mut Service, env: &Env<Limits>, abov
             response_error(server, service, env, api::Error::InvalidRequest.into());
             return;
         }
+    }
+    if server.keep_body {
+        server.kept_body = Some(bytes::copy_of(server.body.as_slice()));
     }
     let query = documents::request_on(server.route, server.body.as_slice(), &env.limits.documents);
     if service.config.provider != documents::Provider::OpenAi || !service.config.echo.enabled() {
