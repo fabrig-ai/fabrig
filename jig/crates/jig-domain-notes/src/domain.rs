@@ -20,7 +20,7 @@ use crate::boundary::{Author, Change, Entry, Event, Key, Line, New, Range, Recor
 use crate::drop_project::{self, Dropping};
 use crate::limits::Limits;
 use crate::read::{self, Cached, ReadPending};
-use crate::{LineChange, line_change};
+use crate::{LineChange, LineRange, line_change, splice};
 
 /// One write waiting for the store.
 #[derive(Debug)]
@@ -34,6 +34,7 @@ pub(crate) struct Pending {
 #[derive(Debug)]
 enum Action {
     Write { entry: New, recalled: Option<u32> },
+    WriteLines { entry: New, recalled: u32, range: LineRange },
     Edit { party: u64, name: u64, scope: Scope, change: Change },
 }
 
@@ -107,9 +108,18 @@ pub fn step(domain: &mut Domain, env: &Env<Limits>, event: Event, out: &mut Queu
             if domain.busy() {
                 push(out, Request::Refused { owner, why: Refusal::Busy });
             } else if !valid_new(&entry, &env.limits) {
-                push(out, Request::Refused { owner, why: Refusal::Oversized });
+                push(out, Request::Refused { owner, why: new_refusal(&entry, &env.limits) });
             } else {
                 begin(domain, owner, Action::Write { entry, recalled }, out);
+            }
+        }
+        Event::WriteLines { owner, entry, recalled, range } => {
+            if domain.busy() {
+                push(out, Request::Refused { owner, why: Refusal::Busy });
+            } else if !valid_new(&entry, &env.limits) {
+                push(out, Request::Refused { owner, why: new_refusal(&entry, &env.limits) });
+            } else {
+                begin(domain, owner, Action::WriteLines { entry, recalled, range }, out);
             }
         }
         Event::Edit { owner, party, name, scope, change } => {
@@ -149,7 +159,7 @@ pub fn step(domain: &mut Domain, env: &Env<Limits>, event: Event, out: &mut Queu
 
 fn begin(domain: &mut Domain, owner: Token, action: Action, out: &mut Queue<Request>) {
     let name = match &action {
-        Action::Write { entry, recalled: _ } => entry.name,
+        Action::Write { entry, recalled: _ } | Action::WriteLines { entry, .. } => entry.name,
         Action::Edit { party: _, name, scope: _, change: _ } => *name,
     };
     let load_owner = domain.next_load_token();
@@ -174,7 +184,7 @@ fn loaded(domain: &mut Domain, env: &Env<Limits>, owner: Token, rows: Rows, more
                     Record::Line(_) => unreachable!("entry lookup returns entries"),
                 }
             }
-            entry_loaded(domain, pending, found, env.wall, out);
+            entry_loaded(domain, pending, found, env, out);
         }
         Phase::Count { scope, mut count, mut after } => {
             assert!(!rows.records.is_empty() || !more, "a continued page advances");
@@ -206,7 +216,7 @@ fn loaded(domain: &mut Domain, env: &Env<Limits>, owner: Token, rows: Rows, more
                         let change = line_change(None, &entry.body);
                         save_new(pending.owner, entry, 1, env.wall, change, out);
                     }
-                    Action::Write { entry: _, recalled: Some(_) } | Action::Edit { .. } => {
+                    Action::Write { entry: _, recalled: Some(_) } | Action::WriteLines { .. } | Action::Edit { .. } => {
                         unreachable!("only a new entry counts a scope")
                     }
                 }
@@ -215,7 +225,15 @@ fn loaded(domain: &mut Domain, env: &Env<Limits>, owner: Token, rows: Rows, more
     }
 }
 
-fn entry_loaded(domain: &mut Domain, mut pending: Pending, found: Option<Entry>, wall: Wall, out: &mut Queue<Request>) {
+#[expect(clippy::too_many_lines, reason = "entry lookup decides each write and party edit in one decision")]
+fn entry_loaded(
+    domain: &mut Domain,
+    mut pending: Pending,
+    found: Option<Entry>,
+    env: &Env<Limits>,
+    out: &mut Queue<Request>,
+) {
+    let wall = env.wall;
     match pending.action {
         Action::Write { entry, recalled } => match found {
             None => match recalled {
@@ -247,6 +265,37 @@ fn entry_loaded(domain: &mut Domain, mut pending: Pending, found: Option<Entry>,
                     }
                 }
             },
+        },
+        Action::WriteLines { mut entry, recalled, range } => match found {
+            None => push(out, Request::Refused { owner: pending.owner, why: Refusal::Missing }),
+            Some(old) => {
+                assert!(old.name == entry.name, "entry lookup returns the named entry");
+                if old.revision != recalled || old.scope != entry.scope {
+                    push(
+                        out,
+                        Request::Refused { owner: pending.owner, why: Refusal::Moved { revision: old.revision } },
+                    );
+                    return;
+                }
+                let body = match splice(&old.body, range, &entry.body, env.limits.body_bytes) {
+                    Ok(body) => body,
+                    Err(why) => {
+                        push(out, Request::Refused { owner: pending.owner, why });
+                        return;
+                    }
+                };
+                let Some(revision) = old.revision.checked_add(1) else {
+                    push(out, Request::Refused { owner: pending.owner, why: Refusal::RevisionExhausted });
+                    return;
+                };
+                let change = line_change(Some(&old.body), &body);
+                entry.body = body;
+                if entry.references.is_empty() {
+                    entry.references = old.references;
+                }
+                domain.invalidate(&entry.scope);
+                save_new(pending.owner, entry, revision, wall, change, out);
+            }
         },
         Action::Edit { party, name, scope, change } => match found {
             None => push(out, Request::Refused { owner: pending.owner, why: Refusal::Missing }),
@@ -330,6 +379,17 @@ pub fn valid_new(entry: &New, limits: &Limits) -> bool {
         && valid_text(&entry.description, limits.description_bytes, true)
         && valid_text(&entry.body, limits.body_bytes, false)
         && valid_references(&entry.references, limits)
+}
+
+/// What a write's shape rejects: a body past its bound says so; anything else is oversized.
+#[must_use]
+pub fn new_refusal(entry: &New, limits: &Limits) -> Refusal {
+    let bytes = u32::try_from(entry.body.len()).unwrap_or(u32::MAX);
+    if entry.body.len() > usize::try_from(limits.body_bytes).expect("body bound fits usize") {
+        Refusal::PastBound { bytes, bound: limits.body_bytes }
+    } else {
+        Refusal::Oversized
+    }
 }
 
 /// Check one durable entry before a parent admits it from a store page.

@@ -801,3 +801,95 @@ fn a_hold_owner_refusal_names_the_proposal_revision_and_owner() {
 }
 
 mod json;
+
+#[expect(clippy::disallowed_macros, reason = "test cases assemble bounded note JSON from optional members")]
+fn note_input(members: &str) -> Box<[u8]> {
+    format!(r#"{{"scope":{{"kind":"project","project":7}},"description":"draft","body":"next"{members}}}"#)
+        .into_bytes()
+        .into_boxed_slice()
+}
+
+#[test]
+#[expect(clippy::disallowed_macros, reason = "test cases assemble bounded note JSON from optional members")]
+fn a_line_range_decodes_to_note_lines() {
+    for join in [false, true] {
+        let input =
+            note_input(&format!(r#", "name":20,"recalled":7,"first":3,"remove":2,"references":[9],"join":{join}"#));
+        let decoded = crate::decode(b"note", &input, &fixtures::LIMITS);
+        let Decoded::Action(core::NamedAction::NoteLines { entry, recalled, range }) = decoded else {
+            panic!("range decoded: {decoded:?}")
+        };
+        assert_eq!(recalled, 7);
+        assert_eq!(range, jig_domain_notes::LineRange { first: 3, remove: 2, join });
+        assert_eq!(entry.name, 20);
+        assert_eq!(entry.scope, jig_domain_notes::Scope::Project { project: 7 });
+        assert_eq!(&*entry.description, b"draft");
+        assert_eq!(&*entry.body, b"next");
+        assert_eq!(entry.references.as_slice(), &[9]);
+    }
+}
+
+#[test]
+fn a_line_range_needs_its_revision() {
+    let decoded = crate::decode(b"note", &note_input(r#", "name":20,"first":3,"remove":0"#), &fixtures::LIMITS);
+    let Decoded::Problem(problem) = decoded else { panic!("range problem: {decoded:?}") };
+    assert_eq!(problem, Problem { field: b"recalled", why: Why::Range });
+    let decoded = crate::decode(b"note", &note_input(r#", "recalled":1,"first":3,"remove":0"#), &fixtures::LIMITS);
+    let Decoded::Problem(problem) = decoded else { panic!("range problem: {decoded:?}") };
+    assert_eq!(problem, Problem { field: b"name", why: Why::Range });
+}
+#[test]
+fn first_and_remove_come_together() {
+    for (members, field) in [
+        (r#", "name":20,"recalled":1,"first":3"#, b"remove".as_slice()),
+        (r#", "name":20,"recalled":1,"remove":0"#, b"first".as_slice()),
+        (r#", "name":20,"recalled":1,"join":true"#, b"first".as_slice()),
+    ] {
+        let decoded = crate::decode(b"note", &note_input(members), &fixtures::LIMITS);
+        let Decoded::Problem(problem) = decoded else { panic!("missing range member: {decoded:?}") };
+        assert_eq!(problem, Problem { field, why: Why::Range });
+    }
+}
+#[test]
+fn first_zero_is_out_of_range() {
+    let decoded =
+        crate::decode(b"note", &note_input(r#", "name":20,"recalled":1,"first":0,"remove":0"#), &fixtures::LIMITS);
+    let Decoded::Problem(problem) = decoded else { panic!("range problem: {decoded:?}") };
+    assert_eq!(problem, Problem { field: b"first", why: Why::Range });
+}
+#[test]
+fn a_note_without_first_decodes_as_today() {
+    for members in ["", r#", "name":20,"recalled":7"#] {
+        let decoded = crate::decode(b"note", &note_input(members), &fixtures::LIMITS);
+        let Decoded::Action(core::NamedAction::Note { entry, recalled }) = decoded else {
+            panic!("whole write: {decoded:?}")
+        };
+        assert_eq!(&*entry.body, b"next");
+        assert_eq!(&*entry.description, b"draft");
+        assert_eq!(entry.name, if members.is_empty() { 0 } else { 20 });
+        assert_eq!(recalled, if members.is_empty() { None } else { Some(7) });
+    }
+}
+#[test]
+fn each_note_refusal_says_what_to_do_next() {
+    use jig_domain_notes::Refusal;
+    for (why, words) in [
+        (Refusal::Moved { revision: 7 }, b"Note refused: revision moved, now 7".as_slice()),
+        (Refusal::PastEnd { lines: 64 }, b"Note refused: range past the end, 64 lines"),
+        (Refusal::PastBound { bytes: 70000, bound: 65536 }, b"Note refused: body past its bound, 70000 bytes of 65536"),
+    ] {
+        let rendered = crate::render(&core::CallPart::NoteRefused(why));
+        assert!(rendered.error);
+        assert_eq!(&*rendered.text, words);
+    }
+    let rendered = crate::render(&core::CallPart::NoteWritten {
+        name: 12,
+        revision: 3,
+        lines: 64,
+        added: 18,
+        removed: 6,
+        first: 31,
+    });
+    assert!(!rendered.error);
+    assert_eq!(&*rendered.text, b"Wrote note 12 revision 3, 64 lines");
+}

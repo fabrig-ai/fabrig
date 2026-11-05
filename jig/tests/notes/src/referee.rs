@@ -42,6 +42,9 @@ impl Intent {
             Event::Write { owner, entry, recalled } => {
                 Intent::Write { owner: *owner, name: entry.name, recalled: *recalled }
             }
+            Event::WriteLines { owner, entry, recalled, .. } => {
+                Intent::Write { owner: *owner, name: entry.name, recalled: Some(*recalled) }
+            }
             Event::Edit { owner, party, name, change, .. } => {
                 let recalled = match change {
                     Change::Correct { description: _, body: _, references: _, recalled }

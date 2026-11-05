@@ -201,6 +201,11 @@ pub(crate) fn relay_payload(
                     key,
                     action: core::NamedAction::Note { entry, recalled },
                 })),
+                Tool::NoteLines { entry, recalled, range } => domain.work.push(Work::Core(core::Event::NamedAction {
+                    to: reply_to,
+                    key,
+                    action: core::NamedAction::NoteLines { entry, recalled, range },
+                })),
                 Tool::Recall { by, page } => domain.work.push(Work::Core(core::Event::NamedAction {
                     to: reply_to,
                     key,

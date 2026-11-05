@@ -161,6 +161,21 @@ fn start_detail(runner: &mut Runner, client: &Client, env: &Env<Limits>, mut rea
             let what = task_text_read(&reading.called.call);
             read(runner, &mut reading, 1, what, out);
         }
+        rows::TASK_NOTES_AT => {
+            let Some(me) = super::acts::me(runner, client) else { return };
+            let call = &reading.called.call;
+            let Some(project) = selected_project(value(call, 1), me) else {
+                let printed = render::failure(b"unknown project", reading.called.json, 1);
+                finish(reading, printed, out);
+                return;
+            };
+            let what = c::Read::Notes {
+                scope: c::NoteScope::Task { project, task },
+                description: None,
+                after: cursor(call, 2),
+            };
+            read(runner, &mut reading, 1, what, out);
+        }
         6 => {
             let Some(Value::Turn(name)) = value(&reading.called.call, 1) else { return };
             let what = c::Read::Turn { task, attempt: name.attempt, turn: name.number };
@@ -236,7 +251,10 @@ fn thread_start(runner: &Runner, env: &Env<Limits>, reading: &mut Reading, task:
     watch(runner, reading, 4, c::Subject::Run { task, turn: None, offset: 0 }, out);
 }
 pub(crate) fn project(call: &Call, me: &c::Me) -> Option<u32> {
-    match value(call, 0) {
+    selected_project(value(call, 0), me)
+}
+fn selected_project(selected: Option<&Value>, me: &c::Me) -> Option<u32> {
+    match selected {
         Some(Value::Project(Project::Number(number))) => Some(*number),
         Some(Value::Project(Project::Name(name))) => {
             for project in &me.projects {

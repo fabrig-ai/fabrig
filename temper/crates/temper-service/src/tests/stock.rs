@@ -293,7 +293,7 @@ fn the_configuring_agent_is_charter_3_and_template_3() {
     assert_eq!(defaults.charters[2], expected);
     assert!(!defaults.charters[2].policy.modify);
     assert!(!defaults.charters[2].policy.agents);
-    assert_eq!(defaults.charters[2].policy.instructions.len(), 4253);
+    assert_eq!(defaults.charters[2].policy.instructions.len(), 4807);
     assert_eq!(defaults.templates.iter().map(|template| template.number).collect::<Box<[_]>>().as_ref(), [1, 2, 3]);
     let mut expected = defaults.templates[0].clone();
     expected.number = 3;
@@ -1247,14 +1247,19 @@ fn assert_document_rule(words: &str) {
     for phrase in [
         "scope goal, project P and goal T from your brief's [This task: T, in project P]",
         "description its title",
-        "whole Markdown body each time: # TITLE",
+        "Write its first version whole, in Markdown: # TITLE",
         "muted line _Draft, DATE, with the user._",
         "one ## section per topic",
         "open questions under ## Open questions",
-        "Revise the same note, naming the note and the revision you read from your brief or recall",
+        "Then change it by lines",
+        "revision you read from your brief, recall or your last write's answer",
+        "To append, first is the note's lines + 1 and remove 0",
+        "Never rewrite it whole past a few KB",
+        "build a long document in parts",
+        "A refused note says the revision or the line count to use",
+        "Use join true to continue the line before first without a newline when a line exceeds one call",
         "Say in one sentence what changed; do not repeat the document in your reply",
         "Mermaid is not drawn, so do not draw diagrams",
-        "If a write is too large, shorten it",
     ] {
         assert!(words.contains(phrase), "missing document instruction: {phrase}");
     }

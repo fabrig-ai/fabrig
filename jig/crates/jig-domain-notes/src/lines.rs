@@ -1,5 +1,71 @@
 //! A note's answer counts a single changed span (jig/docs/design/domain/engine.md, 10).
 
+use crate::Refusal;
+use alloc::boxed::Box;
+use skein_lib::Writer;
+
+/// The lines a range write replaces (jig/docs/design/domain/engine.md, 10).
+#[derive(Clone, Copy, PartialEq, Eq, Hash, Debug)]
+pub struct LineRange {
+    /// The 1-based first line replaced; the body's lines + 1 to append.
+    pub first: u32,
+    /// Lines replaced from `first`; 0 to insert.
+    pub remove: u32,
+    /// Continue the preceding line without a newline before the replacement.
+    pub join: bool,
+}
+
+/// Replace the range's lines, checking the resulting length before allocating.
+pub fn splice(old: &[u8], range: LineRange, text: &[u8], bound: u32) -> Result<Box<[u8]>, Refusal> {
+    let before_lines = u64::from(range.first).saturating_sub(1);
+    let after_lines = before_lines.saturating_add(u64::from(range.remove));
+    let mut lines = 0_u32;
+    let mut start = 0;
+    let mut end = 0;
+    for (at, byte) in old.iter().enumerate() {
+        let next = at.checked_add(1).expect("byte lies within body");
+        if *byte == b'\n' || next == old.len() {
+            lines = lines.checked_add(1).expect("body line count fits u32");
+            if u64::from(lines) == before_lines {
+                start = next;
+            }
+            if u64::from(lines) == after_lines {
+                end = next;
+            }
+        }
+    }
+    if range.first == 0 || after_lines > u64::from(lines) {
+        return Err(Refusal::PastEnd { lines });
+    }
+    let (before, _) = old.split_at_checked(start).expect("range starts within body");
+    let (_, after) = old.split_at_checked(end).expect("range ends within body");
+    let before = if range.join { before.strip_suffix(b"\n").unwrap_or(before) } else { before };
+    let join_before =
+        !range.join && !before.is_empty() && !before.ends_with(b"\n") && (!text.is_empty() || !after.is_empty());
+    let join_after = !text.is_empty() && !text.ends_with(b"\n") && !after.is_empty();
+    let size = before
+        .len()
+        .saturating_add(text.len())
+        .saturating_add(after.len())
+        .saturating_add(usize::from(join_before))
+        .saturating_add(usize::from(join_after));
+    let bytes = u32::try_from(size).unwrap_or(u32::MAX);
+    if size > usize::try_from(bound).expect("body bound fits usize") {
+        return Err(Refusal::PastBound { bytes, bound });
+    }
+    let mut writer = Writer::new(size);
+    writer.put(before).expect("measured prefix");
+    if join_before {
+        writer.put(b"\n").expect("measured separator");
+    }
+    writer.put(text).expect("measured replacement");
+    if join_after {
+        writer.put(b"\n").expect("measured separator");
+    }
+    writer.put(after).expect("measured suffix");
+    Ok(writer.finish())
+}
+
 /// The new body's lines and the span left after common end lines are trimmed.
 #[derive(Clone, Copy, PartialEq, Eq, Debug)]
 pub struct LineChange {

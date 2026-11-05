@@ -49,7 +49,11 @@ pub fn note_write(outcome: &[u8]) -> Option<NoteWrite> {
         let words = words.strip_prefix(" · line ".as_bytes())?;
         let (first, tail) = count(words)?;
         if !tail.is_empty() {
-            return None;
+            let tail = tail.strip_prefix(" · ".as_bytes())?;
+            let (_lines, tail) = count(tail)?;
+            if tail != b" lines" {
+                return None;
+            }
         }
         NoteChange::Later { added, removed, first }
     } else {

@@ -13,6 +13,7 @@ Section 8.1 has no gap in discovery of project repository identities for
 charter documents.
 
 - **Not yet:** 4.4: a verdict's follow-up tasks. 8.1: a run's `settings` read of a project's own policy: jig's core answers it unknown (`jig-domain-core/src/reads/settings.rs`), since jig's `setting` read names jig's kinds and an application's alone (jig's `client/domain/contract.md`, 5.1), so the configuring agent proposes a project's policy without reading it first.
+- **Not yet:** 8.3: a document built in parts is proved on a script alone: no real model has built one, so whether it counts lines right, appends rather than rewrites, and recovers from a refusal is unobserved.
 - **Not yet:** 4.3.1: a change's refusal omits which model its charter
   refused, because `temper-engine-smith/src/answers.rs` renders
   `model outside the charter` without that detail although the typed

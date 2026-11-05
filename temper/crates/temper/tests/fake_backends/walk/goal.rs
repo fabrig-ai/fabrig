@@ -190,7 +190,12 @@ fn show_goal(config: &Path, client: &Path) {
     let model: serde_json::Value =
         serde_json::from_slice(&std::fs::read(config.join("llm.json")).expect("public fake model document"))
             .expect("model JSON");
-    let note = &model["cued"][0]["turns"][0]["lines"][0]["arguments"];
+    let scripts = model["cued"].as_array().expect("system-cued scripts");
+    let script = scripts
+        .iter()
+        .find(|script| script["cue"] == "You are a goal: the work your person asked for")
+        .expect("the goal charter's report script");
+    let note = &script["turns"][0]["lines"][0]["arguments"];
     let text = |field: &str| {
         c::DocumentText::complete(
             c::Text::new(note[field].as_str().expect("report text").as_bytes().into(), 8192).expect("bounded report"),

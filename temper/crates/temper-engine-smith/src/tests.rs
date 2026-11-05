@@ -452,6 +452,69 @@ fn tool_cases() -> &'static [(&'static [u8], &'static [u8], &'static [u8])] {
     ]
 }
 
+fn note_input(members: &str) -> Box<[u8]> {
+    format!(r#"{{"scope":{{"kind":"project","project":7}},"description":"draft","body":"next"{members}}}"#)
+        .into_bytes()
+        .into_boxed_slice()
+}
+
+#[test]
+fn a_line_range_decodes_to_note_lines() {
+    for join in [false, true] {
+        let input =
+            note_input(&format!(r#", "name":20,"recalled":7,"first":3,"remove":2,"references":[9],"join":{join}"#));
+        let decoded = decided(b"note", &input).expect("range decodes");
+        let engine::Tool::NoteLines { entry, recalled, range } = decoded.tool else { panic!("range tool") };
+        assert_eq!(recalled, 7);
+        assert_eq!(range, jig_domain_notes::LineRange { first: 3, remove: 2, join });
+        assert_eq!(entry.name, 20);
+        assert_eq!(entry.scope, jig_domain_notes::Scope::Project { project: 7 });
+        assert_eq!(&*entry.description, b"draft");
+        assert_eq!(&*entry.body, b"next");
+        assert_eq!(entry.references.as_slice(), &[9]);
+    }
+}
+
+#[test]
+fn a_line_range_needs_its_revision() {
+    for (members, field) in [
+        (r#", "name":20,"first":3,"remove":0"#, b"recalled".as_slice()),
+        (r#", "recalled":1,"first":3,"remove":0"#, b"name".as_slice()),
+    ] {
+        assert_eq!(decided(b"note", &note_input(members)), Err(Problem::Range(field)));
+    }
+}
+
+#[test]
+fn first_and_remove_come_together() {
+    for (members, field) in [
+        (r#", "name":20,"recalled":1,"first":3"#, b"remove".as_slice()),
+        (r#", "name":20,"recalled":1,"remove":0"#, b"first".as_slice()),
+        (r#", "name":20,"recalled":1,"join":true"#, b"first".as_slice()),
+    ] {
+        assert_eq!(decided(b"note", &note_input(members)), Err(Problem::Range(field)));
+    }
+}
+
+#[test]
+fn first_zero_is_out_of_range() {
+    assert_eq!(
+        decided(b"note", &note_input(r#", "name":20,"recalled":1,"first":0,"remove":0"#)),
+        Err(Problem::Range(b"first"))
+    );
+}
+
+#[test]
+fn a_note_without_first_decodes_as_today() {
+    for (members, name, revision) in [("", 0, None), (r#", "name":20,"recalled":7"#, 20, Some(7))] {
+        let call = decided(b"note", &note_input(members)).expect("whole note decodes");
+        let engine::Tool::Note { entry, recalled } = call.tool else { panic!("whole-note tool") };
+        assert_eq!(entry.name, name);
+        assert_eq!(recalled, revision);
+        assert_eq!(&*entry.body, b"next");
+    }
+}
+
 #[test]
 fn every_declared_tool_decodes_its_minimum_shape_and_rejects_a_wrong_shape() {
     let cases = tool_cases();

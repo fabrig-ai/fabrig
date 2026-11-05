@@ -227,6 +227,7 @@ watch's subject, its digest (5.4). It needs no key.
 | `chat show TASK [--before CURSOR]` | a conversation: turns, words and, where the run's host gives it, provisional text, in order, a page from its end | `activity{n}`, `run{n}`, through `thread` |
 | `task activity TASK [--before CURSOR] [--limit COUNT]` | a task's activity, a page from its end | `activity{n}` |
 | `task turn TASK TURN [--part PART] [--from OFFSET]` | one turn of the task, TURN as `A.T`, attempt A, turn T, whole: its text, each call and its result | `turn{n, attempt, turn}` (jig's `client/domain/contract.md`, section 6) |
+| `task notes TASK --project PROJECT [--after CURSOR]` | a page of the notes of the task's own scope, each whole, as a chat's document pane reads them: number, revision, description, body | `notes{project, task}` (jig's `client/domain/contract.md`, section 6) |
 | `task text TASK [--field specification\|instructions\|result] [--from OFFSET]` | one bounded UTF-8 chunk from the stored specification words (default), effective instructions or kept report, joining sequential backend pages within the tools’ window, with total bytes and continuation | `task_text{n, field, from}` |
 | `task tree TASK` | a task's live tree: its root and each row its window holds, a chip a line, and what it folds (6.1) | `tree{root}` |
 | `task run TASK` | a task's live run: its attempt, its provisional text where its host gives it, its current call | `run{n}` |

@@ -454,6 +454,14 @@ pub(super) fn encode_note_refusal(value: notes::Refusal, limits: &View) -> Resul
             &limits.core,
             wire::NoteRefusalMovedParts { revision },
         )?),
+        notes::Refusal::PastEnd { lines } => wire::NoteRefusal::PastEnd(wire::NoteRefusalPastEnd::new(
+            &limits.core,
+            wire::NoteRefusalPastEndParts { lines },
+        )?),
+        notes::Refusal::PastBound { bytes, bound } => wire::NoteRefusal::PastBound(wire::NoteRefusalPastBound::new(
+            &limits.core,
+            wire::NoteRefusalPastBoundParts { bytes, bound },
+        )?),
         notes::Refusal::RevisionExhausted => wire::NoteRefusal::RevisionExhausted,
     })
 }
@@ -467,6 +475,14 @@ pub(super) fn decode_note_refusal(value: wire::NoteRefusal) -> notes::Refusal {
         wire::NoteRefusal::Moved(value) => {
             let wire::NoteRefusalMovedParts { revision } = value.into_parts();
             notes::Refusal::Moved { revision }
+        }
+        wire::NoteRefusal::PastEnd(value) => {
+            let wire::NoteRefusalPastEndParts { lines } = value.into_parts();
+            notes::Refusal::PastEnd { lines }
+        }
+        wire::NoteRefusal::PastBound(value) => {
+            let wire::NoteRefusalPastBoundParts { bytes, bound } = value.into_parts();
+            notes::Refusal::PastBound { bytes, bound }
         }
         wire::NoteRefusal::RevisionExhausted => notes::Refusal::RevisionExhausted,
     }

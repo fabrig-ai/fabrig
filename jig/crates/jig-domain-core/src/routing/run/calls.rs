@@ -707,6 +707,16 @@ pub(crate) fn named_action(
             let owner = core.begin_note_route(NoteRoute::Call { to: ReplyTo::new(token), key });
             work.push(Work::Event(Event::Notes(notes::Event::Write { owner, entry, recalled })));
         }
+        NamedAction::NoteLines { mut entry, recalled, range } => {
+            if entry.name == 0 {
+                call_decision(core, &mut out, ReplyTo::new(token), key, CallPart::NoteRefused(notes::Refusal::Missing));
+                return out;
+            }
+            entry.author = notes::Author::Task { task: key.task, attempt: key.attempt };
+            assert!(core.pending_calls.insert(key, true) == Ok(None), "note call record room reserved");
+            let owner = core.begin_note_route(NoteRoute::Call { to: ReplyTo::new(token), key });
+            work.push(Work::Event(Event::Notes(notes::Event::WriteLines { owner, entry, recalled, range })));
+        }
         NamedAction::Recall { by, page } => {
             assert!(core.pending_calls.insert(key, true) == Ok(None), "recall call record room reserved");
             let owner = core.begin_note_route(NoteRoute::Call { to: ReplyTo::new(token), key });
@@ -730,7 +740,9 @@ pub(crate) fn named_tool_kind(action: &NamedAction) -> ToolKind {
         NamedAction::Propose { .. } | NamedAction::ProposeBatch { .. } | NamedAction::ProposeGoal { .. } => {
             ToolKind::Propose
         }
-        NamedAction::Note { entry, .. } => ToolKind::Note { scope: entry.scope.clone() },
+        NamedAction::Note { entry, .. } | NamedAction::NoteLines { entry, .. } => {
+            ToolKind::Note { scope: entry.scope.clone() }
+        }
         NamedAction::Recall { by, .. } => ToolKind::Recall { by: by.clone() },
     }
 }

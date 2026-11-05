@@ -287,6 +287,7 @@ const USAGES: &[&[u8]] = &[
     b"repository copy --project PROJECT [--forge FORGE] ADDRESS [--as ORG/NAME] [--no-home] [--until CONDITION] [--timeout DURATION] --key KEY\n",
     b"task take TASK [--key KEY]\n",
     b"task hand-back TASK [--key KEY]\n",
+    b"task notes TASK --project PROJECT [--after CURSOR]\n",
 ];
 #[test]
 fn a_tools_usage_reads_as_the_design_writes_it() {

@@ -6,11 +6,38 @@ use skein_lib::List;
 
 use crate::{Problem, json::Node};
 
-pub(crate) fn new(value: Node<'_>) -> Result<(notes::New, Option<u32>), Problem> {
+pub(crate) fn new(value: Node<'_>) -> Result<jig_domain_core::NamedAction, Problem> {
+    let first = value.field(b"first")?;
+    let remove = value.field(b"remove")?;
+    if first.is_some() != remove.is_some() {
+        return Err(Problem { field: if first.is_some() { b"remove" } else { b"first" }, why: crate::Why::Range });
+    }
+    let join = match value.field(b"join")? {
+        Some(join) => {
+            if first.is_none() {
+                return Err(Problem { field: b"first", why: crate::Why::Range });
+            }
+            join.boolean()?
+        }
+        None => false,
+    };
+    let range = match first {
+        Some(first) => {
+            let first = first.small()?;
+            if first == 0 {
+                return Err(Problem { field: b"first", why: crate::Why::Range });
+            }
+            Some(notes::LineRange { first, remove: remove.expect("range members come together").small()?, join })
+        }
+        None => None,
+    };
     let recalled = match value.field(b"recalled")? {
         Some(revision) => Some(revision.small()?),
         None => None,
     };
+    if range.is_some() && recalled.is_none() {
+        return Err(Problem { field: b"recalled", why: crate::Why::Range });
+    }
     let name = match value.field(b"name")? {
         Some(name) => name.number()?,
         None => 0,
@@ -22,17 +49,22 @@ pub(crate) fn new(value: Node<'_>) -> Result<(notes::New, Option<u32>), Problem>
         Some(value) => numbers(value)?,
         None => List::with_capacity(0),
     };
-    Ok((
-        notes::New {
-            name,
-            scope: scope(value.required(b"scope")?)?,
-            description: value.required(b"description")?.text()?,
-            body: value.required(b"body")?.text()?,
-            references,
-            author: notes::Author::Task { task: 0, attempt: 0 },
+    let entry = notes::New {
+        name,
+        scope: scope(value.required(b"scope")?)?,
+        description: value.required(b"description")?.text()?,
+        body: value.required(b"body")?.text()?,
+        references,
+        author: notes::Author::Task { task: 0, attempt: 0 },
+    };
+    Ok(match range {
+        Some(range) => jig_domain_core::NamedAction::NoteLines {
+            entry,
+            recalled: recalled.expect("range names its revision"),
+            range,
         },
-        recalled,
-    ))
+        None => jig_domain_core::NamedAction::Note { entry, recalled },
+    })
 }
 
 pub(crate) fn recall(value: Node<'_>) -> Result<(notes::Recall, u32), Problem> {

@@ -4,6 +4,7 @@ pub mod acts;
 pub mod document;
 pub(crate) mod holds;
 pub(crate) mod lists;
+mod notes;
 pub(crate) mod outcome;
 pub mod pending;
 pub(super) mod task_source;
@@ -428,12 +429,19 @@ pub(crate) fn reads(
     if plain_task(reading) {
         return read(reading.pages.get(&1).expect("task read"), client, me, reading.called.json, limits, vocabulary);
     }
+    if reading.called.call.tool == crate::jig::rows::TASK_NOTES_AT {
+        let Some(Readout::Jig(ReadResult::Value(ReadValue::Notes(page)))) = reading.pages.get(&1) else {
+            unreachable!("validated notes page")
+        };
+        return notes::print(page, &reading.called.call, reading.called.json, limits);
+    }
     document::print(document::Document::ReadSet(reading, party), reading.called.json, limits, vocabulary)
 }
 
 fn check_selected(call: &crate::jig::call::Call, local: u32, value: &ReadValue) -> Result<(), ()> {
     match (call.tool, local, value) {
         (crate::jig::rows::TASK_TEXT_AT, 1, ReadValue::TaskText(_))
+        | (crate::jig::rows::TASK_NOTES_AT, 1, ReadValue::Notes(_))
         | (1, _, ReadValue::Inbox(_))
         | (crate::jig::rows::PROPOSAL_AT, 1, ReadValue::Proposal(_))
         | (crate::jig::rows::PROJECT_SHOW_AT | crate::jig::rows::PROJECT_FUND_AT, 1, ReadValue::Project(_))

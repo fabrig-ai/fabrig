@@ -34,3 +34,5 @@ task take TASK [--key KEY]
   Take a person task addressed to your role
 task hand-back TASK [--key KEY]
   Return your person task to its role
+task notes TASK --project PROJECT [--after CURSOR]
+  Read a task's notes, each body whole
