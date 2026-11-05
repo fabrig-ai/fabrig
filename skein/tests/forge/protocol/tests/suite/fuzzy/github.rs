@@ -1,6 +1,6 @@
 use skein_forge::api::Read;
 use skein_forge_client::Event;
-use skein_forge_machine_world::joint::REPO;
+use skein_forge_kit::joint::REPO;
 use skein_forge_protocol_world::{World, fixtures};
 use skein_lib::{Duration, Time, Token};
 
