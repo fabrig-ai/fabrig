@@ -121,3 +121,7 @@ Beside what your text asks:
 - **How the seam proves no credential reaches a file:** the functions a body and each `Given` come from, and what they don't take.
 - Which file a gzip endpoint's body is, and that it's before compression.
 - Any request or input line you found that doesn't pass through these points, in plain words: a gap there is the user's to know.
+
+## Answers
+
+2026-11-05 (fabrig/temper). Leave start.txt out, and its 40 lines, if you can still do so cheaply: smith's trace already gives each run's system text, tools and effort. If it's already written and tested, keep it and say so. The design's entry is now dogfood-hacks.md 2.13, not 2.10: cite that.
