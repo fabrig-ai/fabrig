@@ -3,6 +3,7 @@ mod detail;
 mod failure;
 pub(crate) mod json;
 mod limits;
+pub(crate) mod reasoning;
 
 pub use limits::{Limits, encoder_bound};
 pub use json::Json;
