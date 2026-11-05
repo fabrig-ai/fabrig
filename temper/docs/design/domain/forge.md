@@ -1954,7 +1954,9 @@ section 9): the foreman and the requester decide, and the change relays
 - **Its agents may ask.** It delegates its producing, its repairs and
   its resolutions with the Message family kept, so that each may ask
   its requester, the change, in the question form, its words carrying
-  its options and its recommendation, after pushing what it has. An
+  its options and its recommendation, after pushing what it has; a
+  question in the line form (`agent.md`, 8.2) reaches a person's client
+  as its choices, relayed whole, and any other as words. An
   agent that asked is kept by its own question (jig's
   `domain/tasks.md`, 5.7): its run parks, no try spent, until the
   change answers, and the change's wait for it is no stall (8.4). Its
@@ -2173,6 +2175,9 @@ are comparable.
   first time. A kept change keeps its head, its checks and its gates'
   verdicts: once its last dependency is met, it is ready again at once
   if they still hold. A resolution never holds the queue.
+- **Shown whole,** to the client's subject `changes`
+  (`../client/README.md`, 4.6): the change that owns the queue first, at
+  whichever step of its turn, then the ready changes in this order.
 - **Derived, not kept.** A queue is the ready changes into a branch,
   their priorities and their times; nothing of it is stored beyond the
   changes' own states, so a restart rebuilds it from them.

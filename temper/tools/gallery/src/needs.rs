@@ -1,0 +1,217 @@
+//! Needs you's question states, through public documents and acts (client/browser.md, 7.2).
+use crate::{
+    driver,
+    samples::{Then, World},
+    worlds,
+};
+use jig_client::contract as c;
+use skein_lib::{Duration, List, Queue, Wall};
+use temper_client_domain::{
+    Action, Address, Domain, Event, Request,
+    address::Filter,
+    pages::{Act, needs},
+};
+use temper_fixtures::client_documents as documents;
+const FIRST: &str = "Fix the dropped watch in jig’s store, or keep it alive in temper serve?\n\nMakeProject answers after the client’s watch drops. jig’s fix changes a stored record; serve’s fix is local but leaves jig’s behaviour as it is.\n\nSaw: The box test reproduces it every time: the store’s write lands, then the watch closes before the answer comes. The test and its log are on the goal.\nChoice: In jig’s store (recommended)\nChoice: In temper serve";
+const SECOND: &str = "The “connect your deployment” help page isn’t written. Link the server help on GitHub for now, or hide the link until the page exists?\n\nThe welcome’s design names the link a placeholder.\nChoice: Link the GitHub page (recommended)\nChoice: Hide the link";
+const THIRD: &str = "The repository has no license. Name one in the README?\n\nThe README is written apart from this line.\nChoice: MIT (recommended)\nChoice: Apache-2.0\nChoice: No license line";
+fn text(words: &str) -> c::DocumentText {
+    c::DocumentText::complete(c::Text::new(words.as_bytes().into(), 4096).expect("fixture words"))
+}
+fn object(task: u64) -> c::ObjectKey {
+    c::ObjectKey::Question { task, message: 1 }
+}
+fn first_object(name: &str) -> c::ObjectKey {
+    match name {
+        "needs-proposal" => c::ObjectKey::Proposal(c::ProposalKey { proposer: c::Proposer::Task(1), number: 1 }),
+        "needs-held" | "needs-funds" => c::ObjectKey::Escalation(1),
+        _ => object(1),
+    }
+}
+fn entries(name: &str) -> List<c::InboxEntry> {
+    let mut entries = List::with_capacity(3);
+    for task in 1..=3 {
+        entries
+            .push(documents::entry(
+                if task == 1 { first_object(name) } else { object(task) },
+                1,
+                task,
+                Wall::EPOCH,
+                None,
+            ))
+            .expect("three questions");
+    }
+    entries
+}
+fn act(root: &mut Domain, act: needs::Act, out: &mut Queue<Request>) {
+    driver::step(root, Event::Act { action: Action::Pages(Act::Needs(act)) }, out);
+}
+#[expect(clippy::too_many_lines, reason = "one fixture answers each card kind through the domain's read requests")]
+pub fn domain(name: &str) -> Domain {
+    let source = worlds::world(World::Solo, Address::Inbox { filter: Filter::ALL }, Then::Shown).0;
+    let mut me = source.pages().me(source.client()).expect("fixture me").clone();
+    me.projects.get_mut(0).expect("project").name = text("fabrig");
+    me.needs_total = 3;
+    me.needs = c::Needs {
+        questions: if name == "needs-proposal" || name == "needs-held" || name == "needs-funds" { 2 } else { 3 },
+        proposals: u32::from(name == "needs-proposal"),
+        escalations: u32::from(name == "needs-held" || name == "needs-funds"),
+        person_tasks: 0,
+    };
+    let prototype = source
+        .pages()
+        .inbox()
+        .expect("fixture inbox")
+        .cards
+        .iter()
+        .find_map(|card| if let Some(c::ReadValue::Question(q)) = &card.page { Some(q.as_ref().clone()) } else { None })
+        .expect("fixture question");
+    let mut root = temper_client_domain::unlinked(&driver::limits(), 11);
+    let mut out = Queue::uncapped();
+    driver::step(
+        &mut root,
+        Event::Start {
+            address: Address::Inbox { filter: Filter { project: Some(1), ..Filter::ALL } },
+            kept: List::with_capacity(0),
+            with: None,
+        },
+        &mut out,
+    );
+    for event in [
+        jig_client::Event::StartUnlinked { kept: List::with_capacity(0) },
+        jig_client::Event::SignIn { with: jig_client::With::Transport },
+        jig_client::Event::Up { up: jig_client::Up::Served { served: true, versions: None } },
+    ] {
+        driver::step(&mut root, Event::Client { event }, &mut out);
+    }
+    while let Some(request) = out.pop() {
+        let Some(down) = driver::down(request) else { continue };
+        match down {
+            jig_client::Down::Open { watch, subject: jig_client::Watchable::Jig(c::Subject::Me) } => {
+                driver::deliver(&mut root, watch, c::Delivery::Me(Box::new(me.clone())), &mut out);
+            }
+            jig_client::Down::Open { watch, subject: jig_client::Watchable::Jig(c::Subject::Inbox { .. }) } => {
+                driver::deliver(
+                    &mut root,
+                    watch,
+                    c::Delivery::Inbox(Box::new(documents::inbox(
+                        entries(name),
+                        3,
+                        c::Count { value: 0, limited: false },
+                        0,
+                        false,
+                    ))),
+                    &mut out,
+                );
+            }
+            jig_client::Down::Read { read, what: jig_client::Readable::Jig(c::Read::Inbox { group, .. }) } => {
+                let rows = if group == c::InboxReadGroup::Needs { entries(name) } else { List::with_capacity(0) };
+                driver::answer(
+                    &mut root,
+                    read,
+                    c::ReadValue::Inbox(Box::new(c::InboxPage {
+                        selection: None,
+                        before: None,
+                        rows,
+                        after: None,
+                        cut: false,
+                    })),
+                    &mut out,
+                );
+            }
+            jig_client::Down::Read { read, what: jig_client::Readable::Jig(c::Read::Question { task, .. }) } => {
+                let mut q = prototype.clone();
+                let (title, words, minutes) = match task {
+                    1 => ("welcome-stall", FIRST, 40),
+                    2 => ("forge-cards", SECOND, 180),
+                    _ => ("Add a README", THIRD, 4),
+                };
+                q.task.task = task;
+                q.task.title = text(title);
+                q.message = 1;
+                q.words = text(if name == "needs-plain-words" && task == 1 {
+                    "Fix the dropped watch in jig’s store, or keep it alive in temper serve?\n\nMakeProject answers after the client’s watch drops."
+                } else {
+                    words
+                });
+                q.since = Wall::from_nanos(
+                    worlds::now(World::Solo).as_nanos().saturating_sub(Duration::from_secs(minutes * 60).as_nanos()),
+                );
+                driver::answer(&mut root, read, c::ReadValue::Question(Box::new(q)), &mut out);
+            }
+            jig_client::Down::Read { read, what: jig_client::Readable::Jig(c::Read::Proposal { .. }) } => {
+                let mut p = source
+                    .pages()
+                    .inbox()
+                    .expect("source inbox")
+                    .cards
+                    .iter()
+                    .find_map(|card| {
+                        if let Some(c::ReadValue::Proposal(p)) = &card.page { Some(p.as_ref().clone()) } else { None }
+                    })
+                    .expect("source proposal");
+                p.key = c::ProposalKey { proposer: c::Proposer::Task(1), number: 1 };
+                p.reason = text("Accept how temper will run your work. New work follows this plan.");
+                driver::answer(&mut root, read, c::ReadValue::Proposal(Box::new(p)), &mut out);
+            }
+            jig_client::Down::Read { read, what: jig_client::Readable::Jig(c::Read::Escalation { .. }) } => {
+                driver::answer(&mut root, read, c::ReadValue::Escalation(Box::new(escalation(name))), &mut out);
+            }
+            _ => {}
+        }
+    }
+    actions(&mut root, name, &mut out);
+    root
+}
+
+fn actions(root: &mut Domain, name: &str, out: &mut Queue<Request>) {
+    match name {
+        "needs-reply-open" => act(root, needs::Act::OpenReply { object: object(1) }, out),
+        "needs-second-answered" => {
+            act(root, needs::Act::Choose { object: object(1), words: "In jig’s store".as_bytes().into() }, out);
+        }
+        "needs-later" => act(root, needs::Act::Later { object: object(1) }, out),
+        "needs-last" | "needs-done" => {
+            for (task, words) in [(1, "In jig’s store"), (2, "Link the GitHub page")] {
+                act(root, needs::Act::Choose { object: object(task), words: words.as_bytes().into() }, out);
+            }
+            if name == "needs-done" {
+                act(root, needs::Act::Choose { object: object(3), words: b"MIT".as_slice().into() }, out);
+            }
+        }
+        _ => {}
+    }
+}
+
+fn escalation(name: &str) -> c::Escalation {
+    let source = worlds::world(
+        World::Solo,
+        Address::Task { task: 3, filter: temper_client_domain::PlanFilter::All },
+        Then::Held,
+    )
+    .0;
+    let mut task = source.pages().task().expect("task page").document(source.client()).expect("task").clone();
+    task.chip.task = 1;
+    task.chip.title = text("first-run-projects");
+    task.spec.specification.words = text("Both halves of the store task run. The Ready page waits for this decision.");
+    task.budget.numbers.spent = 31;
+    task.budget.numbers.budget = 40;
+    let hold = task.hold.as_mut().expect("held fixture");
+    hold.reason = if name == "needs-funds" {
+        c::HoldCategory::Budget
+    } else {
+        c::HoldCategory::Failures { class: c::HoldFailure::Run }
+    };
+    hold.words = Some(text("Without release the goal stops after they land, with the Ready page undone."));
+    // The escalation's offers are independent of its task's offers.
+    let mut acts = List::with_capacity(2);
+    acts.push(c::Offered {
+        act: c::ActKind::Release,
+        admission: c::Admission::Allowed,
+        effect: Some(c::Effect::Release(c::ReleaseEffect::RunAgain)),
+    })
+    .expect("release");
+    acts.push(c::Offered { act: c::ActKind::LeaveHeld, admission: c::Admission::Allowed, effect: None })
+        .expect("leave held");
+    c::Escalation { task: Box::new(task), acts }
+}

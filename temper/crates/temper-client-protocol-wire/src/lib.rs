@@ -440,6 +440,21 @@ pub fn decode_landings_panel(bytes: &[u8], limits: &v1::Limits) -> Option<v1::La
     if reader.is_empty() { Some(record) } else { None }
 }
 
+/// Encode a project's watched changes (temper/docs/design/client/README.md, 4.6).
+#[must_use]
+pub fn changes_panel(record: &v1::ChangesPanel) -> Box<[u8]> {
+    let mut writer = Writer::new(usize::try_from(record.measure()).expect("measured length fits usize"));
+    record.encode(&mut writer).expect("measured room");
+    writer.finish()
+}
+/// Decode one complete changes view (temper/docs/design/client/README.md, 4.6).
+#[must_use]
+pub fn decode_changes_panel(bytes: &[u8], limits: &v1::Limits) -> Option<v1::ChangesPanel> {
+    let mut reader = Reader::new(bytes);
+    let record = v1::ChangesPanel::decode(limits, &mut reader).ok()?;
+    if reader.is_empty() { Some(record) } else { None }
+}
+
 /// Encode the current value of a forge setting (client/forge.md, 9).
 #[must_use]
 pub fn setting_answer(record: &v1::SettingAnswer) -> Box<[u8]> {

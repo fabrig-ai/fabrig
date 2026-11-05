@@ -3,6 +3,7 @@ use alloc::boxed::Box;
 use skein_lib::{Env, Queue, Time};
 pub mod admin;
 pub mod change;
+pub mod changes;
 pub mod connect;
 pub mod deployment;
 pub mod dismissed;

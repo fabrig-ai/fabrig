@@ -1,3 +1,4 @@
+mod changes;
 mod chats;
 mod choice;
 mod configure;
@@ -13,10 +14,12 @@ mod goals;
 mod home;
 mod inbox;
 mod look;
+mod needs;
 mod playground;
 mod playground_start;
 mod public;
 mod rail;
+mod toast;
 use jig_client::contract::{ApplicationPart, PartScope};
 use skein_ui::Role;
 

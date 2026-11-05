@@ -378,6 +378,11 @@ pub fn to_root(
                         connector: wire::FORGE,
                         subject: Token::new(forge::landings_subject(subject.project(), subject.ended())),
                     },
+                    w::Watch::Changes(subject) => jig_domain_core::documents::Watched::Application {
+                        scope,
+                        connector: wire::FORGE,
+                        subject: Token::new(forge::changes_subject(subject.project())),
+                    },
                     w::Watch::Dismissed => jig_domain_core::documents::Watched::Application {
                         scope: jig_domain_people::ApplicationScope::Own,
                         connector: wire::FORGE,
@@ -1286,6 +1291,7 @@ pub fn document(value: forge::Document, forges: &crate::forges::Forges, limits: 
             .ok()?;
             Some(wire::landing_panel(&panel))
         }
+        forge::Document::Changes(value) => changes_panel(value, limits),
         forge::Document::Landings(value) => {
             let mut landings = List::with_capacity(u32::try_from(value.landings.len()).ok()?);
             for line in value.landings {
@@ -1326,6 +1332,71 @@ pub fn document(value: forge::Document, forges: &crate::forges::Forges, limits: 
         }
     }
 }
+fn changes_panel(value: forge::ChangesView, limits: &w::Limits) -> Option<Box<[u8]>> {
+    let mut queues = List::with_capacity(limits.changes_panel_queues);
+    for queue in value.queues {
+        let mut changes = List::with_capacity(limits.changes_queue_changes);
+        for row in queue.changes {
+            changes
+                .push(
+                    w::ChangesQueued::new(
+                        limits,
+                        w::ChangesQueuedParts {
+                            task: row.task,
+                            title: row.title,
+                            ready_since: row.ready_since.as_nanos(),
+                            checks_since: match row.checks_since {
+                                Some(at) => Some(at.as_nanos()),
+                                None => None,
+                            },
+                        },
+                    )
+                    .ok()?,
+                )
+                .ok()?;
+        }
+        queues
+            .push(
+                w::ChangesQueue::new(
+                    limits,
+                    w::ChangesQueueParts {
+                        repository: queue.repository,
+                        branch: queue.branch,
+                        red: queue.red,
+                        changes,
+                    },
+                )
+                .ok()?,
+            )
+            .ok()?;
+    }
+    let mut landed = List::with_capacity(limits.changes_panel_landed);
+    for row in value.landed {
+        landed
+            .push(
+                w::ChangesLanded::new(
+                    limits,
+                    w::ChangesLandedParts { task: row.task, title: row.title, at: row.at.as_nanos() },
+                )
+                .ok()?,
+            )
+            .ok()?;
+    }
+    let panel = w::ChangesPanel::new(
+        limits,
+        w::ChangesPanelParts {
+            project: value.project,
+            landing: value.landing,
+            queues,
+            more: value.more,
+            landed,
+            landed_more: value.landed_more,
+        },
+    )
+    .ok()?;
+    Some(wire::changes_panel(&panel))
+}
+
 fn landing_member(
     member: forge::LandingMember,
     forges: &crate::forges::Forges,

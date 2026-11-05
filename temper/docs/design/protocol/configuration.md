@@ -1270,7 +1270,7 @@ one owned Forgejo's place, with its own values (setup.md, 8.1).
   change in place (jig's `protocol/configuration.md`, section 9).
 - **A brief past the host part's room** (13.4). The same request sizes a
   run's brief at 1 MB, where `standard`'s `root.brief.brief_bytes`,
-  359,435, is what the host part leaves charter 1 at init's models, a
+  359,205, is what the host part leaves charter 1 at init's models, a
   whole spec among it, past the largest fabrig's development has had,
   200 kB. 1 MB needs a window of about 2.7M tokens or a larger share of
   it for the host. Default: as it stands. The user's to choose, with no
@@ -1823,8 +1823,8 @@ init`'s document carries none of them (`setup.md`, 8.3).
   (13.9).
 - **The configuring agent is a setting** like any other: template 3
   starts it, from `chat start --template 3` (`../client/tools.md`,
-  5.3) and, once the web client's pages land, from "Tell temper how
-  you work", and an owner may change or remove it as any template. Its runs read
+  5.3) and from the client's `Configure`, which "Tell temper how you
+  work" opens (`../client/README.md`, 3.5), and an owner may change or remove it as any template. Its runs read
   and propose settings; they never change one, since jig's `settings`
   family proposes and an owner accepts (jig's `domain/engine.md`, 17.6).
 - **Built at each start** by `temper-service`'s `stock` module, as

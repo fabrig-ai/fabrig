@@ -332,7 +332,9 @@ fn world_in_layout(
                             continue;
                         }
                         w::Watch::Change(subject) => subject,
-                        w::Watch::Landing(_) | w::Watch::Landings(_) | w::Watch::Dismissed => continue,
+                        w::Watch::Landing(_) | w::Watch::Landings(_) | w::Watch::Changes(_) | w::Watch::Dismissed => {
+                            continue;
+                        }
                     };
                     if let Some(panel) = change_panel(w, subject.task()) {
                         for up in [
@@ -3074,4 +3076,179 @@ fn adopt_owned_sample(root: &mut Domain, watch: Token, out: &mut Queue<Request>)
     sample_forge_answer(root, attempt, w::Outcome::SettingUp, out);
     // The engine creates the project and adopts the repository before publishing Made.
     forges_watched(root, FirstRun { step: 7 }, watch, out);
+}
+
+/// Changes samples use the mock's landed clocks and relative ages (client/browser.md, 7.2).
+pub(super) fn sample_now(world: World, name: &str) -> Wall {
+    match name {
+        "changes" | "changes-one" | "changes-empty" => offset(Reference, -173),
+        "changes-landed-only" => offset(Reference, 2),
+        _ => now(world),
+    }
+}
+
+/// The changes subject is supplied by the sample, independently of the engine (client/README.md, 4.6).
+pub(super) fn changes_world(name: &str) -> Domain {
+    use jig_client::{Down, Readable, Up, Watchable};
+    use temper_client_protocol_wire::{self as wire, v1 as v};
+    let limits = limits();
+    let (mut root, mut out) = started(Address::Changes { project: PROJECT });
+    let panel = changes_panel(name);
+    for _ in 0..256 {
+        let Some(request) = out.pop() else { break };
+        let Some(down) = crate::driver::down(request) else { continue };
+        match down {
+            Down::Open { watch, subject: Watchable::Jig(c::Subject::Me) } => {
+                let project = if name == "changes-landed-only" { "hello" } else { "fabrig" };
+                let mut me = base_frame("Owner", project);
+                me.needs_total = if name == "changes-landed-only" { 1 } else { 3 };
+                me.needs = c::Needs { questions: me.needs_total, proposals: 0, escalations: 0, person_tasks: 0 };
+                deliver(&mut root, watch, c::Delivery::Me(Box::new(me)), &mut out);
+            }
+            Down::Open { watch, subject: Watchable::Jig(c::Subject::Accounts) } => {
+                deliver(&mut root, watch, c::Delivery::Accounts(Box::new(accounts(Reference, Then::Shown))), &mut out);
+            }
+            Down::Open { watch, subject: Watchable::Family { record, .. } } => {
+                let watching = wire::decode_watching(&record.bytes, &v::CEILINGS).expect("gallery watch");
+                if let v::Watch::Changes(_) = watching.watch() {
+                    for up in [
+                        Up::Watched { watch, event: c::WatchEvent::Opened },
+                        Up::FamilyDelivered {
+                            watch,
+                            record: jig_client::Family {
+                                family: wire::FORGE,
+                                version: wire::CLIENT_VERSION,
+                                bytes: wire::changes_panel(&panel),
+                            },
+                        },
+                    ] {
+                        step(&mut root, Event::Client { event: jig_client::Event::Up { up } }, &mut out);
+                    }
+                } else if let v::Watch::Forges = watching.watch() {
+                    forges_watched(&mut root, Reference, watch, &mut out);
+                }
+            }
+            Down::Read { read, what: Readable::Jig(c::Read::Task { task }) } => {
+                let mut document = base_task(task, "Change");
+                document.project = PROJECT;
+                document.lineage_chips = List::with_capacity(1);
+                let (goal, title) = match task {
+                    100 | 103 | 104 | 105 => (Some(80), "first-run-projects"),
+                    101 => (Some(81), "forge-cards"),
+                    106 => (Some(82), "pane-chat-line"),
+                    102 => (None, "chat T6"),
+                    107 => (None, "chat T2"),
+                    _ => unreachable!("listed sample task"),
+                };
+                document.goal = goal;
+                let mut chip = document.chip.clone();
+                chip.task = goal.unwrap_or(if task == 107 { 2 } else { 6 });
+                chip.title = doc(title);
+                chip.executor = c::ChipExecutor::Agent { charter: 1 };
+                document.lineage_chips.push(chip).expect("one lineage chip");
+                answer(&mut root, read, c::ReadValue::Task(Box::new(document)), &mut out);
+            }
+            Down::Read { .. }
+            | Down::Open { .. }
+            | Down::Continue { .. }
+            | Down::Close { .. }
+            | Down::Save { .. }
+            | Down::Erase { .. }
+            | Down::Send { .. } => {}
+        }
+    }
+    assert!(out.is_empty(), "changes sample settled");
+    assert!(limits.client.domain.reads >= 7, "the sample's shown rows fit");
+    root
+}
+fn changes_panel(name: &str) -> temper_client_protocol_wire::v1::ChangesPanel {
+    use temper_client_protocol_wire::v1 as v;
+    let mut queues = List::with_capacity(1);
+    let mut changes = List::with_capacity(3);
+    if name == "changes" || name == "changes-one" {
+        for (task, title) in
+            [(100, "Store: policy record"), (101, "Two welcome cards"), (102, "Help typo in server.md")]
+        {
+            if name == "changes-one" && task != 100 {
+                continue;
+            }
+            changes
+                .push(
+                    v::ChangesQueued::new(
+                        &v::CEILINGS,
+                        v::ChangesQueuedParts {
+                            task,
+                            title: title.as_bytes().into(),
+                            ready_since: offset(Reference, -179).as_nanos(),
+                            checks_since: if task == 100 { Some(offset(Reference, -179).as_nanos()) } else { None },
+                        },
+                    )
+                    .expect("queued change"),
+                )
+                .expect("three changes");
+        }
+        queues
+            .push(
+                v::ChangesQueue::new(
+                    &v::CEILINGS,
+                    v::ChangesQueueParts {
+                        repository: b"jeremy/fabrig".as_slice().into(),
+                        branch: b"main".as_slice().into(),
+                        red: false,
+                        changes,
+                    },
+                )
+                .expect("queue"),
+            )
+            .expect("one queue");
+    }
+    let mut landed = List::with_capacity(4);
+    if name == "changes" || name == "changes-one" {
+        for (task, title, minute) in [
+            (103, "Pane’s playground line", -179),
+            (104, "Banner’s set-up link", -230),
+            (105, "Playground project", -270),
+            (106, "Journey print", -408),
+        ] {
+            landed
+                .push(
+                    v::ChangesLanded::new(
+                        &v::CEILINGS,
+                        v::ChangesLandedParts {
+                            task,
+                            title: title.as_bytes().into(),
+                            at: offset(Reference, minute).as_nanos(),
+                        },
+                    )
+                    .expect("landed change"),
+                )
+                .expect("four landings");
+        }
+    } else if name == "changes-landed-only" {
+        landed
+            .push(
+                v::ChangesLanded::new(
+                    &v::CEILINGS,
+                    v::ChangesLandedParts {
+                        task: 107,
+                        title: b"Hello in Rust".as_slice().into(),
+                        at: offset(Reference, -58).as_nanos(),
+                    },
+                )
+                .expect("landed change"),
+            )
+            .expect("one landing");
+    }
+    v::ChangesPanel::new(
+        &v::CEILINGS,
+        v::ChangesPanelParts {
+            project: PROJECT,
+            landing: b"main".as_slice().into(),
+            queues,
+            more: 0,
+            landed,
+            landed_more: 0,
+        },
+    )
+    .expect("changes panel")
 }

@@ -230,6 +230,7 @@ skein's (skein's `ui-web.md`), and how a client of jig's does is jig's
   |---|---|
   | `Inbox { filter }` | `/`, and its filter's query |
   | `Home { project }` | `/projects/<project>` |
+  | `Changes { project }` | `/projects/<project>/changes` |
   | `Settings { project }` | `/projects/<project>/settings` |
   | `Configure { project }` | `/projects/<project>/settings/configure` |
   | `Goals { project, filter }` | `/projects/<project>/goals`, and its filter's query |
@@ -246,7 +247,7 @@ skein's (skein's `ui-web.md`), and how a client of jig's does is jig's
 
   `<task>` and `<project>` are the task's and the project's numbers in
   decimal. A later page's path comes with it, in this shape
-  (`/projects/<project>/changes`). The
+  (`/projects/<project>/board`). The
   public pages' paths, under `/public`, are section 8's.
 - **The inbox's filter is its query:** the fields it sets, in one
   order, `?project=<project>&kind=<kind>&goal=<goal>`, and none with
@@ -262,7 +263,7 @@ skein's (skein's `ui-web.md`), and how a client of jig's does is jig's
   or edited link opens the inbox less filtered, never refused, and its
   address is replaced with the printed one. It reads numbers, not the
   person's projects: a project the person isn't in shows an empty
-  inbox, which "All projects" undoes. The inbox's filter, the chats
+  inbox, which its unfiltered address undoes. The inbox's filter, the chats
   list's (below), the welcome's step,
   `ConnectForge`'s choice, `ConnectModel`'s way (below) and
   `Authorize`'s query, kept as it came and never printed again, alone
@@ -283,8 +284,8 @@ skein's (skein's `ui-web.md`), and how a client of jig's does is jig's
   `?at=`: `/chats?at=start` is the Chats page
   with the focus in its start's text area ("Start a chat", or the
   playground's start's while the playground's start is drawn in its place), the
-  address the inbox's "+ New chat" links to (`README.md`, 3.5's
-  inbox); with a filter, `state` comes first,
+  address the terminal's inbox's "+ New chat" links to (`README.md`,
+  3.5's inbox); with a filter, `state` comes first,
   `/chats?state=live&at=start`. Every other `/chats` leaves the focus
   on its heading, as any move does.
 - **The welcome's step is its query:** none for its first step,
@@ -1167,6 +1168,9 @@ from the engine's own answers, is where the look is tuned.
 | `goals-filter-empty` | hand-made Goals deliveries: a filter no goal matches, "None." |
 | `goals-more` | hand-made Goals deliveries: "More than N goals, M under way." and "More goals" |
 | `home-github` | hand-made Home deliveries: GitHub connected with an accepted installation |
+| `home-morning-card` | hand-made Home deliveries: three needs in the line form, the first as its card with its choices, the others as lines |
+| `home-answered` | `home-morning-card` with the first answered: its line, its toast, the next as the card |
+| `home-one-need` | one need: no lines and no "Answer in a row"; on a phone, "Answer" |
 | `configure` | the configuring page before its first words, template 3 listed |
 | `configure-typing` | words entered; Send enabled |
 | `configure-sending` | the configuring start out; starters and Send disabled, words kept |
@@ -1175,7 +1179,18 @@ from the engine's own answers, is where the look is tuned.
 | `configure-chats-tag` | the solo world’s chats with T10 tagged Configuring beside ordinary chats |
 | `chats-solo` | the solo world's chats |
 | `chat-solo-T10` | the solo world's chat T10, its proposal in place |
-| `inbox-solo` | the solo world's inbox: a proposal, a question |
+| `inbox-solo` | the solo world's *Needs you* (`README.md`, 3.5): the first of a proposal and a question |
+| `needs-one` | *Needs you*: a question in the line form, the first of three |
+| `needs-saw-open` | `needs-one` with "What the agent saw" open |
+| `needs-reply-open` | `needs-one` with "Reply…" pressed: the reply form |
+| `needs-second-answered` | the first answered, its line and toast showing: the second of three |
+| `needs-later` | the first marked later: the next shown, the toast's words |
+| `needs-last` | the last card: "The last one" |
+| `needs-done` | every card answered: "Nothing needs you." and the answered lines |
+| `needs-proposal` | a proposal's card |
+| `needs-held` | a held task's card |
+| `needs-funds` | a held task out of budget: "S of L used." |
+| `needs-plain-words` | a question in no line form: "Reply…" alone |
 | `goal-running` | first-run-projects, running: six of nine tasks in, its report, Left and Risk, the bar, three waiting lines, "6 landed" folded |
 | `goal-needs-funds` | first-run-projects held for funds: "needs funds", its band with Release and Leave held |
 | `goal-needs-question` | welcome-stall with an open question: its band and its parsed choices, the recommended one primary |
@@ -1235,7 +1250,7 @@ from the engine's own answers, is where the look is tuned.
 | `chat-first-run-4-T4` | the first run's chat T4 at step 4, waiting at rest for the person’s words |
 | `playground-resetting` | the first run's Chats while the playground resets: "Leaving the playground…", and no playground's start |
 | `chats-first-run-5` | Chats after the first plan connects, its ChatGPT composer |
-| `inbox-reference` | the reference world's inbox |
+| `inbox-reference` | the reference world's *Needs you* |
 | `accounts-reference` | the reference world's accounts |
 | `accounts-first-run-1` | the first run's accounts at step 1: the playground's account |
 | `signed-out` | signed out |

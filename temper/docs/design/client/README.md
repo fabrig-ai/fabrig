@@ -349,15 +349,15 @@ keeps (`../protocol/configuration.md`, section 2).
 
 | Address | Mockup | Shows | Watches and reads | Acts |
 |---|---|---|---|---|
-| `Home { project }` | the greenfield mock's `home.html` | a project's first page: its intro, "To begin" while it shows, what needs the person, its chats (*Home,* below) | `me`; the `forges` watch; the person's dismissals (4.6); the project's chats' `tasks{query}`, as `Chats` reads them; `inbox` for that project, as `Inbox` reads it; `settings`, to say whether a way of working is configured | start the configuring chat; adopt the first repository again, or open the adoption form; skip "To begin" |
+| `Home { project }` | the greenfield mock's `home.html` | a project's first page: its intro, "To begin" while it shows, what needs the person, its chats (*Home,* below) | `me`; the `forges` watch; the person's dismissals (4.6); the project's chats' `tasks{query}`, as `Chats` reads them; `inbox` for that project, as `Inbox` reads it; `settings`, to say whether a way of working is configured | open `Configure`; adopt the first repository again, or open the adoption form; skip "To begin"; a question's choice, reply and Later, and a card's acts, in place |
 | `Settings { project }` | none | a project's settings: "Settings for PROJECT", "Configure temper", the links to `Forges`, `Accounts` and `Adopt { project }`, and "Sign out" (*Settings,* below) | `me`; the project's chats' `tasks{query}`, as `Chats` reads them | sign out |
 | `Configure { project }` | the greenfield mock's `chat.html?id=new&configure=1` | the configuring chat before its first words, under `Settings`, in the project's frame (*The configuring chat's page,* below) | `me`; the project's chats' `tasks{query}`, as `Chats` reads them | start the configuring chat, from its composer or a starter |
-| `Inbox` (the root) | `inbox.html` | what needs the person, across projects, filtered by project, kind and goal (its root): proposals, questions, held tasks, person tasks; then updates (results, replies); "+ New chat", a link to the Chats page's start (`/chats?at=start`) | `inbox` with its filters; the `proposal` or `task` an entry's card needs | accept ("Accept"), reject with a reason, answer, release, leave held, take, hand back |
+| `Inbox` (the root) | the greenfield mock's `needs.html`; the terminal's, `inbox.html` | in the browser, *Needs you* (below): what needs the person, one card at a time, across projects or filtered by project, kind and goal (its root). In the terminal, the list: proposals, questions, held tasks, person tasks; then updates (results, replies); its filters; "+ New chat", a link to the Chats page's start (`/chats?at=start`) | `inbox` with its filters; the `proposal` or `task` an entry's card needs | a question's choice, reply and Later (*What the client keeps,* below); accept ("Accept"), reject with a reason, release, leave held, take, hand back; in the terminal, answer in words |
 | `Chats` | `chats.html`; the playground's start at the first run's first step, which `first-run.html` opens | a pane at the head of its main, a complementary region named "Project" (`browser.md`, 2.5): the new chat's bar (below), in the playground's project while the playground starts or runs the playground's start (4.8, 5.6), then the person's chats under the level-1 heading "Chats", as one list, "Your chats", live and ended together, newest first, under All, Live or Closed (below), each with its project and number, title, status, own spend and live delegates, and last the playground's banner while it runs or is leaving (5.1); beside the pane, the composer to start a chat alone: its text area "Start a chat", showing "Describe a change" while it is empty, and its button "Start chat", with the hint "enter to start · shift+enter for newline", then its line and its chooser (5.5) under it, and in the playground's start its suggested requests under them (5.6) | `tasks{query}`: requester the person, the chat label, its live group by last activity, its ended pages by when each ended; the playground, from the forge's side (4.8) | start a chat, from the composer or a suggested request; choose the list's filter; more closed chats |
 | `Chat { task }` | `chat.html` | its chatbar: its number and title, its status, its spend and acts; after it, the context line, only in the playground's project while the playground runs (4.8, 5.6); the conversation (below): its request, the agent's words with its calls folded, the person's words, provisional text, and its end once it has ended; each task it delegated as that task's card, at the call that made it (a `delegate` or a `change`), or else at the result it sent back, or else after the conversation while it runs (5.7); the proposals waiting in its subtree, each at the call that made it where its turn names it, and after the conversation otherwise (jig's `client/domain/objects.md`, section 10); its status and spend; Stop and Close; the composer, while the chat lives: its line and its chooser (5.5), its text area "Message" with the placeholder "Message T6…", T6 the chat's number, shown while it is empty and never its name, and the hint "Enter to send · Shift+Enter for newline", and "Send", then a message's refusal or failure, if any: a message or the chat's start accepted draws no status of its own, neither at the conversation's end nor in the composer, since the conversation shows its words, "Being sent", then "Sent" (below); while Message is not offered, its line and chooser alone; an ended chat draws no composer and no composer's line | `task`, `activity` a page at a time, older pages while its window has room (5.4), `run` while one is live; each `proposal` its `task` names; each delegated `task` its calls, results and live delegates name, up to the domain's `reads` (5.7) | message, stop, close, accept or reject a proposal in place |
 | `Goals { project, filter }` | the greenfield mock's `goals.html` | the project's goals: its intro, its filters, a row a goal, each its state and its report's headline (*Goals,* below) | `me`; `tasks{query}`: the project, the goal template's label, tracked, by priority, its live group watched, its ended pages by when each ended; a row's report, one read at a time; `inbox`'s needs for that project | choose the filter; more goals |
 | `Task { task }` | the greenfield mock's `goal.html`, for a goal; `task.html` otherwise | a goal: its header, its needs as bands, its report, its tasks, landing, how it runs and what it decided, what the person sent (5.8), with Amend, Pause or Resume, Stop and its composer (5.11); a change: its header and "View on forge ↗", its steps, its step's line, its hold, its tasks live and ended, its gates at its head and its bounds (5.10); an agent's task: its lineage, its brief, its run's heading, its conversation as a chat's, its result once ended and its plan's held cards (5.9), with Amend, Stop and its composer (5.11), and its own held card while it is held | `task`, `tree`, `activity` a page at a time, older pages on an agent's task's "Older"; `run` while one is live; a change's panel, through the forge's side (`forge.md`, 9.2); a goal's or a procedure's ended delegates, a page read once and again on a change; a goal's report, its own line and its needs (5.8) | as its document offers them (5.11): on a goal amend, pause, resume, stop, message, and answer its needs; on an agent's task message, amend, stop, release its own held task or one of its plan |
-| `Changes { project }` | `changes.html` | the forge's changes and landing queues (`forge.md`, section 3) | the forge's, through the forge's side (4.2) | the forge's |
+| `Changes { project }` | the greenfield mock's `changes.html` | what is on the way to the project's landing branches and what last landed there (*Changes,* below; `forge.md`, section 3) | the subject `changes`, through the forge's side (4.2, 4.6); a `task` per row shown, for where it came from | none: each row links to its change's `Task` |
 | `Adopt { project }` | none: 4.4 | the adoption form, into `project` (4.4), with the picker of the repositories temper can reach on the chosen forge | `me`; the chosen forge's deployment part, for its kind, mode, user and installations (`forge.md`, 5.4); the picker's page, a `Reachable` request (section 8) | adopt a repository (4.4) |
 | `Forges` | `forges.html` | the person's forges, each row folded until opened: its connection, its mode and access, on GitHub temper's App and its installations, a connect under way and how the last ended, its load; then the playground's forge, folded, while the playground is read (4.8); "+ Add a forge", to `ConnectForge`, but while the playground runs (`forge.md`, 5.4) | the forge's, through the forge's side (4.2) | connect a stopped forge; replace a key or tokens; install on another account; new repository; forget the admin's token; set up again; remove a forge, confirmed (section 8) |
 | `ConnectForge { forge }` | `connect-forge.html` | connecting one more forge, `forge` the choice it is at: Choose, Details, Setting up and Ready, which ends on the forge connected, adopting nothing (`forge.md`, 5.4) | the forge's, through the forge's side (4.2) | connect; connect as its admin; set up a Forgejo here (section 8) |
@@ -500,7 +500,8 @@ keeps (`../protocol/configuration.md`, section 2).
   ended or was last active, as 5.12's ago ("1 h 28 min ago"). An ended line
   whose retention is Kept adds “Closed. Its transcript is kept.”; no
   other line claims that its transcript stays.
-- **The inbox** (`inbox.html`) shows what needs the person, then the
+- **The inbox in the terminal** (`inbox.html`; the browser's is *Needs
+  you,* below) shows what needs the person, then the
   updates, each entry its card (section 1), under two headings, each
   with how many entries it lists beside it, the updates' as new ones
   since what is read leaves them (below): "Needs you 2", "Updates 2
@@ -538,7 +539,8 @@ keeps (`../protocol/configuration.md`, section 2).
   holding "Answer words" and "Answer"; "Open TN ↗" opens the asked task.
   The answer goes to that task, which relays it to its delegate. "Pending"
   and "Answered" keep today's request outcomes, and a refusal stays under
-  its card. Choices remain future work (section 11).
+  its card. This is the terminal's card; the browser's reads the
+  question's words as *Needs you* (below) says.
 - **Seen** is how far the person has read: jig's read positions (jig's
   `client/domain/pages.md`, section 3), one over their results and one
   over each chat's turns. An update is seen when it is opened, and no
@@ -1207,7 +1209,7 @@ keeps (`../protocol/configuration.md`, section 2).
        the charter of template 3 as `me` lists it
        (`../protocol/configuration.md`, 13.4): a row names its label,
        which is a chat's, and no template. With no template 3 in `me`
-       the act starts the stock chat, and only a setting's change marks
+       the page it opens starts the stock chat, and only a setting's change marks
        the step done. A person who cannot read that document sees no
        change.
     2. The repository, in the first state that holds: adopted (a row's
@@ -1255,27 +1257,41 @@ keeps (`../protocol/configuration.md`, section 2).
   done (the mock's everyday `home.html`; section 11 holds what it draws
   that no client is given):
   - *The intro:* the kicker, and the headline by what needs the person
-    in this project: "Nothing needs you.", "One thing needs you.", "N
-    things need you.", "N+ things need you." where the read is cut, and
-    the project's name until its needs are delivered. It has no lede and
-    no byline.
+    in this project, its open cards (*What the client keeps,* below):
+    "Nothing needs you.", "One thing needs you.", "Two things need you."
+    and so on in number words to "Nine", digits after, "N+ things need
+    you." where the read is cut, and the project's name until its needs
+    are delivered. It has no lede and no byline.
   - *Needs you,* a region named "Needs you": what needs the person in
     this project, the groups of `Inbox` but its updates, read as `Inbox`
     reads them filtered by the project. Its head is the level-2 heading
     "Needs you", "Needs you · N" in the signal colour while something
     does, and, at its right on a wide page while more than one does,
-    "Answer in a row", to that filtered inbox. Empty: "Nothing needs
+    "Answer in a row", to that filtered *Needs you*. Empty: "Nothing needs
     you. Work carries on, and this page tells you what changed when you
     come back."
-    - *The first,* a card (`temper-ask`): a small mono line, the asked
-      task's link as the inbox's card has it, its kind and age ("Add a
-      README · a question · 4 min"); its words, as the inbox's card
-      draws them; "Reply" on a question and "Open" on any other kind, to
-      that filtered inbox, quiet. On a phone it gives way to one line on
-      a pale signal ground, "TITLE: WORDS", the whole a link to that
-      inbox with "Answer" across it; the browser's alone.
-    - *The others,* a line each under it, to that inbox, at most five:
-      its short words, then at the right its kind and age.
+    - *Answered lines,* under the head: what was answered in the last 2
+      minutes (*What the client keeps,* below): the mock's `.answered`,
+      a tick by style, "TITLE:" a link to its task, the label, and at
+      the right "Undo" while its answer is held.
+    - *The first,* a card (`temper-ask`, the mock's `askCard`): a small
+      mono line, the asked task's link as the inbox's card has it, its
+      kind and age ("Add a README · a question · 4 min"), " · later" on
+      a card marked later; then its parts, by its kind as on *Needs you*
+      (below), but: the question in `.q`, 17px; a question's `.choices`
+      in a row, min-height 40, then quiet "Reply" and quiet "Later", in
+      place, the reply form under them; on a proposal or a held task its
+      acts, quiet "Open" and quiet "Later".
+    - *The others,* a line each under it, the whole a link that opens
+      *Needs you* at that card, at most five: its SHORT at the left
+      (*Needs you,* below; a funds row "TITLE: $S of $L used"), at the
+      right its kind and age.
+    - *On a phone* the card and the lines give way to one block on a pale
+      signal ground, "TITLE: SHORT", the whole a link to *Needs you*,
+      with "Answer" across it for one card and "Answer, one at a time"
+      for more; the browser's alone.
+    - *While To begin shows* (the mock's `freshHome`): the card alone,
+      with no lines under it and no "Answer in a row".
   - *Chats,* a region named "Chats": its head the level-2 heading
     "Chats" and, at its right with any chat, "All N", named "All N
     chats", "All N+" where the rows are cut, to `Chats`; a line per chat
@@ -1293,13 +1309,153 @@ keeps (`../protocol/configuration.md`, section 2).
   `forges` watch refused or ended, step 2 is "Adopt a repository" with
   no ORG/NAME. In the terminal the headline, To begin with its three
   steps, and the sections of Home on any project keep their headings,
-  each line one readable run of words.
+  each line one readable run of words, and a question's choices print
+  as buttons.
+- **Needs you** (the user's greenfield mock's `needs.html`; `needsPage`):
+  `Inbox { filter }` in the browser, its address and its filters as they
+  were (`browser.md`, 2.3). It draws one card at a time: no level-1
+  "Inbox", no sections, no filter menus and no "+ New chat". Updates
+  leave the browser's page and no page replaces them; `Seen` marking
+  stays as it is. Its unfiltered address, `/`, works across projects,
+  the project's name before the owner on the mono line. One card is
+  shown of the open ones (*What the client keeps,* below): the one a Home
+  row asked for, else the first; until the inbox is delivered, the column
+  is empty, so that "Nothing needs you." never flashes.
+  - *The column,* as the mock's `.col.narrow.flow`: 600 wide, centred,
+    gap 32.
+  - *Its head,* `.flow-head`: `.dots`, a figure named "2 of 3", a pip per
+    item, 22 by 4, radius 2, `--gf-line-2`, the done ones first and ink;
+    at the right "2 of 3" as `.kicker`. The total is what is answered of
+    this session's page plus the open; where the read is cut, "2 of 3+".
+  - *The card,* on no ground (`.ask`, no background, no shadow, padding
+    0), gap 16:
+    - a `.mono` line: TITLE, a link to the task, · kind · age, as Home's;
+      the kind "a question", "a proposal", "held", "a person task", or
+      "funds" for a held task whose reason is `HoldReason::Budget`;
+    - `h1.flow-q`, the question line: 26px/1.35, 500, -.01em; 23px on a
+      phone;
+    - `.ctx`, `--gf-ink-2`, if it has a context;
+    - a disclosure "What the agent saw", if the agent said: its summary
+      width fit-content, 14px muted, its paragraph margin-top 6; closed
+      at first;
+    - `.choices` in a column: min-height 54, padding 10 18, radius 12,
+      16px; the recommended one, with none the first, primary, and on a
+      question alone `.rec`, "recommended", at the far right, 12px, 400,
+      opacity .72;
+    - `.pair`, two columns, gap 10: "Reply…" and "Later", min-height 46,
+      radius 12, no border, `--gf-hover`, centred; on a proposal, a held
+      task or a person task the first is "Open", to its task's or chat's
+      page, and with no such page it is left out;
+    - the reply form under the pair, hidden until "Reply…": a textarea,
+      min-height 72, `--gf-line-2`, radius 8, `--gf-paper`, its
+      placeholder "Your words go to TITLE’s agent"; "Send reply" (primary,
+      small) and "Cancel" (quiet, small).
+  - *By its kind.* A question reads its words by their line form
+    (`../domain/agent.md`, 8.2); words in no such form are answered by
+    "Reply…" alone. A proposal's question line is its reason's first
+    sentence, its facts and rows as `.ctx` beneath, then Accept (primary,
+    with no "recommended") and Reject (plain, its reason's textarea as on
+    the terminal's card), through the confirmation they have (3.6). A
+    held task: its title and its words, its facts as the terminal's card
+    has them, then Release (primary) and Leave held (plain, its reason's
+    textarea as Reject's). A funds card: "$S of $L used." as the
+    question, in the task page's money form, its title as owner, then
+    Release and Leave held; there is no "Add $10". A person task: its
+    title, its spec, its acts as plain buttons.
+  - *SHORT,* what a next-up line or a Home line says of a card: a
+    question's line; a proposal's reason's first sentence; a held task's
+    or a person task's title, a funds card's "$S of $L used".
+  - *`.next-up`,* centred, 13px, `--gf-faint`: "Next: TITLE · SHORT", or
+    "The last one".
+  - *Answered,* under it when any: the section title "Answered", then
+    the `.answered` lines.
+  - *Done,* with none open, `.col.narrow` with no head: the kicker "Needs
+    you", the level-1 heading "Nothing needs you.", the lede "Every
+    question is answered. Work carries on; Home tells you what changed.",
+    the `.answered` lines, and a plain button-link "Home" (to the open
+    project's `Home`, else the first project's).
+  - *Its acts.* A choice answers and moves to the next card. "Send reply"
+    answers in words. "Later" marks it and moves on, the toast saying
+    "Later: it stays in Needs you, after the others."
+- **What the client keeps** of what needs the person: in `Pages`, not on
+  a page, for this session, gone on reload or on sign-out, none of it a
+  stored record:
+  - *Later,* the cards marked later. *The open cards* are the needs'
+    groups as `Inbox` reads them, less those answered, in the inbox's
+    order, those marked later last.
+  - *Answered,* a bounded list: each card's object, project, title,
+    label and when. The label is the choice's words, or `Replied: “…”`,
+    its words cut at 57 characters plus "…" past 60. A line shows on
+    *Needs you* for 10 minutes and on Home for 2, and an answered card
+    leaves the open ones at once.
+  - *At,* the card a Home row asked for, until it is answered or marked
+    later, or the person leaves the page.
+  - *The held send.* jig has no retraction, so a choice or a reply is
+    held in the client for 5 seconds, a deadline of the domain's as
+    `next_deadline` has. The card moves to answered at once, with the
+    toast "Answered: LABEL" and its "Undo". Undo restores the card and
+    sends nothing. At 5 seconds the `Answer` goes, its words the choice's
+    or the reply's; after that its line shows no "Undo". A refused answer
+    puts the card back with the refusal's words on it, as does an answer
+    the engine did not keep. A tab closed inside the 5 seconds sends
+    nothing and the question stays open. Accept, Reject, Release, Leave
+    held, Take and Hand back send at once, with no Undo, and leave no
+    answered line.
+  - *The toast,* one at a time, 4.5 seconds, with one optional act; drawn
+    with the status role at the end of the frame, in the mock's `.toast`:
+    fixed, centred, bottom 28 (88 on a phone), an ink ground.
+  - *The rail's count:* one standing `inbox` watch while a project's
+    frame shows, the rail being what reads it, so that a client on no
+    project's page asks nothing more; its needs' rows counted by the open
+    project, less those answered; "N+" where its document is cut, and no
+    count before it is delivered. A card marked later still counts. `me`'s
+    `needs_total` stays the banner's navigation's.
+- **Changes** (the user's greenfield mock's `changes.html`; `forge.md`,
+  section 3): `Changes { project }`, at `/projects/<project>/changes`, a
+  project page in the rail's frame, a column as Home's, at most 720 px
+  wide and centred, its parts 60 px apart, 32 on a phone. BRANCH below is
+  the name of the one branch the queues go into; with none queued, the
+  document's `landing` (4.6); with more than one, or no name to say, the
+  heading says "landing" and the lede "its branch". In order:
+  - the kicker, "PROJECT · landing";
+  - the heading, at level 1: "Nothing is on the way to BRANCH." with none
+    queued; "One change is on the way to BRANCH."; from two to nine the
+    number in words, "Three changes are on the way to BRANCH."; from ten
+    in digits, "12 changes are on the way to BRANCH.";
+  - the lede: the landing's line, then ". Each change is checked on top
+    of BRANCH before it lands.". **The landing's line,** one function's,
+    its parts joined by " · ": with something queued, "3 queued" and, once
+    anything has landed, "last landed 6 min ago"; with nothing queued and
+    something landed, "main last moved 1 h ago" and "nothing queued"; with
+    neither, "nothing has landed yet"; then, for each branch `red`, "main
+    red", in the signal's colour. The times are 5.12's *ago*. No green
+    time is kept, so none is said;
+  - "Queue", a section, with its rows: at the left the change's title, a
+    space and, in the mono face, where it came from; at the right, on the
+    first, "checking" in the good colour and " · checks started 6 min
+    ago", by 5.12's *ago*, and on the others "queued 2nd", "queued 3rd",
+    "queued 4th". Past the document's rows, a last row, not a link, "and
+    N more". With no rows, "Empty.". With several branches holding rows, a
+    section each, "Queue · owner/name BRANCH", by the document's order;
+  - "Landed recently", the same section: the title, where it came from,
+    and at the right its time by 5.12's *clock*, newest first. With no
+    rows, its rule alone.
+
+  *Where a change came from:* the title of its task's `goal`, the chip
+  in its `lineage_chips` naming that task; else the root of its
+  `lineage_chips`, "chat T6". The page reads each row's task, as a task's
+  page reads a chip, those of the rows shown alone; until one arrives,
+  its row has no mono part. Every row but "and N more" is a link to its
+  change's `Task { task }`. Until its first document, the page is its
+  kicker; with its watch refused or ended, its kicker and "Shown on the
+  forge." (4.2). The terminal prints the page; the view is shared.
 - **Settings:** `Settings { project }`, at `/projects/<project>/settings`,
   has the level-1 heading "Settings for PROJECT"; a list of links,
   "Configure temper", "Forges", "Accounts" and "Adopt a repository", each
   with the marks 5.3 gives it; then "Sign out". "Configure temper" opens
-  the person's configuring chat in the project, the newest one not closed,
-  on its conversation; with none, `Configure { project }`. So `Settings`
+  the person's configuring chat in the project, the newest one not closed
+  (the highest task number, not the latest activity), on its conversation;
+  with none, `Configure { project }`. So `Settings`
   reads the person's chats in the project as `Chats` does, and until they
   are delivered the link opens `Configure`. A project's Delete, when it is built, is here
   (section 10).
@@ -1450,8 +1606,9 @@ keeps (`../protocol/configuration.md`, section 2).
   whether or not the conversation scrolls, in every mode, the column
   shifted by half a scrollbar where the platform's scrollbars take room. On
   a phone
-  neither keeps a gutter and both stand 16 pixels in, the question at 26
-  pixels and the cards tighter. At 1366 by 680 the whole opening and the
+  neither keeps a gutter and both stand 16 pixels in, the conversation
+  scrolling with no scrollbar drawn, the question at 26 pixels and the
+  cards tighter. At 1366 by 680 the whole opening and the
   composer show with no scrolling.
 
   A starter or "Send" starts the chat, the words it sends the first
@@ -2222,6 +2379,34 @@ for its kind, its user's login and its installations. Its nodes:
   is live, for every party: a watch refused or ended is kept as such,
   with no rows, and not opened again until the next sign-in. Its rows are
   the forge side's facts, which Home reads to compute To begin (3.5).
+- **A project's changes, the subject `changes`:** of the project's scope
+  (jig's `client/domain/contract.md`, 7.5), for a party with a role
+  there, its window unused; on the wire `Watching`'s `changes`,
+  `ChangesSubject`: `project`. `Changes`' page watches it while open. Its
+  document, `ChangesPanel`:
+  - `project`;
+  - `landing`, the branch to name while nothing is queued: the newest
+    landing's, else the default branch of the project's home repository,
+    else of its first, else empty;
+  - `queues`, at most 32, by repository then branch, one per landing branch
+    with ready changes or red (`forge.md`, section 3), each a
+    `ChangesQueue`: `repository`, `owner/name`; `branch`; `red`; and
+    `changes`, in order (`../domain/forge.md`, section 9), each a
+    `ChangesQueued`: `task`, `title` (at most 256 bytes), `ready_since`
+    and, on a queue's first row, `checks_since`, when the step it is at
+    began, both nanoseconds since the epoch;
+  - `more`, the rows past `forge.changes_rows` (32 in `small`), counted
+    across the queues, which fill in order; the changes queued are the
+    rows listed and `more`;
+  - `landed`, at most `forge.changes_landed` (8 in `small`), newest first,
+    across the project's repositories, each a `ChangesLanded`: `task`,
+    `title` and `at`, the landing log's (`../domain/after-landing.md`,
+    section 10);
+  - `landed_more`, what `landed` cut.
+
+  It is marked as a change enters, leaves or moves in a queue, as the step
+  of the change that owns one changes, as a branch's red changes and at each
+  merge.
 - **The forge's documents' records:** its other reads, subjects and
   documents, and its other requests, beside `Adopt` and `SetUp`
   (`forge.md`, section 9).
@@ -2554,9 +2739,9 @@ page (5.1): a navigation named by the open project, in this order:
 - temper's name, a link to the open project's `Home`, named "temper
   home";
 - the switcher (*Projects in the rail,* below);
-- "Home", to the open project's `Home`; "Needs you", to the inbox,
-  with the count of what needs the person from `me`, omitted when
-  zero, its page still the inbox; "Goals", to the project's `Goals`
+- "Home", to the open project's `Home`; "Needs you", to *Needs you*
+  filtered by the open project, with the count of what needs the person
+  there (*What the client keeps,* 3.5), omitted when zero; "Goals", to the project's `Goals`
   with the filter All, shown only where the project has a goal or the
   page is `Goals`, so that a fresh project keeps the rail the mock's
   Default project does; and "Chats", to `Chats`; current on `Home`, on
@@ -2565,9 +2750,8 @@ page (5.1): a navigation named by the open project, in this order:
   configuring chat's, whose current entry is "Settings". Whether a
   project has a goal is `Domain::has_goals(project)`, a fact the domain
   keeps whatever the rail does, from a live watch and one ended read of
-  the goals' query with window 1, per open project. The entries the
-  banner's navigation offers for a project, "Changes" follows "Chats"
-  when it is built;
+  the goals' query with window 1, per open project. "Changes", to `Changes { project }`, follows "Chats", shown for every
+  project and in no tab bar, current on `Changes`;
 - "+ New chat", named "New chat", to the chats' start
   (`/chats?at=start`);
 - at its foot: while the playground runs and is not leaving (4.8),
@@ -2644,7 +2828,7 @@ not the time they were adopted.
 With no home known, "3 repositories" is the row's words; the stand-in
 leaves that state unreached until the client is given the home. In the
 terminal a row reads "PROJECT · work/hello", one run of words. Choosing
-a project keeps the page where it can (3.5): on `Home`, `Settings` and
+a project keeps the page where it can (3.5): on `Home`, `Changes`, `Settings` and
 `Configure`,
 that project's page.
 
@@ -3499,7 +3683,8 @@ hold, its gates and its bounds. Each fact is drawn as the panel
 supplies it: the page computes none (jig's `client/domain/contract.md`,
 5.1).
 
-- **Its parts, in order:** the bar; the header; "View on forge ↗"; the
+- **Its parts, in order:** the bar, a change's opening with the "Changes"
+  breadcrumb, to its project's `Changes`; the header; "View on forge ↗"; the
   change's card, holding its steps, its step's line, its hold, "Its
   tasks", "Gates at its head" and its bounds. At phone width the order
   is the same, and the steps take three columns. Until its panel is
@@ -3619,8 +3804,7 @@ supplies it: the page computes none (jig's `client/domain/contract.md`,
     a step has waited and when a stall began;
   - not drawn: the mockup's case name beside the tag, a reference
     world's;
-  - not drawn: the "Changes" breadcrumb, the bar naming its way as
-    5.1's does; "Its tasks"'s
+  - not drawn: the bar naming its way as 5.1's does; "Its tasks"'s
     subtitle ("made by the change procedure…"); and "its landing rules
     add none" after "No other gate.", which the panel cannot tell from
     a rule not read;
@@ -4914,7 +5098,8 @@ own tests:
   Home; "Skip" on Home reaching every client of the person, holding
   across a restart, and leaving another person's To begin and the
   person's other projects' as they were; the configuring chat started
-  from `Configure`, from template 3; a project with no
+  from `Configure`, from template 3, and `Settings`' "Configure temper"
+  then naming it; a project with no
   repository saying so on its chats page, with "Adopt a repository";
   with jig's faults (drops,
   the engine restarting, a double press, a reload with an adoption
@@ -4997,6 +5182,9 @@ own tests:
   landing branch's last move or its queue's depth: `LandingsPanel` lists
   turns alone, a queue's merge making no landing task. A new fact of the
   forge's protocol, the user's. Default: Home draws no such line.
+  nothing queued"; the same request): the line is *Changes*' (3.5), from
+  the subject `changes` (4.6), and one function serves both. Default: Home
+  draws no such line until it moves to that function.
 - **A question answered on Home** (the same request): choices, a
   recommended one, a context line, "Later", an answer in place and its
   "Undo" wait on the question card's upstream change (below) and on a
@@ -5043,12 +5231,11 @@ own tests:
   welcome is whole moves on to the chats page, where Ready's act and "+
   New project" open a project's Home (3.5, 5.3). Default: the chats
   page, since the look request `project-home` named Ready's act alone.
-- **The mockups' question card:** the asker's lineage and its link
-  ("Open T3 ↗"), and choices as buttons beside "Answer in words"
-  (`world-solo.js`). jig's question carries words alone, so choices
-  need its question form to carry them, an upstream change; the lineage
-  needs the asker's documents on the inbox page. Default: the asked
-  task's link and an answer in words (3.5).
+- **The asker's lineage on a question's card** (`mockups/world-solo.js`):
+  it needs the asker's documents on the inbox page. Default: the asked
+  task's link (3.5). A question's choices are its words' (`../domain/agent.md`,
+  8.2), and a retraction of a sent answer is jig's, which has none: the
+  client holds an answer before it goes (3.5).
 
 - **Pages the mockups do not show:** a project's page with its
   resources, findings, notes and settings (policy, people and roles,
@@ -5274,7 +5461,6 @@ own tests:
     add none", since the panel carries the gates, not the rules;
   - its step's line, its hold and its bounds, which the mockup does
     not draw;
-  - the "Changes" breadcrumb, not drawn until the `Changes` page is.
 - **Older ended delegates and a goal's older activity** (5.8, 5.10):
   a goal's tasks and a procedure's "Its tasks" read one page of their
   ended delegates, the first made, and say "More of its tasks are not

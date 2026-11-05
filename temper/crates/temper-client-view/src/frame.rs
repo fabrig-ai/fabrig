@@ -506,7 +506,7 @@ pub(crate) fn rail(
     switcher(b, root, w, bindings, Some(project), Place::Rail);
     b.open(Role::Slot);
     b.style(crate::look::RAIL_NAV);
-    entries(b, root, w, bindings, project);
+    entries(b, root, w, bindings, project, true);
     b.close();
     crate::link(
         b,
@@ -559,7 +559,7 @@ pub(crate) fn tabbar(b: &mut Builder, root: &Domain, w: &crate::words::Words, bi
     b.open(Role::Navigation);
     b.style(crate::look::TABBAR);
     b.name(&w.say(crate::words::Word::Sections, &[]));
-    entries(b, root, w, bindings, project);
+    entries(b, root, w, bindings, project, false);
     if !goals_shown(root, project) {
         settings_link(b, root, w, bindings, project);
     }
@@ -582,7 +582,14 @@ fn goals_current(root: &Domain) -> bool {
     false
 }
 
-fn entries(b: &mut Builder, root: &Domain, w: &crate::words::Words, bindings: &mut Bindings, project: u32) {
+fn entries(
+    b: &mut Builder,
+    root: &Domain,
+    w: &crate::words::Words,
+    bindings: &mut Bindings,
+    project: u32,
+    changes: bool,
+) {
     use crate::words::Word;
     let (home, inbox, chats) = match root.pages().address() {
         Address::Home { .. } => (true, false, false),
@@ -595,35 +602,44 @@ fn entries(b: &mut Builder, root: &Domain, w: &crate::words::Words, bindings: &m
         | Address::Forges
         | Address::ConnectForge { .. }
         | Address::Adopt { .. }
+        | Address::Changes { .. }
         | Address::Settings { .. }
         | Address::Goals { .. }
         | Address::Configure { .. }
         | Address::Welcome { .. } => (false, false, false),
     };
     action(b, Role::Link, &w.say(Word::RailHome, &[]), Act::Go { address: Address::Home { project } }, home, bindings);
-    let count = root.pages().me(root.client()).expect("rail has me").needs_total;
-    let name = if count == 0 {
+    let count = root.pages().needs().count(root.client(), project);
+    let name = if count.count == 0 {
         w.say(Word::NeedsYou, &[])
     } else {
-        w.say(Word::NeedsYouCount, &[skein_ui::phrases::Hole::Number(u64::from(count))])
+        w.say(
+            if count.cut { Word::NeedsYouCountCut } else { Word::NeedsYouCount },
+            &[skein_ui::phrases::Hole::Number(u64::from(count.count))],
+        )
     };
     crate::link(
         b,
         &name,
-        bindings.insert(Act::Go { address: Address::Inbox { filter: temper_client_domain::address::Filter::ALL } }),
+        bindings.insert(Act::Go {
+            address: Address::Inbox {
+                filter: temper_client_domain::address::Filter { project: Some(project), kind: None, goal: None },
+            },
+        }),
     );
     if inbox {
         b.state(skein_ui::State::Current);
     }
-    if count == 0 {
+    if count.count == 0 {
         b.text(Run::Plain, &name);
     } else {
-        let number = skein_lib::Decimal::of(u64::from(count));
-        let prefix = name.len().checked_sub(number.as_bytes().len()).expect("count is the phrase suffix");
+        let number = skein_lib::Decimal::of(u64::from(count.count));
+        let suffix = number.as_bytes().len().checked_add(usize::from(count.cut)).expect("count suffix fits");
+        let prefix = name.len().checked_sub(suffix).expect("count is the phrase suffix");
         b.text(Run::Plain, name.get(..prefix).expect("prefix fits"));
         b.open(Role::Text);
         b.style(crate::look::NAV_COUNT);
-        b.run(Run::Plain, number.as_bytes());
+        b.run(Run::Plain, name.get(prefix..).expect("count suffix fits"));
         b.close();
     }
     b.close();
@@ -645,6 +661,16 @@ fn entries(b: &mut Builder, root: &Domain, w: &crate::words::Words, bindings: &m
         chats,
         bindings,
     );
+    if changes {
+        action(
+            b,
+            Role::Link,
+            &w.say(Word::Changes, &[]),
+            Act::Go { address: Address::Changes { project } },
+            root.pages().address() == &(Address::Changes { project }),
+            bindings,
+        );
+    }
 }
 
 fn settings_link(b: &mut Builder, root: &Domain, w: &crate::words::Words, bindings: &mut Bindings, project: u32) {
@@ -655,6 +681,7 @@ fn settings_link(b: &mut Builder, root: &Domain, w: &crate::words::Words, bindin
         Address::Settings { .. } | Address::Configure { .. } => true,
         Address::Chat { .. } => crate::pages::chat::configuring(root),
         Address::Goals { .. }
+        | Address::Changes { .. }
         | Address::Home { .. }
         | Address::Inbox { .. }
         | Address::Chats { .. }
@@ -682,6 +709,7 @@ pub(crate) fn navigation(builder: &mut Builder, root: &Domain, words: &crate::wo
         Address::Inbox { .. } => (true, false),
         Address::Adopt { .. } => (false, true),
         Address::Home { .. }
+        | Address::Changes { .. }
         | Address::Settings { .. }
         | Address::Goals { .. }
         | Address::Configure { .. }
@@ -739,6 +767,7 @@ pub(crate) fn navigation(builder: &mut Builder, root: &Domain, words: &crate::wo
             | Address::Inbox { .. }
             | Address::Task { .. }
             | Address::Home { .. }
+            | Address::Changes { .. }
             | Address::Settings { .. }
             | Address::Goals { .. }
             | Address::Configure { .. }
@@ -808,6 +837,7 @@ pub(crate) fn forges_link(builder: &mut Builder, root: &Domain, words: &crate::w
         | Address::Task { .. }
         | Address::Inbox { .. }
         | Address::Home { .. }
+        | Address::Changes { .. }
         | Address::Settings { .. }
         | Address::Goals { .. }
         | Address::Configure { .. }
@@ -841,6 +871,7 @@ pub(crate) fn accounts_link(
         | Address::Chat { .. }
         | Address::Task { .. }
         | Address::Home { .. }
+        | Address::Changes { .. }
         | Address::Settings { .. }
         | Address::Goals { .. }
         | Address::Configure { .. }
@@ -890,4 +921,28 @@ fn account_mark(builder: &mut Builder, root: &Domain, words: &crate::words::Word
         builder.run(Run::Plain, &said);
         builder.close();
     }
+}
+
+/// The session's transient status and held answer's Undo (client/README.md, 3.5).
+pub(crate) fn toast(b: &mut Builder, root: &Domain, w: &crate::words::Words, bindings: &mut Bindings) {
+    use crate::words::Word;
+    use temper_client_domain::pages::needs::{self, Toasted};
+    let session = root.pages().needs();
+    let Some(toast) = session.toast() else { return };
+    let (said, undo) = match toast {
+        Toasted::Answered { object, label } => {
+            let label = crate::pages::ask::answered_label(w, label);
+            (w.say(Word::ToastAnswered, &[skein_ui::phrases::Hole::Name(label)]), Some(*object))
+        }
+        Toasted::Later => (w.say(Word::ToastLater, &[]), None),
+    };
+    b.open(Role::Status);
+    b.style(crate::look::TOAST);
+    b.text(Run::Plain, &said);
+    if let Some(object) = undo
+        && session.held(object)
+    {
+        action(b, Role::Button, &w.say(Word::ToastUndo, &[]), Act::Needs(needs::Act::Undo { object }), false, bindings);
+    }
+    b.close();
 }

@@ -18,3 +18,5 @@ tools/citations/README.md x.md # an example of a citation form, not a document
 tools/citations/README.md ../../a.md # an example of a relative citation path, not a document
 tools/citations/README.md tools/citations/README.md 10 # a section number in a parenthesised citation example
 tools/citations/README.md docs/a.md # an example of a refused citation
+temper/docs/design/client/README.md docs/design/draft/away-mode.md # an adopted repository's draft path, as example data
+temper/docs/design/client/README.md docs/design/draft/name.md # the Start goal field's example placeholder, not a document here

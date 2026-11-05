@@ -8,6 +8,7 @@ use std::{
     path::{Path, PathBuf},
 };
 mod driver;
+mod needs;
 pub mod samples;
 #[cfg(test)]
 mod tests;
@@ -106,7 +107,7 @@ fn built(sample: &Sample) -> (temper_client_view::View, temper_client_view::Limi
     forge_sign_in.read("3 forgejo http://127.0.0.1:8368 owned");
     view.forge_sign_in(forge_sign_in);
     let mut patches = Queue::with_capacity(bounds.tree.patches);
-    temper_client_view::build(&mut view, &root, worlds::now(sample.world), &mut patches);
+    temper_client_view::build(&mut view, &root, worlds::sample_now(sample.world, sample.name), &mut patches);
     let mut collected = Vec::new();
     for _ in 0..patches.len() {
         collected.push(patches.pop().expect("queued patch"));
@@ -139,6 +140,11 @@ pub fn page(sample: &Sample, digest: &skein_ui_bundle::Digest) -> String {
     }
     let title = escape(&skein_ui_web::title::text(&heading(view.tree()), b"temper"));
     let html = page.html().replacen("<div", "<div id=\"app\"", 1).replace("<dialog ", "<dialog open ");
+    let html = if sample.name == "needs-saw-open" {
+        html.replace("class=\"temper-ask-saw\"", "open class=\"temper-ask-saw\"")
+    } else {
+        html
+    };
     let mut styles = String::new();
     for file in ["skein-ui.css", "temper.css", "task-pages.css"] {
         write!(styles, "<link rel=\"stylesheet\" href=\"bundle/{digest}/{file}\">").expect("write string");
