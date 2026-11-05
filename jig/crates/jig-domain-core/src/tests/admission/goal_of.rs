@@ -19,8 +19,22 @@ fn make_below(core: &mut Core, limits: &Limits, parent: u64, number: u64, tracke
     assert!(core.tasks.task(number).is_some(), "made delegate {number}");
 }
 
-fn nested() -> (Core, Limits) {
+fn notes_tree() -> (Core, Limits) {
     let (mut core, limits) = tree_core();
+    let mut rules = core.authority.rules().clone();
+    rules.ceiling.notes = authority::Scopes::GOAL;
+    let mut policy = core.authority.policy(PROJECT).unwrap().clone();
+    policy.ceiling.notes = authority::Scopes::GOAL;
+    policy.roles[0].authority.notes = authority::Scopes::GOAL;
+    core.authority = authority::Domain::new(rules, limits.authority).unwrap();
+    let mut out = Queue::uncapped();
+    authority::step(&mut core.authority, authority::Event::Policy { project: PROJECT, policy }, &mut out);
+    assert_eq!(out.pop(), Some(authority::PolicyFact::Added { project: PROJECT }));
+    (core, limits)
+}
+
+fn nested() -> (Core, Limits) {
+    let (mut core, limits) = notes_tree();
     make_tracked(&mut core, &limits, ROOT, 1);
     make_below(&mut core, &limits, ROOT, CHILD, Some(2));
     make_below(&mut core, &limits, CHILD, GRANDCHILD, None);
@@ -82,7 +96,8 @@ fn a_delegates_note_scope_is_its_nearest_goal() {
 #[test]
 fn a_task_with_no_goal_reads_no_goal_scoped_note() {
     let (mut core, limits) = tree_core();
-    make_task(&mut core, &limits, ROOT);
+    let row = new_row(&core, ROOT, tasks::Funder::Period { project: PROJECT, period: 1 }, None);
+    fixtures::make_batch(&mut core, &limits, tasks::Party::Person(REQUESTER), Box::new([row]));
     assert!(!core.note_readable(ROOT, &notes::Scope::Goal { project: PROJECT, goal: ROOT }));
 }
 
@@ -96,4 +111,67 @@ fn each_tracked_subtree_feeds_its_own_projection() {
         }
         assert_eq!(numbers.as_slice(), expected, "projection {goal}");
     }
+}
+
+fn scope_refused(core: &Core, task: u64, project: u32, goal: u64) {
+    let answer = core.authorize_tool(
+        CallKey { task, attempt: 1, completion: 1, position: 0 },
+        ToolKind::Note { scope: notes::Scope::Goal { project, goal } },
+    );
+    let Some(CallPart::ToolDenied { answer, findings }) = answer else { panic!("scope refused") };
+    assert_eq!(answer, authority::Answer::Refuse);
+    assert_eq!(findings.as_ref(), &[authority::Finding::Scope { source: authority::Source::Task }]);
+    assert!(!core.note_readable(task, &notes::Scope::Goal { project, goal }));
+}
+
+#[test]
+fn a_goals_task_cannot_write_a_chats_scope() {
+    let (mut core, limits) = notes_tree();
+    make_task(&mut core, &limits, ROOT);
+    make_tracked(&mut core, &limits, CHILD, 1);
+    make_below(&mut core, &limits, CHILD, GRANDCHILD, None);
+    scope_refused(&core, GRANDCHILD, PROJECT, ROOT);
+}
+
+#[test]
+fn a_goal_writes_only_its_own() {
+    let (core, _) = nested();
+    assert_eq!(core.note_goal(core.tasks.task(CHILD).unwrap()), Some(CHILD));
+    assert!(core.note_readable(CHILD, &notes::Scope::Goal { project: PROJECT, goal: CHILD }));
+    assert!(
+        core.authorize_tool(
+            CallKey { task: CHILD, attempt: 1, completion: 1, position: 0 },
+            ToolKind::Note { scope: notes::Scope::Goal { project: PROJECT, goal: CHILD } },
+        )
+        .is_none()
+    );
+    scope_refused(&core, CHILD, PROJECT, ROOT);
+}
+
+#[test]
+fn a_task_of_another_project_cannot_write_it() {
+    let (mut core, limits) = notes_tree();
+    make_task(&mut core, &limits, ROOT);
+    scope_refused(&core, ROOT, PROJECT + 1, ROOT);
+}
+
+#[test]
+fn a_delegate_of_a_chat_has_no_scope_of_its_own() {
+    let (mut core, limits) = notes_tree();
+    make_task(&mut core, &limits, ROOT);
+    let mut row = new_row(&core, CHILD, tasks::Funder::Task(ROOT), None);
+    row.flags.conversation = true;
+    fixtures::make_batch(&mut core, &limits, tasks::Party::Task(ROOT), Box::new([row]));
+    assert_eq!(core.note_goal(core.tasks.task(CHILD).unwrap()), None);
+    scope_refused(&core, CHILD, PROJECT, CHILD);
+    scope_refused(&core, CHILD, PROJECT, ROOT);
+}
+
+#[test]
+fn a_task_not_flagged_conversation_has_none() {
+    let (mut core, limits) = notes_tree();
+    let row = new_row(&core, ROOT, tasks::Funder::Period { project: PROJECT, period: 1 }, None);
+    fixtures::make_batch(&mut core, &limits, tasks::Party::Person(REQUESTER), Box::new([row]));
+    assert_eq!(core.note_goal(core.tasks.task(ROOT).unwrap()), None);
+    scope_refused(&core, ROOT, PROJECT, ROOT);
 }

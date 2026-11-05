@@ -399,7 +399,7 @@ fn template() -> Value {
 
 const CHAT: &str = "Add CSV export to widget";
 
-const CODING: &str = "Read only what the change needs, then write it in its files: your turns are few. Finish with a clear change summary. You can run nothing; a file the change drops, remove once you have read it. The change has no pull request yet: once you finish, your work is committed, its pull request opened and its checks run; what fails there, or needs the pull request's number, comes back as a repair that names it. So write only files the change keeps, and no placeholder for what you can't know yet. Change only what your words ask: if what they name as broken or to fix is not in the code, write nothing and finish with a failure saying what the code has instead; never add a feature in a fix's place. Where your words describe the code otherwise than it is, build what they ask to add in the code there is, under its names; finish with a failure only when it cannot be built there.\n\n## Task\n\nExport widget's table as CSV\n[Change connector 1, kind 2, at most 4096 bytes]\n[Requested by task 2]\n\n";
+const CODING: &str = "Read only what the change needs, then write it in its files: your turns are few. Finish with a clear change summary. You can run nothing; a file the change drops, remove once you have read it. The change has no pull request yet: once you finish, your work is committed, its pull request opened and its checks run; what fails there, or needs the pull request's number, comes back as a repair that names it. So write only files the change keeps, and no placeholder for what you can't know yet. Change only what your words ask: if what they name as broken or to fix is not in the code, write nothing and finish with a failure saying what the code has instead; never add a feature in a fix's place. Where your words describe the code otherwise than it is, build what they ask to add in the code there is, under its names; finish with a failure only when it cannot be built there.\n\n## Task\n\nExport widget's table as CSV\n[Change connector 1, kind 2, at most 4096 bytes]\n[This task: 3, in project 1]\n[Requested by task 2]\n\n";
 
 #[test]
 fn the_templates_demo_fits_the_fakes_bounds() {
@@ -530,7 +530,7 @@ fn the_csv_cues_select_only_their_own_agents_briefs() {
 
 #[test]
 fn the_csv_review_uses_its_verdict_script_with_the_changes_words_quoted() {
-    let review = "Review the change with read-only authority.\n\n## Task\n\nReview this change at the named head\nChange words:\nExport widget's table as CSV\n[Requested by task 2]\n";
+    let review = "Review the change with read-only authority.\n\n## Task\n\nReview this change at the named head\nChange words:\nExport widget's table as CSV\n[This task: 4, in project 1]\n[Requested by task 2]\n";
     let answers = answers(review, run::Mode::Finite, 1);
     let verdict = call(&answers[0], b"finish");
     assert_eq!(verdict["form"], "verdict");

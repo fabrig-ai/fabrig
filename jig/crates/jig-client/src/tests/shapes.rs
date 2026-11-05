@@ -400,3 +400,37 @@ fn set_goal_from_keeps_named_template_defaults_and_judges_its_executor() {
     let Judged::NotOffered(why) = set_goal_from(&me, PROJECT, 9, draft(), words()) else { panic!("template refused") };
     assert_eq!(why, NotOffered::Template);
 }
+
+fn me_with_note_scopes() -> Me {
+    let mut me = me();
+    let authority = &mut shape_project(&mut me).creating.as_mut().unwrap().within.authority.authority;
+    authority.notes = 15;
+    authority.note_resources = List::from_boxed(Box::new([ResourceScope {
+        connector: 7,
+        pattern: Pattern { segments: List::with_capacity(0), last: PatternEnd::Open(b"docs".as_slice().into()) },
+    }]));
+    me
+}
+
+#[test]
+fn a_goal_keeps_its_note_scopes() {
+    let me = me_with_note_scopes();
+    let Judged::Propose { ask: Ask::Propose { action: ProposeAction::Batch { tasks }, .. }, .. } =
+        set_goal(&me, PROJECT, draft(), words())
+    else {
+        panic!("proposed goal")
+    };
+    let authority = &tasks.get(0).unwrap().authority;
+    let offered = &me.projects.get(0).unwrap().creating.as_ref().unwrap().within.authority.authority;
+    assert_eq!(authority.notes, offered.notes);
+    assert_eq!(authority.note_resources, offered.note_resources);
+}
+
+#[test]
+fn a_chat_keeps_its_note_scopes() {
+    let me = me_with_note_scopes();
+    let task = shape_task(chat(&me, PROJECT, words()).unwrap());
+    let offered = &me.projects.get(0).unwrap().creating.as_ref().unwrap().within.authority.authority;
+    assert_eq!(task.authority.notes, offered.notes);
+    assert_eq!(task.authority.note_resources, offered.note_resources);
+}
