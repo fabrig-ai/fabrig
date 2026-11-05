@@ -3,6 +3,7 @@
 2026-11-05. Where jig's code lags or departs from [engine.md](engine.md).
 Unlisted sections have no known gap.
 
+- **Not yet:** 9: a brief's task section names the task's number and project.
 - **Not yet:** 2, 8: runs on the engine's own slots under
   `smith-inline-agent`; the engine hub's hello before placement; the
   two-claim placement balance. 4.2, 5.3: the remaining point-load fences.
