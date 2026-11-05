@@ -10,6 +10,7 @@
 )]
 use crate::domain::{Domain, publish, record, refused, task_mut};
 use crate::{Change, Funder, Limits, Numbers, Party, Phase, Refusal, Request, Was};
+use alloc::boxed::Box;
 use skein_lib::{Env, List, Queue, ReplyTo};
 
 pub(crate) fn mutable(phase: &Phase) -> bool {
@@ -48,24 +49,24 @@ pub(crate) fn apply(
     domain: &mut Domain,
     env: &Env<Limits>,
     to: ReplyTo,
-    number: u64,
+    operation: Move,
     person: u64,
     period: u64,
     pool_budget: u64,
     period_budget: u64,
-    reason: &[u8],
     out: &mut Queue<Request>,
 ) {
+    let Move { task: number, reason } = operation;
     let plan = match check(
         domain,
         &crate::compound::Staged::new(0),
         env,
-        Move { number, person, period, pool_budget, period_budget, reason },
+        Moving { number, person, period, pool_budget, period_budget, reason: &reason },
     ) {
         Ok(plan) => plan,
         Err(problem) => return refuse(domain, env, to, problem, out),
     };
-    make(domain, env, plan, reason, out);
+    make(domain, env, plan, &reason, out);
     reroute(domain, env, out);
     out.push(Request::Done { reply_to: to });
 }
@@ -83,7 +84,14 @@ pub(crate) fn refuse(
     }
 }
 
-pub(crate) struct Move<'a> {
+/// Move a task to a person's tree (domain/tasks.md, section 7).
+#[derive(Clone, PartialEq, Eq, Debug)]
+pub struct Move {
+    pub task: u64,
+    pub reason: Box<[u8]>,
+}
+
+pub(crate) struct Moving<'a> {
     pub number: u64,
     pub person: u64,
     pub period: u64,
@@ -97,9 +105,9 @@ pub(crate) fn check(
     domain: &Domain,
     staged: &crate::compound::Staged,
     env: &Env<Limits>,
-    moving: Move<'_>,
+    moving: Moving<'_>,
 ) -> Result<Plan, crate::Problem> {
-    let Move { number, person, period, pool_budget, period_budget, reason } = moving;
+    let Moving { number, person, period, pool_budget, period_budget, reason } = moving;
     if !domain.ready() {
         return Err(crate::Problem::new(Some(number), Refusal::NotReady));
     }

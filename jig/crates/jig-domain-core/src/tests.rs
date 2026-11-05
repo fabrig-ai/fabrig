@@ -1270,14 +1270,11 @@ fn person_address_proposals_keep_the_named_revision_and_actual_beforefacts() {
         &mut core,
         &limits,
         tasks::Event::Amend {
+            operation: tasks::Amend { task: 2, message: 21, stop_run: false, amendment: Box::new(moved) },
             places: Box::new([]),
             funder: None,
             reply_to: ReplyTo::new(Token::new(5)),
             by: tasks::Party::Person(1),
-            task: 2,
-            message: 21,
-            stop_run: false,
-            amendment: moved,
         },
     );
     let current = core.tasks.task(2).unwrap();
@@ -1450,15 +1447,17 @@ fn question_document(words: &[u8], bound: u32) -> Question {
         tasks::Event::Message {
             reply_to: ReplyTo::new(Token::new(60)),
             project: 1,
-            task: 1,
-            word: tasks::Word {
-                number: 60,
-                from: tasks::Party::Task(2),
-                kind: tasks::MessageKind::Question,
-                words: words.into(),
-                at: Wall::from_nanos(9),
-                hits: 1,
-                eligible: true,
+            operation: tasks::Message {
+                task: 1,
+                word: tasks::Word {
+                    number: 60,
+                    from: tasks::Party::Task(2),
+                    kind: tasks::MessageKind::Question,
+                    words: words.into(),
+                    at: Wall::from_nanos(9),
+                    hits: 1,
+                    eligible: true,
+                },
             },
         },
     );
@@ -1502,15 +1501,17 @@ fn documents_question_words_are_bounded_and_answered_questions_end() {
         tasks::Event::Message {
             reply_to: ReplyTo::new(Token::new(60)),
             project: 1,
-            task: 1,
-            word: tasks::Word {
-                number: 60,
-                from: tasks::Party::Task(2),
-                kind: tasks::MessageKind::Question,
-                words: Box::from(&b"Whole question?"[..]),
-                at: Wall::from_nanos(9),
-                hits: 1,
-                eligible: true,
+            operation: tasks::Message {
+                task: 1,
+                word: tasks::Word {
+                    number: 60,
+                    from: tasks::Party::Task(2),
+                    kind: tasks::MessageKind::Question,
+                    words: Box::from(&b"Whole question?"[..]),
+                    at: Wall::from_nanos(9),
+                    hits: 1,
+                    eligible: true,
+                },
             },
         },
     );
@@ -1573,15 +1574,17 @@ fn documents_question_words_are_bounded_and_answered_questions_end() {
         tasks::Event::Message {
             reply_to: ReplyTo::new(Token::new(61)),
             project: 1,
-            task: 1,
-            word: tasks::Word {
-                number: 61,
-                from: tasks::Party::Person(1),
-                kind: tasks::MessageKind::Answer { question: 60 },
-                words: Box::from(&b"Yes"[..]),
-                at: Wall::from_nanos(10),
-                hits: 1,
-                eligible: true,
+            operation: tasks::Message {
+                task: 1,
+                word: tasks::Word {
+                    number: 61,
+                    from: tasks::Party::Person(1),
+                    kind: tasks::MessageKind::Answer { question: 60 },
+                    words: Box::from(&b"Yes"[..]),
+                    at: Wall::from_nanos(10),
+                    hits: 1,
+                    eligible: true,
+                },
             },
         },
     );
@@ -3777,14 +3780,11 @@ fn projection_readiness_shares_generation_restore_and_pending_connector_rules() 
         &mut core,
         &limits,
         tasks::Event::Amend {
+            operation: tasks::Amend { task: 1, message: 21, stop_run: false, amendment: Box::new(amendment) },
             places: Box::new([]),
             funder: None,
             reply_to: ReplyTo::new(Token::new(5)),
             by: tasks::Party::Person(1),
-            task: 1,
-            message: 21,
-            stop_run: false,
-            amendment,
         },
     );
     assert!(core.tasks.task(1).unwrap().tracked.is_none());

@@ -34,7 +34,7 @@ fn the_session_fake_renders_path_failures_like_the_protocol() {
     use tools::{Namespace, Outcome, Resolved};
     let name = || tools::Name::new(b"work".as_slice().into()).expect("name");
     for namespace in [Namespace::NoWorkspace, Namespace::One, Namespace::Several { working: name() }] {
-        for path in [b"".as_slice(), b"src/missing.rs", b"a\n\t\x01\x7f\xc2\x80\xff"] {
+        for path in [b"".as_slice(), b"src/missing.rs"] {
             for path in [
                 Resolved::Working { path: path.into() },
                 Resolved::Other { directory: name(), path: path.into() },

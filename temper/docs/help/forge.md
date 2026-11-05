@@ -115,6 +115,14 @@ check-run number can differ from the job number. If no job attempt was
 resolved, the check says so. `read_job` keeps the diagnostic end within
 the configured answer limit, including the step's name and escaped bytes.
 
+A large pull request can still start its review. The brief keeps a prefix
+of its pull section within the receiving agent's combined charter and
+workspace limit and rendered host room. A cut ends with
+`[cut N bytes; whole: read_pull/read_pull_files]`; the reviewer uses those
+forge tools to read the omitted content at the reviewed head. Instructions,
+tools and result contracts stay whole. Lowering `hub.charter_bytes` is not
+needed to leave room for the workspace.
+
 GitHub job logs follow redirects only to permitted origins. The default
 permits its twenty results hosts, `productionresultssa0.blob.core.windows.net`
 through `productionresultssa19.blob.core.windows.net`, using TLS on port 443.

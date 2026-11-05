@@ -116,29 +116,33 @@ impl Core {
             Some(_) => tasks::Event::Message {
                 reply_to: skein_lib::ReplyTo::new(request),
                 project,
-                task,
-                word: tasks::Word {
-                    number: message,
-                    from: tasks::Party::Person(person),
-                    kind,
-                    words,
-                    at,
-                    hits: 1,
-                    eligible: false,
+                operation: tasks::Message {
+                    task,
+                    word: tasks::Word {
+                        number: message,
+                        from: tasks::Party::Person(person),
+                        kind,
+                        words,
+                        at,
+                        hits: 1,
+                        eligible: false,
+                    },
                 },
             },
             None => tasks::Event::AuthorizedMessage {
                 reply_to: skein_lib::ReplyTo::new(request),
                 project,
-                task,
-                word: tasks::Word {
-                    number: message,
-                    from: tasks::Party::Person(person),
-                    kind,
-                    words,
-                    at,
-                    hits: 1,
-                    eligible: false,
+                operation: tasks::Message {
+                    task,
+                    word: tasks::Word {
+                        number: message,
+                        from: tasks::Party::Person(person),
+                        kind,
+                        words,
+                        at,
+                        hits: 1,
+                        eligible: false,
+                    },
                 },
             },
         };

@@ -1443,7 +1443,8 @@ keeps (`../protocol/configuration.md`, section 2).
 
   *Where a change came from:* the title of its task's `goal`, the chip
   in its `lineage_chips` naming that task; else the root of its
-  `lineage_chips`, "chat T6". The page reads each row's task, as a task's
+  `lineage_chips`, "chat T6", where that root is on the charter of the
+  project's chat template; else nothing. The page reads each row's task, as a task's
   page reads a chip, those of the rows shown alone; until one arrives,
   its row has no mono part. Every row but "and N more" is a link to its
   change's `Task { task }`. Until its first document, the page is its
@@ -2314,7 +2315,7 @@ for its kind, its user's login and its installations. Its nodes:
     landing's, else the default branch of the project's home repository,
     else of its first, else empty;
   - `queues`, at most 32, by repository then branch, one per landing branch
-    with ready changes or red (`forge.md`, section 3), each a
+    with ready changes, a change owning its queue, or red (`forge.md`, section 3), each a
     `ChangesQueue`: `repository`, `owner/name`; `branch`; `red`; and
     `changes`, in order (`../domain/forge.md`, section 9), each a
     `ChangesQueued`: `task`, `title` (at most 256 bytes), `ready_since`
@@ -5051,6 +5052,9 @@ own tests:
   nothing queued"; the same request): the line is *Changes*' (3.5), from
   the subject `changes` (4.6), and one function serves both. Default: Home
   draws no such line until it moves to that function.
+- **"Changes" on the rail by a project's settings** (the greenfield mock's
+  "What the project shows"): a project hides the page, and its entry with it.
+  Default: the entry shows for every project (5.3).
 - **A question answered on Home** (the same request): choices, a
   recommended one, a context line, "Later", an answer in place and its
   "Undo" wait on the question card's upstream change (below) and on a

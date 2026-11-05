@@ -1007,41 +1007,34 @@ impl World {
     fn request(&mut self, request: Request) {
         match request {
             Request::Input { reading } => self.readings.push(reading),
-            Request::Notice { notice: notice @ (local::Notice::Turn { .. } | local::Notice::Answer(_)) } => {
-                let text = smith_local_protocol::notice_text(
-                    &notice,
-                    self.domain.chat_name(),
-                    self.domain.models(),
-                    self.env.limits.show_bytes,
-                );
-                if text.as_ref() == b"Chat parked" {
-                    self.reached.insert(Goal::Parked);
-                }
-                if text.as_ref() == b"Run cancelled" {
-                    self.reached.insert(Goal::Cancelled);
-                }
-                self.shown.push(text);
-            }
             Request::Notice { notice } => {
-                if notice == smith_local_domain::Notice::Waiting {
-                    self.observe(Seen::Waiting);
-                    self.reached.insert(Goal::Waiting);
-                }
-                if let local::Notice::NotDelivered { line: Some(name), .. } = notice {
-                    self.observe(Seen::NotDelivered { name });
-                }
                 let text = smith_local_protocol::notice_text(
                     &notice,
                     self.domain.chat_name(),
                     self.domain.models(),
                     self.env.limits.show_bytes,
                 );
-                if text.as_ref() == b"interrupted: the run was cancelled\n" {
-                    self.reached.insert(Goal::Cancelled);
+                match notice {
+                    local::Notice::Answer(local::Said::Parked) => {
+                        self.reached.insert(Goal::Parked);
+                    }
+                    local::Notice::Turn { .. } | local::Notice::Answer(_) => {}
+                    notice => {
+                        if notice == local::Notice::Waiting {
+                            self.observe(Seen::Waiting);
+                            self.reached.insert(Goal::Waiting);
+                        }
+                        if let local::Notice::NotDelivered { line: Some(name), .. } = notice {
+                            self.observe(Seen::NotDelivered { name });
+                        }
+                        if text.as_ref() == b"interrupted: the run was cancelled\n" {
+                            self.reached.insert(Goal::Cancelled);
+                        }
+                        self.notices.push(notice.clone());
+                        self.saw(crate::person::Shown::Notice(notice));
+                    }
                 }
                 self.shown.push(text);
-                self.notices.push(notice.clone());
-                self.saw(crate::person::Shown::Notice(notice));
             }
             Request::Load => {
                 if self.store_fault == Some(StoreFault::Load) {
