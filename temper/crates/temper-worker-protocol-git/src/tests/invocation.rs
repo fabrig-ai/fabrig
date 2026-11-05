@@ -37,12 +37,16 @@ const SETTINGS: &[&[u8]] = &[
     b"submodule.recurse=false",
 ];
 const ID: &[u8] = b"abababababababababababababababababababab";
-fn rows() -> [(Command, &'static [&'static [u8]]); 17] {
+fn rows() -> [(Command, &'static [&'static [u8]]); 18] {
     let remote: Box<[u8]> = Box::from(fixtures::REMOTE);
     let branch: Box<[u8]> = Box::from(&b"temper/7"[..]);
     let commit = fixtures::COMMIT;
     [
         (Command::Version, &[b"version"]),
+        (
+            Command::Origin { directory: Box::from(&b"workspaces/0/app"[..]) },
+            &[b"--git-dir=workspaces/0/app/.git", b"config", b"--local", b"--get", b"remote.origin.url"],
+        ),
         (
             Command::Clone { remote: remote.clone(), directory: Box::from(&b"app"[..]) },
             &[b"clone", b"--no-checkout", b"--no-tags", b"--origin", b"origin", b"--", fixtures::REMOTE, b"app"],
@@ -155,6 +159,7 @@ fn each_command_s_arguments_are_git_md_s_vector() {
     for (workspace, expected) in [
         (0, b"workspaces/0/app".as_slice()),
         (7, b"workspaces/7/app"),
+        (1 << 32_u32, b"workspaces/4294967296/app"),
         (u64::MAX, b"workspaces/18446744073709551615/app"),
     ] {
         assert_eq!(
@@ -216,9 +221,14 @@ fn a_commit_is_authored_and_committed_as_the_identity() {
 #[test]
 fn an_operation_naming_no_identity_commits_as_the_placeholder() {
     let identity = fixtures::identity();
-    for kind in
-        [None, Some(git::Kind::Make), Some(git::Kind::CheckOut), Some(git::Kind::Merge), Some(git::Kind::IsAncestor)]
-    {
+    for kind in [
+        Some(git::Kind::Look),
+        None,
+        Some(git::Kind::Make),
+        Some(git::Kind::CheckOut),
+        Some(git::Kind::Merge),
+        Some(git::Kind::IsAncestor),
+    ] {
         let environment = invocation::environment(fixtures::HOME, kind, None);
         let expected = [
             b"HOME=/srv/worker/home".as_slice(),

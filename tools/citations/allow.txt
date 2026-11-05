@@ -23,3 +23,5 @@ temper/docs/design/client/README.md docs/design/draft/NAME.md # a chat's documen
 temper/docs/design/client/README.md docs/design/draft/SLUG.md # the words a goal is told, naming a path in the project's repository
 temper/docs/design/client/README.md untitled.md # the name an empty document shows
 temper/docs/design/client/browser.md away-mode.md # a chat's document's name, an example
+temper/docs/design/client/README.md docs/design/draft/away-mode.md # an adopted repository's draft path, as example data
+temper/docs/design/client/README.md docs/design/draft/name.md # the Start goal field's example placeholder, not a document here

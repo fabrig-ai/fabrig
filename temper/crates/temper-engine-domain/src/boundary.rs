@@ -139,6 +139,8 @@ pub struct KindValue {
 /// (domain/root.md, sections 3 and 5.2). Later routes extend this vocabulary.
 #[derive(Clone, PartialEq, Eq, Debug)]
 pub enum Tool {
+    /// Ask whether a goal may decide while its person is away (domain/forge.md, 5.9).
+    Decided(forge::DecidedCall),
     /// Read related task specifications or proven descendant reports.
     ReadTask { task: u64, field: jig_domain_core::reads::TaskTextField, from: u64 },
     /// Read settings without retaining a named-call record.
@@ -505,6 +507,10 @@ pub enum Fact {
         findings: Box<[jig_domain_authority::Finding]>,
         error: Option<skein_forge::api::Error>,
     },
+    /// A brief section's forge read failed (temper/docs/design/domain/forge.md, 8.4).
+    BriefReadRefused { task: u64, section: &'static [u8], stage: &'static str, error: Option<skein_forge::api::Error> },
+    /// A whole brief failed with its count and fixed reason (jig/docs/design/domain/engine.md, 9.1).
+    BriefFailed { task: u64, counts: &'static str, reason: Box<[u8]> },
     /// A decoded call refused at admission, before any tool runs.
     CallAdmissionRefused { task: u64, attempt: u64, tool: Box<[u8]>, layer: &'static str, reason: &'static str },
     /// A fenced answer reported a permanent preparation failure.
@@ -530,6 +536,9 @@ pub enum Application {
     Forge(forge::Ask),
     Return { source: u32, path: Box<[u8]> },
     Dismiss { what: forge::PersonFact },
+    Looked { project: u32 },
+    SetAway { project: u32, on: bool, until: Option<Wall>, kinds: u8 },
+    Overturn { project: u32, number: u32 },
 }
 /// The family's terminal answer; root returns are volatile, like forge setup answers.
 #[derive(Clone, Debug, PartialEq, Eq)]
@@ -546,6 +555,9 @@ pub enum ApplicationAnswer {
     Reachable(forge::ReachableAnswer),
     Returning,
     Dismiss(forge::DismissAnswer),
+    Looked(forge::LookedAnswer),
+    SetAway(forge::SetAwayAnswer),
+    Overturn(forge::OverturnAnswer),
 }
 /// Forge-owned settings reads (temper/docs/design/client/forge.md, 9).
 #[derive(Clone, Copy, PartialEq, Eq, Debug)]
@@ -757,9 +769,7 @@ pub enum Request {
     SetUp {
         forge: u16,
         request: Token,
-        org: Box<[u8]>,
-        repository: Box<[u8]>,
-        playground: bool,
+        first: forge::SetUpFirst,
     },
     Connect {
         forge: u16,
@@ -778,6 +788,12 @@ pub enum Request {
         forge: u16,
         request: Token,
         back: Option<Box<[u8]>>,
+    },
+    AdoptAccess {
+        forge: u16,
+        request: Token,
+        owner: Box<[u8]>,
+        name: Box<[u8]>,
     },
     Reachable {
         forge: u16,

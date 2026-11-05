@@ -262,7 +262,7 @@ const USAGES: &[&[u8]] = &[
     b"account export ACCOUNT FILE\n",
     b"account import FILE --key KEY\n",
     b"settings show\n",
-    b"settings show charter|template|policy NUMBER [--revision REVISION]\nsettings show rules\nsettings show landing-rule NUMBER [--project PROJECT] [--revision REVISION]\nsettings show forge-charter NUMBER [--revision REVISION]\n",
+    b"settings show charter|template|policy NUMBER [--revision REVISION]\nsettings show rules\nsettings show landing-rule NUMBER [--project PROJECT] [--revision REVISION]\nsettings show forge-charter NUMBER [--revision REVISION]\nsettings show project-ways|project-questions PROJECT [--revision REVISION]\n",
     b"revision show REVISION\n",
     b"revision list [--before REVISION]\n",
     b"settings apply FILE --against REVISION [--running stays|moves] --key KEY\n",
@@ -578,4 +578,18 @@ fn settings_help_explains_check_reserve_recovery_through_held_revisions() {
     }
     let fields = temper_docs::find(b"settings-fields").expect("settings fields help");
     assert!(fields.text.contains("current or held charter"));
+}
+
+#[test]
+#[expect(
+    clippy::disallowed_types,
+    clippy::disallowed_methods,
+    reason = "the help test collapses whitespace to check the person's words"
+)]
+fn task_answer_help_says_a_person_task_may_ask_for_less() {
+    let page = temper_docs::find(b"ctl-task").expect("task reference");
+    let text: String = page.text.split_whitespace().collect::<Vec<_>>().join(" ");
+    assert!(text.contains("a person task may ask for less"));
+    let help = fixtures::help(Some(jig::rows::ANSWER_AT));
+    assert!(skein_lib::bytes::find(&help, b"a person task may ask for less").is_some());
 }

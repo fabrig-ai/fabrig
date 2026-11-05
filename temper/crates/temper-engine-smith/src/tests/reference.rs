@@ -9,7 +9,7 @@ use crate::{
     reference::{reference, render},
 };
 
-const HEAD: &[u8] = b"# Host tools\n\nKind: reference\n\nEvery tool temper adds to its runs' own: what it does, as a run reads it, whether it reads or writes, and the members of its input.\n";
+const HEAD: &[u8] = b"# Host tools\n\nKind: reference\n\nEvery tool temper adds to its runs' own: what it does, as a run reads it, whether it reads or writes, and the members of its input.\n\nFile, pull-file and compare replies fit the smaller of core.call_answer_bytes less the tool name and the receiving agent allowance (agent.json profile.declared.tool_payload). Raising core.call_answer_bytes alone cannot overcome a smaller agent allowance. Oversized rendered comparisons return measured-size feedback and recovery instructions; forge size refusals have unknown measured size. Host-fitted file prefixes keep [file truncated] and give size and recovery feedback when room permits. max_bytes selects a raw prefix, with no offset; a cut is incomplete. Metadata that leaves no content room needs a shorter path or a larger allowance. Oversized pull-file pages retain changed paths as room permits and distinguish omitted contents from absent sides. Read selected paths at the head and base commits, resolving the base separately; recover omitted paths by listing directories at both commits. Later pages only list other files.\n";
 
 fn fixture(schema: &'static [u8], effect: HostEffect) -> Box<[u8]> {
     let specs = [Spec { name: b"fixture_read", description: b"Read a fixture.", schema, effect }];
@@ -61,7 +61,7 @@ fn a_tool_with_no_members_says_its_input_is_empty() {
 #[test]
 fn the_page_holds_every_declared_tool_in_the_tables_order() {
     // The declared task, connector and settings tools.
-    const TOOLS: usize = 40;
+    const TOOLS: usize = 41;
     let mut out = Writer::new(temper_docs::PAGE_BYTES);
     reference(&mut out).expect("page fits PAGE_BYTES");
     let mut exact = Writer::new(out.written());

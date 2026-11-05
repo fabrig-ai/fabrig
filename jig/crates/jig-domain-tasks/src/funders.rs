@@ -309,7 +309,10 @@ pub(crate) fn restore_fits(domain: &Domain) -> Result<(), crate::RestoreFailure>
             }
         }
         for (number, _) in &domain.names {
-            if original_period(domain, *number) == Some(*funder) {
+            if match original_period(domain, *number) {
+                Some(period) => period.funder() == *funder,
+                None => false,
+            } {
                 let spent =
                     total(record(domain, *number).expect("live name").numbers).ok_or(crate::RestoreFailure {
                         key: crate::Key::Live(*number),
@@ -408,18 +411,13 @@ pub(crate) fn open(
     out.push(Request::Done { reply_to: to });
 }
 
-#[expect(
-    clippy::too_many_arguments,
-    reason = "one authorized pool admission carries source identity, budget and actual decision environment"
-)]
 pub(crate) fn carve(
     domain: &mut Domain,
     env: &Env<Limits>,
     to: ReplyTo,
     project: u32,
     person: u64,
-    period: u64,
-    budget: u64,
+    (period, budget): (u64, u64),
     out: &mut Queue<Request>,
 ) {
     if !domain.ready() {
@@ -603,16 +601,28 @@ pub(crate) fn newer_period(domain: &Domain, project: u32, period: u64) -> bool {
 
 pub(crate) use crate::retire::retire;
 
+#[derive(Clone, Copy, PartialEq, Eq)]
+pub(crate) struct Period {
+    pub(crate) project: u32,
+    pub(crate) period: u64,
+}
+
+impl Period {
+    pub(crate) const fn funder(self) -> Funder {
+        Funder::Period { project: self.project, period: self.period }
+    }
+}
+
 // The final period will eventually receive every still-open aggregate under
 // it. Counting each live node's own/closed spend once bounds every intermediate
 // task and pool posting as well. No accepted charge can overflow settlement.
-pub(crate) fn original_period(domain: &Domain, number: u64) -> Option<Funder> {
+pub(crate) fn original_period(domain: &Domain, number: u64) -> Option<Period> {
     let mut funder = record(domain, number)?.funder;
     for _ in 0..domain.names.len().checked_add(2)? {
         match funder {
             Funder::Task(number) => funder = record(domain, number)?.funder,
             Funder::Pool { .. } | Funder::Recurring { .. } => funder = domain.funding.get(&funder)?.parent?,
-            Funder::Period { .. } => return Some(funder),
+            Funder::Period { project, period } => return Some(Period { project, period }),
         }
     }
     None
@@ -625,18 +635,14 @@ pub(crate) fn tree_made(domain: &Domain, creator: u64, root: u64) -> Option<u32>
     if source == current {
         return Some(record(domain, root)?.made);
     }
-    let (project, period) = match source {
-        Funder::Period { project, period } => (project, period),
-        Funder::Task(_) | Funder::Pool { .. } | Funder::Recurring { .. } => return None,
-    };
-    Some(domain.funding.get(&Funder::Recurring { project, task: root, period })?.made)
+    Some(domain.funding.get(&Funder::Recurring { project: source.project, task: root, period: source.period })?.made)
 }
 
 pub(crate) fn representable(domain: &Domain, number: u64, delta: u64) -> bool {
     let Some(period) = original_period(domain, number) else {
         return false;
     };
-    let Some(ledger) = domain.funding.get(&period) else {
+    let Some(ledger) = domain.funding.get(&period.funder()) else {
         return false;
     };
     let Some(base) = total(ledger.numbers) else {
@@ -646,7 +652,7 @@ pub(crate) fn representable(domain: &Domain, number: u64, delta: u64) -> bool {
         return false;
     };
     for (_, pool) in &domain.funding {
-        if pool.parent == Some(period) {
+        if pool.parent == Some(period.funder()) {
             let Some(spent) = total(pool.numbers) else {
                 return false;
             };

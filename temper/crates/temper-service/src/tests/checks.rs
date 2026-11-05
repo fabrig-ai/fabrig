@@ -127,7 +127,7 @@ fn an_endpoint_or_model_missing_from_the_agent_is_named() {
             true,
             b"engine.llm.endpoints[0]: not in the agent's configuration under the same name\n".as_slice(),
         ),
-        ("model", true, false, b"charter 1.model: not in the agent's configuration under the same name\ncharter 2.model: not in the agent's configuration under the same name\ncharter 3.model: not in the agent's configuration under the same name\ncharter 4.model: not in the agent's configuration under the same name\ncharter 6.model: not in the agent's configuration under the same name\n"),
+        ("model", true, false, b"charter 1.model: not in the agent's configuration under the same name\ncharter 2.model: not in the agent's configuration under the same name\ncharter 3.model: not in the agent's configuration under the same name\ncharter 4.model: not in the agent's configuration under the same name\ncharter 6.model: not in the agent's configuration under the same name\ncharter 9.model: not in the agent's configuration under the same name\n"),
     ] {
         let mut agent = fixtures::startup_agent();
         if !endpoints {
@@ -185,9 +185,9 @@ fn a_channel_limit_past_a_ceiling_names_the_limit() {
 }
 #[test]
 fn one_ios_entities_hold_both_services_and_their_children() {
-    let document = fixtures::with(&fixtures::document(), b"application.limits.overrides", br#"{"checkout.name_bytes":600,"checkout.repositories":4,"git_component.stdout_bytes":2048,"git_component.operations":29}"#);
+    let document = fixtures::with(&fixtures::document(), b"application.limits.overrides", br#"{"checkout.name_bytes":600,"checkout.repositories":4,"git_component.stdout_bytes":2048,"git_component.operations":61}"#);
     let found = crate::named(&document, &jig_protocol_config::Directories::working()).unwrap_err();
-    assert_eq!(&*lines(&found), b"engine.limits.io.sockets: 132 bytes, past its bound of 128\n".as_slice());
+    assert_eq!(&*lines(&found), b"engine.limits.io.sockets: 260 bytes, past its bound of 256\n".as_slice());
 }
 
 #[derive(Clone, Copy, Debug)]
@@ -311,10 +311,10 @@ fn webhook_listeners_on_port_zero_do_not_clash() {
 #[test]
 fn hook_connections_past_the_process_sockets_are_refused() {
     let document =
-        fixtures::with(&fixtures::webhook_document(), b"application.limits.overrides", br#"{"checkout.name_bytes":600,"checkout.repositories":4,"git_component.stdout_bytes":2048,"forge_component.hooks":100}"#);
+        fixtures::with(&fixtures::webhook_document(), b"application.limits.overrides", br#"{"checkout.name_bytes":600,"checkout.repositories":4,"git_component.stdout_bytes":2048,"forge_component.hooks":228}"#);
     assert_eq!(
         &*lines(&crate::named(&document, &jig_protocol_config::Directories::working()).unwrap_err()),
-        b"engine.limits.io.sockets: 129 bytes, past its bound of 128\n"
+        b"engine.limits.io.sockets: 257 bytes, past its bound of 256\n"
     );
 }
 #[test]
@@ -462,7 +462,7 @@ fn agent_model_bounds_are_checked_under_the_configured_name() {
         checks::agent(&engine, &agent, &mut problems);
         assert_eq!(
             &*lines(&problems),
-            b"charter 1.model: not in the agent's configuration under the same name\ncharter 2.model: not in the agent's configuration under the same name\ncharter 3.model: not in the agent's configuration under the same name\ncharter 4.model: not in the agent's configuration under the same name\ncharter 6.model: not in the agent's configuration under the same name\n"
+            b"charter 1.model: not in the agent's configuration under the same name\ncharter 2.model: not in the agent's configuration under the same name\ncharter 3.model: not in the agent's configuration under the same name\ncharter 4.model: not in the agent's configuration under the same name\ncharter 6.model: not in the agent's configuration under the same name\ncharter 9.model: not in the agent's configuration under the same name\n"
         );
     }
 }

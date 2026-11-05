@@ -190,7 +190,10 @@ impl World {
                 self.owed.push_back(Event::Activity { owner, activity: protocol::activity(&body) });
             }
             Request::Io { owner, op, deadline } => self.io(owner, op, deadline),
-            Request::Job { .. } | Request::CancelRelay { .. } | Request::CancelIo { .. } => {
+            Request::JobAnswer { .. }
+            | Request::Job { .. }
+            | Request::CancelRelay { .. }
+            | Request::CancelIo { .. } => {
                 panic!("unscripted request")
             }
         }

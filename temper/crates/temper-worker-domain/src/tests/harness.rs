@@ -129,6 +129,7 @@ impl Harness {
             | Request::Hello(_)
             | Request::Link(_)
             | Request::Answer { .. }
+            | Request::JobAnswer { .. }
             | Request::CancelRelay { .. }
             | Request::Stop
             | Request::Job { .. }

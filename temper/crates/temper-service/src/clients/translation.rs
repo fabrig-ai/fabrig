@@ -126,7 +126,10 @@ fn kind_values(items: &[core::settings::Item]) -> Result<Box<[root::KindValue]>,
     };
     let mut values = skein_lib::List::with_capacity(u32::try_from(items.len()).expect("bounded settings items"));
     for (index, item) in items.iter().enumerate() {
-        let s::Setting::Application { kind: kind @ 1..=3, scope, number } = item.setting else { continue };
+        let s::Setting::Application { kind, scope, number } = item.setting else { continue };
+        if !temper_client_protocol_wire::settings_kind(kind) {
+            continue;
+        }
         let value = match &item.edit {
             s::Edit::Removed | s::Edit::Reset => continue,
             s::Edit::Set(s::Value::Application(bytes)) => temper_engine_smith::kinds::decode(kind, bytes, &bounds),
@@ -261,6 +264,40 @@ mod tests {
         else {
             panic!("settings request must be retried until ready");
         };
+    }
+
+    #[test]
+    fn a_clients_project_ways_reaches_the_root_typed() {
+        use temper_engine_domain_forge::settings::{ProjectWays, Value};
+        let value = Value::Ways(ProjectWays { drafts: true, goals: false, changes: true, away: false, way: 4 });
+        let bytes = temper_engine_smith::kinds::encode(&value);
+        let size = u32::try_from(bytes.len()).expect("ways encoding");
+        let event = core::Event::ChangeSettings {
+            reply_to: ReplyTo::new(Token::new(1)),
+            sign_in: 2,
+            key: [3; 16],
+            digest: [4; 32],
+            change: Box::new(core::settings::Change {
+                against: 5,
+                running: core::settings::Running::Stays,
+                items: Box::new([core::settings::Item {
+                    setting: core::settings::Setting::Application { kind: 7, scope: 1, number: 1 },
+                    edit: core::settings::Edit::Set(core::settings::Value::Application(bytes)),
+                }]),
+            }),
+        };
+        let root::PartyInput::ChangeSettings { kinds, .. } = to_root(event).expect("client ways") else {
+            panic!("settings change")
+        };
+        assert_eq!(
+            kinds.as_ref(),
+            &[root::KindValue {
+                kind: 7,
+                scope: 1,
+                number: 1,
+                value: temper_engine_domain_forge::settings::SizedValue { value, size }
+            }]
+        );
     }
 
     #[test]

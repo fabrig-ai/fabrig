@@ -55,7 +55,7 @@ pub fn protocol(seed: u64, story: Story) -> (Vec<Fact>, Vec<String>) {
             client_id: registration.client_id.clone(),
             client_secret: registration.client_secret.clone(),
             redirect_uri: registration.redirect_uri.clone(),
-            refresh_token: bytes::copy_of(b"seed"),
+            refresh_token: skein_lib::Secret::new(bytes::copy_of(b"seed")),
             terms: super::issuer::port_terms(story),
         },
         issuer_limits,
@@ -66,8 +66,10 @@ pub fn protocol(seed: u64, story: Story) -> (Vec<Fact>, Vec<String>) {
             .queue(fake::Plan {
                 status: 200,
                 body: fake::Body::Token(oauth::TokenResponse {
-                    access_token: vec![if story == Story::TwoPorts { b'a' } else { access }; 16].into_boxed_slice(),
-                    refresh_token: Some(bytes::copy_of(refresh)),
+                    access_token: skein_lib::Secret::new(
+                        vec![if story == Story::TwoPorts { b'a' } else { access }; 16].into_boxed_slice(),
+                    ),
+                    refresh_token: Some(skein_lib::Secret::new(bytes::copy_of(refresh))),
                     expires_in: 30,
                     scope: (story == Story::RequiredScopes).then(|| bytes::copy_of(b"read")),
                     id_token: None,
@@ -131,15 +133,15 @@ pub fn protocol(seed: u64, story: Story) -> (Vec<Fact>, Vec<String>) {
         {
             scripted += 1;
             if !matches!(story, Story::Cancel | Story::Abort | Story::Timeout) {
-                issuer.step(fake::Event::Authorize { url: url.clone(), now }, &mut issuer_out);
+                issuer.step(fake::Event::Authorize { url: skein_lib::Secret::new(url.clone()), now }, &mut issuer_out);
                 let Some(fake::Request::Redirect { uri, state, code, client_id }) = issuer_out.pop() else {
                     panic!("authorized fake browser")
                 };
                 let mut location = uri.to_vec();
                 location.extend_from_slice(b"?state=");
-                location.extend_from_slice(&state);
+                location.extend_from_slice(state.expose());
                 location.extend_from_slice(b"&code=");
-                location.extend_from_slice(&code);
+                location.extend_from_slice(code.expose());
                 if let Some(client_id) = client_id {
                     location.extend_from_slice(b"&client_id=");
                     location.extend_from_slice(&client_id);
@@ -182,7 +184,8 @@ pub fn protocol(seed: u64, story: Story) -> (Vec<Fact>, Vec<String>) {
             && let Some(uri) = &redirect
         {
             if confidential(story) {
-                client.ask(&env, accounts::Request::Redirected { account: 0, uri: uri.clone() });
+                client
+                    .ask(&env, accounts::Request::Redirected { account: 0, uri: skein_lib::Secret::new(uri.clone()) });
                 redirect = None;
             } else if let Some((identity, _, _)) =
                 listeners.iter().find(|(_, _, port)| *port == url_parts(uri).0.port()).copied()

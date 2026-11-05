@@ -38,13 +38,13 @@ pub struct ChangesLanded {
 }
 
 impl Domain {
-    pub(super) fn changes_view(&self, project: u32, now: Wall, limits: &Limits) -> Option<ChangesView> {
+    pub(crate) fn changes_view(&self, project: u32, now: Wall, limits: &Limits) -> Option<ChangesView> {
         let mut branches = Map::with_capacity(limits.changes);
         for (_, row) in &self.changes {
             if self.repositories.get(&row.repository)?.project != project {
                 continue;
             }
-            let red = self.changes_red(row);
+            let red = self.branch_red(row.repository, &row.base);
             if crate::panel::ready(row).is_some() || owns(row) || red {
                 branches.insert((self.repository_address(row)?, row.base.clone(), row.repository), row.task).ok()?;
             }
@@ -82,7 +82,7 @@ impl Domain {
                     .push(ChangesQueue {
                         repository: repository.clone(),
                         branch: branch.clone(),
-                        red: self.changes_red(row),
+                        red: self.branch_red(row.repository, &row.base),
                         changes: changes.into_boxed(),
                     })
                     .ok()?;
@@ -173,24 +173,24 @@ impl Domain {
         Some(ordered)
     }
 
-    fn changes_red(&self, row: &ChangeRow) -> bool {
+    pub(crate) fn branch_red(&self, repository: skein_forge::api::Repository, base: &[u8]) -> bool {
         for (_, change) in &self.changes {
-            if change.repository == row.repository
-                && change.base == row.base
+            if change.repository == repository
+                && change.base.as_ref() == base
                 && change.base_repair
                 && !change.terminal()
             {
                 return true;
             }
         }
-        for ((repository, commit), verification) in &self.verifications {
-            if *repository != row.repository {
+        for ((held, commit), verification) in &self.verifications {
+            if *held != repository {
                 continue;
             }
             for task in &verification.changes {
                 if let Some(change) = self.changes.get(task)
-                    && change.base == row.base
-                    && self.landing_red(*repository, commit, &row.base) == LandingRed::Red
+                    && change.base.as_ref() == base
+                    && self.landing_red(*held, commit, base) == LandingRed::Red
                 {
                     return true;
                 }

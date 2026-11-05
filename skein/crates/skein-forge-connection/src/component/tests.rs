@@ -183,7 +183,6 @@ fn an_unheld_failure_does_not_wake_a_closing_connection() {
     let mut h = fixtures::Harness::ready();
     h.call(1, fixtures::REPO, api::Op::Read(api::Read::Branch { branch: Box::from(fixtures::BRANCH) }));
     h.run(skein_lib::Duration::ZERO);
-    h.connected(fixtures::FORGE);
     fixtures::branch_answers(&mut h, fixtures::FORGE);
     assert!(h.answered(1).is_some());
     let owner = *h.component.common.connections.iter().next_back().expect("idle call connection").0;
@@ -412,5 +411,16 @@ fn an_own_exchange_goes_with_its_connection() {
             Side::Unbegun => unreachable!("retired exchange"),
         };
         assert!(fresh, "{name}: closed call exchange releases before reclaim");
+    }
+}
+
+impl Component {
+    pub(crate) fn test_last_connection(&mut self) -> &mut Connection {
+        let (_, id) = self.common.connections.last().expect("fixture connection");
+        self.common.connection_slab.get_mut(*id).expect("indexed connection")
+    }
+    pub(crate) fn test_open_call(&mut self, env: &Env<Limits>, io: &mut Queue<skein_io::Request>) {
+        let forge = &self.forges.get(0).expect("fixture forge").base.forge;
+        self.common.open_call_origin(forge, None, env, io);
     }
 }

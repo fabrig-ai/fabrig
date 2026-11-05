@@ -164,11 +164,19 @@ Add `--project PROJECT` to choose an existing project.
 `--playground` without `--project` creates `widget`:
 `project: 1 · widget` on a new box.
 
-`temper box`'s stdout (or redirected log):
+`temper box`'s terminal (stderr):
 
+```text
+HH:MM:SSZ Forge FORGE (Forgejo): starting
+HH:MM:SSZ Forge FORGE (Forgejo): started
 ```
-Forgejo: api http://127.0.0.1:PORT/api/v1
-Forgejo: person LOGIN
+
+The forge's hands are in `DATA/box/logs/forgejo-FORGE.log`, each after
+its UTC time:
+
+```text
+YYYY-MM-DDTHH:MM:SSZ Forgejo: api http://127.0.0.1:PORT/api/v1
+YYYY-MM-DDTHH:MM:SSZ Forgejo: person LOGIN
 ```
 
 Headers: `DATA/forge-FORGE/person_read.header` and `person_write.header`;

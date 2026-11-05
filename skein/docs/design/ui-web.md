@@ -221,7 +221,9 @@ Steps from the standard, each needing one before it only where it says.
 ### 4.3 The page and the starter
 
 - **The bundler's page,** `index.html`: `<meta charset="utf-8">`, a
-  viewport, a title of the application's name, `skein-ui.css` then the
+  viewport that covers the display (`width=device-width, initial-scale=1,
+  viewport-fit=cover`), what the application pins keeping off the safe
+  area by its own sheets, a title of the application's name, `skein-ui.css` then the
   application's stylesheets by `<link rel="stylesheet">`, the starter as
   `<script type="module">` by `src`, an empty mount element,
   `<div id="app">`, which the reference shell finds by its id, and a
@@ -991,6 +993,12 @@ Each within skein's suites' budgets (testing-strategy.md, section 8).
   the application's codec prints for the address; a reload. A go and a
   reload accept the page's closing warning, as a person who chose to go
   answers it (browser.md, section 6).
+  A semantic press whose node is `Gone` before mouse input finds its target
+  again, from its outermost scope and with its match number kept, and starts
+  a new press through the kit's checks. It looks again each poll interval, for
+  a missing replacement too, until the first press's answer deadline, which
+  fails the act (browser.md, section 6). Other refusals fail at once. A press
+  whose mouse input has begun is never retried.
 - **It reads the current address,** the kit's `Address`, from the page's
   navigation history (browser.md, section 6), as the address bar shows
   it: what the application's codec printed, or what its page replaced,

@@ -537,10 +537,14 @@ temper-engine-domain-forge              the connector's top: resources and holds
 - **On a managed or owned Forgejo** the connector asks for access
   before the adoption's reads: `Adopt { forge, repository }`, through
   the root and the routing, which runs it on the setup's host with the
-  admin's token (`../protocol/forge.md`, 2.6). It makes temper's user a
+  admin's token (`../protocol/forge.md`, 2.6). The repository is the
+  path the request carries, since temper's user may not see it yet. It
+  makes temper's user a
   collaborator with write on the repository, and its hook when the
-  deployment has a webhooks' listener. Done, the adoption reads as any
-  other; refused, the adoption is refused, with the run's failure named.
+  deployment has a webhooks' listener and serves the forge one
+  (`../protocol/setup.md`, 5.5). Done, the adoption reads as any
+  other; refused, the adoption is refused, with the run's failure named
+  (`../protocol/setup.md`, 5.4).
 - **The connector never holds the admin's token,** and the forge
   component never does: the setup's host alone uses it, for reconcile,
   for access at adoption and for the picker's reads (4.3)
@@ -550,7 +554,9 @@ temper-engine-domain-forge              the connector's top: resources and holds
   repairs each one's collaborator and hook (`../protocol/forge.md`,
   2.1).
 - **Elsewhere there is nothing to ask:** on a connected Forgejo a person
-  gives the access, and on GitHub the App's installation does (4.3).
+  gives the access, and on GitHub the App's installation does (4.3). A
+  repository this leaves temper's user only able to read is still
+  adopted, and its answer says so (`../client/README.md`, 4.7).
 
 ### 4.3 What the picker offers
 
@@ -784,6 +790,14 @@ Held by skein's `forge-client.md`, section 3. temper's part:
   releases this wait. A fresh change read refused as busy keeps its timed
   procedure wait; other branch, base and pull read failures retain their
   operation, resource and backend cause in the hold.
+- **Landing subscriptions own watches too:** every live subscription
+  contributes its repository and branch, independently of task names and
+  followed tiers. The complete union counts each resource once. Accepting,
+  replacing or removing a landing subscription rebuilds that union; a shared
+  watch remains until its final owner leaves. Admission checks the branch
+  and the union's resource and repository bounds before retaining the
+  subscription. Restart reconstruction, task-name changes and forge removal
+  use the same union, excluding ended forges.
 
 ### 5.2 Keeping up
 
@@ -954,6 +968,224 @@ connector keeps it because `Stored` holds every family of temper's, as it does
   (jig's `domain/connectors.md`, section 2) erases its rows in its
   decision, beside its settings, and marks the subject when any went.
   jig erases no party (`../protocol/store.md`, section 7).
+
+### 5.6 What changed since a person last looked
+
+What a project's Home says of its landings and of the person's last
+look (`../client/README.md`, 3.5): two families of temper's, kept by the
+connector as `Dismissed` is (5.5), and a document computed at its read.
+
+- **`ProjectFacts`,** one row a project that has landed anything, held
+  in memory, restored whole at the restart step, at most
+  `judge_projects`:
+  - `landed`, the count of the changes landed, into every landing
+    branch of the project. A merge to a goal's branch counts: a change
+    that lands on a goal's branch and the goal's own landing on main
+    are two;
+  - `last_landed`, the wall time of the latest, the time of its
+    change's decision;
+  - `brief`, none or what the status agent last wrote (5.7): `sentence`,
+    `lede`, `at` and `landed`, the count it covers.
+
+  A landing is counted in the decision that first logs its change in
+  the landing log (`after-landing.md`, section 10), once a change; the
+  row is saved and the subject `status` marked there. A project with no
+  repository left in `repositories` counts nothing. Past the bound a
+  landing is not counted, as `Landed`'s are not past theirs
+  (`../protocol/store.md`, section 7).
+- **`Looked`,** one row a party and a project, held in memory, restored
+  whole, at most `bindings` times `judge_projects`:
+  - `previous` and `latest`, walls: the end of the sitting before this
+    one, none on a party's first, and this sitting's last look;
+  - `seen`, the `landed` count at `previous`, and `next_seen`, the count
+    at `latest`, which `seen` becomes when `previous` next moves. Both
+    are kept because a sitting's first look must compare what landed
+    with where the person stopped: a `seen` taken at that look would be
+    the count that look reads, and say that nothing landed.
+- **`Looked { project }`** (`../client/README.md`, 4.6) is admitted by
+  the core as `Dismiss` is, the root naming the project as its scope.
+  In the decision, with `now` the wall and `landed` the row's count, 0
+  with no row:
+  - no row, the bound reached: answered too large, nothing written;
+  - no row: `previous` none, `latest` now, `seen` and `next_seen`
+    `landed`;
+  - `latest` under 30 minutes old, or ahead of `now`: `latest` now,
+    `next_seen` `landed`, so a sitting keeps one "last looked";
+  - otherwise a new sitting: `previous` the old `latest`, `seen` the old
+    `next_seen`, `latest` now, `next_seen` `landed`.
+
+  Each saves the row, marks the subject `status` and answers looked, the
+  answer held behind the commit as `Dismiss`'s is and unknown after a
+  restart. The 30 minutes are a constant, `SITTING`.
+- **Its document:** the subject `status`, `status_subject(project)`, one
+  number a project, outside the task numbers as `changes_subject`'s are,
+  of the project's scope. The core's ask for a document names the
+  watcher's party, as for the subject `dismissed` (5.5), and the
+  connector computes it at that read:
+  - `landed`, `last_landed` and `brief`, the row's; 0 and none with no
+    row;
+  - `previous` and `seen`, the party's `Looked`; none and `landed` with
+    no row, so nothing reads as new;
+  - `queued`, the project's changes the subject `changes` counts
+    (`../client/README.md`, 4.6): each in temper's queue, ready or owning
+    its turn, and each in the forge's own merge queue (9.1);
+  - `red`, whether the forge's red record holds for the home
+    repository's landing branch, as that document's `red` for that
+    branch: a live repair of the branch (section 9), or a landing a tier
+    still holds red (`after-landing.md`, 5.3). False with no home;
+  - `branch`, the home repository's landing branch, its default branch
+    (`Repository.settings`); empty with no home.
+
+  It is marked wherever the subject `changes` is (a queue, a branch's
+  red, a merge), and at a look and a brief. A look makes the document
+  again for every watcher of the project's, each its own party's; a
+  subject per party would make the root read the sign-in on every
+  watch (5.5).
+- **Erased with its project,** in the same decision as its dismissals
+  (5.5), the subject marked when any went. jig erases no party, so a
+  `Looked` row stays until its project goes, as `Dismissed` does
+  (`../protocol/store.md`, section 7).
+
+### 5.7 The status agent
+
+The few lines at the top of a project's Home, written by an agent from
+what the engine keeps, at most once a sitting and only with something
+new to say. Its charter is the stock's 9
+(`../protocol/configuration.md`, 13.4).
+
+- **When:** in the decision of a `Looked` that moves `previous` (5.6),
+  with `landed` above the brief's `landed`, the brief over an hour old or
+  none, and no run in flight for the project. A party's first look moves
+  no `previous` and starts none. There are no timers: nobody looking, or
+  nothing landed, spends nothing.
+- **In flight:** `ProjectFacts.running`, none or `{ task, landed, since }`,
+  saved in that decision, `task` none until the root has made it, so a
+  restart keeps it. A run in flight over an hour counts as none, so one
+  that is held or waits on an account never stops the next, and its late
+  result is dropped, as `running` no longer names it.
+- **Made** as a tier run's task is (`after-landing.md`, section 3):
+  `Request::StatusRun { project, words }`; the root makes a procedure task
+  of the project's period, code `STATUS_CODE`, on `repair_seed`, as it has
+  an agent to fund, and answers `Event::StatusTask { project, task }`, or
+  `Event::StatusRefused { project }` with no seed or a refused admission.
+- **Its run:** the procedure's first step delegates to charter 9 with the
+  task's words, unlisted, no person asked (`asks` false), its authority
+  narrowed to no tools, grants, notes or delegation (as a foreman's is,
+  8.11), and no workspace: a run of this charter selects no repository. A
+  project whose policy's delegation doesn't name charter 9 has its
+  delegate refused, which is a refused run. It is kept as a tier run's task
+  is: jig forgets a result only for a person's request.
+- **Its words,** made by the forge, and the root adding the goals, which
+  are core's: the span since the last brief, the landed count, the titles
+  of the changes the landing log holds since the last brief (at most 20),
+  the project's live goals each with its delegates done and total, and the
+  failing tests each tier of the project's repositories holds. They say
+  only what the engine keeps.
+- **Heard** at the procedure's next step, from its inbox, as a foreman's
+  result is (8.11): the report's first paragraph is `sentence`, the rest
+  `lede`, cut by `text::fit` to 200 and 600 bytes, saved to
+  `ProjectFacts.brief` with `at`, the wall, and `landed`, `running`'s, and
+  the subject `status` marked. A failed, cancelled, refused or empty run
+  saves nothing and asks nobody: Home keeps the computed words, and the
+  next chance is the next sitting. The procedure then ends.
+### 5.8 The Away switch
+
+A person's switch on one project: while it is on, the goals that person
+asked for may decide for themselves what its kinds allow, and show it
+afterwards (5.9). It is the person's own, no setting of the project. It
+owes nothing to the forge: the connector keeps it as it keeps a
+dismissal (5.5). No engine answers for an agent: the switch only changes
+what `decided` says.
+
+- **Its row,** `Away { party, project }`, at most one a party a project,
+  held in memory, restored whole at the restart step, at most `bindings`
+  times `judge_projects`; a row past that is refused at restart, as each
+  family's is. It holds:
+  - `since`, a wall: when it last went on;
+  - `until`, a wall or none: when it goes off by itself, which the
+    client works out (`../client/README.md`, 3.5), none for "I turn it
+    off";
+  - `kinds`, bits of what agents may decide: 1 `implementation`, 2
+    `retry`, 4 `wording`, 8 `dependency`. `other` has no bit, so no row
+    lets it;
+  - `landed`, `ProjectFacts.landed` (5.6) at `since`, 0 with no facts;
+  - `off`, a wall or none: when it went off, none while it has not.
+- **On at a wall** when `off` is none and `until` is none or after that
+  wall. Past `until` nothing is written: `decided` says ask, the client
+  draws it off, and the spell's end reads as `until`.
+- **`SetAway { project, on, until, kinds }`** (`../client/README.md`,
+  4.6) is admitted by the core as `Dismiss` is: the project its scope, a
+  party with a role there, in a project not being deleted. Its bits past
+  the four are refused by the wire. In the decision, at its wall:
+  - `on`, the row on: `until` and `kinds` replaced, the spell kept;
+  - `on`, no row or the row not on: a new spell: `since` the wall,
+    `landed` the project's count, `off` none, `until` and `kinds` as
+    asked;
+  - not `on`, the row on: `off` the wall, `until` and `kinds` as asked;
+  - not `on`, the row not on: `until` and `kinds` as asked, and `off`
+    its `until` where it ran out with none written, so the spell's end
+    stays where it was;
+  - not `on`, no row: a row with `since` and `off` the wall, `landed` the
+    count: Settings' choices kept while off;
+  - a row to make with the bound reached: answered too large, nothing
+    written;
+  - a row that comes out the same: answered, nothing written.
+
+  Otherwise the row saved, the subject `away` marked, answered, the
+  answer held behind the commit, held as a set up's is, in memory, and
+  unknown after a restart; the row says what stands.
+- **Its document:** the subject `away`, one number, `AWAY_SUBJECT`,
+  `1 << 60`, outside the task numbers, of the party's own scope. The
+  connector answers the watcher's party's rows in key order, as 5.5's.
+- **Erased with its project,** as 5.5's, marking the subject when any
+  went. jig erases no party (`../protocol/store.md`, section 7).
+
+### 5.9 Decided for you
+
+What a goal decided while its person was away, kept so that Home says so
+(`../client/README.md`, 3.5) and the person can overturn it. The agent
+decides: the host tool `decided` (`agent.md`, 4.3) asks the connector
+whether it may, and its answer is live, so a running goal needs no brief
+or wake.
+
+- **The caller's person,** which the root finds and hands over: a task
+  that is a goal (it is tracked), whose requester is a person, or a
+  conversation whose requester is a person (jig's `served_chat`), and
+  whose words hold no line `Asks: always`. Any other caller is answered
+  ask, by the root, with nothing asked of the connector.
+- **The judgement,** in the call's decision: decided where that party's
+  `Away` row for the task's project is on at the decision's wall (5.8)
+  and `kind` is among its `kinds`, and `other` never; otherwise ask,
+  nothing written.
+- **Its answer is kept as the call's,** `CallPayload::Decided`: its taken
+  option's words, or none for ask. A call answered replays that answer
+  whatever the switch says by then, and writes nothing again: calls are
+  named and decided once (`agent.md`, 4.3), as `change`'s are.
+- **Its row,** `Decided { project, number }`: `party`, the person's;
+  `task`, the caller; `at`, the decision's wall; `question`, at most 400
+  bytes; `options`, 2 to 6, each at most 120 bytes; `took`, an index into
+  them; `why`, at most 400 bytes; `overturned`. `number` is one above the
+  project's highest, 1 with none. At most `DECIDED_PER_PROJECT`, 64, a
+  project: the row that would pass that erases the project's oldest in
+  its decision. So the family is bounded by 64 times `judge_projects`,
+  and a row past that is refused at restart.
+- **Its document:** the subject `decided`, per project,
+  `(1 << 62) | (1 << 35) | project`, beside `status_subject` (5.6), of
+  the project's scope. It answers the asking party's rows alone, in
+  number order, each with its taken option's words in place of the
+  options and the index, as 5.6's is the asking party's own: what was
+  decided for one person is not another's to see or overturn.
+- **`Overturn { project, number }`** (`../client/README.md`, 4.6) is
+  admitted as `SetAway` is. In the decision: no such row, or another
+  party's: refused, unknown; `overturned` already: refused, overturned;
+  otherwise `overturned` set, the row saved, the subject `decided`
+  marked, answered. It sends no word to the task: the client does, once
+  answered, by its existing message, so that a refused message leaves
+  the row as it stands.
+- **Erased with its project,** as 5.5's, marking its subject.
+- **Only goals call it.** A question that skips the tool waits as ever,
+  and held tasks and proposals always wait, away or not: nothing here
+  answers for anyone.
 
 ## 6. Effects
 
@@ -1179,11 +1411,14 @@ branch. Its parameters:
   by the forge's. The producing task's successful result supplies the pull's
   explicit title, retained with that result and copied into the change before
   opening. A visible pushed branch waits for this metadata; it alone cannot
-  open the pull. This wait keeps the producing phase's stall deadline.
+  open the pull. This wait keeps the producing phase's stall deadline. A
+  failed producer supplies none, and holds whatever it pushed (8.4).
   The title is fitted to 256 UTF-8 bytes, preserving punctuation
   and marking a cut with “…”; it is never interpreted as sentences. A handed-in
   branch supplies its title as bytes parameter 10. A missing or empty title on
-  that path uses “Update repository”, never context from the brief. The body
+  that path uses “Update repository”, never context from the brief. An empty
+  title reaches no forge by any path: a pull request opened with none takes
+  that same default. The body
   holds the supplied body or the words whole, fitted to the forge client's
   operation bound and marked when cut. The complete production brief stays in
   the task spec, separately from the title and body. A goal's issue title uses
@@ -1533,7 +1768,9 @@ delegate's terminal wakes it to offer the landed result.
   the base merged in and what landed in it; or, for
   a change the forge's merge queue ejected, the forge's reason, the
   pull request's `dequeued` (9.1). It pushes a new head, and the
-  change is checked again.
+  change is checked again. Where the head's failed checks are not
+  known, its words say so, `no failed check named`, in the name's place,
+  never an empty name.
   For each failed check, the brief carries its context, description and
   link, then the step that failed, by name, and the end of that step's
   log, where a step tells its failure; the job's whole log's end when no
@@ -1558,6 +1795,48 @@ delegate's terminal wakes it to offer the landed result.
   already landed on the base, including both independent appended lines
   and existing blank lines. Lost content is restored from the review's
   remarks; content is never removed just to make a check pass.
+- **A green head ends a CI repair.** A CI repair's reason is CI failed at
+  the head: a failed check, or a clean update whose CI then fails. When a
+  step of the change reads CI passed at its branch's head (5.3):
+  - **A repair not running ends,** without an agent's work, and the change
+    goes on from that head, checked as after a push (8.2, step 3), as if no
+    repair were needed. Not running is a repair due and not yet made; one
+    made whose task is due, preparing, waiting between its tries or for an
+    answer; one whose task is held with no attempt running under the hold;
+    and one that ended failed, cancelled or finding nothing to do. A task still live is cancelled, its reason `CI
+    passed at head H`, so that its end says that and not a failure. No fresh
+    repair is made for a green head, on a release or otherwise.
+  - **A run in progress finishes as a run does:** its attempt claimed or
+    running, or its task closing, held or not, is left alone. What it delivers is taken as
+    any repair's. Its failing, or its finding nothing to do, is read as ever
+    and, the head still green, holds nothing: the rule above ends it. Its brief
+    takes no word for this: it says what CI read when it was gathered, and one
+    gathered as CI turned names no failed check, as above. A run ending into a
+    retry wakes no change, so while a run is in progress at a green head the
+    change reads again at `poll_ms` (5.2).
+  - **It asks of the current head alone.** A push moves the head and the rule
+    asks of the new one; CI passed on an earlier head changes nothing. A head
+    its repair pushed before it stopped running is the current head, taken as
+    a repair's push is.
+  - **Other reasons are not touched:** a gate's request, a review's or a
+    check's; a landing's gate at its candidate (`landing.md`, 7.3); a
+    resolution; and a forge's merge queue ejecting the change (9.1), whose CI
+    at its own head may well have passed.
+  - **A hold ends too,** with no party's release, where the change is held on
+    this reason: at its repair, failed for good, cancelled or stalled; or at
+    its repair or its checking, past the bound or short of authority for the
+    next. While so held each wake a hint or a poll gives it reads as a step
+    does and makes no effect, and a read of CI passed ends the hold, with no
+    run of its repair in progress, its branch's writer slot free and its pull
+    request not closed: the deployment releases its task (jig's
+    `domain/tasks.md`, section 7). Its
+    repairs, resolutions and updates count on, since only a person's release
+    lifts them. A hold at gating is not ended, being a gate's as much as CI's:
+    its release decides afresh. Nor is a hold for drift (8.5), nor a task a
+    placed hold or a party's stop also holds, which goes by its own release.
+  - **Counted as asked:** the repair stays in the change's repairs, on its
+    panel and in its result, whose reason for it goes on `then CI passed at H`
+    (8.2, step 7).
 - **The merge job** comes before a resolution where the change's
   project names a `merge_job` and the change's authority delegates to
   the merge kind (`../protocol/configuration.md`, section 3): a job of
@@ -1596,8 +1875,54 @@ delegate's terminal wakes it to offer the landed result.
   byte or row limit, the section keeps its pull identity and gathered content
   and appends a comparison-omitted notice within its byte budget. This completes
   the section; it does not retry the comparison or raise the client's limits.
-  Other comparison read failures still fail the section. The same rule applies
-  to the pull sections for reviews and repairs.
+  Other comparison read failures are the section's read failures (below). The
+  same rule applies to the pull sections for reviews and repairs.
+- **A brief section's read that fails.** Every section says why it could not
+  be read, and how that counts (jig's `domain/engine.md`, 9.1):
+
+  | What the read met | Counts as | REASON |
+  |---|---|---|
+  | `Busy`, still refused at the brief's deadline | capacity | `the forge client is busy` |
+  | `NotConnected`: a wait for access, as for a stall above | capacity | `the forge is not connected` |
+  | no room for another section or read in the connector | capacity | `the connector has no room for another read` |
+  | `Unavailable` | transient | `the forge could not be reached` |
+  | `Timeout` | transient | `the forge did not answer in time` |
+  | `RateLimited` | transient | `the forge is limiting calls` |
+  | a pull whose head is no longer the pinned one, or a change that has moved past it | transient | `the change's head moved` |
+  | `InvalidAnswer` | permanent | `the forge's answer did not match its read` |
+  | an answer of another shape | permanent | `the forge answered another read` |
+  | `Forbidden`, `NotInstalled` | permanent | `the forge forbids this read`, `the forge App is not installed` |
+  | `Missing`, `MissingJob` | permanent | `the forge has no such object` |
+  | `TooLarge` | permanent | `the answer is past the client's limit` |
+  | any other error | permanent | `the forge refused this read` |
+  | no change for the pull, its identity past the section's bytes, or a title that fills them; no repository for a home-access reason | permanent | `the change cannot be named in its section` |
+  | failed checks whose heads do not fit their section | permanent | `the failed checks do not fit their section` |
+  | a section the plan gave wrong bounds, or the connector no longer holds | permanent | `the connector cannot hold this section` |
+
+  A repair's two forge sections, its pull section and its reason (CI's or
+  reviews'), are a pair, and each can stand without the other: the agent has
+  the other's words and its forge tools to read again. A read of one that
+  counts as transient or permanent becomes words in that section's place,
+  after what it had gathered, and the brief goes on:
+  `[the pull request could not be read: REASON]`,
+  `[the failed checks could not be read: REASON]` or
+  `[the reviews could not be read: REASON]`. The pull section's identity needs
+  no read, so it always names the pull request.
+  A repair with neither its reason nor its pull cannot start: when both fail,
+  the second fails the brief with its own REASON, which counts by the table.
+  A capacity refusal never becomes words: the brief fails and the task pauses,
+  so the run starts with its sections once there is room.
+  A section with no partner (a review's or a resolution's pull section) is
+  what its run is for, so its read failing fails the brief. A charter's
+  document stays optional (jig's `domain/engine.md`, 9), its failure leaving
+  the missing marker. A failed job's log stays the check's own marker within
+  a CI section that was read.
+  Each read that fails, words or not, is one line in the engine's log, naming
+  the task, the section, the stage and the forge's error, as a tool read's
+  `read refused` line does:
+  `temper serve: brief read refused task=T section=pull stage=item error=InvalidAnswer`.
+  A brief that fails adds one more, naming how it counts and its reason:
+  `temper serve: brief failed task=T counts=permanent reason=pull: ...`.
 - **A verdict whose post is refused** (8.3) is no repair and no stall:
   the gate counts as temper's verdict says, nothing is held for the
   post, and its `Forbidden` narrows what temper may do in that
@@ -1637,21 +1962,37 @@ delegate's terminal wakes it to offer the landed result.
   while a question of that agent's is open (8.11): the stall counts
   again from the step that relays its last answer down.
 - **A release** lifts what it releases: repairs, resolutions and updates
-  count again from it, its stall is counted from it, and the change
-  decides afresh. A producer that fails for good holds the change at
-  producing, the hold carrying its words whole within the hold's bytes,
+  count again from it (not from the deployment's, ending a hold at a green
+  head, above), its stall is counted from it, and the change decides
+  afresh. A producer that fails for good holds the change at
+  producing, whatever it delivered first: its pushed work stays on its
+  branch, no pull request opens, and the hold carries its words whole
+  within the hold's bytes,
   so its requester hears why (its notice fitted to the requester's
   message bytes on its own, marked when cut) and its person decides:
   cancel it, or release it if the producer was wrong; a chat holds no
-  decision of its own here. At producing, with no head pushed
-  (its producer failed for good), deciding afresh makes a fresh producer, one more of its
-  tasks, holding by the rule above when its authority no longer covers
-  one. A repair that fails for good holds at its attempted count; this
-  is a delegate failure, not repair exhaustion. Released, it asks for a
-  fresh repair with the same reason and current forge facts, under its
-  current authority, counted against the reset repair allowance. The
+  decision of its own here. At producing (its producer failed for good),
+  deciding afresh makes a fresh producer, one more of its tasks, whatever
+  the last one pushed, holding by the rule above when its authority no
+  longer covers one. With a head pushed, its workspace starts from that
+  branch, and only its success gives the pull request its title (8.1). A
+  repair or a resolution that fails holds the same way, whatever it pushed
+  first: its head is not taken as the change's. A repair that fails for good
+  holds at its attempted count; this is a delegate failure, not repair
+  exhaustion. Released at a head CI has not passed at (a green head ends
+  its CI repair, above), it asks for a fresh repair with the same reason
+  and current forge facts, under its current authority, counted against
+  the reset repair allowance. The
   replacement's result supersedes the failed delegate's, including
   after a restart; a pending replacement is not asked twice.
+  A delegate a person cancels holds at the same count and is released
+  the same way, and its hold says what happened: `its repair, task N,
+  was cancelled`, with the cancel's reason where it gave one, within the
+  hold's bytes (`its resolution`, `its merge job`, `its producer`). A
+  cancelled repair, resolution or merge job holds as a decision of the
+  procedure, not as a failed effect; a cancelled producer, a catch-up's
+  first merge job among them, keeps a failed producer's hold, carrying
+  those words.
   A change is a procedure, with no run of its own to repeat: a
   release asking to run it again is refused saying so, never as
   missing authority.
@@ -1857,7 +2198,8 @@ What the connector makes of a change for the client's panel
   updates used, with their limits from `change_policy`; and its
   questions, its route, those taken of its bound and its open ones
   (8.11).
-- **CI at its head** is what its last step read (5.3), kept in memory
+- **CI at its head** is what its last step read (5.3), a held change's
+  read for a green head (8.4) among them, kept in memory
   beside its record, one verdict per change, while the change is live: a
   restart forgets it, and the panel says unknown until the change's next
   step reads it again. A change that has landed or ended keeps its last
@@ -1976,7 +2318,8 @@ section 9): the foreman and the requester decide, and the change relays
   foreman's reasons beneath it (*Passed up,* below), as words. An
   agent that asked is kept by its own question (jig's
   `domain/tasks.md`, 5.7): its run parks, no try spent, until the
-  change answers, and the change's wait for it is no stall (8.4). Its
+  change answers, a `finish` before then parking it too, whatever its
+  form, and the change's wait for it is no stall (8.4). Its
   reviews and its foremen are delegated without the Message family, as
   under `none`.
 - **Taken at its step.** Each step takes the questions its own agents
@@ -1984,8 +2327,24 @@ section 9): the foreman and the requester decide, and the change relays
   live), oldest first, as its open questions, kept on its record, and
   works them one at a time in that order: the next gets its foreman, or
   is passed up, once the one before is answered. A question from any
-  other task, and every task's words, receive fallback feedback naming
+  other task, and any other task's words, receive fallback feedback naming
   the enabled route and the answer form; words do not settle a question.
+- **Its own agents' words.** Its agent's report goes in its `finish`,
+  and the question form is its one use of `message` to its change. Its
+  words settle nothing, and in a run that may wait, what reaches it
+  before its `finish` refuses that `finish` until read (smith's
+  `domain/run.md`, section 6), so feedback meant for a requester would
+  cost it a turn. The `message` call itself refuses them, nothing sent:
+  a call in the words form to the change from its producing task, or
+  the repair or the resolution it has live, answers with an error
+  saying `Your report goes in finish; this change takes no words. To
+  ask: message target=this change, form=question.` Words or an answer
+  from such an agent found in the change's inbox at a step receive those
+  same words, as words, in place of the fallback feedback.
+  A question of theirs past the open-queue ceiling keeps the fallback
+  feedback (below). The stock coding charter tells its run the same, and
+  to call `wait` after asking, never `finish`
+  (`../protocol/configuration.md`, 13.4).
 - **Bounded.** It counts the questions it takes, each as its turn comes,
   from its making or its last release, against its bound,
   `forge.change_policy.questions` (4 in `small`, 80 in `standard`, which
@@ -2055,11 +2414,20 @@ section 9): the foreman and the requester decide, and the change relays
   and relayed at the first step at which none is pending, the
   dependency having ended done or been amended away; a requester that
   adds a dependency as it answers so makes the work wait for it.
-- **An asker that ends first** ends its questions: a foreman still
+- **An asker that ends first** (cancelled, or its run failing for good:
+  its own `finish` parks it) ends its questions: a foreman still
   running for one is cancelled, and an answer to a question passed up
   for it is taken and dropped, the change's history naming it. The
   change's own question stays until its requester answers it or it
-  ends with the change.
+  ends with the change. No question goes silently: the change tells its
+  requester, in words and once, `Task A ended with its question N open;
+  it reached no one: LINE`, where it had not been asked of the requester
+  (taken, or with a foreman), and `Task A ended; your answer to its
+  question N goes no further: LINE`, at the step that takes or holds
+  the answer to one that had. LINE is the question's first line, as its
+  record keeps it. These words share the step's `tasks.batch`, and a
+  question with no room for them stays on the record until a step has
+  (below).
 - **On its record and its panel.** Its open questions, in the order
   taken, each with its asker and number, its words whole and their
   first line, and where it stands (taken; with foreman task F; asked of the
@@ -2076,8 +2444,8 @@ section 9): the foreman and the requester decide, and the change relays
   change into the landing branch, and amendments of the live changes it
   concerns.
 
-A change keeps at most 16 open questions. Its configured question allowance
-must be less than 16, leaving room for the question past that allowance. A
+A change keeps at most 128 open questions. Its configured question allowance
+must be less than 128, leaving room for the question past that allowance. A
 question beyond the open-queue ceiling is answered with fallback feedback
 describing the enabled route and answer form; it never enters the relay (2026-11-04).
 
@@ -2252,7 +2620,8 @@ adoption says so, 4.4) lands through that queue. Forgejo keeps none.
 - **Ejected,** for any reason but its landing (its group's CI failed, a
   conflict with what entered before it, a person took it out): a
   repair, as a failed CI is (8.4), its brief carrying the forge's reason
-  alone, the pull request's `dequeued` (section 20). The change takes
+  alone, the pull request's `dequeued` (section 20), which a green head
+  does not end. The change takes
   its base before the repair starts (8.2), so a conflict there is
   resolved. A head another hand moved is drift, as ever (8.5).
 - **Its place there,** `Pull.queued`, is read with the pull request and
@@ -2685,7 +3054,10 @@ conflict settled by the merge job alone, and one it leaves to a
 resolution, under rules asking an update and under rules asking none; a
 catch-up into a goal's branch, merged by the merge job, and one already
 contained, ended with no change; a
-semantic conflict repaired; the branch's own CI broken by a landing
+semantic conflict repaired; a CI repair ended by CI passing at its head,
+due, retrying or held, and one released after it with no fresh repair; a
+run of one left to finish; CI passed on an earlier head, changing nothing;
+a review's repair untouched; the branch's own CI broken by a landing
 temper did not make, the queue paused and repaired; its pull request
 closed by someone else, held, released and reopened; a landing that
 overlaps a goal's change, and one that does not; a goal's issue written,
@@ -2751,6 +3123,21 @@ whole.
 
 ## 20. Open questions
 
+- **"The brief on Home" in Settings** (5.7): the status agent always runs
+  for now; the switch is another plan's. Default: it runs.
+- **What funds a status run** (5.7): a run takes what its project's period has
+  unreserved, and the stock policy's pools are each as large as the period, so
+  once one opens the run is refused, at each sitting of that period
+  (`../client/README.status.md`, 3.5). Either the stock roles' pools leave room,
+  which changes what a person may spend; or a run draws on the pool of whoever
+  looked, which is no party's request; or a charge of its own beside the period.
+  Default: as built, a project whose pools leave funding has the agent's words.
+- **A status run's kept row** (5.7): a task made for the deployment is
+  never forgotten, as jig forgets a result only for a person's request. At
+  most one a sitting and an hour, each small. Default: kept, until jig
+  forgets a deployment's reads.
+- **What lands on a goal's branch and then on main** (5.6) counts twice,
+  each a change landed. Default: so, said here and in the design of Home.
 - **A failed row, dismissed** (4.5; `../draft/repository-copies.md`,
   5.2): no request dismisses one yet; that comes with the sheet that
   shows it. Default: asking for the name again replaces it, and failed
@@ -2775,6 +3162,32 @@ whole.
   the client should also be posted on the forge as the person, so that
   the forge's protection requires it independently, needs a forge
   credential of the person's (jig's `domain/people.md`, section 12).
+- **A green head no wake reaches** (8.4, 5.2): a held change reads on a wake,
+  and a poll wakes it only when what it read of the pull request moved. Under
+  a rule's required contexts, a check they do not name can keep the pull
+  request's CI as it was while theirs pass, so the hold waits for a hint or a
+  person's release, which makes no fresh repair. Default: so; it costs time,
+  not a repair.
+- **A retry before the read** (8.4): a run ending into a retry wakes no change,
+  so a backoff shorter than `poll_ms` can start another run at a green head,
+  left to finish as any run is. Whether jig tells a procedure of its delegate's
+  retry, so that none starts. Default: as it stands.
+- **A hold at gating at a green head** (8.4): past the bound or short of
+  authority there, a hold can be a gate's or CI's, and its state does not say
+  which. Saying so changes what a hold stores. Default: it waits for a person's
+  release, which decides afresh.
+- **A repair of the branch's own CI at a tip since passed** (section 9): the
+  rule of 8.4 asks of a change's own head. That repair is a change of its own,
+  made for a failed tip: CI passing on the tip ends the queue's pause, and that
+  change goes on. Whether the rule reaches it. Default: as it stands.
+- **A repair held for its brief** (8.4): the repair's task is held, naming
+  its reason, while the change stays `Repairing` and its panel shows no hold:
+  a person reads why on the task, and releases it there. Default: so; whether
+  the panel says it too stays open.
+- **A forge out of reach or not connected** (8.4): `Unavailable` counts as
+  transient, so a long outage holds each repair preparing through it, naming
+  why; `NotConnected` pauses with no bound and no hold, its notice naming why.
+  Default: so; the allowance is the user's.
 - **A failing check's repair brief:** a check gate that says no is
   repaired as a review that says no is, and its repair's brief carries
   the pull request's reviews section (8.4). A check's verdict is not a
@@ -2840,3 +3253,12 @@ whole.
   `Status` carries only for a failed Actions run; until skein's dialect
   carries it on every row, every row is CI (5.3), another App's check
   runs among them, and its suites with no run list nothing.
+- **What ends the Away switch** (5.8): `until`, by the client's next
+  08:00, and a hand. Quiet hours and notifications are the client's
+  later parts (`../client/README.md`, section 11); neither is the
+  switch's.
+- **A refused `message` keeps no record** (8.11): the call's refusal of an
+  agent's own words is rendered and kept with no call's record, as the
+  `goal` tool's refusal is, where a decided call's answer is kept
+  (`root.md`, 5.2). So a call asked again decides again, from the change as
+  it then stands. Default: so.

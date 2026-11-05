@@ -401,12 +401,12 @@ pub fn configuration(directory: &Path, forge: &Forge<'_>, value: &mut Value) {
         seed["policy"] = 1.into();
     }
     super::configuration::use_stock(value);
-    value["engine"]["limits"]["overrides"]["tasks.charters"] = 5.into();
+    value["engine"]["limits"]["overrides"]["tasks.charters"] = 6.into();
     value["engine"]["limits"]["overrides"]["core.templates"] = 3.into();
     // The process uses stock's fourteen grants, beyond the world's ten-grant policy.
     value["engine"]["limits"]["overrides"]["tasks.authority_grants"] = 16.into();
-    // The creation offer carries five stock charters and three procedures.
-    value["engine"]["limits"]["overrides"]["documents.lines"] = 5.into();
+    // The creation offer carries six stock charters and three procedures.
+    value["engine"]["limits"]["overrides"]["documents.lines"] = 6.into();
     super::configuration::turn_bounds::apply(value, super::configuration::turn_bounds::turn_body(&agent));
     write_private(&path, &serde_json::to_vec(&agent).expect("agent JSON"));
 }
@@ -608,6 +608,36 @@ impl Throwaway {
             .expect("elsewhere repository answer");
         assert_eq!(response.status, 200, "elsewhere observation");
         serde_json::from_slice(&response.body).expect("elsewhere JSON")
+    }
+
+    /// Repositories outside the bot's organizations, before the managed deployment starts.
+    pub fn adoption_repositories(&self) {
+        let token = &self.instance.admin().token;
+        request(&self.instance, token, "POST", "/api/v1/orgs", &json!({"username":"other","visibility":"public"}), 201);
+        for (name, private) in [("open", false), ("closed", true)] {
+            request(
+                &self.instance,
+                token,
+                "POST",
+                "/api/v1/orgs/other/repos",
+                &json!({"name":name,"auto_init":true,"default_branch":"main","private":private}),
+                201,
+            );
+        }
+    }
+
+    /// Remove access outside temper so the restart must repair it.
+    pub fn remove_adoption_collaborator(&self, name: &str) {
+        let response = self
+            .instance
+            .exchange(&Outgoing::json(
+                "DELETE",
+                &format!("/api/v1/repos/other/{name}/collaborators/elsewhere-bot"),
+                Some(&self.instance.admin().token),
+                b"null",
+            ))
+            .expect("remove collaborator answer");
+        assert_eq!(response.status, 204, "remove adoption collaborator");
     }
 
     /// Keeps the forge's pull, branch and comparison evidence when an update stalls.

@@ -113,3 +113,11 @@ pub type Lower = skein_io::Request;
 
 /// An io event routed back by the owner using the component's token.
 pub type LowerEvent = skein_io::Event;
+
+/// One rendered call body (skein/docs/design/llm-connection.status.md).
+#[derive(Debug)]
+pub struct Body {
+    pub call: Token,
+    pub provider: llm::Provider,
+    pub bytes: Box<[u8]>,
+}

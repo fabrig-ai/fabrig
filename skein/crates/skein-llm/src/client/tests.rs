@@ -81,6 +81,10 @@ impl World {
 
     fn started_within(call: Call, limits: Limits) -> World {
         let client = Client::prepare(call, &limits).expect("the call is admitted");
+        Self::started_client(client, limits)
+    }
+
+    fn started_client(client: Client, limits: Limits) -> World {
         let env = Env { now: Time::ZERO, wall: Wall::EPOCH, limits };
         let mut world = World {
             client,
@@ -116,7 +120,7 @@ impl World {
                     Down::Finish => {}
                 }
             }
-            if !room || self.client.state == State::Closing || self.client.state == State::Closed {
+            if !room || self.client.stopped() {
                 return;
             }
             up(&mut self.client, &self.env, Up::Room, &mut self.above, &mut self.below);
@@ -337,7 +341,7 @@ fn dispatch_without_next(world: &mut World, source: &[u8], activity: u64) -> boo
         &mut world.above,
         &mut world.below,
     );
-    assert!(!world.client.asked, "the caller has not demanded its next output");
+    assert!(!world.client.asked(), "the caller has not demanded its next output");
     assert!(world.above.is_empty(), "dispatch holds output until Next");
     assert_eq!(world.client.activity(), activity, "activity is counted before output is drained: {source:?}");
     let mut completed = false;
@@ -486,7 +490,10 @@ fn an_owned_measurement_preserves_provider_bytes_lengths_and_policy() {
                 assert_eq!(prepared.limits, admitted);
                 assert_eq!(prepared.measured(), expected);
                 assert_eq!(rendered.len(), usize::try_from(expected.body).unwrap());
-                let actual = prepared.upload.as_ref().unwrap();
+                let actual = match &prepared.upload {
+                    Upload::Sending { body, .. } => body,
+                    Upload::Done => panic!("a prepared call holds its upload"),
+                };
                 if expected.compressed == 0 {
                     assert_eq!(actual, &rendered, "{provider:?}/{enabled}/{encoding:?}");
                 } else {
@@ -710,6 +717,50 @@ fn anthropic_sends_a_key_or_no_credential_with_its_version() {
                 usize::try_from(maximum).unwrap(),
                 head.len() - digits(content_length(head)) + digits(usize::try_from(limits().request).unwrap())
             );
+        }
+    }
+}
+
+#[test]
+fn a_prepared_call_keeps_its_rendered_body_only_when_asked() {
+    for (provider, encoding) in [
+        (Provider::OpenAi, Encoding::Identity),
+        (Provider::Anthropic, Encoding::Identity),
+        (Provider::OpenAi, Encoding::Gzip),
+    ] {
+        for keep in [false, true] {
+            let mut input = call();
+            input.endpoint = match provider {
+                Provider::OpenAi => Endpoint::openai(),
+                Provider::Anthropic => Endpoint::anthropic(),
+            };
+            input.endpoint.encoding = encoding;
+            if provider == Provider::Anthropic {
+                input.credential = Some(Credential::key(bytes::copy_of(b"secret")));
+            }
+            let mut request = measure_request(input, &limits(), false).unwrap();
+            if keep {
+                request.keep_body();
+            }
+            let mut client = Client::prepare_measured(request).unwrap();
+            let kept = client.take_kept_body();
+            assert!(client.take_kept_body().is_none());
+            let world = World::started_client(client, limits());
+            let (_, body) = split(&world.sent);
+            if keep {
+                let kept = kept.unwrap();
+                assert!(!kept.windows(b"secret".len()).any(|part| part == b"secret"));
+                match encoding {
+                    Encoding::Identity => assert_eq!(kept.as_ref(), body),
+                    Encoding::Gzip => {
+                        let mut inflated = List::with_capacity(limits().request);
+                        skein_fake_llm_protocol::provider::inflate(body, &mut inflated).unwrap();
+                        assert_eq!(kept.as_ref(), inflated.as_slice());
+                    }
+                }
+            } else {
+                assert!(kept.is_none());
+            }
         }
     }
 }

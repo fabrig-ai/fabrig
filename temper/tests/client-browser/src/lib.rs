@@ -72,18 +72,18 @@ pub fn bundle() -> PathBuf {
 pub fn first_chat(title: &[u8]) -> Find {
     Find::exactly_named(Role::Heading { level: 1 }, &[b"T1 \xc2\xb7 ".as_slice(), title].concat())
 }
-/// From the welcome's Forge step in a world with a usable model, leave by the brand's link to the
-/// chats page, open `NewChat` and start the first chat with `words`, one line, and see it titled by them.
+/// From the welcome's Forge step in a world with a usable model, navigate to `/chats`,
+/// open `NewChat` and start the first chat with `words`, one line, and see it titled by them.
 #[must_use]
 pub fn start_chat(words: &[u8]) -> Vec<Step> {
     let see = |find| Step::Person(PersonStep::See { find, within: WITHIN });
     let composer = || Find::exactly_named(Role::TextArea, b"What do you want done?");
     vec![
         see(Find::exactly_named(Role::Heading { level: 1 }, b"Connect a forge")),
-        Step::Person(PersonStep::Press { find: Find::exactly_named(Role::Link, b"temper chats") }),
+        Step::Person(PersonStep::Go { address: b"/chats".as_slice().into() }),
         see(live()),
         connected(),
-        Step::Person(PersonStep::Press { find: Find::exactly_named(Role::Link, b"New chat") }),
+        Step::Person(PersonStep::Press { find: Find::exactly_named(Role::Link, b"+ New chat") }),
         see(composer()),
         Step::Person(PersonStep::Type { find: composer(), words: Box::from(words) }),
         Step::Person(PersonStep::Press { find: Find::exactly_named(Role::Button, b"Send") }),

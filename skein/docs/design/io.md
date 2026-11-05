@@ -1547,3 +1547,11 @@ What of this document is not built is in [`io.status.md`](io.status.md).
   joined pair (3.5), so an application's one-process worlds meet only
   what the owners at either end do. Whether io gives a world a way to
   reset a pair, or cut a move short, as a socket world can.
+- **The file layer's thin forms and private machines.** `FileIo::new`,
+  `FileIo::with_whole_limit` and `file_layer`'s own entry points (5) go when
+  their readers hold a `file_layer::Limits` and call `file_layer::step`, and
+  `Store` and `Opening` take lifecycle states (programming-model.md, 5.4), by
+  one debt item (`skein/docs/development/debt/D049-file-layer-thin-forms.md`).
+- **`FileIo`'s buffers in a `List`:** a scan's sorted page wants `insert` and
+  `pop`, which `List` lacks. Whether `List` gains them, or a scan keeps its
+  page another way.

@@ -23,7 +23,7 @@ impl Rig {
                 heading.within = Some(self.scope.expect("region found before reload"));
                 self.ask(Request::Find { page: PAGE, op: FIND, query: heading });
             }
-            Event::Refused { op, why } => {
+            Event::Refused { op, why, .. } => {
                 assert_eq!((self.stage, op, why), (Stage::Expecting, FIND, Refusal::Gone));
                 self.close_browser();
             }

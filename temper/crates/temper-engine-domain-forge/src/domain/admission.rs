@@ -12,7 +12,7 @@ use skein_lib::{Duration, List, Map, Queue, Token};
 type Failed = (Option<Name>, RefusalCause);
 
 pub(super) fn names(d: &mut Domain, env: &Env<Limits>, task: u64, resources: Box<[Name]>, out: &mut Queue<Request>) {
-    let watches = match plan(d, env, task, &resources) {
+    let watches = match plan(d, &env.limits, task, &resources) {
         Ok(watches) => watches,
         Err((resource, cause)) => {
             emit(out, Request::ResourceRefused { task, operation: b"watch resources", resource, cause });
@@ -31,31 +31,30 @@ pub(super) fn names(d: &mut Domain, env: &Env<Limits>, task: u64, resources: Box
     drain(d, env, out);
 }
 
-fn plan(d: &Domain, env: &Env<Limits>, task: u64, resources: &[Name]) -> Result<Box<[Watch]>, Failed> {
+fn plan(d: &Domain, limits: &Limits, task: u64, resources: &[Name]) -> Result<Box<[Watch]>, Failed> {
     let resource = resources.first().cloned();
-    bound("forge.resources_per_task", env.limits.resources_per_task, resources.len(), resource.clone())?;
+    bound("forge.resources_per_task", limits.resources_per_task, resources.len(), resource.clone())?;
     if !d.names.contains_key(&task) && task != u64::MAX {
-        bound("forge.tasks", env.limits.tasks, skein_lib::usize_of(d.names.len()).saturating_add(1), resource.clone())?;
+        bound("forge.tasks", limits.tasks, skein_lib::usize_of(d.names.len()).saturating_add(1), resource.clone())?;
     }
     let mut watches = Map::uncapped();
     for (owner, names) in &d.names {
         if *owner != task {
-            add(d, env, names, &mut watches)?;
+            add(d, limits, names, &mut watches)?;
         }
     }
-    add(d, env, resources, &mut watches)?;
-    add(d, env, crate::tiers::watched(d).as_slice(), &mut watches)?;
-    bound("forge.client.resources", env.limits.client.resources, skein_lib::usize_of(watches.len()), resource.clone())?;
+    add(d, limits, resources, &mut watches)?;
+    add(d, limits, crate::tiers::watched(d).as_slice(), &mut watches)?;
+    finish(watches, limits, resource)
+}
+
+fn finish(watches: Map<Resource, Watch>, limits: &Limits, resource: Option<Name>) -> Result<Box<[Watch]>, Failed> {
+    bound("forge.client.resources", limits.client.resources, skein_lib::usize_of(watches.len()), resource.clone())?;
     let mut repositories = Map::uncapped();
     for (resource, _) in &watches {
         repositories.insert(resource.repository, ()).expect("internal repository set");
     }
-    bound(
-        "forge.client.repositories",
-        env.limits.client.repositories,
-        skein_lib::usize_of(repositories.len()),
-        resource,
-    )?;
+    bound("forge.client.repositories", limits.client.repositories, skein_lib::usize_of(repositories.len()), resource)?;
     let mut list = List::with_capacity(watches.len());
     for (_, watch) in &watches {
         list.push(watch.clone()).expect("counted watches");
@@ -63,15 +62,44 @@ fn plan(d: &Domain, env: &Env<Limits>, task: u64, resources: &[Name]) -> Result<
     Ok(list.into_boxed())
 }
 
-fn add(d: &Domain, env: &Env<Limits>, names: &[Name], watches: &mut Map<Resource, Watch>) -> Result<(), Failed> {
+/// Admit a landing branch against the same union as task names, before retaining its subscription.
+pub(super) fn landing_subscription_problem(
+    d: &Domain,
+    limits: &Limits,
+    repository: skein_forge::api::Repository,
+    branch: &[u8],
+) -> Option<(&'static [u8], Option<u32>)> {
+    let resource = Resource { repository, what: skein_forge_client::What::Branch(Box::from(branch)) };
+    let Some(name) = super::from_client(&resource, limits) else {
+        return Some((b"malformed branch: use nonempty slash-separated branch segments", None));
+    };
+    let problem: (&[u8], Option<u32>) = (b"landing branch watch does not fit forge resource limits", None);
+    let mut watches = Map::uncapped();
+    for (_, names) in &d.names {
+        if add(d, limits, names, &mut watches).is_err() {
+            return Some(problem);
+        }
+    }
+    if add(d, limits, crate::tiers::watched(d).as_slice(), &mut watches).is_err()
+        || add(d, limits, core::slice::from_ref(&name), &mut watches).is_err()
+    {
+        return Some(problem);
+    }
+    match finish(watches, limits, Some(name)) {
+        Ok(_) => None,
+        Err(_) => Some(problem),
+    }
+}
+
+fn add(d: &Domain, limits: &Limits, names: &[Name], watches: &mut Map<Resource, Watch>) -> Result<(), Failed> {
     for name in names {
-        validate(d, &env.limits, name)?;
+        validate(d, limits, name)?;
         if d.forge_ended(name.forge) {
             continue;
         }
-        let resource = to_client(name, &env.limits).expect("validated name");
+        let resource = to_client(name, limits).expect("validated name");
         if let skein_forge_client::What::Branch(branch) = &resource.what {
-            bound("forge.client.op_bytes", env.limits.client.op_bytes, branch.len(), Some(name.clone()))?;
+            bound("forge.client.op_bytes", limits.client.op_bytes, branch.len(), Some(name.clone()))?;
         }
         let participating = participating(d, &resource);
         watches.insert(resource.clone(), Watch { resource, participating }).expect("internal watch set");
@@ -216,7 +244,7 @@ pub(super) fn fire(d: &mut Domain, env: &Env<Limits>, out: &mut Queue<Request>) 
         Some(_) | None => return,
     }
     d.watch_due = None;
-    let watches = plan(d, env, u64::MAX, &[]).expect("retained names fit configured bounds");
+    let watches = plan(d, &env.limits, u64::MAX, &[]).expect("retained names fit configured bounds");
     child(d, env, skein_forge_client::Event::Keep { owner: Token::new(u64::MAX), watches }, out);
 }
 

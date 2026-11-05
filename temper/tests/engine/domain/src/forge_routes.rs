@@ -59,6 +59,7 @@ pub struct CallError {
 pub struct World {
     restart_config: engine::Config,
     oracle_documents: Vec<(Token, forge_top::Document)>,
+    oracle_watcher: u64,
     broken: bool,
     oracle_running: bool,
     oracle_peer: Option<(Token, u32, u32)>,
@@ -92,6 +93,8 @@ pub struct World {
     period: Option<u64>,
     period_budget: u64,
     pub fail_job_reads: bool,
+    /// Refuse the named section reads while a CI repair is preparing.
+    pub fail_brief_reads: Option<(bool, bool, skein_forge::api::Error)>,
     slow_brief_reads: bool,
     /// A branch whose reads take twenty seconds, each decided when it is sent.
     pub slow_branch: Option<Box<[u8]>>,
@@ -920,6 +923,7 @@ impl World {
         Self {
             restart_config: crate::oracle::config::copy(&config),
             oracle_documents: Vec::new(),
+            oracle_watcher: 0x4e33,
             broken: false,
             oracle_running: false,
             oracle_peer: None,
@@ -950,6 +954,7 @@ impl World {
             period: None,
             period_budget,
             fail_job_reads: false,
+            fail_brief_reads: None,
             slow_brief_reads: false,
             slow_branch: None,
             review_files_delay: None,
@@ -1345,6 +1350,31 @@ impl World {
                         ))));
                         continue;
                     }
+                    // Nonparticipating keep-up reads Item after u64::MAX. The change
+                    // finishes its fresh Checks before its repair enters Preparing.
+                    if let Some((pull, checks, error)) = self.fail_brief_reads
+                        && self.store.rows.values().any(|row| {
+                            matches!(row,
+                            Record::Core(jig_domain_core::Record::Tasks(tasks::Stored::Live(row)))
+                                if row.spec.words.starts_with(b"Repair CI at ")
+                                    && row.phase == tasks::Phase::Active(tasks::Active::Preparing))
+                        })
+                        && ((pull
+                            && matches!(op, skein_forge::api::Op::Read(skein_forge::api::Read::Item { after: 0, .. })))
+                            || (checks
+                                && matches!(op, skein_forge::api::Op::Read(skein_forge::api::Read::Checks { .. }))))
+                    {
+                        self.events.push_back(engine::Event::Forge(Box::new(forge_top::Event::Client(
+                            skein_forge_client::Event::Answered {
+                                free: 0,
+                                rate: None,
+                                call,
+                                cost: 0,
+                                result: Err(error),
+                            },
+                        ))));
+                        continue;
+                    }
                     if self.fail_job_reads
                         && matches!(op, skein_forge::api::Op::Read(skein_forge::api::Read::Job { .. }))
                     {
@@ -1449,14 +1479,20 @@ impl World {
                     Delivery::Link { down: host::LinkDown::Relayed { answer: host::Relayed::Busy, .. }, .. } => {
                         self.busy_calls += 1;
                     }
-                    Delivery::Application { outcome, .. } => {
-                        let Some(engine::ApplicationAnswer::Adopt(outcome)) = outcome else {
-                            panic!("retained adoption answer")
-                        };
-                        self.adopted.push(outcome);
-                    }
+                    Delivery::Application { outcome, .. } => match outcome {
+                        Some(engine::ApplicationAnswer::Adopt(outcome)) => self.adopted.push(outcome),
+                        Some(engine::ApplicationAnswer::Looked(_)) => {}
+                        answer => panic!("retained application answer: {answer:?}"),
+                    },
                     _ => {}
                 },
+                engine::Request::AdoptAccess { forge, request, .. } => {
+                    self.events.push_back(engine::Event::Forge(Box::new(forge_top::Event::AccessAnswered {
+                        forge,
+                        request,
+                        answer: Ok(()),
+                    })));
+                }
                 engine::Request::Account(_)
                 | engine::Request::ForgeKept(_)
                 | engine::Request::ForgeGone { .. }
@@ -1636,6 +1672,15 @@ impl World {
 
     /// Restore a delegate question with its reserved answer room at a committed cut.
     pub fn restore_delegate_question(&mut self, delegate: u64, words: &[u8]) -> u64 {
+        self.restore_delegate_message(delegate, words, tasks::MessageKind::Question)
+    }
+
+    /// Restore a delegate's plain words in its change's inbox at a committed cut.
+    pub fn restore_delegate_words(&mut self, delegate: u64, words: &[u8]) -> u64 {
+        self.restore_delegate_message(delegate, words, tasks::MessageKind::Words)
+    }
+
+    fn restore_delegate_message(&mut self, delegate: u64, words: &[u8], kind: tasks::MessageKind) -> u64 {
         assert!(self.store.pending.is_empty());
         let mut header = self.store.header();
         header.messages += 1;
@@ -1656,19 +1701,21 @@ impl World {
         };
         assert!(target.delegates.contains(&delegate));
         sender.activity += 1;
-        let mut credits = sender.questions.into_vec();
-        credits.push(tasks::QuestionCredit {
-            number: question,
-            answerer: tasks::Party::Task(change),
-            asked: tasks::Party::Task(change),
-            line: sender.activity,
-        });
-        sender.questions = credits.into_boxed_slice();
+        if kind == tasks::MessageKind::Question {
+            let mut credits = sender.questions.into_vec();
+            credits.push(tasks::QuestionCredit {
+                number: question,
+                answerer: tasks::Party::Task(change),
+                asked: tasks::Party::Task(change),
+                line: sender.activity,
+            });
+            sender.questions = credits.into_boxed_slice();
+        }
         let mut inbox = target.inbox.into_vec();
         inbox.push(tasks::Word {
             number: question,
             from: tasks::Party::Task(delegate),
-            kind: tasks::MessageKind::Question,
+            kind: kind.clone(),
             words: words.into(),
             at: self.env.wall,
             hits: 1,
@@ -1686,7 +1733,7 @@ impl World {
                     line: tasks::Line::Words {
                         message: question,
                         by: tasks::Party::Task(delegate),
-                        kind: tasks::MessageKind::Question,
+                        kind,
                         words: words.into(),
                     },
                 },
@@ -2199,6 +2246,7 @@ pub fn hint_step(world: &mut forge_world::World, task: u64, entry: u64) {
         task,
         entry,
         heard: change::Heard {
+            delegate_running: false,
             start_conflict: None,
             lacking: None,
             spend: None,
@@ -2346,12 +2394,15 @@ impl World {
         panic!("restart oracle party read did not answer");
     }
 
-    fn oracle_document(&mut self, sign_in: u64, project: u32, subject: u64) -> Option<forge_top::Document> {
-        const WATCH: Token = Token::new(0x4e33);
+    /// One authenticated forge document, using a fresh watch identity for each subject.
+    #[must_use]
+    pub fn oracle_document(&mut self, sign_in: u64, project: u32, subject: u64) -> Option<forge_top::Document> {
+        let watch = Token::new(self.oracle_watcher);
+        self.oracle_watcher = self.oracle_watcher.checked_add(1).expect("fixture watch identities");
         self.oracle_documents.clear();
-        self.panels.retain(|(watcher, _)| *watcher != WATCH);
+        self.panels.retain(|(watcher, _)| *watcher != watch);
         self.send(engine::Event::Party(engine::PartyInput::Watch {
-            watcher: WATCH,
+            watcher: watch,
             sign_in,
             subject: documents::Watched::Application {
                 scope: people::ApplicationScope::Project(project),
@@ -2365,14 +2416,15 @@ impl World {
             .oracle_documents
             .iter()
             .rev()
-            .find_map(|(watcher, doc)| (*watcher == WATCH).then(|| doc.clone()))
+            .find_map(|(watcher, doc)| (*watcher == watch).then(|| doc.clone()))
             .or_else(|| {
                 self.panels.iter().rev().find_map(|(watcher, panel)| {
-                    (*watcher == WATCH).then(|| forge_top::Document::Change(panel.clone()))
+                    (*watcher == watch).then(|| forge_top::Document::Change(panel.clone()))
                 })
             });
-        self.send(engine::Event::Party(engine::PartyInput::Unwatch { watcher: WATCH }));
+        self.send(engine::Event::Party(engine::PartyInput::Unwatch { watcher: watch }));
         self.oracle_settle();
+        self.panels.retain(|(watcher, _)| *watcher != watch);
         answer
     }
 

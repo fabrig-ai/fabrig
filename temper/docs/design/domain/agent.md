@@ -173,7 +173,7 @@ a chat that names none, runs with no workspace (worker.md, 4.1).
   `change` (4.3.1); with the authorised brief, its task section a whole
   spec (`../protocol/configuration.md`, section 7), and 1,472 bytes for
   64 stock sections' titles and framing (16 title bytes and 7 framing
-  bytes each), it leaves at least 607 bytes at `temper init`'s
+  bytes each), it leaves at least 361 bytes at `temper init`'s
   models; `temper-service`'s step tests hold each stock charter's
   figures. A gathered brief spends what the non-brief host part leaves. So a new
   host tool is offered only where a family and the charter gate it,
@@ -271,15 +271,21 @@ a chat that names none, runs with no workspace (worker.md, 4.1).
   also fit whole. Otherwise, or when that page is too large, the run
   lists directories with `read_file` at both endpoints and reads
   selected files at each within `max_bytes`. The refusal stays marked
-  an error and fits the host answer's byte bound.
+  an error and fits the host answer's byte bound. A successful comparison
+  whose rendered form exceeds that bound returns measured-size feedback
+  with the same recovery instead of losing its body at the worker.
 - **File reads fit the host answer's bound.** The adapter measures rendered
   file, directory and pull-file answers, including metadata and byte escaping.
-  A file keeps the largest UTF-8 prefix that fits with its metadata and a
-  visible `[file truncated]` marker, counting escaping (up to four output
+  A file keeps the largest UTF-8 prefix that fits with its metadata,
+  recovery feedback when room permits, and a visible `[file truncated]`
+  marker, counting escaping (up to four output
   bytes per input byte). An explicit `max_bytes` still bounds the raw forge
   prefix; host fitting may cut it further. A cut is never the whole file,
-  and there is no offset. If metadata leaves no room for content, bounded
-  error feedback directs a shorter path or a larger `core.call_answer_bytes`;
+  and there is no offset. A host-fitted prefix also names the measured
+  rendered size and effective body bound, and gives configuration recovery
+  when room permits; tiny bounds retain the cut marker alone. If metadata
+  leaves no room for content, bounded error feedback directs a shorter path
+  or raising the limiting core or agent allowance;
   lowering `max_bytes` cannot fit metadata. An oversized directory answer
   is an error naming its rendered byte size and numeric host bound. An oversized
   pull-file page retains a changed-path inventory as room permits, marks
@@ -295,6 +301,20 @@ a chat that names none, runs with no workspace (worker.md, 4.1).
 - **Reads and writes:** the forge's reads, `recall`, `settings` and `read_docs` are reads; every
   other host tool is a write, which smith runs alone (smith's
   `domain/run.md`, 5.2).
+- **`decided`,** of the control family, offered as every host tool is, a
+  goal's alone by what it answers: `{ question, options, took, why, kind
+  }`, `options` 2 to 6 words of the agent's, `took` an index into them,
+  `kind` one of `implementation`, `retry`, `wording`, `dependency` and
+  `other`; `question` at most 400 bytes, each option 120, `why` 400, a
+  call past those refused at decoding, saying so. The forge judges it
+  (`forge.md`, 5.9): "Decided: carry on with TOOK." with a `Decided` row
+  saved, or "Ask: your person is here or this kind waits for them. Ask
+  with message, as a question." Named and decided once, as `change`. Funds,
+  sign-ins, machines, a plan's go-ahead and anything hard to reverse are
+  kind `other`, by the charter's words (`../protocol/configuration.md`,
+  13.4). A goal that overturned words reach (`../client/README.md`, 3.5)
+  asks it with `message`, as a question, and waits. Nothing in the engine
+  answers a question for it, and one that skips the tool waits as ever.
 - **Declared, decoded and rendered in one place,** `temper-engine-smith`:
   each tool's JSON Schema, description and effect, written once
   (`delegate`'s and `amend`'s schemas name every field of the spec and
@@ -309,7 +329,13 @@ a chat that names none, runs with no workspace (worker.md, 4.1).
   asks again under the same name after busy or a lost answer (smith's
   `domain/run.md`, 5.2).
 - **An answer fits what the agent takes** (`domain/worker.md`, 4.3):
-  a call past the worker's input bound, `core.call_answer_bytes`, is
+  forge-read rendering uses the minimum of `core.call_answer_bytes` less
+  the tool name and the checked receiving `agent.limits.bodies.host_reply_text`.
+  The latter comes from the local agent's `agent.json`
+  `profile.declared.tool_payload`. Raising `core.call_answer_bytes` alone
+  cannot overcome a smaller agent allowance. Engine-only processes without
+  local agent metadata retain their configured core allowance.
+  A call past the worker's input bound, `core.call_answer_bytes`, is
   answered `call too large` under its name, and the run goes on (jig's
   worker link). An answer past the agent's `host_reply_bytes` (smith's,
   its channel's `host_reply_text`, the agent's `tool_payload`) reaches
@@ -738,7 +764,10 @@ temper's client decodes them as jig's client does (jig's
 `client/domain/client.md`, section 10). A run that resumes is given its
 transcript's current window and the calls committed after its last turn;
 past the resume limit, or when smith refuses the transcript, the next
-run starts fresh, its brief carrying the tail.
+run starts fresh, its brief carrying the tail when it is readable. If
+the saved window is unread, the first load spends a transient try; its
+retry starts fresh without the tail, keeping the person's pending words
+(jig's `domain/engine.md`, 7.2).
 
 ## 8. The agents temper runs
 
@@ -784,9 +813,11 @@ changes no admission or grant. These bounded diagnostics are not store rows
 or client wire fields, and overflow drops a fact and increments the root's
 lost-fact count. Claude built-in Read refusals instead retain the permission
 message in the recorded tool result (smith's `protocol/programs.md`, 5.4).
-A forge read whose rendered answer exceeds `core.call_answer_bytes` or
-`root.journal.transcript_bytes` returns a bounded error naming the exceeded
-limit and measured bytes, including the tool name. Its refusal fact names
+Forge file, directory, pull-file and compare replies fit the effective
+core and receiving-agent body allowance (section 4.3), retaining prefixes
+or actionable size feedback. A forge read still exceeding the core settled
+answer bound or `root.journal.transcript_bytes` returns a bounded error
+naming the exceeded limit and measured bytes, including the tool name. Its refusal fact names
 `host-render` and that limit. An oversized comparison points to `read_pull`
 for the head and `read_pull_files` pages; an oversized pull-file page points
 to directory and selected-file `read_file` calls at both endpoints with
@@ -807,7 +838,14 @@ agents must do stays text its runs read.
   paste, or a document in an adopted repository they point to by its
   path, which it reads with `read_file`. It reads the settings first,
   with `settings`: the inventory, then each setting the description
-  touches, whole. Settings pages use `core.call_answer_bytes` less the tool
+  touches, whole. The authorized inventory also names the caller project's
+  readable adopted repositories, each with the canonical host, owner and name
+  from its retained repository record. Other projects and ended forges are
+  excluded. These identities are read context, not settings or credentials;
+  setting, revision and history reads carry no repository context. A charter
+  document copies that host unchanged, including its port, and OWNER/NAME.
+  This lets a configuring chat name documents without a workspace or ctl.
+  Settings pages use `core.call_answer_bytes` less the tool
   name, reserving escaped framing and continuation markers. A long value
   fills the available page even after its heading; `next: OFFSET` counts
   original UTF-8 text bytes for exact reconstruction. This allowance is

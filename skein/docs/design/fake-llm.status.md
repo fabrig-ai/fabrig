@@ -1,6 +1,6 @@
 # fake-llm: status
 
-2026-11-03. Where skein's code lags or departs from [fake-llm.md](fake-llm.md).
+2026-11-05. Where skein's code lags or departs from [fake-llm.md](fake-llm.md).
 
 - **Departs:** 4: `skein/docs/foundation/testing-strategy.md`, 4 asks
   for no shared types, but this section designs a shared codec:
@@ -10,3 +10,8 @@
   amending `skein/docs/foundation/testing-strategy.md`, 4, settled when
   `skein/docs/development/debt/D043-browser-kit-json-and-tables.md` is
   planned.
+  3.1: a world may also have the peer keep each query's body as it read it,
+  inflated if it came in gzip (`Peer::keeping_bodies`, `Peer::bodies`,
+  `Server::keep_body`), because a test must compare a kept body with what
+  the provider read (`llm.status.md`); it comes out with that hook. Unasked,
+  nothing is kept, since the worlds count memory.

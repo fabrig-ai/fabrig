@@ -263,6 +263,17 @@ fn ask(service: &mut crate::Service, number: u64) {
     ask_copy(service, number, false);
 }
 fn ask_copy(service: &mut crate::Service, number: u64, playground: bool) {
+    ask_first(
+        service,
+        number,
+        domain::SetUpFirst::Empty {
+            playground,
+            org: if playground { b"playground".as_slice().into() } else { b"work".as_slice().into() },
+            repository: if playground { b"widget".as_slice().into() } else { b"hello".as_slice().into() },
+        },
+    );
+}
+fn ask_first(service: &mut crate::Service, number: u64, first: domain::SetUpFirst) {
     let engine = service.engine.as_mut().unwrap();
     engine.step(root::Event::Forge(Box::new(domain::Event::Connection {
         forge: 1,
@@ -274,12 +285,7 @@ fn ask_copy(service: &mut crate::Service, number: u64, playground: bool) {
         request: Token::new(number),
         token: Token::new(number.checked_add(1).unwrap()),
         retention: Duration::from_secs(60),
-        ask: domain::Ask::SetUp {
-            playground,
-            forge: domain::Making::Kept(1),
-            org: if playground { b"playground".as_slice().into() } else { b"work".as_slice().into() },
-            repository: if playground { b"widget".as_slice().into() } else { b"hello".as_slice().into() },
-        },
+        ask: domain::Ask::SetUp { forge: domain::Making::Kept(1), first },
     })));
     // Drive the root's journal seam, including its child continuations.
     for _ in 0_u32..256 {
@@ -453,3 +459,41 @@ fn playground_create_copies_the_fake_source_beside_the_starter_and_keeps_forgejo
 
 #[path = "setup_making.rs"]
 mod making_tests;
+
+#[test]
+fn deferred_setups_connect_without_create_or_a_first_repository() {
+    for (first, starts_with) in [
+        (domain::SetUpFirst::Nothing, domain::StartsWith::Nothing),
+        (
+            domain::SetUpFirst::Copies {
+                addresses: Box::new([Box::from(b"https://source.example/owner/repo".as_slice())]),
+            },
+            domain::StartsWith::Copies {
+                addresses: Box::new([Box::from(b"https://source.example/owner/repo".as_slice())]),
+            },
+        ),
+    ] {
+        let mut forge = Forge::new(false);
+        let mut service = configured(&forge);
+        let mut record = runtime_record(domain::Kind::Forgejo, domain::Mode::Owned);
+        record.number = 1;
+        let engine = service.engine.as_mut().unwrap();
+        engine.step(root::Event::Forge(Box::new(domain::Event::Restore { record: domain::Stored::Forge(record) })));
+        {
+            ask_first(&mut service, 91, first.clone());
+            forge.settle(&mut service);
+            let engine = service.engine.as_ref().unwrap();
+            let row = engine.domain.forges().rows[0].clone();
+            assert!(connected(engine));
+            assert_eq!(row.first, None);
+            assert_eq!(row.starts_with, starts_with);
+            assert!(engine.setup.runs.is_empty());
+            for line in forge.requests.as_slice() {
+                assert!(
+                    !line.starts_with(b"POST /api/v1/orgs") && !line.starts_with(b"GET /api/v1/orgs/"),
+                    "no Create: {line:?}"
+                );
+            }
+        }
+    }
+}

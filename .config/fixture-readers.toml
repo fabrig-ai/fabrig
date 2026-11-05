@@ -800,7 +800,7 @@ pair = "default"
 package = "hearth-protocol-builder"
 filter = "kind(lib)"
 
-# Shared builder helpers feed suite, real, conformance_render and hearth's binary tests.
+# Shared builder helpers feed suite, real and conformance_render.
 [[fixture]]
 paths = [
     "hearth/tests/builder/src/fixtures/*.rs",
@@ -823,14 +823,6 @@ filter = "binary(=real)"
 pair = "conformance-hearth"
 package = "hearth-builder-world"
 filter = "binary(=conformance_render)"
-[[fixture.reader]]
-pair = "default"
-package = "hearth"
-filter = "binary(=end_to_end)"
-[[fixture.reader]]
-pair = "default"
-package = "hearth"
-filter = "binary(=refusals)"
 
 # real/reserved/hearth.rs calls render_hearth(), whose HEARTH files include this declaration.
 [[fixture]]
@@ -860,7 +852,7 @@ pair = "fuzzy"
 package = "hearth-git-world"
 filter = "binary(=suite)"
 
-# Render suite and fuzzy helpers; builder suite/properties.rs also reads generated repositories.
+# Render suite and fuzzy helpers.
 [[fixture]]
 paths = [
     "hearth/tests/render/src/fixtures/*.rs",
@@ -872,8 +864,4 @@ filter = "binary(=suite)"
 [[fixture.reader]]
 pair = "fuzzy"
 package = "hearth-render-world"
-filter = "binary(=suite)"
-[[fixture.reader]]
-pair = "default"
-package = "hearth-builder-world"
 filter = "binary(=suite)"

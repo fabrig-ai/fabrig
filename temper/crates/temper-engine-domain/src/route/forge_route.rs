@@ -15,9 +15,13 @@ pub(crate) const CHANGE_CODE: u32 = 2;
 const FOREMAN_CHARTER: u32 = 6;
 pub(crate) const LANDING_CODE: u32 = 3;
 pub(crate) const AFTER_LANDING_CODE: u32 = 4;
+pub(crate) const STATUS_CODE: u32 = 5;
+const STATUS_CHARTER: u32 = 9;
 use jig_domain_core::effects::connector::{EffectDescription, EffectForm, Recovery};
 
 mod change_llm;
+mod status_route;
+pub(crate) use status_route::{refused as status_refused, start_status_step};
 mod tier_route;
 pub(crate) use tier_route::start_tier_step;
 use tier_route::{describe_tier_effect, start_tier_run, tier_decision};
@@ -32,7 +36,7 @@ mod foreman;
 mod holds;
 mod relay;
 pub(crate) use holds::{hold as hold_reason, refused_step, start_refused};
-pub(crate) use relay::{ChangeStep, refused as relay_refused};
+pub(crate) use relay::{ChangeStep, own_agents_words, refused as relay_refused};
 
 mod merge;
 
@@ -1673,6 +1677,9 @@ pub(crate) fn run_workspace(
     context: &tasks::RunContext,
     _attempt: u64,
 ) -> Option<RunWorkspace> {
+    if context.executor == (tasks::Executor::Agent { charter: STATUS_CHARTER }) {
+        return Some(status_route::workspace(context.task));
+    }
     let root = domain.core.tasks.root(context.task)?;
     let parent = match context.requester {
         tasks::Party::Task(task) => Some(task),
@@ -2138,7 +2145,7 @@ fn initial_change_title(parameters: &[tasks::Parameter]) -> Box<[u8]> {
     }
     match title {
         Some(title) if !title.is_empty() => forge::text::fit(title, 256, "…".as_bytes()),
-        Some(_) | None => Box::from(b"Update repository".as_slice()),
+        Some(_) | None => Box::from(forge::DEFAULT_CHANGE_TITLE),
     }
 }
 
@@ -2178,6 +2185,23 @@ fn change_delegate_status(kind: &tasks::MessageKind) -> Option<(forge_change::St
         | tasks::MessageKind::PersonStalled { .. }
         | tasks::MessageKind::EffectNotMade { .. }
         | tasks::MessageKind::News { .. } => None,
+    }
+}
+
+// A task between attempts is not a run in progress (temper/docs/design/domain/forge.md, 8.4).
+fn change_delegate_running(domain: &Domain, task: u64) -> bool {
+    let Some(row) = domain.forge.change(task) else { return false };
+    let Some((child, _)) = row.delegate else { return false };
+    let Some(child) = domain.core.tasks.task(child) else { return false };
+    match &child.phase {
+        tasks::Phase::Active(active) | tasks::Phase::Held { was: tasks::Was::Active(active), .. } => match active {
+            tasks::Active::Claimed { .. } | tasks::Active::Running { .. } => true,
+            tasks::Active::Idle | tasks::Active::Due | tasks::Active::Preparing | tasks::Active::BackingOff { .. } => {
+                false
+            }
+        },
+        tasks::Phase::Closing(_) | tasks::Phase::Held { was: tasks::Was::Closing(_), .. } => true,
+        tasks::Phase::Waiting | tasks::Phase::Held { was: tasks::Was::Waiting, .. } | tasks::Phase::Ended(_) => false,
     }
 }
 
@@ -2398,7 +2422,22 @@ pub(crate) fn start_change(domain: &mut Domain, env: &Env<Limits>, context: &tas
             )
             .expect("one released relay per change step");
     }
-    domain.work.push(Work::Forge(forge::Event::StepChange {
+    let step = change_step(domain, env, task, entry, provider, &base, false);
+    domain.work.push(Work::Forge(step));
+    true
+}
+
+// Both a due procedure and a CI hold read the same coherent snapshot (domain/forge.md, 8.4).
+fn change_step(
+    domain: &Domain,
+    env: &Env<Limits>,
+    task: u64,
+    entry: u64,
+    provider: skein_forge::api::Repository,
+    base: &[u8],
+    held_read: bool,
+) -> forge::Event {
+    forge::Event::StepChange {
         merge_job: match domain.core.tasks.delegation(task) {
             Some(context) => {
                 context.authority.delegation.kinds.contains(&tasks::AuthorityExecutor::Job(forge::MERGE_KIND))
@@ -2408,54 +2447,82 @@ pub(crate) fn start_change(domain: &mut Domain, env: &Env<Limits>, context: &tas
         task,
         entry,
         kept: landing_route::kept(domain, env, task),
-        pending: landing_route::pending(domain, env, task, provider, &base),
+        pending: landing_route::pending(domain, env, task, provider, base),
         heard: forge_change::Heard {
             start_conflict: None,
             lacking: change_authority_lack(domain, task),
             spend: change_spend(domain, task),
             delegate: forge_change::Status::Unknown,
+            delegate_running: change_delegate_running(domain, task),
             effect: forge_change::EffectResult::None,
-            // A held procedure can only run again once jig has lifted its hold.
-            // The forge consumes this before starting any asynchronous reads.
-            released: match (domain.forge.change(task), domain.core.tasks.task(task)) {
-                (Some(change), Some(task)) => {
-                    let held = match &change.change.state {
-                        forge_change::State::Held { .. } => true,
-                        forge_change::State::Producing { .. }
-                        | forge_change::State::Opening { .. }
-                        | forge_change::State::Recreating { .. }
-                        | forge_change::State::Reopening { .. }
-                        | forge_change::State::Checking { .. }
-                        | forge_change::State::Gating { .. }
-                        | forge_change::State::CancellingGates { .. }
-                        | forge_change::State::Ready { .. }
-                        | forge_change::State::Preparing { .. }
-                        | forge_change::State::Queued { .. }
-                        | forge_change::State::First { .. }
-                        | forge_change::State::Updating { .. }
-                        | forge_change::State::Resolving { .. }
-                        | forge_change::State::Repairing { .. }
-                        | forge_change::State::Landing { .. }
-                        | forge_change::State::Landed { .. }
-                        | forge_change::State::Red { .. }
-                        | forge_change::State::Cleared { .. }
-                        | forge_change::State::Uncleared { .. }
-                        | forge_change::State::NoChange { .. }
-                        | forge_change::State::Ended => false,
-                    };
-                    held && task.due_reason == tasks::Why::Released
-                }
-                _ => false,
-            },
+            // A held read is no release, even if a past release remains the task's due reason.
+            // The forge consumes a person's release before starting asynchronous reads.
+            released: !held_read
+                && match (domain.forge.change(task), domain.core.tasks.task(task)) {
+                    (Some(change), Some(task)) => {
+                        let held = match &change.change.state {
+                            forge_change::State::Held { .. } => true,
+                            forge_change::State::Producing { .. }
+                            | forge_change::State::Opening { .. }
+                            | forge_change::State::Recreating { .. }
+                            | forge_change::State::Reopening { .. }
+                            | forge_change::State::Checking { .. }
+                            | forge_change::State::Gating { .. }
+                            | forge_change::State::CancellingGates { .. }
+                            | forge_change::State::Ready { .. }
+                            | forge_change::State::Preparing { .. }
+                            | forge_change::State::Queued { .. }
+                            | forge_change::State::First { .. }
+                            | forge_change::State::Updating { .. }
+                            | forge_change::State::Resolving { .. }
+                            | forge_change::State::Repairing { .. }
+                            | forge_change::State::Landing { .. }
+                            | forge_change::State::Landed { .. }
+                            | forge_change::State::Red { .. }
+                            | forge_change::State::Cleared { .. }
+                            | forge_change::State::Uncleared { .. }
+                            | forge_change::State::NoChange { .. }
+                            | forge_change::State::Ended => false,
+                        };
+                        held && task.due_reason == tasks::Why::Released
+                    }
+                    _ => false,
+                },
             cancelled: false,
         },
         gates: Box::new([]),
-        queue_repair_active: match domain.forge.queue_repair(provider, &base) {
+        queue_repair_active: match domain.forge.queue_repair(provider, base) {
             Some((_, repair)) => domain.core.tasks.task(repair).is_some(),
             None => false,
         },
-    }));
-    true
+    }
+}
+
+// Only a procedure's own hold can be released by the deployment (jig's domain/tasks.md, 7).
+fn own_hold(task: &tasks::TaskRecord) -> bool {
+    if task.placed.is_some() {
+        return false;
+    }
+    match task.phase {
+        tasks::Phase::Held { why, .. } => match why {
+            tasks::Hold::Procedure | tasks::Hold::EffectFailed | tasks::Hold::Stalled | tasks::Hold::Budget => true,
+            tasks::Hold::Exceeded(_)
+            | tasks::Hold::Failures(_)
+            | tasks::Hold::Dependency(_)
+            | tasks::Hold::Stopped
+            | tasks::Hold::Placed { .. }
+            | tasks::Hold::Drift
+            | tasks::Hold::Effects
+            | tasks::Hold::Uncertain { .. }
+            | tasks::Hold::Deadline
+            | tasks::Hold::HoldsWaited
+            | tasks::Hold::ResourceUnavailable
+            | tasks::Hold::ResourceAccess
+            | tasks::Hold::PoolLost { .. }
+            | tasks::Hold::Circle => false,
+        },
+        tasks::Phase::Waiting | tasks::Phase::Active(_) | tasks::Phase::Closing(_) | tasks::Phase::Ended(_) => false,
+    }
 }
 
 /// The code-2 procedure's repository and landing parameters, shared by chat
@@ -2604,7 +2671,7 @@ pub(crate) fn change_batch(
         return Err(ChangeRefused::Refusal(tasks::Refusal::Batch));
     }
     let spend = change_batch_spend(context, count)?;
-    let rooms = change_task_rooms(env, context.tasks_left, changes, count)?;
+    let rooms = change_task_rooms(domain, env, context, changes, count)?;
     let mut batch = List::with_capacity(count);
     for (index, change) in changes.iter().enumerate() {
         let earlier = changes.get(..index).expect("earlier changes in this batch");
@@ -2622,11 +2689,13 @@ pub(crate) fn change_batch(
 
 /// Share descendants equally, redistributing room beyond a member's policy cap.
 fn change_task_rooms(
+    domain: &Domain,
     env: &Env<Limits>,
-    available: u32,
+    context: &tasks::DelegationContext,
     changes: &[crate::ChangeCall],
     count: u32,
 ) -> Result<Box<[u32]>, ChangeRefused> {
+    let available = context.tasks_left;
     if count == 1 && available == 0 {
         return Ok(Box::new([0]));
     }
@@ -2648,7 +2717,7 @@ fn change_task_rooms(
         let share = left.checked_div(active).expect("nonempty share").max(1);
         active = 0;
         for (room, change) in rooms.iter_mut().zip(changes) {
-            let cap = change_task_limit(env, change);
+            let cap = change_task_limit(env, change_questions(domain, context.project, change));
             let take = cap.saturating_sub(*room).min(share).min(left);
             *room = room.saturating_add(take);
             left = left.saturating_sub(take);
@@ -2660,13 +2729,18 @@ fn change_task_rooms(
     Ok(rooms)
 }
 
-fn change_task_limit(env: &Env<Limits>, change: &crate::ChangeCall) -> u32 {
-    let policy = env.limits.forge.change_policy;
-    if change.questions == Some(crate::ChangeQuestions::Foreman) {
-        policy.tasks.saturating_add(policy.questions)
-    } else {
-        policy.tasks
+fn change_questions(domain: &Domain, project: u32, change: &crate::ChangeCall) -> forge_change::Route {
+    match change.questions {
+        Some(crate::ChangeQuestions::None) => forge_change::Route::None,
+        Some(crate::ChangeQuestions::Foreman) => forge_change::Route::Foreman,
+        Some(crate::ChangeQuestions::Up) => forge_change::Route::Up,
+        None => domain.forge.project_questions(project),
     }
+}
+
+fn change_task_limit(env: &Env<Limits>, questions: forge_change::Route) -> u32 {
+    let policy = env.limits.forge.change_policy;
+    if questions == forge_change::Route::Foreman { policy.tasks.saturating_add(policy.questions) } else { policy.tasks }
 }
 
 fn change_task_refusal(available: u32, count: u32) -> ChangeRefused {
@@ -3025,7 +3099,8 @@ fn chat_change(
     if producer_charter != review_charter {
         kinds.push(tasks::AuthorityExecutor::Charter(review_charter)).expect("review kind");
     }
-    let foreman = change.questions == Some(crate::ChangeQuestions::Foreman);
+    let questions = change_questions(domain, repository.project, change);
+    let foreman = questions == forge_change::Route::Foreman;
     if foreman && !kinds.as_slice().contains(&tasks::AuthorityExecutor::Charter(FOREMAN_CHARTER)) {
         kinds.push(tasks::AuthorityExecutor::Charter(FOREMAN_CHARTER)).expect("foreman kind");
     }
@@ -3040,7 +3115,7 @@ fn chat_change(
         kinds.push(tasks::AuthorityExecutor::Job(forge::MERGE_KIND)).expect("merge kind");
     }
     authority.delegation.kinds = kinds.into_boxed();
-    authority.delegation.tasks = change_task_limit(env, change).min(context.tasks_left.saturating_sub(1));
+    authority.delegation.tasks = change_task_limit(env, questions).min(context.tasks_left.saturating_sub(1));
     authority.delegation.depth = 2.min(authority.delegation.depth.saturating_sub(1));
     authority.budget.spend = spend;
     authority.notes = tasks::Scopes(0);
@@ -3076,10 +3151,10 @@ fn chat_change(
     {
         return Err(tasks::Refusal::Spec);
     }
-    let route = match change.questions {
-        Some(crate::ChangeQuestions::Foreman) => Some(1),
-        Some(crate::ChangeQuestions::Up) => Some(2),
-        None | Some(crate::ChangeQuestions::None) => None,
+    let route = match questions {
+        forge_change::Route::Foreman => Some(1),
+        forge_change::Route::Up => Some(2),
+        forge_change::Route::None => None,
     };
     if let Some(value) = route
         && parameters.push(tasks::Parameter::Number { name: 14, value }).is_err()
@@ -3535,8 +3610,11 @@ fn repair_words(
     let tail = u32::try_from(previous.len().checked_add(REPAIR_PRESERVATION.len())?.checked_add(1)?).ok()?;
     let mut identity = List::with_capacity(room.checked_sub(tail)?);
     let opening = repair_opening(row, why)?;
-    // Keep the opening and head whole even under a small task spec bound.
-    if usize::try_from(identity.room()).ok()? < opening.len().checked_add(14)? {
+    let unnamed_ci =
+        why == forge_change::Repair::Ci && (row.result.head != Some(head) || row.result.failed.bytes.is_empty());
+    let name_bytes = if unnamed_ci { b"no failed check named".len() } else { 1 };
+    // Keep the opening, head and an explicit name even under a small task spec bound.
+    if usize::try_from(identity.room()).ok()? < opening.len().checked_add(14)?.checked_add(name_bytes)? {
         return None;
     }
     append(&mut identity, &opening);
@@ -3544,8 +3622,10 @@ fn repair_words(
     append(&mut identity, b": ");
     match why {
         forge_change::Repair::Ci => {
-            if row.result.head == Some(head) {
+            if row.result.head == Some(head) && !row.result.failed.bytes.is_empty() {
                 append(&mut identity, &row.result.failed.bytes);
+            } else {
+                append(&mut identity, b"no failed check named");
             }
         }
         forge_change::Repair::Semantic => append(&mut identity, &row.base),
@@ -3844,25 +3924,47 @@ fn authority_hold_message(
     Some(jig_domain_core::StepMessage { target, kind: tasks::MessageKind::Words, words: words.into_boxed() })
 }
 
-fn producer_failure_words(domain: &Domain, task: u64) -> Option<Box<[u8]>> {
+fn producer_failure_words(domain: &Domain, task: u64) -> Option<(tasks::Hold, Box<[u8]>)> {
     let row = domain.forge.change(task)?;
     let forge_change::State::Held { was, .. } = &row.change.state else { return None };
-    let forge_change::State::Producing { .. } = was.as_ref() else { return None };
+    let category = match was.as_ref() {
+        forge_change::State::Producing { .. } => tasks::Hold::EffectFailed,
+        forge_change::State::Repairing { .. } | forge_change::State::Resolving { .. } => tasks::Hold::Procedure,
+        forge_change::State::Opening { .. }
+        | forge_change::State::Recreating { .. }
+        | forge_change::State::Reopening { .. }
+        | forge_change::State::Checking { .. }
+        | forge_change::State::Gating { .. }
+        | forge_change::State::Ready { .. }
+        | forge_change::State::Preparing { .. }
+        | forge_change::State::CancellingGates { .. }
+        | forge_change::State::Queued { .. }
+        | forge_change::State::First { .. }
+        | forge_change::State::Updating { .. }
+        | forge_change::State::Landing { .. }
+        | forge_change::State::Landed { .. }
+        | forge_change::State::NoChange { .. }
+        | forge_change::State::Ended
+        | forge_change::State::Held { .. }
+        | forge_change::State::Red { .. }
+        | forge_change::State::Cleared { .. }
+        | forge_change::State::Uncleared { .. } => return None,
+    };
     match &row.producer_failure {
-        Some(words) => Some(words.clone()),
-        None if row.delegate_status == forge_change::Status::Failed => {
-            Some(Box::from(b"producer failed for good without an account".as_slice()))
+        Some(words) => Some((category, words.clone())),
+        None if category == tasks::Hold::EffectFailed && row.delegate_status == forge_change::Status::Failed => {
+            Some((category, Box::from(b"producer failed for good without an account".as_slice())))
         }
         None => None,
     }
 }
 
 fn hold_change_decision(domain: &Domain, env: &Env<Limits>, task: u64, why: forge_change::Hold) -> ProcedureStep {
-    // The hold keeps the producer's account whole; its inbox notice has its own bound.
+    // The hold keeps the delegate's account whole; its inbox notice has its own bound.
     if why == forge_change::Hold::Failed
-        && let Some(words) = producer_failure_words(domain, task)
+        && let Some((category, words)) = producer_failure_words(domain, task)
     {
-        return holds::decision_as(domain, env, task, tasks::Hold::EffectFailed, words);
+        return holds::decision_as(domain, env, task, category, words);
     }
     let account = if why == forge_change::Hold::Questions {
         let bound = skein_lib::Decimal::of(u64::from(env.limits.forge.change_policy.questions));
@@ -3952,6 +4054,36 @@ fn cancel_change_gates(domain: &Domain, task: u64, head: [u8; 32]) -> ProcedureS
     ProcedureStep { cancels, ..ProcedureStep::new(StepEnd::Wait) }
 }
 
+fn cancel_change_repair(domain: &Domain, task: u64, head: [u8; 32]) -> ProcedureStep {
+    let child = match domain.forge.change(task) {
+        Some(row) => match row.delegate {
+            Some((child, forge_change::Delegate::Repair(_))) if domain.core.tasks.task(child).is_some() => Some(child),
+            Some((
+                _,
+                forge_change::Delegate::Produce
+                | forge_change::Delegate::Repair(_)
+                | forge_change::Delegate::Resolve { .. }
+                | forge_change::Delegate::Gate { .. }
+                | forge_change::Delegate::Merge { .. },
+            ))
+            | None => None,
+        },
+        None => None,
+    };
+    let cancels: Box<[jig_domain_core::StepCancel]> = match child {
+        Some(child) => {
+            let mut reason = List::with_capacity(96);
+            append(&mut reason, b"CI passed at head ");
+            for byte in &head {
+                append(&mut reason, &forge::hex(*byte));
+            }
+            Box::new([jig_domain_core::StepCancel { task: child, reason: reason.into_boxed(), grace: None }])
+        }
+        None => Box::new([]),
+    };
+    ProcedureStep { cancels, ..ProcedureStep::new(StepEnd::Wait) }
+}
+
 fn change_result_bound(domain: &Domain, task: u64) -> u32 {
     match domain.core.tasks.task(task) {
         Some(row) => match row.contract {
@@ -4016,6 +4148,16 @@ fn cancel_change(domain: &mut Domain, task: u64) {
         reply_to: super::internal(u64::MAX),
         by: tasks::Party::Deployment { project: row.project },
         operation: tasks::Cancel { task, reason: Box::new([]), grace: None, message: None },
+    }));
+}
+
+// The deployment records the vanished CI cause through the task's release path (domain/forge.md, 8.4).
+fn end_change_hold(domain: &mut Domain, task: u64) {
+    let Some(row) = domain.core.tasks.task(task) else { return };
+    domain.work.push(Work::Tasks(tasks::Event::Release {
+        reply_to: super::internal(u64::MAX),
+        by: tasks::Party::Deployment { project: row.project },
+        operation: tasks::Release { task, again: None, message: None },
     }));
 }
 
@@ -4178,6 +4320,8 @@ fn change_decision(domain: &mut Domain, env: &Env<Limits>, task: u64, choice: fo
         }
         forge_change::Decision::Hold(why) => hold_change_decision(domain, env, task, why),
         forge_change::Decision::CancelGates { head } => cancel_change_gates(domain, task, head),
+        forge_change::Decision::CancelRepair { head } => cancel_change_repair(domain, task, head),
+        forge_change::Decision::RepairEnded { .. } => unreachable!("the forge top consumes a repair ended by green CI"),
         forge_change::Decision::Ready => {
             again = ready_change(domain, env, task);
             ProcedureStep::new(StepEnd::Wait)
@@ -4192,6 +4336,7 @@ fn change_decision(domain: &mut Domain, env: &Env<Limits>, task: u64, choice: fo
         }
         forge_change::Decision::Wait { until } => wait_change_decision(domain, env, task, until),
         forge_change::Decision::Cancel => unreachable!("cancel is routed before procedure admission"),
+        forge_change::Decision::EndHold => unreachable!("ending a CI hold is routed before procedure admission"),
         forge_change::Decision::CancelProducer => cancel_change_producer(domain, task),
         forge_change::Decision::None | forge_change::Decision::Effect(_) => ProcedureStep::new(StepEnd::Wait),
         forge_change::Decision::Delegate(kind) => {
@@ -4220,6 +4365,10 @@ pub(crate) fn outputs(
     for _ in 0..out.len() {
         let request = out.pop().expect("connector output count");
         match request {
+            forge::Request::Decided { to, key, took } => {
+                decide_call(domain, &env.limits, decision, to, core_call(key), CallAnswer::Decided { took });
+            }
+
             forge::Request::MakingCopied { key } => {
                 assert!(super::now(domain, Request::MakingCopied { key }), "making copy door reserved");
             }
@@ -4238,6 +4387,12 @@ pub(crate) fn outputs(
             }
             forge::Request::Manifest { forge, request, back } => {
                 assert!(super::now(domain, Request::Manifest { forge, request, back }), "manifest door");
+            }
+            forge::Request::AdoptAccess { forge, request, owner, name } => {
+                assert!(
+                    super::now(domain, Request::AdoptAccess { forge, request, owner, name }),
+                    "adoption access door"
+                );
             }
             forge::Request::Reachable { forge, request, installation, page } => {
                 assert!(
@@ -4270,11 +4425,8 @@ pub(crate) fn outputs(
             forge::Request::BoxRemove { forge } => {
                 assert!(super::now(domain, Request::BoxRemove { forge }), "box removal door");
             }
-            forge::Request::SetUp { forge, request, org, repository, playground } => {
-                assert!(
-                    super::now(domain, Request::SetUp { forge, request, org, repository, playground }),
-                    "forge set up door reserved"
-                );
+            forge::Request::SetUp { forge, request, first } => {
+                assert!(super::now(domain, Request::SetUp { forge, request, first }), "forge set up door reserved");
             }
             forge::Request::ApplicationPart { request, adoption, repository } => {
                 super::applications::part(domain, request, adoption, repository);
@@ -4293,6 +4445,14 @@ pub(crate) fn outputs(
                 // A restored change also repairs names saved before its pull was known.
                 if let Some(row) = domain.forge.change(task).cloned() {
                     watch_change_pull(domain, env, &row);
+                    if forge_change::held_on_ci(&row.change.state)
+                        && let Some(record) = domain.core.tasks.task(task)
+                        && own_hold(record)
+                        && let Some(entry) = crate::fresh(&mut domain.core.counters, Family::ConnectorRow)
+                    {
+                        let step = change_step(domain, env, task, entry, row.repository, &row.base, true);
+                        domain.work.push(Work::Forge(step));
+                    }
                 }
                 domain.work.push(Work::Tasks(tasks::Event::WakeProcedure { task }));
             }
@@ -4325,11 +4485,35 @@ pub(crate) fn outputs(
                 let Some(row) = domain.brief_connectors.get(Id::from_token(section)) else { continue };
                 let brief = Token::new(row.task);
                 let event = match size {
-                    Some(size) if row.cutting => brief::GatherEvent::Cut { brief, section, size },
-                    Some(size) => brief::GatherEvent::Ready { brief, section, size },
-                    None => brief::GatherEvent::Missing { brief, section },
+                    Ok(size) if row.cutting => brief::GatherEvent::Cut { brief, section, size },
+                    Ok(size) => brief::GatherEvent::Ready { brief, section, size },
+                    Err(unread) => brief::GatherEvent::Missing {
+                        brief,
+                        section,
+                        why: brief::GatherFailure {
+                            fate: match unread.fate {
+                                forge::BriefFate::Capacity => brief::GatherFate::Capacity,
+                                forge::BriefFate::Transient => brief::GatherFate::Transient,
+                                forge::BriefFate::Permanent => brief::GatherFate::Permanent,
+                            },
+                            section: crate::assemble::forge_brief_name(&row.kind),
+                            words: unread.words,
+                        },
+                    },
                 };
                 domain.work.push(Work::Brief(event));
+            }
+            forge::Request::BriefReadRefused { section, stage, error } => {
+                let Some(row) = domain.brief_connectors.get(Id::from_token(section)) else { continue };
+                super::diagnostics::emit(
+                    domain,
+                    crate::Fact::BriefReadRefused {
+                        task: row.task,
+                        section: crate::assemble::forge_brief_name(&row.kind),
+                        stage,
+                        error,
+                    },
+                );
             }
             forge::Request::BriefTaken { .. } => unreachable!("the root takes completed sections directly"),
             forge::Request::MarkedForges => domain.mark_forges(),
@@ -4655,6 +4839,7 @@ pub(crate) fn outputs(
                     holds::drift(domain, task, &resource);
                 }
             }
+            forge::Request::StatusRun { project, words } => status_route::start_status_run(domain, env, project, words),
             forge::Request::TierRun { repository, tier, number, tip } => {
                 start_tier_run(domain, env, repository, tier, number, tip);
             }
@@ -4796,12 +4981,15 @@ pub(crate) fn outputs(
                 | forge_change::Decision::Wait { .. }
                 | forge_change::Decision::Delegate(_)
                 | forge_change::Decision::CancelGates { .. }
+                | forge_change::Decision::CancelRepair { .. }
+                | forge_change::Decision::RepairEnded { .. }
                 | forge_change::Decision::Ready
                 | forge_change::Decision::QueueRepair
                 | forge_change::Decision::NoChange
                 | forge_change::Decision::Finish { .. }
                 | forge_change::Decision::Hold(_) => change_decision(domain, env, task, choice),
                 forge_change::Decision::Cancel => cancel_change(domain, task),
+                forge_change::Decision::EndHold => end_change_hold(domain, task),
             },
             forge::Request::ProjectionSettled { goal } => {
                 domain.forge.projection_settled(goal);
@@ -4931,8 +5119,10 @@ pub(crate) fn effect_answer(domain: &Domain, key: CallKey, part: &jig_domain_cor
             Some(answer) => answer,
             None => CallAnswer::from_core(part).expect("core effect status"),
         },
-        jig_domain_core::CallPart::Connector { .. }
-        | jig_domain_core::CallPart::EffectDenied { .. }
+        jig_domain_core::CallPart::Connector { .. } => {
+            connector_answer(domain, key).expect("connector owns its answer")
+        }
+        jig_domain_core::CallPart::EffectDenied { .. }
         | jig_domain_core::CallPart::ToolDenied { .. }
         | jig_domain_core::CallPart::EscalationDecided { .. }
         | jig_domain_core::CallPart::EscalationRefused(_)

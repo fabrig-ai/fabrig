@@ -90,6 +90,7 @@ fn a_rows_makings_are_delivered_in_order() {
                 w::ForgeRow::new(
                     &limits,
                     w::ForgeRowParts {
+                        starts_with: w::StartsWith::Repository,
                         number,
                         host: b"git.example:3000".as_slice().into(),
                         kind: w::Kind::Forgejo,
@@ -206,4 +207,43 @@ fn the_row_says_what_it_is() {
         row.state = failed(step);
         assert_eq!(phrase(&row).as_ref(), words);
     }
+}
+
+#[test]
+fn welcome_copies_read_the_mocks_forms_in_order() {
+    use super::{CopiesRefused as R, parse_copies};
+    for input in [
+        "source.invalid/team/widget",
+        "https://source.invalid/team/widget",
+        "http://source.invalid/team/widget",
+        "source.invalid/team/widget.git",
+        "source.invalid/team/widget///",
+        "https://source.invalid/team/widget.git/",
+    ] {
+        assert_eq!(
+            parse_copies(input.as_bytes()).unwrap().as_slice(),
+            [Box::from(b"https://source.invalid/team/widget".as_slice())],
+            "{input}"
+        );
+    }
+    assert_eq!(
+        parse_copies(b" \n acme/one \n\nhttp://source.invalid/team/two.git\r\n").unwrap().as_slice(),
+        [
+            Box::from(b"https://github.com/acme/one".as_slice()),
+            Box::from(b"https://source.invalid/team/two".as_slice()),
+        ]
+    );
+    assert_eq!(
+        parse_copies(b"source.invalid:8443/o/n").unwrap().as_slice(),
+        [Box::from(b"https://source.invalid:8443/o/n".as_slice())]
+    );
+    for input in ["a/b/c/d", "host.invalid//n", "git@host:o/n", " a ", "source.invalid:0/o/n", "host.invalid/o/n?x"] {
+        assert_eq!(parse_copies(input.as_bytes()), Err(R::NotAnAddress(input.trim().as_bytes().into())), "{input}");
+    }
+    for input in ["", " \n\r\n", "https://\n.git\n///"] {
+        assert_eq!(parse_copies(input.as_bytes()), Err(R::NoAddress));
+    }
+    let lines = skein_lib::bytes::concat(&[b"a/b\n".as_slice(); 17]);
+    assert_eq!(parse_copies(lines.get(..64).unwrap()).unwrap().len(), 16);
+    assert_eq!(parse_copies(&lines), Err(R::TooMany));
 }

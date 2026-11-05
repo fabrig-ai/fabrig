@@ -42,6 +42,7 @@ pub(crate) fn text(
             None => out.put(b"none"),
         }
         out.put(b"\n");
+        settings_form::render::stock_text(&a::form_read_value(value), out);
         if let Some(state) = &document.application {
             application_text(state, out);
         }

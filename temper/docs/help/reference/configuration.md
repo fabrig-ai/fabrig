@@ -128,7 +128,7 @@ Shape: `landing-project`. Paths: `application.landing.projects[]`. One project�
 - `project`: integer, at most 4,294,967,295; unique; required; init leaves it out. The project number whose landing way is configured.
 - `rules`: refused: landing rules live in the store; read them with temper ctl settings show landing-rule --project
 - `by`: text, queue or turn; queue when absent; optional; init leaves it out. The project’s way of landing changes.
-- `merge_job`: text, relative repository path without parent segments; 1 to 4,096 bytes; optional; init leaves it out. The merge command run from the repository root.
+- `merge_job`: text, relative repository path without parent segments; 1 to 4,096 bytes; optional; init leaves it out. The merge command’s path from the repository root; see The merge command, below.
 - `gates`: list of repository-checks, at most forge.repositories; optional; init leaves it out. Each repository’s test gates and tiers.
 - `tier_retries`: integer, 0 to 255; 2 when absent; optional; init leaves it out. How many times a failing tier may be retried.
 - `verification_bound_ms`: integer, at most 18,446,744,073,709,551,615; 7,200,000 when absent; optional; init leaves it out. The verification time bound in milliseconds.
@@ -276,3 +276,22 @@ Shape: `machine-tls`. Paths: `application.machine.github.transport.tls`. TLS ide
 
 - `server_name`: text, at most 4,096 bytes; required; init leaves it out. The server name checked during the TLS handshake.
 - `trust`: text or null, at most 1,048,576 bytes; required; init leaves it out. The trust roots, or null for the machine’s roots.
+
+## The merge command
+
+`merge_job` names this command, a path in the repository being merged. It settles the conflicts its project's rules know, with no model, before an agent is asked. temper takes it from the merge in progress: a command file left in conflict, or absent from the merge, is its failure.
+
+- **What it is given:** its arguments, `merge` and the path of `request.json`, which holds `{"version":1,"head":"HEAD","base":"BASE"}`: the head merged into, and the commit merged in. Its environment is `PATH` (`/usr/bin:/bin`), `LANG` (`C.UTF-8`), and `HOME` and `TEMPER_JOB`, both the job's directory, which is its working directory too. No credential reaches it. It has 600 seconds.
+- **Where it works:** the repository is the directory of its own name under `TEMPER_JOB`, at the head with the base merged in and not committed; the conflicting files are marked and unmerged in the index (`git diff --name-only --diff-filter=U`).
+- **What it must do:** edit the conflicting files it knows and `git add` each it settles, without committing, aborting the merge or writing another branch; then write `result.json` in `TEMPER_JOB`, at most 512 bytes. Where the paths do not fit, it lists those that do, in index order, and adds `"more":N`, the count left out. The same head and base must give the same tree.
+- **Exit 0:** `{"settled":[PATH]}`, no file left unmerged: temper commits the tree as the merge, with both parents, and pushes it. A file left unmerged or still marked fails the job.
+- **Exit 3:** `{"settled":[PATH],"left":[PATH]}`, the conflicts it could not settle: nothing is committed or pushed, and an agent resolves them in a merge made afresh, this result in its words.
+- **Any other exit,** or a result missing or past its bound, is the command's failure. A job that fails for good holds the change, as a resolution that fails does.
+
+## More slots
+
+`workers[0].slots` bounds the runs a worker hosts at once, an agent process each. The host's agents follow it, and nothing in `agent.json` raises them. Each of these must be at least the slots, and a start names the one that's short:
+
+- `hub.slots`, in `workers[0].limits.overrides`.
+- `fleet.slots`, in `engine.limits.overrides`. An engine alone can't see a worker's slots: it uses them up to this, and turns away a hello listing more runs.
+- `checkout.workspaces`, in `application.limits.overrides`, and `git_component.operations` there, at least the workspaces.

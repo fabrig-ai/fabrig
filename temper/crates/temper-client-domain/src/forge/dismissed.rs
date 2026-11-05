@@ -11,7 +11,7 @@ pub enum PersonFact {
     /// "Skip" on the project's "To begin".
     ToBegin { project: u32 },
     /// The person started `goal` from `chat`'s document.
-    GoalFrom { project: u32, chat: u64, goal: u64 },
+    GoalFrom { project: u32, chat: u64, goal: u64, at: u64 },
 }
 
 /// An ended watch stays ended until the next sign-in.
@@ -41,9 +41,9 @@ pub fn ask(what: PersonFact, limits: &Limits) -> Option<Ask> {
         PersonFact::ToBegin { project } => {
             (project, w::PersonFact::ToBegin(w::ToBegin::new(&bounds, w::ToBeginParts { project }).ok()?))
         }
-        PersonFact::GoalFrom { project, chat, goal } => (
+        PersonFact::GoalFrom { project, chat, goal, at } => (
             project,
-            w::PersonFact::GoalFrom(w::GoalFrom::new(&bounds, w::GoalFromParts { project, chat, goal }).ok()?),
+            w::PersonFact::GoalFrom(w::GoalFrom::new(&bounds, w::GoalFromParts { project, chat, goal, at }).ok()?),
         ),
     };
     let dismiss = w::Dismiss::new(&bounds, w::DismissParts { what }).ok()?;
@@ -55,6 +55,15 @@ pub fn ask(what: PersonFact, limits: &Limits) -> Option<Ask> {
 }
 
 impl Side {
+    /// The dismissals have been delivered or their watch has ended.
+    #[must_use]
+    pub fn settled(&self) -> bool {
+        match self.dismissed {
+            State::Unknown => false,
+            State::Rows(_) | State::Ended => true,
+        }
+    }
+
     /// `None` until the first document, or once the watch is refused or ended.
     #[must_use]
     pub fn dismissed(&self, what: PersonFact) -> Option<bool> {
@@ -68,16 +77,16 @@ impl Side {
         clippy::disallowed_methods,
         reason = "the person facts contract exposes a filtered iterator over the party's rows"
     )]
-    pub fn goals_from(&self, project: u32, chat: u64) -> impl Iterator<Item = u64> {
+    pub fn goals_from(&self, project: u32, chat: u64) -> impl Iterator<Item = (u64, u64)> {
         let rows = match &self.dismissed {
             State::Rows(rows) => rows.as_ref(),
             State::Unknown | State::Ended => &[],
         };
         rows.iter().filter_map(move |fact| match *fact {
-            PersonFact::GoalFrom { project: held_project, chat: held_chat, goal }
+            PersonFact::GoalFrom { project: held_project, chat: held_chat, goal, at }
                 if held_project == project && held_chat == chat =>
             {
-                Some(goal)
+                Some((goal, at))
             }
             PersonFact::ToBegin { .. } | PersonFact::GoalFrom { .. } => None,
         })
@@ -164,9 +173,12 @@ fn rows(record: &Family, limits: Limits) -> Option<Box<[PersonFact]>> {
     for what in document.into_parts().dismissed.into_boxed() {
         let what = match what {
             w::PersonFact::ToBegin(value) => PersonFact::ToBegin { project: value.project() },
-            w::PersonFact::GoalFrom(value) => {
-                PersonFact::GoalFrom { project: value.project(), chat: value.chat(), goal: value.goal() }
-            }
+            w::PersonFact::GoalFrom(value) => PersonFact::GoalFrom {
+                project: value.project(),
+                chat: value.chat(),
+                goal: value.goal(),
+                at: value.at(),
+            },
         };
         rows.push(what).expect("wire bounds dismissal rows");
     }
@@ -216,7 +228,8 @@ fn answered(record: &Family, limits: Limits) -> Option<Answer> {
     Some(match answer.into_parts().outcome {
         w::Outcome::Dismissed => Answer::Dismissed,
         w::Outcome::Unknown => Answer::Unknown,
-        w::Outcome::Page(_)
+        w::Outcome::Looked
+        | w::Outcome::Page(_)
         | w::Outcome::Accepted(_)
         | w::Outcome::Returning
         | w::Outcome::Connecting
@@ -233,6 +246,9 @@ fn answered(record: &Family, limits: Limits) -> Option<Answer> {
         | w::Outcome::Removed
         | w::Outcome::RemoveRefused(_)
         | w::Outcome::Reset
+        | w::Outcome::Away
+        | w::Outcome::Overturned
+        | w::Outcome::OverturnRefused(_)
         | w::Outcome::EndRefused(_)
         | w::Outcome::MakeKept
         | w::Outcome::MakeRefused(_) => Answer::Refused,

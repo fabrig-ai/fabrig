@@ -10,7 +10,7 @@ impl Limits {
     #[must_use]
     #[expect(
         clippy::too_many_lines,
-        reason = "the view envelope keeps each bounded page contribution in one derivation"
+        reason = "one checked set of expressions prices the composed pages and their edges"
     )]
     pub fn of(domain: &temper_client_domain::Limits, words: &Words) -> Option<Limits> {
         let receiving = &domain.client.domain;
@@ -26,6 +26,8 @@ impl Limits {
         let text = text.max(temper_client_protocol_wire::CUE_BYTES.checked_add(24)?);
         // The sign-in return link percent-encodes a whole authorization address.
         let text = text.max(3400);
+        // Builders draws each admitted host name whole, as name and text (client/README.md, 3.5).
+        let builder_name = jig_client::contract::PROGRAM_HOST_NAME.checked_mul(2)?;
         let markdown = skein_ui::markdown::max_nodes(receiving.text)?;
         let cards = card_nodes(receiving, markdown)?;
         // Each watched task has one card at its first anchor: sixteen structural
@@ -37,10 +39,10 @@ impl Limits {
         // A decoded turn shares text across texts, names, inputs, outcomes and
         // summaries (jig-protocol-transcript's Budget; client/README.md, 5.4).
         // Splitting that text among rows squared blocks adds two markdown nodes
-        // per block; five structural nodes cover a call's slot and two paragraphs.
+        // per block; eight structural nodes cover a note tool line and its button.
         let blocks = receiving.rows.checked_mul(receiving.rows)?;
         let turn = skein_ui::markdown::max_nodes(receiving.turn_text)?
-            .checked_add(blocks.checked_mul(2_u32.checked_add(5)?)?)?
+            .checked_add(blocks.checked_mul(2_u32.checked_add(8)?)?)?
             // Per message: message/who/says slots, Temper paragraph and text,
             // a call disclosure, and spare cut room (client/README.md, 3.5).
             .checked_add(receiving.rows.checked_mul(8)?)?
@@ -123,6 +125,11 @@ impl Limits {
         // one item, link, status and added mark (client/README.md, 5.8),
         // seven nodes with text per dependency.
         let agent = markdown.checked_add(33)?.checked_add(receiving.rows.checked_mul(7)?)?;
+        // A full document's Markdown, two slots per heading (at most one
+        // per three bytes), intro wrapper, path, group and attribution.
+        let document = skein_ui::markdown::max_nodes(receiving.long_text)?
+            .checked_add(receiving.long_text.checked_div(3)?.checked_mul(2)?)?
+            .checked_add(24)?;
         let nodes = cards
             .checked_add(turns)?
             .checked_add(delegated)?
@@ -139,6 +146,10 @@ impl Limits {
             // the fixed step card also holds fields, snippets or progress.
             .max(temper_client_domain::forge::forges::ROWS.checked_mul(16)?.checked_add(152)?)
             .checked_add(choices)?
+            // Away’s Settings heading (3), kinds row (6), checks (11), until row and select (9).
+            .checked_add(29)?
+            // Each of Home's seven live decision rows can offer Overturn (3.5).
+            .checked_add(7)?
             // Owned rows add Runs and First password: a slot, term and description each.
             .checked_add(temper_client_domain::forge::forges::ROWS.checked_mul(6)?)?
             // The context line splits the repository from its forge suffix.
@@ -153,6 +164,10 @@ impl Limits {
             // Start a chat heading and its text outside the playground start (2), and
             // a failed playground start's alert, its text leaf and Try again (3).
             .checked_add(5)?
+            // The rail menu wrapper, menu and three items.
+            .checked_add(5)?
+            // Start goal's asking group: heading, two choices and their small text leaves.
+            .checked_add(11)?
             // The adoption form's region, named by the page's heading.
             .checked_add(1)?
             // GitHub's App line keeps each installation in its own bounded text slot.
@@ -161,17 +176,24 @@ impl Limits {
                     .checked_mul(temper_client_domain::forge::forges::INSTALLATIONS)?
                     .checked_mul(2)?,
             )?
-            // The toast adds its status, text leaf and optional Undo button.
-            .checked_add(3)?;
+            // The toast holds a refusal, its Look again sentence and button (six nodes),
+            // or a proposal's lead and at most rows role recipients (two nodes each).
+            .checked_add(receiving.rows.checked_mul(2)?.checked_add(3)?.max(6))?;
+        let text_bytes = nodes
+            .checked_mul(text)?
+            .checked_add(skein_ui::markdown::max_text_bytes(receiving.long_text)?)?
+            .checked_add(text.checked_mul(24)?)?;
+        let nodes = nodes.checked_add(document)?;
         let tree = skein_ui::Limits {
             nodes,
             depth: receiving.rows.checked_add(34)?,
-            text_per_node: text,
-            text_bytes: nodes.checked_mul(text)?,
+            text_per_node: text.max(receiving.long_text.checked_mul(2)?).max(builder_name),
+            // Whole builder names are held once per document row.
+            text_bytes: text_bytes.checked_add(receiving.rows.checked_mul(builder_name)?)?,
             drawing_bytes: 0,
             scene_marks: 0,
             scene_bytes: 0,
-            styles_per_node: 2,
+            styles_per_node: 3,
             // A diff emits at most four patches a node (skein's ui.md, 7).
             patches: nodes.checked_mul(4)?,
             bindings: nodes,
@@ -193,7 +215,7 @@ fn card_nodes(receiving: &jig_client::DomainLimits, markdown: u32) -> Option<u32
         .checked_add(32)?;
     // Conversation controls share one slot.
     let card = proposed.checked_mul(receiving.rows)?.checked_add(129)?;
-    let cards = card.checked_mul(receiving.reads.checked_add(1)?)?;
+    let cards = card.checked_mul(temper_client_domain::pages::inbox::card_capacity(receiving.reads).checked_add(1)?)?;
     Some(cards)
 }
 // A disclosure joins admitted tool names, count, separators and repetition

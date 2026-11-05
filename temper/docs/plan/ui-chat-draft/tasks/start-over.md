@@ -64,3 +64,17 @@ Options, each pre-approved:
 ## Report
 
 As `notes/common.md`, Your report.
+
+## Rebase (2026-11-05, step merge, foreman ui-chat-draft/start-over/foreman-1)
+
+rebase onto the integration trunk, combining Start over with main’s onboarding changes
+The merge conflicts in four files; retrying the branch unchanged will fail again.
+The overlapping main changes arrived through integration commit `c743b0bfd5` (“Merge main to keep chat drafts alongside landed onboarding work”), incorporated by `062dcfa19a`.
+Resolve these conflicts while preserving both features:
+- `temper/crates/temper-client-domain/src/pages.rs`: keep one scoped `too_many_lines` expectation on `confirmation`; retain StartOver confirmation, cancellation and close-answer navigation alongside the incoming Home actions.
+- `temper/crates/temper-client-domain/src/pages/task.rs`: keep one scoped expectation on `Task::amend`; retain all exhaustive arms, including StartOver and incoming repository-sheet actions.
+- `temper/crates/temper-client-view/src/look.rs`: preserve the trunk’s document tokens 339–351, including `RAIL_UNFOLD = 351`. Assign `START_OVER = 352`, matching its appended `temper-start-over` entry in `NAMES`. Keeping branch token 339 would collide with `MODE_CHAT`.
+- `temper/crates/temper-client-view/src/words.rs`: preserve incoming vocabulary and capacity changes, then add this task’s six words: PHRASES 1548, SEGMENTS 2728, ALL length 952. Add 148 literal bytes to the trunk’s `text_bytes` expression; retain its document contribution once.
+Preserve the automatically merged StartOver wiring, CSS, gallery assertions and proposal-state reads.
+Run the spec’s focused checks through heavy, including the configuring-chat world and style-name assertions. Regenerate terminal goldens if the combined view makes them stale, and inspect their diff.
+Keep `Look-request: configure-chat-draft` on the rebase resolution commit.

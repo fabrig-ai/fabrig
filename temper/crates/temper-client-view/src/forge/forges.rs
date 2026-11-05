@@ -4,6 +4,7 @@ use crate::{
     flow,
     frame::Bindings,
     look,
+    pages::settings,
     words::{Word, Words},
 };
 use alloc::boxed::Box;
@@ -15,6 +16,7 @@ use temper_client_domain::{
         forges::{Connection, Kind, Mode, Offer, Row, State},
         listed,
     },
+    pages::Act,
 };
 
 pub(crate) fn main(
@@ -24,11 +26,15 @@ pub(crate) fn main(
     bindings: &mut Bindings,
     forge: &mut ForgeBindings,
     sign_in: &crate::forge_sign_in::Forges,
+    project: Option<u32>,
 ) {
     b.open(Role::Main);
     b.style(look::MAIN);
-    b.style(look::FORGES);
-    connect::text(b, w, Role::Heading { level: 1 }, Word::ForgesTitle);
+    b.style(look::SETTINGS);
+    match project {
+        Some(project) => settings::open(b, root, w, bindings, project, settings::Tab::Forges),
+        None => settings::open_alone(b, &w.say(Word::ForgesTitle, &[]), &w.say(Word::SettingsForgesLede, &[])),
+    }
     let rows = listed::rows(root.forges(), forge::connect::playground(root.forge()));
     let mut count = 0_u64;
     for row in &rows {
@@ -40,37 +46,71 @@ pub(crate) fn main(
         State::Rows(_) => w.say(Word::YourForges, &[Hole::Number(count)]),
         State::Unknown | State::Ended => w.say(Word::YourForgesTitle, &[]),
     };
-    crate::cards::text(b, Role::Heading { level: 2 }, &heading);
+    b.open(Role::Slot);
+    b.style(look::SETTINGS_SECTION);
+    b.style(look::FORGES);
+    b.open(Role::Slot);
+    b.style(look::SETTINGS_SECTION_HEAD);
+    b.open(Role::Heading { level: 2 });
+    b.style(look::SETTINGS_SECTION_TITLE);
+    b.name(&heading);
+    b.text(skein_ui::Run::Plain, &heading);
+    b.close();
+    if let State::Rows(_) = root.forges()
+        && !root.forge().playground_running()
+    {
+        settings::button_to(
+            b,
+            &w.say(Word::AddForge, &[]),
+            bindings.insert(Act::Go { address: Address::ConnectForge { forge: None } }),
+            false,
+        );
+    }
+    b.close();
     match root.forges() {
         State::Unknown => {}
         State::Ended => crate::cards::refusal(b, w, &jig_client::contract::Refusal::NotOffered),
         State::Rows(_) => {
-            connect::text(b, w, Role::Paragraph, Word::ForgesDescription);
-            if !root.forge().playground_running() {
-                connect::link(b, w, bindings, Word::AddForge, Address::ConnectForge { forge: None });
-            }
             if count == 0 && !root.forge().playground_running() {
-                connect::text(b, w, Role::Paragraph, Word::NoForges);
-                connect::link(b, w, bindings, Word::ConnectForge, Address::ConnectForge { forge: None });
-            }
-            for row in &rows {
-                if row.mode != Mode::Fake {
-                    personal(b, root, w, bindings, forge, row, sign_in);
+                settings::quiet_band(b, &w.say(Word::NoForgeTag, &[]), &w.say(Word::NoForges, &[]));
+                settings::button_to(
+                    b,
+                    &w.say(Word::ConnectForge, &[]),
+                    bindings.insert(Act::Go { address: Address::ConnectForge { forge: None } }),
+                    true,
+                );
+                b.close();
+            } else if count != 0 {
+                b.open(Role::Slot);
+                b.style(look::SETTINGS_LINES);
+                for row in &rows {
+                    if row.mode != Mode::Fake {
+                        personal(b, root, w, bindings, forge, row, sign_in);
+                    }
                 }
-            }
-            if let Some((playground, row)) = listed::playground(root) {
-                connect::text(b, w, Role::Heading { level: 2 }, Word::ForgePlaygroundHeading);
-                b.open(Role::Disclosure);
-                b.style(look::FORGE_ROW);
-                b.name(&w.say(Word::ForgePlayground, &[]));
-                b.description(&forge::words::full_name(&playground.owner, &playground.name));
-                account(b, w, row);
                 b.close();
             }
         }
     }
     b.close();
+    if let Some((playground, row)) = listed::playground(root) {
+        settings::section_head(b, &w.say(Word::ForgePlaygroundHeading, &[]));
+        b.close();
+        b.open(Role::Slot);
+        b.style(look::SETTINGS_LINES);
+        b.open(Role::Disclosure);
+        b.style(look::SETTINGS_ROW);
+        b.name(&w.say(Word::ForgePlayground, &[]));
+        b.description(&forge::words::full_name(&playground.owner, &playground.name));
+        account(b, w, row);
+        b.close();
+        b.close();
+        b.close();
+    }
+    b.close();
+    b.close();
 }
+
 fn connection(row: &Row, root: &Domain, w: &Words) -> Box<[u8]> {
     if let Some(draft) = root.forge().replacement(row.number)
         && draft.connecting()
@@ -103,7 +143,7 @@ fn personal(
     sign_in: &crate::forge_sign_in::Forges,
 ) {
     b.open(Role::Disclosure);
-    b.style(look::FORGE_ROW);
+    b.style(look::SETTINGS_ROW);
     b.name(&connect::name(w, row, root));
     let kind = match row.kind {
         Kind::Forgejo => Word::ForgeOther,
@@ -147,6 +187,7 @@ fn personal(
         && let Connection::Connected { .. } = row.connection
     {
         b.open(Role::Slot);
+        b.style(look::SETTINGS_SETTING);
         connect::text(b, w, Role::Term, Word::GitHubRepositories);
         crate::cards::text(
             b,
@@ -155,7 +196,7 @@ fn personal(
         );
         b.close();
     }
-    connect::app_line(b, w, row);
+    connect::app_line(b, w, row, true);
     if let Some(line) = forge::words::last_connect(row) {
         crate::cards::text(b, Role::Paragraph, &line);
     }
@@ -271,6 +312,7 @@ fn repository_line(_root: &Domain, w: &Words, row: &Row) -> Option<Box<[u8]>> {
 fn account(b: &mut Builder, w: &Words, row: &Row) {
     if let Connection::Connected { id, login } = &row.connection {
         b.open(Role::Slot);
+        b.style(look::SETTINGS_SETTING);
         connect::text(b, w, Role::Term, Word::ForgeAccountLabel);
         crate::cards::text(b, Role::Description, &forge::words::forge_account(login, *id));
         b.close();
@@ -288,6 +330,7 @@ fn access(b: &mut Builder, w: &Words, row: &Row) {
         Mode::Fake => return,
     };
     b.open(Role::Slot);
+    b.style(look::SETTINGS_SETTING);
     connect::text(b, w, Role::Term, Word::ForgeAccessLabel);
     connect::text(b, w, Role::Description, word);
     b.close();
@@ -303,10 +346,12 @@ fn owned(b: &mut Builder, w: &Words, row: &Row) {
         | Connection::SetUpFailed { .. } => return,
     }
     b.open(Role::Slot);
+    b.style(look::SETTINGS_SETTING);
     connect::text(b, w, Role::Term, Word::ForgeRunsLabel);
     crate::cards::text(b, Role::Description, &forge::words::forge_runs(owned));
     b.close();
     b.open(Role::Slot);
+    b.style(look::SETTINGS_SETTING);
     connect::text(b, w, Role::Term, Word::ForgePasswordLabel);
     crate::cards::text(b, Role::Description, &forge::words::forge_password(&owned.password));
     b.close();

@@ -167,7 +167,7 @@ impl App for Temper {
     }
     fn act(view: &mut Self::View, node: NodeId, act: Act) -> Option<Event> {
         match view {
-            View::Person(view) => view::event(view, node, act).map(Into::into),
+            View::Person(view) => view::act_event(view, node, act).map(Into::into),
             View::Agent { .. } => None,
         }
     }

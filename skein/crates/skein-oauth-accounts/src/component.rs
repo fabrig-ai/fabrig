@@ -38,13 +38,13 @@ pub(crate) fn refuse_refresh(
     up: &mut Queue<Event>,
     io: &mut Queue<Lower>,
 ) {
-    let id = component.bindings.get(0).expect("account binding").expect("refresh exchange");
+    let id = component.entries.get(0).expect("account entry").binding.expect("refresh exchange");
     component.fail_exchange(env, id, Failure::Exchange(oauth::Failure::Refused), up, io);
 }
 
 #[cfg(test)]
 pub(crate) fn redirect_read(component: &Component) -> bool {
-    let id = component.bindings.get(0).expect("account binding").expect("sign-in exchange");
+    let id = component.entries.get(0).expect("account entry").binding.expect("sign-in exchange");
     component.exchanges.get(id).expect("bound exchange").listener.as_ref().expect("public listener").read.is_some()
 }
 
@@ -59,7 +59,7 @@ pub type LowerEvent = skein_io::Event;
 /// The owner handles controls while `FileIo` is busy. A cancelled request still
 /// queued by the owner is discarded with its one `file::Event::Cancelled`.
 /// Queued requests expire at their stated deadline as well as active requests.
-#[expect(missing_debug_implementations, reason = "file stores carry credential records")]
+#[derive(Debug)]
 pub enum FileLower {
     /// One file request, ending in its matching owner-token terminal.
     Request { request: skein_io::file::Request, deadline: Time },
@@ -104,12 +104,9 @@ pub(crate) enum State {
         expiry: Time,
         lead: Time,
         earliest: Option<Time>,
-        announced: bool,
-        held: bool,
-        rejected: bool,
-        attempted: bool,
-        due: bool,
-        rejection: Option<u64>,
+        lending: Lending,
+        refresh: Refresh,
+        notice: Notice,
     },
     // Startup wall metadata is turned into this process's monotonic deadline
     // at its first entrance, which is the first clock the owner supplies.
@@ -118,20 +115,96 @@ pub(crate) enum State {
     },
 }
 
+// Independent record lifecycles (skein/docs/foundation/programming-model.md, 5.4).
+#[derive(Clone, Copy, PartialEq, Eq)]
+pub(crate) enum Lending {
+    Free,
+    Held,
+}
+
+#[derive(Clone, Copy)]
+pub(crate) enum Refresh {
+    Untried,
+    Due,
+    Spent,
+    DueAgain,
+}
+
+impl Refresh {
+    fn due(self) -> bool {
+        match self {
+            Self::Due | Self::DueAgain => true,
+            Self::Untried | Self::Spent => false,
+        }
+    }
+    fn attempted(self) -> bool {
+        match self {
+            Self::Spent | Self::DueAgain => true,
+            Self::Untried | Self::Due => false,
+        }
+    }
+    fn request(self) -> Self {
+        if self.attempted() { Self::DueAgain } else { Self::Due }
+    }
+    fn forgo(self) -> Self {
+        if self.attempted() { Self::Spent } else { Self::Untried }
+    }
+}
+
+#[derive(Clone, Copy)]
+pub(crate) enum Notice {
+    Quiet,
+    Announced,
+    Rejected,
+    RejectedAnnounced,
+}
+
+impl Notice {
+    fn announced(self) -> bool {
+        match self {
+            Self::Announced | Self::RejectedAnnounced => true,
+            Self::Quiet | Self::Rejected => false,
+        }
+    }
+    fn rejected(self) -> bool {
+        match self {
+            Self::Rejected | Self::RejectedAnnounced => true,
+            Self::Quiet | Self::Announced => false,
+        }
+    }
+    fn announce(self) -> Self {
+        if self.rejected() { Self::RejectedAnnounced } else { Self::Announced }
+    }
+    fn reject(self) -> Self {
+        if self.announced() { Self::RejectedAnnounced } else { Self::Rejected }
+    }
+}
+
+// Account configuration, state and ownership (oauth.md, sections 6.2 and 6.4).
+struct AccountEntry {
+    name: Name,
+    state: State,
+    source: Source,
+    binding: Option<Id<Exchange>>,
+    store: Store,
+}
+
 /// The owner's bounded accounts, exchanges and holds, ending with one Closed.
-#[expect(missing_debug_implementations, reason = "credential values must never occur in traces")]
 pub struct Component {
-    accounts: List<State>,
-    names: List<Name>,
-    sources: List<Source>,
-    bindings: List<Option<Id<Exchange>>>,
+    entries: List<AccountEntry>,
     exchanges: Slab<Exchange>,
     /// The admission number the next exchange takes.
     admissions: u64,
     lifecycle: Lifecycle,
     crypto: CryptoRng,
-    keepers: List<Store>,
     file_owner: u64,
+}
+
+// skein/docs/design/oauth.md, 4: private exchanges carry credential bytes.
+impl core::fmt::Debug for Component {
+    fn fmt(&self, f: &mut core::fmt::Formatter<'_>) -> core::fmt::Result {
+        f.debug_struct("Component").field("lifecycle", &self.lifecycle).finish_non_exhaustive()
+    }
 }
 
 impl Component {
@@ -147,6 +220,7 @@ impl Component {
         Ok(Self::configure(accounts, limits, Some(crypto))?.expect("a generator makes the component"))
     }
 
+    #[expect(clippy::manual_map, reason = "explicit generator presence keeps step code free of closures")]
     fn configure(
         mut accounts: List<Account>,
         limits: &Limits,
@@ -159,45 +233,30 @@ impl Component {
             return Err(Unusable::Limits);
         }
         let mut component = match crypto {
-            Some(crypto) => {
-                let mut names = List::with_capacity(limits.accounts);
-                for _ in 0..limits.accounts {
-                    names.push(Name::Free).expect("bounded names");
-                }
-                Some(Component {
-                    accounts: List::with_capacity(limits.accounts),
-                    names,
-                    sources: List::with_capacity(limits.accounts),
-                    bindings: List::with_capacity(limits.accounts),
-                    exchanges: Slab::with_capacity(limits.exchanges),
-                    admissions: 0,
-                    lifecycle: Lifecycle::Live,
-                    crypto,
-                    keepers: List::with_capacity(limits.accounts),
-                    file_owner: 0,
-                })
-            }
+            Some(crypto) => Some(Component {
+                entries: List::with_capacity(limits.accounts),
+                exchanges: Slab::with_capacity(limits.exchanges),
+                admissions: 0,
+                lifecycle: Lifecycle::Live,
+                crypto,
+                file_owner: 0,
+            }),
             None => None,
         };
         for index in 0..accounts.len() {
             let account = core::mem::replace(accounts.get_mut(index).expect("bounded account"), Account::HandedIn);
             let (source, state, store) = accounts::admit(index, account, limits)?;
             if let Some(component) = &mut component {
-                *component.names.get_mut(index).expect("bounded name") = Name::Live { number: index, wanted: false };
-                match component.accounts.push(state) {
+                let entry = AccountEntry {
+                    name: Name::Live { number: index, wanted: false },
+                    state,
+                    source,
+                    binding: None,
+                    store,
+                };
+                match component.entries.push(entry) {
                     Ok(()) => {}
-                    Err(State::Empty | State::Record { .. } | State::Loaded { .. }) => {
-                        unreachable!("validated accounts")
-                    }
-                }
-                match component.sources.push(source) {
-                    Ok(()) => {}
-                    Err(Source::HandedIn | Source::SignIn { .. }) => unreachable!("validated accounts"),
-                }
-                component.bindings.push(None).expect("validated accounts");
-                match component.keepers.push(store) {
-                    Ok(()) => {}
-                    Err(Store::Owner | Store::Private(_)) => unreachable!("validated accounts"),
+                    Err(AccountEntry { .. }) => unreachable!("validated accounts"),
                 }
             }
         }
@@ -205,8 +264,8 @@ impl Component {
     }
 
     fn initialize(&mut self, env: &Env<Limits>) {
-        for index in 0..self.accounts.len() {
-            let slot = self.accounts.get_mut(index).expect("bounded account index");
+        for index in 0..self.entries.len() {
+            let slot = &mut self.entries.get_mut(index).expect("account entry").state;
             let loaded = match slot {
                 State::Loaded { .. } => true,
                 State::Empty | State::Record { .. } => false,
@@ -214,7 +273,7 @@ impl Component {
             if loaded {
                 let prior = core::mem::replace(slot, State::Empty);
                 match prior {
-                    State::Loaded { record } => *slot = recorded(record, env, false),
+                    State::Loaded { record } => *slot = recorded(record, env, Lending::Free),
                     State::Empty | State::Record { .. } => unreachable!("loaded state was checked"),
                 }
             }
@@ -244,15 +303,15 @@ impl Component {
             }
             Request::SignOut { account } => self.sign_out(env, account, up, io),
             Request::SignIn { account, subject } => self.sign_in(env, account, subject, up, io),
-            Request::Redirected { account, uri } => self.redirected(env, account, &uri, up),
+            Request::Redirected { account, uri } => self.redirected(env, account, uri.expose(), up),
             Request::Return { account, location } => self.return_to(account, location),
-            Request::Cancel { account } => match self.bindings.get(account) {
-                Some(Some(id)) => {
+            Request::Cancel { account } => match self.entries.get(account) {
+                Some(AccountEntry { binding: Some(id), .. }) => {
                     let id = *id;
                     self.fail_exchange(env, id, Failure::Exchange(oauth::Failure::Cancelled), up, io);
                     self.collect(env, id, up, io);
                 }
-                Some(None) | None => {}
+                Some(AccountEntry { binding: None, .. }) | None => {}
             },
             Request::HandIn { account, record } => self.hand_in(env, account, record, up),
             Request::Grant { account } => self.grant_request(env, account, up),
@@ -260,38 +319,43 @@ impl Component {
                 let wanted = self.wanted(account);
                 let mut refresh = false;
                 let mut repeated = false;
-                match self.accounts.get_mut(account) {
-                    Some(State::Record { record, held, rejected, rejection, due, .. })
-                        if record.generation == generation =>
-                    {
-                        repeated = *rejection == Some(generation);
-                        *rejection = Some(generation);
-                        *rejected = true;
-                        if *held || wanted {
-                            match self.sources.get(account).expect("account source") {
+                match self.entries.get_mut(account) {
+                    Some(AccountEntry {
+                        state: State::Record { record, lending, notice, refresh: renewal, .. },
+                        source,
+                        name,
+                        ..
+                    }) if record.generation == generation => {
+                        repeated = notice.rejected();
+                        *notice = notice.reject();
+                        if *lending == Lending::Held || wanted {
+                            match source {
                                 Source::HandedIn => {
-                                    *held = false;
-                                    failed(number(&self.names, account), Failure::Expired, up);
+                                    *lending = Lending::Free;
+                                    failed(name.number(), Failure::Expired, up);
                                 }
                                 Source::SignIn { .. } => {
                                     if repeated {
-                                        *held = false;
-                                        failed(number(&self.names, account), Failure::Expired, up);
+                                        *lending = Lending::Free;
+                                        failed(name.number(), Failure::Expired, up);
                                     } else {
-                                        *due = true;
+                                        *renewal = renewal.request();
                                         refresh = true;
                                     }
                                 }
                             }
                         }
                     }
-                    Some(State::Empty | State::Record { .. } | State::Loaded { .. }) | None => {}
+                    Some(AccountEntry {
+                        state: State::Empty | State::Record { .. } | State::Loaded { .. }, ..
+                    })
+                    | None => {}
                 }
                 if repeated {
                     self.end_exchange(env, account, io);
                 } else if refresh
                     && self.lifecycle == Lifecycle::Live
-                    && self.bindings.get(account) == Some(&None)
+                    && self.entries.get(account).expect("account entry").binding.is_none()
                     && !self.exchanges.is_full()
                     && self.refreshable(account)
                     && self.refresh_ready(account, env.now)
@@ -300,9 +364,9 @@ impl Component {
                 }
             }
             Request::Release { account } => self.release(account),
-            Request::Kept { account, generation, keeping } => match self.keepers.get(account) {
-                Some(Store::Owner) => self.kept(env, account, generation, keeping, up, io),
-                Some(Store::Private(_)) | None => {}
+            Request::Kept { account, generation, keeping } => match self.entries.get(account) {
+                Some(AccountEntry { store: Store::Owner, .. }) => self.kept(env, account, generation, keeping, up, io),
+                Some(AccountEntry { store: Store::Private(_), .. }) | None => {}
             },
             Request::Locked { account, answer } => self.locked(env, account, answer, up, io),
             Request::Close => match self.lifecycle {
@@ -335,30 +399,21 @@ impl Component {
     fn grant_loaded(&mut self, env: &Env<Limits>, account: u32, up: &mut Queue<Event>) {
         let refreshable = self.refreshable(account);
         let ready = self.refresh_ready(account, env.now);
-        let slot = self.accounts.get_mut(account).expect("validated account");
+        let entry = self.entries.get_mut(account).expect("account entry");
+        let slot = &mut entry.state;
         match slot {
-            State::Record { held: true, .. } => {
-                up.push(Event::Refused {
-                    account: number(&self.names, account),
-                    asked: Asked::Grant,
-                    why: Refusal::Held,
-                });
+            State::Record { lending: Lending::Held, .. } => {
+                up.push(Event::Refused { account: entry.name.number(), asked: Asked::Grant, why: Refusal::Held });
                 return;
             }
-            State::Empty | State::Record { held: false, .. } => {}
+            State::Empty | State::Record { lending: Lending::Free, .. } => {}
             State::Loaded { .. } => unreachable!("initialized account"),
         }
-        match *self.bindings.get(account).expect("account binding") {
+        match entry.binding {
             Some(id) => {
                 let exchange = self.exchanges.get_mut(id).expect("bound exchange");
                 match exchange.stage {
-                    Stage::Finished => grant(
-                        slot,
-                        self.sources.get(account).expect("account source"),
-                        env.now,
-                        number(&self.names, account),
-                        up,
-                    ),
+                    Stage::Finished => grant(slot, &entry.source, env.now, entry.name.number(), up),
                     Stage::Loading
                     | Stage::Locking
                     | Stage::Reading
@@ -367,23 +422,23 @@ impl Component {
                     | Stage::Forgetting { .. } => {
                         if exchange.pending_grant {
                             up.push(Event::Refused {
-                                account: number(&self.names, account),
+                                account: entry.name.number(),
                                 asked: Asked::Grant,
                                 why: Refusal::Held,
                             });
                             return;
                         }
-                        set_held(slot, true);
+                        set_held(slot, Lending::Held);
                         exchange.pending_grant = true;
                     }
                 }
             }
             None => {
-                let needs_refresh = match self.sources.get(account).expect("account source") {
+                let needs_refresh = match &entry.source {
                     Source::HandedIn => false,
                     Source::SignIn { .. } => match slot {
-                        State::Record { lead, attempted: false, .. } => env.now >= *lead,
-                        State::Empty | State::Record { attempted: true, .. } => false,
+                        State::Record { lead, refresh, .. } => env.now >= *lead && !refresh.attempted(),
+                        State::Empty => false,
                         State::Loaded { .. } => unreachable!("initialized account"),
                     },
                 };
@@ -394,22 +449,16 @@ impl Component {
                     }
                     if self.exchanges.is_full() {
                         up.push(Event::Refused {
-                            account: number(&self.names, account),
+                            account: entry.name.number(),
                             asked: Asked::Grant,
                             why: Refusal::Full { bound: env.limits.exchanges },
                         });
                     } else {
-                        set_held(slot, true);
+                        set_held(slot, Lending::Held);
                         self.start_refresh(env, account, true, up);
                     }
                 } else {
-                    grant(
-                        slot,
-                        self.sources.get(account).expect("account source"),
-                        env.now,
-                        number(&self.names, account),
-                        up,
-                    );
+                    grant(slot, &entry.source, env.now, entry.name.number(), up);
                 }
             }
         }
@@ -419,11 +468,11 @@ impl Component {
         if self.refused(account, Asked::HandIn, up) {
             return;
         }
-        match self.sources.get(account).expect("validated account") {
+        match &self.entries.get(account).expect("account entry").source {
             Source::HandedIn => {}
             Source::SignIn { .. } => {
                 up.push(Event::Refused {
-                    account: number(&self.names, account),
+                    account: number(&self.entries, account),
                     asked: Asked::HandIn,
                     why: Refusal::Source,
                 });
@@ -432,7 +481,7 @@ impl Component {
         }
         if record.refresh_token.is_some() {
             up.push(Event::Refused {
-                account: number(&self.names, account),
+                account: number(&self.entries, account),
                 asked: Asked::HandIn,
                 why: Refusal::NotAccessOnly,
             });
@@ -442,27 +491,28 @@ impl Component {
             Ok(encoded) => drop(encoded),
             Err(why) => {
                 up.push(Event::Refused {
-                    account: number(&self.names, account),
+                    account: number(&self.entries, account),
                     asked: Asked::HandIn,
                     why: Refusal::Record(why),
                 });
                 return;
             }
         }
-        let slot = self.accounts.get_mut(account).expect("validated account");
-        let held = match slot {
-            State::Empty => false,
-            State::Record { record: prior, held, .. } => {
+        let entry = self.entries.get_mut(account).expect("account entry");
+        let slot = &mut entry.state;
+        let lending = match slot {
+            State::Empty => Lending::Free,
+            State::Record { record: prior, lending, .. } => {
                 if record.generation <= prior.generation {
                     return;
                 }
-                *held
+                *lending
             }
             State::Loaded { .. } => unreachable!("initialized account"),
         };
-        *slot = recorded(record, env, held);
-        if held {
-            grant(slot, self.sources.get(account).expect("account source"), env.now, number(&self.names, account), up);
+        *slot = recorded(record, env, lending);
+        if lending == Lending::Held {
+            grant(slot, &entry.source, env.now, entry.name.number(), up);
         }
     }
 
@@ -470,7 +520,7 @@ impl Component {
         let why = match self.lifecycle {
             Lifecycle::Closed | Lifecycle::Closing | Lifecycle::Aborting => Some(Refusal::Closed),
             Lifecycle::Live => {
-                if account >= self.accounts.len() {
+                if account >= self.entries.len() {
                     Some(Refusal::Account)
                 } else {
                     None
@@ -479,7 +529,7 @@ impl Component {
         };
         match why {
             Some(why) => {
-                up.push(Event::Refused { account: number(&self.names, account), asked, why });
+                up.push(Event::Refused { account: number(&self.entries, account), asked, why });
                 true
             }
             None => false,
@@ -487,9 +537,9 @@ impl Component {
     }
 
     fn refreshable(&self, account: u32) -> bool {
-        match self.accounts.get(account) {
-            Some(State::Record { record, .. }) => record.refresh_token.is_some(),
-            Some(State::Empty | State::Loaded { .. }) | None => false,
+        match self.entries.get(account) {
+            Some(AccountEntry { state: State::Record { record, .. }, .. }) => record.refresh_token.is_some(),
+            Some(AccountEntry { state: State::Empty | State::Loaded { .. }, .. }) | None => false,
         }
     }
 
@@ -586,44 +636,45 @@ impl Component {
             self.settled(up);
             return;
         }
-        for account in 0..self.accounts.len() {
+        for account in 0..self.entries.len() {
             if !self.live(account) {
                 continue;
             }
-            let source = self.sources.get(account).expect("account source");
             let wanted = self.wanted(account);
-            match self.accounts.get_mut(account).expect("account state") {
-                State::Record { record, expiry, lead, earliest, announced, held, rejected, attempted, due, .. } => {
-                    if (*held || wanted) && !*attempted && env.now >= *lead {
+            let entry = self.entries.get_mut(account).expect("account entry");
+            let source = &entry.source;
+            match &mut entry.state {
+                State::Record { record, expiry, lead, earliest, lending, refresh, notice } => {
+                    if (*lending == Lending::Held || wanted) && !refresh.attempted() && env.now >= *lead {
                         match source {
                             Source::SignIn { .. } => {
-                                *attempted = record.refresh_token.is_none();
-                                *due = !*attempted;
+                                *refresh = if record.refresh_token.is_none() { Refresh::Spent } else { Refresh::Due };
                             }
                             Source::HandedIn => {}
                         }
                     }
                     if env.now >= *expiry {
-                        if *held && !*due && self.bindings.get(account) == Some(&None) {
-                            *held = false;
-                            failed(number(&self.names, account), Failure::Expired, up);
+                        if *lending == Lending::Held && !refresh.due() && entry.binding.is_none() {
+                            *lending = Lending::Free;
+                            failed(entry.name.number(), Failure::Expired, up);
                             return;
                         }
-                        *announced = true;
-                    } else if record.refresh_token.is_none() && env.now >= *lead && !*announced && !*rejected {
-                        *announced = true;
-                        up.push(Event::Expiring {
-                            account: number(&self.names, account),
-                            generation: record.generation,
-                        });
+                        *notice = notice.announce();
+                    } else if record.refresh_token.is_none()
+                        && env.now >= *lead
+                        && !notice.announced()
+                        && !notice.rejected()
+                    {
+                        *notice = notice.announce();
+                        up.push(Event::Expiring { account: entry.name.number(), generation: record.generation });
                         return;
                     }
-                    if *due
+                    if refresh.due()
                         && match earliest {
                             Some(at) => env.now >= *at,
                             None => true,
                         }
-                        && self.bindings.get(account) == Some(&None)
+                        && entry.binding.is_none()
                         && !self.exchanges.is_full()
                         && record.refresh_token.is_some()
                     {
@@ -673,7 +724,7 @@ impl Component {
             None => true,
         };
         if visit_ready && let Some(url) = exchange.visit.take() {
-            up.push(Event::Visit { account: number(&self.names, account), url });
+            up.push(Event::Visit { account: number(&self.entries, account), url });
             return;
         }
         if let Some(request) = exchange.above.pop() {
@@ -746,7 +797,7 @@ impl Component {
         let account = exchange.account;
         match request {
             oauth::Request::Http(request) => {
-                let endpoint = match self.sources.get(account).expect("account source") {
+                let endpoint = match &self.entries.get(account).expect("account entry").source {
                     Source::SignIn { registration, endpoint, origins, .. } => {
                         match accounts::endpoint(&request.endpoint, registration, endpoint, origins) {
                             Some(endpoint) => endpoint,
@@ -788,7 +839,7 @@ impl Component {
             oauth::Request::Failed { failure } => self.fail_exchange(env, id, Failure::Exchange(failure), up, io),
             oauth::Request::Visit { url } => match &exchange.listener {
                 Some(listener) if !listener.ready() => exchange.visit = Some(url),
-                Some(_) | None => up.push(Event::Visit { account: number(&self.names, account), url }),
+                Some(_) | None => up.push(Event::Visit { account: number(&self.entries, account), url }),
             },
         }
     }
@@ -802,9 +853,9 @@ impl Component {
         up: &mut Queue<Event>,
         io: &mut Queue<Lower>,
     ) {
-        let id = match self.bindings.get(account) {
-            Some(Some(id)) => *id,
-            Some(None) | None => return,
+        let id = match self.entries.get(account) {
+            Some(AccountEntry { binding: Some(id), .. }) => *id,
+            Some(AccountEntry { binding: None, .. }) | None => return,
         };
         let exchange = self.exchanges.get_mut(id).expect("bound exchange");
         match self.lifecycle {
@@ -829,47 +880,31 @@ impl Component {
         exchange.visit = None;
         match stage {
             Stage::Keeping { candidate, missing } => {
-                let slot = self.accounts.get_mut(account).expect("account state");
-                let held = held(slot) || exchange.pending_grant;
+                let entry = self.entries.get_mut(account).expect("account entry");
+                let slot = &mut entry.state;
+                let lending = if held(slot) || exchange.pending_grant { Lending::Held } else { Lending::Free };
                 match keeping {
                     Keeping::Kept => {
                         let generation = candidate.generation;
                         let subject = candidate.subject.clone();
-                        *slot = just_kept(candidate, env, held);
+                        *slot = just_kept(candidate, env, lending);
                         if exchange.signing_in() {
-                            up.push(Event::SignedIn {
-                                account: number(&self.names, account),
-                                generation,
-                                missing,
-                                subject,
-                            });
+                            up.push(Event::SignedIn { account: entry.name.number(), generation, missing, subject });
                         }
-                        if held {
-                            grant(
-                                slot,
-                                self.sources.get(account).expect("account source"),
-                                env.now,
-                                number(&self.names, account),
-                                up,
-                            );
+                        if lending == Lending::Held {
+                            grant(slot, &entry.source, env.now, entry.name.number(), up);
                         }
                     }
                     Keeping::NotKept => {
                         if exchange.signing_in() {
                             up.push(Event::Failed {
-                                account: number(&self.names, account),
+                                account: entry.name.number(),
                                 ends: Ends::SignIn,
                                 failure: Failure::NotKept,
                             });
                         }
                         if exchange.pending_grant {
-                            grant(
-                                slot,
-                                self.sources.get(account).expect("account source"),
-                                env.now,
-                                number(&self.names, account),
-                                up,
-                            );
+                            grant(slot, &entry.source, env.now, entry.name.number(), up);
                         }
                     }
                 }
@@ -895,14 +930,14 @@ impl Component {
     }
 
     fn end_exchange(&mut self, env: &Env<Limits>, account: u32, io: &mut Queue<Lower>) {
-        match self.bindings.get(account) {
-            Some(Some(id)) => {
+        match self.entries.get(account) {
+            Some(AccountEntry { binding: Some(id), .. }) => {
                 let exchange = self.exchanges.get_mut(*id).expect("bound exchange");
                 if exchange.signing_in() || exchange.signing_out() {
                     return;
                 }
                 exchange.aborted = true;
-                match self.keepers.get_mut(account).expect("account keeper") {
+                match &mut self.entries.get_mut(account).expect("account entry").store {
                     Store::Private(keeper) => match &mut keeper.pending {
                         Some(pending) if exchange.file_active => pending.cancel = true,
                         Some(_) | None => {
@@ -923,7 +958,7 @@ impl Component {
                     None => {}
                 }
             }
-            Some(None) | None => {}
+            Some(AccountEntry { binding: None, .. }) | None => {}
         }
     }
 
@@ -937,7 +972,8 @@ impl Component {
     ) {
         let exchange = self.exchanges.get_mut(id).expect("bound exchange");
         let account = exchange.account;
-        let slot = self.accounts.get_mut(account).expect("account state");
+        let entry = self.entries.get_mut(account).expect("account entry");
+        let slot = &mut entry.state;
         let unfinished = match exchange.stage {
             Stage::Finished => false,
             Stage::Loading
@@ -949,23 +985,23 @@ impl Component {
         };
         if unfinished {
             if exchange.signing_out() {
-                up.push(Event::Failed { account: number(&self.names, account), ends: Ends::SignOut, failure });
+                up.push(Event::Failed { account: entry.name.number(), ends: Ends::SignOut, failure });
             }
             if exchange.signing_in() {
-                up.push(Event::Failed { account: number(&self.names, account), ends: Ends::SignIn, failure });
+                up.push(Event::Failed { account: entry.name.number(), ends: Ends::SignIn, failure });
             }
             if !exchange.signing_in() && !exchange.signing_out() && !exchange.pending_grant && !held(slot) {
-                up.push(Event::Failed { account: number(&self.names, account), ends: Ends::Refresh, failure });
+                up.push(Event::Failed { account: entry.name.number(), ends: Ends::Refresh, failure });
             }
             if exchange.pending_grant || (!exchange.signing_in() && !exchange.signing_out() && held(slot)) {
-                set_held(slot, false);
-                failed(number(&self.names, account), failure, up);
+                set_held(slot, Lending::Free);
+                failed(entry.name.number(), failure, up);
             }
             if !exchange.signing_in() && failure == Failure::Exchange(oauth::Failure::Refused) {
                 *slot = State::Empty;
             }
         }
-        match self.keepers.get_mut(account).expect("account keeper") {
+        match &mut self.entries.get_mut(account).expect("account entry").store {
             Store::Private(keeper) => match &mut keeper.pending {
                 Some(pending) if exchange.file_active => pending.cancel = true,
                 Some(_) | None => {
@@ -1052,22 +1088,22 @@ impl Component {
         if exchange.settled() {
             if exchange.lock == OwnerLock::Held {
                 exchange.lock = OwnerLock::Released;
-                up.push(Event::Unlock { account: number(&self.names, exchange.account) });
+                up.push(Event::Unlock { account: number(&self.entries, exchange.account) });
             }
-            if self.bindings.get(exchange.account) == Some(&Some(id)) {
-                *self.bindings.get_mut(exchange.account).expect("account binding") = None;
+            if self.entries.get(exchange.account).expect("account entry").binding == Some(id) {
+                self.entries.get_mut(exchange.account).expect("account entry").binding = None;
             }
             self.retire_exchange(id);
         } else if exchange.signing_in()
             && !exchange.file_active
             && exchange.lock == OwnerLock::Released
             && let Stage::Finished = exchange.stage
-            && self.bindings.get(exchange.account) == Some(&Some(id))
+            && self.entries.get(exchange.account).expect("account entry").binding == Some(id)
         {
             // A finished sign-in's sockets settle on their own; a pending keeper reply or a
             // lock keeps the account, since `Unlock` names only the account (oauth.md, 6.4
             // and 6.5).
-            *self.bindings.get_mut(exchange.account).expect("account binding") = None;
+            self.entries.get_mut(exchange.account).expect("account entry").binding = None;
         }
         self.listen_waiting(env, io);
         self.settled(up);
@@ -1084,16 +1120,13 @@ impl Component {
         if self.has_exchanges() {
             return;
         }
-        for keeper in &self.keepers {
-            match keeper {
+        for entry in &self.entries {
+            match &entry.store {
                 Store::Private(keeper) if !keeper.closed => return,
                 Store::Private(_) | Store::Owner => {}
             }
         }
-        self.names.clear();
-        self.accounts.clear();
-        self.sources.clear();
-        self.keepers.clear();
+        self.entries.clear();
         self.lifecycle = Lifecycle::Closed;
         up.push(Event::Closed);
     }
@@ -1104,8 +1137,8 @@ impl Component {
         if self.removal_has_work() {
             return true;
         }
-        for account in 0..self.keepers.len() {
-            match self.keepers.get(account).expect("account keeper") {
+        for account in 0..self.entries.len() {
+            match &self.entries.get(account).expect("account entry").store {
                 Store::Private(keeper) => {
                     let abort_pending = match &keeper.pending {
                         Some(pending) => {
@@ -1120,7 +1153,7 @@ impl Component {
                         || (self.lifecycle != Lifecycle::Live
                             && !keeper.closed
                             && keeper.pending.is_none()
-                            && self.bindings.get(account) == Some(&None))
+                            && self.entries.get(account).expect("account entry").binding.is_none())
                     {
                         return true;
                     }
@@ -1136,9 +1169,9 @@ impl Component {
             }
         }
         if self.lifecycle == Lifecycle::Live && !self.exchanges.is_full() {
-            for state in &self.accounts {
-                match state {
-                    State::Record { due: true, earliest: None, .. } => return true,
+            for entry in &self.entries {
+                match &entry.state {
+                    State::Record { refresh, earliest: None, .. } if refresh.due() => return true,
                     State::Empty | State::Loaded { .. } | State::Record { .. } => {}
                 }
             }
@@ -1150,8 +1183,8 @@ impl Component {
     #[must_use]
     pub fn next_deadline(&self) -> Option<Time> {
         let mut soonest = None;
-        for keeper in &self.keepers {
-            match keeper {
+        for entry in &self.entries {
+            match &entry.store {
                 Store::Private(keeper) => match &keeper.pending {
                     Some(pending) => match pending.deadline {
                         Some(deadline) => soonest = earliest(soonest, Some(deadline)),
@@ -1178,20 +1211,20 @@ impl Component {
                 soonest = earliest(soonest, Some(at));
             }
         }
-        for account in 0..self.accounts.len() {
-            if self.bindings.get(account) != Some(&None) {
+        for account in 0..self.entries.len() {
+            if self.entries.get(account).expect("account entry").binding.is_some() {
                 continue;
             }
             if self.lifecycle != Lifecycle::Live || !self.live(account) {
                 continue;
             }
-            let next = match self.accounts.get(account).expect("account state") {
-                State::Record { lead, earliest, expiry, held, announced, rejected, attempted, due, record, .. } => {
-                    match self.sources.get(account).expect("account source") {
+            let next = match &self.entries.get(account).expect("account entry").state {
+                State::Record { lead, earliest, expiry, lending, notice, refresh, record } => {
+                    match &self.entries.get(account).expect("account entry").source {
                         Source::HandedIn | Source::SignIn { .. } if record.refresh_token.is_none() => {
-                            if !*announced && !*rejected {
+                            if !notice.announced() && !notice.rejected() {
                                 Some(*lead)
-                            } else if *held {
+                            } else if *lending == Lending::Held {
                                 Some(*expiry)
                             } else {
                                 None
@@ -1199,19 +1232,23 @@ impl Component {
                         }
                         Source::HandedIn => None,
                         Source::SignIn { .. } => {
-                            let interested = *held || self.wanted(account);
+                            let interested = *lending == Lending::Held || self.wanted(account);
                             if interested
                                 && record.refresh_token.is_some()
-                                && (!*attempted || *due)
+                                && (!refresh.attempted() || refresh.due())
                                 && !self.exchanges.is_full()
                             {
                                 let refresh = match earliest {
-                                    Some(at) if *due => *at,
+                                    Some(at) if refresh.due() => *at,
                                     Some(at) => (*at).max(*lead),
                                     None => *lead,
                                 };
-                                Some(if *held && !*announced { refresh.min(*expiry) } else { refresh })
-                            } else if *held && !*announced {
+                                Some(if *lending == Lending::Held && !notice.announced() {
+                                    refresh.min(*expiry)
+                                } else {
+                                    refresh
+                                })
+                            } else if *lending == Lending::Held && !notice.announced() {
                                 Some(*expiry)
                             } else {
                                 None
@@ -1260,9 +1297,9 @@ fn turn_of(exchange: &Exchange, lifecycle: Lifecycle, now: Time) -> Option<Turn>
     None
 }
 
-fn just_kept(record: SavedToken, env: &Env<Limits>, held: bool) -> State {
+fn just_kept(record: SavedToken, env: &Env<Limits>, lending: Lending) -> State {
     let half = Duration::from_nanos(record.remaining(env.wall).as_nanos().checked_div(2).expect("nonzero divisor"));
-    let mut state = recorded(record, env, held);
+    let mut state = recorded(record, env, lending);
     match &mut state {
         State::Record { lead, .. } => {
             *lead = (*lead).max(env.now.saturating_add(half));
@@ -1272,7 +1309,7 @@ fn just_kept(record: SavedToken, env: &Env<Limits>, held: bool) -> State {
     state
 }
 
-fn recorded(record: SavedToken, env: &Env<Limits>, held: bool) -> State {
+fn recorded(record: SavedToken, env: &Env<Limits>, lending: Lending) -> State {
     let remaining = record.remaining(env.wall);
     let expiry = env.now.saturating_add(remaining);
     let lead = env
@@ -1283,33 +1320,22 @@ fn recorded(record: SavedToken, env: &Env<Limits>, held: bool) -> State {
         earliest =
             Some(env.now.saturating_add(Duration::from_nanos(at.as_nanos().saturating_sub(env.wall.as_nanos()))));
     }
-    State::Record {
-        record,
-        expiry,
-        lead,
-        earliest,
-        announced: false,
-        held,
-        rejected: false,
-        attempted: false,
-        due: false,
-        rejection: None,
-    }
+    State::Record { record, expiry, lead, earliest, lending, refresh: Refresh::Untried, notice: Notice::Quiet }
 }
 
 fn held(slot: &State) -> bool {
     match slot {
-        State::Record { held, .. } => *held,
+        State::Record { lending, .. } => *lending == Lending::Held,
         State::Empty | State::Loaded { .. } => false,
     }
 }
 
-fn set_held(slot: &mut State, value: bool) {
+fn set_held(slot: &mut State, value: Lending) {
     match slot {
-        State::Record { held, due, .. } => {
-            *held = value;
-            if !value {
-                *due = false;
+        State::Record { lending, refresh, .. } => {
+            *lending = value;
+            if value == Lending::Free {
+                *refresh = refresh.forgo();
             }
         }
         State::Empty | State::Loaded { .. } => {}
@@ -1318,17 +1344,17 @@ fn set_held(slot: &mut State, value: bool) {
 
 fn grant(slot: &mut State, source: &Source, now: Time, account: u32, up: &mut Queue<Event>) {
     match slot {
-        State::Record { record, expiry, held, rejected, .. } if now < *expiry && !*rejected => {
+        State::Record { record, expiry, lending, notice, .. } if now < *expiry && !notice.rejected() => {
             let missing = match source {
                 Source::SignIn { registration, .. } => !oauth::missing_scopes(registration, record).is_empty(),
                 Source::HandedIn => false,
             };
             if missing {
-                *held = false;
+                *lending = Lending::Free;
                 failed(account, Failure::NotGranted, up);
                 return;
             }
-            *held = true;
+            *lending = Lending::Held;
             up.push(Event::Granted {
                 account,
                 token: record.access_token.clone(),
@@ -1337,8 +1363,8 @@ fn grant(slot: &mut State, source: &Source, now: Time, account: u32, up: &mut Qu
             });
         }
         State::Empty => failed(account, Failure::Expired, up),
-        State::Record { held, .. } => {
-            *held = false;
+        State::Record { lending, .. } => {
+            *lending = Lending::Free;
             failed(account, Failure::Expired, up);
         }
         State::Loaded { .. } => unreachable!("initialized account"),

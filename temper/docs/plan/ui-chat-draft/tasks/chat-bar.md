@@ -68,3 +68,43 @@ Options, each pre-approved:
 ## Report
 
 As `notes/common.md`, Your report.
+
+## Rebase (2026-11-05, step merge, foreman ui-chat-draft/chat-bar/foreman-1)
+
+reconcile chat-bar with the integration trunk’s onboarding and rebased Start over changes
+The merge failed on nine paths; this is the branch’s conflict to resolve.
+Rebase onto the landing trunk, preserving `c743b0bfd5` (main’s onboarding changes) and `d80e72e94a` (rebased Start over).
+Apply these resolutions:
+- `temper/crates/temper-client-domain/src/pages.rs`: retain the trunk’s Home actions and Start over routing; keep one scoped `too_many_lines` expectation on `confirmation`.
+- `temper/crates/temper-client-domain/src/pages/task.rs`: retain every Home action and `StartOver` in both exhaustive dispatches; keep one expectation on `amend`.
+- `temper/crates/temper-client-view/src/look.rs`: preserve onboarding tokens 326–338, document tokens 339–351 and `START_OVER` 352. Append `DOC_FLASH` at the next free token (353 on the inspected trunk), with its matching `NAMES` entry.
+- `temper/crates/temper-client-view/src/tests/look.rs`: retain onboarding assertions and both Start over and flash entries; reconcile the named-style array length.
+- `temper/crates/temper-client-view/src/pages/document.rs`: preserve configuring proposal status and ordinary draft paths, together with chat-bar’s section flash, keyed animation restart and focus count. Keep one `proposal_line` implementation.
+- `temper/crates/temper-client-view/src/tests/document.rs`: combine proposal-state fixture setup with chat-bar’s tool-call fixture changes; retain both suites’ assertions.
+- `temper/crates/temper-client-view/src/words.rs`: preserve the trunk vocabulary and capacities, adding chat-bar’s seven words, fifteen segments and 99 literal bytes once. Keep Start over’s six words and 148 bytes once; verify phrase IDs remain unique.
+- `temper/tools/gallery/src/samples.rs`: retain onboarding samples and all three chat-draft samples; reconcile `N` (180 on the inspected trunk) and preserve the split sample’s `ShowSection { line: 17 }`.
+- `temper/tools/gallery/src/worlds.rs`: retain onboarding’s `copies` argument and all callers, copy helpers and provider changes; also retain chat-bar’s `chat_note`, `chat_activity` and task-1 dispatch branches.
+Review automatically merged chat, hint, CSS and gallery code against the combined interfaces.
+Run focused domain, document, chat, style-name, phrase-capacity and gallery checks through heavy, then the spec’s client checks.
+Regenerate and report any affected goldens, journey prints or counted baselines using their existing tools.
+Preserve `Look-request: configure-chat-draft` on the resolution commit.
+
+## Rebase (2026-11-05, step merge, foreman ui-chat-draft/chat-bar/foreman-2)
+
+reconcile chat-bar with the trunk’s Settings tokens, phrase IDs and sorted gallery
+The merge conflicts are the branch’s: `look.rs`, `words.rs`, gallery `names.txt` and `samples.rs`.
+Rebase onto the landing trunk, preserving `6299f74127` (“Merge main while preserving chat drafts and settings”).
+The previous Rebase section’s token numbers and counts are superseded by these combined values.
+
+- `temper/crates/temper-client-view/src/look.rs`: retain Settings tokens 339–364, document tokens 365–377 and `START_OVER` 378. Append `DOC_FLASH` as token 379 with `temper-doc-flash` at the matching `NAMES` position.
+- `temper/crates/temper-client-view/src/tests/look.rs`: the automatic merge combines two independent array-length increases. Retain both `SETTINGS_COL` and `DOC_FLASH`; set the named-style array length to 116.
+- `temper/crates/temper-client-view/src/words.rs`: retain the trunk’s Settings vocabulary and reassigned document/proposal IDs 3421–3435. Assign chat-bar’s seven new words distinct IDs 3436–3442; its current 3420–3426 collide with trunk words.
+- Combine capacities once: `PHRASES = 1588`, `SEGMENTS = 2804`, `ALL` length 991; preserve the trunk’s literal-byte contributions and add chat-bar’s 99 bytes.
+- `temper/tools/gallery/src/samples.rs`: retain every trunk sample, `Then::Hosts`, Settings follow-up behavior and `samples.sort_by_key`. Add all three chat-draft samples; set `N = 200`.
+- Preserve chat-bar’s `Then::Mode` block that presses `ShowSection { line: 17 }` for `chat-draft-split`.
+- Regenerate `temper/tools/gallery/names.txt` from the combined gallery tool’s output, retaining alphabetical order and all 200 names.
+- Review automatically merged CSS, limits, gallery worlds and tests against the combined interfaces; preserve both Builders bounds and chat-bar’s bounds.
+
+Run focused style-name, phrase-capacity, document/chat and gallery checks through heavy, then the spec’s client checks.
+Regenerate and report any affected terminal goldens, journey prints or counted baselines using their existing tools.
+Keep `Look-request: configure-chat-draft` on the resolution commit.

@@ -12,8 +12,8 @@
 //!   jig's link vocabulary, the hub's ([`Event::Link`]), but an assignment,
 //!   which comes with temper's workspace items beside it ([`Event::Assign`]);
 //!   what goes up is the hub's ([`Request::Hello`], [`Request::Link`]), but
-//!   a run's answer, which goes with temper's parts beside it
-//!   ([`Request::Answer`]). The hub keeps every turn and answer until the
+//!   a run's or job's answer, which goes with temper's parts beside it
+//!   ([`Request::Answer`], [`Request::JobAnswer`]). The hub keeps every turn and answer until the
 //!   engine acknowledges it, and the root sends them again right after every
 //!   hello. A refusal goes once, and holds no slot.
 //! - The protocol layer's routing, which decodes and encodes smith's
@@ -129,6 +129,16 @@ pub enum Request {
         run: Token,
         attempt: Token,
         answer: host::RunAnswer,
+        work: wire::Work,
+        preparation: Option<wire::Preparation>,
+    },
+    /// A job's answer with the workspace parts its work and permanent
+    /// preparation failure name. Retained parts accompany every replay;
+    /// a refusal has no parts and holds nothing.
+    JobAnswer {
+        run: Token,
+        attempt: Token,
+        answer: host::JobEnding,
         work: wire::Work,
         preparation: Option<wire::Preparation>,
     },

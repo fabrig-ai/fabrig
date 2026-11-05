@@ -132,7 +132,7 @@ fn github_successes_use_the_requests_decoder() {
         assert_eq!(heard.len(), HEAD_AND_DONE, "{label}: head then body");
         assert_eq!(heard.get(0), Some(&expected_head(status)), "{label}: head");
         assert_eq!(heard.get(1), Some(&Heard::Done(expected)), "{label}: selected decoder");
-        assert_eq!(h.connection.phase, Phase::Idle, "{label}: reusable");
+        assert_eq!(h.connection.phase(), Phase::Idle, "{label}: reusable");
     }
     let mut h = begun(Request::Installations { page: PAGE });
     let pieces: [&[u8]; 5] = [b"[", INSTALLATION_BODY, b",", INSTALLATION_BODY, b"]"];
@@ -156,7 +156,7 @@ fn github_successes_use_the_requests_decoder() {
         ],
         "row demand retained through the next row and document end"
     );
-    assert_eq!(h.connection.phase, Phase::Idle, "streamed document ended");
+    assert_eq!(h.connection.phase(), Phase::Idle, "streamed document ended");
 }
 
 #[test]
@@ -165,7 +165,7 @@ fn github_empty_answers_are_discarded() {
     start(&mut h, Request::Uninstall { id: INSTALLATION }, Some(APP_TOKEN));
     let heard = h.github_answer(&fixtures::response(204, b""));
     assert_eq!(heard.as_slice(), [expected_head(204), Heard::Done(Body::Empty)]);
-    assert_eq!(h.connection.phase, Phase::Idle);
+    assert_eq!(h.connection.phase(), Phase::Idle);
 }
 
 #[test]
@@ -264,7 +264,7 @@ fn github_faults_before_and_after_a_send_have_visibility() {
             h.connection.stream(&h.env, Up::Failed(Fault::Reset));
             h.pump();
             assert_eq!(h.github.heard(&mut h.connection), None, "{label}/{fault:?}: one terminal");
-            assert_eq!(h.connection.phase, Phase::Closed, "{label}/{fault:?}: closed");
+            assert_eq!(h.connection.phase(), Phase::Closed, "{label}/{fault:?}: closed");
         }
     }
 }
@@ -282,7 +282,7 @@ fn github_stream_failure_during_json_is_seen() {
         "stream failure retains visibility"
     );
     assert_eq!(h.github.heard(&mut h.connection), None, "one failure");
-    assert_eq!(h.connection.phase, Phase::Closed, "failed body closes");
+    assert_eq!(h.connection.phase(), Phase::Closed, "failed body closes");
 }
 
 #[test]
@@ -290,8 +290,8 @@ fn github_connection_close_finishes_before_closing() {
     let mut h = begun(Request::Uninstall { id: INSTALLATION });
     let heard = h.github_answer(b"HTTP/1.1 204 No Content\r\nConnection: close\r\n\r\n");
     assert_eq!(heard.last(), Some(&Heard::Done(Body::Empty)), "answer completes");
-    assert_eq!(h.connection.phase, Phase::Closed, "no reusable connection");
-    assert_eq!(h.connection.deadline, None, "no idle deadline");
+    assert_eq!(h.connection.phase(), Phase::Closed, "no reusable connection");
+    assert_eq!(h.connection.deadline(), None, "no idle deadline");
 }
 
 #[test]
@@ -303,8 +303,8 @@ fn github_malformed_json_closes_after_its_head() {
     let Some(Heard::Done(Body::Malformed(_))) = heard.last() else {
         unreachable!("malformed terminal");
     };
-    assert_eq!(h.connection.phase, Phase::Closed, "no reusable half-read body");
-    assert_eq!(h.connection.deadline, None, "no idle deadline");
+    assert_eq!(h.connection.phase(), Phase::Closed, "no reusable half-read body");
+    assert_eq!(h.connection.deadline(), None, "no idle deadline");
 }
 
 #[test]
@@ -316,7 +316,7 @@ fn github_empty_refusal_keeps_its_status_before_malformed() {
     let Some(Heard::Done(Body::Malformed(_))) = heard.last() else {
         unreachable!("empty refusal is malformed JSON");
     };
-    assert_eq!(h.connection.phase, Phase::Closed, "malformed refusal closes");
+    assert_eq!(h.connection.phase(), Phase::Closed, "malformed refusal closes");
 }
 
 #[test]
@@ -332,6 +332,6 @@ fn github_raw_overflow_closes_with_a_bounded_prefix() {
             Some(&Heard::Done(Body::Raw { bytes: Box::from(b"abc".as_slice()), more })),
             "{label}: bounded prefix"
         );
-        assert_eq!(h.connection.phase, phase, "{label}: no half-consumed reuse");
+        assert_eq!(h.connection.phase(), phase, "{label}: no half-consumed reuse");
     }
 }

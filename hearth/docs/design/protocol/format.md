@@ -333,8 +333,8 @@ hosts/<base>/<base>-<env>.json     the base in <env>, without its members key
 - **The same environment only.** `chat-prod` runs on `east-prod`; a lab
   container runs on a lab host. So the bash fleet's error, a container
   file that cannot vary by environment and so carries production's forge
-  host key in the lab, cannot be written. The container `east-chat`
-  becomes the target `chat-prod`, with `hosts/chat/chat-prod.json`:
+  host key in the lab, cannot be written. The container is the target
+  `chat-prod`, with `hosts/chat/chat-prod.json`:
 
   ```json
   { "placement": { "kind": "container", "on": "east-prod" } }
@@ -437,9 +437,9 @@ hosts/<base>/<base>-<env>.json     the base in <env>, without its members key
       "data": { "every": "1h", "keep": { "hourly": 24, "daily": 14, "weekly": 8 } }
     }
   },
-  "locale": { "timezone": { "area": "Europe", "zone": "Lisbon" }, "locale": "en_US.UTF-8" },
+  "locale": { "timezone": { "area": "Etc", "zone": "UTC" }, "locale": "en_US.UTF-8" },
   "ssh": {
-    "port": 10127,
+    "port": 2222,
     "authorized": { "alice": { "x1": "ssh-ed25519 AAAAC3NzaC1lZDI1NTE5AAAA… alice@x1" } }
   }
 }
@@ -711,8 +711,8 @@ nothing.
     "settings": {
       "timezone": {
         "type": { "object": {
-          "area": { "type": "string", "doc": "tzdata's area, such as Europe." },
-          "zone": { "type": "string", "doc": "The zone in the area, such as Lisbon." }
+          "area": { "type": "string", "doc": "tzdata's area, such as Etc." },
+          "zone": { "type": "string", "doc": "The zone in the area, such as UTC." }
         } },
         "doc": "The system's timezone."
       },
@@ -1152,11 +1152,11 @@ nothing.
 | Detail in code | As data |
 |---|---|
 | `non-free` for `host.hardware == "7th-gen"` (os, bash `manifest`) | `debian.components` in `hosts/x1/x1-prod.json`, and the `firmware` task checks it (below) |
-| Europe/Lisbon and en_US preseeds (os's `install.rs`, bash's `deploy`) | the `locale` task's preseeds (5.3); the values in `fleet.json` (3.7) |
+| Etc/UTC and en_US preseeds (os's `install.rs`, bash's `deploy`) | the `locale` task's preseeds (5.3); the values in `fleet.json` (3.7) |
 | the persistent `journal` and `iwd` directories (os's `provision`) | `data` entries of `core` and `wifi` (5.7) |
 | gettys masked in containers (os's and bash's `deploy`) | `files` links in `core`, conditional on placement (below) |
 | `domain=example.org` (bash's `manifest`) | the `core` task's `domain` setting, set in `fleet.json` (3.7) |
-| SSH port 10127 (bash's ssh templates) | the `ssh` task's `port` setting, default 22, set in `fleet.json` (3.7), read as `Port {{ settings.port }}` in its sshd drop-in |
+| SSH port 2222 (bash's ssh templates) | the `ssh` task's `port` setting, default 22, set in `fleet.json` (3.7), read as `Port {{ settings.port }}` in its sshd drop-in |
 
 - **Firmware for x1's hardware.** `tasks/firmware/task.json`:
 
@@ -2384,9 +2384,3 @@ hearth/docs/design/domain/artifacts.md (7.3) cite it.
   or its `ConfigurationDirectory=` could name its consumers without a
   `live` entry (5.14); it depends on how many entries the fleet's tasks
   need once written.
-- **The example fleet's SSH port and zone:** whether `10127` (3.7, 5.10)
-  and `Europe/Lisbon` (3.7, 5.3, 5.10; hearth/docs/design/domain/build.md, 14;
-  hearth/docs/design/domain/render.md, 9.2;
-  hearth/docs/design/draft/brainstorm.md, 6.2) stay, or give way to plainer
-  values as the examples' hosts and providers did. No step code holds
-  either, only the fixtures and goldens; it is the user's to decide.

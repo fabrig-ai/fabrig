@@ -575,7 +575,19 @@ process has exited and its tree is empty. temper's choices:
   hang.
 - **Its limits** are smith's host limits, and the bounds the hello
   states, from the agent's configuration (`../protocol/configuration.md`,
-  section 5).
+  section 5). The one number that isn't the agent's is how many agents
+  the host holds at once: a run is one agent process, so that number is
+  the worker's slots, set where the worker composes its limits, and
+  nothing in the agent's configuration raises it. Each of the host's
+  other limits is one agent's, whatever the slots; an agent process
+  holds one run.
+- **What rises with its slots:** the worker's `hub.slots`, the engine's
+  `fleet.slots` and the checkout's `checkout.workspaces` are each at
+  least the slots, and `git_component.operations` at least the
+  workspaces. A start refuses a worker past any of them it can see,
+  naming the limit to raise. An engine alone can't see a worker's slots:
+  it uses them up to `fleet.slots` and turns away a hello listing more
+  runs than that (jig's `domain/engine.md`, section 8).
 - **Its program endpoints,** in the hello's bounds: the endpoint numbers
   the agent's configuration serves by a program, its `program_endpoints`,
   as jig's reference launcher declares them (jig's
@@ -730,5 +742,37 @@ for; and that nothing is live once it settles.
 - **A workspace's repositories in parallel:** a checkout runs one
   operation at a time, so its repositories are cloned, fetched and pushed
   one after another.
+- **A workspace kept past its workstream.** The cache is keyed by workstream,
+  so a new one starts from an empty directory and every file is new to a
+  build. Keyed by repository, it could keep a clone across workstreams and a
+  restart once contained trees keep a run out of the git directory
+  (`../protocol/git.md`, section 10), perhaps with no switch. With that goes
+  which workspace a workstream takes: the departure in `worker.status.md`
+  considers only the least recently used, and after a restart only the one a
+  first hold takes, since nothing says which workstream held which. So a
+  clone another workstream wanted can be made again, wasteful and never wrong.
+- **A worker past what no document raises.** A standalone start counts its
+  slots and git operations against the process's sockets, a constant
+  (`../protocol/configuration.md`, section 7), and the link's caps are `u32`s
+  that grow with the slots, so past them a start's refusal names a limit no
+  one can raise, or none. A refusal saying what to lower, a key for the
+  sockets or wider caps would close it. Default: as they stand, until a
+  deployment asks for more than they hold. The user's to decide.
 - **jig's:** saving periodically, and a worker's failed dials before its
   first channel (jig's `domain/hosts.md`, section 12).
+- **A hold naming its run's last failure.** A task held `out of tries:
+  run failures` names no failure: the reason is 4.3's operator line
+  alone. The ending reaches the hub as its class
+  (`jig-domain-hub-link/src/payload.rs`) and every durable record holds
+  the class (jig's `tasks_v9` and `core_v6`), so naming it stores the
+  last failure's bounded text with the hold. No LLM is shown this detail,
+  while a hold's words reach the LLM's task read
+  (`temper-engine-smith/src/answers.rs`), so it takes a field of its own
+  or a path to clients alone. Default: the line alone, which `temper help
+  server` says how to read, until that proves too little. The user's to
+  decide.
+- **What a deployment's operators may read of a run's prompts.** A run's
+  prompts hold repository text and anything an agent read, and a real
+  design of keeping them starts from who may read them
+  (`../draft/dogfood-hacks.md`, 2.12 and 2.13). Default: nothing past what an
+  agent's document asks its trace to keep.

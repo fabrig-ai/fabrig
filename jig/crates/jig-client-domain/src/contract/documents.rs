@@ -55,6 +55,8 @@ pub struct Task {
     pub label: u32,
     pub flags: super::TaskFlags,
     pub last_activity: Wall,
+    /// When the task was made: its record's `created_at` (jig/docs/design/client/domain/contract.md, 5.1).
+    pub made: Wall,
     pub waits_on: super::WaitsOn,
     pub chip: Chip,
     /// The actual goal this task serves, including itself when it is a goal.

@@ -13,6 +13,12 @@ pub struct File {
     pub path: Box<[u8]>,
     pub content: Box<[u8]>,
 }
+/// The repository a plan gives the bot access to (forge-setup.md, 4.5).
+#[derive(Clone, PartialEq, Eq, Debug)]
+pub enum Repository {
+    Id(NonZeroU64),
+    Path { owner: Box<[u8]>, name: Box<[u8]> },
+}
 #[derive(Clone, PartialEq, Eq, Debug)]
 pub enum Plan {
     /// The browser page for creating a GitHub App (5.1).
@@ -33,8 +39,8 @@ pub enum Plan {
     Check { forge: u16 },
     /// The handed admin token, held only until the run ends (4.7).
     TakeOver { forge: u16, admin_token: Secret },
-    /// The bot's access to the repository whose id the forge gave (4.5).
-    Adopt { forge: u16, repository: NonZeroU64 },
+    /// The bot's access to the repository given by id or path (4.5).
+    Adopt { forge: u16, repository: Repository },
     /// Makes a first repository, its access and missing files (4.9).
     Create { forge: u16, org: Box<[u8]>, repository: Box<[u8]>, files: Box<[File]> },
     /// Copies a public repository, its access and missing files (4.10).

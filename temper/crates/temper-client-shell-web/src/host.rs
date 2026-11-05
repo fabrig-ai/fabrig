@@ -58,12 +58,14 @@ pub struct Host {
 }
 impl Host {
     #[must_use]
-    pub fn new(seed: u64, now: Time, wall: Wall, ways: view::sign_in::Ways) -> Self {
+    pub fn new(seed: u64, now: Time, wall: Wall, zone_minutes: i32, ways: view::sign_in::Ways) -> Self {
         let client = limits::client();
         assert!(limits::valid(&client), "web capacities are checked");
         let (bounds, words) = limits::view(&client).expect("web view capacities are checked");
+        let mut root = root::new_departing(&client, seed);
+        root.set_zone_minutes(zone_minutes);
         Self {
-            root: root::new_departing(&client, seed),
+            root,
             view: view::View::with_sign_in(&bounds, &client, words, temper_client_protocol_wire::FORGE, ways),
             bounds,
             env: Env { now, wall, limits: client },
@@ -167,7 +169,7 @@ impl Host {
         view::event(&self.view, node, act)
     }
     fn act(&mut self, node: NodeId, act: Act) {
-        if let Some(event) = self.event_of(node, act) {
+        if let Some(event) = view::act_event(&mut self.view, node, act) {
             self.event(event);
         }
     }
@@ -341,4 +343,17 @@ fn deadline(domain: Option<Time>, next: Option<Wall>, now: Time, wall: Wall) -> 
         now.saturating_add(skein_lib::Duration::from_nanos(next.as_nanos().saturating_sub(wall.as_nanos())))
     });
     [domain, view].into_iter().flatten().min()
+}
+
+#[cfg(test)]
+mod zone_tests {
+    use super::*;
+
+    #[test]
+    fn the_host_keeps_the_shells_zone_before_start() {
+        for zone in [0_i32, 120_i32, -300_i32] {
+            let host = Host::new(11, Time::ZERO, Wall::EPOCH, zone, view::sign_in::Ways::NONE);
+            assert_eq!(host.root.zone_minutes(), zone);
+        }
+    }
 }

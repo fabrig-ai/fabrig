@@ -20,10 +20,14 @@
 - **Departs:** 3: `skein/docs/foundation/programming-model.md`, 5.4 asks for one
   explicit state enum per lifecycle, each state holding exactly its
   data, no lifecycle in flags or `Option`s beside it, exhaustive matches
-  and one handler per cell; `skein-llm/src/client.rs` keeps a data-less
-  `State` beside `Client`'s state-specific fields and decides
-  transitions by state comparisons; no reason is recorded (the code's
-  side is `skein/docs/development/debt/D023-llm-client-states.md`). 4.8:
+  and one handler per cell; `skein-llm/src/client.rs` handles each event
+  in one function that matches the state inside, for which no reason is
+  recorded, and keeps the SSE reader, which 3's table has under Streaming,
+  on `Client` with the other machines, because `close_sse` closes them
+  from any state. Beside `State` it also keeps the request's body in `Upload`,
+  which the table has under Prepared and Head, because an early response
+  leaves the upload live in Streaming and ErrorBody, and `outcome`, because
+  ErrorBody stays after its terminal has gone. 4.8:
   the request fields have no text on verbosity, but
   `skein-llm/src/translate.rs`'s `write_request` sends
   `"text":{"verbosity":"low"}` on every Responses request, using
@@ -34,3 +38,9 @@
   nothing of `openai`, but `skein-llm/src/anthropic/request_tests.rs` spells
   `openai::Limits` and `openai::json`, reaching `wire` through `openai`'s
   re-exports, because the request of 2026-11-05 keeps the tests as they are.
+  3: an owner may also ask one prepared call to keep its rendered body
+  (`MeasuredRequest::keep_body`, `Client::take_kept_body`), a copy held until
+  taken and made before any compression, because a development deployment must
+  read what left; it comes out when that need ends. Unasked, nothing is kept.
+  The body's encoder takes the prompt and limits alone, so a kept body holds no
+  header, credential or URL.

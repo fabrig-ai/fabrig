@@ -3,7 +3,7 @@ use alloc::boxed::Box;
 use skein_forge::decode;
 pub(crate) use skein_forge::plan::Failure;
 
-/// A forge connection's state; the component arms its deadline.
+/// A forge connection's phase; the component arms its deadline.
 #[derive(Clone, Copy, PartialEq, Eq, Hash, Debug)]
 pub enum Phase {
     /// Nothing held.
@@ -25,6 +25,7 @@ use crate::{
     limits::{self, Limits, Shared},
     settings::{Forge, Transport},
 };
+use State::{Closed, Connecting, Handshaking, Idle, Reading, Sending};
 use skein_http::client as http;
 use skein_json::tokenizer;
 use skein_lib::{
@@ -88,21 +89,76 @@ pub(crate) enum Use {
     /// A GitHub forge's own connection, outside the calls' count.
     Reserved,
 }
+/// A connection's phases hold their exchange (skein/docs/design/forge-connection.md, 8.1).
+enum State {
+    // Redirect draining survives its ending.
+    Closed { closing: bool, ended: Option<Ended>, draining: bool },
+    Connecting { until: Option<Time> },
+    Handshaking { until: Option<Time> },
+    Sending { exchange: Exchange, until: Option<Time> },
+    Reading { exchange: Exchange, draining: bool, until: Option<Time> },
+    Idle { draining: bool, until: Option<Time> },
+}
+struct Exchange {
+    upload: Option<Upload>,
+    receive: Receiving,
+    json_body: JsonBody,
+    json_next: Option<tokenizer::Request>,
+}
+impl State {
+    fn take(&mut self) -> Self {
+        core::mem::replace(self, Closed { closing: false, ended: None, draining: false })
+    }
+    fn exchange_mut(&mut self) -> Option<&mut Exchange> {
+        match self {
+            Sending { exchange, .. } | Reading { exchange, .. } => Some(exchange),
+            Closed { .. } | Idle { .. } | Connecting { .. } | Handshaking { .. } => None,
+        }
+    }
+    fn into_exchange(self) -> Option<Exchange> {
+        match self {
+            Sending { exchange, .. } | Reading { exchange, .. } => Some(exchange),
+            Closed { .. } | Idle { .. } | Connecting { .. } | Handshaking { .. } => None,
+        }
+    }
+    fn until(&self) -> Option<Time> {
+        match self {
+            Closed { .. } => None,
+            Connecting { until }
+            | Handshaking { until }
+            | Sending { until, .. }
+            | Reading { until, .. }
+            | Idle { until, .. } => *until,
+        }
+    }
+    fn idle(self) -> Self {
+        let until = self.until();
+        Idle { draining: self.draining(), until }
+    }
+    fn end(self, ended: Option<Ended>, closing: bool) -> Self {
+        let draining = self.draining();
+        let (ended, closing) = match self {
+            Closed { ended: previous, closing: requested, .. } => (ended.or(previous), closing || requested),
+            Connecting { .. } | Handshaking { .. } | Sending { .. } | Reading { .. } | Idle { .. } => (ended, closing),
+        };
+        Closed { closing, ended, draining }
+    }
+    fn draining(&self) -> bool {
+        match self {
+            Reading { draining, .. } | Idle { draining, .. } | Closed { draining, .. } => *draining,
+            Connecting { .. } | Handshaking { .. } | Sending { .. } => false,
+        }
+    }
+}
 /// One connection's stack, socket identity and pending output.
-#[expect(
-    clippy::struct_excessive_bools,
-    reason = "phase flags and HTTP exchange presence have independent transitions"
-)]
 pub(crate) struct Connection {
     pub(crate) forge: u16,
     pub(crate) role: Use,
     pub(crate) origin: Option<u32>,
-    pub(crate) draining: bool,
-    pub(crate) phase: Phase,
-    pub(crate) deadline: Option<Time>,
+    state: State,
     pub(crate) link: Link,
-    pub(crate) closing: bool,
     pub(crate) membership: Membership,
+    // The last send remains observable in Idle and Closed after its exchange is released.
     pub(crate) written: bool,
     http: http::Client,
     json: tokenizer::Tokenizer,
@@ -111,12 +167,6 @@ pub(crate) struct Connection {
     http_down: Queue<Down>,
     json_up: Queue<tokenizer::Event>,
     json_down: Queue<Down>,
-    json_next: Option<tokenizer::Request>,
-    json_body: JsonBody,
-    ended: Option<Ended>,
-    exchanging: bool,
-    receive: Receiving,
-    upload: Option<Upload>,
     raw_cap: u32,
     json_limits: tokenizer::Limits,
 }
@@ -150,11 +200,8 @@ impl Connection {
             forge: forge.number,
             role: Use::Calls,
             origin,
-            draining: false,
-            phase: Phase::Connecting,
-            deadline: Some(deadline),
+            state: Connecting { until: Some(deadline) },
             link,
-            closing: false,
             membership: Membership::Configured,
             written: false,
             http,
@@ -164,20 +211,44 @@ impl Connection {
             http_down: Queue::uncapped(),
             json_up: Queue::uncapped(),
             json_down: Queue::uncapped(),
-            json_next: None,
-            json_body: JsonBody {
-                intake: Intake::with_capacity(l.chunk.max(5)),
-                read: None,
-                below: false,
-                ended: false,
-            },
-            ended: None,
-            exchanging: false,
-            receive: Receiving::Empty,
-            upload: None,
             raw_cap: shared.answer_bytes,
             json_limits: limits::documents(l).json,
         }
+    }
+    pub(crate) fn deadline(&self) -> Option<Time> {
+        self.state.until()
+    }
+    pub(crate) fn rest(&mut self, until: Option<Time>) {
+        match &mut self.state {
+            Closed { .. } => {}
+            Connecting { until: held }
+            | Handshaking { until: held }
+            | Sending { until: held, .. }
+            | Reading { until: held, .. }
+            | Idle { until: held, .. } => *held = until,
+        }
+    }
+    pub(crate) fn phase(&self) -> Phase {
+        match self.state {
+            Closed { .. } => Phase::Closed,
+            Connecting { .. } => Phase::Connecting,
+            Handshaking { .. } => Phase::Handshaking,
+            Sending { .. } => Phase::Sending { written: self.written },
+            Reading { .. } => Phase::Reading,
+            Idle { .. } => Phase::Idle,
+        }
+    }
+    pub(crate) fn closing(&self) -> bool {
+        match self.state {
+            Closed { closing, .. } => closing,
+            Connecting { .. } | Handshaking { .. } | Sending { .. } | Reading { .. } | Idle { .. } => false,
+        }
+    }
+    pub(crate) fn draining(&self) -> bool {
+        self.state.draining()
+    }
+    fn exchange(&mut self) -> &mut Exchange {
+        self.state.exchange_mut().expect("an HTTP event belongs to an exchange")
     }
     pub(crate) fn host(&self, forge: &Forge) -> Box<[u8]> {
         match self.origin {
@@ -195,53 +266,59 @@ impl Connection {
         }
     }
     pub(crate) fn send(&mut self, env: &Env<Limits>, call: http::Call, upload: Option<Box<[u8]>>) {
-        self.clear_json_body();
         self.json_limits = limits::documents(&env.limits).json;
-        self.ended = None;
-        self.exchanging = true;
-        self.upload = Upload::of(upload);
         self.written = false;
-        self.phase = Phase::Sending { written: false };
+        let intake = Intake::with_capacity(env.limits.chunk.max(5));
+        let json_body = JsonBody { intake, read: None, below: false, ended: false };
+        let exchange = Exchange { upload: Upload::of(upload), receive: Receiving::Empty, json_body, json_next: None };
+        self.state = Sending { exchange, until: self.deadline() };
         self.http_down(env, http::Request::Call(call));
-        if self.upload.is_some() {
-            self.http_down(
-                env,
-                http::Request::Upload(Down::Demand { read: Read::Nothing, room: self.http_env(env).limits.send }),
-            );
+        if self.exchange().upload.is_some() {
+            let demand = Down::Demand { read: Read::Nothing, room: self.http_env(env).limits.send };
+            self.http_down(env, http::Request::Upload(demand));
         }
     }
     pub fn drain_redirect(&mut self, env: &Env<Limits>, io: &mut Queue<skein_io::Request>) -> bool {
-        if !self.draining {
+        if !self.draining() {
             return false;
         }
-        if self.deadline <= Some(env.now) {
+        if self.deadline() <= Some(env.now) {
             self.timeout();
         }
         self.drain(env, io);
-        if self.phase == Phase::Idle || self.phase == Phase::Closed {
-            self.draining = false;
+        match &mut self.state {
+            Idle { draining, .. } | Closed { draining, .. } => *draining = false,
+            Connecting { .. } | Handshaking { .. } | Sending { .. } | Reading { .. } => {}
         }
         self.ready()
     }
     pub fn discard_redirect(&mut self, env: &Env<Limits>) {
-        if self.phase == Phase::Reading {
-            self.clear_json_body();
-            self.draining = true;
-            self.receive = Receiving::Empty;
-            self.json_next = None;
-            self.json_up.clear();
-            self.json_down.clear();
-            self.http_down(env, http::Request::Discard);
-        }
+        self.state = match self.state.take() {
+            Reading { mut exchange, until, .. } => {
+                exchange.json_body.intake.clear();
+                exchange.json_body.read = None;
+                exchange.json_body.below = false;
+                exchange.json_body.ended = false;
+                exchange.receive = Receiving::Empty;
+                exchange.json_next = None;
+                self.json_up.clear();
+                self.json_down.clear();
+                self.http_down(env, http::Request::Discard);
+                Reading { exchange, draining: true, until }
+            }
+            state @ (Closed { .. } | Connecting { .. } | Handshaking { .. } | Sending { .. } | Idle { .. }) => state,
+        };
     }
     fn link_env(&self, env: &Env<Limits>) -> Env<skein_link::Limits> {
         env.with(skein_link::Limits { tls: env.limits.tls, close_timeout: self.shared.io.close_timeout })
     }
     pub fn connect(&mut self, env: &Env<Limits>) {
-        self.phase = match self.link.connected(&self.link_env(env)) {
-            Start::Handshaking => Phase::Handshaking,
-            Start::Ready => Phase::Idle,
-            Start::Closing => Phase::Closed,
+        let until = self.deadline();
+        let state = self.state.take();
+        self.state = match self.link.connected(&self.link_env(env)) {
+            Start::Handshaking => Handshaking { until },
+            Start::Ready => state.idle(),
+            Start::Closing => state,
         };
     }
     pub fn stream(&mut self, env: &Env<Limits>, event: Up) {
@@ -260,14 +337,21 @@ impl Connection {
     }
     /// One child-machine movement, in the holder's bounded pump.
     pub(crate) fn step(&mut self, env: &Env<Limits>, io: &mut Queue<skein_io::Request>, held: bool) -> Moved {
-        let held = held || self.phase == Phase::Closed;
-        if !held || self.closing {
+        let held = held || self.phase() == Phase::Closed;
+        if !held || self.closing() {
             match self.link.pump(io) {
                 LinkMoved::Sent => {
-                    if self.exchanging {
+                    if self.state.exchange_mut().is_some() {
                         self.written = true;
-                        self.phase =
-                            if self.upload.is_some() { Phase::Sending { written: true } } else { Phase::Reading };
+                        let until = self.deadline();
+                        let state = self.state.take();
+                        let draining = state.draining();
+                        let exchange = state.into_exchange().expect("a send belongs to an exchange");
+                        self.state = if exchange.upload.is_some() {
+                            Sending { exchange, until }
+                        } else {
+                            Reading { exchange, draining, until }
+                        };
                     }
                     return Moved::Within;
                 }
@@ -290,7 +374,9 @@ impl Connection {
             self.json_demand(env, down);
             return Moved::Within;
         }
-        if let Some(request) = self.json_next.take() {
+        if let Some(exchange) = self.state.exchange_mut()
+            && let Some(request) = exchange.json_next.take()
+        {
             self.json_request(env, request);
             return Moved::Within;
         }
@@ -310,56 +396,46 @@ impl Connection {
         for _ in 0_u32..64 {
             match self.step(env, io, false) {
                 Moved::Nothing => break,
-                Moved::Finished { reuse, raw } => {
-                    drop(raw);
-                    self.finish(env, reuse, false);
-                }
+                Moved::Finished { reuse, .. } => self.finish(env, reuse, false),
                 Moved::Within | Moved::Head(_) | Moved::Token(_) => {}
             }
         }
-        self.ended = None;
+        let _ended = self.take_ended();
     }
     pub(crate) fn set_json_next(&mut self, request: tokenizer::Request) {
-        self.json_next = Some(request);
+        self.exchange().json_next = Some(request);
     }
     pub(crate) fn begin_json(&mut self, env: &Env<Limits>, limits: tokenizer::Limits) {
-        self.receive = Receiving::Json;
+        self.exchange().receive = Receiving::Json;
         self.json_limits = limits;
         self.json = tokenizer::Tokenizer::new(&limits);
         self.json_request(env, tokenizer::Request::Next);
     }
     pub(crate) fn discard(&mut self, env: &Env<Limits>) {
-        self.receive = Receiving::Empty;
+        self.exchange().receive = Receiving::Empty;
         self.http_down(env, http::Request::Discard);
     }
     pub(crate) fn finish(&mut self, env: &Env<Limits>, reuse: http::Reuse, closes: bool) {
         let close = reuse == http::Reuse::Close || closes;
-        self.exchanging = false;
-        self.clear_json_body();
-        self.upload = None;
-        self.phase = if close { Phase::Closed } else { Phase::Idle };
-        self.deadline = if close { None } else { Some(env.now.saturating_add(env.limits.idle)) };
-    }
-    fn clear_json_body(&mut self) {
-        self.json_body.intake.clear();
-        self.json_body.read = None;
-        self.json_body.below = false;
-        self.json_body.ended = false;
+        let draining = self.draining();
+        let until = Some(env.now.saturating_add(env.limits.idle));
+        self.state = if close { self.state.take().end(None, false) } else { Idle { draining, until } };
     }
     fn json_demand(&mut self, env: &Env<Limits>, down: Down) {
+        let Some(exchange) = self.state.exchange_mut() else { return };
         match down {
             Down::Demand { read, room } => {
                 assert_eq!(room, 0, "JSON bodies only read");
                 if read == Read::Nothing {
-                    self.json_body.read = None;
-                    self.json_body.intake.clear();
-                    if self.json_body.below {
-                        self.json_body.below = false;
+                    exchange.json_body.read = None;
+                    exchange.json_body.intake.clear();
+                    if exchange.json_body.below {
+                        exchange.json_body.below = false;
                         self.http_down(env, http::Request::Body(Down::Demand { read, room: 0 }));
                     }
                 } else {
-                    assert!(self.json_body.read.is_none(), "one tokenizer demand at a time");
-                    self.json_body.read = Some(read);
+                    assert!(exchange.json_body.read.is_none(), "one tokenizer demand at a time");
+                    exchange.json_body.read = Some(read);
                 }
             }
             Down::Send(_) | Down::Finish => unreachable!("JSON bodies only read"),
@@ -367,32 +443,35 @@ impl Connection {
     }
     /// One local answer or refill is one of the pump's bounded movements.
     fn pump_json_body(&mut self, env: &Env<Limits>) -> bool {
-        let Some(read) = self.json_body.read else { return false };
-        let event = if let Some(bytes) = self.json_body.intake.meet(read) {
+        let Some(exchange) = self.state.exchange_mut() else { return false };
+        let Some(read) = exchange.json_body.read else { return false };
+        let event = if let Some(bytes) = exchange.json_body.intake.meet(read) {
             Up::Bytes(bytes)
-        } else if self.json_body.ended {
-            self.json_body.intake.clear();
+        } else if exchange.json_body.ended {
+            exchange.json_body.intake.clear();
             Up::End
         } else {
             // HTTP may already have its final Bytes, End and Done queued.
             // Consume those before asking its body stream for another read.
-            if self.json_body.below || !self.http_up.is_empty() {
+            if exchange.json_body.below || !self.http_up.is_empty() {
                 return false;
             }
-            let max = self.json_body.intake.room();
+            let max = exchange.json_body.intake.room();
             assert!(max > 0, "a full intake meets every tokenizer demand");
-            self.json_body.below = true;
+            exchange.json_body.below = true;
             self.http_down(env, http::Request::Body(Down::Demand { read: Read::Arrived { max }, room: 0 }));
             return true;
         };
-        self.json_body.read = None;
+        exchange.json_body.read = None;
         let j = env.with(self.json_limits);
         tokenizer::up(&mut self.json, &j, event, &mut self.json_up, &mut self.json_down);
         true
     }
     fn link_event(&mut self, env: &Env<Limits>, event: skein_link::Event) {
         match event {
-            skein_link::Event::Ready => self.phase = Phase::Idle,
+            skein_link::Event::Ready => {
+                self.state = self.state.take().idle();
+            }
             skein_link::Event::Stream(event) => {
                 let h = self.http_env(env);
                 http::up(&mut self.http, &h, event, &mut self.http_up, &mut self.http_down);
@@ -401,15 +480,16 @@ impl Connection {
         }
     }
     fn json_body_event(&mut self, event: Up) {
+        let exchange = self.exchange();
         match event {
             Up::Bytes(bytes) => {
-                assert!(self.json_body.below, "one answer to a JSON body refill");
-                self.json_body.below = false;
-                self.json_body.intake.append(&bytes).expect("refill fits the remaining intake room");
+                assert!(exchange.json_body.below, "one answer to a JSON body refill");
+                exchange.json_body.below = false;
+                exchange.json_body.intake.append(&bytes).expect("refill fits the remaining intake room");
             }
             Up::End => {
-                self.json_body.below = false;
-                self.json_body.ended = true;
+                exchange.json_body.below = false;
+                exchange.json_body.ended = true;
             }
             Up::Failed(_) => self.failed(Failure::Seen),
             Up::Room => unreachable!("JSON bodies only read"),
@@ -418,7 +498,7 @@ impl Connection {
     fn http_event(&mut self, env: &Env<Limits>, event: http::Event) -> Moved {
         match event {
             http::Event::Response(response) => return Moved::Head(response),
-            http::Event::Body(event) => match &mut self.receive {
+            http::Event::Body(event) => match &mut self.exchange().receive {
                 Receiving::Json => self.json_body_event(event),
                 Receiving::Empty => {
                     drop(event);
@@ -431,10 +511,8 @@ impl Connection {
                             *left = left.saturating_sub(length);
                         }
                         if *read > u64::from(env.limits.body_bytes_in) {
-                            self.receive = Receiving::Empty;
-                            self.malformed(decode::Malformed::Bound { field: b"log" });
-                            self.phase = Phase::Closed;
-                            self.deadline = None;
+                            self.exchange().receive = Receiving::Empty;
+                            self.malformed_json(decode::Malformed::Bound { field: b"log" });
                         } else {
                             tail.write(&piece);
                             self.raw_demand(env);
@@ -451,14 +529,14 @@ impl Connection {
                         }
                         let more = grow.write(&piece).is_err() || grow.len() > *max;
                         if more {
-                            let grow = match core::mem::replace(&mut self.receive, Receiving::Empty) {
+                            let grow = match core::mem::replace(&mut self.exchange().receive, Receiving::Empty) {
                                 Receiving::Raw { grow, .. } => grow,
                                 Receiving::Json | Receiving::Tail { .. } | Receiving::Empty => {
                                     unreachable!("raw body")
                                 }
                             };
-                            self.phase = Phase::Closed;
-                            self.deadline = None;
+                            self.state =
+                                Closed { closing: self.closing(), ended: self.take_ended(), draining: self.draining() };
                             return Moved::Finished {
                                 reuse: http::Reuse::Close,
                                 raw: Payload::Raw { bytes: grow.finish(), more: true },
@@ -473,7 +551,7 @@ impl Connection {
             },
             http::Event::Upload(event) => self.upload(env, event),
             http::Event::Done(reuse) => {
-                let raw = match core::mem::replace(&mut self.receive, Receiving::Empty) {
+                let raw = match core::mem::replace(&mut self.exchange().receive, Receiving::Empty) {
                     Receiving::Json => Payload::Json,
                     Receiving::Empty => Payload::Empty,
                     Receiving::Raw { grow, max, .. } => {
@@ -520,7 +598,7 @@ impl Connection {
             http::Framing::Empty => Some(0),
             http::Framing::Chunked | http::Framing::UntilEnd => None,
         };
-        self.receive = match keep {
+        self.exchange().receive = match keep {
             Keep::Head(max) => Receiving::Raw {
                 grow: Grow::new(env.limits.chunk, max.saturating_add(1).min(self.raw_cap)),
                 max,
@@ -539,103 +617,93 @@ impl Connection {
         self.raw_demand(env);
     }
     fn raw_demand(&mut self, env: &Env<Limits>) {
-        let count = match &self.receive {
-            Receiving::Raw { grow, remaining, .. } => match remaining {
-                Some(left) => grow.room().min(env.limits.chunk).min(u32::try_from(*left).unwrap_or(u32::MAX)).max(1),
-                None => 1,
-            },
-            Receiving::Tail { remaining, .. } => match remaining {
-                Some(left) => env.limits.chunk.min(u32::try_from(*left).unwrap_or(u32::MAX)).max(1),
-                None => 1,
-            },
+        let Some(exchange) = self.state.exchange_mut() else { return };
+        let (room, remaining) = match &exchange.receive {
+            Receiving::Raw { grow, remaining, .. } => (grow.room().min(env.limits.chunk), *remaining),
+            Receiving::Tail { remaining, .. } => (env.limits.chunk, *remaining),
             Receiving::Json | Receiving::Empty => return,
+        };
+        let count = match remaining {
+            Some(left) => room.min(u32::try_from(left).unwrap_or(u32::MAX)).max(1),
+            None => 1,
         };
         self.http_down(env, http::Request::Body(Down::Demand { read: Read::Fill(count), room: 0 }));
     }
     fn upload(&mut self, env: &Env<Limits>, event: Up) {
+        let room = self.http_env(env).limits.send;
+        let Some(exchange) = self.state.exchange_mut() else { return };
         match event {
             Up::Room => {
-                let room = self.http_env(env).limits.send;
-                let Some(upload) = &mut self.upload else { return };
+                let Some(upload) = &mut exchange.upload else { return };
                 let (piece, next) = upload.room(room);
                 self.http_down(env, http::Request::Upload(piece));
                 if next == Down::Finish {
-                    self.upload = None;
-                    self.phase = Phase::Reading;
+                    let until = self.deadline();
+                    let mut exchange = self.state.take().into_exchange().expect("upload belongs to an exchange");
+                    exchange.upload = None;
+                    self.state = Reading { exchange, draining: false, until };
                 }
                 self.http_down(env, http::Request::Upload(next));
             }
-            Up::Failed(_) | Up::End => {
-                self.upload = None;
-            }
+            Up::Failed(_) | Up::End => exchange.upload = None,
             Up::Bytes(_) => unreachable!("uploads only write"),
         }
     }
     pub(crate) fn malformed_json(&mut self, error: decode::Malformed) {
-        self.clear_json_body();
-        self.receive = Receiving::Empty;
-        self.phase = Phase::Closed;
-        self.deadline = None;
-        self.malformed(error);
-    }
-    fn malformed(&mut self, error: decode::Malformed) {
-        self.exchanging = false;
-        self.ended = Some(Ended::Malformed(error));
+        self.state = self.state.take().end(Some(Ended::Malformed(error)), false);
     }
     pub fn failed(&mut self, failure: Failure) {
-        if self.phase == Phase::Closed {
+        if self.phase() == Phase::Closed {
             return;
         }
-        self.clear_json_body();
-        self.phase = Phase::Closed;
-        self.deadline = None;
-        self.exchanging = false;
-        self.ended = Some(Ended::Failed(failure));
+        self.state = self.state.take().end(Some(Ended::Failed(failure)), false);
     }
     pub fn timeout(&mut self) {
         self.failed(if self.written { Failure::Seen } else { Failure::Unseen });
     }
     pub fn in_flight(&self) -> bool {
-        self.exchanging
-            || match self.phase {
-                Phase::Connecting | Phase::Handshaking => true,
-                Phase::Closed | Phase::Sending { .. } | Phase::Reading | Phase::Idle => false,
-            }
+        match &self.state {
+            Closed { .. } | Idle { .. } => false,
+            Connecting { .. } | Handshaking { .. } | Sending { .. } | Reading { .. } => true,
+        }
     }
     pub fn close(&mut self, env: &Env<Limits>, abort: bool, io: &mut Queue<skein_io::Request>) {
-        if self.closing {
+        if self.closing() {
             return;
         }
-        self.clear_json_body();
-        self.phase = Phase::Closed;
-        self.deadline = None;
-        self.exchanging = false;
-        self.closing = true;
+        self.state = self.state.take().end(None, true);
         self.link.close(&self.link_env(env), abort, io);
     }
     /// Aborts the connection, including a close still under way (programming-model.md, 5.2).
     pub fn abort(&mut self, env: &Env<Limits>, io: &mut Queue<skein_io::Request>) {
-        if !self.closing {
+        if !self.closing() {
             self.close(env, true, io);
             return;
         }
         self.link.close(&self.link_env(env), true, io);
     }
     pub(crate) fn take_ended(&mut self) -> Option<Ended> {
-        self.ended.take()
+        match &mut self.state {
+            Closed { ended, .. } => ended.take(),
+            Connecting { .. } | Handshaking { .. } | Sending { .. } | Reading { .. } | Idle { .. } => None,
+        }
     }
     pub fn ready(&self) -> bool {
-        if self.phase == Phase::Closed {
-            return self.ended.is_some() || self.link.has_work();
+        let exchange = match &self.state {
+            Closed { ended, .. } => return ended.is_some() || self.link.has_work(),
+            Sending { exchange, .. } | Reading { exchange, .. } => Some(exchange),
+            Idle { .. } | Connecting { .. } | Handshaking { .. } => None,
+        };
+        if let Some(exchange) = exchange
+            && (exchange.json_next.is_some() || (exchange.json_body.read.is_some() && !exchange.json_body.below))
+        {
+            return true;
         }
         !self.http_up.is_empty()
             || !self.http_down.is_empty()
             || self.link.has_work()
             || !self.json_up.is_empty()
             || !self.json_down.is_empty()
-            || self.ended.is_some()
-            || self.json_next.is_some()
-            || (self.json_body.read.is_some() && !self.json_body.below)
     }
     /// The answer's remaining payload room, set by the holding plan before its raw read.
     pub fn raw_room(&mut self, room: u32) {
@@ -651,8 +719,8 @@ impl core::fmt::Debug for Connection {
     fn fmt(&self, f: &mut core::fmt::Formatter<'_>) -> core::fmt::Result {
         f.debug_struct("Connection")
             .field("forge", &self.forge)
-            .field("phase", &self.phase)
-            .field("deadline", &self.deadline)
+            .field("phase", &self.phase())
+            .field("deadline", &self.deadline())
             .finish_non_exhaustive()
     }
 }

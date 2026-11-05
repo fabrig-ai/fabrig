@@ -236,7 +236,7 @@ fn a_welcome_sign_in_come_back_at_ready_reads_it_under_way_then_its_account() {
     let (_, returned) = front.engine.protocol.returns.last().expect("welcome return");
     let Place::Address(address) = d::address::parse(returned) else { panic!("returned welcome address") };
     accounts::reopen(&mut front, &mut root, address, true);
-    assert!(text(&root).contains("Model ChatGPT · signing in"));
+    assert!(text(&root).contains("Model ChatGPT plan · signing in…"));
     assert!(!text(&root).contains("Connect a model"));
     front.engine.send(temper_engine_domain::Event::Account(jig_domain_accounts::Event::SignedIn {
         source,
@@ -266,4 +266,46 @@ fn an_unknown_return_source_is_removed_and_the_way_can_start_again() {
     );
     assert!(front.leaves.is_empty());
     assert!(front.engine.protocol.returns.is_empty());
+}
+
+#[test]
+fn welcome_claude_checks_on_the_wire_and_reaches_ready_after_the_host_answers() {
+    use jig_client::contract::{AccountChange, Ask, AskAccountHolder};
+    let (mut front, mut root) = accounts::empty_program_fixture(fixtures::SEED);
+    front.deployment = (true, true);
+    let address = Address::Welcome {
+        step: d::Step::Model {
+            way: Some(d::ModelWay { provider: accounts::PROVIDER, kind: d::WayKind::Program, source: None }),
+        },
+    };
+    accounts::reopen(&mut front, &mut root, address.clone(), false);
+    assert!(text(&root).contains("temper program-login claude-person"), "{}", text(&root));
+    let view = view(&root);
+    let button = view
+        .tree()
+        .nodes()
+        .iter()
+        .find(|node| node.role == Role::Button && node.name.as_deref() == Some("I’ve signed in".as_bytes()))
+        .expect("sign-in button")
+        .id;
+    let event = temper_client_view::event(&view, button, skein_ui::Act::Press).expect("check binding");
+    let sent = accounts::event_traced(&mut front, &mut root, event.into());
+    let [
+        Ask::AccountChange { holder: AskAccountHolder::Own, change: AccountChange::DeclareProgram { name, .. } },
+        Ask::AccountChange { holder: AskAccountHolder::Own, change: AccountChange::CheckProgram { source } },
+    ] = sent.as_slice()
+    else {
+        panic!("declare then check on the wire: {sent:?}");
+    };
+    assert_eq!(name.as_ref(), b"claude-person");
+    assert_eq!(
+        root.person().pages().connect_model().unwrap().request.pending.as_ref().unwrap().ask,
+        Ask::AccountChange { holder: AskAccountHolder::Own, change: AccountChange::CheckProgram { source: *source } }
+    );
+    accounts::program_checked(&mut front, &mut root, false);
+    assert_eq!(root.person().pages().address(), &address);
+    assert!(text(&root).contains("Claude Code isn’t signed in here yet."));
+    press(&mut front, &mut root, Role::Button, "I’ve signed in".as_bytes(), skein_ui::Act::Press);
+    accounts::program_checked(&mut front, &mut root, true);
+    assert_eq!(root.person().pages().address(), &Address::Welcome { step: d::Step::Ready });
 }

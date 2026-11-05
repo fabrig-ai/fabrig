@@ -1,6 +1,6 @@
 # Tools: temper for agents
 
-Provisional, 2026-10-17, revised 2026-10-30. How agents drive temper:
+Provisional, 2026-10-17, revised 2026-11-05. How agents drive temper:
 they read what it holds, act through jig's operations and wait for what
 changes, with `temper ctl`, a command line. It serves any agent working
 with temper for a person, which reaches the systems temper works with,
@@ -233,6 +233,7 @@ watch's subject, its digest (5.4). It needs no key.
 | `task run TASK` | a task's live run: its attempt, its provisional text where its host gives it, its current call | `run{n}` |
 | `settings show` | the settings: the newest revision's number; each setting, by kind and number with its name, following its default or a change and the revision that last changed it; each revision held, with who decided it, when, the proposal it came from and how many live tasks hold it; the pending proposals of settings | `settings` |
 | `settings show charter NUMBER [--revision REVISION]`, `settings show template\|policy NUMBER`, `settings show rules` | one setting's value whole, as the newest reads it, or a charter as held REVISION reads it; with `--json`, the value in the form `settings apply` takes. A REVISION no longer held exits 2, `temper ctl: revision R is no longer held; its record is in temper ctl revision show R, and the held ones in temper ctl settings show` | `setting{kind, number, revision}` |
+| `settings show project-ways PROJECT [--revision REVISION]`, `settings show project-questions PROJECT [--revision REVISION]` | a project's ways and its questions (`../protocol/configuration.md`, 13.2): the value stored, or the stock's, marked so, with none | `forge`, kinds 7 and 6 |
 | `settings show landing-rule NUMBER [--project PROJECT] [--revision REVISION]`, `settings show forge-charter NUMBER [--revision REVISION]` | one of temper's settings (`../protocol/configuration.md`, 13.2): a landing rule of the deployment's, or of PROJECT's, or one of the forge's charters, 1 the change's and 2 its reviews'; its state from jig's `settings`, its value from the forge's read; with `--revision`, the value that revision set, while it remains in the history; with `--json`, the value in the form `settings apply` takes | the forge's `Setting { kind, scope, number }` (`forge.md`, section 9) |
 | `revision show REVISION` | a revision: the revision it was made against, when, who decided it (a party, the release or the first start), the proposal it came from, whether it moved running work, and its items, each set with its value whole (or its size, too large, to read with `settings show`), removed or reset, and what it replaced (`was:` its value whole or its size, its default, removed, or not offered), a project's policy item with the policy it set and the one it replaced, temper's kinds' set items read at that revision from the forge and printed whole in text and JSON, their replaced explicit values read at the preceding set found in retained history, with size metadata when unavailable or too large, the forge keeping those values for a restore (jig's `domain/engine.md`, 17.10); a revision forgotten past the history names the oldest kept | `revision{n}`, the forge’s `RevisionSetting { kind, scope, number, revision }` |
 | `proposal show PROPOSAL` | a proposal of any kind, including its settings review: current values, origins, proposed values and the newest revision, each value whole: one past the review document's bound is read whole with `setting{…, proposal}` (jig's `domain/engine.md`, 17.10) and the current one with `setting{…}`, so a review never shows a value as too large; a decided or withdrawn proposal retains its state | `proposal{proposer, number}`, `settings`, `setting{…}` |
@@ -382,14 +383,17 @@ agent must name.
   `{"kind": "rules"}`, `{"kind": "landing-rule", "number": N}` for the
   deployment's, `{"kind": "landing-rule", "project": P, "number": N}`
   for project P's, `{"kind": "forge-charter", "number": N}`, N 1
-  the change's charter and 2 its reviews', or `{"kind":
+  the change's charter and 2 its reviews', `{"kind": "project-ways",
+  "project": P}`, `{"kind": "project-questions", "project": P}`, or `{"kind":
   "project-policy", "project": P}`, project P's own policy (jig's
   `domain/engine.md`, 17.2), set alone and at most once in a file; VALUE is exactly the
   `value` member `settings show … --json` prints: for a landing rule, section
   3's rule member but `connector` and `kind`, its `pattern` in `FIELDS`'
   `landing-pattern` form, its segments as hex
   (`../protocol/configuration.md`, 13.2), for the forge's charter a charter's
-  number, and for a project's policy a policy in the form `settings show
+  number, for a project's ways `{"drafts": BOOL, "goals": BOOL, "changes": BOOL, "away": BOOL,
+  "way": N}`, for a project's questions `"none"`, `"foreman"` or `"up"`,
+  and for a project's policy a policy in the form `settings show
   policy NUMBER --json` prints, the stock's policy 1 a project's starting
   point. Decoded bounded (6.4): the file's size, the item count and every
   value's bounds are jig's (`ChangeSettings`' own, and the limits the engine's
@@ -803,6 +807,18 @@ The table grows area by area, each with its stories (section 11).
    A stale revision reaches the engine and is refused; a retained keyed
    answer reaches it for replay even after the task ends. The numbered
    question form of 5.3 keeps its separate question read and answer.
+
+   An answer past what its contract asks, a report's words or the
+   reason of the choice it names, reaches the engine and is refused as
+   past its contract (exit 2). The act's read gave the contract, so the
+   refusal names the bound: `task answer: Limit reached: task 44's reason
+   for choice 1 is at most 128 bytes`, or `task 44's words are at most 128
+   bytes`, and JSON's `bound` beside the refusal. The same refusal for any
+   other cause (a choice the contract lacks, an answer of another form, a
+   `--cannot` or an `--approve` past the deployment's result bound) has no
+   bound the task asks for, and prints as it is; so does a restored
+   request, which read nothing. TEXT's bound in the tool's line is the most
+   any call takes: the tool's notes say a person task may ask for less.
 
 4. **jig's plumbing whole:** `create`, `propose`, `compound --project
    PROJECT FILE`, a batch, a proposal or a compound request as JSON
@@ -2206,6 +2222,12 @@ Each is named here and designed when it comes.
   host`, `Retrying`, `ChipExecutor active`); a wait takes the phase
   word, in any case, until the header and the condition share one
   spelling.
+- **A refusal past a person task's contract that carries its bound**
+  (5.5, area 3): jig's `LimitKind::Contract` says the same for a wrong
+  form, an unknown choice and text past the bound, so the tool names
+  the bound from the contract its read gave, and a restored request,
+  which read nothing, prints the refusal bare. Carrying the bound in
+  the refusal changes a stored form and jig's protocol.
 
 ## 15. Open questions
 

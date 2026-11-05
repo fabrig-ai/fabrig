@@ -27,18 +27,66 @@ fn box_help_configures_coding_run_tools() {
         serde_json::from_str(example.split("```").next().expect("JSON fence")).expect("valid environment JSON");
     let mut document = coding_run_agent_document();
     document["environment"] = example["environment"].clone();
-    // Inert endpoints keep configuration parsing independent of DNS, trust files and services.
-    for endpoint in document["endpoints"].as_array_mut().expect("init endpoints") {
-        endpoint["address"] = "127.0.0.1:9".into();
-        endpoint["transport"] = "plaintext".into();
-        endpoint.as_object_mut().expect("endpoint object").remove("server_name");
-    }
     let configured = smith_agent_shell::config::from_value(document).expect("documented command environment");
     let entries = configured.service.environment.command_entries();
     for expected in
         [b"PATH=/home/coder/.cargo/bin:/usr/local/bin:/usr/bin:/bin".as_slice(), b"HOME=/home/coder".as_slice()]
     {
         assert!(entries.iter().any(|entry| entry.as_ref() == expected), "missing command entry {expected:?}");
+    }
+}
+
+#[test]
+fn server_walk_gives_the_agents_environment_as_entries() {
+    let page = help::answer(&configured(&["help", "server"])).expect("server walk");
+    let (_, steps) = page.split_once("\n## 5. ").expect("step 5");
+    let (step, _) = steps.split_once("\n## 6. ").expect("step 6");
+    let text = step.split_whitespace().collect::<Vec<_>>().join(" ");
+    for required in ["`agent.json`'s `environment` is a list of entries", "not a map", "temper help box"] {
+        assert!(text.contains(required), "step 5 must explain {required}");
+    }
+    let (_, recipe) = step.split_once("`environment`").expect("agent environment");
+    let example = recipe.split('`').nth(1).expect("environment entries example");
+    let environment: serde_json::Value = serde_json::from_str(example).expect("valid environment JSON");
+    let mut document = coding_run_agent_document();
+    document["environment"] = environment.clone();
+    let configured = smith_agent_shell::config::from_value(document.clone()).expect("documented entries parse");
+    assert_eq!(
+        configured.service.environment.command_entries().as_ref(),
+        [Box::from(b"PATH=/usr/bin:/bin".as_slice())]
+    );
+    let mut map = serde_json::Map::new();
+    for entry in environment.as_array().expect("environment entries") {
+        map.insert(entry["name"].as_str().expect("entry name").into(), entry["value"].clone());
+    }
+    document["environment"] = map.into();
+    let why = smith_agent_shell::config::from_value(document).err().expect("environment map is refused").detail();
+    assert!(why.contains("invalid type: map, expected a sequence"), "{why}");
+}
+
+#[test]
+fn server_walk_says_when_a_forges_sign_in_meta_appears() {
+    let page = help::answer(&configured(&["help", "server"])).expect("server walk");
+    let (_, steps) = page.split_once("\n## 3. ").expect("step 3");
+    let (step, _) = steps.split_once("\n## 4. ").expect("step 4");
+    let text = step.split_whitespace().collect::<Vec<_>>().join(" ");
+    let line = crate::host::note_line(temper_service::Note::ForgeSignIn {
+        number: 1,
+        client: b"forgejo".as_slice().into(),
+        why: temper_service::clients::forge_sign_in::Unserved::NotKept,
+    });
+    assert!(text.contains(line.trim_end_matches('\n')), "step 3 must give the printed diagnostic: {line}");
+    assert!(text.contains("With `application.sign_in.forges` on a new store, `serve`'s stderr says"));
+    assert!(text.contains("until step 6 connects it"));
+    let (_, steps) = page.split_once("\n## 6. ").expect("step 6");
+    let (step, _) = steps.split_once("\n## 7. ").expect("step 7");
+    let text = step.split_whitespace().collect::<Vec<_>>().join(" ");
+    for required in [
+        "The page's `temper-forge-sign-in` meta appears only once `forge connect` has kept the forge.",
+        "If a page fetched after that still lacks the meta, restart the engine once:",
+        "a start makes it from the kept record.",
+    ] {
+        assert!(text.contains(required), "step 6 must explain {required}");
     }
 }
 
@@ -61,7 +109,14 @@ fn coding_run_agent_document() -> serde_json::Value {
     let answer = temper_init::files(&facts, &directories, &[0; 32], &[1; 32]).expect("init files");
     let file = answer.files.iter().find(|file| file.name == b"agent.json").expect("init agent document");
     let temper_init::Content::Bytes { bytes, .. } = &file.content else { panic!("agent document bytes") };
-    serde_json::from_slice(bytes).expect("init agent JSON")
+    let mut document: serde_json::Value = serde_json::from_slice(bytes).expect("init agent JSON");
+    // Inert endpoints keep configuration parsing independent of DNS, trust files and services.
+    for endpoint in document["endpoints"].as_array_mut().expect("init endpoints") {
+        endpoint["address"] = "127.0.0.1:9".into();
+        endpoint["transport"] = "plaintext".into();
+        endpoint.as_object_mut().expect("endpoint object").remove("server_name");
+    }
+    document
 }
 
 #[test]
@@ -616,8 +671,8 @@ fn box_and_change_help_locate_temper_review_gates_in_change_show() {
 
     let change = help::answer(&configured(&["help", "change"])).expect("change page");
     let change = change.split_whitespace().collect::<Vec<_>>().join(" ");
-    assert!(change.contains("a change's gates run in temper, and `change show` prints each"), "{change}");
-    assert!(change.contains("temper posts none to the forge as a review or a status"), "{change}");
+    assert!(change.contains("they run in temper; `change show` prints each"), "{change}");
+    assert!(change.contains("Temper posts none as forge reviews or statuses"), "{change}");
 }
 
 #[test]

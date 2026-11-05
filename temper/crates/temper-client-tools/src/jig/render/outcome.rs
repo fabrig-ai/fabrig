@@ -16,6 +16,7 @@ pub(crate) struct Operation {
     pub account: Option<Account>,
     pub task: Option<u64>,
     pub ended_task: Option<c::Phase>,
+    pub asked: Option<Asked>,
     pub to: Option<c::Recipient>,
     pub party: Option<u64>,
     pub retry: Option<Box<[u8]>>,
@@ -23,6 +24,13 @@ pub(crate) struct Operation {
     pub proposal_project: Option<u32>,
     /// Distinct submitted settings scopes, ordered with the deployment before projects.
     pub settings_scopes: Option<skein_lib::Set<u32>>,
+}
+/// What a person task's contract asks of an answer past it (client/tools.md, 5.5).
+#[derive(Clone, Copy, Debug)]
+pub(crate) struct Asked {
+    pub bound: u32,
+    /// The choice the reason is for; absent for a report's words.
+    pub choice: Option<u32>,
 }
 /// One in-flight source context; its name is bounded by the client's document text limit.
 #[derive(Clone, Debug)]
@@ -138,6 +146,7 @@ impl Operation {
             account: None,
             task,
             ended_task: None,
+            asked: None,
             to: None,
             party: None,
             retry: None,
@@ -556,6 +565,10 @@ fn encode(
 }
 fn refused_json(operation: &Operation, refusal: &c::Refusal, out: &mut Encoder) {
     ended_json(operation, refusal, out);
+    if let Some(asked) = asked(operation, refusal) {
+        out.key(b"bound");
+        out.unsigned(u64::from(asked.bound));
+    }
     if let c::Refusal::Moved { .. } = refusal
         && let Some(task) = operation.task
     {
@@ -571,6 +584,13 @@ fn refused_json(operation: &Operation, refusal: &c::Refusal, out: &mut Encoder) 
     {
         out.key(b"propose_instead");
         out.string(operation.retry.as_deref().unwrap_or(operation.tool_name()));
+    }
+}
+fn asked(operation: &Operation, refusal: &c::Refusal) -> Option<Asked> {
+    if let c::Refusal::Limit { which: c::Limit::Admission { which: c::AdmissionLimit::Contract } } = refusal {
+        operation.asked
+    } else {
+        None
     }
 }
 fn read_again(task: u64, out: &mut Text) {
@@ -834,6 +854,22 @@ fn refused_text(
     out.put(operation.tool_name());
     out.put(b": ");
     acts::refusal(refusal, &document::phrasebook(limits.text), out);
+    if let Some(asked) = asked(operation, refusal)
+        && let Some(task) = operation.task
+    {
+        out.put(b": task ");
+        out.number(task);
+        match asked.choice {
+            Some(choice) => {
+                out.put(b"'s reason for choice ");
+                out.number(u64::from(choice));
+                out.put(b" is at most ");
+            }
+            None => out.put(b"'s words are at most "),
+        }
+        out.number(u64::from(asked.bound));
+        out.put(b" bytes");
+    }
     if let c::Refusal::Moved { what: c::Moved::PlacedHold { revision }, .. } = refusal
         && operation.word == b"lift"
     {

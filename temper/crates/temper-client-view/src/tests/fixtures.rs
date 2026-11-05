@@ -29,9 +29,9 @@ pub fn limits() -> Limits {
                 }],
                 requests,
                 ask_bytes: requests.bytes / u64::from(requests.requests),
-                // The page handles plus the standing project-needs watch.
-                handles: 10,
-                watches: 10,
+                // The page handles, project-needs, session Away and Home decisions watches.
+                handles: 12,
+                watches: 12,
                 turn_bytes: 65536,
                 backoff: jig_client::Backoff { first: Duration::from_millis(10), most: Duration::from_millis(80) },
                 authority: 12,
@@ -70,15 +70,16 @@ fn english(shell: crate::words::Shell) -> crate::words::Words {
 
 pub fn tree_limits() -> skein_ui::Limits {
     skein_ui::Limits {
-        // The largest goal plan and its frame, including Changes' link and text.
-        nodes: 194,
+        // The largest goal plan and its frame, including Changes' link and text,
+        // and five nodes for the rail menu wrapper, menu and three items.
+        nodes: 199,
         depth: 32,
         text_per_node: 512,
         text_bytes: 98304,
         drawing_bytes: 0,
         scene_marks: 0,
         scene_bytes: 0,
-        styles_per_node: 2,
+        styles_per_node: 3,
         patches: 960,
         bindings: 128,
         slots: 32,
@@ -274,7 +275,7 @@ pub(super) fn root_at_with_playground(
         None,
     )
 }
-fn root_at_with_activity(
+pub(super) fn root_at_with_activity(
     address: temper_client_domain::Address,
     limits: &Limits,
     project_name: &[u8],
@@ -315,15 +316,22 @@ pub(super) fn root_at_with_dismissals(
     forge_rows: Option<List<w::ForgeRow>>,
     dismissed: Option<&[u32]>,
 ) -> (temper_client_domain::Domain, Token, Option<Token>, Option<Token>, Option<Token>, Option<Token>) {
-    let (root, me, page, tree, accounts, forges, _) =
-        root_at_with_dismissals_and_needs(address, limits, project_name, playground, activity, forge_rows, dismissed);
+    let (root, me, page, tree, accounts, forges, _, _, _) = root_at_with_values(
+        address,
+        limits,
+        project_name,
+        playground,
+        activity,
+        forge_rows,
+        dismissed,
+        Some(forge::ways::Ways::STOCK),
+        false,
+        true,
+    );
     (root, me, page, tree, accounts, forges)
 }
-#[expect(
-    clippy::too_many_lines,
-    clippy::type_complexity,
-    reason = "one fixture delivers the page and session documents and returns their transport tokens"
-)]
+
+#[expect(clippy::type_complexity, reason = "the fixture returns session and page watch tokens")]
 pub(super) fn root_at_with_dismissals_and_needs(
     address: temper_client_domain::Address,
     limits: &Limits,
@@ -333,6 +341,85 @@ pub(super) fn root_at_with_dismissals_and_needs(
     forge_rows: Option<List<w::ForgeRow>>,
     dismissed: Option<&[u32]>,
 ) -> (temper_client_domain::Domain, Token, Option<Token>, Option<Token>, Option<Token>, Option<Token>, Option<Token>) {
+    let (root, me, page, tree, accounts, forges, _, needs, _) = root_at_with_values(
+        address,
+        limits,
+        project_name,
+        playground,
+        activity,
+        forge_rows,
+        dismissed,
+        Some(forge::ways::Ways::STOCK),
+        false,
+        true,
+    );
+    (root, me, page, tree, accounts, forges, needs)
+}
+
+pub fn root_with_ways(
+    address: temper_client_domain::Address,
+    ways: Option<forge::ways::Ways>,
+) -> temper_client_domain::Domain {
+    root_at_with_values(address, &domain_limits(), b"Shop", None, None, None, Some(&[]), ways, false, true).0
+}
+
+pub fn root_with_refused_ways(address: temper_client_domain::Address) -> temper_client_domain::Domain {
+    root_at_with_values(address, &domain_limits(), b"Shop", None, None, None, Some(&[]), None, true, true).0
+}
+
+pub fn home_root(
+    limits: &Limits,
+    rows: List<w::ForgeRow>,
+    dismissed: Option<&[u32]>,
+    goals: bool,
+) -> (temper_client_domain::Domain, Token, Token, Token, Token, Token) {
+    let (root, me, _, _, accounts, _, settings, needs, away) = root_at_with_values(
+        temper_client_domain::Address::Settings { project: PROJECT },
+        limits,
+        b"Shop",
+        None,
+        None,
+        Some(rows),
+        dismissed,
+        Some(forge::ways::Ways { goals, ..forge::ways::Ways::STOCK }),
+        false,
+        false,
+    );
+    (
+        root,
+        me,
+        accounts.expect("accounts watch"),
+        settings.expect("session settings watch"),
+        needs.expect("standing needs watch"),
+        away.expect("away watch"),
+    )
+}
+
+#[expect(clippy::type_complexity, reason = "the fixture returns the session and page watch tokens to their callers")]
+#[expect(clippy::too_many_arguments, reason = "the fixture carries independent session answers")]
+#[expect(clippy::too_many_lines, reason = "one fixture delivers the page's documents and the session's reads together")]
+pub(super) fn root_at_with_values(
+    address: temper_client_domain::Address,
+    limits: &Limits,
+    project_name: &[u8],
+    playground: Option<(u32, bool, w::PlaygroundState)>,
+    activity: Option<c::ActivityPage>,
+    forge_rows: Option<List<w::ForgeRow>>,
+    dismissed: Option<&[u32]>,
+    ways: Option<forge::ways::Ways>,
+    refuse_ways: bool,
+    settings_delivered: bool,
+) -> (
+    temper_client_domain::Domain,
+    Token,
+    Option<Token>,
+    Option<Token>,
+    Option<Token>,
+    Option<Token>,
+    Option<Token>,
+    Option<Token>,
+    Option<Token>,
+) {
     use jig_client::contract::{Delivery, Subject, WatchEvent};
     use temper_client_domain::{Event, Request};
     let forge_rows_answered = forge_rows.is_some();
@@ -350,12 +437,14 @@ pub(super) fn root_at_with_dismissals_and_needs(
         temper_client_domain::Address::Forges
         | temper_client_domain::Address::ConnectForge { .. }
         | temper_client_domain::Address::Chats { .. }
-        | temper_client_domain::Address::NewChat
+        | temper_client_domain::Address::NewChat { .. }
         | temper_client_domain::Address::Accounts
         | temper_client_domain::Address::Inbox { .. }
         | temper_client_domain::Address::Home { .. }
         | temper_client_domain::Address::Changes { .. }
         | temper_client_domain::Address::Settings { .. }
+        | temper_client_domain::Address::Builders { .. }
+        | temper_client_domain::Address::Repositories { .. }
         | temper_client_domain::Address::Goals { .. }
         | temper_client_domain::Address::Configure { .. }
         | temper_client_domain::Address::Adopt { .. }
@@ -382,6 +471,7 @@ pub(super) fn root_at_with_dismissals_and_needs(
     let mut account_watch = None;
     let mut activity_read = None;
     let mut dismissed_watch = None;
+    let mut away_watch = None;
     for _ in 0..out.len() {
         let request = out.pop();
         if let Some(Request::Unlinked {
@@ -390,6 +480,13 @@ pub(super) fn root_at_with_dismissals_and_needs(
             && Some(subject.clone()) == forge::dismissed::watch(&limits.forge)
         {
             dismissed_watch = Some(*watch);
+        }
+        if let Some(Request::Unlinked {
+            request: jig_client::UnlinkedRequest::Down { down: jig_client::Down::Open { watch, subject } },
+        }) = request.as_ref()
+            && Some(subject.clone()) == forge::away::watch(&limits.forge)
+        {
+            away_watch = Some(*watch);
         }
         if let Some(read) = activity_token(request.as_ref()) {
             activity_read = Some(read);
@@ -457,6 +554,13 @@ pub(super) fn root_at_with_dismissals_and_needs(
         {
             dismissed_watch = Some(*watch);
         }
+        if let Request::Unlinked {
+            request: jig_client::UnlinkedRequest::Down { down: jig_client::Down::Open { watch, subject } },
+        } = &request
+            && Some(subject.clone()) == forge::away::watch(&limits.forge)
+        {
+            away_watch = Some(*watch);
+        }
         out.push(request);
     }
     if let (Some(watch), Some(projects)) = (dismissed_watch, dismissed) {
@@ -514,7 +618,37 @@ pub(super) fn root_at_with_dismissals_and_needs(
     }
 
     let mut read = None;
+    let mut settings_watch = None;
     while let Some(request) = out.pop() {
+        if let Request::Unlinked {
+            request:
+                jig_client::UnlinkedRequest::Down {
+                    down: jig_client::Down::Open { watch, subject: jig_client::Watchable::Jig(Subject::Settings) },
+                },
+        } = &request
+        {
+            settings_watch = Some(*watch);
+            if settings_delivered {
+                temper_client_domain::step(
+                    &mut root,
+                    &env,
+                    Event::Client {
+                        event: jig_client::Event::Up {
+                            up: jig_client::Up::Watched {
+                                watch: *watch,
+                                event: WatchEvent::Delivered(Delivery::Settings(Box::new(c::SettingsDocument {
+                                    newest: 0,
+                                    settings: List::with_capacity(0),
+                                    held: List::with_capacity(0),
+                                    pending: List::with_capacity(0),
+                                }))),
+                            },
+                        },
+                    },
+                    &mut out,
+                );
+            }
+        }
         if let Request::Unlinked {
             request:
                 jig_client::UnlinkedRequest::Down {
@@ -525,7 +659,43 @@ pub(super) fn root_at_with_dismissals_and_needs(
             match wire::decode_reading(&record.bytes, &w::CEILINGS).expect("forge read").read() {
                 w::Read::Deployment => deliver_deployment(&mut root, token, true, true),
                 w::Read::Playground => read = Some(token),
-                w::Read::Setting(_) | w::Read::RevisionSetting(_) | w::Read::ProposalItems(_) => {}
+                w::Read::Setting(setting) => {
+                    if refuse_ways {
+                        temper_client_domain::step(
+                            &mut root,
+                            &env,
+                            Event::Client {
+                                event: jig_client::Event::Up {
+                                    up: jig_client::Up::ReadDone {
+                                        read: token,
+                                        result: jig_client::Readout::Jig(c::ReadResult::None(c::ReadNone::Unknown)),
+                                    },
+                                },
+                            },
+                            &mut out,
+                        );
+                    } else if let Some(ways) = ways {
+                        let value = if setting.kind() == 7 { Some(ways_bytes(ways)) } else { None };
+                        let answer = w::SettingAnswer::new(&w::CEILINGS, w::SettingAnswerParts { value }).unwrap();
+                        temper_client_domain::step(
+                            &mut root,
+                            &env,
+                            Event::Client {
+                                event: jig_client::Event::Up {
+                                    up: jig_client::Up::ReadDone {
+                                        read: token,
+                                        result: jig_client::Readout::Family {
+                                            family: wire::FORGE,
+                                            record: Some(wire::setting_answer(&answer)),
+                                        },
+                                    },
+                                },
+                            },
+                            &mut out,
+                        );
+                    }
+                }
+                w::Read::RevisionSetting(_) | w::Read::ProposalItems(_) => {}
             }
         }
     }
@@ -543,7 +713,17 @@ pub(super) fn root_at_with_dismissals_and_needs(
             empty_session(&mut root, read.expect("playground read"), account_watch.expect("accounts watch"));
         }
     }
-    (root, watch.expect("me opened"), inbox_watch, tree_watch, account_watch, forges, needs_watch)
+    (
+        root,
+        watch.expect("me opened"),
+        inbox_watch,
+        tree_watch,
+        account_watch,
+        forges,
+        settings_watch,
+        needs_watch,
+        away_watch,
+    )
 }
 fn empty_session(root: &mut temper_client_domain::Domain, read: Token, watch: Token) {
     deliver_no_playground(root, read);
@@ -1847,4 +2027,109 @@ pub fn configuring_me(mut me: c::Me) -> c::Me {
     project.templates.push(stock).expect("stock");
     project.templates.push(configuring).expect("configuring");
     me
+}
+
+fn ways_bytes(ways: forge::ways::Ways) -> Box<[u8]> {
+    let value = w::ProjectWays::new(
+        &w::CEILINGS,
+        w::ProjectWaysParts { skein_bools: [ways.drafts, ways.goals, ways.changes, ways.away], way: ways.way },
+    )
+    .unwrap();
+    let mut writer = Writer::new(usize::try_from(value.measure()).unwrap());
+    value.encode(&mut writer).unwrap();
+    writer.finish()
+}
+
+/// The party's Away watch and project frame, without an optimistic row.
+pub fn away_root(until: Option<Wall>, off: Option<Wall>) -> temper_client_domain::Domain {
+    away_frame(until, off).0
+}
+pub fn away_frame(until: Option<Wall>, off: Option<Wall>) -> (temper_client_domain::Domain, Token) {
+    let (mut root, me, _, _, _, _, _, _, watch) = root_at_with_values(
+        temper_client_domain::Address::Home { project: PROJECT },
+        &domain_limits(),
+        b"Shop",
+        None,
+        None,
+        None,
+        Some(&[]),
+        Some(forge::ways::Ways::STOCK),
+        false,
+        true,
+    );
+    let row = w::AwayRow::new(
+        &w::CEILINGS,
+        w::AwayRowParts {
+            project: PROJECT,
+            since: 0,
+            until: match until {
+                Some(wall) => Some(wall.as_nanos()),
+                None => None,
+            },
+            kinds: 7,
+            landed: 0,
+            off: match off {
+                Some(wall) => Some(wall.as_nanos()),
+                None => None,
+            },
+        },
+    )
+    .unwrap();
+    root_event(
+        &mut root,
+        temper_client_domain::Event::Client {
+            event: jig_client::Event::Up {
+                up: jig_client::Up::FamilyDelivered {
+                    watch: watch.expect("Away watch"),
+                    record: jig_client::Family {
+                        family: wire::FORGE,
+                        version: wire::CLIENT_VERSION,
+                        bytes: wire::aways(
+                            &w::Aways::new(&w::CEILINGS, w::AwaysParts { rows: List::from_boxed(Box::new([row])) })
+                                .unwrap(),
+                        ),
+                    },
+                },
+            },
+        },
+    );
+    (root, me)
+}
+/// Send the switch's act through the domain and return its transport attempt.
+pub fn away_toggle(root: &mut temper_client_domain::Domain) -> Token {
+    root_event(
+        root,
+        temper_client_domain::Event::Client {
+            event: jig_client::Event::Up {
+                up: jig_client::Up::FamilyServed {
+                    family: wire::FORGE,
+                    versions: Some(c::VersionRange { first: wire::CLIENT_VERSION, last: wire::CLIENT_VERSION }),
+                },
+            },
+        },
+    );
+    let mut out = Queue::uncapped();
+    temper_client_domain::step(
+        root,
+        &Env { now: Time::ZERO, wall: NOW, limits: domain_limits() },
+        temper_client_domain::Event::Act {
+            action: temper_client_domain::Action::Pages(temper_client_domain::pages::Act::Away(
+                temper_client_domain::pages::away::Act::Toggle { project: PROJECT },
+            )),
+        },
+        &mut out,
+    );
+    while let Some(request) = out.pop() {
+        if let temper_client_domain::Request::Unlinked {
+            request:
+                jig_client::UnlinkedRequest::Down {
+                    down: jig_client::Down::Send { attempt, request: jig_client::Ask::Family { record, .. }, .. },
+                },
+        } = request
+            && let w::Request::SetAway(_) = wire::decode_requesting(&record.bytes, &w::CEILINGS).unwrap().request()
+        {
+            return attempt;
+        }
+    }
+    panic!("Away request sent")
 }

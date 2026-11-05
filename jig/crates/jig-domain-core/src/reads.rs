@@ -88,10 +88,8 @@ pub fn admits(party: u64, scope: &Scope, key: &crate::Key) -> bool {
         },
         Scope::Notes { project } => match key {
             Key::Notes(notes::Key::Line { scope, .. }) => match scope {
-                notes::Scope::Deployment => *project == 0,
-                notes::Scope::Project { project: owner }
-                | notes::Scope::Goal { project: owner, .. }
-                | notes::Scope::Resources { project: owner, .. } => owner == project,
+                notes::Scope::Goal { project: owner, .. } => owner == project,
+                notes::Scope::Deployment | notes::Scope::Project { .. } | notes::Scope::Resources { .. } => false,
             },
             Key::Notes(_) | Key::Tasks(_) | Key::Core(_) | Key::People(_) | Key::Accounts(_) => false,
         },
@@ -131,6 +129,7 @@ pub(crate) struct Pending {
 #[derive(Debug)]
 enum Destination {
     Read(ReplyTo),
+    RevisionMetadata { reply: ReplyTo, project: u32 },
     Watch(Token),
     Erase,
     Restore,
@@ -142,7 +141,7 @@ enum Destination {
 impl Pending {
     fn take_reply(&mut self) -> ReplyTo {
         match core::mem::replace(&mut self.destination, Destination::Done) {
-            Destination::Read(reply) => reply,
+            Destination::Read(reply) | Destination::RevisionMetadata { reply, .. } => reply,
             Destination::Restore
             | Destination::Erase
             | Destination::Watch(_)
@@ -583,6 +582,7 @@ pub(crate) fn loaded(
     match &pending.destination {
         Destination::Watch(watcher) => return watch_loaded(core, env, name, *watcher, result),
         Destination::Settings { .. } => return settings::run_loaded(core, env, name, result),
+        Destination::RevisionMetadata { .. } => return settings::metadata_loaded(core, env, name, result),
         Destination::Restore => return settings::restore_loaded(core, env, work, name, result),
         Destination::Erase => return crate::routing::task::erase::loaded(core, env, load, result),
         Destination::RunTask { .. } => return run_task::loaded(core, env, name, result),

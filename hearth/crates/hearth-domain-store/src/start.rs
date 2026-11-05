@@ -8,15 +8,21 @@ use skein_lib::{Env, Queue};
 pub(super) fn step(store: &mut Store, env: &Env<Limits>, ev: Event, out: &mut Queue<Output>) {
     let request = match ev {
         Event::Open => {
-            store.phase = Phase::Locking;
-            store.said = false;
+            store.phase = Phase::Locking { said: false };
             Request::Lock
         }
         Event::Busy => {
             store.timers.arm(Timer::Retry, env.now.saturating_add(env.limits.retry)).expect("two timers");
-            if !store.said {
-                store.said = true;
-                store.timers.arm(Timer::Said, env.now.saturating_add(env.limits.said)).expect("two timers");
+            match &mut store.phase {
+                Phase::Locking { said } => {
+                    if !*said {
+                        *said = true;
+                        store.timers.arm(Timer::Said, env.now.saturating_add(env.limits.said)).expect("two timers");
+                    }
+                }
+                Phase::Closed | Phase::Recording | Phase::Writing | Phase::Scanning | Phase::Ready => {
+                    unreachable!("lock pending")
+                }
             }
             return;
         }
@@ -71,7 +77,10 @@ pub(super) fn step(store: &mut Store, env: &Env<Limits>, ev: Event, out: &mut Qu
             unreachable!("scan has not begun")
         }
         Event::Failed => {
-            let why = if store.phase == Phase::Locking { Why::Lock } else { Why::Record };
+            let why = match store.phase {
+                Phase::Locking { .. } => Why::Lock,
+                Phase::Closed | Phase::Recording | Phase::Writing | Phase::Scanning | Phase::Ready => Why::Record,
+            };
             store.timers.cancel(Timer::Retry);
             store.timers.cancel(Timer::Said);
             store.phase = Phase::Closed;

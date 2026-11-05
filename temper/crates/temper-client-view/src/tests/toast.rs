@@ -99,3 +99,140 @@ fn toast_is_last_on_home_and_chats_in_both_shells_and_undo_is_only_held() {
         }
     }
 }
+
+#[test]
+fn paused() {
+    let root = super::goal::with_goal_answer(
+        pages::Act::Pause,
+        c::Answer::Done(c::Outcome::Document(c::DocumentOutcome::Stopped { task: 9 })),
+    );
+    for view in [f::page_view(&root), f::browser_page_view(&root)] {
+        assert!(
+            skein_lib::bytes::find(
+                &f::node_text(view.tree(), toast_at(view.tree()).unwrap()),
+                b"Paused: running tasks stop, nothing new starts."
+            )
+            .is_some()
+        );
+    }
+}
+#[test]
+fn resumed() {
+    let root = super::goal::with_goal_answer(
+        pages::Act::Resume,
+        c::Answer::Done(c::Outcome::Document(c::DocumentOutcome::Released { task: 9 })),
+    );
+    for view in [f::page_view(&root), f::browser_page_view(&root)] {
+        assert!(
+            skein_lib::bytes::find(&f::node_text(view.tree(), toast_at(view.tree()).unwrap()), b"Resumed.").is_some()
+        );
+    }
+}
+#[test]
+fn a_moved_refusal_says_look_again_and_dismisses() {
+    let refusal = c::Refusal::Moved { now: c::Revision { value: 18 }, what: c::Moved::Spec };
+    let mut root =
+        super::goal::with_goal_answer(pages::Act::Pause, c::Answer::Refused { refusal: refusal.clone(), at: None });
+    let expected = f::words().say_word(jig_client::words::Word::refusal(&refusal), &[]);
+    for mut view in [f::page_view(&root), f::browser_page_view(&root)] {
+        let at = toast_at(view.tree()).unwrap();
+        assert!(skein_lib::bytes::find(&f::node_text(view.tree(), at), &expected).is_some());
+        let again = f::find(view.tree(), Role::Button, b"Look again").unwrap();
+        assert_eq!(
+            crate::act(&mut view, again, Act::Press),
+            Some(d::Action::Pages(pages::Act::Needs(needs::Act::Dismiss)))
+        );
+    }
+    act(&mut root, pages::Act::Needs(needs::Act::Dismiss));
+    assert!(toast_at(f::browser_page_view(&root).tree()).is_none());
+}
+
+fn away_answer(until: Option<Wall>, off: Option<Wall>, refused: bool) -> d::Domain {
+    let mut root = f::away_root(until, off);
+    let attempt = f::away_toggle(&mut root);
+    f::playground_start_answer(
+        &mut root,
+        attempt,
+        if refused {
+            temper_client_protocol_wire::v1::Outcome::Unknown
+        } else {
+            temper_client_protocol_wire::v1::Outcome::Away
+        },
+    );
+    root
+}
+#[test]
+fn on_says_until_and_offers_limits() {
+    for until in [Some(Wall::from_nanos(28_800_000_000_000)), None] {
+        let root = away_answer(until, Some(Wall::EPOCH), false);
+        for mut view in [f::page_view(&root), f::browser_page_view(&root)] {
+            let said = if until.is_some() {
+                "Away until 08:00: agents decide within Shop’s limits."
+            } else {
+                "Away: agents decide within Shop’s limits."
+            };
+            assert_eq!(f::node_text(view.tree(), toast_at(view.tree()).unwrap()).as_ref(), said.as_bytes());
+            let limits = f::find(view.tree(), Role::Button, b"Limits").unwrap();
+            assert_eq!(
+                crate::act(&mut view, limits, Act::Press),
+                Some(d::Action::Pages(pages::Act::Away(pages::away::Act::Limits { project: f::PROJECT })))
+            );
+        }
+    }
+}
+#[test]
+fn off_says_questions_wait() {
+    let root = away_answer(None, None, false);
+    for view in [f::page_view(&root), f::browser_page_view(&root)] {
+        assert_eq!(
+            f::node_text(view.tree(), toast_at(view.tree()).unwrap()).as_ref(),
+            b"Away is off: questions wait for you again."
+        );
+        assert!(f::find(view.tree(), Role::Button, b"Limits").is_none());
+    }
+}
+#[test]
+fn refused_says_try_again() {
+    let root = away_answer(None, None, true);
+    for view in [f::page_view(&root), f::browser_page_view(&root)] {
+        assert_eq!(
+            f::node_text(view.tree(), toast_at(view.tree()).unwrap()).as_ref(),
+            "Away didn’t change. Try again.".as_bytes()
+        );
+        assert!(f::find(view.tree(), Role::Button, b"Limits").is_none());
+    }
+}
+
+#[test]
+fn overturned_says_its_goal_asks_again() {
+    let root = super::home::overturn_answer(
+        temper_client_protocol_wire::v1::Outcome::Overturned,
+        Some(c::Answer::Done(c::Outcome::Document(c::DocumentOutcome::Said { task: 99, message: 9 }))),
+    );
+    for view in [f::page_view(&root), f::browser_page_view(&root)] {
+        assert_eq!(
+            f::node_text(view.tree(), toast_at(view.tree()).unwrap()).as_ref(),
+            b"Overturned: its goal asks you again, under Still needs you."
+        );
+    }
+}
+#[test]
+fn overturn_ended_says_a_new_goal_can_undo_it() {
+    let root = super::home::overturn_answer(
+        temper_client_protocol_wire::v1::Outcome::Overturned,
+        Some(c::Answer::Refused { refusal: c::Refusal::Unknown, at: None }),
+    );
+    for view in [f::page_view(&root), f::browser_page_view(&root)] {
+        assert_eq!(
+            f::node_text(view.tree(), toast_at(view.tree()).unwrap()).as_ref(),
+            b"It has ended; a new goal can undo it."
+        );
+    }
+}
+#[test]
+fn overturn_already_says_it_was_overturned() {
+    let root = super::home::overturn_answer(temper_client_protocol_wire::v1::Outcome::Unknown, None);
+    for view in [f::page_view(&root), f::browser_page_view(&root)] {
+        assert_eq!(f::node_text(view.tree(), toast_at(view.tree()).unwrap()).as_ref(), b"That was overturned already.");
+    }
+}

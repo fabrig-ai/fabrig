@@ -25,16 +25,16 @@ fn begin(registration: Registration, held: bool) -> Event {
         nonce: None,
         port: None,
         issued_client_id: if held { Some(boxed(b"client-1")) } else { None },
-        id_token: if held { Some(boxed(ID_TOKEN_HINT)) } else { None },
+        id_token: if held { Some(secret(ID_TOKEN_HINT)) } else { None },
         subject: if held { Some(boxed(LOGIN_HINT)) } else { None },
         now: time(1),
     }
 }
-fn redirect(client_id: Option<Box<[u8]>>) -> Event {
+pub(super) fn redirect(client_id: Option<Box<[u8]>>) -> Event {
     Event::Redirected {
         uri: boxed(b"https://web.example/callback"),
         state: state(),
-        code: Some(boxed(b"one-use")),
+        code: Some(secret(b"one-use")),
         error: None,
         client_id,
         now: time(2),
@@ -54,7 +54,7 @@ fn each_form_sends_what_it_must() {
     ] {
         let mut client = Client::new(limits()).expect("client");
         let Some(Request::Visit { url }) = step(&mut client, begin(issued(), held)) else { panic!("visit") };
-        assert!(url.as_ref() == expected, "held record: {held}");
+        assert!(url.expose() == expected, "held record: {held}");
     }
 }
 

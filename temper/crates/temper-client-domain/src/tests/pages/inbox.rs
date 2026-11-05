@@ -216,12 +216,7 @@ fn sent_seen(out: &mut Queue<crate::pages::Request>, through: u64) -> jig_client
     key
 }
 fn shown(out: &mut Queue<crate::pages::Request>) {
-    assert_eq!(
-        out.pop(),
-        Some(crate::pages::Request::Show {
-            address: crate::Address::Task { task: TASK, filter: crate::PlanFilter::All }
-        })
-    );
+    assert_eq!(out.pop(), Some(crate::pages::Request::Show { address: crate::Address::Task { task: TASK } }));
     assert!(out.is_empty());
 }
 fn answer_seen(pages: &mut crate::pages::Pages, key: jig_client::Key, outcome: jig_client::Outcome) {
@@ -287,10 +282,7 @@ fn going_to_a_results_task_from_another_page_sends_no_seen() {
         [crate::Address::Chats { filter: crate::ChatsFilter::All }, crate::Address::Home { project: PROJECT }]
     {
         let mut pages = result_pages();
-        shown(&mut fixtures::acts::act(
-            &mut pages,
-            Act::Go { address: crate::Address::Task { task: TASK, filter: crate::PlanFilter::All } },
-        ));
+        shown(&mut fixtures::acts::act(&mut pages, Act::Go { address: crate::Address::Task { task: TASK } }));
         let client = crate::unlinked(&fixtures::limits(), fixtures::SEED);
         let mut out = Queue::uncapped();
         crate::pages::step(
@@ -301,10 +293,7 @@ fn going_to_a_results_task_from_another_page_sends_no_seen() {
             &mut out,
         );
         assert!(fixtures::acts::sent(&mut out).is_empty());
-        shown(&mut fixtures::acts::act(
-            &mut pages,
-            Act::Go { address: crate::Address::Task { task: TASK, filter: crate::PlanFilter::All } },
-        ));
+        shown(&mut fixtures::acts::act(&mut pages, Act::Go { address: crate::Address::Task { task: TASK } }));
         shown(&mut open_result(&mut pages, POSITION));
     }
 }
@@ -313,10 +302,7 @@ fn result_seen_pending_and_answer_survive_navigation() {
     let mut pages = result_pages();
     let key = sent_seen(&mut open_result(&mut pages, POSITION), POSITION);
     let client = crate::unlinked(&fixtures::limits(), fixtures::SEED);
-    for address in [
-        crate::Address::Task { task: TASK, filter: crate::PlanFilter::All },
-        crate::Address::Inbox { filter: Filter::ALL },
-    ] {
+    for address in [crate::Address::Task { task: TASK }, crate::Address::Inbox { filter: Filter::ALL }] {
         crate::pages::step(
             &mut pages,
             &fixtures::env(&fixtures::limits()),

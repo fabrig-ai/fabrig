@@ -11,7 +11,6 @@ use skein_lib::{Decimal, Duration, List, Wall};
 #[derive(Clone, Copy, PartialEq, Eq, Debug)]
 pub enum Fact {
     Starting { step: usize },
-    Started { step: usize },
     GroupStarting { forge: u16 },
     GroupStarted { forge: u16 },
     GroupFailed { forge: u16, why: Why },
@@ -73,22 +72,8 @@ impl Formatter {
     }
     #[must_use]
     pub fn fact(&self, fact: Fact, steps: &[Placed], wall: Wall) -> Item {
-        if let Fact::Started { step } = fact {
-            return self.notices(steps.get(step).expect("started step").step.started_notice(), wall);
-        }
-        if let Fact::GroupStarted { forge } = fact {
-            for placed in steps {
-                if let Some(asked) = placed.asked
-                    && asked.forge == forge
-                    && !placed.step.started_notice().is_empty()
-                {
-                    return self.notices(placed.step.started_notice(), wall);
-                }
-            }
-        }
         let words = match fact {
             Fact::Starting { step } => joined(&[b"Starting ", steps.get(step).expect("step fact").step.name(), b"\n"]),
-            Fact::Started { .. } => unreachable!("started notice handled above"),
             Fact::GroupStarting { forge } => {
                 joined(&[layout::label(steps, forge).expect("group label"), b": starting\n"])
             }
@@ -109,21 +94,6 @@ impl Formatter {
             Fact::Stopped => skein_lib::bytes::copy_of(b"Stopped\n"),
         };
         self.notice(&words, wall)
-    }
-    fn notices(&self, lines: &[u8], wall: Wall) -> Item {
-        let mut writer = skein_lib::Writer::new(notice_bytes(lines, self.first_printed));
-        let mut first = 0;
-        for (at, byte) in lines.iter().enumerate() {
-            if *byte == b'\n' {
-                let end = at.checked_add(1).expect("line end");
-                writer
-                    .put(&self.notice(lines.get(first..end).expect("notice line"), wall).bytes)
-                    .expect("measured notice");
-                first = end;
-            }
-        }
-        assert_eq!(first, lines.len(), "public notice lines end in LF");
-        Item { target: Target::Stderr, bytes: writer.finish() }
     }
     #[must_use]
     pub fn notice(&self, words: &[u8], wall: Wall) -> Item {
@@ -165,32 +135,13 @@ pub fn why(why: Why, steps: &[Placed]) -> Box<[u8]> {
 pub fn max_bytes(steps: &[Placed]) -> u32 {
     let mut label = 0_u32;
     let mut name = 0_u32;
-    let mut notice = 0_u32;
     for placed in steps {
         name = name.max(u32::try_from(placed.step.name().len()).expect("bounded step name"));
-        notice = notice.max(u32::try_from(notice_bytes(placed.step.started_notice(), true)).expect("bounded notice"));
         if let Some(words) = &placed.label {
             label = label.max(u32::try_from(words.len()).expect("bounded label"));
         }
     }
-    label
-        .checked_add(name)
-        .expect("lifecycle words")
-        .checked_add(128)
-        .expect("lifecycle line")
-        .max(FIXED_BYTES)
-        .max(notice)
-}
-fn notice_bytes(lines: &[u8], timed: bool) -> usize {
-    let mut length = lines.len();
-    if timed {
-        for byte in lines {
-            if *byte == b'\n' {
-                length = length.checked_add(10).expect("notice timestamps");
-            }
-        }
-    }
-    length
+    label.checked_add(name).expect("lifecycle words").checked_add(128).expect("lifecycle line").max(FIXED_BYTES)
 }
 fn seconds(delay: Duration) -> Box<[u8]> {
     let nanos = delay.as_nanos();
@@ -266,7 +217,6 @@ pub(crate) fn tail_step(fact: Fact) -> Option<usize> {
     let why = match fact {
         Fact::Restarting { why, .. } | Fact::GivingUp { why, .. } | Fact::GroupFailed { why, .. } => why,
         Fact::Starting { .. }
-        | Fact::Started { .. }
         | Fact::GroupStarting { .. }
         | Fact::GroupStarted { .. }
         | Fact::GroupStopped { .. }

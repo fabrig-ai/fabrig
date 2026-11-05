@@ -41,11 +41,7 @@ pub(crate) fn assign(
     }
     if domain.job_specs.len() == domain.job_specs.capacity() || workspace::stage_job(domain, &mut job, items).is_none()
     {
-        out.push(Request::Link(host::LinkUp::JobAnswer {
-            run,
-            attempt,
-            answer: host::JobEnding::Refused(host::JobRefusal::Busy),
-        }));
+        refused(run, attempt, host::JobRefusal::Busy, out);
         return;
     }
     let prior = domain
@@ -59,8 +55,17 @@ pub(crate) fn assign(
 fn refuse(run: Token, attempt: Token, why: &[u8], env: &Env<Limits>, out: &mut Queue<Request>) {
     let most = usize::try_from(env.limits.host.detail_bytes).expect("a u32 fits usize");
     let why = Box::from(why.get(..why.len().min(most)).expect("bounded refusal"));
-    let answer = host::JobEnding::Refused(host::JobRefusal::Invalid(host::JobInvalid::Start { why }));
-    out.push(Request::Link(host::LinkUp::JobAnswer { run, attempt, answer }));
+    refused(run, attempt, host::JobRefusal::Invalid(host::JobInvalid::Start { why }), out);
+}
+
+fn refused(run: Token, attempt: Token, refusal: host::JobRefusal, out: &mut Queue<Request>) {
+    out.push(Request::JobAnswer {
+        run,
+        attempt,
+        answer: host::JobEnding::Refused(refusal),
+        work: wire::Work { landed: Box::new([]), saved: None },
+        preparation: None,
+    });
 }
 
 pub(crate) fn run(
@@ -193,10 +198,18 @@ pub(crate) fn deliver(domain: &mut Domain, env: &Env<Limits>, owner: Token, work
     workspace::write(domain, env, owner, workspace, Write::Push { title: title.finish(), body: Box::new([]) });
 }
 
-pub(crate) fn answered(domain: &mut Domain, run: Token, attempt: Token, answer: &host::JobEnding) {
+pub(crate) fn answered(
+    domain: &mut Domain,
+    run: Token,
+    attempt: Token,
+    answer: host::JobEnding,
+    out: &mut Queue<Request>,
+) {
+    let (work, preparation) = workspace::job_parts(domain, &answer);
     domain.job_specs.remove(&(run, attempt));
-    match answer {
+    match &answer {
         host::JobEnding::Refused(_) => workspace::forget(domain, run, attempt),
         host::JobEnding::Finished { .. } | host::JobEnding::Failed { .. } => {}
     }
+    out.push(Request::JobAnswer { run, attempt, answer, work, preparation });
 }

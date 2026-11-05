@@ -10,10 +10,11 @@ use jig_client::{Family, Readable, Readout, contract as c};
 use skein_lib::{List, Reader};
 use temper_client_protocol_wire::{self as wire, v1 as w};
 pub(crate) fn resolve_project(call: &mut Call, me: Option<&c::Me>) -> bool {
-    if call.tool != rows::SETTING_AT || call.form != 2 {
+    if call.tool != rows::SETTING_AT || call.form != 2 && call.form != 4 {
         return true;
     }
-    let project = match value(call, 2) {
+    let at = if call.form == 4 { 1 } else { 2 };
+    let project = match value(call, at) {
         Some(Value::Project(Project::Number(number))) => Some(*number),
         Some(Value::Project(Project::Name(name))) => {
             let mut found = None;
@@ -31,7 +32,7 @@ pub(crate) fn resolve_project(call: &mut Call, me: Option<&c::Me>) -> bool {
         None => return true,
     };
     let Some(project) = project else { return false };
-    *call.values.get_mut(2).expect("setting project argument") =
+    *call.values.get_mut(at).expect("setting project argument") =
         Some(crate::jig::call::Values::One(Value::Project(Project::Number(project))));
     true
 }
@@ -75,6 +76,8 @@ fn valid(kind: u32, bytes: &[u8]) -> bool {
     let decoded = match kind {
         1 | 2 => w::LandingRule::decode(&w::CEILINGS, &mut reader).is_ok(),
         3 => w::ForgeCharter::decode(&w::CEILINGS, &mut reader).is_ok(),
+        6 => w::ProjectQuestions::decode(&w::CEILINGS, &mut reader).is_ok(),
+        7 => w::ProjectWays::decode(&w::CEILINGS, &mut reader).is_ok(),
         _ => false,
     };
     decoded && reader.is_empty()
@@ -84,8 +87,29 @@ fn setting(page: &Readout, kind: u32) -> Result<Option<c::SettingValue>, ()> {
     match record.into_parts().value {
         Some(bytes) if valid(kind, &bytes) => Ok(Some(c::SettingValue::Application(bytes))),
         Some(_) => Err(()),
-        None => Ok(None),
+        None => Ok(stock(kind)),
     }
+}
+fn stock(kind: u32) -> Option<c::SettingValue> {
+    let bytes = match kind {
+        6 => {
+            let value =
+                w::ProjectQuestions::new(&w::CEILINGS, w::ProjectQuestionsParts { route: w::QuestionsRoute::None })
+                    .expect("stock questions");
+            let mut out = skein_lib::Writer::new(usize::try_from(value.measure()).expect("fixed stock size"));
+            value.encode(&mut out).expect("fixed stock record");
+            out.finish()
+        }
+        7 => {
+            let value = w::ProjectWays::new(&w::CEILINGS, w::ProjectWaysParts { skein_bools: [false; 4], way: 0 })
+                .expect("stock ways");
+            let mut out = skein_lib::Writer::new(usize::try_from(value.measure()).expect("fixed stock size"));
+            value.encode(&mut out).expect("fixed stock record");
+            out.finish()
+        }
+        _ => return None,
+    };
+    Some(c::SettingValue::Application(bytes))
 }
 fn proposal_items(page: &Readout) -> Option<w::ProposalItemsAnswer> {
     let record = wire::decode_proposal_items_answer(bytes(page)?, &w::CEILINGS)?;
@@ -134,6 +158,11 @@ pub(crate) fn decode(query: Query, page: &Readout) -> Option<Answer> {
     }
 }
 pub(crate) fn selector(call: &Call) -> Option<c::Setting> {
+    if call.form == 4 {
+        let Some(Value::Project(Project::Number(project))) = value(call, 1) else { unreachable!("resolved project") };
+        let Some(Value::Word(kind)) = value(call, 0) else { unreachable!("setting kind") };
+        return Some(c::Setting::Application { kind: if *kind == 0 { 7 } else { 6 }, scope: *project, number: 1 });
+    }
     if call.form == 2 || call.form == 3 {
         let scope = if call.form == 3 {
             0
@@ -206,27 +235,46 @@ pub const SETTING: Tool = Tool {
             ),
             revision_flag(),
         ],
+        &[
+            positional(
+                b"kind",
+                b"project-ways|project-questions",
+                Kind::Word { set: &[b"project-ways", b"project-questions"] },
+                Required,
+                b"A project's ways or questions",
+            ),
+            positional(
+                b"project",
+                b"PROJECT",
+                Kind::Project { empty: false },
+                Required,
+                b"The project by number or name",
+            ),
+            revision_flag(),
+        ],
     ],
     ..rows::SETTING
 };
 
 pub(crate) fn name(setting: c::Setting, out: &mut Text) -> bool {
-    if let c::Setting::Application { kind: 1..=3, scope, number } = setting {
-        out.put(if let c::Setting::Application { kind: 3, .. } = setting {
-            b"forge-charter "
-        } else {
-            b"landing-rule "
-        });
-        out.number(u64::from(number));
-        if let c::Setting::Application { kind: 2, .. } = setting {
-            out.put(b" --project ");
-            out.number(u64::from(scope));
-        }
-        true
-    } else {
-        false
+    let c::Setting::Application { kind, scope, number } = setting else { return false };
+    if !wire::settings_kind(kind) {
+        return false;
     }
+    out.put(match kind {
+        3 => b"forge-charter ",
+        6 => b"project-questions ",
+        7 => b"project-ways ",
+        _ => b"landing-rule ",
+    });
+    out.number(u64::from(if kind == 6 || kind == 7 { scope } else { number }));
+    if kind == 2 {
+        out.put(b" --project ");
+        out.number(u64::from(scope));
+    }
+    true
 }
+
 mod value;
 pub(crate) use value::render;
 

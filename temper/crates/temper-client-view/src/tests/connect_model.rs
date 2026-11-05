@@ -195,7 +195,7 @@ fn flow_fixture_at(kind: d::WayKind, address: d::Address) -> (d::Domain, skein_l
     );
     (root, accounts_watch.unwrap())
 }
-fn sent(root: &mut d::Domain, act: M) -> skein_lib::Token {
+pub(super) fn sent(root: &mut d::Domain, act: M) -> skein_lib::Token {
     let limits = fixtures::limits();
     let env = skein_lib::Env { now: skein_lib::Time::ZERO, wall: fixtures::NOW, limits };
     let mut out = skein_lib::Queue::uncapped();
@@ -216,7 +216,7 @@ fn sent(root: &mut d::Domain, act: M) -> skein_lib::Token {
         })
         .expect("flow sends one request")
 }
-fn answer(root: &mut d::Domain, attempt: skein_lib::Token, outcome: c::DocumentOutcome) {
+pub(super) fn answer(root: &mut d::Domain, attempt: skein_lib::Token, outcome: c::DocumentOutcome) {
     fixtures::root_event(
         root,
         d::Event::Client {
@@ -249,6 +249,10 @@ pub(super) fn ending(end: c::AccountEnd, display: &[u8]) -> d::Domain {
         },
     );
     let mut doc = super::accounts::card_document(b"openai", display, c::AccountKind::SignIn);
+    doc.usable = match &end {
+        c::AccountEnd::Made { declined, .. } | c::AccountEnd::Renewed { declined, .. } => !declined,
+        c::AccountEnd::Refused { .. } | c::AccountEnd::Failed { .. } => false,
+    };
     doc.accounts.get_mut(0).unwrap().manage_usage = Some(Box::from(b"https://provider.example/usage".as_slice()));
     doc.signing.clear();
     doc.last_end = Some(c::AccountLastEnd { source: 43, end });
@@ -280,13 +284,13 @@ fn a_key_has_details_then_ready_with_its_account_and_chat_link() {
     let node = fixtures::find(tree, Role::Link, b"Start a chat").unwrap();
     assert_eq!(
         crate::act(&mut view, node, Act::Press),
-        Some(d::Action::Pages(d::pages::Act::Go { address: d::Address::NewChat }))
+        Some(d::Action::Pages(d::pages::Act::Go { address: d::Address::NewChat { draft: false } }))
     );
 }
 #[test]
 fn a_key_added_on_the_welcome_continues_to_its_ready() {
     let way = d::ModelWay { source: None, provider: PROVIDER, kind: d::WayKind::Key };
-    let (mut root, _) =
+    let (mut root, watch) =
         flow_fixture_at(d::WayKind::Key, d::Address::Welcome { step: d::Step::Model { way: Some(way) } });
     let mut view = fixtures::view();
     fixtures::build(&mut view, &root);
@@ -294,13 +298,16 @@ fn a_key_added_on_the_welcome_continues_to_its_ready() {
         &mut view,
         &mut root,
         Role::TextField,
-        b"Key (pasted once)",
+        b"Key, pasted once",
         Act::Input { value: Box::from(b"private-once".as_slice()) },
     );
     let attempt = sent(&mut root, M::Submit { name: [1; 16] });
     answer(&mut root, attempt, c::DocumentOutcome::AccountKeyKept { source: 43 });
+    let mut doc = super::accounts::card_document(b"openai", b"", c::AccountKind::Key);
+    doc.usable = true;
+    super::accounts::deliver(&mut root, watch, doc);
     let tree = fixtures::build(&mut view, &root);
-    assert!(words(&root).contains("Added your OpenAI API key"));
+    assert!(!words(&root).contains("Added your OpenAI API key"));
     assert_eq!(fixtures::find(tree, Role::Link, b"Start a chat"), None);
     let node = fixtures::find(tree, Role::Link, b"Continue").unwrap();
     assert_eq!(
@@ -659,7 +666,7 @@ fn paste_case(case: usize) -> d::Domain {
 }
 #[test]
 fn the_paste_reads_each_state_in_its_words() {
-    // Each row drives the page through its public events, then reads the actual tree.
+    // Each row drives the page through its public events, then reads the tree.
     for (case, message, field, enabled, button_name) in [
         (0, "When ChatGPT is done, its tab shows a page that can't be reached.", true, false, "Finish connecting"),
         (1, "Copy that page's whole address from the address bar", true, true, "Finish connecting"),
@@ -779,7 +786,7 @@ fn signing_in_elsewhere_draws_the_sign_ins_link_and_the_paste_unfolded() {
 }
 
 #[test]
-fn the_connected_model_offers_accounts_as_a_terminal_command() {
+fn the_connected_model_offers_continue_as_a_terminal_command() {
     let mut root = ending(c::AccountEnd::Made { account: 1, declined: false }, b"alice@example.com");
     fixtures::root_event(
         &mut root,
@@ -797,18 +804,18 @@ fn the_connected_model_offers_accounts_as_a_terminal_command() {
         .nodes()
         .iter()
         .rev()
-        .find(|node| node.role == Role::Link && node.name.as_deref() == Some(b"Accounts"))
+        .find(|node| node.role == Role::Link && node.name.as_deref() == Some(b"Continue"))
         .unwrap()
         .id;
     let (node, first) = fixtures::terminal_command(
         view.tree(),
         &view.limits().tree,
         control,
-        b"Accounts",
-        "ChatGPT · alice@example.com is on the ".as_bytes(),
+        b"Continue",
+        "✓ ChatGPT plan · alice@example.com".as_bytes(),
     );
     assert_eq!(
         crate::act(&mut view, node, first),
-        Some(d::Action::Pages(d::pages::Act::Go { address: d::Address::Accounts }))
+        Some(d::Action::Pages(d::pages::Act::Go { address: d::Address::Welcome { step: d::Step::Ready } }))
     );
 }

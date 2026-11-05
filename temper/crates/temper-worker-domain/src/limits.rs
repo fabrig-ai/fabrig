@@ -70,8 +70,6 @@ pub enum Unfit {
     Accounts,
     /// The host's slots past the checkout's workspaces.
     Workspaces,
-    /// The host's slots past the agent's processes.
-    Agents,
     /// The agent's turns past the hub's.
     Turns,
     /// The agent's turns, each of the hub's turn bytes, past the hub's turn queue.
@@ -123,7 +121,6 @@ pub fn unfit(limits: &Limits) -> List<Unfit> {
         (KEY <= checkout_limits.name_bytes, Unfit::Key),
         (host_limits.accounts <= agent_limits.accounts, Unfit::Accounts),
         (host_limits.slots <= checkout_limits.workspaces, Unfit::Workspaces),
-        (host_limits.slots <= agent_limits.agents, Unfit::Agents),
         (agent_limits.turns <= host_limits.turns, Unfit::Turns),
         (turn_queue, Unfit::TurnQueue),
         (agent_limits.calls <= host_limits.run_calls, Unfit::Calls),
@@ -142,7 +139,7 @@ pub fn unfit(limits: &Limits) -> List<Unfit> {
     }
     broken
 }
-const UNFIT: u32 = 20;
+const UNFIT: u32 = 19;
 
 fn len(bytes: &[u8]) -> u64 {
     skein_lib::len_u64(bytes.len())
@@ -161,6 +158,7 @@ pub fn valid(limits: &Limits) -> bool {
         && checkout::valid(&limits.checkout)
         && tooling::valid(&limits.tooling)
         && limits.tooling.jobs >= limits.host.slots
+        && limits.agent.agents >= limits.host.slots
         && limits.agent.agents.checked_mul(limits.agent.calls).is_some()
         && limits.host.slots.checked_add(1).is_some()
         && facts(limits).is_some()

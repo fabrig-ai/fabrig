@@ -41,17 +41,17 @@ pub(crate) fn documents(directory: &Path, program: &Path, bundle: &Path) -> (Box
         project["policy"] = 1.into();
         project.as_object_mut().expect("seed").remove("roles");
     }
-    // Admit stock policy 1's fourteen grants and eight executor kinds.
+    // Admit stock policy 1's fourteen grants and nine executor kinds.
     for (name, count) in [
         ("core.policy_bytes", 8192),
         ("core.run_bytes", 8192),
         ("authority.grants", 16),
-        ("authority.executors", 8),
+        ("authority.executors", 9),
         ("tasks.authority_grants", 16),
-        ("tasks.executor_kinds", 8),
+        ("tasks.executor_kinds", 9),
         ("tasks.authority_bytes", 128),
         ("notes.scopes", 32),
-        ("tasks.charters", 5),
+        ("tasks.charters", 6),
         ("core.templates", 3),
     ] {
         value["engine"]["limits"]["overrides"][name] = count.into();
@@ -73,8 +73,8 @@ pub(crate) fn documents(directory: &Path, program: &Path, bundle: &Path) -> (Box
     value["engine"]["llm"]["endpoints"][0]["address"] = serde_json::json!({"socket":UNREACHED});
     value["engine"]["limits"]["overrides"]["core.load_slots"] = 8.into();
     value["engine"]["limits"]["overrides"]["documents.rows"] = 2.into();
-    // The creation offer carries five stock charters and three procedures.
-    value["engine"]["limits"]["overrides"]["documents.lines"] = 5.into();
+    // The creation offer carries six stock charters and three procedures.
+    value["engine"]["limits"]["overrides"]["documents.lines"] = 6.into();
     value["engine"]["limits"]["overrides"]["documents.text_bytes"] = 128.into();
     value["engine"]["limits"]["overrides"]["people.sign_ins"] = 2.into();
     value["engine"]["limits"]["overrides"]["views.watchers"] = 16.into();
@@ -279,7 +279,7 @@ mod tests {
         for charter in &engine.charters {
             assert!(u64::from(charter.policy.turns) <= turns, "charter {} exceeds agent turns", charter.number);
         }
-        assert_eq!(engine.charters.len(), 5);
+        assert_eq!(engine.charters.len(), 6);
         assert_eq!(usize::try_from(engine.limits.core.documents.lines).expect("line capacity"), engine.charters.len());
     }
 }

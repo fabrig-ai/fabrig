@@ -23,7 +23,7 @@ pub(crate) fn note_fields(value: &w::Note, limits: &Limits) -> Result<c::Note, w
     Ok(c::Note {
         number: value.number(),
         revision: crate::translate::answers::revision(value.revision()),
-        scope: crate::translate::answers::note_scope(value.scope()),
+        scope: crate::translate::answers::note_scope(value.scope())?,
         description: crate::translate::facts::document_text(value.description(), limits)?,
         body: crate::translate::facts::document_text(value.body(), limits)?,
         writer: note_author_fields(value.writer()),

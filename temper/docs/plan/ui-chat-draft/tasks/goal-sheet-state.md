@@ -93,3 +93,15 @@ As `notes/common.md`, Your report.
 2026-11-05 (fabrig/ui). Ruling (rulings.md, 3 to 8): one Start goal sheet, ui-goal-page's start-domain and start-sheet; don't build a second. Take it from main or origin/ui-goal-page/integration, and only add opening it from a chat with the draft filled in and the Draft: and Chat: lines. Ways come from goals::ways; default is the setting, else first. drafts_offered reads the drafts setting.
 
 2026-11-05 (fabrig/ui). Before starting: git fetch; if ui-goal-page's start-sheet is on origin/main, use it. Otherwise merge origin/ui-goal-page/integration if start-sheet is landed there. If it is in neither, end with Question: saying so and change nothing; fabrig/ui will answer when it's in.
+
+## Rebase (2026-11-05, step merge, foreman ui-chat-draft/goal-sheet-state/foreman-1)
+
+resolve words.rs using integration’s reconciled phrase IDs and bounds
+The merge conflicts in `temper/crates/temper-client-view/src/words.rs`.
+Branch merge `41a77e81d9` and integration merge `86fc4a8a15` independently combined the same parents with different resolutions.
+Rebase onto the landing trunk, preserving `840e47a4ac`’s shared-sheet implementation.
+For `words.rs`, retain integration’s version from `86fc4a8a1545d87c8ed695369e3a8a8e7f8f8efe`; it contains the same variants and English text.
+Keep its disjoint draft phrase IDs: `DraftGroup` through `DraftSendHint` use 3600–3621; `PlusDraft` through `DraftName` use 3622–3627.
+Keep `PHRASES = 1690`, `SEGMENTS = 2938`, `ALL` length 1093, and `text_bytes = 42785`; the branch’s expanded byte expression equals that value.
+Validate with the focused `temper-client-view` library test `tests::frame::the_browser_words_fit_the_views_limits` through heavy, then the spec’s view/gallery checks.
+The refusal reports a merge conflict; it provides no test results.

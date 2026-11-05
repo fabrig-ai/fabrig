@@ -69,6 +69,7 @@ pub fn task() -> c::Task {
             retention: c::Retention::Kept,
         },
         last_activity: Wall::EPOCH,
+        made: Wall::from_nanos(7),
         waits_on: c::WaitsOn::Nothing,
         chip: chip(),
         goal: None,

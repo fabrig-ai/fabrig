@@ -94,7 +94,7 @@ fn controls_at(b: &mut Builder, root: &Domain, card: &Card, words: &Words, bindi
     }
     let mut first = true;
     for (act, word) in ACTIONS {
-        if root.pages().task().is_some() && act != ActKind::Release {
+        if root.pages().task().is_some() && root.pages().inbox().is_none() && act != ActKind::Release {
             continue;
         }
         let Some(admission) = jig_client::facts::offer(acts::offers(page), act) else { continue };
@@ -178,12 +178,22 @@ pub(crate) fn main(b: &mut Builder, root: &Domain, words: &Words, bindings: &mut
         && (open.act == ActKind::Stop || open.act == ActKind::Cancel)
         && let Some(task) = page.document(root.client())
     {
-        let word = if open.act == ActKind::Stop { Word::Stop } else { Word::Cancel };
+        let goal = page.shape == temper_client_domain::pages::task::Shape::Tracked && open.act == ActKind::Cancel;
+        let title = if goal {
+            words.say(
+                Word::GoalStopTitle,
+                &[skein_ui::phrases::Hole::Name(skein_lib::bytes::copy_of(task.chip.title.bytes()))],
+            )
+        } else {
+            words.say(if open.act == ActKind::Stop { Word::Stop } else { Word::Cancel }, &[])
+        };
         b.open(Role::Dialog);
-        b.name(&words.say(word, &[]));
-        b.text(Run::Plain, &words.say(word, &[]));
+        b.name(&title);
+        b.text(Run::Plain, &title);
         if open.act == ActKind::Stop {
             words.text(b, Word::StopHolds, &[]);
+        } else if goal {
+            words.text(b, Word::GoalStopStays, &[]);
         } else {
             // The task's own offers, read in place: cards::decision would take the document as a ReadValue.
             let facts = jig_client::facts::DecisionFacts {
@@ -247,7 +257,10 @@ fn close(b: &mut Builder, root: &Domain, words: &Words, bindings: &mut Bindings)
     let Some(chat) = root.pages().chat() else { return };
     let Some(Ask::Compound { operations, .. }) = &chat.closing else { return };
     b.open(Role::Dialog);
-    b.name(&words.say(Word::Close, &[]));
+    b.name(&words.say(if chat.restarting { Word::StartOver } else { Word::Close }, &[]));
+    if chat.restarting {
+        words.text(b, Word::StartOverQuestion, &[]);
+    }
     if let Some(task) = chat.task(root.client())
         && let Some(Effect::Cancel(_)) = jig_client::facts::effect(task.acts.as_slice(), ActKind::Cancel)
     {

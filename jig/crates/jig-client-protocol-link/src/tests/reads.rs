@@ -420,3 +420,78 @@ fn source_text_reads_keep_offsets_and_reject_false_continuations() {
         }
     }
 }
+
+#[test]
+fn a_tasks_read_is_sent_with_its_project() {
+    let limits = fixtures::limits();
+    let read = c::Read::Notes { scope: c::NoteScope::Tasks { project: 7 }, description: None, after: None };
+    let w::Read::Notes(value) = translate::reads::read(&read, limits.wire()).unwrap() else { panic!("notes read") };
+    let w::NoteScope::Tasks(scope) = value.scope() else { panic!("tasks scope") };
+    assert_eq!(scope.project(), 7);
+    assert_eq!(value.description(), &None);
+}
+
+#[test]
+fn a_tasks_scope_is_refused_for_both_client_writes() {
+    let limits = fixtures::limits();
+    let empty = c::Text::new(Box::new([]), 0).unwrap();
+    for (ask, path) in [
+        (
+            c::Ask::EditNote {
+                project: 7,
+                note: 1,
+                scope: c::NoteScope::Tasks { project: 7 },
+                revision: c::Revision { value: 1 },
+                description: empty.clone(),
+                body: empty,
+                references: skein_lib::List::with_capacity(0),
+            },
+            w::Path::EditNoteScope,
+        ),
+        (
+            c::Ask::DeleteNote {
+                project: 7,
+                note: 1,
+                scope: c::NoteScope::Tasks { project: 7 },
+                revision: c::Revision { value: 1 },
+            },
+            w::Path::DeleteNoteScope,
+        ),
+    ] {
+        assert_eq!(
+            translate::asks::ask(&ask, limits.wire()),
+            Err(w::Problem { path, reason: skein_codec::Reason::Malformed })
+        );
+    }
+}
+
+#[test]
+fn a_tasks_scope_on_a_note_row_is_undecodable() {
+    let limits = fixtures::limits();
+    let page = jig_client_test_records::scoped_notes_page();
+    let mut rows = Reader::new(page.rows());
+    let bytes = skein_codec::piece::split(&mut rows).unwrap().unwrap();
+    let source = w::Note::decode(&w::CEILINGS, &mut Reader::new(&bytes)).unwrap().into_parts();
+    for (scope, readable) in [
+        (
+            w::NoteScope::Task(
+                w::NoteScopeTask::new(&w::CEILINGS, w::NoteScopeTaskParts { project: 13, task: 19 }).unwrap(),
+            ),
+            true,
+        ),
+        (
+            w::NoteScope::Tasks(w::NoteScopeTasks::new(&w::CEILINGS, w::NoteScopeTasksParts { project: 13 }).unwrap()),
+            false,
+        ),
+    ] {
+        let mut parts = source.clone();
+        parts.scope = scope;
+        let record = w::Note::new(&w::CEILINGS, parts).unwrap();
+        let result = translate::pages::note_fields(&record, &limits);
+        if readable {
+            assert_eq!(result.unwrap().scope, c::NoteScope::Task { project: 13, task: 19 });
+        } else {
+            assert_eq!(result, Err(translate::piece_problem(skein_codec::Reason::Malformed)));
+        }
+    }
+}

@@ -22,7 +22,7 @@ impl Accounts {
                                 renewable: account.scheme() == smith_host_domain::Scheme::Bearer,
                             },
                         },
-                        value: token,
+                        value: token.into_exposed(),
                     });
                 }
                 Some(oauth::Event::Expiring { account, .. }) => {
@@ -62,7 +62,7 @@ impl Accounts {
                     });
                 }
                 Some(oauth::Event::Visit { url, .. }) => {
-                    out.push(CredentialRequest::Visit { url });
+                    out.push(CredentialRequest::Visit { url: url.into_exposed() });
                 }
                 Some(oauth::Event::SignedIn { account: index, missing, subject, .. }) => {
                     self.remember(index, Settled::SignedIn { missing, subject });

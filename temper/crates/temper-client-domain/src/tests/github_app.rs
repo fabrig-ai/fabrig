@@ -245,6 +245,7 @@ fn a_first_organization_named_as_the_bot_asks_for_another_name() {
 
 fn github_row() -> forge::forges::Row {
     forge::forges::Row {
+        starts_with: forge::forges::StartsWith::Repository,
         makings: Box::new([]),
         fetched: None,
         host: b"git.example:3000".as_slice().into(),

@@ -4,8 +4,8 @@ use jig_client::contract as c;
 use skein_fake_person::{Face, Find, Found, Target, TreeFace};
 use skein_lib::{Env, List, Queue, Time, Wall};
 use skein_ui::Role;
+use temper_client_domain::ChatsFilter;
 use temper_client_domain::{Address, Domain, Event, Request};
-use temper_client_domain::{ChatsFilter, PlanFilter};
 const CHANGE: u64 = 2;
 const CHAT: u64 = 1;
 const EXCHANGES: u32 = 64;
@@ -416,7 +416,7 @@ fn a_running_change_shows_its_card_at_its_call() {
     assert_eq!(
         crate::act(&mut view, link, skein_ui::Act::Press),
         Some(temper_client_domain::Action::Pages(temper_client_domain::pages::Act::Go {
-            address: Address::Task { task: CHANGE, filter: PlanFilter::All }
+            address: Address::Task { task: CHANGE }
         }))
     );
     assert_eq!(work_slots(&view), 0);

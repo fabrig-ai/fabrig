@@ -33,7 +33,7 @@ fn handshake_bytes_do_not_write_an_exchange() {
         }
     }
     assert!(sent, "the handshake wrote bytes");
-    assert_eq!(c.phase, Phase::Handshaking, "TLS writes keep the handshake phase");
+    assert_eq!(c.phase(), Phase::Handshaking, "TLS writes keep the handshake phase");
     assert!(!c.written, "no exchange byte was written");
     c.timeout();
     let Some(Ended::Failed(failure)) = c.take_ended() else { unreachable!("timeout reports failure") };
@@ -41,14 +41,71 @@ fn handshake_bytes_do_not_write_an_exchange() {
 }
 
 #[test]
-fn a_connected_notice_keeps_the_in_flight_exchange() {
-    let mut h = f::ConnectionHarness::new();
-    h.start_forgejo(skein_forge::forgejo::request::Request::User, None).expect("user request");
-    h.pump();
-    h.connection.connect(&h.env);
-    assert!(h.connection.in_flight(), "the exchange still belongs to its holder");
-    h.connection.stream(&h.env, Up::Room);
-    h.pump();
-    assert!(h.connection.written, "the request wrote bytes");
-    assert_eq!(h.connection.phase, Phase::Reading);
+fn a_connected_notice_keeps_the_close_under_way() {
+    let forge = f::settings().forges.into_boxed().into_iter().next().expect("fixture forge");
+    let env = Env { now: Time::ZERO, wall: Wall::EPOCH, limits: f::limits() };
+    let mut c = Connection::new(&forge, &env.limits, f::shared(), env.now);
+    let mut io = Queue::uncapped();
+    c.link.connecting(Token::new(100), &mut io);
+    c.close(&env, false, &mut io);
+    c.connect(&env);
+    assert!(c.closing(), "the connected notice keeps the close");
+    assert_eq!(c.phase(), Phase::Closed);
+}
+
+#[test]
+fn an_early_head_and_upload_endings_preserve_the_sending_exchange() {
+    for event in [
+        http::Event::Response(http::Response {
+            version: skein_http::Version::Http11,
+            status: 413,
+            headers: Box::from([]),
+            framing: http::Framing::Empty,
+        }),
+        http::Event::Upload(Up::Failed(skein_lib::stream::Fault::Reset)),
+        http::Event::Upload(Up::End),
+    ] {
+        let mut h = f::ConnectionHarness::new();
+        h.start_forgejo(
+            skein_forge::forgejo::request::Request::RemoveReviewers {
+                at: skein_forge::forgejo::request::Repo {
+                    owner: Box::from(b"fixture".as_slice()),
+                    name: Box::from(b"specimen".as_slice()),
+                },
+                number: 7,
+                reviewers: Box::from([Box::from(b"alice".as_slice())]),
+            },
+            None,
+        )
+        .expect("upload request");
+        let head = match &event {
+            http::Event::Response(_) => true,
+            http::Event::Upload(_) => false,
+            http::Event::Body(_) | http::Event::Done(_) | http::Event::Failed(_) | http::Event::Closed => {
+                unreachable!("early head or upload ending")
+            }
+        };
+        let moved = h.connection.http_event(&h.env, event);
+        match moved {
+            Moved::Head(response) => assert_eq!(response.status, 413, "early head reaches the holder"),
+            Moved::Within => assert!(!head, "early head is not swallowed"),
+            Moved::Nothing | Moved::Token(_) | Moved::Finished { .. } => unreachable!("no completed exchange"),
+        }
+        assert_eq!(h.connection.phase(), Phase::Sending { written: false }, "no write completed");
+        assert!(h.connection.in_flight(), "the exchange remains held");
+        h.connection.stream(&h.env, Up::Room);
+        for _ in 0_u32..64 {
+            match h.connection.step(&h.env, &mut h.io, false) {
+                Moved::Within | Moved::Nothing => {}
+                Moved::Head(_) | Moved::Token(_) | Moved::Finished { .. } => unreachable!("no answer queued"),
+            }
+            if h.connection.written {
+                break;
+            }
+        }
+        assert!(h.connection.written, "the request head wrote bytes");
+        let expected = if head { Phase::Sending { written: true } } else { Phase::Reading };
+        assert_eq!(h.connection.phase(), expected, "only a live upload keeps sending after the write");
+        assert!(h.connection.take_ended().is_none(), "an upload ending is not an exchange failure");
+    }
 }

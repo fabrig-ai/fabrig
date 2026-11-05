@@ -194,3 +194,15 @@ fn profiles_hold_a_documents_body_and_carriers() {
         assert_eq!(limits.core.load_bytes, load, "{kind:?} load");
     }
 }
+
+#[test]
+fn supplied_profiles_keep_four_exchanges_beside_every_stream() {
+    const ORDINARY_EXCHANGES: u32 = 4;
+    for selected in [Profile::Small, Profile::Standard] {
+        let limits = profile(selected);
+        let streams = limits.clients.streams.max(limits.clients_http.streams);
+        let minimum = streams.checked_add(ORDINARY_EXCHANGES).expect("profile carrier count");
+        assert!(limits.clients_http.calls >= minimum, "{selected:?} HTTP calls carry streams and ordinary exchanges");
+        assert!(limits.clients.exchanges >= limits.clients_http.calls, "{selected:?} component carries HTTP calls");
+    }
+}

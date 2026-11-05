@@ -64,7 +64,7 @@ fn limits() -> engine::Limits {
     limits.tasks.inbox_messages = 8;
     limits.tasks.run_inbox = 8;
     limits.tasks.authority_grants = 16;
-    limits.tasks.executor_kinds = 8;
+    limits.tasks.executor_kinds = 9;
     // The stock's read plus six change grants narrow to eight repository patterns (200 bytes).
     limits.tasks.authority_bytes = 256;
     limits.tasks.authority_segments = 8;
@@ -74,7 +74,7 @@ fn limits() -> engine::Limits {
     limits.authority.requirements = 4;
     limits.authority.facts = 4;
     limits.authority.writes = 2;
-    // The request carrier holds the stock's fourteen grants and six executor kinds.
+    // The request carrier holds the stock's fourteen grants and nine executor kinds.
     limits.people.amendment_bytes = 2048;
     limits.people.inbox_tasks = 32;
     limits.people.inbox_recipients = 32;
@@ -332,7 +332,7 @@ fn no_settings_or_message_tools(run: &engine::Assignment) {
     assert_eq!(run.run.authority.tools.0 & core::ToolFamilies::JIG.settings, 0);
     assert_eq!(run.run.authority.tools.0 & core::ToolFamilies::JIG.message.0, 0);
     let charter = temper_engine_smith::charter(run);
-    assert_eq!(charter.grants.host_tools.len(), 37);
+    assert_eq!(charter.grants.host_tools.len(), 38);
     for tool in &charter.grants.host_tools {
         assert!(
             tool.name.as_ref() != b"settings"
@@ -355,7 +355,7 @@ pub(super) fn changes_without_settings_or_message() {
     }
     let (mut driver, chat) = chat_in(config);
     assert_ne!(chat.run.authority.tools.0 & core::ToolFamilies::JIG.settings, 0);
-    assert_eq!(temper_engine_smith::charter(&chat).grants.host_tools.len(), 38);
+    assert_eq!(temper_engine_smith::charter(&chat).grants.host_tools.len(), 39);
     for tool in &temper_engine_smith::charter(&chat).grants.host_tools {
         assert!(tool.name.as_ref() != b"settings" && tool.name.as_ref() != b"propose_settings");
     }
@@ -383,7 +383,7 @@ pub(super) fn changes_without_settings_or_message() {
     };
     let coordinator = assigned(&driver, made[0].task).expect("coordinator run");
     assert_ne!(coordinator.run.authority.tools.0 & core::ToolFamilies::JIG.message.0, 0);
-    assert_eq!(temper_engine_smith::charter(&coordinator).grants.host_tools.len(), 38);
+    assert_eq!(temper_engine_smith::charter(&coordinator).grants.host_tools.len(), 39);
     repair_change(&mut driver, &coordinator, 43);
 }
 

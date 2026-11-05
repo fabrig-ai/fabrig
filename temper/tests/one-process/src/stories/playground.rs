@@ -32,13 +32,13 @@ pub(crate) fn person() -> (Vec<Step<Address>>, Vec<u32>) {
         Step::Go { address: Address::Welcome { step: temper_client_domain::Step::Welcome } },
         see(Find::named(Role::Button, b"Try the playground")),
         press(Role::Button, b"Try the playground"),
-        Step::Go { address: Address::NewChat },
+        Step::Go { address: Address::NewChat { draft: false } },
         see(Find::named(Role::Button, b"Add CSV export to widget")),
         see(Find::text(REPOSITORY)),
     ];
     for (index, script) in scripts["asked"].as_array().expect("three suggested requests").iter().enumerate() {
         if index > 0 {
-            steps.push(Step::Go { address: Address::NewChat });
+            steps.push(Step::Go { address: Address::NewChat { draft: false } });
             steps.push(see(Find::named(Role::Button, script["cue"].as_str().expect("suggestion").as_bytes())));
         }
         steps.push(press(Role::Button, script["cue"].as_str().expect("suggestion").as_bytes()));

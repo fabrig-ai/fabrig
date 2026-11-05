@@ -406,7 +406,7 @@ fn the_adoption_region_holds_the_form_with_no_card_around_it() {
     assert_eq!(child, end, "direct children fill the region");
     let [fields, roles, ..] = children.as_slice() else { panic!("the form's parts are direct children") };
     assert_eq!(nodes[*fields].role, Role::Slot);
-    assert!(nodes[*fields].styles.as_slice().contains(&crate::look::CARD));
+    assert!(nodes[*fields].styles.is_empty());
     let expected = [b"Forge number".as_slice(), b"Owner", b"Name"];
     let mut names = skein_lib::List::with_capacity(u32::try_from(expected.len()).unwrap());
     for node in &nodes[*fields + 1..*roles] {
@@ -460,5 +460,46 @@ fn the_adoption_page_draws_the_unadopted_first_repository_defaults() {
                 assert_eq!((value.text.as_ref(), value.written), (expected, 1));
             }
         }
+    }
+}
+
+#[test]
+fn adopt_draws_no_card_chrome_and_takes_the_language() {
+    // README.md, 4.4: forge, owner, name, prefix, landing and checks.
+    const FIELDS: usize = 6;
+    let root = fixtures::adoption_root();
+    for view in [fixtures::page_view(&root), fixtures::browser_page_view(&root)] {
+        let tree = view.tree();
+        assert_eq!(
+            fixtures::styles(tree, Role::Main).as_ref(),
+            [Box::from([crate::look::MAIN, crate::look::SETTINGS])]
+        );
+        assert_eq!(
+            fixtures::styles(tree, Role::Heading { level: 1 }).as_ref(),
+            [Box::from([crate::look::SETTINGS_HEADLINE])]
+        );
+        let adopt = fixtures::find(tree, Role::Button, b"Adopt").unwrap();
+        let mut main = false;
+        let mut column = false;
+        let mut fields = 0_usize;
+        for node in tree.nodes() {
+            if node.role == Role::Main {
+                main = true;
+            }
+            if node.styles.as_slice().contains(&crate::look::SETTINGS_COL) {
+                column = true;
+            }
+            assert!(!node.styles.as_slice().contains(&crate::look::CARD));
+            assert!(!node.styles.as_slice().contains(&crate::look::PAGEBAR));
+            if main && node.role == Role::TextField {
+                assert_eq!(node.styles.as_slice(), &[crate::look::SETTINGS_TEXT]);
+                fields = fields.checked_add(1).unwrap();
+            }
+            if node.id == adopt {
+                assert_eq!(node.styles.as_slice(), &[crate::look::SETTINGS_BTN, crate::look::SETTINGS_PRIMARY]);
+            }
+        }
+        assert!(column);
+        assert_eq!(fields, FIELDS);
     }
 }

@@ -710,8 +710,10 @@ is due again once its dependencies are done.
    or what woke it; has each connector that owns a resource the task
    names gather its workspace items, and name the application's
    credentials they need (connectors.md, section 10); and loads its
-   transcript's current window, if its charter resumes and it has one
-   within the resume limit (7.2). Either way it is given the calls
+   transcript's saved window when it has one, for resuming or for the
+   tail of a fresh brief, including a transient retry (7.2). An activation
+   that needs this load stays due while the root is busy; one with no
+   saved window can prepare its brief then. Either way it is given the calls
    committed after its task's last committed turn: a resumed run as a
    note after the transcript, a fresh one as a section of its brief.
 3. **Commits the claim:** the task claimed, with its new attempt number,
@@ -864,7 +866,13 @@ program its endpoint names (`../protocol/configuration.md`, section 3).
   tail. Earlier windows' turns stay readable by parties
   (`../client/domain/contract.md`, section 6), and are never sent to a
   run. A transcript the agent cannot use fails its run as transient,
-  saying so, and the next run is prepared fresh.
+  saying so, and the next run is prepared fresh. A transient retry loads
+  the saved window for its brief's tail, and never resumes it. If that
+  load is unread, preparation continues fresh without the tail and
+  without spending another transient try. An unread open window with
+  no transient try spent counts one transient preparation failure;
+  its retry can then continue without that unread tail. A failed load,
+  rather than an unread window, remains a preparation failure.
 - **A window closed by an upgrade.** A turn is handed to a run in its
   current version, patched as read when it was written in an older one
   (`../protocol/store.md`, 8.6), and a run resumes from it. A patch
@@ -887,11 +895,13 @@ program its endpoint names (`../protocol/configuration.md`, section 3).
   gives no text for that turn. If no turn leaves text, the tail is empty:
   the closed window's next attempt still starts fresh, without a failure
   counted. A window page that cannot hold one turn answers `Unread`.
-  An open unread window retains its transient-failure semantics above.
+  An open unread window counts a transient failure only when no
+  transient try has been spent; a transient retry leaves out that tail
+  and continues fresh, as for an unread closed window.
   However the upgrade's
   stop classes the attempt it ends (temper's `draft/upgrades.md`, 7.2),
-  a closed window is kept for its tail's load, where a transient try
-  drops an open one. The run proof
+  both a closed window and a transient retry's open window are kept for
+  their tails' loads; neither is resumed. The run proof
   keeps the window as a `CurrentWindow` (its attempt, its turn, whether
   it is closed: core-v6's `Window`); the transcript a run prepares keeps
   the pair it loads from, and whether it is closed beside it.
@@ -1042,7 +1052,8 @@ call writes over a change its run was not shown.
   with no try spent, and a line in its task's activity naming the
   dependencies it waits for. Woken once they are done, its next run goes
   on from what it left, its brief or its start saying what it waited
-  for (section 9), and finishes again. The tasks child decides it, as it
+  for (section 9), and finishes again. Kept by its own question, a run
+  that finishes with a failure parks the same way (tasks.md, 5.7). The tasks child decides it, as it
   decides every reason a task may not go on, so the run and its host
   know nothing of it.
 - **Waiting holds the slot; parking frees it.** A run that calls `wait`
@@ -1227,7 +1238,8 @@ The fleet child domain knows the hosts and the runs they host:
   and 6.3), ends a run the host never hosted. The fleet closes the
   attempt as it hears it, and never acknowledges it: one refused as busy
   is placed again, as no failure; one refused as invalid ends its start,
-  refused. One lost with its channel leaves its attempt unlisted at the
+  refused. The task's class comes from the answer's payload: a refused
+  transcript is transient (hosts.md, 6.3). One lost with its channel leaves its attempt unlisted at the
   next hello, and the start ends lost; the next attempt is refused again,
   or placed.
 - **Restarting** (section 6): the fleet adopts the claims the store
@@ -1256,8 +1268,8 @@ within a budget, the brief within its own: sections follow why the run
 runs, those it runs for are required, the rest optional; what does not
 fit is cut in its kind's order and says how much; sections are gathered
 within one deadline, while the task is preparing, and a required one
-missing sends the task back to due after a backoff, no attempt spent
-(tasks.md, 5.2).
+missing fails the brief, which pauses the task or counts a failure by
+why (9.1), no attempt spent (tasks.md, 5.2).
 
 Its sections come from two places:
 
@@ -1303,6 +1315,57 @@ keeps. The host's protocol layer renders the whole as text, in order.
 A brief has no inbox section. The messages waiting in the task's inbox
 go with the assignment as its start's messages, and the run reads them
 as messages, whole (7.1; tasks.md, 8.2).
+
+### 9.1 A brief that fails
+
+A brief fails whole: a required section is missing, the brief child
+refuses its plan, or the core or the root cannot make or put together
+its parts. Every such failure carries a **failure**: how it counts, and
+why, as a section's name and fixed words. Both name and words are
+`'static` in the code, so a reason cannot carry a run's words or a
+secret. A connector chooses its own, and names no more than the kind of
+its section and of the error its system gave.
+
+How it counts decides what becomes of the task:
+
+- **Capacity:** nothing is wrong but room, which frees by itself. The
+  task pauses and is due again after a backoff, no try spent, with no
+  bound on how many times (tasks.md, 5.5).
+- **Transient** or **permanent:** a failure of that class (tasks.md,
+  5.5). The task backs off within that class's allowance and, past it,
+  is held for `Failures` of that class, its hold naming the reason.
+
+Which is which, by what 7.1 prepares:
+
+| The failure | Counts as | Section and words |
+|---|---|---|
+| no brief slot: the brief child's table is full, or this brief is still gathering | capacity | `brief: no brief slot is free` |
+| a connector says it has no room, or that its system admits nothing yet | capacity | the connector's |
+| the core's result reads, its notes or its proofs have no room | capacity | `results: no read flight is free`, `notes: no room for the index`, `run: no room for its proof` |
+| a claim refused (a host's or a writer's room; tasks.md, 5.5) | capacity | `claim: refused` |
+| a required section past the brief's deadline | transient | `SECTION: not gathered by its deadline` |
+| a connector says its system failed for now | transient | the connector's |
+| a dependency's result the store no longer answers with | transient | `results: a dependency's result could not be read` |
+| a transcript's window that does not load | transient | `transcript: its window could not be loaded`, or `transcript: its window could not be read` for an open window unread with no transient try spent (7.2) |
+| a required section that cannot fit, whole or cut | permanent | `SECTION: does not fit the brief's budget`, or `brief: its required sections do not fit its budget` |
+| a section a connector answered past its bound | permanent | `SECTION: answered past its bound` |
+| a plan the brief child refuses: more sections than a brief holds, a budget past the limit, a core text past it, a section planned twice, a deadline passed | permanent | `brief: ...`, naming which; for a core text, `SECTION: its text is past the brief's limit` |
+| a connector says its system answered wrongly, or will not answer | permanent | the connector's |
+| the root cannot put the brief together: a section's owner lost it, or no room for a required section | permanent | the application's |
+| a core section the core cannot read within its bounds | permanent | `task: ...`, `results: ...`, `transcript: ...` |
+| a brief's notes index refused for any reason but room | permanent | `notes: the index could not be read` |
+| no attempt number left | permanent | `run: no attempt number is left` |
+
+A stale preparation and a wait for an account (7.1) are neither: the task
+returns to due without a timer, as it does.
+
+**Where the reason goes.** The tasks child keeps it, cut to 128 bytes at a
+character's edge (`REASON_BYTES`): on the retry notice, so a task's document
+and its chip say it beside the count, and on the hold, whose words say it
+(11). It is durable with the record. The core also tells the root each
+failure as it happens, with the task, for the application's log: only there
+does a failure that then resolves itself leave a trace once the notice moves
+on.
 
 ## 10. Notes
 
@@ -1964,6 +2027,12 @@ section 5).
   the start instead, beside section 6's refusals, a cause of people's
   and a failure of the core's. Default: it panics; the user's to
   decide.
+- **A transcript's load with no slot** (9.1, 7.2): a root whose load table
+  is full answers `TranscriptLoad::Failed`, as it does for a page it cannot
+  take, so room that frees by itself counts as transient, and the try it
+  spends makes the next run start fresh from the tail rather than resume.
+  Capacity would need `TranscriptLoad` to say which. Default: as built,
+  until the user says.
 
 - **A fresh attempt's tail, lost before its first turn.** An attempt
   that starts fresh from a closed window, or past the resume limit,
@@ -2494,6 +2563,23 @@ requires no additional limit or root-to-core allowance (decided 2026-11-03).
 
   All of it, the release's revision included, is committed before the
   core admits anything.
+
+  The release's withdrawals are in its decision (17.6), so a crash
+  leaves the revision and its withdrawals both or neither: a start after
+  the commit finds the revision made and the proposals withdrawn, and
+  makes no second one; a start after a commit that was lost makes them
+  both. They run at `Phase::Link`, with every link made. The decision
+  holds their records: the tasks child's, the core's set erased, and a
+  connector's dropping of an application's values, a settings ask like
+  the release's others. The people child's projections of them follow
+  in memory: it takes a projection event once its census is whole, at
+  its link and again once its start has ended, never while loading or
+  sweeping, and a restart rebuilds them from the records. What acts on
+  them waits, by section 6: a proposer left due is activated when the
+  tasks child is told it is restored, and a word left
+  for a live run is relayed after that run's next turn, as any restored
+  task's are. Nothing is activated or relayed from the decision itself,
+  so a first start and a second after a crash do the same.
 - **The document's members as defaults.** An application that passes
   no defaults gives the document's `charters`, `templates`, `policies`
   and `rules` (`../protocol/configuration.md`, section 3), and the

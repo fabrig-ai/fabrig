@@ -232,9 +232,11 @@ pub(crate) fn turns(store: &Store) -> Vec<&core::TurnRecord> {
 pub(crate) fn terminal(store: &Store, task: u64, attempt: u64, scenario: crate::stories::Story) -> bool {
     store.rows.values().any(|row| matches!(row,
         root::Record::Core(core::Record::Core(core::CoreRecord::Terminal(answer)))
-        if answer.task == task && answer.attempt == attempt && if matches!(scenario, crate::stories::Story::InvalidCharter) || matches!(scenario, crate::stories::Story::InvalidTranscript) && attempt != 1 {
+        if answer.task == task && answer.attempt == attempt && if matches!(scenario, crate::stories::Story::InvalidCharter) {
             answer.end == jig_domain_tasks::End::Failed(jig_domain_tasks::Class::Invalid)
-        } else if matches!(scenario, crate::stories::Story::Window | crate::stories::Story::InvalidTranscript) && (attempt == 1 || matches!(scenario, crate::stories::Story::Window) && attempt == 2) {
+        } else if matches!(scenario, crate::stories::Story::InvalidTranscript) && attempt == 2 {
+            answer.end == jig_domain_tasks::End::Failed(jig_domain_tasks::Class::Transient)
+        } else if matches!(scenario, crate::stories::Story::InvalidTranscript) || matches!(scenario, crate::stories::Story::Window) && attempt <= 2 {
             answer.end == jig_domain_tasks::End::Parked
         } else if matches!(scenario, crate::stories::Story::BeyondGrace | crate::stories::Story::Shutdown) { answer.end == jig_domain_tasks::End::Failed(jig_domain_tasks::Class::Agent) } else { matches!(answer.end, jig_domain_tasks::End::Finished { .. }) }
     ))
@@ -496,9 +498,9 @@ fn make_referee(
             crate::stories::Story::InvalidCharter
             | crate::stories::Story::BeyondGrace
             | crate::stories::Story::Shutdown => 0,
-            crate::stories::Story::InvalidTranscript | crate::stories::Story::Input => 1,
+            crate::stories::Story::Input => 1,
             crate::stories::Story::Window => 7,
-            crate::stories::Story::Facts => 2,
+            crate::stories::Story::Facts | crate::stories::Story::InvalidTranscript => 2,
             crate::stories::Story::Drain
             | crate::stories::Story::ApplicationGeneration
             | crate::stories::Story::Key { .. }
@@ -520,7 +522,7 @@ fn make_referee(
             | crate::stories::Story::DurableRestart
             | crate::stories::Story::Partition { .. } => script.leading_turns + 1,
         },
-        expected_answers: if matches!(script.story, crate::stories::Story::Window) { 3 } else { 1 },
+        expected_answers: expected_answers(script.story),
         story: script.story,
         injected: false,
         resumed_attempt: 0,
@@ -786,4 +788,12 @@ pub(crate) fn provider_choices(store: &Store) -> (Option<u32>, Vec<(u32, u32, u3
         })
         .unwrap_or_default();
     (main, bindings)
+}
+
+fn expected_answers(story: crate::stories::Story) -> usize {
+    match story {
+        crate::stories::Story::Window => 3,
+        crate::stories::Story::InvalidTranscript => 2,
+        _ => 1,
+    }
 }

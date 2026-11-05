@@ -20,6 +20,29 @@ use temper_service::{
 
 pub mod directories;
 use directories::{Directories, private_root};
+
+pub(crate) fn workspace_reuse() -> bool {
+    std::env::var_os("TEMPER_WORKSPACE_REUSE").is_some()
+}
+/// Where a worker's agents keep each model request (temper/docs/design/draft/dogfood-hacks.md, 2.13).
+pub(crate) fn dump_llm() -> Option<PathBuf> {
+    dump_directory(std::env::var_os("TEMPER_DUMP_LLM"))
+}
+fn dump_directory(value: Option<OsString>) -> Option<PathBuf> {
+    let value = value?;
+    if value.is_empty() {
+        return None;
+    }
+    match std::path::absolute(&value) {
+        Ok(directory) => Some(directory),
+        Err(why) => {
+            use std::io::Write;
+            drop(writeln!(std::io::stderr(), "temper serve: TEMPER_DUMP_LLM: {why}"));
+            None
+        }
+    }
+}
+const DUMP_BOUND: u64 = 4_294_967_296;
 mod accounts_runtime;
 mod agent;
 pub mod box_command;
@@ -206,7 +229,14 @@ pub fn run(command: Command) -> Result<u8, String> {
                 use std::io::Write;
                 drop(writeln!(std::io::stderr(), "smith: {why}"));
             })
-            .and_then(|decoded| smith_agent_shell::run_decoded(decoded, Box::new(std::io::stderr())))
+            .and_then(|decoded| match dump_llm() {
+                Some(directory) => smith_agent_shell::run_dumping(
+                    decoded,
+                    smith_agent_shell::dump::Dumps::new(directory, DUMP_BOUND),
+                    Box::new(std::io::stderr()),
+                ),
+                None => smith_agent_shell::run_decoded(decoded, Box::new(std::io::stderr())),
+            })
             .map_err(|why| prefixed("temper internal agent", &why))?,
         Command::ProgramLogin { directories, name } => {
             return program_login::run(&directories, &name)
@@ -462,6 +492,12 @@ fn prepare_with_limits(
         given,
     )
     .map_err(|why| String::from_utf8_lossy(&service::startup::lines(&why)).into_owned())?;
+    if workspace_reuse() {
+        service.reuse_workspaces();
+    }
+    if let Some(directory) = dump_llm() {
+        service.dump_llm(directory.as_os_str().as_bytes());
+    }
     service.configure_forge_runtime(github, roots);
     service.configure_google_endpoints(google);
     if let Some(agent) = &agent

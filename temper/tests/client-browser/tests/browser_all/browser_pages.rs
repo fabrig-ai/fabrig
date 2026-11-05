@@ -15,11 +15,11 @@ fn enter_starts_one_chat_keeping_a_shift_enter_break() {
     let chats = || Step::Person(PersonStep::Press { find: Find::exactly_named(Role::Link, b"Chats") });
     let mut steps = vec![
         see(Find::exactly_named(Role::Heading { level: 1 }, b"Connect a forge")),
-        Step::Person(PersonStep::Press { find: Find::exactly_named(Role::Link, b"temper chats") }),
+        Step::Person(PersonStep::Go { address: b"/chats".as_slice().into() }),
         see(tier.states().live),
         temper_client_browser_world::connected(),
         chats(),
-        Step::Person(PersonStep::Press { find: Find::exactly_named(Role::Link, b"New chat") }),
+        Step::Person(PersonStep::Press { find: Find::exactly_named(Role::Link, b"+ New chat") }),
         see(composer()),
         Step::Type { find: composer(), words: Box::from(b"Hello".as_slice()) },
         Step::KeyWithShift(Key::Enter),

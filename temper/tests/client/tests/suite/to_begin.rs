@@ -44,7 +44,16 @@ fn root(seed: u64) -> (Root, View) {
 
 fn client(world: &mut Clients, party: u64, project: u32) -> ClientId {
     world.front().next_client_limits(limits());
-    world.client_with(party, Address::Home { project }, limits(), root)
+    let who = world.client_with(party, Address::Home { project }, limits(), root);
+    // To begin uses neither accounts nor status; leave room for both devices' Away and decided watches.
+    let status = jig_client::Handle {
+        asker: temper_client_domain::owner::Owner::Pages.asker(),
+        number: world.root(who).person().pages().chats().expect("Home holds its chats").live.number - 1,
+    };
+    for handle in [temper_client_domain::pages::accounts::handle(), status] {
+        world.event(who, Event::Client { event: jig_client::Event::Unwatch { handle } }.into());
+    }
+    who
 }
 
 fn world() -> Clients {
@@ -65,7 +74,7 @@ fn settle(world: &mut Clients) {
 fn facts(world: &Clients, who: ClientId, project: u32) -> Facts {
     let root = world.root(who).person();
     assert_eq!(root.pages().address(), &Address::Home { project });
-    home::facts(root, project)
+    home::facts(root, project, skein_lib::Wall::EPOCH)
 }
 
 fn showing(world: &Clients, who: ClientId, project: u32) {
@@ -124,9 +133,11 @@ fn skip_on_home_hides_to_begin_on_every_device() {
     settle(&mut world);
     hidden(&world, first);
     hidden(&world, second);
-    // Release the pages and their standing project watches before a third Home: the engine admits 16.
-    world.go(first, Address::Welcome { step: temper_client_domain::Step::Ready });
-    world.go(second, Address::Welcome { step: temper_client_domain::Step::Ready });
+    // End the first two sessions before a third Home: settings is session-long,
+    // and the engine admits 17 watches across devices.
+    for who in [first, second] {
+        world.event(who, Event::Act { action: Action::Pages(Act::SignOut) }.into());
+    }
     settle(&mut world);
     let third = client(&mut world, fixtures::PARTY, PROJECT);
     assert!(!facts(&world, third, PROJECT).to_begin(), "no flash before the dismissal arrives");

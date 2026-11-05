@@ -2,7 +2,7 @@
 use super::fixtures as f;
 use crate::{
     look,
-    pages::changes::{landing_line, ordinal},
+    pages::changes::{LandingFacts, landing_line, ordinal},
     words::Times,
 };
 use jig_client::{Down, Readable, Up, contract as c};
@@ -127,7 +127,13 @@ fn contains(text: &[u8], words: &str) -> bool {
     skein_lib::bytes::find(text, words.as_bytes()).is_some()
 }
 fn assert_line(panel: &w::ChangesPanel, expected: &[(&str, bool)]) {
-    let parts = landing_line(panel, &f::words(), &mut Times::new(NOW));
+    let mut red = List::uncapped();
+    for queue in panel.queues() {
+        if queue.red() {
+            red.push(queue.branch()).unwrap();
+        }
+    }
+    let parts = landing_line(&LandingFacts::panel(panel, red.as_slice()), &f::words(), &mut Times::new(NOW));
     assert_eq!(parts.len(), expected.len());
     for (part, (words, red)) in parts.iter().zip(expected) {
         assert_eq!(&*part.words, words.as_bytes());

@@ -182,6 +182,7 @@ impl Replay {
             | Line::Primary(_)
             | Line::Ways { .. }
             | Line::Forge(_)
+            | Line::Zone(_)
             | Line::Path(_)
             | Line::Secret(_)
             | Line::Stored { .. }
@@ -235,7 +236,7 @@ fn text(line: &Line) -> String {
     bytes.pop();
     String::from_utf8(bytes).expect("recording text is ASCII")
 }
-fn facts(lines: &[Line]) -> Result<(Facts, usize), Unreadable> {
+pub(super) fn facts(lines: &[Line]) -> Result<(Facts, usize), Unreadable> {
     let mut at = 0;
     let error = |at| Unreadable { line: number(at), why: "expected ordered start facts for journey 2" };
     if lines.get(at) != Some(&Line::Journey { version: 2 }) {
@@ -254,6 +255,12 @@ fn facts(lines: &[Line]) -> Result<(Facts, usize), Unreadable> {
         return Err(error(at));
     };
     at += 1;
+    let zone_minutes = if let Some(Line::Zone(minutes)) = lines.get(at) {
+        at += 1;
+        *minutes
+    } else {
+        0
+    };
     let ways = if let Some(Line::Ways { content, origin }) = lines.get(at) {
         at += 1;
         Some((content.clone(), origin.clone()))
@@ -289,6 +296,7 @@ fn facts(lines: &[Line]) -> Result<(Facts, usize), Unreadable> {
             now: *now,
             wall: *wall,
             primary: *primary,
+            zone_minutes,
             ways,
             forges,
             path: path.clone(),

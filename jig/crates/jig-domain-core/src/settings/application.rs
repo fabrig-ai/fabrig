@@ -147,14 +147,7 @@ pub(crate) fn projects(items: &[super::Item]) -> Box<[u32]> {
 /// The core checks names, scopes, bytes and retained slots before asking a connector.
 pub(crate) fn check(core: &Core, items: &[super::Item]) -> Result<(), Failure> {
     for item in items {
-        let (kind, scope, number) = match item.setting {
-            Setting::Application { kind, scope, number } => (kind, scope, number),
-            Setting::Charter(_)
-            | Setting::Template(_)
-            | Setting::Policy(_)
-            | Setting::Rules
-            | Setting::ProjectPolicy { .. } => continue,
-        };
+        let Some(Name { kind, scope, number }) = named(item.setting) else { continue };
         let declared = kind_of(&core.kinds, kind).ok_or(Failure { setting: item.setting, fault: Fault::Shape })?;
         let valid_scope = match declared.scope {
             KindScope::Deployment => scope == 0,
@@ -204,7 +197,7 @@ fn same_scope(setting: Setting, kind: u32, scope: u32) -> bool {
     }
 }
 #[expect(clippy::manual_find, reason = "the strict subset iterates without a closure")]
-fn kind_of(kinds: &[Kind], number: u32) -> Option<&Kind> {
+pub(crate) fn kind_of(kinds: &[Kind], number: u32) -> Option<&Kind> {
     for kind in kinds {
         if kind.number == number {
             return Some(kind);
@@ -212,8 +205,24 @@ fn kind_of(kinds: &[Kind], number: u32) -> Option<&Kind> {
     }
     None
 }
-fn translate(item: &super::Item) -> Item {
-    let Setting::Application { kind, scope, number } = item.setting else { unreachable!("application item") };
+#[derive(Clone, Copy, Debug)]
+struct Name {
+    kind: u32,
+    scope: u32,
+    number: u32,
+}
+fn named(setting: Setting) -> Option<Name> {
+    match setting {
+        Setting::Application { kind, scope, number } => Some(Name { kind, scope, number }),
+        Setting::Charter(_)
+        | Setting::Template(_)
+        | Setting::Policy(_)
+        | Setting::Rules
+        | Setting::ProjectPolicy { .. } => None,
+    }
+}
+fn translate(item: &super::Item) -> Option<Item> {
+    let Name { kind, scope, number } = named(item.setting)?;
     let edit = match &item.edit {
         super::Edit::Set(super::Value::Application(bytes)) => Edit::Set(bytes.clone()),
         super::Edit::Removed => Edit::Remove,
@@ -222,7 +231,7 @@ fn translate(item: &super::Item) -> Item {
             super::Value::Charter(_) | super::Value::Template(_) | super::Value::Policy(_) | super::Value::Rules(_),
         ) => unreachable!("checked application value"),
     };
-    Item { kind, scope, number, edit }
+    Some(Item { kind, scope, number, edit })
 }
 
 /// The change and its keyed people continuation live only until the same step's judges answer.
@@ -264,14 +273,7 @@ pub(crate) fn start(
     let number = core.current.newest().checked_add(1).expect("revision preflighted");
     let mut connectors = List::with_capacity(u32::try_from(core.kinds.len()).expect("declared kinds"));
     for item in &change.items {
-        let kind = match item.setting {
-            Setting::Application { kind, .. } => kind,
-            Setting::Charter(_)
-            | Setting::Template(_)
-            | Setting::Policy(_)
-            | Setting::Rules
-            | Setting::ProjectPolicy { .. } => continue,
-        };
+        let Some(Name { kind, .. }) = named(item.setting) else { continue };
         let connector = kind_of(&core.kinds, kind).expect("checked kind").connector;
         if !connectors.as_slice().contains(&connector) {
             connectors.push(connector).expect("one connector per kind");
@@ -281,16 +283,9 @@ pub(crate) fn start(
         let mut items = List::with_capacity(u32::try_from(change.items.len()).expect("bounded items"));
         let mut positions = List::with_capacity(items.capacity());
         for (at, item) in change.items.iter().enumerate() {
-            let kind = match item.setting {
-                Setting::Application { kind, .. } => kind,
-                Setting::Charter(_)
-                | Setting::Template(_)
-                | Setting::Policy(_)
-                | Setting::Rules
-                | Setting::ProjectPolicy { .. } => continue,
-            };
-            if kind_of(&core.kinds, kind).expect("checked kind").connector == connector {
-                items.push(translate(item)).expect("group items");
+            let Some(item) = translate(item) else { continue };
+            if kind_of(&core.kinds, item.kind).expect("checked kind").connector == connector {
+                items.push(item).expect("group items");
                 positions.push(u32::try_from(at).expect("bounded item position")).expect("group positions");
             }
         }
@@ -371,10 +366,12 @@ pub(crate) fn judged(
             env,
             &mut routed,
             decision.person,
-            decision.change,
-            decision.room,
-            kept,
-            decision.proposal,
+            crate::routing::settings::dispatch::Judged {
+                change: decision.change,
+                room: decision.room,
+                kept,
+                proposal: decision.proposal,
+            },
         ),
         Err(why) => Err(why),
     };
@@ -396,40 +393,41 @@ fn accepted(
     change: &Change,
     judged: Box<[Option<connector::Judged>]>,
 ) -> Result<Box<[Kept]>, people::Refusal> {
-    // A connector's first refusal is selected in the change's order, independently of answer order.
-    for (at, answer) in judged.iter().enumerate() {
-        if let Some(connector::Judged::Refuse { why }) = answer {
-            let why = words(why, env.limits.people.words);
-            return Err(people::Refusal::Judged {
-                at: u32::try_from(at).expect("bounded position"),
-                setting: change.items.get(at).expect("item position").setting,
-                why,
-            });
+    // A connector's first refusal is selected before checking any accepted metadata.
+    let bound = u32::try_from(change.items.len()).expect("bounded items");
+    let mut accepted = List::with_capacity(bound);
+    for (at, (item, answer)) in change.items.iter().zip(judged).enumerate() {
+        match answer {
+            Some(connector::Judged::Refuse { why }) => {
+                return Err(people::Refusal::Judged {
+                    at: u32::try_from(at).expect("bounded position"),
+                    setting: item.setting,
+                    why: words(&why, env.limits.people.words),
+                });
+            }
+            Some(connector::Judged::Accept { size, charters }) => {
+                accepted.push((item, size, charters)).expect("accepted answers");
+            }
+            None | Some(connector::Judged::Same) => {}
         }
     }
-    let mut kept = List::with_capacity(u32::try_from(change.items.len()).expect("bounded items"));
-    for (item, answer) in change.items.iter().zip(judged) {
-        let Some(answer) = answer else { continue };
-        match answer {
-            connector::Judged::Same => {}
-            connector::Judged::Refuse { .. } => unreachable!("refusals checked first"),
-            connector::Judged::Accept { size, charters } => {
-                let item = translate(item);
-                let kind = kind_of(&core.kinds, item.kind).expect("checked kind");
-                if size > kind.value_bytes || charters.len() > usize::from(kind.charters) {
-                    return Err(crate::routing::settings::dispatch::malformed_refusal(Failure {
-                        setting: Setting::Application { kind: item.kind, scope: item.scope, number: item.number },
-                        fault: Fault::Shape,
-                    }));
-                }
-                let revision = core.current.newest().checked_add(1).expect("revision preflighted");
-                let state = match item.edit {
-                    Edit::Set(_) => State { follows: Follows::Changed { revision }, size, charters },
-                    Edit::Remove => State { follows: Follows::Removed { revision }, size: 0, charters: Box::default() },
-                    Edit::Reset => State { follows: Follows::Default, size, charters },
-                };
-                kept.push(Kept { item, state }).expect("accepted items");
+    let mut kept = List::with_capacity(bound);
+    for (item, size, charters) in accepted.into_boxed() {
+        if let Some(item) = translate(item) {
+            let kind = kind_of(&core.kinds, item.kind).expect("checked kind");
+            if size > kind.value_bytes || charters.len() > usize::from(kind.charters) {
+                return Err(crate::routing::settings::dispatch::malformed_refusal(Failure {
+                    setting: setting_of(&item),
+                    fault: Fault::Shape,
+                }));
             }
+            let revision = core.current.newest().checked_add(1).expect("revision preflighted");
+            let state = match item.edit {
+                Edit::Set(_) => State { follows: Follows::Changed { revision }, size, charters },
+                Edit::Remove => State { follows: Follows::Removed { revision }, size: 0, charters: Box::default() },
+                Edit::Reset => State { follows: Follows::Default, size, charters },
+            };
+            kept.push(Kept { item, state }).expect("accepted items");
         }
     }
     Ok(kept.into_boxed())
@@ -586,50 +584,31 @@ pub(crate) fn keep_proposal(core: &Core, set: &mut super::Proposal, proposal: u6
     let mut applications = List::with_capacity(bound);
     let mut jig = List::with_capacity(bound);
     for item in &set.items {
-        let (kind, scope, number) = match item.setting {
-            Setting::Application { kind, scope, number } => (kind, scope, number),
-            Setting::Charter(_)
-            | Setting::Template(_)
-            | Setting::Policy(_)
-            | Setting::Rules
-            | Setting::ProjectPolicy { .. } => {
-                jig.push(item.clone()).expect("bounded jig items");
-                continue;
+        match translate(item) {
+            Some(item) => {
+                let connector = kind_of(&core.kinds, item.kind).expect("checked proposal kind").connector;
+                connectors.insert(connector, ()).expect("one connector per item");
+                let edit = match item.edit {
+                    Edit::Set(bytes) => {
+                        SizedEdit::Set { size: u32::try_from(bytes.len()).expect("checked value bytes") }
+                    }
+                    Edit::Remove => SizedEdit::Remove,
+                    Edit::Reset => SizedEdit::Reset,
+                };
+                applications
+                    .push(Recorded { kind: item.kind, scope: item.scope, number: item.number, edit })
+                    .expect("bounded proposal items");
             }
-        };
-        {
-            let connector = kind_of(&core.kinds, kind).expect("checked proposal kind").connector;
-            connectors.insert(connector, ()).expect("one connector per item");
-            let edit = match &item.edit {
-                super::Edit::Set(super::Value::Application(bytes)) => {
-                    SizedEdit::Set { size: u32::try_from(bytes.len()).expect("checked value bytes") }
-                }
-                super::Edit::Removed => SizedEdit::Remove,
-                super::Edit::Reset => SizedEdit::Reset,
-                super::Edit::Set(
-                    super::Value::Charter(_)
-                    | super::Value::Template(_)
-                    | super::Value::Policy(_)
-                    | super::Value::Rules(_),
-                ) => unreachable!("checked proposal value"),
-            };
-            applications.push(Recorded { kind, scope, number, edit }).expect("bounded proposal items");
+            None => jig.push(item.clone()).expect("bounded jig items"),
         }
     }
     for (&connector, ()) in &connectors {
         let mut items = List::with_capacity(bound);
         for item in &set.items {
-            match item.setting {
-                Setting::Application { kind, .. } => {
-                    if kind_of(&core.kinds, kind).expect("checked kind").connector == connector {
-                        items.push(translate(item)).expect("connector proposal items");
-                    }
-                }
-                Setting::Charter(_)
-                | Setting::Template(_)
-                | Setting::Policy(_)
-                | Setting::Rules
-                | Setting::ProjectPolicy { .. } => {}
+            if let Some(item) = translate(item)
+                && kind_of(&core.kinds, item.kind).expect("checked kind").connector == connector
+            {
+                items.push(item).expect("connector proposal items");
             }
         }
         out.push(Request::Ask {
@@ -766,52 +745,28 @@ impl Starting {
     }
 }
 
-fn application_failure(setting: Setting, why: crate::start::ApplicationWhy) -> crate::start::Failure {
-    match setting {
-        Setting::Application { kind, scope, number } => crate::start::Failure::Application { kind, scope, number, why },
-        Setting::Charter(_)
-        | Setting::Template(_)
-        | Setting::Policy(_)
-        | Setting::Rules
-        | Setting::ProjectPolicy { .. } => {
-            unreachable!("application setting")
-        }
-    }
+fn application_failure(name: Name, why: crate::start::ApplicationWhy) -> crate::start::Failure {
+    let Name { kind, scope, number } = name;
+    crate::start::Failure::Application { kind, scope, number, why }
 }
 
 pub(crate) fn restore(core: &mut Core, setting: Setting, state: State) -> bool {
     use crate::start::ApplicationWhy;
-    let kind = match setting {
-        Setting::Application { kind, .. } => kind_of(&core.kinds, kind),
-        Setting::Charter(_)
-        | Setting::Template(_)
-        | Setting::Policy(_)
-        | Setting::Rules
-        | Setting::ProjectPolicy { .. } => None,
-    };
-    let Some(kind) = kind else {
-        core.refuse_restore(application_failure(setting, ApplicationWhy::Undeclared));
+    let Some(name) = named(setting) else { return false };
+    let Name { kind, scope, .. } = name;
+    let Some(declared) = kind_of(&core.kinds, kind) else {
+        core.refuse_restore(application_failure(name, ApplicationWhy::Undeclared));
         return false;
     };
     assert!(!core.current.applications.contains_key(&setting), "duplicate application state {setting:?}");
-    let (number, scope) = match setting {
-        Setting::Application { kind, scope, .. } => (kind, scope),
-        Setting::Charter(_)
-        | Setting::Template(_)
-        | Setting::Policy(_)
-        | Setting::Rules
-        | Setting::ProjectPolicy { .. } => {
-            unreachable!("application setting")
-        }
-    };
     let mut count = 0_u32;
     for (&held, _) in &core.current.applications {
-        if same_scope(held, number, scope) {
+        if same_scope(held, kind, scope) {
             count = count.checked_add(1).expect("application settings count");
         }
     }
-    if count >= kind.per_scope || core.current.applications.len() == core.current.applications.capacity() {
-        core.refuse_restore(application_failure(setting, ApplicationWhy::Count));
+    if count >= declared.per_scope || core.current.applications.len() == core.current.applications.capacity() {
+        core.refuse_restore(application_failure(name, ApplicationWhy::Count));
         return false;
     }
     core.current.applications.insert(setting, state).expect("stored application slot preflighted");
@@ -825,9 +780,9 @@ pub(crate) fn defaults(core: &mut Core, connector: u16, defaults: Box<[connector
         owns |= kind.connector == connector;
     }
     for default in &defaults {
-        let setting = Setting::Application { kind: default.kind, scope: default.scope, number: default.number };
+        let name = Name { kind: default.kind, scope: default.scope, number: default.number };
         let Some(kind) = kind_of(&core.kinds, default.kind) else {
-            core.refuse_restore(application_failure(setting, ApplicationWhy::Undeclared));
+            core.refuse_restore(application_failure(name, ApplicationWhy::Undeclared));
             return;
         };
         assert!(kind.connector == connector, "default returned by its owning connector");
@@ -852,7 +807,7 @@ pub(crate) fn defaults(core: &mut Core, connector: u16, defaults: Box<[connector
             if count > kind.per_scope { Some(ApplicationWhy::Count) } else { None }
         };
         if let Some(why) = why {
-            core.refuse_restore(application_failure(setting, why));
+            core.refuse_restore(application_failure(name, why));
             return;
         }
     }
@@ -901,13 +856,13 @@ pub(crate) fn prepare_start(core: &mut Core) -> bool {
                 present |= setting == default_setting(default);
             }
         }
-        if !present {
-            missing.push(setting).expect("stored defaults");
+        if !present && let Some(name) = named(setting) {
+            missing.push((setting, name)).expect("stored defaults");
         }
     }
-    for setting in missing.into_boxed() {
+    for (setting, name) in missing.into_boxed() {
         drop(core.current.applications.remove(&setting));
-        edits.push(recorded(setting, SizedEdit::Remove)).expect("default union");
+        edits.push(recorded(name, SizedEdit::Remove)).expect("default union");
         writes
             .push(crate::Write::Erase(crate::Key::Core(crate::CoreKey::Settings(super::Key::Changed(setting)))))
             .expect("default union");
@@ -958,7 +913,12 @@ fn apply_start_defaults(
                 }
             }
             if differs {
-                edits.push(recorded(setting, SizedEdit::Set { size: default.size })).expect("default union");
+                edits
+                    .push(recorded(
+                        Name { kind: default.kind, scope: default.scope, number: default.number },
+                        SizedEdit::Set { size: default.size },
+                    ))
+                    .expect("default union");
             }
             if write {
                 writes
@@ -993,17 +953,9 @@ fn start_references(core: &mut Core, replies: &Map<u16, Box<[connector::DefaultS
 fn default_setting(default: &connector::DefaultState) -> Setting {
     Setting::Application { kind: default.kind, scope: default.scope, number: default.number }
 }
-fn recorded(setting: Setting, edit: SizedEdit) -> Recorded {
-    match setting {
-        Setting::Application { kind, scope, number } => Recorded { kind, scope, number, edit },
-        Setting::Charter(_)
-        | Setting::Template(_)
-        | Setting::Policy(_)
-        | Setting::Rules
-        | Setting::ProjectPolicy { .. } => {
-            unreachable!("application setting")
-        }
-    }
+fn recorded(name: Name, edit: SizedEdit) -> Recorded {
+    let Name { kind, scope, number } = name;
+    Recorded { kind, scope, number, edit }
 }
 pub(crate) fn defaults_changed(core: &Core) -> bool {
     match &core.settings_restore.applications {
@@ -1061,16 +1013,7 @@ pub(crate) fn changed(current: &Current, setting: Setting) -> bool {
 pub(crate) fn drop_project(core: &mut Core, project: u32, out: &mut Queue<Request>) {
     let mut erased = List::with_capacity(core.current.applications.len());
     for (&setting, _) in &core.current.applications {
-        let scope = match setting {
-            Setting::Application { scope, .. } => scope,
-            Setting::Charter(_)
-            | Setting::Template(_)
-            | Setting::Policy(_)
-            | Setting::Rules
-            | Setting::ProjectPolicy { .. } => {
-                unreachable!("application state")
-            }
-        };
+        let Some(Name { scope, .. }) = named(setting) else { continue };
         if scope == project {
             erased.push(setting).expect("project settings bounded by all states");
         }

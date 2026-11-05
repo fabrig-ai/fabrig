@@ -14,6 +14,7 @@ pub(crate) enum Word {
     WaitingFor,
     NoUsers,
     NoOwn,
+    NoOwnTag,
     Connect,
     Playground,
     PlaygroundAccount,
@@ -58,9 +59,9 @@ pub(crate) enum Word {
     ConnectAdd,
     Accounts,
     Own,
+    OwnCount,
     Deployment,
     Unknown,
-    Empty,
     Provider,
     Account,
     Source,
@@ -230,6 +231,7 @@ const ROWS: &[(Word, &[u8])] = &[
     (Word::UsedBy, b"Used by"),
     (Word::WaitingFor, b"Waiting for it"),
     (Word::NoUsers, b"no task uses it now"),
+    (Word::NoOwnTag, b"No account yet"),
     (Word::NoOwn, b"No model of yours yet."),
     (Word::Connect, b"Connect a model"),
     (Word::Playground, b"The playground"),
@@ -282,7 +284,6 @@ const ROWS: &[(Word, &[u8])] = &[
     (Word::Own, b"Your accounts"),
     (Word::Deployment, b"Deployment accounts"),
     (Word::Unknown, b"Waiting for current account facts."),
-    (Word::Empty, b"No accounts shown."),
     (Word::Provider, b"LLM provider "),
     (Word::Account, b"Account "),
     (Word::Source, b"Source "),
@@ -496,7 +497,9 @@ fn id(number: u16) -> PhraseId {
     PhraseId { owner: super::owner(), number }
 }
 pub(crate) fn say(words: &Words, word: Word, holes: &[Hole]) -> Box<[u8]> {
-    let number = if word == Word::ResetUntil {
+    let number = if word == Word::OwnCount {
+        229
+    } else if word == Word::ResetUntil {
         228
     } else if word == Word::Number {
         200
@@ -597,6 +600,7 @@ pub(crate) fn extend(shapes: &mut List<PhraseShape>, phrases: &mut List<Phrase>,
             .expect("end phrases fit");
     }
     for (number, prefix, kind, suffix) in [
+        (229, "Your accounts · ".as_bytes(), HoleKind::Number, b"".as_slice()),
         (228, b" until ".as_slice(), HoleKind::Moment, b". Tasks on it wait.".as_slice()),
         (200, b"".as_slice(), HoleKind::Number, b"".as_slice()),
         (201, b"Limited until ".as_slice(), HoleKind::Moment, b" UTC".as_slice()),
@@ -633,7 +637,7 @@ pub(crate) fn capacity(words: &Words) -> Option<u32> {
     for number in 0..u16::try_from(ROWS.len()).ok()? {
         most = most.max(words.book.capacity(id(number))?);
     }
-    for number in [200, 201, 202, 203, 204, 220, 221, 222, 223, 224, 225, 226, 227, 228] {
+    for number in [200, 201, 202, 203, 204, 220, 221, 222, 223, 224, 225, 226, 227, 228, 229] {
         most = most.max(words.book.capacity(id(number))?);
     }
     for index in 0..NAMED.len() {

@@ -1,6 +1,6 @@
 //! Worlds over the OAuth client and independent fake issuer.
 use skein_fake_oauth as fake;
-use skein_lib::{Duration, Queue, Time, Wall, bytes};
+use skein_lib::{Duration, Queue, Secret, Time, Wall, bytes};
 use skein_oauth as oauth;
 
 #[must_use]
@@ -82,7 +82,7 @@ pub fn registration(public: bool) -> oauth::Registration {
         },
         scope: boxed(b"read profile"),
         wire: if public { oauth::WireFormat::Form } else { oauth::WireFormat::Json },
-        client_secret: if public { None } else { Some(boxed(b"secret")) },
+        client_secret: if public { None } else { Some(skein_lib::Secret::new(boxed(b"secret"))) },
         pkce_for_confidential: false,
         metadata_claim: None,
         terms: None,
@@ -109,7 +109,7 @@ pub fn configured_issuer(registration: &oauth::Registration, terms: Option<fake:
             client_id: registration.client_id.clone(),
             client_secret: registration.client_secret.clone(),
             redirect_uri: registration.redirect_uri.clone(),
-            refresh_token: boxed(b"seed"),
+            refresh_token: skein_lib::Secret::new(boxed(b"seed")),
             terms,
         },
         fake_limits(),
@@ -161,8 +161,8 @@ pub fn success(access: &[u8], refresh: Option<&[u8]>, delay: u64) -> fake::Plan 
     fake::Plan {
         status: 200,
         body: fake::Body::Token(oauth::TokenResponse {
-            access_token: boxed(access),
-            refresh_token: refresh.map(boxed),
+            access_token: skein_lib::Secret::new(boxed(access)),
+            refresh_token: refresh.map(boxed).map(skein_lib::Secret::new),
             expires_in: 30,
             scope: None,
             id_token: None,
@@ -238,12 +238,12 @@ pub fn visit(
 ) -> Box<[u8]> {
     let request = start(client, registration, nonce, port, 1);
     let Some(oauth::Request::Visit { url }) = request else { panic!("visit expected") };
-    url
+    url.into_exposed()
 }
 
 #[must_use]
 pub fn redirected(issuer: &mut fake::Issuer, url: Box<[u8]>) -> oauth::Event {
-    let redirect = fake_step(issuer, fake::Event::Authorize { url, now: time(1) });
+    let redirect = fake_step(issuer, fake::Event::Authorize { url: Secret::new(url), now: time(1) });
     let Some(fake::Request::Redirect { uri, state, code, client_id }) = redirect else { panic!("redirect expected") };
     oauth::Event::Redirected { client_id, uri, state, code: Some(code), error: None, now: time(2) }
 }
@@ -301,7 +301,7 @@ fn start(
     seconds: u64,
 ) -> Option<oauth::Request> {
     let verifier = if registration.client_secret.is_none() || registration.pkce_for_confidential {
-        Some(boxed(b"dBjftJeZ4CVP-mB92K27uhbUJU1p1r_wW1gFWFOEjXk"))
+        Some(skein_lib::Secret::new(boxed(b"dBjftJeZ4CVP-mB92K27uhbUJU1p1r_wW1gFWFOEjXk")))
     } else {
         None
     };
@@ -314,9 +314,9 @@ fn start(
             registration,
             key: 7,
             generation: 0,
-            state: boxed(b"0123456789abcdef"),
+            state: skein_lib::Secret::new(boxed(b"0123456789abcdef")),
             verifier,
-            nonce,
+            nonce: nonce.map(skein_lib::Secret::new),
             port,
             now: time(seconds),
         },
@@ -348,5 +348,5 @@ pub fn openid_visit(
         fake::Event::Get { id: get.id, endpoint: get.endpoint, now: time(1), wall: wall(100) },
     ));
     let Some(oauth::Request::Visit { url }) = client_step(client, oauth::Event::Http(answer)) else { panic!("visit") };
-    url
+    url.into_exposed()
 }

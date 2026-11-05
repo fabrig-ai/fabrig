@@ -402,6 +402,26 @@ fn proposal(number: u64) -> Stored {
     }))
 }
 
+#[test]
+fn retained_person_proposals_remap_their_models() {
+    let Stored::PersonProposal(mut value) = proposal(81) else { panic!("proposal fixture") };
+    let mut member = task(71, &[]);
+    member.authority.models = crate::Models::Named(1);
+    value.action = crate::PersonAction::Batch(Box::new([member]));
+    let mut moved = [0; 64];
+    moved[0] = 2;
+    for mut record in [Stored::PersonProposal(value.clone()), Stored::DecidedProposal(value)] {
+        let mut expected = record.clone();
+        let (Stored::PersonProposal(value) | Stored::DecidedProposal(value)) = &mut expected else {
+            panic!("proposal fixture")
+        };
+        let crate::PersonAction::Batch(batch) = &mut value.action else { panic!("batch fixture") };
+        batch[0].authority.models = crate::Models::Named(2);
+        record.remap_models(&moved);
+        assert_eq!(record, expected);
+    }
+}
+
 fn word(kind: crate::MessageKind, size: usize) -> crate::Word {
     crate::Word {
         number: 1,
@@ -443,9 +463,11 @@ fn inbox_payloads_and_separate_reserved_lanes_keep_the_live_key() {
         live(&mut record).inbox = Box::new([word(kind, size)]);
         refused(&mut empty(&LIMITS), record, cause);
     }
-    let mut record = row();
-    live(&mut record).inbox = vec![word(crate::MessageKind::Amendment { revision: 1 }, 0); 3].into_boxed_slice();
-    refused(&mut empty(&LIMITS), record, bound(B::AmendmentSlots, 3, 2));
+    for kind in [crate::MessageKind::Amendment { revision: 1 }, crate::MessageKind::FinishRequested { revision: 1 }] {
+        let mut record = row();
+        live(&mut record).inbox = vec![word(kind, 0); 3].into_boxed_slice();
+        refused(&mut empty(&LIMITS), record, bound(B::AmendmentSlots, 3, 2));
+    }
     let mut record = row();
     live(&mut record).inbox =
         vec![word(crate::MessageKind::Met { dependency: 9, removed: false }, 0); 2].into_boxed_slice();

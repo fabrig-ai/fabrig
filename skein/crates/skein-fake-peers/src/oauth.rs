@@ -11,7 +11,7 @@ use skein_fake_oauth as issuer;
 use skein_http::{Header, server as http};
 use skein_io::{self as io, kernel};
 use skein_lib::stream::{Down, Read, Up};
-use skein_lib::{Decimal, Duration, Env, List, Queue, Time, Token, Wall, bytes, usize_of};
+use skein_lib::{Decimal, Duration, Env, List, Queue, Secret, Time, Token, Wall, bytes, usize_of};
 use skein_oauth::HttpRequest;
 use skein_shell::Host;
 
@@ -158,7 +158,7 @@ impl Peer {
     /// The scripted access tokens, for the LLM peer's list at start.
     #[must_use]
     pub fn granted(&self) -> Box<[Box<[u8]>]> {
-        self.issuer.granted()
+        self.issuer.granted().into_iter().map(skein_lib::Secret::into_exposed).collect()
     }
 
     /// The actual listener address after io announces Listening.
@@ -383,7 +383,8 @@ impl Peer {
                 let payload_bytes = skein_lib::len_u64(target.len());
                 self.observe(Observation::Authorize { connection: owner, target }, payload_bytes);
             }
-            self.issuer.step(issuer::Event::Authorize { url: url.into_boxed_slice(), now }, &mut self.outgoing);
+            self.issuer
+                .step(issuer::Event::Authorize { url: Secret::new(url.into_boxed_slice()), now }, &mut self.outgoing);
             self.deliver(Some(index));
         } else if route == Route::Token || route == Route::Revoke {
             let connection = &mut self.connections[index];
@@ -475,8 +476,9 @@ impl Peer {
             match output {
                 issuer::Request::Redirect { uri, state, code, client_id } => {
                     let index = origin.expect("authorization emits synchronously");
-                    let location = redirect(&uri, &state, &code, client_id.as_deref(), self.http_limits.response)
-                        .expect("configured redirect response cap");
+                    let location =
+                        redirect(&uri, state.expose(), code.expose(), client_id.as_deref(), self.http_limits.response)
+                            .expect("configured redirect response cap");
                     self.observe(Observation::Redirect { connection: self.connections[index].owner }, 0);
                     self.respond(
                         index,
@@ -785,7 +787,7 @@ mod tests {
                 client_id: Box::from(b"client".as_slice()),
                 client_secret: None,
                 redirect_uri: Box::from(b"http://127.0.0.1/callback".as_slice()),
-                refresh_token: Box::from(b"seed".as_slice()),
+                refresh_token: skein_lib::Secret::new(Box::from(b"seed".as_slice())),
                 terms: None,
             };
             let peer =

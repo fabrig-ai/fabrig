@@ -272,6 +272,7 @@ fn restart_forgets_ci_until_the_next_step_reads_it() {
         task: 51,
         entry: 990,
         heard: change::Heard {
+            delegate_running: false,
             start_conflict: None,
             lacking: None,
             spend: None,
@@ -308,6 +309,7 @@ fn restart_forgets_ci_until_the_next_step_reads_it() {
         task: 51,
         entry: 991,
         heard: change::Heard {
+            delegate_running: false,
             start_conflict: None,
             lacking: None,
             spend: None,
@@ -343,9 +345,9 @@ fn queue_entry_obeys_the_mark_bound_and_a_reopen_reads_the_new_place() {
     driver.settle();
     watch(&mut driver, sign_in, 1, 52, 910);
     watch(&mut driver, sign_in, 1, 85, 911);
-    // The changed subject and its project's changes subject leave 30 follower marks.
-    watch(&mut driver, sign_in, 1, 80, 916);
-    watch(&mut driver, sign_in, 1, 81, 917);
+    // The changed subject and its project's changes and status subjects leave 29 follower marks.
+    watch(&mut driver, sign_in, 1, 79, 916);
+    watch(&mut driver, sign_in, 1, 80, 917);
     watch(&mut driver, sign_in, 1, forge::changes_subject(1), 918);
     for watcher in [910, 911, 916, 917, 918] {
         driver.send(engine::Event::Party(engine::PartyInput::Delivered { watcher: Token::new(watcher) }));
@@ -364,13 +366,13 @@ fn queue_entry_obeys_the_mark_bound_and_a_reopen_reads_the_new_place() {
         driver.delivered.iter().any(|delivery| matches!(delivery,
             engine::Delivery::Panel { watcher, .. } if *watcher == Token::new(916)
         )),
-        "design domain/root.md 10: 30 followers, the changed subject and the project changes subject fit 32 marks"
+        "design domain/root.md 10: 29 followers, the changed subject and the project changes and status subjects fit 32 marks"
     );
     assert!(
         !driver.delivered.iter().any(|delivery| matches!(delivery,
             engine::Delivery::Panel { watcher, .. } if *watcher == Token::new(917)
         )),
-        "design domain/root.md 10: 31 followers, the changed subject and the project changes subject exceed 32 marks"
+        "design domain/root.md 10: 30 followers, the changed subject and the project changes and status subjects exceed 32 marks"
     );
     assert!(
         driver.delivered.iter().any(|delivery| matches!(delivery,

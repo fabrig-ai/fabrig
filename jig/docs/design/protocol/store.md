@@ -750,7 +750,9 @@ admitted within that edge is never refused as too large.
   bytes the map holds under its first, the application's bytes under its
   tag. The store's writes name no domain's operation: which key a copy
   reads and which it writes are the domain's (the core's for a settings
-  revision that enters history).
+  revision that enters history). A copy reads the map as its commit found
+  it, so a save of its first key earlier in that commit is not what it
+  copies; a first key the map doesn't hold fails the commit.
   A key written more than once in one commit becomes one operation, its
   last write, which leaves the map as the writes in order would:
   skein-kv applies a commit whole (skein's `kv.md`, section 7), so
@@ -2485,3 +2487,7 @@ intervals, and its indexes, by the rules of section 12.
   or a file-based one beside the store.
 - **Several engines:** the store is one process's; the log of commits is
   what would be replicated.
+- **One remap of a mask:** `jig-domain-authority`, `jig-domain-tasks` and
+  `jig-domain-people` each own a `Models` with the same `remap` (5.1), since
+  step code in jig has no generics. Sharing them takes one type the three
+  name.

@@ -65,10 +65,10 @@ pub fn domain_limits() -> Limits {
                 }],
                 requests,
                 ask_bytes: requests.bytes / u64::from(requests.requests),
-                // Page handles, the project-needs watch and the goals fact.
-                handles: 12,
-                // Closing chat watches overlap the task watches and both session watches.
-                watches: 11,
+                // Page handles, session settings and Away, project-needs and the goals watch/read.
+                handles: 14,
+                // Closing page watches overlap the session watches.
+                watches: 13,
                 turn_bytes: 65536,
                 backoff: jig_client::Backoff { first: Duration::from_millis(10), most: Duration::from_millis(80) },
                 authority: 12,
@@ -80,9 +80,10 @@ pub fn domain_limits() -> Limits {
                 records: 2,
                 kept: 4,
                 projects: 4,
-                text: 64,
-                long_text: 64,
-                turn_text: 64,
+                // The linked world sends whole starters and cues, as both shipped shells do.
+                text: temper_client_protocol_wire::CUE_BYTES,
+                turn_text: temper_client_protocol_wire::CUE_BYTES,
+                long_text: temper_client_protocol_wire::CUE_BYTES,
                 rows: 4,
                 fields: 4,
                 segments: 9,
@@ -211,7 +212,7 @@ pub fn faults(seed: u64) -> Vec<(Time, FrontFault)> {
 /// A chat made and held by two failed real worker attempts.
 pub fn held_chat(front: &mut Joint) -> u64 {
     let driver = &mut front.engine;
-    driver.hello(Token::new(7));
+    hello_worker(driver);
     driver.settle();
     driver.sign_in();
     driver.settle();
@@ -297,6 +298,8 @@ pub fn adopt(owner: &[u8], name: &[u8]) -> Vec<skein_fake_person::Step<temper_cl
     vec![
         Step::See { find: Find::exactly_named(Role::Link, b"Settings"), within: WITHIN },
         Step::Press { find: Find::exactly_named(Role::Link, b"Settings") },
+        Step::See { find: Find::exactly_named(Role::Link, b"Repositories"), within: WITHIN },
+        Step::Press { find: Find::exactly_named(Role::Link, b"Repositories") },
         Step::See { find: Find::named(Role::Link, b"Adopt a repository"), within: WITHIN },
         Step::Press { find: Find::named(Role::Link, b"Adopt a repository") },
         Step::See { find: Find::named(Role::TextField, b"Owner"), within: WITHIN },
@@ -826,7 +829,7 @@ fn make_goal_named(
 }
 #[must_use]
 pub fn task_page(task: u64) -> temper_client_domain::Address {
-    temper_client_domain::Address::Task { task, filter: temper_client_domain::PlanFilter::All }
+    temper_client_domain::Address::Task { task }
 }
 #[must_use]
 pub fn plan_item(task: u64, status: &[u8]) -> skein_fake_person::Find {
@@ -1349,6 +1352,13 @@ pub fn configuring_world(seed: u64, member: bool) -> World<Temper, Joint> {
 pub(crate) fn configuring_configuration(seed: u64, member: bool) -> engine::Config {
     use jig_domain_authority as authority;
     let mut config = temper_engine_domain_world::walking::config(seed);
+    config.core.kinds =
+        temper_service::stock::kinds(&temper_engine_domain_world::walking::limits(), config.core.connectors[0])
+            .into_vec()
+            .into_iter()
+            .filter(|kind| kind.number == 6 || kind.number == 7)
+            .collect();
+    config.kinds_stock = Box::new([]);
     let llm = jig_protocol_config::Llm {
         endpoints: Box::new([]),
         models: config.core.settings.models.clone(),
@@ -1364,6 +1374,7 @@ pub(crate) fn configuring_configuration(seed: u64, member: bool) -> engine::Conf
     templates.push(template);
     config.core.defaults.templates = templates.into_boxed_slice();
     config.core.defaults.rules.ceiling.tools.0 |= jig_domain_core::ToolFamilies::JIG.settings;
+    config.core.defaults.rules.ceiling.notes = authority::Scopes::GOAL;
     config.core.defaults.rules.ceiling.delegation.kinds =
         Box::new([authority::Executor::Charter(1), authority::Executor::Charter(3)]);
     for project in &mut config.core.seed_projects {
@@ -1371,6 +1382,7 @@ pub(crate) fn configuring_configuration(seed: u64, member: bool) -> engine::Conf
         policy.ceiling = config.core.defaults.rules.ceiling.clone();
         let owner = &mut policy.roles[0];
         owner.authority.tools.0 |= jig_domain_core::ToolFamilies::JIG.settings;
+        owner.authority.notes = authority::Scopes::GOAL;
         owner.authority.delegation.kinds.clone_from(&policy.ceiling.delegation.kinds);
         let mut member = owner.clone();
         member.number = jig_domain_people::Role::Member.number();
@@ -1492,7 +1504,7 @@ pub fn person_task_tools(seed: u64) -> (Joint, crate::app::Root) {
     let forge = front.engine.forge.take();
     front.engine = Driver::configured(temper_engine_domain_world::store::Store::with_limits(&limits), configs, &limits);
     front.engine.forge = forge;
-    front.engine.hello(QUESTION_WORKER);
+    hello_worker(&mut front.engine);
     front.engine.settle();
     tools_on(front, seed)
 }
@@ -1533,4 +1545,13 @@ fn person_task_configuration(seed: u64) -> engine::Config {
     templates.push(goal);
     config.core.defaults.templates = templates.into_boxed_slice();
     config
+}
+
+fn hello_worker(driver: &mut Driver) {
+    let mut event = temper_engine_domain_world::protocol::hello_slots(QUESTION_WORKER, 1, Box::new([]));
+    if let engine::Event::Worker(engine::WorkerInput::Link { link: engine::Link::Hello { hello, .. }, .. }) = &mut event
+    {
+        hello.bounds.message_bytes = driver.env.limits.tasks.message_bytes;
+    }
+    driver.send(event);
 }

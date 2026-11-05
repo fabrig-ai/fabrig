@@ -24,11 +24,12 @@ fn a_find_of_an_indexed_key_loads_the_record_whole() {
 }
 #[test]
 fn a_find_without_an_index_is_declined() {
-    let mut store = fixtures::full();
-    assert_eq!(
-        &*store.step(Time::ZERO, Event::Find { key: fixtures::KEY }),
-        &[Output::Answer(Answer::Declined { why: Decline::Unusable { step: Step::List } })]
-    );
+    for mut store in [fixtures::full(), fixtures::failed_entry()] {
+        assert_eq!(
+            &*store.step(Time::ZERO, Event::Find { key: fixtures::KEY }),
+            &[Output::Answer(Answer::Declined { why: Decline::Unusable { step: Step::List } })]
+        );
+    }
 }
 #[test]
 fn an_unreadable_find_is_absent() {

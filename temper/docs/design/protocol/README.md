@@ -1172,10 +1172,9 @@ Each where `../domain/testing.md` puts it (2.4 to 2.6):
 | the real loop | an engine alone and two workers alone, three services on one ring with their own directories, the workers dialling the engine's listener on loopback: a task on each runs to its end |
 | the process tier | `crates/temper/tests/fixtures/cluster/` on real processes, as below, and the steps of `../domain/testing.md`, 5.3's case on them (`../domain/testing.md`, 2.6) |
 
-The process tier's first stories, one slot on each worker. A temper
-worker takes one slot: smith gives its agent one run, and the
-worker's limits keep its slots within its agents. Two tasks on two
-workers need no more; a worker of several slots is later (15.7).
+The process tier's first stories, one slot on each worker: the
+cluster's fixtures give each worker one. Two tasks on two workers need
+no more; the cluster's workers of several slots are later (15.7).
 
 
 - **A task on each worker:** two tasks on the fakes, one run on w1 and
@@ -1239,8 +1238,8 @@ worker added later, 4.6's hung worker.
   `protocol/README.md`, section 10).
 - **An engine restarted under live workers,** with generations kept
   across starts (section 14).
-- **A worker of several slots,** as the case of `../domain/testing.md`,
-  5.3 has: a worker's change,
-  in smith's runs and the worker's limits, and not the cluster's. Until
-  then each of the cluster's workers takes one slot.
+- **The cluster's workers of several slots,** as the case of
+  `../domain/testing.md`, 5.3 has: a worker hosts an agent per slot
+  (`../domain/worker.md`, section 6), and the cluster's fixtures and
+  stories still give each of its workers one slot.
 - **`temper init` for the cluster's shapes** (section 14).

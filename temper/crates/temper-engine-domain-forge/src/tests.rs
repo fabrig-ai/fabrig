@@ -3,6 +3,7 @@ use crate::*;
 use temper_engine_domain_forge_issues as issues;
 mod admission;
 mod adoption;
+mod away;
 mod binding;
 mod brief_document;
 mod change;
@@ -380,6 +381,7 @@ fn adoption_reads_permission_before_committing_its_role() {
         | Request::Read { .. }
         | Request::BriefClient { .. }
         | Request::BriefReady { .. }
+        | Request::BriefReadRefused { .. }
         | Request::BriefSized { .. }
         | Request::EffectsSettled { .. }
         | Request::BriefTaken { .. }
@@ -390,6 +392,7 @@ fn adoption_reads_permission_before_committing_its_role() {
         | Request::Connect { .. }
         | Request::Replace { .. }
         | Request::Manifest { .. }
+        | Request::AdoptAccess { .. }
         | Request::Reachable { .. }
         | Request::Install { .. }
         | Request::Accept { .. }
@@ -404,10 +407,12 @@ fn adoption_reads_permission_before_committing_its_role() {
         | Request::ForgeGone { .. }
         | Request::BoxGroup { .. }
         | Request::BoxRemove { .. }
+        | Request::StatusRun { .. }
         | Request::TierRun { .. }
         | Request::TierDecision { .. }
         | Request::MakingCopied { .. }
         | Request::MakingAct { .. }
+        | Request::Decided { .. }
         | Request::RestartDone { .. } => panic!("permission call"),
     };
     assert_eq!(op, skein_forge::api::Op::Read(skein_forge::api::Read::Permission { user: 7 }));
@@ -463,6 +468,7 @@ fn adoption_reads_permission_before_committing_its_role() {
         | Request::Read { .. }
         | Request::BriefClient { .. }
         | Request::BriefReady { .. }
+        | Request::BriefReadRefused { .. }
         | Request::BriefSized { .. }
         | Request::EffectsSettled { .. }
         | Request::BriefTaken { .. }
@@ -473,6 +479,7 @@ fn adoption_reads_permission_before_committing_its_role() {
         | Request::Connect { .. }
         | Request::Replace { .. }
         | Request::Manifest { .. }
+        | Request::AdoptAccess { .. }
         | Request::Reachable { .. }
         | Request::Install { .. }
         | Request::Accept { .. }
@@ -487,10 +494,12 @@ fn adoption_reads_permission_before_committing_its_role() {
         | Request::ForgeGone { .. }
         | Request::BoxGroup { .. }
         | Request::BoxRemove { .. }
+        | Request::StatusRun { .. }
         | Request::TierRun { .. }
         | Request::TierDecision { .. }
         | Request::MakingCopied { .. }
         | Request::MakingAct { .. }
+        | Request::Decided { .. }
         | Request::RestartDone { .. } => panic!("branches call"),
     };
     assert!(
@@ -543,6 +552,7 @@ fn adoption_reads_permission_before_committing_its_role() {
         | Request::Read { .. }
         | Request::BriefClient { .. }
         | Request::BriefReady { .. }
+        | Request::BriefReadRefused { .. }
         | Request::BriefSized { .. }
         | Request::EffectsSettled { .. }
         | Request::BriefTaken { .. }
@@ -553,6 +563,7 @@ fn adoption_reads_permission_before_committing_its_role() {
         | Request::Connect { .. }
         | Request::Replace { .. }
         | Request::Manifest { .. }
+        | Request::AdoptAccess { .. }
         | Request::Reachable { .. }
         | Request::Install { .. }
         | Request::Accept { .. }
@@ -567,10 +578,12 @@ fn adoption_reads_permission_before_committing_its_role() {
         | Request::ForgeGone { .. }
         | Request::BoxGroup { .. }
         | Request::BoxRemove { .. }
+        | Request::StatusRun { .. }
         | Request::TierRun { .. }
         | Request::TierDecision { .. }
         | Request::MakingCopied { .. }
         | Request::MakingAct { .. }
+        | Request::Decided { .. }
         | Request::RestartDone { .. } => panic!("settings follows collision read"),
     }
 }
@@ -1556,6 +1569,7 @@ fn a_configured_git_base_is_bounded_by_its_priced_pull_address_bytes() {
 
 fn setup_row(number: u16, kind: Kind, connection: Connection, offer: Offer) -> Row {
     Row {
+        starts_with: StartsWith::Repository,
         host: Box::new([]),
         number,
         kind,
@@ -1610,11 +1624,13 @@ fn setup_rows_and_answers_agree_in_every_connection_state() {
                         [
                             Request::MarkedForges,
                             Request::SetUp {
-                                playground: false,
                                 forge: 1,
                                 request,
-                                org: b"work".as_slice().into(),
-                                repository: b"hello".as_slice().into()
+                                first: SetUpFirst::Empty {
+                                    playground: false,
+                                    org: b"work".as_slice().into(),
+                                    repository: b"hello".as_slice().into()
+                                }
                             }
                         ]
                     );
@@ -1673,6 +1689,7 @@ fn closing_the_box_fails_setup_and_marks_every_offer_unavailable() {
         d.forges().rows.as_ref(),
         [
             Row {
+                starts_with: StartsWith::Repository,
                 host: Box::new([]),
                 failed: Some(FailedStep::Run),
                 ..setup_row(
@@ -1772,10 +1789,12 @@ fn setup_application(forge: u16, request: Token, token: Token) -> Event {
         token,
         retention: Duration::from_secs(60),
         ask: Ask::SetUp {
-            playground: false,
             forge: Making::Kept(forge),
-            org: b"work".as_slice().into(),
-            repository: b"hello".as_slice().into(),
+            first: SetUpFirst::Empty {
+                playground: false,
+                org: b"work".as_slice().into(),
+                repository: b"hello".as_slice().into(),
+            },
         },
     }
 }
@@ -1844,11 +1863,13 @@ fn setup_answers_reserve_room_until_retention_ends() {
     assert_eq!(
         out.pop(),
         Some(Request::SetUp {
-            playground: false,
             forge: 1,
             request,
-            org: b"work".as_slice().into(),
-            repository: b"hello".as_slice().into(),
+            first: SetUpFirst::Empty {
+                playground: false,
+                org: b"work".as_slice().into(),
+                repository: b"hello".as_slice().into()
+            }
         })
     );
     assert!(out.is_empty());
@@ -1947,10 +1968,12 @@ fn a_first_repository_is_admitted_and_retained_until_it_is_made() {
             token,
             retention: Duration::from_secs(60),
             ask: Ask::SetUp {
-                playground: false,
                 forge: Making::Kept(1),
-                org: b"work".as_slice().into(),
-                repository: b"hello".as_slice().into(),
+                first: SetUpFirst::Empty {
+                    playground: false,
+                    org: b"work".as_slice().into(),
+                    repository: b"hello".as_slice().into(),
+                },
             },
         },
     );
@@ -1959,11 +1982,13 @@ fn a_first_repository_is_admitted_and_retained_until_it_is_made() {
         [
             Request::MarkedForges,
             Request::SetUp {
-                playground: false,
                 forge: 1,
                 request,
-                org: b"work".as_slice().into(),
-                repository: b"hello".as_slice().into()
+                first: SetUpFirst::Empty {
+                    playground: false,
+                    org: b"work".as_slice().into(),
+                    repository: b"hello".as_slice().into()
+                }
             }
         ]
     );
@@ -2015,10 +2040,12 @@ fn setup_names_are_validated_at_admission_on_both_sides_of_the_name_bound() {
                 };
                 let accepted = given::check_create(&kit_limits, domain_bound, &plan).is_ok();
                 let ask = Ask::SetUp {
-                    playground: false,
                     forge: Making::Kept(1),
-                    org: org_name.clone(),
-                    repository: repository.clone(),
+                    first: SetUpFirst::Empty {
+                        playground: false,
+                        org: org_name.clone(),
+                        repository: repository.clone(),
+                    },
                 };
                 let mut emitted = Queue::uncapped();
                 step(
@@ -2038,7 +2065,11 @@ fn setup_names_are_validated_at_admission_on_both_sides_of_the_name_bound() {
                     assert_eq!(emitted.pop(), Some(Request::MarkedForges));
                     assert_eq!(
                         emitted.pop(),
-                        Some(Request::SetUp { playground: false, forge: 1, request, org: org_name, repository })
+                        Some(Request::SetUp {
+                            forge: 1,
+                            request,
+                            first: SetUpFirst::Empty { playground: false, org: org_name, repository }
+                        })
                     );
                     assert_eq!(d.forges().rows[0].first.as_ref().unwrap().state, FirstState::Making);
                 } else {
@@ -2072,10 +2103,12 @@ fn admitted_setup_projects_its_fields_as_making_and_the_next_admission_replaces_
             label: Box::from(b"temper-host".as_slice()),
         };
         let ask = Ask::SetUp {
-            playground: false,
             forge: Making::Kept(1),
-            org: first.org.clone(),
-            repository: first.repository.clone(),
+            first: SetUpFirst::Empty {
+                playground: false,
+                org: first.org.clone(),
+                repository: first.repository.clone(),
+            },
         };
         assert_eq!(
             outputs(
@@ -2092,7 +2125,11 @@ fn admitted_setup_projects_its_fields_as_making_and_the_next_admission_replaces_
             .as_ref(),
             [
                 Request::MarkedForges,
-                Request::SetUp { playground: false, forge: 1, request, org: org.into(), repository: repository.into() }
+                Request::SetUp {
+                    forge: 1,
+                    request,
+                    first: SetUpFirst::Empty { playground: false, org: org.into(), repository: repository.into() }
+                }
             ]
         );
         assert_eq!(d.forges().rows[0].first, Some(first));
@@ -2614,4 +2651,37 @@ fn a_kept_forge_supplies_its_workspace_credential_after_restore() {
         })
         .expect("kept forge's workspace");
     assert_eq!(item.credential, Some(1));
+}
+
+#[test]
+fn an_open_write_with_an_empty_title_uses_the_default() {
+    let mut d = domain();
+    outputs(&mut d, Event::Restore { record: Stored::Repository(adopted()) });
+    let mut row = fixtures::opening_row();
+    row.title = Box::new([]);
+    row.pending = None;
+    row.effect = temper_engine_domain_forge_change::EffectResult::None;
+    row.change.state = temper_engine_domain_forge_change::State::Opening { requested: false };
+    outputs(&mut d, Event::Restore { record: Stored::Change(row) });
+    outputs(&mut d, Event::Restored { clock: skein_forge_client::RecoveryClock::Monotonic });
+    outputs(&mut d, Event::ReadAfresh);
+    outputs(&mut d, Event::SettleOutbox);
+    fixtures::missing_pull(&mut d);
+    let built = fixtures::finish_missing(&mut d);
+    let mut entry = None;
+    for request in &built {
+        if let Request::ChangeDecision { entry: Some(number), .. } = request {
+            entry = Some(*number);
+            break;
+        }
+    }
+    let entry = entry.expect("open effect built");
+    outputs(&mut d, Event::Committed { entry });
+    fixtures::answer_next(
+        &mut d,
+        Ok(skein_forge::api::Answer::Items { items: Box::new([]), more: false, now: env().now }),
+    );
+    let (_, op) = fixtures::next_call(&mut d);
+    let skein_forge::api::Op::Write(skein_forge::api::Write::OpenPull { title, .. }) = op else { panic!("open pull") };
+    assert_eq!(title.as_ref(), b"Update repository");
 }

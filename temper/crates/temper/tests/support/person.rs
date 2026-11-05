@@ -5,7 +5,7 @@ use skein_io::kernel::{Complete, Done, Fd, Op, Submit};
 use skein_lib::{Queue, Time, Token, Wall};
 use skein_shell::Host;
 use temper_client_domain::Address;
-use temper_client_domain::{ChatsFilter, PlanFilter};
+use temper_client_domain::ChatsFilter;
 use temper_client_shell_terminal::client::{NativeClient, Settings, Start};
 /// Resolve the process story's Reply and task title together on one Item.
 /// Other semantic queries and interaction checks retain `TreeFace`'s contract.
@@ -70,7 +70,7 @@ pub fn answered_chat(words: &[u8], answer: &[u8]) -> Script {
     Script {
         begin: Begin::LinkWithKey,
         steps: Box::new([
-            Step::Go { address: Address::NewChat },
+            Step::Go { address: Address::NewChat { draft: false } },
             Step::See { find: Find::named(skein_ui::Role::TextArea, b"What do you want done?"), within: START_WITHIN },
             Step::Type { find: Find::named(skein_ui::Role::TextArea, b"What do you want done?"), words: words.into() },
             Step::Gone { find: Find::text(b"No model yet"), within: START_WITHIN },
@@ -87,7 +87,10 @@ pub fn deployment_account() -> Script {
         begin: Begin::LinkWithOpenAiKey,
         steps: Box::new([
             Step::Go { address: Address::Accounts },
-            Step::See { find: Find::exactly_named(Role::Heading { level: 1 }, b"Accounts"), within: START_WITHIN },
+            Step::See {
+                find: Find::exactly_named(Role::Heading { level: 1 }, b"What agents run on."),
+                within: START_WITHIN,
+            },
             Step::See {
                 find: Find::exactly_named(Role::Disclosure, b"OpenAI API key \xc2\xb7 held by the deployment"),
                 within: START_WITHIN,
@@ -183,7 +186,7 @@ pub fn demo_chat(task: u64, cue: &[u8], text: &[u8]) -> Script {
             Step::Go { address: Address::Chats { filter: ChatsFilter::All } },
             Step::See { find: Find::exactly_named(Role::Status, b"Ready"), within: START_WITHIN },
             Step::Gone { find: Find::exactly_named(Role::Status, b"Starting"), within: START_WITHIN },
-            Step::Go { address: Address::NewChat },
+            Step::Go { address: Address::NewChat { draft: false } },
             Step::See { find: Find::named(Role::TextArea, b"What do you want done?"), within: START_WITHIN },
             Step::Press { find: Find::exactly_named(Role::Button, b"Scripted model") },
             Step::Type { find: Find::named(Role::TextArea, b"What do you want done?"), words: cue.into() },
@@ -251,7 +254,7 @@ pub fn demo_change() -> Script {
             Step::See { find: Find::text("CI passed. Landed · merge commit ".as_bytes()).within(card()), within: START_WITHIN },
             Step::Gone { find: Find::exactly_named(Role::Status, b"Applied"), within: START_WITHIN },
             // The owner's chat log holds the result's words alone, not its ending.
-            Step::Go { address: Address::Task { task: CHANGE, filter: PlanFilter::All } },
+            Step::Go { address: Address::Task { task: CHANGE } },
             Step::See {
                 find: Find::exactly_named(Role::Heading { level: 1 }, b"Export widget's table as CSV").within(details()),
                 within: START_WITHIN,
@@ -272,7 +275,7 @@ fn playground_opening(conversation: impl Fn() -> Box<[Target; 1]>) -> [Step<Addr
         Step::Go { address: Address::Chats { filter: ChatsFilter::All } },
         Step::See { find: Find::exactly_named(Role::Status, b"Starting"), within: START_WITHIN },
         Step::See { find: Find::exactly_named(Role::Status, b"Ready"), within: START_WITHIN },
-        Step::Go { address: Address::NewChat },
+        Step::Go { address: Address::NewChat { draft: false } },
         Step::Press { find: Find::exactly_named(Role::Button, b"Scripted model") },
         Step::Go { address: Address::Chats { filter: ChatsFilter::All } },
         // client/README.md, 4.8: a suggested request starts and opens its chat.
@@ -668,6 +671,11 @@ impl Person {
             && self.project == ProjectSelection::Selected
             && !self.finished
             && self.failed.is_none()
+            // Finish opening exchanges before a scripted one-shot account paste.
+            && (client.pending().admission.attempts == 0
+                || !client.tree().nodes().iter().any(|node| {
+                    node.role == skein_ui::Role::Button && node.name.as_deref() == Some(b"Add key")
+                }))
             && !key_waits
         {
             let before = self.actor.at();
@@ -868,6 +876,8 @@ pub fn adopt_and_change(_forgejo: &super::forgejo::Throwaway) -> Script {
         },
         Step::See { find: Find::exactly_named(Role::Link, b"Settings"), within: super::WITHIN },
         Step::Press { find: Find::exactly_named(Role::Link, b"Settings") },
+        Step::See { find: Find::exactly_named(Role::Link, b"Repositories"), within: super::WITHIN },
+        Step::Press { find: Find::exactly_named(Role::Link, b"Repositories") },
         Step::See { find: Find::named(Role::Link, b"Adopt a repository"), within: super::WITHIN },
         Step::Press { find: Find::named(Role::Link, b"Adopt a repository") },
         Step::See { find: Find::named(Role::TextField, b"Owner"), within: super::WITHIN },
@@ -878,7 +888,7 @@ pub fn adopt_and_change(_forgejo: &super::forgejo::Throwaway) -> Script {
         Step::See { find: Find::text(b"Adopted acme/widget on forge 1 as owned."), within: super::WITHIN },
     ]);
     steps.extend([
-        Step::Go { address: Address::NewChat },
+        Step::Go { address: Address::NewChat { draft: false } },
         Step::See { find: Find::named(Role::TextArea, b"What do you want done?"), within: super::WITHIN },
         Step::Type {
             find: Find::named(Role::TextArea, b"What do you want done?"),

@@ -4,6 +4,7 @@ use alloc::boxed::Box;
 use skein_lib::{Env, Queue, Rng, Time};
 #[derive(Debug)]
 pub struct Domain {
+    zone_minutes: i32,
     pub(crate) pages: crate::pages::Pages,
     pub(crate) forge: forge::Side,
     pub(crate) client: jig_client::Client,
@@ -47,6 +48,7 @@ fn build(limits: &Limits, seed: u64, unlinked: bool) -> Domain {
     }
     .expect("checked client limits");
     Domain {
+        zone_minutes: 0,
         pages: crate::pages::Pages::seeded(rng.next_u64()),
         forge: forge::Side::new(&limits.forge, rng.next_u64()),
         client,
@@ -60,6 +62,34 @@ fn build(limits: &Limits, seed: u64, unlinked: bool) -> Domain {
     }
 }
 impl Domain {
+    /// Minutes east of universal time: the shell's input (temper/docs/design/client/README.md, 5.12).
+    #[must_use]
+    pub const fn zone_minutes(&self) -> i32 {
+        self.zone_minutes
+    }
+    /// Set the shell's zone before its first event (temper/docs/design/client/browser.md, 2.1).
+    pub fn set_zone_minutes(&mut self, zone_minutes: i32) {
+        self.zone_minutes = zone_minutes;
+    }
+
+    /// The row at the wall (temper/docs/design/client/README.md, 3.5, Away).
+    #[must_use]
+    pub fn away_on(&self, project: u32, wall: skein_lib::Wall) -> bool {
+        match self.forge.away(project) {
+            Some(row) => row.on_at(wall),
+            None => false,
+        }
+    }
+    /// A goal, an on row, or Ways shows Away (temper/docs/design/client/README.md, 3.5).
+    #[must_use]
+    pub fn away_shown(&self, project: u32, wall: skein_lib::Wall) -> bool {
+        self.has_goals(project)
+            || self.away_on(project, wall)
+            || match self.forge.ways(project) {
+                Some(ways) => ways.away,
+                None => false,
+            }
+    }
     /// The open project's live or ended goals (temper/docs/design/client/README.md, 5.3).
     #[must_use]
     pub fn has_goals(&self, project: u32) -> bool {
@@ -97,7 +127,9 @@ impl Domain {
 pub fn step(root: &mut Domain, env: &Env<Limits>, event: Event, out: &mut Queue<Request>) {
     route::event(root, env, event, out);
     route::welcome_progress(root, env, out);
+    route::welcome_program_progress(root, out);
     route::playground_progress(root, env, out);
+    route::ways_progress(root, env, out);
     crate::authorize::progress(root, env, out);
     welcome(root, out);
 }
@@ -113,7 +145,9 @@ pub fn fire(root: &mut Domain, env: &Env<Limits>, out: &mut Queue<Request>) {
     }
     route::fire_pages(root, env, out);
     route::welcome_progress(root, env, out);
+    route::welcome_program_progress(root, out);
     route::playground_progress(root, env, out);
+    route::ways_progress(root, env, out);
     crate::authorize::progress(root, env, out);
     welcome(root, out);
 }
@@ -153,9 +187,10 @@ fn welcome(root: &mut Domain, out: &mut Queue<Request>) {
         });
         return;
     }
-    if *root.pages.address() != (crate::Address::Welcome { step: crate::Step::Welcome }) {
+    let crate::Address::Welcome { step: crate::Step::Welcome | crate::Step::WelcomeAsked } = root.pages.address()
+    else {
         return;
-    }
+    };
     let Some(page) = root.pages.welcome() else { return };
     if page.decided {
         return;
@@ -164,7 +199,12 @@ fn welcome(root: &mut Domain, out: &mut Queue<Request>) {
         root.pages.decide_welcome();
         let address = match state {
             crate::pages::welcome::FirstRun::Empty => return,
-            crate::pages::welcome::FirstRun::Unfinished { step } => crate::Address::Welcome { step },
+            crate::pages::welcome::FirstRun::Unfinished { step } => {
+                if *root.pages.address() == (crate::Address::Welcome { step: crate::Step::WelcomeAsked }) {
+                    return;
+                }
+                crate::Address::Welcome { step }
+            }
             crate::pages::welcome::FirstRun::Whole => crate::Address::Chats { filter: crate::ChatsFilter::All },
         };
         out.push(Request::Show { address, replace: true });

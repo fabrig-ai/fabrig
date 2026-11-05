@@ -521,7 +521,7 @@ impl Component {
             skein_io::Event::Closed { owner } => {
                 if let Some(id) = common.connections.remove(&owner) {
                     let c = common.connection_slab.get_mut(id).expect("indexed connection");
-                    let closing = c.closing;
+                    let closing = c.closing();
                     if let Some(call) = common.holders.remove(&owner)
                         && common.lifecycle == Lifecycle::Live
                     {
@@ -608,7 +608,7 @@ impl Component {
         }
         for (_, id) in &self.common.connections {
             let c = self.common.connection_slab.get(*id).expect("indexed connection");
-            next = earliest(next, c.deadline);
+            next = earliest(next, c.deadline());
             next = earliest(next, c.link.next_deadline());
         }
         if self.common.lifecycle == Lifecycle::Live {
@@ -700,7 +700,7 @@ impl Common {
             && let Some(id) = self.connections.get(&token)
             && let Some(c) = self.connection_slab.get_mut(*id)
         {
-            c.deadline = Some(env.now.saturating_add(env.limits.deadline));
+            c.rest(Some(env.now.saturating_add(env.limits.deadline)));
         }
         if let Some(reason) = stopped(base.start)
             && base.start != previous
@@ -739,40 +739,32 @@ impl Common {
         let Some(token) = token else {
             return;
         };
+        let id = *self.connections.get(&token).expect("indexed token");
         for _ in 0..64_u32 {
-            let c = self
-                .connection_slab
-                .get_mut(*self.connections.get(&token).expect("indexed token"))
-                .expect("indexed connection");
+            let c = self.connection_slab.get_mut(id).expect("indexed connection");
             if self.lifecycle != Lifecycle::Live {
                 *plan = None;
                 c.close(env, c.in_flight(), io);
                 break;
             }
             let state = base.start;
-            if let Some(deadline) = c.deadline
+            if let Some(deadline) = c.deadline()
                 && deadline <= env.now
             {
-                if c.phase == Phase::Idle && ready(state) {
+                if c.phase() == Phase::Idle && ready(state) {
                     c.close(env, false, io);
                     break;
                 }
                 c.timeout();
             }
-            if c.phase == Phase::Idle
+            if c.phase() == Phase::Idle
                 && let Some(read) = start_read(state)
             {
                 if plan.is_none() {
                     *plan = Some(StartPlan::new(read));
                 }
-                send_start(
-                    c,
-                    exchange,
-                    env,
-                    &base.forge,
-                    &self.owner.user_agent,
-                    plan.as_mut().expect("active start read"),
-                );
+                let plan = plan.as_mut().expect("active start read");
+                send_start(c, exchange, env, &base.forge, &self.owner.user_agent, plan);
             }
             exchange.pump(c, env, io);
             if let Some(heard) = exchange.heard(c) {
@@ -784,16 +776,13 @@ impl Common {
                     *plan = None;
                     self.start_heard(base, heard, env, up);
                 }
-                let c = self
-                    .connection_slab
-                    .get_mut(*self.connections.get(&token).expect("indexed token"))
-                    .expect("indexed connection");
+                let c = self.connection_slab.get_mut(id).expect("indexed connection");
                 if backoff(base.start).is_some() || stopped(base.start).is_some() {
                     c.close(env, true, io);
                 }
                 continue;
             }
-            if c.phase == Phase::Closed {
+            if c.phase() == Phase::Closed {
                 c.close(env, c.in_flight(), io);
             }
             if !exchange.ready(c) {
@@ -827,16 +816,9 @@ impl Common {
         let owner = Token::new(self.next_token);
         self.next_token = self.next_token.checked_add(1).expect("connection token space");
         self.connection_slab.reclaim();
-        let id = self
-            .connection_slab
-            .insert(Connection::at_origin(
-                forge,
-                origin,
-                &env.limits,
-                self.shared,
-                env.now.saturating_add(env.limits.deadline),
-            ))
-            .expect("free connection slot");
+        let deadline = env.now.saturating_add(env.limits.deadline);
+        let connection = Connection::at_origin(forge, origin, &env.limits, self.shared, deadline);
+        let id = self.connection_slab.insert(connection).expect("free connection slot");
         let _previous = self.connections.insert(owner, id).expect("connection index has room");
         let address = match origin {
             Some(origin) => forge.log_origins.get(origin).expect("origin").address,
@@ -862,8 +844,7 @@ fn send_start(
     user_agent: &[u8],
     plan: &mut StartPlan,
 ) {
-    let step = plan.begin();
-    let skein_forge::forgejo::plans::start::Step::Send(pending) = step else {
+    let skein_forge::forgejo::plans::start::Step::Send(pending) = plan.begin() else {
         unreachable!("a new start plan sends its read");
     };
     let authorization =

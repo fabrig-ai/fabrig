@@ -1,5 +1,5 @@
 //! Contents plans: list changed paths, then read each side within the answer bound.
-//! See skein/docs/design/forge.md, sections 5.2 and 5.3.
+//! See skein/docs/design/forge.md, sections 5.2 and 5.4.
 use crate::api;
 use crate::forgejo::plans::{
     Body, Heard,
@@ -11,48 +11,65 @@ use crate::forgejo::{document as d, id::ObjectId, request as r};
 use alloc::boxed::Box;
 use skein_lib::{List, bytes, usize_of};
 #[derive(Debug)]
-enum Mode {
-    Pull { number: u64, head: api::Commit, page: u32 },
-    Compare { before: api::Commit, after: api::Commit },
-    File { head: api::Commit, path: Box<[u8]>, max: u32 },
+struct Sides {
+    before: api::Commit,
+    after: api::Commit,
+    changed: List<d::ChangedFile>,
+    files: List<api::File>,
+    position: u32,
+    ask: Ask,
 }
-#[derive(Clone, Copy, PartialEq, Eq, Debug)]
-enum Stage {
-    Pull,
-    Files,
-    Compare,
-    Reverse,
-    Before,
-    After,
-    File,
-    Directory,
+#[derive(Debug)]
+enum Ask {
+    Pull { head: api::Commit, more: Option<bool> },
+    Compare { commits: List<api::Commit>, contains: bool },
+}
+#[derive(Debug)]
+enum State {
+    Pull { number: u64, head: api::Commit, page: u32, changed: List<d::ChangedFile>, files: List<api::File> },
+    Files(Sides),
+    Compare(Sides),
+    Reverse(Sides),
+    Before { sides: Sides, missing: bool },
+    After { sides: Sides, missing: bool },
+    File { head: api::Commit, path: Box<[u8]>, max: u32, missing: bool },
+    Directory { head: api::Commit, path: Box<[u8]>, listing: Box<crate::directory::Listing> },
+    Ended,
 }
 #[derive(Debug)]
 pub struct Plan {
-    mode: Mode,
-    stage: Stage,
+    state: State,
     row: Repository,
-    changed: List<d::ChangedFile>,
-    files: List<api::File>,
-    commits: List<api::Commit>,
-    position: u32,
-    before: api::Commit,
-    after: api::Commit,
     size: u64,
     limit: u32,
-    missing: bool,
-    more: Option<bool>,
-    contains: bool,
-    directory: Option<Box<crate::directory::Listing>>,
 }
 impl Plan {
     pub fn new(read: api::Read, row: Repository, bounds: Bounds) -> Result<Self, api::Error> {
-        let (mode, stage, limit) = match read {
-            api::Read::PullFiles { number, head, page } => {
-                (Mode::Pull { number, head, page }, Stage::Pull, bounds.page_size)
+        let (state, limit) = match read {
+            api::Read::PullFiles { number, head, page } => (
+                State::Pull {
+                    number,
+                    head,
+                    page,
+                    changed: List::with_capacity(bounds.page_size),
+                    files: List::with_capacity(bounds.page_size),
+                },
+                bounds.page_size,
+            ),
+            api::Read::Compare { before, after } => (
+                State::Compare(Sides {
+                    before,
+                    after,
+                    changed: List::with_capacity(bounds.rows),
+                    files: List::with_capacity(bounds.rows),
+                    position: 0,
+                    ask: Ask::Compare { commits: List::with_capacity(bounds.rows), contains: false },
+                }),
+                bounds.rows,
+            ),
+            api::Read::File { head, path, max_bytes } => {
+                (State::File { head, path, max: max_bytes, missing: false }, 0)
             }
-            api::Read::Compare { before, after } => (Mode::Compare { before, after }, Stage::Compare, bounds.rows),
-            api::Read::File { head, path, max_bytes } => (Mode::File { head, path, max: max_bytes }, Stage::File, 0),
             api::Read::Locate { .. }
             | api::Read::Items { .. }
             | api::Read::Item { .. }
@@ -75,50 +92,43 @@ impl Plan {
             | api::Read::Commits { .. }
             | api::Read::Job { .. } => return Err(api::Error::InvalidAnswer),
         };
-        Ok(Self {
-            mode,
-            stage,
-            row,
-            changed: List::with_capacity(limit),
-            files: List::with_capacity(limit),
-            commits: List::with_capacity(if stage == Stage::Compare { bounds.rows } else { 0 }),
-            position: 0,
-            before: [0; 32],
-            after: [0; 32],
-            size: 0,
-            limit,
-            missing: false,
-            more: None,
-            contains: false,
-            directory: None,
-        })
+        Ok(Self { state, row, size: 0, limit })
     }
     pub fn begin(&mut self, bounds: Bounds) -> Result<Step, api::Error> {
-        let at = self.at();
-        match &self.mode {
-            Mode::Pull { number, .. } => Ok(Step::send(r::Request::Pull { at, number: *number })),
-            Mode::Compare { before, after } => {
-                self.before = *before;
-                self.after = *after;
-                let before = self.id(*before);
-                let after = self.id(*after);
-                Ok(Step::send(r::Request::Compare { at, before, after, files: true }))
+        let state = core::mem::replace(&mut self.state, State::Ended);
+        let (state, step) = match state {
+            state @ State::Pull { number, .. } => (state, Step::send(r::Request::Pull { at: self.at(), number })),
+            State::Compare(sides) => {
+                let step = Step::send(r::Request::Compare {
+                    at: self.at(),
+                    before: self.id(sides.before),
+                    after: self.id(sides.after),
+                    files: true,
+                });
+                (State::Compare(sides), step)
             }
-            Mode::File { head, path, max } => {
+            State::File { head, path, max, missing } => {
                 self.size = skein_lib::len_u64(path.len());
                 self.check_size(bounds)?;
                 if path.is_empty() {
-                    self.stage = Stage::Directory;
-                    self.directory =
-                        Some(Box::new(crate::directory::Listing::new((*max).min(self.raw_room(bounds.answer_bytes)))));
-                    return Ok(Step::send(r::Request::Contents { at, path: path.clone(), reference: self.id(*head) }));
+                    self.directory(head, path, max, bounds)
+                } else {
+                    let step = Step::Send(Exchange {
+                        request: r::Request::Raw { at: self.at(), path: path.clone(), reference: self.id(head) },
+                        range: Some(crate::forgejo::plans::plan::Range::Head(max)),
+                    });
+                    (State::File { head, path, max, missing }, step)
                 }
-                Ok(Step::Send(Exchange {
-                    request: r::Request::Raw { at, path: path.clone(), reference: self.id(*head) },
-                    range: Some(crate::forgejo::plans::plan::Range::Head(*max)),
-                }))
             }
-        }
+            State::Files(_)
+            | State::Reverse(_)
+            | State::Before { .. }
+            | State::After { .. }
+            | State::Directory { .. } => return Err(api::Error::InvalidAnswer),
+            State::Ended => unreachable!("contents plan begins before it ends"),
+        };
+        self.state = state;
+        Ok(step)
     }
     fn at(&self) -> r::Repo {
         r::Repo { owner: self.row.owner.clone(), name: self.row.name.clone() }
@@ -146,27 +156,36 @@ impl Plan {
     ) -> Result<Option<Step>, api::Error> {
         match heard {
             Heard::Head { status, fields } => {
-                self.missing = status == 404
-                    && (self.stage == Stage::Before || self.stage == Stage::After || self.stage == Stage::File);
-                if self.missing {
+                let (raw, asked) = match &mut self.state {
+                    State::Before { missing, .. } | State::After { missing, .. } => {
+                        *missing = status == 404;
+                        (true, super::failure::Asked::Read)
+                    }
+                    State::File { missing, .. } => {
+                        *missing = status == 404;
+                        (true, super::failure::Asked::Leaf)
+                    }
+                    State::Directory { .. } => (false, super::failure::Asked::Leaf),
+                    State::Files(sides) => {
+                        match &mut sides.ask {
+                            Ask::Pull { more, .. } => *more = fields.has_more,
+                            Ask::Compare { .. } => return Err(api::Error::InvalidAnswer),
+                        }
+                        (false, super::failure::Asked::Read)
+                    }
+                    State::Pull { .. } | State::Compare(_) | State::Reverse(_) => (false, super::failure::Asked::Read),
+                    State::Ended => unreachable!("contents owner stops after Done"),
+                };
+                if raw && status == 404 {
                     return Ok(None);
                 }
-                let raw = self.stage == Stage::File || self.stage == Stage::Before || self.stage == Stage::After;
                 if status != 200 && !(raw && status == 206) {
-                    let asked = if self.stage == Stage::File || self.stage == Stage::Directory {
-                        super::failure::Asked::Leaf
-                    } else {
-                        super::failure::Asked::Read
-                    };
                     let classified = super::failure::classify(asked, status, None, fields.retry_after);
                     match classified.drop {
                         super::failure::Drop::Nothing => {}
                         super::failure::Drop::Path | super::failure::Drop::Row => tables.drop_repository(repository),
                     }
                     return Err(classified.error);
-                }
-                if self.stage == Stage::Files {
-                    self.more = fields.has_more;
                 }
                 Ok(None)
             }
@@ -175,48 +194,91 @@ impl Plan {
                 Ok(None)
             }
             Heard::Done(body) => {
-                if self.missing {
-                    self.missing = false;
-                    if self.stage == Stage::File {
-                        let Mode::File { head, path, max } = &self.mode else { return Err(api::Error::InvalidAnswer) };
-                        self.stage = Stage::Directory;
-                        self.directory = Some(Box::new(crate::directory::Listing::new(
-                            (*max).min(self.raw_room(bounds.answer_bytes)),
-                        )));
-                        return Ok(Some(Step::send(r::Request::Contents {
-                            at: self.at(),
-                            path: path.clone(),
-                            reference: self.id(*head),
-                        })));
+                let state = core::mem::replace(&mut self.state, State::Ended);
+                let missing = match &state {
+                    State::Before { missing, .. } | State::After { missing, .. } | State::File { missing, .. } => {
+                        *missing
                     }
-                    return self.side(None, bounds);
-                }
-                match body {
-                    Body::Document(document) => {
-                        crate::forgejo::plans::reads::keep::keep_document(&document, repository.forge, tables);
-                        self.done(document, bounds)
+                    State::Pull { .. }
+                    | State::Files(_)
+                    | State::Compare(_)
+                    | State::Reverse(_)
+                    | State::Directory { .. } => false,
+                    State::Ended => unreachable!("contents owner stops after Done"),
+                };
+                let body = if missing {
+                    None
+                } else {
+                    match &body {
+                        Body::Document(document) => {
+                            crate::forgejo::plans::reads::keep::keep_document(document, repository.forge, tables);
+                        }
+                        Body::Malformed(crate::forgejo::decode::Malformed::Bound { field }) => {
+                            return Err(if *field == b"log" {
+                                api::Error::InvalidAnswer
+                            } else {
+                                api::Error::TooLarge
+                            });
+                        }
+                        Body::Empty | Body::Malformed(_) => return Err(api::Error::InvalidAnswer),
+                        Body::Raw { .. } => {}
                     }
-                    Body::Raw { bytes, more } => self.raw(bytes, more, bounds),
-                    Body::Malformed(crate::forgejo::decode::Malformed::Bound { field }) => {
-                        Err(if field == b"log" { api::Error::InvalidAnswer } else { api::Error::TooLarge })
-                    }
-                    Body::Empty | Body::Malformed(_) => Err(api::Error::InvalidAnswer),
-                }
+                    Some(body)
+                };
+                let (state, step) = self.done(state, body, bounds)?;
+                self.state = state;
+                Ok(Some(step))
             }
             Heard::Failed(failure) => Err(crate::forgejo::plans::failure::transport(failure)),
         }
     }
     fn row(&mut self, row: d::Row, bounds: Bounds) -> Result<(), api::Error> {
-        match row {
-            d::Row::Entry { name, kind } => {
-                if self.stage != Stage::Directory {
-                    return Err(api::Error::InvalidAnswer);
+        let state = core::mem::replace(&mut self.state, State::Ended);
+        self.state = match row {
+            d::Row::Entry { name, kind } => match state {
+                State::Directory { head, path, mut listing } => {
+                    listing.keep(name, kind);
+                    State::Directory { head, path, listing }
                 }
-                self.directory.as_mut().ok_or(api::Error::InvalidAnswer)?.keep(name, kind);
-                Ok(())
-            }
-            d::Row::File(file) => self.keep_file(file, bounds),
-            d::Row::Commit(commit) => self.keep_commit(commit, bounds),
+                State::Pull { .. }
+                | State::Files(_)
+                | State::Compare(_)
+                | State::Reverse(_)
+                | State::Before { .. }
+                | State::After { .. }
+                | State::File { .. } => return Err(api::Error::InvalidAnswer),
+                State::Ended => unreachable!("contents owner stops after Done"),
+            },
+            d::Row::File(file) => match state {
+                State::Files(sides) => State::Files(self.keep_file(sides, file, bounds)?),
+                State::Compare(sides) => State::Compare(self.keep_file(sides, file, bounds)?),
+                State::Reverse(sides) => State::Reverse(sides),
+                State::Pull { .. }
+                | State::Before { .. }
+                | State::After { .. }
+                | State::File { .. }
+                | State::Directory { .. } => return Err(api::Error::InvalidAnswer),
+                State::Ended => unreachable!("contents owner stops after Done"),
+            },
+            d::Row::Commit(commit) => match state {
+                State::Compare(mut sides) => {
+                    let commit = reading::commit(commit, self.row.object_format).ok_or(api::Error::InvalidAnswer)?;
+                    self.add_size(u64::try_from(crate::measure::COMMIT_BYTES).expect("commit width"), bounds)?;
+                    match &mut sides.ask {
+                        Ask::Compare { commits, .. } => commits.push(commit).or(Err(api::Error::TooLarge))?,
+                        Ask::Pull { .. } => return Err(api::Error::InvalidAnswer),
+                    }
+                    State::Compare(sides)
+                }
+                State::Reverse(sides) => State::Reverse(sides),
+                State::Pull { .. }
+                | State::Files(_)
+                | State::Before { .. }
+                | State::After { .. }
+                | State::File { .. }
+                | State::Directory { .. } => return Err(api::Error::InvalidAnswer),
+                State::Ended => unreachable!("contents owner stops after Done"),
+            },
             d::Row::Artifact(_)
             | d::Row::CommitMessage(_)
             | d::Row::Found(_)
@@ -236,57 +298,34 @@ impl Plan {
             | d::Row::Hook(_)
             | d::Row::Team(_)
             | d::Row::Step(_)
-            | d::Row::Job(_) => Err(api::Error::InvalidAnswer),
-        }
+            | d::Row::Job(_) => return Err(api::Error::InvalidAnswer),
+        };
+        Ok(())
     }
-    fn keep_file(&mut self, file: d::ChangedFile, bounds: Bounds) -> Result<(), api::Error> {
-        if self.stage == Stage::Reverse {
-            return Ok(());
-        }
-        if self.stage != Stage::Files && self.stage != Stage::Compare {
-            return Err(api::Error::InvalidAnswer);
-        }
-        if self.stage == Stage::Compare {
-            for kept in &self.changed {
-                if kept.filename == file.filename {
-                    return Ok(());
+    fn keep_file(&mut self, mut sides: Sides, file: d::ChangedFile, bounds: Bounds) -> Result<Sides, api::Error> {
+        match &sides.ask {
+            Ask::Compare { .. } => {
+                for kept in &sides.changed {
+                    if kept.filename == file.filename {
+                        return Ok(sides);
+                    }
                 }
             }
+            Ask::Pull { .. } => {}
         }
         self.add_size(skein_lib::len_u64(crate::measure::FILE_BYTES.saturating_add(file.filename.len())), bounds)?;
         let value = api::File { path: file.filename.clone(), before: None, after: None };
-        match self.files.push(value) {
-            Ok(()) => {}
-            Err(_) => return Err(api::Error::TooLarge),
-        }
-        match self.changed.push(file) {
-            Ok(()) => Ok(()),
-            Err(_) => Err(api::Error::TooLarge),
-        }
+        sides.files.push(value).or(Err(api::Error::TooLarge))?;
+        sides.changed.push(file).or(Err(api::Error::TooLarge))?;
+        Ok(sides)
     }
-    fn keep_commit(&mut self, commit: ObjectId, bounds: Bounds) -> Result<(), api::Error> {
-        if self.stage == Stage::Reverse {
-            return Ok(());
-        }
-        if self.stage != Stage::Compare {
-            return Err(api::Error::InvalidAnswer);
-        }
-        let commit = reading::commit(commit, self.row.object_format).ok_or(api::Error::InvalidAnswer)?;
-        self.add_size(u64::try_from(crate::measure::COMMIT_BYTES).expect("commit width"), bounds)?;
-        match self.commits.push(commit) {
-            Ok(()) => Ok(()),
-            Err(_) => Err(api::Error::TooLarge),
-        }
-    }
-    fn done(&mut self, document: d::Document, bounds: Bounds) -> Result<Option<Step>, api::Error> {
-        match document {
-            d::Document::Pull(pull) => {
-                if self.stage != Stage::Pull {
-                    return Err(api::Error::InvalidAnswer);
-                }
-                let (number, head, page) = match self.mode {
-                    Mode::Pull { number, head, page } => (number, head, page),
-                    Mode::Compare { .. } | Mode::File { .. } => return Err(api::Error::InvalidAnswer),
+    #[expect(clippy::manual_let_else, reason = "document kinds are matched exhaustively at the exchange boundary")]
+    fn done(&mut self, state: State, body: Option<Body>, bounds: Bounds) -> Result<(State, Step), api::Error> {
+        match state {
+            State::Pull { number, head, page, changed, files } => {
+                let pull = match body {
+                    Some(Body::Document(d::Document::Pull(pull))) => pull,
+                    Some(_) | None => return Err(api::Error::InvalidAnswer),
                 };
                 if reading::commit(pull.head.sha.ok_or(api::Error::InvalidAnswer)?, self.row.object_format)
                     .ok_or(api::Error::InvalidAnswer)?
@@ -294,165 +333,163 @@ impl Plan {
                 {
                     return Err(api::Error::Stale);
                 }
-                self.before =
-                    reading::commit(pull.merge_base.ok_or(api::Error::InvalidAnswer)?, self.row.object_format)
-                        .ok_or(api::Error::InvalidAnswer)?;
-                self.after = head;
-                self.stage = Stage::Files;
-                Ok(Some(Step::send(r::Request::PullFiles {
-                    at: self.at(),
-                    number,
-                    page: r::Page { page: Some(page), limit: Some(self.limit) },
-                })))
-            }
-            d::Document::Listed { .. } => {
-                if self.stage == Stage::Directory {
-                    let Mode::File { head, path, .. } = &self.mode else { return Err(api::Error::InvalidAnswer) };
-                    return Ok(Some(Step::Done(Ok(self
-                        .directory
-                        .as_mut()
-                        .ok_or(api::Error::InvalidAnswer)?
-                        .answer(*head, path.clone())))));
-                }
-                if self.stage != Stage::Files {
-                    return Err(api::Error::InvalidAnswer);
-                }
-                self.next_side(bounds)
-            }
-            d::Document::Compare(comparison) => {
-                if self.stage == Stage::Compare {
-                    self.stage = Stage::Reverse;
-                    Ok(Some(Step::send(r::Request::Compare {
+                let before = reading::commit(pull.merge_base.ok_or(api::Error::InvalidAnswer)?, self.row.object_format)
+                    .ok_or(api::Error::InvalidAnswer)?;
+                Ok((
+                    State::Files(Sides {
+                        before,
+                        after: head,
+                        changed,
+                        files,
+                        position: 0,
+                        ask: Ask::Pull { head, more: None },
+                    }),
+                    Step::send(r::Request::PullFiles {
                         at: self.at(),
-                        before: self.id(self.after),
-                        after: self.id(self.before),
-                        files: false,
-                    })))
-                } else if self.stage == Stage::Reverse {
-                    self.contains = comparison.total_commits == 0;
-                    self.next_side(bounds)
-                } else {
-                    Err(api::Error::InvalidAnswer)
-                }
+                        number,
+                        page: r::Page { page: Some(page), limit: Some(self.limit) },
+                    }),
+                ))
             }
-            d::Document::Token(_)
-            | d::Document::User(_)
-            | d::Document::Org(_)
-            | d::Document::CreatedFile { .. }
-            | d::Document::CreatedRepository(_)
-            | d::Document::Hook(_)
-            | d::Document::Team(_)
-            | d::Document::ApiSettings(_)
-            | d::Document::Repository(_)
-            | d::Document::RepoSearch { .. }
-            | d::Document::Search { .. }
-            | d::Document::Issue(_)
-            | d::Document::Comment(_)
-            | d::Document::Status(_)
-            | d::Document::Review(_)
-            | d::Document::CombinedStatus(_)
-            | d::Document::Branch(_)
-            | d::Document::Protection(_)
-            | d::Document::Permission(_)
-            | d::Document::Tree { .. }
-            | d::Document::Runs { .. }
-            | d::Document::Job(_)
-            | d::Document::Run(_)
-            | d::Document::Error(_) => Err(api::Error::InvalidAnswer),
-        }
-    }
-    fn next_side(&mut self, bounds: Bounds) -> Result<Option<Step>, api::Error> {
-        for _ in 0..self.changed.len().saturating_mul(3).saturating_add(1) {
-            if self.position == self.changed.len() {
-                return self.terminal();
+            State::Files(sides) => {
+                listed(body)?;
+                self.next_side(sides, bounds)
             }
-            let file = self.changed.get(self.position).expect("listed file");
-            let compare = match self.mode {
-                Mode::Compare { .. } => true,
-                Mode::Pull { .. } | Mode::File { .. } => false,
-            };
-            if self.stage == Stage::After {
-                self.position = self.position.saturating_add(1);
-                self.stage = Stage::Files;
-                continue;
-            }
-            if self.stage == Stage::Before {
-                if !compare && file.status == d::FileStatus::Deleted {
-                    self.stage = Stage::After;
-                    continue;
-                }
-                self.stage = Stage::After;
-                return Ok(Some(Step::send(r::Request::Raw {
+            State::Compare(sides) => {
+                comparison(body)?;
+                let step = Step::send(r::Request::Compare {
                     at: self.at(),
-                    path: file.filename.clone(),
-                    reference: self.id(self.after),
-                })));
+                    before: self.id(sides.after),
+                    after: self.id(sides.before),
+                    files: false,
+                });
+                Ok((State::Reverse(sides), step))
             }
-            self.stage = Stage::Before;
-            if !compare && file.status == d::FileStatus::Added {
-                continue;
+            State::Reverse(mut sides) => {
+                let comparison = comparison(body)?;
+                match &mut sides.ask {
+                    Ask::Compare { contains, .. } => *contains = comparison.total_commits == 0,
+                    Ask::Pull { .. } => return Err(api::Error::InvalidAnswer),
+                }
+                self.next_side(sides, bounds)
             }
-            let path = if !compare && file.status == d::FileStatus::Renamed {
-                file.previous_filename.as_ref().ok_or(api::Error::InvalidAnswer)?.clone()
-            } else {
-                file.filename.clone()
-            };
-            self.check_size(bounds)?;
-            return Ok(Some(Step::send(r::Request::Raw { at: self.at(), path, reference: self.id(self.before) })));
+            State::Before { mut sides, .. } => {
+                let value = self.raw(body, bounds)?;
+                sides.files.get_mut(sides.position).ok_or(api::Error::InvalidAnswer)?.before = value;
+                let file = sides.changed.get(sides.position).expect("listed file");
+                let deleted = match sides.ask {
+                    Ask::Pull { .. } => file.status == d::FileStatus::Deleted,
+                    Ask::Compare { .. } => false,
+                };
+                if deleted {
+                    sides.position = sides.position.saturating_add(1);
+                    self.next_side(sides, bounds)
+                } else {
+                    let step = self.read_side(file.filename.clone(), sides.after);
+                    Ok((State::After { sides, missing: false }, step))
+                }
+            }
+            State::After { mut sides, .. } => {
+                let value = self.raw(body, bounds)?;
+                sides.files.get_mut(sides.position).ok_or(api::Error::InvalidAnswer)?.after = value;
+                sides.position = sides.position.saturating_add(1);
+                self.next_side(sides, bounds)
+            }
+            State::File { head, path, max, .. } => match body {
+                None => Ok(self.directory(head, path, max, bounds)),
+                Some(Body::Raw { bytes: value, more }) => {
+                    let room = max.min(self.raw_room(bounds.answer_bytes));
+                    let length = value.len().min(usize_of(room));
+                    self.add_size(u64::try_from(length).expect("bounded bytes"), bounds)?;
+                    let truncated = more || value.len() > length;
+                    let bytes = if value.len() == length {
+                        value
+                    } else {
+                        bytes::copy_of(value.get(..length).expect("bounded length"))
+                    };
+                    Ok((State::Ended, Step::Done(Ok(api::Answer::File { head, path, bytes, truncated }))))
+                }
+                Some(Body::Document(_) | Body::Malformed(_) | Body::Empty) => Err(api::Error::InvalidAnswer),
+            },
+            State::Directory { head, path, mut listing } => {
+                listed(body)?;
+                Ok((State::Ended, Step::Done(Ok(listing.answer(head, path)))))
+            }
+            State::Ended => unreachable!("contents owner stops after Done"),
         }
-        Err(api::Error::InvalidAnswer)
     }
-    fn raw(&mut self, value: Box<[u8]>, more: bool, bounds: Bounds) -> Result<Option<Step>, api::Error> {
-        if self.stage == Stage::File {
-            let (head, path, max) = match &self.mode {
-                Mode::File { head, path, max } => (*head, path.clone(), *max),
-                Mode::Pull { .. } | Mode::Compare { .. } => return Err(api::Error::InvalidAnswer),
-            };
-            let room = max.min(self.raw_room(bounds.answer_bytes));
-            let length = value.len().min(usize_of(room));
-            self.add_size(u64::try_from(length).expect("bounded bytes"), bounds)?;
-            let truncated = more || value.len() > length;
-            let bytes = if value.len() == length {
-                value
-            } else {
-                bytes::copy_of(value.get(..length).expect("bounded length"))
-            };
-            return Ok(Some(Step::Done(Ok(api::Answer::File { head, path, bytes, truncated }))));
-        }
-        if more {
-            return Err(api::Error::TooLarge);
-        }
-        self.side(Some(value), bounds)
+    fn directory(&self, head: api::Commit, path: Box<[u8]>, max: u32, bounds: Bounds) -> (State, Step) {
+        let listing = Box::new(crate::directory::Listing::new(max.min(self.raw_room(bounds.answer_bytes))));
+        let step = Step::send(r::Request::Contents { at: self.at(), path: path.clone(), reference: self.id(head) });
+        (State::Directory { head, path, listing }, step)
     }
-    fn side(&mut self, value: Option<Box<[u8]>>, bounds: Bounds) -> Result<Option<Step>, api::Error> {
+    fn next_side(&self, sides: Sides, bounds: Bounds) -> Result<(State, Step), api::Error> {
+        if sides.position == sides.changed.len() {
+            return Ok(self.terminal(sides));
+        }
+        let file = sides.changed.get(sides.position).expect("listed file");
+        let compare = match sides.ask {
+            Ask::Compare { .. } => true,
+            Ask::Pull { .. } => false,
+        };
+        if !compare && file.status == d::FileStatus::Added {
+            let step = self.read_side(file.filename.clone(), sides.after);
+            return Ok((State::After { sides, missing: false }, step));
+        }
+        let path = if !compare && file.status == d::FileStatus::Renamed {
+            file.previous_filename.as_ref().ok_or(api::Error::InvalidAnswer)?.clone()
+        } else {
+            file.filename.clone()
+        };
+        self.check_size(bounds)?;
+        let step = self.read_side(path, sides.before);
+        Ok((State::Before { sides, missing: false }, step))
+    }
+    fn read_side(&self, path: Box<[u8]>, head: api::Commit) -> Step {
+        Step::send(r::Request::Raw { at: self.at(), path, reference: self.id(head) })
+    }
+    fn raw(&mut self, body: Option<Body>, bounds: Bounds) -> Result<Option<Box<[u8]>>, api::Error> {
+        let value = match body {
+            None => None,
+            Some(Body::Raw { bytes, more }) => {
+                if more {
+                    return Err(api::Error::TooLarge);
+                }
+                Some(bytes)
+            }
+            Some(Body::Document(_) | Body::Malformed(_) | Body::Empty) => return Err(api::Error::InvalidAnswer),
+        };
         if let Some(value) = &value {
             self.add_size(skein_lib::len_u64(value.len()), bounds)?;
         }
-        let file = self.files.get_mut(self.position).ok_or(api::Error::InvalidAnswer)?;
-        match self.stage {
-            Stage::Before => file.before = value,
-            Stage::After => file.after = value,
-            Stage::Pull | Stage::Files | Stage::Compare | Stage::Reverse | Stage::File | Stage::Directory => {
-                return Err(api::Error::InvalidAnswer);
-            }
-        }
-        self.next_side(bounds)
+        Ok(value)
     }
-    fn terminal(&mut self) -> Result<Option<Step>, api::Error> {
-        let files = core::mem::replace(&mut self.files, List::with_capacity(0)).into_boxed();
-        let answer = match self.mode {
-            Mode::Pull { head, .. } => {
-                api::Answer::PullFiles { head, more: self.more.unwrap_or(files.len() == usize_of(self.limit)), files }
+    fn terminal(&self, sides: Sides) -> (State, Step) {
+        let files = sides.files.into_boxed();
+        let answer = match sides.ask {
+            Ask::Pull { head, more } => {
+                api::Answer::PullFiles { head, more: more.unwrap_or(files.len() == usize_of(self.limit)), files }
             }
-            Mode::Compare { before, after } => api::Answer::Compare {
-                before,
-                after,
-                contains_before: self.contains,
+            Ask::Compare { commits, contains } => api::Answer::Compare {
+                before: sides.before,
+                after: sides.after,
+                contains_before: contains,
                 files,
-                commits: core::mem::replace(&mut self.commits, List::with_capacity(0)).into_boxed(),
+                commits: commits.into_boxed(),
             },
-            Mode::File { .. } => return Err(api::Error::InvalidAnswer),
         };
-        Ok(Some(Step::Done(Ok(answer))))
+        (State::Ended, Step::Done(Ok(answer)))
+    }
+}
+fn listed(body: Option<Body>) -> Result<(), api::Error> {
+    match body {
+        Some(Body::Document(d::Document::Listed { .. })) => Ok(()),
+        Some(_) | None => Err(api::Error::InvalidAnswer),
+    }
+}
+fn comparison(body: Option<Body>) -> Result<d::Compare, api::Error> {
+    match body {
+        Some(Body::Document(d::Document::Compare(value))) => Ok(value),
+        Some(_) | None => Err(api::Error::InvalidAnswer),
     }
 }

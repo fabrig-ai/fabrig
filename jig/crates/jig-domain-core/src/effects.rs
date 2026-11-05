@@ -16,7 +16,8 @@ pub(crate) mod resources;
 
 use crate::{
     Ask, CallKey, CallPart, CallRecord, Core, CoreRecord, Event, Family, Held, Limits, Now, Record, Request, ToolKind,
-    Write, fresh, routing::Work,
+    Write, fresh,
+    routing::{Work, effect::procedure::ProcedureCall, run::Proposing},
 };
 use alloc::boxed::Box;
 use jig_domain_authority as authority;
@@ -88,6 +89,24 @@ impl EffectOrigin {
         match self {
             Self::Projection { goal, .. } => *goal,
             Self::Call { key, .. } | Self::Propose { key, .. } => key.task,
+            Self::Accept { proposal, .. } => proposal.proposer,
+            Self::Procedure { task, .. } => *task,
+        }
+    }
+}
+
+enum Making {
+    Projection { goal: u64, entry: Option<u64> },
+    Call { to: ReplyTo, key: CallKey, deadline: Wall },
+    Accept { to: ReplyTo, key: Option<CallKey>, proposal: Box<tasks::Proposal>, by: tasks::Party },
+    Procedure { task: u64, step: u64, entry: Option<u64> },
+}
+
+impl Making {
+    fn task(&self) -> u64 {
+        match self {
+            Self::Projection { goal, .. } => *goal,
+            Self::Call { key, .. } => key.task,
             Self::Accept { proposal, .. } => proposal.proposer,
             Self::Procedure { task, .. } => *task,
         }
@@ -175,7 +194,7 @@ pub(crate) fn start(
             start_flight(core, env, owner, number, origin);
         }
         EffectOrigin::Propose { to, key, reason, as_holder } => {
-            return propose_start(core, env, owner, number, to, key, reason, as_holder);
+            return propose_start(core, env, owner, number, Proposing { to, key, reason, as_holder });
         }
         EffectOrigin::Accept { to, key, proposal, by } => {
             let pending = core.tasks.proposal(proposal.proposer, proposal.number);
@@ -266,17 +285,14 @@ pub(crate) fn start(
     out
 }
 
-#[expect(clippy::too_many_arguments, reason = "one named proposal carries its connector payload and reason")]
 fn propose_start(
     core: &mut Core,
     env: &Env<Limits>,
     owner: Token,
     number: u16,
-    to: ReplyTo,
-    key: CallKey,
-    reason: Box<[u8]>,
-    as_holder: bool,
+    proposing: Proposing,
 ) -> Queue<Request> {
+    let Proposing { to, key, reason, as_holder } = proposing;
     let mut out = Queue::uncapped();
     if let Some(part) = core.call_parts.get(&key) {
         out.push(Request::Held(Box::new(Held::CallAnswer { to, key, part: part.clone() })));
@@ -590,13 +606,20 @@ fn complete(core: &mut Core, env: &Env<Limits>, work: &mut Queue<Work>, out: &mu
     let description = flight.description.expect("effect described before checking");
     let origin = match flight.origin {
         EffectOrigin::Propose { to, key, reason, as_holder } => {
-            complete_proposal(core, env, work, out, owner, flight.connector, to, key, *description, reason, as_holder);
+            complete_proposal(
+                core,
+                env,
+                work,
+                out,
+                Described { owner, number: flight.connector, description: *description },
+                Proposing { to, key, reason, as_holder },
+            );
             return;
         }
-        origin @ (EffectOrigin::Projection { .. }
-        | EffectOrigin::Call { .. }
-        | EffectOrigin::Procedure { .. }
-        | EffectOrigin::Accept { .. }) => origin,
+        EffectOrigin::Projection { goal, entry } => Making::Projection { goal, entry },
+        EffectOrigin::Call { to, key, deadline } => Making::Call { to, key, deadline },
+        EffectOrigin::Accept { to, key, proposal, by } => Making::Accept { to, key, proposal, by },
+        EffectOrigin::Procedure { task, step, entry } => Making::Procedure { task, step, entry },
     };
     let mut findings = Queue::uncapped();
     let mut checked = check(core, env, &origin, &description, flight.given.as_slice(), &mut findings);
@@ -609,22 +632,21 @@ fn complete(core: &mut Core, env: &Env<Limits>, work: &mut Queue<Work>, out: &mu
     // A hard refusal outranks keeping, which only defers the effect.
     if description.waits_for_dependencies && checked != authority::Answer::Refuse {
         let task = match &origin {
-            EffectOrigin::Call { key, .. } => Some(key.task),
-            EffectOrigin::Procedure { task, .. } => Some(*task),
-            EffectOrigin::Accept { proposal, .. } => Some(proposal.proposer),
-            EffectOrigin::Projection { .. } => None,
-            EffectOrigin::Propose { .. } => unreachable!("explicit proposals completed above"),
+            Making::Call { key, .. } => Some(key.task),
+            Making::Procedure { task, .. } => Some(*task),
+            Making::Accept { proposal, .. } => Some(proposal.proposer),
+            Making::Projection { .. } => None,
         };
         if let Some(task) = task
             && let Some(problem) = core.tasks.waiting_effect_problem(task)
         {
             drop_with(out, flight.connector, owner, authority::Answer::Refuse, connector::EffectRefusal::Dependencies);
             match origin {
-                EffectOrigin::Call { to, key, .. } => answer(core, out, to, key, CallPart::EffectRefused(problem)),
-                EffectOrigin::Procedure { task, step, .. } => {
+                Making::Call { to, key, .. } => answer(core, out, to, key, CallPart::EffectRefused(problem)),
+                Making::Procedure { task, step, .. } => {
                     crate::routing::effect::procedure::append_problem(core, task, step, problem, out);
                 }
-                EffectOrigin::Accept { to, key, .. } => match key {
+                Making::Accept { to, key, .. } => match key {
                     Some(key) => answer(core, out, to, key, CallPart::ProposalRefused(problem)),
                     None => {
                         let outcome = crate::routing::refusals::person_problem_refusal(core, problem);
@@ -634,22 +656,29 @@ fn complete(core: &mut Core, env: &Env<Limits>, work: &mut Queue<Work>, out: &mu
                         })));
                     }
                 },
-                EffectOrigin::Projection { .. } | EffectOrigin::Propose { .. } => unreachable!("task-owned effect"),
+                Making::Projection { .. } => {}
             }
             return;
         }
     }
     if checked == authority::Answer::Propose {
         match &origin {
-            EffectOrigin::Procedure { task, step, entry: None } => {
-                procedure_propose(core, env, work, out, owner, flight.connector, *task, *step, &description);
+            Making::Procedure { task, step, entry: None } => {
+                procedure_propose(
+                    core,
+                    env,
+                    work,
+                    out,
+                    owner,
+                    ProcedureCall { task: *task, step: *step, connector: flight.connector },
+                    &description,
+                );
                 return;
             }
-            EffectOrigin::Projection { .. }
-            | EffectOrigin::Call { .. }
-            | EffectOrigin::Accept { .. }
-            | EffectOrigin::Procedure { entry: Some(_), .. } => {}
-            EffectOrigin::Propose { .. } => unreachable!("explicit proposals completed above"),
+            Making::Projection { .. }
+            | Making::Call { .. }
+            | Making::Accept { .. }
+            | Making::Procedure { entry: Some(_), .. } => {}
         }
     }
     if checked != authority::Answer::Allow {
@@ -673,7 +702,7 @@ fn complete(core: &mut Core, env: &Env<Limits>, work: &mut Queue<Work>, out: &mu
             }),
         });
         match origin {
-            EffectOrigin::Call { to, key, .. } => {
+            Making::Call { to, key, .. } => {
                 let mut reasons = List::with_capacity(findings.len());
                 for _ in 0..findings.len() {
                     reasons.push(findings.pop().expect("finding count")).expect("finding room");
@@ -686,7 +715,7 @@ fn complete(core: &mut Core, env: &Env<Limits>, work: &mut Queue<Work>, out: &mu
                     answer(core, out, to, key, part);
                 }
             }
-            EffectOrigin::Accept { to, key, proposal, by } => {
+            Making::Accept { to, key, proposal, by } => {
                 let refusal = match by {
                     tasks::Party::Person(person) if !findings.is_empty() => {
                         let role = core.people.role(person, proposal.project).expect("accepted party's role");
@@ -706,46 +735,40 @@ fn complete(core: &mut Core, env: &Env<Limits>, work: &mut Queue<Work>, out: &mu
                 };
                 accept_refused(core, work, out, to, key, checked, refusal);
             }
-            EffectOrigin::Propose { .. } => unreachable!("proposals completed separately"),
-            EffectOrigin::Projection { goal, .. } => projection_refused(core, env, work, goal),
-            EffectOrigin::Procedure { task, step, entry: _ } => procedure_wait(core, work, task, step),
+            Making::Projection { goal, .. } => projection_refused(core, env, work, goal),
+            Making::Procedure { task, step, entry: _ } => procedure_wait(core, work, task, step),
         }
         return;
     }
     let needs_entry = match origin {
-        EffectOrigin::Call { .. }
-        | EffectOrigin::Accept { .. }
-        | EffectOrigin::Procedure { entry: None, .. }
-        | EffectOrigin::Projection { entry: None, .. } => true,
-        EffectOrigin::Propose { .. } => unreachable!("proposal has no entry"),
-        EffectOrigin::Procedure { entry: Some(_), .. } | EffectOrigin::Projection { entry: Some(_), .. } => false,
+        Making::Call { .. }
+        | Making::Accept { .. }
+        | Making::Procedure { entry: None, .. }
+        | Making::Projection { entry: None, .. } => true,
+        Making::Procedure { entry: Some(_), .. } | Making::Projection { entry: Some(_), .. } => false,
     };
     if !acceptance_room(core, &origin) || (needs_entry && core.counters.deployment().connector_rows == u64::MAX) {
         drop_with(out, flight.connector, owner, authority::Answer::Refuse, connector::EffectRefusal::Capacity);
         match origin {
-            EffectOrigin::Call { to, key, .. } => {
+            Making::Call { to, key, .. } => {
                 core.pending_calls.remove(&key);
                 out.push(Request::Now(Box::new(Now::EffectAnswer { to, key, part: CallPart::Unavailable })));
             }
-            EffectOrigin::Accept { to, key, .. } => {
+            Making::Accept { to, key, .. } => {
                 accept_refused(core, work, out, to, key, authority::Answer::Refuse, None);
             }
-            EffectOrigin::Propose { .. } => unreachable!("proposal has no entry"),
-            EffectOrigin::Projection { goal, .. } => projection_refused(core, env, work, goal),
-            EffectOrigin::Procedure { task, step, .. } => procedure_wait(core, work, task, step),
+            Making::Projection { goal, .. } => projection_refused(core, env, work, goal),
+            Making::Procedure { task, step, .. } => procedure_wait(core, work, task, step),
         }
         return;
     }
     charge(core, work, &origin, description.effect.price);
     let entry = match &origin {
-        EffectOrigin::Procedure { entry: Some(entry), .. } | EffectOrigin::Projection { entry: Some(entry), .. } => {
-            *entry
-        }
-        EffectOrigin::Propose { .. } => unreachable!("proposal has no entry"),
-        EffectOrigin::Call { .. }
-        | EffectOrigin::Accept { .. }
-        | EffectOrigin::Procedure { entry: None, .. }
-        | EffectOrigin::Projection { entry: None, .. } => {
+        Making::Procedure { entry: Some(entry), .. } | Making::Projection { entry: Some(entry), .. } => *entry,
+        Making::Call { .. }
+        | Making::Accept { .. }
+        | Making::Procedure { entry: None, .. }
+        | Making::Projection { entry: None, .. } => {
             fresh(&mut core.counters, Family::ConnectorRow).expect("effect entry counter admitted")
         }
     };
@@ -758,25 +781,7 @@ fn complete(core: &mut Core, env: &Env<Limits>, work: &mut Queue<Work>, out: &mu
             entry,
         })));
     }
-    let purpose = match origin {
-        EffectOrigin::Call { to, key, deadline } => {
-            let part = CallPart::Effect { connector: flight.connector, entry, deadline, outcome: None };
-            assert!(core.decide_named_call(key, part.clone()), "effect fenced by current claim");
-            save(core, out, key, part);
-            assert!(
-                core.effect_replies.insert(entry, Waiting { to, key, deadline }).is_ok(),
-                "one effect reply per admitted call"
-            );
-            EffectPurpose::Call { attempt: key.attempt, completion: key.completion, position: key.position }
-        }
-        EffectOrigin::Propose { .. } => unreachable!("proposal has no entry"),
-        origin @ EffectOrigin::Accept { .. } => complete_accept(core, work, out, origin, flight.connector),
-        EffectOrigin::Projection { .. } => EffectPurpose::Projection { purpose: description.purpose },
-        EffectOrigin::Procedure { task, step, entry: _ } => {
-            procedure_wait(core, work, task, step);
-            EffectPurpose::Procedure { purpose: description.purpose }
-        }
-    };
+    let purpose = complete_accept(core, work, out, origin, flight.connector, entry, description.purpose);
     let key =
         EffectKey { deployment: core.counters.deployment().id, task, origin: purpose, purpose: description.purpose };
     out.push(Request::Ask {
@@ -786,19 +791,16 @@ fn complete(core: &mut Core, env: &Env<Limits>, work: &mut Queue<Work>, out: &mu
     out.push(Request::Held(Box::new(Held::MakeEffect { connector: flight.connector, entry })));
 }
 
-fn acceptance_room(core: &Core, origin: &EffectOrigin) -> bool {
+fn acceptance_room(core: &Core, origin: &Making) -> bool {
     match origin {
-        EffectOrigin::Accept { proposal, .. } => {
+        Making::Accept { proposal, .. } => {
             core.counters.deployment().messages != u64::MAX
                 && match core.tasks.task(proposal.proposer) {
                     Some(row) => row.revision != u64::MAX,
                     None => false,
                 }
         }
-        EffectOrigin::Projection { .. }
-        | EffectOrigin::Call { .. }
-        | EffectOrigin::Propose { .. }
-        | EffectOrigin::Procedure { .. } => true,
+        Making::Projection { .. } | Making::Call { .. } | Making::Procedure { .. } => true,
     }
 }
 
@@ -834,15 +836,10 @@ fn held_resources(core: &Core, description: &connector::EffectDescription) -> Bo
     names.into_boxed()
 }
 
-fn writers_ready(
-    core: &Core,
-    env: &Env<Limits>,
-    origin: &EffectOrigin,
-    description: &connector::EffectDescription,
-) -> bool {
+fn writers_ready(core: &Core, env: &Env<Limits>, origin: &Making, description: &connector::EffectDescription) -> bool {
     let existing = match origin {
-        EffectOrigin::Procedure { entry, .. } | EffectOrigin::Projection { entry, .. } => *entry,
-        EffectOrigin::Call { .. } | EffectOrigin::Accept { .. } | EffectOrigin::Propose { .. } => None,
+        Making::Procedure { entry, .. } | Making::Projection { entry, .. } => *entry,
+        Making::Call { .. } | Making::Accept { .. } => None,
     };
     for resource in held_resources(core, description) {
         if !core.tasks.effect_writer_ready(&env.limits.tasks, origin.task(), &resource, existing) {
@@ -911,15 +908,13 @@ fn claim_current(core: &Core, key: CallKey) -> bool {
         }
 }
 
-fn charge(core: &mut Core, work: &mut Queue<Work>, origin: &EffectOrigin, price: Option<u64>) {
+fn charge(core: &mut Core, work: &mut Queue<Work>, origin: &Making, price: Option<u64>) {
     if let Some(maximum) = price {
         let funder = match origin {
-            EffectOrigin::Projection { .. } => return,
-            EffectOrigin::Call { key, .. } => tasks::Funder::Task(key.task),
-            EffectOrigin::Procedure { task, .. } => {
-                core.procedure_effect_funder(*task).unwrap_or(tasks::Funder::Task(*task))
-            }
-            EffectOrigin::Accept { proposal, by, .. } => match *by {
+            Making::Projection { .. } => return,
+            Making::Call { key, .. } => tasks::Funder::Task(key.task),
+            Making::Procedure { task, .. } => core.procedure_effect_funder(*task).unwrap_or(tasks::Funder::Task(*task)),
+            Making::Accept { proposal, by, .. } => match *by {
                 tasks::Party::Task(task) => tasks::Funder::Task(task),
                 tasks::Party::Person(person) => {
                     let (period, pool) = core.open_person_pool(proposal.project, person);
@@ -933,7 +928,6 @@ fn charge(core: &mut Core, work: &mut Queue<Work>, origin: &EffectOrigin, price:
                 }
                 tasks::Party::Deployment { .. } => unreachable!("authenticated effect accepter"),
             },
-            EffectOrigin::Propose { .. } => unreachable!("proposal has no charge"),
         };
         work.push(Work::Event(Event::Tasks(tasks::Event::ChargeEffect { funder, maximum })));
     }
@@ -943,16 +937,27 @@ fn complete_accept(
     core: &mut Core,
     work: &mut Queue<Work>,
     out: &mut Queue<Request>,
-    origin: EffectOrigin,
+    origin: Making,
     number: u16,
+    entry: u64,
+    purpose: u64,
 ) -> EffectPurpose {
     let (to, key, proposal, by) = match origin {
-        EffectOrigin::Accept { to, key, proposal, by } => (to, key, proposal, by),
-        EffectOrigin::Projection { .. }
-        | EffectOrigin::Call { .. }
-        | EffectOrigin::Propose { .. }
-        | EffectOrigin::Procedure { .. } => {
-            unreachable!("accepted effect")
+        Making::Call { to, key, deadline } => {
+            let part = CallPart::Effect { connector: number, entry, deadline, outcome: None };
+            assert!(core.decide_named_call(key, part.clone()), "effect fenced by current claim");
+            save(core, out, key, part);
+            assert!(
+                core.effect_replies.insert(entry, Waiting { to, key, deadline }).is_ok(),
+                "one effect reply per admitted call"
+            );
+            return EffectPurpose::Call { attempt: key.attempt, completion: key.completion, position: key.position };
+        }
+        Making::Accept { to, key, proposal, by } => (to, key, proposal, by),
+        Making::Projection { .. } => return EffectPurpose::Projection { purpose },
+        Making::Procedure { task, step, entry: _ } => {
+            procedure_wait(core, work, task, step);
+            return EffectPurpose::Procedure { purpose };
         }
     };
     let purpose = match proposal.action {
@@ -1001,26 +1006,28 @@ fn complete_accept(
     purpose
 }
 
-#[expect(clippy::too_many_arguments, reason = "one explicit proposal retains its checked carrier and connector owner")]
+struct Described {
+    owner: Token,
+    number: u16,
+    description: connector::EffectDescription,
+}
+
 fn complete_proposal(
     core: &mut Core,
     env: &Env<Limits>,
     work: &mut Queue<Work>,
     out: &mut Queue<Request>,
-    owner: Token,
-    number: u16,
-    to: ReplyTo,
-    key: CallKey,
-    description: connector::EffectDescription,
-    reason: Box<[u8]>,
-    as_holder: bool,
+    described: Described,
+    proposing: Proposing,
 ) {
+    let Described { owner, number, description } = described;
+    let key = proposing.key;
     if number != description.connector || number != description.effect.connector {
         drop_effect(out, number, owner, authority::Answer::Refuse);
         answer(
             core,
             out,
-            to,
+            proposing.to,
             key,
             CallPart::EffectDenied { answer: authority::Answer::Refuse, findings: Box::new([]) },
         );
@@ -1028,17 +1035,15 @@ fn complete_proposal(
     }
     let Some(needed) = authority::needs(&authority::Action::Effect(description.effect.clone())) else {
         drop_effect(out, number, owner, authority::Answer::Refuse);
-        answer(core, out, to, key, CallPart::Unavailable);
+        answer(core, out, proposing.to, key, CallPart::Unavailable);
         return;
     };
-    let token = to.into_token();
     let mut admitted = None;
     let requests = crate::routing::named_propose(
         core,
         env,
         work,
-        ReplyTo::new(token),
-        key,
+        proposing,
         tasks::ProposalAction::Effect {
             connector: number,
             authority: crate::translate::task_authority(&needed),
@@ -1047,8 +1052,6 @@ fn complete_proposal(
             position: key.position,
             purpose: description.purpose,
         },
-        reason,
-        as_holder,
         &mut admitted,
     );
     let mut rows = requests;
@@ -1073,13 +1076,13 @@ fn complete_proposal(
 fn check(
     core: &Core,
     env: &Env<Limits>,
-    origin: &EffectOrigin,
+    origin: &Making,
     description: &connector::EffectDescription,
     given: &[authority::Given],
     findings: &mut Queue<authority::Finding>,
 ) -> authority::Answer {
     match origin {
-        EffectOrigin::Projection { goal, .. } => match core.tasks.task(*goal) {
+        Making::Projection { goal, .. } => match core.tasks.task(*goal) {
             Some(row) => core.connector_goal_effect_admit(row.project, description, env.wall, given, findings),
             None => match core.projections.get(goal) {
                 Some(state) => {
@@ -1088,12 +1091,9 @@ fn check(
                 None => authority::Answer::Refuse,
             },
         },
-        EffectOrigin::Call { key, .. } => core.connector_effect_admit(key.task, description, env.wall, given, findings),
-        EffectOrigin::Procedure { task, .. } => {
-            core.connector_effect_admit(*task, description, env.wall, given, findings)
-        }
-        EffectOrigin::Propose { .. } => unreachable!("proposal checks its ceiling without making"),
-        EffectOrigin::Accept { proposal, by, .. } => {
+        Making::Call { key, .. } => core.connector_effect_admit(key.task, description, env.wall, given, findings),
+        Making::Procedure { task, .. } => core.connector_effect_admit(*task, description, env.wall, given, findings),
+        Making::Accept { proposal, by, .. } => {
             if core.tasks.proposal(proposal.proposer, proposal.number).as_ref() != Some(proposal) {
                 return authority::Answer::Refuse;
             }
@@ -1239,18 +1239,16 @@ fn accept_refused(
 
 /// The core owns the Propose answer and chooses its nearest covering holder.
 /// No Call identity is substituted for the procedure's genuine step/purpose.
-#[expect(clippy::too_many_arguments, reason = "one original procedure effect admission")]
 pub(crate) fn procedure_propose(
     core: &mut Core,
     env: &Env<Limits>,
     work: &mut Queue<Work>,
     out: &mut Queue<Request>,
     owner: Token,
-    connector: u16,
-    task: u64,
-    step: u64,
+    call: ProcedureCall,
     description: &connector::EffectDescription,
 ) {
+    let ProcedureCall { task, step, connector } = call;
     let Some(context) = core.tasks.delegation(task) else {
         drop_with(out, connector, owner, authority::Answer::Refuse, connector::EffectRefusal::Proposal);
         return;

@@ -89,10 +89,8 @@ pub fn supplied_root(document: c::Task, held: bool) -> temper_client_domain::Dom
 pub fn supplied_root_watching(document: c::Task, held: bool) -> (temper_client_domain::Domain, Token) {
     use jig_client::{Event as E, Up};
     let limits = domain_limits();
-    let (mut root, _, watch, tree_watch) = root_at_with_tree(
-        temper_client_domain::Address::Task { task: document.chip.task, filter: temper_client_domain::PlanFilter::All },
-        &limits,
-    );
+    let (mut root, _, watch, tree_watch) =
+        root_at_with_tree(temper_client_domain::Address::Task { task: document.chip.task }, &limits);
     let card = document.clone();
     let mut tree = tree();
     if let c::Delivery::Tree(value) = &mut tree {
@@ -222,7 +220,7 @@ pub fn agent_root_with_page(
         &mut root,
         &env,
         Event::Start {
-            address: temper_client_domain::Address::Task { task: TASK, filter: temper_client_domain::PlanFilter::All },
+            address: temper_client_domain::Address::Task { task: TASK },
             kept: List::with_capacity(0),
             with: None,
         },
@@ -374,10 +372,8 @@ pub fn root_with_ended_and_held(
     use jig_client::{Event as E, Up};
     use temper_client_domain::{Event, Request};
     let limits = domain_limits();
-    let (mut root, _, watch, tree_watch) = root_at_with_tree(
-        temper_client_domain::Address::Task { task: document.chip.task, filter: temper_client_domain::PlanFilter::All },
-        &limits,
-    );
+    let (mut root, _, watch, tree_watch) =
+        root_at_with_tree(temper_client_domain::Address::Task { task: document.chip.task }, &limits);
     let env = Env { now: NO_TIME, wall: AT_EPOCH, limits };
     let mut out = Queue::uncapped();
     for (watch, value) in [
@@ -399,7 +395,15 @@ pub fn root_with_ended_and_held(
             if let Request::Unlinked {
                 request:
                     jig_client::UnlinkedRequest::Down {
-                        down: jig_client::Down::Read { read, what: jig_client::Readable::Jig(c::Read::Tasks { .. }) },
+                        down:
+                            jig_client::Down::Read {
+                                read,
+                                what:
+                                    jig_client::Readable::Jig(c::Read::Tasks {
+                                        query: c::TaskQuery { phase: Some(c::PhaseClass::Ended), .. },
+                                        ..
+                                    }),
+                            },
                     },
             } = request
             {

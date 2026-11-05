@@ -219,7 +219,9 @@ fn admission(
     match from {
         MakeFrom::Empty => {}
         MakeFrom::Copy { address } => {
-            if address.len() > bound || temper_client_protocol_wire::source::parse(address).is_err() {
+            if address.len() > temper_client_protocol_wire::source::ADDRESS_BYTES
+                || temper_client_protocol_wire::source::parse(address).is_err()
+            {
                 return Err(MakeRefusal::Invalid);
             }
         }

@@ -1,15 +1,15 @@
 use crate::{
-    ChatsFilter, GoalsFilter, ModelWay, PlanFilter, Step, WayKind,
+    ChatsFilter, GoalsFilter, ModelWay, Step, WayKind,
     address::{Address, Filter, Kind, Place, parse, print},
 };
 
 #[test]
 fn each_page_round_trips_through_its_path() {
-    let pages: [(Address, &[u8]); 20] = [
+    let pages: [(Address, &[u8]); 24] = [
         (Address::Inbox { filter: Filter::ALL }, b"/"),
         (Address::Chats { filter: ChatsFilter::All }, b"/chats"),
         (Address::Chat { task: 7 }, b"/chats/7"),
-        (Address::Task { task: 7, filter: PlanFilter::All }, b"/tasks/7"),
+        (Address::Task { task: 7 }, b"/tasks/7"),
         (Address::Changes { project: 0 }, b"/projects/0/changes"),
         (Address::Changes { project: 3 }, b"/projects/3/changes"),
         (Address::Changes { project: u32::MAX }, b"/projects/4294967295/changes"),
@@ -22,6 +22,10 @@ fn each_page_round_trips_through_its_path() {
         (Address::Goals { project: u32::MAX, filter: GoalsFilter::All }, b"/projects/4294967295/goals"),
         (Address::Goals { project: 3, filter: GoalsFilter::All }, b"/projects/3/goals"),
         (Address::Settings { project: 3 }, b"/projects/3/settings"),
+        (Address::Builders { project: 0 }, b"/projects/0/settings/builders"),
+        (Address::Builders { project: 3 }, b"/projects/3/settings/builders"),
+        (Address::Builders { project: u32::MAX }, b"/projects/4294967295/settings/builders"),
+        (Address::Repositories { project: 3 }, b"/projects/3/settings/repositories"),
         (Address::Adopt { project: 3 }, b"/projects/3/adopt"),
         (Address::Configure { project: 0 }, b"/projects/0/settings/configure"),
         (Address::Configure { project: u32::MAX }, b"/projects/4294967295/settings/configure"),
@@ -188,7 +192,7 @@ fn each_number_spans_its_types_range() {
         (b"/chats/999", Address::Chat { task: 999 }),
         (b"/chats/4294967295", Address::Chat { task: 4_294_967_295 }),
         (b"/chats/4294967296", Address::Chat { task: 4_294_967_296 }),
-        (b"/tasks/1", Address::Task { task: 1, filter: PlanFilter::All }),
+        (b"/tasks/1", Address::Task { task: 1 }),
         (b"/projects/1/adopt", Address::Adopt { project: 1 }),
         (b"/projects/65536/adopt", Address::Adopt { project: 65_536 }),
     ] {
@@ -200,6 +204,7 @@ fn each_number_spans_its_types_range() {
 fn the_welcome_prints_and_parses_each_step() {
     for (step, path) in [
         (Step::Welcome, b"/welcome".as_slice()),
+        (Step::WelcomeAsked, b"/welcome?at=welcome"),
         (Step::Forge { forge: None }, b"/welcome?at=forge"),
         (Step::Model { way: None }, b"/welcome?at=model"),
         (Step::Ready, b"/welcome?at=ready"),
@@ -342,15 +347,13 @@ fn a_return_source_is_printed_and_read_only_on_a_sign_in_way() {
 }
 
 #[test]
-fn chats_and_plan_filters_and_new_chat_round_trip() {
-    use crate::{ChatsFilter as Chats, PlanFilter as Plan};
+fn chats_filters_and_new_chat_round_trip() {
+    use crate::ChatsFilter as Chats;
     let cases: &[(Address, &[u8])] = &[
         (Address::Chats { filter: Chats::All }, b"/chats"),
         (Address::Chats { filter: Chats::Live }, b"/chats?state=live"),
         (Address::Chats { filter: Chats::Closed }, b"/chats?state=closed"),
-        (Address::NewChat, b"/chats/new"),
-        (Address::Task { task: 7, filter: Plan::All }, b"/tasks/7"),
-        (Address::Task { task: 7, filter: Plan::Live }, b"/tasks/7?state=live"),
+        (Address::NewChat { draft: false }, b"/chats/new"),
     ];
     for (address, path) in cases {
         assert_eq!(print(address).as_ref(), *path);
@@ -359,16 +362,27 @@ fn chats_and_plan_filters_and_new_chat_round_trip() {
 }
 
 #[test]
-fn chats_and_plan_drop_each_unreadable_field_independently() {
+fn a_tasks_state_query_reads_as_the_plain_address() {
+    let address = Address::Task { task: 9 };
+    for path in [
+        b"/tasks/9?state=live".as_slice(),
+        b"/tasks/9?state=closed&state=live&x=1",
+        b"/tasks/9?state=nope",
+        b"/tasks/9?state=closed",
+    ] {
+        assert_eq!(parse(path), Place::Address(address.clone()), "{path:?}");
+    }
+    assert_eq!(print(&address).as_ref(), b"/tasks/9");
+}
+
+#[test]
+fn chats_drop_each_unreadable_field_independently() {
     for (path, canonical) in [
         (b"/chats?state=nope".as_slice(), b"/chats".as_slice()),
-        (b"/tasks/7?state=nope", b"/tasks/7"),
-        (b"/tasks/7?state=closed", b"/tasks/7"),
         (b"/chats?x=1&state=live", b"/chats?state=live"),
         (b"/chats?x=1&state=nope", b"/chats"),
         (b"/chats?at=nope&state=closed", b"/chats?state=closed"),
         (b"/chats?state=nope&state=live&state=closed&at=nope&x=1", b"/chats?state=live"),
-        (b"/tasks/7?state=closed&state=live&x=1", b"/tasks/7?state=live"),
         (b"/chats?state=Live&at=Start", b"/chats"),
         (b"/chats?state=live=closed&x=1=nope", b"/chats"),
         (b"/chats?state&at&unknown=live", b"/chats"),
@@ -424,10 +438,15 @@ fn other_paths_read_as_before() {
 }
 
 #[test]
+fn a_neighbour_of_repositories_is_missing() {
+    assert_eq!(parse(b"/projects/3/settings/other"), Place::Missing);
+}
+
+#[test]
 fn new_chat_has_its_own_canonical_address() {
     for (path, address, canonical) in [
-        (b"/chats/new".as_slice(), Address::NewChat, b"/chats/new".as_slice()),
-        (b"/chats/new?x=1", Address::NewChat, b"/chats/new"),
+        (b"/chats/new".as_slice(), Address::NewChat { draft: false }, b"/chats/new".as_slice()),
+        (b"/chats/new?x=1", Address::NewChat { draft: false }, b"/chats/new"),
         (b"/chats?at=start", Address::Chats { filter: ChatsFilter::All }, b"/chats"),
         (b"/chats?state=live&at=start", Address::Chats { filter: ChatsFilter::Live }, b"/chats?state=live"),
         (b"/chats/7", Address::Chat { task: 7 }, b"/chats/7"),
@@ -467,4 +486,26 @@ fn goals_drops_unread_state_and_prints_the_canonical_address() {
         let Place::Address(address) = parse(path) else { panic!("goals address") };
         assert_eq!(print(&address).as_ref(), canonical, "{path:?}");
     }
+}
+
+#[test]
+fn the_address_round_trips() {
+    for (address, path) in [
+        (Address::NewChat { draft: false }, b"/chats/new".as_slice()),
+        (Address::NewChat { draft: true }, b"/chats/new?draft=1".as_slice()),
+    ] {
+        assert_eq!(print(&address).as_ref(), path);
+        assert_eq!(parse(path), Place::Address(address));
+    }
+    for query in [b"/chats/new?other=1".as_slice(), b"/chats/new?draft=0"] {
+        assert_eq!(parse(query), Place::Address(Address::NewChat { draft: false }));
+    }
+    assert_eq!(parse(b"/chats/new?x=1&draft=1&y=2"), Place::Address(Address::NewChat { draft: true }));
+}
+
+#[test]
+fn the_filter_round_trips() {
+    let address = Address::Chats { filter: ChatsFilter::Drafts };
+    assert_eq!(print(&address).as_ref(), b"/chats?state=drafts");
+    assert_eq!(parse(&print(&address)), Place::Address(address));
 }

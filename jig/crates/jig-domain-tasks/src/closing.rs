@@ -110,7 +110,7 @@ fn previous_result(phase: &Phase) -> Option<TaskResult> {
 }
 
 /// The same closing phase for a committed cancel and its compound projection (domain/tasks.md, 7).
-pub(crate) fn cancelled(phase: &Phase, by: Party, at: skein_lib::Wall, reason: &[u8]) -> Phase {
+pub(crate) fn cancelled(phase: &Phase, by: Party, at: skein_lib::Wall, reason: &[u8]) -> Closing {
     let partial = previous_result(phase);
     let stage = match phase {
         Phase::Closing(closing) | Phase::Held { was: Was::Closing(closing), .. } => closing.stage,
@@ -127,7 +127,7 @@ pub(crate) fn cancelled(phase: &Phase, by: Party, at: skein_lib::Wall, reason: &
         Stage::Settled => Stage::Delegates,
         Stage::Run { .. } | Stage::Delegates | Stage::Effects | Stage::Releases => stage,
     };
-    Phase::Closing(Closing { stage, ending: Ending::Cancelled { by, at, reason: reason.into(), result: partial } })
+    Closing { stage, ending: Ending::Cancelled { by, at, reason: reason.into(), result: partial } }
 }
 
 pub(crate) fn cancel_tree(
@@ -157,30 +157,18 @@ pub(crate) fn cancel_tree(
                 continue;
             }
             let attempt = crate::run::run_attempt(&old.phase);
-            let phase = cancelled(&old.phase, by, env.wall, reason);
-            let Phase::Closing(Closing { stage, .. }) = &phase else { unreachable!("cancelled phase") };
-            let stage = *stage;
-            task_mut(domain, *number).expect("selected task live").record.phase = phase;
+            let closing = cancelled(&old.phase, by, env.wall, reason);
+            let stage = closing.stage;
+            let ending = closing.ending.clone();
+            task_mut(domain, *number).expect("selected task live").record.phase = Phase::Closing(closing);
             publish(domain, env, *number, out);
             if let Some(attempt) = attempt {
                 out.push(Request::Stop { task: *number, attempt });
             }
             if stage == Stage::Effects {
-                let ending = match &record(domain, *number).expect("selected task live").phase {
-                    Phase::Closing(closing) => closing.ending.clone(),
-                    Phase::Waiting | Phase::Active(_) | Phase::Held { .. } | Phase::Ended(_) => {
-                        unreachable!("cancel installed closing")
-                    }
-                };
-                out.push(Request::Close { task: *number, ending });
+                out.push(Request::Close { task: *number, ending: ending.clone() });
             }
             if stage == Stage::Releases {
-                let ending = match &record(domain, *number).expect("selected task live").phase {
-                    Phase::Closing(closing) => closing.ending.clone(),
-                    Phase::Waiting | Phase::Active(_) | Phase::Held { .. } | Phase::Ended(_) => {
-                        unreachable!("cancel installed closing")
-                    }
-                };
                 out.push(Request::Release { task: *number, ending });
             }
         }
@@ -241,22 +229,19 @@ fn ready_waiter(domain: &mut Domain, env: &Env<Limits>, number: u64, out: &mut Q
     true
 }
 
-fn begin_effects(domain: &mut Domain, env: &Env<Limits>, number: u64, out: &mut Queue<Request>) -> bool {
+fn effects_ready(domain: &Domain, number: u64) -> bool {
     let task = record(domain, number).expect("closing task live");
-    if !task.delegates.is_empty()
-        || task.result_proposal
-        || crate::funders::funded_live(domain, number)
-        || crate::writers::closing_blocked(domain, number)
-    {
-        return false;
-    }
-    let Phase::Closing(closing) = &task.phase else { unreachable!("closing task") };
-    let ending = closing.ending.clone();
+    task.delegates.is_empty()
+        && !task.result_proposal
+        && !crate::funders::funded_live(domain, number)
+        && !crate::writers::closing_blocked(domain, number)
+}
+
+fn begin_effects(domain: &mut Domain, env: &Env<Limits>, number: u64, ending: Ending, out: &mut Queue<Request>) {
     let task = task_mut(domain, number).expect("closing task live");
     task.record.phase = Phase::Closing(Closing { stage: Stage::Effects, ending: ending.clone() });
     publish(domain, env, number, out);
     out.push(Request::Close { task: number, ending });
-    true
 }
 
 pub(crate) fn progress(domain: &mut Domain, env: &Env<Limits>, out: &mut Queue<Request>) {
@@ -275,12 +260,16 @@ pub(crate) fn progress(domain: &mut Domain, env: &Env<Limits>, out: &mut Queue<R
                 }
                 Phase::Closing(closing) => match closing.stage {
                     Stage::Delegates => {
-                        changed |= begin_effects(domain, env, number, out);
+                        let ready = effects_ready(domain, number);
+                        if ready {
+                            begin_effects(domain, env, number, closing.ending.clone(), out);
+                        }
+                        changed |= ready;
                     }
                     Stage::Run { .. } | Stage::Effects | Stage::Releases => {}
                     Stage::Settled => {
                         let requester = task.requester;
-                        end_task(domain, env, number, out);
+                        end_task(domain, env, number, closing.ending.clone(), out);
                         if match requester {
                             Party::Task(_) => true,
                             Party::Person(_) | Party::Deployment { .. } => false,
@@ -309,21 +298,9 @@ pub(crate) fn progress(domain: &mut Domain, env: &Env<Limits>, out: &mut Queue<R
 }
 
 #[expect(clippy::too_many_lines, reason = "one ending releases its funding, references, and waiting dependents")]
-fn end_task(domain: &mut Domain, env: &Env<Limits>, number: u64, out: &mut Queue<Request>) {
+fn end_task(domain: &mut Domain, env: &Env<Limits>, number: u64, ending: Ending, out: &mut Queue<Request>) {
     let task = record(domain, number).expect("settled task live");
-    let ending = match &task.phase {
-        Phase::Closing(closing) => match closing.stage {
-            Stage::Settled => &closing.ending,
-            Stage::Run { .. } | Stage::Delegates | Stage::Effects | Stage::Releases => {
-                unreachable!("ending follows settlement")
-            }
-        },
-        Phase::Waiting | Phase::Active(_) | Phase::Held { .. } | Phase::Ended(_) => {
-            unreachable!("ending follows settlement")
-        }
-    };
     assert!(task.delegates.is_empty(), "all delegates ended before requester");
-    let ending = ending.clone();
     let requester = task.requester;
     let status = status(&ending);
     let endings = task.ended_below.ended(status);

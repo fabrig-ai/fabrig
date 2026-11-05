@@ -25,7 +25,7 @@ pub(in crate::tests) fn details() -> ChipDetails {
         phase_since: Wall::from_nanos(10),
         run_since: Some(Wall::from_nanos(20)),
         attempt: Some(u64::MAX),
-        retry: Some(RetryNotice::Refused { count: u32::MAX }),
+        retry: Some(RetryNotice::Refused { count: u32::MAX, reason: None }),
         wake: WakePolicy {
             words: WakeRule::Never,
             notices: WakeRule::Immediate,
@@ -483,9 +483,9 @@ fn owner_retry_keeps_all_six_classes_and_independent_zero_max_counts_in_chip_and
     ];
     for class in classes {
         for (count, allowance) in [(0, 0), (0, u32::MAX), (u32::MAX, 0), (u32::MAX, u32::MAX)] {
-            let retry = Some(RetryNotice::OwnerFailed { class, count, allowance });
+            let retry = Some(RetryNotice::OwnerFailed { class, count, allowance, reason: None });
             let mut value = details();
-            value.retry = retry;
+            value.retry = retry.clone();
             assert_eq!(value.clone().retry, retry);
             let tree = build(&value, words()).0;
             goldens.check(&tree);
@@ -504,14 +504,14 @@ fn owner_retry_absence_refusal_and_all_supplied_failure_classes_remain_independe
         goldens.check(&tree);
     }
     for count in [0, u32::MAX] {
-        value.retry = Some(RetryNotice::Refused { count });
+        value.retry = Some(RetryNotice::Refused { count, reason: None });
         {
             let tree = build(&value, words()).0;
             goldens.check(&tree);
         }
     }
     for class in [FailureClass::HostLost, FailureClass::Temporary, FailureClass::Permanent, FailureClass::Stall] {
-        value.retry = Some(RetryNotice::Failed { class, count: 7, allowance: 9 });
+        value.retry = Some(RetryNotice::Failed { class, count: 7, allowance: 9, reason: None });
         {
             let tree = build(&value, words()).0;
             goldens.check(&tree);
@@ -549,7 +549,7 @@ fn owner_retry_borrows_selected_checked_six_class_words_and_both_count_holes() {
     let checked = crate::tests::checked_words(Box::new([crate::words::phrases::english::language(), selected]), 1, 0);
     for (class, _, _) in cases {
         let mut value = details();
-        value.retry = Some(RetryNotice::OwnerFailed { class, count: 0, allowance: u32::MAX });
+        value.retry = Some(RetryNotice::OwnerFailed { class, count: 0, allowance: u32::MAX, reason: None });
         {
             let tree = build(&value, &checked).0;
             goldens.check(&tree);
@@ -625,4 +625,56 @@ fn an_effect_or_procedure_hold_card_shows_its_retained_account() {
     value.hold = Some(held);
     let (tree, _, _) = build(&value, words());
     goldens.check(&tree);
+}
+
+#[test]
+fn a_retry_notice_shows_its_preparation_reason_after_the_count() {
+    let mut goldens = Goldens::new("tree/fragments/chip/a_retry_notice_shows");
+    let reason = Some(doc(b"brief: its required sections do not fit its budget", false));
+    for retry in [
+        RetryNotice::OwnerFailed { class: HoldFailure::Permanent, count: 2, allowance: 3, reason: reason.clone() },
+        RetryNotice::Failed { class: FailureClass::Temporary, count: 2, allowance: 3, reason: reason.clone() },
+        RetryNotice::Refused { count: 2, reason },
+    ] {
+        let mut value = details();
+        value.retry = Some(retry.clone());
+        let tree = build(&value, words()).0;
+        assert_retry_reason(&tree);
+        goldens.check(&tree);
+        let mut builder = Builder::new(&crate::tests::kit::limits());
+        words().chat_status(
+            &mut builder,
+            &jig_client::facts::ChatStatus::Retrying { until: Wall::from_nanos(90), notice: Some(retry) },
+            Wall::EPOCH,
+        );
+        assert_retry_reason(&builder.finish());
+    }
+}
+fn assert_retry_reason(tree: &Tree) {
+    let text: Box<[_]> = tree.nodes().iter().flat_map(|node| node.text.iter()).map(|run| run.text.as_ref()).collect();
+    let why = text
+        .iter()
+        .position(|text| *text == b"Why: brief: its required sections do not fit its budget")
+        .expect("supplied preparation reason");
+    assert!(
+        text[..why].iter().any(|text| skein_lib::bytes::find(text, b"count 2").is_some()),
+        "reason follows the count"
+    );
+}
+
+#[test]
+fn a_held_chip_shows_its_preparation_reason() {
+    let mut value = details();
+    let mut held = hold();
+    held.reason = HoldCategory::Failures { class: HoldFailure::Permanent };
+    held.words = Some(doc(b"brief: its required sections do not fit its budget", false));
+    value.hold = Some(held);
+    let tree = build(&value, words()).0;
+    assert!(
+        tree.nodes()
+            .iter()
+            .flat_map(|node| node.text.iter())
+            .any(|run| run.text.as_ref() == b"brief: its required sections do not fit its budget")
+    );
+    Goldens::new("tree/fragments/chip/a_held_chip_shows").check(&tree);
 }

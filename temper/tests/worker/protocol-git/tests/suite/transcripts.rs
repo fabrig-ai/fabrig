@@ -146,3 +146,51 @@ fn mutated_outputs_parse_to_none_never_to_another_value() {
         }
     }
 }
+
+#[test]
+fn origin_transcripts_prove_the_clone_url_and_the_look_terminals() {
+    use temper_worker_protocol_git::{
+        invocation::Command,
+        sequence::{self, Next},
+    };
+    let clone = transcripts::read("clone");
+    let args: Vec<_> = clone.argv.split(|byte| *byte == b'\n').collect();
+    let url = args.iter().position(|arg| *arg == b"--").map(|at| args[at + 1]).expect("clone remote");
+    let origin = transcripts::read("origin-matches");
+    assert_eq!(&*origin.stdout, [url, b"\n"].concat());
+    let at = git::Place { git: None, workspace: skein_lib::Token::new(1), repository: b"specimen".as_slice().into() };
+    let command = Command::Origin { directory: b"workspaces/1/specimen".as_slice().into() };
+    for (case, holds) in [("origin-matches", true), ("origin-no-repository", false), ("origin-no-remote", false)] {
+        let transcript = transcripts::read(case);
+        let op = git::Op::Look { at: at.clone(), remote: url.into() };
+        assert_eq!(
+            sequence::after(
+                &op,
+                &command,
+                transcript.exit,
+                &transcript.stdout,
+                &transcript.stderr,
+                0,
+                &temper_worker_protocol_git_world::fixtures::checkout()
+            ),
+            Next::End(git::Done::Looked { holds }),
+            "{case}"
+        );
+    }
+    let op = git::Op::Look { at, remote: b"https://other.example.test/specimen.git".as_slice().into() };
+    assert_eq!(
+        sequence::after(
+            &op,
+            &command,
+            origin.exit,
+            &origin.stdout,
+            &origin.stderr,
+            0,
+            &temper_worker_protocol_git_world::fixtures::checkout()
+        ),
+        Next::End(git::Done::Looked { holds: false })
+    );
+    let locked = transcripts::read("checkout-index-locked");
+    assert_eq!(locked.exit, 128);
+    assert_eq!(output::classify(&locked.stderr, git::Kind::CheckOut), git::Fault::Broken);
+}

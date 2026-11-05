@@ -79,6 +79,7 @@ pub fn completes(event: &Event) -> bool {
             | forge::Event::BoxRemoved { .. }
             | forge::Event::BoxClosed
             | forge::Event::ConnectAnswered { .. }
+            | forge::Event::AccessAnswered { .. }
             | forge::Event::ReachableAnswered { .. }
             | forge::Event::AcceptAnswered { .. }
             | forge::Event::InstallAnswered { .. }
@@ -89,6 +90,13 @@ pub fn completes(event: &Event) -> bool {
             | forge::Event::FirstFailed { .. }
             | forge::Event::Connection { .. }
             | forge::Event::Fetched { .. }
+            | forge::Event::StatusTask { .. }
+            | forge::Event::StatusRefused { .. }
+            | forge::Event::StatusHeard { .. }
+            | forge::Event::SetAway { .. }
+            | forge::Event::Overturn { .. }
+            | forge::Event::Decided { .. }
+            | forge::Event::Looked { .. }
             | forge::Event::Dismiss { .. }
             | forge::Event::Application { .. }
             | forge::Event::ApplicationAnswered { .. }

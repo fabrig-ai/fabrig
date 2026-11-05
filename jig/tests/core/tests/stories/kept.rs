@@ -240,7 +240,19 @@ fn an_idle_kept_agents_inbox_waits_without_waking_then_delivers_after_met() {
 
 #[test]
 fn a_requester_question_parks_the_run_then_its_answer_resumes_it() {
-    let mut world = plan_world(885);
+    requester_question_parks_and_resumes(885, tasks::TaskResult::Report { words: b"waiting report".as_slice().into() });
+}
+
+#[test]
+fn a_failure_finished_under_its_question_parks_and_the_answer_resumes_it() {
+    requester_question_parks_and_resumes(
+        886,
+        tasks::TaskResult::Failure { reason: b"cannot proceed".as_slice().into() },
+    );
+}
+
+fn requester_question_parks_and_resumes(seed: u64, result: tasks::TaskResult) {
+    let mut world = plan_world(seed);
     let parent = world.assignments[0];
     let child = member(&world, tasks::Executor::Agent { charter: 1 }, b"question report");
     let child = delegate(&mut world, parent, 1, child);
@@ -255,8 +267,19 @@ fn a_requester_question_parks_the_run_then_its_answer_resumes_it() {
         },
     }));
     let question = live_row(&world, child).questions[0].number;
-    finish(&mut world, run, b"waiting report");
+    let assignments = world.assignments.len();
+    world.send(root::Event::Answer {
+        read: None,
+        refused: Box::new([]),
+        channel: Token::new(7),
+        task: run.0,
+        attempt: run.1,
+        cumulative: 0,
+        end: tasks::End::Finished { result, cancel_delegates: false },
+    });
     assert_eq!(live_row(&world, child).phase, tasks::Phase::Active(tasks::Active::Idle));
+    assert_eq!(live_row(&world, child).tries, tasks::Tries::NONE);
+    assert_eq!(world.assignments.len(), assignments);
     world.reads = Some(jig_core_world::reads::Parties::new(world.store.applied));
     jig_core_world::reads::ask(&mut world, 1, core::reads::Read::Activity { task: child, before: None });
     let core::reads::Answer::Page(page) = jig_core_world::reads::latest(&world) else { panic!("activity page") };

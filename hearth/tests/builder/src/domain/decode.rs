@@ -20,8 +20,8 @@ pub(super) fn blob(bytes: &[u8], kind: As) -> Decoded {
 fn decode(bytes: &[u8], kind: As) -> Decoded {
     let env = Env { now: Time::ZERO, wall: Wall::EPOCH, limits: SHIPPED.config };
     let mut machine = json::Decoder::new(&env.limits);
-    let mut above = Queue::with_capacity(1);
-    let mut below = Queue::with_capacity(1);
+    let mut above = Queue::uncapped();
+    let mut below = Queue::uncapped();
     let mut held = Held::new(bytes.into());
     json::down(&mut machine, &env, json::Request::Decode, &mut above, &mut below);
     for _ in 0..bytes.len().saturating_mul(4).saturating_add(16) {

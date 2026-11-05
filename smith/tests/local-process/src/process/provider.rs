@@ -45,14 +45,16 @@ pub(super) fn issuer(port: u16, subject: &[u8], plan: bool, again: bool, revocat
                 }),
             }),
             redirect_uri: b"http://127.0.0.1:0/auth/callback".as_slice().into(),
-            refresh_token: b"refresh-for-work".as_slice().into(),
+            refresh_token: skein_lib::Secret::new(b"refresh-for-work".as_slice().into()),
         },
         limits,
         skein_http::server::Limits { head: 16384, headers: 32, body: 16384, read: 1024, response, send: 1024 },
     )
     .expect("provider issuer");
     let (status, body) = match revocation {
-        Some(confirmed) => (if confirmed { 200 } else { 500 }, fake_oauth::Body::Raw(Box::new([]))),
+        Some(confirmed) => {
+            (if confirmed { 200 } else { 500 }, fake_oauth::Body::Raw(skein_lib::Secret::new(Box::new([]))))
+        }
         None => (
             200,
             fake_oauth::Body::Token(skein_oauth::TokenResponse {
@@ -63,8 +65,8 @@ pub(super) fn issuer(port: u16, subject: &[u8], plan: bool, again: bool, revocat
                 }),
                 id_token: None,
                 earliest_refresh_at: None,
-                access_token: b"access-for-work".as_slice().into(),
-                refresh_token: Some(b"refresh-for-work".as_slice().into()),
+                access_token: skein_lib::Secret::new(b"access-for-work".as_slice().into()),
+                refresh_token: Some(skein_lib::Secret::new(b"refresh-for-work".as_slice().into())),
                 expires_in: 3600,
             }),
         ),
@@ -76,7 +78,7 @@ pub(super) fn issuer(port: u16, subject: &[u8], plan: bool, again: bool, revocat
         issuer
             .queue(fake_oauth::Plan {
                 status: 200,
-                body: fake_oauth::Body::Raw(Box::new([])),
+                body: fake_oauth::Body::Raw(skein_lib::Secret::new(Box::new([]))),
                 delay: Duration::ZERO,
                 retry_after: Duration::ZERO,
             })

@@ -397,6 +397,8 @@ pub enum Now {
     WorkspaceRequest { task: u64, attempt: u64, context: Box<tasks::RunContext> },
     /// Core admission and claim preparation failed; discard root-owned assembly parts.
     RunPreparationFailed { task: u64 },
+    /// A brief failed, for the application's log (`domain/engine.md`, 9.1).
+    BriefFailed { task: u64, failure: brief::GatherFailure },
     /// Core-owned run parts are ready for root assembly with the connector workspace.
     RunPrepared {
         live: crate::LiveAsk,
@@ -604,7 +606,7 @@ pub enum Event {
     /// An application asks for one admitted recurring core procedure.
     StartRecurring { project: u32, authority: tasks::Authority, template: tasks::RecurringTemplate },
     /// The root assembled all selected connector sections, or found a missing owner.
-    BriefAssembled { task: u64, ready: bool },
+    BriefAssembled { task: u64, failure: Option<brief::GatherFailure> },
     /// The root translated the selected connector's workspace writes.
     WorkspacePrepared {
         task: u64,
@@ -1089,8 +1091,8 @@ fn tasks_new_work(event: &tasks::Event) -> bool {
         | tasks::Event::Started { .. }
         | tasks::Event::Activation { .. }
         | tasks::Event::PreparationWaiting { .. }
-        | tasks::Event::PreparationFailed { .. }
-        | tasks::Event::PreparationUnread { .. }
+        | tasks::Event::PreparationPaused { .. }
+        | tasks::Event::PreparationCounted { .. }
         | tasks::Event::EffectsSettled { .. }
         | tasks::Event::Retained { .. }
         | tasks::Event::Settled { .. }
@@ -1316,6 +1318,7 @@ pub(crate) enum Work {
     /// A required preparation read or connector section could not be assembled.
     PreparationFailed {
         task: u64,
+        failure: brief::GatherFailure,
     },
     /// Begin core-owned brief planning for one preparing task.
     StartBrief {

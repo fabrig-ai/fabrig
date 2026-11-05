@@ -94,7 +94,7 @@ fn configure_and_new_chat_start_their_template_and_open_the_chat() {
     for (me, charter, address) in [
         (configuring_me(), CONFIGURING, Address::Configure { project: fixtures::PROJECT }),
         (fixtures::chats::me(), 1, Address::Configure { project: fixtures::PROJECT }),
-        (configuring_me(), 1, Address::NewChat),
+        (configuring_me(), 1, Address::NewChat { draft: false }),
     ] {
         let mut page = Page::new(me, address);
         page.words(b"My workflow");
@@ -120,7 +120,7 @@ fn configure_and_new_chat_start_their_template_and_open_the_chat() {
             },
         });
         let address = Address::Chat { task: fixtures::acts::TASK };
-        let expected = if *page.pages.address() == Address::NewChat {
+        let expected = if let Address::NewChat { .. } = page.pages.address() {
             Request::Replace { address }
         } else {
             Request::Show { address }
@@ -252,6 +252,7 @@ fn starting_a_chat_sends_the_chat_template_filled_once() {
         Some(&me),
         Some(fixtures::PROJECT),
         &crate::pages::choice::Draft::default(),
+        false,
         &mut serial,
         &mut out,
     );
@@ -260,6 +261,7 @@ fn starting_a_chat_sends_the_chat_template_filled_once() {
         Some(&me),
         Some(fixtures::PROJECT),
         &crate::pages::choice::Draft::default(),
+        false,
         &mut serial,
         &mut out,
     );
@@ -342,6 +344,7 @@ fn starting_a_chat_waits_for_the_first_words() {
         Some(&me),
         Some(fixtures::PROJECT),
         &crate::pages::choice::Draft::default(),
+        false,
         &mut serial,
         &mut out,
     );
@@ -382,6 +385,7 @@ fn new_chats_and_cues_keep_the_send_bound_when_receiving_grows() {
                     Some(&me),
                     Some(fixtures::PROJECT),
                     &crate::pages::choice::Draft::default(),
+                    false,
                     &mut serial,
                     &mut out,
                 );
@@ -415,7 +419,7 @@ fn new_chat_and_filter_moves_keep_the_draft_and_the_closed_page() {
         &mut pages,
         &fixtures::env(&limits),
         root.client(),
-        Event::Went { address: crate::Address::NewChat },
+        Event::Went { address: crate::Address::NewChat { draft: false } },
         &mut out,
     );
     while out.pop().is_some() {}
@@ -451,11 +455,11 @@ fn new_chat_and_filter_moves_keep_the_draft_and_the_closed_page() {
     assert!(out.is_empty());
     for (address, filter) in [
         (crate::Address::Chats { filter: Filter::Live }, Filter::Live),
-        (crate::Address::NewChat, Filter::Live),
+        (crate::Address::NewChat { draft: false }, Filter::Live),
         (crate::Address::Chats { filter: Filter::Closed }, Filter::Closed),
-        (crate::Address::NewChat, Filter::Closed),
+        (crate::Address::NewChat { draft: false }, Filter::Closed),
         (crate::Address::Chats { filter: Filter::All }, Filter::All),
-        (crate::Address::NewChat, Filter::All),
+        (crate::Address::NewChat { draft: false }, Filter::All),
     ] {
         pages::step(
             &mut pages,
@@ -472,7 +476,19 @@ fn new_chat_and_filter_moves_keep_the_draft_and_the_closed_page() {
         assert_eq!(&*chats.words, b"draft");
         assert_eq!((chats.live, chats.closed), handles);
         assert_eq!(chats.page.as_ref(), Some(&closed));
-        assert!(out.is_empty(), "a filter move reads nothing again");
+        while let Some(request) = out.pop() {
+            match request {
+                Request::Client(jig_client::Event::Read { handle, read: Readable::Jig(Read::Notes { .. }) }) => {
+                    assert_eq!(handle, chats.notes);
+                }
+                Request::Client(jig_client::Event::Unwatch { handle }) => {
+                    assert!([chats.notes, chats.goals].contains(&handle));
+                }
+                other @ (Request::Client(_) | Request::Show { .. } | Request::Replace { .. }) => {
+                    panic!("the live and closed windows stay: {other:?}")
+                }
+            }
+        }
     }
 }
 
@@ -566,10 +582,15 @@ pub(super) fn chat_line() -> TaskLine {
 }
 
 fn opened_chats() -> (crate::Domain, skein_lib::Token, skein_lib::Token) {
-    open_chat_rows(fixtures::chats::me(), crate::Address::Chats { filter: ChatsFilter::All })
+    let (root, watch, read, _) =
+        open_chat_rows(fixtures::chats::me(), crate::Address::Chats { filter: ChatsFilter::All });
+    (root, watch, read)
 }
 
-fn open_chat_rows(frame: Me, address: crate::Address) -> (crate::Domain, skein_lib::Token, skein_lib::Token) {
+fn open_chat_rows(
+    frame: Me,
+    address: crate::Address,
+) -> (crate::Domain, skein_lib::Token, skein_lib::Token, Option<skein_lib::Token>) {
     use crate::Place;
     let limits = fixtures::limits();
     let env = fixtures::env(&limits);
@@ -589,6 +610,7 @@ fn open_chat_rows(frame: Me, address: crate::Address) -> (crate::Domain, skein_l
     crate::step(&mut root, &env, crate::Event::Went { place: Place::Address(address) }, &mut out);
     let mut watch = None;
     let mut read = None;
+    let mut facts = None;
     while let Some(request) = out.pop() {
         if let crate::Request::Unlinked {
             request:
@@ -606,9 +628,15 @@ fn open_chat_rows(frame: Me, address: crate::Address) -> (crate::Domain, skein_l
         } = request
         {
             read = Some(token);
+        } else if let crate::Request::Unlinked {
+            request: jig_client::UnlinkedRequest::Down { down: jig_client::Down::Open { watch, subject } },
+        } = request
+            && Some(subject) == crate::forge::dismissed::watch(&limits.forge)
+        {
+            facts = Some(watch);
         }
     }
-    (root, watch.expect("live watch"), read.expect("first closed page"))
+    (root, watch.expect("live watch"), read.expect("first closed page"), facts)
 }
 
 #[test]
@@ -713,7 +741,7 @@ fn an_ending_chat_refreshes_the_first_closed_page_and_remains_listed() {
 
 #[test]
 fn a_suggestion_replaces_new_chat_with_its_conversation() {
-    let mut page = Page::new(fixtures::chats::me(), crate::Address::NewChat);
+    let mut page = Page::new(fixtures::chats::me(), crate::Address::NewChat { draft: false });
     page.pages.suggest(&fixtures::env(&fixtures::limits()), page.root.client(), b"My suggestion", &mut page.out);
     let task = page.task();
     assert_eq!(task.spec.words.bytes(), b"My suggestion");
@@ -772,7 +800,7 @@ fn settings_selects_the_newest_open_configuring_chat() {
         (fixtures::chats::me(), core::slice::from_ref(&newer), None),
     ] {
         for from_watch in [true, false] {
-            let (mut root, watch, read) =
+            let (mut root, watch, read, _) =
                 open_chat_rows(me.clone(), crate::Address::Settings { project: fixtures::PROJECT });
             let select = |root: &crate::Domain, project| {
                 root.pages().chats().expect("Settings holds chats").open_configuring(
@@ -813,4 +841,280 @@ fn settings_selects_the_newest_open_configuring_chat() {
             assert_eq!(Chats::new(FIRST).open_configuring(root.client(), Some(&me), fixtures::PROJECT), None);
         }
     }
+}
+
+fn start_answer(page: &mut Page) {
+    let key = page.pages.chats().unwrap().start.unwrap();
+    let mut tasks = List::with_capacity(1);
+    tasks.push(fixtures::acts::TASK).unwrap();
+    page.event(crate::pages::Event::Told {
+        told: Told::Answered {
+            key,
+            outcome: jig_client::Outcome::Answered(jig_client::Answered::Jig(Answer::Done(Outcome::Made {
+                what: Made::Tasks { tasks },
+            }))),
+        },
+    });
+    while page.out.pop().is_some() {}
+    page.event(crate::pages::Event::Went { address: crate::Address::Chat { task: fixtures::acts::TASK } });
+}
+#[test]
+fn the_first_message_carries_the_words() {
+    let mut page = Page::new(fixtures::chats::me(), crate::Address::NewChat { draft: true });
+    page.words(b"A way to work");
+    page.act(crate::pages::Act::StartChat);
+    assert_eq!(page.task().spec.words.bytes(), b"A way to work\n\nWrite this up as a draft beside us.");
+}
+#[test]
+fn the_chat_opens_in_split() {
+    let mut page = Page::new(fixtures::chats::me(), crate::Address::NewChat { draft: true });
+    page.words(b"Draft");
+    page.act(crate::pages::Act::StartChat);
+    start_answer(&mut page);
+    let chat = page.pages.chat().unwrap();
+    assert_eq!(chat.mode, crate::pages::chat::document::Mode::Split);
+    assert!(chat.writing);
+}
+#[test]
+fn a_new_chat_with_no_draft_opens_in_chat() {
+    let mut page = Page::new(fixtures::chats::me(), crate::Address::NewChat { draft: false });
+    page.words(b"Chat");
+    page.act(crate::pages::Act::StartChat);
+    assert_eq!(page.task().spec.words.bytes(), b"Chat");
+    start_answer(&mut page);
+    assert_eq!(page.pages.chat().unwrap().mode, crate::pages::chat::document::Mode::Chat);
+    assert!(!page.pages.chat().unwrap().writing);
+}
+#[test]
+fn moving_to_a_draft_keeps_the_words() {
+    let mut page = Page::new(fixtures::chats::me(), crate::Address::Chats { filter: ChatsFilter::Live });
+    page.words(b"Kept words");
+    page.act(crate::pages::Act::StartChat);
+    let key = page.pages.chats().unwrap().start;
+    let handles = (page.pages.chats().unwrap().live, page.pages.chats().unwrap().closed);
+    for address in [
+        crate::Address::NewChat { draft: false },
+        crate::Address::NewChat { draft: true },
+        crate::Address::Chats { filter: ChatsFilter::All },
+    ] {
+        page.event(crate::pages::Event::Went { address });
+        let chats = page.pages.chats().unwrap();
+        assert_eq!(chats.words.as_ref(), b"Kept words");
+        assert_eq!(chats.start, key);
+        assert_eq!((chats.live, chats.closed), handles);
+    }
+}
+#[test]
+fn a_suggested_request_takes_no_draft() {
+    let mut page = Page::new(fixtures::chats::me(), crate::Address::NewChat { draft: true });
+    page.pages.suggest(&fixtures::env(&fixtures::limits()), page.root.client(), b"Suggestion", &mut page.out);
+    assert_eq!(page.task().spec.words.bytes(), b"Suggestion");
+    start_answer(&mut page);
+    assert_eq!(page.pages.chat().unwrap().mode, crate::pages::chat::document::Mode::Chat);
+    assert!(!page.pages.chat().unwrap().writing);
+}
+#[test]
+fn a_drafts_first_message_stays_within_the_cue_bound() {
+    let bound = usize::try_from(temper_client_protocol_wire::CUE_BYTES).unwrap();
+    let suffix = crate::pages::chat::document::WRITE_THIS_UP.len() + 2;
+    let mut page = Page::new(fixtures::chats::me(), crate::Address::NewChat { draft: true });
+    let mut words = skein_lib::bytes::zeroed(bound);
+    words.fill(b'a');
+    page.words(words.get(..bound - suffix + 1).unwrap());
+    page.act(crate::pages::Act::StartChat);
+    assert!(page.pages.chats().unwrap().start.is_none());
+    assert!(fixtures::acts::sent(&mut page.out).is_empty());
+    page.words(words.get(..bound - suffix).unwrap());
+    page.act(crate::pages::Act::StartChat);
+    assert_eq!(page.task().spec.words.bytes().len(), bound);
+}
+
+#[test]
+fn adding_a_draft_replaces_the_new_chat_address() {
+    let mut page = Page::new(fixtures::chats::me(), crate::Address::NewChat { draft: false });
+    let address = crate::Address::NewChat { draft: true };
+    page.act(crate::pages::Act::Go { address: address.clone() });
+    assert_eq!(page.out.pop(), Some(Request::Replace { address }));
+    assert!(page.out.is_empty());
+}
+
+#[test]
+fn reads_tasks_as_it_opens() {
+    let mut page = Page::new(fixtures::chats::me(), crate::Address::NewChat { draft: false });
+    page.event(crate::pages::Event::Went { address: crate::Address::Chats { filter: ChatsFilter::All } });
+    let notes = page.pages.chats().unwrap().notes;
+    assert_eq!(
+        page.out.pop(),
+        Some(Request::Client(Event::Read {
+            handle: notes,
+            read: Readable::Jig(Read::Notes {
+                scope: NoteScope::Tasks { project: fixtures::PROJECT },
+                description: None,
+                after: None,
+            }),
+        }))
+    );
+    assert!(page.out.is_empty());
+    page.event(crate::pages::Event::Went { address: crate::Address::Chats { filter: ChatsFilter::Drafts } });
+    assert!(page.out.is_empty(), "filtering has no read");
+}
+
+fn list_note(number: u64, task: u64, title: &[u8]) -> Note {
+    let mut note = super::chat::draft_note(number, 1, b"");
+    note.scope = NoteScope::Task { project: fixtures::PROJECT, task };
+    note.description = DocumentText::complete(Text::new(title.into(), 32).unwrap());
+    note
+}
+fn note_page(notes: &[Note], after: Option<Cursor>) -> Told {
+    let Readout::Jig(ReadResult::Value(ReadValue::Notes(mut page))) = super::chat::notes_page(notes) else {
+        panic!("notes page")
+    };
+    page.after = after;
+    Told::Page { handle: Chats::new(FIRST).notes, page: Readout::Jig(ReadResult::Value(ReadValue::Notes(page))) }
+}
+#[test]
+fn pages_follow_to_the_rows_bound() {
+    const ROWS: u32 = 4;
+    let mut chats = Chats::new(FIRST);
+    let root = crate::unlinked(&fixtures::limits(), fixtures::SEED);
+    let mut out = Queue::uncapped();
+    chats.open_documents(fixtures::PROJECT, ROWS, &mut out);
+    out.pop();
+    let cursor = Cursor::new(b"next".as_slice().into(), CURSOR_BYTES).unwrap();
+    let first = note_page(&[list_note(9, 4, b"Later"), list_note(5, 4, b"Earlier")], Some(cursor.clone()));
+    assert!(chats.notes_told(skein_lib::Time::ZERO, root.client(), &first, &mut out));
+    assert_eq!(
+        out.pop(),
+        Some(Request::Client(Event::Read {
+            handle: chats.notes,
+            read: Readable::Jig(Read::Notes {
+                scope: NoteScope::Tasks { project: fixtures::PROJECT },
+                description: None,
+                after: Some(cursor.clone())
+            }),
+        }))
+    );
+    let second = note_page(
+        &[list_note(2, 4, b"Lowest"), list_note(1, 8, b"Another"), list_note(1, 7, b"Past bound")],
+        Some(cursor),
+    );
+    chats.notes_told(skein_lib::Time::ZERO, root.client(), &second, &mut out);
+    assert!(out.is_empty(), "no page past four notes");
+    assert_eq!(chats.documents.get(&4).unwrap().bytes(), b"Lowest");
+    assert_eq!(chats.documents.get(&8).unwrap().bytes(), b"Another");
+    assert!(!chats.documents.contains_key(&7));
+}
+#[test]
+fn document_reads_retry_transient_ends_and_clear_a_refusal() {
+    use skein_lib::{Duration, Time};
+    let mut chats = Chats::new(FIRST);
+    let root = crate::unlinked(&fixtures::limits(), fixtures::SEED);
+    let mut out = Queue::uncapped();
+    chats.open_documents(fixtures::PROJECT, 2, &mut out);
+    let read = out.pop().unwrap();
+    chats.notes_told(
+        Time::ZERO,
+        root.client(),
+        &Told::Page { handle: chats.notes, page: Readout::Jig(ReadResult::None(ReadNone::Busy)) },
+        &mut out,
+    );
+    let due = Time::ZERO.saturating_add(Duration::from_secs(1));
+    assert_eq!(chats.next_deadline(), Some(due));
+    chats.fire(Time::ZERO, &mut out);
+    assert!(out.is_empty());
+    chats.fire(due, &mut out);
+    assert_eq!(out.pop(), Some(read));
+    chats.notes_told(due, root.client(), &note_page(&[list_note(1, 4, b"Draft")], None), &mut out);
+    assert!(chats.documents.contains_key(&4));
+    chats.notes_told(
+        due,
+        root.client(),
+        &Told::Page { handle: chats.notes, page: Readout::Jig(ReadResult::None(ReadNone::Refused)) },
+        &mut out,
+    );
+    assert!(chats.documents.is_empty());
+    assert_eq!(chats.next_deadline(), None);
+    let closed = chats.leave(&mut out);
+    let mut cancelled = false;
+    while let Some(request) = out.pop() {
+        cancelled |= request == Request::Client(Event::Unwatch { handle: chats.notes });
+    }
+    assert!(cancelled);
+    assert!(closed > chats.goals.number);
+}
+
+#[test]
+fn goal_chips_cover_only_the_newest_rows_across_both_lists() {
+    use jig_client::{Down, Up};
+    use skein_lib::Wall;
+    use temper_client_protocol_wire::{self as wire, v1 as w};
+    // Two live and two ended chats compete for the fixture's two-row window.
+    const CHATS: [(u64, u64, bool); 4] = [(10, 4, false), (20, 5, true), (30, 3, true), (40, 4, false)];
+    let limits = fixtures::limits();
+    let (mut root, watch, read, facts) =
+        open_chat_rows(fixtures::chats::me(), crate::Address::Chats { filter: ChatsFilter::All });
+    let mut live = List::with_capacity(2);
+    let mut closed = List::with_capacity(2);
+    let mut dismissed = List::with_capacity(4);
+    for (chat, at, ended) in CHATS {
+        let mut row = chat_line();
+        row.chip.task = chat;
+        row.last_activity = Wall::from_nanos(if ended { 99 } else { at });
+        row.ended_at = ended.then_some(Wall::from_nanos(at));
+        if ended {
+            closed.push(row).unwrap();
+        } else {
+            live.push(row).unwrap();
+        }
+        dismissed
+            .push(w::PersonFact::GoalFrom(
+                w::GoalFrom::new(
+                    &w::CEILINGS,
+                    w::GoalFromParts { project: fixtures::PROJECT, chat, goal: chat + 100, at: 1 },
+                )
+                .unwrap(),
+            ))
+            .unwrap();
+    }
+    let mut out = Queue::uncapped();
+    for up in [
+        Up::ReadDone {
+            read,
+            result: Readout::Jig(ReadResult::Value(ReadValue::Tasks(Box::new(TaskPage {
+                live: List::with_capacity(0),
+                live_after: None,
+                ended: EndedGroup::Rows { rows: closed, after: None, cut: false },
+            })))),
+        },
+        Up::Watched {
+            watch,
+            event: WatchEvent::Delivered(Delivery::Tasks(Box::new(Tasks { rows: live, more: false }))),
+        },
+        Up::FamilyDelivered {
+            watch: facts.expect("person facts watch"),
+            record: jig_client::Family {
+                family: wire::FORGE,
+                version: wire::CLIENT_VERSION,
+                bytes: wire::dismissals(&w::Dismissals::new(&w::CEILINGS, w::DismissalsParts { dismissed }).unwrap()),
+            },
+        },
+    ] {
+        crate::step(&mut root, &fixtures::env(&limits), crate::Event::Client { event: Event::Up { up } }, &mut out);
+    }
+    let mut watched = None;
+    let mut count = 0_u32;
+    while let Some(request) = out.pop() {
+        if let crate::Request::Unlinked {
+            request:
+                jig_client::UnlinkedRequest::Down {
+                    down: Down::Open { subject: Watchable::Jig(Subject::Chips { tasks }), .. },
+                },
+        } = request
+        {
+            count += 1;
+            watched = Some(tasks);
+        }
+    }
+    assert_eq!(count, 1, "one chips watch for both lists");
+    assert_eq!(watched.unwrap().as_slice(), [120, 110], "newest chat, then lower-numbered tie");
 }

@@ -1,12 +1,16 @@
 mod needs;
 use crate::ChatsFilter;
 mod accounts;
+mod builders;
 mod changes;
 mod chat;
+mod chat_document;
+mod chat_sheet;
 mod chats;
 mod choice;
 mod connect_model;
 mod delegation;
+mod goal;
 mod goals;
 mod home;
 mod inbox;
@@ -14,6 +18,7 @@ mod paste;
 mod project_pages;
 mod ready_adoption;
 mod report;
+mod start_goal;
 mod switcher;
 mod task;
 mod welcome;
@@ -150,15 +155,13 @@ fn leaving_a_page_unwatches_its_handles_and_drops_their_tells() {
 }
 
 #[test]
-fn arriving_at_chats_or_a_task_sets_its_address_filter() {
-    use crate::PlanFilter;
+fn arriving_at_chats_sets_its_address_filter() {
     let limits = fixtures::limits();
     let root = crate::unlinked(&limits, fixtures::SEED);
     for address in [
-        Address::NewChat,
+        Address::NewChat { draft: false },
         Address::Chats { filter: ChatsFilter::Live },
         Address::Chats { filter: ChatsFilter::Closed },
-        Address::Task { task: 7, filter: PlanFilter::Live },
     ] {
         let mut pages = Pages::new();
         pages::step(
@@ -172,9 +175,6 @@ fn arriving_at_chats_or_a_task_sets_its_address_filter() {
         if let Address::Chats { filter, .. } = address {
             assert_eq!(pages.chats().unwrap().filter, filter);
         }
-        if let Address::Task { filter, .. } = address {
-            assert_eq!(pages.task().unwrap().filter, filter);
-        }
     }
 }
 
@@ -186,7 +186,7 @@ fn an_ended_task_opened_before_me_retries_a_busy_document_read() {
     let limits = fixtures::limits();
     let mut root = crate::unlinked(&limits, fixtures::SEED);
     let me = fixtures::start(&mut root, List::with_capacity(0));
-    let address = Address::Task { task: TASK, filter: crate::PlanFilter::All };
+    let address = Address::Task { task: TASK };
     let mut out = Queue::uncapped();
     crate::step(
         &mut root,
@@ -276,9 +276,7 @@ fn ended_task_read() -> (crate::Domain, skein_lib::Token) {
     crate::step(
         &mut root,
         &fixtures::env(&limits),
-        crate::Event::Went {
-            place: crate::Place::Address(Address::Task { task: DOCUMENT_TASK, filter: crate::PlanFilter::All }),
-        },
+        crate::Event::Went { place: crate::Place::Address(Address::Task { task: DOCUMENT_TASK }) },
         &mut out,
     );
     let mut watch = None;

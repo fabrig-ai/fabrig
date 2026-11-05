@@ -66,6 +66,28 @@ pub fn kinds(limits: &Limits, connector: u16) -> Box<[Kind]> {
             per_scope: 2,
             charters: 1,
         },
+        Kind {
+            number: 6,
+            scope: KindScope::Project,
+            connector,
+            value_bytes: size(&settings::Value::Questions(temper_engine_domain_forge_change::Route::None)),
+            per_scope: 1,
+            charters: 0,
+        },
+        Kind {
+            number: 7,
+            scope: KindScope::Project,
+            connector,
+            value_bytes: size(&settings::Value::Ways(settings::ProjectWays {
+                drafts: false,
+                goals: false,
+                changes: false,
+                away: false,
+                way: 0,
+            })),
+            per_scope: 1,
+            charters: 0,
+        },
     ])
 }
 

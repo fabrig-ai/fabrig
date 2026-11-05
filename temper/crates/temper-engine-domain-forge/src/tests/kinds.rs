@@ -629,3 +629,96 @@ fn forgetting_erases_replaced_rows_of_older_revisions_only() {
     assert_eq!(d.setting(2, 1, 1), Some(&rule(true)));
     assert_eq!(d.proposal_settings(2).len(), 3);
 }
+
+fn project_values() -> [(u32, SizedValue); 2] {
+    [
+        (6, SizedValue { value: Value::Questions(temper_engine_domain_forge_change::Route::Foreman), size: 1 }),
+        (
+            7,
+            SizedValue {
+                value: Value::Ways(crate::settings::ProjectWays {
+                    drafts: true,
+                    goals: false,
+                    changes: true,
+                    away: false,
+                    way: 0,
+                }),
+                size: 8,
+            },
+        ),
+    ]
+}
+
+#[test]
+fn a_deleted_project_loses_its_questions_and_ways() {
+    let mut d = stocked();
+    for (kind, value) in project_values() {
+        let project = item(kind, 1, 1, Edit::Set(value.clone()));
+        for slot in [SettingSlot::Default, SettingSlot::Change, SettingSlot::Proposal(7), SettingSlot::Replaced(3)] {
+            restore(&mut d, &project, slot);
+        }
+        restore(&mut d, &item(kind, 2, 1, Edit::Set(value)), SettingSlot::Change);
+    }
+    outputs(&mut d, Event::Restored { clock: skein_forge_client::RecoveryClock::Monotonic });
+    let sent = outputs(&mut d, Event::ReleaseProject { project: 1, request: Token::new(9) });
+    for (kind, value) in project_values() {
+        for slot in [SettingSlot::Default, SettingSlot::Change, SettingSlot::Proposal(7), SettingSlot::Replaced(3)] {
+            let key = SettingKey { kind, scope: 1, number: 1, slot };
+            assert!(!d.setting_rows.contains_key(&key));
+            assert!(sent.contains(&Request::Erase { key: Key::Setting(key) }));
+        }
+        assert_eq!(d.setting(kind, 1, 1), None);
+        assert_eq!(d.setting(kind, 2, 1), Some(&value));
+    }
+    assert_eq!(sent.len(), 9);
+    assert_eq!(d.charters(), ForgeCharters { change: 2, review: 4 });
+}
+
+#[test]
+fn project_questions_reads_none_until_set_then_the_route() {
+    use temper_engine_domain_forge_change::Route;
+    let mut d = stocked();
+    assert_eq!(d.project_questions(1), Route::None);
+    assert_eq!(d.setting(6, 1, 1), None);
+    assert_eq!(d.setting(7, 1, 1), None);
+    let mut out = Queue::uncapped();
+    for route in [Route::None, Route::Foreman, Route::Up] {
+        let value = SizedValue { value: Value::Questions(route), size: 1 };
+        let asked = item(6, 1, 1, Edit::Set(value));
+        d.keep_settings(&env(), 2, None, from_ref(&asked), &mut out);
+        assert_eq!(d.project_questions(1), route);
+        assert_eq!(d.project_questions(2), Route::None);
+        assert_eq!(d.judge_settings(&BOUNDS, from_ref(&asked)).as_ref(), &[Judged::Same]);
+    }
+    for edit in [Edit::Remove, Edit::Reset] {
+        d.keep_settings(&env(), 3, None, &[item(6, 1, 1, edit.clone())], &mut out);
+        assert_eq!(d.project_questions(1), Route::None);
+        assert_eq!(d.judge_settings(&BOUNDS, &[item(6, 1, 1, edit)]).as_ref(), &[Judged::Same]);
+    }
+}
+
+#[test]
+fn project_values_keep_replace_restore_and_propose_as_rules_do() {
+    let mut d = stocked();
+    let mut out = Queue::uncapped();
+    for (kind, value) in project_values() {
+        let asked = item(kind, 1, 1, Edit::Set(value.clone()));
+        d.keep_settings(&env(), 2, None, from_ref(&asked), &mut out);
+        assert_eq!(d.judge_settings(&BOUNDS, from_ref(&asked)).as_ref(), &[Judged::Same]);
+        d.keep_settings(&env(), 3, None, &[item(kind, 1, 1, Edit::Remove)], &mut out);
+        assert_eq!(d.setting_rows.get(&key(&asked, SettingSlot::Replaced(3))), Some(&asked.edit));
+        assert_eq!(
+            d.restore_settings(
+                &BOUNDS,
+                7,
+                &[Restored { kind, scope: 1, number: 1, edit: RestoredEdit::Set { revision: 3 } }],
+                &mut out
+            )
+            .as_ref(),
+            &[Judged::Accept { size: value.size, charter: None }]
+        );
+        d.keep_settings(&env(), 4, Some(7), from_ref(&asked), &mut out);
+        assert_eq!(d.setting(kind, 1, 1), Some(&value));
+        assert!(d.proposal_settings(7).is_empty());
+    }
+}

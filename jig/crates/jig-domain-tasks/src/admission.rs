@@ -38,21 +38,25 @@ fn post(
     publish(domain, environment, number, out);
 }
 
-#[expect(clippy::too_many_arguments, reason = "one complete admission event")]
+pub(crate) struct Turned {
+    pub(crate) number: u64,
+    pub(crate) attempt: u64,
+    pub(crate) turn: u32,
+    pub(crate) read: Option<u64>,
+    pub(crate) refusals: Box<[u64]>,
+    pub(crate) offered: Option<u64>,
+    pub(crate) outstanding: Box<[u64]>,
+    pub(crate) cumulative: u64,
+}
+
 pub(crate) fn turn(
     domain: &mut Domain,
     environment: &Env<Limits>,
     to: ReplyTo,
-    number: u64,
-    attempt: u64,
-    turn: u32,
-    read: Option<u64>,
-    refusals: &[u64],
-    offered: Option<u64>,
-    outstanding: &[u64],
-    cumulative: u64,
+    turned: Turned,
     out: &mut Queue<Request>,
 ) {
+    let Turned { number, attempt, turn, read, refusals, offered, outstanding, cumulative } = turned;
     if !domain.ready() {
         return refused(to, Some(number), Refusal::NotReady, out);
     }
@@ -76,8 +80,8 @@ pub(crate) fn turn(
     };
     if beyond_offer
         || outstanding.len() > skein_lib::length::usize_of(environment.limits.run_inbox)
-        || !crate::inbox::readable(domain, number, read, outstanding)
-        || !crate::inbox::valid_refusals(domain, number, offered, refusals)
+        || !crate::inbox::readable(domain, number, read, &outstanding)
+        || !crate::inbox::valid_refusals(domain, number, offered, &refusals)
     {
         return refused(to, Some(number), Refusal::Read, out);
     }
@@ -88,7 +92,7 @@ pub(crate) fn turn(
     if old.last_reply == u64::MAX {
         return refused(to, Some(number), Refusal::Turn, out);
     }
-    crate::inbox::keep_refusals(domain, number, refusals);
+    crate::inbox::keep_refusals(domain, number, &refusals);
     let task = &mut task_mut(domain, number).expect("turn admitted").record;
     task.last_activity = environment.wall;
     task.turn = turn;
@@ -146,19 +150,16 @@ pub(crate) fn answer_refusals(
     publish(domain, env, number, out);
 }
 
-#[expect(clippy::too_many_arguments, reason = "one complete admission event")]
 #[expect(clippy::too_many_lines, reason = "one charged result preflights and settles its follow-ups atomically")]
 pub(crate) fn activation(
     domain: &mut Domain,
     environment: &Env<Limits>,
     to: ReplyTo,
-    number: u64,
-    attempt: u64,
-    end: End,
-    saved: Option<Box<[crate::SavedResource]>>,
+    ended: crate::run::Ended,
     cumulative: u64,
     out: &mut Queue<Request>,
 ) {
+    let crate::run::Ended { number, attempt, end, saved } = ended;
     if !domain.ready() {
         return refused(to, Some(number), Refusal::NotReady, out);
     }
@@ -192,7 +193,7 @@ pub(crate) fn activation(
         End::Exceeded(_) | End::Parked | End::Failed(_) | End::Refused | End::Recheck => true,
     };
     let kept = crate::run::ends::kept(domain, number);
-    let parked = kept.discards(&end) || valid && kept.parks(&end);
+    let parked = kept.discards(&end) || valid && kept.run_parks(&end);
     let admitted_end = if parked { End::Parked } else { end.clone() };
     match &admitted_end {
         End::Finished { result, cancel_delegates } => {
@@ -259,7 +260,13 @@ pub(crate) fn activation(
         End::Finished { .. } | End::Exceeded(_) | End::Parked | End::Failed(_) | End::Refused | End::Recheck => false,
     };
     post(domain, environment, number, cumulative, spent, out);
-    crate::run::activation(domain, environment, to, number, attempt, end.clone(), saved, out);
+    crate::run::activation(
+        domain,
+        environment,
+        to,
+        crate::run::Ended { number, attempt, end: end.clone(), saved },
+        out,
+    );
     match (&end, result_admitted) {
         (End::FinishedWithFollowups { followups: ResultFollowups::Delegates(batch), .. }, true) => {
             crate::domain::remember_result_followups(domain, &environment.limits, number, batch);

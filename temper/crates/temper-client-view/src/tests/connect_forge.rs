@@ -16,6 +16,7 @@ pub(super) fn row(
     w::ForgeRow::new(
         &w::CEILINGS,
         w::ForgeRowParts {
+            starts_with: w::StartsWith::Repository,
             makings: List::with_capacity(0),
             host: b"git.example:3000".as_slice().into(),
             number,
@@ -388,15 +389,16 @@ fn ready_names_the_forge_and_offers_adopt_a_repository() {
 
 #[test]
 fn a_forge_under_way_offers_start_over_in_the_welcome() {
-    let mut rows = List::with_capacity(1);
-    rows.push(row(HERE, w::Kind::Forgejo, w::Mode::Owned, w::Connection::Connecting, w::Offer::Offered)).unwrap();
-    let root = f::forge_root(Address::Welcome { step: Step::Forge { forge: None } }, rows);
+    let root = unfinished_root(Address::Welcome { step: Step::Forge { forge: None } });
     let view = f::page_view(&root);
     words_in_order(view.tree(), &["FORGE · not finished", "Start over"]);
     assert!(f::find(view.tree(), Role::Button, b"Go on").is_none());
     assert_eq!(
         press(&root, Role::Button, b"Start over"),
-        d::Action::Forge(d::forge::Act::Forges(d::forge::forges::Act::StartOver { forge: HERE }))
+        d::Action::Forge(d::forge::Act::Forges(d::forge::forges::Act::StartOver {
+            forge: HERE,
+            end: d::forge::forges::StartOverEnd::Welcome
+        }))
     );
 }
 
@@ -426,8 +428,8 @@ fn the_welcomes_ready_names_the_forge_and_the_model() {
     node(view.tree(), Role::Paragraph, "Forge Forgejo on this machine · connected as temper".as_bytes());
     let steps = view.tree().nodes().iter().filter(|n| n.styles.as_slice().contains(&crate::look::FLOW_STEP));
     for step in steps {
-        assert!(step.styles.as_slice().contains(&crate::look::FLOW_DONE));
-        assert!(!step.states.as_slice().contains(&State::Current));
+        let current = step.states.as_slice().contains(&State::Current);
+        assert_eq!(step.styles.as_slice().contains(&crate::look::FLOW_DONE), !current);
     }
     // The account by its kind and who it is; the model is chosen elsewhere
     // (choice's tests name each kind).
@@ -438,7 +440,7 @@ fn the_welcomes_ready_names_the_forge_and_the_model() {
 fn ready_without_a_forge_or_model_offers_the_two_steps() {
     let root = f::welcome_root(Step::Ready, false);
     let view = f::page_view(&root);
-    node(view.tree(), Role::Paragraph, b"Forge none yet");
+    node(view.tree(), Role::Slot, b"Forge none yet");
     node(view.tree(), Role::Slot, b"Model none yet");
     node(view.tree(), Role::Link, b"Connect a forge");
     node(view.tree(), Role::Link, b"Connect a model");
@@ -574,6 +576,7 @@ pub(super) fn first_rows(connection: w::Connection, state: w::FirstState) -> Lis
         w::ForgeRow::new(
             &w::CEILINGS,
             w::ForgeRowParts {
+                starts_with: w::StartsWith::Repository,
                 makings: List::with_capacity(0),
                 host: b"git.example:3000".as_slice().into(),
                 number: HERE,
@@ -727,7 +730,8 @@ fn setting_up_uses_the_sent_fields_until_the_row_carries_them() {
     let mut root = here(w::Connection::NotSetUp);
     act(&mut root, d::forge::Act::SetUp { forge: HERE });
     // The flow keeps the submitted fields even when it is showing Details.
-    assert_eq!(root.forge().set_up().unwrap().org.as_ref(), b"work");
+    let w::SetUpFirst::Empty(first) = &root.forge().set_up().unwrap().first else { panic!("empty setup") };
+    assert_eq!(first.org(), b"work");
     let (mut root, watch) = f::forge_root_watch(
         Address::ConnectForge { forge: Some(Choice::Forge(HERE)) },
         rows(w::Connection::NotSetUp, w::Offer::Offered),
@@ -1973,4 +1977,55 @@ fn bot_tokens_connected_refusal_is_under_the_button_and_clears_the_fields() {
         &["Connect with its tokens", "Forge 3 is connected already: replace its tokens on Forges."],
     );
     assert!(!root.forge().tokens_form().has(d::forge::tokens::Field::Api));
+}
+
+fn unfinished_root(address: Address) -> d::Domain {
+    let mut rows = List::with_capacity(1);
+    rows.push(row(HERE, w::Kind::Forgejo, w::Mode::Owned, w::Connection::Connecting, w::Offer::Offered)).unwrap();
+    f::forge_root(address, rows)
+}
+
+#[test]
+fn start_over_names_where_it_ends() {
+    for (address, end) in [
+        (Address::ConnectForge { forge: None }, d::forge::forges::StartOverEnd::Forges),
+        (Address::Welcome { step: Step::Forge { forge: None } }, d::forge::forges::StartOverEnd::Welcome),
+    ] {
+        let root = unfinished_root(address);
+        for mut view in [f::page_view(&root), f::browser_page_view(&root)] {
+            let start = node(view.tree(), Role::Button, b"Start over");
+            assert_eq!(
+                crate::act(&mut view, start, Act::Press),
+                Some(d::Action::Forge(d::forge::Act::Forges(d::forge::forges::Act::StartOver { forge: HERE, end })))
+            );
+        }
+    }
+}
+
+#[test]
+fn deferred_setups_have_four_steps_and_finish_at_connected() {
+    let mut copies = List::with_capacity(1);
+    copies.push(Box::from(b"https://source.example/owner/repo".as_slice())).unwrap();
+    let copies = w::CopyAddresses::new(&w::CEILINGS, w::CopyAddressesParts { addresses: copies }).unwrap();
+    for starts_with in [w::StartsWith::Nothing, w::StartsWith::Copies(copies)] {
+        for (connection, done) in [(w::Connection::Connecting, 3), (connected(), 4)] {
+            let mut parts = row(HERE, w::Kind::Forgejo, w::Mode::Owned, connection, w::Offer::Offered).into_parts();
+            parts.starts_with = starts_with.clone();
+            let mut rows = List::with_capacity(1);
+            rows.push(w::ForgeRow::new(&w::CEILINGS, parts).unwrap()).unwrap();
+            let root = f::forge_root(Address::ConnectForge { forge: Some(Choice::Forge(HERE)) }, rows);
+            for view in [f::page_view(&root), f::browser_page_view(&root)] {
+                let tree = view.tree();
+                let list = node(tree, Role::List, b"Each step");
+                let start = tree.nodes().iter().position(|n| n.id == list).unwrap();
+                let size = usize::try_from(tree.nodes()[start].size).unwrap();
+                let items: Vec<_> = tree.nodes()[start..][..size].iter().filter(|n| n.role == Role::Item).collect();
+                assert_eq!(items.len(), 4);
+                assert_eq!(
+                    items.iter().filter(|n| n.styles.as_slice().contains(&crate::look::FLOW_DONE)).count(),
+                    done
+                );
+            }
+        }
+    }
 }

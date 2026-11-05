@@ -42,10 +42,16 @@ pub fn pages(marks: &[Mark]) -> Vec<Printed> {
             let end = value + html[value..].find('"').expect("a node attribute has a closing quote") + 1;
             html.replace_range(start..end, "");
         }
-        let heading = if mark.html.contains("temper-main temper-home") { b"Home".as_slice() } else { &mark.heading };
+        let heading = if mark.html.contains("temper-main temper-home") {
+            b"Home".as_slice()
+        } else if mark.html.contains("temper-main temper-welcome") {
+            "Welcome · first run".as_bytes()
+        } else {
+            &mark.heading
+        };
         let title = escape(&skein_ui_web::title::text(heading, b"temper"));
         let mut document = format!(
-            "<!doctype html>\n<html lang=\"en\"><head><meta charset=\"utf-8\"><meta name=\"viewport\" content=\"width=device-width, initial-scale=1\"><title>{title}</title>"
+            "<!doctype html>\n<html lang=\"en\"><head><meta charset=\"utf-8\"><meta name=\"viewport\" content=\"width=device-width, initial-scale=1, viewport-fit=cover\"><title>{title}</title>"
         );
         for stylesheet in [
             "../skein-ui.css",
@@ -107,6 +113,23 @@ mod home_tests {
             };
             let printed = super::pages(&[mark]);
             assert!(printed[0].document.contains("<title\n>Home · temper</title"));
+        }
+    }
+}
+
+#[cfg(test)]
+mod welcome_tests {
+    #[test]
+    fn welcome_title_keeps_first_run_on_every_step() {
+        for heading in ["Welcome to temper", "Connect a forge", "Connect a model", "Ready", "Almost ready", ""] {
+            let mark = super::Mark {
+                html: "<div><main class=\"temper-main temper-welcome\"><h1>Heading</h1></main></div>".to_owned(),
+                heading: heading.as_bytes().to_vec(),
+                acted: Vec::new(),
+                lead: super::Lead::Press,
+            };
+            let printed = super::pages(&[mark]);
+            assert!(printed[0].document.contains("<title\n>Welcome · first run · temper</title"));
         }
     }
 }

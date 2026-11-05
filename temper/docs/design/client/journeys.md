@@ -512,8 +512,15 @@ over skein's harness.
 |---|---|---|
 | `welcome-set-up` | on a fresh `temper box --fake-backends` (3.5): the printed sign-in link opened, the welcome drawn, "Set up temper" pressed, then Forgejo's "Run on this machine" pressed on the Forge step, which opens Forgejo's sheet, then the sheet's "Run on this machine", an empty repository chosen, which makes the forge and sets it up (`README.md`, 3.5) | `01.html` and `02.html`, the welcome, the second as it was when "Set up temper" was pressed, which leads to `03.html` and `04.html`, the Forge step's choices, the second as it was when "Run on this machine" was pressed, which leads to `05.html` and `06.html`, Forgejo's sheet, the second as it was when its "Run on this machine" was pressed, which leads to `07.html` and `08.html`, the Model step, the set up running on, the second as it was when the recording ended; its `README.md` says so |
 | `welcome-playground` | on a fresh `temper box --fake-backends` (3.5): the printed sign-in link opened, the welcome drawn, "Try the playground" pressed | `01.html`, the welcome as it was when "Try the playground" was pressed, which leads to `02.html`, `NewChat` in the Demo project, the playground started, its banner's one line above its main, as it was when the recording ended; its `README.md` says so |
-| `project-landing` | on a fresh `temper box --fake-backends` (3.5): Forgejo run on this machine with an empty `work/hello`, the ChatGPT plan signed in, Ready's offered "Hello" created and its repository adopted; once Home says "work/hello is in Hello", `/projects/1` reloaded, where the recording starts | `01.html`, the project's Home as it was when the recording ended, which holds no act; its `README.md` says so |
-| `chat-draft` | on a fresh `temper box --fake-backends` (3.5): a chat started, "+ Draft" pressed, two turns of the fake model writing and changing its document (`../domain/testing.md`, 2.4), Split, Draft, then "Start goal…" and its goal's page | a chat in Chat, Split and Draft, the sheet, and the goal's page (`../domain/agent.md`, 8.3; `README.md`, 3.5) |
+| `project-landing` | on a fresh `temper box --fake-backends` (3.5): Forgejo run on this machine with an empty `work/hello`, the ChatGPT plan signed in, Ready's offered "Hello" created and its repository adopted; once Home says "work/hello is in Hello", `/projects/1` reloaded, where the recording starts, and the settled Home saved | `01.html`, Home in Hello with the ChatGPT plan, Forgejo, "work/hello is in Hello" and To begin's two steps left; the recording holds no act; its `README.md` says so |
+| `chat-draft` | on a fresh `temper box --fake-backends` (3.5): "Chats can write drafts" enabled in Settings, a chat started, "+ Draft" pressed, two turns of the fake model writing and changing its document (`../domain/testing.md`, 2.4), Split, Draft, then "Start goal…" and its goal's page, then its Draft link back to the chat | a chat in Chat, Split and Draft, the sheet, the goal's page and the return to the chat (`../domain/agent.md`, 8.3; `README.md`, 3.5) |
+
+The `configure-chat-draft` request's hand-made `configure-chat/02.html`
+through `04.html` and its README are not journeys to reprint or land
+(section 7). Its document pane and modes are shared with `chat-draft`;
+the configuring proposal states, Start over and the rail strip are also
+drawn by the gallery (`browser.md`, 7.2). Its drawing and figure wait on
+`skein/docs/design/draft/diagrams.md`.
 
 ## 10. Open questions
 
@@ -522,9 +529,10 @@ over skein's harness.
   walk of typing. The user's word.
 - **The gallery's states,** set from hand-written worlds: whether each
   moves to a journey once the fake box reaches it, its answers then the
-  engine's own (`browser.md`, section 7). Model's forge done and failed
-  and Ready wait on a fake box whose Forgejo set up finishes, so that
-  fewer states are hand-made (`../draft/look-requests.md`, 8). The two
+  engine's own (`browser.md`, section 7). Ready and Model's forge done
+  can, `project-landing`'s walk reaching a fake box's Forgejo connected, so
+  that fewer states are hand-made (`../draft/look-requests.md`, 8); Model's
+  forge failed waits on a fake box whose set up can fail. The two
   fetching states wait on a still page at the fetch: `welcome-set-up`'s
   recording holds the fetch's rows, but they keep the page moving, so
   its pages 07 and 08 fall at preparing (8.1;

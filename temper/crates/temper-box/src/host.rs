@@ -161,6 +161,7 @@ pub struct Service {
     bound_names: Box<[Option<u16>]>,
     records: Records,
     logs: Logs,
+    started_notices: Queue<(usize, Wall)>,
     record_wall: Wall,
     control: Option<Control>,
     closing_control: [Option<Token>; 2],
@@ -199,6 +200,9 @@ impl Service {
                 && asked.kind.is_some()
             {
                 placed.step = layout::bound(&placed.step, u16::MAX);
+                if let Some(label) = &mut placed.label {
+                    *label = layout::bound_label(label, u16::MAX);
+                }
             }
         }
         let machine = Machine::new(limits, &steps)?;
@@ -249,6 +253,7 @@ impl Service {
             steps,
             records,
             logs,
+            started_notices: Queue::uncapped(),
             record_wall: Wall::EPOCH,
             control: None,
             closing_control: [None, None],
@@ -333,6 +338,7 @@ impl Service {
             }
             Some(Order::Terminal { fact }) => {
                 self.failure.is_none()
+                    && !self.bindings_pending()
                     && self.deferred.is_empty()
                     && (self.tail_candidate(*fact).is_some() || self.terminal.takes(1) || self.terminal.failed())
             }
@@ -578,7 +584,32 @@ impl Service {
             }
         }
     }
+    fn started_notice(&self, fact: Fact) -> Option<usize> {
+        let forge = match fact {
+            Fact::GroupStarted { forge } => forge,
+            Fact::Starting { .. }
+            | Fact::GroupStarting { .. }
+            | Fact::GroupFailed { .. }
+            | Fact::GroupStopped { .. }
+            | Fact::Restarting { .. }
+            | Fact::GivingUp { .. }
+            | Fact::Stopping
+            | Fact::Stopped => return None,
+        };
+        for (step, placed) in self.steps.iter().enumerate() {
+            if let Some(asked) = placed.asked
+                && asked.forge == forge
+                && !placed.step.started_notice().is_empty()
+            {
+                return Some(step);
+            }
+        }
+        None
+    }
     fn terminal_fact(&mut self, fact: Fact, wall: Wall) {
+        if let Some(step) = self.started_notice(fact) {
+            self.started_notices.push((step, wall));
+        }
         if let Fact::Starting { step } = fact
             && self.steps.get(step).expect("step fact").asked.is_some()
         {
@@ -817,7 +848,7 @@ impl Service {
         false
     }
     fn sync_bindings(&mut self) {
-        if !self.bindings_pending() || !self.logs.settled() {
+        if !self.bindings_pending() || !self.logs.settled() || !self.started_notices.is_empty() {
             return;
         }
         for step in 0..self.steps.len() {
@@ -826,6 +857,9 @@ impl Service {
             {
                 let placed = self.steps.get_mut(step).expect("binding step");
                 placed.step = layout::bound(&self.templates.get(step).expect("template step").step, forge);
+                if let Some(label) = &self.templates.get(step).expect("template step").label {
+                    placed.label = Some(layout::bound_label(label, forge));
+                }
                 if let Some(asked) = &mut placed.asked {
                     asked.forge = forge;
                 }
@@ -1016,6 +1050,16 @@ impl Service {
                 }
             }
         }
+        if self.logs.takes()
+            && let Some((step, wall)) = self.started_notices.pop()
+        {
+            self.logs.put(Piece {
+                step,
+                bytes: skein_lib::bytes::copy_of(self.steps.get(step).expect("notice step").step.started_notice()),
+                wall,
+                log_only: true,
+            });
+        }
         self.logs.tick(self.settings.root, &mut self.submissions);
     }
     fn logs_step(&self) -> usize {
@@ -1126,6 +1170,7 @@ impl Service {
             || !self.orders.is_empty()
             || self.failure.is_some()
             || !self.deferred.is_empty()
+            || !self.started_notices.is_empty()
         {
             return;
         }
@@ -1385,6 +1430,7 @@ impl skein_shell::Host for Service {
     fn submissions(&mut self) -> &mut Queue<Submit> {
         &mut self.submissions
     }
+    #[expect(clippy::too_many_lines, reason = "The host keeps its operation admission gates together.")]
     fn work_pending(&self, now: Time) -> bool {
         if self.phase == Phase::New && self.logs.ready() && self.records.ready()
             || !self.completions.is_empty() && self.submissions.room() >= io::MAX_OUT_UP.submissions
@@ -1403,7 +1449,8 @@ impl skein_shell::Host for Service {
         {
             return true;
         }
-        if self.bindings_pending() && self.logs.settled()
+        if self.bindings_pending() && self.logs.settled() && self.started_notices.is_empty()
+            || !self.started_notices.is_empty() && self.logs.takes()
             || self.failure_ready()
             || self.logs.pending()
             || self.logs.has_notice() && self.notice_room()

@@ -466,6 +466,8 @@ pub enum RunFailure {
     Limited { account: u32, reset: Option<Duration> },
     /// The provider refused the run's account.
     Refused { account: u32 },
+    /// The saved history cannot be resumed; prepare afresh with its tail.
+    Transcript,
 }
 
 /// How an agent failed.
@@ -506,6 +508,8 @@ pub struct Refused {
 pub enum StartCause {
     Other,
     Grants,
+    /// Smith refused the saved history before activation.
+    Transcript,
 }
 
 /// A configured bound a run's model call met, and that bound's configured

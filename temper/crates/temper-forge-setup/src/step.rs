@@ -157,7 +157,7 @@ pub fn kinds(
             kind: Some(BoxKind::Owned),
             remover: Some(slot(b"remove", flags, None)),
             forge: 0,
-            label: bytes::copy_of(b"Forgejo"),
+            label: bytes::copy_of(b"Forge $forge (Forgejo)"),
             recorded: true,
             before: 0,
             steps: group.into_boxed(),

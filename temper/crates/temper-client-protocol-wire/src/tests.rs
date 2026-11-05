@@ -141,8 +141,8 @@ fn limits_take_each_bound_from_its_source_field() {
             first_ask_org: 16,
             first_ask_repository: 16,
             first_ask_label: 64,
-            set_up_org: 16,
-            set_up_repository: 16,
+            first_empty_org: 16,
+            first_empty_repository: 16,
             first_repository_org: 16,
             first_repository_repository: 16,
             first_repository_label: 64,
@@ -264,10 +264,18 @@ fn requesting_round_trips_and_refuses_trailing_and_version_three_adopt_bytes() {
             v1::SetUp::new(
                 &limits,
                 v1::SetUpParts {
-                    playground: true,
                     forge: kept(u16::MAX),
-                    org: b"work".as_slice().into(),
-                    repository: b"hello".as_slice().into(),
+                    first: v1::SetUpFirst::Empty(
+                        v1::FirstEmpty::new(
+                            &v1::CEILINGS,
+                            v1::FirstEmptyParts {
+                                playground: true,
+                                org: b"work".as_slice().into(),
+                                repository: b"hello".as_slice().into(),
+                            },
+                        )
+                        .expect("setup names fit wire ceilings"),
+                    ),
                 },
             )
             .expect("forge number"),
@@ -304,6 +312,7 @@ fn forges_rows(numbers: &[u16], connection: &v1::Connection) -> v1::Forges {
                 v1::ForgeRow::new(
                     &limits,
                     v1::ForgeRowParts {
+                        starts_with: v1::StartsWith::Repository,
                         makings: List::with_capacity(0),
                         host: b"git.example:3000".as_slice().into(),
                         number: *number,
@@ -338,6 +347,7 @@ fn each_forge_offer_round_trips() {
         let row = v1::ForgeRow::new(
             &limits,
             v1::ForgeRowParts {
+                starts_with: v1::StartsWith::Repository,
                 makings: List::with_capacity(0),
                 host: b"git.example:3000".as_slice().into(),
                 number,
@@ -459,6 +469,7 @@ fn forge_fields_refuse_one_past_their_bounds_on_construction_and_decode() {
         let row = v1::ForgeRow::new(
             &v1::CEILINGS,
             v1::ForgeRowParts {
+                starts_with: v1::StartsWith::Repository,
                 makings: List::with_capacity(0),
                 host: b"git.example:3000".as_slice().into(),
                 number: 1,
@@ -501,6 +512,7 @@ fn forges_refuse_seventeen_rows_unsorted_rows_and_duplicate_numbers() {
         v1::ForgeRow::new(
             &limits,
             v1::ForgeRowParts {
+                starts_with: v1::StartsWith::Repository,
                 makings: List::with_capacity(0),
                 host: b"git.example:3000".as_slice().into(),
                 number: 17,
@@ -568,6 +580,7 @@ fn forge_login_and_stop_reason_round_trip_at_schema_ceilings() {
                     let row = v1::ForgeRow::new(
                         &limits,
                         v1::ForgeRowParts {
+                            starts_with: v1::StartsWith::Repository,
                             makings: List::with_capacity(0),
                             host: b"git.example:3000".as_slice().into(),
                             number: u16::MAX,
@@ -737,6 +750,7 @@ fn installation_row(count: u32, why_bytes: usize) -> v1::ForgeRowParts {
             .unwrap();
     }
     v1::ForgeRowParts {
+        starts_with: v1::StartsWith::Repository,
         makings: List::with_capacity(0),
         host: b"git.example:3000".as_slice().into(),
         number: 1,
@@ -760,10 +774,11 @@ fn installation_row(count: u32, why_bytes: usize) -> v1::ForgeRowParts {
 }
 // Encode the fields explicitly to feed invalid lengths to the receiving boundary.
 fn installation_row_bytes(parts: v1::ForgeRowParts, why: &[u8]) -> Box<[u8]> {
-    // Number (2), host length (4) and bytes, four enum tags, first tag, list length (4), end tag, why length (4),
+    // Number (2), host length (4) and bytes, four enum tags, first tag, starts-with tag, list length (4), end tag, why length (4),
     // app tag, web tag, repositories length (4), owned tag, admin bool, typed stop tag, read-only bool,
     // makings length (4).
-    let mut size = why.len().checked_add(34).unwrap().checked_add(parts.host.len()).unwrap();
+    const ROW_FRAMING_BYTES: usize = 35;
+    let mut size = why.len().checked_add(ROW_FRAMING_BYTES).unwrap().checked_add(parts.host.len()).unwrap();
     for installation in &parts.installations {
         size = size.checked_add(usize::try_from(installation.measure()).unwrap()).unwrap();
     }
@@ -776,6 +791,7 @@ fn installation_row_bytes(parts: v1::ForgeRowParts, why: &[u8]) -> Box<[u8]> {
     parts.connection.encode(&mut writer).unwrap();
     parts.offer.encode(&mut writer).unwrap();
     writer.put(&[0]).unwrap(); // no first repository
+    parts.starts_with.encode(&mut writer).unwrap();
     writer.put(&parts.installations.len().to_be_bytes()).unwrap();
     for installation in &parts.installations {
         installation.encode(&mut writer).unwrap();
@@ -977,6 +993,19 @@ fn changes_panel_round_trips() {
 }
 
 #[test]
+#[expect(clippy::disallowed_macros, reason = "committed wire goldens are test inputs")]
+fn project_status_round_trips_and_refuses_trailing_bytes() {
+    for bytes in [
+        include_bytes!("../golden/record_project_status_smallest.bin").as_slice(),
+        include_bytes!("../golden/record_project_status_full.bin").as_slice(),
+    ] {
+        let status = crate::decode_project_status(bytes, &v1::CEILINGS).expect("project status golden");
+        assert_eq!(crate::project_status(&status).as_ref(), bytes);
+        assert_eq!(crate::decode_project_status(&fixtures::trailing(bytes), &v1::CEILINGS), None);
+    }
+}
+
+#[test]
 fn watching_changes_round_trips() {
     let limits = fixtures::limits();
     let subject = v1::ChangesSubject::new(&limits, v1::ChangesSubjectParts { project: 1 }).expect("project");
@@ -1016,9 +1045,17 @@ fn making_requests(forge: v1::Making) -> [v1::Request; 2] {
                 &limits,
                 v1::SetUpParts {
                     forge: forge.clone(),
-                    org: b"work".as_slice().into(),
-                    repository: b"hello".as_slice().into(),
-                    playground: false,
+                    first: v1::SetUpFirst::Empty(
+                        v1::FirstEmpty::new(
+                            &v1::CEILINGS,
+                            v1::FirstEmptyParts {
+                                org: b"work".as_slice().into(),
+                                repository: b"hello".as_slice().into(),
+                                playground: false,
+                            },
+                        )
+                        .expect("setup names fit wire ceilings"),
+                    ),
                 },
             )
             .unwrap(),
@@ -1400,8 +1437,11 @@ fn dismiss_and_dismissals_round_trip() {
     for what in [
         v1::PersonFact::ToBegin(v1::ToBegin::new(&limits, v1::ToBeginParts { project: u32::MAX }).unwrap()),
         v1::PersonFact::GoalFrom(
-            v1::GoalFrom::new(&limits, v1::GoalFromParts { project: u32::MAX, chat: u64::MAX, goal: u64::MAX })
-                .unwrap(),
+            v1::GoalFrom::new(
+                &limits,
+                v1::GoalFromParts { project: u32::MAX, chat: u64::MAX, goal: u64::MAX, at: u64::MAX },
+            )
+            .unwrap(),
         ),
     ] {
         let dismiss = v1::Dismiss::new(&limits, v1::DismissParts { what: what.clone() }).unwrap();
@@ -1436,6 +1476,233 @@ fn dismiss_and_dismissals_round_trip() {
                 assert_eq!(crate::decode_dismissals(&bytes, &limits), Some(record));
                 assert_eq!(crate::decode_dismissals(&fixtures::trailing(&bytes), &limits), None);
             }
+        }
+    }
+}
+
+#[test]
+fn setup_first_choices_round_trip_in_requests_and_rows() {
+    let limits = fixtures::limits();
+    assert_eq!(v1::CEILINGS.copy_addresses_addresses, crate::FIRST_COPIES);
+    for first in [
+        v1::SetUpFirst::Empty(
+            v1::FirstEmpty::new(
+                &limits,
+                v1::FirstEmptyParts {
+                    org: b"work".as_slice().into(),
+                    repository: b"hello".as_slice().into(),
+                    playground: true,
+                },
+            )
+            .unwrap(),
+        ),
+        v1::SetUpFirst::Copies(
+            v1::CopyAddresses::new(&limits, v1::CopyAddressesParts { addresses: List::with_capacity(0) }).unwrap(),
+        ),
+        v1::SetUpFirst::Copies(
+            v1::CopyAddresses::new(
+                &limits,
+                v1::CopyAddressesParts {
+                    addresses: {
+                        let mut addresses = List::with_capacity(crate::FIRST_COPIES);
+                        for _ in 0..crate::FIRST_COPIES {
+                            addresses.push(skein_lib::bytes::zeroed(crate::source::ADDRESS_BYTES)).unwrap();
+                        }
+                        addresses
+                    },
+                },
+            )
+            .unwrap(),
+        ),
+        v1::SetUpFirst::Nothing,
+    ] {
+        let request = v1::Requesting::new(
+            &limits,
+            v1::RequestingParts {
+                request: v1::Request::SetUp(
+                    v1::SetUp::new(&limits, v1::SetUpParts { forge: kept(3), first: first.clone() }).unwrap(),
+                ),
+            },
+        )
+        .unwrap();
+        assert_eq!(crate::decode_requesting(&crate::requesting(&request), &limits), Some(request));
+        let mut row = installation_row(0, 0);
+        row.starts_with = match first {
+            v1::SetUpFirst::Empty(_) => v1::StartsWith::Repository,
+            v1::SetUpFirst::Copies(copies) => v1::StartsWith::Copies(copies),
+            v1::SetUpFirst::Nothing => v1::StartsWith::Nothing,
+        };
+        let mut rows = List::with_capacity(1);
+        rows.push(v1::ForgeRow::new(&limits, row).unwrap()).unwrap();
+        let record = v1::Forges::new(&limits, v1::ForgesParts { forges: rows }).unwrap();
+        assert_eq!(crate::decode_forges(&crate::forges(&record), &limits), Some(record));
+    }
+}
+
+#[test]
+#[expect(clippy::disallowed_macros, reason = "committed wire goldens are test inputs")]
+fn aways_round_trip_and_refuse_trailing_bytes() {
+    for bytes in [
+        include_bytes!("../golden/record_aways_smallest.bin").as_slice(),
+        include_bytes!("../golden/record_aways_full.bin").as_slice(),
+    ] {
+        let record = crate::decode_aways(bytes, &v1::CEILINGS).expect("aways golden");
+        assert_eq!(crate::aways(&record).as_ref(), bytes);
+        assert_eq!(crate::decode_aways(&fixtures::trailing(bytes), &v1::CEILINGS), None);
+    }
+}
+
+#[test]
+#[expect(clippy::disallowed_macros, reason = "committed wire goldens are test inputs")]
+fn decisions_round_trip_and_refuse_trailing_bytes() {
+    for bytes in [
+        include_bytes!("../golden/record_decisions_smallest.bin").as_slice(),
+        include_bytes!("../golden/record_decisions_full.bin").as_slice(),
+    ] {
+        let record = crate::decode_decisions(bytes, &v1::CEILINGS).expect("decisions golden");
+        assert_eq!(crate::decisions(&record).as_ref(), bytes);
+        assert_eq!(crate::decode_decisions(&fixtures::trailing(bytes), &v1::CEILINGS), None);
+    }
+}
+
+#[test]
+fn away_requests_round_trip_and_validate_kinds() {
+    let limits = fixtures::limits();
+    for kinds in [0, 7, 15, 16, u8::MAX] {
+        for on in [false, true] {
+            for until in [None, Some(u64::MAX)] {
+                let value =
+                    v1::SetAway::new(&limits, v1::SetAwayParts { project: u32::MAX, on, until, kinds }).unwrap();
+                let request =
+                    v1::Requesting::new(&limits, v1::RequestingParts { request: v1::Request::SetAway(value) }).unwrap();
+                let bytes = crate::requesting(&request);
+                if kinds > 15 {
+                    assert_eq!(crate::decode_requesting(&bytes, &limits), None);
+                } else {
+                    assert_eq!(crate::decode_requesting(&bytes, &limits), Some(request));
+                    assert_eq!(crate::decode_requesting(&fixtures::trailing(&bytes), &limits), None);
+                }
+            }
+        }
+    }
+    let value = v1::Overturn::new(&limits, v1::OverturnParts { project: u32::MAX, number: u32::MAX }).unwrap();
+    let request = v1::Requesting::new(&limits, v1::RequestingParts { request: v1::Request::Overturn(value) }).unwrap();
+    let bytes = crate::requesting(&request);
+    assert_eq!(crate::decode_requesting(&bytes, &limits), Some(request));
+    assert_eq!(crate::decode_requesting(&fixtures::trailing(&bytes), &limits), None);
+}
+
+#[test]
+fn away_watches_and_outcomes_round_trip() {
+    let limits = fixtures::limits();
+    for watch in [
+        v1::Watch::Away,
+        v1::Watch::Decided(v1::DecidedSubject::new(&limits, v1::DecidedSubjectParts { project: u32::MAX }).unwrap()),
+    ] {
+        let watch = v1::Watching::new(&limits, v1::WatchingParts { watch }).unwrap();
+        let bytes = crate::watching(&watch);
+        assert_eq!(crate::decode_watching(&bytes, &limits), Some(watch));
+        assert_eq!(crate::decode_watching(&fixtures::trailing(&bytes), &limits), None);
+    }
+    for outcome in [
+        v1::Outcome::Away,
+        v1::Outcome::Overturned,
+        v1::Outcome::OverturnRefused(
+            v1::OverturnRefused::new(&limits, v1::OverturnRefusedParts { reason: v1::OverturnRefusal::Already })
+                .unwrap(),
+        ),
+        v1::Outcome::OverturnRefused(
+            v1::OverturnRefused::new(&limits, v1::OverturnRefusedParts { reason: v1::OverturnRefusal::Unknown })
+                .unwrap(),
+        ),
+    ] {
+        let answer = v1::Answer::new(&limits, v1::AnswerParts { outcome }).unwrap();
+        assert_eq!(v1::Answer::decode(&limits, &mut Reader::new(&crate::answer(&answer))), Ok(answer));
+    }
+}
+
+#[test]
+fn aways_rows_are_bounded_at_construction_and_decode() {
+    let limits = fixtures::limits();
+    let row = v1::AwayRow::new(
+        &limits,
+        v1::AwayRowParts {
+            project: u32::MAX,
+            since: u64::MAX,
+            until: Some(u64::MAX),
+            kinds: 15,
+            landed: u64::MAX,
+            off: Some(u64::MAX),
+        },
+    )
+    .unwrap();
+    for count in [0, v1::CEILINGS.aways_rows, v1::CEILINGS.aways_rows + 1] {
+        let mut rows = List::with_capacity(count);
+        let mut writer =
+            skein_lib::Writer::new(6 + usize::try_from(count).unwrap() * usize::try_from(row.measure()).unwrap());
+        writer.put(&u16::try_from(crate::CLIENT_VERSION).unwrap().to_be_bytes()).unwrap();
+        writer.put(&count.to_be_bytes()).unwrap();
+        for _ in 0..count {
+            rows.push(row.clone()).unwrap();
+            row.encode(&mut writer).unwrap();
+        }
+        let bytes = writer.finish();
+        let made = v1::Aways::new(&limits, v1::AwaysParts { rows });
+        if count > v1::CEILINGS.aways_rows {
+            assert_eq!(
+                made.unwrap_err(),
+                v1::Problem { path: v1::Path::AwaysRows, reason: skein_codec::Reason::Bound }
+            );
+            assert_eq!(crate::decode_aways(&bytes, &limits), None);
+        } else {
+            let record = made.unwrap();
+            assert_eq!(crate::aways(&record), bytes);
+            assert_eq!(crate::decode_aways(&bytes, &limits), Some(record));
+            assert_eq!(crate::decode_aways(&fixtures::trailing(&bytes), &limits), None);
+        }
+    }
+}
+
+#[test]
+fn decisions_rows_are_bounded_at_construction_and_decode() {
+    let limits = fixtures::limits();
+    let row = v1::Decision::new(
+        &limits,
+        v1::DecisionParts {
+            number: u32::MAX,
+            task: u64::MAX,
+            at: u64::MAX,
+            question: Box::new([b'q'; 400]),
+            took: Box::new([b't'; 120]),
+            why: Box::new([b'w'; 400]),
+            overturned: true,
+        },
+    )
+    .unwrap();
+    for count in [0, 64, 64 + 1] {
+        let mut rows = List::with_capacity(count);
+        let mut writer =
+            skein_lib::Writer::new(10 + usize::try_from(count).unwrap() * usize::try_from(row.measure()).unwrap());
+        writer.put(&u16::try_from(crate::CLIENT_VERSION).unwrap().to_be_bytes()).unwrap();
+        writer.put(&u32::MAX.to_be_bytes()).unwrap();
+        writer.put(&count.to_be_bytes()).unwrap();
+        for _ in 0..count {
+            rows.push(row.clone()).unwrap();
+            row.encode(&mut writer).unwrap();
+        }
+        let bytes = writer.finish();
+        let made = v1::Decisions::new(&limits, v1::DecisionsParts { project: u32::MAX, rows });
+        if count > 64 {
+            assert_eq!(
+                made.unwrap_err(),
+                v1::Problem { path: v1::Path::DecisionsRows, reason: skein_codec::Reason::Bound }
+            );
+            assert_eq!(crate::decode_decisions(&bytes, &limits), None);
+        } else {
+            let record = made.unwrap();
+            assert_eq!(crate::decisions(&record), bytes);
+            assert_eq!(crate::decode_decisions(&bytes, &limits), Some(record));
+            assert_eq!(crate::decode_decisions(&fixtures::trailing(&bytes), &limits), None);
         }
     }
 }

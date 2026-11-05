@@ -828,6 +828,7 @@ pub(crate) fn stage_now(domain: &mut Domain, out: &mut Queue<Request>) {
             | Request::Connect { .. }
             | Request::Replace { .. }
             | Request::Manifest { .. }
+            | Request::AdoptAccess { .. }
             | Request::Reachable { .. }
             | Request::Install { .. }
             | Request::Accept { .. }

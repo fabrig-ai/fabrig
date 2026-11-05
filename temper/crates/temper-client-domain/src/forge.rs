@@ -2,9 +2,11 @@
 use alloc::boxed::Box;
 use skein_lib::{Env, Queue, Time};
 pub mod admin;
+pub mod away;
 pub mod change;
 pub mod changes;
 pub mod connect;
+pub mod decided;
 pub mod deployment;
 pub mod dismissed;
 pub mod family;
@@ -19,8 +21,10 @@ pub mod panel;
 pub mod playground;
 pub mod replace;
 pub mod start;
+pub mod status;
 pub mod tokens;
 mod vocabulary;
+pub mod ways;
 pub mod words;
 pub use form::{Act, Broken, Check, Field, Form, Marks, Text, Typed, adoption, broken, form, write};
 pub use vocabulary::*;
@@ -59,12 +63,15 @@ pub enum Request {
 #[derive(Debug)]
 #[expect(clippy::struct_excessive_bools, reason = "each session watch keeps whether its own handle is open")]
 pub struct Side {
+    ways: ways::State,
     playground: playground::State,
     deployment: deployment::State,
     forges: forges::State,
     forges_open: bool,
     dismissed: dismissed::State,
     dismissed_open: bool,
+    away: away::State,
+    away_open: bool,
     set_up: Option<Box<forges::SetUp>>,
     setup_form: forges::Draft,
     admin_form: admin::Draft,
@@ -89,12 +96,15 @@ impl Side {
     #[must_use]
     pub fn new(_limits: &Limits, seed: u64) -> Side {
         Side {
+            ways: ways::State::new(),
             playground: playground::State::new(),
             deployment: deployment::State::new(),
             forges: forges::State::Unknown,
             forges_open: false,
             dismissed: dismissed::State::Unknown,
             dismissed_open: false,
+            away: away::State::Unknown,
+            away_open: false,
             set_up: None,
             setup_form: forges::Draft::new(),
             admin_form: admin::Draft::new(),
@@ -308,6 +318,7 @@ pub fn step(side: &mut Side, env: &Env<Limits>, event: Event, out: &mut Queue<Re
 }
 fn act_on(side: &mut Side, limits: Limits, act: Act, out: &mut Queue<Request>) {
     match act {
+        Act::Ways(act) => ways::act(side, limits, act, out),
         Act::Forges(act) => forges::act(side, limits, act, out),
         Act::Go { address } => out.push(Request::Show { address }),
         Act::AdminWrite { field, text } => admin::write(side, limits, field, text),
@@ -467,6 +478,26 @@ pub fn ask(adoption: &Adoption, limits: &Limits) -> Option<jig_client::Ask> {
         record: family::request(adoption, &wire_limits(limits)?)?,
     })
 }
+/// Encode a checked making request in its destination's scope (client/README.md, 4.6).
+#[must_use]
+pub fn make_repository(
+    request: &temper_client_protocol_wire::v1::MakeRepository,
+    limits: &Limits,
+) -> Option<jig_client::Ask> {
+    let scope = match request.into() {
+        Some(into) => jig_client::contract::Scope::Project(into.project()),
+        None => jig_client::contract::Scope::Deployment,
+    };
+    Some(jig_client::Ask::Family { scope, record: family::make_repository(request, &wire_limits(limits)?)? })
+}
+/// Ready's copies are named in address order, starting at one (client/README.md, 3.5).
+#[must_use]
+pub fn copy_key(number: u64) -> skein_lib::RequestKey {
+    let number = skein_lib::Decimal::of(number);
+    let text = skein_lib::bytes::concat(&[b"welcome-copy-", number.as_bytes()]);
+    crate::key::named(crate::key::TOOLS, &crate::key::Name::new(&text).expect("copy key fits"))
+}
+
 /// Decode the same terminal answers the adoption side receives.
 #[must_use]
 pub fn answer(limits: &crate::Limits, answered: &jig_client::Answered) -> Option<Answer> {

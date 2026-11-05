@@ -72,7 +72,12 @@ pub enum Receipt {
 pub enum DraftOutcome {
     Made,
     Proposed(jig_client::contract::ProposalKey),
-    ProposedByParty { number: u64, to: u32 },
+    ProposedByParty {
+        number: u64,
+        to: u32,
+    },
+    /// A single `AsAllowed` task would receive nothing at admission (contract.md, 3.2).
+    NoBudget,
     Refused,
 }
 /// Durable truth reported by the engine boundary, drained once.

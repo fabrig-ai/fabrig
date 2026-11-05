@@ -454,7 +454,14 @@ fn core_ask(
             Some(Connector::Infrastructure | Connector::Observability) | None,
             core::Ask::Read { reply, scope, read, party, window: _ },
         ) => {
-            crate::client_documents::read(domain, env, decision, number, reply, scope, read, party, work);
+            crate::client_documents::read(
+                domain,
+                env,
+                decision,
+                number,
+                crate::client_documents::Reading { reply, scope, read, party },
+                work,
+            );
         }
         (
             Some(Connector::Infrastructure | Connector::Observability) | None,
@@ -927,7 +934,7 @@ pub(crate) fn connector_out(
                     infrastructure::DocumentMissing::NotAllowed => jig_domain_views::End::NotAllowed,
                 }),
             };
-            crate::client_documents::document(domain, env, decision, number, watcher, subject, document, work);
+            crate::client_documents::document(domain, env, decision, number, (watcher, subject), document, work);
         }
         ConnectorRequest::Infrastructure(infrastructure::Request::ReadAnswered { .. })
         | ConnectorRequest::Observability(observability::Request::ReadAnswered { .. }) => {
@@ -1109,7 +1116,7 @@ pub(crate) fn connector_out(
                     observability::DocumentMissing::NotAllowed => jig_domain_views::End::NotAllowed,
                 }),
             };
-            crate::client_documents::document(domain, env, decision, number, watcher, subject, document, work);
+            crate::client_documents::document(domain, env, decision, number, (watcher, subject), document, work);
         }
         ConnectorRequest::Observability(observability::Request::Save { record }) => {
             write(domain, decision, Write::Save(Record::Observability(record)));
@@ -1288,7 +1295,7 @@ fn core_now(
         }
         core::Now::CompleteBrief { brief, order } => {
             domain.hub_link.keep_brief(brief.raw(), order);
-            work.push(Work::Core(core::Event::BriefAssembled { task: brief.raw(), ready: true }));
+            work.push(Work::Core(core::Event::BriefAssembled { task: brief.raw(), failure: None }));
         }
         core::Now::WorkspaceRequest { task, attempt, .. } => {
             work.push(Work::Core(core::Event::WorkspacePrepared {
@@ -1334,6 +1341,7 @@ fn core_now(
                 work.push(Work::Core(core::Event::ClaimRefused { task }));
             }
         }
+        core::Now::BriefFailed { .. } => {}
         core::Now::RunPreparationFailed { task } | core::Now::DropAssignment { task } => {
             drop(domain.hub_link.take_assignment(task));
             drop(domain.hub_link.take_brief(task));

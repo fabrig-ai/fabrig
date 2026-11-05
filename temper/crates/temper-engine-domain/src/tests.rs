@@ -14,6 +14,7 @@ mod budget;
 mod dismiss;
 mod documents;
 mod forge_route;
+mod looked;
 mod projection_settled;
 mod public;
 pub(crate) use projection_settled::live_task;

@@ -36,7 +36,7 @@ pub(super) fn ask(domain: &mut Domain, env: &Env<Limits>, number: u16, ask: conn
             domain.forge.keep_proposal_settings(proposal, &asked, &mut out);
         }
         connector::Ask::RestoreSettings { owner, proposal, items } => {
-            let answers = domain.forge.restore_settings(&bounds(&env.limits), proposal, &items, &mut out);
+            let answers = restore(domain, &bounds(&env.limits), proposal, &items, &mut out);
             let mut judged = List::uncapped();
             for answer in answers {
                 let answer = judgement(answer);
@@ -55,6 +55,37 @@ pub(super) fn ask(domain: &mut Domain, env: &Env<Limits>, number: u16, ask: conn
     if !out.is_empty() {
         domain.work.push(Work::ForgeSettings(out));
     }
+}
+
+fn restore(
+    domain: &mut Domain,
+    bounds: &settings::Bounds,
+    proposal: u64,
+    items: &[application::Restored],
+    out: &mut Queue<temper_engine_domain_forge::Request>,
+) -> Box<[settings::Judged]> {
+    let mut answers = domain.forge.restore_settings(bounds, proposal, items, out);
+    let kept = domain.forge.proposal_settings(proposal);
+    let mut accepted = List::uncapped();
+    let mut refused = false;
+    for (key, edit) in kept {
+        let asked = settings::Asked { kind: key.kind, scope: key.scope, number: key.number, edit };
+        if way_refusal(domain, &asked).is_some() {
+            for (item, answer) in items.iter().zip(answers.iter_mut()) {
+                if (item.kind, item.scope, item.number) == (key.kind, key.scope, key.number) {
+                    *answer = settings::Judged::Refuse(settings::Refusal::Way);
+                }
+            }
+            refused = true;
+        } else {
+            accepted.push(asked).expect("one retained edit per accepted restore");
+        }
+    }
+    if refused {
+        domain.forge.drop_proposal_settings(proposal, out);
+        domain.forge.keep_proposal_settings(proposal, &accepted.into_boxed(), out);
+    }
+    answers
 }
 
 fn judgement(answer: settings::Judged) -> connector::Judged {
@@ -84,11 +115,33 @@ fn judge(
     let answer = *answers.first().expect("one forge judgement per item");
     match answer {
         settings::Judged::Refuse(_) => judgement(answer),
-        settings::Judged::Accept { .. } | settings::Judged::Same => match approval_refusal(domain, &asked) {
-            Some(why) => connector::Judged::Refuse { why },
-            None => judgement(answer),
-        },
+        settings::Judged::Accept { .. } | settings::Judged::Same => {
+            match way_refusal(domain, &asked).or(approval_refusal(domain, &asked)) {
+                Some(why) => connector::Judged::Refuse { why },
+                None => judgement(answer),
+            }
+        }
     }
+}
+
+fn way_refusal(domain: &Domain, asked: &settings::Asked) -> Option<Box<[u8]>> {
+    let value = match &asked.edit {
+        settings::Edit::Set(value) => &value.value,
+        settings::Edit::Remove | settings::Edit::Reset => return None,
+    };
+    let ways = match value {
+        settings::Value::Ways(ways) => ways,
+        settings::Value::Rule(_) | settings::Value::Charter(_) | settings::Value::Questions(_) => return None,
+    };
+    if ways.way == 0 {
+        return None;
+    }
+    for template in domain.core.project_templates(asked.scope) {
+        if template.number == ways.way {
+            return None;
+        }
+    }
+    Some(settings::Refusal::Way.words().into())
 }
 
 // temper/docs/design/domain/forge.md, 8.9: eligibility joins the forge's rule with the core's people.
@@ -99,7 +152,7 @@ fn approval_refusal(domain: &Domain, asked: &settings::Asked) -> Option<Box<[u8]
     };
     let rule = match value {
         settings::Value::Rule(rule) => rule,
-        settings::Value::Charter(_) => return None,
+        settings::Value::Charter(_) | settings::Value::Questions(_) | settings::Value::Ways(_) => return None,
     };
     if !rule.enforce || rule.approvals.is_empty() {
         return None;
@@ -238,7 +291,7 @@ fn save_defaults(domain: &mut Domain, revision: Option<u64>, out: &mut Queue<tem
     domain.forge.save_settings_defaults(out);
 }
 
-/// Deployment settings have the settings document's membership check (client/forge.md, 9).
+/// Settings reads require membership in their requested scope (temper/docs/design/client/forge.md, 9).
 pub(super) fn read(
     domain: &mut Domain,
     env: &Env<Limits>,
@@ -249,11 +302,11 @@ pub(super) fn read(
     query: crate::ForgeRead,
 ) {
     use jig_domain_core::reads::Answer;
-    let why = read_refusal(domain, env, sign_in, scope);
+    let why = read_refusal(domain, env, sign_in, scope, &query);
     if why.is_none()
         && let crate::ForgeRead::RevisionSetting { .. } = query
     {
-        revision_begin(domain, env, decision, reply, sign_in, query);
+        revision_begin(domain, env, decision, reply, sign_in, scope, query);
         return;
     }
     let delivery = match why {
@@ -279,6 +332,7 @@ fn read_refusal(
     env: &Env<Limits>,
     sign_in: u64,
     scope: jig_domain_people::ApplicationScope,
+    query: &crate::ForgeRead,
 ) -> Option<jig_domain_core::reads::Why> {
     use jig_domain_core::reads::Why;
     use jig_domain_people::{ApplicationScope, DEPLOYMENT};
@@ -286,11 +340,21 @@ fn read_refusal(
     match party {
         None => Some(if domain.core.people.ready() { Why::SignedOut } else { Why::Unknown }),
         Some(party) => {
-            if scope != ApplicationScope::Deployment || domain.core.people.role(party, DEPLOYMENT).is_none() {
-                Some(Why::Unknown)
-            } else {
-                None
-            }
+            let permitted = match scope {
+                ApplicationScope::Deployment => domain.core.people.role(party, DEPLOYMENT).is_some(),
+                ApplicationScope::Project(project) => {
+                    let own_kind = match query {
+                        crate::ForgeRead::Setting { kind, scope, .. }
+                        | crate::ForgeRead::RevisionSetting { kind, scope, .. } => {
+                            (*kind == 2 || *kind == 6 || *kind == 7) && *scope == project
+                        }
+                        crate::ForgeRead::ProposalItems { .. } => false,
+                    };
+                    project != DEPLOYMENT && own_kind && domain.core.people.role(party, project).is_some()
+                }
+                ApplicationScope::Own => false,
+            };
+            if permitted { None } else { Some(Why::Unknown) }
         }
     }
 }
@@ -301,6 +365,7 @@ fn revision_begin(
     decision: &mut crate::Decision,
     reply: skein_lib::ReplyTo,
     sign_in: u64,
+    scope: jig_domain_people::ApplicationScope,
     query: crate::ForgeRead,
 ) {
     let crate::ForgeRead::RevisionSetting { revision, .. } = query else { unreachable!("revision query") };
@@ -317,11 +382,25 @@ fn revision_begin(
         );
         return;
     }
-    domain.work.push(Work::Core(Event::Read {
-        reply,
-        sign_in,
-        read: jig_domain_core::reads::Read::Revision { number: revision },
-    }));
+    match scope {
+        jig_domain_people::ApplicationScope::Project(project) => {
+            let requests = jig_domain_core::reads::settings::revision_metadata(
+                &mut domain.core,
+                &super::environment_core(env),
+                reply,
+                sign_in,
+                project,
+                revision,
+            );
+            super::route_core_requests(domain, env, decision, requests);
+        }
+        jig_domain_people::ApplicationScope::Deployment => domain.work.push(Work::Core(Event::Read {
+            reply,
+            sign_in,
+            read: jig_domain_core::reads::Read::Revision { number: revision },
+        })),
+        jig_domain_people::ApplicationScope::Own => unreachable!("settings reads require a shared scope"),
+    }
 }
 
 #[expect(clippy::wildcard_enum_match_arm, reason = "non-revision answers are forwarded as the core returned them")]

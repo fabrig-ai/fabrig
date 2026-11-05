@@ -5,7 +5,7 @@ use crate::{
     Core, Event, Limits, Request,
     routing::{
         Work,
-        party::dispatch::{Party, Routed},
+        party::dispatch::{Party, Routed, Signed},
     },
     settings as s,
 };
@@ -13,17 +13,15 @@ use alloc::boxed::Box;
 use jig_domain_people as people;
 use skein_lib::{Env, Map, Queue, ReplyTo, Token};
 
-#[expect(clippy::too_many_arguments, reason = "the keyed envelope and its value cross admission together")]
 pub(crate) fn start(
     core: &mut Core,
     env: &Env<Limits>,
     work: &mut Queue<Work>,
-    reply_to: ReplyTo,
-    sign_in: u64,
-    key: [u8; 16],
+    signed: Signed,
     digest: [u8; 32],
     change: Box<s::Change>,
 ) -> Queue<Request> {
+    let Signed { reply_to, sign_in, key } = signed;
     assert!(core.settings_input.is_none(), "one settings admission at a time");
     let against = change.against;
     let projects = s::application::projects(&change.items);
@@ -121,18 +119,21 @@ fn preflight(
     }
 }
 
-#[expect(clippy::too_many_arguments, reason = "the keyed change retains its proposal identity through judging")]
+pub(crate) struct Judged {
+    pub change: s::Change,
+    pub room: u32,
+    pub kept: Box<[s::application::Kept]>,
+    pub proposal: Option<(people::Proposer, u32)>,
+}
+
 pub(crate) fn decide_judged(
     core: &mut Core,
     env: &Env<Limits>,
     routed: &mut Routed,
     person: u64,
-    change: s::Change,
-    room: u32,
-    kept: Box<[s::application::Kept]>,
-    proposal: Option<(people::Proposer, u32)>,
+    judged: Judged,
 ) -> Result<u32, people::Refusal> {
-    decide_with(core, env, routed, s::Decider::Party(person), proposal, change, room, kept)
+    decide_with(core, env, routed, s::Decider::Party(person), judged)
 }
 
 pub(crate) fn decide(
@@ -144,10 +145,9 @@ pub(crate) fn decide(
     change: s::Change,
     room: u32,
 ) -> Result<u32, people::Refusal> {
-    decide_with(core, env, routed, by, proposal, change, room, Box::default())
+    decide_with(core, env, routed, by, Judged { change, room, kept: Box::default(), proposal })
 }
 #[expect(
-    clippy::too_many_arguments,
     clippy::too_many_lines,
     reason = "the decision envelope and judged metadata commit atomically along the existing settings path"
 )]
@@ -156,11 +156,9 @@ fn decide_with(
     env: &Env<Limits>,
     routed: &mut Routed,
     by: s::Decider,
-    proposal: Option<(people::Proposer, u32)>,
-    mut change: s::Change,
-    room: u32,
-    kept: Box<[s::application::Kept]>,
+    judged: Judged,
 ) -> Result<u32, people::Refusal> {
+    let Judged { mut change, room, kept, proposal } = judged;
     let previous = core.current.newest();
     if !withdrawal_room(core, proposal) {
         return Err(people::Refusal::Limit { which: people::LimitKind::Arithmetic });
@@ -229,8 +227,7 @@ fn decide_with(
                 s::Setting::Charter(_) => charters = true,
                 s::Setting::Template(_) | s::Setting::Policy(_) => templates = true,
                 s::Setting::Rules => rules = true,
-                jig_domain_people::Setting::Application { .. } => unreachable!("an application's setting: apps-core"),
-                jig_domain_people::Setting::ProjectPolicy { .. } => {}
+                s::Setting::Application { .. } | s::Setting::ProjectPolicy { .. } => {}
             }
         }
     }
@@ -273,8 +270,7 @@ fn decide_with(
         writes,
         core.current.oldest,
         core.current.keys,
-        core.current.newest(),
-        env.limits.settings.history,
+        (core.current.newest(), env.limits.settings.history),
         room.saturating_sub(s::withdrawal_writes(&env.limits).expect("withdrawal write bound"))
             .saturating_sub(held_writes)
             .saturating_sub(application_writes)
@@ -308,17 +304,15 @@ pub(crate) fn route_writes(limits: &Limits) -> Option<u32> {
     s::writes_bound(limits)?.checked_add(people::outputs_bound(&limits.people))
 }
 
-#[expect(clippy::too_many_arguments, reason = "one keyed proposal envelope and its held value")]
 pub(crate) fn propose_start(
     core: &mut Core,
     env: &Env<Limits>,
     work: &mut Queue<Work>,
-    reply_to: ReplyTo,
-    sign_in: u64,
-    key: [u8; 16],
+    signed: Signed,
     digest: [u8; 32],
     change: s::Proposed,
 ) -> Queue<Request> {
+    let Signed { reply_to, sign_in, key } = signed;
     assert!(core.proposed_input.is_none(), "one settings proposal admission");
     let s::Proposed { against, items, reason } = change;
     prepare_proposal(core, env, against, items);
@@ -490,37 +484,38 @@ fn withdraw_pending(
     pending: skein_lib::List<(people::Proposer, u32)>,
 ) {
     for (proposer, proposal) in pending.into_boxed() {
-        if let people::Proposer::Task(task) = proposer {
-            let message = crate::fresh(&mut core.counters, crate::Family::Message).expect("settings outcome sequence");
-            crate::routing::children::append_tasks(
+        match proposer {
+            people::Proposer::Task(task) => {
+                let message =
+                    crate::fresh(&mut core.counters, crate::Family::Message).expect("settings outcome sequence");
+                crate::routing::children::append_tasks(
+                    core,
+                    env,
+                    jig_domain_tasks::Event::DecideSettingsProposal {
+                        reply_to: None,
+                        decision: jig_domain_tasks::SettingsDecision {
+                            proposer: task,
+                            proposal: u64::from(proposal),
+                            message,
+                            by: jig_domain_tasks::Party::Deployment { project: people::DEPLOYMENT },
+                            outcome: jig_domain_tasks::SettingsOutcome::Stale { newest: core.current.newest() },
+                            reason: Box::new([]),
+                        },
+                    },
+                    out,
+                );
+            }
+            people::Proposer::Party(person) => crate::routing::children::append_tasks(
                 core,
                 env,
-                jig_domain_tasks::Event::DecideSettingsProposal {
+                jig_domain_tasks::Event::WithdrawPersonProposal {
                     reply_to: None,
-                    decision: jig_domain_tasks::SettingsDecision {
-                        proposer: task,
-                        proposal: u64::from(proposal),
-                        message,
-                        by: jig_domain_tasks::Party::Deployment { project: people::DEPLOYMENT },
-                        outcome: jig_domain_tasks::SettingsOutcome::Stale { newest: core.current.newest() },
-                        reason: Box::new([]),
-                    },
+                    proposer: person,
+                    proposal: u64::from(proposal),
                 },
                 out,
-            );
-            continue;
+            ),
         }
-        let people::Proposer::Party(person) = proposer else { unreachable!("party or task") };
-        crate::routing::children::append_tasks(
-            core,
-            env,
-            jig_domain_tasks::Event::WithdrawPersonProposal {
-                reply_to: None,
-                proposer: person,
-                proposal: u64::from(proposal),
-            },
-            out,
-        );
     }
 }
 

@@ -138,6 +138,11 @@ pub fn page(sample: &Sample, digest: &skein_ui_bundle::Digest) -> String {
             page.set_href(node, &href, &mut ops);
         }
     }
+    if let Some(name) = sample.open_menu()
+        && let Some(node) = view.tree().nodes().iter().find(|n| n.role == Role::Menu && n.name.as_deref() == Some(name))
+    {
+        let _act = page.act(skein_ui_web::page::Event::Click { node: node.id, modifier: false }, &mut ops);
+    }
     let title = escape(&skein_ui_web::title::text(&heading(view.tree()), b"temper"));
     let mut html = page.html().replacen("<div", "<div id=\"app\"", 1).replace("<dialog ", "<dialog open ");
     if let Some(name) = sample.open_disclosure() {
@@ -158,18 +163,24 @@ pub fn page(sample: &Sample, digest: &skein_ui_bundle::Digest) -> String {
     if sample.name == "needs-saw-open" {
         html = html.replace("class=\"temper-ask-saw\"", "open class=\"temper-ask-saw\"");
     }
+    if sample.name == "goal-landed-open" {
+        html = html.replace("class=\"temper-goal-landed-fold\"", "open class=\"temper-goal-landed-fold\"");
+    }
     let mut styles = String::new();
     for file in ["skein-ui.css", "temper.css", "task-pages.css"] {
         write!(styles, "<link rel=\"stylesheet\" href=\"bundle/{digest}/{file}\">").expect("write string");
     }
     format!(
-        "<!doctype html>\n<html lang=\"en\"><head><meta charset=\"utf-8\"><meta name=\"viewport\" content=\"width=device-width, initial-scale=1\"><title>{title}</title>{styles}</head><body>{html}</body></html>\n"
+        "<!doctype html>\n<html lang=\"en\"><head><meta charset=\"utf-8\"><meta name=\"viewport\" content=\"width=device-width, initial-scale=1, viewport-fit=cover\"><title>{title}</title>{styles}</head><body>{html}</body></html>\n"
     )
 }
 fn heading(tree: &skein_ui::Tree) -> Vec<u8> {
     let nodes = tree.nodes();
     for (index, node) in nodes.iter().enumerate() {
         if node.role == Role::Main {
+            if node.styles.as_slice().contains(&temper_client_view::look::WELCOME) {
+                return "Welcome · first run".as_bytes().to_vec();
+            }
             let end = index + usize::try_from(node.size).expect("main subtree");
             for (offset, heading) in nodes[index..end].iter().enumerate() {
                 if heading.role == (Role::Heading { level: 1 }) {
@@ -194,7 +205,7 @@ fn escape(text: &str) -> String {
 #[must_use]
 pub fn index(samples: &[Sample]) -> String {
     let mut html = String::from(
-        "<!doctype html><html lang=\"en\"><head><meta charset=\"utf-8\"><meta name=\"viewport\" content=\"width=device-width, initial-scale=1\"><title>temper gallery</title></head><body><h1>temper gallery</h1><ul>\n",
+        "<!doctype html><html lang=\"en\"><head><meta charset=\"utf-8\"><meta name=\"viewport\" content=\"width=device-width, initial-scale=1, viewport-fit=cover\"><title>temper gallery</title></head><body><h1>temper gallery</h1><ul>\n",
     );
     for sample in samples {
         write!(html, "<li><a href=\"{0}.html\">{0}</a>", sample.name).expect("write string");

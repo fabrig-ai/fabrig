@@ -31,7 +31,7 @@ pub fn valid(policy: &WakePolicy) -> bool {
     true
 }
 
-fn category(kind: &MessageKind) -> u8 {
+pub(crate) fn category(kind: &MessageKind) -> u8 {
     match kind.family() {
         MessageFamily::Spoken(Spoken::Words) => 0,
         MessageFamily::Spoken(Spoken::Question) => 1,
@@ -41,17 +41,14 @@ fn category(kind: &MessageKind) -> u8 {
         MessageFamily::Hint(Hint::Timer { .. }) => 5,
         MessageFamily::Hint(Hint::News { .. }) | MessageFamily::Slot(Slot::PersonStalled) => 6,
         MessageFamily::Slot(
-            Slot::Amendment
-            | Slot::FinishRequested
-            | Slot::Met
-            | Slot::NothingAwaited
-            | Slot::EffectNotMade
+            Slot::EffectNotMade
             | Slot::SettingsDecision
             | Slot::ProposalDecision
             | Slot::QuestionAnswered
             | Slot::QuestionOwed
             | Slot::QuestionEnded,
         )
+        | MessageFamily::Separate(_)
         | MessageFamily::Virtual => 7,
     }
 }
@@ -126,13 +123,11 @@ fn batch_state(domain: &Domain, number: u64, word: &Word) -> (u32, Wall, bool) {
 }
 
 /// Admit root's numbered notice only while the kept task can go on (domain/tasks.md, 5.7).
-#[expect(clippy::too_many_arguments, reason = "root-numbered notice fields accompany the step environment")]
 pub(crate) fn met(
     domain: &mut Domain,
     env: &Env<Limits>,
     number: u64,
-    dependency: u64,
-    removed: bool,
+    (dependency, removed): (u64, bool),
     by: Party,
     message: u64,
     out: &mut Queue<Request>,

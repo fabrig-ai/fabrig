@@ -34,6 +34,7 @@ pub fn spawn_of(command: &Command) -> Spawn {
         Command::CheckOut { .. } | Command::Clean => Some(git::Kind::CheckOut),
         Command::Merge { .. } => Some(git::Kind::Merge),
         Command::Version => None,
+        Command::Origin { .. } => Some(git::Kind::Look),
     };
     let mut pipes =
         vec![Pipe { child: 1, way: Way::Out, parent: None }, Pipe { child: 2, way: Way::Out, parent: None }];
@@ -45,7 +46,11 @@ pub fn spawn_of(command: &Command) -> Spawn {
         args: invocation::arguments(command),
         env: invocation::environment(b"/worker/home", kind, Some(&identity())),
         root: Fd::new(1),
-        dir: b"workspaces/1/app".as_slice().into(),
+        dir: if matches!(command, Command::Origin { .. }) {
+            b"".as_slice().into()
+        } else {
+            b"workspaces/1/app".as_slice().into()
+        },
         pipes: pipes.into_boxed_slice(),
     }
 }
@@ -167,6 +172,7 @@ pub fn named(full: &[u8], protected: Option<&[u8]>) -> Scenario {
     let mut checkout = Checkout::new();
     if base != 0 {
         local::clone_repository(&mut transport, &mut checkout, &remote(full), &at).expect("fixture clone");
+        checkout.write(&[at.as_slice(), b"/.git/temper-remote"].concat(), &remote(full));
         local::check_out(&transport, &mut checkout, &at, base).expect("fixture checkout");
     }
     let mut scenario = Scenario { transport, checkout, base, topic, at, remote: remote(full) };
@@ -187,9 +193,12 @@ fn files(tree: Tree) -> Box<[api::File]> {
 fn commit(number: u64) -> git::Commit {
     invocation::object(&id(number)).expect("counted id")
 }
-fn apply(scenario: &mut Scenario, command: &Command) -> Answer {
+/// Run the command through the fake program's invocation check and answer.
+pub fn apply(scenario: &mut Scenario, command: &Command) -> Answer {
     let mut spawn = spawn_of(command);
-    spawn.dir = scenario.at.clone().into();
+    if !matches!(command, Command::Origin { .. }) {
+        spawn.dir = scenario.at.clone().into();
+    }
     let checked = check(&spawn).expect("fixture spawn");
     answer(&checked, &mut scenario.checkout, &mut scenario.transport)
 }
@@ -227,7 +236,9 @@ pub fn answer_case(case: &str, fault: Fault) -> Answer {
     let mut scenario = named(full, protected);
     let command = command_case(case, &mut scenario);
     let mut spawn = spawn_of(&command);
-    spawn.dir = scenario.at.clone().into();
+    if !matches!(command, Command::Origin { .. }) {
+        spawn.dir = scenario.at.clone().into();
+    }
     match fault {
         Fault::None | Fault::MissingBranch | Fault::MissingCommit | Fault::ProtectedBranch => {}
         Fault::MissingRepository => {
@@ -266,6 +277,10 @@ pub fn answer_case(case: &str, fault: Fault) -> Answer {
     };
     answer(&checked, &mut scenario.checkout, &mut scenario.transport)
 }
+#[expect(
+    clippy::too_many_lines,
+    reason = "the transcript fixture selects each command and its required disk setup together"
+)]
 fn command_case(case: &str, scenario: &mut Scenario) -> Command {
     let identity = identity();
     scenario.transport.authenticate(Some(&(identity.login, identity.token)));
@@ -273,6 +288,17 @@ fn command_case(case: &str, scenario: &mut Scenario) -> Command {
     let base = commit(scenario.base);
     match case {
         "version" => Command::Version,
+        "origin-matches" => Command::Origin { directory: scenario.at.clone().into() },
+        "origin-no-repository" => Command::Origin { directory: b"workspaces/1/absent".as_slice().into() },
+        "origin-no-remote" => {
+            let directory = b"workspaces/1/bare";
+            scenario.checkout.mkdir(&[directory.as_slice(), b"/.git"].concat());
+            Command::Origin { directory: directory.as_slice().into() }
+        }
+        "checkout-index-locked" => {
+            scenario.checkout.write(&[scenario.at.as_slice(), b"/.git/index.lock"].concat(), b"");
+            Command::CheckOut { commit: base }
+        }
         "clone"
         | "clone-empty"
         | "clone-missing-repository"

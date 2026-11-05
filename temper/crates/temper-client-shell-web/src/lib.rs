@@ -124,7 +124,7 @@ fn start_signed_in() {
     let platform =
         platform::Browser::new(fetch::web::Fetch::new(limits::EXCHANGES + 1, Rc::clone(&inbox), Report::Fetch));
     let store = Store::new(b"temper.", None);
-    let mut host = host::Host::new(facts.seed, facts.now, facts.wall, parsed_ways);
+    let mut host = host::Host::new(facts.seed, facts.now, facts.wall, facts.offset, parsed_ways);
     #[cfg(feature = "record")]
     let mut forges = Vec::new();
     host.forge_sign_in(forge_sign_in(
@@ -139,6 +139,7 @@ fn start_signed_in() {
         now: facts.now,
         wall: facts.wall,
         primary: facts.primary,
+        zone_minutes: facts.offset,
         ways: ways.map(|(content, origin)| (content.into_bytes().into(), origin.into_bytes().into())),
         forges,
         path: path.as_bytes().into(),
@@ -285,6 +286,8 @@ impl<P: ShellPlatform> Shell<P> {
         let heading = document.query_selector("main h1").expect("heading selector");
         let words = if document.query_selector("main.temper-home").expect("Home selector").is_some() {
             "Home".to_owned()
+        } else if document.query_selector("main.temper-welcome").expect("Welcome selector").is_some() {
+            "Welcome · first run".to_owned()
         } else {
             heading.as_ref().and_then(|element| element.text_content()).unwrap_or_default()
         };

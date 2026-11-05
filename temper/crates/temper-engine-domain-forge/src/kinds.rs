@@ -277,7 +277,7 @@ impl Domain {
     pub fn erase_project_settings(&mut self, project: u32, out: &mut Queue<Request>) {
         let mut erases = List::with_capacity(self.setting_rows.capacity());
         for (key, _) in &self.setting_rows {
-            if key.kind == 2 && key.scope == project {
+            if (key.kind == 2 || key.kind == 6 || key.kind == 7) && key.scope == project {
                 erases.push(*key).expect("bounded project setting rows");
             }
         }
@@ -286,6 +286,19 @@ impl Domain {
         }
         self.rebuild_settings();
         self.held_rules.projects.remove(&project);
+    }
+
+    /// Kind 6 of a project, or no route with none stored
+    /// (temper/docs/design/protocol/configuration.md, 13.2 and 13.4).
+    #[must_use]
+    pub fn project_questions(&self, project: u32) -> temper_engine_domain_forge_change::Route {
+        use temper_engine_domain_forge_change::Route;
+        match self.setting(6, project, 1) {
+            Some(settings::SizedValue { value: Value::Questions(route), .. }) => *route,
+            Some(settings::SizedValue { value: Value::Rule(_) | Value::Charter(_) | Value::Ways(_), .. }) | None => {
+                Route::None
+            }
+        }
     }
 
     #[must_use]
@@ -433,7 +446,7 @@ impl Domain {
     fn setting_charter(&self, number: u32) -> u32 {
         match self.setting(3, 0, number) {
             Some(settings::SizedValue { value: Value::Charter(charter), .. }) => *charter,
-            Some(settings::SizedValue { value: Value::Rule(_), .. }) | None => 0,
+            Some(settings::SizedValue { value: Value::Rule(_) | Value::Questions(_) | Value::Ways(_), .. }) | None => 0,
         }
     }
 }
@@ -441,7 +454,9 @@ impl Domain {
 fn value_state(value: Option<&settings::SizedValue>) -> (u32, Option<u32>) {
     match value {
         Some(settings::SizedValue { value: Value::Charter(charter), size }) => (*size, Some(*charter)),
-        Some(settings::SizedValue { value: Value::Rule(_), size }) => (*size, None),
+        Some(settings::SizedValue { value: Value::Rule(_) | Value::Questions(_) | Value::Ways(_), size }) => {
+            (*size, None)
+        }
         None => (0, None),
     }
 }

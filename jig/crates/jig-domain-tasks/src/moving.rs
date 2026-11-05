@@ -44,16 +44,12 @@ pub(crate) struct Plan {
     pub(crate) old_parent: Option<u64>,
 }
 
-#[expect(clippy::too_many_arguments, reason = "the existing move carries its person funding and reason")]
 pub(crate) fn apply(
     domain: &mut Domain,
     env: &Env<Limits>,
     to: ReplyTo,
     operation: Move,
-    person: u64,
-    period: u64,
-    pool_budget: u64,
-    period_budget: u64,
+    (person, period, pool_budget, period_budget): (u64, u64, u64, u64),
     out: &mut Queue<Request>,
 ) {
     let Move { task: number, reason } = operation;

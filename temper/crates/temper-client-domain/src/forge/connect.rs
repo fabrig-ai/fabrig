@@ -248,6 +248,27 @@ pub fn underway(row: &Row) -> bool {
         | Connection::Stopped { .. } => false,
     }
 }
+/// The Forge step's status in the column (temper/docs/design/client/README.md, 3.5,
+/// The Forge step with a forge); recovery and installation keep their own steps.
+#[must_use]
+pub fn status_shown(row: &Row, playground: Option<u16>) -> bool {
+    if row.mode == Mode::Fake || playground == Some(row.number) || failed(row) {
+        return false;
+    }
+    if row.kind == Kind::GitHub && !super::forges::accepted(row) {
+        return false;
+    }
+    if row.admin && (admin_stopped(row) || underway(row)) {
+        return false;
+    }
+    match row.connection {
+        Connection::SettingUp { .. } | Connection::Connecting | Connection::Connected { .. } => true,
+        Connection::NotConnected
+        | Connection::NotSetUp
+        | Connection::Stopped { .. }
+        | Connection::SetUpFailed { .. } => false,
+    }
+}
 #[must_use]
 pub fn failed(row: &Row) -> bool {
     if let Some(first) = &row.first {

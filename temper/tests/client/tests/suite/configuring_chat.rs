@@ -71,7 +71,7 @@ fn text(world: &mut ClientWorld, agent: ClientId, words: &[&[u8]]) -> String {
     String::from_utf8(printed.stdout.into_vec()).expect("ctl UTF-8")
 }
 
-fn propose(member: bool) -> (ClientWorld, ClientId, u64, String) {
+pub(super) fn propose(member: bool, items: Option<Box<[s::Item]>>) -> (ClientWorld, ClientId, u64, String) {
     let mut world = fixtures::configuring_world(fixtures::SEED, member);
     let agent = fixtures::configuring_agent(&mut world);
     let started = call(
@@ -113,18 +113,19 @@ fn propose(member: bool) -> (ClientWorld, ClientId, u64, String) {
     let Some(s::Value::Charter(mut charter)) = charter.value else { panic!("charter 1") };
     assert_eq!(charter.policy.waiting, Duration::from_secs(1));
     charter.policy.waiting = Duration::from_secs(2);
+    let reason = if items.is_some() {
+        b"Show drafts, goals, changes and the away switch.".as_slice()
+    } else {
+        REASON.as_bytes()
+    };
+    let items = items.unwrap_or_else(|| {
+        Box::new([s::Item { setting: s::Setting::Charter(1), edit: s::Edit::Set(s::Value::Charter(charter)) }])
+    });
+    let kinds = temper_engine_domain_world::kinds::decoded(&items);
     let proposed = front.host_tool(
         task,
         3,
-        engine::Tool::ProposeSettings {
-            against: inventory.newest,
-            items: Box::new([s::Item {
-                setting: s::Setting::Charter(1),
-                edit: s::Edit::Set(s::Value::Charter(charter)),
-            }]),
-            reason: REASON.as_bytes().into(),
-            kinds: Box::new([]),
-        },
+        engine::Tool::ProposeSettings { against: inventory.newest, items, reason: reason.into(), kinds },
     );
     let HostAnswer::Tool(engine::CallAnswer::Proposed { proposal, holder }) = proposed else {
         panic!("settings proposal: {proposed:?}")
@@ -133,7 +134,7 @@ fn propose(member: bool) -> (ClientWorld, ClientId, u64, String) {
     (world, agent, task, format!("t{task}/{proposal}"))
 }
 
-fn accept(world: &mut ClientWorld, agent: ClientId, proposal: &str, key: &[u8]) {
+pub(super) fn accept(world: &mut ClientWorld, agent: ClientId, proposal: &str, key: &[u8]) {
     let expected = if let Some(task) = proposal.strip_prefix('t') {
         let (task, _) = task.split_once('/').expect("task proposal");
         format!("done: task {task}, decide\n")
@@ -152,7 +153,7 @@ fn accept(world: &mut ClientWorld, agent: ClientId, proposal: &str, key: &[u8]) 
 
 #[test]
 fn a_configuring_chat_started_through_ctl_proposes_and_an_owner_accepts() {
-    let (mut world, agent, task, proposal) = propose(false);
+    let (mut world, agent, task, proposal) = propose(false, None);
     let inbox = text(&mut world, agent, &[b"inbox", b"--kind", b"proposals"]);
     assert!(inbox.contains(&proposal), "{inbox}");
     let review = text(&mut world, agent, &[b"proposal", b"show", proposal.as_bytes()]);
@@ -181,7 +182,7 @@ fn a_configuring_chat_started_through_ctl_proposes_and_an_owner_accepts() {
 
 #[test]
 fn a_configuring_proposal_is_named_and_titled_in_the_inbox() {
-    let (mut world, agent, _, _) = propose(false);
+    let (mut world, agent, _, _) = propose(false, None);
     let inbox = text(&mut world, agent, &[b"inbox", b"--kind", b"proposals"]);
     let title = REASON.lines().next().expect("proposal title");
     let row = inbox.lines().find(|row| row.contains(title)).expect("inbox carries the proposal title");
@@ -195,7 +196,7 @@ fn a_configuring_proposal_is_named_and_titled_in_the_inbox() {
 
 #[test]
 fn a_members_configuring_proposal_waits_for_an_owner() {
-    let (mut world, agent, _, proposal) = propose(true);
+    let (mut world, agent, _, proposal) = propose(true, None);
     let caller = world.front().caller;
     let roles: Vec<_> = world
         .front()
@@ -235,7 +236,7 @@ fn a_members_configuring_proposal_waits_for_an_owner() {
 
 #[test]
 fn a_stale_configuring_proposal_is_withdrawn() {
-    let (mut world, agent, task, proposal) = propose(false);
+    let (mut world, agent, task, proposal) = propose(false, None);
     let charter = text(&mut world, agent, &[b"settings", b"show", b"charter", b"1", b"--json"]);
     let value = charter.trim_end().split_once(",\"value\":").expect("shown charter value").1;
     let value = value.strip_suffix('}').expect("setting envelope");
@@ -272,5 +273,84 @@ fn a_stale_configuring_proposal_is_withdrawn() {
             tasks::MessageKind::SettingsDecision { outcome: tasks::SettingsOutcome::Stale { newest: 2 }, .. }
         )),
         "the run hears withdrawn as stale at revision 2"
+    );
+}
+
+#[test]
+fn start_over_closes_and_opens_a_fresh_configure() {
+    use jig_client::contract as c;
+    let mut limits = fixtures::domain_limits();
+    // The stock configuring task includes its settings authority and charter words.
+    limits.client.domain.text = 4096;
+    limits.client.domain.long_text = 4096;
+    limits.client.domain.turn_text = 4096;
+    let mut front = Joint::with_configuring(fixtures::SEED, limits, false);
+    let mut root =
+        temper_client_world::app::Root::Person(Box::new(temper_client_domain::unlinked(&limits, fixtures::SEED)));
+    front.bind(ClientId(0), fixtures::PARTY);
+    account_acts::event(&mut front, &mut root, Temper::start(Address::Configure { project: PROJECT }, Vec::new(), 0));
+    account_acts::event(
+        &mut front,
+        &mut root,
+        Event::Act { action: Action::Pages(Act::Starter { words: WORKFLOW.into() }) }.into(),
+    );
+    let assignment = front.assignments.last().expect("configuring run").clone();
+    let task = assignment.task;
+    let body = b"# How this project works\n\nOne checked change at a time.\n";
+    let input = format!(
+        "{{\"scope\":{{\"kind\":\"goal\",\"project\":{PROJECT},\"goal\":{task}}},\"description\":\"How this project works\",\"body\":\"# How this project works\\n\\nOne checked change at a time.\\n\"}}"
+    );
+    let (written, failed) =
+        temper_engine_domain_world::host_tool::host_tool(&mut front.engine, &assignment, 1, b"note", input.as_bytes());
+    assert!(!failed, "{}", String::from_utf8_lossy(&written));
+    let reply = b"I have written how we work.";
+    front.configuring_reply(task, reply);
+    // Reopening reads the durable document and committed conversation together.
+    account_acts::event(&mut front, &mut root, Temper::went(Address::Settings { project: PROJECT }));
+    account_acts::event(&mut front, &mut root, Temper::went(Address::Chat { task }));
+    let document = root.person().pages().chat().unwrap().draft.clone().expect("written document");
+    assert_eq!(document.body.as_ref(), body);
+    account_acts::event(&mut front, &mut root, Event::Act { action: Action::Pages(Act::StartOver) }.into());
+    assert!(root.person().pages().confirmation().is_some());
+    assert!(front.engine.task(task).is_some(), "asking has not closed it");
+    account_acts::event(&mut front, &mut root, Event::Act { action: Action::Pages(Act::Confirm) }.into());
+    assert_eq!(root.person().pages().address(), &Address::Configure { project: PROJECT });
+    assert!(root.person().pages().chat().is_none());
+    assert!(front.engine.task(task).is_none(), "the old chat has closed");
+    account_acts::event(
+        &mut front,
+        &mut root,
+        Event::Act { action: Action::Pages(Act::Starter { words: b"A fresh way of working".as_slice().into() }) }
+            .into(),
+    );
+    let fresh = front.assignments.last().expect("fresh configuring run");
+    assert_ne!(fresh.task, task);
+    assert_eq!(fresh.charter, 3);
+    let fresh = root.person().pages().chat().expect("fresh chat");
+    assert!(fresh.draft.is_none());
+    assert!(
+        !fresh.thread.lines().iter().any(|line| matches!(line, jig_client::thread::Line::Turn { .. })),
+        "a fresh conversation has no old turns"
+    );
+    account_acts::event(
+        &mut front,
+        &mut root,
+        Temper::went(Address::Chats { filter: temper_client_domain::ChatsFilter::Closed }),
+    );
+    let closed = root.person().pages().chats().unwrap().page.as_ref().expect("closed chats");
+    let c::EndedGroup::Rows { rows, .. } = &closed.ended else { panic!("closed rows") };
+    assert!(rows.iter().any(|row| row.chip.task == task), "the old chat stays in Closed");
+    account_acts::event(&mut front, &mut root, Temper::went(Address::Chat { task }));
+    let person = root.person();
+    let old = person.pages().chat().expect("closed chat page");
+    assert_eq!(old.draft.as_ref(), Some(&document));
+    assert_eq!(old.task(person.client()).unwrap().spec.specification.words.bytes(), WORKFLOW);
+    assert!(
+        old.thread.lines().iter().any(|line| {
+            matches!(line, jig_client::thread::Line::Turn { turn, .. }
+            if turn.messages.iter().any(|message| message.blocks.iter().any(|block|
+                matches!(block, c::Block::Text(text) if text.bytes() == reply))))
+        }),
+        "the old conversation stays with its document"
     );
 }

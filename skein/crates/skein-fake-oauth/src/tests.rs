@@ -36,9 +36,9 @@ fn config() -> Config {
         authorization_url: bytes::copy_of(b"https://issuer.example/authorize"),
         token_endpoint: bytes::copy_of(b"https://issuer.example/token"),
         client_id: bytes::copy_of(b"client"),
-        client_secret: Some(bytes::copy_of(b"secret")),
+        client_secret: Some(Secret::new(bytes::copy_of(b"secret"))),
         redirect_uri: bytes::copy_of(b"http://127.0.0.1:1234/callback"),
-        refresh_token: bytes::copy_of(b"seed"),
+        refresh_token: Secret::new(bytes::copy_of(b"seed")),
         terms: None,
     }
 }
@@ -71,12 +71,12 @@ fn authorization(issuer: &mut Issuer, redirect: &[u8], extra: &[u8]) -> Option<R
         b"&state=0123456789abcdef",
         extra,
     ]);
-    step(issuer, Event::Authorize { url, now: Time::ZERO })
+    step(issuer, Event::Authorize { url: Secret::new(url), now: Time::ZERO })
 }
 fn plan(status: u16, delay: u64) -> Plan {
     Plan {
         status,
-        body: Body::Raw(bytes::copy_of(b"{}")),
+        body: Body::Raw(Secret::new(bytes::copy_of(b"{}"))),
         delay: Duration::from_secs(delay),
         retry_after: Duration::ZERO,
     }
@@ -189,7 +189,7 @@ fn a_varying_port_redirect_is_held_for_its_exchange() {
         assert_eq!(uri.as_ref(), bound);
         let body = joined(&[
             b"grant_type=authorization_code&client_id=client&client_secret=secret&code=",
-            &code,
+            code.expose(),
             b"&redirect_uri=",
             bound,
         ]);
@@ -238,7 +238,7 @@ fn granted_lists_queued_tokens_in_answer_order() {
             .queue(Plan {
                 status: 200,
                 body: Body::Token(TokenResponse {
-                    access_token: bytes::copy_of(access),
+                    access_token: Secret::new(bytes::copy_of(access)),
                     refresh_token: None,
                     expires_in: 30,
                     scope: None,
@@ -254,7 +254,9 @@ fn granted_lists_queued_tokens_in_answer_order() {
     assert_eq!(tokens.len(), GRANTS);
     for (index, token) in tokens.iter().enumerate() {
         assert!(
-            token == &bytes::copy_of([b"access-1".as_slice(), b"access-2", b"access-3"].get(index).expect("index"))
+            token.expose()
+                == bytes::copy_of([b"access-1".as_slice(), b"access-2", b"access-3"].get(index).expect("index"))
+                    .as_ref()
         );
     }
 }
@@ -304,7 +306,7 @@ fn token_plan(scripted: Option<&[u8]>) -> Plan {
     Plan {
         status: 200,
         body: Body::Token(TokenResponse {
-            access_token: bytes::copy_of(b"access"),
+            access_token: Secret::new(bytes::copy_of(b"access")),
             refresh_token: None,
             expires_in: 60,
             scope: None,
@@ -321,7 +323,7 @@ fn exchange(issuer: &mut Issuer) -> Box<[u8]> {
     else {
         panic!("redirect")
     };
-    exchange_code(issuer, &code)
+    exchange_code(issuer, code.expose())
 }
 fn exchange_code(issuer: &mut Issuer, code: &[u8]) -> Box<[u8]> {
     let body = joined(&[b"grant_type=authorization_code&client_id=client&client_secret=secret&redirect_uri=http://127.0.0.1:1234/callback&code=", code]);
@@ -572,7 +574,7 @@ fn a_code_keeps_the_account_at_its_authorization() {
     let Some(Request::Redirect { code, .. }) = authorize(&mut issuer) else { panic!("redirect") };
     issuer.sign_in_as(account(b"second", false)).expect("second account");
     issuer.queue(token_plan(None)).expect("plan");
-    let first = segment(&member(&exchange_code(&mut issuer, &code), b"id_token", 0).expect("token"), 1);
+    let first = segment(&member(&exchange_code(&mut issuer, code.expose()), b"id_token", 0).expect("token"), 1);
     let second = segment(&id_token(&mut issuer), 1);
     assert_eq!(member(&first, b"sub", 0).as_deref(), Some(b"first".as_slice()));
     assert_eq!(member(&first, b"email_verified", 0).as_deref(), Some(b"true".as_slice()));

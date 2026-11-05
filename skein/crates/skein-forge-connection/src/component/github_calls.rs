@@ -300,7 +300,7 @@ impl Common {
         let token = self.waiting.get(id).expect("call").connection.expect("holder");
         let connection = *self.connections.get(&token).expect("connection");
         for _ in 0..64_u32 {
-            if self.connection_slab.get(connection).expect("connection").phase == Phase::Idle {
+            if self.connection_slab.get(connection).expect("connection").phase() == Phase::Idle {
                 match self.github_route(id, github, gh, env) {
                     Ok(true) => {}
                     Ok(false) => {
@@ -347,7 +347,7 @@ impl Common {
                 }
                 continue;
             }
-            if c.phase == Phase::Closed {
+            if c.phase() == Phase::Closed {
                 c.close(env, true, io);
             }
             if !github.exchange.ready(c) {
@@ -388,7 +388,7 @@ impl Common {
         route.token_revision = row.token_revision;
         route.status = None;
         let c = self.connection_slab.get_mut(*self.connections.get(&token).expect("connection")).expect("connection");
-        c.deadline = Some(deadline);
+        c.rest(Some(deadline));
         match github.exchange.start(c, env, &base.forge, &self.owner.user_agent, exchange, authorization) {
             Ok(()) => {}
             Err(_) => return Err(api::Error::Refused),
@@ -456,9 +456,9 @@ impl Common {
         if let Some(token) = waiting.connection.take() {
             let c =
                 self.connection_slab.get_mut(*self.connections.get(&token).expect("connection")).expect("connection");
-            if c.phase == Phase::Idle && !c.in_flight() {
-                c.deadline = Some(env.now.saturating_add(env.limits.idle));
-            } else if !c.draining {
+            if c.phase() == Phase::Idle && !c.in_flight() {
+                c.rest(Some(env.now.saturating_add(env.limits.idle)));
+            } else if !c.draining() {
                 c.close(env, c.in_flight(), io);
             }
             let _holder = self.holders.remove(&token);
@@ -484,7 +484,7 @@ impl Common {
                 let token = self.waiting.get(id).expect("call").connection.expect("holder");
                 let connection = *self.connections.get(&token).expect("connection");
                 let c = self.connection_slab.get_mut(connection).expect("connection");
-                if c.phase == Phase::Closed || (checked.is_some() && c.in_flight()) {
+                if c.phase() == Phase::Closed || (checked.is_some() && c.in_flight()) {
                     self.release_github_call(id, env, io);
                     self.wake = Some(env.now);
                     return true;

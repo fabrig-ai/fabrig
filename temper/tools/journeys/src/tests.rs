@@ -2,8 +2,10 @@ use crate::{
     JOURNEYS,
     print::{Mark, SCRIPT, beside, pages},
 };
+use skein_lib::{Time, Wall};
 use skein_scratch::Scratch;
 use skein_ui::NodeId;
+use skein_ui_web::mapping::Primary;
 use std::{fs, path::Path};
 use temper_client_shell_web::journey;
 
@@ -211,13 +213,34 @@ fn every_journey_has_its_description() {
 #[test]
 fn a_reprint_keeps_a_journeys_readme() {
     let scratch = Scratch::new("temper-client-journeys-readme");
-    let directory = scratch.path().join("welcome-playground");
-    fs::create_dir(&directory).expect("journey directory");
+    let source = scratch.path().join("source");
+    let out = scratch.path().join("out");
+    let facts = journey::Facts {
+        seed: 11,
+        now: Time::ZERO,
+        wall: Wall::EPOCH,
+        primary: Primary::Control,
+        zone_minutes: 0,
+        ways: None,
+        forges: Vec::new(),
+        path: b"/welcome".as_slice().into(),
+        secret: None,
+        stored: Vec::new(),
+    };
+    let (mut host, mut page) = facts.start();
+    let mut recorder = journey::Recorder::new(&facts);
+    recorder.turn(facts.now, facts.wall);
+    recorder.report(&mut host, &page, temper_client_shell_web::host::Report::Start);
+    host.draw(&mut page, &mut Vec::new());
+    recorder.deadline(host.deadline());
+    crate::add(&source, "welcome", &recorder.save(&page)).expect("add fixture journey");
+    let directory = out.join("welcome");
+    fs::create_dir_all(&directory).expect("journey directory");
     let readme = directory.join("README.md");
     let description = b"The journey's description.\n";
     fs::write(&readme, description).expect("write description");
     fs::write(directory.join("99.html"), "old page").expect("old page");
-    assert!(crate::reprint(Path::new(JOURNEYS), scratch.path()).expect("reprint").is_empty());
+    assert!(crate::reprint(&source, &out).expect("reprint").is_empty());
     assert_eq!(fs::read(readme).expect("description kept"), description);
     assert!(!directory.join("99.html").exists());
 }

@@ -231,8 +231,8 @@ pub(crate) const fn run_failure(failure: &agent::RunFailure) -> host::RunFailure
             Some(bound) => host::RunFailure::Exceeded(host::Exceeded { bound, value: *value }),
             None => host::RunFailure::Model,
         },
-        agent::RunFailure::Transcript(_)
-        | agent::RunFailure::Model(
+        agent::RunFailure::Transcript(_) => host::RunFailure::Transcript,
+        agent::RunFailure::Model(
             agent::ModelFault::Completion { .. }
             | agent::ModelFault::Provider
             | agent::ModelFault::Unauthorized { .. }

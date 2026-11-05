@@ -40,7 +40,8 @@ pub(crate) fn main(
         return;
     }
     b.open(Role::Main);
-    b.style(look::MAIN);
+    let draft = root.pages().address() == &(Address::NewChat { draft: true });
+    b.style(if draft { look::MODE_SPLIT } else { look::MAIN });
     b.style(look::SESSION);
     super::session::top(
         b,
@@ -53,6 +54,12 @@ pub(crate) fn main(
     );
     super::session::right(b);
     crate::choice::byline(b, root, None, w, bindings);
+    if !draft
+        && let Some(project) = project
+        && temper_client_domain::pages::drafts_offered(root, project)
+    {
+        super::document::add(b, w, bindings, Act::Go { address: Address::NewChat { draft: true } });
+    }
     b.close();
     b.close();
     b.open(Role::Region);
@@ -76,21 +83,29 @@ pub(crate) fn main(
         Some(project) => temper_client_domain::pages::home::repository(root, project),
         None => Repository::None,
     };
-    let line = match repository {
-        Repository::In { owner, name } => w.say(Word::NewChatIn, &[Hole::Name(owner), Hole::Name(name)]),
-        Repository::Unknown
-        | Repository::Adopting(_)
-        | Repository::Offer { .. }
-        | Repository::GitHub { .. }
-        | Repository::None => {
-            let name = match project {
-                Some(project) => match super::project_name(root.pages().me(root.client()), project) {
-                    Some(name) => name,
-                    None => w.say(Word::Project, &[Hole::Number(u64::from(project))]),
-                },
-                None => w.say(Word::ProjectPane, &[]),
-            };
-            w.say(Word::NewChatNoRepository, &[Hole::Name(name)])
+    let line = if draft {
+        w.say(Word::ChatWrites, &[Hole::Name(w.say(Word::DraftName, &[]))])
+    } else {
+        match repository {
+            Repository::In { owner, name } => w.say(Word::NewChatIn, &[Hole::Name(owner), Hole::Name(name)]),
+            Repository::Unknown
+            | Repository::Copying { .. }
+            | Repository::CopiesIn { .. }
+            | Repository::CopyOffer { .. }
+            | Repository::Add { .. }
+            | Repository::Adopting(_)
+            | Repository::Offer { .. }
+            | Repository::GitHub { .. }
+            | Repository::None => {
+                let name = match project {
+                    Some(project) => match super::project_name(root.pages().me(root.client()), project) {
+                        Some(name) => name,
+                        None => w.say(Word::Project, &[Hole::Number(u64::from(project))]),
+                    },
+                    None => w.say(Word::ProjectPane, &[]),
+                };
+                w.say(Word::NewChatNoRepository, &[Hole::Name(name)])
+            }
         }
     };
     text(b, &line, look::META_LINE);
@@ -104,13 +119,23 @@ pub(crate) fn main(
     crate::choice::above_composer(b, root, None, w, bindings, times);
     composer(b, root, w, bindings, text_limit);
     b.close();
+    if draft {
+        super::document::empty(b, w);
+    }
     b.close();
 }
 
 fn composer(b: &mut Builder, root: &Domain, w: &Words, bindings: &mut Bindings, text_limit: u32) {
     let Some(chats) = root.pages().chats() else { return };
     let ready = ready_to_start(root);
-    let name = w.say(Word::NewChatWords, &[]);
+    let name = w.say(
+        if root.pages().address() == &(Address::NewChat { draft: true }) {
+            Word::DraftWords
+        } else {
+            Word::NewChatWords
+        },
+        &[],
+    );
     super::session::foot(b, &name);
     b.open(Role::TextArea);
     b.name(&name);
@@ -133,7 +158,7 @@ fn composer(b: &mut Builder, root: &Domain, w: &Words, bindings: &mut Bindings, 
     }
     b.bind(bindings.insert(Act::StartChat));
     b.close();
-    super::session::hint(b, w);
+    super::session::hint(b, w, false);
     if chats.refusal.is_some() {
         w.refusal(b, &jig_client::contract::Refusal::NotOffered, text_limit);
     }
@@ -197,7 +222,7 @@ fn context(b: &mut Builder, root: &Domain, words: &Words) {
 
 /// The playground whose start `NewChat` shows (temper/docs/design/client/README.md, 4.8).
 pub(crate) fn playground_start(root: &Domain) -> Option<&temper_client_domain::forge::Playground> {
-    let Address::NewChat = root.pages().address() else { return None };
+    let Address::NewChat { .. } = root.pages().address() else { return None };
     let playground = root.forge().playground()?;
     let selected = match playground.project {
         Some(project) => root.pages().project() == Some(project),

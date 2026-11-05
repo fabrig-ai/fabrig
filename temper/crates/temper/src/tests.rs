@@ -1,6 +1,7 @@
 mod box_kinds;
 mod commands;
 mod help;
+mod init_clients;
 mod limits;
 mod reference_settings;
 mod settings_fields;
@@ -497,4 +498,19 @@ fn each_box_adoption_refusal_renders_one_line_naming_what_it_lacks() {
             format!("temper serve: --box: {expected}\n")
         );
     }
+}
+
+#[test]
+fn the_dump_directory_is_set_by_a_value_and_made_absolute() {
+    use std::{ffi::OsString, path::PathBuf};
+    let working = std::env::current_dir().expect("test working directory");
+    for (row, value, expected) in [
+        ("absent", None, None),
+        ("empty", Some(OsString::new()), None),
+        ("relative", Some(OsString::from("request-dumps")), Some(working.join("request-dumps"))),
+        ("absolute", Some(OsString::from("/request-dumps")), Some(PathBuf::from("/request-dumps"))),
+    ] {
+        assert_eq!(super::dump_directory(value), expected, "{row}");
+    }
+    assert_eq!(super::DUMP_BOUND, 4_294_967_296);
 }

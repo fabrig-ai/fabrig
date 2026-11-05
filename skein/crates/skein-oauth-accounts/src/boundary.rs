@@ -2,12 +2,11 @@
 
 use crate::Unusable;
 use alloc::boxed::Box;
-use skein_lib::Duration;
+use skein_lib::{Duration, Secret};
 use skein_oauth::SavedToken;
 
 /// What the owner asks of its configured accounts.
-#[derive(PartialEq, Eq, Hash)]
-#[expect(missing_debug_implementations, reason = "credential values must never occur in traces")]
+#[derive(PartialEq, Eq, Hash, Debug)]
 pub enum Request {
     /// Refreshes this account at its lead even while nobody holds its grant.
     Want { account: u32, wanted: bool },
@@ -19,7 +18,7 @@ pub enum Request {
     SignIn { account: u32, subject: Option<Box<[u8]>> },
     /// A redirect handed in: the confidential owner's, or the address a person pasted for a public
     /// sign-in whose listener is up; Taken, or Refused with the sign-in still waiting (oauth.md, 6.5).
-    Redirected { account: u32, uri: Box<[u8]> },
+    Redirected { account: u32, uri: Secret },
     /// The address the listener sends the browser on to once it takes this sign-in's redirect (oauth.md, 6.5).
     Return { account: u32, location: Box<[u8]> },
     /// Cancels this account's exchange; its requested or held work hears the terminal.
@@ -43,21 +42,20 @@ pub enum Request {
 }
 
 /// What the component tells its owner.
-#[derive(PartialEq, Eq, Hash)]
-#[expect(missing_debug_implementations, reason = "credential values must never occur in traces")]
+#[derive(PartialEq, Eq, Hash, Debug)]
 pub enum Event {
     /// The account has settled and its number is free for another add.
     Removed { account: u32 },
     /// Ends `SignOut`: the record is forgotten; revocation may be unconfirmed.
     SignedOut { account: u32, revoked: bool },
     /// The authorization URL for the owner to show, once per admitted sign-in.
-    Visit { account: u32, url: Box<[u8]> },
+    Visit { account: u32, url: Secret },
     /// Ends `Redirected`: the sign-in took the redirect handed in; its own terminal follows (oauth.md, 6.5).
     Taken { account: u32 },
     /// Ends `SignIn` once kept, naming the record's subject and required scopes not granted in `missing`.
     SignedIn { account: u32, generation: u64, missing: Box<[u8]>, subject: Option<Box<[u8]>> },
     /// Answers Grant, then announces each new generation while the owner holds it.
-    Granted { account: u32, token: Box<[u8]>, generation: u64, valid: Duration },
+    Granted { account: u32, token: Secret, generation: u64, valid: Duration },
     /// An access-only record reached its lead; announced once per record.
     Expiring { account: u32, generation: u64 },
     /// A candidate for the owner's store; nothing new is lent until its Kept terminal.
@@ -194,8 +192,7 @@ pub enum Unloaded {
 }
 
 /// The owner's answer to a shared record lock (oauth.md, section 6.4).
-#[derive(PartialEq, Eq, Hash)]
-#[expect(missing_debug_implementations, reason = "credential values must never occur in traces")]
+#[derive(PartialEq, Eq, Hash, Debug)]
 pub enum Locked {
     /// The lock is held; private keepers load their own record.
     Held { record: Option<SavedToken> },

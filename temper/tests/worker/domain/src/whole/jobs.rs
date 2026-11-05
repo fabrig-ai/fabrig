@@ -121,7 +121,7 @@ impl World {
     fn take(&mut self, request: Request) {
         match request {
             Request::Hello(hello) => self.report.kinds = hello.jobs,
-            Request::Link(host::LinkUp::JobAnswer { run, attempt, answer }) => {
+            Request::JobAnswer { run, attempt, answer, .. } => {
                 assert_eq!((run, attempt), (RUN, ATTEMPT));
                 assert_eq!(self.domain.checkout().idle(), self.domain.checkout().workspaces(), "release before answer");
                 assert!(self.held_push.is_none(), "push settles before answer");
@@ -146,6 +146,7 @@ impl World {
                     | git::Op::Fetch { .. }
                     | git::Op::Create { .. }
                     | git::Op::CheckOut { .. }
+                    | git::Op::Look { .. }
                     | git::Op::IsAncestor { .. }
                     | git::Op::Merge { .. } => {}
                 }

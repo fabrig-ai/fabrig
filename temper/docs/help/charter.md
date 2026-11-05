@@ -27,10 +27,11 @@ the task reads its charter, whole:
   how long it waits idle, and the timeout of its calls to temper's
   tools.
 
-The stock offers five charters: 1 for chats, 2 for coding, 3 for the
-configuring agent, 4 for reviews and 6 for foremen. The configuring
+The stock offers six charters: 1 for chats, 2 for coding, 3 for the
+configuring agent, 4 for reviews, 6 for foremen and 9 for the status agent. The configuring
 agent turns how a person describes their work into a proposal of
-settings (`temper help chat`).
+settings (`temper help chat`). The status agent writes the few lines at the top
+of a project's Home from the facts in its task, with no tools.
 
 The forge's procedures run a change's agent work under three charters,
 which the change keeps from its making to its end: its producing and
@@ -47,9 +48,13 @@ Each member, with its type and bound, is in
 ### Documents from a repository
 
 Put rules in a charter's `documents` when its runs should read them from
-an adopted repository. Read `temper ctl DIR forge list` for the forge's
-`host`; `temper ctl DIR forge list --json` prints the same `host` in each
-forge row. Copy that host unchanged into `forge`, including its port.
+an adopted repository. In a configuring chat, call `settings` without
+members: `project repositories` lists readable adopted repositories in the
+chat's project, with each canonical host and OWNER/NAME. Copy that host
+into the document's `forge` and OWNER/NAME into `repository`.
+
+People can read `temper ctl DIR forge list` for the forge's `host`;
+`temper ctl DIR forge list --json` prints the same `host` in each forge row. Copy that host unchanged into `forge`, including its port.
 It is the host in repository resource names, not the forge number or
 the forge's web address.
 

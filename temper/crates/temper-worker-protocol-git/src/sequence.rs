@@ -20,6 +20,7 @@ pub enum Next {
 pub fn first(op: &git::Op) -> Next {
     Next::Run(match op {
         git::Op::Make { .. } => return Next::Make,
+        git::Op::Look { at, .. } => Command::Origin { directory: invocation::place(at) },
         git::Op::Clone { at, remote, .. } => {
             Command::Clone { remote: remote.clone(), directory: at.repository.clone() }
         }
@@ -57,6 +58,7 @@ pub fn failed(fault: git::Fault, tail: &[u8], cut: u64) -> Next {
 }
 /// Decide by exit status and stdout first, otherwise by the failure tail.
 #[must_use]
+#[expect(clippy::too_many_lines, reason = "the invocation terminal table handles every operation together")]
 pub fn after(
     op: &git::Op,
     ran: &Command,
@@ -67,6 +69,24 @@ pub fn after(
     checkout: &checkout::Limits,
 ) -> Next {
     match ran {
+        Command::Origin { .. } => match op {
+            git::Op::Look { remote, .. } => match code {
+                0 => {
+                    return Next::End(git::Done::Looked { holds: stdout.strip_suffix(b"\n") == Some(remote.as_ref()) });
+                }
+                1 | 128 => return Next::End(git::Done::Looked { holds: false }),
+                _ => {}
+            },
+            git::Op::Make { .. }
+            | git::Op::Clone { .. }
+            | git::Op::Fetch { .. }
+            | git::Op::Create { .. }
+            | git::Op::CheckOut { .. }
+            | git::Op::IsAncestor { .. }
+            | git::Op::Merge { .. }
+            | git::Op::Commit { .. }
+            | git::Op::Push { .. } => unreachable!("origin is a look's invocation"),
+        },
         Command::Clone { .. } | Command::Clean if code == 0 => return Next::End(git::Done::Succeeded),
         Command::Fetch { .. } if code == 0 => {
             if let Some(commit) = output::fetched(stdout) {
@@ -107,6 +127,7 @@ pub fn after(
             | git::Op::Fetch { .. }
             | git::Op::Create { .. }
             | git::Op::CheckOut { .. }
+            | git::Op::Look { .. }
             | git::Op::IsAncestor { .. }
             | git::Op::Merge { .. }
             | git::Op::Push { .. } => {}
@@ -145,7 +166,8 @@ pub fn after(
                 }
                 _ => {}
             },
-            git::Op::Make { .. }
+            git::Op::Look { .. }
+            | git::Op::Make { .. }
             | git::Op::Clone { .. }
             | git::Op::Fetch { .. }
             | git::Op::Create { .. }
@@ -204,6 +226,7 @@ fn unmerged(op: &git::Op, stdout: &[u8], checkout: &checkout::Limits) -> Option<
         | git::Op::Fetch { .. }
         | git::Op::Create { .. }
         | git::Op::CheckOut { .. }
+        | git::Op::Look { .. }
         | git::Op::IsAncestor { .. }
         | git::Op::Merge { .. }
         | git::Op::Push { .. } => None,
@@ -220,6 +243,7 @@ fn commit_tree(op: &git::Op, stdout: &[u8]) -> Option<Command> {
         | git::Op::Fetch { .. }
         | git::Op::Create { .. }
         | git::Op::CheckOut { .. }
+        | git::Op::Look { .. }
         | git::Op::IsAncestor { .. }
         | git::Op::Merge { .. }
         | git::Op::Push { .. } => None,
@@ -234,6 +258,7 @@ fn checked_out(op: &git::Op) -> Next {
         | git::Op::Clone { .. }
         | git::Op::Fetch { .. }
         | git::Op::Create { .. }
+        | git::Op::Look { .. }
         | git::Op::IsAncestor { .. }
         | git::Op::Merge { .. }
         | git::Op::Commit { .. }

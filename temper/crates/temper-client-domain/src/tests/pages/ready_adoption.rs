@@ -15,7 +15,7 @@ fn made() -> jig_client::Outcome {
     ))))
 }
 fn sends(mut out: Queue<Request>) -> List<(skein_lib::RequestKey, jig_client::Ask)> {
-    let mut sent = List::with_capacity(2);
+    let mut sent = List::with_capacity(wire::FIRST_COPIES);
     while let Some(request) = out.pop() {
         if let Request::Unlinked {
             request: jig_client::UnlinkedRequest::Down { down: Down::Send { key, request, .. } },
@@ -228,4 +228,168 @@ fn switcher_creation_opens_home_once_membership_arrives() {
     }
     assert!(home);
     assert!(root.pages().adopting().is_none(), "the switcher makes a project alone");
+}
+
+const COPY_FORGE: u16 = 3;
+const ADDRESSES: &[&[u8]] =
+    &[b"https://github.com/acme/widget", b"https://source.invalid/team/tool", b"https://github.com/other/library"];
+fn copy_row(number: u16, mode: w::Mode, addresses: &[&[u8]], project: Option<u32>) -> w::ForgeRow {
+    let row = crate::tests::forges::wire_connection_row(
+        number,
+        w::Kind::Forgejo,
+        mode,
+        w::Connection::Connected(
+            w::Connected::new(&w::CEILINGS, w::ConnectedParts { id: 42, login: b"temper".as_slice().into() }).unwrap(),
+        ),
+        w::Offer::NotOffered,
+        None,
+    );
+    let mut parts = row.into_parts();
+    let mut copies = List::with_capacity(wire::FIRST_COPIES);
+    for address in addresses {
+        copies.push((*address).into()).unwrap();
+    }
+    parts.starts_with = w::StartsWith::Copies(
+        w::CopyAddresses::new(&w::CEILINGS, w::CopyAddressesParts { addresses: copies }).unwrap(),
+    );
+    parts.repositories.clear();
+    if let Some(project) = project {
+        parts
+            .repositories
+            .push(
+                w::Adoption::new(
+                    &w::CEILINGS,
+                    w::AdoptionParts { project, owner: b"work".as_slice().into(), name: b"existing".as_slice().into() },
+                )
+                .unwrap(),
+            )
+            .unwrap();
+    }
+    w::ForgeRow::new(&w::CEILINGS, parts).unwrap()
+}
+fn ready_copies(addresses: &[&[u8]], home: Option<u32>) -> (Domain, skein_lib::Token) {
+    let (mut root, me, watch) = super::welcome::ready_default_with_forges();
+    let mut forges = List::with_capacity(1);
+    forges.push(copy_row(COPY_FORGE, w::Mode::Owned, addresses, home)).unwrap();
+    super::welcome::up(
+        &mut root,
+        jig_client::Up::FamilyDelivered {
+            watch,
+            record: jig_client::Family {
+                family: wire::FORGE,
+                version: wire::CLIENT_VERSION,
+                bytes: wire::forges(&w::Forges::new(&w::CEILINGS, w::ForgesParts { forges }).unwrap()),
+            },
+        },
+    );
+    (root, me)
+}
+type Expected<'a> = (&'a [u8], &'a [u8], &'a [u8], &'a [u8]);
+fn assert_copies(
+    sent: &List<(skein_lib::RequestKey, jig_client::Ask)>,
+    project: u32,
+    home: bool,
+    expected: &[Expected<'_>],
+) {
+    assert_eq!(sent.len(), u32::try_from(expected.len()).unwrap(), "all copies sent without waiting for answers");
+    for ((key, ask), (key_name, org, name, address)) in sent.iter().zip(expected) {
+        assert_eq!(*key, crate::key::named(crate::key::TOOLS, &crate::key::Name::new(key_name).unwrap()));
+        let jig_client::Ask::Family { scope, record } = ask else { panic!("copy is a family request") };
+        assert_eq!(*scope, c::Scope::Project(project));
+        let request = wire::decode_requesting(&record.bytes, &w::CEILINGS).unwrap();
+        let w::Request::MakeRepository(request) = request.request() else { panic!("only MakeRepository, no adoption") };
+        assert_eq!(request.forge(), COPY_FORGE);
+        assert_eq!(request.org(), *org);
+        assert_eq!(request.name(), *name);
+        let w::MakeFrom::Copy(copy) = request.from() else { panic!("a public copy") };
+        assert_eq!(copy.address(), *address);
+        assert_eq!(request.into().as_ref().unwrap().project(), project);
+        assert_eq!(request.into().as_ref().unwrap().home(), home && *key_name == b"welcome-copy-1");
+    }
+}
+const EXPECTED: &[Expected<'_>] = &[
+    (b"welcome-copy-1", b"acme", b"widget", b"https://github.com/acme/widget"),
+    (b"welcome-copy-2", b"team", b"tool", b"https://source.invalid/team/tool"),
+    (b"welcome-copy-3", b"other", b"library", b"https://github.com/other/library"),
+];
+#[test]
+fn ready_makes_project_then_sends_every_copy_at_once() {
+    for (addresses, expected) in [(&ADDRESSES[..1], &EXPECTED[..1]), (ADDRESSES, EXPECTED)] {
+        let (mut root, _) = ready_copies(addresses, None);
+        let sent = sends(press_default(&mut root));
+        let [(_, jig_client::Ask::Jig(ask))] = sent.as_slice() else { panic!("MakeProject alone first") };
+        assert_eq!(
+            ask.as_ref(),
+            &c::Ask::MakeProject { name: c::Text::new(b"Widget".as_slice().into(), 64).unwrap(), policy: 1 }
+        );
+        let serial = root.pages.serial;
+        let sent = sends(project_answer(&mut root, made()));
+        assert_copies(&sent, PROJECT, true, expected);
+        assert_eq!(root.pages.serial, serial + u64::try_from(addresses.len()).unwrap());
+        assert_eq!(root.pages().address(), &Address::Home { project: PROJECT });
+        assert!(root.pages().welcome_first().is_none());
+        assert!(root.pages().adopting().is_none());
+        let serial = root.pages.serial;
+        assert!(again(&mut root).is_empty());
+        assert_eq!(root.pages.serial, serial, "an adoption retry asks no copies");
+    }
+}
+#[test]
+fn taken_name_copies_into_existing_project_respecting_its_home() {
+    for has_home in [false, true] {
+        let held = if has_home { Some(f::PROJECT) } else { None };
+        let (mut root, me) = ready_copies(ADDRESSES, held);
+        let mut frame = pages::accounts::current_me(root.client()).unwrap().clone();
+        frame.projects.get_mut(0).unwrap().name =
+            c::DocumentText::complete(c::Text::new(b"widget".as_slice().into(), 64).unwrap());
+        deliver(&mut root, me, c::Delivery::Me(Box::new(frame)));
+        press_default(&mut root);
+        let sent = sends(project_answer(
+            &mut root,
+            jig_client::Outcome::Answered(jig_client::Answered::Jig(c::Answer::Refused {
+                refusal: c::Refusal::NameTaken,
+                at: None,
+            })),
+        ));
+        assert_copies(&sent, f::PROJECT, !has_home, EXPECTED);
+        assert_eq!(root.pages().address(), &Address::Home { project: f::PROJECT });
+        assert!(root.pages().adopting().is_none());
+    }
+}
+#[test]
+fn unreadable_kept_address_is_omitted_preserving_other_places() {
+    let (mut root, _) = ready_copies(&[b"not an address", ADDRESSES[1]], None);
+    press_default(&mut root);
+    let sent = sends(project_answer(&mut root, made()));
+    assert_copies(&sent, PROJECT, true, &EXPECTED[1..2]);
+}
+#[test]
+fn copies_choose_lowest_real_forge_and_offer_its_first_name() {
+    let mut rows = List::with_capacity(4);
+    for row in [
+        copy_row(1, w::Mode::Fake, &[ADDRESSES[1]], None),
+        copy_row(2, w::Mode::Owned, &[ADDRESSES[1]], None),
+        copy_row(COPY_FORGE, w::Mode::Owned, ADDRESSES, None),
+        copy_row(9, w::Mode::Owned, &[ADDRESSES[1]], None),
+    ] {
+        rows.push(row).unwrap();
+    }
+    let record = jig_client::Family {
+        family: wire::FORGE,
+        version: wire::CLIENT_VERSION,
+        bytes: wire::forges(&w::Forges::new(&w::CEILINGS, w::ForgesParts { forges: rows }).unwrap()),
+    };
+    let mut rows = forge::forges::rows(&record, &f::limits().forge).unwrap();
+    rows.reverse();
+    let rows = forge::forges::State::Rows(rows);
+    let copies = forge::making::copies(&rows, Some(2)).unwrap();
+    assert_eq!(copies.forge, COPY_FORGE);
+    assert_eq!(copies.addresses.len(), ADDRESSES.len());
+    for (address, expected) in copies.addresses.iter().zip(ADDRESSES) {
+        assert_eq!(address.as_ref(), *expected);
+    }
+    assert_eq!(pages::welcome::offered(None, Some(&copies)).as_ref(), b"Widget");
+    let first =
+        pages::welcome::First { forge: COPY_FORGE, org: b"work".as_slice().into(), name: b"hello".as_slice().into() };
+    assert_eq!(pages::welcome::offered(Some(&first), Some(&copies)).as_ref(), b"Hello");
 }

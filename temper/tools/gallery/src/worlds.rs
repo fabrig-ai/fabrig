@@ -154,12 +154,13 @@ fn template_preview(member: &mut c::MeProject) {
     });
 }
 fn providers(w: World) -> List<c::ProviderOffer> {
-    let mut rows = List::with_capacity(2);
+    let mut rows = List::with_capacity(3);
     let names: &[(u32, &str)] = match w {
         Reference => &[(17, "anthropic"), (18, "openai")],
         Solo => &[(17, "anthropic")],
-        FirstRun { step: 1..=5 | 10 } => &[(17, "Playground"), (18, "openai")],
-        World::Bare | FirstRun { .. } => &[(18, "openai")],
+        FirstRun { step: 1..=5 | 10 } => &[(17, "Playground"), (18, "openai"), (19, "anthropic")],
+        FirstRun { .. } => &[(18, "openai"), (19, "anthropic")],
+        World::Bare => &[(18, "openai")],
     };
     for (number, name) in names {
         let mut programs = List::with_capacity(1);
@@ -230,13 +231,40 @@ fn configure_frame(me: &mut c::Me) {
 }
 
 pub(super) fn world(w: World, address: Address, then: Then) -> (Domain, Option<Token>) {
-    world_in_layout(w, address, then, false, None)
+    world_in_layout(w, address, then, false, None, None, false)
+}
+pub(super) fn drafts_world() -> Domain {
+    world_in_layout(
+        Reference,
+        Address::Chats { filter: temper_client_domain::ChatsFilter::Drafts },
+        Then::Shown,
+        false,
+        Some("chats-drafts"),
+        None,
+        false,
+    )
+    .0
+}
+pub(super) fn linked_chat_world(w: World, address: Address) -> Domain {
+    world_in_layout(
+        w,
+        address,
+        Then::Mode(temper_client_domain::pages::chat::document::Mode::Chat),
+        false,
+        Some("chat-goal-linked"),
+        None,
+        false,
+    )
+    .0
 }
 pub(super) fn configuring_world(w: World, address: Address, then: Then) -> (Domain, Option<Token>) {
-    world_in_layout(w, address, then, true, None)
+    world_in_layout(w, address, then, true, None, None, false)
 }
 pub(super) fn goals_world(w: World, address: Address, name: &str) -> Domain {
-    world_in_layout(w, address, Then::Shown, false, Some(name)).0
+    world_in_layout(w, address, Then::Shown, false, Some(name), None, false).0
+}
+pub(super) fn copies_world(address: Address, then: Then) -> Domain {
+    world_in_layout(FirstRun { step: 7 }, address, then, false, None, None, true).0
 }
 #[expect(clippy::too_many_lines, reason = "one ordered dispatch answers the gallery page’s document reads")]
 fn world_in_layout(
@@ -245,6 +273,8 @@ fn world_in_layout(
     then: Then,
     configuring_chat: bool,
     goals: Option<&str>,
+    settings: Option<&str>,
+    copies: bool,
 ) -> (Domain, Option<Token>) {
     let configuring = configuring_chat || matches!(address, Address::Configure { .. });
     let connecting = matches!(
@@ -255,6 +285,8 @@ fn world_in_layout(
     let (mut root, mut out) = started(address);
     let mut forge_watch = None;
     let mut accounts_watch = None;
+    let mut settings_chat_watch = None;
+    let settings_chat = settings.filter(|name| name.starts_with("configure-chat-"));
     let mut playground_read = false;
     // Every response answers an open/read, including the playground family read.
     for _ in 0_u32..256 {
@@ -263,7 +295,21 @@ fn world_in_layout(
             match down {
                 jig_client::Down::Open { watch, subject: jig_client::Watchable::Jig(subject) } => {
                     let document = match subject {
-                        c::Subject::Me => Some(c::Delivery::Me(Box::new(frame(w, connecting, configuring)))),
+                        c::Subject::Me => {
+                            let mut me = frame(w, connecting, configuring);
+                            if matches!(then, Then::Mode(_) | Then::DraftEmpty) {
+                                let templates = me.projects.get(0).expect("draft project").templates.clone();
+                                configure_frame(&mut me);
+                                me.projects.get_mut(0).expect("draft project").templates = templates;
+                            }
+                            if settings_chat.is_some() {
+                                settings_chat_frame(&mut me);
+                            }
+                            if let Then::Hosts { role: false, .. } = then {
+                                me.deployment_role = None;
+                            }
+                            Some(c::Delivery::Me(Box::new(me)))
+                        }
                         c::Subject::Accounts => {
                             accounts_watch = Some(watch);
                             Some(c::Delivery::Accounts(Box::new(accounts(w, then))))
@@ -283,22 +329,73 @@ fn world_in_layout(
                         }
                         c::Subject::Inbox { window } => Some(c::Delivery::Inbox(Box::new(inbox_window(w, window)))),
                         c::Subject::Task { task: number } => {
-                            let mut task = shown_task(w, number, then);
+                            let mut task = page_goal(goals)
+                                .filter(|g| g.facts.number == number)
+                                .map_or_else(|| shown_task(w, number, then), |g| g.document(w));
                             if configuring_chat {
                                 configuring_chip(&mut task.chip);
                             }
+                            if let Some(name) = settings_chat {
+                                settings_chat_watch = Some(watch);
+                                task.activity = if name == "configure-chat-replaced" { 2 } else { 1 };
+                                task.proposals = List::with_capacity(2);
+                                task.proposals.push(PROPOSAL).expect("settings proposal");
+                                if name == "configure-chat-replaced" {
+                                    task.proposals.push(SETTINGS_NEXT).expect("later proposal");
+                                }
+                            }
                             Some(c::Delivery::Task(Box::new(task)))
                         }
-                        c::Subject::Tree { task, window } => Some(plan_tree(w, task, window, then)),
-                        c::Subject::Deployment => Some(c::Delivery::Deployment(Box::new(deployment(w)))),
-                        c::Subject::Settings | c::Subject::Chips { .. } | c::Subject::Run { .. } => None,
+                        c::Subject::Tree { task, window } => Some(
+                            page_goal(goals)
+                                .filter(|g| g.facts.number == task)
+                                .map_or_else(|| plan_tree(w, task, window, then), |g| g.tree(w, window)),
+                        ),
+                        c::Subject::Deployment => {
+                            let mut doc = deployment(w);
+                            if let Then::Hosts { connected: true, .. } = then {
+                                doc.hosts = builders();
+                            }
+                            Some(c::Delivery::Deployment(Box::new(doc)))
+                        }
+                        c::Subject::Settings => Some(c::Delivery::Settings(Box::new(c::SettingsDocument {
+                            newest: 0,
+                            settings: List::with_capacity(0),
+                            held: List::with_capacity(0),
+                            pending: List::with_capacity(0),
+                        }))),
+                        c::Subject::Chips { tasks } if matches!(goals, Some("chat-goal-linked" | "chats-drafts")) => {
+                            let mut chips = List::with_capacity(tasks.len());
+                            for number in &tasks {
+                                let mut chip = document(w, 1).chip;
+                                chip.task = *number;
+                                chip.phase = c::Phase::Running;
+                                chip.title = doc("Away mode");
+                                let (phase, details) = owner(&mut chip);
+                                *phase = c::ChipPhase::Active(c::RunStage::Running { attempt: 1 });
+                                details.ending = None;
+                                details.ended_at = None;
+                                chips.push(chip).expect("linked goal chip");
+                            }
+                            Some(c::Delivery::Chips(chips))
+                        }
+                        c::Subject::Chips { .. } | c::Subject::Run { .. } => None,
                     };
                     if let Some(document) = document {
                         deliver(&mut root, watch, document, &mut out);
                     }
                 }
                 jig_client::Down::Read { read, what: jig_client::Readable::Jig(what) } => {
-                    if let Some(value) = read_value(w, &what, then, goals) {
+                    let value = if let Some(name) = settings_chat {
+                        match &what {
+                            c::Read::Proposal { proposal } => Some(settings_proposal(*proposal)),
+                            c::Read::Activity { .. } => Some(c::ReadValue::Activity(Box::new(settings_activity(name)))),
+                            _ => read_value(w, &what, then, goals),
+                        }
+                    } else {
+                        read_value(w, &what, then, goals)
+                    };
+                    if let Some(value) = value {
                         answer(&mut root, read, value, &mut out);
                     }
                 }
@@ -313,7 +410,36 @@ fn world_in_layout(
                                 playground_read = true;
                             }
                         }
-                        v1::Read::Setting(_) | v1::Read::RevisionSetting(_) | v1::Read::ProposalItems(_) => {}
+                        v1::Read::Setting(setting) => {
+                            let drafts =
+                                matches!(then, Then::Mode(_) | Then::DraftEmpty) || goals == Some("chats-drafts");
+                            if setting.kind() == 7 && (goals.is_some() || drafts) {
+                                project_ways(&mut root, read, drafts, goals.is_some(), false, false, &mut out);
+                                continue;
+                            }
+                            let bytes = settings.map(|name| settings_bytes(name, setting.kind()));
+                            let value = v1::SettingAnswer::new(&v1::CEILINGS, v1::SettingAnswerParts { value: bytes })
+                                .expect("stock setting");
+                            step(
+                                &mut root,
+                                Event::Client {
+                                    event: jig_client::Event::Up {
+                                        up: jig_client::Up::ReadDone {
+                                            read,
+                                            result: jig_client::Readout::Family {
+                                                family: FORGE,
+                                                record: Some(wire::setting_answer(&value)),
+                                            },
+                                        },
+                                    },
+                                },
+                                &mut out,
+                            );
+                        }
+                        v1::Read::ProposalItems(_) if settings_chat.is_some() => {
+                            settings_proposal_values(&mut root, read, &mut out);
+                        }
+                        v1::Read::RevisionSetting(_) | v1::Read::ProposalItems(_) => {}
                     }
                 }
                 jig_client::Down::Open { watch, subject: jig_client::Watchable::Family { record, .. } }
@@ -328,11 +454,85 @@ fn world_in_layout(
                     let subject = match watching.watch() {
                         w::Watch::Forges => {
                             forge_watch = Some(watch);
-                            forges_watched(&mut root, w, watch, &mut out);
+                            if copies {
+                                copies_watched(&mut root, watch, &mut out);
+                            } else {
+                                forges_watched(&mut root, w, watch, &mut out);
+                            }
+                            continue;
+                        }
+                        w::Watch::Dismissed if matches!(goals, Some("chat-goal-linked" | "chats-drafts")) => {
+                            let mut dismissed = List::with_capacity(1);
+                            dismissed
+                                .push(w::PersonFact::GoalFrom(
+                                    w::GoalFrom::new(
+                                        &w::CEILINGS,
+                                        w::GoalFromParts {
+                                            project: PROJECT,
+                                            chat: 1,
+                                            goal: 2,
+                                            at: offset(w, -1).as_nanos(),
+                                        },
+                                    )
+                                    .expect("goal start"),
+                                ))
+                                .expect("one start");
+                            let bytes = wire::dismissals(
+                                &w::Dismissals::new(&w::CEILINGS, w::DismissalsParts { dismissed })
+                                    .expect("person facts"),
+                            );
+                            step(
+                                &mut root,
+                                Event::Client {
+                                    event: jig_client::Event::Up {
+                                        up: jig_client::Up::FamilyDelivered {
+                                            watch,
+                                            record: jig_client::Family {
+                                                family: wire::FORGE,
+                                                version: wire::CLIENT_VERSION,
+                                                bytes,
+                                            },
+                                        },
+                                    },
+                                },
+                                &mut out,
+                            );
+                            continue;
+                        }
+                        w::Watch::Away => {
+                            if settings == Some("settings-away") {
+                                step(
+                                    &mut root,
+                                    Event::Client {
+                                        event: jig_client::Event::Up {
+                                            up: jig_client::Up::FamilyDelivered {
+                                                watch,
+                                                record: jig_client::Family {
+                                                    family: FORGE,
+                                                    version: wire::CLIENT_VERSION,
+                                                    bytes: wire::aways(
+                                                        &w::Aways::new(
+                                                            &w::CEILINGS,
+                                                            w::AwaysParts { rows: List::with_capacity(0) },
+                                                        )
+                                                        .expect("empty Away rows"),
+                                                    ),
+                                                },
+                                            },
+                                        },
+                                    },
+                                    &mut out,
+                                );
+                            }
                             continue;
                         }
                         w::Watch::Change(subject) => subject,
-                        w::Watch::Landing(_) | w::Watch::Landings(_) | w::Watch::Changes(_) | w::Watch::Dismissed => {
+                        w::Watch::Landing(_)
+                        | w::Watch::Landings(_)
+                        | w::Watch::Decided(_)
+                        | w::Watch::Status(_)
+                        | w::Watch::Changes(_)
+                        | w::Watch::Dismissed => {
                             continue;
                         }
                     };
@@ -364,8 +564,13 @@ fn world_in_layout(
             }
         }
     }
-    assert!(out.is_empty(), "world fixture settles: {w:?}");
+    assert!(out.is_empty(), "world fixture settles: {w:?} {settings:?} {out:?}");
     first_run_ready(&mut root, w, forge_watch, &mut out);
+    if let Some(name) = settings_chat
+        && name != "configure-chat-proposal"
+    {
+        finish_settings_proposal(&mut root, settings_chat_watch.expect("settings chat watch"), name, &mut out);
+    }
     (root, accounts_watch)
 }
 fn started(address: Address) -> (Domain, Queue<Request>) {
@@ -399,6 +604,33 @@ fn forges_watched(root: &mut Domain, world: World, watch: Token, out: &mut Queue
         out,
     );
 }
+fn copies_watched(root: &mut Domain, watch: Token, out: &mut Queue<Request>) {
+    use temper_client_protocol_wire::{self as wire, v1 as w};
+    let mut rows =
+        wire::decode_forges(&forges(FirstRun { step: 7 }), &w::CEILINGS).expect("Ready forges").into_parts().forges;
+    let row = rows.get_mut(0).expect("Ready forge");
+    let mut parts = row.clone().into_parts();
+    parts.first = None;
+    parts.repositories.clear();
+    let mut addresses = List::with_capacity(2);
+    for address in [b"https://github.com/acme/widget".as_slice(), b"https://source.invalid/team/tool".as_slice()] {
+        addresses.push(address.into()).expect("two copies");
+    }
+    parts.starts_with = w::StartsWith::Copies(
+        w::CopyAddresses::new(&w::CEILINGS, w::CopyAddressesParts { addresses }).expect("Ready copies"),
+    );
+    *row = w::ForgeRow::new(&w::CEILINGS, parts).expect("Ready forge");
+    let record = jig_client::Family {
+        family: wire::FORGE,
+        version: wire::CLIENT_VERSION,
+        bytes: wire::forges(&w::Forges::new(&w::CEILINGS, w::ForgesParts { forges: rows }).expect("Ready rows")),
+    };
+    step(
+        root,
+        Event::Client { event: jig_client::Event::Up { up: jig_client::Up::FamilyDelivered { watch, record } } },
+        out,
+    );
+}
 #[expect(clippy::too_many_lines, reason = "complete illustrative forge rows keep their additive fields together")]
 fn forges(world: World) -> Box<[u8]> {
     use temper_client_protocol_wire::{self as wire, v1 as w};
@@ -412,6 +644,7 @@ fn forges(world: World) -> Box<[u8]> {
             w::ForgeRow::new(
                 &limits,
                 w::ForgeRowParts {
+                    starts_with: w::StartsWith::Repository,
                     makings: List::with_capacity(0),
                     host: b"git.example:3000".as_slice().into(),
                     number: FORGE,
@@ -453,6 +686,7 @@ fn forges(world: World) -> Box<[u8]> {
             w::ForgeRow::new(
                 &limits,
                 w::ForgeRowParts {
+                    starts_with: w::StartsWith::Repository,
                     makings: List::with_capacity(0),
                     host: b"git.example:3000".as_slice().into(),
                     number: 2,
@@ -468,7 +702,25 @@ fn forges(world: World) -> Box<[u8]> {
                     ended: None,
                     app: None,
                     web: None,
-                    repositories: List::with_capacity(0),
+                    repositories: if world == Solo {
+                        let mut repositories = List::with_capacity(1);
+                        repositories
+                            .push(
+                                w::Adoption::new(
+                                    &limits,
+                                    w::AdoptionParts {
+                                        owner: b"robin".as_slice().into(),
+                                        name: b"tally".as_slice().into(),
+                                        project: PROJECT,
+                                    },
+                                )
+                                .expect("solo's adopted repository"),
+                            )
+                            .expect("one repository");
+                        repositories
+                    } else {
+                        List::with_capacity(0)
+                    },
                     owned: None,
                     admin: false,
                     read_only: false,
@@ -544,6 +796,7 @@ fn forges(world: World) -> Box<[u8]> {
             w::ForgeRow::new(
                 &limits,
                 w::ForgeRowParts {
+                    starts_with: w::StartsWith::Repository,
                     makings: List::with_capacity(0),
                     host: b"git.example:3000".as_slice().into(),
                     number: 3,
@@ -949,14 +1202,72 @@ fn proposal() -> c::ReadValue {
         }
     }))
 }
+#[expect(clippy::too_many_lines, reason = "one dispatch answers every gallery read with its world fixture")]
 fn read_value(w: World, what: &c::Read, then: Then, goals: Option<&str>) -> Option<c::ReadValue> {
+    if let Some(goal) = page_goal(goals)
+        && let Some(value) = goal.read(w, what)
+    {
+        return Some(value);
+    }
     match what {
+        c::Read::Tasks { query, .. } if query.tracked == Some(true) && query.requester.is_some() => {
+            let mut rows = List::with_capacity(1);
+            for number in [3, 12] {
+                if (w == Solo && number == 3) || (w == Reference && number == 12) {
+                    let task = document(w, number);
+                    if *query == temper_client_domain::pages::goal::own_line_query(&task) {
+                        let children = facts(w, number).children;
+                        let mut line = task_line(task);
+                        line.delegates_total = u32::try_from(children.len()).expect("few delegates");
+                        line.delegates_done = u32::try_from(
+                            children
+                                .iter()
+                                .filter(|n| matches!(facts(w, **n).phase, c::Phase::Done | c::Phase::Ended))
+                                .count(),
+                        )
+                        .expect("few delegates");
+                        rows.push(line).expect("one goal");
+                    }
+                }
+            }
+            Some(c::ReadValue::Tasks(Box::new(c::TaskPage {
+                live: rows,
+                live_after: None,
+                ended: c::EndedGroup::None,
+            })))
+        }
         c::Read::Tasks { query, .. } if query.tracked == Some(true) => {
             Some(c::ReadValue::Tasks(Box::new(goal_page(w, goals))))
         }
-        c::Read::Notes { scope, .. } => Some(c::ReadValue::Notes(Box::new(goal_notes(w, scope)))),
-        c::Read::Inbox { group, project, .. } => {
-            Some(c::ReadValue::Inbox(Box::new(goal_inbox(w, *group, *project, goals))))
+        c::Read::Notes { scope, .. } => Some(c::ReadValue::Notes(Box::new(
+            if goals == Some("chats-drafts") && *scope == (c::NoteScope::Tasks { project: PROJECT }) {
+                let mut rows = List::with_capacity(2);
+                for (task, title) in [(1, "Away mode"), (3, "Report format")] {
+                    rows.push(c::Note {
+                        number: 1,
+                        revision: c::Revision { value: 1 },
+                        scope: c::NoteScope::Task { project: PROJECT, task },
+                        description: doc(title),
+                        body: c::DocumentText { bytes: text(""), cut: true },
+                        writer: c::NoteAuthor::Task { task, attempt: 1 },
+                        tasks: List::with_capacity(0),
+                        changed: None,
+                        acts: List::with_capacity(0),
+                        cut: false,
+                    })
+                    .expect("chat document");
+                }
+                c::NotePage { rows, before: None, after: None, cut: false }
+            } else if matches!(then, Then::Mode(_)) && *scope == (c::NoteScope::Task { project: PROJECT, task: 10 }) {
+                configuring_note(scope)
+            } else if matches!(then, Then::Mode(_)) && *scope == (c::NoteScope::Task { project: PROJECT, task: 1 }) {
+                chat_note(scope)
+            } else {
+                goal_notes(w, scope)
+            },
+        ))),
+        c::Read::Inbox { group, project, goal, .. } => {
+            Some(c::ReadValue::Inbox(Box::new(goal_inbox(w, *group, *project, *goal, goals))))
         }
         c::Read::Tasks { query: c::TaskQuery { parent: Some(parent), phase, .. }, .. }
             if *phase == Some(c::PhaseClass::Ended) =>
@@ -981,9 +1292,17 @@ fn read_value(w: World, what: &c::Read, then: Then, goals: Option<&str>) -> Opti
             ended: c::EndedGroup::Rows { rows: ended_rows(w), after: None, cut: false },
         }))),
         c::Read::Task { task: number } => Some(c::ReadValue::Task(Box::new(shown_task(w, *number, then)))),
-        c::Read::Activity { task: number, before } => {
-            Some(c::ReadValue::Activity(Box::new(activity_window(w, *number, before.as_ref()))))
-        }
+        c::Read::Activity { task: number, before } => Some(c::ReadValue::Activity(Box::new(
+            if matches!(then, Then::Mode(_) | Then::DraftEmpty) && *number == 10 {
+                configuring_activity()
+            } else if then == Then::DraftEmpty && *number == 1 {
+                c::ActivityPage { rows: List::with_capacity(0), before: None, after: None, cut: false }
+            } else if matches!(then, Then::Mode(_)) && *number == 1 {
+                chat_activity()
+            } else {
+                activity_window(w, *number, before.as_ref())
+            },
+        ))),
         c::Read::Proposal { .. } => {
             let mut value = proposal();
             if then == Then::HeldTask
@@ -1350,6 +1669,48 @@ fn goal_page(w: World, name: Option<&str>) -> c::TaskPage {
         },
     }
 }
+fn configuring_activity() -> c::ActivityPage {
+    let mut blocks = List::with_capacity(3);
+    blocks.push(c::Block::Text(text("Drafts first, then goals that land as one. I’ve written how Hello would run that, beside us; it grows as we talk."))).expect("reply");
+    blocks
+        .push(c::Block::Call(c::Call {
+            number: 1,
+            tool: text("note"),
+            input: text(""),
+            outcome: Some(text("Note 1 revision 2 written · +1 −1 · line 23")),
+            failed: false,
+            objects: List::with_capacity(0),
+            parts: List::with_capacity(0),
+        }))
+        .expect("write");
+    blocks.push(c::Block::Text(text("One question before I propose it: should a goal wait for you before it lands, or land once its checks pass?"))).expect("question");
+    let mut line = turn_line(&blocks, 1, None, false);
+    line.source.task = 10;
+    if let Some(decoded) = &mut line.decoded {
+        decoded.task = 10;
+    }
+    let mut rows = List::with_capacity(1);
+    rows.push(line).expect("configuring turn");
+    c::ActivityPage { rows, before: None, after: None, cut: false }
+}
+
+fn configuring_note(scope: &c::NoteScope) -> c::NotePage {
+    let mut rows = List::with_capacity(1);
+    rows.push(c::Note {
+        number: 1,
+        revision: c::Revision { value: 1 },
+        scope: scope.clone(),
+        description: doc("How Hello works"),
+        body: c::DocumentText::complete(c::Text::new(Box::from("# How Hello works\n\nDraft, 2026-11-05, with the user.\n\n## How work starts\n\nYou write a design draft in a chat, an agent beside you. When it reads complete, you start a goal from it; nothing is planned before.\n\n## How it lands\n\n- Agents plan the goal’s tasks and change the code on the goal’s own branch.\n- Each change is checked: CI, and a review by an agent.\n- The goal lands on main as one, through temper’s merge queue.\n\n## Held by temper, or by agents\n\n| Rule | Held by |\n| --- | --- |\n| A review by an agent before a change lands | temper |\n| Up to date with main before it lands | temper |\n| A design draft before any goal | your agents |\n\n## Still open\n\nWhether a goal waits for you before it lands, or lands once its checks pass.\n".as_bytes()), limits().client.domain.long_text).expect("document body")),
+        writer: c::NoteAuthor::Task { task: 10, attempt: 1 },
+        tasks: List::with_capacity(0),
+        changed: Some(now(Solo)),
+        acts: List::with_capacity(0),
+        cut: false,
+    }).expect("configuring document");
+    c::NotePage { rows, before: None, after: None, cut: false }
+}
+
 fn goal_notes(w: World, scope: &c::NoteScope) -> c::NotePage {
     let mut rows = List::with_capacity(1);
     for f in goal_facts(w) {
@@ -1373,13 +1734,43 @@ fn goal_notes(w: World, scope: &c::NoteScope) -> c::NotePage {
     }
     c::NotePage { rows, before: None, after: None, cut: false }
 }
-fn goal_inbox(w: World, group: c::InboxReadGroup, project: Option<u32>, name: Option<&str>) -> c::InboxPage {
+fn goal_inbox(
+    w: World,
+    group: c::InboxReadGroup,
+    project: Option<u32>,
+    goal: Option<u64>,
+    name: Option<&str>,
+) -> c::InboxPage {
     let room = u32::try_from(goal_facts(w).len()).expect("small goals");
     let mut rows = List::with_capacity(room);
     let mut selection = List::with_capacity(room);
+    if w == Solo
+        && goal == Some(3)
+        && group == c::InboxReadGroup::Needs
+        && project.is_none_or(|project| project == PROJECT)
+    {
+        let object = c::InboxObject::Question { message: 1 };
+        let at = Some(offset(w, -18));
+        let cursor = c::InboxCursor::Inbox { task: 3, object, at };
+        rows.push(c::InboxEntry {
+            reply: None,
+            task: c::TaskLink::Live(document(w, 3).chip),
+            project: Some(PROJECT),
+            object,
+            activity: Some(1),
+            at,
+            unread: Some(true),
+            cursor,
+        })
+        .expect("solo goal question");
+        selection
+            .push(c::InboxSelection { cursor, goals: List::from_boxed(Box::new([3])) })
+            .expect("solo goal selection");
+    }
     for f in goal_facts(w) {
         if group == c::InboxReadGroup::Needs
             && project.is_none_or(|project| project == PROJECT)
+            && goal.is_none_or(|goal| goal == f.number)
             && matches!(f.state, GoalState::Needs { .. })
             && goal_in_sample(f, name)
         {
@@ -1406,6 +1797,379 @@ fn goal_inbox(w: World, group: c::InboxReadGroup, project: Option<u32>, name: Op
         }
     }
     c::InboxPage { rows, selection: Some(selection), before: None, after: None, cut: false }
+}
+
+/// The goal page's mock records (temper/docs/design/client/browser.md, 7.2).
+struct GoalPage {
+    facts: GoalFacts,
+    brief: &'static str,
+    body: &'static str,
+    spent: u64,
+    budget: u64,
+    made: i64,
+    whole: bool,
+    delegates: &'static [(&'static str, c::Phase, i64)],
+}
+#[expect(clippy::too_many_lines, reason = "four mock goals keep their report words and delegate records together")]
+fn page_goal(name: Option<&str>) -> Option<GoalPage> {
+    let name = name?;
+    let mut page = match name {
+        "goal-running" | "goal-needs-funds" | "goal-paused" | "goal-no-report" => GoalPage {
+            facts: GoalFacts {
+                number: 108,
+                title: "first-run-projects",
+                state: GoalState::Running,
+                done: 6,
+                total: 9,
+                headline: Some(
+                    "Six of nine tasks landed. The store task is split in two after two size failures, and needs about 8 more to finish.",
+                ),
+                at: -2,
+            },
+            brief: "Build first-run-projects.\nDraft: docs/design/draft/first-run-projects.md\nChat: T1",
+            body: "The project records, the project page’s empty state and the welcome’s Default project landed on the goal branch overnight, each checked. The Ready page waits on the store task.\n\nThe store task adds the project policy record to jig’s store. It failed twice on the wasm client’s size limit, so I split it: the record and its migration first, the client’s lazy loading second. Both run now, about 4 each.\n\nLeft: the two halves, the Ready page’s Open Default, and the welcome journey’s print.\nRisk: lazy loading touches every page that lists projects; its check runs the client’s journeys.\nDecided: Split the store task, 05:40 · Retried it once, 05:12 · Kept the Default project’s name in English, 01:20",
+            spent: 31,
+            budget: 40,
+            made: -770,
+            whole: true,
+            delegates: &[
+                ("Project records", c::Phase::Ended, -620),
+                ("Project page, empty state", c::Phase::Ended, -465),
+                ("Welcome’s Default project", c::Phase::Ended, -358),
+                ("Playground project", c::Phase::Ended, -270),
+                ("Banner’s set-up link", c::Phase::Ended, -230),
+                ("Pane’s playground line", c::Phase::Ended, -179),
+                ("Store: policy record", c::Phase::Running, -22),
+                ("Client: lazy project loading", c::Phase::Running, -12),
+                ("Ready page’s Open Default", c::Phase::Waiting, -12),
+            ],
+        },
+        "goal-needs-question" | "goal-stopped" => GoalPage {
+            facts: GoalFacts {
+                number: 118,
+                title: "welcome-stall",
+                state: GoalState::Needs { funds: false },
+                done: 1,
+                total: 3,
+                headline: Some("Reproduced in a box test; the fault is in jig’s store. Waiting on where to fix it."),
+                at: -36,
+            },
+            brief: "Fix the welcome stall.\nChat: T2",
+            body: "The box test walks the welcome to Ready and presses Open Default. MakeProject’s write lands in the store, then the client’s watch closes before the answer arrives, so the page waits forever.\n\nTwo fixes work in a spike: jig’s store answers before it closes the watch, which changes a stored record; or temper serve keeps the watch open until the answer. Both pass the box test.\n\nLeft: the fix, wherever it goes, and the box test landing with it.\nRisk: none known beyond the choice itself.\nDecided: Wrote the box test before the fix, 19:05",
+            spent: 4,
+            budget: 15,
+            made: -820,
+            whole: false,
+            delegates: &[
+                ("Box test: Open Default", c::Phase::Ended, -560),
+                ("The fix", c::Phase::Waiting, -40),
+                ("Welcome-set-up journey", c::Phase::Waiting, -40),
+            ],
+        },
+        "goal-planning" | "goal-failed" => GoalPage {
+            facts: GoalFacts {
+                number: 122,
+                title: "forge-cards",
+                state: GoalState::Planning,
+                done: 0,
+                total: 0,
+                headline: None,
+                at: -50,
+            },
+            brief: "Build forge-cards.\nDraft: docs/design/draft/forge-cards.md\nChat: T1",
+            body: "",
+            spent: 3,
+            budget: 20,
+            made: -235,
+            whole: true,
+            delegates: &[],
+        },
+        "goal-landed" | "goal-landed-open" => GoalPage {
+            facts: GoalFacts {
+                number: 123,
+                title: "pane-chat-line",
+                state: GoalState::Landed,
+                done: 2,
+                total: 2,
+                headline: Some("Landed whole at 01:12: two tasks and one journey print."),
+                at: -408,
+            },
+            brief: "Make the pane’s chat one compact line.\nChat: T3",
+            body: "A chat in the side pane is one compact line: its title and when, then its status and T number, the whole line its link.\n\nLeft: nothing.\nRisk: none.",
+            spent: 5,
+            budget: 10,
+            made: -570,
+            whole: true,
+            delegates: &[("Pane chat line", c::Phase::Ended, -430), ("Journey print", c::Phase::Ended, -408)],
+        },
+        _ => return None,
+    };
+    match name {
+        "goal-needs-funds" => page.facts.state = GoalState::Needs { funds: true },
+        "goal-paused" => page.facts.state = GoalState::Paused,
+        "goal-no-report" => page.facts.headline = None,
+        "goal-stopped" => {
+            page.facts.state = GoalState::Stopped;
+            page.facts.headline = None;
+        }
+        "goal-failed" => page.facts.state = GoalState::Failed,
+        _ => {}
+    }
+    Some(page)
+}
+fn goal_doc(words: &str) -> c::DocumentText {
+    c::DocumentText::complete(c::Text::new(words.as_bytes().into(), 4096).expect("mock report and question words"))
+}
+// The goal mock’s morning is Tuesday, two days before the Reference world’s.
+fn goal_wall(w: World, minutes: i64) -> Wall {
+    offset(w, minutes - 2880)
+}
+impl GoalPage {
+    fn document(&self, w: World) -> c::Task {
+        let mut task = base_task(self.facts.number, self.facts.title);
+        task.chip = goal_line(w, &self.facts).chip;
+        task.label = 2;
+        task.priority = Some(1);
+        task.acts = offers(&[
+            c::ActKind::Message,
+            c::ActKind::Amend,
+            if self.facts.state == GoalState::Paused { c::ActKind::Release } else { c::ActKind::Stop },
+            c::ActKind::Cancel,
+        ]);
+        task.goal = Some(self.facts.number);
+        task.requester = match self.facts.number {
+            118 => c::Requester::Task(2),
+            123 => c::Requester::Task(3),
+            _ => c::Requester::Person(73),
+        };
+        task.flags.conversation = false;
+        task.flags.listed = true;
+        task.spec.specification.words = doc(self.brief);
+        task.made = goal_wall(w, self.made);
+        task.changed = goal_wall(w, self.facts.at);
+        task.last_activity = task.changed;
+        task.budget.numbers.spent = self.spent;
+        task.budget.numbers.budget = self.budget;
+        task.budget.left = self.budget.saturating_sub(self.spent);
+        task.chip.details.details.budget = task.budget.clone();
+        task.hold = task.chip.details.details.hold.clone().map(Box::new);
+        if self.facts.state == (GoalState::Needs { funds: true }) {
+            let mut prototype = shown_task(Solo, 3, Then::Held);
+            let mut hold = prototype.hold.take().expect("held task");
+            hold.reason = c::HoldCategory::Budget;
+            hold.words = Some(doc(
+                "Both halves of the store task run, about 4 each. Without funds the goal stops after they land, with the Ready page undone.",
+            ));
+            task.chip.details.phase = c::ChipPhase::Held {
+                reason: c::HoldCategory::Exceeded(c::Exceeded { bound: c::Bound::Answer, value: 1 }),
+                revision: hold.revision,
+            };
+            task.chip.details.details.hold = Some(*hold.clone());
+            task.hold = Some(hold);
+        }
+        if goal_ended(&self.facts) {
+            let ending = match self.facts.state {
+                GoalState::Landed => c::ChipEnding::Done(c::ResultValue::Report(doc(
+                    "Landed whole at 01:12: two tasks and one journey print.",
+                ))),
+                GoalState::Stopped => c::ChipEnding::Cancelled {
+                    reason: doc("Stopped by you."),
+                    result: None,
+                    by: c::Requester::Person(73),
+                    at: task.changed,
+                },
+                GoalState::Failed => c::ChipEnding::Failed(doc("The owned set up could not create work/hello.")),
+                _ => unreachable!("ended goal state"),
+            };
+            task.result = Some(c::TaskResult::Ending(Box::new(ending.clone())));
+            task.chip.details.details.ending = Some(ending);
+            task.chip.details.details.ended_at = Some(task.changed);
+            task.acts.clear();
+        }
+        if self.whole {
+            let number = self.facts.number.to_string();
+            task.resources = List::with_capacity(1);
+            task.resources
+                .push(c::ResourceLine {
+                    part: c::Part {
+                        connector: FORGE,
+                        kind: c::PartKind::Resource,
+                        key: c::PartKey::Path(path(&[b"temper", number.as_bytes(), format!("g{number}").as_bytes()])),
+                    },
+                    kind: 1,
+                    taken: true,
+                    holder: Some(self.facts.number),
+                    writer: None,
+                    writer_lost: false,
+                })
+                .expect("goal branch");
+        }
+        task
+    }
+    fn delegate(&self, w: World, index: usize) -> c::TaskLine {
+        let (title, phase, at) = self.delegates[index];
+        let number = self.facts.number + u64::try_from(index).expect("small delegate index") + 1;
+        let mut task = base_task(number, title);
+        task.flags.conversation = false;
+        task.requester = c::Requester::Task(self.facts.number);
+        task.chip.phase = phase;
+        task.last_activity = goal_wall(w, at);
+        if phase == c::Phase::Ended {
+            task.result =
+                Some(c::TaskResult::Ending(Box::new(c::ChipEnding::Done(c::ResultValue::Report(doc("Landed."))))));
+        }
+        let mut line = task_line(finish_document(task));
+        let dependencies: &[u64] = match (self.facts.number, index) {
+            (108, 8) => &[115, 116],
+            (118, 2) => &[120],
+            _ => &[],
+        };
+        if !dependencies.is_empty() {
+            line.chip.details.phase = c::ChipPhase::Waiting {
+                dependencies: List::from_boxed(Box::from(dependencies)),
+                more: false,
+                holds: false,
+            };
+        }
+        line
+    }
+    fn tree(&self, w: World, window: u32) -> c::Delivery {
+        let mut rows = List::with_capacity(window);
+        for index in 0..self.delegates.len() {
+            let line = self.delegate(w, index);
+            if line.chip.phase != c::Phase::Ended {
+                rows.push(c::TreeRow {
+                    chip: line.chip,
+                    parent: self.facts.number,
+                    depth: 1,
+                    proposals: List::with_capacity(0),
+                    spent: 0,
+                    dependencies: List::with_capacity(0),
+                    cut: false,
+                })
+                .expect("goal live delegates fit");
+            }
+        }
+        c::Delivery::Tree(Box::new(c::Tree {
+            root: self.document(w).chip,
+            rows,
+            folded: List::with_capacity(0),
+            held_below: 0,
+            next: None,
+        }))
+    }
+    #[expect(clippy::too_many_lines, reason = "one dispatch answers the goal’s related read documents")]
+    fn read(&self, w: World, what: &c::Read) -> Option<c::ReadValue> {
+        match what {
+            c::Read::Tasks { query, .. }
+                if *query == temper_client_domain::pages::goal::own_line_query(&self.document(w)) =>
+            {
+                let mut line = task_line(self.document(w));
+                line.delegates_done = self.facts.done;
+                line.delegates_total = self.facts.total;
+                let rows = List::from_boxed(Box::new([line]));
+                let page = if goal_ended(&self.facts) {
+                    c::TaskPage {
+                        live: List::with_capacity(0),
+                        live_after: None,
+                        ended: c::EndedGroup::Rows { rows, after: None, cut: false },
+                    }
+                } else {
+                    c::TaskPage { live: rows, live_after: None, ended: c::EndedGroup::None }
+                };
+                Some(c::ReadValue::Tasks(Box::new(page)))
+            }
+            c::Read::Tasks { query, .. } if query.parent == Some(self.facts.number) => {
+                let mut rows = List::with_capacity(self.facts.total);
+                for index in 0..self.delegates.len() {
+                    let line = self.delegate(w, index);
+                    if line.chip.phase == c::Phase::Ended {
+                        rows.push(line).expect("ended delegates");
+                    }
+                }
+                Some(c::ReadValue::Tasks(Box::new(c::TaskPage {
+                    live: List::with_capacity(0),
+                    live_after: None,
+                    ended: c::EndedGroup::Rows { rows, after: None, cut: false },
+                })))
+            }
+            c::Read::Notes { scope, .. }
+                if *scope == (c::NoteScope::Task { project: PROJECT, task: self.facts.number }) =>
+            {
+                let mut rows = List::with_capacity(1);
+                if let Some(headline) = self.facts.headline {
+                    rows.push(c::Note {
+                        number: 1,
+                        revision: c::Revision { value: 1 },
+                        scope: scope.clone(),
+                        description: doc(&format!("report: {headline}")),
+                        body: goal_doc(self.body),
+                        writer: c::NoteAuthor::Task { task: self.facts.number, attempt: 1 },
+                        tasks: List::with_capacity(0),
+                        changed: Some(goal_wall(w, self.facts.at)),
+                        acts: List::with_capacity(0),
+                        cut: false,
+                    })
+                    .expect("goal report");
+                }
+                Some(c::ReadValue::Notes(Box::new(c::NotePage { rows, before: None, after: None, cut: false })))
+            }
+            c::Read::Inbox { group, goal: Some(goal), .. } if *goal == self.facts.number => {
+                let mut rows = List::with_capacity(1);
+                let mut selection = List::with_capacity(1);
+                if *group == c::InboxReadGroup::Needs && matches!(self.facts.state, GoalState::Needs { .. }) {
+                    let (task, object) = if self.facts.state == (GoalState::Needs { funds: true }) {
+                        (self.facts.number, c::InboxObject::Escalation { revision: 7 })
+                    } else {
+                        (120, c::InboxObject::Question { message: 1 })
+                    };
+                    let cursor = c::InboxCursor::Inbox { task, object, at: Some(goal_wall(w, -40)) };
+                    let chip = if task == self.facts.number { self.document(w).chip } else { self.delegate(w, 1).chip };
+                    rows.push(c::InboxEntry {
+                        reply: None,
+                        task: c::TaskLink::Live(chip),
+                        project: Some(PROJECT),
+                        object,
+                        activity: Some(1),
+                        at: Some(goal_wall(w, -40)),
+                        unread: Some(true),
+                        cursor,
+                    })
+                    .expect("goal need");
+                    selection
+                        .push(c::InboxSelection { cursor, goals: List::from_boxed(Box::new([self.facts.number])) })
+                        .expect("goal selection");
+                }
+                Some(c::ReadValue::Inbox(Box::new(c::InboxPage {
+                    rows,
+                    selection: Some(selection),
+                    before: None,
+                    after: None,
+                    cut: false,
+                })))
+            }
+            c::Read::Escalation { task: 108, .. } if self.facts.state == (GoalState::Needs { funds: true }) => {
+                Some(c::ReadValue::Escalation(Box::new(c::Escalation {
+                    task: Box::new(self.document(w)),
+                    acts: offers(&[c::ActKind::Release, c::ActKind::LeaveHeld]),
+                })))
+            }
+            c::Read::Question { task: 120, .. } if self.facts.state == (GoalState::Needs { funds: false }) => {
+                Some(c::ReadValue::Question(Box::new(c::Question {
+                    task: self.delegate(w, 1).chip,
+                    from: Some(c::Requester::Task(self.facts.number)),
+                    message: 1,
+                    words: goal_doc(
+                        "Fix the dropped watch in jig’s store, or keep it alive in temper serve?\n\nMakeProject answers after the client’s watch drops. jig’s fix changes a stored record; serve’s fix is local but leaves jig’s behaviour as it is.\n\nSaw: The box test reproduces it every time: the store’s write lands, then the watch closes before the answer comes. The test and its log are on the goal.\nChoice: In jig’s store (recommended)\nChoice: In temper serve",
+                    ),
+                    since: goal_wall(w, -40),
+                    acts: offers(&[c::ActKind::Answer]),
+                    ending: None,
+                })))
+            }
+            _ => None,
+        }
+    }
 }
 
 struct TaskFacts {
@@ -2520,7 +3284,7 @@ fn accounts(w: World, then: Then) -> c::Accounts {
                 .expect("host");
         }
     }
-    let mut readiness = List::with_capacity(2);
+    let mut readiness = List::with_capacity(3);
     for provider in &providers(w) {
         readiness
             .push(c::PayerReadiness {
@@ -2554,7 +3318,10 @@ fn accounts(w: World, then: Then) -> c::Accounts {
                 source: 43,
                 end: c::AccountEnd::Refused { refusal: c::AccountRefusal::Held { provider: 18 } },
             }),
-            Then::Shown
+            Then::Hosts { .. }
+            | Then::Shown
+            | Then::DraftEmpty
+            | Then::Mode(_)
             | Then::Working
             | Then::DelegatedGoal
             | Then::HeldChange
@@ -2744,6 +3511,7 @@ fn base_task(number: u64, title: &str) -> c::Task {
         label: CHAT_LABEL,
         flags: CHAT_FLAGS,
         last_activity: Wall::EPOCH,
+        made: Wall::EPOCH,
         waits_on: c::WaitsOn::Nothing,
         goal: None,
         priority: None,
@@ -2890,6 +3658,34 @@ fn activity_window(w: World, task: u64, before: Option<&c::Cursor>) -> c::Activi
 }
 fn shown_task(w: World, task: u64, then: Then) -> c::Task {
     let mut t = document(w, task);
+    if matches!(then, Then::Mode(_) | Then::DraftEmpty) && task == 1 {
+        t.chip.title = doc("Away mode, draft");
+        t.chip.phase = c::Phase::Idle;
+        let (phase, details) = owner(&mut t.chip);
+        *phase = c::ChipPhase::Active(c::RunStage::Idle);
+        details.ending = None;
+        details.ended_at = None;
+        t.result = None;
+        t.acts = offers(&[c::ActKind::Message, c::ActKind::Stop, c::ActKind::Cancel]);
+        t.waits_on = c::WaitsOn::Party { whom: c::Whom::Person(73), entries: 1, task: 1, kind: c::WaitedFor::Question };
+        t.activity = if then == Then::DraftEmpty { 0 } else { 2 };
+        t.spec = c::SpecificationDocument::complete(c::Specification {
+            asks: false,
+            words: text("Let’s draft away mode: a setting, limits I set, and decided for you with an overturn."),
+            parameters: List::with_capacity(0),
+            inputs: List::with_capacity(0),
+        });
+    }
+    if matches!(then, Then::Mode(_) | Then::DraftEmpty) && task == 10 {
+        t.chip.title = doc("Configure temper");
+        t.activity = 1;
+        t.spec = c::SpecificationDocument::complete(c::Specification {
+            asks: false,
+            words: text("I write a design draft first; agents plan its tasks and land them together once checked."),
+            parameters: List::with_capacity(0),
+            inputs: List::with_capacity(0),
+        });
+    }
     if then == Then::Working {
         let (phase, _) = owner(&mut t.chip);
         *phase = c::ChipPhase::Active(c::RunStage::Due);
@@ -2903,7 +3699,7 @@ fn shown_task(w: World, task: u64, then: Then) -> c::Task {
         t.flags.listed = true;
     }
     if then == Then::Held || then == Then::Releasing || (then == Then::HeldChange && task == 2) {
-        t.goal = Some(task);
+        t.priority = None;
         t.flags.conversation = false;
         t.flags.listed = true;
         let hold = c::ChipHold {
@@ -3104,9 +3900,14 @@ fn adopt_owned_sample(root: &mut Domain, watch: Token, out: &mut Queue<Request>)
     forges_watched(root, FirstRun { step: 7 }, watch, out);
 }
 
-/// Changes samples use the mock's landed clocks and relative ages (client/browser.md, 7.2).
+/// Sample clocks keep the mock’s dates and relative ages (client/browser.md, 7.2).
 pub(super) fn sample_now(world: World, name: &str) -> Wall {
     match name {
+        "home-morning" | "home-away" | "home-away-one" | "home-away-overturned" => {
+            Wall::from_nanos(1_792_483_440_000_000_000)
+        }
+        "rail-away-on" | "rail-away-off" => Wall::from_nanos(1_792_479_840_000_000_000),
+        name if name.starts_with("goal-") => goal_wall(world, 0),
         "changes" | "changes-one" | "changes-empty" => offset(Reference, -173),
         "changes-landed-only" => offset(Reference, 2),
         _ => now(world),
@@ -3154,6 +3955,27 @@ pub(super) fn changes_world(name: &str) -> Domain {
                     forges_watched(&mut root, Reference, watch, &mut out);
                 }
             }
+            Down::Open { watch, subject: Watchable::Jig(c::Subject::Settings) } => {
+                deliver(
+                    &mut root,
+                    watch,
+                    c::Delivery::Settings(Box::new(c::SettingsDocument {
+                        newest: 0,
+                        settings: List::with_capacity(0),
+                        held: List::with_capacity(0),
+                        pending: List::with_capacity(0),
+                    })),
+                    &mut out,
+                );
+            }
+            Down::Read { read, what: Readable::Family { record, .. } } => {
+                if let v::Read::Setting(setting) =
+                    wire::decode_reading(&record.bytes, &v::CEILINGS).expect("gallery setting read").read()
+                {
+                    assert_eq!(setting.kind(), 7);
+                    project_ways(&mut root, read, false, false, name != "changes-landed-only", false, &mut out);
+                }
+            }
             Down::Read { read, what: Readable::Jig(c::Read::Task { task }) } => {
                 let mut document = base_task(task, "Change");
                 document.project = PROJECT;
@@ -3187,6 +4009,38 @@ pub(super) fn changes_world(name: &str) -> Domain {
     assert!(limits.client.domain.reads >= 7, "the sample's shown rows fit");
     root
 }
+#[expect(clippy::fn_params_excessive_bools, reason = "the gallery supplies each independent project visibility bit")]
+pub(super) fn project_ways(
+    root: &mut Domain,
+    read: Token,
+    drafts: bool,
+    goals: bool,
+    changes: bool,
+    away: bool,
+    out: &mut Queue<Request>,
+) {
+    use temper_client_protocol_wire::{self as wire, v1 as v};
+    let ways =
+        v::ProjectWays::new(&v::CEILINGS, v::ProjectWaysParts { skein_bools: [drafts, goals, changes, away], way: 0 })
+            .expect("gallery project ways");
+    let mut writer = skein_lib::Writer::new(usize::try_from(ways.measure()).expect("ways fit"));
+    ways.encode(&mut writer).expect("measured ways");
+    let value = v::SettingAnswer::new(&v::CEILINGS, v::SettingAnswerParts { value: Some(writer.finish()) })
+        .expect("gallery setting answer");
+    step(
+        root,
+        Event::Client {
+            event: jig_client::Event::Up {
+                up: jig_client::Up::ReadDone {
+                    read,
+                    result: jig_client::Readout::Family { family: FORGE, record: Some(wire::setting_answer(&value)) },
+                },
+            },
+        },
+        out,
+    );
+}
+
 fn changes_panel(name: &str) -> temper_client_protocol_wire::v1::ChangesPanel {
     use temper_client_protocol_wire::v1 as v;
     let mut queues = List::with_capacity(1);
@@ -3277,4 +4131,719 @@ fn changes_panel(name: &str) -> temper_client_protocol_wire::v1::ChangesPanel {
         },
     )
     .expect("changes panel")
+}
+
+/// Home's computed facts (client/README.md, 3.5), delivered by its status watch.
+pub(super) fn home_status(name: &str) -> Option<temper_client_protocol_wire::v1::ProjectStatus> {
+    use temper_client_protocol_wire::v1 as w;
+    let (landed, seen, queued, red, previous, last) = match name {
+        "home-computed" => (3, 1, 3, false, Some(540), Some(6)),
+        "home-last-looked-none" => (3, 1, 3, false, None, Some(6)),
+        "home-landing-none" => (0, 0, 0, false, Some(540), None),
+        "home-landing-red" => (3, 1, 0, true, Some(540), Some(60)),
+        "home-chats-sentence" => (0, 0, 0, false, None, None),
+        _ => return None,
+    };
+    let now = now(FirstRun { step: 7 });
+    Some(
+        w::ProjectStatus::new(
+            &w::CEILINGS,
+            w::ProjectStatusParts {
+                project: PROJECT,
+                landed,
+                seen,
+                queued,
+                red,
+                previous: previous.map(|minutes: u64| {
+                    now.as_nanos()
+                        .checked_sub(minutes.checked_mul(60_000_000_000).expect("Home span fits"))
+                        .expect("Home previous follows epoch")
+                }),
+                last_landed: last.map(|minutes: u64| {
+                    now.as_nanos()
+                        .checked_sub(minutes.checked_mul(60_000_000_000).expect("Home span fits"))
+                        .expect("Home landing follows epoch")
+                }),
+                brief: None,
+                branch: b"main".as_slice().into(),
+            },
+        )
+        .expect("Home status fits"),
+    )
+}
+
+/// Settings' delivered kinds 6 and 7 (client/browser.md, 7.2).
+fn settings_bytes(name: &str, kind: u32) -> Box<[u8]> {
+    use temper_client_protocol_wire::v1 as v;
+    if kind == 7 {
+        let shown = name != "settings-all-hidden";
+        let all = shown && name != "settings-goals";
+        let ways = v::ProjectWays::new(
+            &v::CEILINGS,
+            v::ProjectWaysParts {
+                skein_bools: [
+                    all && name != "settings-drafts-off",
+                    shown && name != "settings-goals-off",
+                    all && name != "settings-changes-off",
+                    all && name != "settings-away-off",
+                ],
+                way: if shown { 4 } else { 0 },
+            },
+        )
+        .expect("settings ways");
+        let mut writer = skein_lib::Writer::new(usize::try_from(ways.measure()).expect("ways bytes"));
+        ways.encode(&mut writer).expect("measured ways");
+        writer.finish()
+    } else {
+        assert_eq!(kind, 6);
+        let route = if name == "settings-all-hidden" { v::QuestionsRoute::None } else { v::QuestionsRoute::Foreman };
+        let questions =
+            v::ProjectQuestions::new(&v::CEILINGS, v::ProjectQuestionsParts { route }).expect("settings questions");
+        let mut writer = skein_lib::Writer::new(usize::try_from(questions.measure()).expect("questions bytes"));
+        questions.encode(&mut writer).expect("measured questions");
+        writer.finish()
+    }
+}
+pub(super) fn settings_world(name: &str) -> Domain {
+    use temper_client_domain::forge::{
+        self,
+        ways::{Act, Asked, Ways},
+    };
+    let (mut root, _) = world_in_layout(
+        Solo,
+        Address::Settings { project: PROJECT },
+        Then::Shown,
+        name == "settings-chat-open",
+        None,
+        Some(name),
+        false,
+    );
+    if name == "settings-refused" {
+        let mut out = Queue::uncapped();
+        let shown = root.forge().ways(PROJECT).expect("delivered ways");
+        step(
+            &mut root,
+            Event::Act {
+                action: temper_client_domain::Action::Forge(forge::Act::Ways(Act::Set {
+                    project: PROJECT,
+                    asked: Asked::Ways(Ways { drafts: false, ..shown }),
+                })),
+            },
+            &mut out,
+        );
+        step(&mut root, Event::Client { event: jig_client::Event::Stored }, &mut out);
+        for _ in 0..64 {
+            let Some(request) = out.pop() else { break };
+            if let Some(jig_client::Down::Send { attempt, .. }) = crate::driver::down(request) {
+                step(
+                    &mut root,
+                    Event::Client {
+                        event: jig_client::Event::Up {
+                            up: jig_client::Up::Answer {
+                                attempt,
+                                envelope: skein_lib::RequestEnvelope::Final,
+                                answer: Some(jig_client::Answered::Jig(c::Answer::Refused {
+                                    refusal: c::Refusal::NotOffered,
+                                    at: None,
+                                })),
+                                why: None,
+                            },
+                        },
+                    },
+                    &mut out,
+                );
+            }
+        }
+        assert!(root.forge().ways_refused(forge::ways::Control::Ways).is_some());
+    }
+    root
+}
+
+const SETTINGS_NEXT: c::ProposalKey = c::ProposalKey { proposer: c::Proposer::Task(10), number: 2 };
+pub(super) fn settings_chat_world(name: &str) -> Domain {
+    world_in_layout(Solo, Address::Chat { task: 10 }, Then::Shown, true, None, Some(name), false).0
+}
+fn settings_proposal(key: c::ProposalKey) -> c::ReadValue {
+    let c::ReadValue::Proposal(mut proposal) = proposal() else { unreachable!("proposal fixture") };
+    proposal.key = key;
+    proposal.reason = doc("I work alone on small changes.\nKeep drafts beside the code.");
+    let mut items = List::with_capacity(2);
+    for kind in [7, 6] {
+        items
+            .push(c::RevisionItemHead {
+                setting: c::Setting::Application { kind, scope: PROJECT, number: 1 },
+                edit: c::RevisionItemEdit::Set,
+            })
+            .expect("settings item");
+    }
+    proposal.action = c::ProposalAction::Settings(Box::new(c::ProposalActionSettings {
+        against: 0,
+        items,
+        review: None,
+        made: None,
+    }));
+    c::ReadValue::Proposal(proposal)
+}
+fn settings_proposal_values(root: &mut Domain, read: Token, out: &mut Queue<Request>) {
+    use temper_client_protocol_wire::{self as wire, v1 as v};
+    let mut items = List::with_capacity(2);
+    for kind in [7, 6] {
+        let value =
+            v::SettingValue::new(&v::CEILINGS, v::SettingValueParts { value: settings_bytes("settings", kind) })
+                .expect("setting value");
+        let item = v::ProposalItem::new(
+            &v::CEILINGS,
+            v::ProposalItemParts { kind, scope: PROJECT, number: 1, edit: v::SettingEdit::Set(value) },
+        )
+        .expect("proposal item");
+        items.push(item).expect("proposal items");
+    }
+    let record =
+        v::ProposalItemsAnswer::new(&v::CEILINGS, v::ProposalItemsAnswerParts { items }).expect("proposal values");
+    step(
+        root,
+        Event::Client {
+            event: jig_client::Event::Up {
+                up: jig_client::Up::ReadDone {
+                    read,
+                    result: jig_client::Readout::Family {
+                        family: FORGE,
+                        record: Some(wire::proposal_items_answer(&record)),
+                    },
+                },
+            },
+        },
+        out,
+    );
+}
+fn settings_activity(name: &str) -> c::ActivityPage {
+    let mut rows = List::with_capacity(2);
+    let keys: &[c::ProposalKey] =
+        if name == "configure-chat-replaced" { &[SETTINGS_NEXT, PROPOSAL] } else { &[PROPOSAL] };
+    for key in keys {
+        let objects = List::from_boxed(Box::new([c::ObjectKey::Proposal(*key)]));
+        let call = c::Block::Call(c::Call {
+            number: key.number,
+            tool: text("propose_settings"),
+            input: text(""),
+            outcome: None,
+            failed: false,
+            objects,
+            parts: List::with_capacity(0),
+        });
+        let blocks = List::from_boxed(Box::new([call]));
+        let mut line = turn_line(&blocks, u32::try_from(key.number).expect("small turn"), None, false);
+        line.source.position = key.number;
+        rows.push(line).expect("settings turns");
+    }
+    c::ActivityPage { rows, cut: false, before: None, after: None }
+}
+fn finish_settings_proposal(root: &mut Domain, watch: Token, name: &str, out: &mut Queue<Request>) {
+    let mut task = root.pages().chat().expect("chat").task(root.client()).expect("task").clone();
+    task.proposals = List::with_capacity(1);
+    if name == "configure-chat-replaced" {
+        task.proposals.push(SETTINGS_NEXT).expect("pending proposal");
+    }
+    deliver(root, watch, c::Delivery::Task(Box::new(task)), out);
+    for _ in 0..64 {
+        let Some(request) = out.pop() else { break };
+        if let Some(jig_client::Down::Read {
+            read,
+            what: jig_client::Readable::Jig(c::Read::Proposal { proposal: key }),
+        }) = crate::driver::down(request)
+        {
+            assert_eq!(key, PROPOSAL);
+            let c::ReadValue::Proposal(proposal) = settings_proposal(key) else { unreachable!("settings") };
+            let c::ProposalAction::Settings(settings) = proposal.action else { unreachable!("settings") };
+            let state = if name == "configure-chat-accepted" {
+                c::ProposalHistoryState::Accepted { by: c::Requester::Person(73) }
+            } else {
+                c::ProposalHistoryState::Withdrawn
+            };
+            answer(
+                root,
+                read,
+                c::ReadValue::Ended(Box::new(c::Ended {
+                    key: c::ObjectKey::Proposal(key),
+                    value: c::EndedValue::Proposal(c::ProposalHistory {
+                        action: c::RetainedAction::Settings(c::RetainedActionSettings {
+                            against: settings.against,
+                            items: settings.items,
+                            made: if name == "configure-chat-accepted" { Some(1) } else { None },
+                        }),
+                        number: key.number,
+                        proposer: 10,
+                        as_holder: true,
+                        state,
+                    }),
+                    at: None,
+                    by: None,
+                })),
+                out,
+            );
+        }
+    }
+    assert!(out.is_empty(), "settings decision settles");
+}
+
+fn settings_chat_frame(me: &mut c::Me) {
+    let member = me.projects.get_mut(0).expect("project");
+    let mut templates = List::with_capacity(3);
+    for template in &member.templates {
+        templates.push(template.clone()).expect("chat templates");
+    }
+    let mut way = member.templates.get(0).expect("chat template").clone();
+    way.number = 4;
+    way.name = doc("goal for a draft");
+    way.tracked = Some(1);
+    way.flags.conversation = false;
+    way.flags.listed = true;
+    templates.push(way).expect("default way");
+    member.templates = templates;
+}
+/// The Builders sample's three supplied connection states (client/browser.md, 7.2).
+fn builders() -> List<c::Host> {
+    let mut rows = List::with_capacity(3);
+    for (channel, name, connected, draining) in
+        [(7, "Workshop", true, false), (8, "Finishing", true, true), (9, "Away", false, false)]
+    {
+        rows.push(c::Host {
+            name: Some(name.as_bytes().into()),
+            channel,
+            kind: c::HostKind::Worker,
+            slots: 2,
+            used: 1,
+            free: 1,
+            draining,
+            connected,
+            awaiting_logins: false,
+            rule: c::HostRule::Open,
+            programs: List::with_capacity(0),
+            grace_until: None,
+            grace_remaining: None,
+            runs: List::with_capacity(0),
+            cut: false,
+        })
+        .expect("three builders");
+    }
+    rows
+}
+
+/// Home's copies share Ready's intent; the watch supplies progress and adoptions (client/README.md, 3.5).
+pub(super) fn home_copies(
+    mut row: temper_client_protocol_wire::v1::ForgeRowParts,
+    state: &str,
+) -> temper_client_protocol_wire::v1::ForgeRowParts {
+    use temper_client_protocol_wire::v1 as w;
+    let addresses: [&[u8]; 2] = [b"https://github.com/acme/widget", b"https://github.com/acme/other"];
+    let addresses = if state == "home-copy-one" { &addresses[..1] } else { &addresses[..] };
+    let mut intent = List::with_capacity(2);
+    for address in addresses {
+        intent.push((*address).into()).expect("copy intent");
+    }
+    row.first = None;
+    row.starts_with = w::StartsWith::Copies(
+        w::CopyAddresses::new(&w::CEILINGS, w::CopyAddressesParts { addresses: intent }).expect("copy intent"),
+    );
+    row.makings = List::with_capacity(2);
+    row.repositories = List::with_capacity(2);
+    // The watch's key order is other, widget, while Ready asked widget first.
+    for address in addresses.iter().rev() {
+        let (org, name) = temper_client_domain::forge::making::target(address).expect("copy target");
+        if state == "home-copy-offer" {
+            continue;
+        }
+        if matches!(state, "home-copied" | "home-copy-one") || state == "home-copy-failed" && *address == addresses[0] {
+            row.repositories
+                .push(
+                    w::Adoption::new(&w::CEILINGS, w::AdoptionParts { owner: org, name, project: PROJECT })
+                        .expect("copy adopted"),
+                )
+                .expect("two copies");
+        } else {
+            row.makings
+                .push(
+                    w::RepositoryMaking::new(
+                        &w::CEILINGS,
+                        w::RepositoryMakingParts {
+                            org,
+                            name,
+                            from: w::MakeFrom::Copy(
+                                w::MakeCopy::new(&w::CEILINGS, w::MakeCopyParts { address: (*address).into() })
+                                    .expect("copy source"),
+                            ),
+                            into: Some(
+                                w::MakeInto::new(
+                                    &w::CEILINGS,
+                                    w::MakeIntoParts { project: PROJECT, home: *address == addresses[0] },
+                                )
+                                .expect("copy into"),
+                            ),
+                            state: if state == "home-copy-failed" {
+                                w::MakingState::Failed(
+                                    w::MakingFailed::new(
+                                        &w::CEILINGS,
+                                        w::MakingFailedParts {
+                                            step: w::MakeStep::Repository,
+                                            reason: w::MakeFailure::Taken,
+                                            words: b"name taken".as_slice().into(),
+                                        },
+                                    )
+                                    .expect("copy failure"),
+                                )
+                            } else if *address == addresses[0] {
+                                w::MakingState::Making
+                            } else {
+                                w::MakingState::Waiting
+                            },
+                        },
+                    )
+                    .expect("copy making"),
+                )
+                .expect("two copies");
+        }
+    }
+    row
+}
+
+/// Home’s Add sheet is page state reached through its own button (client/README.md, 3.5).
+pub(super) fn home_add_sheet(root: &mut Domain, copies: bool) {
+    step(
+        root,
+        Event::Act {
+            action: temper_client_domain::Action::Pages(temper_client_domain::pages::Act::AddOpen {
+                start: if copies {
+                    temper_client_domain::forge::forges::Start::Copies
+                } else {
+                    temper_client_domain::forge::forges::Start::Empty
+                },
+            }),
+        },
+        &mut Queue::uncapped(),
+    );
+}
+
+fn chat_note(scope: &c::NoteScope) -> c::NotePage {
+    let mut page = configuring_note(scope);
+    let note = page.rows.get_mut(0).expect("one document");
+    note.description = doc("Away mode");
+    note.revision = c::Revision { value: 2 };
+    note.writer = c::NoteAuthor::Task { task: 1, attempt: 1 };
+    note.body = c::DocumentText::complete(c::Text::new(Box::from("# Away mode
+
+Draft, 2026-11-03, with the user.
+
+## 1. In one page
+
+- A setting, per project or for all: away until a time, or until turned off.
+- While away, agents decide what they would ask, within the kinds the project allows (section 3).
+- Each decision shows as decided for you, with Overturn while it is cheap (section 4).
+- Coming back opens on what was decided (section 5).
+
+## 2. The setting
+
+The switch sits beside the person’s name, on the laptop and on the phone. On, it reads “Away until 08:00”; the time comes from the quiet hours, or one the person picks.
+
+## 3. What agents may decide
+
+- Implementation choices within a task’s spec.
+- Retries, and splitting a failing task.
+- A design document’s wording, not its decisions.
+- Adding a dependency: off unless turned on.
+- Always wait, fixed: budgets, sign-ins, machines, what is hard to reverse.
+
+## 4. Decided for you
+
+Each decision keeps the question, the choice taken and why. It shows in Needs you as decided, with Overturn while overturning is cheap: before its change lands. Overturning asks the question again.
+
+## 5. Coming back
+
+Home opens on what was decided, then what still needs you. Turning away off is the person’s; it never turns itself off.
+
+## Open questions
+
+1. How long can a decision be overturned after its change landed?
+".as_bytes()), limits().client.domain.long_text).expect("chat document"));
+    page
+}
+
+fn chat_activity() -> c::ActivityPage {
+    let mut rows = List::with_capacity(2);
+    for (number, reply, outcome) in [
+        (
+            1,
+            "Outline: in one page, the setting, what agents may decide, decided for you, coming back. Writing it now.",
+            "Note 1 revision 1 written · 64 lines",
+        ),
+        (
+            2,
+            "Done: section 3 is a list of kinds, with the fixed waits underneath. One question remains open in section 6.",
+            "Note 1 revision 2 written · +18 −6 · line 17",
+        ),
+    ] {
+        let mut blocks = List::with_capacity(2);
+        blocks.push(c::Block::Text(text(reply))).expect("reply");
+        blocks
+            .push(c::Block::Call(c::Call {
+                number,
+                tool: text("note"),
+                input: text(""),
+                outcome: Some(text(outcome)),
+                failed: false,
+                objects: List::with_capacity(0),
+                parts: List::with_capacity(0),
+            }))
+            .expect("write");
+        let mut line = turn_line(&blocks, u32::try_from(number).expect("two turns"), None, false);
+        line.source.task = 1;
+        line.source.position = number;
+        if let Some(decoded) = &mut line.decoded {
+            decoded.task = 1;
+        }
+        rows.push(line).expect("two turns");
+    }
+    c::ActivityPage { rows, before: None, after: None, cut: false }
+}
+
+/// Away's watch supplies the row, while the request's answer supplies its toast (client/browser.md, 7.2).
+pub(super) fn away_record(on: bool) -> Box<[u8]> {
+    use temper_client_protocol_wire::{self as wire, v1 as w};
+    let wall = sample_now(FirstRun { step: 7 }, "rail-away-on");
+    let until = temper_client_domain::forge::away::next_eight(wall, 0);
+    let row = w::AwayRow::new(
+        &w::CEILINGS,
+        w::AwayRowParts {
+            project: PROJECT,
+            since: wall.as_nanos(),
+            until: Some(until.as_nanos()),
+            kinds: 7,
+            landed: 0,
+            off: if on { None } else { Some(wall.as_nanos()) },
+        },
+    )
+    .expect("Away row");
+    wire::aways(
+        &w::Aways::new(&w::CEILINGS, w::AwaysParts { rows: List::from_boxed(Box::new([row])) }).expect("Away rows"),
+    )
+}
+pub(super) fn rail_away_toggle(root: &mut Domain, watch: Token, on: bool) {
+    use temper_client_protocol_wire::{self as wire, v1 as w};
+    let mut out = Queue::uncapped();
+    temper_client_domain::step(
+        root,
+        &skein_lib::Env {
+            now: skein_lib::Time::ZERO,
+            wall: sample_now(FirstRun { step: 7 }, "rail-away-on"),
+            limits: limits(),
+        },
+        Event::Act {
+            action: temper_client_domain::Action::Pages(temper_client_domain::pages::Act::Away(
+                temper_client_domain::pages::away::Act::Toggle { project: PROJECT },
+            )),
+        },
+        &mut out,
+    );
+    let attempt = sample_attempt(root, &mut out);
+    sample_forge_answer(root, attempt, w::Outcome::Away, &mut out);
+    step(
+        root,
+        Event::Client {
+            event: jig_client::Event::Up {
+                up: jig_client::Up::FamilyDelivered {
+                    watch,
+                    record: jig_client::Family {
+                        family: wire::FORGE,
+                        version: wire::CLIENT_VERSION,
+                        bytes: away_record(on),
+                    },
+                },
+            },
+        },
+        &mut out,
+    );
+}
+
+/// Away's hand-made Home deliveries (client/browser.md, 7.2).
+pub(super) fn home_away_record(name: &str) -> Box<[u8]> {
+    use temper_client_protocol_wire::{self as wire, v1 as w};
+    let now = sample_now(FirstRun { step: 7 }, name).as_nanos();
+    let minute = 60_000_000_000;
+    let row = w::AwayRow::new(
+        &w::CEILINGS,
+        w::AwayRowParts {
+            project: PROJECT,
+            since: now - 534 * minute,
+            until: None,
+            kinds: 7,
+            landed: 0,
+            off: if name == "home-away-one" { Some(now - minute) } else { None },
+        },
+    )
+    .expect("Home away spell");
+    wire::aways(
+        &w::Aways::new(&w::CEILINGS, w::AwaysParts { rows: List::from_boxed(Box::new([row])) })
+            .expect("Home away rows"),
+    )
+}
+pub(super) fn home_away_status() -> temper_client_protocol_wire::v1::ProjectStatus {
+    use temper_client_protocol_wire::v1 as w;
+    let now = sample_now(FirstRun { step: 7 }, "home-away").as_nanos();
+    let lede = "first-run-projects stopped at 05:50 for funds, which always wait for you. welcome-stall landed its fix in temper serve.";
+    w::ProjectStatus::new(
+        &w::CEILINGS,
+        w::ProjectStatusParts {
+            project: PROJECT,
+            landed: 57,
+            seen: 0,
+            queued: 3,
+            red: false,
+            previous: None,
+            last_landed: Some(now - 6 * 60_000_000_000),
+            branch: b"main".as_slice().into(),
+            brief: Some(
+                w::StatusBrief::new(
+                    &w::CEILINGS,
+                    w::StatusBriefParts {
+                        sentence: b"57 changes landed.".as_slice().into(),
+                        lede: lede.as_bytes().into(),
+                        at: now - 9 * 60_000_000_000,
+                        landed: 57,
+                    },
+                )
+                .expect("Home away brief"),
+            ),
+        },
+    )
+    .expect("Home away status")
+}
+fn home_away_task(name: &str, task: u64) -> c::Task {
+    let mut document = base_task(
+        task,
+        match task {
+            101 => "welcome-stall",
+            103 => "first-run-projects",
+            _ => "forge-cards",
+        },
+    );
+    if name == "home-away-one" || (name == "home-away-overturned" && task == 101) {
+        document.chip.details.phase = c::ChipPhase::Ended;
+        document.chip.details.details.ended_at =
+            Some(Wall::from_nanos(sample_now(FirstRun { step: 7 }, name).as_nanos() - 292 * 60_000_000_000));
+        document.chip.details.details.ending = Some(c::ChipEnding::Done(c::ResultValue::Report(doc("Landed."))));
+    }
+    document
+}
+pub(super) fn home_away_decisions(name: &str) -> Box<[u8]> {
+    use temper_client_protocol_wire::{self as wire, v1 as w};
+    let now = sample_now(FirstRun { step: 7 }, name).as_nanos();
+    let mut rows = List::with_capacity(4);
+    for (number, task, minutes, question, took, why) in [
+        (
+            1,
+            101,
+            419,
+            "Fix in jig’s store or in temper serve?",
+            "In temper serve",
+            "jig’s fix changes a stored record, which always waits for you; serve’s fix doesn’t. The jig fix can follow.",
+        ),
+        (
+            2,
+            102,
+            324,
+            "Link the GitHub help page, or hide the link?",
+            "Link the GitHub page",
+            "The agent’s own recommendation; the welcome’s design names the link a placeholder.",
+        ),
+        (
+            3,
+            103,
+            144,
+            "The store task failed twice on size. Retry, or split it?",
+            "Split it in two",
+            "Splitting a failing task is allowed while you’re away.",
+        ),
+        (
+            4,
+            104,
+            109,
+            "The welcome card says “Run on this machine”. Keep it, or “Set up here”?",
+            "Keep “Run on this machine”",
+            "A wording choice inside the task’s spec.",
+        ),
+    ] {
+        if name == "home-away-one" && number != 1 {
+            continue;
+        }
+        rows.push(
+            w::Decision::new(
+                &w::CEILINGS,
+                w::DecisionParts {
+                    number,
+                    task,
+                    at: now - minutes * 60_000_000_000,
+                    question: question.as_bytes().into(),
+                    took: took.as_bytes().into(),
+                    why: why.as_bytes().into(),
+                    overturned: name == "home-away-overturned" && number == 2,
+                },
+            )
+            .expect("Home decision"),
+        )
+        .expect("four Home decisions");
+    }
+    wire::decisions(
+        &w::Decisions::new(&w::CEILINGS, w::DecisionsParts { project: PROJECT, rows }).expect("Home decisions"),
+    )
+}
+
+fn home_away_step(root: &mut Domain, name: &str, event: Event, out: &mut Queue<Request>) {
+    temper_client_domain::step(
+        root,
+        &skein_lib::Env { now: skein_lib::Time::ZERO, wall: sample_now(FirstRun { step: 7 }, name), limits: limits() },
+        event,
+        out,
+    );
+}
+/// Decision reads use the sample's wall so the shown rows remain within their day.
+pub(super) fn home_away_deliveries(root: &mut Domain, watch: Token, name: &str) {
+    use jig_client::{Down, Readable, Readout, Up};
+    let mut out = Queue::uncapped();
+    home_away_step(
+        root,
+        name,
+        Event::Client {
+            event: jig_client::Event::Up {
+                up: Up::FamilyDelivered {
+                    watch,
+                    record: jig_client::Family {
+                        family: FORGE,
+                        version: temper_client_protocol_wire::CLIENT_VERSION,
+                        bytes: home_away_decisions(name),
+                    },
+                },
+            },
+        },
+        &mut out,
+    );
+    for _ in 0..64 {
+        let Some(request) = out.pop() else { break };
+        if let Some(Down::Read { read, what: Readable::Jig(c::Read::Task { task }) }) = crate::driver::down(request) {
+            home_away_step(
+                root,
+                name,
+                Event::Client {
+                    event: jig_client::Event::Up {
+                        up: Up::ReadDone {
+                            read,
+                            result: Readout::Jig(c::ReadResult::Value(c::ReadValue::Task(Box::new(home_away_task(
+                                name, task,
+                            ))))),
+                        },
+                    },
+                },
+                &mut out,
+            );
+        }
+    }
+    assert!(out.is_empty(), "Home decisions settle");
 }

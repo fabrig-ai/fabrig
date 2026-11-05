@@ -167,7 +167,7 @@ impl Logs {
         if self.failed(piece.step) {
             self.done = true;
         } else {
-            let record = joined(&[&timestamp(piece.wall), b" ", &piece.bytes, ending(&piece.bytes)]);
+            let record = record(&piece);
             let log = self.files.get(step).expect("log step");
             let length = u32::try_from(record.len()).expect("bounded record");
             assert!(length <= self.bound, "one whole record fits");
@@ -588,4 +588,27 @@ fn pair(value: u64) -> [u8; 2] {
         b'0'.checked_add(u8::try_from(value.div_euclid(10)).expect("pair tens")).expect("ASCII digit"),
         b'0'.checked_add(u8::try_from(value.rem_euclid(10)).expect("pair ones")).expect("ASCII digit"),
     ]
+}
+
+fn record(piece: &Piece) -> Box<[u8]> {
+    let stamp = timestamp(piece.wall);
+    let mut parts = List::uncapped();
+    let mut rest = piece.bytes.as_ref();
+    // Each pass consumes a line; one pass also preserves an empty piece.
+    for _ in 0..piece.bytes.len().saturating_add(1) {
+        let length = match bytes::find(rest, b"\n") {
+            Some(at) => at.checked_add(1).expect("line end"),
+            None => rest.len(),
+        };
+        let line = rest.get(..length).expect("record line");
+        parts.push(stamp.as_ref()).expect("record parts");
+        parts.push(b" ".as_slice()).expect("record parts");
+        parts.push(line).expect("record parts");
+        parts.push(ending(line)).expect("record parts");
+        rest = rest.get(length..).expect("remaining lines");
+        if rest.is_empty() {
+            break;
+        }
+    }
+    joined(parts.as_slice())
 }

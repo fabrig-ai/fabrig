@@ -749,8 +749,4 @@ Each document lists its own. The ones that reach across:
   it holds itself (hearth/docs/design/domain/activator.md);
 - the fake machine's final home (hearth/docs/design/domain/testing.md);
 - the local mirror for the real tier: which packages, pinned how,
-  fetched by whom (hearth/docs/design/domain/testing.md);
-- whether the example fleet's SSH port and zone stay, and the containers
-  hearth/docs/design/domain/store.md, 9.2 names
-  (hearth/docs/design/protocol/format.md, 13;
-  hearth/docs/design/domain/store.md, 12).
+  fetched by whom (hearth/docs/design/domain/testing.md).

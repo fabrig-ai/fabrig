@@ -78,7 +78,18 @@ impl Component {
         assert!(self.index.insert(key, id).expect("admitted index fits").is_none(), "unique invocation token");
         id
     }
-    /// Start once with git's version check followed by a private, fresh layout.
+    /// Keep workspace directories across this worker's start.
+    pub fn keep_workspaces(&mut self) {
+        assert_eq!(self.start, Start::Idle, "set workspace reuse before start");
+        self.directories.keep = true;
+    }
+
+    #[must_use]
+    pub const fn keeps_workspaces(&self) -> bool {
+        self.directories.keep
+    }
+
+    /// Start once with git's version check followed by the private layout.
     pub fn start(&mut self, _now: Time, out: &mut Outputs) {
         assert_eq!(self.start, Start::Idle, "start once");
         if self.settings.git.is_none() {
@@ -130,9 +141,11 @@ impl Component {
             | git::Op::Create { .. }
             | git::Op::Commit { .. }
             | git::Op::Push { .. } => true,
-            git::Op::Make { .. } | git::Op::CheckOut { .. } | git::Op::IsAncestor { .. } | git::Op::Merge { .. } => {
-                false
-            }
+            git::Op::Make { .. }
+            | git::Op::CheckOut { .. }
+            | git::Op::Look { .. }
+            | git::Op::IsAncestor { .. }
+            | git::Op::Merge { .. } => false,
         };
         if self.start != Start::Started
             || self.shutting_down
@@ -284,6 +297,7 @@ impl Component {
                     | git::Op::Fetch { .. }
                     | git::Op::Create { .. }
                     | git::Op::CheckOut { .. }
+                    | git::Op::Look { .. }
                     | git::Op::IsAncestor { .. }
                     | git::Op::Merge { .. }
                     | git::Op::Commit { .. }
@@ -300,6 +314,7 @@ impl Component {
                     | git::Op::Fetch { .. }
                     | git::Op::Create { .. }
                     | git::Op::CheckOut { .. }
+                    | git::Op::Look { .. }
                     | git::Op::IsAncestor { .. }
                     | git::Op::Merge { .. }
                     | git::Op::Push { .. } => unreachable!("scan sequence"),

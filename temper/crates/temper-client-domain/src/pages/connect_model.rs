@@ -5,11 +5,25 @@ use super::{
 };
 use crate::{Address, ModelWay, Step, WayKind};
 use alloc::boxed::Box;
-use jig_client::{Client, contract as c};
+use jig_client::{Client, Told, contract as c};
 use skein_lib::{Queue, RequestKey};
+/// The welcome's "I've signed in" (client/README.md, 3.5, A way's page).
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+pub enum ProgramCheck {
+    Idle,
+    /// `DeclareProgram` out.
+    Declaring,
+    /// `CheckProgram` out, or answered and not yet settled.
+    Checking {
+        source: u32,
+    },
+    /// Settled with the source not usable.
+    NotYet,
+}
 #[derive(Debug)]
 pub struct ConnectModel {
     pub holder: c::AskAccountHolder,
+    pub check: ProgramCheck,
     pub program: Option<Box<[u8]>>,
     pub request: Request,
     /// Whether the scripted model was serving when this connection was sent.
@@ -20,6 +34,7 @@ pub struct ConnectModel {
 pub enum Act {
     Holder { holder: c::AskAccountHolder },
     SignIn { name: RequestKey, way: Way },
+    SignedIn { name: RequestKey, way: Way },
     SignInElsewhere { name: RequestKey, way: Way },
     Finish { name: RequestKey },
     ProgramName { value: Box<[u8]> },
@@ -34,7 +49,7 @@ pub const fn open(address: &Address) -> bool {
         | Address::ConnectForge { .. }
         | Address::Inbox { .. }
         | Address::Chats { .. }
-        | Address::NewChat
+        | Address::NewChat { .. }
         | Address::Accounts
         | Address::Welcome { .. }
         | Address::Chat { .. }
@@ -42,6 +57,8 @@ pub const fn open(address: &Address) -> bool {
         | Address::Home { .. }
         | Address::Changes { .. }
         | Address::Settings { .. }
+        | Address::Builders { .. }
+        | Address::Repositories { .. }
         | Address::Goals { .. }
         | Address::Configure { .. }
         | Address::Adopt { .. } => false,
@@ -67,7 +84,7 @@ pub fn address(current: &Address, way: Option<ModelWay>) -> Address {
         | Address::ConnectForge { .. }
         | Address::Inbox { .. }
         | Address::Chats { .. }
-        | Address::NewChat
+        | Address::NewChat { .. }
         | Address::Accounts
         | Address::ConnectModel { .. }
         | Address::Chat { .. }
@@ -75,6 +92,8 @@ pub fn address(current: &Address, way: Option<ModelWay>) -> Address {
         | Address::Home { .. }
         | Address::Changes { .. }
         | Address::Settings { .. }
+        | Address::Builders { .. }
+        | Address::Repositories { .. }
         | Address::Goals { .. }
         | Address::Configure { .. }
         | Address::Adopt { .. } => Address::ConnectModel { way },
@@ -88,7 +107,7 @@ pub fn way(pages: &Pages, client: &Client) -> Option<Way> {
         | Address::ConnectForge { .. }
         | Address::Inbox { .. }
         | Address::Chats { .. }
-        | Address::NewChat
+        | Address::NewChat { .. }
         | Address::Accounts
         | Address::Welcome { .. }
         | Address::Chat { .. }
@@ -96,6 +115,8 @@ pub fn way(pages: &Pages, client: &Client) -> Option<Way> {
         | Address::Home { .. }
         | Address::Changes { .. }
         | Address::Settings { .. }
+        | Address::Builders { .. }
+        | Address::Repositories { .. }
         | Address::Goals { .. }
         | Address::Configure { .. }
         | Address::Adopt { .. } => return None,
@@ -115,6 +136,15 @@ impl ConnectModel {
         self.elsewhere
     }
     pub(crate) fn changing_way(&mut self, current: &Address, next: &Address) {
+        if let Address::ConnectModel { .. } = current
+            && let Address::Welcome { .. } = next
+        {
+            self.program = None;
+        }
+        let old_way = chosen_way(current);
+        if old_way != chosen_way(next) {
+            self.check = ProgramCheck::Idle;
+        }
         if let Address::ConnectModel { way: Some(old) } | Address::Welcome { step: Step::Model { way: Some(old) } } =
             current
             && old.kind == WayKind::SignIn
@@ -149,7 +179,8 @@ impl ConnectModel {
     }
     #[expect(
         clippy::too_many_arguments,
-        reason = "the page resolves its way against borrowed identity, address and playground facts"
+        clippy::too_many_lines,
+        reason = "the shared flow dispatches its acts against borrowed identity, address and playground facts"
     )]
     pub(crate) fn act(
         &mut self,
@@ -172,6 +203,7 @@ impl ConnectModel {
         let elsewhere = match &act {
             Act::SignInElsewhere { .. } => true,
             Act::SignIn { .. }
+            | Act::SignedIn { .. }
             | Act::Holder { .. }
             | Act::ProgramName { .. }
             | Act::Submit { .. }
@@ -215,6 +247,47 @@ impl ConnectModel {
                 );
                 out.push(Output::Show { address: address(current, Some(model_way(way))) });
             }
+            Act::SignedIn { name, way } => {
+                if !matches_welcome_program(current)
+                    || chosen != Some(way)
+                    || model_way(way).kind != WayKind::Program
+                    || self.check == ProgramCheck::Declaring
+                {
+                    return;
+                }
+                if let ProgramCheck::Checking { .. } = self.check {
+                    return;
+                }
+                let Some(doc) = accounts::document(client) else { return };
+                let program = program_default(me.party.name.bytes());
+                if let Some(source) = program_source(client, &program) {
+                    self.send_check(name, source, serial, out);
+                } else {
+                    if doc.cut {
+                        return;
+                    }
+                    for account in &doc.accounts {
+                        if account.holder == c::AccountHolder::Party(me.party.number) && account.cut {
+                            return;
+                        }
+                    }
+                    self.check = ProgramCheck::Declaring;
+                    self.request.send(
+                        name,
+                        c::Ask::AccountChange {
+                            holder: c::AskAccountHolder::Own,
+                            change: c::AccountChange::DeclareProgram {
+                                provider: way.provider(),
+                                join: None,
+                                name: program,
+                            },
+                        },
+                        false,
+                        serial,
+                        out,
+                    );
+                }
+            }
             Act::Submit { name } => {
                 let Some(way) = chosen else { return };
                 let change = match way {
@@ -256,6 +329,95 @@ impl ConnectModel {
         }
     }
 }
+fn chosen_way(address: &Address) -> Option<ModelWay> {
+    if let Address::ConnectModel { way } | Address::Welcome { step: Step::Model { way } } = address {
+        *way
+    } else {
+        None
+    }
+}
+fn matches_welcome_program(address: &Address) -> bool {
+    if let Address::Welcome { step: Step::Model { way: Some(way) } } = address {
+        way.kind == WayKind::Program
+    } else {
+        false
+    }
+}
+fn program_source(client: &Client, name: &[u8]) -> Option<u32> {
+    let me = accounts::current_me(client)?;
+    for account in &accounts::document(client)?.accounts {
+        if account.holder == c::AccountHolder::Party(me.party.number) {
+            for source in &account.sources {
+                if source.kind == c::AccountKind::Program && source.name.as_deref() == Some(name) {
+                    return Some(source.number);
+                }
+            }
+        }
+    }
+    None
+}
+impl ConnectModel {
+    fn send_check(&mut self, name: RequestKey, source: u32, serial: &mut u64, out: &mut Queue<Output>) {
+        self.check = ProgramCheck::Checking { source };
+        self.request.send(
+            name,
+            c::Ask::AccountChange {
+                holder: c::AskAccountHolder::Own,
+                change: c::AccountChange::CheckProgram { source },
+            },
+            false,
+            serial,
+            out,
+        );
+    }
+    pub(crate) fn told(&mut self, client: &Client, told: &Told, serial: &mut u64, out: &mut Queue<Output>) -> bool {
+        if !self.request.told(client, told) {
+            return false;
+        }
+        let Told::Answered { outcome, .. } = told else { return true };
+        if self.check == ProgramCheck::Declaring {
+            let source = if let jig_client::Outcome::Answered(jig_client::Answered::Jig(c::Answer::Done(
+                c::Outcome::Document(c::DocumentOutcome::AccountProgramDeclared { source, .. }),
+            ))) = outcome
+            {
+                Some(*source)
+            } else if let jig_client::Outcome::Answered(jig_client::Answered::Jig(c::Answer::Refused {
+                refusal: c::Refusal::NotOffered,
+                ..
+            })) = outcome
+            {
+                match accounts::current_me(client) {
+                    Some(me) => program_source(client, &program_default(me.party.name.bytes())),
+                    None => None,
+                }
+            } else {
+                None
+            };
+            if let Some(source) = source {
+                self.send_check(super::account_request_name(*serial), source, serial, out);
+            } else {
+                self.check = ProgramCheck::Idle;
+            }
+        } else if let ProgramCheck::Checking { .. } = self.check {
+            if let jig_client::Outcome::Answered(jig_client::Answered::Jig(c::Answer::Refused {
+                refusal: c::Refusal::Limit { which: c::Limit::Admission { which: c::AdmissionLimit::Sources } },
+                ..
+            })) = outcome
+            {
+                // Another check of this source is still out; the watch supplies its end.
+            } else if let jig_client::Outcome::Answered(jig_client::Answered::Jig(c::Answer::Done(
+                c::Outcome::Document(c::DocumentOutcome::AccountChanged),
+            ))) = outcome
+            {
+                // The answer admits the check; settled is the hosts' observation.
+            } else {
+                self.check = ProgramCheck::Idle;
+            }
+        }
+        true
+    }
+}
+
 #[must_use]
 pub const fn creation(ask: &c::Ask) -> bool {
     if let c::Ask::SignIn { .. } = ask {
@@ -291,6 +453,7 @@ impl Default for ConnectModel {
     fn default() -> Self {
         Self {
             holder: c::AskAccountHolder::Own,
+            check: ProgramCheck::Idle,
             program: None,
             request: Request::default(),
             playground: false,
