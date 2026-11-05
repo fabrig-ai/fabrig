@@ -106,3 +106,21 @@ Resolve these paths under `temper/docs/design/client/`:
 Preserve the automatic merges, including `README.md`, the goal stylesheet contract and the other updated gallery descriptions. Keep existing section numbers.
 These are design conflict resolutions; implementation gaps remain recorded for later tasks.
 Check for remaining conflict markers and run `python3 -I -B tools/citations/citations.py --base origin/main`, then complete the spec’s validation.
+
+## Rebase (2026-11-05, step merge, foreman ui-goal-page/needs-base/foreman-2)
+
+regenerate Story A’s kept log after combining the branch with the current trunk.
+The merge conflicts in `temper/tests/playground/tests/fixtures/story-a.log`.
+Trunk commit `117ca75a1bf567359f087e80719398185285e52a` (“Expose task creation time in client documents”), incorporated by `7b6861a214`, regenerated this fixture for the new document bytes.
+Branch commit `58bab81087` independently regenerated it for combined Needs and Goals behavior.
+Preserve both sides’ code and the automatic merge of `temper/tools/gallery/src/worlds.rs`.
+Regenerate the fixture from the combined code; do not hand-merge log records or accept either side as the final fixture.
+The generator and replay tests are in `temper/tests/playground/tests/suite/walk.rs`.
+Run:
+```sh
+TEMPER_BUNDLE=none SKEIN_CODEGEN_WRITE=1 heavy cargo nextest run -p temper-playground-world --test suite -E 'test(=walk::story_a_walks_from_the_welcome_to_the_csv_change_landed)'
+TEMPER_BUNDLE=none heavy cargo nextest run -p temper-playground-world --test suite -E 'test(=walk::story_a_kept_log_replays_natively)'
+```
+Confirm each run selects and passes one test.
+Run `TEMPER_BUNDLE=none heavy cargo run -p temper-client-journeys`; regenerate any recording it identifies as stale using the spec’s `again` command, then check again.
+Check for remaining conflict markers, complete the spec’s validation, and report what regeneration changed.
