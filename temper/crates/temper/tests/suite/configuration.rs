@@ -97,7 +97,7 @@ fn the_owned_example_fits_the_native_client() {
 }
 fn assert_owned_limits(limits: &serde_json::Value) {
     let mut expected = serde_json::json!({"engine":{"limits":{"profile":"standard","overrides":{
-        "documents.rows":2,"documents.text_bytes":128,
+        "documents.rows":2,"documents.text_bytes":512,
         "clients.streams":8,"clients.exchanges":12,
         "clients_http.streams":8,"clients_http.calls":12,
         "fleet.configured_workers":8,"fleet.slots":2,"fleet.workers":2,"hub.slots":2,

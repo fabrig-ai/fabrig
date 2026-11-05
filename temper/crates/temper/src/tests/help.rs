@@ -671,8 +671,8 @@ fn box_and_change_help_locate_temper_review_gates_in_change_show() {
 
     let change = help::answer(&configured(&["help", "change"])).expect("change page");
     let change = change.split_whitespace().collect::<Vec<_>>().join(" ");
-    assert!(change.contains("a change's gates run in temper, and `change show` prints each"), "{change}");
-    assert!(change.contains("temper posts none to the forge as a review or a status"), "{change}");
+    assert!(change.contains("they run in temper; `change show` prints each"), "{change}");
+    assert!(change.contains("Temper posts none as forge reviews or statuses"), "{change}");
 }
 
 #[test]
