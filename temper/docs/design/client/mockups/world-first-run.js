@@ -223,7 +223,7 @@
     },
     {
       id: '5', label: '5', hour: 15 / 60, act: 2, title: 'A model connected',
-      summary: 'Sam follows the banner’s “Connect a model”, chooses ChatGPT, and finishes the sign-in by pasting from the browser on another computer. Another provider’s account is usable, so the model’s half of the playground ends: the banner says a playground forge alone, the chats page is a chats page, and T1’s next run takes the first of its charter’s models with an account, gpt-6-luna on the ChatGPT plan (setup.md, 8.3). The scripted model steps aside: it is gone from Accounts.',
+      summary: 'Sam follows the banner’s “Connect a model”, chooses ChatGPT, and finishes the sign-in by pasting from the browser on another computer. Another provider’s account is usable, so the model’s half of the playground ends: the banner says a playground forge alone, the chats page is a chats page, and T1’s next run takes the first of its charter’s models with an account, gpt-6.1-sol on the ChatGPT plan (setup.md, 8.3). The scripted model steps aside: it is gone from Accounts.',
       look: [
         ['connect-model.html?way=chatgpt', 'Connect a model: signed in to ChatGPT'],
         ['accounts.html', 'Accounts: ChatGPT · sam@example.com, folded; the scripted model gone'],
@@ -239,10 +239,10 @@
       apply(w, id) {
         delete w.modelSignIn;
         w.accounts = w.accounts.filter(a => a.provider !== w.demo.provider);
-        w.accounts.unshift({ name: 'ChatGPT', plan: 'ChatGPT plan', provider: 'OpenAI', holder: 'Sam', models: ['gpt-6-luna'], at: id,
+        w.accounts.unshift({ name: 'ChatGPT', plan: 'ChatGPT plan', provider: 'OpenAI', holder: 'Sam', models: ['gpt-6.1-sol', 'gpt-6-luna'], at: id,
           sources: [{ name: 'sam@example.com', kind: 'sign-in', since: 14, use: 'Idle' }] });
-        Object.assign(w.tasks.T1, { model: 'gpt-6-luna', account: 'ChatGPT' });
-        w.config.next = { account: 'ChatGPT', model: 'gpt-6-luna' };
+        Object.assign(w.tasks.T1, { model: 'gpt-6.1-sol', account: 'ChatGPT' });
+        w.config.next = { account: 'ChatGPT', model: 'gpt-6.1-sol' };
       },
     },
     {

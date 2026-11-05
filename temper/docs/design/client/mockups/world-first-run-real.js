@@ -51,9 +51,9 @@
         ['chats.html', 'Chats: Project 1, no chat yet; the strip, no forge yet'],
       ],
       apply(w, id) {
-        w.accounts.unshift({ name: 'ChatGPT', plan: 'ChatGPT plan', provider: 'OpenAI', holder: 'Sam', models: ['gpt-6-luna'], at: id,
+        w.accounts.unshift({ name: 'ChatGPT', plan: 'ChatGPT plan', provider: 'OpenAI', holder: 'Sam', models: ['gpt-6.1-sol', 'gpt-6-luna'], at: id,
           sources: [{ name: 'sam@example.com', kind: 'sign-in', since: 3, use: 'Idle' }] });
-        w.config.next = { account: 'ChatGPT', model: 'gpt-6-luna' };
+        w.config.next = { account: 'ChatGPT', model: 'gpt-6.1-sol' };
         w.forges.find(f => f.n === 3).setup.step = 'starting';
       },
     },

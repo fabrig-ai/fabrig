@@ -2057,8 +2057,10 @@ runs it (section 7).
   a pull request, update it from its base, close or reopen it, and edit,
   close or reopen an issue; 10, as the process tier's owner holds them.
 - **Its LLM providers** (configuration.md, section 2), written out
-  whole: 1, OpenAI, its public Responses endpoint and gpt-6-luna with
-  its window, output and prices, offering keys and ChatGPT's sign-in.
+  whole: 1, OpenAI, its public Responses endpoint and gpt-6.1-sol, the
+  first and so the charters' default, then gpt-6-luna, the cheapest,
+  each with its window, output and prices, offering keys and ChatGPT's
+  sign-in.
   The sign-in is a plan's (`signed_in_plan`, its manage-usage address
   `https://chatgpt.com/settings/usage`), on ChatGPT's public
   registration as jig's live sign-in uses it (jig's
@@ -2473,7 +2475,7 @@ override.
   Create, and records it: a chat started before an account of a real
   provider stays on the model it took, and a chat started after takes
   the charter's first,
-  `gpt-6-luna` once an OpenAI key serves it. The composer's line says
+  `gpt-6.1-sol` once an OpenAI key serves it. The composer's line says
   which, before the start, from jig's `resolved_default` preview in
   `me`, never by guessing from catalogue order (`../client/README.md`,
   5.5). The request keeps its omitted choice; the preview does not turn

@@ -134,9 +134,9 @@
         ['forges.html', 'Forges: GitHub alone'],
       ],
       apply(w, id) {
-        w.accounts.unshift({ name: 'ChatGPT', plan: 'ChatGPT plan', provider: 'OpenAI', holder: 'Sam', models: ['gpt-6-luna'], at: id,
+        w.accounts.unshift({ name: 'ChatGPT', plan: 'ChatGPT plan', provider: 'OpenAI', holder: 'Sam', models: ['gpt-6.1-sol', 'gpt-6-luna'], at: id,
           sources: [{ name: 'sam@example.com', kind: 'sign-in', since: 6, use: 'Idle' }] });
-        w.config.next = { account: 'ChatGPT', model: 'gpt-6-luna' };
+        w.config.next = { account: 'ChatGPT', model: 'gpt-6.1-sol' };
       },
     },
   ];

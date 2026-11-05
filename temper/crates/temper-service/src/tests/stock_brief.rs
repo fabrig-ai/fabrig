@@ -27,7 +27,8 @@ fn assignment(number: u32, open: bool, body: usize) -> temper_engine_domain::Ass
     let mut assignment = fixtures::assignment_with(fixtures::repository(1, b"org", b"repo"));
     assignment.charter = number;
     assignment.run.policy = policy;
-    assignment.run.sources = Box::new([None, None, None]);
+    // A source per model the policy names: its model, then each alternative.
+    assignment.run.sources = vec![None; assignment.run.policy.alternatives.len().checked_add(1).unwrap()].into_boxed_slice();
     assignment.run.budget = engine.charters.iter().find(|charter| charter.number == number).unwrap().spend;
     assignment.run.authority.tools = jig_domain_tasks::Tools(
         crate::stock::defaults(&engine.llm, engine.limits.core.tasks.result_bytes).rules.ceiling.tools.0
@@ -87,13 +88,13 @@ fn every_stock_charter_admits_its_whole_maximal_brief() {
     assert_eq!(configuration.service.limits.channel.bodies.turn_body, 16_803_810);
 
     for (number, open, non_brief, remaining) in [
-        (1, false, 42_032, 358_103),
-        (1, true, 39_942, 360_193),
-        (2, false, 34_932, 365_203),
+        (1, false, 42_046, 358_089),
+        (1, true, 39_956, 360_179),
+        (2, false, 34_946, 365_189),
         (3, false, 40_833, 359_302),
-        (4, false, 32_568, 367_567),
-        (6, false, 33_399, 366_736),
-        (9, false, 31_235, 368_900),
+        (4, false, 32_582, 367_553),
+        (6, false, 33_413, 366_722),
+        (9, false, 31_249, 368_886),
     ] {
         let assignment = assignment(number, open, 14_592);
         let mut charter = temper_engine_smith::charter(&assignment);
@@ -152,8 +153,8 @@ fn the_stock_brief_with_a_whole_spec_fits_both_receiving_bounds() {
     const FRAMING: u32 = 64 * (16 + 7);
     // Task words and contract, then the task identity and requester.
     const TASK_PARTS: u32 = 2;
-    // Three model declarations leave this margin beyond the framed brief.
-    const MARGIN: u32 = 361;
+    // Four model declarations leave this margin beyond the framed brief.
+    const MARGIN: u32 = 347;
     const OTHER: u32 = 768;
     let configuration = configured();
     let limits = configuration.service.limits.domain.run;
@@ -161,7 +162,7 @@ fn the_stock_brief_with_a_whole_spec_fits_both_receiving_bounds() {
     assert!(brief.parts >= TASK_PARTS);
     let largest = temper_engine_smith::charter(&assignment(1, false, 0));
     let room = run::brief_room(&largest, Some(&workspace(true)), &limits).unwrap();
-    assert_eq!(room, 358_103);
+    assert_eq!(room, 358_089);
     let full = brief.budgets.task + brief.budgets.pull + brief.budgets.reviews + OTHER;
     assert_eq!(full, 395_520);
     assert_eq!(brief.brief_bytes, full.min(room - FRAMING - MARGIN));

@@ -74,20 +74,20 @@ temper ctl settings apply`.
 - **ctl:** `me` reads your party in the deployment; `settings show`
   reads how its work runs.
 
-**Offering another model** (for example, `gpt-6.1-sol`):
+**Offering another model** (for example, `gpt-6-astra`):
 
 1. In `CONFIG/temper.json`, append a declaration to `engine.llm.models`:
 
    ```json
    {
-     "name": "gpt-6.1-sol", "endpoint": "openai",
+     "name": "gpt-6-astra", "endpoint": "openai",
      "window": 1048576, "output": 8192,
      "efforts": ["high", "medium", "low"],
      "prices": {"input": 1, "cached": 1, "output": 1, "unit": 1000}
    }
    ```
 
-   Add `"gpt-6.1-sol"` to `engine.llm.providers[].models` for the
+   Add `"gpt-6-astra"` to `engine.llm.providers[].models` for the
    provider serving it (`openai` in this example). Its `models` array
    holds names, not declarations. The declaration's `endpoint` names
    an existing entry in `engine.llm.endpoints`.
@@ -96,7 +96,7 @@ temper ctl settings apply`.
 
    ```json
    {
-     "name": "gpt-6.1-sol",
+     "name": "gpt-6-astra",
      "window": 1048576, "output": 8192,
      "efforts": ["high", "medium", "low"],
      "prices": {"input": 1, "cached": 1, "output": 1, "unit": 1000},

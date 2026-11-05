@@ -898,7 +898,7 @@
       <h3>A plan’s first use, in the conversation of the run that first used it</h3>
       <div class="plan-sample"><section class="terminal-turn terminal-turn-user"><div class="terminal-role">You</div><div class="terminal-turn-content"><span class="terminal-prompt">›</span>${conf('a cue of the demo’s scripts, for the sample', `<div class="md"><p>${esc(demo.cues[1])}</p></div>`)}</div></section>${firstUseCard(a)}<p class="mock-note">The run’s turns follow. Nothing is kept to dismiss the card: it is part of the conversation.</p></div>
       <h3>A chat whose plan is limited ${ahead('limited chat', 'where a chat shows its account’s limit: client README 5.5 words the account’s state, not the chat’s')}</h3>
-      <div class="plan-sample">${stateNotice(limited)}<div class="composer-line">${fact('jig: the account and model the chat’s next run takes', usingHtml(a, 'gpt-6-luna'))}</div></div>
+      <div class="plan-sample">${stateNotice(limited)}<div class="composer-line">${fact('jig: the account and model the chat’s next run takes', usingHtml(a, 'gpt-6.1-sol'))}</div></div>
     </section>`;
   }
 
@@ -1264,7 +1264,7 @@
   // The ChatGPT row in each other state, built on the world's own.
   function chatgptLike(sign) {
     const a = ownAccounts().find(a => a.name === 'ChatGPT');
-    const base = a || { name: 'ChatGPT', plan: 'ChatGPT plan', provider: 'OpenAI', holder: world.person, models: ['gpt-6-luna'], sources: [{ name: 'sam@example.com', kind: 'sign-in' }] };
+    const base = a || { name: 'ChatGPT', plan: 'ChatGPT plan', provider: 'OpenAI', holder: world.person, models: ['gpt-6.1-sol', 'gpt-6-luna'], sources: [{ name: 'sam@example.com', kind: 'sign-in' }] };
     return { ...base, at: null, waiting: sign.waiting, sources: [{ ...base.sources[0], use: 'Idle', ...sign.source }, ...(sign.more || [])] };
   }
 
@@ -1285,7 +1285,7 @@
       ['Signed out, but ChatGPT didn’t confirm', chatgptLike({ source: { state: 'needs sign-in', unconfirmed: true } })],
       ['Misconfigured', chatgptLike({ source: { state: 'misconfigured' } })],
       ['Can’t be used on a host', chatgptLike({ source: { state: 'unloaded', host: 'worker', why: 'its record didn’t load' } })],
-      ['An OpenAI API key, for comparison', { name: 'OpenAI', provider: 'OpenAI', holder: world.person, models: ['gpt-6-luna'], sources: [key] }],
+      ['An OpenAI API key, for comparison', { name: 'OpenAI', provider: 'OpenAI', holder: world.person, models: ['gpt-6.1-sol', 'gpt-6-luna'], sources: [key] }],
       ['A Claude subscription, where the configuration offers it, for comparison', { name: 'Claude', plan: 'Claude subscription', provider: 'Anthropic', holder: world.person, sources: [{ name: 'claude-sam', kind: 'program', program: 'Claude Code', hosts: ['worker'], use: 'Idle' }] }],
     ].map(([heading, a]) => `<h3>${esc(heading)}</h3>${accountRow(a, true)}`).join('')}</section>` : '';
     const empty = `<div class="empty-state">No model of yours yet. <a class="button primary" href="${esc(u('connect-model.html'))}">Connect a model</a></div>`;
@@ -1362,7 +1362,7 @@
       <p>temper’s agents now run on your ChatGPT plan.</p>
       <div class="repo-lines">
         <div class="kv"><span>Account</span><strong>${accountHeading(a)}</strong></div>
-        ${future('preview', `<div class="kv"><span>Model</span><strong>${esc(world.config.next?.model || 'gpt-6-luna')}</strong></div>`)}
+        ${future('preview', `<div class="kv"><span>Model</span><strong>${esc(world.config.next?.model || 'gpt-6.1-sol')}</strong></div>`)}
         <div class="kv"><span>Pays for</span><strong>${fact('jig: the account’s uses; a plan serves its holder alone', esc(paysFor(a)))}</strong></div>
       </div>
       ${wasPlayground ? `<p>The playground’s scripted model stepped aside${t ? `: ${t}’s next run takes ${esc(T(t).model)}` : ''}.</p>` : ''}

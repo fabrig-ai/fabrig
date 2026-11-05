@@ -289,7 +289,7 @@ fn reference_engine(limits: &serde_json::Value) -> jig_protocol_config::Engine {
     let mut designer = engine["llm"]["models"][0].clone();
     designer["name"] = "claude-opus-5-5".into();
     engine["llm"]["models"].as_array_mut().expect("models").push(designer);
-    engine["llm"]["providers"][0]["models"] = serde_json::json!(["gpt-6-luna", "claude-opus-5-5"]);
+    engine["llm"]["providers"][0]["models"] = serde_json::json!(["gpt-6.1-sol", "claude-opus-5-5"]);
     let bytes = serde_json::to_vec(&engine).expect("engine JSON");
     let document = jig_protocol_config::document(
         &bytes,
