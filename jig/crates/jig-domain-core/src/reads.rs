@@ -131,6 +131,7 @@ pub(crate) struct Pending {
 #[derive(Debug)]
 enum Destination {
     Read(ReplyTo),
+    RevisionMetadata { reply: ReplyTo, project: u32 },
     Watch(Token),
     Erase,
     Restore,
@@ -142,7 +143,7 @@ enum Destination {
 impl Pending {
     fn take_reply(&mut self) -> ReplyTo {
         match core::mem::replace(&mut self.destination, Destination::Done) {
-            Destination::Read(reply) => reply,
+            Destination::Read(reply) | Destination::RevisionMetadata { reply, .. } => reply,
             Destination::Restore
             | Destination::Erase
             | Destination::Watch(_)
@@ -583,6 +584,7 @@ pub(crate) fn loaded(
     match &pending.destination {
         Destination::Watch(watcher) => return watch_loaded(core, env, name, *watcher, result),
         Destination::Settings { .. } => return settings::run_loaded(core, env, name, result),
+        Destination::RevisionMetadata { .. } => return settings::metadata_loaded(core, env, name, result),
         Destination::Restore => return settings::restore_loaded(core, env, work, name, result),
         Destination::Erase => return crate::routing::task::erase::loaded(core, env, load, result),
         Destination::RunTask { .. } => return run_task::loaded(core, env, name, result),

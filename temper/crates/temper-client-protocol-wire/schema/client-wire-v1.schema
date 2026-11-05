@@ -100,7 +100,7 @@ record SettingRead { kind: u32 scope: u32 number: u32 }
 record ProposalItemsRead { key: u64 }
 record RevisionSettingRead { kind: u32 scope: u32 number: u32 revision: u32 }
 enum Read { playground, setting: SettingRead, proposal_items: ProposalItemsRead, deployment, revision_setting: RevisionSettingRead }
-# Values are kinds-codec's LandingRule and ForgeCharter records.
+# Values are the records of temper's settings kinds below.
 versioned record SettingAnswer { value: option bytes 1048576 }
 record SettingValue { value: bytes 1048576 }
 enum SettingEdit { set: SettingValue, removed, reset }
@@ -209,3 +209,6 @@ record RuleGate { number: u32 blocking: bool freshness: RuleFreshness }
 record RuleApproval { role: u32 people: u32 freshness: RuleFreshness }
 record LandingRule { pattern: LandingPattern enforce: bool ci: bool up_to_date: bool gates: list 64 RuleGate approvals: list 64 RuleApproval }
 record ForgeCharter { charter: u32 }
+enum QuestionsRoute { none, foreman, up }
+record ProjectQuestions { route: QuestionsRoute }
+record ProjectWays { drafts: bool goals: bool changes: bool away: bool way: u32 }

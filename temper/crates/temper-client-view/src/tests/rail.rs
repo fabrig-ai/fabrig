@@ -500,15 +500,17 @@ fn rail_and_tabbar_keep_the_order_addresses_current_states_and_count() {
                     Address::Inbox { .. } => Some(needs),
                     Address::Chats { .. } | Address::NewChat | Address::Chat { .. } => Some(b"Chats".as_slice()),
                     Address::Changes { .. } => Some(b"Changes".as_slice()),
-                    Address::Settings { .. } | Address::Configure { .. } => Some(b"Settings".as_slice()),
                     Address::Goals { .. } => Some(b"Goals".as_slice()),
-                    Address::Task { .. }
+                    Address::Settings { .. }
+                    | Address::Builders { .. }
+                    | Address::Repositories { .. }
+                    | Address::Configure { .. }
                     | Address::Accounts
                     | Address::ConnectModel { .. }
                     | Address::Forges
                     | Address::ConnectForge { .. }
-                    | Address::Adopt { .. }
-                    | Address::Welcome { .. } => None,
+                    | Address::Adopt { .. } => Some(b"Settings".as_slice()),
+                    Address::Task { .. } | Address::Welcome { .. } => None,
                 };
                 let mut styles = vec![look::RAIL_NAV];
                 let tab = view.tree().nodes().iter().any(|n| n.styles.as_slice().contains(&look::TABBAR));
@@ -583,10 +585,7 @@ fn rail_and_tabbar_keep_the_order_addresses_current_states_and_count() {
                         assert!(f::find(view.tree(), Role::Heading { level: 1 }, b"Inbox").is_some());
                     }
                 }
-                assert_eq!(
-                    f::find(view.tree(), Role::Button, b"Sign out").is_some(),
-                    address == Address::Settings { project: f::PROJECT }
-                );
+                assert_eq!(f::find(view.tree(), Role::Button, b"Sign out").is_some(), address == Address::Accounts);
             }
         }
     }
@@ -758,6 +757,61 @@ fn the_terminal_numbers_the_rail_and_keeps_the_first_line() {
     }
     assert!(!text.contains("Sections:"));
     assert!(!text.contains("Sign out"));
+}
+
+#[test]
+fn settings_is_current_on_every_page_of_settings() {
+    for address in [
+        Address::Settings { project: f::PROJECT },
+        Address::Repositories { project: f::PROJECT },
+        Address::Forges,
+        Address::Accounts,
+        Address::ConnectForge { forge: None },
+        Address::ConnectModel { way: None },
+        Address::Adopt { project: f::PROJECT },
+        Address::Configure { project: f::PROJECT },
+        Address::Chat { task: 9 },
+    ] {
+        let (mut root, _, _) = f::root_at(address.clone(), &f::domain_limits());
+        if address == (Address::Chat { task: 9 }) {
+            let template = f::chat::messaging_root();
+            let (mut configuring, watch, task_watch) = f::root_at(Address::Chat { task: 9 }, &f::domain_limits());
+            f::deliver_me(
+                &mut configuring,
+                watch,
+                f::configuring_me(template.pages().me(template.client()).unwrap().clone()),
+            );
+            let mut task = template.pages().chat().unwrap().task(template.client()).unwrap().clone();
+            task.chip.executor = jig_client::contract::ChipExecutor::Agent { charter: 37 };
+            f::root_event(
+                &mut configuring,
+                Event::Client {
+                    event: jig_client::Event::Up {
+                        up: jig_client::Up::Watched {
+                            watch: task_watch.unwrap(),
+                            event: jig_client::contract::WatchEvent::Delivered(jig_client::contract::Delivery::Task(
+                                Box::new(task),
+                            )),
+                        },
+                    },
+                },
+            );
+            root = configuring;
+        }
+        for view in [f::page_view(&root), f::browser_page_view(&root)] {
+            for style in [look::RAIL_FOOT, look::TABBAR] {
+                if style == look::TABBAR && !view.tree().nodes().iter().any(|n| n.styles.as_slice().contains(&style)) {
+                    continue;
+                }
+                let links: Vec<_> = styled(view.tree(), style)
+                    .iter()
+                    .filter(|n| n.role == Role::Link && n.name.as_deref() == Some(b"Settings"))
+                    .collect();
+                assert_eq!(links.len(), 1, "{address:?}");
+                assert!(links[0].states.as_slice().contains(&State::Current), "{address:?}");
+            }
+        }
+    }
 }
 
 fn deliver_count(root: &mut d::Domain, watch: Token, count: u32, cut: bool) {

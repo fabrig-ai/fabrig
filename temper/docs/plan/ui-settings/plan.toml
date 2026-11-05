@@ -1,0 +1,92 @@
+draft = "ui-settings"
+repo = "fabrig"
+sources = ["temper/docs/plan/ui-settings/inputs/request.md", "temper/docs/design/draft/configuring.md", "temper/docs/design/draft/template-places.md", "temper/docs/design/client/browser.md", "temper/docs/design/client/greenfield/README.md", "AGENTS.md", "DESIGN.md"]
+# Plan options, written by fab call cut --set; keep them
+priority = true
+
+# See plan.md: the engine stands aside; the client is one chain, since temper.css, the gallery and the
+# terminal's goldens conflict.
+
+[buffer]
+low = 1.0
+high = 2.0
+
+[[part]]
+id = "project-templates"
+title = "jig: the templates a project offers, public"
+mode = "direct"
+needs = []
+design = "jig/docs/design/domain/engine.md, 17.2"
+
+[[part]]
+id = "ways-kind"
+title = "Kinds 6 and 7, and a project's read of its own kinds"
+mode = "direct"
+needs = ["project-templates"]
+design = "temper/docs/design/protocol/configuration.md, 13.2"
+
+[[part]]
+id = "ways-ctl"
+title = "Kinds 6 and 7 through the entrances, temper ctl, the configuring agent and the reference"
+mode = "direct"
+needs = ["ways-kind"]
+design = "temper/docs/design/client/tools.md, 5.3"
+
+[[part]]
+id = "settings-frame"
+title = "Settings' frame, its tabs and Repositories"
+mode = "direct"
+needs = []
+design = "temper/docs/design/client/README.md, 3.5"
+
+[[part]]
+id = "ways-session"
+title = "The session's facts: a project's ways and questions; the rail and the tab bar by them"
+mode = "direct"
+needs = ["ways-kind", "settings-frame"]
+design = "temper/docs/design/client/README.md, 5.13"
+
+[[part]]
+id = "how-work-runs"
+title = "How work runs: its sections and live controls"
+mode = "direct"
+needs = ["ways-session"]
+design = "temper/docs/design/client/README.md, 5.13"
+
+[[part]]
+id = "settings-proposal"
+title = "A proposal of settings, in its card"
+mode = "direct"
+needs = ["how-work-runs"]
+design = "temper/docs/design/client/README.md, 5.13"
+
+[[part]]
+id = "settings-proof"
+title = "The meeting point, the proof and what's left"
+mode = "direct"
+needs = ["settings-proposal", "ways-ctl"]
+design = "temper/docs/design/client/README.md, 3.5"
+
+[[slice]]
+id = 1
+story = "A project's owner changes its ways and its questions, its members read them, and a change takes its project's questions"
+parts = ["project-templates", "ways-kind", "ways-ctl"]
+walk = false
+
+[[slice]]
+id = 2
+story = "A project's settings are tabs in its frame, and its repositories, forges and accounts sit under them"
+parts = ["settings-frame"]
+walk = false
+
+[[slice]]
+id = 3
+story = "A person turns a project's parts on and off, and the rail and the phone's tab bar follow"
+parts = ["ways-session", "how-work-runs"]
+walk = false
+
+[[slice]]
+id = 4
+story = "The configuring chat shows what it proposes, an owner accepts, and the project shows it"
+parts = ["settings-proposal", "settings-proof"]
+walk = false

@@ -43,7 +43,8 @@ impl Outcome {
                     *owner,
                     match done {
                         git::Done::Failed { fault } | git::Done::FailedWithOutput { fault, .. } => Some(*fault),
-                        git::Done::IsAncestor { .. }
+                        git::Done::Looked { .. }
+                        | git::Done::IsAncestor { .. }
                         | git::Done::Merged
                         | git::Done::Conflicted { .. }
                         | git::Done::Succeeded

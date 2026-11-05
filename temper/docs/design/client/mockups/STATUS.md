@@ -122,12 +122,10 @@ Where the client does otherwise:
   ahead of Forges, Accounts and Adopt a repository (`../README.md`,
   3.5, *Settings*). Before its rows arrive, or when the configuring chat
   is past the watch's window, the link opens the page before its first
-  words. Settings' forge and model lines await that page's design
-  (`../README.md`, 11).
-  How work runs' "Configure temper" entry and a proposal review's "Change
-  something" await the client settings and proposal views
-  (`../README.status.md`, 3.5 and 5.13). Docking the configuring chat
-  beside How work runs is `../README.md`, 11. No draft act or model
+  words. A proposal review's "Change
+  something" awaits the client's proposal view
+  (`../README.status.md`, 3.5 and 5.13). The configuring chat is docked
+  beside nothing, the user's decision (`../README.md`, 5.13). No draft act or model
   chooser is drawn on this page.
   The mockups are not edited.
 - **The welcome's greenfield pass** (the client README's 3.5 and 5.6;
