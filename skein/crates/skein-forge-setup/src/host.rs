@@ -14,7 +14,7 @@ mod state_tests;
 mod states;
 use crate::item::Bounds;
 use crate::reconcile::{self, Failure, Reply, Stage, Why};
-pub use boundary::{Answer, Event, File, Need, Plan, Request};
+pub use boundary::{Answer, Event, File, Need, Plan, Repository, Request};
 use connection::{Connection, Refused};
 pub use limits::{Limits, Stacked, Unusable, documents, github, http};
 use run::{Run, Send, forgejo_pair};

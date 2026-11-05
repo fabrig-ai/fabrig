@@ -2966,14 +2966,14 @@ for its kind, its user's login and its installations. Its nodes:
 
 | Outcome | The form says |
 |---|---|
-| adopted | "Adopted OWNER/NAME on forge F as ROLE." then "It is the project's home." if so; "temper may: KINDS." in the forge's words; on GitHub, "Commit statuses stay temper's own: GitHub's rules cannot require them."; "temper's forge user may not read the branch protection: the forge shows it to repository administrators only." if unknown; "It merges by STYLE."; then each rule as `forge.md`, 5.1 words it, on Forgejo its branch protection alone |
+| adopted | "Adopted OWNER/NAME on forge F as ROLE." then "It is the project's home." if so; "temper may: KINDS." in the forge's words; "temper's forge user can only read OWNER/NAME on forge F: work there fails until it has write." if it may not push and the role isn't context; on GitHub, "Commit statuses stay temper's own: GitHub's rules cannot require them."; "temper's forge user may not read the branch protection: the forge shows it to repository administrators only." if unknown; "It merges by STYLE."; then each rule as `forge.md`, 5.1 words it, on Forgejo its branch protection alone |
 | refused by the core | jig's words for its refusal |
 | no such forge | "No forge F is configured." |
 | not connected | "Forge F is not connected.", linked to the forges' page (3.5) |
 | not installed | "temper's App is not installed on OWNER.", with "Install on another account" (`forge.md`, 5.5) |
 | not granted | "OWNER/NAME is not granted to temper's App.", linked to the installation's page on GitHub (`forge.md`, 5.5) |
 | not found | "No repository OWNER/NAME on forge F that temper's forge user can see." |
-| no access | "temper's forge user may not read OWNER/NAME on forge F." |
+| no access | "temper's forge user may not read OWNER/NAME on forge F."; `temper ctl` adds "A managed or owned forge gives that access by its site admin's token, which needs write:repository: the server's log names the step." |
 | refused | "The forge connector refused it: another project writes OWNER/NAME, the project has a home already, or branches under PREFIX are not this deployment's." |
 | in flight | "OWNER/NAME is being adopted already; try again when that ends." |
 | too large | "A field is past the forge's bounds, or the forge's repositories are full." |

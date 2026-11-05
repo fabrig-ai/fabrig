@@ -30,6 +30,7 @@ pub(super) enum Kind {
     Adopt,
     Follow,
     Reachable,
+    Access,
     Making,
 }
 #[derive(Debug)]
@@ -268,7 +269,10 @@ pub(super) fn kind(plan: &host::Plan) -> Kind {
         host::Plan::Install { .. } => Kind::Install,
         host::Plan::Accept { .. } => Kind::Accept,
         host::Plan::Reconcile { .. } => Kind::Reconcile,
-        host::Plan::Adopt { .. } => Kind::Adopt,
+        host::Plan::Adopt { repository, .. } => match repository {
+            host::Repository::Path { .. } => Kind::Access,
+            host::Repository::Id(_) => Kind::Adopt,
+        },
         host::Plan::Create { .. } => Kind::LocalCreate,
         host::Plan::Copy { .. } => Kind::Making,
         host::Plan::Paste { .. } => Kind::Paste,
@@ -357,6 +361,11 @@ pub(super) fn done(engine: &mut crate::engine::Engine, token: Token, outcome: re
     }
     if kind == Kind::AdminReconcile || kind == Kind::AdminCreate {
         admin_done(engine, token, outcome);
+        return;
+    }
+    if kind == Kind::Access {
+        engine.setup.runs.remove(&token);
+        super::public::accessed(engine, token, Ok(()));
         return;
     }
     if kind == Kind::Reachable {
@@ -468,6 +477,20 @@ pub(super) fn stopped(engine: &mut crate::engine::Engine, token: Token, failure:
     }
     if run.kind == Kind::Making {
         super::making::stopped(engine, token, failure);
+        return;
+    }
+    if run.kind == Kind::Access {
+        let forge = run.forge;
+        let why = access_failure(failure.step, failure.why);
+        engine.setup.runs.remove(&token);
+        engine.notes.push(crate::Note::ForgeSetupStopped {
+            number: forge,
+            why: crate::SetupStopped::Stopped {
+                plan: crate::SetupPlan::Adopt,
+                step: crate::SetupStep { stage: failure.step, why: failure.why },
+            },
+        });
+        super::public::accessed(engine, token, Err(why));
         return;
     }
     if run.kind == Kind::Reachable {
@@ -884,7 +907,11 @@ pub(super) fn advance(engine: &mut crate::engine::Engine) {
                     },
                 )
                 .expect("admitted adoption");
-            super::run_plan(engine, run, host::Plan::Adopt { forge: *forge, repository });
+            super::run_plan(
+                engine,
+                run,
+                host::Plan::Adopt { forge: *forge, repository: host::Repository::Id(repository) },
+            );
             continue;
         }
         let mut deleted = List::with_capacity(engine.forge_records.bounds.installations);
@@ -972,7 +999,22 @@ fn local_stopped(engine: &mut crate::engine::Engine, forge: u16, why: crate::Set
     let local = engine.setup.lifecycle.local_mut(forge).expect("local failure");
     local.handover = None;
     let connection = match local.trigger {
-        Trigger::Start => domain::Connection::NotConnected,
+        Trigger::Start => {
+            if local.source == Source::Managed {
+                match &why {
+                    crate::SetupStopped::Stopped { .. } => {
+                        domain::Connection::SetUpFailed { why: local_failure(forge, &why) }
+                    }
+                    crate::SetupStopped::Missing
+                    | crate::SetupStopped::Busy
+                    | crate::SetupStopped::NotPrepared
+                    | crate::SetupStopped::Removal { .. }
+                    | crate::SetupStopped::Unreadable { .. } => domain::Connection::NotConnected,
+                }
+            } else {
+                domain::Connection::NotConnected
+            }
+        }
         Trigger::StartAsked if why == crate::SetupStopped::NotPrepared => domain::Connection::NotSetUp,
         Trigger::StartFake | Trigger::StartAsked | Trigger::Asked => {
             domain::Connection::SetUpFailed { why: local_failure(forge, &why) }
@@ -1641,4 +1683,31 @@ fn admin_done(engine: &mut crate::engine::Engine, token: Token, outcome: reconci
         return;
     }
     unreachable!("admin Done belongs to Reconcile or Create");
+}
+
+// temper/docs/design/protocol/setup.md, 5.4: the step disambiguates missing and refused.
+fn access_failure(step: reconcile::Stage, why: reconcile::Why) -> domain::AdoptionRefusal {
+    use reconcile::{Stage, Why};
+    if step == Stage::Admin {
+        return domain::AdoptionRefusal::NoAccess;
+    }
+    match why {
+        Why::Missing if step == Stage::Repository => domain::AdoptionRefusal::NotFound,
+        Why::Refused(_) if step == Stage::Repository => domain::AdoptionRefusal::NoAccess,
+        Why::Down | Why::TimedOut => domain::AdoptionRefusal::Unreachable,
+        Why::Busy => domain::AdoptionRefusal::InFlight,
+        Why::Missing
+        | Why::Refused(_)
+        | Why::NotAdmin
+        | Why::BotIsAdmin
+        | Why::OtherUser
+        | Why::OtherApp
+        | Why::Unmarked
+        | Why::Unknown
+        | Why::Crowded
+        | Why::Unexpected
+        | Why::Taken
+        | Why::Empty
+        | Why::KeyForm => domain::AdoptionRefusal::InvalidAnswer,
+    }
 }

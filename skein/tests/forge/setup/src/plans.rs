@@ -57,7 +57,9 @@ impl HostWorld {
     pub fn adopt(&mut self, repository: u64) -> Ended {
         self.play(Plan::Adopt {
             forge: self.forge.number(),
-            repository: core::num::NonZeroU64::new(repository).expect("repository"),
+            repository: skein_forge_setup::host::Repository::Id(
+                core::num::NonZeroU64::new(repository).expect("repository"),
+            ),
         })
     }
     pub fn check(&mut self) -> Ended {
