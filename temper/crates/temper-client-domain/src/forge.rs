@@ -2,6 +2,7 @@
 use alloc::boxed::Box;
 use skein_lib::{Env, Queue, Time};
 pub mod admin;
+pub mod away;
 pub mod change;
 pub mod changes;
 pub mod connect;
@@ -68,6 +69,8 @@ pub struct Side {
     forges_open: bool,
     dismissed: dismissed::State,
     dismissed_open: bool,
+    away: away::State,
+    away_open: bool,
     set_up: Option<Box<forges::SetUp>>,
     setup_form: forges::Draft,
     admin_form: admin::Draft,
@@ -99,6 +102,8 @@ impl Side {
             forges_open: false,
             dismissed: dismissed::State::Unknown,
             dismissed_open: false,
+            away: away::State::Unknown,
+            away_open: false,
             set_up: None,
             setup_form: forges::Draft::new(),
             admin_form: admin::Draft::new(),
