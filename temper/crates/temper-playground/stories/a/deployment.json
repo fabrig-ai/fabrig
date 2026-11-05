@@ -106,7 +106,7 @@
         "core.call_answer_bytes": 2048,
         "core.load_bytes": 8192,
         "core.load_slots": 8,
-        "core.policy_bytes": 4096,
+        "core.policy_bytes": 8192,
         "core.resume_bytes": 998048,
         "core.run_bytes": 4096,
         "core.templates": 2,
