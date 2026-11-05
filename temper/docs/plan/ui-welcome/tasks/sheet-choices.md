@@ -83,3 +83,22 @@ Not this task's: Ready's lead, name and act (`ready-copies`); Home.
 ## Report
 
 The table's rows, the alerts' words, the builder and directory.
+
+## Rebase (2026-11-05, step merge, foreman ui-welcome/sheet-choices/foreman-1)
+
+Rebase sheet choices onto the updated trunk, preserving Goals additions and resolving phrase IDs and counts.
+The merge failed with content conflicts in `temper/crates/temper-client-view/src/words.rs` and `temper/tools/gallery/src/samples.rs`.
+The overlapping trunk change is `123f73e97b` (“Merge main while preserving welcome and Goals UI”), incorporating main’s `d38be47825` (“Merge ui-goals/integration”).
+
+In `words.rs`, retain the trunk’s Goals vocabulary and existing phrase-ID assignments.
+Keep this task’s removal of `WelcomeForgejoNotYet` and its four replacement alert words throughout the enum, `ALL`, ID table and English table.
+The task’s IDs 3269–3272 collide with Goals phrases. Assign the four new sheet words unused IDs; on the inspected trunk, 3304–3307 are available.
+Combine both capacity changes: `PHRASES = 1463`, `SEGMENTS = 2530`, and `ALL` length 867.
+Retain both literal-byte additions: Goals’ 669 and sheet refusals’ 84.
+Regenerate phrase declarations with the existing `SKEIN_CODEGEN_WRITE=1` declaration test and verify the resulting counts.
+
+In `samples.rs`, retain all Goals/Home samples, routing and domain setup alongside the three new `welcome-sheet-*` samples and their setup.
+Combine the sample counts: `N = 138` on the inspected trunk.
+Preserve the automatically merged gallery names, assertions and browser table entries for both sets.
+
+Through heavy, run the focused view declaration and welcome-sheet alert tests, then the gallery tests to verify combined sample names and rendering.
