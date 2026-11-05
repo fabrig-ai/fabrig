@@ -766,8 +766,8 @@ Held by skein's `forge-client.md`, section 3. temper's part:
   watches. Two followed tier branches and up to four departing reads
   (`forge.client.pending`) keep the overlap within fifteen slots; shared
   resources count once. Six participating tasks and their six branch holds
-  fit small's `forge.tasks` and `forge.holds`, both eight; each change fits
-  `forge.resources_per_task`, two. Landed changes keep their watches until
+  fit small's `forge.tasks` and `forge.holds`, both eight; each change's two
+  names fit `forge.resources_per_task`, which is three. Landed changes keep their watches until
   they clear (`after-landing.md`, section 6). temper's `standard`, which
   `temper init`'s box runs, sizes them for a project of fabrig's scale
   (`../protocol/configuration.md`, 13.4): `forge.tasks` and

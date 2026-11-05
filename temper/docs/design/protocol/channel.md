@@ -343,7 +343,7 @@ the routing in the step that routes the record:
 
   | jig's size | temper's largest | From |
   |---|---|---|
-  | `items` | `Items` | the engine: the forge's `resources_per_task` and `name_bytes`, the longest remote (below) and 4,096 bytes per program; the worker: the checkout's `repositories` and `name_bytes`, and 4,096 bytes per program, Linux's `PATH_MAX` |
+  | `items` | `Items` | the engine: the checkout's `repositories` and the forge's `name_bytes`, the longest remote (below) and 4,096 bytes per program; the worker: the checkout's `repositories` and `name_bytes`, and 4,096 bytes per program, Linux's `PATH_MAX` |
   | `left` | `Left` | the checkout's `repositories` |
   | `saved` | `Saved` | the checkout's `repositories`, `conflicts` and `path_bytes`, and `PushDiagnostic::CAPACITY` |
   | `resource` | `Preparation` | fixed |
