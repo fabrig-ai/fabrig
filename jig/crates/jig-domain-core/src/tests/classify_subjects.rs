@@ -9,7 +9,7 @@ const TASK: u64 = 7;
 const CONNECTOR: u16 = 1;
 const SUBJECT: Token = Token::new(50);
 
-use crate::documents::SubjectShape as Shape;
+use crate::documents::{SubjectShape as Shape, Touch};
 
 struct Row {
     subject: Subject,
@@ -108,7 +108,9 @@ fn subject_partitions_preserve_gathered_marks() {
             |core| core.touch_accounts(Some(PARTY)),
             |core| core.touch_accounts(Some(OTHER_PARTY)),
         ];
-        for (touch, expected) in touches.into_iter().zip(row.marks) {
+        let changes = [Touch::Party(PARTY), Touch::Party(OTHER_PARTY), Touch::Frames, Touch::Settings, Touch::Deployment, Touch::Accounts(None), Touch::Accounts(Some(PARTY)), Touch::Accounts(Some(OTHER_PARTY))];
+        for ((touch, change), expected) in touches.into_iter().zip(changes).zip(row.marks) {
+            assert_eq!(row.subject.touched_by(change), expected, "{:?} {change:?}", row.subject);
             let _previous = core.changed_views.remove(&name);
             touch(&mut core);
             assert_eq!(core.changed_views.contains(&name), expected, "{:?}", row.subject);

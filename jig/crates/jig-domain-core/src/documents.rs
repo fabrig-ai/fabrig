@@ -221,6 +221,17 @@ pub enum SubjectShape {
     Other,
 }
 
+/// Changes that mark subjects without consulting live child state
+/// (`client/domain/contract.md`, section 7.2).
+#[derive(Clone, Copy, PartialEq, Eq, Hash, Debug)]
+pub enum Touch {
+    Party(u64),
+    Frames,
+    Settings,
+    Deployment,
+    Accounts(Option<u64>),
+}
+
 impl Subject {
     /// Select the watch route without exposing unrelated document subjects.
     #[must_use]
@@ -245,6 +256,34 @@ impl Subject {
             | Self::Result { .. }
             | Self::Project { .. }
             | Self::Note { .. } => SubjectShape::Other,
+        }
+    }
+
+    /// Whether these changed facts affect this watched document.
+    #[must_use]
+    pub fn touched_by(&self, touch: Touch) -> bool {
+        match self {
+            Self::Frame { party } => touch == Touch::Party(*party) || touch == Touch::Frames,
+            Self::Inbox { party } => touch == Touch::Party(*party),
+            Self::Settings => touch == Touch::Settings,
+            Self::Deployment => touch == Touch::Deployment,
+            Self::Accounts { party: owner } => match touch {
+                Touch::Accounts(party) => party.is_none() || party == Some(*owner),
+                Touch::Party(_) | Touch::Frames | Touch::Settings | Touch::Deployment => false,
+            },
+            Self::Application { .. }
+            | Self::Task { .. }
+            | Self::Tree { .. }
+            | Self::Run { .. }
+            | Self::Chips { .. }
+            | Self::Query { .. }
+            | Self::Proposal { .. }
+            | Self::Escalation { .. }
+            | Self::Question { .. }
+            | Self::PersonTask { .. }
+            | Self::Result { .. }
+            | Self::Project { .. }
+            | Self::Note { .. } => false,
         }
     }
 
