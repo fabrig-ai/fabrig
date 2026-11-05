@@ -70,7 +70,7 @@ fn repeated_step_keeps_first_readable_value() {
 }
 
 #[test]
-fn unfinished_later_steps_never_offer_the_playground() {
+fn an_account_alone_keeps_the_playground_on_forge_and_model() {
     for (step, heading) in [
         (Step::Forge { forge: None }, b"Connect a forge".as_slice()),
         (Step::Model { way: None }, b"Connect a model"),
@@ -93,7 +93,11 @@ fn unfinished_later_steps_never_offer_the_playground() {
             client,
             vec![
                 gone(Role::Link, b"Try the playground instead"),
-                gone(Role::Button, b"Try the playground instead"),
+                if step == Step::Ready {
+                    gone(Role::Button, b"Try the playground instead")
+                } else {
+                    see(Role::Button, b"Try the playground instead")
+                },
                 gone(Role::Region, b"Playground"),
             ],
         );

@@ -82,20 +82,22 @@ fn temper_alone(root: &d::Domain) {
         assert_eq!(f::text(view.tree()).as_ref(), b"temper");
         let main = view.tree().nodes().iter().find(|node| node.role == Role::Main).unwrap();
         assert_eq!(main.size, 1, "the main has no children");
-        assert!(f::find(view.tree(), Role::Link, b"temper chats").is_some());
+        assert!(f::find(view.tree(), Role::Link, b"temper").is_some());
         assert!(!view.tree().nodes().iter().any(|node| node.role == Role::Heading { level: 1 }));
     }
 }
 #[test]
 fn before_the_read_the_frame_draws_temper_alone() {
-    for step in [Step::Welcome, Step::Forge { forge: None }, Step::Model { way: None }, Step::Ready] {
+    for step in [Step::Welcome, Step::WelcomeAsked, Step::Forge { forge: None }, Step::Model { way: None }, Step::Ready]
+    {
         let (root, _) = waiting_for_deployment(step);
         temper_alone(&root);
     }
 }
 #[test]
 fn no_welcome_draws_temper_alone() {
-    for step in [Step::Welcome, Step::Forge { forge: None }, Step::Model { way: None }, Step::Ready] {
+    for step in [Step::Welcome, Step::WelcomeAsked, Step::Forge { forge: None }, Step::Model { way: None }, Step::Ready]
+    {
         let (mut root, read) = waiting_for_deployment(step);
         f::deliver_deployment(&mut root, read, false, false);
         temper_alone(&root);
@@ -611,26 +613,155 @@ fn the_welcome_shows_its_heading_alone_until_it_decides() {
 fn the_steps_mark_the_current_one() {
     for (step, name) in [
         (Step::Welcome, "Welcome"),
+        (Step::WelcomeAsked, "Welcome"),
         (Step::Forge { forge: None }, "Forge"),
+        (Step::Forge { forge: Some(d::Choice::Owned) }, "Forge"),
         (Step::Model { way: None }, "Model"),
+        (Step::Model { way: Some(d::ModelWay { provider: 17, kind: d::WayKind::Key, source: None }) }, "Model"),
         (Step::Ready, "Ready"),
     ] {
-        let view = f::page_view(&f::welcome_root(step, true));
-        let heading = view.tree().nodes().iter().find(|n| n.role == Role::Heading { level: 1 }).unwrap();
-        assert_eq!(heading.styles.as_slice().contains(&crate::look::WELCOME_INTRO), step == Step::Welcome);
-        node(view.tree(), Role::List, "Steps");
-        let current: Vec<_> =
-            view.tree().nodes().iter().filter(|node| node.states.as_slice().contains(&State::Current)).collect();
-        assert_eq!(current.len(), 1);
-        assert_eq!(current[0].role, Role::Item);
-        assert_eq!(
-            f::nodes_text(
-                &view.tree().nodes()[view.tree().nodes().iter().position(|node| node.id == current[0].id).unwrap()..]
-                    [..usize::try_from(current[0].size).unwrap()]
-            )
-            .as_ref(),
-            name.as_bytes()
+        let root = f::welcome_root(step, true);
+        for mut view in [f::page_view(&root), f::browser_page_view(&root)] {
+            let tree = view.tree();
+            node(tree, Role::List, "Steps");
+            let current: Vec<_> =
+                tree.nodes().iter().filter(|n| n.states.as_slice().contains(&State::Current)).collect();
+            assert_eq!(current.len(), 1);
+            assert_eq!(current[0].role, Role::Item);
+            assert!(!current[0].styles.as_slice().contains(&crate::look::FLOW_DONE));
+            let list =
+                tree.nodes().iter().position(|n| n.role == Role::List && n.name.as_deref() == Some(b"Steps")).unwrap();
+            let inside = &tree.nodes()[list..list + usize::try_from(tree.nodes()[list].size).unwrap()];
+            let links: Vec<_> =
+                inside.iter().filter(|n| n.role == Role::Link).map(|n| (n.id, n.name.clone().unwrap())).collect();
+            assert_eq!(links.len(), 4);
+            let current_link = inside.iter().find(|n| forge::parent(tree, n.id) == Some(current[0].id)).unwrap();
+            assert_eq!(current_link.name.as_deref(), Some(name.as_bytes()));
+            for ((id, label), (expected, step)) in links.into_iter().zip([
+                ("Welcome", Step::WelcomeAsked),
+                ("Forge", Step::Forge { forge: None }),
+                ("Model", Step::Model { way: None }),
+                ("Ready", Step::Ready),
+            ]) {
+                assert_eq!(label.as_ref(), expected.as_bytes());
+                let address = Address::Welcome { step };
+                assert_eq!(crate::href(&mut view, id).as_deref(), Some(d::address::print(&address).as_ref()));
+                assert_eq!(crate::act(&mut view, id, Act::Press), Some(d::Action::Pages(pages::Act::Go { address })));
+            }
+        }
+    }
+}
+
+#[test]
+fn the_steps_tick_forge_and_model_facts_in_both_shells() {
+    for step in [Step::WelcomeAsked, Step::Forge { forge: None }, Step::Model { way: None }, Step::Ready] {
+        for kept in [false, true] {
+            for usable in [false, true] {
+                let rows = if kept {
+                    forge::rows(w::Connection::Connecting, w::Offer::Offered)
+                } else {
+                    skein_lib::List::with_capacity(0)
+                };
+                let (mut root, accounts) = f::forge_root_accounts(Address::Welcome { step }, rows);
+                if usable {
+                    f::welcome_account(&mut root, accounts);
+                }
+                let expected = pages::welcome::step_marks(step, kept, usable);
+                for (view, terminal) in [(f::page_view(&root), true), (f::browser_page_view(&root), false)] {
+                    let tree = view.tree();
+                    let items: Vec<_> =
+                        tree.nodes().iter().filter(|n| n.styles.as_slice().contains(&crate::look::FLOW_STEP)).collect();
+                    assert_eq!(items.len(), 4);
+                    for ((item, mark), label) in
+                        items.into_iter().zip(expected).zip(["Welcome", "Forge", "Model", "Ready"])
+                    {
+                        assert_eq!(item.states.as_slice().contains(&State::Current), mark.current);
+                        assert_eq!(item.styles.as_slice().contains(&crate::look::FLOW_DONE), mark.ticked);
+                        let link = tree.nodes().iter().find(|n| forge::parent(tree, n.id) == Some(item.id)).unwrap();
+                        let words = f::nodes_text(
+                            &tree.nodes()[tree.nodes().iter().position(|n| n.id == link.id).unwrap()..]
+                                [..usize::try_from(link.size).unwrap()],
+                        );
+                        let ticked = crate::accounts::words::join(&["✓ ".as_bytes(), label.as_bytes()]);
+                        assert_eq!(
+                            words.as_ref(),
+                            if terminal && mark.ticked { ticked.as_ref() } else { label.as_bytes() }
+                        );
+                    }
+                    let mut print = skein_ui_text::Print::new(&view.limits().tree).unwrap();
+                    skein_ui_text::render(tree, b"temper", None, &mut print);
+                    let text = String::from_utf8_lossy(print.text.as_slice());
+                    assert!(text.contains("Steps:"));
+                    for (mark, label) in expected.into_iter().zip(["Welcome", "Forge", "Model", "Ready"]) {
+                        let ticked = crate::accounts::words::join(&["✓ ".as_bytes(), label.as_bytes()]);
+                        assert_eq!(
+                            skein_lib::bytes::find(print.text.as_slice(), &ticked).is_some(),
+                            terminal && mark.ticked
+                        );
+                    }
+                }
+            }
+        }
+    }
+}
+
+#[test]
+fn the_welcome_brand_goes_to_the_store_decision() {
+    for step in [Step::Welcome, Step::WelcomeAsked, Step::Forge { forge: None }, Step::Model { way: None }, Step::Ready]
+    {
+        let root = f::welcome_root(step, true);
+        for mut view in [f::page_view(&root), f::browser_page_view(&root)] {
+            let brand = node(view.tree(), Role::Link, "temper");
+            assert_eq!(crate::href(&mut view, brand).as_deref(), Some(b"/welcome".as_slice()));
+            assert_eq!(
+                crate::act(&mut view, brand, Act::Press),
+                Some(d::Action::Pages(pages::Act::Go { address: Address::Welcome { step: Step::Welcome } }))
+            );
+        }
+    }
+}
+
+#[test]
+fn the_asked_welcome_resumes_a_kept_forge_without_the_playground() {
+    for usable in [false, true] {
+        let (mut root, accounts) = f::forge_root_accounts(
+            Address::Welcome { step: Step::WelcomeAsked },
+            forge::rows(w::Connection::Connecting, w::Offer::Offered),
         );
+        if usable {
+            f::welcome_account(&mut root, accounts);
+        }
+        for mut view in [f::page_view(&root), f::browser_page_view(&root)] {
+            node(view.tree(), Role::Region, "Set up temper");
+            let go_on = node(view.tree(), Role::Link, "Go on setting up");
+            assert!(styled(view.tree(), go_on, crate::look::FLOW_PRIMARY));
+            let step = if usable { Step::Ready } else { Step::Model { way: None } };
+            assert_eq!(
+                crate::act(&mut view, go_on, Act::Press),
+                Some(d::Action::Pages(pages::Act::Go { address: Address::Welcome { step } }))
+            );
+            assert!(f::find(view.tree(), Role::Region, b"Try the playground").is_none());
+            assert!(
+                f::find(
+                    view.tree(),
+                    Role::Paragraph,
+                    b"Tried the playground first? Set up whenever you like; the playground then steps aside."
+                )
+                .is_none()
+            );
+        }
+    }
+}
+
+#[test]
+fn a_real_model_alone_keeps_the_playground_in_the_foot() {
+    for step in [Step::Forge { forge: None }, Step::Model { way: None }] {
+        let (mut root, accounts) = f::forge_root_accounts(Address::Welcome { step }, skein_lib::List::with_capacity(0));
+        f::welcome_account(&mut root, accounts);
+        for mut view in [f::page_view(&root), f::browser_page_view(&root)] {
+            let playground = node(view.tree(), Role::Button, "Try the playground instead");
+            assert_eq!(crate::act(&mut view, playground, Act::Press), Some(d::Action::Pages(pages::Act::Playground)));
+        }
     }
 }
 #[test]
@@ -1461,7 +1592,7 @@ fn an_unfinished_store_opens_at_its_step() {
         let mut root = f::forge_root(Address::Welcome { step: Step::Ready }, rows);
         assert_eq!(pages::welcome::decision(&root), Some(pages::welcome::FirstRun::Unfinished { step }));
         let address = first_run_destination(&mut root);
-        assert!(f::find(f::page_view(&root).tree(), Role::Region, b"Set up temper").is_none());
+        assert!(f::find(f::page_view(&root).tree(), Role::Link, b"Go on setting up").is_some());
         assert_eq!(address, Address::Welcome { step });
         f::root_event(&mut root, d::Event::Went { place: d::Place::Address(address) });
         let view = f::page_view(&root);

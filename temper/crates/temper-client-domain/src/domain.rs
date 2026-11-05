@@ -148,9 +148,10 @@ fn welcome(root: &mut Domain, out: &mut Queue<Request>) {
         });
         return;
     }
-    if *root.pages.address() != (crate::Address::Welcome { step: crate::Step::Welcome }) {
+    let crate::Address::Welcome { step: crate::Step::Welcome | crate::Step::WelcomeAsked } = root.pages.address()
+    else {
         return;
-    }
+    };
     let Some(page) = root.pages.welcome() else { return };
     if page.decided {
         return;
@@ -159,7 +160,12 @@ fn welcome(root: &mut Domain, out: &mut Queue<Request>) {
         root.pages.decide_welcome();
         let address = match state {
             crate::pages::welcome::FirstRun::Empty => return,
-            crate::pages::welcome::FirstRun::Unfinished { step } => crate::Address::Welcome { step },
+            crate::pages::welcome::FirstRun::Unfinished { step } => {
+                if *root.pages.address() == (crate::Address::Welcome { step: crate::Step::WelcomeAsked }) {
+                    return;
+                }
+                crate::Address::Welcome { step }
+            }
             crate::pages::welcome::FirstRun::Whole => {
                 crate::Address::Chats { filter: crate::ChatsFilter::All, start: false }
             }

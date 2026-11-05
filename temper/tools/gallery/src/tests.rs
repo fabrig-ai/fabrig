@@ -579,6 +579,20 @@ const HOLDS: [Holds; samples::N] = [
         ],
     },
     Holds {
+        name: "welcome-go-on",
+        heading: "Welcome to temper",
+        parts: &[
+            Part::Named { role: Role::List, name: "Steps" },
+            Part::Named { role: Role::Region, name: "Set up temper" },
+            Part::Named { role: Role::Link, name: "Go on setting up" },
+            Part::Absent { role: Role::Region, name: "Try the playground" },
+            Part::Absent {
+                role: Role::Paragraph,
+                name: "Tried the playground first? Set up whenever you like; the playground then steps aside.",
+            },
+        ],
+    },
+    Holds {
         name: "welcome-first-run-0",
         heading: "Welcome to temper",
         parts: &[
@@ -1172,6 +1186,7 @@ fn print_writes_every_page_and_the_bundle() {
         let page = fs::read_to_string(out.join(format!("{}.html", sample.name))).expect("sample page");
         if matches!(sample.address, temper_client_domain::Address::Welcome { .. }) {
             assert!(!page.contains("<summary>Menu</summary>"), "welcome has a bare frame");
+            assert!(page.contains("<title>Welcome · first run · temper</title>"), "{}: welcome title", sample.name);
         } else if page.contains("class=\"temper-rail\"") {
             assert!(page.contains("class=\"temper-tabbar\""), "{}: project sections", sample.name);
         } else {

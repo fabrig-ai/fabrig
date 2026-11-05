@@ -327,6 +327,7 @@ pub enum Word {
     WelcomePlaygroundDescription,
     WelcomePlaygroundCost,
     WelcomeSetup,
+    WelcomeGoOn,
     WelcomeSetupDescription,
     WelcomeSetupTime,
     WelcomeAfter,
@@ -845,7 +846,8 @@ pub(crate) const SCRIPTED_MODEL: &[u8] = b"demo";
 // Removing Connected removes seven phrases (client/README.md, 3.5).
 // Configure adds seven literal phrases (client/README.md, 3.5).
 // The configuring chat tag adds one literal phrase (3.5).
-const PHRASES: u32 = 1346;
+// Welcome's resumed setup adds one literal phrase (client/README.md, 3.5).
+const PHRASES: u32 = 1347;
 // Ready's empty-name line has two literals and a Name hole, two more segments (3.5).
 // Ready's repository lead adds one phrase and three segments (3.5).
 // Four literals and the counted entry's two literals and Number hole add seven segments.
@@ -857,8 +859,9 @@ const PHRASES: u32 = 1346;
 // Removing Connected removes twenty-three literal and hole segments (3.5).
 // Configure adds seven literal segments (client/README.md, 3.5).
 // The configuring chat tag adds one literal segment (3.5).
-const SEGMENTS: u32 = 2325;
-const ALL: [Word; 750] = [
+// Welcome's resumed setup adds one literal segment (client/README.md, 3.5).
+const SEGMENTS: u32 = 2326;
+const ALL: [Word; 751] = [
     Word::ConfigureAgent,
     Word::ConfigureWays,
     Word::ConfigureAlone,
@@ -1165,6 +1168,7 @@ const ALL: [Word; 750] = [
     Word::WelcomePlaygroundDescription,
     Word::WelcomePlaygroundCost,
     Word::WelcomeSetup,
+    Word::WelcomeGoOn,
     Word::WelcomeSetupDescription,
     Word::WelcomeSetupTime,
     Word::WelcomeAfter,
@@ -1925,6 +1929,7 @@ impl Word {
             Self::WelcomePlaygroundDescription => 1308,
             Self::WelcomePlaygroundCost => 1309,
             Self::WelcomeSetup => 1310,
+            Self::WelcomeGoOn => 1327,
             Self::WelcomeSetupDescription => 1311,
             Self::WelcomeSetupTime => 1312,
             Self::WelcomeAfter => 1313,
@@ -3008,6 +3013,7 @@ fn english(word: Word, shell: Shell) -> (&'static [&'static [u8]], &'static [Hol
         Word::WelcomePlaygroundDescription => (&[b"A scripted model and a forge, built in. A taste of how temper feels, with nothing to connect."], &[]),
         Word::WelcomePlaygroundCost => (&[b"Fully offline \xc2\xb7 Ready at once"], &[]),
         Word::WelcomeSetup => (&[b"Set up temper"], &[]),
+        Word::WelcomeGoOn => (&[b"Go on setting up"], &[]),
         Word::WelcomeSetupDescription => (&[b"Your forge: a Forgejo temper runs for you, or GitHub. Your model: ChatGPT or Claude."], &[]),
         Word::WelcomeSetupTime => (&[b"About five minutes"], &[]),
         Word::WelcomeAfter => (&[b"Tried the playground first? Set up whenever you like; the playground then steps aside."], &[]),
