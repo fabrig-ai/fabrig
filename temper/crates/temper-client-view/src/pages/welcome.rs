@@ -182,9 +182,7 @@ pub(crate) fn main(
             crate::forge::connect::welcome(b, root, w, bindings, forge, forge_choice, sign_in);
         }
         Step::Model { .. } => {
-            text(b, w, Role::Heading { level: 1 }, Word::WelcomeModelTitle);
-            paragraph(b, w, Word::WelcomeModelLead, look::WELCOME_LEAD);
-            super::connect_model::body(b, root, w, accounts, text_per_node);
+            super::welcome_model::step(b, root, w, accounts, text_per_node);
             if let Some(row) = crate::forge::connect::personal(root) {
                 b.open(Role::Complementary);
                 b.style(look::WELCOME_STATUS);

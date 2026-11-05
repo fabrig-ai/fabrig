@@ -816,7 +816,7 @@ fn paste_way(root: &Domain, form: &accounts::request::Request) -> Option<account
     }
     temper_client_domain::pages::connect_model::way(root.pages(), root.client())
 }
-fn paste_plan<'a>(root: &'a Domain, form: &accounts::request::Request) -> &'a [u8] {
+pub(super) fn paste_plan<'a>(root: &'a Domain, form: &accounts::request::Request) -> &'a [u8] {
     if let Some(way) = paste_way(root, form)
         && let Some(me) = accounts::current_me(root.client())
     {
@@ -883,22 +883,50 @@ pub(super) fn paste(
 }
 fn paste_body(b: &mut Builder, root: &Domain, w: &Words, bindings: &mut Bindings, form: &accounts::request::Request) {
     use accounts::PasteState as S;
-    let state = form.paste_state(root.client());
-    let alert = match state {
-        S::Closed | S::Refused { why: c::SignInRedirectWhy::NotWaiting } => return,
+    match form.paste_state(root.client()) {
+        S::Closed
+        | S::Refused { why: c::SignInRedirectWhy::NotWaiting | c::SignInRedirectWhy::TooMany }
+        | S::Finishing
+        | S::Ended => {}
+        S::Refused { why: c::SignInRedirectWhy::Address | c::SignInRedirectWhy::State }
+        | S::TooLong
+        | S::Again
+        | S::Full { .. }
+        | S::Waiting { .. }
+        | S::Sending => {
+            crate::cards::text(b, Role::Paragraph, &named(w, W::PasteInstructions, paste_plan(root, form)));
+        }
+    }
+    if paste_ending(b, root, w, bindings, form) {
+        return;
+    }
+    paste_field(b, root, w, bindings, form, false);
+    paste_finish(b, root, w, bindings, form, false);
+}
+/// Draws a paste’s ending or refusal, and reports whether its field is gone (3.5).
+pub(super) fn paste_ending(
+    b: &mut Builder,
+    root: &Domain,
+    w: &Words,
+    bindings: &mut Bindings,
+    form: &accounts::request::Request,
+) -> bool {
+    use accounts::PasteState as S;
+    let alert = match form.paste_state(root.client()) {
+        S::Closed | S::Refused { why: c::SignInRedirectWhy::NotWaiting } => return true,
         S::Finishing => {
             text(b, w, Role::Status, W::PasteFinishing);
-            return;
+            return true;
         }
         S::Ended => {
             text(b, w, Role::Status, W::PasteEnded);
             paste_restart(b, root, w, bindings, form);
-            return;
+            return true;
         }
         S::Refused { why: c::SignInRedirectWhy::TooMany } => {
             crate::cards::text(b, Role::Alert, &named(w, W::PasteTooMany, paste_plan(root, form)));
             paste_restart(b, root, w, bindings, form);
-            return;
+            return true;
         }
         S::Refused { why: c::SignInRedirectWhy::Address } => Some(W::PasteAddress),
         S::Refused { why: c::SignInRedirectWhy::State } => Some(W::PasteState),
@@ -910,16 +938,31 @@ fn paste_body(b: &mut Builder, root: &Domain, w: &Words, bindings: &mut Bindings
         }
         S::Waiting { .. } | S::Sending => None,
     };
-    crate::cards::text(b, Role::Paragraph, &named(w, W::PasteInstructions, paste_plan(root, form)));
     if let Some(word) = alert {
         text(b, w, Role::Alert, word);
     }
+    false
+}
+pub(super) fn paste_field(
+    b: &mut Builder,
+    root: &Domain,
+    w: &Words,
+    bindings: &mut Bindings,
+    form: &accounts::request::Request,
+    welcome: bool,
+) {
+    use accounts::PasteState as S;
+    let state = form.paste_state(root.client());
     if let Some(binding) = bindings.insert(Meaning::SignInAddress) {
         b.open(Role::TextField);
         if root.pages().connect_model().is_some() {
             b.style(crate::look::FLOW_FIELD);
         }
-        b.name(&words::say(w, W::PasteField, &[]));
+        b.name(&if welcome {
+            w.say(crate::words::Word::WelcomePasteField, &[])
+        } else {
+            words::say(w, W::PasteField, &[])
+        });
         b.entry(skein_ui::EntryKind::Secret);
         b.value(b"", form.paste.written());
         b.bind(binding);
@@ -928,18 +971,39 @@ fn paste_body(b: &mut Builder, root: &Domain, w: &Words, bindings: &mut Bindings
         }
         b.close();
     }
-    let meaning = if root.pages().connect_model().is_some() {
-        Meaning::Model(temper_client_domain::pages::connect_model::Act::Finish { name: root.pages().account_name() })
+}
+pub(super) fn paste_finish(
+    b: &mut Builder,
+    root: &Domain,
+    w: &Words,
+    bindings: &mut Bindings,
+    form: &accounts::request::Request,
+    welcome: bool,
+) {
+    use accounts::PasteState as S;
+    let state = form.paste_state(root.client());
+    let name = if welcome && state != S::Sending {
+        w.say(crate::words::Word::WelcomePasteFinish, &[])
     } else {
-        Meaning::Action(accounts::Act::Finish { name: root.pages().account_name() })
+        words::say(w, if state == S::Sending { W::PasteSending } else { W::PasteFinish }, &[])
     };
-    control(
-        b,
-        w,
-        bindings,
-        if state == S::Sending { W::PasteSending } else { W::PasteFinish },
-        meaning,
-        state != (S::Waiting { ready: true }),
-        false,
-    );
+    if welcome {
+        super::connect_model::button(
+            b,
+            bindings,
+            &name,
+            temper_client_domain::pages::connect_model::Act::Finish { name: root.pages().account_name() },
+            state != (S::Waiting { ready: true }),
+            true,
+        );
+    } else {
+        let meaning = if root.pages().connect_model().is_some() {
+            Meaning::Model(temper_client_domain::pages::connect_model::Act::Finish {
+                name: root.pages().account_name(),
+            })
+        } else {
+            Meaning::Action(accounts::Act::Finish { name: root.pages().account_name() })
+        };
+        named_control(b, bindings, &name, meaning, state != (S::Waiting { ready: true }), false);
+    }
 }
