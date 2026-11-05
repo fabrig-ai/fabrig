@@ -129,7 +129,7 @@ fn encoded(records: Records) -> Result<Vec<Vec<u8>>, String> {
     records
         .map(|record| {
             let mut bytes = skein_lib::List::with_capacity(u32::try_from(DELETED.len()).expect("fixture line length"));
-            skein_fake_forge_protocol::observations::encode(&record?, &mut bytes).expect("fixture record fits");
+            skein_fake_forge_forgejo::observations::encode(&record?, &mut bytes).expect("fixture record fits");
             Ok(bytes.as_slice().to_vec())
         })
         .collect()
@@ -263,7 +263,7 @@ fn entry() -> d::Stored {
             effect: Effect {
                 write: ForgeWrite::Merge {
                     number: 1,
-                    head: skein_fake_forge_protocol::routes::object(2).bytes,
+                    head: skein_fake_forge_forgejo::routes::object(2).bytes,
                     how: skein_forge::api::MergeHow::Style,
                 },
                 condition: Condition::None,

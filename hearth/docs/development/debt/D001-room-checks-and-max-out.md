@@ -46,5 +46,4 @@ nowhere (`skein/docs/foundation/programming-model.md`, 7.2).
 First list what each room check keeps, a capacity or an order, as 7.2
 asks, and write each order's test. Then make the inner queues uncapped,
 from the machines up, and take the constants and `within` out. Do it with
-D004, which rewrites the same `io_up` and `io_down`. D002 is independent,
-but `Queue::<..>::price(limits.queue)` in the process sum goes with it.
+D004, which rewrites the same `io_up` and `io_down`.

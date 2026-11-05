@@ -128,8 +128,7 @@ impl Inline {
     pub fn blob(&mut self, request: &[u8], wall: Wall) -> Box<[u8]> {
         self.exchange(Server::blob(OWNER, &self.limits).expect("fixture server limits"), request, wall)
     }
-    fn exchange(&mut self, server: Server, request: &[u8], wall: Wall) -> Box<[u8]> {
-        let mut server = server.charset();
+    fn exchange(&mut self, mut server: Server, request: &[u8], wall: Wall) -> Box<[u8]> {
         let env = Env { now: Time::from_nanos(wall.as_nanos()), wall, limits: self.limits };
         let domain_env = Env { now: env.now, wall, limits: self.config };
         let mut lent = Lent { domain: &mut self.domain, env: &domain_env, hooks: false };

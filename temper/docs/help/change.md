@@ -21,7 +21,8 @@ A change is a task that writes one repository's branch and lands it: its pull re
   UTF-8 boundary with “…” where the forge needs it.
 - **Its panel:** task, repository, branch, base, pull URL, step, CI,
   gates, repair/update/resolution limits; `way: turn · landing task N`;
-  questions' route, count, asker, number, line and standing.
+  questions' route, count, producer question and standing. For its answer
+  number use `read_task` on the change.
 - **Approvals:** rule, role, freshness, required/remaining counts, people
   and review heads; unread and incomplete differ from zero counted.
   Unmapped accounts do not count. An approval wait's `next` points to

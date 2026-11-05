@@ -1,6 +1,6 @@
 use super::*;
 use crate::tests::fixtures;
-use skein_fake_forge_protocol as fake;
+use skein_fake_forge_forgejo as fake;
 use skein_lib::List;
 use temper_forge_setup::{place::Place, setup::Mode, spec};
 use tests::{Face, start, terminal};

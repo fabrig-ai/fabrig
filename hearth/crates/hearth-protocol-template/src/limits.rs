@@ -24,9 +24,9 @@ pub enum Decoder {
 /// The most heap a decoder holds at once, its returned instructions or expression included;
 /// `None` when the bound does not fit a `u64`.
 #[must_use]
-pub fn worst_case(decoder: Decoder, limits: &Limits) -> Option<u64> {
+pub fn decoder_bound(decoder: Decoder, limits: &Limits) -> Option<u64> {
     match decoder {
-        Decoder::Expression => crate::expression::worst_case(limits.expression),
+        Decoder::Expression => crate::expression::decoder_bound(limits.expression),
         Decoder::Interpolated { length } => compiled(length, limits),
         Decoder::Template => compiled(limits.template, limits)?
             .checked_add(List::<u32>::price(limits.template.checked_add(1)?)?.checked_mul(2)?)?
@@ -47,5 +47,5 @@ fn compiled(length: u32, limits: &Limits) -> Option<u64> {
         // Retained text, strings and names are disjoint slices of the input.
         .checked_add(u64::from(length))?
         // One expression is compiled while previous instructions remain held.
-        .checked_add(crate::expression::worst_case(limits.expression)?)
+        .checked_add(crate::expression::decoder_bound(limits.expression)?)
 }

@@ -96,6 +96,18 @@ def budgets(path, pairs=None):
                 if not suite:
                     raise ValueError("empty tools suite ID")
                 validate(f"tools.{suite}", limits)
+        elif pair == "gate":
+            if not isinstance(values, dict):
+                raise ValueError("gate budgets must be a table keyed by tree")
+            for tree, profiles in values.items():
+                if not tree:
+                    raise ValueError("empty gate tree name")
+                if not isinstance(profiles, dict):
+                    raise ValueError(f"gate.{tree} must be a table keyed by profile")
+                for profile, limits in profiles.items():
+                    if not profile:
+                        raise ValueError(f"empty gate.{tree} profile name")
+                    validate(f"gate.{tree}.{profile}", limits)
         else:
             if pairs is not None and pair not in pairs:
                 raise ValueError(f"unknown budget pair {pair}")

@@ -83,7 +83,7 @@ fn start(bound: Option<u32>) -> Story {
             approvals: Box::new([]),
         },
     ]));
-    world.adopt();
+    adopt_fresh(&mut world);
     world.send(protocol::hello_slots(CHANNEL, WORKER_SLOTS, Box::new([])));
     let people::Ask::Create { project, mut batch } = goal_request(&world, true) else { panic!("goal template") };
     batch[0].authority.tools |= jig_domain_core::ToolFamilies::JIG.control.0;
@@ -578,4 +578,139 @@ fn a_change_past_its_questions_holds_and_the_goal_releases_it() {
     let producer = resumed(&mut story.world, &producer, story.a, question, ANSWER);
     land(&mut story.world, story.goal.task, story.a, &producer, story.main, b"A", A_REPORT);
     finish_story(&mut story);
+}
+
+fn fresh_goal(story: &mut Story) {
+    story.world.until(Until::Ready);
+    story.world.scripted_read_inbox(&story.goal);
+    park(&mut story.world, &story.goal);
+    story.world.until(Until::Ready);
+    story.world.send(engine::Event::Party(engine::PartyInput::Ask {
+        models: Box::new([]),
+        reply_to: ReplyTo::new(Token::new(96)),
+        sign_in: story.world.signed_in.expect("owner session"),
+        key: [96; 16],
+        ask: people::Ask::Say { project: 1, task: story.goal.task, words: ANSWER.into() },
+    }));
+    for _ in 0..STEPS {
+        story.world.tick();
+        if let Some(run) = story
+            .world
+            .assigned
+            .iter()
+            .rev()
+            .find(|run| run.task == story.goal.task && run.attempt > story.goal.attempt)
+        {
+            assert!(run.transcript.is_empty(), "the goal charter starts fresh");
+            assert!(
+                run.messages.iter().all(|word| word.kind != tasks::MessageKind::Question),
+                "the original question delivery was consumed"
+            );
+            story.goal = run.clone();
+            return;
+        }
+    }
+    panic!("person's choice wakes a fresh goal");
+}
+
+fn recovered_question(story: &mut Story) -> u64 {
+    let answer = story.world.scripted_call(
+        &story.goal,
+        120,
+        engine::Tool::ReadTask { task: story.a, field: jig_domain_core::reads::TaskTextField::Specification, from: 0 },
+    );
+    let rendered = temper_engine_smith::answer(&answer);
+    let words = core::str::from_utf8(rendered.text()).expect("host read is UTF-8");
+    let prefix = format!("Answer target {}, question ", story.a);
+    let number = words
+        .split(&prefix)
+        .nth(1)
+        .expect("durable answer target and question in read_task")
+        .split_whitespace()
+        .next()
+        .expect("question number")
+        .parse()
+        .expect("numeric question");
+    assert!(words.contains(&format!("answerer task {}", story.goal.task)));
+    number
+}
+
+#[test]
+fn a_fresh_goal_run_recovers_and_answers_an_escalated_question() {
+    let mut story = start(None);
+    let (question, foreman) = ask_foreman(&mut story.world, &story.producer, story.a);
+    story.world.foreman_verdict(&foreman, 3, REASONS);
+    for _ in 0..STEPS {
+        story.world.tick();
+        if row(&story.world, story.a).questions.open.first().is_some_and(|open| open.stands == Stands::Asked)
+            && story.world.store.pending.is_empty()
+        {
+            break;
+        }
+    }
+    fresh_goal(&mut story);
+    unsuccessful_answers(&mut story, question);
+    let number = recovered_question(&mut story);
+    assert_ne!(number, question, "escalation and producer credits differ");
+    story.world.goal_answer(&story.goal, 121, story.a, number, ANSWER);
+    let producer = resumed(&mut story.world, &story.producer, story.a, question, ANSWER);
+    land(&mut story.world, story.goal.task, story.a, &producer, story.main, b"A", A_REPORT);
+    finish_story(&mut story);
+}
+
+fn adopt_fresh(world: &mut World) {
+    use jig_domain_core::settings as s;
+    world.adopt();
+    let mut charter = walking::charter();
+    charter.policy.resume = false;
+    world.send(engine::Event::Party(engine::PartyInput::ChangeSettings {
+        reply_to: ReplyTo::new(Token::new(300)),
+        sign_in: world.signed_in.expect("deployment owner"),
+        key: [30; 16],
+        digest: [30; 32],
+        kinds: Box::new([]),
+        change: Box::new(s::Change {
+            against: 1,
+            items: Box::new([s::Item {
+                setting: s::Setting::Charter(1),
+                edit: s::Edit::Set(s::Value::Charter(Box::new(charter))),
+            }]),
+            running: s::Running::Stays,
+        }),
+    }));
+    world.until(Until::Ready);
+}
+
+fn unsuccessful_answers(story: &mut Story, producer_question: u64) {
+    for number in [3, producer_question] {
+        let refusal = story.world.scripted_call(
+            &story.goal,
+            115,
+            engine::Tool::Message {
+                target: story.a,
+                form: engine::MessageForm::Answer { question: number },
+                words: ANSWER.into(),
+            },
+        );
+        assert!(matches!(refusal, engine::CallAnswer::MessageRefused(_)));
+        let rendered = temper_engine_smith::answer(&refusal);
+        let text = core::str::from_utf8(rendered.text()).expect("host refusal");
+        assert!(text.contains("Use read_task on the target task"));
+        assert!(text.contains("form=answer"));
+    }
+    let sent = story.world.scripted_call(
+        &story.goal,
+        116,
+        engine::Tool::Message { target: story.a, form: engine::MessageForm::Words, words: ANSWER.into() },
+    );
+    assert!(matches!(sent, engine::CallAnswer::Sent { .. }));
+    story.world.until(Until::Ready);
+    assert!(live_task(&story.world, story.goal.task).inbox.iter().any(|word| {
+        word.from == tasks::Party::Task(story.a)
+            && word.words.windows(b"Words do not answer".len()).any(|part| part == b"Words do not answer")
+    }));
+    let target = story.a;
+    amend_spec(story, target, r#"{"words":"Keep the design."}"#, 117);
+    assert_eq!(live_task(&story.world, target).questions.len(), 1, "words and amendment reasons leave the credit open");
+    assert_eq!(row(&story.world, target).questions.open[0].stands, Stands::Asked);
 }

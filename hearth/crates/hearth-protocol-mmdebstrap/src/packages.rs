@@ -93,7 +93,7 @@ pub fn largest_demand(limits: &Limits) -> u32 {
 }
 /// The value scratch, selected fields, delivery and decoded names in flight.
 #[must_use]
-pub fn worst_case(limits: &Limits) -> Option<u64> {
+pub fn decoder_bound(limits: &Limits) -> Option<u64> {
     List::<u8>::price(limits.name.max(limits.filename).max(64))?
         .checked_add(u64::from(limits.name).checked_mul(5)?)?
         .checked_add(u64::from(limits.filename))?

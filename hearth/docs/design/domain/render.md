@@ -1246,11 +1246,10 @@ every request                                          Failed { request, class, 
   - merging walks two values with an explicit stack bounded by JSON's
     depth.
 
-### 8.4 Limits and the worst case
+### 8.4 Limits and what a render holds
 
-- **Render's limits are 2.3's,** and its worst case
-  (`skein/docs/foundation/programming-model.md`, 6.3) is what it holds at once at those
-  limits: the revision's listing (16,384 entries, 4 MiB of paths), with
+- **Render's limits are 2.3's.** What it holds at once at those limits
+  is the revision's listing (16,384 entries, 4 MiB of paths), with
   an object id, size and digest per static file; its decoded documents,
   declarations and templates (16 MiB, counted as they are held); the
   tasks each target has, by index; the exports of one environment
@@ -1276,22 +1275,30 @@ every request                                          Failed { request, class, 
   the kept blobs not yet counted go first, and one it then needs is read
   again. So a diff's peak holds one revision's decoded data, as a
   render's does.
-- **Each layer's formula is its peak:** what the layer holds at once at
-  its limits, not the sum of every maximum it reaches in turn. The
-  counting allocator holds the live heap within it at every iteration
-  (`skein/docs/foundation/programming-model.md`, 6.3).
-- **The builder's worst case is 6.3's sum** over its layers at their
-  limits, and the defaults keep it within 1 GiB, which a test holds. The
-  protocol's machines take 2.3's limits, the listing's, a document's and
-  a template's among them, and the store's bounds (hearth/docs/design/domain/store.md, 6.1); the
-  client's printer (hearth/docs/design/client/README.md, 3.2) prints a record of at most
+- **The heap is measured, under ceilings**
+  (`skein/docs/foundation/programming-model.md`, 6.3). The counting
+  allocator holds each fixed scenario's peak under a ceiling named beside
+  its test at every iteration (`skein/docs/foundation/testing-strategy.md`,
+  section 6). No formula sums a layer or the builder, and nothing checks a
+  sum against a machine.
+- **A formula sizes an edge:** a decoder's retained bound, a decoded
+  record, one template run's workspace. Each is named for what it bounds,
+  gives `None` on overflow, and has a test of its value. The builder's
+  `valid(limits)`, computed from them, is startup's check.
+- **The defaults fit a modest machine, by measurement.** The large render,
+  a revision of 4,096 entries, 512 of them documents, declarations and
+  templates, with 64 targets, runs through the builder at the shipped
+  limits, and its peak stays under a ceiling of its own
+  (hearth/docs/design/domain/testing.md, 8.4). This is the claim about a
+  small VM, and it has no formula.
+- **The protocol's machines take 2.3's limits,** the listing's, a
+  document's and a template's among them, and the store's bounds
+  (hearth/docs/design/domain/store.md, 6.1); the client's printer
+  (hearth/docs/design/client/README.md, 3.2) prints a record of at most
   16 MiB, its line endings included, and refuses a longer one, which
-  fails the command. In M1 nothing configures the client's memory
-  (hearth/docs/design/client/README.md, 3.5), so its shell checks the sum against none; the
-  daemon's builder checks it against its share of its ceiling
-  (hearth/docs/design/domain/steward.md, 5.3) [M3].
-  Static files and rendered files live in the store's cache, never in
-  the domain, so a small VM's builder renders what a large one does.
+  fails the command. Static files and rendered files live in the store's
+  cache, never in the domain, so a small VM's builder renders what a
+  large one does.
 
 ## 9. Its world
 
@@ -1478,7 +1485,3 @@ Over generated repositories, valid by construction and then mutated:
 - **Where a resolution's closure is made:** 8.2's `Resolved` carries the
   closure, while 5.3 has the domain match `Inst` triples to `Packages`
   stanzas; one of the two is to change.
-- **The worst case of 8.4:** its layer peak formulas and builder-wide
-  sum stand against `skein/docs/foundation/programming-model.md`, 6.3's
-  edge bounds and measured ceilings; it changes with
-  hearth/docs/design/domain/testing.md, section 11's newer model.

@@ -630,7 +630,9 @@ sources in its holder's order. temper configures the LLM providers
   credential would make temper act as someone else, so the stop holds
   until a replacement answers as the forge's user: never a degraded mode.
   A failure of jig's secrets' store itself stops the engine, as the main
-  store's does (jig's `protocol/store.md`, section 9).
+  store's does (jig's `protocol/store.md`, section 9). A restored secret
+  of the wrong kind stops it too (jig's `protocol/service.md`, 11.1): the
+  store holds what the account's row says it should not.
 - **The same user is the forge writer** in the domain (`Writer { forge,
   author: user }`), by which the forge connector tells temper's own
   writes from others': a key's provenance, and its own writes' echoes

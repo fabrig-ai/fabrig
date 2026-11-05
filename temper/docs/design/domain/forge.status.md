@@ -1,6 +1,6 @@
 # forge: status
 
-2026-11-04. Where temper's code lags or departs from [forge.md](forge.md).
+2026-11-05. Where temper's code lags or departs from [forge.md](forge.md).
 
 - **Not yet:**
   - 4.1: a removal without the box, its group's act answered in its
@@ -93,6 +93,11 @@
     `forge_routes/kind_charters.rs`); no world tells a gate a rule adds
     asked for on a queued change, a gate a rule drops no longer waited
     on.
+- **Departs:** 4.5: no step writes `Made`: a run's end goes to
+  `Adopting` in one decision, or erases a row with no `into`
+  (`temper-engine-domain-forge/src/making.rs`, `made`), so the variant is
+  read and carried by the store and the wire, and never written; no
+  reason is recorded.
 - **Departs:** 8.11: a change taking `foreman` gives its producing, each
   repair and each resolution half the spend the change may give it,
   keeping the rest for the foremen of that agent's questions, since a

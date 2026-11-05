@@ -11,7 +11,7 @@ mod enqueue;
 mod git;
 pub use git::{GitCall, Minted};
 mod mutations;
-pub use skein_fake_forge_protocol::Faults;
+pub use skein_fake_forge_http::Faults;
 pub mod app;
 pub mod delivery;
 pub mod fixture;

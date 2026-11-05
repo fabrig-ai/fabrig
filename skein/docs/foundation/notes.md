@@ -39,9 +39,6 @@ are never lost inside a process.
   sink, not between two of a root's children, so no backlog counts it
   (programming-model.md, 7.1). Whether it should, should a trace ever
   fall behind.
-- **Narrow services may keep their caps.** A daemon with few entity kinds
-  and one message size (hearth) can keep the static model; the rule lets
-  a service keep a cap where it has one.
 - **Generated codecs' heap formulas.** Their wire-size formulas stay as
   edges; whether their per-type heap formulas are still needed once no
   process sums them.

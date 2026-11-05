@@ -1,8 +1,8 @@
 use super::fixtures::{GROUP_IDS, GROUP_MASTER, PASSWD_IDS, PASSWD_MASTER};
 use crate::{
-    File, Ids, Line, Password, Refused, What,
+    File, Ids, Line, Password, Refused, What, decoder_bound,
     limits::{self, Limits},
-    read, worst_case,
+    read,
 };
 use skein_lib::{Writer, bytes};
 const LIMITS: Limits = limits::SHIPPED;
@@ -234,11 +234,11 @@ fn the_shipped_limits_are_the_designs() {
     assert_eq!(read(File::Group, &many(4_096), &LIMITS).unwrap().len(), 4_096);
 }
 #[test]
-fn the_worst_case_covers_the_list_and_the_names() {
-    let worst = worst_case(&LIMITS).unwrap();
-    assert!(worst >= 4_096 * u64::try_from(size_of::<Line>()).unwrap() + 1_048_576 - 1);
-    assert_eq!(worst_case(&Limits { file: 0, lines: 0, name: 0 }), Some(0));
-    assert!(worst_case(&Limits { file: u32::MAX, lines: u32::MAX, name: u32::MAX }).is_some());
+fn the_decoder_bound_covers_the_list_and_the_names() {
+    let bound = decoder_bound(&LIMITS).unwrap();
+    assert!(bound >= 4_096 * u64::try_from(size_of::<Line>()).unwrap() + 1_048_576 - 1);
+    assert_eq!(decoder_bound(&Limits { file: 0, lines: 0, name: 0 }), Some(0));
+    assert!(decoder_bound(&Limits { file: u32::MAX, lines: u32::MAX, name: u32::MAX }).is_some());
 }
 #[test]
 fn an_error_names_a_line_and_what_was_wrong_not_the_content() {

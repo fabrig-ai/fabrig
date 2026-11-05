@@ -13,14 +13,14 @@ pub trait Transport: Remote {
     /// Start a fresh replay cursor before running the scanned checkout again.
     fn begin(&mut self) {}
     /// Encoding bounds for a missing route call; typed transports miss none.
-    fn route_limits(&self) -> Option<skein_fake_forge_protocol::Limits> {
+    fn route_limits(&self) -> Option<skein_fake_forge_http::git::Limits> {
         None
     }
     /// Retain a missing call's terminal answer once, including an identity refusal.
     fn receive(
         &mut self,
-        _call: skein_fake_forge_protocol::git::Call,
-        _answer: Result<skein_fake_forge_protocol::git::Answer, api::Error>,
+        _call: skein_fake_forge_http::git::Call,
+        _answer: Result<skein_fake_forge_http::git::Answer, api::Error>,
         _authenticated: bool,
     ) {
         unreachable!("a typed transport never misses a call");
@@ -58,7 +58,7 @@ pub struct Typed {
 impl Typed {
     /// Copy the protocol scenario's identity tables before it takes ownership.
     #[must_use]
-    pub fn new(forge: Rc<RefCell<Forge>>, table: &skein_fake_forge_protocol::Config) -> Self {
+    pub fn new(forge: Rc<RefCell<Forge>>, table: &skein_fake_forge_forgejo::Config) -> Self {
         Self {
             forge,
             tokens: Rc::new(table.tokens.iter().cloned().collect()),

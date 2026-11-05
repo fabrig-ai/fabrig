@@ -27,56 +27,37 @@ pub const SHIPPED: Limits = Limits {
     printer: records::limits::SHIPPED,
 };
 
-/// Each child machine once, with returned records and forwarding payloads
-/// retained by this layer (skein/docs/foundation/programming-model.md, 6.3).
+/// Whether these limits are representable: every edge bound they size is
+/// finite (skein/docs/foundation/programming-model.md, 6.3).
 #[must_use]
-pub fn worst_case(limits: &Limits) -> Option<u64> {
-    use alloc::boxed::Box;
-    use git_machine::limits::{Decoder, worst_case as git};
-    use hearth_protocol_template::limits::{Decoder as Template, worst_case as template};
-    use skein_lib::{List, Queue};
-    let decode = config::declaration::worst_case(&limits.config)?.max(template(Template::Template, &limits.template)?);
-    // A read keeps Batch beside its decoder; listing and diff are other modes.
-    let child = git(Decoder::Tail, &limits.git)?.checked_mul(2)?.checked_add(
-        git(Decoder::Listing, &limits.git)?
-            .max(git(Decoder::Batch, &limits.git)?.checked_add(decode)?)
-            .max(git(Decoder::Diff, &limits.git)?),
-    )?;
-    let kind = crate::tree::frame::Kind::Resolution;
-    let held = crate::tree::limits::held(kind, &limits.tree)?;
-    // Read translation overlaps its returned record. A write keeps the
-    // request, its pending clone and the translated clone, with one more
-    // record envelope for the old/new list cells during translation.
-    // Encoding then overlaps its body and framed copy, without a tree reader.
-    let layer = crate::tree::frame::Kind::Layer;
-    // A layer record's read overlaps its translation, as a resolution's does.
-    let records = crate::tree::limits::worst_case(kind, &limits.tree)?
-        .checked_add(held)?
-        .max(held.checked_mul(4)?.checked_add(crate::tree::frame::largest(kind, &limits.tree).checked_mul(2)?)?)
-        .max(
-            crate::tree::limits::worst_case(layer, &limits.tree)?
-                .checked_add(crate::tree::limits::held(layer, &limits.tree)?)?,
-        );
-    let resolve = hearth_protocol_mmdebstrap::output::worst_case(&limits.mmdebstrap)?
-        .checked_mul(2)?
-        .checked_add(hearth_protocol_mmdebstrap::packages::worst_case(&limits.mmdebstrap)?)?
-        .checked_add(u64::from(limits.mmdebstrap.include).checked_mul(4)?)?
-        .checked_add(u64::from(limits.mmdebstrap.request).checked_mul(u64::from(limits.mmdebstrap.name))?)?
-        .checked_add(u64::from(limits.mmdebstrap.line).checked_mul(u64::from(limits.tree.resolution.lines))?)?;
-    let walk = List::<skein_io::file::Entry>::price(limits.walk.page)?
-        .checked_add(u64::from(limits.walk.page).checked_mul(255)?)?
-        .checked_add(255)?
-        .checked_mul(u64::from(limits.walk.depth))?;
-    let listing = List::<crate::render::vocabulary::Blob>::price(limits.git.entries)?
-        .checked_add(u64::from(limits.git.paths_total))?
-        .checked_add(u64::from(limits.git.entries).checked_mul(64)?)?;
-    let queues = Queue::<crate::Asked>::price(4)?.checked_add(Queue::<Box<[u8]>>::price(4)?)?;
-    child
-        .checked_add(records)?
-        .checked_add(resolve)?
-        .checked_add(walk)?
-        .checked_add(listing)?
-        .checked_add(u64::from(limits.printer.record).checked_mul(2)?)?
-        .checked_add(queues)?
-        .checked_add(u64::from(limits.mmdebstrap.path).checked_mul(8)?)
+pub fn valid(limits: &Limits) -> bool {
+    use git_machine::limits::Decoder as Git;
+    use hearth_protocol_template::limits::Decoder as Template;
+    use hearth_protocol_tree::frame::Kind;
+
+    for decoder in [Git::Tail, Git::Listing, Git::Batch, Git::Diff] {
+        if git_machine::limits::decoder_bound(decoder, &limits.git).is_none() {
+            return false;
+        }
+    }
+    for decoder in [Template::Expression, Template::Template, Template::Interpolated { length: limits.config.document }]
+    {
+        if hearth_protocol_template::limits::decoder_bound(decoder, &limits.template).is_none() {
+            return false;
+        }
+    }
+    for kind in [Kind::Store, Kind::Layer, Kind::Tree, Kind::Resolution, Kind::CacheFile] {
+        if crate::tree::limits::decoder_bound(kind, &limits.tree).is_none()
+            || crate::tree::limits::decoded_bound(kind, &limits.tree).is_none()
+        {
+            return false;
+        }
+    }
+    // Declaration decoding includes the decoded JSON and schema bounds.
+    config::json::decoder_bound(&limits.config).is_some()
+        && config::declaration::decoder_bound(&limits.config).is_some()
+        && hearth_protocol_mmdebstrap::output::decoder_bound(&limits.mmdebstrap).is_some()
+        && hearth_protocol_mmdebstrap::packages::decoder_bound(&limits.mmdebstrap).is_some()
+        && hearth_protocol_mmdebstrap::tail::Tail::decoder_bound(&limits.mmdebstrap).is_some()
+        && records::printer::valid(&limits.printer)
 }

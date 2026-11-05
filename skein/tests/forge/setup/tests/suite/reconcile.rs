@@ -1,4 +1,4 @@
-use skein_fake_forge_protocol::Route;
+use skein_fake_forge_forgejo::Route;
 use skein_forge::forgejo::request::Request;
 use skein_forge_setup::item::Item;
 use skein_forge_setup_world::{Ended, World, fixtures};

@@ -20,7 +20,7 @@ pub use value::{Entry, Operand, Value};
 /// The most heap an evaluator, its temporary storage and a spent budget hold.
 /// Returns `None` when the bound does not fit a `u64`.
 #[must_use]
-pub fn worst_case(limits: &Limits) -> Option<u64> {
+pub fn evaluation_bound(limits: &Limits) -> Option<u64> {
     let depth = limits.depth.saturating_add(limits.nesting);
     // Walks and binding copies run one at a time, above the persistent stacks.
     let scratch = Stack::<walk::Frame<'_>>::price(depth)?.max(Stack::<escape::Frame<'_>>::price(depth)?).max(Stack::<(
@@ -313,5 +313,46 @@ impl<'c> Evaluator<'c> {
             items.push(reverse.pop().expect("length pushed")).expect("length reserved");
         }
         Ok(Operand::List { depth, items: items.into_boxed() })
+    }
+}
+
+#[cfg(test)]
+mod bounds {
+    use super::{Operand, escape, evaluation_bound, walk};
+    use crate::limits::{Limits, SHIPPED};
+
+    #[test]
+    fn the_evaluation_bound_covers_stacks_scratch_and_made_values() {
+        const OPERANDS: u32 = 7;
+        const BRANCHES: u32 = 2;
+        const WALK_DEPTH: u32 = 5; // Three value levels plus two expression levels.
+        const MADE_BYTES: u64 = 11;
+        let limits = Limits { expression: OPERANDS, nesting: BRANCHES, depth: 3, made: MADE_BYTES, ..SHIPPED };
+        let walk = size_of::<walk::Frame<'_>>()
+            .checked_mul(usize::try_from(WALK_DEPTH).expect("walk depth"))
+            .expect("walk frames");
+        let escape = size_of::<escape::Frame<'_>>()
+            .checked_mul(usize::try_from(WALK_DEPTH).expect("walk depth"))
+            .expect("escape frames");
+        let copies = size_of::<(core::slice::Iter<'_, Operand<'_>>, skein_lib::List<Operand<'_>>, u32)>()
+            .checked_mul(usize::try_from(BRANCHES).expect("branch count"))
+            .expect("binding-copy frames");
+        let operands = size_of::<Operand<'_>>()
+            .checked_mul(usize::try_from(OPERANDS).expect("operand count"))
+            .expect("operand slots");
+        let branches = size_of::<(usize, u32)>()
+            .checked_mul(usize::try_from(BRANCHES).expect("branch count"))
+            .expect("branch slots");
+        let stacks = operands
+            .checked_add(branches)
+            .expect("persistent stacks fit")
+            .checked_add(walk.max(escape).max(copies))
+            .expect("workspace fits");
+        let expected = u64::try_from(stacks)
+            .expect("workspace size")
+            .checked_add(MADE_BYTES.checked_mul(2).expect("made values"))
+            .expect("bound fits");
+        assert_eq!(evaluation_bound(&limits), Some(expected));
+        assert_eq!(evaluation_bound(&Limits { made: u64::MAX, ..limits }), None);
     }
 }

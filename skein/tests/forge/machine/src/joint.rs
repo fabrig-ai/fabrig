@@ -4,7 +4,7 @@ use crate::{
     pipe::{Cut, Pipe, RequestCounts},
 };
 use skein_fake_forge_domain::{self as fake, api as raw};
-use skein_fake_forge_protocol::{self as protocol, Faults, Server, Service, Tally};
+use skein_fake_forge_forgejo::{self as protocol, Faults, Server, Service, Tally};
 use skein_forge::api;
 use skein_forge_connection::{Component, Event, Limits, Request, Settings, Shared};
 use skein_lib::{Duration, Env, Queue, ReplyTo, Rng, Time, Token, Wall};

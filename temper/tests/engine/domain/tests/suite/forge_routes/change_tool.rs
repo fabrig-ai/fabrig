@@ -962,12 +962,15 @@ pub(super) fn land_change(world: &mut World, producer: &engine::Assignment, bran
 
 fn land_titled_change(world: &mut World, producer: &engine::Assignment, branch: &[u8], title: &[u8]) {
     push_change(world, branch);
+    let tasks::Contract::Change { connector, .. } = live(world, producer.task).contract else {
+        panic!("change contract")
+    };
     let event = world.protocol.answer(
         Token::new(7),
         producer.task,
         producer.attempt,
         5,
-        producer_terminal(title),
+        producer_terminal(title, connector),
         engine::Parts::none(),
     );
     world.send(event);
@@ -979,7 +982,7 @@ fn land_titled_change(world: &mut World, producer: &engine::Assignment, branch: 
     }
 }
 
-fn producer_terminal(title: &[u8]) -> tasks::End {
+fn producer_terminal(title: &[u8], connector: u16) -> tasks::End {
     use smith_domain_run::{Answer, Spend, outcome};
     temper_engine_smith::result(
         Answer::Accepted {
@@ -1001,7 +1004,7 @@ fn producer_terminal(title: &[u8]) -> tasks::End {
             turns: 1,
         },
         Some(temper_engine_smith::ChangeResource {
-            connector: 0,
+            connector,
             kind: 2,
             resource: forge_top::tag(forge_world::REPO.forge, forge_world::REPO.repository),
         }),

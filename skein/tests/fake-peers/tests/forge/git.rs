@@ -1,6 +1,6 @@
 //! The forge's shared real-loop driver and private codec admission bounds.
 use super::fixtures as f;
-use skein_fake_forge_protocol::git;
+use skein_fake_forge_http::git;
 use skein_fake_peers::{Error, forge::Peer};
 use skein_shell::{Clock, Host, Kernel, Wait};
 use skein_world::{Deadline, Expired};

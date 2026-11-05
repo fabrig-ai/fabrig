@@ -1,6 +1,6 @@
 mod ci_poll;
 use skein_fake_forge_domain::{Observation, api::Kind};
-use skein_fake_forge_protocol::Route;
+use skein_fake_forge_forgejo::Route;
 use skein_forge_machine_world::joint::REPO;
 use skein_lib::Wall;
 use temper_engine_domain_forge as top;
@@ -796,7 +796,7 @@ fn github_reaches_ready_through_its_accepted_installations() {
 
     // Empty origins refuse a pinned Job before metadata, redirect or blob requests.
     let requests = world.requests().to_vec();
-    let head = skein_fake_forge_protocol::routes::object(1).bytes;
+    let head = skein_fake_forge_forgejo::routes::object(1).bytes;
     world.call(
         1,
         skein_forge::api::Repository { forge: fixtures::FORGE, repository: 2 },

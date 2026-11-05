@@ -197,7 +197,7 @@ A write.
 
 ## read_task
 
-Read related task specs or retained descendant reports (field=result); from=next continues.
+Specs/results, from=next. Durable question numbers/answerers: message form=answer, question
 
 A read.
 

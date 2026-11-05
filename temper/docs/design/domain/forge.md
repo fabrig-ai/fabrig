@@ -766,8 +766,8 @@ Held by skein's `forge-client.md`, section 3. temper's part:
   watches. Two followed tier branches and up to four departing reads
   (`forge.client.pending`) keep the overlap within fifteen slots; shared
   resources count once. Six participating tasks and their six branch holds
-  fit small's `forge.tasks` and `forge.holds`, both eight; each change fits
-  `forge.resources_per_task`, two. Landed changes keep their watches until
+  fit small's `forge.tasks` and `forge.holds`, both eight; each change's two
+  names fit `forge.resources_per_task`, which is three. Landed changes keep their watches until
   they clear (`after-landing.md`, section 6). temper's `standard`, which
   `temper init`'s box runs, sizes them for a project of fabrig's scale
   (`../protocol/configuration.md`, 13.4): `forge.tasks` and
@@ -1226,7 +1226,8 @@ agreed before it is asked for, by a goal that asks first where its
 person wants to agree a plan (`agent.md`, 8.2), and the procedure
 delegates its agents without the Message family. One made with
 `foreman` or `up` relays its own agents' questions instead (8.11); what
-follows holds for it but for those. It takes no questions, answers or words either, and says
+follows describes `none`; an enabled route's fallback feedback follows 8.11.
+A change with `none` takes no questions, answers or words, and says
 so rather than drop one: at its next step, a question in its inbox is
 answered, in the answer form to the question's number, that a change
 takes no questions and that its requester is task R; a task's words are
@@ -1950,8 +1951,8 @@ section 9): the foreman and the requester decide, and the change relays
   live), oldest first, as its open questions, kept on its record, and
   works them one at a time in that order: the next gets its foreman, or
   is passed up, once the one before is answered. A question from any
-  other task, and every task's words, are answered as 8.1 says for a
-  change that takes none.
+  other task, and every task's words, receive fallback feedback naming
+  the enabled route and the answer form; words do not settle a question.
 - **Bounded.** It counts the questions it takes, each as its turn comes,
   from its making or its last release, against its bound,
   `forge.change_policy.questions` (4 in `small`, 80 in `standard`, which
@@ -2002,8 +2003,15 @@ section 9): the foreman and the requester decide, and the change relays
   question passed up takes it out of its queue until answered, as a
   kept change's place is (section 9).
 - **The answer relayed down.** The requester's answer, in the answer
-  form to the change's question, is relayed at the step that takes it:
-  the change answers its asker's question with the answer's words
+  form to the change's question, is relayed at the step that takes it.
+  A fresh requester run finds that durable question number and its authorized
+  answerer with `read_task` on the change, even after consuming the original
+  delivery. The producer's question number and a question's ordinal are not
+  the change's answer number. A refused message directs it to that read.
+  Words and amendment reasons do not answer questions. For a change with an
+  enabled question route, fallback replies describe that route and the
+  required answer form rather than claiming that the change takes none.
+  The change answers its asker's question with the answer's words
   whole, and the asker's next run goes on from where it parked with the
   answer to read. The requester may first amend the change (its words
   widened, a Left item accepted: section 7 of jig's `domain/tasks.md`)
@@ -2026,7 +2034,9 @@ section 9): the foreman and the requester decide, and the change relays
   taken against its bound, are kept on its record, so that a restart
   resumes each where it stood (section 16), and shown on its panel
   (8.8; `../client/forge.md`, 9.2) and by `ctl`'s `change show`
-  (`../client/tools.md`, 5.5, area 6).
+  (`../client/tools.md`, 5.5, area 6). The printed numbers are labelled
+  producer questions; the requester is directed to the change's task read
+  for its answer number.
 - **Its history** keeps every question and answer: the asked tasks'
   question positions and the change's own (jig's `domain/tasks.md`,
   8.2). A ruling that concerns many changes is design: a designer's
@@ -2035,8 +2045,8 @@ section 9): the foreman and the requester decide, and the change relays
 
 A change keeps at most 16 open questions. Its configured question allowance
 must be less than 16, leaving room for the question past that allowance. A
-question beyond the open-queue ceiling is answered with the refusal used by
-a change that takes no questions; it never enters the relay (2026-11-04).
+question beyond the open-queue ceiling is answered with fallback feedback
+describing the enabled route and answer form; it never enters the relay (2026-11-04).
 
 The foreman's brief fits the deployment's brief bound by cutting the
 change's words from their end and marking truncation before cutting anything
@@ -2705,6 +2715,15 @@ whole.
 
 ## 20. Open questions
 
+- **A failed row, dismissed** (4.5; `../draft/repository-copies.md`,
+  5.2): no request dismisses one yet; that comes with the sheet that
+  shows it. Default: asking for the name again replaces it, and failed
+  rows count against `forge.makings`.
+- **What a refused copy leaves** (4.5; skein's `forge-setup.md`,
+  section 9): Forgejo keeps an empty repository at the name of a source
+  it could not clone, and only the same address asked again takes it
+  away: asked from another, the row holds no `copying` and stops at
+  `Taken`. Default: so, and the person deletes it on the forge.
 - **A queue's throughput:** landings into one branch wait on CI one after
   another. If that binds, landings are batched: tested together, and
   bisected when they fail.

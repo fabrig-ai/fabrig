@@ -126,11 +126,38 @@ impl<'a> Decoder<'a> {
 }
 
 /// Decoder storage and previous keys, plus one item being returned.
-pub(crate) fn worst_case(limits: &Limits) -> Option<u64> {
+pub(crate) fn decoder_bound(limits: &Limits) -> Option<u64> {
     if limits.depth > encode::DEPTH {
         return None;
     }
     Stack::<Open>::price(limits.depth)?
         .checked_add(u64::from(limits.depth).checked_mul(u64::from(limits.key))?)?
         .checked_add(u64::from(limits.key))
+}
+
+#[cfg(test)]
+mod tests {
+    use super::{Open, decoder_bound};
+    use crate::limits::{Limits, SHIPPED};
+    use hearth_lib::encode;
+
+    #[test]
+    fn the_decoder_bound_covers_the_stack_and_previous_keys_or_refuses_the_depth() {
+        const DEPTH: u32 = 3;
+        const KEY: u32 = 17;
+        let limits = Limits { depth: DEPTH, key: KEY, ..SHIPPED };
+        let stack = u64::from(DEPTH)
+            .checked_mul(u64::try_from(size_of::<Open>()).expect("an open container fits"))
+            .expect("three open containers fit");
+        let previous_keys = u64::from(DEPTH).checked_mul(u64::from(KEY)).expect("three keys fit");
+        let returned_key = u64::from(KEY);
+        let bound = stack
+            .checked_add(previous_keys)
+            .expect("stack and keys fit")
+            .checked_add(returned_key)
+            .expect("the returned key fits too");
+        assert_eq!(decoder_bound(&limits), Some(bound), "the stack, its previous keys and a returned key");
+        let deep = encode::DEPTH.checked_add(1).expect("one past the encoder's depth fits");
+        assert_eq!(decoder_bound(&Limits { depth: deep, ..limits }), None, "the encoder refuses this depth");
+    }
 }

@@ -314,10 +314,10 @@ fn finish(frame: Frame) -> Value {
     }
 }
 
-/// The decoder's peak heap, including the tree under construction
+/// Bounds the decoder's retained heap, including the tree under construction
 /// (skein/docs/foundation/programming-model.md, 6.3; hearth/docs/design/domain/render.md, 2.3).
 #[must_use]
-pub fn worst_case(limits: &Limits) -> Option<u64> {
+pub fn decoder_bound(limits: &Limits) -> Option<u64> {
     let tokenizer = tk::tokenizer_bound(&limits::tokenizer(limits))?;
     let frames = Stack::<Frame>::price(limits.depth)?;
     let events = Queue::<tk::Event>::price(1)?;
@@ -333,8 +333,8 @@ pub fn worst_case(limits: &Limits) -> Option<u64> {
     tokenizer.checked_add(frames)?.checked_add(events)?.checked_add(maps)?.checked_add(storage)?.checked_add(text)
 }
 
-/// The finished tree after the decoder's transient arrays and maps are gone.
-pub(crate) fn held(limits: &Limits) -> Option<u64> {
+/// Bounds the finished tree and decoder after transient arrays and maps are gone.
+pub(crate) fn decoded_bound(limits: &Limits) -> Option<u64> {
     let values = u64::from(limits.document).checked_div(2)?.checked_add(1)?;
     let record = u64::try_from(size_of::<Value>().max(size_of::<Entry>())).ok()?;
     values

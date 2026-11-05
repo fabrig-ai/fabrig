@@ -14,7 +14,7 @@
 ## What
 
 `members` lists `skein-fake-checkout`, `skein-fake-forge-domain`,
-`skein-fake-forge-github`, `skein-fake-forge-protocol`,
+`skein-fake-forge-github`, `skein-fake-forge-forgejo`,
 `skein-fake-llm-domain`, `skein-fake-llm-protocol`,
 `skein-fake-machine`, `skein-fake-oauth` and `skein-fake-peers` twice.
 `[workspace.dependencies]` names `skein-browser-world`, which no

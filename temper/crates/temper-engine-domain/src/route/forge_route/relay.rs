@@ -356,9 +356,8 @@ fn take<'a>(
         if row.requester != word.from && !row.delegates.contains(&target) && !row.references.contains(&target) {
             continue;
         }
-        messages
-            .push(StepMessage { target, kind, words: takes_no_messages(row.requester, env.limits.tasks.message_bytes) })
-            .expect("reply room checked");
+        let words = takes_no_messages(row.requester, questions.route, env.limits.tasks.message_bytes);
+        messages.push(StepMessage { target, kind, words }).expect("reply room checked");
     }
     Inbox { messages, asked, answer }
 }
