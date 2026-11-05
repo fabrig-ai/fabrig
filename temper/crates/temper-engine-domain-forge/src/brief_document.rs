@@ -5,6 +5,7 @@ use alloc::boxed::Box;
 use skein_forge::api::{Answer, Commit, Error, Read, Repository};
 use skein_lib::{Decimal, Queue, Time, Token, Writer};
 
+use crate::brief_words::{self, BOUNDS, BUSY, ROOM};
 use crate::{BriefDocument, BriefRead, Domain, Request};
 
 #[derive(Debug)]
@@ -96,11 +97,15 @@ fn repository(domain: &Domain, document: &BriefDocument) -> Option<Repository> {
 
 pub(crate) fn gather(domain: &mut Domain, section: Token, parts: u32, max_bytes: u32, out: &mut Queue<Request>) {
     let Some(document) = domain.brief_documents.remove(&section) else {
-        crate::held::ready(domain, section, BriefRead::Failed, out);
+        crate::held::ready(domain, section, BriefRead::Failed(BOUNDS), out);
         return;
     };
-    if parts == 0 || domain.document_fetches.len() == domain.document_fetches.capacity() {
-        crate::held::ready(domain, section, BriefRead::Failed, out);
+    if domain.document_fetches.len() == domain.document_fetches.capacity() {
+        crate::held::ready(domain, section, BriefRead::Failed(ROOM), out);
+        return;
+    }
+    if parts == 0 {
+        crate::held::ready(domain, section, BriefRead::Failed(BOUNDS), out);
         return;
     }
     let Some(repository) = repository(domain, &document) else {
@@ -149,6 +154,11 @@ pub(crate) fn answer(
         fetch.refused = Some(domain.brief_reclaim);
         domain.document_fetches.insert(owner, fetch).expect("same document read room");
         return true;
+    }
+    let unread = brief_words::unread_of(&result);
+    let stage = if fetch.head.is_none() { "branch" } else { "file" };
+    if let Err(error) = &result {
+        out.push(Request::BriefReadRefused { section, stage, error: Some(*error) });
     }
     let doc = &fetch.document;
     match result {
@@ -220,7 +230,12 @@ pub(crate) fn answer(
                 out,
             );
         }
-        Ok(_) | Err(_) => crate::held::ready(domain, section, BriefRead::Failed, out),
+        answer => {
+            if answer.is_ok() {
+                out.push(Request::BriefReadRefused { section, stage, error: None });
+            }
+            crate::held::ready(domain, section, BriefRead::Failed(unread), out);
+        }
     }
     true
 }
@@ -367,6 +382,8 @@ pub(crate) fn expire(domain: &mut Domain, now: Time, out: &mut Queue<Request>) {
         }
         let Some(section) = expired else { break };
         let fetch = domain.document_fetches.remove(&section).expect("expired document");
-        crate::held::ready(domain, fetch.section, BriefRead::Failed, out);
+        let stage = if fetch.head.is_none() { "branch" } else { "file" };
+        out.push(Request::BriefReadRefused { section: fetch.section, stage, error: Some(Error::Busy) });
+        crate::held::ready(domain, fetch.section, BriefRead::Failed(BUSY), out);
     }
 }

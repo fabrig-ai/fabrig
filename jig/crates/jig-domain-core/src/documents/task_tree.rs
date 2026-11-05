@@ -555,7 +555,7 @@ pub(super) fn hold_source(limits: &Limits, source: Option<&tasks::HoldSource>) -
             Some(entry) => Some(Part { connector: *connector, kind: PartKind::Outbox, key: PartKey::Number(*entry) }),
             None => None,
         }),
-        None | Some(tasks::HoldSource::Circle(_)) => Ok(None),
+        None | Some(tasks::HoldSource::Preparation { .. } | tasks::HoldSource::Circle(_)) => Ok(None),
         Some(tasks::HoldSource::Resource(name)) => {
             Ok(Some(part_path(limits, name.connector, PartKind::Resource, &name.path)?))
         }
@@ -577,7 +577,7 @@ fn hold_account(task: u64, reason: tasks::Hold, source: Option<&tasks::HoldSourc
                 Some(tasks::HoldSource::Effect { connector, .. } | tasks::HoldSource::Account { connector, .. }) => {
                     *connector
                 }
-                None | Some(tasks::HoldSource::Circle(_)) => return None,
+                None | Some(tasks::HoldSource::Preparation { .. } | tasks::HoldSource::Circle(_)) => return None,
             };
             Some(Part { connector, kind: PartKind::Hold, key: PartKey::Number(task) })
         }
@@ -603,6 +603,7 @@ pub(crate) fn hold(limits: &Limits, row: &tasks::TaskRecord) -> Result<Option<Ho
         tasks::Phase::Held { was, why, source } => Ok(Some(HoldLine {
             placed: None,
             words: match source.as_deref() {
+                Some(tasks::HoldSource::Preparation { words }) => Some(super::small::text(words, tasks::REASON_BYTES)),
                 Some(tasks::HoldSource::Account { words, .. }) => {
                     Some(super::small::text(words, tasks::HOLD_ACCOUNT_BYTES))
                 }
@@ -626,7 +627,8 @@ pub(crate) fn hold(limits: &Limits, row: &tasks::TaskRecord) -> Result<Option<Ho
                 | Some(
                     tasks::HoldSource::Resource(_)
                     | tasks::HoldSource::Effect { .. }
-                    | tasks::HoldSource::Account { .. },
+                    | tasks::HoldSource::Account { .. }
+                    | tasks::HoldSource::Preparation { .. },
                 ) => None,
             },
             account: hold_account(row.number, *why, source.as_deref()),

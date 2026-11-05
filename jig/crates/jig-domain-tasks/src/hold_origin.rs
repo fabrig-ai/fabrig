@@ -5,6 +5,26 @@ use crate::{Circle, Hold, HoldSource, Limits};
 pub const ACCOUNT_BYTES: u32 = 512;
 pub(crate) fn valid(limits: &Limits, why: Hold, source: Option<&HoldSource>) -> bool {
     match source {
+        Some(HoldSource::Preparation { words }) => match why {
+            Hold::Failures(_) => !words.is_empty() && words.len() <= skein_lib::length::usize_of(crate::REASON_BYTES),
+            Hold::Exceeded(_)
+            | Hold::Stalled
+            | Hold::Dependency(_)
+            | Hold::Stopped
+            | Hold::Placed { .. }
+            | Hold::Drift
+            | Hold::Budget
+            | Hold::Deadline
+            | Hold::HoldsWaited
+            | Hold::ResourceUnavailable
+            | Hold::ResourceAccess
+            | Hold::PoolLost { .. }
+            | Hold::Procedure
+            | Hold::Circle
+            | Hold::EffectFailed
+            | Hold::Effects
+            | Hold::Uncertain { .. } => false,
+        },
         None => why != Hold::Circle,
         Some(HoldSource::Account { entry, words, .. }) => {
             if let Hold::Uncertain { entry: held } = why

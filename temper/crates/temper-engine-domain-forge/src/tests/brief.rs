@@ -58,6 +58,7 @@ fn gather(checks: Box<[Status]>, log: &[u8], budget: u32) -> Domain {
         &mut d,
         Event::PlanBrief {
             section: SECTION,
+            partner: None,
             source: BriefSource::Ci {
                 item: BriefItem { repository: REPO.repository, number: 1 },
                 head: BriefCommit(HEAD),
@@ -100,7 +101,7 @@ fn gather(checks: Box<[Status]>, log: &[u8], budget: u32) -> Domain {
                 }),
                 &mut out
             ));
-        } else if let Request::BriefSized { section: SECTION, size: Some(size) } = request {
+        } else if let Request::BriefSized { section: SECTION, size: Ok(size) } = request {
             assert!(size <= budget);
         } else {
             panic!("unexpected gather output: {request:?}");
@@ -142,11 +143,11 @@ fn a_long_log_is_cut_from_its_front_keeping_its_check() {
     }
     let mut d = gather(red_checks(), log.as_slice(), SHIPPED_CI);
     let cut = outputs(&mut d, Event::CutBrief { section: SECTION, bytes: 512 });
-    let [Request::BriefSized { size: Some(size), .. }] = cut.as_ref() else { panic!("successful cut: {cut:?}") };
+    let [Request::BriefSized { size: Ok(size), .. }] = cut.as_ref() else { panic!("successful cut: {cut:?}") };
     assert!(*size <= 512);
     // Cutting again must use the same structured check, not a previous rendering.
     let cut = outputs(&mut d, Event::CutBrief { section: SECTION, bytes: 480 });
-    let [Request::BriefSized { size: Some(size), .. }] = cut.as_ref() else { panic!("successful cut: {cut:?}") };
+    let [Request::BriefSized { size: Ok(size), .. }] = cut.as_ref() else { panic!("successful cut: {cut:?}") };
     assert!(*size <= 480);
     let bytes = take(&mut d);
     let words = text(&bytes);
@@ -246,7 +247,7 @@ fn text(bytes: &[u8]) -> &str {
 }
 
 fn planned_read(d: &mut Domain, source: BriefSource, budget: u32) -> Token {
-    outputs(d, Event::PlanBrief { section: SECTION, source });
+    outputs(d, Event::PlanBrief { section: SECTION, source, partner: None });
     let mut env = env();
     env.limits.brief_bytes = 4608;
     let mut out = Queue::uncapped();
@@ -440,7 +441,7 @@ fn a_busy_job_read_waits_for_reclaim_then_keeps_the_step_and_log_end() {
         }),
         &mut out
     ));
-    let Some(Request::BriefSized { section: SECTION, size: Some(size) }) = out.pop() else {
+    let Some(Request::BriefSized { section: SECTION, size: Ok(size) }) = out.pop() else {
         panic!("completed CI section: {out:?}")
     };
     assert!(size <= SHIPPED_CI);
@@ -476,7 +477,11 @@ fn a_job_read_busy_until_the_gather_deadline_keeps_the_marker() {
     assert!(out.is_empty(), "the original deadline stays in force");
     assert_eq!(brief::next_deadline(&d), Some(deadline));
     brief::expire(&mut d, deadline, &mut out);
-    let Some(Request::BriefSized { section: SECTION, size: Some(size) }) = out.pop() else {
+    assert_eq!(
+        out.pop(),
+        Some(Request::BriefReadRefused { section: SECTION, stage: "job", error: Some(skein_forge::api::Error::Busy) })
+    );
+    let Some(Request::BriefSized { section: SECTION, size: Ok(size) }) = out.pop() else {
         panic!("completed CI section: {out:?}")
     };
     assert!(size <= SHIPPED_CI);
@@ -525,7 +530,15 @@ fn checks_busy_until_the_gather_deadline_fail_the_section() {
     brief::expire(&mut d, Time::from_nanos(deadline.as_nanos().checked_sub(1).unwrap()), &mut out);
     assert!(out.is_empty());
     brief::expire(&mut d, deadline, &mut out);
-    assert_eq!(out.pop(), Some(Request::BriefSized { section: SECTION, size: None }));
+    assert_eq!(
+        out.pop(),
+        Some(Request::BriefReadRefused {
+            section: SECTION,
+            stage: "checks",
+            error: Some(skein_forge::api::Error::Busy)
+        })
+    );
+    assert_eq!(out.pop(), Some(Request::BriefSized { section: SECTION, size: Err(brief_words::BUSY) }));
     assert!(out.is_empty());
     assert!(d.briefs_idle());
 }
@@ -568,4 +581,93 @@ fn github_gate_timestamp_survives_a_truncated_log_at_shipped_limits() {
             assert!(!words.contains(text(LINE)));
         }
     }
+}
+
+#[test]
+fn each_unread_error_has_its_count_and_fixed_words() {
+    use BriefFate::{Capacity, Permanent, Transient};
+    use skein_forge::api::Error;
+    let rows: &[(Error, BriefFate, &[u8])] = &[
+        (Error::Busy, Capacity, b"the forge client is busy"),
+        (Error::NotConnected, Capacity, b"the forge is not connected"),
+        (Error::Unavailable, Transient, b"the forge could not be reached"),
+        (Error::Timeout, Transient, b"the forge did not answer in time"),
+        (Error::RateLimited { after: Duration::from_secs(1) }, Transient, b"the forge is limiting calls"),
+        (Error::InvalidAnswer, Permanent, b"the forge's answer did not match its read"),
+        (Error::Forbidden, Permanent, b"the forge forbids this read"),
+        (Error::NotInstalled, Permanent, b"the forge App is not installed"),
+        (Error::Missing, Permanent, b"the forge has no such object"),
+        (Error::MissingJob, Permanent, b"the forge has no such object"),
+        (Error::TooLarge, Permanent, b"the answer is past the client's limit"),
+        (Error::Full, Permanent, b"the forge refused this read"),
+        (Error::Stale, Permanent, b"the forge refused this read"),
+        (Error::Refused, Permanent, b"the forge refused this read"),
+    ];
+    for (error, fate, words) in rows {
+        let unread = brief_words::unread_of(&Err(*error));
+        assert_eq!(unread.fate, *fate, "{error:?}");
+        assert_eq!(unread.words, *words, "{error:?}");
+    }
+    let mut pull = fixtures::open_pull();
+    pull.commit = [99; 32];
+    assert_eq!(
+        brief_words::unread_of(&Ok(Answer::Pull(pull))),
+        BriefUnread { fate: Transient, words: b"the change's head moved" }
+    );
+    assert_eq!(
+        brief_words::unread_of(&Ok(Answer::Commit(HEAD))),
+        BriefUnread { fate: Permanent, words: b"the forge answered another read" }
+    );
+}
+
+#[test]
+fn local_section_failures_name_the_bound_or_room_that_failed() {
+    let item = BriefItem { repository: REPO.repository, number: 1 };
+    let mut d = domain();
+    outputs(&mut d, Event::Restore { record: Stored::Repository(adopted()) });
+    let mut out = Queue::uncapped();
+    let unnamed = BriefUnread { fate: BriefFate::Permanent, words: b"the change cannot be named in its section" };
+    assert_eq!(
+        brief::brief_pull(&mut d, SECTION, item, BriefCommit(HEAD), 1, 512, &mut out),
+        Some(BriefRead::Failed(unnamed))
+    );
+    let mut row = fixtures::opening_row();
+    row.pull = Some(1);
+    row.change.last_head = Some(HEAD);
+    outputs(&mut d, Event::Change { row });
+    assert_eq!(
+        brief::brief_pull(&mut d, SECTION, item, BriefCommit([99; 32]), 1, 512, &mut out),
+        Some(BriefRead::Failed(BriefUnread { fate: BriefFate::Transient, words: b"the change's head moved" }))
+    );
+    assert_eq!(
+        brief::brief_pull(&mut d, SECTION, item, BriefCommit(HEAD), 1, 1, &mut out),
+        Some(BriefRead::Failed(unnamed))
+    );
+    assert_eq!(
+        brief::brief_pull(&mut d, SECTION, item, BriefCommit(HEAD), 0, 512, &mut out),
+        Some(BriefRead::Failed(BriefUnread {
+            fate: BriefFate::Permanent,
+            words: b"the connector cannot hold this section"
+        }))
+    );
+    d.brief_fetches = skein_lib::Map::with_capacity(0);
+    assert_eq!(
+        brief::brief_pull(&mut d, SECTION, item, BriefCommit(HEAD), 1, 512, &mut out),
+        Some(BriefRead::Failed(BriefUnread {
+            fate: BriefFate::Capacity,
+            words: b"the connector has no room for another read"
+        }))
+    );
+    assert!(out.is_empty(), "no local refusal makes a forge read");
+    held::ready_ci(&mut d, SECTION, brief_ci::Section::new(BriefCommit(HEAD), 0, 0), 0, &mut out);
+    assert_eq!(
+        out.pop(),
+        Some(Request::BriefReady {
+            owner: SECTION,
+            read: BriefRead::Failed(BriefUnread {
+                fate: BriefFate::Permanent,
+                words: b"the failed checks do not fit their section"
+            })
+        })
+    );
 }

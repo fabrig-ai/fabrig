@@ -152,3 +152,55 @@ fn nested_proposal_fit_reports_the_outer_key_and_exact_bytes() {
         }
     }
 }
+
+#[test]
+fn preparation_reason_restore_refuses_one_byte_past_its_named_bound() {
+    use tasks::{Active, Class, Hold, HoldSource, Phase, RetryNotice, Was};
+    let mut world = World::new(SEED, LIMITS);
+    world.make(Party::Person(PERSON), vec![task(OWNER, &[])]);
+    let bound = usize::try_from(tasks::REASON_BYTES).expect("reason bound");
+    for (size, expected) in [
+        (bound, None),
+        (
+            bound + 1,
+            Some(tasks::RestoreFailure {
+                key: tasks::Key::Live(OWNER),
+                cause: tasks::RestoreCause::Bound {
+                    which: tasks::RestoreBound::PreparationReasonBytes,
+                    held: 129,
+                    limit: 128,
+                },
+            }),
+        ),
+    ] {
+        let reason: Box<[u8]> = vec![b'x'; size].into();
+        for (phase, retry_notice) in [
+            (Phase::Active(Active::Due), Some(RetryNotice::Refused { count: 1, reason: Some(reason.clone()) })),
+            (
+                Phase::Active(Active::Due),
+                Some(RetryNotice::Failed {
+                    class: Class::Permanent,
+                    count: 1,
+                    allowance: LIMITS.retries.permanent.retries,
+                    reason: Some(reason.clone()),
+                }),
+            ),
+            (
+                Phase::Held {
+                    was: Was::Active(Active::Due),
+                    why: Hold::Failures(Class::Permanent),
+                    source: Some(Box::new(HoldSource::Preparation { words: reason.clone() })),
+                },
+                None,
+            ),
+        ] {
+            let mut row = world.record(OWNER).clone();
+            row.phase = phase;
+            row.retry_notice = retry_notice;
+            let mut domain = jig_tasks_world::domain(&LIMITS, SEED);
+            let mut out = Queue::uncapped();
+            tasks::step(&mut domain, &world.env, Event::Restore { record: Stored::Live(Box::new(row)) }, &mut out);
+            assert_eq!(domain.restore_failure(), expected, "reason bytes: {size}");
+        }
+    }
+}

@@ -1288,7 +1288,7 @@ fn core_now(
         }
         core::Now::CompleteBrief { brief, order } => {
             domain.hub_link.keep_brief(brief.raw(), order);
-            work.push(Work::Core(core::Event::BriefAssembled { task: brief.raw(), ready: true }));
+            work.push(Work::Core(core::Event::BriefAssembled { task: brief.raw(), failure: None }));
         }
         core::Now::WorkspaceRequest { task, attempt, .. } => {
             work.push(Work::Core(core::Event::WorkspacePrepared {
@@ -1334,6 +1334,7 @@ fn core_now(
                 work.push(Work::Core(core::Event::ClaimRefused { task }));
             }
         }
+        core::Now::BriefFailed { .. } => {}
         core::Now::RunPreparationFailed { task } | core::Now::DropAssignment { task } => {
             drop(domain.hub_link.take_assignment(task));
             drop(domain.hub_link.take_brief(task));
