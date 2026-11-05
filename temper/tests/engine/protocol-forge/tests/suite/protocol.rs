@@ -570,6 +570,7 @@ fn land_change(world: &mut Protocol) -> bool {
                 | top::Request::Read { .. }
                 | top::Request::BriefClient { .. }
                 | top::Request::BriefReady { .. }
+                | top::Request::BriefReadRefused { .. }
                 | top::Request::BriefSized { .. }
                 | top::Request::BriefTaken { .. }
                 | top::Request::ApplicationPart { .. }

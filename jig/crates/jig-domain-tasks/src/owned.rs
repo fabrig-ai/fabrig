@@ -316,7 +316,7 @@ pub fn phase_bytes(phase: &Phase) -> Option<u64> {
                         }
                     }
                     crate::HoldSource::Effect { .. } => {}
-                    crate::HoldSource::Account { words, .. } => {
+                    crate::HoldSource::Preparation { words } | crate::HoldSource::Account { words, .. } => {
                         total = total.checked_add(bytes(words.len())?)?;
                     }
                     crate::HoldSource::Circle(circle) => {
@@ -374,6 +374,15 @@ pub fn task_bytes(task: &TaskRecord) -> Option<u64> {
     }
     // The inline record includes Spec::asks and the durable asked_requester latch.
     bytes(size_of::<TaskRecord>())?
+        .checked_add(match &task.retry_notice {
+            Some(crate::RetryNotice::Failed { reason, .. } | crate::RetryNotice::Refused { reason, .. }) => {
+                match reason {
+                    Some(reason) => bytes(reason.len())?,
+                    None => 0,
+                }
+            }
+            None => 0,
+        })?
         .checked_add(match &task.grace {
             Some(grace) => bytes(grace.reason.len())?,
             None => 0,

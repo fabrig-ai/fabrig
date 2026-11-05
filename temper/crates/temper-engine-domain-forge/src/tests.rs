@@ -381,6 +381,7 @@ fn adoption_reads_permission_before_committing_its_role() {
         | Request::Read { .. }
         | Request::BriefClient { .. }
         | Request::BriefReady { .. }
+        | Request::BriefReadRefused { .. }
         | Request::BriefSized { .. }
         | Request::EffectsSettled { .. }
         | Request::BriefTaken { .. }
@@ -467,6 +468,7 @@ fn adoption_reads_permission_before_committing_its_role() {
         | Request::Read { .. }
         | Request::BriefClient { .. }
         | Request::BriefReady { .. }
+        | Request::BriefReadRefused { .. }
         | Request::BriefSized { .. }
         | Request::EffectsSettled { .. }
         | Request::BriefTaken { .. }
@@ -550,6 +552,7 @@ fn adoption_reads_permission_before_committing_its_role() {
         | Request::Read { .. }
         | Request::BriefClient { .. }
         | Request::BriefReady { .. }
+        | Request::BriefReadRefused { .. }
         | Request::BriefSized { .. }
         | Request::EffectsSettled { .. }
         | Request::BriefTaken { .. }

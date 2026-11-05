@@ -25,6 +25,8 @@ pub mod boundary;
 mod brief;
 mod brief_ci;
 mod brief_document;
+mod brief_words;
+pub use brief_words::{BriefFate, BriefUnread};
 mod capabilities;
 mod ci;
 mod commit;

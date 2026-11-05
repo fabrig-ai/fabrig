@@ -222,7 +222,7 @@ pub struct Domain {
     // A refused brief read waits for the next client reclamation.
     pub(crate) brief_reclaim: u64,
     pub(crate) brief_fetches: Map<Token, brief::BriefFetch>,
-    brief_planned: Map<Token, crate::BriefSource>,
+    pub(crate) brief_planned: Map<Token, held::Planned>,
     pub(crate) brief_documents: Map<Token, Box<crate::BriefDocument>>,
     pub(crate) document_fetches: Map<Token, crate::brief_document::Fetch>,
     pub(crate) brief_pending: Map<Token, held::Pending>,
@@ -1399,19 +1399,27 @@ pub fn step(d: &mut Domain, env: &Env<Limits>, event: Event, out: &mut Queue<Req
         }
         Event::PlanDocument { section, document } => {
             assert!(
-                d.brief_planned.insert(section, crate::BriefSource::Document) == Ok(None),
+                d.brief_planned.insert(section, held::Planned { source: crate::BriefSource::Document, partner: None })
+                    == Ok(None),
                 "one bounded planned section"
             );
             assert!(d.brief_documents.insert(section, document) == Ok(None), "one bounded planned document");
         }
-        Event::PlanBrief { section, source } => {
-            assert!(d.brief_planned.insert(section, source) == Ok(None), "one bounded planned section");
+        Event::PlanBrief { section, source, partner } => {
+            if let Some(partner) = partner {
+                d.brief_planned.get_mut(&partner).expect("earlier paired section planned").partner = Some(section);
+            }
+            assert!(
+                d.brief_planned.insert(section, held::Planned { source, partner }) == Ok(None),
+                "one bounded planned section"
+            );
         }
         Event::GatherPlanned { section, parts, bytes, ci_budget, deadline } => {
-            let Some(source) = d.brief_planned.remove(&section) else {
-                out.push(Request::BriefSized { section, size: None });
+            let Some(planned) = d.brief_planned.remove(&section) else {
+                out.push(Request::BriefSized { section, size: Err(crate::brief_words::BOUNDS) });
                 return;
             };
+            let source = planned.source;
             let max_job_bytes = match source {
                 crate::BriefSource::Document => env.limits.client.answer_bytes,
                 crate::BriefSource::Ci { .. } => env.limits.client.answer_bytes.min(ci_budget / 5).max(1),
@@ -1419,7 +1427,7 @@ pub fn step(d: &mut Domain, env: &Env<Limits>, event: Event, out: &mut Queue<Req
                 | crate::BriefSource::Reviews { .. }
                 | crate::BriefSource::Pull { .. } => 0,
             };
-            held::gather(d, section, source, parts, bytes, max_job_bytes, env.limits.brief_bytes, out);
+            held::gather(d, section, source, planned.partner, parts, bytes, max_job_bytes, env.limits.brief_bytes, out);
             d.brief_documents.remove(&section);
             brief::set_deadline(d, section, deadline);
         }
@@ -1427,7 +1435,7 @@ pub fn step(d: &mut Domain, env: &Env<Limits>, event: Event, out: &mut Queue<Req
             brief::gather(d, owner, source, parts, bytes, max_job_bytes, env.limits.brief_bytes, out);
         }
         Event::GatherBriefHeld { section, source, parts, bytes, max_job_bytes } => {
-            held::gather(d, section, source, parts, bytes, max_job_bytes, env.limits.brief_bytes, out);
+            held::gather(d, section, source, None, parts, bytes, max_job_bytes, env.limits.brief_bytes, out);
         }
         Event::CutBrief { section, bytes } => held::cut(d, section, bytes, out),
         Event::TakeBrief { section } => held::take(d, section, out),

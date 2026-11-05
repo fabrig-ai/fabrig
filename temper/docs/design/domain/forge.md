@@ -1829,8 +1829,54 @@ delegate's terminal wakes it to offer the landed result.
   byte or row limit, the section keeps its pull identity and gathered content
   and appends a comparison-omitted notice within its byte budget. This completes
   the section; it does not retry the comparison or raise the client's limits.
-  Other comparison read failures still fail the section. The same rule applies
-  to the pull sections for reviews and repairs.
+  Other comparison read failures are the section's read failures (below). The
+  same rule applies to the pull sections for reviews and repairs.
+- **A brief section's read that fails.** Every section says why it could not
+  be read, and how that counts (jig's `domain/engine.md`, 9.1):
+
+  | What the read met | Counts as | REASON |
+  |---|---|---|
+  | `Busy`, still refused at the brief's deadline | capacity | `the forge client is busy` |
+  | `NotConnected`: a wait for access, as for a stall above | capacity | `the forge is not connected` |
+  | no room for another section or read in the connector | capacity | `the connector has no room for another read` |
+  | `Unavailable` | transient | `the forge could not be reached` |
+  | `Timeout` | transient | `the forge did not answer in time` |
+  | `RateLimited` | transient | `the forge is limiting calls` |
+  | a pull whose head is no longer the pinned one, or a change that has moved past it | transient | `the change's head moved` |
+  | `InvalidAnswer` | permanent | `the forge's answer did not match its read` |
+  | an answer of another shape | permanent | `the forge answered another read` |
+  | `Forbidden`, `NotInstalled` | permanent | `the forge forbids this read`, `the forge App is not installed` |
+  | `Missing`, `MissingJob` | permanent | `the forge has no such object` |
+  | `TooLarge` | permanent | `the answer is past the client's limit` |
+  | any other error | permanent | `the forge refused this read` |
+  | no change for the pull, its identity past the section's bytes, or a title that fills them; no repository for a home-access reason | permanent | `the change cannot be named in its section` |
+  | failed checks whose heads do not fit their section | permanent | `the failed checks do not fit their section` |
+  | a section the plan gave wrong bounds, or the connector no longer holds | permanent | `the connector cannot hold this section` |
+
+  A repair's two forge sections, its pull section and its reason (CI's or
+  reviews'), are a pair, and each can stand without the other: the agent has
+  the other's words and its forge tools to read again. A read of one that
+  counts as transient or permanent becomes words in that section's place,
+  after what it had gathered, and the brief goes on:
+  `[the pull request could not be read: REASON]`,
+  `[the failed checks could not be read: REASON]` or
+  `[the reviews could not be read: REASON]`. The pull section's identity needs
+  no read, so it always names the pull request.
+  A repair with neither its reason nor its pull cannot start: when both fail,
+  the second fails the brief with its own REASON, which counts by the table.
+  A capacity refusal never becomes words: the brief fails and the task pauses,
+  so the run starts with its sections once there is room.
+  A section with no partner (a review's or a resolution's pull section) is
+  what its run is for, so its read failing fails the brief. A charter's
+  document stays optional (jig's `domain/engine.md`, 9), its failure leaving
+  the missing marker. A failed job's log stays the check's own marker within
+  a CI section that was read.
+  Each read that fails, words or not, is one line in the engine's log, naming
+  the task, the section, the stage and the forge's error, as a tool read's
+  `read refused` line does:
+  `temper serve: brief read refused task=T section=pull stage=item error=InvalidAnswer`.
+  A brief that fails adds one more, naming how it counts and its reason:
+  `temper serve: brief failed task=T counts=permanent reason=pull: ...`.
 - **A verdict whose post is refused** (8.3) is no repair and no stall:
   the gate counts as temper's verdict says, nothing is held for the
   post, and its `Forbidden` narrows what temper may do in that
@@ -1890,8 +1936,9 @@ delegate's terminal wakes it to offer the landed result.
   was cancelled`, with the cancel's reason where it gave one, within the
   hold's bytes (`its resolution`, `its merge job`, `its producer`). A
   cancelled repair, resolution or merge job holds as a decision of the
-  procedure, not as a failed effect; a cancelled producer keeps a failed
-  producer's hold, carrying those words.
+  procedure, not as a failed effect; a cancelled producer, a catch-up's
+  first merge job among them, keeps a failed producer's hold, carrying
+  those words.
   A change is a procedure, with no run of its own to repeat: a
   release asking to run it again is refused saying so, never as
   missing authority.
@@ -3045,6 +3092,13 @@ whole.
   the client should also be posted on the forge as the person, so that
   the forge's protection requires it independently, needs a forge
   credential of the person's (jig's `domain/people.md`, section 12).
+- **A repair whose reason no longer holds at its head** (8.4): a running
+  repair goes on, and a released one asks afresh, though CI has since passed
+  at the head, as after a person ran it again. The request `first-goal-fixes`
+  of 2026-11-05 has such a repair end without an agent's work and the change
+  go on, reading 8.4 so, and no repair task made for a green head. Whether
+  that reaches a gate's and a base's reasons is part of the answer. Default: as
+  built. The user's to choose, with no answer yet.
 - **A failing check's repair brief:** a check gate that says no is
   repaired as a review that says no is, and its repair's brief carries
   the pull request's reviews section (8.4). A check's verdict is not a

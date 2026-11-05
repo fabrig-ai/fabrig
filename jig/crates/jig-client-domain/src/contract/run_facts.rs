@@ -1,6 +1,6 @@
 //! Owned activation facts, distinct from best-effort run observations.
 //! See client/domain/objects.md, 3, and domain/tasks.md, 5.1–5.2.
-use super::{CallIdentity, Closing, FailureClass, HoldFailure, Text};
+use super::{CallIdentity, Closing, DocumentText, FailureClass, HoldFailure, Text};
 use skein_lib::{Token, Wall};
 
 /// Exact current owner activation stage; an attempt does not imply observed work.
@@ -27,22 +27,25 @@ pub struct ActiveRun {
     pub observation: Option<RunObservation>,
 }
 
-/// The actual decision that paused activation; refusal spends no failure try.
-#[derive(Clone, Copy, Debug, PartialEq, Eq, Hash)]
+/// The decision that paused activation; refusal spends no failure try.
+#[derive(Clone, Debug, PartialEq, Eq, Hash)]
 pub enum RetryNotice {
     /// Classified owner failure with the supplied per-class count and allowance.
     OwnerFailed {
         class: HoldFailure,
         count: u32,
         allowance: u32,
+        reason: Option<DocumentText>,
     },
     Failed {
         class: FailureClass,
         count: u32,
         allowance: u32,
+        reason: Option<DocumentText>,
     },
     Refused {
         count: u32,
+        reason: Option<DocumentText>,
     },
 }
 
