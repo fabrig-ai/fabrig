@@ -315,7 +315,7 @@ fn a_program_has_details_then_ready_with_the_declared_name_and_command() {
         "Your Claude subscription",
         "temper runs Claude Code, signed in to your Claude subscription on each host its agents run on. Name the login, then sign in on each host, in a terminal there:",
         "temper program-login claude-pat",
-        "Claude Code asks you to sign in. temper never reads its login.",
+        "If this machine has no Claude Code, this fetches it first. Claude Code asks you to sign in. temper never reads its login.",
     ] {
         assert!(words(&root).contains(expected), "missing {expected}");
     }
@@ -345,7 +345,7 @@ fn a_program_has_details_then_ready_with_the_declared_name_and_command() {
         "Declared your Claude subscription · claude-alice",
         "temper program-login claude-alice",
         "Run this on each host temper’s agents run on, in a terminal there:",
-        "Claude Code asks you to sign in. temper never reads its login.",
+        "If this machine has no Claude Code, this fetches it first. Claude Code asks you to sign in. temper never reads its login.",
     ] {
         assert!(text.contains(expected), "missing {expected}");
     }

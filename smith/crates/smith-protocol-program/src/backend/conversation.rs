@@ -187,7 +187,7 @@ impl Backend {
                     return Ok(false);
                 }
             }
-            Some(_) => return Err(Rejection::Unsupported),
+            Some(_) => return Ok(false),
             None => return Err(Rejection::Malformed),
         }
         Ok(true)

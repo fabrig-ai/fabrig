@@ -1332,8 +1332,8 @@ pub fn program_verification(login: &std::path::Path, accounts: &serde_json::Valu
     .collect())
 }
 
-/// Follow docs/help/box.md, step 1's Claude Code jq commands: replace `OpenAI`
-/// with Anthropic first, keeping the demo and init's other fields. Inspect no login entry.
+/// Select the live Claude model, replacing init's `OpenAI` and Anthropic routes
+/// while keeping demo and init's other fields. Inspect no login entry.
 pub fn configure_live_model(config: &std::path::Path, model: LiveModel<'_>, executable: &std::path::Path) {
     let LiveModel::ClaudeCode { login } = model else { return };
     let path = config.join("temper.json");
@@ -1385,11 +1385,11 @@ pub fn configure_live_model(config: &std::path::Path, model: LiveModel<'_>, exec
         [("providers", "name", provider), ("endpoints", "name", route), ("models", "endpoint", declared)]
     {
         let entries = value["engine"]["llm"][table].as_array_mut().expect("init LLM table");
-        entries.retain(|entry| entry[field] != "openai");
+        entries.retain(|entry| entry[field] != "openai" && entry[field] != "anthropic");
         entries.insert(0, replacement);
     }
     let endpoints = agent["endpoints"].as_array_mut().expect("agent endpoints");
-    endpoints.retain(|endpoint| endpoint["name"] != "openai");
+    endpoints.retain(|endpoint| endpoint["name"] != "openai" && endpoint["name"] != "anthropic");
     endpoints.insert(0, endpoint);
     if agent["programs"].is_null() {
         agent["programs"] = serde_json::json!({});

@@ -363,6 +363,7 @@ impl Workers {
                 limits: crate::translate::limits(&settings.limits).ok_or(kit::host::invalid(What::Bound))?,
                 endpoints: smith_protocol_channel::Endpoints::new(endpoints),
                 deployment,
+                charter_bytes: settings.jig.limits.hub.charter_bytes,
             },
             Box::new([]),
             settings.limits.forge.forges,

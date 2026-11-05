@@ -88,8 +88,8 @@ default to a scratch layout of whoever runs fabrig's development, in a
 form the outward check does not match (`domain/testing.md`). temper's one story on macOS has not run green
 on the runner, so `draft/macos.md`'s acceptance stands open
 (`domain/testing.md`). The `project-landing` journey has no Home
-recording: its browser walk stops at Ready with no usable model, for
-a reason unknown (`client/journeys.md`). The forge's connect refusals that
+recording: its browser walk reaches Home and is still to be recorded
+(`client/journeys.md`). The forge's connect refusals that
 ctl renders name no remedy (`protocol/documentation.md`). Six
 hand-written widenings stand beside skein's `len_u64` and
 `usize_of`, two of them in the worker's steps (`README.md`). Of the
@@ -100,8 +100,11 @@ decide, propose, subscribe and recall families, which the
 reference's profile does not grant and configuring's stage 1 follows
 (`draft/reference-code-production.md`); `draft/serve-without-box.md`'s
 status holds a departure the user has not answered, the deployment's
-read's `owned`, and `draft/to-begin.md`'s another, a dismissal erased
-with its project alone; `draft/repository-copies.md`'s holds two the
+read's `owned`, and `draft/to-begin.md`'s four, a dismissal erased
+with its project alone, a step's chats the person's own, the first
+repository's "Adopt" sending its adoption and an adoption under way the
+session's alone, beside a lag, any project's change of settings marking
+its first step; `draft/repository-copies.md`'s holds two the
 user has not answered, what a refused copy leaves and Forgejo's own
 bound on a migration, and its welcome and sheet are unbuilt; the others
 record what the

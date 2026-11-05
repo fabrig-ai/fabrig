@@ -214,3 +214,24 @@ fn declarations_past_the_host_bound_leave_the_brief_unchanged() {
     fit_brief(&mut selected, None, &limits);
     assert_eq!(selected.brief, original);
 }
+
+#[test]
+fn every_ownership_allowance_keeps_the_fixed_charter_and_fits_the_brief() {
+    let mut fixed = selected();
+    fixed.brief.sections = Box::new([]);
+    let full = selected().owned_bytes().unwrap();
+    for bytes in fixed.owned_bytes().unwrap()..=full {
+        let mut charter = selected();
+        crate::fit_brief_bytes(&mut charter, bytes);
+        assert!(charter.owned_bytes().unwrap() <= bytes, "allowance={bytes}");
+        assert_eq!(charter.instructions, fixed.instructions);
+        assert_eq!(charter.grants, fixed.grants);
+        assert_eq!(charter.outcome, fixed.outcome);
+        if bytes == full {
+            assert_eq!(charter.brief, selected().brief);
+        }
+        for section in &charter.brief.sections {
+            core::str::from_utf8(&section.text).expect("a cut keeps complete UTF-8 characters");
+        }
+    }
+}

@@ -119,17 +119,29 @@ fn parts_within(parts: &Parts, limits: &crate::Limits) -> bool {
 
 /// Interpret worker endings with forge parts and the change's failed-review policy.
 pub(crate) fn answer(domain: &mut Domain, run: Token, attempt: Token, payload: Token) {
-    if let Some(Payload::Answer {
-        task, end: hub::Ending::Link(host::Ending::Failed { failure, detail, .. }), ..
-    }) = domain.hub_link.payload(payload)
-    {
-        domain.run_diagnostics.push(crate::RunDiagnostic {
-            task: *task,
-            run: run.raw(),
-            attempt: attempt.raw(),
-            failure: *failure,
-            detail: detail.clone(),
-        });
+    if let Some(Payload::Answer { task, end, .. }) = domain.hub_link.payload(payload) {
+        match end {
+            hub::Ending::Link(host::Ending::Failed { failure, detail, .. }) => {
+                domain.run_diagnostics.failed.push(crate::RunDiagnostic {
+                    task: *task,
+                    run: run.raw(),
+                    attempt: attempt.raw(),
+                    failure: *failure,
+                    detail: detail.clone(),
+                });
+            }
+            hub::Ending::Link(host::Ending::Refused(reason)) => {
+                domain.run_diagnostics.refused.push(crate::RunRefusalDiagnostic {
+                    task: *task,
+                    run: run.raw(),
+                    attempt: attempt.raw(),
+                    reason: reason.clone(),
+                });
+            }
+            hub::Ending::Link(host::Ending::Ended { .. } | host::Ending::Parked { .. })
+            | hub::Ending::Scripted(_)
+            | hub::Ending::Job(_) => {}
+        }
     }
     if match domain.answer_parts.get(&payload) {
         Some(parts) => !parts_within(parts, &domain.limits),

@@ -1,6 +1,19 @@
 //! Pure configuration fixtures shared by unit and process tests.
 use std::path::Path;
-pub use temper_playground::documents::turn_bounds;
+/// Turn measurements retain model declarations with inert direct endpoints.
+pub mod turn_bounds {
+    pub use temper_playground::documents::turn_bounds::apply;
+
+    #[must_use]
+    pub fn turn_body(agent: &serde_json::Value) -> u32 {
+        let mut agent = agent.clone();
+        agent["programs"] = serde_json::json!({});
+        for endpoint in agent["endpoints"].as_array_mut().expect("agent endpoints") {
+            endpoint.as_object_mut().expect("endpoint").remove("program");
+        }
+        temper_playground::documents::turn_bounds::turn_body(&agent)
+    }
+}
 // Eight native exchanges beside Small's two event streams (jig/docs/design/protocol/client.md, 17.5).
 const NATIVE_HTTP_CALLS: u32 = 10;
 #[must_use]

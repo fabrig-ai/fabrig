@@ -794,7 +794,11 @@ fn job_assignment(workspace: bool) -> host::JobAssignment {
     }
 }
 
-fn failed_answer(run: &temper_engine_domain::Assignment) -> temper_engine_domain::Event {
+fn diagnostic_answer(
+    run: &temper_engine_domain::Assignment,
+    ending: host::Ending,
+    spent: u64,
+) -> temper_engine_domain::Event {
     use temper_engine_domain as root;
     root::Event::Worker(root::WorkerInput::Link {
         channel: Token::new(7),
@@ -802,17 +806,7 @@ fn failed_answer(run: &temper_engine_domain::Assignment) -> temper_engine_domain
             up: host::LinkUp::Answer {
                 run: Token::new(run.task),
                 attempt: Token::new(run.attempt),
-                answer: host::RunAnswer {
-                    read: None,
-                    refused: Box::new([]),
-                    turns: 0,
-                    spent: 47,
-                    ending: host::Ending::Failed {
-                        failure: host::Failure::Run(host::RunFailure::Model),
-                        detail: b"program claude exit 1: bad stream".as_slice().into(),
-                        work: host::Work { left: None, saved: None },
-                    },
-                },
+                answer: host::RunAnswer { read: None, refused: Box::new([]), turns: 0, spent, ending },
             },
             parts: root::Parts::none(),
         },
@@ -822,43 +816,259 @@ fn failed_answer(run: &temper_engine_domain::Assignment) -> temper_engine_domain
 /// temper/docs/design/domain/worker.md, 4.3: a failed answer reaches the operator once.
 #[test]
 fn failed_answer_detail_reaches_operator_once() {
-    use temper_engine_domain::RunDiagnostic;
     for full in [false, true] {
-        let (mut service, run) = fixtures::claimed_chat();
-        while service.notes().pop().is_some() {}
-        for delivery in 0_u32..2 {
-            if full {
-                while service.notes().room() > 0 {
-                    service.notes().push(crate::Note::ForgeLacking { number: 1, names: Box::new([]) });
-                }
+        check_answer_diagnostic(
+            host::Ending::Failed {
+                failure: host::Failure::Run(host::RunFailure::Model),
+                detail: b"program claude exit 1: bad stream".as_slice().into(),
+                work: host::Work { left: None, saved: None },
+            },
+            47,
+            full,
+        );
+    }
+}
+
+/// temper/docs/design/domain/worker.md, 4.3: refusal evidence survives pressure, once.
+#[test]
+fn refused_answer_reason_reaches_operator_once() {
+    for reason in [
+        host::Refusal::Invalid(host::Invalid::Charter),
+        host::Refusal::Invalid(host::Invalid::Start {
+            cause: host::StartCause::Other,
+            why: b"charter".as_slice().into(),
+        }),
+    ] {
+        for full in [false, true] {
+            check_answer_diagnostic(host::Ending::Refused(reason.clone()), 0, full);
+        }
+    }
+}
+
+fn expected_run_note(run: &temper_engine_domain::Assignment, ending: &host::Ending) -> crate::Note {
+    use temper_engine_domain::{RunDiagnostic, RunRefusalDiagnostic};
+    match ending {
+        host::Ending::Failed { failure, detail, .. } => crate::Note::RunFailed(RunDiagnostic {
+            task: run.task,
+            run: run.task,
+            attempt: run.attempt,
+            failure: *failure,
+            detail: detail.clone(),
+        }),
+        host::Ending::Refused(reason) => crate::Note::RunRefused(RunRefusalDiagnostic {
+            task: run.task,
+            run: run.task,
+            attempt: run.attempt,
+            reason: reason.clone(),
+        }),
+        host::Ending::Ended { .. } | host::Ending::Parked { .. } => panic!("diagnostic ending"),
+    }
+}
+
+fn check_answer_diagnostic(ending: host::Ending, spent: u64, full: bool) {
+    let (mut service, run) = fixtures::claimed_chat();
+    let expected = expected_run_note(&run, &ending);
+    while service.notes().pop().is_some() {}
+    for delivery in 0_u32..2 {
+        if full {
+            while service.notes().room() > 0 {
+                service.notes().push(crate::Note::ForgeLacking { number: 1, names: Box::new([]) });
             }
-            service.engine.as_mut().unwrap().step(failed_answer(&run));
-            if full {
-                advance_refusal(&mut service);
-                while let Some(note) = service.notes().pop() {
-                    assert_eq!(note, crate::Note::ForgeLacking { number: 1, names: Box::new([]) });
-                }
-                let engine = service.engine.as_mut().unwrap();
-                crate::engine::clock(engine, engine.env.now, engine.env.wall);
-            }
-            fixtures::settle_root(&mut service, &mut skein_lib::Queue::uncapped());
-            let mut found = 0_u32;
+        }
+        let event = diagnostic_answer(&run, ending.clone(), spent);
+        service.engine.as_mut().unwrap().step(event);
+        if full {
+            advance_refusal(&mut service);
             while let Some(note) = service.notes().pop() {
-                if let crate::Note::RunFailed(diagnostic) = note {
-                    assert_eq!(
-                        diagnostic,
-                        RunDiagnostic {
-                            task: run.task,
-                            run: run.task,
-                            attempt: run.attempt,
-                            failure: host::Failure::Run(host::RunFailure::Model),
-                            detail: b"program claude exit 1: bad stream".as_slice().into(),
-                        }
-                    );
-                    found = found.saturating_add(1);
-                }
+                assert_eq!(note, crate::Note::ForgeLacking { number: 1, names: Box::new([]) });
             }
-            assert_eq!(found, u32::from(delivery == 0), "one diagnostic per answer; full={full}");
+            let engine = service.engine.as_mut().unwrap();
+            crate::engine::clock(engine, engine.env.now, engine.env.wall);
+        }
+        fixtures::settle_root(&mut service, &mut skein_lib::Queue::uncapped());
+        let mut found = 0_u32;
+        while let Some(note) = service.notes().pop() {
+            if let crate::Note::RunFailed(_) | crate::Note::RunRefused(_) = note {
+                assert_eq!(note, expected);
+                found = found.saturating_add(1);
+            }
+        }
+        assert_eq!(found, u32::from(delivery == 0), "one diagnostic per answer; full={full}; {ending:?}");
+    }
+}
+
+#[expect(
+    clippy::disallowed_methods,
+    reason = "ordinary fixtures select stock policy and assemble synthetic UTF-8 text"
+)]
+fn review_assignment(pull_bytes: usize) -> temper_engine_domain::Assignment {
+    use temper_engine_domain::{BriefBody, BriefKind, BriefSection, ForgeBriefKind};
+    let settings = fixtures::engine();
+    let stock = crate::stock::defaults(&settings.jig.llm, settings.jig.limits.core.tasks.result_bytes);
+    let mut assignment = fixtures::assignment_with(fixtures::repository(7, b"acme", b"shop"));
+    assignment.charter = 4;
+    assignment.run.policy = stock.charters.into_iter().find(|charter| charter.number == 4).unwrap().policy;
+    assignment.run.authority.tools = assignment.run.policy.tools;
+    assignment.run.contract = tasks::Contract::Verdict {
+        choices: (1..=2).map(|code| tasks::Verdict { code, words: 1024, followups: 0, fields: Box::new([]) }).collect(),
+    };
+    let mut pull = b"Pull #10 acme/shop head recorded-head\n".to_vec();
+    let remaining = pull_bytes.checked_sub(pull.len()).unwrap();
+    pull.extend_from_slice("λ".repeat(remaining / 2).as_bytes());
+    if !remaining.is_multiple_of(2) {
+        pull.push(b'x');
+    }
+    assert_eq!(pull.len(), pull_bytes);
+    assignment.sections = Box::new([
+        BriefSection {
+            kind: BriefKind::Core(jig_domain_brief::Core::Task),
+            body: BriefBody::Text(b"Review L's pull #10 against its task.".as_slice().into()),
+        },
+        BriefSection { kind: BriefKind::Forge(ForgeBriefKind::Pull), body: BriefBody::Text(pull.into()) },
+    ]);
+    assignment
+}
+
+fn admitted_review(assignment: temper_engine_domain::Assignment, bound: u64) -> smith_host_domain::Start {
+    let mut settings = fixtures::engine();
+    settings.jig.limits.hub.charter_bytes = bound;
+    settings.files = fixtures::worker_digests(&settings);
+    let mut workers = crate::workers::Workers::configured(&mut settings, [7; 16]).unwrap();
+    workers.forges = fixtures::forge_table(&fixtures::forges());
+    assert_eq!(workers.encoding.charter_bytes, bound);
+    let event = workers
+        .encoded_assignment(Time::ZERO, Token::new(8), assignment, &crate::values::Values::new(0, 0))
+        .expect("review assignment encodes");
+    let jig_protocol_engine_workers::Event::Down { down: host::LinkDown::Assign { assignment }, parts, .. } = event
+    else {
+        panic!("assignment event")
+    };
+    admit_review_wire(&assignment, &settings);
+    let mut worker = fixtures::worker();
+    worker.link(
+        Time::ZERO,
+        jig_protocol_worker_link::Request::Down { down: host::LinkDown::Assign { assignment }, parts },
+    );
+    let temper_worker_domain::Event::Assign { assignment, .. } = worker.engine.pop().unwrap() else {
+        panic!("review reaches worker")
+    };
+    decode_review(assignment, bound)
+}
+
+fn admit_review_wire(assignment: &host::Assignment, settings: &crate::settings::Engine) {
+    use jig_protocol_worker_wire as wire;
+    let limits = crate::workers::limits(settings).unwrap();
+    let bodies = wire::sizes::limits(&limits.sizes).unwrap();
+    let run = &assignment.assignment;
+    let record = wire::Assignment::new(
+        &bodies,
+        wire::AssignmentParts {
+            task: run.run.raw(),
+            attempt: run.attempt.raw(),
+            identity: run.identity,
+            workspace: None,
+            save: run.save,
+            live: wire::LiveAsk::new(&bodies, wire::LiveAskParts { text: false, reasoning: false, input: false })
+                .unwrap(),
+            charter: run.charter.clone(),
+            transcript: Box::new([]),
+            answered: skein_lib::List::with_capacity(0),
+            messages: skein_lib::List::with_capacity(0),
+            grants: skein_lib::List::with_capacity(0),
+        },
+    )
+    .expect("review passes assignment wire admission");
+    let mut bytes = skein_lib::Writer::new(usize::try_from(record.measure()).unwrap());
+    record.encode(&mut bytes).unwrap();
+    wire::Assignment::decode(&bodies, &mut skein_lib::Reader::new(&bytes.finish())).unwrap();
+}
+
+fn decode_review(assignment: host::Assignment, bound: u64) -> smith_host_domain::Start {
+    let run = assignment.assignment;
+    assert_eq!((run.run, run.attempt), (Token::new(7), Token::new(2)));
+    assert_eq!(run.identity, jig_protocol_charter::run_identity(&[7; 16], 7, 2));
+    let mut agent = fixtures::worker_agent();
+    agent.host_limits.charter_bytes = bound;
+    *crate::worker_route::decode(
+        run.run,
+        host::Start {
+            live: run.live,
+            workspace: None,
+            charter: run.charter,
+            activation: run.attempt.raw(),
+            identity: run.identity,
+            turns: assignment.turns,
+            answered: assignment.answered,
+            messages: assignment.messages,
+            grants: run.grants,
+        },
+        &agent,
+    )
+    .expect("review passes receiving charter ownership admission")
+}
+
+#[test]
+#[expect(clippy::disallowed_methods, reason = "the regression verifies the retained UTF-8 prefix")]
+fn a_large_pull_review_fits_before_assignment_admission() {
+    let assignment = review_assignment(41_473);
+    let original = temper_engine_smith::charter(&assignment);
+    let start = admitted_review(assignment, 65_536);
+    let charter = start.charter.value();
+    assert_eq!(charter.instructions, original.instructions);
+    assert_eq!(charter.grants, original.grants);
+    assert_eq!(charter.outcome, original.outcome);
+    assert_eq!(charter.brief.sections[0], original.brief.sections[0]);
+    let pull = &charter.brief.sections[1];
+    assert_eq!(pull.title.as_ref(), b"Pull request");
+    assert!(pull.text.starts_with(b"Pull #10 acme/shop head recorded-head\n"));
+    assert!(pull.text.ends_with(b" bytes; whole: read_pull/read_pull_files]\n"));
+    assert!(skein_lib::bytes::find(&pull.text, b"[cut ").is_some());
+    ::core::str::from_utf8(&pull.text).expect("a pull cut keeps complete UTF-8 characters");
+}
+
+#[test]
+fn an_already_fitting_review_keeps_its_whole_charter() {
+    let assignment = review_assignment(100);
+    let original = temper_engine_smith::charter(&assignment);
+    let start = admitted_review(assignment, 65_536);
+    assert!(start.charter.value() == &original, "an already-fitting charter stays whole");
+}
+
+#[test]
+#[expect(
+    clippy::disallowed_methods,
+    clippy::disallowed_macros,
+    reason = "ordinary fixtures assemble aggregate section bodies"
+)]
+fn aggregate_gathered_sections_fit_in_their_existing_order() {
+    use temper_engine_domain::{BriefBody, BriefKind, BriefSection, ForgeBriefKind};
+    let mut assignment = review_assignment(10_000);
+    let mut sections = assignment.sections.into_vec();
+    for kind in [ForgeBriefKind::Home, ForgeBriefKind::Ci] {
+        sections.push(BriefSection { kind: BriefKind::Forge(kind), body: BriefBody::Text(vec![b'x'; 20_000].into()) });
+    }
+    assignment.sections = sections.into();
+    let original = temper_engine_smith::charter(&assignment);
+    let start = admitted_review(assignment, 65_536);
+    let sections = &start.charter.value().brief.sections;
+    assert_eq!(sections.len(), 4, "earlier gathered sections remain available");
+    assert_eq!(sections[0], original.brief.sections[0]);
+    assert_eq!(sections[1], original.brief.sections[1]);
+    assert_eq!(sections[2], original.brief.sections[2]);
+    assert!(sections[3].text.ends_with(b" bytes; whole: read_job/read_checks]\n"));
+}
+
+#[test]
+fn review_fitting_uses_the_configured_assignment_envelope() {
+    for bound in [49_152, 98_304] {
+        let assignment = review_assignment(41_473);
+        let original = temper_engine_smith::charter(&assignment);
+        let start = admitted_review(assignment, bound);
+        let pull = &start.charter.value().brief.sections[1];
+        if bound == 98_304 {
+            assert_eq!(pull, &original.brief.sections[1]);
+        } else {
+            assert!(pull.text.len() < original.brief.sections[1].text.len());
         }
     }
 }

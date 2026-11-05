@@ -233,8 +233,14 @@ impl Engine {
     }
     fn drain_notes(&mut self) {
         for _ in 0..self.notes.room() {
-            let Some(diagnostic) = self.domain.pop_run_diagnostic() else { break };
-            self.notes.push(crate::Note::RunFailed(diagnostic));
+            let note = if let Some(diagnostic) = self.domain.pop_run_diagnostic() {
+                crate::Note::RunFailed(diagnostic)
+            } else if let Some(diagnostic) = self.domain.pop_run_refusal() {
+                crate::Note::RunRefused(diagnostic)
+            } else {
+                break;
+            };
+            self.notes.push(note);
         }
         self.facts_waiting = false;
         for _ in 0..root::FACTS {
