@@ -794,8 +794,8 @@ have one, an engine alone none. Each:
     above 0;
   - the sign-ins': each above 0; `sign_in.body_bytes` within skein-oauth's response bound;
     `sign_in.members` within the forge's bindings' bound;
-  - the dismissals': `forge.judge_projects` at most 1024, the bound on
-    a party's dismissals on the client's wire
+  - the facts': `forge.judge_projects` at most 1024, an eighth of the bound on
+    a party's facts on the client's wire
     (`../client/README.md`, 4.6);
   - the webhooks' listener's: each of its limits above 0;
     `hook_secret_bytes` at least 32; `hook_head_bytes` at most the
