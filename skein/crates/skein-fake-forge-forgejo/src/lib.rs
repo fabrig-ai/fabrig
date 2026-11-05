@@ -7,7 +7,7 @@ pub mod delivery;
 use alloc::boxed::Box;
 use skein_lib::{List, Secret};
 pub mod errors;
-pub use skein_fake_forge_http::{Faults, Hosted, git};
+pub use skein_fake_forge_http::{Faults, Hosted};
 pub mod observations;
 pub mod response;
 pub mod routes;
@@ -31,8 +31,8 @@ pub struct Limits {
 impl Limits {
     /// The private git route's bounds (fake-forge.md, section 12).
     #[must_use]
-    pub const fn git(&self) -> git::Limits {
-        git::Limits { http: self.http, documents: self.documents }
+    pub const fn git(&self) -> skein_fake_forge_http::git::Limits {
+        skein_fake_forge_http::git::Limits { http: self.http, documents: self.documents }
     }
 }
 /// The repository's id, path and protected branch from the scenario.

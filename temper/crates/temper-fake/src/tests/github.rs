@@ -6,7 +6,7 @@ use skein_fake_forge_github::{
     installations::{Reach, Scope},
     service::{Outcome, Request},
 };
-use skein_fake_forge_forgejo::git::{self, Call};
+use skein_fake_forge_http::git::{self, Call};
 use skein_forge::github::request::Method;
 use skein_lib::{Duration, List, Secret, Writer, base64};
 

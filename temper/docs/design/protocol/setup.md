@@ -3107,11 +3107,11 @@ temper-fake                  step code: the playground's member, application.dem
 │                              checks; the fakes' configurations and seeds; the fake kind's group (8.4).
 │                              Names no host
 ├── temper-forge-setup
-├── skein-fake-forge-domain, skein-fake-forge-forgejo, skein-fake-llm-domain, skein-fake-peers
+├── skein-fake-forge-domain, skein-fake-forge-forgejo, skein-fake-forge-http, skein-fake-llm-domain, skein-fake-peers
 └── jig-protocol-config, skein-lib, skein-json
 temper-fake-git              ordinary Rust: the fake git program's core, temper fake git, its replay and
 │                              its two remotes (../domain/testing.md, 4.3)
-├── skein-fake-checkout, skein-fake-forge-domain, skein-fake-forge-forgejo, skein-fake-peers
+├── skein-fake-checkout, skein-fake-forge-domain, skein-fake-forge-forgejo, skein-fake-forge-http, skein-fake-peers
 └── skein-lib, skein-io, skein-http, skein-json
 temper                       the binary: temper forge fetch|prepare|run|remove, temper box, temper init,
                                temper fake llm|forge|git

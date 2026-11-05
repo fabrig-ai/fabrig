@@ -63,7 +63,7 @@ fn capacities(limits: &Limits, protocol: &protocol::Limits, forge: &Forge) -> Op
         return None;
     }
     if let protocol::Limits::Forgejo(limits) = protocol
-        && !skein_fake_forge_forgejo::git::fits(&limits.git(), domain)
+        && !skein_fake_forge_http::git::fits(&limits.git(), domain)
     {
         return None;
     }

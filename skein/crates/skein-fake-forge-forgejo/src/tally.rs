@@ -88,7 +88,7 @@ pub enum Route {
     PostStatus,
     CreateBranch,
     DeleteBranch,
-    Git(crate::git::Name),
+    Git(skein_fake_forge_http::git::Name),
 }
 impl Route {
     pub(crate) const fn is_git(self) -> bool {
