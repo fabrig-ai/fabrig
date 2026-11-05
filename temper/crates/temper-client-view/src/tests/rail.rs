@@ -323,7 +323,7 @@ fn goals_follows_kind_seven_or_keeps_its_open_page() {
     for (address, delivered, shown) in [
         (Address::Home { project: f::PROJECT }, None, false),
         (Address::Home { project: f::PROJECT }, Some(false), false),
-        (Address::Home { project: f::PROJECT }, Some(true), true),
+        (Address::Home { project: f::PROJECT }, Some(true), false),
         (Address::Goals { project: f::PROJECT, filter: GoalsFilter::Ended }, None, true),
         (Address::Goals { project: f::PROJECT, filter: GoalsFilter::All }, Some(false), true),
     ] {

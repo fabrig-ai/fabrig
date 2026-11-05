@@ -392,7 +392,7 @@ fn repository_section(b: &mut Builder, root: &Domain, w: &Words, bindings: &mut 
         w.say(Word::SettingsRepositoriesTab, &[])
     };
     text(b, Role::Heading { level: 2 }, &title, look::SETTINGS_SECTION_TITLE);
-    link(b, w, bindings, Word::Adoption, Address::Adopt { project });
+    button_link(b, w, bindings, Word::Adoption, Address::Adopt { project }, false);
     b.close();
     if known && count == 0 {
         b.open(Role::Slot);

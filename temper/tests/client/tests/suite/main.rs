@@ -25,6 +25,7 @@ mod open_chat;
 mod playground;
 mod project_fund;
 mod recovery;
+mod settings;
 mod settings_tools;
 mod stories;
 mod task;

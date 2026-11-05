@@ -106,8 +106,12 @@ repositories
 repositories-none
 settings
 settings-all-hidden
+settings-away-off
+settings-changes-off
 settings-chat-open
+settings-drafts-off
 settings-goals
+settings-goals-off
 settings-refused
 signed-out
 task-held

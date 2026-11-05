@@ -17,6 +17,7 @@
   `welcome-paste-too-long`, `welcome-paste-sending`,
   `welcome-paste-finishing`, `welcome-paste-address`, `welcome-paste-state`,
   `welcome-paste-too-many`, `welcome-paste-ended`, `welcome-paste-expired`,
-  `welcome-paste-lost` and `welcome-paste-unsent` are states the gallery
+  `welcome-paste-lost`, `welcome-paste-unsent`, `settings-drafts-off`,
+  `settings-goals-off`, `settings-changes-off` and `settings-away-off` are states the gallery
   holds (`tools/gallery/names.txt`, `tools/gallery/src/samples.rs`) that
   the table does not list.

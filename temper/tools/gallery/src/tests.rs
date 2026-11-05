@@ -1050,6 +1050,26 @@ const HOLDS: [Holds; samples::N] = [
         ],
     },
     Holds {
+        name: "settings-drafts-off",
+        heading: "How work runs in tally.",
+        parts: &[Part::Named { role: Role::Check, name: "Chats can write drafts" }],
+    },
+    Holds {
+        name: "settings-goals-off",
+        heading: "How work runs in tally.",
+        parts: &[Part::Named { role: Role::Check, name: "Goals" }],
+    },
+    Holds {
+        name: "settings-changes-off",
+        heading: "How work runs in tally.",
+        parts: &[Part::Named { role: Role::Check, name: "Changes" }],
+    },
+    Holds {
+        name: "settings-away-off",
+        heading: "How work runs in tally.",
+        parts: &[Part::Named { role: Role::Check, name: "Away switch" }],
+    },
+    Holds {
         name: "settings-all-hidden",
         heading: "How work runs in tally.",
         parts: &[
@@ -1875,4 +1895,35 @@ fn reference_lede_names_the_worlds_templates_in_number_order() {
         String::from_utf8(text).expect("lede UTF-8"),
         "A goal turns a draft into landed work, its own way: task by task, plan, tasks, land whole, plan, then wait for me, one agent, one branch."
     );
+}
+
+#[test]
+fn each_settings_switch_off_keeps_its_value_and_changes_its_navigation() {
+    for (name, off) in [
+        ("settings-drafts-off", "Chats can write drafts"),
+        ("settings-goals-off", "Goals"),
+        ("settings-changes-off", "Changes"),
+        ("settings-away-off", "Away switch"),
+    ] {
+        let sample = samples::samples().into_iter().find(|sample| sample.name == name).expect("switch-off sample");
+        let view = view(&sample);
+        let tree = view.tree();
+        for label in ["Chats can write drafts", "Goals", "Changes", "Away switch"] {
+            let id = find(tree, Role::Check, label, name);
+            let check = tree.nodes().iter().find(|node| node.id == id).expect("switch node");
+            assert_eq!(check.states.as_slice().contains(&skein_ui::State::Pressed), label != off, "{name}: {label}");
+        }
+        for label in ["Goals", "Changes"] {
+            let present = tree
+                .nodes()
+                .iter()
+                .any(|node| node.role == Role::Link && node.name.as_deref() == Some(label.as_bytes()));
+            assert_eq!(present, label != off, "{name}: {label} navigation");
+        }
+        let ways = tree
+            .nodes()
+            .iter()
+            .any(|node| node.role == Role::Heading { level: 2 } && node.name.as_deref() == Some(b"Ways of working"));
+        assert_eq!(ways, off != "Goals", "{name}: ways");
+    }
 }
