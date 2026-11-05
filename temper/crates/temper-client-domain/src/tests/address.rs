@@ -5,7 +5,7 @@ use crate::{
 
 #[test]
 fn each_page_round_trips_through_its_path() {
-    let pages: [(Address, &[u8]); 20] = [
+    let pages: [(Address, &[u8]); 24] = [
         (Address::Inbox { filter: Filter::ALL }, b"/"),
         (Address::Chats { filter: ChatsFilter::All }, b"/chats"),
         (Address::Chat { task: 7 }, b"/chats/7"),
@@ -22,6 +22,10 @@ fn each_page_round_trips_through_its_path() {
         (Address::Goals { project: u32::MAX, filter: GoalsFilter::All }, b"/projects/4294967295/goals"),
         (Address::Goals { project: 3, filter: GoalsFilter::All }, b"/projects/3/goals"),
         (Address::Settings { project: 3 }, b"/projects/3/settings"),
+        (Address::Builders { project: 0 }, b"/projects/0/settings/builders"),
+        (Address::Builders { project: 3 }, b"/projects/3/settings/builders"),
+        (Address::Builders { project: u32::MAX }, b"/projects/4294967295/settings/builders"),
+        (Address::Repositories { project: 3 }, b"/projects/3/settings/repositories"),
         (Address::Adopt { project: 3 }, b"/projects/3/adopt"),
         (Address::Configure { project: 0 }, b"/projects/0/settings/configure"),
         (Address::Configure { project: u32::MAX }, b"/projects/4294967295/settings/configure"),
@@ -200,6 +204,7 @@ fn each_number_spans_its_types_range() {
 fn the_welcome_prints_and_parses_each_step() {
     for (step, path) in [
         (Step::Welcome, b"/welcome".as_slice()),
+        (Step::WelcomeAsked, b"/welcome?at=welcome"),
         (Step::Forge { forge: None }, b"/welcome?at=forge"),
         (Step::Model { way: None }, b"/welcome?at=model"),
         (Step::Ready, b"/welcome?at=ready"),
@@ -421,6 +426,11 @@ fn other_paths_read_as_before() {
     assert_eq!(parse(b"/publicx/projects/0123456789abcdef"), Place::Missing);
     assert_eq!(parse(b"/chats/7"), Place::Address(Address::Chat { task: 7 }));
     assert_eq!(parse(b"/"), Place::Address(Address::Inbox { filter: Filter::ALL }));
+}
+
+#[test]
+fn a_neighbour_of_repositories_is_missing() {
+    assert_eq!(parse(b"/projects/3/settings/other"), Place::Missing);
 }
 
 #[test]

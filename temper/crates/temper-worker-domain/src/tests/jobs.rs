@@ -101,7 +101,7 @@ fn git(h: &mut Harness, initial: Box<[Request]>, stale: bool) -> Box<[Request]> 
                     assert_eq!(*commit, Commit::new([2; 32]));
                     if stale { Done::Rejected } else { Done::Succeeded }
                 }
-                Op::IsAncestor { .. } => Done::IsAncestor { contains: true },
+                Op::Look { .. } | Op::IsAncestor { .. } => Done::IsAncestor { contains: true },
                 Op::Make { .. } | Op::Clone { .. } | Op::Create { .. } | Op::CheckOut { .. } => Done::Succeeded,
                 Op::Merge { .. } => Done::Merged,
             };
@@ -150,7 +150,7 @@ fn result(h: &mut Harness, owner: Token) -> Box<[Request]> {
 fn answer(rows: &[Request]) -> &host::JobEnding {
     let mut answer = None;
     for row in rows {
-        if let Request::Link(host::LinkUp::JobAnswer { run, attempt, answer: ending }) = row {
+        if let Request::JobAnswer { run, attempt, answer: ending, .. } = row {
             assert_eq!((*run, *attempt), (fixtures::RUN, fixtures::ATTEMPT));
             assert!(answer.replace(ending).is_none(), "one job answer");
         }

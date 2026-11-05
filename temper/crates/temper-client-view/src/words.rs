@@ -11,6 +11,39 @@ use skein_ui::{
 };
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 pub enum Word {
+    SettingsBuildersTab,
+    SettingsBuildersHeading,
+    SettingsBuildersLede,
+    BuildersCount,
+    BuildersSlot,
+    BuildersSlots,
+    BuilderUnnamed,
+    BuilderConnected,
+    BuilderDraining,
+    BuilderNotConnected,
+    BuildersFacts,
+    BuildersNone,
+    BuildersNoRole,
+    BuildersCut,
+    SettingsKicker,
+    SettingsHowHeading,
+    SettingsHowLede,
+    SettingsRepositoriesHeading,
+    SettingsRepositoriesLede,
+    SettingsForgesHeading,
+    SettingsForgesLede,
+    SettingsAccountsHeading,
+    SettingsAccountsLede,
+    SettingsAccountsTab,
+    PathAddForge,
+    PathConnectAccount,
+    SettingsHowTab,
+    SettingsRepositoriesTab,
+    SettingsConfigureHelp,
+    SettingsRepositoriesCount,
+    SettingsNoneTag,
+    SettingsNoneBody,
+    SettingsSignedIn,
     GoalsWaySeparator,
     GoalsWayEnd,
     GoalsKicker,
@@ -180,6 +213,27 @@ pub enum Word {
     HomeHow,
     HomeHowDetail,
     HomeStart,
+    HomeCopying,
+    HomeCopyWaiting,
+    HomeCopyIn,
+    HomeCopiesIn,
+    HomeCopyInDetail,
+    HomeCopiesInDetail,
+    HomeCopyAgain,
+    HomeCopyOffer,
+    HomeCopyAct,
+    HomeAddTitle,
+    HomeAddDetail,
+    HomeAddEmpty,
+    HomeAddCopy,
+    HomeAddOther,
+    HomeAddSheet,
+    HomeAddSheetLead,
+    HomeAddLegend,
+    HomeAddIt,
+    HomeMaking,
+    HomeAddRefused,
+
     HomeIn,
     HomeInDetail,
     HomeAdopting,
@@ -314,7 +368,7 @@ pub enum Word {
     GitHubOpen,
     YourForgesTitle,
     YourForges,
-    ForgesDescription,
+    NoForgeTag,
     AddForge,
     NoForges,
     ForgeSummary,
@@ -425,7 +479,6 @@ pub enum Word {
     ForgeLeave,
     ForgeProgress,
     ForgeAdopt,
-    ForgeView,
     WelcomeNoForge,
     WelcomeNoModel,
 
@@ -449,11 +502,14 @@ pub enum Word {
     WelcomePlaygroundDescription,
     WelcomePlaygroundCost,
     WelcomeSetup,
+    WelcomeGoOn,
     WelcomeSetupDescription,
     WelcomeSetupTime,
     WelcomeAfter,
     WelcomeForgeTitle,
     WelcomeForgeLead,
+    WelcomeForgeLeadKept,
+    WelcomeForgeGitHubApp,
     WelcomeModelTitle,
     WelcomeModelLead,
     WelcomeReadyTitle,
@@ -585,7 +641,6 @@ pub enum Word {
     AskedByTask,
     AskedByDeployment,
     Deadline,
-    AccountLead,
     Priority,
     Folded,
     HeldBelow,
@@ -902,6 +957,31 @@ pub enum Word {
     WelcomeBoxServer,
     WelcomeModelSignInTime,
     WelcomeModelProgramTime,
+    WelcomeKeyTitle,
+    WelcomeKeyBody,
+    WelcomeKeyField,
+    WelcomeKeyFacts,
+    WelcomePasteTitle,
+    WelcomePasteOpen,
+    WelcomePasteOpenRest,
+    WelcomePasteCopy,
+    WelcomePasteHere,
+    WelcomePasteField,
+    WelcomePasteFinish,
+    WelcomeAllWays,
+    WelcomeAwayTitle,
+    WelcomeAwayBody,
+    WelcomeFinishing,
+    WelcomeClaudeTitle,
+    WelcomeClaudeBody,
+    WelcomeClaudeNote,
+    WelcomeClaudeSignedIn,
+    WelcomeClaudeChecking,
+    WelcomeClaudeNotYet,
+
+    WelcomeForgeStillSettingUp,
+    WelcomeProgramAccount,
+    WelcomeKeyAccount,
     WelcomeForgeDoneDetail,
     WelcomeForgeDoneRepository,
     WelcomeForgejoLead,
@@ -914,10 +994,14 @@ pub enum Word {
     WelcomeForgejoAddressHint,
     WelcomeForgejoNothing,
     WelcomeForgejoNothingDetail,
-    WelcomeForgejoNotYet,
+    WelcomeCopiesNotAnAddress,
+    WelcomeCopiesNone,
+    WelcomeCopiesTooMany,
+    WelcomeSheetBlank,
     WelcomeForgejoName,
     WelcomeReadyLead,
     WelcomeReadyRepositoryLead,
+    WelcomeReadyCopiesLead,
     WelcomeCreateProject,
     WelcomeRenameLater,
     WelcomeDefaultUnnamed,
@@ -984,15 +1068,25 @@ pub(crate) const SCRIPTED_MODEL: &[u8] = b"demo";
 // Removing Connected removes seven phrases (client/README.md, 3.5).
 // Configure adds seven literal phrases (client/README.md, 3.5).
 // The configuring chat tag adds one literal phrase (3.5).
-// New chat adds three phrases (client/README.md, 3.5).
+// Welcome's resumed setup adds one literal phrase (client/README.md, 3.5).
+// Forge status adds two phrases and removes View (client/README.md, 3.5).
 // The configuring opening replaces one phrase with nineteen (client/README.md, 3.5).
-// Chats adds six phrases and removes two filter empty phrases (client/README.md, 3.5).
+// Settings adds seventeen phrases and thirty-three literal/hole segments (3.5).
+// Model’s panels and notes add fifteen phrases (client/README.md, 3.5).
+// Claude’s welcome panel and check add six literals (client/README.md, 3.5).
+// Ready adds its setup note and program/key details (client/README.md, 3.5).
 // Goal rows, ways and page add thirty-five phrases (client/README.md, 3.5).
-// Byline forms add six phrases (client/README.md, 5.5).
+// The sheet replaces its placeholder with four refusal phrases (3.5).
 // Needs count, toast, page and kinds add thirty-two phrases (3.5).
+// Ready’s counted copy lead adds one phrase (client/README.md, 3.5).
+// Home’s copies add nine phrases (client/README.md, 3.5).
+// Home’s repository sheet adds eleven phrases (client/README.md, 3.5).
+// New chat adds three phrases (client/README.md, 3.5).
+// Chats adds six phrases and removes two filter empty phrases (client/README.md, 3.5).
+// Byline forms add six phrases (client/README.md, 5.5).
 // The chat working indicator adds one phrase and one segment (client/README.md, 3.5).
 // Delegation lines add seven literal phrases (client/README.md, 5.7).
-const PHRASES: u32 = 1483;
+const PHRASES: u32 = 1566;
 // Ready's empty-name line has two literals and a Name hole, two more segments (3.5).
 // Ready's repository lead adds one phrase and three segments (3.5).
 // Four literals and the counted entry's two literals and Number hole add seven segments.
@@ -1004,15 +1098,59 @@ const PHRASES: u32 = 1483;
 // Removing Connected removes twenty-three literal and hole segments (3.5).
 // Configure adds seven literal segments (client/README.md, 3.5).
 // The configuring chat tag adds one literal segment (3.5).
-// New chat adds nine literal and hole segments (client/README.md, 3.5).
+// Welcome's resumed setup adds one literal segment (client/README.md, 3.5).
+// Forge status adds four segments and removes View (3.5).
 // The configuring opening adds twenty literal and hole segments (3.5).
+// Five plan-name holes add ten segments to fifteen Model phrases (3.5).
+// Claude’s six literals add six segments (client/README.md, 3.5).
+// Ready adds four literal segments and one program-name hole (3.5).
+// Goal rows, ways and page add sixty-three segments (3.5).
+// The sheet adds five segments after removing its placeholder (3.5).
+// Needs count, toast, page and kinds add sixty-two segments (3.5).
+// Ready’s counted copy lead adds two literals and a Number hole (3.5).
+// Home’s copies add twenty-five literal and hole segments (3.5).
+// Home’s repository sheet adds 19 literal and hole segments (3.5).
+// Agent check refusal adds two segments for its charter number (5.13).
+// New chat adds nine literal and hole segments (client/README.md, 3.5).
 // Chats adds fourteen segments and removes two (client/README.md, 3.5).
 // Goal rows, ways and page add sixty-three segments (client/README.md, 3.5).
 // Byline forms add twenty-eight segments (client/README.md, 5.5).
-// Needs count, toast, page and kinds add sixty-two segments (3.5).
 // Delegation lines add seven literal segments (client/README.md, 5.7).
-const SEGMENTS: u32 = 2601;
-const ALL: [Word; 887] = [
+const SEGMENTS: u32 = 2754;
+const ALL: [Word; 969] = [
+    Word::SettingsBuildersTab,
+    Word::SettingsBuildersHeading,
+    Word::SettingsBuildersLede,
+    Word::BuildersCount,
+    Word::BuildersSlot,
+    Word::BuildersSlots,
+    Word::BuilderUnnamed,
+    Word::BuilderConnected,
+    Word::BuilderDraining,
+    Word::BuilderNotConnected,
+    Word::BuildersFacts,
+    Word::BuildersNone,
+    Word::BuildersNoRole,
+    Word::BuildersCut,
+    Word::SettingsKicker,
+    Word::SettingsHowHeading,
+    Word::SettingsHowLede,
+    Word::SettingsRepositoriesHeading,
+    Word::SettingsRepositoriesLede,
+    Word::SettingsForgesHeading,
+    Word::SettingsForgesLede,
+    Word::SettingsAccountsHeading,
+    Word::SettingsAccountsLede,
+    Word::SettingsAccountsTab,
+    Word::PathAddForge,
+    Word::PathConnectAccount,
+    Word::SettingsHowTab,
+    Word::SettingsRepositoriesTab,
+    Word::SettingsConfigureHelp,
+    Word::SettingsRepositoriesCount,
+    Word::SettingsNoneTag,
+    Word::SettingsNoneBody,
+    Word::SettingsSignedIn,
     Word::GoalsWaySeparator,
     Word::GoalsWayEnd,
     Word::GoalsKicker,
@@ -1179,6 +1317,26 @@ const ALL: [Word; 887] = [
     Word::HomeHow,
     Word::HomeHowDetail,
     Word::HomeStart,
+    Word::HomeCopying,
+    Word::HomeCopyWaiting,
+    Word::HomeCopyIn,
+    Word::HomeCopiesIn,
+    Word::HomeCopyInDetail,
+    Word::HomeCopiesInDetail,
+    Word::HomeCopyAgain,
+    Word::HomeCopyOffer,
+    Word::HomeCopyAct,
+    Word::HomeAddTitle,
+    Word::HomeAddDetail,
+    Word::HomeAddEmpty,
+    Word::HomeAddCopy,
+    Word::HomeAddOther,
+    Word::HomeAddSheet,
+    Word::HomeAddSheetLead,
+    Word::HomeAddLegend,
+    Word::HomeAddIt,
+    Word::HomeMaking,
+    Word::HomeAddRefused,
     Word::HomeIn,
     Word::HomeInDetail,
     Word::HomeAdopting,
@@ -1308,7 +1466,7 @@ const ALL: [Word; 887] = [
     Word::GitHubOpen,
     Word::YourForgesTitle,
     Word::YourForges,
-    Word::ForgesDescription,
+    Word::NoForgeTag,
     Word::AddForge,
     Word::NoForges,
     Word::ForgeSummary,
@@ -1417,7 +1575,6 @@ const ALL: [Word; 887] = [
     Word::ForgeLeave,
     Word::ForgeProgress,
     Word::ForgeAdopt,
-    Word::ForgeView,
     Word::WelcomeNoForge,
     Word::WelcomeNoModel,
     Word::FlowDone,
@@ -1439,11 +1596,14 @@ const ALL: [Word; 887] = [
     Word::WelcomePlaygroundDescription,
     Word::WelcomePlaygroundCost,
     Word::WelcomeSetup,
+    Word::WelcomeGoOn,
     Word::WelcomeSetupDescription,
     Word::WelcomeSetupTime,
     Word::WelcomeAfter,
     Word::WelcomeForgeTitle,
     Word::WelcomeForgeLead,
+    Word::WelcomeForgeLeadKept,
+    Word::WelcomeForgeGitHubApp,
     Word::WelcomeModelTitle,
     Word::WelcomeModelLead,
     Word::WelcomeReadyTitle,
@@ -1572,7 +1732,6 @@ const ALL: [Word; 887] = [
     Word::AskedByTask,
     Word::AskedByDeployment,
     Word::Deadline,
-    Word::AccountLead,
     Word::Priority,
     Word::Folded,
     Word::HeldBelow,
@@ -1880,6 +2039,30 @@ const ALL: [Word; 887] = [
     Word::WelcomeBoxServer,
     Word::WelcomeModelSignInTime,
     Word::WelcomeModelProgramTime,
+    Word::WelcomeKeyTitle,
+    Word::WelcomeKeyBody,
+    Word::WelcomeKeyField,
+    Word::WelcomeKeyFacts,
+    Word::WelcomePasteTitle,
+    Word::WelcomePasteOpen,
+    Word::WelcomePasteOpenRest,
+    Word::WelcomePasteCopy,
+    Word::WelcomePasteHere,
+    Word::WelcomePasteField,
+    Word::WelcomePasteFinish,
+    Word::WelcomeAllWays,
+    Word::WelcomeAwayTitle,
+    Word::WelcomeAwayBody,
+    Word::WelcomeFinishing,
+    Word::WelcomeClaudeTitle,
+    Word::WelcomeClaudeBody,
+    Word::WelcomeClaudeNote,
+    Word::WelcomeClaudeSignedIn,
+    Word::WelcomeClaudeChecking,
+    Word::WelcomeClaudeNotYet,
+    Word::WelcomeForgeStillSettingUp,
+    Word::WelcomeProgramAccount,
+    Word::WelcomeKeyAccount,
     Word::WelcomeForgeDoneDetail,
     Word::WelcomeForgeDoneRepository,
     Word::WelcomeForgejoLead,
@@ -1892,10 +2075,14 @@ const ALL: [Word; 887] = [
     Word::WelcomeForgejoAddressHint,
     Word::WelcomeForgejoNothing,
     Word::WelcomeForgejoNothingDetail,
-    Word::WelcomeForgejoNotYet,
+    Word::WelcomeCopiesNotAnAddress,
+    Word::WelcomeCopiesNone,
+    Word::WelcomeCopiesTooMany,
+    Word::WelcomeSheetBlank,
     Word::WelcomeForgejoName,
     Word::WelcomeReadyLead,
     Word::WelcomeReadyRepositoryLead,
+    Word::WelcomeReadyCopiesLead,
     Word::WelcomeCreateProject,
     Word::WelcomeRenameLater,
     Word::WelcomeDefaultUnnamed,
@@ -1905,6 +2092,39 @@ impl Word {
     #[expect(clippy::too_many_lines, reason = "one exhaustive table keeps the frame phrase IDs stable")]
     fn id(self, connector: u16) -> PhraseId {
         let number = match self {
+            Self::SettingsBuildersTab => 3407,
+            Self::SettingsBuildersHeading => 3408,
+            Self::SettingsBuildersLede => 3409,
+            Self::BuildersCount => 3410,
+            Self::BuildersSlot => 3411,
+            Self::BuildersSlots => 3412,
+            Self::BuilderUnnamed => 3413,
+            Self::BuilderConnected => 3414,
+            Self::BuilderDraining => 3415,
+            Self::BuilderNotConnected => 3416,
+            Self::BuildersFacts => 3417,
+            Self::BuildersNone => 3418,
+            Self::BuildersNoRole => 3419,
+            Self::BuildersCut => 3420,
+            Self::SettingsKicker => 3388,
+            Self::SettingsHowHeading => 3389,
+            Self::SettingsHowLede => 3390,
+            Self::SettingsRepositoriesHeading => 3391,
+            Self::SettingsRepositoriesLede => 3392,
+            Self::SettingsForgesHeading => 3393,
+            Self::SettingsForgesLede => 3394,
+            Self::SettingsAccountsHeading => 3395,
+            Self::SettingsAccountsLede => 3396,
+            Self::SettingsAccountsTab => 3404,
+            Self::PathAddForge => 3405,
+            Self::PathConnectAccount => 3406,
+            Self::SettingsHowTab => 3397,
+            Self::SettingsRepositoriesTab => 3398,
+            Self::SettingsConfigureHelp => 3399,
+            Self::SettingsRepositoriesCount => 3400,
+            Self::SettingsNoneTag => 3401,
+            Self::SettingsNoneBody => 3402,
+            Self::SettingsSignedIn => 3403,
             Self::GoalsWaySeparator => 3285,
             Self::GoalsWayEnd => 3286,
             Self::GoalsKicker => 3271,
@@ -2072,6 +2292,27 @@ impl Word {
             Self::HomeHow => 3119,
             Self::HomeHowDetail => 3120,
             Self::HomeStart => 3121,
+            Self::HomeCopying => 3339,
+            Self::HomeCopyWaiting => 3340,
+            Self::HomeCopyIn => 3341,
+            Self::HomeCopiesIn => 3342,
+            Self::HomeCopyInDetail => 3343,
+            Self::HomeCopiesInDetail => 3344,
+            Self::HomeCopyAgain => 3345,
+            Self::HomeCopyOffer => 3346,
+            Self::HomeCopyAct => 3347,
+            Self::HomeAddTitle => 3348,
+            Self::HomeAddDetail => 3349,
+            Self::HomeAddEmpty => 3350,
+            Self::HomeAddCopy => 3351,
+            Self::HomeAddOther => 3352,
+            Self::HomeAddSheet => 3353,
+            Self::HomeAddSheetLead => 3354,
+            Self::HomeAddLegend => 3355,
+            Self::HomeAddIt => 3356,
+            Self::HomeMaking => 3357,
+            Self::HomeAddRefused => 3358,
+
             Self::HomeIn => 3122,
             Self::HomeInDetail => 3123,
             Self::HomeAdopting => 3124,
@@ -2154,7 +2395,7 @@ impl Word {
 
             Self::YourForgesTitle => 1819,
             Self::YourForges => 1800,
-            Self::ForgesDescription => 1801,
+            Self::NoForgeTag => 1801,
             Self::AddForge => 1802,
             Self::NoForges => 1803,
             Self::ForgeSummary => 1804,
@@ -2313,7 +2554,6 @@ impl Word {
             Self::ForgeLeave => 1761,
             Self::ForgeProgress => 1762,
             Self::ForgeAdopt => 1763,
-            Self::ForgeView => 1764,
             Self::WelcomeNoForge => 1765,
             Self::WelcomeNoModel => 1766,
 
@@ -2337,11 +2577,14 @@ impl Word {
             Self::WelcomePlaygroundDescription => 1308,
             Self::WelcomePlaygroundCost => 1309,
             Self::WelcomeSetup => 1310,
+            Self::WelcomeGoOn => 1327,
             Self::WelcomeSetupDescription => 1311,
             Self::WelcomeSetupTime => 1312,
             Self::WelcomeAfter => 1313,
             Self::WelcomeForgeTitle => 1314,
             Self::WelcomeForgeLead => 1315,
+            Self::WelcomeForgeLeadKept => 3359,
+            Self::WelcomeForgeGitHubApp => 3360,
             Self::WelcomeModelTitle => 1317,
             Self::WelcomeModelLead => 1318,
             Self::WelcomeReadyTitle => 1319,
@@ -2493,7 +2736,6 @@ impl Word {
             Self::AskedByTask => 169,
             Self::AskedByDeployment => 170,
             Self::Deadline => 171,
-            Self::AccountLead => 194,
             Self::Priority => 172,
             Self::Folded => 173,
             Self::HeldBelow => 174,
@@ -2773,6 +3015,31 @@ impl Word {
             Self::WelcomeBoxServer => 3028,
             Self::WelcomeModelSignInTime => 3029,
             Self::WelcomeModelProgramTime => 3030,
+            Self::WelcomeKeyTitle => 3361,
+            Self::WelcomeKeyBody => 3362,
+            Self::WelcomeKeyField => 3363,
+            Self::WelcomeKeyFacts => 3364,
+            Self::WelcomePasteTitle => 3365,
+            Self::WelcomePasteOpen => 3366,
+            Self::WelcomePasteOpenRest => 3367,
+            Self::WelcomePasteCopy => 3368,
+            Self::WelcomePasteHere => 3369,
+            Self::WelcomePasteField => 3370,
+            Self::WelcomePasteFinish => 3371,
+            Self::WelcomeAllWays => 3372,
+            Self::WelcomeAwayTitle => 3373,
+            Self::WelcomeAwayBody => 3374,
+            Self::WelcomeFinishing => 3375,
+            Self::WelcomeClaudeTitle => 3376,
+            Self::WelcomeClaudeBody => 3377,
+            Self::WelcomeClaudeNote => 3378,
+            Self::WelcomeClaudeSignedIn => 3379,
+            Self::WelcomeClaudeChecking => 3380,
+            Self::WelcomeClaudeNotYet => 3381,
+            Self::WelcomeForgeStillSettingUp => 3382,
+            Self::WelcomeProgramAccount => 3383,
+            Self::WelcomeKeyAccount => 3384,
+
             Self::WelcomeForgeDoneDetail => 3031,
             Self::WelcomeForgeDoneRepository => 3049,
             Self::WelcomeForgejoLead => 3032,
@@ -2785,10 +3052,14 @@ impl Word {
             Self::WelcomeForgejoAddressHint => 3039,
             Self::WelcomeForgejoNothing => 3040,
             Self::WelcomeForgejoNothingDetail => 3041,
-            Self::WelcomeForgejoNotYet => 3042,
+            Self::WelcomeCopiesNotAnAddress => 3385,
+            Self::WelcomeCopiesNone => 3386,
+            Self::WelcomeCopiesTooMany => 3387,
+            Self::WelcomeSheetBlank => 3337,
             Self::WelcomeForgejoName => 3043,
             Self::WelcomeReadyLead => 3044,
             Self::WelcomeReadyRepositoryLead => 3060,
+            Self::WelcomeReadyCopiesLead => 3338,
             Self::WelcomeCreateProject => 3045,
             Self::WelcomeRenameLater => 3046,
             Self::WelcomeDefaultUnnamed => 3047,
@@ -2865,6 +3136,17 @@ fn hole_bytes(word: Word, kind: HoleKind, last: bool, joined: u32) -> Result<u32
         return Ok(temper_client_protocol_wire::v1::CEILINGS.changes_panel_landing);
     }
 
+    // Copy titles retain every 100-byte org, slash, 100-byte name, comma and space (3.5).
+    if word == Word::HomeCopiesIn && !last {
+        return temper_client_protocol_wire::FIRST_COPIES.checked_mul(203).ok_or(Invalid::Overflow);
+    }
+    if word == Word::HomeCopyOffer
+        || word == Word::HomeCopyIn && !last
+        || word == Word::HomeCopying
+        || word == Word::HomeMaking
+    {
+        return Ok(joined.max(512));
+    }
     // The phone link names the joined title, question and its colon (3.5).
     if word == Word::HomeAnswerName && !last {
         return home_answer_bytes(joined);
@@ -3052,16 +3334,53 @@ impl Words {
             // Setup fields and first repository need 28 more segments; the playground's start 15.
             segments: SEGMENTS,
             // Everyday Home adds 288 bytes; More accounts 149; Configure 401 and its tag 11 literal bytes (3.5).
-            // New chat adds 157 and the configuring opening 476 literal bytes (client/README.md, 3.5).
-            // Changes adds 367 literal bytes (client/README.md, 3.5).
-            // Chats adds 141 net literal bytes (client/README.md, 3.5).
-            text_bytes: 32768 + 288 + 149 + 401 + 11 + 367 + 476 + 157 + 141 + 419 + 250 + 87 + 225 + 15 + 54 + 53,
+            // Settings and Builders add 1154 literal bytes (3.5).
+            // Forge status adds 76 literal bytes after removing View (3.5).
+            // The configuring opening adds 476 literal bytes (client/README.md, 3.5).
+            // Model’s fifteen panel and note phrases add 659 literal bytes (3.5).
+            // Claude’s six phrases add 468 literal bytes (client/README.md, 3.5).
+            // Ready’s note and account details add 122 literal bytes (3.5).
+            // Goal rows, ways and page add 669 literal bytes (3.5).
+            // Sheet refusal literals add 84 bytes (client/README.md, 3.5).
+            // Needs count, toast, page and kinds add 381 literal bytes (3.5).
+            // Ready’s counted copy lead adds 96 literal bytes (3.5).
+            // Home’s copy phrases add 254 literal bytes (client/README.md, 3.5).
+            // Home’s repository sheet adds 289 literal bytes (client/README.md, 3.5).
+            // Agent check refusal adds 53 literal bytes (5.13).
+            text_bytes: 1154
+                + 157
+                + 141
+                + 419
+                + 250
+                + 87
+                + 225
+                + 15
+                + 54
+                + 53
+                + 289
+                + 254
+                + 96
+                + 381
+                + 84
+                + 669
+                + 122
+                + 32768
+                + 288
+                + 149
+                + 401
+                + 11
+                + 76
+                + 476
+                + 659
+                + 367
+                + 468,
             // Whole playground requests keep their supplied bound.
             hole_bytes: joined
                 .max(byline_bytes(joined)?)
                 .max(switcher_repository_bytes(joined)?)
                 .max(home_answer_bytes(joined)?)
                 .max(temper_client_protocol_wire::CUE_BYTES.checked_add(14).ok_or(Invalid::Overflow)?)
+                .max(temper_client_protocol_wire::FIRST_COPIES.checked_mul(203).ok_or(Invalid::Overflow)?)
                 .max(temper_client_domain::forge::PLAYGROUND_FIELD_BYTES)
                 .max(temper_client_domain::forge::PLAYGROUND_WHY_BYTES)
                 .max(temper_client_domain::forge::OWNED_PASSWORD_BYTES)
@@ -3202,7 +3521,31 @@ fn english(word: Word, shell: Shell) -> (&'static [&'static [u8]], &'static [Hol
         Word::WelcomeBoxLine => (&[b" \xc2\xb7 on this machine, to try it \xc2\xb7 more later, from Settings \xc2\xb7 "], &[]),
         Word::WelcomeBoxServer => (&[b"Run temper on a server \xe2\x86\x97"], &[]),
         Word::WelcomeModelSignInTime => (&[b"Sign in, in this tab \xc2\xb7 about a minute"], &[]),
+        Word::WelcomeKeyTitle => (&[b"An OpenAI API key"], &[]),
+        Word::WelcomeKeyBody => (&[b"From OpenAI\xe2\x80\x99s platform, under API keys. What temper\xe2\x80\x99s agents use is billed to the key\xe2\x80\x99s organization."], &[]),
+        Word::WelcomeKeyField => (&[b"Key, pasted once"], &[]),
+        Word::WelcomeKeyFacts => (&[b"Nothing checks a key when it is added: a wrong one shows once OpenAI refuses a run."], &[]),
+        Word::WelcomePasteTitle => (&[b"Signing in to ", b" from another computer"], &[Name]),
+        Word::WelcomePasteOpen => (&[b"Open ", b"\xe2\x80\x99s sign-in \xe2\x80\xba"], &[Name]),
+        Word::WelcomePasteOpenRest => (&[b" and approve temper."], &[]),
+        Word::WelcomePasteCopy => (&[b"When ", b" is done, its tab shows a page that can\xe2\x80\x99t be reached. Copy that page\xe2\x80\x99s whole address from the address bar."], &[Name]),
+        Word::WelcomePasteHere => (&[b"Paste it here."], &[]),
+        Word::WelcomePasteField => (&[b"Address of the page that couldn\xe2\x80\x99t be reached"], &[]),
+        Word::WelcomePasteFinish => (&[b"Finish connecting"], &[]),
+        Word::WelcomeAllWays => (&[b"All ways"], &[]),
+        Word::WelcomeAwayTitle => (&[b"", b"\xe2\x80\x99s sign-in, in this tab"], &[Name]),
+        Word::WelcomeAwayBody => (&[b"You sign in and approve temper; ", b" sends this tab back to temper\xe2\x80\x99s listener on this machine, and on to Ready."], &[Name]),
+        Word::WelcomeClaudeTitle => (&[b"Your Claude subscription"], &[]),
+        Word::WelcomeClaudeBody => (&[b"temper sets Claude Code up on this machine in an environment of its own: its settings, sessions and sign-in stay apart from your own Claude Code. In a terminal here:"], &[]),
+        Word::WelcomeClaudeNote => (&[b"It makes that environment, then Claude Code asks you to sign in to your subscription there. temper never reads its login."], &[]),
+        Word::WelcomeClaudeSignedIn => (&[b"I\xe2\x80\x99ve signed in"], &[]),
+        Word::WelcomeClaudeChecking => (&[b"Checking Claude Code\xe2\x80\x99s sign-in on this machine\xe2\x80\xa6"], &[]),
+        Word::WelcomeClaudeNotYet => (&[b"Claude Code isn\xe2\x80\x99t signed in here yet. Run the command above, then press I\xe2\x80\x99ve signed in."], &[]),
+        Word::WelcomeFinishing => (&[b"Finishing your sign-in\xe2\x80\xa6"], &[]),
         Word::WelcomeModelProgramTime => (&[b"One command in a terminal, on this machine"], &[]),
+        Word::WelcomeForgeStillSettingUp => (&[b"Forgejo is still setting up; this page moves on by itself."], &[]),
+        Word::WelcomeProgramAccount => (&[b"", b", signed in on this machine"], &[Name]),
+        Word::WelcomeKeyAccount => (&[b"billed to the key\xe2\x80\x99s organization"], &[]),
         Word::WelcomeForgeDoneDetail => (&[b"connected as ", b""], &[Name]),
         Word::WelcomeForgeDoneRepository => (&[b"", b" made"], &[Name]),
         Word::PublicTitleCut => (&[b"\xe2\x80\xa6"], &[]),
@@ -3285,6 +3628,26 @@ fn english(word: Word, shell: Shell) -> (&'static [&'static [u8]], &'static [Hol
         Word::HomeHow => (&[b"Tell temper how you work"], &[]),
         Word::HomeHowDetail => (&[b"temper runs its default way of working until you change it."], &[]),
         Word::HomeStart => (&[b"Start"], &[]),
+        Word::HomeCopying => (&[b"Copying ", b"/", b" from ", b"\xe2\x80\xa6"], &[Name, Name, Name]),
+        Word::HomeCopyWaiting => (&[b"Waiting to copy"], &[]),
+        Word::HomeCopyIn => (&[b"", b" is in ", b""], &[Name, Name]),
+        Word::HomeCopiesIn => (&[b"", b" are in ", b""], &[Name, Name]),
+        Word::HomeCopyInDetail => (&[b"Chats can change its code now, on your Forgejo; nothing goes back where it was copied from."], &[]),
+        Word::HomeCopiesInDetail => (&[b"Chats can change their code now, on your Forgejo; nothing goes back where they were copied from."], &[]),
+        Word::HomeCopyAgain => (&[b"Copy again"], &[]),
+        Word::HomeCopyOffer => (&[b"Copy ", b""], &[Name]),
+        Word::HomeCopyAct => (&[b"Copy"], &[]),
+        Word::HomeAddTitle => (&[b"Add a repository"], &[]),
+        Word::HomeAddDetail => (&[b"Your Forgejo has none yet. Until one is in, chats talk and plan but change no code."], &[]),
+        Word::HomeAddEmpty => (&[b"Make an empty one"], &[]),
+        Word::HomeAddCopy => (&[b"Copy a public one"], &[]),
+        Word::HomeAddOther => (&[b"Adopt another\xe2\x80\xa6"], &[]),
+        Word::HomeAddSheet => (&[b"Add a repository to ", b""], &[Name]),
+        Word::HomeAddSheetLead => (&[b"Made or copied on your Forgejo, then in this project at once."], &[]),
+        Word::HomeAddLegend => (&[b"A repository"], &[]),
+        Word::HomeAddIt => (&[b"Add it"], &[]),
+        Word::HomeMaking => (&[b"Making ", b"/", b"\xe2\x80\xa6"], &[Name, Name]),
+        Word::HomeAddRefused => (&[b"Could not add the repository: ", b""], &[Name]),
         Word::HomeIn => (&[b"", b"/", b" is in ", b""], &[Name, Name, Name]),
         Word::HomeInDetail => (&[b"temper can change its code now; checked changes land on main through temper's merge queue."], &[]),
         Word::HomeAdopting => (&[b"Adopting ", b"/", b" into ", b"\xe2\x80\xa6"], &[Name, Name, Name]),
@@ -3356,11 +3719,11 @@ fn english(word: Word, shell: Shell) -> (&'static [&'static [u8]], &'static [Hol
         Word::ModelOnAccounts => (&[b"", b" is on the "], &[Name]),
 
         Word::YourForgesTitle => (&[b"Your forges"], &[]),
-        Word::YourForges => (&[b"Your forges ", b""], &[Number]),
-        Word::ForgesDescription => (&[b"Each forge temper is connected to, or setting up. Add one to bring its repositories to temper."], &[]),
+        Word::YourForges => (&[b"Your forges \xc2\xb7 ", b""], &[Number]),
+        Word::NoForgeTag => (&[b"No forge yet"], &[]),
         Word::AddForge => (&[b"+ Add a forge"], &[]),
         Word::NoForges => (&[b"No forge of yours yet."], &[]),
-        Word::ForgeSummary => (&[b"forge ", b" \xc2\xb7 ", b""], &[Number, Name]),
+        Word::ForgeSummary => (&[b"Forge ", b" \xc2\xb7 ", b""], &[Number, Name]),
         Word::GitHubUnknown => (&[b"It is not known whether the project was made."], &[]),
         Word::GitHubReadNoAccess => (&[b"GitHub refused temper's read of the App's repositories: the App may be suspended. See Forges."], &[]),
         Word::GitHubReadNotFound => (&[b"GitHub no longer has this installation: install the App again."], &[]),
@@ -3382,8 +3745,12 @@ fn english(word: Word, shell: Shell) -> (&'static [&'static [u8]], &'static [Hol
         Word::WelcomeForgejoAddressHint => (&[b"github.com/owner/name"], &[]),
         Word::WelcomeForgejoNothing => (&[b"Nothing for now"], &[]),
         Word::WelcomeForgejoNothingDetail => (&[b"Your first project opens with no repository. Make or copy one later from temper\xe2\x80\x99s UI, or adopt one you push yourself."], &[]),
-        Word::WelcomeForgejoNotYet => (&[b"Not available yet: for now, Forgejo starts with an empty repository."], &[]),
+        Word::WelcomeCopiesNotAnAddress => (&[b"Not an address: ", b". Write it as github.com/owner/name."], &[Name]),
+        Word::WelcomeCopiesNone => (&[b"At least one address, as github.com/owner/name."], &[]),
+        Word::WelcomeCopiesTooMany => (&[b"At most 16 addresses."], &[]),
+        Word::WelcomeSheetBlank => (&[b"Both an organization and a name."], &[]),
         Word::WelcomeForgejoName => (&[b"Name"], &[]),
+        Word::WelcomeReadyCopiesLead => (&[b"Everything is connected. Create your first project, with ", b" repositories in it, and start working."], &[Number]),
         Word::WelcomeReadyRepositoryLead => (&[b"Everything is connected. Create your first project, with ", b" in it, and start working."], &[Name]),
         Word::WelcomeReadyLead => (&[b"Everything is connected. Create your first project and start working."], &[]),
         Word::WelcomeCreateProject => (&[b"Create your project"], &[]),
@@ -3495,7 +3862,7 @@ fn english(word: Word, shell: Shell) -> (&'static [&'static [u8]], &'static [Hol
         Word::ForgeStatus => (&[b"", b" \xc2\xb7 ", b""], &[Name, Name]),
         Word::WelcomeForgeConnected => (&[b"", b" \xc2\xb7 connected as ", b""], &[Name, Name]),
         Word::WelcomeForgeLine => (&[b"", b" \xc2\xb7 ", b" \xc2\xb7 ", b""], &[Name, Name, Name]),
-        Word::WelcomeModelSigningIn => (&[b"", b" \xc2\xb7 signing in"], &[Name]),
+        Word::WelcomeModelSigningIn => (&[b"", b" \xc2\xb7 signing in\xe2\x80\xa6"], &[Name]),
         Word::ForgeConfigCode => (&[b"{\n  \"number\": ", b",\n  \"kind\": \"forgejo\",\n  \"api\": {\"host\": \"forge.example\", \"port\": 443},\n  \"transport\": {\"tls\": {\n    \"server_name\": \"forge.example\", \"trust\": null\n  }},\n  \"git\": \"https://forge.example\",\n  \"web\": null,\n  \"log_origins\": null\n}"], &[Number]),
         Word::ForgeIdentityCode => (&[b"{\n  \"number\": ", b", \"forge\": ", b", \"login\": null,\n  \"author\": {\n    \"name\": \"temper\",\n    \"email\": \"temper-bot@forge.example\"\n  }\n}"], &[Number, Number]),
         Word::ForgeSetupCode => (&[b"{\n  \"forge\": ", b",\n  \"bot\": {\"login\": \"temper\", \"email\": \"temper-bot@forge.example\"},\n  \"mode\": \"managed\"\n}"], &[Number]),
@@ -3563,7 +3930,6 @@ fn english(word: Word, shell: Shell) -> (&'static [&'static [u8]], &'static [Hol
         Word::ForgeLeave => (&[b"You may leave this page: the steps go on, and the banner says where they are."], &[]),
         Word::ForgeProgress => (&[b"Each step"], &[]),
         Word::ForgeAdopt => (&[b"Adopt a repository"], &[]),
-        Word::ForgeView => (&[b"View"], &[]),
         Word::WelcomeNoForge => (&[b"none yet"], &[]),
         Word::WelcomeNoModel => (&[b"none yet"], &[]),
         Word::FlowDone => (&[b"done"], &[]),
@@ -3585,10 +3951,13 @@ fn english(word: Word, shell: Shell) -> (&'static [&'static [u8]], &'static [Hol
         Word::WelcomePlaygroundDescription => (&[b"A scripted model and a forge, built in. A taste of how temper feels, with nothing to connect."], &[]),
         Word::WelcomePlaygroundCost => (&[b"Fully offline \xc2\xb7 Ready at once"], &[]),
         Word::WelcomeSetup => (&[b"Set up temper"], &[]),
+        Word::WelcomeGoOn => (&[b"Go on setting up"], &[]),
         Word::WelcomeSetupDescription => (&[b"Your forge: a Forgejo temper runs for you, or GitHub. Your model: ChatGPT or Claude."], &[]),
         Word::WelcomeSetupTime => (&[b"About five minutes"], &[]),
         Word::WelcomeAfter => (&[b"Tried the playground first? Set up whenever you like; the playground then steps aside."], &[]),
         Word::WelcomeForgeTitle => (&[b"Connect a forge"], &[]),
+        Word::WelcomeForgeLeadKept => (&[b"One forge is enough to begin; add others later, from Settings."], &[]),
+        Word::WelcomeForgeGitHubApp => (&[b"temper\xe2\x80\x99s App on ", b""], &[Name]),
         Word::WelcomeForgeLead => (&[b"Where your code lives: you tell temper what you want, agents push and land code."], &[]),
         Word::WelcomeModelTitle => (&[b"Connect a model"], &[]),
         Word::WelcomeModelLead => (&[b"temper\xe2\x80\x99s agents run on a plan you sign in to."], &[]),
@@ -3689,7 +4058,6 @@ fn english(word: Word, shell: Shell) -> (&'static [&'static [u8]], &'static [Hol
         Word::AskedByTask => (&[b"Asked by task ", b""], &[Number]),
         Word::AskedByDeployment => (&[b"Asked by deployment of project ", b""], &[Number]),
         Word::Deadline => (&[b"Due ", b""], &[HoleKind::Date]),
-        Word::AccountLead => (&[b"The LLM accounts temper\xe2\x80\x99s agents run on for you. A task keeps its account: while the account is limited, the task waits for it."], &[]),
         Word::Priority => (&[b"priority ", b""], &[Number]),
         Word::Folded => (&[b"Folded: ", b" ", b""], &[Number, Name]),
         Word::HeldBelow => (&[b"Held below: ", b""], &[Number]),
@@ -3792,6 +4160,39 @@ fn english(word: Word, shell: Shell) -> (&'static [&'static [u8]], &'static [Hol
         Word::DelegateMove => (&[b"Delegate ", b" will be moved to you"], &[Number]),
         Word::Stop => (&[b"Stop"], &[]),
         Word::Older => (&[b"Older"], &[]),
+        Word::SettingsBuildersTab => (&[b"Builders"], &[]),
+        Word::SettingsBuildersHeading => (&[b"Where agents work."], &[]),
+        Word::SettingsBuildersLede => (&[b"The machines temper\xe2\x80\x99s agents run on, each with its slots and how many are in use."], &[]),
+        Word::BuildersCount => (&[b"Builders \xc2\xb7 ", b""], &[Number]),
+        Word::BuildersSlot => (&[b"", b" slot \xc2\xb7 ", b" in use"], &[Number, Number]),
+        Word::BuildersSlots => (&[b"", b" slots \xc2\xb7 ", b" in use"], &[Number, Number]),
+        Word::BuilderUnnamed => (&[b"Builder ", b""], &[Number]),
+        Word::BuilderConnected => (&[b"Connected"], &[]),
+        Word::BuilderDraining => (&[b"Draining"], &[]),
+        Word::BuilderNotConnected => (&[b"Not connected"], &[]),
+        Word::BuildersFacts => (&[b"Each agent\xe2\x80\x99s role names which builders it runs on. Tell Configure temper to change it."], &[]),
+        Word::BuildersNone => (&[b"No builder is connected."], &[]),
+        Word::BuildersNoRole => (&[b"Builders are seen by the deployment\xe2\x80\x99s owners."], &[]),
+        Word::BuildersCut => (&[b"Some builder facts were omitted."], &[]),
+        Word::SettingsKicker => (&[b"", b" \xc2\xb7 settings"], &[Name]),
+        Word::SettingsHowHeading => (&[b"How work runs in ", b"."], &[Name]),
+        Word::SettingsHowLede => (&[b"Everything the other pages do for this project comes from here, so each project, and each person, can work its own way."], &[]),
+        Word::SettingsRepositoriesHeading => (&[b"What ", b" works on."], &[Name]),
+        Word::SettingsRepositoriesLede => (&[b"The repositories chats and goals in ", b" read and change."], &[Name]),
+        Word::SettingsForgesHeading => (&[b"Where your code lives."], &[]),
+        Word::SettingsForgesLede => (&[b"Each forge temper is connected to, or setting up. Add one to bring its repositories to temper."], &[]),
+        Word::SettingsAccountsHeading => (&[b"What agents run on."], &[]),
+        Word::SettingsAccountsLede => (&[b"The LLM accounts temper\xe2\x80\x99s agents run on for you. A task keeps its account: while the account is limited, the task waits for it."], &[]),
+        Word::SettingsAccountsTab => (&[b"Accounts"], &[]),
+        Word::PathAddForge => (&[b"Add a forge"], &[]),
+        Word::PathConnectAccount => (&[b"Connect an account"], &[]),
+        Word::SettingsHowTab => (&[b"How work runs"], &[]),
+        Word::SettingsRepositoriesTab => (&[b"Repositories"], &[]),
+        Word::SettingsConfigureHelp => (&[b"Tell it how you work, in your own words or by pointing at a document. It proposes the settings; nothing changes until you accept."], &[]),
+        Word::SettingsRepositoriesCount => (&[b"Repositories \xc2\xb7 ", b""], &[Number]),
+        Word::SettingsNoneTag => (&[b"No repository yet"], &[]),
+        Word::SettingsNoneBody => (&[b"Chats in ", b" talk and plan, but change no code until a repository is in."], &[Name]),
+        Word::SettingsSignedIn => (&[b"Signed in as ", b""], &[Name]),
         Word::Goals => (&[b"Goals"], &[]),
         Word::ConfigureTitle => (&[b"Configure temper"], &[]),
         Word::ConfigureQuestion => (&[b"How should temper run ", b"?"], &[Name]),

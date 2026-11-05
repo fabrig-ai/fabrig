@@ -1,8 +1,8 @@
 use super::{Bound, Choice, Field, Form, Limit, Shape, Value, Width, Word};
-pub static FORMS: [Form; 52] = [
+pub static FORMS: [Form; 54] = [
     Form { shape: Shape::File, name: b"file", choice: Choice::Every, line: b"A settings file, as `settings apply` and `settings propose` read it." },
     Form { shape: Shape::Item, name: b"item", choice: Choice::Every, line: b"One setting, and what becomes of it: `setting`, then exactly one of `set` and `edit`." },
-    Form { shape: Shape::Setting, name: b"setting", choice: Choice::Every, line: b"Which setting: its kind and, but for the rules, its number." },
+    Form { shape: Shape::Setting, name: b"setting", choice: Choice::Every, line: b"Which setting: its kind and number, or project for project settings." },
     Form { shape: Shape::Charter, name: b"charter", choice: Choice::Every, line: b"How an agent's run works: its instructions, models, tools, hosts and budget. A task's runs read the charter of the settings revision the task was made in." },
     Form { shape: Shape::Document, name: b"document", choice: Choice::Every, line: b"A document every run of the charter reads in its brief, as the file is at the branch's head when the run is prepared: a rule that lands there reaches the next run." },
     Form { shape: Shape::Model, name: b"model", choice: Choice::Every, line: b"One of the deployment's models, as a charter offers it. Every member but `effort` must equal the configured model's, else refused as `reference`: copy them from a charter's value." },
@@ -77,8 +77,14 @@ pub static FORMS: [Form; 52] = [
     Form { shape: Shape::LandingPattern, name: b"landing-pattern", choice: Choice::Every, line: b"The resources the rule covers: the exact base segments, then an exact last segment or an open prefix and all below it." },
     Form { shape: Shape::LandingLast, name: b"landing-last", choice: Choice::One { words: &[] }, line: b"The final resource segment, in the same hex form as a pattern's last segment." },
     Form { shape: Shape::ForgeCharter, name: b"forge-charter", choice: Choice::Number, line: b"An integer from 0 to 4,294,967,295: the charter's number. Setting 1 selects the change's charter; setting 2 selects its reviews'." },
+    Form { shape: Shape::ProjectWays, name: b"project-ways", choice: Choice::Every, line: b"What a project shows and the way its goals start. With none stored, all switches are false and way is 0." },
+    Form { shape: Shape::ProjectQuestions, name: b"project-questions", choice: Choice::One { words: &[
+        Word { word: b"none", line: b"No question route; the stock's value." },
+        Word { word: b"foreman", line: b"A change's questions go to its foreman." },
+        Word { word: b"up", line: b"A change's questions go up to its parent." },
+    ] }, line: b"The route a project's change takes when its maker names none." },
 ];
-pub static FIELDS: [Field; 191] = [
+pub static FIELDS: [Field; 196] = [
     Field {
         shape: Shape::File,
         name: b"items",
@@ -115,6 +121,8 @@ pub static FIELDS: [Field; 191] = [
             Word { word: b"rules", line: b"" },
             Word { word: b"landing-rule", line: b"" },
             Word { word: b"forge-charter", line: b"" },
+            Word { word: b"project-ways", line: b"" },
+            Word { word: b"project-questions", line: b"" },
         ]),
         list: None,
         null: false,
@@ -126,9 +134,9 @@ pub static FIELDS: [Field; 191] = [
         value: Value::Integer(Width::U32),
         list: None,
         null: false,
-        line: b"The setting's number, from 1; left out for the rules.",
+        line: b"The setting's number, from 1; left out for rules, project-policy, project-ways and project-questions.",
     },
-    Field { shape: Shape::Setting, name: b"project", value: Value::Integer(Width::U32), list: None, null: false, line: b"For a landing rule, a project's number, from 1, the deployment's when left out; for a project's policy, its project, required." },
+    Field { shape: Shape::Setting, name: b"project", value: Value::Integer(Width::U32), list: None, null: false, line: b"Required for project-ways and project-questions. For a landing rule, a project's number, from 1, the deployment's when left out; for a project's policy, its project, required." },
     Field {
         shape: Shape::Charter,
         name: b"number",
@@ -223,7 +231,7 @@ pub static FIELDS: [Field; 191] = [
     },
     Field { shape: Shape::Charter, name: b"wake", value: Value::Shape(Shape::Wake), list: None, null: true, line: b"Which messages wake a task made under the charter whose batch names no wake policy; null, or left out, for jig's default: every rule `\"immediate\"`, `results` `\"last_or_failure\"`, and questions, answers and timers waking." },
     Field { shape: Shape::Charter, name: b"documents", value: Value::Shape(Shape::Document), list: Some(Bound::Limit(Limit::CharterDocuments)), null: false, line: b"The documents the charter's runs read, each as a brief section of its own; at most `tasks.charter_documents`, else refused as `shape`." },
-    Field { shape: Shape::Document, name: b"forge", value: Value::Text(Bound::Limit(Limit::DocumentSegment)), list: None, null: false, line: b"The canonical `host` printed by `temper ctl DIR forge list` (also `forge list --json`), as repository resource names carry it, including its port; copy it unchanged, not the forge number or web address." },
+    Field { shape: Shape::Document, name: b"forge", value: Value::Text(Bound::Limit(Limit::DocumentSegment)), list: None, null: false, line: b"The canonical `host` in the configuring chat's `settings` inventory under `project repositories`, alongside OWNER/NAME; people can also read `temper ctl DIR forge list` (or `forge list --json`). It is the host in repository resource names, including its port; copy it unchanged, not the forge number or web address." },
     Field { shape: Shape::Document, name: b"repository", value: Value::Text(Bound::Limit(Limit::DocumentRepository)), list: None, null: false, line: b"The repository as OWNER/NAME; one adopted in no project gives a section saying so." },
     Field { shape: Shape::Document, name: b"branch", value: Value::Text(Bound::Limit(Limit::DocumentBranch)), list: None, null: false, line: b"The branch whose head is read, its segments joined by `/`." },
     Field { shape: Shape::Document, name: b"path", value: Value::Text(Bound::Limit(Limit::DocumentPath)), list: None, null: false, line: b"The file's path in the repository, at most 256 bytes." },
@@ -1214,6 +1222,11 @@ pub static FIELDS: [Field; 191] = [
     Field { shape: Shape::LandingPattern, name: b"last", value: Value::Shape(Shape::LandingLast), list: None, null: false, line: b"One more segment, equal to an exact value or beginning with an open value, with all below it." },
     Field { shape: Shape::LandingLast, name: b"exact", value: Value::Hex(Bound::Limit(Limit::LandingExact)), list: None, null: false, line: b"One last segment equal to these bytes." },
     Field { shape: Shape::LandingLast, name: b"open", value: Value::Hex(Bound::Limit(Limit::LandingOpen)), list: None, null: false, line: b"A final segment beginning with these bytes, with all below it." },
+    Field { shape: Shape::ProjectWays, name: b"drafts", value: Value::Boolean, list: None, null: false, line: b"Whether chats can write drafts." },
+    Field { shape: Shape::ProjectWays, name: b"goals", value: Value::Boolean, list: None, null: false, line: b"Whether the rail shows Goals." },
+    Field { shape: Shape::ProjectWays, name: b"changes", value: Value::Boolean, list: None, null: false, line: b"Whether the rail shows Changes." },
+    Field { shape: Shape::ProjectWays, name: b"away", value: Value::Boolean, list: None, null: false, line: b"Whether the rail shows the Away switch." },
+    Field { shape: Shape::ProjectWays, name: b"way", value: Value::Integer(Width::U32), list: None, null: false, line: b"The template a goal starts by: one the project offers with tracked set, or 0 for the first." },
 ];
 const FRESHNESS: &[Word] = &[
     Word { word: b"exact", line: b"The verdict counts at the head it was given at." },

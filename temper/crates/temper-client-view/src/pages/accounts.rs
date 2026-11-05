@@ -1,4 +1,6 @@
 //! Supplied accounts and the playground model (temper/docs/design/client/README.md, 3.5 and 4.8).
+use super::settings;
+use crate::look;
 use crate::{
     accounts::{
         Bindings, Meaning,
@@ -26,7 +28,7 @@ fn text(b: &mut Builder, w: &Words, role: Role, word: W) {
 fn done(b: &mut Builder, w: &Words, word: W) {
     let value = words::say(w, word, &[]);
     b.open(Role::Status);
-    b.style(crate::look::STATUS_DONE);
+    b.style(look::STATUS_DONE);
     b.name(&value);
     b.text(Run::Plain, &value);
     b.close();
@@ -65,7 +67,7 @@ fn named_control(
     let Some(binding) = bindings.insert(meaning) else { return };
     b.open(Role::Button);
     if model {
-        b.style(crate::look::FLOW_SECONDARY);
+        b.style(look::FLOW_SECONDARY);
     }
     b.name(name);
     b.bind(binding);
@@ -326,57 +328,64 @@ fn refused(b: &mut Builder, w: &Words, refusal: c::AccountRefusal) {
     };
     run(b, w, word);
 }
-pub(crate) fn main(b: &mut Builder, root: &Domain, w: &Words, bindings: &mut Bindings, text_per_node: u32) {
+pub(crate) fn main(
+    b: &mut Builder,
+    root: &Domain,
+    w: &Words,
+    bindings: &mut Bindings,
+    pages: &mut crate::frame::Bindings,
+    project: Option<u32>,
+    text_per_node: u32,
+) {
     b.open(Role::Main);
-    b.style(crate::look::MAIN);
-    b.style(crate::look::PAGE);
-    b.open(Role::Slot);
-    b.style(crate::look::ACCOUNTS_PAGE);
-    b.open(Role::Slot);
-    b.style(crate::look::PAGEBAR);
-    text(b, w, Role::Heading { level: 1 }, W::Accounts);
-    b.close();
-    // The heading's row, as the inbox's: the heading, its count, and the link to connect one.
-    b.open(Role::Slot);
-    b.style(crate::look::HEADING);
-    text(b, w, Role::Heading { level: 2 }, W::Own);
+    b.style(look::MAIN);
+    b.style(look::SETTINGS);
+    match project {
+        Some(project) => settings::open(b, root, w, pages, project, settings::Tab::Accounts),
+        None => settings::open_alone(
+            b,
+            &words::say(w, W::Accounts, &[]),
+            &w.say(crate::words::Word::SettingsAccountsLede, &[]),
+        ),
+    }
+    let doc = accounts::document(root.client());
     let mut count = 0_u64;
-    if let Some(doc) = accounts::document(root.client()) {
+    if let Some(doc) = doc {
         for row in &doc.accounts {
             if !rows::playground(root, row.provider) {
                 count = count.checked_add(1).expect("received accounts fit");
             }
         }
-        b.open(Role::Paragraph);
-        b.style(crate::look::SUBTLE_COUNT);
-        let said = words::say(w, W::Number, &[Hole::Number(count)]);
-        b.name(&said);
-        b.text(Run::Plain, &said);
-        b.close();
-        if root.forge().playground().is_none() {
-            connect(b, w, bindings, W::ConnectAdd);
-        }
     }
-    crate::cards::text(b, Role::Paragraph, &w.say(crate::words::Word::AccountLead, &[]));
+    let title = match doc {
+        Some(_) => words::say(w, W::OwnCount, &[Hole::Number(count)]),
+        None => words::say(w, W::Own, &[]),
+    };
+    settings::section_head(b, &title);
+    b.style(look::ACCOUNTS_PAGE);
+    if doc.is_some() && root.forge().playground().is_none() {
+        connect(b, w, bindings, W::ConnectAdd);
+    }
     b.close();
-    if let Some(doc) = accounts::document(root.client()) {
+    if let Some(doc) = doc {
         if count == 0 {
-            // A block of their own, so that the link keeps to the page's column.
-            b.open(Role::Slot);
-            b.style(crate::look::EMPTY);
-            text(b, w, Role::Paragraph, W::NoOwn);
+            settings::quiet_band(b, &words::say(w, W::NoOwnTag, &[]), &words::say(w, W::NoOwn, &[]));
             if root.forge().playground().is_none() {
                 connect(b, w, bindings, W::Connect);
             }
             b.close();
-        }
-        let mut shown = 0;
-        for row in &doc.accounts {
-            if rows::playground(root, row.provider) || shown >= bindings.counts().accounts {
-                continue;
+        } else {
+            b.open(Role::Slot);
+            b.style(look::SETTINGS_LINES);
+            let mut shown = 0;
+            for row in &doc.accounts {
+                if rows::playground(root, row.provider) || shown >= bindings.counts().accounts {
+                    continue;
+                }
+                rows::own(b, root, w, bindings, row, text_per_node);
+                shown = shown.checked_add(1).expect("displayed rows fit");
             }
-            rows::own(b, root, w, bindings, row, text_per_node);
-            shown = shown.checked_add(1).expect("displayed rows fit");
+            b.close();
         }
         omitted(b, w, W::AccountsOmitted, u32::try_from(count).expect("received rows fit"), bindings.counts().accounts);
         signings_without_rows(b, root, w, doc, bindings.counts());
@@ -384,29 +393,41 @@ pub(crate) fn main(b: &mut Builder, root: &Domain, w: &Words, bindings: &mut Bin
             text(b, w, Role::Status, W::Cut);
         }
     }
+    b.close();
     if let Some(page) = root.pages().accounts()
         && is_owner(root)
         && let Some(doc) = page.deployment(root.client())
         && !doc.accounts.is_empty()
     {
-        text(b, w, Role::Heading { level: 2 }, W::Deployment);
-        {
-            for row in doc.accounts.iter().take(usize::try_from(bindings.counts().accounts).expect("u32 fits")) {
-                rows::deployment(b, root, w, bindings, row, text_per_node);
-            }
-            omitted(b, w, W::AccountsOmitted, doc.accounts.len(), bindings.counts().accounts);
-            if doc.cut {
-                text(b, w, Role::Status, W::Cut);
-            }
+        settings::section_head(b, &words::say(w, W::Deployment, &[]));
+        b.close();
+        b.open(Role::Slot);
+        b.style(look::SETTINGS_LINES);
+        for row in doc.accounts.iter().take(usize::try_from(bindings.counts().accounts).expect("u32 fits")) {
+            rows::deployment(b, root, w, bindings, row, text_per_node);
         }
+        b.close();
+        omitted(b, w, W::AccountsOmitted, doc.accounts.len(), bindings.counts().accounts);
+        if doc.cut {
+            text(b, w, Role::Status, W::Cut);
+        }
+        b.close();
     }
     if root.forge().playground().is_some() {
-        text(b, w, Role::Heading { level: 2 }, W::Playground);
+        settings::section_head(b, &words::say(w, W::Playground, &[]));
+        b.close();
+        b.open(Role::Slot);
+        b.style(look::SETTINGS_LINES);
         b.open(Role::Disclosure);
-        b.style(crate::look::ACCOUNT_ROW);
+        b.style(look::SETTINGS_ROW);
         b.name(&words::say(w, W::PlaygroundAccount, &[]));
         text(b, w, Role::Paragraph, W::PlaygroundWords);
         b.close();
+        b.close();
+        b.close();
+    }
+    if project.is_some() {
+        settings::sign_out(b, root, w, pages);
     }
     b.close();
     b.close();
@@ -456,14 +477,7 @@ fn signings_without_rows(
 fn connect(b: &mut Builder, w: &Words, bindings: &mut Bindings, word: W) {
     if let Some(to) = bindings.insert(Meaning::Go(temper_client_domain::Address::ConnectModel { way: None })) {
         let name = words::say(w, word, &[]);
-        crate::flow::control(
-            b,
-            if word == W::Connect {
-                crate::flow::Control::PrimaryLink { name: &name, to }
-            } else {
-                crate::flow::Control::SecondaryLink { name: &name, to }
-            },
-        );
+        settings::button_to(b, &name, to, word == W::Connect);
     }
 }
 pub(super) fn key_field(
@@ -583,8 +597,8 @@ pub(super) fn outcome(
             if bytes <= u64::from(text_per_node) {
                 b.open(Role::Link);
                 if root.pages().connect_model().is_some() {
-                    b.style(crate::look::FLOW_QUIET);
-                    b.style(crate::look::MODEL_SIGN_IN);
+                    b.style(look::FLOW_QUIET);
+                    b.style(look::MODEL_SIGN_IN);
                 }
                 b.text(Run::Plain, &label);
                 b.external(address);
@@ -771,8 +785,13 @@ fn first_usable(root: &Domain, w: &Words, with_display: bool) -> Option<Box<[u8]
         if !with_display {
             return Some(label);
         }
+        let detail = match source.kind {
+            c::AccountKind::Program => w.say(crate::words::Word::WelcomeProgramAccount, &[Hole::Name(display.into())]),
+            c::AccountKind::Key => w.say(crate::words::Word::WelcomeKeyAccount, &[]),
+            c::AccountKind::SignIn | c::AccountKind::None => display.into(),
+        };
         let separator = words::say(w, W::Separator, &[]);
-        return Some(words::join(&[&label, if display.is_empty() { b"" } else { &separator }, display]));
+        return Some(words::join(&[&label, if detail.is_empty() { b"" } else { &separator }, &detail]));
     }
     None
 }
@@ -788,7 +807,11 @@ pub(crate) fn own_signing_name(root: &Domain, w: &Words) -> Option<Box<[u8]>> {
         for offer in &me.providers {
             if offer.provider == signing.provider {
                 let (brand, plan) = words::provider_words(offer.name.bytes());
-                return Some(crate::choice::shown(if offer.signed_in_plan { plan } else { brand }, w));
+                return Some(if offer.signed_in_plan {
+                    w.say(crate::words::Word::WelcomePlanAccount, &[Hole::Name(crate::choice::shown(plan, w))])
+                } else {
+                    crate::choice::shown(brand, w)
+                });
             }
         }
         let label = words::say(w, W::Provider, &[]);
@@ -816,7 +839,7 @@ fn paste_way(root: &Domain, form: &accounts::request::Request) -> Option<account
     }
     temper_client_domain::pages::connect_model::way(root.pages(), root.client())
 }
-fn paste_plan<'a>(root: &'a Domain, form: &accounts::request::Request) -> &'a [u8] {
+pub(super) fn paste_plan<'a>(root: &'a Domain, form: &accounts::request::Request) -> &'a [u8] {
     if let Some(way) = paste_way(root, form)
         && let Some(me) = accounts::current_me(root.client())
     {
@@ -871,7 +894,7 @@ pub(super) fn paste(
     if folded {
         b.open(Role::Disclosure);
         if root.pages().connect_model().is_some() {
-            b.style(crate::look::MODEL_SIGN_IN);
+            b.style(look::MODEL_SIGN_IN);
         }
         b.name(&words::say(w, W::PasteDisclosure, &[]));
         text(b, w, Role::Paragraph, W::PasteHistory);
@@ -883,22 +906,50 @@ pub(super) fn paste(
 }
 fn paste_body(b: &mut Builder, root: &Domain, w: &Words, bindings: &mut Bindings, form: &accounts::request::Request) {
     use accounts::PasteState as S;
-    let state = form.paste_state(root.client());
-    let alert = match state {
-        S::Closed | S::Refused { why: c::SignInRedirectWhy::NotWaiting } => return,
+    match form.paste_state(root.client()) {
+        S::Closed
+        | S::Refused { why: c::SignInRedirectWhy::NotWaiting | c::SignInRedirectWhy::TooMany }
+        | S::Finishing
+        | S::Ended => {}
+        S::Refused { why: c::SignInRedirectWhy::Address | c::SignInRedirectWhy::State }
+        | S::TooLong
+        | S::Again
+        | S::Full { .. }
+        | S::Waiting { .. }
+        | S::Sending => {
+            crate::cards::text(b, Role::Paragraph, &named(w, W::PasteInstructions, paste_plan(root, form)));
+        }
+    }
+    if paste_ending(b, root, w, bindings, form) {
+        return;
+    }
+    paste_field(b, root, w, bindings, form, false);
+    paste_finish(b, root, w, bindings, form, false);
+}
+/// Draws a paste’s ending or refusal, and reports whether its field is gone (3.5).
+pub(super) fn paste_ending(
+    b: &mut Builder,
+    root: &Domain,
+    w: &Words,
+    bindings: &mut Bindings,
+    form: &accounts::request::Request,
+) -> bool {
+    use accounts::PasteState as S;
+    let alert = match form.paste_state(root.client()) {
+        S::Closed | S::Refused { why: c::SignInRedirectWhy::NotWaiting } => return true,
         S::Finishing => {
             text(b, w, Role::Status, W::PasteFinishing);
-            return;
+            return true;
         }
         S::Ended => {
             text(b, w, Role::Status, W::PasteEnded);
             paste_restart(b, root, w, bindings, form);
-            return;
+            return true;
         }
         S::Refused { why: c::SignInRedirectWhy::TooMany } => {
             crate::cards::text(b, Role::Alert, &named(w, W::PasteTooMany, paste_plan(root, form)));
             paste_restart(b, root, w, bindings, form);
-            return;
+            return true;
         }
         S::Refused { why: c::SignInRedirectWhy::Address } => Some(W::PasteAddress),
         S::Refused { why: c::SignInRedirectWhy::State } => Some(W::PasteState),
@@ -910,16 +961,31 @@ fn paste_body(b: &mut Builder, root: &Domain, w: &Words, bindings: &mut Bindings
         }
         S::Waiting { .. } | S::Sending => None,
     };
-    crate::cards::text(b, Role::Paragraph, &named(w, W::PasteInstructions, paste_plan(root, form)));
     if let Some(word) = alert {
         text(b, w, Role::Alert, word);
     }
+    false
+}
+pub(super) fn paste_field(
+    b: &mut Builder,
+    root: &Domain,
+    w: &Words,
+    bindings: &mut Bindings,
+    form: &accounts::request::Request,
+    welcome: bool,
+) {
+    use accounts::PasteState as S;
+    let state = form.paste_state(root.client());
     if let Some(binding) = bindings.insert(Meaning::SignInAddress) {
         b.open(Role::TextField);
         if root.pages().connect_model().is_some() {
-            b.style(crate::look::FLOW_FIELD);
+            b.style(look::FLOW_FIELD);
         }
-        b.name(&words::say(w, W::PasteField, &[]));
+        b.name(&if welcome {
+            w.say(crate::words::Word::WelcomePasteField, &[])
+        } else {
+            words::say(w, W::PasteField, &[])
+        });
         b.entry(skein_ui::EntryKind::Secret);
         b.value(b"", form.paste.written());
         b.bind(binding);
@@ -928,18 +994,39 @@ fn paste_body(b: &mut Builder, root: &Domain, w: &Words, bindings: &mut Bindings
         }
         b.close();
     }
-    let meaning = if root.pages().connect_model().is_some() {
-        Meaning::Model(temper_client_domain::pages::connect_model::Act::Finish { name: root.pages().account_name() })
+}
+pub(super) fn paste_finish(
+    b: &mut Builder,
+    root: &Domain,
+    w: &Words,
+    bindings: &mut Bindings,
+    form: &accounts::request::Request,
+    welcome: bool,
+) {
+    use accounts::PasteState as S;
+    let state = form.paste_state(root.client());
+    let name = if welcome && state != S::Sending {
+        w.say(crate::words::Word::WelcomePasteFinish, &[])
     } else {
-        Meaning::Action(accounts::Act::Finish { name: root.pages().account_name() })
+        words::say(w, if state == S::Sending { W::PasteSending } else { W::PasteFinish }, &[])
     };
-    control(
-        b,
-        w,
-        bindings,
-        if state == S::Sending { W::PasteSending } else { W::PasteFinish },
-        meaning,
-        state != (S::Waiting { ready: true }),
-        false,
-    );
+    if welcome {
+        super::connect_model::button(
+            b,
+            bindings,
+            &name,
+            temper_client_domain::pages::connect_model::Act::Finish { name: root.pages().account_name() },
+            state != (S::Waiting { ready: true }),
+            true,
+        );
+    } else {
+        let meaning = if root.pages().connect_model().is_some() {
+            Meaning::Model(temper_client_domain::pages::connect_model::Act::Finish {
+                name: root.pages().account_name(),
+            })
+        } else {
+            Meaning::Action(accounts::Act::Finish { name: root.pages().account_name() })
+        };
+        named_control(b, bindings, &name, meaning, state != (S::Waiting { ready: true }), false);
+    }
 }

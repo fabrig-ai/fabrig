@@ -6,7 +6,15 @@ extern crate alloc;
 
 #[rustfmt::skip]
 #[path = "generated/v1.rs"]
+#[expect(clippy::similar_names, reason = "the schema names the ways fields away and way")]
 pub mod v1;
+
+/// Kinds with typed settings values at temper's entrances
+/// (temper/docs/design/protocol/configuration.md, 13.2).
+#[must_use]
+pub const fn settings_kind(kind: u32) -> bool {
+    kind == 1 || kind == 2 || kind == 3 || kind == 6 || kind == 7
+}
 
 /// The forge's visitor records (temper/docs/design/client/forge.md, 11.4).
 #[rustfmt::skip]
@@ -74,6 +82,8 @@ pub const DISMISSED: u32 = 1024;
 pub const INSTALLATIONS: u32 = 64;
 /// The maximum repository makings per forge (temper/docs/design/client/README.md, 4.6).
 pub const MAKINGS: u32 = 64;
+/// The set up's maximum number of deferred copies (protocol/setup.md, 6.7).
+pub const FIRST_COPIES: u32 = 16;
 /// The last connect's maximum stop reason length (client/README.md, 4.6).
 pub const CONNECT_WHY_BYTES: u32 = 256;
 /// The box's maximum setup failure line length (client/README.md, 4.6).
@@ -154,8 +164,8 @@ pub fn limits(bounds: &Bounds) -> Option<v1::Limits> {
         playground_answer_cues_item: CUE_BYTES,
         first_ask_org: bounds.field_bytes,
         first_ask_repository: bounds.field_bytes,
-        set_up_org: bounds.field_bytes,
-        set_up_repository: bounds.field_bytes,
+        first_empty_org: bounds.field_bytes,
+        first_empty_repository: bounds.field_bytes,
         first_repository_org: bounds.field_bytes,
         first_repository_repository: bounds.field_bytes,
         adopt_owner: bounds.field_bytes,

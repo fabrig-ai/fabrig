@@ -370,11 +370,22 @@ pub fn stored_bytes(record: &Stored) -> Option<u64> {
             if let Some(web) = &row.place.web {
                 held = held.checked_add(bytes(web))?;
             }
-            if let Some(first) = &row.first {
-                held = held
-                    .checked_add(bytes(&first.org))?
-                    .checked_add(bytes(&first.repository))?
-                    .checked_add(bytes(&first.label))?;
+            match &row.first {
+                Some(FirstIntent::Empty(first)) => {
+                    held = held
+                        .checked_add(bytes(&first.org))?
+                        .checked_add(bytes(&first.repository))?
+                        .checked_add(bytes(&first.label))?;
+                }
+                Some(FirstIntent::Copies { addresses }) => {
+                    held = held.checked_add(
+                        skein_lib::len_u64(addresses.len()).checked_mul(u64::try_from(size_of::<Box<[u8]>>()).ok()?)?,
+                    )?;
+                    for address in addresses {
+                        held = held.checked_add(bytes(address))?;
+                    }
+                }
+                Some(FirstIntent::Nothing) | None => {}
             }
             Some(held)
         }
@@ -398,7 +409,10 @@ pub fn stored_bytes(record: &Stored) -> Option<u64> {
                             .checked_mul(u64::try_from(size_of::<settings::RuleApproval>()).ok()?)?,
                     )
             }
-            settings::Edit::Set(settings::SizedValue { value: settings::Value::Charter(_), .. })
+            settings::Edit::Set(settings::SizedValue {
+                value: settings::Value::Charter(_) | settings::Value::Questions(_) | settings::Value::Ways(_),
+                ..
+            })
             | settings::Edit::Remove
             | settings::Edit::Reset => Some(0),
         },

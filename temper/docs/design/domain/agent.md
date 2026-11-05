@@ -738,7 +738,10 @@ temper's client decodes them as jig's client does (jig's
 `client/domain/client.md`, section 10). A run that resumes is given its
 transcript's current window and the calls committed after its last turn;
 past the resume limit, or when smith refuses the transcript, the next
-run starts fresh, its brief carrying the tail.
+run starts fresh, its brief carrying the tail when it is readable. If
+the saved window is unread, the first load spends a transient try; its
+retry starts fresh without the tail, keeping the person's pending words
+(jig's `domain/engine.md`, 7.2).
 
 ## 8. The agents temper runs
 
@@ -807,7 +810,14 @@ agents must do stays text its runs read.
   paste, or a document in an adopted repository they point to by its
   path, which it reads with `read_file`. It reads the settings first,
   with `settings`: the inventory, then each setting the description
-  touches, whole. Settings pages use `core.call_answer_bytes` less the tool
+  touches, whole. The authorized inventory also names the caller project's
+  readable adopted repositories, each with the canonical host, owner and name
+  from its retained repository record. Other projects and ended forges are
+  excluded. These identities are read context, not settings or credentials;
+  setting, revision and history reads carry no repository context. A charter
+  document copies that host unchanged, including its port, and OWNER/NAME.
+  This lets a configuring chat name documents without a workspace or ctl.
+  Settings pages use `core.call_answer_bytes` less the tool
   name, reserving escaped framing and continuation markers. A long value
   fills the available page even after its heading; `next: OFFSET` counts
   original UTF-8 text bytes for exact reconstruction. This allowance is

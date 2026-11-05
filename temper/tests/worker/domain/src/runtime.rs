@@ -296,7 +296,10 @@ impl World {
                 let done = self.git(op);
                 self.owed.push_back(Event::Done { owner, done });
             }
-            Request::Job { .. } | Request::CancelRelay { .. } | Request::CancelIo { .. } => panic!("unscripted output"),
+            Request::JobAnswer { .. }
+            | Request::Job { .. }
+            | Request::CancelRelay { .. }
+            | Request::CancelIo { .. } => panic!("unscripted output"),
         }
     }
 
@@ -401,7 +404,7 @@ impl World {
                 };
                 Done::Fetched { commit: Commit::new(commit) }
             }
-            Op::IsAncestor { .. } => panic!("this fixture has no producer retry"),
+            Op::Look { .. } | Op::IsAncestor { .. } => panic!("this fixture has no producer retry"),
             Op::Merge { theirs, .. } => {
                 assert_eq!(theirs.raw(), BASE);
                 Done::Conflicted { files: Box::new([Box::from(PATH)]) }

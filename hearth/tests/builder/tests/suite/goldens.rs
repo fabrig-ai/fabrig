@@ -93,7 +93,7 @@ const X1_RENDER_LINES: &str = concat!(
     "config       part ............\n",
     "  tmpfiles   /var/log/journal d 2755 root systemd-journal\n",
     "  /etc/hostname                file 0644 root:root ............\n",
-    "  /etc/localtime               link root:root /usr/share/zoneinfo/Europe/Lisbon\n",
+    "  /etc/localtime               link root:root /usr/share/zoneinfo/Etc/UTC\n",
     "data         part ............\n",
     "  journal    /var/log/journal\n",
 );

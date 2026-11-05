@@ -87,6 +87,46 @@ enum WelcomeForge {
 pub fn program_fixture(seed: u64) -> (Joint, Root) {
     fixture_root(seed, Tools::Off, 2, None, false, WelcomeForge::None, true)
 }
+/// A program offered without a pre-existing usable deployment account.
+#[must_use]
+pub fn empty_program_fixture(seed: u64) -> (Joint, Root) {
+    without_deployment_account(program_fixture(seed))
+}
+/// Supply the configured worker's observation of the explicit check it received.
+pub fn program_checked(front: &mut Joint, root: &mut Root, usable: bool) {
+    use jig_domain_host::{LinkUp, Login, LoginState};
+    let pending =
+        root.person().pages().connect_model().expect("model page").request.pending.as_ref().expect("check request");
+    let jig_client::contract::Ask::AccountChange {
+        change: jig_client::contract::AccountChange::CheckProgram { source },
+        ..
+    } = pending.ask
+    else {
+        panic!("explicit program check");
+    };
+    let doc = temper_client_domain::pages::accounts::document(root.person().client()).expect("accounts observed");
+    let name = doc
+        .accounts
+        .iter()
+        .flat_map(|a| a.sources.iter())
+        .find(|s| s.number == source)
+        .and_then(|s| s.name.as_deref())
+        .expect("declared login name");
+    let name = jig_domain_host::SourceName::new(name).expect("valid declaration");
+    let channel = fixtures::QUESTION_WORKER;
+    front.engine.send(temper_engine_domain_world::protocol::up(
+        channel,
+        LinkUp::Logins {
+            logins: Box::new([Login {
+                name,
+                state: if usable { LoginState::Usable } else { LoginState::NotSignedIn },
+            }]),
+        },
+        engine::Parts::none(),
+    ));
+    front.engine.settle();
+    settle(front, root);
+}
 #[must_use]
 pub fn empty_fixture(seed: u64) -> (Joint, Root) {
     without_deployment_account(fixture(seed))
@@ -249,7 +289,8 @@ fn fixture_root(
         }
         (config, engine_limits)
     });
-    let mut front = Joint::with_engine(seed, &limits, Store::new(), [bootstrap, config], &engine_limits, 1);
+    let mut front =
+        Joint::with_engine(seed, &limits, Store::with_limits(&engine_limits), [bootstrap, config], &engine_limits, 1);
     if forge_setup && !matches!(forge, WelcomeForge::Playground { .. }) {
         front.engine.send(engine::Event::Forge(Box::new(temper_engine_domain_forge::Event::Connection {
             forge: 1,
@@ -292,20 +333,36 @@ fn fixture_root(
     (front, root)
 }
 pub fn event(front: &mut Joint, root: &mut Root, event: Event) {
+    event_traced(front, root, event);
+}
+/// Account requests in transport order, including sends chained from an answer.
+pub fn event_traced(front: &mut Joint, root: &mut Root, event: Event) -> Vec<jig_client::contract::Ask> {
     let env = Env { now: front.now, wall: Wall::EPOCH, limits: front.limits };
     let mut out = Queue::uncapped();
+    let mut sent = Vec::new();
     Temper::step(root, &env, event, &mut out);
-    flush(front, root, &env, &mut out);
-    settle(front, root);
+    flush(front, root, &env, &mut out, &mut sent);
+    settle_traced(front, root, &mut sent);
+    sent
 }
 fn flush(
     front: &mut Joint,
     root: &mut Root,
     env: &Env<temper_client_domain::Limits>,
     out: &mut Queue<temper_client_domain::Request>,
+    sent: &mut Vec<jig_client::contract::Ask>,
 ) {
     Temper::take(root, env, out);
     while let Some(request) = out.pop() {
+        if let temper_client_domain::Request::Unlinked {
+            request:
+                jig_client::UnlinkedRequest::Down {
+                    down: jig_client::Down::Send { request: jig_client::Ask::Jig(ask), .. },
+                },
+        } = &request
+        {
+            sent.push(*ask.clone());
+        }
         if let temper_client_domain::Request::Leave { to, .. } = request {
             front.leaves.push(to);
             continue;
@@ -319,6 +376,9 @@ fn flush(
 }
 /// Drain immediate callbacks at the current fake time; stories advance time explicitly.
 pub fn settle(front: &mut Joint, root: &mut Root) {
+    settle_traced(front, root, &mut Vec::new());
+}
+fn settle_traced(front: &mut Joint, root: &mut Root, sent: &mut Vec<jig_client::contract::Ask>) {
     let env = Env { now: front.now, wall: Wall::EPOCH, limits: front.limits };
     let mut out = Queue::uncapped();
     for _ in 0..32 {
@@ -330,7 +390,7 @@ pub fn settle(front: &mut Joint, root: &mut Root) {
             assert_eq!(who, CLIENT);
             front.received(CLIENT, &event);
             Temper::step(root, &env, event, &mut out);
-            flush(front, root, &env, &mut out);
+            flush(front, root, &env, &mut out, sent);
         }
     }
     panic!("account root/front did not settle");

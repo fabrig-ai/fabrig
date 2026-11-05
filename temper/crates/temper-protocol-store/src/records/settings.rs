@@ -138,6 +138,29 @@ pub(super) fn encode(value: &d::SettingRow) -> w::SettingRow {
         d::Edit::Set(d::SizedValue { value, size }) => {
             let value = match value {
                 d::Value::Rule(rule) => w::SettingValue::Rule(encode_rule(rule)),
+                d::Value::Questions(route) => w::SettingValue::Questions(
+                    w::ProjectQuestions::new(
+                        &w::CEILINGS,
+                        w::ProjectQuestionsParts {
+                            route: match route {
+                                temper_engine_domain_forge_change::Route::None => w::Route::None,
+                                temper_engine_domain_forge_change::Route::Foreman => w::Route::Foreman,
+                                temper_engine_domain_forge_change::Route::Up => w::Route::Up,
+                            },
+                        },
+                    )
+                    .expect(FITS),
+                ),
+                d::Value::Ways(ways) => w::SettingValue::Ways(
+                    w::ProjectWays::new(
+                        &w::CEILINGS,
+                        w::ProjectWaysParts {
+                            skein_bools: [ways.drafts, ways.goals, ways.changes, ways.away],
+                            way: ways.way,
+                        },
+                    )
+                    .expect(FITS),
+                ),
                 d::Value::Charter(number) => w::SettingValue::Charter(
                     w::CharterValue::new(&w::CEILINGS, w::CharterValueParts { number: *number }).expect(FITS),
                 ),
@@ -166,6 +189,15 @@ pub(super) fn decode(value: w::SettingRow, bounds: &Bounds) -> Result<d::Setting
             let w::SizedValueParts { value, size } = value.into_parts();
             let value = match value {
                 w::SettingValue::Rule(rule) => d::Value::Rule(decode_rule(rule, bounds)?),
+                w::SettingValue::Questions(value) => d::Value::Questions(match value.into_parts().route {
+                    w::Route::None => temper_engine_domain_forge_change::Route::None,
+                    w::Route::Foreman => temper_engine_domain_forge_change::Route::Foreman,
+                    w::Route::Up => temper_engine_domain_forge_change::Route::Up,
+                }),
+                w::SettingValue::Ways(value) => {
+                    let w::ProjectWaysParts { skein_bools: [drafts, goals, changes, away], way } = value.into_parts();
+                    d::Value::Ways(d::ProjectWays { drafts, goals, changes, away, way })
+                }
                 w::SettingValue::Charter(number) => d::Value::Charter(number.into_parts().number),
             };
             d::Edit::Set(d::SizedValue { value, size })

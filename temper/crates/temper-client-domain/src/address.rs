@@ -17,15 +17,24 @@ pub enum Address {
     Goals { project: u32, filter: GoalsFilter },
     Changes { project: u32 },
     Settings { project: u32 },
+    Repositories { project: u32 },
+    Builders { project: u32 },
     Configure { project: u32 },
     Adopt { project: u32 },
 }
 /// The welcome's query names its step (client/browser.md, 2.3).
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 pub enum Step {
+    /// `/welcome`: decides by the store's state (client/README.md, 3.5).
     Welcome,
-    Forge { forge: Option<Choice> },
-    Model { way: Option<ModelWay> },
+    /// `/welcome?at=welcome`: the same step, asked for by its link.
+    WelcomeAsked,
+    Forge {
+        forge: Option<Choice>,
+    },
+    Model {
+        way: Option<ModelWay>,
+    },
     Ready,
 }
 /// A forge kind to make, a kept record, or the Forgejo instructions.
@@ -98,7 +107,7 @@ pub enum Place {
 }
 
 /// The page's path (client/browser.md, 2.3): `/`, `/chats`, `/chats/new`, `/chats/<task>`, `/tasks/<task>`,
-/// `/projects/<project>/goals`, `/projects/<project>`, `/projects/<project>/settings`, `/projects/<project>/settings/configure`, `/projects/<project>/adopt`, `/accounts`. The pages add their set filter fields as a query.
+/// `/projects/<project>/goals`, `/projects/<project>`, `/projects/<project>/settings`, `/projects/<project>/settings/repositories`, `/projects/<project>/settings/builders`, `/projects/<project>/settings/configure`, `/projects/<project>/adopt`, `/accounts`. The pages add their set filter fields as a query.
 #[must_use]
 pub fn print(address: &Address) -> Box<[u8]> {
     let (name, number, tail) = match address {
@@ -106,6 +115,7 @@ pub fn print(address: &Address) -> Box<[u8]> {
         Address::Welcome { step } => {
             return match step {
                 Step::Welcome => b"/welcome".as_slice().into(),
+                Step::WelcomeAsked => b"/welcome?at=welcome".as_slice().into(),
                 Step::Forge { forge } => print_choice(b"/welcome?at=forge", *forge, b"&forge="),
                 Step::Model { way } => print_way(b"/welcome?at=model", *way, b"&"),
                 Step::Ready => b"/welcome?at=ready".as_slice().into(),
@@ -129,6 +139,12 @@ pub fn print(address: &Address) -> Box<[u8]> {
         Address::Goals { project, .. } => (b"projects".as_slice(), Some(u64::from(*project)), b"goals".as_slice()),
         Address::Changes { project } => (b"projects".as_slice(), Some(u64::from(*project)), b"changes".as_slice()),
         Address::Settings { project } => (b"projects".as_slice(), Some(u64::from(*project)), b"settings".as_slice()),
+        Address::Builders { project } => {
+            (b"projects".as_slice(), Some(u64::from(*project)), b"settings/builders".as_slice())
+        }
+        Address::Repositories { project } => {
+            (b"projects".as_slice(), Some(u64::from(*project)), b"settings/repositories".as_slice())
+        }
         Address::Configure { project } => {
             (b"projects".as_slice(), Some(u64::from(*project)), b"settings/configure".as_slice())
         }
@@ -234,6 +250,14 @@ pub fn parse(path: &[u8]) -> Place {
         (b"projects", _, b"settings") => {
             let Some(project) = project_decimal(number) else { return Place::Missing };
             Address::Settings { project }
+        }
+        (b"projects", _, b"settings/builders") => {
+            let Some(project) = project_decimal(number) else { return Place::Missing };
+            Address::Builders { project }
+        }
+        (b"projects", _, b"settings/repositories") => {
+            let Some(project) = project_decimal(number) else { return Place::Missing };
+            Address::Repositories { project }
         }
         (b"projects", _, b"settings/configure") => {
             let Some(project) = project_decimal(number) else { return Place::Missing };
@@ -421,6 +445,7 @@ fn welcome_step(query: &[u8]) -> Step {
                 continue;
             }
             (step, seen) = match value {
+                b"welcome" => (Step::WelcomeAsked, true),
                 b"forge" => (Step::Forge { forge: forge_choice(query) }, true),
                 b"model" => (Step::Model { way: parse_way(query) }, true),
                 b"ready" => (Step::Ready, true),

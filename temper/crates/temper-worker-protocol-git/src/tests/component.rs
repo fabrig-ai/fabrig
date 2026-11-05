@@ -181,3 +181,23 @@ fn standalone_ancestry_needs_no_identity_and_cancels_after_its_child_closes() {
         ))
     );
 }
+
+#[test]
+fn a_look_spawns_at_the_worker_root_without_an_identity() {
+    let mut component = fixtures::Started::new();
+    component.down(Request::Io {
+        owner: fixtures::OWNER,
+        op: git::Op::Look { at: fixtures::at(), remote: Box::from(fixtures::REMOTE) },
+        deadline: fixtures::DEADLINE,
+        identity: None,
+    });
+    let Some(skein_io::Request::Spawn { spawn, .. }) = component.below.out.io.pop() else { panic!("look spawn") };
+    assert_eq!(&*spawn.dir, b"");
+    assert_eq!(
+        spawn.args,
+        crate::invocation::arguments(&crate::invocation::Command::Origin {
+            directory: Box::from(&b"workspaces/7/app"[..])
+        })
+    );
+    assert_eq!(component.done(), None);
+}

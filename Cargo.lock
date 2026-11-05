@@ -4475,6 +4475,7 @@ dependencies = [
  "temper-box",
  "temper-client-bundle",
  "temper-client-domain",
+ "temper-client-protocol-wire",
  "temper-client-shell-cli",
  "temper-client-shell-terminal",
  "temper-client-shell-web",
@@ -4771,6 +4772,7 @@ dependencies = [
  "temper-client-view",
  "temper-engine-domain",
  "temper-engine-domain-forge",
+ "temper-engine-domain-forge-change",
  "temper-engine-domain-world",
  "temper-engine-smith",
  "temper-service",
@@ -5047,6 +5049,7 @@ dependencies = [
  "temper-docs",
  "temper-engine-domain",
  "temper-engine-domain-forge",
+ "temper-engine-domain-forge-change",
  "temper-settings-form",
 ]
 

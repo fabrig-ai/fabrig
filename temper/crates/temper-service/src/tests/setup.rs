@@ -1141,7 +1141,7 @@ fn local_stops_missing_busy_and_origin_mismatch_leave_the_other_forge_served() {
             kept_record(&mut store, 1, Item::AdminToken, b"");
         }
         let mut service = local_with_other(local_config(true, false), store);
-        // Hold root restore while setting the host's actual admission conditions.
+        // Hold root restore while setting the host's admission conditions.
         for _ in 0_u32..8 {
             crate::forge::records::advance(service.engine.as_mut().unwrap());
         }
@@ -1998,18 +1998,17 @@ fn a_kept_github_record_serves_its_routes() {
 fn the_intent_comes_from_the_record_after_a_restart() {
     for mode in [domain::Mode::Owned, domain::Mode::Fake, domain::Mode::Managed] {
         let mut record = runtime_record(domain::Kind::Forgejo, mode);
-        record.first = Some(domain::FirstIntent {
+        record.first = Some(domain::FirstIntent::Empty(domain::EmptyIntent {
             playground: true,
             org: b"kept-org".as_slice().into(),
             repository: b"kept-repository".as_slice().into(),
             label: b"kept-label".as_slice().into(),
-        });
+        }));
         for _restart in 0_u32..2 {
             let mut service = local_service(runtime_config(), local_store(false));
             let engine = service.engine.as_mut().unwrap();
             insert_runtime_forge(engine, &record);
             keep(engine, &record);
-            lifecycle::first(engine, 2, b"memory-org".as_slice().into(), b"memory-repository".as_slice().into(), false);
             let local = engine.setup.lifecycle.local(2).unwrap();
             let first = local.first.as_ref().unwrap();
             assert_eq!(first.org.as_ref(), b"kept-org");
@@ -2046,11 +2045,10 @@ fn the_intent_comes_from_the_record_after_a_restart() {
             let first = active.first.as_ref().unwrap();
             assert_eq!(first.org.as_ref(), b"kept-org");
             assert_eq!(first.repository.as_ref(), b"kept-repository");
-            lifecycle::first(engine, 2, b"memory-org".as_slice().into(), b"memory-repository".as_slice().into(), false);
             keep(engine, &record);
             assert!(
                 engine.setup.lifecycle.local(2).unwrap().first.is_none(),
-                "consuming a kept intent never admits a memory replacement"
+                "keeping a consumed intent never starts another Create"
             );
         }
     }

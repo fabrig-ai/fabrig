@@ -57,17 +57,16 @@ fn welcome(step: Step) -> Address {
 }
 
 #[test]
-fn brand_returns_to_chats_from_every_welcome_step_without_starting_the_playground() {
-    for step in [Step::Welcome, Step::Forge { forge: None }, Step::Model { way: None }, Step::Ready] {
+fn brand_returns_to_welcome_from_every_step_without_starting_the_playground() {
+    for step in [Step::Welcome, Step::WelcomeAsked, Step::Forge { forge: None }, Step::Model { way: None }, Step::Ready]
+    {
         let (mut front, mut root) = h::playground_fixture(fixtures::SEED, false);
         go(&mut front, &mut root, welcome(step));
-        assert!(has(&root, Role::Link, b"temper chats"));
+        assert!(has(&root, Role::Link, b"temper"));
         assert!(!has(&root, Role::Link, b"Inbox"));
-        press(&mut front, &mut root, Role::Link, b"temper chats");
-        press(&mut front, &mut root, Role::Link, b"Settings");
-        assert!(has(&root, Role::Link, b"Accounts"), "{}", text(Temper::tree(&draw(&root))));
-        press(&mut front, &mut root, Role::Link, b"Chats");
-        assert!(has(&root, Role::Heading { level: 1 }, b"Talk to an agent."), "{}", text(Temper::tree(&draw(&root))));
+        press(&mut front, &mut root, Role::Link, b"temper");
+        assert_eq!(root.person().pages().address(), &welcome(Step::Welcome));
+        assert!(has(&root, Role::Heading { level: 1 }, b"Welcome to temper"));
         assert!(front.playground_starts.is_empty(), "brand must only navigate");
     }
 }
@@ -110,6 +109,7 @@ fn github_ready_offers_adoption_from_the_form_without_reading_repositories() {
     assert!(front.reachable_reads.is_empty());
     assert!(!front.engine_adopted(1, 7));
     press(&mut front, &mut root, Role::Link, b"Settings");
+    press(&mut front, &mut root, Role::Link, b"Repositories");
     press(&mut front, &mut root, Role::Link, b"Adopt a repository");
     assert!(has(&root, Role::TextField, b"Owner"));
     assert!(has(&root, Role::TextField, b"Name"));

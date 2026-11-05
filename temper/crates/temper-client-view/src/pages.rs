@@ -4,6 +4,7 @@ mod account_programs;
 pub(crate) mod accounts;
 pub(crate) mod agent;
 pub(crate) mod ask;
+pub(crate) mod builders;
 pub(crate) mod change;
 pub(crate) mod changes;
 pub(crate) mod chat;
@@ -16,8 +17,10 @@ pub(crate) mod inbox;
 pub(crate) mod needs;
 pub(crate) mod new_chat;
 pub(crate) mod session;
+pub(crate) mod settings;
 pub(crate) mod task;
 pub(crate) mod welcome;
+mod welcome_model;
 
 pub(crate) fn project_name(me: Option<&jig_client::contract::Me>, project: u32) -> Option<Box<[u8]>> {
     for row in &me?.projects {

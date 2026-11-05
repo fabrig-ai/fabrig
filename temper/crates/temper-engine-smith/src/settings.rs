@@ -49,10 +49,13 @@ pub(crate) fn read(value: &Value, bytes: &[u8]) -> Result<engine::Tool, Problem>
         let kind = setting.required(b"kind")?.text(b"kind")?;
         let number = setting.field(b"number")?;
         let project = setting.field(b"project")?;
-        if project.is_some() && kind.as_ref() != b"landing-rule" && kind.as_ref() != b"project-policy" {
+        if project.is_some()
+            && kind.as_ref() != b"landing-rule"
+            && ![b"project-policy".as_slice(), b"project-ways", b"project-questions"].contains(&kind.as_ref())
+        {
             return Err(Problem::Range(b"project"));
         }
-        if kind.as_ref() == b"rules" || kind.as_ref() == b"project-policy" {
+        if [b"rules".as_slice(), b"project-policy", b"project-ways", b"project-questions"].contains(&kind.as_ref()) {
             if number.is_some() {
                 return Err(Problem::Range(b"number"));
             }
@@ -61,7 +64,7 @@ pub(crate) fn read(value: &Value, bytes: &[u8]) -> Result<engine::Tool, Problem>
         }
         if let Some(project) = project {
             positive(project, b"project")?;
-        } else if kind.as_ref() == b"project-policy" {
+        } else if [b"project-policy".as_slice(), b"project-ways", b"project-questions"].contains(&kind.as_ref()) {
             return Err(Problem::Missing(b"project"));
         }
         let setting = settings_form::file::read_setting(bytes, &settings_form::Limits::standard())
@@ -150,7 +153,10 @@ pub(super) fn kind_values(items: &[s::Item]) -> Result<Box<[engine::KindValue]>,
     };
     let mut values = List::with_capacity(u32::try_from(items.len()).expect("bounded settings items"));
     for item in items {
-        let s::Setting::Application { kind: kind @ 1..=3, scope, number } = item.setting else { continue };
+        let s::Setting::Application { kind, scope, number } = item.setting else { continue };
+        if !temper_client_protocol_wire::settings_kind(kind) {
+            continue;
+        }
         let bytes = match &item.edit {
             s::Edit::Set(s::Value::Application(bytes)) => bytes,
             s::Edit::Set(_) => return Err(Problem::Range(b"items")),
@@ -227,9 +233,31 @@ pub fn settings_answer_bounded(
     application: Option<&temper_engine_domain_forge::settings::SizedValue>,
     max_bytes: u32,
 ) -> run::HostAnswer {
+    settings_repository_answer(answer, from, requested, models, application, &[], max_bytes)
+}
+
+/// Render an authorized inventory's project repository identities within the
+/// host allowance and the same byte-offset pagination as its settings.
+#[must_use]
+pub fn settings_repository_answer(
+    answer: &SettingsAnswer,
+    from: u32,
+    requested: Option<u64>,
+    models: &[engine::Model],
+    application: Option<&temper_engine_domain_forge::settings::SizedValue>,
+    repositories: &[engine::RepositoryIdentity],
+    max_bytes: u32,
+) -> run::HostAnswer {
     let maximum = skein_lib::usize_of(max_bytes).min(run::HostAnswer::CAPACITY);
-    let result =
-        settings_page(answer, from, requested, models, application, u32::try_from(maximum).expect("host bound"));
+    let result = settings_page(
+        answer,
+        from,
+        requested,
+        models,
+        application,
+        repositories,
+        u32::try_from(maximum).expect("host bound"),
+    );
     match result {
         Ok(answer) => answer,
         Err(message) => run::HostAnswer::new(
@@ -246,6 +274,7 @@ fn settings_page(
     requested: Option<u64>,
     models: &[engine::Model],
     application: Option<&temper_engine_domain_forge::settings::SizedValue>,
+    repositories: &[engine::RepositoryIdentity],
     maximum: u32,
 ) -> Result<run::HostAnswer, &'static [u8]> {
     let enriched;
@@ -258,21 +287,52 @@ fn settings_page(
         answer
     };
     match settings_text(answer, requested, models) {
-        Ok(text) => match settings_form::page::page_bounded(&text, from, maximum) {
-            Ok(body) => {
-                let error = match answer {
-                    SettingsAnswer::Unknown => true,
-                    SettingsAnswer::Inventory(_)
-                    | SettingsAnswer::Setting(_)
-                    | SettingsAnswer::Revision(_)
-                    | SettingsAnswer::Revisions(_) => false,
-                };
-                Ok(run::HostAnswer::new(body, error).expect("settings page bound"))
+        Ok(text) => {
+            match settings_form::page::page_bounded(&repository_text(answer, text, repositories), from, maximum) {
+                Ok(body) => {
+                    let error = match answer {
+                        SettingsAnswer::Unknown => true,
+                        SettingsAnswer::Inventory(_)
+                        | SettingsAnswer::Setting(_)
+                        | SettingsAnswer::Revision(_)
+                        | SettingsAnswer::Revisions(_) => false,
+                    };
+                    Ok(run::HostAnswer::new(body, error).expect("settings page bound"))
+                }
+                Err(settings_form::page::Error::Offset) => Err(b"from: not a UTF-8 text offset"),
+                Err(settings_form::page::Error::TooLarge) => Err(b"settings: host answer limit cannot hold a page"),
             }
-            Err(settings_form::page::Error::Offset) => Err(b"from: not a UTF-8 text offset"),
-            Err(settings_form::page::Error::TooLarge) => Err(b"settings: host answer limit cannot hold a page"),
-        },
+        }
         Err(_) => Err(b"settings: document limit"),
+    }
+}
+
+fn repository_text(answer: &SettingsAnswer, text: Box<[u8]>, repositories: &[engine::RepositoryIdentity]) -> Box<[u8]> {
+    if let SettingsAnswer::Inventory(_) = answer {
+        let mut measure = settings_form::Text::measure();
+        repository_rows(&mut measure, &text, repositories);
+        let mut out = settings_form::Text::writing_exact(measure);
+        repository_rows(&mut out, &text, repositories);
+        out.finish()
+    } else {
+        text
+    }
+}
+
+fn repository_rows(out: &mut settings_form::Text, text: &[u8], repositories: &[engine::RepositoryIdentity]) {
+    out.put(text);
+    if repositories.is_empty() {
+        return;
+    }
+    out.put(b"project repositories:\n");
+    for repository in repositories {
+        out.put(b"  forge ");
+        out.put(&repository.host);
+        out.put(b" repository ");
+        out.put(&repository.owner);
+        out.put(b"/");
+        out.put(&repository.name);
+        out.put(b"\n");
     }
 }
 

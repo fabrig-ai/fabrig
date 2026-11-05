@@ -17,16 +17,16 @@ A settings file, as `settings apply` and `settings propose` read it.
 One setting, and what becomes of it: `setting`, then exactly one of `set` and `edit`.
 
 - `setting`: `setting`. The setting the item changes.
-- `set`: the setting's kind's value: `charter`, `template`, `policy`, `rules`, `landing-rule`, `forge-charter` or `project-policy`. Its new value, whole, which replaces the one before.
+- `set`: the setting's kind's value: `charter`, `template`, `policy`, `rules`, `landing-rule`, `forge-charter`, `project-policy`, `project-ways` or `project-questions`. Its new value, whole, which replaces the one before.
 - `edit`: `"removed"` or `"reset"`. What becomes of the setting, in place of a value. `"removed"`: No longer offered, its default included; the rules cannot be removed. `"reset"`: Its change erased, so that it follows its default again.
 
 ## setting
 
-Which setting: its kind and, but for the rules, its number.
+Which setting: its kind and number, or project for project settings.
 
-- `kind`: `"charter"`, `"template"`, `"policy"`, `"project-policy"`, `"rules"`, `"landing-rule"` or `"forge-charter"`. The setting's kind. `"project-policy"`: A project's own policy: only `set`, at most once per file; may share a file with other settings. Its value is a policy.
-- `number`: integer, 0 to 4,294,967,295. The setting's number, from 1; left out for the rules.
-- `project`: integer, 0 to 4,294,967,295. For a landing rule, a project's number, from 1, the deployment's when left out; for a project's policy, its project, required.
+- `kind`: `"charter"`, `"template"`, `"policy"`, `"project-policy"`, `"rules"`, `"landing-rule"`, `"forge-charter"`, `"project-ways"` or `"project-questions"`. The setting's kind. `"project-policy"`: A project's own policy: only `set`, at most once per file; may share a file with other settings. Its value is a policy.
+- `number`: integer, 0 to 4,294,967,295. The setting's number, from 1; left out for rules, project-policy, project-ways and project-questions.
+- `project`: integer, 0 to 4,294,967,295. Required for project-ways and project-questions. For a landing rule, a project's number, from 1, the deployment's when left out; for a project's policy, its project, required.
 
 ## charter
 
@@ -57,7 +57,7 @@ How an agent's run works: its instructions, models, tools, hosts and budget. A t
 
 A document every run of the charter reads in its brief, as the file is at the branch's head when the run is prepared: a rule that lands there reaches the next run.
 
-- `forge`: text, at most 32,768 bytes. The canonical `host` printed by `temper ctl DIR forge list` (also `forge list --json`), as repository resource names carry it, including its port; copy it unchanged, not the forge number or web address.
+- `forge`: text, at most 32,768 bytes. The canonical `host` in the configuring chat's `settings` inventory under `project repositories`, alongside OWNER/NAME; people can also read `temper ctl DIR forge list` (or `forge list --json`). It is the host in repository resource names, including its port; copy it unchanged, not the forge number or web address.
 - `repository`: text, at most 65,537 bytes. The repository as OWNER/NAME; one adopted in no project gives a section saying so.
 - `branch`: text, at most 131,075 bytes. The branch whose head is read, its segments joined by `/`.
 - `path`: text, at most 256 bytes. The file's path in the repository, at most 256 bytes.
@@ -463,3 +463,21 @@ The final resource segment, in the same hex form as a pattern's last segment.
 ## forge-charter
 
 An integer from 0 to 4,294,967,295: the charter's number. Setting 1 selects the change's charter; setting 2 selects its reviews'.
+
+## project-ways
+
+What a project shows and the way its goals start. With none stored, all switches are false and way is 0.
+
+- `drafts`: true or false. Whether chats can write drafts.
+- `goals`: true or false. Whether the rail shows Goals.
+- `changes`: true or false. Whether the rail shows Changes.
+- `away`: true or false. Whether the rail shows the Away switch.
+- `way`: integer, 0 to 4,294,967,295. The template a goal starts by: one the project offers with tracked set, or 0 for the first.
+
+## project-questions
+
+The route a project's change takes when its maker names none.
+
+- `"none"`: No question route; the stock's value.
+- `"foreman"`: A change's questions go to its foreman.
+- `"up"`: A change's questions go up to its parent.

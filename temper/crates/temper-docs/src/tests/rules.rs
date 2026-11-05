@@ -385,10 +385,10 @@ fn deployment_explains_tool_payload_and_its_dependencies() {
 }
 
 #[test]
-fn box_help_locates_forgejo_notices_on_the_box_output() {
+fn box_help_locates_forgejo_lifecycle_and_hands() {
     let text = find(b"box").expect("box help").text.split_whitespace().collect::<Vec<_>>().join(" ");
-    assert!(text.contains("`temper box`'s stdout"), "name the notices' output stream");
-    assert!(text.contains("redirected log"), "locate notices for background boxes");
+    assert!(text.contains("`temper box`'s terminal (stderr)"), "name the lifecycle notices' output stream");
+    assert!(text.contains("The forge's hands are in `DATA/box/logs/forgejo-FORGE.log`"), "locate the forge's hands");
 }
 
 #[test]
