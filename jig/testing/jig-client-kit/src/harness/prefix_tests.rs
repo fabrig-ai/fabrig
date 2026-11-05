@@ -1,7 +1,7 @@
 //! Rendered inbox navigation through the shell's codec
 //! (jig/docs/design/client/domain/testing.md, 4).
 use super::{ClientId, Until, World};
-use crate::{Scripted, Test, stories, test::list};
+use crate::{PROJECT, PARTY, TASK, Scripted, Test, stories, test::list};
 use jig_client::contract::{InboxGroup, InboxReadGroup, ObjectKey, Read, ReadValue};
 use jig_client_scripted_engine::{Change, Rows, Source};
 use jig_client_test_domain::Action;
@@ -11,9 +11,6 @@ use skein_lib::{Duration, Time, Wall};
 use skein_ui::{Act, Role};
 use skein_world::domain::Verdict;
 
-const PARTY: u64 = 7;
-const PROJECT: u32 = 1;
-const TASK: u64 = 9;
 const LINK: &[u8] = b"Task 9: Chat nine";
 const HEADING_LEVEL: u8 = 1;
 const CODEC: address::Codec<'_> = address::Codec { prefix: b"/test/prefixed", ..address::REFERENCE };

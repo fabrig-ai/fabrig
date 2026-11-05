@@ -1,13 +1,12 @@
 //! An existing stopped conversation (jig/docs/design/client/domain/testing.md, 4–5).
 use super::b_seed::{inbox_source, install};
-use crate::{Scripted, joint::engine::Driver};
+use crate::{PROJECT, Scripted, joint::engine::Driver};
 use jig_client_domain::contract as c;
 use jig_client_scripted_engine::Change;
 use jig_fake_parties::{Act, Ask, Party, Role, Task};
 use skein_lib::{Time, Wall};
 
 const OWNER: u64 = 1;
-const PROJECT: u32 = 1;
 const PARENT: u64 = 1;
 const DELEGATE: u64 = 2;
 const HOLD_REVISION: u64 = 1;

@@ -1,9 +1,8 @@
 //! Goals board fixtures use tasks and the same task query as the real owner.
 use super::*;
+pub use crate::{PARTY, PROJECT};
 pub const FIRST: u64 = 19;
 pub const SECOND: u64 = 20;
-pub const PROJECT: u32 = 1;
-pub const PARTY: u64 = 7;
 
 #[must_use]
 pub fn address(section: jig_client_view::address::ProjectSection) -> RootAddress {

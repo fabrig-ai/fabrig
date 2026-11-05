@@ -1,5 +1,5 @@
 //! Person stories shared by all fronts (jig/docs/design/client/domain/testing.md, 4–5).
-use crate::{Front, Test, Until, World, harness::Seed};
+use crate::{PROJECT, SIGNING_PARTY, Front, Test, Until, World, harness::Seed};
 use skein_fake_person::{Find, Step};
 use skein_lib::Duration;
 use skein_ui::Role;
@@ -7,12 +7,10 @@ use skein_world::domain::Verdict;
 
 /// A person signs in, sees an existing conversation, and starts another one.
 pub fn signing_in_and_starting_a_chat<F: Front<Test>>(world: &mut World<Test, F>) {
-    const PARTY: u64 = 1;
-    const PROJECT: u32 = 1;
     const WITHIN: Duration = Duration::from_secs(1);
-    world.seed(Seed::ChatProject { party: PARTY, project: PROJECT });
-    world.seed(Seed::Conversation { party: PARTY, project: PROJECT, words: b"Earlier".as_slice().into() });
-    let client = world.client(PARTY, super::conversation());
+    world.seed(Seed::ChatProject { party: SIGNING_PARTY, project: PROJECT });
+    world.seed(Seed::Conversation { party: SIGNING_PARTY, project: PROJECT, words: b"Earlier".as_slice().into() });
+    let client = world.client(SIGNING_PARTY, super::conversation());
     world.person(
         client,
         vec![

@@ -4,7 +4,7 @@
 mod world;
 
 use jig_client::{Asker, Event, Handle, Key, Link, Readout, Told, contract as c};
-use jig_client_world::test;
+use jig_client_world::{test, PROJECT, TASK};
 use skein_lib::{Time, Wall};
 use world::{Command, Edge, Mode, World};
 
@@ -19,8 +19,6 @@ const THIRD: Key = Key { asker: Asker::JIG, number: 3 };
 const FIRST_NAME: [u8; 16] = [1; 16];
 const SECOND_NAME: [u8; 16] = [2; 16];
 const THIRD_NAME: [u8; 16] = [3; 16];
-const PROJECT: u32 = 1;
-const TASK: u64 = 9;
 const OTHER_TASK: u64 = 10;
 const BLOCKING_PROJECT: u32 = 10;
 const OBSOLETE_PROJECT: u32 = 20;
