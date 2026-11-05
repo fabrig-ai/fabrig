@@ -77,7 +77,7 @@ impl Protocol {
         self.net.cut_client(client);
         self.advance(now, fixtures::wall(now));
         let credential = self.clients[&client].wire.credential();
-        let mut side = Side::new();
+        let mut side = Side::new(self.clients[&client].party);
         side.wire.restore(credential);
         // Connection names survive the shell restart so late bytes cannot name a new socket.
         self.net.retire(client);

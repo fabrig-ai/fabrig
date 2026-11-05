@@ -44,15 +44,22 @@ pub fn peers() -> jig_core_kit::peers::Peers {
     )
 }
 #[must_use]
+pub fn identity(party: u64) -> jig_domain_people::Identity {
+    jig_domain_people::Identity {
+        key: jig_domain_people::IdentityKey {
+            provider: 0,
+            subject: party.checked_add(6).expect("fixture subject fits").to_be_bytes().into(),
+        },
+        login: b"login".as_slice().into(),
+        name: b"Person".as_slice().into(),
+    }
+}
+#[must_use]
 pub fn settings(rows: u32) -> jig_protocol_engine_clients::Settings {
     jig_protocol_engine_clients::Settings {
         provider: None,
         addresses: Box::new([]),
-        link: Some(jig_domain_people::Identity {
-            key: jig_domain_people::IdentityKey { provider: 0, subject: 7_u64.to_be_bytes().into() },
-            login: b"login".as_slice().into(),
-            name: b"Person".as_slice().into(),
-        }),
+        link: Some(identity(FIRST_OWNER)),
         deployment_provider: 2,
         heartbeat: Duration::from_millis(50),
         rows,
@@ -60,7 +67,7 @@ pub fn settings(rows: u32) -> jig_protocol_engine_clients::Settings {
             Served { family: None, first: 19, last: 19 },
             Served { family: Some(1), first: 2, last: 2 },
         ]),
-        providers: List::with_capacity(0),
+        providers: jig_client_world::test::list([0]),
         seed: Secret::new(Box::new([7; 32])),
         stream: 31,
         models: models(),
@@ -161,7 +168,7 @@ pub fn domain_limits() -> jig_client_domain::Limits {
     jig_client_domain::Limits {
         owners: &[jig_client_domain::Spoken { family: 1, version: jig_client_test_protocol_wire::VERSION }],
         handles: 8,
-        ..jig_client_world::test::limits().client.domain
+        ..jig_client_world::stories::shared::a_roles::limits().client.domain
     }
 }
 

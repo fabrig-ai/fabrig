@@ -32,4 +32,4 @@ fn take_signed_in(
     callbacks
 }
 
-mod role_fixture;
+pub mod role_fixture;

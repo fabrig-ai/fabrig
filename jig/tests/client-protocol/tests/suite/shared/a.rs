@@ -77,43 +77,43 @@ fn a_proposals_world() -> jig_client_world::World<jig_client_world::Test, jig_cl
 }
 
 #[test]
-#[ignore = "printed_link_has_one_identity: this protocol fixture authenticates only its first owner"]
 fn roles_a_maintainer_accepts_a_members_proposal() {
     let mut world = jig_client_protocol_world::fixtures::world(8510);
     jig_client_world::stories::shared::a_roles::a_maintainer_accepts_a_members_proposal(&mut world);
 }
 
 #[test]
-#[ignore = "printed_link_has_one_identity: this protocol fixture authenticates only its first owner"]
 fn roles_two_parties_decide_one_proposal() {
     let mut world = jig_client_protocol_world::fixtures::world(8510);
     jig_client_world::stories::shared::a_roles::two_parties_decide_one_proposal(&mut world);
 }
 
 #[test]
-#[ignore = "printed_link_has_one_identity: this protocol fixture authenticates only its first owner"]
 fn roles_an_owners_decision_updates_the_members_chat() {
     let mut world = jig_client_protocol_world::fixtures::world(8510);
     jig_client_world::stories::shared::a_roles::an_owners_decision_updates_the_members_chat(&mut world);
 }
 
 #[test]
-#[ignore = "printed_link_has_one_identity: this protocol fixture authenticates only its first owner"]
 fn roles_answering_a_choice_between_reports() {
     let mut world = jig_client_protocol_world::fixtures::world(8510);
     jig_client_world::stories::shared::a_roles::answering_a_choice_between_reports(&mut world);
 }
 
 #[test]
-#[ignore = "printed_link_has_one_identity: this protocol fixture authenticates only its first owner"]
 fn roles_a_goal_beyond_a_members_allotment_is_proposed() {
     let mut world = jig_client_protocol_world::fixtures::world(8510);
     jig_client_world::stories::shared::a_roles::a_goal_beyond_a_members_allotment_is_proposed(&mut world);
 }
 
 #[test]
-#[ignore = "printed_link_has_one_identity: this protocol fixture authenticates only its first owner"]
 fn roles_an_observer_sees_why_creation_is_unavailable() {
     let mut world = jig_client_protocol_world::fixtures::world(8510);
     jig_client_world::stories::shared::a_roles::an_observer_sees_why_creation_is_unavailable(&mut world);
+}
+
+#[test]
+fn roles_a_delegate_s_escalation_record_names_the_person_who_asked() {
+    let mut world = jig_client_protocol_world::fixtures::world(8510);
+    jig_client_world::stories::shared::a_roles::a_delegate_s_escalation_record_names_the_person_who_asked(&mut world);
 }

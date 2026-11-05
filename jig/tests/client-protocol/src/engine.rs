@@ -7,7 +7,7 @@ use jig_domain_core as core;
 use jig_protocol_engine_clients::{self as clients, Event, Request, SecretOwner, SecretsAnswer, SecretsRequest};
 use jig_protocol_engine_clients_http as http;
 use jig_test_domain as root;
-use skein_lib::{Env, Queue, Time, Token, Wall};
+use skein_lib::{Env, Queue, Secret, Time, Token, Wall};
 use std::collections::{BTreeMap, BTreeSet};
 pub(super) struct Engine {
     pub driver: Driver,
@@ -21,6 +21,7 @@ pub(super) struct Engine {
     pub env: Env<clients::Limits>,
     pub out: Queue<Request>,
     pub link: Box<[u8]>,
+    pub minted: Vec<(Token, Secret)>,
     pub rules: crate::referee::Rules,
     pub limits: root::Limits,
     pub seed: u64,
@@ -73,6 +74,7 @@ impl Engine {
             env,
             out,
             link: Box::new([]),
+            minted: Vec::new(),
             rules: crate::referee::Rules::default(),
             limits,
             seed,
@@ -116,6 +118,9 @@ impl Engine {
     }
     pub fn event(&mut self, event: Event) {
         self.component.down(&self.env, event, &mut self.out);
+    }
+    pub fn mint(&mut self, exchange: Token, identity: jig_domain_people::Identity) {
+        self.event(Event::Mint { exchange, identity });
     }
     pub fn request(&mut self, request: Request) -> Option<skein_io::Request> {
         match request {
@@ -188,10 +193,12 @@ impl Engine {
                     Err(event) => self.event(*event),
                 }
             }
-            Request::Minted { .. }
-            | Request::MintRefused { .. }
-            | Request::Redeemed { .. }
-            | Request::Claimed { .. } => {
+            Request::Minted { exchange, credential, .. } => {
+                self.rules.secret(credential.expose());
+                self.minted.push((exchange, credential));
+            }
+            Request::MintRefused { exchange, why } => panic!("fixture mint {exchange:?} refused: {why:?}"),
+            Request::Redeemed { .. } | Request::Claimed { .. } => {
                 panic!("the world asks for no application sign-ins")
             }
             Request::Closed => {}

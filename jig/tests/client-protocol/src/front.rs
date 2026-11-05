@@ -4,7 +4,7 @@ use jig_client_shell_native::{Conn, Connections};
 use jig_client_test_domain::{self as client, Event, Request};
 use jig_client_world::{ClientId, Front, FrontFault, Test, harness::Observed};
 use skein_lib::{
-    Queue, Time, Wall,
+    Queue, Time, Token, Wall,
     stream::{Down, Up},
 };
 use std::collections::BTreeMap;
@@ -12,7 +12,10 @@ mod effects;
 mod faults;
 pub mod observe;
 pub(crate) mod persistence;
+#[cfg(test)]
+mod tests;
 pub(super) struct Side {
+    party: u64,
     wire: crate::native::wire::Wire,
     connections: Connections,
     up: Queue<jig_client::Event>,
@@ -21,8 +24,9 @@ pub(super) struct Side {
     stream_epoch: u64,
 }
 impl Side {
-    pub(super) fn new() -> Self {
+    pub(super) fn new(party: u64) -> Self {
         Self {
+            party,
             wire: crate::native::wire::Wire::default(),
             connections: Connections::new(&fixtures::connections_limits(), fixtures::HOST),
             up: Queue::with_capacity(256),
@@ -56,6 +60,7 @@ pub struct Protocol {
     deliveries: BTreeMap<ClientId, u64>,
     answers: BTreeMap<ClientId, u64>,
     task_queries_read: u32,
+    roles: bool,
 }
 impl Protocol {
     /// Construct a person story's starting facts before its core heap meter starts.
@@ -90,6 +95,7 @@ impl Protocol {
             deliveries: BTreeMap::new(),
             answers: BTreeMap::new(),
             task_queries_read: 0,
+            roles: false,
         };
         value.advance(Time::ZERO, fixtures::wall(Time::ZERO));
         value
@@ -163,6 +169,15 @@ impl Protocol {
                     self.engine.io_event(event);
                 }
             }
+            for (exchange, secret) in std::mem::take(&mut self.engine.minted) {
+                active = true;
+                let client = ClientId(usize::try_from(exchange.raw()).expect("mint names a client"));
+                self.clients.get_mut(&client).expect("minted client").wire.restore(Some(secret.clone()));
+                self.callbacks.push((
+                    client,
+                    Event::Client { event: jig_client::Event::SignIn { with: jig_client::With::Held(secret) } },
+                ));
+            }
             for (client, side) in &mut self.clients {
                 side.connections.take(now, &mut side.up, &mut side.below);
                 while let Some(event) = side.up.pop() {
@@ -233,6 +248,19 @@ impl Protocol {
 impl Front<Test> for Protocol {
     fn seed(&mut self, seed: jig_client_world::harness::Seed) {
         assert!(self.clients.is_empty(), "seed before admitting clients");
+        if let jig_client_world::harness::Seed::Roles { story } = seed {
+            let (configuration, limits, peers) = jig_client_world::joint::role_fixture::setup(story);
+            let mut engine = Engine::with_peers(fixtures::SEED, &limits, configuration, peers);
+            jig_client_world::joint::role_fixture::install(
+                &mut engine.driver,
+                story,
+                self.now,
+                fixtures::wall(self.now),
+            );
+            *self = Self::with_engine(engine);
+            self.roles = true;
+            return;
+        }
         jig_client_world::harness::seed::seed_core(&mut self.engine.driver, self.now, fixtures::wall(self.now), seed);
         self.advance(self.now, fixtures::wall(self.now));
     }
@@ -240,11 +268,14 @@ impl Front<Test> for Protocol {
         &self,
         _: jig_client_world::harness::ClientConstructor<Test>,
     ) -> jig_client_world::harness::ClientConstructor<Test> {
-        jig_client_world::test::linked
+        if self.roles {
+            |seed| jig_client_world::test::linked_with(&jig_client_world::stories::shared::a_roles::limits(), seed)
+        } else {
+            jig_client_world::test::linked
+        }
     }
     fn bind(&mut self, client: ClientId, party: u64) {
-        assert_eq!(party, fixtures::FIRST_OWNER, "printed link is the configured first owner");
-        self.clients.insert(client, Side::new());
+        self.clients.insert(client, Side::new(party));
     }
     fn starting(&mut self, client: ClientId) -> Vec<Event> {
         self.clients[&client].wire.credential().map_or_else(Vec::new, |credential| {
@@ -341,6 +372,11 @@ impl Front<Test> for Protocol {
     fn sign_in(&mut self, client: ClientId, _now: Time, _wall: Wall) {
         self.last_client = Some(client);
         let side = self.clients.get_mut(&client).expect("bound client");
+        if side.party != fixtures::FIRST_OWNER {
+            let exchange = Token::new(u64::try_from(client.0).expect("client mint identifier fits"));
+            self.engine.mint(exchange, fixtures::identity(side.party));
+            return;
+        }
         side.signing_link = Some(self.engine.link.clone());
         let secret = side.connections.printed(&self.engine.link).expect("engine's printed link");
         self.callbacks.push((
