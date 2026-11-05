@@ -318,6 +318,7 @@ mod classifications {
     fn every_ask_only_applies_rosters_with_their_exact_members() {
         for (ask, _) in ask_classes() {
             let expected = match &ask { Ask::SetRoles { project, holdings } => Some((*project, holdings.clone())), _ => None };
+            assert_eq!(ask.roster(), expected.as_ref().map(|(project, holdings)| (*project, holdings.as_ref())), "{ask:?}");
             let mut domain = Domain::new(&LIMITS, Box::new([]), 2, Box::new([]));
             let env = Env { limits: LIMITS, now: Time::ZERO, wall: Wall::EPOCH };
             domain.start_restore(env.wall);

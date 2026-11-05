@@ -225,46 +225,10 @@ pub(super) fn load(domain: &mut Domain, env: &Env<Limits>, record: Stored, out: 
 }
 
 fn link_roster(domain: &Domain, source: Key, ask: &crate::Ask) {
-    match ask {
-        crate::Ask::SetRoles { holdings, .. } => {
-            for holding in holdings {
-                link(domain, source, holding.person);
-            }
+    if let Some((_, holdings)) = ask.roster() {
+        for holding in holdings {
+            link(domain, source, holding.person);
         }
-        crate::Ask::Restore { .. }
-        | crate::Ask::Compound { .. }
-        | crate::Ask::MarkSeen { .. }
-        | crate::Ask::Application { .. }
-        | crate::Ask::EditNote { .. }
-        | crate::Ask::MakeService { .. }
-        | crate::Ask::Adopt { .. }
-        | crate::Ask::ChangePolicy { .. }
-        | crate::Ask::RemoveProject { .. }
-        | crate::Ask::SetVisibility { .. }
-        | crate::Ask::Rename { .. }
-        | crate::Ask::MakeProject { .. }
-        | crate::Ask::ChangeSettings { .. }
-        | crate::Ask::MoveToNewest { .. }
-        | crate::Ask::SetPool { .. }
-        | crate::Ask::DecideEscalation { .. }
-        | crate::Ask::DecideProposal { .. }
-        | crate::Ask::Say { .. }
-        | crate::Ask::AnswerQuestion { .. }
-        | crate::Ask::Amend { .. }
-        | crate::Ask::Move { .. }
-        | crate::Ask::TakePerson { .. }
-        | crate::Ask::HandBackPerson { .. }
-        | crate::Ask::AnswerPerson { .. }
-        | crate::Ask::Stop { .. }
-        | crate::Ask::Cancel { .. }
-        | crate::Ask::Lift { .. }
-        | crate::Ask::Release { .. }
-        | crate::Ask::Create { .. }
-        | crate::Ask::Propose { .. }
-        | crate::Ask::Withdraw { .. }
-        | crate::Ask::AccountSignIn { .. }
-        | crate::Ask::AccountSignOut { .. }
-        | crate::Ask::AccountChange { .. } => {}
     }
 }
 

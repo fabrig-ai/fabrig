@@ -51,7 +51,6 @@ pub(super) fn valid_identity(limits: &Limits, identity: &Identity) -> bool {
     }
 }
 
-#[expect(clippy::too_many_lines, reason = "each request is classified explicitly at its owning entrance")]
 pub(super) fn apply_roles(
     domain: &mut Domain,
     env: &Env<Limits>,
@@ -62,101 +61,24 @@ pub(super) fn apply_roles(
         return Err(Outcome::Again(Again::NotReady));
     }
     let flight = domain.party_pending(Id::from_token(request)).ok_or(Outcome::Refused(Refusal::Unknown))?;
-    let project = match flight.part.as_ref().unwrap_or(&flight.ask) {
-        Ask::Restore { .. } => return Err(Outcome::Refused(Refusal::Unknown)),
-        Ask::SetRoles { project, .. } => *project,
-        Ask::Compound { .. }
-        | Ask::MarkSeen { .. }
-        | Ask::Application { .. }
-        | Ask::MakeService { .. }
-        | Ask::EditNote { .. }
-        | Ask::Adopt { .. }
-        | Ask::ChangePolicy { .. }
-        | Ask::RemoveProject { .. }
-        | Ask::SetVisibility { .. }
-        | Ask::Rename { .. }
-        | Ask::MakeProject { .. }
-        | Ask::ChangeSettings { .. }
-        | Ask::MoveToNewest { .. }
-        | Ask::SetPool { .. }
-        | Ask::DecideEscalation { .. }
-        | Ask::DecideProposal { .. }
-        | Ask::Say { .. }
-        | Ask::AnswerQuestion { .. }
-        | Ask::Amend { .. }
-        | Ask::Move { .. }
-        | Ask::TakePerson { .. }
-        | Ask::HandBackPerson { .. }
-        | Ask::AnswerPerson { .. }
-        | Ask::Stop { .. }
-        | Ask::Cancel { .. }
-        | Ask::Lift { .. }
-        | Ask::Release { .. }
-        | Ask::Create { .. }
-        | Ask::Propose { .. }
-        | Ask::Withdraw { .. }
-        | Ask::AccountSignIn { .. }
-        | Ask::AccountSignOut { .. }
-        | Ask::AccountChange { .. } => {
-            return Err(Outcome::Refused(Refusal::Unknown));
-        }
-    };
+    let (project, holdings) = flight.part.as_ref().unwrap_or(&flight.ask).roster()
+        .ok_or(Outcome::Refused(Refusal::Unknown))?;
     if !domain.roles.contains_key(&project) {
         return Err(Outcome::Refused(Refusal::Unknown));
     }
     if role(domain, flight.key.person, project) != Some(Role::Owner) {
         return Err(Outcome::Refused(Refusal::Role { held: role(domain, flight.key.person, project) }));
     }
-    let holdings = match flight.part.as_ref().unwrap_or(&flight.ask) {
-        Ask::Restore { .. } => unreachable!("validated roster flight"),
-        Ask::SetRoles { holdings, .. } => {
-            valid_roles(domain, &env.limits, project, holdings)?;
-            for holding in holdings {
-                if holding.person == 0 {
-                    return Err(Outcome::Refused(Refusal::Limit { which: LimitKind::Roles }));
-                }
-                if !domain.people.contains_key(&holding.person) {
-                    return Err(Outcome::Refused(Refusal::Unknown));
-                }
-            }
-            holdings.clone()
+    valid_roles(domain, &env.limits, project, holdings)?;
+    for holding in holdings {
+        if holding.person == 0 {
+            return Err(Outcome::Refused(Refusal::Limit { which: LimitKind::Roles }));
         }
-        Ask::Compound { .. }
-        | Ask::MarkSeen { .. }
-        | Ask::Application { .. }
-        | Ask::MakeService { .. }
-        | Ask::EditNote { .. }
-        | Ask::Adopt { .. }
-        | Ask::ChangePolicy { .. }
-        | Ask::RemoveProject { .. }
-        | Ask::SetVisibility { .. }
-        | Ask::Rename { .. }
-        | Ask::MakeProject { .. }
-        | Ask::ChangeSettings { .. }
-        | Ask::MoveToNewest { .. }
-        | Ask::SetPool { .. }
-        | Ask::DecideEscalation { .. }
-        | Ask::DecideProposal { .. }
-        | Ask::Say { .. }
-        | Ask::AnswerQuestion { .. }
-        | Ask::Amend { .. }
-        | Ask::Move { .. }
-        | Ask::TakePerson { .. }
-        | Ask::HandBackPerson { .. }
-        | Ask::AnswerPerson { .. }
-        | Ask::Stop { .. }
-        | Ask::Cancel { .. }
-        | Ask::Lift { .. }
-        | Ask::Release { .. }
-        | Ask::Create { .. }
-        | Ask::Propose { .. }
-        | Ask::Withdraw { .. }
-        | Ask::AccountSignIn { .. }
-        | Ask::AccountSignOut { .. }
-        | Ask::AccountChange { .. } => {
-            unreachable!("validated roster flight")
+        if !domain.people.contains_key(&holding.person) {
+            return Err(Outcome::Refused(Refusal::Unknown));
         }
-    };
+    }
+    let holdings = Box::<[Holding]>::from(holdings);
     out.push(Request::Save { record: Stored::Roles { project, holdings: holdings.clone() } });
     let saved = domain.roles.insert(project, holdings);
     assert!(saved.is_ok(), "existing role row replaces without consuming capacity");

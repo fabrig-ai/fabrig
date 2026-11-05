@@ -376,6 +376,48 @@ impl Ask {
             Self::MarkSeen { .. } => AskFamily::Seen,
         }
     }
+
+    /// A roster replacement borrows the members checked and linked by people.
+    #[must_use]
+    pub fn roster(&self) -> Option<(u32, &[Holding])> {
+        match self {
+            Self::SetRoles { project, holdings } => Some((*project, holdings)),
+            Self::Restore { .. }
+            | Self::Compound { .. }
+        | Self::MarkSeen { .. }
+        | Self::Application { .. }
+        | Self::MakeService { .. }
+        | Self::EditNote { .. }
+        | Self::Adopt { .. }
+        | Self::ChangePolicy { .. }
+        | Self::RemoveProject { .. }
+        | Self::SetVisibility { .. }
+        | Self::Rename { .. }
+        | Self::MakeProject { .. }
+        | Self::ChangeSettings { .. }
+        | Self::MoveToNewest { .. }
+        | Self::SetPool { .. }
+        | Self::DecideEscalation { .. }
+        | Self::DecideProposal { .. }
+        | Self::Say { .. }
+        | Self::AnswerQuestion { .. }
+        | Self::Amend { .. }
+        | Self::Move { .. }
+        | Self::TakePerson { .. }
+        | Self::HandBackPerson { .. }
+        | Self::AnswerPerson { .. }
+        | Self::Stop { .. }
+        | Self::Cancel { .. }
+        | Self::Lift { .. }
+        | Self::Release { .. }
+        | Self::Create { .. }
+        | Self::Propose { .. }
+        | Self::Withdraw { .. }
+        | Self::AccountSignIn { .. }
+        | Self::AccountSignOut { .. }
+        | Self::AccountChange { .. } => None,
+        }
+    }
 }
 
 /// A person's answer to a report, choice or failure contract; root translates it for tasks.
