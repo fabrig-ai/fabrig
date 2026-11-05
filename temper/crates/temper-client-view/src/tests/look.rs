@@ -136,7 +136,7 @@ const RAIL_NAMES: [(skein_ui::Style, &[u8]); 5] = [
 ];
 #[test]
 fn each_style_or_region_is_named_under_temper() {
-    let named: [(skein_ui::Style, &[u8]); 94] = [
+    let named: [(skein_ui::Style, &[u8]); 90] = [
         (PROPOSAL_FACTS, b"temper-proposal-facts"),
         (NAV_COUNT, b"temper-nav-count"),
         (BANNER, b"temper-banner"),
@@ -197,7 +197,6 @@ fn each_style_or_region_is_named_under_temper() {
         (PLAN, b"temper-plan"),
         (PLAN_ROW, b"temper-plan-row"),
         (PLAN_HOLD, b"temper-plan-hold"),
-        (EVENTS, b"temper-events"),
         (STATUS_DONE, b"temper-status-done"),
         (CHOICE, b"temper-choice"),
         (ACCOUNTS_PAGE, b"temper-accounts-page"),
@@ -208,8 +207,6 @@ fn each_style_or_region_is_named_under_temper() {
         (STEP, b"temper-step"),
         (STEP_DONE, b"temper-step-done"),
         (UNAVAILABLE, b"temper-unavailable"),
-        (TASK_CONTRACT, b"temper-task-contract"),
-        (TASK_BUDGET, b"temper-task-budget"),
         (PLAN_SPEND, b"temper-plan-spend"),
         (DEPENDENCIES, b"temper-dependencies"),
         (STATUS_WAITING, b"temper-status-waiting"),
@@ -220,7 +217,6 @@ fn each_style_or_region_is_named_under_temper() {
         (REPOSITORY, b"temper-repository"),
         (TASK_ACTS, b"temper-task-acts"),
         (AGENT_STEER, b"temper-agent-steer"),
-        (TASK_DANGER, b"temper-task-danger"),
         (TASK_AMEND, b"temper-task-amend"),
         (DAY, b"temper-day"),
         (CHANGE, b"temper-change"),
@@ -248,7 +244,7 @@ fn each_pages_main_carries_the_main_token() {
     assert_eq!(fixtures::styles(view.tree(), Role::Main).as_ref(), [Box::from([MAIN])]);
     assert_eq!(NAMES.style(SIDEBAR), Some(b"temper-sidebar".as_slice()));
     let view = fixtures::page_view(&fixtures::task::held_root());
-    assert_eq!(fixtures::styles(view.tree(), Role::Main).as_ref(), [Box::from([MAIN, PAGE])]);
+    assert_eq!(fixtures::styles(view.tree(), Role::Main).as_ref(), [Box::from([MAIN, GOAL])]);
     let view = fixtures::page_view(&fixtures::inbox_root());
     assert_eq!(fixtures::styles(view.tree(), Role::Main).as_ref(), [Box::from([MAIN, PAGE])]);
     let view = fixtures::page_view(&fixtures::account_root().0);
@@ -408,7 +404,7 @@ fn the_inbox_tokens_stay_on_their_roles() {
 
 #[test]
 fn the_task_tokens_stay_on_their_roles() {
-    let view = fixtures::page_view(&fixtures::task::held_root());
+    let view = fixtures::page_view(&super::task::held_agent_root());
     let mut builder = skein_ui::Builder::new(&fixtures::tree_limits());
     let mut task = fixtures::task::document();
     task.chip.phase = jig_client::contract::Phase::Done;
@@ -421,24 +417,20 @@ fn the_task_tokens_stay_on_their_roles() {
         None,
     );
     let done = builder.finish();
-    let activity = super::task::activity_tree(&[super::task::activity_news()]);
     let plan = super::task::dependency_plan();
     for (token, role) in [
         (TASK_HEADING, Role::Region),
-        (TASK_CONTRACT, Role::Paragraph),
-        (TASK_BUDGET, Role::Region),
         (TASK_CARD, Role::Region),
         (PLAN, Role::Tree),
         (PLAN_ROW, Role::Slot),
         (PLAN_SPEND, Role::Paragraph),
         (DEPENDENCIES, Role::List),
         (PLAN_HOLD, Role::List),
-        (EVENTS, Role::List),
         (STATUS_DONE, Role::Status),
         (STATUS_WAITING, Role::Status),
     ] {
         let mut found = false;
-        for tree in [view.tree(), &done, &activity, &plan] {
+        for tree in [view.tree(), &done, &plan] {
             for node in tree.nodes() {
                 if node.styles.as_slice().contains(&token) {
                     assert_eq!(node.role, role);
@@ -455,7 +447,7 @@ fn the_choice_token_stays_on_the_composer_slot() {
     let mut roots = skein_lib::List::with_capacity(3);
     roots.push(fixtures::chats_root()).expect("chats");
     roots.push(fixtures::chat::messaging_root()).expect("chat");
-    roots.push(fixtures::task::root(jig_client::contract::ChipExecutor::Agent { charter: 1 }, Some(1))).expect("task");
+    roots.push(fixtures::task::root(jig_client::contract::ChipExecutor::Agent { charter: 1 }, None)).expect("task");
     for root in &roots {
         let view = fixtures::page_view(root);
         let mut found = false;
