@@ -7,7 +7,7 @@ io_resume 1
 earliest_helper 1
 hex_decimal_fn 8
 host_forwarder 1
-path_attribute 2
+path_attribute 0
 domain_while 0
 comment:actual 2
 comment:genuine 0

@@ -6,7 +6,7 @@ use alloc::boxed::Box;
 
 use crate::btree::price;
 use crate::growth::grown;
-use crate::{Buffer, Intake, List, Map, Queue, Set, Stack};
+use crate::{Buffer, Intake, List, Lru, Map, Queue, Set, Stack, state_digest};
 
 #[test]
 fn a_full_buffer_doubles_from_the_floor_to_what_it_needs_under_its_cap() {
@@ -390,4 +390,76 @@ fn list_items_change_in_place_in_push_order() {
     assert_eq!(list.as_slice(), &[5, 9, 13]);
     list.clear();
     assert_eq!(list.iter_mut().next(), None);
+}
+
+// Two rows let a hit save the older entry; a miss must leave its order alone.
+fn lru_pair(capacity: u32) -> Lru<u8, u8> {
+    let mut table = Lru::with_capacity(capacity);
+    for (key, value) in [(2, 20), (1, 10)] {
+        assert_eq!(table.insert(key, value), None);
+    }
+    table
+}
+
+#[test]
+fn a_lru_evicts_by_use_and_a_get_saves_an_entry() {
+    for (get, found, evicted) in [(9, None, (2, 20)), (2, Some(20), (1, 10)), (1, Some(10), (2, 20))] {
+        let mut table = lru_pair(2);
+        assert_eq!(table.get(get), found.as_ref());
+        assert_eq!(table.insert(3, 30), Some(evicted));
+        assert_eq!(table.get(evicted.0), None);
+        assert_eq!(table.len(), 2);
+        assert!(!table.is_empty());
+    }
+}
+
+#[test]
+fn a_lru_replaces_without_evicting_another_entry() {
+    for (key, old, next) in [(2, 20, (1, 10)), (1, 10, (2, 20))] {
+        let mut table = lru_pair(2);
+        assert_eq!(table.insert(key, 99), Some((key, old)));
+        assert_eq!(table.len(), 2);
+        assert_eq!(table.insert(3, 30), Some(next), "replacement refreshes its use");
+        assert_eq!(table.get(key), Some(&99));
+    }
+}
+
+#[test]
+fn a_lru_remove_makes_room_and_an_absent_key_changes_nothing() {
+    for (key, removed, length, evicted) in [(2, Some(20), 1, None), (1, Some(10), 1, None), (9, None, 2, Some((2, 20)))]
+    {
+        let mut table = lru_pair(2);
+        assert_eq!(table.remove(key), removed);
+        assert_eq!(table.remove(key), None);
+        assert_eq!(table.len(), length);
+        assert_eq!(table.insert(3, 30), evicted);
+        for key in [1, 2, 3] {
+            let _removed = table.remove(key);
+        }
+        assert!(table.is_empty());
+    }
+}
+
+#[test]
+fn a_zero_capacity_lru_hands_every_pair_back() {
+    let mut table = Lru::<u8, u8>::with_capacity(0);
+    for (key, value) in [(1, 10), (1, 20), (2, 30)] {
+        assert_eq!(table.insert(key, value), Some((key, value)));
+        assert_eq!(table.get(key), None);
+        assert_eq!(table.remove(key), None);
+        assert_eq!(table.len(), 0);
+        assert!(table.is_empty());
+    }
+}
+
+#[test]
+fn a_lru_hash_covers_values_and_use_order_without_its_history() {
+    let original = state_digest(&lru_pair(2));
+    for (capacity, refresh, value, alike) in [(2, 1, 10, true), (9, 1, 10, true), (2, 2, 20, false), (2, 1, 99, false)]
+    {
+        let mut table = lru_pair(capacity);
+        assert_eq!(table.insert(refresh, value), Some((refresh, if refresh == 1 { 10 } else { 20 })));
+        assert_eq!(state_digest(&table) == original, alike);
+    }
+    assert_ne!(state_digest(&Lru::<u8, u8>::with_capacity(2)), original);
 }

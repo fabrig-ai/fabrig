@@ -478,7 +478,7 @@ impl Peer {
         connection: &mut Connection,
         event: protocol::Event,
     ) {
-        let env = Env { now: domain_env.now, wall: domain_env.wall, limits: self.protocol };
+        let env = domain_env.with(self.protocol);
         match event {
             protocol::Event::Domain(event) => {
                 self.dispatch(forge, domain_env, connection.owner, event);

@@ -63,6 +63,14 @@ fn rfc3339_reads_offsets_and_discards_fractional_seconds() {
     }
 }
 #[test]
+fn rfc3339_reads_a_date_outside_wall_that_its_offset_brings_in() {
+    for (text, seconds) in
+        [(b"1969-12-31T23:59:59-00:01".as_slice(), 59), (b"2554-07-22T00:00:00+05:00", 18_446_727_600)]
+    {
+        assert_eq!(time::read(text), Some(Wall::from_nanos(seconds * 1_000_000_000)), "{text:?}");
+    }
+}
+#[test]
 fn rfc3339_writes_offset_times_in_utc() {
     for (text, _) in RFC3339_TIMES {
         assert_eq!(time::write(time::read(text).unwrap()), *b"2020-01-01T00:00:00Z", "{text:?}");
