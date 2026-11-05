@@ -39,7 +39,7 @@ pub(crate) fn main(
     b.open(Role::Main);
     b.style(look::MAIN);
     let configuring = configuring(root);
-    b.style(if configuring { look::SESSION } else { look::CHAT });
+    b.style(if configuring { look::SESSION } else { look::AGENT_PAGE });
     if let Some(chat) = root.pages().chat()
         && let Some(task) = chat.task(root.client())
     {
@@ -69,7 +69,7 @@ pub(crate) fn main(
         } else {
             b.open(Role::Region);
             b.name(&title);
-            b.style(look::CHATBAR);
+            b.style(look::TASKBAR);
             b.open(Role::Slot);
             heading(b, &title, task.chip.title.bytes());
             bar_status(b, root, task, words, times);

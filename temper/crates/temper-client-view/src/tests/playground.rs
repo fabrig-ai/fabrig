@@ -104,7 +104,7 @@ fn a_chats_banner_precedes_main_and_its_chatbar_in_every_project() {
             if node.role == Role::Main {
                 main = Some(index);
             }
-            if node.styles.as_slice().contains(&crate::look::CHATBAR) {
+            if node.styles.as_slice().contains(&crate::look::TASKBAR) {
                 chatbar = Some(index);
             }
             if node.styles.as_slice().contains(&crate::look::THREAD) {
