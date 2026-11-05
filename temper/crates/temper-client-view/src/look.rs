@@ -1160,15 +1160,6 @@ pub const NEEDS_HOME: Style = Style { owner: owner(), token: 319 };
 /// Done’s intro (temper/docs/design/client/README.md, 3.5).
 pub const NEEDS_INTRO: Style = Style { owner: owner(), token: 320 };
 
-#[cfg(test)]
-mod tests {
-    #[test]
-    fn homes_facts_and_byline_keep_their_own_style_names() {
-        use super::{HOME_BYLINE, HOME_FACTS, NAMES};
-        assert_eq!(NAMES.style(HOME_FACTS), Some(b"temper-home-facts".as_slice()));
-        assert_eq!(NAMES.style(HOME_BYLINE), Some(b"temper-home-byline".as_slice()));
-    }
-}
 /// Settings proposal cards (temper/docs/design/client/README.md, 5.13).
 pub const SETTINGS_PROPOSAL: Style = Style { owner: owner(), token: 326 };
 pub const SETTINGS_PROPOSAL_TITLE: Style = Style { owner: owner(), token: 327 };
@@ -1209,3 +1200,13 @@ pub const SETTINGS_REFUSAL: Style = Style { owner: owner(), token: 360 };
 pub const SETTINGS_ROW: Style = Style { owner: owner(), token: 374 };
 pub const SETTINGS_PATH: Style = Style { owner: owner(), token: 375 };
 pub const SETTINGS_EMPTY: Style = Style { owner: owner(), token: 376 };
+
+#[cfg(test)]
+mod tests {
+    #[test]
+    fn homes_facts_and_byline_keep_their_own_style_names() {
+        use super::{HOME_BYLINE, HOME_FACTS, NAMES};
+        assert_eq!(NAMES.style(HOME_FACTS), Some(b"temper-home-facts".as_slice()));
+        assert_eq!(NAMES.style(HOME_BYLINE), Some(b"temper-home-byline".as_slice()));
+    }
+}

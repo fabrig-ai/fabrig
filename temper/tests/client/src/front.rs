@@ -943,6 +943,10 @@ impl Joint {
     ) -> Self {
         Self::with_engine_with_refused_hello(seed, limits, store, configs, engine_limits, slots, false)
     }
+    #[expect(
+        clippy::too_many_lines,
+        reason = "the shared fixture configures the joined roots and their independent observations together"
+    )]
     fn with_engine_with_refused_hello(
         seed: u64,
         limits: &client::Limits,
