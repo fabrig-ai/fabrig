@@ -168,7 +168,12 @@ fn page(
                 core,
                 &env.limits,
                 s::Setting::Application { kind: item.kind, scope: item.scope, number: item.number },
-                s::RestoreEdit::Application(edit),
+                s::RestoreEdit::Application(s::application::Restored {
+                    kind: item.kind,
+                    scope: item.scope,
+                    number: item.number,
+                    edit,
+                }),
             )?;
         }
     }
@@ -267,7 +272,7 @@ fn proposal_items(core: &Core) -> Box<[s::Item]> {
         }
         let edit = match edit {
             s::RestoreEdit::Core(edit) => edit.clone(),
-            s::RestoreEdit::Application(edit) => match edit {
+            s::RestoreEdit::Application(item) => match item.edit {
                 s::application::RestoredEdit::Set { .. } => s::Edit::Set(s::Value::Application(Box::default())),
                 s::application::RestoredEdit::Remove => s::Edit::Removed,
                 s::application::RestoredEdit::Reset => s::Edit::Reset,
@@ -302,9 +307,8 @@ fn propose(core: &mut Core, env: &Env<Limits>, routed: &mut Routed) {
         }
         match edit {
             s::RestoreEdit::Core(_) => {}
-            s::RestoreEdit::Application(_) => {
-                let s::Setting::Application { kind, .. } = setting else { unreachable!("application item") };
-                connectors.insert(connector_of(core, kind), ()).expect("declared connectors");
+            s::RestoreEdit::Application(item) => {
+                connectors.insert(connector_of(core, item.kind), ()).expect("declared connectors");
             }
         }
     }
@@ -327,14 +331,9 @@ fn propose(core: &mut Core, env: &Env<Limits>, routed: &mut Routed) {
             }
             match edit {
                 s::RestoreEdit::Core(_) => {}
-                s::RestoreEdit::Application(edit) => {
-                    let s::Setting::Application { kind, scope, number } = setting else {
-                        unreachable!("application item")
-                    };
-                    if connector_of(core, kind) == connector {
-                        items
-                            .push(s::application::Restored { kind, scope, number, edit: edit.clone() })
-                            .expect("bounded group");
+                s::RestoreEdit::Application(item) => {
+                    if connector_of(core, item.kind) == connector {
+                        items.push(item.clone()).expect("bounded group");
                     }
                 }
             }
@@ -353,12 +352,7 @@ fn propose(core: &mut Core, env: &Env<Limits>, routed: &mut Routed) {
     }
 }
 fn connector_of(core: &Core, number: u32) -> u16 {
-    for kind in &core.kinds {
-        if kind.number == number {
-            return kind.connector;
-        }
-    }
-    unreachable!("checked kind")
+    s::application::kind_of(&core.kinds, number).expect("checked kind").connector
 }
 
 pub(crate) fn restored(
@@ -392,12 +386,19 @@ pub(crate) fn restored(
     routed.finish(work)
 }
 
+#[derive(Debug)]
+enum Answered {
+    Same,
+    Accept { size: u32, charters: usize },
+}
+
 fn answers(core: &Core, env: &Env<Limits>) -> Result<(), people::Refusal> {
     let pending = core.restoring.pending.as_ref().expect("active restore");
     if pending.newest != core.current.newest() {
         return Err(people::Refusal::Stale { newest: core.current.newest() });
     }
     let mut at = 0_u32;
+    let mut answered = Map::with_capacity(pending.items.len());
     // Select a refusal in proposal order before judging any returned metadata.
     for (&setting, _) in &pending.items {
         if pending.left_out.contains(&setting) {
@@ -409,7 +410,7 @@ fn answers(core: &Core, env: &Env<Limits>) -> Result<(), people::Refusal> {
                 if setting != (s::Setting::Application { kind: item.kind, scope: item.scope, number: item.number }) {
                     continue;
                 }
-                match answer {
+                let answer = match answer {
                     connector::Judged::Refuse { why } => {
                         return Err(people::Refusal::Judged {
                             at,
@@ -417,25 +418,28 @@ fn answers(core: &Core, env: &Env<Limits>) -> Result<(), people::Refusal> {
                             why: s::application::words(why, env.limits.people.words),
                         });
                     }
-                    connector::Judged::Same | connector::Judged::Accept { .. } => {}
-                }
+                    connector::Judged::Same => Answered::Same,
+                    connector::Judged::Accept { size, charters } => {
+                        Answered::Accept { size: *size, charters: charters.len() }
+                    }
+                };
+                answered.insert(setting, answer).expect("one answer per item");
             }
         }
         at = at.checked_add(1).expect("bounded item count");
     }
     for (_, group) in &core.restoring.groups {
         let group = group.as_ref().expect("active group");
-        for (item, answer) in group.items.iter().zip(group.judged.as_ref().expect("answered group").iter()) {
+        for item in &group.items {
             let setting = s::Setting::Application { kind: item.kind, scope: item.scope, number: item.number };
-            match answer {
-                connector::Judged::Refuse { .. } => unreachable!("refusals checked first"),
-                connector::Judged::Same => {
+            match answered.get(&setting).expect("answered item") {
+                Answered::Same => {
                     return Err(super::dispatch::malformed_refusal(s::Failure { setting, fault: s::Fault::Shape }));
                 }
-                connector::Judged::Accept { size, charters } => {
+                Answered::Accept { size, charters } => {
                     for kind in &core.kinds {
                         if kind.number == item.kind
-                            && (*size > kind.value_bytes || charters.len() > usize::from(kind.charters))
+                            && (*size > kind.value_bytes || *charters > usize::from(kind.charters))
                         {
                             return Err(super::dispatch::malformed_refusal(s::Failure {
                                 setting,
@@ -476,15 +480,24 @@ pub(crate) fn proposal_value(core: &Core, request: Token, value: &mut s::Proposa
     for (_, group) in &core.restoring.groups {
         let group = group.as_ref().expect("active group");
         for (item, answer) in group.items.iter().zip(group.judged.as_ref().expect("answered group").iter()) {
-            let connector::Judged::Accept { size, .. } = answer else { unreachable!("checked restore answer") };
-            let edit = match item.edit {
-                s::application::RestoredEdit::Set { .. } => s::application::SizedEdit::Set { size: *size },
-                s::application::RestoredEdit::Remove => s::application::SizedEdit::Remove,
-                s::application::RestoredEdit::Reset => s::application::SizedEdit::Reset,
-            };
-            applications
-                .push(s::application::Recorded { kind: item.kind, scope: item.scope, number: item.number, edit })
-                .expect("bounded applications");
+            match answer {
+                connector::Judged::Accept { size, .. } => {
+                    let edit = match item.edit {
+                        s::application::RestoredEdit::Set { .. } => s::application::SizedEdit::Set { size: *size },
+                        s::application::RestoredEdit::Remove => s::application::SizedEdit::Remove,
+                        s::application::RestoredEdit::Reset => s::application::SizedEdit::Reset,
+                    };
+                    applications
+                        .push(s::application::Recorded {
+                            kind: item.kind,
+                            scope: item.scope,
+                            number: item.number,
+                            edit,
+                        })
+                        .expect("bounded applications");
+                }
+                connector::Judged::Same | connector::Judged::Refuse { .. } => {}
+            }
         }
     }
     value.items = jig.into_boxed();
