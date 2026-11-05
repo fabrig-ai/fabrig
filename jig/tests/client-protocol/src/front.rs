@@ -248,6 +248,11 @@ impl Protocol {
 impl Front<Test> for Protocol {
     fn seed(&mut self, seed: jig_client_world::harness::Seed) {
         assert!(self.clients.is_empty(), "seed before admitting clients");
+        if let jig_client_world::harness::Seed::TwoProjects { party } = seed {
+            let (configuration, limits) = jig_client_world::stories::shared::a_projects::setup(party);
+            *self = Self::with_engine(Engine::configured(fixtures::SEED, &limits, configuration));
+            return;
+        }
         if let jig_client_world::harness::Seed::Roles { story } = seed {
             let (configuration, limits, peers) = jig_client_world::joint::role_fixture::setup(story);
             let mut engine = Engine::with_peers(fixtures::SEED, &limits, configuration, peers);

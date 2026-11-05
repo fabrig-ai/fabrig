@@ -12,6 +12,38 @@ use jig_client_domain::contract::{
 use jig_client_scripted_engine::{Change, Rows, Rule, Source};
 use skein_lib::{Time, Wall};
 
+pub(super) fn two_projects(front: &mut Scripted, party: u64) {
+    let mut frame = fixture::frame(party);
+    let membership = frame.projects.get(0).expect("first project").clone();
+    frame.projects = list([1, 2].map(|project| jig_client_domain::contract::MeProject {
+        project,
+        name: DocumentText::complete(fixture::text(if project == 1 { b"Tally" } else { b"Project 2" })),
+        role: HeldRole::Owner,
+        pool: None,
+        creating: None,
+        templates: list([]),
+        ..membership.clone()
+    }));
+    for membership in &frame.projects {
+        let project = jig_client_domain::contract::Project {
+            number: membership.project,
+            name: membership.name.clone(),
+            resources: list([]),
+            members: list([]),
+            current_period: None,
+            pools: list([]),
+            configured_pools: list([]),
+            spend: list([]),
+            recurring: list([]),
+            acts: list([]),
+            ..fixture::project()
+        };
+        front.engine.act(Time::ZERO, Wall::EPOCH, Change::Project(Box::new(project))).expect("named project fits");
+    }
+    front.engine.act(Time::ZERO, Wall::EPOCH, Change::Me(frame)).expect("two-project frame fits");
+    front.engine.act(Time::ZERO, Wall::EPOCH, Change::SignedOut { sign_in: party }).expect("signed-out owner");
+}
+
 pub(super) fn profile(front: &mut Scripted) {
     let mut frame = fixture::frame(1);
     frame.deployment_role = Some(HeldRole::Owner);

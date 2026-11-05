@@ -1,6 +1,12 @@
 //! Shared journeys over bytes (jig/docs/design/client/domain/testing.md, 5).
 
 #[test]
+fn moving_between_named_projects() {
+    let mut world = jig_client_protocol_world::fixtures::world(8510);
+    jig_client_world::stories::shared::a_projects::moving_between_named_projects(&mut world);
+}
+
+#[test]
 fn words_in_a_running_conversation() {
     let mut world = jig_client_protocol_world::fixtures::world(8510);
     jig_client_world::stories::shared::a_person::words_in_a_running_conversation(&mut world);
