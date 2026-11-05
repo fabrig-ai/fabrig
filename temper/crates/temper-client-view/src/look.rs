@@ -23,6 +23,7 @@ pub const SETTINGS_PRIMARY: Style = Style { owner: owner(), token: 270 };
 pub const SETTINGS_SMALL: Style = Style { owner: owner(), token: 271 };
 pub const SETTINGS_DETAIL: Style = Style { owner: owner(), token: 272 };
 pub const SETTINGS_END: Style = Style { owner: owner(), token: 273 };
+pub const SETTINGS_ROW: Style = Style { owner: owner(), token: 274 };
 /// Changes page parts (temper/docs/design/client/README.md, 3.5).
 pub const CHANGES: Style = Style { owner: owner(), token: 180 };
 /// Changes page parts (temper/docs/design/client/README.md, 3.5).
@@ -384,8 +385,6 @@ pub const CONNECT_FORGE: Style = Style { owner: owner(), token: 118 };
 pub const FLOW_CODE: Style = Style { owner: owner(), token: 119 };
 /// The Forges page (client/forge.md, 5.4).
 pub const FORGES: Style = Style { owner: owner(), token: 120 };
-/// A forge's row on the Forges page (client/forge.md, 5.4).
-pub const FORGE_ROW: Style = Style { owner: owner(), token: 121 };
 /// The setup strip (client/README.md, 5.1, 5.6).
 pub const SETUP_STRIP: Style = Style { owner: owner(), token: 122 };
 /// Browser sign-in page (protocol/sign-in.md, 7).
@@ -642,7 +641,7 @@ pub const NAMES: Names<'static> = Names {
         b"temper-connect-forge",
         b"temper-flow-code",
         b"temper-forges",
-        b"temper-forge-row",
+        b"temper-reserved-121",
         b"temper-setup-strip",
         b"temper-sign-in",
         b"temper-account-row",
@@ -796,6 +795,7 @@ pub const NAMES: Names<'static> = Names {
         b"temper-settings-small",
         b"temper-settings-detail",
         b"temper-settings-end",
+        b"temper-settings-row",
     ],
     regions: &[b"temper-link"],
 };

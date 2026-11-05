@@ -74,6 +74,73 @@ enum Part {
 }
 const HOLDS: [Holds; samples::N] = [
     Holds {
+        name: "forges-empty",
+        heading: "Where your code lives.",
+        parts: &[
+            Part::Named { role: Role::Text, name: "No forge yet" },
+            Part::Named { role: Role::Link, name: "Connect a forge" },
+            Part::Text { text: "No forge of yours yet." },
+        ],
+    },
+    Holds {
+        name: "forges-setting-up",
+        heading: "Where your code lives.",
+        parts: &[
+            Part::Described {
+                role: Role::Disclosure,
+                name: "Forgejo on this machine",
+                description: "Forge 3 · Forgejo · Setting up: preparing\nwork/hello",
+            },
+            Part::Named { role: Role::Link, name: "Open its set-up ›" },
+        ],
+    },
+    Holds {
+        name: "forges-fetching",
+        heading: "Where your code lives.",
+        parts: &[Part::Described {
+            role: Role::Disclosure,
+            name: "Forgejo on this machine",
+            description: "Forge 3 · Forgejo · Setting up: fetching Forgejo · 42%\nwork/hello",
+        }],
+    },
+    Holds {
+        name: "forges-fetching-bytes",
+        heading: "Where your code lives.",
+        parts: &[Part::Described {
+            role: Role::Disclosure,
+            name: "Forgejo on this machine",
+            description: "Forge 3 · Forgejo · Setting up: fetching Forgejo · 41 MB\nwork/hello",
+        }],
+    },
+    Holds {
+        name: "forges-failed",
+        heading: "Where your code lives.",
+        parts: &[
+            Part::Named { role: Role::Button, name: "Set up again" },
+            Part::Described {
+                role: Role::Disclosure,
+                name: "Forgejo on this machine",
+                description: "Forge 3 · Forgejo · Set up failed: its port, 127.0.0.1:8368, is taken by another program. temper box’s output has the rest.",
+            },
+        ],
+    },
+    Holds {
+        name: "forges-replacing",
+        heading: "Where your code lives.",
+        parts: &[
+            Part::Named { role: Role::TextField, name: "Private key" },
+            Part::Named { role: Role::Button, name: "Replace the key" },
+        ],
+    },
+    Holds {
+        name: "forges-removing",
+        heading: "Where your code lives.",
+        parts: &[
+            Part::Named { role: Role::Paragraph, name: "Remove this forge?" },
+            Part::Named { role: Role::Button, name: "Remove" },
+        ],
+    },
+    Holds {
         name: "changes",
         heading: "Three changes are on the way to main.",
         parts: &[
@@ -591,11 +658,11 @@ const HOLDS: [Holds; samples::N] = [
         name: "forges-first-run-7",
         heading: "Where your code lives.",
         parts: &[
-            Part::Named { role: Role::Heading { level: 2 }, name: "Your forges 1" },
+            Part::Named { role: Role::Heading { level: 2 }, name: "Your forges · 1" },
             Part::Described {
                 role: Role::Disclosure,
                 name: "Forgejo on this machine",
-                description: "forge 3 · Forgejo · Connected as temper\nwork/hello",
+                description: "Forge 3 · Forgejo · Connected as temper\nwork/hello",
             },
             Part::Absent { role: Role::Heading { level: 2 }, name: "The playground" },
         ],
@@ -734,7 +801,7 @@ const HOLDS: [Holds; samples::N] = [
         heading: "Where your code lives.",
         parts: &[
             Part::Named { role: Role::Navigation, name: "Settings" },
-            Part::Named { role: Role::Heading { level: 2 }, name: "Your forges 1" },
+            Part::Named { role: Role::Heading { level: 2 }, name: "Your forges · 1" },
         ],
     },
     Holds {
