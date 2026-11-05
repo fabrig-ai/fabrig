@@ -2270,7 +2270,8 @@ that changes the stock changes nothing of them.
     removing the mark; where its change's words, the design and the
     code leave it a choice it cannot make, push what it has and ask its
     change in the question form, its options and its recommendation in
-    its words, then end its run (`../domain/forge.md`, 8.11); its run
+    its words, then call `wait`, the answer reaching this run
+    (`../domain/forge.md`, 8.11); its run
     sized for a change's work;
   - *charter 6, the foreman's:* the stock's, at gpt-6.1-sol, its
     instructions adding the reference's rules: the change's words and
