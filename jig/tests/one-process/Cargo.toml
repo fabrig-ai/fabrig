@@ -13,7 +13,7 @@ doctest = false
 
 [dependencies]
 serde_json.workspace = true
-jig-protocol-accounts-world = { path = "../protocol-accounts" }
+jig-protocol-accounts-kit.workspace = true
 skein-fake-oauth.workspace = true
 skein-http.workspace = true
 skein-oauth-accounts.workspace = true

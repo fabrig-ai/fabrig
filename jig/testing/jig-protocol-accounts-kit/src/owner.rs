@@ -104,7 +104,7 @@ pub struct Owner {
     last_kept: Option<Secret>,
     completions: Queue<kernel::Complete>,
     submissions: Queue<kernel::Submit>,
-    pub(crate) address: Option<SocketAddr>,
+    pub address: Option<SocketAddr>,
     heard: Vec<Heard>,
     facts: Vec<child::Fact>,
     trace: Vec<Trace>,
@@ -264,7 +264,8 @@ impl Owner {
         }
         owner
     }
-    pub(crate) fn new_move(held: bool, moving: bool) -> Self {
+    #[must_use]
+    pub fn new_move(held: bool, moving: bool) -> Self {
         let mut owner = Self::new(Story::SignIn, None, crate::world::FIRST_START);
         owner.move_mode = Some(());
         if held {
@@ -301,24 +302,27 @@ impl Owner {
         }
         owner
     }
-    pub(crate) fn change(&mut self, request: u64, change: child::Change) {
+    pub fn change(&mut self, request: u64, change: child::Change) {
         let slot = self.pending_changes.iter_mut().find(|slot| slot.is_none()).expect("at most two pending changes");
         *slot = Some((Token::new(request), change));
     }
-    pub(crate) fn moved_file(&self, source: u32) -> Option<&Secret> {
+    #[must_use]
+    pub fn moved_file(&self, source: u32) -> Option<&Secret> {
         self.moved_file.as_ref().filter(|(number, _)| *number == source).map(|(_, value)| value)
     }
-    pub(crate) fn carry_move(&mut self, value: &Secret) {
+    pub fn carry_move(&mut self, value: &Secret) {
         self.move_input[..value.len()].copy_from_slice(value.expose());
         self.move_input_len = Some(value.len());
     }
-    pub(crate) fn carried_move(&self) -> Option<u64> {
+    #[must_use]
+    pub fn carried_move(&self) -> Option<u64> {
         self.carried_move
     }
-    pub(crate) fn source_usable(&self) -> bool {
+    #[must_use]
+    pub fn source_usable(&self) -> bool {
         self.child.source_grant(self.account, self.now).is_some()
     }
-    pub(crate) fn carried_value(&mut self, carried: u64) -> Option<Secret> {
+    pub fn carried_value(&mut self, carried: u64) -> Option<Secret> {
         self.inspect_secret(store::SecretOwner::Application, carried).map(|value| {
             let store::SecretValue::Carried { kind: store::CarriedKind::Moved, value } = value else {
                 panic!("carried move kind")
@@ -403,7 +407,7 @@ impl Owner {
     pub fn closed(&self) -> bool {
         self.closed
     }
-    pub(crate) fn close(&mut self) {
+    pub fn close(&mut self) {
         self.close_requested = Some(());
     }
     pub(crate) fn reject(&mut self) {
@@ -461,7 +465,8 @@ impl Owner {
         assert!(above.is_empty() && below.store.is_empty() && below.secrets.is_empty() && below.transcripts.is_empty());
         value
     }
-    pub(crate) fn unstarted(&self) -> bool {
+    #[must_use]
+    pub fn unstarted(&self) -> bool {
         self.component.is_none()
     }
     // The story signs out after the successful account sign-in's HTTP exchanges close.

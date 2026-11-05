@@ -2,7 +2,7 @@
 use crate::support::{self, Person, Process};
 use jig_client::{Asker, Handle, Key, contract as c};
 use jig_client_protocol_kit::native::{NativeClient, Received, Script};
-use jig_protocol_accounts_world::fixtures;
+use jig_protocol_accounts_kit::fixtures;
 use jig_protocol_config as config;
 use jig_protocol_store::{codec, transcripts};
 use skein_io::kernel::Signal;

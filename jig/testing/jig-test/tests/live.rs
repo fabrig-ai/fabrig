@@ -64,7 +64,7 @@ fn a_person_signs_in_to_chatgpt_and_a_real_model_answers() {
 }
 
 // Reuse the account sign-in world's browser source; it remains a private test helper.
-use jig_protocol_accounts_world::fixtures;
+use jig_protocol_accounts_kit::fixtures;
 #[expect(dead_code, reason = "only the accounts process judge uses browser status diagnostics")]
-#[path = "../../../tests/protocol-accounts/src/visitor.rs"]
+#[path = "../../jig-protocol-accounts-kit/src/visitor.rs"]
 mod account_sign_in_visitor;

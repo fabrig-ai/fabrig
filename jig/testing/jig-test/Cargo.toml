@@ -49,7 +49,7 @@ skein-scratch.workspace = true
 jig-domain-core.workspace = true
 jig-test-domain.workspace = true
 skein-kv.workspace = true
-jig-protocol-accounts-world = { path = "../../tests/protocol-accounts" }
+jig-protocol-accounts-kit.workspace = true
 jig-client = { path = "../../crates/jig-client" }
 skein-fake-oauth.workspace = true
 skein-http.workspace = true
