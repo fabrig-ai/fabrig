@@ -933,8 +933,8 @@ A goal tells its person where it stands in a **note**, one per goal, which
 needs no record, read or wire field of its own. The client reads and draws it
 (`../client/README.md`, 3.5, *A goal's report*); a person reads it first.
 
-- **Its shape:** scope goal (jig's `NoteScope::Task`, the tool's scope
-  `goal`). Its description is `report: ` then the headline, one line. Its body
+- **Its shape:** scope goal (the tool's scope `goal`, the client's
+  `NoteScope::Task`). Its description is `report: ` then the headline, one line. Its body
   is the report's paragraphs, separated by blank lines, then, each on its own
   line and each optional: `Left: …`, `Risk: …`, `Decided: first, 05:40 ·
   second, 05:12`. Only a line's start makes one of these; the words elsewhere

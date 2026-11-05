@@ -2,6 +2,7 @@
 
 2026-11-04. Where jig's code lags or departs from [tasks.md](tasks.md).
 
+- **Not yet:** 3: a task's delegates' endings.
 - **Not yet:** 5.9: a drain; a project's scope; a
   party's proposal of a release; a hold parked until an event.
   7: a

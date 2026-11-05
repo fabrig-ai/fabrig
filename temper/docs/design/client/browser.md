@@ -1149,6 +1149,14 @@ from the engine's own answers, is where the look is tuned.
 | `home-needs-under-begin` | hand-made Home deliveries: To begin showing above one question and one chat |
 | `home-begin-settings-left` | hand-made Home deliveries: the first and second steps left; their acts stay in Settings |
 | `home-begin-one-chats` | hand-made Home deliveries: the third step alone left; its act stays in Chats |
+| `goals-solo` | hand-made Goals deliveries: a small project's rows, one in each state, the mock's words where the client holds its facts |
+| `goals-reference` | hand-made Goals deliveries: the reference's rows, a goal of a hundred tasks among them, and its ways in the lede |
+| `goals-none` | hand-made Goals deliveries: "No goals yet."; the rail keeps Goals since the page is Goals |
+| `goals-needs` | hand-made Goals deliveries: the filter Needs you, "needs funds" and "needs you" |
+| `goals-under-way` | hand-made Goals deliveries: the filter Under way, running, planning and paused |
+| `goals-ended` | hand-made Goals deliveries: the filter Ended, landed, stopped and failed |
+| `goals-filter-empty` | hand-made Goals deliveries: a filter no goal matches, "None." |
+| `goals-more` | hand-made Goals deliveries: "More than N goals, M under way." and "More goals" |
 | `home-github` | hand-made Home deliveries: GitHub connected with an accepted installation |
 | `configure` | the configuring page before its first words, template 3 listed |
 | `configure-typing` | words entered; Send enabled |

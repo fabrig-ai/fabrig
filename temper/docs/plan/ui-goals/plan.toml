@@ -22,3 +22,16 @@ id = 1
 story = "a goal's report note reads as its headline, paragraphs and lines"
 parts = ["report-parse"]
 walk = false
+
+[[part]]
+id = "delegate-counts"
+title = "a task line counts its direct delegates, done and total, from a kept counter"
+mode = "direct"
+needs = []
+design = "jig/docs/design/client/domain/contract.md, 5.1"
+
+[[slice]]
+id = 2
+story = "a list of tasks says how many of each task's direct delegates are done, past any page"
+parts = ["delegate-counts"]
+walk = false
