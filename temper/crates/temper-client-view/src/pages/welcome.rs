@@ -8,7 +8,10 @@ use alloc::boxed::Box;
 use skein_ui::{Builder, Role, Run, State, phrases::Hole};
 use temper_client_domain::{
     Address, Domain, Step,
-    forge::{connect, deployment, forges::Connection},
+    forge::{
+        connect, deployment,
+        forges::{Connection, FirstState},
+    },
     pages::Act,
 };
 
@@ -195,7 +198,7 @@ pub(crate) fn main(
             ready(b, root, w, bindings, accounts, forge, sign_in);
         }
     }
-    if let Step::Forge { .. } | Step::Model { .. } = step {
+    if let Step::Forge { .. } | Step::Model { .. } | Step::Ready = step {
         b.open(Role::Slot);
         b.style(look::WELCOME_FOOT);
         let back = match step {
@@ -245,6 +248,7 @@ fn model_line(
             };
             labelled(b, w, Word::WelcomeModelStep, &account);
         } else if let Some(provider) = super::accounts::own_signing_name(root, w) {
+            b.style(look::WELCOME_CURRENT);
             labelled(b, w, Word::WelcomeModelStep, &w.say(Word::WelcomeModelSigningIn, &[Hole::Name(provider)]));
         } else {
             let label = w.say(Word::WelcomeModelStep, &[]);
@@ -311,19 +315,36 @@ fn ready(
     b.open(Role::List);
     b.style(look::FLOW_PROGRESS);
     b.style(look::WELCOME_CHECKLIST);
-    if !done {
-        model_line(b, root, w, bindings, accounts);
-    }
     b.open(Role::Item);
     let row = connect::personal(root);
     if let Some(row) = row {
+        let underway = temper_client_domain::forge::connect::underway(row);
+        if underway {
+            b.style(look::WELCOME_CURRENT);
+        }
         if temper_client_domain::pages::welcome::forge_connected(row) {
-            b.style(look::FLOW_DONE);
+            if !underway {
+                b.style(look::FLOW_DONE);
+            }
             if let Connection::Connected { login, .. } = &row.connection {
-                let detail = w.say(
-                    Word::WelcomeForgeConnected,
-                    &[Hole::Name(connect::name(w, row, root)), Hole::Name(skein_lib::bytes::copy_of(login))],
-                );
+                let login = w.say(Word::WelcomeForgeDoneDetail, &[Hole::Name(skein_lib::bytes::copy_of(login))]);
+                let mut detail =
+                    crate::accounts::words::join(&[&connect::name(w, row, root), " · ".as_bytes(), &login]);
+                if let Some(first) = &row.first {
+                    match first.state {
+                        FirstState::Made { .. } => {
+                            let repository = w.say(
+                                Word::WelcomeForgeDoneRepository,
+                                &[Hole::Name(temper_client_domain::forge::words::full_name(
+                                    &first.org,
+                                    &first.repository,
+                                ))],
+                            );
+                            detail = crate::accounts::words::join(&[&detail, " · ".as_bytes(), &repository]);
+                        }
+                        FirstState::Making | FirstState::Failed { .. } => {}
+                    }
+                }
                 labelled(b, w, Word::WelcomeForgeStep, &detail);
             }
             crate::forge::forges::open_link(b, w, row, sign_in, Some(look::FLOW_QUIET));
@@ -334,19 +355,33 @@ fn ready(
             connect::each_step(b, root, w, row);
         }
     } else {
+        let label = w.say(Word::WelcomeForgeStep, &[]);
         let none = w.say(Word::WelcomeNoForge, &[]);
-        labelled(b, w, Word::WelcomeForgeStep, &none);
+        b.open(Role::Slot);
+        b.style(look::ACCOUNT_LINE);
+        b.name(&crate::accounts::words::join(&[&label, b" ", &none]));
+        b.open(Role::Text);
+        b.run(Run::Strong, &label);
+        b.run(Run::Plain, b" ");
+        b.run(Run::Plain, &none);
+        b.run(Run::Plain, " · ".as_bytes());
+        b.close();
         go(b, w, bindings, Word::WelcomeForgeTitle, Step::Forge { forge: None });
+        b.close();
     }
     b.close();
-    if done {
-        model_line(b, root, w, bindings, accounts);
-    }
+    model_line(b, root, w, bindings, accounts);
     b.close();
     if let Some(row) = row {
         connect::setup_ending(b, root, w, forge, row);
     }
     first_project(b, root, w, bindings, done);
+    if let Some(row) = row
+        && temper_client_domain::forge::connect::underway(row)
+        && !temper_client_domain::pages::welcome::forge_connected(row)
+    {
+        paragraph(b, w, Word::WelcomeForgeStillSettingUp, look::FLOW_FACTS);
+    }
 }
 /// Ready's form: the offered or written name, then Create, which makes
 /// the project and opens it (3.5).
