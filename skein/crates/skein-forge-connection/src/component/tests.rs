@@ -329,3 +329,88 @@ impl Component {
         self.common.open_own(base, role, env, io)
     }
 }
+
+impl Dialect {
+    fn test_exchange_fresh(&self) -> bool {
+        match self {
+            Self::Forgejo { exchange, .. } => exchange.test_fresh(),
+            Self::GitHub(gh) => gh.exchange.test_fresh(),
+        }
+    }
+}
+
+#[test]
+fn an_own_exchange_goes_with_its_connection() {
+    const CALL: Token = Token::new(1);
+    #[derive(Clone, Copy, Debug)]
+    enum End {
+        Loss,
+        Connect,
+        Shed,
+    }
+    for end in [End::Loss, End::Connect, End::Shed] {
+        for (name, settings) in [("Forgejo", fixtures::settings()), ("GitHub", fixtures::github_settings())] {
+            let mut h = fixtures::Harness::new(settings);
+            h.connected(fixtures::FORGE);
+            let entry = h.component.forges.get(0).expect("forge");
+            let owner = entry.base.own.expect("own connection");
+            assert!(!entry.dialect.test_exchange_fresh(), "{name} {end:?}: held before");
+            match end {
+                End::Loss => h.component.own_closed(owner, false, &h.env, &mut h.up),
+                End::Connect => {
+                    let access = entry.base.forge.access.clone().expect("fixture access");
+                    h.component.connect(&h.env, fixtures::FORGE, access, &mut h.up, &mut h.io);
+                }
+                End::Shed => h.component.shed(),
+            }
+            assert!(h.component.forges.get(0).expect("forge").dialect.test_exchange_fresh(), "{name} {end:?}");
+        }
+    }
+    // GitHub's reserved connection cannot be assigned to a call; Forgejo's idle own can.
+    let mut h = fixtures::Harness::ready();
+    let entry = h.component.forges.get_mut(0).expect("forge");
+    let owner = entry.base.own.expect("idle own connection");
+    match &mut entry.dialect {
+        Dialect::Forgejo { exchange, .. } => exchange.test_hold_heard(),
+        Dialect::GitHub(gh) => gh.exchange.test_hold_heard(),
+    }
+    assert!(!entry.dialect.test_exchange_fresh(), "assign: held before");
+    h.component.test_waiting(
+        CALL,
+        Waiting::new(
+            fixtures::REPO,
+            api::Op::Read(api::Read::Settings),
+            h.env.now.saturating_add(h.env.limits.deadline),
+        ),
+    );
+    h.component.drive_calls(&h.env, &mut h.up, &mut h.io);
+    let entry = h.component.forges.get(0).expect("forge");
+    assert_eq!(entry.base.own, None, "assign: ownership taken");
+    assert_eq!(h.component.common.holders.get(&owner), Some(&CALL), "assign: call holds connection");
+    assert!(entry.dialect.test_exchange_fresh(), "assign");
+
+    let mut github = fixtures::github_calls();
+    github.call(CALL.raw(), fixtures::REPO, api::Op::Read(api::Read::Settings));
+    github.run(skein_lib::Duration::ZERO);
+    github.connected(fixtures::FORGE);
+    // A queued terminal answer precedes the transport ending. The retired call stays observable until reclaim.
+    for (name, mut h) in [("Forgejo", h), ("GitHub", github)] {
+        let id = *h.component.common.calls.get(&CALL).expect("active call");
+        let waiting = h.component.common.waiting.get_mut(id).expect("call");
+        let owner = waiting.connection.expect("call connection");
+        match &mut waiting.side {
+            Side::Forgejo(call) => call.exchange.test_hold_heard(),
+            Side::GitHub(call) => call.exchange.test_hold_heard(),
+            Side::Unbegun => unreachable!("active exchange"),
+        }
+        let connection = *h.component.common.connections.get(&owner).expect("connection");
+        h.component.common.connection_slab.get_mut(connection).expect("connection").failed(connection::Failure::Seen);
+        h.component.drive_calls(&h.env, &mut h.up, &mut h.io);
+        let fresh = match &h.component.common.waiting.get(id).expect("retired call before reclaim").side {
+            Side::Forgejo(call) => call.exchange.test_fresh(),
+            Side::GitHub(call) => call.exchange.test_fresh(),
+            Side::Unbegun => unreachable!("retired exchange"),
+        };
+        assert!(fresh, "{name}: closed call exchange releases before reclaim");
+    }
+}

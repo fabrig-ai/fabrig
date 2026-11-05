@@ -286,3 +286,13 @@ fn raw_request(request: &request::Request) -> bool {
 #[cfg(test)]
 #[path = "tests/forgejo.rs"]
 mod tests;
+
+#[cfg(test)]
+impl Exchange {
+    pub(crate) fn test_fresh(&self) -> bool {
+        self.request.is_none() && self.decoder.is_none() && self.done.is_none() && self.heard.is_empty()
+    }
+    pub(crate) fn test_hold_heard(&mut self) {
+        self.heard.push(Heard::Done(Body::Empty));
+    }
+}

@@ -379,6 +379,7 @@ impl Component {
                     }
                 }
             }
+            let own = entry.base.own;
             let base = &mut entry.base;
             let side = core::mem::replace(&mut self.common.waiting.get_mut(id).expect("call").side, Side::Unbegun);
             let side = match (side, &mut entry.dialect) {
@@ -423,6 +424,9 @@ impl Component {
                     Side::Unbegun
                 }
             };
+            if own.is_some() && entry.base.own.is_none() {
+                entry.dialect.forget_exchange();
+            }
             self.common.waiting.get_mut(id).expect("call").side = side;
         }
         for (_, id) in &self.common.connections {

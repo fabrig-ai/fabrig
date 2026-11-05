@@ -353,6 +353,7 @@ impl Component {
         common.holders = Map::with_capacity(common.holders.capacity());
         for entry in forges.iter_mut() {
             entry.base.forge.access = None;
+            entry.dialect.forget_exchange();
             match &mut entry.dialect {
                 Dialect::Forgejo { plan, .. } => *plan = None,
                 Dialect::GitHub(github) => {
@@ -435,6 +436,7 @@ impl Component {
             c.role = Use::Calls;
             c.close(env, c.in_flight(), io);
         }
+        dialect.forget_exchange();
         match &mut *dialect {
             Dialect::Forgejo { plan, .. } => *plan = None,
             Dialect::GitHub(github) => {
@@ -551,6 +553,7 @@ impl Component {
                 continue;
             }
             base.own = None;
+            dialect.forget_exchange();
             let retry = common.lifecycle == Lifecycle::Live && !closing;
             match dialect {
                 Dialect::Forgejo { plan, .. } => {
@@ -717,26 +720,21 @@ impl Common {
         up: &mut Queue<Event>,
         io: &mut Queue<skein_io::Request>,
     ) {
-        let state = &mut base.start;
-        if let Some((until, next)) = backoff(*state)
+        if let Some((until, next)) = backoff(base.start)
             && until <= env.now
             && self.lifecycle == Lifecycle::Live
         {
-            *state = Start::Checking { next };
+            base.start = Start::Checking { next };
         }
         let mut token = base.own;
         if self.lifecycle == Lifecycle::Live
             && token.is_none()
-            && start_read(*state).is_some()
+            && start_read(base.start).is_some()
             && self.call_connections() < env.limits.connections
             && self.connections.len() < self.connections.capacity()
         {
             token = Some(self.open_own(base, Use::Own, env, io));
-            *exchange = connection::forgejo::Exchange::new();
-            *plan = None;
-            if let Some(read) = start_read(base.start) {
-                *plan = Some(StartPlan::new(read));
-            }
+            *plan = Some(StartPlan::new(start_read(base.start).expect("active start read")));
         }
         let Some(token) = token else {
             return;
