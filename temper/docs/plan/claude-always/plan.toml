@@ -1,0 +1,5 @@
+draft = "claude-always"
+repo = "fabrig"
+sources = ["temper/docs/plan/claude-always/inputs/request.md", "temper/docs/design/draft/claude-provider.md", "AGENTS.md", "DESIGN.md"]
+# Plan options, written by fab call cut --set; keep them
+priority = true
