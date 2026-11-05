@@ -86,3 +86,16 @@ Options, each pre-approved:
 ## Report
 
 As `notes/common.md`, *Your report*.
+
+## Rebase (2026-11-05, step merge, foreman ui-chats/chat-byline/foreman-1)
+
+Rebase the byline changes while preserving incoming Goals vocabulary, gallery samples and tests.
+The merge failed on three content conflicts; this is the branch’s red.
+Incoming Goals work reached the integration through main’s `d38be47825` and integration merge `c9a2b3351c`.
+Resolve these paths:
+- `temper/crates/temper-client-view/src/words.rs`: retain all Goals additions and all six `Byline*` words, IDs, English forms and hole bounds. Combined counts at this integration tip are `PHRASES = 1443`, `SEGMENTS = 2529`, and `ALL` length 847. Preserve incoming literal-byte capacity additions.
+- `temper/tools/gallery/src/samples.rs`: retain incoming Goals imports, samples, routing and query handling; keep `Sample::open_disclosure()` and `chat-byline-open`. Combined `N` is 132.
+- `temper/tools/gallery/src/tests.rs`: keep both incoming Goals tests and `the_byline_sample_opens_only_the_model_disclosure`, each with its own test attribute and complete body. Preserve both sets of `HOLDS` entries.
+Check the automatically merged `names.txt` includes every sample in order and `lib.rs` retains the disclosure-opening hook.
+Through heavy, run the vocabulary declaration test, choice tests and gallery library tests, including names, sample assertions and disclosure opening; verify nonzero selection.
+Regenerate any stale vocabulary list, terminal goldens or journey prints using their existing tools, inspect the diffs and report them.
