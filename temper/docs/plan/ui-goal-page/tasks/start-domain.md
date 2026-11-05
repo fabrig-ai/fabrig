@@ -66,3 +66,7 @@ Options, each pre-approved:
 ## Report
 
 As `notes/common.md`, Your report.
+
+## Answers
+
+2026-11-05 (fabrig/ui). Ruling (rulings.md, 3 to 7): this is the one Start goal sheet; ui-chat-draft opens it from a chat. It always writes the Draft: and Chat: lines. Ways come from goals::ways; default is the project's setting from ui-settings, else first. No typed draft path: Goals' link opens Chats filtered to Drafts; the sheet opens only with a draft from a chat. No Plan-then-wait way without a template.
