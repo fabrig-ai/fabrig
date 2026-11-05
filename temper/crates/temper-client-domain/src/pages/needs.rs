@@ -226,7 +226,7 @@ impl Session {
         }
         match after {
             Address::Inbox { .. } => {}
-            Address::NewChat
+            Address::NewChat { .. }
             | Address::Goals { .. }
             | Address::Changes { .. }
             | Address::Chats { .. }
@@ -583,7 +583,7 @@ pub(super) fn act(pages: &mut Pages, env: &Env<Limits>, act: Act, out: &mut Queu
             let project = match pages.address {
                 Address::Home { project } => Some(project),
                 Address::Inbox { .. }
-                | Address::NewChat
+                | Address::NewChat { .. }
                 | Address::Goals { .. }
                 | Address::Chats { .. }
                 | Address::Changes { .. }

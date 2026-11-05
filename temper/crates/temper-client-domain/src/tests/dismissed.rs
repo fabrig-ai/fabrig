@@ -3,15 +3,15 @@ use crate::{
     Domain, Event, Request,
     forge::{
         self,
-        dismissed::{self, Dismissal},
+        dismissed::{self, PersonFact},
     },
 };
 use jig_client::{Ask, Down, Family, Link, Told, Up, Watchable, contract as c};
 use skein_lib::{List, Queue, Token};
 use temper_client_protocol_wire::{self as wire, v1 as w};
 
-const WHAT: Dismissal = Dismissal::ToBegin { project: f::PROJECT };
-const OTHER: Dismissal = Dismissal::ToBegin { project: 17 };
+const WHAT: PersonFact = PersonFact::ToBegin { project: f::PROJECT };
+const OTHER: PersonFact = PersonFact::ToBegin { project: 17 };
 
 fn event(root: &mut Domain, event: Event) -> Queue<Request> {
     let mut out = Queue::uncapped();
@@ -47,7 +47,7 @@ fn record(projects: &[u32]) -> Family {
     let mut dismissed = List::with_capacity(wire::DISMISSED);
     for project in projects {
         dismissed
-            .push(w::Dismissal::ToBegin(w::ToBegin::new(&w::CEILINGS, w::ToBeginParts { project: *project }).unwrap()))
+            .push(w::PersonFact::ToBegin(w::ToBegin::new(&w::CEILINGS, w::ToBeginParts { project: *project }).unwrap()))
             .unwrap();
     }
     Family {
@@ -199,7 +199,8 @@ fn signing_out_closes_the_watch_and_clears_the_facts() {
 #[test]
 fn ask_is_of_the_projects_scope() {
     for project in [0, f::PROJECT, u32::MAX] {
-        let Ask::Family { scope, record } = dismissed::ask(Dismissal::ToBegin { project }, &f::limits().forge).unwrap()
+        let Ask::Family { scope, record } =
+            dismissed::ask(PersonFact::ToBegin { project }, &f::limits().forge).unwrap()
         else {
             panic!("family request")
         };
@@ -210,7 +211,127 @@ fn ask_is_of_the_projects_scope() {
         else {
             panic!("dismiss request")
         };
-        let w::Dismissal::ToBegin(value) = value.what();
+        let w::PersonFact::ToBegin(value) = value.what() else { panic!("to begin") };
         assert_eq!(value.project(), project);
     }
+}
+
+#[test]
+fn goals_from_reads_the_partys_rows() {
+    const CHAT: u64 = 7;
+    let (mut root, watch, _) = opened();
+    assert!(root.forge().goals_from(f::PROJECT, CHAT).eq([]));
+    let record = goal_record(&[
+        (f::PROJECT, CHAT, 11, 90),
+        (f::PROJECT, CHAT, 19, 10),
+        (f::PROJECT, CHAT + 1, 23, 100),
+        (f::PROJECT + 1, CHAT, 29, 100),
+    ]);
+    up(&mut root, Up::FamilyDelivered { watch, record });
+    assert!(root.forge().goals_from(f::PROJECT, CHAT).eq([(11, 90), (19, 10)]));
+    assert_eq!(
+        root.forge().dismissed(PersonFact::GoalFrom { project: f::PROJECT, chat: CHAT, goal: 11, at: 90 }),
+        Some(true)
+    );
+    up(&mut root, Up::WatchEnded { watch, end: c::WatchEnd::SubjectEnded });
+    assert!(root.forge().goals_from(f::PROJECT, CHAT).eq([]));
+}
+
+fn goal_record(facts: &[(u32, u64, u64, u64)]) -> Family {
+    let mut dismissed = List::with_capacity(wire::DISMISSED);
+    for (project, chat, goal, at) in facts {
+        dismissed
+            .push(w::PersonFact::GoalFrom(
+                w::GoalFrom::new(
+                    &w::CEILINGS,
+                    w::GoalFromParts { project: *project, chat: *chat, goal: *goal, at: *at },
+                )
+                .unwrap(),
+            ))
+            .unwrap();
+    }
+    Family {
+        family: wire::FORGE,
+        version: wire::CLIENT_VERSION,
+        bytes: wire::dismissals(&w::Dismissals::new(&w::CEILINGS, w::DismissalsParts { dismissed }).unwrap()),
+    }
+}
+
+#[test]
+fn the_newest_start_has_one_chip_watch_until_leaving() {
+    use crate::pages;
+    const CHAT: u64 = f::chat::TASK;
+    const NEWEST: u64 = 11;
+    const AT: u64 = 90;
+    // One watch follows the newest goal for the page.
+    const ONE_WATCH: u32 = 1;
+    let (mut root, watch, _) = opened();
+    event(&mut root, Event::Went { place: crate::Place::Address(crate::Address::Chat { task: CHAT }) });
+    let handle = root.pages().chat().unwrap().document;
+    crate::route::pages(
+        &mut root,
+        &f::env(&f::limits()),
+        pages::Event::Told {
+            told: Told::Page {
+                handle,
+                page: jig_client::Readout::Jig(c::ReadResult::Value(c::ReadValue::Task(Box::new(f::chat::task())))),
+            },
+        },
+        &mut Queue::uncapped(),
+    );
+    let record = goal_record(&[(f::PROJECT, CHAT, NEWEST, AT), (f::PROJECT, CHAT, 19, 10)]);
+    let mut out = up(&mut root, Up::FamilyDelivered { watch, record: record.clone() });
+    let mut chip_watches = List::uncapped();
+    while let Some(request) = out.pop() {
+        if let Request::Unlinked {
+            request:
+                jig_client::UnlinkedRequest::Down {
+                    down: Down::Open { watch, subject: Watchable::Jig(c::Subject::Chips { tasks }) },
+                },
+        } = request
+        {
+            assert_eq!(tasks.as_slice(), [NEWEST]);
+            chip_watches.push(watch).unwrap();
+        }
+    }
+    assert_eq!(chip_watches.len(), ONE_WATCH);
+    let chip_watch = *chip_watches.get(0).unwrap();
+    assert_eq!(root.pages().chat().unwrap().goal_from(&root), Some((NEWEST, AT)));
+    let mut chip = f::chat::task().chip;
+    chip.task = NEWEST;
+    chip.title = f::chat::document_text(b"Started from its draft");
+    up(
+        &mut root,
+        Up::Watched {
+            watch: chip_watch,
+            event: c::WatchEvent::Delivered(c::Delivery::Chips(List::from_boxed(Box::new([chip.clone()])))),
+        },
+    );
+    assert_eq!(root.pages().chat().unwrap().goal_chip(&root), Some(&chip));
+    let again = up(&mut root, Up::FamilyDelivered { watch, record });
+    for request in &again {
+        if let Request::Unlinked {
+            request:
+                jig_client::UnlinkedRequest::Down {
+                    down: Down::Open { subject: Watchable::Jig(c::Subject::Chips { .. }), .. },
+                },
+        } = request
+        {
+            panic!("the unchanged goal opened another watch");
+        }
+    }
+    let leaving = event(
+        &mut root,
+        Event::Went { place: crate::Place::Address(crate::Address::Chats { filter: crate::ChatsFilter::All }) },
+    );
+    let mut closed = false;
+    for request in &leaving {
+        if let Request::Unlinked { request: jig_client::UnlinkedRequest::Down { down: Down::Close { watch } } } =
+            request
+            && *watch == chip_watch
+        {
+            closed = true;
+        }
+    }
+    assert!(closed, "leaving closes the goal chip watch");
 }

@@ -668,3 +668,39 @@ fn brief_output_fits_its_byte_bound_and_ends_in_a_complete_utf8_line() {
         b"person: \n"
     );
 }
+
+#[test]
+fn a_large_input_leaves_the_calls_answer_whole() {
+    let input = [b'x'; 512];
+    let answer = b"Wrote note 4 revision 2";
+    let call = SBlock::Call(
+        smith::Call::new(
+            &CEILINGS,
+            smith::CallParts {
+                id: b"note-id".as_slice().into(),
+                name: b"note".as_slice().into(),
+                input: input.as_slice().into(),
+                replay: None,
+            },
+        )
+        .unwrap(),
+    );
+    let said = smith::Returned::Said(
+        smith::Said::new(&CEILINGS, smith::SaidParts { text: answer.as_slice().into(), error: false }).unwrap(),
+    );
+    let source =
+        source(&[message(smith::Role::Assistant, &[call]), message(smith::Role::User, &[result(b"note-id", said)])]);
+    let mut limits = limits();
+    limits.turn.text = 128;
+    let turn = decode(&limits, &encode(&source)).unwrap();
+    let Block::Call(call) = turn.messages.get(0).unwrap().blocks.get(0).unwrap() else {
+        panic!("note call expected");
+    };
+    assert_eq!(call.tool.bytes(), b"note");
+    assert_eq!(call.outcome.as_ref().unwrap().bytes(), answer);
+    assert!(!call.failed);
+    let input_left = usize::try_from(limits.turn.text).unwrap() - b"note".len() - answer.len();
+    assert_eq!(call.input.bytes(), &input[..input_left]);
+    assert!(call.input.bytes().len() < input.len());
+    assert!(turn.cut);
+}

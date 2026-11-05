@@ -68,27 +68,29 @@ fn both_shipped_profiles_admit_the_tasks_and_people_families() {
 #[test]
 fn both_shipped_profiles_round_trip_the_settled_call_sum() {
     use jig_domain_core as core;
-    let answers = [
-        ("host", core::SettledAnswer::Host { error: false, body: vec![1; 16_384].into_boxed_slice() }),
-        (
-            "delivery",
-            core::SettledAnswer::Delivery {
-                outcome: core::DeliveryOutcome::Delivered,
-                evidence: vec![2; 16_384].into_boxed_slice(),
-            },
-        ),
-    ];
-    for profile_name in [Profile::Small, Profile::Standard] {
+    for (profile_name, call_bytes) in [(Profile::Small, 69_632_u32), (Profile::Standard, 135_168)] {
         let domain = profile(profile_name);
         let limits = codec::limits(&domain.core).expect("shipped profile within codec ceilings");
-        assert_eq!(domain.core.call_answer_bytes, 32_768, "{profile_name:?}");
+        assert_eq!(domain.core.call_answer_bytes, call_bytes, "{profile_name:?}");
+        // The opaque tool name and answer split the byte-summed carrier equally.
+        let half = usize::try_from(call_bytes / 2).expect("half a call fits usize");
+        let answers = [
+            ("host", core::SettledAnswer::Host { error: false, body: vec![1; half].into_boxed_slice() }),
+            (
+                "delivery",
+                core::SettledAnswer::Delivery {
+                    outcome: core::DeliveryOutcome::Delivered,
+                    evidence: vec![2; half].into_boxed_slice(),
+                },
+            ),
+        ];
         for (label, answer) in &answers {
             let row = core::CoreRecord::Call(core::CallRecord {
                 key: core::CallKey { task: 1, attempt: 2, completion: 3, position: 4 },
                 part: core::CallPart::Unavailable,
                 settled: Some(core::SettledCall {
                     serial: 1,
-                    tool: vec![3; 16_384].into_boxed_slice(),
+                    tool: vec![3; half].into_boxed_slice(),
                     answer: answer.clone(),
                 }),
             });

@@ -181,6 +181,7 @@ fn cancelling_drops_the_pages_open_confirmation_without_sending() {
 fn card_words_keep_a_persons_whole_reply_to_the_receiving_bound() {
     let mut limits = fixtures::limits();
     limits.client.domain.text = 2048;
+    limits.client.domain.long_text = 2048;
     limits.client.domain.turn_text = 2048;
     let mut pages = f::pages(PROPOSAL, f::proposal(ActKind::Reject, Admission::Allowed));
     let mut out = skein_lib::Queue::with_capacity(32);

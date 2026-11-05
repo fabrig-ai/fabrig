@@ -27,6 +27,91 @@ fn children(nodes: &[Node]) -> Vec<&Node> {
     out
 }
 
+#[test]
+fn the_rails_new_chat_is_a_link_and_a_menu() {
+    let root = f::root_with_ways(Address::Home { project: f::PROJECT }, Some(d::forge::ways::Ways::STOCK));
+    for mut view in [f::page_view(&root), f::browser_page_view(&root)] {
+        let entry = styled(view.tree(), look::RAIL_NEW);
+        assert_eq!(entry[0].role, Role::Slot);
+        let parts = children(entry);
+        assert_eq!(parts.iter().map(|n| n.role).collect::<Vec<_>>(), [Role::Link, Role::Menu]);
+        assert_eq!(parts[0].name.as_deref(), Some(b"New chat".as_slice()));
+        assert_eq!(parts[1].name.as_deref(), Some(b"More ways to start work".as_slice()));
+        let link = parts[0].id;
+        assert_eq!(crate::href(&mut view, link).as_deref(), Some(b"/chats/new".as_slice()));
+        assert_eq!(
+            crate::act(&mut view, link, Act::Press),
+            Some(d::Action::Pages(pages::Act::Go { address: Address::NewChat { draft: false } }))
+        );
+    }
+}
+
+#[test]
+fn its_items_go_where_they_say() {
+    let root = f::root_with_ways(
+        Address::Home { project: f::PROJECT },
+        Some(d::forge::ways::Ways { drafts: true, ..d::forge::ways::Ways::STOCK }),
+    );
+    for mut view in [f::page_view(&root), f::browser_page_view(&root)] {
+        for (name, description, draft) in [
+            (b"Chat".as_slice(), b"Ask a question or ask for a change.".as_slice(), false),
+            (b"Goal".as_slice(), b"Agents plan a larger change and land it.".as_slice(), true),
+        ] {
+            let node = styled(view.tree(), look::RAIL_NEW)
+                .iter()
+                .find(|n| n.role == Role::MenuItem && n.name.as_deref() == Some(name))
+                .unwrap();
+            assert_eq!(node.description.as_deref(), Some(description));
+            let id = node.id;
+            assert_eq!(
+                crate::act(&mut view, id, Act::Press),
+                Some(d::Action::Pages(pages::Act::Go { address: Address::NewChat { draft } }))
+            );
+        }
+    }
+}
+
+#[test]
+fn goal_shows_while_drafts_are_offered() {
+    for ways in [
+        None,
+        Some(d::forge::ways::Ways::STOCK),
+        Some(d::forge::ways::Ways { drafts: true, ..d::forge::ways::Ways::STOCK }),
+    ] {
+        let root = f::root_with_ways(Address::Home { project: f::PROJECT }, ways);
+        for view in [f::page_view(&root), f::browser_page_view(&root)] {
+            let items = styled(view.tree(), look::RAIL_NEW)
+                .iter()
+                .filter(|n| n.role == Role::MenuItem)
+                .map(|n| n.name.as_deref().unwrap())
+                .collect::<Vec<_>>();
+            assert_eq!(
+                items,
+                if ways.is_some_and(|w| w.drafts) {
+                    vec![b"Chat".as_slice(), b"Goal", b"All ways to start work"]
+                } else {
+                    vec![b"Chat".as_slice(), b"All ways to start work"]
+                }
+            );
+        }
+    }
+}
+
+#[test]
+fn all_ways_goes_to_settings() {
+    let root = f::root_with_ways(Address::Home { project: f::PROJECT }, Some(d::forge::ways::Ways::STOCK));
+    for mut view in [f::page_view(&root), f::browser_page_view(&root)] {
+        let node = styled(view.tree(), look::RAIL_NEW_ALL).first().unwrap();
+        assert_eq!(node.role, Role::MenuItem);
+        assert_eq!(node.name.as_deref(), Some(b"All ways to start work".as_slice()));
+        let id = node.id;
+        assert_eq!(
+            crate::act(&mut view, id, Act::Press),
+            Some(d::Action::Pages(pages::Act::Go { address: Address::Settings { project: f::PROJECT } }))
+        );
+    }
+}
+
 fn project_rows(count: u32, repository: &[u8]) -> List<temper_client_protocol_wire::v1::ForgeRow> {
     use temper_client_protocol_wire::v1 as w;
     let mut row = super::connect_forge::row(
@@ -435,7 +520,7 @@ fn rail_and_tabbar_keep_the_order_addresses_current_states_and_count() {
         Address::Goals { project: f::PROJECT, filter: GoalsFilter::All },
         Address::Inbox { filter: d::address::Filter::ALL },
         Address::Chats { filter: ChatsFilter::All },
-        Address::NewChat,
+        Address::NewChat { draft: false },
         Address::Chat { task: 9 },
         Address::Task { task: 9 },
         Address::Accounts,
@@ -458,10 +543,11 @@ fn rail_and_tabbar_keep_the_order_addresses_current_states_and_count() {
                 let rail = styled(view.tree(), look::RAIL);
                 assert_eq!(rail[0].role, Role::Navigation);
                 assert_eq!(rail[0].name.as_deref(), Some(b"Shop".as_slice()));
-                let parts = children(rail);
+                let parts: Vec<_> =
+                    children(rail).into_iter().filter(|n| !n.styles.as_slice().contains(&look::RAIL_UNFOLD)).collect();
                 assert_eq!(
                     parts.iter().map(|n| n.role).collect::<Vec<_>>(),
-                    [Role::Link, Role::Disclosure, Role::Slot, Role::Link, Role::Slot]
+                    [Role::Link, Role::Disclosure, Role::Slot, Role::Slot, Role::Slot]
                 );
                 assert_eq!(parts[0].name.as_deref(), Some(b"temper home".as_slice()));
                 assert_eq!(parts[1].styles.as_slice(), [look::PROJECTS]);
@@ -469,7 +555,7 @@ fn rail_and_tabbar_keep_the_order_addresses_current_states_and_count() {
                 assert_eq!(parts[3].styles.as_slice(), [look::RAIL_NEW]);
                 assert_eq!(parts[4].styles.as_slice(), [look::RAIL_FOOT]);
                 let brand = parts[0].id;
-                let new_chat = parts[3].id;
+                let new_chat = children(styled(view.tree(), look::RAIL_NEW))[0].id;
                 assert_eq!(crate::href(&mut view, brand).as_deref(), Some(b"/projects/1".as_slice()));
                 assert_eq!(crate::href(&mut view, new_chat).as_deref(), Some(b"/chats/new".as_slice()));
                 let needs: &[u8] = if count == 0 {
@@ -482,7 +568,7 @@ fn rail_and_tabbar_keep_the_order_addresses_current_states_and_count() {
                 let current = match address {
                     Address::Home { .. } => Some(b"Home".as_slice()),
                     Address::Inbox { .. } => Some(needs),
-                    Address::Chats { .. } | Address::NewChat | Address::Chat { .. } => Some(b"Chats".as_slice()),
+                    Address::Chats { .. } | Address::NewChat { .. } | Address::Chat { .. } => Some(b"Chats".as_slice()),
                     Address::Changes { .. } => Some(b"Changes".as_slice()),
                     Address::Goals { .. } => Some(b"Goals".as_slice()),
                     Address::Settings { .. }
@@ -723,7 +809,15 @@ fn the_terminal_numbers_the_rail_and_keeps_the_first_line() {
     skein_ui_text::render(view.tree(), b"temper", Some(crate::frame::link_region()), &mut print);
     let text = String::from_utf8_lossy(print.text.as_slice());
     assert_eq!(text.lines().next(), Some("== Inbox == Offline; Behind"));
-    for line in ["[7] Home", "[8] Needs you (current)", "[9] Chats", "[10] + New chat", "[11] Settings"] {
+    for line in [
+        "[7] Home",
+        "[8] Needs you (current)",
+        "[9] Chats",
+        "[10] + New chat",
+        "[11] Chat",
+        "[12] All ways to start work",
+        "[13] Settings",
+    ] {
         assert!(text.lines().any(|s| s.trim() == line), "{line}: {text}");
     }
     assert!(!text.contains("Sections:"));
@@ -1048,7 +1142,7 @@ fn the_chip_is_the_browsers_alone() {
     let parts = children(styled(browser.tree(), look::RAIL));
     assert_eq!(
         parts.iter().map(|node| node.role).collect::<Vec<_>>(),
-        [Role::Link, Role::Disclosure, Role::Button, Role::Slot, Role::Link, Role::Slot]
+        [Role::Link, Role::Disclosure, Role::Button, Role::Slot, Role::Slot, Role::Slot]
     );
     assert_eq!(parts[3].styles.as_slice(), [look::RAIL_NAV]);
     assert_eq!(parts[4].styles.as_slice(), [look::RAIL_NEW]);

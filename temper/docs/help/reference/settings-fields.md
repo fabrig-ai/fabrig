@@ -138,7 +138,7 @@ A connector resource resolved when the task is created.
 
 A text, whole.
 
-- `bytes`: text, at most 32,768 bytes. The text.
+- `bytes`: text, at most 65,536 bytes. The text.
 - `cut`: true or false. Always false: a value is set whole.
 
 ## executor

@@ -127,6 +127,10 @@ pub enum CallPart {
     NoteWritten {
         name: u64,
         revision: u32,
+        lines: u32,
+        added: u32,
+        removed: u32,
+        first: u32,
     },
     /// One bounded recall page was answered from the notes child.
     NoteRecalled {
@@ -192,7 +196,13 @@ impl CallPart {
                 *task != 0 && *task <= deployment.tasks && *revision != 0
             }
             CallPart::Sent { message } => *message != 0 && *message <= deployment.messages,
-            CallPart::NoteWritten { name, revision } => *name != 0 && *name <= deployment.messages && *revision != 0,
+            CallPart::NoteWritten { name, revision, lines, added, first, .. } => {
+                *name != 0
+                    && *name <= deployment.messages
+                    && *revision != 0
+                    && (*lines == 0 || *first <= *lines)
+                    && *added <= *lines
+            }
             CallPart::NoteRecalled { entries, .. } => {
                 for entry in entries {
                     if !jig_domain_notes::valid_entry(entry, &limits.notes) {

@@ -82,7 +82,7 @@ pub(crate) fn pages(root: &mut Domain, env: &Env<Limits>, event: crate::pages::E
         | crate::pages::Event::Told { .. }
         | crate::pages::Event::Link { .. } => false,
     };
-    crate::pages::step(&mut root.pages, env, &root.client, event, &mut child);
+    crate::pages::chat::sheet::step(root, env, event, &mut child);
     route_pages(root, env, &mut child, out);
     let subject = match root.pages.task() {
         Some(task) => task.panel(&root.client, root.forge_number()),
@@ -167,7 +167,7 @@ pub(crate) fn route_forge(
                     }
                     Address::Inbox { .. }
                     | Address::Chats { .. }
-                    | Address::NewChat
+                    | Address::NewChat { .. }
                     | Address::Accounts
                     | Address::Forges
                     | Address::ConnectForge { .. }
@@ -385,7 +385,7 @@ fn playground(root: &mut Domain, env: &Env<Limits>, out: &mut Queue<Request>) {
     root.pages.playground_choice = crate::pages::PlaygroundChoice::Waiting;
     forge(root, env, forge::Event::Act { act: forge::Act::StartPlayground }, out);
     playground_facts(root);
-    out.push(Request::Show { address: Address::NewChat, replace: false });
+    out.push(Request::Show { address: Address::NewChat { draft: false }, replace: false });
 }
 
 fn forge_forges(root: &mut Domain, env: &Env<Limits>, told: &jig_client::Told, out: &mut Queue<Request>) -> bool {
@@ -407,6 +407,12 @@ fn forge_forges(root: &mut Domain, env: &Env<Limits>, told: &jig_client::Told, o
         });
     }
     route_forge(root, env, &mut child, out);
+    if consumed
+        && let jig_client::Told::Changed { handle } | jig_client::Told::Ended { handle, .. } = told
+        && *handle == forge::dismissed::handle()
+    {
+        pages(root, env, crate::pages::Event::Told { told: told.clone() }, out);
+    }
     consumed
 }
 
@@ -471,7 +477,7 @@ pub(crate) fn ways_progress(root: &mut Domain, env: &Env<Limits>, out: &mut Queu
         | Address::Home { .. }
         | Address::Inbox { .. }
         | Address::Chats { .. }
-        | Address::NewChat
+        | Address::NewChat { .. }
         | Address::Chat { .. }
         | Address::Task { .. }
         | Address::Accounts

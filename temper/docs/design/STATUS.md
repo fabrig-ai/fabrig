@@ -58,7 +58,10 @@ reads in pieces of it (`protocol/setup.md`). A green head ends a CI repair and a
 hold on its reason, but for a hold at gating, a hold no wake reaches and a retry
 starting before the read, each the `repair-green` plan's cut (`domain/forge.md`),
 and `change show`'s
-`held:` line calls a cancelled delegate failed (`domain/forge.md`). A repair
+`held:` line calls a cancelled delegate failed (`domain/forge.md`). A failed
+resolution's release holds again, a goal's issue can still take an empty title,
+and an asker's `finish` parks where the `producer-failure` request of 2026-11-05
+recommends refusing it at the call, that plan's cut (`domain/forge.md`). A repair
 whose brief can't be read ends held naming why on the fake forge alone: the walk
 on a real Forgejo the `brief-failure` request of 2026-11-05 ends with has not
 passed, no test shows a gate's repair standing on its pull, and a forge not

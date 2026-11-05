@@ -29,7 +29,8 @@ fn turn_with(second: &[u8]) -> Box<[u8]> {
 
 fn decoded(second: &[u8]) -> c::TurnRead {
     let base = fixtures::limits();
-    let client = jig_client_domain::Limits { text: FIELD_TEXT, turn_text: TURN_TEXT, ..*base.client() };
+    let client =
+        jig_client_domain::Limits { text: FIELD_TEXT, long_text: FIELD_TEXT, turn_text: TURN_TEXT, ..*base.client() };
     let limits = Limits::new(client, base.exchanges()).unwrap();
     translate::pages::carried_turn_fields(&turn_with(second), &limits)
 }

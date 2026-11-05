@@ -59,7 +59,7 @@ fn record(projects: &[u32]) -> Family {
     row_record(rows.as_slice())
 }
 fn row_record(values: &[AwayRow]) -> Family {
-    let mut rows = List::with_capacity(wire::DISMISSED);
+    let mut rows = List::with_capacity(w::CEILINGS.aways_rows);
     for row in values {
         rows.push(
             w::AwayRow::new(

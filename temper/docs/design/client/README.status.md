@@ -2,6 +2,20 @@
 
 2026-11-05. Where temper's code lags or departs from [README.md](README.md).
 
+- **Departs:** 3.5, *Starting a goal from a chat's document*: the shared sheet
+  has no Budget field or "Plan, then wait for me" choice. It uses
+  `goals::ways`' template-number order and the creating bound's budget.
+  The 2026-11-05 answers to `ui-chat-draft/goal-sheet-state` and
+  `ui-chat-draft/goal-sheet` assign the sheet to `ui-goal-page/start-domain`
+  and `ui-goal-page/start-sheet`; these differences remain theirs. The
+  draft snapshot and its chat provenance do reach the created goal.
+- **Departs:** 3.5, *The Chats page*: the document read stops at
+  `limits.client.domain.rows` notes, so a chat beyond those notes has no
+  "writes" line and is absent under Drafts. Goal chips cover only the newest
+  `rows` chats across the live and closed lists, with ties by the lower chat
+  number; a row past that window has no "started goal" line. The answer of
+  2026-11-05 to `ui-chat-draft/chats-drafts` keeps this one chips window,
+  without raising jig's bound.
 - **Design departs:** 3.5, 5.3, 5.8, 5.13, from the greenfield target:
   the switcher keeps its inline new-project form; a chat keeps its status,
   Stop and Close, and offers Change model only with supplied choices;
@@ -85,23 +99,18 @@
   at a character boundary to fit 512 bytes (`forge/decided.rs`, `overturn_words`),
   where the section has it whole, because the smallest deployed composer admits
   that (5.4).
-- **Departs:** 3.5, *Goals*, 5.14: no page opens Start goal's sheet, so no page
-  starts a goal; a chat's agent's `goal` call still does. Goals' "Start one from
+- **Departs:** 3.5, *Goals*, 5.14: Goals' "Start one from
   a draft" is a link to `Chats { filter: All }`, `/chats`
   (`temper-client-view`'s `pages/goals.rs`), where those sections have it open
-  the sheet with its Draft field, and nothing the view draws sends
-  `Act::OpenStart`: the sheet, including its "When it needs you" choice, shows
-  in the gallery and the tests alone, so no page starts a goal that always
-  asks, where the rulings of 2026-11-05 on the request `ui-away` have this sheet
-  do it: only words holding the line `Asks: always` make one.
+  the sheet with its Draft field. A chat's "Start goal…" opens the shared
+  sheet with its document's snapshot.
   `temper-client-domain`'s `pages/start_goal.rs`, `open`, ignores one without
   both a draft and a chat, so "Start a goal" and the Draft field are drawn by
   nothing. The rulings of 2026-11-05 on that request (the answers to its tasks
   `start-domain`, `start-sheet` and `goal-browser`) keep no typed draft path: the
   link goes to Chats' Drafts filter and the sheet opens from a chat, which
-  `ui-chat-draft` adds. That filter is not built (`ChatsFilter` holds All, Live
-  and Closed), so the link is neither the request's, which opens the sheet until
-  the filter has landed, nor the rulings'.
+  `ui-chat-draft` adds. The entry still goes to All, where the rulings name
+  Drafts.
 - **Design departs:** 5.8, from the request `ui-goal-page` of 2026-11-05, decided
   by its plan's cut and its proof. A goal's bar is `figure.bar` in the browser
   and `Role::Image` in the terminal, where the request has `div.bar` and
@@ -127,14 +136,6 @@
   setting changed, that person reads them again only as the project opens or
   the link comes back. A project-scoped settings inventory needs a contract in
   jig before the tab can use it.
-  5.13: `pages/chats.rs`'s `drafts_offered` reads kind 7, but only its tests call
-  it, no view drawing a chat's draft offer (section 11, *The draft beside a
-  chat*), so "Chats can write drafts" changes nothing a person sees.
-  5.13, 5.14: a goal's start chooses the first tracked template in number order
-  (`temper-client-domain`'s `pages/start_goal.rs`, `default_way`), not kind 7's
-  `way`, which the tab and a proposal's card alone read (`forge/ways.rs`,
-  `default_way`), so the default chosen on the tab does not reach the sheet or
-  its " PROJECT’s default.".
   5.13: Home draws neither "Turn on drafts and goals" nor "See the settings", so
   nothing opens the tab by them.
   5.3: the banner's "Changes", on a page that is no project's:

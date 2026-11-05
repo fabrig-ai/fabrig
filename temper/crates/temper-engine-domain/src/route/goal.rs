@@ -9,10 +9,8 @@ use temper_engine_domain_forge as forge;
 const ADVISOR_SCOPE: &[u8] =
     b"You are an advisor: you read what your brief asks and report what you found; you change nothing and ask no one.";
 
-const GOAL_SCOPE: &[u8] =
-    b"You are a goal: the work your person asked for, yours to plan and to change; you start no goal but an advisor.";
-const GOAL_AGREED: &[u8] =
-    b"The work is to be agreed: before anything is changed, ask your requester your plan with message, as a question, and wait for the answer.";
+use temper_client_protocol_wire::{GOAL_AGREED, GOAL_SCOPE};
+
 const PERSON_WORDS: &[u8] = b"Your person's words, whole:";
 const ASK_PLAN: &[u8] =
     b"this work is to be agreed: ask your requester your plan with message, as a question, and wait";

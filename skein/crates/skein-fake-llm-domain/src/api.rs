@@ -314,7 +314,9 @@ pub enum Error {
 /// Contract: docs/design/fake-llm.md, section 2.4.
 #[derive(Clone, PartialEq, Eq, Hash, Debug)]
 pub struct Scripts {
-    /// System-cued scripts; turns count every assistant message unless ruled by input.
+    /// Scripts cued by system text first, then by the latest request.
+    /// Turns count all assistant messages for a system cue, or those after
+    /// the request for a request cue, unless ruled by input.
     pub cued: Box<[Script]>,
     /// Request-cued scripts; turns count assistant messages after the last
     /// user message holding text, so each new request starts again, unless ruled by input.
@@ -330,7 +332,7 @@ pub struct Scripts {
 /// Contract: docs/design/fake-llm.md, section 2.4.
 #[derive(Clone, PartialEq, Eq, Hash, Debug)]
 pub struct Rules {
-    /// Rules for system-cued scripts, in script order.
+    /// Rules for `Scripts.cued`, in script order.
     pub cued: Box<[Box<[Rule]>]>,
     /// Rules for request-cued scripts, in script order.
     pub asked: Box<[Box<[Rule]>]>,

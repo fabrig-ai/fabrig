@@ -126,14 +126,22 @@ fn the_largest_smith_call_name_fits_the_documentation_allowance() {
 }
 #[test]
 fn a_decided_answer_is_rendered_as_smiths_text() {
-    let event = crate::tools::render(TO, &root::CallAnswer::NoteWritten { name: 4, revision: 2 }, b"note", 1024);
+    let event = crate::tools::render(
+        TO,
+        &root::CallAnswer::NoteWritten { name: 4, revision: 2, lines: 3, added: 2, removed: 1, first: 2 },
+        b"note",
+        1024,
+    );
     let root::Event::Worker(root::WorkerInput::RenderedHostCall { to, answer }) = event else {
         panic!("rendered answer")
     };
     assert_eq!(to, TO);
     assert_eq!(
         answer,
-        core::SettledAnswer::Host { error: false, body: b"Note 4 revision 2 written".as_slice().into() }
+        core::SettledAnswer::Host {
+            error: false,
+            body: "Note 4 revision 2 written · +2 −1 · line 2".as_bytes().into()
+        }
     );
 }
 #[test]

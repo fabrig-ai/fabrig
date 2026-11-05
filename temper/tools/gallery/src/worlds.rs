@@ -233,6 +233,30 @@ fn configure_frame(me: &mut c::Me) {
 pub(super) fn world(w: World, address: Address, then: Then) -> (Domain, Option<Token>) {
     world_in_layout(w, address, then, false, None, None, false)
 }
+pub(super) fn drafts_world() -> Domain {
+    world_in_layout(
+        Reference,
+        Address::Chats { filter: temper_client_domain::ChatsFilter::Drafts },
+        Then::Shown,
+        false,
+        Some("chats-drafts"),
+        None,
+        false,
+    )
+    .0
+}
+pub(super) fn linked_chat_world(w: World, address: Address) -> Domain {
+    world_in_layout(
+        w,
+        address,
+        Then::Mode(temper_client_domain::pages::chat::document::Mode::Chat),
+        false,
+        Some("chat-goal-linked"),
+        None,
+        false,
+    )
+    .0
+}
 pub(super) fn configuring_world(w: World, address: Address, then: Then) -> (Domain, Option<Token>) {
     world_in_layout(w, address, then, true, None, None, false)
 }
@@ -273,6 +297,11 @@ fn world_in_layout(
                     let document = match subject {
                         c::Subject::Me => {
                             let mut me = frame(w, connecting, configuring);
+                            if matches!(then, Then::Mode(_) | Then::DraftEmpty) {
+                                let templates = me.projects.get(0).expect("draft project").templates.clone();
+                                configure_frame(&mut me);
+                                me.projects.get_mut(0).expect("draft project").templates = templates;
+                            }
                             if settings_chat.is_some() {
                                 settings_chat_frame(&mut me);
                             }
@@ -335,6 +364,21 @@ fn world_in_layout(
                             held: List::with_capacity(0),
                             pending: List::with_capacity(0),
                         }))),
+                        c::Subject::Chips { tasks } if matches!(goals, Some("chat-goal-linked" | "chats-drafts")) => {
+                            let mut chips = List::with_capacity(tasks.len());
+                            for number in &tasks {
+                                let mut chip = document(w, 1).chip;
+                                chip.task = *number;
+                                chip.phase = c::Phase::Running;
+                                chip.title = doc("Away mode");
+                                let (phase, details) = owner(&mut chip);
+                                *phase = c::ChipPhase::Active(c::RunStage::Running { attempt: 1 });
+                                details.ending = None;
+                                details.ended_at = None;
+                                chips.push(chip).expect("linked goal chip");
+                            }
+                            Some(c::Delivery::Chips(chips))
+                        }
                         c::Subject::Chips { .. } | c::Subject::Run { .. } => None,
                     };
                     if let Some(document) = document {
@@ -367,8 +411,10 @@ fn world_in_layout(
                             }
                         }
                         v1::Read::Setting(setting) => {
-                            if setting.kind() == 7 && goals.is_some() {
-                                project_ways(&mut root, read, true, false, false, &mut out);
+                            let drafts =
+                                matches!(then, Then::Mode(_) | Then::DraftEmpty) || goals == Some("chats-drafts");
+                            if setting.kind() == 7 && (goals.is_some() || drafts) {
+                                project_ways(&mut root, read, drafts, goals.is_some(), false, false, &mut out);
                                 continue;
                             }
                             let bytes = settings.map(|name| settings_bytes(name, setting.kind()));
@@ -413,6 +459,44 @@ fn world_in_layout(
                             } else {
                                 forges_watched(&mut root, w, watch, &mut out);
                             }
+                            continue;
+                        }
+                        w::Watch::Dismissed if matches!(goals, Some("chat-goal-linked" | "chats-drafts")) => {
+                            let mut dismissed = List::with_capacity(1);
+                            dismissed
+                                .push(w::PersonFact::GoalFrom(
+                                    w::GoalFrom::new(
+                                        &w::CEILINGS,
+                                        w::GoalFromParts {
+                                            project: PROJECT,
+                                            chat: 1,
+                                            goal: 2,
+                                            at: offset(w, -1).as_nanos(),
+                                        },
+                                    )
+                                    .expect("goal start"),
+                                ))
+                                .expect("one start");
+                            let bytes = wire::dismissals(
+                                &w::Dismissals::new(&w::CEILINGS, w::DismissalsParts { dismissed })
+                                    .expect("person facts"),
+                            );
+                            step(
+                                &mut root,
+                                Event::Client {
+                                    event: jig_client::Event::Up {
+                                        up: jig_client::Up::FamilyDelivered {
+                                            watch,
+                                            record: jig_client::Family {
+                                                family: wire::FORGE,
+                                                version: wire::CLIENT_VERSION,
+                                                bytes,
+                                            },
+                                        },
+                                    },
+                                },
+                                &mut out,
+                            );
                             continue;
                         }
                         w::Watch::Away => {
@@ -1155,7 +1239,33 @@ fn read_value(w: World, what: &c::Read, then: Then, goals: Option<&str>) -> Opti
         c::Read::Tasks { query, .. } if query.tracked == Some(true) => {
             Some(c::ReadValue::Tasks(Box::new(goal_page(w, goals))))
         }
-        c::Read::Notes { scope, .. } => Some(c::ReadValue::Notes(Box::new(goal_notes(w, scope)))),
+        c::Read::Notes { scope, .. } => Some(c::ReadValue::Notes(Box::new(
+            if goals == Some("chats-drafts") && *scope == (c::NoteScope::Tasks { project: PROJECT }) {
+                let mut rows = List::with_capacity(2);
+                for (task, title) in [(1, "Away mode"), (3, "Report format")] {
+                    rows.push(c::Note {
+                        number: 1,
+                        revision: c::Revision { value: 1 },
+                        scope: c::NoteScope::Task { project: PROJECT, task },
+                        description: doc(title),
+                        body: c::DocumentText { bytes: text(""), cut: true },
+                        writer: c::NoteAuthor::Task { task, attempt: 1 },
+                        tasks: List::with_capacity(0),
+                        changed: None,
+                        acts: List::with_capacity(0),
+                        cut: false,
+                    })
+                    .expect("chat document");
+                }
+                c::NotePage { rows, before: None, after: None, cut: false }
+            } else if matches!(then, Then::Mode(_)) && *scope == (c::NoteScope::Task { project: PROJECT, task: 10 }) {
+                configuring_note(scope)
+            } else if matches!(then, Then::Mode(_)) && *scope == (c::NoteScope::Task { project: PROJECT, task: 1 }) {
+                chat_note(scope)
+            } else {
+                goal_notes(w, scope)
+            },
+        ))),
         c::Read::Inbox { group, project, goal, .. } => {
             Some(c::ReadValue::Inbox(Box::new(goal_inbox(w, *group, *project, *goal, goals))))
         }
@@ -1182,9 +1292,17 @@ fn read_value(w: World, what: &c::Read, then: Then, goals: Option<&str>) -> Opti
             ended: c::EndedGroup::Rows { rows: ended_rows(w), after: None, cut: false },
         }))),
         c::Read::Task { task: number } => Some(c::ReadValue::Task(Box::new(shown_task(w, *number, then)))),
-        c::Read::Activity { task: number, before } => {
-            Some(c::ReadValue::Activity(Box::new(activity_window(w, *number, before.as_ref()))))
-        }
+        c::Read::Activity { task: number, before } => Some(c::ReadValue::Activity(Box::new(
+            if matches!(then, Then::Mode(_) | Then::DraftEmpty) && *number == 10 {
+                configuring_activity()
+            } else if then == Then::DraftEmpty && *number == 1 {
+                c::ActivityPage { rows: List::with_capacity(0), before: None, after: None, cut: false }
+            } else if matches!(then, Then::Mode(_)) && *number == 1 {
+                chat_activity()
+            } else {
+                activity_window(w, *number, before.as_ref())
+            },
+        ))),
         c::Read::Proposal { .. } => {
             let mut value = proposal();
             if then == Then::HeldTask
@@ -1551,6 +1669,48 @@ fn goal_page(w: World, name: Option<&str>) -> c::TaskPage {
         },
     }
 }
+fn configuring_activity() -> c::ActivityPage {
+    let mut blocks = List::with_capacity(3);
+    blocks.push(c::Block::Text(text("Drafts first, then goals that land as one. I’ve written how Hello would run that, beside us; it grows as we talk."))).expect("reply");
+    blocks
+        .push(c::Block::Call(c::Call {
+            number: 1,
+            tool: text("note"),
+            input: text(""),
+            outcome: Some(text("Note 1 revision 2 written · +1 −1 · line 23")),
+            failed: false,
+            objects: List::with_capacity(0),
+            parts: List::with_capacity(0),
+        }))
+        .expect("write");
+    blocks.push(c::Block::Text(text("One question before I propose it: should a goal wait for you before it lands, or land once its checks pass?"))).expect("question");
+    let mut line = turn_line(&blocks, 1, None, false);
+    line.source.task = 10;
+    if let Some(decoded) = &mut line.decoded {
+        decoded.task = 10;
+    }
+    let mut rows = List::with_capacity(1);
+    rows.push(line).expect("configuring turn");
+    c::ActivityPage { rows, before: None, after: None, cut: false }
+}
+
+fn configuring_note(scope: &c::NoteScope) -> c::NotePage {
+    let mut rows = List::with_capacity(1);
+    rows.push(c::Note {
+        number: 1,
+        revision: c::Revision { value: 1 },
+        scope: scope.clone(),
+        description: doc("How Hello works"),
+        body: c::DocumentText::complete(c::Text::new(Box::from("# How Hello works\n\nDraft, 2026-11-05, with the user.\n\n## How work starts\n\nYou write a design draft in a chat, an agent beside you. When it reads complete, you start a goal from it; nothing is planned before.\n\n## How it lands\n\n- Agents plan the goal’s tasks and change the code on the goal’s own branch.\n- Each change is checked: CI, and a review by an agent.\n- The goal lands on main as one, through temper’s merge queue.\n\n## Held by temper, or by agents\n\n| Rule | Held by |\n| --- | --- |\n| A review by an agent before a change lands | temper |\n| Up to date with main before it lands | temper |\n| A design draft before any goal | your agents |\n\n## Still open\n\nWhether a goal waits for you before it lands, or lands once its checks pass.\n".as_bytes()), limits().client.domain.long_text).expect("document body")),
+        writer: c::NoteAuthor::Task { task: 10, attempt: 1 },
+        tasks: List::with_capacity(0),
+        changed: Some(now(Solo)),
+        acts: List::with_capacity(0),
+        cut: false,
+    }).expect("configuring document");
+    c::NotePage { rows, before: None, after: None, cut: false }
+}
+
 fn goal_notes(w: World, scope: &c::NoteScope) -> c::NotePage {
     let mut rows = List::with_capacity(1);
     for f in goal_facts(w) {
@@ -3160,6 +3320,8 @@ fn accounts(w: World, then: Then) -> c::Accounts {
             }),
             Then::Hosts { .. }
             | Then::Shown
+            | Then::DraftEmpty
+            | Then::Mode(_)
             | Then::Working
             | Then::DelegatedGoal
             | Then::HeldChange
@@ -3496,6 +3658,34 @@ fn activity_window(w: World, task: u64, before: Option<&c::Cursor>) -> c::Activi
 }
 fn shown_task(w: World, task: u64, then: Then) -> c::Task {
     let mut t = document(w, task);
+    if matches!(then, Then::Mode(_) | Then::DraftEmpty) && task == 1 {
+        t.chip.title = doc("Away mode, draft");
+        t.chip.phase = c::Phase::Idle;
+        let (phase, details) = owner(&mut t.chip);
+        *phase = c::ChipPhase::Active(c::RunStage::Idle);
+        details.ending = None;
+        details.ended_at = None;
+        t.result = None;
+        t.acts = offers(&[c::ActKind::Message, c::ActKind::Stop, c::ActKind::Cancel]);
+        t.waits_on = c::WaitsOn::Party { whom: c::Whom::Person(73), entries: 1, task: 1, kind: c::WaitedFor::Question };
+        t.activity = if then == Then::DraftEmpty { 0 } else { 2 };
+        t.spec = c::SpecificationDocument::complete(c::Specification {
+            asks: false,
+            words: text("Let’s draft away mode: a setting, limits I set, and decided for you with an overturn."),
+            parameters: List::with_capacity(0),
+            inputs: List::with_capacity(0),
+        });
+    }
+    if matches!(then, Then::Mode(_) | Then::DraftEmpty) && task == 10 {
+        t.chip.title = doc("Configure temper");
+        t.activity = 1;
+        t.spec = c::SpecificationDocument::complete(c::Specification {
+            asks: false,
+            words: text("I write a design draft first; agents plan its tasks and land them together once checked."),
+            parameters: List::with_capacity(0),
+            inputs: List::with_capacity(0),
+        });
+    }
     if then == Then::Working {
         let (phase, _) = owner(&mut t.chip);
         *phase = c::ChipPhase::Active(c::RunStage::Due);
@@ -3783,7 +3973,7 @@ pub(super) fn changes_world(name: &str) -> Domain {
                     wire::decode_reading(&record.bytes, &v::CEILINGS).expect("gallery setting read").read()
                 {
                     assert_eq!(setting.kind(), 7);
-                    project_ways(&mut root, read, false, name != "changes-landed-only", false, &mut out);
+                    project_ways(&mut root, read, false, false, name != "changes-landed-only", false, &mut out);
                 }
             }
             Down::Read { read, what: Readable::Jig(c::Read::Task { task }) } => {
@@ -3819,9 +4009,11 @@ pub(super) fn changes_world(name: &str) -> Domain {
     assert!(limits.client.domain.reads >= 7, "the sample's shown rows fit");
     root
 }
+#[expect(clippy::fn_params_excessive_bools, reason = "the gallery supplies each independent project visibility bit")]
 pub(super) fn project_ways(
     root: &mut Domain,
     read: Token,
+    drafts: bool,
     goals: bool,
     changes: bool,
     away: bool,
@@ -3829,7 +4021,7 @@ pub(super) fn project_ways(
 ) {
     use temper_client_protocol_wire::{self as wire, v1 as v};
     let ways =
-        v::ProjectWays::new(&v::CEILINGS, v::ProjectWaysParts { skein_bools: [false, goals, changes, away], way: 0 })
+        v::ProjectWays::new(&v::CEILINGS, v::ProjectWaysParts { skein_bools: [drafts, goals, changes, away], way: 0 })
             .expect("gallery project ways");
     let mut writer = skein_lib::Writer::new(usize::try_from(ways.measure()).expect("ways fit"));
     ways.encode(&mut writer).expect("measured ways");
@@ -4329,6 +4521,88 @@ pub(super) fn home_add_sheet(root: &mut Domain, copies: bool) {
         },
         &mut Queue::uncapped(),
     );
+}
+
+fn chat_note(scope: &c::NoteScope) -> c::NotePage {
+    let mut page = configuring_note(scope);
+    let note = page.rows.get_mut(0).expect("one document");
+    note.description = doc("Away mode");
+    note.revision = c::Revision { value: 2 };
+    note.writer = c::NoteAuthor::Task { task: 1, attempt: 1 };
+    note.body = c::DocumentText::complete(c::Text::new(Box::from("# Away mode
+
+Draft, 2026-11-03, with the user.
+
+## 1. In one page
+
+- A setting, per project or for all: away until a time, or until turned off.
+- While away, agents decide what they would ask, within the kinds the project allows (section 3).
+- Each decision shows as decided for you, with Overturn while it is cheap (section 4).
+- Coming back opens on what was decided (section 5).
+
+## 2. The setting
+
+The switch sits beside the person’s name, on the laptop and on the phone. On, it reads “Away until 08:00”; the time comes from the quiet hours, or one the person picks.
+
+## 3. What agents may decide
+
+- Implementation choices within a task’s spec.
+- Retries, and splitting a failing task.
+- A design document’s wording, not its decisions.
+- Adding a dependency: off unless turned on.
+- Always wait, fixed: budgets, sign-ins, machines, what is hard to reverse.
+
+## 4. Decided for you
+
+Each decision keeps the question, the choice taken and why. It shows in Needs you as decided, with Overturn while overturning is cheap: before its change lands. Overturning asks the question again.
+
+## 5. Coming back
+
+Home opens on what was decided, then what still needs you. Turning away off is the person’s; it never turns itself off.
+
+## Open questions
+
+1. How long can a decision be overturned after its change landed?
+".as_bytes()), limits().client.domain.long_text).expect("chat document"));
+    page
+}
+
+fn chat_activity() -> c::ActivityPage {
+    let mut rows = List::with_capacity(2);
+    for (number, reply, outcome) in [
+        (
+            1,
+            "Outline: in one page, the setting, what agents may decide, decided for you, coming back. Writing it now.",
+            "Note 1 revision 1 written · 64 lines",
+        ),
+        (
+            2,
+            "Done: section 3 is a list of kinds, with the fixed waits underneath. One question remains open in section 6.",
+            "Note 1 revision 2 written · +18 −6 · line 17",
+        ),
+    ] {
+        let mut blocks = List::with_capacity(2);
+        blocks.push(c::Block::Text(text(reply))).expect("reply");
+        blocks
+            .push(c::Block::Call(c::Call {
+                number,
+                tool: text("note"),
+                input: text(""),
+                outcome: Some(text(outcome)),
+                failed: false,
+                objects: List::with_capacity(0),
+                parts: List::with_capacity(0),
+            }))
+            .expect("write");
+        let mut line = turn_line(&blocks, u32::try_from(number).expect("two turns"), None, false);
+        line.source.task = 1;
+        line.source.position = number;
+        if let Some(decoded) = &mut line.decoded {
+            decoded.task = 1;
+        }
+        rows.push(line).expect("two turns");
+    }
+    c::ActivityPage { rows, before: None, after: None, cut: false }
 }
 
 /// Away's watch supplies the row, while the request's answer supplies its toast (client/browser.md, 7.2).

@@ -118,7 +118,7 @@ pub fn startup_agent() -> settings::Agent {
     agent.host_limits.accounts = hub.accounts;
     agent.host_limits.messages = hub.held.max(hub.inbox);
     agent.host_limits.call_bytes = 256;
-    agent.host_limits.message_bytes = 65_538;
+    agent.host_limits.message_bytes = hub.event_bytes.checked_add(temper_worker_domain::SEPARATOR).unwrap();
     agent.bounds.message_bytes = 512;
     agent
 }

@@ -132,6 +132,7 @@ fn bounded_storage_keeps_every_attribute_of_a_finite_complete_envelope() {
     domain.client.domain.rows = 0;
     domain.client.domain.fields = 0;
     domain.client.domain.text = 1;
+    domain.client.domain.long_text = 1;
     domain.first.rows = 0;
     domain.first.text = 1;
     let jig = crate::connector_values_words::english(1).unwrap();

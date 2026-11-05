@@ -44,6 +44,7 @@ pub fn limits() -> Limits {
                 kept: 4,
                 projects: 2,
                 text: 32,
+                long_text: 32,
                 turn_text: 32,
                 rows: 2,
                 fields: 4,
@@ -69,8 +70,9 @@ fn english(shell: crate::words::Shell) -> crate::words::Words {
 
 pub fn tree_limits() -> skein_ui::Limits {
     skein_ui::Limits {
-        // The largest goal plan and its frame, including Changes' link and text.
-        nodes: 194,
+        // The largest goal plan and its frame, including Changes' link and text,
+        // and five nodes for the rail menu wrapper, menu and three items.
+        nodes: 199,
         depth: 32,
         text_per_node: 512,
         text_bytes: 98304,
@@ -273,7 +275,7 @@ pub(super) fn root_at_with_playground(
         None,
     )
 }
-fn root_at_with_activity(
+pub(super) fn root_at_with_activity(
     address: temper_client_domain::Address,
     limits: &Limits,
     project_name: &[u8],
@@ -435,7 +437,7 @@ pub(super) fn root_at_with_values(
         temper_client_domain::Address::Forges
         | temper_client_domain::Address::ConnectForge { .. }
         | temper_client_domain::Address::Chats { .. }
-        | temper_client_domain::Address::NewChat
+        | temper_client_domain::Address::NewChat { .. }
         | temper_client_domain::Address::Accounts
         | temper_client_domain::Address::Inbox { .. }
         | temper_client_domain::Address::Home { .. }
@@ -565,7 +567,7 @@ pub(super) fn root_at_with_values(
         let mut dismissed = List::with_capacity(wire::DISMISSED);
         for project in projects {
             dismissed
-                .push(w::Dismissal::ToBegin(
+                .push(w::PersonFact::ToBegin(
                     w::ToBegin::new(&w::CEILINGS, w::ToBeginParts { project: *project }).unwrap(),
                 ))
                 .unwrap();

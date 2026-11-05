@@ -929,19 +929,19 @@ then writes; then keeping up; then the slow pass. temper's values:
 `forge.client.reserve` of each window kept for keeping up and the slow
 pass.
 
-### 5.5 A person's dismissals
+### 5.5 A person's facts
 
-What a person has dismissed, kept by the engine so that it holds on
-every device and across restarts: `ToBegin { project }`, the one kind
-for now, "Skip" on that project's "To begin"
-(`../draft/to-begin.md`, section 5). It owes nothing to the forge: the
-connector keeps it because `Stored` holds every family of temper's, as
-it does `Binding` (`../protocol/store.md`, section 2).
+What is true of a person, kept by the engine so that it holds on every
+device and across restarts, each a `PersonFact`: `ToBegin { project }`, "Skip"
+on that project's "To begin" (`../draft/to-begin.md`, section 5); and `GoalFrom
+{ project, chat, goal, at }`, that the person started goal `goal` from chat `chat`'s
+document, at the client's clock's `at` (`../client/README.md`, 3.5). It owes nothing to the forge: the
+connector keeps it because `Stored` holds every family of temper's, as it does
+`Binding` (`../protocol/store.md`, section 2).
 
-- **Its rows** are held in memory, each its party and what it dismissed,
-  restored whole at the restart step, at most `bindings` times
-  `judge_projects`; a row past that is refused at restart, as each
-  family's is.
+- **Its rows** are held in memory, each its party and its fact, restored whole
+  at the restart step, at most 8 times `bindings` times `judge_projects`; a row
+  past that is refused at restart, as each family's is.
 - **`Dismiss { what }`** (`../client/README.md`, 4.6) is admitted by the
   core, the root naming `what`'s project as its scope: a party with a
   role there, in a project not being deleted: a service with a role
@@ -949,7 +949,8 @@ it does `Binding` (`../protocol/store.md`, section 2).
   ask names the party, and the root hands the connector the request
   with it. In the decision:
   - a row held already: answered dismissed, nothing written;
-  - the bound reached: answered too large, nothing written;
+  - the bound reached, all rows' or the party's own (`DISMISSED`, the document's):
+    answered too large, nothing written;
   - otherwise the row saved, the subject `dismissed` marked, answered
     dismissed, the answer held behind the commit.
 
@@ -960,7 +961,7 @@ it does `Binding` (`../protocol/store.md`, section 2).
   are, of the party's own scope. The core's ask for a document names the
   watcher's party, and the connector answers that party's rows in key
   order: each watcher's own. A mark makes every watcher's document
-  again, so a dismissal costs each signed-in client one small document;
+  again, so a fact costs each signed-in client one small document;
   a subject per party would make the root read the sign-in on every
   watch.
 - **Erased with its project:** the release of a project being deleted
@@ -2425,8 +2426,8 @@ section 9): the foreman and the requester decide, and the change relays
   question N goes no further: LINE`, at the step that takes or holds
   the answer to one that had. LINE is the question's first line, as its
   record keeps it. These words share the step's `tasks.batch`, and a
-  question with no room for them stays on the record until a step has
-  (below).
+  question with no room for them stays on the record, its foreman
+  running on, until a step has (below).
 - **On its record and its panel.** Its open questions, in the order
   taken, each with its asker and number, its words whole and their
   first line, and where it stands (taken; with foreman task F; asked of the
@@ -3261,3 +3262,8 @@ whole.
   `goal` tool's refusal is, where a decided call's answer is kept
   (`root.md`, 5.2). So a call asked again decides again, from the change as
   it then stands. Default: so.
+- **A passed-up question whose asker ends** (8.11): its requester hears of the
+  end when it answers, not before, since saying so once at the end would need a
+  stored mark beside where the question stands. One that never answers hears
+  nothing of it, and the question stays until the change ends. Default: so; it
+  did reach someone.

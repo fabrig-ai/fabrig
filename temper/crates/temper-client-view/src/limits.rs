@@ -39,10 +39,10 @@ impl Limits {
         // A decoded turn shares text across texts, names, inputs, outcomes and
         // summaries (jig-protocol-transcript's Budget; client/README.md, 5.4).
         // Splitting that text among rows squared blocks adds two markdown nodes
-        // per block; five structural nodes cover a call's slot and two paragraphs.
+        // per block; eight structural nodes cover a note tool line and its button.
         let blocks = receiving.rows.checked_mul(receiving.rows)?;
         let turn = skein_ui::markdown::max_nodes(receiving.turn_text)?
-            .checked_add(blocks.checked_mul(2_u32.checked_add(5)?)?)?
+            .checked_add(blocks.checked_mul(2_u32.checked_add(8)?)?)?
             // Per message: message/who/says slots, Temper paragraph and text,
             // a call disclosure, and spare cut room (client/README.md, 3.5).
             .checked_add(receiving.rows.checked_mul(8)?)?
@@ -125,6 +125,11 @@ impl Limits {
         // one item, link, status and added mark (client/README.md, 5.8),
         // seven nodes with text per dependency.
         let agent = markdown.checked_add(33)?.checked_add(receiving.rows.checked_mul(7)?)?;
+        // A full document's Markdown, two slots per heading (at most one
+        // per three bytes), intro wrapper, path, group and attribution.
+        let document = skein_ui::markdown::max_nodes(receiving.long_text)?
+            .checked_add(receiving.long_text.checked_div(3)?.checked_mul(2)?)?
+            .checked_add(24)?;
         let nodes = cards
             .checked_add(turns)?
             .checked_add(delegated)?
@@ -159,6 +164,8 @@ impl Limits {
             // Start a chat heading and its text outside the playground start (2), and
             // a failed playground start's alert, its text leaf and Try again (3).
             .checked_add(5)?
+            // The rail menu wrapper, menu and three items.
+            .checked_add(5)?
             // Start goal's asking group: heading, two choices and their small text leaves.
             .checked_add(11)?
             // The adoption form's region, named by the page's heading.
@@ -172,12 +179,17 @@ impl Limits {
             // The toast holds a refusal, its Look again sentence and button (six nodes),
             // or a proposal's lead and at most rows role recipients (two nodes each).
             .checked_add(receiving.rows.checked_mul(2)?.checked_add(3)?.max(6))?;
+        let text_bytes = nodes
+            .checked_mul(text)?
+            .checked_add(skein_ui::markdown::max_text_bytes(receiving.long_text)?)?
+            .checked_add(text.checked_mul(24)?)?;
+        let nodes = nodes.checked_add(document)?;
         let tree = skein_ui::Limits {
             nodes,
             depth: receiving.rows.checked_add(34)?,
-            text_per_node: text.max(builder_name),
-            // Whole builder names are held once per document row; the other nodes retain their price.
-            text_bytes: nodes.checked_mul(text)?.checked_add(receiving.rows.checked_mul(builder_name)?)?,
+            text_per_node: text.max(receiving.long_text.checked_mul(2)?).max(builder_name),
+            // Whole builder names are held once per document row.
+            text_bytes: text_bytes.checked_add(receiving.rows.checked_mul(builder_name)?)?,
             drawing_bytes: 0,
             scene_marks: 0,
             scene_bytes: 0,

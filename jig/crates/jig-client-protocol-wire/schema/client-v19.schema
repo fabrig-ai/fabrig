@@ -235,7 +235,7 @@ record ParameterNumber { name: u32 value: u64 }
 record ParameterBytes { name: u32 value: text 65536 }
 record ParameterResource { name: u32 connector: u16 resource: u64 }
 enum Parameter { number: ParameterNumber, bytes: ParameterBytes, resource: ParameterResource }
-record Specification { words: text 65536 parameters: list 32 Parameter inputs: list 32 u64 asks: bool }
+record Specification { words: text 131072 parameters: list 32 Parameter inputs: list 32 u64 asks: bool }
 record ModelEffort { model: text 4096 effort: option text 32 }
 record LlmChoice { account: option u32 main: ModelEffort subagents: list 64 ModelEffort }
 record PatternEndExact { value: bytes 65536 }
@@ -262,7 +262,8 @@ enum SeenThrough { results: SeenResults, conversation: SeenConversation }
 record NoteScopeProject { value: u32 }
 record NoteScopeResource { project: u32 connector: u16 pattern: Pattern }
 record NoteScopeTask { project: u32 task: u64 }
-enum NoteScope { deployment, project: NoteScopeProject, resource: NoteScopeResource, task: NoteScopeTask }
+record NoteScopeTasks { project: u32 }
+enum NoteScope { deployment, project: NoteScopeProject, resource: NoteScopeResource, task: NoteScopeTask, tasks: NoteScopeTasks }
 record PolicyEditRole { number: u32 authority: Authority period_spend: u64 requests: u16 decides: u8 }
 record PolicyJudge { connector: u16 requirement: u16 parameters: u32 }
 record PolicyGuardObserved { freshness: duration }

@@ -155,6 +155,7 @@ struct Seen {
 }
 
 mod away;
+mod chat_document;
 mod copy;
 mod goal;
 mod here_key;

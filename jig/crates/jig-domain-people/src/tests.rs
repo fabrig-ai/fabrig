@@ -29,6 +29,7 @@ pub(crate) const LIMITS: Limits = Limits {
     act_grants: 2,
     identity_bytes: 16,
     words: 8,
+    spec_bytes: 8,
     amendment_bytes: 256,
     sign_in_lifetime: Duration::from_secs(60),
     request_retention: Duration::from_secs(120),
@@ -867,7 +868,8 @@ fn expired_completed_key_is_erased_in_sweep_and_frees_its_slot() {
 
 #[test]
 fn every_admission_point_refuses_without_partial_state() {
-    let mut test = Test::new(Limits { people: 1, sign_ins: 1, projects: 1, holdings: 1, words: 1, ..LIMITS });
+    let mut test =
+        Test::new(Limits { people: 1, sign_ins: 1, projects: 1, holdings: 1, words: 1, spec_bytes: 1, ..LIMITS });
     test.member();
     assert_eq!(
         reply(&test.signin(2, 11, identity(0, 2))),

@@ -54,15 +54,15 @@ pub const PERIOD_SPAN: Duration = Duration::from_secs(7 * 24 * 60 * 60);
 
 /// Delegate (`change` and `delegate`), Message (delegates' questions and answers)
 /// Control (a goal's `change` names its plan's members; temper/docs/design/domain/agent.md, 4.3.1),
-/// Note (a goal writes its report; temper/docs/design/domain/agent.md, 8.3),
+/// Note and Recall (a chat keeps its document, a goal writes its report; temper/docs/design/domain/agent.md, 8.3),
 /// Read (the forge's reads), and Settings (the configuring chat reads settings and
 /// proposes), jig's families (jig's `domain/authority.md`);
 /// protocol/configuration.md, 13.4.
-const CHAT_TOOLS: authority::Tools = authority::Tools(1 | 2 | 4 | 128 | 512 | 1024);
+const CHAT_TOOLS: authority::Tools = authority::Tools(1 | 2 | 4 | 128 | 256 | 512 | 1024);
 
 const CHAT_CHARTER_TOOLS: jig_domain_tasks::Tools = jig_domain_tasks::Tools(1023);
 const CODING_TOOLS: jig_domain_tasks::Tools = jig_domain_tasks::Tools(514);
-const CONFIGURING_TOOLS: jig_domain_tasks::Tools = jig_domain_tasks::Tools(1536);
+const CONFIGURING_TOOLS: jig_domain_tasks::Tools = jig_domain_tasks::Tools(1920);
 const REVIEWING_TOOLS: jig_domain_tasks::Tools = jig_domain_tasks::Tools(512);
 const FOREMAN_TOOLS: jig_domain_tasks::Tools = jig_domain_tasks::Tools(512);
 const STATUS_TOOLS: jig_domain_tasks::Tools = jig_domain_tasks::Tools(0);

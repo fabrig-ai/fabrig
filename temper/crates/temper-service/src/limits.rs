@@ -392,12 +392,22 @@ const STANDARD_BRIEF: engine::BriefLimits = engine::BriefLimits {
         reviews: 131_584,
         ..ROOT.brief.budgets
     },
-    // tests/stock_brief.rs derives charter 1's room (359,800) less 1,472
+    // tests/stock_brief.rs derives charter 1's room (359,161) less 1,472
     // bytes for 64 titles and framing and 361 margin; below 395,520.
-    brief_bytes: 357_967,
+    brief_bytes: 357_328,
     ..ROOT.brief
 };
 const STANDARD_ROOT: Root = Root {
+    loads: engine::loads::Limits {
+        // A whole note: body 65,536 + description 256 + pattern bytes 256,
+        // 256 pattern segment slots * 16 and 8 references * 8 = 70,208.
+        transcript_bytes: 70_208,
+        // The row's owned bytes plus its 248-byte record slot.
+        bytes: 70_456,
+        reply_bytes: 70_456,
+        read_bytes: 131_072,
+        ..ROOT.loads
+    },
     brief: STANDARD_BRIEF,
     journal: engine::JournalLimits {
         // Deep task row at jig standard's bounds, including its inbox (engine::row_bound).
@@ -405,7 +415,6 @@ const STANDARD_ROOT: Root = Root {
         result_bytes: STANDARD_BRIEF.brief_bytes,
         ..ROOT.journal
     },
-    ..ROOT
 };
 const CLIENTS: Clients = Clients {
     // Files of a bundle, the page among them: far above the shell's dev bundle (decision 6 of browser-1).

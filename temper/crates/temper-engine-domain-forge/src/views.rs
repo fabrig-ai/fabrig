@@ -1,5 +1,5 @@
 //! Forge documents from retained facts (domain/landing.md, 14; domain/forge.md, 5.5).
-use crate::{Check, DISMISSED_SUBJECT, Dismissal, Domain, Panel, ReceiptKey, ReceiptRun};
+use crate::{Check, DISMISSED_SUBJECT, Domain, Panel, PersonFact, ReceiptKey, ReceiptRun};
 use alloc::boxed::Box;
 use core::mem::size_of_val;
 use jig_domain_people::ApplicationScope;
@@ -35,7 +35,7 @@ pub enum Document {
     Status(crate::StatusView),
     Aways(crate::AwaysView),
     Decisions(crate::DecisionsView),
-    Dismissals(Box<[Dismissal]>),
+    Dismissals(Box<[PersonFact]>),
 }
 /// One landing, its members, gate proofs and the project's turn holder.
 #[derive(Clone, PartialEq, Eq, Debug)]
